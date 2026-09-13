@@ -47,7 +47,6 @@ def _invalid_input(text: str) -> IrisInvalidInputError:
     """
     return IrisInvalidInputError(text, user_message=text)
 
-
 def _ad_hoc_samples(messages: List[Mapping[str, Any]]) -> List[ReplaySample]:
     """Valida los mensajes pegados por el administrador y los prepara.
 
@@ -78,54 +77,53 @@ def _ad_hoc_samples(messages: List[Mapping[str, Any]]) -> List[ReplaySample]:
         samples.append(ReplaySample(f"mensaje-{index}", raw, message.get("label")))
     return samples
 
+def _build_policy(spec: Optional[Mapping[str, Any]]) -> ScoringPolicy:
+    """Construye una política a partir de su descripción en la petición.
+
+    Args:
+        spec: ``None`` o vacío para la vigente. Si trae ``snapshot``, se
+            reconstruye esa política guardada (p. ej. el snapshot de un
+            análisis antiguo, para comparar contra la versión con que se
+            decidió). Si no, se parte de la vigente y se aplican, en este
+            orden, ``profile``, ``legitimateThreshold``,
+            ``suspiciousThreshold`` y ``weightOverrides`` (que se **suman**
+            a los pesos vigentes, no los sustituyen).
+
+    Returns:
+        ScoringPolicy: La política descrita.
+
+    Raises:
+        IrisInvalidInputError: Si el snapshot está incompleto o si el
+            umbral de ``Suspicious`` queda por encima del de ``Legitimate``.
+    """
+    if not spec:
+        return current_policy()
+
+    if spec.get("snapshot"):
+        try:
+            policy = ScoringPolicy.from_snapshot(spec["snapshot"])
+        except (KeyError, TypeError, ValueError) as e:
+            raise _invalid_input(f"El snapshot de puntuación está incompleto: {e}") from e
+    else:
+        policy = current_policy()
+        if spec.get("profile"):
+            policy = policy.with_profile(spec["profile"])
+        if spec.get("legitimateThreshold") is not None:
+            policy = replace(policy, legitimate_threshold=float(spec["legitimateThreshold"]))
+        if spec.get("suspiciousThreshold") is not None:
+            policy = replace(policy, suspicious_threshold=float(spec["suspiciousThreshold"]))
+        if spec.get("weightOverrides"):
+            policy = policy.with_weight_overrides({**policy.weight_overrides, **spec["weightOverrides"]})
+
+    if policy.suspicious_threshold > policy.legitimate_threshold:
+        raise _invalid_input(
+            "El umbral de Sospechoso no puede quedar por encima del de Legítimo."
+        )
+    return policy
+
 
 class IrisReplayManager:
     """Compara la política vigente (o una dada) con una candidata."""
-
-    @staticmethod
-    def build_policy(spec: Optional[Mapping[str, Any]]) -> ScoringPolicy:
-        """Construye una política a partir de su descripción en la petición.
-
-        Args:
-            spec: ``None`` o vacío para la vigente. Si trae ``snapshot``, se
-                reconstruye esa política guardada (p. ej. el snapshot de un
-                análisis antiguo, para comparar contra la versión con que se
-                decidió). Si no, se parte de la vigente y se aplican, en este
-                orden, ``profile``, ``legitimateThreshold``,
-                ``suspiciousThreshold`` y ``weightOverrides`` (que se **suman**
-                a los pesos vigentes, no los sustituyen).
-
-        Returns:
-            ScoringPolicy: La política descrita.
-
-        Raises:
-            IrisInvalidInputError: Si el snapshot está incompleto o si el
-                umbral de ``Suspicious`` queda por encima del de ``Legitimate``.
-        """
-        if not spec:
-            return current_policy()
-
-        if spec.get("snapshot"):
-            try:
-                policy = ScoringPolicy.from_snapshot(spec["snapshot"])
-            except (KeyError, TypeError, ValueError) as e:
-                raise _invalid_input(f"El snapshot de puntuación está incompleto: {e}") from e
-        else:
-            policy = current_policy()
-            if spec.get("profile"):
-                policy = policy.with_profile(spec["profile"])
-            if spec.get("legitimateThreshold") is not None:
-                policy = replace(policy, legitimate_threshold=float(spec["legitimateThreshold"]))
-            if spec.get("suspiciousThreshold") is not None:
-                policy = replace(policy, suspicious_threshold=float(spec["suspiciousThreshold"]))
-            if spec.get("weightOverrides"):
-                policy = policy.with_weight_overrides({**policy.weight_overrides, **spec["weightOverrides"]})
-
-        if policy.suspicious_threshold > policy.legitimate_threshold:
-            raise _invalid_input(
-                "El umbral de Sospechoso no puede quedar por encima del de Legítimo."
-            )
-        return policy
 
     def run(self, candidate_spec: Mapping[str, Any], baseline_spec: Optional[Mapping[str, Any]] = None,
             messages: Optional[List[Mapping[str, Any]]] = None, include_corpus: bool = True) -> Dict[str, Any]:
@@ -133,7 +131,7 @@ class IrisReplayManager:
 
         Args:
             candidate_spec: Descripción de la política candidata (ver
-                ``build_policy``).
+                ``_build_policy``).
             baseline_spec: Descripción de la referencia. Por defecto
                 ``None``: la política vigente.
             messages: Mensajes sueltos a comparar además del corpus. Por
@@ -162,8 +160,8 @@ class IrisReplayManager:
         family_of = {rule_def["name"]: rule_def.get("family") or "" for rule_def in rules_defs}
         detector = detector_version(rules_defs)
         policies = {
-            "baseline": self.build_policy(baseline_spec),
-            "candidate": self.build_policy(candidate_spec),
+            "baseline": _build_policy(baseline_spec),
+            "candidate": _build_policy(candidate_spec),
         }
 
         report = replay(samples, policies, IrisManager.evaluate_raw, family_of, detector)
