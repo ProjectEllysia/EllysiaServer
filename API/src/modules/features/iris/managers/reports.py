@@ -30,6 +30,30 @@ from .analysis import IrisManager
 logger = logging.getLogger(__name__)
 
 
+def _generate_pdf_async(document_id: int, analysis_id: int) -> None:
+    """Genera el PDF del informe en el worker y sincroniza el estado del documento.
+
+    Delega en ``run_report_generation`` (helper compartido con Themis) que
+    gestiona el marcado ``done``/``error`` y el re-lanzamiento de la
+    excepción para que el job de RQ termine como FAILED si algo falla.
+    """
+    def _render() -> str:
+        report = IrisManager().get_analysis_results(analysis_id)
+        analysis = build_repository(IrisAnalysisRepository).get_by_id(analysis_id)
+        path = None
+        if analysis is not None:
+            context = parse_raw_message(analysis.raw_headers or "")
+            path = {"analysisId": analysis_id, **build_path(context.received_headers)}
+        return IrisPDFCreator(report=report, path=path,
+                                document_id=document_id).print_pdf()
+
+    run_report_generation(
+        document_id=document_id,
+        repo_cls=IrisReportRepository,
+        render=_render,
+    )
+
+
 class IrisReportManager(DocumentManager):
     """Manager for IrisDocument lifecycle and async PDF report generation.
 
@@ -100,27 +124,4 @@ class IrisReportManager(DocumentManager):
     def execute_report_generation(doc_id: int, analysis_id: int) -> None:
         """Entry point submitted to the TaskQueue for background PDF generation."""
         with job_context():
-            IrisReportManager()._generate_pdf_async(doc_id, analysis_id)
-
-    def _generate_pdf_async(self, document_id: int, analysis_id: int) -> None:
-        """Genera el PDF del informe en el worker y sincroniza el estado del documento.
-
-        Delega en ``run_report_generation`` (helper compartido con Themis) que
-        gestiona el marcado ``done``/``error`` y el re-lanzamiento de la
-        excepción para que el job de RQ termine como FAILED si algo falla.
-        """
-        def _render() -> str:
-            report = IrisManager().get_analysis_results(analysis_id)
-            analysis = build_repository(IrisAnalysisRepository).get_by_id(analysis_id)
-            path = None
-            if analysis is not None:
-                context = parse_raw_message(analysis.raw_headers or "")
-                path = {"analysisId": analysis_id, **build_path(context.received_headers)}
-            return IrisPDFCreator(report=report, path=path,
-                                  document_id=document_id).print_pdf()
-
-        run_report_generation(
-            document_id=document_id,
-            repo_cls=IrisReportRepository,
-            render=_render,
-        )
+            _generate_pdf_async(doc_id, analysis_id)
