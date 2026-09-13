@@ -888,6 +888,20 @@ class IrisSavedView(Base):
         UniqueConstraint("user_id", "name", name="uq_iris_saved_view_user_name"),
     )
 
+    def to_dict(self) -> Dict[str, Any]:
+        """Serializa la vista guardada con las claves de la API.
+
+        Returns:
+            dict: ``viewId``, ``name``, ``filters`` (con las mismas claves que
+                los parámetros de ``GET /iris/results``) y ``createdAt``.
+        """
+        return {
+            "viewId": self.id,
+            "name": self.name,
+            "filters": self.filters or {},
+            "createdAt": isoformat_utc(self.created_at),
+        }
+
 
 class IrisAnalysisTag(Base):
     """Etiqueta que un analista pone a un análisis para agruparlo.
