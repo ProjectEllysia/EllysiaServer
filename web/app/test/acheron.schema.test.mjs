@@ -22,8 +22,8 @@
  */
 
 import { STORABLE_SCHEMA } from '@projectellysia/acheron-core-web'
-import { STORABLE_LABELS } from '../src/acheron/storableLabels.js'
-import { STORABLE_TYPES } from '../src/acheron/storableTypes.js'
+import { STORABLE_LABELS } from '../src/components/acheron/storableLabels.js'
+import { STORABLE_TYPES } from '../src/components/acheron/storableTypes.js'
 
 let passed = 0
 let failed = 0

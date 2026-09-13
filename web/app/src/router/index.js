@@ -15,14 +15,14 @@ const routes = [
   {
     path: '/',
     name: 'Landing',
-    component: () => import('@/views/LandingView.vue'),
+    component: () => import('@/views/public/LandingView.vue'),
     // Pública: es la portada de ellysia.es. Si hay sesión, muestra los
     // accesos directos a las herramientas; si no, invita a entrar.
   },
   {
     path: '/login',
     name: 'Login',
-    component: () => import('@/views/LoginView.vue'),
+    component: () => import('@/views/public/LoginView.vue'),
     meta: { guest: true },
   },
   // Hubs de módulo: PÚBLICOS. Son la carta de presentación de cada herramienta
@@ -31,23 +31,23 @@ const routes = [
   {
     path: '/themis',
     name: 'ThemisHub',
-    component: () => import('@/views/ThemisHubView.vue'),
+    component: () => import('@/views/themis/ThemisHubView.vue'),
   },
   {
     path: '/themis/escaneos',
     name: 'Themis',
-    component: () => import('@/views/ThemisView.vue'),
+    component: () => import('@/views/themis/ThemisView.vue'),
     meta: { requiresAuth: true },
   },
   {
     path: '/aegis',
     name: 'AegisHub',
-    component: () => import('@/views/AegisHubView.vue'),
+    component: () => import('@/views/aegis/AegisHubView.vue'),
   },
   {
     path: '/aegis/generador',
     name: 'Aegis',
-    component: () => import('@/views/AegisView.vue'),
+    component: () => import('@/views/aegis/AegisView.vue'),
     meta: { requiresAuth: true },
   },
   {
@@ -55,7 +55,7 @@ const routes = [
     // se hace desde el generador; aquí solo se consulta.
     path: '/aegis/campanas',
     name: 'AegisCampaigns',
-    component: () => import('@/views/AegisCampaignsView.vue'),
+    component: () => import('@/views/aegis/AegisCampaignsView.vue'),
     meta: { requiresAuth: true },
   },
   {
@@ -67,63 +67,63 @@ const routes = [
     // de la API.
     path: '/quiz',
     name: 'Quiz',
-    component: () => import('@/views/QuizView.vue'),
+    component: () => import('@/views/aegis/QuizView.vue'),
   },
   {
     path: '/iris',
     name: 'IrisHub',
-    component: () => import('@/views/IrisHubView.vue'),
+    component: () => import('@/views/iris/IrisHubView.vue'),
   },
   {
     path: '/iris/analisis',
     name: 'Iris',
-    component: () => import('@/views/IrisView.vue'),
+    component: () => import('@/views/iris/IrisView.vue'),
     meta: { requiresAuth: true },
   },
   {
     path: '/iris/conexiones',
     name: 'IrisConnections',
-    component: () => import('@/views/IrisConnectionsView.vue'),
+    component: () => import('@/views/iris/IrisConnectionsView.vue'),
     meta: { requiresAuth: true },
   },
   {
     path: '/iris/confianza',
     name: 'IrisTrust',
-    component: () => import('@/views/IrisTrustView.vue'),
+    component: () => import('@/views/iris/IrisTrustView.vue'),
     meta: { requiresAuth: true },
   },
   {
     path: '/iris/casos',
     name: 'IrisCases',
-    component: () => import('@/views/IrisCasesView.vue'),
+    component: () => import('@/views/iris/IrisCasesView.vue'),
     meta: { requiresAuth: true },
   },
   {
     path: '/acheron',
     name: 'AcheronHub',
-    component: () => import('@/views/AcheronHubView.vue'),
+    component: () => import('@/views/acheron/AcheronHubView.vue'),
   },
   {
     path: '/acheron/boveda',
     name: 'Acheron',
-    component: () => import('@/views/AcheronView.vue'),
+    component: () => import('@/views/acheron/AcheronView.vue'),
     meta: { requiresAuth: true },
   },
   {
     path: '/hygeia',
     name: 'HygeiaHub',
-    component: () => import('@/views/HygeiaHubView.vue'),
+    component: () => import('@/views/hygeia/HygeiaHubView.vue'),
   },
   {
     path: '/hygeia/activos',
     name: 'Hygeia',
-    component: () => import('@/views/HygeiaView.vue'),
+    component: () => import('@/views/hygeia/HygeiaView.vue'),
     meta: { requiresAuth: true },
   },
   {
     path: '/hygeia/etiquetas',
     name: 'HygeiaTags',
-    component: () => import('@/views/HygeiaTagsView.vue'),
+    component: () => import('@/views/hygeia/HygeiaTagsView.vue'),
     meta: { requiresAuth: true },
   },
   // Capa comercial: planes, plan propio y organización.
@@ -131,24 +131,24 @@ const routes = [
     // Pública: es la tabla de precios, la ve quien todavía no tiene cuenta.
     path: '/planes',
     name: 'Plans',
-    component: () => import('@/views/PlansView.vue'),
+    component: () => import('@/views/accounts/PlansView.vue'),
   },
   {
     path: '/mi-plan',
     name: 'MyPlan',
-    component: () => import('@/views/MyPlanView.vue'),
+    component: () => import('@/views/accounts/MyPlanView.vue'),
     meta: { requiresAuth: true },
   },
   {
     path: '/organizacion',
     name: 'Organization',
-    component: () => import('@/views/OrganizationView.vue'),
+    component: () => import('@/views/accounts/OrganizationView.vue'),
     meta: { requiresAuth: true },
   },
   {
     path: '/admin/planes',
     name: 'AdminPlans',
-    component: () => import('@/views/AdminPlansView.vue'),
+    component: () => import('@/views/accounts/AdminPlansView.vue'),
     meta: { requiresAuth: true, requiresRoot: true },
   },
   {
@@ -156,7 +156,7 @@ const routes = [
     // web/Caddyfile, y una ruta del SPA ahí chocaría con él al recargar.
     path: '/admin/iris/simulador',
     name: 'IrisReplay',
-    component: () => import('@/views/IrisReplayView.vue'),
+    component: () => import('@/views/iris/IrisReplayView.vue'),
     meta: { requiresAuth: true, requiresAdmin: true },
   },
   // Aterrizajes de los enlaces de correo. PÚBLICOS a propósito: el token es la
@@ -165,13 +165,13 @@ const routes = [
   {
     path: '/verificar',
     name: 'VerifyEmail',
-    component: () => import('@/views/InvitationLandingView.vue'),
+    component: () => import('@/views/accounts/InvitationLandingView.vue'),
     props: { kind: 'verify' },
   },
   {
     path: '/invitacion',
     name: 'AcceptInvitation',
-    component: () => import('@/views/InvitationLandingView.vue'),
+    component: () => import('@/views/accounts/InvitationLandingView.vue'),
     props: { kind: 'invitation' },
   },
   {
@@ -182,23 +182,23 @@ const routes = [
     // /usuarios).
     path: '/recuperar',
     name: 'Recover',
-    component: () => import('@/views/RecoverView.vue'),
+    component: () => import('@/views/public/RecoverView.vue'),
   },
   // Páginas informativas públicas (enlazadas desde el pie).
   {
     path: '/sobre',
     name: 'Sobre',
-    component: () => import('@/views/AboutView.vue'),
+    component: () => import('@/views/public/AboutView.vue'),
   },
   {
     path: '/privacidad',
     name: 'Privacidad',
-    component: () => import('@/views/PrivacyView.vue'),
+    component: () => import('@/views/public/PrivacyView.vue'),
   },
   {
     path: '/terminos',
     name: 'Terminos',
-    component: () => import('@/views/TermsView.vue'),
+    component: () => import('@/views/public/TermsView.vue'),
   },
   // Documentación (enlazada desde el desplegable "Documentación" del header
   // de la landing). Misma vista genérica para ambas — el contenido real se
@@ -206,7 +206,7 @@ const routes = [
   {
     path: '/docs/uso',
     name: 'DocsUsage',
-    component: () => import('@/views/DocsPlaceholderView.vue'),
+    component: () => import('@/views/public/DocsPlaceholderView.vue'),
     meta: {
       docTitle: 'Documentación de uso',
       docIntro: 'Guías paso a paso para sacar partido a cada herramienta de Ellysia: lanzar un escaneo en Themis, generar una píldora en Aegis, analizar un correo en Iris o guardar una credencial en Acheron.',
@@ -215,7 +215,7 @@ const routes = [
   {
     path: '/docs/tecnica',
     name: 'DocsTechnical',
-    component: () => import('@/views/DocsPlaceholderView.vue'),
+    component: () => import('@/views/public/DocsPlaceholderView.vue'),
     meta: {
       docTitle: 'Documentación técnica',
       docIntro: 'Referencia técnica de la API, la arquitectura interna y los modelos de datos de Ellysia, pensada para quien integra o extiende la plataforma.',
@@ -224,7 +224,7 @@ const routes = [
   {
     path: '/config',
     name: 'Config',
-    component: () => import('@/views/ConfigView.vue'),
+    component: () => import('@/views/system/ConfigView.vue'),
     // S12: ConfigView llama a GET/PUT /system, root-only desde S7 — el guard
     // del cliente es defensa en profundidad (la API ya rechaza con 403;
     // esto evita cargar la vista para un admin que de todos modos rebotará).
@@ -233,13 +233,13 @@ const routes = [
   {
     path: '/logs',
     name: 'Logs',
-    component: () => import('@/views/LogsView.vue'),
+    component: () => import('@/views/system/LogsView.vue'),
     meta: { requiresAuth: true, requiresAdmin: true },
   },
   {
     path: '/profile',
     name: 'Profile',
-    component: () => import('@/views/ProfileView.vue'),
+    component: () => import('@/views/accounts/ProfileView.vue'),
     meta: { requiresAuth: true },
   },
   {
@@ -255,13 +255,13 @@ const routes = [
     // la API.
     path: '/usuarios',
     name: 'Users',
-    component: () => import('@/views/UsersView.vue'),
+    component: () => import('@/views/accounts/UsersView.vue'),
     meta: { requiresAuth: true, requiresAdmin: true },
   },
   {
     path: '/queue',
     name: 'Queue',
-    component: () => import('@/views/QueueView.vue'),
+    component: () => import('@/views/system/QueueView.vue'),
     meta: { requiresAuth: true },
   },
 
@@ -271,12 +271,12 @@ const routes = [
    * `onError` de navegación y Caddy (el `handle_errors` del Caddyfile
    * redirige aquí los 5xx que genera él mismo), así que no puede exigir
    * sesión. El contenido lo decide `ErrorView.vue` contra
-   * `views/errorCatalog.js`.
+   * `views/public/errorCatalog.js`.
    */
   {
     path: '/error/:code(\\d{3})',
     name: 'Error',
-    component: () => import('@/views/ErrorView.vue'),
+    component: () => import('@/views/public/ErrorView.vue'),
   },
 
   /**
@@ -291,7 +291,7 @@ const routes = [
   {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
-    component: () => import('@/views/ErrorView.vue'),
+    component: () => import('@/views/public/ErrorView.vue'),
     meta: { errorCode: 404 },
   },
 ]

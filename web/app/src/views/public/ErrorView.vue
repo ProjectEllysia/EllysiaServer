@@ -20,13 +20,13 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import InfoPage from '@/components/shared/InfoPage.vue'
-import { resolveError } from '@/views/errorCatalog'
+import { resolveError } from '@/views/public/errorCatalog'
 
 const route = useRoute()
 
 /**
  * Vista genérica de errores: UNA vista para todos los códigos. Resuelve la
- * entrada del catálogo (`views/errorCatalog.js`) y pinta su copia, sus
+ * entrada del catálogo (`views/public/errorCatalog.js`) y pinta su copia, sus
  * enlaces y, si la entrada lo pide, el botón de reintento. Añadir un error
  * nuevo es añadir una entrada al catálogo, no crear otra vista.
  *

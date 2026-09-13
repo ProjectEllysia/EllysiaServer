@@ -25,7 +25,7 @@ Con ella se fueron sus suites, que son las que verificaban el formato de cifrado
 | vectores de interoperabilidad | `AcheronCoreWeb`, `test/acheron-vectors*.json` |
 
 Aquí se queda `acheron.schema.test.mjs`, que comprueba lo único que sigue siendo de la SPA: que
-`src/acheron/storableLabels.js` describa exactamente los campos que declara el esquema, en ambos
+`src/components/acheron/storableLabels.js` describa exactamente los campos que declara el esquema, en ambos
 sentidos. Un campo sin etiqueta pinta un `undefined` en el formulario; una etiqueta sin campo es
 código muerto.
 
