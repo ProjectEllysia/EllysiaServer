@@ -53,6 +53,24 @@ def _generate_pdf_async(document_id: int, analysis_id: int) -> None:
         render=_render,
     )
 
+def _create_document(analysis: IrisAnalysis) -> int:
+    """Create an IrisDocument for a finished analysis and return its ID."""
+    with UnitOfWork() as uow:
+        document = IrisDocument(
+            analysis_id=analysis.id,
+            document_type="iris",
+            filename="",
+            format="pdf",
+            status="running",
+            user_id=analysis.user_id,
+            verdict=analysis.verdict,
+            is_ai_generated=0,
+        )
+        IrisReportRepository(uow).save(document)
+        # Durable antes de encolar: el worker corre en otro proceso.
+        uow.commit_for_handoff()
+    return document.id  # type: ignore
+
 
 class IrisReportManager(DocumentManager):
     """Manager for IrisDocument lifecycle and async PDF report generation.
@@ -67,27 +85,6 @@ class IrisReportManager(DocumentManager):
 
     _REPOSITORY = IrisReportRepository
     _NOT_FOUND_ERROR = DocumentNotFoundError
-
-    @staticmethod
-    def _create_document(analysis: IrisAnalysis) -> int:
-        """Create an IrisDocument for a finished analysis and return its ID."""
-        with UnitOfWork() as uow:
-            document = IrisDocument(
-                analysis_id=analysis.id,
-                document_type="iris",
-                filename="",
-                format="pdf",
-                status="running",
-                user_id=analysis.user_id,
-                verdict=analysis.verdict,
-                is_ai_generated=0,
-            )
-            IrisReportRepository(uow).save(document)
-            # Durable antes de encolar: el worker corre en otro proceso.
-            uow.commit_for_handoff()
-        return document.id  # type: ignore
-
-    # get_documents_by_parent: usa el default de DocumentManager.
 
     def generate_report(self, analysis_id: int, user_id: int) -> int:
         """Create an IrisDocument and start async PDF generation.
@@ -108,7 +105,7 @@ class IrisReportManager(DocumentManager):
         if analysis.status != "finished":
             raise IrisAnalysisNotReadyError(analysis_id, analysis.status)
 
-        doc_id = self._create_document(analysis)
+        doc_id = _create_document(analysis)
 
         submit_report_generation(
             self._task_queue, doc_id, self._REPOSITORY,
