@@ -31,55 +31,17 @@ from ..services.trust import (
     normalize_trust_value,
 )
 
-
-def _status_of(entry: IrisTrustedSender, now: datetime) -> str:
-    """Estado de una excepción en un instante dado.
-
-    Args:
-        entry: Fila ``IrisTrustedSender``.
-        now: Instante de referencia (UTC naive).
-
-    Returns:
-        str: ``revoked`` si se revocó (aunque además haya caducado),
-            ``expired`` si pasó su caducidad, o ``active``.
-    """
-    if entry.revoked_at is not None:
-        return "revoked"
-    if entry.expires_at <= now:
-        return "expired"
-    return "active"
-
-
 class IrisTrustPolicyManager:
     """Alta, consulta y revocación de las excepciones de confianza de un usuario."""
 
-    @staticmethod
-    def entry_to_dict(entry: IrisTrustedSender, now: Optional[datetime] = None) -> Dict[str, Any]:
-        """Serializa una excepción con las claves camelCase de la API.
-
-        Args:
-            entry: Fila ``IrisTrustedSender``.
-            now: Instante con el que calcular ``status``. Por defecto ``None``:
-                el actual.
-
-        Returns:
-            dict: ``trustedSenderId``, ``kind``, ``value``, ``reason``,
-                ``status`` (``active``, ``expired`` o ``revoked``),
-                ``createdAt``, ``expiresAt`` y ``revokedAt``.
-        """
-        return {
-            "trustedSenderId": entry.id,
-            "kind": entry.kind,
-            "value": entry.value,
-            "reason": entry.reason,
-            "status": _status_of(entry, now or utcnow_naive()),
-            "createdAt": isoformat_utc(entry.created_at),
-            "expiresAt": isoformat_utc(entry.expires_at),
-            "revokedAt": isoformat_utc(entry.revoked_at),
-        }
-
-    def create_entry(self, user_id: int, kind: str, value: str, reason: str,
-                     expires_in_days: Optional[int] = None) -> Dict[str, Any]:
+    def create_entry(
+        self,
+        user_id: int,
+        kind: str,
+        value: str,
+        reason: str,
+        expires_in_days: Optional[int] = None
+    ) -> Dict[str, Any]:
         """Crea una excepción de confianza para un usuario.
 
         Args:
@@ -128,7 +90,8 @@ class IrisTrustPolicyManager:
                 user_id=user_id, kind=kind, value=normalized, reason=cleaned_reason,
                 created_at=now, expires_at=now + timedelta(days=days),
             ))
-            return self.entry_to_dict(entry, now)
+
+        return entry.to_dict(instant=now)
 
     def list_entries(self, user_id: int, include_inactive: bool = False) -> List[Dict[str, Any]]:
         """Excepciones de un usuario, de la más reciente a la más antigua.
@@ -143,7 +106,7 @@ class IrisTrustPolicyManager:
         """
         now = utcnow_naive()
         entries = build_repository(IrisTrustedSenderRepository).get_by_user(user_id)
-        serialized = [self.entry_to_dict(entry, now) for entry in entries]
+        serialized = [entry.to_dict(instant=now) for entry in entries]
         if include_inactive:
             return serialized
         return [entry for entry in serialized if entry["status"] == "active"]
@@ -159,18 +122,23 @@ class IrisTrustPolicyManager:
             user_id: Usuario que revoca.
 
         Returns:
-            dict: La excepción ya revocada (ver ``entry_to_dict``).
+            dict: La excepción ya revocada (ver ``IrisTrustedSender.to_dict``).
 
         Raises:
             IrisTrustedSenderNotFoundError: Si no existe o no es suya.
         """
         with UnitOfWork() as uow:
-            entry = assert_owned(IrisTrustedSenderRepository, entry_id, user_id,
-                                 IrisTrustedSenderNotFoundError, uow=uow)
+            entry = assert_owned(
+                IrisTrustedSenderRepository,
+                entry_id,
+                user_id,
+                IrisTrustedSenderNotFoundError,
+                uow=uow
+            )
             if entry.revoked_at is None:
                 entry.revoked_at = utcnow_naive()
                 IrisTrustedSenderRepository(uow).update(entry)
-            return self.entry_to_dict(entry)
+            return entry.to_dict(instant=utcnow_naive())
 
     @staticmethod
     def get_active_entries(user_id: int) -> List[TrustEntry]:

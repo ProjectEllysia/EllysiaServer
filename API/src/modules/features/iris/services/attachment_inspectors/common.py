@@ -18,7 +18,7 @@ HTML_KIND = "html"
 _PDF_MAGIC = b"%PDF-"
 _ZIP_MAGIC = b"PK\x03\x04"
 _ZIP_EXTENSIONS = frozenset({".zip", ".docx", ".docm", ".dotx", ".dotm", ".xlsx", ".xlsm", ".xltx",
-                             ".xltm", ".pptx", ".pptm", ".potx", ".potm", ".ppsx", ".ppsm"})
+                                ".xltm", ".pptx", ".pptm", ".potx", ".potm", ".ppsx", ".ppsm"})
 _ZIP_MIME_TYPES = frozenset({"application/zip", "application/x-zip-compressed"})
 _HTML_EXTENSIONS = frozenset({".htm", ".html", ".shtml", ".xhtml", ".svg"})
 _HTML_MIME_TYPES = frozenset({"text/html", "application/xhtml+xml", "image/svg+xml"})
@@ -33,9 +33,9 @@ def extension_of(filename: str) -> str:
     _, dot, extension = filename.rpartition(".")
     return f".{extension.lower()}" if dot and extension else ""
 
-
 def kind_of(filename: str, content_type: str, head: bytes) -> Optional[str]:
-    """Qué inspector le toca a un fichero.
+    """
+    Qué inspector le toca a un fichero.
 
     Manda el contenido (la firma de los primeros bytes) sobre el nombre y el
     tipo declarados, que los pone el remitente: un PDF renombrado a ``.txt``
@@ -53,21 +53,29 @@ def kind_of(filename: str, content_type: str, head: bytes) -> Optional[str]:
     """
     extension = extension_of(filename)
     content_type = (content_type or "").lower()
-    if _PDF_MAGIC in head[:1024]:
+
+    contains_pdf_magic = _PDF_MAGIC in head[:1024]
+    extension_is_pdf = extension == ".pdf"
+    content_type_is_pdf = content_type == "application/pdf"
+    if contains_pdf_magic or extension_is_pdf or content_type_is_pdf:
         return PDF_KIND
-    if head.startswith(_ZIP_MAGIC):
+
+    contains_zip_magic = head.startswith(_ZIP_MAGIC)
+    extension_is_zip = extension in _ZIP_EXTENSIONS
+    content_type_is_zip = content_type in _ZIP_MIME_TYPES
+    if contains_zip_magic or extension_is_zip or content_type_is_zip:
         return ZIP_KIND
-    if extension == ".pdf" or content_type == "application/pdf":
-        return PDF_KIND
-    if extension in _ZIP_EXTENSIONS or content_type in _ZIP_MIME_TYPES:
-        return ZIP_KIND
-    if extension in _HTML_EXTENSIONS or content_type in _HTML_MIME_TYPES:
+
+    extension_is_html = extension in _HTML_EXTENSIONS
+    content_type_is_html = content_type in _HTML_MIME_TYPES
+    if extension_is_html or content_type_is_html:
         return HTML_KIND
+
     return None
 
-
-def make_finding(reason: str, detail: str, path: Optional[str] = None) -> Dict[str, str]:
-    """Hallazgo de un inspector.
+def build_finding(reason: str, detail: str, path: Optional[str] = None) -> Dict[str, str]:
+    """
+    Construye un diccionario con la información de un hallazgo de un inspector.
 
     Args:
         reason: Código estable del hallazgo (``pdf_javascript``,
@@ -87,10 +95,11 @@ def make_finding(reason: str, detail: str, path: Optional[str] = None) -> Dict[s
 
 @dataclass
 class InspectionResult:
-    """Lo que un inspector sacó de un adjunto.
+    """
+    Lo que un inspector sacó de un adjunto.
 
     Attributes:
-        findings: Hallazgos (ver ``make_finding``), en el orden en que se
+        findings: Hallazgos (ver ``build_finding``), en el orden en que se
             encontraron. Vacío si no hay nada sospechoso.
         urls: URLs que el adjunto contiene (enlaces de un PDF, destinos de un
             formulario, relaciones externas de un documento), como evidencia;
