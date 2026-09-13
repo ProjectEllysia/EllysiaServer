@@ -271,8 +271,13 @@ def unique_evidence(items: Iterable[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return unique
 
 
-def anchor_result(result: Any, rule_input: Any, evidence_headers: Sequence[str],
-                  unanchorable_reason: str, rule_name: str) -> Any:
+def anchor_result(
+        result: Any,
+        rule_input: Any,
+        evidence_headers: Sequence[str],
+        unanchorable_reason: str,
+        rule_name: str
+) -> Any:
     """Asegura que un resultado que penaliza lleva evidencia o dice por qué no.
 
     Es lo que el registro de reglas ejecuta tras cada regla. Solo actúa sobre

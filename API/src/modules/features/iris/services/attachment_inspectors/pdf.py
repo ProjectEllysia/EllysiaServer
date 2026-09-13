@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import re
 
-from .common import InspectionBudget, InspectionResult, make_finding
+from .common import InspectionBudget, InspectionResult, build_finding
 
 _HEX_ESCAPE_RE = re.compile(rb"#([0-9A-Fa-f]{2})")
 _OBFUSCATED_NAME_RE = re.compile(rb"/[A-Za-z0-9]*#[0-9A-Fa-f]{2}")
@@ -81,9 +81,9 @@ def inspect_pdf(content: bytes, limits, budget: InspectionBudget) -> InspectionR
         if pattern.search(text):
             if is_automatic and reason in _AUTO_REASONS:
                 detail += " Además se dispara solo, al abrir el documento (/OpenAction o /AA)."
-            result.findings.append(make_finding(reason, detail))
+            result.findings.append(build_finding(reason, detail))
     if has_escapes:
-        result.findings.append(make_finding(
+        result.findings.append(build_finding(
             "pdf_obfuscated_names",
             "El PDF escribe sus nombres con escapes #xx, una forma de esconder palabras como /JavaScript.",
         ))

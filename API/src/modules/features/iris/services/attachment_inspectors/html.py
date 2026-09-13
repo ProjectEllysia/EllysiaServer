@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import re
 
-from .common import InspectionResult, make_finding
+from .common import InspectionResult, build_finding
 
 _FORM_ACTION_RE = re.compile(r"<form\b[^>]*?\baction\s*=\s*[\"']?\s*(https?://[^\"'\s>]+)", re.IGNORECASE)
 _PASSWORD_INPUT_RE = re.compile(r"<input\b[^>]*?\btype\s*=\s*[\"']?password", re.IGNORECASE)
@@ -55,7 +55,7 @@ def inspect_html(content: bytes) -> InspectionResult:
     has_base64_blob = bool(_BASE64_RUN_RE.search(text))
 
     if (_BLOB_RE.search(text) and (_DOWNLOAD_RE.search(text) or has_base64_blob)) or _DATA_URI_PAYLOAD_RE.search(text):
-        result.findings.append(make_finding(
+        result.findings.append(build_finding(
             "html_smuggling",
             "El HTML reconstruye un fichero dentro del navegador y fuerza su descarga (HTML smuggling).",
         ))
@@ -64,17 +64,17 @@ def inspect_html(content: bytes) -> InspectionResult:
     result.add_urls(actions)
     if _PASSWORD_INPUT_RE.search(text):
         destination = f" y lo envía a {actions[0]}" if actions else ""
-        result.findings.append(make_finding(
+        result.findings.append(build_finding(
             "html_credential_form", f"El HTML pide una contraseña{destination}.",
         ))
     elif actions:
-        result.findings.append(make_finding(
+        result.findings.append(build_finding(
             "html_external_form", f"El HTML tiene un formulario que envía los datos a {actions[0]}.",
         ))
 
     decoders = {match.group(1).lower() for match in _DECODER_RE.finditer(text)}
     if len(decoders) >= 2 or (decoders and has_base64_blob):
-        result.findings.append(make_finding(
+        result.findings.append(build_finding(
             "html_obfuscated_script",
             f"El HTML decodifica código en tiempo de ejecución ({', '.join(sorted(decoders))}).",
         ))
