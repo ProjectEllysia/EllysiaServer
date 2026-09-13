@@ -281,7 +281,7 @@ import { openVault, createVault, WrongPasswordError } from '@projectellysia/ache
 import { vaultWrite as writeWithRevision, peekJson } from '@projectellysia/acheron-core-web/sync'
 import { generatePassword } from '@projectellysia/acheron-core-web'
 import { STORABLE_CATEGORIES } from '@projectellysia/acheron-core-web'
-import { TYPE_BY_CATEGORY } from '@/acheron/storableTypes.js'
+import { TYPE_BY_CATEGORY } from '@/components/acheron/storableTypes.js'
 
 const { apiFetch } = useApi()
 const auth = useAuthStore()

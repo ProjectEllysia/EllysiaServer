@@ -89,7 +89,7 @@
 
 <script setup>
 import { ref, reactive, computed, watch, nextTick } from 'vue'
-import { STORABLE_TYPES, TYPE_BY_CATEGORY } from '@/acheron/storableTypes.js'
+import { STORABLE_TYPES, TYPE_BY_CATEGORY } from '@/components/acheron/storableTypes.js'
 
 const props = defineProps({
   open: { type: Boolean, default: false },

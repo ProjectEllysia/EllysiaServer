@@ -358,7 +358,7 @@ las búsquedas parametrizadas por clave en vez de por campo (`get_iris_data`,
 **Cuidado con el fallo silencioso**: `_cfg()` devuelve el *default* cuando una ruta no resuelve, así
 que un prefijo mal escrito desactiva un bloque entero sin lanzar. Cualquier clave que muevas hay
 que actualizarla en tres sitios — la ruta del `@config_block` (o la llamada a `_cfg()`) en
-`config_reading.py`, la ruta literal en `web/app/src/views/ConfigView.vue`, y
+`config_reading.py`, la ruta literal en `web/app/src/views/system/ConfigView.vue`, y
 `test_config_shape.py`. `tests/unit/test_config_view_paths.py` convierte la divergencia con el
 `.vue` en un fallo de CI (verifica que cada ruta existe **y** que apunta a una hoja).
 
