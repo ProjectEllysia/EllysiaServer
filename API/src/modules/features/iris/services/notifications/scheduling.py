@@ -74,7 +74,8 @@ def _notify_stuck_connections() -> None:
 
 
 def _mark_stuck_alert_sent_and_dispatch(connection_id: int) -> Optional[int]:
-    """Pone el guardia ``stuck_alert_sent_at`` y guarda la intención de
+    """
+    Pone el guardia ``stuck_alert_sent_at`` y guarda la intención de
     avisar, en un único commit.
 
     Antes eran dos pasos: se confirmaba la marca y después se encolaba. Si el
