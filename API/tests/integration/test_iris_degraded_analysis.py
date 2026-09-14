@@ -14,6 +14,7 @@ from unittest import mock
 import pytest
 
 from src.modules.features.iris.managers.analysis import IrisManager
+from src.modules.features.iris.managers.analysis import _run_analysis
 from src.modules.features.iris.model import IrisAnalysis
 from src.modules.features.iris.repositories import IrisAnalysisRepository
 from src.modules.features.iris.services.quality import QUALITY_COMPLETE, QUALITY_DEGRADED
@@ -69,7 +70,7 @@ def _run_with_broken_rule(app, analysis_id: int, rule_name: str | None) -> None:
 
     with app.app_context():
         with mock.patch.object(iris_rules, "get_rules", return_value=patched):
-            IrisManager()._run_analysis(analysis_id, _CLEAN_RAW)
+            _run_analysis(analysis_id, _CLEAN_RAW)
 
 
 def _rule_name_in_family(family: str) -> str:

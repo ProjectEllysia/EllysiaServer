@@ -12,7 +12,7 @@ la propia base de datos, así que compartir el hilo del scheduler de buzón
 no le añade ningún coste real.
 
 El aviso de reautenticación (``IrisReauthNotifyManager``) no vive aquí: se
-dispara al momento desde ``IrisMailboxManager._mark_reauth_required``,
+dispara al momento desde ``IrisMailboxManager._mark_reauth_is_required``,
 porque es la transición a un estado la que importa, no un sondeo periódico.
 """
 

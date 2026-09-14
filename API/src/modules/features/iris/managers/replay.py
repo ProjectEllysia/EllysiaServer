@@ -21,7 +21,7 @@ from typing import Any, Dict, List, Mapping, Optional
 import src.modules.system.config_reading as CR
 
 from ..exceptions import IrisInvalidInputError
-from ..services.parsers import parse_raw_message
+from ..services.parsers import parse_raw_message, validate_headers_parsed, validate_headers_pre
 from ..services.quality import detector_version
 from ..services.replay import CORPUS_DIRECTORY, ReplaySample, load_corpus, replay
 from ..services.rules import iris_rules
@@ -70,8 +70,8 @@ def _ad_hoc_samples(messages: List[Mapping[str, Any]]) -> List[ReplaySample]:
         if len(raw.encode("utf-8")) > max_bytes:
             raise _invalid_input(f"El mensaje {index} supera el tamaño máximo ({max_bytes} bytes).")
         try:
-            IrisManager._validate_headers_pre(raw)  # pylint: disable=protected-access
-            IrisManager._validate_headers_parsed(parse_raw_message(raw).headers)  # pylint: disable=protected-access
+            validate_headers_pre(raw)
+            validate_headers_parsed(parse_raw_message(raw).headers)
         except IrisInvalidInputError as e:
             raise _invalid_input(f"El mensaje {index} no es un correo analizable: {e}") from e
         samples.append(ReplaySample(f"mensaje-{index}", raw, message.get("label")))

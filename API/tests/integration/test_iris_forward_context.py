@@ -18,6 +18,7 @@ from unittest import mock
 import pytest
 
 from src.modules.features.iris.managers.analysis import IrisManager
+from src.modules.features.iris.managers.analysis import _run_analysis
 from src.modules.features.iris.model import IrisAnalysis, IrisRuleResult
 from src.modules.features.iris.repositories import IrisAnalysisRepository, IrisRuleResultRepository
 from src.modules.features.iris.services.contexts import CONTEXT_INNER, CONTEXT_WRAPPER
@@ -86,7 +87,7 @@ def _analyze(app, user_id: int, raw: str) -> int:
             IrisAnalysisRepository(uow).save(analysis)
             analysis_id = analysis.id
         with mock.patch.object(iris_rules, "get_rules", return_value=list(_CATALOG)):
-            IrisManager()._run_analysis(analysis_id, raw)
+            _run_analysis(analysis_id, raw)
     return analysis_id
 
 

@@ -1804,7 +1804,7 @@ class IrisConfig:  # pylint: disable=too-many-instance-attributes
 
     legitimate_threshold: float = 80
     """Escala sustractiva 0–100: a partir de aquí el veredicto es Legítimo
-    (ver ``IrisManager._aggregate_score``)."""
+    (ver ``ScoringPolicy.aggregate``)."""
 
     suspicious_threshold: float = 55
     """Por debajo de ``legitimate_threshold`` y a partir de aquí, Sospechoso;

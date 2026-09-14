@@ -118,7 +118,7 @@ def check_spf(headers: dict) -> RuleResult:
         # Recalibración de pesos: el cluster de auth (SPF+DKIM+DMARC+Align)
         # cobraba hasta -55 por el MISMO hecho ("no autenticado"); DMARC ya
         # integra SPF+DKIM por definición (RFC 7489), así que SPF pasa a
-        # subordinado y el techo de familia (managers._aggregate_score)
+        # subordinado y el techo de familia (ScoringPolicy.aggregate)
         # limita la suma del cluster a -25 sin importar cuántas de las
         # cuatro reglas disparen. La detección real sigue en los gates
         # (spf_fail→Suspicious; auth_fail∧spoof→Phishing), no en el peso.

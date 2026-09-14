@@ -11,6 +11,7 @@ from __future__ import annotations
 import pytest
 
 from src.modules.features.iris.managers.analysis import IrisManager
+from src.modules.features.iris.managers.analysis import _run_analysis
 from src.modules.features.iris.model import IrisAnalysis, IrisAnalystFeedback
 from src.modules.features.iris.repositories import IrisAnalysisRepository, IrisAnalystFeedbackRepository
 from src.modules.infrastructure import UnitOfWork
@@ -47,7 +48,7 @@ def _run(app, user_id: int, raw: str) -> int:
             analysis = IrisAnalysis(raw_headers=raw, user_id=user_id, status="pending")
             IrisAnalysisRepository(uow).save(analysis)
             analysis_id = analysis.id
-        IrisManager()._run_analysis(analysis_id, raw)
+        _run_analysis(analysis_id, raw)
     return analysis_id
 
 

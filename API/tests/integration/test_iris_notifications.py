@@ -24,7 +24,10 @@ import pytest
 
 import src.modules.features.iris.managers.notifications as notifications_mod
 import src.modules.system.taskqueue.dispatcher as dispatcher_mod
-from src.modules.features.iris.managers import IrisManager
+from src.modules.features.iris.managers.analysis import _enqueue_phishing_notification
+from src.modules.features.iris.managers.mailbox import (
+    _mark_reauth_is_required
+)
 from src.modules.features.iris.managers.notifications import (
     IrisDigestNotifyManager, IrisNotificationPreferenceManager,
     IrisPhishingNotifyManager, IrisReauthNotifyManager, IrisStuckSyncNotifyManager,
@@ -77,8 +80,15 @@ def _save_connection(app, user_id: int, **overrides) -> int:
             return connection.id
 
 
-def _save_analysis(app, user_id: int, *, verdict: str, connection_id=None, title="Tu factura",
-                   total_score=10.0) -> int:
+def _save_analysis(
+    app,
+    user_id: int,
+    *,
+    verdict: str,
+    connection_id=None,
+    title="Tu factura",
+    total_score=10.0
+) -> int:
     with app.app_context():
         with UnitOfWork() as uow:
             analysis = IrisAnalysis(
@@ -193,10 +203,10 @@ def test_phishing_trigger_enqueues_only_for_mailbox_analyses(app, regular_user):
     fake_queue = _FakeTaskQueue()
     with mock.patch.object(notifications_mod.TaskQueue, "get_instance", return_value=fake_queue):
         with app.app_context():
-            IrisManager()._enqueue_phishing_notification(mailbox_id, "Phishing")
-            IrisManager()._enqueue_phishing_notification(manual_id, "Phishing")
-            IrisManager()._enqueue_phishing_notification(suspicious_id, "Suspicious")
-            IrisManager()._enqueue_phishing_notification(mailbox_id, "Legitimate")
+            _enqueue_phishing_notification(mailbox_id, "Phishing")
+            _enqueue_phishing_notification(manual_id, "Phishing")
+            _enqueue_phishing_notification(suspicious_id, "Suspicious")
+            _enqueue_phishing_notification(mailbox_id, "Legitimate")
 
     assert [job["args"] for job in fake_queue.submitted] == [(mailbox_id,)]
 
@@ -212,7 +222,7 @@ def test_phishing_trigger_never_raises_when_queue_is_down(app, regular_user):
 
     with mock.patch.object(notifications_mod.TaskQueue, "get_instance", return_value=_BrokenQueue()):
         with app.app_context():
-            IrisManager()._enqueue_phishing_notification(analysis_id, "Phishing")
+            _enqueue_phishing_notification(analysis_id, "Phishing")
 
         with UnitOfWork() as uow:
             analysis = IrisAnalysisRepository(uow).get_by_id(analysis_id)
@@ -407,8 +417,8 @@ def test_reauth_notify_respects_preference(app, regular_user):
     mailer.send.assert_not_called()
 
 
-def test_mark_reauth_required_notifies_only_on_the_transition(app, regular_user, monkeypatch):
-    """Ver IrisMailboxManager._mark_reauth_required: solo la primera llamada
+def test_mark_reauth_is_required_notifies_only_on_the_transition(app, regular_user, monkeypatch):
+    """Ver _mark_reauth_is_required: solo la primera llamada
     (active -> reauth_required) debe encolar el aviso; reintentos
     posteriores mientras sigue en ese estado no deben repetirlo."""
     from src.modules.features.iris.managers.mailbox import IrisMailboxManager
@@ -418,8 +428,8 @@ def test_mark_reauth_required_notifies_only_on_the_transition(app, regular_user,
     fake_queue = _FakeTaskQueue()
     _use_queue(monkeypatch, fake_queue)
     with app.app_context():
-        IrisMailboxManager._mark_reauth_required(connection_id, "token revocado")
-        IrisMailboxManager._mark_reauth_required(connection_id, "token revocado otra vez")
+        _mark_reauth_is_required(connection_id, "token revocado")
+        _mark_reauth_is_required(connection_id, "token revocado otra vez")
 
     reauth_jobs = [j for j in fake_queue.submitted if j["category"] == "iris.notify"]
     assert len(reauth_jobs) == 1
@@ -441,9 +451,9 @@ def test_reauth_notice_survives_redis_down_at_enqueue(app, regular_user, monkeyp
     _use_queue(monkeypatch, _RejectingQueue())
 
     with app.app_context():
-        IrisMailboxManager._mark_reauth_required(connection_id, "token revocado")
+        _mark_reauth_is_required(connection_id, "token revocado")
         # Seguir en reauth_required no añade una segunda intención de avisar.
-        IrisMailboxManager._mark_reauth_required(connection_id, "token revocado otra vez")
+        _mark_reauth_is_required(connection_id, "token revocado otra vez")
 
         with UnitOfWork() as uow:
             pending = TaskDispatchRepository(uow).get_pending()
@@ -460,7 +470,7 @@ def test_reauth_notice_survives_redis_down_at_enqueue(app, regular_user, monkeyp
 def test_reauth_from_a_failing_request_persists_state_and_publishes_once(
     app, regular_user, monkeypatch,
 ):
-    """``update_connection`` y ``list_folders`` llaman a ``_mark_reauth_required``
+    """``update_connection`` y ``list_folders`` llaman a ``_mark_reauth_is_required``
     dentro de una request y lanzan justo después, así que el teardown hace
     rollback de todo lo que no se haya confirmado ya.
 
@@ -478,7 +488,7 @@ def test_reauth_from_a_failing_request_persists_state_and_publishes_once(
 
     with app.test_request_context():
         init_request_session()
-        IrisMailboxManager._mark_reauth_required(connection_id, "token revocado")
+        _mark_reauth_is_required(connection_id, "token revocado")
         shutdown_request_session(exception=ValueError("La conexión necesita reautorización"))
 
     assert _reload_connection(app, connection_id).status == "reauth_required"

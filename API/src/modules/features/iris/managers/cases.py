@@ -45,7 +45,6 @@ def _invalid_input(text: str) -> IrisInvalidInputError:
     """
     return IrisInvalidInputError(text, user_message=text)
 
-
 def _clean_tags(tags: Iterable[str]) -> List[str]:
     """Normaliza las etiquetas de un caso con la misma regla que las de un análisis.
 
@@ -62,7 +61,6 @@ def _clean_tags(tags: Iterable[str]) -> List[str]:
         return normalize_tags(tags)
     except ValueError as e:
         raise _invalid_input(str(e)) from e
-
 
 def _record_event(uow: UnitOfWork, case: IrisCase, actor_id: int, kind: str,
                   detail: Optional[Dict[str, Any]] = None, note: Optional[str] = None) -> None:
@@ -83,7 +81,6 @@ def _record_event(uow: UnitOfWork, case: IrisCase, actor_id: int, kind: str,
         case_id=case.id, actor_id=actor_id, kind=kind, detail=detail, note=note,
     ))
 
-
 def _assert_case(uow: UnitOfWork, case_id: int, user_id: int) -> IrisCase:
     """Carga un caso dentro de la transacción y comprueba que es del usuario.
 
@@ -99,7 +96,6 @@ def _assert_case(uow: UnitOfWork, case_id: int, user_id: int) -> IrisCase:
         IrisCaseNotFoundError: Si no existe o no es suyo.
     """
     return assert_owned(IrisCaseRepository, case_id, user_id, IrisCaseNotFoundError, uow=uow)
-
 
 def _summary(case: IrisCase) -> Dict[str, Any]:
     """Serializa lo que enseña el listado de casos.
@@ -123,7 +119,6 @@ def _summary(case: IrisCase) -> Dict[str, Any]:
         "updatedAt": isoformat_utc(case.updated_at),
         "closedAt": isoformat_utc(case.closed_at),
     }
-
 
 def _detail(case: IrisCase) -> Dict[str, Any]:
     """Serializa un caso entero: resumen, análisis vinculados y timeline.

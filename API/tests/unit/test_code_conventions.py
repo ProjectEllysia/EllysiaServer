@@ -139,7 +139,7 @@ KNOWN_VIOLATIONS: dict[tuple[str, str, str], str] = {
         _PLAN_SQL,
     ("sql-outside-repository", "src/modules/features/acheron/managers.py", "VaultManager.upsert_vault_from_json"):
         _PLAN_SQL,
-    ("sql-outside-repository", "src/modules/features/iris/managers/analysis.py", "IrisManager._claim_ai_summary"):
+    ("sql-outside-repository", "src/modules/features/iris/managers/analysis.py", "_claim_ai_summary"):
         _PLAN_SQL,
     ("sql-outside-repository", "src/modules/features/iris/managers/analysis.py", "IrisManager.cancel_analysis"):
         _PLAN_SQL,
@@ -346,40 +346,6 @@ KNOWN_VIOLATIONS: dict[tuple[str, str, str], str] = {
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/hygeia/services/scheduling.py", "HygeiaScheduler._run_retention"):
         _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/analysis.py", "IrisManager._aggregate_score"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/analysis.py", "IrisManager._apply_verdict_gates"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/analysis.py", "IrisManager._claim_ai_summary"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/analysis.py", "IrisManager._determine_verdict"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/analysis.py", "IrisManager._enqueue_phishing_notification"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/analysis.py", "IrisManager._evaluate_contexts"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/analysis.py", "IrisManager._evaluate_gates"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/analysis.py", "IrisManager._extract_verdict_signals"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/analysis.py", "IrisManager._fail_analysis"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/analysis.py", "IrisManager._persist_analysis_results"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/analysis.py", "IrisManager._refund_ai_summary_quota"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/analysis.py", "IrisManager._release_ai_summary"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/analysis.py", "IrisManager._run_analysis"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/analysis.py", "IrisManager._top_signals"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/analysis.py", "IrisManager._update_analysis"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/analysis.py", "IrisManager._validate_headers_parsed"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/analysis.py", "IrisManager._validate_headers_pre"):
-        _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/iris/managers/mailbox.py", "IrisMailboxManager._clear_sync_started"):
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/iris/managers/mailbox.py", "IrisMailboxManager._consume_state"):
@@ -396,7 +362,7 @@ KNOWN_VIOLATIONS: dict[tuple[str, str, str], str] = {
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/iris/managers/mailbox.py", "IrisMailboxManager._ingest_message"):
         _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/mailbox.py", "IrisMailboxManager._mark_reauth_required"):
+    ("private-method", "src/modules/features/iris/managers/mailbox.py", "IrisMailboxManager._mark_reauth_is_required"):
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/iris/managers/mailbox.py", "IrisMailboxManager._mark_sync_started"):
         _PLAN_PRIVATE_METHOD,
@@ -425,10 +391,6 @@ KNOWN_VIOLATIONS: dict[tuple[str, str, str], str] = {
     ("private-method", "src/modules/features/iris/managers/notifications.py", "IrisReauthNotifyManager._run_notify"):
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/iris/managers/notifications.py", "IrisStuckSyncNotifyManager._run_notify"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/reports.py", "IrisReportManager._create_document"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/reports.py", "IrisReportManager._generate_pdf_async"):
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/iris/services/ai_writer.py", "IrisAIWriter._build_prompts"):
         _PLAN_PRIVATE_METHOD,

@@ -12,7 +12,7 @@ uno combina 3-4 señales contaminantes reales a la vez, replicando los
 correos-tipo que el informe de recalibración simuló a mano.
 
 Cada caso ejecuta el motor real end-to-end (mismo camino que
-``IrisManager._run_analysis``, pero sin TaskQueue/DB) sobre un ``.eml``
+``analysis._run_analysis``, pero sin TaskQueue/DB) sobre un ``.eml``
 representativo.
 """
 
@@ -25,8 +25,10 @@ from email.utils import format_datetime
 import pytest
 
 from src.modules.features.iris.managers import IrisManager
+from src.modules.features.iris.managers.analysis import _apply_verdict_gates
 from src.modules.features.iris.services.parsers import parse_raw_message
 from src.modules.features.iris.services.rules import iris_rules
+from src.modules.features.iris.services.scoring import current_policy
 
 pytestmark = pytest.mark.unit
 
@@ -36,7 +38,7 @@ def _recent_date() -> str:
 
 
 def _run_engine(raw: str):
-    """Ejecuta el motor completo sobre *raw*, igual que ``IrisManager._run_analysis``
+    """Ejecuta el motor completo sobre *raw*, igual que ``analysis._run_analysis``
     (mismo dispatch needs_context/headers, mismo clamp subtractivo, misma
     agregación y gates) pero sin TaskQueue ni base de datos."""
     context = parse_raw_message(raw)
@@ -50,9 +52,10 @@ def _run_engine(raw: str):
         results.append(result)
         named_results[rule_def["name"]] = result
 
-    total_score = IrisManager._aggregate_score(rules_defs, results)
-    base_verdict = IrisManager()._determine_verdict(total_score)
-    verdict, gate_reasons = IrisManager._apply_verdict_gates(base_verdict, named_results)
+    policy = current_policy()
+    total_score = policy.aggregate(rules_defs, results)
+    base_verdict = policy.verdict_for(total_score)
+    verdict, gate_reasons = _apply_verdict_gates(base_verdict, named_results)
     return verdict, total_score, gate_reasons
 
 

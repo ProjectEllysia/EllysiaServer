@@ -19,6 +19,7 @@ from __future__ import annotations
 import pytest
 
 from src.modules.features.iris.managers import IrisManager
+from src.modules.features.iris.managers.analysis import _apply_verdict_gates
 from src.modules.features.iris.services.parsers import MessageContext, Link
 from src.modules.features.iris.services.rules.auth_rules import check_auth_results_provenance
 from src.modules.features.iris.services.rules.body_content_rules import check_toad_callback_pattern
@@ -34,7 +35,7 @@ pytestmark = pytest.mark.unit
 
 
 def _gated(base_verdict, named):
-    verdict, reasons = IrisManager._apply_verdict_gates(base_verdict, named)
+    verdict, reasons = _apply_verdict_gates(base_verdict, named)
     return verdict, reasons
 
 
