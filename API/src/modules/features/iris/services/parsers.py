@@ -378,7 +378,8 @@ def parse_raw_message(raw: str) -> MessageContext:
 # historial.
 
 def build_subject_title(raw: str) -> str:
-    """Título de presentación de un análisis ingerido: el asunto del mensaje.
+    """
+    Título de presentación de un análisis ingerido: el asunto del mensaje.
 
     Se lee del contexto ya desenvuelto por ``parse_raw_message`` — cuando la
     ingesta captura un "report phishing" forward (``message/rfc822``), el
@@ -388,6 +389,9 @@ def build_subject_title(raw: str) -> str:
     los caracteres de control (un asunto plegado no debe colar saltos de
     línea al campo ``title`` ni al asunto de un correo posterior) y se
     recorta a los 120 caracteres que admite ``IrisAnalysis.title``.
+
+    Args:
+        raw: El mensaje completo en bruto, tal como lo entregó el proveedor.
 
     Returns:
         El asunto normalizado, o ``_SUBJECT_FALLBACK_TITLE`` si el mensaje
