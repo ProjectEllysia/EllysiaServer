@@ -60,8 +60,9 @@ class OcrResult:
     text: str = ""
 
 
-def find_engine() -> Optional[str]:
-    """Ruta del ejecutable de Tesseract.
+def _find_engine() -> Optional[str]:
+    """
+    Ruta del ejecutable de Tesseract.
 
     Returns:
         Optional[str]: La ruta, o ``None`` si no está en el ``PATH``.
@@ -70,7 +71,8 @@ def find_engine() -> Optional[str]:
 
 
 def extract_text(image_bytes: bytes, *, languages: str, max_pixels: int, timeout_seconds: float) -> OcrResult:
-    """Lee el texto de una imagen con Tesseract en local.
+    """
+    Lee el texto de una imagen con Tesseract en local.
 
     Args:
         image_bytes: Bytes de la imagen, en cualquier formato que Pillow
@@ -83,7 +85,7 @@ def extract_text(image_bytes: bytes, *, languages: str, max_pixels: int, timeout
     Returns:
         OcrResult: El texto y cómo fue (ver ``OcrResult.status``).
     """
-    engine = find_engine()
+    engine = _find_engine()
     if engine is None:
         return OcrResult(OCR_NO_ENGINE)
     try:
