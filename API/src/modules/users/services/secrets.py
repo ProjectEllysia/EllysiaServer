@@ -14,7 +14,6 @@ Functions:
 
 import hashlib
 import hmac
-import os
 
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError, VerificationError, InvalidHashError
@@ -22,14 +21,19 @@ from argon2.exceptions import VerifyMismatchError, VerificationError, InvalidHas
 import src.modules.system.config_reading as CR
 
 
-def _get_hasher() -> PasswordHasher:
-    return PasswordHasher(**CR.argon2_config().as_kwargs())
+_HASHER = PasswordHasher(**CR.argon2_config().as_kwargs())
+"""
+Instancia del hasher de Argon2 para la ocultación de las
+contraseñas.
+
+La configuración de Argon2 se transmite a la librería a través
+de la configuración registrada en ``SecOpsConfig.json``. 
+"""
 
 
 def hash_password(password: str) -> str:
     """Hash a password with Argon2id. The salt is embedded in the returned string."""
-    return _get_hasher().hash(password)
-
+    return _HASHER.hash(password)
 
 def verify_password(
     stored_hash: str,
@@ -37,29 +41,39 @@ def verify_password(
     legacy_salt: str = "",
 ) -> tuple[bool, bool]:
     """
-    Verify a password against a stored hash.
+    Verifica una contraseña contra su dato hash almacenado en la base
+    de datos.
 
-    Supports both Argon2id hashes (new) and legacy SHA-256+salt hashes.
-    Uses constant-time comparison in both paths.
+    Tiene soporte para tanto Argon2id (la nueva implementación de
+    almacenamiento de contraseñas) como el legacy SHA-256+salt.
 
     Args:
-        stored_hash:  The hash stored in the database.
-        password:     The plaintext password to verify.
-        legacy_salt:  The salt used for the legacy SHA-256 hash (ignored for Argon2).
+        stored_hash:    El hash alacenado en la base de datos.
+        password:       La contraseña en texto **plano**.
+        legacy_salt:    La salt usada para el almacenamiento legacy (ignorado
+                        si el hash es de tipo Argon2id)
 
     Returns:
-        (is_valid, needs_rehash) — needs_rehash is True when the hash uses the
-        legacy format or when Argon2 parameters have changed (check_needs_rehash).
+        is_valid: ``True`` si la contraseña en texto plano es correcta; falso,
+            en caso contrario
+        needs_rehash: ``True``, si la configuración de Argon2 cambió con respecto
+            a la configuración la que se hasheó la contraseña por última vez; ``False``
+            en caso contrario (es decir, si la configuración no cambió)
+
     """
     if stored_hash.startswith("$argon2"):
-        password_hasher = _get_hasher()
         try:
-            password_hasher.verify(stored_hash, password)
-            needs_rehash = password_hasher.check_needs_rehash(stored_hash)
+            _HASHER.verify(stored_hash, password)
+
+            # Comprueba si necesita rehash comparando los valores con los
+            # que fue hasheada la contraseña comprobada
+            # y los valores actuales de la configuración de Argon2
+            # (que se pasaron anteriormente por parámetro al
+            # construir el hasher)
+            needs_rehash = _HASHER.check_needs_rehash(stored_hash)
             return True, needs_rehash
-        except VerifyMismatchError:
-            return False, False
-        except (VerificationError, InvalidHashError):
+
+        except (VerifyMismatchError, VerificationError, InvalidHashError):
             return False, False
 
     # Legacy SHA-256+salt path
@@ -74,9 +88,10 @@ def verify_password(
 # ---------------------------------------------------------------------------
 
 def generate_salt() -> str:
-    """Return an empty string. Argon2 embeds its own salt; kept for API compat."""
+    """
+    Return an empty string. Argon2 embeds its own salt; kept for API compat.
+    """
     return ""
-
 
 def hash_password_with_salt(password: str, salt: str) -> str:
     """SHA-256 hash of salt+password. Used only to verify legacy stored hashes."""
@@ -98,7 +113,6 @@ def generate_opaque_token() -> str:
 
     return _secrets.token_urlsafe(32)
 
-
 def hash_opaque_token(token: str) -> str:
     """SHA-256 del token, que es lo único que se guarda.
 
@@ -109,7 +123,6 @@ def hash_opaque_token(token: str) -> str:
     lectura de la base de datos no permita verificar cuentas ajenas.
     """
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
-
 
 def verify_opaque_token(token: str, stored_hash: str) -> bool:
     """Comparación en tiempo constante del token contra su hash guardado."""

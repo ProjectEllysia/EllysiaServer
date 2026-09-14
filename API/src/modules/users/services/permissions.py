@@ -216,6 +216,51 @@ ROLE_PERMISSIONS: dict[Role, Set[AttributeType]] = {
 }
 
 
+def _manage_invalid_token(
+    token: str,
+    manager: OAuthTokenManager,
+) -> tuple[dict, int]:
+    """
+    Determina la respuesta adecuada para un access token cuya validación
+    normal ha fallado.
+
+    Comprueba específicamente si el token fue emitido antes del último
+    cambio de contraseña del usuario. En ese caso, devuelve una respuesta
+    diferenciada para que el cliente pueda informar al usuario y solicitar
+    un nuevo inicio de sesión.
+
+    Si no se puede atribuir el rechazo a un cambio de contraseña, devuelve
+    la respuesta genérica correspondiente a un access token inválido o
+    expirado.
+
+    Esta función está pensada para ejecutarse únicamente después de que
+    ``verify_access_token`` haya rechazado el token. La comprobación
+    adicional puede implicar un acceso a base de datos y, por ello, no debe
+    formar parte del camino normal de validación de un token válido.
+
+    Args:
+        token: Access token JWT cuya validación ha fallado.
+        manager: Gestor de tokens utilizado para comprobar si el token quedó
+            obsoleto debido a un cambio de contraseña.
+
+    Returns:
+        Una tupla formada por la respuesta JSON y el código HTTP ``401``.
+        Si el token fue emitido antes del último cambio de contraseña,
+        devuelve ``ErrorCode.PASSWORD_CHANGED``; en caso contrario, devuelve
+        ``invalid_token``.
+    """
+    if manager.is_token_stale_by_password(token):
+        return jsonify({
+            "error": "password_changed",
+            "error_description": "Tu contraseña ha cambiado. Inicia sesión de nuevo.",
+            "code": ErrorCode.PASSWORD_CHANGED.value,
+        }), 401
+    return jsonify({
+        "error": "invalid_token",
+        "error_description": "The access token is invalid or expired",
+    }), 401 
+
+
 # =========================================================================
 # DECORATORS
 # =========================================================================
@@ -242,6 +287,8 @@ def require_oauth_token(f):
                     "error_description": "Missing Authorization header",
                 }), 401
 
+            # Se espera que la cabecera tenga el 
+            # siguiente contenido: "Bearer <token>"
             parts = auth_header.split()
             if len(parts) != 2 or parts[0].lower() != "bearer":
                 return jsonify({
@@ -254,18 +301,7 @@ def require_oauth_token(f):
             payload = manager.verify_access_token(token)
 
             if not payload:
-                # Distinguir un token obsoleto por cambio de contraseña de un fallo
-                # genérico, para que el cliente muestre la pantalla dedicada.
-                if manager.is_token_stale_by_password(token):
-                    return jsonify({
-                        "error": "password_changed",
-                        "error_description": "Tu contraseña ha cambiado. Inicia sesión de nuevo.",
-                        "code": ErrorCode.PASSWORD_CHANGED.value,
-                    }), 401
-                return jsonify({
-                    "error": "invalid_token",
-                    "error_description": "The access token is invalid or expired",
-                }), 401
+                return _manage_invalid_token(token, manager)
 
             request.current_user_id   = int(payload.get("sub", "0"))      # type: ignore[attr-defined]
             request.current_username  = payload.get("username", "")       # type: ignore[attr-defined]
@@ -275,7 +311,7 @@ def require_oauth_token(f):
 
         except (EllysiaException, MissingParameterError, MissingJsonBodyError):
             raise
-        except Exception as exc:
+        except Exception:
             logger.exception("Error durante la autenticación")
             return jsonify({
                 "error": "server_error",

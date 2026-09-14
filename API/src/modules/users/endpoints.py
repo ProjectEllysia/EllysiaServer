@@ -66,15 +66,15 @@ users_blp = SmorestBlueprint("users", __name__, description="Gestion de usuarios
 logger = logging.getLogger(__name__)
 
 
-USER_MANAGER = UserManager()
-OAUTH_MANAGER = OAuthTokenManager()
-MFA_MANAGER = MFAManager()
+USER_MANAGER    = UserManager()
+OAUTH_MANAGER   = OAuthTokenManager()
+MFA_MANAGER     = MFAManager()
 
 
 def get_current_user() -> "User":
     if not hasattr(request, "current_user"):
         user_id = request.current_user_id  # type: ignore
-        user = UserManager().get_user_by_id(user_id)
+        user = USER_MANAGER.get_user_by_id(user_id)
         if user is None:
             raise IllegalStateError("'user' detectado como None")
         request.current_user = user  # type: ignore
@@ -127,7 +127,7 @@ def oauth_token(data: dict[str, Any]):
         username = data["username"]
         password = data["password"]
 
-        is_valid, user_id = UserManager().verify_credentials(username, password)
+        is_valid, user_id = USER_MANAGER.verify_credentials(username, password)
         if not is_valid or user_id is None:
             logger.warning(f"Login fallido para: {username}")
             raise InvalidCredentialsError()
@@ -152,7 +152,8 @@ def oauth_token(data: dict[str, Any]):
             }
 
         access_token = OAUTH_MANAGER.create_access_token(
-            user_id=user_id, username=username,
+            user_id=user_id, 
+            username=username,
             role=user.role if user else "role_user",
             password_changed_at=user.password_changed_at if user else None,
         )
@@ -184,7 +185,9 @@ def oauth_token(data: dict[str, Any]):
             raise InvalidCredentialsError()
 
         access_token = OAUTH_MANAGER.create_access_token(
-            user_id, user.username, user.role,  # type: ignore
+            user_id, 
+            user.username, 
+            user.role,  # type: ignore
             password_changed_at=user.password_changed_at,
         )
         user_attrs = USER_MANAGER.get_user_attributes(user_id)
@@ -236,7 +239,7 @@ def oauth_mfa_verify(data: dict[str, Any]):
 
     # Solo challenges de propósito "login": uno emitido para la recuperación de
     # contraseña no debe canjearse aquí por tokens reales.
-    user_id = OAUTH_MANAGER.verify_mfa_challenge(challenge_token, purpose="login")
+    user_id = OAUTH_MANAGER.verify_challenge_exists(challenge_token, purpose="login")
     if user_id is None:
         raise MfaChallengeInvalidError()
 
@@ -245,7 +248,9 @@ def oauth_mfa_verify(data: dict[str, Any]):
         raise MfaChallengeInvalidError()
 
     verified = MFA_MANAGER.verify_totp_or_recovery(
-        user_id, code=data.get("code"), recovery_code=data.get("recoveryCode"),
+        user_id=user_id, 
+        code=data.get("code"), 
+        recovery_code=data.get("recoveryCode"),
     )
     if not verified:
         OAUTH_MANAGER.register_mfa_challenge_failure(challenge_token)
@@ -263,10 +268,12 @@ def oauth_mfa_verify(data: dict[str, Any]):
     user_attrs = USER_MANAGER.get_user_attributes(user_id)
 
     logger.info(f"MFA verificado, tokens emitidos para: {user.username}")
+
+    expiry_minutes = CR.jwt_config().access_token_expiry_minutes
     return {
         "access_token": access_token,
         "token_type": "Bearer",
-        "expires_in": CR.jwt_config().access_token_expiry_minutes * 60,
+        "expires_in": expiry_minutes * 60, # Expiranción en segundos
         "refresh_token": refresh_token,
         "role": user.role,
         "attributes": user_attrs,
