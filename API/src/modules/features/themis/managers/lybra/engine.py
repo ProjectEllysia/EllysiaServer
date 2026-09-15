@@ -115,8 +115,8 @@ def _resolve_profile(
             desactivó globalmente, así que nunca vale ``True``); ``None``
             dejando mandar a ``LybraConfig.active_checks`` en los otros dos.
             ``planner_enabled`` es ``False`` sólo para "thorough": es el
-            escaneo completo bajo demanda que #314 exige tener disponible
-            sin que el ``CheckPlanner`` decida saltarse nada.
+            escaneo completo bajo demanda que debe seguir disponible sin que
+            el ``CheckPlanner`` decida saltarse nada.
 
     Raises:
         ValidationError: Si ``profile`` no es uno de :data:`LYBRA_SCAN_PROFILES`.
@@ -302,8 +302,8 @@ class LybraEngineManager(ScanManager):
         mismo criterio — un job encolado antes de que existieran los perfiles
         no lo trae, y ``None`` es justo "no lo cambies", el comportamiento que
         ya tenía. ``planner_enabled`` por el mismo motivo, con el default que
-        reproduce el comportamiento previo a #314: un job antiguo sondea todo,
-        que es justo lo que hacía antes de que existiera el planificador.
+        reproduce el comportamiento anterior al planificador: un job antiguo
+        sondea todo, que es justo lo que hacía antes de que existiera.
 
         ``services`` acepta tanto ``Service`` como el dict equivalente, y por el
         mismo motivo de compatibilidad: desde que ``run_scan`` encola por la
@@ -407,14 +407,14 @@ class LybraEngineManager(ScanManager):
         desactivó, sólo desactivarlos para su propio escaneo.
 
         ``planner_enabled`` gobierna si el fingerprint usa el
-        ``CheckPlanner`` (#314): un servicio cuyo puerto ya tenía producto y
+        ``CheckPlanner``: un servicio cuyo puerto ya tenía producto y
         versión resueltos en el escaneo anterior se reutiliza en vez de
         volver a sondearse por red. La detección por versión se ejecuta
         siempre sobre el resultado, sondeado o reutilizado, así que ningún
         hallazgo puede cerrarse por "no se comprobó" — lo único que el
         planificador ahorra es la sonda de red, nunca el análisis. ``False``
         para el perfil "thorough", que es el escaneo completo sin atajos que
-        #314 exige tener siempre disponible.
+        debe seguir disponible siempre.
         """
         # pylint: disable=too-many-arguments,too-many-locals,too-many-statements
         # pylint: disable=too-many-positional-arguments,too-many-branches
@@ -1439,9 +1439,9 @@ class LybraEngineManager(ScanManager):
     def _persist_scan_results(self, uow, scan, domain_data) -> None:
         """Persist the engine's findings (``domain_data`` is a list of dicts).
 
-        Resuelve ``fixed_version`` antes de guardar (#312): así queda en la
-        fila del ``Finding``, consultable y agrupable por SQL, en vez de
-        recalcularse cada vez que un informe o la API la piden.
+        Resuelve ``fixed_version`` antes de guardar: así queda en la fila del
+        ``Finding``, consultable y agrupable por SQL, en vez de recalcularse
+        cada vez que un informe o la API la piden.
 
         Aprovecha la escritura para purgar la evidencia caducada: cada
         escaneo que graba evidencia se lleva de paso la que ha pasado su

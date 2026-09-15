@@ -1,4 +1,4 @@
-"""lybra: perfil de escaneo elegido (#308)
+"""lybra: perfil de escaneo elegido
 
 Revision ID: e69f6af8eeef
 Revises: 4673e0aaf802

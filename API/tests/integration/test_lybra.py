@@ -950,7 +950,7 @@ def _stub_apache_http_probe(monkeypatch, version: str = "2.4.49") -> None:
 
 
 def test_a_rescan_of_an_unchanged_port_skips_the_fingerprint_probe(app, admin_user, monkeypatch):
-    """El CheckPlanner (#314): la segunda vez que se escanea el mismo puerto
+    """El CheckPlanner: la segunda vez que se escanea el mismo puerto
     con producto y versión ya conocidos, no vuelve a sondearse por red — se
     reutiliza la identidad del surface tracking. La detección por versión
     (y por tanto el hallazgo) se sigue produciendo igual, sólo se ahorra la
@@ -1340,7 +1340,7 @@ def _run_payload_scan(app, user_id: int, target: str = "10.9.9.9") -> int:
         return escan.id
 
 
-# ─────────────────────────────── fixed_version persistido (#312)
+# ─────────────────────────────── fixed_version persistido
 
 def test_a_finding_with_a_known_fix_persists_its_fixed_version(app, admin_user):
     """La versión que corrige el hallazgo se guarda en la fila, no sólo se

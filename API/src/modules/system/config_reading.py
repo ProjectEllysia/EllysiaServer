@@ -1225,10 +1225,9 @@ class LybraPlannerConfig:
 
     enabled: bool = True
     """Si el motor reutiliza el producto/versión ya conocido de un
-    servicio en vez de volver a sondearlo por red. El perfil "thorough"
-    (#308) lo ignora siempre — es el escaneo completo bajo demanda que el
-    criterio de cierre de esta necesidad exige tener disponible sin
-    planificador de por medio."""
+    servicio en vez de volver a sondearlo por red. El perfil "thorough" lo
+    ignora siempre — es el escaneo completo bajo demanda que debe seguir
+    disponible sin planificador de por medio."""
 
 
 def lybra_planner_config() -> LybraPlannerConfig:
