@@ -205,6 +205,11 @@ from .adapters import (
     finding_to_json,
     QOD_NUCLEI_MATCH,
 )
+from .exporters import (
+    to_sarif,
+    to_stix,
+    to_ocsf,
+)
 from .transport import (
     AsyncConnectScanner,
     PortOutcome,
@@ -365,6 +370,9 @@ __all__ = [
     "nuclei_result_to_finding",
     "finding_to_json",
     "QOD_NUCLEI_MATCH",
+    "to_sarif",
+    "to_stix",
+    "to_ocsf",
     "AsyncConnectScanner",
     "PortOutcome",
     "PortSweep",

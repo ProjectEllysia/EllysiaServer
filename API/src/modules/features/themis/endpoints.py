@@ -38,6 +38,7 @@ from .managers import (
     KbSyncManager,
 )
 from .model import ScanType
+from .lybra.exporters import to_sarif, to_stix, to_ocsf
 from .exceptions import (
     ScanError,
     ScanExecutionError,
@@ -55,6 +56,7 @@ from .exceptions import (
 )
 from .schemas import (
     ScanIdQuerySchema,
+    LybraExportQuerySchema,
     NmapScanRequestSchema,
     NiktoScanRequestSchema,
     NucleiScanRequestSchema,
@@ -582,6 +584,39 @@ def get_lybra_grouped_findings(scan_id: int):
         **result,
         "user": user.username,
     }
+
+
+@themis_blp.get("/lybra/scans/<int:scan_id>/export")
+@themis_blp.arguments(LybraExportQuerySchema, location="query")
+@themis_blp.response(200, description="Scan findings in the requested standard format")
+@themis_blp.alt_response(422, schema=ErrorSchema, description="Unknown format")
+@themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@themis_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@themis_blp.alt_response(404, schema=ErrorSchema, description="Scan not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.THEMIS_READ])
+@limiter.limit("60 per hour; 200 per day")
+@handle_exceptions(default_exception=ScanNotFoundError, logger=logger)
+def export_lybra_scan(args, scan_id: int):
+    """Exporta los hallazgos de un escaneo Lybra a SARIF, STIX u OCSF.
+
+    Es la puerta de integración con lo que ya tiene un equipo de seguridad:
+    SARIF para un *gate* en la pestaña de seguridad de GitHub, STIX para un
+    TIP, OCSF para un SIEM. Las tres son traducciones puras de los mismos
+    hallazgos que ya devuelve `format_scan`; ninguna consulta nada nuevo.
+
+    Un escaneo que no es de Lybra se reporta como inexistente, igual que uno
+    ajeno: no es una `ScanType` que estos exportadores sepan interpretar, y
+    la enumeración de ids de otros escaneos no debe filtrarse por aquí.
+    """
+    user = get_current_user()
+    scan = ScanManager.assert_scan_ownership(scan_id, user.id)
+    if scan.scan_type != ScanType.LYBRA.value:
+        raise ScanNotFoundError(scan_id)
+
+    formatted_scan = LybraEngineManager().format_scan(scan_id)
+    exporter = {"sarif": to_sarif, "stix": to_stix, "ocsf": to_ocsf}[args["format"]]
+    return exporter(formatted_scan)
 
 
 @themis_blp.patch("/findings/<int:finding_id>")
