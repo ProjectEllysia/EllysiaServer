@@ -823,7 +823,12 @@ function fmtDate(iso) {
 .body-coverage-hint { margin-top: 0.6rem; padding: 0.55rem 0.7rem; font-size: var(--fs-md); line-height: 1.4; color: var(--warn); background: var(--warn-dim); border: 1px dashed var(--warn); border-radius: 7px; }
 
 /* ── Documentos PDF ── */
-.doc-section { margin-top: 0.9rem; padding-top: 0.7rem; border-top: 1px solid var(--border); }
+/* Antes era solo un borde superior de 1px: al lado de "Mostrar hallazgos" se
+   leía como una raya más dentro del mismo bloque, no como el arranque de una
+   sección distinta. El mismo fondo y borde que ya usan .group y .state-panel
+   en esta tarjeta —un recuadro propio, no una regla— es lo que aquí falta
+   para que "Documentos" se lea como su propio apartado. */
+.doc-section { margin-top: 1.1rem; padding: 0.75rem 0.85rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
 .doc-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; }
 .doc-title { font-size: var(--fs-lg); color: var(--text-dim); font-weight: 600; display: flex; align-items: center; gap: 0.35rem; }
 .doc-count { font-size: var(--fs-body); font-weight: 500; color: var(--text-muted); background: var(--surface-2); padding: 1px 6px; border-radius: 8px; }
