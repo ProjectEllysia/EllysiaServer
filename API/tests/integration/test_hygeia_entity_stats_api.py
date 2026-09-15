@@ -291,3 +291,64 @@ def test_network_stats_of_another_users_asset_are_not_found(
     )
 
     assert status == 404
+
+
+# =============================================================================
+# DESEQUILIBRIO ENTRE NÚCLEOS
+# =============================================================================
+
+def _cores(*usages) -> dict:
+    """Payload de CPU con el uso de cada núcleo y su media."""
+    return {"cpu": {"usagePct": sum(usages) / len(usages), "perCorePct": list(usages)}}
+
+
+def test_the_core_spread_is_summarized_over_the_period(client, app, regular_user, auth_headers):
+    """La distancia entre núcleos de cada heartbeat se resume; un solo núcleo no cuenta."""
+    asset_id = _create_asset(app, regular_user.id)
+    _seed(app, asset_id, [
+        (timedelta(minutes=40), _cores(10.0, 90.0)),
+        (timedelta(minutes=30), _cores(50.0, 50.0, 40.0, 60.0)),
+        (timedelta(minutes=20), _cores(30.0)),
+        (timedelta(minutes=10), _cores(20.0, 25.0)),
+    ])
+
+    status, body = _get(
+        client, f"/hygeia/assets/{asset_id}/stats/cpu-cores", auth_headers(regular_user),
+    )
+
+    assert status == 200
+    spread = body["coreSpreadPct"]
+    assert (spread["max"], spread["min"], spread["current"]) == (80.0, 5.0, 5.0)
+    assert spread["avg"] == pytest.approx(35.0)
+    assert spread["sampleCount"] == 3
+    assert body["latestPerCorePct"] == [20.0, 25.0]
+    assert body["latestAt"]
+
+
+def test_without_per_core_data_the_spread_is_empty(client, app, regular_user, auth_headers):
+    """Un agente que no manda el uso por núcleo da un resumen vacío, no ceros."""
+    asset_id = _create_asset(app, regular_user.id)
+    _seed(app, asset_id, [(timedelta(minutes=10), {"cpu": {"usagePct": 20.0}})])
+
+    status, body = _get(
+        client, f"/hygeia/assets/{asset_id}/stats/cpu-cores", auth_headers(regular_user),
+    )
+
+    assert status == 200
+    assert body["coreSpreadPct"]["sampleCount"] == 0
+    assert body["coreSpreadPct"]["max"] is None
+    assert body["latestPerCorePct"] == []
+    assert body["latestAt"] is None
+
+
+def test_core_stats_of_another_users_asset_are_not_found(
+    client, app, regular_user, make_user, auth_headers,
+):
+    """El activo de otro usuario da el mismo 404 que uno inexistente."""
+    asset_id = _create_asset(app, regular_user.id)
+
+    status, _ = _get(
+        client, f"/hygeia/assets/{asset_id}/stats/cpu-cores", auth_headers(make_user()),
+    )
+
+    assert status == 404

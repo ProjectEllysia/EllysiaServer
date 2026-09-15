@@ -704,6 +704,38 @@ class NetworkStatsResponseSchema(Schema):
     isPeriodClipped = fields.Boolean()
 
 
+class CpuCoreStatsQuerySchema(Schema):
+    """Query de ``GET /hygeia/assets/<id>/stats/cpu-cores``.
+
+    Tras cargar, ``period`` queda como ``requested_duration``.
+    """
+    period = _build_period_field()
+
+    @post_load
+    def parse_query(self, data, **kwargs):
+        """Convierte ``period`` en ``timedelta``."""
+        data["requested_duration"] = _parse_period(data.pop("period"))
+        return data
+
+
+class CpuCoreStatsResponseSchema(Schema):
+    """Desequilibrio de carga entre los núcleos de CPU de un activo.
+
+    ``coreSpreadPct`` resume, sobre el periodo, la distancia en puntos
+    porcentuales entre el núcleo más cargado y el menos cargado de cada
+    heartbeat; los heartbeats con menos de dos núcleos no cuentan.
+    ``latestPerCorePct`` es el uso de cada núcleo en ``latestAt``, el último
+    heartbeat del periodo que lo trae. La ventana se recorta a
+    ``maxEntityStatsPeriodDays``, y ``isPeriodClipped`` lo avisa.
+    """
+    coreSpreadPct = fields.Nested(MetricSummarySchema)
+    latestPerCorePct = fields.List(fields.Float())
+    latestAt = UTCDateTime(allow_none=True)
+    periodCoveredFrom = UTCDateTime()
+    periodCoveredTo = UTCDateTime()
+    isPeriodClipped = fields.Boolean()
+
+
 class TagStatsQuerySchema(AssetStatsSummaryQuerySchema):
     """Query de ``GET /hygeia/stats/by-tag/<tagId>``: la del resumen de un activo más ``agg``.
 

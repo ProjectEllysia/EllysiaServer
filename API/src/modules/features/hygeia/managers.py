@@ -50,7 +50,8 @@ from .repositories import (
 )
 from .services import (
     METRIC_REGISTRY, MetricDefinition, MetricUnit, assert_metric_definition,
-    build_histogram, build_inventory_report, build_percentile_series, check_clock_skew,
+    build_histogram, build_inventory_report, build_percentile_series, calculate_core_spread,
+    check_clock_skew,
     combine_asset_averages, denormalize, evaluate, extract_entity_series, generate_agent_key,
     is_agent_outdated,
     project_month, resolve_stats_window, services_from_inventory, summarize_power_period,
@@ -1071,6 +1072,57 @@ class HygeiaAssetManager:
                 for name in sorted(received_by_interface.keys() | sent_by_interface.keys())
                 if interface is None or name == interface
             ],
+            "periodCoveredFrom": window.since,
+            "periodCoveredTo": window.until,
+            "isPeriodClipped": window.is_clipped,
+        }
+
+    def get_cpu_core_stats(self, asset_id: int, requested_duration: timedelta) -> dict:
+        """
+        Resume el desequilibrio de carga entre los núcleos de CPU de un activo.
+
+        ``cpuPct`` es la media de los núcleos, y un proceso que satura uno solo
+        queda escondido tras una media moderada. Aquí se calcula, en cada
+        heartbeat, la distancia entre el núcleo más cargado y el menos cargado
+        (``calculate_core_spread``), y se resume esa serie con
+        ``summarize_values``: su máximo dice cuánto llegó a desequilibrarse la
+        máquina en el periodo, y ``timestampOfMax`` cuándo. Junto al resumen va
+        el uso por núcleo del último heartbeat del periodo que lo trae.
+
+        Args:
+            asset_id: Activo cuyos núcleos se analizan.
+            requested_duration: Duración del periodo pedido, antes de recortar;
+                positiva.
+
+        Returns:
+            Diccionario con la forma de ``CpuCoreStatsResponseSchema``:
+            ``coreSpreadPct`` (un ``StatSummary``, vacío si ningún heartbeat
+            trae dos núcleos o más), ``latestPerCorePct`` (lista vacía y
+            ``latestAt`` a ``None`` si ningún heartbeat trae el uso por núcleo)
+            y la ventana cubierta.
+
+        Raises:
+            AssetNotFoundError: Si el activo no existe o pertenece a otro usuario.
+        """
+        assert_owned(MonitoredAssetRepository, asset_id, self.user.id, AssetNotFoundError)
+        window = _resolve_entity_stats_window(requested_duration)
+
+        samples = build_repository(AssetSnapshotRepository).get_metrics_section_samples(
+            asset_id, "cpu", window.since, window.until,
+        )
+        latest_at, latest_cores = next(
+            (
+                (instant, cpu["perCorePct"]) for instant, cpu in reversed(samples)
+                if cpu and cpu.get("perCorePct")
+            ),
+            (None, []),
+        )
+        return {
+            "coreSpreadPct": summarize_values(
+                [(instant, calculate_core_spread(cpu)) for instant, cpu in samples],
+            ),
+            "latestPerCorePct": latest_cores,
+            "latestAt": latest_at,
             "periodCoveredFrom": window.since,
             "periodCoveredTo": window.until,
             "isPeriodClipped": window.is_clipped,
