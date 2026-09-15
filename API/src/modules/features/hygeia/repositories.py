@@ -177,6 +177,30 @@ class MonitoredAssetRepository(BaseRepository[MonitoredAsset]):
             .all()
         )
 
+    def get_by_ids_for_user(self, user_id: int, asset_ids: List[int]) -> List[MonitoredAsset]:
+        """Los activos pedidos que son **del usuario**, ordenados por hostname.
+
+        Un id de otro usuario simplemente no aparece: quien llama compara lo
+        pedido con lo devuelto y responde igual que para un id inexistente,
+        sin distinguir los dos casos.
+
+        Args:
+            user_id: Dueño de los activos.
+            asset_ids: Ids pedidos. Una lista vacía devuelve una lista vacía
+                sin consultar.
+
+        Returns:
+            List[MonitoredAsset]: Los que existen y son del usuario.
+        """
+        if not asset_ids:
+            return []
+        return (
+            self._session.query(MonitoredAsset)
+            .filter(MonitoredAsset.id.in_(asset_ids), MonitoredAsset.user_id == user_id)
+            .order_by(MonitoredAsset.hostname.asc(), MonitoredAsset.id.asc())
+            .all()
+        )
+
     def count_by_status(self, user_id: int) -> Dict[str, int]:
         """Cuántos activos del usuario hay en cada estado de presencia.
 

@@ -921,6 +921,99 @@ class PowerStatsResponseSchema(Schema):
     isPeriodClipped = fields.Boolean()
 
 
+class MetricSeriesQuerySchema(Schema):
+    """Query de ``GET /hygeia/stats/series``: la serie temporal de una métrica sobre varios activos.
+
+    El alcance es exactamente uno de ``tagId`` (los activos del usuario con
+    esa etiqueta) o ``assetIds`` (hasta 50 ids separados por comas). Sin
+    ``agg`` se devuelve una serie por activo; con ``agg`` (``sum``, ``avg`` o
+    ``max``), una sola serie que los combina. ``bucketAgg`` (``min``, ``avg``
+    por defecto, ``max``) dice cómo se resume cada cubo dentro de un activo.
+    ``bucket`` es el tamaño del cubo en segundos; sin él se usa el más fino
+    que cabe en ``maxSeriesPoints``. Tras cargar, ``assetIds`` queda como
+    ``asset_ids`` (lista de enteros, o ``None``) y ``period`` como
+    ``requested_duration``.
+    """
+    metric = fields.String(required=True)
+    tagId = fields.Integer(load_default=None, validate=validate.Range(min=1))
+    assetIds = fields.String(
+        load_default=None,
+        validate=validate.Regexp(
+            r"^[1-9][0-9]*(,[1-9][0-9]*){0,49}$",
+            error="assetIds debe ser una lista de hasta 50 ids separados por comas.",
+        ),
+    )
+    agg = fields.String(load_default=None, validate=validate.OneOf(["sum", "avg", "max"]))
+    bucketAgg = fields.String(load_default="avg", validate=validate.OneOf(["min", "avg", "max"]))
+    bucket = fields.Integer(load_default=None, validate=validate.Range(min=1))
+    period = _build_period_field()
+
+    @validates_schema
+    def validate_scope(self, data, **kwargs):
+        """Exige exactamente uno de ``tagId`` o ``assetIds``."""
+        if (data.get("tagId") is None) == (data.get("assetIds") is None):
+            raise ValidationError("Indica exactamente uno de tagId o assetIds.", field_name="tagId")
+
+    @post_load
+    def parse_query(self, data, **kwargs):
+        """Convierte ``assetIds`` en lista de enteros sin repetidos y ``period`` en duración."""
+        raw_asset_ids = data.pop("assetIds")
+        data["asset_ids"] = (
+            list(dict.fromkeys(int(asset_id) for asset_id in raw_asset_ids.split(",")))
+            if raw_asset_ids else None
+        )
+        data["requested_duration"] = _parse_period(data.pop("period"))
+        return data
+
+
+class SeriesPointSchema(Schema):
+    """Un punto de una serie: el inicio de su cubo y el valor.
+
+    ``assetCount`` solo viene en una serie combinada: cuántos activos
+    aportaron a ese cubo. Una suma sobre dos activos no es comparable con una
+    sobre tres, y quien la pinta tiene que poder decirlo.
+    """
+    at = UTCDateTime()
+    value = fields.Float()
+    assetCount = fields.Integer()
+
+
+class MetricSeriesSchema(Schema):
+    """Una serie de la respuesta, con de dónde sale.
+
+    ``kind`` es ``asset`` (la serie de un activo: ``assetId`` y su hostname
+    como ``label``), ``tag`` (la combinación de los activos de una etiqueta:
+    ``tagId`` y su nombre como ``label``) o ``assets`` (la combinación de una
+    lista explícita de activos, sin ``label``). Los cubos sin datos no
+    aparecen: la ausencia de señal es un hueco, no un cero.
+    """
+    kind = fields.String()
+    assetId = fields.Integer(allow_none=True)
+    tagId = fields.Integer(allow_none=True)
+    label = fields.String(allow_none=True)
+    points = fields.List(fields.Nested(SeriesPointSchema))
+
+
+class MetricSeriesResponseSchema(Schema):
+    """Serie temporal de una métrica sobre varios activos.
+
+    ``bucket`` es el cubo que se usó de verdad: si el pedido daba más puntos
+    que ``maxSeriesPoints`` se ensancha al mínimo que cabe e
+    ``isBucketWidened`` lo avisa. ``agg`` es nulo cuando se devuelve una serie
+    por activo.
+    """
+    metric = fields.String()
+    unit = fields.String()
+    bucket = fields.Integer()
+    isBucketWidened = fields.Boolean()
+    bucketAgg = fields.String()
+    agg = fields.String(allow_none=True)
+    series = fields.List(fields.Nested(MetricSeriesSchema))
+    periodCoveredFrom = UTCDateTime()
+    periodCoveredTo = UTCDateTime()
+    isPeriodClipped = fields.Boolean()
+
+
 # =============================================================================
 # INVENTARIO DE SOFTWARE — reemplaza por completo en cada escaneo, sin delta
 # =============================================================================
