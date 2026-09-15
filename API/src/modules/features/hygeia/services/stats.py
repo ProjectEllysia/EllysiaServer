@@ -1,22 +1,30 @@
 """
 hygeia.services.stats
 ──────────────────────
-Agregados sobre una serie de potencia ya guardada, para el resumen de
-consumo eléctrico (media ponderada, energía, coste y su procedencia).
+Agregados sobre series de métricas ya guardadas.
+
+Dos familias de funciones comparten el módulo:
+
+- **Resumen estadístico genérico** (:func:`summarize_values`,
+  :func:`calculate_percentile`, :func:`summarize_series_by_asset`): mínimo,
+  máximo, media, percentil 95 y valor actual de cualquier métrica, sobre un
+  activo o sobre varios. Es la capa común de la que tiran los endpoints de
+  estadísticas por activo, por etiqueta y del parque.
+- **Consumo eléctrico** (media ponderada por duración, energía, coste y su
+  procedencia): el resumen de potencia de un activo.
 
 Funciones puras: sin ORM, sin Flask. Entra una secuencia de ``(instante,
-vatios)`` ya leída por el repositorio y salen los números que consume el
-manager. Si algún día existe un servicio genérico de estadísticas para
-Hygeia, este módulo es la pieza mínima con su misma forma (funciones puras
-en ``hygeia/services/stats.py``), para que los dos converjan en vez de
-duplicarse.
+valor)`` ya leída por el repositorio y salen los números que consume el
+manager, así que se prueban con listas construidas a mano.
 """
 
 from __future__ import annotations
 
+import math
+from collections.abc import Hashable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import NamedTuple, Optional, Sequence, Tuple
+from typing import Dict, Mapping, NamedTuple, Optional, Sequence, Tuple, TypeVar
 
 # Suelo del umbral de hueco cuando la mediana de los intervalos es pequeña o
 # no existe (menos de dos muestras). Replica el criterio de `gapThresholdMs`
@@ -74,6 +82,53 @@ class PeriodClassification:
     """
     classification: str
     coverage_fraction: Optional[float]
+
+
+class StatSummary(NamedTuple):
+    """Resultado de :func:`summarize_values`: los agregados de una serie de una métrica.
+
+    Todos los campos de valor son ``None`` a la vez cuando la serie no tiene
+    ninguna muestra con dato (``sample_count == 0``): de un activo que no ha
+    reportado una métrica no se sabe su máximo, y ``0`` sería una cifra
+    inventada.
+
+    Attributes:
+        minimum: Valor más bajo de la serie, o ``None`` sin muestras.
+        maximum: Valor más alto de la serie, o ``None`` sin muestras.
+        average: Media aritmética de las muestras, o ``None`` sin muestras.
+        percentile_95: Percentil 95 por interpolación lineal (ver
+            :func:`calculate_percentile`), o ``None`` sin muestras.
+        current: Valor de la muestra más reciente, o ``None`` sin muestras.
+        timestamp_of_minimum: Instante de la primera muestra (en orden
+            cronológico) que alcanza ``minimum``, o ``None`` sin muestras.
+        timestamp_of_maximum: Instante de la primera muestra (en orden
+            cronológico) que alcanza ``maximum``, o ``None`` sin muestras.
+        sample_count: Número de muestras con dato que entraron en el
+            resumen; las que traían ``None`` no cuentan. Nunca es negativo.
+    """
+    minimum: Optional[float]
+    maximum: Optional[float]
+    average: Optional[float]
+    percentile_95: Optional[float]
+    current: Optional[float]
+    timestamp_of_minimum: Optional[datetime]
+    timestamp_of_maximum: Optional[datetime]
+    sample_count: int
+
+
+#: Resumen de una serie sin ninguna muestra con dato. Es un único valor
+#: inmutable porque todos los resúmenes vacíos son idénticos.
+_EMPTY_SUMMARY = StatSummary(
+    minimum=None, maximum=None, average=None, percentile_95=None, current=None,
+    timestamp_of_minimum=None, timestamp_of_maximum=None, sample_count=0,
+)
+
+#: Percentil que entra en :class:`StatSummary`. El 95 es el corte habitual en
+#: monitorización: descarta los picos aislados sin esconder una carga
+#: sostenida, que es justo lo que el máximo no distingue.
+_SUMMARY_PERCENTILE = 95
+
+AssetKey = TypeVar("AssetKey", bound=Hashable)
 
 
 def median_delta(times: Sequence[datetime]) -> Optional[timedelta]:
@@ -314,3 +369,125 @@ def project_month(
         "periodFrom": period_start,
         "periodTo": period_end,
     }
+
+
+def calculate_percentile(values: Sequence[float], percentile: float) -> Optional[float]:
+    """
+    Percentil de una lista de valores por interpolación lineal entre rangos.
+
+    Es el método por defecto de NumPy (``method="linear"``): se ordenan los
+    valores, se sitúa el percentil en la posición ``percentile / 100 × (n - 1)``
+    y, si cae entre dos valores, se interpola entre ellos. Se implementa aquí
+    en vez de importar NumPy porque el proyecto no depende de él y esta es la
+    única cuenta que lo necesitaría. El mismo cálculo sirve para el resumen de
+    una serie y para el percentil dentro de un cubo de la serie temporal, que
+    SQL no resuelve de forma portable entre Postgres y SQLite.
+
+    Args:
+        values: Valores sobre los que calcular el percentil, en cualquier
+            orden. No admite ``None``: quien llama descarta antes las
+            muestras sin dato.
+        percentile: Percentil pedido, en el rango cerrado ``[0, 100]``.
+            ``0`` devuelve el mínimo y ``100`` el máximo.
+
+    Returns:
+        Optional[float]: El percentil, o ``None`` si ``values`` está vacío.
+            Con un solo valor, ese valor.
+
+    Raises:
+        ValueError: Si ``percentile`` está fuera de ``[0, 100]``; es un error
+            de programación, no un dato de entrada del usuario.
+    """
+    if not 0 <= percentile <= 100:
+        raise ValueError(f"El percentil debe estar en [0, 100]; se pidió {percentile}")
+    if not values:
+        return None
+
+    ordered = sorted(values)
+    position = percentile / 100 * (len(ordered) - 1)
+    lower_index = math.floor(position)
+    upper_index = math.ceil(position)
+    lower_value = ordered[lower_index]
+    return lower_value + (ordered[upper_index] - lower_value) * (position - lower_index)
+
+
+def summarize_values(samples: Sequence[Tuple[datetime, Optional[float]]]) -> StatSummary:
+    """
+    Resume una serie de una métrica: mínimo, máximo, media, percentil 95 y valor actual.
+
+    Es la cuenta común de todas las estadísticas de Hygeia: el resumen de un
+    activo, el de cada activo de una etiqueta y el del parque aplican esta
+    misma función a series distintas, para que ``avg`` o ``p95`` signifiquen
+    lo mismo en todos los endpoints.
+
+    Las muestras con valor ``None`` se descartan: una métrica que el agente no
+    reportó en un heartbeat es ausencia de dato, no un cero, y contarla como
+    cero hundiría el mínimo y la media.
+
+    La media es **aritmética** sobre las muestras, no ponderada por duración.
+    Así coincide con el ``AVG`` que la base de datos calcula al agregar la
+    serie temporal por cubos, y un resumen y una gráfica del mismo tramo no dan
+    dos medias distintas. Un hueco de telemetría tampoco cuenta como cero,
+    porque en un hueco no hay muestras. La media ponderada por duración
+    (:func:`weighted_average_with_observed_time`) se reserva para la energía,
+    donde el tiempo entra en la propia definición de la magnitud.
+
+    Args:
+        samples: Pares ``(instante, valor)`` en cualquier orden. El instante
+            es ``received_at`` (reloj del servidor), el mismo eje que el resto
+            de la serie temporal.
+
+    Returns:
+        StatSummary: Los agregados de la serie. Con ninguna muestra con dato,
+            todos los campos de valor son ``None`` y ``sample_count`` es
+            ``0``. Si el máximo o el mínimo se repiten, su instante es el de la
+            primera vez que se alcanzaron.
+    """
+    observed = sorted(
+        ((instant, value) for instant, value in samples if value is not None),
+        key=lambda sample: sample[0],
+    )
+    if not observed:
+        return _EMPTY_SUMMARY
+
+    values = [value for _, value in observed]
+    # ``min``/``max`` devuelven el primer elemento extremo que encuentran, y
+    # ``observed`` está en orden cronológico: el empate se resuelve a favor
+    # del instante más antiguo sin más lógica.
+    timestamp_of_minimum, minimum = min(observed, key=lambda sample: sample[1])
+    timestamp_of_maximum, maximum = max(observed, key=lambda sample: sample[1])
+
+    return StatSummary(
+        minimum=minimum,
+        maximum=maximum,
+        average=math.fsum(values) / len(values),
+        percentile_95=calculate_percentile(values, _SUMMARY_PERCENTILE),
+        current=observed[-1][1],
+        timestamp_of_minimum=timestamp_of_minimum,
+        timestamp_of_maximum=timestamp_of_maximum,
+        sample_count=len(values),
+    )
+
+
+def summarize_series_by_asset(
+    series_by_asset: Mapping[AssetKey, Sequence[Tuple[datetime, Optional[float]]]],
+) -> Dict[AssetKey, StatSummary]:
+    """
+    Aplica :func:`summarize_values` a varias series a la vez, una por activo.
+
+    Es la forma que devuelve el repositorio en las consultas multi-activo
+    (una serie por ``asset_id``), así que el resumen por etiqueta o del
+    parque no tiene que recorrer el diccionario a mano en cada endpoint.
+
+    Args:
+        series_by_asset: Serie de ``(instante, valor)`` de cada activo,
+            indexada por su clave (normalmente el ``asset_id``). Puede estar
+            vacío.
+
+    Returns:
+        Dict[AssetKey, StatSummary]: El resumen de cada activo con la misma
+            clave de entrada. Un activo con una serie vacía conserva su
+            entrada, con el resumen vacío (``sample_count == 0``), para que
+            quien llama pueda decir "sin datos" en vez de perderlo de la lista.
+    """
+    return {asset_key: summarize_values(series) for asset_key, series in series_by_asset.items()}
