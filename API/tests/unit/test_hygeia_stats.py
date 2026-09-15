@@ -15,6 +15,7 @@ from typing import Optional
 import pytest
 
 from src.modules.features.hygeia.services.stats import (
+    build_histogram,
     build_percentile_series,
     calculate_percentile,
     classify_period,
@@ -404,3 +405,45 @@ def test_an_unknown_combination_is_a_programming_error():
     """Solo se admiten ``sum``, ``avg`` y ``max``."""
     with pytest.raises(ValueError):
         combine_asset_averages([1.0], "p95")
+
+
+# =============================================================================
+# HISTOGRAMA
+# =============================================================================
+
+def test_the_histogram_splits_the_range_into_equal_bins():
+    """Cuatro franjas de 0 a 100: el límite inferior entra en su franja y el 100 en la última."""
+    bins = build_histogram([10.0, 25.0, 55.0, 80.0, 100.0, 0.0], 4, 0.0, 100.0)
+
+    assert [(histogram_bin.lower_bound, histogram_bin.upper_bound) for histogram_bin in bins] == [
+        (0.0, 25.0), (25.0, 50.0), (50.0, 75.0), (75.0, 100.0),
+    ]
+    assert [histogram_bin.value_count for histogram_bin in bins] == [2, 1, 1, 2]
+
+
+def test_values_outside_the_range_land_in_the_nearest_bin():
+    """Un valor fuera de los límites se cuenta en el borde, no se pierde."""
+    bins = build_histogram([-5.0, 105.0], 2, 0.0, 100.0)
+
+    assert [histogram_bin.value_count for histogram_bin in bins] == [1, 1]
+
+
+def test_a_zero_width_range_is_a_single_bin():
+    """Si todos los valores son iguales hay una franja, sea cual sea el número pedido."""
+    bins = build_histogram([42.0, 42.0, 42.0], 4, 42.0, 42.0)
+
+    assert bins == [(42.0, 42.0, 3)]
+
+
+def test_an_empty_histogram_has_its_bins_at_zero():
+    """Sin valores, las franjas existen y están vacías."""
+    bins = build_histogram([], 2, 0.0, 100.0)
+
+    assert [histogram_bin.value_count for histogram_bin in bins] == [0, 0]
+
+
+@pytest.mark.parametrize("bin_count, lower_bound, upper_bound", [(0, 0.0, 100.0), (4, 10.0, 5.0)])
+def test_invalid_histogram_arguments_are_a_programming_error(bin_count, lower_bound, upper_bound):
+    """Cero franjas o límites invertidos lanzan."""
+    with pytest.raises(ValueError):
+        build_histogram([1.0], bin_count, lower_bound, upper_bound)
