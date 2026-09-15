@@ -633,9 +633,17 @@ def udp_send_recv(host: str, port: int, payload: bytes, timeout: float) -> Optio
         (timeout, puerto cerrado, host inalcanzable).
     """
     try:
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+        # La familia se resuelve con getaddrinfo en vez de fijarla a AF_INET:
+        # un host IPv6 (literal o resuelto por nombre) necesita AF_INET6, y
+        # fijar la familia a fuego hacía que toda sonda UDP contra un
+        # objetivo IPv6 fallase en el connect() y se confundiera con un
+        # puerto cerrado.
+        family, socktype, proto, _, sockaddr = socket.getaddrinfo(
+            host, port, type=socket.SOCK_DGRAM
+        )[0]
+        with socket.socket(family, socktype, proto) as sock:
             sock.settimeout(timeout)
-            sock.connect((host, port))
+            sock.connect(sockaddr)
             sock.send(payload)
             return sock.recv(4096)
     except OSError as err:

@@ -165,7 +165,10 @@ class Host(Base):
     Attributes:
         id: Primary key, auto-incrementing integer.
         hostname: Unique hostname (max 64 characters).
-        ip_address: IPv4/IPv6 address (max 15 characters).
+        ip_address: IPv4 or IPv6 address (max 45 characters — la longitud de
+            una IPv6 completa con notación comprimida, p. ej.
+            ``"2001:0db8:0000:0000:0000:ff00:0042:8329"``; una IPv4 nunca se
+            acerca a ese límite).
         mac_address: MAC address (max 17 characters).
         vendor: Device vendor from MAC OUI lookup (max 64 characters).
 
@@ -176,7 +179,7 @@ class Host(Base):
 
     id          = Column(Integer,    primary_key=True, autoincrement=True)
     hostname    = Column(String(64), unique=True, nullable=False)
-    ip_address  = Column(String(15), nullable=False)
+    ip_address  = Column(String(45), nullable=False)
     mac_address = Column(String(17), nullable=False)
     vendor      = Column(String(64))
 

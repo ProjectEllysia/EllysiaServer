@@ -35,6 +35,7 @@ must wait on the authorized-targets register.
 
 from __future__ import annotations
 
+import ipaddress
 import itertools
 import json
 import logging
@@ -1826,6 +1827,31 @@ def negotiates_tls(host: str, port: int, timeout: float = 5.0, connect: Optional
         return False
 
 
+def _format_netloc(host: str, port: Optional[int]) -> str:
+    """Compone el ``host[:port]`` de una URL, entrecomillando IPv6 con corchetes.
+
+    ``f"{host}:{port}"`` sobre una dirección IPv6 literal (``2001:db8::1``)
+    produce una URL ambigua: los dos puntos de la dirección se confunden con
+    el separador de puerto. La notación de RFC 3986 exige corchetes
+    (``[2001:db8::1]:8080``) precisamente para esa distinción; un hostname o
+    una IPv4 no los necesitan y no los llevan.
+
+    Args:
+        host: El host destino — hostname, IPv4 o IPv6 literal.
+        port: El puerto destino, o ``None`` si no aplica.
+
+    Returns:
+        str: ``host`` (o ``[host]`` si es una IPv6 literal) seguido de
+            ``:port`` cuando ``port`` no es ``None``.
+    """
+    try:
+        is_ipv6 = ipaddress.ip_address(host).version == 6
+    except ValueError:
+        is_ipv6 = False
+    netloc_host = f"[{host}]" if is_ipv6 else host
+    return f"{netloc_host}:{port}" if port else netloc_host
+
+
 class HttpProbe:
     """Performs the runtime's actual HTTP requests — safe, read-only GETs.
 
@@ -1942,7 +1968,7 @@ class HttpProbe:
         sent UTF-8 encoded. Both are absent for the common read-only GET.
         """
         scheme = self._scheme_for(host, port)
-        netloc = f"{host}:{port}" if port else host
+        netloc = _format_netloc(host, port)
         url = f"{scheme}://{netloc}{path}"
         request_headers = {"User-Agent": self._user_agent}
         if headers:
