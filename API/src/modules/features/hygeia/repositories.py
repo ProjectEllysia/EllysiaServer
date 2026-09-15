@@ -177,6 +177,65 @@ class MonitoredAssetRepository(BaseRepository[MonitoredAsset]):
             .all()
         )
 
+    def count_by_status(self, user_id: int) -> Dict[str, int]:
+        """Cuántos activos del usuario hay en cada estado de presencia.
+
+        Args:
+            user_id: Dueño de los activos.
+
+        Returns:
+            Dict[str, int]: ``{estado: activos}``. Los estados sin ningún
+                activo no aparecen; el manager los completa con 0.
+        """
+        rows = (
+            self._session.query(MonitoredAsset.status, func.count(MonitoredAsset.id))
+            .filter(MonitoredAsset.user_id == user_id)
+            .group_by(MonitoredAsset.status)
+            .all()
+        )
+        return dict(rows)
+
+    def get_average_online_uptime(self, user_id: int) -> Optional[float]:
+        """Uptime medio, en segundos, de los activos del usuario que están en línea.
+
+        Solo los ``online``: el ``uptime_sec`` de un activo caído es el del
+        último heartbeat que mandó, y meterlo en la media la inflaría con un
+        equipo que ya no está encendido.
+
+        Args:
+            user_id: Dueño de los activos.
+
+        Returns:
+            Optional[float]: La media, o ``None`` si no hay ningún activo en
+                línea que haya reportado su uptime.
+        """
+        average = (
+            self._session.query(func.avg(MonitoredAsset.uptime_sec))
+            .filter(
+                MonitoredAsset.user_id == user_id,
+                MonitoredAsset.status == "online",
+                MonitoredAsset.uptime_sec.isnot(None),
+            )
+            .scalar()
+        )
+        return None if average is None else float(average)
+
+    def get_last_activity(self, user_id: int) -> Optional[datetime]:
+        """Último heartbeat recibido de cualquiera de los activos del usuario.
+
+        Args:
+            user_id: Dueño de los activos.
+
+        Returns:
+            Optional[datetime]: El ``last_seen_at`` más reciente, o ``None`` si
+                ningún activo ha reportado nunca.
+        """
+        return (
+            self._session.query(func.max(MonitoredAsset.last_seen_at))
+            .filter(MonitoredAsset.user_id == user_id)
+            .scalar()
+        )
+
     def get_by_agent_key_id(self, agent_key_id: str) -> Optional[MonitoredAsset]:
         """Localiza el activo cuya clave de agente empieza por ``agent_key_id``.
 
@@ -769,6 +828,29 @@ class AnomalyRepository(BaseRepository[Anomaly]):
         if asset_id is not None:
             query = query.filter(Anomaly.asset_id == asset_id)
         return query.order_by(Anomaly.opened_at.desc()).all()
+
+    def count_active_by_state_and_severity(self, user_id: int) -> Dict[Tuple[str, str], int]:
+        """Cuántas anomalías activas tienen los activos del usuario, por estado y severidad.
+
+        Solo las activas (``open`` y ``acknowledged``): una resuelta ya no
+        pide atención. El filtro por dueño va, como en ``get_for_user``, por
+        el JOIN con ``MonitoredAsset``.
+
+        Args:
+            user_id: Dueño de los activos.
+
+        Returns:
+            Dict[Tuple[str, str], int]: ``{(estado, severidad): anomalías}``.
+                Las combinaciones sin ninguna anomalía no aparecen.
+        """
+        rows = (
+            self._session.query(Anomaly.state, Anomaly.severity, func.count(Anomaly.id))
+            .join(MonitoredAsset, Anomaly.asset_id == MonitoredAsset.id)
+            .filter(MonitoredAsset.user_id == user_id, Anomaly.state.in_(self._ACTIVE_STATES))
+            .group_by(Anomaly.state, Anomaly.severity)
+            .all()
+        )
+        return {(state, severity): count for state, severity, count in rows}
 
 
 class HygeiaTagRepository(BaseRepository[HygeiaTag]):
