@@ -1616,6 +1616,50 @@ class HygeiaStatsManager:
             "isPeriodClipped": window.is_clipped,
         }
 
+    def get_fullest_mounts(self, limit: int) -> dict:
+        """
+        Lista los activos del usuario cuyo montaje más lleno está más cerca de llenarse.
+
+        Responde a "¿qué disco del parque se va a llenar antes?" sin abrir
+        cada activo. Usa solo el **último** heartbeat de cada activo y su
+        columna ``disk_max_pct``, nunca el histórico ni el JSONB: es una foto
+        del estado actual, así que no recibe ``period``. Un activo cuyo último
+        heartbeat no traía disco, o que nunca reportó, no entra: no se sabe su
+        uso. Los empates se resuelven por hostname.
+
+        Args:
+            limit: Cuántos activos devolver; positivo.
+
+        Returns:
+            Diccionario con la forma de ``FleetDiskResponseSchema``:
+            ``assetCount``, ``assetsWithData`` y ``mounts`` (``assetId``,
+            ``hostname``, ``mount``, ``usagePct`` y ``receivedAt``), de mayor
+            a menor uso.
+        """
+        assets = build_repository(MonitoredAssetRepository).get_by_user(self.user.id)
+        latest_by_asset = build_repository(
+            AssetSnapshotRepository,
+        ).get_latest_disk_usage_by_asset([asset.id for asset in assets])
+
+        entries = []
+        for asset in assets:
+            received_at, usage, mount = latest_by_asset.get(asset.id, (None, None, None))
+            if usage is not None:
+                entries.append({
+                    "assetId": asset.id,
+                    "hostname": asset.hostname,
+                    "mount": mount,
+                    "usagePct": usage,
+                    "receivedAt": received_at,
+                })
+        entries.sort(key=lambda entry: (-entry["usagePct"], entry["hostname"].lower()))
+
+        return {
+            "assetCount": len(assets),
+            "assetsWithData": len(entries),
+            "mounts": entries[:limit],
+        }
+
     def get_fleet_overview(self) -> dict:
         """
         Resume el estado actual del parque del usuario en una sola llamada.

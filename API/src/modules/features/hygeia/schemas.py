@@ -817,6 +817,36 @@ class AssetRankingResponseSchema(Schema):
     isPeriodClipped = fields.Boolean()
 
 
+class FleetDiskQuerySchema(Schema):
+    """Query de ``GET /hygeia/stats/disks/fleet``: cuántos activos devolver, de 1 a 100."""
+    limit = fields.Integer(load_default=10, validate=validate.Range(min=1, max=100))
+
+
+class FleetMountEntrySchema(Schema):
+    """El montaje más lleno de un activo según su último heartbeat.
+
+    ``receivedAt`` es el instante de ese heartbeat: el de un activo apagado
+    puede ser de hace días, y así se ve.
+    """
+    assetId = fields.Integer()
+    hostname = fields.String()
+    mount = fields.String(allow_none=True)
+    usagePct = fields.Float()
+    receivedAt = UTCDateTime()
+
+
+class FleetDiskResponseSchema(Schema):
+    """Los activos del usuario con el montaje más lleno, de mayor a menor uso.
+
+    ``assetCount`` cuenta todos los activos del usuario y ``assetsWithData``
+    los que tienen dato de disco en su último heartbeat; ``mounts`` está
+    recortado a ``limit``.
+    """
+    assetCount = fields.Integer()
+    assetsWithData = fields.Integer()
+    mounts = fields.List(fields.Nested(FleetMountEntrySchema))
+
+
 class FleetOverviewResponseSchema(Schema):
     """Estado actual del parque del usuario: la pantalla de aterrizaje de las estadísticas.
 

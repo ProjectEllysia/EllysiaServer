@@ -56,6 +56,8 @@ from .schemas import (
     AssetUpdateRequestSchema,
     DiskStatsQuerySchema,
     DiskStatsResponseSchema,
+    FleetDiskQuerySchema,
+    FleetDiskResponseSchema,
     FleetOverviewResponseSchema,
     IngestRequestSchema,
     InventoryReportRequestSchema,
@@ -304,6 +306,22 @@ def get_asset_ranking(args):
         limit=args["limit"],
         requested_duration=args["requested_duration"],
     )
+
+
+@hygeia_blp.get("/stats/disks/fleet")
+@hygeia_blp.arguments(FleetDiskQuerySchema, location="query")
+@hygeia_blp.response(200, FleetDiskResponseSchema, description="Montajes más llenos del parque")
+@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@hygeia_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@limiter.limit("600 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
+@handle_exceptions(default_exception=HygeiaError, logger=logger)
+def get_fleet_fullest_mounts(args):
+    """Listar los activos del usuario con el montaje más lleno según su último latido"""
+    user = get_current_user()
+    manager = HygeiaStatsManager(user)
+    return manager.get_fullest_mounts(limit=args["limit"])
 
 
 @hygeia_blp.get("/stats/overview")

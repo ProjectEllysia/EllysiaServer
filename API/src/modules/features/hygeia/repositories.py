@@ -13,7 +13,7 @@ import math
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Literal, Mapping, Optional, Tuple
 
-from sqlalchemy import func, update
+from sqlalchemy import and_, func, update
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from src.modules.infrastructure import BaseRepository
@@ -813,6 +813,53 @@ class AssetSnapshotRepository(BaseRepository[AssetSnapshot]):
             (_bucket_start(row.bucket_id, bucket_seconds), float(row.value), row.asset_count)
             for row in rows
         ]
+
+    def get_latest_disk_usage_by_asset(
+        self, asset_ids: List[int],
+    ) -> Dict[int, Tuple[datetime, Optional[float], Optional[str]]]:
+        """El montaje más lleno del último heartbeat de cada activo, en una sola consulta.
+
+        Es el camino de "los montajes más llenos del parque": se queda con el
+        último snapshot de cada activo (``MAX(received_at)`` por activo, en
+        una subconsulta) y lee solo sus columnas desnormalizadas
+        ``disk_max_pct``/``disk_max_mount``. Nunca abre el JSONB ``metrics``,
+        que para cientos de activos sería un escaneo caro.
+
+        Args:
+            asset_ids: Activos a consultar; ya filtrados por dueño. Una lista
+                vacía devuelve un diccionario vacío sin consultar.
+
+        Returns:
+            Dict[int, Tuple[datetime, Optional[float], Optional[str]]]: Por
+                cada activo que ha reportado alguna vez, ``(received_at,
+                disk_max_pct, disk_max_mount)`` de su último heartbeat. El uso
+                y el montaje son ``None`` si ese heartbeat no traía disco. Un
+                activo que nunca reportó no tiene entrada.
+        """
+        if not asset_ids:
+            return {}
+        latest = (
+            self._session.query(
+                AssetSnapshot.asset_id, func.max(AssetSnapshot.received_at).label("latest_at"),
+            )
+            .filter(AssetSnapshot.asset_id.in_(asset_ids))
+            .group_by(AssetSnapshot.asset_id)
+            .subquery()
+        )
+        rows = (
+            self._session.query(
+                AssetSnapshot.asset_id, AssetSnapshot.received_at,
+                AssetSnapshot.disk_max_pct, AssetSnapshot.disk_max_mount,
+            )
+            .join(latest, and_(
+                AssetSnapshot.asset_id == latest.c.asset_id,
+                AssetSnapshot.received_at == latest.c.latest_at,
+            ))
+            .all()
+        )
+        return {
+            row.asset_id: (row.received_at, row.disk_max_pct, row.disk_max_mount) for row in rows
+        }
 
     def get_latest(self, asset_id: int) -> Optional[AssetSnapshot]:
         """Devuelve el último snapshot recibido de un activo, o ``None`` si nunca reportó.
