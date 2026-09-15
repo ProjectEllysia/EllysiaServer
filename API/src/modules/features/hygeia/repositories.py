@@ -152,6 +152,31 @@ class MonitoredAssetRepository(BaseRepository[MonitoredAsset]):
             .all()
         )
 
+    def get_by_tag(self, user_id: int, tag_id: int) -> List[MonitoredAsset]:
+        """Activos **del usuario** que llevan una etiqueta, ordenados por hostname.
+
+        El filtro por dueño es la garantía de privacidad de las estadísticas
+        por etiqueta: una etiqueta de sistema la usa todo el mundo, y sin él
+        el agregado de "producción" incluiría los servidores de otros
+        usuarios. Que la etiqueta sea visible para el usuario lo comprueba el
+        manager antes de llamar aquí.
+
+        Args:
+            user_id: Dueño de los activos.
+            tag_id: Etiqueta cuyos activos se buscan.
+
+        Returns:
+            List[MonitoredAsset]: Los activos, vacía si la etiqueta no está en
+                ninguno del usuario.
+        """
+        return (
+            self._session.query(MonitoredAsset)
+            .join(AssetTag, AssetTag.c.asset_id == MonitoredAsset.id)
+            .filter(AssetTag.c.tag_id == tag_id, MonitoredAsset.user_id == user_id)
+            .order_by(MonitoredAsset.hostname.asc(), MonitoredAsset.id.asc())
+            .all()
+        )
+
     def get_by_agent_key_id(self, agent_key_id: str) -> Optional[MonitoredAsset]:
         """Localiza el activo cuya clave de agente empieza por ``agent_key_id``.
 
@@ -398,6 +423,55 @@ class AssetSnapshotRepository(BaseRepository[AssetSnapshot]):
             .all()
         )
         return [(row.received_at, row.power_watts) for row in rows]
+
+    def get_metric_aggregates_by_asset(
+        self, asset_ids: List[int], column: InstrumentedAttribute,
+        since: datetime, until: datetime,
+    ) -> Dict[int, Tuple[Optional[float], Optional[float], int]]:
+        """Media, máximo y número de muestras de una métrica por activo, en una sola consulta.
+
+        Es el camino de las estadísticas por etiqueta: se agrega en la base de
+        datos (``GROUP BY asset_id``) en vez de traer las muestras, porque 30
+        días de heartbeats de todos los activos de una etiqueta son millones
+        de filas y aquí solo hacen falta tres números por activo. Los
+        snapshots sin valor para la métrica no cuentan: son ausencia de dato.
+
+        Args:
+            asset_ids: Activos a consultar; ya filtrados por dueño. Una lista
+                vacía devuelve un diccionario vacío sin consultar.
+            column: Columna de ``AssetSnapshot`` de la métrica.
+            since: Inicio de la ventana, sobre ``received_at``, inclusivo.
+            until: Fin de la ventana, sobre ``received_at``, inclusivo.
+
+        Returns:
+            Dict[int, Tuple[Optional[float], Optional[float], int]]: Por cada
+                ``asset_id`` pedido, en el mismo orden, ``(media, máximo,
+                muestras)``. Un activo sin muestras en la ventana conserva su
+                entrada como ``(None, None, 0)``.
+        """
+        if not asset_ids:
+            return {}
+        rows = (
+            self._session.query(
+                AssetSnapshot.asset_id,
+                func.avg(column).label("average"),
+                func.max(column).label("maximum"),
+                func.count(column).label("sample_count"),
+            )
+            .filter(
+                AssetSnapshot.asset_id.in_(asset_ids),
+                AssetSnapshot.received_at >= since,
+                AssetSnapshot.received_at <= until,
+                column.isnot(None),
+            )
+            .group_by(AssetSnapshot.asset_id)
+            .all()
+        )
+        aggregates_found = {
+            row.asset_id: (float(row.average), float(row.maximum), row.sample_count)
+            for row in rows
+        }
+        return {asset_id: aggregates_found.get(asset_id, (None, None, 0)) for asset_id in asset_ids}
 
     def get_metric_samples_by_asset(
         self, asset_ids: List[int], column: InstrumentedAttribute,

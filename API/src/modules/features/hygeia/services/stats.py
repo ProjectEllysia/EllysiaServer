@@ -552,6 +552,53 @@ def build_percentile_series(
     return series
 
 
+#: Formas de combinar entre activos las medias de cada uno.
+_ASSET_COMBINATIONS = ("sum", "avg", "max")
+
+
+def combine_asset_averages(
+    averages: Sequence[Optional[float]], aggregation: str,
+) -> Optional[float]:
+    """
+    Combina en una cifra las medias de varios activos sobre un periodo.
+
+    Es el paso final de las estadísticas por etiqueta: cada activo aporta su
+    media del periodo y aquí se combinan. Con ``sum`` sale el total típico de
+    la etiqueta (el tráfico o la potencia de todos sus equipos a la vez), con
+    ``avg`` el equipo medio y con ``max`` el equipo más cargado. ``max`` es la
+    **media más alta**, no el pico absoluto: el pico de cada activo viaja
+    aparte, en el desglose por activo.
+
+    Los activos sin datos en el periodo (``None``) no entran en la cuenta: un
+    equipo apagado no suma cero, simplemente no aporta.
+
+    Args:
+        averages: Media del periodo de cada activo, o ``None`` si no tuvo
+            ninguna muestra.
+        aggregation: ``"sum"``, ``"avg"`` o ``"max"``.
+
+    Returns:
+        Optional[float]: La cifra combinada, o ``None`` si ningún activo tuvo
+            datos.
+
+    Raises:
+        ValueError: Si ``aggregation`` no es una de las tres admitidas; es un
+            error de programación, porque el schema del endpoint ya la valida.
+    """
+    if aggregation not in _ASSET_COMBINATIONS:
+        raise ValueError(
+            f"Combinación {aggregation!r} no admitida; valores válidos: {list(_ASSET_COMBINATIONS)}"
+        )
+    values = [average for average in averages if average is not None]
+    if not values:
+        return None
+    if aggregation == "sum":
+        return math.fsum(values)
+    if aggregation == "avg":
+        return math.fsum(values) / len(values)
+    return max(values)
+
+
 @dataclass(frozen=True)
 class StatsWindow:
     """Ventana temporal que cubre de verdad una consulta de estadísticas.
