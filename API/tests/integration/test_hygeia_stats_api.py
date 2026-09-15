@@ -8,7 +8,7 @@ construir por HTTP una serie con valores e instantes elegidos.
 """
 
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -162,3 +162,53 @@ def test_another_users_asset_is_not_found(client, seeded_asset, make_user, auth_
     status, _ = _summary(client, seeded_asset, auth_headers(stranger), metrics="cpuPct")
 
     assert status == 404
+
+
+# =============================================================================
+# MOMENTO DEL PICO
+# =============================================================================
+
+def _parse_utc(text: str) -> datetime:
+    """Convierte un instante ISO de la API (``Z`` o ``+00:00``) en naive-UTC."""
+    return datetime.fromisoformat(text.replace("Z", "+00:00")).astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def test_the_extremes_carry_the_exact_instant_of_their_heartbeat(
+    client, app, regular_user, auth_headers,
+):
+    """``timestampOfMax``/``Min`` son el instante exacto del heartbeat, no el de un cubo."""
+    asset_id = _create_asset(app, regular_user.id)
+    base = utcnow_naive().replace(microsecond=0) - timedelta(hours=1)
+    peak_at = base + timedelta(minutes=17, seconds=23)
+    valley_at = base + timedelta(minutes=41, seconds=7)
+    with app.app_context():
+        with UnitOfWork() as uow:
+            repo = AssetSnapshotRepository(uow)
+            for instant, cpu in [
+                (base, 40.0), (peak_at, 97.5), (valley_at, 3.0), (base + timedelta(minutes=50), 40.0),
+            ]:
+                repo.save(AssetSnapshot(
+                    asset_id=asset_id, collected_at=instant, received_at=instant,
+                    metrics={}, cpu_pct=cpu,
+                ))
+
+    status, body = _summary(
+        client, asset_id, auth_headers(regular_user), metrics="cpuPct,powerWatts",
+    )
+
+    assert status == 200
+    cpu = body["metrics"]["cpuPct"]
+    assert _parse_utc(cpu["timestampOfMax"]) == peak_at
+    assert _parse_utc(cpu["timestampOfMin"]) == valley_at
+
+
+def test_a_metric_without_samples_has_no_extreme_instants(
+    client, seeded_asset, regular_user, auth_headers,
+):
+    """Sin muestras no hay pico: los dos instantes son ``null``, como los valores."""
+    status, body = _summary(client, seeded_asset, auth_headers(regular_user), metrics="powerWatts")
+
+    assert status == 200
+    power = body["metrics"]["powerWatts"]
+    assert power["timestampOfMax"] is None
+    assert power["timestampOfMin"] is None

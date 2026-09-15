@@ -577,6 +577,12 @@ class MetricSummarySchema(Schema):
     claves cortas de la API. Todos los valores son nulos a la vez cuando la
     métrica no tiene ninguna muestra en el periodo (``sampleCount`` es ``0``):
     no se sabe su máximo, y ``0`` sería una cifra inventada.
+
+    ``timestampOfMax``/``timestampOfMin`` son el instante exacto
+    (``receivedAt``) del heartbeat que marcó el extremo, no el de un cubo:
+    es lo que permite relacionar un pico con lo que pasaba en ese momento
+    (una anomalía, un despliegue). Si el extremo se repite, es el de la
+    primera vez que se alcanzó.
     """
     minimum = fields.Float(data_key="min", allow_none=True)
     maximum = fields.Float(data_key="max", allow_none=True)
@@ -584,6 +590,8 @@ class MetricSummarySchema(Schema):
     percentile_95 = fields.Float(data_key="p95", allow_none=True)
     current = fields.Float(allow_none=True)
     sample_count = fields.Integer(data_key="sampleCount")
+    timestamp_of_maximum = UTCDateTime(data_key="timestampOfMax", allow_none=True)
+    timestamp_of_minimum = UTCDateTime(data_key="timestampOfMin", allow_none=True)
 
 
 class AssetStatsSummaryResponseSchema(Schema):
