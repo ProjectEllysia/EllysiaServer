@@ -155,3 +155,28 @@ def extract_entity_series(
                 continue
             series_by_entity.setdefault(name, []).append((instant, entry.get(value_key)))
     return series_by_entity
+
+
+def calculate_core_spread(cpu: Optional[dict]) -> Optional[float]:
+    """
+    Distancia, en puntos porcentuales, entre el núcleo más cargado y el menos cargado.
+
+    ``cpu_pct`` es la media de todos los núcleos, y un proceso que satura un
+    solo núcleo mientras el resto está ocioso queda escondido detrás de una
+    media moderada. Esta distancia es la señal que lo destapa: con ocho
+    núcleos, uno al 100 % y siete al 0 % dan una media del 12,5 % y una
+    distancia de 100.
+
+    Args:
+        cpu: Sección ``metrics.cpu`` de un heartbeat, o ``None`` si no la trae.
+
+    Returns:
+        Optional[float]: ``max(perCorePct) - min(perCorePct)``, entre 0 y 100.
+            ``None`` con menos de dos núcleos reportados: un solo núcleo no
+            tiene con quién desequilibrarse, y un agente sin el dato no ha
+            medido nada.
+    """
+    cores = (cpu or {}).get("perCorePct") or []
+    if len(cores) < 2:
+        return None
+    return max(cores) - min(cores)

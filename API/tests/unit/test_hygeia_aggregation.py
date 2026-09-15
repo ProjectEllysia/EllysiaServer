@@ -8,9 +8,26 @@ from unittest.mock import Mock
 import pytest
 
 from src.modules.features.hygeia.repositories import AssetSnapshotRepository
-from src.modules.features.hygeia.services.aggregation import denormalize, extract_entity_series
+from src.modules.features.hygeia.services.aggregation import (
+    calculate_core_spread,
+    denormalize,
+    extract_entity_series,
+)
 
 pytestmark = pytest.mark.unit
+
+
+@pytest.mark.parametrize("cpu, expected", [
+    ({"perCorePct": [100.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, 100.0),
+    ({"perCorePct": [40.0, 55.5, 50.0]}, 15.5),
+    ({"perCorePct": [30.0]}, None),
+    ({"perCorePct": []}, None),
+    ({"usagePct": 20.0}, None),
+    (None, None),
+])
+def test_calculate_core_spread(cpu, expected):
+    """La distancia entre núcleos, o ``None`` si hay menos de dos."""
+    assert calculate_core_spread(cpu) == expected
 
 
 def test_extract_entity_series_splits_each_mount_into_its_own_series():
