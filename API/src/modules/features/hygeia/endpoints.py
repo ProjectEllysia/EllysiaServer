@@ -47,15 +47,22 @@ from .schemas import (
     AssetListResponseSchema,
     AssetMetricsQuerySchema,
     AssetMetricsResponseSchema,
+    AssetRankingQuerySchema,
+    AssetRankingResponseSchema,
     AssetSchema,
     AssetStatsSummaryQuerySchema,
     AssetStatsSummaryResponseSchema,
     AssetTagsRequestSchema,
     AssetUpdateRequestSchema,
+    FleetOverviewResponseSchema,
     IngestRequestSchema,
     InventoryReportRequestSchema,
     IngestResponseSchema,
     InventoryAnalysisSummarySchema,
+    MetricHistogramQuerySchema,
+    MetricHistogramResponseSchema,
+    PowerStatsQuerySchema,
+    PowerStatsResponseSchema,
     PowerSummaryResponseSchema,
     RotateKeyResponseSchema,
     TagCreateRequestSchema,
@@ -249,6 +256,87 @@ def get_tag_ranking(args):
     return manager.get_tag_ranking(
         metric_name=args["metric"],
         aggregation=args["agg"],
+        requested_duration=args["requested_duration"],
+    )
+
+
+@hygeia_blp.get("/stats/ranking")
+@hygeia_blp.arguments(AssetRankingQuerySchema, location="query")
+@hygeia_blp.response(200, AssetRankingResponseSchema, description="Ranking de activos")
+@hygeia_blp.alt_response(400, schema=ErrorSchema, description="Unknown metric")
+@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@hygeia_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@limiter.limit("600 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
+@handle_exceptions(default_exception=HygeiaError, logger=logger)
+def get_asset_ranking(args):
+    """Ordenar los activos del usuario por una métrica y devolver los extremos"""
+    user = get_current_user()
+    manager = HygeiaStatsManager(user)
+    return manager.get_asset_ranking(
+        metric_name=args["metric"],
+        aggregation=args["agg"],
+        order=args["order"],
+        limit=args["limit"],
+        requested_duration=args["requested_duration"],
+    )
+
+
+@hygeia_blp.get("/stats/overview")
+@hygeia_blp.response(200, FleetOverviewResponseSchema, description="Panorama del parque")
+@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@hygeia_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@limiter.limit("600 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
+@handle_exceptions(default_exception=HygeiaError, logger=logger)
+def get_fleet_overview():
+    """Resumir el estado actual del parque: activos por estado, anomalías y actividad"""
+    user = get_current_user()
+    manager = HygeiaStatsManager(user)
+    return manager.get_fleet_overview()
+
+
+@hygeia_blp.get("/stats/histogram")
+@hygeia_blp.arguments(MetricHistogramQuerySchema, location="query")
+@hygeia_blp.response(200, MetricHistogramResponseSchema, description="Histograma de una métrica")
+@hygeia_blp.alt_response(400, schema=ErrorSchema, description="Unknown metric")
+@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@hygeia_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@limiter.limit("600 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
+@handle_exceptions(default_exception=HygeiaError, logger=logger)
+def get_metric_histogram(args):
+    """Repartir los activos del usuario en franjas según una métrica"""
+    user = get_current_user()
+    manager = HygeiaStatsManager(user)
+    return manager.get_metric_histogram(
+        metric_name=args["metric"],
+        aggregation=args["agg"],
+        bin_count=args["bins"],
+        requested_duration=args["requested_duration"],
+    )
+
+
+@hygeia_blp.get("/stats/power")
+@hygeia_blp.arguments(PowerStatsQuerySchema, location="query")
+@hygeia_blp.response(200, PowerStatsResponseSchema, description="Consumo eléctrico agregado")
+@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@hygeia_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@hygeia_blp.alt_response(404, schema=ErrorSchema, description="Tag not found")
+@limiter.limit("600 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
+@handle_exceptions(default_exception=HygeiaError, logger=logger)
+def get_power_stats(args):
+    """Obtener la energía y el coste agregados de todo el parque o de una etiqueta"""
+    user = get_current_user()
+    manager = HygeiaStatsManager(user)
+    return manager.get_power_stats(
+        scope=args["scope"],
+        tag_id=args["tagId"],
         requested_duration=args["requested_duration"],
     )
 

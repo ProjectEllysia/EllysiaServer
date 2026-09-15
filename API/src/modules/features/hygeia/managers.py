@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 from datetime import timedelta
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Tuple
 
 import src.modules.system.config_reading as CR
 from src.modules.accounts import LimitKey, OrganizationManager, QuotaManager
@@ -48,11 +48,11 @@ from .repositories import (
     MonitoredAssetRepository,
 )
 from .services import (
-    METRIC_REGISTRY, MetricDefinition, assert_metric_definition, build_inventory_report,
-    build_percentile_series, check_clock_skew, combine_asset_averages, denormalize, evaluate,
-    generate_agent_key, is_agent_outdated, project_month, resolve_stats_window,
-    services_from_inventory, summarize_power_period, summarize_values,
-    validate_metrics_are_additive,
+    METRIC_REGISTRY, MetricDefinition, MetricUnit, assert_metric_definition,
+    build_histogram, build_inventory_report, build_percentile_series, check_clock_skew,
+    combine_asset_averages, denormalize, evaluate, generate_agent_key, is_agent_outdated,
+    project_month, resolve_stats_window, services_from_inventory, summarize_power_period,
+    summarize_values, validate_metrics_are_additive,
 )
 
 # ---------------------------------------------------------------------------
@@ -79,6 +79,120 @@ _PERCENTILE_AGGREGATION = "p95"
 
 #: Percentil que corresponde a ``_PERCENTILE_AGGREGATION``.
 _SERIES_PERCENTILE = 95
+
+#: Estados de presencia de un activo (``MonitoredAsset.status``). El panorama
+#: del parque devuelve siempre los cuatro, a cero si no hay ninguno, para que
+#: el cliente no tenga que distinguir "cero" de "no vino la clave".
+_ASSET_STATUSES = ("pending", "online", "stale", "offline")
+
+#: Severidades de una anomalía (``Anomaly.severity``), con el mismo criterio.
+_ANOMALY_SEVERITIES = ("info", "warning", "critical")
+
+#: Límites del histograma de una métrica en porcentaje. Fijos, y no los del
+#: parque, para que la franja 75–100 % signifique lo mismo en cualquier
+#: parque: con límites observados, un parque todo entre el 10 y el 20 %
+#: pintaría su franja más alta como si fuera la de los equipos saturados.
+_PERCENT_RANGE = (0.0, 100.0)
+
+#: Procedencia de una cifra de energía (``classify_period``), de la más fiable
+#: a la menos. El orden es el que decide la procedencia de un total.
+_POWER_CLASSIFICATIONS = ("observed", "observed_partial", "projected")
+
+
+def _combine_power_classifications(classifications: Sequence[str]) -> Optional[str]:
+    """Procedencia de un total de energía: la peor de las de sus sumandos.
+
+    Un total que mezcla un activo medido de principio a fin con otro que
+    tuvo un hueco de horas no es "observado": solo es tan fiable como su
+    parte menos fiable.
+
+    Args:
+        classifications: Procedencia de cada activo que aporta al total.
+
+    Returns:
+        Optional[str]: La menos fiable de ``_POWER_CLASSIFICATIONS``, o
+            ``None`` si no hay ningún sumando.
+    """
+    if not classifications:
+        return None
+    return max(classifications, key=_POWER_CLASSIFICATIONS.index)
+
+
+def _build_power_breakdown(
+    assets: list, samples_by_asset: dict, estimated_asset_ids: set, window, config,
+) -> list:
+    """Energía de cada activo del agregado, de más a menos kWh.
+
+    Cada activo se calcula con ``summarize_power_period``, igual que en su
+    propio resumen de consumo, para que la cifra de un activo sea la misma
+    en su ficha y en el agregado.
+
+    Args:
+        assets: Activos del agregado.
+        samples_by_asset: ``{asset_id: [(instante, vatios), …]}`` de la
+            ventana, tal como lo devuelve ``get_metric_samples_by_asset``.
+        estimated_asset_ids: Activos con alguna lectura estimada en la ventana.
+        window: ``StatsWindow`` de la consulta.
+        config: ``HygeiaConfig`` vigente (precio de la electricidad y retención).
+
+    Returns:
+        list: Una entrada por activo con ``assetId``, ``hostname``,
+            ``averageWatts``, ``kwh``, ``cost``, ``classification``,
+            ``coverageFraction`` e ``isEstimated``; las de más kWh primero y
+            las que no tienen datos al final.
+    """
+    breakdown = []
+    for asset in assets:
+        summary = summarize_power_period(
+            samples_by_asset[asset.id], window.since, window.until,
+            config.energy_price_per_kwh, config.retention_days,
+        )
+        breakdown.append({
+            "assetId": asset.id,
+            "hostname": asset.hostname,
+            "averageWatts": summary["averageWatts"],
+            "kwh": summary["kwh"],
+            "cost": summary["cost"],
+            "classification": summary["classification"],
+            "coverageFraction": summary["coverageFraction"],
+            "isEstimated": asset.id in estimated_asset_ids,
+        })
+    return sorted(breakdown, key=_sort_key_for_power_breakdown)
+
+
+def _sort_key_for_power_breakdown(entry: dict) -> tuple:
+    """Clave de orden del desglose de energía: más kWh primero, sin datos al final.
+
+    Args:
+        entry: Una entrada del desglose, con ``kwh`` y ``hostname``.
+
+    Returns:
+        tuple: ``(sin_datos, -kwh, hostname_en_minúsculas)``.
+    """
+    kwh = entry["kwh"]
+    return (kwh is None, -(kwh or 0.0), entry["hostname"].lower())
+
+
+def _resolve_histogram_range(
+    definition: MetricDefinition, values: Sequence[float],
+) -> Optional[Tuple[float, float]]:
+    """Límites del histograma de una métrica: fijos para porcentajes, observados para el resto.
+
+    Args:
+        definition: Métrica del histograma.
+        values: Valores por activo que se van a repartir.
+
+    Returns:
+        Optional[Tuple[float, float]]: ``(0, 100)`` para un porcentaje; el
+            mínimo y el máximo observados para cualquier otra unidad (tráfico,
+            potencia, carga), que no tiene un tope natural; ``None`` si no es
+            un porcentaje y no hay ningún valor del que sacar el rango.
+    """
+    if definition.unit == MetricUnit.PERCENT:
+        return _PERCENT_RANGE
+    if not values:
+        return None
+    return (min(values), max(values))
 
 
 def _build_percentile_series_points(
@@ -126,6 +240,46 @@ def _build_percentile_series_points(
             samples_by_metric, bucket_seconds, _SERIES_PERCENTILE,
         )
     ]
+
+
+def _resolve_configured_stats_window(requested_duration: timedelta):
+    """Ventana de una consulta de estadísticas con los límites de la configuración vigente.
+
+    Todos los endpoints de estadísticas recortan el periodo igual: al menor
+    entre ``maxStatsPeriodDays`` y ``retentionDays``. Tenerlo en un solo sitio
+    evita que uno de ellos lea un límite distinto.
+
+    Args:
+        requested_duration: Duración pedida por el cliente, positiva.
+
+    Returns:
+        StatsWindow: La ventana que termina ahora, ya recortada.
+    """
+    return resolve_stats_window(
+        requested_duration, utcnow_naive(),
+        max_stats_period_days=CR.hygeia_limits().max_stats_period_days,
+        retention_days=CR.hygeia_config().retention_days,
+    )
+
+
+def _rank_assets(entries: list, order: str, limit: int) -> list:
+    """Ordena las entradas del ranking de activos y se queda con las ``limit`` primeras.
+
+    Los empates se resuelven por hostname en los dos sentidos, para que el
+    orden sea estable entre llamadas.
+
+    Args:
+        entries: Entradas con ``value`` (nunca ``None``: los activos sin
+            datos ya se han apartado) y ``hostname``.
+        order: ``"desc"`` (mayor valor primero) o ``"asc"``.
+        limit: Cuántas entradas conservar; positivo.
+
+    Returns:
+        list: Las ``limit`` primeras entradas en el orden pedido.
+    """
+    sign = -1 if order == "desc" else 1
+    ordered = sorted(entries, key=lambda entry: (sign * entry["value"], entry["hostname"].lower()))
+    return ordered[:limit]
 
 
 def _sort_key_for_tag_ranking(entry: dict) -> tuple:
@@ -560,11 +714,7 @@ class HygeiaAssetManager:
             assert_metric_definition(name)
             for name in dict.fromkeys(metric_names or METRIC_REGISTRY)
         ]
-        window = resolve_stats_window(
-            requested_duration, utcnow_naive(),
-            max_stats_period_days=CR.hygeia_limits().max_stats_period_days,
-            retention_days=CR.hygeia_config().retention_days,
-        )
+        window = _resolve_configured_stats_window(requested_duration)
 
         snapshot_repo = build_repository(AssetSnapshotRepository)
         summaries_by_metric = {}
@@ -1021,11 +1171,7 @@ class HygeiaStatsManager:
         ]
         if aggregation == "sum":
             validate_metrics_are_additive(definitions)
-        window = resolve_stats_window(
-            requested_duration, utcnow_naive(),
-            max_stats_period_days=CR.hygeia_limits().max_stats_period_days,
-            retention_days=CR.hygeia_config().retention_days,
-        )
+        window = _resolve_configured_stats_window(requested_duration)
 
         assets = build_repository(MonitoredAssetRepository).get_by_tag(self.user.id, tag_id)
         hostnames_by_asset = {asset.id: asset.hostname for asset in assets}
@@ -1085,11 +1231,7 @@ class HygeiaStatsManager:
         definition = assert_metric_definition(metric_name)
         if aggregation == "sum":
             validate_metrics_are_additive([definition])
-        window = resolve_stats_window(
-            requested_duration, utcnow_naive(),
-            max_stats_period_days=CR.hygeia_limits().max_stats_period_days,
-            retention_days=CR.hygeia_config().retention_days,
-        )
+        window = _resolve_configured_stats_window(requested_duration)
 
         tag_repository = build_repository(HygeiaTagRepository)
         asset_ids_by_tag = tag_repository.get_asset_ids_by_tag(self.user.id)
@@ -1118,6 +1260,250 @@ class HygeiaStatsManager:
             "unit": definition.unit,
             "agg": aggregation,
             "tags": ranking,
+            "periodCoveredFrom": window.since,
+            "periodCoveredTo": window.until,
+            "isPeriodClipped": window.is_clipped,
+        }
+
+    def get_asset_ranking(
+        self, metric_name: str, aggregation: str, order: str, limit: int,
+        requested_duration: timedelta,
+    ) -> dict:
+        """
+        Ordena los activos del usuario por una métrica y devuelve los ``limit`` extremos.
+
+        Responde a "¿qué equipo está peor?" en una llamada. El valor de cada
+        activo es su media (``avg``) o su máximo (``max``) del periodo, y
+        salen de una sola consulta agrupada por activo para todo el parque del
+        usuario. Los activos sin ninguna muestra de la métrica en el periodo
+        no entran en el ranking: no se sabe su valor, y colocarlos como si
+        valiera cero los pondría en cabeza de un orden ascendente sin razón.
+
+        Args:
+            metric_name: Nombre público de la métrica por la que se ordena.
+            aggregation: ``"avg"`` o ``"max"``, qué valor de cada activo se
+                compara.
+            order: ``"desc"`` (los de mayor valor primero) o ``"asc"``.
+            limit: Cuántos activos devolver; positivo.
+            requested_duration: Duración del periodo pedido, antes de recortar.
+
+        Returns:
+            Diccionario con la forma de ``AssetRankingResponseSchema``: la
+            métrica y su unidad, ``agg``, ``order``, ``assetCount`` (activos
+            del usuario), ``assetsWithData``, ``assets`` (el ranking) y la
+            ventana cubierta.
+
+        Raises:
+            UnknownMetricError: Si la métrica no está en el registro.
+        """
+        definition = assert_metric_definition(metric_name)
+        window = _resolve_configured_stats_window(requested_duration)
+
+        assets = build_repository(MonitoredAssetRepository).get_by_user(self.user.id)
+        snapshot_repo = build_repository(AssetSnapshotRepository)
+        aggregates_by_asset = snapshot_repo.get_metric_aggregates_by_asset(
+            [asset.id for asset in assets], definition.column, window.since, window.until,
+        )
+        entries = []
+        for asset in assets:
+            average, maximum, sample_count = aggregates_by_asset[asset.id]
+            if sample_count:
+                entries.append({
+                    "assetId": asset.id,
+                    "hostname": asset.hostname,
+                    "value": average if aggregation == "avg" else maximum,
+                    "sampleCount": sample_count,
+                })
+
+        return {
+            "metric": definition.name,
+            "unit": definition.unit,
+            "agg": aggregation,
+            "order": order,
+            "assetCount": len(assets),
+            "assetsWithData": len(entries),
+            "assets": _rank_assets(entries, order, limit),
+            "periodCoveredFrom": window.since,
+            "periodCoveredTo": window.until,
+            "isPeriodClipped": window.is_clipped,
+        }
+
+    def get_fleet_overview(self) -> dict:
+        """
+        Resume el estado actual del parque del usuario en una sola llamada.
+
+        Es la pantalla de aterrizaje de las estadísticas: cuántos activos hay
+        en cada estado, cuántas anomalías piden atención y cuándo reportó el
+        parque por última vez, sin que el cliente tenga que orquestar varias
+        llamadas. Es una foto del instante actual, no un periodo: por eso no
+        recibe ``period`` ni pasa por la ventana de estadísticas.
+
+        Returns:
+            Diccionario con la forma de ``FleetOverviewResponseSchema``:
+            ``assetCount``, ``assetsByStatus`` (los cuatro estados, a cero si
+            no hay ninguno), ``openAnomaliesBySeverity`` (las tres
+            severidades), ``acknowledgedAnomalyCount``, ``averageUptimeSec``
+            (solo de los activos en línea; ``None`` si no hay) y
+            ``lastActivityAt`` (``None`` si ningún activo ha reportado).
+        """
+        asset_repo = build_repository(MonitoredAssetRepository)
+        assets_by_status = asset_repo.count_by_status(self.user.id)
+        anomalies_by_state_and_severity = build_repository(
+            AnomalyRepository,
+        ).count_active_by_state_and_severity(self.user.id)
+
+        return {
+            "assetCount": sum(assets_by_status.values()),
+            "assetsByStatus": {
+                status: assets_by_status.get(status, 0) for status in _ASSET_STATUSES
+            },
+            "openAnomaliesBySeverity": {
+                severity: anomalies_by_state_and_severity.get(("open", severity), 0)
+                for severity in _ANOMALY_SEVERITIES
+            },
+            "acknowledgedAnomalyCount": sum(
+                anomaly_count
+                for (state, _), anomaly_count in anomalies_by_state_and_severity.items()
+                if state == "acknowledged"
+            ),
+            "averageUptimeSec": asset_repo.get_average_online_uptime(self.user.id),
+            "lastActivityAt": asset_repo.get_last_activity(self.user.id),
+        }
+
+    def get_metric_histogram(
+        self, metric_name: str, aggregation: str, bin_count: int, requested_duration: timedelta,
+    ) -> dict:
+        """
+        Reparte los activos del usuario en franjas según una métrica.
+
+        El ranking enseña los extremos; el histograma enseña la forma del
+        parque: cuántos equipos están cómodos y cuántos empiezan a apretar. Un
+        activo al 60 % de memoria en un parque donde todos están al 20 % no
+        sale entre los primeros de un ranking corto, pero sí salta a la vista
+        en una franja casi vacía.
+
+        El valor de cada activo es su media (``avg``) o su máximo (``max``)
+        del periodo, de una sola consulta agrupada por activo. Los activos sin
+        datos no se reparten en ninguna franja.
+
+        Args:
+            metric_name: Nombre público de la métrica.
+            aggregation: ``"avg"`` o ``"max"``.
+            bin_count: Número de franjas.
+            requested_duration: Duración del periodo pedido, antes de recortar.
+
+        Returns:
+            Diccionario con la forma de ``MetricHistogramResponseSchema``: la
+            métrica y su unidad, ``agg``, ``assetCount``, ``assetsWithData``,
+            ``bins`` y la ventana cubierta. ``bins`` va vacío si la métrica no
+            es un porcentaje y ningún activo tuvo datos: no hay rango que
+            partir.
+
+        Raises:
+            UnknownMetricError: Si la métrica no está en el registro.
+        """
+        definition = assert_metric_definition(metric_name)
+        window = _resolve_configured_stats_window(requested_duration)
+
+        assets = build_repository(MonitoredAssetRepository).get_by_user(self.user.id)
+        snapshot_repo = build_repository(AssetSnapshotRepository)
+        aggregates_by_asset = snapshot_repo.get_metric_aggregates_by_asset(
+            [asset.id for asset in assets], definition.column, window.since, window.until,
+        )
+        values = [
+            average if aggregation == "avg" else maximum
+            for average, maximum, sample_count in aggregates_by_asset.values()
+            if sample_count
+        ]
+        value_range = _resolve_histogram_range(definition, values)
+
+        return {
+            "metric": definition.name,
+            "unit": definition.unit,
+            "agg": aggregation,
+            "assetCount": len(assets),
+            "assetsWithData": len(values),
+            "bins": [] if value_range is None else build_histogram(values, bin_count, *value_range),
+            "periodCoveredFrom": window.since,
+            "periodCoveredTo": window.until,
+            "isPeriodClipped": window.is_clipped,
+        }
+
+    def get_power_stats(
+        self, scope: str, tag_id: Optional[int], requested_duration: timedelta,
+    ) -> dict:
+        """
+        Energía y coste de un conjunto de activos: todo el parque o los de una etiqueta.
+
+        Cada activo se calcula exactamente igual que en su resumen de consumo
+        (``summarize_power_period``: media ponderada por duración, energía
+        solo sobre el tiempo observado, y su procedencia), y después se
+        agregan. Las muestras de potencia de todos los activos salen de una
+        sola consulta.
+
+        Los kWh y el coste se **suman**, porque cada uno ya está calculado
+        sobre su propio tiempo observado. La potencia media del conjunto no
+        se da: sumar o promediar medias de activos con coberturas distintas
+        no mide nada claro, y el desglose ya trae la de cada activo. Un
+        activo sin datos de energía no aporta un cero al total.
+
+        Args:
+            scope: ``"fleet"`` (todos los activos del usuario) o ``"tag"``.
+            tag_id: Etiqueta, con ``scope="tag"``; tiene que ser visible para
+                el usuario. ``None`` con ``scope="fleet"``.
+            requested_duration: Duración del periodo pedido, antes de recortar.
+
+        Returns:
+            Diccionario con la forma de ``PowerStatsResponseSchema``: el
+            alcance y la etiqueta, recuentos de activos (con datos y con
+            potencia estimada), ``kwh``/``cost``/``currency`` totales (``None``
+            si ningún activo tuvo datos), la procedencia del conjunto (la peor
+            de sus activos), el desglose por activo de más a menos kWh y la
+            ventana cubierta.
+
+        Raises:
+            TagNotFoundError: Con ``scope="tag"``, si la etiqueta no existe o
+                es personal de otro usuario.
+        """
+        asset_repo = build_repository(MonitoredAssetRepository)
+        tag = None
+        if scope == "tag":
+            tag = build_repository(HygeiaTagRepository).get_by_id(tag_id)
+            if tag is None or tag.user_id not in (None, self.user.id):
+                raise TagNotFoundError(tag_id)
+            assets = asset_repo.get_by_tag(self.user.id, tag_id)
+        else:
+            assets = asset_repo.get_by_user(self.user.id)
+
+        window = _resolve_configured_stats_window(requested_duration)
+        asset_ids = [asset.id for asset in assets]
+        snapshot_repo = build_repository(AssetSnapshotRepository)
+        estimated_asset_ids = snapshot_repo.get_asset_ids_with_estimated_power(
+            asset_ids, window.since, window.until,
+        )
+        config = CR.hygeia_config()
+        breakdown = _build_power_breakdown(
+            assets,
+            snapshot_repo.get_metric_samples_by_asset(
+                asset_ids, AssetSnapshot.power_watts, window.since, window.until,
+            ),
+            estimated_asset_ids, window, config,
+        )
+        with_data = [entry for entry in breakdown if entry["kwh"] is not None]
+
+        return {
+            "scope": scope,
+            "tag": None if tag is None else tag.to_dict(),
+            "assetCount": len(assets),
+            "assetsWithData": len(with_data),
+            "assetsEstimated": len(estimated_asset_ids),
+            "kwh": sum(entry["kwh"] for entry in with_data) if with_data else None,
+            "cost": sum(entry["cost"] for entry in with_data) if with_data else None,
+            "currency": config.energy_price_currency,
+            "classification": _combine_power_classifications(
+                [entry["classification"] for entry in with_data],
+            ),
+            "assets": breakdown,
             "periodCoveredFrom": window.since,
             "periodCoveredTo": window.until,
             "isPeriodClipped": window.is_clipped,
