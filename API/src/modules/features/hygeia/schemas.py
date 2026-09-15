@@ -850,6 +850,77 @@ class MetricHistogramResponseSchema(Schema):
     isPeriodClipped = fields.Boolean()
 
 
+class PowerStatsQuerySchema(Schema):
+    """Query de ``GET /hygeia/stats/power``: el consumo eléctrico de un conjunto de activos.
+
+    ``scope=fleet`` (por defecto) cubre todos los activos del usuario;
+    ``scope=tag`` los de la etiqueta ``tagId``, que entonces es obligatorio.
+    Con ``scope=fleet`` no se admite ``tagId``: un parámetro que se ignorase
+    en silencio haría creer a quien llama que filtró. Tras cargar, ``period``
+    queda como ``requested_duration``.
+    """
+    scope = fields.String(load_default="fleet", validate=validate.OneOf(["fleet", "tag"]))
+    tagId = fields.Integer(load_default=None, validate=validate.Range(min=1))
+    period = _build_period_field()
+
+    @validates_schema
+    def validate_scope(self, data, **kwargs):
+        """Exige ``tagId`` con ``scope=tag`` y lo rechaza con ``scope=fleet``."""
+        if data.get("scope") == "tag" and data.get("tagId") is None:
+            raise ValidationError("tagId es obligatorio con scope=tag.", field_name="tagId")
+        if data.get("scope") == "fleet" and data.get("tagId") is not None:
+            raise ValidationError("tagId solo se admite con scope=tag.", field_name="tagId")
+
+    @post_load
+    def parse_query(self, data, **kwargs):
+        """Convierte ``period`` en ``timedelta``."""
+        data["requested_duration"] = _parse_period(data.pop("period"))
+        return data
+
+
+class AssetPowerSchema(Schema):
+    """Energía de un activo dentro del agregado, con su procedencia.
+
+    ``averageWatts``/``kwh``/``cost`` son nulos si el activo no tuvo ni un
+    intervalo de potencia observado en el periodo. ``isEstimated`` avisa de
+    que alguna de sus lecturas fue una estimación por modelo, no una medición.
+    """
+    assetId = fields.Integer()
+    hostname = fields.String()
+    averageWatts = fields.Float(allow_none=True)
+    kwh = fields.Float(allow_none=True)
+    cost = fields.Float(allow_none=True)
+    classification = fields.String()
+    coverageFraction = fields.Float(allow_none=True)
+    isEstimated = fields.Boolean()
+
+
+class PowerStatsResponseSchema(Schema):
+    """Energía y coste agregados de todo el parque o de una etiqueta.
+
+    ``kwh`` y ``cost`` suman solo los activos con datos (``assetsWithData``):
+    uno sin potencia no aporta un cero. ``classification`` es la procedencia
+    menos fiable de entre esos activos (``observed``, ``observed_partial`` o
+    ``projected``), porque un total no es más fiable que su peor parte; es
+    nula si ningún activo tuvo datos. ``assetsEstimated`` cuenta los activos
+    con alguna lectura estimada por modelo. ``tag`` solo viene con
+    ``scope=tag``.
+    """
+    scope = fields.String()
+    tag = fields.Nested(TagSchema, allow_none=True)
+    assetCount = fields.Integer()
+    assetsWithData = fields.Integer()
+    assetsEstimated = fields.Integer()
+    kwh = fields.Float(allow_none=True)
+    cost = fields.Float(allow_none=True)
+    currency = fields.String()
+    classification = fields.String(allow_none=True)
+    assets = fields.List(fields.Nested(AssetPowerSchema))
+    periodCoveredFrom = UTCDateTime()
+    periodCoveredTo = UTCDateTime()
+    isPeriodClipped = fields.Boolean()
+
+
 # =============================================================================
 # INVENTARIO DE SOFTWARE — reemplaza por completo en cada escaneo, sin delta
 # =============================================================================

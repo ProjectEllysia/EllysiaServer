@@ -94,6 +94,84 @@ _ANOMALY_SEVERITIES = ("info", "warning", "critical")
 #: pintaría su franja más alta como si fuera la de los equipos saturados.
 _PERCENT_RANGE = (0.0, 100.0)
 
+#: Procedencia de una cifra de energía (``classify_period``), de la más fiable
+#: a la menos. El orden es el que decide la procedencia de un total.
+_POWER_CLASSIFICATIONS = ("observed", "observed_partial", "projected")
+
+
+def _combine_power_classifications(classifications: Sequence[str]) -> Optional[str]:
+    """Procedencia de un total de energía: la peor de las de sus sumandos.
+
+    Un total que mezcla un activo medido de principio a fin con otro que
+    tuvo un hueco de horas no es "observado": solo es tan fiable como su
+    parte menos fiable.
+
+    Args:
+        classifications: Procedencia de cada activo que aporta al total.
+
+    Returns:
+        Optional[str]: La menos fiable de ``_POWER_CLASSIFICATIONS``, o
+            ``None`` si no hay ningún sumando.
+    """
+    if not classifications:
+        return None
+    return max(classifications, key=_POWER_CLASSIFICATIONS.index)
+
+
+def _build_power_breakdown(
+    assets: list, samples_by_asset: dict, estimated_asset_ids: set, window, config,
+) -> list:
+    """Energía de cada activo del agregado, de más a menos kWh.
+
+    Cada activo se calcula con ``summarize_power_period``, igual que en su
+    propio resumen de consumo, para que la cifra de un activo sea la misma
+    en su ficha y en el agregado.
+
+    Args:
+        assets: Activos del agregado.
+        samples_by_asset: ``{asset_id: [(instante, vatios), …]}`` de la
+            ventana, tal como lo devuelve ``get_metric_samples_by_asset``.
+        estimated_asset_ids: Activos con alguna lectura estimada en la ventana.
+        window: ``StatsWindow`` de la consulta.
+        config: ``HygeiaConfig`` vigente (precio de la electricidad y retención).
+
+    Returns:
+        list: Una entrada por activo con ``assetId``, ``hostname``,
+            ``averageWatts``, ``kwh``, ``cost``, ``classification``,
+            ``coverageFraction`` e ``isEstimated``; las de más kWh primero y
+            las que no tienen datos al final.
+    """
+    breakdown = []
+    for asset in assets:
+        summary = summarize_power_period(
+            samples_by_asset[asset.id], window.since, window.until,
+            config.energy_price_per_kwh, config.retention_days,
+        )
+        breakdown.append({
+            "assetId": asset.id,
+            "hostname": asset.hostname,
+            "averageWatts": summary["averageWatts"],
+            "kwh": summary["kwh"],
+            "cost": summary["cost"],
+            "classification": summary["classification"],
+            "coverageFraction": summary["coverageFraction"],
+            "isEstimated": asset.id in estimated_asset_ids,
+        })
+    return sorted(breakdown, key=_sort_key_for_power_breakdown)
+
+
+def _sort_key_for_power_breakdown(entry: dict) -> tuple:
+    """Clave de orden del desglose de energía: más kWh primero, sin datos al final.
+
+    Args:
+        entry: Una entrada del desglose, con ``kwh`` y ``hostname``.
+
+    Returns:
+        tuple: ``(sin_datos, -kwh, hostname_en_minúsculas)``.
+    """
+    kwh = entry["kwh"]
+    return (kwh is None, -(kwh or 0.0), entry["hostname"].lower())
+
 
 def _resolve_histogram_range(
     definition: MetricDefinition, values: Sequence[float],
@@ -1346,6 +1424,86 @@ class HygeiaStatsManager:
             "assetCount": len(assets),
             "assetsWithData": len(values),
             "bins": [] if value_range is None else build_histogram(values, bin_count, *value_range),
+            "periodCoveredFrom": window.since,
+            "periodCoveredTo": window.until,
+            "isPeriodClipped": window.is_clipped,
+        }
+
+    def get_power_stats(
+        self, scope: str, tag_id: Optional[int], requested_duration: timedelta,
+    ) -> dict:
+        """
+        Energía y coste de un conjunto de activos: todo el parque o los de una etiqueta.
+
+        Cada activo se calcula exactamente igual que en su resumen de consumo
+        (``summarize_power_period``: media ponderada por duración, energía
+        solo sobre el tiempo observado, y su procedencia), y después se
+        agregan. Las muestras de potencia de todos los activos salen de una
+        sola consulta.
+
+        Los kWh y el coste se **suman**, porque cada uno ya está calculado
+        sobre su propio tiempo observado. La potencia media del conjunto no
+        se da: sumar o promediar medias de activos con coberturas distintas
+        no mide nada claro, y el desglose ya trae la de cada activo. Un
+        activo sin datos de energía no aporta un cero al total.
+
+        Args:
+            scope: ``"fleet"`` (todos los activos del usuario) o ``"tag"``.
+            tag_id: Etiqueta, con ``scope="tag"``; tiene que ser visible para
+                el usuario. ``None`` con ``scope="fleet"``.
+            requested_duration: Duración del periodo pedido, antes de recortar.
+
+        Returns:
+            Diccionario con la forma de ``PowerStatsResponseSchema``: el
+            alcance y la etiqueta, recuentos de activos (con datos y con
+            potencia estimada), ``kwh``/``cost``/``currency`` totales (``None``
+            si ningún activo tuvo datos), la procedencia del conjunto (la peor
+            de sus activos), el desglose por activo de más a menos kWh y la
+            ventana cubierta.
+
+        Raises:
+            TagNotFoundError: Con ``scope="tag"``, si la etiqueta no existe o
+                es personal de otro usuario.
+        """
+        asset_repo = build_repository(MonitoredAssetRepository)
+        tag = None
+        if scope == "tag":
+            tag = build_repository(HygeiaTagRepository).get_by_id(tag_id)
+            if tag is None or tag.user_id not in (None, self.user.id):
+                raise TagNotFoundError(tag_id)
+            assets = asset_repo.get_by_tag(self.user.id, tag_id)
+        else:
+            assets = asset_repo.get_by_user(self.user.id)
+
+        window = _resolve_configured_stats_window(requested_duration)
+        asset_ids = [asset.id for asset in assets]
+        snapshot_repo = build_repository(AssetSnapshotRepository)
+        estimated_asset_ids = snapshot_repo.get_asset_ids_with_estimated_power(
+            asset_ids, window.since, window.until,
+        )
+        config = CR.hygeia_config()
+        breakdown = _build_power_breakdown(
+            assets,
+            snapshot_repo.get_metric_samples_by_asset(
+                asset_ids, AssetSnapshot.power_watts, window.since, window.until,
+            ),
+            estimated_asset_ids, window, config,
+        )
+        with_data = [entry for entry in breakdown if entry["kwh"] is not None]
+
+        return {
+            "scope": scope,
+            "tag": None if tag is None else tag.to_dict(),
+            "assetCount": len(assets),
+            "assetsWithData": len(with_data),
+            "assetsEstimated": len(estimated_asset_ids),
+            "kwh": sum(entry["kwh"] for entry in with_data) if with_data else None,
+            "cost": sum(entry["cost"] for entry in with_data) if with_data else None,
+            "currency": config.energy_price_currency,
+            "classification": _combine_power_classifications(
+                [entry["classification"] for entry in with_data],
+            ),
+            "assets": breakdown,
             "periodCoveredFrom": window.since,
             "periodCoveredTo": window.until,
             "isPeriodClipped": window.is_clipped,
