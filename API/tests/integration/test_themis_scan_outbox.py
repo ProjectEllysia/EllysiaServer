@@ -142,7 +142,10 @@ class TestScanAndDispatchAreAtomic:
 
             dispatch = _only_pending_dispatch()
             assert dispatch["name"] == f"LybraScan-{scan_id}"
-            assert dispatch["args"] == [scan_id, [80, 443], None, 60, False]
+            # discover_ports explícito: el perfil no interviene, así que
+            # aggressive/active_checks_override se quedan en su default y
+            # planner_enabled en True (el planificador sigue disponible).
+            assert dispatch["args"] == [scan_id, [80, 443], None, 60, False, None, True]
 
 
 class TestLybraServicesSurviveJsonb:
