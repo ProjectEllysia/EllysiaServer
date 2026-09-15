@@ -939,6 +939,148 @@ def test_lybra_fingerprinting_identifies_the_service_on_its_own(app, admin_user,
     assert "Nmap" not in fingerprints[0].title
 
 
+def _stub_apache_http_probe(monkeypatch, version: str = "2.4.49") -> None:
+    from src.modules.features.themis.lybra.checks import HttpProbe, Response
+
+    def fake_fetch(self, host, port, method, path):
+        return Response(200, "<html><title>It works</title></html>",
+                        {"server": f"Apache/{version} (Unix)"})
+    monkeypatch.setattr(HttpProbe, "fetch", fake_fetch)
+    monkeypatch.setattr(HttpProbe, "fetch_bytes", lambda self, host, port, path: None)
+
+
+def test_a_rescan_of_an_unchanged_port_skips_the_fingerprint_probe(app, admin_user, monkeypatch):
+    """El CheckPlanner: la segunda vez que se escanea el mismo puerto
+    con producto y versión ya conocidos, no vuelve a sondearse por red — se
+    reutiliza la identidad del surface tracking. La detección por versión
+    (y por tanto el hallazgo) se sigue produciendo igual, sólo se ahorra la
+    sonda."""
+    import src.modules.system.config_reading as CR
+
+    monkeypatch.setattr(CR, "lybra_config", lambda: CR.LybraConfig(fingerprinting_enabled=True))
+    _stub_apache_http_probe(monkeypatch)
+    _stub_self_discovery(monkeypatch, [80])
+    _authorize_target(app, admin_user.id)
+
+    with app.app_context():
+        mgr = LybraEngineManager()
+        first = mgr._create_scan_record(target="10.0.0.5", user_id=admin_user.id)
+        mgr._run_lybra(first.id)
+        with UnitOfWork() as uow:
+            first_findings = ScanRepository(uow).get_findings_by_scan(first.id)
+        assert any(f.category == "fingerprint" for f in first_findings)
+
+        probe_calls = []
+        original = LybraEngineManager._fingerprint_services
+
+        def spying_fingerprint(self, target, services, **kwargs):
+            probe_calls.append([s.port for s in services])
+            return original(self, target, services, **kwargs)
+        monkeypatch.setattr(LybraEngineManager, "_fingerprint_services", spying_fingerprint)
+
+        second = mgr._create_scan_record(target="10.0.0.5", user_id=admin_user.id)
+        mgr._run_lybra(second.id, planner_enabled=True)
+        with UnitOfWork() as uow:
+            second_findings = ScanRepository(uow).get_findings_by_scan(second.id)
+
+    # El puerto 80 no se volvió a sondear: la lista pasada a la sonda no lo trae.
+    assert all(80 not in call for call in probe_calls)
+    # El hallazgo "fingerprint" es justo el que anota que se sondeó por red,
+    # así que no reaparece — pero el servicio se sigue analizando: el
+    # open_port informativo se sigue emitiendo con la identidad reutilizada.
+    assert not any(f.category == "fingerprint" for f in second_findings)
+    assert any(f.category == "open_port" for f in second_findings)
+
+
+def test_planner_disabled_still_probes_an_unchanged_port(app, admin_user, monkeypatch):
+    """El escaneo completo bajo demanda (perfil "thorough") sigue sondeando
+    todo, sin que el planificador decida nada por su cuenta."""
+    import src.modules.system.config_reading as CR
+
+    monkeypatch.setattr(CR, "lybra_config", lambda: CR.LybraConfig(fingerprinting_enabled=True))
+    _stub_apache_http_probe(monkeypatch)
+    _stub_self_discovery(monkeypatch, [80])
+    _authorize_target(app, admin_user.id)
+
+    with app.app_context():
+        mgr = LybraEngineManager()
+        first = mgr._create_scan_record(target="10.0.0.5", user_id=admin_user.id)
+        mgr._run_lybra(first.id)
+
+        probe_calls = []
+        original = LybraEngineManager._fingerprint_services
+
+        def spying_fingerprint(self, target, services, **kwargs):
+            probe_calls.append([s.port for s in services])
+            return original(self, target, services, **kwargs)
+        monkeypatch.setattr(LybraEngineManager, "_fingerprint_services", spying_fingerprint)
+
+        second = mgr._create_scan_record(target="10.0.0.5", user_id=admin_user.id)
+        mgr._run_lybra(second.id, planner_enabled=False)
+
+    assert any(80 in call for call in probe_calls)
+
+
+def test_planner_globally_disabled_by_config_still_probes(app, admin_user, monkeypatch):
+    """El interruptor de despliegue manda por encima de lo que pida el perfil."""
+    import src.modules.system.config_reading as CR
+
+    monkeypatch.setattr(CR, "lybra_config", lambda: CR.LybraConfig(fingerprinting_enabled=True))
+    monkeypatch.setattr(CR, "lybra_planner_config", lambda: CR.LybraPlannerConfig(enabled=False))
+    _stub_apache_http_probe(monkeypatch)
+    _stub_self_discovery(monkeypatch, [80])
+    _authorize_target(app, admin_user.id)
+
+    with app.app_context():
+        mgr = LybraEngineManager()
+        first = mgr._create_scan_record(target="10.0.0.5", user_id=admin_user.id)
+        mgr._run_lybra(first.id)
+
+        probe_calls = []
+        original = LybraEngineManager._fingerprint_services
+
+        def spying_fingerprint(self, target, services, **kwargs):
+            probe_calls.append([s.port for s in services])
+            return original(self, target, services, **kwargs)
+        monkeypatch.setattr(LybraEngineManager, "_fingerprint_services", spying_fingerprint)
+
+        second = mgr._create_scan_record(target="10.0.0.5", user_id=admin_user.id)
+        mgr._run_lybra(second.id, planner_enabled=True)
+
+    assert any(80 in call for call in probe_calls)
+
+
+def test_a_new_port_on_a_rescan_is_still_probed(app, admin_user, monkeypatch):
+    """El planificador nunca se salta un puerto que no conocía de antes."""
+    import src.modules.system.config_reading as CR
+
+    monkeypatch.setattr(CR, "lybra_config", lambda: CR.LybraConfig(fingerprinting_enabled=True))
+    _stub_apache_http_probe(monkeypatch)
+    _authorize_target(app, admin_user.id)
+
+    with app.app_context():
+        mgr = LybraEngineManager()
+        _stub_self_discovery(monkeypatch, [80])
+        first = mgr._create_scan_record(target="10.0.0.5", user_id=admin_user.id)
+        mgr._run_lybra(first.id)
+
+        probe_calls = []
+        original = LybraEngineManager._fingerprint_services
+
+        def spying_fingerprint(self, target, services, **kwargs):
+            probe_calls.append(sorted(s.port for s in services))
+            return original(self, target, services, **kwargs)
+        monkeypatch.setattr(LybraEngineManager, "_fingerprint_services", spying_fingerprint)
+
+        # El segundo escaneo abre además el 8080, que el surface tracking no
+        # conocía todavía.
+        _stub_self_discovery(monkeypatch, [80, 8080])
+        second = mgr._create_scan_record(target="10.0.0.5", user_id=admin_user.id)
+        mgr._run_lybra(second.id, planner_enabled=True)
+
+    assert probe_calls[-1] == [8080]
+
+
 def test_lybra_identifies_a_service_on_a_non_canonical_port(app, admin_user, monkeypatch):
     """El punto ciego que multiplicaba a todos los demás.
 
@@ -1198,6 +1340,165 @@ def _run_payload_scan(app, user_id: int, target: str = "10.9.9.9") -> int:
         return escan.id
 
 
+# ─────────────────────────────── fixed_version persistido
+
+def test_a_finding_with_a_known_fix_persists_its_fixed_version(app, admin_user):
+    """La versión que corrige el hallazgo se guarda en la fila, no sólo se
+    calcula al vuelo para el informe — es lo que la hace consultable por API
+    y agrupable por SQL sin recorrer los hallazgos a mano."""
+    _seed_kb_apache_cve_with_a_fix(app)
+    scan_id = _run_payload_scan(app, admin_user.id)
+
+    with app.app_context():
+        with UnitOfWork() as uow:
+            findings = ScanRepository(uow).get_findings_by_scan(scan_id)
+
+    apache_findings = [f for f in findings if f.cve_ids and "CVE-2021-41773" in f.cve_ids]
+    assert len(apache_findings) == 1
+    assert apache_findings[0].fixed_version == "2.4.51"
+
+
+def test_a_finding_without_a_declared_fix_persists_none(app, admin_user):
+    _seed_kb_apache_cve(app)
+    scan_id = _run_payload_scan(app, admin_user.id)
+
+    with app.app_context():
+        with UnitOfWork() as uow:
+            findings = ScanRepository(uow).get_findings_by_scan(scan_id)
+
+    apache_findings = [f for f in findings if f.cve_ids and "CVE-2021-41773" in f.cve_ids]
+    assert len(apache_findings) == 1
+    assert apache_findings[0].fixed_version is None
+
+
+def test_the_persisted_fixed_version_reaches_the_api(client, app, admin_user, auth_headers):
+    _seed_kb_apache_cve_with_a_fix(app)
+    scan_id = _run_payload_scan(app, admin_user.id)
+
+    body = client.get(f"/themis/lybra/scans/{scan_id}/findings",
+                      headers=auth_headers(admin_user)).get_json()
+    apache_group = next(g for g in body["groups"] if "http server" in g["label"])
+    assert apache_group["fixedVersion"] == "2.4.51"
+
+
+# ═══════════════════════════════ escaneo de red (varios hosts, un padre)
+
+
+def test_run_network_scan_with_a_single_target_creates_no_parent(app, admin_user, monkeypatch):
+    import src.modules.system.config_reading as CR
+
+    monkeypatch.setattr(CR, "themis_config", lambda: CR.ThemisConfig(are_local_ips_allowed=True))
+    _authorize_target(app, admin_user.id, target="10.0.0.6")
+
+    with app.app_context():
+        from unittest import mock
+        scan_id = LybraEngineManager(task_queue=mock.Mock()).run_network_scan(
+            user_id=admin_user.id, targets=["10.0.0.6"],
+        )
+        with UnitOfWork() as uow:
+            repo = ScanRepository(uow)
+            scan = repo.get_by_id(scan_id)
+            children = repo.get_child_scans(scan_id)
+
+    assert scan.target == "10.0.0.6"
+    assert scan.parent_scan_id is None
+    assert children == []
+
+
+def test_run_network_scan_with_several_targets_creates_a_parent_and_one_child_per_host(
+        app, admin_user, monkeypatch):
+    import src.modules.system.config_reading as CR
+    from unittest import mock
+
+    monkeypatch.setattr(CR, "themis_config", lambda: CR.ThemisConfig(are_local_ips_allowed=True))
+    _authorize_target(app, admin_user.id, target="10.0.0.6")
+    _authorize_target(app, admin_user.id, target="10.0.0.7")
+
+    with app.app_context():
+        parent_id = LybraEngineManager(task_queue=mock.Mock()).run_network_scan(
+            user_id=admin_user.id, targets=["10.0.0.6", "10.0.0.7"],
+            target_spec="10.0.0.6,10.0.0.7",
+        )
+        with UnitOfWork() as uow:
+            repo = ScanRepository(uow)
+            parent = repo.get_by_id(parent_id)
+            children = repo.get_child_scans(parent_id)
+
+    assert parent.parent_scan_id is None
+    # El padre muestra lo que el usuario pidió de verdad, no una
+    # reconstrucción a partir de la lista ya expandida.
+    assert parent.target == "10.0.0.6,10.0.0.7"
+    assert {child.target for child in children} == {"10.0.0.6", "10.0.0.7"}
+    assert all(child.parent_scan_id == parent_id for child in children)
+
+
+def test_format_scan_on_a_parent_aggregates_its_children(app, admin_user, monkeypatch):
+    """El padre nunca descubre nada por sí mismo: sus contadores en
+    ``format_scan`` son la suma de sus hijos, no los suyos propios (que
+    siempre serían cero)."""
+    _stub_self_discovery(monkeypatch, [80])
+    _authorize_target(app, admin_user.id, target="10.0.0.10")
+    _authorize_target(app, admin_user.id, target="10.0.0.11")
+
+    with app.app_context():
+        mgr = LybraEngineManager()
+        parent = mgr._create_scan_record(target="10.0.0.10,10.0.0.11", user_id=admin_user.id)
+        child_a = mgr._create_scan_record(
+            target="10.0.0.10", user_id=admin_user.id, parent_scan_id=parent.id)
+        child_b = mgr._create_scan_record(
+            target="10.0.0.11", user_id=admin_user.id, parent_scan_id=parent.id)
+        mgr._run_lybra(child_a.id)
+        mgr._run_lybra(child_b.id)
+
+        result = mgr.format_scan(parent.id)
+
+    assert result["isParent"] is True
+    assert set(result["childScanIds"]) == {child_a.id, child_b.id}
+    assert result["status"] == "finished"
+    # Cada hijo descubre el mismo único puerto abierto (informativo, sin CVE
+    # sembrada): un `open_port` por hijo, dos en total.
+    assert result["totalFindings"] == 2
+
+
+def test_format_scan_on_a_parent_with_a_running_child_reports_running(
+        app, admin_user, monkeypatch):
+    _stub_self_discovery(monkeypatch, [80])
+    _authorize_target(app, admin_user.id, target="10.0.0.10")
+    _authorize_target(app, admin_user.id, target="10.0.0.11")
+
+    with app.app_context():
+        mgr = LybraEngineManager()
+        parent = mgr._create_scan_record(target="10.0.0.10,10.0.0.11", user_id=admin_user.id)
+        child_a = mgr._create_scan_record(
+            target="10.0.0.10", user_id=admin_user.id, parent_scan_id=parent.id)
+        mgr._create_scan_record(  # child_b se queda "pending": nunca se ejecuta
+            target="10.0.0.11", user_id=admin_user.id, parent_scan_id=parent.id)
+        mgr._run_lybra(child_a.id)
+
+        result = mgr.format_scan(parent.id)
+
+    assert result["status"] == "running"
+
+
+def test_launching_a_comma_separated_target_creates_a_network_scan(
+        client, app, admin_user, auth_headers, monkeypatch):
+    import src.modules.system.config_reading as CR
+
+    monkeypatch.setattr(CR, "themis_config", lambda: CR.ThemisConfig(are_local_ips_allowed=True))
+    _authorize_target(app, admin_user.id, target="10.0.0.6")
+    _authorize_target(app, admin_user.id, target="10.0.0.7")
+
+    resp = client.post("/themis/lybra", json={"target": "10.0.0.6,10.0.0.7"},
+                       headers=auth_headers(admin_user))
+    assert resp.status_code == 201
+    parent_id = resp.get_json()["scanId"]
+
+    with app.app_context():
+        with UnitOfWork() as uow:
+            children = ScanRepository(uow).get_child_scans(parent_id)
+    assert len(children) == 2
+
+
 def test_grouped_findings_require_authentication(client):
     assert client.get("/themis/lybra/scans/1/findings").status_code == 401
 
@@ -1296,6 +1597,71 @@ def test_the_listing_ships_counters_instead_of_every_finding(
     detail = client.get(f"/themis/lybra/scans/{scan_id}/findings",
                         headers=auth_headers(admin_user)).get_json()
     assert detail["totalFindings"] == result["totalFindings"]
+
+
+# ───────────────────────────────── exportación (SARIF / STIX / OCSF)
+
+def test_export_requires_authentication(client):
+    assert client.get("/themis/lybra/scans/1/export?format=sarif").status_code == 401
+
+
+def test_export_of_another_users_scan_is_not_found(
+        client, app, admin_user, regular_user, auth_headers):
+    scan_id = _run_payload_scan(app, admin_user.id)
+    resp = client.get(f"/themis/lybra/scans/{scan_id}/export?format=sarif",
+                      headers=auth_headers(regular_user))
+    assert resp.status_code == 404
+
+
+def test_export_rejects_an_unknown_format(client, app, admin_user, auth_headers):
+    scan_id = _run_payload_scan(app, admin_user.id)
+    resp = client.get(f"/themis/lybra/scans/{scan_id}/export?format=xml",
+                      headers=auth_headers(admin_user))
+    assert resp.status_code == 422
+
+
+def test_export_of_a_non_lybra_scan_is_not_found(client, app, admin_user, auth_headers):
+    from src.modules.features.themis.model import NmapScan
+
+    with app.app_context():
+        with UnitOfWork() as uow:
+            repo = ScanRepository(uow)
+            nmap_scan = NmapScan(user_id=admin_user.id, target="10.0.0.1")
+            repo.save(nmap_scan)
+            scan_id = nmap_scan.id
+
+    resp = client.get(f"/themis/lybra/scans/{scan_id}/export?format=sarif",
+                      headers=auth_headers(admin_user))
+    assert resp.status_code == 404
+
+
+def test_export_sarif_reflects_the_scan_findings(client, app, admin_user, auth_headers):
+    scan_id = _run_payload_scan(app, admin_user.id)
+
+    resp = client.get(f"/themis/lybra/scans/{scan_id}/export?format=sarif",
+                      headers=auth_headers(admin_user))
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["version"] == "2.1.0"
+    assert len(body["runs"][0]["results"]) > 0
+
+
+def test_export_stix_reflects_the_scan_findings(client, app, admin_user, auth_headers):
+    scan_id = _run_payload_scan(app, admin_user.id)
+
+    body = client.get(f"/themis/lybra/scans/{scan_id}/export?format=stix",
+                      headers=auth_headers(admin_user)).get_json()
+    assert body["type"] == "bundle"
+    assert any(obj["type"] == "vulnerability" for obj in body["objects"])
+
+
+def test_export_ocsf_reflects_the_scan_findings(client, app, admin_user, auth_headers):
+    scan_id = _run_payload_scan(app, admin_user.id)
+
+    events = client.get(f"/themis/lybra/scans/{scan_id}/export?format=ocsf",
+                        headers=auth_headers(admin_user)).get_json()
+    assert len(events) > 0
+    assert all(event["class_uid"] == 2002 for event in events)
 
 
 # ───────────────────────── descubrimiento parcial (presupuesto agotado)
@@ -1749,6 +2115,108 @@ def test_an_authorized_and_explicit_aggressive_scan_finds_default_credentials(
     # usuario ("tomcat") sí puede aparecer; es información útil y no secreta.
     assert len(evidence) == 1
     assert "s3cret" not in str(evidence[0].payload)
+
+
+# ═══════════════════════════════ perfiles de escaneo (fast/standard/thorough)
+
+
+def test_run_scan_persists_the_chosen_profile(app, admin_user, monkeypatch):
+    from unittest import mock
+    import src.modules.system.config_reading as CR
+
+    # Como en test_lybra_run_scan_self_discovery_succeeds_once_authorized: se
+    # comprueba la persistencia del perfil, no la defensa anti-SSRF ni el
+    # registro de autorización.
+    monkeypatch.setattr(CR, "themis_config", lambda: CR.ThemisConfig(are_local_ips_allowed=True))
+    _authorize_target(app, admin_user.id, target="10.0.0.6")
+
+    with app.app_context():
+        scan_id = LybraEngineManager(task_queue=mock.Mock()).run_scan(
+            user_id=admin_user.id, target="10.0.0.6", profile="fast",
+        )
+        with UnitOfWork() as uow:
+            scan = ScanRepository(uow).get_by_id(scan_id)
+        assert scan.profile == "fast"
+
+
+def test_run_scan_defaults_to_the_standard_profile(app, admin_user, monkeypatch):
+    from unittest import mock
+    import src.modules.system.config_reading as CR
+
+    monkeypatch.setattr(CR, "themis_config", lambda: CR.ThemisConfig(are_local_ips_allowed=True))
+    _authorize_target(app, admin_user.id, target="10.0.0.6")
+
+    with app.app_context():
+        scan_id = LybraEngineManager(task_queue=mock.Mock()).run_scan(
+            user_id=admin_user.id, target="10.0.0.6",
+        )
+        with UnitOfWork() as uow:
+            scan = ScanRepository(uow).get_by_id(scan_id)
+        assert scan.profile == "standard"
+
+
+def test_the_profile_appears_in_format_scan(app, admin_user):
+    scan_id = _run_payload_scan(app, admin_user.id)
+    with app.app_context():
+        result = LybraEngineManager().format_scan(scan_id)
+    assert result["profile"] == "standard"
+
+
+def test_fast_profile_disables_active_checks_even_if_globally_enabled(
+        monkeypatch, app, admin_user):
+    """El perfil "fast" no corre ningún check activo, ni siquiera si el
+    operador los tiene encendidos globalmente — es la esencia del perfil
+    rápido, no una casualidad de la config de test. Se ejercita con
+    ``aggressive=True`` para probar el caso más exigente: ni siquiera una
+    petición explícita de modo agresivo reabre la puerta bajo este perfil
+    (``_resolve_profile`` la ignora a propósito para "fast")."""
+    _authorize_target(app, admin_user.id)
+    _stub_self_discovery(monkeypatch, [80])
+    _stub_tomcat_manager(monkeypatch)
+
+    with app.app_context():
+        mgr = LybraEngineManager()
+        escan = mgr._create_scan_record(target="10.0.0.5", user_id=admin_user.id, profile="fast")
+        # aggressive/active_checks_override tal como los deja _resolve_profile
+        # para "fast": ver test_fast_profile_uses_the_configured_port_list_and_disables_checks.
+        mgr._run_lybra(escan.id, aggressive=False, active_checks_override=False)
+        with UnitOfWork() as uow:
+            findings = ScanRepository(uow).get_findings_by_scan(escan.id)
+
+    assert not [f for f in findings if f.category == "default_credentials"]
+
+
+def test_thorough_profile_reaches_aggressive_checks_on_an_authorized_target(
+        monkeypatch, app, admin_user):
+    """El perfil "thorough" implica el modo agresivo (segunda mitad de la
+    puerta: el objetivo debe estar además autorizado), así que sobre un panel
+    con credenciales de fábrica de verdad expuestas sí produce un hallazgo —
+    lo mismo que ya cubre `aggressive=True` explícito, ahora vía perfil.
+
+    ``aggressive=True`` y ``active_checks_override=None`` son exactamente lo
+    que ``_resolve_profile("thorough", ...)`` calcula (ver
+    ``test_lybra_scan_profiles.py``); se pasan aquí de forma explícita para
+    ejercitar ``_run_lybra`` igual que lo haría ``execute_lybra_scan`` en el
+    worker, sin depender de la cola de tareas.
+    """
+    _authorize_target(app, admin_user.id)
+    _stub_self_discovery(monkeypatch, [80])
+    _stub_tomcat_manager(monkeypatch)
+
+    with app.app_context():
+        mgr = LybraEngineManager()
+        escan = mgr._create_scan_record(target="10.0.0.5", user_id=admin_user.id, profile="thorough")
+        mgr._run_lybra(escan.id, aggressive=True, active_checks_override=None)
+        with UnitOfWork() as uow:
+            findings = ScanRepository(uow).get_findings_by_scan(escan.id)
+
+    assert [f for f in findings if f.category == "default_credentials"]
+
+
+def test_launching_with_an_unknown_profile_is_rejected(client, app, admin_user, auth_headers):
+    resp = client.post("/themis/lybra", json={"target": "203.0.113.9", "profile": "ultra"},
+                       headers=auth_headers(admin_user))
+    assert resp.status_code == 422
 
 
 # ─────────────── desmentir un hallazgo no es aceptar un riesgo

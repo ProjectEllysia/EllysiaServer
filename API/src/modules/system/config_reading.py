@@ -1175,6 +1175,65 @@ def lybra_engine_config() -> LybraEngineConfig:
     return load_block(LybraEngineConfig)
 
 
+@config_block("features.themis.scanners.lybra.profiles")
+@dataclass(frozen=True)
+class LybraProfilesConfig:
+    """Los perfiles de escaneo que el usuario elige al lanzar Lybra.
+
+    Un perfil es una combinación con nombre de lo que ``LybraEngineConfig`` ya
+    deja configurable — puertos, checks activos, modo —, no un concepto nuevo
+    del motor: es lo primero que pregunta quien ha usado Nessus, OpenVAS o
+    Qualys (*¿qué perfil lanzo?*), y hoy no existía ninguno.
+
+    Sólo el perfil ``fast`` necesita un dato de configuración propio (su
+    lista de puertos); ``standard`` reutiliza ``DEFAULT_PORTS`` tal cual, y
+    ``thorough`` barre el rango completo 1-65535 — ninguno de los dos admite
+    ajuste por perfil sin dejar de significar lo que su nombre promete.
+    """
+
+    fast_ports: list = field(default_factory=lambda: [
+        7, 9, 13, 20, 21, 22, 23, 25, 26, 37, 53, 69, 79, 80, 81, 88, 106,
+        110, 111, 113, 119, 123, 135, 137, 138, 139, 143, 144, 161, 179, 199,
+        254, 255, 280, 311, 389, 427, 443, 445, 464, 465, 497, 500, 512, 513,
+        514, 548, 554, 587, 593, 631, 636, 646, 787, 808, 873, 900, 990, 993,
+        995, 1000, 1022, 1024, 1025, 1080, 1433, 1434, 1521, 1720, 1723,
+        1755, 1900, 2001, 2049, 2181, 2375, 2376, 2379, 2717, 3000, 3128,
+        3268, 3269, 3306, 3389, 3986, 4444, 4899, 5000, 5009, 5051, 5060,
+        5190, 5353, 5357, 5432, 5601, 5666, 5800, 5900,
+    ])
+    """Los cien puertos TCP que sondea el perfil ``fast``: los servicios de
+    mayor señal (los mismos que arma ``DEFAULT_PORTS``) más un centenar de
+    puertos comunes de administración y bases de datos. No es un listado
+    con respaldo estadístico externo — es una curación propia, y por eso es
+    configurable: quien opere el escáner puede afinarlo a su parque real."""
+
+
+def lybra_profiles_config() -> LybraProfilesConfig:
+    return load_block(LybraProfilesConfig)
+
+
+@config_block("features.themis.scanners.lybra.planner")
+@dataclass(frozen=True)
+class LybraPlannerConfig:
+    """El re-escaneo inteligente: qué servicios no hace falta volver a sondear.
+
+    Un interruptor de despliegue, como ``LybraConfig`` — la lógica de
+    decisión vive en ``lybra/planner.py::CheckPlanner`` y no toca esta
+    config directamente; el manager es quien la consulta antes de construir
+    el planificador.
+    """
+
+    enabled: bool = True
+    """Si el motor reutiliza el producto/versión ya conocido de un
+    servicio en vez de volver a sondearlo por red. El perfil "thorough" lo
+    ignora siempre — es el escaneo completo bajo demanda que debe seguir
+    disponible sin planificador de por medio."""
+
+
+def lybra_planner_config() -> LybraPlannerConfig:
+    return load_block(LybraPlannerConfig)
+
+
 @config_block("features.themis.scanners.lybra.evidence")
 @dataclass(frozen=True)
 class LybraEvidenceConfig:

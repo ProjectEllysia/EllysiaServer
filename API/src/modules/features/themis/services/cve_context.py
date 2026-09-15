@@ -23,25 +23,36 @@ from ..lybra import parse_cpe23
 from ..repositories import KbRepository
 
 
-def enrich_with_cve_context(findings: list) -> None:
-    """Añadir ``description``, ``cwe_ids`` y ``fixed_version`` a cada hallazgo.
+def _load_primary_cve_entries(findings: list) -> dict:
+    """Carga en bloque el ``CveEntry`` (con sus ``cpe_matches``) de cada hallazgo.
 
-    Modifica los dicts en el sitio.
-
-    Hace **una** consulta en bloque para todos los CVEs del escaneo, nunca una
-    por hallazgo: un host con 150 hallazgos es lo normal, y ahí la diferencia
-    entre una consulta y ciento cincuenta es la diferencia entre una vista que
-    abre y una que no.
+    Una consulta para todos los CVEs del escaneo, nunca una por hallazgo: un
+    host con 150 hallazgos es lo normal, y ahí la diferencia entre una
+    consulta y ciento cincuenta es la diferencia entre una vista que abre y
+    una que no. Compartida por :func:`enrich_with_cve_context` (contexto
+    completo, de lectura) y :func:`resolve_fixed_versions` (sólo la versión
+    corregida, de escritura).
     """
     cve_ids = sorted({cve for finding in findings for cve in (finding.get("cve_ids") or [])})
     if not cve_ids:
-        return
-
-    entries = {
+        return {}
+    return {
         cve_entry.cve_id: cve_entry
         for cve_entry in build_repository(KbRepository).get_cves_with_matches(cve_ids)
     }
 
+
+def enrich_with_cve_context(findings: list) -> None:
+    """Añadir ``description``, ``cwe_ids`` y ``fixed_version`` a cada hallazgo.
+
+    Modifica los dicts en el sitio. Para la vista de informe/API — trae
+    campos (``description``, ``cwe_ids``) que no son columnas de ``Finding``,
+    así que esta función no debe usarse para preparar un dict antes de
+    persistirlo (ver :func:`resolve_fixed_versions`, que sí lo es).
+    """
+    entries = _load_primary_cve_entries(findings)
+    if not entries:
+        return
     for finding in findings:
         ids = finding.get("cve_ids") or []
         if not ids:
@@ -52,6 +63,29 @@ def enrich_with_cve_context(findings: list) -> None:
         finding["description"] = entry.description
         finding["cwe_ids"] = entry.cwe_ids or []
         finding["fixed_version"] = find_fixed_version(entry, finding.get("cpe"))
+
+
+def resolve_fixed_versions(findings: list) -> None:
+    """Añadir sólo ``fixed_version`` a cada hallazgo. Modifica los dicts en el sitio.
+
+    Se llama antes de persistir (``ScanRepository.persist_findings``), para
+    que la versión corregida quede en la fila del ``Finding`` — consultable y
+    ordenable por SQL — en vez de recalcularse cada vez que alguien pide un
+    informe. A diferencia de :func:`enrich_with_cve_context`, sólo toca
+    ``fixed_version`` porque es la única de las tres claves que tiene columna
+    propia en ``Finding``; ``description`` y ``cwe_ids`` sólo tienen sentido
+    en la vista de informe, con el CVE completo delante.
+    """
+    entries = _load_primary_cve_entries(findings)
+    if not entries:
+        return
+    for finding in findings:
+        ids = finding.get("cve_ids") or []
+        if not ids:
+            continue
+        entry = entries.get(ids[0])
+        if entry is not None:
+            finding["fixed_version"] = find_fixed_version(entry, finding.get("cpe"))
 
 
 def find_fixed_version(entry, cpe: Optional[str]) -> Optional[str]:
