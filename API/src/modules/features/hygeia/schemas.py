@@ -668,6 +668,42 @@ class DiskStatsResponseSchema(Schema):
     isPeriodClipped = fields.Boolean()
 
 
+class NetworkStatsQuerySchema(Schema):
+    """Query de ``GET /hygeia/assets/<id>/stats/network``.
+
+    ``interface`` limita la respuesta a una interfaz (``eth0``); sin ella
+    salen todas las que el activo reportó en el periodo, salvo las loopback.
+    Tras cargar, ``period`` queda como ``requested_duration``.
+    """
+    interface = fields.String(load_default=None, validate=validate.Length(min=1, max=64))
+    period = _build_period_field()
+
+    @post_load
+    def parse_query(self, data, **kwargs):
+        """Convierte ``period`` en ``timedelta``."""
+        data["requested_duration"] = _parse_period(data.pop("period"))
+        return data
+
+
+class InterfaceStatsSchema(Schema):
+    """Resumen del tráfico de una interfaz sobre el periodo cubierto, en bytes/s."""
+    interface = fields.String()
+    rxBytesPerSec = fields.Nested(MetricSummarySchema)
+    txBytesPerSec = fields.Nested(MetricSummarySchema)
+
+
+class NetworkStatsResponseSchema(Schema):
+    """Estadísticas de red de un activo, un resumen por interfaz.
+
+    ``interfaces`` va ordenado por nombre de interfaz. La ventana cubierta
+    se recorta a ``maxEntityStatsPeriodDays``, y ``isPeriodClipped`` lo avisa.
+    """
+    interfaces = fields.List(fields.Nested(InterfaceStatsSchema))
+    periodCoveredFrom = UTCDateTime()
+    periodCoveredTo = UTCDateTime()
+    isPeriodClipped = fields.Boolean()
+
+
 class TagStatsQuerySchema(AssetStatsSummaryQuerySchema):
     """Query de ``GET /hygeia/stats/by-tag/<tagId>``: la del resumen de un activo más ``agg``.
 
