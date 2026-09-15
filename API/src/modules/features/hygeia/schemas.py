@@ -608,6 +608,61 @@ class AssetStatsSummaryResponseSchema(Schema):
     isPeriodClipped = fields.Boolean()
 
 
+class TagStatsQuerySchema(AssetStatsSummaryQuerySchema):
+    """Query de ``GET /hygeia/stats/by-tag/<tagId>``: la del resumen de un activo más ``agg``.
+
+    ``agg`` dice cómo se combinan entre activos las medias de cada uno:
+    ``avg`` (por defecto, válido para cualquier métrica), ``max`` o ``sum``.
+    ``sum`` solo tiene sentido en métricas aditivas (tráfico, potencia); con
+    un porcentaje, el manager responde un 400 con las que sí se pueden sumar.
+    """
+    agg = fields.String(load_default="avg", validate=validate.OneOf(["sum", "avg", "max"]))
+
+
+class AssetMetricAggregateSchema(Schema):
+    """Lo que aporta un activo al agregado de una métrica de su etiqueta.
+
+    ``average`` y ``maximum`` son nulos, y ``sampleCount`` es ``0``, si el
+    activo no reportó la métrica en el periodo: cuenta en la etiqueta pero
+    no en la cifra combinada.
+    """
+    assetId = fields.Integer()
+    hostname = fields.String()
+    average = fields.Float(allow_none=True)
+    maximum = fields.Float(allow_none=True)
+    sampleCount = fields.Integer()
+
+
+class TagMetricStatsSchema(Schema):
+    """Una métrica agregada sobre los activos de una etiqueta.
+
+    ``unit`` (``percent``, ``loadAverage``, ``bytesPerSecond`` o ``watts``)
+    dice en qué se expresa ``value``: la memoria, por ejemplo, solo se guarda
+    como porcentaje, y la respuesta lo declara en vez de fingir bytes.
+    ``value`` es nulo si ningún activo tuvo datos en el periodo.
+    """
+    unit = fields.String()
+    value = fields.Float(allow_none=True)
+    assetsWithData = fields.Integer()
+    assets = fields.List(fields.Nested(AssetMetricAggregateSchema))
+
+
+class TagStatsResponseSchema(Schema):
+    """Estadísticas de los activos del usuario que llevan una etiqueta.
+
+    ``assetCount`` cuenta los activos del usuario con la etiqueta, tengan o no
+    datos; ``agg`` ecoa cómo se combinaron. La ventana cubierta viaja igual
+    que en el resumen de un activo.
+    """
+    tag = fields.Nested(TagSchema)
+    assetCount = fields.Integer()
+    agg = fields.String()
+    metrics = fields.Dict(keys=fields.String(), values=fields.Nested(TagMetricStatsSchema))
+    periodCoveredFrom = UTCDateTime()
+    periodCoveredTo = UTCDateTime()
+    isPeriodClipped = fields.Boolean()
+
+
 # =============================================================================
 # INVENTARIO DE SOFTWARE — reemplaza por completo en cada escaneo, sin delta
 # =============================================================================

@@ -18,6 +18,7 @@ from src.modules.features.hygeia.services.stats import (
     build_percentile_series,
     calculate_percentile,
     classify_period,
+    combine_asset_averages,
     energy_and_cost,
     resolve_stats_window,
     summarize_series_by_asset,
@@ -380,3 +381,26 @@ def test_percentile_series_rejects_a_non_positive_bucket():
     """Un cubo de cero segundos es un error de programación."""
     with pytest.raises(ValueError):
         build_percentile_series({"cpuPct": [(_T0, 1.0)]}, bucket_seconds=0, percentile=95)
+
+
+# =============================================================================
+# COMBINACIÓN ENTRE ACTIVOS
+# =============================================================================
+
+@pytest.mark.parametrize("aggregation, expected", [("sum", 60.0), ("avg", 20.0), ("max", 30.0)])
+def test_asset_averages_combine_with_the_requested_aggregation(aggregation, expected):
+    """Suma, media y máximo de las medias, sin contar al activo sin datos."""
+    assert combine_asset_averages([10.0, None, 20.0, 30.0], aggregation) == pytest.approx(expected)
+
+
+@pytest.mark.parametrize("aggregation", ["sum", "avg", "max"])
+def test_combining_without_any_average_gives_none_not_zero(aggregation):
+    """Si ningún activo tuvo datos no hay cifra: ``None``, no ``0``."""
+    assert combine_asset_averages([None, None], aggregation) is None
+    assert combine_asset_averages([], aggregation) is None
+
+
+def test_an_unknown_combination_is_a_programming_error():
+    """Solo se admiten ``sum``, ``avg`` y ``max``."""
+    with pytest.raises(ValueError):
+        combine_asset_averages([1.0], "p95")
