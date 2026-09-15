@@ -809,19 +809,29 @@ class HygeiaTagManager:
 
     def list_tags(self) -> list[dict]:
         """
-        Devuelve el catálogo visible con el recuento de activos de cada etiqueta.
+        Devuelve el catálogo visible con la actividad de cada etiqueta.
+
+        Para cada etiqueta, cuántos activos del usuario la llevan y cuándo
+        dio señal el último de ellos: es el listado del que tira un selector
+        de etiqueta, que así puede avisar de una etiqueta cuyos equipos llevan
+        días sin reportar sin tener que pedir todos los activos.
 
         Returns:
-            Lista de diccionarios ``{id, name, color, tagType, assetCount}``,
-            las de sistema primero y por nombre dentro de cada grupo.
+            Lista de diccionarios ``{id, name, color, tagType, assetCount,
+            lastActivityAt}``, las de sistema primero y por nombre dentro de
+            cada grupo. Una etiqueta sin activos del usuario sale con
+            ``assetCount`` 0 y ``lastActivityAt`` ``None``, no desaparece.
         """
         tag_repository = build_repository(HygeiaTagRepository)
-        counts = tag_repository.count_assets_per_tag(self.user.id)
+        activity_by_tag = tag_repository.get_asset_activity_per_tag(self.user.id)
 
-        return [
-            {**tag.to_dict(), "assetCount": counts.get(tag.id, 0)}
-            for tag in tag_repository.get_visible_for_user(self.user.id)
-        ]
+        tags = []
+        for tag in tag_repository.get_visible_for_user(self.user.id):
+            asset_count, last_activity_at = activity_by_tag.get(tag.id, (0, None))
+            tags.append({
+                **tag.to_dict(), "assetCount": asset_count, "lastActivityAt": last_activity_at,
+            })
+        return tags
 
     def create_tag(self, name: str, color: str) -> dict:
         """
@@ -857,7 +867,7 @@ class HygeiaTagManager:
             tag_repository.save(tag)
 
             # Serializado dentro del bloque: fuera, la instancia queda detached.
-            return {**tag.to_dict(), "assetCount": 0}
+            return {**tag.to_dict(), "assetCount": 0, "lastActivityAt": None}
 
     def delete_tag(self, tag_id: int) -> None:
         """

@@ -24,14 +24,18 @@ acaba siendo diez tonos de gris indistinguibles en un badge de 11px.
 class TagSchema(Schema):
     """Vista de una etiqueta.
 
-    ``assetCount`` solo lo rellena el listado del catálogo; las etiquetas
-    anidadas dentro de un activo lo omiten (allí no significaría nada).
+    ``assetCount`` y ``lastActivityAt`` solo los rellena el listado del
+    catálogo; las etiquetas anidadas dentro de un activo los omiten (allí no
+    significarían nada). ``lastActivityAt`` es la última señal del activo más
+    reciente del usuario que lleva la etiqueta, y es nulo si la etiqueta no
+    está en ninguno o ninguno ha reportado nunca.
     """
     id = fields.Integer()
     name = fields.String()
     color = fields.String()
     tagType = fields.String()
     assetCount = fields.Integer()
+    lastActivityAt = UTCDateTime(allow_none=True)
 
 
 class TagCreateRequestSchema(Schema):
