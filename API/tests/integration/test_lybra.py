@@ -1298,6 +1298,71 @@ def test_the_listing_ships_counters_instead_of_every_finding(
     assert detail["totalFindings"] == result["totalFindings"]
 
 
+# ───────────────────────────────── exportación (SARIF / STIX / OCSF)
+
+def test_export_requires_authentication(client):
+    assert client.get("/themis/lybra/scans/1/export?format=sarif").status_code == 401
+
+
+def test_export_of_another_users_scan_is_not_found(
+        client, app, admin_user, regular_user, auth_headers):
+    scan_id = _run_payload_scan(app, admin_user.id)
+    resp = client.get(f"/themis/lybra/scans/{scan_id}/export?format=sarif",
+                      headers=auth_headers(regular_user))
+    assert resp.status_code == 404
+
+
+def test_export_rejects_an_unknown_format(client, app, admin_user, auth_headers):
+    scan_id = _run_payload_scan(app, admin_user.id)
+    resp = client.get(f"/themis/lybra/scans/{scan_id}/export?format=xml",
+                      headers=auth_headers(admin_user))
+    assert resp.status_code == 422
+
+
+def test_export_of_a_non_lybra_scan_is_not_found(client, app, admin_user, auth_headers):
+    from src.modules.features.themis.model import NmapScan
+
+    with app.app_context():
+        with UnitOfWork() as uow:
+            repo = ScanRepository(uow)
+            nmap_scan = NmapScan(user_id=admin_user.id, target="10.0.0.1")
+            repo.save(nmap_scan)
+            scan_id = nmap_scan.id
+
+    resp = client.get(f"/themis/lybra/scans/{scan_id}/export?format=sarif",
+                      headers=auth_headers(admin_user))
+    assert resp.status_code == 404
+
+
+def test_export_sarif_reflects_the_scan_findings(client, app, admin_user, auth_headers):
+    scan_id = _run_payload_scan(app, admin_user.id)
+
+    resp = client.get(f"/themis/lybra/scans/{scan_id}/export?format=sarif",
+                      headers=auth_headers(admin_user))
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["version"] == "2.1.0"
+    assert len(body["runs"][0]["results"]) > 0
+
+
+def test_export_stix_reflects_the_scan_findings(client, app, admin_user, auth_headers):
+    scan_id = _run_payload_scan(app, admin_user.id)
+
+    body = client.get(f"/themis/lybra/scans/{scan_id}/export?format=stix",
+                      headers=auth_headers(admin_user)).get_json()
+    assert body["type"] == "bundle"
+    assert any(obj["type"] == "vulnerability" for obj in body["objects"])
+
+
+def test_export_ocsf_reflects_the_scan_findings(client, app, admin_user, auth_headers):
+    scan_id = _run_payload_scan(app, admin_user.id)
+
+    events = client.get(f"/themis/lybra/scans/{scan_id}/export?format=ocsf",
+                        headers=auth_headers(admin_user)).get_json()
+    assert len(events) > 0
+    assert all(event["class_uid"] == 2002 for event in events)
+
+
 # ───────────────────────── descubrimiento parcial (presupuesto agotado)
 #
 # Un barrido que se queda sin reloj encuentra puertos ciertos y deja otros sin

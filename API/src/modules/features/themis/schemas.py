@@ -8,6 +8,10 @@ class ScanIdQuerySchema(Schema):
     id = fields.Integer(required=True)
 
 
+class LybraExportQuerySchema(Schema):
+    format = fields.String(required=True, validate=validate.OneOf(["sarif", "stix", "ocsf"]))
+
+
 class NmapScanRequestSchema(Schema):
     target = fields.String(required=True)
     ports = fields.String(required=True)
