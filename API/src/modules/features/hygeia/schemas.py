@@ -3,7 +3,7 @@ Schemas Marshmallow del módulo Hygeia. Claves de respuesta en camelCase,
 por convención del proyecto.
 """
 
-from datetime import timezone
+from datetime import timedelta, timezone
 
 from marshmallow import EXCLUDE, Schema, ValidationError, fields, post_load, validate, validates_schema
 
@@ -392,6 +392,10 @@ class AssetMetricsQuerySchema(Schema):
     # cada métrica, para que ventanas largas (24 h/7 d) no se recorten contra
     # el tope de puntos y los spikes sigan siendo visibles.
     bucket = fields.Integer(load_default=None, validate=validate.Range(min=1))
+    # Cómo se resume cada cubo: ``max`` (por defecto, el comportamiento de
+    # siempre), ``min``, ``avg`` o ``p95``. Sin ``bucket`` no tiene efecto: la
+    # serie cruda no agrega nada.
+    agg = fields.String(load_default="max", validate=validate.OneOf(["min", "avg", "p95", "max"]))
 
     @post_load
     def normalize_range(self, data, **kwargs):
@@ -435,8 +439,9 @@ class AssetMetricsResponseSchema(Schema):
     """Serie temporal de métricas de un activo, para el gráfico de la SPA.
 
     ``bucket`` ecoa el cubo de agregación usado: ``null`` = serie cruda (un
-    punto por heartbeat), un entero = un punto por cubo con el máximo de cada
-    métrica. Así el consumidor rotula la ventana con honestidad sin adivinar.
+    punto por heartbeat), un entero = un punto por cubo. ``agg`` ecoa cómo se
+    resumió cada cubo (``min``/``avg``/``p95``/``max``), y es ``null`` en la
+    serie cruda. Así el consumidor rotula la ventana con honestidad sin adivinar.
     """
     snapshots = fields.List(fields.Nested(AssetSnapshotPointSchema))
     truncated = fields.Boolean(
@@ -444,6 +449,7 @@ class AssetMetricsResponseSchema(Schema):
                                  "hay más histórico del que se devuelve."},
     )
     bucket = fields.Integer(allow_none=True, load_default=None)
+    agg = fields.String(allow_none=True, load_default=None)
 
 
 class AssetLatestResponseSchema(Schema):
@@ -517,6 +523,89 @@ class PowerSummaryResponseSchema(Schema):
     week = fields.Nested(PowerPeriodSchema)
     month = fields.Nested(PowerPeriodSchema)
     monthProjected = fields.Nested(PowerPeriodSchema)
+
+
+# =============================================================================
+# ESTADÍSTICAS — agregados de las métricas de un activo sobre un periodo
+# =============================================================================
+
+#: Unidades que admite ``period``: horas o días, el mismo vocabulario que usa
+#: la SPA para rotular las ventanas (``24h``, ``7d``, ``30d``).
+_PERIOD_UNITS = {"h": "hours", "d": "days"}
+
+
+class AssetStatsSummaryQuerySchema(Schema):
+    """Query de ``GET /hygeia/assets/<id>/stats/summary``.
+
+    ``period`` acepta cualquier ``<n>h`` o ``<n>d``, no solo ``24h``/``7d``/
+    ``30d``: un periodo mayor que lo que se puede cubrir no es un error, se
+    recorta y la respuesta lo dice (``isPeriodClipped``). ``metrics`` es una
+    lista separada por comas de nombres públicos (``cpuPct,memPct``); sin
+    ella se resumen todas las métricas. Los nombres no se validan aquí sino
+    contra el registro de métricas, que responde con el catálogo válido.
+
+    Tras cargar, la query queda como ``metric_names`` (lista, vacía si no se
+    pidió ninguna) y ``requested_duration`` (``timedelta``).
+    """
+    metrics = fields.String(load_default=None)
+    period = fields.String(
+        load_default="24h",
+        validate=validate.Regexp(
+            r"^[1-9][0-9]{0,4}[hd]$",
+            error="El periodo debe tener la forma <n>h o <n>d (por ejemplo 24h o 7d).",
+        ),
+    )
+
+    @post_load
+    def parse_query(self, data, **kwargs):
+        """Convierte ``metrics`` en lista de nombres y ``period`` en ``timedelta``."""
+        raw_metrics = data.pop("metrics")
+        data["metric_names"] = (
+            [name.strip() for name in raw_metrics.split(",") if name.strip()]
+            if raw_metrics else []
+        )
+        period = data.pop("period")
+        data["requested_duration"] = timedelta(**{_PERIOD_UNITS[period[-1]]: int(period[:-1])})
+        return data
+
+
+class MetricSummarySchema(Schema):
+    """Resumen de una métrica sobre el periodo cubierto.
+
+    Se vuelca directamente desde un ``StatSummary`` (``services/stats.py``),
+    cuyos atributos tienen nombres completos; ``data_key`` los publica con las
+    claves cortas de la API. Todos los valores son nulos a la vez cuando la
+    métrica no tiene ninguna muestra en el periodo (``sampleCount`` es ``0``):
+    no se sabe su máximo, y ``0`` sería una cifra inventada.
+
+    ``timestampOfMax``/``timestampOfMin`` son el instante exacto
+    (``receivedAt``) del heartbeat que marcó el extremo, no el de un cubo:
+    es lo que permite relacionar un pico con lo que pasaba en ese momento
+    (una anomalía, un despliegue). Si el extremo se repite, es el de la
+    primera vez que se alcanzó.
+    """
+    minimum = fields.Float(data_key="min", allow_none=True)
+    maximum = fields.Float(data_key="max", allow_none=True)
+    average = fields.Float(data_key="avg", allow_none=True)
+    percentile_95 = fields.Float(data_key="p95", allow_none=True)
+    current = fields.Float(allow_none=True)
+    sample_count = fields.Integer(data_key="sampleCount")
+    timestamp_of_maximum = UTCDateTime(data_key="timestampOfMax", allow_none=True)
+    timestamp_of_minimum = UTCDateTime(data_key="timestampOfMin", allow_none=True)
+
+
+class AssetStatsSummaryResponseSchema(Schema):
+    """Resumen estadístico de las métricas de un activo.
+
+    ``metrics`` va indexado por el nombre público de cada métrica pedida.
+    ``periodCoveredFrom``/``periodCoveredTo`` son la ventana que se cubrió de
+    verdad, e ``isPeriodClipped`` avisa de que es más corta que la pedida
+    (el periodo superaba el límite de estadísticas o la retención).
+    """
+    metrics = fields.Dict(keys=fields.String(), values=fields.Nested(MetricSummarySchema))
+    periodCoveredFrom = UTCDateTime()
+    periodCoveredTo = UTCDateTime()
+    isPeriodClipped = fields.Boolean()
 
 
 # =============================================================================

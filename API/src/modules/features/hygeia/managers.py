@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 from datetime import timedelta
-from typing import Optional
+from typing import Optional, Sequence
 
 import src.modules.system.config_reading as CR
 from src.modules.accounts import LimitKey, OrganizationManager, QuotaManager
@@ -48,8 +48,10 @@ from .repositories import (
     MonitoredAssetRepository,
 )
 from .services import (
-    build_inventory_report, check_clock_skew, denormalize, evaluate, generate_agent_key,
-    is_agent_outdated, project_month, services_from_inventory, summarize_power_period,
+    METRIC_REGISTRY, assert_metric_definition, build_inventory_report, build_percentile_series,
+    check_clock_skew, denormalize, evaluate, generate_agent_key, is_agent_outdated,
+    project_month, resolve_stats_window, services_from_inventory, summarize_power_period,
+    summarize_values,
 )
 
 # ---------------------------------------------------------------------------
@@ -69,6 +71,60 @@ from .services import (
 from src.modules.features.themis.managers import LybraEngineManager
 
 logger = logging.getLogger(__name__)
+
+
+#: Valor de ``agg`` que la serie temporal calcula en Python y no en SQL.
+_PERCENTILE_AGGREGATION = "p95"
+
+#: Percentil que corresponde a ``_PERCENTILE_AGGREGATION``.
+_SERIES_PERCENTILE = 95
+
+
+def _build_percentile_series_points(
+    snapshot_repo: AssetSnapshotRepository, asset_id: int, bucket_seconds: int,
+    since: Optional[object], until: Optional[object],
+) -> list:
+    """Serie por cubos con el percentil 95 de cada métrica, en la forma de ``get_series_bucketed``.
+
+    Lee las muestras de cada métrica del registro con su propia consulta de
+    dos columnas y las agrupa en Python (``build_percentile_series``). Sin
+    ``since``/``until`` explícitos, la ventana es la de retención: la consulta
+    de muestras necesita límites, y más atrás no quedan datos.
+
+    Args:
+        snapshot_repo: Repositorio de snapshots ya construido.
+        asset_id: Activo cuya serie se consulta; ya comprobado su dueño.
+        bucket_seconds: Tamaño del cubo en segundos.
+        since: Límite inferior opcional de ``receivedAt``.
+        until: Límite superior opcional de ``receivedAt``.
+
+    Returns:
+        list: Puntos (diccionarios con las claves de ``AssetSnapshotPointSchema``)
+            de más antiguo a más reciente, sin recortar.
+    """
+    now = utcnow_naive()
+    retention = timedelta(days=CR.hygeia_config().retention_days)
+    window_since = since if since is not None else now - retention
+    window_until = until if until is not None else now
+    samples_by_metric = {
+        definition.name: snapshot_repo.get_metric_samples_by_asset(
+            [asset_id], definition.column, window_since, window_until,
+        )[asset_id]
+        for definition in METRIC_REGISTRY.values()
+    }
+    return [
+        {
+            "collectedAt": bucket_start,
+            "receivedAt": bucket_start,
+            **values_by_metric,
+            "diskMaxMount": None,
+            "powerEstimated": None,
+            "powerSource": None,
+        }
+        for bucket_start, values_by_metric in build_percentile_series(
+            samples_by_metric, bucket_seconds, _SERIES_PERCENTILE,
+        )
+    ]
 
 
 def _resolve_host_down_if_open(uow: UnitOfWork, asset_id: int) -> None:
@@ -223,9 +279,9 @@ class HygeiaAssetManager:
             for asset in assets
         ]
 
-    def get_metrics(
+    def get_metrics(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self, asset_id: int, since: Optional[object] = None, until: Optional[object] = None,
-        bucket: Optional[int] = None,
+        bucket: Optional[int] = None, aggregation: str = "max",
     ) -> dict:
         """
         Devuelve la serie temporal de métricas de un activo del usuario, para
@@ -239,24 +295,31 @@ class HygeiaAssetManager:
         por ``get_latest_metrics``.
 
         Con ``bucket`` (segundos) la serie viaja agregada — un punto por cubo
-        con el máximo de cada métrica (``get_series_bucketed``) — para que
-        ventanas largas no se recorten contra el tope de puntos: a 15 s de
-        heartbeat, 24 h son 5.760 puntos y 7 días 40.320, pero 288 y 336
-        cubos respectivamente. Sin ``bucket``, el camino es el de siempre.
+        con el agregado ``aggregation`` de cada métrica — para que ventanas
+        largas no se recorten contra el tope de puntos: a 15 s de heartbeat,
+        24 h son 5.760 puntos y 7 días 40.320, pero 288 y 336 cubos
+        respectivamente. ``min``/``avg``/``max`` se resuelven en SQL
+        (``get_series_bucketed``); ``p95`` se calcula en Python sobre las
+        muestras de cada métrica, porque SQL no tiene un percentil portable
+        entre Postgres y SQLite. Sin ``bucket``, el camino es el de siempre y
+        ``aggregation`` no tiene efecto.
 
         Args:
             asset_id: Activo cuya serie se consulta.
             since: Límite inferior opcional de ``receivedAt``.
             until: Límite superior opcional de ``receivedAt``.
             bucket: Segundos del cubo de agregación; ``None`` para serie cruda.
+            aggregation: Cómo se resume cada cubo: ``"min"``, ``"avg"``,
+                ``"p95"`` o ``"max"``. Por defecto ``"max"``, el
+                comportamiento de siempre (no se traga un pico).
 
         Returns:
-            Diccionario con ``snapshots``, ``truncated`` y ``bucket``. Este
-            último ecoa el cubo usado (``None`` en serie cruda) para que el
-            consumidor rotule la ventana con honestidad. ``truncated`` avisa
-            de que el histórico da para más puntos de los devueltos, para que
-            la SPA pueda rotular la ventana con honestidad en vez de
-            presentar un recorte silencioso como si fuera la serie entera.
+            Diccionario con ``snapshots``, ``truncated``, ``bucket`` y ``agg``.
+            ``bucket`` y ``agg`` ecoan el cubo y la agregación usados (los dos
+            ``None`` en serie cruda) para que el consumidor rotule la ventana
+            con honestidad. ``truncated`` avisa de que el histórico da para
+            más puntos de los devueltos, para que la SPA no presente un
+            recorte silencioso como si fuera la serie entera.
 
         Raises:
             AssetNotFoundError: Si el activo no existe o pertenece a otro usuario.
@@ -265,9 +328,13 @@ class HygeiaAssetManager:
 
         limit = CR.hygeia_limits().max_series_points
         snapshot_repo = build_repository(AssetSnapshotRepository)
-        if bucket:
+        if bucket and aggregation == _PERCENTILE_AGGREGATION:
+            snapshots = _build_percentile_series_points(
+                snapshot_repo, asset_id, bucket, since, until,
+            )[:limit]
+        elif bucket:
             snapshots = snapshot_repo.get_series_bucketed(
-                asset_id, bucket, since=since, until=until, limit=limit,
+                asset_id, bucket, since=since, until=until, limit=limit, aggregation=aggregation,
             )
         else:
             raw = snapshot_repo.get_series(
@@ -279,6 +346,7 @@ class HygeiaAssetManager:
             "snapshots": snapshots,
             "truncated": len(snapshots) == limit,
             "bucket": bucket,
+            "agg": aggregation if bucket else None,
         }
 
     def get_latest_metrics(self, asset_id: int) -> dict:
@@ -390,6 +458,72 @@ class HygeiaAssetManager:
         """Resume una ventana completa de ``days`` días: consulta y cálculo de consumo."""
         since, samples = cls._power_window_samples(snapshot_repo, asset_id, now, days, config)
         return cls._summarize_window(since, now, samples, config), samples
+
+    def get_stats_summary(
+        self, asset_id: int, metric_names: Sequence[str], requested_duration: timedelta,
+    ) -> dict:
+        """
+        Resume las métricas de un activo del usuario sobre un periodo.
+
+        Para cada métrica pedida devuelve mínimo, máximo, media, percentil 95
+        y valor actual, en una sola llamada en vez de una por métrica. La
+        cuenta es la común de todas las estadísticas (``summarize_values``),
+        así que ``avg`` o ``p95`` significan aquí lo mismo que en los
+        agregados por etiqueta o del parque.
+
+        El periodo se recorta a lo que se puede cubrir (``resolve_stats_window``:
+        el menor entre el límite de estadísticas y la retención), y la
+        respuesta dice qué ventana cubrió de verdad y si hubo recorte: un
+        "máximo de los últimos 365 días" calculado sobre 30 tiene que decirlo.
+
+        Cada métrica se lee con su propia consulta de dos columnas (instante
+        y valor): son como mucho ocho, y cada una ya descarta en SQL los
+        heartbeats sin dato para esa métrica.
+
+        Args:
+            asset_id: Activo cuyas métricas se resumen.
+            metric_names: Nombres públicos de las métricas (``cpuPct``…). Los
+                repetidos se resumen una sola vez; una lista vacía equivale a
+                todas las métricas del registro. La respuesta los indexa por
+                nombre, sin garantizar orden: el JSON sale con las claves
+                ordenadas alfabéticamente.
+            requested_duration: Duración del periodo pedido, antes de recortar;
+                positiva (la valida el schema de la query).
+
+        Returns:
+            Diccionario con la forma de ``AssetStatsSummaryResponseSchema``:
+            ``metrics`` (un ``StatSummary`` por nombre de métrica),
+            ``periodCoveredFrom``/``periodCoveredTo`` e ``isPeriodClipped``.
+
+        Raises:
+            AssetNotFoundError: Si el activo no existe o pertenece a otro usuario.
+            UnknownMetricError: Si algún nombre no está en el registro de métricas.
+        """
+        assert_owned(MonitoredAssetRepository, asset_id, self.user.id, AssetNotFoundError)
+        definitions = [
+            assert_metric_definition(name)
+            for name in dict.fromkeys(metric_names or METRIC_REGISTRY)
+        ]
+        window = resolve_stats_window(
+            requested_duration, utcnow_naive(),
+            max_stats_period_days=CR.hygeia_limits().max_stats_period_days,
+            retention_days=CR.hygeia_config().retention_days,
+        )
+
+        snapshot_repo = build_repository(AssetSnapshotRepository)
+        summaries_by_metric = {}
+        for definition in definitions:
+            samples_by_asset = snapshot_repo.get_metric_samples_by_asset(
+                [asset_id], definition.column, window.since, window.until,
+            )
+            summaries_by_metric[definition.name] = summarize_values(samples_by_asset[asset_id])
+
+        return {
+            "metrics": summaries_by_metric,
+            "periodCoveredFrom": window.since,
+            "periodCoveredTo": window.until,
+            "isPeriodClipped": window.is_clipped,
+        }
 
     def get_inventory(self, asset_id: int) -> dict:
         """

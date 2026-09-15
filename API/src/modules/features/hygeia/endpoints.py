@@ -48,6 +48,8 @@ from .schemas import (
     AssetMetricsQuerySchema,
     AssetMetricsResponseSchema,
     AssetSchema,
+    AssetStatsSummaryQuerySchema,
+    AssetStatsSummaryResponseSchema,
     AssetTagsRequestSchema,
     AssetUpdateRequestSchema,
     IngestRequestSchema,
@@ -143,6 +145,7 @@ def get_asset_metrics(args, asset_id):
     manager = HygeiaAssetManager(user)
     return manager.get_metrics(
         asset_id, since=args["since"], until=args["until"], bucket=args["bucket"],
+        aggregation=args["agg"],
     )
 
 
@@ -176,6 +179,30 @@ def get_asset_power_summary(asset_id):
     user = get_current_user()
     manager = HygeiaAssetManager(user)
     return manager.get_power_summary(asset_id)
+
+
+@hygeia_blp.get("/assets/<int:asset_id>/stats/summary")
+@hygeia_blp.arguments(AssetStatsSummaryQuerySchema, location="query")
+@hygeia_blp.response(
+    200, AssetStatsSummaryResponseSchema, description="Resumen estadístico del activo",
+)
+@hygeia_blp.alt_response(400, schema=ErrorSchema, description="Unknown metric")
+@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@hygeia_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@hygeia_blp.alt_response(404, schema=ErrorSchema, description="Asset not found")
+@limiter.limit("600 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
+@handle_exceptions(default_exception=AssetNotFoundError, logger=logger)
+def get_asset_stats_summary(args, asset_id):
+    """Obtener mínimo, máximo, media, p95 y valor actual de las métricas de un activo"""
+    user = get_current_user()
+    manager = HygeiaAssetManager(user)
+    return manager.get_stats_summary(
+        asset_id,
+        metric_names=args["metric_names"],
+        requested_duration=args["requested_duration"],
+    )
 
 
 @hygeia_blp.get("/assets/<int:asset_id>/inventory")

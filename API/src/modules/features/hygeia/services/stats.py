@@ -23,8 +23,8 @@ from __future__ import annotations
 import math
 from collections.abc import Hashable
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from typing import Dict, Mapping, NamedTuple, Optional, Sequence, Tuple, TypeVar
+from datetime import datetime, timedelta, timezone
+from typing import Dict, List, Mapping, NamedTuple, Optional, Sequence, Tuple, TypeVar
 
 # Suelo del umbral de hueco cuando la mediana de los intervalos es pequeña o
 # no existe (menos de dos muestras). Replica el criterio de `gapThresholdMs`
@@ -491,6 +491,65 @@ def summarize_series_by_asset(
             quien llama pueda decir "sin datos" en vez de perderlo de la lista.
     """
     return {asset_key: summarize_values(series) for asset_key, series in series_by_asset.items()}
+
+
+def build_percentile_series(
+    samples_by_metric: Mapping[str, Sequence[Tuple[datetime, Optional[float]]]],
+    bucket_seconds: int, percentile: float,
+) -> List[Tuple[datetime, Dict[str, Optional[float]]]]:
+    """
+    Agrupa varias métricas en cubos de tiempo y calcula el percentil de cada una en cada cubo.
+
+    Es el camino de la serie temporal con ``agg=p95``, que SQL no resuelve de
+    forma portable entre Postgres y SQLite. Los cubos se numeran exactamente
+    igual que en la base de datos (``floor(epoch / bucket_seconds)``, con el
+    instante tratado como UTC), así que coinciden con los de las otras
+    agregaciones y una gráfica puede alternar entre ellas sin que se muevan
+    los puntos.
+
+    Args:
+        samples_by_metric: Muestras ``(instante, valor)`` de cada métrica,
+            indexadas por su nombre público. Los instantes son naive-UTC; las
+            muestras con ``None`` se descartan.
+        bucket_seconds: Tamaño del cubo en segundos; positivo.
+        percentile: Percentil a calcular, en ``[0, 100]``.
+
+    Returns:
+        List[Tuple[datetime, Dict[str, Optional[float]]]]: Un elemento por cubo
+            con al menos una muestra, en orden cronológico: el inicio del cubo
+            y el percentil de cada métrica de ``samples_by_metric``. Una
+            métrica sin muestras en ese cubo vale ``None``, no ``0``. Los
+            cubos sin ninguna muestra no aparecen, igual que en la serie de
+            la base de datos.
+
+    Raises:
+        ValueError: Si ``bucket_seconds`` no es positivo o ``percentile`` está
+            fuera de ``[0, 100]``.
+    """
+    if bucket_seconds <= 0:
+        raise ValueError(f"El cubo debe ser positivo; se pidió {bucket_seconds} s")
+
+    values_by_bucket: Dict[int, Dict[str, List[float]]] = {}
+    for metric_name, samples in samples_by_metric.items():
+        for instant, value in samples:
+            if value is None:
+                continue
+            epoch_seconds = instant.replace(tzinfo=timezone.utc).timestamp()
+            bucket_id = math.floor(epoch_seconds / bucket_seconds)
+            values_by_bucket.setdefault(bucket_id, {}).setdefault(metric_name, []).append(value)
+
+    series = []
+    for bucket_id in sorted(values_by_bucket):
+        bucket_start = datetime.fromtimestamp(bucket_id * bucket_seconds, tz=timezone.utc)
+        values_by_metric = values_by_bucket[bucket_id]
+        series.append((
+            bucket_start.replace(tzinfo=None),
+            {
+                metric_name: calculate_percentile(values_by_metric.get(metric_name, []), percentile)
+                for metric_name in samples_by_metric
+            },
+        ))
+    return series
 
 
 @dataclass(frozen=True)
