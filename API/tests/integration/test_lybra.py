@@ -1381,6 +1381,124 @@ def test_the_persisted_fixed_version_reaches_the_api(client, app, admin_user, au
     assert apache_group["fixedVersion"] == "2.4.51"
 
 
+# ═══════════════════════════════ escaneo de red (varios hosts, un padre)
+
+
+def test_run_network_scan_with_a_single_target_creates_no_parent(app, admin_user, monkeypatch):
+    import src.modules.system.config_reading as CR
+
+    monkeypatch.setattr(CR, "themis_config", lambda: CR.ThemisConfig(are_local_ips_allowed=True))
+    _authorize_target(app, admin_user.id, target="10.0.0.6")
+
+    with app.app_context():
+        from unittest import mock
+        scan_id = LybraEngineManager(task_queue=mock.Mock()).run_network_scan(
+            user_id=admin_user.id, targets=["10.0.0.6"],
+        )
+        with UnitOfWork() as uow:
+            repo = ScanRepository(uow)
+            scan = repo.get_by_id(scan_id)
+            children = repo.get_child_scans(scan_id)
+
+    assert scan.target == "10.0.0.6"
+    assert scan.parent_scan_id is None
+    assert children == []
+
+
+def test_run_network_scan_with_several_targets_creates_a_parent_and_one_child_per_host(
+        app, admin_user, monkeypatch):
+    import src.modules.system.config_reading as CR
+    from unittest import mock
+
+    monkeypatch.setattr(CR, "themis_config", lambda: CR.ThemisConfig(are_local_ips_allowed=True))
+    _authorize_target(app, admin_user.id, target="10.0.0.6")
+    _authorize_target(app, admin_user.id, target="10.0.0.7")
+
+    with app.app_context():
+        parent_id = LybraEngineManager(task_queue=mock.Mock()).run_network_scan(
+            user_id=admin_user.id, targets=["10.0.0.6", "10.0.0.7"],
+            target_spec="10.0.0.6,10.0.0.7",
+        )
+        with UnitOfWork() as uow:
+            repo = ScanRepository(uow)
+            parent = repo.get_by_id(parent_id)
+            children = repo.get_child_scans(parent_id)
+
+    assert parent.parent_scan_id is None
+    # El padre muestra lo que el usuario pidió de verdad, no una
+    # reconstrucción a partir de la lista ya expandida.
+    assert parent.target == "10.0.0.6,10.0.0.7"
+    assert {child.target for child in children} == {"10.0.0.6", "10.0.0.7"}
+    assert all(child.parent_scan_id == parent_id for child in children)
+
+
+def test_format_scan_on_a_parent_aggregates_its_children(app, admin_user, monkeypatch):
+    """El padre nunca descubre nada por sí mismo: sus contadores en
+    ``format_scan`` son la suma de sus hijos, no los suyos propios (que
+    siempre serían cero)."""
+    _stub_self_discovery(monkeypatch, [80])
+    _authorize_target(app, admin_user.id, target="10.0.0.10")
+    _authorize_target(app, admin_user.id, target="10.0.0.11")
+
+    with app.app_context():
+        mgr = LybraEngineManager()
+        parent = mgr._create_scan_record(target="10.0.0.10,10.0.0.11", user_id=admin_user.id)
+        child_a = mgr._create_scan_record(
+            target="10.0.0.10", user_id=admin_user.id, parent_scan_id=parent.id)
+        child_b = mgr._create_scan_record(
+            target="10.0.0.11", user_id=admin_user.id, parent_scan_id=parent.id)
+        mgr._run_lybra(child_a.id)
+        mgr._run_lybra(child_b.id)
+
+        result = mgr.format_scan(parent.id)
+
+    assert result["isParent"] is True
+    assert set(result["childScanIds"]) == {child_a.id, child_b.id}
+    assert result["status"] == "finished"
+    # Cada hijo descubre el mismo único puerto abierto (informativo, sin CVE
+    # sembrada): un `open_port` por hijo, dos en total.
+    assert result["totalFindings"] == 2
+
+
+def test_format_scan_on_a_parent_with_a_running_child_reports_running(
+        app, admin_user, monkeypatch):
+    _stub_self_discovery(monkeypatch, [80])
+    _authorize_target(app, admin_user.id, target="10.0.0.10")
+    _authorize_target(app, admin_user.id, target="10.0.0.11")
+
+    with app.app_context():
+        mgr = LybraEngineManager()
+        parent = mgr._create_scan_record(target="10.0.0.10,10.0.0.11", user_id=admin_user.id)
+        child_a = mgr._create_scan_record(
+            target="10.0.0.10", user_id=admin_user.id, parent_scan_id=parent.id)
+        mgr._create_scan_record(  # child_b se queda "pending": nunca se ejecuta
+            target="10.0.0.11", user_id=admin_user.id, parent_scan_id=parent.id)
+        mgr._run_lybra(child_a.id)
+
+        result = mgr.format_scan(parent.id)
+
+    assert result["status"] == "running"
+
+
+def test_launching_a_comma_separated_target_creates_a_network_scan(
+        client, app, admin_user, auth_headers, monkeypatch):
+    import src.modules.system.config_reading as CR
+
+    monkeypatch.setattr(CR, "themis_config", lambda: CR.ThemisConfig(are_local_ips_allowed=True))
+    _authorize_target(app, admin_user.id, target="10.0.0.6")
+    _authorize_target(app, admin_user.id, target="10.0.0.7")
+
+    resp = client.post("/themis/lybra", json={"target": "10.0.0.6,10.0.0.7"},
+                       headers=auth_headers(admin_user))
+    assert resp.status_code == 201
+    parent_id = resp.get_json()["scanId"]
+
+    with app.app_context():
+        with UnitOfWork() as uow:
+            children = ScanRepository(uow).get_child_scans(parent_id)
+    assert len(children) == 2
+
+
 def test_grouped_findings_require_authentication(client):
     assert client.get("/themis/lybra/scans/1/findings").status_code == 401
 

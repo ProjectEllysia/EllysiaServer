@@ -379,8 +379,10 @@ def start_lybra_scan(data):
     manager = LybraEngineManager()
 
     # Autodescubrimiento: valida el objetivo (rechaza IPs privadas, etc.)
-    # igual que un escaneo Nmap, ya que el transporte propio toca el objetivo.
-    target = ScanManager.validate_targets(data["target"], max_hosts=1)[0]
+    # igual que un escaneo Nmap, ya que el transporte propio toca el
+    # objetivo. `validate_targets` ya sabe expandir CIDR, rangos y listas
+    # separadas por comas — un objetivo aquí puede ser más de un host.
+    targets = ScanManager.validate_targets(data["target"])
     discover_ports = None
     if data.get("ports"):
         try:
@@ -388,15 +390,16 @@ def start_lybra_scan(data):
         except PortValidationError as exc:
             raise ValidationError(field="ports", message=str(exc), value=data["ports"]) from exc
 
-    scan_id = manager.run_scan(
+    scan_id = manager.run_network_scan(
         user_id=user.id,
-        target=target,
+        targets=targets,
+        target_spec=data["target"],
         discover_ports=discover_ports,
         timeout=timeout,
         aggressive=data.get("aggressive", False),
         profile=data.get("profile", "standard"),
     )
-    logger.info(f"Lybra lanzado: ID={scan_id} autodescubrimiento target={target} user={user.username}")
+    logger.info(f"Lybra lanzado: ID={scan_id} hosts={len(targets)} user={user.username}")
 
     return {
         "message": "Escaneo Lybra iniciado correctamente",
