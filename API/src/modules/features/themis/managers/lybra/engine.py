@@ -133,6 +133,67 @@ def _resolve_profile(
     return None, aggressive, None, True
 
 
+def _build_check_planner(scan_repo, host_id: Optional[int]) -> Optional[CheckPlanner]:
+    """Construye el ``CheckPlanner`` a partir del surface tracking del host.
+
+    Reutiliza ``get_host_services`` — la misma consulta que
+    ``LybraEngineManager._detect_surface_changes`` hace después para el diff
+    informativo. La clave es ``(port, protocol)``, no la de ``_surface_key``:
+    esa incluye un tercer campo (el producto, para el caso portless) que aquí
+    sobra — el ``CheckPlanner`` sólo trata con servicios con puerto, los
+    únicos que se pueden sondear por red.
+
+    Args:
+        scan_repo: El ``ScanRepository`` de la transacción en curso.
+        host_id: El host cuyo escaneo anterior se consulta, o ``None`` cuando
+            el descubrimiento todavía no ha resuelto un ``Host`` — sin
+            identidad de host no hay superficie anterior que mirar, así que
+            no hay nada que planificar.
+
+    Returns:
+        Optional[CheckPlanner]: ``None`` sin host; en otro caso, un
+            planificador con lo que el surface tracking recordaba de cada
+            servicio con puerto (los de inventario, sin puerto, nunca tienen
+            nada que reutilizar por red).
+    """
+    if host_id is None:
+        return None
+    previous_surface = {
+        (row.port, row.protocol or "tcp"): KnownService(
+            product=row.product or "", version=row.version or "", cpe=row.cpe,
+        )
+        for row in scan_repo.get_host_services(host_id)
+        if row.port is not None
+    }
+    return CheckPlanner(previous_surface)
+
+
+def _merge_fingerprint_results(
+    original: list, probed_inputs: list, probed_outputs: list,
+    reused_inputs: list, reused_outputs: list,
+) -> list:
+    """Recombina los resultados del fingerprint en el orden original.
+
+    El ``CheckPlanner`` parte ``original`` en dos listas para sondear una y
+    reutilizar la otra; esto las vuelve a intercalar en el orden con el que
+    llegaron, que es lo que mantiene reproducible la salida del escaneo (ver
+    el comentario de ``LybraEngineManager._fingerprint_services`` sobre por
+    qué el orden importa para el ciclo de vida).
+
+    ``probed_inputs``/``reused_inputs`` son las mismas instancias que hay en
+    ``original`` (el ``CheckPlanner`` particiona por referencia, no por
+    copia), así que emparejarlas por identidad con sus ``*_outputs``
+    respectivos no depende de que ``Service`` sea hashable ni de que dos
+    servicios distintos con los mismos valores puedan confundirse.
+    """
+    probed_map = {id(service): result for service, result in zip(probed_inputs, probed_outputs)}
+    reused_map = {id(service): result for service, result in zip(reused_inputs, reused_outputs)}
+    return [
+        probed_map.get(id(service), reused_map.get(id(service), service))
+        for service in original
+    ]
+
+
 @ScanManager.register(ScanType.LYBRA)
 class LybraEngineManager(ScanManager):
     """
@@ -504,7 +565,7 @@ class LybraEngineManager(ScanManager):
                     and not should_stop()
                 ):
                     planner = (
-                        self._build_check_planner(scan_repo, source_host_id)
+                        _build_check_planner(scan_repo, source_host_id)
                         if planner_enabled and CR.lybra_planner_config().enabled
                         else None
                     )
@@ -522,7 +583,7 @@ class LybraEngineManager(ScanManager):
                             cancel_check=should_stop,
                         )
                         reused = [planner.apply_cached_identity(service) for service in to_reuse]
-                        services = self._merge_fingerprint_results(
+                        services = _merge_fingerprint_results(
                             services, to_probe, probed, to_reuse, reused
                         )
                     is_partial = is_partial or should_stop()
@@ -943,66 +1004,6 @@ class LybraEngineManager(ScanManager):
             updated.append(service)
 
         return updated, findings
-
-    @staticmethod
-    def _build_check_planner(scan_repo, host_id: Optional[int]) -> Optional[CheckPlanner]:
-        """Construye el ``CheckPlanner`` a partir del surface tracking del host.
-
-        Reutiliza ``get_host_services`` — la misma consulta que
-        ``_detect_surface_changes`` hace después para el diff informativo.
-        La clave es ``(port, protocol)``, no la de ``_surface_key``: esa
-        incluye un tercer campo (el producto, para el caso portless) que
-        aquí sobra — el ``CheckPlanner`` sólo trata con servicios con
-        puerto, los únicos que se pueden sondear por red.
-
-        Args:
-            host_id: El host cuyo escaneo anterior se consulta, o ``None``
-                cuando el descubrimiento todavía no ha resuelto un ``Host``
-                — sin identidad de host no hay superficie anterior que mirar,
-                así que no hay nada que planificar.
-
-        Returns:
-            Optional[CheckPlanner]: ``None`` sin host; en otro caso, un
-                planificador con lo que el surface tracking recordaba de
-                cada servicio con puerto (los de inventario, sin puerto,
-                nunca tienen nada que reutilizar por red).
-        """
-        if host_id is None:
-            return None
-        previous_surface = {
-            (row.port, row.protocol or "tcp"): KnownService(
-                product=row.product or "", version=row.version or "", cpe=row.cpe,
-            )
-            for row in scan_repo.get_host_services(host_id)
-            if row.port is not None
-        }
-        return CheckPlanner(previous_surface)
-
-    @staticmethod
-    def _merge_fingerprint_results(
-        original: list, probed_inputs: list, probed_outputs: list,
-        reused_inputs: list, reused_outputs: list,
-    ) -> list:
-        """Recombina los resultados del fingerprint en el orden original.
-
-        El ``CheckPlanner`` parte ``original`` en dos listas para sondear una
-        y reutilizar la otra; esto las vuelve a intercalar en el orden con el
-        que llegaron, que es lo que mantiene reproducible la salida del
-        escaneo (ver el comentario de ``_fingerprint_services`` sobre por qué
-        el orden importa para el ciclo de vida).
-
-        ``probed_inputs``/``reused_inputs`` son las mismas instancias que hay
-        en ``original`` (el ``CheckPlanner`` particiona por referencia, no por
-        copia), así que emparejarlas por identidad con sus ``*_outputs``
-        respectivos no depende de que ``Service`` sea hashable ni de que dos
-        servicios distintos con los mismos valores puedan confundirse.
-        """
-        probed_map = {id(service): result for service, result in zip(probed_inputs, probed_outputs)}
-        reused_map = {id(service): result for service, result in zip(reused_inputs, reused_outputs)}
-        return [
-            probed_map.get(id(service), reused_map.get(id(service), service))
-            for service in original
-        ]
 
     @staticmethod
     def _in_host_pool(work, items):

@@ -56,6 +56,19 @@ class KnownService:
     cpe: Optional[str]
 
 
+def _prior_for(
+    previous_surface: Dict[Tuple[int, str], KnownService], service: Service,
+) -> Optional[KnownService]:
+    """Lo que el surface tracking recordaba de ``service``, o ``None``.
+
+    Función de módulo, no método: no necesita más estado que lo que recibe
+    por parámetro, así que no hay razón para que viva colgada de ``self``.
+    """
+    if service.port is None:
+        return None
+    return previous_surface.get((service.port, service.protocol or "tcp"))
+
+
 class CheckPlanner:
     """Decide qué servicios de un re-escaneo pueden saltarse el fingerprint de red.
 
@@ -71,11 +84,6 @@ class CheckPlanner:
     def __init__(self, previous_surface: Dict[Tuple[int, str], KnownService]) -> None:
         self._previous_surface = previous_surface
 
-    def _prior_for(self, service: Service) -> Optional[KnownService]:
-        if service.port is None:
-            return None
-        return self._previous_surface.get((service.port, service.protocol or "tcp"))
-
     def needs_fingerprint(self, service: Service) -> bool:
         """True si ``service`` debe sondearse por red antes de analizarlo.
 
@@ -84,7 +92,7 @@ class CheckPlanner:
         cuyo puerto cambió de protocolo, o uno que nunca se llegó a
         identificar la vez anterior, siempre se sondea.
         """
-        prior = self._prior_for(service)
+        prior = _prior_for(self._previous_surface, service)
         return not (prior and prior.product and prior.version)
 
     def apply_cached_identity(self, service: Service) -> Service:
@@ -94,7 +102,7 @@ class CheckPlanner:
         ``False`` para el mismo servicio; con un servicio nuevo no hay nada
         que reutilizar y el resultado sería idéntico a la entrada.
         """
-        prior = self._prior_for(service)
+        prior = _prior_for(self._previous_surface, service)
         if prior is None:
             return service
         return replace(
