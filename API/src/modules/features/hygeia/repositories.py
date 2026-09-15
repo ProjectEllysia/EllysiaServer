@@ -827,6 +827,35 @@ class HygeiaTagRepository(BaseRepository[HygeiaTag]):
         )
         return {tag_id: (asset_count, last_seen_at) for tag_id, asset_count, last_seen_at in rows}
 
+    def get_asset_ids_by_tag(self, user_id: int) -> Dict[int, List[int]]:
+        """Qué activos **del usuario** lleva cada etiqueta, en una sola consulta.
+
+        Es lo que permite al ranking de etiquetas agregar todas las etiquetas
+        con una única consulta de métricas en vez de una por etiqueta. El
+        filtro por dueño tiene el mismo porqué que en
+        ``get_asset_activity_per_tag``: una etiqueta de sistema la comparten
+        todos los usuarios.
+
+        Args:
+            user_id: Dueño de los activos.
+
+        Returns:
+            Dict[int, List[int]]: ``{tag_id: [asset_id, …]}``, con los ids en
+                orden ascendente. Las etiquetas sin activos del usuario no
+                aparecen.
+        """
+        rows = (
+            self._session.query(AssetTag.c.tag_id, AssetTag.c.asset_id)
+            .join(MonitoredAsset, MonitoredAsset.id == AssetTag.c.asset_id)
+            .filter(MonitoredAsset.user_id == user_id)
+            .order_by(AssetTag.c.tag_id.asc(), AssetTag.c.asset_id.asc())
+            .all()
+        )
+        asset_ids_by_tag: Dict[int, List[int]] = {}
+        for tag_id, asset_id in rows:
+            asset_ids_by_tag.setdefault(tag_id, []).append(asset_id)
+        return asset_ids_by_tag
+
     def get_by_name_for_user(self, user_id: int, name: str) -> Optional[HygeiaTag]:
         """Busca una etiqueta visible para el usuario por nombre, sin distinguir mayúsculas.
 

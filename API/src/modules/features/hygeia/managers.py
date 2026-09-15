@@ -128,6 +128,23 @@ def _build_percentile_series_points(
     ]
 
 
+def _sort_key_for_tag_ranking(entry: dict) -> tuple:
+    """Clave de orden del ranking de etiquetas: mayor valor primero, sin datos al final.
+
+    Una etiqueta sin datos no está "a cero": no se sabe su valor, así que no
+    compite con las que sí lo tienen y va detrás de todas. Los empates se
+    resuelven por nombre, para que el orden sea estable entre llamadas.
+
+    Args:
+        entry: Una entrada del ranking, con ``value`` y ``tag``.
+
+    Returns:
+        tuple: ``(sin_valor, -valor, nombre_en_minúsculas)``.
+    """
+    value = entry["value"]
+    return (value is None, -(value or 0.0), entry["tag"]["name"].lower())
+
+
 def _render_tag_metric(
     definition: MetricDefinition, aggregates_by_asset: dict, hostnames_by_asset: dict,
     aggregation: str,
@@ -950,7 +967,8 @@ class HygeiaStatsManager:
     Estadísticas que cruzan varios activos del usuario.
 
     El resumen de un único activo vive en ``HygeiaAssetManager.get_stats_summary``;
-    aquí la unidad es un conjunto de activos: los de una etiqueta. Todo lo que
+    aquí la unidad es un conjunto de activos: los de una etiqueta, o los de
+    cada etiqueta del usuario para compararlas entre sí. Todo lo que
     se agrega son activos **del usuario**: una etiqueta de sistema la comparte
     todo el mundo, y contar los activos ajenos que la llevan filtraría el
     parque de otros usuarios.
@@ -1029,6 +1047,77 @@ class HygeiaStatsManager:
             "assetCount": len(hostnames_by_asset),
             "agg": aggregation,
             "metrics": metrics,
+            "periodCoveredFrom": window.since,
+            "periodCoveredTo": window.until,
+            "isPeriodClipped": window.is_clipped,
+        }
+
+    def get_tag_ranking(
+        self, metric_name: str, aggregation: str, requested_duration: timedelta,
+    ) -> dict:
+        """
+        Ordena todas las etiquetas visibles para el usuario por una métrica.
+
+        Responde a "¿qué etiqueta consume más?" en una llamada. Cada etiqueta
+        se calcula igual que en ``get_tag_stats`` (medias del periodo de sus
+        activos, combinadas con ``aggregation``), pero sin repetir la consulta
+        por etiqueta: primero se resuelve qué activos lleva cada una, después
+        se agregan todos esos activos en una sola consulta y la combinación
+        por etiqueta se hace en memoria. El coste no crece con el número de
+        etiquetas.
+
+        Args:
+            metric_name: Nombre público de la métrica por la que se ordena.
+            aggregation: ``"sum"``, ``"avg"`` o ``"max"``. ``sum`` solo se
+                admite en métricas aditivas.
+            requested_duration: Duración del periodo pedido, antes de recortar.
+
+        Returns:
+            Diccionario con la forma de ``TagRankingResponseSchema``: la
+            métrica, su unidad, ``agg``, ``tags`` (de mayor a menor valor, las
+            etiquetas sin datos al final) y la ventana cubierta.
+
+        Raises:
+            UnknownMetricError: Si la métrica no está en el registro.
+            NonAdditiveMetricError: Si se pide ``sum`` de una métrica que no
+                se puede sumar entre activos.
+        """
+        definition = assert_metric_definition(metric_name)
+        if aggregation == "sum":
+            validate_metrics_are_additive([definition])
+        window = resolve_stats_window(
+            requested_duration, utcnow_naive(),
+            max_stats_period_days=CR.hygeia_limits().max_stats_period_days,
+            retention_days=CR.hygeia_config().retention_days,
+        )
+
+        tag_repository = build_repository(HygeiaTagRepository)
+        asset_ids_by_tag = tag_repository.get_asset_ids_by_tag(self.user.id)
+        tagged_asset_ids = sorted({
+            asset_id for asset_ids in asset_ids_by_tag.values() for asset_id in asset_ids
+        })
+        snapshot_repo = build_repository(AssetSnapshotRepository)
+        aggregates_by_asset = snapshot_repo.get_metric_aggregates_by_asset(
+            tagged_asset_ids, definition.column, window.since, window.until,
+        )
+
+        ranking = []
+        for tag in tag_repository.get_visible_for_user(self.user.id):
+            asset_ids = asset_ids_by_tag.get(tag.id, [])
+            averages = [aggregates_by_asset[asset_id][0] for asset_id in asset_ids]
+            ranking.append({
+                "tag": tag.to_dict(),
+                "assetCount": len(asset_ids),
+                "assetsWithData": sum(1 for average in averages if average is not None),
+                "value": combine_asset_averages(averages, aggregation),
+            })
+        ranking.sort(key=_sort_key_for_tag_ranking)
+
+        return {
+            "metric": definition.name,
+            "unit": definition.unit,
+            "agg": aggregation,
+            "tags": ranking,
             "periodCoveredFrom": window.since,
             "periodCoveredTo": window.until,
             "isPeriodClipped": window.is_clipped,
