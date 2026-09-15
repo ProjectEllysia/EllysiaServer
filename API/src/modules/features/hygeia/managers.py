@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 from datetime import timedelta
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Tuple
 
 import src.modules.system.config_reading as CR
 from src.modules.accounts import LimitKey, OrganizationManager, QuotaManager
@@ -48,11 +48,11 @@ from .repositories import (
     MonitoredAssetRepository,
 )
 from .services import (
-    METRIC_REGISTRY, MetricDefinition, assert_metric_definition, build_inventory_report,
-    build_percentile_series, check_clock_skew, combine_asset_averages, denormalize, evaluate,
-    generate_agent_key, is_agent_outdated, project_month, resolve_stats_window,
-    services_from_inventory, summarize_power_period, summarize_values,
-    validate_metrics_are_additive,
+    METRIC_REGISTRY, MetricDefinition, MetricUnit, assert_metric_definition,
+    build_histogram, build_inventory_report, build_percentile_series, check_clock_skew,
+    combine_asset_averages, denormalize, evaluate, generate_agent_key, is_agent_outdated,
+    project_month, resolve_stats_window, services_from_inventory, summarize_power_period,
+    summarize_values, validate_metrics_are_additive,
 )
 
 # ---------------------------------------------------------------------------
@@ -87,6 +87,34 @@ _ASSET_STATUSES = ("pending", "online", "stale", "offline")
 
 #: Severidades de una anomalía (``Anomaly.severity``), con el mismo criterio.
 _ANOMALY_SEVERITIES = ("info", "warning", "critical")
+
+#: Límites del histograma de una métrica en porcentaje. Fijos, y no los del
+#: parque, para que la franja 75–100 % signifique lo mismo en cualquier
+#: parque: con límites observados, un parque todo entre el 10 y el 20 %
+#: pintaría su franja más alta como si fuera la de los equipos saturados.
+_PERCENT_RANGE = (0.0, 100.0)
+
+
+def _resolve_histogram_range(
+    definition: MetricDefinition, values: Sequence[float],
+) -> Optional[Tuple[float, float]]:
+    """Límites del histograma de una métrica: fijos para porcentajes, observados para el resto.
+
+    Args:
+        definition: Métrica del histograma.
+        values: Valores por activo que se van a repartir.
+
+    Returns:
+        Optional[Tuple[float, float]]: ``(0, 100)`` para un porcentaje; el
+            mínimo y el máximo observados para cualquier otra unidad (tráfico,
+            potencia, carga), que no tiene un tope natural; ``None`` si no es
+            un porcentaje y no hay ningún valor del que sacar el rango.
+    """
+    if definition.unit == MetricUnit.PERCENT:
+        return _PERCENT_RANGE
+    if not values:
+        return None
+    return (min(values), max(values))
 
 
 def _build_percentile_series_points(
@@ -1262,6 +1290,65 @@ class HygeiaStatsManager:
             ),
             "averageUptimeSec": asset_repo.get_average_online_uptime(self.user.id),
             "lastActivityAt": asset_repo.get_last_activity(self.user.id),
+        }
+
+    def get_metric_histogram(
+        self, metric_name: str, aggregation: str, bin_count: int, requested_duration: timedelta,
+    ) -> dict:
+        """
+        Reparte los activos del usuario en franjas según una métrica.
+
+        El ranking enseña los extremos; el histograma enseña la forma del
+        parque: cuántos equipos están cómodos y cuántos empiezan a apretar. Un
+        activo al 60 % de memoria en un parque donde todos están al 20 % no
+        sale entre los primeros de un ranking corto, pero sí salta a la vista
+        en una franja casi vacía.
+
+        El valor de cada activo es su media (``avg``) o su máximo (``max``)
+        del periodo, de una sola consulta agrupada por activo. Los activos sin
+        datos no se reparten en ninguna franja.
+
+        Args:
+            metric_name: Nombre público de la métrica.
+            aggregation: ``"avg"`` o ``"max"``.
+            bin_count: Número de franjas.
+            requested_duration: Duración del periodo pedido, antes de recortar.
+
+        Returns:
+            Diccionario con la forma de ``MetricHistogramResponseSchema``: la
+            métrica y su unidad, ``agg``, ``assetCount``, ``assetsWithData``,
+            ``bins`` y la ventana cubierta. ``bins`` va vacío si la métrica no
+            es un porcentaje y ningún activo tuvo datos: no hay rango que
+            partir.
+
+        Raises:
+            UnknownMetricError: Si la métrica no está en el registro.
+        """
+        definition = assert_metric_definition(metric_name)
+        window = _resolve_configured_stats_window(requested_duration)
+
+        assets = build_repository(MonitoredAssetRepository).get_by_user(self.user.id)
+        snapshot_repo = build_repository(AssetSnapshotRepository)
+        aggregates_by_asset = snapshot_repo.get_metric_aggregates_by_asset(
+            [asset.id for asset in assets], definition.column, window.since, window.until,
+        )
+        values = [
+            average if aggregation == "avg" else maximum
+            for average, maximum, sample_count in aggregates_by_asset.values()
+            if sample_count
+        ]
+        value_range = _resolve_histogram_range(definition, values)
+
+        return {
+            "metric": definition.name,
+            "unit": definition.unit,
+            "agg": aggregation,
+            "assetCount": len(assets),
+            "assetsWithData": len(values),
+            "bins": [] if value_range is None else build_histogram(values, bin_count, *value_range),
+            "periodCoveredFrom": window.since,
+            "periodCoveredTo": window.until,
+            "isPeriodClipped": window.is_clipped,
         }
 
 

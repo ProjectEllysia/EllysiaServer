@@ -599,6 +599,79 @@ def combine_asset_averages(
     return max(values)
 
 
+class HistogramBin(NamedTuple):
+    """Una franja de un histograma: sus límites y cuántos valores caen en ella.
+
+    Attributes:
+        lower_bound: Límite inferior de la franja, incluido.
+        upper_bound: Límite superior. Excluido, salvo en la última franja,
+            que incluye el límite superior del histograma.
+        value_count: Cuántos valores caen en la franja. Nunca es negativo.
+    """
+    lower_bound: float
+    upper_bound: float
+    value_count: int
+
+
+def build_histogram(
+    values: Sequence[float], bin_count: int, lower_bound: float, upper_bound: float,
+) -> List[HistogramBin]:
+    """
+    Reparte unos valores en ``bin_count`` franjas de igual anchura entre dos límites.
+
+    Es la cuenta del histograma del parque: cuántos activos caen en cada
+    franja de una métrica. Cada franja incluye su límite inferior y excluye el
+    superior, salvo la última, que incluye el límite superior del histograma
+    (un activo al 100 % cae en la franja 75–100 %, no fuera). Un valor fuera
+    de los límites se cuenta en la franja extrema más cercana: con los
+    porcentajes no debería pasar, y perder un activo del recuento sería peor
+    que agruparlo en el borde.
+
+    Args:
+        values: Valores a repartir, en cualquier orden.
+        bin_count: Número de franjas; al menos 1.
+        lower_bound: Límite inferior del histograma.
+        upper_bound: Límite superior; no menor que ``lower_bound``.
+
+    Returns:
+        List[HistogramBin]: Las franjas de menor a mayor, con su recuento. Si
+            los dos límites coinciden (todos los valores son iguales), una
+            sola franja con todos ellos, sea cual sea ``bin_count``: partir un
+            rango de anchura cero no tiene sentido.
+
+    Raises:
+        ValueError: Si ``bin_count`` es menor que 1 o ``upper_bound`` es menor
+            que ``lower_bound``.
+    """
+    if bin_count < 1:
+        raise ValueError(f"El histograma necesita al menos una franja; se pidieron {bin_count}")
+    if upper_bound < lower_bound:
+        raise ValueError(f"Límites invertidos: {lower_bound} > {upper_bound}")
+    if upper_bound == lower_bound:
+        return [HistogramBin(lower_bound, upper_bound, len(values))]
+
+    width = (upper_bound - lower_bound) / bin_count
+    counts = [0] * bin_count
+    for value in values:
+        position = math.floor((value - lower_bound) / width)
+        counts[min(max(position, 0), bin_count - 1)] += 1
+
+    last_position = bin_count - 1
+    return [
+        HistogramBin(
+            lower_bound=lower_bound + position * width,
+            # El último límite se copia tal cual, en vez de multiplicar la
+            # anchura, para que no quede en 99.99999 por redondeo.
+            upper_bound=(
+                upper_bound if position == last_position
+                else lower_bound + (position + 1) * width
+            ),
+            value_count=counts[position],
+        )
+        for position in range(bin_count)
+    ]
+
+
 @dataclass(frozen=True)
 class StatsWindow:
     """Ventana temporal que cubre de verdad una consulta de estadísticas.

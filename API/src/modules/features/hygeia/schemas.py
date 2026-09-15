@@ -800,6 +800,56 @@ class FleetOverviewResponseSchema(Schema):
     lastActivityAt = UTCDateTime(allow_none=True)
 
 
+class MetricHistogramQuerySchema(Schema):
+    """Query de ``GET /hygeia/stats/histogram``: cómo se reparten los activos en una métrica.
+
+    ``agg`` elige el valor de cada activo que se reparte: su media (``avg``,
+    por defecto) o su máximo (``max``) del periodo. ``bins`` es el número de
+    franjas, de 1 a 20 (por defecto 4: 0–25, 25–50, 50–75 y 75–100 % en un
+    porcentaje). Tras cargar, ``period`` queda como ``requested_duration``.
+    """
+    metric = fields.String(required=True)
+    agg = fields.String(load_default="avg", validate=validate.OneOf(["avg", "max"]))
+    bins = fields.Integer(load_default=4, validate=validate.Range(min=1, max=20))
+    period = _build_period_field()
+
+    @post_load
+    def parse_query(self, data, **kwargs):
+        """Convierte ``period`` en ``timedelta``."""
+        data["requested_duration"] = _parse_period(data.pop("period"))
+        return data
+
+
+class HistogramBinSchema(Schema):
+    """Una franja del histograma, volcada desde un ``HistogramBin`` (``services/stats.py``).
+
+    ``from`` está incluido y ``to`` excluido, salvo en la última franja, que
+    incluye su ``to``.
+    """
+    lower_bound = fields.Float(data_key="from")
+    upper_bound = fields.Float(data_key="to")
+    value_count = fields.Integer(data_key="assetCount")
+
+
+class MetricHistogramResponseSchema(Schema):
+    """Histograma de los activos del usuario en una métrica.
+
+    En un porcentaje las franjas van siempre de 0 a 100; en las demás
+    unidades, del menor al mayor valor observado. ``bins`` va vacío si la
+    métrica no es un porcentaje y ningún activo tuvo datos. Los activos sin
+    datos cuentan en ``assetCount`` pero no en ninguna franja.
+    """
+    metric = fields.String()
+    unit = fields.String()
+    agg = fields.String()
+    assetCount = fields.Integer()
+    assetsWithData = fields.Integer()
+    bins = fields.List(fields.Nested(HistogramBinSchema))
+    periodCoveredFrom = UTCDateTime()
+    periodCoveredTo = UTCDateTime()
+    isPeriodClipped = fields.Boolean()
+
+
 # =============================================================================
 # INVENTARIO DE SOFTWARE — reemplaza por completo en cada escaneo, sin delta
 # =============================================================================

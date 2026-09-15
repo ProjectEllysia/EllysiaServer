@@ -59,6 +59,8 @@ from .schemas import (
     InventoryReportRequestSchema,
     IngestResponseSchema,
     InventoryAnalysisSummarySchema,
+    MetricHistogramQuerySchema,
+    MetricHistogramResponseSchema,
     PowerSummaryResponseSchema,
     RotateKeyResponseSchema,
     TagCreateRequestSchema,
@@ -292,6 +294,28 @@ def get_fleet_overview():
     user = get_current_user()
     manager = HygeiaStatsManager(user)
     return manager.get_fleet_overview()
+
+
+@hygeia_blp.get("/stats/histogram")
+@hygeia_blp.arguments(MetricHistogramQuerySchema, location="query")
+@hygeia_blp.response(200, MetricHistogramResponseSchema, description="Histograma de una métrica")
+@hygeia_blp.alt_response(400, schema=ErrorSchema, description="Unknown metric")
+@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@hygeia_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@limiter.limit("600 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
+@handle_exceptions(default_exception=HygeiaError, logger=logger)
+def get_metric_histogram(args):
+    """Repartir los activos del usuario en franjas según una métrica"""
+    user = get_current_user()
+    manager = HygeiaStatsManager(user)
+    return manager.get_metric_histogram(
+        metric_name=args["metric"],
+        aggregation=args["agg"],
+        bin_count=args["bins"],
+        requested_duration=args["requested_duration"],
+    )
 
 
 @hygeia_blp.get("/assets/<int:asset_id>/inventory")
