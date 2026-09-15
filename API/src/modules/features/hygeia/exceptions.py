@@ -15,7 +15,8 @@ Hierarchy:
     ├── TagAlreadyExistsError     (409)
     ├── TagQuotaExceededError     (409)
     ├── SystemTagImmutableError   (403)
-    └── OrganizationScopeNotAllowedError (403)
+    ├── OrganizationScopeNotAllowedError (403)
+    └── UnknownMetricError        (400)
 """
 
 from __future__ import annotations
@@ -230,4 +231,30 @@ class OrganizationScopeNotAllowedError(HygeiaError):
                 "Solo el dueño de una organización puede generar el inventario "
                 "de todos sus activos."
             ),
+        )
+
+
+class UnknownMetricError(HygeiaError):
+    """Se piden estadísticas de una métrica que no está en el registro de métricas.
+
+    ``details`` viaja al cliente (``expose_details``) con la lista de métricas
+    válidas: es el catálogo público de la API, no información sensible, y sin
+    él quien llama solo puede adivinar el nombre correcto.
+    """
+    default_code = ErrorCode.VALIDATION_ERROR
+    default_status_code = 400
+    expose_details = True
+
+    def __init__(self, metric_name: str, valid_metric_names: list[str]) -> None:
+        """Construye el error con el nombre recibido y el catálogo válido.
+
+        Args:
+            metric_name: Nombre de métrica tal como llegó en la petición.
+            valid_metric_names: Nombres registrados, ya ordenados, que se
+                devuelven al cliente en ``details.valid_metrics``.
+        """
+        super().__init__(
+            message=f"Métrica desconocida: {metric_name!r}",
+            details={"metric": metric_name, "valid_metrics": valid_metric_names},
+            user_message=f"La métrica «{metric_name}» no existe.",
         )

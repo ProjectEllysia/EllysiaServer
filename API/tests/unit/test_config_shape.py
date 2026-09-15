@@ -436,3 +436,29 @@ def test_the_anti_ssrf_defence_ships_enabled(raw_config):
         "areLocalIpsAllowed está en true en el SecOpsConfig.json versionado: "
         "eso despliega el escáner con la defensa anti-SSRF desactivada"
     )
+
+
+def test_the_stats_period_ceiling_defaults_to_the_retention_window(raw_config):
+    """``maxStatsPeriodDays`` nace igual que ``retentionDays``, en el código y en el JSON.
+
+    Un límite de estadísticas mayor que la retención no rompe nada
+    (``resolve_stats_window`` recorta al menor de los dos), pero como valor
+    por defecto no tiene sentido: anunciaría un periodo consultable que los
+    datos no cubren. Se atan los dos defaults del código y los dos valores
+    versionados, porque cambiar la retención sin mirar este límite es
+    justo el descuido que este test hace visible.
+    """
+    def declared_default(block_type, field_name):
+        return next(
+            field_info.default for field_info in dataclasses.fields(block_type)
+            if field_info.name == field_name
+        )
+
+    assert (
+        declared_default(CR.HygeiaLimits, "max_stats_period_days")
+        == declared_default(CR.HygeiaConfig, "retention_days")
+    )
+    assert (
+        _value_at(raw_config, "features.hygeia.limits.maxStatsPeriodDays")
+        == _value_at(raw_config, "features.hygeia.retentionDays")
+    )

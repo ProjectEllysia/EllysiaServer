@@ -19,15 +19,22 @@ from .ingest_guard import (
     enforce_ingest_limits,
 )
 from .inventory_adapter import services_from_inventory
+from .metric_registry import METRIC_REGISTRY, MetricDefinition, assert_metric_definition
 from .reports import build_inventory_report
 from .stats import (
     EnergyCost,
     PeriodClassification,
     PowerAverage,
+    StatSummary,
+    StatsWindow,
+    calculate_percentile,
     classify_period,
     energy_and_cost,
     project_month,
+    resolve_stats_window,
     summarize_power_period,
+    summarize_series_by_asset,
+    summarize_values,
     weighted_average_with_observed_time,
 )
 
@@ -54,4 +61,13 @@ __all__ = [
     "classify_period",
     "summarize_power_period",
     "project_month",
+    "StatSummary",
+    "calculate_percentile",
+    "summarize_values",
+    "summarize_series_by_asset",
+    "StatsWindow",
+    "resolve_stats_window",
+    "METRIC_REGISTRY",
+    "MetricDefinition",
+    "assert_metric_definition",
 ]
