@@ -1,6 +1,6 @@
 """Las rutas de configuración que codifica el SPA tienen que existir de verdad.
 
-``web/app/src/views/ConfigView.vue`` enlaza cada control del formulario con
+``web/app/src/views/system/ConfigView.vue`` enlaza cada control del formulario con
 ``store.configFlat['ruta.con.puntos']``. Ese ``configFlat`` es el aplanado de
 lo que devuelve ``GET /system``, es decir de ``SecOpsConfig.json`` entero, así
 que cada una de esas rutas literales es una ruta real dentro del JSON.
@@ -35,7 +35,7 @@ import pytest
 pytestmark = pytest.mark.unit
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
-_CONFIG_VIEW = _REPO_ROOT / "web" / "app" / "src" / "views" / "ConfigView.vue"
+_CONFIG_VIEW = _REPO_ROOT / "web" / "app" / "src" / "views" / "system" / "ConfigView.vue"
 _SECOPS_CONFIG = _REPO_ROOT / "API" / "SecOpsConfig.json"
 
 # store.configFlat['features.themis.enabled'] -> features.themis.enabled

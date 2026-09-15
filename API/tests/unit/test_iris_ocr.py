@@ -1,7 +1,7 @@
 """OCR local de imágenes: los límites del servicio y la regla que lo usa.
 
 Tesseract no está —ni tiene por qué estar— en la máquina de los tests: el
-motor se sustituye en su costura (``find_engine`` y ``subprocess.run`` del
+motor se sustituye en su costura (``_find_engine`` y ``subprocess.run`` del
 servicio, o ``extract_text`` en la regla) y lo que se prueba es lo que Iris
 hace a su alrededor: qué le llega al motor, qué no le llega nunca y qué se
 hace con el texto que devuelve.
@@ -53,7 +53,7 @@ def _extract(data: bytes, **overrides) -> OcrResult:
 def engine(monkeypatch):
     """Tesseract «instalado»: el mock es ``subprocess.run``."""
     run = mock.Mock(return_value=subprocess.CompletedProcess([], 0, stdout=b"Hola mundo\n", stderr=b""))
-    monkeypatch.setattr(ocr, "find_engine", lambda: _ENGINE)
+    monkeypatch.setattr(ocr, "_find_engine", lambda: _ENGINE)
     monkeypatch.setattr(ocr.subprocess, "run", run)
     return run
 
@@ -83,7 +83,7 @@ def test_what_is_not_an_image_never_reaches_the_engine(engine):
 
 
 def test_without_tesseract_installed(monkeypatch):
-    monkeypatch.setattr(ocr, "find_engine", lambda: None)
+    monkeypatch.setattr(ocr, "_find_engine", lambda: None)
 
     assert _extract(_image()) == OcrResult(OCR_NO_ENGINE)
 

@@ -57,7 +57,8 @@ para juzgar, la regla se queda neutral."""
 
 
 def trusted_authserv_ids() -> frozenset[str]:
-    """Verificadores declarados de confianza en ``features.iris.data``.
+    """
+    Verificadores declarados de confianza en ``features.iris.data``.
 
     Sirve para el despliegue que sabe qué servidor autentica su correo —el
     gateway corporativo, el proveedor gestionado— y quiere que se acepte
@@ -65,6 +66,9 @@ def trusted_authserv_ids() -> frozenset[str]:
     confianza se deduce de la propia cadena (ver :func:`trust_boundary`), que
     es lo que hace que el módulo funcione en cualquier despliegue sin tocar
     nada.
+
+    Returns:
+        frozenset[str]: Conjunto de ``authserv-id`` y dominios registrables
     """
     configured = CR.get_iris_data("trusted_authserv_ids") or []
     return frozenset(str(entry).strip().lower() for entry in configured if str(entry).strip())
@@ -87,6 +91,13 @@ def parse_hops(received_headers: Sequence[str]) -> List[ReceivedHop]:
     ``received_headers[0]`` es el salto final y ``[-1]`` el origen — el mismo
     orden que produce ``MessageContext.received_headers`` y que consume
     ``build_path``.
+
+    Args:
+        received_headers (Sequence[str]): Cabeceras ``Received`` del mensaje.
+
+    Returns:
+        List[ReceivedHop]: Lista de saltos con su posición y dominio
+            registrable.
     """
     hops: List[ReceivedHop] = []
     for position, line in enumerate(received_headers):
@@ -116,6 +127,14 @@ def trust_boundary(hops: Sequence[ReceivedHop]) -> int:
 
     Sin cadena, la frontera es 0 — no hay nada fiable, pero tampoco nada que
     acusar; de eso se encarga el llamante.
+
+    Args:
+        hops (Sequence[ReceivedHop]): Saltos de la cadena, en orden de entrega
+            (0 es el último salto, el más fiable).
+
+    Returns:
+        int: Posición de la frontera de confianza. Los saltos con posición
+            menor que este valor son fiables; los de posición mayor o igual no.
     """
     if not hops:
         return 0
@@ -151,7 +170,8 @@ class AuthservTrust:
 
 
 def assess_authserv_trust(authserv_id: str, received_headers: Sequence[str]) -> AuthservTrust:
-    """¿Escribió esta cabecera alguien en quien podemos confiar?
+    """
+    ¿Escribió esta cabecera alguien en quien podemos confiar?
 
     Distingue tres desenlaces que antes eran dos. Que el ``authserv-id``
     aparezca *en algún sitio* de la cadena ya no basta: importa **dónde**.
@@ -159,6 +179,15 @@ def assess_authserv_trust(authserv_id: str, received_headers: Sequence[str]) -> 
     la inyección que este módulo existe para detectar, y es un caso más grave
     que no aparecer en absoluto — quien fabrica los dos elementos a la vez para
     que se corroboren mutuamente sabe exactamente lo que hace.
+
+    Args:
+        authserv_id (str): ``authserv-id`` de la cabecera
+            ``Authentication-Results``.
+        received_headers (Sequence[str]): Cabeceras ``Received`` del mensaje.
+
+    Returns:
+        AuthservTrust: Resultado de la evaluación, con veredicto y
+            metadatos.
     """
     normalised = (authserv_id or "").strip().lower()
     configured = trusted_authserv_ids()
@@ -220,6 +249,14 @@ def is_arc_verified_by_trusted_hop(headers: dict, received_headers: Sequence[str
     haya escrito un verificador por encima de la frontera de confianza. Si no,
     estaríamos otra vez creyéndonos algo que pudo escribir el remitente, solo
     que con un rodeo más.
+
+    Args:
+        headers (dict): Cabeceras del mensaje, con claves en minúsculas.
+        received_headers (Sequence[str]): Cabeceras ``Received`` del mensaje.
+
+    Returns:
+        bool: ``True``, si la cadena ARC fue validada por un salto confiable; 
+        ``False``, en caso contrario.
     """
     auth_results = (headers.get("authentication-results") or "").strip()
     if not auth_results:

@@ -52,7 +52,8 @@ def _extract_json_with_regex(raw: str) -> Optional[dict]:
 
 
 def _confidence_note(report: Dict[str, Any]) -> str:
-    """Aviso de confianza y cobertura que se añade al final del prompt.
+    """
+    Aviso de confianza y cobertura que se añade al final del prompt.
 
     Va anexado, igual que ``_degradation_note``, para no depender de que la
     plantilla desplegada en ``SecOpsConfig.json`` tenga un marcador nuevo.

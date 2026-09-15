@@ -26,7 +26,8 @@ from .model import (
 
 
 class IrisAnalysisRepository(BaseRepository[IrisAnalysis]):
-    """Data-access layer for IrisAnalysis records.
+    """
+    Data-access layer for IrisAnalysis records.
 
     Inherits generic CRUD (get_by_id, save, delete) from BaseRepository
     and adds analysis-specific query methods.
@@ -69,7 +70,8 @@ class IrisAnalysisRepository(BaseRepository[IrisAnalysis]):
         tag: str | None = None, ioc: str | None = None, review: str | None = None,
         sort_by: str = "date", sort_dir: str = "desc",
     ) -> Tuple[List[IrisAnalysis], int]:
-        """Return a page of analyses for a user plus the total count.
+        """
+        Return a page of analyses for a user plus the total count.
 
         Args:
             user_id: Owner of the analyses.
@@ -148,6 +150,16 @@ class IrisAnalysisRepository(BaseRepository[IrisAnalysis]):
         tras un fallo entre el commit de ``IrisAnalysis`` y el borrado de su
         entrada en ``IrisMailboxInbox``, de forma que un reintento nunca
         confunda la ``UniqueConstraint`` de idempotencia con un fallo real.
+
+        Args:
+            connection_id: ``IrisMailboxConnection.id`` del buzón que
+                aceptó el mensaje.
+            source_message_uid: ``IrisMailboxInbox.provider_message_id``
+                del mensaje.
+        
+        Returns:
+            Optional[IrisAnalysis]: El análisis, o ``None`` si ese mensaje
+                no se ha aceptado nunca.
         """
         return (
             self._session.query(IrisAnalysis)
@@ -192,7 +204,19 @@ class IrisAnalysisRepository(BaseRepository[IrisAnalysis]):
         )
 
     def exists_by_source(self, connection_id: int, source_message_uid: str) -> bool:
-        """Si ya existe un análisis para este (connection_id, source_message_uid)."""
+        """
+        Si ya existe un análisis para este (connection_id, source_message_uid).
+        
+        Args:
+            connection_id: ``IrisMailboxConnection.id`` del buzón que
+                aceptó el mensaje.
+            source_message_uid: ``IrisMailboxInbox.provider_message_id``
+                del mensaje.
+
+        Returns:
+            bool: ``True``, si ya hay un análisis aceptado para ese mensaje;
+                ``False``, en caso contrario.
+        """
         return self.get_by_source(connection_id, source_message_uid) is not None
 
     def count_by_connection(self, connection_id: int) -> int:
@@ -250,12 +274,21 @@ class IrisAnalysisRepository(BaseRepository[IrisAnalysis]):
         )
 
     def count_by_user(self, user_id: int) -> int:
-        """Cuántos análisis tiene este usuario en total -- para el informe
-        de retención, que necesita el denominador."""
+        """
+        Cuántos análisis tiene este usuario en total -- para el informe
+        de retención, que necesita el denominador.
+
+        Args:
+            user_id: Dueño de los análisis.
+
+        Returns:
+            int: Número de análisis de este usuario.
+        """
         return self._session.query(IrisAnalysis.id).filter(IrisAnalysis.user_id == user_id).count()
 
     def count_finished_by_user(self, user_id: int) -> int:
-        """Cuántos análisis terminados tiene un usuario.
+        """
+        Cuántos análisis terminados tiene un usuario.
 
         Es el denominador de la cobertura de feedback: solo un análisis
         terminado tiene un veredicto que el analista pueda corregir.
@@ -273,8 +306,17 @@ class IrisAnalysisRepository(BaseRepository[IrisAnalysis]):
         )
 
     def count_with_raw_retained_by_user(self, user_id: int) -> int:
-        """De los análisis de este usuario, cuántos conservan todavía su
-        raw -- el complemento de cuántos ya se purgaron."""
+        """
+        De los análisis de este usuario, cuántos conservan todavía su
+        raw -- el complemento de cuántos ya se purgaron.
+        
+        Args:
+            user_id: Dueño de los análisis.
+
+        Returns:
+            int: Número de análisis con al menos un ``IrisRawMessage``
+                asociado.
+        """
         return (
             self._session.query(IrisAnalysis.id)
             .join(IrisRawMessage, IrisRawMessage.analysis_id == IrisAnalysis.id)
@@ -283,7 +325,8 @@ class IrisAnalysisRepository(BaseRepository[IrisAnalysis]):
         )
 
     def purge_raw_messages_older_than(self, cutoff: datetime) -> int:
-        """Purga (borra) el ``IrisRawMessage`` de cada análisis creado antes
+        """
+        Purga (borra) el ``IrisRawMessage`` de cada análisis creado antes
         de ``cutoff``, conservando el análisis y sus resultados.
 
         DELETE masivo en vez de cargar cada fila por el ORM: ``IrisRawMessage``
@@ -292,6 +335,10 @@ class IrisAnalysisRepository(BaseRepository[IrisAnalysis]):
         las filas de ``IrisRuleResult``, que solo cascadan a nivel de ORM,
         no de base de datos -- ver ``delete_analyses_older_than``), así que
         aquí no hay riesgo de huérfanos que evitar yendo fila a fila.
+
+        Args:
+            cutoff: Instante tras el cual se considera que un análisis 
+            es "viejo" y su "raw" puede purgarse.
         """
         result = self._session.execute(
             delete(IrisRawMessage).where(
@@ -312,6 +359,13 @@ class IrisAnalysisRepository(BaseRepository[IrisAnalysis]):
         mecanismo del ORM, no de la base de datos -- un ``DELETE`` en SQL
         directo sobre ``IrisAnalysis`` dejaría esas filas huérfanas), y la
         retención no puede dejar huérfanos.
+
+        Args:
+            cutoff: Instante tras el cual se considera que un análisis
+                es "viejo" y puede borrarse entero.
+
+        Returns:
+            List[IrisAnalysis]: Análisis candidatos a borrado.
         """
         return (
             self._session.query(IrisAnalysis)
@@ -320,7 +374,8 @@ class IrisAnalysisRepository(BaseRepository[IrisAnalysis]):
         )
 
     def transition_if_state(self, analysis_id: int, from_states: list[str], **fields: Any) -> bool:
-        """Aplica ``fields`` sobre un análisis solo si su ``status`` actual
+        """
+        Aplica ``fields`` sobre un análisis solo si su ``status`` actual
         está en ``from_states`` -- transición SQL condicionada, no un
         leer-decidir-escribir.
 

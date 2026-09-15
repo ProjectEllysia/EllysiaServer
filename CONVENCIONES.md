@@ -71,13 +71,13 @@ EllysiaServer/
 ├── web/
 │   ├── Caddyfile             sirve el SPA, proxya la API y gestiona TLS
 │   └── app/src/
-│       ├── views/            una vista por pantalla (IrisHubView.vue, ConfigView.vue…)
-│       ├── components/       piezas reutilizables entre vistas
+│       ├── views/<módulo>/   una vista por pantalla, agrupadas como la API: los cinco
+│       │                     módulos de feature, accounts/, system/ y public/ (sin sesión)
+│       ├── components/<módulo>/  piezas de ese módulo; shared/ para las transversales
 │       ├── stores/           estado Pinia, uno por dominio (irisStore.js…)
 │       ├── composables/      lógica reactiva reutilizable (usePolling…)
 │       ├── router/           rutas del SPA; deben seguir a los matchers de web/Caddyfile
 │       ├── constants/        constantes del frontend
-│       ├── acheron/          cliente de bóveda (cripto + sync)
 │       └── assets/images/    fuente de verdad de los assets de marca
 └── API/
     ├── run.py                create_app(): blueprints, BD, schedulers, apagado ordenado
@@ -744,7 +744,7 @@ El procedimiento completo está en CLAUDE.md (§ *Leer config: bloques, no gette
    SQLAlchemy, redis-py).
 3. Añade el campo al `@config_block` y el default, solo ahí.
 4. Registra el bloque en `CONFIG_BLOCKS` de `tests/unit/test_config_shape.py`.
-5. Si se edita desde el SPA, añade la ruta en `web/app/src/views/ConfigView.vue` (lo vigila
+5. Si se edita desde el SPA, añade la ruta en `web/app/src/views/system/ConfigView.vue` (lo vigila
    `test_config_view_paths.py`).
 
 ---

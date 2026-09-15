@@ -6,17 +6,17 @@ Un documento OOXML es un ZIP de ficheros XML. Lo que lo vuelve peligroso no
 está en el texto, sino en su estructura:
 
 - **Macros**: el proyecto VBA vive en ``vbaProject.bin``, y las macros de
-  Excel 4.0 en ``xl/macrosheets/``. Un ``.docx`` con ``vbaProject.bin`` es
-  además un disfraz: la extensión dice «sin macros».
+    Excel 4.0 en ``xl/macrosheets/``. Un ``.docx`` con ``vbaProject.bin`` es
+    además un disfraz: la extensión dice «sin macros».
 - **Plantilla remota**: una relación ``attachedTemplate`` con
-  ``TargetMode="External"`` hace que Word descargue una plantilla (con macros)
-  de un servidor al abrir el documento, sin que el fichero adjunto lleve nada
-  ejecutable.
+    ``TargetMode="External"`` hace que Word descargue una plantilla (con macros)
+    de un servidor al abrir el documento, sin que el fichero adjunto lleve nada
+    ejecutable.
 - **Relaciones externas**: objetos OLE, marcos o libros enlazados que se
-  cargan de fuera. Los hipervínculos, que también son relaciones externas, no
-  cuentan: son enlaces normales (sus destinos se recogen como URLs).
+    cargan de fuera. Los hipervínculos, que también son relaciones externas, no
+    cuentan: son enlaces normales (sus destinos se recogen como URLs).
 - **DDE**: campos ``DDE``/``DDEAUTO`` de Word o enlaces DDE de Excel, que
-  lanzan un comando al actualizar el documento.
+    lanzan un comando al actualizar el documento.
 
 Solo se leen los ``.rels`` y el XML de Word y de los enlaces externos de
 Excel, cada uno con el presupuesto de bytes del adjunto.
@@ -27,7 +27,7 @@ from __future__ import annotations
 import re
 import zipfile
 
-from .common import InspectionBudget, InspectionResult, make_finding
+from .common import InspectionBudget, InspectionResult, build_finding
 
 _RELATIONSHIP_RE = re.compile(rb"<Relationship\b[^>]*>", re.IGNORECASE)
 _ATTRIBUTE_RE = re.compile(rb'(\w+)\s*=\s*"([^"]*)"')
@@ -62,7 +62,7 @@ def inspect_ooxml(archive: zipfile.ZipFile, limits, budget: InspectionBudget) ->
     def add(reason: str, detail: str, path: str) -> None:
         if reason not in seen:
             seen.add(reason)
-            result.findings.append(make_finding(reason, detail, path))
+            result.findings.append(build_finding(reason, detail, path))
 
     for info in archive.infolist()[:limits.max_archive_entries]:
         name = info.filename

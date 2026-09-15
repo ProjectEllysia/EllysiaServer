@@ -497,7 +497,7 @@ A third workflow, `.github/workflows/lybra-bench.yml`, runs the `oracle` bench o
 
 ```bash
 cd web/app
-npm test                  # all nine suites — this is what CI runs
+npm test                  # all ten suites — this is what CI runs
 
 npm run test:acheron      # schema/label correspondence + crypto interop + CRUD + sync for the Acheron vault client
 npm run test:iris         # file intake (size limit from GET /iris/capabilities, explicit mode, batch drops), report comparison, and the Spanish labels for verdicts, statuses and rule results
@@ -506,6 +506,7 @@ npm run test:polling      # usePolling composable tests
 npm run test:element-width # useElementWidth composable tests
 npm run test:toast        # toast-store tests
 npm run test:quiz         # aegis quiz-shuffle permutation tests
+npm run test:campaigns    # aegis campaign helpers
 npm run test:logs         # gzip log-payload decoding tests
 npm run test:themis       # scan-window tests
 ```
@@ -520,7 +521,7 @@ pinned version, and its own CI runs the interop suites against the Java implemen
 directions. Installing it needs a token with `read:packages` in `NODE_AUTH_TOKEN`; CI uses the
 workflow's own `GITHUB_TOKEN`, which works because the package grants this repository read access.
 
-What stays here is the half only the SPA owns: `src/acheron/storableLabels.js` holds the Spanish
+What stays here is the half only the SPA owns: `src/components/acheron/storableLabels.js` holds the Spanish
 labels and form hints, `storableTypes.js` composes them with the schema the package provides, and
 `test:acheron` checks the two describe the same fields in both directions.
 
@@ -820,7 +821,7 @@ Ellysia uses a layered configuration system (`API/src/modules/system/config_read
 
 Config is read through frozen dataclasses bound to a branch of the tree (`@config_block`, e.g. `CR.nuclei_config().rate_limit`), not one getter per value, and cached — changes to `SecOpsConfig.json` require an app restart unless applied via `PUT /system`. Background jobs pick them up too: the worker re-reads the file per job when its mtime changed (`CR.reload_if_changed()`).
 
-The config panel (`web/app/src/views/ConfigView.vue`) exposes every settable key of the tree — the AI and email layers, the Themis knowledge base and Lybra engine dials, JWT and MFA policy, Hygeia thresholds, limits and report palette. The one branch deliberately left out is `features.iris.data.*`: those are the anti-phishing heuristic corpora (word lists, homoglyph maps, suspicious TLDs), detection content rather than deployment settings. `API/tests/unit/test_config_view_paths.py` pins the panel's paths against the JSON — the literal ones by full path, the ones composed in a `v-for` by their fixed prefix.
+The config panel (`web/app/src/views/system/ConfigView.vue`) exposes every settable key of the tree — the AI and email layers, the Themis knowledge base and Lybra engine dials, JWT and MFA policy, Hygeia thresholds, limits and report palette. The one branch deliberately left out is `features.iris.data.*`: those are the anti-phishing heuristic corpora (word lists, homoglyph maps, suspicious TLDs), detection content rather than deployment settings. `API/tests/unit/test_config_view_paths.py` pins the panel's paths against the JSON — the literal ones by full path, the ones composed in a `v-for` by their fixed prefix.
 
 ### Encryption keys
 

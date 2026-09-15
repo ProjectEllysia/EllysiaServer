@@ -16,7 +16,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Mapping, Sequence
 
 from src.modules.infrastructure import UnitOfWork, build_repository
-from src.modules.shared import assert_owned, isoformat_utc
+from src.modules.shared import assert_owned
 
 from ..exceptions import IrisInvalidInputError, IrisSavedViewNotFoundError
 from ..model import IrisAnalysisTag, IrisSavedView
@@ -31,7 +31,7 @@ MAX_SAVED_VIEWS = 50
 MAX_VIEW_NAME_LENGTH = 60
 
 
-def _invalid_input(text: str) -> IrisInvalidInputError:
+def _build_invalid_input_error(text: str) -> IrisInvalidInputError:
     """Error de validación cuyo mensaje se puede enseñar tal cual al usuario.
 
     Args:
@@ -46,24 +46,6 @@ def _invalid_input(text: str) -> IrisInvalidInputError:
 class IrisTriageManager:
     """Vistas guardadas y etiquetas de los análisis de un usuario."""
 
-    @staticmethod
-    def view_to_dict(view: IrisSavedView) -> Dict[str, Any]:
-        """Serializa una vista guardada con las claves de la API.
-
-        Args:
-            view: Fila ``IrisSavedView``.
-
-        Returns:
-            dict: ``viewId``, ``name``, ``filters`` (con las mismas claves que
-                los parámetros de ``GET /iris/results``) y ``createdAt``.
-        """
-        return {
-            "viewId": view.id,
-            "name": view.name,
-            "filters": view.filters or {},
-            "createdAt": isoformat_utc(view.created_at),
-        }
-
     def list_views(self, user_id: int) -> List[Dict[str, Any]]:
         """Vistas guardadas de un usuario, por nombre.
 
@@ -71,9 +53,10 @@ class IrisTriageManager:
             user_id: Dueño de las vistas.
 
         Returns:
-            List[dict]: Las vistas (ver ``view_to_dict``); lista vacía si no tiene.
+            List[dict]: Las vistas (ver ``IrisSavedView.to_dict``); lista
+                vacía si no tiene.
         """
-        return [self.view_to_dict(view) for view in build_repository(IrisSavedViewRepository).get_by_user(user_id)]
+        return [view.to_dict() for view in build_repository(IrisSavedViewRepository).get_by_user(user_id)]
 
     def create_view(self, user_id: int, name: str, filters: Mapping[str, Any]) -> Dict[str, Any]:
         """Guarda una combinación de filtros con nombre.
@@ -85,7 +68,7 @@ class IrisTriageManager:
                 descartan los vacíos para que la vista guarde solo lo que filtra.
 
         Returns:
-            dict: La vista creada (ver ``view_to_dict``).
+            dict: La vista creada (ver ``IrisSavedView.to_dict``).
 
         Raises:
             IrisInvalidInputError: Si el nombre está vacío o ya existe, o si el
@@ -93,16 +76,16 @@ class IrisTriageManager:
         """
         cleaned_name = (name or "").strip()[:MAX_VIEW_NAME_LENGTH]
         if not cleaned_name:
-            raise _invalid_input("La vista necesita un nombre.")
+            raise _build_invalid_input_error("La vista necesita un nombre.")
         cleaned_filters = {key: value for key, value in filters.items() if value not in (None, "")}
         with UnitOfWork() as uow:
             repo = IrisSavedViewRepository(uow)
             if repo.count_by_user(user_id) >= MAX_SAVED_VIEWS:
-                raise _invalid_input(f"Como mucho {MAX_SAVED_VIEWS} vistas guardadas.")
+                raise _build_invalid_input_error(f"Como mucho {MAX_SAVED_VIEWS} vistas guardadas.")
             if repo.get_by_user_and_name(user_id, cleaned_name) is not None:
-                raise _invalid_input(f"Ya tienes una vista llamada «{cleaned_name}».")
+                raise _build_invalid_input_error(f"Ya tienes una vista llamada «{cleaned_name}».")
             view = repo.save(IrisSavedView(user_id=user_id, name=cleaned_name, filters=cleaned_filters))
-            return self.view_to_dict(view)
+            return view.to_dict()
 
     def delete_view(self, view_id: int, user_id: int) -> None:
         """Borra una vista guardada.
@@ -139,7 +122,7 @@ class IrisTriageManager:
         try:
             normalized = normalize_tags(tags)
         except ValueError as e:
-            raise _invalid_input(str(e)) from e
+            raise _build_invalid_input_error(str(e)) from e
         with UnitOfWork() as uow:
             repo = IrisAnalysisTagRepository(uow)
             repo.delete_by_analysis(analysis_id)

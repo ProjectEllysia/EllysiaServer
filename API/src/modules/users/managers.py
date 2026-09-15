@@ -53,16 +53,13 @@ from .model import (
     AccessToken,
     RefreshToken,
     User,
-    UserAttribute,
     MFATotpCredential,
     MFARecoveryCode,
     MFAChallenge,
 )
 from .repositories import TokenRepository, UserRepository, AttributeRepository, MFARepository
 from .services import (
-    generate_salt,
     hash_password,
-    hash_password_with_salt,
     verify_password,
     generate_totp_secret,
     totp_provisioning_uri,
@@ -94,6 +91,7 @@ def _to_utc_epoch(moment: Optional[datetime]) -> Optional[int]:
     if moment.tzinfo is None:
         moment = moment.replace(tzinfo=timezone.utc)
     return int(moment.timestamp())
+
 
 class UserManager:
     """
@@ -133,7 +131,8 @@ class UserManager:
             Exception: On unexpected database errors.
         """
         try:
-            user = build_repository(UserRepository).get_by_username(username)
+            user_repo = build_repository(UserRepository)
+            user = user_repo.get_by_username(username)
 
             if user is None:
                 # Dummy comparison to prevent username enumeration via timing differences.
@@ -152,11 +151,10 @@ class UserManager:
                 return False, None
 
             if needs_rehash:
-                with UnitOfWork() as uow:
-                    stored_user = UserRepository(uow).get_by_id(user.id)
-                    if stored_user is not None:
-                        stored_user.password_hash = hash_password(password)
-                        stored_user.password_salt = ""
+                stored_user = user_repo.get_by_id(user.id)
+                if stored_user is not None:
+                    stored_user.password_hash = hash_password(password)
+                    stored_user.password_salt = ""
                 logger.info(f"Hash actualizado a Argon2 para usuario '{username}'")
 
             logger.info(f"Credenciales válidas para '{username}' (ID: {user.id})")
@@ -206,7 +204,7 @@ class UserManager:
             The newly created User instance (credential fields excluded
             from the returned object via session expunge).
 
-Raises:
+        Raises:
             ExistingUserError: If username or email is already registered.
             PermissionsError: If actor_id lacks permissions to assign the requested role.
             DatabaseError:    On unexpected persistence failures.
@@ -222,7 +220,7 @@ Raises:
 
         if role == "role_admin" and actor_id:
             if not self.can_create_admin(actor_id):
-                logger.error(f"El administrador con id {actor_id} ha intentado crear un usuario con rol {role}")
+                logger.error(f"El usuario con id {actor_id} ha intentado crear un usuario con rol {role}")
                 raise PermissionsError("Solo el administrador raíz puede crear administradores")
 
         if role and actor_id:
@@ -283,7 +281,8 @@ Raises:
     # =========================================================================
 
     def issue_email_verification(self, user_id: int) -> str:
-        """Emite un token de verificación y lo manda por correo.
+        """
+        Emite un token de verificación y lo manda por correo.
 
         Del token se guarda solo el hash; el que viaja en el enlace no vuelve a
         estar disponible. Emitir uno nuevo invalida el anterior — el usuario
@@ -294,8 +293,11 @@ Raises:
         pie y el usuario puede pedir otro. Tumbar el registro porque el SMTP
         está caído sería peor que dejar una cuenta pendiente de confirmar.
 
+        Args:
+            user_id: Id del usuario a verificar
+
         Returns:
-            El token en claro, para poder construir el enlace.
+            str: El token en claro, para poder construir el enlace.
         """
         token = generate_opaque_token()
         ttl_hours = CR.registration_config().verification_ttl_hours
@@ -317,7 +319,8 @@ Raises:
         return token
 
     def verify_email(self, token: str) -> User:
-        """Consume un token de verificación y marca el correo como confirmado.
+        """
+        Consume un token de verificación y marca el correo como confirmado.
 
         Un token solo vale una vez: al consumirlo se borran hash y caducidad.
 
@@ -409,7 +412,7 @@ Raises:
             InvalidMfaCodeError: el factor no verifica (y suma un intento).
         """
         oauth = OAuthTokenManager()
-        user_id = oauth.verify_mfa_challenge(
+        user_id = oauth.verify_challenge_exists(
             challenge_token, purpose=MFA_CHALLENGE_PURPOSE_PASSWORD_RESET,
         )
         if user_id is None:
@@ -968,39 +971,70 @@ class OAuthTokenManager:
     # =========================================================================
 
     def create_access_token(
-        self,
-        user_id: int,
-        username: str,
-        role: str = "role_user",
-        password_changed_at: Optional[datetime] = None,
-        mfa_at: Optional[datetime] = None,
+            self,
+            user_id: int,
+            username: str,
+            role: str = "role_user",
+            password_changed_at: Optional[datetime] = None,
+            mfa_at: Optional[datetime] = None,
     ) -> str:
         """
-        Create and persist a signed JWT access token.
+        Crea, firma y persiste un token de acceso JWT para un usuario.
+
+        El token contiene la identidad y el contexto de seguridad necesarios
+        para autorizar las peticiones posteriores del usuario. Además de las
+        claims estándar del JWT, incorpora información sobre el rol, el momento
+        del último cambio de contraseña y la última verificación de MFA,
+        permitiendo a la aplicación aplicar las políticas de seguridad
+        correspondientes durante la validación del token.
+
+        La expiración del token se obtiene de la configuración JWT vigente en
+        el momento de la llamada. El token generado se persiste junto con el
+        identificador del usuario y su fecha de expiración, permitiendo su
+        gestión y eventual invalidación desde el servidor.
 
         Args:
-            user_id:  User primary key to embed in the token payload.
-            username: Username to embed in the token payload.
-            role:     Role to embed in the token payload.
-            password_changed_at: Timestamp of the user's last access-password
-                change, embedded as the ``pwd_at`` claim (UTC epoch seconds).
-                Lets clients reason about password-change state. ``None`` when
-                the password has never been changed.
-            mfa_at: Timestamp at which the second factor was verified for this
-                session, embedded as the ``mfa_at`` claim (UTC epoch seconds).
-                ``None`` when the user doesn't have MFA enabled — possession of
-                an access token with ``mfa_at`` set implies MFA was satisfied,
-                so no per-endpoint guard is needed.
+            user_id: Identificador único del usuario al que pertenece el token.
+            username: Nombre de usuario que se incluirá en las claims del JWT.
+            role: Rol o perfil de autorización del usuario. Por defecto,
+                ``"role_user"``.
+            password_changed_at: Fecha y hora de la última modificación de la
+                contraseña del usuario. Se almacena como ``pwd_at`` en formato
+                Unix epoch UTC y puede utilizarse para invalidar tokens emitidos
+                antes de dicho cambio.
+            mfa_at: Fecha y hora de la última verificación de MFA asociada a la
+                sesión. Se almacena como ``mfa_at`` en formato Unix epoch UTC y
+                puede utilizarse para comprobar la antigüedad de la autenticación
+                multifactor.
 
         Returns:
-            Signed JWT string.
+            str: JWT firmado y codificado, configurado como token de acceso.
+
+        Raises:
+            InvalidKeyError: Si el secreto utilizado para firmar el JWT no es
+                válido para el algoritmo configurado.
+            Exception: Si se produce un error durante la persistencia del token
+                en la base de datos.
+
+        Notes:
+            - ``sub`` contiene el identificador del usuario como cadena, conforme
+            al uso habitual de la claim ``sub`` en JWT.
+            - ``exp`` e ``iat`` representan, respectivamente, la fecha de
+            expiración y la fecha de emisión del token.
+            - ``jti`` proporciona un identificador único para el token.
+            - ``type`` distingue este JWT de otros posibles tipos de token.
+            - La configuración JWT se obtiene en el punto de uso para permitir
+            que los cambios de configuración sean efectivos sin reiniciar la
+            aplicación.
         """
+
         # N7: leer config OAuth en el punto de uso, no en import-time.
         # CR.jwt_config() cachea el bloque → barato, y permite que PUT /system
         # recargue el tuning JWT sin reiniciar la app.
-        jwt_cfg = CR.jwt_config()
+        jwt_config = CR.jwt_config()
+        expire_minutes = jwt_config.access_token_expiry_minutes
         expires_at = utcnow_naive() + timedelta(
-            minutes=jwt_cfg.access_token_expiry_minutes
+            minutes=expire_minutes
         )
 
         payload = {
@@ -1014,7 +1048,7 @@ class OAuthTokenManager:
             "pwd_at":   _to_utc_epoch(password_changed_at),
             "mfa_at":   _to_utc_epoch(mfa_at),
         }
-        token = jwt.encode(payload, jwt_cfg.secret, algorithm=jwt_cfg.algorithm)
+        token = jwt.encode(payload, jwt_config.secret, algorithm=jwt_config.algorithm)
 
         with UnitOfWork() as uow:
             TokenRepository(uow).save_access_token(
@@ -1067,8 +1101,8 @@ class OAuthTokenManager:
         """
         try:
             # Step 1: validate JWT signature and expiry (no DB hit yet).
-            jwt_cfg = CR.jwt_config()
-            payload = jwt.decode(token, jwt_cfg.secret, algorithms=[jwt_cfg.algorithm])
+            jwt_config = CR.jwt_config()
+            payload = jwt.decode(token, jwt_config.secret, algorithms=[jwt_config.algorithm])
 
             if payload.get("type") != "access":
                 return None
@@ -1112,18 +1146,24 @@ class OAuthTokenManager:
     # =========================================================================
 
     def is_token_stale_by_password(self, token: str) -> bool:
-        """True si el access token (firma válida) se emitió ANTES del último
-        cambio de contraseña del usuario.
+        """
+        Comprueba si se emitió el ``access token`` antes del último cambio de contraseña.
 
         Solo debe consultarse cuando ``verify_access_token`` ya devolvió ``None``
         (token revocado/expirado/ inválido), para distinguir un rechazo causado por
         un cambio de contraseña de un rechazo genérico. Hace un acceso a BD, así
         que se llama únicamente en el camino de error.
+
+        Returns:
+            ``True`` si el access token se emitió ANTES del último
+            cambio de contraseña del usuario.
         """
         try:
-            jwt_cfg = CR.jwt_config()
+            jwt_config = CR.jwt_config()
             payload = jwt.decode(
-                token, jwt_cfg.secret, algorithms=[jwt_cfg.algorithm],
+                jwt=token, 
+                key=jwt_config.secret, 
+                algorithms=[jwt_config.algorithm],
                 options={"verify_exp": False},
             )
         except jwt.InvalidTokenError:
@@ -1146,17 +1186,26 @@ class OAuthTokenManager:
         return changed_epoch is not None and changed_epoch > int(iat)
 
     def is_refresh_stale_by_password(self, token: str) -> bool:
-        """True si el refresh token existe pero se creó ANTES del último cambio de
-        contraseña del usuario (es decir, quedó obsoleto por dicho cambio).
-
-        Consulta la BD aunque el token esté revocado, para poder dar el motivo
+        """
+        Consulta la BD (aunque el token esté revocado), para poder dar el motivo
         ``password_changed`` en el grant ``refresh_token``.
+
+        Args:
+            token: Token de refresh.
+
+        Returns: 
+            ``True`` si el refresh token existe pero se creó ANTES del último cambio de
+            contraseña del usuario (es decir, quedó obsoleto por dicho cambio);
+            ``False``, en caso contrario.
         """
         try:
-            record = build_repository(TokenRepository).get_refresh_token(token)
+            token_repo = build_repository(TokenRepository)
+            user_repo = build_repository(UserRepository)
+
+            record = token_repo.get_refresh_token(token)
             if record is None:
                 return False
-            user = build_repository(UserRepository).get_by_id(record.user_id)
+            user = user_repo.get_by_id(record.user_id)
         except Exception:
             return False
 
@@ -1177,13 +1226,14 @@ class OAuthTokenManager:
 
     def revoke_access_token(self, token: str) -> bool:
         """
-        Revoke a single access token.
+        Revoca un access token, marcándolo como inválido en la base de datos.
 
         Args:
-            token: Raw JWT string to revoke.
+            token: Token JWT a revocar.
 
         Returns:
-            True if the token was found and revoked, False otherwise.
+            ``True`` si el token existía y fue revocado; ``False`` si no 
+            existía o ya estaba revocado.
         """
         try:
             with UnitOfWork() as uow:
@@ -1199,13 +1249,10 @@ class OAuthTokenManager:
 
     def revoke_all_user_tokens(self, user_id: int) -> None:
         """
-        Atomically revoke all access and refresh tokens for a user.
-
-        Both token types are revoked in a single transaction. Intended
-        for password-change and logout-everywhere flows.
+        Revoca de forma atómica todos los access y refresh tokens de un usuario.
 
         Args:
-            user_id: User primary key.
+            user_id: Id del usuario cuyas claves se quieren revocar.
         """
         with UnitOfWork() as uow:
             TokenRepository(uow).revoke_all_tokens(user_id)
@@ -1246,7 +1293,7 @@ class OAuthTokenManager:
 
         return token
 
-    def verify_mfa_challenge(self, token: str, purpose: Optional[str] = None) -> Optional[int]:
+    def verify_challenge_exists(self, token: str, purpose: Optional[str] = None) -> Optional[int]:
         """
         Return the user_id for a still-valid MFA challenge (not expired, under
         the max attempt count), or None otherwise.

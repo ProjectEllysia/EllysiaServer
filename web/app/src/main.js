@@ -15,7 +15,7 @@ import App from './App.vue'
 import router from './router'
 import { useAuthStore } from '@/stores/authStore'
 import { applyStoredTheme } from '@/stores/themeStore'
-import { resolveError } from '@/views/errorCatalog'
+import { resolveError } from '@/views/public/errorCatalog'
 
 import './assets/css/shared.css'
 

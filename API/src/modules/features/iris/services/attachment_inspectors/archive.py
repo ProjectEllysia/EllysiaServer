@@ -27,7 +27,7 @@ import re
 import zipfile
 from typing import Callable, FrozenSet
 
-from .common import InspectionBudget, InspectionResult, extension_of, kind_of, make_finding
+from .common import InspectionBudget, InspectionResult, extension_of, kind_of, build_finding
 
 #: Tamaño a partir del cual una razón de compresión alta cuenta como bomba:
 #: un fichero pequeño de ceros comprime muchísimo sin ser un ataque.
@@ -36,15 +36,14 @@ _ABSOLUTE_PATH_RE = re.compile(r"^(?:/|[A-Za-z]:)")
 
 NestedInspector = Callable[[str, bytes, int], InspectionResult]
 
-
-def _escapes_folder(name: str) -> bool:
-    """Si una ruta de entrada escribiría fuera de la carpeta de destino."""
-    normalized = name.replace("\\", "/")
-    return bool(_ABSOLUTE_PATH_RE.match(normalized)) or ".." in normalized.split("/")
-
-
-def inspect_archive(archive: zipfile.ZipFile, limits, budget: InspectionBudget, depth: int,
-                    dangerous_extensions: FrozenSet[str], inspect_nested: NestedInspector) -> InspectionResult:
+def inspect_archive(
+    archive: zipfile.ZipFile,
+    limits,
+    budget: InspectionBudget,
+    depth: int,
+    dangerous_extensions: FrozenSet[str],
+    inspect_nested: NestedInspector
+) -> InspectionResult:
     """Revisa un ZIP y lo que contiene.
 
     Args:
@@ -69,7 +68,8 @@ def inspect_archive(archive: zipfile.ZipFile, limits, budget: InspectionBudget, 
     def add(reason: str, detail: str, path: str) -> None:
         if reason not in seen:
             seen.add(reason)
-            result.findings.append(make_finding(reason, detail, path))
+            finding = build_finding(reason, detail, path)
+            result.findings.append(finding)
 
     entries = [info for info in archive.infolist() if not info.is_dir()]
     if len(entries) > limits.max_archive_entries:
@@ -81,26 +81,41 @@ def inspect_archive(archive: zipfile.ZipFile, limits, budget: InspectionBudget, 
 
     for info in entries:
         name = info.filename
-        if _escapes_folder(name):
+        normalized = name.replace("\\", "/")
+
+        is_absolute_path = bool(_ABSOLUTE_PATH_RE.match(normalized))
+        goes_to_parent = ".." in normalized.split("/")
+        escapes_folder = is_absolute_path or goes_to_parent
+
+        if escapes_folder:
             add("archive_path_traversal", f"La entrada «{name}» escribiría fuera de la carpeta al descomprimir.", name)
-        if extension_of(name) in dangerous_extensions:
+
+        contains_dangerous_extension = extension_of(name) in dangerous_extensions
+        if contains_dangerous_extension:
             add("archive_contains_executable", f"El ZIP contiene un ejecutable: «{name}».", name)
+
         if info.flag_bits & 0x1:
             add("archive_encrypted", "El ZIP está cifrado: su contenido no se puede revisar.", name)
             continue
+
         if (info.compress_size and info.file_size >= _BOMB_MIN_BYTES
                 and info.file_size / info.compress_size > limits.max_compression_ratio):
             add("archive_bomb", f"«{name}» se expande {info.file_size // info.compress_size} veces al descomprimir.", name)
             continue
+
         if kind_of(name, "", b"") is None:
             continue
+
         if depth + 1 > limits.max_archive_depth:
             add("archive_too_deep", f"«{name}» está anidado a más de {limits.max_archive_depth} niveles.", name)
             continue
+
         with archive.open(info) as handle:
-            data = budget.read(handle)
+            data = budget.read(handle) # type: ignore
+
         if budget.is_exhausted:
             add("archive_bomb", "El contenido del ZIP supera el tope de bytes descomprimidos.", name)
             break
+        
         result.merge(inspect_nested(name, data, depth + 1), name)
     return result

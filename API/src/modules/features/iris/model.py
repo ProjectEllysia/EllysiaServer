@@ -8,9 +8,11 @@ the output of every individual rule that was executed during the analysis.
 
 from __future__ import annotations
 
+from datetime import datetime
 from enum import StrEnum
-from typing import Optional
+from typing import Any, Dict, Optional
 
+from src.modules.shared._time import isoformat_utc
 from sqlalchemy import (
     Boolean, Column, Date, DateTime, Float, ForeignKey, Index, Integer,
     SmallInteger, String, Text, UniqueConstraint,
@@ -782,6 +784,75 @@ class IrisTrustedSender(Base):
         Index("ix_iris_trusted_sender_user_id", "user_id"),
     )
 
+    def is_revoked(self) -> bool:
+        """
+        Busca si el usuario revocó de forma explícita esta
+        excepción de confianza.
+
+        Returns:
+            bool: True si la excepción está revocada, False si sigue activa.
+        """
+        return self.revoked_at is not None
+
+    def is_expired(self, now: datetime) -> bool:
+        """
+        Busca si la excepción de confianza ha caducado.
+
+        Args:
+            now (datetime): El instante actual para comparar con
+                ``expires_at``.
+        Returns:
+            bool: True si la excepción ha caducado, False si sigue activa.
+        """
+        return self.expires_at <= now
+
+    def status(self, instant: datetime) -> str:
+        """Estado de la excepción en un instante dado.
+
+        Args:
+            instant: Instante de referencia (UTC naive) con el que evaluar
+                la caducidad.
+
+        Returns:
+            str: ``revoked`` si se revocó (aunque además haya caducado),
+                ``expired`` si pasó su caducidad, o ``active``.
+        """
+        if self.is_revoked():
+            return "revoked"
+        if self.is_expired(instant):
+            return "expired"
+        return "active"
+
+    def to_dict(self, instant: Optional[datetime] = None) -> Dict[str, Any]:
+        """Serializa una excepción con las claves camelCase de la API.
+
+        Si ``instant`` es ``None``, se utiliza el instante actual;
+        por esto, puede ocurrir un desfase temporal entre acciones
+        realizadas antes de la llamada a este método y la evaluación de ``status``.
+        Para evitarlo (o si no se ha ejecutado ninguna operación temporal previa
+        a la llamada a este método), se recomienda pasar explícitamente
+        el instante de referencia.
+
+        Args:
+            instant: Instante con el que calcular ``status``. Por defecto ``None``:
+                el actual.
+
+        Returns:
+            dict: ``trustedSenderId``, ``kind``, ``value``, ``reason``,
+                ``status`` (``active``, ``expired`` o ``revoked``),
+                ``createdAt``, ``expiresAt`` y ``revokedAt``.
+        """
+        return {
+            "trustedSenderId": self.id,
+            "kind": self.kind,
+            "value": self.value,
+            "reason": self.reason,
+            "status": self.status(instant or utcnow_naive()),
+            "createdAt": isoformat_utc(self.created_at),
+            "expiresAt": isoformat_utc(self.expires_at),
+            "revokedAt": isoformat_utc(self.revoked_at),
+        }
+
 
 class IrisSavedView(Base):
     """Combinación de filtros del historial de análisis guardada con nombre.
@@ -816,6 +887,20 @@ class IrisSavedView(Base):
     __table_args__ = (
         UniqueConstraint("user_id", "name", name="uq_iris_saved_view_user_name"),
     )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Serializa la vista guardada con las claves de la API.
+
+        Returns:
+            dict: ``viewId``, ``name``, ``filters`` (con las mismas claves que
+                los parámetros de ``GET /iris/results``) y ``createdAt``.
+        """
+        return {
+            "viewId": self.id,
+            "name": self.name,
+            "filters": self.filters or {},
+            "createdAt": isoformat_utc(self.created_at),
+        }
 
 
 class IrisAnalysisTag(Base):

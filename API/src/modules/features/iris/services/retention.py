@@ -38,34 +38,37 @@ logger = logging.getLogger(__name__)
 
 
 def run_retention() -> Dict[str, Any]:
-    """Ejecuta los dos pasos de retención y devuelve cuántas filas tocó cada uno."""
+    """
+    Ejecuta los dos pasos de retención y devuelve cuántas filas tocó cada uno:
+
+    1. Purga de raw vencido.
+    2. Borrado de análisis enteros (si está activado).
+
+    Returns:
+        dict: Diccionario con las claves ``purgedRawMessages`` y
+            ``deletedAnalyses`` indicando cuántas filas fueron afectadas por
+            cada paso.
+    """
     config = CR.iris_config()
     now = utcnow_naive()
 
-    purged_raw = _purge_expired_raw_messages(now - timedelta(days=config.raw_message_retention_days))
-
-    deleted_analyses = 0
-    if config.analysis_retention_days > 0:
-        deleted_analyses = _delete_expired_analyses(
-            now - timedelta(days=config.analysis_retention_days)
-        )
-
-    report = {"purgedRawMessages": purged_raw, "deletedAnalyses": deleted_analyses}
-    if purged_raw or deleted_analyses:
-        logger.info("Retención de Iris: %s", report)
-    return report
-
-
-def _purge_expired_raw_messages(cutoff) -> int:
-    with UnitOfWork() as uow:
-        return IrisAnalysisRepository(uow).purge_raw_messages_older_than(cutoff)
-
-
-def _delete_expired_analyses(cutoff) -> int:
-    deleted = 0
     with UnitOfWork() as uow:
         repo = IrisAnalysisRepository(uow)
-        for analysis in repo.get_analyses_older_than(cutoff):
-            repo.delete(analysis)
-            deleted += 1
-    return deleted
+        purged_raw = repo.purge_raw_messages_older_than(
+            now - timedelta(days=config.raw_message_retention_days)
+        )
+
+        deleted_analyses = 0
+
+        if config.analysis_retention_days > 0:
+            for analysis in repo.get_analyses_older_than(
+                now - timedelta(days=config.analysis_retention_days)
+            ):
+                repo.delete(analysis)
+                deleted_analyses += 1
+
+        report = {"purgedRawMessages": purged_raw, "deletedAnalyses": deleted_analyses}
+        if purged_raw or deleted_analyses:
+            logger.info("Retención de Iris: %s", report)
+    
+    return report
