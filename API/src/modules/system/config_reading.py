@@ -1762,6 +1762,15 @@ class HygeiaLimits:  # pylint: disable=too-many-instance-attributes
     retención por defecto (lo ata ``test_config_shape.py``).
     """
 
+    max_entity_stats_period_days: int = 7
+    """Periodo máximo, en días, de las estadísticas por entidad (montaje, interfaz, núcleo).
+
+    Esas estadísticas no tienen columna propia: leen el JSONB ``metrics`` de
+    cada heartbeat del periodo. A un latido cada 15 s, 30 días son unos
+    170 000 JSONB por activo; 7 días, unos 40 000. La ventana se recorta
+    además a ``max_stats_period_days`` y a la retención.
+    """
+
     min_interval_sec: int = 5
     """Suelo de cadencia entre heartbeats de una misma clave, en segundos."""
 
