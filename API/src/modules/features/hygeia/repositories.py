@@ -793,22 +793,39 @@ class HygeiaTagRepository(BaseRepository[HygeiaTag]):
             .all()
         )
 
-    def count_assets_per_tag(self, user_id: int) -> Dict[int, int]:
-        """Cuántos activos **del usuario** lleva cada etiqueta.
+    def get_asset_activity_per_tag(
+        self, user_id: int,
+    ) -> Dict[int, Tuple[int, Optional[datetime]]]:
+        """Cuántos activos **del usuario** lleva cada etiqueta, y cuándo dio señal el último.
 
         El filtro por dueño no es cosmético: una etiqueta de sistema la usa
         todo el mundo, y contar sus asociaciones sin filtrar delataría
-        cuántos activos ajenos hay. Las etiquetas sin activos no aparecen en
-        el diccionario; el manager las completa con 0.
+        cuántos activos ajenos hay, igual que su última señal delataría cuándo
+        estuvo encendido un servidor de otro. Los dos datos salen de la misma
+        consulta agrupada por etiqueta.
+
+        Args:
+            user_id: Dueño de los activos que se cuentan.
+
+        Returns:
+            Dict[int, Tuple[int, Optional[datetime]]]: ``{tag_id: (activos,
+                última_señal)}``. La última señal es el ``last_seen_at`` más
+                reciente entre esos activos, o ``None`` si ninguno ha latido
+                nunca. Las etiquetas sin activos del usuario no aparecen; el
+                manager las completa con ``(0, None)``.
         """
         rows = (
-            self._session.query(AssetTag.c.tag_id, func.count(AssetTag.c.asset_id))
+            self._session.query(
+                AssetTag.c.tag_id,
+                func.count(AssetTag.c.asset_id),
+                func.max(MonitoredAsset.last_seen_at),
+            )
             .join(MonitoredAsset, MonitoredAsset.id == AssetTag.c.asset_id)
             .filter(MonitoredAsset.user_id == user_id)
             .group_by(AssetTag.c.tag_id)
             .all()
         )
-        return dict(rows)
+        return {tag_id: (asset_count, last_seen_at) for tag_id, asset_count, last_seen_at in rows}
 
     def get_by_name_for_user(self, user_id: int, name: str) -> Optional[HygeiaTag]:
         """Busca una etiqueta visible para el usuario por nombre, sin distinguir mayúsculas.
