@@ -791,6 +791,16 @@ Cada prefijo tiene un significado fijo, para que el nombre diga qué esperar:
 | `_run_` | cuerpo del job (función privada) | nada |
 | `reconcile_` | repara estado incoherente tras una caída | cuántas filas tocó |
 
+**Las conversiones `to_dict`/`to_json` de un modelo de dominio van dentro del modelo.** Si `X` es
+un modelo de dominio (una clase de `model.py`), la serialización no se escribe como una función
+suelta `x_to_dict(x)` en otro fichero — se declara `to_dict`/`to_json` como método de `X`. La
+función suelta separa el dato de su forma de serializarse, así que cualquiera que cambie un campo
+del modelo puede olvidar el sitio (a veces lejano) donde se serializa; el método los mantiene
+juntos y es donde quien lee el modelo espera encontrarlo. Esto no aplica a una función que traduce
+un dict ya aplanado a otra forma (`finding_to_json` en `lybra/adapters.py` parte de un snapshot,
+no de un `Finding`) ni a las que ensamblan un dict de API a partir de *varias* fuentes (modelo +
+cálculo + otro servicio): ahí no hay un único modelo dueño de la conversión.
+
 ### 10.3 Variables: sustantivos que dicen qué guardan y de qué tipo
 
 - **El nombre aclara el tipo.** `critical_threshold` no `critical` (`critical` se lee como
