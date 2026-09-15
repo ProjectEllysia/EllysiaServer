@@ -19,6 +19,7 @@ from .ingest_guard import (
     enforce_ingest_limits,
 )
 from .inventory_adapter import services_from_inventory
+from .metric_registry import METRIC_REGISTRY, MetricDefinition, assert_metric_definition
 from .reports import build_inventory_report
 from .stats import (
     EnergyCost,
@@ -62,4 +63,7 @@ __all__ = [
     "calculate_percentile",
     "summarize_values",
     "summarize_series_by_asset",
+    "METRIC_REGISTRY",
+    "MetricDefinition",
+    "assert_metric_definition",
 ]
