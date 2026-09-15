@@ -15,6 +15,7 @@ from typing import Optional
 import pytest
 
 from src.modules.features.hygeia.services.stats import (
+    build_percentile_series,
     calculate_percentile,
     classify_period,
     energy_and_cost,
@@ -341,3 +342,41 @@ def test_a_non_positive_period_is_a_programming_error(requested_duration):
     """El schema del endpoint ya valida el periodo: aquí un valor no positivo lanza."""
     with pytest.raises(ValueError):
         resolve_stats_window(requested_duration, _NOW, max_stats_period_days=30, retention_days=30)
+
+
+# =============================================================================
+# PERCENTIL POR CUBO DE LA SERIE TEMPORAL
+# =============================================================================
+
+def test_percentile_series_groups_each_metric_by_bucket():
+    """Cada cubo de una hora lleva el p95 de cada métrica; la que no tiene muestras, ``None``."""
+    samples_by_metric = {
+        "cpuPct": [(_T0 + timedelta(minutes=minute), float(minute)) for minute in range(1, 6)]
+                  + [(_T0 + timedelta(hours=1, minutes=5), 10.0)],
+        "memPct": [(_T0 + timedelta(minutes=3), 50.0)],
+    }
+
+    series = build_percentile_series(samples_by_metric, bucket_seconds=3600, percentile=95)
+
+    assert [bucket_start for bucket_start, _ in series] == [_T0, _T0 + timedelta(hours=1)]
+    first_values, second_values = series[0][1], series[1][1]
+    assert first_values["cpuPct"] == pytest.approx(4.8)
+    assert first_values["memPct"] == 50.0
+    assert second_values == {"cpuPct": 10.0, "memPct": None}
+
+
+def test_percentile_series_skips_missing_values_and_empty_buckets():
+    """Una muestra sin dato no crea un cubo ni cuenta como cero."""
+    samples_by_metric = {
+        "cpuPct": [(_T0, None), (_T0 + timedelta(hours=2), 40.0)],
+    }
+
+    series = build_percentile_series(samples_by_metric, bucket_seconds=3600, percentile=95)
+
+    assert series == [(_T0 + timedelta(hours=2), {"cpuPct": 40.0})]
+
+
+def test_percentile_series_rejects_a_non_positive_bucket():
+    """Un cubo de cero segundos es un error de programación."""
+    with pytest.raises(ValueError):
+        build_percentile_series({"cpuPct": [(_T0, 1.0)]}, bucket_seconds=0, percentile=95)
