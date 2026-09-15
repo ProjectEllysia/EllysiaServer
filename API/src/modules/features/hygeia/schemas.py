@@ -734,6 +734,54 @@ class TagRankingResponseSchema(Schema):
     isPeriodClipped = fields.Boolean()
 
 
+class AssetRankingQuerySchema(Schema):
+    """Query de ``GET /hygeia/stats/ranking``: los activos extremos del usuario por una métrica.
+
+    ``agg`` elige qué valor de cada activo se compara: su media (``avg``, por
+    defecto) o su máximo (``max``) del periodo. ``order=desc`` (por defecto)
+    da los de mayor valor, ``asc`` los de menor. ``limit`` va de 1 a 100.
+    Tras cargar, ``period`` queda como ``requested_duration``.
+    """
+    metric = fields.String(required=True)
+    agg = fields.String(load_default="avg", validate=validate.OneOf(["avg", "max"]))
+    order = fields.String(load_default="desc", validate=validate.OneOf(["desc", "asc"]))
+    limit = fields.Integer(load_default=10, validate=validate.Range(min=1, max=100))
+    period = _build_period_field()
+
+    @post_load
+    def parse_query(self, data, **kwargs):
+        """Convierte ``period`` en ``timedelta``."""
+        data["requested_duration"] = _parse_period(data.pop("period"))
+        return data
+
+
+class AssetRankingEntrySchema(Schema):
+    """Un activo en el ranking: su valor para la métrica y cuántas muestras lo sostienen."""
+    assetId = fields.Integer()
+    hostname = fields.String()
+    value = fields.Float()
+    sampleCount = fields.Integer()
+
+
+class AssetRankingResponseSchema(Schema):
+    """Los activos extremos del usuario por una métrica.
+
+    ``assets`` está ordenado según ``order`` y recortado a ``limit``. Solo
+    entran los activos con datos en el periodo: ``assetCount`` cuenta todos
+    los del usuario y ``assetsWithData`` los que se pudieron ordenar.
+    """
+    metric = fields.String()
+    unit = fields.String()
+    agg = fields.String()
+    order = fields.String()
+    assetCount = fields.Integer()
+    assetsWithData = fields.Integer()
+    assets = fields.List(fields.Nested(AssetRankingEntrySchema))
+    periodCoveredFrom = UTCDateTime()
+    periodCoveredTo = UTCDateTime()
+    isPeriodClipped = fields.Boolean()
+
+
 # =============================================================================
 # INVENTARIO DE SOFTWARE — reemplaza por completo en cada escaneo, sin delta
 # =============================================================================
