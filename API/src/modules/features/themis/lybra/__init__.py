@@ -210,6 +210,7 @@ from .exporters import (
     to_stix,
     to_ocsf,
 )
+from .planner import CheckPlanner, KnownService
 from .transport import (
     AsyncConnectScanner,
     PortOutcome,
@@ -373,6 +374,8 @@ __all__ = [
     "to_sarif",
     "to_stix",
     "to_ocsf",
+    "CheckPlanner",
+    "KnownService",
     "AsyncConnectScanner",
     "PortOutcome",
     "PortSweep",
