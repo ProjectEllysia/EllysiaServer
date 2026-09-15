@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 from datetime import timedelta
-from typing import Optional
+from typing import Optional, Sequence
 
 import src.modules.system.config_reading as CR
 from src.modules.accounts import LimitKey, OrganizationManager, QuotaManager
@@ -48,8 +48,9 @@ from .repositories import (
     MonitoredAssetRepository,
 )
 from .services import (
-    build_inventory_report, check_clock_skew, denormalize, evaluate, generate_agent_key,
-    is_agent_outdated, project_month, services_from_inventory, summarize_power_period,
+    METRIC_REGISTRY, assert_metric_definition, build_inventory_report, check_clock_skew,
+    denormalize, evaluate, generate_agent_key, is_agent_outdated, project_month,
+    resolve_stats_window, services_from_inventory, summarize_power_period, summarize_values,
 )
 
 # ---------------------------------------------------------------------------
@@ -390,6 +391,72 @@ class HygeiaAssetManager:
         """Resume una ventana completa de ``days`` días: consulta y cálculo de consumo."""
         since, samples = cls._power_window_samples(snapshot_repo, asset_id, now, days, config)
         return cls._summarize_window(since, now, samples, config), samples
+
+    def get_stats_summary(
+        self, asset_id: int, metric_names: Sequence[str], requested_duration: timedelta,
+    ) -> dict:
+        """
+        Resume las métricas de un activo del usuario sobre un periodo.
+
+        Para cada métrica pedida devuelve mínimo, máximo, media, percentil 95
+        y valor actual, en una sola llamada en vez de una por métrica. La
+        cuenta es la común de todas las estadísticas (``summarize_values``),
+        así que ``avg`` o ``p95`` significan aquí lo mismo que en los
+        agregados por etiqueta o del parque.
+
+        El periodo se recorta a lo que se puede cubrir (``resolve_stats_window``:
+        el menor entre el límite de estadísticas y la retención), y la
+        respuesta dice qué ventana cubrió de verdad y si hubo recorte: un
+        "máximo de los últimos 365 días" calculado sobre 30 tiene que decirlo.
+
+        Cada métrica se lee con su propia consulta de dos columnas (instante
+        y valor): son como mucho ocho, y cada una ya descarta en SQL los
+        heartbeats sin dato para esa métrica.
+
+        Args:
+            asset_id: Activo cuyas métricas se resumen.
+            metric_names: Nombres públicos de las métricas (``cpuPct``…). Los
+                repetidos se resumen una sola vez; una lista vacía equivale a
+                todas las métricas del registro. La respuesta los indexa por
+                nombre, sin garantizar orden: el JSON sale con las claves
+                ordenadas alfabéticamente.
+            requested_duration: Duración del periodo pedido, antes de recortar;
+                positiva (la valida el schema de la query).
+
+        Returns:
+            Diccionario con la forma de ``AssetStatsSummaryResponseSchema``:
+            ``metrics`` (un ``StatSummary`` por nombre de métrica),
+            ``periodCoveredFrom``/``periodCoveredTo`` e ``isPeriodClipped``.
+
+        Raises:
+            AssetNotFoundError: Si el activo no existe o pertenece a otro usuario.
+            UnknownMetricError: Si algún nombre no está en el registro de métricas.
+        """
+        assert_owned(MonitoredAssetRepository, asset_id, self.user.id, AssetNotFoundError)
+        definitions = [
+            assert_metric_definition(name)
+            for name in dict.fromkeys(metric_names or METRIC_REGISTRY)
+        ]
+        window = resolve_stats_window(
+            requested_duration, utcnow_naive(),
+            max_stats_period_days=CR.hygeia_limits().max_stats_period_days,
+            retention_days=CR.hygeia_config().retention_days,
+        )
+
+        snapshot_repo = build_repository(AssetSnapshotRepository)
+        summaries_by_metric = {}
+        for definition in definitions:
+            samples_by_asset = snapshot_repo.get_metric_samples_by_asset(
+                [asset_id], definition.column, window.since, window.until,
+            )
+            summaries_by_metric[definition.name] = summarize_values(samples_by_asset[asset_id])
+
+        return {
+            "metrics": summaries_by_metric,
+            "periodCoveredFrom": window.since,
+            "periodCoveredTo": window.until,
+            "isPeriodClipped": window.is_clipped,
+        }
 
     def get_inventory(self, asset_id: int) -> dict:
         """

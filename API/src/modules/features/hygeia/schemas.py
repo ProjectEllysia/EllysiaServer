@@ -3,7 +3,7 @@ Schemas Marshmallow del módulo Hygeia. Claves de respuesta en camelCase,
 por convención del proyecto.
 """
 
-from datetime import timezone
+from datetime import timedelta, timezone
 
 from marshmallow import EXCLUDE, Schema, ValidationError, fields, post_load, validate, validates_schema
 
@@ -517,6 +517,81 @@ class PowerSummaryResponseSchema(Schema):
     week = fields.Nested(PowerPeriodSchema)
     month = fields.Nested(PowerPeriodSchema)
     monthProjected = fields.Nested(PowerPeriodSchema)
+
+
+# =============================================================================
+# ESTADÍSTICAS — agregados de las métricas de un activo sobre un periodo
+# =============================================================================
+
+#: Unidades que admite ``period``: horas o días, el mismo vocabulario que usa
+#: la SPA para rotular las ventanas (``24h``, ``7d``, ``30d``).
+_PERIOD_UNITS = {"h": "hours", "d": "days"}
+
+
+class AssetStatsSummaryQuerySchema(Schema):
+    """Query de ``GET /hygeia/assets/<id>/stats/summary``.
+
+    ``period`` acepta cualquier ``<n>h`` o ``<n>d``, no solo ``24h``/``7d``/
+    ``30d``: un periodo mayor que lo que se puede cubrir no es un error, se
+    recorta y la respuesta lo dice (``isPeriodClipped``). ``metrics`` es una
+    lista separada por comas de nombres públicos (``cpuPct,memPct``); sin
+    ella se resumen todas las métricas. Los nombres no se validan aquí sino
+    contra el registro de métricas, que responde con el catálogo válido.
+
+    Tras cargar, la query queda como ``metric_names`` (lista, vacía si no se
+    pidió ninguna) y ``requested_duration`` (``timedelta``).
+    """
+    metrics = fields.String(load_default=None)
+    period = fields.String(
+        load_default="24h",
+        validate=validate.Regexp(
+            r"^[1-9][0-9]{0,4}[hd]$",
+            error="El periodo debe tener la forma <n>h o <n>d (por ejemplo 24h o 7d).",
+        ),
+    )
+
+    @post_load
+    def parse_query(self, data, **kwargs):
+        """Convierte ``metrics`` en lista de nombres y ``period`` en ``timedelta``."""
+        raw_metrics = data.pop("metrics")
+        data["metric_names"] = (
+            [name.strip() for name in raw_metrics.split(",") if name.strip()]
+            if raw_metrics else []
+        )
+        period = data.pop("period")
+        data["requested_duration"] = timedelta(**{_PERIOD_UNITS[period[-1]]: int(period[:-1])})
+        return data
+
+
+class MetricSummarySchema(Schema):
+    """Resumen de una métrica sobre el periodo cubierto.
+
+    Se vuelca directamente desde un ``StatSummary`` (``services/stats.py``),
+    cuyos atributos tienen nombres completos; ``data_key`` los publica con las
+    claves cortas de la API. Todos los valores son nulos a la vez cuando la
+    métrica no tiene ninguna muestra en el periodo (``sampleCount`` es ``0``):
+    no se sabe su máximo, y ``0`` sería una cifra inventada.
+    """
+    minimum = fields.Float(data_key="min", allow_none=True)
+    maximum = fields.Float(data_key="max", allow_none=True)
+    average = fields.Float(data_key="avg", allow_none=True)
+    percentile_95 = fields.Float(data_key="p95", allow_none=True)
+    current = fields.Float(allow_none=True)
+    sample_count = fields.Integer(data_key="sampleCount")
+
+
+class AssetStatsSummaryResponseSchema(Schema):
+    """Resumen estadístico de las métricas de un activo.
+
+    ``metrics`` va indexado por el nombre público de cada métrica pedida.
+    ``periodCoveredFrom``/``periodCoveredTo`` son la ventana que se cubrió de
+    verdad, e ``isPeriodClipped`` avisa de que es más corta que la pedida
+    (el periodo superaba el límite de estadísticas o la retención).
+    """
+    metrics = fields.Dict(keys=fields.String(), values=fields.Nested(MetricSummarySchema))
+    periodCoveredFrom = UTCDateTime()
+    periodCoveredTo = UTCDateTime()
+    isPeriodClipped = fields.Boolean()
 
 
 # =============================================================================
