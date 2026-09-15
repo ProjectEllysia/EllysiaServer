@@ -426,10 +426,6 @@ KNOWN_VIOLATIONS: dict[tuple[str, str, str], str] = {
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/iris/managers/notifications.py", "IrisStuckSyncNotifyManager._run_notify"):
         _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/reports.py", "IrisReportManager._create_document"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/reports.py", "IrisReportManager._generate_pdf_async"):
-        _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/iris/services/ai_writer.py", "IrisAIWriter._build_prompts"):
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/iris/services/ai_writer.py", "IrisAIWriter._build_user_prompt"):
