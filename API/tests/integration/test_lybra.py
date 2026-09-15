@@ -1816,6 +1816,108 @@ def test_an_authorized_and_explicit_aggressive_scan_finds_default_credentials(
     assert "s3cret" not in str(evidence[0].payload)
 
 
+# ═══════════════════════════════ perfiles de escaneo (fast/standard/thorough)
+
+
+def test_run_scan_persists_the_chosen_profile(app, admin_user, monkeypatch):
+    from unittest import mock
+    import src.modules.system.config_reading as CR
+
+    # Como en test_lybra_run_scan_self_discovery_succeeds_once_authorized: se
+    # comprueba la persistencia del perfil, no la defensa anti-SSRF ni el
+    # registro de autorización.
+    monkeypatch.setattr(CR, "themis_config", lambda: CR.ThemisConfig(are_local_ips_allowed=True))
+    _authorize_target(app, admin_user.id, target="10.0.0.6")
+
+    with app.app_context():
+        scan_id = LybraEngineManager(task_queue=mock.Mock()).run_scan(
+            user_id=admin_user.id, target="10.0.0.6", profile="fast",
+        )
+        with UnitOfWork() as uow:
+            scan = ScanRepository(uow).get_by_id(scan_id)
+        assert scan.profile == "fast"
+
+
+def test_run_scan_defaults_to_the_standard_profile(app, admin_user, monkeypatch):
+    from unittest import mock
+    import src.modules.system.config_reading as CR
+
+    monkeypatch.setattr(CR, "themis_config", lambda: CR.ThemisConfig(are_local_ips_allowed=True))
+    _authorize_target(app, admin_user.id, target="10.0.0.6")
+
+    with app.app_context():
+        scan_id = LybraEngineManager(task_queue=mock.Mock()).run_scan(
+            user_id=admin_user.id, target="10.0.0.6",
+        )
+        with UnitOfWork() as uow:
+            scan = ScanRepository(uow).get_by_id(scan_id)
+        assert scan.profile == "standard"
+
+
+def test_the_profile_appears_in_format_scan(app, admin_user):
+    scan_id = _run_payload_scan(app, admin_user.id)
+    with app.app_context():
+        result = LybraEngineManager().format_scan(scan_id)
+    assert result["profile"] == "standard"
+
+
+def test_fast_profile_disables_active_checks_even_if_globally_enabled(
+        monkeypatch, app, admin_user):
+    """El perfil "fast" no corre ningún check activo, ni siquiera si el
+    operador los tiene encendidos globalmente — es la esencia del perfil
+    rápido, no una casualidad de la config de test. Se ejercita con
+    ``aggressive=True`` para probar el caso más exigente: ni siquiera una
+    petición explícita de modo agresivo reabre la puerta bajo este perfil
+    (``_resolve_profile`` la ignora a propósito para "fast")."""
+    _authorize_target(app, admin_user.id)
+    _stub_self_discovery(monkeypatch, [80])
+    _stub_tomcat_manager(monkeypatch)
+
+    with app.app_context():
+        mgr = LybraEngineManager()
+        escan = mgr._create_scan_record(target="10.0.0.5", user_id=admin_user.id, profile="fast")
+        # aggressive/active_checks_override tal como los deja _resolve_profile
+        # para "fast": ver test_fast_profile_uses_the_configured_port_list_and_disables_checks.
+        mgr._run_lybra(escan.id, aggressive=False, active_checks_override=False)
+        with UnitOfWork() as uow:
+            findings = ScanRepository(uow).get_findings_by_scan(escan.id)
+
+    assert not [f for f in findings if f.category == "default_credentials"]
+
+
+def test_thorough_profile_reaches_aggressive_checks_on_an_authorized_target(
+        monkeypatch, app, admin_user):
+    """El perfil "thorough" implica el modo agresivo (segunda mitad de la
+    puerta: el objetivo debe estar además autorizado), así que sobre un panel
+    con credenciales de fábrica de verdad expuestas sí produce un hallazgo —
+    lo mismo que ya cubre `aggressive=True` explícito, ahora vía perfil.
+
+    ``aggressive=True`` y ``active_checks_override=None`` son exactamente lo
+    que ``_resolve_profile("thorough", ...)`` calcula (ver
+    ``test_lybra_scan_profiles.py``); se pasan aquí de forma explícita para
+    ejercitar ``_run_lybra`` igual que lo haría ``execute_lybra_scan`` en el
+    worker, sin depender de la cola de tareas.
+    """
+    _authorize_target(app, admin_user.id)
+    _stub_self_discovery(monkeypatch, [80])
+    _stub_tomcat_manager(monkeypatch)
+
+    with app.app_context():
+        mgr = LybraEngineManager()
+        escan = mgr._create_scan_record(target="10.0.0.5", user_id=admin_user.id, profile="thorough")
+        mgr._run_lybra(escan.id, aggressive=True, active_checks_override=None)
+        with UnitOfWork() as uow:
+            findings = ScanRepository(uow).get_findings_by_scan(escan.id)
+
+    assert [f for f in findings if f.category == "default_credentials"]
+
+
+def test_launching_with_an_unknown_profile_is_rejected(client, app, admin_user, auth_headers):
+    resp = client.post("/themis/lybra", json={"target": "203.0.113.9", "profile": "ultra"},
+                       headers=auth_headers(admin_user))
+    assert resp.status_code == 422
+
+
 # ─────────────── desmentir un hallazgo no es aceptar un riesgo
 #
 # Hasta ahora el esquema sólo admitía `accepted` y `open`, así que un usuario

@@ -734,12 +734,20 @@ class LybraScan(Scan):
             Vive aquí y no en ``Scan`` porque sólo Lybra descubre su propia
             superficie: los otros tres escáneres reciben el objetivo ya
             resuelto y no tienen un barrido que pueda quedarse a medias.
+        profile: El perfil de escaneo elegido ("fast", "standard" o
+            "thorough"; ver ``LybraProfilesConfig``). Se persiste porque un
+            informe sin él es ambiguo: "no se encontró nada" no dice lo
+            mismo si el perfil miró cien puertos que si miró todos. Vive
+            aquí y no en ``Scan`` por la misma razón que ``is_partial``: es
+            un concepto propio del barrido de Lybra, no de los otros tres
+            escáneres, que reciben el objetivo ya resuelto.
     """
     __tablename__ = "LybraScan"
 
     id             = Column(Integer, ForeignKey("Scan.id"), primary_key=True)
     asset_id       = Column(Integer, nullable=True, index=True)
     is_partial     = Column(Boolean, nullable=False, default=False, server_default=sa_false())
+    profile        = Column(String(20), nullable=False, default="standard", server_default="standard")
 
     # Sin ``inherit_condition``: hacía falta mientras existía ``source_scan_id``,
     # una segunda clave foránea a ``Scan.id`` que dejaba ambigua la unión con la
