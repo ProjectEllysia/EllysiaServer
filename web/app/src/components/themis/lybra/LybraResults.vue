@@ -8,7 +8,11 @@
       </button>
     </div>
 
-    <Transition name="fade-swap" mode="out-in">
+    <!-- Sin mode="out-in": esperaría un transitionend de salida que el
+         navegador no emite en pestañas en segundo plano, y un escaneo largo
+         es justo cuando el usuario se va a otra pestaña. Mismo motivo que
+         ScanTable.vue: se saca el saliente del flujo con position: absolute. -->
+    <Transition name="fade-swap">
       <div v-if="loading && !scans.length" key="loading" class="scan-list"
            aria-busy="true" aria-label="Cargando veredictos">
         <div v-for="n in SKELETON_ROWS" :key="n" class="scan-ghost" aria-hidden="true">
@@ -21,7 +25,8 @@
         <span>El motor aún no ha emitido ningún veredicto. ¡Lanza el primero!</span>
       </div>
 
-      <div v-else key="list" class="scan-list">
+      <div v-else key="list" class="scan-list-wrap">
+      <TransitionGroup tag="div" name="scan-item" class="scan-list">
         <article v-for="scan in scans" :key="scan.id" class="scan-card" :class="{ open: expanded.has(scan.id) }">
           <!-- Cabecera de la tarjeta -->
           <button class="scan-head" @click="toggle(scan.id)">
@@ -35,26 +40,34 @@
               :title="scan.exposure === 'public' ? 'IP pública — la prioridad se ajusta al alza' : 'LAN privada — la prioridad se modera'">
               {{ scan.exposure === 'public' ? 'Pública' : 'Privada' }}
             </span>
-            
 
-            <!-- Resumen de prioridades -->
-            <span class="prio-summary">
-              <span v-for="lvl in LADDER" :key="lvl"
-                v-show="summary(scan)[lvl]" class="prio-pill" :class="lvl.toLowerCase()"
+
+            <!-- Resumen de prioridades: TransitionGroup en vez de v-show, mismo
+                 lenguaje que .num-flip de StatsRow.vue — una pastilla que
+                 aparece o cambia de recuento lo hace con un gesto corto, no
+                 de golpe. -->
+            <TransitionGroup tag="span" name="pill-pop" class="prio-summary">
+              <span v-for="lvl in visibleLadder(scan)" :key="lvl"
+                class="prio-pill" :class="lvl.toLowerCase()"
                 :title="`${summary(scan)[lvl]} ${PRIO_LABEL[lvl]}`">
                 {{ summary(scan)[lvl] }}
               </span>
-              <span v-if="scan.status === 'finished' && !scan.totalFindings && !scan.isPartial" class="prio-clean">Sin hallazgos</span>
-              <span v-if="scan.isPartial" class="prio-partial"
+              <span v-if="scan.status === 'finished' && !scan.totalFindings && !scan.isPartial" key="clean" class="prio-clean">Sin hallazgos</span>
+              <span v-if="scan.isPartial" key="partial" class="prio-partial"
                 title="El descubrimiento se quedó sin tiempo: lo que se ve es cierto, pero no es toda la superficie">Parcial</span>
-            </span>
+            </TransitionGroup>
 
             <span class="scan-date">{{ fmtDate(scan.finishedAt || scan.startedAt) }}</span>
           </button>
 
-          <!-- Cuerpo expandible -->
-          <Transition name="expand">
-            <div v-if="expanded.has(scan.id)" class="scan-body">
+          <!-- Cuerpo expandible: alto animado con grid-template-rows (mismo
+               patrón que FolderAccordion.vue), no solo opacidad. El v-if de
+               dentro sigue evitando pintar hallazgos/documentos de una
+               tarjeta que nunca se ha abierto; una vez abierta, el cuerpo
+               queda montado (solo se pliega) para poder animar su alto. -->
+          <div class="scan-collapse" :class="{ expanded: expanded.has(scan.id) }">
+            <div class="scan-collapse-inner">
+            <div v-if="everOpened.has(scan.id)" class="scan-body">
               <!-- Un escaneo puede tardar minutos, y lo único que se veía en
                    todo ese rato era una frase con un reloj al lado. La barra no
                    finge saber cuánto queda —el porcentaje real vive en la cola y
@@ -288,12 +301,14 @@
                 <button class="btn-del" @click="$emit('delete', scan.id)">Eliminar escaneo</button>
               </div>
             </div>
-          </Transition>
+            </div>
+          </div>
         </article>
+      </TransitionGroup>
 
-        <button v-if="canLoadMore" class="load-more" :disabled="loading" @click="$emit('load-more')">
-          {{ loading ? 'Cargando…' : `Ver más (${scans.length} de ${totalCount})` }}
-        </button>
+      <button v-if="canLoadMore" class="load-more" :disabled="loading" @click="$emit('load-more')">
+        {{ loading ? 'Cargando…' : `Ver más (${scans.length} de ${totalCount})` }}
+      </button>
       </div>
     </Transition>
   </div>
@@ -391,12 +406,22 @@ function docsFor(scanId) { return props.docsByScan[scanId]?.items || [] }
 function docsLoading(scanId) { return !!props.docsByScan[scanId]?.loading }
 
 const expanded = ref(new Set())
+/**
+ * Tarjetas que se han abierto alguna vez. El cuerpo (`.scan-body`) sólo se
+ * monta la primera vez que se abre una tarjeta —así una tarjeta que nunca se
+ * toca no paga pintar hallazgos ni documentos— pero, a diferencia de
+ * `expanded`, nunca se le quita nada: una vez montado, el cuerpo se queda
+ * montado y sólo se pliega vía `.scan-collapse`, que es lo que permite
+ * animar su alto con `grid-template-rows` en vez de con opacidad.
+ */
+const everOpened = ref(new Set())
 function toggle(id) {
   const s = new Set(expanded.value)
   if (s.has(id)) {
     s.delete(id)
   } else {
     s.add(id)
+    everOpened.value = new Set(everOpened.value).add(id)
     if (!props.docsByScan[id]) emit('load-docs', id)
   }
   expanded.value = s
@@ -520,6 +545,20 @@ function summary(scan) {
 }
 
 /**
+ * Niveles de `LADDER` con recuento para un escaneo, en orden de severidad.
+ *
+ * Antes la condición vivía en un `v-show` sobre el propio `v-for` (evitando a
+ * propósito mezclar `v-if` y `v-for` en el mismo elemento, que en Vue 3 no da
+ * acceso a la variable del bucle). Al pasar a `TransitionGroup` hace falta
+ * `v-if` para que la pastilla entre y salga del DOM de verdad, así que el
+ * filtrado se saca aquí en vez de ponerlo en la plantilla.
+ */
+function visibleLadder(scan) {
+  const s = summary(scan)
+  return LADDER.filter(lvl => s[lvl])
+}
+
+/**
  * Detecta un análisis de inventario (nacido del inventario de software de un
  * activo Hygeia) con paquetes sin identificar.
  *
@@ -547,7 +586,7 @@ function fmtDate(iso) {
 </script>
 
 <style scoped>
-.results-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.results-wrap { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
 .results-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 0.7rem 1rem; border-bottom: 1px solid var(--border); }
 .toolbar-title { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-weight: 600; font-size: var(--fs-xl); color: var(--text); }
 .btn-refresh { display: flex; align-items: center; gap: 0.35rem; padding: 0.35rem 0.7rem; background: var(--surface-2); border: 1px solid var(--border-solid); border-radius: 6px; color: var(--text-dim); font-size: var(--fs-md); cursor: pointer; transition: all 0.2s; }
@@ -560,9 +599,28 @@ function fmtDate(iso) {
 
 .fade-swap-enter-active, .fade-swap-leave-active { transition: opacity 0.2s ease; }
 .fade-swap-enter-from, .fade-swap-leave-to { opacity: 0; }
+/* Sin mode="out-in" los dos estados coexisten durante el cruce; sacando el
+   saliente del flujo (mismo patrón que ScanTable.vue) el entrante ocupa su
+   sitio desde el primer fotograma. */
+.fade-swap-leave-active { position: absolute; inset: 0; }
 
 /* ── Tarjeta de escaneo ── */
+.scan-list-wrap { position: relative; }
 .scan-list { display: flex; flex-direction: column; }
+/* La tarjeta nueva entra con un fundido y las demás se desplazan para
+   hacerle sitio; al borrar una, sale y el hueco se cierra suavemente. Mismo
+   lenguaje que .doc-item/.finding-item de más abajo. */
+.scan-item-enter-active { transition: opacity 0.3s ease, transform 0.3s ease; }
+.scan-item-enter-from { opacity: 0; transform: translateY(-8px); }
+.scan-item-leave-active { transition: opacity 0.15s ease; position: absolute; width: 100%; }
+.scan-item-leave-to { opacity: 0; }
+.scan-item-move { transition: transform 0.25s ease; }
+
+/* Pastillas de prioridad: mismo lenguaje que .num-flip de StatsRow.vue —
+   entran/cambian con un gesto corto en vez de aparecer de golpe. */
+.pill-pop-enter-active, .pill-pop-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
+.pill-pop-enter-from, .pill-pop-leave-to { opacity: 0; transform: translateY(-6px) scale(0.85); }
+.pill-pop-move { transition: transform 0.2s ease; }
 /* Mismo alto y mismo padding que .scan-head, para que al llegar los
    veredictos la lista no cambie de tamaño. */
 .scan-ghost {
@@ -604,8 +662,12 @@ function fmtDate(iso) {
 .info     { color: var(--text-muted); background: var(--surface); }
 
 /* ── Cuerpo ── */
-.expand-enter-active, .expand-leave-active { transition: opacity 0.2s ease; overflow: hidden; }
-.expand-enter-from, .expand-leave-to { opacity: 0; }
+/* Alto animado con grid-template-rows (mismo patrón que
+   .accordion-collapse de FolderAccordion.vue): el navegador sabe animar esto
+   aunque no conozca el alto final, a diferencia de height/max-height. */
+.scan-collapse { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+.scan-collapse.expanded { grid-template-rows: 1fr; }
+.scan-collapse-inner { overflow: hidden; min-height: 0; }
 .scan-body { padding: 0.3rem 1rem 0.9rem 2.4rem; }
 .body-clean { display: flex; align-items: center; gap: 0.5rem; padding: 0.7rem 0; font-size: var(--fs-lg); color: var(--success); }
 
@@ -843,7 +905,9 @@ function fmtDate(iso) {
   /* La barra se queda quieta y llena: sin movimiento sigue diciendo «esto está
      en curso», que es lo único que representa. */
   .state-progress span { animation: none !important; width: 100%; }
-  .chevron, .expand-enter-active, .expand-leave-active, .fade-swap-enter-active, .fade-swap-leave-active,
+  .chevron, .scan-collapse, .fade-swap-enter-active, .fade-swap-leave-active,
+  .scan-item-enter-active, .scan-item-leave-active, .scan-item-move,
+  .pill-pop-enter-active, .pill-pop-leave-active, .pill-pop-move,
   .findings-panel-enter-active, .findings-panel-leave-active,
   .finding-item-enter-active, .finding-item-leave-active, .finding-item-move,
   .doc-checkbox input[type="checkbox"], .doc-checkbox input[type="checkbox"]::after,
