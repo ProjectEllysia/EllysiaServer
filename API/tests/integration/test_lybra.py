@@ -939,6 +939,148 @@ def test_lybra_fingerprinting_identifies_the_service_on_its_own(app, admin_user,
     assert "Nmap" not in fingerprints[0].title
 
 
+def _stub_apache_http_probe(monkeypatch, version: str = "2.4.49") -> None:
+    from src.modules.features.themis.lybra.checks import HttpProbe, Response
+
+    def fake_fetch(self, host, port, method, path):
+        return Response(200, "<html><title>It works</title></html>",
+                        {"server": f"Apache/{version} (Unix)"})
+    monkeypatch.setattr(HttpProbe, "fetch", fake_fetch)
+    monkeypatch.setattr(HttpProbe, "fetch_bytes", lambda self, host, port, path: None)
+
+
+def test_a_rescan_of_an_unchanged_port_skips_the_fingerprint_probe(app, admin_user, monkeypatch):
+    """El CheckPlanner (#314): la segunda vez que se escanea el mismo puerto
+    con producto y versión ya conocidos, no vuelve a sondearse por red — se
+    reutiliza la identidad del surface tracking. La detección por versión
+    (y por tanto el hallazgo) se sigue produciendo igual, sólo se ahorra la
+    sonda."""
+    import src.modules.system.config_reading as CR
+
+    monkeypatch.setattr(CR, "lybra_config", lambda: CR.LybraConfig(fingerprinting_enabled=True))
+    _stub_apache_http_probe(monkeypatch)
+    _stub_self_discovery(monkeypatch, [80])
+    _authorize_target(app, admin_user.id)
+
+    with app.app_context():
+        mgr = LybraEngineManager()
+        first = mgr._create_scan_record(target="10.0.0.5", user_id=admin_user.id)
+        mgr._run_lybra(first.id)
+        with UnitOfWork() as uow:
+            first_findings = ScanRepository(uow).get_findings_by_scan(first.id)
+        assert any(f.category == "fingerprint" for f in first_findings)
+
+        probe_calls = []
+        original = LybraEngineManager._fingerprint_services
+
+        def spying_fingerprint(self, target, services, **kwargs):
+            probe_calls.append([s.port for s in services])
+            return original(self, target, services, **kwargs)
+        monkeypatch.setattr(LybraEngineManager, "_fingerprint_services", spying_fingerprint)
+
+        second = mgr._create_scan_record(target="10.0.0.5", user_id=admin_user.id)
+        mgr._run_lybra(second.id, planner_enabled=True)
+        with UnitOfWork() as uow:
+            second_findings = ScanRepository(uow).get_findings_by_scan(second.id)
+
+    # El puerto 80 no se volvió a sondear: la lista pasada a la sonda no lo trae.
+    assert all(80 not in call for call in probe_calls)
+    # El hallazgo "fingerprint" es justo el que anota que se sondeó por red,
+    # así que no reaparece — pero el servicio se sigue analizando: el
+    # open_port informativo se sigue emitiendo con la identidad reutilizada.
+    assert not any(f.category == "fingerprint" for f in second_findings)
+    assert any(f.category == "open_port" for f in second_findings)
+
+
+def test_planner_disabled_still_probes_an_unchanged_port(app, admin_user, monkeypatch):
+    """El escaneo completo bajo demanda (perfil "thorough") sigue sondeando
+    todo, sin que el planificador decida nada por su cuenta."""
+    import src.modules.system.config_reading as CR
+
+    monkeypatch.setattr(CR, "lybra_config", lambda: CR.LybraConfig(fingerprinting_enabled=True))
+    _stub_apache_http_probe(monkeypatch)
+    _stub_self_discovery(monkeypatch, [80])
+    _authorize_target(app, admin_user.id)
+
+    with app.app_context():
+        mgr = LybraEngineManager()
+        first = mgr._create_scan_record(target="10.0.0.5", user_id=admin_user.id)
+        mgr._run_lybra(first.id)
+
+        probe_calls = []
+        original = LybraEngineManager._fingerprint_services
+
+        def spying_fingerprint(self, target, services, **kwargs):
+            probe_calls.append([s.port for s in services])
+            return original(self, target, services, **kwargs)
+        monkeypatch.setattr(LybraEngineManager, "_fingerprint_services", spying_fingerprint)
+
+        second = mgr._create_scan_record(target="10.0.0.5", user_id=admin_user.id)
+        mgr._run_lybra(second.id, planner_enabled=False)
+
+    assert any(80 in call for call in probe_calls)
+
+
+def test_planner_globally_disabled_by_config_still_probes(app, admin_user, monkeypatch):
+    """El interruptor de despliegue manda por encima de lo que pida el perfil."""
+    import src.modules.system.config_reading as CR
+
+    monkeypatch.setattr(CR, "lybra_config", lambda: CR.LybraConfig(fingerprinting_enabled=True))
+    monkeypatch.setattr(CR, "lybra_planner_config", lambda: CR.LybraPlannerConfig(enabled=False))
+    _stub_apache_http_probe(monkeypatch)
+    _stub_self_discovery(monkeypatch, [80])
+    _authorize_target(app, admin_user.id)
+
+    with app.app_context():
+        mgr = LybraEngineManager()
+        first = mgr._create_scan_record(target="10.0.0.5", user_id=admin_user.id)
+        mgr._run_lybra(first.id)
+
+        probe_calls = []
+        original = LybraEngineManager._fingerprint_services
+
+        def spying_fingerprint(self, target, services, **kwargs):
+            probe_calls.append([s.port for s in services])
+            return original(self, target, services, **kwargs)
+        monkeypatch.setattr(LybraEngineManager, "_fingerprint_services", spying_fingerprint)
+
+        second = mgr._create_scan_record(target="10.0.0.5", user_id=admin_user.id)
+        mgr._run_lybra(second.id, planner_enabled=True)
+
+    assert any(80 in call for call in probe_calls)
+
+
+def test_a_new_port_on_a_rescan_is_still_probed(app, admin_user, monkeypatch):
+    """El planificador nunca se salta un puerto que no conocía de antes."""
+    import src.modules.system.config_reading as CR
+
+    monkeypatch.setattr(CR, "lybra_config", lambda: CR.LybraConfig(fingerprinting_enabled=True))
+    _stub_apache_http_probe(monkeypatch)
+    _authorize_target(app, admin_user.id)
+
+    with app.app_context():
+        mgr = LybraEngineManager()
+        _stub_self_discovery(monkeypatch, [80])
+        first = mgr._create_scan_record(target="10.0.0.5", user_id=admin_user.id)
+        mgr._run_lybra(first.id)
+
+        probe_calls = []
+        original = LybraEngineManager._fingerprint_services
+
+        def spying_fingerprint(self, target, services, **kwargs):
+            probe_calls.append(sorted(s.port for s in services))
+            return original(self, target, services, **kwargs)
+        monkeypatch.setattr(LybraEngineManager, "_fingerprint_services", spying_fingerprint)
+
+        # El segundo escaneo abre además el 8080, que el surface tracking no
+        # conocía todavía.
+        _stub_self_discovery(monkeypatch, [80, 8080])
+        second = mgr._create_scan_record(target="10.0.0.5", user_id=admin_user.id)
+        mgr._run_lybra(second.id, planner_enabled=True)
+
+    assert probe_calls[-1] == [8080]
+
+
 def test_lybra_identifies_a_service_on_a_non_canonical_port(app, admin_user, monkeypatch):
     """El punto ciego que multiplicaba a todos los demás.
 

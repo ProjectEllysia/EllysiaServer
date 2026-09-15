@@ -53,6 +53,8 @@ from ...lybra import (
     score_finding,
     build_service_rollup,
     apply_backport_verdicts,
+    CheckPlanner,
+    KnownService,
 )
 from ...lybra.ingest import select_for_services, translate_all
 from ...services import _Task
@@ -87,7 +89,9 @@ LYBRA_SCAN_PROFILES = ("fast", "standard", "thorough")
 _ALL_PORTS = list(range(1, 65536))
 
 
-def _resolve_profile(profile: str, aggressive: bool) -> tuple[Optional[list], bool, Optional[bool]]:
+def _resolve_profile(
+    profile: str, aggressive: bool
+) -> tuple[Optional[list], bool, Optional[bool], bool]:
     """Traduce un perfil de escaneo a los parámetros que el motor ya entendía.
 
     Sólo aplica en modo autodescubrimiento: un payload externo ya trae los
@@ -103,13 +107,16 @@ def _resolve_profile(profile: str, aggressive: bool) -> tuple[Optional[list], bo
             existieran los perfiles.
 
     Returns:
-        tuple: ``(discover_ports, aggressive, active_checks_override)``.
+        tuple: ``(discover_ports, aggressive, active_checks_override, planner_enabled)``.
             ``discover_ports`` es ``None`` para dejar el comportamiento por
             defecto (``DEFAULT_PORTS``) en el perfil "standard".
             ``active_checks_override`` es ``False`` sólo para "fast" (el
             perfil no puede *forzar* que se activen si el operador los
             desactivó globalmente, así que nunca vale ``True``); ``None``
             dejando mandar a ``LybraConfig.active_checks`` en los otros dos.
+            ``planner_enabled`` es ``False`` sólo para "thorough": es el
+            escaneo completo bajo demanda que #314 exige tener disponible
+            sin que el ``CheckPlanner`` decida saltarse nada.
 
     Raises:
         ValidationError: Si ``profile`` no es uno de :data:`LYBRA_SCAN_PROFILES`.
@@ -120,10 +127,10 @@ def _resolve_profile(profile: str, aggressive: bool) -> tuple[Optional[list], bo
             field="profile",
         )
     if profile == "fast":
-        return list(CR.lybra_profiles_config().fast_ports), False, False
+        return list(CR.lybra_profiles_config().fast_ports), False, False, True
     if profile == "thorough":
-        return _ALL_PORTS, True, None
-    return None, aggressive, None
+        return _ALL_PORTS, True, None, False
+    return None, aggressive, None, True
 
 
 @ScanManager.register(ScanType.LYBRA)
@@ -174,7 +181,7 @@ class LybraEngineManager(ScanManager):
         kwargs["discover_ports"] = arguments.get("discover_ports")
         return kwargs
 
-    def run_scan(self,  # pylint: disable=too-many-arguments,too-many-positional-arguments
+    def run_scan(self,  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
         user_id: int,
         target: Optional[str] = None,  # pylint: disable=arguments-differ
         services: Optional[List[Service]] = None,
@@ -229,8 +236,9 @@ class LybraEngineManager(ScanManager):
             Primary key of the created LybraScan record.
         """
         active_checks_override = None
+        planner_enabled = True
         if services is None and discover_ports is None:
-            discover_ports, aggressive, active_checks_override = (
+            discover_ports, aggressive, active_checks_override, planner_enabled = (
                 _resolve_profile(profile, aggressive)
             )
 
@@ -263,7 +271,8 @@ class LybraEngineManager(ScanManager):
             func=LybraEngineManager.execute_lybra_scan,
             job_name="LybraScan",
             trailing_args=(
-                discover_ports, services_payload, timeout, aggressive, active_checks_override,
+                discover_ports, services_payload, timeout, aggressive,
+                active_checks_override, planner_enabled,
             ),
             timeout=timeout,
         )
@@ -273,13 +282,14 @@ class LybraEngineManager(ScanManager):
         return scan_id  # type: ignore
 
     @staticmethod
-    def execute_lybra_scan(
+    def execute_lybra_scan(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         scan_id: int,
         discover_ports: Optional[list] = None,
         services: Optional[List[Service]] = None,
         timeout: Optional[int] = None,
         aggressive: bool = False,
         active_checks_override: Optional[bool] = None,
+        planner_enabled: bool = True,
     ) -> None:
         """Entry point submitted to the TaskQueue. Runs the engine in the worker.
 
@@ -291,7 +301,9 @@ class LybraEngineManager(ScanManager):
         agresivo por sorpresa. ``active_checks_override`` es opcional con el
         mismo criterio — un job encolado antes de que existieran los perfiles
         no lo trae, y ``None`` es justo "no lo cambies", el comportamiento que
-        ya tenía.
+        ya tenía. ``planner_enabled`` por el mismo motivo, con el default que
+        reproduce el comportamiento previo a #314: un job antiguo sondea todo,
+        que es justo lo que hacía antes de que existiera el planificador.
 
         ``services`` acepta tanto ``Service`` como el dict equivalente, y por el
         mismo motivo de compatibilidad: desde que ``run_scan`` encola por la
@@ -310,6 +322,7 @@ class LybraEngineManager(ScanManager):
                 report_progress=job.progress,
                 aggressive=aggressive,
                 active_checks_override=active_checks_override,
+                planner_enabled=planner_enabled,
             )
 
     @staticmethod
@@ -351,7 +364,7 @@ class LybraEngineManager(ScanManager):
         """Segundos que quedan hasta ``deadline``, o ``None`` si no hay plazo."""
         return None if deadline is None else max(0.0, deadline - time.monotonic())
 
-    def _run_lybra(  # pylint: disable=too-many-arguments,too-many-locals,too-many-statements,too-many-positional-arguments
+    def _run_lybra(
         self,
         scan_id: int,
         discover_ports: Optional[list] = None,
@@ -361,6 +374,7 @@ class LybraEngineManager(ScanManager):
         report_progress: Optional[Callable[[int], None]] = None,
         aggressive: bool = False,
         active_checks_override: Optional[bool] = None,
+        planner_enabled: bool = True,
     ) -> None:
         """Resolve services (own discovery or a payload), detect, persist.
 
@@ -391,7 +405,19 @@ class LybraEngineManager(ScanManager):
         dejar mandar a ``LybraConfig.active_checks`` como siempre. Nunca
         vale ``True`` — un perfil no puede *forzar* checks que el operador
         desactivó, sólo desactivarlos para su propio escaneo.
+
+        ``planner_enabled`` gobierna si el fingerprint usa el
+        ``CheckPlanner`` (#314): un servicio cuyo puerto ya tenía producto y
+        versión resueltos en el escaneo anterior se reutiliza en vez de
+        volver a sondearse por red. La detección por versión se ejecuta
+        siempre sobre el resultado, sondeado o reutilizado, así que ningún
+        hallazgo puede cerrarse por "no se comprobó" — lo único que el
+        planificador ahorra es la sonda de red, nunca el análisis. ``False``
+        para el perfil "thorough", que es el escaneo completo sin atajos que
+        #314 exige tener siempre disponible.
         """
+        # pylint: disable=too-many-arguments,too-many-locals,too-many-statements
+        # pylint: disable=too-many-positional-arguments,too-many-branches
         deadline = time.monotonic() + timeout if timeout else None
         is_cancelled = cancel_check or (lambda: False)
 
@@ -477,11 +503,28 @@ class LybraEngineManager(ScanManager):
                     and CR.lybra_config().fingerprinting_enabled
                     and not should_stop()
                 ):
-                    services, fingerprint_findings = self._fingerprint_services(
-                        target=source_target,
-                        services=services,
-                        cancel_check=should_stop,
+                    planner = (
+                        self._build_check_planner(scan_repo, source_host_id)
+                        if planner_enabled and CR.lybra_planner_config().enabled
+                        else None
                     )
+                    if planner is None:
+                        services, fingerprint_findings = self._fingerprint_services(
+                            target=source_target,
+                            services=services,
+                            cancel_check=should_stop,
+                        )
+                    else:
+                        to_probe, to_reuse = planner.partition(services)
+                        probed, fingerprint_findings = self._fingerprint_services(
+                            target=source_target,
+                            services=to_probe,
+                            cancel_check=should_stop,
+                        )
+                        reused = [planner.apply_cached_identity(service) for service in to_reuse]
+                        services = self._merge_fingerprint_results(
+                            services, to_probe, probed, to_reuse, reused
+                        )
                     is_partial = is_partial or should_stop()
                 report(70)
 
@@ -900,6 +943,66 @@ class LybraEngineManager(ScanManager):
             updated.append(service)
 
         return updated, findings
+
+    @staticmethod
+    def _build_check_planner(scan_repo, host_id: Optional[int]) -> Optional[CheckPlanner]:
+        """Construye el ``CheckPlanner`` a partir del surface tracking del host.
+
+        Reutiliza ``get_host_services`` — la misma consulta que
+        ``_detect_surface_changes`` hace después para el diff informativo.
+        La clave es ``(port, protocol)``, no la de ``_surface_key``: esa
+        incluye un tercer campo (el producto, para el caso portless) que
+        aquí sobra — el ``CheckPlanner`` sólo trata con servicios con
+        puerto, los únicos que se pueden sondear por red.
+
+        Args:
+            host_id: El host cuyo escaneo anterior se consulta, o ``None``
+                cuando el descubrimiento todavía no ha resuelto un ``Host``
+                — sin identidad de host no hay superficie anterior que mirar,
+                así que no hay nada que planificar.
+
+        Returns:
+            Optional[CheckPlanner]: ``None`` sin host; en otro caso, un
+                planificador con lo que el surface tracking recordaba de
+                cada servicio con puerto (los de inventario, sin puerto,
+                nunca tienen nada que reutilizar por red).
+        """
+        if host_id is None:
+            return None
+        previous_surface = {
+            (row.port, row.protocol or "tcp"): KnownService(
+                product=row.product or "", version=row.version or "", cpe=row.cpe,
+            )
+            for row in scan_repo.get_host_services(host_id)
+            if row.port is not None
+        }
+        return CheckPlanner(previous_surface)
+
+    @staticmethod
+    def _merge_fingerprint_results(
+        original: list, probed_inputs: list, probed_outputs: list,
+        reused_inputs: list, reused_outputs: list,
+    ) -> list:
+        """Recombina los resultados del fingerprint en el orden original.
+
+        El ``CheckPlanner`` parte ``original`` en dos listas para sondear una
+        y reutilizar la otra; esto las vuelve a intercalar en el orden con el
+        que llegaron, que es lo que mantiene reproducible la salida del
+        escaneo (ver el comentario de ``_fingerprint_services`` sobre por qué
+        el orden importa para el ciclo de vida).
+
+        ``probed_inputs``/``reused_inputs`` son las mismas instancias que hay
+        en ``original`` (el ``CheckPlanner`` particiona por referencia, no por
+        copia), así que emparejarlas por identidad con sus ``*_outputs``
+        respectivos no depende de que ``Service`` sea hashable ni de que dos
+        servicios distintos con los mismos valores puedan confundirse.
+        """
+        probed_map = {id(service): result for service, result in zip(probed_inputs, probed_outputs)}
+        reused_map = {id(service): result for service, result in zip(reused_inputs, reused_outputs)}
+        return [
+            probed_map.get(id(service), reused_map.get(id(service), service))
+            for service in original
+        ]
 
     @staticmethod
     def _in_host_pool(work, items):

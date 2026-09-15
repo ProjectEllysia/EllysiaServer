@@ -1212,6 +1212,29 @@ def lybra_profiles_config() -> LybraProfilesConfig:
     return load_block(LybraProfilesConfig)
 
 
+@config_block("features.themis.scanners.lybra.planner")
+@dataclass(frozen=True)
+class LybraPlannerConfig:
+    """El re-escaneo inteligente: qué servicios no hace falta volver a sondear.
+
+    Un interruptor de despliegue, como ``LybraConfig`` — la lógica de
+    decisión vive en ``lybra/planner.py::CheckPlanner`` y no toca esta
+    config directamente; el manager es quien la consulta antes de construir
+    el planificador.
+    """
+
+    enabled: bool = True
+    """Si el motor reutiliza el producto/versión ya conocido de un
+    servicio en vez de volver a sondearlo por red. El perfil "thorough"
+    (#308) lo ignora siempre — es el escaneo completo bajo demanda que el
+    criterio de cierre de esta necesidad exige tener disponible sin
+    planificador de por medio."""
+
+
+def lybra_planner_config() -> LybraPlannerConfig:
+    return load_block(LybraPlannerConfig)
+
+
 @config_block("features.themis.scanners.lybra.evidence")
 @dataclass(frozen=True)
 class LybraEvidenceConfig:
