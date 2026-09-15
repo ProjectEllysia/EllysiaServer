@@ -73,6 +73,59 @@ from .sources import ServiceSource, DiscoveryProbes
 logger = logging.getLogger(__name__)
 
 
+# Los tres perfiles de escaneo: composición con nombre de lo que
+# ``LybraEngineConfig``/``LybraProfilesConfig`` ya deja configurable, no un
+# concepto nuevo del motor. "standard" es el comportamiento que Lybra ya
+# tenía antes de que existieran los perfiles — el valor por defecto de
+# ``run_scan`` lo mantiene así para cualquier llamador que no elija uno.
+LYBRA_SCAN_PROFILES = ("fast", "standard", "thorough")
+
+# El barrido completo del perfil "thorough". Es una lista, no un rango
+# perezoso, porque ``ServiceSource``/``AsyncConnectScanner`` esperan poder
+# iterarla más de una vez (log de progreso, recuento) y 65535 enteros no
+# pesan lo bastante para que la diferencia importe.
+_ALL_PORTS = list(range(1, 65536))
+
+
+def _resolve_profile(profile: str, aggressive: bool) -> tuple[Optional[list], bool, Optional[bool]]:
+    """Traduce un perfil de escaneo a los parámetros que el motor ya entendía.
+
+    Sólo aplica en modo autodescubrimiento: un payload externo ya trae los
+    servicios resueltos y no hay puertos que barrer distinto según el perfil.
+
+    Args:
+        profile: Uno de :data:`LYBRA_SCAN_PROFILES`.
+        aggressive: La petición explícita de modo agresivo que ya existía.
+            El perfil "thorough" la implica; el perfil "fast" la desactiva
+            sin excepción (un escaneo rápido no escribe en el objetivo bajo
+            ningún concepto); "standard" respeta lo que el llamante pida,
+            compatibilidad con quien ya usaba ``aggressive`` antes de que
+            existieran los perfiles.
+
+    Returns:
+        tuple: ``(discover_ports, aggressive, active_checks_override)``.
+            ``discover_ports`` es ``None`` para dejar el comportamiento por
+            defecto (``DEFAULT_PORTS``) en el perfil "standard".
+            ``active_checks_override`` es ``False`` sólo para "fast" (el
+            perfil no puede *forzar* que se activen si el operador los
+            desactivó globalmente, así que nunca vale ``True``); ``None``
+            dejando mandar a ``LybraConfig.active_checks`` en los otros dos.
+
+    Raises:
+        ValidationError: Si ``profile`` no es uno de :data:`LYBRA_SCAN_PROFILES`.
+    """
+    if profile not in LYBRA_SCAN_PROFILES:
+        raise ValidationError(
+            message=f"Perfil de escaneo desconocido: '{profile}'",
+            field="profile",
+        )
+    if profile == "fast":
+        return list(CR.lybra_profiles_config().fast_ports), False, False
+    if profile == "thorough":
+        return _ALL_PORTS, True, None
+    return None, aggressive, None
+
+
 @ScanManager.register(ScanType.LYBRA)
 class LybraEngineManager(ScanManager):
     """
@@ -130,6 +183,7 @@ class LybraEngineManager(ScanManager):
         programed_scan_id: Optional[int] = None,
         asset_id: Optional[int] = None,
         aggressive: bool = False,
+        profile: str = "standard",
     ) -> int:
         """
         Start an Lybra engine scan in one of two modes.
@@ -162,10 +216,24 @@ class LybraEngineManager(ScanManager):
                 default-credentials engine, the only family that
                 writes to the target. Never set from a scheduled scan — see
                 ``scheduled_run_kwargs``, which does not forward it.
+            profile: Uno de :data:`LYBRA_SCAN_PROFILES` — "fast" (puertos
+                comunes, sin checks activos), "standard" (el comportamiento
+                de siempre) o "thorough" (barrido completo, agresivo si el
+                objetivo está autorizado). Sólo tiene efecto en modo
+                autodescubrimiento: un ``discover_ports`` explícito, o el
+                modo de payload externo, lo ignoran — el llamante ya decidió
+                qué mirar. Se persiste en el escaneo para que el informe
+                pueda decir con qué perfil se generó.
 
         Returns:
             Primary key of the created LybraScan record.
         """
+        active_checks_override = None
+        if services is None and discover_ports is None:
+            discover_ports, aggressive, active_checks_override = (
+                _resolve_profile(profile, aggressive)
+            )
+
         source = ServiceSource.build_for_args(services, discover_ports)
         scan_target = source.valid_scan_target(user_id, target)
 
@@ -191,9 +259,12 @@ class LybraEngineManager(ScanManager):
             user_id=user_id,
             programed_scan_id=programed_scan_id,
             asset_id=asset_id,
+            profile=profile,
             func=LybraEngineManager.execute_lybra_scan,
             job_name="LybraScan",
-            trailing_args=(discover_ports, services_payload, timeout, aggressive),
+            trailing_args=(
+                discover_ports, services_payload, timeout, aggressive, active_checks_override,
+            ),
             timeout=timeout,
         )
         scan_id = scan.id
@@ -208,6 +279,7 @@ class LybraEngineManager(ScanManager):
         services: Optional[List[Service]] = None,
         timeout: Optional[int] = None,
         aggressive: bool = False,
+        active_checks_override: Optional[bool] = None,
     ) -> None:
         """Entry point submitted to the TaskQueue. Runs the engine in the worker.
 
@@ -216,7 +288,10 @@ class LybraEngineManager(ScanManager):
         despliegue en vez de fallar al deserializarse. ``aggressive`` es
         opcional por el mismo motivo, con el mismo default seguro: un job
         encolado antes de este cambio se ejecuta en modo ``safe``, nunca en
-        agresivo por sorpresa.
+        agresivo por sorpresa. ``active_checks_override`` es opcional con el
+        mismo criterio — un job encolado antes de que existieran los perfiles
+        no lo trae, y ``None`` es justo "no lo cambies", el comportamiento que
+        ya tenía.
 
         ``services`` acepta tanto ``Service`` como el dict equivalente, y por el
         mismo motivo de compatibilidad: desde que ``run_scan`` encola por la
@@ -234,6 +309,7 @@ class LybraEngineManager(ScanManager):
                 cancel_check=job.cancelled,
                 report_progress=job.progress,
                 aggressive=aggressive,
+                active_checks_override=active_checks_override,
             )
 
     @staticmethod
@@ -284,6 +360,7 @@ class LybraEngineManager(ScanManager):
         cancel_check: Optional[Callable[[], bool]] = None,
         report_progress: Optional[Callable[[int], None]] = None,
         aggressive: bool = False,
+        active_checks_override: Optional[bool] = None,
     ) -> None:
         """Resolve services (own discovery or a payload), detect, persist.
 
@@ -307,6 +384,13 @@ class LybraEngineManager(ScanManager):
         que protege cualquier cosa que escriba en el objetivo.
         Un objetivo autorizado sin petición explícita se queda en ``safe``;
         una petición explícita sobre un objetivo no autorizado, también.
+
+        ``active_checks_override`` viene de ``_resolve_profile``: ``False``
+        para el perfil "fast" (que no corre ningún check activo, ni siquiera
+        los que el operador tiene habilitados globalmente), ``None`` para
+        dejar mandar a ``LybraConfig.active_checks`` como siempre. Nunca
+        vale ``True`` — un perfil no puede *forzar* checks que el operador
+        desactivó, sólo desactivarlos para su propio escaneo.
         """
         deadline = time.monotonic() + timeout if timeout else None
         is_cancelled = cancel_check or (lambda: False)
@@ -440,8 +524,12 @@ class LybraEngineManager(ScanManager):
                 cve for finding in findings_data
                 for cve in (finding.get("cve_ids") or ()))
 
+            active_checks_enabled = (
+                CR.lybra_config().active_checks
+                if active_checks_override is None else active_checks_override
+            )
             if (source.probes_target_network and source_target and is_target_authorized
-                    and CR.lybra_config().active_checks and not should_stop()):
+                    and active_checks_enabled and not should_stop()):
                 findings_data.extend(
                     self._run_active_checks(source_target, services,
                                             cancel_check=should_stop,
@@ -1229,6 +1317,7 @@ class LybraEngineManager(ScanManager):
     def _create_scan_record(
         self, target: str, user_id: int,
         programed_scan_id: Optional[int] = None, asset_id: Optional[int] = None,
+        profile: str = "standard",
     ) -> LybraScan:  # pylint: disable=arguments-differ
         """Create and persist an LybraScan row.
 
@@ -1241,7 +1330,7 @@ class LybraEngineManager(ScanManager):
         """
         return super()._create_scan_record(
             target=target, user_id=user_id, programed_scan_id=programed_scan_id,
-            asset_id=asset_id,
+            asset_id=asset_id, profile=profile,
         )
 
     def _persist_scan_results(self, uow, scan, domain_data) -> None:
@@ -1384,6 +1473,7 @@ class LybraEngineManager(ScanManager):
             "target": scan.target,
             "assetId": scan.asset_id,
             "isPartial": bool(scan.is_partial),
+            "profile": getattr(scan, "profile", "standard"),
             "exposure": exposure,
             "targetAuthorized": target_authorized,
             "status": getattr(scan, "status", "unknown"),
