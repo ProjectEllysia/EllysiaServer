@@ -24,10 +24,14 @@ from .stats import (
     EnergyCost,
     PeriodClassification,
     PowerAverage,
+    StatSummary,
+    calculate_percentile,
     classify_period,
     energy_and_cost,
     project_month,
     summarize_power_period,
+    summarize_series_by_asset,
+    summarize_values,
     weighted_average_with_observed_time,
 )
 
@@ -54,4 +58,8 @@ __all__ = [
     "classify_period",
     "summarize_power_period",
     "project_month",
+    "StatSummary",
+    "calculate_percentile",
+    "summarize_values",
+    "summarize_series_by_asset",
 ]
