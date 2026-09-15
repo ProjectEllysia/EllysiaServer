@@ -17,6 +17,7 @@ que siembra la migración no existen aquí.
 """
 
 import secrets
+from datetime import datetime, timezone
 
 import pytest
 
@@ -283,3 +284,79 @@ def test_a_personal_tag_without_an_owner_is_rejected_by_the_database(app):
         with pytest.raises(SQLAlchemyError, match="ck_hygeiatag_owner"):
             with UnitOfWork() as uow:
                 HygeiaTagRepository(uow).save(UserTag(name="Huérfana", color="slate"))
+
+
+# ---------------------------------------------------------------------------
+# Catálogo: última actividad de cada etiqueta
+# ---------------------------------------------------------------------------
+
+def _set_last_seen(app, asset_id: int, last_seen_at) -> None:
+    """Fija la última señal de un activo, como si hubiera latido en ese instante."""
+    with app.app_context():
+        with UnitOfWork() as uow:
+            repo = MonitoredAssetRepository(uow)
+            asset = repo.get_by_id(asset_id)
+            asset.last_seen_at = last_seen_at
+            repo.update(asset)
+
+
+def _parse_utc(text: str):
+    """Convierte un instante ISO de la API (``Z`` o ``+00:00``) en naive-UTC."""
+    return datetime.fromisoformat(text.replace("Z", "+00:00")).astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def test_catalog_reports_the_last_activity_of_your_own_assets(app, client, make_user, auth_headers):
+    """``lastActivityAt`` es la última señal del activo más reciente del usuario, no de uno ajeno."""
+    owner = make_user()
+    stranger = make_user()
+    shared_tag = _create_system_tag(app, "Cloud", "teal")
+    older = _create_asset(app, owner.id, hostname="older")
+    newer = _create_asset(app, owner.id, hostname="newer")
+    foreign = _create_asset(app, stranger.id, hostname="foreign")
+    _set_last_seen(app, older, datetime(2026, 9, 1, 8, 0, 0))
+    _set_last_seen(app, newer, datetime(2026, 9, 1, 9, 30, 0))
+    _set_last_seen(app, foreign, datetime(2026, 9, 1, 23, 0, 0))
+    for user, asset_id in ((owner, older), (owner, newer), (stranger, foreign)):
+        client.put(
+            f"/hygeia/assets/{asset_id}/tags", json={"tagIds": [shared_tag]},
+            headers=auth_headers(user),
+        )
+
+    tag = client.get("/hygeia/tags", headers=auth_headers(owner)).get_json()["tags"][0]
+
+    assert tag["assetCount"] == 2
+    # La del activo ajeno es más reciente, pero delataría cuándo estuvo
+    # encendido un servidor de otro usuario: no cuenta.
+    assert _parse_utc(tag["lastActivityAt"]) == datetime(2026, 9, 1, 9, 30, 0)
+
+
+def test_a_tag_without_activity_has_no_last_activity(app, client, regular_user, auth_headers):
+    """Sin activos, o con activos que nunca han reportado, ``lastActivityAt`` es ``null``."""
+    empty_tag = _create_user_tag(app, regular_user.id, "Vacía")
+    silent_tag = _create_user_tag(app, regular_user.id, "Silenciosa")
+    silent_asset = _create_asset(app, regular_user.id, hostname="never-reported")
+    client.put(
+        f"/hygeia/assets/{silent_asset}/tags", json={"tagIds": [silent_tag]},
+        headers=auth_headers(regular_user),
+    )
+
+    tags = {
+        tag["id"]: tag
+        for tag in client.get("/hygeia/tags", headers=auth_headers(regular_user)).get_json()["tags"]
+    }
+
+    assert tags[empty_tag]["assetCount"] == 0
+    assert tags[empty_tag]["lastActivityAt"] is None
+    assert tags[silent_tag]["assetCount"] == 1
+    assert tags[silent_tag]["lastActivityAt"] is None
+
+
+def test_a_new_tag_starts_without_activity(client, regular_user, auth_headers):
+    """El alta devuelve la etiqueta sin activos ni actividad."""
+    created = client.post(
+        "/hygeia/tags", json={"name": "Recién creada", "color": "green"},
+        headers=auth_headers(regular_user),
+    ).get_json()
+
+    assert created["assetCount"] == 0
+    assert created["lastActivityAt"] is None

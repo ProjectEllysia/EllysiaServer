@@ -10,12 +10,14 @@ from datetime import datetime
 
 import pytest
 
-from src.modules.features.hygeia.exceptions import UnknownMetricError
+from src.modules.features.hygeia.exceptions import NonAdditiveMetricError, UnknownMetricError
 from src.modules.features.hygeia.model import AssetSnapshot
 from src.modules.features.hygeia.services.metric_registry import (
     METRIC_REGISTRY,
     MetricDefinition,
+    MetricUnit,
     assert_metric_definition,
+    validate_metrics_are_additive,
 )
 
 pytestmark = pytest.mark.unit
@@ -93,6 +95,7 @@ def test_a_jsonb_metric_fits_the_same_definition_without_a_column():
     root_disk = MetricDefinition(
         name="rootDiskPct",
         extractor=lambda snapshot: snapshot.metrics["disk"]["/"]["usagePct"],
+        unit=MetricUnit.PERCENT,
     )
     snapshot = AssetSnapshot(metrics={"disk": {"/": {"usagePct": 71.0}}})
 
@@ -104,3 +107,41 @@ def test_registry_is_read_only():
     """El catálogo no se puede ampliar en tiempo de ejecución."""
     with pytest.raises(TypeError):
         METRIC_REGISTRY["newMetric"] = METRIC_REGISTRY["cpuPct"]
+
+
+def test_every_metric_declares_its_unit():
+    """Cada métrica dice en qué se expresa: la memoria es un porcentaje, no bytes."""
+    assert {name: definition.unit for name, definition in METRIC_REGISTRY.items()} == {
+        "cpuPct": MetricUnit.PERCENT,
+        "memPct": MetricUnit.PERCENT,
+        "swapPct": MetricUnit.PERCENT,
+        "diskMaxPct": MetricUnit.PERCENT,
+        "load1": MetricUnit.LOAD_AVERAGE,
+        "netRxBps": MetricUnit.BYTES_PER_SECOND,
+        "netTxBps": MetricUnit.BYTES_PER_SECOND,
+        "powerWatts": MetricUnit.WATTS,
+    }
+
+
+def test_only_traffic_and_power_can_be_summed_across_assets():
+    """El total de una etiqueta solo tiene sentido en tráfico y potencia."""
+    additive_names = {name for name, definition in METRIC_REGISTRY.items() if definition.is_additive}
+
+    assert additive_names == {"netRxBps", "netTxBps", "powerWatts"}
+
+
+def test_summing_a_percentage_is_a_400_with_the_additive_catalogue():
+    """Pedir la suma de un porcentaje da 400 y dice qué métricas sí se suman."""
+    with pytest.raises(NonAdditiveMetricError) as raised:
+        validate_metrics_are_additive([METRIC_REGISTRY["netRxBps"], METRIC_REGISTRY["cpuPct"]])
+
+    error = raised.value
+    assert error.status_code == 400
+    assert error.expose_details is True
+    assert error.details["metric"] == "cpuPct"
+    assert error.details["additive_metrics"] == ["netRxBps", "netTxBps", "powerWatts"]
+
+
+def test_additive_metrics_pass_the_check():
+    """Tráfico y potencia se pueden sumar sin error."""
+    validate_metrics_are_additive([METRIC_REGISTRY["powerWatts"], METRIC_REGISTRY["netTxBps"]])

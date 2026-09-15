@@ -33,7 +33,7 @@ from .exceptions import (
 )
 from .managers import (
     HygeiaAlertManager, HygeiaAssetManager, HygeiaIngestManager, HygeiaReportManager,
-    HygeiaTagManager,
+    HygeiaStatsManager, HygeiaTagManager,
 )
 from .schemas import (
     AnalyzeInventoryResponseSchema,
@@ -61,6 +61,10 @@ from .schemas import (
     TagCreateRequestSchema,
     TagListResponseSchema,
     TagSchema,
+    TagRankingQuerySchema,
+    TagRankingResponseSchema,
+    TagStatsQuerySchema,
+    TagStatsResponseSchema,
 )
 from .services import agent_key_id_from_request, enforce_ingest_limits, require_agent_key
 
@@ -201,6 +205,50 @@ def get_asset_stats_summary(args, asset_id):
     return manager.get_stats_summary(
         asset_id,
         metric_names=args["metric_names"],
+        requested_duration=args["requested_duration"],
+    )
+
+
+@hygeia_blp.get("/stats/by-tag/<int:tag_id>")
+@hygeia_blp.arguments(TagStatsQuerySchema, location="query")
+@hygeia_blp.response(200, TagStatsResponseSchema, description="Estadísticas de una etiqueta")
+@hygeia_blp.alt_response(400, schema=ErrorSchema, description="Unknown or non-additive metric")
+@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@hygeia_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@hygeia_blp.alt_response(404, schema=ErrorSchema, description="Tag not found")
+@limiter.limit("600 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
+@handle_exceptions(default_exception=TagNotFoundError, logger=logger)
+def get_tag_stats(args, tag_id):
+    """Obtener las métricas agregadas de los activos que llevan una etiqueta"""
+    user = get_current_user()
+    manager = HygeiaStatsManager(user)
+    return manager.get_tag_stats(
+        tag_id,
+        metric_names=args["metric_names"],
+        aggregation=args["agg"],
+        requested_duration=args["requested_duration"],
+    )
+
+
+@hygeia_blp.get("/stats/by-tag")
+@hygeia_blp.arguments(TagRankingQuerySchema, location="query")
+@hygeia_blp.response(200, TagRankingResponseSchema, description="Ranking de etiquetas")
+@hygeia_blp.alt_response(400, schema=ErrorSchema, description="Unknown or non-additive metric")
+@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@hygeia_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@limiter.limit("600 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
+@handle_exceptions(default_exception=HygeiaError, logger=logger)
+def get_tag_ranking(args):
+    """Ordenar las etiquetas del usuario por una métrica agregada de sus activos"""
+    user = get_current_user()
+    manager = HygeiaStatsManager(user)
+    return manager.get_tag_ranking(
+        metric_name=args["metric"],
+        aggregation=args["agg"],
         requested_duration=args["requested_duration"],
     )
 
