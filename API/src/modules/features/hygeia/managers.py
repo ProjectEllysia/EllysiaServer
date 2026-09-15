@@ -128,6 +128,46 @@ def _build_percentile_series_points(
     ]
 
 
+def _resolve_configured_stats_window(requested_duration: timedelta):
+    """Ventana de una consulta de estadísticas con los límites de la configuración vigente.
+
+    Todos los endpoints de estadísticas recortan el periodo igual: al menor
+    entre ``maxStatsPeriodDays`` y ``retentionDays``. Tenerlo en un solo sitio
+    evita que uno de ellos lea un límite distinto.
+
+    Args:
+        requested_duration: Duración pedida por el cliente, positiva.
+
+    Returns:
+        StatsWindow: La ventana que termina ahora, ya recortada.
+    """
+    return resolve_stats_window(
+        requested_duration, utcnow_naive(),
+        max_stats_period_days=CR.hygeia_limits().max_stats_period_days,
+        retention_days=CR.hygeia_config().retention_days,
+    )
+
+
+def _rank_assets(entries: list, order: str, limit: int) -> list:
+    """Ordena las entradas del ranking de activos y se queda con las ``limit`` primeras.
+
+    Los empates se resuelven por hostname en los dos sentidos, para que el
+    orden sea estable entre llamadas.
+
+    Args:
+        entries: Entradas con ``value`` (nunca ``None``: los activos sin
+            datos ya se han apartado) y ``hostname``.
+        order: ``"desc"`` (mayor valor primero) o ``"asc"``.
+        limit: Cuántas entradas conservar; positivo.
+
+    Returns:
+        list: Las ``limit`` primeras entradas en el orden pedido.
+    """
+    sign = -1 if order == "desc" else 1
+    ordered = sorted(entries, key=lambda entry: (sign * entry["value"], entry["hostname"].lower()))
+    return ordered[:limit]
+
+
 def _sort_key_for_tag_ranking(entry: dict) -> tuple:
     """Clave de orden del ranking de etiquetas: mayor valor primero, sin datos al final.
 
@@ -560,11 +600,7 @@ class HygeiaAssetManager:
             assert_metric_definition(name)
             for name in dict.fromkeys(metric_names or METRIC_REGISTRY)
         ]
-        window = resolve_stats_window(
-            requested_duration, utcnow_naive(),
-            max_stats_period_days=CR.hygeia_limits().max_stats_period_days,
-            retention_days=CR.hygeia_config().retention_days,
-        )
+        window = _resolve_configured_stats_window(requested_duration)
 
         snapshot_repo = build_repository(AssetSnapshotRepository)
         summaries_by_metric = {}
@@ -1021,11 +1057,7 @@ class HygeiaStatsManager:
         ]
         if aggregation == "sum":
             validate_metrics_are_additive(definitions)
-        window = resolve_stats_window(
-            requested_duration, utcnow_naive(),
-            max_stats_period_days=CR.hygeia_limits().max_stats_period_days,
-            retention_days=CR.hygeia_config().retention_days,
-        )
+        window = _resolve_configured_stats_window(requested_duration)
 
         assets = build_repository(MonitoredAssetRepository).get_by_tag(self.user.id, tag_id)
         hostnames_by_asset = {asset.id: asset.hostname for asset in assets}
@@ -1085,11 +1117,7 @@ class HygeiaStatsManager:
         definition = assert_metric_definition(metric_name)
         if aggregation == "sum":
             validate_metrics_are_additive([definition])
-        window = resolve_stats_window(
-            requested_duration, utcnow_naive(),
-            max_stats_period_days=CR.hygeia_limits().max_stats_period_days,
-            retention_days=CR.hygeia_config().retention_days,
-        )
+        window = _resolve_configured_stats_window(requested_duration)
 
         tag_repository = build_repository(HygeiaTagRepository)
         asset_ids_by_tag = tag_repository.get_asset_ids_by_tag(self.user.id)
@@ -1118,6 +1146,69 @@ class HygeiaStatsManager:
             "unit": definition.unit,
             "agg": aggregation,
             "tags": ranking,
+            "periodCoveredFrom": window.since,
+            "periodCoveredTo": window.until,
+            "isPeriodClipped": window.is_clipped,
+        }
+
+    def get_asset_ranking(
+        self, metric_name: str, aggregation: str, order: str, limit: int,
+        requested_duration: timedelta,
+    ) -> dict:
+        """
+        Ordena los activos del usuario por una métrica y devuelve los ``limit`` extremos.
+
+        Responde a "¿qué equipo está peor?" en una llamada. El valor de cada
+        activo es su media (``avg``) o su máximo (``max``) del periodo, y
+        salen de una sola consulta agrupada por activo para todo el parque del
+        usuario. Los activos sin ninguna muestra de la métrica en el periodo
+        no entran en el ranking: no se sabe su valor, y colocarlos como si
+        valiera cero los pondría en cabeza de un orden ascendente sin razón.
+
+        Args:
+            metric_name: Nombre público de la métrica por la que se ordena.
+            aggregation: ``"avg"`` o ``"max"``, qué valor de cada activo se
+                compara.
+            order: ``"desc"`` (los de mayor valor primero) o ``"asc"``.
+            limit: Cuántos activos devolver; positivo.
+            requested_duration: Duración del periodo pedido, antes de recortar.
+
+        Returns:
+            Diccionario con la forma de ``AssetRankingResponseSchema``: la
+            métrica y su unidad, ``agg``, ``order``, ``assetCount`` (activos
+            del usuario), ``assetsWithData``, ``assets`` (el ranking) y la
+            ventana cubierta.
+
+        Raises:
+            UnknownMetricError: Si la métrica no está en el registro.
+        """
+        definition = assert_metric_definition(metric_name)
+        window = _resolve_configured_stats_window(requested_duration)
+
+        assets = build_repository(MonitoredAssetRepository).get_by_user(self.user.id)
+        snapshot_repo = build_repository(AssetSnapshotRepository)
+        aggregates_by_asset = snapshot_repo.get_metric_aggregates_by_asset(
+            [asset.id for asset in assets], definition.column, window.since, window.until,
+        )
+        entries = []
+        for asset in assets:
+            average, maximum, sample_count = aggregates_by_asset[asset.id]
+            if sample_count:
+                entries.append({
+                    "assetId": asset.id,
+                    "hostname": asset.hostname,
+                    "value": average if aggregation == "avg" else maximum,
+                    "sampleCount": sample_count,
+                })
+
+        return {
+            "metric": definition.name,
+            "unit": definition.unit,
+            "agg": aggregation,
+            "order": order,
+            "assetCount": len(assets),
+            "assetsWithData": len(entries),
+            "assets": _rank_assets(entries, order, limit),
             "periodCoveredFrom": window.since,
             "periodCoveredTo": window.until,
             "isPeriodClipped": window.is_clipped,

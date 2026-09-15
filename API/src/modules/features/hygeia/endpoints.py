@@ -47,6 +47,8 @@ from .schemas import (
     AssetListResponseSchema,
     AssetMetricsQuerySchema,
     AssetMetricsResponseSchema,
+    AssetRankingQuerySchema,
+    AssetRankingResponseSchema,
     AssetSchema,
     AssetStatsSummaryQuerySchema,
     AssetStatsSummaryResponseSchema,
@@ -249,6 +251,29 @@ def get_tag_ranking(args):
     return manager.get_tag_ranking(
         metric_name=args["metric"],
         aggregation=args["agg"],
+        requested_duration=args["requested_duration"],
+    )
+
+
+@hygeia_blp.get("/stats/ranking")
+@hygeia_blp.arguments(AssetRankingQuerySchema, location="query")
+@hygeia_blp.response(200, AssetRankingResponseSchema, description="Ranking de activos")
+@hygeia_blp.alt_response(400, schema=ErrorSchema, description="Unknown metric")
+@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@hygeia_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@limiter.limit("600 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
+@handle_exceptions(default_exception=HygeiaError, logger=logger)
+def get_asset_ranking(args):
+    """Ordenar los activos del usuario por una métrica y devolver los extremos"""
+    user = get_current_user()
+    manager = HygeiaStatsManager(user)
+    return manager.get_asset_ranking(
+        metric_name=args["metric"],
+        aggregation=args["agg"],
+        order=args["order"],
+        limit=args["limit"],
         requested_duration=args["requested_duration"],
     )
 
