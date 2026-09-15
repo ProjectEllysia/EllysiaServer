@@ -741,6 +741,11 @@ class LybraScan(Scan):
             aquí y no en ``Scan`` por la misma razón que ``is_partial``: es
             un concepto propio del barrido de Lybra, no de los otros tres
             escáneres, que reciben el objetivo ya resuelto.
+        parent_scan_id: El escaneo de red que lanzó este host como uno de los
+            suyos, o ``None`` para un escaneo de un solo objetivo. El padre
+            en sí no descubre nada — es la fila que agrupa; sus propios
+            hallazgos están siempre vacíos, y ``format_scan`` le suma los de
+            sus hijos en vez de leerlos de la tabla ``Finding``.
     """
     __tablename__ = "LybraScan"
 
@@ -748,6 +753,8 @@ class LybraScan(Scan):
     asset_id       = Column(Integer, nullable=True, index=True)
     is_partial     = Column(Boolean, nullable=False, default=False, server_default=sa_false())
     profile        = Column(String(20), nullable=False, default="standard", server_default="standard")
+    parent_scan_id = Column(Integer, ForeignKey("LybraScan.id", ondelete="CASCADE"),
+                            nullable=True, index=True)
 
     # Sin ``inherit_condition``: hacía falta mientras existía ``source_scan_id``,
     # una segunda clave foránea a ``Scan.id`` que dejaba ambigua la unión con la

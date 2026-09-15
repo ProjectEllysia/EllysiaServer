@@ -832,6 +832,17 @@ class ScanRepository(BaseRepository[Scan]):
             .all()
         )
 
+    def get_child_scans(self, parent_scan_id: int) -> List[LybraScan]:
+        """Los escaneos hijo de un escaneo de red: uno por host de la lista
+        o el CIDR que se pidió. Una lista vacía significa que
+        ``parent_scan_id`` es un escaneo normal de un solo host, no el padre
+        de un lote — ``format_scan`` lo usa así para decidir si agrega."""
+        return (
+            self._session.query(LybraScan)
+            .filter(LybraScan.parent_scan_id == parent_scan_id)
+            .all()
+        )
+
     def upsert_host_service(
         self, host_id: int, port: Optional[int], protocol: str,
         name: Optional[str], product: Optional[str], version: Optional[str], cpe: Optional[str],

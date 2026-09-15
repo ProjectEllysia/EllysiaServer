@@ -194,6 +194,59 @@ def _merge_fingerprint_results(
     ]
 
 
+def _aggregate_child_scans(children: list, format_scan) -> dict:
+    """Los contadores de un escaneo de red: la suma de sus hijos.
+
+    El padre nunca descubre nada por sí mismo —su fila en ``Finding`` siempre
+    está vacía—, así que sus propios contadores (calculados justo antes de
+    esta llamada) son ceros que no dicen nada. Se sustituyen por la suma de
+    cada hijo, calculada con el mismo ``format_scan`` que ya usa cualquier
+    escaneo de un solo host — un hijo nunca tiene hijos propios, así que no
+    hay recursión más allá de un nivel.
+
+    Args:
+        children: Los ``LybraScan`` cuyo ``parent_scan_id`` es este escaneo.
+        format_scan: ``LybraEngineManager.format_scan`` ya ligado a su
+            instancia — se recibe por parámetro en vez de necesitar ``self``
+            propio, así esta función se queda a nivel de módulo.
+
+    Returns:
+        dict: Las claves numéricas de ``format_scan`` sustituidas por su
+            suma, más ``isParent`` y ``childScanIds`` (ordenados por id).
+    """
+    summaries = [format_scan(child.id, include_findings=False) for child in children]
+
+    by_priority: dict = {}
+    for summary in summaries:
+        for priority, count in summary["byPriority"].items():
+            by_priority[priority] = by_priority.get(priority, 0) + count
+
+    statuses = {summary["status"] for summary in summaries}
+    terminal = {"finished", "failed", "cancelled"}
+    if statuses - terminal:
+        status = "running"
+    elif "failed" in statuses:
+        status = "failed"
+    else:
+        status = "finished"
+
+    return {
+        "isParent": True,
+        "childScanIds": sorted(child.id for child in children),
+        "status": status,
+        "isPartial": any(summary["isPartial"] for summary in summaries),
+        "totalFindings": sum(summary["totalFindings"] for summary in summaries),
+        "vulnerableFindings": sum(summary["vulnerableFindings"] for summary in summaries),
+        "openFindings": sum(summary["openFindings"] for summary in summaries),
+        "fixedFindings": sum(summary["fixedFindings"] for summary in summaries),
+        "falsePositiveFindings": sum(summary["falsePositiveFindings"] for summary in summaries),
+        "confirmedFindings": sum(summary["confirmedFindings"] for summary in summaries),
+        "installedPackages": sum(summary["installedPackages"] for summary in summaries),
+        "unresolvedPackages": sum(summary["unresolvedPackages"] for summary in summaries),
+        "byPriority": by_priority,
+    }
+
+
 @ScanManager.register(ScanType.LYBRA)
 class LybraEngineManager(ScanManager):
     """
@@ -252,6 +305,7 @@ class LybraEngineManager(ScanManager):
         asset_id: Optional[int] = None,
         aggressive: bool = False,
         profile: str = "standard",
+        parent_scan_id: Optional[int] = None,
     ) -> int:
         """
         Start an Lybra engine scan in one of two modes.
@@ -292,6 +346,10 @@ class LybraEngineManager(ScanManager):
                 modo de payload externo, lo ignoran — el llamante ya decidió
                 qué mirar. Se persiste en el escaneo para que el informe
                 pueda decir con qué perfil se generó.
+            parent_scan_id: El escaneo de red que agrupa este host, cuando se
+                lanza desde :meth:`run_network_scan`. ``None`` para un
+                escaneo de un único objetivo — el caso normal, y el único que
+                existía antes de que las listas de objetivos fueran posibles.
 
         Returns:
             Primary key of the created LybraScan record.
@@ -329,6 +387,7 @@ class LybraEngineManager(ScanManager):
             programed_scan_id=programed_scan_id,
             asset_id=asset_id,
             profile=profile,
+            parent_scan_id=parent_scan_id,
             func=LybraEngineManager.execute_lybra_scan,
             job_name="LybraScan",
             trailing_args=(
@@ -341,6 +400,68 @@ class LybraEngineManager(ScanManager):
 
         logger.info(f"Escaneo Lybra {scan_id} iniciado ({source.label})")
         return scan_id  # type: ignore
+
+    def run_network_scan(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+        self,
+        user_id: int,
+        targets: List[str],
+        target_spec: Optional[str] = None,
+        discover_ports: Optional[list] = None,
+        timeout: int = 120,
+        asset_id: Optional[int] = None,
+        aggressive: bool = False,
+        profile: str = "standard",
+    ) -> int:
+        """Lanza un escaneo Lybra por cada host de ``targets``.
+
+        Es autodescubrimiento puro repetido host a host — cada uno pasa por
+        exactamente el mismo ``run_scan`` de un único objetivo, con su propia
+        comprobación de autorización y de IP privada, su propia cuota
+        consumida y su propio job en la cola. Lo único nuevo es la fila que
+        los agrupa: un ``LybraScan`` padre que no descubre nada por sí mismo,
+        del que cuelgan como hijos (``parent_scan_id``).
+
+        No hace expansión de CIDR ni descubrimiento de hosts vivos —
+        ``targets`` debe llegar ya resuelto (ver
+        ``ScanManager.validate_targets``, que ya sabe expandir CIDR, rangos y
+        listas separadas por comas). Esta función sólo reparte esa lista ya
+        resuelta en escaneos.
+
+        Args:
+            targets: Hosts ya validados y expandidos, uno o más. Con un único
+                elemento se comporta exactamente como llamar a ``run_scan``
+                directamente — no se crea ningún padre para un solo host.
+            target_spec: El texto que el usuario pidió de verdad (por ejemplo
+                ``"192.168.1.0/28"``), para que el escaneo padre lo muestre
+                en vez de reconstruir algo a partir de la lista ya expandida.
+                Por defecto, los objetivos unidos por coma.
+            asset_id / aggressive / profile: Se reenvían tal cual a cada
+                escaneo hijo — ver ``run_scan``.
+
+        Returns:
+            int: El id del escaneo padre (o, con un único host, el id de ese
+                escaneo — no hay padre que crear para uno solo).
+        """
+        if len(targets) == 1:
+            return self.run_scan(
+                user_id=user_id, target=targets[0], discover_ports=discover_ports,
+                timeout=timeout, asset_id=asset_id, aggressive=aggressive, profile=profile,
+            )
+
+        parent = self._create_scan_record(
+            target=target_spec or ", ".join(targets), user_id=user_id, profile=profile,
+        )
+        self.update_scan_status(parent.id, ScanStatus.RUNNING)
+
+        for host in targets:
+            self.run_scan(
+                user_id=user_id, target=host, discover_ports=discover_ports,
+                timeout=timeout, asset_id=asset_id, aggressive=aggressive, profile=profile,
+                parent_scan_id=parent.id,
+            )
+
+        logger.info(f"Escaneo de red Lybra {parent.id} iniciado ({len(targets)} hosts)")
+        return parent.id  # type: ignore
 
     @staticmethod
     def execute_lybra_scan(  # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -1418,10 +1539,10 @@ class LybraEngineManager(ScanManager):
                 for evidence in repo.get_evidence_for_finding(finding_id)
             ]
 
-    def _create_scan_record(
+    def _create_scan_record(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self, target: str, user_id: int,
         programed_scan_id: Optional[int] = None, asset_id: Optional[int] = None,
-        profile: str = "standard",
+        profile: str = "standard", parent_scan_id: Optional[int] = None,
     ) -> LybraScan:  # pylint: disable=arguments-differ
         """Create and persist an LybraScan row.
 
@@ -1434,7 +1555,7 @@ class LybraEngineManager(ScanManager):
         """
         return super()._create_scan_record(
             target=target, user_id=user_id, programed_scan_id=programed_scan_id,
-            asset_id=asset_id, profile=profile,
+            asset_id=asset_id, profile=profile, parent_scan_id=parent_scan_id,
         )
 
     def _persist_scan_results(self, uow, scan, domain_data) -> None:
@@ -1583,6 +1704,7 @@ class LybraEngineManager(ScanManager):
             "assetId": scan.asset_id,
             "isPartial": bool(scan.is_partial),
             "profile": getattr(scan, "profile", "standard"),
+            "parentScanId": getattr(scan, "parent_scan_id", None),
             "exposure": exposure,
             "targetAuthorized": target_authorized,
             "status": getattr(scan, "status", "unknown"),
@@ -1611,6 +1733,11 @@ class LybraEngineManager(ScanManager):
         if include_findings:
             result["findings"] = json_findings
         self._append_document_info(scan, result)
+
+        children = repo.get_child_scans(scan.id)
+        if children:
+            result.update(_aggregate_child_scans(children, self.format_scan))
+
         return result
 
     @staticmethod
