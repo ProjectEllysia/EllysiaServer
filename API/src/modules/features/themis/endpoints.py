@@ -38,6 +38,7 @@ from .managers import (
     KbSyncManager,
 )
 from .model import ScanType
+from .lybra.exporters import to_sarif, to_stix, to_ocsf
 from .exceptions import (
     ScanError,
     ScanExecutionError,
@@ -55,6 +56,7 @@ from .exceptions import (
 )
 from .schemas import (
     ScanIdQuerySchema,
+    LybraExportQuerySchema,
     NmapScanRequestSchema,
     NiktoScanRequestSchema,
     NucleiScanRequestSchema,
@@ -377,8 +379,10 @@ def start_lybra_scan(data):
     manager = LybraEngineManager()
 
     # Autodescubrimiento: valida el objetivo (rechaza IPs privadas, etc.)
-    # igual que un escaneo Nmap, ya que el transporte propio toca el objetivo.
-    target = ScanManager.validate_targets(data["target"], max_hosts=1)[0]
+    # igual que un escaneo Nmap, ya que el transporte propio toca el
+    # objetivo. `validate_targets` ya sabe expandir CIDR, rangos y listas
+    # separadas por comas — un objetivo aquí puede ser más de un host.
+    targets = ScanManager.validate_targets(data["target"])
     discover_ports = None
     if data.get("ports"):
         try:
@@ -386,14 +390,16 @@ def start_lybra_scan(data):
         except PortValidationError as exc:
             raise ValidationError(field="ports", message=str(exc), value=data["ports"]) from exc
 
-    scan_id = manager.run_scan(
+    scan_id = manager.run_network_scan(
         user_id=user.id,
-        target=target,
+        targets=targets,
+        target_spec=data["target"],
         discover_ports=discover_ports,
         timeout=timeout,
         aggressive=data.get("aggressive", False),
+        profile=data.get("profile", "standard"),
     )
-    logger.info(f"Lybra lanzado: ID={scan_id} autodescubrimiento target={target} user={user.username}")
+    logger.info(f"Lybra lanzado: ID={scan_id} hosts={len(targets)} user={user.username}")
 
     return {
         "message": "Escaneo Lybra iniciado correctamente",
@@ -582,6 +588,39 @@ def get_lybra_grouped_findings(scan_id: int):
         **result,
         "user": user.username,
     }
+
+
+@themis_blp.get("/lybra/scans/<int:scan_id>/export")
+@themis_blp.arguments(LybraExportQuerySchema, location="query")
+@themis_blp.response(200, description="Scan findings in the requested standard format")
+@themis_blp.alt_response(422, schema=ErrorSchema, description="Unknown format")
+@themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@themis_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@themis_blp.alt_response(404, schema=ErrorSchema, description="Scan not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.THEMIS_READ])
+@limiter.limit("60 per hour; 200 per day")
+@handle_exceptions(default_exception=ScanNotFoundError, logger=logger)
+def export_lybra_scan(args, scan_id: int):
+    """Exporta los hallazgos de un escaneo Lybra a SARIF, STIX u OCSF.
+
+    Es la puerta de integración con lo que ya tiene un equipo de seguridad:
+    SARIF para un *gate* en la pestaña de seguridad de GitHub, STIX para un
+    TIP, OCSF para un SIEM. Las tres son traducciones puras de los mismos
+    hallazgos que ya devuelve `format_scan`; ninguna consulta nada nuevo.
+
+    Un escaneo que no es de Lybra se reporta como inexistente, igual que uno
+    ajeno: no es una `ScanType` que estos exportadores sepan interpretar, y
+    la enumeración de ids de otros escaneos no debe filtrarse por aquí.
+    """
+    user = get_current_user()
+    scan = ScanManager.assert_scan_ownership(scan_id, user.id)
+    if scan.scan_type != ScanType.LYBRA.value:
+        raise ScanNotFoundError(scan_id)
+
+    formatted_scan = LybraEngineManager().format_scan(scan_id)
+    exporter = {"sarif": to_sarif, "stix": to_stix, "ocsf": to_ocsf}[args["format"]]
+    return exporter(formatted_scan)
 
 
 @themis_blp.patch("/findings/<int:finding_id>")

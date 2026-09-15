@@ -8,6 +8,10 @@ class ScanIdQuerySchema(Schema):
     id = fields.Integer(required=True)
 
 
+class LybraExportQuerySchema(Schema):
+    format = fields.String(required=True, validate=validate.OneOf(["sarif", "stix", "ocsf"]))
+
+
 class NmapScanRequestSchema(Schema):
     target = fields.String(required=True)
     ports = fields.String(required=True)
@@ -48,6 +52,11 @@ class LybraScanRequestSchema(Schema):
     # está además en el registro de autorización — un registro no autoriza
     # cualquier cosa contra el objetivo, sólo el escaneo pasivo.
     aggressive = fields.Boolean(load_default=False)
+    # Perfil de escaneo: composición con nombre de los parámetros que arriba
+    # se pueden pedir sueltos (puertos, modo). "standard" reproduce el
+    # comportamiento de siempre; explícito y no None para que el informe
+    # siempre pueda decir con qué perfil se generó.
+    profile = fields.String(load_default="standard", validate=validate.OneOf(["fast", "standard", "thorough"]))
 
 
 class UnresolvedProductsQuerySchema(Schema):

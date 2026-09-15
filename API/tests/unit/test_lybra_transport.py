@@ -261,6 +261,45 @@ def test_udp_send_recv_swallows_oserror(monkeypatch):
     assert transport_module.udp_send_recv("10.0.0.5", 161, b"\x00", 1.0) is None
 
 
+def test_udp_send_recv_resolves_ipv6_family(monkeypatch):
+    """Contra un objetivo IPv6 la sonda debe abrir un socket AF_INET6, no el
+    AF_INET fijo que hacía fallar toda sonda UDP contra ``::1`` en el
+    connect() y lo confundía con un puerto cerrado."""
+    import src.modules.features.themis.lybra.transport as transport_module
+
+    opened_with = {}
+
+    class _RecordingSocket:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def settimeout(self, timeout):
+            pass
+
+        def connect(self, addr):
+            pass
+
+        def send(self, payload):
+            pass
+
+        def recv(self, size):
+            return b"reply"
+
+    def fake_socket(family, socktype, proto=0):
+        opened_with["family"] = family
+        return _RecordingSocket()
+
+    monkeypatch.setattr(transport_module.socket, "socket", fake_socket)
+
+    result = transport_module.udp_send_recv("::1", 161, b"\x00", 1.0)
+
+    assert result == b"reply"
+    assert opened_with["family"] == transport_module.socket.AF_INET6
+
+
 def test_udp_scan_defaults_to_udp_probes_table():
     calls = []
 
