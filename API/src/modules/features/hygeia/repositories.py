@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import math
 from datetime import datetime, timezone
-from typing import Callable, Dict, List, Literal, Mapping, Optional, Tuple
+from typing import Any, Callable, Dict, List, Literal, Mapping, Optional, Tuple
 
 from sqlalchemy import func, update
 from sqlalchemy.orm.attributes import InstrumentedAttribute
@@ -506,6 +506,44 @@ class AssetSnapshotRepository(BaseRepository[AssetSnapshot]):
             .all()
         )
         return [(row.received_at, row.power_watts) for row in rows]
+
+    def get_metrics_section_samples(
+        self, asset_id: int, section: str, since: datetime, until: datetime,
+    ) -> List[Tuple[datetime, Any]]:
+        """Una sección del JSONB ``metrics`` de cada heartbeat de un activo en una ventana.
+
+        Es el camino de las estadísticas por entidad (montaje, interfaz,
+        núcleo), cuyo detalle no tiene columna propia. Proyecta solo el
+        instante y la sección pedida (``metrics -> 'disk'`` en Postgres), no
+        el JSONB completo: una ventana de días son decenas de miles de filas,
+        y el resto del payload no hace falta.
+
+        Args:
+            asset_id: Activo a consultar; ya filtrado por dueño en el manager.
+            section: Clave de primer nivel de ``metrics`` (``"disk"``,
+                ``"network"``, ``"cpu"``…).
+            since: Inicio de la ventana, sobre ``received_at``, inclusivo.
+            until: Fin de la ventana, sobre ``received_at``, inclusivo.
+
+        Returns:
+            List[Tuple[datetime, Any]]: ``(received_at, sección)`` de más
+                antiguo a más reciente. La sección es el valor JSON ya
+                deserializado (una lista, un diccionario…), o ``None`` si ese
+                heartbeat no la trae.
+        """
+        rows = (
+            self._session.query(
+                AssetSnapshot.received_at, AssetSnapshot.metrics[section].label("section"),
+            )
+            .filter(
+                AssetSnapshot.asset_id == asset_id,
+                AssetSnapshot.received_at >= since,
+                AssetSnapshot.received_at <= until,
+            )
+            .order_by(AssetSnapshot.received_at.asc())
+            .all()
+        )
+        return [(row.received_at, row.section) for row in rows]
 
     def get_metric_aggregates_by_asset(
         self, asset_ids: List[int], column: InstrumentedAttribute,

@@ -51,7 +51,8 @@ from .repositories import (
 from .services import (
     METRIC_REGISTRY, MetricDefinition, MetricUnit, assert_metric_definition,
     build_histogram, build_inventory_report, build_percentile_series, check_clock_skew,
-    combine_asset_averages, denormalize, evaluate, generate_agent_key, is_agent_outdated,
+    combine_asset_averages, denormalize, evaluate, extract_entity_series, generate_agent_key,
+    is_agent_outdated,
     project_month, resolve_stats_window, services_from_inventory, summarize_power_period,
     summarize_values, validate_metrics_are_additive,
 )
@@ -478,6 +479,29 @@ def _resolve_configured_stats_window(requested_duration: timedelta):
     return resolve_stats_window(
         requested_duration, utcnow_naive(),
         max_stats_period_days=CR.hygeia_limits().max_stats_period_days,
+        retention_days=CR.hygeia_config().retention_days,
+    )
+
+
+def _resolve_entity_stats_window(requested_duration: timedelta):
+    """Ventana de una estadística por entidad (montaje, interfaz, núcleo).
+
+    Estas estadísticas leen el JSONB de cada heartbeat, así que se recortan a
+    ``maxEntityStatsPeriodDays``, además de al límite general y a la
+    retención.
+
+    Args:
+        requested_duration: Duración pedida por el cliente, positiva.
+
+    Returns:
+        StatsWindow: La ventana que termina ahora, ya recortada.
+    """
+    limits = CR.hygeia_limits()
+    return resolve_stats_window(
+        requested_duration, utcnow_naive(),
+        max_stats_period_days=min(
+            limits.max_entity_stats_period_days, limits.max_stats_period_days,
+        ),
         retention_days=CR.hygeia_config().retention_days,
     )
 
@@ -946,6 +970,52 @@ class HygeiaAssetManager:
 
         return {
             "metrics": summaries_by_metric,
+            "periodCoveredFrom": window.since,
+            "periodCoveredTo": window.until,
+            "isPeriodClipped": window.is_clipped,
+        }
+
+    def get_disk_stats(
+        self, asset_id: int, mount: Optional[str], requested_duration: timedelta,
+    ) -> dict:
+        """
+        Resume el uso de cada punto de montaje de un activo sobre un periodo.
+
+        ``diskMaxPct`` solo guarda el montaje más lleno de cada heartbeat, así
+        que un ``/var`` que se llena mientras ``/`` sigue ligero no se ve en
+        su serie. Aquí se lee el detalle por montaje del JSONB y se resume
+        cada uno con la misma cuenta que el resto de las estadísticas
+        (``summarize_values``).
+
+        Args:
+            asset_id: Activo cuyos montajes se resumen.
+            mount: Punto de montaje concreto (``/var``), o ``None`` para todos.
+                Un montaje que el activo no reportó en el periodo da una lista
+                vacía, no un error.
+            requested_duration: Duración del periodo pedido, antes de recortar;
+                positiva.
+
+        Returns:
+            Diccionario con la forma de ``DiskStatsResponseSchema``: ``mounts``
+            (``mount`` y el ``StatSummary`` de ``usagePct``, por nombre de
+            montaje) y la ventana cubierta.
+
+        Raises:
+            AssetNotFoundError: Si el activo no existe o pertenece a otro usuario.
+        """
+        assert_owned(MonitoredAssetRepository, asset_id, self.user.id, AssetNotFoundError)
+        window = _resolve_entity_stats_window(requested_duration)
+
+        samples = build_repository(AssetSnapshotRepository).get_metrics_section_samples(
+            asset_id, "disk", window.since, window.until,
+        )
+        usage_by_mount = extract_entity_series(samples, "mount", "usagePct")
+        return {
+            "mounts": [
+                {"mount": name, "usagePct": summarize_values(series)}
+                for name, series in sorted(usage_by_mount.items())
+                if mount is None or name == mount
+            ],
             "periodCoveredFrom": window.since,
             "periodCoveredTo": window.until,
             "isPeriodClipped": window.is_clipped,
