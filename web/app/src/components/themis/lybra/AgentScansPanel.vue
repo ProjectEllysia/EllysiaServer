@@ -22,10 +22,14 @@
       </span>
     </div>
 
-    <div v-else class="agent-grid">
+    <!-- Entrada escalonada: cada tarjeta aparece con un pequeño retardo
+         creciente por posición (mismo patrón --enter-delay que .finding-item
+         de LybraResults.vue), en vez de que toda la rejilla salte de golpe. -->
+    <TransitionGroup v-else tag="div" name="agent-card" class="agent-grid">
       <button
-        v-for="asset in assets" :key="asset.id"
+        v-for="(asset, idx) in assets" :key="asset.id"
         type="button" class="agent-card" :class="{ active: selectedAssetId === asset.id }"
+        :style="{ '--enter-delay': (idx % 24) * 25 + 'ms' }"
         @click="$emit('select', selectedAssetId === asset.id ? null : asset.id)"
       >
         <span class="agent-top">
@@ -44,10 +48,11 @@
           </span>
         </span>
       </button>
-    </div>
+    </TransitionGroup>
 
     <!-- ── Escaneos del agente seleccionado ── -->
-    <div v-if="selectedAssetId" class="agent-scans">
+    <Transition name="fade-swap">
+    <div v-if="selectedAssetId" key="scans" class="agent-scans">
       <div class="agent-scans-head">
         <span class="agent-scans-title">
           Análisis de <strong>{{ selectedAsset?.hostname || `activo ${selectedAssetId}` }}</strong>
@@ -79,9 +84,10 @@
       />
     </div>
 
-    <p v-else-if="assets.length" class="pick-hint">
+    <p v-else-if="assets.length" key="hint" class="pick-hint">
       Elige un agente para ver sus análisis de inventario.
     </p>
+    </Transition>
   </div>
 </template>
 
@@ -154,6 +160,14 @@ function countFor(asset) {
 
 /* ── Rejilla de agentes ── */
 .agent-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 0.6rem; }
+.agent-card-enter-active {
+  transition: opacity 0.3s ease var(--enter-delay, 0ms), transform 0.3s ease var(--enter-delay, 0ms);
+}
+.agent-card-enter-from { opacity: 0; transform: translateY(8px); }
+.agent-card-move { transition: transform 0.2s ease; }
+
+.fade-swap-enter-active, .fade-swap-leave-active { transition: opacity 0.2s ease; }
+.fade-swap-enter-from, .fade-swap-leave-to { opacity: 0; }
 .agent-card {
   display: flex; flex-direction: column; gap: 0.45rem; text-align: left;
   padding: 0.7rem 0.8rem; cursor: pointer;
@@ -187,5 +201,9 @@ function countFor(asset) {
 
 .pick-hint { margin: 0; padding: 1.2rem; text-align: center; font-size: var(--fs-md); color: var(--text-muted); background: var(--surface); border: 1px dashed var(--border-solid); border-radius: 10px; }
 
-@media (prefers-reduced-motion: reduce) { .spin { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) {
+  .spin { animation: none !important; }
+  .agent-card-enter-active, .agent-card-move,
+  .fade-swap-enter-active, .fade-swap-leave-active { transition: none !important; }
+}
 </style>

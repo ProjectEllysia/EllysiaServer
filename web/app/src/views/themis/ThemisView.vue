@@ -34,8 +34,14 @@
         <button class="lybra-history-toggle" @click="store.setViewMode(store.viewMode === 'history' ? 'full' : 'history')">
           {{ store.viewMode === 'history' ? '← Volver al motor' : 'Ver historial' }}
         </button>
-        <HistoryPanel v-if="store.viewMode === 'history'" />
-        <template v-else>
+        <!-- Fundido motor ↔ historial, igual que en escáneres externos. Sin
+             mode="out-in" y con el saliente sacado del flujo (mismo motivo
+             que ScanTable.vue): esperar a un transitionend de salida se
+             cuelga en pestañas de fondo, y un escaneo largo es justo cuando
+             el usuario se va a otra pestaña. -->
+        <Transition name="lybra-swap">
+        <HistoryPanel v-if="store.viewMode === 'history'" key="history" />
+        <div v-else key="engine">
           <!-- La detección por versión vale lo que valga la frescura del espejo
                local de NVD/KEV/EPSS/OVAL. Si deja de refrescarse, los escaneos
                siguen saliendo en verde contra un catálogo congelado: el aviso
@@ -76,7 +82,8 @@
             @delete-doc="handleLybraDeleteDoc" />
           <ScheduledScansPanel :scheduled="scheduledStore.scheduled" :scheduling="scheduledStore.scheduling" active-tab="lybra"
             @create="handleCreateScheduled" @deactivate="handleDeactivateScheduled" @delete="handleDeleteScheduled" @toggle-form="scheduledStore.toggleScheduledForm()" />
-        </template>
+        </div>
+        </Transition>
       </div>
 
       <!-- ═══════════ MUNDO: AGENTES ═══════════ -->
@@ -417,14 +424,23 @@ async function handleDeleteScheduled(id) { await scheduledStore.deleteScheduledS
 .world-opt svg { width: 16px; height: 16px; }
 .world-opt:hover { color: var(--text-dim); }
 .world-opt.active { background: var(--accent-dim); color: var(--accent-bright); font-weight: 600; box-shadow: inset 0 0 0 1px var(--accent); }
-.world-block { display: block; }
+.world-block { display: block; position: relative; }
 
 .kb-stale {
   margin-bottom: 0.8rem; padding: 0.6rem 0.8rem; border-radius: 8px;
   border: 1px solid var(--warn); background: var(--warn-dim);
   color: var(--text-dim); font-size: var(--fs-md); line-height: 1.45;
+  animation: seq-fade-up 0.3s ease-out;
 }
 .kb-stale strong { color: var(--text); }
+
+/* Fundido motor ↔ historial dentro del mundo Lybra. Nombre distinto de
+   fade-swap (usado por el swap de vista de escáneres externos, más abajo)
+   para no compartir el leave-active en position: absolute con un swap de
+   alturas muy distintas. */
+.lybra-swap-enter-active, .lybra-swap-leave-active { transition: opacity 0.15s ease; }
+.lybra-swap-enter-from, .lybra-swap-leave-to { opacity: 0; }
+.lybra-swap-leave-active { position: absolute; inset-inline: 0; }
 
 .lybra-history-toggle {
   display: block; margin: 0 0 0.85rem auto; padding: 0.45rem 0.8rem;
@@ -448,12 +464,15 @@ async function handleDeleteScheduled(id) { await scheduledStore.deleteScheduledS
 .fade-swap-enter-from, .fade-swap-leave-to { opacity: 0; }
 
 @media (prefers-reduced-motion: reduce) {
-  .main > :nth-child(1), .main > :nth-child(2) { animation: none !important; }
+  .main > :nth-child(1), .main > :nth-child(2), .kb-stale { animation: none !important; }
   /* No "none": con mode="out-in", Vue espera un transitionend real para
      montar el bloque entrante. "none" nunca lo dispara y el contenido
      saliente se queda pegado en pantalla. Una transición casi instantánea
      sigue sin animación perceptible pero deja que Vue detecte el final. */
   .fade-swap-enter-active, .fade-swap-leave-active { transition: opacity 0.01s linear !important; }
+  /* lybra-swap no usa mode="out-in" (ver comentario junto al Transition), así
+     que aquí sí puede desactivarse del todo sin colgar el montaje. */
+  .lybra-swap-enter-active, .lybra-swap-leave-active { transition: none !important; }
 }
 
 .batch-btn { display: flex; align-items: center; gap: 0.3rem; padding: 0.3rem 0.6rem; background: var(--accent); border: 1px solid var(--accent); border-radius: 6px; color: var(--on-accent); font-size: var(--fs-md); cursor: pointer; transition: all 0.2s; }
