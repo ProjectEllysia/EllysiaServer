@@ -366,6 +366,7 @@ def get_metric_series(args):
         bucket_aggregation=args["bucketAgg"],
         requested_bucket_seconds=args["bucket"],
         requested_duration=args["requested_duration"],
+        compare_to=args["compare_to"],
     )
 
 

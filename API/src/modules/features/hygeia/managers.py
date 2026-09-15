@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 import math
 from datetime import timedelta
-from typing import Optional, Sequence, Tuple
+from typing import NamedTuple, Optional, Sequence, Tuple
 
 import src.modules.system.config_reading as CR
 from src.modules.accounts import LimitKey, OrganizationManager, QuotaManager
@@ -256,6 +256,95 @@ def _resolve_series_bucket(
     if requested_bucket_seconds < minimum_bucket_seconds:
         return minimum_bucket_seconds, True
     return requested_bucket_seconds, False
+
+
+class _SeriesQuery(NamedTuple):
+    """Lo que comparten todas las series de una misma respuesta.
+
+    La serie principal y la de comparación se piden con los mismos valores,
+    y eso es lo que garantiza que sus cubos coincidan instante a instante.
+
+    Attributes:
+        definition: Métrica del registro.
+        bucket_seconds: Cubo en segundos.
+        window: ``StatsWindow`` de la consulta.
+        bucket_aggregation: Cómo se resume cada cubo dentro de un activo.
+        aggregation: Cómo se combinan los activos, o ``None`` para una serie
+            por activo.
+        max_points: Tope de cubos por serie.
+    """
+    definition: MetricDefinition
+    bucket_seconds: int
+    window: object
+    bucket_aggregation: str
+    aggregation: Optional[str]
+    max_points: int
+
+
+def _build_series(
+    snapshot_repo: AssetSnapshotRepository, series_query: _SeriesQuery,
+    tag: Optional[HygeiaTag], assets: list, is_combined: bool,
+) -> list:
+    """Series de unos activos: una por activo, o una sola que los combina.
+
+    Args:
+        snapshot_repo: Repositorio de snapshots ya construido.
+        series_query: Métrica, cubo, ventana y agregaciones de la respuesta.
+        tag: Etiqueta de la que salen los activos, o ``None``.
+        assets: Activos, en el orden en que se quieren las series.
+        is_combined: ``True`` para una sola serie combinada con
+            ``series_query.aggregation`` (que entonces no es ``None``).
+
+    Returns:
+        list: Las series, con la forma de ``MetricSeriesSchema``.
+    """
+    query_arguments = (
+        [asset.id for asset in assets], series_query.definition.column,
+        series_query.bucket_seconds, series_query.window.since, series_query.window.until,
+    )
+    if not is_combined:
+        return _render_asset_series(assets, snapshot_repo.get_bucketed_metric_by_asset(
+            *query_arguments, within_bucket=series_query.bucket_aggregation,
+            max_buckets=series_query.max_points,
+        ))
+    return [_render_combined_series(tag, snapshot_repo.get_bucketed_metric_across_assets(
+        *query_arguments, within_bucket=series_query.bucket_aggregation,
+        across_assets=series_query.aggregation, max_buckets=series_query.max_points,
+    ))]
+
+
+def _build_comparison_series(
+    user_id: int, snapshot_repo: AssetSnapshotRepository, series_query: _SeriesQuery,
+    compare_to: Tuple[str, int],
+) -> list:
+    """La serie con la que se compara la principal, marcada como comparación.
+
+    Un activo se compara con su propia serie; una etiqueta, con la
+    combinación de sus activos, con el mismo ``agg`` que la serie principal
+    (el schema lo exige en ese caso). Las dos se piden con el mismo
+    ``series_query``, así que sus cubos coinciden.
+
+    Args:
+        user_id: Dueño de los activos.
+        snapshot_repo: Repositorio de snapshots ya construido.
+        series_query: Los mismos valores que la serie principal.
+        compare_to: ``("asset", id)`` o ``("tag", id)``.
+
+    Returns:
+        list: Una serie, con ``isComparison`` a ``True``.
+
+    Raises:
+        TagNotFoundError: Si la etiqueta no es visible para el usuario.
+        AssetNotFoundError: Si el activo no existe o no es suyo.
+    """
+    compare_kind, compare_id = compare_to
+    if compare_kind == "tag":
+        tag, assets = _resolve_series_assets(user_id, compare_id, None)
+        comparison = _build_series(snapshot_repo, series_query, tag, assets, is_combined=True)
+    else:
+        _, assets = _resolve_series_assets(user_id, None, [compare_id])
+        comparison = _build_series(snapshot_repo, series_query, None, assets, is_combined=False)
+    return [{**entry, "isComparison": True} for entry in comparison]
 
 
 def _render_asset_series(assets: list, series_by_asset: dict) -> list:
@@ -1640,6 +1729,7 @@ class HygeiaStatsManager:
         self, metric_name: str, *, tag_id: Optional[int], asset_ids: Optional[Sequence[int]],
         aggregation: Optional[str], bucket_aggregation: str,
         requested_bucket_seconds: Optional[int], requested_duration: timedelta,
+        compare_to: Optional[Tuple[str, int]] = None,
     ) -> dict:
         """
         Serie temporal por cubos de una métrica sobre varios activos.
@@ -1667,6 +1757,10 @@ class HygeiaStatsManager:
             requested_bucket_seconds: Cubo pedido en segundos, o ``None`` para
                 el más fino que cabe en ``maxSeriesPoints``.
             requested_duration: Duración del periodo pedido, antes de recortar.
+            compare_to: Segunda fuente con la que comparar, ``("asset", id)``
+                o ``("tag", id)``, o ``None``. Su serie va al final de
+                ``series``, marcada con ``isComparison``, y comparte los cubos
+                de la principal. Por defecto ``None``.
 
         Returns:
             Diccionario con la forma de ``MetricSeriesResponseSchema``: la
@@ -1690,20 +1784,18 @@ class HygeiaStatsManager:
         bucket_seconds, is_bucket_widened = _resolve_series_bucket(
             window, requested_bucket_seconds, max_points,
         )
-        snapshot_repo = build_repository(AssetSnapshotRepository)
-        query_arguments = (
-            [asset.id for asset in assets], definition.column, bucket_seconds,
-            window.since, window.until,
+        series_query = _SeriesQuery(
+            definition=definition, bucket_seconds=bucket_seconds, window=window,
+            bucket_aggregation=bucket_aggregation, aggregation=aggregation, max_points=max_points,
         )
-        if aggregation is None:
-            series = _render_asset_series(assets, snapshot_repo.get_bucketed_metric_by_asset(
-                *query_arguments, within_bucket=bucket_aggregation, max_buckets=max_points,
-            ))
-        else:
-            series = [_render_combined_series(tag, snapshot_repo.get_bucketed_metric_across_assets(
-                *query_arguments, within_bucket=bucket_aggregation, across_assets=aggregation,
-                max_buckets=max_points,
-            ))]
+        snapshot_repo = build_repository(AssetSnapshotRepository)
+        series = _build_series(
+            snapshot_repo, series_query, tag, assets, is_combined=aggregation is not None,
+        )
+        if compare_to is not None:
+            series += _build_comparison_series(
+                self.user.id, snapshot_repo, series_query, compare_to,
+            )
 
         return {
             "metric": definition.name,
