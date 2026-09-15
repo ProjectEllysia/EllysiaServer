@@ -538,6 +538,34 @@ class PowerSummaryResponseSchema(Schema):
 _PERIOD_UNITS = {"h": "hours", "d": "days"}
 
 
+def _build_period_field() -> fields.String:
+    """Campo ``period`` de las queries de estadísticas: ``<n>h`` o ``<n>d``, por defecto ``24h``.
+
+    Returns:
+        fields.String: Un campo nuevo en cada llamada; marshmallow no admite
+            compartir la misma instancia entre schemas.
+    """
+    return fields.String(
+        load_default="24h",
+        validate=validate.Regexp(
+            r"^[1-9][0-9]{0,4}[hd]$",
+            error="El periodo debe tener la forma <n>h o <n>d (por ejemplo 24h o 7d).",
+        ),
+    )
+
+
+def _parse_period(period: str) -> timedelta:
+    """Convierte un ``period`` ya validado (``24h``, ``7d``…) en su duración.
+
+    Args:
+        period: Número positivo seguido de ``h`` (horas) o ``d`` (días).
+
+    Returns:
+        timedelta: La duración pedida.
+    """
+    return timedelta(**{_PERIOD_UNITS[period[-1]]: int(period[:-1])})
+
+
 class AssetStatsSummaryQuerySchema(Schema):
     """Query de ``GET /hygeia/assets/<id>/stats/summary``.
 
@@ -552,13 +580,7 @@ class AssetStatsSummaryQuerySchema(Schema):
     pidió ninguna) y ``requested_duration`` (``timedelta``).
     """
     metrics = fields.String(load_default=None)
-    period = fields.String(
-        load_default="24h",
-        validate=validate.Regexp(
-            r"^[1-9][0-9]{0,4}[hd]$",
-            error="El periodo debe tener la forma <n>h o <n>d (por ejemplo 24h o 7d).",
-        ),
-    )
+    period = _build_period_field()
 
     @post_load
     def parse_query(self, data, **kwargs):
@@ -568,8 +590,7 @@ class AssetStatsSummaryQuerySchema(Schema):
             [name.strip() for name in raw_metrics.split(",") if name.strip()]
             if raw_metrics else []
         )
-        period = data.pop("period")
-        data["requested_duration"] = timedelta(**{_PERIOD_UNITS[period[-1]]: int(period[:-1])})
+        data["requested_duration"] = _parse_period(data.pop("period"))
         return data
 
 
@@ -662,6 +683,52 @@ class TagStatsResponseSchema(Schema):
     assetCount = fields.Integer()
     agg = fields.String()
     metrics = fields.Dict(keys=fields.String(), values=fields.Nested(TagMetricStatsSchema))
+    periodCoveredFrom = UTCDateTime()
+    periodCoveredTo = UTCDateTime()
+    isPeriodClipped = fields.Boolean()
+
+
+class TagRankingQuerySchema(Schema):
+    """Query de ``GET /hygeia/stats/by-tag`` (sin ``tagId``): el ranking de todas las etiquetas.
+
+    Una sola métrica (``metric``, obligatoria): un ranking ordena por un
+    criterio. ``agg`` y ``period`` significan lo mismo que en las
+    estadísticas de una etiqueta. Tras cargar, ``period`` queda como
+    ``requested_duration``.
+    """
+    metric = fields.String(required=True)
+    agg = fields.String(load_default="avg", validate=validate.OneOf(["sum", "avg", "max"]))
+    period = _build_period_field()
+
+    @post_load
+    def parse_query(self, data, **kwargs):
+        """Convierte ``period`` en ``timedelta``."""
+        data["requested_duration"] = _parse_period(data.pop("period"))
+        return data
+
+
+class TagRankingEntrySchema(Schema):
+    """Una etiqueta en el ranking: su cifra combinada y cuántos activos la sostienen.
+
+    ``value`` es nulo si ninguno de sus activos tuvo datos en el periodo; esas
+    etiquetas van al final del ranking, no en la posición de un cero.
+    """
+    tag = fields.Nested(TagSchema)
+    assetCount = fields.Integer()
+    assetsWithData = fields.Integer()
+    value = fields.Float(allow_none=True)
+
+
+class TagRankingResponseSchema(Schema):
+    """Ranking de las etiquetas visibles para el usuario por una métrica.
+
+    ``tags`` va de mayor a menor ``value``, con las etiquetas sin datos al
+    final. ``unit`` dice en qué se expresan los valores.
+    """
+    metric = fields.String()
+    unit = fields.String()
+    agg = fields.String()
+    tags = fields.List(fields.Nested(TagRankingEntrySchema))
     periodCoveredFrom = UTCDateTime()
     periodCoveredTo = UTCDateTime()
     isPeriodClipped = fields.Boolean()

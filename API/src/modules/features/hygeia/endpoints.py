@@ -61,6 +61,8 @@ from .schemas import (
     TagCreateRequestSchema,
     TagListResponseSchema,
     TagSchema,
+    TagRankingQuerySchema,
+    TagRankingResponseSchema,
     TagStatsQuerySchema,
     TagStatsResponseSchema,
 )
@@ -225,6 +227,27 @@ def get_tag_stats(args, tag_id):
     return manager.get_tag_stats(
         tag_id,
         metric_names=args["metric_names"],
+        aggregation=args["agg"],
+        requested_duration=args["requested_duration"],
+    )
+
+
+@hygeia_blp.get("/stats/by-tag")
+@hygeia_blp.arguments(TagRankingQuerySchema, location="query")
+@hygeia_blp.response(200, TagRankingResponseSchema, description="Ranking de etiquetas")
+@hygeia_blp.alt_response(400, schema=ErrorSchema, description="Unknown or non-additive metric")
+@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@hygeia_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@limiter.limit("600 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
+@handle_exceptions(default_exception=HygeiaError, logger=logger)
+def get_tag_ranking(args):
+    """Ordenar las etiquetas del usuario por una métrica agregada de sus activos"""
+    user = get_current_user()
+    manager = HygeiaStatsManager(user)
+    return manager.get_tag_ranking(
+        metric_name=args["metric"],
         aggregation=args["agg"],
         requested_duration=args["requested_duration"],
     )

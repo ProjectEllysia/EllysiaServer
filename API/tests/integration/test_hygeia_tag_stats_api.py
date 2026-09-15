@@ -1,6 +1,7 @@
 """
-Tests de integración HTTP de las estadísticas por etiqueta
-(``GET /hygeia/stats/by-tag/<tagId>``).
+Tests de integración HTTP de las estadísticas por etiqueta: las de una
+etiqueta (``GET /hygeia/stats/by-tag/<tagId>``) y el ranking de todas
+(``GET /hygeia/stats/by-tag``).
 
 Siembra activos, etiquetas y snapshots directamente por repositorio, igual
 que el resto de tests de estadísticas de Hygeia: por HTTP no se puede
@@ -11,6 +12,7 @@ import secrets
 from datetime import timedelta
 
 import pytest
+from sqlalchemy import event
 
 from src.modules.features.hygeia.model import AssetSnapshot, MonitoredAsset, SystemTag, UserTag
 from src.modules.features.hygeia.repositories import (
@@ -19,6 +21,7 @@ from src.modules.features.hygeia.repositories import (
     MonitoredAssetRepository,
 )
 from src.modules.infrastructure import UnitOfWork
+from src.modules.infrastructure.engine import get_session
 from src.modules.shared import utcnow_naive
 
 pytestmark = pytest.mark.integration
@@ -235,3 +238,113 @@ def test_another_users_personal_tag_is_not_found(client, app, make_user, regular
 
     assert status == 404
     assert missing_status == 404
+
+
+# =============================================================================
+# RANKING DE TODAS LAS ETIQUETAS
+# =============================================================================
+
+def _tag_ranking(client, headers: dict, **query) -> tuple:
+    """Pide el ranking de etiquetas y devuelve ``(status, cuerpo)``."""
+    response = client.get("/hygeia/stats/by-tag", query_string=query, headers=headers)
+    return response.status_code, response.get_json()
+
+
+@pytest.fixture()
+def ranked_tags(app, regular_user):
+    """Tres etiquetas del usuario con tráfico distinto y una cuarta sin activos.
+
+    - pesada: dos activos, 1000 y 500 (suma 1500, media 750).
+    - media: un activo, 700.
+    - ligera: un activo, 100.
+    - vacia: ningún activo.
+    """
+    user_id = regular_user.id
+    for name, traffic_values in (("pesada", [1000, 500]), ("media", [700]), ("ligera", [100])):
+        tag_id = _create_tag(app, name, user_id=user_id)
+        asset_ids = [
+            _create_asset(app, user_id, f"{name}-{position}")
+            for position in range(len(traffic_values))
+        ]
+        _tag_assets(app, tag_id, asset_ids)
+        for asset_id, traffic in zip(asset_ids, traffic_values):
+            _seed(app, asset_id, [(timedelta(minutes=10), {"net_rx_bps": traffic})])
+    _create_tag(app, "vacia", user_id=user_id)
+
+
+@pytest.mark.parametrize("agg, expected_values", [
+    ("sum", [1500.0, 700.0, 100.0, None]),
+    ("avg", [750.0, 700.0, 100.0, None]),
+])
+def test_the_ranking_orders_tags_by_the_combined_value(
+    client, ranked_tags, regular_user, auth_headers, agg, expected_values,
+):
+    """De mayor a menor valor, con la etiqueta sin datos al final y no en la posición de un cero."""
+    status, body = _tag_ranking(
+        client, auth_headers(regular_user), metric="netRxBps", agg=agg,
+    )
+
+    assert status == 200
+    assert body["metric"] == "netRxBps"
+    assert body["unit"] == "bytesPerSecond"
+    assert body["agg"] == agg
+    assert [entry["tag"]["name"] for entry in body["tags"]] == ["pesada", "media", "ligera", "vacia"]
+    assert [entry["value"] for entry in body["tags"]] == expected_values
+    assert body["tags"][0]["assetCount"] == 2
+    assert body["tags"][-1]["assetCount"] == 0
+
+
+def test_the_ranking_aggregates_every_tag_in_one_query(
+    app, client, ranked_tags, regular_user, auth_headers,
+):
+    """Una sola consulta de métricas para todas las etiquetas, no una por etiqueta."""
+    statements = []
+
+    def record(_connection, _cursor, statement, _parameters, _context, _executemany):
+        statements.append(statement)
+
+    with app.app_context():
+        engine = get_session().get_bind()
+    event.listen(engine, "before_cursor_execute", record)
+    try:
+        status, _ = _tag_ranking(client, auth_headers(regular_user), metric="netRxBps")
+    finally:
+        event.remove(engine, "before_cursor_execute", record)
+
+    assert status == 200
+    assert len([statement for statement in statements if "AssetSnapshot" in statement]) == 1
+
+
+def test_the_ranking_only_counts_the_users_own_assets_and_tags(
+    client, app, regular_user, make_user, auth_headers,
+):
+    """Ni la etiqueta personal de otro usuario ni sus activos entran en el ranking."""
+    stranger = make_user()
+    shared_tag = _create_tag(app, "compartida")
+    _create_tag(app, "ajena", user_id=stranger.id)
+    mine = _create_asset(app, regular_user.id, "mine")
+    theirs = _create_asset(app, stranger.id, "theirs")
+    _tag_assets(app, shared_tag, [mine, theirs])
+    _seed(app, mine, [(timedelta(minutes=10), {"net_rx_bps": 100})])
+    _seed(app, theirs, [(timedelta(minutes=10), {"net_rx_bps": 9000})])
+
+    status, body = _tag_ranking(client, auth_headers(regular_user), metric="netRxBps", agg="sum")
+
+    assert status == 200
+    names = [entry["tag"]["name"] for entry in body["tags"]]
+    assert "ajena" not in names
+    shared_entry = next(entry for entry in body["tags"] if entry["tag"]["name"] == "compartida")
+    assert shared_entry["assetCount"] == 1
+    assert shared_entry["value"] == pytest.approx(100.0)
+
+
+@pytest.mark.parametrize("query, expected_status", [
+    ({}, 422),
+    ({"metric": "cpu_pct"}, 400),
+    ({"metric": "cpuPct", "agg": "sum"}, 400),
+])
+def test_the_ranking_rejects_a_bad_query(client, regular_user, auth_headers, query, expected_status):
+    """Sin métrica es un 422 de validación; una métrica desconocida o la suma de un porcentaje, 400."""
+    status, _ = _tag_ranking(client, auth_headers(regular_user), **query)
+
+    assert status == expected_status
