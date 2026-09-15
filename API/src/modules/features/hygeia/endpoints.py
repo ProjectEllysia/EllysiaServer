@@ -61,6 +61,8 @@ from .schemas import (
     InventoryAnalysisSummarySchema,
     MetricHistogramQuerySchema,
     MetricHistogramResponseSchema,
+    MetricSeriesQuerySchema,
+    MetricSeriesResponseSchema,
     PowerStatsQuerySchema,
     PowerStatsResponseSchema,
     PowerSummaryResponseSchema,
@@ -338,6 +340,33 @@ def get_power_stats(args):
         scope=args["scope"],
         tag_id=args["tagId"],
         requested_duration=args["requested_duration"],
+    )
+
+
+@hygeia_blp.get("/stats/series")
+@hygeia_blp.arguments(MetricSeriesQuerySchema, location="query")
+@hygeia_blp.response(200, MetricSeriesResponseSchema, description="Serie temporal multi-activo")
+@hygeia_blp.alt_response(400, schema=ErrorSchema, description="Unknown or non-additive metric")
+@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@hygeia_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@hygeia_blp.alt_response(404, schema=ErrorSchema, description="Tag or asset not found")
+@limiter.limit("600 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
+@handle_exceptions(default_exception=HygeiaError, logger=logger)
+def get_metric_series(args):
+    """Obtener la serie temporal de una métrica sobre los activos de una etiqueta o de una lista"""
+    user = get_current_user()
+    manager = HygeiaStatsManager(user)
+    return manager.get_metric_series(
+        args["metric"],
+        tag_id=args["tagId"],
+        asset_ids=args["asset_ids"],
+        aggregation=args["agg"],
+        bucket_aggregation=args["bucketAgg"],
+        requested_bucket_seconds=args["bucket"],
+        requested_duration=args["requested_duration"],
+        compare_to=args["compare_to"],
     )
 
 
