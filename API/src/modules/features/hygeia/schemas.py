@@ -947,21 +947,43 @@ class MetricSeriesQuerySchema(Schema):
     bucketAgg = fields.String(load_default="avg", validate=validate.OneOf(["min", "avg", "max"]))
     bucket = fields.Integer(load_default=None, validate=validate.Range(min=1))
     period = _build_period_field()
+    # Segunda fuente con la que comparar: ``asset:<id>`` o ``tag:<id>``. Una
+    # etiqueta se compara combinada con el mismo ``agg``, así que entonces
+    # ``agg`` es obligatorio.
+    compareTo = fields.String(
+        load_default=None,
+        validate=validate.Regexp(
+            r"^(asset|tag):[1-9][0-9]*$",
+            error="compareTo debe tener la forma asset:<id> o tag:<id>.",
+        ),
+    )
 
     @validates_schema
     def validate_scope(self, data, **kwargs):
-        """Exige exactamente uno de ``tagId`` o ``assetIds``."""
+        """Exige uno de ``tagId`` o ``assetIds``, y ``agg`` si se compara con una etiqueta."""
         if (data.get("tagId") is None) == (data.get("assetIds") is None):
             raise ValidationError("Indica exactamente uno de tagId o assetIds.", field_name="tagId")
+        compare_to = data.get("compareTo")
+        if compare_to and compare_to.startswith("tag:") and data.get("agg") is None:
+            raise ValidationError(
+                "Comparar con una etiqueta exige agg: es la forma de combinar sus activos.",
+                field_name="agg",
+            )
 
     @post_load
     def parse_query(self, data, **kwargs):
-        """Convierte ``assetIds`` en lista de enteros sin repetidos y ``period`` en duración."""
+        """Convierte ``assetIds``, ``compareTo`` y ``period`` en sus tipos de trabajo."""
         raw_asset_ids = data.pop("assetIds")
         data["asset_ids"] = (
             list(dict.fromkeys(int(asset_id) for asset_id in raw_asset_ids.split(",")))
             if raw_asset_ids else None
         )
+        raw_compare_to = data.pop("compareTo")
+        if raw_compare_to:
+            compare_kind, compare_id = raw_compare_to.split(":")
+            data["compare_to"] = (compare_kind, int(compare_id))
+        else:
+            data["compare_to"] = None
         data["requested_duration"] = _parse_period(data.pop("period"))
         return data
 
@@ -986,11 +1008,16 @@ class MetricSeriesSchema(Schema):
     ``tagId`` y su nombre como ``label``) o ``assets`` (la combinación de una
     lista explícita de activos, sin ``label``). Los cubos sin datos no
     aparecen: la ausencia de señal es un hueco, no un cero.
+
+    ``isComparison`` marca la serie pedida con ``compareTo``, que va al final
+    y comparte los cubos de las demás: sus puntos caen en los mismos
+    instantes, así que se pueden superponer sin reconciliar nada.
     """
     kind = fields.String()
     assetId = fields.Integer(allow_none=True)
     tagId = fields.Integer(allow_none=True)
     label = fields.String(allow_none=True)
+    isComparison = fields.Boolean(dump_default=False)
     points = fields.List(fields.Nested(SeriesPointSchema))
 
 

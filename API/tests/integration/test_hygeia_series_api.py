@@ -236,3 +236,79 @@ def test_a_malformed_query_is_rejected(client, regular_user, auth_headers, query
     status, _ = _series(client, auth_headers(regular_user), **query)
 
     assert status == 422
+
+
+# =============================================================================
+# SERIES COMPARATIVAS
+# =============================================================================
+
+def test_a_tag_compared_with_one_of_its_assets_shares_the_buckets(
+    client, rack, regular_user, auth_headers,
+):
+    """La media de la etiqueta frente a uno de sus activos, con los cubos en los mismos instantes."""
+    status, body = _series(
+        client, auth_headers(regular_user),
+        metric="netRxBps", tagId=rack["tag_id"], agg="avg", bucket=3600,
+        compareTo=f"asset:{rack['alpha']}",
+    )
+
+    assert status == 200
+    main, comparison = body["series"]
+    assert main["kind"] == "tag"
+    assert main["isComparison"] is False
+    assert main["points"][0]["value"] == pytest.approx((200.0 + 1000.0 + 50.0) / 3)
+    assert comparison["kind"] == "asset"
+    assert comparison["label"] == "alpha"
+    assert comparison["isComparison"] is True
+    assert comparison["points"][0]["value"] == pytest.approx(200.0)
+    assert [point["at"] for point in main["points"]] == [point["at"] for point in comparison["points"]]
+
+
+def test_two_tags_can_be_compared(client, app, rack, regular_user, auth_headers):
+    """Una etiqueta frente a otra, las dos combinadas con el mismo ``agg``."""
+    other_tag = _create_tag(app, regular_user.id, "otra")
+    delta = _create_asset(app, regular_user.id, "delta")
+    _tag_assets(app, other_tag, [delta])
+    _seed_in_hour(app, delta, rack["hour_start"], [(30, {"net_rx_bps": 400})])
+
+    status, body = _series(
+        client, auth_headers(regular_user),
+        metric="netRxBps", tagId=rack["tag_id"], agg="sum", bucket=3600,
+        compareTo=f"tag:{other_tag}",
+    )
+
+    assert status == 200
+    main, comparison = body["series"]
+    assert main["points"][0]["value"] == pytest.approx(1250.0)
+    assert comparison["kind"] == "tag"
+    assert comparison["label"] == "otra"
+    assert comparison["isComparison"] is True
+    assert comparison["points"][0]["value"] == pytest.approx(400.0)
+    assert comparison["points"][0]["at"] == main["points"][0]["at"]
+
+
+def test_comparing_with_another_users_asset_is_not_found(
+    client, app, rack, regular_user, make_user, auth_headers,
+):
+    """La fuente de comparación pasa por el mismo control de dueño que la principal."""
+    stranger = make_user()
+    foreign = _create_asset(app, stranger.id, "foreign")
+
+    status, _ = _series(
+        client, auth_headers(regular_user),
+        metric="netRxBps", tagId=rack["tag_id"], agg="avg", compareTo=f"asset:{foreign}",
+    )
+
+    assert status == 404
+
+
+@pytest.mark.parametrize("compare_to, agg", [("tag:1", None), ("host:1", "avg"), ("asset:x", "avg")])
+def test_a_malformed_comparison_is_rejected(client, rack, regular_user, auth_headers, compare_to, agg):
+    """``compareTo`` es ``asset:<id>`` o ``tag:<id>``, y con una etiqueta hace falta ``agg``."""
+    query = {"metric": "netRxBps", "tagId": rack["tag_id"], "compareTo": compare_to}
+    if agg:
+        query["agg"] = agg
+
+    status, _ = _series(client, auth_headers(regular_user), **query)
+
+    assert status == 422
