@@ -491,3 +491,75 @@ def summarize_series_by_asset(
             quien llama pueda decir "sin datos" en vez de perderlo de la lista.
     """
     return {asset_key: summarize_values(series) for asset_key, series in series_by_asset.items()}
+
+
+@dataclass(frozen=True)
+class StatsWindow:
+    """Ventana temporal que cubre de verdad una consulta de estadísticas.
+
+    Es lo que un endpoint de estadísticas devuelve junto a sus números para
+    que el cliente sepa sobre qué periodo se calcularon, en vez de suponer
+    que es el que pidió.
+
+    Attributes:
+        since: Inicio de la ventana (``received_at`` inclusivo), naive-UTC.
+        until: Fin de la ventana (``received_at`` inclusivo), naive-UTC.
+        requested_duration: Duración que pidió el cliente, antes de recortar.
+        is_clipped: ``True`` si la ventana es más corta que la pedida, porque
+            la petición superaba el límite de estadísticas o la retención.
+    """
+    since: datetime
+    until: datetime
+    requested_duration: timedelta
+    is_clipped: bool
+
+    @property
+    def covered_duration(self) -> timedelta:
+        """Duración real de la ventana, ya recortada."""
+        return self.until - self.since
+
+
+def resolve_stats_window(
+    requested_duration: timedelta, now: datetime, max_stats_period_days: int, retention_days: int,
+) -> StatsWindow:
+    """
+    Resuelve la ventana de una consulta de estadísticas, recortada a lo que se puede cubrir.
+
+    Pedir un periodo mayor que lo disponible no es un error: se recorta al
+    máximo y la ventana resultante lo dice (``is_clipped``). Un error
+    obligaría al cliente a conocer la retención del despliegue para no
+    equivocarse; un recorte silencioso haría pasar por "últimos 365 días" un
+    cálculo sobre 30. El tope es el menor de dos valores: el límite de
+    estadísticas (``HygeiaLimits.max_stats_period_days``) y la retención
+    (``HygeiaConfig.retention_days``), porque más allá de la retención no
+    quedan datos aunque el límite lo permita.
+
+    Args:
+        requested_duration: Duración pedida por el cliente (``24h``, ``7d``…
+            ya convertido). Tiene que ser positiva.
+        now: Instante de referencia, naive-UTC; es el fin de la ventana.
+        max_stats_period_days: Límite configurado de estadísticas, en días.
+        retention_days: Retención configurada de ``AssetSnapshot``, en días.
+
+    Returns:
+        StatsWindow: La ventana ``[now - duración cubierta, now]``, con
+            ``is_clipped`` a ``True`` si la duración cubierta es menor que la
+            pedida.
+
+    Raises:
+        ValueError: Si ``requested_duration`` no es positiva; es un error de
+            programación, porque el schema del endpoint ya valida el periodo.
+    """
+    if requested_duration <= timedelta(0):
+        raise ValueError(
+            f"El periodo de estadísticas debe ser positivo; se pidió {requested_duration}"
+        )
+
+    ceiling = timedelta(days=min(max_stats_period_days, retention_days))
+    covered_duration = min(requested_duration, ceiling)
+    return StatsWindow(
+        since=now - covered_duration,
+        until=now,
+        requested_duration=requested_duration,
+        is_clipped=covered_duration < requested_duration,
+    )

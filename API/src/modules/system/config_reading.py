@@ -1751,6 +1751,17 @@ class HygeiaLimits:  # pylint: disable=too-many-instance-attributes
     max_series_points: int = 1000
     """Máximo de puntos devueltos por la serie temporal de un activo."""
 
+    max_stats_period_days: int = 30
+    """Periodo máximo, en días, que puede abarcar una consulta de estadísticas.
+
+    Acota la ventana que recorre un endpoint de estadísticas sobre
+    ``AssetSnapshot``, que sin tope podría recorrer la tabla entera. Al
+    resolver la ventana se recorta además a ``HygeiaConfig.retention_days``:
+    pedir más de lo que la retención guarda no añadiría histórico, solo haría
+    pasar por completo un periodo que no lo está. El default coincide con la
+    retención por defecto (lo ata ``test_config_shape.py``).
+    """
+
     min_interval_sec: int = 5
     """Suelo de cadencia entre heartbeats de una misma clave, en segundos."""
 
