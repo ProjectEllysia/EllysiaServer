@@ -575,6 +575,17 @@ def test_a_plaintext_service_on_a_tls_port_is_not_forced_into_https(monkeypatch)
     assert opener.urls == ["http://10.0.0.5:8443/"]
 
 
+def test_an_ipv6_target_is_bracketed_in_the_url(monkeypatch):
+    # f"{host}:{port}" sobre una IPv6 literal produce una URL ambigua (los
+    # dos puntos de la dirección se confunden con el separador de puerto);
+    # RFC 3986 exige corchetes justo para evitarlo.
+    probe, opener = _probe_con_opener(monkeypatch, lambda host, port: False)
+
+    probe.fetch("2001:db8::1", 8080, "GET", "/")
+
+    assert opener.urls == ["http://[2001:db8::1]:8080/"]
+
+
 def test_the_scheme_is_observed_once_per_service(monkeypatch):
     # La pregunta es sobre el servicio, no sobre la petición: no cambia entre
     # una ruta y otra dentro del mismo escaneo.
