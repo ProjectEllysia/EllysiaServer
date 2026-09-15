@@ -225,3 +225,69 @@ def test_the_fullest_mounts_never_read_the_jsonb(
     assert status == 200
     assert len(snapshot_statements) == 1
     assert "metrics" not in snapshot_statements[0]
+
+
+# =============================================================================
+# RED POR INTERFAZ
+# =============================================================================
+
+def _interfaces(*traffic) -> dict:
+    """Payload con una interfaz por ``(iface, rxBytesPerSec, txBytesPerSec)``."""
+    return {"network": [
+        {"iface": iface, "rxBytesPerSec": received, "txBytesPerSec": sent}
+        for iface, received, sent in traffic
+    ]}
+
+
+@pytest.fixture()
+def network_asset(app, regular_user):
+    """Un activo con ``eth0`` recibiendo mucho, ``wlan0`` enviando y la loopback."""
+    asset_id = _create_asset(app, regular_user.id)
+    _seed(app, asset_id, [
+        (timedelta(minutes=30), _interfaces(("eth0", 100, 10), ("wlan0", 5, 50), ("lo", 9, 9))),
+        (timedelta(minutes=20), _interfaces(("eth0", 200, 10), ("wlan0", 5, 70), ("lo", 9, 9))),
+        (timedelta(minutes=10), _interfaces(("eth0", 300, 10), ("lo", 9, 9))),
+    ])
+    return asset_id
+
+
+def test_each_interface_has_its_own_history(client, network_asset, regular_user, auth_headers):
+    """Dos interfaces se resumen por separado, ordenadas por nombre y sin la loopback."""
+    status, body = _get(
+        client, f"/hygeia/assets/{network_asset}/stats/network", auth_headers(regular_user),
+    )
+
+    assert status == 200
+    assert [entry["interface"] for entry in body["interfaces"]] == ["eth0", "wlan0"]
+    eth0, wlan0 = body["interfaces"]
+    assert (eth0["rxBytesPerSec"]["max"], eth0["rxBytesPerSec"]["avg"]) == (300.0, 200.0)
+    assert eth0["txBytesPerSec"]["max"] == 10.0
+    assert (wlan0["txBytesPerSec"]["max"], wlan0["txBytesPerSec"]["current"]) == (70.0, 70.0)
+    assert wlan0["rxBytesPerSec"]["sampleCount"] == 2
+
+
+def test_interface_limits_the_response_to_one_interface(
+    client, network_asset, regular_user, auth_headers,
+):
+    """Con ``interface`` sale solo esa; la loopback o una inexistente dan una lista vacía."""
+    headers = auth_headers(regular_user)
+    path = f"/hygeia/assets/{network_asset}/stats/network"
+
+    _, body = _get(client, path, headers, interface="wlan0")
+    _, loopback = _get(client, path, headers, interface="lo")
+    _, missing = _get(client, path, headers, interface="eth9")
+
+    assert [entry["interface"] for entry in body["interfaces"]] == ["wlan0"]
+    assert loopback["interfaces"] == []
+    assert missing["interfaces"] == []
+
+
+def test_network_stats_of_another_users_asset_are_not_found(
+    client, network_asset, make_user, auth_headers,
+):
+    """El activo de otro usuario da el mismo 404 que uno inexistente."""
+    status, _ = _get(
+        client, f"/hygeia/assets/{network_asset}/stats/network", auth_headers(make_user()),
+    )
+
+    assert status == 404

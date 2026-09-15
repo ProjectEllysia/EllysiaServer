@@ -1021,6 +1021,61 @@ class HygeiaAssetManager:
             "isPeriodClipped": window.is_clipped,
         }
 
+    def get_network_stats(
+        self, asset_id: int, interface: Optional[str], requested_duration: timedelta,
+    ) -> dict:
+        """
+        Resume el tráfico de cada interfaz de red de un activo sobre un periodo.
+
+        ``netRxBps``/``netTxBps`` son el total del activo; qué interfaz genera
+        ese tráfico solo vive en el JSONB. Aquí se lee ese detalle y se resumen
+        la recepción y el envío de cada interfaz con ``summarize_values``. Las
+        interfaces loopback se excluyen, con el mismo criterio que el total.
+
+        Args:
+            asset_id: Activo cuyas interfaces se resumen.
+            interface: Interfaz concreta (``eth0``), o ``None`` para todas. Una
+                interfaz que el activo no reportó en el periodo, o una
+                loopback, da una lista vacía, no un error.
+            requested_duration: Duración del periodo pedido, antes de recortar;
+                positiva.
+
+        Returns:
+            Diccionario con la forma de ``NetworkStatsResponseSchema``:
+            ``interfaces`` (``interface`` y los ``StatSummary`` de
+            ``rxBytesPerSec`` y ``txBytesPerSec``, por nombre de interfaz) y la
+            ventana cubierta.
+
+        Raises:
+            AssetNotFoundError: Si el activo no existe o pertenece a otro usuario.
+        """
+        assert_owned(MonitoredAssetRepository, asset_id, self.user.id, AssetNotFoundError)
+        window = _resolve_entity_stats_window(requested_duration)
+
+        samples = build_repository(AssetSnapshotRepository).get_metrics_section_samples(
+            asset_id, "network", window.since, window.until,
+        )
+        received_by_interface = extract_entity_series(
+            samples, "iface", "rxBytesPerSec", is_loopback_excluded=True,
+        )
+        sent_by_interface = extract_entity_series(
+            samples, "iface", "txBytesPerSec", is_loopback_excluded=True,
+        )
+        return {
+            "interfaces": [
+                {
+                    "interface": name,
+                    "rxBytesPerSec": summarize_values(received_by_interface.get(name, [])),
+                    "txBytesPerSec": summarize_values(sent_by_interface.get(name, [])),
+                }
+                for name in sorted(received_by_interface.keys() | sent_by_interface.keys())
+                if interface is None or name == interface
+            ],
+            "periodCoveredFrom": window.since,
+            "periodCoveredTo": window.until,
+            "isPeriodClipped": window.is_clipped,
+        }
+
     def get_inventory(self, asset_id: int) -> dict:
         """
         Devuelve el último inventario de software conocido de un activo del usuario.

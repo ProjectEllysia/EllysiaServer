@@ -67,6 +67,8 @@ from .schemas import (
     MetricHistogramResponseSchema,
     MetricSeriesQuerySchema,
     MetricSeriesResponseSchema,
+    NetworkStatsQuerySchema,
+    NetworkStatsResponseSchema,
     PowerStatsQuerySchema,
     PowerStatsResponseSchema,
     PowerSummaryResponseSchema,
@@ -238,6 +240,25 @@ def get_asset_disk_stats(args, asset_id):
     manager = HygeiaAssetManager(user)
     return manager.get_disk_stats(
         asset_id, mount=args["mount"], requested_duration=args["requested_duration"],
+    )
+
+
+@hygeia_blp.get("/assets/<int:asset_id>/stats/network")
+@hygeia_blp.arguments(NetworkStatsQuerySchema, location="query")
+@hygeia_blp.response(200, NetworkStatsResponseSchema, description="Tráfico por interfaz")
+@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@hygeia_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@hygeia_blp.alt_response(404, schema=ErrorSchema, description="Asset not found")
+@limiter.limit("600 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
+@handle_exceptions(default_exception=AssetNotFoundError, logger=logger)
+def get_asset_network_stats(args, asset_id):
+    """Obtener el resumen de tráfico de cada interfaz de red de un activo"""
+    user = get_current_user()
+    manager = HygeiaAssetManager(user)
+    return manager.get_network_stats(
+        asset_id, interface=args["interface"], requested_duration=args["requested_duration"],
     )
 
 
