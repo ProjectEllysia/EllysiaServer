@@ -54,6 +54,7 @@ from .schemas import (
     AssetStatsSummaryResponseSchema,
     AssetTagsRequestSchema,
     AssetUpdateRequestSchema,
+    FleetOverviewResponseSchema,
     IngestRequestSchema,
     InventoryReportRequestSchema,
     IngestResponseSchema,
@@ -276,6 +277,21 @@ def get_asset_ranking(args):
         limit=args["limit"],
         requested_duration=args["requested_duration"],
     )
+
+
+@hygeia_blp.get("/stats/overview")
+@hygeia_blp.response(200, FleetOverviewResponseSchema, description="Panorama del parque")
+@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@hygeia_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@limiter.limit("600 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
+@handle_exceptions(default_exception=HygeiaError, logger=logger)
+def get_fleet_overview():
+    """Resumir el estado actual del parque: activos por estado, anomalías y actividad"""
+    user = get_current_user()
+    manager = HygeiaStatsManager(user)
+    return manager.get_fleet_overview()
 
 
 @hygeia_blp.get("/assets/<int:asset_id>/inventory")

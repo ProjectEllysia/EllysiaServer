@@ -80,6 +80,14 @@ _PERCENTILE_AGGREGATION = "p95"
 #: Percentil que corresponde a ``_PERCENTILE_AGGREGATION``.
 _SERIES_PERCENTILE = 95
 
+#: Estados de presencia de un activo (``MonitoredAsset.status``). El panorama
+#: del parque devuelve siempre los cuatro, a cero si no hay ninguno, para que
+#: el cliente no tenga que distinguir "cero" de "no vino la clave".
+_ASSET_STATUSES = ("pending", "online", "stale", "offline")
+
+#: Severidades de una anomalía (``Anomaly.severity``), con el mismo criterio.
+_ANOMALY_SEVERITIES = ("info", "warning", "critical")
+
 
 def _build_percentile_series_points(
     snapshot_repo: AssetSnapshotRepository, asset_id: int, bucket_seconds: int,
@@ -1212,6 +1220,48 @@ class HygeiaStatsManager:
             "periodCoveredFrom": window.since,
             "periodCoveredTo": window.until,
             "isPeriodClipped": window.is_clipped,
+        }
+
+    def get_fleet_overview(self) -> dict:
+        """
+        Resume el estado actual del parque del usuario en una sola llamada.
+
+        Es la pantalla de aterrizaje de las estadísticas: cuántos activos hay
+        en cada estado, cuántas anomalías piden atención y cuándo reportó el
+        parque por última vez, sin que el cliente tenga que orquestar varias
+        llamadas. Es una foto del instante actual, no un periodo: por eso no
+        recibe ``period`` ni pasa por la ventana de estadísticas.
+
+        Returns:
+            Diccionario con la forma de ``FleetOverviewResponseSchema``:
+            ``assetCount``, ``assetsByStatus`` (los cuatro estados, a cero si
+            no hay ninguno), ``openAnomaliesBySeverity`` (las tres
+            severidades), ``acknowledgedAnomalyCount``, ``averageUptimeSec``
+            (solo de los activos en línea; ``None`` si no hay) y
+            ``lastActivityAt`` (``None`` si ningún activo ha reportado).
+        """
+        asset_repo = build_repository(MonitoredAssetRepository)
+        assets_by_status = asset_repo.count_by_status(self.user.id)
+        anomalies_by_state_and_severity = build_repository(
+            AnomalyRepository,
+        ).count_active_by_state_and_severity(self.user.id)
+
+        return {
+            "assetCount": sum(assets_by_status.values()),
+            "assetsByStatus": {
+                status: assets_by_status.get(status, 0) for status in _ASSET_STATUSES
+            },
+            "openAnomaliesBySeverity": {
+                severity: anomalies_by_state_and_severity.get(("open", severity), 0)
+                for severity in _ANOMALY_SEVERITIES
+            },
+            "acknowledgedAnomalyCount": sum(
+                anomaly_count
+                for (state, _), anomaly_count in anomalies_by_state_and_severity.items()
+                if state == "acknowledged"
+            ),
+            "averageUptimeSec": asset_repo.get_average_online_uptime(self.user.id),
+            "lastActivityAt": asset_repo.get_last_activity(self.user.id),
         }
 
 

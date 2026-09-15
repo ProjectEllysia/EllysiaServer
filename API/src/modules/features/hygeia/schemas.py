@@ -782,6 +782,24 @@ class AssetRankingResponseSchema(Schema):
     isPeriodClipped = fields.Boolean()
 
 
+class FleetOverviewResponseSchema(Schema):
+    """Estado actual del parque del usuario: la pantalla de aterrizaje de las estadísticas.
+
+    ``assetsByStatus`` trae siempre ``pending``/``online``/``stale``/``offline``
+    y ``openAnomaliesBySeverity`` siempre ``info``/``warning``/``critical``, a
+    cero si no hay ninguno. Las anomalías reconocidas (``acknowledged``)
+    siguen activas pero ya tienen quien las mire, así que se cuentan aparte.
+    ``averageUptimeSec`` promedia solo los activos en línea y es nulo si no
+    hay ninguno; ``lastActivityAt`` es nulo si ningún activo ha reportado.
+    """
+    assetCount = fields.Integer()
+    assetsByStatus = fields.Dict(keys=fields.String(), values=fields.Integer())
+    openAnomaliesBySeverity = fields.Dict(keys=fields.String(), values=fields.Integer())
+    acknowledgedAnomalyCount = fields.Integer()
+    averageUptimeSec = fields.Float(allow_none=True)
+    lastActivityAt = UTCDateTime(allow_none=True)
+
+
 # =============================================================================
 # INVENTARIO DE SOFTWARE — reemplaza por completo en cada escaneo, sin delta
 # =============================================================================
