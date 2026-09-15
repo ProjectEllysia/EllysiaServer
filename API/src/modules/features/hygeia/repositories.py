@@ -9,14 +9,116 @@ Anomaly y HygeiaTag. Las lecturas se construyen con ``build_repository``
 
 from __future__ import annotations
 
+import math
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Literal, Mapping, Optional, Tuple
 
 from sqlalchemy import func, update
+from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from src.modules.infrastructure import BaseRepository
 
 from .model import Anomaly, AssetSnapshot, AssetTag, HygeiaTag, MonitoredAsset
+
+#: Cómo se resume una métrica dentro de un cubo de tiempo de un mismo activo.
+BucketAggregation = Literal["min", "avg", "max"]
+
+#: Cómo se combinan entre activos los valores ya resumidos por cubo.
+AssetAggregation = Literal["sum", "avg", "max"]
+
+_BUCKET_AGGREGATE_FUNCTIONS: Mapping[str, Callable] = {
+    "min": func.min, "avg": func.avg, "max": func.max,
+}
+_ASSET_AGGREGATE_FUNCTIONS: Mapping[str, Callable] = {
+    "sum": func.sum, "avg": func.avg, "max": func.max,
+}
+
+
+def _bucket_id_expression(bucket_seconds: int):
+    """Número de cubo de cada snapshot: ``floor(epoch(received_at) / bucket_seconds)``.
+
+    Es portable entre Postgres y el SQLite de los tests: en SQLite el
+    ``extract`` se compila a ``strftime('%s')`` (división entera, que para
+    valores positivos ya aplana) y en Postgres a doble precisión con
+    ``floor`` — mismo resultado.
+
+    Args:
+        bucket_seconds: Tamaño del cubo en segundos; positivo.
+
+    Returns:
+        La expresión SQL etiquetada como ``bucket_id``.
+    """
+    return func.floor(
+        func.extract("epoch", AssetSnapshot.received_at) / bucket_seconds
+    ).label("bucket_id")
+
+
+def _bucket_start(bucket_id, bucket_seconds: int) -> datetime:
+    """Inicio de un cubo como datetime naive-UTC, a partir de su número.
+
+    Args:
+        bucket_id: Número de cubo tal como lo devuelve la consulta; ``int``,
+            ``float`` o ``Decimal`` según el motor.
+        bucket_seconds: Tamaño del cubo en segundos.
+
+    Returns:
+        datetime: El instante de inicio del cubo, sin zona horaria.
+    """
+    return datetime.fromtimestamp(
+        int(bucket_id) * bucket_seconds, tz=timezone.utc,
+    ).replace(tzinfo=None)
+
+
+def _resolve_aggregate(functions_by_name: Mapping[str, Callable], name: str) -> Callable:
+    """Traduce el nombre de una agregación a su función SQL.
+
+    Args:
+        functions_by_name: Tabla de agregaciones admitidas en este punto.
+        name: Nombre pedido (``"max"``, ``"sum"``…).
+
+    Returns:
+        Callable: La función de SQLAlchemy (``func.max``…).
+
+    Raises:
+        ValueError: Si el nombre no está en la tabla; es un error de
+            programación, porque el schema del endpoint valida el parámetro.
+    """
+    if name not in functions_by_name:
+        raise ValueError(
+            f"Agregación {name!r} no admitida aquí; valores válidos: {sorted(functions_by_name)}"
+        )
+    return functions_by_name[name]
+
+
+def _validate_bucket_count(
+    since: datetime, until: datetime, bucket_seconds: int, max_buckets: int,
+) -> None:
+    """Rechaza un cubo tan fino que la ventana produciría más cubos de los permitidos.
+
+    Las consultas multi-activo no llevan ``LIMIT``: con varios activos, un
+    tope de filas cortaría la serie de los últimos activos del orden sin que
+    nada lo dijera. En su lugar se comprueba de antemano que la ventana cabe
+    en ``max_buckets`` cubos por activo (``+1`` porque la ventana no tiene por
+    qué empezar alineada con un cubo y puede asomar a uno más).
+
+    Args:
+        since: Inicio de la ventana.
+        until: Fin de la ventana.
+        bucket_seconds: Tamaño del cubo en segundos.
+        max_buckets: Máximo de cubos por activo.
+
+    Raises:
+        ValueError: Si ``bucket_seconds`` no es positivo o la ventana
+            necesitaría más de ``max_buckets`` cubos.
+    """
+    if bucket_seconds <= 0:
+        raise ValueError(f"El cubo debe ser positivo; se pidió {bucket_seconds} s")
+    bucket_count = math.ceil((until - since).total_seconds() / bucket_seconds) + 1
+    if bucket_count > max_buckets:
+        raise ValueError(
+            f"Un cubo de {bucket_seconds} s sobre esta ventana da {bucket_count} cubos; "
+            f"el máximo es {max_buckets}"
+        )
 
 
 class MonitoredAssetRepository(BaseRepository[MonitoredAsset]):
@@ -178,11 +280,8 @@ class AssetSnapshotRepository(BaseRepository[AssetSnapshot]):
         de este intervalo" y el eje sigue siendo ``received_at``, el mismo de
         la serie cruda.
 
-        El agrupado se hace con ``floor(extract(epoch, received_at) / bucket)``,
-        portable entre Postgres y el SQLite de los tests: en SQLite el
-        ``extract`` se compila a ``strftime('%s')`` (división entera, que para
-        valores positivos ya aplana) y en Postgres a doble precisión con
-        ``floor`` — mismo resultado.
+        El agrupado lo hace ``_bucket_id_expression``, portable entre Postgres
+        y SQLite.
 
         ``disk_max_mount`` se queda fuera del agregado, igual que
         ``power_estimated``/``power_source``: el montaje asociado al máximo,
@@ -203,9 +302,7 @@ class AssetSnapshotRepository(BaseRepository[AssetSnapshot]):
             Lista de puntos agregados (diccionarios en la misma forma que
             ``AssetSnapshot.to_dict``), de más antiguo a más reciente.
         """
-        bucket_id = func.floor(
-            func.extract("epoch", AssetSnapshot.received_at) / bucket
-        ).label("bucket_id")
+        bucket_id = _bucket_id_expression(bucket)
 
         query = (
             self._session.query(
@@ -233,16 +330,10 @@ class AssetSnapshotRepository(BaseRepository[AssetSnapshot]):
             .all()
         )
 
-        def bucket_start(bucket_no: int) -> datetime:
-            """Inicio del cubo como datetime naive-UTC, desde su número de epoch."""
-            return datetime.fromtimestamp(
-                int(bucket_no) * bucket, tz=timezone.utc,
-            ).replace(tzinfo=None)
-
         return [
             {
-                "collectedAt": bucket_start(row.bucket_id),
-                "receivedAt": bucket_start(row.bucket_id),
+                "collectedAt": _bucket_start(row.bucket_id, bucket),
+                "receivedAt": _bucket_start(row.bucket_id, bucket),
                 "cpuPct": row.cpu_pct,
                 "memPct": row.mem_pct,
                 "swapPct": row.swap_pct,
@@ -292,6 +383,192 @@ class AssetSnapshotRepository(BaseRepository[AssetSnapshot]):
             .all()
         )
         return [(row.received_at, row.power_watts) for row in rows]
+
+    def get_metric_samples_by_asset(
+        self, asset_ids: List[int], column: InstrumentedAttribute,
+        since: datetime, until: datetime,
+    ) -> Dict[int, List[Tuple[datetime, float]]]:
+        """Muestras crudas de una métrica para varios activos, en una sola consulta.
+
+        Es el camino para lo que SQL no resuelve de forma portable —el
+        percentil 95, el instante del máximo—: el resumen se calcula después
+        en Python con ``services/stats.py`` sobre estas series. Proyecta solo
+        dos columnas, igual que ``get_power_samples``, porque recorre todos
+        los heartbeats de la ventana.
+
+        Los snapshots sin valor para la métrica se excluyen: son ausencia de
+        dato, no un cero.
+
+        Args:
+            asset_ids: Activos a consultar; ya filtrados por dueño en el
+                manager. Una lista vacía devuelve un diccionario vacío sin
+                consultar: un ``IN ()`` mal formado aquí sería una fuga de
+                datos, no un error de rendimiento.
+            column: Columna de ``AssetSnapshot`` de la métrica (la de
+                ``MetricDefinition.column``).
+            since: Inicio de la ventana, sobre ``received_at``, inclusivo.
+            until: Fin de la ventana, sobre ``received_at``, inclusivo.
+
+        Returns:
+            Dict[int, List[Tuple[datetime, float]]]: Por cada ``asset_id``
+                pedido, sus ``(received_at, valor)`` de más antiguo a más
+                reciente. Un activo sin muestras en la ventana conserva su
+                entrada con una lista vacía.
+        """
+        if not asset_ids:
+            return {}
+        rows = (
+            self._session.query(
+                AssetSnapshot.asset_id, AssetSnapshot.received_at, column.label("value"),
+            )
+            .filter(
+                AssetSnapshot.asset_id.in_(asset_ids),
+                AssetSnapshot.received_at >= since,
+                AssetSnapshot.received_at <= until,
+                column.isnot(None),
+            )
+            .order_by(AssetSnapshot.asset_id.asc(), AssetSnapshot.received_at.asc())
+            .all()
+        )
+        samples_by_asset: Dict[int, List[Tuple[datetime, float]]] = {
+            asset_id: [] for asset_id in asset_ids
+        }
+        for row in rows:
+            samples_by_asset[row.asset_id].append((row.received_at, float(row.value)))
+        return samples_by_asset
+
+    def get_bucketed_metric_by_asset(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+        self, asset_ids: List[int], column: InstrumentedAttribute, bucket_seconds: int,
+        since: datetime, until: datetime, *, within_bucket: BucketAggregation = "max",
+        max_buckets: int = 1000,
+    ) -> Dict[int, List[Tuple[datetime, float]]]:
+        """Serie por cubos de una métrica, una por activo, en una sola consulta.
+
+        Generaliza ``get_series_bucketed`` a una lista de activos y a una sola
+        métrica, con el mismo agrupado portable (``_bucket_id_expression``).
+        Los cubos sin ningún heartbeat con dato no aparecen: la ausencia de
+        señal es el dato que la gráfica pinta como tiempo sin reportar.
+
+        Args:
+            asset_ids: Activos a consultar; ya filtrados por dueño. Una lista
+                vacía devuelve un diccionario vacío sin consultar.
+            column: Columna de ``AssetSnapshot`` de la métrica.
+            bucket_seconds: Tamaño del cubo en segundos; positivo.
+            since: Inicio de la ventana, sobre ``received_at``, inclusivo.
+            until: Fin de la ventana, sobre ``received_at``, inclusivo.
+            within_bucket: Cómo se resume el cubo de un activo: ``"min"``,
+                ``"avg"`` o ``"max"``. Por defecto ``"max"``, el mismo que usa
+                la serie de un activo para no tragarse un pico.
+            max_buckets: Máximo de cubos por activo. Por defecto ``1000``.
+
+        Returns:
+            Dict[int, List[Tuple[datetime, float]]]: Por cada ``asset_id``
+                pedido, sus ``(inicio_del_cubo, valor)`` en orden cronológico;
+                un activo sin datos en la ventana conserva su entrada vacía.
+
+        Raises:
+            ValueError: Si la agregación no es válida o la ventana necesita
+                más de ``max_buckets`` cubos.
+        """
+        aggregate = _resolve_aggregate(_BUCKET_AGGREGATE_FUNCTIONS, within_bucket)
+        _validate_bucket_count(since, until, bucket_seconds, max_buckets)
+        if not asset_ids:
+            return {}
+
+        bucket_id = _bucket_id_expression(bucket_seconds)
+        rows = (
+            self._session.query(AssetSnapshot.asset_id, bucket_id, aggregate(column).label("value"))
+            .filter(
+                AssetSnapshot.asset_id.in_(asset_ids),
+                AssetSnapshot.received_at >= since,
+                AssetSnapshot.received_at <= until,
+                column.isnot(None),
+            )
+            .group_by(AssetSnapshot.asset_id, bucket_id)
+            .order_by(AssetSnapshot.asset_id.asc(), bucket_id.asc())
+            .all()
+        )
+        series_by_asset: Dict[int, List[Tuple[datetime, float]]] = {
+            asset_id: [] for asset_id in asset_ids
+        }
+        for row in rows:
+            series_by_asset[row.asset_id].append(
+                (_bucket_start(row.bucket_id, bucket_seconds), float(row.value))
+            )
+        return series_by_asset
+
+    def get_bucketed_metric_across_assets(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+        self, asset_ids: List[int], column: InstrumentedAttribute, bucket_seconds: int,
+        since: datetime, until: datetime, *, within_bucket: BucketAggregation = "max",
+        across_assets: AssetAggregation = "sum", max_buckets: int = 1000,
+    ) -> List[Tuple[datetime, float, int]]:
+        """Una única serie por cubos que combina varios activos, en una sola consulta.
+
+        Agrega en dos niveles, y el orden importa: primero cada activo dentro
+        de su cubo (``within_bucket``) y después esos valores entre activos
+        (``across_assets``). Sumar directamente las filas crudas contaría dos
+        veces a un activo que mandó dos heartbeats dentro del mismo cubo: la
+        "memoria total de la etiqueta" dependería de la cadencia de cada
+        agente. Los dos niveles van en la misma sentencia, con una subconsulta.
+
+        Args:
+            asset_ids: Activos a combinar; ya filtrados por dueño. Una lista
+                vacía devuelve una lista vacía sin consultar.
+            column: Columna de ``AssetSnapshot`` de la métrica.
+            bucket_seconds: Tamaño del cubo en segundos; positivo.
+            since: Inicio de la ventana, sobre ``received_at``, inclusivo.
+            until: Fin de la ventana, sobre ``received_at``, inclusivo.
+            within_bucket: Cómo se resume el cubo de cada activo: ``"min"``,
+                ``"avg"`` o ``"max"``. Por defecto ``"max"``.
+            across_assets: Cómo se combinan los activos: ``"sum"``, ``"avg"``
+                o ``"max"``. Por defecto ``"sum"``.
+            max_buckets: Máximo de cubos de la serie. Por defecto ``1000``.
+
+        Returns:
+            List[Tuple[datetime, float, int]]: ``(inicio_del_cubo, valor,
+                activos_con_dato)`` en orden cronológico. El tercer elemento
+                dice cuántos activos aportaron a ese cubo: una suma sobre dos
+                activos no es comparable con una sobre tres, y quien la pinta
+                tiene que poder decirlo.
+
+        Raises:
+            ValueError: Si alguna agregación no es válida o la ventana
+                necesita más de ``max_buckets`` cubos.
+        """
+        bucket_aggregate = _resolve_aggregate(_BUCKET_AGGREGATE_FUNCTIONS, within_bucket)
+        asset_aggregate = _resolve_aggregate(_ASSET_AGGREGATE_FUNCTIONS, across_assets)
+        _validate_bucket_count(since, until, bucket_seconds, max_buckets)
+        if not asset_ids:
+            return []
+
+        bucket_id = _bucket_id_expression(bucket_seconds)
+        per_asset = (
+            self._session.query(
+                AssetSnapshot.asset_id, bucket_id, bucket_aggregate(column).label("value"),
+            )
+            .filter(
+                AssetSnapshot.asset_id.in_(asset_ids),
+                AssetSnapshot.received_at >= since,
+                AssetSnapshot.received_at <= until,
+                column.isnot(None),
+            )
+            .group_by(AssetSnapshot.asset_id, bucket_id)
+            .subquery()
+        )
+        rows = (
+            self._session.query(
+                per_asset.c.bucket_id,
+                asset_aggregate(per_asset.c.value).label("value"),
+                func.count(per_asset.c.asset_id).label("asset_count"),
+            )
+            .group_by(per_asset.c.bucket_id)
+            .order_by(per_asset.c.bucket_id.asc())
+            .all()
+        )
+        return [
+            (_bucket_start(row.bucket_id, bucket_seconds), float(row.value), row.asset_count)
+            for row in rows
+        ]
 
     def get_latest(self, asset_id: int) -> Optional[AssetSnapshot]:
         """Devuelve el último snapshot recibido de un activo, o ``None`` si nunca reportó.
