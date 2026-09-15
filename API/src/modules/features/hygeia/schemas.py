@@ -633,6 +633,41 @@ class AssetStatsSummaryResponseSchema(Schema):
     isPeriodClipped = fields.Boolean()
 
 
+class DiskStatsQuerySchema(Schema):
+    """Query de ``GET /hygeia/assets/<id>/stats/disks``.
+
+    ``mount`` limita la respuesta a un punto de montaje (``/var``); sin él
+    salen todos los que el activo reportó en el periodo. Tras cargar,
+    ``period`` queda como ``requested_duration``.
+    """
+    mount = fields.String(load_default=None, validate=validate.Length(min=1, max=256))
+    period = _build_period_field()
+
+    @post_load
+    def parse_query(self, data, **kwargs):
+        """Convierte ``period`` en ``timedelta``."""
+        data["requested_duration"] = _parse_period(data.pop("period"))
+        return data
+
+
+class MountStatsSchema(Schema):
+    """Resumen del uso de un punto de montaje sobre el periodo cubierto."""
+    mount = fields.String()
+    usagePct = fields.Nested(MetricSummarySchema)
+
+
+class DiskStatsResponseSchema(Schema):
+    """Estadísticas de disco de un activo, un resumen por punto de montaje.
+
+    ``mounts`` va ordenado por nombre de montaje. La ventana cubierta se
+    recorta a ``maxEntityStatsPeriodDays``, y ``isPeriodClipped`` lo avisa.
+    """
+    mounts = fields.List(fields.Nested(MountStatsSchema))
+    periodCoveredFrom = UTCDateTime()
+    periodCoveredTo = UTCDateTime()
+    isPeriodClipped = fields.Boolean()
+
+
 class TagStatsQuerySchema(AssetStatsSummaryQuerySchema):
     """Query de ``GET /hygeia/stats/by-tag/<tagId>``: la del resumen de un activo más ``agg``.
 

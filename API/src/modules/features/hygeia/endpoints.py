@@ -54,6 +54,8 @@ from .schemas import (
     AssetStatsSummaryResponseSchema,
     AssetTagsRequestSchema,
     AssetUpdateRequestSchema,
+    DiskStatsQuerySchema,
+    DiskStatsResponseSchema,
     FleetOverviewResponseSchema,
     IngestRequestSchema,
     InventoryReportRequestSchema,
@@ -215,6 +217,25 @@ def get_asset_stats_summary(args, asset_id):
         asset_id,
         metric_names=args["metric_names"],
         requested_duration=args["requested_duration"],
+    )
+
+
+@hygeia_blp.get("/assets/<int:asset_id>/stats/disks")
+@hygeia_blp.arguments(DiskStatsQuerySchema, location="query")
+@hygeia_blp.response(200, DiskStatsResponseSchema, description="Uso por punto de montaje")
+@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@hygeia_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@hygeia_blp.alt_response(404, schema=ErrorSchema, description="Asset not found")
+@limiter.limit("600 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
+@handle_exceptions(default_exception=AssetNotFoundError, logger=logger)
+def get_asset_disk_stats(args, asset_id):
+    """Obtener el resumen de uso de cada punto de montaje de un activo"""
+    user = get_current_user()
+    manager = HygeiaAssetManager(user)
+    return manager.get_disk_stats(
+        asset_id, mount=args["mount"], requested_duration=args["requested_duration"],
     )
 
 

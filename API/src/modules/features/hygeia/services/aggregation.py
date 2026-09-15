@@ -17,11 +17,16 @@ por heartbeat), que es lo que tiene sentido graficar en el tiempo. Lo que
 tiene cardinalidad por entidad (uso por punto de montaje, tráfico por
 interfaz) o solo tiene sentido "ahora" (uso por núcleo, procesos top) se
 queda en el JSONB y se sirve por el endpoint de últimas métricas.
+
+Las estadísticas por entidad sí leen ese JSONB, y lo hacen por
+:func:`extract_entity_series`, que vive aquí por la misma razón: es el otro
+sitio del camino de lectura que necesita conocer la forma del payload.
 """
 
 from __future__ import annotations
 
-from typing import Iterable, List, Optional
+from datetime import datetime
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 # "lo"/"lo0" en Linux, BSD y macOS; en Windows la interfaz se llama
 # "Loopback Pseudo-Interface 1", de ahí la comprobación por subcadena.
@@ -110,3 +115,43 @@ def denormalize(metrics: dict) -> dict:
         "power_estimated": power.get("estimated"),
         "power_source":    power.get("source"),
     }
+
+
+def extract_entity_series(
+    samples: Sequence[Tuple[datetime, Optional[list]]], entity_key: str, value_key: str,
+    *, is_loopback_excluded: bool = False,
+) -> Dict[str, List[Tuple[datetime, Optional[float]]]]:
+    """
+    Separa una sección por entidad del JSONB en una serie por entidad.
+
+    Cada heartbeat trae una lista con una entrada por montaje o por interfaz;
+    esta función la vuelve del revés, a una serie ``(instante, valor)`` por
+    nombre de entidad, que es lo que resume ``summarize_values``. Una entidad
+    que aparece en unos heartbeats y no en otros (un USB montado a ratos)
+    solo tiene muestras donde apareció.
+
+    Args:
+        samples: ``(instante, sección)`` de cada heartbeat, en orden
+            cronológico; la sección es la lista del JSONB (``metrics.disk``,
+            ``metrics.network``) o ``None`` si el heartbeat no la trae.
+        entity_key: Clave que nombra la entidad en cada entrada (``"mount"``,
+            ``"iface"``). Las entradas sin nombre se descartan.
+        value_key: Clave del valor a extraer (``"usagePct"``,
+            ``"rxBytesPerSec"``). Un valor ausente queda como ``None``, que
+            ``summarize_values`` trata como falta de dato.
+        is_loopback_excluded: Si se descartan las interfaces loopback, con el
+            mismo criterio que el total ``net_rx_bps``. Por defecto ``False``.
+
+    Returns:
+        Dict[str, List[Tuple[datetime, Optional[float]]]]: La serie de cada
+            entidad, en el orden de ``samples``. Vacío si ningún heartbeat
+            trae la sección.
+    """
+    series_by_entity: Dict[str, List[Tuple[datetime, Optional[float]]]] = {}
+    for instant, entries in samples:
+        for entry in entries or []:
+            name = entry.get(entity_key)
+            if not name or (is_loopback_excluded and _is_loopback(name)):
+                continue
+            series_by_entity.setdefault(name, []).append((instant, entry.get(value_key)))
+    return series_by_entity
