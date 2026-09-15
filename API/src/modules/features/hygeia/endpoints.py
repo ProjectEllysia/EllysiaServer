@@ -145,6 +145,7 @@ def get_asset_metrics(args, asset_id):
     manager = HygeiaAssetManager(user)
     return manager.get_metrics(
         asset_id, since=args["since"], until=args["until"], bucket=args["bucket"],
+        aggregation=args["agg"],
     )
 
 

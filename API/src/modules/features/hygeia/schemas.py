@@ -392,6 +392,10 @@ class AssetMetricsQuerySchema(Schema):
     # cada métrica, para que ventanas largas (24 h/7 d) no se recorten contra
     # el tope de puntos y los spikes sigan siendo visibles.
     bucket = fields.Integer(load_default=None, validate=validate.Range(min=1))
+    # Cómo se resume cada cubo: ``max`` (por defecto, el comportamiento de
+    # siempre), ``min``, ``avg`` o ``p95``. Sin ``bucket`` no tiene efecto: la
+    # serie cruda no agrega nada.
+    agg = fields.String(load_default="max", validate=validate.OneOf(["min", "avg", "p95", "max"]))
 
     @post_load
     def normalize_range(self, data, **kwargs):
@@ -435,8 +439,9 @@ class AssetMetricsResponseSchema(Schema):
     """Serie temporal de métricas de un activo, para el gráfico de la SPA.
 
     ``bucket`` ecoa el cubo de agregación usado: ``null`` = serie cruda (un
-    punto por heartbeat), un entero = un punto por cubo con el máximo de cada
-    métrica. Así el consumidor rotula la ventana con honestidad sin adivinar.
+    punto por heartbeat), un entero = un punto por cubo. ``agg`` ecoa cómo se
+    resumió cada cubo (``min``/``avg``/``p95``/``max``), y es ``null`` en la
+    serie cruda. Así el consumidor rotula la ventana con honestidad sin adivinar.
     """
     snapshots = fields.List(fields.Nested(AssetSnapshotPointSchema))
     truncated = fields.Boolean(
@@ -444,6 +449,7 @@ class AssetMetricsResponseSchema(Schema):
                                  "hay más histórico del que se devuelve."},
     )
     bucket = fields.Integer(allow_none=True, load_default=None)
+    agg = fields.String(allow_none=True, load_default=None)
 
 
 class AssetLatestResponseSchema(Schema):

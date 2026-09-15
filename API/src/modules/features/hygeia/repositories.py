@@ -262,18 +262,27 @@ class AssetSnapshotRepository(BaseRepository[AssetSnapshot]):
         rows.reverse()
         return rows
 
-    def get_series_bucketed(
+    def get_series_bucketed(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self, asset_id: int, bucket: int, since: Optional[datetime] = None,
         until: Optional[datetime] = None, limit: int = 1000,
+        aggregation: BucketAggregation = "max",
     ) -> List[dict]:
         """Serie temporal agregada por cubos de ``bucket`` segundos.
 
-        Un punto por cubo con **el máximo** de cada métrica desnormalizada:
-        es el agregado que no se traga un pico puntual dentro de un cubo de
-        ítems — para una gráfica de monitorización, perder el pico sería
-        mentir sobre el tramo. Los cubos sin ningún heartbeat simplemente no
-        existen en el resultado: la ausencia de señal es precisamente el dato
-        que el frontend pinta como tiempo apagado.
+        Un punto por cubo con el agregado pedido de cada métrica
+        desnormalizada. Por defecto **el máximo**: es el agregado que no se
+        traga un pico puntual dentro de un cubo de ítems — para una gráfica de
+        monitorización, perder el pico sería mentir sobre el tramo. ``avg`` es
+        la media **aritmética** de los heartbeats del cubo, también para la
+        potencia: la misma media que usa el resumen estadístico, para que una
+        gráfica y un resumen del mismo tramo no den dos medias distintas (la
+        ponderada por duración se queda en el cálculo de energía). El
+        percentil 95 no se resuelve aquí: no hay una función SQL portable
+        entre Postgres y SQLite, y lo calcula el manager en Python.
+
+        Los cubos sin ningún heartbeat simplemente no existen en el resultado:
+        la ausencia de señal es precisamente el dato que el frontend pinta como
+        tiempo apagado.
 
         El instante del punto es el **inicio** del cubo (suelo de
         ``epoch(received_at) / bucket``), así el punto se lee como "el estado
@@ -297,24 +306,30 @@ class AssetSnapshotRepository(BaseRepository[AssetSnapshot]):
             until: Límite superior opcional de ``received_at``.
             limit: Tope de cubos, por defensa (una ventana de 30 días con un
                 cubo de 1 s sería 2,5 millones de filas).
+            aggregation: Cómo se resume cada cubo: ``"min"``, ``"avg"`` o
+                ``"max"``. Por defecto ``"max"``.
 
         Returns:
             Lista de puntos agregados (diccionarios en la misma forma que
             ``AssetSnapshot.to_dict``), de más antiguo a más reciente.
+
+        Raises:
+            ValueError: Si ``aggregation`` no es una de las admitidas.
         """
+        aggregate = _resolve_aggregate(_BUCKET_AGGREGATE_FUNCTIONS, aggregation)
         bucket_id = _bucket_id_expression(bucket)
 
         query = (
             self._session.query(
                 bucket_id,
-                func.max(AssetSnapshot.cpu_pct).label("cpu_pct"),
-                func.max(AssetSnapshot.mem_pct).label("mem_pct"),
-                func.max(AssetSnapshot.swap_pct).label("swap_pct"),
-                func.max(AssetSnapshot.load1).label("load1"),
-                func.max(AssetSnapshot.disk_max_pct).label("disk_max_pct"),
-                func.max(AssetSnapshot.net_rx_bps).label("net_rx_bps"),
-                func.max(AssetSnapshot.net_tx_bps).label("net_tx_bps"),
-                func.max(AssetSnapshot.power_watts).label("power_watts"),
+                aggregate(AssetSnapshot.cpu_pct).label("cpu_pct"),
+                aggregate(AssetSnapshot.mem_pct).label("mem_pct"),
+                aggregate(AssetSnapshot.swap_pct).label("swap_pct"),
+                aggregate(AssetSnapshot.load1).label("load1"),
+                aggregate(AssetSnapshot.disk_max_pct).label("disk_max_pct"),
+                aggregate(AssetSnapshot.net_rx_bps).label("net_rx_bps"),
+                aggregate(AssetSnapshot.net_tx_bps).label("net_tx_bps"),
+                aggregate(AssetSnapshot.power_watts).label("power_watts"),
             )
             .filter(AssetSnapshot.asset_id == asset_id)
         )
