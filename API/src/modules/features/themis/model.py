@@ -165,7 +165,10 @@ class Host(Base):
     Attributes:
         id: Primary key, auto-incrementing integer.
         hostname: Unique hostname (max 64 characters).
-        ip_address: IPv4/IPv6 address (max 15 characters).
+        ip_address: IPv4 or IPv6 address (max 45 characters — la longitud de
+            una IPv6 completa con notación comprimida, p. ej.
+            ``"2001:0db8:0000:0000:0000:ff00:0042:8329"``; una IPv4 nunca se
+            acerca a ese límite).
         mac_address: MAC address (max 17 characters).
         vendor: Device vendor from MAC OUI lookup (max 64 characters).
 
@@ -176,7 +179,7 @@ class Host(Base):
 
     id          = Column(Integer,    primary_key=True, autoincrement=True)
     hostname    = Column(String(64), unique=True, nullable=False)
-    ip_address  = Column(String(15), nullable=False)
+    ip_address  = Column(String(45), nullable=False)
     mac_address = Column(String(17), nullable=False)
     vendor      = Column(String(64))
 
@@ -731,12 +734,27 @@ class LybraScan(Scan):
             Vive aquí y no en ``Scan`` porque sólo Lybra descubre su propia
             superficie: los otros tres escáneres reciben el objetivo ya
             resuelto y no tienen un barrido que pueda quedarse a medias.
+        profile: El perfil de escaneo elegido ("fast", "standard" o
+            "thorough"; ver ``LybraProfilesConfig``). Se persiste porque un
+            informe sin él es ambiguo: "no se encontró nada" no dice lo
+            mismo si el perfil miró cien puertos que si miró todos. Vive
+            aquí y no en ``Scan`` por la misma razón que ``is_partial``: es
+            un concepto propio del barrido de Lybra, no de los otros tres
+            escáneres, que reciben el objetivo ya resuelto.
+        parent_scan_id: El escaneo de red que lanzó este host como uno de los
+            suyos, o ``None`` para un escaneo de un solo objetivo. El padre
+            en sí no descubre nada — es la fila que agrupa; sus propios
+            hallazgos están siempre vacíos, y ``format_scan`` le suma los de
+            sus hijos en vez de leerlos de la tabla ``Finding``.
     """
     __tablename__ = "LybraScan"
 
     id             = Column(Integer, ForeignKey("Scan.id"), primary_key=True)
     asset_id       = Column(Integer, nullable=True, index=True)
     is_partial     = Column(Boolean, nullable=False, default=False, server_default=sa_false())
+    profile        = Column(String(20), nullable=False, default="standard", server_default="standard")
+    parent_scan_id = Column(Integer, ForeignKey("LybraScan.id", ondelete="CASCADE"),
+                            nullable=True, index=True)
 
     # Sin ``inherit_condition``: hacía falta mientras existía ``source_scan_id``,
     # una segunda clave foránea a ``Scan.id`` que dejaba ambigua la unión con la
@@ -829,6 +847,13 @@ class Finding(Base):
         cve_ids / cvss_score / cvss_vector / epss_score / in_kev /
             exploit_maturity: Vulnerability correlation, filled once the
             finding's CPE (or check) resolves against the KB.
+        fixed_version: La versión que la propia NVD declara como cota
+            superior de la regla de aplicabilidad que casó con este
+            producto, o ``None`` cuando ninguna regla la declara — nunca se
+            inventa. Se resuelve una vez, al persistir el hallazgo
+            (``services/cve_context.py::resolve_fixed_versions``), para que
+            sea consultable y agrupable por SQL en vez de recalcularse cada
+            vez que un informe la pide.
         required_os: CPE platform token (e.g. "windows_10") this finding's CVE
             match is gated behind, or None if unconditional. Set from
             ``CpeMatch.required_os`` at correlation time; used by
@@ -892,6 +917,7 @@ class Finding(Base):
     in_kev           = Column(Boolean, default=False)
     exploit_maturity = Column(String(16))   # none|poc|functional|weaponized|in_the_wild
     required_os      = Column(String(64))   # Platform this finding's CVE match is gated behind (see CpeMatch.required_os), or None
+    fixed_version    = Column(String(64))   # NVD's upper bound for this product's rule, or None
 
     # Quality / provenance
     source       = Column(String(32), index=True)
@@ -936,6 +962,7 @@ class Finding(Base):
             "in_kev": self.in_kev,
             "exploit_maturity": self.exploit_maturity,
             "required_os": self.required_os,
+            "fixed_version": self.fixed_version,
             "source": self.source,
             "check_id": self.check_id, 
             "feed_version": self.feed_version,

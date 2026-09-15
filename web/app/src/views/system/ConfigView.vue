@@ -583,6 +583,7 @@ const hygeiaLimits = [
   { key: 'maxDiskMounts',        label: 'Puntos de montaje' },
   { key: 'maxNetInterfaces',     label: 'Interfaces de red' },
   { key: 'maxSeriesPoints',      label: 'Puntos por serie temporal' },
+  { key: 'maxStatsPeriodDays',   label: 'Periodo máx. de estadísticas (días)', hint: 'Nunca abarca más que la retención' },
   { key: 'minIntervalSec',       label: 'Intervalo mínimo entre latidos (s)' },
   { key: 'clockSkewSec',         label: 'Desfase de reloj tolerado (s)', hint: 'Cuánto se acepta que el reloj del agente vaya adelantado' },
   { key: 'maxBackfillSec',       label: 'Antigüedad máx. de un latido (s)', hint: '86400 = un día; más viejo que eso se rechaza' },

@@ -532,3 +532,118 @@ def test_metrics_without_token_is_401(client, app, regular_user, suffix):
     asset_id = _create_asset(app, regular_user.id)
 
     assert client.get(f"/hygeia/assets/{asset_id}/metrics{suffix}").status_code == 401
+
+
+# =============================================================================
+# AGREGACIÓN CONFIGURABLE POR CUBO (agg)
+# =============================================================================
+
+def _seed_cpu_in_one_hour(app, asset_id: int, cpu_values: list) -> datetime:
+    """Siembra un heartbeat por minuto con esos valores de CPU dentro de una hora ya pasada.
+
+    Returns:
+        El inicio de esa hora (naive-UTC), que es también el inicio de su cubo de 3600 s.
+    """
+    hour_start = (utcnow_naive() - timedelta(hours=3)).replace(minute=0, second=0, microsecond=0)
+    with app.app_context():
+        with UnitOfWork() as uow:
+            repo = AssetSnapshotRepository(uow)
+            for minute, cpu in enumerate(cpu_values, start=1):
+                stamp = hour_start + timedelta(minutes=minute)
+                repo.save(AssetSnapshot(
+                    asset_id=asset_id, collected_at=stamp, received_at=stamp,
+                    metrics=_metrics(cpu=cpu), cpu_pct=cpu,
+                ))
+    return hour_start
+
+
+def _hourly_series(client, asset_id: int, headers: dict, hour_start: datetime, **query):
+    """Pide la serie por cubos de una hora de esa hora concreta; devuelve ``(status, cuerpo)``."""
+    response = client.get(
+        f"/hygeia/assets/{asset_id}/metrics",
+        query_string={
+            "bucket": 3600,
+            "from": hour_start.isoformat(),
+            "to": (hour_start + timedelta(minutes=59)).isoformat(),
+            **query,
+        },
+        headers=headers,
+    )
+    return response.status_code, response.get_json()
+
+
+@pytest.mark.parametrize("agg, expected_cpu", [("avg", 45.0), ("min", 10.0), ("max", 90.0)])
+def test_agg_selects_how_each_bucket_is_summarized(
+    client, app, regular_user, auth_headers, agg, expected_cpu,
+):
+    """``agg=avg`` da la media real del cubo, no el máximo; y lo mismo con ``min``."""
+    asset_id = _create_asset(app, regular_user.id)
+    hour_start = _seed_cpu_in_one_hour(app, asset_id, [10.0, 30.0, 50.0, 90.0])
+
+    status, body = _hourly_series(client, asset_id, auth_headers(regular_user), hour_start, agg=agg)
+
+    assert status == 200
+    assert body["agg"] == agg
+    assert len(body["snapshots"]) == 1
+    assert body["snapshots"][0]["cpuPct"] == pytest.approx(expected_cpu)
+
+
+def test_agg_p95_is_computed_per_bucket_on_the_same_bucket_start(
+    client, app, regular_user, auth_headers,
+):
+    """El p95 del cubo sale del mismo inicio de cubo que ``max``, y lo que no hay es ``null``."""
+    asset_id = _create_asset(app, regular_user.id)
+    hour_start = _seed_cpu_in_one_hour(app, asset_id, [1.0, 2.0, 3.0, 4.0, 5.0])
+    headers = auth_headers(regular_user)
+
+    _, percentile_body = _hourly_series(client, asset_id, headers, hour_start, agg="p95")
+    _, maximum_body = _hourly_series(client, asset_id, headers, hour_start, agg="max")
+
+    assert percentile_body["agg"] == "p95"
+    point = percentile_body["snapshots"][0]
+    assert point["cpuPct"] == pytest.approx(4.8)
+    assert point["memPct"] is None
+    assert point["powerWatts"] is None
+    assert point["receivedAt"] == maximum_body["snapshots"][0]["receivedAt"]
+    received_at = datetime.fromisoformat(point["receivedAt"].replace("Z", "+00:00"))
+    assert received_at.astimezone(timezone.utc).replace(tzinfo=None) == hour_start
+
+
+def test_without_agg_the_series_keeps_the_maximum(client, app, regular_user, auth_headers):
+    """Quien no manda ``agg`` recibe lo de siempre: el máximo de cada cubo."""
+    asset_id = _create_asset(app, regular_user.id)
+    hour_start = _seed_cpu_in_one_hour(app, asset_id, [10.0, 30.0, 50.0, 90.0])
+
+    status, body = _hourly_series(client, asset_id, auth_headers(regular_user), hour_start)
+
+    assert status == 200
+    assert body["agg"] == "max"
+    assert body["snapshots"][0]["cpuPct"] == 90.0
+
+
+def test_agg_has_no_effect_on_the_raw_series(client, app, regular_user, auth_headers):
+    """Sin ``bucket`` no hay nada que agregar: la serie es cruda y ``agg`` vuelve a ``null``."""
+    asset_id = _create_asset(app, regular_user.id)
+    _seed_cpu_in_one_hour(app, asset_id, [10.0, 30.0, 50.0, 90.0])
+
+    response = client.get(
+        f"/hygeia/assets/{asset_id}/metrics", query_string={"agg": "avg"},
+        headers=auth_headers(regular_user),
+    )
+
+    body = response.get_json()
+    assert response.status_code == 200
+    assert body["agg"] is None
+    assert [point["cpuPct"] for point in body["snapshots"]] == [10.0, 30.0, 50.0, 90.0]
+
+
+def test_an_unknown_agg_is_rejected(client, app, regular_user, auth_headers):
+    """``agg`` solo admite ``min``, ``avg``, ``p95`` y ``max``."""
+    asset_id = _create_asset(app, regular_user.id)
+
+    response = client.get(
+        f"/hygeia/assets/{asset_id}/metrics", query_string={"bucket": 3600, "agg": "sum"},
+        headers=auth_headers(regular_user),
+    )
+
+    assert response.status_code == 422

@@ -3,7 +3,7 @@ Schemas Marshmallow del módulo Hygeia. Claves de respuesta en camelCase,
 por convención del proyecto.
 """
 
-from datetime import timezone
+from datetime import timedelta, timezone
 
 from marshmallow import EXCLUDE, Schema, ValidationError, fields, post_load, validate, validates_schema
 
@@ -24,14 +24,18 @@ acaba siendo diez tonos de gris indistinguibles en un badge de 11px.
 class TagSchema(Schema):
     """Vista de una etiqueta.
 
-    ``assetCount`` solo lo rellena el listado del catálogo; las etiquetas
-    anidadas dentro de un activo lo omiten (allí no significaría nada).
+    ``assetCount`` y ``lastActivityAt`` solo los rellena el listado del
+    catálogo; las etiquetas anidadas dentro de un activo los omiten (allí no
+    significarían nada). ``lastActivityAt`` es la última señal del activo más
+    reciente del usuario que lleva la etiqueta, y es nulo si la etiqueta no
+    está en ninguno o ninguno ha reportado nunca.
     """
     id = fields.Integer()
     name = fields.String()
     color = fields.String()
     tagType = fields.String()
     assetCount = fields.Integer()
+    lastActivityAt = UTCDateTime(allow_none=True)
 
 
 class TagCreateRequestSchema(Schema):
@@ -392,6 +396,10 @@ class AssetMetricsQuerySchema(Schema):
     # cada métrica, para que ventanas largas (24 h/7 d) no se recorten contra
     # el tope de puntos y los spikes sigan siendo visibles.
     bucket = fields.Integer(load_default=None, validate=validate.Range(min=1))
+    # Cómo se resume cada cubo: ``max`` (por defecto, el comportamiento de
+    # siempre), ``min``, ``avg`` o ``p95``. Sin ``bucket`` no tiene efecto: la
+    # serie cruda no agrega nada.
+    agg = fields.String(load_default="max", validate=validate.OneOf(["min", "avg", "p95", "max"]))
 
     @post_load
     def normalize_range(self, data, **kwargs):
@@ -435,8 +443,9 @@ class AssetMetricsResponseSchema(Schema):
     """Serie temporal de métricas de un activo, para el gráfico de la SPA.
 
     ``bucket`` ecoa el cubo de agregación usado: ``null`` = serie cruda (un
-    punto por heartbeat), un entero = un punto por cubo con el máximo de cada
-    métrica. Así el consumidor rotula la ventana con honestidad sin adivinar.
+    punto por heartbeat), un entero = un punto por cubo. ``agg`` ecoa cómo se
+    resumió cada cubo (``min``/``avg``/``p95``/``max``), y es ``null`` en la
+    serie cruda. Así el consumidor rotula la ventana con honestidad sin adivinar.
     """
     snapshots = fields.List(fields.Nested(AssetSnapshotPointSchema))
     truncated = fields.Boolean(
@@ -444,6 +453,7 @@ class AssetMetricsResponseSchema(Schema):
                                  "hay más histórico del que se devuelve."},
     )
     bucket = fields.Integer(allow_none=True, load_default=None)
+    agg = fields.String(allow_none=True, load_default=None)
 
 
 class AssetLatestResponseSchema(Schema):
@@ -517,6 +527,518 @@ class PowerSummaryResponseSchema(Schema):
     week = fields.Nested(PowerPeriodSchema)
     month = fields.Nested(PowerPeriodSchema)
     monthProjected = fields.Nested(PowerPeriodSchema)
+
+
+# =============================================================================
+# ESTADÍSTICAS — agregados de las métricas de un activo sobre un periodo
+# =============================================================================
+
+#: Unidades que admite ``period``: horas o días, el mismo vocabulario que usa
+#: la SPA para rotular las ventanas (``24h``, ``7d``, ``30d``).
+_PERIOD_UNITS = {"h": "hours", "d": "days"}
+
+
+def _build_period_field() -> fields.String:
+    """Campo ``period`` de las queries de estadísticas: ``<n>h`` o ``<n>d``, por defecto ``24h``.
+
+    Returns:
+        fields.String: Un campo nuevo en cada llamada; marshmallow no admite
+            compartir la misma instancia entre schemas.
+    """
+    return fields.String(
+        load_default="24h",
+        validate=validate.Regexp(
+            r"^[1-9][0-9]{0,4}[hd]$",
+            error="El periodo debe tener la forma <n>h o <n>d (por ejemplo 24h o 7d).",
+        ),
+    )
+
+
+def _parse_period(period: str) -> timedelta:
+    """Convierte un ``period`` ya validado (``24h``, ``7d``…) en su duración.
+
+    Args:
+        period: Número positivo seguido de ``h`` (horas) o ``d`` (días).
+
+    Returns:
+        timedelta: La duración pedida.
+    """
+    return timedelta(**{_PERIOD_UNITS[period[-1]]: int(period[:-1])})
+
+
+class AssetStatsSummaryQuerySchema(Schema):
+    """Query de ``GET /hygeia/assets/<id>/stats/summary``.
+
+    ``period`` acepta cualquier ``<n>h`` o ``<n>d``, no solo ``24h``/``7d``/
+    ``30d``: un periodo mayor que lo que se puede cubrir no es un error, se
+    recorta y la respuesta lo dice (``isPeriodClipped``). ``metrics`` es una
+    lista separada por comas de nombres públicos (``cpuPct,memPct``); sin
+    ella se resumen todas las métricas. Los nombres no se validan aquí sino
+    contra el registro de métricas, que responde con el catálogo válido.
+
+    Tras cargar, la query queda como ``metric_names`` (lista, vacía si no se
+    pidió ninguna) y ``requested_duration`` (``timedelta``).
+    """
+    metrics = fields.String(load_default=None)
+    period = _build_period_field()
+
+    @post_load
+    def parse_query(self, data, **kwargs):
+        """Convierte ``metrics`` en lista de nombres y ``period`` en ``timedelta``."""
+        raw_metrics = data.pop("metrics")
+        data["metric_names"] = (
+            [name.strip() for name in raw_metrics.split(",") if name.strip()]
+            if raw_metrics else []
+        )
+        data["requested_duration"] = _parse_period(data.pop("period"))
+        return data
+
+
+class MetricSummarySchema(Schema):
+    """Resumen de una métrica sobre el periodo cubierto.
+
+    Se vuelca directamente desde un ``StatSummary`` (``services/stats.py``),
+    cuyos atributos tienen nombres completos; ``data_key`` los publica con las
+    claves cortas de la API. Todos los valores son nulos a la vez cuando la
+    métrica no tiene ninguna muestra en el periodo (``sampleCount`` es ``0``):
+    no se sabe su máximo, y ``0`` sería una cifra inventada.
+
+    ``timestampOfMax``/``timestampOfMin`` son el instante exacto
+    (``receivedAt``) del heartbeat que marcó el extremo, no el de un cubo:
+    es lo que permite relacionar un pico con lo que pasaba en ese momento
+    (una anomalía, un despliegue). Si el extremo se repite, es el de la
+    primera vez que se alcanzó.
+    """
+    minimum = fields.Float(data_key="min", allow_none=True)
+    maximum = fields.Float(data_key="max", allow_none=True)
+    average = fields.Float(data_key="avg", allow_none=True)
+    percentile_95 = fields.Float(data_key="p95", allow_none=True)
+    current = fields.Float(allow_none=True)
+    sample_count = fields.Integer(data_key="sampleCount")
+    timestamp_of_maximum = UTCDateTime(data_key="timestampOfMax", allow_none=True)
+    timestamp_of_minimum = UTCDateTime(data_key="timestampOfMin", allow_none=True)
+
+
+class AssetStatsSummaryResponseSchema(Schema):
+    """Resumen estadístico de las métricas de un activo.
+
+    ``metrics`` va indexado por el nombre público de cada métrica pedida.
+    ``periodCoveredFrom``/``periodCoveredTo`` son la ventana que se cubrió de
+    verdad, e ``isPeriodClipped`` avisa de que es más corta que la pedida
+    (el periodo superaba el límite de estadísticas o la retención).
+    """
+    metrics = fields.Dict(keys=fields.String(), values=fields.Nested(MetricSummarySchema))
+    periodCoveredFrom = UTCDateTime()
+    periodCoveredTo = UTCDateTime()
+    isPeriodClipped = fields.Boolean()
+
+
+class TagStatsQuerySchema(AssetStatsSummaryQuerySchema):
+    """Query de ``GET /hygeia/stats/by-tag/<tagId>``: la del resumen de un activo más ``agg``.
+
+    ``agg`` dice cómo se combinan entre activos las medias de cada uno:
+    ``avg`` (por defecto, válido para cualquier métrica), ``max`` o ``sum``.
+    ``sum`` solo tiene sentido en métricas aditivas (tráfico, potencia); con
+    un porcentaje, el manager responde un 400 con las que sí se pueden sumar.
+    """
+    agg = fields.String(load_default="avg", validate=validate.OneOf(["sum", "avg", "max"]))
+
+
+class AssetMetricAggregateSchema(Schema):
+    """Lo que aporta un activo al agregado de una métrica de su etiqueta.
+
+    ``average`` y ``maximum`` son nulos, y ``sampleCount`` es ``0``, si el
+    activo no reportó la métrica en el periodo: cuenta en la etiqueta pero
+    no en la cifra combinada.
+    """
+    assetId = fields.Integer()
+    hostname = fields.String()
+    average = fields.Float(allow_none=True)
+    maximum = fields.Float(allow_none=True)
+    sampleCount = fields.Integer()
+
+
+class TagMetricStatsSchema(Schema):
+    """Una métrica agregada sobre los activos de una etiqueta.
+
+    ``unit`` (``percent``, ``loadAverage``, ``bytesPerSecond`` o ``watts``)
+    dice en qué se expresa ``value``: la memoria, por ejemplo, solo se guarda
+    como porcentaje, y la respuesta lo declara en vez de fingir bytes.
+    ``value`` es nulo si ningún activo tuvo datos en el periodo.
+    """
+    unit = fields.String()
+    value = fields.Float(allow_none=True)
+    assetsWithData = fields.Integer()
+    assets = fields.List(fields.Nested(AssetMetricAggregateSchema))
+
+
+class TagStatsResponseSchema(Schema):
+    """Estadísticas de los activos del usuario que llevan una etiqueta.
+
+    ``assetCount`` cuenta los activos del usuario con la etiqueta, tengan o no
+    datos; ``agg`` ecoa cómo se combinaron. La ventana cubierta viaja igual
+    que en el resumen de un activo.
+    """
+    tag = fields.Nested(TagSchema)
+    assetCount = fields.Integer()
+    agg = fields.String()
+    metrics = fields.Dict(keys=fields.String(), values=fields.Nested(TagMetricStatsSchema))
+    periodCoveredFrom = UTCDateTime()
+    periodCoveredTo = UTCDateTime()
+    isPeriodClipped = fields.Boolean()
+
+
+class TagRankingQuerySchema(Schema):
+    """Query de ``GET /hygeia/stats/by-tag`` (sin ``tagId``): el ranking de todas las etiquetas.
+
+    Una sola métrica (``metric``, obligatoria): un ranking ordena por un
+    criterio. ``agg`` y ``period`` significan lo mismo que en las
+    estadísticas de una etiqueta. Tras cargar, ``period`` queda como
+    ``requested_duration``.
+    """
+    metric = fields.String(required=True)
+    agg = fields.String(load_default="avg", validate=validate.OneOf(["sum", "avg", "max"]))
+    period = _build_period_field()
+
+    @post_load
+    def parse_query(self, data, **kwargs):
+        """Convierte ``period`` en ``timedelta``."""
+        data["requested_duration"] = _parse_period(data.pop("period"))
+        return data
+
+
+class TagRankingEntrySchema(Schema):
+    """Una etiqueta en el ranking: su cifra combinada y cuántos activos la sostienen.
+
+    ``value`` es nulo si ninguno de sus activos tuvo datos en el periodo; esas
+    etiquetas van al final del ranking, no en la posición de un cero.
+    """
+    tag = fields.Nested(TagSchema)
+    assetCount = fields.Integer()
+    assetsWithData = fields.Integer()
+    value = fields.Float(allow_none=True)
+
+
+class TagRankingResponseSchema(Schema):
+    """Ranking de las etiquetas visibles para el usuario por una métrica.
+
+    ``tags`` va de mayor a menor ``value``, con las etiquetas sin datos al
+    final. ``unit`` dice en qué se expresan los valores.
+    """
+    metric = fields.String()
+    unit = fields.String()
+    agg = fields.String()
+    tags = fields.List(fields.Nested(TagRankingEntrySchema))
+    periodCoveredFrom = UTCDateTime()
+    periodCoveredTo = UTCDateTime()
+    isPeriodClipped = fields.Boolean()
+
+
+class AssetRankingQuerySchema(Schema):
+    """Query de ``GET /hygeia/stats/ranking``: los activos extremos del usuario por una métrica.
+
+    ``agg`` elige qué valor de cada activo se compara: su media (``avg``, por
+    defecto) o su máximo (``max``) del periodo. ``order=desc`` (por defecto)
+    da los de mayor valor, ``asc`` los de menor. ``limit`` va de 1 a 100.
+    Tras cargar, ``period`` queda como ``requested_duration``.
+    """
+    metric = fields.String(required=True)
+    agg = fields.String(load_default="avg", validate=validate.OneOf(["avg", "max"]))
+    order = fields.String(load_default="desc", validate=validate.OneOf(["desc", "asc"]))
+    limit = fields.Integer(load_default=10, validate=validate.Range(min=1, max=100))
+    period = _build_period_field()
+
+    @post_load
+    def parse_query(self, data, **kwargs):
+        """Convierte ``period`` en ``timedelta``."""
+        data["requested_duration"] = _parse_period(data.pop("period"))
+        return data
+
+
+class AssetRankingEntrySchema(Schema):
+    """Un activo en el ranking: su valor para la métrica y cuántas muestras lo sostienen."""
+    assetId = fields.Integer()
+    hostname = fields.String()
+    value = fields.Float()
+    sampleCount = fields.Integer()
+
+
+class AssetRankingResponseSchema(Schema):
+    """Los activos extremos del usuario por una métrica.
+
+    ``assets`` está ordenado según ``order`` y recortado a ``limit``. Solo
+    entran los activos con datos en el periodo: ``assetCount`` cuenta todos
+    los del usuario y ``assetsWithData`` los que se pudieron ordenar.
+    """
+    metric = fields.String()
+    unit = fields.String()
+    agg = fields.String()
+    order = fields.String()
+    assetCount = fields.Integer()
+    assetsWithData = fields.Integer()
+    assets = fields.List(fields.Nested(AssetRankingEntrySchema))
+    periodCoveredFrom = UTCDateTime()
+    periodCoveredTo = UTCDateTime()
+    isPeriodClipped = fields.Boolean()
+
+
+class FleetOverviewResponseSchema(Schema):
+    """Estado actual del parque del usuario: la pantalla de aterrizaje de las estadísticas.
+
+    ``assetsByStatus`` trae siempre ``pending``/``online``/``stale``/``offline``
+    y ``openAnomaliesBySeverity`` siempre ``info``/``warning``/``critical``, a
+    cero si no hay ninguno. Las anomalías reconocidas (``acknowledged``)
+    siguen activas pero ya tienen quien las mire, así que se cuentan aparte.
+    ``averageUptimeSec`` promedia solo los activos en línea y es nulo si no
+    hay ninguno; ``lastActivityAt`` es nulo si ningún activo ha reportado.
+    """
+    assetCount = fields.Integer()
+    assetsByStatus = fields.Dict(keys=fields.String(), values=fields.Integer())
+    openAnomaliesBySeverity = fields.Dict(keys=fields.String(), values=fields.Integer())
+    acknowledgedAnomalyCount = fields.Integer()
+    averageUptimeSec = fields.Float(allow_none=True)
+    lastActivityAt = UTCDateTime(allow_none=True)
+
+
+class MetricHistogramQuerySchema(Schema):
+    """Query de ``GET /hygeia/stats/histogram``: cómo se reparten los activos en una métrica.
+
+    ``agg`` elige el valor de cada activo que se reparte: su media (``avg``,
+    por defecto) o su máximo (``max``) del periodo. ``bins`` es el número de
+    franjas, de 1 a 20 (por defecto 4: 0–25, 25–50, 50–75 y 75–100 % en un
+    porcentaje). Tras cargar, ``period`` queda como ``requested_duration``.
+    """
+    metric = fields.String(required=True)
+    agg = fields.String(load_default="avg", validate=validate.OneOf(["avg", "max"]))
+    bins = fields.Integer(load_default=4, validate=validate.Range(min=1, max=20))
+    period = _build_period_field()
+
+    @post_load
+    def parse_query(self, data, **kwargs):
+        """Convierte ``period`` en ``timedelta``."""
+        data["requested_duration"] = _parse_period(data.pop("period"))
+        return data
+
+
+class HistogramBinSchema(Schema):
+    """Una franja del histograma, volcada desde un ``HistogramBin`` (``services/stats.py``).
+
+    ``from`` está incluido y ``to`` excluido, salvo en la última franja, que
+    incluye su ``to``.
+    """
+    lower_bound = fields.Float(data_key="from")
+    upper_bound = fields.Float(data_key="to")
+    value_count = fields.Integer(data_key="assetCount")
+
+
+class MetricHistogramResponseSchema(Schema):
+    """Histograma de los activos del usuario en una métrica.
+
+    En un porcentaje las franjas van siempre de 0 a 100; en las demás
+    unidades, del menor al mayor valor observado. ``bins`` va vacío si la
+    métrica no es un porcentaje y ningún activo tuvo datos. Los activos sin
+    datos cuentan en ``assetCount`` pero no en ninguna franja.
+    """
+    metric = fields.String()
+    unit = fields.String()
+    agg = fields.String()
+    assetCount = fields.Integer()
+    assetsWithData = fields.Integer()
+    bins = fields.List(fields.Nested(HistogramBinSchema))
+    periodCoveredFrom = UTCDateTime()
+    periodCoveredTo = UTCDateTime()
+    isPeriodClipped = fields.Boolean()
+
+
+class PowerStatsQuerySchema(Schema):
+    """Query de ``GET /hygeia/stats/power``: el consumo eléctrico de un conjunto de activos.
+
+    ``scope=fleet`` (por defecto) cubre todos los activos del usuario;
+    ``scope=tag`` los de la etiqueta ``tagId``, que entonces es obligatorio.
+    Con ``scope=fleet`` no se admite ``tagId``: un parámetro que se ignorase
+    en silencio haría creer a quien llama que filtró. Tras cargar, ``period``
+    queda como ``requested_duration``.
+    """
+    scope = fields.String(load_default="fleet", validate=validate.OneOf(["fleet", "tag"]))
+    tagId = fields.Integer(load_default=None, validate=validate.Range(min=1))
+    period = _build_period_field()
+
+    @validates_schema
+    def validate_scope(self, data, **kwargs):
+        """Exige ``tagId`` con ``scope=tag`` y lo rechaza con ``scope=fleet``."""
+        if data.get("scope") == "tag" and data.get("tagId") is None:
+            raise ValidationError("tagId es obligatorio con scope=tag.", field_name="tagId")
+        if data.get("scope") == "fleet" and data.get("tagId") is not None:
+            raise ValidationError("tagId solo se admite con scope=tag.", field_name="tagId")
+
+    @post_load
+    def parse_query(self, data, **kwargs):
+        """Convierte ``period`` en ``timedelta``."""
+        data["requested_duration"] = _parse_period(data.pop("period"))
+        return data
+
+
+class AssetPowerSchema(Schema):
+    """Energía de un activo dentro del agregado, con su procedencia.
+
+    ``averageWatts``/``kwh``/``cost`` son nulos si el activo no tuvo ni un
+    intervalo de potencia observado en el periodo. ``isEstimated`` avisa de
+    que alguna de sus lecturas fue una estimación por modelo, no una medición.
+    """
+    assetId = fields.Integer()
+    hostname = fields.String()
+    averageWatts = fields.Float(allow_none=True)
+    kwh = fields.Float(allow_none=True)
+    cost = fields.Float(allow_none=True)
+    classification = fields.String()
+    coverageFraction = fields.Float(allow_none=True)
+    isEstimated = fields.Boolean()
+
+
+class PowerStatsResponseSchema(Schema):
+    """Energía y coste agregados de todo el parque o de una etiqueta.
+
+    ``kwh`` y ``cost`` suman solo los activos con datos (``assetsWithData``):
+    uno sin potencia no aporta un cero. ``classification`` es la procedencia
+    menos fiable de entre esos activos (``observed``, ``observed_partial`` o
+    ``projected``), porque un total no es más fiable que su peor parte; es
+    nula si ningún activo tuvo datos. ``assetsEstimated`` cuenta los activos
+    con alguna lectura estimada por modelo. ``tag`` solo viene con
+    ``scope=tag``.
+    """
+    scope = fields.String()
+    tag = fields.Nested(TagSchema, allow_none=True)
+    assetCount = fields.Integer()
+    assetsWithData = fields.Integer()
+    assetsEstimated = fields.Integer()
+    kwh = fields.Float(allow_none=True)
+    cost = fields.Float(allow_none=True)
+    currency = fields.String()
+    classification = fields.String(allow_none=True)
+    assets = fields.List(fields.Nested(AssetPowerSchema))
+    periodCoveredFrom = UTCDateTime()
+    periodCoveredTo = UTCDateTime()
+    isPeriodClipped = fields.Boolean()
+
+
+class MetricSeriesQuerySchema(Schema):
+    """Query de ``GET /hygeia/stats/series``: la serie temporal de una métrica sobre varios activos.
+
+    El alcance es exactamente uno de ``tagId`` (los activos del usuario con
+    esa etiqueta) o ``assetIds`` (hasta 50 ids separados por comas). Sin
+    ``agg`` se devuelve una serie por activo; con ``agg`` (``sum``, ``avg`` o
+    ``max``), una sola serie que los combina. ``bucketAgg`` (``min``, ``avg``
+    por defecto, ``max``) dice cómo se resume cada cubo dentro de un activo.
+    ``bucket`` es el tamaño del cubo en segundos; sin él se usa el más fino
+    que cabe en ``maxSeriesPoints``. Tras cargar, ``assetIds`` queda como
+    ``asset_ids`` (lista de enteros, o ``None``) y ``period`` como
+    ``requested_duration``.
+    """
+    metric = fields.String(required=True)
+    tagId = fields.Integer(load_default=None, validate=validate.Range(min=1))
+    assetIds = fields.String(
+        load_default=None,
+        validate=validate.Regexp(
+            r"^[1-9][0-9]*(,[1-9][0-9]*){0,49}$",
+            error="assetIds debe ser una lista de hasta 50 ids separados por comas.",
+        ),
+    )
+    agg = fields.String(load_default=None, validate=validate.OneOf(["sum", "avg", "max"]))
+    bucketAgg = fields.String(load_default="avg", validate=validate.OneOf(["min", "avg", "max"]))
+    bucket = fields.Integer(load_default=None, validate=validate.Range(min=1))
+    period = _build_period_field()
+    # Segunda fuente con la que comparar: ``asset:<id>`` o ``tag:<id>``. Una
+    # etiqueta se compara combinada con el mismo ``agg``, así que entonces
+    # ``agg`` es obligatorio.
+    compareTo = fields.String(
+        load_default=None,
+        validate=validate.Regexp(
+            r"^(asset|tag):[1-9][0-9]*$",
+            error="compareTo debe tener la forma asset:<id> o tag:<id>.",
+        ),
+    )
+
+    @validates_schema
+    def validate_scope(self, data, **kwargs):
+        """Exige uno de ``tagId`` o ``assetIds``, y ``agg`` si se compara con una etiqueta."""
+        if (data.get("tagId") is None) == (data.get("assetIds") is None):
+            raise ValidationError("Indica exactamente uno de tagId o assetIds.", field_name="tagId")
+        compare_to = data.get("compareTo")
+        if compare_to and compare_to.startswith("tag:") and data.get("agg") is None:
+            raise ValidationError(
+                "Comparar con una etiqueta exige agg: es la forma de combinar sus activos.",
+                field_name="agg",
+            )
+
+    @post_load
+    def parse_query(self, data, **kwargs):
+        """Convierte ``assetIds``, ``compareTo`` y ``period`` en sus tipos de trabajo."""
+        raw_asset_ids = data.pop("assetIds")
+        data["asset_ids"] = (
+            list(dict.fromkeys(int(asset_id) for asset_id in raw_asset_ids.split(",")))
+            if raw_asset_ids else None
+        )
+        raw_compare_to = data.pop("compareTo")
+        if raw_compare_to:
+            compare_kind, compare_id = raw_compare_to.split(":")
+            data["compare_to"] = (compare_kind, int(compare_id))
+        else:
+            data["compare_to"] = None
+        data["requested_duration"] = _parse_period(data.pop("period"))
+        return data
+
+
+class SeriesPointSchema(Schema):
+    """Un punto de una serie: el inicio de su cubo y el valor.
+
+    ``assetCount`` solo viene en una serie combinada: cuántos activos
+    aportaron a ese cubo. Una suma sobre dos activos no es comparable con una
+    sobre tres, y quien la pinta tiene que poder decirlo.
+    """
+    at = UTCDateTime()
+    value = fields.Float()
+    assetCount = fields.Integer()
+
+
+class MetricSeriesSchema(Schema):
+    """Una serie de la respuesta, con de dónde sale.
+
+    ``kind`` es ``asset`` (la serie de un activo: ``assetId`` y su hostname
+    como ``label``), ``tag`` (la combinación de los activos de una etiqueta:
+    ``tagId`` y su nombre como ``label``) o ``assets`` (la combinación de una
+    lista explícita de activos, sin ``label``). Los cubos sin datos no
+    aparecen: la ausencia de señal es un hueco, no un cero.
+
+    ``isComparison`` marca la serie pedida con ``compareTo``, que va al final
+    y comparte los cubos de las demás: sus puntos caen en los mismos
+    instantes, así que se pueden superponer sin reconciliar nada.
+    """
+    kind = fields.String()
+    assetId = fields.Integer(allow_none=True)
+    tagId = fields.Integer(allow_none=True)
+    label = fields.String(allow_none=True)
+    isComparison = fields.Boolean(dump_default=False)
+    points = fields.List(fields.Nested(SeriesPointSchema))
+
+
+class MetricSeriesResponseSchema(Schema):
+    """Serie temporal de una métrica sobre varios activos.
+
+    ``bucket`` es el cubo que se usó de verdad: si el pedido daba más puntos
+    que ``maxSeriesPoints`` se ensancha al mínimo que cabe e
+    ``isBucketWidened`` lo avisa. ``agg`` es nulo cuando se devuelve una serie
+    por activo.
+    """
+    metric = fields.String()
+    unit = fields.String()
+    bucket = fields.Integer()
+    isBucketWidened = fields.Boolean()
+    bucketAgg = fields.String()
+    agg = fields.String(allow_none=True)
+    series = fields.List(fields.Nested(MetricSeriesSchema))
+    periodCoveredFrom = UTCDateTime()
+    periodCoveredTo = UTCDateTime()
+    isPeriodClipped = fields.Boolean()
 
 
 # =============================================================================

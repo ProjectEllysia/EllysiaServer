@@ -161,6 +161,16 @@ class FindingsPrintingStrategy(PrintingStrategy):
             ["Objetivo:", str(getattr(scan, "target", ""))],
             ["Exposición:", exposure_label],
         ]
+        # Sólo Lybra tiene perfil de escaneo (fast/standard/thorough); los
+        # otros tres escáneres, que comparten esta misma clase base, no
+        # traen la columna y `getattr` lo trata como "no aplica" en vez de
+        # imprimir un valor inventado.
+        profile = getattr(scan, "profile", None)
+        if profile is not None:
+            profile_label = {
+                "fast": "Rápido", "standard": "Estándar", "thorough": "Exhaustivo",
+            }.get(profile, profile)
+            target_info.append(["Perfil de escaneo:", profile_label])
         target_table = theme.kv_table(target_info, col_widths=[2 * inch, 4 * inch])
         elements.append(target_table)
         elements.append(Spacer(1, 0.1 * inch))

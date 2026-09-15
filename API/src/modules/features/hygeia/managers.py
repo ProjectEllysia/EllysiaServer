@@ -12,8 +12,9 @@ background).
 from __future__ import annotations
 
 import logging
+import math
 from datetime import timedelta
-from typing import Optional
+from typing import NamedTuple, Optional, Sequence, Tuple
 
 import src.modules.system.config_reading as CR
 from src.modules.accounts import LimitKey, OrganizationManager, QuotaManager
@@ -40,7 +41,7 @@ from .exceptions import (
     TagNotFoundError,
     TagQuotaExceededError,
 )
-from .model import Anomaly, MonitoredAsset, AssetSnapshot, UserTag
+from .model import Anomaly, AssetSnapshot, HygeiaTag, MonitoredAsset, UserTag
 from .repositories import (
     AnomalyRepository,
     AssetSnapshotRepository,
@@ -48,8 +49,11 @@ from .repositories import (
     MonitoredAssetRepository,
 )
 from .services import (
-    build_inventory_report, check_clock_skew, denormalize, evaluate, generate_agent_key,
-    is_agent_outdated, project_month, services_from_inventory, summarize_power_period,
+    METRIC_REGISTRY, MetricDefinition, MetricUnit, assert_metric_definition,
+    build_histogram, build_inventory_report, build_percentile_series, check_clock_skew,
+    combine_asset_averages, denormalize, evaluate, generate_agent_key, is_agent_outdated,
+    project_month, resolve_stats_window, services_from_inventory, summarize_power_period,
+    summarize_values, validate_metrics_are_additive,
 )
 
 # ---------------------------------------------------------------------------
@@ -69,6 +73,488 @@ from .services import (
 from src.modules.features.themis.managers import LybraEngineManager
 
 logger = logging.getLogger(__name__)
+
+
+#: Valor de ``agg`` que la serie temporal calcula en Python y no en SQL.
+_PERCENTILE_AGGREGATION = "p95"
+
+#: Percentil que corresponde a ``_PERCENTILE_AGGREGATION``.
+_SERIES_PERCENTILE = 95
+
+#: Estados de presencia de un activo (``MonitoredAsset.status``). El panorama
+#: del parque devuelve siempre los cuatro, a cero si no hay ninguno, para que
+#: el cliente no tenga que distinguir "cero" de "no vino la clave".
+_ASSET_STATUSES = ("pending", "online", "stale", "offline")
+
+#: Severidades de una anomalía (``Anomaly.severity``), con el mismo criterio.
+_ANOMALY_SEVERITIES = ("info", "warning", "critical")
+
+#: Límites del histograma de una métrica en porcentaje. Fijos, y no los del
+#: parque, para que la franja 75–100 % signifique lo mismo en cualquier
+#: parque: con límites observados, un parque todo entre el 10 y el 20 %
+#: pintaría su franja más alta como si fuera la de los equipos saturados.
+_PERCENT_RANGE = (0.0, 100.0)
+
+#: Procedencia de una cifra de energía (``classify_period``), de la más fiable
+#: a la menos. El orden es el que decide la procedencia de un total.
+_POWER_CLASSIFICATIONS = ("observed", "observed_partial", "projected")
+
+
+def _combine_power_classifications(classifications: Sequence[str]) -> Optional[str]:
+    """Procedencia de un total de energía: la peor de las de sus sumandos.
+
+    Un total que mezcla un activo medido de principio a fin con otro que
+    tuvo un hueco de horas no es "observado": solo es tan fiable como su
+    parte menos fiable.
+
+    Args:
+        classifications: Procedencia de cada activo que aporta al total.
+
+    Returns:
+        Optional[str]: La menos fiable de ``_POWER_CLASSIFICATIONS``, o
+            ``None`` si no hay ningún sumando.
+    """
+    if not classifications:
+        return None
+    return max(classifications, key=_POWER_CLASSIFICATIONS.index)
+
+
+def _build_power_breakdown(
+    assets: list, samples_by_asset: dict, estimated_asset_ids: set, window, config,
+) -> list:
+    """Energía de cada activo del agregado, de más a menos kWh.
+
+    Cada activo se calcula con ``summarize_power_period``, igual que en su
+    propio resumen de consumo, para que la cifra de un activo sea la misma
+    en su ficha y en el agregado.
+
+    Args:
+        assets: Activos del agregado.
+        samples_by_asset: ``{asset_id: [(instante, vatios), …]}`` de la
+            ventana, tal como lo devuelve ``get_metric_samples_by_asset``.
+        estimated_asset_ids: Activos con alguna lectura estimada en la ventana.
+        window: ``StatsWindow`` de la consulta.
+        config: ``HygeiaConfig`` vigente (precio de la electricidad y retención).
+
+    Returns:
+        list: Una entrada por activo con ``assetId``, ``hostname``,
+            ``averageWatts``, ``kwh``, ``cost``, ``classification``,
+            ``coverageFraction`` e ``isEstimated``; las de más kWh primero y
+            las que no tienen datos al final.
+    """
+    breakdown = []
+    for asset in assets:
+        summary = summarize_power_period(
+            samples_by_asset[asset.id], window.since, window.until,
+            config.energy_price_per_kwh, config.retention_days,
+        )
+        breakdown.append({
+            "assetId": asset.id,
+            "hostname": asset.hostname,
+            "averageWatts": summary["averageWatts"],
+            "kwh": summary["kwh"],
+            "cost": summary["cost"],
+            "classification": summary["classification"],
+            "coverageFraction": summary["coverageFraction"],
+            "isEstimated": asset.id in estimated_asset_ids,
+        })
+    return sorted(breakdown, key=_sort_key_for_power_breakdown)
+
+
+def _sort_key_for_power_breakdown(entry: dict) -> tuple:
+    """Clave de orden del desglose de energía: más kWh primero, sin datos al final.
+
+    Args:
+        entry: Una entrada del desglose, con ``kwh`` y ``hostname``.
+
+    Returns:
+        tuple: ``(sin_datos, -kwh, hostname_en_minúsculas)``.
+    """
+    kwh = entry["kwh"]
+    return (kwh is None, -(kwh or 0.0), entry["hostname"].lower())
+
+
+def _assert_visible_tag(user_id: int, tag_id: int) -> HygeiaTag:
+    """Obtiene una etiqueta que el usuario puede ver: una de sistema o una suya.
+
+    La etiqueta personal de otro usuario da el mismo error que una
+    inexistente, para no permitir enumerar el catálogo ajeno por diferencia
+    de respuesta.
+
+    Args:
+        user_id: Usuario que pide la etiqueta.
+        tag_id: Etiqueta pedida.
+
+    Returns:
+        HygeiaTag: La etiqueta.
+
+    Raises:
+        TagNotFoundError: Si no existe o es personal de otro usuario.
+    """
+    tag = build_repository(HygeiaTagRepository).get_by_id(tag_id)
+    if tag is None or tag.user_id not in (None, user_id):
+        raise TagNotFoundError(tag_id)
+    return tag
+
+
+def _resolve_series_assets(
+    user_id: int, tag_id: Optional[int], asset_ids: Optional[Sequence[int]],
+) -> Tuple[Optional[HygeiaTag], list]:
+    """Activos de una serie multi-activo: los de una etiqueta o una lista explícita.
+
+    Args:
+        user_id: Dueño de los activos.
+        tag_id: Etiqueta cuyos activos se quieren, o ``None``.
+        asset_ids: Ids pedidos, o ``None``. Exactamente uno de los dos viene
+            informado (lo valida el schema).
+
+    Returns:
+        Tuple[Optional[HygeiaTag], list]: La etiqueta (``None`` con una lista
+            de ids) y los activos, ordenados por hostname.
+
+    Raises:
+        TagNotFoundError: Si la etiqueta no es visible para el usuario.
+        AssetNotFoundError: Si algún id pedido no existe o es de otro usuario;
+            lleva el menor de los que faltan, sin distinguir los dos casos.
+    """
+    asset_repo = build_repository(MonitoredAssetRepository)
+    if tag_id is not None:
+        return _assert_visible_tag(user_id, tag_id), asset_repo.get_by_tag(user_id, tag_id)
+
+    assets = asset_repo.get_by_ids_for_user(user_id, list(asset_ids))
+    missing_asset_ids = sorted(set(asset_ids) - {asset.id for asset in assets})
+    if missing_asset_ids:
+        raise AssetNotFoundError(missing_asset_ids[0])
+    return None, assets
+
+
+def _resolve_series_bucket(
+    window, requested_bucket_seconds: Optional[int], max_points: int,
+) -> Tuple[int, bool]:
+    """Cubo de una serie multi-activo: el pedido, o el mínimo que cabe en ``maxSeriesPoints``.
+
+    Un cubo tan fino que la ventana daría más puntos que el tope no se
+    rechaza: se ensancha al mínimo que cabe y la respuesta lo dice, igual que
+    un periodo mayor que la retención se recorta en vez de fallar. Sin cubo
+    pedido se usa ese mínimo, que da la serie más detallada que cabe.
+
+    Args:
+        window: ``StatsWindow`` de la consulta.
+        requested_bucket_seconds: Cubo pedido en segundos, o ``None``.
+        max_points: Tope de puntos por serie (``maxSeriesPoints``).
+
+    Returns:
+        Tuple[int, bool]: El cubo que se usa y si se ensanchó respecto al
+            pedido.
+    """
+    covered_seconds = (window.until - window.since).total_seconds()
+    # El repositorio cuenta un cubo más que ventana / cubo (la ventana no tiene
+    # por qué empezar alineada), de ahí el ``- 1``.
+    minimum_bucket_seconds = max(1, math.ceil(covered_seconds / max(1, max_points - 1)))
+    if requested_bucket_seconds is None:
+        return minimum_bucket_seconds, False
+    if requested_bucket_seconds < minimum_bucket_seconds:
+        return minimum_bucket_seconds, True
+    return requested_bucket_seconds, False
+
+
+class _SeriesQuery(NamedTuple):
+    """Lo que comparten todas las series de una misma respuesta.
+
+    La serie principal y la de comparación se piden con los mismos valores,
+    y eso es lo que garantiza que sus cubos coincidan instante a instante.
+
+    Attributes:
+        definition: Métrica del registro.
+        bucket_seconds: Cubo en segundos.
+        window: ``StatsWindow`` de la consulta.
+        bucket_aggregation: Cómo se resume cada cubo dentro de un activo.
+        aggregation: Cómo se combinan los activos, o ``None`` para una serie
+            por activo.
+        max_points: Tope de cubos por serie.
+    """
+    definition: MetricDefinition
+    bucket_seconds: int
+    window: object
+    bucket_aggregation: str
+    aggregation: Optional[str]
+    max_points: int
+
+
+def _build_series(
+    snapshot_repo: AssetSnapshotRepository, series_query: _SeriesQuery,
+    tag: Optional[HygeiaTag], assets: list, is_combined: bool,
+) -> list:
+    """Series de unos activos: una por activo, o una sola que los combina.
+
+    Args:
+        snapshot_repo: Repositorio de snapshots ya construido.
+        series_query: Métrica, cubo, ventana y agregaciones de la respuesta.
+        tag: Etiqueta de la que salen los activos, o ``None``.
+        assets: Activos, en el orden en que se quieren las series.
+        is_combined: ``True`` para una sola serie combinada con
+            ``series_query.aggregation`` (que entonces no es ``None``).
+
+    Returns:
+        list: Las series, con la forma de ``MetricSeriesSchema``.
+    """
+    query_arguments = (
+        [asset.id for asset in assets], series_query.definition.column,
+        series_query.bucket_seconds, series_query.window.since, series_query.window.until,
+    )
+    if not is_combined:
+        return _render_asset_series(assets, snapshot_repo.get_bucketed_metric_by_asset(
+            *query_arguments, within_bucket=series_query.bucket_aggregation,
+            max_buckets=series_query.max_points,
+        ))
+    return [_render_combined_series(tag, snapshot_repo.get_bucketed_metric_across_assets(
+        *query_arguments, within_bucket=series_query.bucket_aggregation,
+        across_assets=series_query.aggregation, max_buckets=series_query.max_points,
+    ))]
+
+
+def _build_comparison_series(
+    user_id: int, snapshot_repo: AssetSnapshotRepository, series_query: _SeriesQuery,
+    compare_to: Tuple[str, int],
+) -> list:
+    """La serie con la que se compara la principal, marcada como comparación.
+
+    Un activo se compara con su propia serie; una etiqueta, con la
+    combinación de sus activos, con el mismo ``agg`` que la serie principal
+    (el schema lo exige en ese caso). Las dos se piden con el mismo
+    ``series_query``, así que sus cubos coinciden.
+
+    Args:
+        user_id: Dueño de los activos.
+        snapshot_repo: Repositorio de snapshots ya construido.
+        series_query: Los mismos valores que la serie principal.
+        compare_to: ``("asset", id)`` o ``("tag", id)``.
+
+    Returns:
+        list: Una serie, con ``isComparison`` a ``True``.
+
+    Raises:
+        TagNotFoundError: Si la etiqueta no es visible para el usuario.
+        AssetNotFoundError: Si el activo no existe o no es suyo.
+    """
+    compare_kind, compare_id = compare_to
+    if compare_kind == "tag":
+        tag, assets = _resolve_series_assets(user_id, compare_id, None)
+        comparison = _build_series(snapshot_repo, series_query, tag, assets, is_combined=True)
+    else:
+        _, assets = _resolve_series_assets(user_id, None, [compare_id])
+        comparison = _build_series(snapshot_repo, series_query, None, assets, is_combined=False)
+    return [{**entry, "isComparison": True} for entry in comparison]
+
+
+def _render_asset_series(assets: list, series_by_asset: dict) -> list:
+    """Una serie por activo, con su hostname como etiqueta.
+
+    Args:
+        assets: Activos de la consulta, en el orden en que se quieren.
+        series_by_asset: ``{asset_id: [(inicio_del_cubo, valor), …]}``.
+
+    Returns:
+        list: Las series, con ``kind="asset"``.
+    """
+    return [
+        {
+            "kind": "asset",
+            "assetId": asset.id,
+            "tagId": None,
+            "label": asset.hostname,
+            "points": [{"at": at, "value": value} for at, value in series_by_asset[asset.id]],
+        }
+        for asset in assets
+    ]
+
+
+def _render_combined_series(tag: Optional[HygeiaTag], points: list) -> dict:
+    """La serie que combina varios activos, con cuántos aportan a cada punto.
+
+    Args:
+        tag: Etiqueta de la que salen los activos, o ``None`` con una lista
+            explícita de ids.
+        points: ``[(inicio_del_cubo, valor, activos_con_dato), …]``.
+
+    Returns:
+        dict: La serie, con ``kind="tag"`` (y el nombre de la etiqueta como
+            ``label``) o ``kind="assets"``.
+    """
+    return {
+        "kind": "assets" if tag is None else "tag",
+        "assetId": None,
+        "tagId": None if tag is None else tag.id,
+        "label": None if tag is None else tag.name,
+        "points": [
+            {"at": at, "value": value, "assetCount": asset_count}
+            for at, value, asset_count in points
+        ],
+    }
+
+
+def _resolve_histogram_range(
+    definition: MetricDefinition, values: Sequence[float],
+) -> Optional[Tuple[float, float]]:
+    """Límites del histograma de una métrica: fijos para porcentajes, observados para el resto.
+
+    Args:
+        definition: Métrica del histograma.
+        values: Valores por activo que se van a repartir.
+
+    Returns:
+        Optional[Tuple[float, float]]: ``(0, 100)`` para un porcentaje; el
+            mínimo y el máximo observados para cualquier otra unidad (tráfico,
+            potencia, carga), que no tiene un tope natural; ``None`` si no es
+            un porcentaje y no hay ningún valor del que sacar el rango.
+    """
+    if definition.unit == MetricUnit.PERCENT:
+        return _PERCENT_RANGE
+    if not values:
+        return None
+    return (min(values), max(values))
+
+
+def _build_percentile_series_points(
+    snapshot_repo: AssetSnapshotRepository, asset_id: int, bucket_seconds: int,
+    since: Optional[object], until: Optional[object],
+) -> list:
+    """Serie por cubos con el percentil 95 de cada métrica, en la forma de ``get_series_bucketed``.
+
+    Lee las muestras de cada métrica del registro con su propia consulta de
+    dos columnas y las agrupa en Python (``build_percentile_series``). Sin
+    ``since``/``until`` explícitos, la ventana es la de retención: la consulta
+    de muestras necesita límites, y más atrás no quedan datos.
+
+    Args:
+        snapshot_repo: Repositorio de snapshots ya construido.
+        asset_id: Activo cuya serie se consulta; ya comprobado su dueño.
+        bucket_seconds: Tamaño del cubo en segundos.
+        since: Límite inferior opcional de ``receivedAt``.
+        until: Límite superior opcional de ``receivedAt``.
+
+    Returns:
+        list: Puntos (diccionarios con las claves de ``AssetSnapshotPointSchema``)
+            de más antiguo a más reciente, sin recortar.
+    """
+    now = utcnow_naive()
+    retention = timedelta(days=CR.hygeia_config().retention_days)
+    window_since = since if since is not None else now - retention
+    window_until = until if until is not None else now
+    samples_by_metric = {
+        definition.name: snapshot_repo.get_metric_samples_by_asset(
+            [asset_id], definition.column, window_since, window_until,
+        )[asset_id]
+        for definition in METRIC_REGISTRY.values()
+    }
+    return [
+        {
+            "collectedAt": bucket_start,
+            "receivedAt": bucket_start,
+            **values_by_metric,
+            "diskMaxMount": None,
+            "powerEstimated": None,
+            "powerSource": None,
+        }
+        for bucket_start, values_by_metric in build_percentile_series(
+            samples_by_metric, bucket_seconds, _SERIES_PERCENTILE,
+        )
+    ]
+
+
+def _resolve_configured_stats_window(requested_duration: timedelta):
+    """Ventana de una consulta de estadísticas con los límites de la configuración vigente.
+
+    Todos los endpoints de estadísticas recortan el periodo igual: al menor
+    entre ``maxStatsPeriodDays`` y ``retentionDays``. Tenerlo en un solo sitio
+    evita que uno de ellos lea un límite distinto.
+
+    Args:
+        requested_duration: Duración pedida por el cliente, positiva.
+
+    Returns:
+        StatsWindow: La ventana que termina ahora, ya recortada.
+    """
+    return resolve_stats_window(
+        requested_duration, utcnow_naive(),
+        max_stats_period_days=CR.hygeia_limits().max_stats_period_days,
+        retention_days=CR.hygeia_config().retention_days,
+    )
+
+
+def _rank_assets(entries: list, order: str, limit: int) -> list:
+    """Ordena las entradas del ranking de activos y se queda con las ``limit`` primeras.
+
+    Los empates se resuelven por hostname en los dos sentidos, para que el
+    orden sea estable entre llamadas.
+
+    Args:
+        entries: Entradas con ``value`` (nunca ``None``: los activos sin
+            datos ya se han apartado) y ``hostname``.
+        order: ``"desc"`` (mayor valor primero) o ``"asc"``.
+        limit: Cuántas entradas conservar; positivo.
+
+    Returns:
+        list: Las ``limit`` primeras entradas en el orden pedido.
+    """
+    sign = -1 if order == "desc" else 1
+    ordered = sorted(entries, key=lambda entry: (sign * entry["value"], entry["hostname"].lower()))
+    return ordered[:limit]
+
+
+def _sort_key_for_tag_ranking(entry: dict) -> tuple:
+    """Clave de orden del ranking de etiquetas: mayor valor primero, sin datos al final.
+
+    Una etiqueta sin datos no está "a cero": no se sabe su valor, así que no
+    compite con las que sí lo tienen y va detrás de todas. Los empates se
+    resuelven por nombre, para que el orden sea estable entre llamadas.
+
+    Args:
+        entry: Una entrada del ranking, con ``value`` y ``tag``.
+
+    Returns:
+        tuple: ``(sin_valor, -valor, nombre_en_minúsculas)``.
+    """
+    value = entry["value"]
+    return (value is None, -(value or 0.0), entry["tag"]["name"].lower())
+
+
+def _render_tag_metric(
+    definition: MetricDefinition, aggregates_by_asset: dict, hostnames_by_asset: dict,
+    aggregation: str,
+) -> dict:
+    """Arma el bloque de una métrica en las estadísticas de una etiqueta.
+
+    Args:
+        definition: Métrica del registro que se está agregando.
+        aggregates_by_asset: ``{asset_id: (media, máximo, muestras)}`` tal
+            como lo devuelve ``get_metric_aggregates_by_asset``, en el orden
+            de los activos de la etiqueta.
+        hostnames_by_asset: ``{asset_id: hostname}`` de esos mismos activos.
+        aggregation: ``"sum"``, ``"avg"`` o ``"max"``, cómo se combinan las
+            medias de los activos.
+
+    Returns:
+        dict: ``unit``, ``value`` (la cifra combinada, o ``None`` si ningún
+            activo tuvo datos), ``assetsWithData`` y ``assets`` (el desglose
+            por activo, con su media, su máximo y su número de muestras).
+    """
+    assets = [
+        {
+            "assetId": asset_id,
+            "hostname": hostnames_by_asset[asset_id],
+            "average": average,
+            "maximum": maximum,
+            "sampleCount": sample_count,
+        }
+        for asset_id, (average, maximum, sample_count) in aggregates_by_asset.items()
+    ]
+    return {
+        "unit": definition.unit,
+        "value": combine_asset_averages([asset["average"] for asset in assets], aggregation),
+        "assetsWithData": sum(1 for asset in assets if asset["sampleCount"]),
+        "assets": assets,
+    }
 
 
 def _resolve_host_down_if_open(uow: UnitOfWork, asset_id: int) -> None:
@@ -223,9 +709,9 @@ class HygeiaAssetManager:
             for asset in assets
         ]
 
-    def get_metrics(
+    def get_metrics(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self, asset_id: int, since: Optional[object] = None, until: Optional[object] = None,
-        bucket: Optional[int] = None,
+        bucket: Optional[int] = None, aggregation: str = "max",
     ) -> dict:
         """
         Devuelve la serie temporal de métricas de un activo del usuario, para
@@ -239,24 +725,31 @@ class HygeiaAssetManager:
         por ``get_latest_metrics``.
 
         Con ``bucket`` (segundos) la serie viaja agregada — un punto por cubo
-        con el máximo de cada métrica (``get_series_bucketed``) — para que
-        ventanas largas no se recorten contra el tope de puntos: a 15 s de
-        heartbeat, 24 h son 5.760 puntos y 7 días 40.320, pero 288 y 336
-        cubos respectivamente. Sin ``bucket``, el camino es el de siempre.
+        con el agregado ``aggregation`` de cada métrica — para que ventanas
+        largas no se recorten contra el tope de puntos: a 15 s de heartbeat,
+        24 h son 5.760 puntos y 7 días 40.320, pero 288 y 336 cubos
+        respectivamente. ``min``/``avg``/``max`` se resuelven en SQL
+        (``get_series_bucketed``); ``p95`` se calcula en Python sobre las
+        muestras de cada métrica, porque SQL no tiene un percentil portable
+        entre Postgres y SQLite. Sin ``bucket``, el camino es el de siempre y
+        ``aggregation`` no tiene efecto.
 
         Args:
             asset_id: Activo cuya serie se consulta.
             since: Límite inferior opcional de ``receivedAt``.
             until: Límite superior opcional de ``receivedAt``.
             bucket: Segundos del cubo de agregación; ``None`` para serie cruda.
+            aggregation: Cómo se resume cada cubo: ``"min"``, ``"avg"``,
+                ``"p95"`` o ``"max"``. Por defecto ``"max"``, el
+                comportamiento de siempre (no se traga un pico).
 
         Returns:
-            Diccionario con ``snapshots``, ``truncated`` y ``bucket``. Este
-            último ecoa el cubo usado (``None`` en serie cruda) para que el
-            consumidor rotule la ventana con honestidad. ``truncated`` avisa
-            de que el histórico da para más puntos de los devueltos, para que
-            la SPA pueda rotular la ventana con honestidad en vez de
-            presentar un recorte silencioso como si fuera la serie entera.
+            Diccionario con ``snapshots``, ``truncated``, ``bucket`` y ``agg``.
+            ``bucket`` y ``agg`` ecoan el cubo y la agregación usados (los dos
+            ``None`` en serie cruda) para que el consumidor rotule la ventana
+            con honestidad. ``truncated`` avisa de que el histórico da para
+            más puntos de los devueltos, para que la SPA no presente un
+            recorte silencioso como si fuera la serie entera.
 
         Raises:
             AssetNotFoundError: Si el activo no existe o pertenece a otro usuario.
@@ -265,9 +758,13 @@ class HygeiaAssetManager:
 
         limit = CR.hygeia_limits().max_series_points
         snapshot_repo = build_repository(AssetSnapshotRepository)
-        if bucket:
+        if bucket and aggregation == _PERCENTILE_AGGREGATION:
+            snapshots = _build_percentile_series_points(
+                snapshot_repo, asset_id, bucket, since, until,
+            )[:limit]
+        elif bucket:
             snapshots = snapshot_repo.get_series_bucketed(
-                asset_id, bucket, since=since, until=until, limit=limit,
+                asset_id, bucket, since=since, until=until, limit=limit, aggregation=aggregation,
             )
         else:
             raw = snapshot_repo.get_series(
@@ -279,6 +776,7 @@ class HygeiaAssetManager:
             "snapshots": snapshots,
             "truncated": len(snapshots) == limit,
             "bucket": bucket,
+            "agg": aggregation if bucket else None,
         }
 
     def get_latest_metrics(self, asset_id: int) -> dict:
@@ -390,6 +888,68 @@ class HygeiaAssetManager:
         """Resume una ventana completa de ``days`` días: consulta y cálculo de consumo."""
         since, samples = cls._power_window_samples(snapshot_repo, asset_id, now, days, config)
         return cls._summarize_window(since, now, samples, config), samples
+
+    def get_stats_summary(
+        self, asset_id: int, metric_names: Sequence[str], requested_duration: timedelta,
+    ) -> dict:
+        """
+        Resume las métricas de un activo del usuario sobre un periodo.
+
+        Para cada métrica pedida devuelve mínimo, máximo, media, percentil 95
+        y valor actual, en una sola llamada en vez de una por métrica. La
+        cuenta es la común de todas las estadísticas (``summarize_values``),
+        así que ``avg`` o ``p95`` significan aquí lo mismo que en los
+        agregados por etiqueta o del parque.
+
+        El periodo se recorta a lo que se puede cubrir (``resolve_stats_window``:
+        el menor entre el límite de estadísticas y la retención), y la
+        respuesta dice qué ventana cubrió de verdad y si hubo recorte: un
+        "máximo de los últimos 365 días" calculado sobre 30 tiene que decirlo.
+
+        Cada métrica se lee con su propia consulta de dos columnas (instante
+        y valor): son como mucho ocho, y cada una ya descarta en SQL los
+        heartbeats sin dato para esa métrica.
+
+        Args:
+            asset_id: Activo cuyas métricas se resumen.
+            metric_names: Nombres públicos de las métricas (``cpuPct``…). Los
+                repetidos se resumen una sola vez; una lista vacía equivale a
+                todas las métricas del registro. La respuesta los indexa por
+                nombre, sin garantizar orden: el JSON sale con las claves
+                ordenadas alfabéticamente.
+            requested_duration: Duración del periodo pedido, antes de recortar;
+                positiva (la valida el schema de la query).
+
+        Returns:
+            Diccionario con la forma de ``AssetStatsSummaryResponseSchema``:
+            ``metrics`` (un ``StatSummary`` por nombre de métrica),
+            ``periodCoveredFrom``/``periodCoveredTo`` e ``isPeriodClipped``.
+
+        Raises:
+            AssetNotFoundError: Si el activo no existe o pertenece a otro usuario.
+            UnknownMetricError: Si algún nombre no está en el registro de métricas.
+        """
+        assert_owned(MonitoredAssetRepository, asset_id, self.user.id, AssetNotFoundError)
+        definitions = [
+            assert_metric_definition(name)
+            for name in dict.fromkeys(metric_names or METRIC_REGISTRY)
+        ]
+        window = _resolve_configured_stats_window(requested_duration)
+
+        snapshot_repo = build_repository(AssetSnapshotRepository)
+        summaries_by_metric = {}
+        for definition in definitions:
+            samples_by_asset = snapshot_repo.get_metric_samples_by_asset(
+                [asset_id], definition.column, window.since, window.until,
+            )
+            summaries_by_metric[definition.name] = summarize_values(samples_by_asset[asset_id])
+
+        return {
+            "metrics": summaries_by_metric,
+            "periodCoveredFrom": window.since,
+            "periodCoveredTo": window.until,
+            "isPeriodClipped": window.is_clipped,
+        }
 
     def get_inventory(self, asset_id: int) -> dict:
         """
@@ -636,19 +1196,29 @@ class HygeiaTagManager:
 
     def list_tags(self) -> list[dict]:
         """
-        Devuelve el catálogo visible con el recuento de activos de cada etiqueta.
+        Devuelve el catálogo visible con la actividad de cada etiqueta.
+
+        Para cada etiqueta, cuántos activos del usuario la llevan y cuándo
+        dio señal el último de ellos: es el listado del que tira un selector
+        de etiqueta, que así puede avisar de una etiqueta cuyos equipos llevan
+        días sin reportar sin tener que pedir todos los activos.
 
         Returns:
-            Lista de diccionarios ``{id, name, color, tagType, assetCount}``,
-            las de sistema primero y por nombre dentro de cada grupo.
+            Lista de diccionarios ``{id, name, color, tagType, assetCount,
+            lastActivityAt}``, las de sistema primero y por nombre dentro de
+            cada grupo. Una etiqueta sin activos del usuario sale con
+            ``assetCount`` 0 y ``lastActivityAt`` ``None``, no desaparece.
         """
         tag_repository = build_repository(HygeiaTagRepository)
-        counts = tag_repository.count_assets_per_tag(self.user.id)
+        activity_by_tag = tag_repository.get_asset_activity_per_tag(self.user.id)
 
-        return [
-            {**tag.to_dict(), "assetCount": counts.get(tag.id, 0)}
-            for tag in tag_repository.get_visible_for_user(self.user.id)
-        ]
+        tags = []
+        for tag in tag_repository.get_visible_for_user(self.user.id):
+            asset_count, last_activity_at = activity_by_tag.get(tag.id, (0, None))
+            tags.append({
+                **tag.to_dict(), "assetCount": asset_count, "lastActivityAt": last_activity_at,
+            })
+        return tags
 
     def create_tag(self, name: str, color: str) -> dict:
         """
@@ -684,7 +1254,7 @@ class HygeiaTagManager:
             tag_repository.save(tag)
 
             # Serializado dentro del bloque: fuera, la instancia queda detached.
-            return {**tag.to_dict(), "assetCount": 0}
+            return {**tag.to_dict(), "assetCount": 0, "lastActivityAt": None}
 
     def delete_tag(self, tag_id: int) -> None:
         """
@@ -760,6 +1330,485 @@ class HygeiaTagManager:
             MonitoredAssetRepository(uow).update(asset)
 
             return asset.to_dict()
+
+
+class HygeiaStatsManager:
+    """
+    Estadísticas que cruzan varios activos del usuario.
+
+    El resumen de un único activo vive en ``HygeiaAssetManager.get_stats_summary``;
+    aquí la unidad es un conjunto de activos: los de una etiqueta, o los de
+    cada etiqueta del usuario para compararlas entre sí. Todo lo que
+    se agrega son activos **del usuario**: una etiqueta de sistema la comparte
+    todo el mundo, y contar los activos ajenos que la llevan filtraría el
+    parque de otros usuarios.
+    """
+
+    def __init__(self, user: User) -> None:
+        self.user = user
+
+    def get_tag_stats(
+        self, tag_id: int, metric_names: Sequence[str], aggregation: str,
+        requested_duration: timedelta,
+    ) -> dict:
+        """
+        Agrega las métricas de los activos del usuario que llevan una etiqueta.
+
+        Cada activo aporta su media del periodo (calculada en SQL, una
+        consulta por métrica para todos los activos) y las medias se combinan
+        con ``aggregation``: ``sum`` para el total de la etiqueta, ``avg``
+        para el equipo medio, ``max`` para el más cargado. La respuesta trae
+        además el desglose por activo, con su media y su pico.
+
+        Args:
+            tag_id: Etiqueta a agregar; tiene que ser visible para el usuario
+                (de sistema o suya).
+            metric_names: Nombres públicos de las métricas; una lista vacía
+                equivale a todas las del registro.
+            aggregation: ``"sum"``, ``"avg"`` o ``"max"``. ``sum`` solo se
+                admite en métricas aditivas.
+            requested_duration: Duración del periodo pedido, antes de recortar.
+
+        Returns:
+            Diccionario con la forma de ``TagStatsResponseSchema``: ``tag``,
+            ``assetCount``, ``agg``, ``metrics`` (un bloque por métrica) y la
+            ventana cubierta (``periodCoveredFrom``/``To``, ``isPeriodClipped``).
+
+        Raises:
+            TagNotFoundError: Si la etiqueta no existe o es personal de otro
+                usuario; los dos casos dan la misma respuesta.
+            UnknownMetricError: Si algún nombre no está en el registro.
+            NonAdditiveMetricError: Si se pide ``sum`` de una métrica que no
+                se puede sumar entre activos.
+        """
+        tag = _assert_visible_tag(self.user.id, tag_id)
+
+        definitions = [
+            assert_metric_definition(name)
+            for name in dict.fromkeys(metric_names or METRIC_REGISTRY)
+        ]
+        if aggregation == "sum":
+            validate_metrics_are_additive(definitions)
+        window = _resolve_configured_stats_window(requested_duration)
+
+        assets = build_repository(MonitoredAssetRepository).get_by_tag(self.user.id, tag_id)
+        hostnames_by_asset = {asset.id: asset.hostname for asset in assets}
+        snapshot_repo = build_repository(AssetSnapshotRepository)
+        metrics = {
+            definition.name: _render_tag_metric(
+                definition,
+                snapshot_repo.get_metric_aggregates_by_asset(
+                    list(hostnames_by_asset), definition.column, window.since, window.until,
+                ),
+                hostnames_by_asset,
+                aggregation,
+            )
+            for definition in definitions
+        }
+
+        return {
+            "tag": tag.to_dict(),
+            "assetCount": len(hostnames_by_asset),
+            "agg": aggregation,
+            "metrics": metrics,
+            "periodCoveredFrom": window.since,
+            "periodCoveredTo": window.until,
+            "isPeriodClipped": window.is_clipped,
+        }
+
+    def get_tag_ranking(
+        self, metric_name: str, aggregation: str, requested_duration: timedelta,
+    ) -> dict:
+        """
+        Ordena todas las etiquetas visibles para el usuario por una métrica.
+
+        Responde a "¿qué etiqueta consume más?" en una llamada. Cada etiqueta
+        se calcula igual que en ``get_tag_stats`` (medias del periodo de sus
+        activos, combinadas con ``aggregation``), pero sin repetir la consulta
+        por etiqueta: primero se resuelve qué activos lleva cada una, después
+        se agregan todos esos activos en una sola consulta y la combinación
+        por etiqueta se hace en memoria. El coste no crece con el número de
+        etiquetas.
+
+        Args:
+            metric_name: Nombre público de la métrica por la que se ordena.
+            aggregation: ``"sum"``, ``"avg"`` o ``"max"``. ``sum`` solo se
+                admite en métricas aditivas.
+            requested_duration: Duración del periodo pedido, antes de recortar.
+
+        Returns:
+            Diccionario con la forma de ``TagRankingResponseSchema``: la
+            métrica, su unidad, ``agg``, ``tags`` (de mayor a menor valor, las
+            etiquetas sin datos al final) y la ventana cubierta.
+
+        Raises:
+            UnknownMetricError: Si la métrica no está en el registro.
+            NonAdditiveMetricError: Si se pide ``sum`` de una métrica que no
+                se puede sumar entre activos.
+        """
+        definition = assert_metric_definition(metric_name)
+        if aggregation == "sum":
+            validate_metrics_are_additive([definition])
+        window = _resolve_configured_stats_window(requested_duration)
+
+        tag_repository = build_repository(HygeiaTagRepository)
+        asset_ids_by_tag = tag_repository.get_asset_ids_by_tag(self.user.id)
+        tagged_asset_ids = sorted({
+            asset_id for asset_ids in asset_ids_by_tag.values() for asset_id in asset_ids
+        })
+        snapshot_repo = build_repository(AssetSnapshotRepository)
+        aggregates_by_asset = snapshot_repo.get_metric_aggregates_by_asset(
+            tagged_asset_ids, definition.column, window.since, window.until,
+        )
+
+        ranking = []
+        for tag in tag_repository.get_visible_for_user(self.user.id):
+            asset_ids = asset_ids_by_tag.get(tag.id, [])
+            averages = [aggregates_by_asset[asset_id][0] for asset_id in asset_ids]
+            ranking.append({
+                "tag": tag.to_dict(),
+                "assetCount": len(asset_ids),
+                "assetsWithData": sum(1 for average in averages if average is not None),
+                "value": combine_asset_averages(averages, aggregation),
+            })
+        ranking.sort(key=_sort_key_for_tag_ranking)
+
+        return {
+            "metric": definition.name,
+            "unit": definition.unit,
+            "agg": aggregation,
+            "tags": ranking,
+            "periodCoveredFrom": window.since,
+            "periodCoveredTo": window.until,
+            "isPeriodClipped": window.is_clipped,
+        }
+
+    def get_asset_ranking(
+        self, metric_name: str, aggregation: str, order: str, limit: int,
+        requested_duration: timedelta,
+    ) -> dict:
+        """
+        Ordena los activos del usuario por una métrica y devuelve los ``limit`` extremos.
+
+        Responde a "¿qué equipo está peor?" en una llamada. El valor de cada
+        activo es su media (``avg``) o su máximo (``max``) del periodo, y
+        salen de una sola consulta agrupada por activo para todo el parque del
+        usuario. Los activos sin ninguna muestra de la métrica en el periodo
+        no entran en el ranking: no se sabe su valor, y colocarlos como si
+        valiera cero los pondría en cabeza de un orden ascendente sin razón.
+
+        Args:
+            metric_name: Nombre público de la métrica por la que se ordena.
+            aggregation: ``"avg"`` o ``"max"``, qué valor de cada activo se
+                compara.
+            order: ``"desc"`` (los de mayor valor primero) o ``"asc"``.
+            limit: Cuántos activos devolver; positivo.
+            requested_duration: Duración del periodo pedido, antes de recortar.
+
+        Returns:
+            Diccionario con la forma de ``AssetRankingResponseSchema``: la
+            métrica y su unidad, ``agg``, ``order``, ``assetCount`` (activos
+            del usuario), ``assetsWithData``, ``assets`` (el ranking) y la
+            ventana cubierta.
+
+        Raises:
+            UnknownMetricError: Si la métrica no está en el registro.
+        """
+        definition = assert_metric_definition(metric_name)
+        window = _resolve_configured_stats_window(requested_duration)
+
+        assets = build_repository(MonitoredAssetRepository).get_by_user(self.user.id)
+        snapshot_repo = build_repository(AssetSnapshotRepository)
+        aggregates_by_asset = snapshot_repo.get_metric_aggregates_by_asset(
+            [asset.id for asset in assets], definition.column, window.since, window.until,
+        )
+        entries = []
+        for asset in assets:
+            average, maximum, sample_count = aggregates_by_asset[asset.id]
+            if sample_count:
+                entries.append({
+                    "assetId": asset.id,
+                    "hostname": asset.hostname,
+                    "value": average if aggregation == "avg" else maximum,
+                    "sampleCount": sample_count,
+                })
+
+        return {
+            "metric": definition.name,
+            "unit": definition.unit,
+            "agg": aggregation,
+            "order": order,
+            "assetCount": len(assets),
+            "assetsWithData": len(entries),
+            "assets": _rank_assets(entries, order, limit),
+            "periodCoveredFrom": window.since,
+            "periodCoveredTo": window.until,
+            "isPeriodClipped": window.is_clipped,
+        }
+
+    def get_fleet_overview(self) -> dict:
+        """
+        Resume el estado actual del parque del usuario en una sola llamada.
+
+        Es la pantalla de aterrizaje de las estadísticas: cuántos activos hay
+        en cada estado, cuántas anomalías piden atención y cuándo reportó el
+        parque por última vez, sin que el cliente tenga que orquestar varias
+        llamadas. Es una foto del instante actual, no un periodo: por eso no
+        recibe ``period`` ni pasa por la ventana de estadísticas.
+
+        Returns:
+            Diccionario con la forma de ``FleetOverviewResponseSchema``:
+            ``assetCount``, ``assetsByStatus`` (los cuatro estados, a cero si
+            no hay ninguno), ``openAnomaliesBySeverity`` (las tres
+            severidades), ``acknowledgedAnomalyCount``, ``averageUptimeSec``
+            (solo de los activos en línea; ``None`` si no hay) y
+            ``lastActivityAt`` (``None`` si ningún activo ha reportado).
+        """
+        asset_repo = build_repository(MonitoredAssetRepository)
+        assets_by_status = asset_repo.count_by_status(self.user.id)
+        anomalies_by_state_and_severity = build_repository(
+            AnomalyRepository,
+        ).count_active_by_state_and_severity(self.user.id)
+
+        return {
+            "assetCount": sum(assets_by_status.values()),
+            "assetsByStatus": {
+                status: assets_by_status.get(status, 0) for status in _ASSET_STATUSES
+            },
+            "openAnomaliesBySeverity": {
+                severity: anomalies_by_state_and_severity.get(("open", severity), 0)
+                for severity in _ANOMALY_SEVERITIES
+            },
+            "acknowledgedAnomalyCount": sum(
+                anomaly_count
+                for (state, _), anomaly_count in anomalies_by_state_and_severity.items()
+                if state == "acknowledged"
+            ),
+            "averageUptimeSec": asset_repo.get_average_online_uptime(self.user.id),
+            "lastActivityAt": asset_repo.get_last_activity(self.user.id),
+        }
+
+    def get_metric_histogram(
+        self, metric_name: str, aggregation: str, bin_count: int, requested_duration: timedelta,
+    ) -> dict:
+        """
+        Reparte los activos del usuario en franjas según una métrica.
+
+        El ranking enseña los extremos; el histograma enseña la forma del
+        parque: cuántos equipos están cómodos y cuántos empiezan a apretar. Un
+        activo al 60 % de memoria en un parque donde todos están al 20 % no
+        sale entre los primeros de un ranking corto, pero sí salta a la vista
+        en una franja casi vacía.
+
+        El valor de cada activo es su media (``avg``) o su máximo (``max``)
+        del periodo, de una sola consulta agrupada por activo. Los activos sin
+        datos no se reparten en ninguna franja.
+
+        Args:
+            metric_name: Nombre público de la métrica.
+            aggregation: ``"avg"`` o ``"max"``.
+            bin_count: Número de franjas.
+            requested_duration: Duración del periodo pedido, antes de recortar.
+
+        Returns:
+            Diccionario con la forma de ``MetricHistogramResponseSchema``: la
+            métrica y su unidad, ``agg``, ``assetCount``, ``assetsWithData``,
+            ``bins`` y la ventana cubierta. ``bins`` va vacío si la métrica no
+            es un porcentaje y ningún activo tuvo datos: no hay rango que
+            partir.
+
+        Raises:
+            UnknownMetricError: Si la métrica no está en el registro.
+        """
+        definition = assert_metric_definition(metric_name)
+        window = _resolve_configured_stats_window(requested_duration)
+
+        assets = build_repository(MonitoredAssetRepository).get_by_user(self.user.id)
+        snapshot_repo = build_repository(AssetSnapshotRepository)
+        aggregates_by_asset = snapshot_repo.get_metric_aggregates_by_asset(
+            [asset.id for asset in assets], definition.column, window.since, window.until,
+        )
+        values = [
+            average if aggregation == "avg" else maximum
+            for average, maximum, sample_count in aggregates_by_asset.values()
+            if sample_count
+        ]
+        value_range = _resolve_histogram_range(definition, values)
+
+        return {
+            "metric": definition.name,
+            "unit": definition.unit,
+            "agg": aggregation,
+            "assetCount": len(assets),
+            "assetsWithData": len(values),
+            "bins": [] if value_range is None else build_histogram(values, bin_count, *value_range),
+            "periodCoveredFrom": window.since,
+            "periodCoveredTo": window.until,
+            "isPeriodClipped": window.is_clipped,
+        }
+
+    def get_power_stats(
+        self, scope: str, tag_id: Optional[int], requested_duration: timedelta,
+    ) -> dict:
+        """
+        Energía y coste de un conjunto de activos: todo el parque o los de una etiqueta.
+
+        Cada activo se calcula exactamente igual que en su resumen de consumo
+        (``summarize_power_period``: media ponderada por duración, energía
+        solo sobre el tiempo observado, y su procedencia), y después se
+        agregan. Las muestras de potencia de todos los activos salen de una
+        sola consulta.
+
+        Los kWh y el coste se **suman**, porque cada uno ya está calculado
+        sobre su propio tiempo observado. La potencia media del conjunto no
+        se da: sumar o promediar medias de activos con coberturas distintas
+        no mide nada claro, y el desglose ya trae la de cada activo. Un
+        activo sin datos de energía no aporta un cero al total.
+
+        Args:
+            scope: ``"fleet"`` (todos los activos del usuario) o ``"tag"``.
+            tag_id: Etiqueta, con ``scope="tag"``; tiene que ser visible para
+                el usuario. ``None`` con ``scope="fleet"``.
+            requested_duration: Duración del periodo pedido, antes de recortar.
+
+        Returns:
+            Diccionario con la forma de ``PowerStatsResponseSchema``: el
+            alcance y la etiqueta, recuentos de activos (con datos y con
+            potencia estimada), ``kwh``/``cost``/``currency`` totales (``None``
+            si ningún activo tuvo datos), la procedencia del conjunto (la peor
+            de sus activos), el desglose por activo de más a menos kWh y la
+            ventana cubierta.
+
+        Raises:
+            TagNotFoundError: Con ``scope="tag"``, si la etiqueta no existe o
+                es personal de otro usuario.
+        """
+        asset_repo = build_repository(MonitoredAssetRepository)
+        tag = None
+        if scope == "tag":
+            tag = _assert_visible_tag(self.user.id, tag_id)
+            assets = asset_repo.get_by_tag(self.user.id, tag_id)
+        else:
+            assets = asset_repo.get_by_user(self.user.id)
+
+        window = _resolve_configured_stats_window(requested_duration)
+        asset_ids = [asset.id for asset in assets]
+        snapshot_repo = build_repository(AssetSnapshotRepository)
+        estimated_asset_ids = snapshot_repo.get_asset_ids_with_estimated_power(
+            asset_ids, window.since, window.until,
+        )
+        config = CR.hygeia_config()
+        breakdown = _build_power_breakdown(
+            assets,
+            snapshot_repo.get_metric_samples_by_asset(
+                asset_ids, AssetSnapshot.power_watts, window.since, window.until,
+            ),
+            estimated_asset_ids, window, config,
+        )
+        with_data = [entry for entry in breakdown if entry["kwh"] is not None]
+
+        return {
+            "scope": scope,
+            "tag": None if tag is None else tag.to_dict(),
+            "assetCount": len(assets),
+            "assetsWithData": len(with_data),
+            "assetsEstimated": len(estimated_asset_ids),
+            "kwh": sum(entry["kwh"] for entry in with_data) if with_data else None,
+            "cost": sum(entry["cost"] for entry in with_data) if with_data else None,
+            "currency": config.energy_price_currency,
+            "classification": _combine_power_classifications(
+                [entry["classification"] for entry in with_data],
+            ),
+            "assets": breakdown,
+            "periodCoveredFrom": window.since,
+            "periodCoveredTo": window.until,
+            "isPeriodClipped": window.is_clipped,
+        }
+
+    def get_metric_series(  # pylint: disable=too-many-arguments,too-many-locals
+        self, metric_name: str, *, tag_id: Optional[int], asset_ids: Optional[Sequence[int]],
+        aggregation: Optional[str], bucket_aggregation: str,
+        requested_bucket_seconds: Optional[int], requested_duration: timedelta,
+        compare_to: Optional[Tuple[str, int]] = None,
+    ) -> dict:
+        """
+        Serie temporal por cubos de una métrica sobre varios activos.
+
+        Es la base de una gráfica apilada o comparativa: "tráfico total de la
+        etiqueta producción en las últimas 24 horas", sin que el navegador
+        tenga que sumar punto a punto N series. Sin ``aggregation`` devuelve
+        una serie por activo; con ella, una única serie que los combina. Todo
+        sale de una sola consulta, sea cual sea el número de activos.
+
+        Cada activo se resume primero dentro de su cubo (``bucket_aggregation``)
+        y después se combinan los activos (``aggregation``): así un activo que
+        mandó dos heartbeats en el mismo cubo no cuenta dos veces.
+
+        Args:
+            metric_name: Nombre público de la métrica.
+            tag_id: Etiqueta cuyos activos entran, o ``None``.
+            asset_ids: Ids de los activos que entran, o ``None``. Exactamente
+                uno de los dos viene informado (lo valida el schema).
+            aggregation: ``"sum"``, ``"avg"`` o ``"max"`` para combinar los
+                activos en una serie, o ``None`` para una serie por activo.
+                ``sum`` solo en métricas aditivas.
+            bucket_aggregation: ``"min"``, ``"avg"`` o ``"max"``, cómo se
+                resume cada cubo dentro de un activo.
+            requested_bucket_seconds: Cubo pedido en segundos, o ``None`` para
+                el más fino que cabe en ``maxSeriesPoints``.
+            requested_duration: Duración del periodo pedido, antes de recortar.
+            compare_to: Segunda fuente con la que comparar, ``("asset", id)``
+                o ``("tag", id)``, o ``None``. Su serie va al final de
+                ``series``, marcada con ``isComparison``, y comparte los cubos
+                de la principal. Por defecto ``None``.
+
+        Returns:
+            Diccionario con la forma de ``MetricSeriesResponseSchema``: la
+            métrica y su unidad, el cubo usado (``bucket``, e
+            ``isBucketWidened`` si hubo que ensancharlo), ``bucketAgg``,
+            ``agg``, ``series`` y la ventana cubierta.
+
+        Raises:
+            UnknownMetricError: Si la métrica no está en el registro.
+            NonAdditiveMetricError: Si se pide ``sum`` de una métrica no aditiva.
+            TagNotFoundError: Si la etiqueta no es visible para el usuario.
+            AssetNotFoundError: Si algún activo pedido no existe o no es suyo.
+        """
+        definition = assert_metric_definition(metric_name)
+        if aggregation == "sum":
+            validate_metrics_are_additive([definition])
+        tag, assets = _resolve_series_assets(self.user.id, tag_id, asset_ids)
+
+        window = _resolve_configured_stats_window(requested_duration)
+        max_points = CR.hygeia_limits().max_series_points
+        bucket_seconds, is_bucket_widened = _resolve_series_bucket(
+            window, requested_bucket_seconds, max_points,
+        )
+        series_query = _SeriesQuery(
+            definition=definition, bucket_seconds=bucket_seconds, window=window,
+            bucket_aggregation=bucket_aggregation, aggregation=aggregation, max_points=max_points,
+        )
+        snapshot_repo = build_repository(AssetSnapshotRepository)
+        series = _build_series(
+            snapshot_repo, series_query, tag, assets, is_combined=aggregation is not None,
+        )
+        if compare_to is not None:
+            series += _build_comparison_series(
+                self.user.id, snapshot_repo, series_query, compare_to,
+            )
+
+        return {
+            "metric": definition.name,
+            "unit": definition.unit,
+            "bucket": bucket_seconds,
+            "isBucketWidened": is_bucket_widened,
+            "bucketAgg": bucket_aggregation,
+            "agg": aggregation,
+            "series": series,
+            "periodCoveredFrom": window.since,
+            "periodCoveredTo": window.until,
+            "isPeriodClipped": window.is_clipped,
+        }
 
 
 class HygeiaReportManager:
