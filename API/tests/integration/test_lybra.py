@@ -1340,6 +1340,47 @@ def _run_payload_scan(app, user_id: int, target: str = "10.9.9.9") -> int:
         return escan.id
 
 
+# ─────────────────────────────── fixed_version persistido (#312)
+
+def test_a_finding_with_a_known_fix_persists_its_fixed_version(app, admin_user):
+    """La versión que corrige el hallazgo se guarda en la fila, no sólo se
+    calcula al vuelo para el informe — es lo que la hace consultable por API
+    y agrupable por SQL sin recorrer los hallazgos a mano."""
+    _seed_kb_apache_cve_with_a_fix(app)
+    scan_id = _run_payload_scan(app, admin_user.id)
+
+    with app.app_context():
+        with UnitOfWork() as uow:
+            findings = ScanRepository(uow).get_findings_by_scan(scan_id)
+
+    apache_findings = [f for f in findings if f.cve_ids and "CVE-2021-41773" in f.cve_ids]
+    assert len(apache_findings) == 1
+    assert apache_findings[0].fixed_version == "2.4.51"
+
+
+def test_a_finding_without_a_declared_fix_persists_none(app, admin_user):
+    _seed_kb_apache_cve(app)
+    scan_id = _run_payload_scan(app, admin_user.id)
+
+    with app.app_context():
+        with UnitOfWork() as uow:
+            findings = ScanRepository(uow).get_findings_by_scan(scan_id)
+
+    apache_findings = [f for f in findings if f.cve_ids and "CVE-2021-41773" in f.cve_ids]
+    assert len(apache_findings) == 1
+    assert apache_findings[0].fixed_version is None
+
+
+def test_the_persisted_fixed_version_reaches_the_api(client, app, admin_user, auth_headers):
+    _seed_kb_apache_cve_with_a_fix(app)
+    scan_id = _run_payload_scan(app, admin_user.id)
+
+    body = client.get(f"/themis/lybra/scans/{scan_id}/findings",
+                      headers=auth_headers(admin_user)).get_json()
+    apache_group = next(g for g in body["groups"] if "http server" in g["label"])
+    assert apache_group["fixedVersion"] == "2.4.51"
+
+
 def test_grouped_findings_require_authentication(client):
     assert client.get("/themis/lybra/scans/1/findings").status_code == 401
 

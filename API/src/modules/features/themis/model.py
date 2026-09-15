@@ -840,6 +840,13 @@ class Finding(Base):
         cve_ids / cvss_score / cvss_vector / epss_score / in_kev /
             exploit_maturity: Vulnerability correlation, filled once the
             finding's CPE (or check) resolves against the KB.
+        fixed_version: La versión que la propia NVD declara como cota
+            superior de la regla de aplicabilidad que casó con este
+            producto, o ``None`` cuando ninguna regla la declara — nunca se
+            inventa. Se resuelve una vez, al persistir el hallazgo
+            (``services/cve_context.py::resolve_fixed_versions``), para que
+            sea consultable y agrupable por SQL en vez de recalcularse cada
+            vez que un informe la pide.
         required_os: CPE platform token (e.g. "windows_10") this finding's CVE
             match is gated behind, or None if unconditional. Set from
             ``CpeMatch.required_os`` at correlation time; used by
@@ -903,6 +910,7 @@ class Finding(Base):
     in_kev           = Column(Boolean, default=False)
     exploit_maturity = Column(String(16))   # none|poc|functional|weaponized|in_the_wild
     required_os      = Column(String(64))   # Platform this finding's CVE match is gated behind (see CpeMatch.required_os), or None
+    fixed_version    = Column(String(64))   # NVD's upper bound for this product's rule, or None
 
     # Quality / provenance
     source       = Column(String(32), index=True)
@@ -947,6 +955,7 @@ class Finding(Base):
             "in_kev": self.in_kev,
             "exploit_maturity": self.exploit_maturity,
             "required_os": self.required_os,
+            "fixed_version": self.fixed_version,
             "source": self.source,
             "check_id": self.check_id, 
             "feed_version": self.feed_version,

@@ -224,6 +224,11 @@ def finding_to_json(f: dict, exposure: str) -> dict:
     resultado SARIF necesita un ``ruleId`` estable, y ``check_id`` es la regla
     del feed que disparó el hallazgo (o ``None`` en una detección por versión
     sin check activo de por medio).
+
+    ``fixedVersion`` es la versión que NVD declara como cota superior para
+    este producto, resuelta y persistida en la fila (ver
+    ``services/cve_context.py::resolve_fixed_versions``), o ``None`` cuando
+    ninguna regla la declara.
     """
     priority = score_finding(
         {"cvss_score": f.get("cvss_score"), "in_kev": f.get("in_kev"),
@@ -253,4 +258,5 @@ def finding_to_json(f: dict, exposure: str) -> dict:
         "priority":    priority,
         "requiredOs":  f.get("required_os"),
         "checkId":     f.get("check_id"),
+        "fixedVersion": f.get("fixed_version"),
     }

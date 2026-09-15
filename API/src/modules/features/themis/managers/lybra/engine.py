@@ -58,7 +58,7 @@ from ...lybra import (
 )
 from ...lybra.ingest import select_for_services, translate_all
 from ...services import _Task
-from ...services.cve_context import enrich_with_cve_context
+from ...services.cve_context import enrich_with_cve_context, resolve_fixed_versions
 from ...services.nuclei_templates import NucleiTemplateStore
 from src.modules.shared._exceptions import ValidationError
 from ...exceptions import (
@@ -1439,11 +1439,16 @@ class LybraEngineManager(ScanManager):
     def _persist_scan_results(self, uow, scan, domain_data) -> None:
         """Persist the engine's findings (``domain_data`` is a list of dicts).
 
+        Resuelve ``fixed_version`` antes de guardar (#312): así queda en la
+        fila del ``Finding``, consultable y agrupable por SQL, en vez de
+        recalcularse cada vez que un informe o la API la piden.
+
         Aprovecha la escritura para purgar la evidencia caducada: cada
         escaneo que graba evidencia se lleva de paso la que ha pasado su
         retención, así la tabla no crece sin fin sin necesidad de un barredor
         aparte.
         """
+        resolve_fixed_versions(domain_data)
         evidence_config = CR.lybra_evidence_config()
         repo = ScanRepository(uow)
         repo.persist_findings(scan, domain_data,
