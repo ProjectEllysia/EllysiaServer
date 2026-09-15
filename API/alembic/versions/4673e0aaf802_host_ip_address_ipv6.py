@@ -1,4 +1,4 @@
-"""Host.ip_address a 45 caracteres para admitir IPv6 (#315)
+"""Host.ip_address a 45 caracteres para admitir IPv6
 
 Revision ID: 4673e0aaf802
 Revises: b8e3c6f1a5d2

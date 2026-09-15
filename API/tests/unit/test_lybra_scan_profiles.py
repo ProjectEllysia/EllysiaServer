@@ -42,8 +42,8 @@ def test_thorough_profile_sweeps_every_port_and_implies_aggressive():
     assert len(ports) == 65535
     assert aggressive is True
     assert active_checks_override is None
-    # El escaneo completo bajo demanda que #314 exige: "thorough" nunca deja
-    # que el CheckPlanner decida saltarse nada.
+    # El escaneo completo bajo demanda: "thorough" nunca deja que el
+    # CheckPlanner decida saltarse nada.
     assert planner_enabled is False
 
 

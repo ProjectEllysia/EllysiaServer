@@ -1,4 +1,4 @@
-"""finding: persistir fixed_version (#312)
+"""finding: persistir fixed_version
 
 Revision ID: ace84a6be06e
 Revises: e69f6af8eeef
