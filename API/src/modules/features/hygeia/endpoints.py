@@ -54,6 +54,12 @@ from .schemas import (
     AssetStatsSummaryResponseSchema,
     AssetTagsRequestSchema,
     AssetUpdateRequestSchema,
+    CpuCoreStatsQuerySchema,
+    CpuCoreStatsResponseSchema,
+    DiskStatsQuerySchema,
+    DiskStatsResponseSchema,
+    FleetDiskQuerySchema,
+    FleetDiskResponseSchema,
     FleetOverviewResponseSchema,
     IngestRequestSchema,
     InventoryReportRequestSchema,
@@ -63,6 +69,8 @@ from .schemas import (
     MetricHistogramResponseSchema,
     MetricSeriesQuerySchema,
     MetricSeriesResponseSchema,
+    NetworkStatsQuerySchema,
+    NetworkStatsResponseSchema,
     PowerStatsQuerySchema,
     PowerStatsResponseSchema,
     PowerSummaryResponseSchema,
@@ -218,6 +226,61 @@ def get_asset_stats_summary(args, asset_id):
     )
 
 
+@hygeia_blp.get("/assets/<int:asset_id>/stats/disks")
+@hygeia_blp.arguments(DiskStatsQuerySchema, location="query")
+@hygeia_blp.response(200, DiskStatsResponseSchema, description="Uso por punto de montaje")
+@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@hygeia_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@hygeia_blp.alt_response(404, schema=ErrorSchema, description="Asset not found")
+@limiter.limit("600 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
+@handle_exceptions(default_exception=AssetNotFoundError, logger=logger)
+def get_asset_disk_stats(args, asset_id):
+    """Obtener el resumen de uso de cada punto de montaje de un activo"""
+    user = get_current_user()
+    manager = HygeiaAssetManager(user)
+    return manager.get_disk_stats(
+        asset_id, mount=args["mount"], requested_duration=args["requested_duration"],
+    )
+
+
+@hygeia_blp.get("/assets/<int:asset_id>/stats/network")
+@hygeia_blp.arguments(NetworkStatsQuerySchema, location="query")
+@hygeia_blp.response(200, NetworkStatsResponseSchema, description="Tráfico por interfaz")
+@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@hygeia_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@hygeia_blp.alt_response(404, schema=ErrorSchema, description="Asset not found")
+@limiter.limit("600 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
+@handle_exceptions(default_exception=AssetNotFoundError, logger=logger)
+def get_asset_network_stats(args, asset_id):
+    """Obtener el resumen de tráfico de cada interfaz de red de un activo"""
+    user = get_current_user()
+    manager = HygeiaAssetManager(user)
+    return manager.get_network_stats(
+        asset_id, interface=args["interface"], requested_duration=args["requested_duration"],
+    )
+
+
+@hygeia_blp.get("/assets/<int:asset_id>/stats/cpu-cores")
+@hygeia_blp.arguments(CpuCoreStatsQuerySchema, location="query")
+@hygeia_blp.response(200, CpuCoreStatsResponseSchema, description="Desequilibrio entre núcleos")
+@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@hygeia_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@hygeia_blp.alt_response(404, schema=ErrorSchema, description="Asset not found")
+@limiter.limit("600 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
+@handle_exceptions(default_exception=AssetNotFoundError, logger=logger)
+def get_asset_cpu_core_stats(args, asset_id):
+    """Obtener el desequilibrio de carga entre los núcleos de CPU de un activo"""
+    user = get_current_user()
+    manager = HygeiaAssetManager(user)
+    return manager.get_cpu_core_stats(asset_id, requested_duration=args["requested_duration"])
+
+
 @hygeia_blp.get("/stats/by-tag/<int:tag_id>")
 @hygeia_blp.arguments(TagStatsQuerySchema, location="query")
 @hygeia_blp.response(200, TagStatsResponseSchema, description="Estadísticas de una etiqueta")
@@ -283,6 +346,22 @@ def get_asset_ranking(args):
         limit=args["limit"],
         requested_duration=args["requested_duration"],
     )
+
+
+@hygeia_blp.get("/stats/disks/fleet")
+@hygeia_blp.arguments(FleetDiskQuerySchema, location="query")
+@hygeia_blp.response(200, FleetDiskResponseSchema, description="Montajes más llenos del parque")
+@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@hygeia_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@limiter.limit("600 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
+@handle_exceptions(default_exception=HygeiaError, logger=logger)
+def get_fleet_fullest_mounts(args):
+    """Listar los activos del usuario con el montaje más lleno según su último latido"""
+    user = get_current_user()
+    manager = HygeiaStatsManager(user)
+    return manager.get_fullest_mounts(limit=args["limit"])
 
 
 @hygeia_blp.get("/stats/overview")

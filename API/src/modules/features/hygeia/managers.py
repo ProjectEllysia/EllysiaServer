@@ -50,8 +50,10 @@ from .repositories import (
 )
 from .services import (
     METRIC_REGISTRY, MetricDefinition, MetricUnit, assert_metric_definition,
-    build_histogram, build_inventory_report, build_percentile_series, check_clock_skew,
-    combine_asset_averages, denormalize, evaluate, generate_agent_key, is_agent_outdated,
+    build_histogram, build_inventory_report, build_percentile_series, calculate_core_spread,
+    check_clock_skew,
+    combine_asset_averages, denormalize, evaluate, extract_entity_series, generate_agent_key,
+    is_agent_outdated,
     project_month, resolve_stats_window, services_from_inventory, summarize_power_period,
     summarize_values, validate_metrics_are_additive,
 )
@@ -478,6 +480,29 @@ def _resolve_configured_stats_window(requested_duration: timedelta):
     return resolve_stats_window(
         requested_duration, utcnow_naive(),
         max_stats_period_days=CR.hygeia_limits().max_stats_period_days,
+        retention_days=CR.hygeia_config().retention_days,
+    )
+
+
+def _resolve_entity_stats_window(requested_duration: timedelta):
+    """Ventana de una estadística por entidad (montaje, interfaz, núcleo).
+
+    Estas estadísticas leen el JSONB de cada heartbeat, así que se recortan a
+    ``maxEntityStatsPeriodDays``, además de al límite general y a la
+    retención.
+
+    Args:
+        requested_duration: Duración pedida por el cliente, positiva.
+
+    Returns:
+        StatsWindow: La ventana que termina ahora, ya recortada.
+    """
+    limits = CR.hygeia_limits()
+    return resolve_stats_window(
+        requested_duration, utcnow_naive(),
+        max_stats_period_days=min(
+            limits.max_entity_stats_period_days, limits.max_stats_period_days,
+        ),
         retention_days=CR.hygeia_config().retention_days,
     )
 
@@ -946,6 +971,158 @@ class HygeiaAssetManager:
 
         return {
             "metrics": summaries_by_metric,
+            "periodCoveredFrom": window.since,
+            "periodCoveredTo": window.until,
+            "isPeriodClipped": window.is_clipped,
+        }
+
+    def get_disk_stats(
+        self, asset_id: int, mount: Optional[str], requested_duration: timedelta,
+    ) -> dict:
+        """
+        Resume el uso de cada punto de montaje de un activo sobre un periodo.
+
+        ``diskMaxPct`` solo guarda el montaje más lleno de cada heartbeat, así
+        que un ``/var`` que se llena mientras ``/`` sigue ligero no se ve en
+        su serie. Aquí se lee el detalle por montaje del JSONB y se resume
+        cada uno con la misma cuenta que el resto de las estadísticas
+        (``summarize_values``).
+
+        Args:
+            asset_id: Activo cuyos montajes se resumen.
+            mount: Punto de montaje concreto (``/var``), o ``None`` para todos.
+                Un montaje que el activo no reportó en el periodo da una lista
+                vacía, no un error.
+            requested_duration: Duración del periodo pedido, antes de recortar;
+                positiva.
+
+        Returns:
+            Diccionario con la forma de ``DiskStatsResponseSchema``: ``mounts``
+            (``mount`` y el ``StatSummary`` de ``usagePct``, por nombre de
+            montaje) y la ventana cubierta.
+
+        Raises:
+            AssetNotFoundError: Si el activo no existe o pertenece a otro usuario.
+        """
+        assert_owned(MonitoredAssetRepository, asset_id, self.user.id, AssetNotFoundError)
+        window = _resolve_entity_stats_window(requested_duration)
+
+        samples = build_repository(AssetSnapshotRepository).get_metrics_section_samples(
+            asset_id, "disk", window.since, window.until,
+        )
+        usage_by_mount = extract_entity_series(samples, "mount", "usagePct")
+        return {
+            "mounts": [
+                {"mount": name, "usagePct": summarize_values(series)}
+                for name, series in sorted(usage_by_mount.items())
+                if mount is None or name == mount
+            ],
+            "periodCoveredFrom": window.since,
+            "periodCoveredTo": window.until,
+            "isPeriodClipped": window.is_clipped,
+        }
+
+    def get_network_stats(
+        self, asset_id: int, interface: Optional[str], requested_duration: timedelta,
+    ) -> dict:
+        """
+        Resume el tráfico de cada interfaz de red de un activo sobre un periodo.
+
+        ``netRxBps``/``netTxBps`` son el total del activo; qué interfaz genera
+        ese tráfico solo vive en el JSONB. Aquí se lee ese detalle y se resumen
+        la recepción y el envío de cada interfaz con ``summarize_values``. Las
+        interfaces loopback se excluyen, con el mismo criterio que el total.
+
+        Args:
+            asset_id: Activo cuyas interfaces se resumen.
+            interface: Interfaz concreta (``eth0``), o ``None`` para todas. Una
+                interfaz que el activo no reportó en el periodo, o una
+                loopback, da una lista vacía, no un error.
+            requested_duration: Duración del periodo pedido, antes de recortar;
+                positiva.
+
+        Returns:
+            Diccionario con la forma de ``NetworkStatsResponseSchema``:
+            ``interfaces`` (``interface`` y los ``StatSummary`` de
+            ``rxBytesPerSec`` y ``txBytesPerSec``, por nombre de interfaz) y la
+            ventana cubierta.
+
+        Raises:
+            AssetNotFoundError: Si el activo no existe o pertenece a otro usuario.
+        """
+        assert_owned(MonitoredAssetRepository, asset_id, self.user.id, AssetNotFoundError)
+        window = _resolve_entity_stats_window(requested_duration)
+
+        samples = build_repository(AssetSnapshotRepository).get_metrics_section_samples(
+            asset_id, "network", window.since, window.until,
+        )
+        received_by_interface = extract_entity_series(
+            samples, "iface", "rxBytesPerSec", is_loopback_excluded=True,
+        )
+        sent_by_interface = extract_entity_series(
+            samples, "iface", "txBytesPerSec", is_loopback_excluded=True,
+        )
+        return {
+            "interfaces": [
+                {
+                    "interface": name,
+                    "rxBytesPerSec": summarize_values(received_by_interface.get(name, [])),
+                    "txBytesPerSec": summarize_values(sent_by_interface.get(name, [])),
+                }
+                for name in sorted(received_by_interface.keys() | sent_by_interface.keys())
+                if interface is None or name == interface
+            ],
+            "periodCoveredFrom": window.since,
+            "periodCoveredTo": window.until,
+            "isPeriodClipped": window.is_clipped,
+        }
+
+    def get_cpu_core_stats(self, asset_id: int, requested_duration: timedelta) -> dict:
+        """
+        Resume el desequilibrio de carga entre los núcleos de CPU de un activo.
+
+        ``cpuPct`` es la media de los núcleos, y un proceso que satura uno solo
+        queda escondido tras una media moderada. Aquí se calcula, en cada
+        heartbeat, la distancia entre el núcleo más cargado y el menos cargado
+        (``calculate_core_spread``), y se resume esa serie con
+        ``summarize_values``: su máximo dice cuánto llegó a desequilibrarse la
+        máquina en el periodo, y ``timestampOfMax`` cuándo. Junto al resumen va
+        el uso por núcleo del último heartbeat del periodo que lo trae.
+
+        Args:
+            asset_id: Activo cuyos núcleos se analizan.
+            requested_duration: Duración del periodo pedido, antes de recortar;
+                positiva.
+
+        Returns:
+            Diccionario con la forma de ``CpuCoreStatsResponseSchema``:
+            ``coreSpreadPct`` (un ``StatSummary``, vacío si ningún heartbeat
+            trae dos núcleos o más), ``latestPerCorePct`` (lista vacía y
+            ``latestAt`` a ``None`` si ningún heartbeat trae el uso por núcleo)
+            y la ventana cubierta.
+
+        Raises:
+            AssetNotFoundError: Si el activo no existe o pertenece a otro usuario.
+        """
+        assert_owned(MonitoredAssetRepository, asset_id, self.user.id, AssetNotFoundError)
+        window = _resolve_entity_stats_window(requested_duration)
+
+        samples = build_repository(AssetSnapshotRepository).get_metrics_section_samples(
+            asset_id, "cpu", window.since, window.until,
+        )
+        latest_at, latest_cores = next(
+            (
+                (instant, cpu["perCorePct"]) for instant, cpu in reversed(samples)
+                if cpu and cpu.get("perCorePct")
+            ),
+            (None, []),
+        )
+        return {
+            "coreSpreadPct": summarize_values(
+                [(instant, calculate_core_spread(cpu)) for instant, cpu in samples],
+            ),
+            "latestPerCorePct": latest_cores,
+            "latestAt": latest_at,
             "periodCoveredFrom": window.since,
             "periodCoveredTo": window.until,
             "isPeriodClipped": window.is_clipped,
@@ -1544,6 +1721,50 @@ class HygeiaStatsManager:
             "periodCoveredFrom": window.since,
             "periodCoveredTo": window.until,
             "isPeriodClipped": window.is_clipped,
+        }
+
+    def get_fullest_mounts(self, limit: int) -> dict:
+        """
+        Lista los activos del usuario cuyo montaje más lleno está más cerca de llenarse.
+
+        Responde a "¿qué disco del parque se va a llenar antes?" sin abrir
+        cada activo. Usa solo el **último** heartbeat de cada activo y su
+        columna ``disk_max_pct``, nunca el histórico ni el JSONB: es una foto
+        del estado actual, así que no recibe ``period``. Un activo cuyo último
+        heartbeat no traía disco, o que nunca reportó, no entra: no se sabe su
+        uso. Los empates se resuelven por hostname.
+
+        Args:
+            limit: Cuántos activos devolver; positivo.
+
+        Returns:
+            Diccionario con la forma de ``FleetDiskResponseSchema``:
+            ``assetCount``, ``assetsWithData`` y ``mounts`` (``assetId``,
+            ``hostname``, ``mount``, ``usagePct`` y ``receivedAt``), de mayor
+            a menor uso.
+        """
+        assets = build_repository(MonitoredAssetRepository).get_by_user(self.user.id)
+        latest_by_asset = build_repository(
+            AssetSnapshotRepository,
+        ).get_latest_disk_usage_by_asset([asset.id for asset in assets])
+
+        entries = []
+        for asset in assets:
+            received_at, usage, mount = latest_by_asset.get(asset.id, (None, None, None))
+            if usage is not None:
+                entries.append({
+                    "assetId": asset.id,
+                    "hostname": asset.hostname,
+                    "mount": mount,
+                    "usagePct": usage,
+                    "receivedAt": received_at,
+                })
+        entries.sort(key=lambda entry: (-entry["usagePct"], entry["hostname"].lower()))
+
+        return {
+            "assetCount": len(assets),
+            "assetsWithData": len(entries),
+            "mounts": entries[:limit],
         }
 
     def get_fleet_overview(self) -> dict:

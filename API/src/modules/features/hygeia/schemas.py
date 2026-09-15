@@ -633,6 +633,109 @@ class AssetStatsSummaryResponseSchema(Schema):
     isPeriodClipped = fields.Boolean()
 
 
+class DiskStatsQuerySchema(Schema):
+    """Query de ``GET /hygeia/assets/<id>/stats/disks``.
+
+    ``mount`` limita la respuesta a un punto de montaje (``/var``); sin él
+    salen todos los que el activo reportó en el periodo. Tras cargar,
+    ``period`` queda como ``requested_duration``.
+    """
+    mount = fields.String(load_default=None, validate=validate.Length(min=1, max=256))
+    period = _build_period_field()
+
+    @post_load
+    def parse_query(self, data, **kwargs):
+        """Convierte ``period`` en ``timedelta``."""
+        data["requested_duration"] = _parse_period(data.pop("period"))
+        return data
+
+
+class MountStatsSchema(Schema):
+    """Resumen del uso de un punto de montaje sobre el periodo cubierto."""
+    mount = fields.String()
+    usagePct = fields.Nested(MetricSummarySchema)
+
+
+class DiskStatsResponseSchema(Schema):
+    """Estadísticas de disco de un activo, un resumen por punto de montaje.
+
+    ``mounts`` va ordenado por nombre de montaje. La ventana cubierta se
+    recorta a ``maxEntityStatsPeriodDays``, y ``isPeriodClipped`` lo avisa.
+    """
+    mounts = fields.List(fields.Nested(MountStatsSchema))
+    periodCoveredFrom = UTCDateTime()
+    periodCoveredTo = UTCDateTime()
+    isPeriodClipped = fields.Boolean()
+
+
+class NetworkStatsQuerySchema(Schema):
+    """Query de ``GET /hygeia/assets/<id>/stats/network``.
+
+    ``interface`` limita la respuesta a una interfaz (``eth0``); sin ella
+    salen todas las que el activo reportó en el periodo, salvo las loopback.
+    Tras cargar, ``period`` queda como ``requested_duration``.
+    """
+    interface = fields.String(load_default=None, validate=validate.Length(min=1, max=64))
+    period = _build_period_field()
+
+    @post_load
+    def parse_query(self, data, **kwargs):
+        """Convierte ``period`` en ``timedelta``."""
+        data["requested_duration"] = _parse_period(data.pop("period"))
+        return data
+
+
+class InterfaceStatsSchema(Schema):
+    """Resumen del tráfico de una interfaz sobre el periodo cubierto, en bytes/s."""
+    interface = fields.String()
+    rxBytesPerSec = fields.Nested(MetricSummarySchema)
+    txBytesPerSec = fields.Nested(MetricSummarySchema)
+
+
+class NetworkStatsResponseSchema(Schema):
+    """Estadísticas de red de un activo, un resumen por interfaz.
+
+    ``interfaces`` va ordenado por nombre de interfaz. La ventana cubierta
+    se recorta a ``maxEntityStatsPeriodDays``, y ``isPeriodClipped`` lo avisa.
+    """
+    interfaces = fields.List(fields.Nested(InterfaceStatsSchema))
+    periodCoveredFrom = UTCDateTime()
+    periodCoveredTo = UTCDateTime()
+    isPeriodClipped = fields.Boolean()
+
+
+class CpuCoreStatsQuerySchema(Schema):
+    """Query de ``GET /hygeia/assets/<id>/stats/cpu-cores``.
+
+    Tras cargar, ``period`` queda como ``requested_duration``.
+    """
+    period = _build_period_field()
+
+    @post_load
+    def parse_query(self, data, **kwargs):
+        """Convierte ``period`` en ``timedelta``."""
+        data["requested_duration"] = _parse_period(data.pop("period"))
+        return data
+
+
+class CpuCoreStatsResponseSchema(Schema):
+    """Desequilibrio de carga entre los núcleos de CPU de un activo.
+
+    ``coreSpreadPct`` resume, sobre el periodo, la distancia en puntos
+    porcentuales entre el núcleo más cargado y el menos cargado de cada
+    heartbeat; los heartbeats con menos de dos núcleos no cuentan.
+    ``latestPerCorePct`` es el uso de cada núcleo en ``latestAt``, el último
+    heartbeat del periodo que lo trae. La ventana se recorta a
+    ``maxEntityStatsPeriodDays``, y ``isPeriodClipped`` lo avisa.
+    """
+    coreSpreadPct = fields.Nested(MetricSummarySchema)
+    latestPerCorePct = fields.List(fields.Float())
+    latestAt = UTCDateTime(allow_none=True)
+    periodCoveredFrom = UTCDateTime()
+    periodCoveredTo = UTCDateTime()
+    isPeriodClipped = fields.Boolean()
+
+
 class TagStatsQuerySchema(AssetStatsSummaryQuerySchema):
     """Query de ``GET /hygeia/stats/by-tag/<tagId>``: la del resumen de un activo más ``agg``.
 
@@ -780,6 +883,36 @@ class AssetRankingResponseSchema(Schema):
     periodCoveredFrom = UTCDateTime()
     periodCoveredTo = UTCDateTime()
     isPeriodClipped = fields.Boolean()
+
+
+class FleetDiskQuerySchema(Schema):
+    """Query de ``GET /hygeia/stats/disks/fleet``: cuántos activos devolver, de 1 a 100."""
+    limit = fields.Integer(load_default=10, validate=validate.Range(min=1, max=100))
+
+
+class FleetMountEntrySchema(Schema):
+    """El montaje más lleno de un activo según su último heartbeat.
+
+    ``receivedAt`` es el instante de ese heartbeat: el de un activo apagado
+    puede ser de hace días, y así se ve.
+    """
+    assetId = fields.Integer()
+    hostname = fields.String()
+    mount = fields.String(allow_none=True)
+    usagePct = fields.Float()
+    receivedAt = UTCDateTime()
+
+
+class FleetDiskResponseSchema(Schema):
+    """Los activos del usuario con el montaje más lleno, de mayor a menor uso.
+
+    ``assetCount`` cuenta todos los activos del usuario y ``assetsWithData``
+    los que tienen dato de disco en su último heartbeat; ``mounts`` está
+    recortado a ``limit``.
+    """
+    assetCount = fields.Integer()
+    assetsWithData = fields.Integer()
+    mounts = fields.List(fields.Nested(FleetMountEntrySchema))
 
 
 class FleetOverviewResponseSchema(Schema):

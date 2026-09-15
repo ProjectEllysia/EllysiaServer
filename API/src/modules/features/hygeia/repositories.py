@@ -11,9 +11,9 @@ from __future__ import annotations
 
 import math
 from datetime import datetime, timezone
-from typing import Callable, Dict, List, Literal, Mapping, Optional, Tuple
+from typing import Any, Callable, Dict, List, Literal, Mapping, Optional, Tuple
 
-from sqlalchemy import func, update
+from sqlalchemy import and_, func, update
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from src.modules.infrastructure import BaseRepository
@@ -507,6 +507,44 @@ class AssetSnapshotRepository(BaseRepository[AssetSnapshot]):
         )
         return [(row.received_at, row.power_watts) for row in rows]
 
+    def get_metrics_section_samples(
+        self, asset_id: int, section: str, since: datetime, until: datetime,
+    ) -> List[Tuple[datetime, Any]]:
+        """Una sección del JSONB ``metrics`` de cada heartbeat de un activo en una ventana.
+
+        Es el camino de las estadísticas por entidad (montaje, interfaz,
+        núcleo), cuyo detalle no tiene columna propia. Proyecta solo el
+        instante y la sección pedida (``metrics -> 'disk'`` en Postgres), no
+        el JSONB completo: una ventana de días son decenas de miles de filas,
+        y el resto del payload no hace falta.
+
+        Args:
+            asset_id: Activo a consultar; ya filtrado por dueño en el manager.
+            section: Clave de primer nivel de ``metrics`` (``"disk"``,
+                ``"network"``, ``"cpu"``…).
+            since: Inicio de la ventana, sobre ``received_at``, inclusivo.
+            until: Fin de la ventana, sobre ``received_at``, inclusivo.
+
+        Returns:
+            List[Tuple[datetime, Any]]: ``(received_at, sección)`` de más
+                antiguo a más reciente. La sección es el valor JSON ya
+                deserializado (una lista, un diccionario…), o ``None`` si ese
+                heartbeat no la trae.
+        """
+        rows = (
+            self._session.query(
+                AssetSnapshot.received_at, AssetSnapshot.metrics[section].label("section"),
+            )
+            .filter(
+                AssetSnapshot.asset_id == asset_id,
+                AssetSnapshot.received_at >= since,
+                AssetSnapshot.received_at <= until,
+            )
+            .order_by(AssetSnapshot.received_at.asc())
+            .all()
+        )
+        return [(row.received_at, row.section) for row in rows]
+
     def get_metric_aggregates_by_asset(
         self, asset_ids: List[int], column: InstrumentedAttribute,
         since: datetime, until: datetime,
@@ -775,6 +813,53 @@ class AssetSnapshotRepository(BaseRepository[AssetSnapshot]):
             (_bucket_start(row.bucket_id, bucket_seconds), float(row.value), row.asset_count)
             for row in rows
         ]
+
+    def get_latest_disk_usage_by_asset(
+        self, asset_ids: List[int],
+    ) -> Dict[int, Tuple[datetime, Optional[float], Optional[str]]]:
+        """El montaje más lleno del último heartbeat de cada activo, en una sola consulta.
+
+        Es el camino de "los montajes más llenos del parque": se queda con el
+        último snapshot de cada activo (``MAX(received_at)`` por activo, en
+        una subconsulta) y lee solo sus columnas desnormalizadas
+        ``disk_max_pct``/``disk_max_mount``. Nunca abre el JSONB ``metrics``,
+        que para cientos de activos sería un escaneo caro.
+
+        Args:
+            asset_ids: Activos a consultar; ya filtrados por dueño. Una lista
+                vacía devuelve un diccionario vacío sin consultar.
+
+        Returns:
+            Dict[int, Tuple[datetime, Optional[float], Optional[str]]]: Por
+                cada activo que ha reportado alguna vez, ``(received_at,
+                disk_max_pct, disk_max_mount)`` de su último heartbeat. El uso
+                y el montaje son ``None`` si ese heartbeat no traía disco. Un
+                activo que nunca reportó no tiene entrada.
+        """
+        if not asset_ids:
+            return {}
+        latest = (
+            self._session.query(
+                AssetSnapshot.asset_id, func.max(AssetSnapshot.received_at).label("latest_at"),
+            )
+            .filter(AssetSnapshot.asset_id.in_(asset_ids))
+            .group_by(AssetSnapshot.asset_id)
+            .subquery()
+        )
+        rows = (
+            self._session.query(
+                AssetSnapshot.asset_id, AssetSnapshot.received_at,
+                AssetSnapshot.disk_max_pct, AssetSnapshot.disk_max_mount,
+            )
+            .join(latest, and_(
+                AssetSnapshot.asset_id == latest.c.asset_id,
+                AssetSnapshot.received_at == latest.c.latest_at,
+            ))
+            .all()
+        )
+        return {
+            row.asset_id: (row.received_at, row.disk_max_pct, row.disk_max_mount) for row in rows
+        }
 
     def get_latest(self, asset_id: int) -> Optional[AssetSnapshot]:
         """Devuelve el último snapshot recibido de un activo, o ``None`` si nunca reportó.

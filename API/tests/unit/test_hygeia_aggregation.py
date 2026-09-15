@@ -1,5 +1,6 @@
 """Tests unitarios de hygeia.services.aggregation.denormalize (escalares por snapshot)."""
 
+from datetime import datetime
 from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -7,9 +8,66 @@ from unittest.mock import Mock
 import pytest
 
 from src.modules.features.hygeia.repositories import AssetSnapshotRepository
-from src.modules.features.hygeia.services.aggregation import denormalize
+from src.modules.features.hygeia.services.aggregation import (
+    calculate_core_spread,
+    denormalize,
+    extract_entity_series,
+)
 
 pytestmark = pytest.mark.unit
+
+
+@pytest.mark.parametrize("cpu, expected", [
+    ({"perCorePct": [100.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, 100.0),
+    ({"perCorePct": [40.0, 55.5, 50.0]}, 15.5),
+    ({"perCorePct": [30.0]}, None),
+    ({"perCorePct": []}, None),
+    ({"usagePct": 20.0}, None),
+    (None, None),
+])
+def test_calculate_core_spread(cpu, expected):
+    """La distancia entre núcleos, o ``None`` si hay menos de dos."""
+    assert calculate_core_spread(cpu) == expected
+
+
+def test_extract_entity_series_splits_each_mount_into_its_own_series():
+    """Cada montaje tiene su serie; uno que falta en un heartbeat solo tiene muestras donde aparece."""
+    first, second = datetime(2026, 9, 1, 10), datetime(2026, 9, 1, 11)
+    samples = [
+        (first, [{"mount": "/", "usagePct": 40.0}, {"mount": "/var", "usagePct": 70.0}]),
+        (second, [{"mount": "/", "usagePct": 41.0}, {"mount": "", "usagePct": 1.0}]),
+    ]
+
+    series = extract_entity_series(samples, "mount", "usagePct")
+
+    assert series == {"/": [(first, 40.0), (second, 41.0)], "/var": [(first, 70.0)]}
+
+
+def test_extract_entity_series_tolerates_missing_sections_and_values():
+    """Un heartbeat sin la sección no aporta nada; un valor ausente queda como ``None``."""
+    instant = datetime(2026, 9, 1, 10)
+
+    series = extract_entity_series(
+        [(instant, None), (instant, [{"iface": "eth0"}])], "iface", "rxBytesPerSec",
+    )
+
+    assert series == {"eth0": [(instant, None)]}
+
+
+def test_extract_entity_series_can_exclude_loopback():
+    """Con ``is_loopback_excluded`` se descartan ``lo`` y la loopback de Windows."""
+    instant = datetime(2026, 9, 1, 10)
+    entries = [
+        {"iface": "lo", "rxBytesPerSec": 5},
+        {"iface": "Loopback Pseudo-Interface 1", "rxBytesPerSec": 5},
+        {"iface": "eth0", "rxBytesPerSec": 100},
+    ]
+
+    series = extract_entity_series(
+        [(instant, entries)], "iface", "rxBytesPerSec", is_loopback_excluded=True,
+    )
+
+    assert list(series) == ["eth0"]
 
 
 def _linux_metrics():

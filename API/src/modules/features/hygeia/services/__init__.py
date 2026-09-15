@@ -8,7 +8,7 @@ necesitan tocar ``flask.request`` — mismo precedente que
 ``users/services/permissions.py`` con ``require_oauth_token``.
 """
 
-from .aggregation import denormalize
+from .aggregation import calculate_core_spread, denormalize, extract_entity_series
 from .agent_freshness import is_agent_outdated
 from .detection import AnomalyChange, DetectionOutcome, evaluate
 from .enrollment import agent_key_id_from_request, generate_agent_key, require_agent_key
@@ -62,6 +62,8 @@ __all__ = [
     "AnomalyChange",
     "DetectionOutcome",
     "denormalize",
+    "extract_entity_series",
+    "calculate_core_spread",
     "is_agent_outdated",
     "PowerAverage",
     "EnergyCost",
