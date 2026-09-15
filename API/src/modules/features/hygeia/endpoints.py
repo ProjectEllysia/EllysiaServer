@@ -61,6 +61,8 @@ from .schemas import (
     InventoryAnalysisSummarySchema,
     MetricHistogramQuerySchema,
     MetricHistogramResponseSchema,
+    PowerStatsQuerySchema,
+    PowerStatsResponseSchema,
     PowerSummaryResponseSchema,
     RotateKeyResponseSchema,
     TagCreateRequestSchema,
@@ -314,6 +316,27 @@ def get_metric_histogram(args):
         metric_name=args["metric"],
         aggregation=args["agg"],
         bin_count=args["bins"],
+        requested_duration=args["requested_duration"],
+    )
+
+
+@hygeia_blp.get("/stats/power")
+@hygeia_blp.arguments(PowerStatsQuerySchema, location="query")
+@hygeia_blp.response(200, PowerStatsResponseSchema, description="Consumo eléctrico agregado")
+@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@hygeia_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@hygeia_blp.alt_response(404, schema=ErrorSchema, description="Tag not found")
+@limiter.limit("600 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
+@handle_exceptions(default_exception=HygeiaError, logger=logger)
+def get_power_stats(args):
+    """Obtener la energía y el coste agregados de todo el parque o de una etiqueta"""
+    user = get_current_user()
+    manager = HygeiaStatsManager(user)
+    return manager.get_power_stats(
+        scope=args["scope"],
+        tag_id=args["tagId"],
         requested_duration=args["requested_duration"],
     )
 

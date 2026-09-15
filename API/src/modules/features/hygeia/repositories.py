@@ -532,6 +532,40 @@ class AssetSnapshotRepository(BaseRepository[AssetSnapshot]):
         }
         return {asset_id: aggregates_found.get(asset_id, (None, None, 0)) for asset_id in asset_ids}
 
+    def get_asset_ids_with_estimated_power(
+        self, asset_ids: List[int], since: datetime, until: datetime,
+    ) -> set[int]:
+        """Qué activos tuvieron alguna lectura de potencia estimada por modelo en la ventana.
+
+        Una potencia estimada (``power_estimated``, p. ej. el modelo de
+        utilización de Windows) no es una medición, y un total de energía que
+        la incluye tiene que poder decirlo. Basta una lectura estimada en la
+        ventana para marcar al activo: sus kWh ya no son medidos del todo.
+
+        Args:
+            asset_ids: Activos a consultar; ya filtrados por dueño. Una lista
+                vacía devuelve un conjunto vacío sin consultar.
+            since: Inicio de la ventana, sobre ``received_at``, inclusivo.
+            until: Fin de la ventana, sobre ``received_at``, inclusivo.
+
+        Returns:
+            set[int]: Los ``asset_id`` con al menos una lectura estimada.
+        """
+        if not asset_ids:
+            return set()
+        rows = (
+            self._session.query(AssetSnapshot.asset_id)
+            .filter(
+                AssetSnapshot.asset_id.in_(asset_ids),
+                AssetSnapshot.received_at >= since,
+                AssetSnapshot.received_at <= until,
+                AssetSnapshot.power_estimated.is_(True),
+            )
+            .distinct()
+            .all()
+        )
+        return {row.asset_id for row in rows}
+
     def get_metric_samples_by_asset(
         self, asset_ids: List[int], column: InstrumentedAttribute,
         since: datetime, until: datetime,
