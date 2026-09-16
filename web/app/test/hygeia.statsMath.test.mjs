@@ -12,9 +12,9 @@
  */
 
 import {
-  STATS_METRICS, STATS_PERIODS, STATS_SCOPES, STATS_AGGREGATIONS,
-  describeCoverage, formatStatValue, isAggregationAllowed, metricOf,
-  rankingRows, summaryRows, tagMetricRows,
+  MAX_COMPARISON_METRICS, STATS_METRICS, STATS_PERIODS, STATS_SCOPES, STATS_AGGREGATIONS,
+  alignComparisonSeries, bucketForPeriod, comparisonPath, describeCoverage, describeLaneRange,
+  formatStatValue, isAggregationAllowed, metricOf, rankingRows, summaryRows, tagMetricRows,
 } from '../src/components/hygeia/statsMath.js'
 
 let passed = 0
@@ -185,6 +185,103 @@ check('el total sí vale en el tráfico de red', isAggregationAllowed('netRxBps'
 check('el total sí vale en la potencia', isAggregationAllowed('powerWatts', 'sum'))
 check('una métrica desconocida no admite nada', !isAggregationAllowed('inventada', 'avg'))
 check('una agregación desconocida tampoco', !isAggregationAllowed('cpuPct', 'mediana'))
+
+console.log('\ncubo de la gráfica comparativa')
+
+// El cubo se fija explícitamente porque es lo que alinea las series: los cubos
+// del servidor son múltiplos del reloj, así que el mismo tamaño da los mismos
+// instantes en dos peticiones distintas.
+eq('cada periodo tiene su cubo', STATS_PERIODS.map((p) => bucketForPeriod(p.value)),
+  [300, 1800, 7200])
+check('un periodo mayor lleva un cubo mayor',
+  bucketForPeriod('30d') > bucketForPeriod('7d') && bucketForPeriod('7d') > bucketForPeriod('24h'))
+eq('un periodo desconocido cae en un cubo válido, no en nada', bucketForPeriod('99d'), 300)
+
+console.log('\nalineación de las series superpuestas')
+
+const T0 = Date.parse('2026-09-01T00:00:00Z')
+const HOUR = 3600e3
+
+/** Una fuente de serie como la que deja el store tras pedir /stats/series. */
+function source(key, name, points) {
+  return { key, name, points: points.map(([offset, value]) => ({
+    at: new Date(T0 + offset * HOUR).toISOString(), value,
+  })) }
+}
+
+const aligned = alignComparisonSeries([
+  source('cpuPct', 'CPU', [[0, 10], [1, 50], [2, 30]]),
+  // A propósito le falta el cubo de la hora 1: las series no tienen por qué
+  // traer los mismos cubos, porque los que no tuvieron datos no aparecen.
+  source('netRxBps', 'Red · entrada', [[0, 1024], [2, 4096]]),
+])
+
+eq('el eje es la unión ordenada de los instantes de todas las series',
+  aligned.instants, [T0, T0 + HOUR, T0 + 2 * HOUR])
+eq('cada métrica tiene una calle', aligned.lanes.map((l) => l.key), ['cpuPct', 'netRxBps'])
+// Sin este null, la línea de red uniría la hora 0 con la hora 2 dibujando una
+// continuidad que no se midió.
+eq('un instante sin dato de esa métrica queda a null, no interpolado',
+  aligned.lanes[1].values, [1024, null, 4096])
+eq('los valores presentes conservan su posición', aligned.lanes[0].values, [10, 50, 30])
+
+// Cada métrica conserva su propio rango: superponer un porcentaje y una tasa
+// en bytes por segundo sobre el mismo eje Y aplastaría el porcentaje.
+eq('cada calle guarda su propio mínimo y máximo',
+  [aligned.lanes[0].min, aligned.lanes[0].max, aligned.lanes[1].min, aligned.lanes[1].max],
+  [10, 50, 1024, 4096])
+eq('y cuántos puntos con dato tiene', aligned.lanes.map((l) => l.sampleCount), [3, 2])
+check('las calles llevan colores distintos', aligned.lanes[0].color !== aligned.lanes[1].color)
+
+eq('una serie sin puntos no genera calle',
+  alignComparisonSeries([source('cpuPct', 'CPU', []), source('memPct', 'Memoria', [[0, 5]])])
+    .lanes.map((l) => l.key), ['memPct'])
+eq('sin fuentes no hay eje ni calles', alignComparisonSeries([]), { instants: [], lanes: [] })
+eq('unas fuentes nulas tampoco revientan', alignComparisonSeries(null), { instants: [], lanes: [] })
+// Un punto sin valor es ausencia de dato, igual que en el resto del módulo.
+eq('los puntos con valor nulo no cuentan como muestra',
+  alignComparisonSeries([source('cpuPct', 'CPU', [[0, 10], [1, null], [2, 30]])])
+    .lanes[0].sampleCount, 2)
+
+check('el tope de métricas superpuestas es tres', MAX_COMPARISON_METRICS === 3)
+
+console.log('\ngeometría de las líneas')
+
+const box = { width: 100, height: 40 }
+const straight = alignComparisonSeries([source('cpuPct', 'CPU', [[0, 0], [1, 50], [2, 100]])])
+const path = comparisonPath(straight.lanes[0], straight.instants, box)
+
+eq('una línea continua es un solo tramo', path.length, 1)
+// El eje X es tiempo real y el Y va invertido (0 arriba en SVG): el mínimo cae
+// en el borde inferior y el máximo en el superior.
+eq('el primer punto está abajo a la izquierda y el último arriba a la derecha',
+  path[0], '0.00,40.00 50.00,20.00 100.00,0.00')
+
+const broken = alignComparisonSeries([
+  source('cpuPct', 'CPU', [[0, 10], [1, 20]]),
+  source('memPct', 'Memoria', [[0, 40], [3, 60]]),
+])
+const brokenPath = comparisonPath(broken.lanes[1], broken.instants, box)
+check('un hueco corta la línea en vez de cruzarlo', brokenPath.length === 0,
+  `tramos: ${JSON.stringify(brokenPath)}`)
+
+// Un host estable en el 45 % no debe leerse como uno al 100 %.
+const flat = alignComparisonSeries([source('cpuPct', 'CPU', [[0, 45], [1, 45], [2, 45]])])
+eq('una serie plana se dibuja en el centro y no en un borde',
+  comparisonPath(flat.lanes[0], flat.instants, box)[0],
+  '0.00,20.00 50.00,20.00 100.00,20.00')
+
+eq('una sola muestra no da línea', comparisonPath(straight.lanes[0], [T0], box), [])
+eq('una calle inexistente tampoco', comparisonPath(null, straight.instants, box), [])
+
+console.log('\nrótulo del rango de cada línea')
+
+check('el rango se rotula en la unidad de la métrica',
+  describeLaneRange(aligned.lanes[0]) === '10 – 50 %', describeLaneRange(aligned.lanes[0]))
+check('una tasa se rotula escalada',
+  describeLaneRange(aligned.lanes[1]).includes('KB/s'), describeLaneRange(aligned.lanes[1]))
+eq('una calle sin datos no se rotula', describeLaneRange({ sampleCount: 0 }), '')
+eq('una calle inexistente tampoco', describeLaneRange(null), '')
 
 console.log(`\n${passed} pasados, ${failed} fallidos`)
 process.exit(failed ? 1 : 0)

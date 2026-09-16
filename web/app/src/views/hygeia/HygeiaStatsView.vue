@@ -112,6 +112,75 @@
         </div>
       </section>
 
+      <!-- Gráfica comparativa: varias métricas superpuestas sobre el mismo eje
+           temporal. Cada una lleva su propia escala vertical, porque son
+           unidades distintas y compartir eje aplastaría el porcentaje contra el
+           suelo; lo que se compara es la forma de las curvas. -->
+      <section class="compare" aria-label="Gráfica comparativa">
+        <header class="compare-head">
+          <h3 class="compare-title">Comparar métricas</h3>
+          <div class="metric-toggles" role="group" aria-label="Métricas superpuestas">
+            <button
+              v-for="metric in STATS_METRICS" :key="metric.key"
+              type="button" class="toggle"
+              :class="{ 'toggle--on': store.state.comparisonMetrics.includes(metric.key) }"
+              :aria-pressed="store.state.comparisonMetrics.includes(metric.key)"
+              :disabled="isToggleDisabled(metric.key)"
+              @click="store.toggleComparisonMetric(metric.key)"
+            >{{ metric.name }}</button>
+          </div>
+        </header>
+
+        <p v-if="!canCompare" class="state-msg">
+          {{ compareUnavailableReason }}
+        </p>
+        <p v-else-if="store.state.seriesLoading" class="state-msg">Cargando las series…</p>
+        <p v-else-if="store.state.seriesError" class="state-msg state-msg--error">
+          {{ store.state.seriesError }}
+        </p>
+        <p v-else-if="!lanes.length" class="state-msg">
+          Ninguna de las métricas elegidas tiene datos en el periodo.
+        </p>
+        <template v-else>
+          <svg
+            class="chart" :viewBox="`0 0 ${PLOT.width} ${PLOT.height + AXIS_HEIGHT}`"
+            preserveAspectRatio="none" role="img" :aria-label="chartLabel"
+          >
+            <!-- Rejilla horizontal: solo orientación. No lleva rótulos porque
+                 cada línea tiene su escala y un único eje Y numérico sería
+                 falso para dos de las tres. -->
+            <line
+              v-for="fraction in [0, 0.25, 0.5, 0.75, 1]" :key="fraction"
+              class="grid" x1="0" :x2="PLOT.width"
+              :y1="fraction * PLOT.height" :y2="fraction * PLOT.height"
+            />
+            <polyline
+              v-for="segment in segments" :key="segment.id"
+              class="line" :points="segment.points" :style="{ stroke: segment.color }"
+            />
+            <text
+              v-for="tick in axisTicks" :key="tick.at"
+              class="tick" :x="tick.x" :y="PLOT.height + 14"
+              :text-anchor="tick.anchor"
+            >{{ tick.label }}</text>
+          </svg>
+
+          <ul class="legend">
+            <li v-for="lane in lanes" :key="lane.key" class="legend-item">
+              <span class="legend-dot" :style="{ background: lane.color }"></span>
+              <span class="legend-name">{{ lane.name }}</span>
+              <span class="legend-range">{{ describeLaneRange(lane) }}</span>
+            </li>
+          </ul>
+          <p class="compare-note">
+            Cada línea usa su propia escala vertical: se comparan las formas en el tiempo, no las
+            alturas entre sí. Cubo de {{ fmtDuration(bucketMs) }}, el mismo para las
+            {{ lanes.length === 1 ? 'series' : 'tres series' }}, así que los puntos caen en los
+            mismos instantes.
+          </p>
+        </template>
+      </section>
+
       <section class="results" aria-label="Resultado">
         <p v-if="store.state.scopeLoading" class="state-msg">Calculando…</p>
         <p v-else-if="store.state.scopeError" class="state-msg state-msg--error">
@@ -222,9 +291,11 @@ import { computed, h, onMounted, watch } from 'vue'
 import Topbar from '@/components/shared/Topbar.vue'
 import StarBackground from '@/components/shared/StarBackground.vue'
 import { timeAgo } from '@/components/hygeia/format'
+import { fmtDuration, formatTimeTick, timeTicks } from '@/components/hygeia/chartMath'
 import {
-  STATS_METRICS, STATS_PERIODS, STATS_SCOPES, STATS_AGGREGATIONS,
-  describeCoverage, isAggregationAllowed, metricOf, rankingRows, summaryRows, tagMetricRows,
+  MAX_COMPARISON_METRICS, STATS_METRICS, STATS_PERIODS, STATS_SCOPES, STATS_AGGREGATIONS,
+  alignComparisonSeries, comparisonPath, describeCoverage, describeLaneRange,
+  isAggregationAllowed, metricOf, rankingRows, summaryRows, tagMetricRows,
 } from '@/components/hygeia/statsMath'
 import { useHygeiaStore } from '@/stores/hygeiaStore'
 import { useHygeiaStatsStore } from '@/stores/hygeiaStatsStore'
@@ -244,6 +315,16 @@ const Stat = (props) => [
   h('span', { class: 'cell-value' }, props.value.text),
   props.value.unit ? h('span', { class: 'cell-unit' }, props.value.unit) : null,
 ]
+
+// Caja de dibujo en unidades SVG; el `viewBox` la estira al ancho real, así
+// que estos números son proporciones, no píxeles.
+const PLOT = { width: 600, height: 160 }
+const AXIS_HEIGHT = 20
+
+// El servidor admite hasta 50 activos en una serie multi-activo. Por encima de
+// eso la gráfica de parque no se pide: mandarla volvería como un error de
+// validación, y decirlo es mejor que dejar la gráfica en blanco.
+const MAX_FLEET_SERIES_ASSETS = 50
 
 const assets = computed(() => assetsStore.state.assets)
 const tags = computed(() => tagsStore.state.tags)
@@ -279,6 +360,71 @@ const isSelectionComplete = computed(() => {
   return true
 })
 
+/* ── Gráfica comparativa ── */
+
+const fleetAssetIds = computed(() => assets.value.map((asset) => asset.id))
+
+/** Si la comparación se puede pedir con la selección actual. */
+const canCompare = computed(() => {
+  if (!isSelectionComplete.value) return false
+  return store.state.scope !== 'fleet'
+    || (fleetAssetIds.value.length > 0
+      && fleetAssetIds.value.length <= MAX_FLEET_SERIES_ASSETS)
+})
+
+const compareUnavailableReason = computed(() => {
+  if (!isSelectionComplete.value) return 'Elige un alcance completo para ver la gráfica.'
+  if (!fleetAssetIds.value.length) return 'Todavía no hay activos que comparar.'
+  return `La gráfica del parque abarca hasta ${MAX_FLEET_SERIES_ASSETS} activos; `
+    + `este parque tiene ${fleetAssetIds.value.length}. Compara por etiqueta o por activo.`
+})
+
+/**
+ * Una métrica no seleccionada se desactiva cuando ya hay tres, y la única
+ * seleccionada se desactiva para no dejar la gráfica sin ninguna línea.
+ */
+function isToggleDisabled(key) {
+  const selected = store.state.comparisonMetrics
+  if (selected.includes(key)) return selected.length === 1
+  return selected.length >= MAX_COMPARISON_METRICS
+}
+
+const aligned = computed(() => alignComparisonSeries(
+  store.state.comparisonMetrics
+    .map((key) => store.state.series.find((series) => series.key === key))
+    .filter(Boolean),
+))
+
+const lanes = computed(() => aligned.value.lanes)
+
+/** Un `polyline` por tramo continuo de cada línea; los huecos la cortan. */
+const segments = computed(() => lanes.value.flatMap((lane) =>
+  comparisonPath(lane, aligned.value.instants, PLOT).map((points, index) => ({
+    id: `${lane.key}-${index}`, points, color: lane.color,
+  })),
+))
+
+const bucketMs = computed(() => (store.state.bucket ?? 0) * 1000)
+
+/** Marcas del eje temporal, con el mismo formato que la gráfica del activo. */
+const axisTicks = computed(() => {
+  const instants = aligned.value.instants
+  if (instants.length < 2) return []
+  const first = instants[0]
+  const last = instants[instants.length - 1]
+  const span = last - first
+  return timeTicks(first, last).map((at, index, all) => ({
+    at,
+    x: ((at - first) / span) * PLOT.width,
+    label: formatTimeTick(at, span),
+    anchor: index === 0 ? 'start' : index === all.length - 1 ? 'end' : 'middle',
+  }))
+})
+
+const chartLabel = computed(
+  () => `Comparación de ${lanes.value.map((lane) => lane.name).join(', ')} en el periodo elegido`,
+)
+
 const summaryTable = computed(() => summaryRows(store.state.summary?.metrics))
 const tagTable = computed(() => tagMetricRows(store.state.tagStats?.metrics))
 const rankingTable = computed(() => rankingRows(store.state.ranking?.assets, store.state.metric))
@@ -305,11 +451,24 @@ watch(
   () => store.fetchScope(),
 )
 
+// La gráfica depende del alcance, del periodo y de qué métricas se superponen,
+// pero no de la métrica del ranking: son dos preguntas distintas sobre la
+// misma pantalla.
+watch(
+  () => [
+    store.state.scope, store.state.assetId, store.state.tagId,
+    store.state.period, store.state.aggregation,
+    store.state.comparisonMetrics.join(','), fleetAssetIds.value.join(','),
+  ],
+  () => { if (canCompare.value) store.fetchComparison(fleetAssetIds.value) },
+)
+
 onMounted(() => {
   store.fetchOverview()
   if (!assets.value.length) assetsStore.fetchAssets()
   if (!tags.value.length) tagsStore.fetchTags()
   store.fetchScope()
+  if (canCompare.value) store.fetchComparison(fleetAssetIds.value)
 })
 </script>
 
@@ -389,6 +548,38 @@ onMounted(() => {
 .cell-unit { margin-left: 0.2rem; font-size: var(--fs-sm); color: var(--text-muted); }
 .cell-sub { display: block; font-size: var(--fs-sm); color: var(--text-muted); }
 .cell-num { font-variant-numeric: tabular-nums; color: var(--text-dim); }
+
+/* ── Gráfica comparativa ── */
+.compare {
+  margin: 0 0 1.6rem; padding: 0.9rem;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+}
+.compare-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.8rem; flex-wrap: wrap; }
+.compare-title { margin: 0; font-size: var(--fs-lg); font-weight: 600; color: var(--text); }
+
+.metric-toggles { display: flex; gap: 0.25rem; flex-wrap: wrap; }
+.toggle {
+  padding: 0.3rem 0.6rem;
+  background: transparent; border: 1px solid var(--border-med); border-radius: 999px;
+  color: var(--text-muted); font-size: var(--fs-sm); cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+.toggle:hover:not(:disabled) { color: var(--text-dim); }
+.toggle--on { background: var(--accent-dim); border-color: var(--accent); color: var(--accent-bright); font-weight: 600; }
+.toggle:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.chart { display: block; width: 100%; height: 190px; margin: 0.8rem 0 0.4rem; overflow: visible; }
+.grid { stroke: var(--border); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.line { fill: none; stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+.tick { fill: var(--text-muted); font-size: 11px; }
+
+.legend { list-style: none; margin: 0.2rem 0 0; padding: 0; display: flex; gap: 1rem; flex-wrap: wrap; }
+.legend-item { display: flex; align-items: center; gap: 0.35rem; font-size: var(--fs-sm); }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.legend-name { color: var(--text); font-weight: 600; }
+.legend-range { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+.compare-note { margin: 0.6rem 0 0; font-size: var(--fs-sm); color: var(--text-muted); line-height: 1.5; }
 
 .state-msg { margin: 1.2rem 0; font-size: var(--fs-md); color: var(--text-muted); }
 .state-msg--error { color: var(--danger); }
