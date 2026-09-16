@@ -302,44 +302,81 @@
         <p v-if="!canCompare" class="state-msg">
           {{ compareUnavailableReason }}
         </p>
-        <p v-else-if="store.state.seriesLoading" class="state-msg">Cargando las series…</p>
-        <p v-else-if="store.state.seriesError" class="state-msg state-msg--error">
+        <p v-else-if="store.state.seriesError && !store.state.seriesLoading" class="state-msg state-msg--error">
           {{ store.state.seriesError }}
         </p>
-        <p v-else-if="!lanes.length" class="state-msg">
+        <p v-else-if="!store.state.seriesLoading && !lanes.length" class="state-msg">
           Ninguna de las métricas elegidas tiene datos en el periodo.
         </p>
+        <!-- La gráfica va en dos capas con la misma caja: debajo la rejilla y
+             las fechas, encima las líneas. Así el marco se queda quieto
+             mientras carga (con un barrido que dice que está trabajando) y
+             solo las líneas se revelan de izquierda a derecha al llegar.
+             El revelado recorta la capa HTML con `clip-path` en vez de animar
+             el trazo del SVG: con `non-scaling-stroke` sobre un `viewBox`
+             estirado, la longitud de cada línea no se corresponde con lo que
+             se ve, y recortar la capa entera vale igual para una línea que
+             para tres con huecos. -->
         <template v-else>
-          <svg
-            class="chart" :viewBox="`0 0 ${PLOT.width} ${PLOT.height + AXIS_HEIGHT}`"
-            preserveAspectRatio="none" role="img" :aria-label="chartLabel"
-          >
-            <!-- Rejilla horizontal: solo orientación. No lleva rótulos porque
-                 cada línea tiene su escala y un único eje Y numérico sería
-                 falso para dos de las tres. -->
-            <line
-              v-for="fraction in [0, 0.25, 0.5, 0.75, 1]" :key="fraction"
-              class="grid" x1="0" :x2="PLOT.width"
-              :y1="fraction * PLOT.height" :y2="fraction * PLOT.height"
-            />
-            <polyline
-              v-for="segment in segments" :key="segment.id"
-              class="line" :points="segment.points" :style="{ stroke: segment.color }"
-            />
-            <text
-              v-for="tick in axisTicks" :key="tick.at"
-              class="tick" :x="tick.x" :y="PLOT.height + 14"
-              :text-anchor="tick.anchor"
-            >{{ tick.label }}</text>
-          </svg>
+          <div class="chart-frame" :aria-busy="store.state.seriesLoading">
+            <svg
+              class="chart" :viewBox="`0 0 ${PLOT.width} ${PLOT.height + AXIS_HEIGHT}`"
+              preserveAspectRatio="none" role="img"
+              :aria-label="store.state.seriesLoading ? 'Cargando la gráfica' : chartLabel"
+            >
+              <!-- Rejilla horizontal: solo orientación. No lleva rótulos porque
+                   cada línea tiene su escala y un único eje Y numérico sería
+                   falso para dos de las tres. -->
+              <line
+                v-for="fraction in [0, 0.25, 0.5, 0.75, 1]" :key="fraction"
+                class="grid" x1="0" :x2="PLOT.width"
+                :y1="fraction * PLOT.height" :y2="fraction * PLOT.height"
+              />
+              <g v-if="!store.state.seriesLoading" class="ticks">
+                <text
+                  v-for="tick in axisTicks" :key="tick.at"
+                  class="tick" :x="tick.x" :y="PLOT.height + 14"
+                  :text-anchor="tick.anchor"
+                >{{ tick.label }}</text>
+              </g>
+            </svg>
 
-          <ul class="legend">
-            <li v-for="lane in lanes" :key="lane.key" class="legend-item">
-              <span class="legend-dot" :style="{ background: lane.color }"></span>
-              <span class="legend-name">{{ lane.name }}</span>
-              <span class="legend-range">{{ describeLaneRange(lane) }}</span>
-            </li>
-          </ul>
+            <div v-if="store.state.seriesLoading" class="chart-sweep" aria-hidden="true"></div>
+            <div v-else class="chart-lines" aria-hidden="true">
+              <svg
+                class="chart" :viewBox="`0 0 ${PLOT.width} ${PLOT.height + AXIS_HEIGHT}`"
+                preserveAspectRatio="none"
+              >
+                <polyline
+                  v-for="segment in segments" :key="segment.id"
+                  class="line" :points="segment.points" :style="{ stroke: segment.color }"
+                />
+              </svg>
+            </div>
+          </div>
+
+          <!-- Leyenda fantasma mientras carga: una entrada por métrica elegida,
+               para que el bloque no cambie de alto. La nota de debajo no
+               depende de los datos y se queda siempre. -->
+          <template v-if="store.state.seriesLoading">
+            <ul class="legend" aria-hidden="true">
+              <li v-for="key in store.state.comparisonMetrics" :key="key" class="legend-item legend-item--ghost">
+                <span class="skeleton skeleton--circle legend-dot"></span>
+                <span class="legend-name">
+                  <span class="skeleton skeleton--line skeleton-inline legend-ghost-text"></span>
+                </span>
+              </li>
+            </ul>
+          </template>
+          <div v-else class="reveal">
+            <ul class="legend">
+              <li v-for="lane in lanes" :key="lane.key" class="legend-item">
+                <span class="legend-dot" :style="{ background: lane.color }"></span>
+                <span class="legend-name">{{ lane.name }}</span>
+                <span class="legend-range">{{ describeLaneRange(lane) }}</span>
+              </li>
+            </ul>
+          </div>
           <p class="compare-note">
             Cada línea usa su propia escala vertical: se comparan las formas en el tiempo, no las
             alturas entre sí. Cubo de {{ fmtDuration(bucketMs) }}, el mismo para las
@@ -361,7 +398,7 @@ import { timeAgo } from '@/components/hygeia/format'
 import { fmtDuration, formatTimeTick, timeTicks } from '@/components/hygeia/chartMath'
 import {
   MAX_COMPARISON_METRICS, STATS_METRICS, STATS_PERIODS, STATS_SCOPES, STATS_AGGREGATIONS,
-  alignComparisonSeries, comparisonPath, describeCoverage, describeLaneRange,
+  alignComparisonSeries, bucketForPeriod, comparisonPath, describeCoverage, describeLaneRange,
   isAggregationAllowed, metricOf, rankingRows, summaryRows, tagMetricRows,
 } from '@/components/hygeia/statsMath'
 import { useHygeiaStore } from '@/stores/hygeiaStore'
@@ -531,7 +568,9 @@ const segments = computed(() => lanes.value.flatMap((lane) =>
   })),
 ))
 
-const bucketMs = computed(() => (store.state.bucket ?? 0) * 1000)
+// Del periodo elegido y no de la respuesta: es el mismo cubo que se pide, y
+// así la nota no tiene que esperar a los datos ni cambia al llegar.
+const bucketMs = computed(() => bucketForPeriod(store.state.period) * 1000)
 
 /** Marcas del eje temporal, con el mismo formato que la gráfica del activo. */
 const axisTicks = computed(() => {
@@ -802,7 +841,30 @@ onMounted(() => {
 .toggle--on { background: var(--accent-dim); border-color: var(--accent); color: var(--accent-bright); font-weight: 600; }
 .toggle:disabled { opacity: 0.45; cursor: not-allowed; }
 
-.chart { display: block; width: 100%; height: 190px; margin: 0.8rem 0 0.4rem; overflow: visible; }
+.chart-frame { position: relative; margin: 0.8rem 0 0.4rem; }
+.chart { display: block; width: 100%; height: 190px; overflow: visible; }
+.chart-lines { position: absolute; inset: 0; animation: chart-reveal 0.9s cubic-bezier(0.33, 1, 0.68, 1) both; }
+.ticks { animation: seq-fade-up 0.35s ease-out backwards; }
+
+/* Barrido de carga: una franja tenue que recorre la rejilla, en el mismo
+   sentido en que luego se revelan las líneas. Se queda en la zona del
+   trazado, sin pisar las fechas. */
+.chart-sweep {
+  position: absolute; inset: 0 0 20px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 16%, transparent), transparent)
+    no-repeat;
+  background-size: 30% 100%;
+  animation: chart-sweep 1.4s ease-in-out infinite;
+}
+
+@keyframes chart-reveal {
+  from { clip-path: inset(0 100% 0 0); }
+  to   { clip-path: inset(0 0 0 0); }
+}
+@keyframes chart-sweep {
+  from { background-position: -50% 0; }
+  to   { background-position: 150% 0; }
+}
 .grid { stroke: var(--border); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .line { fill: none; stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
 .tick { fill: var(--text-muted); font-size: 11px; }
@@ -812,6 +874,7 @@ onMounted(() => {
 .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .legend-name { color: var(--text); font-weight: 600; }
 .legend-range { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.legend-ghost-text { width: 7rem; }
 
 .compare-note { margin: 0.6rem 0 0; font-size: var(--fs-sm); color: var(--text-muted); line-height: 1.5; }
 
@@ -836,7 +899,12 @@ onMounted(() => {
 
 @media (prefers-reduced-motion: reduce) {
   .reveal,
-  .tiles--ready .tile { animation: none; }
+  .tiles--ready .tile,
+  .chart-lines,
+  .ticks { animation: none; }
+  /* Sin movimiento, la franja se queda quieta a media altura de opacidad:
+     sigue diciendo que se está cargando sin barrer. */
+  .chart-sweep { animation: none; background-size: 100% 100%; opacity: 0.5; }
 }
 
 .state-msg { margin: 1.2rem 0; font-size: var(--fs-md); color: var(--text-muted); }
