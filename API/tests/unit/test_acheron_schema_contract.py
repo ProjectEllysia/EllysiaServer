@@ -1,9 +1,9 @@
-"""El registro de storables de la API tiene que seguir a ``AcheronSchema``.
+"""El registro de storables de la API tiene que seguir al catálogo de ``AcheronCore``.
 
 El catálogo de tipos de la bóveda de Acheron —qué es una «cuenta», qué campos
 tiene una «tarjeta»— está escrito en cuatro sitios y en cuatro lenguajes: aquí
-(``storable_specs.py``), en la SPA (``storableSchema.js``), en la app Android
-(``StorableTypes.kt``) y en ``AcheronCore``. Los cuatro tienen que coincidir en
+(``storable_specs.py``), en el motor web que usa la SPA, en la app Android
+(``StorableSchema.kt``) y en el motor Java. Los cuatro tienen que coincidir en
 los nombres EXACTOS de los campos, porque esos nombres son las claves del JSON
 de la bóveda que los clientes cifran y se intercambian.
 
@@ -12,7 +12,8 @@ un cliente escribe ``cardholderName``, el campo simplemente no llega: se pierde
 en silencio en un ``dict`` que nadie mira, y el usuario descubre que su tarjeta
 no tiene titular mucho después, sin ninguna traza que apunte al renombrado.
 
-``AcheronSchema`` es la fuente de verdad común, y este test convierte la
+``schema/schema.json`` en el repositorio ``AcheronCore``, junto a los dos
+motores, es la fuente de verdad común, y este test convierte la
 divergencia en un fallo de CI. Sigue el patrón de ``test_caddy_api_routes.py``
 y ``test_config_view_paths.py``, que atan las otras parejas cruzadas del
 monorepo leyendo un fichero que vive lejos y comparando.
@@ -22,12 +23,12 @@ vault es un objeto con los campos por nombre, no una tupla, así que ningún
 cliente depende de él para leer un storable. Hoy hay una divergencia real en
 ``creditcard``, y el reparto es dos y dos:
 
-- ``… postalCode, cvv`` — esta API y el motor Java de ``AcheronCore``.
+- ``… postalCode, cvv`` — esta API y el motor Java.
 - ``… cvv, postalCode`` — la SPA y la app Android.
 
 No rompe nada, y por eso se comparan conjuntos y no listas en los cuatro
 clientes. Si algún día el orden pasa a importar, el sitio donde decidirlo es
-``AcheronSchema``, no este test.
+el catálogo de ``AcheronCore``, no este test.
 
 Deliberadamente NO se genera ``storable_specs.py`` desde el esquema. Ese
 registro ata además cada tipo a su modelo SQLAlchemy y a los nombres de
@@ -44,22 +45,27 @@ from src.modules.features.acheron.storable_specs import STORABLE_SPECS
 
 pytestmark = pytest.mark.unit
 
-# Copia versionada del contrato, de AcheronSchema @ v1.1.0. Al actualizarla hay
-# que anotar aquí de qué tag salió: sin esa anotación, una divergencia no se
-# puede atribuir a un cambio concreto del catálogo.
+# Copia versionada del contrato: ``schema/schema.json`` de AcheronCore @ v2.2.0,
+# la misma versión del motor web que fija ``web/app/package.json``. Al subir una
+# hay que subir la otra y anotar aquí el tag: sin esa anotación, una divergencia
+# no se puede atribuir a un cambio concreto del catálogo.
 #
-# Vivió un tiempo en la suite del SPA y se leía de allí, para no duplicarla.
-# Dejó de valer cuando la SPA pasó a consumir el catálogo desde
-# ``@projectellysia/acheron-core-web`` y borró su copia: la API es un consumidor
-# independiente y necesita la suya. Se compara contra un fichero y no contra el
-# repositorio remoto porque la suite está sellada contra la red.
+# La API lleva su propia copia porque no pasa por el paquete de JavaScript. Se
+# compara contra un fichero y no contra el repositorio remoto porque la suite
+# está sellada contra la red.
 _SCHEMA = Path(__file__).with_name("acheron-schema.json")
 
 
 def _shared_schema() -> dict:
+    """Carga la copia versionada del catálogo compartido de storables.
+
+    Returns:
+        dict: El documento ``schema.json`` tal cual, con ``schemaVersion`` y la
+            lista ``types``.
+    """
     assert _SCHEMA.is_file(), (
-        f"No está la copia de AcheronSchema en {_SCHEMA}. "
-        "Se copia del repositorio AcheronSchema a un tag concreto."
+        f"No está la copia del catálogo en {_SCHEMA}. "
+        "Se copia de schema/schema.json de AcheronCore, en el tag que fija la SPA."
     )
     return json.loads(_SCHEMA.read_text(encoding="utf-8"))
 
