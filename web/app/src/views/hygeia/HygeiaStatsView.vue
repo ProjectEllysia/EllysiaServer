@@ -5,13 +5,6 @@
 
     <main class="stats-layout">
       <header class="head">
-        <button
-          class="btn-export" type="button"
-          :disabled="!isSelectionComplete || store.state.exporting"
-          :title="isSelectionComplete ? 'Descargar en CSV lo que hay en pantalla'
-            : 'Elige un alcance completo para poder exportar'"
-          @click="exportCsv"
-        >{{ store.state.exporting ? 'Exportando…' : 'Exportar CSV' }}</button>
         <div class="head-text">
           <h2 class="head-title">Estadísticas</h2>
           <p class="head-sub">
@@ -55,9 +48,10 @@
         </div>
       </section>
 
-      <!-- Selector: los tres ejes del roadmap (alcance, métrica, periodo) más
-           la agregación, que solo significa algo en los alcances que combinan
-           varios activos. -->
+      <!-- Selector común a las dos pestañas: sobre qué (alcance), cómo se
+           combinan los activos y durante cuánto. La métrica del ranking no
+           está aquí porque solo la usa «Resumen», y la gráfica elige sus
+           métricas con sus propios botones. -->
       <section class="controls" aria-label="Selector de estadísticas">
         <div class="control">
           <label class="control-label" for="scope-select">Alcance</label>
@@ -86,15 +80,6 @@
           </select>
         </div>
 
-        <div v-if="store.state.scope === 'fleet'" class="control">
-          <label class="control-label" for="metric-select">Métrica</label>
-          <select id="metric-select" v-model="store.state.metric" class="inp">
-            <option v-for="metric in STATS_METRICS" :key="metric.key" :value="metric.key">
-              {{ metric.name }}
-            </option>
-          </select>
-        </div>
-
         <div v-if="store.state.scope !== 'asset'" class="control">
           <label class="control-label" for="agg-select">Combinar</label>
           <select id="agg-select" v-model="store.state.aggregation" class="inp">
@@ -119,76 +104,43 @@
         </div>
       </section>
 
-      <!-- Gráfica comparativa: varias métricas superpuestas sobre el mismo eje
-           temporal. Cada una lleva su propia escala vertical, porque son
-           unidades distintas y compartir eje aplastaría el porcentaje contra el
-           suelo; lo que se compara es la forma de las curvas. -->
-      <section class="compare" aria-label="Gráfica comparativa">
-        <header class="compare-head">
-          <h3 class="compare-title">Comparar métricas</h3>
-          <div class="metric-toggles" role="group" aria-label="Métricas superpuestas">
-            <button
-              v-for="metric in STATS_METRICS" :key="metric.key"
-              type="button" class="toggle"
-              :class="{ 'toggle--on': store.state.comparisonMetrics.includes(metric.key) }"
-              :aria-pressed="store.state.comparisonMetrics.includes(metric.key)"
-              :disabled="isToggleDisabled(metric.key)"
-              @click="store.toggleComparisonMetric(metric.key)"
-            >{{ metric.name }}</button>
+      <!-- Dos preguntas distintas sobre la misma selección: los números del
+           periodo y cómo evolucionan en el tiempo. Solo se pide lo de la
+           pestaña visible. Teclado según el patrón de tablist: flechas para
+           moverse, Inicio/Fin a los extremos, y solo la activa es tabulable. -->
+      <div class="tabs" role="tablist" aria-label="Vistas de estadísticas" @keydown="onTabKeydown">
+        <button
+          v-for="tab in STATS_TABS" :key="tab.id"
+          :id="`tab-${tab.id}`" ref="tabButtons"
+          type="button" class="tab" :class="{ 'tab--on': activeTab === tab.id }"
+          role="tab" :aria-selected="activeTab === tab.id" :aria-controls="`panel-${tab.id}`"
+          :tabindex="activeTab === tab.id ? 0 : -1"
+          @click="selectTab(tab.id)"
+        >{{ tab.label }}</button>
+      </div>
+
+      <section
+        v-if="activeTab === 'resumen'"
+        id="panel-resumen" class="results" role="tabpanel" aria-labelledby="tab-resumen"
+      >
+        <div class="results-bar">
+          <div v-if="store.state.scope === 'fleet'" class="control">
+            <label class="control-label" for="metric-select">Métrica</label>
+            <select id="metric-select" v-model="store.state.metric" class="inp">
+              <option v-for="metric in STATS_METRICS" :key="metric.key" :value="metric.key">
+                {{ metric.name }}
+              </option>
+            </select>
           </div>
-        </header>
+          <button
+            class="btn-export" type="button"
+            :disabled="!isSelectionComplete || store.state.exporting"
+            :title="isSelectionComplete ? 'Descargar en CSV lo que hay en pantalla'
+              : 'Elige un alcance completo para poder exportar'"
+            @click="exportCsv"
+          >{{ store.state.exporting ? 'Exportando…' : 'Exportar CSV' }}</button>
+        </div>
 
-        <p v-if="!canCompare" class="state-msg">
-          {{ compareUnavailableReason }}
-        </p>
-        <p v-else-if="store.state.seriesLoading" class="state-msg">Cargando las series…</p>
-        <p v-else-if="store.state.seriesError" class="state-msg state-msg--error">
-          {{ store.state.seriesError }}
-        </p>
-        <p v-else-if="!lanes.length" class="state-msg">
-          Ninguna de las métricas elegidas tiene datos en el periodo.
-        </p>
-        <template v-else>
-          <svg
-            class="chart" :viewBox="`0 0 ${PLOT.width} ${PLOT.height + AXIS_HEIGHT}`"
-            preserveAspectRatio="none" role="img" :aria-label="chartLabel"
-          >
-            <!-- Rejilla horizontal: solo orientación. No lleva rótulos porque
-                 cada línea tiene su escala y un único eje Y numérico sería
-                 falso para dos de las tres. -->
-            <line
-              v-for="fraction in [0, 0.25, 0.5, 0.75, 1]" :key="fraction"
-              class="grid" x1="0" :x2="PLOT.width"
-              :y1="fraction * PLOT.height" :y2="fraction * PLOT.height"
-            />
-            <polyline
-              v-for="segment in segments" :key="segment.id"
-              class="line" :points="segment.points" :style="{ stroke: segment.color }"
-            />
-            <text
-              v-for="tick in axisTicks" :key="tick.at"
-              class="tick" :x="tick.x" :y="PLOT.height + 14"
-              :text-anchor="tick.anchor"
-            >{{ tick.label }}</text>
-          </svg>
-
-          <ul class="legend">
-            <li v-for="lane in lanes" :key="lane.key" class="legend-item">
-              <span class="legend-dot" :style="{ background: lane.color }"></span>
-              <span class="legend-name">{{ lane.name }}</span>
-              <span class="legend-range">{{ describeLaneRange(lane) }}</span>
-            </li>
-          </ul>
-          <p class="compare-note">
-            Cada línea usa su propia escala vertical: se comparan las formas en el tiempo, no las
-            alturas entre sí. Cubo de {{ fmtDuration(bucketMs) }}, el mismo para las
-            {{ lanes.length === 1 ? 'series' : 'tres series' }}, así que los puntos caen en los
-            mismos instantes.
-          </p>
-        </template>
-      </section>
-
-      <section class="results" aria-label="Resultado">
         <p v-if="store.state.scopeLoading" class="state-msg">Calculando…</p>
         <p v-else-if="store.state.scopeError" class="state-msg state-msg--error">
           {{ store.state.scopeError }}
@@ -289,12 +241,85 @@
           </p>
         </template>
       </section>
+
+      <!-- Gráfica comparativa: varias métricas superpuestas sobre el mismo eje
+           temporal. Cada una lleva su propia escala vertical, porque son
+           unidades distintas y compartir eje aplastaría el porcentaje contra el
+           suelo; lo que se compara es la forma de las curvas. -->
+      <section
+        v-if="activeTab === 'evolucion'"
+        id="panel-evolucion" class="compare" role="tabpanel" aria-labelledby="tab-evolucion"
+      >
+        <header class="compare-head">
+          <h3 class="compare-title">Comparar métricas</h3>
+          <div class="metric-toggles" role="group" aria-label="Métricas superpuestas">
+            <button
+              v-for="metric in STATS_METRICS" :key="metric.key"
+              type="button" class="toggle"
+              :class="{ 'toggle--on': store.state.comparisonMetrics.includes(metric.key) }"
+              :aria-pressed="store.state.comparisonMetrics.includes(metric.key)"
+              :disabled="isToggleDisabled(metric.key)"
+              @click="store.toggleComparisonMetric(metric.key)"
+            >{{ metric.name }}</button>
+          </div>
+        </header>
+
+        <p v-if="!canCompare" class="state-msg">
+          {{ compareUnavailableReason }}
+        </p>
+        <p v-else-if="store.state.seriesLoading" class="state-msg">Cargando las series…</p>
+        <p v-else-if="store.state.seriesError" class="state-msg state-msg--error">
+          {{ store.state.seriesError }}
+        </p>
+        <p v-else-if="!lanes.length" class="state-msg">
+          Ninguna de las métricas elegidas tiene datos en el periodo.
+        </p>
+        <template v-else>
+          <svg
+            class="chart" :viewBox="`0 0 ${PLOT.width} ${PLOT.height + AXIS_HEIGHT}`"
+            preserveAspectRatio="none" role="img" :aria-label="chartLabel"
+          >
+            <!-- Rejilla horizontal: solo orientación. No lleva rótulos porque
+                 cada línea tiene su escala y un único eje Y numérico sería
+                 falso para dos de las tres. -->
+            <line
+              v-for="fraction in [0, 0.25, 0.5, 0.75, 1]" :key="fraction"
+              class="grid" x1="0" :x2="PLOT.width"
+              :y1="fraction * PLOT.height" :y2="fraction * PLOT.height"
+            />
+            <polyline
+              v-for="segment in segments" :key="segment.id"
+              class="line" :points="segment.points" :style="{ stroke: segment.color }"
+            />
+            <text
+              v-for="tick in axisTicks" :key="tick.at"
+              class="tick" :x="tick.x" :y="PLOT.height + 14"
+              :text-anchor="tick.anchor"
+            >{{ tick.label }}</text>
+          </svg>
+
+          <ul class="legend">
+            <li v-for="lane in lanes" :key="lane.key" class="legend-item">
+              <span class="legend-dot" :style="{ background: lane.color }"></span>
+              <span class="legend-name">{{ lane.name }}</span>
+              <span class="legend-range">{{ describeLaneRange(lane) }}</span>
+            </li>
+          </ul>
+          <p class="compare-note">
+            Cada línea usa su propia escala vertical: se comparan las formas en el tiempo, no las
+            alturas entre sí. Cubo de {{ fmtDuration(bucketMs) }}, el mismo para las
+            {{ lanes.length === 1 ? 'series' : 'tres series' }}, así que los puntos caen en los
+            mismos instantes.
+          </p>
+        </template>
+      </section>
     </main>
   </div>
 </template>
 
 <script setup>
-import { computed, h, onMounted, watch } from 'vue'
+import { computed, h, nextTick, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import Topbar from '@/components/shared/Topbar.vue'
 import StarBackground from '@/components/shared/StarBackground.vue'
 import { timeAgo } from '@/components/hygeia/format'
@@ -311,6 +336,66 @@ import { useHygeiaTagsStore } from '@/stores/hygeiaTagsStore'
 const store = useHygeiaStatsStore()
 const assetsStore = useHygeiaStore()
 const tagsStore = useHygeiaTagsStore()
+const route = useRoute()
+const router = useRouter()
+
+/* ── Pestañas ── */
+
+/**
+ * Pestañas de la vista. El `id` es también el valor de `?vista=` en la URL,
+ * para que una pestaña se pueda enlazar y sobreviva a recargar.
+ */
+const STATS_TABS = [
+  { id: 'resumen', label: 'Resumen' },
+  { id: 'evolucion', label: 'Evolución' },
+]
+
+/**
+ * Pestaña visible, leída de la URL: la de `?vista=` si es una pestaña
+ * conocida, y `'resumen'` sin parámetro o con uno inválido.
+ *
+ * @type {import('vue').ComputedRef<'resumen'|'evolucion'>}
+ */
+const activeTab = computed(() =>
+  STATS_TABS.some((tab) => tab.id === route.query.vista) ? route.query.vista : 'resumen',
+)
+
+const tabButtons = ref([])
+
+/**
+ * Cambia de pestaña reemplazando la entrada del historial, no añadiendo una:
+ * alternar entre pestañas no debería llenar el botón «atrás» del navegador.
+ *
+ * @param {'resumen'|'evolucion'} id - Pestaña a mostrar.
+ */
+function selectTab(id) {
+  if (id === activeTab.value) return
+  router.replace({ query: { ...route.query, vista: id } })
+}
+
+/**
+ * Navegación por teclado del tablist: flechas izquierda/derecha para pasar a
+ * la pestaña contigua (dando la vuelta en los extremos), Inicio y Fin para ir
+ * a la primera y la última. Mueve también el foco, que es lo que anuncia un
+ * lector de pantalla.
+ *
+ * @param {KeyboardEvent} event - Pulsación recibida en el tablist.
+ */
+async function onTabKeydown(event) {
+  const current = STATS_TABS.findIndex((tab) => tab.id === activeTab.value)
+  const targets = {
+    ArrowRight: current + 1,
+    ArrowLeft: current - 1,
+    Home: 0,
+    End: STATS_TABS.length - 1,
+  }
+  if (!(event.key in targets)) return
+  event.preventDefault()
+  const index = (targets[event.key] + STATS_TABS.length) % STATS_TABS.length
+  selectTab(STATS_TABS[index].id)
+  await nextTick()
+  tabButtons.value[index]?.focus()
+}
 
 /**
  * Celda de una cifra: el número y su unidad con estilos distintos.
@@ -463,34 +548,51 @@ watch(() => store.state.metric, (metric) => {
   if (!isAggregationAllowed(metric, store.state.aggregation)) store.state.aggregation = 'avg'
 })
 
-// Cualquier cambio del selector vuelve a pedir, sin recargar la página: es el
-// criterio de cierre de la necesidad.
-watch(
-  () => [
-    store.state.scope, store.state.assetId, store.state.tagId,
-    store.state.metric, store.state.period, store.state.aggregation,
-  ],
-  () => store.fetchScope(),
-)
+/*
+ * Cada pestaña se identifica por la selección de la que dependen sus datos.
+ * La tabla depende de la métrica del ranking; la gráfica no, pero sí de qué
+ * métricas se superponen y de qué activos forman el parque.
+ */
+const scopeSelectionKey = computed(() => [
+  store.state.scope, store.state.assetId, store.state.tagId,
+  store.state.metric, store.state.period, store.state.aggregation,
+].join('|'))
 
-// La gráfica depende del alcance, del periodo y de qué métricas se superponen,
-// pero no de la métrica del ranking: son dos preguntas distintas sobre la
-// misma pantalla.
-watch(
-  () => [
-    store.state.scope, store.state.assetId, store.state.tagId,
-    store.state.period, store.state.aggregation,
-    store.state.comparisonMetrics.join(','), fleetAssetIds.value.join(','),
-  ],
-  () => { if (canCompare.value) store.fetchComparison(fleetAssetIds.value) },
-)
+const comparisonSelectionKey = computed(() => [
+  store.state.scope, store.state.assetId, store.state.tagId,
+  store.state.period, store.state.aggregation,
+  store.state.comparisonMetrics.join(','), fleetAssetIds.value.join(','),
+].join('|'))
+
+// Selección con la que se pidió por última vez cada pestaña. Al volver a una
+// pestaña solo se pide de nuevo si la selección cambió mientras no se veía.
+let lastScopeSelection = null
+let lastComparisonSelection = null
+
+/**
+ * Pide los datos de la pestaña visible si su selección no es la que ya tiene
+ * cargada. La pestaña oculta no pide nada: sus datos se traen al abrirla.
+ */
+function refreshVisibleTab() {
+  if (activeTab.value === 'resumen') {
+    if (scopeSelectionKey.value === lastScopeSelection) return
+    lastScopeSelection = scopeSelectionKey.value
+    store.fetchScope()
+    return
+  }
+  if (!canCompare.value || comparisonSelectionKey.value === lastComparisonSelection) return
+  lastComparisonSelection = comparisonSelectionKey.value
+  store.fetchComparison(fleetAssetIds.value)
+}
+
+// Cualquier cambio del selector o de pestaña vuelve a pedir sin recargar.
+watch([activeTab, scopeSelectionKey, comparisonSelectionKey], refreshVisibleTab)
 
 onMounted(() => {
   store.fetchOverview()
   if (!assets.value.length) assetsStore.fetchAssets()
   if (!tags.value.length) tagsStore.fetchTags()
-  store.fetchScope()
-  if (canCompare.value) store.fetchComparison(fleetAssetIds.value)
+  refreshVisibleTab()
 })
 </script>
 
@@ -510,8 +612,8 @@ onMounted(() => {
   padding: 1.5rem 1.5rem 3rem;
 }
 
-.head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap-reverse; }
 .btn-export {
+  margin-left: auto;
   padding: 0.45rem 0.9rem; flex-shrink: 0;
   background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 6px;
   color: var(--accent-bright); font-size: var(--fs-body); font-weight: 600; cursor: pointer;
@@ -562,6 +664,30 @@ onMounted(() => {
 .period-btn:hover { color: var(--text-dim); }
 .period-btn--on { background: var(--accent-dim); border-color: var(--accent); color: var(--accent-bright); font-weight: 600; }
 
+/* ── Pestañas: mismo aspecto que las de la ficha de un activo ── */
+.tabs {
+  display: flex; gap: 0.2rem; margin: 0 0 0.8rem;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 0.25rem;
+}
+.tab {
+  flex: 1; padding: 0.5rem 0.85rem;
+  background: none; border: none; border-radius: 6px;
+  color: var(--text-muted); font-size: var(--fs-lg); font-weight: 500; cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+.tab:hover { color: var(--text-dim); }
+.tab--on { background: var(--surface-2); color: var(--text); font-weight: 600; }
+.tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* ── Paneles de las pestañas ── */
+.results,
+.compare {
+  margin: 0 0 1.6rem; padding: 0.9rem;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+}
+.results-bar { display: flex; align-items: flex-end; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 0.9rem; }
+
 /* ── Tablas ── */
 .table { width: 100%; border-collapse: collapse; font-size: var(--fs-md); }
 .table-caption {
@@ -582,10 +708,6 @@ onMounted(() => {
 .cell-num { font-variant-numeric: tabular-nums; color: var(--text-dim); }
 
 /* ── Gráfica comparativa ── */
-.compare {
-  margin: 0 0 1.6rem; padding: 0.9rem;
-  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
-}
 .compare-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.8rem; flex-wrap: wrap; }
 .compare-title { margin: 0; font-size: var(--fs-lg); font-weight: 600; color: var(--text); }
 
