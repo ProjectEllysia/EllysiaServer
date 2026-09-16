@@ -342,16 +342,6 @@ KNOWN_VIOLATIONS: dict[tuple[str, str, str], str] = {
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/iris/managers/notifications.py", "IrisStuckSyncNotifyManager._run_notify"):
         _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/services/ai_writer.py", "IrisAIWriter._build_prompts"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/services/ai_writer.py", "IrisAIWriter._build_user_prompt"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/services/ai_writer.py", "IrisAIWriter._degradation_note"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/services/ai_writer.py", "IrisAIWriter._parse_response"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/services/ai_writer.py", "IrisAIWriter._try_parse"):
-        _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/iris/services/mailbox/gmail.py", "GmailConnector._get_account_email"):
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/iris/services/mailbox/gmail.py", "GmailConnector._token_set_from"):
