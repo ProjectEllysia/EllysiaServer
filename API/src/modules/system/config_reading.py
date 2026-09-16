@@ -1918,8 +1918,50 @@ class HygeiaAnalysis:
     """
 
 
+@config_block("features.hygeia.statsCache")
+@dataclass(frozen=True)
+class HygeiaStatsCache:
+    """Cuánto tiempo se reutiliza una estadística ya calculada antes de recalcularla.
+
+    Las estadísticas con periodo (resumen de un activo, etiqueta, ranking y
+    serie) recorren todas las muestras del periodo, y con periodos largos eso
+    tarda. Pero su resultado envejece despacio, y más despacio cuanto más largo
+    es el periodo: un dato nuevo cada 15 s mueve apreciablemente el resumen de
+    un día, y casi nada el de un mes. Por eso la vida del resultado guardado
+    crece con el periodo pedido.
+
+    Un resultado guardado se descarta antes de tiempo si el usuario da de alta
+    o de baja un activo o cambia sus etiquetas, y el panel permite pedir uno
+    recalculado a mano.
+    """
+
+    is_enabled: bool = True
+    """Si se guardan y reutilizan resultados. Con ``false`` todo se calcula siempre."""
+
+    short_period_ttl_seconds: int = 120
+    """Vida de un resultado de un periodo de hasta 24 horas, en segundos.
+
+    Es la más corta porque en un día el valor actual y el último tramo de la
+    serie cambian con cada dato del agente.
+    """
+
+    medium_period_ttl_seconds: int = 900
+    """Vida de un resultado de un periodo de más de 24 horas y hasta 7 días, en segundos."""
+
+    long_period_ttl_seconds: int = 3600
+    """Vida de un resultado de un periodo de más de 7 días, en segundos.
+
+    Una hora es menos del 0,2 % de un periodo de 30 días: la diferencia con un
+    resultado recién calculado no se aprecia.
+    """
+
+
 def hygeia_analysis() -> HygeiaAnalysis:
     return load_block(HygeiaAnalysis)
+
+
+def hygeia_stats_cache() -> HygeiaStatsCache:
+    return load_block(HygeiaStatsCache)
 
 
 def hygeia_config() -> HygeiaConfig:
