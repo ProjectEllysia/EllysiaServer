@@ -915,6 +915,71 @@ class FleetDiskResponseSchema(Schema):
     mounts = fields.List(fields.Nested(FleetMountEntrySchema))
 
 
+class BreachRankingQuerySchema(Schema):
+    """Query de ``GET /hygeia/stats/breach-ranking``.
+
+    ``limit`` va de 1 a 100 y recorta el ranking devuelto, no el recuento:
+    ``totalBreaches`` y ``mostConflictiveMetric`` siguen mirando el parque
+    entero. Tras cargar, ``period`` queda como ``requested_duration``.
+    """
+    limit = fields.Integer(load_default=10, validate=validate.Range(min=1, max=100))
+    period = _build_period_field()
+
+    @post_load
+    def parse_query(self, data, **kwargs):
+        """Convierte ``period`` en ``timedelta``."""
+        data["requested_duration"] = _parse_period(data.pop("period"))
+        return data
+
+
+class BreachRankingEntrySchema(Schema):
+    """Un activo en el ranking de incumplimientos de umbral.
+
+    ``breachCount`` son las veces que el activo cruzó alguno de sus umbrales
+    dentro del periodo. ``currentBreachStreak`` es otra cosa y por eso viaja
+    aparte: cuántos latidos consecutivos lleva en rojo **ahora mismo**, sumados
+    sobre todas sus métricas. Un activo puede tener un ``breachCount`` alto con
+    la racha a cero (cruzó muchas veces y se recuperó) o al revés.
+    """
+    assetId = fields.Integer()
+    hostname = fields.String()
+    breachCount = fields.Integer()
+    currentBreachStreak = fields.Integer()
+
+
+class ConflictiveMetricSchema(Schema):
+    """La métrica que más incumplimientos acumuló en el parque durante el periodo.
+
+    ``metric`` es el nombre tal como lo guarda la anomalía que lo disparó
+    (``cpu.usagePct``, ``memory.usagePct``, ``disk./var``…), que identifica la
+    entidad concreta y no solo la familia de la métrica.
+    """
+    metric = fields.String()
+    breachCount = fields.Integer()
+
+
+class BreachRankingResponseSchema(Schema):
+    """Los activos del usuario ordenados por incumplimientos de umbral.
+
+    Cada incumplimiento es una anomalía abierta por el detector dentro del
+    periodo, contando también las que ya se resolvieron: ocurrieron igual, y
+    descontarlas haría encoger el recuento del periodo según los activos se
+    recuperan.
+
+    A diferencia del ranking por métrica, aquí entran **todos** los activos del
+    usuario, incluidos los de cero incumplimientos: cero es un dato conocido
+    ("no cruzó ningún umbral"), no una ausencia de dato. ``mostConflictiveMetric``
+    es nulo cuando no hubo ninguna apertura con métrica en el periodo.
+    """
+    assetCount = fields.Integer()
+    totalBreaches = fields.Integer()
+    assets = fields.List(fields.Nested(BreachRankingEntrySchema))
+    mostConflictiveMetric = fields.Nested(ConflictiveMetricSchema, allow_none=True)
+    periodCoveredFrom = UTCDateTime()
+    periodCoveredTo = UTCDateTime()
+    isPeriodClipped = fields.Boolean()
+
+
 class FleetOverviewResponseSchema(Schema):
     """Estado actual del parque del usuario: la pantalla de aterrizaje de las estadísticas.
 
