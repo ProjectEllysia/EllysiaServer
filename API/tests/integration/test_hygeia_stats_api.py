@@ -212,3 +212,97 @@ def test_a_metric_without_samples_has_no_extreme_instants(
     power = body["metrics"]["powerWatts"]
     assert power["timestampOfMax"] is None
     assert power["timestampOfMin"] is None
+
+
+# =============================================================================
+# COINCIDENCIA DE PICOS
+# =============================================================================
+#
+# El resumen cruza los instantes de los máximos que ya ha calculado para decir
+# si la CPU y la red hicieron pico a la vez. No es una correlación
+# estadística: es una señal para llamar la atención, y estos tests fijan sobre
+# todo que no se invente una coincidencia donde no la hay.
+
+def _seed_cpu_and_network(app, asset_id: int, readings: list) -> None:
+    """Guarda un snapshot por cada ``(antigüedad, cpu, netRx)``."""
+    _seed(app, asset_id, [
+        (age, {"cpu_pct": cpu, "net_rx_bps": received})
+        for age, cpu, received in readings
+    ])
+
+
+def test_simultaneous_peaks_raise_the_signal(app, client, regular_user, auth_headers):
+    """CPU y red con su máximo en el mismo latido encienden la señal."""
+    asset_id = _create_asset(app, regular_user.id)
+    _seed_cpu_and_network(app, asset_id, [
+        (timedelta(minutes=40), 10.0, 1000),
+        (timedelta(minutes=30), 95.0, 900000),
+        (timedelta(minutes=20), 12.0, 1200),
+    ])
+
+    status, body = _summary(client, asset_id, auth_headers(regular_user))
+
+    assert status == 200
+    coincidence = body["peakCoincidence"]
+    assert coincidence["isAnyCoincident"] is True
+    assert coincidence["referenceMetric"] == "cpuPct"
+    assert coincidence["reason"] is None
+    received = next(p for p in coincidence["pairings"] if p["metric"] == "netRxBps")
+    assert received["isCoincident"] is True
+    assert received["separationSec"] == pytest.approx(0.0)
+
+
+def test_distant_peaks_are_not_forced_into_a_coincidence(
+    app, client, regular_user, auth_headers,
+):
+    """Picos separados por horas no se presentan como relacionados."""
+    asset_id = _create_asset(app, regular_user.id)
+    _seed_cpu_and_network(app, asset_id, [
+        (timedelta(hours=10), 95.0, 1000),
+        (timedelta(hours=1), 10.0, 900000),
+    ])
+
+    _, body = _summary(client, asset_id, auth_headers(regular_user))
+
+    coincidence = body["peakCoincidence"]
+    assert coincidence["isAnyCoincident"] is False
+    received = next(p for p in coincidence["pairings"] if p["metric"] == "netRxBps")
+    assert received["separationSec"] == pytest.approx(9 * 3600, rel=0.01)
+
+
+def test_the_signal_travels_with_both_instants(app, client, regular_user, auth_headers):
+    """Los dos instantes viajan siempre, para poder juzgar la señal sin creérsela."""
+    asset_id = _create_asset(app, regular_user.id)
+    _seed_cpu_and_network(app, asset_id, [
+        (timedelta(minutes=30), 95.0, 900000),
+        (timedelta(minutes=20), 12.0, 1200),
+    ])
+
+    _, body = _summary(client, asset_id, auth_headers(regular_user))
+
+    coincidence = body["peakCoincidence"]
+    received = next(p for p in coincidence["pairings"] if p["metric"] == "netRxBps")
+    assert _parse_utc(coincidence["referencePeakAt"]) == _parse_utc(received["peakAt"])
+    assert coincidence["toleranceSec"] > 0
+
+
+def test_a_network_metric_without_samples_never_coincides(
+    client, seeded_asset, regular_user, auth_headers,
+):
+    """El activo del fixture tiene CPU pero nunca reportó red: no hay coincidencia."""
+    _, body = _summary(client, seeded_asset, auth_headers(regular_user))
+
+    coincidence = body["peakCoincidence"]
+    assert coincidence["isAnyCoincident"] is False
+    assert all(pairing["peakAt"] is None for pairing in coincidence["pairings"])
+    assert all(pairing["separationSec"] is None for pairing in coincidence["pairings"])
+
+
+def test_a_summary_without_the_network_metrics_says_it_did_not_compare(
+    client, seeded_asset, regular_user, auth_headers,
+):
+    """Pidiendo solo CPU y memoria, la señal se declara no calculada."""
+    _, body = _summary(client, seeded_asset, auth_headers(regular_user), metrics="cpuPct,memPct")
+
+    assert body["peakCoincidence"]["reason"] == "metrics_not_compared"
+    assert body["peakCoincidence"]["pairings"] == []

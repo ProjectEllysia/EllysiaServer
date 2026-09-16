@@ -52,8 +52,8 @@ from .services import (
     METRIC_REGISTRY, MetricDefinition, MetricUnit, assert_metric_definition,
     build_histogram, build_inventory_report, build_percentile_series, calculate_core_spread,
     check_clock_skew,
-    combine_asset_averages, denormalize, estimate_days_until_full, evaluate,
-    extract_entity_series, fit_linear_trend, generate_agent_key,
+    combine_asset_averages, denormalize, detect_peak_coincidence, estimate_days_until_full,
+    evaluate, extract_entity_series, fit_linear_trend, generate_agent_key,
     is_agent_outdated,
     project_month, resolve_stats_window, services_from_inventory, summarize_power_period,
     summarize_values, validate_metrics_are_additive,
@@ -230,6 +230,16 @@ def _resolve_series_assets(
         raise AssetNotFoundError(missing_asset_ids[0])
     return None, assets
 
+
+#: Métrica contra la que se comparan los picos de las demás en el resumen de un
+#: activo. La CPU es la referencia natural: es la que se mira cuando algo va
+#: lento, y la pregunta interesante es qué más estaba pasando en ese momento.
+_PEAK_REFERENCE_METRIC = "cpuPct"
+
+#: Métricas cuyo pico se compara con el de la referencia. El tráfico de red es
+#: la apuesta del roadmap: un proceso que satura la CPU procesando lo que le
+#: entra por la red deja los dos máximos pegados en el tiempo.
+_PEAK_COUNTERPART_METRICS = ("netRxBps", "netTxBps")
 
 #: Techo de un porcentaje de ocupación de disco: el 100 % es estar lleno. Es la
 #: definición de la métrica, no un ajuste, así que no vive en la configuración.
@@ -1066,6 +1076,10 @@ class HygeiaAssetManager:
 
         return {
             "metrics": summaries_by_metric,
+            "peakCoincidence": detect_peak_coincidence(
+                summaries_by_metric, _PEAK_REFERENCE_METRIC, _PEAK_COUNTERPART_METRICS,
+                CR.hygeia_analysis().peak_coincidence_window_sec,
+            ),
             "periodCoveredFrom": window.since,
             "periodCoveredTo": window.until,
             "isPeriodClipped": window.is_clipped,
