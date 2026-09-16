@@ -218,16 +218,21 @@ export function tagMetricRows(metricsByName) {
 }
 
 /**
- * Describe en una frase la ventana que la respuesta cubrió de verdad.
+ * Describe en una frase, para quien lee la tabla, el tiempo que cubren los
+ * números.
  *
  * Todos los endpoints de estadísticas recortan el periodo a lo que pueden
  * cubrir y lo avisan con `isPeriodClipped`. Un "máximo de los últimos 365
- * días" calculado sobre 30 tiene que decirlo, y este es el texto que lo dice.
+ * días" calculado sobre 30 tiene que decirlo, y este es el texto que lo dice,
+ * en términos de historial guardado y no de cómo se calcula.
  *
  * @param {object|null} body - Cualquier respuesta de estadísticas con
  *   `periodCoveredFrom`/`periodCoveredTo`/`isPeriodClipped`.
- * @returns {string} La frase, o cadena vacía si la respuesta no trae ventana
- *   (los endpoints que son una foto del ahora, como el panorama del parque).
+ * @returns {string} «Periodo analizado: 7 días.» si se cubrió lo pedido;
+ *   «Solo se guardan 30 días de historial: el resultado cubre ese tiempo.» si
+ *   se recortó; o cadena vacía si la respuesta no trae ventana (los endpoints
+ *   que son una foto del ahora, como el panorama del parque) o trae fechas
+ *   ilegibles.
  */
 export function describeCoverage(body) {
   if (!body?.periodCoveredFrom || !body?.periodCoveredTo) return ''
@@ -237,10 +242,12 @@ export function describeCoverage(body) {
 
   const days = Math.round((to.getTime() - from.getTime()) / 86400e3)
   const hours = Math.round((to.getTime() - from.getTime()) / 3600e3)
-  const span = days >= 1 ? `${days} d` : `${hours} h`
+  const amount = days >= 1 ? days : hours
+  const unit = days >= 1 ? (amount === 1 ? 'día' : 'días') : (amount === 1 ? 'hora' : 'horas')
+  const span = `${amount} ${unit}`
   return body.isPeriodClipped
-    ? `Calculado sobre ${span}: el periodo pedido excedía lo que se conserva.`
-    : `Calculado sobre ${span}.`
+    ? `Solo se ${amount === 1 ? 'guarda' : 'guardan'} ${span} de historial: el resultado cubre ese tiempo.`
+    : `Periodo analizado: ${span}.`
 }
 
 /**

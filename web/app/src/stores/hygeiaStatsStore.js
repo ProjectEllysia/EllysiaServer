@@ -194,7 +194,7 @@ export const useHygeiaStatsStore = defineStore('hygeiaStats', () => {
       state.bucket = loaded[0]?.bucket ?? null
       state.seriesError = loaded.length
         ? null
-        : 'No se pudieron cargar las series de las métricas elegidas.'
+        : 'No se pudo cargar la evolución de las métricas elegidas.'
     } catch { state.seriesError = 'No se pudo conectar con la API.' }
     finally { state.seriesLoading = false }
   }

@@ -8,9 +8,8 @@
         <div class="head-text">
           <h2 class="head-title">Estadísticas</h2>
           <p class="head-sub">
-            El histórico agregado de lo que ya se recolecta: máximos, medias y percentiles de un
-            activo, de una etiqueta o de todo el parque. Los números los calcula el servidor; aquí
-            solo se leen.
+            Picos, medias y evolución de lo que miden tus agentes, en un activo, en una etiqueta o
+            en todo el parque.
           </p>
         </div>
       </header>
@@ -42,19 +41,21 @@
           <div class="tile">
             <span class="tile-label">Anomalías abiertas</span>
             <span class="tile-value">{{ openAnomalies }}</span>
-            <span class="tile-sub">{{ criticalAnomalies }} críticas</span>
+            <span class="tile-sub">
+              {{ criticalAnomalies }} {{ criticalAnomalies === 1 ? 'crítica' : 'críticas' }}
+            </span>
           </div>
           <div class="tile">
             <span class="tile-label">Reconocidas</span>
             <span class="tile-value">{{ store.state.overview.acknowledgedAnomalyCount }}</span>
-            <span class="tile-sub">ya tienen quien las mire</span>
+            <span class="tile-sub">ya se están atendiendo</span>
           </div>
           <div class="tile">
             <span class="tile-label">Última actividad</span>
             <span class="tile-value tile-value--text">
               {{ timeAgo(store.state.overview.lastActivityAt) }}
             </span>
-            <span class="tile-sub">el último latido del parque</span>
+            <span class="tile-sub">último dato de un agente</span>
           </div>
         </div>
       </section>
@@ -92,7 +93,7 @@
         </div>
 
         <div v-if="store.state.scope !== 'asset'" class="control">
-          <label class="control-label" for="agg-select">Combinar</label>
+          <label class="control-label" for="agg-select">Combinar activos</label>
           <select id="agg-select" v-model="store.state.aggregation" class="inp">
             <option
               v-for="option in aggregationOptions" :key="option.value"
@@ -146,8 +147,8 @@
           <button
             class="btn-export" type="button"
             :disabled="!isSelectionComplete || store.state.exporting"
-            :title="isSelectionComplete ? 'Descargar en CSV lo que hay en pantalla'
-              : 'Elige un alcance completo para poder exportar'"
+            :title="isSelectionComplete ? 'Descargar esta tabla en CSV'
+              : 'Elige un activo o una etiqueta para exportar'"
             @click="exportCsv"
           >{{ store.state.exporting ? 'Exportando…' : 'Exportar CSV' }}</button>
         </div>
@@ -182,24 +183,26 @@
         </p>
         <p v-else-if="!isSelectionComplete" class="state-msg">
           {{ store.state.scope === 'asset' ? 'Elige un activo para ver su resumen.'
-            : 'Elige una etiqueta para ver sus métricas agregadas.' }}
+            : 'Elige una etiqueta para ver sus estadísticas.' }}
         </p>
 
         <!-- Un activo: el resumen completo, una fila por métrica. -->
         <template v-else-if="store.state.scope === 'asset' && store.state.summary">
           <table class="table reveal">
             <caption class="table-caption">
-              Resumen del activo. {{ describeCoverage(store.state.summary) }}
+              {{ describeCoverage(store.state.summary) }}
             </caption>
             <thead>
               <tr>
                 <th scope="col">Métrica</th>
                 <th scope="col">Mín.</th>
                 <th scope="col">Media</th>
-                <th scope="col">p95</th>
+                <th scope="col">
+                  <abbr title="El 95 % de las lecturas quedó por debajo de este valor">p95</abbr>
+                </th>
                 <th scope="col">Máx.</th>
                 <th scope="col">Ahora</th>
-                <th scope="col">Muestras</th>
+                <th scope="col">Lecturas</th>
               </tr>
             </thead>
             <tbody>
@@ -250,16 +253,16 @@
         <template v-else-if="store.state.scope === 'fleet' && store.state.ranking">
           <table class="table reveal">
             <caption class="table-caption">
-              Los activos con mayor {{ aggregationLabel.toLowerCase() }} de
-              {{ metricName }}, de {{ store.state.ranking.assetsWithData }} con datos sobre
-              {{ store.state.ranking.assetCount }}. {{ describeCoverage(store.state.ranking) }}
+              {{ rankingHeadline }} ({{ store.state.ranking.assetsWithData }} de
+              {{ store.state.ranking.assetCount }} tienen datos).
+              {{ describeCoverage(store.state.ranking) }}
             </caption>
             <thead>
               <tr>
                 <th scope="col">#</th>
                 <th scope="col">Activo</th>
                 <th scope="col">{{ metricName }}</th>
-                <th scope="col">Muestras</th>
+                <th scope="col">Lecturas</th>
               </tr>
             </thead>
             <tbody>
@@ -272,7 +275,7 @@
             </tbody>
           </table>
           <p v-if="!rankingTable.length" class="state-msg">
-            Ningún activo reportó esta métrica en el periodo.
+            Ningún activo tiene datos de esta métrica en el periodo elegido.
           </p>
         </template>
       </section>
@@ -286,7 +289,7 @@
         id="panel-evolucion" class="compare" role="tabpanel" aria-labelledby="tab-evolucion"
       >
         <header class="compare-head">
-          <h3 class="compare-title">Comparar métricas</h3>
+          <h3 class="compare-title">Evolución de las métricas</h3>
           <div class="metric-toggles" role="group" aria-label="Métricas superpuestas">
             <button
               v-for="metric in STATS_METRICS" :key="metric.key"
@@ -378,10 +381,8 @@
             </ul>
           </div>
           <p class="compare-note">
-            Cada línea usa su propia escala vertical: se comparan las formas en el tiempo, no las
-            alturas entre sí. Cubo de {{ fmtDuration(bucketMs) }}, el mismo para las
-            {{ lanes.length === 1 ? 'series' : 'tres series' }}, así que los puntos caen en los
-            mismos instantes.
+            Cada línea tiene su propia escala: compara cuándo sube o baja cada métrica, no su
+            altura. Un punto cada {{ fmtDuration(bucketMs) }}.
           </p>
         </template>
       </section>
@@ -518,6 +519,20 @@ const aggregationLabel = computed(
   () => STATS_AGGREGATIONS.find((o) => o.value === store.state.aggregation)?.label ?? '',
 )
 
+/**
+ * Primera frase del pie del ranking del parque, según cómo se ordena.
+ *
+ * Va escrita entera por agregación en vez de componerse con el rótulo del
+ * selector porque «media» y «máximo» no concuerdan igual. El ranking nunca se
+ * pide sumado —un activo no se suma consigo mismo, y el store pide la media en
+ * su lugar—, así que «Total» se describe como media, que es lo que se muestra.
+ *
+ * @type {import('vue').ComputedRef<string>}
+ */
+const rankingHeadline = computed(() => (store.state.aggregation === 'max'
+  ? `Activos con el pico de ${metricName.value} más alto`
+  : `Activos con la media de ${metricName.value} más alta`))
+
 const isSelectionComplete = computed(() => {
   if (store.state.scope === 'asset') return Boolean(store.state.assetId)
   if (store.state.scope === 'tag') return Boolean(store.state.tagId)
@@ -537,10 +552,14 @@ const canCompare = computed(() => {
 })
 
 const compareUnavailableReason = computed(() => {
-  if (!isSelectionComplete.value) return 'Elige un alcance completo para ver la gráfica.'
-  if (!fleetAssetIds.value.length) return 'Todavía no hay activos que comparar.'
-  return `La gráfica del parque abarca hasta ${MAX_FLEET_SERIES_ASSETS} activos; `
-    + `este parque tiene ${fleetAssetIds.value.length}. Compara por etiqueta o por activo.`
+  if (!isSelectionComplete.value) {
+    return store.state.scope === 'asset'
+      ? 'Elige un activo para ver su evolución.'
+      : 'Elige una etiqueta para ver su evolución.'
+  }
+  if (!fleetAssetIds.value.length) return 'Todavía no tienes activos. Da de alta uno para ver su evolución.'
+  return `La gráfica de todo el parque admite hasta ${MAX_FLEET_SERIES_ASSETS} activos y tienes `
+    + `${fleetAssetIds.value.length}. Elige una etiqueta o un activo.`
 })
 
 /**
