@@ -10,7 +10,10 @@
     claim="Vigila el pulso de cada activo"
     tool-route="/hygeia/activos"
     tool-label="Ver mis activos"
-    :shortcuts="[{ label: 'Etiquetas', to: '/hygeia/etiquetas' }]"
+    :shortcuts="[
+      { label: 'Etiquetas', to: '/hygeia/etiquetas' },
+      { label: 'Estadísticas', to: '/hygeia/estadisticas' },
+    ]"
     :highlight="highlight"
     :features="features"
     :resources="resources"
