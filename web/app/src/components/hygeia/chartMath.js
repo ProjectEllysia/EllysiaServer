@@ -131,6 +131,87 @@ export function yTicks(series, range, count = 4) {
 
 /* ── Eje temporal ──────────────────────────────────────────────────────── */
 
+/** Parte de la ventana que puede irse en silencio sin mover el eje al reloj. */
+const ANCHOR_TOLERANCE_RATIO = 0.25
+
+/** Techo de ese margen: más allá de unos minutos, el silencio ya es un hecho. */
+const ANCHOR_TOLERANCE_CAP_MS = 5 * 60e3
+
+/**
+ * Extremos del eje X: dónde empieza y dónde acaba la ventana que se dibuja.
+ *
+ * El borde derecho no puede ser «ahora» a secas. El dato más reciente siempre
+ * llega con retraso —el agente late cada 15 s y la serie se re-pide cada 30 s—,
+ * así que un eje anclado al reloj deja una cola vacía entre el último heartbeat
+ * y el borde. Esa cola la recoge `detectGaps` como hueco de borde y se pinta
+ * como banda de ausencia: en una ventana de 15 min es una franja roja de buen
+ * tamaño provocada por el retardo de adquisición, no por una caída.
+ *
+ * Y ese retraso no es solo de adquisición: los instantes de la serie los sella
+ * el servidor (`receivedAt`) y el borde derecho lo pondría el reloj del
+ * navegador, que son dos relojes distintos. Con el del servidor unos minutos
+ * por detrás —una máquina virtual sin NTP fino basta—, la franja aparece en
+ * todas las gráficas y no se va nunca, porque no depende de que el host falle.
+ *
+ * Mientras la distancia hasta el último dato quepa en ese margen (ver
+ * `anchorToleranceMs`), el eje termina EN ese último dato y el trazo ocupa el
+ * ancho entero. Cuando la supera, el silencio ya no se explica por latencia ni
+ * por desfase de relojes: el eje vuelve a terminar en el instante actual y la
+ * banda aparece y crece, que es justo lo que debe pasar con un host caído.
+ *
+ * El borde izquierdo, en cambio, se queda en `ahora - ventana` pase lo que
+ * pase, porque es exactamente el corte con el que se pidió la serie (el `from`
+ * de la petición sale del mismo reloj del navegador). Retrasarlo junto con el
+ * derecho para conservar la amplitud exacta de la ventana solo mueve la franja
+ * de un borde al otro: el eje empezaría antes del primer dato que el servidor
+ * llegó a devolver. El dominio dibujado es, por tanto, lo que la serie cubre de
+ * verdad, y es un pelo más corto que el preset elegido.
+ *
+ * @param {number|null} lastSampleMs - Instante del dato más reciente (epoch ms),
+ *     o `null` (o cualquier valor no finito) si la serie está vacía.
+ * @param {number} nowMs - Instante actual (epoch ms).
+ * @param {number} windowMs - Amplitud de la ventana elegida; por debajo de 1 ms
+ *     se trata como 1, para no degenerar el dominio.
+ * @param {number} thresholdMs - Umbral de ausencia, el de `gapThresholdMs`.
+ * @returns {{t0: number, t1: number}} Extremos del eje, con `t1` siempre mayor
+ *     que `t0`. Con el último dato dentro del margen, `t1` es ese dato; sin
+ *     datos, o con un silencio por encima del margen, `t1` es `nowMs`.
+ */
+export function timeDomain(lastSampleMs, nowMs, windowMs, thresholdMs) {
+  const span = Math.max(1, windowMs)
+  const t0 = nowMs - span
+  // Un dato por delante del reloj (el desfase en el otro sentido) cuenta como
+  // vivo: la resta sale negativa y cabe en cualquier margen, y anclar ahí es lo
+  // que evita que ese punto quede aplastado contra el borde por `xFor`.
+  const isLive = Number.isFinite(lastSampleMs)
+    && nowMs - lastSampleMs <= anchorToleranceMs(span, thresholdMs)
+  return { t0, t1: Math.max(isLive ? lastSampleMs : nowMs, t0 + 1) }
+}
+
+/**
+ * Margen de silencio que `timeDomain` atribuye al retardo de adquisición y al
+ * desfase de relojes en vez de a una caída.
+ *
+ * Tiene dos suelos porque hay dos cosas que absorber. El umbral de ausencia de
+ * la propia serie es uno: una serie agregada en cubos de media hora no puede
+ * considerar caído a un host por veinte minutos de silencio, y ese suelo ya lo
+ * calcula `gapThresholdMs`. El otro es un puñado de minutos fijos, que es el
+ * orden de magnitud de lo que suman la cadencia del agente, la del sondeo de la
+ * SPA y un reloj de servidor mal sincronizado; por debajo de eso, declarar una
+ * caída es casi siempre una falsa alarma.
+ *
+ * En ventanas cortas manda la proporción y no los minutos fijos: en los 15 min
+ * un margen de cinco minutos sería un tercio del gráfico, demasiado silencio
+ * como para seguir fingiendo que la lectura es actual.
+ *
+ * @param {number} spanMs - Amplitud de la ventana dibujada.
+ * @param {number} thresholdMs - Umbral de ausencia, el de `gapThresholdMs`.
+ * @returns {number} Margen en milisegundos.
+ */
+export function anchorToleranceMs(spanMs, thresholdMs) {
+  return Math.max(thresholdMs, Math.min(spanMs * ANCHOR_TOLERANCE_RATIO, ANCHOR_TOLERANCE_CAP_MS))
+}
+
 /**
  * Instantes equidistantes entre el inicio y el fin de la ventana.
  *
