@@ -9,6 +9,12 @@
             <path d="M7 7h.01" />
           </svg>
         </RouterLink>
+        <RouterLink class="btn-icon" to="/hygeia/estadisticas" title="Estadísticas" aria-label="Ver las estadísticas del parque">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M3 3v18h18" />
+            <path d="M7 15v3M12 9v9M17 5v13" />
+          </svg>
+        </RouterLink>
         <button class="btn-icon" title="Inventario en PDF" aria-label="Descargar el inventario en PDF"
           @click="$emit('report')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -246,8 +252,8 @@ function pulseClass(asset) {
   color: var(--text-muted); cursor: pointer;
   transition: border-color var(--transition), color var(--transition);
 }
-/* El enlace a la vista de etiquetas comparte estilo con los botones de icono,
-   pero no hereda su reset de anclas. */
+/* Los enlaces a otras vistas (etiquetas, estadísticas) comparten estilo con
+   los botones de icono, pero no heredan su reset de anclas. */
 a.btn-icon { text-decoration: none; }
 .btn-icon svg { width: 14px; height: 14px; }
 .btn-icon:hover { border-color: var(--accent); color: var(--accent-bright); }
