@@ -29,6 +29,8 @@ from .metric_registry import (
 from .reports import build_inventory_report
 from .stats import (
     EnergyCost,
+    FullnessForecast,
+    LinearTrend,
     PeriodClassification,
     PowerAverage,
     StatSummary,
@@ -38,6 +40,8 @@ from .stats import (
     HistogramBin,
     build_histogram,
     classify_period,
+    estimate_days_until_full,
+    fit_linear_trend,
     combine_asset_averages,
     energy_and_cost,
     project_month,
