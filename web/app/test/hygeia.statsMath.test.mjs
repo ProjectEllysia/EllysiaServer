@@ -162,13 +162,14 @@ const day = {
   isPeriodClipped: false,
 }
 check('una ventana de un día se describe en días',
-  describeCoverage(day) === 'Calculado sobre 1 d.', describeCoverage(day))
+  describeCoverage(day) === 'Periodo analizado: 1 día.', describeCoverage(day))
 check('una ventana corta se describe en horas',
   describeCoverage({ ...day, periodCoveredTo: '2026-09-01T06:00:00Z' })
-    === 'Calculado sobre 6 h.')
+    === 'Periodo analizado: 6 horas.')
 // Un "máximo de los últimos 365 días" calculado sobre 30 tiene que decirlo.
 check('una ventana recortada lo dice',
-  describeCoverage({ ...day, isPeriodClipped: true }).includes('excedía'))
+  describeCoverage({ ...day, isPeriodClipped: true })
+    === 'Solo se guarda 1 día de historial: el resultado cubre ese tiempo.')
 eq('una respuesta sin ventana no describe nada', describeCoverage({}), '')
 eq('una respuesta nula tampoco', describeCoverage(null), '')
 eq('unas fechas ilegibles no producen texto basura',
