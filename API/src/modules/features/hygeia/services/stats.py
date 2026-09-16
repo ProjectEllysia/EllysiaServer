@@ -671,6 +671,143 @@ def estimate_days_until_full(
     )
 
 
+class PeakPairing(NamedTuple):
+    """Cómo de cerca cayó el pico de una métrica respecto al de la de referencia.
+
+    Attributes:
+        metric: Nombre público de la métrica comparada (``netRxBps``…).
+        peak_instant: Instante de su máximo en el periodo, o ``None`` si no
+            tuvo ninguna muestra.
+        separation_seconds: Segundos entre los dos picos, siempre positivo (es
+            una distancia, no un orden). ``None`` si a alguno de los dos le
+            falta el pico.
+        is_coincident: Si los dos picos caen dentro de la ventana de
+            tolerancia. ``False`` también cuando falta alguno: sin pico no hay
+            coincidencia que afirmar.
+    """
+    metric: str
+    peak_instant: Optional[datetime]
+    separation_seconds: Optional[float]
+    is_coincident: bool
+
+
+class PeakCoincidence(NamedTuple):
+    """Resultado de :func:`detect_peak_coincidence`.
+
+    Attributes:
+        reference_metric: Métrica contra la que se comparan las demás.
+        reference_instant: Instante de su máximo, o ``None`` si no tuvo
+            muestras en el periodo.
+        tolerance_seconds: Ventana dentro de la cual dos picos se consideran
+            simultáneos.
+        pairings: Una :class:`PeakPairing` por métrica comparada, en el orden
+            en que se pidieron.
+        is_any_coincident: Si al menos una de las métricas comparadas hizo pico
+            junto al de referencia. Es la señal que se mira de un vistazo.
+        reason: Por qué no hay señal que dar: :data:`METRICS_NOT_COMPARED` o
+            :data:`NO_PEAK`. ``None`` cuando la comparación se pudo hacer, haya
+            salido coincidencia o no.
+    """
+    reference_metric: str
+    reference_instant: Optional[datetime]
+    tolerance_seconds: int
+    pairings: Tuple[PeakPairing, ...]
+    is_any_coincident: bool
+    reason: Optional[str]
+
+
+#: No se resumió la métrica de referencia, o ninguna con la que compararla, así
+#: que no había nada que cruzar.
+METRICS_NOT_COMPARED = "metrics_not_compared"
+
+#: La métrica de referencia no tuvo ninguna muestra en el periodo, así que no
+#: tiene pico contra el que medir.
+NO_PEAK = "no_peak"
+
+
+def detect_peak_coincidence(
+    summaries_by_metric: Mapping[str, StatSummary], reference_metric: str,
+    counterpart_metrics: Sequence[str], tolerance_seconds: int,
+) -> PeakCoincidence:
+    """
+    Comprueba si los máximos de varias métricas de un activo cayeron a la vez.
+
+    Responde a una pregunta modesta a propósito: ¿el momento en que este
+    equipo tuvo su pico de CPU es más o menos el mismo en que tuvo su pico de
+    red? Si lo es, puede haber algo que relacione las dos cosas —un proceso
+    que satura la CPU procesando tráfico entrante, por ejemplo— y merece la
+    pena mirarlas juntas.
+
+    **No es una correlación estadística ni pretende serlo.** No se calcula
+    ningún coeficiente ni se comparan las series completas: se miran dos
+    instantes, los de los máximos que el resumen del periodo ya había
+    localizado, y se mide cuánto distan. Es una señal para llamar la atención,
+    no una prueba de causalidad, y por eso la respuesta publica siempre los dos
+    instantes y su separación: quien la lee juzga por sí mismo en vez de
+    fiarse de un booleano.
+
+    Cuanto más largo el periodo, menos significa una coincidencia: en treinta
+    días, dos picos independientes tienen más ocasiones de rozarse por
+    casualidad que en una hora. La cifra de separación es lo que permite
+    ponderarlo.
+
+    Args:
+        summaries_by_metric: Resúmenes ya calculados, indexados por nombre
+            público de métrica. Solo se miran los ``timestamp_of_maximum``.
+        reference_metric: Métrica contra la que se comparan las demás.
+        counterpart_metrics: Métricas que se comparan con ella. Las que no
+            estén en ``summaries_by_metric`` se ignoran.
+        tolerance_seconds: Cuánto pueden distar dos picos para considerarlos
+            simultáneos; positivo.
+
+    Returns:
+        PeakCoincidence: La señal, con el detalle de cada pareja. Si no se
+            resumió la métrica de referencia o ninguna con la que compararla,
+            ``reason`` es :data:`METRICS_NOT_COMPARED` y no hay parejas; si la
+            de referencia no tuvo pico, :data:`NO_PEAK`.
+    """
+    comparable_metrics = [
+        metric for metric in counterpart_metrics if metric in summaries_by_metric
+    ]
+    if reference_metric not in summaries_by_metric or not comparable_metrics:
+        return PeakCoincidence(
+            reference_metric=reference_metric, reference_instant=None,
+            tolerance_seconds=tolerance_seconds, pairings=(), is_any_coincident=False,
+            reason=METRICS_NOT_COMPARED,
+        )
+
+    reference_instant = summaries_by_metric[reference_metric].timestamp_of_maximum
+    if reference_instant is None:
+        return PeakCoincidence(
+            reference_metric=reference_metric, reference_instant=None,
+            tolerance_seconds=tolerance_seconds, pairings=(), is_any_coincident=False,
+            reason=NO_PEAK,
+        )
+
+    pairings = []
+    for metric in comparable_metrics:
+        peak_instant = summaries_by_metric[metric].timestamp_of_maximum
+        separation = (
+            None if peak_instant is None
+            else abs((peak_instant - reference_instant).total_seconds())
+        )
+        pairings.append(PeakPairing(
+            metric=metric,
+            peak_instant=peak_instant,
+            separation_seconds=separation,
+            is_coincident=separation is not None and separation <= tolerance_seconds,
+        ))
+
+    return PeakCoincidence(
+        reference_metric=reference_metric,
+        reference_instant=reference_instant,
+        tolerance_seconds=tolerance_seconds,
+        pairings=tuple(pairings),
+        is_any_coincident=any(pairing.is_coincident for pairing in pairings),
+        reason=None,
+    )
+
+
 def summarize_series_by_asset(
     series_by_asset: Mapping[AssetKey, Sequence[Tuple[datetime, Optional[float]]]],
 ) -> Dict[AssetKey, StatSummary]:

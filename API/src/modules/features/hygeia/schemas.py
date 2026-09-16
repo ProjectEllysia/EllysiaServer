@@ -619,15 +619,59 @@ class MetricSummarySchema(Schema):
     timestamp_of_minimum = UTCDateTime(data_key="timestampOfMin", allow_none=True)
 
 
+class PeakPairingSchema(Schema):
+    """Cuánto distó el pico de una métrica del de la métrica de referencia.
+
+    ``separationSec`` es una distancia, siempre positiva: no dice cuál de los
+    dos picos fue antes, solo cuánto se separaron. Es nulo, con
+    ``isCoincident`` a ``false``, cuando la métrica no tuvo ninguna muestra en
+    el periodo y por tanto no tiene pico que comparar.
+    """
+    metric = fields.String()
+    peak_instant = UTCDateTime(data_key="peakAt", allow_none=True)
+    separation_seconds = fields.Float(data_key="separationSec", allow_none=True)
+    is_coincident = fields.Boolean(data_key="isCoincident")
+
+
+class PeakCoincidenceSchema(Schema):
+    """Si los picos de varias métricas del activo cayeron a la vez.
+
+    **No es una correlación estadística**, y no debe leerse como tal: no se
+    comparan las series, solo los instantes de sus máximos. Es una señal para
+    llamar la atención sobre dos cifras que quizá convenga mirar juntas — por
+    ejemplo, un proceso que satura la CPU procesando el tráfico que le entra
+    por la red dejaría los dos picos pegados en el tiempo.
+
+    Por eso la respuesta publica siempre los dos instantes y su separación en
+    segundos, y no solo el booleano: cuanto más largo es el periodo, más
+    ocasiones tienen dos picos independientes de rozarse por casualidad, y
+    quien lee la señal necesita poder ponderarlo por sí mismo.
+
+    ``reason`` dice por qué no hay señal cuando no la hay:
+    ``metrics_not_compared`` si la petición no incluyó las métricas necesarias,
+    ``no_peak`` si la de referencia no tuvo ninguna muestra en el periodo. Es
+    nulo cuando la comparación se pudo hacer, saliera coincidencia o no.
+    """
+    reference_metric = fields.String(data_key="referenceMetric")
+    reference_instant = UTCDateTime(data_key="referencePeakAt", allow_none=True)
+    tolerance_seconds = fields.Integer(data_key="toleranceSec")
+    pairings = fields.List(fields.Nested(PeakPairingSchema))
+    is_any_coincident = fields.Boolean(data_key="isAnyCoincident")
+    reason = fields.String(allow_none=True)
+
+
 class AssetStatsSummaryResponseSchema(Schema):
     """Resumen estadístico de las métricas de un activo.
 
     ``metrics`` va indexado por el nombre público de cada métrica pedida.
+    ``peakCoincidence`` cruza los instantes de esos máximos entre sí para
+    señalar si la CPU y la red hicieron pico a la vez.
     ``periodCoveredFrom``/``periodCoveredTo`` son la ventana que se cubrió de
     verdad, e ``isPeriodClipped`` avisa de que es más corta que la pedida
     (el periodo superaba el límite de estadísticas o la retención).
     """
     metrics = fields.Dict(keys=fields.String(), values=fields.Nested(MetricSummarySchema))
+    peakCoincidence = fields.Nested(PeakCoincidenceSchema)
     periodCoveredFrom = UTCDateTime()
     periodCoveredTo = UTCDateTime()
     isPeriodClipped = fields.Boolean()
