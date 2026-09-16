@@ -175,8 +175,8 @@ import { useElementWidth } from '@/composables/useElementWidth'
 import { anomalyKindLabel, timeAgo } from './format'
 import {
   DEFAULT_WINDOW_MS, detectGaps, fmtDuration, formatTimeTick, formatValue,
-  gapThresholdMs, medianDeltaMs, plotWidthForAxis, seriesOf, splitAtRanges, timeTicks,
-  totalGapMs,
+  gapThresholdMs, medianDeltaMs, plotWidthForAxis, seriesOf, splitAtRanges, timeDomain,
+  timeTicks, totalGapMs,
   yRange, yTicks,
 } from './chartMath'
 
@@ -217,8 +217,45 @@ const times = computed(() =>
     .filter(Number.isFinite)
 )
 
-const t0 = computed(() => Date.now() - (props.windowMs || DEFAULT_WINDOW_MS))
-const t1 = computed(() => Date.now())
+/** Instante del dato más reciente, o `null` con la serie vacía. */
+const lastSampleMs = computed(() =>
+  times.value.reduce((latest, t) => (latest === null || t > latest ? t : latest), null)
+)
+
+/**
+ * Umbral de ausencia de esta serie. Se calcula aquí arriba, y no junto a las
+ * bandas de más abajo, porque el eje lo necesita para decidir dónde acaba: el
+ * mismo umbral que dice si un silencio es una caída dice si el eje puede
+ * anclarse al último dato.
+ */
+const thresholdMs = computed(() =>
+  gapThresholdMs(medianDeltaMs(times.value), props.bucketSec)
+)
+
+/**
+ * Instante de referencia del eje.
+ *
+ * Es un `ref` y no un `Date.now()` dentro de un `computed` porque un `computed`
+ * solo se reevalúa cuando cambia una dependencia reactiva y el reloj no lo es:
+ * el dominio se quedaba congelado en el montaje de la tarjeta mientras la serie
+ * seguía avanzando cada 30 s, así que a los pocos minutos el primer dato caía
+ * ya metido en el gráfico y todo el tramo que le precedía se pintaba como banda
+ * de ausencia. Se refresca cuando llegan datos nuevos (el store reasigna la
+ * serie entera en cada sondeo) y al cambiar de ventana, que son los dos momentos
+ * en los que el eje tiene algo nuevo que decir; con la pestaña oculta el sondeo
+ * se pausa, y aquí no hace falta temporizador propio para acompañarlo.
+ */
+const now = ref(Date.now())
+watch(
+  () => [props.snapshots, props.windowMs],
+  () => { now.value = Date.now() },
+)
+
+const domain = computed(() => timeDomain(
+  lastSampleMs.value, now.value, props.windowMs || DEFAULT_WINDOW_MS, thresholdMs.value,
+))
+const t0 = computed(() => domain.value.t0)
+const t1 = computed(() => domain.value.t1)
 
 const plotEl = ref(null)
 // El gráfico vive bajo el `v-if` de la tarjeta, así que `plotEl` está vacío
@@ -274,10 +311,6 @@ watch(
 )
 
 /* ── Tiempo sin señal ── */
-
-const thresholdMs = computed(() =>
-  gapThresholdMs(medianDeltaMs(times.value), props.bucketSec)
-)
 
 const gaps = computed(() =>
   times.value.length

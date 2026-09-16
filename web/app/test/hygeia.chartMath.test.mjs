@@ -8,7 +8,8 @@
  */
 
 import {
-  SERIES, seriesOf, niceCeil, yRange, yTicks, timeTicks, formatTimeTick, fmtDuration,
+  SERIES, seriesOf, niceCeil, yRange, yTicks, timeTicks, timeDomain, anchorToleranceMs,
+  formatTimeTick, fmtDuration,
   medianDeltaMs, gapThresholdMs, detectGaps, totalGapMs, splitAtRanges, formatValue, bucketForWindow,
   plotWidthForAxis, WINDOW_PRESETS, DEFAULT_WINDOW_MS,
 } from '../src/components/hygeia/chartMath.js'
@@ -71,6 +72,53 @@ const ticks = timeTicks(0, 60000, 4)
 eq('extremos incluidos', [ticks[0], ticks[ticks.length - 1]], [0, 60000])
 eq('paso equidistante', ticks[1] - ticks[0], 15000)
 eq('cuatro intervalos, cinco instantes', ticks.length, 5)
+
+console.log('\nmargen de anclaje del eje')
+const QUARTER = 15 * 60e3
+const HOUR = 60 * 60e3
+const NOW = 1_700_000_000_000
+const GAP_THR = 90e3
+eq('en 15 min manda la proporción: un cuarto de la ventana',
+  anchorToleranceMs(QUARTER, GAP_THR), 225e3)
+eq('en 1 h el margen se corta en los cinco minutos',
+  anchorToleranceMs(HOUR, GAP_THR), 5 * 60e3)
+eq('una serie en cubos no puede tener menos margen que su propio umbral',
+  anchorToleranceMs(7 * 86400e3, 30 * 60e3), 30 * 60e3)
+
+console.log('\ntimeDomain')
+// Retardo normal: el agente late cada 15 s, la serie se re-pide cada 30 s y el
+// reloj del servidor puede ir algo por detrás del del navegador.
+const live = timeDomain(NOW - 95e3, NOW, QUARTER, GAP_THR)
+eq('con el último dato dentro del margen el eje acaba en él, no en el reloj',
+  [live.t0, live.t1], [NOW - QUARTER, NOW - 95e3])
+eq('el borde izquierdo se queda en el corte con el que se pidió la serie',
+  live.t0, NOW - QUARTER)
+const borderline = timeDomain(NOW - 225e3, NOW, QUARTER, GAP_THR)
+eq('un silencio justo igual al margen todavía ancla en el dato',
+  borderline.t1, NOW - 225e3)
+eq('un dato anterior a la propia ventana no puede invertir el eje',
+  timeDomain(NOW - 2 * QUARTER, NOW, QUARTER, 3 * QUARTER).t1, NOW - QUARTER + 1)
+const down = timeDomain(NOW - 10 * 60e3, NOW, QUARTER, GAP_THR)
+eq('un silencio por encima del margen devuelve el eje al reloj y deja ver la cola',
+  [down.t0, down.t1], [NOW - QUARTER, NOW])
+const empty = timeDomain(null, NOW, QUARTER, GAP_THR)
+eq('serie vacía: la ventana entera cuelga del reloj',
+  [empty.t0, empty.t1], [NOW - QUARTER, NOW])
+eq('un instante no finito se trata como serie vacía',
+  timeDomain(NaN, NOW, QUARTER, GAP_THR).t1, NOW)
+eq('un dato por delante del reloj ancla en el dato, no en el reloj',
+  timeDomain(NOW + 5e3, NOW, QUARTER, GAP_THR).t1, NOW + 5e3)
+eq('una ventana degenerada no colapsa el dominio',
+  timeDomain(NOW, NOW, 0, GAP_THR).t1 - timeDomain(NOW, NOW, 0, GAP_THR).t0, 1)
+// La serie que devuelve el servidor cubre [ahora - ventana, último dato] con un
+// latido cada 15 s: con el eje anclado al dato no sale banda por ninguno de los
+// dos bordes, que es justo el fallo que esta función viene a cerrar.
+const heartbeats = []
+for (let t = NOW - QUARTER; t <= NOW - 95e3; t += 15e3) heartbeats.push(t)
+eq('con el eje anclado al dato no hay banda en ningún borde',
+  detectGaps(heartbeats, GAP_THR, live.t0, live.t1), [])
+eq('el mismo latido con el eje en el reloj sí dejaba banda a la derecha',
+  detectGaps(heartbeats, GAP_THR, NOW - QUARTER, NOW).length, 1)
 
 console.log('\nformatTimeTick')
 const TZ_SHIFT = new Date(0).getTimezoneOffset() * 60000
