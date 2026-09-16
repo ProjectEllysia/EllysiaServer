@@ -460,3 +460,29 @@ export function exportFileName(dataset, scopeLabel, period) {
   return [`hygeia-${dataset}`, scopeLabel && slug(scopeLabel), period]
     .filter(Boolean).join('-') + '.csv'
 }
+
+/**
+ * El instante más antiguo de una lista de instantes ISO.
+ *
+ * La gráfica se compone de una petición por métrica, y cada respuesta dice
+ * hasta cuándo se calculó (`periodCoveredTo`). Si alguna salió de la caché del
+ * servidor y otra no, la gráfica entera es tan antigua como la más antigua, y
+ * eso es lo que tiene que decir «Actualizado hace…».
+ *
+ * @param {Array<string|null|undefined>} instants - Instantes ISO; los nulos y
+ *   los ilegibles se ignoran.
+ * @returns {string|null} El más antiguo, tal como venía; `null` si no queda
+ *   ninguno válido.
+ */
+export function oldestInstant(instants) {
+  let oldest = null
+  let oldestTime = Infinity
+  for (const instant of instants ?? []) {
+    const time = instant ? new Date(instant).getTime() : NaN
+    if (!Number.isNaN(time) && time < oldestTime) {
+      oldest = instant
+      oldestTime = time
+    }
+  }
+  return oldest
+}

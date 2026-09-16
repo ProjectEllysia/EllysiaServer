@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { reactive } from 'vue'
 import { useApi } from '@/composables/useApi'
 import {
-  MAX_COMPARISON_METRICS, STATS_METRICS, bucketForPeriod, exportFileName, metricOf,
+  MAX_COMPARISON_METRICS, STATS_METRICS, bucketForPeriod, exportFileName, metricOf, oldestInstant,
 } from '@/components/hygeia/statsMath'
 
 /**
@@ -65,6 +65,9 @@ export const useHygeiaStatsStore = defineStore('hygeiaStats', () => {
     // lo que explica la resolución de la gráfica.
     comparisonMetrics: ['cpuPct', 'memPct'],
     series: [], bucket: null, seriesLoading: false, seriesError: null,
+    // Hasta cuándo están calculadas las series que se ven: el servidor puede
+    // devolver un resultado guardado, y el panel dice su antigüedad.
+    seriesComputedAt: null,
 
     exporting: false,
   })
@@ -98,14 +101,18 @@ export const useHygeiaStatsStore = defineStore('hygeiaStats', () => {
    * sin activo) no lanza la petición: el servidor la rechazaría, y el estado
    * intermedio mientras el usuario todavía está eligiendo no es un error que
    * merezca pintarse.
+   *
+   * @param {object} [options]
+   * @param {boolean} [options.isRefresh=false] - Pide al servidor que recalcule
+   *   en vez de devolver un resultado guardado; es el botón «Actualizar».
    */
-  async function fetchScope() {
+  async function fetchScope({ isRefresh = false } = {}) {
     const request = buildScopeRequest()
     if (!request) { state.scopeError = null; return }
 
     state.scopeLoading = true
     try {
-      const res = await apiFetch(request.path)
+      const res = await apiFetch(isRefresh ? `${request.path}&refresh=true` : request.path)
       if (!res?.ok) {
         state.scopeError = await apiError(res, 'No se pudieron cargar las estadísticas.')
         return
@@ -168,15 +175,18 @@ export const useHygeiaStatsStore = defineStore('hygeiaStats', () => {
    * @param {Array<number>} fleetAssetIds - Ids de los activos del usuario, que
    *   hacen falta solo en el alcance de parque (la serie multi-activo se pide
    *   por lista explícita de activos, hasta 50).
+   * @param {object} [options]
+   * @param {boolean} [options.isRefresh=false] - Pide al servidor que recalcule
+   *   en vez de devolver resultados guardados; es el botón «Actualizar».
    */
-  async function fetchComparison(fleetAssetIds = []) {
+  async function fetchComparison(fleetAssetIds = [], { isRefresh = false } = {}) {
     const requests = buildSeriesRequests(fleetAssetIds)
-    if (!requests) { state.series = []; state.seriesError = null; return }
+    if (!requests) { state.series = []; state.seriesComputedAt = null; state.seriesError = null; return }
 
     state.seriesLoading = true
     try {
       const responses = await Promise.all(requests.map(async (request) => {
-        const res = await apiFetch(request.path)
+        const res = await apiFetch(isRefresh ? `${request.path}&refresh=true` : request.path)
         if (!res?.ok) return null
         const body = await res.json()
         // La respuesta trae una serie por activo salvo que se combine; en los
@@ -187,11 +197,13 @@ export const useHygeiaStatsStore = defineStore('hygeiaStats', () => {
           name: metricOf(request.key)?.name ?? request.key,
           points: series?.points ?? [],
           bucket: body.bucket ?? null,
+          computedAt: body.periodCoveredTo ?? null,
         }
       }))
       const loaded = responses.filter(Boolean)
       state.series = loaded
       state.bucket = loaded[0]?.bucket ?? null
+      state.seriesComputedAt = oldestInstant(loaded.map((series) => series.computedAt))
       state.seriesError = loaded.length
         ? null
         : 'No se pudo cargar la evolución de las métricas elegidas.'

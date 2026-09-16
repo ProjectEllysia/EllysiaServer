@@ -14,7 +14,7 @@
 import {
   MAX_COMPARISON_METRICS, STATS_METRICS, STATS_PERIODS, STATS_SCOPES, STATS_AGGREGATIONS,
   alignComparisonSeries, bucketForPeriod, comparisonPath, describeCoverage, describeLaneRange,
-  exportFileName, formatStatValue, isAggregationAllowed, metricOf,
+  exportFileName, formatStatValue, isAggregationAllowed, metricOf, oldestInstant,
   rankingRows, summaryRows, tagMetricRows,
 } from '../src/components/hygeia/statsMath.js'
 
@@ -301,6 +301,17 @@ eq('el panorama no tiene periodo',
 check('nunca deja separadores colgando',
   !/--|-\./.test(exportFileName('tag-stats', ' ?? ', '24h')),
   exportFileName('tag-stats', ' ?? ', '24h'))
+
+console.log('\n' + 'antigüedad de la gráfica')
+
+// Si una métrica salió de la caché y otra no, la gráfica es tan vieja como la más vieja.
+eq('elige el instante más antiguo',
+  oldestInstant(['2026-09-16T10:05:00Z', '2026-09-16T09:50:00Z', '2026-09-16T10:00:00Z']),
+  '2026-09-16T09:50:00Z')
+eq('ignora nulos e instantes ilegibles',
+  oldestInstant([null, 'ayer', '2026-09-16T10:00:00Z', undefined]), '2026-09-16T10:00:00Z')
+eq('sin instantes válidos no hay antigüedad', oldestInstant([null, 'ayer']), null)
+eq('una lista ausente tampoco', oldestInstant(undefined), null)
 
 console.log(`\n${passed} pasados, ${failed} fallidos`)
 process.exit(failed ? 1 : 0)
