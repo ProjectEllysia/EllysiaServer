@@ -554,6 +554,21 @@ def _build_period_field() -> fields.String:
     )
 
 
+def _build_format_field() -> fields.String:
+    """Campo ``format`` de las queries de estadísticas: ``json`` (por defecto) o ``csv``.
+
+    El JSON es el formato de toda la API, así que pedirlo no requiere nada;
+    ``csv`` devuelve **los mismos valores** en un fichero descargable, volcados
+    por ``services/export.py`` a partir de la respuesta ya serializada por este
+    mismo schema. No hay un segundo cálculo que pueda desviarse del primero.
+
+    Returns:
+        fields.String: Un campo nuevo en cada llamada; marshmallow no admite
+            compartir la misma instancia entre schemas.
+    """
+    return fields.String(load_default="json", validate=validate.OneOf(["json", "csv"]))
+
+
 def _parse_period(period: str) -> timedelta:
     """Convierte un ``period`` ya validado (``24h``, ``7d``…) en su duración.
 
@@ -581,6 +596,7 @@ class AssetStatsSummaryQuerySchema(Schema):
     """
     metrics = fields.String(load_default=None)
     period = _build_period_field()
+    format = _build_format_field()
 
     @post_load
     def parse_query(self, data, **kwargs):
@@ -945,6 +961,7 @@ class AssetRankingQuerySchema(Schema):
     order = fields.String(load_default="desc", validate=validate.OneOf(["desc", "asc"]))
     limit = fields.Integer(load_default=10, validate=validate.Range(min=1, max=100))
     period = _build_period_field()
+    format = _build_format_field()
 
     @post_load
     def parse_query(self, data, **kwargs):
@@ -1073,6 +1090,15 @@ class BreachRankingResponseSchema(Schema):
     periodCoveredFrom = UTCDateTime()
     periodCoveredTo = UTCDateTime()
     isPeriodClipped = fields.Boolean()
+
+
+class FleetOverviewQuerySchema(Schema):
+    """Query de ``GET /hygeia/stats/overview``: solo el formato de salida.
+
+    El panorama no acepta periodo —es una foto del ahora, no de un tramo— así
+    que ``format`` es su único parámetro.
+    """
+    format = _build_format_field()
 
 
 class FleetOverviewResponseSchema(Schema):

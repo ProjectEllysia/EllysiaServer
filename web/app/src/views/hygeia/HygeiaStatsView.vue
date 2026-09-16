@@ -5,6 +5,13 @@
 
     <main class="stats-layout">
       <header class="head">
+        <button
+          class="btn-export" type="button"
+          :disabled="!isSelectionComplete || store.state.exporting"
+          :title="isSelectionComplete ? 'Descargar en CSV lo que hay en pantalla'
+            : 'Elige un alcance completo para poder exportar'"
+          @click="exportCsv"
+        >{{ store.state.exporting ? 'Exportando…' : 'Exportar CSV' }}</button>
         <div class="head-text">
           <h2 class="head-title">Estadísticas</h2>
           <p class="head-sub">
@@ -429,6 +436,21 @@ const summaryTable = computed(() => summaryRows(store.state.summary?.metrics))
 const tagTable = computed(() => tagMetricRows(store.state.tagStats?.metrics))
 const rankingTable = computed(() => rankingRows(store.state.ranking?.assets, store.state.metric))
 
+/**
+ * Descarga en CSV exactamente lo que hay en la tabla.
+ *
+ * El nombre del fichero lleva el alcance, así que hace falta el rótulo del
+ * activo o de la etiqueta elegidos; el parque no tiene ninguno.
+ */
+function exportCsv() {
+  const scopeLabel = store.state.scope === 'asset'
+    ? assets.value.find((asset) => asset.id === store.state.assetId)?.hostname
+    : store.state.scope === 'tag'
+      ? tags.value.find((tag) => tag.id === store.state.tagId)?.name
+      : null
+  store.downloadCsv(scopeLabel ?? null)
+}
+
 function onScopeChange(event) {
   store.selectScope(event.target.value)
 }
@@ -487,6 +509,16 @@ onMounted(() => {
   margin: 0 auto;
   padding: 1.5rem 1.5rem 3rem;
 }
+
+.head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap-reverse; }
+.btn-export {
+  padding: 0.45rem 0.9rem; flex-shrink: 0;
+  background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 6px;
+  color: var(--accent-bright); font-size: var(--fs-body); font-weight: 600; cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+.btn-export:hover:not(:disabled) { background: var(--accent); color: var(--on-accent); }
+.btn-export:disabled { opacity: 0.55; cursor: not-allowed; }
 
 .head-title { margin: 0 0 0.3rem; font-size: var(--fs-2xl); font-weight: 600; color: var(--text); }
 .head-sub { margin: 0; max-width: 64ch; font-size: var(--fs-md); color: var(--text-muted); line-height: 1.5; }

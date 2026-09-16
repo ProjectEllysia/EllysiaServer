@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { reactive } from 'vue'
 import { useApi } from '@/composables/useApi'
 import {
-  MAX_COMPARISON_METRICS, STATS_METRICS, bucketForPeriod, metricOf,
+  MAX_COMPARISON_METRICS, STATS_METRICS, bucketForPeriod, exportFileName, metricOf,
 } from '@/components/hygeia/statsMath'
 
 /**
@@ -19,6 +19,28 @@ import {
  * independientes, y que falle una no debe borrar de la pantalla lo que la otra
  * ya había traído.
  */
+/**
+ * Entrega un `blob` al navegador como descarga con nombre.
+ *
+ * Vive fuera del store porque no toca su estado: es la costura con el DOM que
+ * convierte una respuesta HTTP autenticada en un fichero en la carpeta de
+ * descargas. La URL temporal se revoca en cuanto el clic sintético ocurre, o
+ * el navegador retendría el contenido en memoria toda la sesión.
+ *
+ * @param {Blob} blob - Contenido devuelto por la API.
+ * @param {string} filename - Nombre con el que se guarda.
+ */
+function saveBlob(blob, filename) {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
 export const useHygeiaStatsStore = defineStore('hygeiaStats', () => {
   const { apiFetch, apiError } = useApi()
 
@@ -43,7 +65,13 @@ export const useHygeiaStatsStore = defineStore('hygeiaStats', () => {
     // lo que explica la resolución de la gráfica.
     comparisonMetrics: ['cpuPct', 'memPct'],
     series: [], bucket: null, seriesLoading: false, seriesError: null,
+
+    exporting: false,
   })
+
+  //: Cómo llama el servidor al juego de datos de cada alcance, que es lo que
+  //: decide la forma de la tabla del CSV.
+  const DATASET_BY_SCOPE = { asset: 'summary', tag: 'tag-stats', fleet: 'ranking' }
 
   /** Todas las métricas del catálogo, en una lista para el parámetro `metrics`. */
   const allMetricKeys = STATS_METRICS.map((metric) => metric.key).join(',')
@@ -240,6 +268,42 @@ export const useHygeiaStatsStore = defineStore('hygeiaStats', () => {
     if (selected.length < MAX_COMPARISON_METRICS) state.comparisonMetrics = [...selected, key]
   }
 
+  /**
+   * Descarga en CSV lo que hay en pantalla.
+   *
+   * Pide **la misma ruta** que se está mostrando, con `format=csv` añadido: el
+   * fichero contiene por construcción los mismos valores que la tabla, porque
+   * los dos salen del mismo endpoint y del mismo schema del servidor. No hay
+   * un segundo camino de datos que pueda desviarse.
+   *
+   * El fichero se descarga con `apiFetch` y no con un enlace directo, porque la
+   * API exige la cabecera de autorización y un `<a href>` no la manda; el
+   * `blob` resultante se entrega al navegador con un ancla sintética.
+   *
+   * @param {string|null} scopeLabel - Nombre del activo o de la etiqueta, para
+   *   el nombre del fichero.
+   * @returns {Promise<boolean>} Si la descarga se pudo servir.
+   */
+  async function downloadCsv(scopeLabel = null) {
+    const request = buildScopeRequest()
+    if (!request) return false
+
+    state.exporting = true
+    try {
+      const res = await apiFetch(`${request.path}&format=csv`)
+      if (!res?.ok) {
+        state.scopeError = await apiError(res, 'No se pudo exportar el resultado.')
+        return false
+      }
+      saveBlob(
+        await res.blob(),
+        exportFileName(DATASET_BY_SCOPE[state.scope], scopeLabel, state.period),
+      )
+      return true
+    } catch { state.scopeError = 'No se pudo conectar con la API.'; return false }
+    finally { state.exporting = false }
+  }
+
   /** Cambia el alcance, limpiando lo que ya no aplica. */
   function selectScope(scope) {
     state.scope = scope
@@ -250,6 +314,6 @@ export const useHygeiaStatsStore = defineStore('hygeiaStats', () => {
 
   return {
     state, fetchOverview, fetchScope, buildScopeRequest, selectScope,
-    fetchComparison, buildSeriesRequests, toggleComparisonMetric,
+    fetchComparison, buildSeriesRequests, toggleComparisonMetric, downloadCsv,
   }
 })

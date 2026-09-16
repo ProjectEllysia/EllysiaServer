@@ -422,3 +422,34 @@ export function describeLaneRange(lane) {
     ? `${low.text} – ${high.text} ${high.unit}`.trim()
     : `${low.text} ${low.unit} – ${high.text} ${high.unit}`.trim()
 }
+
+/* ── Exportación ───────────────────────────────────────────────────────── */
+
+/**
+ * Nombre del fichero de una descarga de estadísticas.
+ *
+ * El servidor propone uno genérico por juego de datos; este lo concreta con el
+ * alcance y el periodo, que es lo que distingue dos descargas en la carpeta de
+ * descargas: `hygeia-summary-host-web-24h.csv` se reconoce y
+ * `hygeia-summary.csv (3)` no.
+ *
+ * El nombre se normaliza a minúsculas, sin acentos y sin espacios, porque un
+ * hostname o una etiqueta pueden traer cualquiera de las tres cosas y de ahí
+ * sale un nombre de fichero incómodo en cualquier sistema.
+ *
+ * @param {string} dataset - Juego de datos (`summary`, `tag-stats`, `ranking`,
+ *   `overview`), tal como lo nombra el servidor.
+ * @param {string|null} scopeLabel - Nombre del activo o de la etiqueta, o
+ *   `null` en los alcances que no tienen uno (el parque).
+ * @param {string|null} period - Periodo pedido (`24h`), o `null` en los juegos
+ *   de datos que no tienen periodo (el panorama).
+ * @returns {string} El nombre con su extensión `.csv`.
+ */
+export function exportFileName(dataset, scopeLabel, period) {
+  const slug = (text) => String(text)
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+
+  return [`hygeia-${dataset}`, scopeLabel && slug(scopeLabel), period]
+    .filter(Boolean).join('-') + '.csv'
+}
