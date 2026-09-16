@@ -265,6 +265,7 @@ def get_asset_stats_summary(args, asset_id):
         asset_id,
         metric_names=args["metric_names"],
         requested_duration=args["requested_duration"],
+        is_refresh=args["refresh"],
     ), args["format"])
 
 
@@ -362,6 +363,7 @@ def get_tag_stats(args, tag_id):
         metric_names=args["metric_names"],
         aggregation=args["agg"],
         requested_duration=args["requested_duration"],
+        is_refresh=args["refresh"],
     ), args["format"])
 
 
@@ -406,6 +408,7 @@ def get_asset_ranking(args):
         order=args["order"],
         limit=args["limit"],
         requested_duration=args["requested_duration"],
+        is_refresh=args["refresh"],
     ), args["format"])
 
 
@@ -555,6 +558,7 @@ def get_metric_series(args):
         requested_bucket_seconds=args["bucket"],
         requested_duration=args["requested_duration"],
         compare_to=args["compare_to"],
+        is_refresh=args["refresh"],
     )
 
 

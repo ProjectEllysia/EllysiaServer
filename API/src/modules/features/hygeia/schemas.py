@@ -569,6 +569,21 @@ def _build_format_field() -> fields.String:
     return fields.String(load_default="json", validate=validate.OneOf(["json", "csv"]))
 
 
+def _build_refresh_field() -> fields.Boolean:
+    """Campo ``refresh`` de las queries de estadísticas que se guardan en caché.
+
+    Un resultado ya calculado se reutiliza durante un tiempo que depende del
+    periodo (``features.hygeia.statsCache``). ``refresh=true`` lo ignora, lo
+    recalcula y guarda el nuevo en su lugar: es lo que pide el botón
+    «Actualizar» del panel. Por defecto ``false``.
+
+    Returns:
+        fields.Boolean: Un campo nuevo en cada llamada; marshmallow no admite
+            compartir la misma instancia entre schemas.
+    """
+    return fields.Boolean(load_default=False)
+
+
 def _parse_period(period: str) -> timedelta:
     """Convierte un ``period`` ya validado (``24h``, ``7d``…) en su duración.
 
@@ -597,6 +612,7 @@ class AssetStatsSummaryQuerySchema(Schema):
     metrics = fields.String(load_default=None)
     period = _build_period_field()
     format = _build_format_field()
+    refresh = _build_refresh_field()
 
     @post_load
     def parse_query(self, data, **kwargs):
@@ -962,6 +978,7 @@ class AssetRankingQuerySchema(Schema):
     limit = fields.Integer(load_default=10, validate=validate.Range(min=1, max=100))
     period = _build_period_field()
     format = _build_format_field()
+    refresh = _build_refresh_field()
 
     @post_load
     def parse_query(self, data, **kwargs):
@@ -1360,6 +1377,7 @@ class MetricSeriesQuerySchema(Schema):
             error="compareTo debe tener la forma asset:<id> o tag:<id>.",
         ),
     )
+    refresh = _build_refresh_field()
 
     @validates_schema
     def validate_scope(self, data, **kwargs):
