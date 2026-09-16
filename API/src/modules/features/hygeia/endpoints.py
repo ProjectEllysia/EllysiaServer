@@ -63,6 +63,8 @@ from .schemas import (
     FleetDiskQuerySchema,
     FleetDiskResponseSchema,
     FleetOverviewResponseSchema,
+    HourlyPatternQuerySchema,
+    HourlyPatternResponseSchema,
     IngestRequestSchema,
     InventoryReportRequestSchema,
     IngestResponseSchema,
@@ -440,6 +442,31 @@ def get_power_stats(args):
     return manager.get_power_stats(
         scope=args["scope"],
         tag_id=args["tagId"],
+        requested_duration=args["requested_duration"],
+    )
+
+
+@hygeia_blp.get("/stats/hourly-pattern")
+@hygeia_blp.arguments(HourlyPatternQuerySchema, location="query")
+@hygeia_blp.response(200, HourlyPatternResponseSchema, description="Patrón horario de carga")
+@hygeia_blp.alt_response(400, schema=ErrorSchema, description="Unknown metric")
+@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@hygeia_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@hygeia_blp.alt_response(404, schema=ErrorSchema, description="Tag or asset not found")
+@limiter.limit("600 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
+@handle_exceptions(default_exception=HygeiaError, logger=logger)
+def get_hourly_pattern(args):
+    """Repartir una métrica por hora del día sobre un activo, una etiqueta o el parque"""
+    user = get_current_user()
+    manager = HygeiaStatsManager(user)
+    return manager.get_hourly_pattern(
+        args["metric"],
+        scope=args["scope"],
+        tag_id=args["tagId"],
+        asset_id=args["assetId"],
+        aggregation=args["agg"],
         requested_duration=args["requested_duration"],
     )
 

@@ -1119,6 +1119,90 @@ class PowerStatsResponseSchema(Schema):
     isPeriodClipped = fields.Boolean()
 
 
+class HourlyPatternQuerySchema(Schema):
+    """Query de ``GET /hygeia/stats/hourly-pattern``.
+
+    ``scope`` decide sobre qué se agrega: ``fleet`` (por defecto) todo el
+    parque del usuario, ``tag`` los activos de ``tagId``, ``asset`` uno solo
+    (``assetId``). El id correspondiente es obligatorio con su ámbito, y los
+    que no corresponden se rechazan en vez de ignorarse: un parámetro que se
+    tragase en silencio haría creer a quien llama que filtró.
+
+    ``agg`` es cómo se resume cada hora: ``avg`` (por defecto) da la carga
+    típica de esa hora, ``max`` el peor momento que se vio en ella. Tras
+    cargar, ``period`` queda como ``requested_duration``.
+    """
+    metric = fields.String(required=True)
+    scope = fields.String(
+        load_default="fleet", validate=validate.OneOf(["fleet", "tag", "asset"]),
+    )
+    tagId = fields.Integer(load_default=None, validate=validate.Range(min=1))
+    assetId = fields.Integer(load_default=None, validate=validate.Range(min=1))
+    agg = fields.String(load_default="avg", validate=validate.OneOf(["min", "avg", "max"]))
+    period = _build_period_field()
+
+    @validates_schema
+    def validate_scope(self, data, **kwargs):
+        """Exige el id del ámbito pedido y rechaza los de los demás."""
+        required_by_scope = {"tag": "tagId", "asset": "assetId"}
+        scope = data.get("scope")
+        for candidate_scope, field_name in required_by_scope.items():
+            if scope == candidate_scope and data.get(field_name) is None:
+                raise ValidationError(
+                    f"{field_name} es obligatorio con scope={candidate_scope}.",
+                    field_name=field_name,
+                )
+            if scope != candidate_scope and data.get(field_name) is not None:
+                raise ValidationError(
+                    f"{field_name} solo se admite con scope={candidate_scope}.",
+                    field_name=field_name,
+                )
+
+    @post_load
+    def parse_query(self, data, **kwargs):
+        """Convierte ``period`` en ``timedelta``."""
+        data["requested_duration"] = _parse_period(data.pop("period"))
+        return data
+
+
+class HourlyPatternEntrySchema(Schema):
+    """Una hora del día dentro del patrón horario.
+
+    ``hour`` va de 0 a 23 en el reloj del servidor. ``value`` es nulo, con
+    ``sampleCount`` a ``0``, en una hora sin ningún heartbeat en todo el
+    periodo: es un hueco, no un cero, y pintarlo como cero convertiría un
+    parque apagado de noche en un parque ocioso.
+    """
+    hour = fields.Integer()
+    value = fields.Float(allow_none=True)
+    sampleCount = fields.Integer()
+
+
+class HourlyPatternResponseSchema(Schema):
+    """Reparto de una métrica por hora del día sobre un activo, una etiqueta o el parque.
+
+    ``hours`` trae siempre las 24 horas en orden, de la 0 a la 23, para que
+    quien pinta el heatmap no tenga que rellenar los huecos. ``peakHour`` es
+    la hora de mayor valor, y es nula si ninguna tuvo muestras. ``tag`` solo
+    viene informado con ``scope=tag``.
+
+    Las horas son las del reloj del **servidor** (``receivedAt``): el del
+    agente puede estar mal puesto o en otra zona, y mezclar husos daría un
+    patrón que no es el de ninguna máquina.
+    """
+    metric = fields.String()
+    unit = fields.String()
+    agg = fields.String()
+    scope = fields.String()
+    tag = fields.Dict(allow_none=True)
+    assetCount = fields.Integer()
+    hours = fields.List(fields.Nested(HourlyPatternEntrySchema))
+    peakHour = fields.Integer(allow_none=True)
+    periodCoveredFrom = UTCDateTime()
+    periodCoveredTo = UTCDateTime()
+    isPeriodClipped = fields.Boolean()
+
+
 class MetricSeriesQuerySchema(Schema):
     """Query de ``GET /hygeia/stats/series``: la serie temporal de una métrica sobre varios activos.
 
