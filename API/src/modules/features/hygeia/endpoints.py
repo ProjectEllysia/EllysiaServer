@@ -31,6 +31,7 @@ from .exceptions import (
     HygeiaError,
     TagNotFoundError,
 )
+from .services import build_csv
 from .managers import (
     HygeiaAlertManager, HygeiaAssetManager, HygeiaIngestManager, HygeiaReportManager,
     HygeiaStatsManager, HygeiaTagManager,
@@ -64,6 +65,7 @@ from .schemas import (
     DiskTrendResponseSchema,
     FleetDiskQuerySchema,
     FleetDiskResponseSchema,
+    FleetOverviewQuerySchema,
     FleetOverviewResponseSchema,
     HourlyPatternQuerySchema,
     HourlyPatternResponseSchema,
@@ -208,6 +210,40 @@ def get_asset_power_summary(asset_id):
     return manager.get_power_summary(asset_id)
 
 
+def _serve(dataset: str, schema, payload: dict, output_format: str):
+    """Sirve una respuesta de estadísticas en el formato pedido.
+
+    Con ``format=json`` devuelve el diccionario y lo serializa flask-smorest
+    como siempre. Con ``format=csv`` **se serializa aquí con el mismo schema**
+    y el resultado se vuelca a fichero: así el CSV no puede decir algo distinto
+    del JSON, porque los dos salen del mismo `dump`.
+
+    La descarga se sirve desde el mismo GET en vez de un endpoint aparte, y eso
+    obliga a marcarla como no cacheable: ``run.py`` registra un GET condicional
+    global (ETag/304), y un fichero que cambia con cada latido no debe quedarse
+    pegado en la caché del navegador.
+
+    Args:
+        dataset: Clave del juego de datos para ``services/export.py``.
+        schema: Clase del schema de respuesta del endpoint.
+        payload: Lo que devolvió el manager.
+        output_format: ``"json"`` o ``"csv"``, ya validado por la query.
+
+    Returns:
+        El diccionario tal cual (JSON), o la respuesta de descarga (CSV).
+    """
+    if output_format != "csv":
+        return payload
+
+    content, filename = build_csv(dataset, schema().dump(payload))
+    response = send_file(
+        io.BytesIO(content), mimetype="text/csv",
+        as_attachment=True, download_name=filename,
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 @hygeia_blp.get("/assets/<int:asset_id>/stats/summary")
 @hygeia_blp.arguments(AssetStatsSummaryQuerySchema, location="query")
 @hygeia_blp.response(
@@ -225,11 +261,11 @@ def get_asset_stats_summary(args, asset_id):
     """Obtener mínimo, máximo, media, p95 y valor actual de las métricas de un activo"""
     user = get_current_user()
     manager = HygeiaAssetManager(user)
-    return manager.get_stats_summary(
+    return _serve("summary", AssetStatsSummaryResponseSchema, manager.get_stats_summary(
         asset_id,
         metric_names=args["metric_names"],
         requested_duration=args["requested_duration"],
-    )
+    ), args["format"])
 
 
 @hygeia_blp.get("/assets/<int:asset_id>/stats/disks")
@@ -321,12 +357,12 @@ def get_tag_stats(args, tag_id):
     """Obtener las métricas agregadas de los activos que llevan una etiqueta"""
     user = get_current_user()
     manager = HygeiaStatsManager(user)
-    return manager.get_tag_stats(
+    return _serve("tag-stats", TagStatsResponseSchema, manager.get_tag_stats(
         tag_id,
         metric_names=args["metric_names"],
         aggregation=args["agg"],
         requested_duration=args["requested_duration"],
-    )
+    ), args["format"])
 
 
 @hygeia_blp.get("/stats/by-tag")
@@ -364,13 +400,13 @@ def get_asset_ranking(args):
     """Ordenar los activos del usuario por una métrica y devolver los extremos"""
     user = get_current_user()
     manager = HygeiaStatsManager(user)
-    return manager.get_asset_ranking(
+    return _serve("ranking", AssetRankingResponseSchema, manager.get_asset_ranking(
         metric_name=args["metric"],
         aggregation=args["agg"],
         order=args["order"],
         limit=args["limit"],
         requested_duration=args["requested_duration"],
-    )
+    ), args["format"])
 
 
 @hygeia_blp.get("/stats/disks/fleet")
@@ -410,6 +446,7 @@ def get_breach_ranking(args):
 
 
 @hygeia_blp.get("/stats/overview")
+@hygeia_blp.arguments(FleetOverviewQuerySchema, location="query")
 @hygeia_blp.response(200, FleetOverviewResponseSchema, description="Panorama del parque")
 @hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
 @hygeia_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
@@ -417,11 +454,13 @@ def get_breach_ranking(args):
 @require_oauth_token
 @require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
 @handle_exceptions(default_exception=HygeiaError, logger=logger)
-def get_fleet_overview():
+def get_fleet_overview(args):
     """Resumir el estado actual del parque: activos por estado, anomalías y actividad"""
     user = get_current_user()
     manager = HygeiaStatsManager(user)
-    return manager.get_fleet_overview()
+    return _serve(
+        "overview", FleetOverviewResponseSchema, manager.get_fleet_overview(), args["format"],
+    )
 
 
 @hygeia_blp.get("/stats/histogram")

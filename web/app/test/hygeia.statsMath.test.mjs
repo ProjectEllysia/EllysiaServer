@@ -14,7 +14,8 @@
 import {
   MAX_COMPARISON_METRICS, STATS_METRICS, STATS_PERIODS, STATS_SCOPES, STATS_AGGREGATIONS,
   alignComparisonSeries, bucketForPeriod, comparisonPath, describeCoverage, describeLaneRange,
-  formatStatValue, isAggregationAllowed, metricOf, rankingRows, summaryRows, tagMetricRows,
+  exportFileName, formatStatValue, isAggregationAllowed, metricOf,
+  rankingRows, summaryRows, tagMetricRows,
 } from '../src/components/hygeia/statsMath.js'
 
 let passed = 0
@@ -282,6 +283,23 @@ check('una tasa se rotula escalada',
   describeLaneRange(aligned.lanes[1]).includes('KB/s'), describeLaneRange(aligned.lanes[1]))
 eq('una calle sin datos no se rotula', describeLaneRange({ sampleCount: 0 }), '')
 eq('una calle inexistente tampoco', describeLaneRange(null), '')
+
+console.log('\n' + 'nombre del fichero exportado')
+
+eq('lleva el juego de datos, el alcance y el periodo',
+  exportFileName('summary', 'host-web', '24h'), 'hygeia-summary-host-web-24h.csv')
+// Un hostname o una etiqueta pueden traer acentos, mayúsculas y espacios, y de
+// ahí sale un nombre de fichero incómodo en cualquier sistema.
+eq('normaliza acentos, mayúsculas y separadores',
+  exportFileName('summary', 'Host-Web · Producción', '7d'),
+  'hygeia-summary-host-web-produccion-7d.csv')
+eq('el parque no tiene alcance que nombrar',
+  exportFileName('ranking', null, '7d'), 'hygeia-ranking-7d.csv')
+eq('el panorama no tiene periodo',
+  exportFileName('overview', null, null), 'hygeia-overview.csv')
+check('nunca deja separadores colgando',
+  !/--|-\./.test(exportFileName('tag-stats', ' ?? ', '24h')),
+  exportFileName('tag-stats', ' ?? ', '24h'))
 
 console.log(`\n${passed} pasados, ${failed} fallidos`)
 process.exit(failed ? 1 : 0)

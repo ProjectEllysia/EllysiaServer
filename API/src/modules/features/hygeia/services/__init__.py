@@ -27,6 +27,7 @@ from .metric_registry import (
     validate_metrics_are_additive,
 )
 from .reports import build_inventory_report
+from .export import build_csv
 from .stats import (
     EnergyCost,
     FullnessForecast,
