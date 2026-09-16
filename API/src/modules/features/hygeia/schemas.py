@@ -619,15 +619,59 @@ class MetricSummarySchema(Schema):
     timestamp_of_minimum = UTCDateTime(data_key="timestampOfMin", allow_none=True)
 
 
+class PeakPairingSchema(Schema):
+    """Cuánto distó el pico de una métrica del de la métrica de referencia.
+
+    ``separationSec`` es una distancia, siempre positiva: no dice cuál de los
+    dos picos fue antes, solo cuánto se separaron. Es nulo, con
+    ``isCoincident`` a ``false``, cuando la métrica no tuvo ninguna muestra en
+    el periodo y por tanto no tiene pico que comparar.
+    """
+    metric = fields.String()
+    peak_instant = UTCDateTime(data_key="peakAt", allow_none=True)
+    separation_seconds = fields.Float(data_key="separationSec", allow_none=True)
+    is_coincident = fields.Boolean(data_key="isCoincident")
+
+
+class PeakCoincidenceSchema(Schema):
+    """Si los picos de varias métricas del activo cayeron a la vez.
+
+    **No es una correlación estadística**, y no debe leerse como tal: no se
+    comparan las series, solo los instantes de sus máximos. Es una señal para
+    llamar la atención sobre dos cifras que quizá convenga mirar juntas — por
+    ejemplo, un proceso que satura la CPU procesando el tráfico que le entra
+    por la red dejaría los dos picos pegados en el tiempo.
+
+    Por eso la respuesta publica siempre los dos instantes y su separación en
+    segundos, y no solo el booleano: cuanto más largo es el periodo, más
+    ocasiones tienen dos picos independientes de rozarse por casualidad, y
+    quien lee la señal necesita poder ponderarlo por sí mismo.
+
+    ``reason`` dice por qué no hay señal cuando no la hay:
+    ``metrics_not_compared`` si la petición no incluyó las métricas necesarias,
+    ``no_peak`` si la de referencia no tuvo ninguna muestra en el periodo. Es
+    nulo cuando la comparación se pudo hacer, saliera coincidencia o no.
+    """
+    reference_metric = fields.String(data_key="referenceMetric")
+    reference_instant = UTCDateTime(data_key="referencePeakAt", allow_none=True)
+    tolerance_seconds = fields.Integer(data_key="toleranceSec")
+    pairings = fields.List(fields.Nested(PeakPairingSchema))
+    is_any_coincident = fields.Boolean(data_key="isAnyCoincident")
+    reason = fields.String(allow_none=True)
+
+
 class AssetStatsSummaryResponseSchema(Schema):
     """Resumen estadístico de las métricas de un activo.
 
     ``metrics`` va indexado por el nombre público de cada métrica pedida.
+    ``peakCoincidence`` cruza los instantes de esos máximos entre sí para
+    señalar si la CPU y la red hicieron pico a la vez.
     ``periodCoveredFrom``/``periodCoveredTo`` son la ventana que se cubrió de
     verdad, e ``isPeriodClipped`` avisa de que es más corta que la pedida
     (el periodo superaba el límite de estadísticas o la retención).
     """
     metrics = fields.Dict(keys=fields.String(), values=fields.Nested(MetricSummarySchema))
+    peakCoincidence = fields.Nested(PeakCoincidenceSchema)
     periodCoveredFrom = UTCDateTime()
     periodCoveredTo = UTCDateTime()
     isPeriodClipped = fields.Boolean()
@@ -663,6 +707,57 @@ class DiskStatsResponseSchema(Schema):
     recorta a ``maxEntityStatsPeriodDays``, y ``isPeriodClipped`` lo avisa.
     """
     mounts = fields.List(fields.Nested(MountStatsSchema))
+    periodCoveredFrom = UTCDateTime()
+    periodCoveredTo = UTCDateTime()
+    isPeriodClipped = fields.Boolean()
+
+
+class DiskTrendQuerySchema(Schema):
+    """Query de ``GET /hygeia/assets/<id>/stats/disk-trend``.
+
+    Sin ``mount`` la tendencia se ajusta sobre ``diskMaxPct``, el montaje más
+    lleno de cada latido, y cubre la ventana larga de estadísticas. Con
+    ``mount`` se ajusta sobre ese montaje concreto, leyendo el detalle del
+    JSONB, y la ventana se recorta a la de las estadísticas por entidad.
+    Tras cargar, ``period`` queda como ``requested_duration``.
+    """
+    mount = fields.String(load_default=None, validate=validate.Length(min=1, max=256))
+    period = _build_period_field()
+
+    @post_load
+    def parse_query(self, data, **kwargs):
+        """Convierte ``period`` en ``timedelta``."""
+        data["requested_duration"] = _parse_period(data.pop("period"))
+        return data
+
+
+class DiskTrendResponseSchema(Schema):
+    """Tendencia del uso de disco de un activo y estimación de cuándo se llenará.
+
+    ``slopePctPerDay`` es cuántos puntos porcentuales gana (o pierde, si es
+    negativa) el disco cada día según la recta ajustada, y ``rSquared`` dice
+    cuánto se fía uno de esa recta: cerca de ``1`` la serie es casi una línea,
+    cerca de ``0`` la recta atraviesa una nube de puntos. Los dos son nulos
+    cuando no hubo recta que ajustar.
+
+    ``daysUntilFull`` solo trae una cifra cuando la tendencia la sostiene. En
+    cuanto la pendiente es plana o negativa, el ajuste es malo o no hay
+    muestras suficientes, viene a ``null`` y ``reason`` dice cuál de las tres
+    cosas pasó (``insufficient_samples``, ``insufficient_trend``). Un disco
+    que ya está al 100 % devuelve ``0.0`` con ``reason`` ``already_full``.
+    Cuando la estimación es normal, ``reason`` es nulo.
+
+    Una estimación equivocada es peor que ninguna: "se llena en cuatro días"
+    invita a actuar, y si sale de una pendiente trazada sobre ruido, invita a
+    actuar sobre nada.
+    """
+    mount = fields.String(allow_none=True)
+    currentPct = fields.Float(allow_none=True)
+    slopePctPerDay = fields.Float(allow_none=True)
+    rSquared = fields.Float(allow_none=True)
+    sampleCount = fields.Integer()
+    daysUntilFull = fields.Float(allow_none=True)
+    reason = fields.String(allow_none=True)
     periodCoveredFrom = UTCDateTime()
     periodCoveredTo = UTCDateTime()
     isPeriodClipped = fields.Boolean()
@@ -915,6 +1010,71 @@ class FleetDiskResponseSchema(Schema):
     mounts = fields.List(fields.Nested(FleetMountEntrySchema))
 
 
+class BreachRankingQuerySchema(Schema):
+    """Query de ``GET /hygeia/stats/breach-ranking``.
+
+    ``limit`` va de 1 a 100 y recorta el ranking devuelto, no el recuento:
+    ``totalBreaches`` y ``mostConflictiveMetric`` siguen mirando el parque
+    entero. Tras cargar, ``period`` queda como ``requested_duration``.
+    """
+    limit = fields.Integer(load_default=10, validate=validate.Range(min=1, max=100))
+    period = _build_period_field()
+
+    @post_load
+    def parse_query(self, data, **kwargs):
+        """Convierte ``period`` en ``timedelta``."""
+        data["requested_duration"] = _parse_period(data.pop("period"))
+        return data
+
+
+class BreachRankingEntrySchema(Schema):
+    """Un activo en el ranking de incumplimientos de umbral.
+
+    ``breachCount`` son las veces que el activo cruzó alguno de sus umbrales
+    dentro del periodo. ``currentBreachStreak`` es otra cosa y por eso viaja
+    aparte: cuántos latidos consecutivos lleva en rojo **ahora mismo**, sumados
+    sobre todas sus métricas. Un activo puede tener un ``breachCount`` alto con
+    la racha a cero (cruzó muchas veces y se recuperó) o al revés.
+    """
+    assetId = fields.Integer()
+    hostname = fields.String()
+    breachCount = fields.Integer()
+    currentBreachStreak = fields.Integer()
+
+
+class ConflictiveMetricSchema(Schema):
+    """La métrica que más incumplimientos acumuló en el parque durante el periodo.
+
+    ``metric`` es el nombre tal como lo guarda la anomalía que lo disparó
+    (``cpu.usagePct``, ``memory.usagePct``, ``disk./var``…), que identifica la
+    entidad concreta y no solo la familia de la métrica.
+    """
+    metric = fields.String()
+    breachCount = fields.Integer()
+
+
+class BreachRankingResponseSchema(Schema):
+    """Los activos del usuario ordenados por incumplimientos de umbral.
+
+    Cada incumplimiento es una anomalía abierta por el detector dentro del
+    periodo, contando también las que ya se resolvieron: ocurrieron igual, y
+    descontarlas haría encoger el recuento del periodo según los activos se
+    recuperan.
+
+    A diferencia del ranking por métrica, aquí entran **todos** los activos del
+    usuario, incluidos los de cero incumplimientos: cero es un dato conocido
+    ("no cruzó ningún umbral"), no una ausencia de dato. ``mostConflictiveMetric``
+    es nulo cuando no hubo ninguna apertura con métrica en el periodo.
+    """
+    assetCount = fields.Integer()
+    totalBreaches = fields.Integer()
+    assets = fields.List(fields.Nested(BreachRankingEntrySchema))
+    mostConflictiveMetric = fields.Nested(ConflictiveMetricSchema, allow_none=True)
+    periodCoveredFrom = UTCDateTime()
+    periodCoveredTo = UTCDateTime()
+    isPeriodClipped = fields.Boolean()
+
+
 class FleetOverviewResponseSchema(Schema):
     """Estado actual del parque del usuario: la pantalla de aterrizaje de las estadísticas.
 
@@ -1049,6 +1209,90 @@ class PowerStatsResponseSchema(Schema):
     currency = fields.String()
     classification = fields.String(allow_none=True)
     assets = fields.List(fields.Nested(AssetPowerSchema))
+    periodCoveredFrom = UTCDateTime()
+    periodCoveredTo = UTCDateTime()
+    isPeriodClipped = fields.Boolean()
+
+
+class HourlyPatternQuerySchema(Schema):
+    """Query de ``GET /hygeia/stats/hourly-pattern``.
+
+    ``scope`` decide sobre qué se agrega: ``fleet`` (por defecto) todo el
+    parque del usuario, ``tag`` los activos de ``tagId``, ``asset`` uno solo
+    (``assetId``). El id correspondiente es obligatorio con su ámbito, y los
+    que no corresponden se rechazan en vez de ignorarse: un parámetro que se
+    tragase en silencio haría creer a quien llama que filtró.
+
+    ``agg`` es cómo se resume cada hora: ``avg`` (por defecto) da la carga
+    típica de esa hora, ``max`` el peor momento que se vio en ella. Tras
+    cargar, ``period`` queda como ``requested_duration``.
+    """
+    metric = fields.String(required=True)
+    scope = fields.String(
+        load_default="fleet", validate=validate.OneOf(["fleet", "tag", "asset"]),
+    )
+    tagId = fields.Integer(load_default=None, validate=validate.Range(min=1))
+    assetId = fields.Integer(load_default=None, validate=validate.Range(min=1))
+    agg = fields.String(load_default="avg", validate=validate.OneOf(["min", "avg", "max"]))
+    period = _build_period_field()
+
+    @validates_schema
+    def validate_scope(self, data, **kwargs):
+        """Exige el id del ámbito pedido y rechaza los de los demás."""
+        required_by_scope = {"tag": "tagId", "asset": "assetId"}
+        scope = data.get("scope")
+        for candidate_scope, field_name in required_by_scope.items():
+            if scope == candidate_scope and data.get(field_name) is None:
+                raise ValidationError(
+                    f"{field_name} es obligatorio con scope={candidate_scope}.",
+                    field_name=field_name,
+                )
+            if scope != candidate_scope and data.get(field_name) is not None:
+                raise ValidationError(
+                    f"{field_name} solo se admite con scope={candidate_scope}.",
+                    field_name=field_name,
+                )
+
+    @post_load
+    def parse_query(self, data, **kwargs):
+        """Convierte ``period`` en ``timedelta``."""
+        data["requested_duration"] = _parse_period(data.pop("period"))
+        return data
+
+
+class HourlyPatternEntrySchema(Schema):
+    """Una hora del día dentro del patrón horario.
+
+    ``hour`` va de 0 a 23 en el reloj del servidor. ``value`` es nulo, con
+    ``sampleCount`` a ``0``, en una hora sin ningún heartbeat en todo el
+    periodo: es un hueco, no un cero, y pintarlo como cero convertiría un
+    parque apagado de noche en un parque ocioso.
+    """
+    hour = fields.Integer()
+    value = fields.Float(allow_none=True)
+    sampleCount = fields.Integer()
+
+
+class HourlyPatternResponseSchema(Schema):
+    """Reparto de una métrica por hora del día sobre un activo, una etiqueta o el parque.
+
+    ``hours`` trae siempre las 24 horas en orden, de la 0 a la 23, para que
+    quien pinta el heatmap no tenga que rellenar los huecos. ``peakHour`` es
+    la hora de mayor valor, y es nula si ninguna tuvo muestras. ``tag`` solo
+    viene informado con ``scope=tag``.
+
+    Las horas son las del reloj del **servidor** (``receivedAt``): el del
+    agente puede estar mal puesto o en otra zona, y mezclar husos daría un
+    patrón que no es el de ninguna máquina.
+    """
+    metric = fields.String()
+    unit = fields.String()
+    agg = fields.String()
+    scope = fields.String()
+    tag = fields.Dict(allow_none=True)
+    assetCount = fields.Integer()
+    hours = fields.List(fields.Nested(HourlyPatternEntrySchema))
+    peakHour = fields.Integer(allow_none=True)
     periodCoveredFrom = UTCDateTime()
     periodCoveredTo = UTCDateTime()
     isPeriodClipped = fields.Boolean()

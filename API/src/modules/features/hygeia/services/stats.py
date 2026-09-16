@@ -469,6 +469,345 @@ def summarize_values(samples: Sequence[Tuple[datetime, Optional[float]]]) -> Sta
     )
 
 
+class LinearTrend(NamedTuple):
+    """Resultado de :func:`fit_linear_trend`: la recta que mejor describe una serie.
+
+    Los tres valores del ajuste son ``None`` a la vez cuando no hay recta que
+    ajustar (menos de dos muestras, o todas en el mismo instante): sin
+    variación en el eje del tiempo no hay pendiente, y ``0.0`` diría "esto no
+    crece", que es una afirmación distinta de "no se sabe".
+
+    Attributes:
+        slope_per_day: Cuánto cambia la métrica por día, en sus propias
+            unidades (para un porcentaje de disco, puntos porcentuales al
+            día). Positiva si crece, negativa si decrece.
+        intercept: Valor que predice la recta en el instante de la primera
+            muestra. Es el origen que, junto a la pendiente, permite evaluar
+            la recta en cualquier momento.
+        r_squared: Coeficiente de determinación en ``[0, 1]``: qué parte de la
+            variación de la serie explica la recta. Cerca de ``1`` la serie es
+            casi una línea; cerca de ``0`` la recta no describe nada y su
+            pendiente no debería usarse para predecir. Una serie perfectamente
+            plana da ``1.0``: la recta la explica entera, aunque no vaya a
+            ninguna parte.
+        first_instant: Instante de la primera muestra, el origen del eje.
+            ``None`` cuando no hubo ajuste.
+        sample_count: Muestras con dato que entraron en el ajuste; nunca es
+            negativo.
+    """
+    slope_per_day: Optional[float]
+    intercept: Optional[float]
+    r_squared: Optional[float]
+    first_instant: Optional[datetime]
+    sample_count: int
+
+
+#: Ajuste de una serie que no da para una recta. Único e inmutable, como el
+#: resumen vacío.
+_EMPTY_TREND = LinearTrend(
+    slope_per_day=None, intercept=None, r_squared=None, first_instant=None, sample_count=0,
+)
+
+#: Segundos en un día, para pasar el eje del tiempo a días. La pendiente se
+#: expresa por día y no por segundo porque es la unidad en la que se lee la
+#: respuesta ("sube dos puntos al día"), no una conversión de presentación.
+_SECONDS_PER_DAY = 86400.0
+
+#: La serie no da para ajustar una recta: una sola muestra, o todas en el
+#: mismo instante.
+INSUFFICIENT_SAMPLES = "insufficient_samples"
+
+#: Hay recta, pero no sostiene una predicción: la pendiente es plana o
+#: negativa, o el ajuste es demasiado malo para creerse su dirección.
+INSUFFICIENT_TREND = "insufficient_trend"
+
+#: El valor ya está en el techo o por encima; no queda nada que estimar.
+ALREADY_FULL = "already_full"
+
+
+class FullnessForecast(NamedTuple):
+    """Resultado de :func:`estimate_days_until_full`: cuánto queda para llenarse.
+
+    Attributes:
+        days_until_full: Días que faltan para alcanzar el techo, según la
+            recta ajustada. ``None`` cuando la estimación no es defendible, y
+            entonces ``reason`` dice por qué. ``0.0`` cuando el valor actual
+            ya está en el techo o por encima.
+        reason: Por qué no hay cifra, o por qué la que hay es la que es:
+            :data:`INSUFFICIENT_SAMPLES`, :data:`INSUFFICIENT_TREND` o
+            :data:`ALREADY_FULL`. ``None`` cuando la estimación es normal.
+    """
+    days_until_full: Optional[float]
+    reason: Optional[str]
+
+
+def fit_linear_trend(samples: Sequence[Tuple[datetime, Optional[float]]]) -> LinearTrend:
+    """
+    Ajusta por mínimos cuadrados la recta que mejor describe una serie.
+
+    Es la cuenta de toda la vida —la recta que minimiza la suma de los
+    cuadrados de las distancias verticales a los puntos— implementada aquí en
+    vez de con NumPy o SciPy, porque el proyecto no depende de ninguno de los
+    dos y esta es la única cuenta que lo necesitaría; el mismo criterio que ya
+    se sigue con el percentil.
+
+    El eje del tiempo se mide en **días desde la primera muestra**, así que la
+    pendiente sale directamente en unidades por día, que es como se lee.
+
+    Junto a la pendiente se devuelve el R², y no es un adorno: una pendiente
+    sola no dice si la serie de verdad sube o si se está trazando una recta a
+    través de una nube de puntos. Quien consume este resultado necesita los
+    dos para decidir si la predicción se sostiene.
+
+    Las muestras con valor ``None`` se descartan, como en el resto del módulo:
+    una métrica que el agente no reportó es ausencia de dato, no un cero.
+
+    Args:
+        samples: Pares ``(instante, valor)`` en cualquier orden. El instante
+            es ``received_at``, el mismo eje que el resto de las series.
+
+    Returns:
+        LinearTrend: La recta ajustada. Con menos de dos muestras con dato, o
+            con todas en el mismo instante, los valores del ajuste son
+            ``None`` y ``sample_count`` refleja las muestras que había.
+    """
+    observed = sorted(
+        ((instant, value) for instant, value in samples if value is not None),
+        key=lambda sample: sample[0],
+    )
+    if len(observed) < 2:
+        return _EMPTY_TREND._replace(sample_count=len(observed))
+
+    first_instant = observed[0][0]
+    elapsed_days = [
+        (instant - first_instant).total_seconds() / _SECONDS_PER_DAY for instant, _ in observed
+    ]
+    values = [value for _, value in observed]
+    sample_count = len(observed)
+
+    mean_days = math.fsum(elapsed_days) / sample_count
+    mean_value = math.fsum(values) / sample_count
+    days_variance = math.fsum((day - mean_days) ** 2 for day in elapsed_days)
+    if days_variance == 0:
+        # Todas las muestras cayeron en el mismo instante: no hay eje sobre el
+        # que medir una pendiente.
+        return _EMPTY_TREND._replace(sample_count=sample_count)
+
+    covariance = math.fsum(
+        (day - mean_days) * (value - mean_value)
+        for day, value in zip(elapsed_days, values)
+    )
+    slope_per_day = covariance / days_variance
+    intercept = mean_value - slope_per_day * mean_days
+
+    value_variance = math.fsum((value - mean_value) ** 2 for value in values)
+    # Una serie perfectamente plana no tiene variación que explicar, y la recta
+    # (también plana) la reproduce exactamente: su ajuste es perfecto.
+    residual_variance = math.fsum(
+        (value - (intercept + slope_per_day * day)) ** 2
+        for day, value in zip(elapsed_days, values)
+    )
+    r_squared = 1.0 if value_variance == 0 else 1 - residual_variance / value_variance
+
+    return LinearTrend(
+        slope_per_day=slope_per_day,
+        intercept=intercept,
+        r_squared=r_squared,
+        first_instant=first_instant,
+        sample_count=sample_count,
+    )
+
+
+def estimate_days_until_full(
+    trend: LinearTrend, current_value: Optional[float], ceiling: float,
+    minimum_r_squared: float, minimum_slope_per_day: float,
+) -> FullnessForecast:
+    """
+    Estima cuántos días faltan para que una métrica creciente alcance su techo.
+
+    Una cifra confiada sobre poco dato es peor que ninguna cifra: "tu disco se
+    llena en cuatro días" invita a actuar, y si sale de una pendiente trazada
+    sobre ruido, invita a actuar sobre nada. Por eso esta función se niega a
+    estimar en vez de devolver un número flojo, y dice por qué se niega.
+
+    Se estima solo cuando se cumplen las tres condiciones: hay recta, la recta
+    sube de verdad (pendiente por encima de ``minimum_slope_per_day``, no solo
+    positiva) y la recta describe la serie (R² por encima de
+    ``minimum_r_squared``). Un disco que oscila entre el 60 y el 62 % sin ir a
+    ninguna parte falla la segunda condición; uno que sube a saltos
+    impredecibles falla la tercera.
+
+    La cuenta parte del **valor actual**, no del que la recta predice para hoy:
+    lo que le queda a un disco se mide desde donde está, y la recta solo aporta
+    a qué ritmo se mueve.
+
+    Args:
+        trend: Recta ya ajustada sobre la serie (:func:`fit_linear_trend`).
+        current_value: Valor más reciente de la métrica, o ``None`` si la serie
+            no tiene ninguna muestra con dato.
+        ceiling: Techo que se quiere alcanzar, en las unidades de la métrica
+            (``100.0`` para un porcentaje de ocupación).
+        minimum_r_squared: R² mínimo para creerse la dirección de la recta, en
+            el rango ``[0, 1]``.
+        minimum_slope_per_day: Pendiente mínima, en unidades por día, para
+            considerar que la métrica crece de verdad y no oscila.
+
+    Returns:
+        FullnessForecast: Los días que faltan y, si no hay cifra, la razón:
+            :data:`INSUFFICIENT_SAMPLES` si no hubo recta que ajustar,
+            :data:`INSUFFICIENT_TREND` si la recta no sostiene una predicción,
+            o :data:`ALREADY_FULL` (con ``0.0`` días) si el valor actual ya
+            está en el techo.
+    """
+    if trend.slope_per_day is None or current_value is None:
+        return FullnessForecast(days_until_full=None, reason=INSUFFICIENT_SAMPLES)
+    if current_value >= ceiling:
+        return FullnessForecast(days_until_full=0.0, reason=ALREADY_FULL)
+    if trend.slope_per_day < minimum_slope_per_day or trend.r_squared < minimum_r_squared:
+        return FullnessForecast(days_until_full=None, reason=INSUFFICIENT_TREND)
+
+    return FullnessForecast(
+        days_until_full=(ceiling - current_value) / trend.slope_per_day, reason=None,
+    )
+
+
+class PeakPairing(NamedTuple):
+    """Cómo de cerca cayó el pico de una métrica respecto al de la de referencia.
+
+    Attributes:
+        metric: Nombre público de la métrica comparada (``netRxBps``…).
+        peak_instant: Instante de su máximo en el periodo, o ``None`` si no
+            tuvo ninguna muestra.
+        separation_seconds: Segundos entre los dos picos, siempre positivo (es
+            una distancia, no un orden). ``None`` si a alguno de los dos le
+            falta el pico.
+        is_coincident: Si los dos picos caen dentro de la ventana de
+            tolerancia. ``False`` también cuando falta alguno: sin pico no hay
+            coincidencia que afirmar.
+    """
+    metric: str
+    peak_instant: Optional[datetime]
+    separation_seconds: Optional[float]
+    is_coincident: bool
+
+
+class PeakCoincidence(NamedTuple):
+    """Resultado de :func:`detect_peak_coincidence`.
+
+    Attributes:
+        reference_metric: Métrica contra la que se comparan las demás.
+        reference_instant: Instante de su máximo, o ``None`` si no tuvo
+            muestras en el periodo.
+        tolerance_seconds: Ventana dentro de la cual dos picos se consideran
+            simultáneos.
+        pairings: Una :class:`PeakPairing` por métrica comparada, en el orden
+            en que se pidieron.
+        is_any_coincident: Si al menos una de las métricas comparadas hizo pico
+            junto al de referencia. Es la señal que se mira de un vistazo.
+        reason: Por qué no hay señal que dar: :data:`METRICS_NOT_COMPARED` o
+            :data:`NO_PEAK`. ``None`` cuando la comparación se pudo hacer, haya
+            salido coincidencia o no.
+    """
+    reference_metric: str
+    reference_instant: Optional[datetime]
+    tolerance_seconds: int
+    pairings: Tuple[PeakPairing, ...]
+    is_any_coincident: bool
+    reason: Optional[str]
+
+
+#: No se resumió la métrica de referencia, o ninguna con la que compararla, así
+#: que no había nada que cruzar.
+METRICS_NOT_COMPARED = "metrics_not_compared"
+
+#: La métrica de referencia no tuvo ninguna muestra en el periodo, así que no
+#: tiene pico contra el que medir.
+NO_PEAK = "no_peak"
+
+
+def detect_peak_coincidence(
+    summaries_by_metric: Mapping[str, StatSummary], reference_metric: str,
+    counterpart_metrics: Sequence[str], tolerance_seconds: int,
+) -> PeakCoincidence:
+    """
+    Comprueba si los máximos de varias métricas de un activo cayeron a la vez.
+
+    Responde a una pregunta modesta a propósito: ¿el momento en que este
+    equipo tuvo su pico de CPU es más o menos el mismo en que tuvo su pico de
+    red? Si lo es, puede haber algo que relacione las dos cosas —un proceso
+    que satura la CPU procesando tráfico entrante, por ejemplo— y merece la
+    pena mirarlas juntas.
+
+    **No es una correlación estadística ni pretende serlo.** No se calcula
+    ningún coeficiente ni se comparan las series completas: se miran dos
+    instantes, los de los máximos que el resumen del periodo ya había
+    localizado, y se mide cuánto distan. Es una señal para llamar la atención,
+    no una prueba de causalidad, y por eso la respuesta publica siempre los dos
+    instantes y su separación: quien la lee juzga por sí mismo en vez de
+    fiarse de un booleano.
+
+    Cuanto más largo el periodo, menos significa una coincidencia: en treinta
+    días, dos picos independientes tienen más ocasiones de rozarse por
+    casualidad que en una hora. La cifra de separación es lo que permite
+    ponderarlo.
+
+    Args:
+        summaries_by_metric: Resúmenes ya calculados, indexados por nombre
+            público de métrica. Solo se miran los ``timestamp_of_maximum``.
+        reference_metric: Métrica contra la que se comparan las demás.
+        counterpart_metrics: Métricas que se comparan con ella. Las que no
+            estén en ``summaries_by_metric`` se ignoran.
+        tolerance_seconds: Cuánto pueden distar dos picos para considerarlos
+            simultáneos; positivo.
+
+    Returns:
+        PeakCoincidence: La señal, con el detalle de cada pareja. Si no se
+            resumió la métrica de referencia o ninguna con la que compararla,
+            ``reason`` es :data:`METRICS_NOT_COMPARED` y no hay parejas; si la
+            de referencia no tuvo pico, :data:`NO_PEAK`.
+    """
+    comparable_metrics = [
+        metric for metric in counterpart_metrics if metric in summaries_by_metric
+    ]
+    if reference_metric not in summaries_by_metric or not comparable_metrics:
+        return PeakCoincidence(
+            reference_metric=reference_metric, reference_instant=None,
+            tolerance_seconds=tolerance_seconds, pairings=(), is_any_coincident=False,
+            reason=METRICS_NOT_COMPARED,
+        )
+
+    reference_instant = summaries_by_metric[reference_metric].timestamp_of_maximum
+    if reference_instant is None:
+        return PeakCoincidence(
+            reference_metric=reference_metric, reference_instant=None,
+            tolerance_seconds=tolerance_seconds, pairings=(), is_any_coincident=False,
+            reason=NO_PEAK,
+        )
+
+    pairings = []
+    for metric in comparable_metrics:
+        peak_instant = summaries_by_metric[metric].timestamp_of_maximum
+        separation = (
+            None if peak_instant is None
+            else abs((peak_instant - reference_instant).total_seconds())
+        )
+        pairings.append(PeakPairing(
+            metric=metric,
+            peak_instant=peak_instant,
+            separation_seconds=separation,
+            is_coincident=separation is not None and separation <= tolerance_seconds,
+        ))
+
+    return PeakCoincidence(
+        reference_metric=reference_metric,
+        reference_instant=reference_instant,
+        tolerance_seconds=tolerance_seconds,
+        pairings=tuple(pairings),
+        is_any_coincident=any(pairing.is_coincident for pairing in pairings),
+        reason=None,
+    )
+
+
 def summarize_series_by_asset(
     series_by_asset: Mapping[AssetKey, Sequence[Tuple[datetime, Optional[float]]]],
 ) -> Dict[AssetKey, StatSummary]:

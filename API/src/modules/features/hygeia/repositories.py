@@ -13,7 +13,7 @@ import math
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Literal, Mapping, Optional, Tuple
 
-from sqlalchemy import and_, func, update
+from sqlalchemy import Integer, and_, cast, func, update
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from src.modules.infrastructure import BaseRepository
@@ -51,6 +51,27 @@ def _bucket_id_expression(bucket_seconds: int):
     return func.floor(
         func.extract("epoch", AssetSnapshot.received_at) / bucket_seconds
     ).label("bucket_id")
+
+
+def _hour_of_day_expression():
+    """Hora del día (0-23) de cada snapshot, según ``received_at``.
+
+    Se agrupa por el reloj del **servidor** y no por ``collected_at``, que es
+    el del agente: el reloj de un host puede ir mal puesto o en otra zona, y
+    un patrón horario construido sobre relojes que no coinciden mezclaría las
+    nueve de la mañana de una máquina con las tres de la madrugada de otra.
+
+    Es portable entre Postgres y el SQLite de los tests: en SQLite el
+    ``extract`` se compila a ``strftime('%H')``, que devuelve la hora como
+    texto, de ahí el ``cast`` explícito a entero — sin él, el orden de las
+    horas sería alfabético y la 10 iría antes que la 2.
+
+    Returns:
+        La expresión SQL etiquetada como ``hour_of_day``.
+    """
+    return cast(
+        func.extract("hour", AssetSnapshot.received_at), Integer,
+    ).label("hour_of_day")
 
 
 def _bucket_start(bucket_id, bucket_seconds: int) -> datetime:
@@ -594,6 +615,68 @@ class AssetSnapshotRepository(BaseRepository[AssetSnapshot]):
         }
         return {asset_id: aggregates_found.get(asset_id, (None, None, 0)) for asset_id in asset_ids}
 
+    def get_hour_of_day_aggregates(
+        self, asset_ids: List[int], column: InstrumentedAttribute,
+        since: datetime, until: datetime, aggregation: BucketAggregation = "avg",
+    ) -> Dict[int, Tuple[Optional[float], int]]:
+        """Agregado de una métrica por hora del día, sobre un conjunto de activos.
+
+        Es el camino del patrón horario: en vez de traer los heartbeats de la
+        ventana y agruparlos en Python —que a un latido cada 15 s son unos
+        170 000 por activo y por mes—, se agrupa en la base de datos por la
+        hora del reloj del servidor y vuelven como mucho 24 filas, sea cual
+        sea el tamaño del parque o del periodo.
+
+        Los heartbeats de todos los activos pedidos caen en el mismo cubo
+        horario: la pregunta que responde es "¿a qué hora aprieta este
+        conjunto?", no "¿a qué hora aprieta cada máquina?". Los snapshots sin
+        valor para la métrica no cuentan, como en el resto de agregados.
+
+        Args:
+            asset_ids: Activos a consultar; ya filtrados por dueño en el
+                manager. Una lista vacía devuelve un diccionario vacío sin
+                consultar.
+            column: Columna de ``AssetSnapshot`` de la métrica.
+            since: Inicio de la ventana, sobre ``received_at``, inclusivo.
+            until: Fin de la ventana, sobre ``received_at``, inclusivo.
+            aggregation: Cómo se resume cada hora: ``"min"``, ``"avg"`` o
+                ``"max"``. Por defecto ``"avg"``.
+
+        Returns:
+            Dict[int, Tuple[Optional[float], int]]: ``{hora: (valor, muestras)}``
+                con la hora en ``[0, 23]``. Las horas sin ninguna muestra en la
+                ventana **no aparecen**: quien llama decide si eso se pinta
+                como un hueco o como un cero, y desde aquí no se puede saber
+                si el parque estaba tranquilo o simplemente apagado.
+
+        Raises:
+            ValueError: Si ``aggregation`` no es una de las admitidas.
+        """
+        if not asset_ids:
+            return {}
+        aggregate = _resolve_aggregate(_BUCKET_AGGREGATE_FUNCTIONS, aggregation)
+        hour_of_day = _hour_of_day_expression()
+
+        rows = (
+            self._session.query(
+                hour_of_day,
+                aggregate(column).label("value"),
+                func.count(column).label("sample_count"),
+            )
+            .filter(
+                AssetSnapshot.asset_id.in_(asset_ids),
+                AssetSnapshot.received_at >= since,
+                AssetSnapshot.received_at <= until,
+                column.isnot(None),
+            )
+            .group_by(hour_of_day)
+            .order_by(hour_of_day.asc())
+            .all()
+        )
+        return {
+            int(row.hour_of_day): (float(row.value), row.sample_count) for row in rows
+        }
+
     def get_asset_ids_with_estimated_power(
         self, asset_ids: List[int], since: datetime, until: datetime,
     ) -> set[int]:
@@ -994,6 +1077,92 @@ class AnomalyRepository(BaseRepository[Anomaly]):
             .all()
         )
         return {(state, severity): count for state, severity, count in rows}
+
+    def count_opened_by_asset(
+        self, asset_ids: List[int], since: datetime, until: datetime,
+    ) -> Dict[int, int]:
+        """Cuántas anomalías se abrieron en la ventana, por activo.
+
+        Cada apertura de una anomalía es un cruce de umbral sostenido: el
+        detector solo crea la fila cuando la métrica lleva por encima del
+        umbral los latidos que exige ``sustainedHeartbeats``. Contar aperturas
+        dentro de la ventana es, por tanto, contar incumplimientos del periodo,
+        y se resuelve con un ``GROUP BY`` sobre ``opened_at``, que está
+        indexado, sin traer ninguna fila de anomalía a Python.
+
+        Cuentan todas las anomalías abiertas en la ventana sea cual sea su
+        estado actual: una que ya se resolvió ocurrió igualmente, y excluirla
+        haría que el recuento del periodo encogiera con el tiempo según los
+        activos se van recuperando.
+
+        Args:
+            asset_ids: Activos a consultar; ya filtrados por dueño en el
+                manager. Una lista vacía devuelve un diccionario vacío sin
+                consultar.
+            since: Inicio de la ventana, sobre ``opened_at``, inclusivo.
+            until: Fin de la ventana, sobre ``opened_at``, inclusivo.
+
+        Returns:
+            Dict[int, int]: Por cada ``asset_id`` pedido, sus anomalías
+                abiertas en la ventana. Un activo sin ninguna conserva su
+                entrada con un ``0``, para que quien llama pueda distinguir
+                "cero incumplimientos" de "activo que no se consultó".
+        """
+        if not asset_ids:
+            return {}
+        rows = (
+            self._session.query(Anomaly.asset_id, func.count(Anomaly.id).label("breach_count"))
+            .filter(
+                Anomaly.asset_id.in_(asset_ids),
+                Anomaly.opened_at >= since,
+                Anomaly.opened_at <= until,
+            )
+            .group_by(Anomaly.asset_id)
+            .all()
+        )
+        counts_found = {row.asset_id: row.breach_count for row in rows}
+        return {asset_id: counts_found.get(asset_id, 0) for asset_id in asset_ids}
+
+    def count_opened_by_metric(
+        self, asset_ids: List[int], since: datetime, until: datetime,
+    ) -> Dict[str, int]:
+        """Cuántas anomalías se abrieron en la ventana, por métrica, en todo el parque.
+
+        Responde a "¿qué se rompe más en este parque?" sin recorrer el ranking
+        por activo: el mismo recuento de aperturas, agrupado por la métrica que
+        las disparó en vez de por la máquina.
+
+        Las anomalías sin métrica (``host_down``, que no nace de un umbral sino
+        del silencio de un agente) quedan fuera: mezclarlas con los cruces de
+        umbral haría que "la métrica más conflictiva" pudiera no ser una
+        métrica.
+
+        Args:
+            asset_ids: Activos a consultar; ya filtrados por dueño en el
+                manager. Una lista vacía devuelve un diccionario vacío sin
+                consultar.
+            since: Inicio de la ventana, sobre ``opened_at``, inclusivo.
+            until: Fin de la ventana, sobre ``opened_at``, inclusivo.
+
+        Returns:
+            Dict[str, int]: ``{métrica: aperturas}`` con la métrica tal como la
+                guarda ``Anomaly.metric`` (``cpu.usagePct``, ``disk./var``…).
+                Las métricas sin ninguna apertura no aparecen.
+        """
+        if not asset_ids:
+            return {}
+        rows = (
+            self._session.query(Anomaly.metric, func.count(Anomaly.id).label("breach_count"))
+            .filter(
+                Anomaly.asset_id.in_(asset_ids),
+                Anomaly.opened_at >= since,
+                Anomaly.opened_at <= until,
+                Anomaly.metric.isnot(None),
+            )
+            .group_by(Anomaly.metric)
+            .all()
+        )
+        return {row.metric: row.breach_count for row in rows}
 
 
 class HygeiaTagRepository(BaseRepository[HygeiaTag]):

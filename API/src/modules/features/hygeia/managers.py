@@ -52,7 +52,8 @@ from .services import (
     METRIC_REGISTRY, MetricDefinition, MetricUnit, assert_metric_definition,
     build_histogram, build_inventory_report, build_percentile_series, calculate_core_spread,
     check_clock_skew,
-    combine_asset_averages, denormalize, evaluate, extract_entity_series, generate_agent_key,
+    combine_asset_averages, denormalize, detect_peak_coincidence, estimate_days_until_full,
+    evaluate, extract_entity_series, fit_linear_trend, generate_agent_key,
     is_agent_outdated,
     project_month, resolve_stats_window, services_from_inventory, summarize_power_period,
     summarize_values, validate_metrics_are_additive,
@@ -228,6 +229,63 @@ def _resolve_series_assets(
     if missing_asset_ids:
         raise AssetNotFoundError(missing_asset_ids[0])
     return None, assets
+
+
+#: Métrica contra la que se comparan los picos de las demás en el resumen de un
+#: activo. La CPU es la referencia natural: es la que se mira cuando algo va
+#: lento, y la pregunta interesante es qué más estaba pasando en ese momento.
+_PEAK_REFERENCE_METRIC = "cpuPct"
+
+#: Métricas cuyo pico se compara con el de la referencia. El tráfico de red es
+#: la apuesta del roadmap: un proceso que satura la CPU procesando lo que le
+#: entra por la red deja los dos máximos pegados en el tiempo.
+_PEAK_COUNTERPART_METRICS = ("netRxBps", "netTxBps")
+
+#: Techo de un porcentaje de ocupación de disco: el 100 % es estar lleno. Es la
+#: definición de la métrica, no un ajuste, así que no vive en la configuración.
+_DISK_CEILING_PCT = 100.0
+
+#: Horas del día que devuelve siempre el patrón horario, tenga muestras o no.
+_HOURS_OF_DAY = range(24)
+
+
+def _resolve_scope_assets(
+    user_id: int, scope: str, tag_id: Optional[int], asset_id: Optional[int],
+) -> Tuple[Optional[HygeiaTag], list]:
+    """Activos sobre los que se calcula una estadística con ámbito declarado.
+
+    Es la resolución común de ``scope``: un activo suyo, los de una etiqueta
+    visible, o todo su parque. Devuelve siempre una lista de activos, aunque
+    el ámbito sea uno solo, para que quien llama agregue igual en los tres
+    casos.
+
+    Args:
+        user_id: Dueño de los activos.
+        scope: ``"asset"``, ``"tag"`` o ``"fleet"``.
+        tag_id: Etiqueta, obligatoria con ``scope="tag"`` y ``None`` en el
+            resto (lo valida el schema).
+        asset_id: Activo, obligatorio con ``scope="asset"`` y ``None`` en el
+            resto (lo valida el schema).
+
+    Returns:
+        Tuple[Optional[HygeiaTag], list]: La etiqueta (``None`` fuera de
+            ``scope="tag"``) y los activos del ámbito.
+
+    Raises:
+        TagNotFoundError: Con ``scope="tag"``, si la etiqueta no es visible
+            para el usuario.
+        AssetNotFoundError: Con ``scope="asset"``, si el activo no existe o
+            pertenece a otro usuario.
+    """
+    asset_repo = build_repository(MonitoredAssetRepository)
+    if scope == "asset":
+        asset = assert_owned(
+            MonitoredAssetRepository, asset_id, user_id, AssetNotFoundError,
+        )
+        return None, [asset]
+    if scope == "tag":
+        return _assert_visible_tag(user_id, tag_id), asset_repo.get_by_tag(user_id, tag_id)
+    return None, asset_repo.get_by_user(user_id)
 
 
 def _resolve_series_bucket(
@@ -525,6 +583,53 @@ def _rank_assets(entries: list, order: str, limit: int) -> list:
     sign = -1 if order == "desc" else 1
     ordered = sorted(entries, key=lambda entry: (sign * entry["value"], entry["hostname"].lower()))
     return ordered[:limit]
+
+
+def _sort_key_for_breach_ranking(entry: dict) -> tuple:
+    """Clave de orden del ranking de incumplimientos: más incumplimientos primero.
+
+    A igualdad de incumplimientos en el periodo manda la racha viva
+    (``currentBreachStreak``): entre dos activos que cruzaron su umbral las
+    mismas veces, el que sigue cruzándolo ahora mismo es el que pide atención
+    antes. El último desempate es el hostname, para que el orden sea estable
+    entre llamadas.
+
+    Args:
+        entry: Una entrada del ranking, con ``breachCount``,
+            ``currentBreachStreak`` y ``hostname``.
+
+    Returns:
+        tuple: ``(-incumplimientos, -racha, nombre_en_minúsculas)``.
+    """
+    return (
+        -entry["breachCount"], -entry["currentBreachStreak"], entry["hostname"].lower(),
+    )
+
+
+def _total_breach_streak(breach_counters: Optional[dict]) -> int:
+    """Suma la racha viva de cruces de umbral de un activo, sobre todas sus métricas.
+
+    ``MonitoredAsset.breach_counters`` guarda, por regla (``cpu_spike``,
+    ``disk_full:/var``…), cuántos latidos consecutivos lleva esa métrica por
+    encima de su umbral. No es un histórico: el detector lo pone a cero en
+    cuanto la métrica se recupera. Por eso sirve para decir "esto está
+    cruzando el umbral ahora", y no para contar cuántas veces lo cruzó.
+
+    Args:
+        breach_counters: El mapa tal como está persistido, o ``None`` en un
+            activo que todavía no ha sido evaluado nunca. Los valores que no
+            sean enteros (una fila antigua manipulada a mano) se ignoran en
+            vez de reventar la respuesta entera.
+
+    Returns:
+        int: La suma de las rachas de todas las métricas; ``0`` si no hay
+            ninguna.
+    """
+    if not breach_counters:
+        return 0
+    return sum(
+        streak for streak in breach_counters.values() if isinstance(streak, int)
+    )
 
 
 def _sort_key_for_tag_ranking(entry: dict) -> tuple:
@@ -971,6 +1076,10 @@ class HygeiaAssetManager:
 
         return {
             "metrics": summaries_by_metric,
+            "peakCoincidence": detect_peak_coincidence(
+                summaries_by_metric, _PEAK_REFERENCE_METRIC, _PEAK_COUNTERPART_METRICS,
+                CR.hygeia_analysis().peak_coincidence_window_sec,
+            ),
             "periodCoveredFrom": window.since,
             "periodCoveredTo": window.until,
             "isPeriodClipped": window.is_clipped,
@@ -1123,6 +1232,90 @@ class HygeiaAssetManager:
             ),
             "latestPerCorePct": latest_cores,
             "latestAt": latest_at,
+            "periodCoveredFrom": window.since,
+            "periodCoveredTo": window.until,
+            "isPeriodClipped": window.is_clipped,
+        }
+
+    def get_disk_trend(
+        self, asset_id: int, mount: Optional[str], requested_duration: timedelta,
+    ) -> dict:
+        """
+        Ajusta la tendencia del uso de disco de un activo y estima cuándo se llenará.
+
+        Saber que un disco está al 80 % no dice si lleva semanas ahí o si se
+        llena mañana. Aquí se ajusta una recta por mínimos cuadrados sobre la
+        serie del periodo y se proyecta hasta el 100 %.
+
+        La estimación es deliberadamente cobarde: ``daysUntilFull`` solo trae
+        una cifra cuando la recta sube de verdad (por encima de
+        ``minTrendSlopePctPerDay``, no solo con pendiente positiva) y además
+        describe la serie (R² por encima de ``minTrendRSquared``). Si no,
+        viene a ``None`` con ``reason``, porque una fecha sacada de una
+        pendiente trazada sobre ruido invita a actuar sobre nada. Hay como
+        mucho 30 días de histórico y el uso de disco real sube a escalones
+        —una actualización, un log que rota—, así que el caso de "no se
+        puede afirmar" es corriente, no excepcional.
+
+        Sin ``mount`` la tendencia se ajusta sobre la columna ``diskMaxPct``,
+        que es el montaje más lleno de cada latido y cubre la ventana larga de
+        estadísticas. Con ``mount`` se ajusta sobre la serie de ese montaje
+        concreto, que vive en el JSONB de cada latido y por eso se recorta a la
+        ventana más corta de las estadísticas por entidad: un ``/var`` que se
+        llena mientras ``/`` sigue ligero no se ve en la columna.
+
+        Args:
+            asset_id: Activo cuyo disco se analiza.
+            mount: Punto de montaje concreto (``/var``), o ``None`` para el
+                más lleno de cada latido. Un montaje que el activo no reportó
+                en el periodo da una tendencia vacía, no un error.
+            requested_duration: Duración del periodo pedido, antes de recortar;
+                positiva.
+
+        Returns:
+            Diccionario con la forma de ``DiskTrendResponseSchema``: ``mount``
+            (el pedido, o ``None``), ``currentPct``, ``slopePctPerDay``,
+            ``rSquared``, ``sampleCount``, ``daysUntilFull`` (``None`` cuando
+            no es defendible), ``reason`` (por qué, o ``None``) y la ventana
+            cubierta.
+
+        Raises:
+            AssetNotFoundError: Si el activo no existe o pertenece a otro usuario.
+        """
+        assert_owned(MonitoredAssetRepository, asset_id, self.user.id, AssetNotFoundError)
+        snapshot_repo = build_repository(AssetSnapshotRepository)
+
+        if mount is None:
+            window = _resolve_configured_stats_window(requested_duration)
+            samples = snapshot_repo.get_metric_samples_by_asset(
+                [asset_id], AssetSnapshot.disk_max_pct, window.since, window.until,
+            )[asset_id]
+        else:
+            window = _resolve_entity_stats_window(requested_duration)
+            usage_by_mount = extract_entity_series(
+                snapshot_repo.get_metrics_section_samples(
+                    asset_id, "disk", window.since, window.until,
+                ),
+                "mount", "usagePct",
+            )
+            samples = usage_by_mount.get(mount, [])
+
+        trend = fit_linear_trend(samples)
+        summary = summarize_values(samples)
+        analysis = CR.hygeia_analysis()
+        forecast = estimate_days_until_full(
+            trend, summary.current, _DISK_CEILING_PCT,
+            analysis.min_trend_r_squared, analysis.min_trend_slope_pct_per_day,
+        )
+
+        return {
+            "mount": mount,
+            "currentPct": summary.current,
+            "slopePctPerDay": trend.slope_per_day,
+            "rSquared": trend.r_squared,
+            "sampleCount": trend.sample_count,
+            "daysUntilFull": forecast.days_until_full,
+            "reason": forecast.reason,
             "periodCoveredFrom": window.since,
             "periodCoveredTo": window.until,
             "isPeriodClipped": window.is_clipped,
@@ -1723,6 +1916,84 @@ class HygeiaStatsManager:
             "isPeriodClipped": window.is_clipped,
         }
 
+    def get_breach_ranking(self, limit: int, requested_duration: timedelta) -> dict:
+        """
+        Ordena los activos del usuario por cuántas veces cruzaron sus umbrales en el periodo.
+
+        Responde a "¿qué máquina da más guerra?" con lo que el detector ya
+        dejó escrito. Cada anomalía abierta es un cruce de umbral sostenido
+        (``services/detection.py`` solo la crea cuando la métrica lleva por
+        encima del umbral los latidos que pide ``sustainedHeartbeats``), así
+        que el recuento de aperturas del periodo **es** el recuento de
+        incumplimientos. No se recalcula ningún umbral aquí: es exposición de
+        un dato ya persistido.
+
+        Junto al recuento va ``currentBreachStreak``, la suma de
+        ``MonitoredAsset.breach_counters``, que es otra cosa y por eso viaja
+        aparte: cuántos latidos consecutivos lleva el activo en rojo **ahora
+        mismo**. Un activo puede encabezar el ranking del mes con la racha a
+        cero (cruzó muchas veces y se recuperó) o cerrarlo con una racha viva
+        (está rompiendo por primera vez). Los dos datos responden preguntas
+        distintas y ninguno sustituye al otro.
+
+        ``mostConflictiveMetric`` mira el parque entero, no solo los ``limit``
+        activos devueltos: es la métrica con más aperturas acumuladas entre
+        todos los activos del usuario. Las anomalías sin métrica (``host_down``,
+        que nace del silencio de un agente y no de un umbral) cuentan en el
+        recuento por activo —es un incidente del activo— pero no compiten por
+        ser "la métrica más conflictiva", porque no son una métrica.
+
+        Args:
+            limit: Cuántos activos devolver; positivo.
+            requested_duration: Duración del periodo pedido, antes de recortar.
+
+        Returns:
+            Diccionario con la forma de ``BreachRankingResponseSchema``:
+            ``assetCount`` (activos del usuario), ``totalBreaches`` (los del
+            parque entero en la ventana, no solo los de las entradas
+            devueltas), ``assets`` (el ranking), ``mostConflictiveMetric``
+            (``None`` si no hubo ninguna apertura con métrica) y la ventana
+            cubierta.
+        """
+        window = _resolve_configured_stats_window(requested_duration)
+
+        assets = build_repository(MonitoredAssetRepository).get_by_user(self.user.id)
+        asset_ids = [asset.id for asset in assets]
+        anomaly_repo = build_repository(AnomalyRepository)
+        breaches_by_asset = anomaly_repo.count_opened_by_asset(
+            asset_ids, window.since, window.until,
+        )
+        breaches_by_metric = anomaly_repo.count_opened_by_metric(
+            asset_ids, window.since, window.until,
+        )
+
+        entries = [
+            {
+                "assetId": asset.id,
+                "hostname": asset.hostname,
+                "breachCount": breaches_by_asset[asset.id],
+                "currentBreachStreak": _total_breach_streak(asset.breach_counters),
+            }
+            for asset in assets
+        ]
+        entries.sort(key=_sort_key_for_breach_ranking)
+
+        most_conflictive = max(
+            breaches_by_metric.items(), key=lambda item: (item[1], item[0]), default=None,
+        )
+        return {
+            "assetCount": len(assets),
+            "totalBreaches": sum(breaches_by_asset.values()),
+            "assets": entries[:limit],
+            "mostConflictiveMetric": (
+                {"metric": most_conflictive[0], "breachCount": most_conflictive[1]}
+                if most_conflictive is not None else None
+            ),
+            "periodCoveredFrom": window.since,
+            "periodCoveredTo": window.until,
+            "isPeriodClipped": window.is_clipped,
+        }
+
     def get_fullest_mounts(self, limit: int) -> dict:
         """
         Lista los activos del usuario cuyo montaje más lleno está más cerca de llenarse.
@@ -1941,6 +2212,86 @@ class HygeiaStatsManager:
                 [entry["classification"] for entry in with_data],
             ),
             "assets": breakdown,
+            "periodCoveredFrom": window.since,
+            "periodCoveredTo": window.until,
+            "isPeriodClipped": window.is_clipped,
+        }
+
+    def get_hourly_pattern(  # pylint: disable=too-many-arguments
+        self, metric_name: str, *, scope: str, tag_id: Optional[int], asset_id: Optional[int],
+        aggregation: str, requested_duration: timedelta,
+    ) -> dict:
+        """
+        Reparte una métrica por hora del día: a qué horas aprieta un ámbito.
+
+        Responde a "¿siempre a las nueve?" sin exportar la serie cruda y
+        agruparla a mano. Todos los heartbeats del periodo caen en el cubo de
+        su hora (``received_at``, el reloj del servidor) y se resumen con
+        ``aggregation``, así que una ventana de 30 días de todo un parque
+        vuelve como 24 cifras en una sola consulta.
+
+        La hora es la del **servidor**, no la del agente: el reloj de un host
+        puede ir mal puesto o en otra zona horaria, y mezclarlos daría un
+        patrón que no es el de nadie. Quien pinte el resultado sabe en qué
+        huso está la API y puede desplazarlo.
+
+        Las 24 horas salen siempre, también las que no tuvieron ningún
+        heartbeat: su valor es ``None`` y su ``sampleCount`` ``0``, nunca un
+        cero que se confundiría con "a esa hora el parque estaba a cero". Un
+        parque que se apaga de noche tiene que verse como un hueco, no como un
+        valle.
+
+        Args:
+            metric_name: Nombre público de la métrica (``cpuPct``…).
+            scope: ``"asset"``, ``"tag"`` o ``"fleet"``.
+            tag_id: Etiqueta, con ``scope="tag"``. ``None`` en el resto.
+            asset_id: Activo, con ``scope="asset"``. ``None`` en el resto.
+            aggregation: ``"min"``, ``"avg"`` o ``"max"``, cómo se resume cada
+                hora.
+            requested_duration: Duración del periodo pedido, antes de recortar.
+
+        Returns:
+            Diccionario con la forma de ``HourlyPatternResponseSchema``: la
+            métrica y su unidad, ``agg``, el ámbito (``scope``, ``tag`` y
+            ``assetCount``), ``hours`` (24 entradas, de la 0 a la 23),
+            ``peakHour`` (la de mayor valor, ``None`` si ninguna tuvo
+            muestras) y la ventana cubierta.
+
+        Raises:
+            UnknownMetricError: Si la métrica no está en el registro.
+            TagNotFoundError: Si la etiqueta no es visible para el usuario.
+            AssetNotFoundError: Si el activo no existe o no es suyo.
+        """
+        definition = assert_metric_definition(metric_name)
+        tag, assets = _resolve_scope_assets(self.user.id, scope, tag_id, asset_id)
+        window = _resolve_configured_stats_window(requested_duration)
+
+        aggregates_by_hour = build_repository(AssetSnapshotRepository).get_hour_of_day_aggregates(
+            [asset.id for asset in assets], definition.column,
+            window.since, window.until, aggregation,
+        )
+        hours = [
+            {
+                "hour": hour,
+                "value": aggregates_by_hour.get(hour, (None, 0))[0],
+                "sampleCount": aggregates_by_hour.get(hour, (None, 0))[1],
+            }
+            for hour in _HOURS_OF_DAY
+        ]
+        peak = max(
+            (entry for entry in hours if entry["value"] is not None),
+            key=lambda entry: entry["value"], default=None,
+        )
+
+        return {
+            "metric": definition.name,
+            "unit": definition.unit,
+            "agg": aggregation,
+            "scope": scope,
+            "tag": None if tag is None else tag.to_dict(),
+            "assetCount": len(assets),
+            "hours": hours,
+            "peakHour": None if peak is None else peak["hour"],
             "periodCoveredFrom": window.since,
             "periodCoveredTo": window.until,
             "isPeriodClipped": window.is_clipped,

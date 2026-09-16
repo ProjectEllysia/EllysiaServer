@@ -54,13 +54,19 @@ from .schemas import (
     AssetStatsSummaryResponseSchema,
     AssetTagsRequestSchema,
     AssetUpdateRequestSchema,
+    BreachRankingQuerySchema,
+    BreachRankingResponseSchema,
     CpuCoreStatsQuerySchema,
     CpuCoreStatsResponseSchema,
     DiskStatsQuerySchema,
     DiskStatsResponseSchema,
+    DiskTrendQuerySchema,
+    DiskTrendResponseSchema,
     FleetDiskQuerySchema,
     FleetDiskResponseSchema,
     FleetOverviewResponseSchema,
+    HourlyPatternQuerySchema,
+    HourlyPatternResponseSchema,
     IngestRequestSchema,
     InventoryReportRequestSchema,
     IngestResponseSchema,
@@ -245,6 +251,25 @@ def get_asset_disk_stats(args, asset_id):
     )
 
 
+@hygeia_blp.get("/assets/<int:asset_id>/stats/disk-trend")
+@hygeia_blp.arguments(DiskTrendQuerySchema, location="query")
+@hygeia_blp.response(200, DiskTrendResponseSchema, description="Tendencia de uso de disco")
+@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@hygeia_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@hygeia_blp.alt_response(404, schema=ErrorSchema, description="Asset not found")
+@limiter.limit("600 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
+@handle_exceptions(default_exception=AssetNotFoundError, logger=logger)
+def get_asset_disk_trend(args, asset_id):
+    """Obtener la tendencia de uso de disco de un activo y cuándo se llenaría"""
+    user = get_current_user()
+    manager = HygeiaAssetManager(user)
+    return manager.get_disk_trend(
+        asset_id, mount=args["mount"], requested_duration=args["requested_duration"],
+    )
+
+
 @hygeia_blp.get("/assets/<int:asset_id>/stats/network")
 @hygeia_blp.arguments(NetworkStatsQuerySchema, location="query")
 @hygeia_blp.response(200, NetworkStatsResponseSchema, description="Tráfico por interfaz")
@@ -364,6 +389,26 @@ def get_fleet_fullest_mounts(args):
     return manager.get_fullest_mounts(limit=args["limit"])
 
 
+@hygeia_blp.get("/stats/breach-ranking")
+@hygeia_blp.arguments(BreachRankingQuerySchema, location="query")
+@hygeia_blp.response(
+    200, BreachRankingResponseSchema, description="Ranking de incumplimientos de umbral",
+)
+@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@hygeia_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@limiter.limit("600 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
+@handle_exceptions(default_exception=HygeiaError, logger=logger)
+def get_breach_ranking(args):
+    """Ordenar los activos del usuario por cuántas veces cruzaron sus umbrales"""
+    user = get_current_user()
+    manager = HygeiaStatsManager(user)
+    return manager.get_breach_ranking(
+        limit=args["limit"], requested_duration=args["requested_duration"],
+    )
+
+
 @hygeia_blp.get("/stats/overview")
 @hygeia_blp.response(200, FleetOverviewResponseSchema, description="Panorama del parque")
 @hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
@@ -418,6 +463,31 @@ def get_power_stats(args):
     return manager.get_power_stats(
         scope=args["scope"],
         tag_id=args["tagId"],
+        requested_duration=args["requested_duration"],
+    )
+
+
+@hygeia_blp.get("/stats/hourly-pattern")
+@hygeia_blp.arguments(HourlyPatternQuerySchema, location="query")
+@hygeia_blp.response(200, HourlyPatternResponseSchema, description="Patrón horario de carga")
+@hygeia_blp.alt_response(400, schema=ErrorSchema, description="Unknown metric")
+@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@hygeia_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@hygeia_blp.alt_response(404, schema=ErrorSchema, description="Tag or asset not found")
+@limiter.limit("600 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
+@handle_exceptions(default_exception=HygeiaError, logger=logger)
+def get_hourly_pattern(args):
+    """Repartir una métrica por hora del día sobre un activo, una etiqueta o el parque"""
+    user = get_current_user()
+    manager = HygeiaStatsManager(user)
+    return manager.get_hourly_pattern(
+        args["metric"],
+        scope=args["scope"],
+        tag_id=args["tagId"],
+        asset_id=args["assetId"],
+        aggregation=args["agg"],
         requested_duration=args["requested_duration"],
     )
 
