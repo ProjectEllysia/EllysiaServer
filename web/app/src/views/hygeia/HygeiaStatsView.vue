@@ -278,6 +278,21 @@
             Ningún activo tiene datos de esta métrica en el periodo elegido.
           </p>
         </template>
+
+        <!-- Siempre ocupa su línea, aunque no se vea mientras carga: si
+             apareciera y desapareciera, el panel cambiaría de alto. -->
+        <p
+          v-if="isSelectionComplete" class="freshness"
+          :class="{ 'freshness--pending': !scopeComputedAt || store.state.scopeLoading }"
+        >
+          Actualizado {{ describeAge(scopeComputedAt) }}
+          <span aria-hidden="true">·</span>
+          <button
+            type="button" class="freshness-btn"
+            :disabled="!scopeComputedAt || store.state.scopeLoading"
+            @click="refreshVisibleTabNow"
+          >Actualizar</button>
+        </p>
       </section>
 
       <!-- Gráfica comparativa: varias métricas superpuestas sobre el mismo eje
@@ -384,6 +399,18 @@
             Cada línea tiene su propia escala: compara cuándo sube o baja cada métrica, no su
             altura. Un punto cada {{ fmtDuration(bucketMs) }}.
           </p>
+          <p
+            class="freshness"
+            :class="{ 'freshness--pending': !store.state.seriesComputedAt || store.state.seriesLoading }"
+          >
+            Actualizado {{ describeAge(store.state.seriesComputedAt) }}
+            <span aria-hidden="true">·</span>
+            <button
+              type="button" class="freshness-btn"
+              :disabled="!store.state.seriesComputedAt || store.state.seriesLoading"
+              @click="refreshVisibleTabNow"
+            >Actualizar</button>
+          </p>
         </template>
       </section>
     </main>
@@ -391,7 +418,7 @@
 </template>
 
 <script setup>
-import { computed, h, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, h, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Topbar from '@/components/shared/Topbar.vue'
 import StarBackground from '@/components/shared/StarBackground.vue'
@@ -723,15 +750,66 @@ function refreshVisibleTab() {
   store.fetchComparison(fleetAssetIds.value)
 }
 
+/**
+ * Vuelve a pedir los datos de la pestaña visible saltándose los resultados
+ * que el servidor tenga guardados: es el botón «Actualizar».
+ */
+function refreshVisibleTabNow() {
+  if (activeTab.value === 'resumen') {
+    store.fetchScope({ isRefresh: true })
+    return
+  }
+  if (canCompare.value) store.fetchComparison(fleetAssetIds.value, { isRefresh: true })
+}
+
 // Cualquier cambio del selector o de pestaña vuelve a pedir sin recargar.
 watch([activeTab, scopeSelectionKey, comparisonSelectionKey], refreshVisibleTab)
+
+/* ── Antigüedad de lo que se ve ── */
+
+/**
+ * Hasta cuándo está calculado el resultado de la tabla visible: el servidor
+ * puede devolver uno guardado, y «Actualizado hace…» lo dice.
+ *
+ * @type {import('vue').ComputedRef<string|null>}
+ */
+const scopeComputedAt = computed(() => {
+  const body = store.state.scope === 'asset' ? store.state.summary
+    : store.state.scope === 'tag' ? store.state.tagStats
+      : store.state.ranking
+  return body?.periodCoveredTo ?? null
+})
+
+// Cada cuánto se reescribe «hace X». Medio minuto basta: la frase no baja de
+// minutos más que al principio, y no merece un repintado por segundo.
+const AGE_TICK_MS = 30000
+
+// Instante de referencia de «hace X»; cambiarlo repinta las frases.
+const ageNow = ref(Date.now())
+let ageTimer = null
+
+/**
+ * Antigüedad legible de un instante, recalculada con cada tic de `ageNow`.
+ *
+ * @param {string|null} instant - Instante ISO, o `null` si todavía no hay
+ *   resultado (el pie está entonces oculto).
+ * @returns {string} «ahora mismo», «hace 3 min»… o «nunca» sin instante
+ *   (ver `timeAgo`).
+ */
+function describeAge(instant) {
+  void ageNow.value
+  return timeAgo(instant)
+}
 
 onMounted(() => {
   store.fetchOverview()
   if (!assets.value.length) assetsStore.fetchAssets()
   if (!tags.value.length) tagsStore.fetchTags()
   refreshVisibleTab()
+  ageTimer = setInterval(() => { ageNow.value = Date.now() }, AGE_TICK_MS)
 })
+
+onUnmounted(() => clearInterval(ageTimer))
 </script>
 
 <style scoped>
@@ -896,6 +974,20 @@ onMounted(() => {
 .legend-ghost-text { width: 7rem; }
 
 .compare-note { margin: 0.6rem 0 0; font-size: var(--fs-sm); color: var(--text-muted); line-height: 1.5; }
+
+/* ── Antigüedad y actualización ── */
+.freshness {
+  display: flex; align-items: center; justify-content: flex-end; gap: 0.35rem;
+  margin: 0.7rem 0 0; font-size: var(--fs-sm); color: var(--text-muted);
+}
+.freshness-btn {
+  padding: 0; background: none; border: none;
+  color: var(--accent-bright); font-size: inherit; font-weight: 600; cursor: pointer;
+}
+.freshness-btn:hover { text-decoration: underline; }
+/* Reserva la línea sin enseñarla ni dejarla al alcance del teclado. */
+.freshness--pending { visibility: hidden; }
+.freshness-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
 
 /* ── Carga y llegada de datos ── */
 /* En línea y centrada: así la silueta ocupa el alto de una línea del texto

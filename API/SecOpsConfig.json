@@ -1292,6 +1292,12 @@
         "minTrendSlopePctPerDay": 0.05,
         "peakCoincidenceWindowSec": 300
       },
+      "statsCache": {
+        "isEnabled": true,
+        "shortPeriodTtlSeconds": 120,
+        "mediumPeriodTtlSeconds": 900,
+        "longPeriodTtlSeconds": 3600
+      },
       "limits": {
         "maxBodyBytes": 1048576,
         "maxDecompressedBytes": 4194304,

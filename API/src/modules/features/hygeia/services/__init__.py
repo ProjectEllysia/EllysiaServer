@@ -28,6 +28,7 @@ from .metric_registry import (
 )
 from .reports import build_inventory_report
 from .export import build_csv
+from .stats_cache import invalidate_user_stats, resolve_cached_stats
 from .stats import (
     EnergyCost,
     FullnessForecast,
@@ -57,6 +58,8 @@ from .stats import (
 )
 
 __all__ = [
+    "invalidate_user_stats",
+    "resolve_cached_stats",
     "services_from_inventory",
     "build_inventory_report",
     "agent_key_id_from_request",

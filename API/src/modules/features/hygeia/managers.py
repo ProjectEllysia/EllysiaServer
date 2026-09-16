@@ -56,7 +56,8 @@ from .services import (
     evaluate, extract_entity_series, fit_linear_trend, generate_agent_key,
     is_agent_outdated,
     project_month, resolve_stats_window, services_from_inventory, summarize_power_period,
-    summarize_values, validate_metrics_are_additive,
+    invalidate_user_stats, resolve_cached_stats, summarize_values,
+    validate_metrics_are_additive,
 )
 
 # ---------------------------------------------------------------------------
@@ -704,6 +705,200 @@ def _resolve_host_down_if_open(uow: UnitOfWork, asset_id: int) -> None:
         anomaly_repo.update(open_host_down)
 
 
+def _compute_stats_summary(
+    asset_id: int, definitions: Sequence[MetricDefinition], requested_duration: timedelta,
+) -> dict:
+    """Calcula el resumen estadístico de un activo; cuerpo de ``get_stats_summary``.
+
+    No comprueba permisos ni valida métricas: lo hace el método público antes
+    de llegar aquí, también cuando el resultado sale de la caché.
+
+    Args:
+        asset_id: Activo del usuario cuyas métricas se resumen.
+        definitions: Métricas ya validadas y sin repetir.
+        requested_duration: Duración del periodo pedido, antes de recortar.
+
+    Returns:
+        dict: Diccionario con la forma de ``AssetStatsSummaryResponseSchema``.
+    """
+    window = _resolve_configured_stats_window(requested_duration)
+
+    snapshot_repo = build_repository(AssetSnapshotRepository)
+    summaries_by_metric = {}
+    for definition in definitions:
+        samples_by_asset = snapshot_repo.get_metric_samples_by_asset(
+            [asset_id], definition.column, window.since, window.until,
+        )
+        summaries_by_metric[definition.name] = summarize_values(samples_by_asset[asset_id])
+
+    return {
+        "metrics": summaries_by_metric,
+        "peakCoincidence": detect_peak_coincidence(
+            summaries_by_metric, _PEAK_REFERENCE_METRIC, _PEAK_COUNTERPART_METRICS,
+            CR.hygeia_analysis().peak_coincidence_window_sec,
+        ),
+        "periodCoveredFrom": window.since,
+        "periodCoveredTo": window.until,
+        "isPeriodClipped": window.is_clipped,
+    }
+
+
+def _compute_tag_stats(
+    user_id: int, tag: HygeiaTag, definitions: Sequence[MetricDefinition], aggregation: str,
+    requested_duration: timedelta,
+) -> dict:
+    """Calcula las métricas agregadas de una etiqueta; cuerpo de ``get_tag_stats``.
+
+    No comprueba la visibilidad de la etiqueta ni valida métricas: lo hace el
+    método público antes de llegar aquí.
+
+    Args:
+        user_id: Primary key del usuario; solo cuentan sus activos.
+        tag: Etiqueta ya resuelta como visible para el usuario.
+        definitions: Métricas ya validadas y sin repetir.
+        aggregation: ``"sum"``, ``"avg"`` o ``"max"``, ya validada contra las
+            métricas.
+        requested_duration: Duración del periodo pedido, antes de recortar.
+
+    Returns:
+        dict: Diccionario con la forma de ``TagStatsResponseSchema``.
+    """
+    window = _resolve_configured_stats_window(requested_duration)
+
+    assets = build_repository(MonitoredAssetRepository).get_by_tag(user_id, tag.id)
+    hostnames_by_asset = {asset.id: asset.hostname for asset in assets}
+    snapshot_repo = build_repository(AssetSnapshotRepository)
+    metrics = {
+        definition.name: _render_tag_metric(
+            definition,
+            snapshot_repo.get_metric_aggregates_by_asset(
+                list(hostnames_by_asset), definition.column, window.since, window.until,
+            ),
+            hostnames_by_asset,
+            aggregation,
+        )
+        for definition in definitions
+    }
+
+    return {
+        "tag": tag.to_dict(),
+        "assetCount": len(hostnames_by_asset),
+        "agg": aggregation,
+        "metrics": metrics,
+        "periodCoveredFrom": window.since,
+        "periodCoveredTo": window.until,
+        "isPeriodClipped": window.is_clipped,
+    }
+
+
+def _compute_asset_ranking(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+    user_id: int, definition: MetricDefinition, aggregation: str, order: str, limit: int,
+    requested_duration: timedelta,
+) -> dict:
+    """Calcula el ranking de activos del usuario; cuerpo de ``get_asset_ranking``.
+
+    Args:
+        user_id: Primary key del usuario; solo entran sus activos.
+        definition: Métrica ya validada por la que se ordena.
+        aggregation: ``"avg"`` o ``"max"``: qué valor del periodo de cada
+            activo se compara.
+        order: ``"asc"`` o ``"desc"``.
+        limit: Cuántos activos devolver como mucho.
+        requested_duration: Duración del periodo pedido, antes de recortar.
+
+    Returns:
+        dict: Diccionario con la forma de ``AssetRankingResponseSchema``.
+    """
+    window = _resolve_configured_stats_window(requested_duration)
+
+    assets = build_repository(MonitoredAssetRepository).get_by_user(user_id)
+    snapshot_repo = build_repository(AssetSnapshotRepository)
+    aggregates_by_asset = snapshot_repo.get_metric_aggregates_by_asset(
+        [asset.id for asset in assets], definition.column, window.since, window.until,
+    )
+    entries = []
+    for asset in assets:
+        average, maximum, sample_count = aggregates_by_asset[asset.id]
+        if sample_count:
+            entries.append({
+                "assetId": asset.id,
+                "hostname": asset.hostname,
+                "value": average if aggregation == "avg" else maximum,
+                "sampleCount": sample_count,
+            })
+
+    return {
+        "metric": definition.name,
+        "unit": definition.unit,
+        "agg": aggregation,
+        "order": order,
+        "assetCount": len(assets),
+        "assetsWithData": len(entries),
+        "assets": _rank_assets(entries, order, limit),
+        "periodCoveredFrom": window.since,
+        "periodCoveredTo": window.until,
+        "isPeriodClipped": window.is_clipped,
+    }
+
+
+def _compute_metric_series(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
+    user_id: int, definition: MetricDefinition, tag: Optional[HygeiaTag], assets: list,
+    aggregation: Optional[str], bucket_aggregation: str,
+    requested_bucket_seconds: Optional[int], requested_duration: timedelta,
+    compare_to: Optional[Tuple[str, int]],
+) -> dict:
+    """Calcula la serie temporal de una métrica; cuerpo de ``get_metric_series``.
+
+    No resuelve ni comprueba los activos: llegan ya resueltos y visibles para
+    el usuario.
+
+    Args:
+        user_id: Primary key del usuario; acota la serie de comparación.
+        definition: Métrica ya validada.
+        tag: Etiqueta de la que salen los activos, o ``None`` si se pidieron
+            por lista.
+        assets: Activos ya resueltos de la serie.
+        aggregation: Cómo se combinan los activos (``"sum"``, ``"avg"``,
+            ``"max"``), o ``None`` para una serie por activo.
+        bucket_aggregation: Cómo se resume cada intervalo de la serie.
+        requested_bucket_seconds: Intervalo pedido en segundos, o ``None``
+            para elegirlo según el periodo.
+        requested_duration: Duración del periodo pedido, antes de recortar.
+        compare_to: Alcance con el que comparar, o ``None``.
+
+    Returns:
+        dict: Diccionario con la forma de ``MetricSeriesResponseSchema``.
+    """
+    window = _resolve_configured_stats_window(requested_duration)
+    max_points = CR.hygeia_limits().max_series_points
+    bucket_seconds, is_bucket_widened = _resolve_series_bucket(
+        window, requested_bucket_seconds, max_points,
+    )
+    series_query = _SeriesQuery(
+        definition=definition, bucket_seconds=bucket_seconds, window=window,
+        bucket_aggregation=bucket_aggregation, aggregation=aggregation, max_points=max_points,
+    )
+    snapshot_repo = build_repository(AssetSnapshotRepository)
+    series = _build_series(
+        snapshot_repo, series_query, tag, assets, is_combined=aggregation is not None,
+    )
+    if compare_to is not None:
+        series += _build_comparison_series(user_id, snapshot_repo, series_query, compare_to)
+
+    return {
+        "metric": definition.name,
+        "unit": definition.unit,
+        "bucket": bucket_seconds,
+        "isBucketWidened": is_bucket_widened,
+        "bucketAgg": bucket_aggregation,
+        "agg": aggregation,
+        "series": series,
+        "periodCoveredFrom": window.since,
+        "periodCoveredTo": window.until,
+        "isPeriodClipped": window.is_clipped,
+    }
+
+
 class HygeiaAssetManager:
     """
     Gestiona el alta, consulta, baja y credenciales de los activos
@@ -759,6 +954,9 @@ class HygeiaAssetManager:
         en claro en la respuesta; a partir de este momento es irrecuperable
         — solo persiste su hash Argon2id.
 
+        Deja sin efecto las estadísticas guardadas del usuario: el ranking del
+        parque tiene que contar el activo nuevo.
+
         Args:
             hostname: Nombre del host que reportará el agente.
             os_name: Sistema operativo del host, si se conoce de antemano.
@@ -803,6 +1001,7 @@ class HygeiaAssetManager:
             )
             saved = repo.save(asset)
 
+        invalidate_user_stats(self.user.id)
         return {"asset": saved.to_dict(), "agentKey": full_key}
 
     def list_assets(self) -> list[dict]:
@@ -1021,6 +1220,7 @@ class HygeiaAssetManager:
 
     def get_stats_summary(
         self, asset_id: int, metric_names: Sequence[str], requested_duration: timedelta,
+        is_refresh: bool = False,
     ) -> dict:
         """
         Resume las métricas de un activo del usuario sobre un periodo.
@@ -1049,6 +1249,8 @@ class HygeiaAssetManager:
                 ordenadas alfabéticamente.
             requested_duration: Duración del periodo pedido, antes de recortar;
                 positiva (la valida el schema de la query).
+            is_refresh: Si es ``True`` se recalcula aunque haya un resultado
+                guardado (``services/stats_cache.py``). Por defecto ``False``.
 
         Returns:
             Diccionario con la forma de ``AssetStatsSummaryResponseSchema``:
@@ -1059,31 +1261,26 @@ class HygeiaAssetManager:
             AssetNotFoundError: Si el activo no existe o pertenece a otro usuario.
             UnknownMetricError: Si algún nombre no está en el registro de métricas.
         """
+        # Permisos y validación antes de la caché: un activo borrado da 404
+        # aunque su resumen siga guardado.
         assert_owned(MonitoredAssetRepository, asset_id, self.user.id, AssetNotFoundError)
         definitions = [
             assert_metric_definition(name)
             for name in dict.fromkeys(metric_names or METRIC_REGISTRY)
         ]
-        window = _resolve_configured_stats_window(requested_duration)
 
-        snapshot_repo = build_repository(AssetSnapshotRepository)
-        summaries_by_metric = {}
-        for definition in definitions:
-            samples_by_asset = snapshot_repo.get_metric_samples_by_asset(
-                [asset_id], definition.column, window.since, window.until,
-            )
-            summaries_by_metric[definition.name] = summarize_values(samples_by_asset[asset_id])
-
-        return {
-            "metrics": summaries_by_metric,
-            "peakCoincidence": detect_peak_coincidence(
-                summaries_by_metric, _PEAK_REFERENCE_METRIC, _PEAK_COUNTERPART_METRICS,
-                CR.hygeia_analysis().peak_coincidence_window_sec,
-            ),
-            "periodCoveredFrom": window.since,
-            "periodCoveredTo": window.until,
-            "isPeriodClipped": window.is_clipped,
-        }
+        return resolve_cached_stats(
+            self.user.id,
+            "summary",
+            {
+                "assetId": asset_id,
+                "metrics": sorted(definition.name for definition in definitions),
+                "durationSeconds": requested_duration.total_seconds(),
+            },
+            requested_duration,
+            lambda: _compute_stats_summary(asset_id, definitions, requested_duration),
+            is_refresh=is_refresh,
+        )
 
     def get_disk_stats(
         self, asset_id: int, mount: Optional[str], requested_duration: timedelta,
@@ -1466,6 +1663,13 @@ class HygeiaAssetManager:
         y la operación se puede reintentar, en vez de dejar escaneos
         huérfanos apuntando a un id que ya no existe.
 
+        Deja sin efecto las estadísticas guardadas del usuario, que dejarían de
+        cuadrar con el parque (el activo seguiría en el ranking y en sus
+        etiquetas hasta caducar).
+
+        Args:
+            asset_id: Activo del usuario a dar de baja.
+
         Raises:
             AssetNotFoundError: Si el activo no existe o pertenece a otro usuario.
         """
@@ -1479,6 +1683,8 @@ class HygeiaAssetManager:
                 AssetNotFoundError, uow=uow,
             )
             MonitoredAssetRepository(uow).delete(asset)
+
+        invalidate_user_stats(self.user.id)
 
     def set_persistence(self, asset_id: int, is_persistent: bool) -> dict:
         """
@@ -1636,6 +1842,9 @@ class HygeiaTagManager:
         encargan el ORM (que vacía la tabla de asociación al borrar el padre)
         y el ``ondelete="CASCADE"`` de ``AssetTag``.
 
+        Deja sin efecto las estadísticas guardadas del usuario, entre ellas
+        las de la etiqueta borrada.
+
         Args:
             tag_id: Etiqueta a borrar.
 
@@ -1657,6 +1866,8 @@ class HygeiaTagManager:
 
             tag_repository.delete(tag)
 
+        invalidate_user_stats(self.user.id)
+
     def set_asset_tags(self, asset_id: int, tag_ids: list[int]) -> dict:
         """
         Reemplaza el conjunto de etiquetas de un activo.
@@ -1664,6 +1875,9 @@ class HygeiaTagManager:
         Es un reemplazo y no un añadido: llega la lista definitiva, y lo que
         no aparezca se quita. Así poner y quitar son la misma operación y el
         cliente no tiene que calcular diferencias ni encadenar llamadas.
+
+        Deja sin efecto las estadísticas guardadas del usuario: las de cada
+        etiqueta dependen de qué activos la llevan.
 
         Args:
             asset_id: Activo a etiquetar.
@@ -1698,8 +1912,10 @@ class HygeiaTagManager:
 
             asset.tags = [visible[tag_id] for tag_id in requested_ids]
             MonitoredAssetRepository(uow).update(asset)
+            serialized_asset = asset.to_dict()
 
-            return asset.to_dict()
+        invalidate_user_stats(self.user.id)
+        return serialized_asset
 
 
 class HygeiaStatsManager:
@@ -1719,7 +1935,7 @@ class HygeiaStatsManager:
 
     def get_tag_stats(
         self, tag_id: int, metric_names: Sequence[str], aggregation: str,
-        requested_duration: timedelta,
+        requested_duration: timedelta, is_refresh: bool = False,
     ) -> dict:
         """
         Agrega las métricas de los activos del usuario que llevan una etiqueta.
@@ -1738,6 +1954,8 @@ class HygeiaStatsManager:
             aggregation: ``"sum"``, ``"avg"`` o ``"max"``. ``sum`` solo se
                 admite en métricas aditivas.
             requested_duration: Duración del periodo pedido, antes de recortar.
+            is_refresh: Si es ``True`` se recalcula aunque haya un resultado
+                guardado (``services/stats_cache.py``). Por defecto ``False``.
 
         Returns:
             Diccionario con la forma de ``TagStatsResponseSchema``: ``tag``,
@@ -1759,32 +1977,22 @@ class HygeiaStatsManager:
         ]
         if aggregation == "sum":
             validate_metrics_are_additive(definitions)
-        window = _resolve_configured_stats_window(requested_duration)
 
-        assets = build_repository(MonitoredAssetRepository).get_by_tag(self.user.id, tag_id)
-        hostnames_by_asset = {asset.id: asset.hostname for asset in assets}
-        snapshot_repo = build_repository(AssetSnapshotRepository)
-        metrics = {
-            definition.name: _render_tag_metric(
-                definition,
-                snapshot_repo.get_metric_aggregates_by_asset(
-                    list(hostnames_by_asset), definition.column, window.since, window.until,
-                ),
-                hostnames_by_asset,
-                aggregation,
-            )
-            for definition in definitions
-        }
-
-        return {
-            "tag": tag.to_dict(),
-            "assetCount": len(hostnames_by_asset),
-            "agg": aggregation,
-            "metrics": metrics,
-            "periodCoveredFrom": window.since,
-            "periodCoveredTo": window.until,
-            "isPeriodClipped": window.is_clipped,
-        }
+        return resolve_cached_stats(
+            self.user.id,
+            "tag-stats",
+            {
+                "tagId": tag_id,
+                "metrics": sorted(definition.name for definition in definitions),
+                "aggregation": aggregation,
+                "durationSeconds": requested_duration.total_seconds(),
+            },
+            requested_duration,
+            lambda: _compute_tag_stats(
+                self.user.id, tag, definitions, aggregation, requested_duration,
+            ),
+            is_refresh=is_refresh,
+        )
 
     def get_tag_ranking(
         self, metric_name: str, aggregation: str, requested_duration: timedelta,
@@ -1853,9 +2061,9 @@ class HygeiaStatsManager:
             "isPeriodClipped": window.is_clipped,
         }
 
-    def get_asset_ranking(
+    def get_asset_ranking(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self, metric_name: str, aggregation: str, order: str, limit: int,
-        requested_duration: timedelta,
+        requested_duration: timedelta, is_refresh: bool = False,
     ) -> dict:
         """
         Ordena los activos del usuario por una métrica y devuelve los ``limit`` extremos.
@@ -1885,36 +2093,23 @@ class HygeiaStatsManager:
             UnknownMetricError: Si la métrica no está en el registro.
         """
         definition = assert_metric_definition(metric_name)
-        window = _resolve_configured_stats_window(requested_duration)
 
-        assets = build_repository(MonitoredAssetRepository).get_by_user(self.user.id)
-        snapshot_repo = build_repository(AssetSnapshotRepository)
-        aggregates_by_asset = snapshot_repo.get_metric_aggregates_by_asset(
-            [asset.id for asset in assets], definition.column, window.since, window.until,
+        return resolve_cached_stats(
+            self.user.id,
+            "ranking",
+            {
+                "metric": definition.name,
+                "aggregation": aggregation,
+                "order": order,
+                "limit": limit,
+                "durationSeconds": requested_duration.total_seconds(),
+            },
+            requested_duration,
+            lambda: _compute_asset_ranking(
+                self.user.id, definition, aggregation, order, limit, requested_duration,
+            ),
+            is_refresh=is_refresh,
         )
-        entries = []
-        for asset in assets:
-            average, maximum, sample_count = aggregates_by_asset[asset.id]
-            if sample_count:
-                entries.append({
-                    "assetId": asset.id,
-                    "hostname": asset.hostname,
-                    "value": average if aggregation == "avg" else maximum,
-                    "sampleCount": sample_count,
-                })
-
-        return {
-            "metric": definition.name,
-            "unit": definition.unit,
-            "agg": aggregation,
-            "order": order,
-            "assetCount": len(assets),
-            "assetsWithData": len(entries),
-            "assets": _rank_assets(entries, order, limit),
-            "periodCoveredFrom": window.since,
-            "periodCoveredTo": window.until,
-            "isPeriodClipped": window.is_clipped,
-        }
 
     def get_breach_ranking(self, limit: int, requested_duration: timedelta) -> dict:
         """
@@ -2301,7 +2496,7 @@ class HygeiaStatsManager:
         self, metric_name: str, *, tag_id: Optional[int], asset_ids: Optional[Sequence[int]],
         aggregation: Optional[str], bucket_aggregation: str,
         requested_bucket_seconds: Optional[int], requested_duration: timedelta,
-        compare_to: Optional[Tuple[str, int]] = None,
+        compare_to: Optional[Tuple[str, int]] = None, is_refresh: bool = False,
     ) -> dict:
         """
         Serie temporal por cubos de una métrica sobre varios activos.
@@ -2333,6 +2528,8 @@ class HygeiaStatsManager:
                 o ``("tag", id)``, o ``None``. Su serie va al final de
                 ``series``, marcada con ``isComparison``, y comparte los cubos
                 de la principal. Por defecto ``None``.
+            is_refresh: Si es ``True`` se recalcula aunque haya un resultado
+                guardado (``services/stats_cache.py``). Por defecto ``False``.
 
         Returns:
             Diccionario con la forma de ``MetricSeriesResponseSchema``: la
@@ -2351,36 +2548,26 @@ class HygeiaStatsManager:
             validate_metrics_are_additive([definition])
         tag, assets = _resolve_series_assets(self.user.id, tag_id, asset_ids)
 
-        window = _resolve_configured_stats_window(requested_duration)
-        max_points = CR.hygeia_limits().max_series_points
-        bucket_seconds, is_bucket_widened = _resolve_series_bucket(
-            window, requested_bucket_seconds, max_points,
+        return resolve_cached_stats(
+            self.user.id,
+            "series",
+            {
+                "metric": definition.name,
+                "tagId": tag_id,
+                "assetIds": sorted(asset.id for asset in assets),
+                "aggregation": aggregation,
+                "bucketAggregation": bucket_aggregation,
+                "bucketSeconds": requested_bucket_seconds,
+                "compareTo": list(compare_to) if compare_to is not None else None,
+                "durationSeconds": requested_duration.total_seconds(),
+            },
+            requested_duration,
+            lambda: _compute_metric_series(
+                self.user.id, definition, tag, assets, aggregation, bucket_aggregation,
+                requested_bucket_seconds, requested_duration, compare_to,
+            ),
+            is_refresh=is_refresh,
         )
-        series_query = _SeriesQuery(
-            definition=definition, bucket_seconds=bucket_seconds, window=window,
-            bucket_aggregation=bucket_aggregation, aggregation=aggregation, max_points=max_points,
-        )
-        snapshot_repo = build_repository(AssetSnapshotRepository)
-        series = _build_series(
-            snapshot_repo, series_query, tag, assets, is_combined=aggregation is not None,
-        )
-        if compare_to is not None:
-            series += _build_comparison_series(
-                self.user.id, snapshot_repo, series_query, compare_to,
-            )
-
-        return {
-            "metric": definition.name,
-            "unit": definition.unit,
-            "bucket": bucket_seconds,
-            "isBucketWidened": is_bucket_widened,
-            "bucketAgg": bucket_aggregation,
-            "agg": aggregation,
-            "series": series,
-            "periodCoveredFrom": window.since,
-            "periodCoveredTo": window.until,
-            "isPeriodClipped": window.is_clipped,
-        }
 
 
 class HygeiaReportManager:

@@ -431,6 +431,14 @@
                 <div class="form-group"><label>Crecimiento mínimo (puntos porcentuales al día)</label><input v-model.number="store.configFlat['features.hygeia.analysis.minTrendSlopePctPerDay']" type="number" min="0" step="0.01" class="inp" /><span class="field-hint">Por debajo de esto se considera que la métrica oscila, no que crece</span></div>
                 <div class="form-group"><label>Ventana de coincidencia de picos (s)</label><input v-model.number="store.configFlat['features.hygeia.analysis.peakCoincidenceWindowSec']" type="number" min="1" class="inp" /><span class="field-hint">Cuánto pueden separarse dos picos de métricas distintas para considerarlos simultáneos</span></div>
               </div>
+              <h3 class="subsection-title">Caché de estadísticas</h3>
+              <p class="field-hint">Cuánto tiempo se reutiliza una estadística ya calculada antes de recalcularla. Cuanto más largo es el periodo pedido, más despacio cambia el resultado. Dar de alta o de baja un activo o cambiar sus etiquetas descarta lo guardado de ese usuario.</p>
+              <div class="cfg-row"><label class="toggle-row"><input v-model="store.configFlat['features.hygeia.statsCache.isEnabled']" type="checkbox" class="toggle" /><span>Reutilizar resultados</span></label></div>
+              <div class="cfg-grid">
+                <div class="form-group"><label>Periodos de hasta 24 h (s)</label><input v-model.number="store.configFlat['features.hygeia.statsCache.shortPeriodTtlSeconds']" type="number" min="1" class="inp" /></div>
+                <div class="form-group"><label>Periodos de hasta 7 días (s)</label><input v-model.number="store.configFlat['features.hygeia.statsCache.mediumPeriodTtlSeconds']" type="number" min="1" class="inp" /></div>
+                <div class="form-group"><label>Periodos más largos (s)</label><input v-model.number="store.configFlat['features.hygeia.statsCache.longPeriodTtlSeconds']" type="number" min="1" class="inp" /></div>
+              </div>
               <h3 class="subsection-title">Límites</h3>
               <p class="field-hint">Topes de lo que el agente puede enviar y de lo que la API acepta. Recortarlos protege a la API de un agente comprometido o mal configurado.</p>
               <div class="cfg-grid">
