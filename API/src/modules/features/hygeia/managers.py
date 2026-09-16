@@ -230,6 +230,49 @@ def _resolve_series_assets(
     return None, assets
 
 
+#: Horas del día que devuelve siempre el patrón horario, tenga muestras o no.
+_HOURS_OF_DAY = range(24)
+
+
+def _resolve_scope_assets(
+    user_id: int, scope: str, tag_id: Optional[int], asset_id: Optional[int],
+) -> Tuple[Optional[HygeiaTag], list]:
+    """Activos sobre los que se calcula una estadística con ámbito declarado.
+
+    Es la resolución común de ``scope``: un activo suyo, los de una etiqueta
+    visible, o todo su parque. Devuelve siempre una lista de activos, aunque
+    el ámbito sea uno solo, para que quien llama agregue igual en los tres
+    casos.
+
+    Args:
+        user_id: Dueño de los activos.
+        scope: ``"asset"``, ``"tag"`` o ``"fleet"``.
+        tag_id: Etiqueta, obligatoria con ``scope="tag"`` y ``None`` en el
+            resto (lo valida el schema).
+        asset_id: Activo, obligatorio con ``scope="asset"`` y ``None`` en el
+            resto (lo valida el schema).
+
+    Returns:
+        Tuple[Optional[HygeiaTag], list]: La etiqueta (``None`` fuera de
+            ``scope="tag"``) y los activos del ámbito.
+
+    Raises:
+        TagNotFoundError: Con ``scope="tag"``, si la etiqueta no es visible
+            para el usuario.
+        AssetNotFoundError: Con ``scope="asset"``, si el activo no existe o
+            pertenece a otro usuario.
+    """
+    asset_repo = build_repository(MonitoredAssetRepository)
+    if scope == "asset":
+        asset = assert_owned(
+            MonitoredAssetRepository, asset_id, user_id, AssetNotFoundError,
+        )
+        return None, [asset]
+    if scope == "tag":
+        return _assert_visible_tag(user_id, tag_id), asset_repo.get_by_tag(user_id, tag_id)
+    return None, asset_repo.get_by_user(user_id)
+
+
 def _resolve_series_bucket(
     window, requested_bucket_seconds: Optional[int], max_points: int,
 ) -> Tuple[int, bool]:
@@ -2066,6 +2109,86 @@ class HygeiaStatsManager:
                 [entry["classification"] for entry in with_data],
             ),
             "assets": breakdown,
+            "periodCoveredFrom": window.since,
+            "periodCoveredTo": window.until,
+            "isPeriodClipped": window.is_clipped,
+        }
+
+    def get_hourly_pattern(  # pylint: disable=too-many-arguments
+        self, metric_name: str, *, scope: str, tag_id: Optional[int], asset_id: Optional[int],
+        aggregation: str, requested_duration: timedelta,
+    ) -> dict:
+        """
+        Reparte una métrica por hora del día: a qué horas aprieta un ámbito.
+
+        Responde a "¿siempre a las nueve?" sin exportar la serie cruda y
+        agruparla a mano. Todos los heartbeats del periodo caen en el cubo de
+        su hora (``received_at``, el reloj del servidor) y se resumen con
+        ``aggregation``, así que una ventana de 30 días de todo un parque
+        vuelve como 24 cifras en una sola consulta.
+
+        La hora es la del **servidor**, no la del agente: el reloj de un host
+        puede ir mal puesto o en otra zona horaria, y mezclarlos daría un
+        patrón que no es el de nadie. Quien pinte el resultado sabe en qué
+        huso está la API y puede desplazarlo.
+
+        Las 24 horas salen siempre, también las que no tuvieron ningún
+        heartbeat: su valor es ``None`` y su ``sampleCount`` ``0``, nunca un
+        cero que se confundiría con "a esa hora el parque estaba a cero". Un
+        parque que se apaga de noche tiene que verse como un hueco, no como un
+        valle.
+
+        Args:
+            metric_name: Nombre público de la métrica (``cpuPct``…).
+            scope: ``"asset"``, ``"tag"`` o ``"fleet"``.
+            tag_id: Etiqueta, con ``scope="tag"``. ``None`` en el resto.
+            asset_id: Activo, con ``scope="asset"``. ``None`` en el resto.
+            aggregation: ``"min"``, ``"avg"`` o ``"max"``, cómo se resume cada
+                hora.
+            requested_duration: Duración del periodo pedido, antes de recortar.
+
+        Returns:
+            Diccionario con la forma de ``HourlyPatternResponseSchema``: la
+            métrica y su unidad, ``agg``, el ámbito (``scope``, ``tag`` y
+            ``assetCount``), ``hours`` (24 entradas, de la 0 a la 23),
+            ``peakHour`` (la de mayor valor, ``None`` si ninguna tuvo
+            muestras) y la ventana cubierta.
+
+        Raises:
+            UnknownMetricError: Si la métrica no está en el registro.
+            TagNotFoundError: Si la etiqueta no es visible para el usuario.
+            AssetNotFoundError: Si el activo no existe o no es suyo.
+        """
+        definition = assert_metric_definition(metric_name)
+        tag, assets = _resolve_scope_assets(self.user.id, scope, tag_id, asset_id)
+        window = _resolve_configured_stats_window(requested_duration)
+
+        aggregates_by_hour = build_repository(AssetSnapshotRepository).get_hour_of_day_aggregates(
+            [asset.id for asset in assets], definition.column,
+            window.since, window.until, aggregation,
+        )
+        hours = [
+            {
+                "hour": hour,
+                "value": aggregates_by_hour.get(hour, (None, 0))[0],
+                "sampleCount": aggregates_by_hour.get(hour, (None, 0))[1],
+            }
+            for hour in _HOURS_OF_DAY
+        ]
+        peak = max(
+            (entry for entry in hours if entry["value"] is not None),
+            key=lambda entry: entry["value"], default=None,
+        )
+
+        return {
+            "metric": definition.name,
+            "unit": definition.unit,
+            "agg": aggregation,
+            "scope": scope,
+            "tag": None if tag is None else tag.to_dict(),
+            "assetCount": len(assets),
+            "hours": hours,
+            "peakHour": None if peak is None else peak["hour"],
             "periodCoveredFrom": window.since,
             "periodCoveredTo": window.until,
             "isPeriodClipped": window.is_clipped,
