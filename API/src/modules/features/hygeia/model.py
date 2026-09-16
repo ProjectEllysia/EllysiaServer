@@ -587,6 +587,29 @@ class HygeiaDocument(Document):
 
     __mapper_args__ = {"polymorphic_identity": "hygeia"}
 
+    def to_dict(self) -> dict:
+        """Serializa el documento para la API.
+
+        Las fechas van como ``datetime`` crudo: las formatea el schema de
+        respuesta (``UTCDateTime``), igual que en el resto de modelos. No
+        incluye la ruta en disco, que es un detalle del servidor.
+
+        Returns:
+            dict: ``id``, ``kind``, ``format``, ``status`` (``pending``,
+                ``running``, ``done`` o ``error``), ``parameters``,
+                ``downloadName``, ``createdAt`` y ``generatedAt``.
+        """
+        return {
+            "id":           self.id,
+            "kind":         self.kind,
+            "format":       self.format,
+            "status":       self.status,
+            "parameters":   self.parameters or {},
+            "downloadName": self.download_name,
+            "createdAt":    self.created_at,
+            "generatedAt":  self.generated_at,
+        }
+
     def __repr__(self) -> str:
         """Representación de depuración con id, tipo, estado y dueño."""
         return (

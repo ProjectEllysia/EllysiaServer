@@ -70,6 +70,34 @@ class ContextEvaluation:
     trust_applied: Dict[str, Any] | None = None
 
 
+def _winning_reason(winner: ContextEvaluation, secondary: ContextEvaluation) -> str:
+    """Frase que explica al analista por qué el veredicto sale de ``winner``.
+
+    Args:
+        winner: Evaluación que decidió el veredicto.
+        secondary: Evaluación del otro mensaje del reenvío.
+
+    Returns:
+        str: Explicación en castellano, lista para la UI y el PDF.
+    """
+    if winner.context_type == CONTEXT_WRAPPER:
+        return (
+            f"El envoltorio del reenvío ({winner.verdict}) es más grave que el "
+            f"correo original adjunto ({secondary.verdict}): el veredicto, las "
+            "reglas y la evidencia describen el envoltorio."
+        )
+    if winner.verdict == secondary.verdict:
+        return (
+            f"El correo original adjunto y el envoltorio del reenvío tienen el "
+            f"mismo veredicto ({winner.verdict}); se muestra el original."
+        )
+    return (
+        f"El correo original adjunto ({winner.verdict}) es más grave que el "
+        f"envoltorio del reenvío ({secondary.verdict}): el veredicto, las "
+        "reglas y la evidencia describen el original."
+    )
+
+
 def choose_winning_evaluation(
     evaluations: List[ContextEvaluation],
     severity: Mapping[str, int],
@@ -104,35 +132,6 @@ def choose_winning_evaluation(
     secondary = others[0]
     return chosen, secondary, _winning_reason(chosen, secondary)
 
-
-def _winning_reason(winner: ContextEvaluation, secondary: ContextEvaluation) -> str:
-    """Frase que explica al analista por qué el veredicto sale de ``winner``.
-
-    Args:
-        winner: Evaluación que decidió el veredicto.
-        secondary: Evaluación del otro mensaje del reenvío.
-
-    Returns:
-        str: Explicación en castellano, lista para la UI y el PDF.
-    """
-    if winner.context_type == CONTEXT_WRAPPER:
-        return (
-            f"El envoltorio del reenvío ({winner.verdict}) es más grave que el "
-            f"correo original adjunto ({secondary.verdict}): el veredicto, las "
-            "reglas y la evidencia describen el envoltorio."
-        )
-    if winner.verdict == secondary.verdict:
-        return (
-            f"El correo original adjunto y el envoltorio del reenvío tienen el "
-            f"mismo veredicto ({winner.verdict}); se muestra el original."
-        )
-    return (
-        f"El correo original adjunto ({winner.verdict}) es más grave que el "
-        f"envoltorio del reenvío ({secondary.verdict}): el veredicto, las "
-        "reglas y la evidencia describen el original."
-    )
-
-
 def context_of_type(parsed: MessageContext, context_type: Optional[str]) -> MessageContext:
     """Devuelve, de un mensaje ya parseado, el contexto indicado.
 
@@ -148,7 +147,6 @@ def context_of_type(parsed: MessageContext, context_type: Optional[str]) -> Mess
     if context_type == CONTEXT_WRAPPER and parsed.wrapper_context is not None:
         return parsed.wrapper_context
     return parsed
-
 
 def preview_headers(context: MessageContext) -> Dict[str, Optional[str]]:
     """Cabeceras de la vista previa (asunto, remitente, destinatario…) de un contexto.

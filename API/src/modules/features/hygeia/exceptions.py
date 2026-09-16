@@ -17,7 +17,8 @@ Hierarchy:
     ├── SystemTagImmutableError   (403)
     ├── OrganizationScopeNotAllowedError (403)
     ├── UnknownMetricError        (400)
-    └── NonAdditiveMetricError    (400)
+    ├── NonAdditiveMetricError    (400)
+    └── InvalidDocumentRequestError (400)
 """
 
 from __future__ import annotations
@@ -291,4 +292,28 @@ class NonAdditiveMetricError(HygeiaError):
                 f"La métrica «{metric_name}» no se puede sumar entre equipos; "
                 "usa la media o el máximo."
             ),
+        )
+
+
+class InvalidDocumentRequestError(HygeiaError):
+    """Se pide un documento al que le falta un dato imprescindible de su alcance.
+
+    El schema de la petición ya exige esos datos; este error es la defensa del
+    manager para quien lo llame sin pasar por HTTP, y deja un 400 claro en vez
+    de un 500 por una clave ausente.
+    """
+    default_code = ErrorCode.VALIDATION_ERROR
+    default_status_code = 400
+
+    def __init__(self, dataset: str, missing_field: str) -> None:
+        """Construye el error con el juego de datos y el campo que falta.
+
+        Args:
+            dataset: Juego de datos pedido (``summary``, ``tag-stats``…).
+            missing_field: Nombre camelCase del campo que falta (``assetId``…).
+        """
+        super().__init__(
+            message=f"El documento {dataset!r} necesita {missing_field!r}",
+            details={"dataset": dataset, "missing": missing_field},
+            user_message="Falta elegir qué quieres exportar.",
         )

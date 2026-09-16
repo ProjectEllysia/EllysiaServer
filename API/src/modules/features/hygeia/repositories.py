@@ -16,9 +16,9 @@ from typing import Any, Callable, Dict, List, Literal, Mapping, Optional, Tuple
 from sqlalchemy import Integer, and_, cast, func, update
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
-from src.modules.infrastructure import BaseRepository
+from src.modules.infrastructure import BaseRepository, DocumentRepository
 
-from .model import Anomaly, AssetSnapshot, AssetTag, HygeiaTag, MonitoredAsset
+from .model import Anomaly, AssetSnapshot, AssetTag, HygeiaDocument, HygeiaTag, MonitoredAsset
 
 #: Cómo se resume una métrica dentro de un cubo de tiempo de un mismo activo.
 BucketAggregation = Literal["min", "avg", "max"]
@@ -1272,4 +1272,28 @@ class HygeiaTagRepository(BaseRepository[HygeiaTag]):
             self._session.query(HygeiaTag)
             .filter(HygeiaTag.user_id == user_id)
             .count()
+        )
+
+
+class HygeiaDocumentRepository(DocumentRepository[HygeiaDocument]):
+    """Acceso a datos de ``HygeiaDocument``.
+
+    Las consultas por usuario (listado y paginación) las hereda de
+    ``DocumentRepository``. No define ``_PARENT_FK``: un documento de Hygeia no
+    cuelga de ninguna entidad padre, así que las consultas por padre no se usan.
+    """
+
+    _MODEL = HygeiaDocument
+
+    def get_unfinished_documents(self) -> List[HygeiaDocument]:
+        """Documentos que todavía no han terminado, de cualquier usuario.
+
+        Returns:
+            List[HygeiaDocument]: Los que están en ``pending`` o ``running``;
+                lista vacía si no hay ninguno.
+        """
+        return (
+            self._session.query(HygeiaDocument)
+            .filter(HygeiaDocument.status.in_(("pending", "running")))
+            .all()
         )
