@@ -22,6 +22,10 @@ from src.modules.features.iris.services.rules.body_content_rules import check_al
 from src.modules.features.iris.services.rules.sender_identity_rules import check_misspelled_brands
 from src.modules.features.iris.services.registry import RuleResult
 from src.modules.features.iris.managers import IrisManager
+from src.modules.features.iris.managers.analysis import (
+    _TOP_SIGNALS_LIMIT, _apply_verdict_gates, _top_signals,
+)
+from src.modules.features.iris.services.scoring import current_policy
 
 pytestmark = pytest.mark.unit
 
@@ -456,7 +460,7 @@ def _rr(verdict, **details):
 
 def _gated(base_verdict, named):
     """Final verdict of the gates (ignores the reasons list)."""
-    verdict, _ = IrisManager._apply_verdict_gates(base_verdict, named)
+    verdict, _ = _apply_verdict_gates(base_verdict, named)
     return verdict
 
 
@@ -601,14 +605,14 @@ def test_gating_returns_human_readable_reasons():
     # The reasons that fired must be surfaced (not just logged) so the
     # report can explain WHY the verdict was gated.
     named = {"Lookalike Sender Domain": _rr("fail")}
-    verdict, reasons = IrisManager._apply_verdict_gates("Legitimate", named)
+    verdict, reasons = _apply_verdict_gates("Legitimate", named)
     assert verdict == "Phishing"
     assert reasons and any("lookalike" in r for r in reasons)
 
 
 def test_gating_returns_empty_reasons_when_clean():
     named = {"SPF": _rr("pass"), "DKIM": _rr("pass")}
-    verdict, reasons = IrisManager._apply_verdict_gates("Legitimate", named)
+    verdict, reasons = _apply_verdict_gates("Legitimate", named)
     assert verdict == "Legitimate"
     assert reasons == []
 
@@ -628,20 +632,20 @@ def test_top_signals_ranks_most_negative_first():
         _rd("Display Name Spoofing", 0),
         _rd("Body Links", -25),
     ]
-    signals = IrisManager._top_signals(rules_data)
+    signals = _top_signals(rules_data)
     assert [s["ruleName"] for s in signals] == ["Body Links", "SPF", "Lookalike Sender Domain"]
     assert [s["score"] for s in signals] == [-25, -20, -15]
 
 
 def test_top_signals_excludes_passing_rules():
     rules_data = [_rd("SPF", 0), _rd("DKIM", 5)]
-    assert IrisManager._top_signals(rules_data) == []
+    assert _top_signals(rules_data) == []
 
 
 def test_top_signals_caps_at_limit_and_keeps_original_index():
     rules_data = [_rd(f"Rule{i}", -1 * (i + 1)) for i in range(8)]
-    signals = IrisManager._top_signals(rules_data)
-    assert len(signals) == IrisManager._TOP_SIGNALS_LIMIT
+    signals = _top_signals(rules_data)
+    assert len(signals) == _TOP_SIGNALS_LIMIT
     # Rule7 has the most negative score (-8) and sits at index 7 in rules_data.
     assert signals[0]["ruleName"] == "Rule7"
     assert signals[0]["index"] == 7
@@ -650,7 +654,7 @@ def test_top_signals_caps_at_limit_and_keeps_original_index():
 # ----------------------------------------------------- Subtractive scoring model
 
 def _unfamilied_defs(count: int) -> list[dict]:
-    # No `family` key -> passes through _aggregate_score's family-cap logic
+    # No `family` key -> passes through ScoringPolicy.aggregate's family-cap logic
     # untouched, matching these tests' original intent, from before family caps existed.
     return [{"name": f"Rule{i}", "family": ""} for i in range(count)]
 
@@ -664,17 +668,17 @@ def test_aggregate_score_clamps_positive_credits():
         RuleResult(score=-5, verdict="fail", details={}),
     ]
     # 100 + min(0,5) + min(0,3) + (-15) + (-5) == 80
-    assert IrisManager._aggregate_score(_unfamilied_defs(len(results)), results) == 80
+    assert current_policy().aggregate(_unfamilied_defs(len(results)), results) == 80
 
 
 def test_aggregate_score_clean_message_stays_at_ceiling():
     results = [RuleResult(score=5, verdict="pass", details={}) for _ in range(10)]
-    assert IrisManager._aggregate_score(_unfamilied_defs(len(results)), results) == 100
+    assert current_policy().aggregate(_unfamilied_defs(len(results)), results) == 100
 
 
 def test_aggregate_score_floored_at_zero():
     results = [RuleResult(score=-80, verdict="fail", details={}) for _ in range(3)]
-    assert IrisManager._aggregate_score(_unfamilied_defs(len(results)), results) == 0
+    assert current_policy().aggregate(_unfamilied_defs(len(results)), results) == 0
 
 
 # ----------------------------------------------------------- IOC extraction (O1)
@@ -847,11 +851,11 @@ def test_generate_ai_summary_submits_task_for_finished_analysis(monkeypatch):
         classmethod(lambda cls, analysis_id, user_id: fake_analysis),
     )
     monkeypatch.setattr(
-        IrisManager, "_claim_ai_summary",
-        staticmethod(lambda analysis_id, regenerate=False: True),
+        analysis_mod, "_claim_ai_summary",
+        lambda analysis_id, regenerate=False: True,
     )
-    monkeypatch.setattr(IrisManager, "_update_analysis",
-                        lambda self, analysis_id, **fields: True)
+    monkeypatch.setattr(analysis_mod, "_update_analysis",
+                        lambda analysis_id, **fields: True)
 
     class _FreeQuota:
         def consume(self, user_id, key, amount=1): pass

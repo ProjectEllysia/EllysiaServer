@@ -23,7 +23,13 @@ from src.modules.features.iris.exceptions import (
     IrisMailboxQuotaExceededError,
 )
 import src.modules.features.iris.managers.analysis as analysis_managers_mod
-from src.modules.features.iris.managers.mailbox import IrisMailboxManager
+from src.modules.features.iris.managers.mailbox import (
+    _STATE_SERIALIZER,
+    _verify_state,
+    _sign_state,
+    _sync_connection,
+    IrisMailboxManager
+)
 from src.modules.features.iris.model import IrisAnalysis, IrisMailboxConnection, IrisMailboxInbox
 from src.modules.features.iris.repositories import (
     IrisAnalysisRepository, IrisMailboxConnectionRepository, IrisMailboxInboxRepository,
@@ -227,26 +233,26 @@ def _save(app, connection: IrisMailboxConnection) -> int:
 
 def test_state_roundtrips(app):
     with app.app_context():
-        state = IrisMailboxManager._sign_state(
+        state = _sign_state(
             user_id=1, provider="gmail", full_message_mode=False, folder=None,
         )
-        claims = IrisMailboxManager._verify_state(state)
+        claims = _verify_state(state)
     assert claims["user_id"] == 1
     assert claims["provider"] == "gmail"
 
 
 def test_tampered_state_is_rejected(app):
     with app.app_context():
-        state = IrisMailboxManager._sign_state(
+        state = _sign_state(
             user_id=1, provider="gmail", full_message_mode=False, folder=None,
         )
         with pytest.raises(IrisMailboxOAuthStateError):
-            IrisMailboxManager._verify_state(state + "tampered")
+            _verify_state(state + "tampered")
 
 
 def test_expired_state_is_rejected(app, monkeypatch):
     with app.app_context():
-        serializer = IrisMailboxManager._state_serializer()
+        serializer = _STATE_SERIALIZER
         state = serializer.dumps({"user_id": 1, "provider": "gmail",
                                    "full_message_mode": False, "folder": None})
 
@@ -256,7 +262,7 @@ def test_expired_state_is_rejected(app, monkeypatch):
 
         monkeypatch.setattr("itsdangerous.URLSafeTimedSerializer.loads", _loads_expired)
         with pytest.raises(IrisMailboxOAuthStateError):
-            IrisMailboxManager._verify_state(state)
+            _verify_state(state)
 
 
 # ------------------------------------------------------------------- connect
@@ -289,7 +295,7 @@ def test_start_connect_returns_authorize_url(app, regular_user):
 
 def test_handle_callback_creates_connection(app, regular_user):
     with app.app_context():
-        state = IrisMailboxManager._sign_state(
+        state = _sign_state(
             user_id=regular_user.id, provider="gmail", full_message_mode=False, folder=None,
         )
         with mock.patch.object(mailbox_managers_mod, "get_connector", return_value=_FakeConnector()):
@@ -317,7 +323,7 @@ def test_handle_callback_reconnect_updates_existing_row(app, regular_user):
     with app.app_context():
         existing_id = _save(app, _connection(regular_user.id, status="reauth_required"))
 
-        state = IrisMailboxManager._sign_state(
+        state = _sign_state(
             user_id=regular_user.id, provider="gmail", full_message_mode=False, folder=None,
         )
         with mock.patch.object(mailbox_managers_mod, "get_connector", return_value=_FakeConnector()):
@@ -340,7 +346,7 @@ def test_handle_callback_rejects_replayed_state(app, regular_user):
     """El state es de un solo uso: una segunda llamada con el mismo state
     (firma y TTL todavía válidos) debe rechazarse, no repetir el canje."""
     with app.app_context():
-        state = IrisMailboxManager._sign_state(
+        state = _sign_state(
             user_id=regular_user.id, provider="gmail", full_message_mode=False, folder=None,
         )
         with mock.patch.object(mailbox_managers_mod, "get_connector", return_value=_FakeConnector()):
@@ -353,7 +359,7 @@ def test_handle_callback_rejects_replayed_state(app, regular_user):
 
 def test_handle_callback_validates_folder_against_the_provider(app, regular_user):
     with app.app_context():
-        state = IrisMailboxManager._sign_state(
+        state = _sign_state(
             user_id=regular_user.id, provider="gmail", full_message_mode=False, folder="Label_1",
         )
         fake_connector = _FakeConnector(folders=[
@@ -371,7 +377,7 @@ def test_handle_callback_validates_folder_against_the_provider(app, regular_user
 
 def test_handle_callback_rejects_a_folder_the_account_does_not_have(app, regular_user):
     with app.app_context():
-        state = IrisMailboxManager._sign_state(
+        state = _sign_state(
             user_id=regular_user.id, provider="gmail", full_message_mode=False, folder="does-not-exist",
         )
         fake_connector = _FakeConnector(folders=[
@@ -524,7 +530,7 @@ def test_sync_connection_ingests_new_messages_and_advances_cursor(app, regular_u
         fake_queue = _FakeTaskQueue()
         with mock.patch.object(mailbox_managers_mod, "get_connector", return_value=_FakeConnector()), \
              mock.patch.object(analysis_managers_mod.TaskQueue, "get_instance", return_value=fake_queue):
-            IrisMailboxManager()._sync_connection(connection_id)
+            _sync_connection(connection_id)
 
         with UnitOfWork() as uow:
             conn = IrisMailboxConnectionRepository(uow).get_by_id(connection_id)
@@ -550,7 +556,7 @@ def test_sync_connection_uses_subject_as_title_in_full_message_mode(app, regular
         fake_queue = _FakeTaskQueue()
         with mock.patch.object(mailbox_managers_mod, "get_connector", return_value=_FakeConnector()), \
              mock.patch.object(analysis_managers_mod.TaskQueue, "get_instance", return_value=fake_queue):
-            IrisMailboxManager()._sync_connection(connection_id)
+            _sync_connection(connection_id)
 
         with UnitOfWork() as uow:
             analyses = IrisAnalysisRepository(uow).get_by_user(regular_user.id)
@@ -567,7 +573,7 @@ def test_sync_connection_stops_at_daily_quota(app, regular_user, monkeypatch):
         connection_id = _save(app, _connection(regular_user.id, sync_cursor="cursor-0"))
 
         with mock.patch.object(mailbox_managers_mod, "get_connector", return_value=_FakeConnector()):
-            IrisMailboxManager()._sync_connection(connection_id)
+            _sync_connection(connection_id)
 
         with UnitOfWork() as uow:
             assert IrisAnalysisRepository(uow).get_by_user(regular_user.id) == []
@@ -596,7 +602,7 @@ def test_sync_connection_defers_cursor_and_pending_message_when_quota_is_hit(app
         )
         with mock.patch.object(mailbox_managers_mod, "get_connector", return_value=connector), \
              mock.patch.object(analysis_managers_mod.TaskQueue, "get_instance", return_value=fake_queue):
-            IrisMailboxManager()._sync_connection(connection_id)
+            _sync_connection(connection_id)
 
         with UnitOfWork() as uow:
             conn = IrisMailboxConnectionRepository(uow).get_by_id(connection_id)
@@ -614,7 +620,7 @@ def test_sync_connection_defers_cursor_and_pending_message_when_quota_is_hit(app
         )
         with mock.patch.object(mailbox_managers_mod, "get_connector", return_value=connector), \
              mock.patch.object(analysis_managers_mod.TaskQueue, "get_instance", return_value=fake_queue):
-            IrisMailboxManager()._sync_connection(connection_id)
+            _sync_connection(connection_id)
 
         with UnitOfWork() as uow:
             conn = IrisMailboxConnectionRepository(uow).get_by_id(connection_id)
@@ -633,7 +639,7 @@ def test_sync_connection_retries_transient_failure_without_duplicating_prior_suc
         fake_queue = _FakeTaskQueue()
         with mock.patch.object(mailbox_managers_mod, "get_connector", return_value=connector), \
              mock.patch.object(analysis_managers_mod.TaskQueue, "get_instance", return_value=fake_queue):
-            IrisMailboxManager()._sync_connection(connection_id)
+            _sync_connection(connection_id)
 
         with UnitOfWork() as uow:
             conn = IrisMailboxConnectionRepository(uow).get_by_id(connection_id)
@@ -650,7 +656,7 @@ def test_sync_connection_retries_transient_failure_without_duplicating_prior_suc
         # y msg-1 (aceptado en el sondeo anterior) nunca se duplica.
         with mock.patch.object(mailbox_managers_mod, "get_connector", return_value=connector), \
              mock.patch.object(analysis_managers_mod.TaskQueue, "get_instance", return_value=fake_queue):
-            IrisMailboxManager()._sync_connection(connection_id)
+            _sync_connection(connection_id)
 
         with UnitOfWork() as uow:
             conn = IrisMailboxConnectionRepository(uow).get_by_id(connection_id)
@@ -672,8 +678,8 @@ def test_sync_connection_moves_permanently_failing_message_to_dead_after_max_att
         )
 
         with mock.patch.object(mailbox_managers_mod, "get_connector", return_value=connector):
-            IrisMailboxManager()._sync_connection(connection_id)
-            IrisMailboxManager()._sync_connection(connection_id)
+            _sync_connection(connection_id)
+            _sync_connection(connection_id)
 
         with UnitOfWork() as uow:
             conn = IrisMailboxConnectionRepository(uow).get_by_id(connection_id)
@@ -709,7 +715,7 @@ def test_sync_connection_resolves_inbox_entry_for_already_ingested_message(app, 
 
         connector = _QueueTestConnector([], cursor_after="cursor-2")
         with mock.patch.object(mailbox_managers_mod, "get_connector", return_value=connector):
-            IrisMailboxManager()._sync_connection(connection_id)
+            _sync_connection(connection_id)
 
         with UnitOfWork() as uow:
             assert IrisMailboxInboxRepository(uow).get_pending(connection_id) == []
@@ -727,7 +733,7 @@ def test_sync_connection_marks_reauth_required_on_revoked_token(app, regular_use
         ))
         fake_connector = _FakeConnector(refresh_raises_reauth=True)
         with mock.patch.object(mailbox_managers_mod, "get_connector", return_value=fake_connector):
-            IrisMailboxManager()._sync_connection(connection_id)
+            _sync_connection(connection_id)
 
         with UnitOfWork() as uow:
             conn = IrisMailboxConnectionRepository(uow).get_by_id(connection_id)
@@ -752,7 +758,7 @@ def test_sync_connection_reuses_cached_unexpired_access_token(app, regular_user)
                 return super().list_new(access_token, cursor)
 
         with mock.patch.object(mailbox_managers_mod, "get_connector", return_value=_CapturingConnector()):
-            IrisMailboxManager()._sync_connection(connection_id)
+            _sync_connection(connection_id)
 
         assert captured_tokens == ["cached-access-token"]
 
@@ -761,7 +767,7 @@ def test_sync_connection_skips_paused_connection(app, regular_user):
     with app.app_context():
         connection_id = _save(app, _connection(regular_user.id, status="paused"))
         with mock.patch.object(mailbox_managers_mod, "get_connector") as get_connector:
-            IrisMailboxManager()._sync_connection(connection_id)
+            _sync_connection(connection_id)
         get_connector.assert_not_called()
 
 
@@ -785,7 +791,7 @@ def test_sync_connection_is_a_no_op_when_lock_already_held(app, regular_user, _f
         _fake_lock_redis.redis.set(f"iris:mailbox-sync:{connection_id}", "other-token", nx=True, ex=900)
 
         with mock.patch.object(mailbox_managers_mod, "get_connector") as get_connector:
-            IrisMailboxManager()._sync_connection(connection_id)
+            _sync_connection(connection_id)
         get_connector.assert_not_called()
 
         with UnitOfWork() as uow:
@@ -806,7 +812,7 @@ def test_sync_connection_recovers_from_an_orphaned_lock(app, regular_user, _fake
         fake_queue = _FakeTaskQueue()
         with mock.patch.object(mailbox_managers_mod, "get_connector", return_value=_FakeConnector()), \
              mock.patch.object(analysis_managers_mod.TaskQueue, "get_instance", return_value=fake_queue):
-            IrisMailboxManager()._sync_connection(connection_id)
+            _sync_connection(connection_id)
 
         with UnitOfWork() as uow:
             conn = IrisMailboxConnectionRepository(uow).get_by_id(connection_id)
@@ -820,7 +826,7 @@ def test_sync_connection_releases_lock_even_when_token_refresh_fails(app, regula
         ))
         fake_connector = _FakeConnector(refresh_raises_reauth=True)
         with mock.patch.object(mailbox_managers_mod, "get_connector", return_value=fake_connector):
-            IrisMailboxManager()._sync_connection(connection_id)
+            _sync_connection(connection_id)
 
         key = f"iris:mailbox-sync:{connection_id}"
         assert key not in _fake_lock_redis.redis._values
@@ -846,7 +852,7 @@ def test_sync_connection_marks_sync_started_during_and_clears_after(app, regular
         fake_queue = _FakeTaskQueue()
         with mock.patch.object(mailbox_managers_mod, "get_connector", return_value=_CapturingConnector()), \
              mock.patch.object(analysis_managers_mod.TaskQueue, "get_instance", return_value=fake_queue):
-            IrisMailboxManager()._sync_connection(connection_id, job_id="job-123")
+            _sync_connection(connection_id, job_id="job-123")
 
         assert captured["sync_started_at"] is not None
         assert captured["sync_job_id"] == "job-123"
@@ -863,7 +869,7 @@ def test_execute_sync_connection_passes_the_current_job_id(app, regular_user):
     with app.app_context():
         connection_id = _save(app, _connection(regular_user.id))
         with mock.patch.object(
-            mailbox_managers_mod.IrisMailboxManager, "_sync_connection",
+            mailbox_managers_mod, "_sync_connection",
         ) as sync_connection:
             IrisMailboxManager.execute_sync_connection(connection_id)
         sync_connection.assert_called_once_with(connection_id, job_id=None)

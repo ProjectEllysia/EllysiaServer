@@ -156,7 +156,7 @@ class IrisPhishingNotifyManager:
         transaccional que sí usan los avisos de reautorización, sync
         atascado y ``host_down`` de Hygeia: aquí no hay guardia
         anti-duplicado que se confirme antes, y el llamante
-        (``IrisManager._enqueue_phishing_notification``) es fire-and-forget a
+        (``analysis._enqueue_phishing_notification``) es fire-and-forget a
         propósito y ya traga sus propios fallos, así que un encolado perdido
         cuesta un correo, no un aviso suprimido de forma permanente.
         """
@@ -351,7 +351,7 @@ class IrisReauthNotifyManager:
         """Construye, sin guardarla, la intención de encolar el aviso de
         reautorización de ``connection_id``.
 
-        ``IrisMailboxManager._mark_reauth_required`` la guarda solo en la
+        ``IrisMailboxManager._mark_reauth_is_required`` la guarda solo en la
         transición hacia ``reauth_required``, y en la misma transacción que
         ese cambio de estado: el estado es el guardia anti-duplicado,
         así que si se confirmaba solo y el encolado fallaba después, las

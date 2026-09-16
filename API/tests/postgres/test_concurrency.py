@@ -30,7 +30,7 @@ def _user(pg_session, username: str) -> User:
 
 
 def _claim(session, analysis_id: int) -> bool:
-    """El mismo UPDATE condicional que usa ``IrisManager._claim_ai_summary``.
+    """El mismo UPDATE condicional que usa ``analysis._claim_ai_summary``.
 
     Se reproduce aquí en vez de llamar al manager porque el manager abre su
     propia ``UnitOfWork`` contra el engine global de la aplicación, y lo que

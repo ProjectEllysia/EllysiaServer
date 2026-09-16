@@ -1,7 +1,7 @@
 """Un análisis que se rompe acaba en un estado terminal con motivo.
 
 Antes, el parseo y la validación del mensaje vivían **fuera** de todo bloque
-``try`` de ``IrisManager._run_analysis``. Una excepción ahí —un parser que
+``try`` de ``analysis._run_analysis``. Una excepción ahí —un parser que
 revienta con un ``.eml`` raro, por ejemplo— dejaba la fila en ``running``
 para siempre: RQ marcaba el job como fallido, pero nadie escribía en la base
 de datos y el usuario veía un análisis que no terminaba nunca.
@@ -20,6 +20,7 @@ import pytest
 
 import src.modules.features.iris.managers.analysis as analysis_mod
 from src.modules.features.iris.managers.analysis import IrisManager
+from src.modules.features.iris.managers.analysis import _run_analysis
 from src.modules.features.iris.repositories import IrisAnalysisRepository
 from src.modules.features.iris.services.failures import (
     FAILURE_INTERNAL_ERROR,
@@ -63,7 +64,7 @@ def test_broken_parser_leaves_a_terminal_state(app, regular_user):
     with app.app_context():
         with mock.patch.object(analysis_mod, "parse_raw_message",
                                side_effect=RuntimeError("boom en el parser")):
-            IrisManager()._run_analysis(analysis_id, _SENSITIVE_RAW)
+            _run_analysis(analysis_id, _SENSITIVE_RAW)
 
     analysis = _reload(app, analysis_id)
     assert analysis.status == "failed"
@@ -80,7 +81,7 @@ def test_broken_parser_reason_does_not_leak_the_raw_email(app, regular_user):
 
     with app.app_context():
         with mock.patch.object(analysis_mod, "parse_raw_message", side_effect=leaking_error):
-            IrisManager()._run_analysis(analysis_id, _SENSITIVE_RAW)
+            _run_analysis(analysis_id, _SENSITIVE_RAW)
 
     reason = _reload(app, analysis_id).failure_reason
     assert reason
@@ -94,7 +95,7 @@ def test_unparseable_input_is_invalid_not_internal(app, regular_user):
     analysis_id = _make_analysis(app, regular_user.id, raw="esto no es un correo")
 
     with app.app_context():
-        IrisManager()._run_analysis(analysis_id, "esto no es un correo")
+        _run_analysis(analysis_id, "esto no es un correo")
 
     analysis = _reload(app, analysis_id)
     assert analysis.status == "failed"
@@ -121,7 +122,7 @@ def test_status_endpoint_exposes_the_reason(client, app, regular_user, auth_head
     analysis_id = _make_analysis(app, regular_user.id, raw="esto tampoco es un correo")
 
     with app.app_context():
-        IrisManager()._run_analysis(analysis_id, "esto tampoco es un correo")
+        _run_analysis(analysis_id, "esto tampoco es un correo")
 
     with mock.patch.object(analysis_mod.TaskQueue, "get_instance", return_value=_NoTaskQueue()):
         response = client.get(f"/iris/status?id={analysis_id}",
@@ -147,7 +148,7 @@ def test_successful_analysis_carries_no_failure_reason(app, regular_user):
     analysis_id = _make_analysis(app, regular_user.id, raw=raw)
 
     with app.app_context():
-        IrisManager()._run_analysis(analysis_id, raw)
+        _run_analysis(analysis_id, raw)
 
     analysis = _reload(app, analysis_id)
     assert analysis.status == "finished"

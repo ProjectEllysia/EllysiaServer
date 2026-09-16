@@ -34,26 +34,6 @@ MAX_NOTE_LENGTH = 2000
 class IrisFeedbackManager:
     """Registra correcciones del analista y calcula las métricas del detector."""
 
-    @staticmethod
-    def feedback_to_dict(feedback: IrisAnalystFeedback) -> Dict[str, Any]:
-        """Serializa una corrección con las claves camelCase de la API.
-
-        Args:
-            feedback: Fila ``IrisAnalystFeedback`` persistida.
-
-        Returns:
-            dict: ``feedbackId``, ``analysisId``, ``label``, ``note``,
-                ``author`` (nombre de usuario) y ``createdAt``.
-        """
-        return {
-            "feedbackId": feedback.id,
-            "analysisId": feedback.analysis_id,
-            "label": feedback.label,
-            "note": feedback.note,
-            "author": feedback.author.username if feedback.author else "unknown",
-            "createdAt": isoformat_utc(feedback.created_at),
-        }
-
     def submit_feedback(self, analysis_id: int, user_id: int, label: str,
                         note: Optional[str] = None) -> Dict[str, Any]:
         """Registra la corrección de un analista sobre un análisis terminado.
@@ -87,7 +67,7 @@ class IrisFeedbackManager:
             feedback = IrisAnalystFeedbackRepository(uow).save(IrisAnalystFeedback(
                 analysis_id=analysis_id, author_id=user_id, label=label, note=cleaned_note,
             ))
-            return self.feedback_to_dict(feedback)
+            return feedback.to_dict()
 
     def list_feedback(self, analysis_id: int, user_id: int) -> List[Dict[str, Any]]:
         """Historial de correcciones de un análisis, de la más reciente a la más antigua.
@@ -104,10 +84,10 @@ class IrisFeedbackManager:
         """
         IrisManager.assert_analysis_ownership(analysis_id, user_id)
         repo = build_repository(IrisAnalystFeedbackRepository)
-        return [self.feedback_to_dict(feedback) for feedback in repo.get_by_analysis(analysis_id)]
+        return [feedback.to_dict() for feedback in repo.get_by_analysis(analysis_id)]
 
-    @classmethod
-    def latest_for_analysis(cls, analysis_id: int) -> Optional[Dict[str, Any]]:
+    @staticmethod
+    def latest_for_analysis(analysis_id: int) -> Optional[Dict[str, Any]]:
         """Corrección vigente de un análisis, ya serializada.
 
         Args:
@@ -117,7 +97,7 @@ class IrisFeedbackManager:
             Optional[dict]: La más reciente, o ``None`` si nadie lo revisó.
         """
         feedback = build_repository(IrisAnalystFeedbackRepository).latest_for_analysis(analysis_id)
-        return cls.feedback_to_dict(feedback) if feedback else None
+        return feedback.to_dict() if feedback else None
 
     def get_metrics(self, user_id: int) -> Dict[str, Any]:
         """Métricas del detector sobre los análisis revisados de un usuario.

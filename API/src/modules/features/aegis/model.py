@@ -249,7 +249,7 @@ class AegisDocument(Document):
         "polymorphic_identity": "aegis",
     }
 
-    def pill_to_dict(self) -> dict:
+    def to_dict(self) -> dict:
         """
         Serialize the pill content for API responses.
 

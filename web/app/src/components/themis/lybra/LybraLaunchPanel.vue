@@ -22,18 +22,20 @@
         <div class="field"><label>Puertos (opcional)</label>
           <input v-model="ports" placeholder="80,443 o 1-1000" /></div>
       </div>
-      <div v-if="target.trim()" class="auth-status" :class="{ ok: isTargetAuthorized(target) }">
-        <template v-if="isTargetAuthorized(target)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-          Objetivo autorizado
-        </template>
-        <template v-else>
-          <span>Este objetivo no está en tu registro de objetivos autorizados — el autodescubrimiento se rechazará.</span>
-          <button type="button" class="btn-authorize-inline" @click="$emit('add-authorized-target', { target: target.trim() })">
-            Autorizar '{{ target.trim() }}'
-          </button>
-        </template>
-      </div>
+      <Transition name="fade-swap">
+        <div v-if="target.trim()" class="auth-status" :class="{ ok: isTargetAuthorized(target) }">
+          <template v-if="isTargetAuthorized(target)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            Objetivo autorizado
+          </template>
+          <template v-else>
+            <span>Este objetivo no está en tu registro de objetivos autorizados — el autodescubrimiento se rechazará.</span>
+            <button type="button" class="btn-authorize-inline" @click="$emit('add-authorized-target', { target: target.trim() })">
+              Autorizar '{{ target.trim() }}'
+            </button>
+          </template>
+        </div>
+      </Transition>
 
       <!-- Registro de objetivos autorizados -->
       <div class="auth-register">
@@ -44,19 +46,23 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
           </span>
         </button>
+        <!-- Mismo panel-slide que ScheduledScansPanel.vue: el registro se
+             despliega deslizándose en vez de aparecer de golpe, igual que el
+             panel de escaneos programados que está justo debajo. -->
+        <Transition name="panel-slide">
         <div v-if="showAuthRegister" class="auth-register-body">
           <p class="auth-register-hint">
             Objetivos (IP o CIDR) que has declarado autorizados para el autodescubrimiento, el fingerprinting
             propio y las comprobaciones activas de Lybra.
           </p>
           <div v-if="authTargetsLoading" class="auth-loading">Cargando…</div>
-          <ul v-else-if="authorizedTargets.length" class="auth-chip-list">
+          <TransitionGroup v-else-if="authorizedTargets.length" tag="ul" name="chip-item" class="auth-chip-list">
             <li v-for="t in authorizedTargets" :key="t.id" class="auth-chip">
               <span class="mono">{{ t.target }}</span>
               <span v-if="t.label" class="auth-chip-label">{{ t.label }}</span>
               <button type="button" class="auth-chip-remove" title="Eliminar" @click="$emit('remove-authorized-target', t.id)">×</button>
             </li>
-          </ul>
+          </TransitionGroup>
           <p v-else class="auth-empty">Aún no has autorizado ningún objetivo.</p>
 
           <div class="auth-add-row">
@@ -65,6 +71,7 @@
             <button type="button" class="btn-add-target" :disabled="!newAuthTarget.trim()" @click="submitNewAuthTarget">Añadir</button>
           </div>
         </div>
+        </Transition>
       </div>
 
       <div class="engine-row">
@@ -190,9 +197,15 @@ function handleLaunch() {
   padding: 0.5rem 0.7rem; margin-top: -0.15rem;
   font-size: var(--fs-md); color: var(--warn); background: var(--warn-dim);
   border: 1px dashed var(--warn); border-radius: 7px;
+  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
 }
 .auth-status.ok { color: var(--success); background: var(--success-dim); border-style: solid; border-color: var(--success); }
 .auth-status svg { width: 14px; height: 14px; flex-shrink: 0; }
+.fade-swap-enter-active, .fade-swap-leave-active { transition: opacity 0.18s ease; }
+.fade-swap-enter-from, .fade-swap-leave-to { opacity: 0; }
+.panel-slide-enter-active, .panel-slide-leave-active { transition: all 0.25s ease; overflow: hidden; }
+.panel-slide-enter-from, .panel-slide-leave-to { max-height: 0; opacity: 0; }
+.panel-slide-enter-to, .panel-slide-leave-from { max-height: 2000px; opacity: 1; }
 .btn-authorize-inline {
   padding: 0.25rem 0.6rem; background: var(--accent); border: 1px solid var(--accent);
   color: var(--on-accent); font-size: var(--fs-md); font-weight: 600; border-radius: 6px; cursor: pointer;
@@ -215,12 +228,20 @@ function handleLaunch() {
 .auth-register-hint { margin: 0; font-size: var(--fs-md); color: var(--text-muted); line-height: 1.4; }
 .auth-loading, .auth-empty { font-size: var(--fs-md); color: var(--text-muted); }
 
-.auth-chip-list { list-style: none; display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0; padding: 0; }
+.auth-chip-list { position: relative; list-style: none; display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0; padding: 0; }
 .auth-chip {
   display: flex; align-items: center; gap: 0.4rem;
   padding: 0.25rem 0.3rem 0.25rem 0.6rem; background: var(--surface-2); border: 1px solid var(--border-solid);
   border-radius: 999px; font-size: var(--fs-md); color: var(--text);
 }
+/* Misma familia que .doc-item/.finding-item de LybraResults.vue: la etiqueta
+   nueva entra con un fundido y las demás se recolocan; al quitar una, sale
+   sin dejar un hueco brusco. */
+.chip-item-enter-active { transition: opacity 0.25s ease, transform 0.25s ease; }
+.chip-item-enter-from { opacity: 0; transform: scale(0.85); }
+.chip-item-leave-active { transition: opacity 0.15s ease; position: absolute; }
+.chip-item-leave-to { opacity: 0; }
+.chip-item-move { transition: transform 0.2s ease; }
 .auth-chip-label { color: var(--text-muted); font-style: italic; }
 .auth-chip-remove {
   width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%;
@@ -244,6 +265,9 @@ function handleLaunch() {
 
 @media (prefers-reduced-motion: reduce) {
   .pop-enter-active, .pop-leave-active, .btn-launch,
-  .auth-register-toggle .chevron, .btn-authorize-inline, .btn-add-target, .auth-chip-remove { transition: none !important; }
+  .auth-register-toggle .chevron, .btn-authorize-inline, .btn-add-target, .auth-chip-remove,
+  .auth-status, .fade-swap-enter-active, .fade-swap-leave-active,
+  .panel-slide-enter-active, .panel-slide-leave-active,
+  .chip-item-enter-active, .chip-item-leave-active, .chip-item-move { transition: none !important; }
 }
 </style>

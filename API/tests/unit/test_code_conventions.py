@@ -139,11 +139,11 @@ KNOWN_VIOLATIONS: dict[tuple[str, str, str], str] = {
         _PLAN_SQL,
     ("sql-outside-repository", "src/modules/features/acheron/managers.py", "VaultManager.upsert_vault_from_json"):
         _PLAN_SQL,
-    ("sql-outside-repository", "src/modules/features/iris/managers/analysis.py", "IrisManager._claim_ai_summary"):
+    ("sql-outside-repository", "src/modules/features/iris/managers/analysis.py", "_claim_ai_summary"):
         _PLAN_SQL,
     ("sql-outside-repository", "src/modules/features/iris/managers/analysis.py", "IrisManager.cancel_analysis"):
         _PLAN_SQL,
-    ("sql-outside-repository", "src/modules/features/iris/managers/mailbox.py", "IrisMailboxManager._enqueue_pending"):
+    ("sql-outside-repository", "src/modules/features/iris/managers/mailbox.py", "_enqueue_pending"):
         _PLAN_SQL,
     ("sql-outside-repository", "src/modules/users/services/account_deletion.py", "_delete_by_user"):
         _PLAN_SQL,
@@ -345,78 +345,6 @@ KNOWN_VIOLATIONS: dict[tuple[str, str, str], str] = {
     ("private-method", "src/modules/features/hygeia/services/scheduling.py", "HygeiaScheduler._run_presence_check"):
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/hygeia/services/scheduling.py", "HygeiaScheduler._run_retention"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/analysis.py", "IrisManager._aggregate_score"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/analysis.py", "IrisManager._apply_verdict_gates"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/analysis.py", "IrisManager._claim_ai_summary"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/analysis.py", "IrisManager._determine_verdict"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/analysis.py", "IrisManager._enqueue_phishing_notification"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/analysis.py", "IrisManager._evaluate_contexts"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/analysis.py", "IrisManager._evaluate_gates"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/analysis.py", "IrisManager._extract_verdict_signals"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/analysis.py", "IrisManager._fail_analysis"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/analysis.py", "IrisManager._persist_analysis_results"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/analysis.py", "IrisManager._refund_ai_summary_quota"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/analysis.py", "IrisManager._release_ai_summary"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/analysis.py", "IrisManager._run_analysis"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/analysis.py", "IrisManager._top_signals"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/analysis.py", "IrisManager._update_analysis"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/analysis.py", "IrisManager._validate_headers_parsed"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/analysis.py", "IrisManager._validate_headers_pre"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/mailbox.py", "IrisMailboxManager._clear_sync_started"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/mailbox.py", "IrisMailboxManager._consume_state"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/mailbox.py", "IrisMailboxManager._current_daily_counter"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/mailbox.py", "IrisMailboxManager._drain_pending"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/mailbox.py", "IrisMailboxManager._enqueue_pending"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/mailbox.py", "IrisMailboxManager._ensure_access_token"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/mailbox.py", "IrisMailboxManager._finish_sync"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/mailbox.py", "IrisMailboxManager._ingest_message"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/mailbox.py", "IrisMailboxManager._mark_reauth_required"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/mailbox.py", "IrisMailboxManager._mark_sync_started"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/mailbox.py", "IrisMailboxManager._record_sync_error"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/mailbox.py", "IrisMailboxManager._redirect_uri"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/mailbox.py", "IrisMailboxManager._resolve_inbox_entry"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/mailbox.py", "IrisMailboxManager._retry_or_deadletter"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/mailbox.py", "IrisMailboxManager._sign_state"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/mailbox.py", "IrisMailboxManager._state_serializer"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/mailbox.py", "IrisMailboxManager._sync_connection"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/mailbox.py", "IrisMailboxManager._validate_folder"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/managers/mailbox.py", "IrisMailboxManager._verify_state"):
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/iris/managers/notifications.py", "IrisDigestNotifyManager._run_notify"):
         _PLAN_PRIVATE_METHOD,

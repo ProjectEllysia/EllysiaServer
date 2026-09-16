@@ -1751,6 +1751,26 @@ class HygeiaLimits:  # pylint: disable=too-many-instance-attributes
     max_series_points: int = 1000
     """Máximo de puntos devueltos por la serie temporal de un activo."""
 
+    max_stats_period_days: int = 30
+    """Periodo máximo, en días, que puede abarcar una consulta de estadísticas.
+
+    Acota la ventana que recorre un endpoint de estadísticas sobre
+    ``AssetSnapshot``, que sin tope podría recorrer la tabla entera. Al
+    resolver la ventana se recorta además a ``HygeiaConfig.retention_days``:
+    pedir más de lo que la retención guarda no añadiría histórico, solo haría
+    pasar por completo un periodo que no lo está. El default coincide con la
+    retención por defecto (lo ata ``test_config_shape.py``).
+    """
+
+    max_entity_stats_period_days: int = 7
+    """Periodo máximo, en días, de las estadísticas por entidad (montaje, interfaz, núcleo).
+
+    Esas estadísticas no tienen columna propia: leen el JSONB ``metrics`` de
+    cada heartbeat del periodo. A un latido cada 15 s, 30 días son unos
+    170 000 JSONB por activo; 7 días, unos 40 000. La ventana se recorta
+    además a ``max_stats_period_days`` y a la retención.
+    """
+
     min_interval_sec: int = 5
     """Suelo de cadencia entre heartbeats de una misma clave, en segundos."""
 
@@ -1844,6 +1864,64 @@ class HygeiaConfig:
     """
 
 
+@config_block("features.hygeia.analysis")
+@dataclass(frozen=True)
+class HygeiaAnalysis:
+    """Cuándo el análisis derivado se atreve a afirmar algo y cuándo se calla.
+
+    Son umbrales de confianza, no de comodidad. El análisis derivado no mide
+    nada nuevo: interpreta lo que ya está medido, y una interpretación
+    equivocada es peor que ninguna porque invita a actuar. Cada valor de aquí
+    es la frontera entre "esto lo puedo afirmar" y "esto no lo sé".
+    """
+
+    min_trend_r_squared: float = 0.5
+    """Ajuste mínimo (R²) para creerse la dirección de una tendencia.
+
+    El R² dice qué parte de la variación de la serie explica la recta que se
+    le ha ajustado: cerca de ``1`` la serie es casi una línea, cerca de ``0``
+    la recta atraviesa una nube de puntos sin describir nada. Por debajo de
+    este suelo la pendiente existe como número pero no significa nada, así que
+    la estimación se retira en vez de dar una fecha inventada.
+
+    El ``0.5`` por defecto es deliberadamente tolerante: el uso de disco real
+    sube a escalones (una actualización, un log que rota), no en línea recta,
+    y exigir un ajuste casi perfecto dejaría sin estimación a discos que de
+    verdad se están llenando.
+    """
+
+    min_trend_slope_pct_per_day: float = 0.05
+    """Pendiente mínima, en puntos porcentuales por día, para decir que algo crece.
+
+    Distingue crecer de oscilar. Un disco que se mueve entre el 60 y el 62 %
+    tiene pendientes minúsculas de un signo u otro según el tramo que se mire;
+    proyectarlas daría "se llena en año y medio" un día y "en ocho meses" al
+    siguiente, con el mismo disco quieto. Por debajo de este suelo no se
+    estima.
+
+    El ``0.05`` por defecto son veinte días por punto porcentual: un disco más
+    lento que eso tardaría años en llenarse, y esa cifra no le sirve a nadie.
+    """
+
+    peak_coincidence_window_sec: int = 300
+    """Cuánto pueden separarse dos picos para considerarlos simultáneos, en segundos.
+
+    Lo usa la señal de coincidencia entre picos de métricas distintas del
+    mismo activo. No es una correlación estadística: es la pregunta mucho más
+    modesta de si los dos máximos del periodo cayeron lo bastante cerca en el
+    tiempo como para que merezca la pena mirarlos juntos.
+
+    Los cinco minutos por defecto son varias decenas de latidos a la cadencia
+    normal: ancho suficiente para no perder una relación real por el desfase
+    entre dos mediciones, y estrecho como para que dos picos independientes de
+    un periodo de días no se rocen por casualidad.
+    """
+
+
+def hygeia_analysis() -> HygeiaAnalysis:
+    return load_block(HygeiaAnalysis)
+
+
 def hygeia_config() -> HygeiaConfig:
     return load_block(HygeiaConfig)
 
@@ -1863,7 +1941,7 @@ class IrisConfig:  # pylint: disable=too-many-instance-attributes
 
     legitimate_threshold: float = 80
     """Escala sustractiva 0–100: a partir de aquí el veredicto es Legítimo
-    (ver ``IrisManager._aggregate_score``)."""
+    (ver ``ScoringPolicy.aggregate``)."""
 
     suspicious_threshold: float = 55
     """Por debajo de ``legitimate_threshold`` y a partir de aquí, Sospechoso;

@@ -9,14 +9,137 @@ Anomaly y HygeiaTag. Las lecturas se construyen con ``build_repository``
 
 from __future__ import annotations
 
+import math
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Any, Callable, Dict, List, Literal, Mapping, Optional, Tuple
 
-from sqlalchemy import func, update
+from sqlalchemy import Integer, and_, cast, func, update
+from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from src.modules.infrastructure import BaseRepository
 
 from .model import Anomaly, AssetSnapshot, AssetTag, HygeiaTag, MonitoredAsset
+
+#: Cómo se resume una métrica dentro de un cubo de tiempo de un mismo activo.
+BucketAggregation = Literal["min", "avg", "max"]
+
+#: Cómo se combinan entre activos los valores ya resumidos por cubo.
+AssetAggregation = Literal["sum", "avg", "max"]
+
+_BUCKET_AGGREGATE_FUNCTIONS: Mapping[str, Callable] = {
+    "min": func.min, "avg": func.avg, "max": func.max,
+}
+_ASSET_AGGREGATE_FUNCTIONS: Mapping[str, Callable] = {
+    "sum": func.sum, "avg": func.avg, "max": func.max,
+}
+
+
+def _bucket_id_expression(bucket_seconds: int):
+    """Número de cubo de cada snapshot: ``floor(epoch(received_at) / bucket_seconds)``.
+
+    Es portable entre Postgres y el SQLite de los tests: en SQLite el
+    ``extract`` se compila a ``strftime('%s')`` (división entera, que para
+    valores positivos ya aplana) y en Postgres a doble precisión con
+    ``floor`` — mismo resultado.
+
+    Args:
+        bucket_seconds: Tamaño del cubo en segundos; positivo.
+
+    Returns:
+        La expresión SQL etiquetada como ``bucket_id``.
+    """
+    return func.floor(
+        func.extract("epoch", AssetSnapshot.received_at) / bucket_seconds
+    ).label("bucket_id")
+
+
+def _hour_of_day_expression():
+    """Hora del día (0-23) de cada snapshot, según ``received_at``.
+
+    Se agrupa por el reloj del **servidor** y no por ``collected_at``, que es
+    el del agente: el reloj de un host puede ir mal puesto o en otra zona, y
+    un patrón horario construido sobre relojes que no coinciden mezclaría las
+    nueve de la mañana de una máquina con las tres de la madrugada de otra.
+
+    Es portable entre Postgres y el SQLite de los tests: en SQLite el
+    ``extract`` se compila a ``strftime('%H')``, que devuelve la hora como
+    texto, de ahí el ``cast`` explícito a entero — sin él, el orden de las
+    horas sería alfabético y la 10 iría antes que la 2.
+
+    Returns:
+        La expresión SQL etiquetada como ``hour_of_day``.
+    """
+    return cast(
+        func.extract("hour", AssetSnapshot.received_at), Integer,
+    ).label("hour_of_day")
+
+
+def _bucket_start(bucket_id, bucket_seconds: int) -> datetime:
+    """Inicio de un cubo como datetime naive-UTC, a partir de su número.
+
+    Args:
+        bucket_id: Número de cubo tal como lo devuelve la consulta; ``int``,
+            ``float`` o ``Decimal`` según el motor.
+        bucket_seconds: Tamaño del cubo en segundos.
+
+    Returns:
+        datetime: El instante de inicio del cubo, sin zona horaria.
+    """
+    return datetime.fromtimestamp(
+        int(bucket_id) * bucket_seconds, tz=timezone.utc,
+    ).replace(tzinfo=None)
+
+
+def _resolve_aggregate(functions_by_name: Mapping[str, Callable], name: str) -> Callable:
+    """Traduce el nombre de una agregación a su función SQL.
+
+    Args:
+        functions_by_name: Tabla de agregaciones admitidas en este punto.
+        name: Nombre pedido (``"max"``, ``"sum"``…).
+
+    Returns:
+        Callable: La función de SQLAlchemy (``func.max``…).
+
+    Raises:
+        ValueError: Si el nombre no está en la tabla; es un error de
+            programación, porque el schema del endpoint valida el parámetro.
+    """
+    if name not in functions_by_name:
+        raise ValueError(
+            f"Agregación {name!r} no admitida aquí; valores válidos: {sorted(functions_by_name)}"
+        )
+    return functions_by_name[name]
+
+
+def _validate_bucket_count(
+    since: datetime, until: datetime, bucket_seconds: int, max_buckets: int,
+) -> None:
+    """Rechaza un cubo tan fino que la ventana produciría más cubos de los permitidos.
+
+    Las consultas multi-activo no llevan ``LIMIT``: con varios activos, un
+    tope de filas cortaría la serie de los últimos activos del orden sin que
+    nada lo dijera. En su lugar se comprueba de antemano que la ventana cabe
+    en ``max_buckets`` cubos por activo (``+1`` porque la ventana no tiene por
+    qué empezar alineada con un cubo y puede asomar a uno más).
+
+    Args:
+        since: Inicio de la ventana.
+        until: Fin de la ventana.
+        bucket_seconds: Tamaño del cubo en segundos.
+        max_buckets: Máximo de cubos por activo.
+
+    Raises:
+        ValueError: Si ``bucket_seconds`` no es positivo o la ventana
+            necesitaría más de ``max_buckets`` cubos.
+    """
+    if bucket_seconds <= 0:
+        raise ValueError(f"El cubo debe ser positivo; se pidió {bucket_seconds} s")
+    bucket_count = math.ceil((until - since).total_seconds() / bucket_seconds) + 1
+    if bucket_count > max_buckets:
+        raise ValueError(
+            f"Un cubo de {bucket_seconds} s sobre esta ventana da {bucket_count} cubos; "
+            f"el máximo es {max_buckets}"
+        )
 
 
 class MonitoredAssetRepository(BaseRepository[MonitoredAsset]):
@@ -48,6 +171,114 @@ class MonitoredAssetRepository(BaseRepository[MonitoredAsset]):
             .filter(MonitoredAsset.user_id.in_(user_ids))
             .order_by(MonitoredAsset.user_id.asc(), MonitoredAsset.hostname.asc())
             .all()
+        )
+
+    def get_by_tag(self, user_id: int, tag_id: int) -> List[MonitoredAsset]:
+        """Activos **del usuario** que llevan una etiqueta, ordenados por hostname.
+
+        El filtro por dueño es la garantía de privacidad de las estadísticas
+        por etiqueta: una etiqueta de sistema la usa todo el mundo, y sin él
+        el agregado de "producción" incluiría los servidores de otros
+        usuarios. Que la etiqueta sea visible para el usuario lo comprueba el
+        manager antes de llamar aquí.
+
+        Args:
+            user_id: Dueño de los activos.
+            tag_id: Etiqueta cuyos activos se buscan.
+
+        Returns:
+            List[MonitoredAsset]: Los activos, vacía si la etiqueta no está en
+                ninguno del usuario.
+        """
+        return (
+            self._session.query(MonitoredAsset)
+            .join(AssetTag, AssetTag.c.asset_id == MonitoredAsset.id)
+            .filter(AssetTag.c.tag_id == tag_id, MonitoredAsset.user_id == user_id)
+            .order_by(MonitoredAsset.hostname.asc(), MonitoredAsset.id.asc())
+            .all()
+        )
+
+    def get_by_ids_for_user(self, user_id: int, asset_ids: List[int]) -> List[MonitoredAsset]:
+        """Los activos pedidos que son **del usuario**, ordenados por hostname.
+
+        Un id de otro usuario simplemente no aparece: quien llama compara lo
+        pedido con lo devuelto y responde igual que para un id inexistente,
+        sin distinguir los dos casos.
+
+        Args:
+            user_id: Dueño de los activos.
+            asset_ids: Ids pedidos. Una lista vacía devuelve una lista vacía
+                sin consultar.
+
+        Returns:
+            List[MonitoredAsset]: Los que existen y son del usuario.
+        """
+        if not asset_ids:
+            return []
+        return (
+            self._session.query(MonitoredAsset)
+            .filter(MonitoredAsset.id.in_(asset_ids), MonitoredAsset.user_id == user_id)
+            .order_by(MonitoredAsset.hostname.asc(), MonitoredAsset.id.asc())
+            .all()
+        )
+
+    def count_by_status(self, user_id: int) -> Dict[str, int]:
+        """Cuántos activos del usuario hay en cada estado de presencia.
+
+        Args:
+            user_id: Dueño de los activos.
+
+        Returns:
+            Dict[str, int]: ``{estado: activos}``. Los estados sin ningún
+                activo no aparecen; el manager los completa con 0.
+        """
+        rows = (
+            self._session.query(MonitoredAsset.status, func.count(MonitoredAsset.id))
+            .filter(MonitoredAsset.user_id == user_id)
+            .group_by(MonitoredAsset.status)
+            .all()
+        )
+        return dict(rows)
+
+    def get_average_online_uptime(self, user_id: int) -> Optional[float]:
+        """Uptime medio, en segundos, de los activos del usuario que están en línea.
+
+        Solo los ``online``: el ``uptime_sec`` de un activo caído es el del
+        último heartbeat que mandó, y meterlo en la media la inflaría con un
+        equipo que ya no está encendido.
+
+        Args:
+            user_id: Dueño de los activos.
+
+        Returns:
+            Optional[float]: La media, o ``None`` si no hay ningún activo en
+                línea que haya reportado su uptime.
+        """
+        average = (
+            self._session.query(func.avg(MonitoredAsset.uptime_sec))
+            .filter(
+                MonitoredAsset.user_id == user_id,
+                MonitoredAsset.status == "online",
+                MonitoredAsset.uptime_sec.isnot(None),
+            )
+            .scalar()
+        )
+        return None if average is None else float(average)
+
+    def get_last_activity(self, user_id: int) -> Optional[datetime]:
+        """Último heartbeat recibido de cualquiera de los activos del usuario.
+
+        Args:
+            user_id: Dueño de los activos.
+
+        Returns:
+            Optional[datetime]: El ``last_seen_at`` más reciente, o ``None`` si
+                ningún activo ha reportado nunca.
+        """
+        return (
+            self._session.query(func.max(MonitoredAsset.last_seen_at))
+            .filter(MonitoredAsset.user_id == user_id)
+            .scalar()
         )
 
     def get_by_agent_key_id(self, agent_key_id: str) -> Optional[MonitoredAsset]:
@@ -160,29 +391,35 @@ class AssetSnapshotRepository(BaseRepository[AssetSnapshot]):
         rows.reverse()
         return rows
 
-    def get_series_bucketed(
+    def get_series_bucketed(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self, asset_id: int, bucket: int, since: Optional[datetime] = None,
         until: Optional[datetime] = None, limit: int = 1000,
+        aggregation: BucketAggregation = "max",
     ) -> List[dict]:
         """Serie temporal agregada por cubos de ``bucket`` segundos.
 
-        Un punto por cubo con **el máximo** de cada métrica desnormalizada:
-        es el agregado que no se traga un pico puntual dentro de un cubo de
-        ítems — para una gráfica de monitorización, perder el pico sería
-        mentir sobre el tramo. Los cubos sin ningún heartbeat simplemente no
-        existen en el resultado: la ausencia de señal es precisamente el dato
-        que el frontend pinta como tiempo apagado.
+        Un punto por cubo con el agregado pedido de cada métrica
+        desnormalizada. Por defecto **el máximo**: es el agregado que no se
+        traga un pico puntual dentro de un cubo de ítems — para una gráfica de
+        monitorización, perder el pico sería mentir sobre el tramo. ``avg`` es
+        la media **aritmética** de los heartbeats del cubo, también para la
+        potencia: la misma media que usa el resumen estadístico, para que una
+        gráfica y un resumen del mismo tramo no den dos medias distintas (la
+        ponderada por duración se queda en el cálculo de energía). El
+        percentil 95 no se resuelve aquí: no hay una función SQL portable
+        entre Postgres y SQLite, y lo calcula el manager en Python.
+
+        Los cubos sin ningún heartbeat simplemente no existen en el resultado:
+        la ausencia de señal es precisamente el dato que el frontend pinta como
+        tiempo apagado.
 
         El instante del punto es el **inicio** del cubo (suelo de
         ``epoch(received_at) / bucket``), así el punto se lee como "el estado
         de este intervalo" y el eje sigue siendo ``received_at``, el mismo de
         la serie cruda.
 
-        El agrupado se hace con ``floor(extract(epoch, received_at) / bucket)``,
-        portable entre Postgres y el SQLite de los tests: en SQLite el
-        ``extract`` se compila a ``strftime('%s')`` (división entera, que para
-        valores positivos ya aplana) y en Postgres a doble precisión con
-        ``floor`` — mismo resultado.
+        El agrupado lo hace ``_bucket_id_expression``, portable entre Postgres
+        y SQLite.
 
         ``disk_max_mount`` se queda fuera del agregado, igual que
         ``power_estimated``/``power_source``: el montaje asociado al máximo,
@@ -198,26 +435,30 @@ class AssetSnapshotRepository(BaseRepository[AssetSnapshot]):
             until: Límite superior opcional de ``received_at``.
             limit: Tope de cubos, por defensa (una ventana de 30 días con un
                 cubo de 1 s sería 2,5 millones de filas).
+            aggregation: Cómo se resume cada cubo: ``"min"``, ``"avg"`` o
+                ``"max"``. Por defecto ``"max"``.
 
         Returns:
             Lista de puntos agregados (diccionarios en la misma forma que
             ``AssetSnapshot.to_dict``), de más antiguo a más reciente.
+
+        Raises:
+            ValueError: Si ``aggregation`` no es una de las admitidas.
         """
-        bucket_id = func.floor(
-            func.extract("epoch", AssetSnapshot.received_at) / bucket
-        ).label("bucket_id")
+        aggregate = _resolve_aggregate(_BUCKET_AGGREGATE_FUNCTIONS, aggregation)
+        bucket_id = _bucket_id_expression(bucket)
 
         query = (
             self._session.query(
                 bucket_id,
-                func.max(AssetSnapshot.cpu_pct).label("cpu_pct"),
-                func.max(AssetSnapshot.mem_pct).label("mem_pct"),
-                func.max(AssetSnapshot.swap_pct).label("swap_pct"),
-                func.max(AssetSnapshot.load1).label("load1"),
-                func.max(AssetSnapshot.disk_max_pct).label("disk_max_pct"),
-                func.max(AssetSnapshot.net_rx_bps).label("net_rx_bps"),
-                func.max(AssetSnapshot.net_tx_bps).label("net_tx_bps"),
-                func.max(AssetSnapshot.power_watts).label("power_watts"),
+                aggregate(AssetSnapshot.cpu_pct).label("cpu_pct"),
+                aggregate(AssetSnapshot.mem_pct).label("mem_pct"),
+                aggregate(AssetSnapshot.swap_pct).label("swap_pct"),
+                aggregate(AssetSnapshot.load1).label("load1"),
+                aggregate(AssetSnapshot.disk_max_pct).label("disk_max_pct"),
+                aggregate(AssetSnapshot.net_rx_bps).label("net_rx_bps"),
+                aggregate(AssetSnapshot.net_tx_bps).label("net_tx_bps"),
+                aggregate(AssetSnapshot.power_watts).label("power_watts"),
             )
             .filter(AssetSnapshot.asset_id == asset_id)
         )
@@ -233,16 +474,10 @@ class AssetSnapshotRepository(BaseRepository[AssetSnapshot]):
             .all()
         )
 
-        def bucket_start(bucket_no: int) -> datetime:
-            """Inicio del cubo como datetime naive-UTC, desde su número de epoch."""
-            return datetime.fromtimestamp(
-                int(bucket_no) * bucket, tz=timezone.utc,
-            ).replace(tzinfo=None)
-
         return [
             {
-                "collectedAt": bucket_start(row.bucket_id),
-                "receivedAt": bucket_start(row.bucket_id),
+                "collectedAt": _bucket_start(row.bucket_id, bucket),
+                "receivedAt": _bucket_start(row.bucket_id, bucket),
                 "cpuPct": row.cpu_pct,
                 "memPct": row.mem_pct,
                 "swapPct": row.swap_pct,
@@ -292,6 +527,422 @@ class AssetSnapshotRepository(BaseRepository[AssetSnapshot]):
             .all()
         )
         return [(row.received_at, row.power_watts) for row in rows]
+
+    def get_metrics_section_samples(
+        self, asset_id: int, section: str, since: datetime, until: datetime,
+    ) -> List[Tuple[datetime, Any]]:
+        """Una sección del JSONB ``metrics`` de cada heartbeat de un activo en una ventana.
+
+        Es el camino de las estadísticas por entidad (montaje, interfaz,
+        núcleo), cuyo detalle no tiene columna propia. Proyecta solo el
+        instante y la sección pedida (``metrics -> 'disk'`` en Postgres), no
+        el JSONB completo: una ventana de días son decenas de miles de filas,
+        y el resto del payload no hace falta.
+
+        Args:
+            asset_id: Activo a consultar; ya filtrado por dueño en el manager.
+            section: Clave de primer nivel de ``metrics`` (``"disk"``,
+                ``"network"``, ``"cpu"``…).
+            since: Inicio de la ventana, sobre ``received_at``, inclusivo.
+            until: Fin de la ventana, sobre ``received_at``, inclusivo.
+
+        Returns:
+            List[Tuple[datetime, Any]]: ``(received_at, sección)`` de más
+                antiguo a más reciente. La sección es el valor JSON ya
+                deserializado (una lista, un diccionario…), o ``None`` si ese
+                heartbeat no la trae.
+        """
+        rows = (
+            self._session.query(
+                AssetSnapshot.received_at, AssetSnapshot.metrics[section].label("section"),
+            )
+            .filter(
+                AssetSnapshot.asset_id == asset_id,
+                AssetSnapshot.received_at >= since,
+                AssetSnapshot.received_at <= until,
+            )
+            .order_by(AssetSnapshot.received_at.asc())
+            .all()
+        )
+        return [(row.received_at, row.section) for row in rows]
+
+    def get_metric_aggregates_by_asset(
+        self, asset_ids: List[int], column: InstrumentedAttribute,
+        since: datetime, until: datetime,
+    ) -> Dict[int, Tuple[Optional[float], Optional[float], int]]:
+        """Media, máximo y número de muestras de una métrica por activo, en una sola consulta.
+
+        Es el camino de las estadísticas por etiqueta: se agrega en la base de
+        datos (``GROUP BY asset_id``) en vez de traer las muestras, porque 30
+        días de heartbeats de todos los activos de una etiqueta son millones
+        de filas y aquí solo hacen falta tres números por activo. Los
+        snapshots sin valor para la métrica no cuentan: son ausencia de dato.
+
+        Args:
+            asset_ids: Activos a consultar; ya filtrados por dueño. Una lista
+                vacía devuelve un diccionario vacío sin consultar.
+            column: Columna de ``AssetSnapshot`` de la métrica.
+            since: Inicio de la ventana, sobre ``received_at``, inclusivo.
+            until: Fin de la ventana, sobre ``received_at``, inclusivo.
+
+        Returns:
+            Dict[int, Tuple[Optional[float], Optional[float], int]]: Por cada
+                ``asset_id`` pedido, en el mismo orden, ``(media, máximo,
+                muestras)``. Un activo sin muestras en la ventana conserva su
+                entrada como ``(None, None, 0)``.
+        """
+        if not asset_ids:
+            return {}
+        rows = (
+            self._session.query(
+                AssetSnapshot.asset_id,
+                func.avg(column).label("average"),
+                func.max(column).label("maximum"),
+                func.count(column).label("sample_count"),
+            )
+            .filter(
+                AssetSnapshot.asset_id.in_(asset_ids),
+                AssetSnapshot.received_at >= since,
+                AssetSnapshot.received_at <= until,
+                column.isnot(None),
+            )
+            .group_by(AssetSnapshot.asset_id)
+            .all()
+        )
+        aggregates_found = {
+            row.asset_id: (float(row.average), float(row.maximum), row.sample_count)
+            for row in rows
+        }
+        return {asset_id: aggregates_found.get(asset_id, (None, None, 0)) for asset_id in asset_ids}
+
+    def get_hour_of_day_aggregates(
+        self, asset_ids: List[int], column: InstrumentedAttribute,
+        since: datetime, until: datetime, aggregation: BucketAggregation = "avg",
+    ) -> Dict[int, Tuple[Optional[float], int]]:
+        """Agregado de una métrica por hora del día, sobre un conjunto de activos.
+
+        Es el camino del patrón horario: en vez de traer los heartbeats de la
+        ventana y agruparlos en Python —que a un latido cada 15 s son unos
+        170 000 por activo y por mes—, se agrupa en la base de datos por la
+        hora del reloj del servidor y vuelven como mucho 24 filas, sea cual
+        sea el tamaño del parque o del periodo.
+
+        Los heartbeats de todos los activos pedidos caen en el mismo cubo
+        horario: la pregunta que responde es "¿a qué hora aprieta este
+        conjunto?", no "¿a qué hora aprieta cada máquina?". Los snapshots sin
+        valor para la métrica no cuentan, como en el resto de agregados.
+
+        Args:
+            asset_ids: Activos a consultar; ya filtrados por dueño en el
+                manager. Una lista vacía devuelve un diccionario vacío sin
+                consultar.
+            column: Columna de ``AssetSnapshot`` de la métrica.
+            since: Inicio de la ventana, sobre ``received_at``, inclusivo.
+            until: Fin de la ventana, sobre ``received_at``, inclusivo.
+            aggregation: Cómo se resume cada hora: ``"min"``, ``"avg"`` o
+                ``"max"``. Por defecto ``"avg"``.
+
+        Returns:
+            Dict[int, Tuple[Optional[float], int]]: ``{hora: (valor, muestras)}``
+                con la hora en ``[0, 23]``. Las horas sin ninguna muestra en la
+                ventana **no aparecen**: quien llama decide si eso se pinta
+                como un hueco o como un cero, y desde aquí no se puede saber
+                si el parque estaba tranquilo o simplemente apagado.
+
+        Raises:
+            ValueError: Si ``aggregation`` no es una de las admitidas.
+        """
+        if not asset_ids:
+            return {}
+        aggregate = _resolve_aggregate(_BUCKET_AGGREGATE_FUNCTIONS, aggregation)
+        hour_of_day = _hour_of_day_expression()
+
+        rows = (
+            self._session.query(
+                hour_of_day,
+                aggregate(column).label("value"),
+                func.count(column).label("sample_count"),
+            )
+            .filter(
+                AssetSnapshot.asset_id.in_(asset_ids),
+                AssetSnapshot.received_at >= since,
+                AssetSnapshot.received_at <= until,
+                column.isnot(None),
+            )
+            .group_by(hour_of_day)
+            .order_by(hour_of_day.asc())
+            .all()
+        )
+        return {
+            int(row.hour_of_day): (float(row.value), row.sample_count) for row in rows
+        }
+
+    def get_asset_ids_with_estimated_power(
+        self, asset_ids: List[int], since: datetime, until: datetime,
+    ) -> set[int]:
+        """Qué activos tuvieron alguna lectura de potencia estimada por modelo en la ventana.
+
+        Una potencia estimada (``power_estimated``, p. ej. el modelo de
+        utilización de Windows) no es una medición, y un total de energía que
+        la incluye tiene que poder decirlo. Basta una lectura estimada en la
+        ventana para marcar al activo: sus kWh ya no son medidos del todo.
+
+        Args:
+            asset_ids: Activos a consultar; ya filtrados por dueño. Una lista
+                vacía devuelve un conjunto vacío sin consultar.
+            since: Inicio de la ventana, sobre ``received_at``, inclusivo.
+            until: Fin de la ventana, sobre ``received_at``, inclusivo.
+
+        Returns:
+            set[int]: Los ``asset_id`` con al menos una lectura estimada.
+        """
+        if not asset_ids:
+            return set()
+        rows = (
+            self._session.query(AssetSnapshot.asset_id)
+            .filter(
+                AssetSnapshot.asset_id.in_(asset_ids),
+                AssetSnapshot.received_at >= since,
+                AssetSnapshot.received_at <= until,
+                AssetSnapshot.power_estimated.is_(True),
+            )
+            .distinct()
+            .all()
+        )
+        return {row.asset_id for row in rows}
+
+    def get_metric_samples_by_asset(
+        self, asset_ids: List[int], column: InstrumentedAttribute,
+        since: datetime, until: datetime,
+    ) -> Dict[int, List[Tuple[datetime, float]]]:
+        """Muestras crudas de una métrica para varios activos, en una sola consulta.
+
+        Es el camino para lo que SQL no resuelve de forma portable —el
+        percentil 95, el instante del máximo—: el resumen se calcula después
+        en Python con ``services/stats.py`` sobre estas series. Proyecta solo
+        dos columnas, igual que ``get_power_samples``, porque recorre todos
+        los heartbeats de la ventana.
+
+        Los snapshots sin valor para la métrica se excluyen: son ausencia de
+        dato, no un cero.
+
+        Args:
+            asset_ids: Activos a consultar; ya filtrados por dueño en el
+                manager. Una lista vacía devuelve un diccionario vacío sin
+                consultar: un ``IN ()`` mal formado aquí sería una fuga de
+                datos, no un error de rendimiento.
+            column: Columna de ``AssetSnapshot`` de la métrica (la de
+                ``MetricDefinition.column``).
+            since: Inicio de la ventana, sobre ``received_at``, inclusivo.
+            until: Fin de la ventana, sobre ``received_at``, inclusivo.
+
+        Returns:
+            Dict[int, List[Tuple[datetime, float]]]: Por cada ``asset_id``
+                pedido, sus ``(received_at, valor)`` de más antiguo a más
+                reciente. Un activo sin muestras en la ventana conserva su
+                entrada con una lista vacía.
+        """
+        if not asset_ids:
+            return {}
+        rows = (
+            self._session.query(
+                AssetSnapshot.asset_id, AssetSnapshot.received_at, column.label("value"),
+            )
+            .filter(
+                AssetSnapshot.asset_id.in_(asset_ids),
+                AssetSnapshot.received_at >= since,
+                AssetSnapshot.received_at <= until,
+                column.isnot(None),
+            )
+            .order_by(AssetSnapshot.asset_id.asc(), AssetSnapshot.received_at.asc())
+            .all()
+        )
+        samples_by_asset: Dict[int, List[Tuple[datetime, float]]] = {
+            asset_id: [] for asset_id in asset_ids
+        }
+        for row in rows:
+            samples_by_asset[row.asset_id].append((row.received_at, float(row.value)))
+        return samples_by_asset
+
+    def get_bucketed_metric_by_asset(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+        self, asset_ids: List[int], column: InstrumentedAttribute, bucket_seconds: int,
+        since: datetime, until: datetime, *, within_bucket: BucketAggregation = "max",
+        max_buckets: int = 1000,
+    ) -> Dict[int, List[Tuple[datetime, float]]]:
+        """Serie por cubos de una métrica, una por activo, en una sola consulta.
+
+        Generaliza ``get_series_bucketed`` a una lista de activos y a una sola
+        métrica, con el mismo agrupado portable (``_bucket_id_expression``).
+        Los cubos sin ningún heartbeat con dato no aparecen: la ausencia de
+        señal es el dato que la gráfica pinta como tiempo sin reportar.
+
+        Args:
+            asset_ids: Activos a consultar; ya filtrados por dueño. Una lista
+                vacía devuelve un diccionario vacío sin consultar.
+            column: Columna de ``AssetSnapshot`` de la métrica.
+            bucket_seconds: Tamaño del cubo en segundos; positivo.
+            since: Inicio de la ventana, sobre ``received_at``, inclusivo.
+            until: Fin de la ventana, sobre ``received_at``, inclusivo.
+            within_bucket: Cómo se resume el cubo de un activo: ``"min"``,
+                ``"avg"`` o ``"max"``. Por defecto ``"max"``, el mismo que usa
+                la serie de un activo para no tragarse un pico.
+            max_buckets: Máximo de cubos por activo. Por defecto ``1000``.
+
+        Returns:
+            Dict[int, List[Tuple[datetime, float]]]: Por cada ``asset_id``
+                pedido, sus ``(inicio_del_cubo, valor)`` en orden cronológico;
+                un activo sin datos en la ventana conserva su entrada vacía.
+
+        Raises:
+            ValueError: Si la agregación no es válida o la ventana necesita
+                más de ``max_buckets`` cubos.
+        """
+        aggregate = _resolve_aggregate(_BUCKET_AGGREGATE_FUNCTIONS, within_bucket)
+        _validate_bucket_count(since, until, bucket_seconds, max_buckets)
+        if not asset_ids:
+            return {}
+
+        bucket_id = _bucket_id_expression(bucket_seconds)
+        rows = (
+            self._session.query(AssetSnapshot.asset_id, bucket_id, aggregate(column).label("value"))
+            .filter(
+                AssetSnapshot.asset_id.in_(asset_ids),
+                AssetSnapshot.received_at >= since,
+                AssetSnapshot.received_at <= until,
+                column.isnot(None),
+            )
+            .group_by(AssetSnapshot.asset_id, bucket_id)
+            .order_by(AssetSnapshot.asset_id.asc(), bucket_id.asc())
+            .all()
+        )
+        series_by_asset: Dict[int, List[Tuple[datetime, float]]] = {
+            asset_id: [] for asset_id in asset_ids
+        }
+        for row in rows:
+            series_by_asset[row.asset_id].append(
+                (_bucket_start(row.bucket_id, bucket_seconds), float(row.value))
+            )
+        return series_by_asset
+
+    def get_bucketed_metric_across_assets(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+        self, asset_ids: List[int], column: InstrumentedAttribute, bucket_seconds: int,
+        since: datetime, until: datetime, *, within_bucket: BucketAggregation = "max",
+        across_assets: AssetAggregation = "sum", max_buckets: int = 1000,
+    ) -> List[Tuple[datetime, float, int]]:
+        """Una única serie por cubos que combina varios activos, en una sola consulta.
+
+        Agrega en dos niveles, y el orden importa: primero cada activo dentro
+        de su cubo (``within_bucket``) y después esos valores entre activos
+        (``across_assets``). Sumar directamente las filas crudas contaría dos
+        veces a un activo que mandó dos heartbeats dentro del mismo cubo: la
+        "memoria total de la etiqueta" dependería de la cadencia de cada
+        agente. Los dos niveles van en la misma sentencia, con una subconsulta.
+
+        Args:
+            asset_ids: Activos a combinar; ya filtrados por dueño. Una lista
+                vacía devuelve una lista vacía sin consultar.
+            column: Columna de ``AssetSnapshot`` de la métrica.
+            bucket_seconds: Tamaño del cubo en segundos; positivo.
+            since: Inicio de la ventana, sobre ``received_at``, inclusivo.
+            until: Fin de la ventana, sobre ``received_at``, inclusivo.
+            within_bucket: Cómo se resume el cubo de cada activo: ``"min"``,
+                ``"avg"`` o ``"max"``. Por defecto ``"max"``.
+            across_assets: Cómo se combinan los activos: ``"sum"``, ``"avg"``
+                o ``"max"``. Por defecto ``"sum"``.
+            max_buckets: Máximo de cubos de la serie. Por defecto ``1000``.
+
+        Returns:
+            List[Tuple[datetime, float, int]]: ``(inicio_del_cubo, valor,
+                activos_con_dato)`` en orden cronológico. El tercer elemento
+                dice cuántos activos aportaron a ese cubo: una suma sobre dos
+                activos no es comparable con una sobre tres, y quien la pinta
+                tiene que poder decirlo.
+
+        Raises:
+            ValueError: Si alguna agregación no es válida o la ventana
+                necesita más de ``max_buckets`` cubos.
+        """
+        bucket_aggregate = _resolve_aggregate(_BUCKET_AGGREGATE_FUNCTIONS, within_bucket)
+        asset_aggregate = _resolve_aggregate(_ASSET_AGGREGATE_FUNCTIONS, across_assets)
+        _validate_bucket_count(since, until, bucket_seconds, max_buckets)
+        if not asset_ids:
+            return []
+
+        bucket_id = _bucket_id_expression(bucket_seconds)
+        per_asset = (
+            self._session.query(
+                AssetSnapshot.asset_id, bucket_id, bucket_aggregate(column).label("value"),
+            )
+            .filter(
+                AssetSnapshot.asset_id.in_(asset_ids),
+                AssetSnapshot.received_at >= since,
+                AssetSnapshot.received_at <= until,
+                column.isnot(None),
+            )
+            .group_by(AssetSnapshot.asset_id, bucket_id)
+            .subquery()
+        )
+        rows = (
+            self._session.query(
+                per_asset.c.bucket_id,
+                asset_aggregate(per_asset.c.value).label("value"),
+                func.count(per_asset.c.asset_id).label("asset_count"),
+            )
+            .group_by(per_asset.c.bucket_id)
+            .order_by(per_asset.c.bucket_id.asc())
+            .all()
+        )
+        return [
+            (_bucket_start(row.bucket_id, bucket_seconds), float(row.value), row.asset_count)
+            for row in rows
+        ]
+
+    def get_latest_disk_usage_by_asset(
+        self, asset_ids: List[int],
+    ) -> Dict[int, Tuple[datetime, Optional[float], Optional[str]]]:
+        """El montaje más lleno del último heartbeat de cada activo, en una sola consulta.
+
+        Es el camino de "los montajes más llenos del parque": se queda con el
+        último snapshot de cada activo (``MAX(received_at)`` por activo, en
+        una subconsulta) y lee solo sus columnas desnormalizadas
+        ``disk_max_pct``/``disk_max_mount``. Nunca abre el JSONB ``metrics``,
+        que para cientos de activos sería un escaneo caro.
+
+        Args:
+            asset_ids: Activos a consultar; ya filtrados por dueño. Una lista
+                vacía devuelve un diccionario vacío sin consultar.
+
+        Returns:
+            Dict[int, Tuple[datetime, Optional[float], Optional[str]]]: Por
+                cada activo que ha reportado alguna vez, ``(received_at,
+                disk_max_pct, disk_max_mount)`` de su último heartbeat. El uso
+                y el montaje son ``None`` si ese heartbeat no traía disco. Un
+                activo que nunca reportó no tiene entrada.
+        """
+        if not asset_ids:
+            return {}
+        latest = (
+            self._session.query(
+                AssetSnapshot.asset_id, func.max(AssetSnapshot.received_at).label("latest_at"),
+            )
+            .filter(AssetSnapshot.asset_id.in_(asset_ids))
+            .group_by(AssetSnapshot.asset_id)
+            .subquery()
+        )
+        rows = (
+            self._session.query(
+                AssetSnapshot.asset_id, AssetSnapshot.received_at,
+                AssetSnapshot.disk_max_pct, AssetSnapshot.disk_max_mount,
+            )
+            .join(latest, and_(
+                AssetSnapshot.asset_id == latest.c.asset_id,
+                AssetSnapshot.received_at == latest.c.latest_at,
+            ))
+            .all()
+        )
+        return {
+            row.asset_id: (row.received_at, row.disk_max_pct, row.disk_max_mount) for row in rows
+        }
 
     def get_latest(self, asset_id: int) -> Optional[AssetSnapshot]:
         """Devuelve el último snapshot recibido de un activo, o ``None`` si nunca reportó.
@@ -404,6 +1055,115 @@ class AnomalyRepository(BaseRepository[Anomaly]):
             query = query.filter(Anomaly.asset_id == asset_id)
         return query.order_by(Anomaly.opened_at.desc()).all()
 
+    def count_active_by_state_and_severity(self, user_id: int) -> Dict[Tuple[str, str], int]:
+        """Cuántas anomalías activas tienen los activos del usuario, por estado y severidad.
+
+        Solo las activas (``open`` y ``acknowledged``): una resuelta ya no
+        pide atención. El filtro por dueño va, como en ``get_for_user``, por
+        el JOIN con ``MonitoredAsset``.
+
+        Args:
+            user_id: Dueño de los activos.
+
+        Returns:
+            Dict[Tuple[str, str], int]: ``{(estado, severidad): anomalías}``.
+                Las combinaciones sin ninguna anomalía no aparecen.
+        """
+        rows = (
+            self._session.query(Anomaly.state, Anomaly.severity, func.count(Anomaly.id))
+            .join(MonitoredAsset, Anomaly.asset_id == MonitoredAsset.id)
+            .filter(MonitoredAsset.user_id == user_id, Anomaly.state.in_(self._ACTIVE_STATES))
+            .group_by(Anomaly.state, Anomaly.severity)
+            .all()
+        )
+        return {(state, severity): count for state, severity, count in rows}
+
+    def count_opened_by_asset(
+        self, asset_ids: List[int], since: datetime, until: datetime,
+    ) -> Dict[int, int]:
+        """Cuántas anomalías se abrieron en la ventana, por activo.
+
+        Cada apertura de una anomalía es un cruce de umbral sostenido: el
+        detector solo crea la fila cuando la métrica lleva por encima del
+        umbral los latidos que exige ``sustainedHeartbeats``. Contar aperturas
+        dentro de la ventana es, por tanto, contar incumplimientos del periodo,
+        y se resuelve con un ``GROUP BY`` sobre ``opened_at``, que está
+        indexado, sin traer ninguna fila de anomalía a Python.
+
+        Cuentan todas las anomalías abiertas en la ventana sea cual sea su
+        estado actual: una que ya se resolvió ocurrió igualmente, y excluirla
+        haría que el recuento del periodo encogiera con el tiempo según los
+        activos se van recuperando.
+
+        Args:
+            asset_ids: Activos a consultar; ya filtrados por dueño en el
+                manager. Una lista vacía devuelve un diccionario vacío sin
+                consultar.
+            since: Inicio de la ventana, sobre ``opened_at``, inclusivo.
+            until: Fin de la ventana, sobre ``opened_at``, inclusivo.
+
+        Returns:
+            Dict[int, int]: Por cada ``asset_id`` pedido, sus anomalías
+                abiertas en la ventana. Un activo sin ninguna conserva su
+                entrada con un ``0``, para que quien llama pueda distinguir
+                "cero incumplimientos" de "activo que no se consultó".
+        """
+        if not asset_ids:
+            return {}
+        rows = (
+            self._session.query(Anomaly.asset_id, func.count(Anomaly.id).label("breach_count"))
+            .filter(
+                Anomaly.asset_id.in_(asset_ids),
+                Anomaly.opened_at >= since,
+                Anomaly.opened_at <= until,
+            )
+            .group_by(Anomaly.asset_id)
+            .all()
+        )
+        counts_found = {row.asset_id: row.breach_count for row in rows}
+        return {asset_id: counts_found.get(asset_id, 0) for asset_id in asset_ids}
+
+    def count_opened_by_metric(
+        self, asset_ids: List[int], since: datetime, until: datetime,
+    ) -> Dict[str, int]:
+        """Cuántas anomalías se abrieron en la ventana, por métrica, en todo el parque.
+
+        Responde a "¿qué se rompe más en este parque?" sin recorrer el ranking
+        por activo: el mismo recuento de aperturas, agrupado por la métrica que
+        las disparó en vez de por la máquina.
+
+        Las anomalías sin métrica (``host_down``, que no nace de un umbral sino
+        del silencio de un agente) quedan fuera: mezclarlas con los cruces de
+        umbral haría que "la métrica más conflictiva" pudiera no ser una
+        métrica.
+
+        Args:
+            asset_ids: Activos a consultar; ya filtrados por dueño en el
+                manager. Una lista vacía devuelve un diccionario vacío sin
+                consultar.
+            since: Inicio de la ventana, sobre ``opened_at``, inclusivo.
+            until: Fin de la ventana, sobre ``opened_at``, inclusivo.
+
+        Returns:
+            Dict[str, int]: ``{métrica: aperturas}`` con la métrica tal como la
+                guarda ``Anomaly.metric`` (``cpu.usagePct``, ``disk./var``…).
+                Las métricas sin ninguna apertura no aparecen.
+        """
+        if not asset_ids:
+            return {}
+        rows = (
+            self._session.query(Anomaly.metric, func.count(Anomaly.id).label("breach_count"))
+            .filter(
+                Anomaly.asset_id.in_(asset_ids),
+                Anomaly.opened_at >= since,
+                Anomaly.opened_at <= until,
+                Anomaly.metric.isnot(None),
+            )
+            .group_by(Anomaly.metric)
+            .all()
+        )
+        return {row.metric: row.breach_count for row in rows}
+
 
 class HygeiaTagRepository(BaseRepository[HygeiaTag]):
     """Acceso a datos de HygeiaTag (etiquetas de sistema y personales)."""
@@ -427,22 +1187,68 @@ class HygeiaTagRepository(BaseRepository[HygeiaTag]):
             .all()
         )
 
-    def count_assets_per_tag(self, user_id: int) -> Dict[int, int]:
-        """Cuántos activos **del usuario** lleva cada etiqueta.
+    def get_asset_activity_per_tag(
+        self, user_id: int,
+    ) -> Dict[int, Tuple[int, Optional[datetime]]]:
+        """Cuántos activos **del usuario** lleva cada etiqueta, y cuándo dio señal el último.
 
         El filtro por dueño no es cosmético: una etiqueta de sistema la usa
         todo el mundo, y contar sus asociaciones sin filtrar delataría
-        cuántos activos ajenos hay. Las etiquetas sin activos no aparecen en
-        el diccionario; el manager las completa con 0.
+        cuántos activos ajenos hay, igual que su última señal delataría cuándo
+        estuvo encendido un servidor de otro. Los dos datos salen de la misma
+        consulta agrupada por etiqueta.
+
+        Args:
+            user_id: Dueño de los activos que se cuentan.
+
+        Returns:
+            Dict[int, Tuple[int, Optional[datetime]]]: ``{tag_id: (activos,
+                última_señal)}``. La última señal es el ``last_seen_at`` más
+                reciente entre esos activos, o ``None`` si ninguno ha latido
+                nunca. Las etiquetas sin activos del usuario no aparecen; el
+                manager las completa con ``(0, None)``.
         """
         rows = (
-            self._session.query(AssetTag.c.tag_id, func.count(AssetTag.c.asset_id))
+            self._session.query(
+                AssetTag.c.tag_id,
+                func.count(AssetTag.c.asset_id),
+                func.max(MonitoredAsset.last_seen_at),
+            )
             .join(MonitoredAsset, MonitoredAsset.id == AssetTag.c.asset_id)
             .filter(MonitoredAsset.user_id == user_id)
             .group_by(AssetTag.c.tag_id)
             .all()
         )
-        return dict(rows)
+        return {tag_id: (asset_count, last_seen_at) for tag_id, asset_count, last_seen_at in rows}
+
+    def get_asset_ids_by_tag(self, user_id: int) -> Dict[int, List[int]]:
+        """Qué activos **del usuario** lleva cada etiqueta, en una sola consulta.
+
+        Es lo que permite al ranking de etiquetas agregar todas las etiquetas
+        con una única consulta de métricas en vez de una por etiqueta. El
+        filtro por dueño tiene el mismo porqué que en
+        ``get_asset_activity_per_tag``: una etiqueta de sistema la comparten
+        todos los usuarios.
+
+        Args:
+            user_id: Dueño de los activos.
+
+        Returns:
+            Dict[int, List[int]]: ``{tag_id: [asset_id, …]}``, con los ids en
+                orden ascendente. Las etiquetas sin activos del usuario no
+                aparecen.
+        """
+        rows = (
+            self._session.query(AssetTag.c.tag_id, AssetTag.c.asset_id)
+            .join(MonitoredAsset, MonitoredAsset.id == AssetTag.c.asset_id)
+            .filter(MonitoredAsset.user_id == user_id)
+            .order_by(AssetTag.c.tag_id.asc(), AssetTag.c.asset_id.asc())
+            .all()
+        )
+        asset_ids_by_tag: Dict[int, List[int]] = {}
+        for tag_id, asset_id in rows:
+            asset_ids_by_tag.setdefault(tag_id, []).append(asset_id)
+        return asset_ids_by_tag
 
     def get_by_name_for_user(self, user_id: int, name: str) -> Optional[HygeiaTag]:
         """Busca una etiqueta visible para el usuario por nombre, sin distinguir mayúsculas.

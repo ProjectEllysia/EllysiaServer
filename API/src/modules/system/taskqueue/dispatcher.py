@@ -40,7 +40,7 @@ class OutboxDispatcher:
         Ese cambio se confirma en el acto, también dentro de una request: la
         fila describe algo que ya pasó fuera de la BD -- el job está o no está
         en Redis --, así que no puede depender de cómo acabe la request. Si
-        la request lanzaba después (``IrisMailboxManager._mark_reauth_required``
+        la request lanzaba después (``IrisMailboxManager._mark_reauth_is_required``
         lo hace desde ``update_connection``), el rollback del teardown devolvía
         a ``pending`` una fila ya publicada y el barrido la republicaba: el
         mismo correo, dos veces. Todos los llamantes confirman su

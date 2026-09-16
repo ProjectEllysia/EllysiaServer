@@ -17,7 +17,6 @@ import re
 import pytest
 from reportlab.lib.styles import getSampleStyleSheet
 
-from src.modules.features.iris.managers.analysis import _rule_to_dict
 from src.modules.features.iris.model import IrisRuleResult
 from src.modules.features.iris.services.quality import assess_quality
 from src.modules.features.iris.services.registry import RuleRegistry, RuleResult, RuleSeverity
@@ -128,7 +127,7 @@ def test_a_finding_is_serialized_with_its_stable_reference():
                          mitre_techniques=["T1566.002"], category="content_analysis", score=-20.0,
                          verdict="fail")
 
-    serialized = _rule_to_dict(row)
+    serialized = row.to_dict()
 
     assert serialized["ruleId"] == "iris.links.body_links"
     assert serialized["ruleName"] == "Enlaces del cuerpo"
@@ -139,7 +138,7 @@ def test_a_finding_is_serialized_with_its_stable_reference():
 def test_a_finding_from_before_the_taxonomy_still_serializes():
     row = IrisRuleResult(rule_name="SPF", category="authentication", score=0.0, verdict="pass")
 
-    serialized = _rule_to_dict(row)
+    serialized = row.to_dict()
 
     assert serialized["ruleId"] is None
     assert serialized["mitreTechniques"] == []

@@ -12,7 +12,7 @@ from dataclasses import replace
 import pytest
 
 import src.modules.system.config_reading as CR
-from src.modules.features.iris.managers.analysis import IrisManager
+from src.modules.features.iris.managers.analysis import _evaluate_analysis_under, _run_analysis
 from src.modules.features.iris.model import IrisAnalysis
 from src.modules.features.iris.repositories import IrisAnalysisRepository
 from src.modules.features.iris.services.replay import CORPUS_DIRECTORY
@@ -30,7 +30,7 @@ def _analyze(app, user_id: int, raw: str) -> int:
             analysis = IrisAnalysis(raw_headers=raw, user_id=user_id, status="pending")
             IrisAnalysisRepository(uow).save(analysis)
             analysis_id = analysis.id
-        IrisManager()._run_analysis(analysis_id, raw)
+        _run_analysis(analysis_id, raw)
     return analysis_id
 
 
@@ -65,14 +65,13 @@ def test_a_stored_snapshot_reproduces_the_stored_verdict_and_another_policy_can_
     analysis_id = _analyze(app, root_user.id, _LEGIT)
 
     with app.app_context():
-        manager = IrisManager()
         with UnitOfWork() as uow:
             analysis = IrisAnalysisRepository(uow).get_by_id(analysis_id)
             stored_policy = ScoringPolicy.from_snapshot(analysis.scoring_snapshot)
             stored_verdict, stored_version = analysis.verdict, analysis.scoring_version
 
-        same = manager.evaluate_analysis_under(analysis_id, root_user.id, stored_policy)
-        other = manager.evaluate_analysis_under(
+        same = _evaluate_analysis_under(analysis_id, root_user.id, stored_policy)
+        other = _evaluate_analysis_under(
             analysis_id, root_user.id, replace(stored_policy, legitimate_threshold=101.0),
         )
 

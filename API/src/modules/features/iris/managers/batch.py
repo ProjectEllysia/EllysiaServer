@@ -64,7 +64,6 @@ def _invalid_input(text: str) -> IrisInvalidInputError:
     """
     return IrisInvalidInputError(text, user_message=text)
 
-
 def _read_uploads(uploads: Sequence[Tuple[str, BinaryIO]], max_total_bytes: int) -> List[Tuple[str, bytes]]:
     """Lee los ficheros subidos sin cargar nunca más de lo que admite un lote.
 
@@ -86,7 +85,6 @@ def _read_uploads(uploads: Sequence[Tuple[str, BinaryIO]], max_total_bytes: int)
             raise _invalid_input(f"«{filename}» supera él solo el tamaño máximo de un lote ({max_total_bytes} bytes).")
         read.append((filename or "sin-nombre", data))
     return read
-
 
 def _item_to_dict(item: IrisBatchItem) -> Dict[str, Any]:
     """Serializa un elemento del lote con el estado actual de su análisis.
@@ -112,7 +110,6 @@ def _item_to_dict(item: IrisBatchItem) -> Dict[str, Any]:
         "verdict": analysis.verdict if analysis else None,
         "totalScore": analysis.total_score if analysis else None,
     }
-
 
 def _counts(items: Sequence[IrisBatchItem]) -> Dict[str, int]:
     """Cuántos elementos del lote hay en cada estado.

@@ -1,22 +1,30 @@
 """
 hygeia.services.stats
 ──────────────────────
-Agregados sobre una serie de potencia ya guardada, para el resumen de
-consumo eléctrico (media ponderada, energía, coste y su procedencia).
+Agregados sobre series de métricas ya guardadas.
+
+Dos familias de funciones comparten el módulo:
+
+- **Resumen estadístico genérico** (:func:`summarize_values`,
+  :func:`calculate_percentile`, :func:`summarize_series_by_asset`): mínimo,
+  máximo, media, percentil 95 y valor actual de cualquier métrica, sobre un
+  activo o sobre varios. Es la capa común de la que tiran los endpoints de
+  estadísticas por activo, por etiqueta y del parque.
+- **Consumo eléctrico** (media ponderada por duración, energía, coste y su
+  procedencia): el resumen de potencia de un activo.
 
 Funciones puras: sin ORM, sin Flask. Entra una secuencia de ``(instante,
-vatios)`` ya leída por el repositorio y salen los números que consume el
-manager. Si algún día existe un servicio genérico de estadísticas para
-Hygeia, este módulo es la pieza mínima con su misma forma (funciones puras
-en ``hygeia/services/stats.py``), para que los dos converjan en vez de
-duplicarse.
+valor)`` ya leída por el repositorio y salen los números que consume el
+manager, así que se prueban con listas construidas a mano.
 """
 
 from __future__ import annotations
 
+import math
+from collections.abc import Hashable
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from typing import NamedTuple, Optional, Sequence, Tuple
+from datetime import datetime, timedelta, timezone
+from typing import Dict, List, Mapping, NamedTuple, Optional, Sequence, Tuple, TypeVar
 
 # Suelo del umbral de hueco cuando la mediana de los intervalos es pequeña o
 # no existe (menos de dos muestras). Replica el criterio de `gapThresholdMs`
@@ -74,6 +82,53 @@ class PeriodClassification:
     """
     classification: str
     coverage_fraction: Optional[float]
+
+
+class StatSummary(NamedTuple):
+    """Resultado de :func:`summarize_values`: los agregados de una serie de una métrica.
+
+    Todos los campos de valor son ``None`` a la vez cuando la serie no tiene
+    ninguna muestra con dato (``sample_count == 0``): de un activo que no ha
+    reportado una métrica no se sabe su máximo, y ``0`` sería una cifra
+    inventada.
+
+    Attributes:
+        minimum: Valor más bajo de la serie, o ``None`` sin muestras.
+        maximum: Valor más alto de la serie, o ``None`` sin muestras.
+        average: Media aritmética de las muestras, o ``None`` sin muestras.
+        percentile_95: Percentil 95 por interpolación lineal (ver
+            :func:`calculate_percentile`), o ``None`` sin muestras.
+        current: Valor de la muestra más reciente, o ``None`` sin muestras.
+        timestamp_of_minimum: Instante de la primera muestra (en orden
+            cronológico) que alcanza ``minimum``, o ``None`` sin muestras.
+        timestamp_of_maximum: Instante de la primera muestra (en orden
+            cronológico) que alcanza ``maximum``, o ``None`` sin muestras.
+        sample_count: Número de muestras con dato que entraron en el
+            resumen; las que traían ``None`` no cuentan. Nunca es negativo.
+    """
+    minimum: Optional[float]
+    maximum: Optional[float]
+    average: Optional[float]
+    percentile_95: Optional[float]
+    current: Optional[float]
+    timestamp_of_minimum: Optional[datetime]
+    timestamp_of_maximum: Optional[datetime]
+    sample_count: int
+
+
+#: Resumen de una serie sin ninguna muestra con dato. Es un único valor
+#: inmutable porque todos los resúmenes vacíos son idénticos.
+_EMPTY_SUMMARY = StatSummary(
+    minimum=None, maximum=None, average=None, percentile_95=None, current=None,
+    timestamp_of_minimum=None, timestamp_of_maximum=None, sample_count=0,
+)
+
+#: Percentil que entra en :class:`StatSummary`. El 95 es el corte habitual en
+#: monitorización: descarta los picos aislados sin esconder una carga
+#: sostenida, que es justo lo que el máximo no distingue.
+_SUMMARY_PERCENTILE = 95
+
+AssetKey = TypeVar("AssetKey", bound=Hashable)
 
 
 def median_delta(times: Sequence[datetime]) -> Optional[timedelta]:
@@ -314,3 +369,715 @@ def project_month(
         "periodFrom": period_start,
         "periodTo": period_end,
     }
+
+
+def calculate_percentile(values: Sequence[float], percentile: float) -> Optional[float]:
+    """
+    Percentil de una lista de valores por interpolación lineal entre rangos.
+
+    Es el método por defecto de NumPy (``method="linear"``): se ordenan los
+    valores, se sitúa el percentil en la posición ``percentile / 100 × (n - 1)``
+    y, si cae entre dos valores, se interpola entre ellos. Se implementa aquí
+    en vez de importar NumPy porque el proyecto no depende de él y esta es la
+    única cuenta que lo necesitaría. El mismo cálculo sirve para el resumen de
+    una serie y para el percentil dentro de un cubo de la serie temporal, que
+    SQL no resuelve de forma portable entre Postgres y SQLite.
+
+    Args:
+        values: Valores sobre los que calcular el percentil, en cualquier
+            orden. No admite ``None``: quien llama descarta antes las
+            muestras sin dato.
+        percentile: Percentil pedido, en el rango cerrado ``[0, 100]``.
+            ``0`` devuelve el mínimo y ``100`` el máximo.
+
+    Returns:
+        Optional[float]: El percentil, o ``None`` si ``values`` está vacío.
+            Con un solo valor, ese valor.
+
+    Raises:
+        ValueError: Si ``percentile`` está fuera de ``[0, 100]``; es un error
+            de programación, no un dato de entrada del usuario.
+    """
+    if not 0 <= percentile <= 100:
+        raise ValueError(f"El percentil debe estar en [0, 100]; se pidió {percentile}")
+    if not values:
+        return None
+
+    ordered = sorted(values)
+    position = percentile / 100 * (len(ordered) - 1)
+    lower_index = math.floor(position)
+    upper_index = math.ceil(position)
+    lower_value = ordered[lower_index]
+    return lower_value + (ordered[upper_index] - lower_value) * (position - lower_index)
+
+
+def summarize_values(samples: Sequence[Tuple[datetime, Optional[float]]]) -> StatSummary:
+    """
+    Resume una serie de una métrica: mínimo, máximo, media, percentil 95 y valor actual.
+
+    Es la cuenta común de todas las estadísticas de Hygeia: el resumen de un
+    activo, el de cada activo de una etiqueta y el del parque aplican esta
+    misma función a series distintas, para que ``avg`` o ``p95`` signifiquen
+    lo mismo en todos los endpoints.
+
+    Las muestras con valor ``None`` se descartan: una métrica que el agente no
+    reportó en un heartbeat es ausencia de dato, no un cero, y contarla como
+    cero hundiría el mínimo y la media.
+
+    La media es **aritmética** sobre las muestras, no ponderada por duración.
+    Así coincide con el ``AVG`` que la base de datos calcula al agregar la
+    serie temporal por cubos, y un resumen y una gráfica del mismo tramo no dan
+    dos medias distintas. Un hueco de telemetría tampoco cuenta como cero,
+    porque en un hueco no hay muestras. La media ponderada por duración
+    (:func:`weighted_average_with_observed_time`) se reserva para la energía,
+    donde el tiempo entra en la propia definición de la magnitud.
+
+    Args:
+        samples: Pares ``(instante, valor)`` en cualquier orden. El instante
+            es ``received_at`` (reloj del servidor), el mismo eje que el resto
+            de la serie temporal.
+
+    Returns:
+        StatSummary: Los agregados de la serie. Con ninguna muestra con dato,
+            todos los campos de valor son ``None`` y ``sample_count`` es
+            ``0``. Si el máximo o el mínimo se repiten, su instante es el de la
+            primera vez que se alcanzaron.
+    """
+    observed = sorted(
+        ((instant, value) for instant, value in samples if value is not None),
+        key=lambda sample: sample[0],
+    )
+    if not observed:
+        return _EMPTY_SUMMARY
+
+    values = [value for _, value in observed]
+    # ``min``/``max`` devuelven el primer elemento extremo que encuentran, y
+    # ``observed`` está en orden cronológico: el empate se resuelve a favor
+    # del instante más antiguo sin más lógica.
+    timestamp_of_minimum, minimum = min(observed, key=lambda sample: sample[1])
+    timestamp_of_maximum, maximum = max(observed, key=lambda sample: sample[1])
+
+    return StatSummary(
+        minimum=minimum,
+        maximum=maximum,
+        average=math.fsum(values) / len(values),
+        percentile_95=calculate_percentile(values, _SUMMARY_PERCENTILE),
+        current=observed[-1][1],
+        timestamp_of_minimum=timestamp_of_minimum,
+        timestamp_of_maximum=timestamp_of_maximum,
+        sample_count=len(values),
+    )
+
+
+class LinearTrend(NamedTuple):
+    """Resultado de :func:`fit_linear_trend`: la recta que mejor describe una serie.
+
+    Los tres valores del ajuste son ``None`` a la vez cuando no hay recta que
+    ajustar (menos de dos muestras, o todas en el mismo instante): sin
+    variación en el eje del tiempo no hay pendiente, y ``0.0`` diría "esto no
+    crece", que es una afirmación distinta de "no se sabe".
+
+    Attributes:
+        slope_per_day: Cuánto cambia la métrica por día, en sus propias
+            unidades (para un porcentaje de disco, puntos porcentuales al
+            día). Positiva si crece, negativa si decrece.
+        intercept: Valor que predice la recta en el instante de la primera
+            muestra. Es el origen que, junto a la pendiente, permite evaluar
+            la recta en cualquier momento.
+        r_squared: Coeficiente de determinación en ``[0, 1]``: qué parte de la
+            variación de la serie explica la recta. Cerca de ``1`` la serie es
+            casi una línea; cerca de ``0`` la recta no describe nada y su
+            pendiente no debería usarse para predecir. Una serie perfectamente
+            plana da ``1.0``: la recta la explica entera, aunque no vaya a
+            ninguna parte.
+        first_instant: Instante de la primera muestra, el origen del eje.
+            ``None`` cuando no hubo ajuste.
+        sample_count: Muestras con dato que entraron en el ajuste; nunca es
+            negativo.
+    """
+    slope_per_day: Optional[float]
+    intercept: Optional[float]
+    r_squared: Optional[float]
+    first_instant: Optional[datetime]
+    sample_count: int
+
+
+#: Ajuste de una serie que no da para una recta. Único e inmutable, como el
+#: resumen vacío.
+_EMPTY_TREND = LinearTrend(
+    slope_per_day=None, intercept=None, r_squared=None, first_instant=None, sample_count=0,
+)
+
+#: Segundos en un día, para pasar el eje del tiempo a días. La pendiente se
+#: expresa por día y no por segundo porque es la unidad en la que se lee la
+#: respuesta ("sube dos puntos al día"), no una conversión de presentación.
+_SECONDS_PER_DAY = 86400.0
+
+#: La serie no da para ajustar una recta: una sola muestra, o todas en el
+#: mismo instante.
+INSUFFICIENT_SAMPLES = "insufficient_samples"
+
+#: Hay recta, pero no sostiene una predicción: la pendiente es plana o
+#: negativa, o el ajuste es demasiado malo para creerse su dirección.
+INSUFFICIENT_TREND = "insufficient_trend"
+
+#: El valor ya está en el techo o por encima; no queda nada que estimar.
+ALREADY_FULL = "already_full"
+
+
+class FullnessForecast(NamedTuple):
+    """Resultado de :func:`estimate_days_until_full`: cuánto queda para llenarse.
+
+    Attributes:
+        days_until_full: Días que faltan para alcanzar el techo, según la
+            recta ajustada. ``None`` cuando la estimación no es defendible, y
+            entonces ``reason`` dice por qué. ``0.0`` cuando el valor actual
+            ya está en el techo o por encima.
+        reason: Por qué no hay cifra, o por qué la que hay es la que es:
+            :data:`INSUFFICIENT_SAMPLES`, :data:`INSUFFICIENT_TREND` o
+            :data:`ALREADY_FULL`. ``None`` cuando la estimación es normal.
+    """
+    days_until_full: Optional[float]
+    reason: Optional[str]
+
+
+def fit_linear_trend(samples: Sequence[Tuple[datetime, Optional[float]]]) -> LinearTrend:
+    """
+    Ajusta por mínimos cuadrados la recta que mejor describe una serie.
+
+    Es la cuenta de toda la vida —la recta que minimiza la suma de los
+    cuadrados de las distancias verticales a los puntos— implementada aquí en
+    vez de con NumPy o SciPy, porque el proyecto no depende de ninguno de los
+    dos y esta es la única cuenta que lo necesitaría; el mismo criterio que ya
+    se sigue con el percentil.
+
+    El eje del tiempo se mide en **días desde la primera muestra**, así que la
+    pendiente sale directamente en unidades por día, que es como se lee.
+
+    Junto a la pendiente se devuelve el R², y no es un adorno: una pendiente
+    sola no dice si la serie de verdad sube o si se está trazando una recta a
+    través de una nube de puntos. Quien consume este resultado necesita los
+    dos para decidir si la predicción se sostiene.
+
+    Las muestras con valor ``None`` se descartan, como en el resto del módulo:
+    una métrica que el agente no reportó es ausencia de dato, no un cero.
+
+    Args:
+        samples: Pares ``(instante, valor)`` en cualquier orden. El instante
+            es ``received_at``, el mismo eje que el resto de las series.
+
+    Returns:
+        LinearTrend: La recta ajustada. Con menos de dos muestras con dato, o
+            con todas en el mismo instante, los valores del ajuste son
+            ``None`` y ``sample_count`` refleja las muestras que había.
+    """
+    observed = sorted(
+        ((instant, value) for instant, value in samples if value is not None),
+        key=lambda sample: sample[0],
+    )
+    if len(observed) < 2:
+        return _EMPTY_TREND._replace(sample_count=len(observed))
+
+    first_instant = observed[0][0]
+    elapsed_days = [
+        (instant - first_instant).total_seconds() / _SECONDS_PER_DAY for instant, _ in observed
+    ]
+    values = [value for _, value in observed]
+    sample_count = len(observed)
+
+    mean_days = math.fsum(elapsed_days) / sample_count
+    mean_value = math.fsum(values) / sample_count
+    days_variance = math.fsum((day - mean_days) ** 2 for day in elapsed_days)
+    if days_variance == 0:
+        # Todas las muestras cayeron en el mismo instante: no hay eje sobre el
+        # que medir una pendiente.
+        return _EMPTY_TREND._replace(sample_count=sample_count)
+
+    covariance = math.fsum(
+        (day - mean_days) * (value - mean_value)
+        for day, value in zip(elapsed_days, values)
+    )
+    slope_per_day = covariance / days_variance
+    intercept = mean_value - slope_per_day * mean_days
+
+    value_variance = math.fsum((value - mean_value) ** 2 for value in values)
+    # Una serie perfectamente plana no tiene variación que explicar, y la recta
+    # (también plana) la reproduce exactamente: su ajuste es perfecto.
+    residual_variance = math.fsum(
+        (value - (intercept + slope_per_day * day)) ** 2
+        for day, value in zip(elapsed_days, values)
+    )
+    r_squared = 1.0 if value_variance == 0 else 1 - residual_variance / value_variance
+
+    return LinearTrend(
+        slope_per_day=slope_per_day,
+        intercept=intercept,
+        r_squared=r_squared,
+        first_instant=first_instant,
+        sample_count=sample_count,
+    )
+
+
+def estimate_days_until_full(
+    trend: LinearTrend, current_value: Optional[float], ceiling: float,
+    minimum_r_squared: float, minimum_slope_per_day: float,
+) -> FullnessForecast:
+    """
+    Estima cuántos días faltan para que una métrica creciente alcance su techo.
+
+    Una cifra confiada sobre poco dato es peor que ninguna cifra: "tu disco se
+    llena en cuatro días" invita a actuar, y si sale de una pendiente trazada
+    sobre ruido, invita a actuar sobre nada. Por eso esta función se niega a
+    estimar en vez de devolver un número flojo, y dice por qué se niega.
+
+    Se estima solo cuando se cumplen las tres condiciones: hay recta, la recta
+    sube de verdad (pendiente por encima de ``minimum_slope_per_day``, no solo
+    positiva) y la recta describe la serie (R² por encima de
+    ``minimum_r_squared``). Un disco que oscila entre el 60 y el 62 % sin ir a
+    ninguna parte falla la segunda condición; uno que sube a saltos
+    impredecibles falla la tercera.
+
+    La cuenta parte del **valor actual**, no del que la recta predice para hoy:
+    lo que le queda a un disco se mide desde donde está, y la recta solo aporta
+    a qué ritmo se mueve.
+
+    Args:
+        trend: Recta ya ajustada sobre la serie (:func:`fit_linear_trend`).
+        current_value: Valor más reciente de la métrica, o ``None`` si la serie
+            no tiene ninguna muestra con dato.
+        ceiling: Techo que se quiere alcanzar, en las unidades de la métrica
+            (``100.0`` para un porcentaje de ocupación).
+        minimum_r_squared: R² mínimo para creerse la dirección de la recta, en
+            el rango ``[0, 1]``.
+        minimum_slope_per_day: Pendiente mínima, en unidades por día, para
+            considerar que la métrica crece de verdad y no oscila.
+
+    Returns:
+        FullnessForecast: Los días que faltan y, si no hay cifra, la razón:
+            :data:`INSUFFICIENT_SAMPLES` si no hubo recta que ajustar,
+            :data:`INSUFFICIENT_TREND` si la recta no sostiene una predicción,
+            o :data:`ALREADY_FULL` (con ``0.0`` días) si el valor actual ya
+            está en el techo.
+    """
+    if trend.slope_per_day is None or current_value is None:
+        return FullnessForecast(days_until_full=None, reason=INSUFFICIENT_SAMPLES)
+    if current_value >= ceiling:
+        return FullnessForecast(days_until_full=0.0, reason=ALREADY_FULL)
+    if trend.slope_per_day < minimum_slope_per_day or trend.r_squared < minimum_r_squared:
+        return FullnessForecast(days_until_full=None, reason=INSUFFICIENT_TREND)
+
+    return FullnessForecast(
+        days_until_full=(ceiling - current_value) / trend.slope_per_day, reason=None,
+    )
+
+
+class PeakPairing(NamedTuple):
+    """Cómo de cerca cayó el pico de una métrica respecto al de la de referencia.
+
+    Attributes:
+        metric: Nombre público de la métrica comparada (``netRxBps``…).
+        peak_instant: Instante de su máximo en el periodo, o ``None`` si no
+            tuvo ninguna muestra.
+        separation_seconds: Segundos entre los dos picos, siempre positivo (es
+            una distancia, no un orden). ``None`` si a alguno de los dos le
+            falta el pico.
+        is_coincident: Si los dos picos caen dentro de la ventana de
+            tolerancia. ``False`` también cuando falta alguno: sin pico no hay
+            coincidencia que afirmar.
+    """
+    metric: str
+    peak_instant: Optional[datetime]
+    separation_seconds: Optional[float]
+    is_coincident: bool
+
+
+class PeakCoincidence(NamedTuple):
+    """Resultado de :func:`detect_peak_coincidence`.
+
+    Attributes:
+        reference_metric: Métrica contra la que se comparan las demás.
+        reference_instant: Instante de su máximo, o ``None`` si no tuvo
+            muestras en el periodo.
+        tolerance_seconds: Ventana dentro de la cual dos picos se consideran
+            simultáneos.
+        pairings: Una :class:`PeakPairing` por métrica comparada, en el orden
+            en que se pidieron.
+        is_any_coincident: Si al menos una de las métricas comparadas hizo pico
+            junto al de referencia. Es la señal que se mira de un vistazo.
+        reason: Por qué no hay señal que dar: :data:`METRICS_NOT_COMPARED` o
+            :data:`NO_PEAK`. ``None`` cuando la comparación se pudo hacer, haya
+            salido coincidencia o no.
+    """
+    reference_metric: str
+    reference_instant: Optional[datetime]
+    tolerance_seconds: int
+    pairings: Tuple[PeakPairing, ...]
+    is_any_coincident: bool
+    reason: Optional[str]
+
+
+#: No se resumió la métrica de referencia, o ninguna con la que compararla, así
+#: que no había nada que cruzar.
+METRICS_NOT_COMPARED = "metrics_not_compared"
+
+#: La métrica de referencia no tuvo ninguna muestra en el periodo, así que no
+#: tiene pico contra el que medir.
+NO_PEAK = "no_peak"
+
+
+def detect_peak_coincidence(
+    summaries_by_metric: Mapping[str, StatSummary], reference_metric: str,
+    counterpart_metrics: Sequence[str], tolerance_seconds: int,
+) -> PeakCoincidence:
+    """
+    Comprueba si los máximos de varias métricas de un activo cayeron a la vez.
+
+    Responde a una pregunta modesta a propósito: ¿el momento en que este
+    equipo tuvo su pico de CPU es más o menos el mismo en que tuvo su pico de
+    red? Si lo es, puede haber algo que relacione las dos cosas —un proceso
+    que satura la CPU procesando tráfico entrante, por ejemplo— y merece la
+    pena mirarlas juntas.
+
+    **No es una correlación estadística ni pretende serlo.** No se calcula
+    ningún coeficiente ni se comparan las series completas: se miran dos
+    instantes, los de los máximos que el resumen del periodo ya había
+    localizado, y se mide cuánto distan. Es una señal para llamar la atención,
+    no una prueba de causalidad, y por eso la respuesta publica siempre los dos
+    instantes y su separación: quien la lee juzga por sí mismo en vez de
+    fiarse de un booleano.
+
+    Cuanto más largo el periodo, menos significa una coincidencia: en treinta
+    días, dos picos independientes tienen más ocasiones de rozarse por
+    casualidad que en una hora. La cifra de separación es lo que permite
+    ponderarlo.
+
+    Args:
+        summaries_by_metric: Resúmenes ya calculados, indexados por nombre
+            público de métrica. Solo se miran los ``timestamp_of_maximum``.
+        reference_metric: Métrica contra la que se comparan las demás.
+        counterpart_metrics: Métricas que se comparan con ella. Las que no
+            estén en ``summaries_by_metric`` se ignoran.
+        tolerance_seconds: Cuánto pueden distar dos picos para considerarlos
+            simultáneos; positivo.
+
+    Returns:
+        PeakCoincidence: La señal, con el detalle de cada pareja. Si no se
+            resumió la métrica de referencia o ninguna con la que compararla,
+            ``reason`` es :data:`METRICS_NOT_COMPARED` y no hay parejas; si la
+            de referencia no tuvo pico, :data:`NO_PEAK`.
+    """
+    comparable_metrics = [
+        metric for metric in counterpart_metrics if metric in summaries_by_metric
+    ]
+    if reference_metric not in summaries_by_metric or not comparable_metrics:
+        return PeakCoincidence(
+            reference_metric=reference_metric, reference_instant=None,
+            tolerance_seconds=tolerance_seconds, pairings=(), is_any_coincident=False,
+            reason=METRICS_NOT_COMPARED,
+        )
+
+    reference_instant = summaries_by_metric[reference_metric].timestamp_of_maximum
+    if reference_instant is None:
+        return PeakCoincidence(
+            reference_metric=reference_metric, reference_instant=None,
+            tolerance_seconds=tolerance_seconds, pairings=(), is_any_coincident=False,
+            reason=NO_PEAK,
+        )
+
+    pairings = []
+    for metric in comparable_metrics:
+        peak_instant = summaries_by_metric[metric].timestamp_of_maximum
+        separation = (
+            None if peak_instant is None
+            else abs((peak_instant - reference_instant).total_seconds())
+        )
+        pairings.append(PeakPairing(
+            metric=metric,
+            peak_instant=peak_instant,
+            separation_seconds=separation,
+            is_coincident=separation is not None and separation <= tolerance_seconds,
+        ))
+
+    return PeakCoincidence(
+        reference_metric=reference_metric,
+        reference_instant=reference_instant,
+        tolerance_seconds=tolerance_seconds,
+        pairings=tuple(pairings),
+        is_any_coincident=any(pairing.is_coincident for pairing in pairings),
+        reason=None,
+    )
+
+
+def summarize_series_by_asset(
+    series_by_asset: Mapping[AssetKey, Sequence[Tuple[datetime, Optional[float]]]],
+) -> Dict[AssetKey, StatSummary]:
+    """
+    Aplica :func:`summarize_values` a varias series a la vez, una por activo.
+
+    Es la forma que devuelve el repositorio en las consultas multi-activo
+    (una serie por ``asset_id``), así que el resumen por etiqueta o del
+    parque no tiene que recorrer el diccionario a mano en cada endpoint.
+
+    Args:
+        series_by_asset: Serie de ``(instante, valor)`` de cada activo,
+            indexada por su clave (normalmente el ``asset_id``). Puede estar
+            vacío.
+
+    Returns:
+        Dict[AssetKey, StatSummary]: El resumen de cada activo con la misma
+            clave de entrada. Un activo con una serie vacía conserva su
+            entrada, con el resumen vacío (``sample_count == 0``), para que
+            quien llama pueda decir "sin datos" en vez de perderlo de la lista.
+    """
+    return {asset_key: summarize_values(series) for asset_key, series in series_by_asset.items()}
+
+
+def build_percentile_series(
+    samples_by_metric: Mapping[str, Sequence[Tuple[datetime, Optional[float]]]],
+    bucket_seconds: int, percentile: float,
+) -> List[Tuple[datetime, Dict[str, Optional[float]]]]:
+    """
+    Agrupa varias métricas en cubos de tiempo y calcula el percentil de cada una en cada cubo.
+
+    Es el camino de la serie temporal con ``agg=p95``, que SQL no resuelve de
+    forma portable entre Postgres y SQLite. Los cubos se numeran exactamente
+    igual que en la base de datos (``floor(epoch / bucket_seconds)``, con el
+    instante tratado como UTC), así que coinciden con los de las otras
+    agregaciones y una gráfica puede alternar entre ellas sin que se muevan
+    los puntos.
+
+    Args:
+        samples_by_metric: Muestras ``(instante, valor)`` de cada métrica,
+            indexadas por su nombre público. Los instantes son naive-UTC; las
+            muestras con ``None`` se descartan.
+        bucket_seconds: Tamaño del cubo en segundos; positivo.
+        percentile: Percentil a calcular, en ``[0, 100]``.
+
+    Returns:
+        List[Tuple[datetime, Dict[str, Optional[float]]]]: Un elemento por cubo
+            con al menos una muestra, en orden cronológico: el inicio del cubo
+            y el percentil de cada métrica de ``samples_by_metric``. Una
+            métrica sin muestras en ese cubo vale ``None``, no ``0``. Los
+            cubos sin ninguna muestra no aparecen, igual que en la serie de
+            la base de datos.
+
+    Raises:
+        ValueError: Si ``bucket_seconds`` no es positivo o ``percentile`` está
+            fuera de ``[0, 100]``.
+    """
+    if bucket_seconds <= 0:
+        raise ValueError(f"El cubo debe ser positivo; se pidió {bucket_seconds} s")
+
+    values_by_bucket: Dict[int, Dict[str, List[float]]] = {}
+    for metric_name, samples in samples_by_metric.items():
+        for instant, value in samples:
+            if value is None:
+                continue
+            epoch_seconds = instant.replace(tzinfo=timezone.utc).timestamp()
+            bucket_id = math.floor(epoch_seconds / bucket_seconds)
+            values_by_bucket.setdefault(bucket_id, {}).setdefault(metric_name, []).append(value)
+
+    series = []
+    for bucket_id in sorted(values_by_bucket):
+        bucket_start = datetime.fromtimestamp(bucket_id * bucket_seconds, tz=timezone.utc)
+        values_by_metric = values_by_bucket[bucket_id]
+        series.append((
+            bucket_start.replace(tzinfo=None),
+            {
+                metric_name: calculate_percentile(values_by_metric.get(metric_name, []), percentile)
+                for metric_name in samples_by_metric
+            },
+        ))
+    return series
+
+
+#: Formas de combinar entre activos las medias de cada uno.
+_ASSET_COMBINATIONS = ("sum", "avg", "max")
+
+
+def combine_asset_averages(
+    averages: Sequence[Optional[float]], aggregation: str,
+) -> Optional[float]:
+    """
+    Combina en una cifra las medias de varios activos sobre un periodo.
+
+    Es el paso final de las estadísticas por etiqueta: cada activo aporta su
+    media del periodo y aquí se combinan. Con ``sum`` sale el total típico de
+    la etiqueta (el tráfico o la potencia de todos sus equipos a la vez), con
+    ``avg`` el equipo medio y con ``max`` el equipo más cargado. ``max`` es la
+    **media más alta**, no el pico absoluto: el pico de cada activo viaja
+    aparte, en el desglose por activo.
+
+    Los activos sin datos en el periodo (``None``) no entran en la cuenta: un
+    equipo apagado no suma cero, simplemente no aporta.
+
+    Args:
+        averages: Media del periodo de cada activo, o ``None`` si no tuvo
+            ninguna muestra.
+        aggregation: ``"sum"``, ``"avg"`` o ``"max"``.
+
+    Returns:
+        Optional[float]: La cifra combinada, o ``None`` si ningún activo tuvo
+            datos.
+
+    Raises:
+        ValueError: Si ``aggregation`` no es una de las tres admitidas; es un
+            error de programación, porque el schema del endpoint ya la valida.
+    """
+    if aggregation not in _ASSET_COMBINATIONS:
+        raise ValueError(
+            f"Combinación {aggregation!r} no admitida; valores válidos: {list(_ASSET_COMBINATIONS)}"
+        )
+    values = [average for average in averages if average is not None]
+    if not values:
+        return None
+    if aggregation == "sum":
+        return math.fsum(values)
+    if aggregation == "avg":
+        return math.fsum(values) / len(values)
+    return max(values)
+
+
+class HistogramBin(NamedTuple):
+    """Una franja de un histograma: sus límites y cuántos valores caen en ella.
+
+    Attributes:
+        lower_bound: Límite inferior de la franja, incluido.
+        upper_bound: Límite superior. Excluido, salvo en la última franja,
+            que incluye el límite superior del histograma.
+        value_count: Cuántos valores caen en la franja. Nunca es negativo.
+    """
+    lower_bound: float
+    upper_bound: float
+    value_count: int
+
+
+def build_histogram(
+    values: Sequence[float], bin_count: int, lower_bound: float, upper_bound: float,
+) -> List[HistogramBin]:
+    """
+    Reparte unos valores en ``bin_count`` franjas de igual anchura entre dos límites.
+
+    Es la cuenta del histograma del parque: cuántos activos caen en cada
+    franja de una métrica. Cada franja incluye su límite inferior y excluye el
+    superior, salvo la última, que incluye el límite superior del histograma
+    (un activo al 100 % cae en la franja 75–100 %, no fuera). Un valor fuera
+    de los límites se cuenta en la franja extrema más cercana: con los
+    porcentajes no debería pasar, y perder un activo del recuento sería peor
+    que agruparlo en el borde.
+
+    Args:
+        values: Valores a repartir, en cualquier orden.
+        bin_count: Número de franjas; al menos 1.
+        lower_bound: Límite inferior del histograma.
+        upper_bound: Límite superior; no menor que ``lower_bound``.
+
+    Returns:
+        List[HistogramBin]: Las franjas de menor a mayor, con su recuento. Si
+            los dos límites coinciden (todos los valores son iguales), una
+            sola franja con todos ellos, sea cual sea ``bin_count``: partir un
+            rango de anchura cero no tiene sentido.
+
+    Raises:
+        ValueError: Si ``bin_count`` es menor que 1 o ``upper_bound`` es menor
+            que ``lower_bound``.
+    """
+    if bin_count < 1:
+        raise ValueError(f"El histograma necesita al menos una franja; se pidieron {bin_count}")
+    if upper_bound < lower_bound:
+        raise ValueError(f"Límites invertidos: {lower_bound} > {upper_bound}")
+    if upper_bound == lower_bound:
+        return [HistogramBin(lower_bound, upper_bound, len(values))]
+
+    width = (upper_bound - lower_bound) / bin_count
+    counts = [0] * bin_count
+    for value in values:
+        position = math.floor((value - lower_bound) / width)
+        counts[min(max(position, 0), bin_count - 1)] += 1
+
+    last_position = bin_count - 1
+    return [
+        HistogramBin(
+            lower_bound=lower_bound + position * width,
+            # El último límite se copia tal cual, en vez de multiplicar la
+            # anchura, para que no quede en 99.99999 por redondeo.
+            upper_bound=(
+                upper_bound if position == last_position
+                else lower_bound + (position + 1) * width
+            ),
+            value_count=counts[position],
+        )
+        for position in range(bin_count)
+    ]
+
+
+@dataclass(frozen=True)
+class StatsWindow:
+    """Ventana temporal que cubre de verdad una consulta de estadísticas.
+
+    Es lo que un endpoint de estadísticas devuelve junto a sus números para
+    que el cliente sepa sobre qué periodo se calcularon, en vez de suponer
+    que es el que pidió.
+
+    Attributes:
+        since: Inicio de la ventana (``received_at`` inclusivo), naive-UTC.
+        until: Fin de la ventana (``received_at`` inclusivo), naive-UTC.
+        requested_duration: Duración que pidió el cliente, antes de recortar.
+        is_clipped: ``True`` si la ventana es más corta que la pedida, porque
+            la petición superaba el límite de estadísticas o la retención.
+    """
+    since: datetime
+    until: datetime
+    requested_duration: timedelta
+    is_clipped: bool
+
+    @property
+    def covered_duration(self) -> timedelta:
+        """Duración real de la ventana, ya recortada."""
+        return self.until - self.since
+
+
+def resolve_stats_window(
+    requested_duration: timedelta, now: datetime, max_stats_period_days: int, retention_days: int,
+) -> StatsWindow:
+    """
+    Resuelve la ventana de una consulta de estadísticas, recortada a lo que se puede cubrir.
+
+    Pedir un periodo mayor que lo disponible no es un error: se recorta al
+    máximo y la ventana resultante lo dice (``is_clipped``). Un error
+    obligaría al cliente a conocer la retención del despliegue para no
+    equivocarse; un recorte silencioso haría pasar por "últimos 365 días" un
+    cálculo sobre 30. El tope es el menor de dos valores: el límite de
+    estadísticas (``HygeiaLimits.max_stats_period_days``) y la retención
+    (``HygeiaConfig.retention_days``), porque más allá de la retención no
+    quedan datos aunque el límite lo permita.
+
+    Args:
+        requested_duration: Duración pedida por el cliente (``24h``, ``7d``…
+            ya convertido). Tiene que ser positiva.
+        now: Instante de referencia, naive-UTC; es el fin de la ventana.
+        max_stats_period_days: Límite configurado de estadísticas, en días.
+        retention_days: Retención configurada de ``AssetSnapshot``, en días.
+
+    Returns:
+        StatsWindow: La ventana ``[now - duración cubierta, now]``, con
+            ``is_clipped`` a ``True`` si la duración cubierta es menor que la
+            pedida.
+
+    Raises:
+        ValueError: Si ``requested_duration`` no es positiva; es un error de
+            programación, porque el schema del endpoint ya valida el periodo.
+    """
+    if requested_duration <= timedelta(0):
+        raise ValueError(
+            f"El periodo de estadísticas debe ser positivo; se pidió {requested_duration}"
+        )
+
+    ceiling = timedelta(days=min(max_stats_period_days, retention_days))
+    covered_duration = min(requested_duration, ceiling)
+    return StatsWindow(
+        since=now - covered_duration,
+        until=now,
+        requested_duration=requested_duration,
+        is_clipped=covered_duration < requested_duration,
+    )

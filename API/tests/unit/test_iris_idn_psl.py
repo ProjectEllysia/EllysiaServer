@@ -18,9 +18,11 @@ from email.utils import format_datetime
 import pytest
 
 from src.modules.features.iris.managers import IrisManager
+from src.modules.features.iris.managers.analysis import _apply_verdict_gates
 from src.modules.features.iris.services.idn import IdnVerdict, assess_domain, skeleton
 from src.modules.features.iris.services.parsers import parse_raw_message
 from src.modules.features.iris.services.rules import iris_rules
+from src.modules.features.iris.services.scoring import current_policy
 from src.modules.features.iris.services.rules.sender_identity_rules import (
     check_lookalike_domain,
     check_subdomain_impersonation,
@@ -160,9 +162,10 @@ def _run_engine(raw: str):
         result = replace(result, score=min(0.0, float(result.score)))
         results.append(result)
         named_results[rule_def["name"]] = result
-    total_score = IrisManager._aggregate_score(rules_defs, results)
-    verdict, gate_reasons = IrisManager._apply_verdict_gates(
-        IrisManager()._determine_verdict(total_score), named_results)
+    policy = current_policy()
+    total_score = policy.aggregate(rules_defs, results)
+    verdict, gate_reasons = _apply_verdict_gates(
+        policy.verdict_for(total_score), named_results)
     return verdict, total_score, gate_reasons
 
 

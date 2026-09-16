@@ -116,7 +116,7 @@ class RuleRegistry:
                 dict. Used by rules that inspect the full message body.
             family: Recalibración de pesos -- techo de familia: agrupa
                 reglas que corroboran el mismo hecho subyacente (p.ej. "auth",
-                "identity") para que ``_aggregate_score`` limite la suma de
+                "identity") para que ``ScoringPolicy.aggregate`` limite la suma de
                 penalizaciones de la familia y no cuente el mismo hecho varias
                 veces. Cadena vacía = sin techo.
             is_body_dependent: ``True`` si la regla lee el cuerpo, los enlaces

@@ -59,7 +59,7 @@ from ..services.failures import (
     AnalysisFailure,
     classify_failure,
 )
-from ..services.parsers import build_path, parse_received_line
+from ..services.parsers import build_path, parse_received_line, validate_headers_parsed, validate_headers_pre
 from ..services.contexts import (
     CONTEXT_INNER,
     CONTEXT_WRAPPER,
@@ -103,37 +103,7 @@ _VERDICT_SEVERITY = {v: i for i, v in enumerate(_VERDICT_ORDER)}
 # El techo, los suelos por familia y los umbrales viven en la política de
 # puntuación (``services/scoring.py``), que se guarda con cada análisis.
 
-
-
-
-
-
-def _rule_to_dict(rule: IrisRuleResult) -> Dict[str, Any]:
-    """Serializa una fila de regla con las claves camelCase de la API.
-
-    Args:
-        rule: Fila ``IrisRuleResult`` persistida.
-
-    Returns:
-        dict: ``ruleId`` (estable; ``None`` en filas anteriores a la
-            taxonomía), ``ruleName`` (visible), ``severity``,
-            ``mitreTechniques`` (lista, vacía si no hay), ``category``,
-            ``score``, ``verdict``, ``details``, ``recommendation``,
-            ``evidence`` (lista, vacía si no hay) y ``evidenceUnavailableReason``.
-    """
-    return {
-        "ruleId": rule.rule_id,
-        "ruleName": rule.rule_name,
-        "severity": rule.severity,
-        "mitreTechniques": rule.mitre_techniques or [],
-        "category": rule.category,
-        "score": rule.score,
-        "verdict": rule.verdict,
-        "details": rule.details,
-        "recommendation": rule.recommendation,
-        "evidence": rule.evidence or [],
-        "evidenceUnavailableReason": rule.evidence_unavailable_reason,
-    }
+_TOP_SIGNALS_LIMIT = 5
 
 
 def _winning_message_context(analysis: IrisAnalysis):
@@ -157,6 +127,816 @@ def _winning_message_context(analysis: IrisAnalysis):
         raise IrisRawMessagePurgedError(analysis.id)
     return context_of_type(parse_raw_message(analysis.raw_headers), analysis.winning_context)
 
+def _top_signals(rules_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Rank the rules that contributed the most to the penalty.
+
+    The subtractive model already stores a signed score per rule (0 or
+    negative — see ``_run_analysis``'s clamp), so "most impactful" is
+    simply "most negative". Surfaces the top N as ``{ruleName, category,
+    score, index}`` so the report/UI can lead with what actually drove
+    the verdict instead of making the analyst scan every rule. ``index``
+    is the rule's position in ``rules_data`` so the UI can jump straight
+    to its detail card.
+    """
+    negative = [
+        (idx, r) for idx, r in enumerate(rules_data) if (r.get("score") or 0) < 0
+    ]
+    negative.sort(key=lambda pair: pair[1]["score"])
+    return [
+        {
+            "ruleId": r.get("ruleId"),
+            "ruleName": r["ruleName"],
+            "category": r.get("category"),
+            "score": r["score"],
+            "index": idx,
+        }
+        for idx, r in negative[:_TOP_SIGNALS_LIMIT]
+    ]
+
+def _update_analysis(analysis_id: int, **fields: Any) -> bool:
+    """Aplica ``fields`` sobre el IrisAnalysis si aún existe y persiste.
+
+    Encapsula el patrón UnitOfWork + get_by_id + setattr + update que
+    cada transición de estado del análisis (running/finished/failed/
+    cancelled/ai_summary) repetía por separado. Devuelve True si el
+    registro existía y se actualizó, False si ya no existe.
+    """
+    with UnitOfWork() as uow:
+        repo = IrisAnalysisRepository(uow)
+        fresh = repo.get_by_id(analysis_id)
+        if fresh is None:
+            return False
+        for attr, value in fields.items():
+            setattr(fresh, attr, value)
+        repo.update(fresh)
+    return True
+
+def _claim_ai_summary(analysis_id: int, regenerate: bool = False) -> bool:
+        """Reclama la generación con un UPDATE condicional. True si se ganó.
+
+        La condición vive dentro del UPDATE a propósito, igual que en el
+        consumo de cuota: leer el estado, decidir en Python y escribir después
+        regala una segunda generación cada vez que dos peticiones coinciden.
+        """
+        claimable = list(IrisManager._AI_SUMMARY_CLAIMABLE)
+        if regenerate:
+            claimable.append("done") # type: ignore
+
+        with UnitOfWork() as uow:
+            condition = IrisAnalysis.id == analysis_id
+            if None in claimable:
+                states = [state for state in claimable if state is not None]
+                status_matches = or_(
+                    IrisAnalysis.ai_summary_status.is_(None),
+                    IrisAnalysis.ai_summary_status.in_(states),
+                )
+            else:
+                status_matches = IrisAnalysis.ai_summary_status.in_(claimable)
+
+            result = uow.session.execute(
+                update(IrisAnalysis)
+                .where(and_(condition, status_matches))
+                .values(ai_summary_status="running")
+            )
+            was_update_successful = bool(result.rowcount)
+
+        return was_update_successful
+
+def _release_ai_summary(analysis_id: int) -> None:
+    """Deshace la reserva cuando el trabajo no va a llegar a ejecutarse."""
+    _update_analysis(analysis_id, ai_summary_status=None, ai_summary_job_id=None)
+
+def _refund_ai_summary_quota(user_id: int) -> None:
+    """Devuelve los dos cargos del resumen (el concreto y el agregado)."""
+    quota_manager = QuotaManager()
+    quota_manager.refund(user_id, LimitKey.IRIS_AI_SUMMARIES)
+    quota_manager.refund(user_id, LimitKey.AI_REQUESTS)
+
+
+
+def _extract_verdict_signals(named_results: Dict[str, RuleResult]) -> Dict[str, Any]:
+    """Reduce the per-rule results to the named booleans the gates need.
+
+    Centralises all the ``named_results.get(...)`` lookups so
+    :meth:`_evaluate_gates` can stay a pure boolean-combination function.
+    """
+    def res(name: str) -> Optional[RuleResult]:
+        return named_results.get(name)
+
+    def verdict_is(name: str, *verdicts: str) -> bool:
+        rule_result = res(name)
+        return rule_result is not None and rule_result.verdict in verdicts
+
+    # ARC (RFC 8617): a legitimate forwarding intermediary (mailing
+    # list, forwarder) that validated ("cv=pass") the original
+    # SPF/DKIM/DMARC results before its own relaying broke them.
+    # Genuine ARC-validated forwards must not trip the SPF/DMARC/
+    # alignment gates that exist to catch spoofing — that's exactly
+    # what those three signals are suppressed for below. "cv=fail"
+    # (the chain itself declares a prior hop broken) is its own gate,
+    # see D7 in ROADMAP.md.
+    #
+    # La supresión exige además que la cadena la haya validado un
+    # verificador de confianza (`details["verified"]`). Un `cv=pass` a
+    # secas es una afirmación del propio mensaje sobre sí mismo, y como
+    # Iris no verifica firmas, bastaba escribirlo para desactivar los tres
+    # gates que cazan suplantación. Un ARC sin confirmar sigue viajando en
+    # el informe como contexto; lo que ya no hace es dar permisos.
+    arc = res("ARC Chain")
+    arc_pass = (arc is not None and arc.verdict == "pass"
+                and bool(arc.details.get("verified")))
+    arc_fail = arc is not None and arc.verdict == "fail"
+
+    spf_fail = verdict_is("SPF", "fail", "hardfail") and not arc_pass
+    dmarc_fail = verdict_is("DMARC", "fail") and not arc_pass
+    align_fail = verdict_is("Domain Alignment", "fail") and not arc_pass
+
+    # Auth Results Provenance (forense, recalibración de pesos): un authserv-id que reclama
+    # "pass" pero no aparece en ningún salto de la propia cadena
+    # Received del mensaje es una línea forjada por el remitente --
+    # cierra el bypass de confiar ciegamente en Authentication-Results
+    # sin verificar quién lo escribió.
+    auth_forged = verdict_is("Auth Results Provenance", "fail")
+
+    # D1 (quishing): a QR code that decodes to a suspicious URL is a
+    # high-confidence signal on its own -- a QR is specifically a way
+    # to smuggle a URL past every text/link-based check, so if one
+    # still trips the same shared.analyze_url() heuristics as a real
+    # body link would, that's deliberate evasion, not noise.
+    qr_links = res("QR Code Links")
+    qr_suspicious = qr_links is not None and qr_links.verdict == "fail"
+
+    spoof = res("Display Name Spoofing")
+    spoof_any = spoof is not None and spoof.verdict == "spoof"
+    spoof_free = spoof_any and bool(spoof.details.get("is_free_provider"))
+
+    bec = res("BEC Wire Transfer Pattern")
+    bec_fail = bec is not None and bec.verdict == "fail"
+    # A financial-action request whose sender (or reply target) sits on a
+    # free webmail provider is the textbook CEO-fraud / payroll-diversion
+    # pattern — it passes SPF/DKIM/DMARC trivially, so only the body and
+    # the free-provider tell give it away.
+    bec_free = bec_fail and (
+        is_free_provider(bec.details.get("from_domain"))
+        or is_free_provider(bec.details.get("reply_domain"))
+    )
+    # A corporate (non-free) BEC sender whose Reply-To/Return-Path
+    # redirects elsewhere is the same intent-to-divert pattern as
+    # bec_free, just without the free-webmail tell — before this, the
+    # BEC gate depended 100% on the phrase list alone for a corporate
+    # sender, with no structural corroboration.
+    bec_corporate_redirect = (
+        bec_fail and not bec_free
+        and bool(bec.details.get("redirect_to_external_reply"))
+    )
+
+    body_links = res("Body Links")
+    link_types = (body_links.details.get("types") or []) if body_links is not None else []
+    body_links_failed = body_links is not None and body_links.verdict == "fail"
+    cloaked_link_any = body_links_failed and "cloaked_link" in link_types
+    link_impersonation = body_links_failed and "brand_impersonation" in link_types
+
+    # Recalibración de pesos: texto oculto evasivo es un hecho
+    # estructural (alguien escondió deliberadamente un enlace/frase),
+    # no lenguaje que el correo legítimo produzca por accidente -- a
+    # diferencia de las "frases encontradas" puras, sigue gateando en
+    # solitario incluso cuando `body_content_fail` pasa a requerir combo.
+    body_content = res("Body Content")
+    body_content_hidden_text = (
+        body_content is not None and bool(body_content.details.get("hidden_text"))
+    )
+
+    path_anomaly = res("Received Path Anomaly")
+    path_anomaly_fail = path_anomaly is not None and path_anomaly.verdict == "fail"
+    path_signals = (
+        (path_anomaly.details.get("unique_signals") or [])
+        if path_anomaly is not None else []
+    )
+
+    # Recalibración de pesos: estas tres señales eran, a peso actual,
+    # el único separador de su ataque -- ya dejaban pasar el correo en
+    # solitario antes de tocar ningún peso (red team). Se promueven a
+    # gate ANTES de suavizar sus pesos, o la suavización abre un
+    # agujero real en vez de solo ordenar mejor el score.
+    subdomain = res("Subdomain Impersonation")
+    subdomain_brand_in_subdomain = (
+        subdomain is not None and subdomain.verdict == "fail"
+        and any(finding.get("type") == "brand_in_subdomain" for finding in (subdomain.details.get("findings") or []))
+    )
+
+    # Recipient Domain Lookalike (red team, máxima prioridad): lookalike del dominio del
+    # DESTINATARIO, no de una marca -- el vector BEC nº1, hoy invisible
+    # porque Lookalike Sender Domain solo compara contra
+    # `canonical_brands`.
+    recipient_lookalike = verdict_is("Recipient Domain Lookalike", "fail")
+
+    # Display Name Foreign Address (red team): el display name ES una
+    # dirección de otro dominio
+    # (`"ceo@acme.com" <attacker@evil.com>`). Escala a Phishing solo
+    # cuando esa dirección falsa suplanta la propia organización
+    # destinataria o una marca conocida -- si no, queda en Suspicious.
+    display_foreign = res("Display Name Foreign Address")
+    display_foreign_fail = display_foreign is not None and display_foreign.verdict == "fail"
+    display_foreign_impersonates_target = (
+        display_foreign_fail and bool(display_foreign.details.get("impersonates_target"))
+    )
+
+    # TOAD Callback Pattern (red team): teléfono + lenguaje de pago sin
+    # enlaces/adjuntos/hilo previo, una clase de ataque hoy invisible.
+    toad_callback = verdict_is("TOAD Callback Pattern", "fail")
+
+    # External Login Link (red team): urgencia fuerte combinada con un enlace del cuerpo
+    # a un dominio ajeno al remitente -- aproxima el "primo autenticado"
+    # (dominio propio, auth limpia, marca fuera de la lista) sin
+    # depender de `canonical_brands`.
+    external_login_link = verdict_is("External Login Link", "fail")
+
+    # Comprobación forense adicional: aproximación offline de
+    # coherencia HELO -- ruidosa en solitario (nombres de host varían
+    # mucho de forma legítima), solo se combina con un fallo de auth.
+    origin_helo_mismatch = verdict_is("Origin HELO Coherence", "fail")
+
+    return {
+        "spf_fail": spf_fail,
+        "dmarc_fail": dmarc_fail,
+        "align_fail": align_fail,
+        "arc_fail": arc_fail,
+        "qr_suspicious": qr_suspicious,
+        "lookalike": verdict_is("Lookalike Sender Domain", "fail"),
+        "attach": verdict_is("Suspicious Attachments", "fail"),
+        "replyfree": verdict_is("Reply-To Free Provider", "fail"),
+        "spoof_any": spoof_any,
+        "spoof_free": spoof_free,
+        "alarming_strong": verdict_is("Alarming Keywords", "alarming_high", "alarming_medium"),
+        "cloaked_link_any": cloaked_link_any,
+        "link_impersonation": link_impersonation,
+        "body_links_fail": verdict_is("Body Links", "fail"),
+        "body_content_fail": verdict_is("Body Content", "fail"),
+        "body_content_hidden_text": body_content_hidden_text,
+        "received_chain_fail": verdict_is("Received Chain", "fail"),
+        "path_tls_downgrade": path_anomaly_fail and "tls_downgrade" in path_signals,
+        "path_long_chain": path_anomaly_fail and "long_chain" in path_signals,
+        "auth_fail": spf_fail or dmarc_fail or align_fail,
+        "bec_fail": bec_fail,
+        "bec_free": bec_free,
+        "bec_corporate_redirect": bec_corporate_redirect,
+        "subdomain_brand_in_subdomain": subdomain_brand_in_subdomain,
+        "auth_forged": auth_forged,
+        "recipient_lookalike": recipient_lookalike,
+        "display_foreign_fail": display_foreign_fail,
+        "display_foreign_impersonates_target": display_foreign_impersonates_target,
+        "toad_callback": toad_callback,
+        "external_login_link": external_login_link,
+        "origin_helo_mismatch": origin_helo_mismatch,
+        "encoded_word_abuse": verdict_is("Encoded-Word Abuse", "fail"),
+        "display_name_email_mismatch": verdict_is("Display Name Email Mismatch", "fail"),
+        # G6/F2: these four are structural forgeries no legitimate mail
+        # client ever produces by accident (a self-citing In-Reply-To, a
+        # Received chain that runs backwards in time, RLO/mixed-script
+        # control characters, three mutually distinct identity domains).
+        # Previously they only subtracted score, so a message could carry
+        # one of these unambiguous tells and still net "Legitimate" once
+        # a handful of small positive-turned-zero checks passed —
+        # promoted here to a minimum-severity gate like every other
+        # high-confidence signal.
+        "self_referencing_threading": verdict_is("Self-Referencing In-Reply-To", "fail"),
+        "received_time_inversion": verdict_is("Received Chain Temporal Inconsistency", "fail"),
+        "unicode_evasion": verdict_is("Unicode Evasion", "fail"),
+        "triangulation_fail": verdict_is("From Reply-To Return-Path Triangulation", "fail"),
+    }
+
+def _evaluate_gates(base_verdict: str, signals: Dict[str, Any]) -> tuple[str, list[str]]:
+    """Apply the high-confidence gates to ``signals`` and return the result.
+
+    Pure function: given the extracted signals, raises ``base_verdict`` to
+    a worse category whenever a gate fires, never improves it.
+
+    Returns:
+        Tuple of (final verdict, list of human-readable triggered reasons).
+    """
+    ceiling = _VERDICT_SEVERITY[base_verdict]
+    triggered: list[str] = []
+
+    def gate(condition: bool, level: str, reason: str) -> None:
+        nonlocal ceiling
+        if condition:
+            triggered.append(reason)
+            ceiling = max(ceiling, _VERDICT_SEVERITY[level])
+
+    spf_fail = signals["spf_fail"]
+    dmarc_fail = signals["dmarc_fail"]
+    align_fail = signals["align_fail"]
+    spoof_any = signals["spoof_any"]
+    alarming_strong = signals["alarming_strong"]
+    attach = signals["attach"]
+    body_links_fail = signals["body_links_fail"]
+    auth_fail = signals["auth_fail"]
+
+    # Single high-confidence indicators.
+    gate(signals["lookalike"], "Phishing", "lookalike sender domain")
+    gate(signals["spoof_free"], "Phishing", "brand impersonation from free provider")
+    gate(signals["cloaked_link_any"], "Phishing", "cloaked body link (visible domain differs from href)")
+    gate(signals["link_impersonation"], "Phishing", "body link impersonates a brand/sender via subdomain trick")
+    gate(signals["qr_suspicious"], "Phishing", "QR code decodes to a suspicious URL (quishing)")
+    gate(signals["auth_forged"], "Phishing", "Authentication-Results claims pass but its authserv-id never touched the message (forged)")
+    gate(signals["recipient_lookalike"], "Phishing", "sender domain is a typosquat/homoglyph of the recipient organisation's own domain")
+    gate(signals["display_foreign_fail"], "Suspicious", "display name is itself an email address on a different domain than From")
+    gate(signals["display_foreign_impersonates_target"], "Phishing", "display-name address impersonates the recipient's own domain or a known brand")
+    gate(signals["toad_callback"], "Suspicious", "phone number combined with payment/billing/support language, no links/attachments/prior thread (TOAD)")
+    gate(alarming_strong and signals["external_login_link"], "Suspicious", "urgent/alarming language combined with a body link to a domain unrelated to the sender")
+    gate(signals["origin_helo_mismatch"] and auth_fail, "Suspicious", "origin server's HELO/EHLO domain matches nothing else in the message, combined with an authentication failure")
+    gate(spoof_any, "Suspicious", "display-name brand spoofing")
+    gate(align_fail, "Suspicious", "SPF/DKIM not aligned with From")
+    gate(attach, "Suspicious", "dangerous attachment")
+    gate(spf_fail or dmarc_fail, "Suspicious", "SPF/DMARC failure")
+    gate(signals["replyfree"], "Suspicious", "reply target is free webmail")
+    gate(signals["self_referencing_threading"], "Suspicious", "forged threading headers (self-referencing In-Reply-To/References)")
+    gate(signals["received_time_inversion"], "Suspicious", "Received chain timestamps run backwards (fabricated hop)")
+    gate(signals["unicode_evasion"], "Suspicious", "Unicode bidi/mixed-script evasion characters")
+    gate(signals["triangulation_fail"], "Suspicious", "From/Reply-To/Return-Path point to three distinct domains")
+    gate(body_links_fail, "Suspicious", "suspicious body links")
+    # Recalibración de pesos (calibración/FP): "verifique su cuenta" es
+    # lenguaje de banca legítima real, no solo de phishing -- gatear en
+    # solitario marcaba alertas bancarias reales como Suspicious pese a
+    # autenticar limpio. El texto oculto (evasión real) sigue gateando
+    # sin combo porque ese es un hecho estructural, no de lenguaje; la
+    # combinación solo relaja el caso de "frases encontradas" puro.
+    gate(signals["body_content_fail"] and (auth_fail or spoof_any or body_links_fail or signals["body_content_hidden_text"]),
+         "Suspicious", "phishing phrasing or hidden text in body")
+    gate(signals["received_chain_fail"], "Suspicious", "Received chain anomaly")
+    # Recalibración de pesos: un BEC corporativo (dominio propio,
+    # autentica limpio) que solo dispara por texto, sin redirect ni
+    # fallo de auth, dependía al 100% de la lista de frases -- correo
+    # interno legítimo de nómina/facturación la dispara con la misma
+    # frecuencia. bec_free (webmail gratuito) sigue gateando aparte,
+    # sin este combo.
+    gate(signals["bec_fail"] and not signals["bec_free"]
+         and (signals["bec_corporate_redirect"] or auth_fail),
+         "Suspicious", "BEC financial-action request in body")
+    gate(signals["arc_fail"], "Suspicious", "ARC chain declares a previous hop's authentication broken (cv=fail)")
+    gate(signals["encoded_word_abuse"], "Suspicious", "RFC 2047 encoded-word abuse (chained blocks, exotic charset, or a URL only revealed on decode)")
+    gate(signals["display_name_email_mismatch"], "Suspicious", "display name claims an organisation but the address is a random local-part on an unrelated domain")
+
+    # Recalibración de pesos (red team): a peso actual estas dos ya eran
+    # el único separador de su ataque en solitario -- promovidas a gate
+    # antes de suavizar su peso, para que la suavización no abra un
+    # agujero real.
+    gate(signals["subdomain_brand_in_subdomain"], "Phishing",
+         "known brand embedded as a subdomain label of an attacker-controlled domain")
+    gate(signals["bec_corporate_redirect"], "Phishing",
+         "BEC financial-action request whose reply target redirects to a different domain")
+
+    # Combinations that escalate to Phishing.
+    gate(signals["bec_free"], "Phishing",
+         "BEC financial-action request from a free-webmail sender/reply target")
+    gate(auth_fail and (spoof_any or alarming_strong), "Phishing",
+         "authentication failure combined with impersonation/urgency")
+    gate(attach and (auth_fail or spoof_any), "Phishing",
+         "dangerous attachment combined with authentication failure or spoofing")
+    gate(body_links_fail and (auth_fail or spoof_any), "Phishing",
+         "suspicious body links combined with authentication failure or spoofing")
+    gate(signals["path_tls_downgrade"] and auth_fail, "Suspicious",
+         "TLS downgrade in Received chain combined with authentication failure")
+    gate(signals["path_long_chain"] and auth_fail, "Suspicious",
+         "Unusually long Received chain combined with authentication failure")
+
+    return _VERDICT_ORDER[ceiling], triggered
+
+def _apply_verdict_gates(base_verdict: str,
+                          named_results: Dict[str, RuleResult]) -> tuple[str, list[str]]:
+    """Override the additive verdict when high-confidence signals fire.
+
+    The additive sum can be dominated by many small positive checks (and,
+    historically, by a large authentication bonus), letting a few strong
+    phishing indicators get "bought back" into a Legitimate verdict.  This
+    gate enforces a *minimum severity* for those indicators: a verdict can
+    only be pushed toward a worse category, never improved.
+
+    Args:
+        base_verdict: The verdict derived purely from the total score.
+        named_results: Map of rule name -> its RuleResult.
+
+    Returns:
+        Tuple of (final verdict, human-readable triggered gate reasons).
+        The reasons list is persisted with the analysis so the report can
+        explain WHY the verdict is what it is.
+    """
+    signals = _extract_verdict_signals(named_results)
+    final, triggered = _evaluate_gates(base_verdict, signals)
+
+    if triggered and final != base_verdict:
+        logger.info("Verdict gated %s -> %s (%s)", base_verdict, final, "; ".join(triggered))
+    return final, triggered
+
+def _persist_analysis_results(analysis_id: int, rules_defs: List[dict],
+                               winner: ContextEvaluation, detector: str,
+                               secondary: Optional[ContextEvaluation] = None,
+                               winning_reason: Optional[str] = None,
+                               confidence: Optional[ConfidenceAssessment] = None,
+                               scoring_policy: Optional[ScoringPolicy] = None,
+                               indicators: Optional[List[tuple]] = None) -> None:
+    """Persiste las filas de regla y el estado final del análisis en una
+    única transacción.
+
+    Una sola transacción para todo el lote hace que una cancelación a
+    mitad de bucle (un ``return`` antes de este punto) no deje filas de
+    regla confirmadas de un análisis ``cancelled``.
+
+    Se guardan las reglas de **los dos** contextos de un reenvío, cada
+    fila con su ``context_type``, para que el informe pueda enseñar las
+    del ganador y conservar las otras como contexto secundario. El
+    análisis registra qué contexto ganó, por qué, y un resumen del otro.
+
+    La escritura final de ``status="finished"`` (con score, veredicto y
+    contexto) pasa por ``IrisAnalysisRepository.transition_if_state()``,
+    que solo la aplica si la fila sigue ``running``: así una cancelación
+    que ``cancel_analysis()`` confirme entre la lectura y este commit no
+    se sobreescribe en silencio de vuelta a ``finished``. Las filas de
+    regla se escriben de todos modos: son ciertas pase lo que pase.
+
+    Args:
+        analysis_id: Primary key del análisis.
+        rules_defs: Catálogo evaluado; se empareja por posición con los
+            ``results`` de cada evaluación.
+        winner: Evaluación que decide el veredicto.
+        detector: Marca del catálogo (``detector_version``).
+        secondary: Evaluación del otro contexto de un reenvío. Por defecto
+            ``None`` (el mensaje no era un reenvío).
+        winning_reason: Por qué ganó ``winner``; ``None`` sin reenvío.
+        confidence: Confianza ordinal y motivos de incertidumbre del
+            veredicto. Por defecto ``None``: las columnas de confianza
+            quedan a NULL (se lee como "sin evaluar").
+        scoring_policy: Política con la que se puntuó; se guarda su
+            snapshot y su versión. Por defecto ``None``: esas columnas
+            quedan a NULL.
+        indicators: Pares ``(kind, value)`` del índice de IOCs del
+            contexto ganador (``services/indicators.indicator_rows``).
+            Por defecto ``None``: no se indexa nada.
+    """
+    with UnitOfWork() as uow:
+        rule_repo = IrisRuleResultRepository(uow)
+        for evaluation in (winner, secondary):
+            if evaluation is None:
+                continue
+            for position, (rule_def, rule_result) in enumerate(zip(rules_defs, evaluation.results)):
+                rule_repo.save(IrisRuleResult(
+                    analysis_id=analysis_id,
+                    rule_name=rule_def["name"],
+                    rule_id=rule_def.get("rule_id") or None,
+                    severity=rule_def.get("severity") or None,
+                    mitre_techniques=list(rule_def.get("mitre_techniques") or ()) or None,
+                    category=rule_def["category"],
+                    score=rule_result.score,
+                    verdict=rule_result.verdict,
+                    details=rule_result.details,
+                    recommendation=rule_result.recommendation,
+                    position=position,
+                    context_type=evaluation.context_type,
+                    evidence=rule_result.evidence or None,
+                    evidence_unavailable_reason=rule_result.evidence_unavailable_reason,
+                ))
+
+        indicator_repo = IrisIndicatorRepository(uow)
+        for kind, value in indicators or []:
+            indicator_repo.save(IrisIndicator(analysis_id=analysis_id, kind=kind, value=value))
+
+        secondary_summary = None
+        if secondary is not None:
+            secondary_summary = {
+                "contextType": secondary.context_type,
+                "verdict": secondary.verdict,
+                "totalScore": secondary.total_score,
+                "analysisQuality": secondary.quality.quality,
+            }
+
+        analysis_repo = IrisAnalysisRepository(uow)
+        transitioned = analysis_repo.transition_if_state(
+            analysis_id, ["running"],
+            status="finished", total_score=winner.total_score, verdict=winner.verdict,
+            gate_reasons=winner.gate_reasons, analysis_quality=winner.quality.quality,
+            failed_rules=winner.quality.failed_rules or None, detector_version=detector,
+            winning_context=winner.context_type, winning_reason=winning_reason,
+            secondary_context=secondary_summary,
+            trust_applied=winner.trust_applied,
+            confidence=confidence.level if confidence else None,
+            coverage=winner.coverage or None,
+            uncertainty_reasons=confidence.reasons if confidence else None,
+            scoring_snapshot=scoring_policy.snapshot(detector) if scoring_policy else None,
+            scoring_version=scoring_policy.version(detector) if scoring_policy else None,
+            finished_at=utcnow_naive(),
+        )
+        if not transitioned:
+            logger.info(
+                f"Análisis {analysis_id} ya no estaba running al terminar de "
+                "evaluar las reglas (probablemente cancelado) -- no se sobreescribe."
+            )
+
+def _evaluate_contexts(analysis_id: Optional[int], context, job, rules_defs: List[dict],
+                        policy: Optional[ScoringPolicy] = None,
+                        trust_entries: Optional[List[TrustEntry]] = None) -> Optional[List[ContextEvaluation]]:
+    """Ejecuta el catálogo de reglas sobre cada contexto del mensaje.
+
+    Vive aparte de :meth:`_run_analysis` para que el ``try`` de ciclo de
+    vida de esa función deje ver qué protege: el bucle es la parte larga.
+    Elegir el ganador no se hace aquí sino en
+    ``services/contexts.choose_winning_evaluation``.
+
+    Args:
+        analysis_id: Primary key del análisis (solo para el log); ``None``
+            fuera de un análisis (``evaluate_raw``).
+        context: ``MessageContext`` parseado; si trae ``wrapper_context``,
+            se evalúa también el envoltorio.
+        job: Contexto del job de TaskQueue (cancelación y progreso), o
+            ``None`` fuera de la cola: entonces no hay cancelación ni
+            progreso que informar.
+        rules_defs: Catálogo de reglas, leído una sola vez por análisis.
+        policy: Política con que se puntúa y decide. Por defecto ``None``: la vigente.
+        trust_entries: Excepciones de confianza activas del dueño del
+            análisis (ver ``services/trust.py``). Por defecto ``None``:
+            ninguna, que es lo que usan el replay y las comparaciones.
+
+    Returns:
+        Optional[List[ContextEvaluation]]: Una evaluación por contexto,
+            primero la del interno (``CONTEXT_INNER``) y, en un reenvío,
+            después la del envoltorio (``CONTEXT_WRAPPER``). ``None`` si el
+            análisis se canceló a mitad, que no es un fallo: no se persiste
+            nada y la cancelación ya dejó su propio estado terminal.
+    """
+    # A "report phishing" forward is safe to unwrap unconditionally
+    # for a human-submitted analysis, but the same message/rfc822
+    # mechanism lets an attacker send their own phishing as the outer
+    # message and staple a benign .eml on as an attachment — analyzing
+    # only the unwrapped inner message would then score the wrong
+    # mail entirely. Evaluate both when a wrapper exists and keep the
+    # worse verdict; this matters most for unattended ingestion
+    # (mailbox ingestion), where there is no human eyeballing the wrapper first.
+    policy = policy or current_policy()
+    contexts_to_evaluate = [(CONTEXT_INNER, context)]
+    if context.wrapper_context is not None:
+        contexts_to_evaluate.append((CONTEXT_WRAPPER, context.wrapper_context))
+
+    total_steps = len(rules_defs) * len(contexts_to_evaluate)
+    completed_steps = 0
+
+    evaluations: List[ContextEvaluation] = []
+    for context_type, evaluated_context in contexts_to_evaluate:
+        results: List[RuleResult] = []
+        named_results: Dict[str, RuleResult] = {}
+
+        for rule_def in rules_defs:
+            if job is not None and job.cancelled():
+                logger.info(f"Analysis {analysis_id} was cancelled")
+                return None
+
+            try:
+                rule_input = (
+                    evaluated_context
+                    if rule_def.get("needs_context")
+                    else evaluated_context.headers
+                )
+                result = rule_def["func"](rule_input)
+            except Exception as e:
+                logger.error(f"Rule '{rule_def['name']}' failed for analysis {analysis_id}: {e}", exc_info=True)
+                result = RuleResult(
+                    score=0, verdict="error",
+                    details={"error": str(e)},
+                    recommendation=f"La regla '{rule_def['name']}' falló durante la ejecución.",
+                )
+
+            # Subtractive contract: a rule can only *subtract*. Whatever a
+            # rule returns on a pass (historically +5/+3/+1 "credibility"
+            # bonuses), the score it contributes — and the score shown in
+            # the UI — is clamped to <= 0. Passing a rule means "no
+            # deduction", never a bonus. The verdict/details are untouched.
+            result = replace(result, score=min(0.0, float(result.score)))
+
+            results.append(result)
+            named_results[rule_def["name"]] = result
+
+            completed_steps += 1
+            if job is not None:
+                job.progress(int((completed_steps / total_steps) * 100))
+
+        # Una excepción de confianza del usuario solo se aplica si el
+        # mensaje demuestra venir de ese remitente, y solo neutraliza las
+        # reglas que cubre: se resuelve antes de puntuar y de los gates
+        # para que ni el score ni los gates de esas reglas la ignoren.
+        trust_record = None
+        trust_entry = find_matching_entry(evaluated_context.headers, trust_entries or [])
+        if trust_entry is not None:
+            is_applied = is_sender_authenticated(named_results)
+            modulated_rules: List[str] = []
+            if is_applied:
+                results, modulated_rules = apply_trust(rules_defs, results, trust_entry)
+                named_results = {rule_def["name"]: result for rule_def, result in zip(rules_defs, results)}
+            trust_record = build_trust_record(trust_entry, modulated_rules, is_applied)
+
+        total_score = policy.aggregate(rules_defs, results)
+        base_verdict = policy.verdict_for(total_score)
+        verdict, gate_reasons = _apply_verdict_gates(base_verdict, named_results)
+
+        # Una regla que revienta no aborta el análisis, pero tampoco
+        # puede desaparecer sin dejar rastro. La política conservadora se
+        # aplica aquí, junto al resto de gates, para que la degradación se
+        # lea entre los demás motivos del veredicto y no en un rincón
+        # aparte de la interfaz.
+        quality = assess_quality(rules_defs, results)
+        verdict, quality_reasons = cap_verdict(verdict, quality)
+        evaluations.append(ContextEvaluation(
+            context_type=context_type, verdict=verdict, total_score=total_score,
+            gate_reasons=gate_reasons + quality_reasons + (
+                [describe_trust_record(trust_record)] if trust_record else []
+            ),
+            results=results, quality=quality,
+            coverage=assess_coverage(evaluated_context, rules_defs),
+            trust_applied=trust_record,
+        ))
+
+    return evaluations
+
+def _fail_analysis(analysis_id: int, failure: Optional[AnalysisFailure] = None) -> None:
+    """Deja el análisis en estado terminal ``failed`` con su motivo.
+
+    ``failure`` es opcional solo para no romper a un llamador que ya no
+    tenga la excepción a mano; en la práctica todos los caminos de
+    ``_run_analysis`` la traen, porque un ``failed`` sin motivo es
+    justamente lo que el manejo de fallos vino a quitar de en medio.
+
+    No se propaga ninguna excepción desde aquí: esto es el último
+    recurso de la tarea, y un fallo escribiendo el fallo solo puede
+    empeorar las cosas.
+    """
+    fields: Dict[str, Any] = {"status": "failed", "finished_at": utcnow_naive()}
+    if failure is not None:
+        fields["failure_code"] = failure.code
+        fields["failure_reason"] = failure.reason
+    try:
+        _update_analysis(analysis_id, **fields)
+    except Exception as e:
+        logger.error(f"Failed to mark analysis {analysis_id} as failed: {e}", exc_info=True)
+
+def _enqueue_phishing_notification(analysis_id: int, verdict: str) -> None:
+    """Encola el correo de alerta de un veredicto Phishing (ver
+    ``IrisPhishingNotifyManager``).
+
+    Solo notifican los análisis llegados por un buzón conectado
+    (``connection_id`` no nulo): un análisis manual lo ha pedido el
+    propio usuario, que ya está viendo el informe en el panel. El envío
+    es fire-and-forget — un fallo de Redis/SMTP se registra y no debe
+    tumbar un análisis ya finalizado.
+    """
+    if verdict != "Phishing":
+        return
+    analysis = build_repository(IrisAnalysisRepository).get_by_id(analysis_id)
+    if analysis is None or analysis.connection_id is None:
+        return
+    try:
+        IrisPhishingNotifyManager.enqueue_for(analysis_id)
+        logger.info(f"Notificación de phishing encolada para el análisis {analysis_id}")
+    except Exception as e:
+        logger.error(
+            f"Fallo encolando la notificación de phishing del análisis {analysis_id}: {e}",
+            exc_info=True,
+        )
+
+def _run_analysis(analysis_id: int, raw_input: str) -> None:
+    """Background task: execute all rules and persist results.
+
+    This is the function submitted to the TaskQueue.  It:
+    1. Marks the analysis as ``running``.
+    2. Parses the raw text into both a flat headers dict (legacy
+       rules) and a full ``MessageContext`` (body/links/attachments
+       — full-message rules). ``raw_input`` may be a headers-only block or
+       a full ``.eml`` message; the context degrades gracefully to
+       empty body/links/attachments in the former case.
+    3. Runs every registered rule against the message (N1: against
+       *both* the message and its ``message/rfc822`` wrapper when one
+       is present, keeping the worse verdict — see
+       ``_evaluate_contexts``).
+    4. Persists the winning context's rule results and the final
+       score/verdict in a single transaction (C2/C3: no partial rows
+       survive a mid-run cancellation, and there's one commit per
+       analysis instead of one per rule).
+    """
+    with job_context() as job:
+        logger.info(f"Starting analysis {analysis_id}")
+
+        try:
+            _update_analysis(analysis_id, status="running", started_at=utcnow_naive())
+        except Exception as e:
+            logger.error(f"Failed to mark analysis {analysis_id} as running: {e}", exc_info=True)
+            _fail_analysis(analysis_id, classify_failure(e))
+            return
+
+        # Parseo, validación y evaluación comparten manejador con la
+        # persistencia. Estaban fuera de todo `try`, así que un parser roto
+        # o un `.eml` que no lo era dejaban la fila en `running` para
+        # siempre: RQ marcaba el job como fallido, pero nadie tocaba la
+        # base de datos y el usuario veía un análisis que no terminaba
+        # nunca. Ahora cualquier excepción de esta ventana acaba en un
+        # estado terminal con motivo consultable.
+        try:
+            # A single parse feeds both header-only and needs_context rules:
+            # when raw_input is a "report phishing" forward (message/rfc822
+            # attachment), context.headers already describes the *unwrapped
+            # original*, not the forwarding envelope — a separate
+            # parse_raw_headers(raw_input) here would silently re-introduce
+            # the envelope's headers and analyze the wrong message.
+            context = parse_raw_message(raw_input)
+            validate_headers_parsed(context.headers)
+
+            # Un solo `get_rules()` para evaluar y para persistir: son dos
+            # recorridos que se emparejan por posición (`zip` en
+            # `_persist_analysis_results`), y leer el registro dos veces
+            # los desalinearía si alguien registrara una regla entremedias.
+            rules_defs = iris_rules.get_rules()
+            # La política se fija una vez por análisis y se guarda con él:
+            # un cambio de configuración a mitad no mezcla dos versiones.
+            policy = current_policy()
+            # Las excepciones de confianza del dueño se leen una vez por
+            # análisis, igual que la política: revocar una a mitad no
+            # mezcla dos criterios sobre el mismo mensaje.
+            owner = build_repository(IrisAnalysisRepository).get_by_id(analysis_id)
+            trust_entries = IrisTrustPolicyManager.get_active_entries(owner.user_id) if owner else []
+            with CR.scoring_weight_overrides(policy.weight_overrides):
+                evaluations = _evaluate_contexts(analysis_id, context, job, rules_defs, policy,
+                                                  trust_entries)
+
+            if evaluations is None:
+                return  # cancelado: no es un fallo, no hay nada que persistir
+
+            winner, secondary, winning_reason = choose_winning_evaluation(
+                evaluations, _VERDICT_SEVERITY,
+            )
+            verdict, total_score = winner.verdict, winner.total_score
+            confidence = assess_confidence(
+                winner=winner,
+                secondary=secondary,
+                legitimate_threshold=policy.legitimate_threshold,
+                suspicious_threshold=policy.suspicious_threshold
+            )
+
+            _persist_analysis_results(
+                analysis_id,
+                rules_defs,
+                winner,
+                detector=detector_version(rules_defs),
+                secondary=secondary,
+                winning_reason=winning_reason,
+                confidence=confidence,
+                scoring_policy=policy,
+                indicators=indicator_rows(extract_indicators(
+                    context_of_type(context, winner.context_type))),
+            )
+        except Exception as e:
+            logger.error(f"Analysis {analysis_id} failed: {e}", exc_info=True)
+            _fail_analysis(analysis_id, classify_failure(e))
+            return
+
+        if verdict == "Phishing":
+            _enqueue_phishing_notification(analysis_id, verdict)
+
+        logger.info(f"Analysis {analysis_id} completed: score={total_score}, verdict={verdict}")
+
+
+def _evaluate_analysis_under(analysis_id: int, user_id: int, policy: ScoringPolicy) -> Dict[str, Any]:
+    """Qué habría decidido Iris sobre un análisis guardado con otra política.
+
+    Vuelve a evaluar el raw conservado sin crear un análisis nuevo. Con la
+    política reconstruida desde el snapshot del propio análisis
+    (``ScoringPolicy.from_snapshot``) responde a "¿qué decidió la versión
+    con la que se hizo?"; con otra, a "¿qué habría decidido esa?".
+
+    Args:
+        analysis_id: Análisis a reevaluar; debe ser del usuario.
+        user_id: Usuario que pregunta.
+        policy: Política con la que reevaluar.
+
+    Returns:
+        dict: ``analysisId``, lo guardado (``storedVerdict``,
+            ``storedScore``, ``storedScoringVersion``) y lo que decide la
+            política (``verdict``, ``totalScore``, ``gateReasons``,
+            ``scoringVersion``).
+
+    Raises:
+        IrisAnalysisNotFoundError: Si el análisis no existe o no es suyo.
+        IrisRawMessagePurgedError: Si la retención ya purgó el raw.
+    """
+    analysis = IrisManager.assert_analysis_ownership(analysis_id, user_id)
+    if analysis.raw_headers is None:
+        raise IrisRawMessagePurgedError(analysis_id)
+    result = IrisManager.evaluate_raw(analysis.raw_headers, policy)
+    return {
+        "analysisId": analysis.id,
+        "storedVerdict": analysis.verdict,
+        "storedScore": analysis.total_score,
+        "storedScoringVersion": analysis.scoring_version,
+        "verdict": result["verdict"],
+        "totalScore": result["totalScore"],
+        "gateReasons": result["gateReasons"],
+        "scoringVersion": policy.version(detector_version(iris_rules.get_rules())),
+    }
+
 
 class IrisManager(TaskTrackingMixin):
     """Orchestrates the lifecycle of an Iris email-header analysis.
@@ -171,7 +951,7 @@ class IrisManager(TaskTrackingMixin):
 
     EXTERNAL_ID_PREFIX = "iris-analysis:"
     TASK_CATEGORY = "iris.analyze"
-    _TOP_SIGNALS_LIMIT = 5
+
 
     AI_SUMMARY_EXTERNAL_ID_PREFIX = "iris-ai-summary:"
 
@@ -196,7 +976,8 @@ class IrisManager(TaskTrackingMixin):
         connection_id: int | None = None,
         source_message_uid: str | None = None,
     ) -> int:
-        """Envía cabeceras de correo crudas (o un mensaje completo) a análisis
+        """
+        Envía cabeceras de correo crudas (o un mensaje completo) a análisis
         en segundo plano.
 
         Crea una fila ``IrisAnalysis`` en estado ``pending`` y encola una
@@ -247,24 +1028,16 @@ class IrisManager(TaskTrackingMixin):
                 "Debe proporcionar cabeceras de correo o un mensaje completo."
             )
 
-        self._validate_headers_pre(raw_input)
+        validate_headers_pre(raw_input)
 
-        # Comprobar idempotencia ANTES de cobrar cuota -- un reintento
-        # de sync de buzón (Gmail/Graph pueden repetir un mensaje) para algo
-        # ya aceptado no debe volver a cobrar ni crear un segundo análisis.
-        # El propio checkpoint de mailbox ya evita llegar hasta aquí
-        # en el caso común; esto cubre además la llamada directa.
         exited_third_party_connection = connection_id is not None and source_message_uid is not None
         if exited_third_party_connection:
             existing = build_repository(IrisAnalysisRepository).get_by_source(
-                connection_id, source_message_uid,
+                connection_id, source_message_uid, # type: ignore
             )
             if existing is not None:
                 return existing.id
 
-        # Después de validar la entrada: un correo mal pegado no gasta cuota.
-        # Aquí y no en el endpoint, porque por este método entra también la
-        # ingesta desde un buzón conectado (mailbox sync), que no pasa por HTTP.
         quota_manager = QuotaManager()
         quota_manager.consume(user_id, LimitKey.IRIS_ANALYSES)
 
@@ -285,12 +1058,6 @@ class IrisManager(TaskTrackingMixin):
             with UnitOfWork() as uow:
                 IrisAnalysisRepository(uow).save(analysis)
                 analysis_id = analysis.id
-                # La intención de publicar se guarda en la MISMA
-                # transacción que el análisis -- si la API muere o Redis
-                # falla justo después del commit, el barrido periódico de
-                # la outbox (o la reconciliación de arranque) publica el
-                # job más tarde en vez de dejar la fila huérfana para
-                # siempre (ver system/taskqueue/outbox.py).
                 dispatch = TaskDispatchRepository(uow).save(build_dispatch(
                     func=IrisManager.execute_iris_analysis,
                     name=f"IrisAnalysis-{analysis_id}",
@@ -301,23 +1068,171 @@ class IrisManager(TaskTrackingMixin):
                 # Durable antes de intentar publicar: el worker corre en otro proceso.
                 uow.commit_for_handoff()
         except SQLAlchemyError:
-            # Carrera perdida contra otra llamada para el mismo mensaje: la
-            # comprobación de arriba y este insert no son atómicos entre sí,
-            # así que la UniqueConstraint sigue siendo la defensa final. Se
-            # reembolsa la cuota que se acaba de cobrar por un análisis que
-            # nunca llegó a crearse -- nunca se cobra por un duplicado.
             quota_manager.refund(user_id, LimitKey.IRIS_ANALYSES)
             raise
 
         logger.info(f"Iris analysis {analysis_id} created for user {user_id}")
-
-        # Camino feliz: publicar ahora mismo en vez de esperar al barrido
-        # periódico, para que el análisis arranque sin latencia añadida en
-        # el caso normal (Redis arriba). Si falla, la fila queda `pending`
-        # y algo la recogerá más tarde -- nunca se pierde el trabajo.
         OutboxDispatcher.dispatch(dispatch.id, task_queue=self._task_queue)
 
         return analysis_id
+
+    def reanalyze(self, analysis_id: int, user_id: int) -> int:
+        """Re-run analysis on a previously submitted email with the current ruleset.
+
+        Rules added or changed after the original analysis never
+        retroactively re-score it — this submits the *same* stored raw
+        input (``analysis.raw_headers``, which holds the full ``.eml``
+        text when one was originally provided, not just header lines) as
+        a brand-new analysis. Deliberately not linked by a DB column back
+        to the original (the ROADMAP marks that optional); the new
+        title's suffix is the only trace of the relationship.
+
+        Returns:
+            The new IrisAnalysis primary key.
+
+        Raises:
+            IrisRawMessagePurgedError: La retención ya purgó el raw de este
+                análisis -- sin él no hay nada que reanalizar.
+        """
+        analysis = self.assert_analysis_ownership(analysis_id, user_id)
+        if analysis.raw_headers is None:
+            raise IrisRawMessagePurgedError(analysis_id)
+        title = f"{analysis.title} (reanálisis)" if analysis.title else f"Reanálisis de #{analysis_id}"
+        return self.analyze(analysis.raw_headers, user_id, title=title)
+
+    @staticmethod
+    def execute_iris_analysis(analysis_id: int, raw_input: str) -> None:
+        """Entry point submitted to the TaskQueue for background analysis."""
+        _run_analysis(analysis_id, raw_input)
+
+    def generate_ai_summary(
+        self,
+        analysis_id: int,
+        user_id: int,
+        regenerate: bool = False
+    ) -> str:
+        """Encola la narrativa ejecutiva de IA (IA1), una sola vez.
+
+        Fire-and-forget: encola y vuelve. El llamante relee
+        ``get_analysis_results`` (``aiSummary``) para ver el resultado.
+
+        La operación es **idempotente por análisis**. Antes consumía
+        cuota y encolaba sin mirar si ya había un resumen o un trabajo en
+        curso, así que dos peticiones seguidas —dos clics, un reintento del
+        navegador— cobraban dos veces y lanzaban dos generaciones del mismo
+        análisis. El ``external_id`` era determinista pero nadie lo consultaba.
+
+        La exclusión se apoya en una transición condicional sobre
+        ``ai_summary_status``, no en leer-decidir-escribir: bajo dos peticiones
+        simultáneas la base de datos serializa los dos UPDATE y el segundo no
+        afecta a ninguna fila. Quien pierde esa carrera no cobra cuota ni
+        encola nada.
+
+        Args:
+            regenerate: Pedir explícitamente una regeneración de un resumen
+                que ya existe. Sin esto, repetir la petición devuelve el
+                resultado que ya hay — que es lo que quiere quien hace doble
+                clic, y no lo que quiere quien busca otra redacción; el issue
+                pedía decidirlo explícitamente y esta es la decisión.
+
+        Returns:
+            ``"running"`` si esta llamada encoló el trabajo, ``"done"`` si ya
+            había resumen y no se pidió regenerar.
+
+        Raises:
+            IrisAnalysisNotFoundError: si el análisis no existe o no es suyo.
+            IrisAnalysisNotReadyError: si el análisis no está ``finished``.
+        """
+        analysis = self.assert_analysis_ownership(analysis_id, user_id)
+        if analysis.status != "finished":
+            raise IrisAnalysisNotReadyError(analysis_id, analysis.status)
+
+        # Un resumen ya generado se devuelve tal cual: no cuesta cuota, no
+        # encola y no sorprende a quien solo hizo doble clic.
+        if analysis.ai_summary is not None and not regenerate:
+            return "done"
+
+        if not _claim_ai_summary(analysis_id, regenerate=regenerate):
+            # Otra petición se lo llevó (o ya estaba en curso). Sin cobro.
+            return "running"
+
+        # La concreta y el techo agregado de IA, en ese orden, para que el 402
+        # nombre lo que el usuario estaba pidiendo. consume_many() las
+        # cobra como una sola operación: si AI_REQUESTS no tiene cupo tras
+        # haber cobrado IRIS_AI_SUMMARIES, la reembolsa antes de relanzar --
+        # antes se quedaba cobrada sin nada que la explicara.
+        try:
+            QuotaManager().consume_many(user_id, [LimitKey.IRIS_AI_SUMMARIES, LimitKey.AI_REQUESTS])
+        except Exception:
+            # Sin cupo no hay trabajo: se suelta la reserva para que el
+            # análisis no se quede en `running` para siempre y el usuario
+            # pueda reintentar cuando renueve su plan.
+            _release_ai_summary(analysis_id)
+            raise
+
+        try:
+            task = self._task_queue.submit(
+                func=IrisManager.execute_ai_summary_generation,
+                args=(analysis_id, user_id),
+                name=f"AISummary-Analysis-{analysis_id}",
+                category="iris.ai_summary",
+                external_id=f"{self.AI_SUMMARY_EXTERNAL_ID_PREFIX}{analysis_id}",
+            )
+        except Exception:
+            # El encolado rechazó el trabajo: nadie lo va a ejecutar, así que
+            # ni la reserva ni el cobro tienen sentido.
+            #
+            # Es la razón por la que este sitio se quedó fuera de la outbox
+            # transaccional: la compensación ya existe y
+            # es completa -- el análisis no se queda en `running` y el usuario
+            # recupera su cuota, así que puede reintentar. Lo único que la
+            # outbox añadiría es ejecutar el resumen solo en vez de que el
+            # usuario vuelva a pedirlo.
+            _release_ai_summary(analysis_id)
+            _refund_ai_summary_quota(user_id)
+            raise
+
+        _update_analysis(analysis_id, ai_summary_job_id=getattr(task, "id", None))
+        return "running"
+
+    @staticmethod
+    def execute_ai_summary_generation(analysis_id: int, user_id: Optional[int] = None) -> None:
+        """Entry point submitted to the TaskQueue for background AI narrative generation.
+
+        Degrades cleanly on any failure (missing/misconfigured AI backend,
+        circuit breaker open, malformed model response): logs the error
+        and leaves ``ai_summary`` as ``NULL`` rather than failing the
+        already-finished analysis it's attached to.
+
+        Además deja el estado en terminal y, si no hubo resumen,
+        devuelve la cuota. Cobrar antes de trabajar es correcto —cobrar
+        después permitiría lanzar N generaciones concurrentes con cupo para
+        una— pero obliga a devolver el dinero cuando el trabajo no se hace.
+
+        ``user_id`` es opcional para que un trabajo ya encolado con la firma
+        anterior no reviente al ejecutarse tras el despliegue; sin él
+        simplemente no hay a quién reembolsar.
+        """
+        with job_context():
+            manager = IrisManager()
+            try:
+                report = manager.get_analysis_results(analysis_id)
+                summary = IrisAIWriter().generate(report)
+
+                _update_analysis(
+                    analysis_id,
+                    ai_summary=summary,
+                    ai_summary_status="done",
+                    ai_summary_model=IrisAIWriter.model_name(),
+                    ai_summary_prompt_version=IrisAIWriter.prompt_version(),
+                )
+
+                logger.info(f"AI summary generado para analysis {analysis_id}")
+            except Exception as e:
+                logger.error(f"Error generando AI summary para analysis {analysis_id}: {e}", exc_info=True)
+                _update_analysis(analysis_id, ai_summary_status="failed")
+                if user_id is not None:
+                    _refund_ai_summary_quota(user_id)
 
     def get_analysis(self, analysis_id: int) -> Optional[IrisAnalysis]:
         """Fetch the analysis ORM object by its primary key.
@@ -327,6 +1242,65 @@ class IrisManager(TaskTrackingMixin):
         "not ready".
         """
         return build_repository(IrisAnalysisRepository).get_by_id(analysis_id)
+
+    def get_analyses_for_user(
+            self, user_id: int, page: int = 1, per_page: int = 10, *,
+            search: str | None = None, verdict: str | None = None,
+            status: str | None = None, source: str | None = None,
+            tag: str | None = None, ioc: str | None = None, review: str | None = None,
+            sort_by: str = "date", sort_dir: str = "desc",
+        ):
+            """Return a paginated, formatted list of analyses for a user.
+
+            Args:
+                user_id:  Owner of the analyses.
+                page:     1‑based page number.
+                per_page: Items per page.
+                search/verdict/status/source/tag/review: Optional filters — see
+                    ``IrisAnalysisRepository.get_by_user_paginated``.
+                ioc: Indicador a buscar; se admite desactivado (``hxxp``,
+                    ``[.]``) y se normaliza con ``services/indicators.refang``.
+                sort_by/sort_dir: Server-side ordering — see same.
+
+            Returns:
+                Tuple of (formatted_results: list[dict], total_count: int,
+                thresholds: dict).
+            """
+            items, total = build_repository(IrisAnalysisRepository).get_by_user_paginated(
+                user_id, page, per_page,
+                search=search, verdict=verdict, status=status, source=source,
+                tag=tag, ioc=refang(ioc) if ioc else None, review=review,
+                sort_by=sort_by, sort_dir=sort_dir,
+            )
+            reviewed_ids = build_repository(IrisAnalystFeedbackRepository).get_reviewed_ids(
+                [analysis_record.id for analysis_record in items]
+            )
+            policy = current_policy()
+            thresholds = {
+                "legitimate": policy.legitimate_threshold,
+                "suspicious": policy.suspicious_threshold,
+            }
+            results = [
+                {
+                    "analysisId": analysis_record.id,
+                    "title": analysis_record.title,
+                    "status": analysis_record.status,
+                    "failureCode": analysis_record.failure_code,
+                    "analysisQuality": analysis_record.analysis_quality,
+                    "confidence": analysis_record.confidence,
+                    "totalScore": analysis_record.total_score,
+                    "verdict": analysis_record.verdict,
+                    "startedAt": isoformat_utc(analysis_record.started_at), # type: ignore
+                    "finishedAt": isoformat_utc(analysis_record.finished_at), # type: ignore
+                    "connectionId": analysis_record.connection_id,
+                    "provider": analysis_record.connection.provider if analysis_record.connection else None,
+                    "accountEmail": analysis_record.connection.account_email if analysis_record.connection else None,
+                    "tags": [tag.name for tag in analysis_record.tags],
+                    "reviewed": analysis_record.id in reviewed_ids,
+                }
+                for analysis_record in items
+            ]
+            return results, total, thresholds
 
     @staticmethod
     def get_capabilities() -> Dict[str, Any]:
@@ -454,7 +1428,7 @@ class IrisManager(TaskTrackingMixin):
         # Un análisis sin contexto ganador guardado solo tiene filas del
         # contexto que ganó, sin marcar: se leen todas, como siempre.
         rules = rule_repo.get_by_analysis(analysis_id, context_type=analysis.winning_context)
-        rules_data = [_rule_to_dict(rule) for rule in rules]
+        rules_data = [rule.to_dict() for rule in rules]
 
         recommendations = [
             rule["recommendation"] for rule in rules_data
@@ -468,7 +1442,7 @@ class IrisManager(TaskTrackingMixin):
             )
             secondary_context = {
                 **analysis.secondary_context,
-                "rules": [_rule_to_dict(rule) for rule in secondary_rules],
+                "rules": [rule.to_dict() for rule in secondary_rules],
             }
 
         from src.modules.users import UserManager
@@ -495,7 +1469,7 @@ class IrisManager(TaskTrackingMixin):
             "totalScore": analysis.total_score,
             "verdict": analysis.verdict,
             "gateReasons": analysis.gate_reasons or [],
-            "topSignals": self._top_signals(rules_data),
+            "topSignals": _top_signals(rules_data),
             "aiSummary": analysis.ai_summary,
             "aiSummaryStatus": analysis.ai_summary_status,
             "aiSummaryModel": analysis.ai_summary_model,
@@ -527,57 +1501,6 @@ class IrisManager(TaskTrackingMixin):
             "tags": [tag.name for tag in analysis.tags],
         }
 
-    @classmethod
-    def _top_signals(cls, rules_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Rank the rules that contributed the most to the penalty.
-
-        The subtractive model already stores a signed score per rule (0 or
-        negative — see ``_run_analysis``'s clamp), so "most impactful" is
-        simply "most negative". Surfaces the top N as ``{ruleName, category,
-        score, index}`` so the report/UI can lead with what actually drove
-        the verdict instead of making the analyst scan every rule. ``index``
-        is the rule's position in ``rules_data`` so the UI can jump straight
-        to its detail card.
-        """
-        negative = [
-            (idx, r) for idx, r in enumerate(rules_data) if (r.get("score") or 0) < 0
-        ]
-        negative.sort(key=lambda pair: pair[1]["score"])
-        return [
-            {
-                "ruleId": r.get("ruleId"),
-                "ruleName": r["ruleName"],
-                "category": r.get("category"),
-                "score": r["score"],
-                "index": idx,
-            }
-            for idx, r in negative[:cls._TOP_SIGNALS_LIMIT]
-        ]
-
-    def reanalyze(self, analysis_id: int, user_id: int) -> int:
-        """Re-run analysis on a previously submitted email with the current ruleset.
-
-        Rules added or changed after the original analysis never
-        retroactively re-score it — this submits the *same* stored raw
-        input (``analysis.raw_headers``, which holds the full ``.eml``
-        text when one was originally provided, not just header lines) as
-        a brand-new analysis. Deliberately not linked by a DB column back
-        to the original (the ROADMAP marks that optional); the new
-        title's suffix is the only trace of the relationship.
-
-        Returns:
-            The new IrisAnalysis primary key.
-
-        Raises:
-            IrisRawMessagePurgedError: La retención ya purgó el raw de este
-                análisis -- sin él no hay nada que reanalizar.
-        """
-        analysis = self.assert_analysis_ownership(analysis_id, user_id)
-        if analysis.raw_headers is None:
-            raise IrisRawMessagePurgedError(analysis_id)
-        title = f"{analysis.title} (reanálisis)" if analysis.title else f"Reanálisis de #{analysis_id}"
-        return self.analyze(analysis.raw_headers, user_id, title=title)
-
     def get_analysis_path(self, analysis_id: int, user_id: int) -> Dict[str, Any]:
         """Cadena Received del mensaje que produjo el veredicto.
 
@@ -607,9 +1530,6 @@ class IrisManager(TaskTrackingMixin):
             "contextType": analysis.winning_context,
             **build_path(context.received_headers),
         }
-
-
-    
 
     def get_analysis_iocs(self, analysis_id: int, user_id: int) -> Dict[str, Any]:
         """Extract Indicators of Compromise (IOCs) from an analysis.
@@ -676,174 +1596,6 @@ class IrisManager(TaskTrackingMixin):
             "receivedPath": path,
             "iocs": iocs,
         }
-
-
-
-    def generate_ai_summary(self, analysis_id: int, user_id: int,
-                            regenerate: bool = False) -> str:
-        """Encola la narrativa ejecutiva de IA (IA1), una sola vez.
-
-        Fire-and-forget: encola y vuelve. El llamante relee
-        ``get_analysis_results`` (``aiSummary``) para ver el resultado.
-
-        La operación es **idempotente por análisis**. Antes consumía
-        cuota y encolaba sin mirar si ya había un resumen o un trabajo en
-        curso, así que dos peticiones seguidas —dos clics, un reintento del
-        navegador— cobraban dos veces y lanzaban dos generaciones del mismo
-        análisis. El ``external_id`` era determinista pero nadie lo consultaba.
-
-        La exclusión se apoya en una transición condicional sobre
-        ``ai_summary_status``, no en leer-decidir-escribir: bajo dos peticiones
-        simultáneas la base de datos serializa los dos UPDATE y el segundo no
-        afecta a ninguna fila. Quien pierde esa carrera no cobra cuota ni
-        encola nada.
-
-        Args:
-            regenerate: Pedir explícitamente una regeneración de un resumen
-                que ya existe. Sin esto, repetir la petición devuelve el
-                resultado que ya hay — que es lo que quiere quien hace doble
-                clic, y no lo que quiere quien busca otra redacción; el issue
-                pedía decidirlo explícitamente y esta es la decisión.
-
-        Returns:
-            ``"running"`` si esta llamada encoló el trabajo, ``"done"`` si ya
-            había resumen y no se pidió regenerar.
-
-        Raises:
-            IrisAnalysisNotFoundError: si el análisis no existe o no es suyo.
-            IrisAnalysisNotReadyError: si el análisis no está ``finished``.
-        """
-        analysis = self.assert_analysis_ownership(analysis_id, user_id)
-        if analysis.status != "finished":
-            raise IrisAnalysisNotReadyError(analysis_id, analysis.status)
-
-        # Un resumen ya generado se devuelve tal cual: no cuesta cuota, no
-        # encola y no sorprende a quien solo hizo doble clic.
-        if analysis.ai_summary is not None and not regenerate:
-            return "done"
-
-        if not self._claim_ai_summary(analysis_id, regenerate=regenerate):
-            # Otra petición se lo llevó (o ya estaba en curso). Sin cobro.
-            return "running"
-
-        # La concreta y el techo agregado de IA, en ese orden, para que el 402
-        # nombre lo que el usuario estaba pidiendo. consume_many() las
-        # cobra como una sola operación: si AI_REQUESTS no tiene cupo tras
-        # haber cobrado IRIS_AI_SUMMARIES, la reembolsa antes de relanzar --
-        # antes se quedaba cobrada sin nada que la explicara.
-        try:
-            QuotaManager().consume_many(user_id, [LimitKey.IRIS_AI_SUMMARIES, LimitKey.AI_REQUESTS])
-        except Exception:
-            # Sin cupo no hay trabajo: se suelta la reserva para que el
-            # análisis no se quede en `running` para siempre y el usuario
-            # pueda reintentar cuando renueve su plan.
-            self._release_ai_summary(analysis_id)
-            raise
-
-        try:
-            task = self._task_queue.submit(
-                func=IrisManager.execute_ai_summary_generation,
-                args=(analysis_id, user_id),
-                name=f"AISummary-Analysis-{analysis_id}",
-                category="iris.ai_summary",
-                external_id=f"{self.AI_SUMMARY_EXTERNAL_ID_PREFIX}{analysis_id}",
-            )
-        except Exception:
-            # El encolado rechazó el trabajo: nadie lo va a ejecutar, así que
-            # ni la reserva ni el cobro tienen sentido.
-            #
-            # Es la razón por la que este sitio se quedó fuera de la outbox
-            # transaccional: la compensación ya existe y
-            # es completa -- el análisis no se queda en `running` y el usuario
-            # recupera su cuota, así que puede reintentar. Lo único que la
-            # outbox añadiría es ejecutar el resumen solo en vez de que el
-            # usuario vuelva a pedirlo.
-            self._release_ai_summary(analysis_id)
-            self._refund_ai_summary_quota(user_id)
-            raise
-
-        self._update_analysis(analysis_id, ai_summary_job_id=getattr(task, "id", None))
-        return "running"
-
-    @staticmethod
-    def _claim_ai_summary(analysis_id: int, regenerate: bool = False) -> bool:
-        """Reclama la generación con un UPDATE condicional. True si se ganó.
-
-        La condición vive dentro del UPDATE a propósito, igual que en el
-        consumo de cuota: leer el estado, decidir en Python y escribir después
-        regala una segunda generación cada vez que dos peticiones coinciden.
-        """
-        claimable = list(IrisManager._AI_SUMMARY_CLAIMABLE)
-        if regenerate:
-            claimable.append("done")
-
-        with UnitOfWork() as uow:
-            condition = IrisAnalysis.id == analysis_id
-            if None in claimable:
-                states = [state for state in claimable if state is not None]
-                status_matches = or_(
-                    IrisAnalysis.ai_summary_status.is_(None),
-                    IrisAnalysis.ai_summary_status.in_(states),
-                )
-            else:
-                status_matches = IrisAnalysis.ai_summary_status.in_(claimable)
-
-            result = uow.session.execute(
-                update(IrisAnalysis)
-                .where(and_(condition, status_matches))
-                .values(ai_summary_status="running")
-            )
-            return bool(result.rowcount)
-
-    def _release_ai_summary(self, analysis_id: int) -> None:
-        """Deshace la reserva cuando el trabajo no va a llegar a ejecutarse."""
-        self._update_analysis(analysis_id, ai_summary_status=None, ai_summary_job_id=None)
-
-    @staticmethod
-    def _refund_ai_summary_quota(user_id: int) -> None:
-        """Devuelve los dos cargos del resumen (el concreto y el agregado)."""
-        quota_manager = QuotaManager()
-        quota_manager.refund(user_id, LimitKey.IRIS_AI_SUMMARIES)
-        quota_manager.refund(user_id, LimitKey.AI_REQUESTS)
-
-    @staticmethod
-    def execute_ai_summary_generation(analysis_id: int, user_id: Optional[int] = None) -> None:
-        """Entry point submitted to the TaskQueue for background AI narrative generation.
-
-        Degrades cleanly on any failure (missing/misconfigured AI backend,
-        circuit breaker open, malformed model response): logs the error
-        and leaves ``ai_summary`` as ``NULL`` rather than failing the
-        already-finished analysis it's attached to.
-
-        Además deja el estado en terminal y, si no hubo resumen,
-        devuelve la cuota. Cobrar antes de trabajar es correcto —cobrar
-        después permitiría lanzar N generaciones concurrentes con cupo para
-        una— pero obliga a devolver el dinero cuando el trabajo no se hace.
-
-        ``user_id`` es opcional para que un trabajo ya encolado con la firma
-        anterior no reviente al ejecutarse tras el despliegue; sin él
-        simplemente no hay a quién reembolsar.
-        """
-        with job_context():
-            manager = IrisManager()
-            try:
-                report = manager.get_analysis_results(analysis_id)
-                summary = IrisAIWriter().generate(report)
-
-                manager._update_analysis(
-                    analysis_id,
-                    ai_summary=summary,
-                    ai_summary_status="done",
-                    ai_summary_model=IrisAIWriter.model_name(),
-                    ai_summary_prompt_version=IrisAIWriter.prompt_version(),
-                )
-
-                logger.info(f"AI summary generado para analysis {analysis_id}")
-            except Exception as e:
-                logger.error(f"Error generando AI summary para analysis {analysis_id}: {e}", exc_info=True)
-                manager._update_analysis(analysis_id, ai_summary_status="failed")
-                if user_id is not None:
-                    IrisManager._refund_ai_summary_quota(user_id)
 
     def cancel_analysis(self, analysis_id: int, user_id: int) -> bool:
         """Cancela un análisis ``pending`` o ``running``.
@@ -953,65 +1705,6 @@ class IrisManager(TaskTrackingMixin):
                 return True
         return False
 
-    def get_analyses_for_user(
-        self, user_id: int, page: int = 1, per_page: int = 10, *,
-        search: str | None = None, verdict: str | None = None,
-        status: str | None = None, source: str | None = None,
-        tag: str | None = None, ioc: str | None = None, review: str | None = None,
-        sort_by: str = "date", sort_dir: str = "desc",
-    ):
-        """Return a paginated, formatted list of analyses for a user.
-
-        Args:
-            user_id:  Owner of the analyses.
-            page:     1‑based page number.
-            per_page: Items per page.
-            search/verdict/status/source/tag/review: Optional filters — see
-                ``IrisAnalysisRepository.get_by_user_paginated``.
-            ioc: Indicador a buscar; se admite desactivado (``hxxp``,
-                ``[.]``) y se normaliza con ``services/indicators.refang``.
-            sort_by/sort_dir: Server-side ordering — see same.
-
-        Returns:
-            Tuple of (formatted_results: list[dict], total_count: int,
-            thresholds: dict).
-        """
-        items, total = build_repository(IrisAnalysisRepository).get_by_user_paginated(
-            user_id, page, per_page,
-            search=search, verdict=verdict, status=status, source=source,
-            tag=tag, ioc=refang(ioc) if ioc else None, review=review,
-            sort_by=sort_by, sort_dir=sort_dir,
-        )
-        reviewed_ids = build_repository(IrisAnalystFeedbackRepository).get_reviewed_ids(
-            [analysis_record.id for analysis_record in items]
-        )
-        policy = current_policy()
-        thresholds = {
-            "legitimate": policy.legitimate_threshold,
-            "suspicious": policy.suspicious_threshold,
-        }
-        results = [
-            {
-                "analysisId": analysis_record.id,
-                "title": analysis_record.title,
-                "status": analysis_record.status,
-                "failureCode": analysis_record.failure_code,
-                "analysisQuality": analysis_record.analysis_quality,
-                "confidence": analysis_record.confidence,
-                "totalScore": analysis_record.total_score,
-                "verdict": analysis_record.verdict,
-                "startedAt": isoformat_utc(analysis_record.started_at), # type: ignore
-                "finishedAt": isoformat_utc(analysis_record.finished_at), # type: ignore
-                "connectionId": analysis_record.connection_id,
-                "provider": analysis_record.connection.provider if analysis_record.connection else None,
-                "accountEmail": analysis_record.connection.account_email if analysis_record.connection else None,
-                "tags": [tag.name for tag in analysis_record.tags],
-                "reviewed": analysis_record.id in reviewed_ids,
-            }
-            for analysis_record in items
-        ]
-        return results, total, thresholds
-
     @classmethod
     def assert_analysis_ownership(cls, analysis_id: int, user_id: int) -> IrisAnalysis:
         """Verify that an analysis belongs to a given user.
@@ -1021,153 +1714,6 @@ class IrisManager(TaskTrackingMixin):
         to prevent ID enumeration).
         """
         return assert_owned(IrisAnalysisRepository, analysis_id, user_id, IrisAnalysisNotFoundError)
-
-    # =========================================================================
-    # INTERNAL
-    # =========================================================================
-
-    @staticmethod
-    def _validate_headers_pre(raw_headers: str) -> None:
-        """Quick pre-check before creating a DB record.
-
-        Counts lines that contain a colon — a rough proxy for valid
-        header entries.  Rejects obviously non-header input early so
-        we do not waste a DB row on garbage.
-        """
-        min_h = CR.iris_config().min_headers
-        count = sum(1 for line in raw_headers.split("\n") if ":" in line)
-        if count < min_h:
-            raise IrisInvalidInputError(
-                "Se detectaron %d cabezeras v\u00e1lidas (m\u00ednimo: %d). "
-                "El contenido no parece ser un bloque de cabeceras de correo v\u00e1lido." % (count, min_h)
-            )
-
-    @staticmethod
-    def _validate_headers_parsed(parsed: dict) -> None:
-        """
-        Valida que el motor tenga suficientes cabceras para poder
-        correr las reglas. Se llama después de parsear el raw.
-        Se entiende que las cabceras su suficientes si
-        se han encontrado al menos `min_headers` cabeceras válidas.
-
-        `CR.iris_config().min_headers`: Configuración que define el mínimo de cabeceras 
-        válidas requeridas para que el análisis sea considerado válido en `SecOpsConfig.json`.
-
-        Args:
-            parsed: Diccionario de cabeceras parseadas.
-        Raises:
-            IrisInvalidInputError: Si el número de cabeceras parseadas es menor que `min_headers`. 
-        """
-        min_h = CR.iris_config().min_headers
-        if len(parsed) < min_h:
-            raise IrisInvalidInputError(
-                f"Tras parsear se obtuvieron {len(parsed)} cabeceras (mínimo: {min_h}). "
-                "El contenido no contiene suficientes cabeceras de correo válidas."
-            )
-
-    @staticmethod
-    def execute_iris_analysis(analysis_id: int, raw_input: str) -> None:
-        """Entry point submitted to the TaskQueue for background analysis."""
-        IrisManager()._run_analysis(analysis_id, raw_input)
-
-    def _run_analysis(self, analysis_id: int, raw_input: str) -> None:
-        """Background task: execute all rules and persist results.
-
-        This is the function submitted to the TaskQueue.  It:
-        1. Marks the analysis as ``running``.
-        2. Parses the raw text into both a flat headers dict (legacy
-           rules) and a full ``MessageContext`` (body/links/attachments
-           — full-message rules). ``raw_input`` may be a headers-only block or
-           a full ``.eml`` message; the context degrades gracefully to
-           empty body/links/attachments in the former case.
-        3. Runs every registered rule against the message (N1: against
-           *both* the message and its ``message/rfc822`` wrapper when one
-           is present, keeping the worse verdict — see
-           ``_evaluate_contexts``).
-        4. Persists the winning context's rule results and the final
-           score/verdict in a single transaction (C2/C3: no partial rows
-           survive a mid-run cancellation, and there's one commit per
-           analysis instead of one per rule).
-        """
-        with job_context() as job:
-            logger.info(f"Starting analysis {analysis_id}")
-
-            try:
-                self._update_analysis(analysis_id, status="running", started_at=utcnow_naive())
-            except Exception as e:
-                logger.error(f"Failed to mark analysis {analysis_id} as running: {e}", exc_info=True)
-                self._fail_analysis(analysis_id, classify_failure(e))
-                return
-
-            # Parseo, validación y evaluación comparten manejador con la
-            # persistencia. Estaban fuera de todo `try`, así que un parser roto
-            # o un `.eml` que no lo era dejaban la fila en `running` para
-            # siempre: RQ marcaba el job como fallido, pero nadie tocaba la
-            # base de datos y el usuario veía un análisis que no terminaba
-            # nunca. Ahora cualquier excepción de esta ventana acaba en un
-            # estado terminal con motivo consultable.
-            try:
-                # A single parse feeds both header-only and needs_context rules:
-                # when raw_input is a "report phishing" forward (message/rfc822
-                # attachment), context.headers already describes the *unwrapped
-                # original*, not the forwarding envelope — a separate
-                # parse_raw_headers(raw_input) here would silently re-introduce
-                # the envelope's headers and analyze the wrong message.
-                context = parse_raw_message(raw_input)
-                self._validate_headers_parsed(context.headers)
-
-                # Un solo `get_rules()` para evaluar y para persistir: son dos
-                # recorridos que se emparejan por posición (`zip` en
-                # `_persist_analysis_results`), y leer el registro dos veces
-                # los desalinearía si alguien registrara una regla entremedias.
-                rules_defs = iris_rules.get_rules()
-                # La política se fija una vez por análisis y se guarda con él:
-                # un cambio de configuración a mitad no mezcla dos versiones.
-                policy = current_policy()
-                # Las excepciones de confianza del dueño se leen una vez por
-                # análisis, igual que la política: revocar una a mitad no
-                # mezcla dos criterios sobre el mismo mensaje.
-                owner = self.get_analysis(analysis_id)
-                trust_entries = IrisTrustPolicyManager.get_active_entries(owner.user_id) if owner else []
-                with CR.scoring_weight_overrides(policy.weight_overrides):
-                    evaluations = self._evaluate_contexts(analysis_id, context, job, rules_defs, policy,
-                                                          trust_entries)
-
-                if evaluations is None:
-                    return  # cancelado: no es un fallo, no hay nada que persistir
-
-                winner, secondary, winning_reason = choose_winning_evaluation(
-                    evaluations, _VERDICT_SEVERITY,
-                )
-                verdict, total_score = winner.verdict, winner.total_score
-                confidence = assess_confidence(
-                    winner=winner, 
-                    secondary=secondary,
-                    legitimate_threshold=policy.legitimate_threshold,
-                    suspicious_threshold=policy.suspicious_threshold
-                )
-
-                self._persist_analysis_results(
-                    analysis_id, 
-                    rules_defs,
-                    winner,
-                    detector=detector_version(rules_defs),
-                    secondary=secondary,
-                    winning_reason=winning_reason,
-                    confidence=confidence,
-                    scoring_policy=policy,
-                    indicators=indicator_rows(extract_indicators(
-                        context_of_type(context, winner.context_type))),
-                )
-            except Exception as e:
-                logger.error(f"Analysis {analysis_id} failed: {e}", exc_info=True)
-                self._fail_analysis(analysis_id, classify_failure(e))
-                return
-
-            if verdict == "Phishing":
-                self._enqueue_phishing_notification(analysis_id, verdict)
-
-            logger.info(f"Analysis {analysis_id} completed: score={total_score}, verdict={verdict}")
 
     @classmethod
     def evaluate_raw(cls, raw_input: str, policy: Optional[ScoringPolicy] = None) -> Dict[str, Any]:
@@ -1194,10 +1740,10 @@ class IrisManager(TaskTrackingMixin):
         """
         policy = policy or current_policy()
         context = parse_raw_message(raw_input)
-        cls._validate_headers_parsed(context.headers)
+        validate_headers_parsed(context.headers)
         rules_defs = iris_rules.get_rules()
         with CR.scoring_weight_overrides(policy.weight_overrides):
-            evaluations = cls()._evaluate_contexts(None, context, None, rules_defs, policy)
+            evaluations = _evaluate_contexts(None, context, None, rules_defs, policy)
         winner, _, _ = choose_winning_evaluation(evaluations, _VERDICT_SEVERITY)
         unevaluated = [rule["name"] for rule in winner.quality.failed_rules]
         unevaluated += list((winner.coverage or {}).get("uncoveredRules") or [])
@@ -1210,638 +1756,6 @@ class IrisManager(TaskTrackingMixin):
                       for rule_def, result in zip(rules_defs, winner.results)],
             "unevaluatedRules": unevaluated,
         }
-
-    def evaluate_analysis_under(self, analysis_id: int, user_id: int,
-                                policy: ScoringPolicy) -> Dict[str, Any]:
-        """Qué habría decidido Iris sobre un análisis guardado con otra política.
-
-        Vuelve a evaluar el raw conservado sin crear un análisis nuevo. Con la
-        política reconstruida desde el snapshot del propio análisis
-        (``ScoringPolicy.from_snapshot``) responde a "¿qué decidió la versión
-        con la que se hizo?"; con otra, a "¿qué habría decidido esa?".
-
-        Args:
-            analysis_id: Análisis a reevaluar; debe ser del usuario.
-            user_id: Usuario que pregunta.
-            policy: Política con la que reevaluar.
-
-        Returns:
-            dict: ``analysisId``, lo guardado (``storedVerdict``,
-                ``storedScore``, ``storedScoringVersion``) y lo que decide la
-                política (``verdict``, ``totalScore``, ``gateReasons``,
-                ``scoringVersion``).
-
-        Raises:
-            IrisAnalysisNotFoundError: Si el análisis no existe o no es suyo.
-            IrisRawMessagePurgedError: Si la retención ya purgó el raw.
-        """
-        analysis = self.assert_analysis_ownership(analysis_id, user_id)
-        if analysis.raw_headers is None:
-            raise IrisRawMessagePurgedError(analysis_id)
-        result = self.evaluate_raw(analysis.raw_headers, policy)
-        return {
-            "analysisId": analysis.id,
-            "storedVerdict": analysis.verdict,
-            "storedScore": analysis.total_score,
-            "storedScoringVersion": analysis.scoring_version,
-            "verdict": result["verdict"],
-            "totalScore": result["totalScore"],
-            "gateReasons": result["gateReasons"],
-            "scoringVersion": policy.version(detector_version(iris_rules.get_rules())),
-        }
-
-    def _evaluate_contexts(self, analysis_id: Optional[int], context, job, rules_defs: List[dict],
-                           policy: Optional[ScoringPolicy] = None,
-                           trust_entries: Optional[List[TrustEntry]] = None) -> Optional[List[ContextEvaluation]]:
-        """Ejecuta el catálogo de reglas sobre cada contexto del mensaje.
-
-        Vive aparte de :meth:`_run_analysis` para que el ``try`` de ciclo de
-        vida de esa función deje ver qué protege: el bucle es la parte larga.
-        Elegir el ganador no se hace aquí sino en
-        ``services/contexts.choose_winning_evaluation``.
-
-        Args:
-            analysis_id: Primary key del análisis (solo para el log); ``None``
-                fuera de un análisis (``evaluate_raw``).
-            context: ``MessageContext`` parseado; si trae ``wrapper_context``,
-                se evalúa también el envoltorio.
-            job: Contexto del job de TaskQueue (cancelación y progreso), o
-                ``None`` fuera de la cola: entonces no hay cancelación ni
-                progreso que informar.
-            rules_defs: Catálogo de reglas, leído una sola vez por análisis.
-            policy: Política con que se puntúa y decide. Por defecto ``None``: la vigente.
-            trust_entries: Excepciones de confianza activas del dueño del
-                análisis (ver ``services/trust.py``). Por defecto ``None``:
-                ninguna, que es lo que usan el replay y las comparaciones.
-
-        Returns:
-            Optional[List[ContextEvaluation]]: Una evaluación por contexto,
-                primero la del interno (``CONTEXT_INNER``) y, en un reenvío,
-                después la del envoltorio (``CONTEXT_WRAPPER``). ``None`` si el
-                análisis se canceló a mitad, que no es un fallo: no se persiste
-                nada y la cancelación ya dejó su propio estado terminal.
-        """
-        # A "report phishing" forward is safe to unwrap unconditionally
-        # for a human-submitted analysis, but the same message/rfc822
-        # mechanism lets an attacker send their own phishing as the outer
-        # message and staple a benign .eml on as an attachment — analyzing
-        # only the unwrapped inner message would then score the wrong
-        # mail entirely. Evaluate both when a wrapper exists and keep the
-        # worse verdict; this matters most for unattended ingestion
-        # (mailbox ingestion), where there is no human eyeballing the wrapper first.
-        policy = policy or current_policy()
-        contexts_to_evaluate = [(CONTEXT_INNER, context)]
-        if context.wrapper_context is not None:
-            contexts_to_evaluate.append((CONTEXT_WRAPPER, context.wrapper_context))
-
-        total_steps = len(rules_defs) * len(contexts_to_evaluate)
-        completed_steps = 0
-
-        evaluations: List[ContextEvaluation] = []
-        for context_type, evaluated_context in contexts_to_evaluate:
-            results: List[RuleResult] = []
-            named_results: Dict[str, RuleResult] = {}
-
-            for rule_def in rules_defs:
-                if job is not None and job.cancelled():
-                    logger.info(f"Analysis {analysis_id} was cancelled")
-                    return None
-
-                try:
-                    rule_input = (
-                        evaluated_context 
-                        if rule_def.get("needs_context")
-                        else evaluated_context.headers
-                    )
-                    result = rule_def["func"](rule_input)
-                except Exception as e:
-                    logger.error(f"Rule '{rule_def['name']}' failed for analysis {analysis_id}: {e}", exc_info=True)
-                    result = RuleResult(
-                        score=0, verdict="error",
-                        details={"error": str(e)},
-                        recommendation=f"La regla '{rule_def['name']}' falló durante la ejecución.",
-                    )
-
-                # Subtractive contract: a rule can only *subtract*. Whatever a
-                # rule returns on a pass (historically +5/+3/+1 "credibility"
-                # bonuses), the score it contributes — and the score shown in
-                # the UI — is clamped to <= 0. Passing a rule means "no
-                # deduction", never a bonus. The verdict/details are untouched.
-                result = replace(result, score=min(0.0, float(result.score)))
-
-                results.append(result)
-                named_results[rule_def["name"]] = result
-
-                completed_steps += 1
-                if job is not None:
-                    job.progress(int((completed_steps / total_steps) * 100))
-
-            # Una excepción de confianza del usuario solo se aplica si el
-            # mensaje demuestra venir de ese remitente, y solo neutraliza las
-            # reglas que cubre: se resuelve antes de puntuar y de los gates
-            # para que ni el score ni los gates de esas reglas la ignoren.
-            trust_record = None
-            trust_entry = find_matching_entry(evaluated_context.headers, trust_entries or [])
-            if trust_entry is not None:
-                is_applied = is_sender_authenticated(named_results)
-                modulated_rules: List[str] = []
-                if is_applied:
-                    results, modulated_rules = apply_trust(rules_defs, results, trust_entry)
-                    named_results = {rule_def["name"]: result for rule_def, result in zip(rules_defs, results)}
-                trust_record = build_trust_record(trust_entry, modulated_rules, is_applied)
-
-            total_score = policy.aggregate(rules_defs, results)
-            base_verdict = policy.verdict_for(total_score)
-            verdict, gate_reasons = self._apply_verdict_gates(base_verdict, named_results)
-
-            # Una regla que revienta no aborta el análisis, pero tampoco
-            # puede desaparecer sin dejar rastro. La política conservadora se
-            # aplica aquí, junto al resto de gates, para que la degradación se
-            # lea entre los demás motivos del veredicto y no en un rincón
-            # aparte de la interfaz.
-            quality = assess_quality(rules_defs, results)
-            verdict, quality_reasons = cap_verdict(verdict, quality)
-            evaluations.append(ContextEvaluation(
-                context_type=context_type, verdict=verdict, total_score=total_score,
-                gate_reasons=gate_reasons + quality_reasons + (
-                    [describe_trust_record(trust_record)] if trust_record else []
-                ),
-                results=results, quality=quality,
-                coverage=assess_coverage(evaluated_context, rules_defs),
-                trust_applied=trust_record,
-            ))
-
-        return evaluations
-
-    @staticmethod
-    def _persist_analysis_results(analysis_id: int, rules_defs: List[dict],
-                                   winner: ContextEvaluation, detector: str,
-                                   secondary: Optional[ContextEvaluation] = None,
-                                   winning_reason: Optional[str] = None,
-                                   confidence: Optional[ConfidenceAssessment] = None,
-                                   scoring_policy: Optional[ScoringPolicy] = None,
-                                   indicators: Optional[List[tuple]] = None) -> None:
-        """Persiste las filas de regla y el estado final del análisis en una
-        única transacción.
-
-        Una sola transacción para todo el lote hace que una cancelación a
-        mitad de bucle (un ``return`` antes de este punto) no deje filas de
-        regla confirmadas de un análisis ``cancelled``.
-
-        Se guardan las reglas de **los dos** contextos de un reenvío, cada
-        fila con su ``context_type``, para que el informe pueda enseñar las
-        del ganador y conservar las otras como contexto secundario. El
-        análisis registra qué contexto ganó, por qué, y un resumen del otro.
-
-        La escritura final de ``status="finished"`` (con score, veredicto y
-        contexto) pasa por ``IrisAnalysisRepository.transition_if_state()``,
-        que solo la aplica si la fila sigue ``running``: así una cancelación
-        que ``cancel_analysis()`` confirme entre la lectura y este commit no
-        se sobreescribe en silencio de vuelta a ``finished``. Las filas de
-        regla se escriben de todos modos: son ciertas pase lo que pase.
-
-        Args:
-            analysis_id: Primary key del análisis.
-            rules_defs: Catálogo evaluado; se empareja por posición con los
-                ``results`` de cada evaluación.
-            winner: Evaluación que decide el veredicto.
-            detector: Marca del catálogo (``detector_version``).
-            secondary: Evaluación del otro contexto de un reenvío. Por defecto
-                ``None`` (el mensaje no era un reenvío).
-            winning_reason: Por qué ganó ``winner``; ``None`` sin reenvío.
-            confidence: Confianza ordinal y motivos de incertidumbre del
-                veredicto. Por defecto ``None``: las columnas de confianza
-                quedan a NULL (se lee como "sin evaluar").
-            scoring_policy: Política con la que se puntuó; se guarda su
-                snapshot y su versión. Por defecto ``None``: esas columnas
-                quedan a NULL.
-            indicators: Pares ``(kind, value)`` del índice de IOCs del
-                contexto ganador (``services/indicators.indicator_rows``).
-                Por defecto ``None``: no se indexa nada.
-        """
-        with UnitOfWork() as uow:
-            rule_repo = IrisRuleResultRepository(uow)
-            for evaluation in (winner, secondary):
-                if evaluation is None:
-                    continue
-                for position, (rule_def, rule_result) in enumerate(zip(rules_defs, evaluation.results)):
-                    rule_repo.save(IrisRuleResult(
-                        analysis_id=analysis_id,
-                        rule_name=rule_def["name"],
-                        rule_id=rule_def.get("rule_id") or None,
-                        severity=rule_def.get("severity") or None,
-                        mitre_techniques=list(rule_def.get("mitre_techniques") or ()) or None,
-                        category=rule_def["category"],
-                        score=rule_result.score,
-                        verdict=rule_result.verdict,
-                        details=rule_result.details,
-                        recommendation=rule_result.recommendation,
-                        position=position,
-                        context_type=evaluation.context_type,
-                        evidence=rule_result.evidence or None,
-                        evidence_unavailable_reason=rule_result.evidence_unavailable_reason,
-                    ))
-
-            indicator_repo = IrisIndicatorRepository(uow)
-            for kind, value in indicators or []:
-                indicator_repo.save(IrisIndicator(analysis_id=analysis_id, kind=kind, value=value))
-
-            secondary_summary = None
-            if secondary is not None:
-                secondary_summary = {
-                    "contextType": secondary.context_type,
-                    "verdict": secondary.verdict,
-                    "totalScore": secondary.total_score,
-                    "analysisQuality": secondary.quality.quality,
-                }
-
-            analysis_repo = IrisAnalysisRepository(uow)
-            transitioned = analysis_repo.transition_if_state(
-                analysis_id, ["running"],
-                status="finished", total_score=winner.total_score, verdict=winner.verdict,
-                gate_reasons=winner.gate_reasons, analysis_quality=winner.quality.quality,
-                failed_rules=winner.quality.failed_rules or None, detector_version=detector,
-                winning_context=winner.context_type, winning_reason=winning_reason,
-                secondary_context=secondary_summary,
-                trust_applied=winner.trust_applied,
-                confidence=confidence.level if confidence else None,
-                coverage=winner.coverage or None,
-                uncertainty_reasons=confidence.reasons if confidence else None,
-                scoring_snapshot=scoring_policy.snapshot(detector) if scoring_policy else None,
-                scoring_version=scoring_policy.version(detector) if scoring_policy else None,
-                finished_at=utcnow_naive(),
-            )
-            if not transitioned:
-                logger.info(
-                    f"Análisis {analysis_id} ya no estaba running al terminar de "
-                    "evaluar las reglas (probablemente cancelado) -- no se sobreescribe."
-                )
-
-    @staticmethod
-    def _aggregate_score(rules_defs: List[dict], results: List[RuleResult]) -> float:
-        """Score de 0 a 100 de unos resultados de regla con la política vigente.
-
-        Delega en ``ScoringPolicy.aggregate`` (modelo sustractivo con suelo
-        por familia).
-
-        Args:
-            rules_defs: Catálogo evaluado.
-            results: Un ``RuleResult`` por regla, emparejado por posición.
-
-        Returns:
-            float: El score, acotado a ``[0, 100]``.
-        """
-        return current_policy().aggregate(rules_defs, results)
-
-    def _determine_verdict(self, total_score: float) -> str:
-        """Veredicto base de un score con los umbrales de la política vigente.
-
-        Delega en ``ScoringPolicy.verdict_for``: los umbrales configurados con
-        el desplazamiento del perfil de sensibilidad. Los gates de alta
-        confianza pueden empeorarlo después (:meth:`_apply_verdict_gates`).
-
-        Args:
-            total_score: Score de 0 a 100.
-
-        Returns:
-            str: ``Legitimate``, ``Suspicious`` o ``Phishing``.
-        """
-        return current_policy().verdict_for(total_score)
-
-    @staticmethod
-    def _extract_verdict_signals(named_results: Dict[str, RuleResult]) -> Dict[str, Any]:
-        """Reduce the per-rule results to the named booleans the gates need.
-
-        Centralises all the ``named_results.get(...)`` lookups so
-        :meth:`_evaluate_gates` can stay a pure boolean-combination function.
-        """
-        def res(name: str) -> Optional[RuleResult]:
-            return named_results.get(name)
-
-        def verdict_is(name: str, *verdicts: str) -> bool:
-            rule_result = res(name)
-            return rule_result is not None and rule_result.verdict in verdicts
-
-        # ARC (RFC 8617): a legitimate forwarding intermediary (mailing
-        # list, forwarder) that validated ("cv=pass") the original
-        # SPF/DKIM/DMARC results before its own relaying broke them.
-        # Genuine ARC-validated forwards must not trip the SPF/DMARC/
-        # alignment gates that exist to catch spoofing — that's exactly
-        # what those three signals are suppressed for below. "cv=fail"
-        # (the chain itself declares a prior hop broken) is its own gate,
-        # see D7 in ROADMAP.md.
-        #
-        # La supresión exige además que la cadena la haya validado un
-        # verificador de confianza (`details["verified"]`). Un `cv=pass` a
-        # secas es una afirmación del propio mensaje sobre sí mismo, y como
-        # Iris no verifica firmas, bastaba escribirlo para desactivar los tres
-        # gates que cazan suplantación. Un ARC sin confirmar sigue viajando en
-        # el informe como contexto; lo que ya no hace es dar permisos.
-        arc = res("ARC Chain")
-        arc_pass = (arc is not None and arc.verdict == "pass"
-                    and bool(arc.details.get("verified")))
-        arc_fail = arc is not None and arc.verdict == "fail"
-
-        spf_fail = verdict_is("SPF", "fail", "hardfail") and not arc_pass
-        dmarc_fail = verdict_is("DMARC", "fail") and not arc_pass
-        align_fail = verdict_is("Domain Alignment", "fail") and not arc_pass
-
-        # Auth Results Provenance (forense, recalibración de pesos): un authserv-id que reclama
-        # "pass" pero no aparece en ningún salto de la propia cadena
-        # Received del mensaje es una línea forjada por el remitente --
-        # cierra el bypass de confiar ciegamente en Authentication-Results
-        # sin verificar quién lo escribió.
-        auth_forged = verdict_is("Auth Results Provenance", "fail")
-
-        # D1 (quishing): a QR code that decodes to a suspicious URL is a
-        # high-confidence signal on its own -- a QR is specifically a way
-        # to smuggle a URL past every text/link-based check, so if one
-        # still trips the same shared.analyze_url() heuristics as a real
-        # body link would, that's deliberate evasion, not noise.
-        qr_links = res("QR Code Links")
-        qr_suspicious = qr_links is not None and qr_links.verdict == "fail"
-
-        spoof = res("Display Name Spoofing")
-        spoof_any = spoof is not None and spoof.verdict == "spoof"
-        spoof_free = spoof_any and bool(spoof.details.get("is_free_provider"))
-
-        bec = res("BEC Wire Transfer Pattern")
-        bec_fail = bec is not None and bec.verdict == "fail"
-        # A financial-action request whose sender (or reply target) sits on a
-        # free webmail provider is the textbook CEO-fraud / payroll-diversion
-        # pattern — it passes SPF/DKIM/DMARC trivially, so only the body and
-        # the free-provider tell give it away.
-        bec_free = bec_fail and (
-            is_free_provider(bec.details.get("from_domain"))
-            or is_free_provider(bec.details.get("reply_domain"))
-        )
-        # A corporate (non-free) BEC sender whose Reply-To/Return-Path
-        # redirects elsewhere is the same intent-to-divert pattern as
-        # bec_free, just without the free-webmail tell — before this, the
-        # BEC gate depended 100% on the phrase list alone for a corporate
-        # sender, with no structural corroboration.
-        bec_corporate_redirect = (
-            bec_fail and not bec_free
-            and bool(bec.details.get("redirect_to_external_reply"))
-        )
-
-        body_links = res("Body Links")
-        link_types = (body_links.details.get("types") or []) if body_links is not None else []
-        body_links_failed = body_links is not None and body_links.verdict == "fail"
-        cloaked_link_any = body_links_failed and "cloaked_link" in link_types
-        link_impersonation = body_links_failed and "brand_impersonation" in link_types
-
-        # Recalibración de pesos: texto oculto evasivo es un hecho
-        # estructural (alguien escondió deliberadamente un enlace/frase),
-        # no lenguaje que el correo legítimo produzca por accidente -- a
-        # diferencia de las "frases encontradas" puras, sigue gateando en
-        # solitario incluso cuando `body_content_fail` pasa a requerir combo.
-        body_content = res("Body Content")
-        body_content_hidden_text = (
-            body_content is not None and bool(body_content.details.get("hidden_text"))
-        )
-
-        path_anomaly = res("Received Path Anomaly")
-        path_anomaly_fail = path_anomaly is not None and path_anomaly.verdict == "fail"
-        path_signals = (
-            (path_anomaly.details.get("unique_signals") or [])
-            if path_anomaly is not None else []
-        )
-
-        # Recalibración de pesos: estas tres señales eran, a peso actual,
-        # el único separador de su ataque -- ya dejaban pasar el correo en
-        # solitario antes de tocar ningún peso (red team). Se promueven a
-        # gate ANTES de suavizar sus pesos, o la suavización abre un
-        # agujero real en vez de solo ordenar mejor el score.
-        subdomain = res("Subdomain Impersonation")
-        subdomain_brand_in_subdomain = (
-            subdomain is not None and subdomain.verdict == "fail"
-            and any(finding.get("type") == "brand_in_subdomain" for finding in (subdomain.details.get("findings") or []))
-        )
-
-        # Recipient Domain Lookalike (red team, máxima prioridad): lookalike del dominio del
-        # DESTINATARIO, no de una marca -- el vector BEC nº1, hoy invisible
-        # porque Lookalike Sender Domain solo compara contra
-        # `canonical_brands`.
-        recipient_lookalike = verdict_is("Recipient Domain Lookalike", "fail")
-
-        # Display Name Foreign Address (red team): el display name ES una
-        # dirección de otro dominio
-        # (`"ceo@acme.com" <attacker@evil.com>`). Escala a Phishing solo
-        # cuando esa dirección falsa suplanta la propia organización
-        # destinataria o una marca conocida -- si no, queda en Suspicious.
-        display_foreign = res("Display Name Foreign Address")
-        display_foreign_fail = display_foreign is not None and display_foreign.verdict == "fail"
-        display_foreign_impersonates_target = (
-            display_foreign_fail and bool(display_foreign.details.get("impersonates_target"))
-        )
-
-        # TOAD Callback Pattern (red team): teléfono + lenguaje de pago sin
-        # enlaces/adjuntos/hilo previo, una clase de ataque hoy invisible.
-        toad_callback = verdict_is("TOAD Callback Pattern", "fail")
-
-        # External Login Link (red team): urgencia fuerte combinada con un enlace del cuerpo
-        # a un dominio ajeno al remitente -- aproxima el "primo autenticado"
-        # (dominio propio, auth limpia, marca fuera de la lista) sin
-        # depender de `canonical_brands`.
-        external_login_link = verdict_is("External Login Link", "fail")
-
-        # Comprobación forense adicional: aproximación offline de
-        # coherencia HELO -- ruidosa en solitario (nombres de host varían
-        # mucho de forma legítima), solo se combina con un fallo de auth.
-        origin_helo_mismatch = verdict_is("Origin HELO Coherence", "fail")
-
-        return {
-            "spf_fail": spf_fail,
-            "dmarc_fail": dmarc_fail,
-            "align_fail": align_fail,
-            "arc_fail": arc_fail,
-            "qr_suspicious": qr_suspicious,
-            "lookalike": verdict_is("Lookalike Sender Domain", "fail"),
-            "attach": verdict_is("Suspicious Attachments", "fail"),
-            "replyfree": verdict_is("Reply-To Free Provider", "fail"),
-            "spoof_any": spoof_any,
-            "spoof_free": spoof_free,
-            "alarming_strong": verdict_is("Alarming Keywords", "alarming_high", "alarming_medium"),
-            "cloaked_link_any": cloaked_link_any,
-            "link_impersonation": link_impersonation,
-            "body_links_fail": verdict_is("Body Links", "fail"),
-            "body_content_fail": verdict_is("Body Content", "fail"),
-            "body_content_hidden_text": body_content_hidden_text,
-            "received_chain_fail": verdict_is("Received Chain", "fail"),
-            "path_tls_downgrade": path_anomaly_fail and "tls_downgrade" in path_signals,
-            "path_long_chain": path_anomaly_fail and "long_chain" in path_signals,
-            "auth_fail": spf_fail or dmarc_fail or align_fail,
-            "bec_fail": bec_fail,
-            "bec_free": bec_free,
-            "bec_corporate_redirect": bec_corporate_redirect,
-            "subdomain_brand_in_subdomain": subdomain_brand_in_subdomain,
-            "auth_forged": auth_forged,
-            "recipient_lookalike": recipient_lookalike,
-            "display_foreign_fail": display_foreign_fail,
-            "display_foreign_impersonates_target": display_foreign_impersonates_target,
-            "toad_callback": toad_callback,
-            "external_login_link": external_login_link,
-            "origin_helo_mismatch": origin_helo_mismatch,
-            "encoded_word_abuse": verdict_is("Encoded-Word Abuse", "fail"),
-            "display_name_email_mismatch": verdict_is("Display Name Email Mismatch", "fail"),
-            # G6/F2: these four are structural forgeries no legitimate mail
-            # client ever produces by accident (a self-citing In-Reply-To, a
-            # Received chain that runs backwards in time, RLO/mixed-script
-            # control characters, three mutually distinct identity domains).
-            # Previously they only subtracted score, so a message could carry
-            # one of these unambiguous tells and still net "Legitimate" once
-            # a handful of small positive-turned-zero checks passed —
-            # promoted here to a minimum-severity gate like every other
-            # high-confidence signal.
-            "self_referencing_threading": verdict_is("Self-Referencing In-Reply-To", "fail"),
-            "received_time_inversion": verdict_is("Received Chain Temporal Inconsistency", "fail"),
-            "unicode_evasion": verdict_is("Unicode Evasion", "fail"),
-            "triangulation_fail": verdict_is("From Reply-To Return-Path Triangulation", "fail"),
-        }
-
-    @staticmethod
-    def _evaluate_gates(base_verdict: str, signals: Dict[str, Any]) -> tuple[str, list[str]]:
-        """Apply the high-confidence gates to ``signals`` and return the result.
-
-        Pure function: given the extracted signals, raises ``base_verdict`` to
-        a worse category whenever a gate fires, never improves it.
-
-        Returns:
-            Tuple of (final verdict, list of human-readable triggered reasons).
-        """
-        ceiling = _VERDICT_SEVERITY[base_verdict]
-        triggered: list[str] = []
-
-        def gate(condition: bool, level: str, reason: str) -> None:
-            nonlocal ceiling
-            if condition:
-                triggered.append(reason)
-                ceiling = max(ceiling, _VERDICT_SEVERITY[level])
-
-        spf_fail = signals["spf_fail"]
-        dmarc_fail = signals["dmarc_fail"]
-        align_fail = signals["align_fail"]
-        spoof_any = signals["spoof_any"]
-        alarming_strong = signals["alarming_strong"]
-        attach = signals["attach"]
-        body_links_fail = signals["body_links_fail"]
-        auth_fail = signals["auth_fail"]
-
-        # Single high-confidence indicators.
-        gate(signals["lookalike"], "Phishing", "lookalike sender domain")
-        gate(signals["spoof_free"], "Phishing", "brand impersonation from free provider")
-        gate(signals["cloaked_link_any"], "Phishing", "cloaked body link (visible domain differs from href)")
-        gate(signals["link_impersonation"], "Phishing", "body link impersonates a brand/sender via subdomain trick")
-        gate(signals["qr_suspicious"], "Phishing", "QR code decodes to a suspicious URL (quishing)")
-        gate(signals["auth_forged"], "Phishing", "Authentication-Results claims pass but its authserv-id never touched the message (forged)")
-        gate(signals["recipient_lookalike"], "Phishing", "sender domain is a typosquat/homoglyph of the recipient organisation's own domain")
-        gate(signals["display_foreign_fail"], "Suspicious", "display name is itself an email address on a different domain than From")
-        gate(signals["display_foreign_impersonates_target"], "Phishing", "display-name address impersonates the recipient's own domain or a known brand")
-        gate(signals["toad_callback"], "Suspicious", "phone number combined with payment/billing/support language, no links/attachments/prior thread (TOAD)")
-        gate(alarming_strong and signals["external_login_link"], "Suspicious", "urgent/alarming language combined with a body link to a domain unrelated to the sender")
-        gate(signals["origin_helo_mismatch"] and auth_fail, "Suspicious", "origin server's HELO/EHLO domain matches nothing else in the message, combined with an authentication failure")
-        gate(spoof_any, "Suspicious", "display-name brand spoofing")
-        gate(align_fail, "Suspicious", "SPF/DKIM not aligned with From")
-        gate(attach, "Suspicious", "dangerous attachment")
-        gate(spf_fail or dmarc_fail, "Suspicious", "SPF/DMARC failure")
-        gate(signals["replyfree"], "Suspicious", "reply target is free webmail")
-        gate(signals["self_referencing_threading"], "Suspicious", "forged threading headers (self-referencing In-Reply-To/References)")
-        gate(signals["received_time_inversion"], "Suspicious", "Received chain timestamps run backwards (fabricated hop)")
-        gate(signals["unicode_evasion"], "Suspicious", "Unicode bidi/mixed-script evasion characters")
-        gate(signals["triangulation_fail"], "Suspicious", "From/Reply-To/Return-Path point to three distinct domains")
-        gate(body_links_fail, "Suspicious", "suspicious body links")
-        # Recalibración de pesos (calibración/FP): "verifique su cuenta" es
-        # lenguaje de banca legítima real, no solo de phishing -- gatear en
-        # solitario marcaba alertas bancarias reales como Suspicious pese a
-        # autenticar limpio. El texto oculto (evasión real) sigue gateando
-        # sin combo porque ese es un hecho estructural, no de lenguaje; la
-        # combinación solo relaja el caso de "frases encontradas" puro.
-        gate(signals["body_content_fail"] and (auth_fail or spoof_any or body_links_fail or signals["body_content_hidden_text"]),
-             "Suspicious", "phishing phrasing or hidden text in body")
-        gate(signals["received_chain_fail"], "Suspicious", "Received chain anomaly")
-        # Recalibración de pesos: un BEC corporativo (dominio propio,
-        # autentica limpio) que solo dispara por texto, sin redirect ni
-        # fallo de auth, dependía al 100% de la lista de frases -- correo
-        # interno legítimo de nómina/facturación la dispara con la misma
-        # frecuencia. bec_free (webmail gratuito) sigue gateando aparte,
-        # sin este combo.
-        gate(signals["bec_fail"] and not signals["bec_free"]
-             and (signals["bec_corporate_redirect"] or auth_fail),
-             "Suspicious", "BEC financial-action request in body")
-        gate(signals["arc_fail"], "Suspicious", "ARC chain declares a previous hop's authentication broken (cv=fail)")
-        gate(signals["encoded_word_abuse"], "Suspicious", "RFC 2047 encoded-word abuse (chained blocks, exotic charset, or a URL only revealed on decode)")
-        gate(signals["display_name_email_mismatch"], "Suspicious", "display name claims an organisation but the address is a random local-part on an unrelated domain")
-
-        # Recalibración de pesos (red team): a peso actual estas dos ya eran
-        # el único separador de su ataque en solitario -- promovidas a gate
-        # antes de suavizar su peso, para que la suavización no abra un
-        # agujero real.
-        gate(signals["subdomain_brand_in_subdomain"], "Phishing",
-             "known brand embedded as a subdomain label of an attacker-controlled domain")
-        gate(signals["bec_corporate_redirect"], "Phishing",
-             "BEC financial-action request whose reply target redirects to a different domain")
-
-        # Combinations that escalate to Phishing.
-        gate(signals["bec_free"], "Phishing",
-             "BEC financial-action request from a free-webmail sender/reply target")
-        gate(auth_fail and (spoof_any or alarming_strong), "Phishing",
-             "authentication failure combined with impersonation/urgency")
-        gate(attach and (auth_fail or spoof_any), "Phishing",
-             "dangerous attachment combined with authentication failure or spoofing")
-        gate(body_links_fail and (auth_fail or spoof_any), "Phishing",
-             "suspicious body links combined with authentication failure or spoofing")
-        gate(signals["path_tls_downgrade"] and auth_fail, "Suspicious",
-             "TLS downgrade in Received chain combined with authentication failure")
-        gate(signals["path_long_chain"] and auth_fail, "Suspicious",
-             "Unusually long Received chain combined with authentication failure")
-
-        return _VERDICT_ORDER[ceiling], triggered
-
-    @classmethod
-    def _apply_verdict_gates(cls, base_verdict: str,
-                             named_results: Dict[str, RuleResult]) -> tuple[str, list[str]]:
-        """Override the additive verdict when high-confidence signals fire.
-
-        The additive sum can be dominated by many small positive checks (and,
-        historically, by a large authentication bonus), letting a few strong
-        phishing indicators get "bought back" into a Legitimate verdict.  This
-        gate enforces a *minimum severity* for those indicators: a verdict can
-        only be pushed toward a worse category, never improved.
-
-        Args:
-            base_verdict: The verdict derived purely from the total score.
-            named_results: Map of rule name -> its RuleResult.
-
-        Returns:
-            Tuple of (final verdict, human-readable triggered gate reasons).
-            The reasons list is persisted with the analysis so the report can
-            explain WHY the verdict is what it is.
-        """
-        signals = cls._extract_verdict_signals(named_results)
-        final, triggered = cls._evaluate_gates(base_verdict, signals)
-
-        if triggered and final != base_verdict:
-            logger.info("Verdict gated %s -> %s (%s)", base_verdict, final, "; ".join(triggered))
-        return final, triggered
-
-    def _update_analysis(self, analysis_id: int, **fields: Any) -> bool:
-        """Aplica ``fields`` sobre el IrisAnalysis si aún existe y persiste.
-
-        Encapsula el patrón UnitOfWork + get_by_id + setattr + update que
-        cada transición de estado del análisis (running/finished/failed/
-        cancelled/ai_summary) repetía por separado. Devuelve True si el
-        registro existía y se actualizó, False si ya no existe.
-        """
-        with UnitOfWork() as uow:
-            repo = IrisAnalysisRepository(uow)
-            fresh = repo.get_by_id(analysis_id)
-            if fresh is None:
-                return False
-            for attr, value in fields.items():
-                setattr(fresh, attr, value)
-            repo.update(fresh)
-            return True
 
     @classmethod
     def reconcile_orphaned_analyses(cls) -> int:
@@ -1886,47 +1800,3 @@ class IrisManager(TaskTrackingMixin):
                 fixed += 1
         return fixed
 
-    def _fail_analysis(self, analysis_id: int, failure: Optional[AnalysisFailure] = None) -> None:
-        """Deja el análisis en estado terminal ``failed`` con su motivo.
-
-        ``failure`` es opcional solo para no romper a un llamador que ya no
-        tenga la excepción a mano; en la práctica todos los caminos de
-        ``_run_analysis`` la traen, porque un ``failed`` sin motivo es
-        justamente lo que el manejo de fallos vino a quitar de en medio.
-
-        No se propaga ninguna excepción desde aquí: esto es el último
-        recurso de la tarea, y un fallo escribiendo el fallo solo puede
-        empeorar las cosas.
-        """
-        fields: Dict[str, Any] = {"status": "failed", "finished_at": utcnow_naive()}
-        if failure is not None:
-            fields["failure_code"] = failure.code
-            fields["failure_reason"] = failure.reason
-        try:
-            self._update_analysis(analysis_id, **fields)
-        except Exception as e:
-            logger.error(f"Failed to mark analysis {analysis_id} as failed: {e}", exc_info=True)
-
-    def _enqueue_phishing_notification(self, analysis_id: int, verdict: str) -> None:
-        """Encola el correo de alerta de un veredicto Phishing (ver
-        ``IrisPhishingNotifyManager``).
-
-        Solo notifican los análisis llegados por un buzón conectado
-        (``connection_id`` no nulo): un análisis manual lo ha pedido el
-        propio usuario, que ya está viendo el informe en el panel. El envío
-        es fire-and-forget — un fallo de Redis/SMTP se registra y no debe
-        tumbar un análisis ya finalizado.
-        """
-        if verdict != "Phishing":
-            return
-        analysis = self.get_analysis(analysis_id)
-        if analysis is None or analysis.connection_id is None:
-            return
-        try:
-            IrisPhishingNotifyManager.enqueue_for(analysis_id)
-            logger.info(f"Notificación de phishing encolada para el análisis {analysis_id}")
-        except Exception as e:
-            logger.error(
-                f"Fallo encolando la notificación de phishing del análisis {analysis_id}: {e}",
-                exc_info=True,
-            )

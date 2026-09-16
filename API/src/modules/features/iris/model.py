@@ -586,6 +586,33 @@ class IrisRuleResult(Base):
         Index("ix_iris_rule_result_rule_id", "rule_id"),
     )
 
+    def to_dict(self) -> dict:
+        """Serializa una fila de regla con las claves camelCase de la API.
+
+        Args:
+            rule: Fila ``IrisRuleResult`` persistida.
+
+        Returns:
+            dict: ``ruleId`` (estable; ``None`` en filas anteriores a la
+                taxonomía), ``ruleName`` (visible), ``severity``,
+                ``mitreTechniques`` (lista, vacía si no hay), ``category``,
+                ``score``, ``verdict``, ``details``, ``recommendation``,
+                ``evidence`` (lista, vacía si no hay) y ``evidenceUnavailableReason``.
+        """
+        return {
+            "ruleId": self.rule_id,
+            "ruleName": self.rule_name,
+            "severity": self.severity,
+            "mitreTechniques": self.mitre_techniques or [],
+            "category": self.category,
+            "score": self.score,
+            "verdict": self.verdict,
+            "details": self.details,
+            "recommendation": self.recommendation,
+            "evidence": self.evidence or [],
+            "evidenceUnavailableReason": self.evidence_unavailable_reason,
+        }
+
 
 class IrisAnalystFeedback(Base):
     """Corrección de un analista sobre el veredicto de un análisis.
@@ -628,6 +655,25 @@ class IrisAnalystFeedback(Base):
     __table_args__ = (
         Index("ix_iris_analyst_feedback_analysis_id", "analysis_id"),
     )
+
+    def to_dict(self) -> dict:
+        """Serializa una corrección con las claves camelCase de la API.
+
+        Args:
+            feedback: Fila ``IrisAnalystFeedback`` persistida.
+
+        Returns:
+            dict: ``feedbackId``, ``analysisId``, ``label``, ``note``,
+                ``author`` (nombre de usuario) y ``createdAt``.
+        """
+        return {
+            "feedbackId": self.id,
+            "analysisId": self.analysis_id,
+            "label": self.label,
+            "note": self.note,
+            "author": self.author.username if self.author else "unknown",
+            "createdAt": isoformat_utc(self.created_at),
+        }
 
 
 class IrisDocument(Document):

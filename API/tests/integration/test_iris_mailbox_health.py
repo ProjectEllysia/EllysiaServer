@@ -22,7 +22,10 @@ import src.modules.features.iris.managers.analysis as analysis_managers_mod
 import src.modules.features.iris.managers.mailbox as mailbox_managers_mod
 import src.modules.features.iris.services.mailbox.locks as mailbox_locks_mod
 from src.modules.features.iris.exceptions import IrisMailboxConnectionNotFoundError
-from src.modules.features.iris.managers.mailbox import IrisMailboxManager
+from src.modules.features.iris.managers.mailbox import (
+    _sync_connection,
+    IrisMailboxManager
+)
 from src.modules.features.iris.model import IrisAnalysis, IrisMailboxConnection, IrisMailboxInbox
 from src.modules.features.iris.repositories import (
     IrisAnalysisRepository, IrisMailboxConnectionRepository, IrisMailboxInboxRepository,
@@ -141,7 +144,7 @@ def _sync(app, connector, connection_id):
     with app.app_context():
         with mock.patch.object(mailbox_managers_mod, "get_connector", return_value=connector), \
              mock.patch.object(analysis_managers_mod.TaskQueue, "get_instance", return_value=_FakeTaskQueue()):
-            IrisMailboxManager()._sync_connection(connection_id)
+            _sync_connection(connection_id)
 
 
 def _health(app, connection_id, user_id) -> dict:

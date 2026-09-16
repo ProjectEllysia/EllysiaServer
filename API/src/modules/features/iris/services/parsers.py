@@ -23,6 +23,10 @@ from email.message import Message
 from email.utils import parsedate_to_datetime
 from typing import Any, Dict, List, Optional
 
+import src.modules.system.config_reading as CR
+
+from ..exceptions import IrisInvalidInputError
+
 
 # =============================================================================
 # Raw header parsing
@@ -366,6 +370,53 @@ def parse_raw_message(raw: str) -> MessageContext:
         return context
 
     return _message_context_from(original_message, raw)
+
+
+# =============================================================================
+# Validación de cabeceras suficientes
+# =============================================================================
+#
+# Las usan tanto el análisis real (``managers/analysis.py``) como el
+# simulador de reglas (``managers/replay.py``): de ahí que vivan aquí y no
+# como funciones privadas de ``analysis.py`` (§ 6.2 de CONVENCIONES.md).
+
+def validate_headers_pre(raw_headers: str) -> None:
+    """Quick pre-check before creating a DB record.
+
+    Counts lines that contain a colon — a rough proxy for valid
+    header entries.  Rejects obviously non-header input early so
+    we do not waste a DB row on garbage.
+    """
+    min_h = CR.iris_config().min_headers
+    count = sum(1 for line in raw_headers.split("\n") if ":" in line)
+    if count < min_h:
+        raise IrisInvalidInputError(
+            "Se detectaron %d cabezeras válidas (mínimo: %d). "
+            "El contenido no parece ser un bloque de cabeceras de correo válido." % (count, min_h)
+        )
+
+
+def validate_headers_parsed(parsed: dict) -> None:
+    """
+    Valida que el motor tenga suficientes cabceras para poder
+    correr las reglas. Se llama después de parsear el raw.
+    Se entiende que las cabceras su suficientes si
+    se han encontrado al menos `min_headers` cabeceras válidas.
+
+    `CR.iris_config().min_headers`: Configuración que define el mínimo de cabeceras
+    válidas requeridas para que el análisis sea considerado válido en `SecOpsConfig.json`.
+
+    Args:
+        parsed: Diccionario de cabeceras parseadas.
+    Raises:
+        IrisInvalidInputError: Si el número de cabeceras parseadas es menor que `min_headers`.
+    """
+    min_h = CR.iris_config().min_headers
+    if len(parsed) < min_h:
+        raise IrisInvalidInputError(
+            f"Tras parsear se obtuvieron {len(parsed)} cabeceras (mínimo: {min_h}). "
+            "El contenido no contiene suficientes cabeceras de correo válidas."
+        )
 
 
 # =============================================================================

@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from src.modules.features.iris.managers.analysis import IrisManager
+from src.modules.features.iris.managers.analysis import _run_analysis
 from src.modules.features.iris.model import IrisAnalysis
 from src.modules.features.iris.repositories import IrisAnalysisRepository
 from src.modules.features.iris.services.replay import CORPUS_DIRECTORY
@@ -21,7 +22,7 @@ def test_every_finding_of_an_analysis_carries_its_stable_reference(client, app, 
             analysis = IrisAnalysis(raw_headers=_PHISH, user_id=root_user.id, status="pending")
             IrisAnalysisRepository(uow).save(analysis)
             analysis_id = analysis.id
-        IrisManager()._run_analysis(analysis_id, _PHISH)
+        _run_analysis(analysis_id, _PHISH)
 
     report = client.get(f"/iris/results/{analysis_id}", headers=root_headers).get_json()
 

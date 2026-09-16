@@ -424,7 +424,13 @@
                   <span class="color-hex">{{ store.configFlat[`features.hygeia.colorPalette.${color.key}`] }}</span>
                 </div>
               </div>
-
+              <h3 class="subsection-title">Análisis derivado</h3>
+              <p class="field-hint">Cuándo el análisis se atreve a afirmar algo. Una tendencia que no supera estos umbrales no devuelve una estimación: se retira y dice por qué, en vez de dar una fecha inventada.</p>
+              <div class="cfg-grid">
+                <div class="form-group"><label>Ajuste mínimo de la tendencia (R²)</label><input v-model.number="store.configFlat['features.hygeia.analysis.minTrendRSquared']" type="number" min="0" max="1" step="0.05" class="inp" /><span class="field-hint">De 0 a 1. Cuánto tiene que parecerse la serie a una recta para creerse su dirección; subirlo deja sin estimación a los discos que crecen a escalones</span></div>
+                <div class="form-group"><label>Crecimiento mínimo (puntos porcentuales al día)</label><input v-model.number="store.configFlat['features.hygeia.analysis.minTrendSlopePctPerDay']" type="number" min="0" step="0.01" class="inp" /><span class="field-hint">Por debajo de esto se considera que la métrica oscila, no que crece</span></div>
+                <div class="form-group"><label>Ventana de coincidencia de picos (s)</label><input v-model.number="store.configFlat['features.hygeia.analysis.peakCoincidenceWindowSec']" type="number" min="1" class="inp" /><span class="field-hint">Cuánto pueden separarse dos picos de métricas distintas para considerarlos simultáneos</span></div>
+              </div>
               <h3 class="subsection-title">Límites</h3>
               <p class="field-hint">Topes de lo que el agente puede enviar y de lo que la API acepta. Recortarlos protege a la API de un agente comprometido o mal configurado.</p>
               <div class="cfg-grid">
@@ -583,6 +589,8 @@ const hygeiaLimits = [
   { key: 'maxDiskMounts',        label: 'Puntos de montaje' },
   { key: 'maxNetInterfaces',     label: 'Interfaces de red' },
   { key: 'maxSeriesPoints',      label: 'Puntos por serie temporal' },
+  { key: 'maxStatsPeriodDays',   label: 'Periodo máx. de estadísticas (días)', hint: 'Nunca abarca más que la retención' },
+  { key: 'maxEntityStatsPeriodDays', label: 'Periodo máx. por montaje, interfaz o núcleo (días)', hint: 'Estas consultas leen el detalle completo de cada latido; nunca abarca más que el periodo máx. de estadísticas' },
   { key: 'minIntervalSec',       label: 'Intervalo mínimo entre latidos (s)' },
   { key: 'clockSkewSec',         label: 'Desfase de reloj tolerado (s)', hint: 'Cuánto se acepta que el reloj del agente vaya adelantado' },
   { key: 'maxBackfillSec',       label: 'Antigüedad máx. de un latido (s)', hint: '86400 = un día; más viejo que eso se rechaza' },

@@ -20,6 +20,7 @@ import pytest
 
 import src.modules.features.iris.managers.analysis as managers_mod
 from src.modules.features.iris.managers.analysis import IrisManager
+from src.modules.features.iris.managers.analysis import _persist_analysis_results
 from src.modules.features.iris.model import IrisAnalysis
 from src.modules.features.iris.repositories import IrisAnalysisRepository, IrisRuleResultRepository
 from src.modules.features.iris.services.contexts import CONTEXT_INNER, ContextEvaluation
@@ -192,7 +193,7 @@ def test_persist_analysis_results_does_not_overwrite_a_cancellation(app, regular
             )
         assert cancelled is True
 
-        IrisManager._persist_analysis_results(
+        _persist_analysis_results(
             analysis_id,
             rules_defs=[{"name": "SPF", "category": "auth"}],
             winner=ContextEvaluation(
@@ -223,7 +224,7 @@ def test_persist_analysis_results_finishes_a_still_running_analysis(app, regular
     analysis_id = _make_analysis(app, regular_user.id, status="running")
 
     with app.app_context():
-        IrisManager._persist_analysis_results(
+        _persist_analysis_results(
             analysis_id,
             rules_defs=[{"name": "SPF", "category": "auth"}],
             winner=ContextEvaluation(
