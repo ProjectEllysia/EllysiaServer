@@ -52,7 +52,8 @@ from .services import (
     METRIC_REGISTRY, MetricDefinition, MetricUnit, assert_metric_definition,
     build_histogram, build_inventory_report, build_percentile_series, calculate_core_spread,
     check_clock_skew,
-    combine_asset_averages, denormalize, evaluate, extract_entity_series, generate_agent_key,
+    combine_asset_averages, denormalize, estimate_days_until_full, evaluate,
+    extract_entity_series, fit_linear_trend, generate_agent_key,
     is_agent_outdated,
     project_month, resolve_stats_window, services_from_inventory, summarize_power_period,
     summarize_values, validate_metrics_are_additive,
@@ -229,6 +230,10 @@ def _resolve_series_assets(
         raise AssetNotFoundError(missing_asset_ids[0])
     return None, assets
 
+
+#: Techo de un porcentaje de ocupación de disco: el 100 % es estar lleno. Es la
+#: definición de la métrica, no un ajuste, así que no vive en la configuración.
+_DISK_CEILING_PCT = 100.0
 
 #: Horas del día que devuelve siempre el patrón horario, tenga muestras o no.
 _HOURS_OF_DAY = range(24)
@@ -1213,6 +1218,90 @@ class HygeiaAssetManager:
             ),
             "latestPerCorePct": latest_cores,
             "latestAt": latest_at,
+            "periodCoveredFrom": window.since,
+            "periodCoveredTo": window.until,
+            "isPeriodClipped": window.is_clipped,
+        }
+
+    def get_disk_trend(
+        self, asset_id: int, mount: Optional[str], requested_duration: timedelta,
+    ) -> dict:
+        """
+        Ajusta la tendencia del uso de disco de un activo y estima cuándo se llenará.
+
+        Saber que un disco está al 80 % no dice si lleva semanas ahí o si se
+        llena mañana. Aquí se ajusta una recta por mínimos cuadrados sobre la
+        serie del periodo y se proyecta hasta el 100 %.
+
+        La estimación es deliberadamente cobarde: ``daysUntilFull`` solo trae
+        una cifra cuando la recta sube de verdad (por encima de
+        ``minTrendSlopePctPerDay``, no solo con pendiente positiva) y además
+        describe la serie (R² por encima de ``minTrendRSquared``). Si no,
+        viene a ``None`` con ``reason``, porque una fecha sacada de una
+        pendiente trazada sobre ruido invita a actuar sobre nada. Hay como
+        mucho 30 días de histórico y el uso de disco real sube a escalones
+        —una actualización, un log que rota—, así que el caso de "no se
+        puede afirmar" es corriente, no excepcional.
+
+        Sin ``mount`` la tendencia se ajusta sobre la columna ``diskMaxPct``,
+        que es el montaje más lleno de cada latido y cubre la ventana larga de
+        estadísticas. Con ``mount`` se ajusta sobre la serie de ese montaje
+        concreto, que vive en el JSONB de cada latido y por eso se recorta a la
+        ventana más corta de las estadísticas por entidad: un ``/var`` que se
+        llena mientras ``/`` sigue ligero no se ve en la columna.
+
+        Args:
+            asset_id: Activo cuyo disco se analiza.
+            mount: Punto de montaje concreto (``/var``), o ``None`` para el
+                más lleno de cada latido. Un montaje que el activo no reportó
+                en el periodo da una tendencia vacía, no un error.
+            requested_duration: Duración del periodo pedido, antes de recortar;
+                positiva.
+
+        Returns:
+            Diccionario con la forma de ``DiskTrendResponseSchema``: ``mount``
+            (el pedido, o ``None``), ``currentPct``, ``slopePctPerDay``,
+            ``rSquared``, ``sampleCount``, ``daysUntilFull`` (``None`` cuando
+            no es defendible), ``reason`` (por qué, o ``None``) y la ventana
+            cubierta.
+
+        Raises:
+            AssetNotFoundError: Si el activo no existe o pertenece a otro usuario.
+        """
+        assert_owned(MonitoredAssetRepository, asset_id, self.user.id, AssetNotFoundError)
+        snapshot_repo = build_repository(AssetSnapshotRepository)
+
+        if mount is None:
+            window = _resolve_configured_stats_window(requested_duration)
+            samples = snapshot_repo.get_metric_samples_by_asset(
+                [asset_id], AssetSnapshot.disk_max_pct, window.since, window.until,
+            )[asset_id]
+        else:
+            window = _resolve_entity_stats_window(requested_duration)
+            usage_by_mount = extract_entity_series(
+                snapshot_repo.get_metrics_section_samples(
+                    asset_id, "disk", window.since, window.until,
+                ),
+                "mount", "usagePct",
+            )
+            samples = usage_by_mount.get(mount, [])
+
+        trend = fit_linear_trend(samples)
+        summary = summarize_values(samples)
+        analysis = CR.hygeia_analysis()
+        forecast = estimate_days_until_full(
+            trend, summary.current, _DISK_CEILING_PCT,
+            analysis.min_trend_r_squared, analysis.min_trend_slope_pct_per_day,
+        )
+
+        return {
+            "mount": mount,
+            "currentPct": summary.current,
+            "slopePctPerDay": trend.slope_per_day,
+            "rSquared": trend.r_squared,
+            "sampleCount": trend.sample_count,
+            "daysUntilFull": forecast.days_until_full,
+            "reason": forecast.reason,
             "periodCoveredFrom": window.since,
             "periodCoveredTo": window.until,
             "isPeriodClipped": window.is_clipped,

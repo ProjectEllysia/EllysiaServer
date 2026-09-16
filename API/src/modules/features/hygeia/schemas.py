@@ -668,6 +668,57 @@ class DiskStatsResponseSchema(Schema):
     isPeriodClipped = fields.Boolean()
 
 
+class DiskTrendQuerySchema(Schema):
+    """Query de ``GET /hygeia/assets/<id>/stats/disk-trend``.
+
+    Sin ``mount`` la tendencia se ajusta sobre ``diskMaxPct``, el montaje más
+    lleno de cada latido, y cubre la ventana larga de estadísticas. Con
+    ``mount`` se ajusta sobre ese montaje concreto, leyendo el detalle del
+    JSONB, y la ventana se recorta a la de las estadísticas por entidad.
+    Tras cargar, ``period`` queda como ``requested_duration``.
+    """
+    mount = fields.String(load_default=None, validate=validate.Length(min=1, max=256))
+    period = _build_period_field()
+
+    @post_load
+    def parse_query(self, data, **kwargs):
+        """Convierte ``period`` en ``timedelta``."""
+        data["requested_duration"] = _parse_period(data.pop("period"))
+        return data
+
+
+class DiskTrendResponseSchema(Schema):
+    """Tendencia del uso de disco de un activo y estimación de cuándo se llenará.
+
+    ``slopePctPerDay`` es cuántos puntos porcentuales gana (o pierde, si es
+    negativa) el disco cada día según la recta ajustada, y ``rSquared`` dice
+    cuánto se fía uno de esa recta: cerca de ``1`` la serie es casi una línea,
+    cerca de ``0`` la recta atraviesa una nube de puntos. Los dos son nulos
+    cuando no hubo recta que ajustar.
+
+    ``daysUntilFull`` solo trae una cifra cuando la tendencia la sostiene. En
+    cuanto la pendiente es plana o negativa, el ajuste es malo o no hay
+    muestras suficientes, viene a ``null`` y ``reason`` dice cuál de las tres
+    cosas pasó (``insufficient_samples``, ``insufficient_trend``). Un disco
+    que ya está al 100 % devuelve ``0.0`` con ``reason`` ``already_full``.
+    Cuando la estimación es normal, ``reason`` es nulo.
+
+    Una estimación equivocada es peor que ninguna: "se llena en cuatro días"
+    invita a actuar, y si sale de una pendiente trazada sobre ruido, invita a
+    actuar sobre nada.
+    """
+    mount = fields.String(allow_none=True)
+    currentPct = fields.Float(allow_none=True)
+    slopePctPerDay = fields.Float(allow_none=True)
+    rSquared = fields.Float(allow_none=True)
+    sampleCount = fields.Integer()
+    daysUntilFull = fields.Float(allow_none=True)
+    reason = fields.String(allow_none=True)
+    periodCoveredFrom = UTCDateTime()
+    periodCoveredTo = UTCDateTime()
+    isPeriodClipped = fields.Boolean()
+
+
 class NetworkStatsQuerySchema(Schema):
     """Query de ``GET /hygeia/assets/<id>/stats/network``.
 

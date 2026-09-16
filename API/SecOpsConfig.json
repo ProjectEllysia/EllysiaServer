@@ -1287,6 +1287,11 @@
           "critical": 70
         }
       },
+      "analysis": {
+        "minTrendRSquared": 0.5,
+        "minTrendSlopePctPerDay": 0.05,
+        "peakCoincidenceWindowSec": 300
+      },
       "limits": {
         "maxBodyBytes": 1048576,
         "maxDecompressedBytes": 4194304,
