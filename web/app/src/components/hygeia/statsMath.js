@@ -17,6 +17,10 @@
  *     misma tabla sirva para un porcentaje, una tasa en bytes por segundo y
  *     unos vatios.
  *   - La composición de las filas de las tablas de resumen y de ranking.
+ *   - La geometría de la gráfica comparativa (`alignComparisonSeries`,
+ *     `comparisonPath`), que superpone varias métricas de unidades distintas
+ *     sobre el mismo eje temporal sin reconciliar nada: el servidor ya las
+ *     devuelve alineadas por cubo.
  */
 
 import { fmtBytes, fmtLoad1, fmtPct, fmtRate, fmtWatts } from './format.js'
@@ -255,4 +259,166 @@ export function isAggregationAllowed(metric, aggregation) {
   const option = STATS_AGGREGATIONS.find((candidate) => candidate.value === aggregation)
   if (!definition || !option) return false
   return !option.needsAdditive || definition.additive
+}
+
+/* ── Gráfica comparativa ───────────────────────────────────────────────── */
+
+/**
+ * Cuántas métricas se pueden superponer a la vez.
+ *
+ * Tres es el tope de la necesidad, y no es arbitrario: cada métrica
+ * superpuesta tiene su propia escala vertical (son unidades distintas), así
+ * que la cuarta línea deja de aportar comparación y empieza a aportar ruido.
+ */
+export const MAX_COMPARISON_METRICS = 3
+
+/**
+ * Colores de las líneas superpuestas, por posición de selección.
+ *
+ * Van por posición y no por métrica para que la primera métrica elegida sea
+ * siempre la del color principal, sea la que sea: lo que se compara cambia de
+ * una consulta a otra, y el color tiene que identificar la línea dentro de
+ * esta gráfica, no la métrica en abstracto.
+ */
+export const COMPARISON_COLORS = ['var(--accent-bright)', 'var(--info)', 'var(--warn)']
+
+/**
+ * Cubo de agregación que corresponde a un periodo de estadísticas.
+ *
+ * Se fija explícitamente en vez de dejar que el servidor elija el más fino que
+ * quepa, y esa es la clave de que la comparación funcione: los cubos del
+ * servidor son múltiplos del reloj (`floor(epoch / cubo)`), así que dos
+ * peticiones con el mismo cubo caen en los mismos instantes exactos y las
+ * series se pueden superponer sin interpolar ni reconciliar nada. Si cada
+ * métrica eligiera su propio cubo, las líneas quedarían desfasadas entre sí.
+ *
+ * @param {string} period - Periodo en la forma `<n>h`/`<n>d` de la API.
+ * @returns {number} Segundos del cubo. Un periodo desconocido cae en el de 24 h,
+ *   que es el más usado, en vez de quedarse sin cubo.
+ */
+export function bucketForPeriod(period) {
+  const BUCKETS = { '24h': 300, '7d': 1800, '30d': 7200 }
+  return BUCKETS[period] ?? 300
+}
+
+/**
+ * Alinea varias series de métricas distintas sobre un único eje temporal.
+ *
+ * Cada serie llega con sus propios puntos y sin los cubos que no tuvieron
+ * datos —la ausencia de señal es un hueco, no un cero—, así que dos métricas
+ * del mismo periodo pueden traer distinto número de puntos. Esta función
+ * construye el eje como la unión ordenada de todos los instantes y coloca cada
+ * métrica sobre él, con `null` en los instantes en que esa métrica no tiene
+ * dato. No interpola: un hueco sigue siendo un hueco.
+ *
+ * Cada métrica conserva su propio mínimo y máximo, porque **no comparten
+ * escala vertical**: superponer un porcentaje y una tasa en bytes por segundo
+ * en el mismo eje Y aplastaría el porcentaje contra el suelo. Lo que se compara
+ * es la *forma* de las curvas en el tiempo, y cada una se dibuja normalizada a
+ * su propio rango.
+ *
+ * @param {Array<{key: string, name: string, points: Array<{at: string, value: number}>}>} sources
+ *   Una entrada por métrica seleccionada, con los puntos tal como los sirve
+ *   `GET /hygeia/stats/series`.
+ * @returns {{instants: Array<number>, lanes: Array<object>}} El eje temporal en
+ *   milisegundos y una calle por métrica, con sus valores alineados, su rango y
+ *   cuántos puntos con dato tiene. Sin ninguna fuente con puntos, las dos
+ *   listas vienen vacías.
+ */
+export function alignComparisonSeries(sources) {
+  const withPoints = (sources ?? []).filter((source) => (source?.points ?? []).length)
+  if (!withPoints.length) return { instants: [], lanes: [] }
+
+  const valuesByInstant = withPoints.map((source) => {
+    const byInstant = new Map()
+    for (const point of source.points) {
+      const instant = new Date(point.at).getTime()
+      if (!Number.isNaN(instant) && !isMissing(point.value)) byInstant.set(instant, point.value)
+    }
+    return byInstant
+  })
+
+  const instants = [...new Set(valuesByInstant.flatMap((byInstant) => [...byInstant.keys()]))]
+    .sort((left, right) => left - right)
+
+  const lanes = withPoints.map((source, position) => {
+    const byInstant = valuesByInstant[position]
+    const values = instants.map((instant) => byInstant.get(instant) ?? null)
+    const present = [...byInstant.values()]
+    return {
+      key: source.key,
+      name: source.name,
+      color: COMPARISON_COLORS[position % COMPARISON_COLORS.length],
+      values,
+      min: Math.min(...present),
+      max: Math.max(...present),
+      sampleCount: present.length,
+    }
+  })
+
+  return { instants, lanes }
+}
+
+/**
+ * Puntos del `polyline` de una calle, normalizada a su propio rango.
+ *
+ * El eje X es el tiempo real —la posición de cada punto sale de su instante y
+ * no de su índice—, así que un hueco de telemetría se ve como un hueco en la
+ * línea y no como un tramo comprimido. Los instantes sin dato de esa métrica
+ * cortan la línea en vez de unirse con una recta a través del hueco, que
+ * dibujaría una continuidad que no se midió.
+ *
+ * Una calle plana (mínimo igual al máximo) se dibuja en el centro y no en el
+ * borde: un host estable en el 45 % no debe leerse como uno al 100 %.
+ *
+ * @param {object} lane - Una calle de `alignComparisonSeries`.
+ * @param {Array<number>} instants - El eje temporal compartido, en ms.
+ * @param {{width: number, height: number}} box - Caja de dibujo en unidades SVG.
+ * @returns {Array<string>} Un `points` de `polyline` por tramo continuo de la
+ *   línea. Los tramos de un solo punto se descartan: un `polyline` de un punto
+ *   no pinta nada.
+ */
+export function comparisonPath(lane, instants, box) {
+  if (!lane || instants.length < 2) return []
+
+  const firstInstant = instants[0]
+  const span = instants[instants.length - 1] - firstInstant
+  const range = lane.max - lane.min
+
+  const segments = []
+  let current = []
+  instants.forEach((instant, index) => {
+    const value = lane.values[index]
+    if (isMissing(value)) {
+      if (current.length > 1) segments.push(current)
+      current = []
+      return
+    }
+    const x = span === 0 ? 0 : ((instant - firstInstant) / span) * box.width
+    const normalized = range === 0 ? 0.5 : (value - lane.min) / range
+    const y = box.height - normalized * box.height
+    current.push(`${x.toFixed(2)},${y.toFixed(2)}`)
+  })
+  if (current.length > 1) segments.push(current)
+
+  return segments.map((segment) => segment.join(' '))
+}
+
+/**
+ * Rótulo del rango vertical de una calle, en su propia unidad.
+ *
+ * Es lo que hace legible una gráfica de escalas mezcladas: cada línea dice
+ * entre qué dos valores se mueve, porque su altura en la caja no significa lo
+ * mismo que la de la línea de al lado.
+ *
+ * @param {object} lane - Una calle de `alignComparisonSeries`.
+ * @returns {string} p. ej. `"4 – 97 %"`, o cadena vacía si la calle no tiene datos.
+ */
+export function describeLaneRange(lane) {
+  if (!lane || !lane.sampleCount) return ''
+  const low = formatStatValue(lane.key, lane.min)
+  const high = formatStatValue(lane.key, lane.max)
+  return low.unit === high.unit
+    ? `${low.text} – ${high.text} ${high.unit}`.trim()
+    : `${low.text} ${low.unit} – ${high.text} ${high.unit}`.trim()
 }
