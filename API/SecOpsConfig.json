@@ -1292,6 +1292,9 @@
         "minTrendSlopePctPerDay": 0.05,
         "peakCoincidenceWindowSec": 300
       },
+      "directories": {
+        "output": "data/hygeia/output"
+      },
       "statsCache": {
         "isEnabled": true,
         "shortPeriodTtlSeconds": 120,
