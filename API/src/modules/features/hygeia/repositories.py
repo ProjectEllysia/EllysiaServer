@@ -995,6 +995,92 @@ class AnomalyRepository(BaseRepository[Anomaly]):
         )
         return {(state, severity): count for state, severity, count in rows}
 
+    def count_opened_by_asset(
+        self, asset_ids: List[int], since: datetime, until: datetime,
+    ) -> Dict[int, int]:
+        """Cuántas anomalías se abrieron en la ventana, por activo.
+
+        Cada apertura de una anomalía es un cruce de umbral sostenido: el
+        detector solo crea la fila cuando la métrica lleva por encima del
+        umbral los latidos que exige ``sustainedHeartbeats``. Contar aperturas
+        dentro de la ventana es, por tanto, contar incumplimientos del periodo,
+        y se resuelve con un ``GROUP BY`` sobre ``opened_at``, que está
+        indexado, sin traer ninguna fila de anomalía a Python.
+
+        Cuentan todas las anomalías abiertas en la ventana sea cual sea su
+        estado actual: una que ya se resolvió ocurrió igualmente, y excluirla
+        haría que el recuento del periodo encogiera con el tiempo según los
+        activos se van recuperando.
+
+        Args:
+            asset_ids: Activos a consultar; ya filtrados por dueño en el
+                manager. Una lista vacía devuelve un diccionario vacío sin
+                consultar.
+            since: Inicio de la ventana, sobre ``opened_at``, inclusivo.
+            until: Fin de la ventana, sobre ``opened_at``, inclusivo.
+
+        Returns:
+            Dict[int, int]: Por cada ``asset_id`` pedido, sus anomalías
+                abiertas en la ventana. Un activo sin ninguna conserva su
+                entrada con un ``0``, para que quien llama pueda distinguir
+                "cero incumplimientos" de "activo que no se consultó".
+        """
+        if not asset_ids:
+            return {}
+        rows = (
+            self._session.query(Anomaly.asset_id, func.count(Anomaly.id).label("breach_count"))
+            .filter(
+                Anomaly.asset_id.in_(asset_ids),
+                Anomaly.opened_at >= since,
+                Anomaly.opened_at <= until,
+            )
+            .group_by(Anomaly.asset_id)
+            .all()
+        )
+        counts_found = {row.asset_id: row.breach_count for row in rows}
+        return {asset_id: counts_found.get(asset_id, 0) for asset_id in asset_ids}
+
+    def count_opened_by_metric(
+        self, asset_ids: List[int], since: datetime, until: datetime,
+    ) -> Dict[str, int]:
+        """Cuántas anomalías se abrieron en la ventana, por métrica, en todo el parque.
+
+        Responde a "¿qué se rompe más en este parque?" sin recorrer el ranking
+        por activo: el mismo recuento de aperturas, agrupado por la métrica que
+        las disparó en vez de por la máquina.
+
+        Las anomalías sin métrica (``host_down``, que no nace de un umbral sino
+        del silencio de un agente) quedan fuera: mezclarlas con los cruces de
+        umbral haría que "la métrica más conflictiva" pudiera no ser una
+        métrica.
+
+        Args:
+            asset_ids: Activos a consultar; ya filtrados por dueño en el
+                manager. Una lista vacía devuelve un diccionario vacío sin
+                consultar.
+            since: Inicio de la ventana, sobre ``opened_at``, inclusivo.
+            until: Fin de la ventana, sobre ``opened_at``, inclusivo.
+
+        Returns:
+            Dict[str, int]: ``{métrica: aperturas}`` con la métrica tal como la
+                guarda ``Anomaly.metric`` (``cpu.usagePct``, ``disk./var``…).
+                Las métricas sin ninguna apertura no aparecen.
+        """
+        if not asset_ids:
+            return {}
+        rows = (
+            self._session.query(Anomaly.metric, func.count(Anomaly.id).label("breach_count"))
+            .filter(
+                Anomaly.asset_id.in_(asset_ids),
+                Anomaly.opened_at >= since,
+                Anomaly.opened_at <= until,
+                Anomaly.metric.isnot(None),
+            )
+            .group_by(Anomaly.metric)
+            .all()
+        )
+        return {row.metric: row.breach_count for row in rows}
+
 
 class HygeiaTagRepository(BaseRepository[HygeiaTag]):
     """Acceso a datos de HygeiaTag (etiquetas de sistema y personales)."""

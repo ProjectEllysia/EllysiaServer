@@ -527,6 +527,53 @@ def _rank_assets(entries: list, order: str, limit: int) -> list:
     return ordered[:limit]
 
 
+def _sort_key_for_breach_ranking(entry: dict) -> tuple:
+    """Clave de orden del ranking de incumplimientos: más incumplimientos primero.
+
+    A igualdad de incumplimientos en el periodo manda la racha viva
+    (``currentBreachStreak``): entre dos activos que cruzaron su umbral las
+    mismas veces, el que sigue cruzándolo ahora mismo es el que pide atención
+    antes. El último desempate es el hostname, para que el orden sea estable
+    entre llamadas.
+
+    Args:
+        entry: Una entrada del ranking, con ``breachCount``,
+            ``currentBreachStreak`` y ``hostname``.
+
+    Returns:
+        tuple: ``(-incumplimientos, -racha, nombre_en_minúsculas)``.
+    """
+    return (
+        -entry["breachCount"], -entry["currentBreachStreak"], entry["hostname"].lower(),
+    )
+
+
+def _total_breach_streak(breach_counters: Optional[dict]) -> int:
+    """Suma la racha viva de cruces de umbral de un activo, sobre todas sus métricas.
+
+    ``MonitoredAsset.breach_counters`` guarda, por regla (``cpu_spike``,
+    ``disk_full:/var``…), cuántos latidos consecutivos lleva esa métrica por
+    encima de su umbral. No es un histórico: el detector lo pone a cero en
+    cuanto la métrica se recupera. Por eso sirve para decir "esto está
+    cruzando el umbral ahora", y no para contar cuántas veces lo cruzó.
+
+    Args:
+        breach_counters: El mapa tal como está persistido, o ``None`` en un
+            activo que todavía no ha sido evaluado nunca. Los valores que no
+            sean enteros (una fila antigua manipulada a mano) se ignoran en
+            vez de reventar la respuesta entera.
+
+    Returns:
+        int: La suma de las rachas de todas las métricas; ``0`` si no hay
+            ninguna.
+    """
+    if not breach_counters:
+        return 0
+    return sum(
+        streak for streak in breach_counters.values() if isinstance(streak, int)
+    )
+
+
 def _sort_key_for_tag_ranking(entry: dict) -> tuple:
     """Clave de orden del ranking de etiquetas: mayor valor primero, sin datos al final.
 
@@ -1718,6 +1765,84 @@ class HygeiaStatsManager:
             "assetCount": len(assets),
             "assetsWithData": len(entries),
             "assets": _rank_assets(entries, order, limit),
+            "periodCoveredFrom": window.since,
+            "periodCoveredTo": window.until,
+            "isPeriodClipped": window.is_clipped,
+        }
+
+    def get_breach_ranking(self, limit: int, requested_duration: timedelta) -> dict:
+        """
+        Ordena los activos del usuario por cuántas veces cruzaron sus umbrales en el periodo.
+
+        Responde a "¿qué máquina da más guerra?" con lo que el detector ya
+        dejó escrito. Cada anomalía abierta es un cruce de umbral sostenido
+        (``services/detection.py`` solo la crea cuando la métrica lleva por
+        encima del umbral los latidos que pide ``sustainedHeartbeats``), así
+        que el recuento de aperturas del periodo **es** el recuento de
+        incumplimientos. No se recalcula ningún umbral aquí: es exposición de
+        un dato ya persistido.
+
+        Junto al recuento va ``currentBreachStreak``, la suma de
+        ``MonitoredAsset.breach_counters``, que es otra cosa y por eso viaja
+        aparte: cuántos latidos consecutivos lleva el activo en rojo **ahora
+        mismo**. Un activo puede encabezar el ranking del mes con la racha a
+        cero (cruzó muchas veces y se recuperó) o cerrarlo con una racha viva
+        (está rompiendo por primera vez). Los dos datos responden preguntas
+        distintas y ninguno sustituye al otro.
+
+        ``mostConflictiveMetric`` mira el parque entero, no solo los ``limit``
+        activos devueltos: es la métrica con más aperturas acumuladas entre
+        todos los activos del usuario. Las anomalías sin métrica (``host_down``,
+        que nace del silencio de un agente y no de un umbral) cuentan en el
+        recuento por activo —es un incidente del activo— pero no compiten por
+        ser "la métrica más conflictiva", porque no son una métrica.
+
+        Args:
+            limit: Cuántos activos devolver; positivo.
+            requested_duration: Duración del periodo pedido, antes de recortar.
+
+        Returns:
+            Diccionario con la forma de ``BreachRankingResponseSchema``:
+            ``assetCount`` (activos del usuario), ``totalBreaches`` (los del
+            parque entero en la ventana, no solo los de las entradas
+            devueltas), ``assets`` (el ranking), ``mostConflictiveMetric``
+            (``None`` si no hubo ninguna apertura con métrica) y la ventana
+            cubierta.
+        """
+        window = _resolve_configured_stats_window(requested_duration)
+
+        assets = build_repository(MonitoredAssetRepository).get_by_user(self.user.id)
+        asset_ids = [asset.id for asset in assets]
+        anomaly_repo = build_repository(AnomalyRepository)
+        breaches_by_asset = anomaly_repo.count_opened_by_asset(
+            asset_ids, window.since, window.until,
+        )
+        breaches_by_metric = anomaly_repo.count_opened_by_metric(
+            asset_ids, window.since, window.until,
+        )
+
+        entries = [
+            {
+                "assetId": asset.id,
+                "hostname": asset.hostname,
+                "breachCount": breaches_by_asset[asset.id],
+                "currentBreachStreak": _total_breach_streak(asset.breach_counters),
+            }
+            for asset in assets
+        ]
+        entries.sort(key=_sort_key_for_breach_ranking)
+
+        most_conflictive = max(
+            breaches_by_metric.items(), key=lambda item: (item[1], item[0]), default=None,
+        )
+        return {
+            "assetCount": len(assets),
+            "totalBreaches": sum(breaches_by_asset.values()),
+            "assets": entries[:limit],
+            "mostConflictiveMetric": (
+                {"metric": most_conflictive[0], "breachCount": most_conflictive[1]}
+                if most_conflictive is not None else None
+            ),
             "periodCoveredFrom": window.since,
             "periodCoveredTo": window.until,
             "isPeriodClipped": window.is_clipped,

@@ -54,6 +54,8 @@ from .schemas import (
     AssetStatsSummaryResponseSchema,
     AssetTagsRequestSchema,
     AssetUpdateRequestSchema,
+    BreachRankingQuerySchema,
+    BreachRankingResponseSchema,
     CpuCoreStatsQuerySchema,
     CpuCoreStatsResponseSchema,
     DiskStatsQuerySchema,
@@ -362,6 +364,26 @@ def get_fleet_fullest_mounts(args):
     user = get_current_user()
     manager = HygeiaStatsManager(user)
     return manager.get_fullest_mounts(limit=args["limit"])
+
+
+@hygeia_blp.get("/stats/breach-ranking")
+@hygeia_blp.arguments(BreachRankingQuerySchema, location="query")
+@hygeia_blp.response(
+    200, BreachRankingResponseSchema, description="Ranking de incumplimientos de umbral",
+)
+@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@hygeia_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@limiter.limit("600 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
+@handle_exceptions(default_exception=HygeiaError, logger=logger)
+def get_breach_ranking(args):
+    """Ordenar los activos del usuario por cuántas veces cruzaron sus umbrales"""
+    user = get_current_user()
+    manager = HygeiaStatsManager(user)
+    return manager.get_breach_ranking(
+        limit=args["limit"], requested_duration=args["requested_duration"],
+    )
 
 
 @hygeia_blp.get("/stats/overview")
