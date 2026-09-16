@@ -242,3 +242,72 @@ class TestOtherStats:
 
         assert reused["series"] == first["series"]
         assert len(refreshed["series"][0]["points"]) == len(first["series"][0]["points"]) + 1
+
+
+class TestInvalidation:
+    """Cambiar activos o etiquetas deja sin efecto lo guardado de ese usuario."""
+
+    def test_creating_an_asset_updates_the_ranking(self, app, client, regular_user, auth_headers):
+        headers = auth_headers(regular_user)
+        _seed_cpu(app, _create_asset(app, regular_user.id, "existing"), 10.0)
+        _get(client, "/hygeia/stats/ranking", headers, metric="cpuPct", period="24h")
+
+        created = client.post("/hygeia/assets", json={"hostname": "brand-new"}, headers=headers)
+        assert created.status_code == 201
+
+        _, body = _get(client, "/hygeia/stats/ranking", headers, metric="cpuPct", period="24h")
+        assert body["assetCount"] == 2
+
+    def test_deleting_an_asset_updates_the_ranking(self, app, client, regular_user, auth_headers):
+        headers = auth_headers(regular_user)
+        _seed_cpu(app, _create_asset(app, regular_user.id, "kept"), 10.0)
+        removed_id = _create_asset(app, regular_user.id, "removed")
+        _seed_cpu(app, removed_id, 20.0)
+        _get(client, "/hygeia/stats/ranking", headers, metric="cpuPct", period="24h")
+
+        assert client.delete(f"/hygeia/assets/{removed_id}", headers=headers).status_code == 200
+
+        _, body = _get(client, "/hygeia/stats/ranking", headers, metric="cpuPct", period="24h")
+        assert [entry["hostname"] for entry in body["assets"]] == ["kept"]
+
+    def test_tagging_an_asset_updates_the_tag_stats(self, app, client, regular_user, auth_headers):
+        headers = auth_headers(regular_user)
+        tag_id, _ = _create_tagged_asset(app, regular_user.id, "first")
+        second_id = _create_asset(app, regular_user.id, "second")
+        path = f"/hygeia/stats/by-tag/{tag_id}"
+        _, before = _get(client, path, headers, metrics="cpuPct", period="24h")
+
+        tagged = client.put(
+            f"/hygeia/assets/{second_id}/tags", json={"tagIds": [tag_id]}, headers=headers,
+        )
+        assert tagged.status_code == 200
+
+        _, after = _get(client, path, headers, metrics="cpuPct", period="24h")
+        assert (before["assetCount"], after["assetCount"]) == (1, 2)
+
+    def test_deleting_a_tag_discards_the_users_stored_stats(
+        self, app, client, regular_user, auth_headers,
+    ):
+        headers = auth_headers(regular_user)
+        tag_id, asset_id = _create_tagged_asset(app, regular_user.id, "untagged")
+        _seed_cpu(app, asset_id, 10.0)
+        _summary_max(client, asset_id, headers)
+        _seed_cpu(app, asset_id, 90.0, age=timedelta(minutes=5))
+
+        assert client.delete(f"/hygeia/tags/{tag_id}", headers=headers).status_code == 200
+
+        assert _summary_max(client, asset_id, headers) == 90.0
+
+    def test_another_users_changes_do_not_discard_my_stats(
+        self, app, client, regular_user, make_user, auth_headers,
+    ):
+        headers = auth_headers(regular_user)
+        asset_id = _create_asset(app, regular_user.id, "stable")
+        _seed_cpu(app, asset_id, 10.0)
+        _summary_max(client, asset_id, headers)
+        _seed_cpu(app, asset_id, 90.0, age=timedelta(minutes=5))
+
+        other_user = make_user(role="role_user")
+        client.post("/hygeia/assets", json={"hostname": "elsewhere"}, headers=auth_headers(other_user))
+
+        assert _summary_max(client, asset_id, headers) == 10.0

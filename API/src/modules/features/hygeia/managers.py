@@ -56,7 +56,8 @@ from .services import (
     evaluate, extract_entity_series, fit_linear_trend, generate_agent_key,
     is_agent_outdated,
     project_month, resolve_stats_window, services_from_inventory, summarize_power_period,
-    resolve_cached_stats, summarize_values, validate_metrics_are_additive,
+    invalidate_user_stats, resolve_cached_stats, summarize_values,
+    validate_metrics_are_additive,
 )
 
 # ---------------------------------------------------------------------------
@@ -953,6 +954,9 @@ class HygeiaAssetManager:
         en claro en la respuesta; a partir de este momento es irrecuperable
         — solo persiste su hash Argon2id.
 
+        Deja sin efecto las estadísticas guardadas del usuario: el ranking del
+        parque tiene que contar el activo nuevo.
+
         Args:
             hostname: Nombre del host que reportará el agente.
             os_name: Sistema operativo del host, si se conoce de antemano.
@@ -997,6 +1001,7 @@ class HygeiaAssetManager:
             )
             saved = repo.save(asset)
 
+        invalidate_user_stats(self.user.id)
         return {"asset": saved.to_dict(), "agentKey": full_key}
 
     def list_assets(self) -> list[dict]:
@@ -1658,6 +1663,13 @@ class HygeiaAssetManager:
         y la operación se puede reintentar, en vez de dejar escaneos
         huérfanos apuntando a un id que ya no existe.
 
+        Deja sin efecto las estadísticas guardadas del usuario, que dejarían de
+        cuadrar con el parque (el activo seguiría en el ranking y en sus
+        etiquetas hasta caducar).
+
+        Args:
+            asset_id: Activo del usuario a dar de baja.
+
         Raises:
             AssetNotFoundError: Si el activo no existe o pertenece a otro usuario.
         """
@@ -1671,6 +1683,8 @@ class HygeiaAssetManager:
                 AssetNotFoundError, uow=uow,
             )
             MonitoredAssetRepository(uow).delete(asset)
+
+        invalidate_user_stats(self.user.id)
 
     def set_persistence(self, asset_id: int, is_persistent: bool) -> dict:
         """
@@ -1828,6 +1842,9 @@ class HygeiaTagManager:
         encargan el ORM (que vacía la tabla de asociación al borrar el padre)
         y el ``ondelete="CASCADE"`` de ``AssetTag``.
 
+        Deja sin efecto las estadísticas guardadas del usuario, entre ellas
+        las de la etiqueta borrada.
+
         Args:
             tag_id: Etiqueta a borrar.
 
@@ -1849,6 +1866,8 @@ class HygeiaTagManager:
 
             tag_repository.delete(tag)
 
+        invalidate_user_stats(self.user.id)
+
     def set_asset_tags(self, asset_id: int, tag_ids: list[int]) -> dict:
         """
         Reemplaza el conjunto de etiquetas de un activo.
@@ -1856,6 +1875,9 @@ class HygeiaTagManager:
         Es un reemplazo y no un añadido: llega la lista definitiva, y lo que
         no aparezca se quita. Así poner y quitar son la misma operación y el
         cliente no tiene que calcular diferencias ni encadenar llamadas.
+
+        Deja sin efecto las estadísticas guardadas del usuario: las de cada
+        etiqueta dependen de qué activos la llevan.
 
         Args:
             asset_id: Activo a etiquetar.
@@ -1890,8 +1912,10 @@ class HygeiaTagManager:
 
             asset.tags = [visible[tag_id] for tag_id in requested_ids]
             MonitoredAssetRepository(uow).update(asset)
+            serialized_asset = asset.to_dict()
 
-            return asset.to_dict()
+        invalidate_user_stats(self.user.id)
+        return serialized_asset
 
 
 class HygeiaStatsManager:
