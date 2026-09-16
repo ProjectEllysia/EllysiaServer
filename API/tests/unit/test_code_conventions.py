@@ -256,15 +256,7 @@ KNOWN_VIOLATIONS: dict[tuple[str, str, str], str] = {
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/aegis/managers/pills.py", "AegisManager._update_document_status"):
         _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/aegis/services/exporters.py", "AegisExporter._format_datetime"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/aegis/services/exporters.py", "AegisExporter._sanitize"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/aegis/services/exporters.py", "AegisExporter._validate_configuration"):
-        _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/aegis/services/exporters.py", "HTMLExporter._esc"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/aegis/services/exporters.py", "HTMLExporter._generate_content"):
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/aegis/services/exporters.py", "HTMLExporter._html_alerts"):
         _PLAN_PRIVATE_METHOD,
@@ -282,8 +274,6 @@ KNOWN_VIOLATIONS: dict[tuple[str, str, str], str] = {
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/aegis/services/exporters.py", "HTMLExporter._safe_url"):
         _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/aegis/services/exporters.py", "JsonExporter._to_dict"):
-        _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/aegis/services/exporters.py", "MarkdownExporter._alerts"):
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/aegis/services/exporters.py", "MarkdownExporter._closing"):
@@ -291,8 +281,6 @@ KNOWN_VIOLATIONS: dict[tuple[str, str, str], str] = {
     ("private-method", "src/modules/features/aegis/services/exporters.py", "MarkdownExporter._footer"):
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/aegis/services/exporters.py", "MarkdownExporter._frontmatter"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/aegis/services/exporters.py", "MarkdownExporter._generate_content"):
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/aegis/services/exporters.py", "MarkdownExporter._header"):
         _PLAN_PRIVATE_METHOD,

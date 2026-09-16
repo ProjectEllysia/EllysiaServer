@@ -34,24 +34,6 @@ from src.modules.features.aegis.exceptions import (
 )
 
 
-def get_exporter_for_format(format_type: ExportFormat | str) -> AegisExporter:
-    """Devuelve el exportador adecuado para el formato solicitado."""
-    if isinstance(format_type, str):
-        format_type = ExportFormat(format_type.lower())
-
-    exporters: dict[ExportFormat, type[AegisExporter]] = {
-        ExportFormat.MARKDOWN: MarkdownExporter,
-        ExportFormat.JSON:     JsonExporter,
-        ExportFormat.HTML:     HTMLExporter,
-    }
-
-    exporter_class = exporters.get(format_type)
-    if not exporter_class:
-        raise ExporterFormatError(format_type.value if hasattr(format_type, 'value') else format_type)
-
-    return exporter_class()
-
-
 class ExportFormat(str, Enum):
     JSON     = "json"
     MARKDOWN = "md"
@@ -71,7 +53,7 @@ class ExportResult:
     size_bytes:   int
     generated_at: datetime
 
-    def to_response_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Metadatos serializables para respuestas de API."""
         return {
             "filename":    self.filename,
@@ -80,7 +62,6 @@ class ExportResult:
             "sizeBytes":   self.size_bytes,
             "generatedAt": isoformat_utc(self.generated_at),
         }
-
 
 @dataclass
 class ExportData:
@@ -124,7 +105,6 @@ class ExportData:
             document_id   = doc_id if doc_id is not None else document.get("id", 0),
         )
 
-
 @dataclass
 class MarkdownTemplate:
     """Configuración de plantilla para el exportador Markdown."""
@@ -142,6 +122,40 @@ class MarkdownTemplate:
     })
 
 
+def _sanitize(text: str | None, max_length: int = 10_000) -> str:
+    if not text:
+        return ""
+    text = str(text).strip()
+    if len(text) > max_length:
+        text = text[:max_length] + "\n\n[Contenido truncado por longitud máxima]"
+    return text
+
+def _format_datetime(iso_string: str) -> str:
+    try:
+        parsed_datetime = datetime.fromisoformat(iso_string.replace("Z", "+00:00"))
+        return parsed_datetime.strftime("%d de %B de %Y, %H:%M")
+    except Exception:
+        return iso_string
+
+
+def get_exporter_for_format(format_type: ExportFormat | str) -> AegisExporter:
+    """Devuelve el exportador adecuado para el formato solicitado."""
+    if isinstance(format_type, str):
+        format_type = ExportFormat(format_type.lower())
+
+    exporters: dict[ExportFormat, type[AegisExporter]] = {
+        ExportFormat.MARKDOWN: MarkdownExporter,
+        ExportFormat.JSON:     JsonExporter,
+        ExportFormat.HTML:     HTMLExporter,
+    }
+
+    exporter_class = exporters.get(format_type)
+    if not exporter_class:
+        raise ExporterFormatError(format_type.value if hasattr(format_type, 'value') else format_type)
+
+    return exporter_class()
+
+
 class AegisExporter(ABC):
     """
     Clase base para exportadores.
@@ -156,56 +170,36 @@ class AegisExporter(ABC):
     supports_streaming: bool = False
 
     def __init__(self) -> None:
-        self._validate_configuration()
-
-    def _validate_configuration(self) -> None:
         required = ["format", "extension", "mimetype"]
         missing = [required_field for required_field in required if not getattr(self, required_field, None)]
         if missing:
             raise ExporterConfigurationError(missing)
 
     @abstractmethod
-    def export(self, data: ExportData, output_path: Path | None = None) -> ExportResult:
-        raise NotImplementedError("Subclass must implement export method")
+    def _generate_content(self, data: ExportData) -> str:
+        """Genera el contenido del documento en el formato de la subclase.
 
-    def generate_filename(self, data: ExportData, suffix: str = "") -> str:
-        timestamp   = datetime.now().strftime("%Y%m%d_%H%M%S")
-        safe_name   = "".join(character for character in data.company if character.isalnum() or character in "-_").lower()[:20]
-        base        = f"aegis_{safe_name}_{data.topic_id}_{timestamp}"
-        if suffix:
-            base += f"_{suffix}"
-        return f"{base}.{self.extension}"
-
-    def _sanitize(self, text: str | None, max_length: int = 10_000) -> str:
-        if not text:
-            return ""
-        text = str(text).strip()
-        if len(text) > max_length:
-            text = text[:max_length] + "\n\n[Contenido truncado por longitud máxima]"
-        return text
-
-    def _format_datetime(self, iso_string: str) -> str:
-        try:
-            parsed_datetime = datetime.fromisoformat(iso_string.replace("Z", "+00:00"))
-            return parsed_datetime.strftime("%d de %B de %Y, %H:%M")
-        except Exception:
-            return iso_string
-
-
-class MarkdownExporter(AegisExporter):
-
-    format             = ExportFormat.MARKDOWN
-    extension          = "md"
-    mimetype           = "text/markdown; charset=utf-8"
-    supports_streaming = True
-
-    def __init__(self, template: MarkdownTemplate | None = None) -> None:
-        super().__init__()
-        self.template = template or MarkdownTemplate()
-
-    # ── Punto de entrada ──────────────────────────────────────────────────────
+        Cada exportador concreto implementa solo esto; `export()` (definido
+        aquí, en la base) se encarga de la parte común: codificar a bytes,
+        resolver el nombre de fichero, escribir a disco si se pide y montar
+        el `ExportResult`.
+        """
+        raise NotImplementedError("Subclass must implement _generate_content method")
 
     def export(self, data: ExportData, output_path: Path | None = None) -> ExportResult:
+        """Genera y empaqueta el documento exportado.
+
+        Args:
+            data: Datos de la píldora a exportar.
+            output_path: Si se indica, además de devolver el `ExportResult`
+                se escribe el contenido en disco, con la extensión propia
+                del formato sustituyendo a la de `output_path`.
+
+        Returns:
+            ExportResult: Contenido codificado en bytes junto a sus metadatos
+                (nombre de fichero, mimetype, formato, tamaño, fecha de
+                generación).
+        """
         content       = self._generate_content(data)
         content_bytes = content.encode("utf-8")
         filename      = output_path.with_suffix(f".{self.extension}").name if output_path else self.generate_filename(data)
@@ -222,35 +216,33 @@ class MarkdownExporter(AegisExporter):
             generated_at = utcnow_naive(),
         )
 
-    # ── Generación por secciones ──────────────────────────────────────────────
+    def generate_filename(self, data: ExportData, suffix: str = "") -> str:
+        timestamp   = datetime.now().strftime("%Y%m%d_%H%M%S")
+        safe_name   = "".join(character for character in data.company if character.isalnum() or character in "-_").lower()[:20]
+        base        = f"aegis_{safe_name}_{data.topic_id}_{timestamp}"
+        if suffix:
+            base += f"_{suffix}"
+        return f"{base}.{self.extension}"
 
-    def _generate_content(self, data: ExportData) -> str:
-        sections: list[list[str]] = []
+class MarkdownExporter(AegisExporter):
 
-        if self.template.include_metadata_block:
-            sections.append(self._frontmatter(data))
+    format             = ExportFormat.MARKDOWN
+    extension          = "md"
+    mimetype           = "text/markdown; charset=utf-8"
+    supports_streaming = True
 
-        sections.append(self._header(data))
+    def __init__(self, template: MarkdownTemplate | None = None) -> None:
+        super().__init__()
+        self.template = template or MarkdownTemplate()
 
-        if data.intro:
-            sections.append(self._intro(data))
-
-        sections.append(self._tips(data))
-
-        if data.alerts:
-            sections.append(self._alerts(data))
-
-        sections.append(self._closing(data))
-        sections.append(self._footer(data))
-
-        return "\n".join(line for section in sections for line in section)
+    # ── Generación de contenido ──────────────────────────────────────────────
 
     def _frontmatter(self, data: ExportData) -> list[str]:
         return [
             "---",
-            f"title: '{self._sanitize(data.subtitle)}'",
-            f"company: '{self._sanitize(data.company)}'",
-            f"topic: '{self._sanitize(data.topic_title)}'",
+            f"title: '{_sanitize(data.subtitle)}'",
+            f"company: '{_sanitize(data.company)}'",
+            f"topic: '{_sanitize(data.topic_title)}'",
             f"language: {data.language}",
             f"generated: '{data.generated_at}'",
             f"document_id: {data.document_id}",
@@ -260,18 +252,18 @@ class MarkdownExporter(AegisExporter):
 
     def _header(self, data: ExportData) -> list[str]:
         return [
-            f"# {self._sanitize(data.subtitle)}",
+            f"# {_sanitize(data.subtitle)}",
             "",
             "> **Píldora de Concienciación en Ciberseguridad**",
-            f"> Empresa: *{self._sanitize(data.company)}*",
-            f"> Fecha de generación: {self._format_datetime(data.generated_at)}",
+            f"> Empresa: *{_sanitize(data.company)}*",
+            f"> Fecha de generación: {_format_datetime(data.generated_at)}",
             "",
             "---",
             "",
         ]
 
     def _intro(self, data: ExportData) -> list[str]:
-        paragraphs = [paragraph.strip() for paragraph in self._sanitize(data.intro).split("\n\n") if paragraph.strip()]
+        paragraphs = [paragraph.strip() for paragraph in _sanitize(data.intro).split("\n\n") if paragraph.strip()]
         lines: list[str] = []
         for paragraph in paragraphs:
             lines.append(paragraph)
@@ -282,8 +274,8 @@ class MarkdownExporter(AegisExporter):
         lines = ["## Consejos Prácticos", ""]
 
         for i, tip in enumerate(data.tips, 1):
-            headline = self._sanitize(tip.get("headline", f"Consejo {i}"))
-            body     = self._sanitize(tip.get("body", ""))
+            headline = _sanitize(tip.get("headline", f"Consejo {i}"))
+            body     = _sanitize(tip.get("body", ""))
 
             lines.append(f"### {self.template.tip_emoji} {headline}")
             lines.append("")
@@ -297,7 +289,7 @@ class MarkdownExporter(AegisExporter):
             if links:
                 lines.append("**Recursos relacionados:**")
                 for link in links:
-                    text = self._sanitize(link.get("text", "Enlace"))
+                    text = _sanitize(link.get("text", "Enlace"))
                     url  = link.get("url", "#")
                     lines.append(f"- [{text}]({url})")
                 lines.append("")
@@ -311,8 +303,8 @@ class MarkdownExporter(AegisExporter):
         lines = [self.template.alert_section_title, ""]
 
         for alert in data.alerts:
-            title       = self._sanitize(alert.get("title", "Alerta"))
-            description = self._sanitize(alert.get("description", ""))
+            title       = _sanitize(alert.get("title", "Alerta"))
+            description = _sanitize(alert.get("description", ""))
             source      = alert.get("sourceLabel", "Fuente desconocida")
             published   = alert.get("published", "Fecha desconocida")
             severity    = alert.get("severity", "")
@@ -345,7 +337,7 @@ class MarkdownExporter(AegisExporter):
     def _closing(self, data: ExportData) -> list[str]:
         if not data.closing:
             return []
-        return ["## Conclusión", "", self._sanitize(data.closing), ""]
+        return ["## Conclusión", "", _sanitize(data.closing), ""]
 
     def _footer(self, data: ExportData) -> list[str]:
         lines = [
@@ -362,6 +354,26 @@ class MarkdownExporter(AegisExporter):
         lines.append(f"*ID del documento: {data.document_id}*")
         return lines
 
+    def _generate_content(self, data: ExportData) -> str:
+        sections: list[list[str]] = []
+
+        if self.template.include_metadata_block:
+            sections.append(self._frontmatter(data))
+
+        sections.append(self._header(data))
+
+        if data.intro:
+            sections.append(self._intro(data))
+
+        sections.append(self._tips(data))
+
+        if data.alerts:
+            sections.append(self._alerts(data))
+
+        sections.append(self._closing(data))
+        sections.append(self._footer(data))
+
+        return "\n".join(line for section in sections for line in section)
 
 class HTMLExporter(AegisExporter):
     """Exportador de documentos Aegis a HTML."""
@@ -382,7 +394,7 @@ class HTMLExporter(AegisExporter):
         genera con contenido de un LLM y de feeds externos (INCIBE/CIRCL), así
         que todo texto insertado en el HTML pasa por aquí antes de usarse.
         """
-        return html.escape(self._sanitize(text))
+        return html.escape(_sanitize(text))
 
     def _safe_url(self, url: str | None, fallback: str = "#") -> str:
         """Valida el esquema de una URL (solo http/https) y la escapa para
@@ -394,69 +406,6 @@ class HTMLExporter(AegisExporter):
         if urlparse(url).scheme.lower() not in ("http", "https"):
             return fallback
         return html.escape(url, quote=True)
-
-    def export(self, data: ExportData, output_path: Path | None = None) -> ExportResult:
-        content       = self._generate_content(data)
-        content_bytes = content.encode("utf-8")
-        filename      = output_path.with_suffix(f".{self.extension}").name if output_path else self.generate_filename(data)
-
-        if output_path:
-            output_path.with_suffix(f".{self.extension}").write_text(content, encoding="utf-8")
-
-        return ExportResult(
-            content      = content_bytes,
-            filename     = filename,
-            mimetype     = self.mimetype,
-            format       = self.format,
-            size_bytes   = len(content_bytes),
-            generated_at = utcnow_naive(),
-        )
-
-    def _generate_content(self, data: ExportData) -> str:
-        return "\n".join([
-            self._html_header(data),
-            self._html_body(data),
-            self._html_footer(data),
-        ])
-
-    def _html_header(self, data: ExportData) -> str:
-        return f"""<!DOCTYPE html>
-        <html lang="{html.escape(data.language, quote=True)}">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>{self._esc(data.subtitle)}</title>
-            <style>
-                body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6; color: #333; }}
-                h1 {{ color: #1a365d; border-bottom: 2px solid #38bdf8; padding-bottom: 10px; }}
-                h2 {{ color: #2c5282; margin-top: 30px; }}
-                h3 {{ color: #2b6cb0; }}
-                .meta {{ color: #666; font-size: 0.9em; margin-bottom: 20px; }}
-                .tip {{ background: #f7fafc; padding: 15px; margin: 15px 0; border-left: 4px solid #38bdf8; }}
-                .alert {{ background: #fff5f5; padding: 15px; margin: 15px 0; border-left: 4px solid #f56565; }}
-                .alert-high {{ border-left-color: #ed8936; }}
-                .alert-medium {{ border-left-color: #ecc94b; }}
-                .alert-low {{ border-left-color: #48bb78; }}
-                .footer {{ margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 0.85em; color: #718096; }}
-                a {{ color: #3182ce; }}
-            </style>
-        </head>
-        <body>"""
-
-    def _html_body(self, data: ExportData) -> str:
-        parts = [
-            f"<h1>{self._esc(data.subtitle)}</h1>",
-            f"<div class='meta'>",
-            f"<p><strong>Píldora de Concienciación en Ciberseguridad</strong></p>",
-            f"<p>Empresa: {self._esc(data.company)}</p>",
-            f"<p>Fecha de generación: {self._format_datetime(data.generated_at)}</p>",
-            f"</div>",
-        ]
-        parts.extend(self._html_intro(data))
-        parts.extend(self._html_tips(data))
-        parts.extend(self._html_alerts(data))
-        parts.extend(self._html_closing(data))
-        return "\n".join(parts)
 
     def _html_intro(self, data: ExportData) -> list[str]:
         parts: list[str] = []
@@ -529,6 +478,45 @@ class HTMLExporter(AegisExporter):
                     parts.append(f"<p>{self._esc(paragraph.strip())}</p>")
         return parts
 
+    def _html_header(self, data: ExportData) -> str:
+        return f"""<!DOCTYPE html>
+        <html lang="{html.escape(data.language, quote=True)}">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>{self._esc(data.subtitle)}</title>
+            <style>
+                body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6; color: #333; }}
+                h1 {{ color: #1a365d; border-bottom: 2px solid #38bdf8; padding-bottom: 10px; }}
+                h2 {{ color: #2c5282; margin-top: 30px; }}
+                h3 {{ color: #2b6cb0; }}
+                .meta {{ color: #666; font-size: 0.9em; margin-bottom: 20px; }}
+                .tip {{ background: #f7fafc; padding: 15px; margin: 15px 0; border-left: 4px solid #38bdf8; }}
+                .alert {{ background: #fff5f5; padding: 15px; margin: 15px 0; border-left: 4px solid #f56565; }}
+                .alert-high {{ border-left-color: #ed8936; }}
+                .alert-medium {{ border-left-color: #ecc94b; }}
+                .alert-low {{ border-left-color: #48bb78; }}
+                .footer {{ margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 0.85em; color: #718096; }}
+                a {{ color: #3182ce; }}
+            </style>
+        </head>
+        <body>"""
+
+    def _html_body(self, data: ExportData) -> str:
+        parts = [
+            f"<h1>{self._esc(data.subtitle)}</h1>",
+            f"<div class='meta'>",
+            f"<p><strong>Píldora de Concienciación en Ciberseguridad</strong></p>",
+            f"<p>Empresa: {self._esc(data.company)}</p>",
+            f"<p>Fecha de generación: {_format_datetime(data.generated_at)}</p>",
+            f"</div>",
+        ]
+        parts.extend(self._html_intro(data))
+        parts.extend(self._html_tips(data))
+        parts.extend(self._html_alerts(data))
+        parts.extend(self._html_closing(data))
+        return "\n".join(parts)
+
     def _html_footer(self, data: ExportData) -> str:
         footer = [
             "<div class='footer'>",
@@ -548,6 +536,12 @@ class HTMLExporter(AegisExporter):
         footer.append("</html>")
         return "\n".join(footer)
 
+    def _generate_content(self, data: ExportData) -> str:
+        return "\n".join([
+            self._html_header(data),
+            self._html_body(data),
+            self._html_footer(data),
+        ])
 
 class JsonExporter(AegisExporter):
 
@@ -561,32 +555,10 @@ class JsonExporter(AegisExporter):
         self.indent    = indent
         self.sort_keys = sort_keys
 
-    def export(self, data: ExportData, output_path: Path | None = None) -> ExportResult:
-        content_dict  = self._to_dict(data)
-        content       = json.dumps(content_dict, ensure_ascii=False, indent=self.indent,
-                                   sort_keys=self.sort_keys, default=str)
-        content_bytes = content.encode("utf-8")
-        filename      = output_path.with_suffix(f".{self.extension}").name if output_path else self.generate_filename(data)
-
-        if output_path:
-            output_path.with_suffix(f".{self.extension}").write_bytes(content_bytes)
-
-        return ExportResult(
-            content      = content_bytes,
-            filename     = filename,
-            mimetype     = self.mimetype,
-            format       = self.format,
-            size_bytes   = len(content_bytes),
-            generated_at = utcnow_naive(),
-        )
-
-    def _to_dict(self, data: ExportData) -> dict:
-        """
-        Estructura corregida:
-        - topicTitle: Nombre del tema de la base de datos (categoría)
-        - title: Título creativo de la píldora (el subtitle generado por IA)
-        """
-        return {
+    def _generate_content(self, data: ExportData) -> str:
+        # topicTitle es el tema de la base de datos (categoría); title es el
+        # título creativo de la píldora, generado por IA a partir de ese tema.
+        content_dict = {
             "documentId":   data.document_id,
             "topicId":      data.topic_id,
             "topicTitle":   data.topic_title,
@@ -600,4 +572,5 @@ class JsonExporter(AegisExporter):
             "contactEmail": data.contact_email,
             "alerts":       data.alerts,
         }
-
+        return json.dumps(content_dict, ensure_ascii=False, indent=self.indent,
+                          sort_keys=self.sort_keys, default=str)
