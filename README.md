@@ -26,7 +26,7 @@
 The REST API (Flask) orchestrates asynchronous scans and analysis over **RQ + Redis** queues, while pluggable AI backends (Ollama / OpenAI / Google Gemini) generate reports, awareness pills, and contextual verdicts. All modules share an OAuth 2.0 + JWT authentication layer with TOTP MFA, recovery codes, and fine-grained attribute-based access control.
 
 > [!NOTE]
-> **Acheron spans four sibling repositories.** The vault's crypto engine is implemented twice — [AcheronCore](https://github.com/ProjectEllysia/AcheronCore) in Java and [AcheronCoreWeb](https://github.com/ProjectEllysia/AcheronCoreWeb) in TypeScript — sharing no code, only a wire format that interop test vectors pin in both directions. [AcheronSchema](https://github.com/ProjectEllysia/AcheronSchema) holds the storable catalogue as a language-neutral contract every client verifies against. The Android app is [AcheronMobile](https://github.com/ProjectEllysia/AcheronMobile) (Kotlin/Jetpack Compose); it consumes the `/acheron` endpoints documented below, like any other client.
+> **Acheron spans two sibling repositories.** [AcheronCore](https://github.com/ProjectEllysia/AcheronCore) holds the vault's crypto engine, implemented twice — in Java (`core-jvm/`) and in TypeScript (`core-web/`) — sharing no code, only a wire format that interop test vectors pin in both directions, plus the storable catalogue (`schema/`) as a language-neutral contract every client verifies against. Both engines are released together under the same version number. The Android app is [AcheronMobile](https://github.com/ProjectEllysia/AcheronMobile) (Kotlin/Jetpack Compose); it consumes the `/acheron` endpoints documented below, like any other client.
 
 > [!IMPORTANT]
 > The API assumes a **Linux** environment. Scan tools (Nmap, Nikto, Nuclei, traceroute) are Linux-native. On Windows, use WSL (`wsl` → `cd API && python run.py`) or `docker compose`.
@@ -340,7 +340,7 @@ Aegis combines AI-generated awareness content with current alerts from the **INC
 | `DELETE` | `/acheron/storables` | Delete a Storable by `internalId` |
 
 > [!NOTE]
-> Encryption happens **client-side**, in [AcheronCoreWeb](https://github.com/ProjectEllysia/AcheronCoreWeb) for the browser and [AcheronCore](https://github.com/ProjectEllysia/AcheronCore) for Android. The server stores only ciphertext. Internal IDs are deterministic SHA-256 hex hashes of encrypted content — collision-free across offline devices.
+> Encryption happens **client-side**, in [AcheronCore](https://github.com/ProjectEllysia/AcheronCore) — its TypeScript engine for the browser and its Java engine for Android. The server stores only ciphertext. Internal IDs are deterministic SHA-256 hex hashes of encrypted content — collision-free across offline devices.
 
 > [!IMPORTANT]
 > **Optimistic concurrency.** `Vault.revision` is bumped on every content mutation and exposed as `ETag` / `revision`. Send it back as `If-Match: "N"` on writes: if it no longer matches, the write is rejected with `409 vault_revision_mismatch` (body carries `currentRevision`) and **nothing is mutated** — a client holding a stale snapshot can no longer wipe another device's edits. `If-Match` is mandatory on the destructive `POST /acheron/vault` replace; on the granular endpoints it is optional for now (transition window for already-deployed apps). Distinct from `metadataVersion`, which only tracks master-password rotation.
@@ -552,7 +552,7 @@ The suites run on plain `node` — no framework, no browser — and exit non-zer
 That match is deliberate and was learnt the hard way. CI used to install with `npm install` and no lockfile while production built with pnpm and a frozen one: two resolvers, two possible dependency trees, and a green CI that did not mean the image would build. It did not — a dependency change left `pnpm-lock.yaml` stale and the production build would have aborted with `ERR_PNPM_OUTDATED_LOCKFILE`. Now a `package.json` that moves without its lockfile turns CI red instead of surfacing at deploy time.
 
 `test:acheron` no longer covers the crypto: that engine left this repository. It now lives in
-[AcheronCoreWeb](https://github.com/ProjectEllysia/AcheronCoreWeb), which the SPA consumes as `@projectellysia/acheron-core-web` at an exact
+the `core-web/` folder of [AcheronCore](https://github.com/ProjectEllysia/AcheronCore), which the SPA consumes as `@projectellysia/acheron-core-web` at an exact
 pinned version, and its own CI runs the interop suites against the Java implementation in both
 directions. Installing it needs a token with `read:packages` in `NODE_AUTH_TOKEN`; CI uses the
 workflow's own `GITHUB_TOKEN`, which works because the package grants this repository read access.
@@ -563,7 +563,7 @@ labels and form hints, `storableTypes.js` composes them with the schema the pack
 
 The storable catalogue itself is a contract shared by four implementations in four languages — this
 API's `storable_specs.py`, the package, the Android app and the Java engine — and the exact field
-keys *are* the vault JSON. [AcheronSchema](https://github.com/ProjectEllysia/AcheronSchema) holds it as a language-neutral `schema.json`, and
+keys *are* the vault JSON. AcheronCore holds it as a language-neutral `schema/schema.json`, and
 each client verifies its own copy against it; on the API side that is
 `API/tests/unit/test_acheron_schema_contract.py`. The field *order* is deliberately not part of the
 contract — the vault JSON is an object keyed by field name, not a tuple — so every client compares

@@ -96,8 +96,11 @@ Monorepo con tres entregables:
 - **`landing/`** — sitio estático de marketing, publicado a `gh-pages` por `.github/workflows/landing.yml`.
   Sin build, sin acoplamiento con los otros dos.
 
-El cliente Android y su motor Java `AcheronCore` viven en un repositorio aparte
-([SeQ-AcheronMobile](https://github.com/gamustea/SeQ-AcheronMobile)) y consumen `/acheron` por HTTP.
+El cliente Android vive en [AcheronMobile](https://github.com/ProjectEllysia/AcheronMobile) y consume
+`/acheron` por HTTP. El motor criptográfico de la bóveda —en Java para Android y en TypeScript para
+la SPA, más el catálogo de storables y los vectores que los atan— vive en
+[AcheronCore](https://github.com/ProjectEllysia/AcheronCore), que publica los dos paquetes con el
+mismo número de versión.
 
 **`API/` y `web/` están juntos a propósito.** Comparten un despliegue (un `docker-compose.yml`, un
 Caddy que proxya a `Ellysia-API:5000` por nombre de contenedor) y un contrato que solo un repo
