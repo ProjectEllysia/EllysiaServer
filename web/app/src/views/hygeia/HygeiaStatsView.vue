@@ -18,11 +18,22 @@
       <!-- Panorama del parque: una foto del ahora, sin periodo. Es la pantalla
            de aterrizaje, y por eso no depende del selector. -->
       <section class="overview" aria-label="Panorama del parque">
-        <p v-if="store.state.overviewLoading" class="state-msg">Cargando el panorama…</p>
+        <!-- Tarjetas fantasma con la silueta de las reales (rótulo, cifra y
+             pie): reservan el alto y el panorama no empuja la página al llegar. -->
+        <div
+          v-if="store.state.overviewLoading && !store.state.overview"
+          class="tiles" aria-busy="true" aria-label="Cargando el panorama"
+        >
+          <div v-for="n in OVERVIEW_TILE_COUNT" :key="n" class="tile" aria-hidden="true">
+            <span class="tile-label"><span class="skeleton skeleton--line skeleton-inline skeleton--w60"></span></span>
+            <span class="tile-value"><span class="skeleton skeleton--line skeleton-inline skeleton--w40"></span></span>
+            <span class="tile-sub"><span class="skeleton skeleton--line skeleton-inline skeleton--w80"></span></span>
+          </div>
+        </div>
         <p v-else-if="store.state.overviewError" class="state-msg state-msg--error">
           {{ store.state.overviewError }}
         </p>
-        <div v-else-if="store.state.overview" class="tiles">
+        <div v-else-if="store.state.overview" class="tiles tiles--ready">
           <div class="tile">
             <span class="tile-label">Activos</span>
             <span class="tile-value">{{ store.state.overview.assetCount }}</span>
@@ -141,7 +152,31 @@
           >{{ store.state.exporting ? 'Exportando…' : 'Exportar CSV' }}</button>
         </div>
 
-        <p v-if="store.state.scopeLoading" class="state-msg">Calculando…</p>
+        <!-- Tabla fantasma con las mismas columnas y el mismo número de filas
+             que la que va a llegar, para que el panel no cambie de alto. -->
+        <div
+          v-if="store.state.scopeLoading" class="table-ghost"
+          aria-busy="true" aria-label="Calculando las estadísticas"
+        >
+          <span class="table-ghost-caption" aria-hidden="true">
+            <span class="skeleton skeleton--line skeleton-inline skeleton--w40"></span>
+          </span>
+          <div
+            v-for="row in ghostTable.rows" :key="row" class="table-ghost-row"
+            :class="{ 'table-ghost-row--head': row === 1 }"
+            :style="{ gridTemplateColumns: ghostTable.template }" aria-hidden="true"
+          >
+            <span v-for="column in ghostTable.columns" :key="column" class="table-ghost-cell">
+              <span
+                class="skeleton skeleton--line skeleton-inline"
+                :class="column === 1 ? 'skeleton--w60' : 'skeleton--w40'"
+              ></span>
+              <span v-if="row > 1 && column === ghostTable.sublineColumn" class="table-ghost-sub">
+                <span class="skeleton skeleton--line skeleton-inline skeleton--w60"></span>
+              </span>
+            </span>
+          </div>
+        </div>
         <p v-else-if="store.state.scopeError" class="state-msg state-msg--error">
           {{ store.state.scopeError }}
         </p>
@@ -152,7 +187,7 @@
 
         <!-- Un activo: el resumen completo, una fila por métrica. -->
         <template v-else-if="store.state.scope === 'asset' && store.state.summary">
-          <table class="table">
+          <table class="table reveal">
             <caption class="table-caption">
               Resumen del activo. {{ describeCoverage(store.state.summary) }}
             </caption>
@@ -188,7 +223,7 @@
 
         <!-- Una etiqueta: una fila por métrica, ya combinada entre sus activos. -->
         <template v-else-if="store.state.scope === 'tag' && store.state.tagStats">
-          <table class="table">
+          <table class="table reveal">
             <caption class="table-caption">
               {{ store.state.tagStats.assetCount }}
               {{ store.state.tagStats.assetCount === 1 ? 'activo lleva' : 'activos llevan' }}
@@ -213,7 +248,7 @@
 
         <!-- El parque: el ranking por la métrica elegida. -->
         <template v-else-if="store.state.scope === 'fleet' && store.state.ranking">
-          <table class="table">
+          <table class="table reveal">
             <caption class="table-caption">
               Los activos con mayor {{ aggregationLabel.toLowerCase() }} de
               {{ metricName }}, de {{ store.state.ranking.assetsWithData }} con datos sobre
@@ -521,6 +556,51 @@ const summaryTable = computed(() => summaryRows(store.state.summary?.metrics))
 const tagTable = computed(() => tagMetricRows(store.state.tagStats?.metrics))
 const rankingTable = computed(() => rankingRows(store.state.ranking?.assets, store.state.metric))
 
+/** Tarjetas del panorama, las mismas que pinta la plantilla con datos. */
+const OVERVIEW_TILE_COUNT = 4
+
+// Filas que se suponen en un ranking que todavía no se ha cargado nunca.
+const DEFAULT_RANKING_GHOST_ROWS = 5
+
+// Filas del último ranking mostrado. Se guarda aparte porque el store descarta
+// el ranking al cambiar de alcance, y al volver al parque la silueta debe
+// tener el tamaño del que se vio, no uno supuesto.
+const lastRankingRowCount = ref(DEFAULT_RANKING_GHOST_ROWS)
+watch(
+  () => rankingTable.value.length,
+  (count) => { if (count) lastRankingRowCount.value = count },
+  { immediate: true },
+)
+
+/**
+ * Forma de la tabla fantasma mientras se calcula el resultado, calcada de la
+ * tabla que va a sustituirla para que el panel no cambie de alto.
+ *
+ * Un activo y una etiqueta traen siempre una fila por métrica del catálogo;
+ * el ranking tiene tantas filas como activos con datos, así que se toma el
+ * número del último ranking mostrado.
+ *
+ * @type {import('vue').ComputedRef<{columns: number, rows: number, sublineColumn: number|null, template: string}>}
+ *   `columns` son las columnas de la tabla de ese alcance (7 en un activo,
+ *   3 en una etiqueta, 4 en el parque); `rows`, sus filas contando la de
+ *   cabecera; `sublineColumn`, la columna (desde 1) cuyas celdas llevan una
+ *   segunda línea —en un activo, la del máximo, que dice cuándo ocurrió— o
+ *   `null` si ninguna la lleva; y `template`, el `grid-template-columns` de
+ *   cada fila, con la columna del nombre más ancha que las de cifras.
+ */
+const ghostTable = computed(() => {
+  const shape = store.state.scope === 'asset'
+    ? { columns: 7, rows: STATS_METRICS.length + 1, sublineColumn: 5 }
+    : store.state.scope === 'tag'
+      ? { columns: 3, rows: STATS_METRICS.length + 1, sublineColumn: null }
+      : {
+        columns: 4,
+        rows: lastRankingRowCount.value + 1,
+        sublineColumn: null,
+      }
+  return { ...shape, template: `2fr repeat(${shape.columns - 1}, 1fr)` }
+})
+
 /**
  * Descarga en CSV exactamente lo que hay en la tabla.
  *
@@ -734,6 +814,30 @@ onMounted(() => {
 .legend-range { color: var(--text-muted); font-variant-numeric: tabular-nums; }
 
 .compare-note { margin: 0.6rem 0 0; font-size: var(--fs-sm); color: var(--text-muted); line-height: 1.5; }
+
+/* ── Carga y llegada de datos ── */
+/* En línea y centrada: así la silueta ocupa el alto de una línea del texto
+   que sustituye, no solo el de la barra gris. */
+.skeleton-inline { display: inline-block; vertical-align: middle; }
+
+.table-ghost-caption { display: block; padding-bottom: 0.5rem; font-size: var(--fs-sm); line-height: 1.5; }
+.table-ghost-row { display: grid; gap: 0.5rem; border-bottom: 1px solid var(--border); font-size: var(--fs-md); }
+.table-ghost-cell { padding: 0.45rem 0.5rem; text-align: right; }
+.table-ghost-cell:first-child { text-align: left; }
+.table-ghost-row--head { font-size: var(--fs-sm); }
+.table-ghost-sub { display: block; font-size: var(--fs-sm); }
+
+/* Los datos entran con un fundido corto; las tarjetas, escalonadas. */
+.reveal,
+.tiles--ready .tile { animation: seq-fade-up 0.35s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+.tiles--ready .tile:nth-child(2) { animation-delay: 40ms; }
+.tiles--ready .tile:nth-child(3) { animation-delay: 80ms; }
+.tiles--ready .tile:nth-child(4) { animation-delay: 120ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .tiles--ready .tile { animation: none; }
+}
 
 .state-msg { margin: 1.2rem 0; font-size: var(--fs-md); color: var(--text-muted); }
 .state-msg--error { color: var(--danger); }
