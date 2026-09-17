@@ -5,6 +5,7 @@ Exponente:
     - HygeiaAssetManager: alta, consulta y credenciales de activos monitorizados.
     - HygeiaTagManager: catálogo de etiquetas y su asignación a los activos.
     - HygeiaReportManager: informe PDF del inventario de activos.
+    - HygeiaDocumentManager: documentos (CSV y PDF) generados en segundo plano.
     - Modelos: MonitoredAsset, AssetSnapshot, Anomaly, HygeiaTag (SystemTag, UserTag),
       HygeiaDocument y su enum HygeiaDocumentKind.
     - Endpoints: hygeia_blp.
@@ -23,7 +24,7 @@ from .model import (
     SystemTag,
     UserTag,
 )
-from .managers import HygeiaAssetManager, HygeiaReportManager, HygeiaTagManager
+from .managers import HygeiaAssetManager, HygeiaDocumentManager, HygeiaReportManager, HygeiaTagManager
 from .endpoints import hygeia_blp
 
 # Registro de las categorías de cola de este módulo (OCP). Los jobs de
@@ -47,6 +48,7 @@ __all__ = [
     "HygeiaDocument",
     "HygeiaDocumentKind",
     "HygeiaAssetManager",
+    "HygeiaDocumentManager",
     "HygeiaReportManager",
     "HygeiaTagManager",
     "hygeia_blp",

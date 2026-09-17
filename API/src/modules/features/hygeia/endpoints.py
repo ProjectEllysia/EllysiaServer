@@ -20,6 +20,7 @@ from flask import request, send_file
 from flask_smorest import Blueprint as SmorestBlueprint
 
 from src.modules.shared import handle_exceptions, limiter, current_actor
+from src.modules.shared._exceptions import DocumentError
 from src.modules.shared.schemas import ErrorSchema
 from src.modules.users import (
     require_oauth_token, require_attributes, AttributeType, get_current_user,
@@ -33,11 +34,15 @@ from .exceptions import (
 )
 from .services import build_csv
 from .managers import (
-    HygeiaAlertManager, HygeiaAssetManager, HygeiaIngestManager, HygeiaReportManager,
-    HygeiaStatsManager, HygeiaTagManager,
+    HygeiaAlertManager, HygeiaAssetManager, HygeiaDocumentManager, HygeiaIngestManager,
+    HygeiaReportManager, HygeiaStatsManager, HygeiaTagManager,
 )
 from .schemas import (
     AnalyzeInventoryResponseSchema,
+    DocumentCreateRequestSchema,
+    DocumentListResponseSchema,
+    DocumentSchema,
+    DocumentsQuerySchema,
     AnomalyListResponseSchema,
     AnomalyQuerySchema,
     AnomalySchema,
@@ -859,6 +864,109 @@ def delete_alert(anomaly_id):
     manager.delete_alert(anomaly_id)
     logger.info(f"Anomalía {anomaly_id} eliminada | user={current_actor()}")
     return {"message": "Anomalía eliminada correctamente"}
+
+
+# =============================================================================
+# DOCUMENTOS — se piden, se generan en segundo plano y se descargan después
+# =============================================================================
+
+@hygeia_blp.post("/documents")
+@hygeia_blp.arguments(DocumentCreateRequestSchema)
+@hygeia_blp.response(202, DocumentSchema, description="Documento en cola")
+@hygeia_blp.alt_response(400, schema=ErrorSchema, description="Unknown or non-additive metric")
+@hygeia_blp.alt_response(422, schema=ErrorSchema, description="Invalid or incomplete request")
+@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@hygeia_blp.alt_response(
+    403, schema=ErrorSchema, description="Organization scope requires ownership",
+)
+@hygeia_blp.alt_response(404, schema=ErrorSchema, description="Asset or tag not found")
+# Pedir es barato (una fila y un encolado); lo caro lo hace el worker, y un
+# usuario no necesita más de un documento por minuto de media.
+@limiter.limit("60 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
+@handle_exceptions(default_exception=HygeiaError, logger=logger)
+def create_document(data):
+    """Pedir un CSV de estadísticas o el PDF del inventario, que se genera en segundo plano"""
+    manager = HygeiaDocumentManager(get_current_user())
+    if data["kind"] == "inventory-pdf":
+        document = manager.create_inventory_pdf_document(data["scope"], data["includeSoftware"])
+    else:
+        document = manager.create_stats_csv_document(
+            data["dataset"], asset_id=data["assetId"], tag_id=data["tagId"],
+            metric_names=data["metrics"], metric_name=data["metric"], aggregation=data["agg"],
+            order=data["order"], limit=data["limit"],
+            requested_duration=data["requested_duration"], period=data["period"],
+        )
+    logger.info(
+        f"Documento Hygeia {document['id']} pedido ({data['kind']}) | user={current_actor()}"
+    )
+    return document
+
+
+@hygeia_blp.get("/documents")
+@hygeia_blp.arguments(DocumentsQuerySchema, location="query")
+@hygeia_blp.response(200, DocumentListResponseSchema, description="Documentos del usuario")
+@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@hygeia_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@limiter.limit("600 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
+@handle_exceptions(default_exception=HygeiaError, logger=logger)
+def list_documents(args):
+    """Listar los documentos del usuario, más recientes primero"""
+    manager = HygeiaDocumentManager(get_current_user())
+    documents, total = manager.list_documents(args["page"], args["perPage"])
+    return {
+        "documents": documents, "total": total,
+        "page": args["page"], "perPage": args["perPage"],
+    }
+
+
+@hygeia_blp.get("/documents/<int:document_id>")
+@hygeia_blp.response(200, DocumentSchema, description="Documento")
+@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@hygeia_blp.alt_response(404, schema=ErrorSchema, description="Document not found")
+@limiter.limit("600 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
+@handle_exceptions(default_exception=DocumentError, logger=logger)
+def get_document(document_id):
+    """Consultar un documento y su estado"""
+    return HygeiaDocumentManager(get_current_user()).get_document(document_id)
+
+
+@hygeia_blp.get("/documents/<int:document_id>/download")
+@hygeia_blp.response(200, description="Fichero del documento")
+@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@hygeia_blp.alt_response(404, schema=ErrorSchema, description="Document not found")
+@hygeia_blp.alt_response(409, schema=ErrorSchema, description="Document not ready")
+@limiter.limit("600 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
+@handle_exceptions(default_exception=DocumentError, logger=logger)
+def download_document(document_id):
+    """Descargar el fichero de un documento ya generado"""
+    path, download_name, mimetype = HygeiaDocumentManager(get_current_user()).get_document_file(
+        document_id,
+    )
+    return send_file(path, mimetype=mimetype, as_attachment=True, download_name=download_name)
+
+
+@hygeia_blp.delete("/documents/<int:document_id>")
+@hygeia_blp.response(200, description="Documento eliminado")
+@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@hygeia_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@hygeia_blp.alt_response(404, schema=ErrorSchema, description="Document not found")
+@limiter.limit("120 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.HYGEIA_DELETE])
+@handle_exceptions(default_exception=DocumentError, logger=logger)
+def delete_document(document_id):
+    """Borrar un documento y su fichero"""
+    HygeiaDocumentManager(get_current_user()).delete_user_document(document_id)
+    logger.info(f"Documento Hygeia {document_id} eliminado | user={current_actor()}")
+    return {"message": "Documento eliminado correctamente", "documentId": document_id}
 
 
 # ============================================================================
