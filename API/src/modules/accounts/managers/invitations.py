@@ -81,7 +81,7 @@ class InvitationManager:
     def list_invitations(self, organization_id: int, owner_user_id: int) -> list[dict]:
         get_owned_organization(owner_user_id, organization_id)
         repo = build_repository(OrganizationInvitationRepository)
-        return [self._serialize(invitation) for invitation in repo.get_by_organization(organization_id)]
+        return [invitation.to_dict() for invitation in repo.get_by_organization(organization_id)]
 
     def revoke(self, invitation_id: int, owner_user_id: int) -> None:
         """Retira una invitación sin responder. El enlace deja de valer."""
@@ -167,7 +167,7 @@ class InvitationManager:
             )
             uow.session.add(invitation)
             uow.session.flush()
-            payload = self._serialize(invitation)
+            payload = invitation.to_dict()
 
         self._send_invitation_email(email, user["first_name"], organization.name, token, ttl_hours)
         logger.info(f"Invitacion enviada a {email} para la organizacion {organization.id}")
@@ -224,7 +224,7 @@ class InvitationManager:
             )
             uow.session.add(invitation)
             uow.session.flush()
-            payload = self._serialize(invitation)
+            payload = invitation.to_dict()
 
         self._send_credentials_email(email, organization.name, username, password)
         logger.info(f"Cuenta creada por invitacion para {email} (organizacion {organization.id})")
@@ -310,15 +310,3 @@ class InvitationManager:
             ))
         except Exception as exc:  # pylint: disable=broad-except
             logger.error(f"No se pudieron enviar las credenciales a {email}: {exc}")
-
-    @staticmethod
-    def _serialize(invitation: OrganizationInvitation) -> dict:
-        return {
-            "id":             invitation.id,
-            "email":          invitation.email,
-            "status":         invitation.status,
-            "createdAt":      invitation.created_at,
-            "expiresAt":      invitation.expires_at,
-            "acceptedAt":     invitation.accepted_at,
-            "createdUserId":  invitation.created_user_id,
-        }

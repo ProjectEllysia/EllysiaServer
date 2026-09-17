@@ -15,6 +15,8 @@ hay ninguna relación de aquí hacia bóvedas, escaneos o análisis, y los filtr
 ``user_id`` del resto de módulos se quedan como están.
 """
 
+from typing import Any
+
 from sqlalchemy import (
     Boolean,
     Column,
@@ -331,6 +333,16 @@ class OrganizationInvitation(Base):
     def __repr__(self) -> str:
         return f"<OrganizationInvitation id={self.id} org={self.organization_id} status='{self.status}'>"
 
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id":             self.id,
+            "email":          self.email,
+            "status":         self.status,
+            "createdAt":      self.created_at,
+            "expiresAt":      self.expires_at,
+            "acceptedAt":     self.accepted_at,
+            "createdUserId":  self.created_user_id,
+        }
 
 # =========================================================================
 # CONSUMO
