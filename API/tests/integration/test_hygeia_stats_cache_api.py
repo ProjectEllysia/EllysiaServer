@@ -17,9 +17,12 @@ import io
 import secrets
 from datetime import timedelta
 
+from unittest import mock
+
 import pytest
 
 from _redis_doubles import InMemoryRedis
+from src.modules.features.hygeia.managers import HygeiaDocumentManager
 from src.modules.features.hygeia.model import AssetSnapshot, MonitoredAsset, UserTag
 from src.modules.features.hygeia.repositories import (
     AssetSnapshotRepository,
@@ -29,6 +32,7 @@ from src.modules.features.hygeia.repositories import (
 from src.modules.infrastructure import ExpiringCache, UnitOfWork
 from src.modules.infrastructure import cache as cache_module
 from src.modules.shared import utcnow_naive
+from src.modules.system.taskqueue import TaskQueue
 
 pytestmark = pytest.mark.integration
 
@@ -172,20 +176,28 @@ class TestSummary:
         )
         assert status == 404
 
-    # El CSV sale del mismo método del manager, así que aprovecha lo guardado.
+    # El CSV se genera en segundo plano con el mismo método del manager, así
+    # que aprovecha lo guardado.
     def test_the_csv_export_reuses_the_stored_result(
-        self, app, client, regular_user, auth_headers,
+        self, app, client, regular_user, auth_headers, tmp_path, monkeypatch,
     ):
+        monkeypatch.setenv("OUTPUT_DIR", str(tmp_path))
         headers = auth_headers(regular_user)
         asset_id = _create_asset(app, regular_user.id, "exported")
         _seed_cpu(app, asset_id, 10.0)
         _summary_max(client, asset_id, headers)
         _seed_cpu(app, asset_id, 90.0, age=timedelta(minutes=5))
 
-        response = client.get(
-            f"/hygeia/assets/{asset_id}/stats/summary", headers=headers,
-            query_string={"metrics": "cpuPct", "period": "24h", "format": "csv"},
-        )
+        with mock.patch.object(TaskQueue, "get_instance", return_value=mock.Mock()):
+            created = client.post(
+                "/hygeia/documents", headers=headers,
+                json={"kind": "stats-csv", "dataset": "summary", "assetId": asset_id,
+                      "metrics": ["cpuPct"], "period": "24h"},
+            )
+        document_id = created.get_json()["id"]
+        HygeiaDocumentManager.execute_document_generation(document_id)
+        response = client.get(f"/hygeia/documents/{document_id}/download", headers=headers)
+
         assert response.status_code == 200
         [row] = csv.DictReader(io.StringIO(response.get_data(as_text=True).lstrip("﻿")))
         assert float(row["max"]) == 10.0

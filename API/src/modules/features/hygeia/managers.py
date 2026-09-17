@@ -2599,11 +2599,9 @@ class HygeiaReportManager:
     """
     Genera el informe PDF del inventario de activos de un usuario.
 
-    Síncrono a propósito: un inventario son filas de una tabla, no un escaneo.
-    Construirlo cuesta milisegundos, así que no necesita cola, ni fila en
-    ``Document``, ni que la SPA sondee un estado — se pide y se descarga. Si
-    algún día hubiera que archivarlo o tardara segundos, ese es el momento de
-    llevarlo a la TaskQueue, no antes.
+    No lo llama ninguna ruta directamente: lo usa la generación en segundo
+    plano de los documentos ``inventory-pdf`` (``HygeiaDocumentManager``), que
+    guarda el PDF resultante como documento descargable.
     """
 
     def __init__(self, user: User) -> None:

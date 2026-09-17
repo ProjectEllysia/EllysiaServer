@@ -59,20 +59,6 @@ class AssetTagsRequestSchema(Schema):
     tagIds = fields.List(fields.Integer(), required=True)
 
 
-class InventoryReportRequestSchema(Schema):
-    """Petición del informe PDF del inventario de activos.
-
-    ``scope`` distingue "mis activos" de "los de toda mi organización"; el
-    segundo solo lo puede pedir el dueño, y de eso se encarga el manager, no
-    este schema. ``includeSoftware`` viene desactivado porque el anexo de
-    software puede multiplicar por veinte el tamaño del documento.
-    """
-    scope = fields.String(
-        load_default="user", validate=validate.OneOf(("user", "organization")),
-    )
-    includeSoftware = fields.Boolean(load_default=False)
-
-
 class AssetCreateRequestSchema(Schema):
     """Alta de un nuevo activo a monitorizar."""
     hostname = fields.String(required=True, validate=validate.Length(min=1, max=255))
@@ -554,21 +540,6 @@ def _build_period_field() -> fields.String:
     )
 
 
-def _build_format_field() -> fields.String:
-    """Campo ``format`` de las queries de estadísticas: ``json`` (por defecto) o ``csv``.
-
-    El JSON es el formato de toda la API, así que pedirlo no requiere nada;
-    ``csv`` devuelve **los mismos valores** en un fichero descargable, volcados
-    por ``services/export.py`` a partir de la respuesta ya serializada por este
-    mismo schema. No hay un segundo cálculo que pueda desviarse del primero.
-
-    Returns:
-        fields.String: Un campo nuevo en cada llamada; marshmallow no admite
-            compartir la misma instancia entre schemas.
-    """
-    return fields.String(load_default="json", validate=validate.OneOf(["json", "csv"]))
-
-
 def _build_refresh_field() -> fields.Boolean:
     """Campo ``refresh`` de las queries de estadísticas que se guardan en caché.
 
@@ -611,7 +582,6 @@ class AssetStatsSummaryQuerySchema(Schema):
     """
     metrics = fields.String(load_default=None)
     period = _build_period_field()
-    format = _build_format_field()
     refresh = _build_refresh_field()
 
     @post_load
@@ -977,7 +947,6 @@ class AssetRankingQuerySchema(Schema):
     order = fields.String(load_default="desc", validate=validate.OneOf(["desc", "asc"]))
     limit = fields.Integer(load_default=10, validate=validate.Range(min=1, max=100))
     period = _build_period_field()
-    format = _build_format_field()
     refresh = _build_refresh_field()
 
     @post_load
@@ -1107,15 +1076,6 @@ class BreachRankingResponseSchema(Schema):
     periodCoveredFrom = UTCDateTime()
     periodCoveredTo = UTCDateTime()
     isPeriodClipped = fields.Boolean()
-
-
-class FleetOverviewQuerySchema(Schema):
-    """Query de ``GET /hygeia/stats/overview``: solo el formato de salida.
-
-    El panorama no acepta periodo —es una foto del ahora, no de un tramo— así
-    que ``format`` es su único parámetro.
-    """
-    format = _build_format_field()
 
 
 class FleetOverviewResponseSchema(Schema):
