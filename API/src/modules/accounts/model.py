@@ -272,8 +272,23 @@ class Organization(Base):
     updated_at    = Column(DateTime,    nullable=False, default=utcnow_naive,
                                         onupdate=utcnow_naive)
 
+    members = relationship(
+        "OrganizationMember", lazy="selectin",
+        cascade="all, delete-orphan",
+    )
+
     def __repr__(self) -> str:
         return f"<Organization id={self.id} slug='{self.slug}' owner={self.owner_user_id}>"
+
+    def to_dict(self) -> dict:
+        return {
+            "id":          self.id,
+            "name":        self.name,
+            "slug":        self.slug,
+            "ownerUserId": self.owner_user_id,
+            "memberCount": len(self.members),
+            "createdAt":   self.created_at,
+        }
 
 
 class OrganizationMember(Base):
@@ -287,6 +302,11 @@ class OrganizationMember(Base):
     Ser dueño **no es un rol** de la plataforma, es esta fila. Un rol es una
     escalera lineal y la propiedad tiene ámbito: no se es "un dueño", se es el
     dueño de una organización concreta.
+
+    Attributes:
+        user: El ``User`` de esta fila. Espejo de ``User.organization_membership``
+            — permite resolver pertenencia y propiedad a partir de un ``User``
+            ya cargado, sin pasar por ``OrganizationMemberRepository``.
     """
 
     __tablename__ = "OrganizationMember"
@@ -300,6 +320,11 @@ class OrganizationMember(Base):
     member_role        = Column(String(16), nullable=False, default="member")
     invited_by_user_id = Column(Integer,    ForeignKey("User.id"), nullable=True)
     joined_at          = Column(DateTime,   nullable=False, default=utcnow_naive)
+
+    # foreign_keys explícito: la tabla tiene dos FK a User.id (user_id e
+    # invited_by_user_id), y sin desambiguar SQLAlchemy no sabe con cuál
+    # construir el join.
+    user = relationship("User", back_populates="organization_membership", foreign_keys=[user_id])
 
     def __repr__(self) -> str:
         return f"<OrganizationMember org={self.organization_id} user={self.user_id} role='{self.member_role}'>"

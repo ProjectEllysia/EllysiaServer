@@ -20,7 +20,11 @@ from flask import request
 
 from src.modules.infrastructure.session import build_repository
 
-from ..exceptions import OrganizationNotFoundError
+from ..exceptions import (
+    AlreadyInOrganizationError,
+    OrganizationAlreadyExistsError,
+    OrganizationNotFoundError,
+)
 from ..repositories import OrganizationRepository
 
 
@@ -36,6 +40,39 @@ def get_owned_organization(user_id: int, organization_id: int):
     if organization is None or organization.owner_user_id != user_id:
         raise OrganizationNotFoundError(organization_id)
     return organization
+
+
+def assert_not_in_an_organization(user_id: int) -> None:
+    """Exige que ``user_id`` no posea ni pertenezca a ninguna organización.
+
+    Se resuelve a partir de ``User.organization_membership`` y no de una
+    consulta a ``OrganizationRepository``/``OrganizationMemberRepository``:
+    el dueño es miembro de su propia organización con ``member_role='owner'``
+    (ver ``OrganizationMember``), así que una sola fila —o su ausencia—
+    contesta a las dos preguntas.
+
+    Se asume ``user_id`` de una sesión autenticada, así que la fila de
+    ``User`` existe; no comprueba lo contrario, igual que el resto de checks
+    de este módulo que resuelven contra un id de sesión.
+
+    Args:
+        user_id: Primary key del usuario a comprobar.
+
+    Raises:
+        OrganizationAlreadyExistsError: ya es dueño de una organización.
+        AlreadyInOrganizationError: pertenece a la de otro.
+    """
+    # Import diferido y por la superficie pública del módulo (UserManager),
+    # nunca por su repositories.py directamente — ver CONVENCIONES.md § 3.3.
+    from src.modules.users import UserManager
+
+    user = UserManager().get_user_by_id(user_id)
+    membership = user.organization_membership
+    if membership is None:
+        return
+    if membership.member_role == "owner":
+        raise OrganizationAlreadyExistsError()
+    raise AlreadyInOrganizationError()
 
 
 def require_organization_owner(view):
