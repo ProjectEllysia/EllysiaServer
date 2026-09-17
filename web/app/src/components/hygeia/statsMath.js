@@ -433,32 +433,36 @@ export function describeLaneRange(lane) {
 /* ── Exportación ───────────────────────────────────────────────────────── */
 
 /**
- * Nombre del fichero de una descarga de estadísticas.
+ * Cuerpo de `POST /hygeia/documents` que exporta a CSV la tabla que se ve.
  *
- * El servidor propone uno genérico por juego de datos; este lo concreta con el
- * alcance y el periodo, que es lo que distingue dos descargas en la carpeta de
- * descargas: `hygeia-summary-host-web-24h.csv` se reconoce y
- * `hygeia-summary.csv (3)` no.
+ * El CSV se genera en segundo plano con la misma consulta que la tabla: el
+ * resumen de un activo con todas las métricas, las métricas de una etiqueta
+ * con su combinación, o el ranking del parque por la métrica elegida. El
+ * ranking nunca se pide sumado (el servidor no lo admite), así que «Total»
+ * viaja como media, igual que al pintar la tabla.
  *
- * El nombre se normaliza a minúsculas, sin acentos y sin espacios, porque un
- * hostname o una etiqueta pueden traer cualquiera de las tres cosas y de ahí
- * sale un nombre de fichero incómodo en cualquier sistema.
- *
- * @param {string} dataset - Juego de datos (`summary`, `tag-stats`, `ranking`,
- *   `overview`), tal como lo nombra el servidor.
- * @param {string|null} scopeLabel - Nombre del activo o de la etiqueta, o
- *   `null` en los alcances que no tienen uno (el parque).
- * @param {string|null} period - Periodo pedido (`24h`), o `null` en los juegos
- *   de datos que no tienen periodo (el panorama).
- * @returns {string} El nombre con su extensión `.csv`.
+ * @param {object} selection - Selección de la vista: `scope` (`asset`, `tag`
+ *   o `fleet`), `assetId`, `tagId`, `metric`, `aggregation` y `period`.
+ * @returns {object|null} El cuerpo de la petición, o `null` si la selección
+ *   está incompleta (un activo o una etiqueta sin elegir).
  */
-export function exportFileName(dataset, scopeLabel, period) {
-  const slug = (text) => String(text)
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-
-  return [`hygeia-${dataset}`, scopeLabel && slug(scopeLabel), period]
-    .filter(Boolean).join('-') + '.csv'
+export function buildStatsDocumentRequest(selection) {
+  const { scope, assetId, tagId, metric, aggregation, period } = selection ?? {}
+  if (scope === 'asset') {
+    if (!assetId) return null
+    return { kind: 'stats-csv', dataset: 'summary', assetId, metrics: [], period }
+  }
+  if (scope === 'tag') {
+    if (!tagId) return null
+    return { kind: 'stats-csv', dataset: 'tag-stats', tagId, metrics: [], agg: aggregation, period }
+  }
+  if (scope === 'fleet') {
+    return {
+      kind: 'stats-csv', dataset: 'ranking', metric,
+      agg: aggregation === 'sum' ? 'avg' : aggregation, order: 'desc', limit: 10, period,
+    }
+  }
+  return null
 }
 
 /**

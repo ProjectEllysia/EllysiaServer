@@ -71,10 +71,9 @@
       :show="showReportModal"
       :asset-count="store.state.assets.length"
       :organization="account.organization"
-      :generating="generatingReport"
-      :error="reportError"
+      :generating="documentsStore.state.requesting"
       @submit="handleReportSubmit"
-      @close="closeReportModal"
+      @close="showReportModal = false"
     />
 
     <AssetTagsModal
@@ -154,21 +153,21 @@ import AssetTagsModal from '@/components/hygeia/AssetTagsModal.vue'
 import InventoryReportModal from '@/components/hygeia/InventoryReportModal.vue'
 import InventoryAnalysisModal from '@/components/hygeia/InventoryAnalysisModal.vue'
 import { usePolling } from '@/composables/usePolling'
-import { useApi } from '@/composables/useApi'
 import { WINDOW_PRESETS } from '@/components/hygeia/chartMath'
 import { useHygeiaStore } from '@/stores/hygeiaStore'
 import { useHygeiaAlertsStore } from '@/stores/hygeiaAlertsStore'
 import { useHygeiaTagsStore } from '@/stores/hygeiaTagsStore'
+import { useHygeiaDocumentsStore } from '@/stores/hygeiaDocumentsStore'
 import { useAccountStore } from '@/stores/accountStore'
 import { useToastStore } from '@/stores/toastStore'
 
 const store = useHygeiaStore()
 const alerts = useHygeiaAlertsStore()
 const tagsStore = useHygeiaTagsStore()
+const documentsStore = useHygeiaDocumentsStore()
 const account = useAccountStore()
 const toast = useToastStore()
 const router = useRouter()
-const { apiFetch, apiError } = useApi()
 
 const showCreateModal = ref(false)
 const creating = ref(false)
@@ -181,8 +180,6 @@ const taggingAssetId = ref(null)
 const savingTags = ref(false)
 const tagsError = ref('')
 const showReportModal = ref(false)
-const generatingReport = ref(false)
-const reportError = ref('')
 
 const selectedAsset = computed(() =>
   store.state.assets.find((a) => a.id === store.state.selectedId) || null
@@ -272,53 +269,19 @@ async function handleTogglePersistent(id) {
 
 /* ── Informe PDF del inventario ── */
 
-function closeReportModal() {
-  showReportModal.value = false
-  reportError.value = ''
-}
-
 /**
- * Pide el PDF y lo descarga.
+ * Pide el PDF del inventario como documento en segundo plano.
  *
- * Va por `apiFetch` y no por una navegación directa del navegador porque la
- * ruta exige el JWT, y una descarga nativa no lleva la cabecera. Así que llega
- * como blob y se dispara con un enlace temporal.
+ * El modal se cierra en cuanto el servidor acepta la petición: el PDF se
+ * prepara aparte, el store de documentos avisa cuando está listo y se
+ * descarga desde la página de documentos. Si el servidor la rechaza, el
+ * motivo sale en un toast y el modal sigue abierto.
  */
 async function handleReportSubmit({ scope, includeSoftware }) {
-  generatingReport.value = true
-  reportError.value = ''
-  try {
-    const res = await apiFetch('/hygeia/inventory/report', {
-      method: 'POST',
-      body: JSON.stringify({ scope, includeSoftware }),
-    })
-    if (!res?.ok) {
-      reportError.value = await apiError(res, 'No se pudo generar el inventario.')
-      return
-    }
-
-    // El nombre lo decide el servidor (Content-Disposition); si por lo que sea
-    // no viniera, uno razonable evita que el fichero se llame "descarga".
-    const disposition = res.headers.get('Content-Disposition') || ''
-    const match = disposition.match(/filename="?([^";]+)"?/)
-    const blob = await res.blob()
-
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = match ? match[1] : 'inventario-hygeia.pdf'
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    URL.revokeObjectURL(url)
-
-    closeReportModal()
-    toast.show('Inventario descargado.', 'success')
-  } catch {
-    reportError.value = 'No se pudo conectar con la API.'
-  } finally {
-    generatingReport.value = false
-  }
+  const document = await documentsStore.requestDocument({
+    kind: 'inventory-pdf', scope, includeSoftware,
+  })
+  if (document) showReportModal.value = false
 }
 
 /* ── Etiquetas ── */

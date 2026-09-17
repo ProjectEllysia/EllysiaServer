@@ -13,6 +13,8 @@ Classes:
     HygeiaTag: Etiqueta con la que agrupar activos (base polimórfica).
     SystemTag: Etiqueta del catálogo común, sembrada por migración.
     UserTag: Etiqueta personal, siempre asociada a su dueño.
+    HygeiaDocumentKind: Tipos de documento que Hygeia genera en segundo plano.
+    HygeiaDocument: CSV de estadísticas o PDF de inventario generado en segundo plano.
 
 Example:
     >>> from src.modules.features.hygeia.model import MonitoredAsset
@@ -21,6 +23,8 @@ Example:
     >>> print(asset)
     <MonitoredAsset(id=None, hostname='web-01', status='pending')>
 """
+
+from enum import StrEnum
 
 from sqlalchemy import (
     BigInteger,
@@ -40,7 +44,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
-from src.modules.shared import Base, utcnow_naive
+from src.modules.shared import Base, Document, utcnow_naive
 
 
 # =========================================================================
@@ -526,3 +530,89 @@ class UserTag(HygeiaTag):
     """Etiqueta personal: siempre con dueño, y solo su dueño la usa."""
 
     __mapper_args__ = {"polymorphic_identity": "user"}
+
+
+# =============================================================================
+# DOCUMENTOS — ficheros que se generan en segundo plano y se descargan después
+# =============================================================================
+
+class HygeiaDocumentKind(StrEnum):
+    """Qué fichero es un ``HygeiaDocument``; decide cómo se genera.
+
+    Attributes:
+        STATS_CSV: Una tabla de estadísticas en CSV (resumen de un activo,
+            métricas de una etiqueta, ranking o panorama del parque).
+        INVENTORY_PDF: El informe del inventario de activos en PDF.
+    """
+
+    STATS_CSV = "stats-csv"
+    INVENTORY_PDF = "inventory-pdf"
+
+
+class HygeiaDocument(Document):
+    """Fichero de Hygeia generado en segundo plano: un CSV de estadísticas o un PDF.
+
+    Hereda de ``Document`` (herencia *joined-table*, como ``IrisDocument`` y
+    ``ThemisDocument``): la tabla común guarda el dueño, el formato, el estado
+    (``pending``/``running``/``done``/``error``), las fechas y la ruta del
+    fichero; esta añade lo propio de Hygeia.
+
+    A diferencia de los informes de Iris o Themis, un documento de Hygeia no
+    cuelga de ninguna entidad padre: describe una consulta (qué estadística,
+    de qué alcance, en qué periodo), y esa consulta viaja completa en
+    ``parameters``. Así el trabajo en segundo plano la puede repetir tal cual,
+    y el panel puede describir el documento aunque el activo o la etiqueta ya
+    no existan.
+
+    Attributes:
+        id: Primary key; clave ajena a ``Document.id``.
+        kind: Tipo de documento, uno de ``HygeiaDocumentKind``
+            (``"stats-csv"`` o ``"inventory-pdf"``).
+        parameters: Parámetros ya validados de la consulta, en camelCase como
+            los de la API. Para ``stats-csv``: ``dataset`` y los del alcance
+            (``assetId``/``tagId``, ``metric``, ``aggregation``, ``period``),
+            más ``scopeLabel`` con el nombre del activo o la etiqueta en el
+            momento de pedirlo. Para ``inventory-pdf``: ``scope`` e
+            ``includeSoftware``.
+        download_name: Nombre con el que se descarga el fichero, fijado al
+            terminar de generarlo; ``None`` mientras no está listo.
+    """
+
+    __tablename__ = "HygeiaDocument"
+
+    id            = Column(Integer, ForeignKey("Document.id"), primary_key=True)
+    kind          = Column(String(30), nullable=False)
+    parameters    = Column(JSONB, nullable=False, default=dict)
+    download_name = Column(String(200), nullable=True)
+
+    __mapper_args__ = {"polymorphic_identity": "hygeia"}
+
+    def to_dict(self) -> dict:
+        """Serializa el documento para la API.
+
+        Las fechas van como ``datetime`` crudo: las formatea el schema de
+        respuesta (``UTCDateTime``), igual que en el resto de modelos. No
+        incluye la ruta en disco, que es un detalle del servidor.
+
+        Returns:
+            dict: ``id``, ``kind``, ``format``, ``status`` (``pending``,
+                ``running``, ``done`` o ``error``), ``parameters``,
+                ``downloadName``, ``createdAt`` y ``generatedAt``.
+        """
+        return {
+            "id":           self.id,
+            "kind":         self.kind,
+            "format":       self.format,
+            "status":       self.status,
+            "parameters":   self.parameters or {},
+            "downloadName": self.download_name,
+            "createdAt":    self.created_at,
+            "generatedAt":  self.generated_at,
+        }
+
+    def __repr__(self) -> str:
+        """Representación de depuración con id, tipo, estado y dueño."""
+        return (
+            f"<HygeiaDocument(id={self.id}, kind='{self.kind}', "
+            f"status='{self.status}', user_id={self.user_id})>"
+        )

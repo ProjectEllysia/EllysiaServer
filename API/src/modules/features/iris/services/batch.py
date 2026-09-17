@@ -61,7 +61,6 @@ def _is_message_file(filename: str) -> bool:
     """Si un nombre de fichero es un ``.eml`` o un ``.msg`` (sin distinguir mayúsculas)."""
     return filename.lower().endswith((_EML_SUFFIX, _MSG_SUFFIX))
 
-
 def _message_entry(name: str, data: bytes, max_message_bytes: int) -> BatchEntry:
     """Entrada de un mensaje, suelto o sacado de un ZIP.
 
@@ -89,7 +88,6 @@ def _message_entry(name: str, data: bytes, max_message_bytes: int) -> BatchEntry
         if len(data) > max_message_bytes:
             return BatchEntry(name, rejection=f"Convertido a .eml, supera el tamaño máximo ({max_message_bytes} bytes).")
     return BatchEntry(name, content=data)
-
 
 def _expand_zip(filename: str, data: bytes, max_message_bytes: int) -> List[BatchEntry]:
     """Saca los mensajes de un ZIP, leyendo cada entrada con tope.
@@ -126,7 +124,6 @@ def _expand_zip(filename: str, data: bytes, max_message_bytes: int) -> List[Batc
                 with archive.open(info) as handle:
                     entries.append(_message_entry(name, handle.read(max_message_bytes + 1), max_message_bytes))
     return entries
-
 
 def expand_uploads(uploads: Sequence[Tuple[str, bytes]], *, max_items: int,
                    max_message_bytes: int, max_total_bytes: int) -> List[BatchEntry]:
@@ -167,7 +164,6 @@ def expand_uploads(uploads: Sequence[Tuple[str, bytes]], *, max_items: int,
         raise BatchLimitError(f"Los mensajes del lote suman más de {max_total_bytes} bytes.")
     return entries
 
-
 def decode_message(content: bytes) -> str:
     """Texto de un ``.eml`` para el analizador.
 
@@ -185,7 +181,6 @@ def decode_message(content: bytes) -> str:
         return content.decode("utf-8")
     except UnicodeDecodeError:
         return content.decode("latin-1")
-
 
 def message_fingerprint(raw: str) -> str:
     """Huella de un mensaje para reconocer el mismo correo enviado dos veces.

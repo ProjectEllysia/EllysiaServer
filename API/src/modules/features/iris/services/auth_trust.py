@@ -34,7 +34,6 @@ from .parsers import parse_received_line
 from .text import registrable_domain
 
 
-#: Veredictos de :func:`assess_authserv_trust`.
 TRUST_CONFIGURED = "configured"
 """El verificador está en la lista explícita de confianza del despliegue."""
 
@@ -55,6 +54,35 @@ TRUST_UNKNOWN = "unknown"
 """No hay cadena ``Received`` que contrastar. No es una acusación: sin base
 para juzgar, la regla se queda neutral."""
 
+_ARC_RESULT_RE = re.compile(r"\barc\s*=\s*pass\b", re.IGNORECASE)
+"""
+``arc=pass`` dentro de un Authentication-Results: el resultado de que **el
+servidor receptor** validara criptográficamente la cadena ARC. Es distinto de
+``ARC-Seal: cv=pass``, que es lo que la propia cadena dice de sí misma.
+"""
+
+
+@dataclass(frozen=True)
+class ReceivedHop:
+    """Un salto de la cadena, reducido a lo que la frontera necesita."""
+
+    position: int
+    """0 es el último salto (el servidor del destinatario), el más fiable."""
+
+    by_host: Optional[str]
+    by_domain: Optional[str]
+
+@dataclass(frozen=True)
+class AuthservTrust:
+    """Resultado de contrastar un ``authserv-id`` con la cadena real."""
+
+    verdict: str
+    is_trusted: bool
+    boundary: int
+    matched_position: Optional[int] = None
+    trusted_by_domains: tuple[str, ...] = ()
+    untrusted_by_domains: tuple[str, ...] = ()
+
 
 def trusted_authserv_ids() -> frozenset[str]:
     """
@@ -72,18 +100,6 @@ def trusted_authserv_ids() -> frozenset[str]:
     """
     configured = CR.get_iris_data("trusted_authserv_ids") or []
     return frozenset(str(entry).strip().lower() for entry in configured if str(entry).strip())
-
-
-@dataclass(frozen=True)
-class ReceivedHop:
-    """Un salto de la cadena, reducido a lo que la frontera necesita."""
-
-    position: int
-    """0 es el último salto (el servidor del destinatario), el más fiable."""
-
-    by_host: Optional[str]
-    by_domain: Optional[str]
-
 
 def parse_hops(received_headers: Sequence[str]) -> List[ReceivedHop]:
     """Reduce la cadena a sus hosts ``by``, conservando el orden de entrega.
@@ -108,7 +124,6 @@ def parse_hops(received_headers: Sequence[str]) -> List[ReceivedHop]:
             by_domain=registrable_domain(by_host) if by_host else None,
         ))
     return hops
-
 
 def trust_boundary(hops: Sequence[ReceivedHop]) -> int:
     """Cuántos saltos, contando desde el final de entrega, son fiables.
@@ -155,19 +170,6 @@ def trust_boundary(hops: Sequence[ReceivedHop]) -> int:
     # final sigue siendo el final: se cuenta como frontera para no tratar como
     # forjado un mensaje cuya cadena simplemente no se pudo parsear.
     return boundary or 1
-
-
-@dataclass(frozen=True)
-class AuthservTrust:
-    """Resultado de contrastar un ``authserv-id`` con la cadena real."""
-
-    verdict: str
-    is_trusted: bool
-    boundary: int
-    matched_position: Optional[int] = None
-    trusted_by_domains: tuple[str, ...] = ()
-    untrusted_by_domains: tuple[str, ...] = ()
-
 
 def assess_authserv_trust(authserv_id: str, received_headers: Sequence[str]) -> AuthservTrust:
     """
@@ -227,13 +229,6 @@ def assess_authserv_trust(authserv_id: str, received_headers: Sequence[str]) -> 
     return AuthservTrust(verdict=TRUST_ABSENT, is_trusted=False, boundary=boundary,
                          trusted_by_domains=trusted_domains,
                          untrusted_by_domains=untrusted_domains)
-
-
-# ``arc=pass`` dentro de un Authentication-Results: el resultado de que **el
-# servidor receptor** validara criptográficamente la cadena ARC. Es distinto de
-# ``ARC-Seal: cv=pass``, que es lo que la propia cadena dice de sí misma.
-_ARC_RESULT_RE = re.compile(r"\barc\s*=\s*pass\b", re.IGNORECASE)
-
 
 def is_arc_verified_by_trusted_hop(headers: dict, received_headers: Sequence[str]) -> bool:
     """¿Ha validado la cadena ARC alguien en quien confiamos?

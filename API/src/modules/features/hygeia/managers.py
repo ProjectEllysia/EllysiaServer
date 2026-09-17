@@ -13,15 +13,22 @@ from __future__ import annotations
 
 import logging
 import math
+import os
 from datetime import timedelta
-from typing import NamedTuple, Optional, Sequence, Tuple
+from typing import Callable, NamedTuple, Optional, Sequence, Tuple
 
 import src.modules.system.config_reading as CR
 from src.modules.accounts import LimitKey, OrganizationManager, QuotaManager
 from src.modules.infrastructure import UnitOfWork
 from src.modules.infrastructure.session import build_repository
 from src.modules.shared import assert_owned, utcnow_naive
-from src.modules.system.taskqueue import job_context
+from src.modules.shared._documents import (
+    DocumentManager,
+    run_report_generation,
+    submit_report_generation,
+)
+from src.modules.shared._exceptions import DocumentNotFoundError, DocumentNotReadyError
+from src.modules.system.taskqueue import TaskQueue, job_context
 from src.modules.system.taskqueue.dispatcher import OutboxDispatcher
 from src.modules.system.taskqueue.outbox import TaskDispatch, build_dispatch
 from src.modules.system.taskqueue.outbox_repository import TaskDispatchRepository
@@ -33,7 +40,9 @@ from .exceptions import (
     AnomalyStillOpenError,
     AssetNotFoundError,
     AssetQuotaExceededError,
+    HygeiaError,
     IngestTooFrequentError,
+    InvalidDocumentRequestError,
     InventoryNotAvailableError,
     OrganizationScopeNotAllowedError,
     SystemTagImmutableError,
@@ -41,16 +50,32 @@ from .exceptions import (
     TagNotFoundError,
     TagQuotaExceededError,
 )
-from .model import Anomaly, AssetSnapshot, HygeiaTag, MonitoredAsset, UserTag
+from .model import (
+    Anomaly,
+    AssetSnapshot,
+    HygeiaDocument,
+    HygeiaDocumentKind,
+    HygeiaTag,
+    MonitoredAsset,
+    UserTag,
+)
 from .repositories import (
     AnomalyRepository,
     AssetSnapshotRepository,
+    HygeiaDocumentRepository,
     HygeiaTagRepository,
     MonitoredAssetRepository,
 )
+from .schemas import (
+    AssetRankingResponseSchema,
+    AssetStatsSummaryResponseSchema,
+    FleetOverviewResponseSchema,
+    TagStatsResponseSchema,
+)
 from .services import (
     METRIC_REGISTRY, MetricDefinition, MetricUnit, assert_metric_definition,
-    build_histogram, build_inventory_report, build_percentile_series, calculate_core_spread,
+    build_csv, build_export_file_name, build_histogram, build_inventory_report,
+    build_percentile_series, calculate_core_spread,
     check_clock_skew,
     combine_asset_averages, denormalize, detect_peak_coincidence, estimate_days_until_full,
     evaluate, extract_entity_series, fit_linear_trend, generate_agent_key,
@@ -2574,11 +2599,9 @@ class HygeiaReportManager:
     """
     Genera el informe PDF del inventario de activos de un usuario.
 
-    Síncrono a propósito: un inventario son filas de una tabla, no un escaneo.
-    Construirlo cuesta milisegundos, así que no necesita cola, ni fila en
-    ``Document``, ni que la SPA sondee un estado — se pide y se descarga. Si
-    algún día hubiera que archivarlo o tardara segundos, ese es el momento de
-    llevarlo a la TaskQueue, no antes.
+    No lo llama ninguna ruta directamente: lo usa la generación en segundo
+    plano de los documentos ``inventory-pdf`` (``HygeiaDocumentManager``), que
+    guarda el PDF resultante como documento descargable.
     """
 
     def __init__(self, user: User) -> None:
@@ -3143,3 +3166,514 @@ class HygeiaNotifyManager:
         except Exception as exc:
             logger.error(f"Fallo enviando notificación de anomalía {anomaly_id}: {exc}")
 
+
+# =============================================================================
+# DOCUMENTOS GENERADOS EN SEGUNDO PLANO — CSV de estadísticas y PDF de inventario
+# =============================================================================
+
+#: Schema con el que se serializa cada juego de datos antes de volcarlo a CSV.
+#: Es el mismo que usa la respuesta JSON de su endpoint: el trabajo en segundo
+#: plano no pasa por la capa HTTP, y serializar aquí con el mismo schema es lo
+#: que mantiene la garantía de que el CSV dice exactamente lo mismo que el JSON.
+_STATS_CSV_SCHEMAS = {
+    "summary": AssetStatsSummaryResponseSchema,
+    "tag-stats": TagStatsResponseSchema,
+    "ranking": AssetRankingResponseSchema,
+    "overview": FleetOverviewResponseSchema,
+}
+
+#: Tipo MIME con el que se descarga cada formato de documento.
+_MIMETYPE_BY_FORMAT = {"csv": "text/csv", "pdf": "application/pdf"}
+
+#: Tiempo máximo del trabajo de generación, en segundos. Un CSV de 30 días de
+#: todo el parque recorre muchas muestras; diez minutos es holgado sin dejar
+#: un trabajo colgado indefinidamente.
+_DOCUMENT_JOB_TIMEOUT_SECONDS = 600
+
+
+def _require_parameter(dataset: str, field_name: str, value):
+    """Devuelve un parámetro obligatorio del alcance o lanza si falta.
+
+    Args:
+        dataset: Juego de datos pedido, para el mensaje de error.
+        field_name: Nombre camelCase del parámetro.
+        value: Valor recibido; ``None`` significa que falta.
+
+    Returns:
+        El mismo ``value`` si no es ``None``.
+
+    Raises:
+        InvalidDocumentRequestError: Si ``value`` es ``None``.
+    """
+    if value is None:
+        raise InvalidDocumentRequestError(dataset, field_name)
+    return value
+
+
+def _build_stats_csv_parameters(  # pylint: disable=too-many-arguments
+    user_id: int, dataset: str, *, asset_id: Optional[int], tag_id: Optional[int],
+    metric_names: Sequence[str], metric_name: Optional[str], aggregation: Optional[str],
+    order: str, limit: int, requested_duration: Optional[timedelta], period: Optional[str],
+) -> dict:
+    """Valida una petición de CSV de estadísticas y compone los parámetros que se guardan.
+
+    Todo lo que puede fallar por culpa de la petición se comprueba aquí, en la
+    request, y no en el trabajo en segundo plano: un activo ajeno o una métrica
+    inexistente tienen que dar su error al pedir, no un documento en ``error``
+    minutos después. Lo que se guarda es JSON (``Document.parameters``), así
+    que la duración va en segundos.
+
+    Args:
+        user_id: Primary key del usuario que pide.
+        dataset: ``"summary"``, ``"tag-stats"``, ``"ranking"`` u ``"overview"``.
+        asset_id: Activo del resumen; obligatorio en ``summary``.
+        tag_id: Etiqueta; obligatoria en ``tag-stats``.
+        metric_names: Métricas del resumen o de la etiqueta; vacío equivale a
+            todas.
+        metric_name: Métrica del ranking; obligatoria en ``ranking``.
+        aggregation: ``"sum"``, ``"avg"`` o ``"max"`` en ``tag-stats``;
+            ``"avg"`` o ``"max"`` en ``ranking``.
+        order: ``"desc"`` o ``"asc"`` del ranking.
+        limit: Activos del ranking, de 1 a 100.
+        requested_duration: Periodo pedido; obligatorio salvo en ``overview``.
+        period: El periodo tal como lo escribió el usuario (``7d``), para
+            describir el documento y nombrar el fichero.
+
+    Returns:
+        dict: Parámetros JSON-serializables, en camelCase: ``dataset``,
+            ``scopeLabel`` y los propios del juego de datos
+            (``durationSeconds`` y ``period`` en todos salvo ``overview``).
+
+    Raises:
+        InvalidDocumentRequestError: Si falta un dato imprescindible.
+        AssetNotFoundError: Si el activo no existe o es de otro usuario.
+        TagNotFoundError: Si la etiqueta no existe o es personal de otro usuario.
+        UnknownMetricError: Si alguna métrica no está en el registro.
+        NonAdditiveMetricError: Si se pide ``sum`` de una métrica no aditiva.
+    """
+    parameters: dict = {"dataset": dataset, "scopeLabel": None}
+    if dataset != "overview":
+        requested_duration = _require_parameter(dataset, "period", requested_duration)
+        parameters["durationSeconds"] = int(requested_duration.total_seconds())
+        parameters["period"] = period
+
+    if dataset == "summary":
+        asset = assert_owned(
+            MonitoredAssetRepository, _require_parameter(dataset, "assetId", asset_id),
+            user_id, AssetNotFoundError,
+        )
+        definitions = [assert_metric_definition(name) for name in dict.fromkeys(metric_names)]
+        parameters.update({
+            "assetId": asset.id, "scopeLabel": asset.hostname,
+            "metrics": [definition.name for definition in definitions],
+        })
+    elif dataset == "tag-stats":
+        tag = _assert_visible_tag(user_id, _require_parameter(dataset, "tagId", tag_id))
+        definitions = [
+            assert_metric_definition(name)
+            for name in dict.fromkeys(metric_names or METRIC_REGISTRY)
+        ]
+        if aggregation == "sum":
+            validate_metrics_are_additive(definitions)
+        parameters.update({
+            "tagId": tag.id, "scopeLabel": tag.name,
+            "metrics": [definition.name for definition in definitions],
+            "aggregation": aggregation or "avg",
+        })
+    elif dataset == "ranking":
+        definition = assert_metric_definition(_require_parameter(dataset, "metric", metric_name))
+        parameters.update({
+            "metric": definition.name, "aggregation": aggregation or "avg",
+            "order": order, "limit": limit,
+        })
+    return parameters
+
+
+def _render_stats_csv(user: User, parameters: dict) -> Tuple[bytes, str]:
+    """Calcula una estadística y la vuelca a CSV; cuerpo de un documento ``stats-csv``.
+
+    Llama a los mismos métodos de manager que los endpoints JSON (y por tanto
+    aprovecha la caché de estadísticas) y serializa con el mismo schema.
+
+    Args:
+        user: Dueño del documento; las estadísticas se calculan con su
+            visibilidad, nunca con nada que venga del cliente.
+        parameters: Los parámetros guardados por ``_build_stats_csv_parameters``.
+
+    Returns:
+        Tuple[bytes, str]: El contenido del CSV y el nombre de descarga.
+
+    Raises:
+        AssetNotFoundError / TagNotFoundError: Si el activo o la etiqueta
+            desaparecieron entre la petición y la generación.
+    """
+    dataset = parameters["dataset"]
+    duration = timedelta(seconds=parameters.get("durationSeconds", 0))
+    if dataset == "summary":
+        payload = HygeiaAssetManager(user).get_stats_summary(
+            parameters["assetId"], metric_names=parameters["metrics"], requested_duration=duration,
+        )
+    elif dataset == "tag-stats":
+        payload = HygeiaStatsManager(user).get_tag_stats(
+            parameters["tagId"], metric_names=parameters["metrics"],
+            aggregation=parameters["aggregation"], requested_duration=duration,
+        )
+    elif dataset == "ranking":
+        payload = HygeiaStatsManager(user).get_asset_ranking(
+            metric_name=parameters["metric"], aggregation=parameters["aggregation"],
+            order=parameters["order"], limit=parameters["limit"], requested_duration=duration,
+        )
+    else:
+        payload = HygeiaStatsManager(user).get_fleet_overview()
+
+    content, _ = build_csv(dataset, _STATS_CSV_SCHEMAS[dataset]().dump(payload))
+    return content, build_export_file_name(
+        dataset, parameters.get("scopeLabel"), parameters.get("period"),
+    )
+
+
+def _render_inventory_pdf(user: User, parameters: dict) -> Tuple[bytes, str]:
+    """Construye el PDF del inventario; cuerpo de un documento ``inventory-pdf``.
+
+    Args:
+        user: Dueño del documento.
+        parameters: ``scope`` (``"user"`` u ``"organization"``) e
+            ``includeSoftware``.
+
+    Returns:
+        Tuple[bytes, str]: El contenido del PDF y el nombre de descarga.
+
+    Raises:
+        OrganizationScopeNotAllowedError: Si el usuario dejó de ser dueño de
+            su organización entre la petición y la generación.
+    """
+    return HygeiaReportManager(user).build_inventory_report(
+        scope=parameters["scope"], include_software=parameters["includeSoftware"],
+    )
+
+
+#: Cómo se genera cada tipo de documento: el formato del fichero y la función
+#: que produce su contenido. Añadir un tipo (el PDF de estadísticas, por
+#: ejemplo) es añadir una entrada aquí y su función de creación en el manager.
+_DOCUMENT_RENDERERS = {
+    HygeiaDocumentKind.STATS_CSV: ("csv", _render_stats_csv),
+    HygeiaDocumentKind.INVENTORY_PDF: ("pdf", _render_inventory_pdf),
+}
+
+
+def _write_document_file(document_id: int, content: bytes, file_format: str) -> str:
+    """Escribe el contenido de un documento en el directorio de salida de Hygeia.
+
+    El nombre en disco lleva el id del documento y no el nombre de descarga:
+    es único por construcción, y un hostname no llega nunca a una ruta.
+
+    Args:
+        document_id: Primary key del documento.
+        content: Bytes del fichero.
+        file_format: Extensión sin punto (``"csv"`` o ``"pdf"``).
+
+    Returns:
+        str: Ruta absoluta del fichero escrito.
+    """
+    directory = CR.verify_directory(CR.DirectoryType.OUTPUT_HYGEIA)
+    path = directory / f"hygeia-document-{document_id}.{file_format}"
+    path.write_bytes(content)
+    return str(path)
+
+
+def _run_document_generation(document_id: int) -> None:
+    """Cuerpo del trabajo que genera un documento de Hygeia.
+
+    Marca el documento ``running``, lo genera con la función de su tipo, guarda
+    el fichero y su nombre de descarga, y deja el estado final en ``done`` o
+    ``error`` a través de ``run_report_generation`` (compartido con Iris y
+    Themis), que además relanza el error para que el trabajo figure como
+    fallido en la cola. Un documento borrado antes de empezar no hace nada.
+
+    Args:
+        document_id: Primary key del ``HygeiaDocument``.
+
+    Returns:
+        None.
+    """
+    # Import diferido, como en HygeiaNotifyManager: users importa features al
+    # cargar, y al revés cerraría un ciclo.
+    from src.modules.users.managers import UserManager  # pylint: disable=import-outside-toplevel
+
+    with UnitOfWork() as uow:
+        document = HygeiaDocumentRepository(uow).get_by_id(document_id)
+        if document is None:
+            logger.warning(f"Documento Hygeia {document_id} borrado antes de generarse")
+            return
+        document.status = "running"
+        user_id, kind, parameters = document.user_id, document.kind, dict(document.parameters)
+
+    def _render() -> str:
+        """Genera el fichero, guarda su nombre de descarga y devuelve su ruta."""
+        user = UserManager().get_user_by_id(user_id)
+        if user is None:
+            raise HygeiaError(
+                message=f"El dueño {user_id} del documento {document_id} ya no existe",
+            )
+        file_format, render = _DOCUMENT_RENDERERS[HygeiaDocumentKind(kind)]
+        content, download_name = render(user, parameters)
+        path = _write_document_file(document_id, content, file_format)
+        with UnitOfWork() as uow:
+            generated = HygeiaDocumentRepository(uow).get_by_id(document_id)
+            if generated is not None:
+                generated.download_name = download_name
+        return path
+
+    run_report_generation(document_id, HygeiaDocumentRepository, _render)
+
+
+def _create_and_submit_document(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+    task_queue, user_id: int, build_external_id: Callable[[int], str],
+    kind: HygeiaDocumentKind, file_format: str, parameters: dict,
+) -> dict:
+    """Crea la fila de un documento en ``pending`` y encola su generación.
+
+    La fila se confirma antes de encolar (``commit_for_handoff``) porque el
+    worker es otro proceso y tiene que verla. Se encola con ``submit()``
+    directo y no con la outbox, como los informes de Iris y Themis: si el
+    encolado falla, ``submit_report_generation`` deja el documento en ``error``
+    y relanza, así que no queda nada colgado, y volver a pedirlo es un botón.
+
+    Args:
+        task_queue: Cola en la que se encola la generación.
+        user_id: Primary key del dueño del documento.
+        build_external_id: Compone el ``external_id`` a partir del id del
+            documento (``HygeiaDocumentManager.external_id_for``).
+        kind: Tipo de documento.
+        file_format: Extensión del fichero (``"csv"`` o ``"pdf"``).
+        parameters: Parámetros ya validados y JSON-serializables.
+
+    Returns:
+        dict: El documento creado (``HygeiaDocument.to_dict``).
+    """
+    with UnitOfWork() as uow:
+        document = HygeiaDocument(
+            document_type="hygeia",
+            kind=kind.value,
+            format=file_format,
+            filename="",
+            status="pending",
+            is_ai_generated=0,
+            parameters=parameters,
+            user_id=user_id,
+        )
+        HygeiaDocumentRepository(uow).save(document)
+        uow.commit_for_handoff()
+        serialized = document.to_dict()
+
+    submit_report_generation(
+        task_queue, serialized["id"], HygeiaDocumentRepository,
+        func=HygeiaDocumentManager.execute_document_generation,
+        args=(serialized["id"],),
+        name=f"HygeiaDocument-{serialized['id']}",
+        category=HygeiaDocumentManager.TASK_CATEGORY,
+        external_id=build_external_id(serialized["id"]),
+        timeout=_DOCUMENT_JOB_TIMEOUT_SECONDS,
+    )
+    return serialized
+
+
+class HygeiaDocumentManager(DocumentManager):
+    """Documentos de Hygeia generados en segundo plano y su ciclo de vida.
+
+    Pedir un documento lo valida en el acto (permisos, métricas, alcance), crea
+    su fila en ``pending`` y encola la generación en ``hygeia.report``. El
+    worker lo genera, lo escribe en ``features.hygeia.directories.output`` y lo
+    deja en ``done`` o ``error``. Todas las operaciones actúan sobre los
+    documentos del usuario con el que se construye el manager: uno ajeno da el
+    mismo 404 que uno inexistente.
+
+    Attributes:
+        EXTERNAL_ID_PREFIX: Prefijo del ``external_id`` de sus trabajos
+            (``hygeia-doc:``).
+        TASK_CATEGORY: Categoría de TaskQueue (``hygeia.report``).
+        user: Usuario dueño de los documentos que se gestionan.
+    """
+
+    EXTERNAL_ID_PREFIX = "hygeia-doc:"
+    TASK_CATEGORY = "hygeia.report"
+
+    _REPOSITORY = HygeiaDocumentRepository
+    _NOT_FOUND_ERROR = DocumentNotFoundError
+
+    def __init__(self, user: Optional[User], task_queue=None) -> None:
+        """Prepara el manager para un usuario.
+
+        Args:
+            user: Usuario dueño de los documentos; ``None`` solo para las
+                operaciones de mantenimiento que no dependen de un usuario
+                (``reconcile_orphaned_documents``).
+            task_queue: Cola a usar. Por defecto ``None``, que usa la
+                instancia compartida; los tests inyectan un doble.
+        """
+        super().__init__(task_queue=task_queue)
+        self.user = user
+
+    def create_stats_csv_document(  # pylint: disable=too-many-arguments
+        self, dataset: str, *, asset_id: Optional[int] = None, tag_id: Optional[int] = None,
+        metric_names: Sequence[str] = (), metric_name: Optional[str] = None,
+        aggregation: Optional[str] = None, order: str = "desc", limit: int = 10,
+        requested_duration: Optional[timedelta] = None, period: Optional[str] = None,
+    ) -> dict:
+        """Pide un CSV de estadísticas: lo valida, lo registra y encola su generación.
+
+        Args:
+            dataset: ``"summary"``, ``"tag-stats"``, ``"ranking"`` u ``"overview"``.
+            asset_id: Activo del resumen; obligatorio en ``summary``.
+            tag_id: Etiqueta; obligatoria en ``tag-stats``.
+            metric_names: Métricas del resumen o de la etiqueta; vacío = todas.
+            metric_name: Métrica del ranking; obligatoria en ``ranking``.
+            aggregation: Combinación entre activos (``sum``/``avg``/``max`` en
+                ``tag-stats``, ``avg``/``max`` en ``ranking``). Por defecto
+                ``None``, que equivale a ``avg``.
+            order: ``"desc"`` (por defecto) o ``"asc"`` del ranking.
+            limit: Activos del ranking; por defecto ``10``.
+            requested_duration: Periodo pedido; obligatorio salvo en ``overview``.
+            period: Periodo tal como lo escribió el usuario (``7d``).
+
+        Returns:
+            dict: El documento recién creado (``HygeiaDocument.to_dict``), en
+                ``pending``.
+
+        Raises:
+            InvalidDocumentRequestError, AssetNotFoundError, TagNotFoundError,
+            UnknownMetricError, NonAdditiveMetricError: Ver
+                ``_build_stats_csv_parameters``.
+        """
+        parameters = _build_stats_csv_parameters(
+            self.user.id, dataset, asset_id=asset_id, tag_id=tag_id, metric_names=metric_names,
+            metric_name=metric_name, aggregation=aggregation, order=order, limit=limit,
+            requested_duration=requested_duration, period=period,
+        )
+        return _create_and_submit_document(
+            self._task_queue, self.user.id, self.external_id_for,
+            HygeiaDocumentKind.STATS_CSV, "csv", parameters,
+        )
+
+    def create_inventory_pdf_document(self, scope: str, include_software: bool) -> dict:
+        """Pide el PDF del inventario: lo valida, lo registra y encola su generación.
+
+        Args:
+            scope: ``"user"`` (los activos propios) u ``"organization"`` (los de
+                todos los miembros; solo para el dueño).
+            include_software: Si añade el anexo con el software instalado.
+
+        Returns:
+            dict: El documento recién creado, en ``pending``.
+
+        Raises:
+            OrganizationScopeNotAllowedError: Si se pide el ámbito de
+                organización sin ser dueño de una.
+        """
+        if scope == "organization":
+            organization = OrganizationManager().get_mine(self.user.id)
+            if organization is None or not organization.get("isOwner"):
+                raise OrganizationScopeNotAllowedError()
+        parameters = {"scope": scope, "includeSoftware": bool(include_software)}
+        return _create_and_submit_document(
+            self._task_queue, self.user.id, self.external_id_for,
+            HygeiaDocumentKind.INVENTORY_PDF, "pdf", parameters,
+        )
+
+    def list_documents(self, page: int, per_page: int) -> Tuple[list, int]:
+        """Una página de los documentos del usuario, más recientes primero.
+
+        Args:
+            page: Página, desde 1.
+            per_page: Documentos por página.
+
+        Returns:
+            Tuple[list, int]: Los documentos de la página como diccionarios
+                (``HygeiaDocument.to_dict``) y el total del usuario.
+        """
+        documents, total = self.get_documents_for_user_paginated(self.user.id, page, per_page)
+        return [document.to_dict() for document in documents], total
+
+    def get_document(self, document_id: int) -> dict:
+        """Un documento del usuario.
+
+        Args:
+            document_id: Primary key del documento.
+
+        Returns:
+            dict: El documento (``HygeiaDocument.to_dict``).
+
+        Raises:
+            DocumentNotFoundError: Si no existe o es de otro usuario.
+        """
+        return self.assert_document_ownership(document_id, self.user.id).to_dict()
+
+    def get_document_file(self, document_id: int) -> Tuple[str, str, str]:
+        """Dónde está el fichero de un documento listo y cómo se descarga.
+
+        Args:
+            document_id: Primary key del documento.
+
+        Returns:
+            Tuple[str, str, str]: Ruta en disco, nombre de descarga y tipo MIME.
+
+        Raises:
+            DocumentNotFoundError: Si no existe o es de otro usuario.
+            DocumentNotReadyError: Si todavía no está en ``done`` o su fichero
+                ya no está en disco.
+        """
+        document = self.assert_document_ownership(document_id, self.user.id)
+        is_ready = document.status == "done" and document.filename
+        if not is_ready or not os.path.exists(document.filename):
+            raise DocumentNotReadyError(document_id, document.status)
+        download_name = document.download_name or os.path.basename(document.filename)
+        mimetype = _MIMETYPE_BY_FORMAT.get(document.format, "application/octet-stream")
+        return document.filename, download_name, mimetype
+
+    def delete_user_document(self, document_id: int) -> None:
+        """Borra un documento del usuario y su fichero.
+
+        Args:
+            document_id: Primary key del documento.
+
+        Raises:
+            DocumentNotFoundError: Si no existe o es de otro usuario.
+        """
+        self.assert_document_ownership(document_id, self.user.id)
+        self.delete_document(document_id)
+
+    @staticmethod
+    def execute_document_generation(document_id: int) -> None:
+        """Punto de entrada que ejecuta el worker de la TaskQueue.
+
+        Args:
+            document_id: Primary key del ``HygeiaDocument`` a generar.
+        """
+        with job_context():
+            _run_document_generation(document_id)
+
+    @classmethod
+    def reconcile_orphaned_documents(cls) -> int:
+        """Marca como ``error`` los documentos que ya nadie va a terminar.
+
+        Si la API o el worker se paran con un documento en ``pending`` o
+        ``running``, no queda trabajo vivo que lo actualice y el panel lo
+        enseñaría «generándose» para siempre. Se llama una vez al arrancar la
+        API. Un trabajo que sigue en la cola o que corre en un worker vivo se
+        respeta (``TaskQueue.is_recoverable``).
+
+        Returns:
+            int: Documentos marcados como ``error``.
+        """
+        task_queue = TaskQueue.get_instance()
+        manager = cls(user=None, task_queue=task_queue)
+        fixed = 0
+        with UnitOfWork() as uow:
+            repo = HygeiaDocumentRepository(uow)
+            for document in repo.get_unfinished_documents():
+                external_id = manager.external_id_for(document.id)
+                if task_queue.is_recoverable(external_id, cls.TASK_CATEGORY):
+                    continue
+                document.status = "error"
+                fixed += 1
+        return fixed

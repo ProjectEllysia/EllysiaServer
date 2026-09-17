@@ -27,7 +27,7 @@ from .metric_registry import (
     validate_metrics_are_additive,
 )
 from .reports import build_inventory_report
-from .export import build_csv
+from .export import build_csv, build_export_file_name
 from .stats_cache import invalidate_user_stats, resolve_cached_stats
 from .stats import (
     EnergyCost,
@@ -58,6 +58,7 @@ from .stats import (
 )
 
 __all__ = [
+    "build_export_file_name",
     "invalidate_user_stats",
     "resolve_cached_stats",
     "services_from_inventory",

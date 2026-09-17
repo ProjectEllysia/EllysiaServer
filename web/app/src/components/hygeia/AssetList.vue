@@ -21,13 +21,18 @@
             <path d="M7 15v3M12 9v9M17 5v13" />
           </svg>
         </RouterLink>
-        <button class="btn-icon" title="Inventario en PDF" aria-label="Descargar el inventario en PDF"
+        <button class="btn-icon" title="Inventario en PDF" aria-label="Preparar el inventario en PDF"
           @click="$emit('report')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
             <path d="M14 2v6h6M12 18v-6M9 15l3 3 3-3" />
           </svg>
         </button>
+        <RouterLink class="btn-icon" to="/hygeia/documentos" title="Documentos" aria-label="Ver los documentos pedidos">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+          </svg>
+        </RouterLink>
         <button class="btn-icon" title="Recargar" aria-label="Recargar activos" @click="$emit('refresh')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M23 4v6h-6M1 20v-6h6" />

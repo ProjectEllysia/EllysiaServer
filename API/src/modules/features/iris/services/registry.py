@@ -181,8 +181,13 @@ class RuleRegistry:
         def decorator(func: Callable) -> Callable:
             @functools.wraps(func)
             def anchored(rule_input: Any) -> RuleResult:
-                return anchor_result(func(rule_input), rule_input, header_names,
-                                     unanchorable_reason, name)
+                return anchor_result(
+                    func(rule_input), 
+                    rule_input, 
+                    header_names,
+                    unanchorable_reason, 
+                    name
+                )
 
             self._rules.append({
                 "func": anchored,

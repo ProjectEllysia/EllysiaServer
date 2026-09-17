@@ -35,12 +35,15 @@
               </small>
             </label>
 
-            <p v-if="error" class="error">{{ error }}</p>
+            <p class="note">
+              Se prepara en segundo plano: te avisamos cuando esté listo y lo descargas desde
+              Documentos.
+            </p>
 
             <div class="modal-footer">
               <button type="button" class="btn-secondary" @click="$emit('close')">Cancelar</button>
               <button type="submit" class="btn-primary" :disabled="generating">
-                {{ generating ? 'Generando…' : 'Descargar PDF' }}
+                {{ generating ? 'Pidiendo…' : 'Preparar PDF' }}
               </button>
             </div>
           </form>
@@ -59,8 +62,8 @@ const props = defineProps({
   assetCount: { type: Number, default: 0 },
   /** La organización del usuario, o null. Viene de `accountStore.organization`. */
   organization: { type: Object, default: null },
+  /** Si la petición del documento está en curso; desactiva el botón. */
   generating: { type: Boolean, default: false },
-  error: { type: String, default: '' },
 })
 const emit = defineEmits(['submit', 'close'])
 
@@ -149,7 +152,7 @@ function submit() {
    del grupo de ámbito: no es una alternativa, es un añadido. */
 .scope + .option { margin-bottom: 0.85rem; }
 
-.error { color: var(--danger); font-size: var(--fs-sm); margin: 0 0 0.6rem; }
+.note { color: var(--text-muted); font-size: var(--fs-sm); line-height: 1.5; margin: 0 0 0.6rem; }
 
 .modal-footer { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.4rem; }
 .btn-secondary, .btn-primary { padding: 0.45rem 0.9rem; border-radius: 6px; font-size: var(--fs-md); font-weight: 600; cursor: pointer; }

@@ -73,6 +73,7 @@ const FRONTEND_SUBROUTES = new Set([
   '/hygeia/activos',
   '/hygeia/etiquetas',
   '/hygeia/estadisticas',
+  '/hygeia/documentos',
 ])
 
 function proxyBypass(req) {

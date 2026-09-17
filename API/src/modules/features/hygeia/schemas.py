@@ -59,20 +59,6 @@ class AssetTagsRequestSchema(Schema):
     tagIds = fields.List(fields.Integer(), required=True)
 
 
-class InventoryReportRequestSchema(Schema):
-    """Petición del informe PDF del inventario de activos.
-
-    ``scope`` distingue "mis activos" de "los de toda mi organización"; el
-    segundo solo lo puede pedir el dueño, y de eso se encarga el manager, no
-    este schema. ``includeSoftware`` viene desactivado porque el anexo de
-    software puede multiplicar por veinte el tamaño del documento.
-    """
-    scope = fields.String(
-        load_default="user", validate=validate.OneOf(("user", "organization")),
-    )
-    includeSoftware = fields.Boolean(load_default=False)
-
-
 class AssetCreateRequestSchema(Schema):
     """Alta de un nuevo activo a monitorizar."""
     hostname = fields.String(required=True, validate=validate.Length(min=1, max=255))
@@ -554,21 +540,6 @@ def _build_period_field() -> fields.String:
     )
 
 
-def _build_format_field() -> fields.String:
-    """Campo ``format`` de las queries de estadísticas: ``json`` (por defecto) o ``csv``.
-
-    El JSON es el formato de toda la API, así que pedirlo no requiere nada;
-    ``csv`` devuelve **los mismos valores** en un fichero descargable, volcados
-    por ``services/export.py`` a partir de la respuesta ya serializada por este
-    mismo schema. No hay un segundo cálculo que pueda desviarse del primero.
-
-    Returns:
-        fields.String: Un campo nuevo en cada llamada; marshmallow no admite
-            compartir la misma instancia entre schemas.
-    """
-    return fields.String(load_default="json", validate=validate.OneOf(["json", "csv"]))
-
-
 def _build_refresh_field() -> fields.Boolean:
     """Campo ``refresh`` de las queries de estadísticas que se guardan en caché.
 
@@ -611,7 +582,6 @@ class AssetStatsSummaryQuerySchema(Schema):
     """
     metrics = fields.String(load_default=None)
     period = _build_period_field()
-    format = _build_format_field()
     refresh = _build_refresh_field()
 
     @post_load
@@ -977,7 +947,6 @@ class AssetRankingQuerySchema(Schema):
     order = fields.String(load_default="desc", validate=validate.OneOf(["desc", "asc"]))
     limit = fields.Integer(load_default=10, validate=validate.Range(min=1, max=100))
     period = _build_period_field()
-    format = _build_format_field()
     refresh = _build_refresh_field()
 
     @post_load
@@ -1107,15 +1076,6 @@ class BreachRankingResponseSchema(Schema):
     periodCoveredFrom = UTCDateTime()
     periodCoveredTo = UTCDateTime()
     isPeriodClipped = fields.Boolean()
-
-
-class FleetOverviewQuerySchema(Schema):
-    """Query de ``GET /hygeia/stats/overview``: solo el formato de salida.
-
-    El panorama no acepta periodo —es una foto del ahora, no de un tramo— así
-    que ``format`` es su único parámetro.
-    """
-    format = _build_format_field()
 
 
 class FleetOverviewResponseSchema(Schema):
@@ -1527,3 +1487,110 @@ class InventoryAnalysisSummarySchema(Schema):
     # (`Finding.cpe_resolved=False`) — el número real detrás del aviso, en vez
     # de "puede que alguno no se haya reconocido".
     unresolvedCount = fields.Integer(load_default=0)
+
+
+# =============================================================================
+# DOCUMENTOS — CSV de estadísticas y PDF de inventario generados en segundo plano
+# =============================================================================
+
+class DocumentCreateRequestSchema(Schema):
+    """Petición de un documento de Hygeia: qué fichero y de qué consulta.
+
+    ``kind`` decide qué campos cuentan:
+
+    - ``stats-csv``: ``dataset`` (``summary``, ``tag-stats``, ``ranking`` u
+      ``overview``) y los campos de ese alcance, con el mismo significado que
+      en las rutas de estadísticas: ``assetId`` en ``summary``; ``tagId`` en
+      ``tag-stats``; ``metric`` en ``ranking``; ``metrics`` (lista, vacía =
+      todas) en ``summary`` y ``tag-stats``; ``agg`` (``sum``/``avg``/``max``;
+      en ``ranking`` solo ``avg``/``max``), ``order`` y ``limit`` en
+      ``ranking``; y ``period`` (``<n>h``/``<n>d``, por defecto ``24h``) en
+      todos salvo ``overview``.
+    - ``inventory-pdf``: ``scope`` (``user`` por defecto u ``organization``) e
+      ``includeSoftware`` (por defecto ``false``).
+
+    Que el activo, la etiqueta o la métrica existan y sean del usuario lo
+    comprueba el manager. Tras cargar, ``period`` añade ``requested_duration``
+    (``timedelta``).
+    """
+    kind = fields.String(required=True, validate=validate.OneOf(["stats-csv", "inventory-pdf"]))
+    dataset = fields.String(
+        load_default=None,
+        validate=validate.OneOf(["summary", "tag-stats", "ranking", "overview"]),
+    )
+    assetId = fields.Integer(load_default=None, validate=validate.Range(min=1))
+    tagId = fields.Integer(load_default=None, validate=validate.Range(min=1))
+    metrics = fields.List(fields.String(), load_default=list)
+    metric = fields.String(load_default=None)
+    agg = fields.String(load_default=None, validate=validate.OneOf(["sum", "avg", "max"]))
+    order = fields.String(load_default="desc", validate=validate.OneOf(["desc", "asc"]))
+    limit = fields.Integer(load_default=10, validate=validate.Range(min=1, max=100))
+    period = _build_period_field()
+    scope = fields.String(load_default="user", validate=validate.OneOf(["user", "organization"]))
+    includeSoftware = fields.Boolean(load_default=False)
+
+    @validates_schema
+    def validate_scope_fields(self, data, **kwargs):  # pylint: disable=unused-argument
+        """Exige los campos que el ``kind`` y el ``dataset`` necesitan.
+
+        Raises:
+            ValidationError: Si falta ``dataset`` en un ``stats-csv``, falta el
+                id o la métrica de su alcance, o se pide ``agg=sum`` en un
+                ranking.
+        """
+        if data["kind"] != "stats-csv":
+            return
+        required_by_dataset = {"summary": "assetId", "tag-stats": "tagId", "ranking": "metric"}
+        dataset = data.get("dataset")
+        if dataset is None:
+            raise ValidationError("Falta el juego de datos a exportar.", field_name="dataset")
+        required = required_by_dataset.get(dataset)
+        if required and data.get(required) is None:
+            raise ValidationError(
+                f"El juego de datos {dataset} necesita {required}.", field_name=required,
+            )
+        if dataset == "ranking" and data.get("agg") == "sum":
+            raise ValidationError("El ranking se ordena por media o por máximo.", field_name="agg")
+
+    @post_load
+    def add_requested_duration(self, data, **kwargs):  # pylint: disable=unused-argument
+        """Añade ``requested_duration`` a partir de ``period``.
+
+        Returns:
+            dict: Los datos cargados con ``requested_duration`` (``timedelta``).
+        """
+        data["requested_duration"] = _parse_period(data["period"])
+        return data
+
+
+class DocumentsQuerySchema(Schema):
+    """Query de ``GET /hygeia/documents``: ``page`` desde 1 y ``perPage`` de 1 a 100 (20)."""
+    page = fields.Integer(load_default=1, validate=validate.Range(min=1))
+    perPage = fields.Integer(load_default=20, validate=validate.Range(min=1, max=100))
+
+
+class DocumentSchema(Schema):
+    """Un documento de Hygeia.
+
+    ``status`` es ``pending`` (en cola), ``running`` (generándose), ``done``
+    (listo para descargar) o ``error``. ``parameters`` es la consulta tal como
+    se pidió, con ``scopeLabel`` (el nombre del activo o la etiqueta en ese
+    momento) para describir el documento aunque ya no existan.
+    ``downloadName`` solo existe cuando el documento está listo.
+    """
+    id = fields.Integer()
+    kind = fields.String()
+    format = fields.String()
+    status = fields.String()
+    parameters = fields.Dict()
+    downloadName = fields.String(allow_none=True)
+    createdAt = UTCDateTime()
+    generatedAt = UTCDateTime(allow_none=True)
+
+
+class DocumentListResponseSchema(Schema):
+    """Una página de documentos del usuario, más recientes primero, y el total."""
+    documents = fields.List(fields.Nested(DocumentSchema))
+    total = fields.Integer()
+    page = fields.Integer()
+    perPage = fields.Integer()
