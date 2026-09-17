@@ -14,8 +14,8 @@
 import {
   MAX_COMPARISON_METRICS, STATS_METRICS, STATS_PERIODS, STATS_SCOPES, STATS_AGGREGATIONS,
   alignComparisonSeries, bucketForPeriod, comparisonPath, describeCoverage, describeLaneRange,
-  buildStatsDocumentRequest, formatStatValue, isAggregationAllowed, metricOf, oldestInstant,
-  rankingRows, summaryRows, tagMetricRows,
+  buildStatsDocumentRequest, formatStatValue, inactivityRanges, isAggregationAllowed, metricOf,
+  oldestInstant, rankingRows, summaryRows, tagMetricRows,
 } from '../src/components/hygeia/statsMath.js'
 
 let passed = 0
@@ -275,6 +275,57 @@ eq('una serie plana se dibuja en el centro y no en un borde',
 
 eq('una sola muestra no da línea', comparisonPath(straight.lanes[0], [T0], box), [])
 eq('una calle inexistente tampoco', comparisonPath(null, straight.instants, box), [])
+
+console.log('\nrejilla completa del periodo (huecos totales)')
+
+// Cubre de la hora 0 a la 5, con dos horas (2 y 3) en las que ninguna
+// métrica reporta nada: el caso de un activo apagado.
+const gridRange = {
+  from: new Date(T0).toISOString(),
+  to: new Date(T0 + 5 * HOUR).toISOString(),
+  bucketMs: HOUR,
+}
+const totalGap = alignComparisonSeries([
+  source('cpuPct', 'CPU', [[0, 10], [1, 20], [4, 40], [5, 50]]),
+], gridRange)
+
+eq('con la cobertura del periodo, el eje es la rejilla completa y no solo los instantes con dato',
+  totalGap.instants,
+  [T0, T0 + HOUR, T0 + 2 * HOUR, T0 + 3 * HOUR, T0 + 4 * HOUR, T0 + 5 * HOUR])
+eq('el tramo sin ningún dato queda a null, no desaparece del eje',
+  totalGap.lanes[0].values, [10, 20, null, null, 40, 50])
+
+eq('sin range se cae al comportamiento previo (solo instantes con dato)',
+  alignComparisonSeries([source('cpuPct', 'CPU', [[0, 10], [1, 20], [4, 40], [5, 50]])]).instants,
+  [T0, T0 + HOUR, T0 + 4 * HOUR, T0 + 5 * HOUR])
+eq('un range incompleto también se ignora',
+  alignComparisonSeries(
+    [source('cpuPct', 'CPU', [[0, 10], [1, 20], [4, 40], [5, 50]])], { from: gridRange.from },
+  ).instants,
+  [T0, T0 + HOUR, T0 + 4 * HOUR, T0 + 5 * HOUR])
+
+const totalGapPath = comparisonPath(totalGap.lanes[0], totalGap.instants, box)
+eq('el tramo sin ningún dato corta la línea de verdad, no la une con una recta',
+  totalGapPath.length, 2)
+
+console.log('\ntramos de inactividad')
+
+eq('el hueco total del ejemplo anterior se marca como un tramo de inactividad',
+  inactivityRanges(totalGap.lanes, totalGap.instants, box),
+  [{ x: 40, width: 40 }])
+
+// La memoria sí tiene dato en la hora 3: solo la hora 2 queda sin ninguna
+// métrica, así que el tramo de inactividad es más corto.
+const partialAllMissing = alignComparisonSeries([
+  source('cpuPct', 'CPU', [[0, 10], [1, 20], [4, 40], [5, 50]]),
+  source('memPct', 'Memoria', [[0, 60], [1, 65], [3, 75], [4, 80], [5, 85]]),
+], gridRange)
+eq('un hueco de una sola métrica no cuenta como inactividad si otra sí tiene dato',
+  inactivityRanges(partialAllMissing.lanes, partialAllMissing.instants, box),
+  [{ x: 40, width: 20 }])
+
+eq('sin calles no hay tramos de inactividad', inactivityRanges([], totalGap.instants, box), [])
+eq('con menos de dos instantes tampoco', inactivityRanges(totalGap.lanes, [T0], box), [])
 
 console.log('\nrótulo del rango de cada línea')
 

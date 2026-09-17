@@ -18,9 +18,9 @@
  *     unos vatios.
  *   - La composición de las filas de las tablas de resumen y de ranking.
  *   - La geometría de la gráfica comparativa (`alignComparisonSeries`,
- *     `comparisonPath`), que superpone varias métricas de unidades distintas
- *     sobre el mismo eje temporal sin reconciliar nada: el servidor ya las
- *     devuelve alineadas por cubo.
+ *     `comparisonPath`, `inactivityRanges`), que superpone varias métricas de
+ *     unidades distintas sobre el mismo eje temporal sin reconciliar nada: el
+ *     servidor ya las devuelve alineadas por cubo.
  */
 
 import { fmtBytes, fmtLoad1, fmtPct, fmtRate, fmtWatts } from './format.js'
@@ -309,14 +309,49 @@ export function bucketForPeriod(period) {
 }
 
 /**
+ * Rejilla completa de instantes esperados de un periodo, a pasos regulares
+ * del cubo con el que se pidió.
+ *
+ * Existe para que un tramo en el que **ninguna** métrica tuvo dato —el caso
+ * típico de un activo apagado— siga presente en el eje temporal aunque no
+ * traiga ningún punto: si el eje solo llevara los instantes que sí trajo
+ * alguna métrica, ese tramo entero desaparecería y los dos puntos reales más
+ * próximos quedarían adyacentes, dibujando una línea recta a través del
+ * apagón como si el dato fuera continuo.
+ *
+ * @param {{from: string|null, to: string|null, bucketMs: number|null}} range
+ *   Cobertura del periodo (`periodCoveredFrom`/`periodCoveredTo` de la
+ *   respuesta) y el cubo real usado, en milisegundos.
+ * @returns {Array<number>|null} Los instantes de la rejilla, en milisegundos,
+ *   o `null` si falta algún dato de `range` o el periodo es degenerado (sin
+ *   cobertura o al revés), en cuyo caso no se puede construir.
+ */
+function fullPeriodGrid({ from, to, bucketMs } = {}) {
+  if (!from || !to || !bucketMs) return null
+  const start = new Date(from).getTime()
+  const end = new Date(to).getTime()
+  if (Number.isNaN(start) || Number.isNaN(end) || end <= start) return null
+
+  const grid = []
+  for (let instant = start; instant <= end; instant += bucketMs) grid.push(instant)
+  return grid
+}
+
+/**
  * Alinea varias series de métricas distintas sobre un único eje temporal.
  *
  * Cada serie llega con sus propios puntos y sin los cubos que no tuvieron
  * datos —la ausencia de señal es un hueco, no un cero—, así que dos métricas
  * del mismo periodo pueden traer distinto número de puntos. Esta función
- * construye el eje como la unión ordenada de todos los instantes y coloca cada
- * métrica sobre él, con `null` en los instantes en que esa métrica no tiene
- * dato. No interpola: un hueco sigue siendo un hueco.
+ * construye el eje y coloca cada métrica sobre él, con `null` en los
+ * instantes en que esa métrica no tiene dato. No interpola: un hueco sigue
+ * siendo un hueco.
+ *
+ * Con `range` completo, el eje es la **rejilla completa del periodo**
+ * (`fullPeriodGrid`), no solo los instantes que trajo alguna métrica: así un
+ * tramo sin ningún dato en absoluto queda representado en el eje en vez de
+ * desaparecer (ver `fullPeriodGrid`). Sin `range` —o incompleto— se cae a la
+ * unión ordenada de los instantes con dato, que es el comportamiento previo.
  *
  * Cada métrica conserva su propio mínimo y máximo, porque **no comparten
  * escala vertical**: superponer un porcentaje y una tasa en bytes por segundo
@@ -327,12 +362,15 @@ export function bucketForPeriod(period) {
  * @param {Array<{key: string, name: string, points: Array<{at: string, value: number}>}>} sources
  *   Una entrada por métrica seleccionada, con los puntos tal como los sirve
  *   `GET /hygeia/stats/series`.
+ * @param {{from: string|null, to: string|null, bucketMs: number|null}} [range]
+ *   Cobertura del periodo y cubo real, para construir la rejilla completa
+ *   (ver `fullPeriodGrid`). Opcional; sin ella el eje sale de los datos.
  * @returns {{instants: Array<number>, lanes: Array<object>}} El eje temporal en
  *   milisegundos y una calle por métrica, con sus valores alineados, su rango y
  *   cuántos puntos con dato tiene. Sin ninguna fuente con puntos, las dos
  *   listas vienen vacías.
  */
-export function alignComparisonSeries(sources) {
+export function alignComparisonSeries(sources, range) {
   const withPoints = (sources ?? []).filter((source) => (source?.points ?? []).length)
   if (!withPoints.length) return { instants: [], lanes: [] }
 
@@ -345,7 +383,9 @@ export function alignComparisonSeries(sources) {
     return byInstant
   })
 
-  const instants = [...new Set(valuesByInstant.flatMap((byInstant) => [...byInstant.keys()]))]
+  const presentInstants = valuesByInstant.flatMap((byInstant) => [...byInstant.keys()])
+  const grid = fullPeriodGrid(range ?? {})
+  const instants = [...new Set(grid ? [...grid, ...presentInstants] : presentInstants)]
     .sort((left, right) => left - right)
 
   const lanes = withPoints.map((source, position) => {
@@ -409,6 +449,53 @@ export function comparisonPath(lane, instants, box) {
   if (current.length > 1) segments.push(current)
 
   return segments.map((segment) => segment.join(' '))
+}
+
+/**
+ * Tramos del eje en los que ninguna calle tiene dato: el activo no reportó
+ * nada en absoluto durante ese tramo, a diferencia de un hueco de una sola
+ * métrica mientras las demás sí tienen lectura.
+ *
+ * Se calcula aparte de `comparisonPath` porque el corte de una línea no basta
+ * para leerse como «el activo estuvo inactivo»: una línea rota es igual de
+ * fácil de leer como ruido puntual. Estos tramos se pintan como una franja de
+ * fondo que lo dice explícitamente.
+ *
+ * @param {Array<object>} lanes - Las calles de `alignComparisonSeries`, ya
+ *   alineadas sobre `instants`.
+ * @param {Array<number>} instants - El eje temporal compartido, en ms.
+ * @param {{width: number, height: number}} box - Caja de dibujo en unidades SVG.
+ * @returns {Array<{x: number, width: number}>} Un rectángulo por tramo
+ *   contiguo sin ningún dato, en las mismas unidades que `comparisonPath`.
+ *   Vacío sin calles, con menos de dos instantes, o si nunca faltan todas a
+ *   la vez.
+ */
+export function inactivityRanges(lanes, instants, box) {
+  if (!lanes?.length || instants.length < 2) return []
+
+  const firstInstant = instants[0]
+  const span = instants[instants.length - 1] - firstInstant
+  if (span === 0) return []
+
+  const toX = (instant) => ((instant - firstInstant) / span) * box.width
+
+  const ranges = []
+  let start = null
+  instants.forEach((instant, index) => {
+    const allMissing = lanes.every((lane) => isMissing(lane.values[index]))
+    if (allMissing) {
+      if (start === null) start = instant
+      return
+    }
+    if (start !== null) {
+      ranges.push({ x: toX(start), width: toX(instant) - toX(start) })
+      start = null
+    }
+  })
+  if (start !== null) {
+    ranges.push({ x: toX(start), width: toX(instants[instants.length - 1]) - toX(start) })
+  }
+  return ranges
 }
 
 /**
