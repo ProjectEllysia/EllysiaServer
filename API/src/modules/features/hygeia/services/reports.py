@@ -1,20 +1,27 @@
 """
-Informe PDF del inventario de activos de Hygeia.
+Informes PDF de Hygeia: inventario de activos y estadísticas.
 
-Dibuja, no consulta: recibe los activos ya cargados y devuelve los bytes del
-PDF. El manager es quien decide qué activos entran (propios o de toda la
-organización) y quien comprueba permisos; aquí solo se pinta lo que llega.
+Dibuja, no consulta: recibe los datos ya calculados y devuelve los bytes del
+PDF. El manager es quien decide el alcance (qué activos, qué juego de datos) y
+quien comprueba permisos; aquí solo se pinta lo que llega.
 
-El documento se construye sobre un ``BytesIO``, sin tocar el disco. Es lo que
-hace innecesarios un directorio de salida, una entrada en ``DirectoryType`` y
-cualquier limpieza posterior: el PDF se genera, se envía y desaparece. Si algún
-día hiciera falta archivarlo, ese es el momento de darle una fila en
-``Document``, no antes.
+Cada documento se construye sobre un ``BytesIO``, sin tocar el disco. Es lo
+que hace innecesarios un directorio de salida, una entrada en
+``DirectoryType`` y cualquier limpieza posterior: el PDF se genera, se envía y
+desaparece. Si algún día hiciera falta archivarlo, ese es el momento de darle
+una fila en ``Document``, no antes.
 
-Estructura:
+Inventario (``build_inventory_report``):
     1. Portada — ámbito, autor, fecha y recuento por estado.
     2. Registro de activos — una fila por activo.
     3. Anexo de software — opcional, una tabla por activo, al final.
+
+Estadísticas (``build_stats_report``):
+    1. Portada — juego de datos, ámbito y periodo.
+    2. Tabla de datos — las mismas cifras que exporta el CSV
+       (``services/export.py``), del mismo ``payload`` ya serializado por el
+       schema del endpoint: el PDF no puede decir un número distinto del que
+       ve el usuario en pantalla porque no calcula nada, solo lo maqueta.
 """
 
 from __future__ import annotations
@@ -22,7 +29,7 @@ from __future__ import annotations
 import io
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional, Sequence
+from typing import Any, Dict, Mapping, Optional, Sequence
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
@@ -447,15 +454,19 @@ def build_inventory_report(
     )
     document.build(
         elements,
-        onFirstPage=lambda canvas, doc: _draw_page_furniture(canvas, doc, theme),
-        onLaterPages=lambda canvas, doc: _draw_page_furniture(canvas, doc, theme),
+        onFirstPage=lambda canvas, doc: _draw_page_furniture(
+            canvas, doc, theme, "Ellysia · Inventario de activos",
+        ),
+        onLaterPages=lambda canvas, doc: _draw_page_furniture(
+            canvas, doc, theme, "Ellysia · Inventario de activos",
+        ),
     )
 
     buffer.seek(0)
     return buffer.read()
 
 
-def _draw_page_furniture(canvas, document, theme: ReportTheme) -> None:
+def _draw_page_furniture(canvas, document, theme: ReportTheme, header_title: str) -> None:
     """Barra de acento, cabecera y número de página.
 
     Mismo aparejo que los informes de Themis (``creator.py::_on_page``), para
@@ -463,6 +474,10 @@ def _draw_page_furniture(canvas, document, theme: ReportTheme) -> None:
 
     La portada se queda limpia: una cabecera y un pie en la página 1 son
     justamente lo que hace que una portada no parezca una portada.
+
+    Args:
+        header_title: Texto de la cabecera de las páginas interiores; distingue
+            un informe de inventario de uno de estadísticas.
     """
     if canvas.getPageNumber() == 1:
         return
@@ -478,7 +493,7 @@ def _draw_page_furniture(canvas, document, theme: ReportTheme) -> None:
 
     canvas.setFont("Helvetica-Bold", 12)
     canvas.setFillColor(dark)
-    canvas.drawString(40, height - 30, "Ellysia · Inventario de activos")
+    canvas.drawString(40, height - 30, header_title)
 
     canvas.setStrokeColor(colors.HexColor("#e0e0e0"))
     canvas.setLineWidth(0.5)
@@ -499,3 +514,319 @@ def _draw_page_furniture(canvas, document, theme: ReportTheme) -> None:
     canvas.drawRightString(width - 40, 28, f"Página {canvas.getPageNumber()}")
 
     canvas.restoreState()
+
+
+# =============================================================================
+# INFORME DE ESTADÍSTICAS
+# =============================================================================
+
+#: Título de cada juego de datos, tal como lo lee la portada. Mismas claves que
+#: ``CSV_RENDERERS`` (``services/export.py``): son los dos formatos del mismo
+#: catálogo de consultas.
+_STATS_TITLES = {
+    "summary": "Resumen de un activo",
+    "tag-stats": "Estadísticas de una etiqueta",
+    "ranking": "Ranking del parque",
+    "overview": "Panorama del parque",
+}
+
+
+def _format_number(value: Any) -> str:
+    """Un valor numérico legible, o una raya si no hay dato.
+
+    Los enteros (recuentos, muestras) salen sin decimales; el resto, con dos.
+    Un ``bool`` se lee "Sí"/"No", que es lo que significa en este informe
+    (``isPeriodClipped``).
+    """
+    if value is None:
+        return "—"
+    if isinstance(value, bool):
+        return "Sí" if value else "No"
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, float):
+        return f"{value:.2f}" if value % 1 else str(int(value))
+    return str(value)
+
+
+def _format_iso_instant(value: Optional[str]) -> str:
+    """Un instante ISO 8601 (tal como lo deja el schema al serializar) en formato local.
+
+    ``payload`` ya viene serializado por el mismo schema Marshmallow del
+    endpoint JSON, así que las fechas llegan como texto, no como ``datetime``.
+    Un valor que no se pueda parsear se imprime tal cual: es preferible a
+    perder el dato.
+    """
+    if not value:
+        return "—"
+    try:
+        return _format_datetime(datetime.fromisoformat(value.replace("Z", "+00:00")))
+    except ValueError:
+        return str(value)
+
+
+def _stats_window_caption(payload: Mapping[str, Any]) -> str:
+    """Frase con la ventana cubierta, o cadena vacía si el juego de datos no tiene una."""
+    covered_from, covered_to = payload.get("periodCoveredFrom"), payload.get("periodCoveredTo")
+    if not covered_from and not covered_to:
+        return ""
+    clipped = " (recortada al histórico disponible)" if payload.get("isPeriodClipped") else ""
+    return f"Del {_format_iso_instant(covered_from)} al {_format_iso_instant(covered_to)}{clipped}"
+
+
+def _summary_table(theme: ReportTheme, payload: Mapping[str, Any]) -> Optional[Table]:
+    """Una fila por métrica del resumen de un activo. ``None`` si no hay ninguna.
+
+    Lleva ``timestampOfMax``, igual que la tabla en pantalla, que lo enseña
+    como segunda línea bajo el máximo: cuándo ocurrió el pico es parte de la
+    lectura, no un dato de repuesto que solo vive en el CSV.
+    """
+    metrics: Dict[str, Any] = payload.get("metrics") or {}
+    if not metrics:
+        return None
+    header = ["Métrica", "Mín", "Media", "P95", "Máx", "Máx. el", "Actual", "Muestras"]
+    rows = [[_cell(text, theme.label) for text in header]]
+    for name, aggregate in sorted(metrics.items()):
+        rows.append([_cell(value, theme.body) for value in (
+            name,
+            _format_number(aggregate.get("min")), _format_number(aggregate.get("avg")),
+            _format_number(aggregate.get("p95")), _format_number(aggregate.get("max")),
+            _format_iso_instant(aggregate.get("timestampOfMax")),
+            _format_number(aggregate.get("current")), _format_number(aggregate.get("sampleCount")),
+        )])
+    table = Table(
+        rows, colWidths=[1.15 * inch] + [0.62 * inch] * 4 + [0.95 * inch, 0.62 * inch, 0.65 * inch],
+        repeatRows=1,
+    )
+    table.setStyle(_data_table_style(theme))
+    return table
+
+
+def _tag_stats_table(theme: ReportTheme, payload: Mapping[str, Any]) -> Optional[Table]:
+    """Una fila por métrica de una etiqueta: valor combinado y activos que aportaron datos."""
+    metrics: Dict[str, Any] = payload.get("metrics") or {}
+    if not metrics:
+        return None
+    header = ["Métrica", "Unidad", "Valor", "Activos con datos"]
+    rows = [[_cell(text, theme.label) for text in header]]
+    for name, aggregate in sorted(metrics.items()):
+        rows.append([_cell(value, theme.body) for value in (
+            name, aggregate.get("unit") or "—",
+            _format_number(aggregate.get("value")), _format_number(aggregate.get("assetsWithData")),
+        )])
+    table = Table(rows, colWidths=[2.2 * inch, 1.2 * inch, 1.2 * inch, 1.6 * inch], repeatRows=1)
+    table.setStyle(_data_table_style(theme))
+    return table
+
+
+def _ranking_table(theme: ReportTheme, payload: Mapping[str, Any]) -> Optional[Table]:
+    """Una fila por activo del ranking, en el orden que decidió el servidor."""
+    assets = payload.get("assets") or []
+    if not assets:
+        return None
+    header = ["#", "Activo", "Valor", "Muestras"]
+    rows = [[_cell(text, theme.label) for text in header]]
+    for position, entry in enumerate(assets, start=1):
+        rows.append([_cell(value, theme.body) for value in (
+            str(position), entry.get("hostname") or f"#{entry.get('assetId')}",
+            _format_number(entry.get("value")), _format_number(entry.get("sampleCount")),
+        )])
+    table = Table(rows, colWidths=[0.5 * inch, 2.9 * inch, 1.3 * inch, 1.5 * inch], repeatRows=1)
+    table.setStyle(_data_table_style(theme))
+    return table
+
+
+def _overview_table(theme: ReportTheme, payload: Mapping[str, Any]) -> Optional[Table]:
+    """El panorama del parque como tabla de dos columnas: medida y valor.
+
+    Nunca es ``None``: a diferencia de los otros tres juegos de datos, el
+    panorama siempre tiene una fila (``assetCount``), aunque el parque esté
+    vacío — es una foto del estado actual, no una serie que pueda quedar sin
+    puntos.
+    """
+    rows = [[_cell(text, theme.label) for text in ("Medida", "Valor")]]
+    rows.append([_cell(value, theme.body) for value in (
+        "Activos", _format_number(payload.get("assetCount")),
+    )])
+    for group, title in (
+        ("assetsByStatus", "Activos por estado"), ("openAnomaliesBySeverity", "Anomalías abiertas"),
+    ):
+        for key, count in sorted((payload.get(group) or {}).items()):
+            rows.append([_cell(value, theme.body) for value in (f"{title} · {key}", str(count))])
+    rows.append([_cell(value, theme.body) for value in (
+        "Anomalías reconocidas", _format_number(payload.get("acknowledgedAnomalyCount")),
+    )])
+    rows.append([_cell(value, theme.body) for value in (
+        "Disponibilidad media (s)", _format_number(payload.get("averageUptimeSec")),
+    )])
+    rows.append([_cell(value, theme.body) for value in (
+        "Última actividad", _format_iso_instant(payload.get("lastActivityAt")),
+    )])
+    table = Table(rows, colWidths=[3.0 * inch, 3.0 * inch], repeatRows=1)
+    table.setStyle(_data_table_style(theme))
+    return table
+
+
+#: Qué función dibuja la tabla de cada juego de datos. Añadir un dataset
+#: exportable a PDF es añadir una entrada aquí, igual que en
+#: ``services/export.py::CSV_RENDERERS``.
+_STATS_TABLE_BUILDERS = {
+    "summary": _summary_table,
+    "tag-stats": _tag_stats_table,
+    "ranking": _ranking_table,
+    "overview": _overview_table,
+}
+
+
+def _stats_cover(
+    theme: ReportTheme, dataset: str, scope_label: Optional[str], period_caption: str,
+    author: str, generated_at: datetime,
+) -> list:
+    """Portada del informe de estadísticas.
+
+    Mismo molde que la del inventario (``_cover``), sin la ficha de recuento
+    por estado: no hay activos que contar, hay una tabla que presentar.
+    """
+    main = colors.HexColor(theme.palette[ColorType.MAIN])
+    light = colors.HexColor(theme.palette[ColorType.LIGHT])
+    white = colors.HexColor(theme.palette[ColorType.WHITE])
+    black = colors.HexColor(theme.palette[ColorType.BLACK])
+
+    elements: list = [Spacer(1, 0.9 * inch)]
+
+    if _LOGO_PATH.exists():
+        logo = Image(str(_LOGO_PATH), width=1.15 * inch, height=1.23 * inch)
+        logo.hAlign = "CENTER"
+        elements.append(logo)
+        elements.append(Spacer(1, 0.45 * inch))
+    else:
+        elements.append(Spacer(1, 1.0 * inch))
+
+    title_style = ParagraphStyle(
+        "StatsCoverTitle", parent=theme.styles["Heading1"],
+        fontSize=28, leading=32, textColor=white,
+        alignment=TA_CENTER, fontName="Helvetica-Bold",
+    )
+    title_band = Table(
+        [[Paragraph(_STATS_TITLES.get(dataset, "Estadísticas"), title_style)]], colWidths=[6 * inch],
+    )
+    title_band.setStyle(TableStyle([
+        ("BACKGROUND",    (0, 0), (-1, -1), main),
+        ("TOPPADDING",    (0, 0), (-1, -1), 16),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 16),
+        ("LEFTPADDING",   (0, 0), (-1, -1), 24),
+        ("RIGHTPADDING",  (0, 0), (-1, -1), 24),
+    ]))
+    elements.append(title_band)
+
+    subtitle_style = ParagraphStyle(
+        "StatsCoverSubtitle", parent=theme.styles["Normal"],
+        fontSize=13, leading=16, textColor=black, alignment=TA_CENTER,
+    )
+    elements.append(Spacer(1, 0.3 * inch))
+    elements.append(Paragraph(scope_label or "—", subtitle_style))
+    if period_caption:
+        elements.append(Spacer(1, 0.05 * inch))
+        elements.append(Paragraph(period_caption, ParagraphStyle(
+            "StatsCoverPeriod", parent=subtitle_style, fontSize=10, textColor=main,
+        )))
+
+    elements.append(Spacer(1, 0.9 * inch))
+    info_table = Table(
+        [["Generado por:", author], ["Fecha:", _format_datetime(generated_at)]],
+        colWidths=[1.8 * inch, 3.2 * inch],
+    )
+    info_table.setStyle(TableStyle([
+        ("TEXTCOLOR",     (0, 0), (0, -1), main),
+        ("TEXTCOLOR",     (1, 0), (1, -1), black),
+        ("FONTNAME",      (0, 0), (0, -1), "Helvetica-Bold"),
+        ("FONTSIZE",      (0, 0), (-1, -1), 10),
+        ("ALIGN",         (0, 0), (-1, -1), "CENTER"),
+        ("TOPPADDING",    (0, 0), (-1, -1), 10),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+        ("BOX",           (0, 0), (-1, -1), 1, light),
+    ]))
+    elements.append(info_table)
+
+    elements.append(Spacer(1, 0.6 * inch))
+    decoration = Table([[""]], colWidths=[6 * inch], rowHeights=[0.12 * inch])
+    decoration.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), light)]))
+    elements.append(decoration)
+
+    elements.append(PageBreak())
+    return elements
+
+
+def build_stats_report(
+    *,
+    dataset: str,
+    payload: Mapping[str, Any],
+    scope_label: Optional[str],
+    author: str,
+    generated_at: Optional[datetime] = None,
+) -> bytes:
+    """
+    Dibuja el informe de estadísticas y devuelve los bytes del PDF.
+
+    ``payload`` es el mismo diccionario ya serializado por el schema
+    Marshmallow del endpoint JSON (el que también consume
+    ``services/export.py::build_csv``), así que el PDF no puede decir un
+    número distinto del que exporta el CSV o del que se ve en el panel: los
+    tres leen la misma respuesta, no recalculan nada por su cuenta. El
+    periodo pedido no hace falta como argumento aparte: ya viaja dentro de
+    ``payload`` como ``periodCoveredFrom``/``periodCoveredTo``, que es lo que
+    pinta la portada.
+
+    Args:
+        dataset: Juego de datos (``summary``, ``tag-stats``, ``ranking`` u
+            ``overview``); decide el título de la portada y la forma de la
+            tabla.
+        payload: Respuesta ya serializada del juego de datos.
+        scope_label: Texto del ámbito para la portada (el hostname, el nombre
+            de la etiqueta, o ``None`` en ``ranking``/``overview``, que no
+            tienen uno).
+        author: Quién pide el informe, tal como debe figurar en la portada.
+        generated_at: Instante que figura en la portada. Se inyecta para que
+            los tests puedan fijarlo.
+
+    Returns:
+        El PDF completo, en memoria.
+    """
+    generated_at = generated_at or datetime.now()
+    theme = ReportTheme(getSampleStyleSheet(), _palette())
+
+    elements = _stats_cover(
+        theme, dataset, scope_label, _stats_window_caption(payload), author, generated_at,
+    )
+
+    table = _STATS_TABLE_BUILDERS[dataset](theme, payload)
+    if table is not None:
+        elements.extend(theme.section_header(_STATS_TITLES.get(dataset, "Estadísticas"), "DATOS"))
+        elements.append(Spacer(1, 0.15 * inch))
+        elements.append(table)
+    else:
+        elements.append(Paragraph(
+            "No hay datos para el alcance y el periodo elegidos.", theme.body,
+        ))
+
+    buffer = io.BytesIO()
+    document = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        title=f"Estadísticas Hygeia — {_STATS_TITLES.get(dataset, dataset)}",
+        author=author,
+        leftMargin=0.6 * inch, rightMargin=0.6 * inch,
+        topMargin=0.7 * inch, bottomMargin=0.7 * inch,
+    )
+    document.build(
+        elements,
+        onFirstPage=lambda canvas, doc: _draw_page_furniture(
+            canvas, doc, theme, "Ellysia · Estadísticas",
+        ),
+        onLaterPages=lambda canvas, doc: _draw_page_furniture(
+            canvas, doc, theme, "Ellysia · Estadísticas",
+        ),
+    )
+
+    buffer.seek(0)
+    return buffer.read()

@@ -75,7 +75,7 @@ from .schemas import (
 from .services import (
     METRIC_REGISTRY, MetricDefinition, MetricUnit, assert_metric_definition,
     build_csv, build_export_file_name, build_histogram, build_inventory_report,
-    build_percentile_series, calculate_core_spread,
+    build_percentile_series, build_stats_report, calculate_core_spread,
     check_clock_skew,
     combine_asset_averages, denormalize, detect_peak_coincidence, estimate_days_until_full,
     evaluate, extract_entity_series, fit_linear_trend, generate_agent_key,
@@ -2642,6 +2642,36 @@ class HygeiaReportManager:
         suffix = "organizacion" if scope == "organization" else "propio"
         return pdf, f"inventario-hygeia-{suffix}-{stamp}.pdf"
 
+    def build_stats_report(
+        self, *, dataset: str, payload: dict, scope_label: Optional[str], period: Optional[str],
+    ) -> tuple[bytes, str]:
+        """
+        Construye el PDF de un juego de datos de estadísticas.
+
+        No lo llama ninguna ruta directamente: lo usa la generación en segundo
+        plano del documento ``stats-pdf`` (``HygeiaDocumentManager``), con
+        ``payload`` ya calculado y serializado por ``_compute_stats_payload`` —
+        el mismo camino que alimenta el CSV, así que las cifras del PDF nunca
+        pueden divergir de las del CSV o de la tabla en pantalla.
+
+        Args:
+            dataset: ``"summary"``, ``"tag-stats"``, ``"ranking"`` u
+                ``"overview"``.
+            payload: Respuesta ya serializada de ese juego de datos.
+            scope_label: Nombre del activo o de la etiqueta para la portada y
+                el nombre de fichero; ``None`` en ``ranking``/``overview``.
+            period: Periodo pedido (``24h``, ``7d``…), para el nombre de
+                fichero; ``None`` en ``overview``.
+
+        Returns:
+            ``(bytes del PDF, nombre de fichero sugerido)``.
+        """
+        author = f"{self.user.first_name} {self.user.last_name}".strip() or self.user.username
+        pdf = build_stats_report(
+            dataset=dataset, payload=payload, scope_label=scope_label, author=author,
+        )
+        return pdf, build_export_file_name(dataset, scope_label, period, extension="pdf")
+
     def _organization_scope(self) -> tuple[list, str, dict]:
         """Activos de toda la organización, si el usuario es su dueño.
 
@@ -3289,25 +3319,28 @@ def _build_stats_csv_parameters(  # pylint: disable=too-many-arguments
     return parameters
 
 
-def _render_stats_csv(user: User, parameters: dict) -> Tuple[bytes, str]:
-    """Calcula una estadística y la vuelca a CSV; cuerpo de un documento ``stats-csv``.
+def _compute_stats_payload(user: User, dataset: str, parameters: dict) -> dict:
+    """Calcula una estadística y la sirve ya serializada por el schema del endpoint JSON.
 
-    Llama a los mismos métodos de manager que los endpoints JSON (y por tanto
-    aprovecha la caché de estadísticas) y serializa con el mismo schema.
+    Único camino de cálculo para los documentos de estadísticas, sea cual sea
+    su formato de salida: llama al mismo método de manager que el endpoint
+    JSON (y por tanto aprovecha la caché de estadísticas) y serializa con el
+    mismo schema Marshmallow, así que el CSV, el PDF y la respuesta JSON no
+    pueden decir tres cifras distintas — leen la misma.
 
     Args:
         user: Dueño del documento; las estadísticas se calculan con su
             visibilidad, nunca con nada que venga del cliente.
+        dataset: ``"summary"``, ``"tag-stats"``, ``"ranking"`` u ``"overview"``.
         parameters: Los parámetros guardados por ``_build_stats_csv_parameters``.
 
     Returns:
-        Tuple[bytes, str]: El contenido del CSV y el nombre de descarga.
+        dict: La respuesta ya serializada (claves camelCase, valores JSON-safe).
 
     Raises:
         AssetNotFoundError / TagNotFoundError: Si el activo o la etiqueta
             desaparecieron entre la petición y la generación.
     """
-    dataset = parameters["dataset"]
     duration = timedelta(seconds=parameters.get("durationSeconds", 0))
     if dataset == "summary":
         payload = HygeiaAssetManager(user).get_stats_summary(
@@ -3325,10 +3358,47 @@ def _render_stats_csv(user: User, parameters: dict) -> Tuple[bytes, str]:
         )
     else:
         payload = HygeiaStatsManager(user).get_fleet_overview()
+    return _STATS_CSV_SCHEMAS[dataset]().dump(payload)
 
-    content, _ = build_csv(dataset, _STATS_CSV_SCHEMAS[dataset]().dump(payload))
+
+def _render_stats_csv(user: User, parameters: dict) -> Tuple[bytes, str]:
+    """Calcula una estadística y la vuelca a CSV; cuerpo de un documento ``stats-csv``.
+
+    Args:
+        user: Dueño del documento.
+        parameters: Los parámetros guardados por ``_build_stats_csv_parameters``.
+
+    Returns:
+        Tuple[bytes, str]: El contenido del CSV y el nombre de descarga.
+
+    Raises:
+        AssetNotFoundError / TagNotFoundError: Ver ``_compute_stats_payload``.
+    """
+    dataset = parameters["dataset"]
+    content, _ = build_csv(dataset, _compute_stats_payload(user, dataset, parameters))
     return content, build_export_file_name(
         dataset, parameters.get("scopeLabel"), parameters.get("period"),
+    )
+
+
+def _render_stats_pdf(user: User, parameters: dict) -> Tuple[bytes, str]:
+    """Calcula una estadística y la maqueta en PDF; cuerpo de un documento ``stats-pdf``.
+
+    Args:
+        user: Dueño del documento.
+        parameters: Los parámetros guardados por ``_build_stats_csv_parameters``.
+
+    Returns:
+        Tuple[bytes, str]: El contenido del PDF y el nombre de descarga.
+
+    Raises:
+        AssetNotFoundError / TagNotFoundError: Ver ``_compute_stats_payload``.
+    """
+    dataset = parameters["dataset"]
+    payload = _compute_stats_payload(user, dataset, parameters)
+    return HygeiaReportManager(user).build_stats_report(
+        dataset=dataset, payload=payload,
+        scope_label=parameters.get("scopeLabel"), period=parameters.get("period"),
     )
 
 
@@ -3353,10 +3423,11 @@ def _render_inventory_pdf(user: User, parameters: dict) -> Tuple[bytes, str]:
 
 
 #: Cómo se genera cada tipo de documento: el formato del fichero y la función
-#: que produce su contenido. Añadir un tipo (el PDF de estadísticas, por
-#: ejemplo) es añadir una entrada aquí y su función de creación en el manager.
+#: que produce su contenido. Añadir un tipo es añadir una entrada aquí y su
+#: función de creación en el manager.
 _DOCUMENT_RENDERERS = {
     HygeiaDocumentKind.STATS_CSV: ("csv", _render_stats_csv),
+    HygeiaDocumentKind.STATS_PDF: ("pdf", _render_stats_pdf),
     HygeiaDocumentKind.INVENTORY_PDF: ("pdf", _render_inventory_pdf),
 }
 
@@ -3514,15 +3585,23 @@ class HygeiaDocumentManager(DocumentManager):
         super().__init__(task_queue=task_queue)
         self.user = user
 
-    def create_stats_csv_document(  # pylint: disable=too-many-arguments
-        self, dataset: str, *, asset_id: Optional[int] = None, tag_id: Optional[int] = None,
+    def _create_stats_document(  # pylint: disable=too-many-arguments
+        self, kind: HygeiaDocumentKind, file_format: str, dataset: str, *,
+        asset_id: Optional[int] = None, tag_id: Optional[int] = None,
         metric_names: Sequence[str] = (), metric_name: Optional[str] = None,
         aggregation: Optional[str] = None, order: str = "desc", limit: int = 10,
         requested_duration: Optional[timedelta] = None, period: Optional[str] = None,
     ) -> dict:
-        """Pide un CSV de estadísticas: lo valida, lo registra y encola su generación.
+        """Valida una consulta de estadísticas y encola su generación, en el formato que sea.
+
+        Cuerpo común de ``create_stats_csv_document`` y ``create_stats_pdf_document``:
+        la consulta que describe qué estadística exportar es exactamente la
+        misma para los dos formatos, así que solo cambian ``kind`` y
+        ``file_format``.
 
         Args:
+            kind: ``HygeiaDocumentKind.STATS_CSV`` o ``HygeiaDocumentKind.STATS_PDF``.
+            file_format: ``"csv"`` o ``"pdf"``.
             dataset: ``"summary"``, ``"tag-stats"``, ``"ranking"`` u ``"overview"``.
             asset_id: Activo del resumen; obligatorio en ``summary``.
             tag_id: Etiqueta; obligatoria en ``tag-stats``.
@@ -3551,8 +3630,52 @@ class HygeiaDocumentManager(DocumentManager):
             requested_duration=requested_duration, period=period,
         )
         return _create_and_submit_document(
-            self._task_queue, self.user.id, self.external_id_for,
-            HygeiaDocumentKind.STATS_CSV, "csv", parameters,
+            self._task_queue, self.user.id, self.external_id_for, kind, file_format, parameters,
+        )
+
+    def create_stats_csv_document(  # pylint: disable=too-many-arguments
+        self, dataset: str, *, asset_id: Optional[int] = None, tag_id: Optional[int] = None,
+        metric_names: Sequence[str] = (), metric_name: Optional[str] = None,
+        aggregation: Optional[str] = None, order: str = "desc", limit: int = 10,
+        requested_duration: Optional[timedelta] = None, period: Optional[str] = None,
+    ) -> dict:
+        """Pide un CSV de estadísticas: lo valida, lo registra y encola su generación.
+
+        Ver ``_create_stats_document`` para los parámetros y las excepciones;
+        aquí solo se fija el tipo de documento.
+
+        Returns:
+            dict: El documento recién creado (``HygeiaDocument.to_dict``), en
+                ``pending``.
+        """
+        return self._create_stats_document(
+            HygeiaDocumentKind.STATS_CSV, "csv", dataset,
+            asset_id=asset_id, tag_id=tag_id, metric_names=metric_names, metric_name=metric_name,
+            aggregation=aggregation, order=order, limit=limit,
+            requested_duration=requested_duration, period=period,
+        )
+
+    def create_stats_pdf_document(  # pylint: disable=too-many-arguments
+        self, dataset: str, *, asset_id: Optional[int] = None, tag_id: Optional[int] = None,
+        metric_names: Sequence[str] = (), metric_name: Optional[str] = None,
+        aggregation: Optional[str] = None, order: str = "desc", limit: int = 10,
+        requested_duration: Optional[timedelta] = None, period: Optional[str] = None,
+    ) -> dict:
+        """Pide el PDF de una estadística: lo valida, lo registra y encola su generación.
+
+        Misma consulta que ``create_stats_csv_document``; solo cambia el
+        formato de salida. Ver ``_create_stats_document`` para los parámetros
+        y las excepciones.
+
+        Returns:
+            dict: El documento recién creado (``HygeiaDocument.to_dict``), en
+                ``pending``.
+        """
+        return self._create_stats_document(
+            HygeiaDocumentKind.STATS_PDF, "pdf", dataset,
+            asset_id=asset_id, tag_id=tag_id, metric_names=metric_names, metric_name=metric_name,
+            aggregation=aggregation, order=order, limit=limit,
+            requested_duration=requested_duration, period=period,
         )
 
     def create_inventory_pdf_document(self, scope: str, include_software: bool) -> dict:
