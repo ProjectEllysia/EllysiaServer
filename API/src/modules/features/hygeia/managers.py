@@ -74,7 +74,8 @@ from .schemas import (
 )
 from .services import (
     METRIC_REGISTRY, MetricDefinition, MetricUnit, assert_metric_definition,
-    build_csv, build_export_file_name, build_histogram, build_inventory_report, build_percentile_series, calculate_core_spread,
+    build_csv, build_export_file_name, build_histogram, build_inventory_report,
+    build_percentile_series, calculate_core_spread,
     check_clock_skew,
     combine_asset_averages, denormalize, detect_peak_coincidence, estimate_days_until_full,
     evaluate, extract_entity_series, fit_linear_trend, generate_agent_key,
@@ -3413,7 +3414,9 @@ def _run_document_generation(document_id: int) -> None:
         """Genera el fichero, guarda su nombre de descarga y devuelve su ruta."""
         user = UserManager().get_user_by_id(user_id)
         if user is None:
-            raise HygeiaError(message=f"El dueño {user_id} del documento {document_id} ya no existe")
+            raise HygeiaError(
+                message=f"El dueño {user_id} del documento {document_id} ya no existe",
+            )
         file_format, render = _DOCUMENT_RENDERERS[HygeiaDocumentKind(kind)]
         content, download_name = render(user, parameters)
         path = _write_document_file(document_id, content, file_format)
@@ -3426,7 +3429,7 @@ def _run_document_generation(document_id: int) -> None:
     run_report_generation(document_id, HygeiaDocumentRepository, _render)
 
 
-def _create_and_submit_document(  # pylint: disable=too-many-arguments
+def _create_and_submit_document(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     task_queue, user_id: int, build_external_id: Callable[[int], str],
     kind: HygeiaDocumentKind, file_format: str, parameters: dict,
 ) -> dict:
