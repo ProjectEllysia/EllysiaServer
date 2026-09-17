@@ -370,14 +370,18 @@
                 class="grid" x1="0" :x2="PLOT.width"
                 :y1="fraction * PLOT.height" :y2="fraction * PLOT.height"
               />
-              <g v-if="!store.state.seriesLoading" class="ticks">
-                <text
-                  v-for="tick in axisTicks" :key="tick.at"
-                  class="tick" :x="tick.x" :y="PLOT.height + 14"
-                  :text-anchor="tick.anchor"
-                >{{ tick.label }}</text>
-              </g>
             </svg>
+
+            <!-- Las fechas van en HTML y no como `<text>` del SVG: el `viewBox`
+                 se estira al ancho del panel con `preserveAspectRatio="none"`,
+                 y un texto dentro se estiraría con él. -->
+            <div v-if="!store.state.seriesLoading" class="ticks" aria-hidden="true">
+              <span
+                v-for="tick in axisTicks" :key="tick.at"
+                class="tick" :class="`tick--${tick.anchor}`"
+                :style="{ left: `${(tick.x / PLOT.width) * 100}%` }"
+              >{{ tick.label }}</span>
+            </div>
 
             <div v-if="store.state.seriesLoading" class="chart-sweep" aria-hidden="true"></div>
             <div v-else class="chart-lines" aria-hidden="true">
@@ -1026,7 +1030,13 @@ onUnmounted(() => clearInterval(ageTimer))
 }
 .grid { stroke: var(--border); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .line { fill: none; stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
-.tick { fill: var(--text-muted); font-size: 11px; }
+.ticks { position: absolute; left: 0; right: 0; bottom: 0; height: 20px; pointer-events: none; }
+.tick {
+  position: absolute; top: 3px;
+  color: var(--text-muted); font-size: 11px; white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.tick--middle { transform: translateX(-50%); }
+.tick--end { transform: translateX(-100%); }
 
 .legend { list-style: none; margin: 0.2rem 0 0; padding: 0; display: flex; gap: 1rem; flex-wrap: wrap; }
 .legend-item { display: flex; align-items: center; gap: 0.35rem; font-size: var(--fs-sm); }
