@@ -46,6 +46,10 @@ export const useHygeiaStatsStore = defineStore('hygeiaStats', () => {
     // Hasta cuándo están calculadas las series que se ven: el servidor puede
     // devolver un resultado guardado, y el panel dice su antigüedad.
     seriesComputedAt: null,
+    // Desde cuándo cubren las series: junto con `bucket`, es lo que permite
+    // reconstruir la rejilla completa del periodo (incluidos los cubos sin
+    // ningún dato) y no solo los instantes que trajo alguna métrica.
+    seriesComputedFrom: null,
   })
 
 
@@ -154,7 +158,13 @@ export const useHygeiaStatsStore = defineStore('hygeiaStats', () => {
    */
   async function fetchComparison(fleetAssetIds = [], { isRefresh = false } = {}) {
     const requests = buildSeriesRequests(fleetAssetIds)
-    if (!requests) { state.series = []; state.seriesComputedAt = null; state.seriesError = null; return }
+    if (!requests) {
+      state.series = []
+      state.seriesComputedAt = null
+      state.seriesComputedFrom = null
+      state.seriesError = null
+      return
+    }
 
     state.seriesLoading = true
     try {
@@ -171,12 +181,14 @@ export const useHygeiaStatsStore = defineStore('hygeiaStats', () => {
           points: series?.points ?? [],
           bucket: body.bucket ?? null,
           computedAt: body.periodCoveredTo ?? null,
+          computedFrom: body.periodCoveredFrom ?? null,
         }
       }))
       const loaded = responses.filter(Boolean)
       state.series = loaded
       state.bucket = loaded[0]?.bucket ?? null
       state.seriesComputedAt = oldestInstant(loaded.map((series) => series.computedAt))
+      state.seriesComputedFrom = loaded[0]?.computedFrom ?? null
       state.seriesError = loaded.length
         ? null
         : 'No se pudo cargar la evolución de las métricas elegidas.'

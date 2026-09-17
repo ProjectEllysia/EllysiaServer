@@ -145,20 +145,22 @@
               </option>
             </select>
           </div>
-          <button
-            class="btn-export" type="button"
-            :disabled="!isSelectionComplete || documentsStore.state.requesting"
-            :title="isSelectionComplete ? 'Prepara esta tabla en CSV; la descargas desde Documentos'
-              : 'Elige un activo o una etiqueta para exportar'"
-            @click="exportCsv"
-          >{{ documentsStore.state.requesting ? 'Pidiendo…' : 'Exportar CSV' }}</button>
-          <button
-            class="btn-export" type="button"
-            :disabled="!isSelectionComplete || documentsStore.state.requesting"
-            :title="isSelectionComplete ? 'Prepara esta tabla en PDF; la descargas desde Documentos'
-              : 'Elige un activo o una etiqueta para exportar'"
-            @click="exportPdf"
-          >{{ documentsStore.state.requesting ? 'Pidiendo…' : 'Exportar PDF' }}</button>
+          <div class="export-actions">
+            <button
+              class="btn-export" type="button"
+              :disabled="!isSelectionComplete || documentsStore.state.requesting"
+              :title="isSelectionComplete ? 'Prepara esta tabla en CSV; la descargas desde Documentos'
+                : 'Elige un activo o una etiqueta para exportar'"
+              @click="exportCsv"
+            >{{ documentsStore.state.requesting ? 'Pidiendo…' : 'Exportar CSV' }}</button>
+            <button
+              class="btn-export" type="button"
+              :disabled="!isSelectionComplete || documentsStore.state.requesting"
+              :title="isSelectionComplete ? 'Prepara esta tabla en PDF; la descargas desde Documentos'
+                : 'Elige un activo o una etiqueta para exportar'"
+              @click="exportPdf"
+            >{{ documentsStore.state.requesting ? 'Pidiendo…' : 'Exportar PDF' }}</button>
+          </div>
         </div>
 
         <!-- Tabla fantasma con las mismas columnas y el mismo número de filas
@@ -350,6 +352,16 @@
               preserveAspectRatio="none" role="img"
               :aria-label="store.state.seriesLoading ? 'Cargando la gráfica' : chartLabel"
             >
+              <!-- Tramos sin ningún dato: el activo estuvo inactivo, no solo una
+                   métrica con un hueco. Va antes que la rejilla para quedar
+                   debajo. -->
+              <g v-if="!store.state.seriesLoading && inactivity.length" class="inactivity" aria-hidden="true">
+                <rect
+                  v-for="(band, index) in inactivity" :key="index"
+                  class="inactivity-band"
+                  :x="band.x" y="0" :width="band.width" :height="PLOT.height"
+                />
+              </g>
               <!-- Rejilla horizontal: solo orientación. No lleva rótulos porque
                    cada línea tiene su escala y un único eje Y numérico sería
                    falso para dos de las tres. -->
@@ -407,6 +419,9 @@
             Cada línea tiene su propia escala: compara cuándo sube o baja cada métrica, no su
             altura. Un punto cada {{ fmtDuration(bucketMs) }}.
           </p>
+          <p v-if="inactivity.length" class="compare-note">
+            Los tramos sombreados son periodos en los que el activo no reportó ningún dato.
+          </p>
           <p
             class="freshness"
             :class="{ 'freshness--pending': !store.state.seriesComputedAt || store.state.seriesLoading }"
@@ -435,7 +450,7 @@ import { fmtDuration, formatTimeTick, timeTicks } from '@/components/hygeia/char
 import {
   MAX_COMPARISON_METRICS, STATS_METRICS, STATS_PERIODS, STATS_SCOPES, STATS_AGGREGATIONS,
   alignComparisonSeries, bucketForPeriod, buildStatsDocumentRequest, comparisonPath, describeCoverage, describeLaneRange,
-  isAggregationAllowed, metricOf, rankingRows, summaryRows, tagMetricRows,
+  inactivityRanges, isAggregationAllowed, metricOf, rankingRows, summaryRows, tagMetricRows,
 } from '@/components/hygeia/statsMath'
 import { useHygeiaStore } from '@/stores/hygeiaStore'
 import { useHygeiaStatsStore } from '@/stores/hygeiaStatsStore'
@@ -609,10 +624,20 @@ function isToggleDisabled(key) {
   return selected.length >= MAX_COMPARISON_METRICS
 }
 
+// Cobertura real de las series ya cargadas (cubo y periodo que echoa el
+// servidor), para reconstruir la rejilla completa del periodo en vez de solo
+// los instantes que trajo alguna métrica — ver `alignComparisonSeries`.
+const seriesRange = computed(() => ({
+  from: store.state.seriesComputedFrom,
+  to: store.state.seriesComputedAt,
+  bucketMs: store.state.bucket ? store.state.bucket * 1000 : null,
+}))
+
 const aligned = computed(() => alignComparisonSeries(
   store.state.comparisonMetrics
     .map((key) => store.state.series.find((series) => series.key === key))
     .filter(Boolean),
+  seriesRange.value,
 ))
 
 const lanes = computed(() => aligned.value.lanes)
@@ -622,6 +647,16 @@ const segments = computed(() => lanes.value.flatMap((lane) =>
   comparisonPath(lane, aligned.value.instants, PLOT).map((points, index) => ({
     id: `${lane.key}-${index}`, points, color: lane.color,
   })),
+))
+
+/**
+ * Tramos en los que ningún dato llegó de ninguna métrica: el activo estuvo
+ * inactivo, a diferencia de un hueco de una sola métrica. Solo tiene sentido
+ * con un único activo — en una etiqueta o en el parque, «inactivo» no
+ * describe a un solo dispositivo.
+ */
+const inactivity = computed(() => (
+  store.state.scope === 'asset' ? inactivityRanges(lanes.value, aligned.value.instants, PLOT) : []
 ))
 
 // Del periodo elegido y no de la respuesta: es el mismo cubo que se pide, y
@@ -845,8 +880,8 @@ onUnmounted(() => clearInterval(ageTimer))
   padding: 1.5rem 1.5rem 3rem;
 }
 
+.export-actions { display: flex; gap: 0.5rem; margin-left: auto; }
 .btn-export {
-  margin-left: auto;
   padding: 0.45rem 0.9rem; flex-shrink: 0;
   background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 6px;
   color: var(--accent-bright); font-size: var(--fs-body); font-weight: 600; cursor: pointer;
@@ -968,6 +1003,7 @@ onUnmounted(() => clearInterval(ageTimer))
 .chart { display: block; width: 100%; height: 190px; overflow: visible; }
 .chart-lines { position: absolute; inset: 0; animation: chart-reveal 0.9s cubic-bezier(0.33, 1, 0.68, 1) both; }
 .ticks { animation: seq-fade-up 0.35s ease-out backwards; }
+.inactivity-band { fill: var(--text-muted); opacity: 0.14; }
 
 /* Barrido de carga: una franja tenue que recorre la rejilla, en el mismo
    sentido en que luego se revelan las líneas. Se queda en la zona del
