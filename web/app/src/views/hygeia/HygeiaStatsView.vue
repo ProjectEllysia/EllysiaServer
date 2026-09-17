@@ -145,20 +145,22 @@
               </option>
             </select>
           </div>
-          <button
-            class="btn-export" type="button"
-            :disabled="!isSelectionComplete || documentsStore.state.requesting"
-            :title="isSelectionComplete ? 'Prepara esta tabla en CSV; la descargas desde Documentos'
-              : 'Elige un activo o una etiqueta para exportar'"
-            @click="exportCsv"
-          >{{ documentsStore.state.requesting ? 'Pidiendo…' : 'Exportar CSV' }}</button>
-          <button
-            class="btn-export" type="button"
-            :disabled="!isSelectionComplete || documentsStore.state.requesting"
-            :title="isSelectionComplete ? 'Prepara esta tabla en PDF; la descargas desde Documentos'
-              : 'Elige un activo o una etiqueta para exportar'"
-            @click="exportPdf"
-          >{{ documentsStore.state.requesting ? 'Pidiendo…' : 'Exportar PDF' }}</button>
+          <div class="export-actions">
+            <button
+              class="btn-export" type="button"
+              :disabled="!isSelectionComplete || documentsStore.state.requesting"
+              :title="isSelectionComplete ? 'Prepara esta tabla en CSV; la descargas desde Documentos'
+                : 'Elige un activo o una etiqueta para exportar'"
+              @click="exportCsv"
+            >{{ documentsStore.state.requesting ? 'Pidiendo…' : 'Exportar CSV' }}</button>
+            <button
+              class="btn-export" type="button"
+              :disabled="!isSelectionComplete || documentsStore.state.requesting"
+              :title="isSelectionComplete ? 'Prepara esta tabla en PDF; la descargas desde Documentos'
+                : 'Elige un activo o una etiqueta para exportar'"
+              @click="exportPdf"
+            >{{ documentsStore.state.requesting ? 'Pidiendo…' : 'Exportar PDF' }}</button>
+          </div>
         </div>
 
         <!-- Tabla fantasma con las mismas columnas y el mismo número de filas
@@ -845,8 +847,8 @@ onUnmounted(() => clearInterval(ageTimer))
   padding: 1.5rem 1.5rem 3rem;
 }
 
+.export-actions { display: flex; gap: 0.5rem; margin-left: auto; }
 .btn-export {
-  margin-left: auto;
   padding: 0.45rem 0.9rem; flex-shrink: 0;
   background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 6px;
   color: var(--accent-bright); font-size: var(--fs-body); font-weight: 600; cursor: pointer;
