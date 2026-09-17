@@ -1,5 +1,5 @@
 /**
- * Documentos de Hygeia (CSV de estadísticas y PDF de inventario).
+ * Documentos de Hygeia (estadísticas en CSV o PDF, e inventario en PDF).
  *
  * Los documentos se generan en segundo plano: pedir uno devuelve al instante
  * un documento «en cola», y el servidor lo genera después. Este store guarda
@@ -126,7 +126,7 @@ export const useHygeiaDocumentsStore = defineStore('hygeiaDocuments', () => {
    * Pide un documento nuevo y empieza a vigilarlo.
    *
    * @param {object} request - Cuerpo de `POST /hygeia/documents`: `kind`
-   *   (`stats-csv` o `inventory-pdf`) y los campos de su consulta.
+   *   (`stats-csv`, `stats-pdf` o `inventory-pdf`) y los campos de su consulta.
    * @returns {Promise<object|null>} El documento creado, o `null` si el
    *   servidor lo rechazó (el motivo se muestra en un toast).
    */

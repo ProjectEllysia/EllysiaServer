@@ -234,7 +234,9 @@ def build_csv(dataset: str, payload: Mapping[str, Any]) -> Tuple[bytes, str]:
     return content.encode("utf-8-sig"), f"hygeia-{dataset}.csv"
 
 
-def build_export_file_name(dataset: str, scope_label: Optional[str], period: Optional[str]) -> str:
+def build_export_file_name(
+    dataset: str, scope_label: Optional[str], period: Optional[str], extension: str = "csv",
+) -> str:
     """Nombre de fichero de una exportación de estadísticas.
 
     Lleva el alcance y el periodo, que es lo que distingue dos descargas en la
@@ -250,9 +252,11 @@ def build_export_file_name(dataset: str, scope_label: Optional[str], period: Opt
             alcances que no tienen uno (el parque).
         period: Periodo pedido (``24h``), o ``None`` si el juego de datos no
             tiene periodo (el panorama).
+        extension: Extensión del fichero, sin punto. Por defecto ``"csv"``;
+            el mismo dataset exportado en PDF pasa ``"pdf"``.
 
     Returns:
-        str: El nombre con extensión ``.csv``; sin partes vacías ni guiones
+        str: El nombre con su extensión; sin partes vacías ni guiones
             colgando.
     """
     slug = None
@@ -262,4 +266,4 @@ def build_export_file_name(dataset: str, scope_label: Optional[str], period: Opt
         )
         slug = re.sub(r"[^a-z0-9]+", "-", ascii_label.lower()).strip("-") or None
     parts = [f"hygeia-{dataset}", slug, period]
-    return "-".join(part for part in parts if part) + ".csv"
+    return "-".join(part for part in parts if part) + f".{extension}"

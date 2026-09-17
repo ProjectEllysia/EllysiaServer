@@ -138,6 +138,25 @@ class TestCreation:
         assert submission["external_id"] == f"hygeia-doc:{document['id']}"
         assert submission["args"] == (document["id"],)
 
+    def test_a_stats_pdf_is_stored_pending_and_submitted(self, app, regular_user, fake_task_queue):
+        """Misma consulta que el CSV; solo cambian ``kind`` y ``format``."""
+        asset_id = _create_asset(app, regular_user.id, "Web Producción")
+        with app.app_context():
+            document = _manager_for(regular_user).create_stats_pdf_document(
+                "summary", asset_id=asset_id, metric_names=["cpuPct"],
+                requested_duration=_DAY, period="24h",
+            )
+
+        assert document["status"] == "pending"
+        assert document["kind"] == "stats-pdf"
+        assert document["format"] == "pdf"
+        assert document["parameters"] == {
+            "dataset": "summary", "assetId": asset_id, "scopeLabel": "Web Producción",
+            "metrics": ["cpuPct"], "durationSeconds": 86400, "period": "24h",
+        }
+        [submission] = fake_task_queue.submissions
+        assert submission["category"] == "hygeia.report"
+
     # Los errores de la petición salen al pedir, no como un documento fallido.
     def test_another_users_asset_is_rejected_before_anything_is_stored(
         self, app, regular_user, make_user, fake_task_queue,
@@ -201,6 +220,25 @@ class TestGeneration:
             [row] = list(csv.DictReader(exported))
         assert row["metric"] == "cpuPct"
         assert float(row["max"]) == 42.0
+
+    def test_the_stats_pdf_is_generated_from_the_summary(self, app, regular_user, output_dir):
+        asset_id = _create_asset(app, regular_user.id, "Web Producción")
+        _seed_cpu(app, asset_id, 42.0)
+        with app.app_context():
+            document = _manager_for(regular_user).create_stats_pdf_document(
+                "summary", asset_id=asset_id, metric_names=["cpuPct"],
+                requested_duration=_DAY, period="24h",
+            )
+
+        HygeiaDocumentManager.execute_document_generation(document["id"])
+
+        stored = _stored_document(app, document["id"])
+        assert stored.status == "done"
+        assert stored.generated_at is not None
+        assert stored.download_name == "hygeia-summary-web-produccion-24h.pdf"
+        assert stored.filename.startswith(str(output_dir))
+        with open(stored.filename, "rb") as generated:
+            assert generated.read(5) == b"%PDF-"
 
     def test_the_inventory_pdf_is_generated(self, app, regular_user):
         _create_asset(app, regular_user.id, "inventoried")

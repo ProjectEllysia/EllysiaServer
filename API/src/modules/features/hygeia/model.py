@@ -542,10 +542,13 @@ class HygeiaDocumentKind(StrEnum):
     Attributes:
         STATS_CSV: Una tabla de estadísticas en CSV (resumen de un activo,
             métricas de una etiqueta, ranking o panorama del parque).
+        STATS_PDF: La misma tabla que ``STATS_CSV``, maquetada como informe PDF
+            con portada.
         INVENTORY_PDF: El informe del inventario de activos en PDF.
     """
 
     STATS_CSV = "stats-csv"
+    STATS_PDF = "stats-pdf"
     INVENTORY_PDF = "inventory-pdf"
 
 

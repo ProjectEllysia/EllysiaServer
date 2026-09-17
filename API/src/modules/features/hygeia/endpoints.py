@@ -812,12 +812,16 @@ def delete_alert(anomaly_id):
 @require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
 @handle_exceptions(default_exception=HygeiaError, logger=logger)
 def create_document(data):
-    """Pedir un CSV de estadísticas o el PDF del inventario, que se genera en segundo plano"""
+    """Pedir un CSV o un PDF de estadísticas, o el PDF del inventario, en segundo plano"""
     manager = HygeiaDocumentManager(get_current_user())
     if data["kind"] == "inventory-pdf":
         document = manager.create_inventory_pdf_document(data["scope"], data["includeSoftware"])
     else:
-        document = manager.create_stats_csv_document(
+        create_stats_document = (
+            manager.create_stats_pdf_document if data["kind"] == "stats-pdf"
+            else manager.create_stats_csv_document
+        )
+        document = create_stats_document(
             data["dataset"], asset_id=data["assetId"], tag_id=data["tagId"],
             metric_names=data["metrics"], metric_name=data["metric"], aggregation=data["agg"],
             order=data["order"], limit=data["limit"],

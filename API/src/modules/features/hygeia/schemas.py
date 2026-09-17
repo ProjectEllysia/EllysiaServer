@@ -1506,6 +1506,8 @@ class DocumentCreateRequestSchema(Schema):
       en ``ranking`` solo ``avg``/``max``), ``order`` y ``limit`` en
       ``ranking``; y ``period`` (``<n>h``/``<n>d``, por defecto ``24h``) en
       todos salvo ``overview``.
+    - ``stats-pdf``: la misma consulta y los mismos campos que ``stats-csv``;
+      solo cambia el formato de salida.
     - ``inventory-pdf``: ``scope`` (``user`` por defecto u ``organization``) e
       ``includeSoftware`` (por defecto ``false``).
 
@@ -1513,7 +1515,9 @@ class DocumentCreateRequestSchema(Schema):
     comprueba el manager. Tras cargar, ``period`` añade ``requested_duration``
     (``timedelta``).
     """
-    kind = fields.String(required=True, validate=validate.OneOf(["stats-csv", "inventory-pdf"]))
+    kind = fields.String(
+        required=True, validate=validate.OneOf(["stats-csv", "stats-pdf", "inventory-pdf"]),
+    )
     dataset = fields.String(
         load_default=None,
         validate=validate.OneOf(["summary", "tag-stats", "ranking", "overview"]),
@@ -1534,11 +1538,11 @@ class DocumentCreateRequestSchema(Schema):
         """Exige los campos que el ``kind`` y el ``dataset`` necesitan.
 
         Raises:
-            ValidationError: Si falta ``dataset`` en un ``stats-csv``, falta el
-                id o la métrica de su alcance, o se pide ``agg=sum`` en un
-                ranking.
+            ValidationError: Si falta ``dataset`` en un ``stats-csv``/``stats-pdf``,
+                falta el id o la métrica de su alcance, o se pide ``agg=sum``
+                en un ranking.
         """
-        if data["kind"] != "stats-csv":
+        if data["kind"] not in ("stats-csv", "stats-pdf"):
             return
         required_by_dataset = {"summary": "assetId", "tag-stats": "tagId", "ranking": "metric"}
         dataset = data.get("dataset")

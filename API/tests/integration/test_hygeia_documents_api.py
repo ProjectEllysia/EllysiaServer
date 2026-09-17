@@ -94,6 +94,24 @@ class TestCreate:
         )
         assert response.status_code == 202
 
+    def test_a_stats_pdf_is_accepted(self, app, client, regular_user, auth_headers, fake_task_queue):
+        """Misma consulta que el CSV, con ``kind=stats-pdf``: solo cambia el formato."""
+        asset_id = _create_asset(app, regular_user.id)
+        response = client.post(
+            "/hygeia/documents",
+            json={"kind": "stats-pdf", "dataset": "summary", "assetId": asset_id,
+                  "metrics": ["cpuPct"], "period": "7d"},
+            headers=auth_headers(regular_user),
+        )
+
+        assert response.status_code == 202
+        body = response.get_json()
+        assert body["kind"] == "stats-pdf"
+        assert body["format"] == "pdf"
+        assert body["status"] == "pending"
+        assert len(fake_task_queue.submissions) == 1
+        assert fake_task_queue.submissions[0]["category"] == "hygeia.report"
+
     @pytest.mark.parametrize("payload", [
         {},
         {"kind": "word-document"},
@@ -103,6 +121,8 @@ class TestCreate:
         {"kind": "stats-csv", "dataset": "ranking"},
         {"kind": "stats-csv", "dataset": "ranking", "metric": "netRxBps", "agg": "sum"},
         {"kind": "stats-csv", "dataset": "overview", "period": "forever"},
+        {"kind": "stats-pdf"},
+        {"kind": "stats-pdf", "dataset": "summary"},
         {"kind": "inventory-pdf", "scope": "everyone"},
     ])
     def test_an_incomplete_or_invalid_request_is_rejected(
