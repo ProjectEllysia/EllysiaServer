@@ -29,7 +29,7 @@ from __future__ import annotations
 import io
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Mapping, Optional, Sequence
+from typing import Any, Dict, Mapping, NamedTuple, Optional, Sequence
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
@@ -678,15 +678,31 @@ _STATS_TABLE_BUILDERS = {
 }
 
 
-def _stats_cover(
-    theme: ReportTheme, dataset: str, scope_label: Optional[str], period_caption: str,
-    author: str, generated_at: datetime,
-) -> list:
+class _StatsCoverInfo(NamedTuple):
+    """Lo que necesita la portada del informe de estadísticas, agrupado.
+
+    Attributes:
+        title: Título de la portada, ya resuelto (``_STATS_TITLES``).
+        scope_label: Nombre del activo o de la etiqueta; ``None`` en
+            ``ranking``/``overview``, que no tienen uno.
+        period_caption: Frase con la ventana cubierta, o cadena vacía.
+        author: Quién pide el informe.
+        generated_at: Instante que figura en la portada.
+    """
+    title: str
+    scope_label: Optional[str]
+    period_caption: str
+    author: str
+    generated_at: datetime
+
+
+def _stats_cover(theme: ReportTheme, cover_info: _StatsCoverInfo) -> list:
     """Portada del informe de estadísticas.
 
     Mismo molde que la del inventario (``_cover``), sin la ficha de recuento
     por estado: no hay activos que contar, hay una tabla que presentar.
     """
+    title, scope_label, period_caption, author, generated_at = cover_info
     main = colors.HexColor(theme.palette[ColorType.MAIN])
     light = colors.HexColor(theme.palette[ColorType.LIGHT])
     white = colors.HexColor(theme.palette[ColorType.WHITE])
@@ -707,9 +723,7 @@ def _stats_cover(
         fontSize=28, leading=32, textColor=white,
         alignment=TA_CENTER, fontName="Helvetica-Bold",
     )
-    title_band = Table(
-        [[Paragraph(_STATS_TITLES.get(dataset, "Estadísticas"), title_style)]], colWidths=[6 * inch],
-    )
+    title_band = Table([[Paragraph(title, title_style)]], colWidths=[6 * inch])
     title_band.setStyle(TableStyle([
         ("BACKGROUND",    (0, 0), (-1, -1), main),
         ("TOPPADDING",    (0, 0), (-1, -1), 16),
@@ -794,14 +808,15 @@ def build_stats_report(
     """
     generated_at = generated_at or datetime.now()
     theme = ReportTheme(getSampleStyleSheet(), _palette())
+    title = _STATS_TITLES.get(dataset, "Estadísticas")
 
-    elements = _stats_cover(
-        theme, dataset, scope_label, _stats_window_caption(payload), author, generated_at,
-    )
+    elements = _stats_cover(theme, _StatsCoverInfo(
+        title, scope_label, _stats_window_caption(payload), author, generated_at,
+    ))
 
     table = _STATS_TABLE_BUILDERS[dataset](theme, payload)
     if table is not None:
-        elements.extend(theme.section_header(_STATS_TITLES.get(dataset, "Estadísticas"), "DATOS"))
+        elements.extend(theme.section_header(title, "DATOS"))
         elements.append(Spacer(1, 0.15 * inch))
         elements.append(table)
     else:
@@ -813,7 +828,7 @@ def build_stats_report(
     document = SimpleDocTemplate(
         buffer,
         pagesize=A4,
-        title=f"Estadísticas Hygeia — {_STATS_TITLES.get(dataset, dataset)}",
+        title=f"Estadísticas Hygeia — {title}",
         author=author,
         leftMargin=0.6 * inch, rightMargin=0.6 * inch,
         topMargin=0.7 * inch, bottomMargin=0.7 * inch,

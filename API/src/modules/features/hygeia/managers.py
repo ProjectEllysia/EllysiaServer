@@ -3549,6 +3549,61 @@ def _create_and_submit_document(  # pylint: disable=too-many-arguments,too-many-
     return serialized
 
 
+def _create_stats_document(
+    # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
+    task_queue, user_id: int, build_external_id: Callable[[int], str],
+    kind: HygeiaDocumentKind, file_format: str, dataset: str, *,
+    asset_id: Optional[int] = None, tag_id: Optional[int] = None,
+    metric_names: Sequence[str] = (), metric_name: Optional[str] = None,
+    aggregation: Optional[str] = None, order: str = "desc", limit: int = 10,
+    requested_duration: Optional[timedelta] = None, period: Optional[str] = None,
+) -> dict:
+    """Valida una consulta de estadísticas y encola su generación, en el formato que sea.
+
+    Cuerpo común de ``HygeiaDocumentManager.create_stats_csv_document`` y
+    ``create_stats_pdf_document``: la consulta que describe qué estadística
+    exportar es exactamente la misma para los dos formatos, así que solo
+    cambian ``kind`` y ``file_format``.
+
+    Args:
+        task_queue: Cola en la que se encola la generación.
+        user_id: Primary key del dueño del documento.
+        build_external_id: Compone el ``external_id`` a partir del id del
+            documento (``HygeiaDocumentManager.external_id_for``).
+        kind: ``HygeiaDocumentKind.STATS_CSV`` o ``HygeiaDocumentKind.STATS_PDF``.
+        file_format: ``"csv"`` o ``"pdf"``.
+        dataset: ``"summary"``, ``"tag-stats"``, ``"ranking"`` u ``"overview"``.
+        asset_id: Activo del resumen; obligatorio en ``summary``.
+        tag_id: Etiqueta; obligatoria en ``tag-stats``.
+        metric_names: Métricas del resumen o de la etiqueta; vacío = todas.
+        metric_name: Métrica del ranking; obligatoria en ``ranking``.
+        aggregation: Combinación entre activos (``sum``/``avg``/``max`` en
+            ``tag-stats``, ``avg``/``max`` en ``ranking``). Por defecto
+            ``None``, que equivale a ``avg``.
+        order: ``"desc"`` (por defecto) o ``"asc"`` del ranking.
+        limit: Activos del ranking; por defecto ``10``.
+        requested_duration: Periodo pedido; obligatorio salvo en ``overview``.
+        period: Periodo tal como lo escribió el usuario (``7d``).
+
+    Returns:
+        dict: El documento recién creado (``HygeiaDocument.to_dict``), en
+            ``pending``.
+
+    Raises:
+        InvalidDocumentRequestError, AssetNotFoundError, TagNotFoundError,
+        UnknownMetricError, NonAdditiveMetricError: Ver
+            ``_build_stats_csv_parameters``.
+    """
+    parameters = _build_stats_csv_parameters(
+        user_id, dataset, asset_id=asset_id, tag_id=tag_id, metric_names=metric_names,
+        metric_name=metric_name, aggregation=aggregation, order=order, limit=limit,
+        requested_duration=requested_duration, period=period,
+    )
+    return _create_and_submit_document(
+        task_queue, user_id, build_external_id, kind, file_format, parameters,
+    )
+
+
 class HygeiaDocumentManager(DocumentManager):
     """Documentos de Hygeia generados en segundo plano y su ciclo de vida.
 
@@ -3585,54 +3640,6 @@ class HygeiaDocumentManager(DocumentManager):
         super().__init__(task_queue=task_queue)
         self.user = user
 
-    def _create_stats_document(  # pylint: disable=too-many-arguments
-        self, kind: HygeiaDocumentKind, file_format: str, dataset: str, *,
-        asset_id: Optional[int] = None, tag_id: Optional[int] = None,
-        metric_names: Sequence[str] = (), metric_name: Optional[str] = None,
-        aggregation: Optional[str] = None, order: str = "desc", limit: int = 10,
-        requested_duration: Optional[timedelta] = None, period: Optional[str] = None,
-    ) -> dict:
-        """Valida una consulta de estadísticas y encola su generación, en el formato que sea.
-
-        Cuerpo común de ``create_stats_csv_document`` y ``create_stats_pdf_document``:
-        la consulta que describe qué estadística exportar es exactamente la
-        misma para los dos formatos, así que solo cambian ``kind`` y
-        ``file_format``.
-
-        Args:
-            kind: ``HygeiaDocumentKind.STATS_CSV`` o ``HygeiaDocumentKind.STATS_PDF``.
-            file_format: ``"csv"`` o ``"pdf"``.
-            dataset: ``"summary"``, ``"tag-stats"``, ``"ranking"`` u ``"overview"``.
-            asset_id: Activo del resumen; obligatorio en ``summary``.
-            tag_id: Etiqueta; obligatoria en ``tag-stats``.
-            metric_names: Métricas del resumen o de la etiqueta; vacío = todas.
-            metric_name: Métrica del ranking; obligatoria en ``ranking``.
-            aggregation: Combinación entre activos (``sum``/``avg``/``max`` en
-                ``tag-stats``, ``avg``/``max`` en ``ranking``). Por defecto
-                ``None``, que equivale a ``avg``.
-            order: ``"desc"`` (por defecto) o ``"asc"`` del ranking.
-            limit: Activos del ranking; por defecto ``10``.
-            requested_duration: Periodo pedido; obligatorio salvo en ``overview``.
-            period: Periodo tal como lo escribió el usuario (``7d``).
-
-        Returns:
-            dict: El documento recién creado (``HygeiaDocument.to_dict``), en
-                ``pending``.
-
-        Raises:
-            InvalidDocumentRequestError, AssetNotFoundError, TagNotFoundError,
-            UnknownMetricError, NonAdditiveMetricError: Ver
-                ``_build_stats_csv_parameters``.
-        """
-        parameters = _build_stats_csv_parameters(
-            self.user.id, dataset, asset_id=asset_id, tag_id=tag_id, metric_names=metric_names,
-            metric_name=metric_name, aggregation=aggregation, order=order, limit=limit,
-            requested_duration=requested_duration, period=period,
-        )
-        return _create_and_submit_document(
-            self._task_queue, self.user.id, self.external_id_for, kind, file_format, parameters,
-        )
-
     def create_stats_csv_document(  # pylint: disable=too-many-arguments
         self, dataset: str, *, asset_id: Optional[int] = None, tag_id: Optional[int] = None,
         metric_names: Sequence[str] = (), metric_name: Optional[str] = None,
@@ -3648,7 +3655,8 @@ class HygeiaDocumentManager(DocumentManager):
             dict: El documento recién creado (``HygeiaDocument.to_dict``), en
                 ``pending``.
         """
-        return self._create_stats_document(
+        return _create_stats_document(
+            self._task_queue, self.user.id, self.external_id_for,
             HygeiaDocumentKind.STATS_CSV, "csv", dataset,
             asset_id=asset_id, tag_id=tag_id, metric_names=metric_names, metric_name=metric_name,
             aggregation=aggregation, order=order, limit=limit,
@@ -3671,7 +3679,8 @@ class HygeiaDocumentManager(DocumentManager):
             dict: El documento recién creado (``HygeiaDocument.to_dict``), en
                 ``pending``.
         """
-        return self._create_stats_document(
+        return _create_stats_document(
+            self._task_queue, self.user.id, self.external_id_for,
             HygeiaDocumentKind.STATS_PDF, "pdf", dataset,
             asset_id=asset_id, tag_id=tag_id, metric_names=metric_names, metric_name=metric_name,
             aggregation=aggregation, order=order, limit=limit,
