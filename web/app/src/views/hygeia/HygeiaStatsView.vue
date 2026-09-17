@@ -12,6 +12,7 @@
             en todo el parque.
           </p>
         </div>
+        <RouterLink class="btn-documents" to="/hygeia/documentos">Documentos</RouterLink>
       </header>
 
       <!-- Panorama del parque: una foto del ahora, sin periodo. Es la pantalla
@@ -146,11 +147,11 @@
           </div>
           <button
             class="btn-export" type="button"
-            :disabled="!isSelectionComplete || store.state.exporting"
-            :title="isSelectionComplete ? 'Descargar esta tabla en CSV'
+            :disabled="!isSelectionComplete || documentsStore.state.requesting"
+            :title="isSelectionComplete ? 'Prepara esta tabla en CSV; la descargas desde Documentos'
               : 'Elige un activo o una etiqueta para exportar'"
             @click="exportCsv"
-          >{{ store.state.exporting ? 'Exportando…' : 'Exportar CSV' }}</button>
+          >{{ documentsStore.state.requesting ? 'Pidiendo…' : 'Exportar CSV' }}</button>
         </div>
 
         <!-- Tabla fantasma con las mismas columnas y el mismo número de filas
@@ -419,21 +420,23 @@
 
 <script setup>
 import { computed, h, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import Topbar from '@/components/shared/Topbar.vue'
 import StarBackground from '@/components/shared/StarBackground.vue'
 import { timeAgo } from '@/components/hygeia/format'
 import { fmtDuration, formatTimeTick, timeTicks } from '@/components/hygeia/chartMath'
 import {
   MAX_COMPARISON_METRICS, STATS_METRICS, STATS_PERIODS, STATS_SCOPES, STATS_AGGREGATIONS,
-  alignComparisonSeries, bucketForPeriod, comparisonPath, describeCoverage, describeLaneRange,
+  alignComparisonSeries, bucketForPeriod, buildStatsDocumentRequest, comparisonPath, describeCoverage, describeLaneRange,
   isAggregationAllowed, metricOf, rankingRows, summaryRows, tagMetricRows,
 } from '@/components/hygeia/statsMath'
 import { useHygeiaStore } from '@/stores/hygeiaStore'
 import { useHygeiaStatsStore } from '@/stores/hygeiaStatsStore'
+import { useHygeiaDocumentsStore } from '@/stores/hygeiaDocumentsStore'
 import { useHygeiaTagsStore } from '@/stores/hygeiaTagsStore'
 
 const store = useHygeiaStatsStore()
+const documentsStore = useHygeiaDocumentsStore()
 const assetsStore = useHygeiaStore()
 const tagsStore = useHygeiaTagsStore()
 const route = useRoute()
@@ -687,18 +690,14 @@ const ghostTable = computed(() => {
 })
 
 /**
- * Descarga en CSV exactamente lo que hay en la tabla.
+ * Pide exportar a CSV la tabla que se ve.
  *
- * El nombre del fichero lleva el alcance, así que hace falta el rótulo del
- * activo o de la etiqueta elegidos; el parque no tiene ninguno.
+ * El CSV se prepara en segundo plano: el store de documentos avisa cuando está
+ * listo y se descarga desde la página de documentos.
  */
 function exportCsv() {
-  const scopeLabel = store.state.scope === 'asset'
-    ? assets.value.find((asset) => asset.id === store.state.assetId)?.hostname
-    : store.state.scope === 'tag'
-      ? tags.value.find((tag) => tag.id === store.state.tagId)?.name
-      : null
-  store.downloadCsv(scopeLabel ?? null)
+  const request = buildStatsDocumentRequest(store.state)
+  if (request) documentsStore.requestDocument(request)
 }
 
 function onScopeChange(event) {
@@ -838,6 +837,15 @@ onUnmounted(() => clearInterval(ageTimer))
 .btn-export:hover:not(:disabled) { background: var(--accent); color: var(--on-accent); }
 .btn-export:disabled { opacity: 0.55; cursor: not-allowed; }
 
+.head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.btn-documents {
+  padding: 0.4rem 0.85rem; flex-shrink: 0; border-radius: 6px; text-decoration: none;
+  background: var(--surface-2); border: 1px solid var(--border); color: var(--text-dim);
+  font-size: var(--fs-md); font-weight: 600;
+  transition: border-color var(--transition), color var(--transition);
+}
+.btn-documents:hover { border-color: var(--accent); color: var(--text); }
+.btn-documents:focus-visible { outline: 2px solid var(--accent-bright); outline-offset: 2px; }
 .head-title { margin: 0 0 0.3rem; font-size: var(--fs-2xl); font-weight: 600; color: var(--text); }
 .head-sub { margin: 0; max-width: 64ch; font-size: var(--fs-md); color: var(--text-muted); line-height: 1.5; }
 

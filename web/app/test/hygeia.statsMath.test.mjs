@@ -14,7 +14,7 @@
 import {
   MAX_COMPARISON_METRICS, STATS_METRICS, STATS_PERIODS, STATS_SCOPES, STATS_AGGREGATIONS,
   alignComparisonSeries, bucketForPeriod, comparisonPath, describeCoverage, describeLaneRange,
-  exportFileName, formatStatValue, isAggregationAllowed, metricOf, oldestInstant,
+  buildStatsDocumentRequest, formatStatValue, isAggregationAllowed, metricOf, oldestInstant,
   rankingRows, summaryRows, tagMetricRows,
 } from '../src/components/hygeia/statsMath.js'
 
@@ -285,22 +285,25 @@ check('una tasa se rotula escalada',
 eq('una calle sin datos no se rotula', describeLaneRange({ sampleCount: 0 }), '')
 eq('una calle inexistente tampoco', describeLaneRange(null), '')
 
-console.log('\n' + 'nombre del fichero exportado')
+console.log('\n' + 'petición de exportación')
 
-eq('lleva el juego de datos, el alcance y el periodo',
-  exportFileName('summary', 'host-web', '24h'), 'hygeia-summary-host-web-24h.csv')
-// Un hostname o una etiqueta pueden traer acentos, mayúsculas y espacios, y de
-// ahí sale un nombre de fichero incómodo en cualquier sistema.
-eq('normaliza acentos, mayúsculas y separadores',
-  exportFileName('summary', 'Host-Web · Producción', '7d'),
-  'hygeia-summary-host-web-produccion-7d.csv')
-eq('el parque no tiene alcance que nombrar',
-  exportFileName('ranking', null, '7d'), 'hygeia-ranking-7d.csv')
-eq('el panorama no tiene periodo',
-  exportFileName('overview', null, null), 'hygeia-overview.csv')
-check('nunca deja separadores colgando',
-  !/--|-\./.test(exportFileName('tag-stats', ' ?? ', '24h')),
-  exportFileName('tag-stats', ' ?? ', '24h'))
+eq('un activo exporta su resumen con todas las métricas',
+  buildStatsDocumentRequest({ scope: 'asset', assetId: 3, period: '7d', metric: 'cpuPct', aggregation: 'max' }),
+  { kind: 'stats-csv', dataset: 'summary', assetId: 3, metrics: [], period: '7d' })
+eq('una etiqueta exporta sus métricas con su combinación',
+  buildStatsDocumentRequest({ scope: 'tag', tagId: 4, period: '24h', aggregation: 'sum' }),
+  { kind: 'stats-csv', dataset: 'tag-stats', tagId: 4, metrics: [], agg: 'sum', period: '24h' })
+eq('el parque exporta su ranking',
+  buildStatsDocumentRequest({ scope: 'fleet', metric: 'memPct', aggregation: 'max', period: '30d' }),
+  { kind: 'stats-csv', dataset: 'ranking', metric: 'memPct', agg: 'max', order: 'desc', limit: 10, period: '30d' })
+// El ranking no se suma: «Total» se pide como media, igual que la tabla.
+eq('el ranking con «Total» se pide como media',
+  buildStatsDocumentRequest({ scope: 'fleet', metric: 'netRxBps', aggregation: 'sum', period: '24h' }).agg,
+  'avg')
+eq('un activo sin elegir no se exporta',
+  buildStatsDocumentRequest({ scope: 'asset', assetId: null, period: '24h' }), null)
+eq('una etiqueta sin elegir tampoco',
+  buildStatsDocumentRequest({ scope: 'tag', tagId: null, period: '24h' }), null)
 
 console.log('\n' + 'antigüedad de la gráfica')
 
