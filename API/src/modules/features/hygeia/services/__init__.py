@@ -26,8 +26,9 @@ from .metric_registry import (
     assert_metric_definition,
     validate_metrics_are_additive,
 )
-from .reports import build_inventory_report
-from .export import build_csv
+from .reports import build_inventory_report, build_stats_report
+from .export import build_csv, build_export_file_name
+from .stats_cache import invalidate_user_stats, resolve_cached_stats
 from .stats import (
     EnergyCost,
     FullnessForecast,
@@ -57,8 +58,12 @@ from .stats import (
 )
 
 __all__ = [
+    "build_export_file_name",
+    "invalidate_user_stats",
+    "resolve_cached_stats",
     "services_from_inventory",
     "build_inventory_report",
+    "build_stats_report",
     "agent_key_id_from_request",
     "generate_agent_key",
     "require_agent_key",

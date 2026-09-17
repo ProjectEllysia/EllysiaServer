@@ -53,6 +53,7 @@ aegis_blp = SmorestBlueprint(
 )
 logger = logging.getLogger(__name__)
 
+
 USER_MANAGER = UserManager()
 
 
@@ -425,7 +426,7 @@ def export_document(data, doc_id):
     )
     return {
         "success": True,
-        "export": result.to_response_dict(),
+        "export": result.to_dict(),
         "document": {
             "id": doc_id,
             "title": doc_info.get("title"),

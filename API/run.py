@@ -462,6 +462,15 @@ def _configure_scheduling() -> None:
     except Exception as e:
         _logger.warning("No se pudo reconciliar análisis Iris huérfanos: %s", e)
 
+    _logger.info("Reconciliando documentos Hygeia huérfanos...")
+    try:
+        from src.modules.features.hygeia.managers import HygeiaDocumentManager
+        fixed_documents = HygeiaDocumentManager.reconcile_orphaned_documents()
+        if fixed_documents:
+            _logger.info("Se marcaron %d documento(s) Hygeia huérfano(s) como error", fixed_documents)
+    except Exception as e:
+        _logger.warning("No se pudo reconciliar documentos Hygeia huérfanos: %s", e)
+
     _logger.info("Publicando TaskDispatch pendientes de la outbox...")
     try:
         from src.modules.system.taskqueue.dispatcher import OutboxDispatcher

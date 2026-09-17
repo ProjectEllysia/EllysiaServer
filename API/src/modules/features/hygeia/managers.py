@@ -13,15 +13,22 @@ from __future__ import annotations
 
 import logging
 import math
+import os
 from datetime import timedelta
-from typing import NamedTuple, Optional, Sequence, Tuple
+from typing import Callable, NamedTuple, Optional, Sequence, Tuple
 
 import src.modules.system.config_reading as CR
 from src.modules.accounts import LimitKey, OrganizationManager, QuotaManager
 from src.modules.infrastructure import UnitOfWork
 from src.modules.infrastructure.session import build_repository
 from src.modules.shared import assert_owned, utcnow_naive
-from src.modules.system.taskqueue import job_context
+from src.modules.shared._documents import (
+    DocumentManager,
+    run_report_generation,
+    submit_report_generation,
+)
+from src.modules.shared._exceptions import DocumentNotFoundError, DocumentNotReadyError
+from src.modules.system.taskqueue import TaskQueue, job_context
 from src.modules.system.taskqueue.dispatcher import OutboxDispatcher
 from src.modules.system.taskqueue.outbox import TaskDispatch, build_dispatch
 from src.modules.system.taskqueue.outbox_repository import TaskDispatchRepository
@@ -33,7 +40,9 @@ from .exceptions import (
     AnomalyStillOpenError,
     AssetNotFoundError,
     AssetQuotaExceededError,
+    HygeiaError,
     IngestTooFrequentError,
+    InvalidDocumentRequestError,
     InventoryNotAvailableError,
     OrganizationScopeNotAllowedError,
     SystemTagImmutableError,
@@ -41,22 +50,39 @@ from .exceptions import (
     TagNotFoundError,
     TagQuotaExceededError,
 )
-from .model import Anomaly, AssetSnapshot, HygeiaTag, MonitoredAsset, UserTag
+from .model import (
+    Anomaly,
+    AssetSnapshot,
+    HygeiaDocument,
+    HygeiaDocumentKind,
+    HygeiaTag,
+    MonitoredAsset,
+    UserTag,
+)
 from .repositories import (
     AnomalyRepository,
     AssetSnapshotRepository,
+    HygeiaDocumentRepository,
     HygeiaTagRepository,
     MonitoredAssetRepository,
 )
+from .schemas import (
+    AssetRankingResponseSchema,
+    AssetStatsSummaryResponseSchema,
+    FleetOverviewResponseSchema,
+    TagStatsResponseSchema,
+)
 from .services import (
     METRIC_REGISTRY, MetricDefinition, MetricUnit, assert_metric_definition,
-    build_histogram, build_inventory_report, build_percentile_series, calculate_core_spread,
+    build_csv, build_export_file_name, build_histogram, build_inventory_report,
+    build_percentile_series, build_stats_report, calculate_core_spread,
     check_clock_skew,
     combine_asset_averages, denormalize, detect_peak_coincidence, estimate_days_until_full,
     evaluate, extract_entity_series, fit_linear_trend, generate_agent_key,
     is_agent_outdated,
     project_month, resolve_stats_window, services_from_inventory, summarize_power_period,
-    summarize_values, validate_metrics_are_additive,
+    invalidate_user_stats, resolve_cached_stats, summarize_values,
+    validate_metrics_are_additive,
 )
 
 # ---------------------------------------------------------------------------
@@ -704,6 +730,200 @@ def _resolve_host_down_if_open(uow: UnitOfWork, asset_id: int) -> None:
         anomaly_repo.update(open_host_down)
 
 
+def _compute_stats_summary(
+    asset_id: int, definitions: Sequence[MetricDefinition], requested_duration: timedelta,
+) -> dict:
+    """Calcula el resumen estadístico de un activo; cuerpo de ``get_stats_summary``.
+
+    No comprueba permisos ni valida métricas: lo hace el método público antes
+    de llegar aquí, también cuando el resultado sale de la caché.
+
+    Args:
+        asset_id: Activo del usuario cuyas métricas se resumen.
+        definitions: Métricas ya validadas y sin repetir.
+        requested_duration: Duración del periodo pedido, antes de recortar.
+
+    Returns:
+        dict: Diccionario con la forma de ``AssetStatsSummaryResponseSchema``.
+    """
+    window = _resolve_configured_stats_window(requested_duration)
+
+    snapshot_repo = build_repository(AssetSnapshotRepository)
+    summaries_by_metric = {}
+    for definition in definitions:
+        samples_by_asset = snapshot_repo.get_metric_samples_by_asset(
+            [asset_id], definition.column, window.since, window.until,
+        )
+        summaries_by_metric[definition.name] = summarize_values(samples_by_asset[asset_id])
+
+    return {
+        "metrics": summaries_by_metric,
+        "peakCoincidence": detect_peak_coincidence(
+            summaries_by_metric, _PEAK_REFERENCE_METRIC, _PEAK_COUNTERPART_METRICS,
+            CR.hygeia_analysis().peak_coincidence_window_sec,
+        ),
+        "periodCoveredFrom": window.since,
+        "periodCoveredTo": window.until,
+        "isPeriodClipped": window.is_clipped,
+    }
+
+
+def _compute_tag_stats(
+    user_id: int, tag: HygeiaTag, definitions: Sequence[MetricDefinition], aggregation: str,
+    requested_duration: timedelta,
+) -> dict:
+    """Calcula las métricas agregadas de una etiqueta; cuerpo de ``get_tag_stats``.
+
+    No comprueba la visibilidad de la etiqueta ni valida métricas: lo hace el
+    método público antes de llegar aquí.
+
+    Args:
+        user_id: Primary key del usuario; solo cuentan sus activos.
+        tag: Etiqueta ya resuelta como visible para el usuario.
+        definitions: Métricas ya validadas y sin repetir.
+        aggregation: ``"sum"``, ``"avg"`` o ``"max"``, ya validada contra las
+            métricas.
+        requested_duration: Duración del periodo pedido, antes de recortar.
+
+    Returns:
+        dict: Diccionario con la forma de ``TagStatsResponseSchema``.
+    """
+    window = _resolve_configured_stats_window(requested_duration)
+
+    assets = build_repository(MonitoredAssetRepository).get_by_tag(user_id, tag.id)
+    hostnames_by_asset = {asset.id: asset.hostname for asset in assets}
+    snapshot_repo = build_repository(AssetSnapshotRepository)
+    metrics = {
+        definition.name: _render_tag_metric(
+            definition,
+            snapshot_repo.get_metric_aggregates_by_asset(
+                list(hostnames_by_asset), definition.column, window.since, window.until,
+            ),
+            hostnames_by_asset,
+            aggregation,
+        )
+        for definition in definitions
+    }
+
+    return {
+        "tag": tag.to_dict(),
+        "assetCount": len(hostnames_by_asset),
+        "agg": aggregation,
+        "metrics": metrics,
+        "periodCoveredFrom": window.since,
+        "periodCoveredTo": window.until,
+        "isPeriodClipped": window.is_clipped,
+    }
+
+
+def _compute_asset_ranking(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+    user_id: int, definition: MetricDefinition, aggregation: str, order: str, limit: int,
+    requested_duration: timedelta,
+) -> dict:
+    """Calcula el ranking de activos del usuario; cuerpo de ``get_asset_ranking``.
+
+    Args:
+        user_id: Primary key del usuario; solo entran sus activos.
+        definition: Métrica ya validada por la que se ordena.
+        aggregation: ``"avg"`` o ``"max"``: qué valor del periodo de cada
+            activo se compara.
+        order: ``"asc"`` o ``"desc"``.
+        limit: Cuántos activos devolver como mucho.
+        requested_duration: Duración del periodo pedido, antes de recortar.
+
+    Returns:
+        dict: Diccionario con la forma de ``AssetRankingResponseSchema``.
+    """
+    window = _resolve_configured_stats_window(requested_duration)
+
+    assets = build_repository(MonitoredAssetRepository).get_by_user(user_id)
+    snapshot_repo = build_repository(AssetSnapshotRepository)
+    aggregates_by_asset = snapshot_repo.get_metric_aggregates_by_asset(
+        [asset.id for asset in assets], definition.column, window.since, window.until,
+    )
+    entries = []
+    for asset in assets:
+        average, maximum, sample_count = aggregates_by_asset[asset.id]
+        if sample_count:
+            entries.append({
+                "assetId": asset.id,
+                "hostname": asset.hostname,
+                "value": average if aggregation == "avg" else maximum,
+                "sampleCount": sample_count,
+            })
+
+    return {
+        "metric": definition.name,
+        "unit": definition.unit,
+        "agg": aggregation,
+        "order": order,
+        "assetCount": len(assets),
+        "assetsWithData": len(entries),
+        "assets": _rank_assets(entries, order, limit),
+        "periodCoveredFrom": window.since,
+        "periodCoveredTo": window.until,
+        "isPeriodClipped": window.is_clipped,
+    }
+
+
+def _compute_metric_series(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
+    user_id: int, definition: MetricDefinition, tag: Optional[HygeiaTag], assets: list,
+    aggregation: Optional[str], bucket_aggregation: str,
+    requested_bucket_seconds: Optional[int], requested_duration: timedelta,
+    compare_to: Optional[Tuple[str, int]],
+) -> dict:
+    """Calcula la serie temporal de una métrica; cuerpo de ``get_metric_series``.
+
+    No resuelve ni comprueba los activos: llegan ya resueltos y visibles para
+    el usuario.
+
+    Args:
+        user_id: Primary key del usuario; acota la serie de comparación.
+        definition: Métrica ya validada.
+        tag: Etiqueta de la que salen los activos, o ``None`` si se pidieron
+            por lista.
+        assets: Activos ya resueltos de la serie.
+        aggregation: Cómo se combinan los activos (``"sum"``, ``"avg"``,
+            ``"max"``), o ``None`` para una serie por activo.
+        bucket_aggregation: Cómo se resume cada intervalo de la serie.
+        requested_bucket_seconds: Intervalo pedido en segundos, o ``None``
+            para elegirlo según el periodo.
+        requested_duration: Duración del periodo pedido, antes de recortar.
+        compare_to: Alcance con el que comparar, o ``None``.
+
+    Returns:
+        dict: Diccionario con la forma de ``MetricSeriesResponseSchema``.
+    """
+    window = _resolve_configured_stats_window(requested_duration)
+    max_points = CR.hygeia_limits().max_series_points
+    bucket_seconds, is_bucket_widened = _resolve_series_bucket(
+        window, requested_bucket_seconds, max_points,
+    )
+    series_query = _SeriesQuery(
+        definition=definition, bucket_seconds=bucket_seconds, window=window,
+        bucket_aggregation=bucket_aggregation, aggregation=aggregation, max_points=max_points,
+    )
+    snapshot_repo = build_repository(AssetSnapshotRepository)
+    series = _build_series(
+        snapshot_repo, series_query, tag, assets, is_combined=aggregation is not None,
+    )
+    if compare_to is not None:
+        series += _build_comparison_series(user_id, snapshot_repo, series_query, compare_to)
+
+    return {
+        "metric": definition.name,
+        "unit": definition.unit,
+        "bucket": bucket_seconds,
+        "isBucketWidened": is_bucket_widened,
+        "bucketAgg": bucket_aggregation,
+        "agg": aggregation,
+        "series": series,
+        "periodCoveredFrom": window.since,
+        "periodCoveredTo": window.until,
+        "isPeriodClipped": window.is_clipped,
+    }
+
+
 class HygeiaAssetManager:
     """
     Gestiona el alta, consulta, baja y credenciales de los activos
@@ -759,6 +979,9 @@ class HygeiaAssetManager:
         en claro en la respuesta; a partir de este momento es irrecuperable
         — solo persiste su hash Argon2id.
 
+        Deja sin efecto las estadísticas guardadas del usuario: el ranking del
+        parque tiene que contar el activo nuevo.
+
         Args:
             hostname: Nombre del host que reportará el agente.
             os_name: Sistema operativo del host, si se conoce de antemano.
@@ -803,6 +1026,7 @@ class HygeiaAssetManager:
             )
             saved = repo.save(asset)
 
+        invalidate_user_stats(self.user.id)
         return {"asset": saved.to_dict(), "agentKey": full_key}
 
     def list_assets(self) -> list[dict]:
@@ -1021,6 +1245,7 @@ class HygeiaAssetManager:
 
     def get_stats_summary(
         self, asset_id: int, metric_names: Sequence[str], requested_duration: timedelta,
+        is_refresh: bool = False,
     ) -> dict:
         """
         Resume las métricas de un activo del usuario sobre un periodo.
@@ -1049,6 +1274,8 @@ class HygeiaAssetManager:
                 ordenadas alfabéticamente.
             requested_duration: Duración del periodo pedido, antes de recortar;
                 positiva (la valida el schema de la query).
+            is_refresh: Si es ``True`` se recalcula aunque haya un resultado
+                guardado (``services/stats_cache.py``). Por defecto ``False``.
 
         Returns:
             Diccionario con la forma de ``AssetStatsSummaryResponseSchema``:
@@ -1059,31 +1286,26 @@ class HygeiaAssetManager:
             AssetNotFoundError: Si el activo no existe o pertenece a otro usuario.
             UnknownMetricError: Si algún nombre no está en el registro de métricas.
         """
+        # Permisos y validación antes de la caché: un activo borrado da 404
+        # aunque su resumen siga guardado.
         assert_owned(MonitoredAssetRepository, asset_id, self.user.id, AssetNotFoundError)
         definitions = [
             assert_metric_definition(name)
             for name in dict.fromkeys(metric_names or METRIC_REGISTRY)
         ]
-        window = _resolve_configured_stats_window(requested_duration)
 
-        snapshot_repo = build_repository(AssetSnapshotRepository)
-        summaries_by_metric = {}
-        for definition in definitions:
-            samples_by_asset = snapshot_repo.get_metric_samples_by_asset(
-                [asset_id], definition.column, window.since, window.until,
-            )
-            summaries_by_metric[definition.name] = summarize_values(samples_by_asset[asset_id])
-
-        return {
-            "metrics": summaries_by_metric,
-            "peakCoincidence": detect_peak_coincidence(
-                summaries_by_metric, _PEAK_REFERENCE_METRIC, _PEAK_COUNTERPART_METRICS,
-                CR.hygeia_analysis().peak_coincidence_window_sec,
-            ),
-            "periodCoveredFrom": window.since,
-            "periodCoveredTo": window.until,
-            "isPeriodClipped": window.is_clipped,
-        }
+        return resolve_cached_stats(
+            self.user.id,
+            "summary",
+            {
+                "assetId": asset_id,
+                "metrics": sorted(definition.name for definition in definitions),
+                "durationSeconds": requested_duration.total_seconds(),
+            },
+            requested_duration,
+            lambda: _compute_stats_summary(asset_id, definitions, requested_duration),
+            is_refresh=is_refresh,
+        )
 
     def get_disk_stats(
         self, asset_id: int, mount: Optional[str], requested_duration: timedelta,
@@ -1466,6 +1688,13 @@ class HygeiaAssetManager:
         y la operación se puede reintentar, en vez de dejar escaneos
         huérfanos apuntando a un id que ya no existe.
 
+        Deja sin efecto las estadísticas guardadas del usuario, que dejarían de
+        cuadrar con el parque (el activo seguiría en el ranking y en sus
+        etiquetas hasta caducar).
+
+        Args:
+            asset_id: Activo del usuario a dar de baja.
+
         Raises:
             AssetNotFoundError: Si el activo no existe o pertenece a otro usuario.
         """
@@ -1479,6 +1708,8 @@ class HygeiaAssetManager:
                 AssetNotFoundError, uow=uow,
             )
             MonitoredAssetRepository(uow).delete(asset)
+
+        invalidate_user_stats(self.user.id)
 
     def set_persistence(self, asset_id: int, is_persistent: bool) -> dict:
         """
@@ -1636,6 +1867,9 @@ class HygeiaTagManager:
         encargan el ORM (que vacía la tabla de asociación al borrar el padre)
         y el ``ondelete="CASCADE"`` de ``AssetTag``.
 
+        Deja sin efecto las estadísticas guardadas del usuario, entre ellas
+        las de la etiqueta borrada.
+
         Args:
             tag_id: Etiqueta a borrar.
 
@@ -1657,6 +1891,8 @@ class HygeiaTagManager:
 
             tag_repository.delete(tag)
 
+        invalidate_user_stats(self.user.id)
+
     def set_asset_tags(self, asset_id: int, tag_ids: list[int]) -> dict:
         """
         Reemplaza el conjunto de etiquetas de un activo.
@@ -1664,6 +1900,9 @@ class HygeiaTagManager:
         Es un reemplazo y no un añadido: llega la lista definitiva, y lo que
         no aparezca se quita. Así poner y quitar son la misma operación y el
         cliente no tiene que calcular diferencias ni encadenar llamadas.
+
+        Deja sin efecto las estadísticas guardadas del usuario: las de cada
+        etiqueta dependen de qué activos la llevan.
 
         Args:
             asset_id: Activo a etiquetar.
@@ -1698,8 +1937,10 @@ class HygeiaTagManager:
 
             asset.tags = [visible[tag_id] for tag_id in requested_ids]
             MonitoredAssetRepository(uow).update(asset)
+            serialized_asset = asset.to_dict()
 
-            return asset.to_dict()
+        invalidate_user_stats(self.user.id)
+        return serialized_asset
 
 
 class HygeiaStatsManager:
@@ -1719,7 +1960,7 @@ class HygeiaStatsManager:
 
     def get_tag_stats(
         self, tag_id: int, metric_names: Sequence[str], aggregation: str,
-        requested_duration: timedelta,
+        requested_duration: timedelta, is_refresh: bool = False,
     ) -> dict:
         """
         Agrega las métricas de los activos del usuario que llevan una etiqueta.
@@ -1738,6 +1979,8 @@ class HygeiaStatsManager:
             aggregation: ``"sum"``, ``"avg"`` o ``"max"``. ``sum`` solo se
                 admite en métricas aditivas.
             requested_duration: Duración del periodo pedido, antes de recortar.
+            is_refresh: Si es ``True`` se recalcula aunque haya un resultado
+                guardado (``services/stats_cache.py``). Por defecto ``False``.
 
         Returns:
             Diccionario con la forma de ``TagStatsResponseSchema``: ``tag``,
@@ -1759,32 +2002,22 @@ class HygeiaStatsManager:
         ]
         if aggregation == "sum":
             validate_metrics_are_additive(definitions)
-        window = _resolve_configured_stats_window(requested_duration)
 
-        assets = build_repository(MonitoredAssetRepository).get_by_tag(self.user.id, tag_id)
-        hostnames_by_asset = {asset.id: asset.hostname for asset in assets}
-        snapshot_repo = build_repository(AssetSnapshotRepository)
-        metrics = {
-            definition.name: _render_tag_metric(
-                definition,
-                snapshot_repo.get_metric_aggregates_by_asset(
-                    list(hostnames_by_asset), definition.column, window.since, window.until,
-                ),
-                hostnames_by_asset,
-                aggregation,
-            )
-            for definition in definitions
-        }
-
-        return {
-            "tag": tag.to_dict(),
-            "assetCount": len(hostnames_by_asset),
-            "agg": aggregation,
-            "metrics": metrics,
-            "periodCoveredFrom": window.since,
-            "periodCoveredTo": window.until,
-            "isPeriodClipped": window.is_clipped,
-        }
+        return resolve_cached_stats(
+            self.user.id,
+            "tag-stats",
+            {
+                "tagId": tag_id,
+                "metrics": sorted(definition.name for definition in definitions),
+                "aggregation": aggregation,
+                "durationSeconds": requested_duration.total_seconds(),
+            },
+            requested_duration,
+            lambda: _compute_tag_stats(
+                self.user.id, tag, definitions, aggregation, requested_duration,
+            ),
+            is_refresh=is_refresh,
+        )
 
     def get_tag_ranking(
         self, metric_name: str, aggregation: str, requested_duration: timedelta,
@@ -1853,9 +2086,9 @@ class HygeiaStatsManager:
             "isPeriodClipped": window.is_clipped,
         }
 
-    def get_asset_ranking(
+    def get_asset_ranking(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self, metric_name: str, aggregation: str, order: str, limit: int,
-        requested_duration: timedelta,
+        requested_duration: timedelta, is_refresh: bool = False,
     ) -> dict:
         """
         Ordena los activos del usuario por una métrica y devuelve los ``limit`` extremos.
@@ -1885,36 +2118,23 @@ class HygeiaStatsManager:
             UnknownMetricError: Si la métrica no está en el registro.
         """
         definition = assert_metric_definition(metric_name)
-        window = _resolve_configured_stats_window(requested_duration)
 
-        assets = build_repository(MonitoredAssetRepository).get_by_user(self.user.id)
-        snapshot_repo = build_repository(AssetSnapshotRepository)
-        aggregates_by_asset = snapshot_repo.get_metric_aggregates_by_asset(
-            [asset.id for asset in assets], definition.column, window.since, window.until,
+        return resolve_cached_stats(
+            self.user.id,
+            "ranking",
+            {
+                "metric": definition.name,
+                "aggregation": aggregation,
+                "order": order,
+                "limit": limit,
+                "durationSeconds": requested_duration.total_seconds(),
+            },
+            requested_duration,
+            lambda: _compute_asset_ranking(
+                self.user.id, definition, aggregation, order, limit, requested_duration,
+            ),
+            is_refresh=is_refresh,
         )
-        entries = []
-        for asset in assets:
-            average, maximum, sample_count = aggregates_by_asset[asset.id]
-            if sample_count:
-                entries.append({
-                    "assetId": asset.id,
-                    "hostname": asset.hostname,
-                    "value": average if aggregation == "avg" else maximum,
-                    "sampleCount": sample_count,
-                })
-
-        return {
-            "metric": definition.name,
-            "unit": definition.unit,
-            "agg": aggregation,
-            "order": order,
-            "assetCount": len(assets),
-            "assetsWithData": len(entries),
-            "assets": _rank_assets(entries, order, limit),
-            "periodCoveredFrom": window.since,
-            "periodCoveredTo": window.until,
-            "isPeriodClipped": window.is_clipped,
-        }
 
     def get_breach_ranking(self, limit: int, requested_duration: timedelta) -> dict:
         """
@@ -2301,7 +2521,7 @@ class HygeiaStatsManager:
         self, metric_name: str, *, tag_id: Optional[int], asset_ids: Optional[Sequence[int]],
         aggregation: Optional[str], bucket_aggregation: str,
         requested_bucket_seconds: Optional[int], requested_duration: timedelta,
-        compare_to: Optional[Tuple[str, int]] = None,
+        compare_to: Optional[Tuple[str, int]] = None, is_refresh: bool = False,
     ) -> dict:
         """
         Serie temporal por cubos de una métrica sobre varios activos.
@@ -2333,6 +2553,8 @@ class HygeiaStatsManager:
                 o ``("tag", id)``, o ``None``. Su serie va al final de
                 ``series``, marcada con ``isComparison``, y comparte los cubos
                 de la principal. Por defecto ``None``.
+            is_refresh: Si es ``True`` se recalcula aunque haya un resultado
+                guardado (``services/stats_cache.py``). Por defecto ``False``.
 
         Returns:
             Diccionario con la forma de ``MetricSeriesResponseSchema``: la
@@ -2351,47 +2573,35 @@ class HygeiaStatsManager:
             validate_metrics_are_additive([definition])
         tag, assets = _resolve_series_assets(self.user.id, tag_id, asset_ids)
 
-        window = _resolve_configured_stats_window(requested_duration)
-        max_points = CR.hygeia_limits().max_series_points
-        bucket_seconds, is_bucket_widened = _resolve_series_bucket(
-            window, requested_bucket_seconds, max_points,
+        return resolve_cached_stats(
+            self.user.id,
+            "series",
+            {
+                "metric": definition.name,
+                "tagId": tag_id,
+                "assetIds": sorted(asset.id for asset in assets),
+                "aggregation": aggregation,
+                "bucketAggregation": bucket_aggregation,
+                "bucketSeconds": requested_bucket_seconds,
+                "compareTo": list(compare_to) if compare_to is not None else None,
+                "durationSeconds": requested_duration.total_seconds(),
+            },
+            requested_duration,
+            lambda: _compute_metric_series(
+                self.user.id, definition, tag, assets, aggregation, bucket_aggregation,
+                requested_bucket_seconds, requested_duration, compare_to,
+            ),
+            is_refresh=is_refresh,
         )
-        series_query = _SeriesQuery(
-            definition=definition, bucket_seconds=bucket_seconds, window=window,
-            bucket_aggregation=bucket_aggregation, aggregation=aggregation, max_points=max_points,
-        )
-        snapshot_repo = build_repository(AssetSnapshotRepository)
-        series = _build_series(
-            snapshot_repo, series_query, tag, assets, is_combined=aggregation is not None,
-        )
-        if compare_to is not None:
-            series += _build_comparison_series(
-                self.user.id, snapshot_repo, series_query, compare_to,
-            )
-
-        return {
-            "metric": definition.name,
-            "unit": definition.unit,
-            "bucket": bucket_seconds,
-            "isBucketWidened": is_bucket_widened,
-            "bucketAgg": bucket_aggregation,
-            "agg": aggregation,
-            "series": series,
-            "periodCoveredFrom": window.since,
-            "periodCoveredTo": window.until,
-            "isPeriodClipped": window.is_clipped,
-        }
 
 
 class HygeiaReportManager:
     """
     Genera el informe PDF del inventario de activos de un usuario.
 
-    Síncrono a propósito: un inventario son filas de una tabla, no un escaneo.
-    Construirlo cuesta milisegundos, así que no necesita cola, ni fila en
-    ``Document``, ni que la SPA sondee un estado — se pide y se descarga. Si
-    algún día hubiera que archivarlo o tardara segundos, ese es el momento de
-    llevarlo a la TaskQueue, no antes.
+    No lo llama ninguna ruta directamente: lo usa la generación en segundo
+    plano de los documentos ``inventory-pdf`` (``HygeiaDocumentManager``), que
+    guarda el PDF resultante como documento descargable.
     """
 
     def __init__(self, user: User) -> None:
@@ -2431,6 +2641,36 @@ class HygeiaReportManager:
         stamp = utcnow_naive().strftime("%Y%m%d")
         suffix = "organizacion" if scope == "organization" else "propio"
         return pdf, f"inventario-hygeia-{suffix}-{stamp}.pdf"
+
+    def build_stats_report(
+        self, *, dataset: str, payload: dict, scope_label: Optional[str], period: Optional[str],
+    ) -> tuple[bytes, str]:
+        """
+        Construye el PDF de un juego de datos de estadísticas.
+
+        No lo llama ninguna ruta directamente: lo usa la generación en segundo
+        plano del documento ``stats-pdf`` (``HygeiaDocumentManager``), con
+        ``payload`` ya calculado y serializado por ``_compute_stats_payload`` —
+        el mismo camino que alimenta el CSV, así que las cifras del PDF nunca
+        pueden divergir de las del CSV o de la tabla en pantalla.
+
+        Args:
+            dataset: ``"summary"``, ``"tag-stats"``, ``"ranking"`` u
+                ``"overview"``.
+            payload: Respuesta ya serializada de ese juego de datos.
+            scope_label: Nombre del activo o de la etiqueta para la portada y
+                el nombre de fichero; ``None`` en ``ranking``/``overview``.
+            period: Periodo pedido (``24h``, ``7d``…), para el nombre de
+                fichero; ``None`` en ``overview``.
+
+        Returns:
+            ``(bytes del PDF, nombre de fichero sugerido)``.
+        """
+        author = f"{self.user.first_name} {self.user.last_name}".strip() or self.user.username
+        pdf = build_stats_report(
+            dataset=dataset, payload=payload, scope_label=scope_label, author=author,
+        )
+        return pdf, build_export_file_name(dataset, scope_label, period, extension="pdf")
 
     def _organization_scope(self) -> tuple[list, str, dict]:
         """Activos de toda la organización, si el usuario es su dueño.
@@ -2956,3 +3196,616 @@ class HygeiaNotifyManager:
         except Exception as exc:
             logger.error(f"Fallo enviando notificación de anomalía {anomaly_id}: {exc}")
 
+
+# =============================================================================
+# DOCUMENTOS GENERADOS EN SEGUNDO PLANO — CSV de estadísticas y PDF de inventario
+# =============================================================================
+
+#: Schema con el que se serializa cada juego de datos antes de volcarlo a CSV.
+#: Es el mismo que usa la respuesta JSON de su endpoint: el trabajo en segundo
+#: plano no pasa por la capa HTTP, y serializar aquí con el mismo schema es lo
+#: que mantiene la garantía de que el CSV dice exactamente lo mismo que el JSON.
+_STATS_CSV_SCHEMAS = {
+    "summary": AssetStatsSummaryResponseSchema,
+    "tag-stats": TagStatsResponseSchema,
+    "ranking": AssetRankingResponseSchema,
+    "overview": FleetOverviewResponseSchema,
+}
+
+#: Tipo MIME con el que se descarga cada formato de documento.
+_MIMETYPE_BY_FORMAT = {"csv": "text/csv", "pdf": "application/pdf"}
+
+#: Tiempo máximo del trabajo de generación, en segundos. Un CSV de 30 días de
+#: todo el parque recorre muchas muestras; diez minutos es holgado sin dejar
+#: un trabajo colgado indefinidamente.
+_DOCUMENT_JOB_TIMEOUT_SECONDS = 600
+
+
+def _require_parameter(dataset: str, field_name: str, value):
+    """Devuelve un parámetro obligatorio del alcance o lanza si falta.
+
+    Args:
+        dataset: Juego de datos pedido, para el mensaje de error.
+        field_name: Nombre camelCase del parámetro.
+        value: Valor recibido; ``None`` significa que falta.
+
+    Returns:
+        El mismo ``value`` si no es ``None``.
+
+    Raises:
+        InvalidDocumentRequestError: Si ``value`` es ``None``.
+    """
+    if value is None:
+        raise InvalidDocumentRequestError(dataset, field_name)
+    return value
+
+
+def _build_stats_csv_parameters(  # pylint: disable=too-many-arguments
+    user_id: int, dataset: str, *, asset_id: Optional[int], tag_id: Optional[int],
+    metric_names: Sequence[str], metric_name: Optional[str], aggregation: Optional[str],
+    order: str, limit: int, requested_duration: Optional[timedelta], period: Optional[str],
+) -> dict:
+    """Valida una petición de CSV de estadísticas y compone los parámetros que se guardan.
+
+    Todo lo que puede fallar por culpa de la petición se comprueba aquí, en la
+    request, y no en el trabajo en segundo plano: un activo ajeno o una métrica
+    inexistente tienen que dar su error al pedir, no un documento en ``error``
+    minutos después. Lo que se guarda es JSON (``Document.parameters``), así
+    que la duración va en segundos.
+
+    Args:
+        user_id: Primary key del usuario que pide.
+        dataset: ``"summary"``, ``"tag-stats"``, ``"ranking"`` u ``"overview"``.
+        asset_id: Activo del resumen; obligatorio en ``summary``.
+        tag_id: Etiqueta; obligatoria en ``tag-stats``.
+        metric_names: Métricas del resumen o de la etiqueta; vacío equivale a
+            todas.
+        metric_name: Métrica del ranking; obligatoria en ``ranking``.
+        aggregation: ``"sum"``, ``"avg"`` o ``"max"`` en ``tag-stats``;
+            ``"avg"`` o ``"max"`` en ``ranking``.
+        order: ``"desc"`` o ``"asc"`` del ranking.
+        limit: Activos del ranking, de 1 a 100.
+        requested_duration: Periodo pedido; obligatorio salvo en ``overview``.
+        period: El periodo tal como lo escribió el usuario (``7d``), para
+            describir el documento y nombrar el fichero.
+
+    Returns:
+        dict: Parámetros JSON-serializables, en camelCase: ``dataset``,
+            ``scopeLabel`` y los propios del juego de datos
+            (``durationSeconds`` y ``period`` en todos salvo ``overview``).
+
+    Raises:
+        InvalidDocumentRequestError: Si falta un dato imprescindible.
+        AssetNotFoundError: Si el activo no existe o es de otro usuario.
+        TagNotFoundError: Si la etiqueta no existe o es personal de otro usuario.
+        UnknownMetricError: Si alguna métrica no está en el registro.
+        NonAdditiveMetricError: Si se pide ``sum`` de una métrica no aditiva.
+    """
+    parameters: dict = {"dataset": dataset, "scopeLabel": None}
+    if dataset != "overview":
+        requested_duration = _require_parameter(dataset, "period", requested_duration)
+        parameters["durationSeconds"] = int(requested_duration.total_seconds())
+        parameters["period"] = period
+
+    if dataset == "summary":
+        asset = assert_owned(
+            MonitoredAssetRepository, _require_parameter(dataset, "assetId", asset_id),
+            user_id, AssetNotFoundError,
+        )
+        definitions = [assert_metric_definition(name) for name in dict.fromkeys(metric_names)]
+        parameters.update({
+            "assetId": asset.id, "scopeLabel": asset.hostname,
+            "metrics": [definition.name for definition in definitions],
+        })
+    elif dataset == "tag-stats":
+        tag = _assert_visible_tag(user_id, _require_parameter(dataset, "tagId", tag_id))
+        definitions = [
+            assert_metric_definition(name)
+            for name in dict.fromkeys(metric_names or METRIC_REGISTRY)
+        ]
+        if aggregation == "sum":
+            validate_metrics_are_additive(definitions)
+        parameters.update({
+            "tagId": tag.id, "scopeLabel": tag.name,
+            "metrics": [definition.name for definition in definitions],
+            "aggregation": aggregation or "avg",
+        })
+    elif dataset == "ranking":
+        definition = assert_metric_definition(_require_parameter(dataset, "metric", metric_name))
+        parameters.update({
+            "metric": definition.name, "aggregation": aggregation or "avg",
+            "order": order, "limit": limit,
+        })
+    return parameters
+
+
+def _compute_stats_payload(user: User, dataset: str, parameters: dict) -> dict:
+    """Calcula una estadística y la sirve ya serializada por el schema del endpoint JSON.
+
+    Único camino de cálculo para los documentos de estadísticas, sea cual sea
+    su formato de salida: llama al mismo método de manager que el endpoint
+    JSON (y por tanto aprovecha la caché de estadísticas) y serializa con el
+    mismo schema Marshmallow, así que el CSV, el PDF y la respuesta JSON no
+    pueden decir tres cifras distintas — leen la misma.
+
+    Args:
+        user: Dueño del documento; las estadísticas se calculan con su
+            visibilidad, nunca con nada que venga del cliente.
+        dataset: ``"summary"``, ``"tag-stats"``, ``"ranking"`` u ``"overview"``.
+        parameters: Los parámetros guardados por ``_build_stats_csv_parameters``.
+
+    Returns:
+        dict: La respuesta ya serializada (claves camelCase, valores JSON-safe).
+
+    Raises:
+        AssetNotFoundError / TagNotFoundError: Si el activo o la etiqueta
+            desaparecieron entre la petición y la generación.
+    """
+    duration = timedelta(seconds=parameters.get("durationSeconds", 0))
+    if dataset == "summary":
+        payload = HygeiaAssetManager(user).get_stats_summary(
+            parameters["assetId"], metric_names=parameters["metrics"], requested_duration=duration,
+        )
+    elif dataset == "tag-stats":
+        payload = HygeiaStatsManager(user).get_tag_stats(
+            parameters["tagId"], metric_names=parameters["metrics"],
+            aggregation=parameters["aggregation"], requested_duration=duration,
+        )
+    elif dataset == "ranking":
+        payload = HygeiaStatsManager(user).get_asset_ranking(
+            metric_name=parameters["metric"], aggregation=parameters["aggregation"],
+            order=parameters["order"], limit=parameters["limit"], requested_duration=duration,
+        )
+    else:
+        payload = HygeiaStatsManager(user).get_fleet_overview()
+    return _STATS_CSV_SCHEMAS[dataset]().dump(payload)
+
+
+def _render_stats_csv(user: User, parameters: dict) -> Tuple[bytes, str]:
+    """Calcula una estadística y la vuelca a CSV; cuerpo de un documento ``stats-csv``.
+
+    Args:
+        user: Dueño del documento.
+        parameters: Los parámetros guardados por ``_build_stats_csv_parameters``.
+
+    Returns:
+        Tuple[bytes, str]: El contenido del CSV y el nombre de descarga.
+
+    Raises:
+        AssetNotFoundError / TagNotFoundError: Ver ``_compute_stats_payload``.
+    """
+    dataset = parameters["dataset"]
+    content, _ = build_csv(dataset, _compute_stats_payload(user, dataset, parameters))
+    return content, build_export_file_name(
+        dataset, parameters.get("scopeLabel"), parameters.get("period"),
+    )
+
+
+def _render_stats_pdf(user: User, parameters: dict) -> Tuple[bytes, str]:
+    """Calcula una estadística y la maqueta en PDF; cuerpo de un documento ``stats-pdf``.
+
+    Args:
+        user: Dueño del documento.
+        parameters: Los parámetros guardados por ``_build_stats_csv_parameters``.
+
+    Returns:
+        Tuple[bytes, str]: El contenido del PDF y el nombre de descarga.
+
+    Raises:
+        AssetNotFoundError / TagNotFoundError: Ver ``_compute_stats_payload``.
+    """
+    dataset = parameters["dataset"]
+    payload = _compute_stats_payload(user, dataset, parameters)
+    return HygeiaReportManager(user).build_stats_report(
+        dataset=dataset, payload=payload,
+        scope_label=parameters.get("scopeLabel"), period=parameters.get("period"),
+    )
+
+
+def _render_inventory_pdf(user: User, parameters: dict) -> Tuple[bytes, str]:
+    """Construye el PDF del inventario; cuerpo de un documento ``inventory-pdf``.
+
+    Args:
+        user: Dueño del documento.
+        parameters: ``scope`` (``"user"`` u ``"organization"``) e
+            ``includeSoftware``.
+
+    Returns:
+        Tuple[bytes, str]: El contenido del PDF y el nombre de descarga.
+
+    Raises:
+        OrganizationScopeNotAllowedError: Si el usuario dejó de ser dueño de
+            su organización entre la petición y la generación.
+    """
+    return HygeiaReportManager(user).build_inventory_report(
+        scope=parameters["scope"], include_software=parameters["includeSoftware"],
+    )
+
+
+#: Cómo se genera cada tipo de documento: el formato del fichero y la función
+#: que produce su contenido. Añadir un tipo es añadir una entrada aquí y su
+#: función de creación en el manager.
+_DOCUMENT_RENDERERS = {
+    HygeiaDocumentKind.STATS_CSV: ("csv", _render_stats_csv),
+    HygeiaDocumentKind.STATS_PDF: ("pdf", _render_stats_pdf),
+    HygeiaDocumentKind.INVENTORY_PDF: ("pdf", _render_inventory_pdf),
+}
+
+
+def _write_document_file(document_id: int, content: bytes, file_format: str) -> str:
+    """Escribe el contenido de un documento en el directorio de salida de Hygeia.
+
+    El nombre en disco lleva el id del documento y no el nombre de descarga:
+    es único por construcción, y un hostname no llega nunca a una ruta.
+
+    Args:
+        document_id: Primary key del documento.
+        content: Bytes del fichero.
+        file_format: Extensión sin punto (``"csv"`` o ``"pdf"``).
+
+    Returns:
+        str: Ruta absoluta del fichero escrito.
+    """
+    directory = CR.verify_directory(CR.DirectoryType.OUTPUT_HYGEIA)
+    path = directory / f"hygeia-document-{document_id}.{file_format}"
+    path.write_bytes(content)
+    return str(path)
+
+
+def _run_document_generation(document_id: int) -> None:
+    """Cuerpo del trabajo que genera un documento de Hygeia.
+
+    Marca el documento ``running``, lo genera con la función de su tipo, guarda
+    el fichero y su nombre de descarga, y deja el estado final en ``done`` o
+    ``error`` a través de ``run_report_generation`` (compartido con Iris y
+    Themis), que además relanza el error para que el trabajo figure como
+    fallido en la cola. Un documento borrado antes de empezar no hace nada.
+
+    Args:
+        document_id: Primary key del ``HygeiaDocument``.
+
+    Returns:
+        None.
+    """
+    # Import diferido, como en HygeiaNotifyManager: users importa features al
+    # cargar, y al revés cerraría un ciclo.
+    from src.modules.users.managers import UserManager  # pylint: disable=import-outside-toplevel
+
+    with UnitOfWork() as uow:
+        document = HygeiaDocumentRepository(uow).get_by_id(document_id)
+        if document is None:
+            logger.warning(f"Documento Hygeia {document_id} borrado antes de generarse")
+            return
+        document.status = "running"
+        user_id, kind, parameters = document.user_id, document.kind, dict(document.parameters)
+
+    def _render() -> str:
+        """Genera el fichero, guarda su nombre de descarga y devuelve su ruta."""
+        user = UserManager().get_user_by_id(user_id)
+        if user is None:
+            raise HygeiaError(
+                message=f"El dueño {user_id} del documento {document_id} ya no existe",
+            )
+        file_format, render = _DOCUMENT_RENDERERS[HygeiaDocumentKind(kind)]
+        content, download_name = render(user, parameters)
+        path = _write_document_file(document_id, content, file_format)
+        with UnitOfWork() as uow:
+            generated = HygeiaDocumentRepository(uow).get_by_id(document_id)
+            if generated is not None:
+                generated.download_name = download_name
+        return path
+
+    run_report_generation(document_id, HygeiaDocumentRepository, _render)
+
+
+def _create_and_submit_document(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+    task_queue, user_id: int, build_external_id: Callable[[int], str],
+    kind: HygeiaDocumentKind, file_format: str, parameters: dict,
+) -> dict:
+    """Crea la fila de un documento en ``pending`` y encola su generación.
+
+    La fila se confirma antes de encolar (``commit_for_handoff``) porque el
+    worker es otro proceso y tiene que verla. Se encola con ``submit()``
+    directo y no con la outbox, como los informes de Iris y Themis: si el
+    encolado falla, ``submit_report_generation`` deja el documento en ``error``
+    y relanza, así que no queda nada colgado, y volver a pedirlo es un botón.
+
+    Args:
+        task_queue: Cola en la que se encola la generación.
+        user_id: Primary key del dueño del documento.
+        build_external_id: Compone el ``external_id`` a partir del id del
+            documento (``HygeiaDocumentManager.external_id_for``).
+        kind: Tipo de documento.
+        file_format: Extensión del fichero (``"csv"`` o ``"pdf"``).
+        parameters: Parámetros ya validados y JSON-serializables.
+
+    Returns:
+        dict: El documento creado (``HygeiaDocument.to_dict``).
+    """
+    with UnitOfWork() as uow:
+        document = HygeiaDocument(
+            document_type="hygeia",
+            kind=kind.value,
+            format=file_format,
+            filename="",
+            status="pending",
+            is_ai_generated=0,
+            parameters=parameters,
+            user_id=user_id,
+        )
+        HygeiaDocumentRepository(uow).save(document)
+        uow.commit_for_handoff()
+        serialized = document.to_dict()
+
+    submit_report_generation(
+        task_queue, serialized["id"], HygeiaDocumentRepository,
+        func=HygeiaDocumentManager.execute_document_generation,
+        args=(serialized["id"],),
+        name=f"HygeiaDocument-{serialized['id']}",
+        category=HygeiaDocumentManager.TASK_CATEGORY,
+        external_id=build_external_id(serialized["id"]),
+        timeout=_DOCUMENT_JOB_TIMEOUT_SECONDS,
+    )
+    return serialized
+
+
+def _create_stats_document(
+    # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
+    task_queue, user_id: int, build_external_id: Callable[[int], str],
+    kind: HygeiaDocumentKind, file_format: str, dataset: str, *,
+    asset_id: Optional[int] = None, tag_id: Optional[int] = None,
+    metric_names: Sequence[str] = (), metric_name: Optional[str] = None,
+    aggregation: Optional[str] = None, order: str = "desc", limit: int = 10,
+    requested_duration: Optional[timedelta] = None, period: Optional[str] = None,
+) -> dict:
+    """Valida una consulta de estadísticas y encola su generación, en el formato que sea.
+
+    Cuerpo común de ``HygeiaDocumentManager.create_stats_csv_document`` y
+    ``create_stats_pdf_document``: la consulta que describe qué estadística
+    exportar es exactamente la misma para los dos formatos, así que solo
+    cambian ``kind`` y ``file_format``.
+
+    Args:
+        task_queue: Cola en la que se encola la generación.
+        user_id: Primary key del dueño del documento.
+        build_external_id: Compone el ``external_id`` a partir del id del
+            documento (``HygeiaDocumentManager.external_id_for``).
+        kind: ``HygeiaDocumentKind.STATS_CSV`` o ``HygeiaDocumentKind.STATS_PDF``.
+        file_format: ``"csv"`` o ``"pdf"``.
+        dataset: ``"summary"``, ``"tag-stats"``, ``"ranking"`` u ``"overview"``.
+        asset_id: Activo del resumen; obligatorio en ``summary``.
+        tag_id: Etiqueta; obligatoria en ``tag-stats``.
+        metric_names: Métricas del resumen o de la etiqueta; vacío = todas.
+        metric_name: Métrica del ranking; obligatoria en ``ranking``.
+        aggregation: Combinación entre activos (``sum``/``avg``/``max`` en
+            ``tag-stats``, ``avg``/``max`` en ``ranking``). Por defecto
+            ``None``, que equivale a ``avg``.
+        order: ``"desc"`` (por defecto) o ``"asc"`` del ranking.
+        limit: Activos del ranking; por defecto ``10``.
+        requested_duration: Periodo pedido; obligatorio salvo en ``overview``.
+        period: Periodo tal como lo escribió el usuario (``7d``).
+
+    Returns:
+        dict: El documento recién creado (``HygeiaDocument.to_dict``), en
+            ``pending``.
+
+    Raises:
+        InvalidDocumentRequestError, AssetNotFoundError, TagNotFoundError,
+        UnknownMetricError, NonAdditiveMetricError: Ver
+            ``_build_stats_csv_parameters``.
+    """
+    parameters = _build_stats_csv_parameters(
+        user_id, dataset, asset_id=asset_id, tag_id=tag_id, metric_names=metric_names,
+        metric_name=metric_name, aggregation=aggregation, order=order, limit=limit,
+        requested_duration=requested_duration, period=period,
+    )
+    return _create_and_submit_document(
+        task_queue, user_id, build_external_id, kind, file_format, parameters,
+    )
+
+
+class HygeiaDocumentManager(DocumentManager):
+    """Documentos de Hygeia generados en segundo plano y su ciclo de vida.
+
+    Pedir un documento lo valida en el acto (permisos, métricas, alcance), crea
+    su fila en ``pending`` y encola la generación en ``hygeia.report``. El
+    worker lo genera, lo escribe en ``features.hygeia.directories.output`` y lo
+    deja en ``done`` o ``error``. Todas las operaciones actúan sobre los
+    documentos del usuario con el que se construye el manager: uno ajeno da el
+    mismo 404 que uno inexistente.
+
+    Attributes:
+        EXTERNAL_ID_PREFIX: Prefijo del ``external_id`` de sus trabajos
+            (``hygeia-doc:``).
+        TASK_CATEGORY: Categoría de TaskQueue (``hygeia.report``).
+        user: Usuario dueño de los documentos que se gestionan.
+    """
+
+    EXTERNAL_ID_PREFIX = "hygeia-doc:"
+    TASK_CATEGORY = "hygeia.report"
+
+    _REPOSITORY = HygeiaDocumentRepository
+    _NOT_FOUND_ERROR = DocumentNotFoundError
+
+    def __init__(self, user: Optional[User], task_queue=None) -> None:
+        """Prepara el manager para un usuario.
+
+        Args:
+            user: Usuario dueño de los documentos; ``None`` solo para las
+                operaciones de mantenimiento que no dependen de un usuario
+                (``reconcile_orphaned_documents``).
+            task_queue: Cola a usar. Por defecto ``None``, que usa la
+                instancia compartida; los tests inyectan un doble.
+        """
+        super().__init__(task_queue=task_queue)
+        self.user = user
+
+    def create_stats_csv_document(  # pylint: disable=too-many-arguments
+        self, dataset: str, *, asset_id: Optional[int] = None, tag_id: Optional[int] = None,
+        metric_names: Sequence[str] = (), metric_name: Optional[str] = None,
+        aggregation: Optional[str] = None, order: str = "desc", limit: int = 10,
+        requested_duration: Optional[timedelta] = None, period: Optional[str] = None,
+    ) -> dict:
+        """Pide un CSV de estadísticas: lo valida, lo registra y encola su generación.
+
+        Ver ``_create_stats_document`` para los parámetros y las excepciones;
+        aquí solo se fija el tipo de documento.
+
+        Returns:
+            dict: El documento recién creado (``HygeiaDocument.to_dict``), en
+                ``pending``.
+        """
+        return _create_stats_document(
+            self._task_queue, self.user.id, self.external_id_for,
+            HygeiaDocumentKind.STATS_CSV, "csv", dataset,
+            asset_id=asset_id, tag_id=tag_id, metric_names=metric_names, metric_name=metric_name,
+            aggregation=aggregation, order=order, limit=limit,
+            requested_duration=requested_duration, period=period,
+        )
+
+    def create_stats_pdf_document(  # pylint: disable=too-many-arguments
+        self, dataset: str, *, asset_id: Optional[int] = None, tag_id: Optional[int] = None,
+        metric_names: Sequence[str] = (), metric_name: Optional[str] = None,
+        aggregation: Optional[str] = None, order: str = "desc", limit: int = 10,
+        requested_duration: Optional[timedelta] = None, period: Optional[str] = None,
+    ) -> dict:
+        """Pide el PDF de una estadística: lo valida, lo registra y encola su generación.
+
+        Misma consulta que ``create_stats_csv_document``; solo cambia el
+        formato de salida. Ver ``_create_stats_document`` para los parámetros
+        y las excepciones.
+
+        Returns:
+            dict: El documento recién creado (``HygeiaDocument.to_dict``), en
+                ``pending``.
+        """
+        return _create_stats_document(
+            self._task_queue, self.user.id, self.external_id_for,
+            HygeiaDocumentKind.STATS_PDF, "pdf", dataset,
+            asset_id=asset_id, tag_id=tag_id, metric_names=metric_names, metric_name=metric_name,
+            aggregation=aggregation, order=order, limit=limit,
+            requested_duration=requested_duration, period=period,
+        )
+
+    def create_inventory_pdf_document(self, scope: str, include_software: bool) -> dict:
+        """Pide el PDF del inventario: lo valida, lo registra y encola su generación.
+
+        Args:
+            scope: ``"user"`` (los activos propios) u ``"organization"`` (los de
+                todos los miembros; solo para el dueño).
+            include_software: Si añade el anexo con el software instalado.
+
+        Returns:
+            dict: El documento recién creado, en ``pending``.
+
+        Raises:
+            OrganizationScopeNotAllowedError: Si se pide el ámbito de
+                organización sin ser dueño de una.
+        """
+        if scope == "organization":
+            organization = OrganizationManager().get_mine(self.user.id)
+            if organization is None or not organization.get("isOwner"):
+                raise OrganizationScopeNotAllowedError()
+        parameters = {"scope": scope, "includeSoftware": bool(include_software)}
+        return _create_and_submit_document(
+            self._task_queue, self.user.id, self.external_id_for,
+            HygeiaDocumentKind.INVENTORY_PDF, "pdf", parameters,
+        )
+
+    def list_documents(self, page: int, per_page: int) -> Tuple[list, int]:
+        """Una página de los documentos del usuario, más recientes primero.
+
+        Args:
+            page: Página, desde 1.
+            per_page: Documentos por página.
+
+        Returns:
+            Tuple[list, int]: Los documentos de la página como diccionarios
+                (``HygeiaDocument.to_dict``) y el total del usuario.
+        """
+        documents, total = self.get_documents_for_user_paginated(self.user.id, page, per_page)
+        return [document.to_dict() for document in documents], total
+
+    def get_document(self, document_id: int) -> dict:
+        """Un documento del usuario.
+
+        Args:
+            document_id: Primary key del documento.
+
+        Returns:
+            dict: El documento (``HygeiaDocument.to_dict``).
+
+        Raises:
+            DocumentNotFoundError: Si no existe o es de otro usuario.
+        """
+        return self.assert_document_ownership(document_id, self.user.id).to_dict()
+
+    def get_document_file(self, document_id: int) -> Tuple[str, str, str]:
+        """Dónde está el fichero de un documento listo y cómo se descarga.
+
+        Args:
+            document_id: Primary key del documento.
+
+        Returns:
+            Tuple[str, str, str]: Ruta en disco, nombre de descarga y tipo MIME.
+
+        Raises:
+            DocumentNotFoundError: Si no existe o es de otro usuario.
+            DocumentNotReadyError: Si todavía no está en ``done`` o su fichero
+                ya no está en disco.
+        """
+        document = self.assert_document_ownership(document_id, self.user.id)
+        is_ready = document.status == "done" and document.filename
+        if not is_ready or not os.path.exists(document.filename):
+            raise DocumentNotReadyError(document_id, document.status)
+        download_name = document.download_name or os.path.basename(document.filename)
+        mimetype = _MIMETYPE_BY_FORMAT.get(document.format, "application/octet-stream")
+        return document.filename, download_name, mimetype
+
+    def delete_user_document(self, document_id: int) -> None:
+        """Borra un documento del usuario y su fichero.
+
+        Args:
+            document_id: Primary key del documento.
+
+        Raises:
+            DocumentNotFoundError: Si no existe o es de otro usuario.
+        """
+        self.assert_document_ownership(document_id, self.user.id)
+        self.delete_document(document_id)
+
+    @staticmethod
+    def execute_document_generation(document_id: int) -> None:
+        """Punto de entrada que ejecuta el worker de la TaskQueue.
+
+        Args:
+            document_id: Primary key del ``HygeiaDocument`` a generar.
+        """
+        with job_context():
+            _run_document_generation(document_id)
+
+    @classmethod
+    def reconcile_orphaned_documents(cls) -> int:
+        """Marca como ``error`` los documentos que ya nadie va a terminar.
+
+        Si la API o el worker se paran con un documento en ``pending`` o
+        ``running``, no queda trabajo vivo que lo actualice y el panel lo
+        enseñaría «generándose» para siempre. Se llama una vez al arrancar la
+        API. Un trabajo que sigue en la cola o que corre en un worker vivo se
+        respeta (``TaskQueue.is_recoverable``).
+
+        Returns:
+            int: Documentos marcados como ``error``.
+        """
+        task_queue = TaskQueue.get_instance()
+        manager = cls(user=None, task_queue=task_queue)
+        fixed = 0
+        with UnitOfWork() as uow:
+            repo = HygeiaDocumentRepository(uow)
+            for document in repo.get_unfinished_documents():
+                external_id = manager.external_id_for(document.id)
+                if task_queue.is_recoverable(external_id, cls.TASK_CATEGORY):
+                    continue
+                document.status = "error"
+                fixed += 1
+        return fixed

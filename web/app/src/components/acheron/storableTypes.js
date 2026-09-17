@@ -1,17 +1,13 @@
 /**
  * Vista compuesta de los tipos de storable para la interfaz: une el contrato
- * de datos (`storableSchema.js`) con su presentación (`storableLabels.js`).
+ * de datos (`STORABLE_SCHEMA` de `@projectellysia/acheron-core-web`, generado
+ * desde el catálogo de `AcheronCore`) con su presentación (`storableLabels.js`).
  *
- * Antes las dos cosas vivían en el mismo literal. Se separaron porque el
- * esquema tenía que viajar a un paquete compartido, y no se podía publicar sin
- * arrastrar las etiquetas en castellano: cambiar el texto de un botón habría
- * obligado a publicar una versión nueva del paquete de criptografía.
+ * Las dos mitades van separadas porque el esquema se publica con el paquete de
+ * criptografía y las etiquetas en castellano no: cambiar el texto de un botón
+ * no debe obligar a publicar una versión nueva del motor.
  *
- * Ya ha viajado: el esquema llega de `@projectellysia/acheron-core-web`, que a
- * su vez lo copia de `AcheronSchema`. Aquí solo quedan las etiquetas.
- *
- * La forma que exporta este fichero es la misma de antes, así que los
- * componentes no notan nada. La capa cripto NO pasa por aquí: vive en el
+ * La capa cripto NO pasa por aquí: vive en el
  * paquete y lee el esquema directamente, y por eso nunca ve una etiqueta.
  *
  * `acheron.schema.test.mjs` verifica que las dos mitades siguen hablando de

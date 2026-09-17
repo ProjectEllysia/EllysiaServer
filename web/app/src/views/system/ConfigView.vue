@@ -404,6 +404,7 @@
                 <div class="form-group"><label>Cron de purga</label><input v-model="store.configFlat['features.hygeia.retentionCron']" type="text" class="inp mono" /><span class="field-hint">Formato cron de cinco campos</span></div>
                 <div class="form-group"><label>Precio de la electricidad (por kWh)</label><input v-model.number="store.configFlat['features.hygeia.energyPricePerKwh']" type="number" min="0" step="0.01" class="inp" /></div>
                 <div class="form-group"><label>Moneda</label><input v-model="store.configFlat['features.hygeia.energyPriceCurrency']" type="text" maxlength="3" class="inp mono" /><span class="field-hint">Código ISO 4217 (EUR, USD...)</span></div>
+                <div class="form-group"><label>Directorio de salida (CSV y PDF)</label><input v-model="store.configFlat['features.hygeia.directories.output']" type="text" class="inp" /></div>
                 <div class="form-group"><label>Versión mínima de agente</label><input v-model="store.configFlat['features.hygeia.minAgentVersion']" type="text" class="inp mono" placeholder="0.0.0" /><span class="field-hint">Formato X.Y.Z. Un activo con una versión anterior se marca como desactualizado en la lista; "0.0.0" no marca ninguno.</span></div>
               </div>
               <h3 class="subsection-title">Umbrales</h3>
@@ -430,6 +431,14 @@
                 <div class="form-group"><label>Ajuste mínimo de la tendencia (R²)</label><input v-model.number="store.configFlat['features.hygeia.analysis.minTrendRSquared']" type="number" min="0" max="1" step="0.05" class="inp" /><span class="field-hint">De 0 a 1. Cuánto tiene que parecerse la serie a una recta para creerse su dirección; subirlo deja sin estimación a los discos que crecen a escalones</span></div>
                 <div class="form-group"><label>Crecimiento mínimo (puntos porcentuales al día)</label><input v-model.number="store.configFlat['features.hygeia.analysis.minTrendSlopePctPerDay']" type="number" min="0" step="0.01" class="inp" /><span class="field-hint">Por debajo de esto se considera que la métrica oscila, no que crece</span></div>
                 <div class="form-group"><label>Ventana de coincidencia de picos (s)</label><input v-model.number="store.configFlat['features.hygeia.analysis.peakCoincidenceWindowSec']" type="number" min="1" class="inp" /><span class="field-hint">Cuánto pueden separarse dos picos de métricas distintas para considerarlos simultáneos</span></div>
+              </div>
+              <h3 class="subsection-title">Caché de estadísticas</h3>
+              <p class="field-hint">Cuánto tiempo se reutiliza una estadística ya calculada antes de recalcularla. Cuanto más largo es el periodo pedido, más despacio cambia el resultado. Dar de alta o de baja un activo o cambiar sus etiquetas descarta lo guardado de ese usuario.</p>
+              <div class="cfg-row"><label class="toggle-row"><input v-model="store.configFlat['features.hygeia.statsCache.isEnabled']" type="checkbox" class="toggle" /><span>Reutilizar resultados</span></label></div>
+              <div class="cfg-grid">
+                <div class="form-group"><label>Periodos de hasta 24 h (s)</label><input v-model.number="store.configFlat['features.hygeia.statsCache.shortPeriodTtlSeconds']" type="number" min="1" class="inp" /></div>
+                <div class="form-group"><label>Periodos de hasta 7 días (s)</label><input v-model.number="store.configFlat['features.hygeia.statsCache.mediumPeriodTtlSeconds']" type="number" min="1" class="inp" /></div>
+                <div class="form-group"><label>Periodos más largos (s)</label><input v-model.number="store.configFlat['features.hygeia.statsCache.longPeriodTtlSeconds']" type="number" min="1" class="inp" /></div>
               </div>
               <h3 class="subsection-title">Límites</h3>
               <p class="field-hint">Topes de lo que el agente puede enviar y de lo que la API acepta. Recortarlos protege a la API de un agente comprometido o mal configurado.</p>

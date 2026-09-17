@@ -13,8 +13,8 @@
  *
  * Sin este test la separación sería un riesgo neto en lugar de una mejora.
  *
- * El esquema ya no vive aquí: llega de `@projectellysia/acheron-core-web`, que
- * a su vez lo copia de `AcheronSchema` y lo verifica en su propia suite. Lo que
+ * El esquema no vive aquí: llega de `@projectellysia/acheron-core-web`, que lo
+ * genera desde el catálogo de `AcheronCore` y lo verifica en su propia suite. Lo que
  * queda por comprobar en la SPA es lo que solo la SPA tiene: que sus etiquetas
  * sigan describiendo los campos que el paquete declara.
  *

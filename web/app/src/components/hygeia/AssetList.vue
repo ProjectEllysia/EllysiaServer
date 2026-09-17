@@ -1,7 +1,13 @@
 <template>
   <div class="asset-list">
+    <!-- Dos filas y no una: título, cuatro herramientas y el alta suman más
+         ancho del que tiene la columna incluso en su máximo. La acción
+         principal comparte fila con el título; las herramientas van debajo. -->
     <header class="toolbar">
-      <h3 class="toolbar-title">Activos</h3>
+      <div class="toolbar-head">
+        <h3 class="toolbar-title">Activos</h3>
+        <button class="btn-new" @click="$emit('create')">Nuevo activo</button>
+      </div>
       <div class="toolbar-actions">
         <RouterLink class="btn-icon" to="/hygeia/etiquetas" title="Gestionar etiquetas" aria-label="Gestionar etiquetas">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -15,20 +21,24 @@
             <path d="M7 15v3M12 9v9M17 5v13" />
           </svg>
         </RouterLink>
-        <button class="btn-icon" title="Inventario en PDF" aria-label="Descargar el inventario en PDF"
+        <button class="btn-icon" title="Inventario en PDF" aria-label="Preparar el inventario en PDF"
           @click="$emit('report')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
             <path d="M14 2v6h6M12 18v-6M9 15l3 3 3-3" />
           </svg>
         </button>
+        <RouterLink class="btn-icon" to="/hygeia/documentos" title="Documentos" aria-label="Ver los documentos pedidos">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+          </svg>
+        </RouterLink>
         <button class="btn-icon" title="Recargar" aria-label="Recargar activos" @click="$emit('refresh')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M23 4v6h-6M1 20v-6h6" />
             <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
           </svg>
         </button>
-        <button class="btn-new" @click="$emit('create')">Nuevo activo</button>
       </div>
     </header>
 
@@ -228,7 +238,8 @@ function pulseClass(asset) {
 <style scoped>
 .asset-list { display: flex; flex-direction: column; gap: 0.85rem; }
 
-.toolbar { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.toolbar { display: flex; flex-direction: column; gap: 0.6rem; }
+.toolbar-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
 .toolbar-title {
   margin: 0;
   font-size: var(--fs-xl); font-weight: 600;

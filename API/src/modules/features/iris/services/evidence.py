@@ -68,6 +68,24 @@ _URL_SCHEME_RE = re.compile(r"(?i)\bhttp(s?)(?=://)")
 _DOMAIN_TOKEN_RE = re.compile(r"\b[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z][A-Za-z0-9-]*\b")
 
 
+def _header_item(header_name: str, occurrence: int, value: str) -> Dict[str, Any]:
+    """Construye la evidencia de una aparición concreta de una cabecera.
+
+    Args:
+        header_name: Nombre de la cabecera en minúsculas.
+        occurrence: Aparición (0 = la primera del mensaje).
+        value: Valor de la cabecera, sin desactivar.
+
+    Returns:
+        dict: Elemento de evidencia de tipo ``header``.
+    """
+    return {
+        "kind": EVIDENCE_HEADER,
+        "locator": {"header": header_name, "occurrence": occurrence},
+        "excerpt": defang(value),
+    }
+
+
 def defang(text: str) -> str:
     """Desactiva URLs, dominios y direcciones de un texto y lo recorta.
 
@@ -89,7 +107,6 @@ def defang(text: str) -> str:
     if len(defanged) > MAX_EXCERPT_LENGTH:
         defanged = defanged[:MAX_EXCERPT_LENGTH - 1] + "…"
     return defanged
-
 
 def validate_evidence(item: Any) -> None:
     """Comprueba que un elemento de evidencia cumple el contrato del módulo.
@@ -119,25 +136,6 @@ def validate_evidence(item: Any) -> None:
     missing = [key for key in required if key not in locator]
     if missing:
         raise ValueError(f"A la evidencia de tipo {kind!r} le faltan claves en el locator: {missing}.")
-
-
-def _header_item(header_name: str, occurrence: int, value: str) -> Dict[str, Any]:
-    """Construye la evidencia de una aparición concreta de una cabecera.
-
-    Args:
-        header_name: Nombre de la cabecera en minúsculas.
-        occurrence: Aparición (0 = la primera del mensaje).
-        value: Valor de la cabecera, sin desactivar.
-
-    Returns:
-        dict: Elemento de evidencia de tipo ``header``.
-    """
-    return {
-        "kind": EVIDENCE_HEADER,
-        "locator": {"header": header_name, "occurrence": occurrence},
-        "excerpt": defang(value),
-    }
-
 
 def header_evidence(rule_input: Any, header_names: Sequence[str]) -> List[Dict[str, Any]]:
     """Evidencia de las cabeceras indicadas que existen en el mensaje.
@@ -171,7 +169,6 @@ def header_evidence(rule_input: Any, header_names: Sequence[str]) -> List[Dict[s
             items.append(_header_item(header_name, 0, value))
     return items
 
-
 def received_hop_evidence(received_lines: Sequence[str], hop_index: int) -> Dict[str, Any]:
     """Evidencia de un salto concreto de la cadena Received.
 
@@ -184,7 +181,6 @@ def received_hop_evidence(received_lines: Sequence[str], hop_index: int) -> Dict
         dict: Elemento ``header`` de ``received`` con esa aparición.
     """
     return _header_item("received", hop_index, received_lines[hop_index])
-
 
 def link_evidence(link_index: int, link: Any) -> Dict[str, Any]:
     """Evidencia de un enlace del cuerpo.
@@ -203,7 +199,6 @@ def link_evidence(link_index: int, link: Any) -> Dict[str, Any]:
         excerpt = f"{href} («{link.text}»)"
     return {"kind": EVIDENCE_URL, "locator": {"linkIndex": link_index}, "excerpt": defang(excerpt)}
 
-
 def qr_url_evidence(attachment_index: int, url: str) -> Dict[str, Any]:
     """Evidencia de una URL decodificada de un código QR de un adjunto.
 
@@ -219,7 +214,6 @@ def qr_url_evidence(attachment_index: int, url: str) -> Dict[str, Any]:
         "locator": {"attachmentIndex": attachment_index, "source": "qr_code"},
         "excerpt": defang(url),
     }
-
 
 def attachment_evidence(attachment_index: int, attachment: Any) -> Dict[str, Any]:
     """Evidencia de un adjunto: cuál es, qué tipo declara y su huella.
@@ -246,7 +240,6 @@ def attachment_evidence(attachment_index: int, attachment: Any) -> Dict[str, Any
         "excerpt": defang(f"{filename} ({attachment.content_type}, {attachment.size} bytes)"),
     }
 
-
 def unique_evidence(items: Iterable[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Quita elementos repetidos conservando el orden.
 
@@ -270,15 +263,15 @@ def unique_evidence(items: Iterable[Dict[str, Any]]) -> List[Dict[str, Any]]:
             unique.append(item)
     return unique
 
-
 def anchor_result(
-        result: Any,
-        rule_input: Any,
-        evidence_headers: Sequence[str],
-        unanchorable_reason: str,
-        rule_name: str
+    result: Any,
+    rule_input: Any,
+    evidence_headers: Sequence[str],
+    unanchorable_reason: str,
+    rule_name: str
 ) -> Any:
-    """Asegura que un resultado que penaliza lleva evidencia o dice por qué no.
+    """
+    Asegura que un resultado que penaliza lleva evidencia o dice por qué no.
 
     Es lo que el registro de reglas ejecuta tras cada regla. Solo actúa sobre
     resultados que restan puntos (``score < 0``): lo que no penaliza no es un

@@ -34,24 +34,48 @@ _VALID_CONFIDENCE = {"ALTA", "MEDIA", "BAJA"}
 _ANALYSIS_CONFIDENCE_LABELS = {"high": "ALTA", "medium": "MEDIA", "low": "BAJA"}
 
 
-def _extract_json_with_regex(raw: str) -> Optional[dict]:
-    """Best-effort JSON recovery from a model response that failed ``json.loads``.
+def _build_prompts() -> dict:
+    return CR.iris_config().prompts.get("summary", {})
 
-    Same fallback as Themis's analyzers: a top-level ``{...}`` object or a
-    fenced ```` ```json ```` block, first one that parses wins.
+def _build_degradation_note(report: Dict[str, Any]) -> str:
     """
-    for pattern in [r'\{[\s\S]*?\}(?=\s*$)', r'```(?:json)?\s*([\s\S]*?)\s*```']:
-        match = re.search(pattern, raw, re.MULTILINE)
-        if match:
-            try:
-                json_str = match.group(1) if match.groups() else match.group()
-                return json.loads(json_str)
-            except json.JSONDecodeError:
-                continue
-    return None
+    Aviso que se añade al prompt cuando el análisis fue degradado.
 
+    Va anexado al final del prompt en vez de como marcador de la plantilla
+    porque las plantillas viven en ``SecOpsConfig.json``: un marcador nuevo
+    obligaría a editar la configuración desplegada para que este aviso
+    apareciera, y un despliegue con la plantilla vieja se quedaría
+    silenciosamente sin él — justo el fallo silencioso que se quiere evitar.
 
-def _confidence_note(report: Dict[str, Any]) -> str:
+    Sin esto, el modelo redacta un resumen ejecutivo seguro sobre un
+    análisis que no lo es: no tiene forma de saber que faltan reglas,
+    porque lo único que recibe son las que sí se ejecutaron.
+
+    Args:
+        report: ``dict`` que recoge la información del reporte
+
+    Returns:
+        str: cadena de caracteres que corresponde al aviso que recibirá la
+            IA con respecto al análisis degradado. Si el reporte no
+            fue degradado, devuelve una cadena vacía.
+    """
+    was_degraded = report.get("analysisQuality") != "degraded"
+    if was_degraded:
+        return ""
+
+    failed_rules = report.get("failedRules", [])
+    names = ", ".join(
+        rule.get("name", "?") for rule in failed_rules
+    ) or "desconocidas"
+    return (
+        "\n\nAVISO IMPORTANTE: este análisis está DEGRADADO. No se pudieron "
+        f"ejecutar estas reglas: {names}. La parte del mensaje que les "
+        "correspondía no se ha inspeccionado. Dilo explícitamente en el "
+        "resumen y no afirmes que el mensaje es seguro basándote en la "
+        "ausencia de hallazgos."
+    )
+
+def _build_confidence_note(report: Dict[str, Any]) -> str:
     """
     Aviso de confianza y cobertura que se añade al final del prompt.
 
@@ -83,6 +107,69 @@ def _confidence_note(report: Dict[str, Any]) -> str:
         "expreses como porcentaje y no afirmes más certeza de la que indica."
     )
 
+def _build_user_prompt(report: Dict[str, Any]) -> str:
+    failed_rules = [
+        {
+            "name": rule.get("ruleName"),
+            "ruleId": rule.get("ruleId"),
+            "category": rule.get("category"),
+            "score": rule.get("score"),
+            "recommendation": rule.get("recommendation"),
+        }
+        for rule in (report.get("rules") or [])
+        if (rule.get("score") or 0) < 0
+    ]
+
+    template = _build_prompts().get("userTemplate", "")
+    prompt = (
+        template
+        .replace("{{verdict}}", str(report.get("verdict") or "Suspicious"))
+        .replace("{{score}}", str(report.get("totalScore")))
+        .replace("{{gate_reasons_json}}", json.dumps(report.get("gateReasons") or [], ensure_ascii=False))
+        .replace("{{failed_rules_json}}", json.dumps(failed_rules, indent=2, ensure_ascii=False))
+    )
+    return prompt + _build_degradation_note(report) + _build_confidence_note(report)
+
+def _extract_json_with_regex(raw: str) -> Optional[dict]:
+    """Best-effort JSON recovery from a model response that failed ``json.loads``.
+
+    Same fallback as Themis's analyzers: a top-level ``{...}`` object or a
+    fenced ```` json ```` block, first one that parses wins.
+    """
+    for pattern in [r'\{[\s\S]*?\}(?=\s*$)', r'```(?:json)?\s*([\s\S]*?)\s*```']:
+        match = re.search(pattern, raw, re.MULTILINE)
+        if match:
+            try:
+                json_str = match.group(1) if match.groups() else match.group()
+                return json.loads(json_str)
+            except json.JSONDecodeError:
+                continue
+    return None
+
+def _parse_response(raw: str, attempt: int = 0) -> dict:
+    if not raw:
+        raise AIResponseError("Respuesta vacía del modelo", attempt=attempt)
+    
+    try:
+        result = json.loads(raw)
+    except json.JSONDecodeError:
+        recovered = _extract_json_with_regex(raw)
+        if recovered is None:
+            raise AIResponseError(f"No se pudo parsear la respuesta: {raw[:200]}", attempt=attempt)
+        result = recovered
+
+    if not isinstance(result.get("recommendations"), list):
+        result["recommendations"] = []
+    result["recommendations"] = [str(recommendation) for recommendation in result["recommendations"] if recommendation]
+
+    confidence = str(result.get("confidence") or "").upper()
+    result["confidence"] = confidence if confidence in _VALID_CONFIDENCE else "BAJA"
+
+    result["executive_summary"] = str(result.get("executive_summary") or "")
+    result["attacker_intent"] = str(result.get("attacker_intent") or "")
+
+    return result
+
 
 class IrisAIWriter:
     """Generates an executive narrative (summary, attacker intent,
@@ -94,9 +181,6 @@ class IrisAIWriter:
 
     def __init__(self, generator: Optional[AIGenerator] = None) -> None:
         self._generator = generator or build_generator("iris")
-
-    def _build_prompts(self) -> dict:
-        return CR.iris_config().prompts.get("summary", {})
 
     @staticmethod
     def model_name() -> str:
@@ -126,56 +210,6 @@ class IrisAIWriter:
         digest = hashlib.sha256(material.encode("utf-8")).hexdigest()[:12]
         return f"iris-summary:{digest}"
 
-    @staticmethod
-    def _degradation_note(report: Dict[str, Any]) -> str:
-        """Aviso que se añade al prompt cuando el análisis fue degradado.
-
-        Va anexado al final del prompt en vez de como marcador de la plantilla
-        porque las plantillas viven en ``SecOpsConfig.json``: un marcador nuevo
-        obligaría a editar la configuración desplegada para que este aviso
-        apareciera, y un despliegue con la plantilla vieja se quedaría
-        silenciosamente sin él — justo el fallo silencioso que se quiere evitar.
-
-        Sin esto, el modelo redacta un resumen ejecutivo seguro sobre un
-        análisis que no lo es: no tiene forma de saber que faltan reglas,
-        porque lo único que recibe son las que sí se ejecutaron.
-        """
-        if report.get("analysisQuality") != "degraded":
-            return ""
-        names = ", ".join(
-            rule.get("name", "?") for rule in (report.get("failedRules") or [])
-        ) or "desconocidas"
-        return (
-            "\n\nAVISO IMPORTANTE: este análisis está DEGRADADO. No se pudieron "
-            f"ejecutar estas reglas: {names}. La parte del mensaje que les "
-            "correspondía no se ha inspeccionado. Dilo explícitamente en el "
-            "resumen y no afirmes que el mensaje es seguro basándote en la "
-            "ausencia de hallazgos."
-        )
-
-    def _build_user_prompt(self, report: Dict[str, Any]) -> str:
-        failed_rules = [
-            {
-                "name": rule.get("ruleName"),
-                "ruleId": rule.get("ruleId"),
-                "category": rule.get("category"),
-                "score": rule.get("score"),
-                "recommendation": rule.get("recommendation"),
-            }
-            for rule in (report.get("rules") or [])
-            if (rule.get("score") or 0) < 0
-        ]
-
-        template = self._build_prompts().get("userTemplate", "")
-        prompt = (
-            template
-            .replace("{{verdict}}", str(report.get("verdict") or "Suspicious"))
-            .replace("{{score}}", str(report.get("totalScore")))
-            .replace("{{gate_reasons_json}}", json.dumps(report.get("gateReasons") or [], ensure_ascii=False))
-            .replace("{{failed_rules_json}}", json.dumps(failed_rules, indent=2, ensure_ascii=False))
-        )
-        return prompt + self._degradation_note(report) + _confidence_note(report)
-
     def generate(self, report: Dict[str, Any]) -> dict:
         """Generate the AI narrative for a finished analysis report dict.
 
@@ -197,13 +231,13 @@ class IrisAIWriter:
                 and degrade to "no summary available" rather than failing
                 the whole analysis.
         """
-        prompts = self._build_prompts()
+        prompts = _build_prompts()
         if not prompts.get("system"):
             raise AIResponseError("Prompt 'features.iris.prompts.summary.system' no configurado", attempt=0)
 
         ai_input = AIInput(
             system_prompt=prompts["system"],
-            user_prompt=self._build_user_prompt(report),
+            user_prompt=_build_user_prompt(report),
             num_predict=768,
             temperature=0.3,
             top_p=0.85,
@@ -211,38 +245,8 @@ class IrisAIWriter:
         )
 
         result = self._generator.digest(ai_input)
-        parsed = self._parse_response(result.text)
+        parsed = _parse_response(result.text)
         analysis_label = _ANALYSIS_CONFIDENCE_LABELS.get(report.get("confidence") or "")
         if analysis_label is not None:
             parsed["confidence"] = analysis_label
         return parsed
-
-    def _parse_response(self, raw: str, attempt: int = 0) -> dict:
-        if not raw:
-            raise AIResponseError("Respuesta vacía del modelo", attempt=attempt)
-
-        result = self._try_parse(raw)
-        if result is None:
-            recovered = _extract_json_with_regex(raw)
-            if recovered is None:
-                raise AIResponseError(f"No se pudo parsear la respuesta: {raw[:200]}", attempt=attempt)
-            result = recovered
-
-        if not isinstance(result.get("recommendations"), list):
-            result["recommendations"] = []
-        result["recommendations"] = [str(recommendation) for recommendation in result["recommendations"] if recommendation]
-
-        confidence = str(result.get("confidence") or "").upper()
-        result["confidence"] = confidence if confidence in _VALID_CONFIDENCE else "BAJA"
-
-        result["executive_summary"] = str(result.get("executive_summary") or "")
-        result["attacker_intent"] = str(result.get("attacker_intent") or "")
-
-        return result
-
-    @staticmethod
-    def _try_parse(raw: str) -> Optional[dict]:
-        try:
-            return json.loads(raw)
-        except json.JSONDecodeError:
-            return None

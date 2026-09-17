@@ -218,16 +218,21 @@ export function tagMetricRows(metricsByName) {
 }
 
 /**
- * Describe en una frase la ventana que la respuesta cubrió de verdad.
+ * Describe en una frase, para quien lee la tabla, el tiempo que cubren los
+ * números.
  *
  * Todos los endpoints de estadísticas recortan el periodo a lo que pueden
  * cubrir y lo avisan con `isPeriodClipped`. Un "máximo de los últimos 365
- * días" calculado sobre 30 tiene que decirlo, y este es el texto que lo dice.
+ * días" calculado sobre 30 tiene que decirlo, y este es el texto que lo dice,
+ * en términos de historial guardado y no de cómo se calcula.
  *
  * @param {object|null} body - Cualquier respuesta de estadísticas con
  *   `periodCoveredFrom`/`periodCoveredTo`/`isPeriodClipped`.
- * @returns {string} La frase, o cadena vacía si la respuesta no trae ventana
- *   (los endpoints que son una foto del ahora, como el panorama del parque).
+ * @returns {string} «Periodo analizado: 7 días.» si se cubrió lo pedido;
+ *   «Solo se guardan 30 días de historial: el resultado cubre ese tiempo.» si
+ *   se recortó; o cadena vacía si la respuesta no trae ventana (los endpoints
+ *   que son una foto del ahora, como el panorama del parque) o trae fechas
+ *   ilegibles.
  */
 export function describeCoverage(body) {
   if (!body?.periodCoveredFrom || !body?.periodCoveredTo) return ''
@@ -237,10 +242,12 @@ export function describeCoverage(body) {
 
   const days = Math.round((to.getTime() - from.getTime()) / 86400e3)
   const hours = Math.round((to.getTime() - from.getTime()) / 3600e3)
-  const span = days >= 1 ? `${days} d` : `${hours} h`
+  const amount = days >= 1 ? days : hours
+  const unit = days >= 1 ? (amount === 1 ? 'día' : 'días') : (amount === 1 ? 'hora' : 'horas')
+  const span = `${amount} ${unit}`
   return body.isPeriodClipped
-    ? `Calculado sobre ${span}: el periodo pedido excedía lo que se conserva.`
-    : `Calculado sobre ${span}.`
+    ? `Solo se ${amount === 1 ? 'guarda' : 'guardan'} ${span} de historial: el resultado cubre ese tiempo.`
+    : `Periodo analizado: ${span}.`
 }
 
 /**
@@ -426,30 +433,61 @@ export function describeLaneRange(lane) {
 /* ── Exportación ───────────────────────────────────────────────────────── */
 
 /**
- * Nombre del fichero de una descarga de estadísticas.
+ * Cuerpo de `POST /hygeia/documents` que exporta la tabla que se ve, en CSV o en PDF.
  *
- * El servidor propone uno genérico por juego de datos; este lo concreta con el
- * alcance y el periodo, que es lo que distingue dos descargas en la carpeta de
- * descargas: `hygeia-summary-host-web-24h.csv` se reconoce y
- * `hygeia-summary.csv (3)` no.
+ * El documento se genera en segundo plano con la misma consulta que la tabla:
+ * el resumen de un activo con todas las métricas, las métricas de una
+ * etiqueta con su combinación, o el ranking del parque por la métrica
+ * elegida. El ranking nunca se pide sumado (el servidor no lo admite), así
+ * que «Total» viaja como media, igual que al pintar la tabla.
  *
- * El nombre se normaliza a minúsculas, sin acentos y sin espacios, porque un
- * hostname o una etiqueta pueden traer cualquiera de las tres cosas y de ahí
- * sale un nombre de fichero incómodo en cualquier sistema.
- *
- * @param {string} dataset - Juego de datos (`summary`, `tag-stats`, `ranking`,
- *   `overview`), tal como lo nombra el servidor.
- * @param {string|null} scopeLabel - Nombre del activo o de la etiqueta, o
- *   `null` en los alcances que no tienen uno (el parque).
- * @param {string|null} period - Periodo pedido (`24h`), o `null` en los juegos
- *   de datos que no tienen periodo (el panorama).
- * @returns {string} El nombre con su extensión `.csv`.
+ * @param {object} selection - Selección de la vista: `scope` (`asset`, `tag`
+ *   o `fleet`), `assetId`, `tagId`, `metric`, `aggregation` y `period`.
+ * @param {'stats-csv'|'stats-pdf'} [kind='stats-csv'] - Formato del documento a pedir.
+ * @returns {object|null} El cuerpo de la petición, o `null` si la selección
+ *   está incompleta (un activo o una etiqueta sin elegir).
  */
-export function exportFileName(dataset, scopeLabel, period) {
-  const slug = (text) => String(text)
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+export function buildStatsDocumentRequest(selection, kind = 'stats-csv') {
+  const { scope, assetId, tagId, metric, aggregation, period } = selection ?? {}
+  if (scope === 'asset') {
+    if (!assetId) return null
+    return { kind, dataset: 'summary', assetId, metrics: [], period }
+  }
+  if (scope === 'tag') {
+    if (!tagId) return null
+    return { kind, dataset: 'tag-stats', tagId, metrics: [], agg: aggregation, period }
+  }
+  if (scope === 'fleet') {
+    return {
+      kind, dataset: 'ranking', metric,
+      agg: aggregation === 'sum' ? 'avg' : aggregation, order: 'desc', limit: 10, period,
+    }
+  }
+  return null
+}
 
-  return [`hygeia-${dataset}`, scopeLabel && slug(scopeLabel), period]
-    .filter(Boolean).join('-') + '.csv'
+/**
+ * El instante más antiguo de una lista de instantes ISO.
+ *
+ * La gráfica se compone de una petición por métrica, y cada respuesta dice
+ * hasta cuándo se calculó (`periodCoveredTo`). Si alguna salió de la caché del
+ * servidor y otra no, la gráfica entera es tan antigua como la más antigua, y
+ * eso es lo que tiene que decir «Actualizado hace…».
+ *
+ * @param {Array<string|null|undefined>} instants - Instantes ISO; los nulos y
+ *   los ilegibles se ignoran.
+ * @returns {string|null} El más antiguo, tal como venía; `null` si no queda
+ *   ninguno válido.
+ */
+export function oldestInstant(instants) {
+  let oldest = null
+  let oldestTime = Infinity
+  for (const instant of instants ?? []) {
+    const time = instant ? new Date(instant).getTime() : NaN
+    if (!Number.isNaN(time) && time < oldestTime) {
+      oldest = instant
+      oldestTime = time
+    }
+  }
+  return oldest
 }

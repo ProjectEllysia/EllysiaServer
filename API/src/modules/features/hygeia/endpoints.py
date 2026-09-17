@@ -13,13 +13,13 @@ Dos superficies separadas:
       heartbeats (``POST /hygeia/ingest``).
 """
 
-import io
 import logging
 
 from flask import request, send_file
 from flask_smorest import Blueprint as SmorestBlueprint
 
 from src.modules.shared import handle_exceptions, limiter, current_actor
+from src.modules.shared._exceptions import DocumentError
 from src.modules.shared.schemas import ErrorSchema
 from src.modules.users import (
     require_oauth_token, require_attributes, AttributeType, get_current_user,
@@ -31,13 +31,16 @@ from .exceptions import (
     HygeiaError,
     TagNotFoundError,
 )
-from .services import build_csv
 from .managers import (
-    HygeiaAlertManager, HygeiaAssetManager, HygeiaIngestManager, HygeiaReportManager,
+    HygeiaAlertManager, HygeiaAssetManager, HygeiaDocumentManager, HygeiaIngestManager,
     HygeiaStatsManager, HygeiaTagManager,
 )
 from .schemas import (
     AnalyzeInventoryResponseSchema,
+    DocumentCreateRequestSchema,
+    DocumentListResponseSchema,
+    DocumentSchema,
+    DocumentsQuerySchema,
     AnomalyListResponseSchema,
     AnomalyQuerySchema,
     AnomalySchema,
@@ -65,12 +68,10 @@ from .schemas import (
     DiskTrendResponseSchema,
     FleetDiskQuerySchema,
     FleetDiskResponseSchema,
-    FleetOverviewQuerySchema,
     FleetOverviewResponseSchema,
     HourlyPatternQuerySchema,
     HourlyPatternResponseSchema,
     IngestRequestSchema,
-    InventoryReportRequestSchema,
     IngestResponseSchema,
     InventoryAnalysisSummarySchema,
     MetricHistogramQuerySchema,
@@ -210,40 +211,6 @@ def get_asset_power_summary(asset_id):
     return manager.get_power_summary(asset_id)
 
 
-def _serve(dataset: str, schema, payload: dict, output_format: str):
-    """Sirve una respuesta de estadísticas en el formato pedido.
-
-    Con ``format=json`` devuelve el diccionario y lo serializa flask-smorest
-    como siempre. Con ``format=csv`` **se serializa aquí con el mismo schema**
-    y el resultado se vuelca a fichero: así el CSV no puede decir algo distinto
-    del JSON, porque los dos salen del mismo `dump`.
-
-    La descarga se sirve desde el mismo GET en vez de un endpoint aparte, y eso
-    obliga a marcarla como no cacheable: ``run.py`` registra un GET condicional
-    global (ETag/304), y un fichero que cambia con cada latido no debe quedarse
-    pegado en la caché del navegador.
-
-    Args:
-        dataset: Clave del juego de datos para ``services/export.py``.
-        schema: Clase del schema de respuesta del endpoint.
-        payload: Lo que devolvió el manager.
-        output_format: ``"json"`` o ``"csv"``, ya validado por la query.
-
-    Returns:
-        El diccionario tal cual (JSON), o la respuesta de descarga (CSV).
-    """
-    if output_format != "csv":
-        return payload
-
-    content, filename = build_csv(dataset, schema().dump(payload))
-    response = send_file(
-        io.BytesIO(content), mimetype="text/csv",
-        as_attachment=True, download_name=filename,
-    )
-    response.headers["Cache-Control"] = "no-store"
-    return response
-
-
 @hygeia_blp.get("/assets/<int:asset_id>/stats/summary")
 @hygeia_blp.arguments(AssetStatsSummaryQuerySchema, location="query")
 @hygeia_blp.response(
@@ -261,11 +228,12 @@ def get_asset_stats_summary(args, asset_id):
     """Obtener mínimo, máximo, media, p95 y valor actual de las métricas de un activo"""
     user = get_current_user()
     manager = HygeiaAssetManager(user)
-    return _serve("summary", AssetStatsSummaryResponseSchema, manager.get_stats_summary(
+    return manager.get_stats_summary(
         asset_id,
         metric_names=args["metric_names"],
         requested_duration=args["requested_duration"],
-    ), args["format"])
+        is_refresh=args["refresh"],
+    )
 
 
 @hygeia_blp.get("/assets/<int:asset_id>/stats/disks")
@@ -357,12 +325,13 @@ def get_tag_stats(args, tag_id):
     """Obtener las métricas agregadas de los activos que llevan una etiqueta"""
     user = get_current_user()
     manager = HygeiaStatsManager(user)
-    return _serve("tag-stats", TagStatsResponseSchema, manager.get_tag_stats(
+    return manager.get_tag_stats(
         tag_id,
         metric_names=args["metric_names"],
         aggregation=args["agg"],
         requested_duration=args["requested_duration"],
-    ), args["format"])
+        is_refresh=args["refresh"],
+    )
 
 
 @hygeia_blp.get("/stats/by-tag")
@@ -400,13 +369,14 @@ def get_asset_ranking(args):
     """Ordenar los activos del usuario por una métrica y devolver los extremos"""
     user = get_current_user()
     manager = HygeiaStatsManager(user)
-    return _serve("ranking", AssetRankingResponseSchema, manager.get_asset_ranking(
+    return manager.get_asset_ranking(
         metric_name=args["metric"],
         aggregation=args["agg"],
         order=args["order"],
         limit=args["limit"],
         requested_duration=args["requested_duration"],
-    ), args["format"])
+        is_refresh=args["refresh"],
+    )
 
 
 @hygeia_blp.get("/stats/disks/fleet")
@@ -446,7 +416,6 @@ def get_breach_ranking(args):
 
 
 @hygeia_blp.get("/stats/overview")
-@hygeia_blp.arguments(FleetOverviewQuerySchema, location="query")
 @hygeia_blp.response(200, FleetOverviewResponseSchema, description="Panorama del parque")
 @hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
 @hygeia_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
@@ -454,13 +423,11 @@ def get_breach_ranking(args):
 @require_oauth_token
 @require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
 @handle_exceptions(default_exception=HygeiaError, logger=logger)
-def get_fleet_overview(args):
+def get_fleet_overview():
     """Resumir el estado actual del parque: activos por estado, anomalías y actividad"""
     user = get_current_user()
     manager = HygeiaStatsManager(user)
-    return _serve(
-        "overview", FleetOverviewResponseSchema, manager.get_fleet_overview(), args["format"],
-    )
+    return manager.get_fleet_overview()
 
 
 @hygeia_blp.get("/stats/histogram")
@@ -555,6 +522,7 @@ def get_metric_series(args):
         requested_bucket_seconds=args["bucket"],
         requested_duration=args["requested_duration"],
         compare_to=args["compare_to"],
+        is_refresh=args["refresh"],
     )
 
 
@@ -648,40 +616,6 @@ def delete_asset(asset_id):
     manager = HygeiaAssetManager(user)
     manager.delete_asset(asset_id)
     logger.info(f"Activo Hygeia {asset_id} eliminado | user={current_actor()}")
-
-
-@hygeia_blp.post("/inventory/report")
-@hygeia_blp.arguments(InventoryReportRequestSchema)
-@hygeia_blp.response(200, description="PDF del inventario de activos")
-@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
-@hygeia_blp.alt_response(403, schema=ErrorSchema, description="Organization scope requires ownership")
-# 20 por hora, muy por debajo del resto de lecturas de Hygeia (600): construir
-# el PDF es trabajo de CPU en el hilo de la petición, y ese es el precio de
-# haberlo hecho síncrono.
-@limiter.limit("20 per hour")
-@require_oauth_token
-@require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
-@handle_exceptions(default_exception=HygeiaError, logger=logger)
-def download_inventory_report(data):
-    """Descargar el inventario de activos en PDF, propio o de toda la organización"""
-    user = get_current_user()
-    manager = HygeiaReportManager(user)
-    pdf, filename = manager.build_inventory_report(
-        scope=data["scope"], include_software=data["includeSoftware"],
-    )
-    logger.info(
-        f"Informe de inventario generado | user={current_actor()} "
-        f"scope={data['scope']} software={data['includeSoftware']} bytes={len(pdf)}"
-    )
-    # POST y no GET aunque sea una lectura: `run.py` registra un GET
-    # condicional (ETag/304) global, y un PDF que cambia cada vez que se da de
-    # alta un activo no debe pasar por esa caché.
-    return send_file(
-        io.BytesIO(pdf),
-        mimetype="application/pdf",
-        as_attachment=True,
-        download_name=filename,
-    )
 
 
 # =============================================================================
@@ -855,6 +789,113 @@ def delete_alert(anomaly_id):
     manager.delete_alert(anomaly_id)
     logger.info(f"Anomalía {anomaly_id} eliminada | user={current_actor()}")
     return {"message": "Anomalía eliminada correctamente"}
+
+
+# =============================================================================
+# DOCUMENTOS — se piden, se generan en segundo plano y se descargan después
+# =============================================================================
+
+@hygeia_blp.post("/documents")
+@hygeia_blp.arguments(DocumentCreateRequestSchema)
+@hygeia_blp.response(202, DocumentSchema, description="Documento en cola")
+@hygeia_blp.alt_response(400, schema=ErrorSchema, description="Unknown or non-additive metric")
+@hygeia_blp.alt_response(422, schema=ErrorSchema, description="Invalid or incomplete request")
+@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@hygeia_blp.alt_response(
+    403, schema=ErrorSchema, description="Organization scope requires ownership",
+)
+@hygeia_blp.alt_response(404, schema=ErrorSchema, description="Asset or tag not found")
+# Pedir es barato (una fila y un encolado); lo caro lo hace el worker, y un
+# usuario no necesita más de un documento por minuto de media.
+@limiter.limit("60 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
+@handle_exceptions(default_exception=HygeiaError, logger=logger)
+def create_document(data):
+    """Pedir un CSV o un PDF de estadísticas, o el PDF del inventario, en segundo plano"""
+    manager = HygeiaDocumentManager(get_current_user())
+    if data["kind"] == "inventory-pdf":
+        document = manager.create_inventory_pdf_document(data["scope"], data["includeSoftware"])
+    else:
+        create_stats_document = (
+            manager.create_stats_pdf_document if data["kind"] == "stats-pdf"
+            else manager.create_stats_csv_document
+        )
+        document = create_stats_document(
+            data["dataset"], asset_id=data["assetId"], tag_id=data["tagId"],
+            metric_names=data["metrics"], metric_name=data["metric"], aggregation=data["agg"],
+            order=data["order"], limit=data["limit"],
+            requested_duration=data["requested_duration"], period=data["period"],
+        )
+    logger.info(
+        f"Documento Hygeia {document['id']} pedido ({data['kind']}) | user={current_actor()}"
+    )
+    return document
+
+
+@hygeia_blp.get("/documents")
+@hygeia_blp.arguments(DocumentsQuerySchema, location="query")
+@hygeia_blp.response(200, DocumentListResponseSchema, description="Documentos del usuario")
+@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@hygeia_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@limiter.limit("600 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
+@handle_exceptions(default_exception=HygeiaError, logger=logger)
+def list_documents(args):
+    """Listar los documentos del usuario, más recientes primero"""
+    manager = HygeiaDocumentManager(get_current_user())
+    documents, total = manager.list_documents(args["page"], args["perPage"])
+    return {
+        "documents": documents, "total": total,
+        "page": args["page"], "perPage": args["perPage"],
+    }
+
+
+@hygeia_blp.get("/documents/<int:document_id>")
+@hygeia_blp.response(200, DocumentSchema, description="Documento")
+@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@hygeia_blp.alt_response(404, schema=ErrorSchema, description="Document not found")
+@limiter.limit("600 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
+@handle_exceptions(default_exception=DocumentError, logger=logger)
+def get_document(document_id):
+    """Consultar un documento y su estado"""
+    return HygeiaDocumentManager(get_current_user()).get_document(document_id)
+
+
+@hygeia_blp.get("/documents/<int:document_id>/download")
+@hygeia_blp.response(200, description="Fichero del documento")
+@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@hygeia_blp.alt_response(404, schema=ErrorSchema, description="Document not found")
+@hygeia_blp.alt_response(409, schema=ErrorSchema, description="Document not ready")
+@limiter.limit("600 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.HYGEIA_READ])
+@handle_exceptions(default_exception=DocumentError, logger=logger)
+def download_document(document_id):
+    """Descargar el fichero de un documento ya generado"""
+    path, download_name, mimetype = HygeiaDocumentManager(get_current_user()).get_document_file(
+        document_id,
+    )
+    return send_file(path, mimetype=mimetype, as_attachment=True, download_name=download_name)
+
+
+@hygeia_blp.delete("/documents/<int:document_id>")
+@hygeia_blp.response(200, description="Documento eliminado")
+@hygeia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@hygeia_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@hygeia_blp.alt_response(404, schema=ErrorSchema, description="Document not found")
+@limiter.limit("120 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.HYGEIA_DELETE])
+@handle_exceptions(default_exception=DocumentError, logger=logger)
+def delete_document(document_id):
+    """Borrar un documento y su fichero"""
+    HygeiaDocumentManager(get_current_user()).delete_user_document(document_id)
+    logger.info(f"Documento Hygeia {document_id} eliminado | user={current_actor()}")
+    return {"message": "Documento eliminado correctamente", "documentId": document_id}
 
 
 # ============================================================================

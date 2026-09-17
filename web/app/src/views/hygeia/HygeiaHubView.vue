@@ -13,6 +13,7 @@
     :shortcuts="[
       { label: 'Etiquetas', to: '/hygeia/etiquetas' },
       { label: 'Estadísticas', to: '/hygeia/estadisticas' },
+      { label: 'Documentos', to: '/hygeia/documentos' },
     ]"
     :highlight="highlight"
     :features="features"

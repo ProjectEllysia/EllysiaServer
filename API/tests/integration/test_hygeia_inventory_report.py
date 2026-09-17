@@ -14,6 +14,7 @@ si no hay ``pypdf`` (no está en ``requirements.txt``).
 """
 
 import secrets
+from unittest import mock
 
 import pytest
 
@@ -22,12 +23,58 @@ from src.modules.infrastructure.session import build_repository
 from src.modules.shared import utcnow_naive
 from src.modules.accounts.model import Organization, OrganizationMember
 from src.modules.features.hygeia.exceptions import OrganizationScopeNotAllowedError
-from src.modules.features.hygeia.managers import HygeiaReportManager
+from src.modules.features.hygeia.managers import HygeiaDocumentManager, HygeiaReportManager
 from src.modules.features.hygeia.model import MonitoredAsset
 from src.modules.features.hygeia.repositories import MonitoredAssetRepository
+from src.modules.system.taskqueue import TaskQueue
 from src.modules.users.repositories import UserRepository
 
 pytestmark = pytest.mark.integration
+
+
+class _FakeTaskQueue:
+    """Doble de la cola que acepta el trabajo sin tocar Redis."""
+
+    def submit(self, **kwargs):
+        """Descarta el trabajo: el test lo ejecuta a mano."""
+
+
+@pytest.fixture(autouse=True)
+def fake_task_queue():
+    """Sustituye la cola compartida por el doble en todo el fichero."""
+    with mock.patch.object(TaskQueue, "get_instance", return_value=_FakeTaskQueue()):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def output_dir(tmp_path, monkeypatch):
+    """Dirige los PDF generados a un directorio temporal."""
+    monkeypatch.setenv("OUTPUT_DIR", str(tmp_path))
+
+
+def _request_inventory(client, headers: dict, request: dict):
+    """Pide el inventario como lo hace el panel y devuelve lo que ve el usuario.
+
+    El PDF se genera en segundo plano: se pide el documento ``inventory-pdf``,
+    se ejecuta su trabajo como haría el worker y se descarga.
+
+    Args:
+        client: Cliente HTTP de test.
+        headers: Cabeceras de autenticación.
+        request: ``scope`` e ``includeSoftware``, como en el modal.
+
+    Returns:
+        La respuesta de la descarga si se aceptó la petición, o la propia
+        respuesta de la petición si se rechazó (403, 422…).
+    """
+    created = client.post(
+        "/hygeia/documents", json={"kind": "inventory-pdf", **request}, headers=headers,
+    )
+    if created.status_code != 202:
+        return created
+    document_id = created.get_json()["id"]
+    HygeiaDocumentManager.execute_document_generation(document_id)
+    return client.get(f"/hygeia/documents/{document_id}/download", headers=headers)
 
 
 SOFTWARE = [
@@ -93,11 +140,7 @@ def _manager_for(user_handle) -> HygeiaReportManager:
 def test_own_scope_returns_a_pdf(app, client, regular_user, auth_headers):
     _create_asset(app, regular_user.id, "web-01")
 
-    resp = client.post(
-        "/hygeia/inventory/report",
-        json={"scope": "user"},
-        headers=auth_headers(regular_user),
-    )
+    resp = _request_inventory(client, auth_headers(regular_user), {"scope": "user"})
 
     assert resp.status_code == 200
     assert resp.mimetype == "application/pdf"
@@ -106,9 +149,7 @@ def test_own_scope_returns_a_pdf(app, client, regular_user, auth_headers):
 
 def test_a_user_without_assets_still_gets_a_document(client, regular_user, auth_headers):
     """Un inventario vacío es un hecho que se informa, no un error."""
-    resp = client.post(
-        "/hygeia/inventory/report", json={}, headers=auth_headers(regular_user),
-    )
+    resp = _request_inventory(client, auth_headers(regular_user), {})
 
     assert resp.status_code == 200
     assert resp.data[:5] == b"%PDF-"
@@ -118,20 +159,14 @@ def test_the_software_annex_makes_the_document_bigger(app, client, regular_user,
     _create_asset(app, regular_user.id, "web-01", with_software=True)
     headers = auth_headers(regular_user)
 
-    without = client.post("/hygeia/inventory/report",
-                          json={"includeSoftware": False}, headers=headers)
-    with_software = client.post("/hygeia/inventory/report",
-                                json={"includeSoftware": True}, headers=headers)
+    without = _request_inventory(client, headers, {"includeSoftware": False})
+    with_software = _request_inventory(client, headers, {"includeSoftware": True})
 
     assert len(with_software.data) > len(without.data)
 
 
 def test_an_unknown_scope_is_rejected(client, regular_user, auth_headers):
-    resp = client.post(
-        "/hygeia/inventory/report",
-        json={"scope": "everyone"},
-        headers=auth_headers(regular_user),
-    )
+    resp = _request_inventory(client, auth_headers(regular_user), {"scope": "everyone"})
 
     assert resp.status_code == 422
 
@@ -147,11 +182,7 @@ def test_the_owner_gets_the_assets_of_every_member(app, make_user, auth_headers,
     _create_asset(app, owner.id, "owner-host")
     _create_asset(app, member.id, "member-host")
 
-    resp = client.post(
-        "/hygeia/inventory/report",
-        json={"scope": "organization"},
-        headers=auth_headers(owner),
-    )
+    resp = _request_inventory(client, auth_headers(owner), {"scope": "organization"})
     assert resp.status_code == 200
 
     # El conjunto exacto se comprueba sobre el manager: el PDF es la
@@ -171,11 +202,7 @@ def test_a_member_who_is_not_the_owner_cannot_use_the_organization_scope(
     member = make_user()
     _create_organization(app, owner.id, [member.id])
 
-    resp = client.post(
-        "/hygeia/inventory/report",
-        json={"scope": "organization"},
-        headers=auth_headers(member),
-    )
+    resp = _request_inventory(client, auth_headers(member), {"scope": "organization"})
 
     assert resp.status_code == 403
 
@@ -187,11 +214,7 @@ def test_a_user_without_an_organization_gets_the_same_refusal(
     organización existe y quién manda en ella."""
     lonely = make_user()
 
-    resp = client.post(
-        "/hygeia/inventory/report",
-        json={"scope": "organization"},
-        headers=auth_headers(lonely),
-    )
+    resp = _request_inventory(client, auth_headers(lonely), {"scope": "organization"})
 
     assert resp.status_code == 403
 
@@ -238,9 +261,7 @@ def _pdf_text(data: bytes) -> str:
 def test_the_pdf_names_the_assets_it_covers(app, client, regular_user, auth_headers):
     _create_asset(app, regular_user.id, "inventariable-01")
 
-    resp = client.post(
-        "/hygeia/inventory/report", json={}, headers=auth_headers(regular_user),
-    )
+    resp = _request_inventory(client, auth_headers(regular_user), {})
     text = _pdf_text(resp.data)
 
     assert "inventariable-01" in text
@@ -255,11 +276,7 @@ def test_the_organization_pdf_names_the_organization_and_its_members(
     _create_organization(app, owner.id, [member.id], name="Contoso")
     _create_asset(app, member.id, "de-otro-miembro")
 
-    resp = client.post(
-        "/hygeia/inventory/report",
-        json={"scope": "organization"},
-        headers=auth_headers(owner),
-    )
+    resp = _request_inventory(client, auth_headers(owner), {"scope": "organization"})
     text = _pdf_text(resp.data)
 
     assert "Contoso" in text

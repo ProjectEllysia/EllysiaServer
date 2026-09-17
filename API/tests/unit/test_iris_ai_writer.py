@@ -13,7 +13,10 @@ from __future__ import annotations
 import pytest
 
 import src.modules.system.config_reading as CR
-from src.modules.features.iris.services.ai_writer import IrisAIWriter
+from src.modules.features.iris.services.ai_writer import (
+    IrisAIWriter,
+    _build_user_prompt
+)
 from src.modules.tools.scribe import AIResult
 from src.modules.tools.scribe.exceptions import AIResponseError
 
@@ -109,7 +112,7 @@ def test_generate_raises_when_system_prompt_missing(monkeypatch):
 def test_user_prompt_includes_verdict_score_and_only_failed_rules(monkeypatch):
     monkeypatch.setattr(CR, "iris_config", lambda: CR.IrisConfig(prompts=_FAKE_PROMPTS))
     writer = IrisAIWriter(generator=_FakeGenerator("{}"))
-    prompt = writer._build_user_prompt(_sample_report())
+    prompt = _build_user_prompt(_sample_report())
 
     assert "Phishing" in prompt
     assert "12" in prompt
@@ -129,7 +132,7 @@ def test_user_prompt_carries_the_analysis_confidence_and_coverage(monkeypatch):
         "coverage": {"mode": "headers_only", "uncoveredRules": ["Body Links"]},
         "uncertaintyReasons": ["Solo se analizaron las cabeceras."],
     }
-    prompt = writer._build_user_prompt(report)
+    prompt = _build_user_prompt(report)
 
     assert "CONFIANZA DEL ANÁLISIS: BAJA" in prompt
     assert "solo cabeceras" in prompt
@@ -140,7 +143,7 @@ def test_user_prompt_carries_the_analysis_confidence_and_coverage(monkeypatch):
 def test_user_prompt_has_no_confidence_note_for_old_reports(monkeypatch):
     monkeypatch.setattr(CR, "iris_config", lambda: CR.IrisConfig(prompts=_FAKE_PROMPTS))
     writer = IrisAIWriter(generator=_FakeGenerator("{}"))
-    assert "CONFIANZA DEL ANÁLISIS" not in writer._build_user_prompt(_sample_report())
+    assert "CONFIANZA DEL ANÁLISIS" not in _build_user_prompt(_sample_report())
 
 
 def test_generate_reports_the_analysis_confidence_not_the_model_one(monkeypatch):

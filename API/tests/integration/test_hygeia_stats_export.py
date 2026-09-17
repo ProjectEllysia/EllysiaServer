@@ -1,22 +1,29 @@
 """
 Tests de integración de la exportación en CSV de las estadísticas de Hygeia
-(``format=csv`` en el resumen de un activo, las métricas de una etiqueta, el
-ranking del parque y el panorama).
+(documentos ``stats-csv``: el resumen de un activo, las métricas de una
+etiqueta, el ranking del parque y el panorama).
 
 Lo que estos tests atan es el criterio de cierre de la necesidad: **el CSV
-contiene exactamente los mismos valores que la respuesta JSON del mismo
-endpoint**. Por eso casi todos piden las dos cosas y comparan celda a celda, en
+contiene exactamente los mismos valores que la respuesta JSON de la misma
+consulta**. Por eso casi todos piden las dos cosas y comparan celda a celda, en
 vez de comprobar el CSV contra valores escritos a mano — un valor escrito a
 mano en el test podría coincidir con el CSV y no con el JSON, que es justo la
 divergencia que hay que impedir.
+
+El CSV se genera en segundo plano: cada exportación pide el documento, ejecuta
+su trabajo llamando al punto de entrada del worker y descarga el fichero.
 """
 
 import csv
 import io
 import secrets
 from datetime import timedelta
+from unittest import mock
 
 import pytest
+
+from src.modules.features.hygeia.managers import HygeiaDocumentManager
+from src.modules.system.taskqueue import TaskQueue
 
 from src.modules.features.hygeia.model import AssetSnapshot, MonitoredAsset, UserTag
 from src.modules.features.hygeia.repositories import (
@@ -28,6 +35,26 @@ from src.modules.infrastructure import UnitOfWork
 from src.modules.shared import utcnow_naive
 
 pytestmark = pytest.mark.integration
+
+
+class _FakeTaskQueue:
+    """Doble de la cola que acepta el trabajo sin tocar Redis."""
+
+    def submit(self, **kwargs):
+        """Descarta el trabajo: el test lo ejecuta a mano."""
+
+
+@pytest.fixture(autouse=True)
+def fake_task_queue():
+    """Sustituye la cola compartida por el doble en todo el fichero."""
+    with mock.patch.object(TaskQueue, "get_instance", return_value=_FakeTaskQueue()):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def output_dir(tmp_path, monkeypatch):
+    """Dirige los ficheros generados a un directorio temporal."""
+    monkeypatch.setenv("OUTPUT_DIR", str(tmp_path))
 
 
 def _create_asset(app, user_id: int, hostname: str = "host-export") -> int:
@@ -68,6 +95,30 @@ def _seed(app, asset_id: int, readings: list) -> None:
                     asset_id=asset_id, collected_at=instant, received_at=instant,
                     metrics={}, **columns,
                 ))
+
+
+def _export(client, headers: dict, **request) -> object:
+    """Exporta a CSV como lo hace el panel y devuelve la respuesta de la descarga.
+
+    Pide el documento ``stats-csv``, ejecuta su generación como haría el worker
+    y descarga el fichero.
+
+    Args:
+        client: Cliente HTTP de test.
+        headers: Cabeceras de autenticación.
+        **request: Campos de ``POST /hygeia/documents`` además de ``kind``
+            (``dataset``, ``assetId``, ``metrics``, ``period``…).
+
+    Returns:
+        La respuesta de ``GET /hygeia/documents/<id>/download``.
+    """
+    created = client.post(
+        "/hygeia/documents", json={"kind": "stats-csv", **request}, headers=headers,
+    )
+    assert created.status_code == 202, created.get_json()
+    document_id = created.get_json()["id"]
+    HygeiaDocumentManager.execute_document_generation(document_id)
+    return client.get(f"/hygeia/documents/{document_id}/download", headers=headers)
 
 
 def _rows(response) -> list:
@@ -115,13 +166,15 @@ def test_the_summary_csv_holds_the_same_values_as_its_json(
     """Cada celda del CSV es el valor que trae el JSON para esa métrica.
 
     Es el criterio de cierre de la necesidad, comprobado sobre las dos
-    respuestas del mismo endpoint en vez de contra cifras escritas a mano.
+    respuestas de la misma consulta en vez de contra cifras escritas a mano.
     """
     headers = auth_headers(regular_user)
     path = f"/hygeia/assets/{asset_with_history}/stats/summary"
 
     as_json = client.get(path, query_string={"period": "24h"}, headers=headers).get_json()
-    as_csv = client.get(path, query_string={"period": "24h", "format": "csv"}, headers=headers)
+    as_csv = _export(
+        client, headers, dataset="summary", assetId=asset_with_history, period="24h",
+    )
 
     rows = _rows(as_csv)
     header = rows[0]
@@ -151,8 +204,8 @@ def test_the_summary_csv_carries_the_covered_window_on_every_row(
     path = f"/hygeia/assets/{asset_with_history}/stats/summary"
 
     as_json = client.get(path, query_string={"period": "365d"}, headers=headers).get_json()
-    rows = _rows(client.get(
-        path, query_string={"period": "365d", "format": "csv"}, headers=headers,
+    rows = _rows(_export(
+        client, headers, dataset="summary", assetId=asset_with_history, period="365d",
     ))
 
     header = rows[0]
@@ -179,10 +232,9 @@ def test_a_metric_without_samples_exports_empty_cells_and_not_zeros(
     la celda vacía es lo que una hoja entiende como «sin dato», que es lo que
     significa.
     """
-    rows = _rows(client.get(
-        f"/hygeia/assets/{asset_with_history}/stats/summary",
-        query_string={"metrics": "powerWatts", "format": "csv"},
-        headers=auth_headers(regular_user),
+    rows = _rows(_export(
+        client, auth_headers(regular_user),
+        dataset="summary", assetId=asset_with_history, metrics=["powerWatts"],
     ))
 
     cells = dict(zip(rows[0], rows[1]))
@@ -195,56 +247,39 @@ def test_a_metric_without_samples_exports_empty_cells_and_not_zeros(
 def test_the_summary_csv_is_served_as_a_download(
     client, asset_with_history, regular_user, auth_headers,
 ):
-    """Llega como fichero adjunto, con tipo CSV y sin quedarse en la caché.
-
-    Lo último importa porque la descarga sale del mismo GET que el JSON, y la
-    API registra un GET condicional global: sin el `no-store`, el navegador
-    podría servir un fichero viejo tras un latido nuevo.
-    """
-    response = client.get(
-        f"/hygeia/assets/{asset_with_history}/stats/summary",
-        query_string={"format": "csv"}, headers=auth_headers(regular_user),
+    """Llega como fichero adjunto, con tipo CSV y un nombre que dice qué es."""
+    response = _export(
+        client, auth_headers(regular_user),
+        dataset="summary", assetId=asset_with_history, period="7d",
     )
 
     assert response.status_code == 200
     assert response.mimetype == "text/csv"
     assert "attachment" in response.headers["Content-Disposition"]
-    assert ".csv" in response.headers["Content-Disposition"]
-    assert response.headers["Cache-Control"] == "no-store"
+    assert "hygeia-summary-host-export-7d.csv" in response.headers["Content-Disposition"]
 
 
 def test_the_summary_csv_starts_with_a_byte_order_mark(
     client, asset_with_history, regular_user, auth_headers,
 ):
     """El fichero lleva BOM: sin él, Excel destroza los acentos."""
-    response = client.get(
-        f"/hygeia/assets/{asset_with_history}/stats/summary",
-        query_string={"format": "csv"}, headers=auth_headers(regular_user),
+    response = _export(
+        client, auth_headers(regular_user), dataset="summary", assetId=asset_with_history,
     )
 
     assert response.data.startswith(b"\xef\xbb\xbf")
 
 
-def test_json_is_still_the_default(client, asset_with_history, regular_user, auth_headers):
-    """Sin `format`, la respuesta sigue siendo el JSON de siempre."""
+def test_the_stats_endpoints_no_longer_serve_csv(
+    client, asset_with_history, regular_user, auth_headers,
+):
+    """La ruta de estadísticas responde JSON: el CSV solo sale como documento."""
     response = client.get(
         f"/hygeia/assets/{asset_with_history}/stats/summary",
-        headers=auth_headers(regular_user),
+        query_string={"format": "csv"}, headers=auth_headers(regular_user),
     )
 
-    assert response.status_code == 200
     assert response.mimetype == "application/json"
-    assert "metrics" in response.get_json()
-
-
-def test_an_unknown_format_is_rejected(client, asset_with_history, regular_user, auth_headers):
-    """Un formato que no existe se rechaza en vez de caer en el JSON en silencio."""
-    response = client.get(
-        f"/hygeia/assets/{asset_with_history}/stats/summary",
-        query_string={"format": "xlsx"}, headers=auth_headers(regular_user),
-    )
-
-    assert response.status_code == 422
 
 
 # =============================================================================
@@ -260,7 +295,7 @@ def test_the_tag_csv_holds_the_same_values_as_its_json(
     path = f"/hygeia/stats/by-tag/{tag_id}"
 
     as_json = client.get(path, headers=headers).get_json()
-    rows = _rows(client.get(path, query_string={"format": "csv"}, headers=headers))
+    rows = _rows(_export(client, headers, dataset="tag-stats", tagId=tag_id))
 
     header = rows[0]
     by_metric = {dict(zip(header, row))["metric"]: dict(zip(header, row)) for row in rows[1:]}
@@ -280,10 +315,7 @@ def test_the_tag_csv_names_its_tag_on_every_row(
     indistinguibles entre sí.
     """
     tag_id = _tag_asset(app, regular_user.id, asset_with_history, name="produccion")
-    rows = _rows(client.get(
-        f"/hygeia/stats/by-tag/{tag_id}", query_string={"format": "csv"},
-        headers=auth_headers(regular_user),
-    ))
+    rows = _rows(_export(client, auth_headers(regular_user), dataset="tag-stats", tagId=tag_id))
 
     header = rows[0]
     assert all(dict(zip(header, row))["tagName"] == "produccion" for row in rows[1:])
@@ -306,9 +338,7 @@ def test_the_ranking_csv_holds_the_same_values_as_its_json(
     query = {"metric": "cpuPct", "agg": "avg", "order": "desc", "limit": 10}
 
     as_json = client.get("/hygeia/stats/ranking", query_string=query, headers=headers).get_json()
-    rows = _rows(client.get(
-        "/hygeia/stats/ranking", query_string={**query, "format": "csv"}, headers=headers,
-    ))
+    rows = _rows(_export(client, headers, dataset="ranking", **query))
 
     header = rows[0]
     exported = [dict(zip(header, row)) for row in rows[1:]]
@@ -330,11 +360,7 @@ def test_the_ranking_csv_writes_the_position_down(app, client, regular_user, aut
         asset_id = _create_asset(app, regular_user.id, f"host-{position}")
         _seed(app, asset_id, [(timedelta(minutes=10), {"cpu_pct": cpu})])
 
-    rows = _rows(client.get(
-        "/hygeia/stats/ranking",
-        query_string={"metric": "cpuPct", "format": "csv"},
-        headers=auth_headers(regular_user),
-    ))
+    rows = _rows(_export(client, auth_headers(regular_user), dataset="ranking", metric="cpuPct"))
 
     header = rows[0]
     assert [dict(zip(header, row))["position"] for row in rows[1:]] == ["1", "2", "3"]
@@ -356,9 +382,7 @@ def test_the_overview_csv_holds_the_same_values_as_its_json(
     headers = auth_headers(regular_user)
 
     as_json = client.get("/hygeia/stats/overview", headers=headers).get_json()
-    rows = _rows(client.get(
-        "/hygeia/stats/overview", query_string={"format": "csv"}, headers=headers,
-    ))
+    rows = _rows(_export(client, headers, dataset="overview"))
 
     assert rows[0] == ["measure", "value"]
     measures = dict(rows[1:])
@@ -372,16 +396,6 @@ def test_the_overview_csv_holds_the_same_values_as_its_json(
 
 def test_the_overview_csv_has_no_window_columns(client, regular_user, auth_headers):
     """El panorama no tiene periodo, así que no inventa columnas de ventana."""
-    rows = _rows(client.get(
-        "/hygeia/stats/overview", query_string={"format": "csv"},
-        headers=auth_headers(regular_user),
-    ))
+    rows = _rows(_export(client, auth_headers(regular_user), dataset="overview"))
 
     assert "periodCoveredFrom" not in rows[0]
-
-
-def test_the_export_requires_authentication(client):
-    """Sin token, 401 — el formato no abre ninguna puerta."""
-    response = client.get("/hygeia/stats/overview", query_string={"format": "csv"})
-
-    assert response.status_code == 401

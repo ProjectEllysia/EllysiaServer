@@ -190,6 +190,7 @@ CONFIG_BLOCKS = [
     (CR.HygeiaConfig, CR.hygeia_config),
     (CR.HygeiaLimits, CR.hygeia_limits),
     (CR.HygeiaAnalysis, CR.hygeia_analysis),
+    (CR.HygeiaStatsCache, CR.hygeia_stats_cache),
     (CR.ThemisConfig, CR.themis_config),
     (CR.ThemisFolders, CR.themis_folders),
     (CR.ThemisHistory, CR.themis_history),

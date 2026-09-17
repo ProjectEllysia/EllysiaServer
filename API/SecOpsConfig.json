@@ -1,5 +1,5 @@
 {
-  "appVersion": "0.5.20",
+  "appVersion": "0.5.21",
   "general": {
     "directories": {
       "logdir": "..",
@@ -1291,6 +1291,15 @@
         "minTrendRSquared": 0.5,
         "minTrendSlopePctPerDay": 0.05,
         "peakCoincidenceWindowSec": 300
+      },
+      "directories": {
+        "output": "data/hygeia/output"
+      },
+      "statsCache": {
+        "isEnabled": true,
+        "shortPeriodTtlSeconds": 120,
+        "mediumPeriodTtlSeconds": 900,
+        "longPeriodTtlSeconds": 3600
       },
       "limits": {
         "maxBodyBytes": 1048576,

@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { reactive } from 'vue'
 import { useApi } from '@/composables/useApi'
 import {
-  MAX_COMPARISON_METRICS, STATS_METRICS, bucketForPeriod, exportFileName, metricOf,
+  MAX_COMPARISON_METRICS, STATS_METRICS, bucketForPeriod, metricOf, oldestInstant,
 } from '@/components/hygeia/statsMath'
 
 /**
@@ -19,28 +19,6 @@ import {
  * independientes, y que falle una no debe borrar de la pantalla lo que la otra
  * ya había traído.
  */
-/**
- * Entrega un `blob` al navegador como descarga con nombre.
- *
- * Vive fuera del store porque no toca su estado: es la costura con el DOM que
- * convierte una respuesta HTTP autenticada en un fichero en la carpeta de
- * descargas. La URL temporal se revoca en cuanto el clic sintético ocurre, o
- * el navegador retendría el contenido en memoria toda la sesión.
- *
- * @param {Blob} blob - Contenido devuelto por la API.
- * @param {string} filename - Nombre con el que se guarda.
- */
-function saveBlob(blob, filename) {
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  link.remove()
-  URL.revokeObjectURL(url)
-}
-
 export const useHygeiaStatsStore = defineStore('hygeiaStats', () => {
   const { apiFetch, apiError } = useApi()
 
@@ -65,13 +43,11 @@ export const useHygeiaStatsStore = defineStore('hygeiaStats', () => {
     // lo que explica la resolución de la gráfica.
     comparisonMetrics: ['cpuPct', 'memPct'],
     series: [], bucket: null, seriesLoading: false, seriesError: null,
-
-    exporting: false,
+    // Hasta cuándo están calculadas las series que se ven: el servidor puede
+    // devolver un resultado guardado, y el panel dice su antigüedad.
+    seriesComputedAt: null,
   })
 
-  //: Cómo llama el servidor al juego de datos de cada alcance, que es lo que
-  //: decide la forma de la tabla del CSV.
-  const DATASET_BY_SCOPE = { asset: 'summary', tag: 'tag-stats', fleet: 'ranking' }
 
   /** Todas las métricas del catálogo, en una lista para el parámetro `metrics`. */
   const allMetricKeys = STATS_METRICS.map((metric) => metric.key).join(',')
@@ -98,14 +74,18 @@ export const useHygeiaStatsStore = defineStore('hygeiaStats', () => {
    * sin activo) no lanza la petición: el servidor la rechazaría, y el estado
    * intermedio mientras el usuario todavía está eligiendo no es un error que
    * merezca pintarse.
+   *
+   * @param {object} [options]
+   * @param {boolean} [options.isRefresh=false] - Pide al servidor que recalcule
+   *   en vez de devolver un resultado guardado; es el botón «Actualizar».
    */
-  async function fetchScope() {
+  async function fetchScope({ isRefresh = false } = {}) {
     const request = buildScopeRequest()
     if (!request) { state.scopeError = null; return }
 
     state.scopeLoading = true
     try {
-      const res = await apiFetch(request.path)
+      const res = await apiFetch(isRefresh ? `${request.path}&refresh=true` : request.path)
       if (!res?.ok) {
         state.scopeError = await apiError(res, 'No se pudieron cargar las estadísticas.')
         return
@@ -168,15 +148,18 @@ export const useHygeiaStatsStore = defineStore('hygeiaStats', () => {
    * @param {Array<number>} fleetAssetIds - Ids de los activos del usuario, que
    *   hacen falta solo en el alcance de parque (la serie multi-activo se pide
    *   por lista explícita de activos, hasta 50).
+   * @param {object} [options]
+   * @param {boolean} [options.isRefresh=false] - Pide al servidor que recalcule
+   *   en vez de devolver resultados guardados; es el botón «Actualizar».
    */
-  async function fetchComparison(fleetAssetIds = []) {
+  async function fetchComparison(fleetAssetIds = [], { isRefresh = false } = {}) {
     const requests = buildSeriesRequests(fleetAssetIds)
-    if (!requests) { state.series = []; state.seriesError = null; return }
+    if (!requests) { state.series = []; state.seriesComputedAt = null; state.seriesError = null; return }
 
     state.seriesLoading = true
     try {
       const responses = await Promise.all(requests.map(async (request) => {
-        const res = await apiFetch(request.path)
+        const res = await apiFetch(isRefresh ? `${request.path}&refresh=true` : request.path)
         if (!res?.ok) return null
         const body = await res.json()
         // La respuesta trae una serie por activo salvo que se combine; en los
@@ -187,14 +170,16 @@ export const useHygeiaStatsStore = defineStore('hygeiaStats', () => {
           name: metricOf(request.key)?.name ?? request.key,
           points: series?.points ?? [],
           bucket: body.bucket ?? null,
+          computedAt: body.periodCoveredTo ?? null,
         }
       }))
       const loaded = responses.filter(Boolean)
       state.series = loaded
       state.bucket = loaded[0]?.bucket ?? null
+      state.seriesComputedAt = oldestInstant(loaded.map((series) => series.computedAt))
       state.seriesError = loaded.length
         ? null
-        : 'No se pudieron cargar las series de las métricas elegidas.'
+        : 'No se pudo cargar la evolución de las métricas elegidas.'
     } catch { state.seriesError = 'No se pudo conectar con la API.' }
     finally { state.seriesLoading = false }
   }
@@ -268,42 +253,6 @@ export const useHygeiaStatsStore = defineStore('hygeiaStats', () => {
     if (selected.length < MAX_COMPARISON_METRICS) state.comparisonMetrics = [...selected, key]
   }
 
-  /**
-   * Descarga en CSV lo que hay en pantalla.
-   *
-   * Pide **la misma ruta** que se está mostrando, con `format=csv` añadido: el
-   * fichero contiene por construcción los mismos valores que la tabla, porque
-   * los dos salen del mismo endpoint y del mismo schema del servidor. No hay
-   * un segundo camino de datos que pueda desviarse.
-   *
-   * El fichero se descarga con `apiFetch` y no con un enlace directo, porque la
-   * API exige la cabecera de autorización y un `<a href>` no la manda; el
-   * `blob` resultante se entrega al navegador con un ancla sintética.
-   *
-   * @param {string|null} scopeLabel - Nombre del activo o de la etiqueta, para
-   *   el nombre del fichero.
-   * @returns {Promise<boolean>} Si la descarga se pudo servir.
-   */
-  async function downloadCsv(scopeLabel = null) {
-    const request = buildScopeRequest()
-    if (!request) return false
-
-    state.exporting = true
-    try {
-      const res = await apiFetch(`${request.path}&format=csv`)
-      if (!res?.ok) {
-        state.scopeError = await apiError(res, 'No se pudo exportar el resultado.')
-        return false
-      }
-      saveBlob(
-        await res.blob(),
-        exportFileName(DATASET_BY_SCOPE[state.scope], scopeLabel, state.period),
-      )
-      return true
-    } catch { state.scopeError = 'No se pudo conectar con la API.'; return false }
-    finally { state.exporting = false }
-  }
-
   /** Cambia el alcance, limpiando lo que ya no aplica. */
   function selectScope(scope) {
     state.scope = scope
@@ -314,6 +263,6 @@ export const useHygeiaStatsStore = defineStore('hygeiaStats', () => {
 
   return {
     state, fetchOverview, fetchScope, buildScopeRequest, selectScope,
-    fetchComparison, buildSeriesRequests, toggleComparisonMetric, downloadCsv,
+    fetchComparison, buildSeriesRequests, toggleComparisonMetric,
   }
 })

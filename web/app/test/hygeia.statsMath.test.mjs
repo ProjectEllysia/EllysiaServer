@@ -14,7 +14,7 @@
 import {
   MAX_COMPARISON_METRICS, STATS_METRICS, STATS_PERIODS, STATS_SCOPES, STATS_AGGREGATIONS,
   alignComparisonSeries, bucketForPeriod, comparisonPath, describeCoverage, describeLaneRange,
-  exportFileName, formatStatValue, isAggregationAllowed, metricOf,
+  buildStatsDocumentRequest, formatStatValue, isAggregationAllowed, metricOf, oldestInstant,
   rankingRows, summaryRows, tagMetricRows,
 } from '../src/components/hygeia/statsMath.js'
 
@@ -162,13 +162,14 @@ const day = {
   isPeriodClipped: false,
 }
 check('una ventana de un día se describe en días',
-  describeCoverage(day) === 'Calculado sobre 1 d.', describeCoverage(day))
+  describeCoverage(day) === 'Periodo analizado: 1 día.', describeCoverage(day))
 check('una ventana corta se describe en horas',
   describeCoverage({ ...day, periodCoveredTo: '2026-09-01T06:00:00Z' })
-    === 'Calculado sobre 6 h.')
+    === 'Periodo analizado: 6 horas.')
 // Un "máximo de los últimos 365 días" calculado sobre 30 tiene que decirlo.
 check('una ventana recortada lo dice',
-  describeCoverage({ ...day, isPeriodClipped: true }).includes('excedía'))
+  describeCoverage({ ...day, isPeriodClipped: true })
+    === 'Solo se guarda 1 día de historial: el resultado cubre ese tiempo.')
 eq('una respuesta sin ventana no describe nada', describeCoverage({}), '')
 eq('una respuesta nula tampoco', describeCoverage(null), '')
 eq('unas fechas ilegibles no producen texto basura',
@@ -284,22 +285,36 @@ check('una tasa se rotula escalada',
 eq('una calle sin datos no se rotula', describeLaneRange({ sampleCount: 0 }), '')
 eq('una calle inexistente tampoco', describeLaneRange(null), '')
 
-console.log('\n' + 'nombre del fichero exportado')
+console.log('\n' + 'petición de exportación')
 
-eq('lleva el juego de datos, el alcance y el periodo',
-  exportFileName('summary', 'host-web', '24h'), 'hygeia-summary-host-web-24h.csv')
-// Un hostname o una etiqueta pueden traer acentos, mayúsculas y espacios, y de
-// ahí sale un nombre de fichero incómodo en cualquier sistema.
-eq('normaliza acentos, mayúsculas y separadores',
-  exportFileName('summary', 'Host-Web · Producción', '7d'),
-  'hygeia-summary-host-web-produccion-7d.csv')
-eq('el parque no tiene alcance que nombrar',
-  exportFileName('ranking', null, '7d'), 'hygeia-ranking-7d.csv')
-eq('el panorama no tiene periodo',
-  exportFileName('overview', null, null), 'hygeia-overview.csv')
-check('nunca deja separadores colgando',
-  !/--|-\./.test(exportFileName('tag-stats', ' ?? ', '24h')),
-  exportFileName('tag-stats', ' ?? ', '24h'))
+eq('un activo exporta su resumen con todas las métricas',
+  buildStatsDocumentRequest({ scope: 'asset', assetId: 3, period: '7d', metric: 'cpuPct', aggregation: 'max' }),
+  { kind: 'stats-csv', dataset: 'summary', assetId: 3, metrics: [], period: '7d' })
+eq('una etiqueta exporta sus métricas con su combinación',
+  buildStatsDocumentRequest({ scope: 'tag', tagId: 4, period: '24h', aggregation: 'sum' }),
+  { kind: 'stats-csv', dataset: 'tag-stats', tagId: 4, metrics: [], agg: 'sum', period: '24h' })
+eq('el parque exporta su ranking',
+  buildStatsDocumentRequest({ scope: 'fleet', metric: 'memPct', aggregation: 'max', period: '30d' }),
+  { kind: 'stats-csv', dataset: 'ranking', metric: 'memPct', agg: 'max', order: 'desc', limit: 10, period: '30d' })
+// El ranking no se suma: «Total» se pide como media, igual que la tabla.
+eq('el ranking con «Total» se pide como media',
+  buildStatsDocumentRequest({ scope: 'fleet', metric: 'netRxBps', aggregation: 'sum', period: '24h' }).agg,
+  'avg')
+eq('un activo sin elegir no se exporta',
+  buildStatsDocumentRequest({ scope: 'asset', assetId: null, period: '24h' }), null)
+eq('una etiqueta sin elegir tampoco',
+  buildStatsDocumentRequest({ scope: 'tag', tagId: null, period: '24h' }), null)
+
+console.log('\n' + 'antigüedad de la gráfica')
+
+// Si una métrica salió de la caché y otra no, la gráfica es tan vieja como la más vieja.
+eq('elige el instante más antiguo',
+  oldestInstant(['2026-09-16T10:05:00Z', '2026-09-16T09:50:00Z', '2026-09-16T10:00:00Z']),
+  '2026-09-16T09:50:00Z')
+eq('ignora nulos e instantes ilegibles',
+  oldestInstant([null, 'ayer', '2026-09-16T10:00:00Z', undefined]), '2026-09-16T10:00:00Z')
+eq('sin instantes válidos no hay antigüedad', oldestInstant([null, 'ayer']), null)
+eq('una lista ausente tampoco', oldestInstant(undefined), null)
 
 console.log(`\n${passed} pasados, ${failed} fallidos`)
 process.exit(failed ? 1 : 0)

@@ -21,7 +21,9 @@ from __future__ import annotations
 
 import csv
 import io
-from typing import Any, Dict, List, Mapping, Sequence, Tuple
+import re
+import unicodedata
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 #: Columnas que describen la ventana cubierta. Viajan en **cada fila** en vez de
 #: en una cabecera aparte: un CSV con dos tablas dentro deja de ser un CSV que
@@ -230,3 +232,38 @@ def build_csv(dataset: str, payload: Mapping[str, Any]) -> Tuple[bytes, str]:
     """
     content = CSV_RENDERERS[dataset](payload)
     return content.encode("utf-8-sig"), f"hygeia-{dataset}.csv"
+
+
+def build_export_file_name(
+    dataset: str, scope_label: Optional[str], period: Optional[str], extension: str = "csv",
+) -> str:
+    """Nombre de fichero de una exportación de estadísticas.
+
+    Lleva el alcance y el periodo, que es lo que distingue dos descargas en la
+    carpeta de descargas: ``hygeia-summary-host-web-24h.csv`` se reconoce y
+    ``hygeia-summary.csv (3)`` no. El alcance se normaliza a minúsculas, sin
+    acentos y con guiones, porque un hostname o una etiqueta pueden traer
+    cualquier carácter.
+
+    Args:
+        dataset: Juego de datos (``summary``, ``tag-stats``, ``ranking``,
+            ``overview``).
+        scope_label: Nombre del activo o de la etiqueta, o ``None`` en los
+            alcances que no tienen uno (el parque).
+        period: Periodo pedido (``24h``), o ``None`` si el juego de datos no
+            tiene periodo (el panorama).
+        extension: Extensión del fichero, sin punto. Por defecto ``"csv"``;
+            el mismo dataset exportado en PDF pasa ``"pdf"``.
+
+    Returns:
+        str: El nombre con su extensión; sin partes vacías ni guiones
+            colgando.
+    """
+    slug = None
+    if scope_label:
+        ascii_label = (
+            unicodedata.normalize("NFD", scope_label).encode("ascii", "ignore").decode("ascii")
+        )
+        slug = re.sub(r"[^a-z0-9]+", "-", ascii_label.lower()).strip("-") or None
+    parts = [f"hygeia-{dataset}", slug, period]
+    return "-".join(part for part in parts if part) + f".{extension}"
