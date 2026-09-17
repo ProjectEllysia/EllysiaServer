@@ -215,11 +215,11 @@ con backend RQ+Redis), `worker.py` (entrada del worker), `tracking.py` (`TaskTra
   directo, y la receta completa: [`CONVENCIONES.md`](CONVENCIONES.md) §7.
 - **Categorías**: `themis.scan`, `themis.report`, `themis.traceroute`, `aegis.generate`,
   `aegis.campaign`, `iris.analyze`, `iris.ai_summary`, `iris.report`, `iris.ingest`,
-  `iris.notify`, `hygeia.notify` (+ `default`). Cada módulo las da de alta en su `__init__.py` con `QueueRegistry.register(...)`;
+  `iris.notify`, `hygeia.notify`, `hygeia.report` (+ `default`). Cada módulo las da de alta en su `__init__.py` con `QueueRegistry.register(...)`;
   los workers escuchan en colas por categoría.
 - **`external_id`**: el prefijo lo declara el manager en `EXTERNAL_ID_PREFIX` (`scan:`,
   `themis-doc:`, `themis-traceroute:`, `aegis-doc:`, `aegis-campaign:`, `iris-analysis:`,
-  `iris-doc:`, `iris-mailbox-sync:`, `iris-phishing-notify:`) y `TaskTrackingMixin.external_id_for`
+  `iris-doc:`, `iris-mailbox-sync:`, `iris-phishing-notify:`, `hygeia-doc:`) y `TaskTrackingMixin.external_id_for`
   lo compone. No lo escribas a mano.
 - **Cancelación** cooperativa: pone la clave Redis `taskqueue:cancel:{job_id}`; los workers la
   sondean vía `_Task.wait(cancel_check=...)`. **Progreso** por `job.meta["progress"]`.
