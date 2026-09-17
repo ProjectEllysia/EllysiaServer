@@ -1,5 +1,5 @@
 /**
- * Rótulos de los documentos de Hygeia (CSV de estadísticas y PDF de inventario).
+ * Rótulos de los documentos de Hygeia (estadísticas en CSV o PDF, e inventario en PDF).
  *
  * Lógica pura, sin Vue ni DOM, para poder testearla en Node igual que
  * `statsMath.js`. El servidor guarda cada documento como la consulta que lo
@@ -83,7 +83,7 @@ export function describeDocument(document) {
     return { title, detail: parameters.includeSoftware ? 'con software instalado' : '' }
   }
 
-  if (document?.kind === 'stats-csv') {
+  if (document?.kind === 'stats-csv' || document?.kind === 'stats-pdf') {
     const label = parameters.scopeLabel
     const titles = {
       summary: `Estadísticas de ${label ? `«${label}»` : 'un activo'}`,

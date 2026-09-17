@@ -152,6 +152,13 @@
               : 'Elige un activo o una etiqueta para exportar'"
             @click="exportCsv"
           >{{ documentsStore.state.requesting ? 'Pidiendo…' : 'Exportar CSV' }}</button>
+          <button
+            class="btn-export" type="button"
+            :disabled="!isSelectionComplete || documentsStore.state.requesting"
+            :title="isSelectionComplete ? 'Prepara esta tabla en PDF; la descargas desde Documentos'
+              : 'Elige un activo o una etiqueta para exportar'"
+            @click="exportPdf"
+          >{{ documentsStore.state.requesting ? 'Pidiendo…' : 'Exportar PDF' }}</button>
         </div>
 
         <!-- Tabla fantasma con las mismas columnas y el mismo número de filas
@@ -696,7 +703,18 @@ const ghostTable = computed(() => {
  * listo y se descarga desde la página de documentos.
  */
 function exportCsv() {
-  const request = buildStatsDocumentRequest(store.state)
+  const request = buildStatsDocumentRequest(store.state, 'stats-csv')
+  if (request) documentsStore.requestDocument(request)
+}
+
+/**
+ * Pide exportar a PDF la tabla que se ve.
+ *
+ * Misma consulta que `exportCsv`, con portada y maquetación en vez de filas
+ * de texto; igual de fondo, y se descarga desde el mismo sitio.
+ */
+function exportPdf() {
+  const request = buildStatsDocumentRequest(store.state, 'stats-pdf')
   if (request) documentsStore.requestDocument(request)
 }
 

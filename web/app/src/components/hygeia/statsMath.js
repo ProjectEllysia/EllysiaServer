@@ -433,32 +433,33 @@ export function describeLaneRange(lane) {
 /* ── Exportación ───────────────────────────────────────────────────────── */
 
 /**
- * Cuerpo de `POST /hygeia/documents` que exporta a CSV la tabla que se ve.
+ * Cuerpo de `POST /hygeia/documents` que exporta la tabla que se ve, en CSV o en PDF.
  *
- * El CSV se genera en segundo plano con la misma consulta que la tabla: el
- * resumen de un activo con todas las métricas, las métricas de una etiqueta
- * con su combinación, o el ranking del parque por la métrica elegida. El
- * ranking nunca se pide sumado (el servidor no lo admite), así que «Total»
- * viaja como media, igual que al pintar la tabla.
+ * El documento se genera en segundo plano con la misma consulta que la tabla:
+ * el resumen de un activo con todas las métricas, las métricas de una
+ * etiqueta con su combinación, o el ranking del parque por la métrica
+ * elegida. El ranking nunca se pide sumado (el servidor no lo admite), así
+ * que «Total» viaja como media, igual que al pintar la tabla.
  *
  * @param {object} selection - Selección de la vista: `scope` (`asset`, `tag`
  *   o `fleet`), `assetId`, `tagId`, `metric`, `aggregation` y `period`.
+ * @param {'stats-csv'|'stats-pdf'} [kind='stats-csv'] - Formato del documento a pedir.
  * @returns {object|null} El cuerpo de la petición, o `null` si la selección
  *   está incompleta (un activo o una etiqueta sin elegir).
  */
-export function buildStatsDocumentRequest(selection) {
+export function buildStatsDocumentRequest(selection, kind = 'stats-csv') {
   const { scope, assetId, tagId, metric, aggregation, period } = selection ?? {}
   if (scope === 'asset') {
     if (!assetId) return null
-    return { kind: 'stats-csv', dataset: 'summary', assetId, metrics: [], period }
+    return { kind, dataset: 'summary', assetId, metrics: [], period }
   }
   if (scope === 'tag') {
     if (!tagId) return null
-    return { kind: 'stats-csv', dataset: 'tag-stats', tagId, metrics: [], agg: aggregation, period }
+    return { kind, dataset: 'tag-stats', tagId, metrics: [], agg: aggregation, period }
   }
   if (scope === 'fleet') {
     return {
-      kind: 'stats-csv', dataset: 'ranking', metric,
+      kind, dataset: 'ranking', metric,
       agg: aggregation === 'sum' ? 'avg' : aggregation, order: 'desc', limit: 10, period,
     }
   }
