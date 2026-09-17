@@ -309,6 +309,14 @@ export function bucketForPeriod(period) {
 }
 
 /**
+ * Cubos seguidos sin ningún dato a partir de los cuales el tramo cuenta como
+ * inactividad. Un cubo suelto vacío es ruido de muestreo —un agente que
+ * reporta cerca del borde del cubo—, no un apagón, y marcarlo partiría las
+ * líneas en trozos que no se llegan a dibujar.
+ */
+const MIN_INACTIVE_BUCKETS = 2
+
+/**
  * Rejilla completa de instantes esperados de un periodo, a pasos regulares
  * del cubo con el que se pidió.
  *
@@ -319,6 +327,12 @@ export function bucketForPeriod(period) {
  * próximos quedarían adyacentes, dibujando una línea recta a través del
  * apagón como si el dato fuera continuo.
  *
+ * Los extremos se redondean hacia abajo a un múltiplo del cubo porque así
+ * etiqueta el servidor cada punto (`floor(epoch / cubo) * cubo`), mientras
+ * que la cobertura es el instante real en que empieza y acaba la ventana. Sin
+ * ese redondeo, ningún instante de la rejilla coincidiría con un dato y cada
+ * punto real quedaría aislado entre dos huecos.
+ *
  * @param {{from: string|null, to: string|null, bucketMs: number|null}} range
  *   Cobertura del periodo (`periodCoveredFrom`/`periodCoveredTo` de la
  *   respuesta) y el cubo real usado, en milisegundos.
@@ -328,13 +342,43 @@ export function bucketForPeriod(period) {
  */
 function fullPeriodGrid({ from, to, bucketMs } = {}) {
   if (!from || !to || !bucketMs) return null
-  const start = new Date(from).getTime()
-  const end = new Date(to).getTime()
-  if (Number.isNaN(start) || Number.isNaN(end) || end <= start) return null
+  const coveredFrom = new Date(from).getTime()
+  const coveredTo = new Date(to).getTime()
+  if (Number.isNaN(coveredFrom) || Number.isNaN(coveredTo) || coveredTo <= coveredFrom) return null
 
+  const start = Math.floor(coveredFrom / bucketMs) * bucketMs
+  const end = Math.floor(coveredTo / bucketMs) * bucketMs
   const grid = []
   for (let instant = start; instant <= end; instant += bucketMs) grid.push(instant)
   return grid
+}
+
+/**
+ * Deja en el eje solo los instantes vacíos que forman un tramo de inactividad.
+ *
+ * @param {Array<number>} candidates - Instantes ordenados: los de la rejilla
+ *   y los que trajo alguna métrica.
+ * @param {Set<number>} presentInstants - Instantes con dato en alguna métrica.
+ * @returns {Array<number>} Los instantes con dato, más los vacíos que van en
+ *   rachas de al menos `MIN_INACTIVE_BUCKETS`; los vacíos sueltos se quitan.
+ */
+function keepInactiveRuns(candidates, presentInstants) {
+  const kept = []
+  let run = []
+  const flushRun = () => {
+    if (run.length >= MIN_INACTIVE_BUCKETS) kept.push(...run)
+    run = []
+  }
+  for (const instant of candidates) {
+    if (presentInstants.has(instant)) {
+      flushRun()
+      kept.push(instant)
+    } else {
+      run.push(instant)
+    }
+  }
+  flushRun()
+  return kept
 }
 
 /**
@@ -347,11 +391,11 @@ function fullPeriodGrid({ from, to, bucketMs } = {}) {
  * instantes en que esa métrica no tiene dato. No interpola: un hueco sigue
  * siendo un hueco.
  *
- * Con `range` completo, el eje es la **rejilla completa del periodo**
- * (`fullPeriodGrid`), no solo los instantes que trajo alguna métrica: así un
- * tramo sin ningún dato en absoluto queda representado en el eje en vez de
- * desaparecer (ver `fullPeriodGrid`). Sin `range` —o incompleto— se cae a la
- * unión ordenada de los instantes con dato, que es el comportamiento previo.
+ * Con `range` completo, el eje añade a los instantes con dato los de la
+ * **rejilla del periodo** (`fullPeriodGrid`) que forman rachas de al menos
+ * `MIN_INACTIVE_BUCKETS` cubos sin ningún dato: así un apagón queda
+ * representado en el eje en vez de desaparecer. Sin `range` —o incompleto— el
+ * eje es la unión ordenada de los instantes con dato.
  *
  * Cada métrica conserva su propio mínimo y máximo, porque **no comparten
  * escala vertical**: superponer un porcentaje y una tasa en bytes por segundo
@@ -383,10 +427,11 @@ export function alignComparisonSeries(sources, range) {
     return byInstant
   })
 
-  const presentInstants = valuesByInstant.flatMap((byInstant) => [...byInstant.keys()])
+  const presentInstants = new Set(valuesByInstant.flatMap((byInstant) => [...byInstant.keys()]))
   const grid = fullPeriodGrid(range ?? {})
-  const instants = [...new Set(grid ? [...grid, ...presentInstants] : presentInstants)]
+  const candidates = [...new Set(grid ? [...grid, ...presentInstants] : presentInstants)]
     .sort((left, right) => left - right)
+  const instants = grid ? keepInactiveRuns(candidates, presentInstants) : candidates
 
   const lanes = withPoints.map((source, position) => {
     const byInstant = valuesByInstant[position]

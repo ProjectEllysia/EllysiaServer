@@ -308,21 +308,51 @@ const totalGapPath = comparisonPath(totalGap.lanes[0], totalGap.instants, box)
 eq('el tramo sin ningún dato corta la línea de verdad, no la une con una recta',
   totalGapPath.length, 2)
 
+// La cobertura es el instante real de la ventana (aquí, 23 min pasada la
+// hora), pero el servidor etiqueta cada punto con el inicio de su cubo. La
+// rejilla tiene que caer en esos mismos instantes: si no, cada punto real
+// queda aislado entre dos huecos y la gráfica se queda sin líneas.
+const MINUTE = 60e3
+const misalignedRange = {
+  from: new Date(T0 + 23 * MINUTE).toISOString(),
+  to: new Date(T0 + 5 * HOUR + 41 * MINUTE).toISOString(),
+  bucketMs: HOUR,
+}
+const continuous = alignComparisonSeries([
+  source('cpuPct', 'CPU', [[0, 10], [1, 20], [2, 30], [3, 40], [4, 50], [5, 60]]),
+], misalignedRange)
+eq('con una cobertura desalineada, la rejilla cae en los instantes de los datos',
+  continuous.instants, [0, 1, 2, 3, 4, 5].map((hour) => T0 + hour * HOUR))
+eq('y una serie sin huecos sigue siendo una sola línea',
+  comparisonPath(continuous.lanes[0], continuous.instants, box).length, 1)
+eq('y no tiene tramos de inactividad',
+  inactivityRanges(continuous.lanes, continuous.instants, box), [])
+
+// Un cubo suelto vacío es ruido de muestreo, no un apagón.
+const singleMissing = alignComparisonSeries([
+  source('cpuPct', 'CPU', [[0, 10], [1, 20], [3, 40], [4, 50], [5, 60]]),
+], misalignedRange)
+eq('un solo cubo sin datos no se añade al eje',
+  singleMissing.instants, [0, 1, 3, 4, 5].map((hour) => T0 + hour * HOUR))
+eq('ni se marca como inactividad',
+  inactivityRanges(singleMissing.lanes, singleMissing.instants, box), [])
+
 console.log('\ntramos de inactividad')
 
 eq('el hueco total del ejemplo anterior se marca como un tramo de inactividad',
   inactivityRanges(totalGap.lanes, totalGap.instants, box),
   [{ x: 40, width: 40 }])
 
-// La memoria sí tiene dato en la hora 3: solo la hora 2 queda sin ninguna
-// métrica, así que el tramo de inactividad es más corto.
+// A la CPU le faltan las horas 1 a 3, pero la memoria sí tiene dato en la
+// hora 3: solo las horas 1 y 2 quedan sin ninguna métrica, así que el tramo
+// de inactividad acaba donde vuelve la memoria y no donde vuelve la CPU.
 const partialAllMissing = alignComparisonSeries([
-  source('cpuPct', 'CPU', [[0, 10], [1, 20], [4, 40], [5, 50]]),
-  source('memPct', 'Memoria', [[0, 60], [1, 65], [3, 75], [4, 80], [5, 85]]),
-], gridRange)
+  source('cpuPct', 'CPU', [[0, 10], [4, 50]]),
+  source('memPct', 'Memoria', [[0, 60], [3, 75], [4, 80]]),
+], { from: new Date(T0).toISOString(), to: new Date(T0 + 4 * HOUR).toISOString(), bucketMs: HOUR })
 eq('un hueco de una sola métrica no cuenta como inactividad si otra sí tiene dato',
   inactivityRanges(partialAllMissing.lanes, partialAllMissing.instants, box),
-  [{ x: 40, width: 20 }])
+  [{ x: 25, width: 50 }])
 
 eq('sin calles no hay tramos de inactividad', inactivityRanges([], totalGap.instants, box), [])
 eq('con menos de dos instantes tampoco', inactivityRanges(totalGap.lanes, [T0], box), [])
