@@ -41,7 +41,7 @@ from reportlab.platypus import (
 )
 
 import src.modules.system.config_reading as CR
-from src.modules.shared.report_theme import ColorType, ReportTheme
+from src.modules.tools.press import ColorType, ReportTheme, build_palette
 
 #: Logotipo de Hygeia, dentro del propio módulo.
 #:
@@ -87,18 +87,7 @@ _STATUS_ORDER = ("online", "stale", "offline", "pending")
 
 def _palette() -> Dict[ColorType, str]:
     """Paleta del informe, de la configuración y con respaldo propio."""
-    configured = CR.get_hygeia_color_palette()
-    return {
-        color_type: configured.get(key, _FALLBACK_PALETTE[key])
-        for key, color_type in (
-            ("black",     ColorType.BLACK),
-            ("dark",      ColorType.DARK),
-            ("main",      ColorType.MAIN),
-            ("secondary", ColorType.SECONDARY),
-            ("light",     ColorType.LIGHT),
-            ("white",     ColorType.WHITE),
-        )
-    }
+    return build_palette(CR.get_hygeia_color_palette(), _FALLBACK_PALETTE)
 
 
 def _status_label(asset) -> str:

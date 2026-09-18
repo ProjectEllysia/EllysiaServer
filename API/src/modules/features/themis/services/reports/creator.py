@@ -15,7 +15,7 @@ from reportlab.lib.units import inch
 from reportlab.platypus import Image, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 import src.modules.system.config_reading as CR
 
-from src.modules.shared.report_theme import ColorType, ReportTheme
+from src.modules.tools.press import ColorType, ReportTheme
 from .base import PrintingStrategy
 
 logger = logging.getLogger(__name__)

@@ -15,7 +15,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 
 import src.modules.system.config_reading as CR
 from src.modules.features.themis.services.reports.base import PrintingStrategy
-from src.modules.shared.report_theme import ColorType, ReportTheme
+from src.modules.tools.press import ColorType, ReportTheme
 from src.modules.tools.scribe import AIPayloadTooLargeError
 
 pytestmark = pytest.mark.unit

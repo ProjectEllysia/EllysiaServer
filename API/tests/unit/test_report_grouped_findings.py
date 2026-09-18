@@ -20,7 +20,7 @@ from __future__ import annotations
 import pytest
 from reportlab.lib.styles import getSampleStyleSheet
 
-from src.modules.shared.report_theme import ColorType, ReportTheme
+from src.modules.tools.press import ColorType, ReportTheme
 from src.modules.features.themis.lybra.grouping import build_service_rollup
 from src.modules.features.themis.services.reports.findings import FindingsPrintingStrategy
 from src.modules.features.themis.services.reports.outline import OutlineEntry

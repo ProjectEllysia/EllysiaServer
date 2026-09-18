@@ -20,7 +20,7 @@ import src.modules.system.config_reading as CR
 from src.modules.shared._exceptions import IllegalStateError, ValidationError
 from src.modules.tools.scribe import AIPayloadTooLargeError
 from ...model import Scan, ScanType
-from src.modules.shared.report_theme import ColorType, ReportTheme, safe_markup
+from src.modules.tools.press import ColorType, ReportTheme, safe_markup
 
 logger = logging.getLogger(__name__)
 

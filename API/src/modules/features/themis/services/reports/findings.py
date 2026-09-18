@@ -12,7 +12,7 @@ from reportlab.lib.units import inch
 from reportlab.platypus import CondPageBreak, Paragraph, Spacer, Table, TableStyle
 import src.modules.system.config_reading as CR
 
-from src.modules.shared.report_theme import ColorType, safe_markup
+from src.modules.tools.press import ColorType, build_palette, safe_markup
 from ...lybra.grouping import build_service_rollup
 from ..cve_context import enrich_with_cve_context
 from .base import PrintingStrategy
@@ -94,17 +94,9 @@ class FindingsPrintingStrategy(PrintingStrategy):
         super().__init__(scan)
         self.writer = self._WRITER_CLASS(prompt_key=self._WRITER_PROMPT_KEY)
 
-        palette_config = CR.get_tool_color_palette(self._TOOL)
-        defaults = self._DEFAULT_PALETTE
-
-        self.color_palette = {
-            ColorType.BLACK: palette_config.get("black", defaults["black"]),
-            ColorType.DARK: palette_config.get("dark", defaults["dark"]),
-            ColorType.MAIN: palette_config.get("main", defaults["main"]),
-            ColorType.SECONDARY: palette_config.get("secondary", defaults["secondary"]),
-            ColorType.LIGHT: palette_config.get("light", defaults["light"]),
-            ColorType.WHITE: palette_config.get("white", defaults["white"]),
-        }
+        self.color_palette = build_palette(
+            CR.get_tool_color_palette(self._TOOL), self._DEFAULT_PALETTE
+        )
 
     def append_body(self, theme: "ReportTheme", elements: list, ai_report: bool = False) -> None:
         from src.modules.infrastructure.session import build_repository
