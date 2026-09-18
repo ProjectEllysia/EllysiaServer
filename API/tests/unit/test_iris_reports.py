@@ -6,11 +6,11 @@ import os
 from unittest import mock
 
 import pytest
-from reportlab.lib.styles import getSampleStyleSheet
 
 import src.modules.features.iris.services.reports as reports_mod
 import src.modules.system.config_reading as CR
-from src.modules.features.iris.services.reports import IrisPDFCreator, IrisReportTheme, PALETTE
+import src.modules.tools.press.generator as press_generator
+from src.modules.features.iris.services.reports import IrisPDFCreator
 
 pytestmark = pytest.mark.unit
 
@@ -105,13 +105,13 @@ def test_no_temporary_file_survives_a_successful_render(tmp_path):
 def test_a_failed_render_leaves_neither_temporary_nor_output(tmp_path, monkeypatch):
     """Un fallo a mitad no debe dejar un PDF truncado en la ruta final: el
     lector que lo descargue recibiría un fichero corrupto sin saberlo."""
-    import src.modules.features.iris.services.reports as reports_mod
-
     creator = IrisPDFCreator(report=_sample_report(), document_id=4)
-    expected = creator._output_path()
+    expected = creator.output_path()
 
+    # La construcción del documento vive ahora en ``tools.press``, así que
+    # es ahí donde hay que provocar el fallo.
     monkeypatch.setattr(
-        reports_mod.SimpleDocTemplate, "build",
+        press_generator.SimpleDocTemplate, "build",
         lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("boom")),
     )
 
@@ -165,16 +165,12 @@ def test_print_pdf_with_legitimate_verdict():
 
 # ------------------------------------------------ redacción del raw dump
 
-def _theme() -> IrisReportTheme:
-    return IrisReportTheme(getSampleStyleSheet(), PALETTE)
-
-
 def _rendered_raw_headers_text(report: dict) -> str:
     """Llama a append_raw_headers() directamente y concatena el texto de
     cada Paragraph -- más directo que parsear el PDF resultante."""
     creator = IrisPDFCreator(report=report)
     elements: list = []
-    creator.append_raw_headers(elements, _theme())
+    creator.append_raw_headers(elements, creator.theme)
     return "\n".join(el.text for el in elements if hasattr(el, "text"))
 
 
@@ -215,7 +211,7 @@ def _rendered_preview_text(report: dict) -> str:
     tanto sueltos como dentro de las celdas de la tabla de vista previa."""
     creator = IrisPDFCreator(report=report)
     elements: list = []
-    creator.append_email_preview(elements, _theme())
+    creator.append_email_preview(elements, creator.theme)
     texts = []
     for element in elements:
         if hasattr(element, "text"):
@@ -263,7 +259,7 @@ def test_preview_note_says_the_original_won_by_default():
 def _rendered_confidence_text(report: dict) -> str:
     creator = IrisPDFCreator(report=report)
     elements: list = []
-    creator.append_confidence(elements, _theme())
+    creator.append_confidence(elements, creator.theme)
     texts = []
     for element in elements:
         for row in getattr(element, "_cellvalues", []):
@@ -304,7 +300,7 @@ def test_finding_detail_shows_the_defanged_evidence_and_the_unanchorable_reason(
     ])
     creator = IrisPDFCreator(report=report)
     elements: list = []
-    creator.append_rules(elements, _theme())
+    creator.append_rules(elements, creator.theme)
     text = "\n".join(element.text for element in elements if hasattr(element, "text"))
     assert "hxxp://192.168.10.20/login" in text
     assert "Sin evidencia anclada: La regla evalúa el cuerpo en conjunto." in text

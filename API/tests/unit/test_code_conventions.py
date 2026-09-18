@@ -324,12 +324,6 @@ KNOWN_VIOLATIONS: dict[tuple[str, str, str], str] = {
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/iris/services/mailbox/scheduling.py", "IrisMailboxScheduler._run_retention"):
         _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/services/reports.py", "IrisPDFCreator._on_page"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/services/reports.py", "IrisPDFCreator._output_path"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/services/reports.py", "IrisPDFCreator._set_pdf_metadata"):
-        _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/themis/lybra/checks.py", "CheckRuntime._applies"):
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/themis/lybra/checks.py", "CheckRuntime._applies_mode"):
