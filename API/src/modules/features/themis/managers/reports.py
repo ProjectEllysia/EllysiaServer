@@ -117,6 +117,6 @@ class ThemisReportManager(DocumentManager):
         run_report_generation(
             document_id=document_id,
             repo_cls=ThemisReportRepository,
-            render=lambda: PDFCreator(scan_id, document_id).print_pdf(ai_report=ai_report),
+            render=lambda: PDFCreator(scan_id, document_id, ai_report=ai_report).print_pdf(),
         )
 

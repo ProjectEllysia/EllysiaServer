@@ -544,12 +544,6 @@ KNOWN_VIOLATIONS: dict[tuple[str, str, str], str] = {
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/themis/services/reports/base.py", "PrintingStrategy._append_history_stats"):
         _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/themis/services/reports/creator.py", "PDFCreator._make_logo_badge"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/themis/services/reports/creator.py", "PDFCreator._on_page"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/themis/services/reports/creator.py", "PDFCreator._set_pdf_metadata"):
-        _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/themis/services/reports/findings.py", "FindingsPrintingStrategy._append_cpe_coverage_note"):
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/themis/services/reports/findings.py", "FindingsPrintingStrategy._append_finding_card"):
