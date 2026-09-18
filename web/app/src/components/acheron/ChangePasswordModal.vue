@@ -71,7 +71,7 @@
 <script setup>
 import { reactive, ref, computed, watch, nextTick } from 'vue'
 import PasswordStrengthMeter from './PasswordStrengthMeter.vue'
-import { generatePassword } from '@projectellysia/acheron-core-web'
+import { generatePassword } from '@projectellysia/acheron-core-js'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
