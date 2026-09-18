@@ -14,7 +14,14 @@ no tiene titular mucho después, sin ninguna traza que apunte al renombrado.
 
 ``schema/schema.json`` en el repositorio ``AcheronCore``, junto a los dos
 motores, es la fuente de verdad común, y este test convierte la
-divergencia en un fallo de CI. Sigue el patrón de ``test_caddy_api_routes.py``
+divergencia en un fallo de CI.
+
+Ojo con el alcance de este fichero, porque durante meses se le supuso más del
+que tiene: compara ``storable_specs.py`` contra la COPIA versionada, no contra
+el original. Una copia congelada y un registro congelado coinciden entre sí, así
+que este test seguiría en verde con la copia atrasada — y eso pasó de verdad.
+Quien vigila que la copia siga al original es
+``API/scripts/verify_acheron_catalog.py``, en el workflow "Catálogo de Acheron". Sigue el patrón de ``test_caddy_api_routes.py``
 y ``test_config_view_paths.py``, que atan las otras parejas cruzadas del
 monorepo leyendo un fichero que vive lejos y comparando.
 
