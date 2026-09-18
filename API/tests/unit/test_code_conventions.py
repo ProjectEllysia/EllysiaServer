@@ -150,14 +150,6 @@ KNOWN_VIOLATIONS: dict[tuple[str, str, str], str] = {
     ("sql-outside-repository", "src/modules/users/services/account_deletion.py", "purge_user_data"):
         _PLAN_SQL,
     # --- private-method
-    ("private-method", "src/modules/accounts/managers/organizations.py", "OrganizationManager._assert_can_own_organization"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/accounts/managers/organizations.py", "OrganizationManager._delete_membership"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/accounts/managers/organizations.py", "OrganizationManager._serialize"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/accounts/managers/organizations.py", "OrganizationManager._unique_slug"):
-        _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/accounts/managers/plans.py", "PlanManager._flatten_limits"):
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/accounts/managers/plans.py", "PlanManager._group_limits_by_scope"):

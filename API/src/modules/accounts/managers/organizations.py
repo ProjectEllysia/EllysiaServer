@@ -121,10 +121,7 @@ class OrganizationManager:
             organization.name = name.strip()
             organization.updated_at = utcnow_naive()
             uow.session.flush()
-            return self._serialize(
-                organization,
-                members=OrganizationMemberRepository(uow).count_members(organization_id),
-            )
+            return organization.to_dict()
 
     # -------------------------------------------------------------- consulta
 
