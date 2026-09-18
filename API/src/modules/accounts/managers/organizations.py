@@ -16,10 +16,8 @@ from src.modules.infrastructure.session import build_repository, get_db_session
 from src.modules.shared import utcnow_naive
 
 from ..exceptions import (
-    AlreadyInOrganizationError,
     CannotRemoveOwnerError,
     NotInOrganizationError,
-    OrganizationAlreadyExistsError,
     OrganizationNotAllowedError,
 )
 from ..model import Organization, OrganizationMember
@@ -30,16 +28,45 @@ from ..repositories import (
 )
 from ..services.entitlements import is_effective
 from ..services.limits import LimitKey
-from ..services.ownership import get_owned_organization
+from ..services.ownership import assert_not_in_an_organization, get_owned_organization
 from ..services.quotas import QuotaManager
+
 
 logger = logging.getLogger(__name__)
 
 
-def _slugify(name: str) -> str:
-    """Nombre legible en una URL. Sin pretensiones: minúsculas, guiones y ya."""
+def _assert_can_own_organization(user_id: int) -> None:
+        """El toggle de organización, que es lo único que el plan sí "concede".
+
+        No es un atributo ABAC a propósito: los atributos los escribe una
+        persona y esto lo escribe el cobro.
+        """
+        subscription = build_repository(SubscriptionRepository).get_by_user(user_id)
+        if not is_effective(subscription, utcnow_naive()) or not subscription.organization_enabled:
+            raise OrganizationNotAllowedError()
+
+def _delete_membership(organization_id: int, user_id: int) -> None:
+    with UnitOfWork() as uow:
+        member_repo = OrganizationMemberRepository(uow)
+        membership = member_repo.get_by_user(user_id)
+        if membership is None or membership.organization_id != organization_id:
+            raise NotInOrganizationError()
+        member_repo.delete(membership)
+
+def _unique_slug(uow: UnitOfWork, name: str) -> str:
+    """``base``, o ``base-2``, ``base-3``… El slug es único en la tabla."""
     slug = re.sub(r"[^a-z0-9]+", "-", name.lower().strip()).strip("-")
-    return slug or "organizacion"
+    base = slug or "organizacion"
+
+    repo = OrganizationRepository(uow)
+    if not repo.slug_exists(base):
+        return base
+    suffix = 2
+    while repo.slug_exists(f"{base}-{suffix}"):
+        suffix += 1
+    return f"{base}-{suffix}"
+
+
 
 
 class OrganizationManager:
@@ -59,12 +86,8 @@ class OrganizationManager:
             AlreadyInOrganizationError: pertenece a la de otro (409).
             OrganizationNotAllowedError: su plan no trae el toggle (402).
         """
-        self._assert_can_own_organization(user_id)
-
-        if build_repository(OrganizationRepository).get_by_owner(user_id) is not None:
-            raise OrganizationAlreadyExistsError()
-        if build_repository(OrganizationMemberRepository).get_by_user(user_id) is not None:
-            raise AlreadyInOrganizationError()
+        _assert_can_own_organization(user_id)
+        assert_not_in_an_organization(user_id)
 
         # El tope de miembros del plan es la otra mitad del control: el toggle
         # dice "puedes tener organización" y esta clave dice "de cuánta gente".
@@ -73,7 +96,7 @@ class OrganizationManager:
         with UnitOfWork() as uow:
             organization = Organization(
                 name=name.strip(),
-                slug=self._unique_slug(uow, _slugify(name)),
+                slug=_unique_slug(uow, name),
                 owner_user_id=user_id,
             )
             uow.session.add(organization)
@@ -85,7 +108,7 @@ class OrganizationManager:
                 member_role="owner",
             ))
             uow.session.flush()
-            result = self._serialize(organization, members=1)
+            result = organization.to_dict()
 
         logger.info(f"Organizacion '{result['slug']}' creada por el usuario {user_id}")
         return result
@@ -98,10 +121,7 @@ class OrganizationManager:
             organization.name = name.strip()
             organization.updated_at = utcnow_naive()
             uow.session.flush()
-            return self._serialize(
-                organization,
-                members=OrganizationMemberRepository(uow).count_members(organization_id),
-            )
+            return organization.to_dict()
 
     # -------------------------------------------------------------- consulta
 
@@ -117,10 +137,7 @@ class OrganizationManager:
         if organization is None:
             return None
 
-        payload = self._serialize(
-            organization,
-            members=build_repository(OrganizationMemberRepository).count_members(organization.id),
-        )
+        payload = organization.to_dict()
         payload["myRole"] = membership.member_role
         payload["isOwner"] = organization.owner_user_id == user_id
         return payload
@@ -172,7 +189,7 @@ class OrganizationManager:
         if member_user_id == organization.owner_user_id:
             raise CannotRemoveOwnerError()
 
-        self._delete_membership(organization_id, member_user_id)
+        _delete_membership(organization_id, member_user_id)
         logger.info(f"Usuario {member_user_id} expulsado de la organizacion {organization_id}")
 
     def leave(self, user_id: int) -> None:
@@ -183,49 +200,7 @@ class OrganizationManager:
         if membership.member_role == "owner":
             raise CannotRemoveOwnerError()
 
-        self._delete_membership(membership.organization_id, user_id)
+        _delete_membership(membership.organization_id, user_id)
         logger.info(f"Usuario {user_id} salio de la organizacion {membership.organization_id}")
-
-    # ------------------------------------------------------------- internos
-
-    @staticmethod
-    def _assert_can_own_organization(user_id: int) -> None:
-        """El toggle de organización, que es lo único que el plan sí "concede".
-
-        No es un atributo ABAC a propósito: los atributos los escribe una
-        persona y esto lo escribe el cobro.
-        """
-        subscription = build_repository(SubscriptionRepository).get_by_user(user_id)
-        if not is_effective(subscription, utcnow_naive()) or not subscription.organization_enabled:
-            raise OrganizationNotAllowedError()
-
-    @staticmethod
-    def _unique_slug(uow: UnitOfWork, base: str) -> str:
-        """``base``, o ``base-2``, ``base-3``… El slug es único en la tabla."""
-        repo = OrganizationRepository(uow)
-        if not repo.slug_exists(base):
-            return base
-        suffix = 2
-        while repo.slug_exists(f"{base}-{suffix}"):
-            suffix += 1
-        return f"{base}-{suffix}"
-
-    @staticmethod
-    def _delete_membership(organization_id: int, user_id: int) -> None:
-        with UnitOfWork() as uow:
-            member_repo = OrganizationMemberRepository(uow)
-            membership = member_repo.get_by_user(user_id)
-            if membership is None or membership.organization_id != organization_id:
-                raise NotInOrganizationError()
-            member_repo.delete(membership)
-
-    @staticmethod
-    def _serialize(organization: Organization, members: int) -> dict:
-        return {
-            "id":          organization.id,
-            "name":        organization.name,
-            "slug":        organization.slug,
-            "ownerUserId": organization.owner_user_id,
-            "memberCount": members,
-            "createdAt":   organization.created_at,
-        }
+    
+    

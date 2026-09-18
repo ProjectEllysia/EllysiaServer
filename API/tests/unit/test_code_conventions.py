@@ -91,12 +91,6 @@ _PLAN_DIRECTION = "pendiente de invertir la dependencia con un registro (§ 3.4)
 #: Violaciones existentes. Generada ejecutando el detector sobre el código; solo encoge.
 KNOWN_VIOLATIONS: dict[tuple[str, str, str], str] = {
     # --- sql-outside-repository
-    ("sql-outside-repository", "src/modules/accounts/managers/invitations.py", "InvitationManager._invite_existing_account"):
-        _PLAN_SQL,
-    ("sql-outside-repository", "src/modules/accounts/managers/invitations.py", "InvitationManager._invite_new_account"):
-        _PLAN_SQL,
-    ("sql-outside-repository", "src/modules/accounts/managers/invitations.py", "InvitationManager.accept"):
-        _PLAN_SQL,
     ("sql-outside-repository", "src/modules/accounts/managers/organizations.py", "OrganizationManager.create"):
         _PLAN_SQL,
     ("sql-outside-repository", "src/modules/accounts/managers/organizations.py", "OrganizationManager.rename"):
@@ -156,32 +150,6 @@ KNOWN_VIOLATIONS: dict[tuple[str, str, str], str] = {
     ("sql-outside-repository", "src/modules/users/services/account_deletion.py", "purge_user_data"):
         _PLAN_SQL,
     # --- private-method
-    ("private-method", "src/modules/accounts/managers/invitations.py", "InvitationManager._assert_not_in_an_organization"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/accounts/managers/invitations.py", "InvitationManager._assert_owner_can_grow"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/accounts/managers/invitations.py", "InvitationManager._available_username"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/accounts/managers/invitations.py", "InvitationManager._find_user_by_email"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/accounts/managers/invitations.py", "InvitationManager._invite_existing_account"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/accounts/managers/invitations.py", "InvitationManager._invite_new_account"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/accounts/managers/invitations.py", "InvitationManager._send_credentials_email"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/accounts/managers/invitations.py", "InvitationManager._send_invitation_email"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/accounts/managers/invitations.py", "InvitationManager._serialize"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/accounts/managers/organizations.py", "OrganizationManager._assert_can_own_organization"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/accounts/managers/organizations.py", "OrganizationManager._delete_membership"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/accounts/managers/organizations.py", "OrganizationManager._serialize"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/accounts/managers/organizations.py", "OrganizationManager._unique_slug"):
-        _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/accounts/managers/plans.py", "PlanManager._flatten_limits"):
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/accounts/managers/plans.py", "PlanManager._group_limits_by_scope"):

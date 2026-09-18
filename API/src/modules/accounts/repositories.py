@@ -26,6 +26,15 @@ class PlanRepository(BaseRepository[Plan]):
     _MODEL = Plan
 
     def get_by_code(self, code: str) -> Optional[Plan]:
+        """El plan con ese código estable, o ``None`` si no existe.
+
+        Args:
+            code: Identificador estable del plan ("freemium", "bronze"...), no
+                el id numérico.
+
+        Returns:
+            Optional[Plan]: El plan, o ``None`` si ningún plan lo usa.
+        """
         return self.get_by_field("code", code)
 
     def get_default(self) -> Optional[Plan]:
@@ -61,9 +70,20 @@ class PlanLimitRepository(BaseRepository[PlanLimit]):
     _MODEL = PlanLimit
 
     def get_by_plan(self, plan_id: int) -> List[PlanLimit]:
+        """Todos los topes declarados por un plan, en cualquier ámbito."""
         return self.get_children("plan_id", plan_id)
 
     def get_by_plan_and_scope(self, plan_id: int, scope: str) -> List[PlanLimit]:
+        """Los topes de un plan restringidos a un ámbito concreto.
+
+        Args:
+            plan_id: Primary key del plan.
+            scope: Ámbito del tope (p. ej. "user" u "organization").
+
+        Returns:
+            List[PlanLimit]: Los topes del plan que declaran ese ámbito;
+                lista vacía si no hay ninguno.
+        """
         return (
             self._session.query(PlanLimit)
             .filter(PlanLimit.plan_id == plan_id, PlanLimit.scope == scope)
@@ -93,13 +113,70 @@ class OrganizationRepository(BaseRepository[Organization]):
     _MODEL = Organization
 
     def get_by_owner(self, user_id: int) -> Optional[Organization]:
+        """La organización de la que ``user_id`` es dueño, o ``None``.
+
+        Args:
+            user_id: Primary key del usuario a comprobar como dueño.
+
+        Returns:
+            Optional[Organization]: La organización, o ``None`` si el usuario
+                no posee ninguna. ``owner_user_id`` es ``UNIQUE``, así que a lo
+                sumo hay una.
+        """
         return self.get_by_field("owner_user_id", user_id)
 
     def get_by_slug(self, slug: str) -> Optional[Organization]:
+        """La organización con ese slug, o ``None`` si no existe.
+
+        Args:
+            slug: Identificador legible y único de la organización.
+
+        Returns:
+            Optional[Organization]: La organización, o ``None`` si el slug no
+                está en uso.
+        """
         return self.get_by_field("slug", slug)
 
     def slug_exists(self, slug: str) -> bool:
+        """Indica si el slug ya está en uso por alguna organización.
+
+        Args:
+            slug: Slug a comprobar.
+
+        Returns:
+            bool: ``True`` si ya existe una organización con ese slug.
+        """
         return self.exists("slug", slug)
+
+    def is_owned_by(self, organization_id: int, user_id: int) -> bool:
+        """Indica si ``user_id`` es el dueño de la organización ``organization_id``.
+
+        Comprobación ligera de propiedad: solo consulta si la fila existe con
+        ese dueño, sin cargarla entera. A diferencia de
+        ``ownership.get_owned_organization`` (que devuelve la organización o
+        lanza ``OrganizationNotFoundError``), esta es para el caso en que solo
+        hace falta el booleano. Espejo de
+        ``OrganizationMemberRepository.is_member``, que hace la misma
+        comprobación para la pertenencia en vez de para la propiedad.
+
+        Args:
+            organization_id: Primary key de la organización.
+            user_id: Primary key del usuario a comprobar como dueño.
+
+        Returns:
+            bool: ``True`` si la organización existe y su dueño es
+                ``user_id``; ``False`` en cualquier otro caso, incluida una
+                organización inexistente.
+        """
+        return (
+            self._session.query(Organization.id)
+            .filter(
+                Organization.id == organization_id,
+                Organization.owner_user_id == user_id,
+            )
+            .first()
+            is not None
+        )
 
 
 class OrganizationMemberRepository(BaseRepository[OrganizationMember]):
@@ -117,6 +194,7 @@ class OrganizationMemberRepository(BaseRepository[OrganizationMember]):
         return self.get_by_field("user_id", user_id)
 
     def get_by_organization(self, organization_id: int) -> List[OrganizationMember]:
+        """Todos los miembros de la organización, del más antiguo al más reciente."""
         return (
             self._session.query(OrganizationMember)
             .filter(OrganizationMember.organization_id == organization_id)
@@ -135,10 +213,39 @@ class OrganizationMemberRepository(BaseRepository[OrganizationMember]):
         return [row[0] for row in rows]
 
     def count_members(self, organization_id: int) -> int:
+        """Número de miembros de la organización, dueño incluido."""
         return (
             self._session.query(OrganizationMember)
             .filter(OrganizationMember.organization_id == organization_id)
             .count()
+        )
+
+    def is_member(self, organization_id: int, user_id: int) -> bool:
+        """Indica si ``user_id`` pertenece a la organización ``organization_id``.
+
+        El dueño es miembro de su propia organización con
+        ``member_role='owner'`` (ver ``OrganizationMember``), así que esta
+        comprobación también es ``True`` para él sin necesitar un caso
+        especial. Espejo de ``OrganizationRepository.is_owned_by``, que hace
+        la misma comprobación ligera para la propiedad en vez de para la
+        pertenencia.
+
+        Args:
+            organization_id: Primary key de la organización.
+            user_id: Primary key del usuario a comprobar como miembro.
+
+        Returns:
+            bool: ``True`` si existe una fila de pertenencia para ese par;
+                ``False`` en caso contrario.
+        """
+        return (
+            self._session.query(OrganizationMember.user_id)
+            .filter(
+                OrganizationMember.organization_id == organization_id,
+                OrganizationMember.user_id == user_id,
+            )
+            .first()
+            is not None
         )
 
 
@@ -148,9 +255,20 @@ class OrganizationInvitationRepository(BaseRepository[OrganizationInvitation]):
     _MODEL = OrganizationInvitation
 
     def get_by_token_hash(self, token_hash: str) -> Optional[OrganizationInvitation]:
+        """La invitación cuyo token (ya hasheado) coincide, o ``None``.
+
+        Args:
+            token_hash: Hash del token de invitación, tal como se guarda en
+                la columna (nunca el token en claro).
+
+        Returns:
+            Optional[OrganizationInvitation]: La invitación, o ``None`` si
+                ningún hash coincide.
+        """
         return self.get_by_field("token_hash", token_hash)
 
     def get_by_organization(self, organization_id: int) -> List[OrganizationInvitation]:
+        """Todas las invitaciones de la organización, de la más reciente a la más antigua."""
         return (
             self._session.query(OrganizationInvitation)
             .filter(OrganizationInvitation.organization_id == organization_id)
@@ -159,6 +277,17 @@ class OrganizationInvitationRepository(BaseRepository[OrganizationInvitation]):
         )
 
     def get_pending_for_email(self, organization_id: int, email: str) -> Optional[OrganizationInvitation]:
+        """La invitación pendiente de ese email en la organización, o ``None``.
+
+        Args:
+            organization_id: Primary key de la organización.
+            email: Correo del invitado, tal como se guardó al invitar.
+
+        Returns:
+            Optional[OrganizationInvitation]: La invitación con
+                ``status == "pending"`` para ese email, o ``None`` si no hay
+                ninguna (ya respondida, expirada, o nunca invitado).
+        """
         return (
             self._session.query(OrganizationInvitation)
             .filter(

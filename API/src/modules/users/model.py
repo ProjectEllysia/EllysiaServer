@@ -154,6 +154,11 @@ class User(Base):
         analyses: List of IrisAnalysis objects (email header analyses).
         documents: List of all Document objects (polymorphic relationship).
         attributes: List of UserAttribute objects (ABAC capability attributes).
+        organization_membership: La fila de ``OrganizationMember`` de este
+            usuario, si tiene (uno-a-uno: ``OrganizationMember.user_id`` es
+            único — un usuario pertenece a lo sumo a una organización). Su
+            ``member_role`` es "owner" para quien la creó y "member" para el
+            resto; ver ``is_organization_member`` / ``is_organization_owner``.
     """
 
     __tablename__ = "User"
@@ -230,6 +235,32 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+
+    # accounts.OrganizationMember: sin cascade="all, delete-orphan" como las
+    # relaciones de arriba — borrar la pertenencia de un usuario es una
+    # operación de negocio con sus propias reglas (quién hereda la
+    # organización, el ajuste de cuota), no un efecto secundario de borrar el
+    # usuario. Se queda como relación FK simple, y la resuelve
+    # AccountDeletionService igual que el resto de limpiezas entre módulos.
+    organization_membership = relationship(
+        "OrganizationMember", back_populates="user", uselist=False,
+        foreign_keys="OrganizationMember.user_id",
+    )
+
+    @property
+    def is_organization_member(self) -> bool:
+        """Si este usuario pertenece a una organización, dueño incluido."""
+        return self.organization_membership is not None
+
+    @property
+    def is_organization_owner(self) -> bool:
+        """Si este usuario es el dueño de su organización.
+
+        El dueño es miembro de la suya propia con ``member_role='owner'``
+        (ver ``OrganizationMember``), así que esto nunca es ``True`` sin que
+        ``is_organization_member`` también lo sea.
+        """
+        return self.organization_membership is not None and self.organization_membership.member_role == "owner"
 
     def __str__(self):
         return f"User(id={self.id}, username='{self.username}', role='{self.role}')"

@@ -592,6 +592,20 @@ class UserManager:
         """
         return build_repository(UserRepository).get_by_username(username)
 
+    def get_user_by_email(self, email: str) -> Optional[User]:
+        """Busca el usuario registrado con una dirección de correo concreta.
+
+        La comparación es exacta: quien llama normaliza antes la dirección
+        (``strip`` + ``lower``) si la recibe de una entrada de usuario.
+
+        Args:
+            email: Dirección de correo por la que se busca.
+
+        Returns:
+            Optional[User]: El usuario con ese correo, o ``None`` si no hay
+                ninguna cuenta registrada con él.
+        """
+        return build_repository(UserRepository).get_by_email(email)
 
     # =========================================================================
     # PROFILE & PASSWORD UPDATES
