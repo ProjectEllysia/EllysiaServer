@@ -12,7 +12,7 @@ npm run test:acheron    # solo la de Acheron
 
 La criptografía de la bóveda **ya no vive en este repositorio**. Está en `core-web/` de
 [`AcheronCore`](https://github.com/ProjectEllysia/AcheronCore), junto al motor Java y al catálogo,
-y la SPA la consume como `@projectellysia/acheron-core-web` con versión fijada.
+y la SPA la consume como `@projectellysia/acheron-core-js` con versión fijada.
 
 Con ella se fueron sus suites, que son las que verificaban el formato de cifrado:
 

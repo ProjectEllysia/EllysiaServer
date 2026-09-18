@@ -12,7 +12,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { scorePassword } from '@projectellysia/acheron-core-web'
+import { scorePassword } from '@projectellysia/acheron-core-js'
 
 const props = defineProps({
   password: { type: String, default: '' },

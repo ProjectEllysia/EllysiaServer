@@ -368,7 +368,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { useThemeStore } from '@/stores/themeStore'
 import { validationMessage } from '@/composables/useApi'
-import { generatePassword } from '@projectellysia/acheron-core-web'
+import { generatePassword } from '@projectellysia/acheron-core-js'
 import ElysianScene from '@/components/shared/ElysianScene.vue'
 import ellysiaIcon from '@/assets/images/ellysia/Ellysia-BgN.png'
 
