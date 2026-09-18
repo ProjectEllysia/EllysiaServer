@@ -26,22 +26,20 @@ Estadísticas (``build_stats_report``):
 
 from __future__ import annotations
 
-import io
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Mapping, NamedTuple, Optional, Sequence
+from typing import Any, Dict, Mapping, Optional, Sequence
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
-from reportlab.platypus import (
-    Image, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
-)
+from reportlab.platypus import PageBreak, Paragraph, Spacer, Table, TableStyle
 
 import src.modules.system.config_reading as CR
-from src.modules.tools.press import ColorType, ReportTheme, build_palette
+from src.modules.tools.press import (
+    ColorType, DocumentStyle, PdfGenerator, ReportTheme, build_palette,
+)
 
 #: Logotipo de Hygeia, dentro del propio módulo.
 #:
@@ -154,86 +152,6 @@ def _data_table_style(theme: ReportTheme, header_rows: int = 1) -> TableStyle:
         ]
 
     return TableStyle(commands)
-
-
-def _cover(
-    theme: ReportTheme, assets: Sequence, scope_label: str, author: str,
-    generated_at: datetime,
-) -> list:
-    """Portada del informe.
-
-    Sigue el molde de los informes de Themis (``reports/creator.py``,
-    ``append_cover_page``): banda de título en color, subtítulo, ficha
-    enmarcada y barra decorativa. Antes esto era una tabla clave-valor y
-    parecía un formulario, no la primera página de un documento.
-    """
-    main = colors.HexColor(theme.palette[ColorType.MAIN])
-    light = colors.HexColor(theme.palette[ColorType.LIGHT])
-    white = colors.HexColor(theme.palette[ColorType.WHITE])
-    black = colors.HexColor(theme.palette[ColorType.BLACK])
-
-    elements: list = [Spacer(1, 0.9 * inch)]
-
-    # El logo manda en la portada, encima del título. Si faltara el fichero se
-    # imprime igual, sin él: un informe sin logotipo es feo, uno que revienta
-    # al generarse es un fallo.
-    if _LOGO_PATH.exists():
-        logo = Image(str(_LOGO_PATH), width=1.15 * inch, height=1.23 * inch)
-        logo.hAlign = "CENTER"
-        elements.append(logo)
-        elements.append(Spacer(1, 0.45 * inch))
-    else:
-        elements.append(Spacer(1, 1.0 * inch))
-
-    title_style = ParagraphStyle(
-        "CoverTitle", parent=theme.styles["Heading1"],
-        fontSize=28, leading=32, textColor=white,
-        alignment=TA_CENTER, fontName="Helvetica-Bold",
-    )
-    title_band = Table([[Paragraph("Inventario de activos", title_style)]], colWidths=[6 * inch])
-    title_band.setStyle(TableStyle([
-        ("BACKGROUND",    (0, 0), (-1, -1), main),
-        ("TOPPADDING",    (0, 0), (-1, -1), 16),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 16),
-        ("LEFTPADDING",   (0, 0), (-1, -1), 24),
-        ("RIGHTPADDING",  (0, 0), (-1, -1), 24),
-    ]))
-    elements.append(title_band)
-
-    subtitle_style = ParagraphStyle(
-        "CoverSubtitle", parent=theme.styles["Normal"],
-        fontSize=13, leading=16, textColor=black, alignment=TA_CENTER,
-    )
-    elements.append(Spacer(1, 0.3 * inch))
-    elements.append(Paragraph(scope_label, subtitle_style))
-
-    elements.append(Spacer(1, 0.9 * inch))
-    info_table = Table(
-        [["Generado por:", author], ["Fecha:", _format_datetime(generated_at)]],
-        colWidths=[1.8 * inch, 3.2 * inch],
-    )
-    info_table.setStyle(TableStyle([
-        ("TEXTCOLOR",     (0, 0), (0, -1), main),
-        ("TEXTCOLOR",     (1, 0), (1, -1), black),
-        ("FONTNAME",      (0, 0), (0, -1), "Helvetica-Bold"),
-        ("FONTSIZE",      (0, 0), (-1, -1), 10),
-        ("ALIGN",         (0, 0), (-1, -1), "CENTER"),
-        ("TOPPADDING",    (0, 0), (-1, -1), 10),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
-        ("BOX",           (0, 0), (-1, -1), 1, light),
-    ]))
-    elements.append(info_table)
-
-    elements.append(Spacer(1, 0.5 * inch))
-    elements.append(_status_strip(theme, assets))
-
-    elements.append(Spacer(1, 0.6 * inch))
-    decoration = Table([[""]], colWidths=[6 * inch], rowHeights=[0.12 * inch])
-    decoration.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), light)]))
-    elements.append(decoration)
-
-    elements.append(PageBreak())
-    return elements
 
 
 def _status_strip(theme: ReportTheme, assets: Sequence) -> Table:
@@ -393,6 +311,130 @@ def _software_appendix(theme: ReportTheme, assets: Sequence) -> list:
     return elements
 
 
+class InventoryReportGenerator(PdfGenerator):
+    """Compone el informe del inventario de activos.
+
+    Attributes:
+        assets: Activos a incluir, ya cargados y en el orden en que deben salir.
+        scope_label: Ámbito del informe, tal como se lee en la portada.
+        include_software: Si se añade el anexo con el software instalado.
+        owner_names: ``{user_id: nombre}`` para el ámbito de organización.
+        moment: Instante que figura como fecha de generación.
+    """
+
+    def __init__(
+        self,
+        *,
+        assets: Sequence,
+        scope_label: str,
+        author: str,
+        include_software: bool = False,
+        owner_names: Optional[Dict[int, str]] = None,
+        generated_at: Optional[datetime] = None,
+    ) -> None:
+        """Prepara el generador del inventario.
+
+        Args:
+            assets: Activos a incluir, ya cargados y ordenados.
+            scope_label: Texto del ámbito para la portada ("Mis activos", el
+                nombre de la organización...).
+            author: Quién pide el informe, tal como debe figurar en la portada.
+            include_software: Añade el anexo con el software instalado. Por
+                defecto ``False``.
+            owner_names: ``{user_id: nombre}`` para el ámbito de organización.
+                Por defecto ``None``, que es el ámbito propio, y entonces no se
+                pinta la columna de dueño.
+            generated_at: Instante que figura en la portada. Por defecto
+                ``None`` —ahora—; se inyecta para que los tests puedan fijarlo.
+        """
+        super().__init__(DocumentStyle(
+            palette=_palette(),
+            header_title="Ellysia · Inventario de activos",
+            logo_path=str(_LOGO_PATH),
+            author=author,
+            left_margin=0.6 * inch,
+            right_margin=0.6 * inch,
+            top_margin=0.7 * inch,
+            bottom_margin=0.7 * inch,
+        ))
+        self.assets = assets
+        self.scope_label = scope_label
+        self.include_software = include_software
+        self.owner_names = owner_names or {}
+        self.moment = generated_at or datetime.now()
+
+    def cover_title(self) -> str:
+        """Título de la portada.
+
+        Returns:
+            str: Siempre ``"Inventario de activos"``; el ámbito concreto va en
+                el subtítulo.
+        """
+        return "Inventario de activos"
+
+    def cover_subtitle(self) -> str:
+        """Subtítulo de la portada: el ámbito del informe.
+
+        Returns:
+            str: ``"Mis activos"``, el nombre de la organización, o lo que haya
+                decidido el manager.
+        """
+        return self.scope_label
+
+    def cover_fields(self) -> Sequence[Sequence[str]]:
+        """Ficha de la portada: quién lo pide y cuándo.
+
+        Returns:
+            Sequence[Sequence[str]]: Las dos filas de la ficha.
+        """
+        return [
+            ["Generado por:", self.style.author],
+            ["Fecha:", _format_datetime(self.moment)],
+        ]
+
+    def cover_extra(self) -> list:
+        """Bloque libre de la portada: el recuento por estado.
+
+        Returns:
+            list: La franja de cifras, para responder "¿qué hay aquí dentro?"
+                sin pasar de página.
+        """
+        return [_status_strip(self.theme, self.assets)]
+
+    def generated_at(self) -> datetime:
+        """El instante que figura como fecha de generación.
+
+        Returns:
+            datetime: El que se inyectó al construir, o el de ese momento.
+        """
+        return self.moment
+
+    def document_title(self) -> str:
+        """Título de los metadatos del PDF.
+
+        Returns:
+            str: El título con el ámbito, que es lo que distingue dos
+                inventarios en la barra de un lector de PDF.
+        """
+        return f"Inventario de activos — {self.scope_label}"
+
+    def append_body(self, elements: list, theme: ReportTheme) -> None:
+        """Añade el registro de activos y, si se pidió, el anexo de software.
+
+        Args:
+            elements: Lista de flowables del documento en construcción.
+            theme: Los estilos del informe.
+        """
+        if not self.assets:
+            elements.append(Spacer(1, 0.3 * inch))
+            elements.append(Paragraph("No hay ningún activo que inventariar.", theme.body))
+            return
+
+        elements.extend(_asset_register(theme, self.assets, self.owner_names))
+        if self.include_software:
+            elements.extend(_software_appendix(theme, self.assets))
+
+
 def build_inventory_report(
     *,
     assets: Sequence,
@@ -420,89 +462,14 @@ def build_inventory_report(
     Returns:
         El PDF completo, en memoria.
     """
-    generated_at = generated_at or datetime.now()
-    theme = ReportTheme(getSampleStyleSheet(), _palette())
-
-    elements = _cover(theme, assets, scope_label, author, generated_at)
-    if assets:
-        elements.extend(_asset_register(theme, assets, owner_names or {}))
-        if include_software:
-            elements.extend(_software_appendix(theme, assets))
-    else:
-        elements.append(Spacer(1, 0.3 * inch))
-        elements.append(Paragraph("No hay ningún activo que inventariar.", theme.body))
-
-    buffer = io.BytesIO()
-    document = SimpleDocTemplate(
-        buffer,
-        pagesize=A4,
-        title=f"Inventario de activos — {scope_label}",
+    return InventoryReportGenerator(
+        assets=assets,
+        scope_label=scope_label,
         author=author,
-        leftMargin=0.6 * inch, rightMargin=0.6 * inch,
-        topMargin=0.7 * inch, bottomMargin=0.7 * inch,
-    )
-    document.build(
-        elements,
-        onFirstPage=lambda canvas, doc: _draw_page_furniture(
-            canvas, doc, theme, "Ellysia · Inventario de activos",
-        ),
-        onLaterPages=lambda canvas, doc: _draw_page_furniture(
-            canvas, doc, theme, "Ellysia · Inventario de activos",
-        ),
-    )
-
-    buffer.seek(0)
-    return buffer.read()
-
-
-def _draw_page_furniture(canvas, document, theme: ReportTheme, header_title: str) -> None:
-    """Barra de acento, cabecera y número de página.
-
-    Mismo aparejo que los informes de Themis (``creator.py::_on_page``), para
-    que los dos documentos se reconozcan como del mismo producto.
-
-    La portada se queda limpia: una cabecera y un pie en la página 1 son
-    justamente lo que hace que una portada no parezca una portada.
-
-    Args:
-        header_title: Texto de la cabecera de las páginas interiores; distingue
-            un informe de inventario de uno de estadísticas.
-    """
-    if canvas.getPageNumber() == 1:
-        return
-
-    width, height = document.pagesize
-    main = colors.HexColor(theme.palette[ColorType.MAIN])
-    dark = colors.HexColor(theme.palette[ColorType.DARK])
-
-    canvas.saveState()
-
-    canvas.setFillColor(main)
-    canvas.rect(20, 20, 6, height - 40, stroke=0, fill=1)
-
-    canvas.setFont("Helvetica-Bold", 12)
-    canvas.setFillColor(dark)
-    canvas.drawString(40, height - 30, header_title)
-
-    canvas.setStrokeColor(colors.HexColor("#e0e0e0"))
-    canvas.setLineWidth(0.5)
-    canvas.line(36, height - 42, width - 36, height - 42)
-
-    # Logo pequeño en la esquina, como en los informes de Themis. Dibujarlo en
-    # todas las páginas no multiplica el peso: ReportLab cachea la imagen por
-    # ruta, así que las N páginas interiores comparten un único objeto embebido
-    # (medido: un PDF de 11 páginas lleva 2 imágenes, esta y la de la portada).
-    if _LOGO_PATH.exists():
-        canvas.drawImage(
-            str(_LOGO_PATH), width - 52, height - 38,
-            width=0.3 * inch, height=0.32 * inch, preserveAspectRatio=True,
-        )
-
-    canvas.setFont("Helvetica", 8)
-    canvas.setFillColor(colors.HexColor("#999999"))
-    canvas.drawRightString(width - 40, 28, f"Página {canvas.getPageNumber()}")
-
-    canvas.restoreState()
+        include_software=include_software,
+        owner_names=owner_names,
+        generated_at=generated_at,
+    ).generate()
 
 
 # =============================================================================
@@ -667,97 +634,126 @@ _STATS_TABLE_BUILDERS = {
 }
 
 
-class _StatsCoverInfo(NamedTuple):
-    """Lo que necesita la portada del informe de estadísticas, agrupado.
+class StatsReportGenerator(PdfGenerator):
+    """Compone el informe PDF de un juego de datos de estadísticas.
 
     Attributes:
-        title: Título de la portada, ya resuelto (``_STATS_TITLES``).
+        dataset: Juego de datos pedido.
+        payload: Respuesta ya serializada de ese juego de datos.
         scope_label: Nombre del activo o de la etiqueta; ``None`` en
-            ``ranking``/``overview``, que no tienen uno.
-        period_caption: Frase con la ventana cubierta, o cadena vacía.
-        author: Quién pide el informe.
-        generated_at: Instante que figura en la portada.
+            ``ranking``/``overview``.
+        title: Título del juego de datos, ya resuelto.
+        moment: Instante que figura como fecha de generación.
     """
-    title: str
-    scope_label: Optional[str]
-    period_caption: str
-    author: str
-    generated_at: datetime
 
+    def __init__(
+        self,
+        *,
+        dataset: str,
+        payload: Mapping[str, Any],
+        scope_label: Optional[str],
+        author: str,
+        generated_at: Optional[datetime] = None,
+    ) -> None:
+        """Prepara el generador de estadísticas.
 
-def _stats_cover(theme: ReportTheme, cover_info: _StatsCoverInfo) -> list:
-    """Portada del informe de estadísticas.
+        Args:
+            dataset: Juego de datos: ``"summary"``, ``"tag-stats"``,
+                ``"ranking"`` u ``"overview"``. Decide el título de la portada
+                y la forma de la tabla.
+            payload: Respuesta ya serializada del juego de datos.
+            scope_label: Nombre del activo o de la etiqueta. ``None`` en
+                ``ranking`` y ``overview``, que no tienen ámbito.
+            author: Quién pide el informe, tal como debe figurar en la portada.
+            generated_at: Instante que figura en la portada. Por defecto
+                ``None`` —ahora—; se inyecta para que los tests puedan fijarlo.
+        """
+        super().__init__(DocumentStyle(
+            palette=_palette(),
+            header_title="Ellysia · Estadísticas",
+            logo_path=str(_LOGO_PATH),
+            author=author,
+            left_margin=0.6 * inch,
+            right_margin=0.6 * inch,
+            top_margin=0.7 * inch,
+            bottom_margin=0.7 * inch,
+        ))
+        self.dataset = dataset
+        self.payload = payload
+        self.scope_label = scope_label
+        self.title = _STATS_TITLES.get(dataset, "Estadísticas")
+        self.moment = generated_at or datetime.now()
 
-    Mismo molde que la del inventario (``_cover``), sin la ficha de recuento
-    por estado: no hay activos que contar, hay una tabla que presentar.
-    """
-    title, scope_label, period_caption, author, generated_at = cover_info
-    main = colors.HexColor(theme.palette[ColorType.MAIN])
-    light = colors.HexColor(theme.palette[ColorType.LIGHT])
-    white = colors.HexColor(theme.palette[ColorType.WHITE])
-    black = colors.HexColor(theme.palette[ColorType.BLACK])
+    def cover_title(self) -> str:
+        """Título de la portada: el nombre del juego de datos.
 
-    elements: list = [Spacer(1, 0.9 * inch)]
+        Returns:
+            str: Lo que diga ``_STATS_TITLES`` para este juego de datos.
+        """
+        return self.title
 
-    if _LOGO_PATH.exists():
-        logo = Image(str(_LOGO_PATH), width=1.15 * inch, height=1.23 * inch)
-        logo.hAlign = "CENTER"
-        elements.append(logo)
-        elements.append(Spacer(1, 0.45 * inch))
-    else:
-        elements.append(Spacer(1, 1.0 * inch))
+    def cover_subtitle(self) -> str:
+        """Subtítulo de la portada: el ámbito.
 
-    title_style = ParagraphStyle(
-        "StatsCoverTitle", parent=theme.styles["Heading1"],
-        fontSize=28, leading=32, textColor=white,
-        alignment=TA_CENTER, fontName="Helvetica-Bold",
-    )
-    title_band = Table([[Paragraph(title, title_style)]], colWidths=[6 * inch])
-    title_band.setStyle(TableStyle([
-        ("BACKGROUND",    (0, 0), (-1, -1), main),
-        ("TOPPADDING",    (0, 0), (-1, -1), 16),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 16),
-        ("LEFTPADDING",   (0, 0), (-1, -1), 24),
-        ("RIGHTPADDING",  (0, 0), (-1, -1), 24),
-    ]))
-    elements.append(title_band)
+        Returns:
+            str: El hostname o la etiqueta, o una raya en los juegos de datos
+                que abarcan el parque entero y no tienen ámbito.
+        """
+        return self.scope_label or "—"
 
-    subtitle_style = ParagraphStyle(
-        "StatsCoverSubtitle", parent=theme.styles["Normal"],
-        fontSize=13, leading=16, textColor=black, alignment=TA_CENTER,
-    )
-    elements.append(Spacer(1, 0.3 * inch))
-    elements.append(Paragraph(scope_label or "—", subtitle_style))
-    if period_caption:
-        elements.append(Spacer(1, 0.05 * inch))
-        elements.append(Paragraph(period_caption, ParagraphStyle(
-            "StatsCoverPeriod", parent=subtitle_style, fontSize=10, textColor=main,
-        )))
+    def cover_caption(self) -> str:
+        """Apostilla de la portada: la ventana temporal que cubre el informe.
 
-    elements.append(Spacer(1, 0.9 * inch))
-    info_table = Table(
-        [["Generado por:", author], ["Fecha:", _format_datetime(generated_at)]],
-        colWidths=[1.8 * inch, 3.2 * inch],
-    )
-    info_table.setStyle(TableStyle([
-        ("TEXTCOLOR",     (0, 0), (0, -1), main),
-        ("TEXTCOLOR",     (1, 0), (1, -1), black),
-        ("FONTNAME",      (0, 0), (0, -1), "Helvetica-Bold"),
-        ("FONTSIZE",      (0, 0), (-1, -1), 10),
-        ("ALIGN",         (0, 0), (-1, -1), "CENTER"),
-        ("TOPPADDING",    (0, 0), (-1, -1), 10),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
-        ("BOX",           (0, 0), (-1, -1), 1, light),
-    ]))
-    elements.append(info_table)
+        Returns:
+            str: La frase del periodo, o cadena vacía si este juego de datos no
+                cubre una ventana concreta.
+        """
+        return _stats_window_caption(self.payload)
 
-    elements.append(Spacer(1, 0.6 * inch))
-    decoration = Table([[""]], colWidths=[6 * inch], rowHeights=[0.12 * inch])
-    decoration.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), light)]))
-    elements.append(decoration)
+    def cover_fields(self) -> Sequence[Sequence[str]]:
+        """Ficha de la portada: quién lo pide y cuándo.
 
-    elements.append(PageBreak())
-    return elements
+        Returns:
+            Sequence[Sequence[str]]: Las dos filas de la ficha.
+        """
+        return [
+            ["Generado por:", self.style.author],
+            ["Fecha:", _format_datetime(self.moment)],
+        ]
+
+    def generated_at(self) -> datetime:
+        """El instante que figura como fecha de generación.
+
+        Returns:
+            datetime: El que se inyectó al construir, o el de ese momento.
+        """
+        return self.moment
+
+    def document_title(self) -> str:
+        """Título de los metadatos del PDF.
+
+        Returns:
+            str: El título con el juego de datos concreto.
+        """
+        return f"Estadísticas Hygeia — {self.title}"
+
+    def append_body(self, elements: list, theme: ReportTheme) -> None:
+        """Añade la tabla del juego de datos pedido.
+
+        Args:
+            elements: Lista de flowables del documento en construcción.
+            theme: Los estilos del informe.
+        """
+        table = _STATS_TABLE_BUILDERS[self.dataset](theme, self.payload)
+        if table is None:
+            elements.append(Paragraph(
+                "No hay datos para el alcance y el periodo elegidos.", theme.body,
+            ))
+            return
+
+        elements.extend(theme.section_header(self.title, "DATOS"))
+        elements.append(Spacer(1, 0.15 * inch))
+        elements.append(table)
 
 
 def build_stats_report(
@@ -795,42 +791,10 @@ def build_stats_report(
     Returns:
         El PDF completo, en memoria.
     """
-    generated_at = generated_at or datetime.now()
-    theme = ReportTheme(getSampleStyleSheet(), _palette())
-    title = _STATS_TITLES.get(dataset, "Estadísticas")
-
-    elements = _stats_cover(theme, _StatsCoverInfo(
-        title, scope_label, _stats_window_caption(payload), author, generated_at,
-    ))
-
-    table = _STATS_TABLE_BUILDERS[dataset](theme, payload)
-    if table is not None:
-        elements.extend(theme.section_header(title, "DATOS"))
-        elements.append(Spacer(1, 0.15 * inch))
-        elements.append(table)
-    else:
-        elements.append(Paragraph(
-            "No hay datos para el alcance y el periodo elegidos.", theme.body,
-        ))
-
-    buffer = io.BytesIO()
-    document = SimpleDocTemplate(
-        buffer,
-        pagesize=A4,
-        title=f"Estadísticas Hygeia — {title}",
+    return StatsReportGenerator(
+        dataset=dataset,
+        payload=payload,
+        scope_label=scope_label,
         author=author,
-        leftMargin=0.6 * inch, rightMargin=0.6 * inch,
-        topMargin=0.7 * inch, bottomMargin=0.7 * inch,
-    )
-    document.build(
-        elements,
-        onFirstPage=lambda canvas, doc: _draw_page_furniture(
-            canvas, doc, theme, "Ellysia · Estadísticas",
-        ),
-        onLaterPages=lambda canvas, doc: _draw_page_furniture(
-            canvas, doc, theme, "Ellysia · Estadísticas",
-        ),
-    )
-
-    buffer.seek(0)
-    return buffer.read()
+        generated_at=generated_at,
+    ).generate()

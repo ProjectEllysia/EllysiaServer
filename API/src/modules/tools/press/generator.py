@@ -171,6 +171,20 @@ class PdfGenerator(ABC):
         """
         return None
 
+    def cover_caption(self) -> Optional[str]:
+        """La apostilla que va bajo el subtítulo de la portada, más pequeña.
+
+        Es para la precisión que el subtítulo no debe cargar: el periodo que
+        cubre un informe de estadísticas, por ejemplo, cuando el subtítulo ya
+        dice de qué activo habla.
+
+        Returns:
+            Optional[str]: La apostilla, o ``None`` —el valor por defecto— para
+                no imprimir ninguna. Se ignora si no hay subtítulo: sin él no
+                hay nada que apostillar.
+        """
+        return None
+
     def cover_fields(self) -> Sequence[Sequence[str]]:
         """Las filas de la ficha enmarcada de la portada.
 
@@ -350,6 +364,17 @@ class PdfGenerator(ABC):
             )
             elements.append(Spacer(1, 0.3 * inch))
             elements.append(Paragraph(subtitle, subtitle_style))
+
+            caption = self.cover_caption()  # pylint: disable=assignment-from-none
+            if caption:
+                caption_style = ParagraphStyle(
+                    "CoverCaption",
+                    parent=subtitle_style,
+                    fontSize=10,
+                    textColor=main,
+                )
+                elements.append(Spacer(1, 0.05 * inch))
+                elements.append(Paragraph(caption, caption_style))
 
         elements.append(Spacer(1, 0.9 * inch if logo is not None else 1.3 * inch))
 
