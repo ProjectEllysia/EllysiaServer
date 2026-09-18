@@ -197,6 +197,17 @@ Lo mismo con `themis/services/reports/`, que es paquete (`base.py`, `creator.py`
   módulo en `SecOpsConfig.json` → `tools.scribe.modules`.
 - **`tools/herald/`** — capa de estrategias enchufables de **envío de correo** (relay SMTP), misma
   filosofía. Elegida por módulo en `tools.herald.modules`. La usan las campañas de Aegis.
+- **`tools/press/`** — composición de **documentos PDF**. `PdfGenerator` es un método plantilla:
+  `generate()` fija el orden del documento (portada, cuerpo, nota legal, pie) y el aparejo de cada
+  página (barra de acento, cabecera, logotipo, número de página), y llama a ganchos que el módulo
+  redefine. Casi todos traen implementación por defecto; solo `cover_title()` y `append_body()`
+  son abstractos. La identidad visual —paleta, logotipo, rótulo, márgenes— viaja en un
+  `DocumentStyle` congelado. `generate()` devuelve bytes; `generate_to_file()` escribe de forma
+  atómica (temporal + `os.replace`). Los generadores concretos **viven en su módulo**
+  (`PDFCreator` de Themis, `IrisPDFCreator`, los dos de Hygeia): `tools/` no puede importar
+  `features/`.
+
+La tríada de `tools/` se lee sola: **scribe** escribe, **press** imprime y **herald** reparte.
 
 Ambas factories despachan por registro (`ModelStrategy._registry` / `EmailStrategy._registry`), no
 por cadenas de `if/elif`.
@@ -319,7 +330,9 @@ corresponda, no en la raíz:
 appVersion                       # obligatoria en la raíz; la lee create_app()
 general/         publicUrl, directories (tempdir/logdir), security (argon2/jwt/mfa)
 infrastructure/  database, redis, taskqueue
-tools/           scribe (IA), herald (correo)   # los nombres coinciden con src/modules/tools/
+tools/           scribe (IA), herald (correo)   # solo las que eligen estrategia por módulo;
+                                                # press no tiene bloque: su paleta la pone
+                                                # cada feature desde features.<módulo>
 features/        themis, aegis, iris, hygeia    # uno por módulo de feature
 ```
 
