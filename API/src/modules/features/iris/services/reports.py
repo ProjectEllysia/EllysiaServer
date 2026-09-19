@@ -1,34 +1,32 @@
 """
-PDF report generation for Iris email-header analyses.
+Informe PDF del análisis de cabeceras de correo de Iris.
 
-Renders the same information shown in the web report viewer (verdict,
-score, per-rule results, recommendations, Received-chain path and raw
-headers) into a downloadable PDF. Mirrors the visual conventions of
-``themis.services.reports`` (cover page, consent page, footer) but is
-self-contained: Iris analyses are not Themis scans, so this module
-does not depend on the ``PrintingStrategy`` registry.
+Lleva al papel lo mismo que muestra el visor web —veredicto, puntuación,
+resultado de cada regla, recomendaciones, cadena Received y cabeceras en
+crudo—. La composición del documento (portada, aparejo de página, nota legal,
+pie) no está aquí: la pone ``tools.press``, que es la que garantiza que este
+informe y los de Themis y Hygeia se reconozcan como del mismo producto.
 
-Classes:
-    IrisReportTheme: Theme configuration for PDF styling (Iris palette).
-    IrisPDFCreator: Builds the complete PDF from an analysis report dict.
+Dibuja, no consulta: recibe el informe ya serializado por
+``IrisManager.get_analysis_results`` y la cadena por ``get_analysis_path``, así
+que no toca la base de datos ni comprueba permisos. De eso se encarga el
+manager.
 """
 
 from __future__ import annotations
 
-import os
 import logging
+import os
 import uuid
 from datetime import datetime
 from email.utils import parseaddr
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Sequence, Tuple
 
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_LEFT
+from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.platypus import (
-    SimpleDocTemplate,
     Table,
     TableStyle,
     Paragraph,
@@ -37,14 +35,23 @@ from reportlab.platypus import (
 )
 
 import src.modules.system.config_reading as CR
+from src.modules.tools.press import (
+    ColorType, DocumentStyle, PdfGenerator, ReportTheme, build_palette, safe_markup,
+)
 from .parsers import parse_raw_headers, decode_mime_words
 from .redaction import redact_pii
 
 logger = logging.getLogger(__name__)
 
 
-# Iris brand palette (violet) — distinct from Themis's blue/green tools.
-PALETTE = {
+#: Identidad visual de Iris: violeta, para distinguirse del azul y el verde de
+#: las herramientas de Themis.
+#:
+#: A diferencia de Themis y Hygeia, no hay un bloque
+#: ``features.iris.colorPalette`` en la configuración, así que hoy estos seis
+#: colores son los únicos posibles. Darle esa palanca al operador sería añadir
+#: el bloque al JSON y pasarlo aquí como primer argumento.
+_BRAND_COLORS = {
     "black":     "#1A1330",
     "dark":      "#3B2768",
     "main":      "#5B3FA8",
@@ -52,6 +59,13 @@ PALETTE = {
     "light":     "#B89EE8",
     "white":     "#F1ECFB",
 }
+
+_PALETTE = build_palette(None, _BRAND_COLORS)
+
+#: Ancho de las píldoras de las cabeceras de sección. Iris usa rótulos más
+#: largos que el resto ("CADENA DE ENTREGA", "CABECERAS EN CRUDO"), así que
+#: necesita más sitio que el valor por defecto de ``press``.
+_PILL_WIDTH = 2.2 * inch
 
 _VERDICT_COLORS = {
     "Legitimate": colors.HexColor("#388e3c"),
@@ -66,157 +80,6 @@ _VERDICT_LABELS = {
 }
 
 
-def _esc(value: Any) -> str:
-    """Escape text for safe interpolation into a reportlab Paragraph.
-
-    Paragraph interprets a small XML-like markup, so any user/analysis
-    controlled text (rule names, domains, recommendations...) must be
-    escaped before being embedded — otherwise a stray ``&``/``<``/``>``
-    breaks parsing or, worse, lets arbitrary mini-markup through.
-    """
-    return (
-        str(value)
-        .replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-    )
-
-
-class IrisReportTheme:
-    """PDF report theme configuration for Iris reports.
-
-    Provides the paragraph/table styles shared across the document body
-    (title, subtitle, body text, key-value tables, section headers).
-    """
-
-    def __init__(self, base_styles, palette: Dict[str, str]):
-        self.palette = palette
-        self.styles = base_styles
-
-        main = colors.HexColor(palette["main"])
-        light = colors.HexColor(palette["light"])
-        white = colors.HexColor(palette["white"])
-        black = colors.HexColor(palette["black"])
-        self._accent_color = light
-
-        self.title = ParagraphStyle(
-            "IrisTitle", parent=base_styles["Heading1"],
-            fontSize=20, leading=24, textColor=black,
-            alignment=TA_CENTER, spaceBefore=6, spaceAfter=4,
-            fontName="Helvetica-Bold",
-        )
-        self.subtitle = ParagraphStyle(
-            "IrisSubtitle", parent=base_styles["Heading2"],
-            fontSize=9, leading=12, textColor=main,
-            alignment=TA_CENTER, spaceBefore=2, spaceAfter=2,
-            fontName="Helvetica-Bold",
-        )
-        self.body = ParagraphStyle(
-            "IrisBody", parent=base_styles["Normal"],
-            fontSize=9, leading=12, textColor=black,
-            alignment=TA_JUSTIFY, spaceAfter=5,
-        )
-        self.label = ParagraphStyle(
-            "IrisLabel", parent=base_styles["Normal"],
-            fontSize=7, leading=9, textColor=main,
-            alignment=TA_LEFT, fontName="Helvetica-Bold",
-        )
-        self.footer = ParagraphStyle(
-            "IrisFooter", parent=base_styles["Normal"],
-            fontSize=8, leading=9, textColor=colors.HexColor("#aaaaaa"),
-            alignment=TA_CENTER,
-        )
-        self.mono = ParagraphStyle(
-            "IrisMono", parent=base_styles["Normal"],
-            fontSize=7.5, leading=10, textColor=black,
-            fontName="Courier",
-        )
-
-        # Table-cell styles: wrap (and, if a single word is too wide,
-        # break it) instead of overflowing past the column's fixed width.
-        self.cell_left = ParagraphStyle(
-            "IrisCellLeft", parent=base_styles["Normal"],
-            fontSize=8, leading=10, textColor=black,
-            alignment=TA_LEFT, wordWrap="CJK",
-        )
-        self.cell_center = ParagraphStyle(
-            "IrisCellCenter", parent=self.cell_left, alignment=TA_CENTER,
-        )
-        self.cell_header = ParagraphStyle(
-            "IrisCellHeader", parent=self.cell_left,
-            textColor=white, alignment=TA_CENTER, fontName="Helvetica-Bold",
-        )
-
-        self.kv_table_style = TableStyle([
-            ("BACKGROUND", (0, 0), (0, -1), white),
-            ("TEXTCOLOR", (0, 0), (0, -1), main),
-            ("TEXTCOLOR", (1, 0), (1, -1), black),
-            ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
-            ("FONTNAME", (1, 0), (1, -1), "Helvetica"),
-            ("FONTSIZE", (0, 0), (-1, -1), 9),
-            ("ALIGN", (0, 0), (-1, -1), "LEFT"),
-            ("TOPPADDING", (0, 0), (-1, -1), 5),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-            ("GRID", (0, 0), (-1, -1), 0.4, light),
-        ])
-
-    def kv_table(self, data, col_widths):
-        """Create a key-value style table."""
-        table = Table(data, colWidths=col_widths)
-        table.setStyle(self.kv_table_style)
-        return table
-
-    def section_header(self, title_text: str, tag_text: str) -> list:
-        """Return [pill, centered title, accent divider] flowables."""
-        main = colors.HexColor(self.palette["main"])
-        accent = self._accent_color
-
-        pill_style = ParagraphStyle(
-            "IrisPill", parent=self.styles["Normal"],
-            fontSize=7, leading=9, textColor=colors.HexColor(self.palette["white"]),
-            alignment=TA_CENTER, fontName="Helvetica-Bold",
-        )
-        pill_para = Paragraph(tag_text.upper(), pill_style)
-        pill_table = Table([[pill_para]], colWidths=[2.2 * inch])
-        pill_table.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, -1), main),
-            ("BOX", (0, 0), (-1, -1), 0.7, main),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("TOPPADDING", (0, 0), (-1, -1), 2),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-        ]))
-        pill_wrapper = Table([[pill_table]], colWidths=[6 * inch])
-        pill_wrapper.setStyle(TableStyle([
-            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-            ("TOPPADDING", (0, 0), (-1, -1), 6),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-        ]))
-
-        title_para = Paragraph(title_text, self.title)
-        title_wrapper = Table([[title_para]], colWidths=[6 * inch])
-        title_wrapper.setStyle(TableStyle([
-            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-        ]))
-
-        divider = Table([[""]], colWidths=[2.5 * inch], rowHeights=[0.035 * inch])
-        divider.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), accent)]))
-        divider_wrapper = Table([[divider]], colWidths=[6 * inch])
-        divider_wrapper.setStyle(TableStyle([
-            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-            ("TOPPADDING", (0, 0), (-1, -1), 0),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-        ]))
-
-        return [pill_wrapper, title_wrapper, divider_wrapper]
-
-
 def _rule_cell(rule: Dict[str, Any]) -> str:
     """Celda de la tabla de reglas: nombre visible y, debajo, el id estable.
 
@@ -226,9 +89,9 @@ def _rule_cell(rule: Dict[str, Any]) -> str:
     Returns:
         str: Marcado de reportlab, con el texto ya escapado.
     """
-    text = _esc(rule.get("ruleName", ""))
+    text = safe_markup(rule.get("ruleName", ""))
     if rule.get("ruleId"):
-        text += f"<br/><font size='7' color='#6b7280'>{_esc(rule['ruleId'])}</font>"
+        text += f"<br/><font size='7' color='#6b7280'>{safe_markup(rule['ruleId'])}</font>"
     return text
 
 
@@ -244,115 +107,164 @@ def _rule_reference(rule: Dict[str, Any]) -> str:
     """
     if not rule.get("ruleId"):
         return ""
-    reference = f"<font face='Courier'>{_esc(rule['ruleId'])}</font>"
+    reference = f"<font face='Courier'>{safe_markup(rule['ruleId'])}</font>"
     techniques = rule.get("mitreTechniques") or []
     if techniques:
-        reference += " · ATT&amp;CK " + ", ".join(_esc(technique) for technique in techniques)
+        reference += " · ATT&amp;CK " + ", ".join(safe_markup(technique) for technique in techniques)
     return f" ({reference})"
 
 
-class IrisPDFCreator:
-    """Builds a complete PDF report from an Iris analysis report dict.
+class IrisPDFCreator(PdfGenerator):
+    """Compone el informe PDF de un análisis de correo de Iris.
 
-    The report dict and path dict are produced by
-    ``IrisManager.get_analysis_results`` and ``IrisManager.get_analysis_path``
-    respectively, so this class stays a pure rendering layer with no
-    direct database access.
+    Solo aporta lo propio de Iris —la portada, el cuerpo y la nota final—;
+    todo lo demás lo pone ``PdfGenerator``.
+
+    Attributes:
+        report: Informe ya serializado por ``IrisManager.get_analysis_results``.
+        path: Cadena de entrega ya serializada por
+            ``IrisManager.get_analysis_path``. Vacía si no se pidió.
+        document_id: Clave primaria del ``IrisDocument`` al que pertenece este
+            PDF. Va en el nombre del fichero, así que dos documentos del mismo
+            análisis nunca escriben encima el uno del otro.
+        directory: Directorio de salida de los informes de Iris.
     """
 
     def __init__(self, report: Dict[str, Any], path: Optional[Dict[str, Any]] = None,
                  document_id: Optional[int] = None) -> None:
+        """Prepara el generador con los datos del análisis.
+
+        Args:
+            report: Informe ya serializado. De él salen el título, el
+                veredicto, las reglas y las cabeceras.
+            path: Cadena Received ya serializada. Por defecto ``None``, y
+                entonces la sección de la cadena de entrega no se imprime.
+            document_id: Clave primaria del ``IrisDocument``. Por defecto
+                ``None``, y entonces el nombre del fichero cae a un sufijo
+                aleatorio; ningún camino de la aplicación llega así hoy, queda
+                para que la clase siga siendo usable a pelo.
+        """
+        super().__init__(DocumentStyle(
+            palette=_PALETTE,
+            header_title="Iris Email Security Report",
+        ))
         self.report = report
         self.path = path or {}
         self.document_id = document_id
         self.directory = CR.get_directory_of(CR.DirectoryType.OUTPUT_IRIS)
 
-    def _set_pdf_metadata(self, document) -> None:
-        analysis_id = self.report.get("analysisId")
-        document.title = f"Informe de Análisis Iris - {analysis_id}"
-        document.author = "Ellysia Security Team"
-        document.subject = "Análisis de cabeceras de correo (anti-phishing)"
-        document.creator = "Ellysia PDF Generator v2.0"
+    # =========================================================================
+    # LO QUE APORTA IRIS
+    # =========================================================================
 
-    def _on_page(self, canv, document):
-        canv.saveState()
-        width, height = A4
+    def cover_title(self) -> str:
+        """Título de la portada: el asunto del correo analizado.
 
-        main = colors.HexColor(PALETTE["main"])
-        dark = colors.HexColor(PALETTE["dark"])
+        Returns:
+            str: El título del análisis ya saneado, o un rótulo genérico si el
+                correo no traía asunto.
+        """
+        return safe_markup(self.report.get("title") or "Análisis de Correo Electrónico")
 
-        canv.setFillColor(main)
-        canv.rect(20, 20, 6, height - 40, stroke=0, fill=1)
+    def cover_fields(self) -> Sequence[Sequence[str]]:
+        """Ficha de la portada: número de análisis, fecha y usuario.
 
-        canv.setFont("Helvetica-Bold", 12)
-        canv.setFillColor(dark)
-        canv.drawString(40, height - 30, "Iris Email Security Report")
-
-        canv.setStrokeColor(colors.HexColor("#e0e0e0"))
-        canv.setLineWidth(0.5)
-        canv.line(36, height - 42, width - 36, height - 42)
-
-        canv.setFont("Helvetica", 8)
-        canv.setFillColor(colors.HexColor("#999999"))
-        canv.drawRightString(width - 40, 28, f"Página {canv.getPageNumber()}")
-
-        canv.restoreState()
-
-    def append_cover_page(self, elements: list, theme: IrisReportTheme) -> None:
-        palette = theme.palette
-        main = colors.HexColor(palette["main"])
-        light = colors.HexColor(palette["light"])
-        white = colors.HexColor(palette["white"])
-        black = colors.HexColor(palette["black"])
-
-        elements.append(Spacer(1, 2.5 * inch))
-
-        title_style = ParagraphStyle(
-            "IrisCoverTitle", parent=theme.styles["Heading1"],
-            fontSize=28, leading=32, textColor=white,
-            alignment=TA_CENTER, fontName="Helvetica-Bold", wordWrap="CJK",
-        )
-        title = _esc(self.report.get("title") or "Análisis de Correo Electrónico")
-        title_table = Table([[Paragraph(title, title_style)]], colWidths=[6 * inch])
-        title_table.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, -1), main),
-            ("TOPPADDING", (0, 0), (-1, -1), 16),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 16),
-            ("LEFTPADDING", (0, 0), (-1, -1), 24),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 24),
-        ]))
-        elements.append(title_table)
-        elements.append(Spacer(1, 1.3 * inch))
-
+        Returns:
+            Sequence[Sequence[str]]: Las tres filas de la ficha.
+        """
         started = self.report.get("startedAt")
         date_str = started[:10] if started else datetime.now().strftime("%Y-%m-%d")
-        info_data = [
+        return [
             ["Análisis:", f"#{self.report.get('analysisId')}"],
             ["Fecha:", date_str],
             ["Usuario:", str(self.report.get("user", ""))],
         ]
-        info_table = Table(info_data, colWidths=[1.8 * inch, 3.2 * inch])
-        info_table.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, -1), white),
-            ("TEXTCOLOR", (0, 0), (0, -1), main),
-            ("TEXTCOLOR", (1, 0), (1, -1), black),
-            ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
-            ("FONTNAME", (1, 0), (1, -1), "Helvetica"),
-            ("FONTSIZE", (0, 0), (-1, -1), 10),
-            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ("TOPPADDING", (0, 0), (-1, -1), 10),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
-            ("BOX", (0, 0), (-1, -1), 1, light),
-        ]))
-        elements.append(info_table)
 
-        elements.append(Spacer(1, 1.0 * inch))
-        decoration = Table([[""]], colWidths=[6 * inch], rowHeights=[0.12 * inch])
-        decoration.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), light)]))
-        elements.append(decoration)
-        elements.append(PageBreak())
+    def document_title(self) -> str:
+        """Título de los metadatos del PDF.
 
-    def append_verdict_hero(self, elements: list, theme: IrisReportTheme) -> None:
+        No es el de la portada: aquí conviene el identificador del análisis,
+        que es lo que distingue dos informes en la barra de un lector de PDF.
+
+        Returns:
+            str: ``"Informe de Análisis Iris - <id>"``.
+        """
+        return f"Informe de Análisis Iris - {self.report.get('analysisId')}"
+
+    def document_subject(self) -> str:
+        """Asunto de los metadatos del PDF.
+
+        Returns:
+            str: Una descripción fija de qué es este documento.
+        """
+        return "Análisis de cabeceras de correo (anti-phishing)"
+
+    def legal_notice(self) -> Tuple[str, str]:
+        """Nota que cierra el informe: qué es y qué no es este análisis.
+
+        Returns:
+            Tuple[str, str]: El título del recuadro y su texto.
+        """
+        return ("NOTA SOBRE EL ANÁLISIS", """
+        Este informe se ha generado automáticamente a partir del análisis de
+        las cabeceras (y, cuando estaba disponible, el cuerpo) del correo
+        electrónico indicado. El veredicto y la puntuación reflejan el resultado
+        de las reglas heurísticas aplicadas y deben interpretarse como una ayuda
+        a la decisión, no como una determinación legal o definitiva sobre la
+        naturaleza del mensaje. Iris no garantiza la exactitud o completitud
+        del análisis frente a técnicas de evasión no contempladas por las reglas
+        vigentes en el momento de la ejecución.
+
+        Este documento puede contener información sensible extraída del correo
+        analizado y debe tratarse con las medidas de seguridad apropiadas.
+        """)
+
+    def append_body(self, elements: list, theme: ReportTheme) -> None:
+        """Añade el cuerpo del informe, sección a sección.
+
+        El orden importa: el veredicto va primero porque es la respuesta a la
+        pregunta que trae quien abre el informe, y las cabeceras en crudo al
+        final porque son la evidencia que casi nadie lee pero tiene que estar.
+
+        Args:
+            elements: Lista de flowables del documento en construcción.
+            theme: Los estilos del informe.
+        """
+        self.append_verdict_hero(elements, theme)
+        self.append_confidence(elements, theme)
+        self.append_quality_warning(elements, theme)
+        self.append_email_preview(elements, theme)
+        self.append_gate_reasons(elements, theme)
+        self.append_rules(elements, theme)
+        self.append_recommendations(elements, theme)
+        self.append_path(elements, theme)
+        self.append_raw_headers(elements, theme)
+
+    def output_path(self) -> str:
+        """Ruta del PDF, única por **documento** y no por análisis.
+
+        El modelo permite N ``IrisDocument`` por análisis, pero el nombre solo
+        dependía del ``analysis_id``, así que todos escribían el mismo fichero:
+        dos generaciones a la vez se pisaban, y borrar un documento destruía el
+        PDF del otro (``delete_document_with_file`` borra por ``filename``, que
+        era el mismo para ambos).
+
+        Returns:
+            str: La ruta absoluta del fichero.
+        """
+        analysis_id = self.report.get("analysisId")
+        suffix = self.document_id if self.document_id is not None else uuid.uuid4().hex
+        return os.path.join(self.directory, f"{analysis_id}_{suffix}_Iris.pdf")
+
+    def print_pdf(self) -> str:
+        """Genera el informe y lo deja escrito en disco.
+
+        Returns:
+            str: La ruta del PDF generado.
+        """
+        return self.generate_to_file(self.output_path())
+
+    def append_verdict_hero(self, elements: list, theme: ReportTheme) -> None:
         verdict = self.report.get("verdict") or "Suspicious"
         score = self.report.get("totalScore")
         risk_color = _VERDICT_COLORS.get(verdict, colors.HexColor("#757575"))
@@ -370,7 +282,7 @@ class IrisPDFCreator:
         )
         label_style = ParagraphStyle(
             "IrisVerdictLabel", parent=theme.styles["Normal"],
-            fontSize=9.5, leading=12, textColor=colors.HexColor(theme.palette["dark"]),
+            fontSize=9.5, leading=12, textColor=colors.HexColor(theme.palette[ColorType.DARK]),
             alignment=TA_LEFT,
         )
 
@@ -391,7 +303,7 @@ class IrisPDFCreator:
         elements.append(hero)
         elements.append(Spacer(1, 0.25 * inch))
 
-    def append_email_preview(self, elements: list, theme: IrisReportTheme) -> None:
+    def append_email_preview(self, elements: list, theme: ReportTheme) -> None:
         """Vista previa del correo: De / Para / Responder-a / Asunto / Fecha.
 
         Va de las primeras secciones del informe (justo tras el veredicto)
@@ -428,13 +340,13 @@ class IrisPDFCreator:
         if not any([subject, from_, to_address, reply_to, return_path, date]):
             return
 
-        elements.extend(theme.section_header("Vista Previa del Correo", "CONTENIDO"))
+        elements.extend(theme.section_header("Vista Previa del Correo", "CONTENIDO", pill_width=_PILL_WIDTH))
         elements.append(Spacer(1, 0.1 * inch))
 
-        main = colors.HexColor(theme.palette["main"])
-        dark = colors.HexColor(theme.palette["dark"])
-        white = colors.HexColor(theme.palette["white"])
-        light = colors.HexColor(theme.palette["light"])
+        main = colors.HexColor(theme.palette[ColorType.MAIN])
+        white = colors.HexColor(theme.palette[ColorType.WHITE])
+        light = colors.HexColor(theme.palette[ColorType.LIGHT])
+        dark = colors.HexColor(theme.palette[ColorType.DARK])
         alert = colors.HexColor("#d32f2f")
 
         value_style = ParagraphStyle(
@@ -449,24 +361,24 @@ class IrisPDFCreator:
 
         rows: list = []
         if subject:
-            rows.append(["Asunto:", Paragraph(_esc(subject), value_style)])
+            rows.append(["Asunto:", Paragraph(safe_markup(subject), value_style)])
         if from_:
-            rows.append(["De:", Paragraph(_esc(from_), value_style)])
+            rows.append(["De:", Paragraph(safe_markup(from_), value_style)])
         if to_address:
-            rows.append(["Para:", Paragraph(_esc(to_address), value_style)])
+            rows.append(["Para:", Paragraph(safe_markup(to_address), value_style)])
         if reply_to:
             # Compara solo la dirección (sin el nombre visible) para no
             # marcar como discrepancia un simple cambio de formato.
             mismatch = bool(from_) and parseaddr(reply_to)[1].lower() != parseaddr(from_)[1].lower()
             if mismatch:
-                text = f"{_esc(reply_to)}  [!] distinto del remitente (De:)"
+                text = f"{safe_markup(reply_to)}  [!] distinto del remitente (De:)"
                 rows.append(["Responder a:", Paragraph(text, mismatch_style)])
             else:
-                rows.append(["Responder a:", Paragraph(_esc(reply_to), value_style)])
+                rows.append(["Responder a:", Paragraph(safe_markup(reply_to), value_style)])
         if return_path:
-            rows.append(["Return-Path:", Paragraph(_esc(return_path), value_style)])
+            rows.append(["Return-Path:", Paragraph(safe_markup(return_path), value_style)])
         if date:
-            rows.append(["Fecha:", Paragraph(_esc(date), value_style)])
+            rows.append(["Fecha:", Paragraph(safe_markup(date), value_style)])
 
         preview_table = Table(rows, colWidths=[1.3 * inch, 5.1 * inch])
         preview_table.setStyle(TableStyle([
@@ -492,18 +404,18 @@ class IrisPDFCreator:
             else:
                 note = "Este análisis corresponde al correo original reenviado"
             if wrapper_from:
-                note += f" por {_esc(wrapper_from)}"
+                note += f" por {safe_markup(wrapper_from)}"
             if wrapper_subject:
-                note += f" (asunto del reenvío: «{_esc(wrapper_subject)}»)"
+                note += f" (asunto del reenvío: «{safe_markup(wrapper_subject)}»)"
             note += "."
             winning_reason = self.report.get("winningReason")
             if winning_reason:
-                note += f" {_esc(winning_reason)}"
+                note += f" {safe_markup(winning_reason)}"
             secondary = self.report.get("secondaryContext")
             if secondary:
                 note += (
                     f" El otro mensaje ({'envoltorio' if secondary.get('contextType') == 'wrapper' else 'original'})"
-                    f" obtuvo {_esc(secondary.get('verdict'))} con {_esc(secondary.get('totalScore'))} puntos."
+                    f" obtuvo {safe_markup(secondary.get('verdict'))} con {safe_markup(secondary.get('totalScore'))} puntos."
                 )
             elements.append(Paragraph(note, theme.body))
 
@@ -514,7 +426,7 @@ class IrisPDFCreator:
     #: Extractos de evidencia por hallazgo en el PDF; el resto se resume.
     _EVIDENCE_PER_RULE = 3
 
-    def append_confidence(self, elements: list, theme: IrisReportTheme) -> None:
+    def append_confidence(self, elements: list, theme: ReportTheme) -> None:
         """Confianza y cobertura del veredicto, justo debajo de él.
 
         Usa la misma semántica que la API y la UI: una confianza ordinal
@@ -535,7 +447,7 @@ class IrisPDFCreator:
             uncovered = coverage.get("uncoveredRules") or []
             coverage_text = (
                 "solo cabeceras. Estas reglas no tuvieron cuerpo, enlaces ni "
-                f"adjuntos que inspeccionar: {_esc(', '.join(uncovered)) or 'ninguna'}."
+                f"adjuntos que inspeccionar: {safe_markup(', '.join(uncovered)) or 'ninguna'}."
             )
         else:
             coverage_text = "mensaje completo."
@@ -546,12 +458,12 @@ class IrisPDFCreator:
             f"estadísticamente.<br/><b>Cobertura:</b> {coverage_text}"
         )
         for reason in self.report.get("uncertaintyReasons") or []:
-            text += f"<br/>• {_esc(reason)}"
+            text += f"<br/>• {safe_markup(reason)}"
 
         card = Table([[Paragraph(text, theme.body)]], colWidths=[6.4 * inch])
         card.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor(theme.palette["white"])),
-            ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor(theme.palette["light"])),
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor(theme.palette[ColorType.WHITE])),
+            ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor(theme.palette[ColorType.LIGHT])),
             ("LEFTPADDING", (0, 0), (-1, -1), 14),
             ("RIGHTPADDING", (0, 0), (-1, -1), 14),
             ("TOPPADDING", (0, 0), (-1, -1), 10),
@@ -560,7 +472,7 @@ class IrisPDFCreator:
         elements.append(card)
         elements.append(Spacer(1, 0.22 * inch))
 
-    def append_quality_warning(self, elements: list, theme: IrisReportTheme) -> None:
+    def append_quality_warning(self, elements: list, theme: ReportTheme) -> None:
         """Aviso de análisis degradado, justo debajo del veredicto.
 
         Va aquí y no entre las señales de más abajo porque contradice
@@ -579,7 +491,7 @@ class IrisPDFCreator:
         )
         text = (
             f"<b>Análisis incompleto.</b> No se pudieron ejecutar estas reglas: "
-            f"{_esc(names)}. La parte del mensaje que les correspondía no se ha "
+            f"{safe_markup(names)}. La parte del mensaje que les correspondía no se ha "
             "inspeccionado, así que este informe describe menos de lo que "
             "describiría un análisis completo."
         )
@@ -597,7 +509,7 @@ class IrisPDFCreator:
         elements.append(card)
         elements.append(Spacer(1, 0.22 * inch))
 
-    def append_gate_reasons(self, elements: list, theme: IrisReportTheme) -> None:
+    def append_gate_reasons(self, elements: list, theme: ReportTheme) -> None:
         """Señales de alta confianza que fijaron el veredicto.
 
         Solo aparece cuando algún gate se disparó — explica el "por qué"
@@ -610,15 +522,15 @@ class IrisPDFCreator:
         verdict = self.report.get("verdict") or "Suspicious"
         risk_color = _VERDICT_COLORS.get(verdict, colors.HexColor("#757575"))
 
-        elements.extend(theme.section_header("Por qué este veredicto", "SEÑALES CLAVE"))
+        elements.extend(theme.section_header("Por qué este veredicto", "SEÑALES CLAVE", pill_width=_PILL_WIDTH))
         elements.append(Spacer(1, 0.1 * inch))
 
         reason_style = ParagraphStyle(
             "IrisGateReason", parent=theme.body,
-            textColor=colors.HexColor(theme.palette["black"]),
+            textColor=colors.HexColor(theme.palette[ColorType.BLACK]),
             spaceAfter=4,
         )
-        reason_paras = [Paragraph(f"•  {_esc(reason)}", reason_style) for reason in reasons]
+        reason_paras = [Paragraph(f"•  {safe_markup(reason)}", reason_style) for reason in reasons]
 
         card = Table([[reason_paras]], colWidths=[6.4 * inch])
         card.setStyle(TableStyle([
@@ -633,19 +545,18 @@ class IrisPDFCreator:
         elements.append(card)
         elements.append(Spacer(1, 0.22 * inch))
 
-    def append_rules(self, elements: list, theme: IrisReportTheme) -> None:
+    def append_rules(self, elements: list, theme: ReportTheme) -> None:
         rules = self.report.get("rules") or []
-        elements.extend(theme.section_header("Reglas Aplicadas", "VERIFICACIONES"))
+        elements.extend(theme.section_header("Reglas Aplicadas", "VERIFICACIONES", pill_width=_PILL_WIDTH))
         elements.append(Spacer(1, 0.1 * inch))
 
         if not rules:
             elements.append(Paragraph("No se ejecutaron reglas.", theme.body))
             return
 
-        main = colors.HexColor(theme.palette["main"])
-        light = colors.HexColor(theme.palette["light"])
-        white = colors.HexColor(theme.palette["white"])
-        dark = colors.HexColor(theme.palette["dark"])
+        main = colors.HexColor(theme.palette[ColorType.MAIN])
+        light = colors.HexColor(theme.palette[ColorType.LIGHT])
+        white = colors.HexColor(theme.palette[ColorType.WHITE])
 
         rule_data = [[
             Paragraph("Regla", theme.cell_header),
@@ -658,9 +569,9 @@ class IrisPDFCreator:
             sign = "+" if score > 0 else ""
             rule_data.append([
                 Paragraph(_rule_cell(rule), theme.cell_left),
-                Paragraph(_esc(rule.get("category") or "-"), theme.cell_left),
+                Paragraph(safe_markup(rule.get("category") or "-"), theme.cell_left),
                 Paragraph(f"{sign}{score}", theme.cell_center),
-                Paragraph(_esc(rule.get("verdict", "")), theme.cell_center),
+                Paragraph(safe_markup(rule.get("verdict", "")), theme.cell_center),
             ])
 
         rule_table = Table(
@@ -689,32 +600,32 @@ class IrisPDFCreator:
             elements.append(Paragraph("Detalle de hallazgos", theme.subtitle))
             elements.append(Spacer(1, 0.08 * inch))
             for flagged_rule in flagged:
-                text = (f"<b>{_esc(flagged_rule.get('ruleName'))}</b>{_rule_reference(flagged_rule)}: "
-                        f"{_esc(flagged_rule.get('recommendation'))}")
+                text = (f"<b>{safe_markup(flagged_rule.get('ruleName'))}</b>{_rule_reference(flagged_rule)}: "
+                        f"{safe_markup(flagged_rule.get('recommendation'))}")
                 # El extracto ya viene desactivado (hxxp, [.], [@]): el PDF sale
                 # del panel autenticado y no debe llevar enlaces vivos.
                 evidence = flagged_rule.get("evidence") or []
                 for item in evidence[:self._EVIDENCE_PER_RULE]:
-                    text += f"<br/>Evidencia: <font face='Courier'>{_esc(item.get('excerpt'))}</font>"
+                    text += f"<br/>Evidencia: <font face='Courier'>{safe_markup(item.get('excerpt'))}</font>"
                 if len(evidence) > self._EVIDENCE_PER_RULE:
                     text += f"<br/>(y {len(evidence) - self._EVIDENCE_PER_RULE} fragmentos más)"
                 if not evidence and flagged_rule.get("evidenceUnavailableReason"):
-                    text += f"<br/><i>Sin evidencia anclada: {_esc(flagged_rule['evidenceUnavailableReason'])}</i>"
+                    text += f"<br/><i>Sin evidencia anclada: {safe_markup(flagged_rule['evidenceUnavailableReason'])}</i>"
                 elements.append(Paragraph(text, theme.body))
             elements.append(Spacer(1, 0.15 * inch))
 
-    def append_recommendations(self, elements: list, theme: IrisReportTheme) -> None:
+    def append_recommendations(self, elements: list, theme: ReportTheme) -> None:
         recommendations = self.report.get("recommendations") or []
         if not recommendations:
             return
         elements.append(PageBreak())
-        elements.extend(theme.section_header("Recomendaciones", "ACCIONES SUGERIDAS"))
+        elements.extend(theme.section_header("Recomendaciones", "ACCIONES SUGERIDAS", pill_width=_PILL_WIDTH))
         elements.append(Spacer(1, 0.1 * inch))
         for rec in recommendations:
-            elements.append(Paragraph(f"• {_esc(rec)}", theme.body))
+            elements.append(Paragraph(f"• {safe_markup(rec)}", theme.body))
         elements.append(Spacer(1, 0.15 * inch))
 
-    def append_path(self, elements: list, theme: IrisReportTheme) -> None:
+    def append_path(self, elements: list, theme: ReportTheme) -> None:
         if not self.path or not self.path.get("available"):
             return
         hops = self.path.get("hops") or []
@@ -722,13 +633,12 @@ class IrisPDFCreator:
             return
 
         elements.append(PageBreak())
-        elements.extend(theme.section_header("Recorrido del Correo", "CADENA RECEIVED"))
+        elements.extend(theme.section_header("Recorrido del Correo", "CADENA RECEIVED", pill_width=_PILL_WIDTH))
         elements.append(Spacer(1, 0.1 * inch))
 
-        main = colors.HexColor(theme.palette["main"])
-        light = colors.HexColor(theme.palette["light"])
-        white = colors.HexColor(theme.palette["white"])
-        dark = colors.HexColor(theme.palette["dark"])
+        main = colors.HexColor(theme.palette[ColorType.MAIN])
+        light = colors.HexColor(theme.palette[ColorType.LIGHT])
+        white = colors.HexColor(theme.palette[ColorType.WHITE])
 
         hop_data = [[
             Paragraph("#", theme.cell_header),
@@ -739,11 +649,11 @@ class IrisPDFCreator:
         ]]
         for hop in hops:
             hop_data.append([
-                Paragraph(_esc(hop.get("hop", "")), theme.cell_center),
-                Paragraph(_esc(hop.get("from") or "-"), theme.cell_left),
-                Paragraph(_esc(hop.get("fromIp") or "-"), theme.cell_left),
+                Paragraph(safe_markup(hop.get("hop", "")), theme.cell_center),
+                Paragraph(safe_markup(hop.get("from") or "-"), theme.cell_left),
+                Paragraph(safe_markup(hop.get("fromIp") or "-"), theme.cell_left),
                 Paragraph("Sí" if hop.get("tls") else "No", theme.cell_center),
-                Paragraph(_esc(hop.get("timestamp") or "-"), theme.cell_left),
+                Paragraph(safe_markup(hop.get("timestamp") or "-"), theme.cell_left),
             ])
 
         hop_table = Table(
@@ -767,13 +677,13 @@ class IrisPDFCreator:
             elements.append(Paragraph("Transiciones sospechosas detectadas", theme.subtitle))
             elements.append(Spacer(1, 0.05 * inch))
             for suspicious_transition in suspicious:
-                reasons = _esc(", ".join(suspicious_transition.get("reasons") or []))
+                reasons = safe_markup(", ".join(suspicious_transition.get("reasons") or []))
                 elements.append(Paragraph(
-                    f"Salto {_esc(suspicious_transition.get('from'))} → "
-                    f"{_esc(suspicious_transition.get('to'))}: {reasons}", theme.body
+                    f"Salto {safe_markup(suspicious_transition.get('from'))} → "
+                    f"{safe_markup(suspicious_transition.get('to'))}: {reasons}", theme.body
                 ))
 
-    def append_raw_headers(self, elements: list, theme: IrisReportTheme) -> None:
+    def append_raw_headers(self, elements: list, theme: ReportTheme) -> None:
         """Vuelca el raw completo del correo -- la única vista de Iris que
         sale del panel autenticado tal cual una vez descargado el PDF, así
         que es la que se redacta (``iris.redactPiiInReports``): no se
@@ -786,7 +696,7 @@ class IrisPDFCreator:
         if not raw:
             return
         elements.append(PageBreak())
-        elements.extend(theme.section_header("Cabeceras Originales", "EVIDENCIA RAW"))
+        elements.extend(theme.section_header("Cabeceras Originales", "EVIDENCIA RAW", pill_width=_PILL_WIDTH))
         elements.append(Spacer(1, 0.1 * inch))
 
         body = raw
@@ -804,120 +714,3 @@ class IrisPDFCreator:
         )
         for line in escaped.splitlines():
             elements.append(Paragraph(line if line.strip() else "&nbsp;", theme.mono))
-
-    def append_consent(self, elements: list, theme: IrisReportTheme) -> None:
-        elements.append(PageBreak())
-        palette = theme.palette
-        main = colors.HexColor(palette["main"])
-        dark = colors.HexColor(palette["dark"])
-        white = colors.HexColor(palette["white"])
-
-        title_style = ParagraphStyle(
-            "IrisConsentTitle", parent=theme.styles["Heading2"],
-            fontSize=11, textColor=main, spaceAfter=10, fontName="Helvetica-Bold",
-        )
-        text_style = ParagraphStyle(
-            "IrisConsentText", parent=theme.styles["Normal"],
-            fontSize=9, leading=12, textColor=dark, alignment=TA_JUSTIFY,
-        )
-
-        elements.append(Paragraph("NOTA SOBRE EL ANÁLISIS", title_style))
-        consent_text = """
-        Este informe se ha generado automáticamente a partir del análisis de
-        las cabeceras (y, cuando estaba disponible, el cuerpo) del correo
-        electrónico indicado. El veredicto y la puntuación reflejan el resultado
-        de las reglas heurísticas aplicadas y deben interpretarse como una ayuda
-        a la decisión, no como una determinación legal o definitiva sobre la
-        naturaleza del mensaje. Iris no garantiza la exactitud o completitud
-        del análisis frente a técnicas de evasión no contempladas por las reglas
-        vigentes en el momento de la ejecución.
-
-        Este documento puede contener información sensible extraída del correo
-        analizado y debe tratarse con las medidas de seguridad apropiadas.
-        """
-        paragraph = Paragraph(consent_text.strip(), text_style)
-        table = Table([[paragraph]], colWidths=[6 * inch])
-        table.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, -1), white),
-            ("TOPPADDING", (0, 0), (-1, -1), 12),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 12),
-            ("LEFTPADDING", (0, 0), (-1, -1), 12),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 12),
-            ("BOX", (0, 0), (-1, -1), 1.2, main),
-        ]))
-        elements.append(table)
-
-    def append_footer(self, elements: list, theme: IrisReportTheme) -> None:
-        timestamp = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-        elements.append(Spacer(1, 0.2 * inch))
-        elements.append(Paragraph(f"Informe generado automáticamente | {timestamp}", theme.footer))
-
-    def _output_path(self) -> str:
-        """Ruta del PDF, única por **documento** y no por análisis.
-
-        El modelo permite N ``IrisDocument`` por análisis, pero el nombre solo
-        dependía del ``analysis_id``, así que todos escribían el mismo fichero:
-        dos generaciones a la vez se pisaban, y borrar un documento destruía el
-        PDF del otro (``delete_document_with_file`` borra por ``filename``, que
-        era el mismo para ambos).
-
-        Cuando no hay ``document_id`` —ningún camino de la aplicación llega
-        así hoy; queda para que la clase siga siendo usable a pelo— se cae a un
-        sufijo aleatorio, que no colisiona aunque tampoco sea reproducible.
-        """
-        analysis_id = self.report.get("analysisId")
-        suffix = self.document_id if self.document_id is not None else uuid.uuid4().hex
-        return os.path.join(self.directory, f"{analysis_id}_{suffix}_Iris.pdf")
-
-    def print_pdf(self) -> str:
-        """Generate the complete PDF report and return its file path.
-
-        Se escribe en un temporal del mismo directorio y se mueve con
-        ``os.replace()``, que es atómico dentro de un mismo sistema de
-        ficheros. Sin eso, un lector que descargue el informe mientras se
-        regenera recibe un PDF a medio escribir: ``document.status`` pasa a
-        ``done`` una sola vez, pero el fichero al que apunta se reescribe en
-        sitio en cada regeneración.
-        """
-        os.makedirs(self.directory, exist_ok=True)
-
-        filename = self._output_path()
-        temporary = f"{filename}.{uuid.uuid4().hex}.tmp"
-
-        document = SimpleDocTemplate(
-            temporary, pagesize=A4,
-            rightMargin=36, leftMargin=36, topMargin=60, bottomMargin=40,
-        )
-
-        base_styles = getSampleStyleSheet()
-        theme = IrisReportTheme(base_styles, PALETTE)
-        elements: list = []
-
-        self.append_cover_page(elements, theme)
-        self.append_verdict_hero(elements, theme)
-        self.append_confidence(elements, theme)
-        self.append_quality_warning(elements, theme)
-        self.append_email_preview(elements, theme)
-        self.append_gate_reasons(elements, theme)
-        self.append_rules(elements, theme)
-        self.append_recommendations(elements, theme)
-        self.append_path(elements, theme)
-        self.append_raw_headers(elements, theme)
-        self.append_consent(elements, theme)
-        self.append_footer(elements, theme)
-
-        self._set_pdf_metadata(document)
-        try:
-            document.build(elements, onFirstPage=self._on_page, onLaterPages=self._on_page)
-            os.replace(temporary, filename)
-        except Exception:
-            # Un temporal huérfano no lo limpia nadie: el nombre lleva un UUID,
-            # así que ni siquiera lo pisaría el siguiente intento.
-            if os.path.exists(temporary):
-                try:
-                    os.remove(temporary)
-                except OSError:
-                    logger.warning("No se pudo borrar el temporal %s", temporary)
-            raise
-
-        return filename

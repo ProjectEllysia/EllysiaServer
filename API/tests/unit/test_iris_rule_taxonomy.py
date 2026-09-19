@@ -15,12 +15,11 @@ from __future__ import annotations
 import re
 
 import pytest
-from reportlab.lib.styles import getSampleStyleSheet
 
 from src.modules.features.iris.model import IrisRuleResult
 from src.modules.features.iris.services.quality import assess_quality
 from src.modules.features.iris.services.registry import RuleRegistry, RuleResult, RuleSeverity
-from src.modules.features.iris.services.reports import IrisPDFCreator, IrisReportTheme, PALETTE
+from src.modules.features.iris.services.reports import IrisPDFCreator
 from src.modules.features.iris.services.rules import iris_rules
 
 pytestmark = pytest.mark.unit
@@ -166,8 +165,9 @@ def test_the_pdf_shows_the_stable_id_and_the_attack_technique(tmp_path, monkeypa
         }],
     }
     elements: list = []
+    creator = IrisPDFCreator(report=report)
 
-    IrisPDFCreator(report=report).append_rules(elements, IrisReportTheme(getSampleStyleSheet(), PALETTE))
+    creator.append_rules(elements, creator.theme)
 
     texts = " ".join(getattr(element, "text", "") for element in elements)
     table_cells = " ".join(

@@ -62,7 +62,7 @@ The REST API (Flask) orchestrates asynchronous scans and analysis over **RQ + Re
   (Kotlin)      │  │               │   iris.analyze/ingest/...  │     │──►  INCIBE-CERT (Aegis alerts)
    Hygeia agent─►│  │               │   hygeia.notify/report     │     │──►  Gmail / Microsoft Graph
                 │  │               └────────────────────────────┘     │     │──►  SMTP relay (herald)
-                │  │  tools: scribe (AI) · herald (email)              │     │
+                │  │  tools: scribe (AI) · press (PDF) · herald (mail)│     │
                 │  └──────────────────────────────────────────────────┘     │
                 │  PostgreSQL (15432)  ·  Alembic migrations                │
                 └───────────────────────────────────────────────────────────┘
@@ -79,6 +79,7 @@ Ellysia/
 │   │   ├── features/            # Feature modules (themis, iris, aegis, acheron, hygeia)
 │   │   ├── tools/               # Cross-cutting strategy layers
 │   │   │   ├── scribe/          # AI generation abstraction (Ollama/OpenAI/Gemini)
+│   │   │   ├── press/           # PDF document composition (PdfGenerator)
 │   │   │   └── herald/          # Email sending abstraction (SMTP)
 │   │   ├── infrastructure/      # ORM plumbing (UnitOfWork, repos, sessions)
 │   │   └── shared/              # Base models, exceptions, schemas, documents

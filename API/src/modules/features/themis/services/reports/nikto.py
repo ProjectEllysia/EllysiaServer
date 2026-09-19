@@ -10,8 +10,16 @@ import src.modules.system.config_reading as CR
 
 from ...model import NiktoScan, ScanType
 from ..analyzers import NiktoAIWriter
-from src.modules.shared.report_theme import ColorType, safe_markup
+from src.modules.tools.press import ColorType, build_palette, safe_markup
 from .base import PrintingStrategy
+
+#: Identidad visual de Nikto: naranja y salmón de seguridad web. La
+#: configuración puede sobrescribir cualquiera de los seis; estos viajan con el
+#: código.
+_DEFAULT_PALETTE = {
+    "black": "#4B2500", "dark": "#8E3D0A", "main": "#C75B12",
+    "secondary": "#FA8072", "light": "#F9B49A", "white": "#FFF5F0",
+}
 
 
 @PrintingStrategy.register(ScanType.NIKTO)
@@ -37,16 +45,9 @@ class NiktoPrintingStrategy(PrintingStrategy):
         super().__init__(scan)
         self.writer = NiktoAIWriter()
 
-        palette_config = CR.get_tool_color_palette(ScanType.NIKTO)
-
-        self.color_palette = {
-            ColorType.BLACK: palette_config.get("black", "#4B2500"),
-            ColorType.DARK: palette_config.get("dark", "#8E3D0A"),
-            ColorType.MAIN: palette_config.get("main", "#C75B12"),
-            ColorType.SECONDARY: palette_config.get("secondary", "#FA8072"),
-            ColorType.LIGHT: palette_config.get("light", "#F9B49A"),
-            ColorType.WHITE: palette_config.get("white", "#FFF5F0"),
-        }
+        self.color_palette = build_palette(
+            CR.get_tool_color_palette(ScanType.NIKTO), _DEFAULT_PALETTE
+        )
 
     def append_body(self, theme: "ReportTheme", elements: list, ai_report: bool = False) -> None:
         incidents = getattr(self.scan, "incidents", []) or []
