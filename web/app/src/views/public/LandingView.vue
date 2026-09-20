@@ -123,7 +123,6 @@
         <span class="eyebrow">Security Operations Suite</span>
         <h1 class="hero-title">Ellysia</h1>
         <p class="verse">Vigila. Conciencia. Verifica. Guarda.</p>
-        <p class="lede">Herramientas de seguridad bajo un mismo cielo.</p>
         <div class="hero-actions">
           <router-link v-if="!auth.isAuthenticated" to="/login" class="cta cta--solid">Entrar</router-link>
           <button class="cta cta--line" @click="scrollToSection('tools')">Conocer las herramientas</button>
