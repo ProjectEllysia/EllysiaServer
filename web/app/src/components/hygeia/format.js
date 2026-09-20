@@ -245,7 +245,8 @@ const ASSET_STATUS_LABELS = { pending: 'Pendiente', online: 'En línea', stale: 
  * Rótulo en castellano del estado de conexión de un activo.
  *
  * Solo traduce el estado: el matiz de «Apagado» para un activo que se apaga
- * a propósito depende también de `isPersistent`, y lo resuelve la lista.
+ * a propósito depende también de `isPersistent`, y lo resuelve
+ * `assetPresence`.
  *
  * @param {string|null} status - Estado del servidor: `pending`, `online`,
  *   `stale` u `offline`.
@@ -253,6 +254,29 @@ const ASSET_STATUS_LABELS = { pending: 'Pendiente', online: 'En línea', stale: 
  */
 export function assetStatusLabel(status) {
   return ASSET_STATUS_LABELS[status] || 'Desconocido'
+}
+
+/**
+ * Cómo se lee y cómo se pinta el estado de conexión de un activo.
+ *
+ * Un activo que se apaga a propósito no está «caído»: pintarlo en rojo sería
+ * exactamente el ruido que su marca elimina. El estado que manda el servidor
+ * es el mismo (`offline`), solo cambia cómo se presenta. La regla vive aquí
+ * porque la usan tanto la lista de activos como el buscador de la vista de
+ * estadísticas, y dos copias acabarían diciendo cosas distintas del mismo
+ * activo.
+ *
+ * @param {object} asset - Activo de la API; se miran `status` e `isPersistent`.
+ * @returns {{label: string, pulseClass: string}} `label` es el rótulo que se
+ *   enseña («En línea», «Caído», «Apagado»…) y `pulseClass` el modificador
+ *   del punto de color (`pulse--online`, `pulse--dormant`…), que cada
+ *   componente define en sus propios estilos.
+ */
+export function assetPresence(asset) {
+  if (asset.status === 'offline' && asset.isPersistent === false) {
+    return { label: 'Apagado', pulseClass: 'pulse--dormant' }
+  }
+  return { label: assetStatusLabel(asset.status), pulseClass: `pulse--${asset.status}` }
 }
 
 const ANOMALY_KIND_LABELS = {
