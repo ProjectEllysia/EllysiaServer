@@ -3,11 +3,11 @@
     <input
       :id="inputId" ref="field"
       v-model="query"
-      type="text" class="inp picker-field" autocomplete="off" spellcheck="false"
+      type="text" class="picker-field" autocomplete="off" spellcheck="false"
       :placeholder="placeholder"
       role="combobox" aria-autocomplete="list" :aria-expanded="isOpen"
       :aria-controls="listId"
-      :aria-activedescendant="isOpen && highlighted ? optionId(highlighted) : undefined"
+      :aria-activedescendant="isOpen && highlighted !== null ? optionId(highlighted) : undefined"
       @focus="onFocus" @keydown="onKeydown"
     />
 
@@ -21,7 +21,7 @@
     <!-- La lista se monta solo mientras está abierta: así no hay nada que un
          lector de pantalla pueda recorrer cuando no se ve. -->
     <div v-if="isOpen" class="picker-pop">
-      <ul :id="listId" class="picker-list" role="listbox" :aria-label="`Activos que coinciden con «${query}»`">
+      <ul :id="listId" class="picker-list" role="listbox" :aria-label="listLabel">
         <li
           v-for="asset in visible" :key="asset.id"
           :id="optionId(asset.id)"
@@ -57,7 +57,12 @@
       <!-- Decir cuántos quedan fuera es lo que convierte un recorte en un
            aviso: sin esta línea, el tope parecería que el activo no existe. -->
       <p v-else-if="matches.length > visible.length" class="picker-note">
-        {{ matches.length - visible.length }} activos más coinciden. Escribe algo más para acotar.
+        <template v-if="query.trim()">
+          {{ matches.length - visible.length }} activos más coinciden. Escribe algo más para acotar.
+        </template>
+        <template v-else>
+          Tienes {{ matches.length }} activos. Escribe para buscar el que quieras.
+        </template>
       </p>
     </div>
   </div>
@@ -102,7 +107,7 @@ const emit = defineEmits(['update:modelValue'])
 const MAX_VISIBLE = 8
 
 /** Etiquetas por opción antes de resumir el resto en un «+N». */
-const MAX_OPTION_TAGS = 3
+const MAX_OPTION_TAGS = 1
 
 const field = ref(null)
 const query = ref('')
@@ -115,6 +120,16 @@ const optionId = (id) => `${listId}-${id}`
 const selected = computed(() => props.assets.find((asset) => asset.id === props.modelValue) ?? null)
 
 const matches = computed(() => searchAssets(props.assets, query.value))
+
+/**
+ * Rótulo de la lista para un lector de pantalla. Sin nada escrito, la lista es
+ * el parque; con texto, lo que se le parece.
+ *
+ * @type {import('vue').ComputedRef<string>}
+ */
+const listLabel = computed(() => (query.value.trim()
+  ? `Activos que se parecen a «${query.value.trim()}»`
+  : 'Tus activos'))
 const visible = computed(() => matches.value.slice(0, MAX_VISIBLE))
 
 /**
@@ -229,11 +244,21 @@ function onKeydown(event) {
 
 <style scoped>
 .picker { position: relative; }
-.picker-field { width: 100%; padding-right: 1.7rem; }
+
+/* Mismas medidas y mismo fondo que los `select` de al lado: el buscador es un
+   control más de la misma barra, y la base global de `input` es algo más alta
+   que ellos. La clase `.inp` de la vista no sirve aquí — un estilo con ámbito
+   no cruza a los hijos de un componente. */
+.picker-field {
+  width: 100%;
+  padding: 0.4rem 1.7rem 0.4rem 0.55rem;
+  background: var(--bg); border: 1px solid var(--border-med); border-radius: 6px;
+  color: var(--text); font-size: var(--fs-md);
+}
 
 .picker-clear {
   position: absolute; top: 0; right: 0;
-  width: 1.7rem; height: 2rem;
+  width: 1.7rem; height: 100%;
   background: none; border: none;
   color: var(--text-muted); font-size: var(--fs-lg); line-height: 1; cursor: pointer;
 }
@@ -244,7 +269,10 @@ function onKeydown(event) {
    controles que tiene al lado cada vez que se escribe una letra. */
 .picker-pop {
   position: absolute; z-index: 10; top: calc(100% + 0.25rem); left: 0;
-  width: max(100%, 260px); max-height: 19rem; overflow-y: auto;
+  /* Más ancha que el campo para que quepa el nombre de una máquina entero,
+     pero nunca más que la pantalla: en un móvil el campo ya ocupa el ancho
+     completo y un mínimo fijo sacaría la lista fuera. */
+  width: max(100%, min(340px, calc(100vw - 3rem))); max-height: 19rem; overflow-y: auto;
   background: var(--surface); border: 1px solid var(--border-med); border-radius: 6px;
   box-shadow: 0 8px 20px rgb(0 0 0 / 35%);
 }
@@ -277,7 +305,13 @@ function onKeydown(event) {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-.picker-tags { display: flex; align-items: center; gap: 0.2rem; flex-shrink: 0; }
+/* Las etiquetas ceden antes que el nombre: son el porqué de que el activo
+   salga en la lista, pero quien elige lee el nombre. Cuando no caben, lo que
+   se recorta es el texto de la etiqueta, nunca la etiqueta a media pastilla:
+   «europa-o…» se lee, media pastilla parece un fallo de pintado. */
+.picker-tags { display: flex; align-items: center; gap: 0.2rem; flex-shrink: 0; max-width: 38%; }
+.picker-tags :deep(.tag-badge) { min-width: 0; }
+.picker-tags :deep(.tag-name) { overflow: hidden; text-overflow: ellipsis; }
 .picker-tags-more { font-size: var(--fs-sm); color: var(--text-muted); }
 
 .picker-note {
