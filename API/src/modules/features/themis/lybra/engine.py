@@ -24,7 +24,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, Iterable, List, Optional, Tuple
 
-from .correlation import exploit_maturity
+from .applicability import classify_cve_applicability
+from .correlation import CONDITIONAL_VERSION_CHECK_ID, exploit_maturity
 from .kb import (
     load_product_aliases,
     normalize_cpe_to_23,
@@ -188,26 +189,55 @@ class LybraEngine:
             # reuses the same result instead of resolving the CPE twice.
             resolved = _resolve_cpe(service, self._product_alias_lookup,
                                     self._record_resolution)
-            findings.append(self._informational_finding(service, resolved))
-            if self._cve_lookup is not None:
-                findings.extend(self._version_findings(service, resolved))
+            version_findings, discarded = (
+                self._version_findings(service, resolved)
+                if self._cve_lookup is not None else ([], 0))
+            findings.append(self._informational_finding(service, resolved, discarded))
+            findings.extend(version_findings)
         return findings
 
-    def _version_findings(self, service: Service, resolved) -> List[dict]:
+    def _version_findings(self, service: Service, resolved) -> Tuple[List[dict], int]:
         """Emit a finding for each known CVE affecting one service.
 
         Takes the already-resolved CPE (see :meth:`analyze`) and queries the
-        CVE lookup. Returns an empty list when the service could not be
-        resolved to a concrete vendor/product/version.
+        CVE lookup.
+
+        En un servicio **visto en la red**, las CVEs se filtran por
+        componente (:func:`~.applicability.classify_cve_applicability`): las
+        que sólo afectan a un cliente (el ``ssh``, ``scp`` o ``ssh-agent`` de
+        un paquete OpenSSH) no se emiten, porque el atacante está al otro lado
+        del ``sshd`` que se ha visto; y las que sólo aplican con cierta opción
+        de configuración salen con su condición en el título y el ``check_id``
+        condicional, que ``score_finding`` limita a LOW. En el inventario de
+        Hygeia no se filtra nada: ahí el paquete está instalado en la máquina y
+        su cliente sí se puede usar contra un servidor malicioso.
+
+        Returns:
+            Tuple[List[dict], int]: Los hallazgos, y cuántas CVEs se
+                descartaron por ser sólo de cliente. ``([], 0)`` cuando el
+                servicio no resolvió a un vendor/producto/versión concretos.
         """
         if resolved is None:
-            return []
+            return [], 0
         vendor, product, version, cpe23 = resolved
+        is_network_service = service.origin != "inventory"
 
         findings: List[dict] = []
+        discarded = 0
         for cve in self._cve_lookup(vendor, product, version):  # type: ignore[misc]
-            findings.append(self._version_finding(service, cve, cpe23))
-        return findings
+            applicability = (
+                classify_cve_applicability(vendor, product, cve.cve_id,
+                                           getattr(cve, "description", "") or "")
+                if is_network_service else None)
+            if applicability and applicability[0] == "client":
+                discarded += 1
+                continue
+            finding = self._version_finding(service, cve, cpe23)
+            if applicability and applicability[0] == "condition":
+                finding["title"] += f" (sólo si: {applicability[1]})"
+                finding["check_id"] = CONDITIONAL_VERSION_CHECK_ID
+            findings.append(finding)
+        return findings, discarded
 
     def _version_finding(self, service: Service, cve, cpe23: str) -> dict:
         """Build a single version-match finding for a service and one CVE.
@@ -286,7 +316,8 @@ class LybraEngine:
             return service.label
         return f"{service.label} (upstream {upstream})"
 
-    def _informational_finding(self, service: Service, resolved) -> dict:
+    def _informational_finding(self, service: Service, resolved,
+                               discarded_client_cves: int = 0) -> dict:
         """Build the baseline informational finding for one service.
 
         A network-origin service is described as an open port, as before. An
@@ -299,6 +330,11 @@ class LybraEngine:
         whether the KB then had any matching CVE. Without it, "no detections"
         and "could not even identify the package" are indistinguishable in
         the data, which is exactly the ambiguity that motivated this column.
+
+        ``discarded_client_cves`` (por defecto 0) son las CVEs que el filtro de
+        componente descartó por ser sólo de cliente. Se dicen en el título del
+        puerto para que el descarte no sea invisible: quien compare el informe
+        con otra herramienta sabe dónde fueron.
         """
         if service.origin == "inventory" and service.port is None:
             title = f"Paquete instalado — {service.label}"
@@ -307,6 +343,8 @@ class LybraEngine:
             where = f"{service.port}/{service.protocol}" if service.port else service.protocol
             title = f"Puerto {where} abierto — {service.label}"
             category = "open_port"
+        if discarded_client_cves:
+            title += f" ({discarded_client_cves} CVE(s) sólo de cliente descartadas)"
         return {
             "title":        title,
             "category":     category,

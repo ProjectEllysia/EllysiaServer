@@ -36,6 +36,11 @@ from src.modules.shared import classify_exposure
 
 from .backports import is_unverified_distro_package
 
+#: El ``check_id`` de un hallazgo por versión cuya CVE sólo aplica con cierta
+#: configuración del servidor (ver ``applicability``). Vive aquí porque es la
+#: señal que :func:`score_finding` lee, y el motor la importa de aquí.
+CONDITIONAL_VERSION_CHECK_ID = "lybra:version-match-conditional@1"
+
 # The severity ladder, kept in one place so scoring and any future consumer agree
 # on the ordering.
 PRIORITY_LADDER = ["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"]
@@ -454,6 +459,10 @@ def score_finding(finding: dict, exposure: str) -> str:
       se limita a MEDIUM: la distribución puede haberlo corregido sin cambiar
       el número, y un CRITICAL que sólo se apoya en ese número encabezaría el
       informe con algo que nadie ha comprobado.
+    * Un hallazgo por versión cuya CVE sólo aplica con una opción concreta de
+      la configuración del servidor (``check_id`` =
+      :data:`CONDITIONAL_VERSION_CHECK_ID`) se limita a LOW: Lybra no puede
+      ver esa configuración desde fuera.
     * A private-LAN target caps the priority at HIGH, since it is not exposed to
       the internet.
 
@@ -480,6 +489,9 @@ def score_finding(finding: dict, exposure: str) -> str:
 
     if is_unverified_distro_package(finding):
         band = min(band, PRIORITY_LADDER.index("MEDIUM"))
+
+    if finding.get("check_id") == CONDITIONAL_VERSION_CHECK_ID:
+        band = min(band, PRIORITY_LADDER.index("LOW"))
 
     if exposure == "private":
         band = min(band, PRIORITY_LADDER.index("HIGH"))
