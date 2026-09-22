@@ -34,7 +34,7 @@ import socket
 import ssl
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Callable, Optional
+from typing import Callable, Dict, Optional
 
 from cryptography import x509
 from cryptography.x509.oid import NameOID
@@ -71,6 +71,33 @@ def _common_name(name: "x509.Name") -> Optional[str]:
     return str(attrs[0].value) if attrs else None
 
 
+def _read_ftp_reply(sock) -> str:
+    """Lee una respuesta FTP completa, incluidas las multilínea (``220-...`` hasta ``220 ...``)."""
+    buffer = b""
+    while True:
+        chunk = sock.recv(4096)
+        if not chunk:
+            return buffer.decode("latin-1", "ignore")
+        buffer += chunk
+        lines = buffer.decode("latin-1", "ignore").splitlines()
+        if lines and buffer.endswith(b"\n") and len(lines[-1]) >= 4 and lines[-1][3] == " ":
+            return "\n".join(lines)
+
+
+def _upgrade_ftp(sock) -> bool:
+    """Pide ``AUTH TLS`` tras el saludo FTP; ``True`` si el servidor acepta (``234``)."""
+    try:
+        _read_ftp_reply(sock)
+        sock.sendall(b"AUTH TLS\r\n")
+        return _read_ftp_reply(sock).rsplit("\n", 1)[-1].startswith("234")
+    except OSError:
+        return False
+
+
+#: Cómo pasar a TLS cada protocolo que cifra a mitad de sesión.
+_STARTTLS_UPGRADES: Dict[str, Callable] = {"ftp": _upgrade_ftp}
+
+
 class TlsProbe:
     """Performs a single, unverified TLS handshake to read protocol and cert.
 
@@ -88,15 +115,20 @@ class TlsProbe:
         self._timeout = timeout
         self._connect = connect or socket.create_connection
 
-    def fetch(self, host: str, port: int) -> Optional[TlsInfo]:
+    def fetch(self, host: str, port: int, starttls: Optional[str] = None) -> Optional[TlsInfo]:
         """Handshake with ``host:port`` and return the certificate's hygiene facts.
 
         Args:
             host: The target host.
             port: The target port.
+            starttls: El protocolo en claro que hay que hablar antes de pasar a
+                TLS, para los servicios que cifran a mitad de sesión en vez de
+                desde el primer byte. Hoy sólo ``"ftp"`` (``AUTH TLS``, RFC
+                4217). Por defecto ``None``: TLS desde el primer byte.
 
         Returns:
-            A :class:`TlsInfo`, or ``None`` on any connection/handshake failure.
+            A :class:`TlsInfo`, or ``None`` on any connection/handshake failure
+            — incluido un servidor que rechaza el ``AUTH TLS``.
         """
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         context.check_hostname = False
@@ -105,6 +137,10 @@ class TlsProbe:
             sock = self._connect((host, port), self._timeout)
         except OSError as err:
             logger.debug("TLS connect failed for %s:%s: %s", host, port, err)
+            return None
+        if starttls is not None and not _STARTTLS_UPGRADES[starttls](sock):
+            logger.debug("STARTTLS (%s) rejected by %s:%s", starttls, host, port)
+            sock.close()
             return None
         try:
             with context.wrap_socket(sock, server_hostname=host) as tls_sock:

@@ -71,7 +71,8 @@ logger = logging.getLogger(__name__)
 # decir cuál de las dos formas lo produjo.
 # checks-18: SSH, el primer protocolo cuyos checks leen el ``KEXINIT``, y
 # ``refutes``, la primera conclusión negativa del esquema.
-CHECKS_FEED_VERSION = "lybra-checks-18"
+# checks-19: TLS a mitad de sesión (AUTH TLS de FTP) y el login FTP en claro.
+CHECKS_FEED_VERSION = "lybra-checks-19"
 # Quality of Detection for a finding a check actively confirmed, as opposed to
 # one merely inferred from a version.
 QOD_CONFIRMED = 99
@@ -1351,7 +1352,8 @@ class CheckRuntime:
                 run_check=self._run_check,
             ),
             _CheckFamily(
-                applies_to_service=lambda service: self._tls_fetch is not None and is_tls_service(service),
+                applies_to_service=lambda service: self._tls_fetch is not None and (
+                    is_tls_service(service) or is_ftp_service(service)),
                 check_matches=lambda check, service: self._applies_tls(check),
                 run_check=self._run_tls_check,
             ),
@@ -1672,7 +1674,14 @@ class CheckRuntime:
             return self._handshakes[key]
         if self._rl is not None:
             self._rl.acquire(host)
-        info = self._tls_fetch(host, service.port)
+        # Un FTP en claro cifra a mitad de sesión (AUTH TLS): su certificado,
+        # su versión y su cifrado se auditan igual que los de un HTTPS, pero
+        # hay que pedirlo primero. El 990 es FTPS implícito, TLS desde el
+        # primer byte.
+        if is_ftp_service(service) and not is_tls_service(service) and service.port != 990:
+            info = self._tls_fetch(host, service.port, starttls="ftp")
+        else:
+            info = self._tls_fetch(host, service.port)
         self._handshakes[key] = info
         return info
 
