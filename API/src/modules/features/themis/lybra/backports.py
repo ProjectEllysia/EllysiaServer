@@ -59,6 +59,39 @@ _DISTRO_PACKAGE_FOR_PRODUCT = {
 ReleaseLookup = Callable[[str, str, str], Optional[str]]
 
 
+def is_unverified_distro_package(finding: dict) -> bool:
+    """Si un hallazgo por versión es de un paquete de distribución que nadie contrastó.
+
+    Es el caso en que la versión visible no demuestra nada: la distribución
+    puede haber corregido la CVE sin cambiar el número (un *backport*), y la
+    verificación con su feed no llegó a pronunciarse —porque el feed falta,
+    está caducado o no reconoce la release—. Si se hubiera pronunciado, el
+    hallazgo ya no estaría así: sería ``fixed`` o estaría confirmado.
+
+    Se decide con lo que el hallazgo guarda (su CPE, su versión instalada o su
+    título), así que sirve igual al puntuar un escaneo recién hecho que al
+    leerlo meses después.
+
+    Args:
+        finding: Un hallazgo, recién producido o leído de la base de datos.
+
+    Returns:
+        bool: ``True`` si es un ``outdated_software`` con CVE, sin confirmar,
+            no resuelto por un backport, y cuya versión lleva la firma de una
+            distribución. ``False`` en cualquier otro caso, incluido un binario
+            compilado a mano (sin distribución, la versión sí es la que se ve).
+    """
+    if finding.get("category") != "outdated_software" or not finding.get("cve_ids"):
+        return False
+    if finding.get("confirmed") or finding.get("state") == "fixed":
+        return False
+    if finding.get("check_id") == BACKPORT_CHECK_ID:
+        return False
+    parsed = parse_cpe23(finding.get("cpe") or "") or {}
+    version = finding.get("_installed_version") or parsed.get("version") or ""
+    return infer_distro_release(version, finding.get("title") or "") is not None
+
+
 def apply_backport_verdicts(
     findings: List[dict],
     status_lookup: Callable[[str, Optional[str], str, str], Optional[PackageStatus]],

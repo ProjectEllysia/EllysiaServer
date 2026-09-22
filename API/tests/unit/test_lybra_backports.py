@@ -207,3 +207,28 @@ def test_the_ubuntu_release_is_deduced_when_the_revision_does_not_name_it():
 def test_without_a_release_the_ubuntu_advisory_is_not_found():
     findings = apply_backport_verdicts([dict(_REGRESSHION)], _ubuntu_feed)
     assert findings[0]["state"] == "open"
+
+
+# ───────────────────────────────── lo que nadie pudo contrastar
+
+from src.modules.features.themis.lybra.backports import is_unverified_distro_package  # noqa: E402
+
+
+@pytest.mark.parametrize("overrides,expected", [
+    ({}, True),                                                        # Ubuntu, sin pronunciamiento
+    ({"cpe": "cpe:2.3:a:openbsd:openssh:9.6p1:*:*:*:*:*:*:*",
+      "title": "OpenSSH 9.6p1 — CVE-2024-6387", "_installed_version": ""}, False),  # compilado a mano
+    ({"confirmed": True}, False),                                      # el proveedor dijo vulnerable
+    ({"state": "fixed"}, False),                                       # el proveedor lo desmintió
+    ({"check_id": BACKPORT_CHECK_ID}, False),
+    ({"category": "exposed_path"}, False),
+    ({"cve_ids": []}, False),
+])
+def test_a_distro_package_without_a_verdict_is_unverified(overrides, expected):
+    assert is_unverified_distro_package(dict(_REGRESSHION, **overrides)) is expected
+
+
+def test_the_signal_survives_a_round_trip_through_the_database():
+    """Leído de la base de datos no hay `_installed_version`: basta el CPE."""
+    stored = {k: v for k, v in _REGRESSHION.items() if not k.startswith("_")}
+    assert is_unverified_distro_package(stored) is True

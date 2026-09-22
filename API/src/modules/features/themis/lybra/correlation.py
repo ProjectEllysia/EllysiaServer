@@ -34,6 +34,8 @@ from typing import Dict, List, Optional, Tuple
 
 from src.modules.shared import classify_exposure
 
+from .backports import is_unverified_distro_package
+
 # The severity ladder, kept in one place so scoring and any future consumer agree
 # on the ordering.
 PRIORITY_LADDER = ["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"]
@@ -447,6 +449,11 @@ def score_finding(finding: dict, exposure: str) -> str:
       OS — is exactly the false-positive pattern this cap closes. A
       confirmed finding (Hygeia inventory, where the host's own OS is already
       known) is exempt.
+    * Un hallazgo por versión de un paquete de distribución que la verificación
+      de backports no pudo contrastar (:func:`~.backports.is_unverified_distro_package`)
+      se limita a MEDIUM: la distribución puede haberlo corregido sin cambiar
+      el número, y un CRITICAL que sólo se apoya en ese número encabezaría el
+      informe con algo que nadie ha comprobado.
     * A private-LAN target caps the priority at HIGH, since it is not exposed to
       the internet.
 
@@ -469,6 +476,9 @@ def score_finding(finding: dict, exposure: str) -> str:
         band = max(band, PRIORITY_LADDER.index("MEDIUM"))
 
     if finding.get("required_os") and not finding.get("confirmed"):
+        band = min(band, PRIORITY_LADDER.index("MEDIUM"))
+
+    if is_unverified_distro_package(finding):
         band = min(band, PRIORITY_LADDER.index("MEDIUM"))
 
     if exposure == "private":
