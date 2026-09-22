@@ -29,7 +29,7 @@ _CVE = "CVE-2021-41773"
 _TRAVERSAL_PATH = "/cgi-bin/.%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd"
 
 
-def _vulnerable_fetch(host, port, method, path):
+def _vulnerable_fetch(host, port, method, path, _body=None, _headers=None):
     """Un Apache 2.4.49 que sirve /etc/passwd por la ruta vulnerable."""
     if path == _TRAVERSAL_PATH:
         return Response(200, "root:x:0:0:root:/root:/bin/bash\n", {})
@@ -64,7 +64,7 @@ def test_a_confirmer_whose_cve_was_proposed_but_target_is_safe_does_not_fire():
     """Propuesta la CVE, pero el objetivo NO es vulnerable (ya parcheado): el
     confirmador corre y no dispara. Es justamente el falso positivo por backport
     que este mecanismo existe para descartar."""
-    def patched_fetch(host, port, method, path):
+    def patched_fetch(host, port, method, path, _body=None, _headers=None):
         return Response(404, "Not Found", {})       # la ruta ya no traversa
 
     fired = _fired(patched_fetch, proposed_cves={_CVE})

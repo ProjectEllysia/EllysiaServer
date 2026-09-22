@@ -25,7 +25,7 @@ _CHECKS = load_checks()
 
 
 def _fetch(by_path):
-    def fetch(host, port, method, path):
+    def fetch(host, port, method, path, _body=None, _headers=None):
         return by_path.get(path, Response(404, "", {}))
     return fetch
 
@@ -137,3 +137,54 @@ def test_a_non_session_cookie_is_not_flagged():
     preferencia de idioma, por ejemplo) sin Secure no es un hallazgo."""
     other = Response(200, "<html>", {"set-cookie": "lang=es; Path=/"})
     assert "session-cookie-without-secure" not in _fired({"/": other})
+
+
+# ================================ criterio de las cabeceras (contraste de campo)
+
+
+def _https(headers, body="<html>"):
+    return Response(200, body, headers, url="https://h/", requested_scheme="https")
+
+
+def test_joomlas_hex_named_session_cookie_is_recognised():
+    """Joomla llama a su cookie de sesión con 32 caracteres hexadecimales."""
+    cookie = {"set-cookie": "3e45507a9471bd104ea38b2a131f0ef2=abc; Path=/"}
+    fired = _fired({"/": _https(cookie)})
+    assert {"session-cookie-without-secure", "session-cookie-without-httponly",
+            "session-cookie-without-samesite"} <= fired
+
+
+def test_a_hardened_session_cookie_raises_nothing():
+    cookie = {"set-cookie": "PHPSESSID=abc; Secure; HttpOnly; SameSite=Lax; Path=/"}
+    fired = _fired({"/": _https(cookie)})
+    assert not fired & {"session-cookie-without-secure", "session-cookie-without-httponly",
+                        "session-cookie-without-samesite"}
+
+
+@pytest.mark.parametrize("max_age,weak", [("60", True), ("15551999", True),
+                                           ("15552000", False), ("63072000", False)])
+def test_a_short_hsts_max_age_is_flagged(max_age, weak):
+    fired = _fired({"/": _https({"strict-transport-security": f"max-age={max_age}"})})
+    assert ("hsts-weak-max-age" in fired) is weak
+
+
+def test_x_frame_options_without_frame_ancestors_is_called_deprecated():
+    assert "x-frame-options-deprecated" in _fired({"/": _https({"x-frame-options": "SAMEORIGIN"})})
+    modern = {"x-frame-options": "SAMEORIGIN", "content-security-policy": "frame-ancestors 'self'"}
+    assert "x-frame-options-deprecated" not in _fired({"/": _https(modern)})
+
+
+@pytest.mark.parametrize("headers,leaks", [
+    ({"x-powered-by": "PHP/8.3.33"}, True),
+    ({"server": "nginx/1.18.0"}, True),
+    ({"server": "nginx"}, False),
+    ({"x-powered-by": "PleskLin"}, False),
+])
+def test_a_versioned_software_header_is_a_disclosure(headers, leaks):
+    assert ("http-version-disclosure" in _fired({"/": _https(headers)})) is leaks
+
+
+def test_compression_over_https_with_cookies_is_a_possible_breach():
+    compressed = {"content-encoding": "gzip", "set-cookie": "sid=1"}
+    assert "http-compression-breach" in _fired({"/": _https(compressed)})
+    assert "http-compression-breach" not in _fired({"/": _https({"content-encoding": "gzip"})})

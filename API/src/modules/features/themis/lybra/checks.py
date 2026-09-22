@@ -45,6 +45,7 @@ import ssl
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -73,7 +74,9 @@ logger = logging.getLogger(__name__)
 # ``refutes``, la primera conclusión negativa del esquema.
 # checks-19: TLS a mitad de sesión (AUTH TLS de FTP) y el login FTP en claro.
 # checks-20: el certificado contra el nombre pedido (escaneo por nombre de host).
-CHECKS_FEED_VERSION = "lybra-checks-20"
+# checks-21: las partes url/transport del DSL y el criterio de las cabeceras
+# (HSTS sólo sobre HTTPS, sin evaluar redirecciones, valores y fugas).
+CHECKS_FEED_VERSION = "lybra-checks-21"
 # Quality of Detection for a finding a check actively confirmed, as opposed to
 # one merely inferred from a version.
 QOD_CONFIRMED = 99
@@ -214,10 +217,16 @@ class Response:
         status: The HTTP status code.
         body: The response body, decoded to text.
         headers: The response headers, with their keys lowercased.
+        url: La URL final, tras las redirecciones que se hayan seguido. Vacía
+            si no se sabe (un doble de test que no la rellena).
+        requested_scheme: El esquema con el que se pidió (``"http"`` o
+            ``"https"``), o vacío si no se sabe.
     """
     status: int
     body: str
     headers: Dict[str, str]
+    url: str = ""
+    requested_scheme: str = ""
 
 
 @dataclass(frozen=True)
@@ -271,15 +280,25 @@ class Matcher:
 
 
 def _part_text(response: Response, part: str) -> str:
-    """Return the text of a response ``part`` — ``body``, ``header`` or ``status``.
+    """Return the text of a response ``part``.
 
-    Shared by :class:`Matcher` and :class:`Extractor` so both name the same
-    three parts the same way; an unknown part falls back to the body.
+    Shared by :class:`Matcher` and :class:`Extractor` so both name the parts
+    the same way; an unknown part falls back to the body. Las partes son
+    ``body``, ``header``, ``status``, ``url`` (la URL final, tras las
+    redirecciones) y ``transport``: ``"<pedido>-><final>"``, p. ej.
+    ``"http->https"`` para un puerto en claro que redirige a HTTPS. Es lo que
+    deja a un check de cabeceras decir «sólo sobre HTTPS» o «no sobre una
+    redirección», que la presencia de una cabecera no puede expresar.
     """
     if part == "header":
         return "\n".join(f"{name}: {value}" for name, value in response.headers.items())
     if part == "status":
         return str(response.status)
+    if part == "url":
+        return response.url
+    if part == "transport":
+        final_scheme = urllib.parse.urlsplit(response.url).scheme if response.url else ""
+        return f"{response.requested_scheme}->{final_scheme}"
     return response.body
 
 
@@ -732,7 +751,7 @@ MATCHER_TYPES = ("status", "word", "regex")
 # Las partes de la respuesta que ``Matcher._part_text`` sabe leer. Una parte
 # desconocida cae en el defecto (``body``), así que un ``part: "headers"`` en
 # plural busca en el cuerpo y nunca encuentra la cabecera.
-MATCHER_PARTS = ("body", "header", "status")
+MATCHER_PARTS = ("body", "header", "status", "url", "transport")
 
 
 # Forma de un identificador CVE, para validar el campo ``confirms``.
@@ -1991,8 +2010,8 @@ class HttpProbe:
         result = self._request(host, port, method, path, body, headers)
         if result is None:
             return None
-        status, response_body, response_headers = result
-        return self._to_response(status, response_body, response_headers)
+        status, response_body, response_headers, final_url, scheme = result
+        return self._to_response(status, response_body, response_headers, final_url, scheme)
 
     def fetch_bytes(self, host: str, port: Optional[int], path: str) -> Optional[bytes]:
         """Fetch raw bytes for binary content such as a favicon.
@@ -2012,14 +2031,14 @@ class HttpProbe:
         result = self._request(host, port, "GET", path)
         if result is None:
             return None
-        status, body, _headers = result
+        status, body = result[0], result[1]
         return body if status == 200 else None
 
     def _request(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self, host: str, port: Optional[int], method: str, path: str,
         body: Optional[str] = None, headers: Optional[Dict[str, str]] = None,
     ) -> Optional[tuple]:
-        """Perform the raw HTTP request, returning ``(status, body, headers)``.
+        """Perform the raw HTTP request, returning ``(status, body, headers, final_url, scheme)``.
 
         A 4xx/5xx is returned normally; only a transport failure returns ``None``.
         HTTPS uses an unverified TLS context, since we are scanning arbitrary
@@ -2039,10 +2058,11 @@ class HttpProbe:
         try:
             request = urllib.request.Request(url, method=method, headers=request_headers, data=data)
             with self._opener.open(request, timeout=self._timeout) as response:
-                return response.status, response.read(self._max_bytes), dict(response.headers)
+                return (response.status, response.read(self._max_bytes), dict(response.headers),
+                        response.geturl(), scheme)
         except urllib.error.HTTPError as err:
             body = err.read(self._max_bytes) if hasattr(err, "read") else b""
-            return err.code, body, dict(err.headers or {})
+            return err.code, body, dict(err.headers or {}), getattr(err, "url", url) or url, scheme
         except Exception as err:  # noqa: BLE001 - transport failure: abandon this check
             logger.debug("HTTP probe failed for %s: %s", url, err)
             return None
@@ -2062,11 +2082,13 @@ class HttpProbe:
         return self._schemes[key]
 
     @staticmethod
-    def _to_response(status: int, body: bytes, headers) -> Response:
+    def _to_response(status: int, body: bytes, headers, url: str = "",
+                     requested_scheme: str = "") -> Response:
         """Assemble a :class:`Response` from raw request parts, lowercasing headers."""
         text = body.decode("utf-8", "replace") if isinstance(body, bytes) else str(body)
         header_map = {str(k).lower(): str(v) for k, v in dict(headers).items()}
-        return Response(status=status, body=text, headers=header_map)
+        return Response(status=status, body=text, headers=header_map, url=url,
+                        requested_scheme=requested_scheme)
 
 
 # =========================================================================
