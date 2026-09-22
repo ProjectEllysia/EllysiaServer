@@ -206,14 +206,17 @@ def test_the_response_cache_is_keyed_per_service_so_threads_never_collide():
 
     requested = []
 
-    def fetch(_host, port, method, path):
-        requested.append((port, method, path))
+    def fetch(_host, port, method, path, _body=None, _headers=None):
+        # Las cabeceras forman parte de la clave de la caché: la misma ruta
+        # pedida con otras cabeceras (el check BREACH, con Accept-Encoding) es
+        # otra sonda.
+        requested.append((port, method, path, tuple(sorted((_headers or {}).items()))))
         return Response(404, "", {})
 
     runtime = CheckRuntime(load_checks(), fetch, mode="safe")
     runtime.run("10.0.0.5", _services(2))
 
-    ports = {port for port, _method, _path in requested}
+    ports = {port for port, _method, _path, _headers in requested}
     assert ports == {8000, 8001}
     # Ninguna combinación (puerto, método, ruta) se pide dos veces: la caché
     # sigue haciendo su trabajo dentro de cada servicio.

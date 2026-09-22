@@ -664,7 +664,7 @@ def test_lybra_active_check_persists_confirmed_finding(app, admin_user, monkeypa
 
     monkeypatch.setattr(CR, "lybra_config", lambda: CR.LybraConfig(active_checks=True))
 
-    def fake_fetch(self, host, port, method, path):
+    def fake_fetch(self, host, port, method, path, body=None, headers=None):
         if path == "/.git/config":
             return Response(200, "[core]\n\trepositoryformatversion = 0\n", {})
         return Response(404, "", {})
@@ -913,7 +913,7 @@ def test_lybra_fingerprinting_identifies_the_service_on_its_own(app, admin_user,
 
     monkeypatch.setattr(CR, "lybra_config", lambda: CR.LybraConfig(fingerprinting_enabled=True))
 
-    def fake_fetch(self, host, port, method, path):
+    def fake_fetch(self, host, port, method, path, body=None, headers=None):
         return Response(200, "<html><title>It works</title></html>",
                         {"server": "Apache/2.4.49 (Unix)"})
     monkeypatch.setattr(HttpProbe, "fetch", fake_fetch)
@@ -942,7 +942,7 @@ def test_lybra_fingerprinting_identifies_the_service_on_its_own(app, admin_user,
 def _stub_apache_http_probe(monkeypatch, version: str = "2.4.49") -> None:
     from src.modules.features.themis.lybra.checks import HttpProbe, Response
 
-    def fake_fetch(self, host, port, method, path):
+    def fake_fetch(self, host, port, method, path, body=None, headers=None):
         return Response(200, "<html><title>It works</title></html>",
                         {"server": f"Apache/{version} (Unix)"})
     monkeypatch.setattr(HttpProbe, "fetch", fake_fetch)
@@ -1197,7 +1197,7 @@ def test_lybra_fingerprint_fills_cpe_gap_for_self_discovery(app, admin_user, mon
                         lambda self, target, ports, **_kwargs: _sweep([80]))
     monkeypatch.setattr(LybraEngineManager, "_discover_udp_ports", lambda self, target: [])
 
-    def fake_fetch(self, host, port, method, path):
+    def fake_fetch(self, host, port, method, path, body=None, headers=None):
         return Response(200, "<html><title>It works</title></html>",
                         {"server": "Apache/2.4.49 (Unix)"})
     monkeypatch.setattr(HttpProbe, "fetch", fake_fetch)
@@ -1895,7 +1895,7 @@ def test_a_confirmed_http_finding_stores_its_redacted_evidence(monkeypatch, app,
     # El objetivo expone /.git/config y manda una cookie de sesión.
     monkeypatch.setattr(
         "src.modules.features.themis.lybra.checks.HttpProbe.fetch",
-        lambda self, host, port, method, path:
+        lambda self, host, port, method, path, body=None, headers=None:
             Response(200, "[core]\n\trepositoryformatversion = 0\n",
                      {"Server": "nginx", "Set-Cookie": "PHPSESSID=secret; HttpOnly"})
             if path == "/.git/config" else Response(404, "", {}))
@@ -1933,7 +1933,7 @@ def test_the_evidence_endpoint_returns_own_findings_and_404s_for_others(
     _stub_self_discovery(monkeypatch, [80])
     monkeypatch.setattr(
         "src.modules.features.themis.lybra.checks.HttpProbe.fetch",
-        lambda self, host, port, method, path:
+        lambda self, host, port, method, path, body=None, headers=None:
             Response(200, "[core]\n\trepositoryformatversion = 0\n", {"Server": "nginx"})
             if path == "/.git/config" else Response(404, "", {}))
     monkeypatch.setattr(LybraEngineManager, "_fingerprint_services",
@@ -1993,7 +1993,7 @@ def test_a_confirmer_promotes_a_hypothesis_end_to_end(monkeypatch, app, admin_us
     traversal = "/cgi-bin/.%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd"
     monkeypatch.setattr(
         "src.modules.features.themis.lybra.checks.HttpProbe.fetch",
-        lambda self, host, port, method, path:
+        lambda self, host, port, method, path, body=None, headers=None:
             Response(200, "root:x:0:0:root:/root:/bin/bash\n", {})
             if path == traversal else Response(404, "", {}))
 

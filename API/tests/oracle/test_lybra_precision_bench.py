@@ -401,7 +401,7 @@ _CATALOGUE = (
         # Manda X-Frame-Options y nada más, así que espera todo el resto de
         # la familia. Se calcula restando en vez de enumerarse, para que crezca
         # sola con el feed.
-        expected=_HEADERS - {"lybra:missing-x-frame-options-header@1"},
+        expected=_HEADERS - {"lybra:missing-x-frame-options-header@2"},
     ),
     Target(
         name="nginx-redirige",

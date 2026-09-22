@@ -8,7 +8,7 @@
 # feedVersion sube cuando el feed gana una familia nueva o un protocolo nuevo
 # bajo una existente; el arreglo de un check ya presente sube el 'version' de
 # ese check, no esta cadena. Ver CHECKS_FEED_VERSION en checks.py.
-feedVersion: lybra-checks-20
+feedVersion: lybra-checks-21
 checks:
   - id: git-config-exposure
     version: 1
@@ -177,7 +177,7 @@ checks:
       qod: 99
       confirmed: true
   - id: missing-hsts-header
-    version: 1
+    version: 2
     type: http
     category: security_header
     severity: MEDIUM
@@ -188,6 +188,12 @@ checks:
         path: /
         matchers-condition: and
         matchers:
+          # HSTS sólo tiene efecto recibida por HTTPS (RFC 6797 §8.1): por HTTP
+          # en claro el navegador la ignora, así que exigirla ahí es un error.
+          - type: regex
+            part: transport
+            regex:
+              - '->https$'
           - type: status
             value:
               - 200
@@ -203,7 +209,7 @@ checks:
       qod: 99
       confirmed: true
   - id: missing-x-frame-options-header
-    version: 1
+    version: 2
     type: http
     category: security_header
     severity: MEDIUM
@@ -214,6 +220,13 @@ checks:
         path: /
         matchers-condition: and
         matchers:
+          # Un puerto en claro que redirige a HTTPS no sirve ninguna página: sus
+          # cabeceras se evalúan en el servicio HTTPS, no aquí por duplicado.
+          - type: word
+            part: transport
+            words:
+              - http->https
+            negative: true
           - type: status
             value:
               - 200
@@ -229,7 +242,7 @@ checks:
       qod: 99
       confirmed: true
   - id: missing-x-content-type-options-header
-    version: 1
+    version: 2
     type: http
     category: security_header
     severity: LOW
@@ -240,6 +253,13 @@ checks:
         path: /
         matchers-condition: and
         matchers:
+          # Un puerto en claro que redirige a HTTPS no sirve ninguna página: sus
+          # cabeceras se evalúan en el servicio HTTPS, no aquí por duplicado.
+          - type: word
+            part: transport
+            words:
+              - http->https
+            negative: true
           - type: status
             value:
               - 200
@@ -1119,7 +1139,7 @@ checks:
       confirmed: true
   # ---- Cabeceras de seguridad ausentes (las que hoy no se miran) ------
   - id: missing-csp-header
-    version: 1
+    version: 2
     type: http
     category: security_header
     severity: MEDIUM
@@ -1130,6 +1150,13 @@ checks:
         path: /
         matchers-condition: and
         matchers:
+          # Un puerto en claro que redirige a HTTPS no sirve ninguna página: sus
+          # cabeceras se evalúan en el servicio HTTPS, no aquí por duplicado.
+          - type: word
+            part: transport
+            words:
+              - http->https
+            negative: true
           - type: status
             value:
               - 200
@@ -1145,7 +1172,7 @@ checks:
       qod: 99
       confirmed: true
   - id: missing-referrer-policy-header
-    version: 1
+    version: 2
     type: http
     category: security_header
     severity: LOW
@@ -1156,6 +1183,13 @@ checks:
         path: /
         matchers-condition: and
         matchers:
+          # Un puerto en claro que redirige a HTTPS no sirve ninguna página: sus
+          # cabeceras se evalúan en el servicio HTTPS, no aquí por duplicado.
+          - type: word
+            part: transport
+            words:
+              - http->https
+            negative: true
           - type: status
             value:
               - 200
@@ -1171,7 +1205,7 @@ checks:
       qod: 99
       confirmed: true
   - id: missing-permissions-policy-header
-    version: 1
+    version: 2
     type: http
     category: security_header
     severity: LOW
@@ -1182,6 +1216,13 @@ checks:
         path: /
         matchers-condition: and
         matchers:
+          # Un puerto en claro que redirige a HTTPS no sirve ninguna página: sus
+          # cabeceras se evalúan en el servicio HTTPS, no aquí por duplicado.
+          - type: word
+            part: transport
+            words:
+              - http->https
+            negative: true
           - type: status
             value:
               - 200
@@ -1215,6 +1256,29 @@ checks:
   # cookie de sesión típica, y NO contiene "secure" — las tres condiciones en un
   # solo patrón para no depender del orden ni de matchers negativos separados.
   - id: session-cookie-without-secure
+    version: 2
+    type: http
+    category: security_header
+    severity: MEDIUM
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /
+        matchers-condition: and
+        matchers:
+          - type: regex
+            part: header
+            regex:
+              - '(?im)^set-cookie:\s*(?:PHPSESSID|JSESSIONID|ASP\.NET_SessionId|laravel_session|session|sessionid|connect\.sid|[0-9a-f]{32})=(?:(?!;\s*secure).)*$'
+    finding:
+      title: Cookie de sesion sin el atributo Secure
+      qod: 99
+      confirmed: true
+  # Las mismas cookies de sesión, sin HttpOnly (legibles desde JavaScript,
+  # y por tanto robables con un XSS) o sin SameSite (enviadas en peticiones
+  # de otros sitios, la base de un CSRF).
+  - id: session-cookie-without-httponly
     version: 1
     type: http
     category: security_header
@@ -1229,11 +1293,165 @@ checks:
           - type: regex
             part: header
             regex:
-              - '(?im)^set-cookie:\s*(?:PHPSESSID|JSESSIONID|ASP\.NET_SessionId|laravel_session|session|sessionid|connect\.sid)=(?:(?!;\s*secure).)*$'
+              - '(?im)^set-cookie:\s*(?:PHPSESSID|JSESSIONID|ASP\.NET_SessionId|laravel_session|session|sessionid|connect\.sid|[0-9a-f]{32})=(?:(?!;\s*httponly).)*$'
     finding:
-      title: Cookie de sesion sin el atributo Secure
+      title: Cookie de sesion sin el atributo HttpOnly
       qod: 99
       confirmed: true
+  - id: session-cookie-without-samesite
+    version: 1
+    type: http
+    category: security_header
+    severity: LOW
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /
+        matchers-condition: and
+        matchers:
+          - type: regex
+            part: header
+            regex:
+              - '(?im)^set-cookie:\s*(?:PHPSESSID|JSESSIONID|ASP\.NET_SessionId|laravel_session|session|sessionid|connect\.sid|[0-9a-f]{32})=(?:(?!;\s*samesite).)*$'
+    finding:
+      title: Cookie de sesion sin el atributo SameSite
+      qod: 99
+      confirmed: true
+  # Un puerto en claro que sirve la página en vez de redirigir a HTTPS: todo
+  # lo que viaja por él (cookies de sesión incluidas) va en claro.
+  - id: http-no-https-redirect
+    version: 1
+    type: http
+    category: security_header
+    severity: LOW
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: regex
+            part: transport
+            regex:
+              - '^http->http$'
+    finding:
+      title: El sitio se sirve por HTTP sin redirigir a HTTPS
+      qod: 99
+      confirmed: true
+  # HSTS con un max-age de menos de seis meses (15552000 s): protege tan poco
+  # tiempo que un primer acceso por HTTP vuelve a quedar expuesto enseguida.
+  - id: hsts-weak-max-age
+    version: 1
+    type: http
+    category: security_header
+    severity: LOW
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /
+        matchers-condition: and
+        matchers:
+          - type: regex
+            part: transport
+            regex:
+              - '->https$'
+          - type: regex
+            part: header
+            regex:
+              - '(?im)^strict-transport-security:.*max-age=(?:\d{1,7}|1[0-4]\d{6}|15[0-4]\d{5}|155[0-4]\d{4}|1555[01]\d{3})\b'
+    finding:
+      title: HSTS con un max-age de menos de seis meses
+      qod: 99
+      confirmed: true
+  # X-Frame-Options está obsoleta: su sustituto es la directiva
+  # frame-ancestors de la CSP. Sólo se avisa si la CSP no la trae.
+  - id: x-frame-options-deprecated
+    version: 1
+    type: http
+    category: security_header
+    severity: INFO
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /
+        matchers-condition: and
+        matchers:
+          - type: regex
+            part: header
+            regex:
+              - '(?im)^x-frame-options:'
+          - type: regex
+            part: header
+            regex:
+              - '(?im)^content-security-policy:.*frame-ancestors'
+            negative: true
+    finding:
+      title: X-Frame-Options sin frame-ancestors en la CSP (cabecera obsoleta)
+      qod: 99
+      confirmed: true
+  # Cabeceras que regalan la versión exacta del software (X-Powered-By:
+  # PHP/8.3.33, Server: nginx/1.18.0): acortan el trabajo de quien busca un
+  # exploit para esa versión.
+  - id: http-version-disclosure
+    version: 1
+    type: http
+    category: security_header
+    severity: LOW
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /
+        matchers-condition: and
+        matchers:
+          - type: regex
+            part: header
+            regex:
+              - '(?im)^(?:x-powered-by|server|x-aspnet-version|x-aspnetmvc-version):[^\n]*\d+\.\d+'
+    finding:
+      title: Las cabeceras HTTP revelan la versión del software
+      qod: 99
+      confirmed: true
+  # BREACH: compresión HTTP sobre HTTPS en una respuesta que pone cookies.
+  # Comparando tamaños de respuestas comprimidas se pueden deducir secretos
+  # de la página. Se pide con Accept-Encoding porque urllib no lo envía.
+  - id: http-compression-breach
+    version: 1
+    type: http
+    category: security_header
+    severity: LOW
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /
+        headers:
+          Accept-Encoding: gzip, deflate, br
+        matchers-condition: and
+        matchers:
+          - type: regex
+            part: transport
+            regex:
+              - '->https$'
+          - type: regex
+            part: header
+            regex:
+              - '(?im)^content-encoding:\s*(?:gzip|deflate|br)'
+          - type: regex
+            part: header
+            regex:
+              - '(?im)^set-cookie:'
+    finding:
+      title: Compresión HTTP sobre HTTPS con cookies (posible BREACH)
+      qod: 70
+      confirmed: false
   # ===================================================================
   # Checks de configuración de red que la Fase N prometió (L26). Cierran
   # la parte de la brecha G1 que no se resuelve escribiendo ojos: una

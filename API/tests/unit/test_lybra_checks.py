@@ -37,7 +37,7 @@ def _fetcher(by_path):
     """Fake fetch: returns the Response mapped to the requested path (or a 404)."""
     calls = []
 
-    def fetch(host, port, method, path):
+    def fetch(host, port, method, path, _body=None, _headers=None):
         calls.append((host, port, method, path))
         return by_path.get(path, Response(404, "", {}))
 
@@ -79,16 +79,40 @@ def test_git_config_not_exposed_gives_no_finding():
     assert not any(f["check_id"].startswith("lybra:git-config") for f in findings)
 
 
+_HTTPS_PAGE = {"url": "https://h/", "requested_scheme": "https"}
+
+
 def test_missing_hsts_detected_and_absent_when_present():
-    # No HSTS header on "/" -> negative header matcher fires.
-    fetch_missing = _fetcher({"/": Response(200, "<html>", {})})
+    # No HSTS header on an HTTPS "/" -> negative header matcher fires.
+    fetch_missing = _fetcher({"/": Response(200, "<html>", {}, **_HTTPS_PAGE)})
     missing = CheckRuntime(load_checks(), fetch_missing).run("h", [_HTTP])
-    assert any(f["check_id"] == "lybra:missing-hsts-header@1" for f in missing)
+    assert any(f["check_id"] == "lybra:missing-hsts-header@2" for f in missing)
 
     # HSTS present -> negative matcher does not fire -> no finding.
-    fetch_present = _fetcher({"/": Response(200, "<html>", {"strict-transport-security": "max-age=63072000"})})
+    fetch_present = _fetcher({"/": Response(200, "<html>", {"strict-transport-security": "max-age=63072000"},
+                                            **_HTTPS_PAGE)})
     present = CheckRuntime(load_checks(), fetch_present).run("h", [_HTTP])
-    assert not any(f["check_id"] == "lybra:missing-hsts-header@1" for f in present)
+    assert not any(f["check_id"] == "lybra:missing-hsts-header@2" for f in present)
+
+
+def test_hsts_is_never_required_over_plain_http():
+    """RFC 6797 §8.1: el navegador ignora HSTS recibida por HTTP en claro."""
+    plain = _fetcher({"/": Response(200, "<html>", {}, url="http://h/", requested_scheme="http")})
+    findings = CheckRuntime(load_checks(), plain).run("h", [_HTTP])
+    assert not any(f["check_id"].startswith("lybra:missing-hsts-header") for f in findings)
+    # Lo que sí se dice de un HTTP que sirve la página: que no redirige a HTTPS.
+    assert any(f["check_id"] == "lybra:http-no-https-redirect@1" for f in findings)
+
+
+def test_a_plain_port_that_redirects_to_https_is_not_evaluated_twice():
+    """El 80 que redirige al 443 no sirve ninguna página: sus cabeceras son las del
+    HTTPS, que ya se evalúan en su propio puerto."""
+    redirected = _fetcher({"/": Response(200, "<html>", {}, url="https://h/", requested_scheme="http")})
+    findings = CheckRuntime(load_checks(), redirected).run("h", [_HTTP])
+    headers = [f["check_id"] for f in findings if f["check_id"].startswith("lybra:missing-")
+               and f["check_id"] != "lybra:missing-hsts-header@2"]
+    assert headers == []
+    assert not any(f["check_id"] == "lybra:http-no-https-redirect@1" for f in findings)
 
 
 def test_dotenv_regex_matcher():
@@ -683,18 +707,18 @@ def _contador_de_handshakes(info=None):
 
 
 def test_the_three_header_checks_make_one_request_between_them():
-    fetch = _fetcher({"/": Response(200, "<html>", {})})
+    fetch = _fetcher({"/": Response(200, "<html>", {}, **_HTTPS_PAGE)})
 
     findings = CheckRuntime(load_checks(), fetch).run("10.0.0.5", [_HTTP])
 
-    # Los checks de cabeceras faltantes disparan (el nginx de mentira no manda
-    # ninguna: HSTS, X-Frame-Options, X-Content-Type-Options, CSP,
-    # Referrer-Policy y Permissions-Policy) y aun así "/" se pidió una sola vez.
-    # La cookie insegura no cuenta: no hay Set-Cookie que mirar.
-    cabeceras = [f for f in findings if f["category"] == "security_header"
-                 and f["check_id"] != "lybra:session-cookie-without-secure@1"]
-    assert len(cabeceras) == 6
-    assert [ruta for _h, _p, _m, ruta in fetch.calls].count("/") == 1
+    # Los seis checks de cabeceras faltantes disparan (el nginx de mentira no
+    # manda ninguna: HSTS, X-Frame-Options, X-Content-Type-Options, CSP,
+    # Referrer-Policy y Permissions-Policy) y aun así comparten la petición a
+    # "/". La única otra petición a "/" es la del check BREACH, que la hace con
+    # Accept-Encoding y por eso es otra sonda.
+    missing = [f for f in findings if f["check_id"].startswith("lybra:missing-")]
+    assert len(missing) == 6
+    assert [ruta for _h, _p, _m, ruta in fetch.calls].count("/") == 2
 
 
 def test_each_distinct_path_is_still_requested():
@@ -704,7 +728,8 @@ def test_each_distinct_path_is_still_requested():
     CheckRuntime(load_checks(), fetch).run("10.0.0.5", [_HTTP])
 
     rutas = [ruta for _h, _p, _m, ruta in fetch.calls]
-    assert len(rutas) == len(set(rutas))
+    # "/" dos veces: una sin cabeceras extra y otra con Accept-Encoding (BREACH).
+    assert len(rutas) == len(set(rutas)) + 1
     assert "/.git/config" in rutas and "/" in rutas
 
 
