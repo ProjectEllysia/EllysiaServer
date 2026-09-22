@@ -2536,3 +2536,67 @@ def test_the_working_keys_never_reach_the_database(app, admin_user):
     assert findings, "el escaneo no llegó a persistir nada"
     for finding in findings:
         assert not hasattr(finding, "_installed_version")
+
+
+# ─────────────────────── integridad del escaneo: cortafuegos engañosos y bloqueos
+#
+# En el contraste de campo, OpenVAS vio bloqueado su escaneo en los dos
+# objetivos: uno dejó de responder al final, y el otro «abrió» 1.670 puertos
+# que no existían. Un informe que no lo dice parece limpio y sólo está
+# incompleto.
+
+
+def _implausible_sweep():
+    """600 puertos probados y 500 «abiertos», entre ellos el 22 y el 80."""
+    open_ports = [22, 80] + list(range(10000, 10498))
+    return PortSweep(open_ports=tuple(open_ports), refused_ports=tuple(range(20000, 20100)),
+                     timed_out_ports=(), unreachable_ports=(), was_truncated=False)
+
+
+def _run_self_discovery(app, admin_user, target):
+    with app.app_context():
+        mgr = LybraEngineManager()
+        escan = mgr._create_scan_record(target=target, user_id=admin_user.id)
+        mgr._run_lybra(escan.id)
+        with UnitOfWork() as uow:
+            repo = ScanRepository(uow)
+            findings = repo.get_findings_by_scan(escan.id)
+            escan = repo.get_by_id(escan.id)
+    return escan, findings
+
+
+def test_a_firewall_that_accepts_every_port_does_not_become_hundreds_of_services(
+        app, admin_user, monkeypatch):
+    monkeypatch.setattr(ScanManager, "is_host_reachable", staticmethod(lambda *a, **k: True))
+    monkeypatch.setattr(LybraEngineManager, "_discover_ports",
+                        lambda self, target, ports, **_kwargs: _implausible_sweep())
+    monkeypatch.setattr(LybraEngineManager, "_discover_udp_ports", lambda self, target: [])
+
+    escan, findings = _run_self_discovery(app, admin_user, "8.8.8.8")
+
+    assert {f.port for f in findings if f.category == "open_port"} == {22, 80}
+    assert escan.is_partial is True
+    [notice] = [f for f in findings if f.category == "scan_integrity"]
+    assert "cualquier puerto" in notice.title
+
+
+def test_a_target_that_stops_answering_leaves_the_scan_partial(app, admin_user, monkeypatch):
+    sweeps = iter([_sweep([80, 22]), None])   # descubrimiento, y luego la comprobación final
+    monkeypatch.setattr(ScanManager, "is_host_reachable", staticmethod(lambda *a, **k: True))
+    monkeypatch.setattr(LybraEngineManager, "_discover_ports",
+                        lambda self, target, ports, **_kwargs: next(sweeps))
+    monkeypatch.setattr(LybraEngineManager, "_discover_udp_ports", lambda self, target: [])
+
+    escan, findings = _run_self_discovery(app, admin_user, "8.8.4.4")
+
+    assert escan.is_partial is True
+    assert any("dejó de responder" in f.title for f in findings if f.category == "scan_integrity")
+
+
+def test_a_target_that_keeps_answering_is_not_flagged(app, admin_user, monkeypatch):
+    _stub_self_discovery(monkeypatch, [80, 22])
+
+    escan, findings = _run_self_discovery(app, admin_user, "1.1.1.1")
+
+    assert escan.is_partial is False
+    assert not [f for f in findings if f.category == "scan_integrity"]

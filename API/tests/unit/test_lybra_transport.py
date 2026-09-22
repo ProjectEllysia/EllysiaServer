@@ -401,3 +401,15 @@ def test_the_two_views_of_a_truncated_sweep_differ():
     assert sweep.was_truncated
     assert not sweep.is_blocked
     assert len(sweep.open_ports) > 0, "no encontró ni un puerto antes de truncarse"
+
+
+@pytest.mark.parametrize("open_count,probed,expected", [
+    (500, 600, True),     # un cortafuegos que acepta todo
+    (300, 600, True),     # justo en la mitad
+    (5, 1000, False),     # un servidor normal
+    (8, 10, False),       # pocos puertos: no se juzga
+])
+def test_a_sweep_with_too_many_open_ports_is_implausible(open_count, probed, expected):
+    from src.modules.features.themis.lybra import is_sweep_implausible
+
+    assert is_sweep_implausible(open_count, probed) is expected

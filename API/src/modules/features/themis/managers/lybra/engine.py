@@ -274,7 +274,7 @@ class LybraEngineManager(ScanManager):
     # Categories that are point-in-time events, not persistent vulnerability
     # state - excluded from lifecycle tracking (see the lifecycle pass in
     # _run_lybra).
-    _EVENT_CATEGORIES = {"fingerprint", "surface_change"}
+    _EVENT_CATEGORIES = {"fingerprint", "surface_change", "scan_integrity"}
 
     def __init__(self, task_queue: ITaskQueue | None = None) -> None:
         super().__init__(task_queue)
@@ -674,6 +674,12 @@ class LybraEngineManager(ScanManager):
                 # no todo. Comparte la bandera ``is_partial`` para no cerrar por
                 # omisión lo que no llegó a comprobar.
                 is_partial = resolved.is_partial or should_stop()
+                integrity_findings = []
+                if resolved.implausible_open_ports:
+                    integrity_findings.append(_scan_integrity_finding(
+                        f"El objetivo acepta conexiones en cualquier puerto "
+                        f"({resolved.implausible_open_ports} «abiertos»): probable "
+                        f"cortafuegos engañoso; sólo se analizan los puertos conocidos"))
                 # Descubrimiento hecho: 40 % del trabajo (reparto de pesos entre
                 # las fases: descubrimiento 40, fingerprint 30, checks 20,
                 # correlación y persistencia 10).
@@ -775,6 +781,19 @@ class LybraEngineManager(ScanManager):
             # runtime cuando ya se sabe que no va a correr.
             if source.probes_target_network and source_target and mode == "aggressive" and not should_stop():
                 findings_data.extend(self._run_credential_checks(source_target, services, mode))
+
+            # ¿Sigue respondiendo el objetivo? Si ya no contesta ninguno de los
+            # puertos que estaban abiertos, lo que vino después del bloqueo no
+            # es un resultado limpio sino uno incompleto.
+            if (source.probes_target_network and source_target and not should_stop()
+                    and not _is_still_reachable(probes.discover_ports, source_target, services)):
+                logger.warning("Lybra %s: el objetivo %s dejó de responder durante el escaneo",
+                               scan_id, source_target)
+                is_partial = True
+                integrity_findings.append(_scan_integrity_finding(
+                    "El objetivo dejó de responder durante el escaneo (probable bloqueo "
+                    "del escáner): los resultados están incompletos"))
+            findings_data.extend(integrity_findings)
             report(90)
 
             for finding in findings_data:
@@ -1783,3 +1802,65 @@ class LybraEngineManager(ScanManager):
         """No-op: Lybra does not use the base CSV-logging execution path."""
         pass
 
+
+def _is_still_reachable(discover: Callable, target: str, services: list) -> bool:
+    """Si alguno de los puertos TCP abiertos del objetivo sigue aceptando conexiones.
+
+    Es la comprobación que OpenVAS llama «Check open ports»: al final del
+    escaneo se vuelve a llamar a una muestra de los puertos que estaban
+    abiertos. Si ninguno contesta, el objetivo bloqueó al escáner (un IPS, una
+    regla tipo *fail2ban*) y todo lo que se comprobó después cayó en el vacío.
+
+    Args:
+        discover: El mismo barrido que usó el descubrimiento
+            (``DiscoveryProbes.discover_ports``), con su presupuesto y su
+            cancelación: ``(target, ports) -> PortSweep | None``.
+        target: El objetivo.
+        services: Los servicios descubiertos.
+
+    Returns:
+        bool: ``False`` si ninguno de los puertos probados respondió (o el
+            barrido volvió bloqueado). ``True`` si alguno respondió, si no había
+            puertos TCP que probar, si la comprobación está desactivada
+            (``blockingRecheckPorts`` a 0) o si el reloj se agotó antes de
+            poder mirar: sin evidencia no se declara un bloqueo.
+    """
+    sample_size = CR.lybra_engine_config().blocking_recheck_ports
+    ports = [service.port for service in services
+             if service.port and service.protocol != "udp"][:sample_size]
+    if not ports:
+        return True
+    sweep = discover(target, ports)
+    if sweep is None:
+        return False
+    if sweep.was_truncated and not sweep.open_ports:
+        return True
+    return bool(sweep.open_ports)
+
+
+def _scan_integrity_finding(title: str) -> dict:
+    """Un aviso sobre la integridad del propio escaneo, no sobre un riesgo del objetivo.
+
+    Categoría ``scan_integrity``, que el ciclo de vida trata como evento (no se
+    abre ni se cierra entre escaneos) y que ``score_finding`` deja en INFO
+    porque no lleva CVSS ni se da por confirmado.
+
+    Args:
+        title: Qué le pasó al escaneo.
+
+    Returns:
+        dict: El hallazgo, listo para persistir.
+    """
+    return {
+        "title":        title,
+        "category":     "scan_integrity",
+        "port":         None,
+        "service":      None,
+        "protocol":     "tcp",
+        "source":       "lybra",
+        "check_id":     "lybra:scan-integrity@1",
+        "feed_version": "lybra-integrity-1",
+        "qod":          QOD_OPEN_PORT,
+        "confirmed":    False,
+        "state":        "open",
+    }

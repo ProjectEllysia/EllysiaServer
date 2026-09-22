@@ -189,6 +189,11 @@ class FindingsPrintingStrategy(PrintingStrategy):
             ["Confirmados activamente:", str(confirmed_count)],
             ["Base de conocimiento:", self._knowledge_base_line()],
         ]
+        if getattr(scan, "is_partial", False):
+            # Un escaneo parcial no puede leerse como uno limpio: lo que no se
+            # llegó a comprobar no está ausente, es desconocido.
+            scan_info.append(["Cobertura:",
+                              "Parcial: el escaneo no llegó a cubrir todo el objetivo"])
         if refuted_count:
             # Se dice, no se esconde: que el informe no los cuente como riesgo
             # es correcto, pero callar cuántos hay ocultaría que alguien
@@ -348,7 +353,9 @@ class FindingsPrintingStrategy(PrintingStrategy):
 
         if not findings:
             elements.append(Paragraph(
-                "El motor no detectó ningún hallazgo para este objetivo.", theme.info))
+                "El escaneo no llegó a cubrir todo el objetivo: la ausencia de hallazgos "
+                "no es un resultado limpio." if getattr(self.scan, "is_partial", False)
+                else "El motor no detectó ningún hallazgo para este objetivo.", theme.info))
             return
 
         self._append_grouped_findings(theme, elements, findings)
