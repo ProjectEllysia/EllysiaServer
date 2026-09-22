@@ -1120,7 +1120,7 @@ def test_lybra_identifies_a_service_on_a_non_canonical_port(app, admin_user, mon
 
     fingerprints = [f for f in findings if f.category == "fingerprint"]
     assert len(fingerprints) == 1
-    assert fingerprints[0].title == "Fingerprint propio (SSH): OpenSSH 8.9p1"
+    assert fingerprints[0].title == "Fingerprint propio (SSH): OpenSSH 8.9p1-3ubuntu0.1"
 
 
 def test_lybra_leaves_a_mute_unknown_port_exactly_as_it_was(app, admin_user, monkeypatch):

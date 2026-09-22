@@ -116,7 +116,7 @@ def test_mysql_on_a_non_canonical_port_is_identified():
 
 def test_ssh_on_a_non_canonical_port_is_identified():
     result = _cascade(b"SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.1\r\n", 2222)
-    assert (result.label, result.product, result.version) == ("SSH", "OpenSSH", "8.9p1")
+    assert (result.label, result.product, result.version) == ("SSH", "OpenSSH", "8.9p1-3ubuntu0.1")
 
 
 def test_ftp_on_a_non_canonical_port_is_identified():

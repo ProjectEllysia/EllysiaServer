@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import re
 import socket
 import struct
 from dataclasses import dataclass
@@ -57,17 +58,29 @@ class SshFingerprint:
     confidence: float
 
 
+# El comentario con el que Debian y Ubuntu firman su paquete en el banner:
+# "OpenSSH_9.6p1 Ubuntu-3ubuntu13.19", "OpenSSH_9.2p1 Debian-2+deb12u3".
+_DISTRO_COMMENT_RE = re.compile(r"^(?:Ubuntu|Debian|Raspbian)-(\d\S*)$")
+
+
 def parse_ssh_banner(banner: str) -> Tuple[Optional[str], Optional[str]]:
     """Split an SSH identification banner into product and version.
 
-    Drops any trailing free-text comment the server appends.
+    El comentario libre que el servidor añade tras el software se descarta,
+    **salvo** cuando es la revisión del paquete de una distribución
+    (``Ubuntu-3ubuntu13.19``, ``Debian-2+deb12u3``): ésa se une a la versión
+    como ``9.6p1-3ubuntu13.19``. Es lo único que dice qué parches lleva el
+    paquete, y sin ella la verificación de *backports* no tiene a quién
+    preguntar. Frente a las cotas de la NVD la revisión no cuenta (ver
+    ``kb.version_compare``), así que la detección por versión no cambia.
 
     Args:
         banner: The banner line, e.g. ``"SSH-2.0-OpenSSH_7.4"``.
 
     Returns:
-        A ``(product, version)`` tuple, e.g. ``("OpenSSH", "7.4")``. Both are
-        ``None`` if the banner is not a recognisable SSH identification string.
+        A ``(product, version)`` tuple, e.g. ``("OpenSSH", "7.4")`` or
+        ``("OpenSSH", "9.6p1-3ubuntu13.19")``. Both are ``None`` if the banner
+        is not a recognisable SSH identification string.
     """
     banner = banner.strip()
     if not banner.startswith("SSH-"):
@@ -75,9 +88,12 @@ def parse_ssh_banner(banner: str) -> Tuple[Optional[str], Optional[str]]:
     parts = banner.split("-", 2)
     if len(parts) < 3 or not parts[2]:
         return None, None
-    software = parts[2].split(" ", 1)[0]
+    software, _, comment = parts[2].partition(" ")
     if "_" in software:
         product, version = software.split("_", 1)
+        distro = _DISTRO_COMMENT_RE.match(comment.strip())
+        if version and distro:
+            version = f"{version}-{distro.group(1)}"
         return product or None, version or None
     return software or None, None
 
