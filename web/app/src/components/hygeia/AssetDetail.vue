@@ -49,7 +49,12 @@
       @switch="activeTab = $event"
     />
 
-    <div v-if="activeTab === 'graficas'" class="tab-panel"
+    <!-- Un solo <Transition> para los cuatro paneles (cadena v-if/v-else-if):
+         el saliente se va antes de que entre el nuevo, y ambos se desplazan
+         hacia el lado de la pestaña elegida, para que el movimiento diga
+         hacia dónde se ha ido. -->
+    <Transition :name="tabTransitionName" mode="out-in">
+    <div v-if="activeTab === 'graficas'" key="graficas" class="tab-panel"
          role="tabpanel" id="panel-graficas" aria-labelledby="tab-graficas" tabindex="0">
       <section class="section">
         <h4 class="section-title">Constantes</h4>
@@ -98,7 +103,7 @@
     <!-- Todo lo que sigue es el último heartbeat: tiene cardinalidad por
          entidad (montaje, interfaz, proceso, núcleo) y solo tiene sentido
          "ahora", así que no viaja en la serie temporal. -->
-    <div v-if="activeTab === 'estadisticas'" class="tab-panel"
+    <div v-else-if="activeTab === 'estadisticas'" key="estadisticas" class="tab-panel"
          role="tabpanel" id="panel-estadisticas" aria-labelledby="tab-estadisticas" tabindex="0">
       <p v-if="latestError" class="state-msg state-msg--error">{{ latestError }}</p>
 
@@ -260,7 +265,7 @@
       </template>
     </div>
 
-    <div v-if="activeTab === 'inventario'" class="tab-panel"
+    <div v-else-if="activeTab === 'inventario'" key="inventario" class="tab-panel"
          role="tabpanel" id="panel-inventario" aria-labelledby="tab-inventario" tabindex="0">
       <section class="section">
         <h4 class="section-title">
@@ -351,7 +356,7 @@
       </section>
     </div>
 
-    <div v-if="activeTab === 'anomalias'" class="tab-panel"
+    <div v-else-if="activeTab === 'anomalias'" key="anomalias" class="tab-panel"
          role="tabpanel" id="panel-anomalias" aria-labelledby="tab-anomalias" tabindex="0">
       <section class="section">
         <h4 class="section-title">
@@ -386,6 +391,7 @@
         </TransitionGroup>
       </section>
     </div>
+    </Transition>
   </div>
 </template>
 
@@ -452,6 +458,22 @@ watch(() => props.asset?.id, (id) => {
 watch(activeTab, (tab) => {
   const id = props.asset?.id
   if (id) localStorage.setItem(TAB_STORAGE_PREFIX + id, tab)
+})
+
+/**
+ * Nombre de la transición entre paneles, según el lado hacia el que se mueve
+ * la selección en la barra de pestañas.
+ *
+ * Se decide antes de que Vue pinte el cambio (`flush: 'pre'`, el de por
+ * defecto), así que el panel saliente y el entrante ya usan el nombre nuevo.
+ *
+ * @type {import('vue').Ref<'tab-forward'|'tab-back'>} `tab-forward` cuando
+ *   la pestaña nueva está a la derecha de la anterior (el contenido entra por
+ *   la derecha), `tab-back` cuando está a la izquierda.
+ */
+const tabTransitionName = ref('tab-forward')
+watch(activeTab, (tab, previous) => {
+  tabTransitionName.value = TAB_IDS.indexOf(tab) >= TAB_IDS.indexOf(previous) ? 'tab-forward' : 'tab-back'
 })
 
 /* ── Métrica del gráfico ──
@@ -740,6 +762,28 @@ function stateLabel(state) { return STATE_LABELS[state] || 'Desconocido' }
 }
 
 .tab-panel { display: flex; flex-direction: column; gap: 1.3rem; }
+
+/* ── Cambio de pestaña ──
+   La salida es más corta que la entrada: con `out-in` la nueva espera a que
+   termine la vieja, y lo que el usuario quiere ver es lo que acaba de elegir.
+   El desplazamiento es pequeño (12px): basta para decir hacia qué lado se ha
+   ido sin que el panel parezca viajar. */
+.tab-forward-enter-active,
+.tab-back-enter-active {
+  transition: opacity 0.22s ease-out, transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.tab-forward-leave-active,
+.tab-back-leave-active {
+  transition: opacity 0.12s ease-in, transform 0.12s ease-in;
+}
+.tab-forward-enter-from,
+.tab-back-leave-to { opacity: 0; transform: translateX(12px); }
+.tab-forward-leave-to,
+.tab-back-enter-from { opacity: 0; transform: translateX(-12px); }
+@media (prefers-reduced-motion: reduce) {
+  .tab-forward-enter-active, .tab-forward-leave-active,
+  .tab-back-enter-active, .tab-back-leave-active { transition: none; }
+}
 
 .state-msg { margin: 0; padding: 1.4rem 1rem; text-align: center; color: var(--text-muted); font-size: var(--fs-body); }
 .state-msg--error { color: var(--danger); }
