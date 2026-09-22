@@ -24,8 +24,18 @@
         "notice_interval_days": 30
       }
     },
+    "launch": {
+      "mode": "preview",
+      "surfaces": {
+        "registration": true,
+        "pricing": true,
+        "thirdPartyScanners": true,
+        "campaigns": true,
+        "mailboxConnectors": true,
+        "externalAi": true
+      }
+    },
     "registration": {
-      "enabled": true,
       "verificationTtlHours": 48,
       "invitationTtlHours": 168,
       "passwordResetTtlMinutes": 30
