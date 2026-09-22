@@ -146,3 +146,64 @@ def test_the_banner_answers_when_the_version_does_not():
 
 def test_nothing_is_inferred_from_a_plain_version():
     assert infer_distro_release("2.4.49", "Apache httpd") is None
+
+
+# ───────────────────────────────── un OpenSSH visto por la red
+
+# Lo que produce el escaneo de un OpenSSH de Ubuntu 24.04: la versión con la
+# revisión que el banner firma (`Ubuntu-3ubuntu13.19`), el servicio `ssh` y el
+# CPE de la NVD, que llama al producto `openssh` como el paquete fuente.
+_REGRESSHION = {
+    "category": "outdated_software",
+    "title": "OpenSSH 9.6p1-3ubuntu13.19 — CVE-2024-6387",
+    "cve_ids": ["CVE-2024-6387"],
+    "confirmed": False,
+    "qod": 70,
+    "state": "open",
+    "check_id": "lybra:version-match@1",
+    "service": "ssh",
+    "cpe": "cpe:2.3:a:openbsd:openssh:9.6p1-3ubuntu13.19:*:*:*:*:*:*:*",
+    "_installed_version": "9.6p1-3ubuntu13.19",
+}
+
+
+def _ubuntu_feed(vendor, release, package, cve_id):
+    """El aviso real de Ubuntu 24.04 para regreSSHion, y nada más."""
+    if (vendor, release, package, cve_id) == ("ubuntu", "24.04", "openssh", "CVE-2024-6387"):
+        return "fixed", "1:9.6p1-3ubuntu13.3"
+    return None
+
+
+def test_the_package_is_asked_by_its_cpe_product_not_by_its_service_name():
+    """El servicio de un OpenSSH se llama `ssh`; la distribución lo publica como
+    `openssh`. Preguntando por el servicio no se encontraba nunca nada."""
+    asked = []
+
+    def lookup(vendor, release, package, cve_id):
+        asked.append(package)
+
+    apply_backport_verdicts([dict(_REGRESSHION)], lookup)
+    assert asked == ["openssh"]
+
+
+def test_an_nvd_product_is_translated_to_its_distro_package():
+    finding = dict(_REGRESSHION, cpe="cpe:2.3:a:apache:http_server:2.4.49:*:*:*:*:*:*:*",
+                   _installed_version="2.4.49-1ubuntu1")
+    asked = []
+    apply_backport_verdicts([finding], lambda *args: asked.append(args[2]))
+    assert asked == ["apache2"]
+
+
+def test_the_ubuntu_release_is_deduced_when_the_revision_does_not_name_it():
+    """`3ubuntu13.19` dice Ubuntu pero no 24.04: la release sale del espejo."""
+    findings = apply_backport_verdicts(
+        [dict(_REGRESSHION)], _ubuntu_feed,
+        release_lookup=lambda vendor, package, version: "24.04")
+
+    assert findings[0]["state"] == "fixed"
+    assert findings[0]["check_id"] == BACKPORT_CHECK_ID
+
+
+def test_without_a_release_the_ubuntu_advisory_is_not_found():
+    findings = apply_backport_verdicts([dict(_REGRESSHION)], _ubuntu_feed)
+    assert findings[0]["state"] == "open"

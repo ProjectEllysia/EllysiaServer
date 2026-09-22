@@ -456,7 +456,13 @@ def test_a_single_layer_result_emits_no_extra_findings():
 
 @pytest.mark.parametrize("banner,product,version", [
     ("SSH-2.0-OpenSSH_7.4", "OpenSSH", "7.4"),
-    ("SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.1", "OpenSSH", "8.9p1"),
+    # La revisión del paquete de la distribución se conserva: es lo que dice
+    # qué parches lleva, y lo que la verificación de backports necesita.
+    ("SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.1", "OpenSSH", "8.9p1-3ubuntu0.1"),
+    ("SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.19", "OpenSSH", "9.6p1-3ubuntu13.19"),
+    ("SSH-2.0-OpenSSH_9.2p1 Debian-2+deb12u3", "OpenSSH", "9.2p1-2+deb12u3"),
+    # Cualquier otro comentario sigue descartándose.
+    ("SSH-2.0-OpenSSH_8.0 FreeBSD-20200214", "OpenSSH", "8.0"),
     ("SSH-2.0-dropbear_2020.81", "dropbear", "2020.81"),
     ("SSH-2.0-libssh", "libssh", None),
     ("not-an-ssh-banner", None, None),

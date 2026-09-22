@@ -146,8 +146,12 @@
           "kev": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json",
           "nvd": "https://services.nvd.nist.gov/rest/json/cves/2.0",
           "oval": {
-            "debian:11": "https://www.debian.org/security/oval/oval-definitions-bullseye.xml",
-            "debian:12": "https://www.debian.org/security/oval/oval-definitions-bookworm.xml"
+            "debian:11": "https://www.debian.org/security/oval/oval-definitions-bullseye.xml.bz2",
+            "debian:12": "https://www.debian.org/security/oval/oval-definitions-bookworm.xml.bz2",
+            "debian:13": "https://www.debian.org/security/oval/oval-definitions-trixie.xml.bz2",
+            "ubuntu:20.04": "https://security-metadata.canonical.com/oval/com.ubuntu.focal.cve.oval.xml.bz2",
+            "ubuntu:22.04": "https://security-metadata.canonical.com/oval/com.ubuntu.jammy.cve.oval.xml.bz2",
+            "ubuntu:24.04": "https://security-metadata.canonical.com/oval/com.ubuntu.noble.cve.oval.xml.bz2"
           }
         },
         "syncCron": "0 3 * * *",

@@ -33,7 +33,9 @@ fixtures. Only the ``fetch_*`` functions touch the network.
 from __future__ import annotations
 
 import csv
+import bz2
 import gzip
+import io
 import json
 import logging
 import re
@@ -44,7 +46,7 @@ from xml.etree import ElementTree
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Iterator, List, Optional, Tuple
+from typing import IO, Dict, Iterator, List, Optional, Tuple, Union
 
 import requests
 
@@ -638,64 +640,146 @@ _OVAL_FIXED_RE = re.compile(
 )
 
 
-def parse_oval_definitions(document: str, vendor: str,
+# Lo que escriben de verdad los feeds, en el ``comment`` de cada ``criterion``:
+#
+# - Debian: "openssh DPKG is earlier than 1:9.2p1-2+deb12u3". La versión es la
+#   primera corregida; "0" significa que no hay ninguna todavía.
+# - Ubuntu: "openssh source package in noble, is affected and has been fixed
+#   (note: '1:9.6p1-3ubuntu13.3')." o "... might be affected and may need
+#   fixing." Los del núcleo ("'linux' kernel in noble ...") no se leen: un
+#   escaneo de red nunca ve un núcleo como servicio.
+_DEBIAN_CRITERION_RE = re.compile(r"^(\S+) DPKG is earlier than (\S+)$")
+_UBUNTU_CRITERION_RE = re.compile(
+    r"^(\S+) (?:source )?package in \S+?, (.+?)(?: \(note: '([^']*)'\))?\.?$")
+
+
+def _status_from_criterion(comment: str) -> Optional[Tuple[str, Optional[str], str]]:
+    """Traduce el comentario de un ``criterion`` OVAL a ``(paquete, versión, estado)``.
+
+    Args:
+        comment: El atributo ``comment`` tal cual viene en el feed.
+
+    Returns:
+        Optional[Tuple[str, Optional[str], str]]: El paquete fuente, la versión
+            corregida (``None`` si no la hay) y el estado —``"fixed"``,
+            ``"vulnerable"`` o ``"unknown"``—. ``None`` si el comentario no es
+            de ninguno de los dos formatos (los de plataforma, arquitectura o
+            núcleo).
+    """
+    debian = _DEBIAN_CRITERION_RE.match(comment)
+    if debian:
+        package, version = debian.groups()
+        if version == "0":
+            return package.lower(), None, "vulnerable"
+        return package.lower(), version, "fixed"
+    ubuntu = _UBUNTU_CRITERION_RE.match(comment)
+    if ubuntu:
+        package, verdict, note = ubuntu.groups()
+        if "has been fixed" in verdict and note:
+            return package.lower(), note, "fixed"
+        if "might be" in verdict:
+            return package.lower(), None, "unknown"
+        if "needs fixing" in verdict or "vulnerable" in verdict:
+            return package.lower(), None, "vulnerable"
+        return package.lower(), None, "unknown"
+    return None
+
+
+def _as_stream(document: Union[str, bytes, IO[bytes]]) -> IO[bytes]:
+    """Da a ``iterparse`` un flujo de bytes, descomprimiendo bzip2 si hace falta.
+
+    Args:
+        document: El feed como texto, bytes (comprimidos o no) o un flujo ya
+            abierto, que se devuelve tal cual.
+
+    Returns:
+        IO[bytes]: Un flujo legible del XML sin comprimir.
+    """
+    if isinstance(document, str):
+        document = document.encode("utf-8")
+    if isinstance(document, bytes):
+        if document[:3] == b"BZh":
+            return bz2.BZ2File(io.BytesIO(document))
+        return io.BytesIO(document)
+    return document
+
+
+def parse_oval_definitions(document: Union[str, bytes, IO[bytes]], vendor: str,
                            release: Optional[str] = None) -> Iterator[dict]:
     """Extraer el estado por paquete de un documento OVAL de distribución.
 
     Debian y Ubuntu publican sus avisos en OVAL: un XML de definiciones donde
-    cada una referencia las CVEs que cierra y describe en qué versión del
-    paquete quedaron cerradas.
+    cada una referencia las CVEs que cierra y dice, en los comentarios de sus
+    ``criterion``, qué paquete fuente y desde qué versión queda cerrada (ver
+    :func:`_status_from_criterion`). Esos comentarios son la fuente principal
+    porque son lo que los dos feeds reales escriben; resolver el árbol de
+    objetos y estados de OVAL daría lo mismo con mucho más trabajo. Una
+    definición sin ``criterion`` reconocible se lee, como respaldo, del texto
+    de su descripción («apache2 was fixed in 2.4.49-1~deb11u1»).
 
-    Se lee la *referencia* para las CVEs y el texto de la descripción para la
-    versión corregida, porque el criterio estructurado de OVAL vive en objetos y
-    estados separados que sólo cobran sentido resolviendo el árbol entero —
-    trabajo que un espejo local no necesita hacer para responder a la única
-    pregunta que le importa: *¿en qué versión lo arreglaron?*
+    El documento se recorre en streaming (``iterparse``) y se libera por
+    definiciones: el feed de Ubuntu 24.04 pesa unos 200 MB descomprimido.
 
     Args:
-        document: El XML del feed.
+        document: El XML del feed, como texto, bytes o flujo de bytes; si viene
+            comprimido en bzip2 (como publican los dos proveedores) se
+            descomprime al vuelo.
         vendor: ``"debian"``, ``"ubuntu"``…
         release: La versión de la distribución si el feed es de una sola.
+            Por defecto ``None``.
 
     Yields:
-        Dicts listos para ``DistroPkgStatus``, uno por paquete y CVE. Una
-        definición que no nombre versión corregida se emite como
-        ``status="unknown"``: el proveedor la conoce pero no se ha
-        pronunciado, y traducir eso a "vulnerable" o a "corregida" sería
-        inventar.
+        dict: Filas listas para ``DistroPkgStatus``, una por paquete y CVE. Una
+            definición que no nombre versión corregida se emite como
+            ``status="unknown"`` (el proveedor la conoce pero no se ha
+            pronunciado) salvo que el feed diga expresamente que sigue
+            vulnerable: traducir el silencio a "vulnerable" o a "corregida"
+            sería inventar.
     """
     try:
-        root = ElementTree.fromstring(document)
-    except ElementTree.ParseError as exc:
+        for _event, definition in ElementTree.iterparse(_as_stream(document), events=("end",)):
+            if not (definition.tag.endswith("}definition") or definition.tag == "definition"):
+                continue
+            yield from _rows_for_definition(definition, vendor, release)
+            definition.clear()
+    except (ElementTree.ParseError, OSError, EOFError) as exc:
         logger.error("OVAL: documento ilegible (%s)", exc)
+
+
+def _rows_for_definition(definition, vendor: str, release: Optional[str]) -> Iterator[dict]:
+    """Las filas de ``DistroPkgStatus`` de una sola definición OVAL."""
+    cve_ids = sorted({
+        reference.get("ref_id", "")
+        for reference in definition.iter()
+        if reference.tag.endswith("reference")
+        and (reference.get("ref_id") or "").upper().startswith("CVE-")
+    })
+    if not cve_ids:
         return
 
-    for definition in root.iter():
-        if not definition.tag.endswith("}definition") and definition.tag != "definition":
-            continue
-        cve_ids = sorted({
-            reference.get("ref_id", "")
-            for reference in definition.iter()
-            if reference.tag.endswith("reference")
-            and (reference.get("ref_id") or "").upper().startswith("CVE-")
-        })
-        if not cve_ids:
-            continue
-
+    statuses = [
+        parsed for parsed in (
+            _status_from_criterion(element.get("comment") or "")
+            for element in definition.iter() if element.tag.endswith("criterion"))
+        if parsed is not None
+    ]
+    if not statuses:
         text = " ".join(
             element.text or ""
             for element in definition.iter()
             if element.tag.endswith("description") or element.tag.endswith("title")
         )
-        fixes = _OVAL_FIXED_RE.findall(text)
-        for cve_id in cve_ids:
-            if not fixes:
-                yield {"vendor": vendor, "release": release, "package": None,
-                       "cve_id": cve_id, "fixed_in": None, "status": "unknown"}
-                continue
-            for package, fixed_in in fixes:
-                yield {"vendor": vendor, "release": release, "package": package.lower(),
-                       "cve_id": cve_id, "fixed_in": fixed_in, "status": "fixed"}
+        statuses = [(package.lower(), fixed_in, "fixed")
+                    for package, fixed_in in _OVAL_FIXED_RE.findall(text)]
+
+    for cve_id in cve_ids:
+        if not statuses:
+            yield {"vendor": vendor, "release": release, "package": None,
+                   "cve_id": cve_id, "fixed_in": None, "status": "unknown"}
+            continue
+        for package, fixed_in, status in statuses:
+            yield {"vendor": vendor, "release": release, "package": package,
+                   "cve_id": cve_id, "fixed_in": fixed_in, "status": status}
 
 
 def parse_csaf_advisory(document: dict, vendor: str = "rhel") -> Iterator[dict]:
@@ -749,13 +833,23 @@ def _split_csaf_product(product_id: str) -> Tuple[Optional[str], Optional[str], 
     return match.group(1).lower(), release, match.group(2)
 
 
-def fetch_oval(url: str, timeout: int = 60) -> str:
+def fetch_oval(url: str, timeout: int = 300) -> bytes:
     """Descargar un feed de avisos de distribución.
 
-    El borde de red, igual de fino que ``fetch_kev``: descarga y devuelve el
-    texto. El parseo vive en las funciones puras de arriba.
+    El borde de red, igual de fino que ``fetch_kev``: descarga y devuelve los
+    bytes tal cual, comprimidos o no. Debian y Ubuntu sólo publican ya la forma
+    ``.xml.bz2``; :func:`parse_oval_definitions` la descomprime al vuelo, así
+    que el documento entero nunca se tiene en memoria como texto.
+
+    Args:
+        url: La URL del feed.
+        timeout: Segundos de espera por petición. Por defecto ``300``: los
+            feeds de Ubuntu rondan los 10 MB comprimidos.
+
+    Returns:
+        bytes: El cuerpo de la respuesta.
     """
-    return _http_get(url, timeout).decode("utf-8", errors="replace")
+    return _http_get(url, timeout)
 
 
 def _has_exploit_reference(cve: dict) -> bool:
