@@ -118,7 +118,9 @@ def split_distro_version(version: str) -> Tuple[Optional[int], str, Optional[str
 
 
 # Palabras que marcan una versión preliminar: van por debajo de la versión final.
-_PRE_RELEASE_WORDS = frozenset({"alpha", "beta", "rc", "pre", "preview", "dev", "snapshot", "cr", "milestone"})
+_PRE_RELEASE_WORDS = frozenset({
+    "alpha", "beta", "rc", "pre", "preview", "dev", "snapshot", "cr", "milestone",
+})
 # Letras sueltas que sólo son preliminares si llevan número detrás: `3.12.0a1`,
 # `1.0b2`, `5.0.0.M1`. Sin número (`1.0.2a` de OpenSSL) son un parche posterior.
 _PRE_RELEASE_LETTERS = frozenset({"a", "b", "m"})
