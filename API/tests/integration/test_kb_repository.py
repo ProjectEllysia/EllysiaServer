@@ -624,3 +624,43 @@ def test_the_alarm_separates_what_it_can_prove_from_what_it_cannot(app):
     assert status["isUnverified"] is True
     stale = [e["source"] for e in status["sources"] if e["isStale"]]
     assert "nvd" not in stale
+
+
+# ─────────────── la release de Ubuntu, deducida del propio espejo
+
+
+def _ubuntu_status(release, fixed_in, cve_id="CVE-2024-6387"):
+    return {"vendor": "ubuntu", "release": release, "package": "openssh",
+            "cve_id": cve_id, "fixed_in": fixed_in, "status": "fixed"}
+
+
+def test_the_ubuntu_release_is_the_one_whose_fixes_share_the_upstream_version(app):
+    """`9.6p1-3ubuntu13.19` no dice «24.04», pero sólo 24.04 empaqueta 9.6p1."""
+    with app.app_context():
+        with UnitOfWork() as uow:
+            repo = KbRepository(uow)
+            repo.upsert_distro_pkg_status(_ubuntu_status("24.04", "1:9.6p1-3ubuntu13.3"))
+            repo.upsert_distro_pkg_status(_ubuntu_status("22.04", "1:8.9p1-3ubuntu0.10"))
+
+        with UnitOfWork() as uow:
+            repo = KbRepository(uow)
+            noble = repo.distro_release_for("ubuntu", "openssh", "9.6p1-3ubuntu13.19")
+            jammy = repo.distro_release_for("ubuntu", "openssh", "8.9p1-3ubuntu0.13")
+            unknown = repo.distro_release_for("ubuntu", "openssh", "7.2p2-4ubuntu2.10")
+            status = repo.distro_package_status("ubuntu", noble, "openssh", "CVE-2024-6387")
+
+    assert (noble, jammy, unknown) == ("24.04", "22.04", None)
+    assert status == ("fixed", "1:9.6p1-3ubuntu13.3")
+
+
+def test_an_ambiguous_release_is_not_guessed(app):
+    with app.app_context():
+        with UnitOfWork() as uow:
+            repo = KbRepository(uow)
+            repo.upsert_distro_pkg_status(_ubuntu_status("24.04", "1:9.6p1-3ubuntu13.3"))
+            repo.upsert_distro_pkg_status(_ubuntu_status("24.10", "1:9.6p1-3ubuntu14.1"))
+
+        with UnitOfWork() as uow:
+            release = KbRepository(uow).distro_release_for("ubuntu", "openssh", "9.6p1-3ubuntu13.19")
+
+    assert release is None

@@ -808,7 +808,9 @@ class LybraEngineManager(ScanManager):
             # volvería a `open` en la misma pasada.
             apply_refutations(findings_data, refutations)
             with UnitOfWork() as uow:
-                apply_backport_verdicts(findings_data, KbRepository(uow).distro_package_status)
+                advisories = KbRepository(uow)
+                apply_backport_verdicts(findings_data, advisories.distro_package_status,
+                                        advisories.distro_release_for)
 
             with UnitOfWork() as uow:
                 scan_repo = ScanRepository(uow)

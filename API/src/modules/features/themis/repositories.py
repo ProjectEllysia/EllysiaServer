@@ -34,6 +34,7 @@ from sqlalchemy.orm import joinedload
 from src.modules.infrastructure import BaseRepository, DocumentRepository
 from src.modules.shared import utcnow_naive
 from .lybra.evidence import prepare_evidence
+from .lybra.kb import split_distro_version
 
 from .model import (
     AuthorizedTarget,
@@ -1372,6 +1373,37 @@ class KbRepository(BaseRepository[CveEntry]):
         if not chosen:
             return None
         return chosen[0].status, chosen[0].fixed_in
+
+    def distro_release_for(self, vendor: str, package: str, version: str) -> Optional[str]:
+        """Qué release de la distribución trae un paquete, dada su versión exacta.
+
+        Ubuntu firma la revisión sin la versión de la distribución
+        (``9.6p1-3ubuntu13.19`` no dice «24.04»), pero cada release empaqueta
+        su propia versión upstream: 24.04 lleva el OpenSSH 9.6p1 y 22.04 el
+        8.9p1. Los avisos ya espejados dicen, por release, en qué versión se
+        corrigió cada CVE, así que la release cuyas correcciones comparten la
+        versión upstream del paquete instalado es la suya. No hace falta ninguna
+        tabla a mano: el propio espejo es el índice.
+
+        Args:
+            vendor: ``"ubuntu"``, ``"debian"``…
+            package: El paquete fuente.
+            version: La versión instalada, con su revisión.
+
+        Returns:
+            Optional[str]: La release, o ``None`` si ninguna encaja o si
+                encajan varias (no se adivina).
+        """
+        upstream = split_distro_version(version)[1]
+        rows = (self._session.query(DistroPkgStatus.release, DistroPkgStatus.fixed_in)
+                .filter(DistroPkgStatus.vendor == vendor,
+                        DistroPkgStatus.package == package,
+                        DistroPkgStatus.release.isnot(None),
+                        DistroPkgStatus.fixed_in.isnot(None))
+                .distinct().all())
+        releases = {release for release, fixed_in in rows
+                    if split_distro_version(fixed_in)[1] == upstream}
+        return releases.pop() if len(releases) == 1 else None
 
     def exploit_evidence(self, cve_id: str) -> Optional[str]:
         """Qué madurez de explotación consta para una CVE, sin contar KEV.
