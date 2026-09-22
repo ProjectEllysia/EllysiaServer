@@ -19,7 +19,7 @@ from typing import Optional
 
 from src.modules.infrastructure.session import build_repository
 
-from ..lybra import parse_cpe23
+from ..lybra import parse_cpe23, version_in_range
 from ..repositories import KbRepository
 
 
@@ -89,21 +89,42 @@ def resolve_fixed_versions(findings: list) -> None:
 
 
 def find_fixed_version(entry, cpe: Optional[str]) -> Optional[str]:
-    """La cota "corregido en" de la NVD para el producto de este hallazgo.
+    """La cota "corregido en" de la NVD para el producto y la versión de este hallazgo.
 
-    Devuelve ``None`` en vez de adivinar cuando ninguna regla de aplicabilidad
-    del CVE declara un límite superior para ese producto: una versión de
-    destino inventada es peor que ninguna, porque se actúa sobre ella.
+    Una CVE puede declarar varias reglas de aplicabilidad para el mismo
+    producto, cada una con su rango: una regresión trae el rango donde el fallo
+    apareció por primera vez y el rango donde volvió a aparecer. La cota que
+    sirve es la de la regla **cuyo rango contiene la versión detectada**; la de
+    otra regla manda actualizar a una versión que no corrige nada (regreSSHion
+    sobre un 9.6p1 decía «4.4», la corrección del fallo de 2006, en vez de
+    «9.8p1»).
+
+    Args:
+        entry: El ``CveEntry`` con sus ``cpe_matches`` cargados.
+        cpe: El CPE del hallazgo, en forma 2.2 o 2.3, o ``None``.
+
+    Returns:
+        Optional[str]: La versión corregida de la regla que contiene la versión
+            del CPE. Si el CPE no trae versión (``*``, ``-`` o vacía), la de la
+            primera regla del producto con cota superior, porque no hay con qué
+            elegir. ``None`` cuando no hay CPE, cuando ninguna regla del
+            producto declara cota superior, o cuando el CPE trae versión y
+            ninguna regla la contiene: una versión de destino inventada es peor
+            que ninguna, porque se actúa sobre ella.
     """
     if not cpe:
         return None
     parsed = parse_cpe23(cpe)
     if not parsed:
         return None
+    version = parsed.get("version")
+    has_version = bool(version) and version not in ("*", "-")
     for cpe_match in entry.cpe_matches:
-        if cpe_match.vendor == parsed["vendor"] and cpe_match.product == parsed["product"]:
-            if cpe_match.version_end_excluding:
-                return cpe_match.version_end_excluding
-            if cpe_match.version_end_including:
-                return cpe_match.version_end_including
+        if cpe_match.vendor != parsed["vendor"] or cpe_match.product != parsed["product"]:
+            continue
+        if has_version and not version_in_range(version, cpe_match):
+            continue
+        upper_bound = cpe_match.version_end_excluding or cpe_match.version_end_including
+        if upper_bound:
+            return upper_bound
     return None
