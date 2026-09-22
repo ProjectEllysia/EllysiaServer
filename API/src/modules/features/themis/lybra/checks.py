@@ -46,7 +46,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
@@ -69,7 +69,9 @@ logger = logging.getLogger(__name__)
 # ``Check.check_id``). Los dos checks ``network`` suben además a ``version: 2``
 # en checks-6: su comportamiento cambia, y un hallazgo guardado tiene que poder
 # decir cuál de las dos formas lo produjo.
-CHECKS_FEED_VERSION = "lybra-checks-17"
+# checks-18: SSH, el primer protocolo cuyos checks leen el ``KEXINIT``, y
+# ``refutes``, la primera conclusión negativa del esquema.
+CHECKS_FEED_VERSION = "lybra-checks-18"
 # Quality of Detection for a finding a check actively confirmed, as opposed to
 # one merely inferred from a version.
 QOD_CONFIRMED = 99
@@ -170,6 +172,8 @@ _VNC_SERVICE_NAMES = {"vnc"}
 _VNC_PORTS = {5900}
 _TELNET_SERVICE_NAMES = {"telnet"}
 _TELNET_PORTS = {23}
+_SSH_SERVICE_NAMES = {"ssh"}
+_SSH_PORTS = {22}
 # SNMP — el primer protocolo de esta tabla que habla UDP. 161 también aparece
 # en WELL_KNOWN_PORTS como TCP, así que is_snmp_service (más abajo) es el
 # único predicado de este módulo que mira service.protocol: sin esa guarda,
@@ -474,6 +478,15 @@ class Check:  # pylint: disable=too-many-instance-attributes
             confirmer never exploits: it checks the
             condition without running anything on the target, or it is not
             written.
+        refutes: For a **refuter** check, the CVE it disproves — the mirror of
+            ``confirms``. It runs under the same rule (only when the version
+            matcher proposed that CVE) and, when it fires, it does not emit a
+            finding of its own: it carries a ``_refutes`` mark that
+            :func:`~.correlation.apply_refutations` turns into
+            ``state="fixed"`` on the version finding of the same port. It
+            exists for the cases where the service itself announces the fix a
+            version number cannot show — an OpenSSH offering *strict kex* is
+            not vulnerable to Terrapin, whatever its banner says.
         tags: Free-form labels (Nuclei's ``info.tags``, plus vendor/product
             metadata). Not used by the runtime, which runs whatever it is
             given: they exist so a *selector* can decide which of thousands of
@@ -504,6 +517,7 @@ class Check:  # pylint: disable=too-many-instance-attributes
     feed_version: Optional[str] = None
     expect_banner: bool = False
     confirms: Optional[str] = None
+    refutes: Optional[str] = None
     tags: tuple = ()
     payloads: tuple = ()
 
@@ -604,6 +618,7 @@ def _parse_check(c: dict) -> Check:
         script=c.get("script"),
         expect_banner=bool(c.get("expectBanner", False)),
         confirms=c.get("confirms"),
+        refutes=c.get("refutes"),
         payloads=tuple(
             (str(name), tuple(str(value) for value in values))
             for name, values in (c.get("payloads") or {}).items()
@@ -783,6 +798,14 @@ def validate_checks(checks: Iterable[Check]) -> List[str]:  # pylint: disable=to
             problems.append(
                 f"Check {name!r}: 'confirms' debe ser un identificador CVE "
                 f"(CVE-AAAA-NNNN), no {check.confirms!r}")
+        if check.refutes and not _CVE_ID_RE.match(check.refutes):
+            problems.append(
+                f"Check {name!r}: 'refutes' debe ser un identificador CVE "
+                f"(CVE-AAAA-NNNN), no {check.refutes!r}")
+        if check.confirms and check.refutes:
+            problems.append(
+                f"Check {name!r}: declara 'confirms' y 'refutes' a la vez; un check "
+                f"sólo puede sostener una de las dos conclusiones")
 
         if check.type == "tls" and check.tls_rule not in _TLS_RULES:
             problems.append(
@@ -969,6 +992,17 @@ def is_telnet_service(service: Service) -> bool:
     versión: sólo a qué servicios acercarse.
     """
     return (service.name or "").lower() in _TELNET_SERVICE_NAMES or service.port in _TELNET_PORTS
+
+
+def is_ssh_service(service: Service) -> bool:
+    """Return whether a service is an SSH endpoint.
+
+    Same rule as :class:`~.fingerprinting.ssh.SshDissector`: the service name
+    or the canonical port. Los checks de SSH leen el ``KEXINIT`` que el
+    servidor envía en claro al conectar, así que sólo hace falta saber a qué
+    servicios acercarse.
+    """
+    return (service.name or "").lower() in _SSH_SERVICE_NAMES or service.port in _SSH_PORTS
 
 
 def is_vnc_service(service: Service) -> bool:
@@ -1168,12 +1202,19 @@ class ScriptContext:
             al plugin no cuesta ninguna petición de red — y sin ella, el plugin
             tendría que descubrir puertos por su cuenta, que es justo lo que
             esta clase existe para impedir.
+        evidence: Lo que el plugin observó y quiere que acompañe al hallazgo
+            (por ejemplo, qué algoritmos SSH exactos son los débiles). Empieza
+            vacío; el plugin lo rellena con ``evidence.update(...)`` y el
+            runtime lo adjunta como evidencia ``kind="script"`` cuando la
+            captura está activada y el hallazgo es confirmado. Un plugin que no
+            lo toca no cambia nada.
     """
     target: str
     service: Service
     rate_limiter: Optional["HostRateLimiter"] = None
     mode: str = "safe"
     sibling_services: tuple = ()
+    evidence: dict = field(default_factory=dict)
 
     def acquire(self) -> None:
         """Respect the host's rate limit before touching the network."""
@@ -1404,6 +1445,10 @@ class CheckRuntime:
                 # de versiones ya propuso su CVE para este escaneo. Es lo que lo
                 # distingue de un check normal — corre porque la KB dijo algo.
                 if check.confirms and check.confirms not in self._proposed_cves:
+                    continue
+                # Un refutador sigue la misma regla, por la misma razón: sólo
+                # hay algo que desmentir si la versión lo propuso.
+                if check.refutes and check.refutes not in self._proposed_cves:
                     continue
                 finding = family.run_check(check, self._host, service)
                 if finding is not None:
@@ -1699,7 +1744,12 @@ class CheckRuntime:
         except Exception:  # noqa: BLE001 - a broken plugin costs its own check, not the scan
             logger.exception("Script check %s failed against %s", check.check_id, host)
             return None
-        return self._finding(check, service) if fired else None
+        if not fired:
+            return None
+        finding = self._finding(check, service)
+        if self._capture_evidence and finding.get("confirmed") and context.evidence:
+            finding["_evidence"] = {"kind": "script", "payload": dict(context.evidence)}
+        return finding
 
     def _finding(self, check: Check, service: Service) -> dict:
         """Build the finding dict for a check that fired against a service."""
@@ -1718,6 +1768,7 @@ class CheckRuntime:
             "qod":          finding_template.get("qod", QOD_CONFIRMED),
             "confirmed":    finding_template.get("confirmed", True),
             "state":        "open",
+            **({"_refutes": check.refutes} if check.refutes else {}),
         }
 
 
