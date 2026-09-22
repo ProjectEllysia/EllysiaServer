@@ -232,3 +232,20 @@ def test_the_signal_survives_a_round_trip_through_the_database():
     """Leído de la base de datos no hay `_installed_version`: basta el CPE."""
     stored = {k: v for k, v in _REGRESSHION.items() if not k.startswith("_")}
     assert is_unverified_distro_package(stored) is True
+
+
+def test_a_network_apache_is_asked_as_apache2():
+    """El producto de un servicio de red es una etiqueta («Apache httpd»); el
+    motor no la pasa como nombre de paquete, y la verificación usa el CPE."""
+    from src.modules.features.themis.lybra.engine import LybraEngine, Service
+    import types
+
+    engine = LybraEngine(cve_lookup=lambda *a: [types.SimpleNamespace(
+        cve_id="CVE-2021-41773", cvss_score=7.5, cvss_vector=None, severity=None, required_os=None)])
+    service = Service(80, "tcp", "http", "Apache httpd", "2.4.49-1ubuntu1",
+                      "cpe:/a:apache:http_server:2.4.49")
+    finding = next(f for f in engine.analyze([service]) if f["category"] == "outdated_software")
+
+    asked = []
+    apply_backport_verdicts([finding], lambda *args: asked.append(args[2]))
+    assert asked == ["apache2"]

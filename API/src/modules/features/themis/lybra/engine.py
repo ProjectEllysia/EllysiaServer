@@ -289,10 +289,13 @@ class LybraEngine:
             # Claves de trabajo, no columnas: la verificación de backports
             # necesita la versión **cruda** del paquete —con su
             # revisión de distribución, que es lo que nombra al proveedor— y el
-            # nombre con el que esa distribución lo llama. El repositorio las
-            # descarta al persistir.
+            # nombre con el que esa distribución lo llama. Ese nombre sólo lo
+            # sabe el inventario (el producto *es* el paquete); en un servicio
+            # visto en la red el producto es una etiqueta («Apache httpd») y
+            # la verificación lo deduce del CPE. El repositorio las descarta
+            # al persistir.
             "_installed_version": service.version,
-            "_package_name":      service.product or service.name or "",
+            "_package_name":      (service.product or service.name or "") if is_verified else "",
         }
 
     @staticmethod
