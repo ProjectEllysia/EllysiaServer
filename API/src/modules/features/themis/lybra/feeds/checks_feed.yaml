@@ -8,7 +8,7 @@
 # feedVersion sube cuando el feed gana una familia nueva o un protocolo nuevo
 # bajo una existente; el arreglo de un check ya presente sube el 'version' de
 # ese check, no esta cadena. Ver CHECKS_FEED_VERSION en checks.py.
-feedVersion: lybra-checks-16
+feedVersion: lybra-checks-18
 checks:
   - id: git-config-exposure
     version: 1
@@ -1249,6 +1249,89 @@ checks:
       title: 'VNC: acceso sin autenticación (tipo de seguridad None ofrecido)'
       qod: 99
       confirmed: true
+  # ===================================================================
+  # SSH: el KEXINIT que el servidor envía en claro al conectar (la lista
+  # de algoritmos que acepta). Nunca se completa el intercambio de claves
+  # ni se autentica nada. Los cuatro de algoritmos débiles siguen el
+  # criterio de OpenVAS, familia por familia.
+  # ===================================================================
+  - id: ssh-weak-mac
+    version: 1
+    type: script
+    script: ssh-weak-mac
+    category: network_config
+    severity: LOW
+    service: ssh
+    mode: safe
+    finding:
+      title: 'SSH: acepta MACs débiles (MD5, 96 o 64 bits)'
+      qod: 99
+      confirmed: true
+  - id: ssh-weak-encryption
+    version: 1
+    type: script
+    script: ssh-weak-encryption
+    category: network_config
+    severity: MEDIUM
+    service: ssh
+    mode: safe
+    finding:
+      title: 'SSH: acepta cifrados débiles (CBC, RC4, 3DES)'
+      qod: 99
+      confirmed: true
+  - id: ssh-weak-kex
+    version: 1
+    type: script
+    script: ssh-weak-kex
+    category: network_config
+    severity: MEDIUM
+    service: ssh
+    mode: safe
+    finding:
+      title: 'SSH: acepta intercambios de claves débiles (SHA-1 o grupo DH 1)'
+      qod: 99
+      confirmed: true
+  - id: ssh-weak-host-key
+    version: 1
+    type: script
+    script: ssh-weak-host-key
+    category: network_config
+    severity: LOW
+    service: ssh
+    mode: safe
+    finding:
+      title: 'SSH: ofrece claves de host débiles (DSA o RSA con SHA-1)'
+      qod: 99
+      confirmed: true
+  # Terrapin (CVE-2023-48795): la versión sólo dice que estaba afectada; el
+  # KEXINIT dice si esta configuración lo está. Confirmador y refutador
+  # corren sólo si la versión propuso la CVE.
+  - id: ssh-terrapin-confirm
+    version: 1
+    type: script
+    script: ssh-terrapin-confirm
+    category: vulnerability
+    severity: MEDIUM
+    service: ssh
+    mode: safe
+    confirms: CVE-2023-48795
+    finding:
+      title: 'SSH: vulnerable a Terrapin (CVE-2023-48795), sin strict kex'
+      qod: 99
+      confirmed: true
+  - id: ssh-terrapin-refute
+    version: 1
+    type: script
+    script: ssh-terrapin-refute
+    category: vulnerability
+    severity: INFO
+    service: ssh
+    mode: safe
+    refutes: CVE-2023-48795
+    finding:
+      title: 'SSH: no vulnerable a Terrapin (strict kex anunciado o sin modos afectados)'
+      qod: 99
+      confirmed: false
   # SMTP relay abierto: el servidor acepta un RCPT a un dominio externo desde un
   # remitente externo. No se llega a DATA — no se envía correo, sólo se observa
   # que aceptaría enrutarlo. Un servidor bien configurado responde 550/554.

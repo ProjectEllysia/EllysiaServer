@@ -53,6 +53,8 @@ from ...lybra import (
     score_finding,
     build_service_rollup,
     apply_backport_verdicts,
+    apply_refutations,
+    split_refutations,
     CheckPlanner,
     KnownService,
 )
@@ -753,13 +755,17 @@ class LybraEngineManager(ScanManager):
                 CR.lybra_config().active_checks
                 if active_checks_override is None else active_checks_override
             )
+            # Las marcas de los refutadores no son hallazgos: se apartan aquí
+            # y se aplican tras el ciclo de vida, como los backports.
+            refutations: list = []
             if (source.probes_target_network and source_target and is_target_authorized
                     and active_checks_enabled and not should_stop()):
-                findings_data.extend(
+                active_findings, refutations = split_refutations(
                     self._run_active_checks(source_target, services,
                                             cancel_check=should_stop,
                                             proposed_cves=proposed_cves,
                                             mode=mode))
+                findings_data.extend(active_findings)
                 is_partial = is_partial or should_stop()
 
             # Motor de credenciales por defecto — la única
@@ -800,6 +806,7 @@ class LybraEngineManager(ScanManager):
             # `apply_lifecycle` reasignaría el estado de todo hallazgo
             # presente y borraría ese veredicto: un `fixed` recién puesto
             # volvería a `open` en la misma pasada.
+            apply_refutations(findings_data, refutations)
             with UnitOfWork() as uow:
                 apply_backport_verdicts(findings_data, KbRepository(uow).distro_package_status)
 

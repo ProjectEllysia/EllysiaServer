@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import hashlib
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from src.modules.shared import classify_exposure
 
@@ -305,6 +305,63 @@ def apply_lifecycle(current: List[dict], previous: Dict[str, dict],
             ghost["state"] = "fixed"
             carried.append(ghost)
     return current + carried
+
+
+def split_refutations(findings: List[dict]) -> Tuple[List[dict], List[dict]]:
+    """Separa las marcas de refutación de los hallazgos de verdad.
+
+    Un check refutador (``refutes`` en el feed) no describe un problema: dice
+    que otro no existe. Por eso no puede viajar como un hallazgo más por
+    ``merge_findings`` y ``apply_lifecycle`` —se persistiría como un hallazgo
+    abierto—, y se aparta aquí para aplicarlo después con
+    :func:`apply_refutations`.
+
+    Args:
+        findings: Los hallazgos que devolvió el runtime de checks.
+
+    Returns:
+        Tuple[List[dict], List[dict]]: ``(hallazgos, marcas)``. Las marcas son
+            los dicts que traen la clave ``_refutes``.
+    """
+    marks = [finding for finding in findings if finding.get("_refutes")]
+    return [finding for finding in findings if not finding.get("_refutes")], marks
+
+
+def apply_refutations(findings: List[dict], marks: List[dict]) -> List[dict]:
+    """Desmiente los hallazgos por versión que una observación directa contradice.
+
+    Cada marca dice «la CVE X no aplica al servicio de este puerto», porque el
+    propio servicio anunció la corrección (un OpenSSH que ofrece *strict kex*
+    no es vulnerable a Terrapin, diga lo que diga su versión). Los hallazgos
+    por versión de ese puerto que llevan esa CVE pasan a ``state="fixed"`` y
+    ``confirmed=False``, con el ``check_id`` del refutador como procedencia:
+    el mismo desenlace que un backport verificado, y por la misma razón —no se
+    ha remediado ahora, es que nunca estuvo—.
+
+    Se aplica **después** del ciclo de vida, igual que los backports: antes,
+    ``apply_lifecycle`` reasignaría el estado y borraría el veredicto.
+
+    Args:
+        findings: Los hallazgos del escaneo, ya con su ciclo de vida.
+        marks: Las marcas que devolvió :func:`split_refutations`.
+
+    Returns:
+        List[dict]: La misma lista, con los hallazgos desmentidos modificados.
+    """
+    refuted = {(mark.get("port"), mark["_refutes"]): mark.get("check_id") for mark in marks}
+    if not refuted:
+        return findings
+    for finding in findings:
+        if finding.get("category") != "outdated_software":
+            continue
+        for cve in finding.get("cve_ids") or ():
+            check_id = refuted.get((finding.get("port"), cve))
+            if check_id:
+                finding["state"] = "fixed"
+                finding["confirmed"] = False
+                finding["check_id"] = check_id
+                break
+    return findings
 
 
 # =========================================================================

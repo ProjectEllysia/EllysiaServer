@@ -30,7 +30,7 @@ que ``SmbDissector`` vive en ``smb.py``.
 from __future__ import annotations
 
 import logging
-from typing import Dict, Optional
+from typing import Dict, List, Optional, Tuple
 
 from .checks import (
     ScriptContext,
@@ -44,6 +44,7 @@ from .checks import (
     is_postgres_service,
     is_smb_service,
     is_snmp_service,
+    is_ssh_service,
     is_telnet_service,
     is_vnc_service,
 )
@@ -54,6 +55,7 @@ from .fingerprinting.mongo import MongoProbe, fingerprint_mongo
 from .fingerprinting.postgres import PostgresProbe, fingerprint_postgres
 from .fingerprinting.rdp import RdpProbe, fingerprint_rdp
 from .fingerprinting.snmp import SnmpProbe
+from .fingerprinting.ssh import SshProbe, parse_kexinit
 from .fingerprinting.telnet import TelnetProbe
 from .fingerprinting.vnc import VncProbe
 from .fingerprinting.udp_services import (
@@ -484,6 +486,207 @@ class VncNoAuthenticationPlugin(ScriptPlugin):
         return self._SECURITY_NONE in types
 
 
+# -------------------------------------------------------------------- SSH
+#
+# Al conectar, antes de cifrar nada, el servidor SSH envía en claro su
+# ``KEXINIT``: la lista completa de algoritmos que acepta. Los plugins de abajo
+# la leen y no pasan de ahí —nunca completan el intercambio de claves ni se
+# autentican—, así que son checks ``safe`` por construcción.
+
+class _KexinitCache:
+    """Una sola lectura del ``KEXINIT`` por servicio, compartida por los plugins SSH.
+
+    Seis plugins miran el mismo mensaje; sin esto, cada uno abriría su propia
+    conexión y el objetivo vería seis saludos SSH seguidos para una sola
+    pregunta. Vive lo que vive el registro de plugins (un escaneo).
+
+    Args:
+        probe: Sonda inyectable, para que un test use un socket falso.
+    """
+
+    def __init__(self, probe: Optional[SshProbe] = None) -> None:
+        self._probe = probe or SshProbe()
+        self._kexinits: Dict[Tuple[str, int], Optional[Dict[str, List[str]]]] = {}
+
+    def kexinit(self, context: ScriptContext) -> Optional[Dict[str, List[str]]]:
+        """Devuelve las listas de algoritmos del servicio, sondeándolo la primera vez.
+
+        Args:
+            context: El contexto del check, del que salen objetivo, puerto y
+                limitador de ritmo.
+
+        Returns:
+            Optional[Dict[str, List[str]]]: Las diez listas del ``KEXINIT``
+                (ver ``fingerprinting.ssh._KEXINIT_FIELDS``), o ``None`` si no
+                hubo conexión o la respuesta no se entendió.
+        """
+        key = (context.target, context.service.port or 22)
+        if key not in self._kexinits:
+            context.acquire()
+            probed = self._probe.fetch(*key)
+            parsed = None
+            if probed is not None:
+                try:
+                    parsed = parse_kexinit(probed[1])
+                except ValueError:
+                    parsed = None
+            self._kexinits[key] = parsed
+        return self._kexinits[key]
+
+
+def _is_weak_mac(name: str) -> bool:
+    """MAC basado en MD5, de 96 o de 64 bits, o ``none`` (el mismo criterio que OpenVAS)."""
+    return name == "none" or "md5" in name or "-96" in name or name.startswith("umac-64")
+
+
+def _is_weak_cipher(name: str) -> bool:
+    """Cifrado en modo CBC, RC4 (``arcfour``), 3DES/DES, Blowfish, CAST o ``none``."""
+    return name == "none" or any(token in name for token in (
+        "cbc", "arcfour", "3des", "blowfish", "cast128"))
+
+
+_WEAK_KEX = frozenset({
+    "diffie-hellman-group1-sha1",
+    "diffie-hellman-group14-sha1",
+    "diffie-hellman-group-exchange-sha1",
+    "rsa1024-sha1",
+})
+
+
+def _is_weak_kex(name: str) -> bool:
+    """Intercambio de claves con SHA-1 o con el grupo Diffie-Hellman 1 (768 bits)."""
+    return name in _WEAK_KEX or (name.startswith("gss-") and "sha1" in name)
+
+
+def _is_weak_host_key(name: str) -> bool:
+    """Clave de host DSA, o RSA firmada con SHA-1 (``ssh-rsa``)."""
+    return name.startswith("ssh-dss") or name == "ssh-rsa" or name.startswith("ssh-rsa-cert")
+
+
+# familia → (listas del KEXINIT que mira, criterio de debilidad)
+_WEAK_ALGORITHM_FAMILIES = {
+    "mac": (("mac_algorithms_client_to_server", "mac_algorithms_server_to_client"), _is_weak_mac),
+    "encryption": (("encryption_algorithms_client_to_server",
+                    "encryption_algorithms_server_to_client"), _is_weak_cipher),
+    "kex": (("kex_algorithms",), _is_weak_kex),
+    "host-key": (("server_host_key_algorithms",), _is_weak_host_key),
+}
+
+
+def weak_ssh_algorithms(kexinit: Dict[str, List[str]], family: str) -> List[str]:
+    """Los algoritmos débiles que un servidor SSH acepta en una familia.
+
+    Args:
+        kexinit: Las listas del ``KEXINIT``, como las devuelve ``parse_kexinit``.
+        family: ``"mac"``, ``"encryption"``, ``"kex"`` o ``"host-key"``.
+
+    Returns:
+        List[str]: Los nombres débiles, sin repetir y en el orden en que el
+            servidor los anuncia. Vacía si no acepta ninguno.
+    """
+    fields, is_weak = _WEAK_ALGORITHM_FAMILIES[family]
+    weak: List[str] = []
+    for field_name in fields:
+        for name in kexinit.get(field_name, []):
+            if is_weak(name) and name not in weak:
+                weak.append(name)
+    return weak
+
+
+class SshWeakAlgorithmsPlugin(ScriptPlugin):
+    """Detecta un servidor SSH que acepta algoritmos débiles de una familia.
+
+    Se instancia una vez por familia (MAC, cifrado, intercambio de claves,
+    clave de host) para que cada una sea su propio hallazgo con su propia
+    severidad, como hace OpenVAS. La lista exacta de algoritmos débiles va en
+    la evidencia: «acepta MACs débiles» no se puede corregir sin saber cuáles.
+
+    Args:
+        family: ``"mac"``, ``"encryption"``, ``"kex"`` o ``"host-key"``.
+        cache: La caché de ``KEXINIT`` compartida con los otros plugins SSH.
+    """
+
+    def __init__(self, family: str, cache: _KexinitCache) -> None:
+        self.plugin_id = f"ssh-weak-{family}"
+        self._family = family
+        self._cache = cache
+
+    def applies(self, service: Service) -> bool:
+        return is_ssh_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        kexinit = self._cache.kexinit(context)
+        if kexinit is None:
+            return False
+        weak = weak_ssh_algorithms(kexinit, self._family)
+        if weak:
+            context.evidence.update({"family": self._family, "weak_algorithms": weak})
+        return bool(weak)
+
+
+# Terrapin (CVE-2023-48795) necesita un modo de cifrado vulnerable —ChaCha20-
+# Poly1305, o un MAC encrypt-then-MAC junto a un cifrado CBC— y que el
+# servidor no haya activado la contramedida *strict kex*.
+_STRICT_KEX_MARKER = "kex-strict-s-v00@openssh.com"
+
+
+def is_vulnerable_to_terrapin(kexinit: Dict[str, List[str]]) -> bool:
+    """Decide si las listas de un servidor SSH lo dejan expuesto a Terrapin.
+
+    Args:
+        kexinit: Las listas del ``KEXINIT``.
+
+    Returns:
+        bool: ``True`` si ofrece un modo vulnerable y no anuncia *strict kex*;
+            ``False`` si anuncia *strict kex* o no ofrece ningún modo
+            vulnerable.
+    """
+    if _STRICT_KEX_MARKER in kexinit.get("kex_algorithms", []):
+        return False
+    ciphers = (kexinit.get("encryption_algorithms_client_to_server", [])
+               + kexinit.get("encryption_algorithms_server_to_client", []))
+    macs = (kexinit.get("mac_algorithms_client_to_server", [])
+            + kexinit.get("mac_algorithms_server_to_client", []))
+    has_chacha = "chacha20-poly1305@openssh.com" in ciphers
+    has_etm_with_cbc = (any("-etm@" in mac for mac in macs)
+                        and any("cbc" in cipher for cipher in ciphers))
+    return has_chacha or has_etm_with_cbc
+
+
+class SshTerrapinPlugin(ScriptPlugin):
+    """Confirma o desmiente Terrapin (CVE-2023-48795) con las listas del propio servidor.
+
+    La detección por versión sólo puede decir «esta versión estaba afectada»;
+    el ``KEXINIT`` dice si **esta configuración** lo está. Se registra dos
+    veces: como confirmador (dispara si es vulnerable) y como refutador
+    (dispara si no lo es), y el feed ata cada instancia a su conclusión.
+
+    Args:
+        expect_vulnerable: ``True`` para la instancia confirmadora, ``False``
+            para la refutadora.
+        cache: La caché de ``KEXINIT`` compartida con los otros plugins SSH.
+    """
+
+    def __init__(self, expect_vulnerable: bool, cache: _KexinitCache) -> None:
+        self.plugin_id = "ssh-terrapin-confirm" if expect_vulnerable else "ssh-terrapin-refute"
+        self._expect_vulnerable = expect_vulnerable
+        self._cache = cache
+
+    def applies(self, service: Service) -> bool:
+        return is_ssh_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        kexinit = self._cache.kexinit(context)
+        if kexinit is None:
+            # Sin KEXINIT no se puede afirmar nada, ni en un sentido ni en otro.
+            return False
+        context.evidence.update({
+            "strict_kex": _STRICT_KEX_MARKER in kexinit.get("kex_algorithms", []),
+            "kex_algorithms": kexinit.get("kex_algorithms", []),
+        })
+        return is_vulnerable_to_terrapin(kexinit) == self._expect_vulnerable
+
+
 def default_script_plugins() -> Dict[str, ScriptPlugin]:
     """Construye el registro de plugins de primera parte, indexado por ``plugin_id``.
 
@@ -505,4 +708,8 @@ def default_script_plugins() -> Dict[str, ScriptPlugin]:
         TelnetEnabledPlugin(),
         VncNoAuthenticationPlugin(),
     )
+    ssh_cache = _KexinitCache()
+    plugins += tuple(SshWeakAlgorithmsPlugin(family, ssh_cache)
+                     for family in _WEAK_ALGORITHM_FAMILIES)
+    plugins += (SshTerrapinPlugin(True, ssh_cache), SshTerrapinPlugin(False, ssh_cache))
     return {plugin.plugin_id: plugin for plugin in plugins}

@@ -121,6 +121,8 @@ from .correlation import (
     compute_dedup_key,
     merge_findings,
     apply_lifecycle,
+    apply_refutations,
+    split_refutations,
     score_finding,
     PRIORITY_LADDER,
 )
@@ -292,6 +294,8 @@ __all__ = [
     "compute_dedup_key",
     "merge_findings",
     "apply_lifecycle",
+    "apply_refutations",
+    "split_refutations",
     "score_finding",
     "PRIORITY_LADDER",
     "Dissector",
