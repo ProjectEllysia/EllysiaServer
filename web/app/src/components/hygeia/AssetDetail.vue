@@ -58,12 +58,25 @@
          role="tabpanel" id="panel-graficas" aria-labelledby="tab-graficas" tabindex="0">
       <section class="section">
         <h4 class="section-title">Constantes</h4>
-        <!-- Silueta de una sola tarjeta de gráfica, con el alto real de
-             MetricsChart (cabecera, gráfico de 214px, eje X, leyenda y pie).
-             Si esa tarjeta cambia de alto, este número deja de cuadrar y
-             vuelve el salto. -->
+        <!-- Silueta de una tarjeta de gráfica, con el alto real de
+             MetricsChart (cabecera, gráfico de 214px, eje X, leyenda y pie)
+             y su misma rejilla, con una franja que la barre en el sentido en
+             que luego se revela la traza. Si esa tarjeta cambia de alto, este
+             número deja de cuadrar y vuelve el salto. -->
         <div v-if="metricsLoading" class="vitals-ghost" aria-busy="true" aria-label="Cargando métricas">
-          <span class="skeleton vital-ghost" aria-hidden="true"></span>
+          <div class="vital-ghost" aria-hidden="true">
+            <div class="vital-ghost-head">
+              <span class="skeleton skeleton--line vital-ghost-name"></span>
+              <span class="skeleton skeleton--line vital-ghost-now"></span>
+            </div>
+            <div class="vital-ghost-plot">
+              <span v-for="n in 5" :key="n" class="vital-ghost-grid"></span>
+              <span class="vital-ghost-sweep"></span>
+            </div>
+            <div class="vital-ghost-foot">
+              <span v-for="n in 3" :key="n" class="skeleton skeleton--line vital-ghost-stat"></span>
+            </div>
+          </div>
         </div>
         <p v-else-if="metricsError && !metrics.length" class="state-msg state-msg--error">{{ metricsError }}</p>
         <template v-else>
@@ -669,7 +682,40 @@ function stateLabel(state) { return STATE_LABELS[state] || 'Desconocido' }
    solo aparece cuando falta parte del periodo. Si esa tarjeta cambia de
    alto, este número deja de cuadrar y vuelve el salto. */
 .vitals-ghost { display: flex; flex-direction: column; gap: 0.85rem; }
-.vital-ghost { height: 353px; border-radius: 8px; }
+.vital-ghost {
+  box-sizing: border-box; height: 353px;
+  display: flex; flex-direction: column; gap: 0.6rem;
+  padding: 0.85rem 0.95rem 0.7rem;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+}
+.vital-ghost-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.vital-ghost-name { width: 7rem; }
+.vital-ghost-now { width: 4.5rem; height: 1.4rem; }
+/* La zona del gráfico: rejilla discontinua como la real y, encima, la franja
+   de carga. Ocupa todo lo que no son cabecera y pie. */
+.vital-ghost-plot {
+  position: relative; flex: 1; overflow: hidden;
+  display: flex; flex-direction: column; justify-content: space-between;
+  padding: 12px 0;
+}
+.vital-ghost-grid { display: block; border-top: 1px dashed var(--border); }
+.vital-ghost-sweep {
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 16%, transparent), transparent)
+    no-repeat;
+  background-size: 30% 100%;
+  animation: vital-sweep 1.4s ease-in-out infinite;
+}
+@keyframes vital-sweep {
+  from { background-position: -50% 0; }
+  to   { background-position: 150% 0; }
+}
+.vital-ghost-foot { display: flex; gap: 0.85rem; }
+.vital-ghost-stat { width: 4.5rem; }
+@media (prefers-reduced-motion: reduce) {
+  /* Quieta y a media opacidad: sigue diciendo que carga sin barrer. */
+  .vital-ghost-sweep { animation: none; background-size: 100% 100%; opacity: 0.5; }
+}
 .inventory-ghost { display: flex; flex-direction: column; gap: 0.55rem; margin-top: 0.6rem; }
 .status--pending { color: var(--text-muted); }
 .status--online  { color: var(--success); }
