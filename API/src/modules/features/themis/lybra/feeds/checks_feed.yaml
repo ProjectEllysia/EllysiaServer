@@ -8,7 +8,7 @@
 # feedVersion sube cuando el feed gana una familia nueva o un protocolo nuevo
 # bajo una existente; el arreglo de un check ya presente sube el 'version' de
 # ese check, no esta cadena. Ver CHECKS_FEED_VERSION en checks.py.
-feedVersion: lybra-checks-18
+feedVersion: lybra-checks-19
 checks:
   - id: git-config-exposure
     version: 1
@@ -1417,6 +1417,31 @@ checks:
               - '^(?:500|502|504|530|534|431)'
     finding:
       title: 'FTP: sin cifrado disponible (AUTH TLS no soportado)'
+      qod: 99
+      confirmed: true
+  # FTP que ofrece TLS sin exigirlo: responde 331 (pide la contraseña) a un
+  # USER enviado sin AUTH TLS, así que la aceptaría en claro. Nunca se
+  # envía PASS: el 331 ya es la prueba. Un servidor que exige TLS responde
+  # 530/550/534. El usuario es inventado para no tocar ninguna cuenta real
+  # ni el anónimo (ftp-anonymous-login ya cubre ése).
+  - id: ftp-cleartext-login-allowed
+    version: 1
+    type: network
+    category: network_config
+    severity: MEDIUM
+    service: ftp
+    mode: safe
+    expectBanner: true
+    requests:
+      - send: "USER lybra-cleartext-probe\r\n"
+        read: block
+        matchers:
+          - type: regex
+            part: body
+            regex:
+              - '^331'
+    finding:
+      title: 'FTP: acepta credenciales en claro (TLS ofrecido pero no exigido)'
       qod: 99
       confirmed: true
   # ===================================================================
