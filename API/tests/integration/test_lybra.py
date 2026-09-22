@@ -2600,3 +2600,82 @@ def test_a_target_that_keeps_answering_is_not_flagged(app, admin_user, monkeypat
 
     assert escan.is_partial is False
     assert not [f for f in findings if f.category == "scan_integrity"]
+
+
+# ─────────────────────── escanear por nombre de host
+#
+# El nombre viaja en SNI y en Host (lo que decide qué sitio responde en un
+# servidor con varios), y todas las conexiones van a la IP que se validó.
+
+
+def _dns(table):
+    import socket as _socket
+
+    def getaddrinfo(host, *_args, **_kwargs):
+        if host in table:
+            return [(_socket.AF_INET, _socket.SOCK_STREAM, 6, "", (table[host], 0))]
+        return [(_socket.AF_INET, _socket.SOCK_STREAM, 6, "", (host, 0))]
+    return getaddrinfo
+
+
+def test_the_endpoint_accepts_a_public_hostname(client, admin_user, auth_headers, monkeypatch):
+    import socket as _socket
+    captured = {}
+    monkeypatch.setattr(_socket, "getaddrinfo", _dns({"sitio.ejemplo.test": "8.8.8.8"}))
+    monkeypatch.setattr(LybraEngineManager, "run_scan",
+                        lambda self, **kwargs: captured.update(kwargs) or 1)
+
+    resp = client.post("/themis/lybra", headers=auth_headers(admin_user),
+                       json={"target": "Sitio.Ejemplo.test"})
+
+    assert resp.status_code == 201
+    assert captured["target"] == "sitio.ejemplo.test"
+
+
+def test_the_endpoint_rejects_a_hostname_that_points_inside(client, admin_user, auth_headers,
+                                                              monkeypatch):
+    import socket as _socket
+    monkeypatch.setattr(_socket, "getaddrinfo", _dns({"interno.ejemplo.test": "10.0.0.5"}))
+    monkeypatch.setattr(LybraEngineManager, "run_scan", lambda self, **kwargs: 1)
+
+    resp = client.post("/themis/lybra", headers=auth_headers(admin_user),
+                       json={"target": "interno.ejemplo.test"})
+
+    assert resp.status_code >= 400
+
+
+def test_a_hostname_is_authorized_only_if_all_its_addresses_are(app, admin_user, monkeypatch):
+    import socket as _socket
+    _authorize_target(app, admin_user.id, "8.8.8.0/24")
+    monkeypatch.setattr(_socket, "getaddrinfo", _dns({"dentro.ejemplo.test": "8.8.8.8",
+                                                      "fuera.ejemplo.test": "1.1.1.1"}))
+
+    with app.app_context():
+        assert AuthorizedTargetManager.is_authorized(admin_user.id, "dentro.ejemplo.test") is True
+        assert AuthorizedTargetManager.is_authorized(admin_user.id, "fuera.ejemplo.test") is False
+
+
+def test_a_hostname_scan_connects_to_the_validated_address(app, admin_user, monkeypatch):
+    """Durante el escaneo el nombre resuelve a la IP validada al empezar, aunque el
+    DNS cambie después (rebinding); el Host guarda nombre e IP."""
+    import socket as _socket
+    monkeypatch.setattr(_socket, "getaddrinfo", _dns({"sitio.ejemplo.test": "8.8.8.8"}))
+    seen = {}
+
+    def discover(self, target, ports, **_kwargs):
+        # A mitad de escaneo el DNS «cambia» a una IP interna: el pin manda.
+        seen["during"] = _socket.getaddrinfo(target, 80)[0][4][0]
+        return _sweep([80])
+
+    monkeypatch.setattr(ScanManager, "is_host_reachable", staticmethod(lambda *a, **k: True))
+    monkeypatch.setattr(LybraEngineManager, "_discover_ports", discover)
+    monkeypatch.setattr(LybraEngineManager, "_discover_udp_ports", lambda self, target: [])
+
+    escan, _findings = _run_self_discovery(app, admin_user, "sitio.ejemplo.test")
+
+    assert seen["during"] == "8.8.8.8"
+    assert escan.status == ScanStatus.FINISHED.value
+    with app.app_context():
+        with UnitOfWork() as uow:
+            host = ScanRepository(uow).get_by_id(escan.id).host
+            assert (host.hostname, host.ip_address) == ("sitio.ejemplo.test", "8.8.8.8")
