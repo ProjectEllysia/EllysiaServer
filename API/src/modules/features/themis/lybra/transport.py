@@ -60,11 +60,13 @@ from __future__ import annotations
 import asyncio
 import logging
 import socket
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable, Dict, Iterable, List, Optional, Tuple
+from typing import Callable, Dict, Iterable, Iterator, List, Optional, Tuple
 
 from .engine import Service
 from .udp_payloads import (
@@ -746,3 +748,69 @@ def scan_udp_ports_sync(  # pylint: disable=too-many-arguments
     with ThreadPoolExecutor(max_workers=len(port_list)) as pool:
         answered = [port for port in pool.map(probe, port_list) if port is not None]
     return sorted(answered)
+
+
+# =========================================================================
+# Fijar la resolución de un nombre durante un escaneo
+# =========================================================================
+#
+# Escanear por nombre exige que el nombre viaje en el saludo TLS (SNI) y en la
+# cabecera ``Host``: es lo que decide qué sitio responde en un servidor con
+# varios. Pero conectar por nombre deja que cada sonda vuelva a resolverlo, y
+# un DNS que cambia de respuesta entre la validación y la conexión (*DNS
+# rebinding*) haría llegar el escaneo a una IP interna que el guardia anti-SSRF
+# nunca vio. La solución es fijar el nombre a la IP ya validada: todo pasa por
+# ``socket.getaddrinfo`` —``urllib``, ``socket.create_connection`` y el
+# ``asyncio`` del barrido—, así que basta con envolverlo mientras dura el escaneo.
+
+_PINS: Dict[str, Tuple[str, int]] = {}
+_PINS_LOCK = threading.Lock()
+_UNPINNED_GETADDRINFO: Optional[Callable] = None
+
+
+def _pinned_getaddrinfo(host, *args, **kwargs):
+    """``socket.getaddrinfo`` con los nombres fijados sustituidos por su IP."""
+    if isinstance(host, str):
+        pin = _PINS.get(host.lower().rstrip("."))
+        if pin is not None:
+            host = pin[0]
+    return _UNPINNED_GETADDRINFO(host, *args, **kwargs)  # type: ignore[misc]
+
+
+@contextmanager
+def pinned_resolution(hostname: str, address: str) -> Iterator[None]:
+    """Hace que ``hostname`` resuelva sólo a ``address`` mientras dure el bloque.
+
+    Las conexiones siguen llevando el nombre (SNI, ``Host``), pero todas acaban
+    en la IP validada. Es seguro para otros hilos: a un nombre fijado sólo se le
+    cambia la respuesta por la misma IP que el guardia ya aprobó, y los demás
+    nombres resuelven como siempre. Dos escaneos del mismo nombre comparten el
+    pin con un contador, y la envoltura de ``getaddrinfo`` se retira cuando no
+    queda ninguno.
+
+    Args:
+        hostname: El nombre que se escanea.
+        address: La IP a la que se fija, ya validada.
+
+    Yields:
+        None
+    """
+    global _UNPINNED_GETADDRINFO  # pylint: disable=global-statement
+    key = hostname.lower().rstrip(".")
+    with _PINS_LOCK:
+        if not _PINS:
+            _UNPINNED_GETADDRINFO = socket.getaddrinfo
+            socket.getaddrinfo = _pinned_getaddrinfo
+        pinned_address, count = _PINS.get(key, (address, 0))
+        _PINS[key] = (pinned_address, count + 1)
+    try:
+        yield
+    finally:
+        with _PINS_LOCK:
+            pinned_address, count = _PINS[key]
+            if count > 1:
+                _PINS[key] = (pinned_address, count - 1)
+            else:
+                del _PINS[key]
+            if not _PINS and socket.getaddrinfo is _pinned_getaddrinfo:
+                socket.getaddrinfo = _UNPINNED_GETADDRINFO

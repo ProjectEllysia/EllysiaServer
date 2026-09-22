@@ -3,6 +3,7 @@ de servicios, fingerprinting, checks activos y persistencia de los hallazgos res
 
 import logging
 import time
+from contextlib import ExitStack
 from datetime import timedelta
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, replace
@@ -28,6 +29,7 @@ from ...model import (
 from ...lybra import (
     LybraEngine,
     Service,
+    pinned_resolution,
     compute_dedup_key,
     merge_findings,
     apply_lifecycle,
@@ -60,10 +62,13 @@ from ...lybra import (
 )
 from ...lybra.ingest import select_for_services, translate_all
 from ...services import _Task
+from ...services.parsing import is_hostname, resolve_public_address
 from ...services.cve_context import enrich_with_cve_context, resolve_fixed_versions
 from ...services.nuclei_templates import NucleiTemplateStore
 from src.modules.shared._exceptions import ValidationError
 from ...exceptions import (
+    IPValidationError,
+    PrivateIPRequested,
     ScanFailedError,
     ScanNotFoundError,
     FindingNotFoundError,
@@ -644,6 +649,9 @@ class LybraEngineManager(ScanManager):
             ),
             discover_udp_ports=self._discover_udp_ports,
         )
+        # Los pines de resolución de un escaneo por nombre (ver
+        # ``lybra.pinned_resolution``): se sueltan pase lo que pase.
+        pins = ExitStack()
         try:
             self.update_scan_status(scan_id, ScanStatus.RUNNING)
 
@@ -654,6 +662,9 @@ class LybraEngineManager(ScanManager):
                 lybra_scan = scan_repo.get_by_id(scan_id)
                 source_target = lybra_scan.target if lybra_scan else None
                 user_id = lybra_scan.user_id if lybra_scan else None
+                if source.probes_target_network and source_target and is_hostname(source_target):
+                    pins.enter_context(pinned_resolution(
+                        source_target, _pinned_address_for(source_target)))
 
                 is_target_authorized = bool(
                     user_id 
@@ -873,6 +884,8 @@ class LybraEngineManager(ScanManager):
         except Exception as e:
             logger.error(f"Error en escaneo Lybra {scan_id}: {e}", exc_info=True)
             self.update_scan_status(scan_id, ScanStatus.FAILED, ScanFailureReason.INTERNAL_ERROR)
+        finally:
+            pins.close()
 
     def _discover_ports(
         self,
@@ -1864,3 +1877,28 @@ def _scan_integrity_finding(title: str) -> dict:
         "confirmed":    False,
         "state":        "open",
     }
+
+
+def _pinned_address_for(hostname: str) -> str:
+    """La IP a la que se fija un escaneo por nombre, validada en el momento de empezar.
+
+    Se vuelve a resolver aquí y no se confía en la validación del endpoint:
+    entre lanzar el escaneo y que el trabajador lo recoja pueden pasar minutos,
+    y el nombre puede haber cambiado de dirección en ese tiempo.
+
+    Args:
+        hostname: El nombre del objetivo.
+
+    Returns:
+        str: La IP pública a la que se conectará todo el escaneo.
+
+    Raises:
+        ScanFailedError: ``HOST_UNREACHABLE`` si el nombre ya no resuelve o si
+            ahora apunta a una dirección privada.
+    """
+    try:
+        return resolve_public_address(hostname)
+    except (IPValidationError, PrivateIPRequested) as exc:
+        raise ScanFailedError(
+            ScanFailureReason.HOST_UNREACHABLE,
+            f"El objetivo '{hostname}' no resuelve a una IP pública: {exc}") from exc

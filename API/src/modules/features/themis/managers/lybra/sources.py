@@ -21,7 +21,9 @@ capacidad que Lybra ya tiene por sí mismo, y ataba el motor a otro escáner.
 
 from __future__ import annotations
 
+import ipaddress
 import logging
+import socket
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from typing import Callable, List, Optional
@@ -148,8 +150,9 @@ class ServiceSource(ABC):
         instead of creating a duplicate row for the same device."""
         if not target:
             return None
-        host = scan_repo.get_host_by_ip(target) or scan_repo.get_or_create_host(
-            hostname=target, ip_address=target,
+        address = _address_of(target)
+        host = scan_repo.get_host_by_ip(address) or scan_repo.get_or_create_host(
+            hostname=target, ip_address=address,
         )
         return host.id if host else None
 
@@ -270,3 +273,28 @@ class SelfDiscovery(ServiceSource):
             is_partial=is_partial,
             implausible_open_ports=implausible_open_ports,
         )
+
+
+def _address_of(target: str) -> str:
+    """La IP de un objetivo: él mismo si ya lo es, o a la que resuelve si es un nombre.
+
+    Durante un escaneo por nombre la resolución está fijada
+    (``lybra.pinned_resolution``), así que la IP que se guarda en el ``Host``
+    es la misma a la que se conectó el escaneo.
+
+    Args:
+        target: Una IP o un nombre de host.
+
+    Returns:
+        str: La IP, o el propio ``target`` si no resuelve (un escaneo que ya
+            no puede conectar fallará por su cuenta; aquí sólo se identifica).
+    """
+    try:
+        ipaddress.ip_address(target)
+        return target
+    except ValueError:
+        pass
+    try:
+        return socket.getaddrinfo(target, None)[0][4][0]
+    except OSError:
+        return target
