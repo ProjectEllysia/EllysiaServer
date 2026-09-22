@@ -33,11 +33,39 @@ pytestmark = pytest.mark.unit
     ("1.0", "1.0.0", 0),        # trailing zeros tie
     ("1.2", "1.10", -1),        # 2 < 10
     ("2.4.49", "2.4.50", -1),
-    ("7.4p1", "7.4", -1),       # alpha suffix ranks as pre-release, below the bare release
-    ("2.4.0a", "2.4.0", -1),
+    # Una palabra de versión preliminar va por debajo de la versión final.
+    ("2.0.0rc1", "2.0.0", -1),
+    ("3.12.0a1", "3.12.0", -1),
+    ("1.0b2", "1.0", -1),
+    ("2.0.0-beta", "2.0.0", -1),
+    # El `p1` de OpenSSH portable es la publicación de esa versión, no una
+    # preliminar: ordena por encima de su base y por debajo de la siguiente.
+    ("7.4p1", "7.4", 1),
+    ("9.6p1", "9.6", 1),
+    ("9.8p1", "9.8", 1),
+    ("9.6p1", "9.7", -1),
+    ("9.6p1", "9.6p1", 0),
+    ("9.6p1", "9.6p2", -1),
+    # Las letras de OpenSSL 1.x son parches posteriores.
+    ("1.1.1w", "1.1.1", 1),
+    ("1.1.1w", "1.1.1x", -1),
+    ("1.0.2a", "1.0.2", 1),
+    ("1.1.1w", "1.1.2", -1),
 ])
 def test_version_compare(a, b, expected):
     assert version_compare(a, b) == expected
+
+
+def test_openssh_9_6p1_is_outside_a_range_that_ends_before_9_6():
+    """Terrapin (CVE-2023-48795) se publicó como «afectado hasta 9.6, sin
+    incluirla»; un 9.6p1 no puede caer dentro."""
+    assert version_in_range("9.6p1", {"version_end_excluding": "9.6"}) is False
+    assert version_in_range("9.5p1", {"version_end_excluding": "9.6"}) is True
+
+
+def test_an_openssl_letter_release_lands_in_a_range_that_starts_at_its_base():
+    assert version_in_range("1.1.1w", {"version_start_including": "1.1.1",
+                                       "version_end_excluding": "1.1.1x"}) is True
 
 
 # ------------------------------------------- versiones de paquete de distribución

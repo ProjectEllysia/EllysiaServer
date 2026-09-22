@@ -117,27 +117,53 @@ def split_distro_version(version: str) -> Tuple[Optional[int], str, Optional[str
     return epoch, remainder.split("+", 1)[0], revision
 
 
-def _version_key(version: str) -> List[tuple]:
-    """Break a version string into components that sort correctly.
+# Palabras que marcan una versión preliminar: van por debajo de la versión final.
+_PRE_RELEASE_WORDS = frozenset({
+    "alpha", "beta", "rc", "pre", "preview", "dev", "snapshot", "cr", "milestone",
+})
+# Letras sueltas que sólo son preliminares si llevan número detrás: `3.12.0a1`,
+# `1.0b2`, `5.0.0.M1`. Sin número (`1.0.2a` de OpenSSL) son un parche posterior.
+_PRE_RELEASE_LETTERS = frozenset({"a", "b", "m"})
 
-    Each numeric run becomes an integer and each alphabetic run a lowercased
-    string, tagged so that letters always sort *below* numbers. That way a
-    pre-release tag like "2.4.0a" ranks under its final release "2.4.0", which is
-    the conventional meaning.
+
+def _version_key(version: str) -> List[tuple]:
+    """Descompone una versión en componentes que se ordenan correctamente.
+
+    Cada tramo numérico pasa a entero y cada tramo de letras a texto en
+    minúsculas, etiquetado según lo que significa, porque no todas las letras
+    significan lo mismo:
+
+    * **Preliminar** (``rc1``, ``beta``, ``a1``): ordena por debajo de la
+      versión final, así que ``2.0.0rc1 < 2.0.0``.
+    * **Posterior** (cualquier otra letra: el ``p1`` de OpenSSH portable, las
+      letras de OpenSSL): ordena por encima de la versión base y por debajo del
+      siguiente número, así que ``9.6 < 9.6p1 < 9.7`` y
+      ``1.1.1 < 1.1.1w < 1.1.1x``. Tratarlas como preliminares ponía ``9.6p1``
+      por detrás de ``9.6`` —y le atribuía CVEs corregidas justo en la 9.6— y
+      dejaba ``1.1.1w`` fuera de un rango «desde 1.1.1».
 
     Args:
-        version: A raw version string such as "2.4.49" or "1.0.0-rc1".
+        version: Una versión en crudo, como ``"2.4.49"``, ``"1.0.0-rc1"`` o
+            ``"9.6p1"``.
 
     Returns:
-        A list of comparison tuples, one per run, ready to compare with Python's
-        built-in tuple ordering.
+        List[tuple]: Una tupla de comparación por tramo, lista para compararse
+            con el orden nativo de tuplas de Python. El relleno de
+            :func:`_compare_keys` es ``(1, 0, "")``, el equivalente a un ``0``.
     """
+    runs = re.findall(r"\d+|[A-Za-z]+", version.strip())
     key: List[tuple] = []
-    for run in re.findall(r"\d+|[A-Za-z]+", version.strip()):
+    for index, run in enumerate(runs):
         if run.isdigit():
             key.append((1, int(run), ""))
+            continue
+        word = run.lower()
+        is_followed_by_number = index + 1 < len(runs) and runs[index + 1].isdigit()
+        if word in _PRE_RELEASE_WORDS or (word in _PRE_RELEASE_LETTERS and is_followed_by_number):
+            key.append((0, 0, word))
         else:
-            key.append((0, 0, run.lower()))
+            # Entre la base (relleno (1, 0, "")) y el siguiente número (1, 1, "").
+            key.append((1, 0, word))
     return key
 
 
