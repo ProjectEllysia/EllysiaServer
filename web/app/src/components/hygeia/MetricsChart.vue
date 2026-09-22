@@ -85,29 +85,6 @@
           </line>
         </g>
 
-        <template v-for="(segment, i) in plotSegments" :key="`segment${i}`">
-          <polygon v-if="segment.area" :points="segment.area" class="spark-area" />
-          <polyline
-            v-if="segment.line"
-            :key="`${drawKey}-${i}`"
-            :points="segment.line"
-            class="spark-line"
-            :class="{ draw: drawKey > 0 }"
-            pathLength="1"
-            vector-effect="non-scaling-stroke"
-          />
-          <circle
-            v-else-if="segment.points.length === 1"
-            :cx="segment.points[0].x" :cy="segment.points[0].y" r="3.5"
-            class="spark-dot"
-          />
-        </template>
-
-        <g v-if="hover" class="crosshair">
-          <line :x1="hover.x" :x2="hover.x" :y1="PLOT_TOP" :y2="PLOT_BOTTOM" class="crosshair-line" />
-          <circle :cx="hover.x" :cy="hover.y" r="3.5" class="crosshair-dot" />
-        </g>
-
         <g class="axis-y">
           <text
             v-for="t in yTickValues"
@@ -116,6 +93,41 @@
             class="axis-y-label"
             text-anchor="start"
           >{{ formatTick(t) }}</text>
+        </g>
+      </svg>
+
+      <!-- Las trazas van en su propia capa, encima de la rejilla y con la
+           misma caja, para poder revelarlas de izquierda a derecha sin mover
+           el marco: se recorta la capa HTML con `clip-path`, igual que la
+           gráfica de Evolución de las estadísticas. El revelado se reproduce
+           al montar la tarjeta y el `key` lo reinicia al cambiar de ventana;
+           el sondeo, que reemplaza la serie cada 30 s, no lo repite. -->
+      <div v-if="points.length" :key="revealKey" class="plot-layer plot-layer--data" aria-hidden="true">
+        <svg class="plot-svg" :width="plotW" :height="SVG_H" focusable="false">
+          <template v-for="(segment, i) in plotSegments" :key="`segment${i}`">
+            <polygon v-if="segment.area" :points="segment.area" class="spark-area" />
+            <polyline
+              v-if="segment.line"
+              :points="segment.line"
+              class="spark-line"
+              vector-effect="non-scaling-stroke"
+            />
+            <circle
+              v-else-if="segment.points.length === 1"
+              :cx="segment.points[0].x" :cy="segment.points[0].y" r="3.5"
+              class="spark-dot"
+            />
+          </template>
+        </svg>
+      </div>
+
+      <!-- La cruceta, en una capa aparte por encima de las trazas: dentro de
+           la capa recortada desaparecería mientras se revela. -->
+      <svg v-if="hover" class="plot-layer plot-svg" :width="plotW" :height="SVG_H"
+           aria-hidden="true" focusable="false">
+        <g class="crosshair">
+          <line :x1="hover.x" :x2="hover.x" :y1="PLOT_TOP" :y2="PLOT_BOTTOM" class="crosshair-line" />
+          <circle :cx="hover.x" :cy="hover.y" r="3.5" class="crosshair-dot" />
         </g>
       </svg>
 
@@ -302,12 +314,22 @@ function formatTick(value) {
   return formatValue(metric.value.fmt(value))
 }
 
-// La animación de trazado se dispara al cambiar de métrica o de ventana,
-// nunca en el sondeo: un parpadeo cada 30 s sería ruido, no feedback.
-const drawKey = ref(0)
+/**
+ * Clave de la capa de trazas: cambiarla vuelve a montar la capa y, con ella,
+ * a reproducir el revelado de izquierda a derecha.
+ *
+ * La tarjeta ya se monta de nuevo al cambiar de métrica (la vista la lleva
+ * con `key`) y al terminar cada carga (el esqueleto la sustituye), así que
+ * el revelado de esos casos sale del propio montaje. Aquí solo falta el
+ * cambio de ventana o de cubo cuando llega sin pasar por el esqueleto. El
+ * sondeo no la toca: repetir el revelado cada 30 s sería ruido, no aviso.
+ *
+ * @type {import('vue').Ref<number>}
+ */
+const revealKey = ref(0)
 watch(
-  () => [props.metricKey, props.windowMs, props.bucketSec],
-  () => { drawKey.value += 1 },
+  () => [props.windowMs, props.bucketSec],
+  () => { revealKey.value += 1 },
 )
 
 /* ── Tiempo sin señal ── */
@@ -556,16 +578,17 @@ function formatTooltipTime(ts) {
 .spark-area { fill: color-mix(in srgb, var(--metric-color) 15%, transparent); }
 .spark-dot { fill: var(--metric-color); }
 
-/* Trazado animado solo al cambiar de métrica/ventana (key sobre la polyline);
-   con prefers-reduced-motion se dibuja de golpe. pathLength=1 hace que las
-   unidades del dash sean fracciones del trazo, sea cual sea su longitud. */
-.spark-line.draw {
-  stroke-dasharray: 1;
-  animation: draw-line 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-@keyframes draw-line {
-  from { stroke-dashoffset: 1; }
-  to   { stroke-dashoffset: 0; }
+/* Capas superpuestas a la rejilla, con su misma caja. */
+.plot-layer { position: absolute; top: 0; left: 0; right: 0; pointer-events: none; }
+
+/* Revelado de izquierda a derecha de las trazas. Se recorta la capa entera en
+   vez de animar el trazo (`stroke-dashoffset`): así vale igual para una línea
+   que para varios tramos separados por huecos, y el área rellena entra a la
+   vez que su línea en lugar de aparecer ya pintada debajo. */
+.plot-layer--data { animation: plot-reveal 0.9s cubic-bezier(0.33, 1, 0.68, 1) both; }
+@keyframes plot-reveal {
+  from { clip-path: inset(0 100% 0 0); }
+  to   { clip-path: inset(0 0 0 0); }
 }
 
 /* Rejilla y etiquetas del eje Y, dentro del SVG: pintura con contorno del
@@ -672,7 +695,7 @@ function formatTooltipTime(ts) {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .spark-line.draw { animation: none; }
+  .plot-layer--data { animation: none; }
   .tooltip { animation: none; }
 }
 </style>

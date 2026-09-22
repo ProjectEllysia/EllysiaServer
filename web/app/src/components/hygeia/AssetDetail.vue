@@ -49,16 +49,34 @@
       @switch="activeTab = $event"
     />
 
-    <div v-if="activeTab === 'graficas'" class="tab-panel"
+    <!-- Un solo <Transition> para los cuatro paneles (cadena v-if/v-else-if):
+         el saliente se va antes de que entre el nuevo, y ambos se desplazan
+         hacia el lado de la pestaña elegida, para que el movimiento diga
+         hacia dónde se ha ido. -->
+    <Transition :name="tabTransitionName" mode="out-in">
+    <div v-if="activeTab === 'graficas'" key="graficas" class="tab-panel"
          role="tabpanel" id="panel-graficas" aria-labelledby="tab-graficas" tabindex="0">
       <section class="section">
         <h4 class="section-title">Constantes</h4>
-        <!-- Silueta de una sola tarjeta de gráfica, con el alto real de
-             MetricsChart (cabecera, gráfico de 214px, eje X, leyenda y pie).
-             Si esa tarjeta cambia de alto, este número deja de cuadrar y
-             vuelve el salto. -->
+        <!-- Silueta de una tarjeta de gráfica, con el alto real de
+             MetricsChart (cabecera, gráfico de 214px, eje X, leyenda y pie)
+             y su misma rejilla, con una franja que la barre en el sentido en
+             que luego se revela la traza. Si esa tarjeta cambia de alto, este
+             número deja de cuadrar y vuelve el salto. -->
         <div v-if="metricsLoading" class="vitals-ghost" aria-busy="true" aria-label="Cargando métricas">
-          <span class="skeleton vital-ghost" aria-hidden="true"></span>
+          <div class="vital-ghost" aria-hidden="true">
+            <div class="vital-ghost-head">
+              <span class="skeleton skeleton--line vital-ghost-name"></span>
+              <span class="skeleton skeleton--line vital-ghost-now"></span>
+            </div>
+            <div class="vital-ghost-plot">
+              <span v-for="n in 5" :key="n" class="vital-ghost-grid"></span>
+              <span class="vital-ghost-sweep"></span>
+            </div>
+            <div class="vital-ghost-foot">
+              <span v-for="n in 3" :key="n" class="skeleton skeleton--line vital-ghost-stat"></span>
+            </div>
+          </div>
         </div>
         <p v-else-if="metricsError && !metrics.length" class="state-msg state-msg--error">{{ metricsError }}</p>
         <template v-else>
@@ -98,7 +116,7 @@
     <!-- Todo lo que sigue es el último heartbeat: tiene cardinalidad por
          entidad (montaje, interfaz, proceso, núcleo) y solo tiene sentido
          "ahora", así que no viaja en la serie temporal. -->
-    <div v-if="activeTab === 'estadisticas'" class="tab-panel"
+    <div v-else-if="activeTab === 'estadisticas'" key="estadisticas" class="tab-panel"
          role="tabpanel" id="panel-estadisticas" aria-labelledby="tab-estadisticas" tabindex="0">
       <p v-if="latestError" class="state-msg state-msg--error">{{ latestError }}</p>
 
@@ -260,7 +278,7 @@
       </template>
     </div>
 
-    <div v-if="activeTab === 'inventario'" class="tab-panel"
+    <div v-else-if="activeTab === 'inventario'" key="inventario" class="tab-panel"
          role="tabpanel" id="panel-inventario" aria-labelledby="tab-inventario" tabindex="0">
       <section class="section">
         <h4 class="section-title">
@@ -269,10 +287,30 @@
         </h4>
 
         <p v-if="inventoryError" class="state-msg state-msg--error">{{ inventoryError }}</p>
+        <!-- Silueta de lo que va a llegar: la línea del último escaneo, el
+             filtro y filas con las mismas piezas que una fila de software
+             (nombre y versión, fabricante, tamaño y fecha), tantas como el
+             inventario de este activo tenía la última vez que se vio. -->
         <div v-else-if="inventoryLoading" class="inventory-ghost" aria-busy="true"
              aria-label="Cargando inventario">
-          <span v-for="n in SKELETON_ROWS" :key="n"
-                class="skeleton skeleton--line" aria-hidden="true"></span>
+          <p class="inventory-scanned" aria-hidden="true">
+            <span class="skeleton skeleton--line inventory-ghost-scanned"></span>
+          </p>
+          <span class="inventory-filter inventory-ghost-filter" aria-hidden="true">
+            <span class="skeleton skeleton--line skeleton--w40"></span>
+          </span>
+          <ul class="rows inventory-rows" aria-hidden="true">
+            <li v-for="n in inventoryGhostRows" :key="n" class="row row--software row--ghost">
+              <span class="sw-main">
+                <span class="skeleton skeleton--line inventory-ghost-name"
+                      :style="{ width: `${GHOST_NAME_WIDTHS[n % GHOST_NAME_WIDTHS.length]}%` }"></span>
+                <span class="skeleton skeleton--line inventory-ghost-version"></span>
+              </span>
+              <span class="sw-vendor"><span class="skeleton skeleton--line skeleton--w60"></span></span>
+              <span class="row-value sw-size"><span class="skeleton skeleton--line inventory-ghost-cell"></span></span>
+              <span class="row-note sw-installed"><span class="skeleton skeleton--line inventory-ghost-cell"></span></span>
+            </li>
+          </ul>
         </div>
 
         <template v-else>
@@ -334,7 +372,7 @@
             <p v-if="!filteredInventory.length" class="state-msg">Ningún resultado para «{{ inventoryFilter }}».</p>
 
             <ul v-else class="rows inventory-rows">
-              <li v-for="(sw, i) in filteredInventory" :key="`${sw.name}-${i}`" class="row row--software">
+              <li v-for="(sw, i) in renderedInventory" :key="`${sw.name}-${i}`" class="row row--software">
                 <div class="sw-main">
                   <span class="row-name" :title="sw.name">{{ sw.name }}</span>
                   <span v-if="sw.version" class="sw-version">{{ sw.version }}</span>
@@ -351,7 +389,7 @@
       </section>
     </div>
 
-    <div v-if="activeTab === 'anomalias'" class="tab-panel"
+    <div v-else-if="activeTab === 'anomalias'" key="anomalias" class="tab-panel"
          role="tabpanel" id="panel-anomalias" aria-labelledby="tab-anomalias" tabindex="0">
       <section class="section">
         <h4 class="section-title">
@@ -386,11 +424,12 @@
         </TransitionGroup>
       </section>
     </div>
+    </Transition>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import MetricsChart from '@/components/hygeia/MetricsChart.vue'
 import MetricNav from '@/components/hygeia/MetricNav.vue'
 import AssetTabs from '@/components/hygeia/AssetTabs.vue'
@@ -439,7 +478,14 @@ const TAB_IDS = ['graficas', 'estadisticas', 'inventario', 'anomalias']
 const TAB_STORAGE_PREFIX = 'ellysia:hygeia:lastTab:'
 const METRIC_STORAGE_PREFIX = 'ellysia:hygeia:lastMetric:'
 
-const SKELETON_ROWS = 6
+/** Filas de la silueta del inventario cuando no se sabe cuántas vendrán. */
+const DEFAULT_INVENTORY_GHOST_ROWS = 6
+/** Tope de filas de la silueta: las que caben en la lista antes de que
+ *  aparezca su barra de desplazamiento (`max-height: 26rem`). */
+const MAX_INVENTORY_GHOST_ROWS = 10
+/** Anchos (en %) del nombre en las filas fantasma: iguales delatarían la
+ *  silueta como adorno en vez de como forma de lo que llega. */
+const GHOST_NAME_WIDTHS = [55, 70, 40, 62, 48]
 
 const activeTab = ref('graficas')
 /** Al cambiar de activo se recupera la última pestaña que se miró en ESE
@@ -452,6 +498,22 @@ watch(() => props.asset?.id, (id) => {
 watch(activeTab, (tab) => {
   const id = props.asset?.id
   if (id) localStorage.setItem(TAB_STORAGE_PREFIX + id, tab)
+})
+
+/**
+ * Nombre de la transición entre paneles, según el lado hacia el que se mueve
+ * la selección en la barra de pestañas.
+ *
+ * Se decide antes de que Vue pinte el cambio (`flush: 'pre'`, el de por
+ * defecto), así que el panel saliente y el entrante ya usan el nombre nuevo.
+ *
+ * @type {import('vue').Ref<'tab-forward'|'tab-back'>} `tab-forward` cuando
+ *   la pestaña nueva está a la derecha de la anterior (el contenido entra por
+ *   la derecha), `tab-back` cuando está a la izquierda.
+ */
+const tabTransitionName = ref('tab-forward')
+watch(activeTab, (tab, previous) => {
+  tabTransitionName.value = TAB_IDS.indexOf(tab) >= TAB_IDS.indexOf(previous) ? 'tab-forward' : 'tab-back'
 })
 
 /* ── Métrica del gráfico ──
@@ -510,6 +572,76 @@ const filteredInventory = computed(() => {
     sw.name?.toLowerCase().includes(needle) || sw.vendor?.toLowerCase().includes(needle)
   )
 })
+
+/* ── Silueta y pintado progresivo del inventario ── */
+
+/**
+ * Número de filas del último inventario visto de cada activo, para que la
+ * silueta de carga tenga el tamaño de lo que va a llegar. Vive solo en
+ * memoria: basta con que acierte al volver a un activo ya visitado. Es
+ * reactivo para que un refresco del mismo activo use la cifra recién vista.
+ *
+ * @type {Map<number, number>}
+ */
+const inventorySizeByAsset = reactive(new Map())
+watch(() => props.inventory, (inventory) => {
+  const id = props.asset?.id
+  if (id && inventory.length) inventorySizeByAsset.set(id, inventory.length)
+})
+
+/**
+ * Filas de la silueta de carga: las del último inventario visto de este
+ * activo, entre 1 y `MAX_INVENTORY_GHOST_ROWS`, o
+ * `DEFAULT_INVENTORY_GHOST_ROWS` si todavía no se ha visto ninguno.
+ *
+ * @type {import('vue').ComputedRef<number>}
+ */
+const inventoryGhostRows = computed(() => {
+  const known = inventorySizeByAsset.get(props.asset?.id)
+  return known ? Math.min(known, MAX_INVENTORY_GHOST_ROWS) : DEFAULT_INVENTORY_GHOST_ROWS
+})
+
+/** Filas que se pintan de inmediato al llegar el inventario o al filtrar:
+ *  más de las que caben en la lista, para que el hueco visible salga lleno. */
+const INVENTORY_FIRST_BATCH = 60
+/** Filas que se añaden en cada fotograma después de la primera tanda. */
+const INVENTORY_BATCH = 250
+
+const renderedCount = ref(INVENTORY_FIRST_BATCH)
+let inventoryFrame = null
+
+function cancelInventoryFrame() {
+  if (inventoryFrame !== null) cancelAnimationFrame(inventoryFrame)
+  inventoryFrame = null
+}
+
+/**
+ * Añade una tanda de filas por fotograma hasta completar la lista filtrada.
+ *
+ * Un Linux de escritorio puede traer miles de paquetes, y montarlos todos de
+ * una vez congela la página un instante visible justo al abrir la pestaña.
+ * Por tandas, las primeras filas salen al momento y el resto se completa
+ * mientras el usuario empieza a mirar.
+ */
+function growRenderedInventory() {
+  inventoryFrame = null
+  if (renderedCount.value >= filteredInventory.value.length) return
+  renderedCount.value += INVENTORY_BATCH
+  inventoryFrame = requestAnimationFrame(growRenderedInventory)
+}
+
+// Cada inventario nuevo, y cada cambio del filtro, empieza por la primera
+// tanda: la lista que había ya no es la que se pinta.
+watch(filteredInventory, () => {
+  cancelInventoryFrame()
+  renderedCount.value = INVENTORY_FIRST_BATCH
+  inventoryFrame = requestAnimationFrame(growRenderedInventory)
+}, { immediate: true })
+
+onUnmounted(cancelInventoryFrame)
+
+/** Parte ya pintada de la lista filtrada. */
+const renderedInventory = computed(() => filteredInventory.value.slice(0, renderedCount.value))
 
 /* ── Análisis del inventario con Lybra ── */
 const hasAnalysis = computed(() => !!props.analysis?.scanId)
@@ -647,8 +779,61 @@ function stateLabel(state) { return STATE_LABELS[state] || 'Desconocido' }
    solo aparece cuando falta parte del periodo. Si esa tarjeta cambia de
    alto, este número deja de cuadrar y vuelve el salto. */
 .vitals-ghost { display: flex; flex-direction: column; gap: 0.85rem; }
-.vital-ghost { height: 353px; border-radius: 8px; }
-.inventory-ghost { display: flex; flex-direction: column; gap: 0.55rem; margin-top: 0.6rem; }
+.vital-ghost {
+  box-sizing: border-box; height: 353px;
+  display: flex; flex-direction: column; gap: 0.6rem;
+  padding: 0.85rem 0.95rem 0.7rem;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+}
+.vital-ghost-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.vital-ghost-name { width: 7rem; }
+.vital-ghost-now { width: 4.5rem; height: 1.4rem; }
+/* La zona del gráfico: rejilla discontinua como la real y, encima, la franja
+   de carga. Ocupa todo lo que no son cabecera y pie. */
+.vital-ghost-plot {
+  position: relative; flex: 1; overflow: hidden;
+  display: flex; flex-direction: column; justify-content: space-between;
+  padding: 12px 0;
+}
+.vital-ghost-grid { display: block; border-top: 1px dashed var(--border); }
+.vital-ghost-sweep {
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 16%, transparent), transparent)
+    no-repeat;
+  background-size: 30% 100%;
+  animation: vital-sweep 1.4s ease-in-out infinite;
+}
+@keyframes vital-sweep {
+  from { background-position: -50% 0; }
+  to   { background-position: 150% 0; }
+}
+.vital-ghost-foot { display: flex; gap: 0.85rem; }
+.vital-ghost-stat { width: 4.5rem; }
+@media (prefers-reduced-motion: reduce) {
+  /* Quieta y a media opacidad: sigue diciendo que carga sin barrer. */
+  .vital-ghost-sweep { animation: none; background-size: 100% 100%; opacity: 0.5; }
+}
+.inventory-ghost { display: flex; flex-direction: column; }
+/* Cada pieza ocupa el hueco de la real: la línea del escaneo, el filtro y
+   las filas miden lo mismo que lo que las sustituye, y nada salta al llegar. */
+/* En línea y centradas: así cada pieza ocupa el alto de una línea del texto
+   que sustituye, no solo el de la barra gris, y la fila mide lo mismo. */
+.inventory-ghost .skeleton--line { display: inline-block; vertical-align: middle; }
+/* Las filas y el campo ya tienen el fondo del que parte el brillo del
+   esqueleto (`--surface-2`): dentro de ellos se sube un escalón para que las
+   barras se vean. La lista no se desplaza: solo reserva el mismo alto. */
+.inventory-ghost .row--ghost .skeleton,
+.inventory-ghost-filter .skeleton {
+  background-image: linear-gradient(90deg, var(--surface-3) 25%, var(--border-med) 50%, var(--surface-3) 75%);
+}
+.inventory-ghost .inventory-rows { overflow: hidden; }
+.inventory-ghost-scanned { width: 9rem; }
+/* Un campo vacío con la barra del texto de ayuda: lleva las clases del
+   filtro real (relleno, borde, tamaño de letra) y el interlineado de un
+   `<input>`, para medir lo mismo que el campo. */
+.inventory-ghost-filter { display: block; line-height: normal; }
+.inventory-ghost-version { width: 2.5rem; flex-shrink: 0; }
+.inventory-ghost-cell { width: 70%; }
 .status--pending { color: var(--text-muted); }
 .status--online  { color: var(--success); }
 .status--stale   { color: var(--warn); }
@@ -740,6 +925,28 @@ function stateLabel(state) { return STATE_LABELS[state] || 'Desconocido' }
 }
 
 .tab-panel { display: flex; flex-direction: column; gap: 1.3rem; }
+
+/* ── Cambio de pestaña ──
+   La salida es más corta que la entrada: con `out-in` la nueva espera a que
+   termine la vieja, y lo que el usuario quiere ver es lo que acaba de elegir.
+   El desplazamiento es pequeño (12px): basta para decir hacia qué lado se ha
+   ido sin que el panel parezca viajar. */
+.tab-forward-enter-active,
+.tab-back-enter-active {
+  transition: opacity 0.22s ease-out, transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.tab-forward-leave-active,
+.tab-back-leave-active {
+  transition: opacity 0.12s ease-in, transform 0.12s ease-in;
+}
+.tab-forward-enter-from,
+.tab-back-leave-to { opacity: 0; transform: translateX(12px); }
+.tab-forward-leave-to,
+.tab-back-enter-from { opacity: 0; transform: translateX(-12px); }
+@media (prefers-reduced-motion: reduce) {
+  .tab-forward-enter-active, .tab-forward-leave-active,
+  .tab-back-enter-active, .tab-back-leave-active { transition: none; }
+}
 
 .state-msg { margin: 0; padding: 1.4rem 1rem; text-align: center; color: var(--text-muted); font-size: var(--fs-body); }
 .state-msg--error { color: var(--danger); }
@@ -877,6 +1084,10 @@ function stateLabel(state) { return STATE_LABELS[state] || 'Desconocido' }
 .inventory-rows { max-height: 26rem; overflow-y: auto; }
 
 .row--software { flex-wrap: wrap; }
+/* Las filas fuera de la zona visible de la lista no se pintan hasta que se
+   desplaza hasta ellas; `auto` recuerda el alto real de cada una una vez
+   vista, así que la barra de desplazamiento no baila. */
+.inventory-rows .row--software { content-visibility: auto; contain-intrinsic-size: auto 2.3rem; }
 .sw-main { display: flex; align-items: baseline; gap: 0.5rem; flex: 1 1 12rem; min-width: 0; }
 .sw-version { flex-shrink: 0; font-size: var(--fs-xs); color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .sw-vendor {
