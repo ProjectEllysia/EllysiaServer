@@ -1,0 +1,38 @@
+{
+  "_comment": "Aplicabilidad por componente de CVEs cuyo CPE cubre varios programas. La NVD publica con el mismo CPE (openbsd:openssh) los fallos del servidor sshd y los del cliente ssh, scp, sftp y ssh-agent. Un sshd visto desde la red no puede verse afectado por un fallo del cliente. component: 'client' (no aplica a un servicio de red) o 'server'; condition: la opción de configuración que hace falta para que el fallo del servidor sea explotable (sin ella, la CVE no aplica). Los productos con 'heuristic': true además se clasifican por la descripción de la NVD cuando la CVE no está curada.",
+  "feedVersion": "lybra-applicability-1",
+  "products": {
+    "openbsd:openssh": {
+      "heuristic": true,
+      "cves": {
+        "CVE-2018-20685": {"component": "client"},
+        "CVE-2019-6109": {"component": "client"},
+        "CVE-2019-6110": {"component": "client"},
+        "CVE-2019-6111": {"component": "client"},
+        "CVE-2020-14145": {"component": "client"},
+        "CVE-2021-28041": {"component": "client"},
+        "CVE-2023-28531": {"component": "client"},
+        "CVE-2023-38408": {"component": "client"},
+        "CVE-2023-51384": {"component": "client"},
+        "CVE-2023-51385": {"component": "client"},
+        "CVE-2025-26465": {"component": "client"},
+        "CVE-2026-35385": {"component": "client"},
+        "CVE-2026-35388": {"component": "client"},
+        "CVE-2026-59995": {"component": "client"},
+        "CVE-2026-59996": {"component": "client"},
+        "CVE-2026-60002": {"component": "client"},
+        "CVE-2026-73281": {"component": "client"},
+        "CVE-2026-73282": {"component": "client"},
+        "CVE-2021-41617": {"component": "server", "condition": "AuthorizedKeysCommand o AuthorizedPrincipalsCommand configurados con otro usuario"},
+        "CVE-2025-32728": {"component": "server", "condition": "DisableForwarding activado confiando en que desactive X11 y agent forwarding"},
+        "CVE-2026-35387": {"component": "server", "condition": "algún algoritmo ECDSA listado en PubkeyAcceptedAlgorithms o HostbasedAcceptedAlgorithms"},
+        "CVE-2026-35414": {"component": "server", "condition": "opción principals en authorized_keys junto a una CA con comas en sus principales"},
+        "CVE-2026-59997": {"component": "server", "condition": "internal-sftp con más de nueve argumentos"},
+        "CVE-2026-59998": {"component": "server", "condition": "GSSAPIStrictAcceptorCheck con el servidor en Active Directory de Windows"},
+        "CVE-2026-59999": {"component": "server", "condition": "DisableForwarding=yes junto a PermitTunnel=yes"},
+        "CVE-2026-60000": {"component": "server", "condition": "autenticación GSSAPI activada"},
+        "CVE-2026-73283": {"component": "server", "condition": "palabra clave restrict en authorized_keys para limitar el tunneling"}
+      }
+    }
+  }
+}
