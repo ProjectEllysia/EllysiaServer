@@ -29,10 +29,11 @@ que no dice nada de sí misma—. No es un "todavía no": es un "no, y por esto"
 
 from __future__ import annotations
 
+import ipaddress
 import logging
 import socket
 import ssl
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from typing import Callable, Dict, Optional
 
@@ -55,6 +56,10 @@ class TlsInfo:
         expired: Whether the certificate's ``notAfter`` is in the past.
         days_until_expiry: Days remaining before expiry (negative if expired),
             or ``None`` if the certificate could not be parsed.
+        names: Los nombres para los que el certificado es válido: el CN y los
+            DNS del SAN, en minúsculas. Por defecto vacío.
+        requested_name: El nombre que se pidió en el SNI, o ``None`` si se
+            conectó por IP (y entonces no hay nombre con el que comparar).
     """
     protocol: Optional[str]
     cipher: Optional[str]
@@ -63,12 +68,51 @@ class TlsInfo:
     self_signed: bool
     expired: bool
     days_until_expiry: Optional[int]
+    names: tuple = ()
+    requested_name: Optional[str] = None
+
+    @property
+    def is_name_mismatch(self) -> bool:
+        """Si se pidió un nombre y el certificado no lo cubre (comodines de un nivel incluidos)."""
+        if not self.requested_name or not self.names:
+            return False
+        requested = self.requested_name.lower().rstrip(".")
+        for name in self.names:
+            if name == requested:
+                return False
+            if name.startswith("*.") and requested.count(".") == name.count(".") \
+                    and requested.endswith(name[1:]):
+                return False
+        return True
 
 
 def _common_name(name: "x509.Name") -> Optional[str]:
     """Extract the common name from an X.509 ``Name``, best-effort."""
     attrs = name.get_attributes_for_oid(NameOID.COMMON_NAME)
     return str(attrs[0].value) if attrs else None
+
+
+def _is_ip_literal(host: str) -> bool:
+    """Si ``host`` es una IP escrita tal cual, y no un nombre."""
+    try:
+        ipaddress.ip_address(host)
+        return True
+    except ValueError:
+        return False
+
+
+def _certificate_names(cert) -> tuple:
+    """El CN y los nombres DNS del SAN de un certificado, en minúsculas y sin repetir."""
+    names = []
+    common_name = _common_name(cert.subject)
+    if common_name:
+        names.append(common_name.lower())
+    try:
+        san = cert.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
+        names.extend(name.lower() for name in san.get_values_for_type(x509.DNSName))
+    except x509.ExtensionNotFound:
+        pass
+    return tuple(dict.fromkeys(names))
 
 
 def _read_ftp_reply(sock) -> str:
@@ -152,7 +196,10 @@ class TlsProbe:
             return None
         if der is None:
             return None
-        return self._parse_cert(der, protocol, cipher[0] if cipher else None)
+        info = self._parse_cert(der, protocol, cipher[0] if cipher else None)
+        if info is None or _is_ip_literal(host):
+            return info
+        return replace(info, requested_name=host)
 
     @staticmethod
     def _parse_cert(der: bytes, protocol: Optional[str], cipher: Optional[str]) -> Optional[TlsInfo]:
@@ -174,4 +221,5 @@ class TlsProbe:
             self_signed=cert.issuer == cert.subject,
             expired=days_until_expiry < 0,
             days_until_expiry=days_until_expiry,
+            names=_certificate_names(cert),
         )

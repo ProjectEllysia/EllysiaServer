@@ -72,7 +72,8 @@ logger = logging.getLogger(__name__)
 # checks-18: SSH, el primer protocolo cuyos checks leen el ``KEXINIT``, y
 # ``refutes``, la primera conclusión negativa del esquema.
 # checks-19: TLS a mitad de sesión (AUTH TLS de FTP) y el login FTP en claro.
-CHECKS_FEED_VERSION = "lybra-checks-19"
+# checks-20: el certificado contra el nombre pedido (escaneo por nombre de host).
+CHECKS_FEED_VERSION = "lybra-checks-20"
 # Quality of Detection for a finding a check actively confirmed, as opposed to
 # one merely inferred from a version.
 QOD_CONFIRMED = 99
@@ -1169,6 +1170,7 @@ _TLS_RULES: Dict[str, Callable] = {
     "expired": lambda info: info.expired,
     "expiring_soon": lambda info: not info.expired and info.days_until_expiry is not None and info.days_until_expiry <= 30,
     "deprecated_protocol": lambda info: info.protocol in _WEAK_TLS_PROTOCOLS,
+    "hostname_mismatch": lambda info: getattr(info, "is_name_mismatch", False),
     "weak_cipher": lambda info: bool(info.cipher) and any(
         token in info.cipher.upper() for token in _WEAK_TLS_CIPHER_TOKENS),
 }

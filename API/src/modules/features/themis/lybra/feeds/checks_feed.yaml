@@ -8,7 +8,7 @@
 # feedVersion sube cuando el feed gana una familia nueva o un protocolo nuevo
 # bajo una existente; el arreglo de un check ya presente sube el 'version' de
 # ese check, no esta cadena. Ver CHECKS_FEED_VERSION en checks.py.
-feedVersion: lybra-checks-19
+feedVersion: lybra-checks-20
 checks:
   - id: git-config-exposure
     version: 1
@@ -264,6 +264,21 @@ checks:
     tlsRule: self_signed
     finding:
       title: Certificado TLS autofirmado
+      qod: 99
+      confirmed: true
+  # Sólo cuando se escaneó por nombre: el certificado no cubre el nombre
+  # pedido, así que cualquier navegador mostrará un aviso. Por IP no hay
+  # nombre con el que comparar y el check no dispara.
+  - id: tls-hostname-mismatch
+    version: 1
+    type: tls
+    category: tls
+    severity: MEDIUM
+    service: https
+    mode: safe
+    tlsRule: hostname_mismatch
+    finding:
+      title: El certificado TLS no cubre el nombre del sitio
       qod: 99
       confirmed: true
   - id: tls-expired-cert
