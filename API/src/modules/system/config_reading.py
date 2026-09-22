@@ -1004,6 +1004,23 @@ class LybraEngineConfig:  # pylint: disable=too-many-instance-attributes
     número, así que es la diferencia entre "prueba unas cuantas variaciones" y
     "prueba el diccionario entero"."""
 
+    # --- Integridad del escaneo (transport.is_sweep_implausible y la
+    # comprobación final de LybraEngineManager)
+    implausible_open_ratio: float = 0.5
+    """Fracción de puertos probados que, si aparecen todos abiertos, delata a
+    un cortafuegos que acepta cualquier conexión (un *SYN proxy* o un
+    *tarpit*) en vez de servicios reales. A partir de ella el barrido se da
+    por inverosímil y sólo se conservan los puertos conocidos."""
+
+    implausible_min_probed: int = 100
+    """Puertos probados mínimos para juzgar la plausibilidad: con un barrido
+    de diez puertos, que abran seis no dice nada."""
+
+    blocking_recheck_ports: int = 3
+    """Puertos abiertos que se vuelven a probar al final del escaneo. Si
+    ninguno responde, el objetivo bloqueó al escáner a mitad de camino y el
+    escaneo se marca como parcial. A cero, la comprobación no se hace."""
+
 
 @config_block("features.themis.scanners.lybra.ingest")
 @dataclass(frozen=True)

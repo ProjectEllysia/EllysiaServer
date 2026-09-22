@@ -498,6 +498,31 @@ def scan_ports_sync(
     return list(sweep.open_ports)
 
 
+def is_sweep_implausible(open_count: int, probed_count: int,
+                         ratio: float = 0.5, min_probed: int = 100) -> bool:
+    """Si un barrido tiene demasiados puertos abiertos para ser real.
+
+    Hay cortafuegos que completan la conexión TCP en cualquier puerto para
+    despistar a un escáner (un *SYN proxy* o un *tarpit*), o que la aceptan
+    hasta que detectan el barrido. Un escáner que se lo cree reporta cientos de
+    servicios que no existen: OpenVAS reportó 1.670 en un equipo perimetral
+    del contraste de campo.
+
+    Args:
+        open_count: Puertos que aceptaron la conexión.
+        probed_count: Puertos probados en total.
+        ratio: La fracción a partir de la cual es inverosímil. Por defecto
+            ``0.5``.
+        min_probed: Puertos probados mínimos para juzgarlo. Por defecto
+            ``100``.
+
+    Returns:
+        bool: ``True`` si se probaron al menos ``min_probed`` puertos y abrió
+            al menos la fracción ``ratio`` de ellos.
+    """
+    return probed_count >= min_probed and open_count >= ratio * probed_count
+
+
 def services_from_discovered_ports(
     open_ports: Iterable[int],
     protocol: str = "tcp"
