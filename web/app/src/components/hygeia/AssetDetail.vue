@@ -287,10 +287,30 @@
         </h4>
 
         <p v-if="inventoryError" class="state-msg state-msg--error">{{ inventoryError }}</p>
+        <!-- Silueta de lo que va a llegar: la línea del último escaneo, el
+             filtro y filas con las mismas piezas que una fila de software
+             (nombre y versión, fabricante, tamaño y fecha), tantas como el
+             inventario de este activo tenía la última vez que se vio. -->
         <div v-else-if="inventoryLoading" class="inventory-ghost" aria-busy="true"
              aria-label="Cargando inventario">
-          <span v-for="n in SKELETON_ROWS" :key="n"
-                class="skeleton skeleton--line" aria-hidden="true"></span>
+          <p class="inventory-scanned" aria-hidden="true">
+            <span class="skeleton skeleton--line inventory-ghost-scanned"></span>
+          </p>
+          <span class="inventory-filter inventory-ghost-filter" aria-hidden="true">
+            <span class="skeleton skeleton--line skeleton--w40"></span>
+          </span>
+          <ul class="rows inventory-rows" aria-hidden="true">
+            <li v-for="n in inventoryGhostRows" :key="n" class="row row--software row--ghost">
+              <span class="sw-main">
+                <span class="skeleton skeleton--line inventory-ghost-name"
+                      :style="{ width: `${GHOST_NAME_WIDTHS[n % GHOST_NAME_WIDTHS.length]}%` }"></span>
+                <span class="skeleton skeleton--line inventory-ghost-version"></span>
+              </span>
+              <span class="sw-vendor"><span class="skeleton skeleton--line skeleton--w60"></span></span>
+              <span class="row-value sw-size"><span class="skeleton skeleton--line inventory-ghost-cell"></span></span>
+              <span class="row-note sw-installed"><span class="skeleton skeleton--line inventory-ghost-cell"></span></span>
+            </li>
+          </ul>
         </div>
 
         <template v-else>
@@ -352,7 +372,7 @@
             <p v-if="!filteredInventory.length" class="state-msg">Ningún resultado para «{{ inventoryFilter }}».</p>
 
             <ul v-else class="rows inventory-rows">
-              <li v-for="(sw, i) in filteredInventory" :key="`${sw.name}-${i}`" class="row row--software">
+              <li v-for="(sw, i) in renderedInventory" :key="`${sw.name}-${i}`" class="row row--software">
                 <div class="sw-main">
                   <span class="row-name" :title="sw.name">{{ sw.name }}</span>
                   <span v-if="sw.version" class="sw-version">{{ sw.version }}</span>
@@ -409,7 +429,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import MetricsChart from '@/components/hygeia/MetricsChart.vue'
 import MetricNav from '@/components/hygeia/MetricNav.vue'
 import AssetTabs from '@/components/hygeia/AssetTabs.vue'
@@ -458,7 +478,14 @@ const TAB_IDS = ['graficas', 'estadisticas', 'inventario', 'anomalias']
 const TAB_STORAGE_PREFIX = 'ellysia:hygeia:lastTab:'
 const METRIC_STORAGE_PREFIX = 'ellysia:hygeia:lastMetric:'
 
-const SKELETON_ROWS = 6
+/** Filas de la silueta del inventario cuando no se sabe cuántas vendrán. */
+const DEFAULT_INVENTORY_GHOST_ROWS = 6
+/** Tope de filas de la silueta: las que caben en la lista antes de que
+ *  aparezca su barra de desplazamiento (`max-height: 26rem`). */
+const MAX_INVENTORY_GHOST_ROWS = 10
+/** Anchos (en %) del nombre en las filas fantasma: iguales delatarían la
+ *  silueta como adorno en vez de como forma de lo que llega. */
+const GHOST_NAME_WIDTHS = [55, 70, 40, 62, 48]
 
 const activeTab = ref('graficas')
 /** Al cambiar de activo se recupera la última pestaña que se miró en ESE
@@ -545,6 +572,76 @@ const filteredInventory = computed(() => {
     sw.name?.toLowerCase().includes(needle) || sw.vendor?.toLowerCase().includes(needle)
   )
 })
+
+/* ── Silueta y pintado progresivo del inventario ── */
+
+/**
+ * Número de filas del último inventario visto de cada activo, para que la
+ * silueta de carga tenga el tamaño de lo que va a llegar. Vive solo en
+ * memoria: basta con que acierte al volver a un activo ya visitado. Es
+ * reactivo para que un refresco del mismo activo use la cifra recién vista.
+ *
+ * @type {Map<number, number>}
+ */
+const inventorySizeByAsset = reactive(new Map())
+watch(() => props.inventory, (inventory) => {
+  const id = props.asset?.id
+  if (id && inventory.length) inventorySizeByAsset.set(id, inventory.length)
+})
+
+/**
+ * Filas de la silueta de carga: las del último inventario visto de este
+ * activo, entre 1 y `MAX_INVENTORY_GHOST_ROWS`, o
+ * `DEFAULT_INVENTORY_GHOST_ROWS` si todavía no se ha visto ninguno.
+ *
+ * @type {import('vue').ComputedRef<number>}
+ */
+const inventoryGhostRows = computed(() => {
+  const known = inventorySizeByAsset.get(props.asset?.id)
+  return known ? Math.min(known, MAX_INVENTORY_GHOST_ROWS) : DEFAULT_INVENTORY_GHOST_ROWS
+})
+
+/** Filas que se pintan de inmediato al llegar el inventario o al filtrar:
+ *  más de las que caben en la lista, para que el hueco visible salga lleno. */
+const INVENTORY_FIRST_BATCH = 60
+/** Filas que se añaden en cada fotograma después de la primera tanda. */
+const INVENTORY_BATCH = 250
+
+const renderedCount = ref(INVENTORY_FIRST_BATCH)
+let inventoryFrame = null
+
+function cancelInventoryFrame() {
+  if (inventoryFrame !== null) cancelAnimationFrame(inventoryFrame)
+  inventoryFrame = null
+}
+
+/**
+ * Añade una tanda de filas por fotograma hasta completar la lista filtrada.
+ *
+ * Un Linux de escritorio puede traer miles de paquetes, y montarlos todos de
+ * una vez congela la página un instante visible justo al abrir la pestaña.
+ * Por tandas, las primeras filas salen al momento y el resto se completa
+ * mientras el usuario empieza a mirar.
+ */
+function growRenderedInventory() {
+  inventoryFrame = null
+  if (renderedCount.value >= filteredInventory.value.length) return
+  renderedCount.value += INVENTORY_BATCH
+  inventoryFrame = requestAnimationFrame(growRenderedInventory)
+}
+
+// Cada inventario nuevo, y cada cambio del filtro, empieza por la primera
+// tanda: la lista que había ya no es la que se pinta.
+watch(filteredInventory, () => {
+  cancelInventoryFrame()
+  renderedCount.value = INVENTORY_FIRST_BATCH
+  inventoryFrame = requestAnimationFrame(growRenderedInventory)
+}, { immediate: true })
+
+onUnmounted(cancelInventoryFrame)
+
+/** Parte ya pintada de la lista filtrada. */
+const renderedInventory = computed(() => filteredInventory.value.slice(0, renderedCount.value))
 
 /* ── Análisis del inventario con Lybra ── */
 const hasAnalysis = computed(() => !!props.analysis?.scanId)
@@ -716,7 +813,27 @@ function stateLabel(state) { return STATE_LABELS[state] || 'Desconocido' }
   /* Quieta y a media opacidad: sigue diciendo que carga sin barrer. */
   .vital-ghost-sweep { animation: none; background-size: 100% 100%; opacity: 0.5; }
 }
-.inventory-ghost { display: flex; flex-direction: column; gap: 0.55rem; margin-top: 0.6rem; }
+.inventory-ghost { display: flex; flex-direction: column; }
+/* Cada pieza ocupa el hueco de la real: la línea del escaneo, el filtro y
+   las filas miden lo mismo que lo que las sustituye, y nada salta al llegar. */
+/* En línea y centradas: así cada pieza ocupa el alto de una línea del texto
+   que sustituye, no solo el de la barra gris, y la fila mide lo mismo. */
+.inventory-ghost .skeleton--line { display: inline-block; vertical-align: middle; }
+/* Las filas y el campo ya tienen el fondo del que parte el brillo del
+   esqueleto (`--surface-2`): dentro de ellos se sube un escalón para que las
+   barras se vean. La lista no se desplaza: solo reserva el mismo alto. */
+.inventory-ghost .row--ghost .skeleton,
+.inventory-ghost-filter .skeleton {
+  background-image: linear-gradient(90deg, var(--surface-3) 25%, var(--border-med) 50%, var(--surface-3) 75%);
+}
+.inventory-ghost .inventory-rows { overflow: hidden; }
+.inventory-ghost-scanned { width: 9rem; }
+/* Un campo vacío con la barra del texto de ayuda: lleva las clases del
+   filtro real (relleno, borde, tamaño de letra) y el interlineado de un
+   `<input>`, para medir lo mismo que el campo. */
+.inventory-ghost-filter { display: block; line-height: normal; }
+.inventory-ghost-version { width: 2.5rem; flex-shrink: 0; }
+.inventory-ghost-cell { width: 70%; }
 .status--pending { color: var(--text-muted); }
 .status--online  { color: var(--success); }
 .status--stale   { color: var(--warn); }
@@ -967,6 +1084,10 @@ function stateLabel(state) { return STATE_LABELS[state] || 'Desconocido' }
 .inventory-rows { max-height: 26rem; overflow-y: auto; }
 
 .row--software { flex-wrap: wrap; }
+/* Las filas fuera de la zona visible de la lista no se pintan hasta que se
+   desplaza hasta ellas; `auto` recuerda el alto real de cada una una vez
+   vista, así que la barra de desplazamiento no baila. */
+.inventory-rows .row--software { content-visibility: auto; contain-intrinsic-size: auto 2.3rem; }
 .sw-main { display: flex; align-items: baseline; gap: 0.5rem; flex: 1 1 12rem; min-width: 0; }
 .sw-version { flex-shrink: 0; font-size: var(--fs-xs); color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .sw-vendor {
