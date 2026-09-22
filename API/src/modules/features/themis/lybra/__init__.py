@@ -57,7 +57,7 @@ from .grouping import (
     build_service_rollup,
     group_label,
 )
-from .backports import apply_backport_verdicts, BACKPORT_CHECK_ID
+from .backports import apply_backport_verdicts, is_unverified_distro_package, BACKPORT_CHECK_ID
 from .distro import infer_distro_release, DistroRelease
 from .kb import (
     version_compare,
@@ -243,6 +243,7 @@ __all__ = [
     "load_product_aliases",
     "parse_cpe23",
     "apply_backport_verdicts",
+    "is_unverified_distro_package",
     "BACKPORT_CHECK_ID",
     "infer_distro_release",
     "DistroRelease",

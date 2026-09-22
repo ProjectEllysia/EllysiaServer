@@ -336,3 +336,18 @@ def test_an_unknown_evidence_level_falls_back_to_none():
 def test_the_ladder_runs_from_least_to_most_serious():
     assert EXPLOIT_MATURITY_LADDER.index("poc") < EXPLOIT_MATURITY_LADDER.index("functional")
     assert EXPLOIT_MATURITY_LADDER.index("weaponized") < EXPLOIT_MATURITY_LADDER.index("in_the_wild")
+
+
+def test_an_unverified_distro_package_never_leads_the_report():
+    """regreSSHion sobre el OpenSSH de Ubuntu del contraste de campo: CVSS 8,1
+    y EPSS 99,5 % lo ponían en CRITICAL sin que nadie hubiera comprobado que
+    Ubuntu no lo había corregido ya (lo había hecho)."""
+    finding = {"category": "outdated_software", "cve_ids": ["CVE-2024-6387"], "cvss_score": 8.1,
+               "epss_score": 0.995, "confirmed": False, "state": "open",
+               "cpe": "cpe:2.3:a:openbsd:openssh:9.6p1-3ubuntu13.19:*:*:*:*:*:*:*",
+               "title": "OpenSSH 9.6p1-3ubuntu13.19 — CVE-2024-6387"}
+    assert score_finding(finding, "public") == "MEDIUM"
+
+    compiled_by_hand = dict(finding, cpe="cpe:2.3:a:openbsd:openssh:9.6p1:*:*:*:*:*:*:*",
+                            title="OpenSSH 9.6p1 — CVE-2024-6387")
+    assert score_finding(compiled_by_hand, "public") == "CRITICAL"
