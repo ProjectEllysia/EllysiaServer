@@ -273,6 +273,11 @@
           "credentials": {
             "maxAttempts": 3
           },
+          "crawler": {
+            "maxPages": 50,
+            "maxDepth": 3,
+            "timeBudgetSeconds": 20.0
+          },
           "fingerprintingEnabled": true,
           "ingest": {
             "enabled": false,
