@@ -697,7 +697,8 @@ class LybraAIWriter:
                 "service": row.service, "cpe": row.cpe, "cve_ids": row.cve_ids,
                 "cvss_score": row.cvss_score, "epss_score": row.epss_score, "in_kev": row.in_kev,
                 "confirmed": row.confirmed, "qod": row.qod, "state": row.state,
-                "required_os": row.required_os,
+                "required_os": row.required_os, "check_id": row.check_id,
+                "vhost": row.vhost, "severity": row.severity,
             } for row in rows]
 
         for finding in findings:

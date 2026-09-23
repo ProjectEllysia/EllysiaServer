@@ -351,3 +351,37 @@ def test_an_unverified_distro_package_never_leads_the_report():
     compiled_by_hand = dict(finding, cpe="cpe:2.3:a:openbsd:openssh:9.6p1:*:*:*:*:*:*:*",
                             title="OpenSSH 9.6p1 — CVE-2024-6387")
     assert score_finding(compiled_by_hand, "public") == "CRITICAL"
+
+
+# ================================================= la severidad del check
+
+
+@pytest.mark.parametrize("severity,expected", [
+    ("CRITICAL", "CRITICAL"),   # credenciales a la vista: no se aplana a MEDIA
+    ("INFO", "INFO"),           # un panel visible no sube a MEDIA por estar confirmado
+    ("LOW", "LOW"),
+    (None, "MEDIUM"),           # sin severidad declarada, el suelo de siempre
+])
+def test_a_check_finding_starts_from_its_declared_severity(severity, expected):
+    finding = {"cvss_score": None, "confirmed": True, "severity": severity}
+    assert score_finding(finding, "public") == expected
+
+
+def test_a_finding_with_cvss_keeps_scoring_by_it():
+    finding = {"cvss_score": 9.8, "confirmed": True, "severity": "LOW"}
+    assert score_finding(finding, "public") == "CRITICAL"
+
+
+def test_check_findings_carry_their_declared_severity():
+    from src.modules.features.themis.lybra.checks import CheckRuntime, Response, Service, load_checks
+
+    def fetch(host, port, method, path, _body=None, _headers=None):
+        if path == "/wp-config.php":
+            return Response(200, "define('DB_NAME', 'wp'); define('DB_PASSWORD', 'x');", {})
+        return Response(404, "", {})
+
+    findings = CheckRuntime(load_checks(), fetch).run(
+        "10.0.0.5", [Service(80, "tcp", "http", "nginx", "1.18", None)])
+    wp_config = next(f for f in findings if "wpconfig" in f["check_id"])
+    assert wp_config["severity"] == "CRITICAL"
+    assert score_finding(wp_config, "public") == "CRITICAL"
