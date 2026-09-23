@@ -13,8 +13,9 @@
     </ul>
 
     <p class="note">
-      Este documento es preliminar y se ampliará antes del lanzamiento comercial. No sustituye
-      todavía a una política de privacidad legalmente completa.
+      Ellysia está en vista previa y este documento es preliminar: se sustituirá por la política
+      completa antes de abrir el servicio al público. No sustituye todavía a una política de
+      privacidad legalmente completa.
     </p>
   </InfoPage>
 </template>
