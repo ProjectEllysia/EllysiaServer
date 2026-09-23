@@ -20,9 +20,9 @@
     </p>
 
     <p class="note">
-      Ellysia está en vista previa y este documento es preliminar: se sustituirá por los términos
-      completos antes de abrir el servicio al público. No constituye todavía un acuerdo legal
-      vinculante.
+      Ellysia es un proyecto personal y no se ofrece como servicio, así que no hay condiciones de
+      contratación. Si algún día se abriera a otras personas, se publicarían antes unos términos
+      completos.
     </p>
   </InfoPage>
 </template>

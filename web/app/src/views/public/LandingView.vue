@@ -123,6 +123,9 @@
         <span class="eyebrow">Security Operations Suite</span>
         <h1 class="hero-title">Ellysia</h1>
         <p class="verse">Vigila. Conciencia. Verifica. Guarda.</p>
+        <!-- En vista previa, Ellysia es un proyecto personal: dicho arriba del
+             todo para que nadie lo confunda con un servicio. -->
+        <p v-if="isPreview" class="hero-disclaimer">Proyecto personal en desarrollo · no es un servicio comercial</p>
         <div class="hero-actions">
           <router-link v-if="!auth.isAuthenticated" to="/login" class="cta cta--solid">Entrar</router-link>
           <button class="cta cta--line" @click="scrollToSection('tools')">Conocer las herramientas</button>
@@ -228,7 +231,8 @@
          otro. Por eso llevan una línea que los une, y no los numerales romanos
          de las estelas: allí I-V identifican herramientas, y reusarlos para
          pasos sería el mismo signo diciendo dos cosas distintas. -->
-    <section id="empezar" class="path-section">
+    <!-- Los pasos empiezan por «Crea tu cuenta»: sin alta, no hay camino que enseñar. -->
+    <section v-if="canRegister" id="empezar" class="path-section">
       <div class="path-intro">
         <span class="path-eyebrow">Cómo se empieza</span>
         <h2 class="path-title">Tres pasos hasta el primer veredicto</h2>
@@ -325,7 +329,7 @@
         Crea tu cuenta y lanza tu primer análisis hoy. Gratis, sin tarjeta.
       </p>
       <p v-else class="closing-lede">
-        Ellysia está en vista previa y todavía no admite altas nuevas.
+        Ellysia es un proyecto personal: no admite cuentas nuevas ni ofrece ningún servicio.
       </p>
       <div class="closing-actions">
         <router-link v-if="!auth.isAuthenticated && canRegister" to="/login?registro" class="cta cta--solid">
@@ -400,7 +404,7 @@ const account = useAccountStore()
 
 // Alta y precios son superficies de general.launch: cerradas, la portada no
 // las ofrece. Hasta saber el estado cuentan como cerradas.
-const { isSurfaceEnabled } = useLaunch()
+const { isSurfaceEnabled, isPreview } = useLaunch()
 const canRegister = computed(() => isSurfaceEnabled('registration'))
 const canSeePricing = computed(() => isSurfaceEnabled('pricing'))
 
@@ -825,6 +829,13 @@ onUnmounted(() => {
   color: var(--text-muted);
   margin-top: 0.6rem;
 }
+.hero-disclaimer {
+  margin: 0.4rem 0 0;
+  font-size: var(--fs-md);
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+}
+
 .hero-actions {
   display: flex; align-items: center; justify-content: center; gap: 1rem;
   margin-top: 2.4rem; flex-wrap: wrap;
