@@ -402,6 +402,18 @@ _URL_VERSION_RE = re.compile(
 # Cuántos ficheros JavaScript se descargan, como mucho, para leer su cabecera.
 _MAX_SCRIPT_FETCHES = 4
 
+# Un asset de un plugin de WordPress: el directorio del plugin es su slug, y
+# WordPress estampa la versión del plugin en ``?ver=``.
+_WORDPRESS_PLUGIN_RE = re.compile(
+    r"/wp-content/plugins/(?P<slug>[a-z0-9][a-z0-9_-]*)/[^\"'\s?]*(?:\?ver=(?P<version>\d+(?:\.\d+)+))?",
+    re.IGNORECASE)
+# El ``Stable tag`` del readme.txt de un plugin, que acompaña a cada versión.
+_STABLE_TAG_RE = re.compile(r"^\s*Stable tag:\s*(?P<version>\d+(?:\.\d+)+)", re.IGNORECASE | re.MULTILINE)
+# Plugins de WordPress que se inventarían, como mucho, por página.
+_MAX_WORDPRESS_PLUGINS = 10
+# readme.txt que se piden, como mucho, para los plugins sin ``?ver=``.
+_MAX_README_FETCHES = 5
+
 # El catálogo de favicons, cargado una vez al importar igual que el feed de
 # firmas. ``HttpDissector`` consulta ``is_empty`` para decidir si merece la
 # pena pedir ``/favicon.ico`` siquiera.
@@ -960,11 +972,45 @@ def web_components(
                 break
         components.append((hit.name, version))
     components.extend(_javascript_libraries(body, fetch_path))
+    if any(hit.name == "WordPress" for hit in fingerprint.hits):
+        components.extend(_wordpress_plugins(body, fetch_path))
     return tuple(
         (product, version) for product, version in dict.fromkeys(components)
         if not (_same_product(product, fingerprint.product)
                 and (fingerprint.version or not version))
     )
+
+
+def _wordpress_plugins(body: str, fetch_path: Callable[[str], Optional[str]]) -> list:
+    """Los plugins de WordPress que la página delata, con su versión.
+
+    Los plugins son la mayor parte de las CVEs de un WordPress, y cada uno
+    carga sus assets desde ``/wp-content/plugins/<slug>/``. La versión sale
+    del ``?ver=`` de esos assets o, si no lo llevan, del ``Stable tag`` de su
+    ``readme.txt``. El slug es el nombre con el que se busca su CPE.
+
+    Args:
+        body: El cuerpo HTML de la página.
+        fetch_path: Pide una ruta del mismo sitio; como mucho
+            :data:`_MAX_README_FETCHES` veces.
+
+    Returns:
+        list: Pares ``(slug, versión o None)``, como mucho
+            :data:`_MAX_WORDPRESS_PLUGINS`.
+    """
+    found: Dict[str, Optional[str]] = {}
+    for match in _WORDPRESS_PLUGIN_RE.finditer(body or ""):
+        slug = match.group("slug").lower()
+        if slug not in found and len(found) >= _MAX_WORDPRESS_PLUGINS:
+            continue
+        found[slug] = found.get(slug) or match.group("version")
+    fetches = 0
+    for slug, version in found.items():
+        if version is None and fetches < _MAX_README_FETCHES:
+            fetches += 1
+            stable = _STABLE_TAG_RE.search(fetch_path(f"/wp-content/plugins/{slug}/readme.txt") or "")
+            found[slug] = stable.group("version") if stable else None
+    return list(found.items())
 
 
 def _javascript_libraries(body: str, fetch_path: Callable[[str], Optional[str]]) -> list:
