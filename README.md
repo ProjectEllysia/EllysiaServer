@@ -922,3 +922,7 @@ python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().d
 - PostgreSQL uses port **15432** locally (not standard 5432).
 - There is a single `TaskStatus` enum, in `system/taskqueue/task.py`; `themis/services/tasks.py` imports it rather than defining its own.
 - The API version is declared as `appVersion` in `SecOpsConfig.json` (currently `0.5.20`, read by `CR.get_app_version()`).
+
+## License
+
+Copyright (c) 2025-2026 Gabriel Musteata. **All rights reserved.** The code is public so it can be read, but no license is granted: copying, modifying, distributing or using it requires prior written permission. See [`LICENSE`](LICENSE).
