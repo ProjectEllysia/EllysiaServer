@@ -39,11 +39,13 @@ class NmapPrintingStrategy(PrintingStrategy):
             scan: NmapScan instance to generate report from.
         """
         super().__init__(scan)
-        self.writer = NmapAIWriter()
-
         self.color_palette = build_palette(
             CR.get_tool_color_palette(ScanType.NMAP), _DEFAULT_PALETTE
         )
+
+    def _make_writer(self):
+        """El writer de IA de Nmap, construido al primer uso (ver base)."""
+        return NmapAIWriter()
 
     def append_body(self, theme: ReportTheme, elements: list, ai_report: bool = False) -> None:
         """Generate the report body for Nmap scans.
