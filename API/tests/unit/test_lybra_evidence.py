@@ -106,3 +106,16 @@ def test_secrets_in_a_body_are_redacted_but_their_names_kept():
     for secret in ("hunter2", "s3cr3t", '"abc"', "zzz", "MIIE"):
         assert secret not in redacted
     assert "$password" in redacted and "DB_PASSWORD" in redacted and "mysqli" in redacted
+
+
+def test_a_nul_byte_in_the_body_is_stripped_so_postgres_can_store_it():
+    """PostgreSQL rechaza el carácter NUL en texto/JSONB. Un cuerpo comprimido
+    (gzip del check BREACH) llega lleno de NUL; sin quitarlos, el INSERT de la
+    evidencia revienta y tumba el escaneo entero."""
+    import json
+    from src.modules.features.themis.lybra.evidence import redact_evidence
+
+    redacted = redact_evidence({"body": "gzip\x00\x1f\x8b\x00binario", "status": 200})
+
+    assert "\x00" not in redacted["body"]
+    json.dumps(redacted)   # serializable a JSONB, que es lo que fallaba

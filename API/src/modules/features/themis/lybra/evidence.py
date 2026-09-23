@@ -155,7 +155,13 @@ def redact_evidence(payload: Dict[str, Any], max_body_bytes: int = 8192) -> Dict
         redacted["headers"] = redact_headers(redacted["headers"])
     body = redacted.get("body")
     if isinstance(body, str):
-        body = redact_secrets(body)
+        # PostgreSQL no admite el carácter NUL en texto ni en JSONB, y un
+        # cuerpo comprimido —el check BREACH pide gzip— llega aquí como binario
+        # decodificado con reemplazo, lleno de NUL. Sin quitarlos, el INSERT de
+        # la evidencia revienta y se lleva por delante el escaneo entero. Se
+        # sustituyen por el carácter de reemplazo, que sí es texto válido, para
+        # no descuadrar las posiciones dentro del cuerpo.
+        body = redact_secrets(body).replace("\x00", "�")
         redacted["body"] = body
         encoded = body.encode("utf-8", "ignore")
         if len(encoded) > max_body_bytes:

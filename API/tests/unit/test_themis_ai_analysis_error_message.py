@@ -89,3 +89,28 @@ def test_other_failures_keep_the_generic_message(monkeypatch):
     text = _rendered_text(elements)
     assert "No se pudo generar análisis IA" in text
     assert "demasiados hallazgos" not in text
+
+
+def test_the_writer_is_built_lazily_not_at_construction(monkeypatch):
+    """Construir la estrategia no debe construir el writer de IA: hacerlo abre
+    el generador de IA, que exige la superficie ``externalAi``, y un PDF SIN
+    análisis de IA reventaba con esa superficie cerrada. El writer se crea sólo
+    cuando el informe pide IA."""
+    built = []
+
+    class _LazyStrategy(_MinimalPrintingStrategy):
+        def _make_writer(self):
+            built.append(True)
+            return _FakeWriter(RuntimeError("no debería lanzar en este test"))
+
+    scan = types.SimpleNamespace(id=1, scan_type="nmap")
+    strategy = _LazyStrategy(scan=scan)
+
+    # Tras construir: ni writer ni llamada a _make_writer.
+    assert strategy.writer is None
+    assert built == []
+
+    # Al pedir el análisis, se construye una sola vez.
+    monkeypatch.setattr(CR, "get_prompts_config", lambda: _FAKE_PROMPTS)
+    strategy._append_ai_analysis([], _theme())
+    assert built == [True]
