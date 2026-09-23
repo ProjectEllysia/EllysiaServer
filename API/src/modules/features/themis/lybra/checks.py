@@ -76,7 +76,9 @@ logger = logging.getLogger(__name__)
 # checks-20: el certificado contra el nombre pedido (escaneo por nombre de host).
 # checks-21: las partes url/transport del DSL y el criterio de las cabeceras
 # (HSTS sólo sobre HTTPS, sin evaluar redirecciones, valores y fugas).
-CHECKS_FEED_VERSION = "lybra-checks-21"
+# checks-22: la familia de Joomla (copias de configuración, instalador,
+# panel y el confirmador de CVE-2023-23752).
+CHECKS_FEED_VERSION = "lybra-checks-22"
 # Quality of Detection for a finding a check actively confirmed, as opposed to
 # one merely inferred from a version.
 QOD_CONFIRMED = 99

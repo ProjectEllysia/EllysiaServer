@@ -8,7 +8,7 @@
 # feedVersion sube cuando el feed gana una familia nueva o un protocolo nuevo
 # bajo una existente; el arreglo de un check ya presente sube el 'version' de
 # ese check, no esta cadena. Ver CHECKS_FEED_VERSION en checks.py.
-feedVersion: lybra-checks-21
+feedVersion: lybra-checks-22
 checks:
   - id: git-config-exposure
     version: 1
@@ -103,6 +103,129 @@ checks:
               - DB_NAME
     finding:
       title: wp-config.php servido como texto plano (credenciales de BD expuestas)
+      qod: 99
+      confirmed: true
+  # ---------------------------------------------------------------------------
+  # JOOMLA — la superficie conocida del segundo CMS más usado, con peticiones de
+  # sólo lectura. Cada check exige una marca propia de Joomla en el cuerpo: un
+  # sitio que contesta 200 a cualquier ruta no dispara ninguno.
+  #
+  # configuration.php guarda las credenciales de la base de datos. PHP lo
+  # ejecuta y nunca lo sirve, pero una copia de editor se sirve como texto.
+  - id: joomla-configuration-backup
+    version: 1
+    type: http
+    category: exposed_path
+    severity: HIGH
+    service: http
+    mode: safe
+    payloads:
+      name:
+        - configuration.php~
+        - configuration.php.bak
+        - configuration.php.old
+        - configuration.php.save
+        - configuration.php.swp
+        - configuration.php.orig
+        - configuration.php.txt
+        - configuration.bak
+    requests:
+      - method: GET
+        path: /{{name}}
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: word
+            part: body
+            words:
+              - class JConfig
+    finding:
+      title: Copia de configuration.php de Joomla servida como texto (credenciales de BD expuestas)
+      qod: 99
+      confirmed: true
+  # El instalador olvidado: en algunas versiones permite reinstalar el sitio
+  # encima del existente.
+  - id: joomla-installation-directory
+    version: 1
+    type: http
+    category: exposed_path
+    severity: MEDIUM
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /installation/index.php
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: regex
+            part: body
+            regex:
+              - '(?i)joomla!?[^<]{0,30}(?:web\s*)?install(?:er|ation)'
+    finding:
+      title: El directorio de instalación de Joomla sigue publicado
+      qod: 95
+      confirmed: true
+  # El panel de administración a la vista: no es un fallo, pero sí superficie
+  # expuesta que el informe tiene que contar.
+  - id: joomla-admin-exposed
+    version: 1
+    type: http
+    category: exposed_path
+    severity: INFO
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /administrator/
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: word
+            part: body
+            words:
+              - com_login
+    finding:
+      title: Panel de administración de Joomla accesible desde Internet
+      qod: 95
+      confirmed: true
+  # CVE-2023-23752 (KEV): en Joomla 4.0.0–4.2.7 la API web devuelve la
+  # configuración, credenciales incluidas, sin autenticar. Confirmador: sólo
+  # corre si la versión detectada ya propuso la CVE. Se confirma porque la
+  # respuesta trae la configuración; lo que devuelve no se usa para nada.
+  - id: joomla-cve-2023-23752-api-config
+    version: 1
+    type: http
+    category: vulnerability
+    severity: CRITICAL
+    service: http
+    mode: safe
+    confirms: CVE-2023-23752
+    requests:
+      - method: GET
+        path: /api/index.php/v1/config/application?public=true
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: regex
+            part: body
+            regex:
+              - '"type"\s*:\s*"application"'
+          - type: word
+            part: body
+            words:
+              - '"password"'
+              - '"dbtype"'
+    finding:
+      title: 'Joomla expone su configuración sin autenticar (CVE-2023-23752)'
       qod: 99
       confirmed: true
   - id: ssh-private-key-exposure
