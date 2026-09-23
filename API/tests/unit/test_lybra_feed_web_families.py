@@ -188,3 +188,36 @@ def test_compression_over_https_with_cookies_is_a_possible_breach():
     compressed = {"content-encoding": "gzip", "set-cookie": "sid=1"}
     assert "http-compression-breach" in _fired({"/": _https(compressed)})
     assert "http-compression-breach" not in _fired({"/": _https({"content-encoding": "gzip"})})
+
+
+# ==================================================================== Joomla
+
+# Un sitio que contesta 200 con la misma página a cualquier ruta: el señuelo
+# que ningún check de Joomla debe confundir con un hallazgo.
+_CATCH_ALL = Response(200, "<html><title>Inicio</title>joomla</html>", {})
+
+
+class _CatchAll(dict):
+    """Un ``by_path`` que responde ``_CATCH_ALL`` a cualquier ruta que no conozca."""
+
+    def get(self, path, _default=None):
+        return super().get(path, _CATCH_ALL)
+
+
+def test_a_joomla_configuration_backup_is_detected():
+    fired = _fired({"/configuration.php.bak": Response(
+        200, "<?php\nclass JConfig {\n\tpublic $password = 'x';\n}", {})})
+    assert "joomla-configuration-backup" in fired
+
+
+def test_the_joomla_installer_and_admin_panel_are_detected():
+    fired = _fired({
+        "/installation/index.php": Response(200, "<title>Joomla! Web Installer</title>", {}),
+        "/administrator/": Response(200, '<form action="index.php?option=com_login">', {}),
+    })
+    assert {"joomla-installation-directory", "joomla-admin-exposed"} <= fired
+
+
+def test_a_site_that_answers_200_to_everything_fires_no_joomla_check():
+    fired = _fired(_CatchAll())
+    assert not {name for name in fired if name.startswith("joomla-")}

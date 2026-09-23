@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 
@@ -41,6 +42,16 @@ _SENSITIVE_HEADERS = frozenset({
 # Lo que se pone en lugar de una cabecera redactada, para que la evidencia diga
 # «aquí había algo y lo quitamos» en vez de esconder que existía.
 _REDACTED = "[redacted]"
+
+# Una asignación cuyo nombre delata un secreto, en las formas que sirven los
+# ficheros que los checks buscan: PHP (``public $password = 'x';``,
+# ``define('DB_PASSWORD', 'x')``), JSON (``"password":"x"``) y ``.env``
+# (``SECRET_KEY=x``). El grupo 1 es todo lo anterior al valor.
+_SECRET_ASSIGNMENT_RE = re.compile(
+    r"""(?i)([\w-]*(?:pass(?:word|wd)?|secret|api[_-]?key|token|private[_-]?key)[\w-]*['"]?"""
+    r"""\s*(?:=>|[=:,])\s*['"]?)([^'"\s;,)]+)""")
+_PRIVATE_KEY_RE = re.compile(
+    r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.DOTALL)
 
 # Las clases de evidencia que el modelo reconoce. Una entrada con otro
 # ``kind`` no se descarta, pero conviene que la lista viva en un sitio.
@@ -105,6 +116,28 @@ def redact_headers(headers: Dict[str, str]) -> Dict[str, str]:
     }
 
 
+def redact_secrets(text: str) -> str:
+    """Quita de un cuerpo los valores de secretos que un hallazgo ha dejado a la vista.
+
+    Los checks que más importan son justo los que encuentran secretos: un
+    ``wp-config.php``, una copia de ``configuration.php`` o un ``.env``
+    servidos como texto. Su evidencia es la respuesta, y guardarla tal cual
+    copiaría las credenciales del objetivo a la base de datos de Ellysia.
+    Se conserva el nombre de cada clave (lo que prueba el hallazgo) y se
+    sustituye su valor, igual que con las cabeceras sensibles.
+
+    Args:
+        text: El cuerpo de la respuesta.
+
+    Returns:
+        str: El cuerpo con los valores de contraseñas, claves y tokens
+            sustituidos por :data:`_REDACTED`, y los bloques de clave privada
+            enteros.
+    """
+    text = _PRIVATE_KEY_RE.sub(_REDACTED, text)
+    return _SECRET_ASSIGNMENT_RE.sub(lambda match: match.group(1) + _REDACTED, text)
+
+
 def redact_evidence(payload: Dict[str, Any], max_body_bytes: int = 8192) -> Dict[str, Any]:
     """Redacta y trunca una evidencia antes de persistirla.
 
@@ -122,6 +155,8 @@ def redact_evidence(payload: Dict[str, Any], max_body_bytes: int = 8192) -> Dict
         redacted["headers"] = redact_headers(redacted["headers"])
     body = redacted.get("body")
     if isinstance(body, str):
+        body = redact_secrets(body)
+        redacted["body"] = body
         encoded = body.encode("utf-8", "ignore")
         if len(encoded) > max_body_bytes:
             redacted["body"] = encoded[:max_body_bytes].decode("utf-8", "ignore")
