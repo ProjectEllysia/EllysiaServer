@@ -17,6 +17,7 @@ from src.modules.users import Role, require_oauth_token, require_role
 from src.modules.system.taskqueue import TaskQueue, Task, TaskStatus
 from .schemas import (
     HelloResponseSchema,
+    LaunchStateSchema,
     SystemInfoSchema,
     SystemStatusSchema,
     TaskSchema,
@@ -48,6 +49,52 @@ system_blp = SmorestBlueprint(
 logger = logging.getLogger(__name__)
 
 
+#: Codificaciones cuyo nombre añade un proxy como sufijo a una ETag fuerte al
+#: comprimir la respuesta. Caddy, con ``encode``, convierte ``"abc"`` en
+#: ``"abc-gzip"`` y no deshace el cambio en ``If-Match``.
+_ENCODING_SUFFIXES = ("gzip", "zstd", "br", "deflate")
+
+
+def _format_config_etag(version: str) -> str:
+    """Da forma de ETag fuerte (entre comillas, como pide la norma HTTP) a la versión de la config.
+
+    Args:
+        version: Hash de contenido de ``CR.get_config_version()``.
+
+    Returns:
+        str: La versión entre comillas dobles, lista para la cabecera ``ETag``.
+    """
+    return f'"{version}"'
+
+
+def _config_version_from_if_match(raw_if_match: str) -> str:
+    """Extrae la versión de config de una cabecera ``If-Match``, deshaciendo lo que añada un proxy.
+
+    El navegador reenvía la ETag tal como la recibió, y entre medias Caddy la
+    modifica al comprimir: le añade ``-gzip`` (o el nombre de la codificación)
+    antes de la comilla final. Sin deshacerlo, la versión nunca coincidiría y
+    todo guardado desde el panel se rechazaría como si otra sesión hubiera
+    escrito antes. También se acepta el prefijo débil ``W/`` y la versión sin
+    comillas.
+
+    Args:
+        raw_if_match: Valor crudo de la cabecera, p. ej. ``"abc123"``,
+            ``"abc123-gzip"``, ``W/"abc123"`` o ``abc123``.
+
+    Returns:
+        str: La versión limpia, comparable con ``CR.get_config_version()``.
+    """
+    token = raw_if_match.strip()
+    if token.startswith("W/"):
+        token = token[2:]
+    token = token.strip().strip('"')
+    for encoding in _ENCODING_SUFFIXES:
+        suffix = f"-{encoding}"
+        if token.endswith(suffix):
+            return token[: -len(suffix)]
+    return token
+
+
 @system_blp.get("/say-hello")
 @system_blp.response(200, HelloResponseSchema, description="Health check")
 @limiter.limit("60 per minute")
@@ -60,6 +107,19 @@ def hello():
         "version": CR.get_app_version(),
     }
 
+
+@system_blp.get("/launch")
+@system_blp.response(200, LaunchStateSchema, description="Which features are open to the public")
+@limiter.limit("60 per minute")
+def launch_state():
+    """Qué funciones están abiertas al público, sin necesidad de sesión.
+
+    La SPA la consulta al cargar para no enseñar lo que está cerrado (el alta,
+    la tabla de precios…) a un visitante anónimo. Pública a propósito y con
+    ``no-store``: un cambio de modo desde el panel tiene que notarse en la
+    siguiente visita, no cuando caduque una caché.
+    """
+    return CR.launch_config().to_public_dict(), 200, {"Cache-Control": "no-store"}
 
 @system_blp.get("/info")
 @system_blp.response(200, SystemInfoSchema, description="System information")
@@ -164,7 +224,7 @@ def get_config():
     config = CR.get_full_config()
     # C9: ETag de contenido — el cliente debe reenviarlo vía If-Match en el
     # PUT para que el servidor detecte si otra sesión guardó primero.
-    return config, 200, {"ETag": CR.get_config_version()}
+    return config, 200, {"ETag": _format_config_etag(CR.get_config_version())}
 
 
 @system_blp.put("")
@@ -196,9 +256,9 @@ def update_config():
             "Falta la cabecera If-Match: recarga la configuración antes de guardar."
         )
 
-    config = CR.save_full_config(new_config, expected_version=if_match)
+    config = CR.save_full_config(new_config, expected_version=_config_version_from_if_match(if_match))
     logger.info("Configuracion actualizada correctamente | user=%s", current_actor())
-    return config, 200, {"ETag": CR.get_config_version()}
+    return config, 200, {"ETag": _format_config_etag(CR.get_config_version())}
 
 
 @system_blp.get("/ai/models")

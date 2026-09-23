@@ -17,6 +17,7 @@ from src.modules.system.taskqueue.outbox_repository import TaskDispatchRepositor
 from src.modules.infrastructure import UnitOfWork
 from src.modules.infrastructure.session import build_repository
 from src.modules.shared import assert_owned, utcnow_naive
+from src.modules.users import UserManager
 from ..services.csv_logger import ScanLoggerFactory
 from ..repositories import (
     ScanRepository,
@@ -842,6 +843,25 @@ class ScanManager(TaskTrackingMixin, ABC):
         validación y las excepciones que puede lanzar.
         """
         return parsing.validate_port(ports_str)
+
+    @staticmethod
+    def assert_third_party_scanners_enabled(user_id: int) -> None:
+        """Rechaza el escaneo si los escáneres de terceros están cerrados al público.
+
+        Nmap, Nikto y Nuclei analizan sistemas externos, y su uso depende de la
+        superficie ``thirdPartyScanners`` de ``general.launch``. Se llama desde
+        el ``run_scan`` de cada uno, por donde entran tanto el endpoint como los
+        escaneos programados. Lybra no la consulta: es el motor propio y su
+        análisis activo ya exige un objetivo autorizado.
+
+        Args:
+            user_id: Usuario que lanza el escaneo; el administrador principal
+                está exento del cierre.
+
+        Raises:
+            SurfaceDisabledError: Si la superficie está cerrada para el usuario.
+        """
+        UserManager().assert_launch_surface_enabled(CR.LaunchSurface.THIRD_PARTY_SCANNERS, user_id)
 
     @staticmethod
     def reject_private_ip(ip: str) -> None:

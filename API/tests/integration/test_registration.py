@@ -131,10 +131,23 @@ def test_register_rejects_a_malformed_email(client, sent_emails):
 
 
 def test_register_can_be_closed_by_configuration(client, sent_emails, monkeypatch):
-    """Un Ellysia interno de una empresa no quiere registros de desconocidos."""
+    """Un Ellysia en vista previa, o uno interno, no quiere registros de desconocidos."""
     monkeypatch.setattr(
-        CR, "registration_config",
-        lambda: CR.RegistrationConfig(enabled=False, verification_ttl_hours=48),
+        CR, "launch_config",
+        lambda: CR.LaunchConfig(configured_mode="public", surfaces={"registration": False}),
+    )
+    resp = client.post("/users/register", json=VALID)
+
+    assert resp.status_code == 403
+    assert resp.get_json()["code"] == 1616   # REGISTRATION_CLOSED
+
+
+def test_register_is_closed_in_preview_mode(client, sent_emails, monkeypatch):
+    """En vista previa el alta está cerrada aunque su interruptor esté encendido."""
+    monkeypatch.delenv("LAUNCH_MODE")
+    monkeypatch.setattr(
+        CR, "launch_config",
+        lambda: CR.LaunchConfig(configured_mode="preview", surfaces={"registration": True}),
     )
     resp = client.post("/users/register", json=VALID)
 

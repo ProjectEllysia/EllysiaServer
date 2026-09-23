@@ -61,14 +61,16 @@ jobs:
             exit 0
           fi
           changed=$(git diff --name-only HEAD^1 HEAD)
-          # Se salta solo si TODO lo que cambia es ajeno a la suite: Markdown,
-          # la landing o el SPA. Del SPA hay ficheros que la suite sí lee,
+          # Se salta solo si TODO lo que cambia es ajeno a la suite: Markdown
+          # o el SPA. Del SPA hay ficheros que la suite sí lee,
           # porque ata contratos entre las dos mitades del repositorio:
           # test_caddy_api_routes lee el router, test_config_view_paths lee
-          # ConfigView.vue y test_scan_failure_reason, los componentes de Themis.
+          # views/system/ConfigView.vue, test_privacy_note_matches_config lee
+          # views/public/PrivacyView.vue y test_scan_failure_reason, los
+          # componentes de Themis. Un test nuevo que lea el SPA se añade aquí.
           relevant=$(
-            printf '%s\n' "$changed" | grep -vE '\.md$|^landing/|^web/app/' || true
-            printf '%s\n' "$changed" | grep -E '^web/app/src/(router/|views/ConfigView\.vue|components/themis/)' || true
+            printf '%s\n' "$changed" | grep -vE '\.md$|^web/app/' || true
+            printf '%s\n' "$changed" | grep -E '^web/app/src/(router/|views/system/ConfigView\.vue|views/public/PrivacyView\.vue|components/themis/)' || true
           )
           if [ -n "$relevant" ]; then
             echo "run=true" >> "$GITHUB_OUTPUT"

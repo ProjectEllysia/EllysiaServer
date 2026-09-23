@@ -86,7 +86,6 @@ Ellysia/
 │   └── tests/
 ├── web/
 │   └── app/     # Vue 3 SPA (Vite + Pinia + Vue Router), served by Caddy
-├── landing/     # Static marketing site, published to gh-pages
 └── docker-compose.yml           # dev / local-ai / container profiles
 ```
 
@@ -417,7 +416,7 @@ Hygeia has two separate auth surfaces: standard OAuth for the user-facing endpoi
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/plans` | **Public** — the plan catalog with per-plan limits (pricing table) |
+| `GET` | `/plans` | **Public** — the plan catalog with per-plan limits (pricing table). Closed (403, code 1618) while the `pricing` launch surface is closed — see [Launch mode](#launch-mode-preview--public) |
 | `GET` | `/plans/me` | Effective plan of the authenticated user and its validity |
 | `GET` | `/plans/me/usage` | Current usage of the authenticated user, key by key |
 | `POST` | `/organizations` | Create the caller's organization (they become the owner) |
@@ -439,6 +438,7 @@ A subscription with no explicit plan falls back to the default plan (seeded by m
 | `POST` | `/oauth/token` | Token (password or refresh_token grant); MFA-enabled users get a challenge |
 | `POST` | `/oauth/revoke` · `/oauth/revoke-all` | Revoke current token / all tokens |
 | `POST` | `/oauth/mfa/verify` | Resolve a TOTP challenge (code or recovery code) into tokens |
+| `POST` | `/users/register` | **Public** — self-service sign-up; the account starts with an unverified email. Closed (403, code 1616) while the `registration` launch surface is closed |
 | `POST` | `/users/sign-up` | Registration (username, password, email, alias) |
 | `POST` | `/users/verify-email` · `/verify-email/resend` | Confirm an account's email address |
 | `POST` | `/users/password-reset/request` | **Public** — request a reset link by username or email; generic response (anti-enumeration); MFA-enabled accounts first get a challenge |
@@ -454,6 +454,7 @@ A subscription with no explicit plan falls back to the default plan (seeded by m
 | `GET` | `/users/<id>/deletion-preview` | (admin/root) Preview what deleting that user destroys — notably the organization they own |
 | `DELETE` | `/users/<id>` | (admin/root) Delete another user's account; same purge as self-deletion, hierarchy enforced (an admin cannot delete an admin or the root), own account excluded |
 | `GET` | `/system/say-hello` | **Public** health check, reports the API version |
+| `GET` | `/system/launch` | **Public** — launch mode and whether each launch surface is open right now (`Cache-Control: no-store`); the SPA uses it to hide what is closed |
 | `GET` | `/system/info` · `/system/status` | (admin) App metadata / CPU-mem-disk status |
 | `GET` | `/system/logs` | (admin) Paginated central log viewer — gzip+base64 page, snapshot-anchored. Windowing with `lastMinutes` (relative, resolved against the **server** clock; mutually exclusive with `from`) or `from`/`to`; severity with `level` (exact) or `minLevel` (that level and above). The response carries `levelCounts` for the window, computed *before* the level filter, plus `windowStart` |
 | `GET/PUT` | `/system` | (root) Read / save `SecOpsConfig.json` (`PUT` requires `If-Match` ETag) |
@@ -530,7 +531,7 @@ POSTGRES_TEST_URL=postgresql+psycopg2://ellysia:ellysia@localhost:55432/ellysia_
 
 Run it in its **own** pytest invocation. The fast suite's SQLite shim rewrites `JSONB` to generic `JSON` in the shared model metadata, so a mixed run would build the wrong schema; the fixtures detect that and skip with an explanatory message rather than assert against an imitation.
 
-CI runs on pull requests to `main`, the `vX.Y` release branches and the `proyecto/**` integration branches, and on pushes to `main` (the deploy gate). A push to a release branch does not trigger it: the pull request already tested the merge with its base. Draft pull requests are skipped, a new push to a pull request cancels the superseded run, and every job has a timeout. `.github/workflows/tests.yml` has two jobs — `tests`, running `python -m pytest -q -m "not oracle" -n auto --no-cov` on SQLite (in parallel with `pytest-xdist`; the coverage report stays a local one), and `SPA suites`, running the SPA's node suites and build. On a pull request each job skips its work when nothing it reads has changed: the API suite ignores Markdown, `landing/` and `web/app/` — except the router, `ConfigView.vue` and the Themis components, which its contract tests read — and the SPA job only runs when `web/app/` changes. `.github/workflows/tests-postgres.yml` (`python -m pytest -q -m postgres`, with ephemeral PostgreSQL and Redis services) runs only on pull requests that touch `API/`. They are separate jobs on purpose — the service matrix must not slow down the regular suite. Some tests use `xfail(strict=True)` to document real known bugs — when a bug is fixed the test XPASSes and the marker must be removed. A green push to `main` (a merged pull request) additionally triggers the automatic production deploy — see [Continuous deployment](#continuous-deployment-cicd).
+CI runs on pull requests to `main`, the `vX.Y` release branches and the `proyecto/**` integration branches, and on pushes to `main` (the deploy gate). A push to a release branch does not trigger it: the pull request already tested the merge with its base. Draft pull requests are skipped, a new push to a pull request cancels the superseded run, and every job has a timeout. `.github/workflows/tests.yml` has two jobs — `tests`, running `python -m pytest -q -m "not oracle" -n auto --no-cov` on SQLite (in parallel with `pytest-xdist`; the coverage report stays a local one), and `SPA suites`, running the SPA's node suites and build. On a pull request each job skips its work when nothing it reads has changed: the API suite ignores Markdown and `web/app/` — except the router, the config panel (`views/system/ConfigView.vue`), the privacy note (`views/public/PrivacyView.vue`) and the Themis components, which its contract tests read — and the SPA job only runs when `web/app/` changes. `.github/workflows/tests-postgres.yml` (`python -m pytest -q -m postgres`, with ephemeral PostgreSQL and Redis services) runs only on pull requests that touch `API/`. They are separate jobs on purpose — the service matrix must not slow down the regular suite. Some tests use `xfail(strict=True)` to document real known bugs — when a bug is fixed the test XPASSes and the marker must be removed. A green push to `main` (a merged pull request) additionally triggers the automatic production deploy — see [Continuous deployment](#continuous-deployment-cicd).
 
 A third workflow, `.github/workflows/lybra-bench.yml`, runs the `oracle` bench on a schedule (03:15 UTC) — only when the engine, its benches or the dependencies changed on `main` in the last 25 hours, since re-measuring unchanged code gives the same numbers — and on demand. It is separate because it brings up around twenty Docker containers and takes tens of minutes, which no per-push job can afford. Its deliverable is the numbers, not the green tick: it publishes the Lybra engine's Phase R precision, its agreement with Nmap and its false-positive rate to the run summary, and uploads the full log as an artifact.
 
@@ -856,13 +857,37 @@ Iris also needs `IRIS_RAW_MESSAGE_ENCRYPTION_KEY`, which is **not** listed above
 
 Ellysia uses a layered configuration system (`API/src/modules/system/config_reading.py`, imported as `CR`):
 
-1. **`API/SecOpsConfig.json`** — base configuration. Exactly five root entries: `appVersion`, `general` (directories, security, registration), `infrastructure` (database, redis, taskqueue), `tools` (`scribe`, `herald` strategy selection), `features` (`themis`, `aegis`, `iris`, `hygeia` per-module settings). `general.security.mfa.notice_interval_days` controls the periodic email reminder cadence.
+1. **`API/SecOpsConfig.json`** — base configuration. Exactly five root entries: `appVersion`, `general` (directories, security, registration, launch, logs), `infrastructure` (database, redis, taskqueue), `tools` (`scribe`, `herald` strategy selection), `features` (`themis`, `aegis`, `iris`, `hygeia` per-module settings). `general.security.mfa.notice_interval_days` controls the periodic email reminder cadence.
 2. **`API/.env`** — environment variables that **override** JSON values (required for the JWT secret, DB/Redis/SMTP/AI credentials, `PUBLIC_WEB_URL`).
 3. **Root `.env`** — docker-compose only (Postgres, Redis credentials — not read by the API).
 
 Config is read through frozen dataclasses bound to a branch of the tree (`@config_block`, e.g. `CR.nuclei_config().rate_limit`), not one getter per value, and cached — changes to `SecOpsConfig.json` require an app restart unless applied via `PUT /system`. Background jobs pick them up too: the worker re-reads the file per job when its mtime changed (`CR.reload_if_changed()`).
 
 The config panel (`web/app/src/views/system/ConfigView.vue`) exposes every settable key of the tree — the AI and email layers, the Themis knowledge base and Lybra engine dials, JWT and MFA policy, Hygeia thresholds, limits and report palette. The one branch deliberately left out is `features.iris.data.*`: those are the anti-phishing heuristic corpora (word lists, homoglyph maps, suspicious TLDs), detection content rather than deployment settings. `API/tests/unit/test_config_view_paths.py` pins the panel's paths against the JSON — the literal ones by full path, the ones composed in a `v-for` by their fixed prefix.
+
+### Activity log retention
+
+`secops.log` records every request with its user and **IP address**, so it holds personal data of anyone who visits the site. Every night at 00:05 UTC the API (never the worker) archives it as `secops.log.YYYY-MM-DD` and deletes archives older than `general.logs.retentionDays` (30 by default, editable in the config panel's General section). Both processes write through a `WatchedFileHandler`, which reopens the file once it has been archived. The public privacy note (`/privacidad`) states the same period; `tests/unit/test_privacy_note_matches_config.py` keeps them in sync. The log panel reads only the current day's file.
+
+### Launch mode (preview / public)
+
+`general.launch` decides which features are open to the public, so the deployment can stay online while its legal coverage is completed. It has two levels:
+
+- **`mode`** — `"preview"` or `"public"`. In `preview` every surface below is **closed**, whatever its switch says. In `public` each surface follows its own switch, so the product can be opened piece by piece. Anything other than exactly `"public"` counts as `preview`. The environment variable **`LAUNCH_MODE`** overrides the file (useful to open a local copy without touching the versioned JSON).
+- **`surfaces`** — one switch per feature; a missing switch counts as closed:
+
+| Surface | What it closes | Where the API enforces it |
+|---|---|---|
+| `registration` | Self-service sign-up | `POST /users/register` |
+| `pricing` | The public plan catalog | `GET /plans` |
+| `thirdPartyScanners` | Nmap, Nikto and Nuclei, **including scheduled scans** | each scanner's `run_scan` |
+| `campaigns` | Launching Aegis campaigns | `CampaignManager.launch_campaign` |
+| `mailboxConnectors` | Connecting and syncing Gmail / Microsoft mailboxes | `IrisMailboxManager.start_connect` and `submit_sync` (existing connections are paused, not deleted) |
+| `externalAi` | AI generation with a provider outside the server (OpenAI, Google); Ollama is not affected | `tools/scribe` `build_generator` |
+
+The versioned `SecOpsConfig.json` ships in **`preview`**, and `tests/unit/test_config_shape.py::test_the_launch_mode_ships_as_preview` pins it (the suite itself runs with `LAUNCH_MODE=public`). A closed surface answers **403 with code 1618** (`SurfaceDisabledError`) and `details.surface`; the sign-up keeps its own code, 1616. The main administrator (`role_root`) is exempt on `thirdPartyScanners`, `campaigns` and `mailboxConnectors`, so it can test them in production; not on `registration` and `pricing` (anonymous requests) nor on `externalAi` (the generator does not know which user it works for). Organization invitations are not gated: they are sent by someone who already has an account.
+
+`GET /system/launch` publishes the resolved state, the SPA hides closed features and sends direct links to `/no-disponible`, shows a preview notice and sets `noindex`, and the config panel has a **Launch** section to change the mode and each switch without a restart (switching to `public` asks for confirmation).
 
 ### Encryption keys
 
@@ -899,4 +924,8 @@ python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().d
 - `API/src/data/` and `docs/` are gitignored (scan outputs, generated PDFs).
 - PostgreSQL uses port **15432** locally (not standard 5432).
 - There is a single `TaskStatus` enum, in `system/taskqueue/task.py`; `themis/services/tasks.py` imports it rather than defining its own.
-- The API version is declared as `appVersion` in `SecOpsConfig.json` (currently `0.5.20`, read by `CR.get_app_version()`).
+- The API version is declared as `appVersion` in `SecOpsConfig.json` (currently `0.5.25`, read by `CR.get_app_version()`).
+
+## License
+
+Copyright (c) 2025-2026 Gabriel Musteata. **All rights reserved.** The code is public so it can be read, but no license is granted: copying, modifying, distributing or using it requires prior written permission. See [`LICENSE`](LICENSE).

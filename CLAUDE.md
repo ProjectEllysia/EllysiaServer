@@ -47,7 +47,7 @@ CI: `.github/workflows/tests.yml` ejecuta `python -m pytest -q -m "not oracle" -
 y las suites del SPA en los PR hacia `main`, las `vX.Y` y `proyecto/**`, y en el push a `main`
 (la puerta del despliegue). En un PR, cada job se salta si no cambia nada de lo que lee.
 También hay `tests-postgres.yml` (solo en PR que tocan `API/`), `lybra-bench.yml` (de noche, solo
-si el motor cambió), `deploy.yml` y `landing.yml`.
+si el motor cambió) y `deploy.yml`.
 
 Algunos tests usan `xfail(strict=True)` para documentar bugs reales: cuando el bug se arregla el
 test pasa a XPASS y **hay que quitar el marcador**. La adaptación a SQLite y los mocks viven
@@ -88,13 +88,11 @@ Ollama es opcional.
 
 ## Arquitectura
 
-Monorepo con tres entregables:
+Monorepo con dos entregables:
 
 - **`API/`** — backend REST Flask (área principal de trabajo). Entrada: `run.py` → `create_app()`.
 - **`web/`** — SPA Vue 3 en `web/app/` (Vite + Pinia + Vue Router), más el **Caddy** que la sirve,
   proxya la API y gestiona TLS por su cuenta (`web/Caddyfile`).
-- **`landing/`** — sitio estático de marketing, publicado a `gh-pages` por `.github/workflows/landing.yml`.
-  Sin build, sin acoplamiento con los otros dos.
 
 El cliente Android vive en [AcheronMobile](https://github.com/ProjectEllysia/AcheronMobile) y consume
 `/acheron` por HTTP. El motor criptográfico de la bóveda —en Java para Android y en TypeScript para
@@ -311,7 +309,7 @@ Por capas, leída con `system/config_reading.py` (importado como `CR`):
 
 1. **`API/SecOpsConfig.json`** — base: prompts, directorios, defaults de taskqueue, selección de
    estrategia `tools.scribe`/`tools.herald`, tuning no secreto de JWT (`general.security.jwt`),
-   `appVersion` (→ `CR.get_app_version()`, hoy `0.5.10`).
+   `appVersion` (→ `CR.get_app_version()`, hoy `0.5.25`).
 2. **`API/.env`** — variables de entorno que **sobrescriben** el JSON. Obligatorio para secretos:
    `JWT_SECRET_KEY`, credenciales de BD / Redis / SMTP / OpenAI, `PUBLIC_WEB_URL`.
 3. **`.env` de la raíz** — solo para docker-compose (credenciales Postgres/Redis); la API no lo lee.
@@ -478,7 +476,7 @@ reescribir en masa lo que ya existe y no se está editando.
   (loopback sí se permite, que es como funcionan los tests de aiosmtpd). Esto es lo que mantiene la
   suite en ~1 min 50 s; antes, diez tests esperando timeouts eran el 75 % del tiempo.
 - La versión de la API sale de la config: `create_app()` la lee con `CR.get_app_version()` desde
-  `appVersion` en `SecOpsConfig.json` (hoy `0.5.10`). **No está hardcodeada** — y ojo, la rama
+  `appVersion` en `SecOpsConfig.json` (hoy `0.5.25`). **No está hardcodeada** — y ojo, la rama
   puede ir por delante del `appVersion` del fichero.
 - `features.themis.areLocalIpsAllowed` viaja en `false`, y hay un test que lo ata
   (`test_the_anti_ssrf_defence_ships_enabled` en `tests/unit/test_config_shape.py`). Estuvo en

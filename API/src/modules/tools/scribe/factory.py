@@ -15,6 +15,7 @@ import logging
 from typing import Optional
 
 import src.modules.system.config_reading as CR
+from src.modules.shared import assert_surface_enabled
 
 from .generator import AIGenerator
 from .strategies import ModelStrategy
@@ -34,9 +35,35 @@ def _build_strategy(name: str) -> ModelStrategy:
     return ModelStrategy.resolve(name, overrides)
 
 
+def _assert_strategy_allowed(name: str) -> None:
+    """Rechaza una estrategia que saca datos del servidor si la IA externa está cerrada.
+
+    Se comprueba sobre la clase, sin construirla: construir un proveedor
+    externo exige sus credenciales, y la respuesta tiene que ser «cerrado»
+    aunque falten.
+
+    Args:
+        name: Nombre de la estrategia tal como sale de la config (``"openai"``,
+            ``"ollama"``…). Vacío equivale a ``"ollama"``, como en
+            ``_build_strategy``.
+
+    Raises:
+        SurfaceDisabledError: Si la estrategia envía datos fuera del servidor y
+            la superficie ``externalAi`` está cerrada.
+    """
+    strategy_class = ModelStrategy.resolve_class((name or "ollama").lower())
+    if strategy_class.sends_data_off_server:
+        assert_surface_enabled(CR.LaunchSurface.EXTERNAL_AI)
+
+
 def build_generator(module: Optional[str] = None) -> AIGenerator:
     """
     Construye un ``AIGenerator`` para el módulo dado.
+
+    Un proveedor que envía datos fuera del servidor (OpenAI, Google) solo se
+    construye con la superficie ``externalAi`` de ``general.launch`` abierta;
+    Ollama, que aloja quien opera la instalación, no depende de ella. No hay
+    exención de rol: el generador no sabe en nombre de quién trabaja.
 
     Args:
         module: Nombre del módulo consumidor ('aegis', 'themis', …). Si la
@@ -44,9 +71,14 @@ def build_generator(module: Optional[str] = None) -> AIGenerator:
 
     Returns:
         Un AIGenerator listo para ``digest``.
+
+    Raises:
+        SurfaceDisabledError: Si la estrategia del módulo es externa y la IA
+            externa está cerrada al público.
     """
     strategy_name = CR.scribe_config().strategy_for(module)
     logger.info("[scribe] módulo=%s → estrategia=%s", module, strategy_name)
+    _assert_strategy_allowed(strategy_name)
 
     # La resiliencia se pasa desde aquí y no se deja en los defaults de
     # ``AIGenerator``: la factory es el único sitio que construye generadores

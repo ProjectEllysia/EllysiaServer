@@ -10,7 +10,8 @@ from typing import Optional
 
 from src.modules.infrastructure import UnitOfWork
 from src.modules.infrastructure.session import build_repository
-from src.modules.shared import utcnow_naive
+import src.modules.system.config_reading as CR
+from src.modules.shared import assert_surface_enabled, utcnow_naive
 
 from ..exceptions import (
     PlanCodeTakenError,
@@ -36,7 +37,16 @@ class PlanManager:
         Cada plan trae sus topes agrupados por ámbito, que es como los pinta la
         tabla de precios: ``holder`` es lo que se lleva quien contrata y
         ``member`` lo que se lleva cada empleado suyo.
+
+        Es la superficie ``pricing`` de ``general.launch``: publicar precios
+        sin la información legal que los acompaña es exponerse aunque todavía
+        no se cobre. Sin exención de rol, porque la consulta es anónima; el
+        catálogo completo para administrarlo es ``GET /plans/all``.
+
+        Raises:
+            SurfaceDisabledError: Si la tabla de precios está cerrada al público.
         """
+        assert_surface_enabled(CR.LaunchSurface.PRICING)
         plan_repository = build_repository(PlanRepository)
         limit_repository = build_repository(PlanLimitRepository)
 

@@ -173,6 +173,13 @@ def _run_shutdown_cleanup() -> None:
     except Exception as e:
         _logger.error(f"Error deteniendo scheduler de outbox de TaskQueue: {e}")
 
+    _logger.info("[Shutdown] Deteniendo scheduler de retención del registro...")
+    try:
+        from src.modules.system.services.scheduling import LogRetentionScheduler
+        LogRetentionScheduler.stop()
+    except Exception as e:
+        _logger.error(f"Error deteniendo scheduler de retención del registro: {e}")
+
     _logger.info("[Shutdown] Cerrando sesiones de base de datos...")
     try:
         unit_of_work.close_all()
@@ -497,6 +504,10 @@ def _configure_scheduling() -> None:
 
     _logger.info("Arrancando scheduler de outbox de TaskQueue...")
     TaskDispatchScheduler.start()
+
+    _logger.info("Arrancando scheduler de retención del registro de actividad...")
+    from src.modules.system.services.scheduling import LogRetentionScheduler
+    LogRetentionScheduler.start()
 
 
 def _run_migrations() -> None:

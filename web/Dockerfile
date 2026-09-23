@@ -1,9 +1,13 @@
 # Stage 1: Build the Vue SPA
 FROM node:22-slim AS builder
 WORKDIR /app
-COPY app/package.json app/pnpm-lock.yaml app/.npmrc ./
+# pnpm-workspace.yaml tiene que estar ya en la instalación: guarda ajustes de
+# pnpm (la excepción de antigüedad mínima). Si solo llegara con el COPY de más
+# abajo, `pnpm build` detectaría la configuración cambiada, volvería a lanzar
+# `pnpm install` y fallaría con un 401, porque el token ya se ha borrado.
+COPY app/package.json app/pnpm-lock.yaml app/.npmrc app/pnpm-workspace.yaml ./
 
-# El SPA depende de @projectellysia/acheron-core-web, que vive en GitHub
+# El SPA depende de @projectellysia/acheron-core-js, que vive en GitHub
 # Packages y es PRIVADO, asi que la instalacion necesita credencial.
 #
 # Va como secreto de BuildKit y no como ARG ni ENV a proposito: un ARG queda
@@ -21,7 +25,10 @@ RUN --mount=type=secret,id=node_auth_token \
  && pnpm config delete '//npm.pkg.github.com/:_authToken'
 
 COPY app/ .
-RUN pnpm build
+# Sin volver a verificar las dependencias antes del build: acaban de
+# instalarse con --frozen-lockfile, y esa verificación, si creyera que algo
+# cambió, relanzaría `pnpm install` sin el token del registro privado.
+RUN pnpm --config.verify-deps-before-run=false build
 
 # Stage 2: Serve with Caddy
 #

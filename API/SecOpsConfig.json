@@ -1,5 +1,5 @@
 {
-  "appVersion": "0.5.24",
+  "appVersion": "0.5.25",
   "general": {
     "directories": {
       "logdir": "..",
@@ -24,8 +24,21 @@
         "notice_interval_days": 30
       }
     },
+    "logs": {
+      "retentionDays": 30
+    },
+    "launch": {
+      "mode": "preview",
+      "surfaces": {
+        "registration": true,
+        "pricing": true,
+        "thirdPartyScanners": true,
+        "campaigns": true,
+        "mailboxConnectors": true,
+        "externalAi": true
+      }
+    },
     "registration": {
-      "enabled": true,
       "verificationTtlHours": 48,
       "invitationTtlHours": 168,
       "passwordResetTtlMinutes": 30

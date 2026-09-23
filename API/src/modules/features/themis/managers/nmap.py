@@ -64,6 +64,8 @@ class NmapScanManager(ScanManager):
             Primary key of the created NmapScan record.
         """
         try:
+            ScanManager.assert_third_party_scanners_enabled(user_id)
+
             # Rechazo de IP privada aquí (no solo en el endpoint HTTP): el
             # flujo programado (scheduling._run_nmap_scan) llama a run_scan()
             # directo, sin pasar por validate_targets() — mismo hueco que C3

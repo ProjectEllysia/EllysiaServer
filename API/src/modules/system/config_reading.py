@@ -12,7 +12,7 @@ import os
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field, fields, is_dataclass
-from enum import Enum
+from enum import Enum, StrEnum
 from functools import cache, wraps
 from pathlib import Path
 from typing import Optional, TypeVar, get_origin
@@ -1447,20 +1447,38 @@ def general_config() -> GeneralConfig:
     return load_block(GeneralConfig)
 
 
+@config_block("general.logs")
+@dataclass(frozen=True)
+class LogsConfig:
+    """Conservación del registro de actividad (``secops.log``).
+
+    El registro anota cada petición con el usuario y la dirección IP de quien
+    la hace, así que guarda datos personales de cualquiera que visite la web.
+    Cada noche se archiva el fichero del día y se borran los días que pasen
+    del plazo (``system/services/log_retention.py``).
+
+    Attributes:
+        retention_days: Días que se conserva cada fichero diario archivado.
+            Por defecto ``30``. Se acota a un mínimo de 1 al leerlo.
+    """
+
+    retention_days: int = 30
+
+
+def logs_config() -> LogsConfig:
+    return load_block(LogsConfig)
+
+
 @config_block("general.registration")
 @dataclass(frozen=True)
 class RegistrationConfig:
     """Alta pública de cuentas.
 
-    Es de las pocas cosas de la capa comercial que sí son configuración de
-    instancia y no de negocio: los planes y sus topes viven en base de datos
-    porque los edita el equipo sin desplegar, pero *si esta instalación acepta
-    registros de desconocidos* es una decisión del despliegue — un Ellysia
-    on-premise dentro de una empresa quiere el grifo cerrado.
+    Guarda los plazos de los enlaces que el alta y la recuperación de cuenta
+    envían por correo. *Si* esta instalación acepta registros de desconocidos
+    no está aquí: es la superficie ``registration`` de ``LaunchConfig``, junto
+    al resto de lo que se abre o se cierra al público.
     """
-
-    enabled: bool = True
-    """Si ``POST /users/register`` acepta altas. Con False responde 403."""
 
     verification_ttl_hours: int = 48
     """Vigencia del enlace de verificación de correo."""
@@ -1478,6 +1496,124 @@ class RegistrationConfig:
 
 def registration_config() -> RegistrationConfig:
     return load_block(RegistrationConfig)
+
+
+class LaunchMode(StrEnum):
+    """Modo de exposición al público de la instalación.
+
+    - ``PREVIEW``: vista previa. Todas las superficies de ``LaunchSurface``
+      quedan cerradas, digan lo que digan sus interruptores.
+    - ``PUBLIC``: abierto al público. Cada superficie sigue su interruptor.
+    """
+
+    PREVIEW = "preview"
+    PUBLIC = "public"
+
+
+class LaunchSurface(StrEnum):
+    """Funciones que se pueden cerrar al público mientras no tengan cobertura legal.
+
+    El valor es la clave de la superficie en ``general.launch.surfaces`` y en la
+    respuesta de ``GET /system/launch``.
+
+    - ``REGISTRATION``: alta pública de cuentas (``POST /users/register``).
+    - ``PRICING``: tabla de precios (``GET /plans``).
+    - ``THIRD_PARTY_SCANNERS``: escaneos con Nmap, Nikto y Nuclei.
+    - ``CAMPAIGNS``: envío de campañas de Aegis a destinatarios externos.
+    - ``MAILBOX_CONNECTORS``: conexión y sincronización de buzones en Iris.
+    - ``EXTERNAL_AI``: generación con proveedores de IA fuera del servidor.
+    """
+
+    REGISTRATION = "registration"
+    PRICING = "pricing"
+    THIRD_PARTY_SCANNERS = "thirdPartyScanners"
+    CAMPAIGNS = "campaigns"
+    MAILBOX_CONNECTORS = "mailboxConnectors"
+    EXTERNAL_AI = "externalAi"
+
+
+@config_block("general.launch")
+@dataclass(frozen=True)
+class LaunchConfig:
+    """Qué funciones de la instalación están abiertas al público.
+
+    Separa el «modo desarrollo» del «modo despliegue» con dos niveles: un modo
+    general y un interruptor por superficie. En ``preview`` todo lo de
+    ``LaunchSurface`` está cerrado; en ``public`` cada superficie sigue su
+    interruptor, para poder abrir el producto por partes. Ante la duda se
+    cierra: un modo desconocido cuenta como ``preview`` y una superficie que
+    falta en el diccionario cuenta como cerrada.
+
+    Las invitaciones a una organización quedan fuera a propósito: las envía un
+    usuario que ya tiene cuenta, así que no son un alta anónima.
+
+    Attributes:
+        configured_mode: Modo leído de ``general.launch.mode`` (``"preview"`` o
+            ``"public"``). Por defecto ``"preview"``. La variable de entorno
+            ``LAUNCH_MODE`` lo sustituye; ver ``mode``.
+        surfaces: Interruptor de cada superficie, indexado por el valor de
+            ``LaunchSurface``. Solo cuenta en modo ``public``.
+    """
+
+    configured_mode: str = field(default=LaunchMode.PREVIEW.value, metadata={"key": "mode"})
+    surfaces: dict[str, bool] = field(default_factory=dict)
+
+    @property
+    def mode(self) -> LaunchMode:
+        """Modo efectivo: ``LAUNCH_MODE`` si está definida, si no el del fichero.
+
+        La variable de entorno permite abrir una copia local sin tocar el
+        ``SecOpsConfig.json`` versionado, que se publica en ``preview``.
+
+        Returns:
+            LaunchMode: ``PUBLIC`` solo si el valor es exactamente ``"public"``
+                (sin distinguir mayúsculas); cualquier otro valor da ``PREVIEW``.
+        """
+        raw_mode = (os.getenv("LAUNCH_MODE") or self.configured_mode or "").strip().lower()
+        return LaunchMode.PUBLIC if raw_mode == LaunchMode.PUBLIC.value else LaunchMode.PREVIEW
+
+    def is_surface_enabled(self, surface: "LaunchSurface | str") -> bool:
+        """Indica si una superficie está abierta al público en este momento.
+
+        Args:
+            surface: La superficie, como miembro de ``LaunchSurface`` o como su
+                valor (``"registration"``, ``"pricing"``…).
+
+        Returns:
+            bool: ``True`` solo si el modo es ``public`` y el interruptor de la
+                superficie está encendido. Un interruptor ausente cuenta como
+                apagado.
+
+        Raises:
+            ValueError: Si ``surface`` no es una superficie conocida. Se lanza
+                en lugar de devolver ``False`` para que una errata en el código
+                no pase desapercibida.
+        """
+        surface_key = LaunchSurface(surface).value
+        if self.mode is not LaunchMode.PUBLIC:
+            return False
+        switch_value = (self.surfaces or {}).get(surface_key, False)
+        return switch_value if isinstance(switch_value, bool) else _as_bool(str(switch_value))
+
+
+    def to_public_dict(self) -> dict:
+        """Lo que puede saber el público sobre qué funciones están abiertas.
+
+        Es la respuesta de ``GET /system/launch``: el modo y el estado ya
+        resuelto de cada superficie, sin ningún otro dato de la configuración.
+        No aplica ninguna exención de rol: describe lo que ve un visitante.
+
+        Returns:
+            dict: ``{"mode": "preview" | "public", "surfaces": {valor: bool}}``,
+                con una entrada por cada miembro de ``LaunchSurface``.
+        """
+        return {
+            "mode": self.mode.value,
+            "surfaces": {surface.value: self.is_surface_enabled(surface) for surface in LaunchSurface},
+        }
+
+def launch_config() -> LaunchConfig:
+    return load_block(LaunchConfig)
 
 
 # =============================================================================
