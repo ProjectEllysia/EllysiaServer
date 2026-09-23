@@ -100,6 +100,23 @@ class PrintingStrategy(ABC):
         scan = ScanManager.get_scan_rich(scan_id)
         return strategy_class(scan=scan)
 
+    def _make_writer(self):
+        """Construye el writer de IA de esta estrategia, la primera vez que se necesita.
+
+        Perezoso a propósito: construir un writer abre el generador de IA
+        (``build_generator``), que exige la superficie ``externalAi``. Sólo se
+        llama cuando el informe pide análisis de IA, así que un PDF sin IA no
+        toca esa superficie. Cada estrategia concreta lo redefine con su writer;
+        la base falla si alguna llega hasta aquí sin hacerlo.
+
+        Returns:
+            El writer de IA de la estrategia.
+
+        Raises:
+            IllegalStateError: Si la estrategia no redefine este método.
+        """
+        raise IllegalStateError("La estrategia no define su writer de IA")
+
     def _append_ai_analysis(self, elements: list, theme: ReportTheme, **writer_kwargs) -> None:
         """Append AI-generated security analysis to the report.
 
@@ -130,7 +147,12 @@ class PrintingStrategy(ABC):
 
         try:
             if self.writer is None:
-                raise IllegalStateError("Writer detectado como None")
+                # El writer se construye aquí y no en el constructor de la
+                # estrategia: construirlo abre el generador de IA, que exige la
+                # superficie ``externalAi``. Un informe SIN análisis de IA no
+                # debe pagar esa puerta — antes la pagaba, y con la superficie
+                # cerrada fallaba la generación de cualquier PDF.
+                self.writer = self._make_writer()
 
             ai_analysis = self.writer.generate(self.scan, **writer_kwargs)
         except AIPayloadTooLargeError as e:

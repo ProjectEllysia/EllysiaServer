@@ -43,11 +43,13 @@ class NiktoPrintingStrategy(PrintingStrategy):
             scan: NiktoScan instance to generate report from.
         """
         super().__init__(scan)
-        self.writer = NiktoAIWriter()
-
         self.color_palette = build_palette(
             CR.get_tool_color_palette(ScanType.NIKTO), _DEFAULT_PALETTE
         )
+
+    def _make_writer(self):
+        """El writer de IA de Nikto, construido al primer uso (ver base)."""
+        return NiktoAIWriter()
 
     def append_body(self, theme: "ReportTheme", elements: list, ai_report: bool = False) -> None:
         incidents = getattr(self.scan, "incidents", []) or []
