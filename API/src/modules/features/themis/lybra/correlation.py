@@ -460,8 +460,13 @@ def score_finding(finding: dict, exposure: str) -> str:
       sí se produce, ``in_the_wild``, sale de KEV, que ya sube la banda por su
       cuenta. Añadir la condición ahora sería una rama que no puede
       dispararse nunca, código muerto disfrazado de lógica.
-    * An actively-confirmed finding with no CVSS (e.g. an exposed path) is floored
-      at MEDIUM, so a confirmed issue never reads as merely informational.
+    * Un hallazgo sin CVSS que trae ``severity`` —la que declara el check que
+      lo produjo— parte de ella: quien escribe el check sabe si lo que
+      encuentra es una fuga de credenciales o un aviso cosmético, y sin CVSS
+      no hay otra medida. Los ajustes siguientes se aplican encima.
+    * An actively-confirmed finding with no CVSS and no declared severity is
+      floored at MEDIUM, so a confirmed issue never reads as merely
+      informational.
     * An unconfirmed match whose CVE only applies on a specific platform
       (``required_os`` set — see ``CpeMatch.required_os``) is capped at
       MEDIUM: Lybra has no OS-detection signal, so it cannot verify that
@@ -496,11 +501,14 @@ def score_finding(finding: dict, exposure: str) -> str:
     """
     cvss = finding.get("cvss_score") or 0.0
     band = _cvss_band(cvss)
+    declared = finding.get("severity") if finding.get("severity") in PRIORITY_LADDER else None
+    if cvss == 0.0 and declared:
+        band = PRIORITY_LADDER.index(declared)
 
     if finding.get("in_kev") or (finding.get("epss_score") or 0.0) >= 0.5:
         band = min(band + 1, len(PRIORITY_LADDER) - 1)
 
-    if finding.get("confirmed") and cvss == 0.0:
+    if finding.get("confirmed") and cvss == 0.0 and not declared:
         band = max(band, PRIORITY_LADDER.index("MEDIUM"))
 
     if finding.get("required_os") and not finding.get("confirmed"):

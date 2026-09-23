@@ -116,6 +116,7 @@ class FindingsPrintingStrategy(PrintingStrategy):
             "exploit_maturity": row.exploit_maturity, "state": row.state,
             "source": row.source, "state": row.state, "cpe_resolved": row.cpe_resolved,
             "required_os": row.required_os, "check_id": row.check_id, "vhost": row.vhost,
+            "severity": row.severity,
         } for row in rows]
         # Los sitios con nombre que sirve la IP no son riesgos: van en su
         # propia sección, no entre las fichas ni en los recuentos.

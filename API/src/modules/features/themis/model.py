@@ -911,6 +911,10 @@ class Finding(Base):
     # El sitio (nombre) al que se refiere el hallazgo cuando la IP sirve
     # varios detrás del mismo puerto; nulo en un hallazgo del host sin más.
     vhost    = Column(String(255), nullable=True)
+    # La severidad que declara el check que produjo el hallazgo; nula en los
+    # hallazgos que no salen de un check (por versión, inventario...), que
+    # se puntúan por su CVSS.
+    severity = Column(String(16), nullable=True)
 
     # Vulnerability correlation, filled once the finding resolves against the KB
     cve_ids          = Column(JSONB)
@@ -959,6 +963,7 @@ class Finding(Base):
             "cpe": self.cpe,
             "protocol": self.protocol,
             "vhost": self.vhost,
+            "severity": self.severity,
             "cve_ids": self.cve_ids,
             "cvss_score": self.cvss_score, 
             "cvss_vector": self.cvss_vector,

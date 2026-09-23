@@ -1789,6 +1789,7 @@ class CheckRuntime:
         return {
             "title":        finding_template.get("title", check.id),
             "category":     check.category,
+            "severity":     check.severity,
             "port":         service.port,
             "service":      service.name or check.service,
             "protocol":     service.protocol,
