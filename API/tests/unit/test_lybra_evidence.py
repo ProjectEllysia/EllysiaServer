@@ -87,3 +87,22 @@ def test_the_recorder_accumulates_records():
 def test_build_recorder_returns_none_when_disabled():
     assert build_recorder(False) is None
     assert isinstance(build_recorder(True), EvidenceRecorder)
+
+
+# ========================================================== secretos del cuerpo
+
+
+def test_secrets_in_a_body_are_redacted_but_their_names_kept():
+    from src.modules.features.themis.lybra.evidence import redact_evidence
+
+    body = ("class JConfig {\n\tpublic $password = 'hunter2';\n}\n"
+            "define('DB_PASSWORD', 's3cr3t');\n"
+            '{"password":"abc","dbtype":"mysqli"}\n'
+            "SECRET_KEY=zzz\n"
+            "-----BEGIN RSA PRIVATE KEY-----\nMIIE\n-----END RSA PRIVATE KEY-----")
+
+    redacted = redact_evidence({"body": body})["body"]
+
+    for secret in ("hunter2", "s3cr3t", '"abc"', "zzz", "MIIE"):
+        assert secret not in redacted
+    assert "$password" in redacted and "DB_PASSWORD" in redacted and "mysqli" in redacted

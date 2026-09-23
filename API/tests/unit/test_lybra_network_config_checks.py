@@ -218,6 +218,73 @@ def test_at_least_five_network_config_findings_are_reachable():
     network_config = {c.id for c in _CHECKS if c.category in ("network_config",)}
     expected = {"smbv1-enabled", "smb-signing-not-required",
                 "telnet-enabled", "smtp-open-relay", "smtp-no-starttls", "ftp-no-tls",
+                "ftp-cleartext-login-allowed",
                 "dns-open-resolver", "ntp-monlist-enabled"}
     assert expected <= network_config
     assert len(network_config) >= 5
+
+
+# ======================================= FTP que ofrece TLS pero no lo exige
+#
+# El caso que OpenVAS puntuó como MEDIA en el contraste de campo: el servidor
+# soporta AUTH TLS, así que `ftp-no-tls` no salta, pero acepta un USER en claro.
+
+
+def test_ftp_asking_for_a_password_in_cleartext_is_flagged():
+    sock = _FakeNetSocket(
+        greeting=b"220 ProFTPD Server (ProFTPD) [192.0.2.1]\r\n",
+        replies=[b"331 Password required for lybra-cleartext-probe\r\n"],
+    )
+    assert _fired("lybra:ftp-cleartext-login-allowed@1", sock, _FTP)
+    # Nunca se envía la contraseña: el 331 ya es la prueba.
+    assert b"PASS" not in sock.sent
+
+
+def test_ftp_that_enforces_tls_is_not_flagged():
+    sock = _FakeNetSocket(
+        greeting=b"220 (vsFTPd 3.0.3)\r\n",
+        replies=[b"530 Non-anonymous sessions must use encryption.\r\n"],
+    )
+    assert not _fired("lybra:ftp-cleartext-login-allowed@1", sock, _FTP)
+
+
+# =========================================== el TLS del FTP, tras AUTH TLS
+
+
+class _FtpSocket:
+    """Socket falso de un FTP: saludo, y la respuesta a AUTH TLS."""
+
+    def __init__(self, auth_reply):
+        self._pending = [b"220-Bienvenido\r\n220 ProFTPD\r\n", auth_reply]
+        self.sent = b""
+
+    def recv(self, _size):
+        return self._pending.pop(0) if self._pending else b""
+
+    def sendall(self, data):
+        self.sent += data
+
+    def close(self):
+        pass
+
+
+def test_the_ftp_upgrade_accepts_234_and_rejects_anything_else():
+    from src.modules.features.themis.lybra.fingerprinting.tls import _upgrade_ftp
+
+    accepted = _FtpSocket(b"234 AUTH TLS successful\r\n")
+    assert _upgrade_ftp(accepted) is True
+    assert accepted.sent == b"AUTH TLS\r\n"
+    assert _upgrade_ftp(_FtpSocket(b"500 AUTH not understood\r\n")) is False
+
+
+def test_an_ftp_service_gets_its_tls_audited_through_auth_tls():
+    calls = []
+
+    def tls_fetch(host, port, starttls=None):
+        calls.append((port, starttls))
+        return None
+
+    tls_checks = [c for c in _CHECKS if c.type == "tls"]
+    CheckRuntime(tls_checks, lambda *a: None, tls_fetch=tls_fetch).run("h", [_FTP])
+
+    assert calls == [(21, "ftp")]

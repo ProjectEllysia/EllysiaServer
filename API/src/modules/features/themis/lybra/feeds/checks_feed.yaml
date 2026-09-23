@@ -8,7 +8,7 @@
 # feedVersion sube cuando el feed gana una familia nueva o un protocolo nuevo
 # bajo una existente; el arreglo de un check ya presente sube el 'version' de
 # ese check, no esta cadena. Ver CHECKS_FEED_VERSION en checks.py.
-feedVersion: lybra-checks-16
+feedVersion: lybra-checks-25
 checks:
   - id: git-config-exposure
     version: 1
@@ -105,6 +105,415 @@ checks:
       title: wp-config.php servido como texto plano (credenciales de BD expuestas)
       qod: 99
       confirmed: true
+  # ---------------------------------------------------------------------------
+  # JOOMLA — la superficie conocida del segundo CMS más usado, con peticiones de
+  # sólo lectura. Cada check exige una marca propia de Joomla en el cuerpo: un
+  # sitio que contesta 200 a cualquier ruta no dispara ninguno.
+  #
+  # configuration.php guarda las credenciales de la base de datos. PHP lo
+  # ejecuta y nunca lo sirve, pero una copia de editor se sirve como texto.
+  - id: joomla-configuration-backup
+    version: 1
+    type: http
+    category: exposed_path
+    severity: HIGH
+    service: http
+    mode: safe
+    payloads:
+      name:
+        - configuration.php~
+        - configuration.php.bak
+        - configuration.php.old
+        - configuration.php.save
+        - configuration.php.swp
+        - configuration.php.orig
+        - configuration.php.txt
+        - configuration.bak
+    requests:
+      - method: GET
+        path: /{{name}}
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: word
+            part: body
+            words:
+              - class JConfig
+    finding:
+      title: Copia de configuration.php de Joomla servida como texto (credenciales de BD expuestas)
+      qod: 99
+      confirmed: true
+  # El instalador olvidado: en algunas versiones permite reinstalar el sitio
+  # encima del existente.
+  - id: joomla-installation-directory
+    version: 1
+    type: http
+    category: exposed_path
+    severity: MEDIUM
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /installation/index.php
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: regex
+            part: body
+            regex:
+              - '(?i)joomla!?[^<]{0,30}(?:web\s*)?install(?:er|ation)'
+    finding:
+      title: El directorio de instalación de Joomla sigue publicado
+      qod: 95
+      confirmed: true
+  # El panel de administración a la vista: no es un fallo, pero sí superficie
+  # expuesta que el informe tiene que contar.
+  - id: joomla-admin-exposed
+    version: 1
+    type: http
+    category: exposed_path
+    severity: INFO
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /administrator/
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: word
+            part: body
+            words:
+              - com_login
+    finding:
+      title: Panel de administración de Joomla accesible desde Internet
+      qod: 95
+      confirmed: true
+  # CVE-2023-23752 (KEV): en Joomla 4.0.0–4.2.7 la API web devuelve la
+  # configuración, credenciales incluidas, sin autenticar. Confirmador: sólo
+  # corre si la versión detectada ya propuso la CVE. Se confirma porque la
+  # respuesta trae la configuración; lo que devuelve no se usa para nada.
+  - id: joomla-cve-2023-23752-api-config
+    version: 1
+    type: http
+    category: vulnerability
+    severity: CRITICAL
+    service: http
+    mode: safe
+    confirms: CVE-2023-23752
+    requests:
+      - method: GET
+        path: /api/index.php/v1/config/application?public=true
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: regex
+            part: body
+            regex:
+              - '"type"\s*:\s*"application"'
+          - type: word
+            part: body
+            words:
+              - '"password"'
+              - '"dbtype"'
+    finding:
+      title: 'Joomla expone su configuración sin autenticar (CVE-2023-23752)'
+      qod: 99
+      confirmed: true
+  # ---------------------------------------------------------------------------
+  # WORDPRESS — lo que el wp-config de arriba no cubre. Sólo lectura, y cada
+  # check exige una marca propia de WordPress en la respuesta.
+  #
+  # Una copia de editor de wp-config.php se sirve como texto.
+  - id: wordpress-config-backup
+    version: 1
+    type: http
+    category: exposed_path
+    severity: CRITICAL
+    service: http
+    mode: safe
+    payloads:
+      name:
+        - wp-config.php~
+        - wp-config.php.bak
+        - wp-config.php.old
+        - wp-config.php.save
+        - wp-config.php.swp
+        - wp-config.php.orig
+        - wp-config.php.txt
+        - wp-config.bak
+    requests:
+      - method: GET
+        path: /{{name}}
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: word
+            part: body
+            words:
+              - DB_PASSWORD
+    finding:
+      title: Copia de wp-config.php servida como texto (credenciales de BD expuestas)
+      qod: 99
+      confirmed: true
+  # Un WordPress sin instalar: quien llegue primero lo configura y se queda
+  # con el sitio (y con lo que el servidor le deje ejecutar).
+  - id: wordpress-install-exposed
+    version: 1
+    type: http
+    category: exposed_path
+    severity: HIGH
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /wp-admin/install.php
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: word
+            part: body
+            words:
+              - weblog_title
+    finding:
+      title: WordPress sin instalar y con el instalador abierto
+      qod: 95
+      confirmed: true
+  # El registro de depuración, que WP_DEBUG_LOG deja en una ruta pública:
+  # rutas del servidor, consultas y a veces datos de usuarios.
+  - id: wordpress-debug-log
+    version: 1
+    type: http
+    category: exposed_path
+    severity: MEDIUM
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /wp-content/debug.log
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: regex
+            part: body
+            regex:
+              - 'PHP (?:Warning|Notice|Fatal error|Deprecated|Parse error):'
+    finding:
+      title: Registro de depuración de WordPress público (wp-content/debug.log)
+      qod: 95
+      confirmed: true
+  # La API REST lista los usuarios con su nombre de acceso (slug): la mitad
+  # de un ataque de fuerza bruta resuelta.
+  - id: wordpress-user-enumeration
+    version: 1
+    type: http
+    category: web_finding
+    severity: LOW
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /wp-json/wp/v2/users
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: regex
+            part: body
+            regex:
+              - '"slug"\s*:\s*"[^"]+"'
+          - type: word
+            part: body
+            words:
+              - '"avatar_urls"'
+    finding:
+      title: WordPress publica sus nombres de usuario en la API REST
+      qod: 95
+      confirmed: true
+  # XML-RPC activo: permite probar cientos de contraseñas en una sola
+  # petición (system.multicall) y usar el sitio para pingbacks.
+  - id: wordpress-xmlrpc-enabled
+    version: 1
+    type: http
+    category: exposed_path
+    severity: LOW
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /xmlrpc.php
+        matchers-condition: and
+        matchers:
+          - type: word
+            part: body
+            words:
+              - XML-RPC server accepts POST requests only
+    finding:
+      title: XML-RPC de WordPress activo (fuerza bruta amplificada y pingbacks)
+      qod: 95
+      confirmed: true
+  # El directorio de subidas listable: todo lo que se subió, publicado o no.
+  - id: wordpress-uploads-listing
+    version: 1
+    type: http
+    category: exposed_path
+    severity: LOW
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /wp-content/uploads/
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: word
+            part: body
+            words:
+              - Index of /wp-content/uploads
+    finding:
+      title: El directorio de subidas de WordPress se puede listar
+      qod: 99
+      confirmed: true
+  # ---------------------------------------------------------------------------
+  # DRUPAL — la misma idea: sólo lectura y una marca de Drupal en el cuerpo.
+  #
+  # settings.php guarda la conexión a la base de datos; una copia de editor
+  # se sirve como texto.
+  - id: drupal-settings-backup
+    version: 1
+    type: http
+    category: exposed_path
+    severity: CRITICAL
+    service: http
+    mode: safe
+    payloads:
+      name:
+        - settings.php~
+        - settings.php.bak
+        - settings.php.old
+        - settings.php.save
+        - settings.php.swp
+        - settings.php.orig
+        - settings.php.txt
+    requests:
+      - method: GET
+        path: /sites/default/{{name}}
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: word
+            part: body
+            words:
+              - $databases
+    finding:
+      title: Copia de settings.php de Drupal servida como texto (credenciales de BD expuestas)
+      qod: 99
+      confirmed: true
+  # Un Drupal sin instalar, con el instalador abierto a cualquiera.
+  - id: drupal-install-exposed
+    version: 1
+    type: http
+    category: exposed_path
+    severity: HIGH
+    service: http
+    mode: safe
+    payloads:
+      name:
+        - core/install.php
+        - install.php
+    requests:
+      - method: GET
+        path: /{{name}}
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: word
+            part: body
+            words:
+              - install-page
+          - type: word
+            part: body
+            words:
+              - Drupal already installed
+            negative: true
+    finding:
+      title: Drupal sin instalar y con el instalador abierto
+      qod: 95
+      confirmed: true
+  # CHANGELOG.txt da la versión exacta del núcleo a cualquiera.
+  - id: drupal-changelog-exposed
+    version: 1
+    type: http
+    category: web_finding
+    severity: LOW
+    service: http
+    mode: safe
+    payloads:
+      name:
+        - CHANGELOG.txt
+        - core/CHANGELOG.txt
+    requests:
+      - method: GET
+        path: /{{name}}
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: regex
+            part: body
+            regex:
+              - '(?m)^Drupal \d+\.\d+'
+    finding:
+      title: El CHANGELOG.txt de Drupal revela la versión exacta
+      qod: 99
+      confirmed: true
+  # JSON:API con la colección de usuarios abierta: nombres de cuenta, y a
+  # veces correos, sin autenticar.
+  - id: drupal-jsonapi-user-enumeration
+    version: 1
+    type: http
+    category: web_finding
+    severity: MEDIUM
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /jsonapi/user/user
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: word
+            part: body
+            words:
+              - '"type":"user--user"'
+    finding:
+      title: La JSON:API de Drupal lista los usuarios sin autenticar
+      qod: 95
+      confirmed: true
   - id: ssh-private-key-exposure
     version: 1
     type: http
@@ -177,7 +586,7 @@ checks:
       qod: 99
       confirmed: true
   - id: missing-hsts-header
-    version: 1
+    version: 2
     type: http
     category: security_header
     severity: MEDIUM
@@ -188,6 +597,12 @@ checks:
         path: /
         matchers-condition: and
         matchers:
+          # HSTS sólo tiene efecto recibida por HTTPS (RFC 6797 §8.1): por HTTP
+          # en claro el navegador la ignora, así que exigirla ahí es un error.
+          - type: regex
+            part: transport
+            regex:
+              - '->https$'
           - type: status
             value:
               - 200
@@ -203,7 +618,7 @@ checks:
       qod: 99
       confirmed: true
   - id: missing-x-frame-options-header
-    version: 1
+    version: 2
     type: http
     category: security_header
     severity: MEDIUM
@@ -214,6 +629,13 @@ checks:
         path: /
         matchers-condition: and
         matchers:
+          # Un puerto en claro que redirige a HTTPS no sirve ninguna página: sus
+          # cabeceras se evalúan en el servicio HTTPS, no aquí por duplicado.
+          - type: word
+            part: transport
+            words:
+              - http->https
+            negative: true
           - type: status
             value:
               - 200
@@ -229,7 +651,7 @@ checks:
       qod: 99
       confirmed: true
   - id: missing-x-content-type-options-header
-    version: 1
+    version: 2
     type: http
     category: security_header
     severity: LOW
@@ -240,6 +662,13 @@ checks:
         path: /
         matchers-condition: and
         matchers:
+          # Un puerto en claro que redirige a HTTPS no sirve ninguna página: sus
+          # cabeceras se evalúan en el servicio HTTPS, no aquí por duplicado.
+          - type: word
+            part: transport
+            words:
+              - http->https
+            negative: true
           - type: status
             value:
               - 200
@@ -264,6 +693,21 @@ checks:
     tlsRule: self_signed
     finding:
       title: Certificado TLS autofirmado
+      qod: 99
+      confirmed: true
+  # Sólo cuando se escaneó por nombre: el certificado no cubre el nombre
+  # pedido, así que cualquier navegador mostrará un aviso. Por IP no hay
+  # nombre con el que comparar y el check no dispara.
+  - id: tls-hostname-mismatch
+    version: 1
+    type: tls
+    category: tls
+    severity: MEDIUM
+    service: https
+    mode: safe
+    tlsRule: hostname_mismatch
+    finding:
+      title: El certificado TLS no cubre el nombre del sitio
       qod: 99
       confirmed: true
   - id: tls-expired-cert
@@ -536,6 +980,30 @@ checks:
     mode: safe
     finding:
       title: 'DNS: resolutor abierto (utilizable como amplificador contra terceros)'
+      qod: 99
+      confirmed: true
+  - id: tcp-timestamps-enabled
+    version: 1
+    type: script
+    script: tcp-timestamps-enabled
+    category: network_config
+    severity: LOW
+    service: tcp
+    mode: safe
+    finding:
+      title: 'TCP: marcas de tiempo activas (permiten estimar el tiempo encendido del equipo)'
+      qod: 99
+      confirmed: true
+  - id: ike-weak-transform
+    version: 1
+    type: script
+    script: ike-weak-transform
+    category: network_config
+    severity: MEDIUM
+    service: ike
+    mode: safe
+    finding:
+      title: 'IKE: el gateway VPN acepta criptografia debil (DES/3DES, MD5/SHA-1 o grupo DH 1/2/5)'
       qod: 99
       confirmed: true
   - id: ntp-monlist-enabled
@@ -1104,7 +1572,7 @@ checks:
       confirmed: true
   # ---- Cabeceras de seguridad ausentes (las que hoy no se miran) ------
   - id: missing-csp-header
-    version: 1
+    version: 2
     type: http
     category: security_header
     severity: MEDIUM
@@ -1115,6 +1583,13 @@ checks:
         path: /
         matchers-condition: and
         matchers:
+          # Un puerto en claro que redirige a HTTPS no sirve ninguna página: sus
+          # cabeceras se evalúan en el servicio HTTPS, no aquí por duplicado.
+          - type: word
+            part: transport
+            words:
+              - http->https
+            negative: true
           - type: status
             value:
               - 200
@@ -1130,7 +1605,7 @@ checks:
       qod: 99
       confirmed: true
   - id: missing-referrer-policy-header
-    version: 1
+    version: 2
     type: http
     category: security_header
     severity: LOW
@@ -1141,6 +1616,13 @@ checks:
         path: /
         matchers-condition: and
         matchers:
+          # Un puerto en claro que redirige a HTTPS no sirve ninguna página: sus
+          # cabeceras se evalúan en el servicio HTTPS, no aquí por duplicado.
+          - type: word
+            part: transport
+            words:
+              - http->https
+            negative: true
           - type: status
             value:
               - 200
@@ -1156,7 +1638,7 @@ checks:
       qod: 99
       confirmed: true
   - id: missing-permissions-policy-header
-    version: 1
+    version: 2
     type: http
     category: security_header
     severity: LOW
@@ -1167,6 +1649,13 @@ checks:
         path: /
         matchers-condition: and
         matchers:
+          # Un puerto en claro que redirige a HTTPS no sirve ninguna página: sus
+          # cabeceras se evalúan en el servicio HTTPS, no aquí por duplicado.
+          - type: word
+            part: transport
+            words:
+              - http->https
+            negative: true
           - type: status
             value:
               - 200
@@ -1200,6 +1689,29 @@ checks:
   # cookie de sesión típica, y NO contiene "secure" — las tres condiciones en un
   # solo patrón para no depender del orden ni de matchers negativos separados.
   - id: session-cookie-without-secure
+    version: 2
+    type: http
+    category: security_header
+    severity: MEDIUM
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /
+        matchers-condition: and
+        matchers:
+          - type: regex
+            part: header
+            regex:
+              - '(?im)^set-cookie:\s*(?:PHPSESSID|JSESSIONID|ASP\.NET_SessionId|laravel_session|session|sessionid|connect\.sid|[0-9a-f]{32})=(?:(?!;\s*secure).)*$'
+    finding:
+      title: Cookie de sesion sin el atributo Secure
+      qod: 99
+      confirmed: true
+  # Las mismas cookies de sesión, sin HttpOnly (legibles desde JavaScript,
+  # y por tanto robables con un XSS) o sin SameSite (enviadas en peticiones
+  # de otros sitios, la base de un CSRF).
+  - id: session-cookie-without-httponly
     version: 1
     type: http
     category: security_header
@@ -1214,11 +1726,165 @@ checks:
           - type: regex
             part: header
             regex:
-              - '(?im)^set-cookie:\s*(?:PHPSESSID|JSESSIONID|ASP\.NET_SessionId|laravel_session|session|sessionid|connect\.sid)=(?:(?!;\s*secure).)*$'
+              - '(?im)^set-cookie:\s*(?:PHPSESSID|JSESSIONID|ASP\.NET_SessionId|laravel_session|session|sessionid|connect\.sid|[0-9a-f]{32})=(?:(?!;\s*httponly).)*$'
     finding:
-      title: Cookie de sesion sin el atributo Secure
+      title: Cookie de sesion sin el atributo HttpOnly
       qod: 99
       confirmed: true
+  - id: session-cookie-without-samesite
+    version: 1
+    type: http
+    category: security_header
+    severity: LOW
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /
+        matchers-condition: and
+        matchers:
+          - type: regex
+            part: header
+            regex:
+              - '(?im)^set-cookie:\s*(?:PHPSESSID|JSESSIONID|ASP\.NET_SessionId|laravel_session|session|sessionid|connect\.sid|[0-9a-f]{32})=(?:(?!;\s*samesite).)*$'
+    finding:
+      title: Cookie de sesion sin el atributo SameSite
+      qod: 99
+      confirmed: true
+  # Un puerto en claro que sirve la página en vez de redirigir a HTTPS: todo
+  # lo que viaja por él (cookies de sesión incluidas) va en claro.
+  - id: http-no-https-redirect
+    version: 1
+    type: http
+    category: security_header
+    severity: LOW
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: regex
+            part: transport
+            regex:
+              - '^http->http$'
+    finding:
+      title: El sitio se sirve por HTTP sin redirigir a HTTPS
+      qod: 99
+      confirmed: true
+  # HSTS con un max-age de menos de seis meses (15552000 s): protege tan poco
+  # tiempo que un primer acceso por HTTP vuelve a quedar expuesto enseguida.
+  - id: hsts-weak-max-age
+    version: 1
+    type: http
+    category: security_header
+    severity: LOW
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /
+        matchers-condition: and
+        matchers:
+          - type: regex
+            part: transport
+            regex:
+              - '->https$'
+          - type: regex
+            part: header
+            regex:
+              - '(?im)^strict-transport-security:.*max-age=(?:\d{1,7}|1[0-4]\d{6}|15[0-4]\d{5}|155[0-4]\d{4}|1555[01]\d{3})\b'
+    finding:
+      title: HSTS con un max-age de menos de seis meses
+      qod: 99
+      confirmed: true
+  # X-Frame-Options está obsoleta: su sustituto es la directiva
+  # frame-ancestors de la CSP. Sólo se avisa si la CSP no la trae.
+  - id: x-frame-options-deprecated
+    version: 1
+    type: http
+    category: security_header
+    severity: INFO
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /
+        matchers-condition: and
+        matchers:
+          - type: regex
+            part: header
+            regex:
+              - '(?im)^x-frame-options:'
+          - type: regex
+            part: header
+            regex:
+              - '(?im)^content-security-policy:.*frame-ancestors'
+            negative: true
+    finding:
+      title: X-Frame-Options sin frame-ancestors en la CSP (cabecera obsoleta)
+      qod: 99
+      confirmed: true
+  # Cabeceras que regalan la versión exacta del software (X-Powered-By:
+  # PHP/8.3.33, Server: nginx/1.18.0): acortan el trabajo de quien busca un
+  # exploit para esa versión.
+  - id: http-version-disclosure
+    version: 1
+    type: http
+    category: security_header
+    severity: LOW
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /
+        matchers-condition: and
+        matchers:
+          - type: regex
+            part: header
+            regex:
+              - '(?im)^(?:x-powered-by|server|x-aspnet-version|x-aspnetmvc-version):[^\n]*\d+\.\d+'
+    finding:
+      title: Las cabeceras HTTP revelan la versión del software
+      qod: 99
+      confirmed: true
+  # BREACH: compresión HTTP sobre HTTPS en una respuesta que pone cookies.
+  # Comparando tamaños de respuestas comprimidas se pueden deducir secretos
+  # de la página. Se pide con Accept-Encoding porque urllib no lo envía.
+  - id: http-compression-breach
+    version: 1
+    type: http
+    category: security_header
+    severity: LOW
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /
+        headers:
+          Accept-Encoding: gzip, deflate, br
+        matchers-condition: and
+        matchers:
+          - type: regex
+            part: transport
+            regex:
+              - '->https$'
+          - type: regex
+            part: header
+            regex:
+              - '(?im)^content-encoding:\s*(?:gzip|deflate|br)'
+          - type: regex
+            part: header
+            regex:
+              - '(?im)^set-cookie:'
+    finding:
+      title: Compresión HTTP sobre HTTPS con cookies (posible BREACH)
+      qod: 70
+      confirmed: false
   # ===================================================================
   # Checks de configuración de red que la Fase N prometió (L26). Cierran
   # la parte de la brecha G1 que no se resuelve escribiendo ojos: una
@@ -1249,6 +1915,89 @@ checks:
       title: 'VNC: acceso sin autenticación (tipo de seguridad None ofrecido)'
       qod: 99
       confirmed: true
+  # ===================================================================
+  # SSH: el KEXINIT que el servidor envía en claro al conectar (la lista
+  # de algoritmos que acepta). Nunca se completa el intercambio de claves
+  # ni se autentica nada. Los cuatro de algoritmos débiles siguen el
+  # criterio de OpenVAS, familia por familia.
+  # ===================================================================
+  - id: ssh-weak-mac
+    version: 1
+    type: script
+    script: ssh-weak-mac
+    category: network_config
+    severity: LOW
+    service: ssh
+    mode: safe
+    finding:
+      title: 'SSH: acepta MACs débiles (MD5, 96 o 64 bits)'
+      qod: 99
+      confirmed: true
+  - id: ssh-weak-encryption
+    version: 1
+    type: script
+    script: ssh-weak-encryption
+    category: network_config
+    severity: MEDIUM
+    service: ssh
+    mode: safe
+    finding:
+      title: 'SSH: acepta cifrados débiles (CBC, RC4, 3DES)'
+      qod: 99
+      confirmed: true
+  - id: ssh-weak-kex
+    version: 1
+    type: script
+    script: ssh-weak-kex
+    category: network_config
+    severity: MEDIUM
+    service: ssh
+    mode: safe
+    finding:
+      title: 'SSH: acepta intercambios de claves débiles (SHA-1 o grupo DH 1)'
+      qod: 99
+      confirmed: true
+  - id: ssh-weak-host-key
+    version: 1
+    type: script
+    script: ssh-weak-host-key
+    category: network_config
+    severity: LOW
+    service: ssh
+    mode: safe
+    finding:
+      title: 'SSH: ofrece claves de host débiles (DSA o RSA con SHA-1)'
+      qod: 99
+      confirmed: true
+  # Terrapin (CVE-2023-48795): la versión sólo dice que estaba afectada; el
+  # KEXINIT dice si esta configuración lo está. Confirmador y refutador
+  # corren sólo si la versión propuso la CVE.
+  - id: ssh-terrapin-confirm
+    version: 1
+    type: script
+    script: ssh-terrapin-confirm
+    category: vulnerability
+    severity: MEDIUM
+    service: ssh
+    mode: safe
+    confirms: CVE-2023-48795
+    finding:
+      title: 'SSH: vulnerable a Terrapin (CVE-2023-48795), sin strict kex'
+      qod: 99
+      confirmed: true
+  - id: ssh-terrapin-refute
+    version: 1
+    type: script
+    script: ssh-terrapin-refute
+    category: vulnerability
+    severity: INFO
+    service: ssh
+    mode: safe
+    refutes: CVE-2023-48795
+    finding:
+      title: 'SSH: no vulnerable a Terrapin (strict kex anunciado o sin modos afectados)'
+      qod: 99
+      confirmed: false
   # SMTP relay abierto: el servidor acepta un RCPT a un dominio externo desde un
   # remitente externo. No se llega a DATA — no se envía correo, sólo se observa
   # que aceptaría enrutarlo. Un servidor bien configurado responde 550/554.
@@ -1334,6 +2083,31 @@ checks:
               - '^(?:500|502|504|530|534|431)'
     finding:
       title: 'FTP: sin cifrado disponible (AUTH TLS no soportado)'
+      qod: 99
+      confirmed: true
+  # FTP que ofrece TLS sin exigirlo: responde 331 (pide la contraseña) a un
+  # USER enviado sin AUTH TLS, así que la aceptaría en claro. Nunca se
+  # envía PASS: el 331 ya es la prueba. Un servidor que exige TLS responde
+  # 530/550/534. El usuario es inventado para no tocar ninguna cuenta real
+  # ni el anónimo (ftp-anonymous-login ya cubre ése).
+  - id: ftp-cleartext-login-allowed
+    version: 1
+    type: network
+    category: network_config
+    severity: MEDIUM
+    service: ftp
+    mode: safe
+    expectBanner: true
+    requests:
+      - send: "USER lybra-cleartext-probe\r\n"
+        read: block
+        matchers:
+          - type: regex
+            part: body
+            regex:
+              - '^331'
+    finding:
+      title: 'FTP: acepta credenciales en claro (TLS ofrecido pero no exigido)'
       qod: 99
       confirmed: true
   # ===================================================================

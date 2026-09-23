@@ -29,7 +29,7 @@ from __future__ import annotations
 from typing import Callable, List, Optional
 
 from .distro import DistroRelease, infer_distro_release
-from .kb import version_compare
+from .kb import parse_cpe23, version_compare
 
 #: Lo que responde una consulta al espejo de avisos: el estado que el proveedor
 #: declara y, si lo corrigió, en qué versión.
@@ -41,10 +41,61 @@ PackageStatus = tuple  # (status: str, fixed_in: Optional[str])
 #: versión (ver ``apply_lifecycle``).
 BACKPORT_CHECK_ID = "lybra:oval-backport@1"
 
+#: Producto NVD → paquete fuente de la distribución, sólo donde difieren. Donde
+#: coinciden (``openssh``, ``openssl``, ``nginx``…) el nombre del CPE ya es el
+#: del paquete y no hace falta entrada.
+_DISTRO_PACKAGE_FOR_PRODUCT = {
+    "http_server": "apache2",
+    "bind": "bind9",
+    "postgresql": "postgresql-common",
+    "mysql": "mysql-8.0",
+    "exim": "exim4",
+    "tomcat": "tomcat10",
+}
+
+#: Qué release de la distribución tiene un paquete, dada su versión exacta:
+#: ``(vendor, package, version) -> release`` o ``None``. Inyectada porque
+#: consulta la base de datos.
+ReleaseLookup = Callable[[str, str, str], Optional[str]]
+
+
+def is_unverified_distro_package(finding: dict) -> bool:
+    """Si un hallazgo por versión es de un paquete de distribución que nadie contrastó.
+
+    Es el caso en que la versión visible no demuestra nada: la distribución
+    puede haber corregido la CVE sin cambiar el número (un *backport*), y la
+    verificación con su feed no llegó a pronunciarse —porque el feed falta,
+    está caducado o no reconoce la release—. Si se hubiera pronunciado, el
+    hallazgo ya no estaría así: sería ``fixed`` o estaría confirmado.
+
+    Se decide con lo que el hallazgo guarda (su CPE, su versión instalada o su
+    título), así que sirve igual al puntuar un escaneo recién hecho que al
+    leerlo meses después.
+
+    Args:
+        finding: Un hallazgo, recién producido o leído de la base de datos.
+
+    Returns:
+        bool: ``True`` si es un ``outdated_software`` con CVE, sin confirmar,
+            no resuelto por un backport, y cuya versión lleva la firma de una
+            distribución. ``False`` en cualquier otro caso, incluido un binario
+            compilado a mano (sin distribución, la versión sí es la que se ve).
+    """
+    if finding.get("category") != "outdated_software" or not finding.get("cve_ids"):
+        return False
+    if finding.get("confirmed") or finding.get("state") == "fixed":
+        return False
+    if finding.get("check_id") == BACKPORT_CHECK_ID:
+        return False
+    parsed = parse_cpe23(finding.get("cpe") or "") or {}
+    version = finding.get("_installed_version") or parsed.get("version") or ""
+    return infer_distro_release(version, finding.get("title") or "") is not None
+
 
 def apply_backport_verdicts(
     findings: List[dict],
     status_lookup: Callable[[str, Optional[str], str, str], Optional[PackageStatus]],
+    release_lookup: Optional[ReleaseLookup] = None,
 ) -> List[dict]:
     """Contrastar cada hallazgo por versión con lo que dice su distribución.
 
@@ -68,6 +119,10 @@ def apply_backport_verdicts(
         status_lookup: ``(vendor, release, package, cve_id)`` → ``(status,
             fixed_in)`` o ``None``. Inyectada porque consulta la base de datos
             y este paquete no la toca.
+        release_lookup: Deduce la release de la distribución cuando la
+            revisión del paquete no la escribe (Ubuntu firma
+            ``3ubuntu13.19``, sin «24.04»). Por defecto ``None``: sin ella,
+            sólo se pregunta por avisos que no dependen de release.
 
     Returns:
         La misma lista, con los hallazgos que cambiaron ya modificados.
@@ -87,7 +142,12 @@ def apply_backport_verdicts(
         if not package:
             continue
 
-        status = status_lookup(release.vendor, release.release, package, cve_ids[0])
+        release_name = release.release
+        installed = finding.get("_installed_version") or ""
+        if release_name is None and release_lookup is not None and installed:
+            release_name = release_lookup(release.vendor, package, installed)
+
+        status = status_lookup(release.vendor, release_name, package, cve_ids[0])
         if status is None:
             continue          # el proveedor no se ha pronunciado
 
@@ -129,15 +189,29 @@ def _release_for(finding: dict) -> Optional[DistroRelease]:
 def _package_name(finding: dict) -> Optional[str]:
     """El nombre con el que la distribución llama a este paquete.
 
-    Se usa el que trae el hallazgo, en minúsculas. No es perfecto —Debian llama
-    ``apache2`` a lo que NVD llama ``http_server``— y ese desajuste es
-    justamente el límite conocido de esta primera vuelta: cuando los nombres no
-    coinciden, la consulta no encuentra nada y el hallazgo se queda como
-    estaba, que es el comportamiento seguro.
+    Por orden: el que trae el hallazgo si lo trae (el inventario de Hygeia ya
+    lo sabe), el producto de su CPE traducido con
+    :data:`_DISTRO_PACKAGE_FOR_PRODUCT` donde la NVD y la distribución no
+    coinciden, y en último término el nombre del servicio. El CPE va antes que
+    el servicio porque el servicio de un OpenSSH se llama ``ssh``, y la
+    distribución lo publica como ``openssh``: preguntar por ``ssh`` no
+    encontraba nunca nada.
 
-    Pendiente: una tabla de equivalencias paquete-distro ↔ producto-NVD
-    resolvería este desajuste de nombres de forma sistemática en vez de
-    depender de que coincidan por casualidad.
+    Cuando ningún nombre coincide con el del feed, la consulta no encuentra
+    nada y el hallazgo se queda como estaba, que es el comportamiento seguro.
+
+    Args:
+        finding: El hallazgo por versión.
+
+    Returns:
+        Optional[str]: El nombre del paquete en minúsculas, o ``None`` si no
+            hay ninguno que probar.
     """
-    package = finding.get("_package_name") or finding.get("service") or ""
+    if finding.get("_package_name"):
+        return finding["_package_name"].strip().lower() or None
+    parsed = parse_cpe23(finding.get("cpe") or "")
+    if parsed and parsed.get("product"):
+        product = parsed["product"].lower()
+        return _DISTRO_PACKAGE_FOR_PRODUCT.get(product, product)
+    package = finding.get("service") or ""
     return package.strip().lower() or None

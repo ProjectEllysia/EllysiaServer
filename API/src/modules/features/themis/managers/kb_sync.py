@@ -66,7 +66,8 @@ class KbSyncManager:
         ``sources`` mapea ``"<vendor>[:<release>]"`` a la URL de su feed, para
         que añadir Debian 12 o Rocky 9 sea una línea de configuración y no de
         código. El formato se deduce del contenido: JSON es CSAF (Red Hat y
-        derivadas), lo demás es OVAL (Debian, Ubuntu).
+        derivadas), lo demás es OVAL (Debian, Ubuntu), que llega comprimido en
+        bzip2 y se descomprime mientras se lee.
 
         Returns:
             Cuántos pronunciamientos se escribieron.
@@ -77,8 +78,7 @@ class KbSyncManager:
         for key, url in sources.items():
             vendor, _, release = key.partition(":")
             document = fetch_oval(url)
-            stripped = document.lstrip()
-            if stripped.startswith("{"):
+            if document.lstrip().startswith(b"{"):
                 rows = parse_csaf_advisory(json.loads(document), vendor=vendor)
             else:
                 rows = parse_oval_definitions(document, vendor, release or None)

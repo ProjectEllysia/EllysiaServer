@@ -18,6 +18,12 @@
           ],
           "versionPattern": "WordPress\\s+(?P<version>\\d+(?:\\.\\d+)+)"
         }
+      ],
+      "versionProbes": [
+        {
+          "path": "/feed/",
+          "pattern": "<generator>https?://wordpress\\.org/\\?v=(?P<version>\\d+(?:\\.\\d+)+)</generator>"
+        }
       ]
     },
     {
@@ -39,6 +45,16 @@
           ],
           "versionPattern": "Drupal\\s+(?P<version>\\d+(?:\\.\\d+)*)"
         }
+      ],
+      "versionProbes": [
+        {
+          "path": "/core/CHANGELOG.txt",
+          "pattern": "^Drupal (?P<version>\\d+(?:\\.\\d+)+)"
+        },
+        {
+          "path": "/CHANGELOG.txt",
+          "pattern": "^Drupal (?P<version>\\d+(?:\\.\\d+)+)"
+        }
       ]
     },
     {
@@ -48,9 +64,25 @@
           "part": "body",
           "words": [
             "joomla",
-            "/media/jui/"
+            "/media/jui/",
+            "/media/system/js/",
+            "/media/templates/site/"
           ],
           "versionPattern": "content=\"Joomla!?\\s*-?\\s*(?P<version>\\d+(?:\\.\\d+)+)"
+        }
+      ],
+      "versionProbes": [
+        {
+          "path": "/administrator/manifests/files/joomla.xml",
+          "pattern": "<version>\\s*(?P<version>\\d+(?:\\.\\d+)+)\\s*</version>"
+        },
+        {
+          "path": "/administrator/language/en-GB/install.xml",
+          "pattern": "<version>\\s*(?P<version>\\d+(?:\\.\\d+)+)\\s*</version>"
+        },
+        {
+          "path": "/administrator/language/en-GB/en-GB.xml",
+          "pattern": "<version>\\s*(?P<version>\\d+(?:\\.\\d+)+)\\s*</version>"
         }
       ]
     },
@@ -848,6 +880,71 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Plesk",
+      "matchers": [
+        {
+          "part": "header:x-powered-by",
+          "words": [
+            "plesk"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "cPanel",
+      "matchers": [
+        {
+          "part": "header:server",
+          "words": [
+            "cpsrvd"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "DirectAdmin",
+      "matchers": [
+        {
+          "part": "header:server",
+          "words": [
+            "directadmin"
+          ]
+        }
+      ]
+    }
+  ],
+  "javascriptLibraries": [
+    {
+      "name": "jQuery",
+      "srcPattern": "(?:^|/)jquery(?:-\\d[\\w.]*)?(?:\\.slim)?(?:\\.min)?\\.js(?:[?#]|$)",
+      "headerPattern": "jQuery (?:JavaScript Library )?v(?P<version>\\d+(?:\\.\\d+)+)"
+    },
+    {
+      "name": "jQuery UI",
+      "srcPattern": "(?:^|/)jquery-ui(?:-\\d[\\w.]*)?(?:\\.min)?\\.js(?:[?#]|$)",
+      "headerPattern": "jQuery UI - v(?P<version>\\d+(?:\\.\\d+)+)"
+    },
+    {
+      "name": "Bootstrap",
+      "srcPattern": "(?:^|/)bootstrap(?:[-.][\\w.]*)?\\.js(?:[?#]|$)|/bootstrap/js/",
+      "headerPattern": "Bootstrap v(?P<version>\\d+(?:\\.\\d+)+)"
+    },
+    {
+      "name": "AngularJS",
+      "srcPattern": "(?:^|/)angular(?:-\\d[\\w.]*)?(?:\\.min)?\\.js(?:[?#]|$)",
+      "headerPattern": "AngularJS v(?P<version>\\d+(?:\\.\\d+)+)"
+    },
+    {
+      "name": "Lodash",
+      "srcPattern": "(?:^|/)lodash(?:\\.core)?(?:\\.min)?\\.js(?:[?#]|$)",
+      "headerPattern": "Lodash[^\\n]{0,40}?(?:v|<)(?P<version>\\d+(?:\\.\\d+)+)"
+    },
+    {
+      "name": "Moment.js",
+      "srcPattern": "(?:^|/)moment(?:-with-locales)?(?:\\.min)?\\.js(?:[?#]|$)",
+      "headerPattern": "version\\s*:\\s*(?P<version>\\d+(?:\\.\\d+)+)"
     }
   ]
 }

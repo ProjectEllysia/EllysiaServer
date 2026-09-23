@@ -3,6 +3,7 @@ de servicios, fingerprinting, checks activos y persistencia de los hallazgos res
 
 import logging
 import time
+from contextlib import ExitStack
 from datetime import timedelta
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, replace
@@ -28,6 +29,12 @@ from ...model import (
 from ...lybra import (
     LybraEngine,
     Service,
+    pinned_resolution,
+    is_http_service,
+    is_tls_service,
+    mark_default_site_certificates,
+    site_finding,
+    crawl,
     compute_dedup_key,
     merge_findings,
     apply_lifecycle,
@@ -53,15 +60,20 @@ from ...lybra import (
     score_finding,
     build_service_rollup,
     apply_backport_verdicts,
+    apply_refutations,
+    split_refutations,
     CheckPlanner,
     KnownService,
 )
 from ...lybra.ingest import select_for_services, translate_all
 from ...services import _Task
+from ...services.parsing import is_hostname, resolve_public_address
 from ...services.cve_context import enrich_with_cve_context, resolve_fixed_versions
 from ...services.nuclei_templates import NucleiTemplateStore
 from src.modules.shared._exceptions import ValidationError
 from ...exceptions import (
+    IPValidationError,
+    PrivateIPRequested,
     ScanFailedError,
     ScanNotFoundError,
     FindingNotFoundError,
@@ -70,6 +82,7 @@ from ...exceptions import (
 from ..scan import ScanManager
 from ..authorized_target import AuthorizedTargetManager
 from .sources import ServiceSource, DiscoveryProbes
+from .virtual_hosts import discover_sites
 
 
 logger = logging.getLogger(__name__)
@@ -272,7 +285,7 @@ class LybraEngineManager(ScanManager):
     # Categories that are point-in-time events, not persistent vulnerability
     # state - excluded from lifecycle tracking (see the lifecycle pass in
     # _run_lybra).
-    _EVENT_CATEGORIES = {"fingerprint", "surface_change"}
+    _EVENT_CATEGORIES = {"fingerprint", "surface_change", "scan_integrity", "virtual_host"}
 
     def __init__(self, task_queue: ITaskQueue | None = None) -> None:
         super().__init__(task_queue)
@@ -642,6 +655,9 @@ class LybraEngineManager(ScanManager):
             ),
             discover_udp_ports=self._discover_udp_ports,
         )
+        # Los pines de resolución de un escaneo por nombre (ver
+        # ``lybra.pinned_resolution``): se sueltan pase lo que pase.
+        pins = ExitStack()
         try:
             self.update_scan_status(scan_id, ScanStatus.RUNNING)
 
@@ -652,6 +668,9 @@ class LybraEngineManager(ScanManager):
                 lybra_scan = scan_repo.get_by_id(scan_id)
                 source_target = lybra_scan.target if lybra_scan else None
                 user_id = lybra_scan.user_id if lybra_scan else None
+                if source.probes_target_network and source_target and is_hostname(source_target):
+                    pins.enter_context(pinned_resolution(
+                        source_target, _pinned_address_for(source_target)))
 
                 is_target_authorized = bool(
                     user_id 
@@ -672,6 +691,12 @@ class LybraEngineManager(ScanManager):
                 # no todo. Comparte la bandera ``is_partial`` para no cerrar por
                 # omisión lo que no llegó a comprobar.
                 is_partial = resolved.is_partial or should_stop()
+                integrity_findings = []
+                if resolved.implausible_open_ports:
+                    integrity_findings.append(_scan_integrity_finding(
+                        f"El objetivo acepta conexiones en cualquier puerto "
+                        f"({resolved.implausible_open_ports} «abiertos»): probable "
+                        f"cortafuegos engañoso; sólo se analizan los puertos conocidos"))
                 # Descubrimiento hecho: 40 % del trabajo (reparto de pesos entre
                 # las fases: descubrimiento 40, fingerprint 30, checks 20,
                 # correlación y persistencia 10).
@@ -753,13 +778,43 @@ class LybraEngineManager(ScanManager):
                 CR.lybra_config().active_checks
                 if active_checks_override is None else active_checks_override
             )
+            # Rastreo de sólo lectura: descubre lo que los checks no conocen
+            # de antemano (rutas de robots.txt, formularios de login, rutas
+            # tras autenticación básica). Va antes de los checks activos para
+            # que las rutas con puerta lleguen al motor de credenciales, y
+            # sólo sobre un objetivo autorizado, como el resto del análisis
+            # activo.
+            discovered_auth_paths: list = []
+            if (source.probes_target_network and source_target and is_target_authorized
+                    and not should_stop()):
+                crawl_findings, discovered_auth_paths = self._run_crawler(source_target, services)
+                findings_data.extend(crawl_findings)
+
+            # Las marcas de los refutadores no son hallazgos: se apartan aquí
+            # y se aplican tras el ciclo de vida, como los backports.
+            refutations: list = []
             if (source.probes_target_network and source_target and is_target_authorized
                     and active_checks_enabled and not should_stop()):
-                findings_data.extend(
+                active_findings, refutations = split_refutations(
                     self._run_active_checks(source_target, services,
                                             cancel_check=should_stop,
                                             proposed_cves=proposed_cves,
                                             mode=mode))
+                # Escanear una IP audita su sitio por defecto. Los sitios con
+                # nombre que la propia IP delata se auditan aparte, cada uno
+                # con su nombre; entonces el certificado sin nombre es el del
+                # sitio por defecto, y se reporta como tal.
+                if not is_hostname(source_target) and not should_stop():
+                    site_findings, site_refutations = split_refutations(_audit_named_sites(
+                        source_target, services, should_stop,
+                        lambda name, web: self._run_active_checks(
+                            name, web, cancel_check=should_stop,
+                            proposed_cves=proposed_cves, mode=mode)))
+                    if site_findings:
+                        mark_default_site_certificates(active_findings)
+                    active_findings += site_findings
+                    refutations += site_refutations
+                findings_data.extend(active_findings)
                 is_partial = is_partial or should_stop()
 
             # Motor de credenciales por defecto — la única
@@ -768,7 +823,21 @@ class LybraEngineManager(ScanManager):
             # nada; esta condición sólo evita el trabajo de construir el
             # runtime cuando ya se sabe que no va a correr.
             if source.probes_target_network and source_target and mode == "aggressive" and not should_stop():
-                findings_data.extend(self._run_credential_checks(source_target, services, mode))
+                findings_data.extend(self._run_credential_checks(
+                    source_target, services, mode, discovered_auth_paths))
+
+            # ¿Sigue respondiendo el objetivo? Si ya no contesta ninguno de los
+            # puertos que estaban abiertos, lo que vino después del bloqueo no
+            # es un resultado limpio sino uno incompleto.
+            if (source.probes_target_network and source_target and not should_stop()
+                    and not _is_still_reachable(probes.discover_ports, source_target, services)):
+                logger.warning("Lybra %s: el objetivo %s dejó de responder durante el escaneo",
+                               scan_id, source_target)
+                is_partial = True
+                integrity_findings.append(_scan_integrity_finding(
+                    "El objetivo dejó de responder durante el escaneo (probable bloqueo "
+                    "del escáner): los resultados están incompletos"))
+            findings_data.extend(integrity_findings)
             report(90)
 
             for finding in findings_data:
@@ -800,8 +869,11 @@ class LybraEngineManager(ScanManager):
             # `apply_lifecycle` reasignaría el estado de todo hallazgo
             # presente y borraría ese veredicto: un `fixed` recién puesto
             # volvería a `open` en la misma pasada.
+            apply_refutations(findings_data, refutations)
             with UnitOfWork() as uow:
-                apply_backport_verdicts(findings_data, KbRepository(uow).distro_package_status)
+                advisories = KbRepository(uow)
+                apply_backport_verdicts(findings_data, advisories.distro_package_status,
+                                        advisories.distro_release_for)
 
             with UnitOfWork() as uow:
                 scan_repo = ScanRepository(uow)
@@ -845,6 +917,8 @@ class LybraEngineManager(ScanManager):
         except Exception as e:
             logger.error(f"Error en escaneo Lybra {scan_id}: {e}", exc_info=True)
             self.update_scan_status(scan_id, ScanStatus.FAILED, ScanFailureReason.INTERNAL_ERROR)
+        finally:
+            pins.close()
 
     def _discover_ports(
         self,
@@ -962,7 +1036,54 @@ class LybraEngineManager(ScanManager):
             logger.exception("Lybra active checks failed for %s", target)
             return []
 
-    def _run_credential_checks(self, target: str, services, mode: str) -> list:
+    def _run_crawler(self, target: str, services) -> tuple:
+        """Rastrear de sólo lectura los servicios web del objetivo.
+
+        Best-effort, como el resto de fases de red: un fallo no hunde el
+        escaneo, sólo devuelve un rastreo vacío. Rastrea cada servicio HTTP
+        con el presupuesto configurado y funde lo hallado; las rutas con
+        autenticación básica se devuelven aparte para el motor de credenciales.
+
+        Args:
+            target: El objetivo (IP o nombre ya fijado a la IP validada).
+            services: Los servicios del escaneo.
+
+        Returns:
+            tuple: ``(hallazgos, rutas_con_auth_basica)``. Los hallazgos son
+                los avisos de robots.txt, formularios de login y rutas
+                protegidas; la lista de rutas alimenta el motor de
+                credenciales en modo agresivo.
+        """
+        try:
+            config = CR.lybra_crawler_config()
+            if config.max_pages <= 0:
+                return [], []
+            engine = CR.lybra_engine_config()
+            fetch = HttpProbe(
+                timeout=engine.http_timeout,
+                max_bytes=engine.http_max_body_bytes,
+                user_agent=engine.http_user_agent,
+            ).fetch
+            findings: list = []
+            auth_paths: list = []
+            for service in services:
+                if not is_http_service(service):
+                    continue
+                result = crawl(
+                    target, service.port, fetch,
+                    max_pages=config.max_pages,
+                    max_depth=config.max_depth,
+                    time_budget_seconds=config.time_budget_seconds,
+                )
+                findings.extend(_crawl_findings(service, result))
+                auth_paths.extend(result.basic_auth_paths)
+            return findings, auth_paths
+        except Exception:
+            logger.exception("Lybra crawl failed for %s", target)
+            return [], []
+
+    def _run_credential_checks(self, target: str, services, mode: str,
+                               discovered_paths=None) -> list:
         """Probar credenciales por defecto contra los servicios del objetivo.
 
         Es la única familia de detección que escribe en el objetivo, así que
@@ -995,7 +1116,7 @@ class LybraEngineManager(ScanManager):
                 max_attempts_per_account=credentials.max_attempts,
                 capture_evidence=CR.lybra_evidence_config().enabled,
             )
-            return runtime.run(target, services)
+            return runtime.run(target, services, discovered_paths=discovered_paths)
         except Exception:
             logger.exception("Lybra credential checks failed for %s", target)
             return []
@@ -1122,6 +1243,8 @@ class LybraEngineManager(ScanManager):
             findings.extend(self._layer_findings(service, result))
             if result.product and result.version:
                 service = replace(service, product=result.product, version=result.version)
+            if getattr(result, "components", ()):
+                service = replace(service, components=result.components)
             updated.append(service)
 
         return updated, findings
@@ -1774,3 +1897,176 @@ class LybraEngineManager(ScanManager):
         """No-op: Lybra does not use the base CSV-logging execution path."""
         pass
 
+
+def _is_still_reachable(discover: Callable, target: str, services: list) -> bool:
+    """Si alguno de los puertos TCP abiertos del objetivo sigue aceptando conexiones.
+
+    Es la comprobación que OpenVAS llama «Check open ports»: al final del
+    escaneo se vuelve a llamar a una muestra de los puertos que estaban
+    abiertos. Si ninguno contesta, el objetivo bloqueó al escáner (un IPS, una
+    regla tipo *fail2ban*) y todo lo que se comprobó después cayó en el vacío.
+
+    Args:
+        discover: El mismo barrido que usó el descubrimiento
+            (``DiscoveryProbes.discover_ports``), con su presupuesto y su
+            cancelación: ``(target, ports) -> PortSweep | None``.
+        target: El objetivo.
+        services: Los servicios descubiertos.
+
+    Returns:
+        bool: ``False`` si ninguno de los puertos probados respondió (o el
+            barrido volvió bloqueado). ``True`` si alguno respondió, si no había
+            puertos TCP que probar, si la comprobación está desactivada
+            (``blockingRecheckPorts`` a 0) o si el reloj se agotó antes de
+            poder mirar: sin evidencia no se declara un bloqueo.
+    """
+    sample_size = CR.lybra_engine_config().blocking_recheck_ports
+    ports = [service.port for service in services
+             if service.port and service.protocol != "udp"][:sample_size]
+    if not ports:
+        return True
+    sweep = discover(target, ports)
+    if sweep is None:
+        return False
+    if sweep.was_truncated and not sweep.open_ports:
+        return True
+    return bool(sweep.open_ports)
+
+
+def _crawl_findings(service, result) -> list:
+    """Convierte lo que el rastreo halló en hallazgos informativos.
+
+    Son eventos de superficie, no riesgos por sí mismos: robots.txt con sus
+    entradas, los formularios de login y las rutas tras autenticación básica.
+    Cada uno cuelga del servicio web donde se vio.
+
+    Args:
+        service: El servicio HTTP rastreado.
+        result: El :class:`~...lybra.CrawlResult` del rastreo.
+
+    Returns:
+        list: Un hallazgo por cada superficie hallada; vacía si no hubo
+            ninguna.
+    """
+    findings = []
+    if result.robots_entries:
+        muestra = ", ".join(result.robots_entries[:15])
+        findings.append(_crawl_finding(
+            service, "web_finding", "lybra:robots-txt-entries@1",
+            f"robots.txt declara {len(result.robots_entries)} ruta(s) sensibles: {muestra}"))
+    for path in result.login_paths:
+        findings.append(_crawl_finding(
+            service, "web_finding", "lybra:login-form-detected@1",
+            f"Formulario de acceso detectado en {path}"))
+    for path in result.basic_auth_paths:
+        findings.append(_crawl_finding(
+            service, "exposed_path", "lybra:http-basic-auth-path@1",
+            f"Ruta protegida con autenticación básica: {path}"))
+    return findings
+
+
+def _crawl_finding(service, category: str, check_id: str, title: str) -> dict:
+    """Un hallazgo informativo del rastreo, sin severidad propia (parte de INFO)."""
+    return {
+        "title":        title,
+        "category":     category,
+        "port":         service.port,
+        "service":      service.name or "http",
+        "protocol":     service.protocol,
+        "source":       "lybra",
+        "check_id":     check_id,
+        "feed_version": "lybra-crawler-1",
+        "qod":          QOD_OPEN_PORT,
+        "confirmed":    False,
+        "state":        "open",
+    }
+
+
+def _scan_integrity_finding(title: str) -> dict:
+    """Un aviso sobre la integridad del propio escaneo, no sobre un riesgo del objetivo.
+
+    Categoría ``scan_integrity``, que el ciclo de vida trata como evento (no se
+    abre ni se cierra entre escaneos) y que ``score_finding`` deja en INFO
+    porque no lleva CVSS ni se da por confirmado.
+
+    Args:
+        title: Qué le pasó al escaneo.
+
+    Returns:
+        dict: El hallazgo, listo para persistir.
+    """
+    return {
+        "title":        title,
+        "category":     "scan_integrity",
+        "port":         None,
+        "service":      None,
+        "protocol":     "tcp",
+        "source":       "lybra",
+        "check_id":     "lybra:scan-integrity@1",
+        "feed_version": "lybra-integrity-1",
+        "qod":          QOD_OPEN_PORT,
+        "confirmed":    False,
+        "state":        "open",
+    }
+
+
+def _pinned_address_for(hostname: str) -> str:
+    """La IP a la que se fija un escaneo por nombre, validada en el momento de empezar.
+
+    Se vuelve a resolver aquí y no se confía en la validación del endpoint:
+    entre lanzar el escaneo y que el trabajador lo recoja pueden pasar minutos,
+    y el nombre puede haber cambiado de dirección en ese tiempo.
+
+    Args:
+        hostname: El nombre del objetivo.
+
+    Returns:
+        str: La IP pública a la que se conectará todo el escaneo.
+
+    Raises:
+        ScanFailedError: ``HOST_UNREACHABLE`` si el nombre ya no resuelve o si
+            ahora apunta a una dirección privada.
+    """
+    try:
+        return resolve_public_address(hostname)
+    except (IPValidationError, PrivateIPRequested) as exc:
+        raise ScanFailedError(
+            ScanFailureReason.HOST_UNREACHABLE,
+            f"El objetivo '{hostname}' no resuelve a una IP pública: {exc}") from exc
+
+
+def _audit_named_sites(address: str, services: list, cancel_check: Callable,
+                       run_checks: Callable) -> list:
+    """Descubre los sitios con nombre de una IP y repite sobre cada uno los checks web.
+
+    Sólo se repiten los checks de los servicios HTTP y TLS: son los únicos
+    cuya respuesta depende del nombre pedido. Los de red (FTP, SSH) ven el
+    mismo servicio se llame como se llame. Cada sitio se audita con la
+    resolución fijada a ``address`` (``lybra.pinned_resolution``), así que
+    ninguna conexión sale de la IP autorizada.
+
+    Args:
+        address: La IP escaneada.
+        services: Los servicios del escaneo.
+        cancel_check: Devuelve ``True`` si hay que dejar de trabajar.
+        run_checks: ``(nombre, servicios) -> hallazgos``; el runtime de checks
+            ya configurado con el modo y las CVEs propuestas del escaneo.
+
+    Returns:
+        list: Un aviso ``virtual_host`` por sitio y los hallazgos de cada uno,
+            con su ``vhost``; vacía si la IP no delata ningún nombre.
+    """
+    sites = discover_sites(address, services, CR.lybra_engine_config().max_virtual_hosts,
+                           TlsProbe().fetch)
+    web_services = [service for service in services
+                    if is_http_service(service) or is_tls_service(service)]
+    findings = []
+    for name, origin in sites:
+        findings.append(site_finding(name, origin))
+        if cancel_check() or not web_services:
+            continue
+        with pinned_resolution(name, address):
+            for finding in run_checks(name, web_services):
+                finding["vhost"] = name
+                findings.append(finding)
+    return findings

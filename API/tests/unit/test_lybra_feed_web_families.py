@@ -25,7 +25,7 @@ _CHECKS = load_checks()
 
 
 def _fetch(by_path):
-    def fetch(host, port, method, path):
+    def fetch(host, port, method, path, _body=None, _headers=None):
         return by_path.get(path, Response(404, "", {}))
     return fetch
 
@@ -137,3 +137,137 @@ def test_a_non_session_cookie_is_not_flagged():
     preferencia de idioma, por ejemplo) sin Secure no es un hallazgo."""
     other = Response(200, "<html>", {"set-cookie": "lang=es; Path=/"})
     assert "session-cookie-without-secure" not in _fired({"/": other})
+
+
+# ================================ criterio de las cabeceras (contraste de campo)
+
+
+def _https(headers, body="<html>"):
+    return Response(200, body, headers, url="https://h/", requested_scheme="https")
+
+
+def test_joomlas_hex_named_session_cookie_is_recognised():
+    """Joomla llama a su cookie de sesión con 32 caracteres hexadecimales."""
+    cookie = {"set-cookie": "3e45507a9471bd104ea38b2a131f0ef2=abc; Path=/"}
+    fired = _fired({"/": _https(cookie)})
+    assert {"session-cookie-without-secure", "session-cookie-without-httponly",
+            "session-cookie-without-samesite"} <= fired
+
+
+def test_a_hardened_session_cookie_raises_nothing():
+    cookie = {"set-cookie": "PHPSESSID=abc; Secure; HttpOnly; SameSite=Lax; Path=/"}
+    fired = _fired({"/": _https(cookie)})
+    assert not fired & {"session-cookie-without-secure", "session-cookie-without-httponly",
+                        "session-cookie-without-samesite"}
+
+
+@pytest.mark.parametrize("max_age,weak", [("60", True), ("15551999", True),
+                                           ("15552000", False), ("63072000", False)])
+def test_a_short_hsts_max_age_is_flagged(max_age, weak):
+    fired = _fired({"/": _https({"strict-transport-security": f"max-age={max_age}"})})
+    assert ("hsts-weak-max-age" in fired) is weak
+
+
+def test_x_frame_options_without_frame_ancestors_is_called_deprecated():
+    assert "x-frame-options-deprecated" in _fired({"/": _https({"x-frame-options": "SAMEORIGIN"})})
+    modern = {"x-frame-options": "SAMEORIGIN", "content-security-policy": "frame-ancestors 'self'"}
+    assert "x-frame-options-deprecated" not in _fired({"/": _https(modern)})
+
+
+@pytest.mark.parametrize("headers,leaks", [
+    ({"x-powered-by": "PHP/8.3.33"}, True),
+    ({"server": "nginx/1.18.0"}, True),
+    ({"server": "nginx"}, False),
+    ({"x-powered-by": "PleskLin"}, False),
+])
+def test_a_versioned_software_header_is_a_disclosure(headers, leaks):
+    assert ("http-version-disclosure" in _fired({"/": _https(headers)})) is leaks
+
+
+def test_compression_over_https_with_cookies_is_a_possible_breach():
+    compressed = {"content-encoding": "gzip", "set-cookie": "sid=1"}
+    assert "http-compression-breach" in _fired({"/": _https(compressed)})
+    assert "http-compression-breach" not in _fired({"/": _https({"content-encoding": "gzip"})})
+
+
+# ==================================================================== Joomla
+
+# Un sitio que contesta 200 con la misma página a cualquier ruta: el señuelo
+# que ningún check de Joomla debe confundir con un hallazgo.
+_CATCH_ALL = Response(200, "<html><title>Inicio</title>joomla</html>", {})
+
+
+class _CatchAll(dict):
+    """Un ``by_path`` que responde ``_CATCH_ALL`` a cualquier ruta que no conozca."""
+
+    def get(self, path, _default=None):
+        return super().get(path, _CATCH_ALL)
+
+
+def test_a_joomla_configuration_backup_is_detected():
+    fired = _fired({"/configuration.php.bak": Response(
+        200, "<?php\nclass JConfig {\n\tpublic $password = 'x';\n}", {})})
+    assert "joomla-configuration-backup" in fired
+
+
+def test_the_joomla_installer_and_admin_panel_are_detected():
+    fired = _fired({
+        "/installation/index.php": Response(200, "<title>Joomla! Web Installer</title>", {}),
+        "/administrator/": Response(200, '<form action="index.php?option=com_login">', {}),
+    })
+    assert {"joomla-installation-directory", "joomla-admin-exposed"} <= fired
+
+
+def test_a_site_that_answers_200_to_everything_fires_no_joomla_check():
+    fired = _fired(_CatchAll())
+    assert not {name for name in fired if name.startswith("joomla-")}
+
+
+# ================================================================= WordPress
+
+
+def test_the_wordpress_family_is_detected():
+    fired = _fired({
+        "/wp-config.php.bak": Response(200, "define('DB_PASSWORD', 'x');", {}),
+        "/wp-admin/install.php": Response(200, '<input name="weblog_title">', {}),
+        "/wp-content/debug.log": Response(200, "[01-Jan-2026] PHP Warning:  Undefined", {}),
+        "/wp-json/wp/v2/users": Response(
+            200, '[{"id":1,"slug":"admin","avatar_urls":{}}]', {}),
+        "/xmlrpc.php": Response(405, "XML-RPC server accepts POST requests only.", {}),
+        "/wp-content/uploads/": Response(200, "<h1>Index of /wp-content/uploads</h1>", {}),
+    })
+    assert {"wordpress-config-backup", "wordpress-install-exposed", "wordpress-debug-log",
+            "wordpress-user-enumeration", "wordpress-xmlrpc-enabled",
+            "wordpress-uploads-listing"} <= fired
+
+
+def test_an_installed_wordpress_does_not_report_its_installer():
+    fired = _fired({"/wp-admin/install.php": Response(
+        200, "<h1>Already Installed</h1><p>You appear to have already installed WordPress.</p>", {})})
+    assert "wordpress-install-exposed" not in fired
+
+
+# ==================================================================== Drupal
+
+
+def test_the_drupal_family_is_detected():
+    fired = _fired({
+        "/sites/default/settings.php.bak": Response(200, "$databases['default']['default'] = [", {}),
+        "/core/install.php": Response(200, '<body class="install-page">Choose language', {}),
+        "/CHANGELOG.txt": Response(200, "Drupal 7.98, 2023-06-07\n", {}),
+        "/jsonapi/user/user": Response(200, '{"data":[{"type":"user--user","id":"x"}]}', {}),
+    })
+    assert {"drupal-settings-backup", "drupal-install-exposed", "drupal-changelog-exposed",
+            "drupal-jsonapi-user-enumeration"} <= fired
+
+
+def test_an_installed_drupal_does_not_report_its_installer():
+    fired = _fired({"/core/install.php": Response(
+        200, '<body class="install-page"><h1>Drupal already installed</h1>', {})})
+    assert "drupal-install-exposed" not in fired
+
+
+def test_a_site_that_answers_200_to_everything_fires_no_cms_check():
+    catch_all = _CatchAll()
+    fired = _fired(catch_all)
+    assert not {name for name in fired if name.startswith(("wordpress-", "drupal-"))}

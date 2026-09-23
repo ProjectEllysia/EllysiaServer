@@ -55,7 +55,7 @@ logger = logging.getLogger(__name__)
 # de checks_feed.yaml, que sí la busca con Nuclei).
 _BUNDLED_FEED = Path(__file__).parent / "feeds" / "credentials_feed.json"
 
-CREDENTIALS_FEED_VERSION = "lybra-credentials-1"
+CREDENTIALS_FEED_VERSION = "lybra-credentials-2"
 QOD_CONFIRMED = 99
 
 # Servicios candidatos hoy. Sólo HTTP: es donde vive Tomcat Manager, Jenkins y
@@ -110,6 +110,12 @@ class CredentialEntry:  # pylint: disable=too-many-instance-attributes
         finding: Plantilla de campos del hallazgo (``title`` sobre todo).
         feed_version: Versión del feed de origen, o ``None`` para usar
             :data:`CREDENTIALS_FEED_VERSION`.
+        applies_to_discovered_paths: Si ``True``, esta entrada no prueba su
+            ``path`` fijo sino cada ruta con autenticación básica que el
+            rastreo descubrió (:mod:`crawler`). Es lo que permite probar
+            credenciales de fábrica contra un panel que no está en ninguna
+            lista por producto, sin barrer rutas a ciegas: sólo se prueba
+            donde ya se vio una puerta. Por defecto ``False``.
     """
     id: str
     version: int
@@ -120,6 +126,7 @@ class CredentialEntry:  # pylint: disable=too-many-instance-attributes
     method: str = "GET"
     finding: dict = field(default_factory=dict)
     feed_version: Optional[str] = None
+    applies_to_discovered_paths: bool = False
 
     @property
     def check_id(self) -> str:
@@ -167,6 +174,7 @@ def _parse_entry(raw: dict) -> CredentialEntry:
             for matcher in raw.get("matchers", [])
         ),
         finding=raw.get("finding", {}),
+        applies_to_discovered_paths=raw.get("appliesToDiscoveredPaths", False),
     )
 
 
@@ -268,28 +276,38 @@ class CredentialRuntime:
         self._max_attempts = max(1, int(max_attempts_per_account))
         self._capture_evidence = capture_evidence
 
-    def run(self, host: str, services: Iterable) -> List[dict]:
+    def run(self, host: str, services: Iterable,
+            discovered_paths: Optional[Iterable[str]] = None) -> List[dict]:
         """Probar cada entrada aplicable contra cada servicio del host.
 
         Args:
             host: El objetivo.
             services: Los servicios descubiertos del host.
+            discovered_paths: Rutas con autenticación básica que el rastreo
+                halló (:mod:`crawler`). Las entradas marcadas
+                ``applies_to_discovered_paths`` se prueban contra cada una;
+                el resto ignora este argumento. ``None`` o vacío: sólo corren
+                las entradas de ruta fija.
 
         Returns:
             Un hallazgo por cada entrada que encontró una cuenta funcionando.
         """
+        discovered = list(discovered_paths or [])
         findings: List[dict] = []
         for service in services:
             for entry in self._entries:
                 matches_service = _SERVICE_MATCHERS.get(entry.service)
                 if matches_service is None or not matches_service(service):
                     continue
-                finding = self._try_entry(host, service, entry)
-                if finding is not None:
-                    findings.append(finding)
+                paths = discovered if entry.applies_to_discovered_paths else [entry.path]
+                for path in paths:
+                    finding = self._try_entry(host, service, entry, path)
+                    if finding is not None:
+                        findings.append(finding)
         return findings
 
-    def _try_entry(self, host: str, service, entry: CredentialEntry) -> Optional[dict]:
+    def _try_entry(self, host: str, service, entry: CredentialEntry,
+                   path: str) -> Optional[dict]:
         """Probar las cuentas de una entrada contra un servicio, hasta el primer éxito.
 
         Cada intento se registra ocurra lo que ocurra — un informe que dice
@@ -311,17 +329,17 @@ class CredentialRuntime:
                 entry.check_id, used + 1, self._max_attempts, host, service.port, account.username,
             )
             response = self._fetch(
-                host, service.port, entry.method, entry.path,
+                host, service.port, entry.method, path,
                 None, _basic_auth_headers(account.username, account.password),
             )
             if response is None:
                 continue
             if all(matcher.matches(response) for matcher in entry.matchers):
-                return self._finding(entry, service, account, response)
+                return self._finding(entry, service, account, response, path)
         return None
 
     def _finding(self, entry: CredentialEntry, service, account: CredentialPair,
-                 response: Response) -> dict:
+                 response: Response, path: str) -> dict:
         """Construir el hallazgo de un acceso logrado — sin la contraseña en ningún sitio."""
         finding_template = entry.finding
         finding = {
@@ -349,7 +367,7 @@ class CredentialRuntime:
                     "status": response.status,
                     "headers": dict(response.headers),
                     "body": response.body,
-                    "path": entry.path,
+                    "path": path,
                     "username": account.username,
                 },
             }

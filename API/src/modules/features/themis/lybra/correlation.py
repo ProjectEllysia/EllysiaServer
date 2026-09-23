@@ -30,9 +30,22 @@ from __future__ import annotations
 
 import hashlib
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from src.modules.shared import classify_exposure
+
+from .backports import is_unverified_distro_package
+
+#: El ``check_id`` de un hallazgo por versión cuya CVE sólo aplica con cierta
+#: configuración del servidor (ver ``applicability``). Vive aquí porque es la
+#: señal que :func:`score_finding` lee, y el motor la importa de aquí.
+CONDITIONAL_VERSION_CHECK_ID = "lybra:version-match-conditional@1"
+
+#: El ``vhost`` de un hallazgo sobre el sitio que la IP sirve a quien no dice
+#: nombre (sin SNI ni ``Host``). Cuando la IP aloja sitios con nombre, el
+#: certificado de ese sitio por defecto no es el que ve ningún visitante real:
+#: lo que dice es cierto, pero pesa poco, y :func:`score_finding` lo deja en LOW.
+DEFAULT_SITE_VHOST = "(sitio por defecto)"
 
 # The severity ladder, kept in one place so scoring and any future consumer agree
 # on the ordering.
@@ -85,6 +98,16 @@ def compute_dedup_key(finding: dict) -> str:
     else:
         identity = "cat:" + str(finding.get("category"))
     material = f"{host}|{port}|{identity}"
+    if finding.get("category") == "web_component":
+        # Varios componentes (el CMS, cada librería) comparten el puerto y el
+        # check de inventario: lo que los distingue es el producto.
+        material += "|" + (finding.get("service") or "")
+    if finding.get("vhost"):
+        # Dos sitios detrás del mismo puerto son dos superficies: el mismo
+        # check sobre cada uno es un hallazgo distinto. Sólo se añade cuando
+        # hay sitio, para que un hallazgo sin nombre conserve la clave que ya
+        # tiene almacenada.
+        material += "|vhost:" + finding["vhost"]
     protocol = (finding.get("protocol") or "tcp").lower()
     if protocol != "tcp":
         # La sonda UDP puede abrir el mismo número de puerto que ya
@@ -307,6 +330,63 @@ def apply_lifecycle(current: List[dict], previous: Dict[str, dict],
     return current + carried
 
 
+def split_refutations(findings: List[dict]) -> Tuple[List[dict], List[dict]]:
+    """Separa las marcas de refutación de los hallazgos de verdad.
+
+    Un check refutador (``refutes`` en el feed) no describe un problema: dice
+    que otro no existe. Por eso no puede viajar como un hallazgo más por
+    ``merge_findings`` y ``apply_lifecycle`` —se persistiría como un hallazgo
+    abierto—, y se aparta aquí para aplicarlo después con
+    :func:`apply_refutations`.
+
+    Args:
+        findings: Los hallazgos que devolvió el runtime de checks.
+
+    Returns:
+        Tuple[List[dict], List[dict]]: ``(hallazgos, marcas)``. Las marcas son
+            los dicts que traen la clave ``_refutes``.
+    """
+    marks = [finding for finding in findings if finding.get("_refutes")]
+    return [finding for finding in findings if not finding.get("_refutes")], marks
+
+
+def apply_refutations(findings: List[dict], marks: List[dict]) -> List[dict]:
+    """Desmiente los hallazgos por versión que una observación directa contradice.
+
+    Cada marca dice «la CVE X no aplica al servicio de este puerto», porque el
+    propio servicio anunció la corrección (un OpenSSH que ofrece *strict kex*
+    no es vulnerable a Terrapin, diga lo que diga su versión). Los hallazgos
+    por versión de ese puerto que llevan esa CVE pasan a ``state="fixed"`` y
+    ``confirmed=False``, con el ``check_id`` del refutador como procedencia:
+    el mismo desenlace que un backport verificado, y por la misma razón —no se
+    ha remediado ahora, es que nunca estuvo—.
+
+    Se aplica **después** del ciclo de vida, igual que los backports: antes,
+    ``apply_lifecycle`` reasignaría el estado y borraría el veredicto.
+
+    Args:
+        findings: Los hallazgos del escaneo, ya con su ciclo de vida.
+        marks: Las marcas que devolvió :func:`split_refutations`.
+
+    Returns:
+        List[dict]: La misma lista, con los hallazgos desmentidos modificados.
+    """
+    refuted = {(mark.get("port"), mark["_refutes"]): mark.get("check_id") for mark in marks}
+    if not refuted:
+        return findings
+    for finding in findings:
+        if finding.get("category") != "outdated_software":
+            continue
+        for cve in finding.get("cve_ids") or ():
+            check_id = refuted.get((finding.get("port"), cve))
+            if check_id:
+                finding["state"] = "fixed"
+                finding["confirmed"] = False
+                finding["check_id"] = check_id
+                break
+    return findings
+
+
 # =========================================================================
 # CONTEXTUAL SCORING
 # =========================================================================
@@ -380,8 +460,13 @@ def score_finding(finding: dict, exposure: str) -> str:
       sí se produce, ``in_the_wild``, sale de KEV, que ya sube la banda por su
       cuenta. Añadir la condición ahora sería una rama que no puede
       dispararse nunca, código muerto disfrazado de lógica.
-    * An actively-confirmed finding with no CVSS (e.g. an exposed path) is floored
-      at MEDIUM, so a confirmed issue never reads as merely informational.
+    * Un hallazgo sin CVSS que trae ``severity`` —la que declara el check que
+      lo produjo— parte de ella: quien escribe el check sabe si lo que
+      encuentra es una fuga de credenciales o un aviso cosmético, y sin CVSS
+      no hay otra medida. Los ajustes siguientes se aplican encima.
+    * An actively-confirmed finding with no CVSS and no declared severity is
+      floored at MEDIUM, so a confirmed issue never reads as merely
+      informational.
     * An unconfirmed match whose CVE only applies on a specific platform
       (``required_os`` set — see ``CpeMatch.required_os``) is capped at
       MEDIUM: Lybra has no OS-detection signal, so it cannot verify that
@@ -390,6 +475,18 @@ def score_finding(finding: dict, exposure: str) -> str:
       OS — is exactly the false-positive pattern this cap closes. A
       confirmed finding (Hygeia inventory, where the host's own OS is already
       known) is exempt.
+    * Un hallazgo por versión de un paquete de distribución que la verificación
+      de backports no pudo contrastar (:func:`~.backports.is_unverified_distro_package`)
+      se limita a MEDIUM: la distribución puede haberlo corregido sin cambiar
+      el número, y un CRITICAL que sólo se apoya en ese número encabezaría el
+      informe con algo que nadie ha comprobado.
+    * Un hallazgo por versión cuya CVE sólo aplica con una opción concreta de
+      la configuración del servidor (``check_id`` =
+      :data:`CONDITIONAL_VERSION_CHECK_ID`) se limita a LOW: Lybra no puede
+      ver esa configuración desde fuera.
+    * Un hallazgo sobre el sitio por defecto de una IP que aloja sitios con
+      nombre (``vhost`` = :data:`DEFAULT_SITE_VHOST`) se limita a LOW: es
+      cierto para quien conecta sin nombre, pero ningún visitante real lo ve.
     * A private-LAN target caps the priority at HIGH, since it is not exposed to
       the internet.
 
@@ -404,15 +501,27 @@ def score_finding(finding: dict, exposure: str) -> str:
     """
     cvss = finding.get("cvss_score") or 0.0
     band = _cvss_band(cvss)
+    declared = finding.get("severity") if finding.get("severity") in PRIORITY_LADDER else None
+    if cvss == 0.0 and declared:
+        band = PRIORITY_LADDER.index(declared)
 
     if finding.get("in_kev") or (finding.get("epss_score") or 0.0) >= 0.5:
         band = min(band + 1, len(PRIORITY_LADDER) - 1)
 
-    if finding.get("confirmed") and cvss == 0.0:
+    if finding.get("confirmed") and cvss == 0.0 and not declared:
         band = max(band, PRIORITY_LADDER.index("MEDIUM"))
 
     if finding.get("required_os") and not finding.get("confirmed"):
         band = min(band, PRIORITY_LADDER.index("MEDIUM"))
+
+    if is_unverified_distro_package(finding):
+        band = min(band, PRIORITY_LADDER.index("MEDIUM"))
+
+    if finding.get("check_id") == CONDITIONAL_VERSION_CHECK_ID:
+        band = min(band, PRIORITY_LADDER.index("LOW"))
+
+    if finding.get("vhost") == DEFAULT_SITE_VHOST:
+        band = min(band, PRIORITY_LADDER.index("LOW"))
 
     if exposure == "private":
         band = min(band, PRIORITY_LADDER.index("HIGH"))

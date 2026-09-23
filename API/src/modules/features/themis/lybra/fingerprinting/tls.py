@@ -29,12 +29,13 @@ que no dice nada de sí misma—. No es un "todavía no": es un "no, y por esto"
 
 from __future__ import annotations
 
+import ipaddress
 import logging
 import socket
 import ssl
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
-from typing import Callable, Optional
+from typing import Callable, Dict, Optional
 
 from cryptography import x509
 from cryptography.x509.oid import NameOID
@@ -55,6 +56,10 @@ class TlsInfo:
         expired: Whether the certificate's ``notAfter`` is in the past.
         days_until_expiry: Days remaining before expiry (negative if expired),
             or ``None`` if the certificate could not be parsed.
+        names: Los nombres para los que el certificado es válido: el CN y los
+            DNS del SAN, en minúsculas. Por defecto vacío.
+        requested_name: El nombre que se pidió en el SNI, o ``None`` si se
+            conectó por IP (y entonces no hay nombre con el que comparar).
     """
     protocol: Optional[str]
     cipher: Optional[str]
@@ -63,12 +68,78 @@ class TlsInfo:
     self_signed: bool
     expired: bool
     days_until_expiry: Optional[int]
+    names: tuple = ()
+    requested_name: Optional[str] = None
+
+    @property
+    def is_name_mismatch(self) -> bool:
+        """Si se pidió un nombre y el certificado no lo cubre (comodines de un nivel incluidos)."""
+        if not self.requested_name or not self.names:
+            return False
+        requested = self.requested_name.lower().rstrip(".")
+        for name in self.names:
+            if name == requested:
+                return False
+            if name.startswith("*.") and requested.count(".") == name.count(".") \
+                    and requested.endswith(name[1:]):
+                return False
+        return True
 
 
 def _common_name(name: "x509.Name") -> Optional[str]:
     """Extract the common name from an X.509 ``Name``, best-effort."""
     attrs = name.get_attributes_for_oid(NameOID.COMMON_NAME)
     return str(attrs[0].value) if attrs else None
+
+
+def _is_ip_literal(host: str) -> bool:
+    """Si ``host`` es una IP escrita tal cual, y no un nombre."""
+    try:
+        ipaddress.ip_address(host)
+        return True
+    except ValueError:
+        return False
+
+
+def _certificate_names(cert) -> tuple:
+    """El CN y los nombres DNS del SAN de un certificado, en minúsculas y sin repetir."""
+    names = []
+    common_name = _common_name(cert.subject)
+    if common_name:
+        names.append(common_name.lower())
+    try:
+        san = cert.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
+        names.extend(name.lower() for name in san.get_values_for_type(x509.DNSName))
+    except x509.ExtensionNotFound:
+        pass
+    return tuple(dict.fromkeys(names))
+
+
+def _read_ftp_reply(sock) -> str:
+    """Lee una respuesta FTP completa, incluidas las multilínea (``220-...`` hasta ``220 ...``)."""
+    buffer = b""
+    while True:
+        chunk = sock.recv(4096)
+        if not chunk:
+            return buffer.decode("latin-1", "ignore")
+        buffer += chunk
+        lines = buffer.decode("latin-1", "ignore").splitlines()
+        if lines and buffer.endswith(b"\n") and len(lines[-1]) >= 4 and lines[-1][3] == " ":
+            return "\n".join(lines)
+
+
+def _upgrade_ftp(sock) -> bool:
+    """Pide ``AUTH TLS`` tras el saludo FTP; ``True`` si el servidor acepta (``234``)."""
+    try:
+        _read_ftp_reply(sock)
+        sock.sendall(b"AUTH TLS\r\n")
+        return _read_ftp_reply(sock).rsplit("\n", 1)[-1].startswith("234")
+    except OSError:
+        return False
+
+
+#: Cómo pasar a TLS cada protocolo que cifra a mitad de sesión.
+_STARTTLS_UPGRADES: Dict[str, Callable] = {"ftp": _upgrade_ftp}
 
 
 class TlsProbe:
@@ -88,15 +159,20 @@ class TlsProbe:
         self._timeout = timeout
         self._connect = connect or socket.create_connection
 
-    def fetch(self, host: str, port: int) -> Optional[TlsInfo]:
+    def fetch(self, host: str, port: int, starttls: Optional[str] = None) -> Optional[TlsInfo]:
         """Handshake with ``host:port`` and return the certificate's hygiene facts.
 
         Args:
             host: The target host.
             port: The target port.
+            starttls: El protocolo en claro que hay que hablar antes de pasar a
+                TLS, para los servicios que cifran a mitad de sesión en vez de
+                desde el primer byte. Hoy sólo ``"ftp"`` (``AUTH TLS``, RFC
+                4217). Por defecto ``None``: TLS desde el primer byte.
 
         Returns:
-            A :class:`TlsInfo`, or ``None`` on any connection/handshake failure.
+            A :class:`TlsInfo`, or ``None`` on any connection/handshake failure
+            — incluido un servidor que rechaza el ``AUTH TLS``.
         """
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         context.check_hostname = False
@@ -105,6 +181,10 @@ class TlsProbe:
             sock = self._connect((host, port), self._timeout)
         except OSError as err:
             logger.debug("TLS connect failed for %s:%s: %s", host, port, err)
+            return None
+        if starttls is not None and not _STARTTLS_UPGRADES[starttls](sock):
+            logger.debug("STARTTLS (%s) rejected by %s:%s", starttls, host, port)
+            sock.close()
             return None
         try:
             with context.wrap_socket(sock, server_hostname=host) as tls_sock:
@@ -116,7 +196,10 @@ class TlsProbe:
             return None
         if der is None:
             return None
-        return self._parse_cert(der, protocol, cipher[0] if cipher else None)
+        info = self._parse_cert(der, protocol, cipher[0] if cipher else None)
+        if info is None or _is_ip_literal(host):
+            return info
+        return replace(info, requested_name=host)
 
     @staticmethod
     def _parse_cert(der: bytes, protocol: Optional[str], cipher: Optional[str]) -> Optional[TlsInfo]:
@@ -138,4 +221,5 @@ class TlsProbe:
             self_signed=cert.issuer == cert.subject,
             expired=days_until_expiry < 0,
             days_until_expiry=days_until_expiry,
+            names=_certificate_names(cert),
         )

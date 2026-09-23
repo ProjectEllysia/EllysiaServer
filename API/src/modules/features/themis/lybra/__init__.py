@@ -57,7 +57,7 @@ from .grouping import (
     build_service_rollup,
     group_label,
 )
-from .backports import apply_backport_verdicts, BACKPORT_CHECK_ID
+from .backports import apply_backport_verdicts, is_unverified_distro_package, BACKPORT_CHECK_ID
 from .distro import infer_distro_release, DistroRelease
 from .kb import (
     version_compare,
@@ -121,6 +121,8 @@ from .correlation import (
     compute_dedup_key,
     merge_findings,
     apply_lifecycle,
+    apply_refutations,
+    split_refutations,
     score_finding,
     PRIORITY_LADDER,
 )
@@ -211,6 +213,13 @@ from .exporters import (
     to_ocsf,
 )
 from .planner import CheckPlanner, KnownService
+from .crawler import CrawlResult, crawl
+from .virtual_hosts import (
+    DEFAULT_SITE_CERTIFICATE_CHECKS,
+    mark_default_site_certificates,
+    select_site_names,
+    site_finding,
+)
 from .transport import (
     AsyncConnectScanner,
     PortOutcome,
@@ -220,6 +229,9 @@ from .transport import (
     sweep_ports_sync,
     scan_udp_ports_sync,
     services_from_discovered_ports,
+    is_sweep_implausible,
+    pinned_resolution,
+    tcp_timestamps_enabled,
     DEFAULT_PORTS,
     UDP_PROBES,
     WELL_KNOWN_PORTS,
@@ -241,6 +253,7 @@ __all__ = [
     "load_product_aliases",
     "parse_cpe23",
     "apply_backport_verdicts",
+    "is_unverified_distro_package",
     "BACKPORT_CHECK_ID",
     "infer_distro_release",
     "DistroRelease",
@@ -292,6 +305,8 @@ __all__ = [
     "compute_dedup_key",
     "merge_findings",
     "apply_lifecycle",
+    "apply_refutations",
+    "split_refutations",
     "score_finding",
     "PRIORITY_LADDER",
     "Dissector",
@@ -384,6 +399,15 @@ __all__ = [
     "sweep_ports_sync",
     "scan_udp_ports_sync",
     "services_from_discovered_ports",
+    "is_sweep_implausible",
+    "pinned_resolution",
+    "tcp_timestamps_enabled",
+    "DEFAULT_SITE_CERTIFICATE_CHECKS",
+    "mark_default_site_certificates",
+    "select_site_names",
+    "site_finding",
+    "CrawlResult",
+    "crawl",
     "DEFAULT_PORTS",
     "UDP_PROBES",
     "WELL_KNOWN_PORTS",

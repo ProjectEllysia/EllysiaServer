@@ -22,7 +22,10 @@ from reportlab.lib.styles import getSampleStyleSheet
 
 from src.modules.tools.press import ColorType, ReportTheme
 from src.modules.features.themis.lybra.grouping import build_service_rollup
-from src.modules.features.themis.services.reports.findings import FindingsPrintingStrategy
+from src.modules.features.themis.services.reports.findings import (
+    FindingsPrintingStrategy,
+    _unverified_warning,
+)
 from src.modules.features.themis.services.reports.outline import OutlineEntry
 
 pytestmark = pytest.mark.unit
@@ -217,3 +220,23 @@ def test_the_grouped_body_builds_a_real_pdf_with_its_outline(tmp_path):
     contents = target.read_bytes()
     assert target.stat().st_size > 0
     assert b"/Outlines" in contents
+
+
+# ────────────────────── aviso de hallazgos sin contrastar con el proveedor
+
+
+def test_the_report_warns_about_unverified_distro_findings(monkeypatch):
+    from src.modules.features.themis.services.reports import findings as report_module
+    monkeypatch.setattr(report_module, "_is_oval_stale", lambda: True)
+    findings = [{"is_unverified_distro_package": True, "state": "open"},
+                {"is_unverified_distro_package": True, "state": "false_positive"},
+                {"is_unverified_distro_package": False, "state": "open"}]
+
+    warning = _unverified_warning(findings)
+
+    assert "1 hallazgo(s)" in warning
+    assert "OVAL" in warning
+
+
+def test_no_unverified_findings_means_no_warning():
+    assert _unverified_warning([{"state": "open"}]) is None

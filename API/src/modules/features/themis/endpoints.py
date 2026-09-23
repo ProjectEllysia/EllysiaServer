@@ -38,6 +38,7 @@ from .managers import (
     KbSyncManager,
 )
 from .model import ScanType
+from .services.parsing import is_hostname
 from .lybra.exporters import to_sarif, to_stix, to_ocsf
 from .exceptions import (
     ScanError,
@@ -382,7 +383,16 @@ def start_lybra_scan(data):
     # igual que un escaneo Nmap, ya que el transporte propio toca el
     # objetivo. `validate_targets` ya sabe expandir CIDR, rangos y listas
     # separadas por comas — un objetivo aquí puede ser más de un host.
-    targets = ScanManager.validate_targets(data["target"])
+    # Un nombre de host se escanea como tal: es lo que hace llegar el nombre
+    # al saludo TLS y a la cabecera Host, y con ello auditar el sitio pedido y
+    # no el sitio por defecto del servidor. Se valida resolviéndolo (ninguna de
+    # sus direcciones puede ser privada) y el escaneo lo fija después a esa IP.
+    if is_hostname(data["target"]):
+        hostname = data["target"].strip().lower().rstrip(".")
+        ScanManager.reject_private_ip(hostname)
+        targets = [hostname]
+    else:
+        targets = ScanManager.validate_targets(data["target"])
     discover_ports = None
     if data.get("ports"):
         try:

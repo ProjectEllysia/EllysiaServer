@@ -223,12 +223,12 @@ def test_the_header_family_covers_what_the_bench_measured():
     comprobar el comportamiento y atar el valor desplegado que documenta
     `test_the_anti_ssrf_defence_ships_enabled`."""
     assert always_missing_header_checks() == {
-        "lybra:missing-hsts-header@1",
-        "lybra:missing-x-frame-options-header@1",
-        "lybra:missing-x-content-type-options-header@1",
-        "lybra:missing-csp-header@1",
-        "lybra:missing-referrer-policy-header@1",
-        "lybra:missing-permissions-policy-header@1",
+        "lybra:missing-hsts-header@2",
+        "lybra:missing-x-frame-options-header@2",
+        "lybra:missing-x-content-type-options-header@2",
+        "lybra:missing-csp-header@2",
+        "lybra:missing-referrer-policy-header@2",
+        "lybra:missing-permissions-policy-header@2",
     }
 
 

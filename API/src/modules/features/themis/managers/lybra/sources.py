@@ -21,7 +21,9 @@ capacidad que Lybra ya tiene por sí mismo, y ataba el motor a otro escáner.
 
 from __future__ import annotations
 
+import ipaddress
 import logging
+import socket
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from typing import Callable, List, Optional
@@ -30,7 +32,9 @@ import src.modules.system.config_reading as CR
 from ...repositories import ScanRepository
 from ...exceptions import ScanFailedError, TargetNotAuthorizedError
 from ...model import ScanFailureReason
-from ...lybra import PortSweep, Service, services_from_discovered_ports
+from ...lybra import (
+    PortSweep, Service, WELL_KNOWN_PORTS, is_sweep_implausible, services_from_discovered_ports,
+)
 from ..authorized_target import AuthorizedTargetManager
 from ..scan import ScanManager
 
@@ -65,11 +69,16 @@ class ResolvedServices:
             servicios que trae son ciertos; de lo que quedó sin probar no se
             sabe nada, así que el motor marca el escaneo como incompleto y no
             deja que el ciclo de vida cierre hallazgos por ausencia.
+        implausible_open_ports: Cuántos puertos «abrieron» en un barrido que se
+            juzgó inverosímil (ver ``transport.is_sweep_implausible``), o ``0``
+            si el barrido fue creíble. Cuando no es cero, ``services`` sólo
+            conserva los puertos conocidos y el escaneo es parcial.
     """
     services: List[Service]
     host_id: Optional[int]
     target: Optional[str]
     is_partial: bool = False
+    implausible_open_ports: int = 0
 
 
 class ServiceSource(ABC):
@@ -141,8 +150,9 @@ class ServiceSource(ABC):
         instead of creating a duplicate row for the same device."""
         if not target:
             return None
-        host = scan_repo.get_host_by_ip(target) or scan_repo.get_or_create_host(
-            hostname=target, ip_address=target,
+        address = _address_of(target)
+        host = scan_repo.get_host_by_ip(address) or scan_repo.get_or_create_host(
+            hostname=target, ip_address=address,
         )
         return host.id if host else None
 
@@ -213,6 +223,7 @@ class SelfDiscovery(ServiceSource):
         discovered_ports: list = []
         udp_ports: list = []
         is_partial = False
+        implausible_open_ports = 0
         if target:
             if CR.host_reachability_check().enabled and not probes.is_host_reachable(
                 target,
@@ -234,6 +245,18 @@ class SelfDiscovery(ServiceSource):
                 )
             discovered_ports = list(sweep.open_ports)
             is_partial = sweep.was_truncated
+            engine = CR.lybra_engine_config()
+            probed = len(sweep.open_ports) + len(sweep.refused_ports) + len(sweep.timed_out_ports)
+            if is_sweep_implausible(len(discovered_ports), probed,
+                                    engine.implausible_open_ratio, engine.implausible_min_probed):
+                # Un cortafuegos que acepta cualquier puerto: de lo que "abrió"
+                # sólo se sigue con los puertos conocidos, y el escaneo se
+                # marca como parcial porque no se sabe qué hay de verdad.
+                logger.warning("Barrido inverosímil en %s: %d de %d puertos abiertos",
+                               target, len(discovered_ports), probed)
+                implausible_open_ports = len(discovered_ports)
+                discovered_ports = [port for port in discovered_ports if port in WELL_KNOWN_PORTS]
+                is_partial = True
             # UDP: sonda curada aparte, nunca a
             # partir de la lista TCP del usuario — self.ports_to_discover es una
             # lista de puertos TCP. Best-effort por diseño de
@@ -248,4 +271,30 @@ class SelfDiscovery(ServiceSource):
             host_id=self._resolve_host(scan_repo, target),
             target=target,
             is_partial=is_partial,
+            implausible_open_ports=implausible_open_ports,
         )
+
+
+def _address_of(target: str) -> str:
+    """La IP de un objetivo: él mismo si ya lo es, o a la que resuelve si es un nombre.
+
+    Durante un escaneo por nombre la resolución está fijada
+    (``lybra.pinned_resolution``), así que la IP que se guarda en el ``Host``
+    es la misma a la que se conectó el escaneo.
+
+    Args:
+        target: Una IP o un nombre de host.
+
+    Returns:
+        str: La IP, o el propio ``target`` si no resuelve (un escaneo que ya
+            no puede conectar fallará por su cuenta; aquí sólo se identifica).
+    """
+    try:
+        ipaddress.ip_address(target)
+        return target
+    except ValueError:
+        pass
+    try:
+        return socket.getaddrinfo(target, None)[0][4][0]
+    except OSError:
+        return target
