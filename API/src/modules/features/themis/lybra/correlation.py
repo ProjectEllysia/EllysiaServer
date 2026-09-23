@@ -98,6 +98,10 @@ def compute_dedup_key(finding: dict) -> str:
     else:
         identity = "cat:" + str(finding.get("category"))
     material = f"{host}|{port}|{identity}"
+    if finding.get("category") == "web_component":
+        # Varios componentes (el CMS, cada librería) comparten el puerto y el
+        # check de inventario: lo que los distingue es el producto.
+        material += "|" + (finding.get("service") or "")
     if finding.get("vhost"):
         # Dos sitios detrás del mismo puerto son dos superficies: el mismo
         # check sobre cada uno es un hallazgo distinto. Sólo se añade cuando

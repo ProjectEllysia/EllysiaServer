@@ -92,7 +92,13 @@ class Service:
             package manager), not a guess.
             The engine uses this to decide how much to trust a version match
             (see :data:`QOD_INVENTORY_MATCH`) — it is not network vs. local in
-            the transport sense, it is inferred vs. verified.
+            the transport sense, it is inferred vs. verified. ``"web-component"``
+            es una pieza que corre dentro de un servicio web (ver
+            ``components``); el motor la crea, nadie la pasa.
+        components: Lo que corre dentro del servicio y tiene sus propias CVEs
+            —el CMS, las librerías JavaScript, el panel—, como tuplas
+            ``(producto, versión)``. :meth:`LybraEngine.analyze` correlaciona
+            cada una como un servicio más del mismo puerto. Por defecto vacía.
     """
     port: Optional[int]
     protocol: str
@@ -101,6 +107,7 @@ class Service:
     version: str = ""
     cpe: Optional[str] = None
     origin: str = "network"
+    components: tuple = ()
 
     @property
     def label(self) -> str:
@@ -183,7 +190,7 @@ class LybraEngine:
             not set here — the repository fills it in at persist time.
         """
         findings: List[dict] = []
-        for service in services:
+        for service in _with_components(services):
             # Resolved once and shared: the informational finding records
             # whether resolution succeeded, and the version-match path
             # reuses the same result instead of resolving the CPE twice.
@@ -339,9 +346,14 @@ class LybraEngine:
         puerto para que el descarte no sea invisible: quien compare el informe
         con otra herramienta sabe dónde fueron.
         """
+        check_id = "lybra:open-port@1"
         if service.origin == "inventory" and service.port is None:
             title = f"Paquete instalado — {service.label}"
             category = "installed_package"
+        elif service.origin == "web-component":
+            title = f"Componente web en {service.port}/{service.protocol} — {service.label}"
+            category = "web_component"
+            check_id = "lybra:web-component@1"
         else:
             where = f"{service.port}/{service.protocol}" if service.port else service.protocol
             title = f"Puerto {where} abierto — {service.label}"
@@ -352,17 +364,32 @@ class LybraEngine:
             "title":        title,
             "category":     category,
             "port":         service.port,
-            "service":      service.name or service.product or None,
+            "service":      (service.product if service.origin == "web-component" else None)
+                            or service.name or service.product or None,
             "protocol":     service.protocol,
             "cpe":          normalize_cpe_to_23(service.cpe) if service.cpe else None,
             "source":       "lybra",
-            "check_id":     "lybra:open-port@1",
+            "check_id":     check_id,
             "feed_version": self._feed_version,
             "qod":          QOD_OPEN_PORT,
             "confirmed":    False,
             "cpe_resolved": resolved is not None,
             "state":        "open",
         }
+
+
+def _with_components(services: Iterable[Service]) -> Iterable[Service]:
+    """Cada servicio seguido de sus componentes, cada uno como un servicio más.
+
+    Un componente comparte puerto y transporte con el servicio que lo sirve y
+    lleva su propio producto y versión, así que su CPE y sus CVEs se resuelven
+    igual que los de cualquier otro servicio.
+    """
+    for service in services:
+        yield service
+        for product, version in service.components:
+            yield Service(port=service.port, protocol=service.protocol, name=service.name,
+                          product=product, version=version or "", origin="web-component")
 
 
 def services_from_payload(raw: Iterable[dict]) -> List[Service]:

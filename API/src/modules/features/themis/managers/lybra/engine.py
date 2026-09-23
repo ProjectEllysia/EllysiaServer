@@ -1182,6 +1182,8 @@ class LybraEngineManager(ScanManager):
             findings.extend(self._layer_findings(service, result))
             if result.product and result.version:
                 service = replace(service, product=result.product, version=result.version)
+            if getattr(result, "components", ()):
+                service = replace(service, components=result.components)
             updated.append(service)
 
         return updated, findings
