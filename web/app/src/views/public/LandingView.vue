@@ -45,7 +45,7 @@
             </Transition>
           </div>
 
-          <router-link to="/planes" class="nav-link nav-link--plain">Planes</router-link>
+          <router-link v-if="canSeePricing" to="/planes" class="nav-link nav-link--plain">Planes</router-link>
         </nav>
 
         <div class="header-actions">
@@ -108,10 +108,10 @@
               class="mobile-item" @click="mobileOpen = false"
             >{{ d.label }}</router-link>
 
-            <router-link to="/planes" class="mobile-item" @click="mobileOpen = false">Planes</router-link>
+            <router-link v-if="canSeePricing" to="/planes" class="mobile-item" @click="mobileOpen = false">Planes</router-link>
 
             <router-link
-              v-if="!auth.isAuthenticated" to="/login?registro"
+              v-if="!auth.isAuthenticated && canRegister" to="/login?registro"
               class="mobile-cta" @click="mobileOpen = false"
             >Crear cuenta gratis</router-link>
           </nav>
@@ -246,7 +246,9 @@
     </section>
 
     <!-- ═══════════ PLANES ═══════════ -->
-    <section id="planes" class="plans-section">
+    <!-- La sección entera depende de la superficie `pricing` (general.launch):
+         cerrada, no hay título de «Planes» sobre un hueco. -->
+    <section v-if="canSeePricing" id="planes" class="plans-section">
       <div class="plans-intro">
         <span class="path-eyebrow">Planes</span>
         <h2 class="path-title">Empieza gratis; crece si te hace falta</h2>
@@ -279,10 +281,10 @@
                así que el resto lleva a la tabla completa, donde ya se explica
                cómo se asigna. Prometer un "Contratar" que no existe sería
                mentir en el sitio donde más caro sale. -->
-          <router-link v-if="plan.isDefault" to="/login?registro" class="plan-cta plan-cta--solid">
+          <router-link v-if="plan.isDefault && canRegister" to="/login?registro" class="plan-cta plan-cta--solid">
             Empezar gratis
           </router-link>
-          <router-link v-else to="/planes" class="plan-cta">Ver detalles</router-link>
+          <router-link v-else-if="!plan.isDefault" to="/planes" class="plan-cta">Ver detalles</router-link>
         </article>
       </div>
 
@@ -301,7 +303,7 @@
       </div>
 
       <div class="faq-list">
-        <details v-for="item in faqs" :key="item.q" class="faq-item" v-animate-details>
+        <details v-for="item in visibleFaqs" :key="item.q" class="faq-item" v-animate-details>
           <summary class="faq-q">
             {{ item.q }}
             <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
@@ -319,15 +321,19 @@
     <div class="horizon-divider closing-seam" aria-hidden="true"></div>
     <section class="closing">
       <h2 class="closing-title">Defenderse no debería ser un privilegio</h2>
-      <p class="closing-lede">
+      <p v-if="canRegister" class="closing-lede">
         Crea tu cuenta y lanza tu primer análisis hoy. Gratis, sin tarjeta.
       </p>
+      <p v-else class="closing-lede">
+        Ellysia está en vista previa y todavía no admite altas nuevas.
+      </p>
       <div class="closing-actions">
-        <router-link v-if="!auth.isAuthenticated" to="/login?registro" class="cta cta--solid">
+        <router-link v-if="!auth.isAuthenticated && canRegister" to="/login?registro" class="cta cta--solid">
           Crear cuenta gratis
         </router-link>
-        <router-link v-else to="/themis" class="cta cta--solid">Ir a mis herramientas</router-link>
-        <router-link to="/planes" class="cta cta--line">Ver los planes</router-link>
+        <router-link v-else-if="auth.isAuthenticated" to="/themis" class="cta cta--solid">Ir a mis herramientas</router-link>
+        <button v-else class="cta cta--solid" @click="scrollToSection('tools')">Conocer las herramientas</button>
+        <router-link v-if="canSeePricing" to="/planes" class="cta cta--line">Ver los planes</router-link>
       </div>
     </section>
 
@@ -364,13 +370,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '@/stores/authStore'
 import { useProfileStore } from '@/stores/profileStore'
 import { useThemeStore } from '@/stores/themeStore'
 import { useAccountStore } from '@/stores/accountStore'
 import { useDismissable } from '@/composables/useDismissable'
 import { useAppVersion } from '@/composables/useAppVersion'
+import { useLaunch } from '@/composables/useLaunch'
 import { vAnimateDetails } from '@/composables/useAnimatedDetails'
 import { HEADLINE, SHORT_LABELS, euros, describe } from '@/constants/planFormat'
 import ElysianScene from '@/components/shared/ElysianScene.vue'
@@ -390,6 +397,12 @@ const profileStore = useProfileStore()
 const themeStore = useThemeStore()
 
 const account = useAccountStore()
+
+// Alta y precios son superficies de general.launch: cerradas, la portada no
+// las ofrece. Hasta saber el estado cuentan como cerradas.
+const { isSurfaceEnabled } = useLaunch()
+const canRegister = computed(() => isSurfaceEnabled('registration'))
+const canSeePricing = computed(() => isSurfaceEnabled('pricing'))
 
 const toolsOpen = ref(false)
 const docsOpen = ref(false)
@@ -474,10 +487,15 @@ const faqs = [
   },
   {
     q: '¿Cuánto cuesta empezar?',
+    // Habla de precios: se calla con la tabla de precios cerrada.
+    surface: 'pricing',
     a: 'Nada. El plan de entrada es gratuito, no pide tarjeta y no caduca. Si te '
      + 'quedas corto de cupo, los planes de pago están más arriba.',
   },
 ]
+
+/** Las preguntas cuya superficie (si la tienen) está abierta. */
+const visibleFaqs = computed(() => faqs.filter((item) => !item.surface || isSurfaceEnabled(item.surface)))
 
 /** Los tres límites que mejor resumen un plan en la portada. */
 function headlineLimits(plan) {
@@ -590,7 +608,9 @@ onMounted(() => {
 
   // Catálogo público de planes: no necesita sesión (GET /plans es la tabla de
   // precios de la web). La store lo cachea, así que ir y volver no lo re-pide.
-  account.loadCatalog()
+  // Solo se pide con la tabla de precios abierta; si no, el servidor lo
+  // rechazaría igualmente.
+  watch(canSeePricing, (isOpen) => { if (isOpen) account.loadCatalog() }, { immediate: true })
 
   observer = new IntersectionObserver(
     (entries) => {
