@@ -30,6 +30,10 @@ from ...lybra import (
     LybraEngine,
     Service,
     pinned_resolution,
+    is_http_service,
+    is_tls_service,
+    mark_default_site_certificates,
+    site_finding,
     compute_dedup_key,
     merge_findings,
     apply_lifecycle,
@@ -77,6 +81,7 @@ from ...exceptions import (
 from ..scan import ScanManager
 from ..authorized_target import AuthorizedTargetManager
 from .sources import ServiceSource, DiscoveryProbes
+from .virtual_hosts import discover_sites
 
 
 logger = logging.getLogger(__name__)
@@ -279,7 +284,7 @@ class LybraEngineManager(ScanManager):
     # Categories that are point-in-time events, not persistent vulnerability
     # state - excluded from lifecycle tracking (see the lifecycle pass in
     # _run_lybra).
-    _EVENT_CATEGORIES = {"fingerprint", "surface_change", "scan_integrity"}
+    _EVENT_CATEGORIES = {"fingerprint", "surface_change", "scan_integrity", "virtual_host"}
 
     def __init__(self, task_queue: ITaskQueue | None = None) -> None:
         super().__init__(task_queue)
@@ -782,6 +787,20 @@ class LybraEngineManager(ScanManager):
                                             cancel_check=should_stop,
                                             proposed_cves=proposed_cves,
                                             mode=mode))
+                # Escanear una IP audita su sitio por defecto. Los sitios con
+                # nombre que la propia IP delata se auditan aparte, cada uno
+                # con su nombre; entonces el certificado sin nombre es el del
+                # sitio por defecto, y se reporta como tal.
+                if not is_hostname(source_target) and not should_stop():
+                    site_findings, site_refutations = split_refutations(_audit_named_sites(
+                        source_target, services, should_stop,
+                        lambda name, web: self._run_active_checks(
+                            name, web, cancel_check=should_stop,
+                            proposed_cves=proposed_cves, mode=mode)))
+                    if site_findings:
+                        mark_default_site_certificates(active_findings)
+                    active_findings += site_findings
+                    refutations += site_refutations
                 findings_data.extend(active_findings)
                 is_partial = is_partial or should_stop()
 
@@ -1902,3 +1921,40 @@ def _pinned_address_for(hostname: str) -> str:
         raise ScanFailedError(
             ScanFailureReason.HOST_UNREACHABLE,
             f"El objetivo '{hostname}' no resuelve a una IP pública: {exc}") from exc
+
+
+def _audit_named_sites(address: str, services: list, cancel_check: Callable,
+                       run_checks: Callable) -> list:
+    """Descubre los sitios con nombre de una IP y repite sobre cada uno los checks web.
+
+    Sólo se repiten los checks de los servicios HTTP y TLS: son los únicos
+    cuya respuesta depende del nombre pedido. Los de red (FTP, SSH) ven el
+    mismo servicio se llame como se llame. Cada sitio se audita con la
+    resolución fijada a ``address`` (``lybra.pinned_resolution``), así que
+    ninguna conexión sale de la IP autorizada.
+
+    Args:
+        address: La IP escaneada.
+        services: Los servicios del escaneo.
+        cancel_check: Devuelve ``True`` si hay que dejar de trabajar.
+        run_checks: ``(nombre, servicios) -> hallazgos``; el runtime de checks
+            ya configurado con el modo y las CVEs propuestas del escaneo.
+
+    Returns:
+        list: Un aviso ``virtual_host`` por sitio y los hallazgos de cada uno,
+            con su ``vhost``; vacía si la IP no delata ningún nombre.
+    """
+    sites = discover_sites(address, services, CR.lybra_engine_config().max_virtual_hosts,
+                           TlsProbe().fetch)
+    web_services = [service for service in services
+                    if is_http_service(service) or is_tls_service(service)]
+    findings = []
+    for name, origin in sites:
+        findings.append(site_finding(name, origin))
+        if cancel_check() or not web_services:
+            continue
+        with pinned_resolution(name, address):
+            for finding in run_checks(name, web_services):
+                finding["vhost"] = name
+                findings.append(finding)
+    return findings
