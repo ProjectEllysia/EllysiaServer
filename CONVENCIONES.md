@@ -66,9 +66,8 @@ EllysiaServer/
 ├── README.md                 contrato público: endpoints, categorías de cola, puertos, config
 ├── docker-compose*.yml       perfiles dev / container y variantes de GPU
 ├── .env                      credenciales solo para docker-compose; la API no lo lee
-├── .github/workflows/        CI: tests, tests-postgres, lybra-bench, deploy, landing
+├── .github/workflows/        CI: tests, tests-postgres, lybra-bench, deploy
 ├── plans/                    intenciones y auditorías fechadas; NO describen el estado actual
-├── landing/                  web estática de marketing, sin build ni acoplamiento
 ├── web/
 │   ├── Caddyfile             sirve el SPA, proxya la API y gestiona TLS
 │   └── app/src/
