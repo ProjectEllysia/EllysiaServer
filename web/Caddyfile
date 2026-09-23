@@ -1,8 +1,6 @@
-{
-	# Contacto de la cuenta ACME en Let's Encrypt. Es una dirección del
-	# dominio y no una personal porque este fichero es público.
-	email seguridad@ellysia.es
-}
+# Sin `email` global a propósito: Caddy obtiene el certificado igual (la
+# cuenta ACME no exige contacto) y este fichero es público, así que no lleva
+# ninguna dirección personal.
 
 # ── Fragmentos reutilizables ────────────────────────────────────
 
