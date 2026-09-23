@@ -87,3 +87,23 @@ def test_non_boolean_switches_are_coerced(raw_switch, expected):
 
 def test_the_block_defaults_to_preview():
     assert CR.LaunchConfig().mode is CR.LaunchMode.PREVIEW
+
+
+def test_assert_surface_enabled_raises_with_the_surface_in_the_details(monkeypatch):
+    from src.modules.shared import SurfaceDisabledError, assert_surface_enabled
+
+    monkeypatch.setattr(CR, "launch_config", lambda: CR.LaunchConfig(configured_mode="preview"))
+
+    with pytest.raises(SurfaceDisabledError) as raised:
+        assert_surface_enabled(CR.LaunchSurface.CAMPAIGNS)
+
+    assert raised.value.status_code == 403
+    assert raised.value.to_dict()["details"] == {"surface": "campaigns"}
+
+
+def test_assert_surface_enabled_lets_an_exempt_caller_through(monkeypatch):
+    from src.modules.shared import assert_surface_enabled
+
+    monkeypatch.setattr(CR, "launch_config", lambda: CR.LaunchConfig(configured_mode="preview"))
+
+    assert_surface_enabled(CR.LaunchSurface.CAMPAIGNS, is_exempt=True)

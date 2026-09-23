@@ -50,6 +50,8 @@ class NiktoScanManager(ScanManager):
             Primary key of the created NiktoScan record.
         """
         try:
+            ScanManager.assert_third_party_scanners_enabled(user_id)
+
             # Rechazo de IP privada aquí (no solo en el endpoint HTTP, ver
             # validate_web_target): el flujo programado
             # (scheduling._run_nikto_scan) llama a run_scan() directo — mismo

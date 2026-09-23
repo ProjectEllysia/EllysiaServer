@@ -48,6 +48,12 @@ class ModelStrategy(ABC):
     #: Nombre legible de la estrategia (para logs y circuit breaker).
     name: str = "model"
 
+    #: Si la estrategia envía las entradas a un proveedor fuera del servidor
+    #: de Ellysia. Decide si depende de la superficie ``externalAi`` de
+    #: ``general.launch``. Vale ``True`` por defecto para que un proveedor
+    #: nuevo quede cerrado mientras nadie diga lo contrario.
+    sends_data_off_server: bool = True
+
     _registry: dict[str, type["ModelStrategy"]] = {}
 
     @classmethod
@@ -139,6 +145,9 @@ class OllamaStrategy(ModelStrategy):
     """Estrategia que llama a un modelo local servido por Ollama."""
 
     name = "ollama"
+    # Ollama lo aloja quien opera la instalación: las entradas no salen a un
+    # proveedor ajeno, así que no depende de la superficie externalAi.
+    sends_data_off_server = False
 
     @classmethod
     def from_config(cls, overrides: dict) -> "OllamaStrategy":

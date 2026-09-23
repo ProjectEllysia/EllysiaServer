@@ -13,7 +13,8 @@ ni managers concretos. Esas responsabilidades viven en sus módulos respectivos.
 """
 
 from ._model        import Base, Document
-from ._exceptions   import handle_exceptions, ExceptionHandler
+from ._exceptions   import handle_exceptions, ExceptionHandler, SurfaceDisabledError
+from ._launch       import assert_surface_enabled
 from ._endpoints    import (
     current_actor,
     normalize_target,
@@ -51,6 +52,8 @@ __all__ = [
     "Document",
     "handle_exceptions",
     "ExceptionHandler",
+    "SurfaceDisabledError",
+    "assert_surface_enabled",
     "current_actor",
     "normalize_target",
     "limiter",

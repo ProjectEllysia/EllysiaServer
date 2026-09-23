@@ -28,6 +28,7 @@ from src.modules.accounts import LimitKey, QuotaManager
 from src.modules.infrastructure import UnitOfWork
 from src.modules.infrastructure.session import build_repository
 from src.modules.shared import assert_owned, utcnow_naive
+from src.modules.users import UserManager
 from src.modules.system.taskqueue import TaskTrackingMixin, job_context
 from src.modules.system.taskqueue.connection import RedisConnectionFactory
 from src.modules.system.taskqueue.dispatcher import OutboxDispatcher
@@ -550,11 +551,18 @@ class IrisMailboxManager(TaskTrackingMixin):
                        folder: Optional[str] = None) -> str:
         """Devuelve la URL de autorización a la que redirigir al usuario.
 
+        Conectar un buzón es la superficie ``mailboxConnectors`` de
+        ``general.launch``; se comprueba antes de mandar al usuario al
+        proveedor, igual que la cuota.
+
         Raises:
+            SurfaceDisabledError: la conexión de buzones está cerrada para el
+                usuario.
             IrisMailboxInvalidProviderError: proveedor no soportado.
             IrisMailboxQuotaExceededError: el usuario ya tiene
                 ``iris.maxConnectionsPerUser`` conexiones.
         """
+        UserManager().assert_launch_surface_enabled(CR.LaunchSurface.MAILBOX_CONNECTORS, user_id)
         if provider not in MAILBOX_CONNECTORS:
             raise IrisMailboxInvalidProviderError(provider)
 
@@ -825,7 +833,22 @@ class IrisMailboxManager(TaskTrackingMixin):
         encolado perdido se repara solo en la siguiente pasada del
         ``IrisMailboxScheduler``, que sondea periódicamente todas las
         conexiones.
+
+        Con la superficie ``mailboxConnectors`` cerrada no se encola nada: las
+        conexiones se conservan y vuelven a sincronizarse en cuanto se abra. La
+        exención del administrador principal se resuelve por el dueño de la
+        conexión, porque el scheduler no actúa en nombre de nadie.
+
+        Raises:
+            SurfaceDisabledError: la sincronización de buzones está cerrada
+                para el dueño de la conexión.
         """
+        if not CR.launch_config().is_surface_enabled(CR.LaunchSurface.MAILBOX_CONNECTORS):
+            connection = build_repository(IrisMailboxConnectionRepository).get_by_id(connection_id)
+            UserManager().assert_launch_surface_enabled(
+                CR.LaunchSurface.MAILBOX_CONNECTORS,
+                connection.user_id if connection is not None else None,
+            )
         self._task_queue.submit(
             func=IrisMailboxManager.execute_sync_connection,
             args=(connection_id,),

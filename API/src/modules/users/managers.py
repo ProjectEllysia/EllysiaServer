@@ -45,7 +45,7 @@ from src.modules.users.exceptions import (
     PasswordResetTokenInvalidError,
 )
 from src.modules.infrastructure import UnitOfWork
-from src.modules.shared import utcnow_naive
+from src.modules.shared import assert_surface_enabled, utcnow_naive
 from src.modules.infrastructure.session import build_repository
 from src.modules.tools.herald import EmailMessage, build_mailer, render_email
 
@@ -570,6 +570,31 @@ class UserManager:
             or None if not found.
         """
         return build_repository(UserRepository).get_by_id(user_id)
+
+    def assert_launch_surface_enabled(self, surface: str, user_id: Optional[int] = None) -> None:
+        """Comprueba que una superficie está abierta, con la exención del administrador principal.
+
+        Las superficies cerradas por ``general.launch`` lo están para el
+        público, no para quien opera la instalación: el administrador principal
+        (``role_root``) tiene que poder probar en producción lo que todavía no
+        está abierto, y el riesgo de que lo use es suyo. Por eso se exime por
+        rol, y no por un atributo que se pudiera conceder a otros.
+
+        Args:
+            surface: La superficie que se va a usar, como miembro de
+                ``LaunchSurface`` o como su valor (``"campaigns"``…).
+            user_id: Usuario en cuyo nombre se usa. ``None`` (por defecto)
+                cuando no hay usuario, como en un flujo anónimo: entonces no
+                hay exención posible.
+
+        Raises:
+            SurfaceDisabledError: Si la superficie está cerrada y el usuario no
+                es el administrador principal.
+        """
+        if CR.launch_config().is_surface_enabled(surface):
+            return
+        user = self.get_user_by_id(user_id) if user_id is not None else None
+        assert_surface_enabled(surface, is_exempt=user is not None and user.role == "role_root")
 
     def get_all_users(self) -> List[User]:
         """
