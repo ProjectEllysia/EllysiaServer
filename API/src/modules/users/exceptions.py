@@ -185,9 +185,10 @@ class MfaChallengeInvalidError(AuthenticationError):
 class RegistrationClosedError(AuthorizationError):
     """Esta instalación no acepta altas públicas.
 
-    Es una decisión del despliegue (``general.registration.enabled``), no del
-    usuario: un Ellysia interno de una empresa quiere el grifo cerrado y da de
-    alta a su gente desde el panel.
+    Es una decisión del despliegue (la superficie ``registration`` de
+    ``general.launch``), no del usuario: un Ellysia en vista previa, o uno
+    interno de una empresa, tiene el grifo cerrado y da de alta a su gente
+    desde el panel.
     """
 
     default_code = ErrorCode.REGISTRATION_CLOSED

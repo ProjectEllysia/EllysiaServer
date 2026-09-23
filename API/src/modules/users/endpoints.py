@@ -465,7 +465,7 @@ def delete_own_account(data: dict[str, Any]):
 @handle_exceptions(default_exception=DatabaseError, logger=logger)
 def register_user(data: dict[str, Any]):
     """Crear una cuenta desde la web, sin intervencion de un administrador"""
-    if not CR.registration_config().enabled:
+    if not CR.launch_config().is_surface_enabled(CR.LaunchSurface.REGISTRATION):
         raise RegistrationClosedError()
 
     # Rol forzado a role_user y correo sin verificar: son las dos diferencias

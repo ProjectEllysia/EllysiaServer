@@ -40,7 +40,7 @@
               <div class="cfg-grid">
                 <div class="form-group">
                   <label>Registro público</label>
-                  <select v-model="store.configFlat['general.registration.enabled']" class="inp">
+                  <select v-model="store.configFlat['general.launch.surfaces.registration']" class="inp">
                     <option :value="true">Abierto</option>
                     <option :value="false">Cerrado</option>
                   </select>
