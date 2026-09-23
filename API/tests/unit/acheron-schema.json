@@ -5,6 +5,7 @@
       "kind": "account",
       "category": "accounts",
       "matchKey": "domain",
+      "identityKey": "username",
       "fields": [
         { "key": "username" },
         { "key": "domain" },

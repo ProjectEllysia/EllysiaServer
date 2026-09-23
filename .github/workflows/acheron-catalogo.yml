@@ -1,0 +1,48 @@
+# La copia del catálogo de Acheron sigue al original.
+#
+# Va en su propio workflow y NO dentro de "Tests" por una razón concreta:
+# deploy.yml se engancha al workflow llamado "Tests" y despliega cuando termina
+# en verde. Meter aquí una comprobación que depende de la red de GitHub haría
+# que un fallo de red bloqueara un despliegue, y eso es peor que el problema
+# que esto resuelve.
+name: Catálogo de Acheron
+
+# El cron no es un adorno, y es la mitad importante. Un PR de este repositorio
+# no puede fallar porque alguien haya cambiado el catálogo en AcheronCore, que
+# es justo como se produjeron las dos divergencias reales: el desfase no lo
+# introduce quien toca la copia, lo introduce quien toca el original. Sin una
+# pasada periódica, esa mitad no la ve nadie.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'API/tests/unit/acheron-schema.json'
+      - 'web/app/package.json'
+      - 'API/scripts/verify_acheron_catalog.py'
+      - '.github/workflows/acheron-catalogo.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'API/tests/unit/acheron-schema.json'
+      - 'web/app/package.json'
+      - 'API/scripts/verify_acheron_catalog.py'
+      - '.github/workflows/acheron-catalogo.yml'
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+jobs:
+  catalogo:
+    name: La copia sigue al original
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      # Sin dependencias a propósito: urllib y json bastan, y así esto corre
+      # igual desde un portátil que desde el runner.
+      - name: Verificar
+        run: python API/scripts/verify_acheron_catalog.py
