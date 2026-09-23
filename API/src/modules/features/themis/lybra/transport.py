@@ -525,6 +525,74 @@ def is_sweep_implausible(open_count: int, probed_count: int,
     return probed_count >= min_probed and open_count >= ratio * probed_count
 
 
+# El primo de las marcas de tiempo TCP, la respuesta a un ICMP *timestamp*
+# (tipo 13, CVE-1999-0524), **no** se implementa aquí a propósito: enviar ese
+# paquete exige un socket crudo (CAP_NET_RAW), y este módulo no construye
+# ninguno — su docstring lo declara. Sólo se reabriría si el motor pasa a tener
+# un camino con socket crudo por otra razón (un escaneo SYN, por ejemplo);
+# introducir ese privilegio sólo por un aviso de severidad mínima no compensa.
+
+# El desplazamiento del campo ``tcpi_options`` dentro de la estructura
+# ``tcp_info`` de Linux (5 bytes de u8 antes: state, ca_state, retransmits,
+# probes, backoff), y el bit que dice que se negociaron marcas de tiempo.
+_TCPI_OPTIONS_OFFSET = 5
+_TCPI_OPT_TIMESTAMPS = 0x01
+
+
+def tcp_timestamps_enabled(
+    host: str,
+    port: int,
+    timeout: float = 2.0,
+    connect: Optional[Callable] = None,
+) -> Optional[bool]:
+    """Si el servidor negocia marcas de tiempo TCP (RFC 7323) en una conexión.
+
+    Un servidor que incluye en sus paquetes TCP un contador que avanza a ritmo
+    fijo deja estimar cuánto tiempo lleva encendido, y un equipo encendido
+    desde hace mucho es un equipo que no ha reiniciado para aplicar
+    actualizaciones del núcleo. La bandera se lee de ``TCP_INFO`` en una
+    conexión ya establecida (``TCPI_OPT_TIMESTAMPS``): no hace falta socket
+    crudo ni privilegios, sólo abrir el puerto como cualquier otra sonda.
+
+    **Sólo Linux**, que es la plataforma de la API: ``TCP_INFO`` es una
+    estructura propia de su núcleo. En cualquier otra plataforma, o si la
+    conexión falla, se devuelve ``None`` — «no se sabe», que el llamante
+    distingue de un ``False`` real.
+
+    Args:
+        host: El objetivo.
+        port: El puerto al que conectar.
+        timeout: Tiempo máximo de la conexión, en segundos. Por defecto ``2.0``.
+        connect: ``(address, timeout) -> socket`` inyectable, para que un test
+            use un socket falso. Por defecto ``socket.create_connection``.
+
+    Returns:
+        Optional[bool]: ``True`` si se negociaron marcas de tiempo, ``False`` si
+            no, ``None`` si no se pudo determinar (otra plataforma, conexión
+            fallida o ``TCP_INFO`` no disponible).
+    """
+    tcp_info = getattr(socket, "TCP_INFO", None)
+    if tcp_info is None:
+        return None
+    opener = connect or socket.create_connection
+    try:
+        sock = opener((host, port), timeout)
+    except OSError:
+        return None
+    try:
+        info = sock.getsockopt(socket.IPPROTO_TCP, tcp_info, _TCPI_OPTIONS_OFFSET + 1)
+    except OSError:
+        return None
+    finally:
+        try:
+            sock.close()
+        except OSError:
+            pass
+    if len(info) <= _TCPI_OPTIONS_OFFSET:
+        return None
+    return bool(info[_TCPI_OPTIONS_OFFSET] & _TCPI_OPT_TIMESTAMPS)
+
+
 def services_from_discovered_ports(
     open_ports: Iterable[int],
     protocol: str = "tcp"

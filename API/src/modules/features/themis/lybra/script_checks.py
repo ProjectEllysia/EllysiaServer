@@ -59,6 +59,7 @@ from .fingerprinting.snmp import SnmpProbe
 from .fingerprinting.ssh import SshProbe, parse_kexinit
 from .fingerprinting.telnet import TelnetProbe
 from .fingerprinting.vnc import VncProbe
+from .transport import tcp_timestamps_enabled
 from .fingerprinting.udp_services import (
     DnsProbe,
     IkeProbe,
@@ -724,6 +725,72 @@ class IkeWeakTransformPlugin(ScriptPlugin):
         return parse_ike_response(reply).accepts_weak_cryptography
 
 
+class _TcpTimestampsCache:
+    """Una sola lectura de las marcas de tiempo TCP por host, para un aviso por host.
+
+    Las marcas de tiempo son una propiedad del núcleo del objetivo, no de un
+    puerto: preguntarlo en cada servicio daría un hallazgo idéntico por cada
+    puerto abierto. Este caché sondea una vez por host y deja que **sólo el
+    primer** servicio que pregunta produzca el hallazgo. Vive lo que vive el
+    registro de plugins (un escaneo).
+
+    Args:
+        connect: ``(address, timeout) -> socket`` inyectable, para el test.
+    """
+
+    def __init__(self, connect=None) -> None:
+        self._connect = connect
+        self._reported: set = set()
+        self._result: Dict[str, Optional[bool]] = {}
+
+    def first_positive(self, context: ScriptContext) -> bool:
+        """``True`` sólo la primera vez que un host resulta tener marcas de tiempo."""
+        host = context.target
+        if host not in self._result:
+            context.acquire()
+            self._result[host] = tcp_timestamps_enabled(
+                host, context.service.port or 0, connect=self._connect)
+        if self._result[host] and host not in self._reported:
+            self._reported.add(host)
+            return True
+        return False
+
+
+class TcpTimestampsPlugin(ScriptPlugin):
+    """Detecta que el objetivo negocia marcas de tiempo TCP (RFC 7323).
+
+    Con ellas, un contador que avanza a ritmo fijo en los paquetes TCP deja
+    estimar cuánto lleva encendido el equipo, y un equipo encendido desde hace
+    mucho es uno que no ha reiniciado para aplicar actualizaciones del núcleo.
+    Es un aviso de severidad baja, de los que llenan cualquier informe de
+    OpenVAS.
+
+    La bandera se lee de ``TCP_INFO`` en una conexión ya abierta: sólo Linux
+    (la plataforma de la API), sin socket crudo ni privilegios. En otra
+    plataforma el sondeo devuelve «no se sabe» y el check no dispara.
+
+    Warning:
+        La **estimación del tiempo encendido** que OpenVAS da junto a este
+        aviso no se produce: exige leer los valores del contador de dos
+        paquetes, y eso ya es captura cruda, fuera de lo que este camino hace.
+        Queda como límite conocido.
+
+    Args:
+        cache: El caché por host, que hace que el aviso salga una sola vez.
+    """
+
+    plugin_id = "tcp-timestamps-enabled"
+
+    def __init__(self, cache: Optional[_TcpTimestampsCache] = None) -> None:
+        self._cache = cache or _TcpTimestampsCache()
+
+    def applies(self, service: Service) -> bool:
+        return (service.protocol or "tcp").lower() == "tcp" and service.port is not None
+
+    def run(self, context: ScriptContext) -> bool:
+        return self._cache.first_positive(context)
+
+
 def default_script_plugins() -> Dict[str, ScriptPlugin]:
     """Construye el registro de plugins de primera parte, indexado por ``plugin_id``.
 
@@ -745,6 +812,7 @@ def default_script_plugins() -> Dict[str, ScriptPlugin]:
         TelnetEnabledPlugin(),
         VncNoAuthenticationPlugin(),
         IkeWeakTransformPlugin(),
+        TcpTimestampsPlugin(),
     )
     ssh_cache = _KexinitCache()
     plugins += tuple(SshWeakAlgorithmsPlugin(family, ssh_cache)
