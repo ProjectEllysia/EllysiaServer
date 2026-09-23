@@ -45,7 +45,9 @@ from __future__ import annotations
 
 import logging
 import re
+import json
 import struct
+from pathlib import Path
 from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional, Tuple
 
@@ -543,10 +545,84 @@ IKE_ENCRYPTION: Dict[int, str] = {
 }
 IKE_HASH: Dict[int, str] = {1: "MD5", 2: "SHA1", 4: "SHA2-256", 5: "SHA2-384", 6: "SHA2-512"}
 IKE_AUTH: Dict[int, str] = {1: "clave precompartida", 3: "RSA", 5: "firma RSA"}
+# Grupos Diffie-Hellman de fase 1, por su número IANA. Sólo los que hace falta
+# nombrar: los débiles y los primeros seguros, para el informe.
+IKE_GROUP: Dict[int, str] = {
+    1: "MODP-768", 2: "MODP-1024", 5: "MODP-1536",
+    14: "MODP-2048", 15: "MODP-3072", 19: "ECP-256", 20: "ECP-384",
+}
 
 # Los algoritmos cuyo uso es, hoy, un hallazgo por sí mismo.
 WEAK_ENCRYPTION = {"DES", "3DES"}
 WEAK_HASH = {"MD5", "SHA1"}
+# Grupos DH rotos (1, 2) o al límite (5): un logjam sobre 1024 bits o menos.
+WEAK_GROUP = {1, 2, 5}
+
+# El identificador de tipo de un payload de Vendor ID en la cadena ISAKMP.
+ISAKMP_PAYLOAD_VID = 13
+
+# Feed de Vendor IDs conocidos: prefijo hex del VID → (producto, versión). Se
+# compara por prefijo porque muchos fabricantes anexan una versión o un hash a
+# un prefijo fijo que identifica el producto.
+_BUNDLED_IKE_VENDOR_IDS = Path(__file__).parent.parent / "feeds" / "ike_vendor_ids.json"
+
+
+def load_ike_vendor_ids(path=None) -> List[Tuple[str, str, Optional[str]]]:
+    """Carga el feed de Vendor IDs de IKE como ``(prefijo_hex, producto, versión)``.
+
+    Args:
+        path: Ruta a un feed JSON. Por defecto, el del paquete.
+
+    Returns:
+        list: Las entradas, con el prefijo en minúsculas, ordenadas de más
+            largo a más corto para que gane la coincidencia más específica.
+    """
+    feed_path = Path(path) if path else _BUNDLED_IKE_VENDOR_IDS
+    data = json.loads(feed_path.read_text(encoding="utf-8"))
+    entries = [
+        (entry["prefix"].lower().replace(" ", ""), entry["product"], entry.get("version"))
+        for entry in data.get("vendorIds", [])
+    ]
+    return sorted(entries, key=lambda entry: len(entry[0]), reverse=True)
+
+
+_IKE_VENDOR_IDS = load_ike_vendor_ids()
+
+
+def _match_vendor_id(vendor_ids: List[bytes]) -> Tuple[Optional[str], Optional[str]]:
+    """Casa los Vendor IDs vistos con el feed y devuelve ``(producto, versión)``.
+
+    Gana el prefijo más largo de todos los que casen, sobre cualquiera de los
+    VID recibidos. Si ninguno casa, ``(None, None)``: un equipo desconocido no
+    se inventa.
+    """
+    for prefix, product, version in _IKE_VENDOR_IDS:
+        for vid in vendor_ids:
+            if vid.hex().startswith(prefix):
+                return product, version
+    return None, None
+
+
+def _extract_vendor_ids(data: bytes) -> List[bytes]:
+    """Recorre la cadena de payloads ISAKMP y devuelve el contenido de cada Vendor ID.
+
+    Cada payload empieza por ``(siguiente_tipo, reservado, longitud)`` y la
+    longitud se incluye a sí misma; el tipo del primer payload lo da la
+    cabecera. Se para en cuanto un salto no cabe, para no leer basura de un
+    datagrama truncado.
+    """
+    vendor_ids: List[bytes] = []
+    next_type = data[16]
+    offset = ISAKMP_HEADER_SIZE
+    while next_type != 0 and offset + 4 <= len(data):
+        payload_next, _reserved, length = struct.unpack_from("!BBH", data, offset)
+        if length < 4 or offset + length > len(data):
+            break
+        if next_type == ISAKMP_PAYLOAD_VID:
+            vendor_ids.append(data[offset + 4:offset + length])
+        next_type = payload_next
+        offset += length
+    return vendor_ids
 
 
 @dataclass(frozen=True)
@@ -554,20 +630,38 @@ class IkeFingerprint:
     """La transformada que un gateway VPN elige de las que se le ofrecen.
 
     Attributes:
-        product: ``"IKE"`` si contestó ISAKMP, ``None`` si no.
+        product: El equipo, si un Vendor ID lo delató; ``"IKE"`` si contestó
+            ISAKMP sin delatarse; ``None`` si no contestó.
+        version: La versión del equipo, si el Vendor ID la trae.
         encryption: El cifrado elegido, con nombre.
         hash_algorithm: El hash elegido.
         authentication: El método de autenticación elegido.
+        dh_group: El grupo Diffie-Hellman elegido (número IANA), o ``None``.
     """
     product: Optional[str]
+    version: Optional[str] = None
     encryption: Optional[str] = None
     hash_algorithm: Optional[str] = None
     authentication: Optional[str] = None
+    dh_group: Optional[int] = None
+
+    @property
+    def group_label(self) -> Optional[str]:
+        """El nombre del grupo DH elegido, o su número si no está en la tabla."""
+        if self.dh_group is None:
+            return None
+        return IKE_GROUP.get(self.dh_group, f"grupo {self.dh_group}")
 
     @property
     def accepts_weak_cryptography(self) -> bool:
-        """Si lo que el gateway ha elegido está retirado por débil."""
-        return (self.encryption in WEAK_ENCRYPTION) or (self.hash_algorithm in WEAK_HASH)
+        """Si lo que el gateway ha elegido está retirado por débil.
+
+        Cuenta como débil un cifrado DES o 3DES, un hash MD5 o SHA-1, o un
+        grupo Diffie-Hellman 1, 2 o 5 (roto o al límite de 1024 bits).
+        """
+        return (self.encryption in WEAK_ENCRYPTION
+                or self.hash_algorithm in WEAK_HASH
+                or self.dh_group in WEAK_GROUP)
 
 
 def parse_ike_response(data: bytes) -> IkeFingerprint:
@@ -590,8 +684,9 @@ def parse_ike_response(data: bytes) -> IkeFingerprint:
     # respuesta de un eco de nuestra propia petición.
     if not any(data[8:16]):
         return IkeFingerprint(None)
+    vendor_product, vendor_version = _match_vendor_id(_extract_vendor_ids(data))
     if data[16] != ISAKMP_PAYLOAD_SA:
-        return IkeFingerprint("IKE")
+        return IkeFingerprint(vendor_product or "IKE", version=vendor_version)
 
     attributes: Dict[int, int] = {}
     # SA (4 de cabecera + 8 de DOI y situación) → propuesta (8) → transformada (8).
@@ -604,10 +699,12 @@ def parse_ike_response(data: bytes) -> IkeFingerprint:
         offset += 4
 
     return IkeFingerprint(
-        product="IKE",
+        product=vendor_product or "IKE",
+        version=vendor_version,
         encryption=IKE_ENCRYPTION.get(attributes.get(1, -1)),
         hash_algorithm=IKE_HASH.get(attributes.get(2, -1)),
         authentication=IKE_AUTH.get(attributes.get(3, -1)),
+        dh_group=attributes.get(4),
     )
 
 
@@ -644,9 +741,10 @@ class IkeDissector(Dissector):
         if not fingerprint.product:
             return None
         chosen = " / ".join(part for part in (
-            fingerprint.encryption, fingerprint.hash_algorithm) if part)
+            fingerprint.encryption, fingerprint.hash_algorithm,
+            fingerprint.group_label) if part)
         label = f"{self.label} ({chosen})" if chosen else self.label
-        return DissectorResult(fingerprint.product, None, label)
+        return DissectorResult(fingerprint.product, fingerprint.version, label)
 
 
 # =========================================================================

@@ -8,7 +8,7 @@
 # feedVersion sube cuando el feed gana una familia nueva o un protocolo nuevo
 # bajo una existente; el arreglo de un check ya presente sube el 'version' de
 # ese check, no esta cadena. Ver CHECKS_FEED_VERSION en checks.py.
-feedVersion: lybra-checks-23
+feedVersion: lybra-checks-24
 checks:
   - id: git-config-exposure
     version: 1
@@ -980,6 +980,18 @@ checks:
     mode: safe
     finding:
       title: 'DNS: resolutor abierto (utilizable como amplificador contra terceros)'
+      qod: 99
+      confirmed: true
+  - id: ike-weak-transform
+    version: 1
+    type: script
+    script: ike-weak-transform
+    category: network_config
+    severity: MEDIUM
+    service: ike
+    mode: safe
+    finding:
+      title: 'IKE: el gateway VPN acepta criptografia debil (DES/3DES, MD5/SHA-1 o grupo DH 1/2/5)'
       qod: 99
       confirmed: true
   - id: ntp-monlist-enabled

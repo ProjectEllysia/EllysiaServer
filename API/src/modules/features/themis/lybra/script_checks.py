@@ -33,6 +33,7 @@ import logging
 from typing import Dict, List, Optional, Tuple
 
 from .checks import (
+    is_ike_service,
     ScriptContext,
     ScriptPlugin,
     LDAPS_PORTS,
@@ -60,9 +61,11 @@ from .fingerprinting.telnet import TelnetProbe
 from .fingerprinting.vnc import VncProbe
 from .fingerprinting.udp_services import (
     DnsProbe,
+    IkeProbe,
     NtpProbe,
     monlist_is_answered,
     parse_dns_version_response,
+    parse_ike_response,
 )
 
 logger = logging.getLogger(__name__)
@@ -687,6 +690,40 @@ class SshTerrapinPlugin(ScriptPlugin):
         return is_vulnerable_to_terrapin(kexinit) == self._expect_vulnerable
 
 
+class IkeWeakTransformPlugin(ScriptPlugin):
+    """Detecta un gateway VPN IKE que acepta criptografía retirada.
+
+    Un gateway IKEv1 elige, de entre las transformadas que se le ofrecen, la
+    que prefiere, y la anuncia en su respuesta. Si esa elección incluye un
+    cifrado DES o 3DES, un hash MD5 o SHA-1, o un grupo Diffie-Hellman 1, 2 o 5
+    (roto o de 1024 bits o menos, al alcance de un *logjam*), el propio gateway
+    está diciendo que negociaría un túnel débil.
+
+    No hace falta ir más allá de lo que la sonda ya negocia: la elección del
+    servidor sobre el abanico estándar de :func:`~..udp_payloads.build_ike_main_mode`
+    basta. Ofrecer transformadas débiles una a una (el modo agresivo del issue)
+    es otra conversación y no entra aquí.
+
+    Args:
+        probe: Sonda inyectable, para que un test use un emisor falso.
+    """
+
+    plugin_id = "ike-weak-transform"
+
+    def __init__(self, probe: Optional[IkeProbe] = None) -> None:
+        self._probe = probe or IkeProbe()
+
+    def applies(self, service: Service) -> bool:
+        return is_ike_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        context.acquire()
+        reply = self._probe.fetch(context.target, context.service.port or 500)
+        if reply is None:
+            return False
+        return parse_ike_response(reply).accepts_weak_cryptography
+
+
 def default_script_plugins() -> Dict[str, ScriptPlugin]:
     """Construye el registro de plugins de primera parte, indexado por ``plugin_id``.
 
@@ -707,6 +744,7 @@ def default_script_plugins() -> Dict[str, ScriptPlugin]:
         RdpNlaNotRequiredPlugin(),
         TelnetEnabledPlugin(),
         VncNoAuthenticationPlugin(),
+        IkeWeakTransformPlugin(),
     )
     ssh_cache = _KexinitCache()
     plugins += tuple(SshWeakAlgorithmsPlugin(family, ssh_cache)

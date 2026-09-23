@@ -544,3 +544,79 @@ def test_the_amplification_checks_are_registered(check_id, service, severity):
     check = next(c for c in load_checks() if c.id == check_id)
     assert (check.service, check.severity, check.mode) == (service, severity, "safe")
     assert check.script in default_script_plugins()
+
+
+def _ike_reply_with_vids(*vids, encryption=7, hash_algorithm=2, group=14):
+    """Como ``_ike_reply`` pero con uno o más payloads de Vendor ID tras el SA."""
+    attributes = b"".join(struct.pack("!HH", a, v) for a, v in (
+        (0x8001, encryption), (0x8002, hash_algorithm), (0x8003, 1), (0x8004, group)))
+    transform = struct.pack("!BBH", 0, 0, 8 + len(attributes)) + \
+        struct.pack("!BBH", 1, 1, 0) + attributes
+    proposal = struct.pack("!BBH", 0, 0, 8 + len(transform)) + \
+        struct.pack("!BBBB", 1, 1, 0, 1) + transform
+    sa_body = struct.pack("!II", 1, 1) + proposal
+    # El SA apunta al primer VID (tipo 13); cada VID al siguiente, el último a 0.
+    sa = struct.pack("!BBH", 13, 0, 4 + len(sa_body)) + sa_body
+    vid_chain = b""
+    for index, vid in enumerate(vids):
+        nxt = 13 if index < len(vids) - 1 else 0
+        vid_chain += struct.pack("!BBH", nxt, 0, 4 + len(vid)) + vid
+    header = struct.pack("!8s8sBBBBII", b"Lybra\x00\x00\x01", b"respondr",
+                         ISAKMP_PAYLOAD_SA, 0x10, 2, 0, 0,
+                         ISAKMP_HEADER_SIZE + len(sa) + len(vid_chain))
+    return header + sa + vid_chain
+
+
+def test_a_vendor_id_identifies_the_appliance():
+    fortigate = bytes.fromhex("8404adf9cda05760b2ca292e4bff537b")
+    fingerprint = parse_ike_response(_ike_reply_with_vids(fortigate))
+    assert fingerprint.product == "Fortinet FortiGate"
+
+
+def test_a_vendor_id_is_found_among_capability_vids():
+    """Un equipo anuncia varios VID; el de fabricante identifica, los de
+    capacidad (fragmentación, DPD) que no están en el feed se ignoran."""
+    fragmentation = bytes.fromhex("4048b7d56ebce88525e7de7f00d6c2d3")
+    strongswan = bytes.fromhex("882fe56d6fd20dbc2251613b2ebe5beb")
+    fingerprint = parse_ike_response(_ike_reply_with_vids(fragmentation, strongswan))
+    assert fingerprint.product == "strongSwan"
+
+
+def test_an_unknown_vendor_id_leaves_the_service_generic():
+    fingerprint = parse_ike_response(_ike_reply_with_vids(b"\xde\xad\xbe\xef" * 4))
+    assert fingerprint.product == "IKE"
+
+
+def test_a_weak_diffie_hellman_group_is_flagged_on_its_own():
+    # AES/SHA-256 pero grupo 2 (MODP-1024): débil por el grupo solo.
+    fingerprint = parse_ike_response(_ike_reply(encryption=7, hash_algorithm=4, group=2))
+    assert fingerprint.dh_group == 2
+    assert fingerprint.group_label == "MODP-1024"
+    assert fingerprint.accepts_weak_cryptography
+
+
+def test_a_strong_group_is_not_flagged():
+    fingerprint = parse_ike_response(_ike_reply(encryption=7, hash_algorithm=4, group=14))
+    assert not fingerprint.accepts_weak_cryptography
+
+
+def test_the_ike_weak_transform_plugin_fires_only_on_weak_cryptography():
+    from src.modules.features.themis.lybra.checks import ScriptContext, Service
+    from src.modules.features.themis.lybra.script_checks import IkeWeakTransformPlugin
+
+    class _Probe:
+        def __init__(self, reply):
+            self._reply = reply
+
+        def fetch(self, host, port=500):
+            return self._reply
+
+    ike = Service(500, "udp", "isakmp", None, None, None)
+    weak = IkeWeakTransformPlugin(_Probe(_ike_reply(encryption=5, hash_algorithm=1, group=2)))
+    strong = IkeWeakTransformPlugin(_Probe(_ike_reply(encryption=7, hash_algorithm=4, group=14)))
+    silent = IkeWeakTransformPlugin(_Probe(None))
+
+    assert weak.run(ScriptContext(target="h", service=ike)) is True
+    assert strong.run(ScriptContext(target="h", service=ike)) is False
+    assert silent.run(ScriptContext(target="h", service=ike)) is False
+    assert weak.applies(ike) is True
