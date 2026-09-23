@@ -29,6 +29,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import src.modules.system.config_reading as CR
 from src.modules.infrastructure.session import build_repository
 from src.modules.infrastructure.scheduling import make_background_scheduler, scheduler_job
+from src.modules.shared import SurfaceDisabledError
 
 from ...managers.mailbox import IrisMailboxManager
 from ...repositories import IrisMailboxConnectionRepository
@@ -104,10 +105,15 @@ class IrisMailboxScheduler:
         due = build_repository(IrisMailboxConnectionRepository).get_due_for_sync(interval)
         manager = IrisMailboxManager()
         queued = 0
+        skipped_while_closed = 0
         for connection in due:
             try:
                 manager.submit_sync(connection.id)
                 queued += 1
+            except SurfaceDisabledError:
+                # Buzones cerrados al público (general.launch): no es un fallo
+                # de la conexión, así que no merece un aviso por cada una.
+                skipped_while_closed += 1
             except Exception as e:
                 # Una conexión que no se puede encolar (p.ej. ya hay un
                 # job "started" con el mismo job_id determinista) no debe
@@ -116,6 +122,11 @@ class IrisMailboxScheduler:
                 logger.warning(f"No se pudo encolar el sync de la conexión {connection.id}: {e}")
         if queued:
             logger.info("Sondeo de buzones de Iris: %d conexión(es) encolada(s)", queued)
+        if skipped_while_closed:
+            logger.info(
+                "Sondeo de buzones de Iris: %d conexión(es) en pausa, la superficie está cerrada",
+                skipped_while_closed,
+            )
 
     @staticmethod
     @scheduler_job(logger, "Error revisando notificaciones de Iris")

@@ -69,6 +69,7 @@ class ErrorCode(Enum):
     INVALID_VERIFICATION_TOKEN = 1615
     REGISTRATION_CLOSED = 1616
     PASSWORD_RESET_TOKEN_INVALID = 1617
+    SURFACE_DISABLED = 1618
     PARSING_ERROR = 1700
     XML_PARSING_ERROR = 1701
     JSON_PARSING_ERROR = 1702
@@ -174,6 +175,49 @@ class EllysiaException(Exception):
             f"code={self.code.name}, "
             f"message='{self.message}', "
             f"severity={self.severity.value})"
+        )
+
+
+class SurfaceDisabledError(EllysiaException):
+    """La función pedida está cerrada al público en esta instalación.
+
+    La lanza ``assert_surface_enabled`` cuando la configuración de lanzamiento
+    (``general.launch``) tiene cerrada la superficie: en modo ``preview``
+    todas lo están, y en modo ``public`` las que tengan su interruptor
+    apagado. Es una decisión del despliegue, no un permiso del usuario, por
+    eso no hereda del error de autorización de ``users``, aunque responda con
+    el mismo 403.
+
+    ``details.surface`` viaja siempre al cliente: la SPA lo usa para explicar
+    qué está cerrado en vez de mostrar un error genérico.
+
+    Attributes:
+        surface: Valor de la superficie cerrada (``"registration"``,
+            ``"thirdPartyScanners"``…; ver ``LaunchSurface``).
+    """
+
+    default_code = ErrorCode.SURFACE_DISABLED
+    default_status_code = 403
+    default_severity = ErrorSeverity.LOW
+    expose_details = True
+
+    def __init__(self, surface: str, user_message: Optional[str] = None, **kwargs):
+        """Construye el error para una superficie concreta.
+
+        Args:
+            surface: Valor de la superficie cerrada, tal como aparece en
+                ``general.launch.surfaces``.
+            user_message: Texto para el usuario. Por defecto, uno genérico que
+                dice que la función todavía no está disponible.
+            **kwargs: Resto de argumentos de ``EllysiaException`` (``code``,
+                por ejemplo, para conservar un código heredado).
+        """
+        self.surface = str(surface)
+        super().__init__(
+            message=f"La superficie '{self.surface}' está cerrada al público",
+            details={"surface": self.surface},
+            user_message=user_message or "Esta función todavía no está disponible.",
+            **kwargs,
         )
 
 
