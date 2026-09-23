@@ -447,6 +447,55 @@ def test_update_config_succeeds_with_matching_if_match(
     assert resp.headers.get("ETag")
 
 
+def test_the_config_etag_is_a_quoted_strong_etag(client, root_user, auth_headers):
+    """Entre comillas, como pide la norma: así un proxy que la modifica deja un valor bien formado."""
+    etag = client.get("/system", headers=auth_headers(root_user)).headers["ETag"]
+
+    assert etag.startswith('"') and etag.endswith('"')
+
+
+@pytest.mark.parametrize("rewrite", [
+    lambda etag: etag,                                   # tal cual
+    lambda etag: etag.strip('"'),                        # sin comillas
+    lambda etag: f'{etag[:-1]}-gzip"',                   # lo que hace Caddy con `encode gzip`
+    lambda etag: f'{etag[:-1]}-zstd"',
+    lambda etag: f'{etag.strip(chr(34))}-gzip"',         # ETag antigua sin comillas, tras Caddy
+    lambda etag: f"W/{etag}",                            # débil
+], ids=["literal", "unquoted", "gzip-suffix", "zstd-suffix", "legacy-unquoted-gzip", "weak"])
+def test_update_config_accepts_the_etag_as_a_proxy_returns_it(
+    client, root_user, auth_headers, _isolated_system_config, rewrite
+):
+    """Caddy comprime y añade ``-gzip`` a la ETag; el navegador la reenvía así en If-Match."""
+    headers = auth_headers(root_user)
+    get_resp = client.get("/system", headers=headers)
+
+    resp = client.put(
+        "/system",
+        headers={**headers, "If-Match": rewrite(get_resp.headers["ETag"])},
+        json=get_resp.get_json(),
+    )
+
+    assert resp.status_code == 200
+
+
+def test_update_config_still_rejects_a_stale_etag_with_a_proxy_suffix(
+    client, root_user, auth_headers, _isolated_system_config
+):
+    """Quitar el sufijo no puede convertir una versión vieja en válida."""
+    headers = auth_headers(root_user)
+    get_resp = client.get("/system", headers=headers)
+    stale_etag = f'{get_resp.headers["ETag"][:-1]}-gzip"'
+    config = get_resp.get_json()
+
+    first = client.put("/system", headers={**headers, "If-Match": stale_etag},
+                       json={**config, "appVersion": "4.2-test-a"})
+    second = client.put("/system", headers={**headers, "If-Match": stale_etag},
+                        json={**config, "appVersion": "4.2-test-b"})
+
+    assert first.status_code == 200
+    assert second.status_code == 409
+
+
 def test_task_endpoints_require_admin(client, regular_user, auth_headers):
     headers = auth_headers(regular_user)
     assert client.get("/system/tasks/status", headers=headers).status_code == 403
