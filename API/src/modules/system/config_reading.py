@@ -1319,6 +1319,35 @@ def lybra_credentials_config() -> LybraCredentialsConfig:
     return load_block(LybraCredentialsConfig)
 
 
+@config_block("features.themis.scanners.lybra.crawler")
+@dataclass(frozen=True)
+class LybraCrawlerConfig:
+    """El presupuesto del rastreo de sólo lectura del mismo origen.
+
+    El rastreo pide páginas del sitio para descubrir lo que sus checks no
+    conocen de antemano: las rutas que ``robots.txt`` declara, los formularios
+    de login y las rutas tras autenticación básica. Es sólo lectura (``GET``) y
+    del mismo origen, pero mira mucho más que la raíz, así que su coste va
+    acotado por tres topes duros. A ``max_pages`` cero, el rastreo no se hace.
+    """
+
+    max_pages: int = 50
+    """Páginas que se piden, como mucho, en un escaneo. Es el freno principal:
+    lo mismo que usa OpenVAS por defecto. A cero, el rastreo no se hace."""
+
+    max_depth: int = 3
+    """Profundidad máxima de enlaces desde la raíz. Un enlace de la portada está
+    a profundidad 1; uno de una página enlazada por ella, a 2."""
+
+    time_budget_seconds: float = 20.0
+    """Tope de tiempo del rastreo entero, en segundos. Cuando se agota, se para
+    con lo que se lleve, igual que al agotar ``max_pages``."""
+
+
+def lybra_crawler_config() -> LybraCrawlerConfig:
+    return load_block(LybraCrawlerConfig)
+
+
 def nuclei_config() -> NucleiConfig:
     return load_block(NucleiConfig)
 

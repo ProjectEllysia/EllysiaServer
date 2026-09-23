@@ -436,6 +436,8 @@ KNOWN_VIOLATIONS: dict[tuple[str, str, str], str] = {
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/themis/managers/lybra/engine.py", "LybraEngineManager._run_credential_checks"):
         _PLAN_PRIVATE_METHOD,
+    ("private-method", "src/modules/features/themis/managers/lybra/engine.py", "LybraEngineManager._run_crawler"):
+        _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/themis/managers/lybra/engine.py", "LybraEngineManager._run_lybra"):
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/themis/managers/lybra/engine.py", "LybraEngineManager._surface_finding"):

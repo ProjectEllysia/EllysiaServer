@@ -213,6 +213,7 @@ from .exporters import (
     to_ocsf,
 )
 from .planner import CheckPlanner, KnownService
+from .crawler import CrawlResult, crawl
 from .virtual_hosts import (
     DEFAULT_SITE_CERTIFICATE_CHECKS,
     mark_default_site_certificates,
@@ -403,6 +404,8 @@ __all__ = [
     "mark_default_site_certificates",
     "select_site_names",
     "site_finding",
+    "CrawlResult",
+    "crawl",
     "DEFAULT_PORTS",
     "UDP_PROBES",
     "WELL_KNOWN_PORTS",

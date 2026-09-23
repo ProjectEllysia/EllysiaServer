@@ -34,6 +34,7 @@ from ...lybra import (
     is_tls_service,
     mark_default_site_certificates,
     site_finding,
+    crawl,
     compute_dedup_key,
     merge_findings,
     apply_lifecycle,
@@ -777,6 +778,18 @@ class LybraEngineManager(ScanManager):
                 CR.lybra_config().active_checks
                 if active_checks_override is None else active_checks_override
             )
+            # Rastreo de sólo lectura: descubre lo que los checks no conocen
+            # de antemano (rutas de robots.txt, formularios de login, rutas
+            # tras autenticación básica). Va antes de los checks activos para
+            # que las rutas con puerta lleguen al motor de credenciales, y
+            # sólo sobre un objetivo autorizado, como el resto del análisis
+            # activo.
+            discovered_auth_paths: list = []
+            if (source.probes_target_network and source_target and is_target_authorized
+                    and not should_stop()):
+                crawl_findings, discovered_auth_paths = self._run_crawler(source_target, services)
+                findings_data.extend(crawl_findings)
+
             # Las marcas de los refutadores no son hallazgos: se apartan aquí
             # y se aplican tras el ciclo de vida, como los backports.
             refutations: list = []
@@ -810,7 +823,8 @@ class LybraEngineManager(ScanManager):
             # nada; esta condición sólo evita el trabajo de construir el
             # runtime cuando ya se sabe que no va a correr.
             if source.probes_target_network and source_target and mode == "aggressive" and not should_stop():
-                findings_data.extend(self._run_credential_checks(source_target, services, mode))
+                findings_data.extend(self._run_credential_checks(
+                    source_target, services, mode, discovered_auth_paths))
 
             # ¿Sigue respondiendo el objetivo? Si ya no contesta ninguno de los
             # puertos que estaban abiertos, lo que vino después del bloqueo no
@@ -1022,7 +1036,54 @@ class LybraEngineManager(ScanManager):
             logger.exception("Lybra active checks failed for %s", target)
             return []
 
-    def _run_credential_checks(self, target: str, services, mode: str) -> list:
+    def _run_crawler(self, target: str, services) -> tuple:
+        """Rastrear de sólo lectura los servicios web del objetivo.
+
+        Best-effort, como el resto de fases de red: un fallo no hunde el
+        escaneo, sólo devuelve un rastreo vacío. Rastrea cada servicio HTTP
+        con el presupuesto configurado y funde lo hallado; las rutas con
+        autenticación básica se devuelven aparte para el motor de credenciales.
+
+        Args:
+            target: El objetivo (IP o nombre ya fijado a la IP validada).
+            services: Los servicios del escaneo.
+
+        Returns:
+            tuple: ``(hallazgos, rutas_con_auth_basica)``. Los hallazgos son
+                los avisos de robots.txt, formularios de login y rutas
+                protegidas; la lista de rutas alimenta el motor de
+                credenciales en modo agresivo.
+        """
+        try:
+            config = CR.lybra_crawler_config()
+            if config.max_pages <= 0:
+                return [], []
+            engine = CR.lybra_engine_config()
+            fetch = HttpProbe(
+                timeout=engine.http_timeout,
+                max_bytes=engine.http_max_body_bytes,
+                user_agent=engine.http_user_agent,
+            ).fetch
+            findings: list = []
+            auth_paths: list = []
+            for service in services:
+                if not is_http_service(service):
+                    continue
+                result = crawl(
+                    target, service.port, fetch,
+                    max_pages=config.max_pages,
+                    max_depth=config.max_depth,
+                    time_budget_seconds=config.time_budget_seconds,
+                )
+                findings.extend(_crawl_findings(service, result))
+                auth_paths.extend(result.basic_auth_paths)
+            return findings, auth_paths
+        except Exception:
+            logger.exception("Lybra crawl failed for %s", target)
+            return [], []
+
+    def _run_credential_checks(self, target: str, services, mode: str,
+                               discovered_paths=None) -> list:
         """Probar credenciales por defecto contra los servicios del objetivo.
 
         Es la única familia de detección que escribe en el objetivo, así que
@@ -1055,7 +1116,7 @@ class LybraEngineManager(ScanManager):
                 max_attempts_per_account=credentials.max_attempts,
                 capture_evidence=CR.lybra_evidence_config().enabled,
             )
-            return runtime.run(target, services)
+            return runtime.run(target, services, discovered_paths=discovered_paths)
         except Exception:
             logger.exception("Lybra credential checks failed for %s", target)
             return []
@@ -1870,6 +1931,55 @@ def _is_still_reachable(discover: Callable, target: str, services: list) -> bool
     if sweep.was_truncated and not sweep.open_ports:
         return True
     return bool(sweep.open_ports)
+
+
+def _crawl_findings(service, result) -> list:
+    """Convierte lo que el rastreo halló en hallazgos informativos.
+
+    Son eventos de superficie, no riesgos por sí mismos: robots.txt con sus
+    entradas, los formularios de login y las rutas tras autenticación básica.
+    Cada uno cuelga del servicio web donde se vio.
+
+    Args:
+        service: El servicio HTTP rastreado.
+        result: El :class:`~...lybra.CrawlResult` del rastreo.
+
+    Returns:
+        list: Un hallazgo por cada superficie hallada; vacía si no hubo
+            ninguna.
+    """
+    findings = []
+    if result.robots_entries:
+        muestra = ", ".join(result.robots_entries[:15])
+        findings.append(_crawl_finding(
+            service, "web_finding", "lybra:robots-txt-entries@1",
+            f"robots.txt declara {len(result.robots_entries)} ruta(s) sensibles: {muestra}"))
+    for path in result.login_paths:
+        findings.append(_crawl_finding(
+            service, "web_finding", "lybra:login-form-detected@1",
+            f"Formulario de acceso detectado en {path}"))
+    for path in result.basic_auth_paths:
+        findings.append(_crawl_finding(
+            service, "exposed_path", "lybra:http-basic-auth-path@1",
+            f"Ruta protegida con autenticación básica: {path}"))
+    return findings
+
+
+def _crawl_finding(service, category: str, check_id: str, title: str) -> dict:
+    """Un hallazgo informativo del rastreo, sin severidad propia (parte de INFO)."""
+    return {
+        "title":        title,
+        "category":     category,
+        "port":         service.port,
+        "service":      service.name or "http",
+        "protocol":     service.protocol,
+        "source":       "lybra",
+        "check_id":     check_id,
+        "feed_version": "lybra-crawler-1",
+        "qod":          QOD_OPEN_PORT,
+        "confirmed":    False,
+        "state":        "open",
+    }
 
 
 def _scan_integrity_finding(title: str) -> dict:
