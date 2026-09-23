@@ -47,7 +47,7 @@ CI: `.github/workflows/tests.yml` ejecuta `python -m pytest -q -m "not oracle" -
 y las suites del SPA en los PR hacia `main`, las `vX.Y` y `proyecto/**`, y en el push a `main`
 (la puerta del despliegue). En un PR, cada job se salta si no cambia nada de lo que lee.
 También hay `tests-postgres.yml` (solo en PR que tocan `API/`), `lybra-bench.yml` (de noche, solo
-si el motor cambió), `deploy.yml` y `landing.yml`.
+si el motor cambió) y `deploy.yml`.
 
 Algunos tests usan `xfail(strict=True)` para documentar bugs reales: cuando el bug se arregla el
 test pasa a XPASS y **hay que quitar el marcador**. La adaptación a SQLite y los mocks viven
@@ -88,13 +88,11 @@ Ollama es opcional.
 
 ## Arquitectura
 
-Monorepo con tres entregables:
+Monorepo con dos entregables:
 
 - **`API/`** — backend REST Flask (área principal de trabajo). Entrada: `run.py` → `create_app()`.
 - **`web/`** — SPA Vue 3 en `web/app/` (Vite + Pinia + Vue Router), más el **Caddy** que la sirve,
   proxya la API y gestiona TLS por su cuenta (`web/Caddyfile`).
-- **`landing/`** — sitio estático de marketing, publicado a `gh-pages` por `.github/workflows/landing.yml`.
-  Sin build, sin acoplamiento con los otros dos.
 
 El cliente Android vive en [AcheronMobile](https://github.com/ProjectEllysia/AcheronMobile) y consume
 `/acheron` por HTTP. El motor criptográfico de la bóveda —en Java para Android y en TypeScript para
