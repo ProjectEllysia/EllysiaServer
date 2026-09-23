@@ -117,7 +117,8 @@
       <Transition name="fade-swap" mode="out-in" appear>
         <div v-if="store.viewMode === 'full'" key="full" class="view-block">
           <ScanTabs :active="store.activeTab" @switch="handleTabSwitch" />
-          <ScanForm :type="store.activeTab" :launching="store.launching" :launched="hasActiveScan" @launch="handleLaunch" />
+          <ScanForm v-if="canUseThirdPartyScanners" :type="store.activeTab" :launching="store.launching" :launched="hasActiveScan" @launch="handleLaunch" />
+          <SurfaceClosedNotice v-else message="El análisis con Nmap, Nikto y Nuclei todavía no está disponible. Puedes consultar los resultados de análisis anteriores." />
           <ScanTable :type="store.activeTab" :rows="currentData.results" :loading="currentData.loading" :error="currentData.error" :current-page="currentData.page" :total-count="currentData.totalCount" :per-page="currentData.perPage" :selected-ids="batchSelectedArray"
             @preview="(id, type) => store.openPreview(id, type)" @cancel="handleCancel" @delete="handleDelete" @refresh="store.refreshCurrent()" @page-change="page => store.goToPage(store.activeTab, page)"
             @toggle-select="batchToggle" @select-all="batchSelectAll">
@@ -132,7 +133,7 @@
               </button>
             </template>
           </ScanTable>
-          <ScheduledScansPanel :scheduled="scheduledStore.scheduled" :scheduling="scheduledStore.scheduling" :active-tab="store.activeTab" @create="handleCreateScheduled" @deactivate="handleDeactivateScheduled" @delete="handleDeleteScheduled" @toggle-form="scheduledStore.toggleScheduledForm()" />
+          <ScheduledScansPanel v-if="canUseThirdPartyScanners" :scheduled="scheduledStore.scheduled" :scheduling="scheduledStore.scheduling" :active-tab="store.activeTab" @create="handleCreateScheduled" @deactivate="handleDeactivateScheduled" @delete="handleDeleteScheduled" @toggle-form="scheduledStore.toggleScheduledForm()" />
         </div>
         <ScanFolderView v-else-if="store.viewMode === 'folders'" key="folders"
           :folders="foldersStore.folders.items" :loading="foldersStore.folders.loading"
@@ -234,6 +235,8 @@ import StatsRow from '@/components/themis/StatsRow.vue'
 import ViewToggle from '@/components/themis/ViewToggle.vue'
 import ScanTabs from '@/components/themis/ScanTabs.vue'
 import ScanForm from '@/components/themis/ScanForm.vue'
+import SurfaceClosedNotice from '@/components/shared/SurfaceClosedNotice.vue'
+import { useLaunch } from '@/composables/useLaunch'
 import ScanTable from '@/components/themis/ScanTable.vue'
 import ScanFolderView from '@/components/themis/ScanFolderView.vue'
 import HistoryPanel from '@/components/themis/HistoryPanel.vue'
@@ -263,6 +266,11 @@ const foldersStore = useThemisFoldersStore()
 const hygeiaStore = useHygeiaStore()
 const { selectedIds: batchSelectedIds, selectedCount: batchSelectedCount, selectedArray: batchSelectedArray, toggle: batchToggle, selectAll: batchSelectAll, clear: batchClear } = useBatchSelection()
 const currentData = computed(() => store.scans[store.activeTab])
+
+// Nmap, Nikto y Nuclei son la superficie `thirdPartyScanners` de general.launch.
+// Cerrada, no se lanza ni se programa nada, pero el historial sigue a la vista.
+const { isSurfaceEnabled } = useLaunch()
+const canUseThirdPartyScanners = computed(() => isSurfaceEnabled('thirdPartyScanners'))
 
 // Q8: antes ScanForm/LybraLaunchPanel llevaban su propio `launched` local
 // que se ponía a true al lanzar y nunca volvía a false (o solo al cambiar

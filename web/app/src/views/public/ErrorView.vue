@@ -6,10 +6,10 @@
       <button type="button" class="retry" @click="reload">Volver a intentar</button>
     </p>
 
-    <p v-if="error.entry.links.length" class="note">
+    <p v-if="links.length" class="note">
       Desde aquí puedes
-      <template v-for="(link, index) in error.entry.links" :key="link.to">
-        <template v-if="index > 0">{{ index === error.entry.links.length - 1 ? ' o ' : ', ' }}</template>
+      <template v-for="(link, index) in links" :key="link.to">
+        <template v-if="index > 0">{{ index === links.length - 1 ? ' o ' : ', ' }}</template>
         <router-link :to="link.to">{{ link.label }}</router-link>
       </template>.
     </p>
@@ -18,7 +18,8 @@
 
 <script setup>
 import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { useLaunch } from '@/composables/useLaunch'
 import InfoPage from '@/components/shared/InfoPage.vue'
 import { resolveError } from '@/views/public/errorCatalog'
 
@@ -35,6 +36,19 @@ const route = useRoute()
  * la URL simplemente no existe y ha caído en el comodín del router.
  */
 const error = computed(() => resolveError(route.params.code ?? route.meta.errorCode ?? 404))
+
+const router = useRouter()
+const { isSurfaceEnabled } = useLaunch()
+
+/**
+ * Enlaces de salida de la entrada, sin los que llevan a una ruta cerrada al
+ * público (`meta.surface`): mandar a alguien a otra página de «no disponible»
+ * no es una salida.
+ */
+const links = computed(() => error.value.entry.links.filter((link) => {
+  const surface = router.resolve(link.to).meta.surface
+  return !surface || isSurfaceEnabled(surface)
+}))
 
 /** Botón de "volver a intentar" de las entradas que lo declaran. */
 function reload() {
