@@ -2,7 +2,7 @@
   <Transition name="preview-banner">
     <aside v-if="isVisible" class="preview-banner" role="status">
       <span class="preview-dot" aria-hidden="true"></span>
-      <span>Ellysia está en vista previa. Algunas funciones están cerradas mientras completamos su marco legal.</span>
+      <span>Ellysia es un proyecto personal en desarrollo. No es un servicio: no se ofrecen cuentas ni se contrata nada.</span>
       <button type="button" class="preview-close" aria-label="Cerrar el aviso de vista previa" @click="dismiss">&times;</button>
     </aside>
   </Transition>
@@ -13,7 +13,8 @@ import { computed, ref } from 'vue'
 import { useLaunch } from '@/composables/useLaunch'
 
 /**
- * Aviso de que la instalación está en vista previa (general.launch).
+ * Aviso de que la instalación está en vista previa (general.launch), que hoy
+ * significa que Ellysia es un proyecto personal y no un servicio.
  *
  * Solo aparece cuando el servidor ha confirmado el modo: antes de la
  * respuesta todo cuenta como cerrado, pero anunciar una vista previa que

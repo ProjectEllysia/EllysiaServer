@@ -20,6 +20,7 @@ from pathlib import Path
 
 import src.modules.system.config_reading as CR
 from ..exceptions import LogNotFoundError, LogQueryError, LogSnapshotChangedError
+from ..logging import LOG_FILE_NAME
 
 
 DEFAULT_PAGE_SIZE = 100
@@ -216,7 +217,7 @@ def _normalise_datetime(value: datetime | None) -> datetime | None:
 
 def _log_path() -> Path:
     log_dir = Path(CR.get_directory_of(CR.DirectoryType.LOG)).resolve()
-    return log_dir / "secops.log"
+    return log_dir / LOG_FILE_NAME
 
 
 def _resolve_snapshot(path: Path, token: str | None) -> _Snapshot:

@@ -69,6 +69,11 @@
               <div class="cfg-grid">
                 <div class="form-group"><label>Temp</label><input v-model="store.configFlat['general.directories.tempdir']" type="text" class="inp" /></div>
                 <div class="form-group"><label>Logs</label><input v-model="store.configFlat['general.directories.logdir']" type="text" class="inp" /></div>
+                <div class="form-group">
+                  <label>Conservación del registro de actividad (días)</label>
+                  <input v-model.number="store.configFlat['general.logs.retentionDays']" type="number" min="1" max="365" class="inp" />
+                  <span class="field-hint">Cada noche se archiva el día anterior y se borra lo que pase de este plazo. El registro guarda la IP de cada visita.</span>
+                </div>
               </div>
               <p class="field-hint">Plazos de los enlaces que se envían por correo. Si se admiten altas públicas se decide en «Lanzamiento».</p>
               <div class="cfg-grid">

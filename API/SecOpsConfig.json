@@ -24,6 +24,9 @@
         "notice_interval_days": 30
       }
     },
+    "logs": {
+      "retentionDays": 30
+    },
     "launch": {
       "mode": "preview",
       "surfaces": {

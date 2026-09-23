@@ -1430,6 +1430,28 @@ def general_config() -> GeneralConfig:
     return load_block(GeneralConfig)
 
 
+@config_block("general.logs")
+@dataclass(frozen=True)
+class LogsConfig:
+    """Conservación del registro de actividad (``secops.log``).
+
+    El registro anota cada petición con el usuario y la dirección IP de quien
+    la hace, así que guarda datos personales de cualquiera que visite la web.
+    Cada noche se archiva el fichero del día y se borran los días que pasen
+    del plazo (``system/services/log_retention.py``).
+
+    Attributes:
+        retention_days: Días que se conserva cada fichero diario archivado.
+            Por defecto ``30``. Se acota a un mínimo de 1 al leerlo.
+    """
+
+    retention_days: int = 30
+
+
+def logs_config() -> LogsConfig:
+    return load_block(LogsConfig)
+
+
 @config_block("general.registration")
 @dataclass(frozen=True)
 class RegistrationConfig:
