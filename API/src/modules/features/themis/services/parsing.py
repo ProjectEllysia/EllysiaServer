@@ -18,6 +18,7 @@ Formatos de puertos soportados (``validate_port``):
 
 import ipaddress
 import itertools
+import re
 import socket
 from typing import List
 
@@ -230,12 +231,56 @@ def reject_private_ip(target: str) -> None:
     estuvo tapado mientras ``areLocalIpsAllowed`` estuvo en ``true``, porque ese
     flag cortocircuita la comprobación entera antes de mirar el valor.
 
-    Lo que esto **no** resuelve es el desfase entre comprobar y escanear: entre
-    la resolución de aquí y la conexión real, el nombre puede cambiar de
-    dirección (DNS rebinding). Cerrar eso exige fijar la IP resuelta y escanear
-    esa, no el nombre, y es un cambio de mayor alcance.
+    Esto sólo comprueba; no impide que, entre la resolución de aquí y la
+    conexión real, el nombre cambie de dirección (DNS rebinding). Un escaneo
+    Lybra por nombre lo cierra fijando la IP ya validada durante todo el
+    escaneo (``resolve_public_address`` + ``lybra.pinned_resolution``).
     """
     _reject_private_ips(_resolved_addresses(target))
+
+
+# Un nombre de host (RFC 1123): etiquetas de letras, dígitos y guiones, con al
+# menos un punto. Un nombre sin punto es un nombre de la red local, que un
+# escaneo desde fuera no puede alcanzar.
+_HOSTNAME_RE = re.compile(
+    r"^(?=.{4,253}$)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}\.?$")
+
+
+def is_hostname(target: str) -> bool:
+    """Si ``target`` es un nombre de host, y no una IP ni una especificación de rango.
+
+    Args:
+        target: El objetivo tal cual lo escribió el usuario.
+
+    Returns:
+        bool: ``True`` para ``ejemplo.com`` o ``www.ejemplo.com``; ``False``
+            para una IP, un CIDR, un rango o una lista.
+    """
+    return bool(_HOSTNAME_RE.match((target or "").strip()))
+
+
+def resolve_public_address(hostname: str) -> str:
+    """Resuelve un nombre a la IP que se va a escanear, rechazándolo si apunta dentro.
+
+    Se comprueban **todas** las direcciones del nombre (ver
+    :func:`_resolved_addresses`): con que una sea privada, el nombre no se
+    escanea. Se devuelve la primera IPv4 (o la primera IPv6 si no hay IPv4),
+    que es la que se fija para todo el escaneo (``lybra.pinned_resolution``).
+
+    Args:
+        hostname: El nombre a resolver.
+
+    Returns:
+        str: La IP a la que se conectará el escaneo.
+
+    Raises:
+        IPValidationError: Si el nombre no resuelve.
+        PrivateIPRequested: Si alguna dirección es privada y no se permiten.
+    """
+    addresses = _resolved_addresses(hostname)
+    _reject_private_ips(addresses)
+    ipv4 = [address for address in addresses if ipaddress.ip_address(address).version == 4]
+    return (ipv4 or addresses)[0]
 
 
 def validate_ip(ips_str: str, max_hosts: int = 10) -> List[str]:

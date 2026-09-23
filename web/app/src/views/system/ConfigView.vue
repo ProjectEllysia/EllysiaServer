@@ -402,6 +402,16 @@
                     <div class="form-group"><label>Intentos por cuenta</label><input v-model.number="store.configFlat['features.themis.scanners.lybra.credentials.maxAttempts']" type="number" min="1" max="20" class="inp" /></div>
                   </div>
                 </CollapsibleSection>
+
+                <CollapsibleSection default-open>
+                  <template #header><h4 class="card-subtitle">Rastreo de sólo lectura</h4></template>
+                  <p class="field-hint">Descubre lo que los checks no conocen de antemano: rutas de robots.txt, formularios de login y rutas con autenticación. Sólo lectura y del mismo origen, con presupuesto duro. A cero páginas, no se hace.</p>
+                  <div class="cfg-grid cfg-grid--tight">
+                    <div class="form-group"><label>Páginas máximas</label><input v-model.number="store.configFlat['features.themis.scanners.lybra.crawler.maxPages']" type="number" min="0" max="500" class="inp" /></div>
+                    <div class="form-group"><label>Profundidad máxima</label><input v-model.number="store.configFlat['features.themis.scanners.lybra.crawler.maxDepth']" type="number" min="1" max="10" class="inp" /></div>
+                    <div class="form-group"><label>Tiempo máximo (s)</label><input v-model.number="store.configFlat['features.themis.scanners.lybra.crawler.timeBudgetSeconds']" type="number" min="1" max="120" class="inp" /></div>
+                  </div>
+                </CollapsibleSection>
               </ScannerCard>
             </div>
           </section>

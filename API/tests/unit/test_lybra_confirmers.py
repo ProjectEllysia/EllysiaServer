@@ -29,7 +29,7 @@ _CVE = "CVE-2021-41773"
 _TRAVERSAL_PATH = "/cgi-bin/.%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd"
 
 
-def _vulnerable_fetch(host, port, method, path):
+def _vulnerable_fetch(host, port, method, path, _body=None, _headers=None):
     """Un Apache 2.4.49 que sirve /etc/passwd por la ruta vulnerable."""
     if path == _TRAVERSAL_PATH:
         return Response(200, "root:x:0:0:root:/root:/bin/bash\n", {})
@@ -64,7 +64,7 @@ def test_a_confirmer_whose_cve_was_proposed_but_target_is_safe_does_not_fire():
     """Propuesta la CVE, pero el objetivo NO es vulnerable (ya parcheado): el
     confirmador corre y no dispara. Es justamente el falso positivo por backport
     que este mecanismo existe para descartar."""
-    def patched_fetch(host, port, method, path):
+    def patched_fetch(host, port, method, path, _body=None, _headers=None):
         return Response(404, "Not Found", {})       # la ruta ya no traversa
 
     fired = _fired(patched_fetch, proposed_cves={_CVE})
@@ -131,3 +131,27 @@ def test_a_confirmer_with_a_malformed_cve_is_reported():
     good = next(c for c in _CHECKS if c.confirms)
     broken = replace(good, confirms="no-es-una-cve")
     assert any("confirms" in problem for problem in validate_checks([broken]))
+
+
+# ============================================================ Joomla 23752
+
+_JOOMLA_API = "/api/index.php/v1/config/application?public=true"
+
+
+def _joomla_fetch(host, port, method, path, _body=None, _headers=None):
+    """Un Joomla 4.2.7 cuya API devuelve la configuración sin autenticar."""
+    if path == _JOOMLA_API:
+        return Response(200, '{"data":[{"type":"application","attributes":{"dbtype":"mysqli"}},'
+                             '{"type":"application","attributes":{"password":"x"}}]}', {})
+    return Response(404, "", {})
+
+
+def test_the_joomla_api_confirmer_only_runs_when_the_version_proposed_it():
+    assert "joomla-cve-2023-23752-api-config" not in _fired(_joomla_fetch, set())
+    assert "joomla-cve-2023-23752-api-config" in _fired(_joomla_fetch, {"CVE-2023-23752"})
+
+
+def test_a_patched_joomla_api_does_not_confirm():
+    def patched(host, port, method, path, _body=None, _headers=None):
+        return Response(401, '{"errors":[{"title":"Forbidden"}]}', {})
+    assert "joomla-cve-2023-23752-api-config" not in _fired(patched, {"CVE-2023-23752"})

@@ -45,8 +45,9 @@ import ssl
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
@@ -69,7 +70,18 @@ logger = logging.getLogger(__name__)
 # ``Check.check_id``). Los dos checks ``network`` suben además a ``version: 2``
 # en checks-6: su comportamiento cambia, y un hallazgo guardado tiene que poder
 # decir cuál de las dos formas lo produjo.
-CHECKS_FEED_VERSION = "lybra-checks-17"
+# checks-18: SSH, el primer protocolo cuyos checks leen el ``KEXINIT``, y
+# ``refutes``, la primera conclusión negativa del esquema.
+# checks-19: TLS a mitad de sesión (AUTH TLS de FTP) y el login FTP en claro.
+# checks-20: el certificado contra el nombre pedido (escaneo por nombre de host).
+# checks-21: las partes url/transport del DSL y el criterio de las cabeceras
+# (HSTS sólo sobre HTTPS, sin evaluar redirecciones, valores y fugas).
+# checks-22: la familia de Joomla (copias de configuración, instalador,
+# panel y el confirmador de CVE-2023-23752).
+# checks-23: las familias de WordPress y Drupal.
+# checks-24: el hallazgo de criptografia debil en IKE.
+# checks-25: marcas de tiempo TCP.
+CHECKS_FEED_VERSION = "lybra-checks-25"
 # Quality of Detection for a finding a check actively confirmed, as opposed to
 # one merely inferred from a version.
 QOD_CONFIRMED = 99
@@ -170,6 +182,8 @@ _VNC_SERVICE_NAMES = {"vnc"}
 _VNC_PORTS = {5900}
 _TELNET_SERVICE_NAMES = {"telnet"}
 _TELNET_PORTS = {23}
+_SSH_SERVICE_NAMES = {"ssh"}
+_SSH_PORTS = {22}
 # SNMP — el primer protocolo de esta tabla que habla UDP. 161 también aparece
 # en WELL_KNOWN_PORTS como TCP, así que is_snmp_service (más abajo) es el
 # único predicado de este módulo que mira service.protocol: sin esa guarda,
@@ -208,10 +222,16 @@ class Response:
         status: The HTTP status code.
         body: The response body, decoded to text.
         headers: The response headers, with their keys lowercased.
+        url: La URL final, tras las redirecciones que se hayan seguido. Vacía
+            si no se sabe (un doble de test que no la rellena).
+        requested_scheme: El esquema con el que se pidió (``"http"`` o
+            ``"https"``), o vacío si no se sabe.
     """
     status: int
     body: str
     headers: Dict[str, str]
+    url: str = ""
+    requested_scheme: str = ""
 
 
 @dataclass(frozen=True)
@@ -265,15 +285,25 @@ class Matcher:
 
 
 def _part_text(response: Response, part: str) -> str:
-    """Return the text of a response ``part`` — ``body``, ``header`` or ``status``.
+    """Return the text of a response ``part``.
 
-    Shared by :class:`Matcher` and :class:`Extractor` so both name the same
-    three parts the same way; an unknown part falls back to the body.
+    Shared by :class:`Matcher` and :class:`Extractor` so both name the parts
+    the same way; an unknown part falls back to the body. Las partes son
+    ``body``, ``header``, ``status``, ``url`` (la URL final, tras las
+    redirecciones) y ``transport``: ``"<pedido>-><final>"``, p. ej.
+    ``"http->https"`` para un puerto en claro que redirige a HTTPS. Es lo que
+    deja a un check de cabeceras decir «sólo sobre HTTPS» o «no sobre una
+    redirección», que la presencia de una cabecera no puede expresar.
     """
     if part == "header":
         return "\n".join(f"{name}: {value}" for name, value in response.headers.items())
     if part == "status":
         return str(response.status)
+    if part == "url":
+        return response.url
+    if part == "transport":
+        final_scheme = urllib.parse.urlsplit(response.url).scheme if response.url else ""
+        return f"{response.requested_scheme}->{final_scheme}"
     return response.body
 
 
@@ -474,6 +504,15 @@ class Check:  # pylint: disable=too-many-instance-attributes
             confirmer never exploits: it checks the
             condition without running anything on the target, or it is not
             written.
+        refutes: For a **refuter** check, the CVE it disproves — the mirror of
+            ``confirms``. It runs under the same rule (only when the version
+            matcher proposed that CVE) and, when it fires, it does not emit a
+            finding of its own: it carries a ``_refutes`` mark that
+            :func:`~.correlation.apply_refutations` turns into
+            ``state="fixed"`` on the version finding of the same port. It
+            exists for the cases where the service itself announces the fix a
+            version number cannot show — an OpenSSH offering *strict kex* is
+            not vulnerable to Terrapin, whatever its banner says.
         tags: Free-form labels (Nuclei's ``info.tags``, plus vendor/product
             metadata). Not used by the runtime, which runs whatever it is
             given: they exist so a *selector* can decide which of thousands of
@@ -504,6 +543,7 @@ class Check:  # pylint: disable=too-many-instance-attributes
     feed_version: Optional[str] = None
     expect_banner: bool = False
     confirms: Optional[str] = None
+    refutes: Optional[str] = None
     tags: tuple = ()
     payloads: tuple = ()
 
@@ -604,6 +644,7 @@ def _parse_check(c: dict) -> Check:
         script=c.get("script"),
         expect_banner=bool(c.get("expectBanner", False)),
         confirms=c.get("confirms"),
+        refutes=c.get("refutes"),
         payloads=tuple(
             (str(name), tuple(str(value) for value in values))
             for name, values in (c.get("payloads") or {}).items()
@@ -715,7 +756,7 @@ MATCHER_TYPES = ("status", "word", "regex")
 # Las partes de la respuesta que ``Matcher._part_text`` sabe leer. Una parte
 # desconocida cae en el defecto (``body``), así que un ``part: "headers"`` en
 # plural busca en el cuerpo y nunca encuentra la cabecera.
-MATCHER_PARTS = ("body", "header", "status")
+MATCHER_PARTS = ("body", "header", "status", "url", "transport")
 
 
 # Forma de un identificador CVE, para validar el campo ``confirms``.
@@ -783,6 +824,14 @@ def validate_checks(checks: Iterable[Check]) -> List[str]:  # pylint: disable=to
             problems.append(
                 f"Check {name!r}: 'confirms' debe ser un identificador CVE "
                 f"(CVE-AAAA-NNNN), no {check.confirms!r}")
+        if check.refutes and not _CVE_ID_RE.match(check.refutes):
+            problems.append(
+                f"Check {name!r}: 'refutes' debe ser un identificador CVE "
+                f"(CVE-AAAA-NNNN), no {check.refutes!r}")
+        if check.confirms and check.refutes:
+            problems.append(
+                f"Check {name!r}: declara 'confirms' y 'refutes' a la vez; un check "
+                f"sólo puede sostener una de las dos conclusiones")
 
         if check.type == "tls" and check.tls_rule not in _TLS_RULES:
             problems.append(
@@ -971,6 +1020,17 @@ def is_telnet_service(service: Service) -> bool:
     return (service.name or "").lower() in _TELNET_SERVICE_NAMES or service.port in _TELNET_PORTS
 
 
+def is_ssh_service(service: Service) -> bool:
+    """Return whether a service is an SSH endpoint.
+
+    Same rule as :class:`~.fingerprinting.ssh.SshDissector`: the service name
+    or the canonical port. Los checks de SSH leen el ``KEXINIT`` que el
+    servidor envía en claro al conectar, así que sólo hace falta saber a qué
+    servicios acercarse.
+    """
+    return (service.name or "").lower() in _SSH_SERVICE_NAMES or service.port in _SSH_PORTS
+
+
 def is_vnc_service(service: Service) -> bool:
     """Return whether a service should be probed by the VNC dissector."""
     return (service.name or "").lower() in _VNC_SERVICE_NAMES or service.port in _VNC_PORTS
@@ -1134,6 +1194,7 @@ _TLS_RULES: Dict[str, Callable] = {
     "expired": lambda info: info.expired,
     "expiring_soon": lambda info: not info.expired and info.days_until_expiry is not None and info.days_until_expiry <= 30,
     "deprecated_protocol": lambda info: info.protocol in _WEAK_TLS_PROTOCOLS,
+    "hostname_mismatch": lambda info: getattr(info, "is_name_mismatch", False),
     "weak_cipher": lambda info: bool(info.cipher) and any(
         token in info.cipher.upper() for token in _WEAK_TLS_CIPHER_TOKENS),
 }
@@ -1168,12 +1229,19 @@ class ScriptContext:
             al plugin no cuesta ninguna petición de red — y sin ella, el plugin
             tendría que descubrir puertos por su cuenta, que es justo lo que
             esta clase existe para impedir.
+        evidence: Lo que el plugin observó y quiere que acompañe al hallazgo
+            (por ejemplo, qué algoritmos SSH exactos son los débiles). Empieza
+            vacío; el plugin lo rellena con ``evidence.update(...)`` y el
+            runtime lo adjunta como evidencia ``kind="script"`` cuando la
+            captura está activada y el hallazgo es confirmado. Un plugin que no
+            lo toca no cambia nada.
     """
     target: str
     service: Service
     rate_limiter: Optional["HostRateLimiter"] = None
     mode: str = "safe"
     sibling_services: tuple = ()
+    evidence: dict = field(default_factory=dict)
 
     def acquire(self) -> None:
         """Respect the host's rate limit before touching the network."""
@@ -1310,7 +1378,8 @@ class CheckRuntime:
                 run_check=self._run_check,
             ),
             _CheckFamily(
-                applies_to_service=lambda service: self._tls_fetch is not None and is_tls_service(service),
+                applies_to_service=lambda service: self._tls_fetch is not None and (
+                    is_tls_service(service) or is_ftp_service(service)),
                 check_matches=lambda check, service: self._applies_tls(check),
                 run_check=self._run_tls_check,
             ),
@@ -1404,6 +1473,10 @@ class CheckRuntime:
                 # de versiones ya propuso su CVE para este escaneo. Es lo que lo
                 # distingue de un check normal — corre porque la KB dijo algo.
                 if check.confirms and check.confirms not in self._proposed_cves:
+                    continue
+                # Un refutador sigue la misma regla, por la misma razón: sólo
+                # hay algo que desmentir si la versión lo propuso.
+                if check.refutes and check.refutes not in self._proposed_cves:
                     continue
                 finding = family.run_check(check, self._host, service)
                 if finding is not None:
@@ -1627,7 +1700,14 @@ class CheckRuntime:
             return self._handshakes[key]
         if self._rl is not None:
             self._rl.acquire(host)
-        info = self._tls_fetch(host, service.port)
+        # Un FTP en claro cifra a mitad de sesión (AUTH TLS): su certificado,
+        # su versión y su cifrado se auditan igual que los de un HTTPS, pero
+        # hay que pedirlo primero. El 990 es FTPS implícito, TLS desde el
+        # primer byte.
+        if is_ftp_service(service) and not is_tls_service(service) and service.port != 990:
+            info = self._tls_fetch(host, service.port, starttls="ftp")
+        else:
+            info = self._tls_fetch(host, service.port)
         self._handshakes[key] = info
         return info
 
@@ -1699,7 +1779,12 @@ class CheckRuntime:
         except Exception:  # noqa: BLE001 - a broken plugin costs its own check, not the scan
             logger.exception("Script check %s failed against %s", check.check_id, host)
             return None
-        return self._finding(check, service) if fired else None
+        if not fired:
+            return None
+        finding = self._finding(check, service)
+        if self._capture_evidence and finding.get("confirmed") and context.evidence:
+            finding["_evidence"] = {"kind": "script", "payload": dict(context.evidence)}
+        return finding
 
     def _finding(self, check: Check, service: Service) -> dict:
         """Build the finding dict for a check that fired against a service."""
@@ -1707,6 +1792,7 @@ class CheckRuntime:
         return {
             "title":        finding_template.get("title", check.id),
             "category":     check.category,
+            "severity":     check.severity,
             "port":         service.port,
             "service":      service.name or check.service,
             "protocol":     service.protocol,
@@ -1718,6 +1804,7 @@ class CheckRuntime:
             "qod":          finding_template.get("qod", QOD_CONFIRMED),
             "confirmed":    finding_template.get("confirmed", True),
             "state":        "open",
+            **({"_refutes": check.refutes} if check.refutes else {}),
         }
 
 
@@ -1929,8 +2016,8 @@ class HttpProbe:
         result = self._request(host, port, method, path, body, headers)
         if result is None:
             return None
-        status, response_body, response_headers = result
-        return self._to_response(status, response_body, response_headers)
+        status, response_body, response_headers, final_url, scheme = result
+        return self._to_response(status, response_body, response_headers, final_url, scheme)
 
     def fetch_bytes(self, host: str, port: Optional[int], path: str) -> Optional[bytes]:
         """Fetch raw bytes for binary content such as a favicon.
@@ -1950,14 +2037,14 @@ class HttpProbe:
         result = self._request(host, port, "GET", path)
         if result is None:
             return None
-        status, body, _headers = result
+        status, body = result[0], result[1]
         return body if status == 200 else None
 
     def _request(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self, host: str, port: Optional[int], method: str, path: str,
         body: Optional[str] = None, headers: Optional[Dict[str, str]] = None,
     ) -> Optional[tuple]:
-        """Perform the raw HTTP request, returning ``(status, body, headers)``.
+        """Perform the raw HTTP request, returning ``(status, body, headers, final_url, scheme)``.
 
         A 4xx/5xx is returned normally; only a transport failure returns ``None``.
         HTTPS uses an unverified TLS context, since we are scanning arbitrary
@@ -1977,10 +2064,11 @@ class HttpProbe:
         try:
             request = urllib.request.Request(url, method=method, headers=request_headers, data=data)
             with self._opener.open(request, timeout=self._timeout) as response:
-                return response.status, response.read(self._max_bytes), dict(response.headers)
+                return (response.status, response.read(self._max_bytes), dict(response.headers),
+                        response.geturl(), scheme)
         except urllib.error.HTTPError as err:
             body = err.read(self._max_bytes) if hasattr(err, "read") else b""
-            return err.code, body, dict(err.headers or {})
+            return err.code, body, dict(err.headers or {}), getattr(err, "url", url) or url, scheme
         except Exception as err:  # noqa: BLE001 - transport failure: abandon this check
             logger.debug("HTTP probe failed for %s: %s", url, err)
             return None
@@ -2000,11 +2088,13 @@ class HttpProbe:
         return self._schemes[key]
 
     @staticmethod
-    def _to_response(status: int, body: bytes, headers) -> Response:
+    def _to_response(status: int, body: bytes, headers, url: str = "",
+                     requested_scheme: str = "") -> Response:
         """Assemble a :class:`Response` from raw request parts, lowercasing headers."""
         text = body.decode("utf-8", "replace") if isinstance(body, bytes) else str(body)
         header_map = {str(k).lower(): str(v) for k, v in dict(headers).items()}
-        return Response(status=status, body=text, headers=header_map)
+        return Response(status=status, body=text, headers=header_map, url=url,
+                        requested_scheme=requested_scheme)
 
 
 # =========================================================================

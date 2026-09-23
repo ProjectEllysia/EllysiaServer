@@ -199,3 +199,44 @@ def _basic(username: str, password: str) -> str:
     import base64
     token = base64.b64encode(f"{username}:{password}".encode("utf-8")).decode("ascii")
     return f"Basic {token}"
+
+
+# ================================= rutas descubiertas por el rastreo
+
+
+def test_a_discovered_path_entry_probes_the_crawled_paths_not_its_own():
+    entry = _entry([CredentialPair("admin", "admin")], id="generic",
+                   applies_to_discovered_paths=True)
+    probed = []
+
+    def fetch(host, port, method, path, body, headers):
+        probed.append(path)
+        return Response(200, "panel", {}) if path == "/webstat" else Response(401, "", {})
+
+    findings = CredentialRuntime([entry], fetch).run(
+        "10.0.0.1", [_SVC], discovered_paths=["/webstat", "/otro"])
+
+    assert "/webstat" in probed and "/otro" in probed
+    assert [f["check_id"] for f in findings] == ["lybra-credentials:generic@1"]
+
+
+def test_a_discovered_path_entry_does_nothing_without_discovered_paths():
+    entry = _entry([CredentialPair("admin", "admin")], id="generic",
+                   applies_to_discovered_paths=True)
+
+    def fetch(host, port, method, path, body, headers):
+        return Response(200, "x", {})
+
+    assert CredentialRuntime([entry], fetch).run("10.0.0.1", [_SVC]) == []
+
+
+def test_a_fixed_path_entry_ignores_discovered_paths():
+    entry = _entry([CredentialPair("admin", "admin")], path="/manager")
+    probed = []
+
+    def fetch(host, port, method, path, body, headers):
+        probed.append(path)
+        return Response(200, "ok", {})
+
+    CredentialRuntime([entry], fetch).run("10.0.0.1", [_SVC], discovered_paths=["/webstat"])
+    assert probed == ["/manager"]

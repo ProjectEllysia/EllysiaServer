@@ -10,11 +10,13 @@ from __future__ import annotations
 
 import ipaddress
 import logging
+import socket
 
 from src.modules.infrastructure import UnitOfWork
 from src.modules.infrastructure.session import build_repository
 from ..repositories import AuthorizedTargetRepository
 from ..model import AuthorizedTarget
+from ..services.parsing import is_hostname
 from ..exceptions import (
     AuthorizedTargetNotFoundError,
     DuplicateAuthorizedTargetError,
@@ -80,10 +82,32 @@ class AuthorizedTargetManager:
 
     @staticmethod
     def is_authorized(user_id: int, target: str) -> bool:
-        """True si ``target`` (una IP) cae dentro de alguna entrada autorizada del usuario."""
+        """Si ``target`` está dentro del registro de objetivos autorizados del usuario.
+
+        El registro guarda IPs y rangos. Una IP está autorizada si cae en alguna
+        entrada. Un **nombre** se resuelve y está autorizado sólo si **todas**
+        sus direcciones lo están: autorizar un servidor no autoriza cualquier
+        otro al que el nombre también apunte.
+
+        Args:
+            user_id: El usuario.
+            target: Una IP o un nombre de host.
+
+        Returns:
+            bool: ``True`` si está autorizado; ``False`` si no, si el nombre
+                no resuelve o si no es ni IP ni nombre.
+        """
         try:
-            ip = ipaddress.ip_address(target.strip())
+            addresses = [ipaddress.ip_address(target.strip())]
         except ValueError:
-            return False
+            if not is_hostname(target):
+                return False
+            try:
+                addresses = [ipaddress.ip_address(info[4][0])
+                             for info in socket.getaddrinfo(target.strip(), None)]
+            except OSError:
+                return False
         entries = build_repository(AuthorizedTargetRepository).get_by_user(user_id)
-        return any(ip in ipaddress.ip_network(entry.target, strict=False) for entry in entries)
+        networks = [ipaddress.ip_network(entry.target, strict=False) for entry in entries]
+        return bool(addresses) and all(
+            any(address in network for network in networks) for address in addresses)

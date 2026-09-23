@@ -33,11 +33,39 @@ pytestmark = pytest.mark.unit
     ("1.0", "1.0.0", 0),        # trailing zeros tie
     ("1.2", "1.10", -1),        # 2 < 10
     ("2.4.49", "2.4.50", -1),
-    ("7.4p1", "7.4", -1),       # alpha suffix ranks as pre-release, below the bare release
-    ("2.4.0a", "2.4.0", -1),
+    # Una palabra de versión preliminar va por debajo de la versión final.
+    ("2.0.0rc1", "2.0.0", -1),
+    ("3.12.0a1", "3.12.0", -1),
+    ("1.0b2", "1.0", -1),
+    ("2.0.0-beta", "2.0.0", -1),
+    # El `p1` de OpenSSH portable es la publicación de esa versión, no una
+    # preliminar: ordena por encima de su base y por debajo de la siguiente.
+    ("7.4p1", "7.4", 1),
+    ("9.6p1", "9.6", 1),
+    ("9.8p1", "9.8", 1),
+    ("9.6p1", "9.7", -1),
+    ("9.6p1", "9.6p1", 0),
+    ("9.6p1", "9.6p2", -1),
+    # Las letras de OpenSSL 1.x son parches posteriores.
+    ("1.1.1w", "1.1.1", 1),
+    ("1.1.1w", "1.1.1x", -1),
+    ("1.0.2a", "1.0.2", 1),
+    ("1.1.1w", "1.1.2", -1),
 ])
 def test_version_compare(a, b, expected):
     assert version_compare(a, b) == expected
+
+
+def test_openssh_9_6p1_is_outside_a_range_that_ends_before_9_6():
+    """Terrapin (CVE-2023-48795) se publicó como «afectado hasta 9.6, sin
+    incluirla»; un 9.6p1 no puede caer dentro."""
+    assert version_in_range("9.6p1", {"version_end_excluding": "9.6"}) is False
+    assert version_in_range("9.5p1", {"version_end_excluding": "9.6"}) is True
+
+
+def test_an_openssl_letter_release_lands_in_a_range_that_starts_at_its_base():
+    assert version_in_range("1.1.1w", {"version_start_including": "1.1.1",
+                                       "version_end_excluding": "1.1.1x"}) is True
 
 
 # ------------------------------------------- versiones de paquete de distribución
@@ -665,3 +693,108 @@ def test_csaf_reads_both_verdicts_explicitly():
     affected = next(r for r in rows if r["status"] == "vulnerable")
     assert affected["package"] == "nginx"
     assert affected["fixed_in"] is None
+
+
+# Lo que publican de verdad los dos proveedores: la versión corregida no está
+# en el texto, está en el `comment` de cada `criterion` (extractos literales).
+_DEBIAN_REAL = """<?xml version="1.0"?>
+<oval_definitions xmlns="http://oval.mitre.org/XMLSchema/oval-definitions-5">
+  <definitions>
+    <definition id="oval:org.debian:def:1" version="1" class="vulnerability">
+      <metadata>
+        <title>CVE-2024-6387 openssh</title>
+        <reference source="CVE" ref_id="CVE-2024-6387"/>
+        <description>security update</description>
+      </metadata>
+      <criteria comment="Release section" operator="AND">
+        <criterion test_ref="t1" comment="Debian 12 is installed"/>
+        <criteria comment="Architecture section" operator="OR">
+          <criterion test_ref="t2" comment="all architecture"/>
+          <criterion test_ref="t3" comment="openssh DPKG is earlier than 1:9.2p1-2+deb12u3"/>
+        </criteria>
+      </criteria>
+    </definition>
+    <definition id="oval:org.debian:def:2" version="1" class="vulnerability">
+      <metadata>
+        <title>CVE-2025-00001 foo</title>
+        <reference source="CVE" ref_id="CVE-2025-00001"/>
+      </metadata>
+      <criteria><criterion test_ref="t4" comment="foo DPKG is earlier than 0"/></criteria>
+    </definition>
+  </definitions>
+</oval_definitions>"""
+
+_UBUNTU_REAL = """<?xml version="1.0"?>
+<oval_definitions xmlns="http://oval.mitre.org/XMLSchema/oval-definitions-5">
+  <definitions>
+    <definition id="oval:com.ubuntu.noble:def:1" class="vulnerability" version="1">
+      <metadata>
+        <title>CVE-2024-6387 on Ubuntu 24.04 LTS (noble) - high</title>
+        <reference source="CVE" ref_id="CVE-2024-6387"/>
+        <description>A security regression (CVE-2006-5051) was discovered in OpenSSH's server.</description>
+      </metadata>
+      <criteria>
+        <extend_definition definition_ref="d100" comment="Ubuntu 24.04 LTS (noble) is installed" />
+        <criterion test_ref="t1" comment="openssh source package in noble, is affected and has been fixed (note: '1:9.6p1-3ubuntu13.3')." />
+      </criteria>
+    </definition>
+    <definition id="oval:com.ubuntu.noble:def:2" class="vulnerability" version="1">
+      <metadata>
+        <title>CVE-2002-2439 on Ubuntu 24.04 LTS (noble) - low</title>
+        <reference source="CVE" ref_id="CVE-2002-2439"/>
+      </metadata>
+      <criteria>
+        <criterion test_ref="t2" comment="gcc-arm-none-eabi source package in noble, might be affected and may need fixing." />
+      </criteria>
+    </definition>
+    <definition id="oval:com.ubuntu.noble:def:3" class="vulnerability" version="1">
+      <metadata>
+        <title>CVE-2020-12351 on Ubuntu 24.04 LTS (noble) - high</title>
+        <reference source="CVE" ref_id="CVE-2020-12351"/>
+      </metadata>
+      <criteria>
+        <criterion test_ref="t3" comment="Is kernel 'linux' running?" />
+        <criterion test_ref="t4" comment="'linux' kernel in noble was vulnerable but has been fixed (note: '6.8.0-1')." />
+      </criteria>
+    </definition>
+  </definitions>
+</oval_definitions>"""
+
+
+def test_debian_oval_reads_the_fixed_version_from_the_dpkg_criterion():
+    from src.modules.features.themis.lybra.kb import parse_oval_definitions
+
+    rows = list(parse_oval_definitions(_DEBIAN_REAL, "debian", "12"))
+    assert {"vendor": "debian", "release": "12", "package": "openssh", "cve_id": "CVE-2024-6387",
+            "fixed_in": "1:9.2p1-2+deb12u3", "status": "fixed"} in rows
+
+
+def test_debian_earlier_than_zero_means_still_vulnerable():
+    from src.modules.features.themis.lybra.kb import parse_oval_definitions
+
+    rows = [r for r in parse_oval_definitions(_DEBIAN_REAL, "debian", "12") if r["package"] == "foo"]
+    assert rows == [{"vendor": "debian", "release": "12", "package": "foo", "cve_id": "CVE-2025-00001",
+                     "fixed_in": None, "status": "vulnerable"}]
+
+
+def test_ubuntu_oval_reads_the_fixed_version_from_the_note():
+    from src.modules.features.themis.lybra.kb import parse_oval_definitions
+
+    rows = list(parse_oval_definitions(_UBUNTU_REAL, "ubuntu", "24.04"))
+    assert {"vendor": "ubuntu", "release": "24.04", "package": "openssh", "cve_id": "CVE-2024-6387",
+            "fixed_in": "1:9.6p1-3ubuntu13.3", "status": "fixed"} in rows
+    # «Might be affected» no es un pronunciamiento.
+    assert {"vendor": "ubuntu", "release": "24.04", "package": "gcc-arm-none-eabi",
+            "cve_id": "CVE-2002-2439", "fixed_in": None, "status": "unknown"} in rows
+    # Los criterios del núcleo no se leen: la red nunca ve un núcleo.
+    assert not any(row["package"] in ("linux", "'linux'") for row in rows)
+
+
+def test_a_bzip2_feed_is_decompressed_on_the_fly():
+    """Los dos proveedores sólo publican ya la forma `.xml.bz2`."""
+    import bz2
+
+    from src.modules.features.themis.lybra.kb import parse_oval_definitions
+
+    rows = list(parse_oval_definitions(bz2.compress(_DEBIAN_REAL.encode()), "debian", "12"))
+    assert any(row["fixed_in"] == "1:9.2p1-2+deb12u3" for row in rows)

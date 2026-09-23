@@ -230,12 +230,10 @@ def finding_to_json(f: dict, exposure: str) -> dict:
     ``services/cve_context.py::resolve_fixed_versions``), o ``None`` cuando
     ninguna regla la declara.
     """
-    priority = score_finding(
-        {"cvss_score": f.get("cvss_score"), "in_kev": f.get("in_kev"),
-         "epss_score": f.get("epss_score"), "confirmed": f.get("confirmed"),
-         "required_os": f.get("required_os")},
-        exposure,
-    )
+    # El hallazgo entero, no una selección de campos: cada tope de
+    # ``score_finding`` lee su propia clave (``check_id``, ``vhost``,
+    # ``severity``...), y una selección se queda atrás en cuanto nace otro.
+    priority = score_finding(f, exposure)
     return {
         "id":          f.get("id"),
         "title":       f.get("title"),

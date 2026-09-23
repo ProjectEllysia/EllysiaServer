@@ -42,12 +42,16 @@ class DissectorResult:
             caso normal, un elemento cuando hay un proxy inverso por delante de
             un servidor distinto. La primera capa no aparece aquí: ya
             viaja en ``product``/``version``.
+        components: Lo que corre dentro del servicio y tiene sus propias CVEs
+            —el CMS, las librerías JavaScript, el panel de hosting—, como
+            tuplas ``(producto, versión)``. Vacía salvo en HTTP.
     """
     product: Optional[str]
     version: Optional[str]
     label: str
     qod: int = QOD_FINGERPRINT
     extra_layers: tuple = ()
+    components: tuple = ()
 
 
 class Dissector:

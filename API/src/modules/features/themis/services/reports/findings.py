@@ -101,7 +101,7 @@ class FindingsPrintingStrategy(PrintingStrategy):
     def append_body(self, theme: "ReportTheme", elements: list, ai_report: bool = False) -> None:
         from src.modules.infrastructure.session import build_repository
         from src.modules.features.themis import ScanRepository
-        from src.modules.features.themis.lybra import score_finding
+        from src.modules.features.themis.lybra import is_unverified_distro_package, score_finding
         # Diferido como el resto de imports de esta función: `managers` importa
         # `services`, así que a nivel de módulo sería un ciclo.
         from src.modules.features.themis.managers import LybraEngineManager
@@ -115,13 +115,20 @@ class FindingsPrintingStrategy(PrintingStrategy):
             "epss_score": row.epss_score, "in_kev": row.in_kev, "qod": row.qod, "confirmed": row.confirmed,
             "exploit_maturity": row.exploit_maturity, "state": row.state,
             "source": row.source, "state": row.state, "cpe_resolved": row.cpe_resolved,
-            "required_os": row.required_os,
+            "required_os": row.required_os, "check_id": row.check_id, "vhost": row.vhost,
+            "severity": row.severity,
         } for row in rows]
+        # Los sitios con nombre que sirve la IP no son riesgos: van en su
+        # propia sección, no entre las fichas ni en los recuentos.
+        sites = [finding for finding in findings if finding["category"] == "virtual_host"]
+        findings = [finding for finding in findings if finding["category"] != "virtual_host"]
         for finding in findings:
             finding["priority"] = score_finding(finding, exposure)
+            finding["is_unverified_distro_package"] = is_unverified_distro_package(finding)
         enrich_with_cve_context(findings)
 
         self._append_finding_header(theme, elements, findings, exposure)
+        _append_sites_section(theme, elements, sites)
 
         if findings:
             self._append_finding_summary(theme, elements, findings)
@@ -147,6 +154,13 @@ class FindingsPrintingStrategy(PrintingStrategy):
 
         elements.append(Paragraph(self._HEADER_TITLE, theme.title))
         elements.append(Spacer(1, 0.1 * inch))
+
+        warning = _unverified_warning(findings)
+        if warning:
+            # Va antes que ninguna tabla porque cambia cómo se leen todas: son
+            # los hallazgos que más fácilmente resultan falsos.
+            elements.append(Paragraph(warning, theme.body))
+            elements.append(Spacer(1, 0.1 * inch))
 
         exposure_label = "Pública" if exposure == "public" else "Privada" if exposure == "private" else "Desconocida"
         target_info = [
@@ -181,6 +195,11 @@ class FindingsPrintingStrategy(PrintingStrategy):
             ["Confirmados activamente:", str(confirmed_count)],
             ["Base de conocimiento:", self._knowledge_base_line()],
         ]
+        if getattr(scan, "is_partial", False):
+            # Un escaneo parcial no puede leerse como uno limpio: lo que no se
+            # llegó a comprobar no está ausente, es desconocido.
+            scan_info.append(["Cobertura:",
+                              "Parcial: el escaneo no llegó a cubrir todo el objetivo"])
         if refuted_count:
             # Se dice, no se esconde: que el informe no los cuente como riesgo
             # es correcto, pero callar cuántos hay ocultaría que alguien
@@ -340,7 +359,9 @@ class FindingsPrintingStrategy(PrintingStrategy):
 
         if not findings:
             elements.append(Paragraph(
-                "El motor no detectó ningún hallazgo para este objetivo.", theme.info))
+                "El escaneo no llegó a cubrir todo el objetivo: la ausencia de hallazgos "
+                "no es un resultado limpio." if getattr(self.scan, "is_partial", False)
+                else "El motor no detectó ningún hallazgo para este objetivo.", theme.info))
             return
 
         self._append_grouped_findings(theme, elements, findings)
@@ -591,6 +612,8 @@ class FindingsPrintingStrategy(PrintingStrategy):
         details = []
         if finding.get("port"):
             details.append(["Puerto/servicio:", f"{finding.get('service') or '?'}:{finding['port']}"])
+        if finding.get("vhost"):
+            details.append(["Sitio:", finding["vhost"]])
         if finding.get("cve_ids"):
             details.append(["CVE:", ", ".join(finding["cve_ids"])])
         if finding.get("cwe_ids"):
@@ -609,6 +632,9 @@ class FindingsPrintingStrategy(PrintingStrategy):
             details.append(["Explotación:", maturity_label])
         if finding.get("required_os") and not finding.get("confirmed"):
             details.append(["Requiere SO:", f"{finding['required_os']} (no verificado en este escaneo)"])
+        if finding.get("is_unverified_distro_package"):
+            details.append(["Sin contrastar:", "paquete de distribución; puede estar corregido "
+                                               "sin cambiar la versión (backport)"])
         if finding.get("fixed_version"):
             details.append(["Corregido en:", f"{finding['fixed_version']} o superior"])
         if finding.get("state") and finding["state"] != "open":
@@ -662,3 +688,63 @@ class FindingsPrintingStrategy(PrintingStrategy):
     def get_report_title(self) -> str:
         return self._REPORT_TITLE
 
+
+def _append_sites_section(theme: "ReportTheme", elements: list, sites: list) -> None:
+    """La sección «Sitios detectados en esta IP», si el escaneo descubrió alguno.
+
+    Un escaneo por IP audita además los sitios con nombre que la propia IP
+    delata (sus certificados, su DNS inverso). El lector necesita saber cuáles
+    son y de dónde salió cada nombre para leer la fila «Sitio» de las fichas.
+
+    Args:
+        theme: El tema del informe.
+        elements: La lista de elementos del documento; se amplía en sitio.
+        sites: Los avisos ``virtual_host`` del escaneo; vacía, no se añade nada.
+    """
+    if not sites:
+        return
+    elements.append(Paragraph("Sitios detectados en esta IP", theme.subtitle))
+    elements.append(Spacer(1, 0.1 * inch))
+    elements.append(Paragraph(
+        "Además del sitio por defecto de la IP, se auditaron por separado estos "
+        "sitios con nombre, que resuelven a la misma IP:", theme.body))
+    for site in sites:
+        elements.append(Paragraph(f"• {site['title']}", theme.body))
+    elements.append(Spacer(1, 0.3 * inch))
+
+
+def _unverified_warning(findings: list) -> Optional[str]:
+    """El aviso de portada sobre los hallazgos que el proveedor no ha contrastado.
+
+    Args:
+        findings: Los hallazgos del informe, ya marcados con
+            ``is_unverified_distro_package``.
+
+    Returns:
+        Optional[str]: El texto del aviso, que añade si la fuente OVAL
+            está desactualizada, o ``None`` si no hay ningún hallazgo así.
+    """
+    count = sum(1 for finding in findings if finding.get("is_unverified_distro_package")
+                and finding.get("state") != "false_positive")
+    if not count:
+        return None
+    text = (f"<b>Aviso:</b> {count} hallazgo(s) por versión son de paquetes de una "
+            "distribución Linux y no se han podido contrastar con el proveedor. La "
+            "distribución puede haberlos corregido sin cambiar el número de versión, así "
+            "que se muestran con prioridad MEDIA como máximo y deben verificarse.")
+    if _is_oval_stale():
+        text += (" La fuente OVAL de avisos de distribución está desactualizada: "
+                 "sincronizarla puede desmentir algunos.")
+    return text
+
+
+def _is_oval_stale() -> bool:
+    """Si la fuente OVAL de la KB está desactualizada. Best-effort: ``False`` ante error."""
+    from src.modules.features.themis.managers.kb_sync import KbSyncManager
+
+    try:
+        return any(entry["source"] == "oval" and entry["isStale"]
+                   for entry in KbSyncManager().status()["sources"])
+    except Exception:  # noqa: BLE001 - el informe no puede caerse por esto
+        logger.exception("No se pudo leer el estado de la base de conocimiento")
+        return False

@@ -1,0 +1,46 @@
+{
+  "feedVersion": "lybra-ike-vids-1",
+  "_comment": "Vendor IDs de IKE conocidos: prefijo hexadecimal del payload VID -> producto (y versión si el prefijo la fija). Se casa por prefijo porque muchos fabricantes anexan a un prefijo fijo una versión o un hash. Fuentes: los VID publicados por ike-scan y los RFC de cada fabricante. Sólo identificadores de FABRICANTE: los VID de capacidad del protocolo (DPD, XAUTH, fragmentación) no dicen qué equipo hay y se dejan fuera a propósito.",
+  "vendorIds": [
+    {
+      "prefix": "12f5f28c457168a9702d9fe274cc0100",
+      "product": "Cisco VPN Concentrator"
+    },
+    {
+      "prefix": "1e2b516905991c7d7c96fcbfb587e461",
+      "product": "Microsoft Windows IKE"
+    },
+    {
+      "prefix": "8404adf9cda05760b2ca292e4bff537b",
+      "product": "Fortinet FortiGate"
+    },
+    {
+      "prefix": "5b362bc820f60005",
+      "product": "SonicWall"
+    },
+    {
+      "prefix": "4a131c81070358455c5728f20e95452f",
+      "product": "strongSwan"
+    },
+    {
+      "prefix": "882fe56d6fd20dbc2251613b2ebe5beb",
+      "product": "strongSwan"
+    },
+    {
+      "prefix": "eb4c1b788afd4a9cb7730a68d56d088b",
+      "product": "Cisco ASA"
+    },
+    {
+      "prefix": "40485647",
+      "product": "Check Point"
+    },
+    {
+      "prefix": "f4ed19e0c114eb516faaac0ee37daf28",
+      "product": "Openswan/Libreswan"
+    },
+    {
+      "prefix": "4f45",
+      "product": "Openswan"
+    }
+  ]
+}

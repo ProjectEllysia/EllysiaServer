@@ -336,3 +336,52 @@ def test_an_unknown_evidence_level_falls_back_to_none():
 def test_the_ladder_runs_from_least_to_most_serious():
     assert EXPLOIT_MATURITY_LADDER.index("poc") < EXPLOIT_MATURITY_LADDER.index("functional")
     assert EXPLOIT_MATURITY_LADDER.index("weaponized") < EXPLOIT_MATURITY_LADDER.index("in_the_wild")
+
+
+def test_an_unverified_distro_package_never_leads_the_report():
+    """regreSSHion sobre el OpenSSH de Ubuntu del contraste de campo: CVSS 8,1
+    y EPSS 99,5 % lo ponían en CRITICAL sin que nadie hubiera comprobado que
+    Ubuntu no lo había corregido ya (lo había hecho)."""
+    finding = {"category": "outdated_software", "cve_ids": ["CVE-2024-6387"], "cvss_score": 8.1,
+               "epss_score": 0.995, "confirmed": False, "state": "open",
+               "cpe": "cpe:2.3:a:openbsd:openssh:9.6p1-3ubuntu13.19:*:*:*:*:*:*:*",
+               "title": "OpenSSH 9.6p1-3ubuntu13.19 — CVE-2024-6387"}
+    assert score_finding(finding, "public") == "MEDIUM"
+
+    compiled_by_hand = dict(finding, cpe="cpe:2.3:a:openbsd:openssh:9.6p1:*:*:*:*:*:*:*",
+                            title="OpenSSH 9.6p1 — CVE-2024-6387")
+    assert score_finding(compiled_by_hand, "public") == "CRITICAL"
+
+
+# ================================================= la severidad del check
+
+
+@pytest.mark.parametrize("severity,expected", [
+    ("CRITICAL", "CRITICAL"),   # credenciales a la vista: no se aplana a MEDIA
+    ("INFO", "INFO"),           # un panel visible no sube a MEDIA por estar confirmado
+    ("LOW", "LOW"),
+    (None, "MEDIUM"),           # sin severidad declarada, el suelo de siempre
+])
+def test_a_check_finding_starts_from_its_declared_severity(severity, expected):
+    finding = {"cvss_score": None, "confirmed": True, "severity": severity}
+    assert score_finding(finding, "public") == expected
+
+
+def test_a_finding_with_cvss_keeps_scoring_by_it():
+    finding = {"cvss_score": 9.8, "confirmed": True, "severity": "LOW"}
+    assert score_finding(finding, "public") == "CRITICAL"
+
+
+def test_check_findings_carry_their_declared_severity():
+    from src.modules.features.themis.lybra.checks import CheckRuntime, Response, Service, load_checks
+
+    def fetch(host, port, method, path, _body=None, _headers=None):
+        if path == "/wp-config.php":
+            return Response(200, "define('DB_NAME', 'wp'); define('DB_PASSWORD', 'x');", {})
+        return Response(404, "", {})
+
+    findings = CheckRuntime(load_checks(), fetch).run(
+        "10.0.0.5", [Service(80, "tcp", "http", "nginx", "1.18", None)])
+    wp_config = next(f for f in findings if "wpconfig" in f["check_id"])
+    assert wp_config["severity"] == "CRITICAL"
+    assert score_finding(wp_config, "public") == "CRITICAL"
