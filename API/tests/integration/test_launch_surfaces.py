@@ -207,3 +207,38 @@ def test_building_a_generator_for_an_external_provider_fails_in_preview(preview_
 
     with pytest.raises(SurfaceDisabledError):
         build_generator("aegis")
+
+
+# ------------------------------------------------- estado público: GET /system/launch
+
+def test_the_launch_state_is_public_and_not_cached(client, preview_mode):
+    response = client.get("/system/launch")
+
+    assert response.status_code == 200
+    assert response.headers["Cache-Control"] == "no-store"
+    assert response.get_json() == {
+        "mode": "preview",
+        "surfaces": {surface.value: False for surface in CR.LaunchSurface},
+    }
+
+
+def test_the_launch_state_follows_each_switch_in_public_mode(client, monkeypatch):
+    monkeypatch.setattr(
+        CR, "launch_config",
+        lambda: CR.LaunchConfig(configured_mode="public", surfaces={**_ALL_SWITCHES_ON, "pricing": False}),
+    )
+
+    body = client.get("/system/launch").get_json()
+
+    assert body["mode"] == "public"
+    assert body["surfaces"]["pricing"] is False
+    assert body["surfaces"]["registration"] is True
+
+
+def test_the_launch_state_does_not_exempt_the_main_administrator(client, preview_mode, make_user, auth_headers):
+    """Describe lo que ve el público, aunque quien pregunte sea el administrador principal."""
+    root = make_user(role="role_root")
+
+    body = client.get("/system/launch", headers=auth_headers(root)).get_json()
+
+    assert not any(body["surfaces"].values())
