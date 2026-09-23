@@ -1,7 +1,7 @@
 {
-	# Contacto para los avisos de caducidad de Let's Encrypt. Sin esto Caddy
-	# emite igual, pero nadie recibe aviso si la renovación se atasca.
-	email gmiganescu@gmail.com
+	# Contacto de la cuenta ACME en Let's Encrypt. Es una dirección del
+	# dominio y no una personal porque este fichero es público.
+	email seguridad@ellysia.es
 }
 
 # ── Fragmentos reutilizables ────────────────────────────────────
