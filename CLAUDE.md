@@ -309,7 +309,7 @@ Por capas, leída con `system/config_reading.py` (importado como `CR`):
 
 1. **`API/SecOpsConfig.json`** — base: prompts, directorios, defaults de taskqueue, selección de
    estrategia `tools.scribe`/`tools.herald`, tuning no secreto de JWT (`general.security.jwt`),
-   `appVersion` (→ `CR.get_app_version()`, hoy `0.5.10`).
+   `appVersion` (→ `CR.get_app_version()`, hoy `0.5.25`).
 2. **`API/.env`** — variables de entorno que **sobrescriben** el JSON. Obligatorio para secretos:
    `JWT_SECRET_KEY`, credenciales de BD / Redis / SMTP / OpenAI, `PUBLIC_WEB_URL`.
 3. **`.env` de la raíz** — solo para docker-compose (credenciales Postgres/Redis); la API no lo lee.
@@ -476,7 +476,7 @@ reescribir en masa lo que ya existe y no se está editando.
   (loopback sí se permite, que es como funcionan los tests de aiosmtpd). Esto es lo que mantiene la
   suite en ~1 min 50 s; antes, diez tests esperando timeouts eran el 75 % del tiempo.
 - La versión de la API sale de la config: `create_app()` la lee con `CR.get_app_version()` desde
-  `appVersion` en `SecOpsConfig.json` (hoy `0.5.10`). **No está hardcodeada** — y ojo, la rama
+  `appVersion` en `SecOpsConfig.json` (hoy `0.5.25`). **No está hardcodeada** — y ojo, la rama
   puede ir por delante del `appVersion` del fichero.
 - `features.themis.areLocalIpsAllowed` viaja en `false`, y hay un test que lo ata
   (`test_the_anti_ssrf_defence_ships_enabled` en `tests/unit/test_config_shape.py`). Estuvo en
