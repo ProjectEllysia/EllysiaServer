@@ -21,7 +21,7 @@
           <h3 class="footer-heading">Ellysia</h3>
           <ul>
             <li v-if="canSeePricing"><router-link to="/planes">Planes</router-link></li>
-            <li><router-link to="/sobre">Sobre nosotros</router-link></li>
+            <li><router-link to="/sobre">Sobre Ellysia</router-link></li>
             <li>
               <a href="https://github.com/ProjectEllysia/Ellysia" target="_blank" rel="noopener noreferrer">Código ↗</a>
             </li>
