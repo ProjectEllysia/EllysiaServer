@@ -129,11 +129,13 @@
             <button type="button" class="link-btn" @click="enterRecover">
               ¿Olvidaste tu clave?
             </button>
-            <span class="hint-sep">·</span>
-            ¿No tienes cuenta?
-            <button type="button" class="link-btn" @click="mode = 'register'">
-              Regístrate gratis y prueba Ellysia
-            </button>
+            <template v-if="canRegister">
+              <span class="hint-sep">·</span>
+              ¿No tienes cuenta?
+              <button type="button" class="link-btn" @click="mode = 'register'">
+                Regístrate gratis y prueba Ellysia
+              </button>
+            </template>
           </p>
         </form>
 
@@ -363,11 +365,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watchEffect, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { useThemeStore } from '@/stores/themeStore'
 import { validationMessage } from '@/composables/useApi'
+import { useLaunch } from '@/composables/useLaunch'
 import { generatePassword } from '@projectellysia/acheron-core-js'
 import ElysianScene from '@/components/shared/ElysianScene.vue'
 import ellysiaIcon from '@/assets/images/ellysia/Ellysia-BgN.png'
@@ -410,6 +413,18 @@ const mode = ref(
     : route.query.recuperar !== undefined ? 'recover'
     : 'login',
 )
+
+/*
+ * El alta es la superficie `registration` de general.launch. Cerrada, no se
+ * ofrece el enlace, y quien llegue por `?registro` vuelve a entrar en cuanto
+ * se sabe el estado: el servidor rechazaría el alta de todas formas.
+ */
+const { isSurfaceEnabled, isLoaded: isLaunchStateLoaded } = useLaunch()
+const canRegister = computed(() => isSurfaceEnabled('registration'))
+watchEffect(() => {
+  if (isLaunchStateLoaded.value && !canRegister.value && mode.value === 'register') mode.value = 'login'
+})
+
 const reg = ref({ username: '', email: '', first_name: '', last_name: '', password: '' })
 // Fuera de `reg` a propósito: ese objeto se manda tal cual a /users/register y
 // la confirmación es cosa del formulario, no del alta.

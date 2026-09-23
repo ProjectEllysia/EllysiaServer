@@ -27,7 +27,7 @@ importarse. Sin estos imports el registro quedaría vacío y
 ``iris/services/mailbox/__init__.py`` (B5).
 """
 
-from src.modules.shared.report_theme import ColorType, ReportTheme
+from src.modules.tools.press import ColorType, ReportTheme
 from .base import PrintingStrategy
 from .creator import PDFCreator
 from .outline import OutlineEntry

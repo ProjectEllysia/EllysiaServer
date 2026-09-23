@@ -75,14 +75,16 @@
           </select>
         </div>
 
-        <div v-if="store.state.scope === 'asset'" class="control">
-          <label class="control-label" for="asset-select">Activo</label>
-          <select id="asset-select" v-model.number="store.state.assetId" class="inp">
-            <option :value="null" disabled>Elige un activo…</option>
-            <option v-for="asset in assets" :key="asset.id" :value="asset.id">
-              {{ asset.hostname }}
-            </option>
-          </select>
+        <!-- Buscador y no desplegable: es el único control de la vista que
+             crece con el parque, y con cientos de máquinas una lista de
+             opciones deja de ser navegable. -->
+        <div v-if="store.state.scope === 'asset'" class="control control--picker">
+          <label class="control-label" for="asset-search">Activo</label>
+          <AssetPicker
+            input-id="asset-search"
+            :assets="assets" :model-value="store.state.assetId"
+            @update:model-value="store.state.assetId = $event"
+          />
         </div>
 
         <div v-if="store.state.scope === 'tag'" class="control">
@@ -449,6 +451,7 @@ import { computed, h, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import Topbar from '@/components/shared/Topbar.vue'
 import StarBackground from '@/components/shared/StarBackground.vue'
+import AssetPicker from '@/components/hygeia/AssetPicker.vue'
 import { timeAgo } from '@/components/hygeia/format'
 import { fmtDuration, formatTimeTick, timeTicks } from '@/components/hygeia/chartMath'
 import {
@@ -926,6 +929,9 @@ onUnmounted(() => clearInterval(ageTimer))
   background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
 }
 .control { display: flex; flex-direction: column; gap: 0.25rem; min-width: 140px; }
+/* El buscador necesita sitio para leer el nombre de una máquina entero, y su
+   lista flotante no debe quedar por debajo de los controles de al lado. */
+.control--picker { min-width: 240px; position: relative; z-index: 1; }
 .control-label { font-size: var(--fs-sm); color: var(--text-muted); }
 
 .inp {

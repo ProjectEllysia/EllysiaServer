@@ -5,6 +5,7 @@ from src.modules.shared._exceptions import (
     EntityNotFoundError,
     ErrorCode,
     ErrorSeverity,
+    SurfaceDisabledError,
     DatabaseError,  # noqa: F401  — re-exportada: users/managers.py la importa desde aquí
 )
 
@@ -182,19 +183,22 @@ class MfaChallengeInvalidError(AuthenticationError):
 # ALTA PÚBLICA Y VERIFICACIÓN DE CORREO
 # =========================================================================
 
-class RegistrationClosedError(AuthorizationError):
+class RegistrationClosedError(SurfaceDisabledError):
     """Esta instalación no acepta altas públicas.
 
-    Es una decisión del despliegue (``general.registration.enabled``), no del
-    usuario: un Ellysia interno de una empresa quiere el grifo cerrado y da de
-    alta a su gente desde el panel.
+    Es el cierre de la superficie ``registration`` de ``general.launch``: una
+    decisión del despliegue, no del usuario. Un Ellysia en vista previa, o uno
+    interno de una empresa, tiene el grifo cerrado y da de alta a su gente
+    desde el panel. Conserva su propio código (``REGISTRATION_CLOSED``) y su
+    texto, que le dice al usuario qué hacer en lugar de un «no disponible».
     """
 
     default_code = ErrorCode.REGISTRATION_CLOSED
 
     def __init__(self) -> None:
+        """Construye el error con el texto específico del alta."""
         super().__init__(
-            message="El registro publico esta deshabilitado en esta instalacion",
+            "registration",
             user_message=(
                 "Esta instalacion de Ellysia no acepta registros. "
                 "Pide a un administrador que te cree la cuenta."

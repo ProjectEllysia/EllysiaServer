@@ -324,12 +324,6 @@ KNOWN_VIOLATIONS: dict[tuple[str, str, str], str] = {
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/iris/services/mailbox/scheduling.py", "IrisMailboxScheduler._run_retention"):
         _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/services/reports.py", "IrisPDFCreator._on_page"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/services/reports.py", "IrisPDFCreator._output_path"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/iris/services/reports.py", "IrisPDFCreator._set_pdf_metadata"):
-        _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/themis/lybra/checks.py", "CheckRuntime._applies"):
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/themis/lybra/checks.py", "CheckRuntime._applies_mode"):
@@ -549,12 +543,6 @@ KNOWN_VIOLATIONS: dict[tuple[str, str, str], str] = {
     ("private-method", "src/modules/features/themis/services/reports/base.py", "PrintingStrategy._append_ai_analysis"):
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/themis/services/reports/base.py", "PrintingStrategy._append_history_stats"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/themis/services/reports/creator.py", "PDFCreator._make_logo_badge"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/themis/services/reports/creator.py", "PDFCreator._on_page"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/themis/services/reports/creator.py", "PDFCreator._set_pdf_metadata"):
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/themis/services/reports/findings.py", "FindingsPrintingStrategy._append_cpe_coverage_note"):
         _PLAN_PRIVATE_METHOD,

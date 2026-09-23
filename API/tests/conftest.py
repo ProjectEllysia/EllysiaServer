@@ -719,3 +719,25 @@ def make_subscription(app, seeded_plans):
                 return subscription.id
 
     return _make
+
+
+# ---------------------------------------------------------------------------
+# 8. Superficies abiertas al público (general.launch)
+# ---------------------------------------------------------------------------
+
+@pytest.fixture(autouse=True)
+def _launch_mode_public(monkeypatch):
+    """Abre todas las superficies de ``general.launch`` durante la suite.
+
+    El ``SecOpsConfig.json`` versionado se publica en ``preview``, que cierra
+    el alta, los precios, los escáneres de terceros, las campañas, los buzones
+    y la IA externa. El resto de la suite prueba esas funciones, no el cierre,
+    así que parte de un despliegue abierto. Se hace con ``LAUNCH_MODE`` y no
+    parcheando ``CR.launch_config``, para que los tests de forma de la config
+    sigan leyendo el bloque real.
+
+    Los tests que prueban el cierre quitan la variable o sustituyen el bloque
+    en su propio cuerpo; el valor que se publica lo ata
+    ``test_the_launch_mode_ships_as_preview``.
+    """
+    monkeypatch.setenv("LAUNCH_MODE", "public")

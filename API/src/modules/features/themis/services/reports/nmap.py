@@ -7,8 +7,15 @@ import src.modules.system.config_reading as CR
 
 from ...model import Host, NmapScan, ScanType
 from ..analyzers import NmapAIWriter
-from src.modules.shared.report_theme import ColorType, ReportTheme
+from src.modules.tools.press import ColorType, ReportTheme, build_palette
 from .base import PrintingStrategy
+
+#: Identidad visual de Nmap: azul de seguridad de red. La configuración puede
+#: sobrescribir cualquiera de los seis; estos viajan con el código.
+_DEFAULT_PALETTE = {
+    "black": "#121212", "dark": "#01375A", "main": "#014F86",
+    "secondary": "#555B6E", "light": "#4A90E2", "white": "#E1E8F0",
+}
 
 
 @PrintingStrategy.register(ScanType.NMAP)
@@ -34,16 +41,9 @@ class NmapPrintingStrategy(PrintingStrategy):
         super().__init__(scan)
         self.writer = NmapAIWriter()
 
-        palette_config = CR.get_tool_color_palette(ScanType.NMAP)
-
-        self.color_palette = {
-            ColorType.BLACK: palette_config.get("black", "#121212"),
-            ColorType.DARK: palette_config.get("dark", "#01375A"),
-            ColorType.MAIN: palette_config.get("main", "#014F86"),
-            ColorType.SECONDARY: palette_config.get("secondary", "#555B6E"),
-            ColorType.LIGHT: palette_config.get("light", "#4A90E2"),
-            ColorType.WHITE: palette_config.get("white", "#E1E8F0"),
-        }
+        self.color_palette = build_palette(
+            CR.get_tool_color_palette(ScanType.NMAP), _DEFAULT_PALETTE
+        )
 
     def append_body(self, theme: ReportTheme, elements: list, ai_report: bool = False) -> None:
         """Generate the report body for Nmap scans.

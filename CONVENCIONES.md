@@ -50,6 +50,7 @@ lista, se adapta en el mismo cambio.
 | Un conjunto cerrado de valores | `StrEnum` | `model.py` si se persiste; si no, el servicio dueño del concepto |
 | Una excepción de dominio | clase `<Algo>Error` | `<módulo>/exceptions.py` |
 | Hablar con un proveedor de IA o de correo | estrategia | `tools/scribe/` o `tools/herald/` |
+| Un informe PDF nuevo | subclase de `PdfGenerator` | `<módulo>/services/reports.py`; la parte común ya está en `tools/press/` |
 | Un módulo de feature nuevo | paquete completo ([§ 3.1](#31-anatomía-de-un-módulo)) | `features/<nombre>/` + blueprint en `run.py` + `web/Caddyfile` + `web/app/vite.config.js` |
 | Un texto que ve el usuario (etiqueta, aviso, estado vacío, tooltip) | lenguaje del usuario; los enums, por un rótulo compartido | el `.vue` + `web/app/src/components/<módulo>/<tema>.js` ([§ 12](#12-textos-de-la-interfaz)) |
 
@@ -65,9 +66,8 @@ EllysiaServer/
 ├── README.md                 contrato público: endpoints, categorías de cola, puertos, config
 ├── docker-compose*.yml       perfiles dev / container y variantes de GPU
 ├── .env                      credenciales solo para docker-compose; la API no lo lee
-├── .github/workflows/        CI: tests, tests-postgres, lybra-bench, deploy, landing
+├── .github/workflows/        CI: tests, tests-postgres, lybra-bench, deploy
 ├── plans/                    intenciones y auditorías fechadas; NO describen el estado actual
-├── landing/                  web estática de marketing, sin build ni acoplamiento
 ├── web/
 │   ├── Caddyfile             sirve el SPA, proxya la API y gestiona TLS
 │   └── app/src/
@@ -117,6 +117,7 @@ EllysiaServer/
             │   └── services/
             ├── tools/            capacidades técnicas enchufables que no saben quién las usa
             │   ├── scribe/               generación IA (Ollama / OpenAI / Google)
+            │   ├── press/                composición de documentos PDF (PdfGenerator)
             │   └── herald/               envío de correo (SMTP)
             ├── users/            transversal: usuarios, auth, permisos, MFA
             ├── accounts/         transversal: planes, organizaciones, suscripciones, cuotas

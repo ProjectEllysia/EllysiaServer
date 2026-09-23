@@ -96,7 +96,7 @@
     <ul v-else class="rows">
       <li v-for="asset in visibleAssets" :key="asset.id" class="row" :class="{ 'row--selected': asset.id === selectedId }">
         <button class="row-select" :aria-pressed="asset.id === selectedId" @click="$emit('select', asset.id)">
-          <span class="pulse" :class="pulseClass(asset)" aria-hidden="true"></span>
+          <span class="pulse" :class="assetPresence(asset).pulseClass" aria-hidden="true"></span>
           <span class="row-text">
             <span class="row-host-line">
               <span class="row-host">{{ asset.hostname }}</span>
@@ -110,7 +110,7 @@
                 <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
               </svg>
             </span>
-            <span class="row-meta">{{ statusLabel(asset) }} · {{ timeAgo(asset.lastSeenAt) }}</span>
+            <span class="row-meta">{{ assetPresence(asset).label }} · {{ timeAgo(asset.lastSeenAt) }}</span>
             <!-- Tira aparte y con salto de línea propio: `.row-host` y
                  `.row-meta` son `nowrap` con elipsis y no sirven de molde. -->
             <span v-if="asset.tags?.length" class="row-tags">
@@ -164,7 +164,7 @@ import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import TagBadge from './TagBadge.vue'
 import { hueOf } from './tagColors'
-import { assetStatusLabel, timeAgo } from './format'
+import { assetPresence, timeAgo } from './format'
 
 const props = defineProps({
   assets: { type: Array, default: () => [] },
@@ -217,21 +217,6 @@ function toggleFilter(id) {
 
 function shownTags(asset) {
   return (asset.tags ?? []).slice(0, MAX_ROW_TAGS)
-}
-
-/**
- * Un activo que se apaga a propósito no está "caído": pintarlo en rojo sería
- * exactamente el ruido que su marca elimina. El estado es el mismo (`offline`),
- * solo cambia cómo se lee.
- */
-function statusLabel(asset) {
-  if (asset.status === 'offline' && asset.isPersistent === false) return 'Apagado'
-  return assetStatusLabel(asset.status)
-}
-
-function pulseClass(asset) {
-  if (asset.status === 'offline' && asset.isPersistent === false) return 'pulse--dormant'
-  return `pulse--${asset.status}`
 }
 </script>
 

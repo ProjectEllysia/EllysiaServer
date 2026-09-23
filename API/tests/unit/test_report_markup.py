@@ -13,7 +13,7 @@ import pytest
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import Paragraph
 
-from src.modules.shared.report_theme import safe_markup
+from src.modules.tools.press import safe_markup
 
 pytestmark = pytest.mark.unit
 

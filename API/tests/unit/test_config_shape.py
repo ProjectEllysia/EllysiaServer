@@ -61,7 +61,7 @@ def test_root_layout(raw_config):
 
 
 @pytest.mark.parametrize("branch, expected_children", [
-    ("general",        {"directories", "security", "registration"}),
+    ("general",        {"directories", "security", "registration", "launch", "logs"}),
     ("general.security", {"argon2", "jwt", "mfa"}),
     ("infrastructure", {"database", "redis", "taskqueue"}),
     ("tools",          {"scribe", "herald"}),
@@ -215,6 +215,8 @@ CONFIG_BLOCKS = [
     (CR.HeraldConfig, CR.herald_config),
     (CR.GeneralConfig, CR.general_config),
     (CR.RegistrationConfig, CR.registration_config),
+    (CR.LaunchConfig, CR.launch_config),
+    (CR.LogsConfig, CR.logs_config),
     (CR.Argon2Config, CR.argon2_config),
     (CR.JwtConfig, CR.jwt_config),
     (CR.MfaConfig, CR.mfa_config),
@@ -276,6 +278,8 @@ ENV_BACKED_PROPERTIES = [
      lambda: CR.JwtConfig(configured_access_token_expiry_minutes=30), 45.0),
     ("NVD_API_KEY", "del-entorno", "nvd_api_key",
      lambda: CR.KnowledgeBaseConfig(configured_nvd_api_key="del-fichero"), "del-entorno"),
+    ("LAUNCH_MODE", "public", "mode",
+     lambda: CR.LaunchConfig(configured_mode="preview"), CR.LaunchMode.PUBLIC),
 ]
 
 
@@ -464,3 +468,34 @@ def test_the_stats_period_ceiling_defaults_to_the_retention_window(raw_config):
         _value_at(raw_config, "features.hygeia.limits.maxStatsPeriodDays")
         == _value_at(raw_config, "features.hygeia.retentionDays")
     )
+
+
+def test_the_launch_mode_ships_as_preview(raw_config):
+    """``general.launch.mode`` tiene que viajar en ``preview`` al repositorio.
+
+    En ``preview`` quedan cerradas al público las funciones que todavía no
+    tienen cobertura legal: el alta, los precios, los escáneres de terceros,
+    las campañas, los buzones y la IA externa. Abrirlas es una decisión del
+    despliegue, que se toma en el panel de configuración o con ``LAUNCH_MODE``,
+    nunca un cambio que se cuela en un commit.
+
+    Hace falta atar el fichero por el mismo motivo que la defensa anti-SSRF: la
+    suite corre con ``LAUNCH_MODE=public`` (``tests/conftest.py``) para poder
+    probar esas funciones, así que pasaría en verde diga lo que diga el JSON.
+    """
+    assert _value_at(raw_config, "general.launch.mode") == "preview", (
+        "general.launch.mode no está en preview en el SecOpsConfig.json versionado: "
+        "eso abre al público funciones sin cobertura legal"
+    )
+
+
+def test_every_launch_surface_has_a_switch(raw_config):
+    """Cada miembro de ``LaunchSurface`` tiene su interruptor en el fichero.
+
+    Una superficie sin interruptor cuenta como cerrada, que es el fallo
+    seguro; pero en modo ``public`` se quedaría cerrada sin que el panel de
+    configuración ofreciera forma de abrirla.
+    """
+    switches = _value_at(raw_config, "general.launch.surfaces")
+
+    assert set(switches) == {surface.value for surface in CR.LaunchSurface}

@@ -42,7 +42,7 @@ from src.modules.tools.herald import (
     default_brand,
     render_email,
 )
-from src.modules.users import User
+from src.modules.users import User, UserManager
 from src.modules.system.taskqueue import ITaskQueue, TaskTrackingMixin, job_context
 from src.modules.system.taskqueue.dispatcher import OutboxDispatcher
 from src.modules.system.taskqueue.outbox import build_dispatch
@@ -273,7 +273,16 @@ class CampaignManager(TaskTrackingMixin):
         Lanza una campaña: congela el quiz (snapshot), genera un token
         opaco por destinatario y encola el envío asíncrono. No envía nada
         de forma síncrona — eso lo hace el worker vía TaskQueue.
+
+        Enviar correo a destinatarios externos es la superficie ``campaigns``
+        de ``general.launch``: se comprueba antes que nada, porque con la
+        superficie cerrada no tiene sentido validar la campaña. El envío ya
+        encolado no la vuelve a mirar; cerrarla no deja una campaña a medias.
+
+        Raises:
+            SurfaceDisabledError: Si las campañas están cerradas para el usuario.
         """
+        UserManager().assert_launch_surface_enabled(CR.LaunchSurface.CAMPAIGNS, self.user.id)
         campaign = self._assert_campaign_ownership(campaign_id)
         if campaign.status != "draft":
             raise CampaignAlreadyLaunchedError(campaign_id, campaign.status)

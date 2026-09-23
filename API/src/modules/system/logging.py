@@ -14,6 +14,7 @@ root logger configurado aquí.
 """
 
 import logging
+import logging.handlers
 
 from pathlib import Path
 
@@ -28,6 +29,10 @@ _NOISY_LOGGERS = (
     "redis", "rq", "rq.scheduler",
 )
 
+#: Nombre del registro de actividad dentro del directorio de logs. Lo leen
+#: también el lector del panel y la retención nocturna.
+LOG_FILE_NAME = "secops.log"
+
 # Guard de idempotencia: evita duplicar handlers si se llama más de una vez.
 _configured = False
 
@@ -36,7 +41,7 @@ def configure_logging(level: int | None = None) -> None:
     """
     Configura el root logger del proceso (idempotente).
 
-    Instala un handler de consola y otro de fichero (``secops.log``) con un
+    Instala un handler de consola y otro de fichero (``LOG_FILE_NAME``) con un
     formato común, fija el nivel global y silencia los loggers ruidosos de
     terceros. Debe llamarse una vez al arrancar la API (``create_app``) y el
     worker de tareas.
@@ -64,7 +69,11 @@ def configure_logging(level: int | None = None) -> None:
 
         log_dir = Path(CR.get_directory_of(CR.DirectoryType.LOG)).resolve()
         log_dir.mkdir(parents=True, exist_ok=True)
-        file_handler = logging.FileHandler(log_dir / "secops.log")
+        # WatchedFileHandler y no FileHandler: la API y el worker escriben en el
+        # mismo fichero, y la retención nocturna lo archiva renombrándolo. Este
+        # handler detecta el cambio y abre uno nuevo; uno normal seguiría
+        # escribiendo en el fichero ya archivado.
+        file_handler = logging.handlers.WatchedFileHandler(log_dir / LOG_FILE_NAME, encoding="utf-8")
         file_handler.setFormatter(formatter)
         root.addHandler(file_handler)
 

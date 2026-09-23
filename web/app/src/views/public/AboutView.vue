@@ -1,31 +1,46 @@
 <template>
-  <InfoPage eyebrow="Ellysia" title="Sobre nosotros">
+  <InfoPage eyebrow="Ellysia" title="Sobre Ellysia">
     <p>
-      Ellysia reúne cuatro herramientas de operaciones de seguridad bajo un mismo cielo,
-      pensadas para las pequeñas y medianas empresas que necesitan protegerse sin poder
-      permitirse un equipo de seguridad completo.
+      Ellysia es un <strong>proyecto personal</strong>: un banco de pruebas donde su autor construye y
+      experimenta con herramientas de ciberseguridad. <strong>No es un servicio ni un producto
+      comercial.</strong> No se ofrecen cuentas, no se contrata nada y no hay ninguna empresa detrás.
     </p>
 
-    <h2>Las cuatro herramientas</h2>
+    <h2>Qué contiene</h2>
     <ul>
-      <li><strong>Themis</strong> — detección de vulnerabilidades con motor propio (Lybra) y los escáneres clásicos como testigos.</li>
-      <li><strong>Aegis</strong> — formación de concienciación generada por IA, enviada y demostrada con campañas.</li>
-      <li><strong>Iris</strong> — análisis de cabeceras de correo contra el phishing, con veredicto explicado.</li>
-      <li><strong>Acheron</strong> — bóveda cifrada en tu navegador: la llave nunca viaja al servidor.</li>
+      <li><strong>Themis</strong> — detección de vulnerabilidades con un motor propio (Lybra) y escáneres clásicos como contraste.</li>
+      <li><strong>Aegis</strong> — formaciones de concienciación en seguridad generadas con inteligencia artificial.</li>
+      <li><strong>Iris</strong> — análisis de correos electrónicos para detectar fraudes (phishing), con el veredicto explicado.</li>
+      <li><strong>Acheron</strong> — caja fuerte de contraseñas cifrada en el navegador: la llave nunca viaja al servidor.</li>
+      <li><strong>Hygeia</strong> — vigilancia del estado de servidores y equipos.</li>
     </ul>
 
-    <h2>Nuestra idea</h2>
+    <h2>La idea de fondo</h2>
     <p>
-      Creemos que la seguridad no debería ser un privilegio de las grandes empresas. Ellysia
-      nace para dar a quien lleva la seguridad de una PYME algo entre no hacer nada y contratar
-      a un consultor: en su idioma, a un precio razonable y sin la fricción de un despliegue
-      empresarial.
+      La motivación es aprender y explorar qué haría falta para que protegerse no fuera un privilegio
+      de quien puede pagar un equipo de seguridad. Si Ellysia llegara a ofrecerse algún día a otras
+      personas, esta página y las condiciones legales cambiarían antes.
     </p>
 
+    <h2>Fuentes de datos</h2>
+    <p>
+      La detección de vulnerabilidades usa catálogos públicos. Ninguno de sus responsables respalda
+      Ellysia:
+    </p>
+    <ul>
+      <li>
+        <strong>NVD</strong> (National Vulnerability Database, del NIST). Este producto usa la API de la NVD,
+        pero no está respaldado ni certificado por la NVD. <em lang="en">This product uses the NVD API but is
+        not endorsed or certified by the NVD.</em>
+      </li>
+      <li><strong>KEV</strong> — catálogo de vulnerabilidades explotadas conocidas de CISA (EE. UU.).</li>
+      <li><strong>EPSS</strong> — puntuaciones de probabilidad de explotación de FIRST (first.org/epss).</li>
+    </ul>
+
     <p class="note">
-      Ellysia es un proyecto en construcción. Si tienes comentarios o quieres seguir su
-      evolución, el código está disponible en
-      <a href="https://github.com/ProjectEllysia/Ellysia" target="_blank" rel="noopener noreferrer">GitHub</a>.
+      El código se puede consultar en
+      <a href="https://github.com/ProjectEllysia/EllysiaServer" target="_blank" rel="noopener noreferrer">GitHub</a>,
+      con todos los derechos reservados.
     </p>
   </InfoPage>
 </template>

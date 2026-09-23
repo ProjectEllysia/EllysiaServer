@@ -125,8 +125,13 @@ def _build_policy(spec: Optional[Mapping[str, Any]]) -> ScoringPolicy:
 class IrisReplayManager:
     """Compara la política vigente (o una dada) con una candidata."""
 
-    def run(self, candidate_spec: Mapping[str, Any], baseline_spec: Optional[Mapping[str, Any]] = None,
-            messages: Optional[List[Mapping[str, Any]]] = None, include_corpus: bool = True) -> Dict[str, Any]:
+    def run(
+        self,
+        candidate_spec: Mapping[str, Any],
+        baseline_spec: Optional[Mapping[str, Any]] = None,
+        messages: Optional[List[Mapping[str, Any]]] = None,
+        include_corpus: bool = True
+    ) -> Dict[str, Any]:
         """Ejecuta la simulación y devuelve el informe de replay.
 
         Args:

@@ -20,8 +20,8 @@
         <div class="footer-col">
           <h3 class="footer-heading">Ellysia</h3>
           <ul>
-            <li><router-link to="/planes">Planes</router-link></li>
-            <li><router-link to="/sobre">Sobre nosotros</router-link></li>
+            <li v-if="canSeePricing"><router-link to="/planes">Planes</router-link></li>
+            <li><router-link to="/sobre">Sobre Ellysia</router-link></li>
             <li>
               <a href="https://github.com/ProjectEllysia/Ellysia" target="_blank" rel="noopener noreferrer">Código ↗</a>
             </li>
@@ -52,13 +52,19 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import ellysiaIcon from '@/assets/images/ellysia/Ellysia-BgN.png'
 import { useAppVersion } from '@/composables/useAppVersion'
+import { useLaunch } from '@/composables/useLaunch'
 
 const year = new Date().getFullYear()
 // Compartida con la portada: antes cada uno pedía la suya y la misma página
 // gastaba dos peticiones para pintar el mismo número.
 const { version: appVersion } = useAppVersion()
+
+// La tabla de precios es la superficie `pricing` de general.launch.
+const { isSurfaceEnabled } = useLaunch()
+const canSeePricing = computed(() => isSurfaceEnabled('pricing'))
 </script>
 
 <style scoped>
