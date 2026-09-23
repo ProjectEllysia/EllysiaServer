@@ -78,7 +78,8 @@ logger = logging.getLogger(__name__)
 # (HSTS sólo sobre HTTPS, sin evaluar redirecciones, valores y fugas).
 # checks-22: la familia de Joomla (copias de configuración, instalador,
 # panel y el confirmador de CVE-2023-23752).
-CHECKS_FEED_VERSION = "lybra-checks-22"
+# checks-23: las familias de WordPress y Drupal.
+CHECKS_FEED_VERSION = "lybra-checks-23"
 # Quality of Detection for a finding a check actively confirmed, as opposed to
 # one merely inferred from a version.
 QOD_CONFIRMED = 99

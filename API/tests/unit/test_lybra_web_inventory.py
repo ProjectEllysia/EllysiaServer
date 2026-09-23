@@ -128,3 +128,25 @@ def test_each_component_is_correlated_as_a_service_of_its_port():
     assert len({compute_dedup_key({**f, "host_id": 1}) for f in inventory}) == 2
     vulnerable = [f for f in findings if f.get("cve_ids")]
     assert [(f["cve_ids"], f["port"]) for f in vulnerable] == [(["CVE-2023-23752"], 443)]
+
+
+# ============================================================ plugins de WordPress
+
+WORDPRESS_HOME = """<html><head>
+<meta name="generator" content="WordPress 6.5.2">
+<link rel="stylesheet" href="/wp-content/plugins/contact-form-7/includes/css/styles.css?ver=5.9.3">
+<script src="/wp-content/plugins/elementor/assets/js/frontend.min.js"></script>
+</head><body>wp-content</body></html>"""
+
+
+def test_wordpress_plugins_are_inventoried_with_their_version():
+    fetch_path, requested = _fetcher({
+        "/wp-content/plugins/elementor/readme.txt": "=== Elementor ===\nStable tag: 3.21.0\n"})
+    response = _response(WORDPRESS_HOME)
+
+    components = dict(web_components(fingerprint_http(response), response.body, fetch_path))
+
+    assert components["contact-form-7"] == "5.9.3"            # del ?ver= del asset
+    assert components["elementor"] == "3.21.0"                # del readme.txt
+    assert requested == ["/wp-content/plugins/elementor/readme.txt"]
+
