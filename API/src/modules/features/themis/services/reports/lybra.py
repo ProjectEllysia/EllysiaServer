@@ -22,7 +22,7 @@ class LybraPrintingStrategy(FindingsPrintingStrategy):
     _HEADER_TITLE = "Informe del Motor Lybra"
     _REPORT_TITLE = "Veredicto del Motor Lybra"
     _FILENAME_SUFFIX = "_Lybra.pdf"
-    _PICTURE_BASE = "Themis-Green-Bg"
+    _PICTURE_BASE = "Themis-Turqoise-BgW"
     _DEFAULT_PALETTE = {
         "black": "#1A2410", "dark": "#4A6132", "main": "#7CA163",
         "secondary": "#A8C98F", "light": "#D4E8C4", "white": "#F3F8EE",
