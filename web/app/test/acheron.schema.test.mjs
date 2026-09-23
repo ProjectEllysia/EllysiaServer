@@ -13,7 +13,7 @@
  *
  * Sin este test la separación sería un riesgo neto en lugar de una mejora.
  *
- * El esquema no vive aquí: llega de `@projectellysia/acheron-core-web`, que lo
+ * El esquema no vive aquí: llega de `@projectellysia/acheron-core-js`, que lo
  * genera desde el catálogo de `AcheronCore` y lo verifica en su propia suite. Lo que
  * queda por comprobar en la SPA es lo que solo la SPA tiene: que sus etiquetas
  * sigan describiendo los campos que el paquete declara.
@@ -21,7 +21,7 @@
  *   node web/app/test/acheron.schema.test.mjs
  */
 
-import { STORABLE_SCHEMA } from '@projectellysia/acheron-core-web'
+import { STORABLE_SCHEMA } from '@projectellysia/acheron-core-js'
 import { STORABLE_LABELS } from '../src/components/acheron/storableLabels.js'
 import { STORABLE_TYPES } from '../src/components/acheron/storableTypes.js'
 

@@ -1,0 +1,13 @@
+# Excepción acotada a la política de antigüedad mínima de pnpm, que rechaza
+# paquetes publicados hace menos de 24 horas.
+#
+# Esa política defiende contra una versión maliciosa recién publicada de un
+# paquete ajeno, que es un riesgo real y por eso no se desactiva en general.
+# Aquí no aplica: `acheron-core-js` lo publica ProjectEllysia desde AcheronCore,
+# con su CI, y la 2.4.0 es el renombrado del motor que ya usábamos. El publicador
+# somos nosotros.
+#
+# La excepción va fijada a una VERSIÓN EXACTA, no al paquete: la siguiente
+# volverá a esperar sus 24 horas, y esta línea caduca sola en el próximo tag.
+minimumReleaseAgeExclude:
+  - '@projectellysia/acheron-core-js@2.4.0'

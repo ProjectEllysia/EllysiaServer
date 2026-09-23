@@ -1,6 +1,6 @@
 /**
  * Vista compuesta de los tipos de storable para la interfaz: une el contrato
- * de datos (`STORABLE_SCHEMA` de `@projectellysia/acheron-core-web`, generado
+ * de datos (`STORABLE_SCHEMA` de `@projectellysia/acheron-core-js`, generado
  * desde el catálogo de `AcheronCore`) con su presentación (`storableLabels.js`).
  *
  * Las dos mitades van separadas porque el esquema se publica con el paquete de
@@ -13,7 +13,7 @@
  * `acheron.schema.test.mjs` verifica que las dos mitades siguen hablando de
  * los mismos campos.
  */
-import { STORABLE_SCHEMA } from '@projectellysia/acheron-core-web'
+import { STORABLE_SCHEMA } from '@projectellysia/acheron-core-js'
 import { STORABLE_LABELS } from './storableLabels.js'
 
 /**

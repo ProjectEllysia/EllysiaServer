@@ -459,7 +459,7 @@ const steps = [
  * Las objeciones que de verdad frenan una decisión, respondidas sin adornos.
  *
  * La de Acheron dice que no hay recuperación porque no la hay: el servidor es
- * zero-knowledge (`@projectellysia/acheron-core-web`), la clave se deriva en el navegador
+ * zero-knowledge (`@projectellysia/acheron-core-js`), la clave se deriva en el navegador
  * y lo que se guarda es la bóveda ya cifrada. Suavizarlo aquí sería vender una
  * red de seguridad inexistente a quien va a guardar sus credenciales.
  */

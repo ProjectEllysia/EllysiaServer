@@ -22,7 +22,7 @@
     "test:fonts": "node test/selfHostedFonts.test.mjs"
   },
   "dependencies": {
-    "@projectellysia/acheron-core-web": "2.2.0",
+    "@projectellysia/acheron-core-js": "2.4.0",
     "pinia": "^3.0.4",
     "qrcode": "^1.5.4",
     "vue": "^3.5.34",
