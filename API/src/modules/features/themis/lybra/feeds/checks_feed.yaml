@@ -8,7 +8,7 @@
 # feedVersion sube cuando el feed gana una familia nueva o un protocolo nuevo
 # bajo una existente; el arreglo de un check ya presente sube el 'version' de
 # ese check, no esta cadena. Ver CHECKS_FEED_VERSION en checks.py.
-feedVersion: lybra-checks-24
+feedVersion: lybra-checks-25
 checks:
   - id: git-config-exposure
     version: 1
@@ -980,6 +980,18 @@ checks:
     mode: safe
     finding:
       title: 'DNS: resolutor abierto (utilizable como amplificador contra terceros)'
+      qod: 99
+      confirmed: true
+  - id: tcp-timestamps-enabled
+    version: 1
+    type: script
+    script: tcp-timestamps-enabled
+    category: network_config
+    severity: LOW
+    service: tcp
+    mode: safe
+    finding:
+      title: 'TCP: marcas de tiempo activas (permiten estimar el tiempo encendido del equipo)'
       qod: 99
       confirmed: true
   - id: ike-weak-transform

@@ -413,3 +413,85 @@ def test_a_sweep_with_too_many_open_ports_is_implausible(open_count, probed, exp
     from src.modules.features.themis.lybra import is_sweep_implausible
 
     assert is_sweep_implausible(open_count, probed) is expected
+
+
+# ============================================= marcas de tiempo TCP (TCP_INFO)
+
+
+class _FakeTcpSocket:
+    """Un socket cuyo ``getsockopt`` devuelve un ``tcp_info`` con la bandera pedida."""
+
+    def __init__(self, timestamps: bool):
+        # tcpi_options es el sexto byte (índice 5); el bit 0x01 son las marcas.
+        self._options = 0x01 if timestamps else 0x00
+
+    def getsockopt(self, level, optname, buflen):
+        return bytes([0, 0, 0, 0, 0, self._options])[:buflen]
+
+    def close(self):
+        pass
+
+
+def test_tcp_timestamps_are_read_from_tcp_info(monkeypatch):
+    import socket as socket_module
+    from src.modules.features.themis.lybra.transport import tcp_timestamps_enabled
+
+    monkeypatch.setattr(socket_module, "TCP_INFO", 11, raising=False)
+
+    assert tcp_timestamps_enabled(
+        "h", 80, connect=lambda addr, timeout: _FakeTcpSocket(True)) is True
+    assert tcp_timestamps_enabled(
+        "h", 80, connect=lambda addr, timeout: _FakeTcpSocket(False)) is False
+
+
+def test_tcp_timestamps_unknown_when_the_connection_fails(monkeypatch):
+    import socket as socket_module
+    from src.modules.features.themis.lybra.transport import tcp_timestamps_enabled
+
+    monkeypatch.setattr(socket_module, "TCP_INFO", 11, raising=False)
+
+    def boom(addr, timeout):
+        raise OSError("rechazada")
+
+    assert tcp_timestamps_enabled("h", 80, connect=boom) is None
+
+
+def test_tcp_timestamps_unknown_off_linux(monkeypatch):
+    import socket as socket_module
+    from src.modules.features.themis.lybra.transport import tcp_timestamps_enabled
+
+    monkeypatch.delattr(socket_module, "TCP_INFO", raising=False)
+
+    # Sin TCP_INFO (otra plataforma) no se conecta siquiera.
+    assert tcp_timestamps_enabled(
+        "h", 80, connect=lambda a, t: pytest.fail("no debería conectar")) is None
+
+
+def test_the_tcp_timestamps_plugin_reports_once_per_host():
+    from src.modules.features.themis.lybra.checks import ScriptContext, Service
+    from src.modules.features.themis.lybra.script_checks import (
+        TcpTimestampsPlugin,
+        _TcpTimestampsCache,
+    )
+
+    import socket as socket_module
+    original = getattr(socket_module, "TCP_INFO", None)
+    socket_module.TCP_INFO = 11
+    try:
+        cache = _TcpTimestampsCache(connect=lambda addr, timeout: _FakeTcpSocket(True))
+        plugin = TcpTimestampsPlugin(cache)
+        port80 = Service(80, "tcp", "http", None, None, None)
+        port443 = Service(443, "tcp", "https", None, None, None)
+
+        # El mismo host en dos puertos: sólo el primero dispara.
+        assert plugin.run(ScriptContext(target="h", service=port80)) is True
+        assert plugin.run(ScriptContext(target="h", service=port443)) is False
+        # Otro host vuelve a disparar.
+        assert plugin.run(ScriptContext(target="otro", service=port80)) is True
+        assert plugin.applies(port80) is True
+        assert plugin.applies(Service(53, "udp", "dns", None, None, None)) is False
+    finally:
+        if original is None:
+            del socket_module.TCP_INFO
+        else:
+            socket_module.TCP_INFO = original
