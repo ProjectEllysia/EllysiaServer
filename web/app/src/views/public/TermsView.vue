@@ -20,8 +20,9 @@
     </p>
 
     <p class="note">
-      Este documento es preliminar y se completará antes del lanzamiento comercial. No constituye
-      todavía un acuerdo legal vinculante.
+      Ellysia está en vista previa y este documento es preliminar: se sustituirá por los términos
+      completos antes de abrir el servicio al público. No constituye todavía un acuerdo legal
+      vinculante.
     </p>
   </InfoPage>
 </template>
