@@ -41,6 +41,12 @@ from .backports import is_unverified_distro_package
 #: señal que :func:`score_finding` lee, y el motor la importa de aquí.
 CONDITIONAL_VERSION_CHECK_ID = "lybra:version-match-conditional@1"
 
+#: El ``vhost`` de un hallazgo sobre el sitio que la IP sirve a quien no dice
+#: nombre (sin SNI ni ``Host``). Cuando la IP aloja sitios con nombre, el
+#: certificado de ese sitio por defecto no es el que ve ningún visitante real:
+#: lo que dice es cierto, pero pesa poco, y :func:`score_finding` lo deja en LOW.
+DEFAULT_SITE_VHOST = "(sitio por defecto)"
+
 # The severity ladder, kept in one place so scoring and any future consumer agree
 # on the ordering.
 PRIORITY_LADDER = ["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"]
@@ -92,6 +98,12 @@ def compute_dedup_key(finding: dict) -> str:
     else:
         identity = "cat:" + str(finding.get("category"))
     material = f"{host}|{port}|{identity}"
+    if finding.get("vhost"):
+        # Dos sitios detrás del mismo puerto son dos superficies: el mismo
+        # check sobre cada uno es un hallazgo distinto. Sólo se añade cuando
+        # hay sitio, para que un hallazgo sin nombre conserve la clave que ya
+        # tiene almacenada.
+        material += "|vhost:" + finding["vhost"]
     protocol = (finding.get("protocol") or "tcp").lower()
     if protocol != "tcp":
         # La sonda UDP puede abrir el mismo número de puerto que ya
@@ -463,6 +475,9 @@ def score_finding(finding: dict, exposure: str) -> str:
       la configuración del servidor (``check_id`` =
       :data:`CONDITIONAL_VERSION_CHECK_ID`) se limita a LOW: Lybra no puede
       ver esa configuración desde fuera.
+    * Un hallazgo sobre el sitio por defecto de una IP que aloja sitios con
+      nombre (``vhost`` = :data:`DEFAULT_SITE_VHOST`) se limita a LOW: es
+      cierto para quien conecta sin nombre, pero ningún visitante real lo ve.
     * A private-LAN target caps the priority at HIGH, since it is not exposed to
       the internet.
 
@@ -491,6 +506,9 @@ def score_finding(finding: dict, exposure: str) -> str:
         band = min(band, PRIORITY_LADDER.index("MEDIUM"))
 
     if finding.get("check_id") == CONDITIONAL_VERSION_CHECK_ID:
+        band = min(band, PRIORITY_LADDER.index("LOW"))
+
+    if finding.get("vhost") == DEFAULT_SITE_VHOST:
         band = min(band, PRIORITY_LADDER.index("LOW"))
 
     if exposure == "private":

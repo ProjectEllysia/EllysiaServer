@@ -1021,6 +1021,12 @@ class LybraEngineConfig:  # pylint: disable=too-many-instance-attributes
     ninguno responde, el objetivo bloqueó al escáner a mitad de camino y el
     escaneo se marca como parcial. A cero, la comprobación no se hace."""
 
+    max_virtual_hosts: int = 10
+    """Sitios con nombre que se auditan, como mucho, en un escaneo por IP. Los
+    nombres salen de los certificados que sirve la IP y de su DNS inverso, y
+    sólo cuentan los que resuelven de vuelta a ella. Cada uno repite los checks
+    HTTP y TLS, así que es el dial del coste. A cero, no se buscan."""
+
 
 @config_block("features.themis.scanners.lybra.ingest")
 @dataclass(frozen=True)

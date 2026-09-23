@@ -213,6 +213,12 @@ from .exporters import (
     to_ocsf,
 )
 from .planner import CheckPlanner, KnownService
+from .virtual_hosts import (
+    DEFAULT_SITE_CERTIFICATE_CHECKS,
+    mark_default_site_certificates,
+    select_site_names,
+    site_finding,
+)
 from .transport import (
     AsyncConnectScanner,
     PortOutcome,
@@ -393,6 +399,10 @@ __all__ = [
     "services_from_discovered_ports",
     "is_sweep_implausible",
     "pinned_resolution",
+    "DEFAULT_SITE_CERTIFICATE_CHECKS",
+    "mark_default_site_certificates",
+    "select_site_names",
+    "site_finding",
     "DEFAULT_PORTS",
     "UDP_PROBES",
     "WELL_KNOWN_PORTS",

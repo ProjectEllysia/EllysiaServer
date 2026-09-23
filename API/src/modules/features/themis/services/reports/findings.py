@@ -115,14 +115,19 @@ class FindingsPrintingStrategy(PrintingStrategy):
             "epss_score": row.epss_score, "in_kev": row.in_kev, "qod": row.qod, "confirmed": row.confirmed,
             "exploit_maturity": row.exploit_maturity, "state": row.state,
             "source": row.source, "state": row.state, "cpe_resolved": row.cpe_resolved,
-            "required_os": row.required_os, "check_id": row.check_id,
+            "required_os": row.required_os, "check_id": row.check_id, "vhost": row.vhost,
         } for row in rows]
+        # Los sitios con nombre que sirve la IP no son riesgos: van en su
+        # propia sección, no entre las fichas ni en los recuentos.
+        sites = [finding for finding in findings if finding["category"] == "virtual_host"]
+        findings = [finding for finding in findings if finding["category"] != "virtual_host"]
         for finding in findings:
             finding["priority"] = score_finding(finding, exposure)
             finding["is_unverified_distro_package"] = is_unverified_distro_package(finding)
         enrich_with_cve_context(findings)
 
         self._append_finding_header(theme, elements, findings, exposure)
+        _append_sites_section(theme, elements, sites)
 
         if findings:
             self._append_finding_summary(theme, elements, findings)
@@ -606,6 +611,8 @@ class FindingsPrintingStrategy(PrintingStrategy):
         details = []
         if finding.get("port"):
             details.append(["Puerto/servicio:", f"{finding.get('service') or '?'}:{finding['port']}"])
+        if finding.get("vhost"):
+            details.append(["Sitio:", finding["vhost"]])
         if finding.get("cve_ids"):
             details.append(["CVE:", ", ".join(finding["cve_ids"])])
         if finding.get("cwe_ids"):
@@ -679,6 +686,30 @@ class FindingsPrintingStrategy(PrintingStrategy):
 
     def get_report_title(self) -> str:
         return self._REPORT_TITLE
+
+
+def _append_sites_section(theme: "ReportTheme", elements: list, sites: list) -> None:
+    """La sección «Sitios detectados en esta IP», si el escaneo descubrió alguno.
+
+    Un escaneo por IP audita además los sitios con nombre que la propia IP
+    delata (sus certificados, su DNS inverso). El lector necesita saber cuáles
+    son y de dónde salió cada nombre para leer la fila «Sitio» de las fichas.
+
+    Args:
+        theme: El tema del informe.
+        elements: La lista de elementos del documento; se amplía en sitio.
+        sites: Los avisos ``virtual_host`` del escaneo; vacía, no se añade nada.
+    """
+    if not sites:
+        return
+    elements.append(Paragraph("Sitios detectados en esta IP", theme.subtitle))
+    elements.append(Spacer(1, 0.1 * inch))
+    elements.append(Paragraph(
+        "Además del sitio por defecto de la IP, se auditaron por separado estos "
+        "sitios con nombre, que resuelven a la misma IP:", theme.body))
+    for site in sites:
+        elements.append(Paragraph(f"• {site['title']}", theme.body))
+    elements.append(Spacer(1, 0.3 * inch))
 
 
 def _unverified_warning(findings: list) -> Optional[str]:
