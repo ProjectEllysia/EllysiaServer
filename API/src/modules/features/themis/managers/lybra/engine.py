@@ -389,9 +389,15 @@ class LybraEngineManager(ScanManager):
 
         # Los `Service` viajan como dicts, no como dataclasses: la outbox
         # guarda los argumentos del job en JSONB, mientras que RQ los picklea.
-        # `execute_lybra_scan` los rehidrata al otro lado.
+        # `execute_lybra_scan` los rehidrata al otro lado. Se excluye
+        # `components`: es salida del fingerprinting —el motor la rellena en el
+        # worker, nadie la pasa como entrada—, así que serializarla mandaría
+        # siempre una lista vacía y, al volver como `[]` en vez de `()`,
+        # rompería la simetría de ida y vuelta que este payload garantiza.
         services_payload = (
-            None if services is None else [asdict(service) for service in services]
+            None if services is None
+            else [{key: value for key, value in asdict(service).items() if key != "components"}
+                  for service in services]
         )
 
         scan = self._create_scan_and_dispatch(
