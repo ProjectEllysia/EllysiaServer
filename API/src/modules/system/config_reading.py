@@ -1557,6 +1557,22 @@ class LaunchConfig:
         return switch_value if isinstance(switch_value, bool) else _as_bool(str(switch_value))
 
 
+    def to_public_dict(self) -> dict:
+        """Lo que puede saber el público sobre qué funciones están abiertas.
+
+        Es la respuesta de ``GET /system/launch``: el modo y el estado ya
+        resuelto de cada superficie, sin ningún otro dato de la configuración.
+        No aplica ninguna exención de rol: describe lo que ve un visitante.
+
+        Returns:
+            dict: ``{"mode": "preview" | "public", "surfaces": {valor: bool}}``,
+                con una entrada por cada miembro de ``LaunchSurface``.
+        """
+        return {
+            "mode": self.mode.value,
+            "surfaces": {surface.value: self.is_surface_enabled(surface) for surface in LaunchSurface},
+        }
+
 def launch_config() -> LaunchConfig:
     return load_block(LaunchConfig)
 

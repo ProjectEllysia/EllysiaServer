@@ -7,6 +7,18 @@ class HelloResponseSchema(Schema):
     version = fields.String()
 
 
+
+class LaunchStateSchema(Schema):
+    """Qué funciones de la instalación están abiertas al público.
+
+    ``mode`` es ``"preview"`` (vista previa: todo cerrado) o ``"public"``;
+    ``surfaces`` trae, por cada superficie de ``LaunchSurface``, si está
+    abierta ahora mismo.
+    """
+
+    mode = fields.String(required=True, validate=validate.OneOf(["preview", "public"]))
+    surfaces = fields.Dict(keys=fields.String(), values=fields.Boolean(), required=True)
+
 class SystemInfoSchema(Schema):
     name = fields.String()
     version = fields.String()

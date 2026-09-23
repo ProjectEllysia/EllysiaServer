@@ -107,3 +107,21 @@ def test_assert_surface_enabled_lets_an_exempt_caller_through(monkeypatch):
     monkeypatch.setattr(CR, "launch_config", lambda: CR.LaunchConfig(configured_mode="preview"))
 
     assert_surface_enabled(CR.LaunchSurface.CAMPAIGNS, is_exempt=True)
+
+
+def test_the_public_dict_has_every_surface_already_resolved():
+    config = CR.LaunchConfig(configured_mode="public", surfaces={**_ALL_OPEN, "campaigns": False})
+
+    public_state = config.to_public_dict()
+
+    assert public_state["mode"] == "public"
+    assert set(public_state["surfaces"]) == {surface.value for surface in CR.LaunchSurface}
+    assert public_state["surfaces"]["campaigns"] is False
+    assert public_state["surfaces"]["registration"] is True
+
+
+def test_the_public_dict_in_preview_reports_everything_closed():
+    public_state = CR.LaunchConfig(configured_mode="preview", surfaces=_ALL_OPEN).to_public_dict()
+
+    assert public_state["mode"] == "preview"
+    assert not any(public_state["surfaces"].values())
