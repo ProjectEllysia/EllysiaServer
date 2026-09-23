@@ -1,5 +1,5 @@
 {
-  "feedVersion": "lybra-aliases-4",
+  "feedVersion": "lybra-aliases-5",
   "aliases": [
     { "match": "apache httpd",        "vendor": "apache",             "product": "http_server" },
     { "match": "apache",              "vendor": "apache",             "product": "http_server" },
@@ -16,6 +16,16 @@
     { "match": "exim smtpd",          "vendor": "exim",               "product": "exim" },
     { "match": "microsoft sql server", "vendor": "microsoft",         "product": "sql_server" },
     { "match": "postgresql",          "vendor": "postgresql",         "product": "postgresql" },
+
+    { "match": "joomla",              "vendor": "joomla",             "product": "joomla\\!" },
+    { "match": "wordpress",           "vendor": "wordpress",          "product": "wordpress" },
+    { "match": "drupal",              "vendor": "drupal",             "product": "drupal" },
+    { "match": "jquery",              "vendor": "jquery",             "product": "jquery" },
+    { "match": "jquery ui",           "vendor": "jqueryui",           "product": "jquery_ui" },
+    { "match": "bootstrap",           "vendor": "getbootstrap",       "product": "bootstrap" },
+    { "match": "angularjs",           "vendor": "angularjs",          "product": "angular.js" },
+    { "match": "lodash",              "vendor": "lodash",             "product": "lodash" },
+    { "match": "moment.js",           "vendor": "momentjs",           "product": "moment" },
 
     { "match": "git",                 "vendor": "git-scm",            "product": "git" },
     { "match": "vlc media player",    "vendor": "videolan",           "product": "vlc_media_player" },

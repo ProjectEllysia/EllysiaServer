@@ -43,7 +43,7 @@ import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Pattern, Tuple
+from typing import Callable, Dict, List, Optional, Pattern, Tuple
 
 from ..checks import HttpProbe, Response, is_http_service
 from .dispatch import Dissector, DissectorResult, QOD_FINGERPRINT
@@ -75,6 +75,8 @@ class HttpFingerprint:  # pylint: disable=too-many-instance-attributes
             delante de un servidor distinto.
         technologies: A tuple of technology names matched by signature.
         confidence: A 0.0-1.0 self-assessed confidence in the identification.
+        hits: Las firmas del feed que casaron, con la versión que aportó cada
+            una si aportó alguna. Por defecto vacía.
         version_source: De qué nivel de la cascada salió la versión (uno de
             :data:`VERSION_SOURCES`), o ``None`` si no hay versión. Es la
             procedencia, no un adorno: una versión leída de un ``Server``
@@ -91,6 +93,7 @@ class HttpFingerprint:  # pylint: disable=too-many-instance-attributes
     version_source: Optional[str] = None
     favicon_catalog_hash: Optional[int] = None
     layers: Tuple[ServiceLayer, ...] = ()
+    hits: tuple = ()
 
 
 @dataclass(frozen=True)
@@ -204,6 +207,44 @@ class TechMatcher:
 
 
 @dataclass(frozen=True)
+class VersionProbe:
+    """Un fichero que delata la versión de una tecnología ya reconocida.
+
+    Joomla 4 y 5 quitan la versión de la etiqueta *generator*, pero la dejan
+    en el manifiesto que publican en una ruta fija. Estas sondas sólo se piden
+    cuando la firma ya ha casado y no trajo versión: una o dos peticiones
+    dirigidas por tecnología, no un recorrido a ciegas.
+
+    Attributes:
+        path: La ruta del fichero, desde la raíz del sitio (empieza por ``/``).
+        pattern: Expresión regular con un grupo ``version``, evaluada sobre el
+            cuerpo del fichero.
+    """
+    path: str
+    pattern: Pattern
+
+
+@dataclass(frozen=True)
+class JavascriptLibrary:
+    """Una librería JavaScript que se reconoce por el fichero que la carga.
+
+    La versión se lee de la URL del ``<script src>`` cuando la trae (una ruta
+    de CDN con el número, o un ``?ver=``); si no, de la cabecera de licencia
+    del propio fichero (``/*! jQuery v3.7.1``), que sólo se pide si es del
+    mismo sitio: un fichero de otro dominio no está cubierto por el escaneo.
+
+    Attributes:
+        name: El nombre del producto, el que resuelve a su CPE.
+        src_pattern: Expresión regular que reconoce la URL del fichero.
+        header_pattern: Expresión regular con un grupo ``version`` sobre el
+            principio del fichero.
+    """
+    name: str
+    src_pattern: Pattern
+    header_pattern: Pattern
+
+
+@dataclass(frozen=True)
 class TechSignature:
     """A named technology/vendor, identified by one or more :class:`TechMatcher`.
 
@@ -219,6 +260,7 @@ class TechSignature:
     """
     name: str
     matchers: tuple
+    version_probes: tuple = ()
 
 
 @dataclass(frozen=True)
@@ -249,8 +291,33 @@ def load_tech_signatures(path: Optional[str] = None) -> List[TechSignature]:
         TechSignature(
             name=signature["name"],
             matchers=tuple(_load_matcher(matcher) for matcher in signature["matchers"]),
+            version_probes=tuple(
+                VersionProbe(probe["path"], re.compile(probe["pattern"], re.IGNORECASE))
+                for probe in signature.get("versionProbes", ())
+            ),
         )
         for signature in data.get("signatures", [])
+    ]
+
+
+def load_javascript_libraries(path: Optional[str] = None) -> List[JavascriptLibrary]:
+    """Carga las librerías JavaScript del mismo feed que las firmas.
+
+    Args:
+        path: Ruta a un feed JSON. Por defecto, el del paquete.
+
+    Returns:
+        list: Las librerías de la sección ``javascriptLibraries``.
+    """
+    feed_path = Path(path) if path else _BUNDLED_TECH_SIGNATURES
+    data = json.loads(feed_path.read_text(encoding="utf-8"))
+    return [
+        JavascriptLibrary(
+            name=library["name"],
+            src_pattern=re.compile(library["srcPattern"], re.IGNORECASE),
+            header_pattern=re.compile(library["headerPattern"], re.IGNORECASE),
+        )
+        for library in data.get("javascriptLibraries", [])
     ]
 
 
@@ -312,10 +379,28 @@ def validate_tech_signatures(signatures: List[TechSignature]) -> List[str]:
                     f"{signature.name}: versionPattern sin grupo llamado 'version' "
                     f"({matcher.version_pattern.pattern})"
                 )
+        for probe in signature.version_probes:
+            if not probe.path.startswith("/"):
+                problems.append(f"{signature.name}: versionProbes con ruta relativa ({probe.path})")
+            if "version" not in probe.pattern.groupindex:
+                problems.append(f"{signature.name}: versionProbes sin grupo 'version' ({probe.path})")
     return problems
 
 
 _TECH_SIGNATURES: List[TechSignature] = load_tech_signatures()
+_JAVASCRIPT_LIBRARIES: List[JavascriptLibrary] = load_javascript_libraries()
+
+# Las URLs de los ``<script src>`` de una página.
+_SCRIPT_SRC_RE = re.compile(r"""<script\b[^>]*\bsrc\s*=\s*["']([^"']+)["']""", re.IGNORECASE)
+# La versión en la URL de un fichero: el nombre (``jquery-3.7.1.min.js``), un
+# segmento de ruta (``/3.7.1/``, ``@5.3.8/``) o la consulta (``?ver=3.7.1``, o
+# ``?5.3.8`` a secas, como la pone Joomla).
+_URL_VERSION_RE = re.compile(
+    r"-(?P<file>\d+\.\d+(?:\.\d+)+)(?:\.slim)?(?:\.min)?\.js"
+    r"|[/@](?P<segment>\d+\.\d+(?:\.\d+)+)/|[?&](?:ver|v|version)=(?P<query>\d+(?:\.\d+)+)"
+    r"|\?(?P<bare>\d+\.\d+(?:\.\d+)*)$")
+# Cuántos ficheros JavaScript se descargan, como mucho, para leer su cabecera.
+_MAX_SCRIPT_FETCHES = 4
 
 # El catálogo de favicons, cargado una vez al importar igual que el feed de
 # firmas. ``HttpDissector`` consulta ``is_empty`` para decidir si merece la
@@ -830,8 +915,86 @@ def fingerprint_http(  # pylint: disable=too-many-locals
         favicon_hash=favicon_digest, technologies=technologies,
         confidence=confidence, version_source=version_source,
         favicon_catalog_hash=favicon_hash_value(favicon) if favicon else None,
-        layers=layers,
+        layers=layers, hits=tuple(hits),
     )
+
+
+def web_components(
+    fingerprint: HttpFingerprint,
+    body: str,
+    fetch_path: Callable[[str], Optional[str]],
+) -> Tuple[Tuple[str, Optional[str]], ...]:
+    """El inventario de lo que corre **dentro** del servidor web, con versión.
+
+    Casi todo el riesgo de una web está en la aplicación (el CMS, sus
+    librerías) y no en el servidor, y la correlación de CVEs necesita su
+    versión. Se reúnen dos fuentes:
+
+    - Las firmas del feed que casaron. A la que casó sin versión y declara
+      ``versionProbes`` se le piden sus ficheros, en orden, hasta que uno la
+      traiga.
+    - Las librerías JavaScript que carga la página (ver
+      :class:`JavascriptLibrary`).
+
+    El producto que ya reporta el propio servicio no se repite, salvo que aquí
+    se haya conseguido la versión que a él le faltaba.
+
+    Args:
+        fingerprint: El fingerprint de la portada.
+        body: El cuerpo de la portada.
+        fetch_path: ``ruta -> cuerpo | None``: pide una ruta del mismo sitio.
+
+    Returns:
+        tuple: Pares ``(producto, versión)``; la versión es ``None`` cuando no
+            se pudo leer (el producto se inventaría igual, sin CVEs).
+    """
+    signatures = {signature.name: signature for signature in _TECH_SIGNATURES}
+    components: List[Tuple[str, Optional[str]]] = []
+    for hit in fingerprint.hits:
+        version = hit.version
+        probes = signatures[hit.name].version_probes if hit.name in signatures and not version else ()
+        for probe in probes:
+            found = probe.pattern.search(fetch_path(probe.path) or "")
+            if found:
+                version = found.group("version")
+                break
+        components.append((hit.name, version))
+    components.extend(_javascript_libraries(body, fetch_path))
+    return tuple(
+        (product, version) for product, version in dict.fromkeys(components)
+        if not (_same_product(product, fingerprint.product)
+                and (fingerprint.version or not version))
+    )
+
+
+def _javascript_libraries(body: str, fetch_path: Callable[[str], Optional[str]]) -> list:
+    """Las librerías JavaScript que carga la página, con la versión que se pueda leer.
+
+    Args:
+        body: El cuerpo HTML de la página.
+        fetch_path: Pide una ruta del mismo sitio; sólo se usa con los
+            ficheros locales y sin versión en la URL, y como mucho
+            :data:`_MAX_SCRIPT_FETCHES` veces.
+
+    Returns:
+        list: Pares ``(librería, versión o None)``, uno por librería.
+    """
+    found: Dict[str, Optional[str]] = {}
+    fetches = 0
+    for src in _SCRIPT_SRC_RE.findall(body or ""):
+        library = next((library for library in _JAVASCRIPT_LIBRARIES
+                        if library.src_pattern.search(src)), None)
+        if library is None or found.get(library.name):
+            continue
+        in_url = _URL_VERSION_RE.search(src)
+        version = next((group for group in in_url.groups() if group), None) if in_url else None
+        is_local = src.startswith("/") and not src.startswith("//")
+        if version is None and is_local and fetches < _MAX_SCRIPT_FETCHES:
+            fetches += 1
+            header = library.header_pattern.search((fetch_path(src) or "")[:2048])
+            version = header.group("version") if header else None
+        found[library.name] = version
+    return list(found.items())
 
 
 # ``qod`` del hallazgo de fingerprint según de dónde salió la versión: una
@@ -888,6 +1051,13 @@ class HttpDissector(Dissector):
         # SonicWall's 404 body says so, its "/" doesn't) — see fingerprint_http.
         error_resp = self._probe.fetch(target, service.port, "GET", "/lybra-nonexistent-check")
         fingerprint = fingerprint_http(response, favicon, error_resp)
+
+        def fetch_path(path: str) -> Optional[str]:
+            """Pide ``path`` al mismo sitio, con su turno de limitador."""
+            rate_limiter.acquire(target)
+            fetched = self._probe.fetch(target, service.port, "GET", path)
+            return fetched.body if fetched is not None and fetched.status == 200 else None
+
         return DissectorResult(
             fingerprint.product,
             fingerprint.version,
@@ -903,4 +1073,5 @@ class HttpDissector(Dissector):
                 for layer in fingerprint.layers
                 if not _same_product(layer.product, fingerprint.product)
             ),
+            components=web_components(fingerprint, response.body, fetch_path),
         )
