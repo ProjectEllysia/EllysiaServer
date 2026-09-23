@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
+import { ensureLaunchStateLoaded, useLaunch } from '@/composables/useLaunch'
 
 /**
  * Configuración de rutas de la SPA.
@@ -84,7 +85,7 @@ const routes = [
     path: '/iris/conexiones',
     name: 'IrisConnections',
     component: () => import('@/views/iris/IrisConnectionsView.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, surface: 'mailboxConnectors' },
   },
   {
     path: '/iris/confianza',
@@ -141,9 +142,11 @@ const routes = [
   // Capa comercial: planes, plan propio y organización.
   {
     // Pública: es la tabla de precios, la ve quien todavía no tiene cuenta.
+    // Se cierra con la superficie `pricing` de general.launch.
     path: '/planes',
     name: 'Plans',
     component: () => import('@/views/accounts/PlansView.vue'),
+    meta: { surface: 'pricing' },
   },
   {
     path: '/mi-plan',
@@ -195,6 +198,13 @@ const routes = [
     path: '/recuperar',
     name: 'Recover',
     component: () => import('@/views/public/RecoverView.vue'),
+  },
+  {
+    // Destino de una ruta cuya superficie está cerrada al público
+    // (general.launch). `?desde=` lleva la ruta pedida, para poder nombrarla.
+    path: '/no-disponible',
+    name: 'NotAvailable',
+    component: () => import('@/views/public/NotAvailableView.vue'),
   },
   // Páginas informativas públicas (enlazadas desde el pie).
   {
@@ -335,9 +345,11 @@ const router = createRouter({
  * - Si la ruta es de invitado (login) y ya hay sesión → redirige a la landing.
  * - Si la ruta exige un rol y la cuenta no lo tiene → /error/403 (antes caía
  *   a la portada en silencio, sin explicar nada).
+ * - Si la ruta depende de una superficie (`meta.surface`) que general.launch
+ *   tiene cerrada → /no-disponible.
  * - En cualquier otro caso, deja pasar la navegación.
  */
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const auth = useAuthStore()
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
     return { path: '/login', query: { redirect: to.fullPath } }
@@ -347,6 +359,13 @@ router.beforeEach((to) => {
     return { path: '/error/403' }
   } else if (to.meta.requiresAdmin && !auth.isAdmin) {
     return { path: '/error/403' }
+  } else if (to.meta.surface) {
+    // Solo estas rutas esperan al estado de lanzamiento: el resto navega sin
+    // retraso aunque la petición aún no haya vuelto.
+    await ensureLaunchStateLoaded()
+    if (!useLaunch().isSurfaceEnabled(to.meta.surface)) {
+      return { path: '/no-disponible', query: { desde: to.fullPath } }
+    }
   }
 })
 

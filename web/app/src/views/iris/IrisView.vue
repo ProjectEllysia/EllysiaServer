@@ -61,7 +61,7 @@
       <!-- Accesos a las subpáginas de Iris: una sola fila, no un hijo suelto
            por enlace de la columna flex de .iris-layout. -->
       <nav class="iris-subnav" aria-label="Secciones de Iris">
-        <router-link to="/iris/conexiones" class="back-link">
+        <router-link v-if="canConnectMailboxes" to="/iris/conexiones" class="back-link">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <rect x="2" y="4" width="20" height="16" rx="2" />
             <path d="m2 7 10 6 10-6" />
@@ -118,10 +118,15 @@ import IrisForm from '@/components/iris/IrisForm.vue'
 import IrisBatchPanel from '@/components/iris/IrisBatchPanel.vue'
 import { useIrisStore } from '@/stores/irisStore'
 import { useToastStore } from '@/stores/toastStore'
+import { useLaunch } from '@/composables/useLaunch'
 import { parseEml } from '@/composables/useEml'
 import { classifyIntake, formatByteLimit, isBatchDrop } from '@/components/iris/intake.js'
 
 const store = useIrisStore()
+
+// Conectar buzones es la superficie `mailboxConnectors` de general.launch.
+const { isSurfaceEnabled } = useLaunch()
+const canConnectMailboxes = computed(() => isSurfaceEnabled('mailboxConnectors'))
 const toast = useToastStore()
 const formKey = ref(0)
 const archiveOpen = ref(false)

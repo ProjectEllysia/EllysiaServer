@@ -96,6 +96,8 @@ class NucleiScanManager(ScanManager):
             Primary key of the created NucleiScan record.
         """
         try:
+            ScanManager.assert_third_party_scanners_enabled(user_id)
+
             # Rechazo de IP privada + gate de objetivos autorizados aquí (no
             # solo en el endpoint HTTP, ver validate_web_target y
             # start_nuclei_scan): el flujo programado

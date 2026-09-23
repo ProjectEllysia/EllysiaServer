@@ -57,7 +57,9 @@ def test_build_generator_uses_the_configured_resilience(monkeypatch):
     """Sin esto, la factory construía el generador con los defaults de la
     firma y los valores del fichero no llegaban a ninguna parte."""
     monkeypatch.setattr(factory, "_build_strategy", lambda name: _FakeStrategy())
-    monkeypatch.setattr(CR, "scribe_config", lambda: CR.ScribeConfig(default_strategy="fake"))
+    # Un nombre registrado: la factory consulta la clase de la estrategia antes
+    # de construirla, para saber si saca datos del servidor.
+    monkeypatch.setattr(CR, "scribe_config", lambda: CR.ScribeConfig(default_strategy="ollama"))
     monkeypatch.setattr(
         CR, "scribe_resilience_config",
         lambda: CR.ScribeResilienceConfig(

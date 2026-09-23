@@ -57,7 +57,7 @@
             @click="emit('edit')"
           >Editar</button>
           <button
-            v-if="viewerDoc.data.status === 'done'"
+            v-if="viewerDoc.data.status === 'done' && canLaunchCampaigns"
             type="button"
             class="toolbar-btn toolbar-btn--campaign"
             :disabled="!hasQuestions"
@@ -121,6 +121,7 @@
 import { computed, ref, watch, onUnmounted } from 'vue'
 import { useUtils } from '@/composables/useUtils'
 import { useDismissable } from '@/composables/useDismissable'
+import { useLaunch } from '@/composables/useLaunch'
 
 const { formatDate } = useUtils()
 const props = defineProps({
@@ -132,6 +133,10 @@ const props = defineProps({
 // mejor decirlo aquí que dejar al usuario rellenar el modal para nada.
 const hasQuestions = computed(() => (props.viewerDoc?.data?.pill?.questions?.length || 0) > 0)
 const emit = defineEmits(['close', 'export', 'preview', 'edit', 'campaign'])
+
+// Enviar campañas es la superficie `campaigns` de general.launch.
+const { isSurfaceEnabled } = useLaunch()
+const canLaunchCampaigns = computed(() => isSurfaceEnabled('campaigns'))
 const exportOpen = ref(false)
 
 const sevIcons = { critica: '🔴', alta: '🟠', media: '🟡', baja: '🟢', informativa: '🔵' }

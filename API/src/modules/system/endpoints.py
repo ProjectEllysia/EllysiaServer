@@ -17,6 +17,7 @@ from src.modules.users import Role, require_oauth_token, require_role
 from src.modules.system.taskqueue import TaskQueue, Task, TaskStatus
 from .schemas import (
     HelloResponseSchema,
+    LaunchStateSchema,
     SystemInfoSchema,
     SystemStatusSchema,
     TaskSchema,
@@ -60,6 +61,19 @@ def hello():
         "version": CR.get_app_version(),
     }
 
+
+@system_blp.get("/launch")
+@system_blp.response(200, LaunchStateSchema, description="Which features are open to the public")
+@limiter.limit("60 per minute")
+def launch_state():
+    """Qué funciones están abiertas al público, sin necesidad de sesión.
+
+    La SPA la consulta al cargar para no enseñar lo que está cerrado (el alta,
+    la tabla de precios…) a un visitante anónimo. Pública a propósito y con
+    ``no-store``: un cambio de modo desde el panel tiene que notarse en la
+    siguiente visita, no cuando caduque una caché.
+    """
+    return CR.launch_config().to_public_dict(), 200, {"Cache-Control": "no-store"}
 
 @system_blp.get("/info")
 @system_blp.response(200, SystemInfoSchema, description="System information")

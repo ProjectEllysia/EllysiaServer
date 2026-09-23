@@ -26,6 +26,40 @@
         </div>
 
         <form class="config-form" @submit.prevent="handleSave">
+          <section id="section-launch" class="section">
+            <div class="section-head"><h2>Lanzamiento</h2><p class="section-desc">Qué funciones están abiertas al público</p></div>
+            <div class="section-body">
+              <p class="field-hint">
+                En <strong>vista previa</strong> todas las funciones de abajo están cerradas al público, digan lo que digan sus
+                interruptores; tu cuenta de administrador principal puede seguir probándolas, salvo el alta, los precios y la IA
+                externa. En <strong>abierto al público</strong> cada función sigue su interruptor, para poder abrir Ellysia por
+                partes a medida que cada una tenga su cobertura legal.
+              </p>
+              <div class="cfg-grid">
+                <div class="form-group">
+                  <label>Modo</label>
+                  <select v-model="store.configFlat['general.launch.mode']" class="inp">
+                    <option value="preview">Vista previa</option>
+                    <option value="public">Abierto al público</option>
+                  </select>
+                </div>
+              </div>
+              <ul class="launch-surfaces" :class="{ 'launch-surfaces--inactive': isLaunchPreview }">
+                <li v-for="surface in LAUNCH_SURFACES" :key="surface.key" class="launch-surface">
+                  <label class="launch-switch">
+                    <input
+                      v-model="store.configFlat[`general.launch.surfaces.${surface.key}`]"
+                      type="checkbox" :disabled="isLaunchPreview"
+                    />
+                    <span class="launch-name">{{ surface.label }}</span>
+                  </label>
+                  <span class="field-hint">{{ surface.covers }} Antes de abrirla: {{ surface.unlocks }}.</span>
+                </li>
+              </ul>
+              <p v-if="isLaunchPreview" class="field-hint">Los interruptores no cuentan mientras el modo sea «Vista previa».</p>
+            </div>
+          </section>
+
           <section id="section-general" class="section">
             <div class="section-head section-head--row">
               <div><h2>General</h2><p class="section-desc">Directorios del sistema y alta de cuentas</p></div>
@@ -36,15 +70,8 @@
                 <div class="form-group"><label>Temp</label><input v-model="store.configFlat['general.directories.tempdir']" type="text" class="inp" /></div>
                 <div class="form-group"><label>Logs</label><input v-model="store.configFlat['general.directories.logdir']" type="text" class="inp" /></div>
               </div>
-              <p class="field-hint">Con el registro abierto, cualquiera puede crearse una cuenta desde la pantalla de acceso y estrenará el plan gratuito. En un despliegue interno lo normal es cerrarlo y dar de alta a la gente desde Usuarios.</p>
+              <p class="field-hint">Plazos de los enlaces que se envían por correo. Si se admiten altas públicas se decide en «Lanzamiento».</p>
               <div class="cfg-grid">
-                <div class="form-group">
-                  <label>Registro público</label>
-                  <select v-model="store.configFlat['general.registration.enabled']" class="inp">
-                    <option :value="true">Abierto</option>
-                    <option :value="false">Cerrado</option>
-                  </select>
-                </div>
                 <div class="form-group">
                   <label>Vigencia del enlace de verificación (horas)</label>
                   <input v-model.number="store.configFlat['general.registration.verificationTtlHours']" type="number" min="1" max="720" class="inp" />
@@ -463,7 +490,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import Topbar from '@/components/shared/Topbar.vue'
 import StarBackground from '@/components/shared/StarBackground.vue'
 import { useConfigStore } from '@/stores/configStore'
@@ -475,6 +502,7 @@ import PromptField from '@/components/shared/PromptField.vue'
 const store = useConfigStore()
 
 const ICON = {
+  launch:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>',
   general:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
   security:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
   database:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>',
@@ -490,6 +518,7 @@ const ICON = {
 
 const navGroups = [
   { label: 'Plataforma', items: [
+    { id: 'launch',    label: 'Lanzamiento',   icon: ICON.launch },
     { id: 'general',   label: 'General',       icon: ICON.general },
     { id: 'security',  label: 'Seguridad',     icon: ICON.security },
     { id: 'database',  label: 'Base de datos', icon: ICON.database },
@@ -646,7 +675,46 @@ onUnmounted(() => { if (observer) observer.disconnect() })
 // El catálogo fijo de marcas se retiró: los productos vigilados se eligen por
 // usuario contra el índice CPE del espejo local de NVD (GET /aegis/products),
 // no desde la configuración global.
-function handleSave() { store.saveConfig() }
+/**
+ * Funciones que general.launch puede cerrar al público, en el orden en que se
+ * pintan. `unlocks` resume qué tiene que estar resuelto antes de abrir cada
+ * una (lo detalla el proyecto «Legal» de la organización).
+ */
+const LAUNCH_SURFACES = [
+  { key: 'registration', label: 'Alta pública de cuentas', covers: 'Cualquiera puede crearse una cuenta desde la pantalla de acceso.', unlocks: 'aviso legal, privacidad, términos, uso aceptable y aceptación registrada en el alta' },
+  { key: 'pricing', label: 'Planes y precios', covers: 'La página de planes y la tabla de precios de la portada.', unlocks: 'titular identificado, público decidido y aviso legal' },
+  { key: 'thirdPartyScanners', label: 'Escáneres de sistemas externos', covers: 'Análisis con Nmap, Nikto y Nuclei, también los programados.', unlocks: 'autorización exigida en todos los escáneres, uso aceptable y revisión jurídica' },
+  { key: 'campaigns', label: 'Campañas de Aegis', covers: 'Enviar formaciones por correo a los empleados de un cliente.', unlocks: 'contrato de encargo, guía para informar a los empleados y aviso de contenido generado con IA' },
+  { key: 'mailboxConnectors', label: 'Buzones de Iris', covers: 'Conectar y sincronizar buzones de Gmail y Microsoft.', unlocks: 'verificaciones de Google y Microsoft' },
+  { key: 'externalAi', label: 'IA de proveedores externos', covers: 'Generar con OpenAI o Google; Ollama no depende de esto.', unlocks: 'contratos con los proveedores y página sobre el uso de la IA' },
+]
+
+const isLaunchPreview = computed(() => store.configFlat['general.launch.mode'] !== 'public')
+
+/** Modo guardado en el servidor, para saber cuándo se está abriendo Ellysia. */
+const savedLaunchMode = ref(null)
+watch(() => store.loading, (isLoading) => {
+  if (!isLoading) savedLaunchMode.value = store.configFlat['general.launch.mode']
+}, { immediate: true })
+
+/**
+ * Guarda la configuración. Pasar de vista previa a abierto al público pide
+ * confirmación y enumera lo que se va a abrir: es el cambio de más alcance
+ * del panel, y un clic distraído no debería bastar.
+ */
+async function handleSave() {
+  const selectedMode = store.configFlat['general.launch.mode']
+  if (savedLaunchMode.value !== 'public' && selectedMode === 'public') {
+    const openingLabels = LAUNCH_SURFACES
+      .filter((surface) => store.configFlat[`general.launch.surfaces.${surface.key}`] === true)
+      .map((surface) => `• ${surface.label}`)
+    const message = openingLabels.length
+      ? `Vas a abrir al público:\n${openingLabels.join('\n')}\n\n¿Continuar?`
+      : 'Vas a pasar a «Abierto al público», pero todos los interruptores están apagados: no se abrirá nada. ¿Continuar?'
+    if (!window.confirm(message)) return
+  }
+  if (await store.saveConfig()) savedLaunchMode.value = selectedMode
+}
 </script>
 
 <style scoped>
@@ -723,5 +791,11 @@ function handleSave() { store.saveConfig() }
 .skeleton { background: var(--surface); border-radius: 8px; animation: pulse 1.4s ease-in-out infinite; }
 .skeleton--lg { width: 100%; height: 380px; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+.launch-surfaces { list-style: none; margin: 0.9rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.55rem; }
+.launch-surfaces--inactive { opacity: 0.55; }
+.launch-surface { display: flex; flex-direction: column; gap: 0.15rem; padding: 0.55rem 0.7rem; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); }
+.launch-switch { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }
+.launch-switch input:disabled { cursor: not-allowed; }
+.launch-name { font-weight: 600; color: var(--text); }
 @media (max-width: 800px) { .config-layout { flex-direction: column; } .config-nav-column { width: 100%; } .config-nav { position: static; } .config-nav nav { flex-direction: row; flex-wrap: wrap; } .nav-link { flex: 1; justify-content: center; min-width: 80px; } }
 </style>
