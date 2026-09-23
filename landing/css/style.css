@@ -251,6 +251,9 @@ a:focus-visible, .cta:focus-visible {
 .cta-arrow { transition: transform 0.3s cubic-bezier(0.16,1,0.3,1); }
 .cta:hover { color: var(--gold-bright); letter-spacing: 0.12em; }
 .cta:hover .cta-arrow { transform: translateX(6px); }
+/* Aclaración de proyecto personal: misma familia que la entrada, más discreta. */
+.hero-disclaimer { margin-top: 0.75rem; font-size: 0.95rem; opacity: 0.75; }
+
 .cta-meta {
   font-family: var(--font-mono);
   font-size: 0.7rem; color: var(--mute);
