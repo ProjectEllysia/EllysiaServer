@@ -417,7 +417,7 @@ Hygeia has two separate auth surfaces: standard OAuth for the user-facing endpoi
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/plans` | **Public** — the plan catalog with per-plan limits (pricing table) |
+| `GET` | `/plans` | **Public** — the plan catalog with per-plan limits (pricing table). Closed (403, code 1618) while the `pricing` launch surface is closed — see [Launch mode](#launch-mode-preview--public) |
 | `GET` | `/plans/me` | Effective plan of the authenticated user and its validity |
 | `GET` | `/plans/me/usage` | Current usage of the authenticated user, key by key |
 | `POST` | `/organizations` | Create the caller's organization (they become the owner) |
@@ -439,6 +439,7 @@ A subscription with no explicit plan falls back to the default plan (seeded by m
 | `POST` | `/oauth/token` | Token (password or refresh_token grant); MFA-enabled users get a challenge |
 | `POST` | `/oauth/revoke` · `/oauth/revoke-all` | Revoke current token / all tokens |
 | `POST` | `/oauth/mfa/verify` | Resolve a TOTP challenge (code or recovery code) into tokens |
+| `POST` | `/users/register` | **Public** — self-service sign-up; the account starts with an unverified email. Closed (403, code 1616) while the `registration` launch surface is closed |
 | `POST` | `/users/sign-up` | Registration (username, password, email, alias) |
 | `POST` | `/users/verify-email` · `/verify-email/resend` | Confirm an account's email address |
 | `POST` | `/users/password-reset/request` | **Public** — request a reset link by username or email; generic response (anti-enumeration); MFA-enabled accounts first get a challenge |
@@ -454,6 +455,7 @@ A subscription with no explicit plan falls back to the default plan (seeded by m
 | `GET` | `/users/<id>/deletion-preview` | (admin/root) Preview what deleting that user destroys — notably the organization they own |
 | `DELETE` | `/users/<id>` | (admin/root) Delete another user's account; same purge as self-deletion, hierarchy enforced (an admin cannot delete an admin or the root), own account excluded |
 | `GET` | `/system/say-hello` | **Public** health check, reports the API version |
+| `GET` | `/system/launch` | **Public** — launch mode and whether each launch surface is open right now (`Cache-Control: no-store`); the SPA uses it to hide what is closed |
 | `GET` | `/system/info` · `/system/status` | (admin) App metadata / CPU-mem-disk status |
 | `GET` | `/system/logs` | (admin) Paginated central log viewer — gzip+base64 page, snapshot-anchored. Windowing with `lastMinutes` (relative, resolved against the **server** clock; mutually exclusive with `from`) or `from`/`to`; severity with `level` (exact) or `minLevel` (that level and above). The response carries `levelCounts` for the window, computed *before* the level filter, plus `windowStart` |
 | `GET/PUT` | `/system` | (root) Read / save `SecOpsConfig.json` (`PUT` requires `If-Match` ETag) |
@@ -856,13 +858,33 @@ Iris also needs `IRIS_RAW_MESSAGE_ENCRYPTION_KEY`, which is **not** listed above
 
 Ellysia uses a layered configuration system (`API/src/modules/system/config_reading.py`, imported as `CR`):
 
-1. **`API/SecOpsConfig.json`** — base configuration. Exactly five root entries: `appVersion`, `general` (directories, security, registration), `infrastructure` (database, redis, taskqueue), `tools` (`scribe`, `herald` strategy selection), `features` (`themis`, `aegis`, `iris`, `hygeia` per-module settings). `general.security.mfa.notice_interval_days` controls the periodic email reminder cadence.
+1. **`API/SecOpsConfig.json`** — base configuration. Exactly five root entries: `appVersion`, `general` (directories, security, registration, launch), `infrastructure` (database, redis, taskqueue), `tools` (`scribe`, `herald` strategy selection), `features` (`themis`, `aegis`, `iris`, `hygeia` per-module settings). `general.security.mfa.notice_interval_days` controls the periodic email reminder cadence.
 2. **`API/.env`** — environment variables that **override** JSON values (required for the JWT secret, DB/Redis/SMTP/AI credentials, `PUBLIC_WEB_URL`).
 3. **Root `.env`** — docker-compose only (Postgres, Redis credentials — not read by the API).
 
 Config is read through frozen dataclasses bound to a branch of the tree (`@config_block`, e.g. `CR.nuclei_config().rate_limit`), not one getter per value, and cached — changes to `SecOpsConfig.json` require an app restart unless applied via `PUT /system`. Background jobs pick them up too: the worker re-reads the file per job when its mtime changed (`CR.reload_if_changed()`).
 
 The config panel (`web/app/src/views/system/ConfigView.vue`) exposes every settable key of the tree — the AI and email layers, the Themis knowledge base and Lybra engine dials, JWT and MFA policy, Hygeia thresholds, limits and report palette. The one branch deliberately left out is `features.iris.data.*`: those are the anti-phishing heuristic corpora (word lists, homoglyph maps, suspicious TLDs), detection content rather than deployment settings. `API/tests/unit/test_config_view_paths.py` pins the panel's paths against the JSON — the literal ones by full path, the ones composed in a `v-for` by their fixed prefix.
+
+### Launch mode (preview / public)
+
+`general.launch` decides which features are open to the public, so the deployment can stay online while its legal coverage is completed. It has two levels:
+
+- **`mode`** — `"preview"` or `"public"`. In `preview` every surface below is **closed**, whatever its switch says. In `public` each surface follows its own switch, so the product can be opened piece by piece. Anything other than exactly `"public"` counts as `preview`. The environment variable **`LAUNCH_MODE`** overrides the file (useful to open a local copy without touching the versioned JSON).
+- **`surfaces`** — one switch per feature; a missing switch counts as closed:
+
+| Surface | What it closes | Where the API enforces it |
+|---|---|---|
+| `registration` | Self-service sign-up | `POST /users/register` |
+| `pricing` | The public plan catalog | `GET /plans` |
+| `thirdPartyScanners` | Nmap, Nikto and Nuclei, **including scheduled scans** | each scanner's `run_scan` |
+| `campaigns` | Launching Aegis campaigns | `CampaignManager.launch_campaign` |
+| `mailboxConnectors` | Connecting and syncing Gmail / Microsoft mailboxes | `IrisMailboxManager.start_connect` and `submit_sync` (existing connections are paused, not deleted) |
+| `externalAi` | AI generation with a provider outside the server (OpenAI, Google); Ollama is not affected | `tools/scribe` `build_generator` |
+
+The versioned `SecOpsConfig.json` ships in **`preview`**, and `tests/unit/test_config_shape.py::test_the_launch_mode_ships_as_preview` pins it (the suite itself runs with `LAUNCH_MODE=public`). A closed surface answers **403 with code 1618** (`SurfaceDisabledError`) and `details.surface`; the sign-up keeps its own code, 1616. The main administrator (`role_root`) is exempt on `thirdPartyScanners`, `campaigns` and `mailboxConnectors`, so it can test them in production; not on `registration` and `pricing` (anonymous requests) nor on `externalAi` (the generator does not know which user it works for). Organization invitations are not gated: they are sent by someone who already has an account.
+
+`GET /system/launch` publishes the resolved state, the SPA hides closed features and sends direct links to `/no-disponible`, shows a preview notice and sets `noindex`, and the config panel has a **Launch** section to change the mode and each switch without a restart (switching to `public` asks for confirmation).
 
 ### Encryption keys
 
