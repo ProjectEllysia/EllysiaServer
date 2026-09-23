@@ -22,6 +22,21 @@
       personas, esta página y las condiciones legales cambiarían antes.
     </p>
 
+    <h2>Fuentes de datos</h2>
+    <p>
+      La detección de vulnerabilidades usa catálogos públicos. Ninguno de sus responsables respalda
+      Ellysia:
+    </p>
+    <ul>
+      <li>
+        <strong>NVD</strong> (National Vulnerability Database, del NIST). Este producto usa la API de la NVD,
+        pero no está respaldado ni certificado por la NVD. <em lang="en">This product uses the NVD API but is
+        not endorsed or certified by the NVD.</em>
+      </li>
+      <li><strong>KEV</strong> — catálogo de vulnerabilidades explotadas conocidas de CISA (EE. UU.).</li>
+      <li><strong>EPSS</strong> — puntuaciones de probabilidad de explotación de FIRST (first.org/epss).</li>
+    </ul>
+
     <p class="note">
       El código se puede consultar en
       <a href="https://github.com/ProjectEllysia/EllysiaServer" target="_blank" rel="noopener noreferrer">GitHub</a>,
