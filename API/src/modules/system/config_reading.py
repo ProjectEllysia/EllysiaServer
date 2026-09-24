@@ -2,6 +2,8 @@
 config_reading.py
 Módulo de lectura de configuración SecOps.
 Carga lazy (solo al primer acceso) desde SecOpsConfig.json o variables de entorno.
+Si ``SECOPS_CONFIG_OVERRIDES_PATH`` está definida, los cambios hechos desde la
+interfaz se guardan en ese fichero y se aplican encima de SecOpsConfig.json.
 """
 
 import hashlib
@@ -32,9 +34,14 @@ load_dotenv()
 _configs: dict | None = None
 _configs_path: Path | None = None
 
-# mtime del fichero en el momento de la última lectura. Solo lo usa
-# ``reload_if_changed()`` para no releer en cada job del worker.
-_configs_mtime: float = 0.0
+# mtimes de la base y del fichero de cambios en el momento de la última
+# lectura. Solo lo usa ``reload_if_changed()`` para no releer en cada job del
+# worker.
+_configs_mtimes: tuple[float, float] = (0.0, 0.0)
+
+#: Variable de entorno con la ruta del fichero donde se guardan los cambios
+#: hechos desde la interfaz. Ver ``_overrides_path``.
+CONFIG_OVERRIDES_ENV = "SECOPS_CONFIG_OVERRIDES_PATH"
 
 # =============================================================================
 # ENUMERACIONES ÚTILES
@@ -78,7 +85,7 @@ def _lazy_load(func):
     """Decorador que carga la configuración antes de ejecutar la función."""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        global _configs, _configs_path, _configs_mtime
+        global _configs, _configs_path, _configs_mtimes
         if _configs is None:
             if _configs_path is None:
                 this_file = Path(__file__).resolve()
@@ -90,9 +97,8 @@ def _lazy_load(func):
                 _configs_path = next((candidate for candidate in candidates if candidate.exists()), None)
                 if _configs_path is None:
                     raise FileNotFoundError("No se encontró ningún archivo de configuración.")
-            _configs_mtime = _read_mtime(_configs_path)
-            with open(_configs_path, "r", encoding="utf-8") as f:
-                _configs = json.load(f)
+            _configs_mtimes = _current_mtimes()
+            _configs = _read_config_tree()
         return func(*args, **kwargs)
     return wrapper
 
@@ -153,13 +159,146 @@ def _read_mtime(path: Path) -> float:
         return 0.0
 
 
+def _overrides_path() -> Path | None:
+    """Ruta del fichero de cambios hechos desde la interfaz, si la hay.
+
+    La define ``SECOPS_CONFIG_OVERRIDES_PATH``. En Docker, la API y el worker
+    son contenedores distintos, cada uno con su copia de ``SecOpsConfig.json``
+    dentro de la imagen: sin un fichero compartido, lo que la API guarda nunca
+    llega al worker, y se pierde al recrear el contenedor. Con la variable,
+    ``SecOpsConfig.json`` queda como base de solo lectura y los cambios van a
+    este otro fichero, en un volumen que montan los dos.
+
+    Se lee del entorno en cada llamada, no una vez al importar, para que un
+    test pueda activarla con ``monkeypatch.setenv``.
+
+    Returns:
+        Path | None: La ruta configurada, o ``None`` si la variable no está
+            definida o está vacía. ``None`` es el modo de desarrollo: se lee y
+            se escribe directamente sobre ``SecOpsConfig.json``, que la API y
+            el worker comparten por estar en el mismo checkout.
+    """
+    raw_path = (os.getenv(CONFIG_OVERRIDES_ENV) or "").strip()
+    return Path(raw_path) if raw_path else None
+
+
+def _merge_overrides(base: dict, overrides: dict) -> dict:
+    """Aplica los cambios guardados encima de la configuración base.
+
+    Los diccionarios se mezclan clave a clave; cualquier otro valor, listas
+    incluidas, sustituye entero al de la base. Así, editar una sola hoja desde
+    la interfaz no congela sus hermanas: una clave que cambie en el
+    ``SecOpsConfig.json`` del repositorio sigue llegando mientras nadie la haya
+    editado.
+
+    Args:
+        base: Árbol leído de ``SecOpsConfig.json``. No se modifica.
+        overrides: Árbol de cambios, con la misma forma que la base pero solo
+            con las ramas editadas. No se modifica.
+
+    Returns:
+        dict: Un árbol nuevo con la base y los cambios aplicados.
+    """
+    merged = dict(base)
+    for key, override_value in overrides.items():
+        base_value = merged.get(key)
+        if isinstance(base_value, dict) and isinstance(override_value, dict):
+            merged[key] = _merge_overrides(base_value, override_value)
+        else:
+            merged[key] = override_value
+    return merged
+
+
+def _diff_against_base(base: dict, config: dict) -> dict:
+    """Extrae de ``config`` solo lo que difiere de la base.
+
+    Es lo que se guarda en el fichero de cambios: guardar el árbol entero
+    congelaría también los valores que no se tocaron, y un cambio posterior en
+    el ``SecOpsConfig.json`` de la imagen dejaría de llegar.
+
+    Args:
+        base: Árbol leído de ``SecOpsConfig.json``.
+        config: Árbol completo que se quiere guardar.
+
+    Returns:
+        dict: Las ramas de ``config`` cuyo valor no coincide con la base, con la
+            misma anidación. Vacío si ``config`` es igual a la base. Una clave de
+            la base que falta en ``config`` no queda reflejada: el fichero de
+            cambios solo añade o sustituye, no borra.
+    """
+    diff = {}
+    for key, value in config.items():
+        base_value = base.get(key)
+        if isinstance(base_value, dict) and isinstance(value, dict):
+            nested_diff = _diff_against_base(base_value, value)
+            if nested_diff:
+                diff[key] = nested_diff
+        elif key not in base or base_value != value:
+            diff[key] = value
+    return diff
+
+
+def _read_overrides(path: Path) -> dict:
+    """Lee el fichero de cambios guardados desde la interfaz.
+
+    Args:
+        path: Ruta del fichero (``_overrides_path()``).
+
+    Returns:
+        dict: Su contenido, o ``{}`` si todavía no existe (nadie ha guardado
+            nada desde la interfaz).
+
+    Raises:
+        OSError: Si existe pero no se puede leer.
+        json.JSONDecodeError: Si no es JSON válido.
+    """
+    if not path.exists():
+        return {}
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _read_config_tree() -> dict:
+    """Lee la configuración efectiva: la base con los cambios de la interfaz.
+
+    Returns:
+        dict: El contenido de ``SecOpsConfig.json`` si no hay fichero de
+            cambios configurado; si lo hay, esa base con los cambios aplicados.
+
+    Raises:
+        OSError, json.JSONDecodeError: Si alguno de los dos ficheros no se
+            puede leer o no es JSON válido.
+    """
+    with open(_configs_path, "r", encoding="utf-8") as f:
+        base = json.load(f)
+    overrides_path = _overrides_path()
+    if overrides_path is None:
+        return base
+    return _merge_overrides(base, _read_overrides(overrides_path))
+
+
+def _current_mtimes() -> tuple[float, float]:
+    """Fechas de modificación de la base y del fichero de cambios.
+
+    Returns:
+        tuple[float, float]: ``(base, cambios)``. El segundo vale ``0.0`` si no
+            hay fichero de cambios configurado o aún no existe.
+    """
+    overrides_path = _overrides_path()
+    overrides_mtime = _read_mtime(overrides_path) if overrides_path is not None else 0.0
+    return (_read_mtime(_configs_path), overrides_mtime)
+
+
 def reload_if_changed() -> bool:
-    """Relee la configuración solo si el fichero cambió en disco.
+    """Relee la configuración solo si la base o el fichero de cambios cambiaron.
 
     Existe por los procesos de vida larga que no ven un ``PUT /system``: el
     proceso API refresca ``_configs`` en memoria al guardar, pero el worker de
     RQ es otro proceso (sin ``fork``, ver ``taskqueue/worker.py``) y se quedaría
-    con la config que leyó al arrancar hasta que se le reinicie.
+    con la config que leyó al arrancar hasta que se le reinicie. Para que lo
+    note, tiene que leer el mismo fichero que escribe la API: el mismo checkout
+    en desarrollo, o el fichero de cambios en un volumen compartido en Docker
+    (ver ``_overrides_path``).
 
     A diferencia de ``reload()`` no pasa por ``_configs = None``: lee a una
     variable local y sustituye el diccionario entero de golpe. Varios hilos de
@@ -167,20 +306,21 @@ def reload_if_changed() -> bool:
     ``None`` haría reventar al de al lado con ``IllegalStateError``.
 
     Returns:
-        True si hubo recarga. La caché de bloques se invalida sola: compara por
-        identidad contra ``_configs`` (ver ``load_block``).
+        bool: ``True`` si hubo recarga; ``False`` si no había nada cargado
+            todavía, si nada cambió en disco o si la lectura falló. La caché de
+            bloques se invalida sola: compara por identidad contra ``_configs``
+            (ver ``load_block``).
     """
-    global _configs, _configs_mtime
+    global _configs, _configs_mtimes
     if _configs is None or _configs_path is None:
         return False  # aún no se ha cargado nada: ya lo hará _lazy_load
 
-    mtime = _read_mtime(_configs_path)
-    if mtime == _configs_mtime:
+    mtimes = _current_mtimes()
+    if mtimes == _configs_mtimes:
         return False
 
     try:
-        with open(_configs_path, "r", encoding="utf-8") as f:
-            new_configs = json.load(f)
+        new_configs = _read_config_tree()
     except (OSError, json.JSONDecodeError) as exc:
         # Un fichero a medio escribir o ilegible no puede tumbar un job: se
         # sigue con la config anterior y se reintenta en el siguiente.
@@ -188,7 +328,7 @@ def reload_if_changed() -> bool:
         return False
 
     _configs = new_configs
-    _configs_mtime = mtime
+    _configs_mtimes = mtimes
     _bump_config_generation()
     logger.info("Configuración recargada desde disco (%s)", _configs_path)
     return True
@@ -1424,14 +1564,59 @@ def get_config_version() -> str:
     return _compute_config_version(_require_configs())
 
 
-def save_full_config(new_config: dict, expected_version: Optional[str] = None) -> dict:
-    """Guarda la configuración completa.
+def _write_json_atomically(path: Path, content: dict) -> None:
+    """Escribe ``content`` como JSON sustituyendo el fichero de una vez.
 
-    Si ``expected_version`` se indica y no coincide con la versión actual
-    (ETag de ``get_config_version()``), lanza ``IllegalStateError`` (409) en
-    vez de sobrescribir — evita el last-write-wins silencioso de C9.
+    Escribe a un temporal en el mismo directorio y lo renombra encima con
+    ``os.replace``: el worker relee el fichero en cuanto cambia su mtime, y
+    nunca debe encontrarlo a medio escribir. Crea el directorio si falta (un
+    volumen recién montado está vacío).
+
+    Args:
+        path: Fichero de destino.
+        content: Árbol a serializar.
     """
-    global _configs, _configs_mtime
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        with open(temporary_path, "w", encoding="utf-8") as f:
+            json.dump(content, f, indent=2, ensure_ascii=False)
+        os.replace(temporary_path, path)
+    finally:
+        temporary_path.unlink(missing_ok=True)
+
+
+def save_full_config(new_config: dict, expected_version: Optional[str] = None) -> dict:
+    """Guarda la configuración completa editada desde la interfaz.
+
+    Dónde se escribe depende de ``_overrides_path()``:
+
+    - Sin fichero de cambios (desarrollo): se sobrescribe ``SecOpsConfig.json``
+      con el árbol entero, que la API y el worker leen del mismo checkout.
+    - Con fichero de cambios (Docker): ``SecOpsConfig.json`` no se toca; se
+      guarda solo lo que difiere de él, de forma atómica, en el volumen que
+      comparten la API y el worker.
+
+    Args:
+        new_config: Árbol completo de configuración, tal como lo envía
+            ``PUT /system``.
+        expected_version: ETag que el cliente leyó con
+            ``get_config_version()``. Si se indica y ya no coincide, se rechaza
+            el guardado en vez de pisar los cambios de otra persona. Por
+            defecto ``None`` (sin comprobación).
+
+    Returns:
+        dict: La configuración efectiva tras guardar. Con fichero de cambios es
+            la base con los cambios aplicados, que coincide con ``new_config``
+            salvo en las claves de la base que ``new_config`` omita (el fichero
+            de cambios no puede borrar claves).
+
+    Raises:
+        FileNotFoundError: Si no se ha localizado ``SecOpsConfig.json``.
+        IllegalStateError: Si ``expected_version`` no coincide con la versión
+            actual (se responde con un 409).
+    """
+    global _configs, _configs_mtimes
     if _configs_path is None:
         raise FileNotFoundError("No se encontró ningún archivo de configuración.")
     if expected_version is not None:
@@ -1450,12 +1635,21 @@ def save_full_config(new_config: dict, expected_version: Optional[str] = None) -
                 current_state=current_version,
                 user_message=friendly,
             )
-    with open(_configs_path, "w", encoding="utf-8") as f:
-        json.dump(new_config, f, indent=2, ensure_ascii=False)
-    _configs = new_config
-    _configs_mtime = _read_mtime(_configs_path)
+    overrides_path = _overrides_path()
+    if overrides_path is None:
+        with open(_configs_path, "w", encoding="utf-8") as f:
+            json.dump(new_config, f, indent=2, ensure_ascii=False)
+        saved_config = new_config
+    else:
+        with open(_configs_path, "r", encoding="utf-8") as f:
+            base = json.load(f)
+        overrides = _diff_against_base(base, new_config)
+        _write_json_atomically(overrides_path, overrides)
+        saved_config = _merge_overrides(base, overrides)
+    _configs = saved_config
+    _configs_mtimes = _current_mtimes()
     _bump_config_generation()
-    return new_config
+    return saved_config
 
 
 # =============================================================================
