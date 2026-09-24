@@ -1040,7 +1040,11 @@ class ScanManager(TaskTrackingMixin, ABC):
         result: dict = {}
         for previous_finding in scan_repo.get_previous_findings(user_id, target, self.SCAN_TYPE.value, exclude_scan_id):
             snapshot = previous_finding.snapshot
-            key = previous_finding.dedup_key or compute_dedup_key(snapshot)
+            # La clave se recalcula siempre con la fórmula de hoy en vez de
+            # usar la guardada: si ``compute_dedup_key`` cambia, un hallazgo
+            # que sigue ahí tiene que seguir casando con el de ayer, y no
+            # darse por corregido y reaparecer como nuevo.
+            key = compute_dedup_key(snapshot)
             snapshot["dedup_key"] = key
             result[key] = {
                 "state": previous_finding.state or "open",

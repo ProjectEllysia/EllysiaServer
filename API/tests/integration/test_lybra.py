@@ -1145,6 +1145,40 @@ def test_a_rescan_probes_again_an_identification_saved_before_it_had_a_stamp(app
     assert 80 in _rescan_probed_ports_after(app, admin_user, monkeypatch, strip_stamp)
 
 
+def test_a_check_that_changed_version_is_not_reported_as_fixed_on_the_rescan(app, admin_user, monkeypatch):
+    """Si entre dos escaneos cambia la versión de un check (o la fórmula de la
+    clave de identidad), lo que sigue ahí tiene que seguir casando con lo de
+    ayer: nada de un «Corregido» por cada hallazgo más una copia nueva."""
+    import src.modules.system.config_reading as CR
+
+    monkeypatch.setattr(CR, "lybra_config", lambda: CR.LybraConfig(fingerprinting_enabled=True))
+    _stub_apache_http_probe(monkeypatch)
+    _stub_self_discovery(monkeypatch, [80])
+    _authorize_target(app, admin_user.id)
+
+    with app.app_context():
+        mgr = LybraEngineManager()
+        first = mgr._create_scan_record(target="10.0.0.5", user_id=admin_user.id)
+        mgr._run_lybra(first.id)
+        with UnitOfWork() as uow:
+            stored = uow.session.query(Finding).filter(Finding.scan_id == first.id).all()
+            assert stored
+            for finding in stored:
+                # El escaneo de ayer: otra versión de cada check y una clave
+                # calculada con otra fórmula.
+                if finding.check_id and "@" in finding.check_id:
+                    finding.check_id = finding.check_id.rsplit("@", 1)[0] + "@0"
+                finding.dedup_key = f"clave-antigua-{finding.id}"
+
+        second = mgr._create_scan_record(target="10.0.0.5", user_id=admin_user.id)
+        mgr._run_lybra(second.id)
+        with UnitOfWork() as uow:
+            second_findings = ScanRepository(uow).get_findings_by_scan(second.id)
+
+    assert second_findings
+    assert [f.title for f in second_findings if f.state == "fixed"] == []
+
+
 def test_lybra_identifies_a_service_on_a_non_canonical_port(app, admin_user, monkeypatch):
     """El punto ciego que multiplicaba a todos los demás.
 

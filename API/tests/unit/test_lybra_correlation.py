@@ -39,6 +39,15 @@ def test_dedup_key_stable_by_identity():
     assert compute_dedup_key(a) == compute_dedup_key(b)      # same issue, any source
 
 
+def test_dedup_key_ignores_the_version_of_the_check():
+    # Afinar un check (subir su versión) no cambia qué problema es: si la clave
+    # cambiara, el hallazgo de siempre se daría por corregido y reaparecería
+    # como nuevo en el siguiente escaneo.
+    base = {"host_id": 1, "port": 443, "check_id": "lybra:missing-hsts@1"}
+    assert compute_dedup_key(base) == compute_dedup_key({**base, "check_id": "lybra:missing-hsts@2"})
+    assert compute_dedup_key(base) != compute_dedup_key({**base, "check_id": "lybra:missing-csp@1"})
+
+
 def test_dedup_key_differs_by_port_and_identity():
     base = {"host_id": 1, "port": 80, "cve_ids": ["CVE-1"]}
     assert compute_dedup_key(base) != compute_dedup_key({**base, "port": 443})
@@ -53,11 +62,14 @@ def test_dedup_key_differs_by_port_and_identity():
 # por UDP (161 es el caso real: SNMP). Estos tres tests son los más
 # importantes del cambio: fijan digests literales para que cualquier
 # modificación futura del material de hash de compute_dedup_key falle a
-# gritos, no en silencio.
+# gritos, no en silencio. Cambiar la fórmula es posible sin sembrar
+# «Corregido» falsos porque ``ScanManager._previous_findings_map`` recalcula
+# la clave de los hallazgos anteriores con la fórmula vigente; el digest de
+# aquí sólo se actualiza cuando el cambio es deliberado.
 
 def test_dedup_key_unchanged_without_protocol():
     finding = {"host_id": 1, "port": 161, "check_id": "lybra:open-port@1"}
-    assert compute_dedup_key(finding) == "7f8791d1bcece1467ddb920c88ddab46"
+    assert compute_dedup_key(finding) == "186984bf8c7d0d6ef46e63cf55639fde"
 
 
 def test_dedup_key_unchanged_for_explicit_tcp():
