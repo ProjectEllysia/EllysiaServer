@@ -32,6 +32,7 @@ from ...lybra import (
     pinned_resolution,
     is_http_service,
     is_tls_service,
+    depends_on_site,
     mark_default_site_certificates,
     site_finding,
     crawl,
@@ -2047,7 +2048,10 @@ def _audit_named_sites(address: str, services: list, cancel_check: Callable,
 
     Sólo se repiten los checks de los servicios HTTP y TLS: son los únicos
     cuya respuesta depende del nombre pedido. Los de red (FTP, SSH) ven el
-    mismo servicio se llame como se llame. Cada sitio se audita con la
+    mismo servicio se llame como se llame. Aun así, alguno de los checks que
+    corren sobre un servicio web describe la máquina y no el sitio (las
+    marcas de tiempo TCP): su hallazgo ya lo dio el escaneo por IP, y se
+    descarta aquí con :func:`depends_on_site`. Cada sitio se audita con la
     resolución fijada a ``address`` (``lybra.pinned_resolution``), así que
     ninguna conexión sale de la IP autorizada.
 
@@ -2073,6 +2077,8 @@ def _audit_named_sites(address: str, services: list, cancel_check: Callable,
             continue
         with pinned_resolution(name, address):
             for finding in run_checks(name, web_services):
+                if not depends_on_site(finding):
+                    continue
                 finding["vhost"] = name
                 findings.append(finding)
     return findings

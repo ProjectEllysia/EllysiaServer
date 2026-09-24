@@ -216,6 +216,7 @@ from .planner import CheckPlanner, KnownService
 from .crawler import CrawlResult, crawl
 from .virtual_hosts import (
     DEFAULT_SITE_CERTIFICATE_CHECKS,
+    depends_on_site,
     mark_default_site_certificates,
     select_site_names,
     site_finding,
@@ -403,6 +404,7 @@ __all__ = [
     "pinned_resolution",
     "tcp_timestamps_enabled",
     "DEFAULT_SITE_CERTIFICATE_CHECKS",
+    "depends_on_site",
     "mark_default_site_certificates",
     "select_site_names",
     "site_finding",

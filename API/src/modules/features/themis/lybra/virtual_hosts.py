@@ -23,6 +23,32 @@ from .engine import QOD_OPEN_PORT
 #: :func:`mark_default_site_certificates`).
 DEFAULT_SITE_CERTIFICATE_CHECKS = ("tls-self-signed-cert", "tls-expired-cert")
 
+#: Las categorías que describen la máquina y no el sitio. Una configuración de
+#: red —las marcas de tiempo TCP, por ejemplo— la fija el sistema operativo
+#: para todas las conexiones, se pida el nombre que se pida.
+MACHINE_LEVEL_CATEGORIES = ("network_config",)
+
+
+def depends_on_site(finding: dict) -> bool:
+    """Indica si un hallazgo cambia según el sitio que se pide a la IP.
+
+    La auditoría de un sitio con nombre repite los checks de los servicios web
+    de la IP, y algunos de esos checks no miran la web sino la máquina que hay
+    debajo. Su hallazgo ya salió en el escaneo por IP: repetirlo en cada sitio
+    presentaría un único problema una vez por sitio, y lo contaría otras
+    tantas en los totales.
+
+    Args:
+        finding: El hallazgo producido al auditar un sitio. Se lee su
+            ``category``; si falta, se considera que depende del sitio.
+
+    Returns:
+        bool: ``True`` si el hallazgo es del sitio y debe conservarse con su
+            nombre; ``False`` si es de la máquina (categoría en
+            :data:`MACHINE_LEVEL_CATEGORIES`) y ya lo cubre el escaneo por IP.
+    """
+    return finding.get("category") not in MACHINE_LEVEL_CATEGORIES
+
 
 def select_site_names(
     candidates: Iterable[Tuple[str, str]],
