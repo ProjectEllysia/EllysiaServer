@@ -1,6 +1,7 @@
 """LybraEngineManager — orquesta el motor de escaneo propio de Lybra: descubrimiento
 de servicios, fingerprinting, checks activos y persistencia de los hallazgos resultantes."""
 
+import hashlib
 import logging
 import time
 from contextlib import ExitStack
@@ -33,7 +34,9 @@ from ...lybra import (
     is_http_service,
     is_tls_service,
     depends_on_site,
-    mark_default_site_certificates,
+    mark_default_site_findings,
+    has_own_named_sites,
+    is_alias_of_default_site,
     site_finding,
     crawl,
     compute_dedup_key,
@@ -843,16 +846,17 @@ class LybraEngineManager(ScanManager):
                                             mode=mode))
                 # Escanear una IP audita su sitio por defecto. Los sitios con
                 # nombre que la propia IP delata se auditan aparte, cada uno
-                # con su nombre; entonces el certificado sin nombre es el del
-                # sitio por defecto, y se reporta como tal.
+                # con su nombre. Si alguno sirve una web propia, lo que la IP
+                # enseña sin nombre (certificado, cabeceras) es su sitio por
+                # defecto, y se reporta como tal.
                 if not is_hostname(source_target) and not should_stop():
                     site_findings, site_refutations = split_refutations(_audit_named_sites(
                         source_target, services, should_stop,
                         lambda name, web: self._run_active_checks(
                             name, web, cancel_check=should_stop,
                             proposed_cves=proposed_cves, mode=mode)))
-                    if site_findings:
-                        mark_default_site_certificates(active_findings)
+                    if has_own_named_sites(site_findings):
+                        mark_default_site_findings(active_findings)
                     active_findings += site_findings
                     refutations += site_refutations
                 findings_data.extend(active_findings)
@@ -2092,8 +2096,38 @@ def _pinned_address_for(hostname: str) -> str:
             f"El objetivo '{hostname}' no resuelve a una IP pública: {exc}") from exc
 
 
+def _view_site(host: str, web_services: list) -> dict:
+    """Lo que ``host`` sirve en cada puerto web, para compararlo con otro sitio.
+
+    Una petición ``GET /`` y un saludo TLS por puerto. Se llama con la IP (el
+    sitio por defecto) o con un nombre ya fijado a esa IP por
+    ``pinned_resolution``.
+
+    Args:
+        host: La IP o el nombre del sitio.
+        web_services: Los servicios HTTP y TLS del escaneo.
+
+    Returns:
+        dict: ``puerto -> SiteView``: el estado HTTP, la huella SHA-256 del
+            cuerpo y la identidad del certificado (sujeto, emisor y nombres),
+            con ``None`` en lo que no respondió.
+    """
+    http_probe = HttpProbe()
+    tls_probe = TlsProbe()
+    views = {}
+    for service in web_services:
+        response = http_probe.fetch(host, service.port, "GET", "/")
+        certificate = tls_probe.fetch(host, service.port) if is_tls_service(service) else None
+        views[service.port] = (
+            response.status if response else None,
+            hashlib.sha256(response.body.encode("utf-8", "ignore")).hexdigest() if response else None,
+            (certificate.subject_cn, certificate.issuer_cn, tuple(certificate.names)) if certificate else None,
+        )
+    return views
+
+
 def _audit_named_sites(address: str, services: list, cancel_check: Callable,
-                       run_checks: Callable) -> list:
+                       run_checks: Callable, view_site: Optional[Callable] = None) -> list:
     """Descubre los sitios con nombre de una IP y repite sobre cada uno los checks web.
 
     Sólo se repiten los checks de los servicios HTTP y TLS: son los únicos
@@ -2105,12 +2139,20 @@ def _audit_named_sites(address: str, services: list, cancel_check: Callable,
     resolución fijada a ``address`` (``lybra.pinned_resolution``), así que
     ninguna conexión sale de la IP autorizada.
 
+    Un nombre que sirve exactamente lo mismo que la IP sin nombre (típico del
+    DNS inverso de un proveedor de hosting) no se audita: sus hallazgos serían
+    los del sitio por defecto con otro nombre. Se lista igualmente, diciendo
+    que sirve el sitio por defecto.
+
     Args:
         address: La IP escaneada.
         services: Los servicios del escaneo.
         cancel_check: Devuelve ``True`` si hay que dejar de trabajar.
         run_checks: ``(nombre, servicios) -> hallazgos``; el runtime de checks
             ya configurado con el modo y las CVEs propuestas del escaneo.
+        view_site: ``(host, servicios_web) -> {puerto: SiteView}``, lo que un
+            sitio sirve en cada puerto. Por defecto ``None``, que usa las
+            sondas HTTP y TLS reales.
 
     Returns:
         list: Un aviso ``virtual_host`` por sitio y los hallazgos de cada uno,
@@ -2120,12 +2162,18 @@ def _audit_named_sites(address: str, services: list, cancel_check: Callable,
                            TlsProbe().fetch)
     web_services = [service for service in services
                     if is_http_service(service) or is_tls_service(service)]
+    view_site = view_site or _view_site
+    default_views = view_site(address, web_services) if sites and web_services else {}
     findings = []
     for name, origin in sites:
-        findings.append(site_finding(name, origin))
         if cancel_check() or not web_services:
+            findings.append(site_finding(name, origin))
             continue
         with pinned_resolution(name, address):
+            if is_alias_of_default_site(default_views, view_site(name, web_services)):
+                findings.append(site_finding(name, origin, serves_default_site=True))
+                continue
+            findings.append(site_finding(name, origin))
             for finding in run_checks(name, web_services):
                 if not depends_on_site(finding):
                     continue
