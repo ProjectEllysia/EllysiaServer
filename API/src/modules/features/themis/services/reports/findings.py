@@ -830,11 +830,18 @@ def _default_site_warning(findings: list) -> Optional[str]:
 
 
 def _is_oval_stale() -> bool:
-    """Si la fuente OVAL de la KB está desactualizada. Best-effort: ``False`` ante error."""
+    """Si alguna distribución OVAL de la KB está desactualizada.
+
+    OVAL se registra por distribución (``oval:debian:12``…), así que basta con
+    que una esté vieja. Best-effort: ``False`` ante error.
+
+    Returns:
+        bool: ``True`` si al menos una distribución OVAL está desactualizada.
+    """
     from src.modules.features.themis.managers.kb_sync import KbSyncManager
 
     try:
-        return any(entry["source"] == "oval" and entry["isStale"]
+        return any(entry["source"].startswith("oval:") and entry["isStale"]
                    for entry in KbSyncManager().status()["sources"])
     except Exception:  # noqa: BLE001 - el informe no puede caerse por esto
         logger.exception("No se pudo leer el estado de la base de conocimiento")

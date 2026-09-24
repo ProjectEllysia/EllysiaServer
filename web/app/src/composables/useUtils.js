@@ -36,15 +36,21 @@ export function useUtils() {
 
   /**
    * Aplana un objeto anidado a claves con notación de punto.
+   *
+   * Un punto que forma parte de la propia clave (las fuentes OVAL se llaman
+   * `"ubuntu:20.04"`) se escribe escapado como `\.`, para que `unflatten` no
+   * lo confunda con un separador y parta la clave en dos niveles.
    * @param {object} obj - Objeto anidado
    * @param {string} [prefix=''] - Prefijo para la clave actual (uso recursivo)
    * @returns {Record<string,any>} Objeto plano con claves "a.b.c"
    * @example flatten({a:{b:1}}) → {"a.b":1}
+   * @example flatten({oval:{"ubuntu:20.04":"u"}}) → {"oval.ubuntu:20\\.04":"u"}
    */
   function flatten(obj, prefix = '') {
     const result = {}
     for (const [k, v] of Object.entries(obj)) {
-      const key = prefix ? `${prefix}.${k}` : k
+      const segment = k.replaceAll('.', '\\.')
+      const key = prefix ? `${prefix}.${segment}` : segment
       if (v && typeof v === 'object' && !Array.isArray(v)) {
         Object.assign(result, flatten(v, key))
       } else {
@@ -56,13 +62,16 @@ export function useUtils() {
 
   /**
    * Des-aplana claves con punto de vuelta a un objeto anidado.
+   *
+   * Sólo parte por los puntos sin escapar; un `\.` vuelve a ser un punto
+   * dentro de la clave (ver `flatten`).
    * @param {Record<string,any>} flat - Objeto con claves "a.b.c"
    * @returns {object} Objeto anidado
    */
   function unflatten(flat) {
     const result = {}
     for (const [key, val] of Object.entries(flat)) {
-      const parts = key.split('.')
+      const parts = key.split(/(?<!\\)\./).map((part) => part.replaceAll('\\.', '.'))
       let current = result
       for (let i = 0; i < parts.length - 1; i++) {
         if (!current[parts[i]] || typeof current[parts[i]] !== 'object') {

@@ -1505,15 +1505,19 @@ class KbRepository(BaseRepository[CveEntry]):
         enseña a ignorar los avisos.
 
         Las claves son las de ``features.themis.kb.sources``, no las de las
-        tablas, porque quien pregunta razona en fuentes.
+        tablas, porque quien pregunta razona en fuentes. OVAL va por
+        distribución, ``oval:<vendor>[:<release>]``, igual que se sincroniza.
         """
         totals = self.counts()
-        return {
+        filled = {
             "nvd": totals["cves"] > 0,
             "kev": totals["kev"] > 0,
             "epss": totals["epss"] > 0,
-            "oval": totals["distroPkgStatus"] > 0,
         }
+        distros = self._session.query(DistroPkgStatus.vendor, DistroPkgStatus.release).distinct()
+        for vendor, release in distros:
+            filled[f"oval:{vendor}:{release}" if release else f"oval:{vendor}"] = True
+        return filled
 
     # =========================================================================
     # UPSERTS (keyed by cve_id; a re-sync updates in place)

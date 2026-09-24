@@ -131,3 +131,36 @@ def test_the_alias_index_is_not_rebuilt_when_nvd_failed(recorded, monkeypatch):
     assert summary["nvd"] is None
     assert "cpeProductAliases" not in summary
     assert rebuilt == []
+
+
+def test_a_broken_oval_distribution_costs_only_that_distribution(recorded, monkeypatch):
+    """Cada distribución OVAL se sincroniza y se registra por separado.
+
+    El caso es el de producción: guardar la configuración desde la web partía
+    la clave `ubuntu:20.04` por el punto y dejaba como «URL» un diccionario
+    (`{"04": url}`). Con las seis distribuciones en una sola operación, eso
+    tumbaba OVAL entero cada noche después de haber escrito Debian, y lo único
+    registrado era un error de la librería HTTP que no nombraba la entrada.
+    """
+    import src.modules.system.config_reading as CR
+
+    monkeypatch.setattr(
+        CR, "knowledge_base_config",
+        lambda: type("C", (), {"sources": {"oval": {
+            "debian:12": "https://example.test/bookworm.xml.bz2",
+            "ubuntu:20": {"04": "https://example.test/focal.xml.bz2"},
+            "ubuntu:24.04": "https://example.test/noble.xml.bz2",
+        }}})(),
+    )
+    import src.modules.features.themis.lybra as lybra
+    monkeypatch.setattr(lybra, "fetch_oval", lambda url: b"<oval/>")
+    monkeypatch.setattr(lybra, "parse_oval_definitions", lambda document, vendor, release: iter(()))
+
+    summary = KbSyncManager().sync_all()
+
+    assert summary == {"oval:debian:12": 0, "oval:ubuntu:20": None, "oval:ubuntu:24.04": 0}
+    by_source = {call["source"]: call for call in recorded.calls}
+    assert by_source["oval:debian:12"]["error"] is None
+    assert by_source["oval:ubuntu:24.04"]["error"] is None
+    error = by_source["oval:ubuntu:20"]["error"]
+    assert "ubuntu:20" in error and "no es una URL" in error, error
