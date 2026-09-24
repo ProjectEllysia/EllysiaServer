@@ -456,14 +456,17 @@ class PrintingStrategy(ABC):
         """
 
     @abstractmethod
-    def get_picture_name(self, dark: bool = True) -> str:
-        """Get the logo image name for this scan type.
+    def get_logo_filename(self) -> str:
+        """Get the logo filename for this scan type's reports.
 
-        Args:
-            dark: Whether to use dark variant of logo.
+        The file must exist in ``features/themis/resources/``: the logos travel
+        with the module (in the checkout and in the Docker image), so a report
+        never depends on a directory someone has to create at deploy time.
+        ``tests/unit/test_themis_report_logos.py`` pins that every registered
+        strategy points to a file that exists.
 
         Returns:
-            Logo image filename.
+            str: Bare filename, with extension (e.g. ``"Themis-Blue-BgLight.png"``).
         """
 
     @abstractmethod

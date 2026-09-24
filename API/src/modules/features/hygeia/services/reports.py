@@ -43,12 +43,10 @@ from src.modules.tools.press import (
 
 #: Logotipo de Hygeia, dentro del propio módulo.
 #:
-#: No usa un directorio de recursos configurable como Themis
-#: (``DirectoryType.RESOURCES_THEMIS``) a propósito: esa ruta apunta a
-#: ``API/resources/themis``, que no existe en el repositorio, así que el logo de
-#: sus informes se salta en silencio (``if os.path.exists(...)``). Un recurso
-#: que viaja con el código no puede faltar: está en el checkout, en la imagen de
-#: Docker y en cualquier despliegue, sin configuración que cuadrar.
+#: No usa un directorio de recursos configurable a propósito: un recurso que
+#: viaja con el código no puede faltar, porque está en el checkout, en la imagen
+#: de Docker y en cualquier despliegue, sin configuración que cuadrar. Themis
+#: sigue el mismo patrón (``themis/services/reports/creator.py::LOGO_DIRECTORY``).
 #:
 #: Es una copia reducida y con paleta de 16 colores del original de la SPA
 #: (``assets/images/hygeia/Hygeia-DarkGreen-BgW.png``): se embebe en cada PDF

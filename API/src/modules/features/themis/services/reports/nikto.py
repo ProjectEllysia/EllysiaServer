@@ -299,9 +299,13 @@ class NiktoPrintingStrategy(PrintingStrategy):
     def get_filename_suffix(self) -> str:
         return "_Nikto.pdf"
 
-    def get_picture_name(self, dark: bool = False) -> str:
-        picture_name = "Themis-Salmon-Bg"
-        return picture_name + "Dark.png" if dark else picture_name + "Light.png"
+    def get_logo_filename(self) -> str:
+        """Get the logo filename for Nikto reports.
+
+        Returns:
+            str: ``"Themis-Salmon-BgLight.png"``, inside ``features/themis/resources/``.
+        """
+        return "Themis-Salmon-BgLight.png"
 
     def get_report_title(self) -> str:
         return "Análisis de Vulnerabilidades Web"

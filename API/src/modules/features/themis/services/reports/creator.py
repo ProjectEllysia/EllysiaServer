@@ -10,6 +10,7 @@ import logging
 import os
 
 from datetime import datetime
+from pathlib import Path
 from typing import Optional, Sequence, Tuple
 
 import src.modules.system.config_reading as CR
@@ -18,6 +19,15 @@ from src.modules.tools.press import DocumentStyle, PdfGenerator, ReportTheme
 from .base import PrintingStrategy
 
 logger = logging.getLogger(__name__)
+
+#: Carpeta de los logotipos de los informes, dentro del propio módulo.
+#:
+#: Las imágenes de marca tienen su original en la SPA
+#: (``web/app/src/assets/images/themis/``); aquí hay copias reducidas a su tamaño
+#: real en el PDF, porque se embeben en cada documento. Viven con el código y no
+#: en un directorio configurable para que no puedan faltar: están en el checkout,
+#: en la imagen de Docker y en cualquier despliegue, sin nada que crear a mano.
+LOGO_DIRECTORY = Path(__file__).resolve().parents[2] / "resources"
 
 #: Texto de la declaración que cierra todos los informes de Themis. Un escaneo
 #: se hace sobre sistemas ajenos, así que el informe tiene que dejar constancia
@@ -96,12 +106,10 @@ class PDFCreator(PdfGenerator):
                 estrategia de impresión registrada.
         """
         strategy = PrintingStrategy.resolve_printing_strategy(scan_id)
-        resource_directory = CR.get_directory_of(CR.DirectoryType.RESOURCES_THEMIS)
-
         super().__init__(DocumentStyle(
             palette=strategy.color_palette,
             header_title="Ellysia Security Report",
-            logo_path=os.path.join(resource_directory, strategy.get_picture_name()),
+            logo_path=str(LOGO_DIRECTORY / strategy.get_logo_filename()),
         ))
         self.printing_strategy = strategy
         self.scan = strategy.scan
