@@ -1081,6 +1081,70 @@ def test_a_new_port_on_a_rescan_is_still_probed(app, admin_user, monkeypatch):
     assert probe_calls[-1] == [8080]
 
 
+def _rescan_probed_ports_after(app, admin_user, monkeypatch, alter_host_service) -> list:
+    """Escanea dos veces el puerto 80, tocando entre medias su fila de surface tracking.
+
+    Args:
+        alter_host_service: ``(HostService) -> None`` que modifica la fila
+            guardada por el primer escaneo antes de lanzar el segundo.
+
+    Returns:
+        list: Los puertos que el segundo escaneo pasó a la sonda de fingerprint.
+    """
+    import src.modules.system.config_reading as CR
+    from src.modules.features.themis.model import HostService
+
+    monkeypatch.setattr(CR, "lybra_config", lambda: CR.LybraConfig(fingerprinting_enabled=True))
+    _stub_apache_http_probe(monkeypatch)
+    _stub_self_discovery(monkeypatch, [80])
+    _authorize_target(app, admin_user.id)
+
+    with app.app_context():
+        mgr = LybraEngineManager()
+        first = mgr._create_scan_record(target="10.0.0.5", user_id=admin_user.id)
+        mgr._run_lybra(first.id)
+        with UnitOfWork() as uow:
+            row = uow.session.query(HostService).filter(HostService.port == 80).one()
+            alter_host_service(row)
+
+        probed_ports = []
+        original = LybraEngineManager._fingerprint_services
+
+        def spying_fingerprint(self, target, services, **kwargs):
+            probed_ports.extend(s.port for s in services)
+            return original(self, target, services, **kwargs)
+        monkeypatch.setattr(LybraEngineManager, "_fingerprint_services", spying_fingerprint)
+
+        second = mgr._create_scan_record(target="10.0.0.5", user_id=admin_user.id)
+        mgr._run_lybra(second.id, planner_enabled=True)
+        with UnitOfWork() as uow:
+            row = uow.session.query(HostService).filter(HostService.port == 80).one()
+            assert row.identified_by is not None and row.identified_at is not None
+    return probed_ports
+
+
+def test_a_rescan_probes_again_an_identification_older_than_the_limit(app, admin_user, monkeypatch):
+    """Una identidad guardada caduca: pasado ``maxAgeDays``, el puerto se vuelve
+    a sondear aunque ya se conociera su producto y versión."""
+    from datetime import timedelta
+
+    def age_it(row):
+        row.identified_at = row.identified_at - timedelta(days=30)
+
+    assert 80 in _rescan_probed_ports_after(app, admin_user, monkeypatch, age_it)
+
+
+def test_a_rescan_probes_again_an_identification_saved_before_it_had_a_stamp(app, admin_user, monkeypatch):
+    """Las filas guardadas antes de que existiera el sello no dicen ni cuándo
+    ni con qué identificador se sacaron: se vuelven a sondear, y el segundo
+    escaneo las sella."""
+    def strip_stamp(row):
+        row.identified_at = None
+        row.identified_by = None
+
+    assert 80 in _rescan_probed_ports_after(app, admin_user, monkeypatch, strip_stamp)
+
+
 def test_lybra_identifies_a_service_on_a_non_canonical_port(app, admin_user, monkeypatch):
     """El punto ciego que multiplicaba a todos los demás.
 

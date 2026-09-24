@@ -220,6 +220,15 @@ class HostService(Base):
         first_seen_at: When this port was first observed open.
         last_seen_at: When this port was last observed open (bumped every scan
             that still finds it open — a stale row implies the port closed).
+        identified_at: Cuándo se sondeó el servicio por red por última vez para
+            sacar su producto y versión, o ``None`` si nunca se hizo (o se hizo
+            antes de que existiera la columna). A diferencia de
+            ``last_seen_at``, no avanza cuando un re-escaneo reutiliza la
+            identidad guardada: es lo que permite que esa identidad caduque.
+        identified_by: La revisión del identificador del motor que produjo
+            ``product``/``version`` (``lybra.planner.IDENTIFICATION_REVISION``),
+            o ``None``. Si el motor cambia cómo identifica, las identidades de
+            otra revisión se vuelven a sondear.
     """
     __tablename__ = "HostService"
     __table_args__ = (
@@ -236,6 +245,8 @@ class HostService(Base):
     cpe           = Column(String(255), nullable=True)
     first_seen_at = Column(DateTime, nullable=False, default=utcnow_naive)
     last_seen_at  = Column(DateTime, nullable=False, default=utcnow_naive)
+    identified_at = Column(DateTime, nullable=True)
+    identified_by = Column(String(32), nullable=True)
 
 
 # =========================================================================

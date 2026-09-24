@@ -65,6 +65,7 @@ from ...lybra import (
     split_refutations,
     CheckPlanner,
     KnownService,
+    IDENTIFICATION_REVISION,
 )
 from ...lybra.ingest import select_for_services, translate_all
 from ...services import _Task
@@ -168,18 +169,37 @@ def _build_check_planner(scan_repo, host_id: Optional[int]) -> Optional[CheckPla
         Optional[CheckPlanner]: ``None`` sin host; en otro caso, un
             planificador con lo que el surface tracking recordaba de cada
             servicio con puerto (los de inventario, sin puerto, nunca tienen
-            nada que reutilizar por red).
+            nada que reutilizar por red), incluido cuándo y con qué revisión
+            del identificador se sondeó, para que lo guardado caduque.
     """
     if host_id is None:
         return None
     previous_surface = {
         (row.port, row.protocol or "tcp"): KnownService(
             product=row.product or "", version=row.version or "", cpe=row.cpe,
+            identified_at=row.identified_at, identified_by=row.identified_by,
         )
         for row in scan_repo.get_host_services(host_id)
         if row.port is not None
     }
-    return CheckPlanner(previous_surface)
+    return CheckPlanner(previous_surface, max_age_days=CR.lybra_planner_config().max_age_days)
+
+
+def _port_keys_of(services: list) -> set:
+    """Las claves ``(puerto, protocolo)`` de los servicios con puerto.
+
+    Es la clave con la que el surface tracking y el ``CheckPlanner`` casan un
+    servicio de un escaneo con el del anterior.
+
+    Args:
+        services: Servicios del escaneo; los de inventario (sin puerto) se
+            ignoran, porque nunca se sondean por red.
+
+    Returns:
+        set: Pares ``(port, protocol)``, con ``"tcp"`` si el servicio no trae
+            protocolo.
+    """
+    return {(service.port, service.protocol or "tcp") for service in services if service.port is not None}
 
 
 def _merge_fingerprint_results(
@@ -710,6 +730,11 @@ class LybraEngineManager(ScanManager):
                 report(40)
 
                 fingerprint_findings: list = []
+                # Los servicios que este escaneo ha sondeado de verdad por red,
+                # por ``(puerto, protocolo)``. Sólo su identificación se sella
+                # como nueva en el surface tracking; la de los reutilizados
+                # conserva su fecha, que es lo que la deja caducar.
+                probed_service_keys: set = set()
                 if (
                     source.probes_target_network
                     and source_target
@@ -723,6 +748,7 @@ class LybraEngineManager(ScanManager):
                         else None
                     )
                     if planner is None:
+                        probed_service_keys = _port_keys_of(services)
                         services, fingerprint_findings = self._fingerprint_services(
                             target=source_target,
                             services=services,
@@ -730,6 +756,7 @@ class LybraEngineManager(ScanManager):
                         )
                     else:
                         to_probe, to_reuse = planner.partition(services)
+                        probed_service_keys = _port_keys_of(to_probe)
                         probed, fingerprint_findings = self._fingerprint_services(
                             target=source_target,
                             services=to_probe,
@@ -740,6 +767,11 @@ class LybraEngineManager(ScanManager):
                             services, to_probe, probed, to_reuse, reused
                         )
                     is_partial = is_partial or should_stop()
+                    if should_stop():
+                        # Un fingerprint cortado a medias no sondeó todo lo que
+                        # tenía previsto: sellarlo como identificado daría por
+                        # fresca una identidad que no se ha vuelto a mirar.
+                        probed_service_keys = set()
                 report(70)
 
                 previous_map = self._previous_findings_map(
@@ -751,7 +783,9 @@ class LybraEngineManager(ScanManager):
 
                 surface_findings: list = []
                 if source_host_id:
-                    surface_findings = self._detect_surface_changes(scan_repo, source_host_id, services)
+                    surface_findings = self._detect_surface_changes(
+                        scan_repo, source_host_id, services, probed_service_keys,
+                    )
 
                 engine = LybraEngine(
                     cve_lookup=kb_repo.cves_for_cpe,
@@ -1347,16 +1381,30 @@ class LybraEngineManager(ScanManager):
             "state":        "open",
         }
 
-    def _detect_surface_changes(self, scan_repo, host_id: int, services: list[Service]) -> list:
-        """Diff this scan's services against the host's tracked surface.
+    def _detect_surface_changes(
+        self, scan_repo, host_id: int, services: list[Service], probed_service_keys: frozenset = frozenset(),
+    ) -> list:
+        """Compara los servicios de este escaneo con la superficie guardada del host.
 
-        Emits an informational finding for a port opening for the first time,
-        for a package appearing for the first time (an ``origin="inventory"``
-        service with no port), or for either kind's product/version
-        changing since it was last seen — attack-surface events in their own
-        right, not vulnerability guesses. Always upserts every current service
-        afterwards, so the surface stays current regardless of whether
-        anything changed.
+        Emite un hallazgo informativo cuando un puerto se abre por primera
+        vez, cuando aparece un paquete por primera vez (un servicio
+        ``origin="inventory"`` sin puerto) o cuando cambia el producto o la
+        versión de cualquiera de los dos: son cambios de la superficie de
+        ataque por sí mismos, no sospechas de vulnerabilidad. Después guarda
+        siempre todos los servicios actuales, haya cambiado algo o no.
+
+        Args:
+            scan_repo: El ``ScanRepository`` de la transacción en curso.
+            host_id: El host cuya superficie se compara.
+            services: Los servicios de este escaneo, ya identificados.
+            probed_service_keys: Los ``(puerto, protocolo)`` que este escaneo
+                sondeó por red. Su identificación se sella con
+                :data:`IDENTIFICATION_REVISION` y la fecha de hoy; la del resto
+                conserva su sello anterior. Por defecto, ninguno.
+
+        Returns:
+            list: Los hallazgos de cambio de superficie; vacía si no cambió
+                nada.
         """
         existing = {
             self._surface_key(service): service for service in scan_repo.get_host_services(host_id)
@@ -1378,10 +1426,12 @@ class LybraEngineManager(ScanManager):
                 findings.append(self._surface_finding(
                     service, self._changed_surface_title(service, prior)
                 ))
+            is_probed = (service.port, protocol) in probed_service_keys
             scan_repo.upsert_host_service(
                 host_id=host_id, port=service.port, protocol=protocol,
                 name=service.name or None, product=service.product or None,
                 version=service.version or None, cpe=service.cpe or None,
+                identified_by=IDENTIFICATION_REVISION if is_probed else None,
             )
         return findings
 

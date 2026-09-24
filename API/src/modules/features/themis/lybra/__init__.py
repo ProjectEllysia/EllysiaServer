@@ -212,7 +212,7 @@ from .exporters import (
     to_stix,
     to_ocsf,
 )
-from .planner import CheckPlanner, KnownService
+from .planner import IDENTIFICATION_REVISION, CheckPlanner, KnownService
 from .crawler import CrawlResult, crawl
 from .virtual_hosts import (
     DEFAULT_SITE_CERTIFICATE_CHECKS,
@@ -392,6 +392,7 @@ __all__ = [
     "to_ocsf",
     "CheckPlanner",
     "KnownService",
+    "IDENTIFICATION_REVISION",
     "AsyncConnectScanner",
     "PortOutcome",
     "PortSweep",
