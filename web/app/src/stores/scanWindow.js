@@ -1,32 +1,17 @@
 /**
- * Qué ventana de escaneos hay que pedirle al backend.
+ * Qué ventana de escaneos hay que pedirle al backend, y a qué página volver
+ * tras un borrado.
  *
- * Vive fuera de `themisStore` porque es la parte del arreglo que se puede
- * probar sola: el store arrastra Pinia, Vue y media docena de composables, y lo
- * que aquí falló es una cuenta de dos líneas.
+ * Vive fuera de `themisStore` porque son cuentas que se pueden probar solas:
+ * el store arrastra Pinia, Vue y media docena de composables.
  *
- * **El fallo que arregla.** La lista de escaneos de Lybra crece con un botón
- * "ver más" que añade la siguiente página al final; el refresco (manual, y el
- * sondeo automático que se rearma solo mientras haya un escaneo corriendo)
- * reemplaza la lista con una sola página. Las dos cosas leían el mismo campo
- * `page`, y le daban significados incompatibles: para "ver más" era *la última
- * página traída*, para el refresco *la única página a mostrar*. Con una sola
- * página coinciden y no se nota nada; en cuanto se pulsa "ver más" divergen.
- * El usuario tenía 30 escaneos en pantalla, saltaba el sondeo, y se quedaba con
- * 10 — los más antiguos de los tres bloques, porque se pedía la página 3.
- *
- * **La solución.** El estado guarda cuántas páginas se han revelado, y la
- * petición pide siempre desde la primera con una ventana del tamaño acumulado.
- * Tres ventajas sobre reconstruir la lista pidiendo N páginas seguidas:
- *
- *   - un refresco es *una* petición, no una por página revelada;
- *   - al pedir siempre desde el principio, un escaneo nuevo entra por arriba
- *     sin descolocar la ventana, así que desaparece de paso el duplicado que
- *     produce la paginación por desplazamiento cuando la colección crece por
- *     el mismo extremo que se está paginando;
- *   - con una sola página revelada la petición es idéntica a la de antes, así
- *     que los tipos que usan paginación clásica (`nmap`, `nikto`, `nuclei`,
- *     vía `goToPage`) no cambian de comportamiento.
+ * La ventana se mide en páginas reveladas (`loadedPages`) y se pide siempre
+ * desde `page` con un `per_page` del tamaño acumulado, en una sola petición:
+ * así un refresco —manual, o el sondeo que se rearma mientras hay un escaneo
+ * corriendo— devuelve exactamente lo que había en pantalla, y un escaneo nuevo
+ * entra por arriba sin duplicar filas. Todas las listas de Themis se recorren
+ * hoy con paginador (`goToPage`), que deja `loadedPages` en 1: la petición es
+ * entonces la página tal cual.
  */
 
 /**
@@ -53,17 +38,21 @@ export function scanWindow(state) {
 }
 
 /**
- * Si queda algo por revelar con "ver más".
+ * Página a la que volver tras quitar escaneos de la lista.
  *
- * Además del clásico "ya están todos", corta al llegar al tope de `per_page`:
- * revelar otra página pediría una ventana que el backend rechaza, y el botón
- * dejaría de funcionar en vez de dejar de estar.
+ * Borrar las últimas filas de la última página la deja vacía: recargarla
+ * tal cual pintaría una lista sin escaneos con el paginador diciendo que hay
+ * más. Se retrocede hasta la última página que sigue existiendo con el total
+ * ya descontado; si no queda ninguno, la primera.
  *
- * @param {{results?: Array, totalCount?: number, perPage?: number, loadedPages?: number}} state
- * @returns {boolean}
+ * @param {{page?: number, perPage?: number, totalCount?: number}} state
+ *        El estado de la lista antes del borrado (`scans.lybra`, `scans.nmap`, …).
+ * @param {number} removed Escaneos borrados.
+ * @returns {number} La página a pedir, siempre `>= 1`.
  */
-export function canRevealMore(state) {
-  const loaded = state?.results?.length ?? 0
-  if (loaded >= (state?.totalCount ?? 0)) return false
-  return scanWindow(state).perPage < MAX_PER_PAGE
+export function pageAfterRemoval(state, removed) {
+  const { page, perPage } = scanWindow(state)
+  const remaining = Math.max(0, (state?.totalCount ?? 0) - removed)
+  const lastPage = Math.max(1, Math.ceil(remaining / perPage))
+  return Math.min(page, lastPage)
 }

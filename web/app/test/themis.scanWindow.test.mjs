@@ -1,20 +1,17 @@
 /**
- * Tests de `scanWindow` — la ventana de escaneos que se le pide al backend.
+ * Tests de `scanWindow` —la ventana de escaneos que se le pide al backend— y
+ * de `pageAfterRemoval`, la página a la que vuelve una lista tras un borrado.
  *
  * Node puro, sin framework, misma convención que el resto de `test/`.
  *
- * El fallo que cubren: la lista de Lybra crece con "ver más", que añadía la
- * siguiente página al final y avanzaba `page`; el refresco (manual, y el
- * sondeo automático que se rearma solo mientras haya un escaneo corriendo)
- * leía ese mismo `page` entendiendo que era la única página a mostrar, y
- * reemplazaba la lista con ella. Resultado: el usuario tenía treinta escaneos
- * en pantalla, saltaba el sondeo, y se quedaba con diez — y encima los más
- * antiguos, que son los de la tercera página.
+ * La ventana protege de un refresco que devuelva menos (o distintos) escaneos
+ * de los que había en pantalla; la página tras un borrado, de una última
+ * página vacía con el paginador diciendo que hay más.
  */
 
 import assert from 'node:assert/strict'
 
-const { scanWindow, canRevealMore, MAX_PER_PAGE } =
+const { scanWindow, pageAfterRemoval, MAX_PER_PAGE } =
   await import('../src/stores/scanWindow.js')
 
 let failures = 0
@@ -62,29 +59,24 @@ test('un estado incompleto no produce una petición inválida', () => {
   assert.deepEqual(scanWindow({ page: 0, perPage: 0, loadedPages: 0 }), { page: 1, perPage: 10 })
 })
 
-console.log('canRevealMore')
+console.log('pageAfterRemoval')
 
-test('hay más que revelar mientras falten escaneos', () => {
-  assert.equal(
-    canRevealMore({ results: new Array(10), totalCount: 42, perPage: 10, loadedPages: 1 }),
-    true,
-  )
+test('borrar sin vaciar la página se queda en ella', () => {
+  assert.equal(pageAfterRemoval({ page: 3, perPage: 10, totalCount: 23 }, 2), 3)
 })
 
-test('no hay más que revelar cuando ya están todos', () => {
-  assert.equal(
-    canRevealMore({ results: new Array(42), totalCount: 42, perPage: 10, loadedPages: 5 }),
-    false,
-  )
+test('vaciar la última página retrocede a la anterior', () => {
+  // 23 escaneos: la página 3 tiene 3. Borrarlos deja 20, que caben en dos.
+  assert.equal(pageAfterRemoval({ page: 3, perPage: 10, totalCount: 23 }, 3), 2)
 })
 
-test('no se revela más allá del tope, aunque queden escaneos', () => {
-  // Sin este corte, "ver más" agrandaría la ventana a 110, el backend la
-  // rechazaría, y el botón se quedaría sin hacer nada.
-  assert.equal(
-    canRevealMore({ results: new Array(100), totalCount: 500, perPage: 10, loadedPages: 10 }),
-    false,
-  )
+test('un borrado que se lleva varias páginas cae en la última que queda', () => {
+  assert.equal(pageAfterRemoval({ page: 5, perPage: 10, totalCount: 50 }, 35), 2)
+})
+
+test('sin escaneos restantes se vuelve a la primera', () => {
+  assert.equal(pageAfterRemoval({ page: 2, perPage: 10, totalCount: 11 }, 11), 1)
+  assert.equal(pageAfterRemoval({}, 0), 1)
 })
 
 if (failures) {
