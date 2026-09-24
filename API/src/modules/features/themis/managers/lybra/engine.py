@@ -1284,7 +1284,10 @@ class LybraEngineManager(ScanManager):
                 updated.append(service)
                 continue
 
-            findings.append(self._fingerprint_finding(service, result))
+            # Una huella que no nombra ningún producto («Server: Web») no dice
+            # qué corre ni se puede cruzar con nada: no se reporta.
+            if not result.is_generic:
+                findings.append(self._fingerprint_finding(service, result))
             findings.extend(self._layer_findings(service, result))
             if result.product and result.version:
                 service = replace(service, product=result.product, version=result.version)
@@ -1348,13 +1351,11 @@ class LybraEngineManager(ScanManager):
         y las dos tienen CVEs; elegir una en silencio produce falsos negativos
         por un lado y falsos positivos por el otro.
         """
-        return [
-            cls._fingerprint_finding(
-                service,
-                DissectorResult(product, version, f"{result.label} {role}", qod=result.qod),
-            )
+        layers = [
+            DissectorResult(product, version, f"{result.label} {role}", qod=result.qod)
             for product, version, role in getattr(result, "extra_layers", ())
         ]
+        return [cls._fingerprint_finding(service, layer) for layer in layers if not layer.is_generic]
 
     @staticmethod
     def _fingerprint_finding(service, result) -> dict:
