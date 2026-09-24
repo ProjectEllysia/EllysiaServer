@@ -156,17 +156,13 @@ class NmapPrintingStrategy(PrintingStrategy):
         """
         return "_Nmap.pdf"
 
-    def get_picture_name(self, dark: bool = False) -> str:
-        """Get the logo image name for Nmap reports.
-
-        Args:
-            dark: Whether to use dark variant.
+    def get_logo_filename(self) -> str:
+        """Get the logo filename for Nmap reports.
 
         Returns:
-            Logo filename.
+            str: ``"Themis-Blue-BgLight.png"``, inside ``features/themis/resources/``.
         """
-        picture_name = "Themis-Blue-Bg"
-        return picture_name + "Dark.png" if dark else picture_name + "Light.png"
+        return "Themis-Blue-BgLight.png"
 
     def get_report_title(self) -> str:
         """Get the report title for the cover page.

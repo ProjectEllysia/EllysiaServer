@@ -45,8 +45,8 @@ class _MinimalPrintingStrategy(PrintingStrategy):
     def get_filename_suffix(self) -> str:
         return "_Test.pdf"
 
-    def get_picture_name(self, dark: bool = True) -> str:
-        return "Test"
+    def get_logo_filename(self) -> str:
+        return "Test.png"
 
     def get_report_title(self) -> str:
         return "Test"

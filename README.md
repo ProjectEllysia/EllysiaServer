@@ -863,6 +863,11 @@ Ellysia uses a layered configuration system (`API/src/modules/system/config_read
 
 Config is read through frozen dataclasses bound to a branch of the tree (`@config_block`, e.g. `CR.nuclei_config().rate_limit`), not one getter per value, and cached — changes to `SecOpsConfig.json` require an app restart unless applied via `PUT /system`. Background jobs pick them up too: the worker re-reads the file per job when its mtime changed (`CR.reload_if_changed()`).
 
+Where `PUT /system` writes depends on **`SECOPS_CONFIG_OVERRIDES_PATH`**:
+
+- **Unset (local development):** it overwrites `API/SecOpsConfig.json`, which the API and a worker started from the same checkout both read.
+- **Set (Docker, already done in `docker-compose.yml`):** the API and the worker are separate containers, each with its own copy of `SecOpsConfig.json` baked into the image. That copy becomes a read-only base, and only the keys that differ from it are saved to the overrides file, at `/app/config/SecOpsConfig.overrides.json` on the **`ellysia_config`** volume that both containers mount. The effective config is the base with the overrides on top (objects merge key by key, lists and scalars replace), so edits survive redeploys while keys nobody edited — `appVersion` included — still follow the image. To go back to the repository's config, delete the volume (`docker volume rm ellysia_config`).
+
 The config panel (`web/app/src/views/system/ConfigView.vue`) exposes every settable key of the tree — the AI and email layers, the Themis knowledge base and Lybra engine dials, JWT and MFA policy, Hygeia thresholds, limits and report palette. The one branch deliberately left out is `features.iris.data.*`: those are the anti-phishing heuristic corpora (word lists, homoglyph maps, suspicious TLDs), detection content rather than deployment settings. `API/tests/unit/test_config_view_paths.py` pins the panel's paths against the JSON — the literal ones by full path, the ones composed in a `v-for` by their fixed prefix.
 
 ### Activity log retention
@@ -924,7 +929,7 @@ python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().d
 - `API/src/data/` and `docs/` are gitignored (scan outputs, generated PDFs).
 - PostgreSQL uses port **15432** locally (not standard 5432).
 - There is a single `TaskStatus` enum, in `system/taskqueue/task.py`; `themis/services/tasks.py` imports it rather than defining its own.
-- The API version is declared as `appVersion` in `SecOpsConfig.json` (currently `0.5.27`, read by `CR.get_app_version()`).
+- The API version is declared as `appVersion` in `SecOpsConfig.json` (currently `0.5.28`, read by `CR.get_app_version()`).
 
 ## License
 

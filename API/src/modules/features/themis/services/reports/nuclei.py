@@ -27,7 +27,7 @@ class NucleiPrintingStrategy(FindingsPrintingStrategy):
     _HEADER_TITLE = "Informe de Nuclei"
     _REPORT_TITLE = "Veredicto de Nuclei"
     _FILENAME_SUFFIX = "_Nuclei.pdf"
-    _PICTURE_BASE = "Themis-Blue-Bg"
+    _LOGO_FILENAME = "Themis-Blue-BgLight.png"
     _DEFAULT_PALETTE = {
         "black": "#0d1b2a", "dark": "#1b4965", "main": "#2b7fb8",
         "secondary": "#5fa8d3", "light": "#bee9e8", "white": "#f0f8ff",

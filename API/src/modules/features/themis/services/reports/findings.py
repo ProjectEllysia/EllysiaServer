@@ -56,7 +56,8 @@ class FindingsPrintingStrategy(PrintingStrategy):
         _HEADER_TITLE:       In-body report title (``theme.title`` paragraph).
         _REPORT_TITLE:       PDF metadata / cover title (``get_report_title``).
         _FILENAME_SUFFIX:    Download filename suffix (``get_filename_suffix``).
-        _PICTURE_BASE:       Background image basename, before ``Light``/``Dark.png``.
+        _LOGO_FILENAME:      Logo file in ``features/themis/resources/``
+                             (``get_logo_filename``).
         _DEFAULT_PALETTE:    Fallback color dict when ``SecOpsConfig.json``
                              carries no ``colorPalette`` for ``_TOOL``.
 
@@ -82,7 +83,7 @@ class FindingsPrintingStrategy(PrintingStrategy):
     _HEADER_TITLE: str
     _REPORT_TITLE: str
     _FILENAME_SUFFIX: str
-    _PICTURE_BASE: str
+    _LOGO_FILENAME: str
     _DEFAULT_PALETTE: Dict[str, str]
 
     def __init__(self, scan) -> None:
@@ -684,8 +685,13 @@ class FindingsPrintingStrategy(PrintingStrategy):
     def get_filename_suffix(self) -> str:
         return self._FILENAME_SUFFIX
 
-    def get_picture_name(self, dark: bool = False) -> str:
-        return self._PICTURE_BASE + ("Dark.png" if dark else "Light.png")
+    def get_logo_filename(self) -> str:
+        """Get the logo filename declared by the subclass in ``_LOGO_FILENAME``.
+
+        Returns:
+            str: Bare filename inside ``features/themis/resources/``.
+        """
+        return self._LOGO_FILENAME
 
     def get_report_title(self) -> str:
         return self._REPORT_TITLE
