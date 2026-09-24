@@ -25,8 +25,8 @@ class _StubPrintingStrategy(PrintingStrategy):
     def get_filename_suffix(self):
         return "_Stub.pdf"
 
-    def get_picture_name(self, dark=True):
-        return "logo"
+    def get_logo_filename(self):
+        return "logo.png"
 
     def get_report_title(self):
         return "Stub"
