@@ -20,6 +20,25 @@ from ..repositories import KbRepository
 logger = logging.getLogger(__name__)
 
 
+def _source_names(sources: dict) -> List[str]:
+    """Los nombres con los que se registra y se informa cada fuente configurada.
+
+    NVD, KEV y EPSS son una fuente cada una. OVAL se desdobla en una por
+    distribución, ``oval:<entrada>``, porque así se sincroniza y así falla.
+
+    Args:
+        sources: El bloque ``features.themis.kb.sources`` de la configuración:
+            nombre de fuente → URL, salvo ``oval``, que es entrada → URL.
+
+    Returns:
+        List[str]: Los nombres ordenados, p. ej. ``["epss", "kev", "nvd",
+            "oval:debian:12", "oval:ubuntu:24.04"]``.
+    """
+    names = [name for name in sources if name != "oval"]
+    names += [f"oval:{key}" for key in (sources.get("oval") or {})]
+    return sorted(names)
+
+
 class KbSyncManager:
     """Populates and refreshes the local vulnerability KB (the Lybra Feed).
 
@@ -60,34 +79,51 @@ class KbSyncManager:
         logger.info("KB: EPSS sync upserted %d rows", count)
         return count
 
-    def sync_oval(self, sources: dict) -> int:
-        """Espejar los avisos de las distribuciones.
+    def sync_oval(self, key: str, url) -> int:
+        """Espejar los avisos de una distribución.
 
-        ``sources`` mapea ``"<vendor>[:<release>]"`` a la URL de su feed, para
-        que añadir Debian 12 o Rocky 9 sea una línea de configuración y no de
-        código. El formato se deduce del contenido: JSON es CSAF (Red Hat y
-        derivadas), lo demás es OVAL (Debian, Ubuntu), que llega comprimido en
-        bzip2 y se descomprime mientras se lee.
+        La configuración mapea ``"<vendor>[:<release>]"`` a la URL de su feed,
+        para que añadir Debian 12 o Rocky 9 sea una línea de configuración y no
+        de código; ``sync_all`` llama aquí una vez por entrada, para que una
+        distribución rota cueste sólo esa distribución. El formato se deduce del
+        contenido: JSON es CSAF (Red Hat y derivadas), lo demás es OVAL (Debian,
+        Ubuntu), que llega comprimido en bzip2 y se descomprime mientras se lee.
+
+        Args:
+            key: La entrada de configuración, ``"debian:12"``,
+                ``"ubuntu:24.04"`` o ``"rhel"`` (sin versión, el feed cubre
+                todas).
+            url: La URL del feed. Se comprueba aquí porque llega de un fichero
+                que se edita a mano y desde la web: un valor que no es una URL
+                ``http(s)`` se rechaza con un mensaje que nombra la entrada, en
+                vez del error opaco que daría la librería HTTP.
 
         Returns:
-            Cuántos pronunciamientos se escribieron.
+            int: Cuántos pronunciamientos se escribieron.
+
+        Raises:
+            ValueError: Si ``url`` no es una cadena ``http://`` o ``https://``.
         """
         from ..lybra import fetch_oval, parse_csaf_advisory, parse_oval_definitions
 
+        if not isinstance(url, str) or not url.startswith(("http://", "https://")):
+            raise ValueError(
+                f"la fuente OVAL '{key}' no es una URL http(s): {url!r}; "
+                "revisa features.themis.kb.sources.oval"
+            )
+        vendor, _, release = key.partition(":")
+        document = fetch_oval(url)
+        if document.lstrip().startswith(b"{"):
+            rows = parse_csaf_advisory(json.loads(document), vendor=vendor)
+        else:
+            rows = parse_oval_definitions(document, vendor, release or None)
         count = 0
-        for key, url in sources.items():
-            vendor, _, release = key.partition(":")
-            document = fetch_oval(url)
-            if document.lstrip().startswith(b"{"):
-                rows = parse_csaf_advisory(json.loads(document), vendor=vendor)
-            else:
-                rows = parse_oval_definitions(document, vendor, release or None)
-            with UnitOfWork() as uow:
-                repo = KbRepository(uow)
-                for row in rows:
-                    repo.upsert_distro_pkg_status(row)
-                    count += 1
-        logger.info("KB: OVAL/CSAF sync upserted %d package statuses", count)
+        with UnitOfWork() as uow:
+            repo = KbRepository(uow)
+            for row in rows:
+                repo.upsert_distro_pkg_status(row)
+                count += 1
+        logger.info("KB: OVAL/CSAF '%s' upserted %d package statuses", key, count)
         return count
 
     def sync_nvd(self, base_url: str, window_days: int = 8, api_key: Optional[str] = None) -> int:
@@ -219,7 +255,10 @@ class KbSyncManager:
         Cada fuente se sincroniza y se anota por separado: una que falle deja su
         error registrado y las demás siguen. El resumen trae ``None`` en la
         fuente que falló, que es distinto de un 0 (sincronizó bien y no había
-        nada nuevo).
+        nada nuevo). OVAL cuenta como una fuente por distribución
+        (``oval:debian:12``, ``oval:ubuntu:24.04``…), con su propia fila en
+        ``KbSyncStatus``: un feed caído o una URL mal escrita cuesta esa
+        distribución y deja registrado por qué.
         """
         config = CR.knowledge_base_config()
         sources = config.sources
@@ -228,8 +267,9 @@ class KbSyncManager:
             summary["kev"] = self._sync_source("kev", lambda: self.sync_kev(sources["kev"]))
         if sources.get("epss"):
             summary["epss"] = self._sync_source("epss", lambda: self.sync_epss(sources["epss"]))
-        if sources.get("oval"):
-            summary["oval"] = self._sync_source("oval", lambda: self.sync_oval(sources["oval"]))
+        for key, url in (sources.get("oval") or {}).items():
+            summary[f"oval:{key}"] = self._sync_source(
+                f"oval:{key}", lambda key=key, url=url: self.sync_oval(key, url))
         if sources.get("nvd"):
             summary["nvd"] = self._sync_source("nvd", lambda: self.sync_nvd(
                 sources["nvd"],
@@ -259,7 +299,9 @@ class KbSyncManager:
 
         Se recorren las fuentes **configuradas**, no las filas de la tabla: una
         fuente que no se ha sincronizado nunca no tiene fila, y es justo la que
-        más importa reportar.
+        más importa reportar. OVAL aparece desdoblada en una entrada por
+        distribución (ver :meth:`sync_all`), todas con el umbral de antigüedad
+        de ``oval``.
 
         **Nunca sincronizada no es lo mismo que desactualizada**, y confundirlas
         costaba un falso positivo el día del despliegue: ``KbSyncStatus`` nace
@@ -289,9 +331,9 @@ class KbSyncManager:
             feed_version = kb_feed_version(content_state)
 
         sources = []
-        for name in sorted(config.sources):
+        for name in _source_names(config.sources):
             row = rows.get(name)
-            limit_days = max_age.get(name)
+            limit_days = max_age.get(name.partition(":")[0])
             has_content = filled.get(name, False)
 
             age_days = None
