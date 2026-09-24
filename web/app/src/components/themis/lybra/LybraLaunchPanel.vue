@@ -160,8 +160,8 @@ function handleLaunch() {
 }
 .engine-mark svg { width: 21px; height: 21px; }
 .engine-title-wrap { display: flex; flex-direction: column; gap: 0.05rem; margin-right: auto; }
-.engine-title { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-weight: 600; font-size: var(--fs-lg); color: var(--text); }
-.engine-sub { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-style: italic; font-size: var(--fs-lg); color: var(--text-muted); }
+.engine-title { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-weight: 600; font-size: var(--fs-xl); color: var(--text); }
+.engine-sub { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-style: italic; font-size: var(--fs-md); color: var(--text-muted); }
 .engine-launched { font-size: var(--fs-md); color: var(--success); background: var(--success-dim); padding: 0.2rem 0.55rem; border-radius: 6px; }
 .pop-enter-active { transition: opacity 0.2s ease, transform 0.25s cubic-bezier(0.34,1.56,0.64,1); }
 .pop-enter-from { opacity: 0; transform: scale(0.8); }
@@ -169,6 +169,10 @@ function handleLaunch() {
 .pop-leave-to { opacity: 0; }
 
 /* ── Campos ── */
+/* Escala del panel: título en --fs-xl (el mismo que el lanzador de terceros),
+   y todo lo demás —subtítulo, etiquetas, encabezado del registro, avisos,
+   etiquetas de objetivo— en --fs-md. Todo lo que se escribe, en --fs-input, sea
+   el campo que sea: un mismo texto tecleado no cambia de tamaño según dónde. */
 .engine-fields { display: flex; flex-direction: column; gap: 0.8rem; }
 .field-row { display: flex; align-items: flex-end; gap: 0.6rem; flex-wrap: wrap; }
 .field { display: flex; flex-direction: column; gap: 0.25rem; flex: 1; min-width: 130px; }
@@ -217,7 +221,7 @@ function handleLaunch() {
 .auth-register { border-top: 1px solid var(--border-solid); padding-top: 0.7rem; margin-top: 0.2rem; }
 .auth-register-toggle {
   display: flex; align-items: center; gap: 0.45rem; width: 100%;
-  background: none; border: none; color: var(--text-dim); font-size: var(--fs-lg); font-weight: 500;
+  background: none; border: none; color: var(--text-dim); font-size: var(--fs-md); font-weight: 600;
   cursor: pointer; padding: 0.15rem 0;
 }
 .auth-register-toggle svg:first-child { width: 15px; height: 15px; color: var(--text-muted); }
@@ -253,7 +257,7 @@ function handleLaunch() {
 .auth-add-row { display: flex; gap: 0.4rem; flex-wrap: wrap; }
 .auth-add-row input {
   flex: 1; min-width: 130px; padding: 0.4rem 0.6rem; background: var(--surface-2);
-  border: 1px solid var(--border-solid); border-radius: 6px; color: var(--text); font-size: var(--fs-lg); outline: none;
+  border: 1px solid var(--border-solid); border-radius: 6px; color: var(--text); font-size: var(--fs-input); outline: none;
 }
 .auth-add-row input:focus { border-color: var(--accent); }
 .btn-add-target {
