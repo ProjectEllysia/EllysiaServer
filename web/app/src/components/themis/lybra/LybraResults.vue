@@ -130,17 +130,36 @@
               </div>
 
               <template v-else>
-                <!-- Acordeón anidado, colapsado por defecto: la cabecera de la tarjeta ya
-                     resume la severidad (pills de arriba), así que abrir un escaneo para
-                     generar su PDF o gestionar sus documentos no obliga a desplazarse
-                     primero por una lista de hallazgos que puede ser muy larga. -->
-                <button type="button" class="findings-toggle" @click="toggleFindings(scan.id)">
-                  <span class="chevron findings-chevron" :class="{ rot: findingsOpen.has(scan.id) }" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-                  </span>
-                  {{ findingsOpen.has(scan.id) ? 'Ocultar hallazgos' : 'Mostrar hallazgos' }}
-                  <span class="findings-count">{{ scan.totalFindings }}</span>
-                </button>
+                <!-- Capítulo de hallazgos, colapsado por defecto: la cabecera de la
+                     tarjeta ya resume la severidad (pills de arriba), así que abrir un
+                     escaneo para generar su PDF o gestionar sus documentos no obliga a
+                     desplazarse primero por una lista que puede ser muy larga.
+                     La placa entera es el interruptor, y su borde inferior es la
+                     balanza del escaneo completo: plegada, sigue diciendo cuánto pesa
+                     lo que esconde. El botón va dentro del encabezado (y no al revés)
+                     porque un botón no admite un encabezado dentro. -->
+                <h4 class="chapter-h">
+                  <button type="button" class="chapter-plate chapter-toggle" :class="{ open: findingsOpen.has(scan.id) }"
+                    :aria-expanded="findingsOpen.has(scan.id)" @click="toggleFindings(scan.id)">
+                    <span class="chapter-head">
+                      <span class="chapter-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v18M7 21h10M5 7h14M5 7l-2.5 5a3 3 0 0 0 5 0L5 7zM19 7l-2.5 5a3 3 0 0 0 5 0L19 7z"/></svg></span>
+                      <span class="chapter-text">
+                        <span class="chapter-title">Hallazgos <span class="chapter-count">{{ scan.totalFindings }}</span></span>
+                        <span class="chapter-sub">{{ gravestLine(scan) }}</span>
+                      </span>
+                      <span class="chapter-action">
+                        {{ findingsOpen.has(scan.id) ? 'Plegar' : 'Desplegar' }}
+                        <span class="chevron" :class="{ rot: findingsOpen.has(scan.id) }" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        </span>
+                      </span>
+                    </span>
+                    <span class="balance balance--plate" aria-hidden="true">
+                      <span v-for="seg in scanBalance(scan)" :key="seg.level" class="balance-seg"
+                        :data-sev="seg.level.toLowerCase()" :style="{ flexGrow: seg.count }"></span>
+                    </span>
+                  </button>
+                </h4>
 
                 <Transition name="findings-panel">
                 <div v-if="findingsOpen.has(scan.id)" class="findings-panel">
@@ -155,7 +174,7 @@
                     <section v-if="section.groups.length" class="ledger-section">
                       <header class="inscription">
                         <span class="inscription-mark" aria-hidden="true"></span>
-                        <h4 class="inscription-title">{{ section.title }}</h4>
+                        <h5 class="inscription-title">{{ section.title }}</h5>
                         <span class="inscription-rule" aria-hidden="true"></span>
                         <span class="inscription-tally">{{ section.total }} {{ section.total === 1 ? 'hallazgo' : 'hallazgos' }}</span>
                       </header>
@@ -298,18 +317,31 @@
                 verificación real.
               </div>
 
-              <section v-if="scan.status === 'finished'" class="ledger-section doc-section">
-                <header class="inscription">
-                  <span class="inscription-mark" aria-hidden="true"></span>
-                  <h4 class="inscription-title">Documentos</h4>
-                  <span class="inscription-rule" aria-hidden="true"></span>
-                  <span class="inscription-tally">{{ docsFor(scan.id).length }}</span>
+              <!-- Documentos es un capítulo del escaneo, no una sección más de los
+                   hallazgos: lleva la misma placa que "Hallazgos" y no la inscripción
+                   de "Productos afectados", y un friso lo separa de lo anterior. -->
+              <section v-if="scan.status === 'finished'" class="chapter doc-section">
+                <div class="frieze" aria-hidden="true">
+                  <span class="frieze-mark frieze-mark--sm"></span>
+                  <span class="frieze-mark"></span>
+                  <span class="frieze-mark frieze-mark--sm"></span>
+                </div>
+
+                <div class="chapter-plate">
+                <div class="chapter-head">
+                  <span class="chapter-mark" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                  </span>
+                  <span class="chapter-text">
+                    <h4 class="chapter-title">Documentos <span class="chapter-count">{{ docsFor(scan.id).length }}</span></h4>
+                    <span class="chapter-sub">Informes PDF de este veredicto</span>
+                  </span>
                   <button class="doc-refresh-btn" @click="$emit('load-docs', scan.id)" :disabled="docsLoading(scan.id)" title="Refrescar documentos" aria-label="Refrescar documentos">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ spin: docsLoading(scan.id) }"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
                   </button>
-                </header>
+                </div>
 
-                <div class="ledger doc-ledger">
+                <div class="doc-body">
 
                 <div v-if="docsLoading(scan.id) && !docsFor(scan.id).length" class="doc-empty">Cargando documentos…</div>
                 <div v-else-if="!docsFor(scan.id).length" class="doc-empty">Sin documentos generados</div>
@@ -349,6 +381,7 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                     Generar PDF
                   </button>
+                </div>
                 </div>
                 </div>
               </section>
@@ -643,6 +676,39 @@ function summary(scan) {
  * `v-if` para que la pastilla entre y salga del DOM de verdad, así que el
  * filtrado se saca aquí en vez de ponerlo en la plantilla.
  */
+/**
+ * La balanza de un escaneo completo, a partir del recuento que ya trae el
+ * listado (`byPriority`): no hace falta haber cargado los hallazgos.
+ *
+ * @param {object} scan - Escaneo del listado.
+ * @returns {Array<{level: string, count: number}>} Sólo los niveles presentes,
+ *          en el orden de `LADDER`.
+ */
+function scanBalance(scan) {
+  const s = summary(scan)
+  return LADDER.filter(level => s[level]).map(level => ({ level, count: s[level] }))
+}
+
+/**
+ * Lo más grave del escaneo, en una línea: la lectura de la balanza.
+ *
+ * Los niveles se nombran en femenino porque lo que se cuenta son
+ * vulnerabilidades ("1 crítica", "19 medias"). Si sólo hay hallazgos
+ * informativos se dice así, porque "lo más grave: 11 info" sugeriría que hay
+ * algo que corregir.
+ *
+ * @param {object} scan - Escaneo del listado.
+ * @returns {string} P. ej. "Lo más grave: 1 crítica" o "Solo hallazgos informativos".
+ */
+function gravestLine(scan) {
+  const s = summary(scan)
+  const top = LADDER.find(level => s[level])
+  if (!top) return 'Sin desglose por gravedad'
+  if (top === 'INFO') return 'Solo hallazgos informativos'
+  const count = s[top]
+  return `Lo más grave: ${count} ${PRIO_LABEL[top].toLowerCase()}${count === 1 ? '' : 's'}`
+}
+
 function visibleLadder(scan) {
   const s = summary(scan)
   return LADDER.filter(lvl => s[lvl])
@@ -848,18 +914,6 @@ function fmtDate(iso) {
 .finding-item-leave-to { opacity: 0; }
 .finding-item-move { transition: transform 0.25s ease; }
 
-.findings-toggle {
-  display: inline-flex; align-items: center; gap: 0.4rem;
-  padding: 0.4rem 0; margin-top: 0.2rem;
-  background: none; border: none; cursor: pointer;
-  font-size: var(--fs-md); font-weight: 600; color: var(--text-dim);
-  transition: color 0.15s;
-}
-.findings-toggle:hover { color: var(--text); }
-.findings-chevron { display: grid; place-items: center; color: var(--text-muted); transition: transform 0.2s; }
-.findings-chevron svg { width: 12px; height: 12px; }
-.findings-chevron.rot { transform: rotate(90deg); }
-.findings-count { font-size: var(--fs-body); font-weight: 700; color: var(--text-muted); background: var(--surface-2); padding: 0.05rem 0.45rem; border-radius: 8px; font-family: var(--font-mono); font-size-adjust: var(--fsa-mono); }
 .load-more-findings {
   display: block; width: 100%; margin-top: 0.4rem; padding: 0.45rem;
   background: none; border: 1px dashed var(--border-solid); border-radius: 7px;
@@ -930,12 +984,85 @@ function fmtDate(iso) {
 .groups-loading, .groups-error { padding: 0.6rem 0.2rem; font-size: var(--fs-md); color: var(--text-muted); }
 .groups-error { color: var(--danger); }
 
-/* ── Secciones del escaneo: inscripción + balanza + registro ──
+/* ── Capítulos del escaneo: Hallazgos y Documentos ──
+   El nivel de arriba. Misma cabecera que el panel "Motor Lybra" (sello
+   circular, título en Cormorant, línea en cursiva), para que un capítulo se
+   lea como la continuación de aquello que lo produjo. */
+.chapter-h { margin: 0.35rem 0 0; font: inherit; }
+.chapter-plate {
+  position: relative; display: block; width: 100%; padding: 0;
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 220%);
+  border: 1px solid var(--border-med); border-radius: 10px; overflow: hidden;
+  color: inherit; font: inherit; text-align: left;
+}
+.chapter-toggle { cursor: pointer; transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+.chapter-toggle:hover { border-color: var(--accent); }
+.chapter-toggle.open { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-dim); }
+.chapter-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.chapter-head { display: flex; align-items: center; gap: 0.8rem; padding: 0.75rem 0.95rem; }
+.chapter-mark {
+  width: 36px; height: 36px; flex: none; border-radius: 50%;
+  display: grid; place-items: center;
+  color: var(--accent-bright); background: var(--accent-dim); border: 1px solid var(--accent);
+}
+.chapter-mark svg { width: 18px; height: 18px; transform-origin: 50% 15%; }
+/* La balanza del sello se mece al pasar por encima: se está pesando. */
+.chapter-toggle:hover .chapter-mark svg { animation: balanza-sway 0.9s ease-in-out; }
+@keyframes balanza-sway {
+  0%, 100% { transform: rotate(0); }
+  30% { transform: rotate(-9deg); }
+  60% { transform: rotate(6deg); }
+  82% { transform: rotate(-2deg); }
+}
+.chapter-text { display: flex; flex-direction: column; gap: 0.05rem; min-width: 0; margin-right: auto; }
+.chapter-title {
+  margin: 0; display: flex; align-items: baseline; gap: 0.5rem;
+  font-family: var(--font-display); font-size-adjust: var(--fsa-display);
+  font-size: var(--fs-lg); font-weight: 600; color: var(--text);
+}
+.chapter-count {
+  font-family: var(--font-mono); font-size-adjust: var(--fsa-mono); font-size: var(--fs-sm); font-weight: 600;
+  color: var(--text-dim); background: var(--surface-2); border: 1px solid var(--border-med);
+  padding: 0 0.45rem; border-radius: 999px;
+}
+.chapter-sub {
+  font-family: var(--font-display); font-size-adjust: var(--fsa-display);
+  font-style: italic; font-size: var(--fs-md); color: var(--text-muted);
+}
+.chapter-action {
+  display: inline-flex; align-items: center; gap: 0.35rem; flex: none;
+  font-family: var(--font-epic); font-size-adjust: var(--fsa-epic);
+  font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--text-dim); transition: color 0.2s ease;
+}
+.chapter-toggle:hover .chapter-action, .chapter-toggle.open .chapter-action { color: var(--accent); }
+.chapter-action .chevron svg { width: 12px; height: 12px; }
+/* La balanza del escaneo hace de borde inferior de la placa: tenue en reposo,
+   entera cuando la placa está abierta o bajo el ratón. */
+.balance--plate { height: 3px; margin: 0; gap: 1px; border-radius: 0; }
+.balance--plate .balance-seg { opacity: 0.5; transition: opacity 0.2s ease; }
+.chapter-toggle:hover .balance--plate .balance-seg,
+.chapter-toggle.open .balance--plate .balance-seg { opacity: 0.9; }
+
+/* Friso entre capítulos: dos filetes de oro que se encienden hacia un rombo
+   central escoltado por dos menores. Separa capítulos; dentro de uno, las
+   secciones se separan con la inscripción. */
+.frieze { display: flex; align-items: center; gap: 0.5rem; margin: 2rem 0 1.4rem; }
+.frieze::before, .frieze::after { content: ''; flex: 1; height: 1px; opacity: 0.45; }
+.frieze::before { background: linear-gradient(to right, transparent, var(--accent)); }
+.frieze::after { background: linear-gradient(to left, transparent, var(--accent)); }
+.frieze-mark {
+  width: 8px; height: 8px; flex: none; transform: rotate(45deg);
+  border: 1px solid var(--accent); background: var(--accent-dim);
+}
+.frieze-mark--sm { width: 4px; height: 4px; background: var(--accent); opacity: 0.6; }
+
+/* ── Secciones de un capítulo: inscripción + balanza + registro ──
    Cada sección se abre como una inscripción del templo: rombo, título en la
    letra epigráfica de Ellysia (Cinzel, la del rótulo THEMIS) y un filete de
    oro que se apaga hacia la derecha. Es lo que separa una sección de la
    siguiente, así que se reserva sólo para eso. */
-.findings-panel { padding-top: 0.75rem; }
+.findings-panel { padding-top: 1.15rem; }
 .ledger-section + .ledger-section { margin-top: 1.6rem; }
 .inscription { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.45rem; }
 .inscription-mark {
@@ -1019,10 +1146,7 @@ function fmtDate(iso) {
 .body-coverage-hint { margin-top: 0.6rem; padding: 0.55rem 0.7rem; font-size: var(--fs-md); line-height: 1.4; color: var(--warn); background: var(--warn-dim); border: 1px dashed var(--warn); border-radius: 7px; }
 
 /* ── Documentos PDF ── */
-/* Misma inscripción que las secciones de hallazgos: son otra sección del mismo
-   escaneo, y se separan igual. */
-.doc-section { margin-top: 1.6rem; }
-.doc-ledger { padding: 0.7rem 0.85rem; }
+.doc-body { padding: 0.7rem 0.95rem 0.8rem; border-top: 1px solid var(--border-med); }
 .doc-refresh-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 3px; border-radius: 5px; display: flex; }
 .doc-refresh-btn:hover:not(:disabled) { color: var(--accent-bright); }
 .doc-refresh-btn:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -1092,6 +1216,9 @@ function fmtDate(iso) {
   .scan-body { padding-left: 1rem; }
   .inscription { flex-wrap: wrap; row-gap: 0.25rem; }
   .inscription-title { white-space: normal; letter-spacing: 0.18em; }
+  .chapter-head { padding: 0.7rem 0.8rem; }
+  .chapter-toggle .chapter-head { flex-wrap: wrap; row-gap: 0.4rem; }
+  .chapter-action { margin-left: calc(36px + 0.8rem); }
 }
 @media (prefers-reduced-motion: reduce) {
   .spin { animation: none !important; }
@@ -1099,7 +1226,8 @@ function fmtDate(iso) {
      en curso», que es lo único que representa. */
   .state-progress span { animation: none !important; width: 100%; }
   .balance { animation: none !important; }
-  .chevron, .scan-collapse, .group, .group::before, .pop-enter-active, .pop-leave-active, .chk, .act-btn, .scan-head-row, .fade-swap-enter-active, .fade-swap-leave-active,
+  .chapter-toggle:hover .chapter-mark svg { animation: none !important; }
+  .chevron, .scan-collapse, .group, .group::before, .chapter-toggle, .chapter-action, .balance--plate .balance-seg, .pop-enter-active, .pop-leave-active, .chk, .act-btn, .scan-head-row, .fade-swap-enter-active, .fade-swap-leave-active,
   .scan-item-enter-active, .scan-item-leave-active, .scan-item-move,
   .pill-pop-enter-active, .pill-pop-leave-active, .pill-pop-move,
   .findings-panel-enter-active, .findings-panel-leave-active,
