@@ -47,6 +47,7 @@ from .checks import (
     is_snmp_service,
     is_ssh_service,
     is_telnet_service,
+    is_tls_service,
     is_vnc_service,
 )
 from .engine import Service
@@ -58,6 +59,7 @@ from .fingerprinting.rdp import RdpProbe, fingerprint_rdp
 from .fingerprinting.snmp import SnmpProbe
 from .fingerprinting.ssh import SshProbe, parse_kexinit
 from .fingerprinting.telnet import TelnetProbe
+from .fingerprinting.tls import TlsProbe
 from .fingerprinting.vnc import VncProbe
 from .transport import tcp_timestamps_enabled
 from .fingerprinting.udp_services import (
@@ -791,6 +793,55 @@ class TcpTimestampsPlugin(ScriptPlugin):
         return self._cache.first_positive(context)
 
 
+#: Las familias de conjuntos de cifrado TLS 1.2 que se ofrecen por separado,
+#: por ``plugin_id``, en la sintaxis de OpenSSL. Sin confidencialidad directa:
+#: intercambio de claves RSA estático (``kRSA``), con el que filtrar un día la
+#: clave privada del servidor descifra todo el tráfico grabado antes. CBC: los
+#: modos de cifrado en bloque encadenado que la guía intermedia de Mozilla ya no
+#: admite, por su historial de ataques de relleno (Lucky13, POODLE).
+_TLS12_WEAK_CIPHER_FAMILIES = {
+    "tls-no-forward-secrecy": "kRSA:!aNULL:!eNULL",
+    "tls-cbc-ciphers": ("AES128-SHA:AES256-SHA:AES128-SHA256:AES256-SHA256:"
+                        "ECDHE-RSA-AES128-SHA:ECDHE-RSA-AES256-SHA:"
+                        "ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384:"
+                        "ECDHE-ECDSA-AES128-SHA:ECDHE-ECDSA-AES256-SHA:"
+                        "ECDHE-ECDSA-AES128-SHA256:ECDHE-ECDSA-AES256-SHA384"),
+}
+
+
+class TlsWeakCipherFamilyPlugin(ScriptPlugin):
+    """Detecta que un servicio TLS acepta una familia de cifrados débil.
+
+    Un cliente moderno elige el mejor conjunto que el servidor acepta, así que
+    la conexión normal casi nunca enseña los débiles. Lo que importa es lo peor
+    que el servidor acepta, porque un atacante en medio puede empujar hacia
+    ahí: se ofrece **sólo** la familia y se mira si el servidor la acepta. Una
+    conexión por familia y servicio TLS.
+
+    Args:
+        plugin_id: Una clave de :data:`_TLS12_WEAK_CIPHER_FAMILIES`.
+        probe: Sonda inyectable, para que un test use otra. Por defecto,
+            ``TlsProbe()``.
+    """
+
+    def __init__(self, plugin_id: str, probe: Optional[TlsProbe] = None) -> None:
+        self.plugin_id = plugin_id
+        self._ciphers = _TLS12_WEAK_CIPHER_FAMILIES[plugin_id]
+        self._probe = probe or TlsProbe()
+
+    def applies(self, service: Service) -> bool:
+        return is_tls_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        context.acquire()
+        accepted = self._probe.fetch_accepted_tls12_cipher(
+            context.target, context.service.port or 443, self._ciphers)
+        if not accepted:
+            return False
+        context.evidence.update({"acceptedCipher": accepted})
+        return True
+
+
 def default_script_plugins() -> Dict[str, ScriptPlugin]:
     """Construye el registro de plugins de primera parte, indexado por ``plugin_id``.
 
@@ -814,6 +865,7 @@ def default_script_plugins() -> Dict[str, ScriptPlugin]:
         IkeWeakTransformPlugin(),
         TcpTimestampsPlugin(),
     )
+    plugins += tuple(TlsWeakCipherFamilyPlugin(plugin_id) for plugin_id in _TLS12_WEAK_CIPHER_FAMILIES)
     ssh_cache = _KexinitCache()
     plugins += tuple(SshWeakAlgorithmsPlugin(family, ssh_cache)
                      for family in _WEAK_ALGORITHM_FAMILIES)
