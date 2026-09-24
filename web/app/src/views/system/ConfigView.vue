@@ -656,7 +656,11 @@ const kbSourcePaths = computed(() => {
   return Object.keys(store.configFlat)
     .filter((key) => key.startsWith(prefix))
     .sort()
-    .map((path) => ({ path, label: path.slice(prefix.length).replace('oval.', 'OVAL ').toUpperCase() }))
+    .map((path) => ({
+      path,
+      // Las claves con punto propio llegan escapadas (`ubuntu:20\.04`, ver `flatten`).
+      label: path.slice(prefix.length).replace('oval.', 'OVAL ').replaceAll('\\.', '.').toUpperCase(),
+    }))
 })
 
 const activeSection = ref('general')
