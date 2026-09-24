@@ -107,6 +107,19 @@ def test_robots_entries_are_read_and_visited_within_budget():
     assert ("GET", "/admin/") in calls          # la entrada se visita
 
 
+def test_a_robots_txt_that_only_closes_the_whole_site_declares_no_path():
+    # «Disallow: /» sólo pide que no se indexe nada: no es una ruta que el
+    # dueño delate, y reportarla como tal era ruido.
+    fetch, _calls = _server({
+        "/robots.txt": (200, "User-agent: *\nDisallow: /\nAllow: /*\n", {}),
+        "/": (200, "raiz", {}),
+    })
+
+    result = crawl(HOST, PORT, fetch, max_pages=50)
+
+    assert result.robots_entries == []
+
+
 def test_a_login_form_and_a_basic_auth_path_are_reported():
     fetch, _calls = _server({
         "/": (200, '<a href="/login">e</a> <a href="/panel">p</a>', {}),
@@ -127,3 +140,16 @@ def test_a_zero_page_budget_does_no_fetch_at_all():
 
     assert result.pages_fetched == 0
     assert calls == []
+
+
+def test_the_robots_finding_says_what_the_entries_are_without_calling_them_sensitive():
+    from src.modules.features.themis.lybra import Service
+    from src.modules.features.themis.lybra.crawler import CrawlResult
+    from src.modules.features.themis.managers.lybra.engine import _crawl_findings
+
+    findings = _crawl_findings(Service(port=80, protocol="tcp", name="http"),
+                               CrawlResult(robots_entries=["/backup/"]))
+
+    assert [finding["title"] for finding in findings] == [
+        "robots.txt declara 1 ruta(s) que pide no indexar: /backup/"]
+    assert _crawl_findings(Service(port=80, protocol="tcp", name="http"), CrawlResult()) == []
