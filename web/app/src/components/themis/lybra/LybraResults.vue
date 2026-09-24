@@ -750,7 +750,11 @@ function fmtDate(iso) {
   border-left: 3px solid var(--border-solid); border-radius: 7px;
 }
 .finding.potential { border-style: dashed; opacity: 0.92; }
-.f-prio { flex-shrink: 0; font-size: var(--fs-md); font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; padding: 0.15rem 0.4rem; border-radius: 5px; min-width: 52px; text-align: center; }
+/* Ancho fijo, no mínimo: con `min-width` la insignia crecía con la etiqueta
+   ("CRÍTICA" y "MEDIA" no cabían; "BAJA" sí) y el contenido de la derecha
+   arrancaba en una columna distinta en cada tarjeta. 4.4em cabe "CRÍTICA", la
+   más larga, y al ir en `em` sigue a la escala tipográfica. */
+.f-prio { flex: 0 0 4.4em; box-sizing: border-box; font-size: var(--fs-md); font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; padding: 0.15rem 0.3rem; border-radius: 5px; text-align: center; white-space: nowrap; }
 .f-main { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; flex: 1; }
 .f-title-row { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
 .f-conf { font-size: var(--fs-body); font-weight: 700; padding: 0.1rem 0.4rem; border-radius: 4px; flex-shrink: 0; text-transform: uppercase; letter-spacing: 0.03em; }
