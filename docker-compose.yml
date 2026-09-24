@@ -167,8 +167,14 @@ services:
       TEMP_DIR: /app/temp
       LOG_DIR: /app/logs
       OUTPUT_DIR: /app/data
+      # Cambios guardados desde la pantalla de configuración. Tiene que ser el
+      # mismo fichero en la API y en el worker: cada contenedor lleva su propia
+      # copia de SecOpsConfig.json, y sin esto lo que guarda la API no llega
+      # nunca a los trabajos en segundo plano.
+      SECOPS_CONFIG_OVERRIDES_PATH: /app/config/SecOpsConfig.overrides.json
     volumes:
       - ellysia_data:/app/data
+      - ellysia_config:/app/config
       - scan_temp:/app/temp
       - scan_logs:/app/logs
     networks:
@@ -212,8 +218,14 @@ services:
       TEMP_DIR: /app/temp
       LOG_DIR: /app/logs
       OUTPUT_DIR: /app/data
+      # Cambios guardados desde la pantalla de configuración. Tiene que ser el
+      # mismo fichero en la API y en el worker: cada contenedor lleva su propia
+      # copia de SecOpsConfig.json, y sin esto lo que guarda la API no llega
+      # nunca a los trabajos en segundo plano.
+      SECOPS_CONFIG_OVERRIDES_PATH: /app/config/SecOpsConfig.overrides.json
     volumes:
       - ellysia_data:/app/data
+      - ellysia_config:/app/config
       - scan_temp:/app/temp
       - scan_logs:/app/logs
     networks:
@@ -285,6 +297,10 @@ volumes:
   ellysia_data:
   scan_temp:
   scan_logs:
+  # Cambios de configuración hechos desde la interfaz. Sobrevive a los
+  # despliegues; borrarlo devuelve la configuración a la de SecOpsConfig.json.
+  ellysia_config:
+    name: ellysia_config
   # `name:` explícito por la razón que explica la cabecera del fichero: un
   # checkout en un directorio con otro nombre no puede dejarlos huérfanos.
   # Aquí importa más que en ninguno — perder caddy_data es perder los

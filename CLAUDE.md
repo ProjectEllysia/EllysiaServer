@@ -321,6 +321,24 @@ cuando cambia el mtime (`CR.reload_if_changed()` en `_ThreadSafeWorker.perform_j
 guardada desde ConfigView llega al siguiente job de fondo sin reiniciar nada. `max_workers` es la
 excepción: solo se lee al arrancar el worker.
 
+Eso solo funciona si la API y el worker leen **el mismo fichero**, y dónde se guarda depende de
+`SECOPS_CONFIG_OVERRIDES_PATH`:
+
+- **Sin la variable (desarrollo, WSL):** `PUT /system` sobrescribe `API/SecOpsConfig.json`, que
+  API y worker comparten por estar en el mismo checkout. Ojo: el cambio ensucia el fichero
+  versionado.
+- **Con la variable (Docker):** cada contenedor lleva su copia de `SecOpsConfig.json` en la
+  imagen, así que ese fichero pasa a ser la base de solo lectura y `PUT /system` guarda **solo las
+  diferencias** en el fichero de la variable, dentro del volumen `ellysia_config` que montan los
+  dos. La config efectiva es la base con esos cambios encima: los diccionarios se mezclan clave a
+  clave y cualquier otro valor (listas incluidas) sustituye entero. Lo que cambie en el
+  repositorio —`appVersion`, un prompt— llega tras reconstruir la imagen mientras nadie haya
+  editado esa misma clave desde la interfaz. Para volver a la config del repositorio, borra el
+  volumen (`docker volume rm ellysia_config`) o vacía el fichero. `test_compose_shared_config.py`
+  ata que los dos servicios compartan variable y volumen: si uno los pierde, el worker sigue con
+  su copia de la imagen **en silencio** (el síntoma típico: la IA externa rechazada por «vista
+  previa» aunque la interfaz diga «Público»).
+
 `SecOpsConfig.json` tiene exactamente cinco entradas raíz; mete las claves nuevas bajo la que
 corresponda, no en la raíz:
 
