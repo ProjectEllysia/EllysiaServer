@@ -1,6 +1,7 @@
 """LybraEngineManager — orquesta el motor de escaneo propio de Lybra: descubrimiento
 de servicios, fingerprinting, checks activos y persistencia de los hallazgos resultantes."""
 
+import hashlib
 import logging
 import time
 from contextlib import ExitStack
@@ -32,7 +33,10 @@ from ...lybra import (
     pinned_resolution,
     is_http_service,
     is_tls_service,
-    mark_default_site_certificates,
+    depends_on_site,
+    mark_default_site_findings,
+    has_own_named_sites,
+    is_alias_of_default_site,
     site_finding,
     crawl,
     compute_dedup_key,
@@ -64,6 +68,7 @@ from ...lybra import (
     split_refutations,
     CheckPlanner,
     KnownService,
+    IDENTIFICATION_REVISION,
 )
 from ...lybra.ingest import select_for_services, translate_all
 from ...services import _Task
@@ -167,18 +172,37 @@ def _build_check_planner(scan_repo, host_id: Optional[int]) -> Optional[CheckPla
         Optional[CheckPlanner]: ``None`` sin host; en otro caso, un
             planificador con lo que el surface tracking recordaba de cada
             servicio con puerto (los de inventario, sin puerto, nunca tienen
-            nada que reutilizar por red).
+            nada que reutilizar por red), incluido cuándo y con qué revisión
+            del identificador se sondeó, para que lo guardado caduque.
     """
     if host_id is None:
         return None
     previous_surface = {
         (row.port, row.protocol or "tcp"): KnownService(
             product=row.product or "", version=row.version or "", cpe=row.cpe,
+            identified_at=row.identified_at, identified_by=row.identified_by,
         )
         for row in scan_repo.get_host_services(host_id)
         if row.port is not None
     }
-    return CheckPlanner(previous_surface)
+    return CheckPlanner(previous_surface, max_age_days=CR.lybra_planner_config().max_age_days)
+
+
+def _port_keys_of(services: list) -> set:
+    """Las claves ``(puerto, protocolo)`` de los servicios con puerto.
+
+    Es la clave con la que el surface tracking y el ``CheckPlanner`` casan un
+    servicio de un escaneo con el del anterior.
+
+    Args:
+        services: Servicios del escaneo; los de inventario (sin puerto) se
+            ignoran, porque nunca se sondean por red.
+
+    Returns:
+        set: Pares ``(port, protocol)``, con ``"tcp"`` si el servicio no trae
+            protocolo.
+    """
+    return {(service.port, service.protocol or "tcp") for service in services if service.port is not None}
 
 
 def _merge_fingerprint_results(
@@ -709,6 +733,11 @@ class LybraEngineManager(ScanManager):
                 report(40)
 
                 fingerprint_findings: list = []
+                # Los servicios que este escaneo ha sondeado de verdad por red,
+                # por ``(puerto, protocolo)``. Sólo su identificación se sella
+                # como nueva en el surface tracking; la de los reutilizados
+                # conserva su fecha, que es lo que la deja caducar.
+                probed_service_keys: set = set()
                 if (
                     source.probes_target_network
                     and source_target
@@ -722,6 +751,7 @@ class LybraEngineManager(ScanManager):
                         else None
                     )
                     if planner is None:
+                        probed_service_keys = _port_keys_of(services)
                         services, fingerprint_findings = self._fingerprint_services(
                             target=source_target,
                             services=services,
@@ -729,6 +759,7 @@ class LybraEngineManager(ScanManager):
                         )
                     else:
                         to_probe, to_reuse = planner.partition(services)
+                        probed_service_keys = _port_keys_of(to_probe)
                         probed, fingerprint_findings = self._fingerprint_services(
                             target=source_target,
                             services=to_probe,
@@ -739,6 +770,11 @@ class LybraEngineManager(ScanManager):
                             services, to_probe, probed, to_reuse, reused
                         )
                     is_partial = is_partial or should_stop()
+                    if should_stop():
+                        # Un fingerprint cortado a medias no sondeó todo lo que
+                        # tenía previsto: sellarlo como identificado daría por
+                        # fresca una identidad que no se ha vuelto a mirar.
+                        probed_service_keys = set()
                 report(70)
 
                 previous_map = self._previous_findings_map(
@@ -750,7 +786,9 @@ class LybraEngineManager(ScanManager):
 
                 surface_findings: list = []
                 if source_host_id:
-                    surface_findings = self._detect_surface_changes(scan_repo, source_host_id, services)
+                    surface_findings = self._detect_surface_changes(
+                        scan_repo, source_host_id, services, probed_service_keys,
+                    )
 
                 engine = LybraEngine(
                     cve_lookup=kb_repo.cves_for_cpe,
@@ -808,16 +846,17 @@ class LybraEngineManager(ScanManager):
                                             mode=mode))
                 # Escanear una IP audita su sitio por defecto. Los sitios con
                 # nombre que la propia IP delata se auditan aparte, cada uno
-                # con su nombre; entonces el certificado sin nombre es el del
-                # sitio por defecto, y se reporta como tal.
+                # con su nombre. Si alguno sirve una web propia, lo que la IP
+                # enseña sin nombre (certificado, cabeceras) es su sitio por
+                # defecto, y se reporta como tal.
                 if not is_hostname(source_target) and not should_stop():
                     site_findings, site_refutations = split_refutations(_audit_named_sites(
                         source_target, services, should_stop,
                         lambda name, web: self._run_active_checks(
                             name, web, cancel_check=should_stop,
                             proposed_cves=proposed_cves, mode=mode)))
-                    if site_findings:
-                        mark_default_site_certificates(active_findings)
+                    if has_own_named_sites(site_findings):
+                        mark_default_site_findings(active_findings)
                     active_findings += site_findings
                     refutations += site_refutations
                 findings_data.extend(active_findings)
@@ -1245,7 +1284,10 @@ class LybraEngineManager(ScanManager):
                 updated.append(service)
                 continue
 
-            findings.append(self._fingerprint_finding(service, result))
+            # Una huella que no nombra ningún producto («Server: Web») no dice
+            # qué corre ni se puede cruzar con nada: no se reporta.
+            if not result.is_generic:
+                findings.append(self._fingerprint_finding(service, result))
             findings.extend(self._layer_findings(service, result))
             if result.product and result.version:
                 service = replace(service, product=result.product, version=result.version)
@@ -1309,13 +1351,11 @@ class LybraEngineManager(ScanManager):
         y las dos tienen CVEs; elegir una en silencio produce falsos negativos
         por un lado y falsos positivos por el otro.
         """
-        return [
-            cls._fingerprint_finding(
-                service,
-                DissectorResult(product, version, f"{result.label} {role}", qod=result.qod),
-            )
+        layers = [
+            DissectorResult(product, version, f"{result.label} {role}", qod=result.qod)
             for product, version, role in getattr(result, "extra_layers", ())
         ]
+        return [cls._fingerprint_finding(service, layer) for layer in layers if not layer.is_generic]
 
     @staticmethod
     def _fingerprint_finding(service, result) -> dict:
@@ -1346,16 +1386,30 @@ class LybraEngineManager(ScanManager):
             "state":        "open",
         }
 
-    def _detect_surface_changes(self, scan_repo, host_id: int, services: list[Service]) -> list:
-        """Diff this scan's services against the host's tracked surface.
+    def _detect_surface_changes(
+        self, scan_repo, host_id: int, services: list[Service], probed_service_keys: frozenset = frozenset(),
+    ) -> list:
+        """Compara los servicios de este escaneo con la superficie guardada del host.
 
-        Emits an informational finding for a port opening for the first time,
-        for a package appearing for the first time (an ``origin="inventory"``
-        service with no port), or for either kind's product/version
-        changing since it was last seen — attack-surface events in their own
-        right, not vulnerability guesses. Always upserts every current service
-        afterwards, so the surface stays current regardless of whether
-        anything changed.
+        Emite un hallazgo informativo cuando un puerto se abre por primera
+        vez, cuando aparece un paquete por primera vez (un servicio
+        ``origin="inventory"`` sin puerto) o cuando cambia el producto o la
+        versión de cualquiera de los dos: son cambios de la superficie de
+        ataque por sí mismos, no sospechas de vulnerabilidad. Después guarda
+        siempre todos los servicios actuales, haya cambiado algo o no.
+
+        Args:
+            scan_repo: El ``ScanRepository`` de la transacción en curso.
+            host_id: El host cuya superficie se compara.
+            services: Los servicios de este escaneo, ya identificados.
+            probed_service_keys: Los ``(puerto, protocolo)`` que este escaneo
+                sondeó por red. Su identificación se sella con
+                :data:`IDENTIFICATION_REVISION` y la fecha de hoy; la del resto
+                conserva su sello anterior. Por defecto, ninguno.
+
+        Returns:
+            list: Los hallazgos de cambio de superficie; vacía si no cambió
+                nada.
         """
         existing = {
             self._surface_key(service): service for service in scan_repo.get_host_services(host_id)
@@ -1377,10 +1431,12 @@ class LybraEngineManager(ScanManager):
                 findings.append(self._surface_finding(
                     service, self._changed_surface_title(service, prior)
                 ))
+            is_probed = (service.port, protocol) in probed_service_keys
             scan_repo.upsert_host_service(
                 host_id=host_id, port=service.port, protocol=protocol,
                 name=service.name or None, product=service.product or None,
                 version=service.version or None, cpe=service.cpe or None,
+                identified_by=IDENTIFICATION_REVISION if is_probed else None,
             )
         return findings
 
@@ -1959,7 +2015,7 @@ def _crawl_findings(service, result) -> list:
         muestra = ", ".join(result.robots_entries[:15])
         findings.append(_crawl_finding(
             service, "web_finding", "lybra:robots-txt-entries@1",
-            f"robots.txt declara {len(result.robots_entries)} ruta(s) sensibles: {muestra}"))
+            f"robots.txt declara {len(result.robots_entries)} ruta(s) que pide no indexar: {muestra}"))
     for path in result.login_paths:
         findings.append(_crawl_finding(
             service, "web_finding", "lybra:login-form-detected@1",
@@ -2041,15 +2097,53 @@ def _pinned_address_for(hostname: str) -> str:
             f"El objetivo '{hostname}' no resuelve a una IP pública: {exc}") from exc
 
 
+def _view_site(host: str, web_services: list) -> dict:
+    """Lo que ``host`` sirve en cada puerto web, para compararlo con otro sitio.
+
+    Una petición ``GET /`` y un saludo TLS por puerto. Se llama con la IP (el
+    sitio por defecto) o con un nombre ya fijado a esa IP por
+    ``pinned_resolution``.
+
+    Args:
+        host: La IP o el nombre del sitio.
+        web_services: Los servicios HTTP y TLS del escaneo.
+
+    Returns:
+        dict: ``puerto -> SiteView``: el estado HTTP, la huella SHA-256 del
+            cuerpo y la identidad del certificado (sujeto, emisor y nombres),
+            con ``None`` en lo que no respondió.
+    """
+    http_probe = HttpProbe()
+    tls_probe = TlsProbe()
+    views = {}
+    for service in web_services:
+        response = http_probe.fetch(host, service.port, "GET", "/")
+        certificate = tls_probe.fetch(host, service.port) if is_tls_service(service) else None
+        views[service.port] = (
+            response.status if response else None,
+            hashlib.sha256(response.body.encode("utf-8", "ignore")).hexdigest() if response else None,
+            (certificate.subject_cn, certificate.issuer_cn, tuple(certificate.names)) if certificate else None,
+        )
+    return views
+
+
 def _audit_named_sites(address: str, services: list, cancel_check: Callable,
-                       run_checks: Callable) -> list:
+                       run_checks: Callable, view_site: Optional[Callable] = None) -> list:
     """Descubre los sitios con nombre de una IP y repite sobre cada uno los checks web.
 
     Sólo se repiten los checks de los servicios HTTP y TLS: son los únicos
     cuya respuesta depende del nombre pedido. Los de red (FTP, SSH) ven el
-    mismo servicio se llame como se llame. Cada sitio se audita con la
+    mismo servicio se llame como se llame. Aun así, alguno de los checks que
+    corren sobre un servicio web describe la máquina y no el sitio (las
+    marcas de tiempo TCP): su hallazgo ya lo dio el escaneo por IP, y se
+    descarta aquí con :func:`depends_on_site`. Cada sitio se audita con la
     resolución fijada a ``address`` (``lybra.pinned_resolution``), así que
     ninguna conexión sale de la IP autorizada.
+
+    Un nombre que sirve exactamente lo mismo que la IP sin nombre (típico del
+    DNS inverso de un proveedor de hosting) no se audita: sus hallazgos serían
+    los del sitio por defecto con otro nombre. Se lista igualmente, diciendo
+    que sirve el sitio por defecto.
 
     Args:
         address: La IP escaneada.
@@ -2057,6 +2151,9 @@ def _audit_named_sites(address: str, services: list, cancel_check: Callable,
         cancel_check: Devuelve ``True`` si hay que dejar de trabajar.
         run_checks: ``(nombre, servicios) -> hallazgos``; el runtime de checks
             ya configurado con el modo y las CVEs propuestas del escaneo.
+        view_site: ``(host, servicios_web) -> {puerto: SiteView}``, lo que un
+            sitio sirve en cada puerto. Por defecto ``None``, que usa las
+            sondas HTTP y TLS reales.
 
     Returns:
         list: Un aviso ``virtual_host`` por sitio y los hallazgos de cada uno,
@@ -2066,13 +2163,21 @@ def _audit_named_sites(address: str, services: list, cancel_check: Callable,
                            TlsProbe().fetch)
     web_services = [service for service in services
                     if is_http_service(service) or is_tls_service(service)]
+    view_site = view_site or _view_site
+    default_views = view_site(address, web_services) if sites and web_services else {}
     findings = []
     for name, origin in sites:
-        findings.append(site_finding(name, origin))
         if cancel_check() or not web_services:
+            findings.append(site_finding(name, origin))
             continue
         with pinned_resolution(name, address):
+            if is_alias_of_default_site(default_views, view_site(name, web_services)):
+                findings.append(site_finding(name, origin, serves_default_site=True))
+                continue
+            findings.append(site_finding(name, origin))
             for finding in run_checks(name, web_services):
+                if not depends_on_site(finding):
+                    continue
                 finding["vhost"] = name
                 findings.append(finding)
     return findings

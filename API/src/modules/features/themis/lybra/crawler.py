@@ -45,6 +45,10 @@ _NON_PAGE_SUFFIXES = (
     ".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".webp",
     ".woff", ".woff2", ".ttf", ".eot", ".pdf", ".zip", ".gz", ".mp4", ".mp3",
 )
+#: Las entradas de ``robots.txt`` que nombran la web entera, no una ruta
+#: concreta. ``Disallow: /`` sólo pide que no se indexe nada: no delata nada
+#: que no se sepa ya, y la raíz se rastrea de todas formas.
+_WHOLE_SITE_ENTRIES = ("/", "/*")
 
 
 @dataclass
@@ -153,7 +157,17 @@ def _read_robots(host, port, fetch) -> List[str]:
 
     Se leen tanto ``Disallow`` como ``Allow``: las dos nombran rutas que el
     dueño ha tenido presentes, y una ``Allow`` bajo un ``Disallow`` amplio
-    suele señalar justo la excepción interesante.
+    suele señalar justo la excepción interesante. Las que nombran la web
+    entera (:data:`_WHOLE_SITE_ENTRIES`) se omiten.
+
+    Args:
+        host: El host rastreado.
+        port: El puerto del servicio web.
+        fetch: ``(host, port, método, ruta) -> Response | None``.
+
+    Returns:
+        List[str]: Las rutas normalizadas; vacía si no hay ``robots.txt`` o no
+            declara ninguna ruta concreta.
     """
     response = fetch(host, port, "GET", "/robots.txt")
     if response is None or response.status != 200:
@@ -163,7 +177,7 @@ def _read_robots(host, port, fetch) -> List[str]:
         directive, _, value = line.partition(":")
         if directive.strip().lower() in ("disallow", "allow"):
             path = _normalize_path(value.strip())
-            if path and path not in entries:
+            if path and path not in entries and path not in _WHOLE_SITE_ENTRIES:
                 entries.append(path)
     return entries
 

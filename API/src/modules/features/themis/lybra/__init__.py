@@ -212,11 +212,15 @@ from .exporters import (
     to_stix,
     to_ocsf,
 )
-from .planner import CheckPlanner, KnownService
+from .planner import IDENTIFICATION_REVISION, CheckPlanner, KnownService
 from .crawler import CrawlResult, crawl
 from .virtual_hosts import (
-    DEFAULT_SITE_CERTIFICATE_CHECKS,
-    mark_default_site_certificates,
+    DEFAULT_SITE_CATEGORIES,
+    SiteView,
+    has_own_named_sites,
+    is_alias_of_default_site,
+    depends_on_site,
+    mark_default_site_findings,
     select_site_names,
     site_finding,
 )
@@ -391,6 +395,7 @@ __all__ = [
     "to_ocsf",
     "CheckPlanner",
     "KnownService",
+    "IDENTIFICATION_REVISION",
     "AsyncConnectScanner",
     "PortOutcome",
     "PortSweep",
@@ -402,8 +407,12 @@ __all__ = [
     "is_sweep_implausible",
     "pinned_resolution",
     "tcp_timestamps_enabled",
-    "DEFAULT_SITE_CERTIFICATE_CHECKS",
-    "mark_default_site_certificates",
+    "DEFAULT_SITE_CATEGORIES",
+    "SiteView",
+    "has_own_named_sites",
+    "is_alias_of_default_site",
+    "depends_on_site",
+    "mark_default_site_findings",
     "select_site_names",
     "site_finding",
     "CrawlResult",

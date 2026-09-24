@@ -210,25 +210,28 @@ def _stable_hash(*parts: str) -> str:
 
 
 def finding_to_json(f: dict, exposure: str) -> dict:
-    """Serialize one ``Finding`` snapshot dict to the API JSON shape.
+    """Serializa la instantánea de un ``Finding`` a la forma JSON de la API.
 
-    Shared by ``LybraEngineManager.format_scan`` and
-    ``NucleiScanManager.format_scan`` — both hand-wrote the same fifteen-key
-    dict (plus their own ``priority`` computation via ``score_finding``),
-    which had already drifted: Lybra's included ``cpeResolved``, Nuclei's
-    didn't. A Nuclei finding simply has no ``cpe_resolved`` key, so it now
-    serializes as ``cpeResolved: null`` there too — harmless, and the two
-    scan types stop being able to silently diverge on this shape again.
+    La comparten ``LybraEngineManager`` y ``NucleiScanManager`` para que los
+    dos tipos de escaneo no puedan divergir en la forma de un hallazgo. Una
+    clave que un origen no rellena (``cpe_resolved`` en Nuclei, ``vhost`` en
+    un hallazgo sin sitio) sale como ``null``.
 
-    ``checkId`` se añadió para los exportadores (``lybra/exporters.py``): un
-    resultado SARIF necesita un ``ruleId`` estable, y ``check_id`` es la regla
-    del feed que disparó el hallazgo (o ``None`` en una detección por versión
-    sin check activo de por medio).
+    Args:
+        f: El hallazgo como dict con las columnas de ``Finding`` en
+            snake_case. Se pasa entero a ``score_finding``, porque cada tope
+            de prioridad lee su propia clave.
+        exposure: Exposición del objetivo que ajusta la prioridad:
+            ``"public"`` o ``"private"``.
 
-    ``fixedVersion`` es la versión que NVD declara como cota superior para
-    este producto, resuelta y persistida en la fila (ver
-    ``services/cve_context.py::resolve_fixed_versions``), o ``None`` cuando
-    ninguna regla la declara.
+    Returns:
+        dict: El hallazgo en camelCase. Entre sus claves, ``checkId`` es la
+            regla del feed que lo disparó (``None`` en una detección por
+            versión), ``fixedVersion`` la cota superior que NVD declara para
+            el producto (``None`` si ninguna regla la declara) y ``vhost`` el
+            sitio con nombre al que pertenece: ``None`` cuando es de la IP
+            misma, o ``"(sitio por defecto)"`` para un certificado del sitio
+            que responde sin nombre en una IP que aloja otros.
     """
     # El hallazgo entero, no una selección de campos: cada tope de
     # ``score_finding`` lee su propia clave (``check_id``, ``vhost``,
@@ -257,4 +260,5 @@ def finding_to_json(f: dict, exposure: str) -> dict:
         "requiredOs":  f.get("required_os"),
         "checkId":     f.get("check_id"),
         "fixedVersion": f.get("fixed_version"),
+        "vhost":       f.get("vhost"),
     }
