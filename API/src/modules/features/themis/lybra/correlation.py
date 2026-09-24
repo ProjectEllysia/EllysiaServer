@@ -29,6 +29,7 @@ Contextual scoring
 from __future__ import annotations
 
 import hashlib
+import re
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
@@ -72,6 +73,12 @@ PRIORITY_LADDER = ["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"]
 # DEDUPLICATION
 # =========================================================================
 
+#: El sufijo de versión de un ``check_id`` (``@2`` en ``lybra:hsts@2``), que
+#: :func:`compute_dedup_key` quita para que la identidad de un hallazgo no
+#: cambie cuando se afina el check que lo produce.
+_CHECK_VERSION_RE = re.compile(r"@\d+$")
+
+
 def compute_dedup_key(finding: dict) -> str:
     """Compute a stable key identifying the same issue on the same service.
 
@@ -80,6 +87,12 @@ def compute_dedup_key(finding: dict) -> str:
     the host and port plus a "vulnerability identity", chosen in order of
     preference: the CVE set if present (so any scanner naming that CVE merges),
     otherwise the producing check, otherwise the finding's category.
+
+    Del check se toma su identificador **sin la versión** (``lybra:hsts@2`` →
+    ``lybra:hsts``). La versión dice con qué criterio se evaluó, no qué
+    problema es: si formara parte de la clave, afinar un check haría que su
+    hallazgo de siempre se diera por «corregido» y reapareciera como nuevo en
+    el siguiente escaneo, sin que nadie hubiera tocado el objetivo.
 
     Args:
         finding: A finding dict, expected to carry ``host_id``, ``port`` and one
@@ -94,7 +107,7 @@ def compute_dedup_key(finding: dict) -> str:
     if cves:
         identity = "cve:" + ",".join(sorted(cves))
     elif finding.get("check_id"):
-        identity = "check:" + str(finding["check_id"])
+        identity = "check:" + _CHECK_VERSION_RE.sub("", str(finding["check_id"]))
     else:
         identity = "cat:" + str(finding.get("category"))
     material = f"{host}|{port}|{identity}"
