@@ -2014,7 +2014,7 @@ def _crawl_findings(service, result) -> list:
         muestra = ", ".join(result.robots_entries[:15])
         findings.append(_crawl_finding(
             service, "web_finding", "lybra:robots-txt-entries@1",
-            f"robots.txt declara {len(result.robots_entries)} ruta(s) sensibles: {muestra}"))
+            f"robots.txt declara {len(result.robots_entries)} ruta(s) que pide no indexar: {muestra}"))
     for path in result.login_paths:
         findings.append(_crawl_finding(
             service, "web_finding", "lybra:login-form-detected@1",
