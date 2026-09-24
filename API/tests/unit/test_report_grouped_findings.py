@@ -24,6 +24,7 @@ from src.modules.tools.press import ColorType, ReportTheme
 from src.modules.features.themis.lybra.grouping import build_service_rollup
 from src.modules.features.themis.services.reports.findings import (
     FindingsPrintingStrategy,
+    _default_site_warning,
     _unverified_warning,
 )
 from src.modules.features.themis.services.reports.outline import OutlineEntry
@@ -240,3 +241,79 @@ def test_the_report_warns_about_unverified_distro_findings(monkeypatch):
 
 def test_no_unverified_findings_means_no_warning():
     assert _unverified_warning([{"state": "open"}]) is None
+
+
+# ────────────────────── hallazgos corregidos desde el escaneo anterior
+
+
+def test_fixed_findings_get_their_own_section_after_the_findings():
+    from src.modules.features.themis.services.reports.findings import _append_fixed_section
+
+    elements = []
+    _append_fixed_section(_theme(), elements, [
+        _finding(title="Falta la cabecera <HSTS>", state="fixed", vhost="www.example.org"),
+    ], "scan7-fixed")
+
+    assert _outline_entries(elements) == [(0, "Corregidos desde el escaneo anterior", "scan7-fixed")]
+    lines = [element.getPlainText() for element in elements if hasattr(element, "getPlainText")]
+    assert any("Falta la cabecera <HSTS> (http:80, sitio www.example.org)" in line for line in lines)
+
+
+def test_no_fixed_findings_means_no_section():
+    from src.modules.features.themis.services.reports.findings import _append_fixed_section
+
+    elements = []
+    _append_fixed_section(_theme(), elements, [], "scan7-fixed")
+    assert elements == []
+
+
+def test_the_report_body_keeps_fixed_findings_out_of_the_cards_and_the_counts(monkeypatch):
+    """Un «Corregido» no es un riesgo vivo: ni ficha, ni prioridad, ni total."""
+    from types import SimpleNamespace
+    from src.modules.infrastructure import session as session_module
+    from src.modules.features.themis.managers import LybraEngineManager
+    from src.modules.features.themis.services.reports import findings as report_module
+
+    def row(title, state):
+        return SimpleNamespace(
+            title=title, category="security_header", port=80, service="http", cpe=None, cve_ids=[],
+            cvss_score=None, epss_score=None, in_kev=False, qod=90, confirmed=True,
+            exploit_maturity=None, state=state, source="lybra", cpe_resolved=False,
+            required_os=None, check_id="lybra:hsts@2", vhost=None, severity="MEDIUM",
+        )
+    rows = [row("Cabecera HSTS ausente", "open"), row("Cabecera X-Frame-Options ausente", "fixed")]
+    monkeypatch.setattr(session_module, "build_repository",
+                        lambda _cls: SimpleNamespace(get_findings_by_scan=lambda _scan_id: rows))
+    monkeypatch.setattr(LybraEngineManager, "exposure_for", staticmethod(lambda _scan: "public"))
+    monkeypatch.setattr(report_module, "enrich_with_cve_context", lambda _findings: None)
+    monkeypatch.setattr(report_module.FindingsPrintingStrategy, "_knowledge_base_line",
+                        staticmethod(lambda: "NVD 2026-09-24"))
+
+    from src.modules.features.themis.services.reports.lybra import LybraPrintingStrategy
+    strategy = LybraPrintingStrategy.__new__(LybraPrintingStrategy)
+    strategy.scan = _Scan()
+    strategy.color_palette = _PALETTE
+    elements = []
+    strategy.append_body(_theme(), elements)
+
+    texts = []
+    for element in elements:
+        if hasattr(element, "getPlainText"):
+            texts.append(element.getPlainText())
+        for cells in getattr(element, "_cellvalues", []):
+            texts.append(" ".join(str(cell) for cell in cells))
+    joined = "\n".join(texts)
+    assert "Total de hallazgos: 1" in joined
+    assert "Corregidos desde el escaneo anterior: 1" in joined
+    assert "Hallazgo #1.1" in joined and "Hallazgo #1.2" not in joined
+    assert "• Cabecera X-Frame-Options ausente (http:80)" in joined
+
+
+def test_the_report_warns_when_the_ip_hosts_other_webs():
+    from src.modules.features.themis.lybra.correlation import DEFAULT_SITE_VHOST
+
+    warning = _default_site_warning([{"vhost": DEFAULT_SITE_VHOST}, {"vhost": None}])
+
+    assert "aloja varias webs" in warning
+    assert "escanéala por su nombre" in warning
+    assert _default_site_warning([{"vhost": "web.ejemplo.test"}, {}]) is None

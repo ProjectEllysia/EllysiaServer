@@ -847,20 +847,35 @@ class ScanRepository(BaseRepository[Scan]):
     def upsert_host_service(
         self, host_id: int, port: Optional[int], protocol: str,
         name: Optional[str], product: Optional[str], version: Optional[str], cpe: Optional[str],
+        identified_by: Optional[str] = None,
     ) -> None:
-        """Record a service as currently open, creating or refreshing its row.
+        """Registra un servicio como abierto, creando o refrescando su fila.
 
-        Bumps ``last_seen_at`` and the identification fields (only when the new
-        scan actually resolved something — an unresolved rescan must not erase
-        a product/version a previous scan already found) on every call, so a
-        service's row always reflects its most recent observation.
+        En cada llamada avanza ``last_seen_at`` y actualiza los campos de
+        identificación, sólo cuando el escaneo nuevo resolvió algo: un
+        re-escaneo que no identificó nada no puede borrar el producto o la
+        versión que ya había encontrado uno anterior.
 
-        ``port`` is ``None`` for a portless, ``origin="inventory"`` service
-        — an installed package with nothing listening. A port
-        already uniquely identifies which row to touch; without a port, the
-        lookup keys on ``product`` too, otherwise two different packages on
-        the same host would collide on the same ``(host, NULL, protocol)``
-        row and silently overwrite each other.
+        ``port`` es ``None`` para un servicio de inventario sin puerto (un
+        paquete instalado sin nada escuchando). Con puerto, el puerto basta para
+        saber qué fila tocar; sin él, la búsqueda usa además ``product``, porque
+        dos paquetes distintos del mismo host chocarían en la misma fila
+        ``(host, NULL, protocolo)`` y uno pisaría al otro sin avisar.
+
+        Args:
+            host_id: El host al que pertenece el servicio.
+            port: El puerto, o ``None`` para un servicio de inventario.
+            protocol: ``"tcp"`` o ``"udp"``.
+            name: El nombre convencional del servicio (``"http"``, ``"ssh"``…),
+                o ``None``.
+            product: El producto identificado, o ``None``.
+            version: La versión identificada, o ``None``.
+            cpe: El CPE resuelto, o ``None``.
+            identified_by: La revisión del identificador que acaba de sondear
+                este servicio por red. Sólo se pasa cuando el escaneo lo sondeó
+                de verdad; entonces se sellan ``identified_at`` e
+                ``identified_by``. Por defecto ``None``: la identidad se
+                reutilizó o no hubo sonda, y el sello anterior se conserva.
         """
         filters = [
             HostService.host_id == host_id,
@@ -875,11 +890,13 @@ class ScanRepository(BaseRepository[Scan]):
             .first()
         )
         now = utcnow_naive()
+        identified_at = now if identified_by else None
         if existing is None:
             self._session.add(HostService(
                 host_id=host_id, port=port, protocol=protocol, name=name,
                 product=product, version=version, cpe=cpe,
                 first_seen_at=now, last_seen_at=now,
+                identified_at=identified_at, identified_by=identified_by,
             ))
             return
         existing.last_seen_at = now
@@ -887,6 +904,9 @@ class ScanRepository(BaseRepository[Scan]):
         existing.product = product or existing.product
         existing.version = version or existing.version
         existing.cpe = cpe or existing.cpe
+        if identified_by:
+            existing.identified_at = identified_at
+            existing.identified_by = identified_by
 
 
 class ThemisReportRepository(DocumentRepository[ThemisDocument]):

@@ -13,6 +13,7 @@ from reportlab.platypus import CondPageBreak, Paragraph, Spacer, Table, TableSty
 import src.modules.system.config_reading as CR
 
 from src.modules.tools.press import ColorType, build_palette, safe_markup
+from ...lybra.correlation import DEFAULT_SITE_VHOST
 from ...lybra.grouping import build_service_rollup
 from ..cve_context import enrich_with_cve_context
 from .base import PrintingStrategy
@@ -125,12 +126,18 @@ class FindingsPrintingStrategy(PrintingStrategy):
         # propia sección, no entre las fichas ni en los recuentos.
         sites = [finding for finding in findings if finding["category"] == "virtual_host"]
         findings = [finding for finding in findings if finding["category"] != "virtual_host"]
+        # Lo que el escaneo anterior vio y éste ya no ve tampoco es un riesgo
+        # vivo: va en su propia sección al final, sin prioridad y fuera de los
+        # recuentos. Mezclado con los abiertos, el mismo problema salía dos
+        # veces y el total se inflaba.
+        fixed_findings = [finding for finding in findings if finding.get("state") == "fixed"]
+        findings = [finding for finding in findings if finding.get("state") != "fixed"]
         for finding in findings:
             finding["priority"] = score_finding(finding, exposure)
             finding["is_unverified_distro_package"] = is_unverified_distro_package(finding)
         enrich_with_cve_context(findings)
 
-        self._append_finding_header(theme, elements, findings, exposure)
+        self._append_finding_header(theme, elements, findings, exposure, len(fixed_findings))
         _append_sites_section(theme, elements, sites)
 
         if findings:
@@ -138,6 +145,7 @@ class FindingsPrintingStrategy(PrintingStrategy):
         self._append_cpe_coverage_note(theme, elements, findings)
 
         self._append_findings_section(theme, elements, findings)
+        _append_fixed_section(theme, elements, fixed_findings, self._outline_key("fixed"))
 
         if ai_report:
             # La misma lista que imprime las fichas: ya priorizada por
@@ -151,19 +159,33 @@ class FindingsPrintingStrategy(PrintingStrategy):
         # a MetricExtractor for each; a Finding-based one is separate scope
         # from wiring the PDF itself. Add it when that's needed.
 
-    def _append_finding_header(self, theme: "ReportTheme", elements: list, findings: list, exposure: str) -> None:
-        """Cabecera del informe: título y tablas de objetivo/escaneo."""
+    def _append_finding_header(
+        self, theme: "ReportTheme", elements: list, findings: list, exposure: str, fixed_count: int = 0,
+    ) -> None:
+        """Cabecera del informe: título y tablas de objetivo y escaneo.
+
+        Args:
+            theme: El tema del informe.
+            elements: La lista de elementos del documento; se amplía en sitio.
+            findings: Los hallazgos vivos del escaneo, sin los corregidos.
+            exposure: ``"public"``, ``"private"`` o cualquier otro valor
+                (se muestra como «Desconocida»).
+            fixed_count: Cuántos hallazgos del escaneo anterior ya no
+                aparecen. Se dice en una fila propia, fuera del total. Por
+                defecto ``0``, que no añade la fila.
+        """
         scan = self.scan
 
         elements.append(Paragraph(self._HEADER_TITLE, theme.title))
         elements.append(Spacer(1, 0.1 * inch))
 
-        warning = _unverified_warning(findings)
-        if warning:
-            # Va antes que ninguna tabla porque cambia cómo se leen todas: son
-            # los hallazgos que más fácilmente resultan falsos.
-            elements.append(Paragraph(warning, theme.body))
-            elements.append(Spacer(1, 0.1 * inch))
+        # Van antes que ninguna tabla porque cambian cómo se leen todas: el
+        # primero señala los hallazgos que más fácilmente resultan falsos, y el
+        # segundo, lo que el escaneo no ha podido mirar.
+        for warning in (_unverified_warning(findings), _default_site_warning(findings)):
+            if warning:
+                elements.append(Paragraph(warning, theme.body))
+                elements.append(Spacer(1, 0.1 * inch))
 
         exposure_label = "Pública" if exposure == "public" else "Privada" if exposure == "private" else "Desconocida"
         target_info = [
@@ -208,6 +230,8 @@ class FindingsPrintingStrategy(PrintingStrategy):
             # es correcto, pero callar cuántos hay ocultaría que alguien
             # intervino sobre lo que el motor detectó.
             scan_info.append(["Desmentidos por el usuario:", str(refuted_count)])
+        if fixed_count:
+            scan_info.append(["Corregidos desde el escaneo anterior:", str(fixed_count)])
         info_table = theme.kv_table(scan_info, col_widths=[2 * inch, 4 * inch])
         elements.append(info_table)
         elements.append(Spacer(1, 0.3 * inch))
@@ -715,9 +739,44 @@ def _append_sites_section(theme: "ReportTheme", elements: list, sites: list) -> 
     elements.append(Spacer(1, 0.1 * inch))
     elements.append(Paragraph(
         "Además del sitio por defecto de la IP, se auditaron por separado estos "
-        "sitios con nombre, que resuelven a la misma IP:", theme.body))
+        "sitios con nombre, que resuelven a la misma IP. Los que sirven la misma "
+        "página que el sitio por defecto no se auditan aparte:", theme.body))
     for site in sites:
         elements.append(Paragraph(f"• {site['title']}", theme.body))
+    elements.append(Spacer(1, 0.3 * inch))
+
+
+def _append_fixed_section(theme: "ReportTheme", elements: list, fixed_findings: list, outline_key: str) -> None:
+    """La sección «Corregidos desde el escaneo anterior», si hay alguno.
+
+    Son hallazgos que el escaneo anterior del mismo objetivo vio y éste ya no.
+    Se listan en una línea cada uno, sin prioridad ni ficha: ya no son un
+    riesgo, y darles el mismo formato que a los abiertos los hacía pasar por
+    uno más.
+
+    Args:
+        theme: El tema del informe.
+        elements: La lista de elementos del documento; se amplía en sitio.
+        fixed_findings: Los hallazgos con ``state="fixed"``; vacía, no se
+            añade nada.
+        outline_key: La clave del marcador de la sección en el índice del PDF.
+    """
+    if not fixed_findings:
+        return
+    title = "Corregidos desde el escaneo anterior"
+    elements.append(CondPageBreak(1.5 * inch))
+    elements.append(OutlineEntry(title, key=outline_key, level=0))
+    elements.append(Paragraph(title, theme.subtitle))
+    elements.append(Spacer(1, 0.1 * inch))
+    elements.append(Paragraph(
+        "El escaneo anterior de este objetivo los detectó y éste ya no. No cuentan en "
+        "el total ni en el resumen por prioridad.", theme.body))
+    for finding in fixed_findings:
+        where = f"{finding.get('service') or 'servicio'}:{finding['port']}" if finding.get("port") else ""
+        if finding.get("vhost"):
+            where += f", sitio {finding['vhost']}"
+        suffix = f" ({safe_markup(where)})" if where else ""
+        elements.append(Paragraph(f"• {safe_markup(finding['title'])}{suffix}", theme.body))
     elements.append(Spacer(1, 0.3 * inch))
 
 
@@ -744,6 +803,30 @@ def _unverified_warning(findings: list) -> Optional[str]:
         text += (" La fuente OVAL de avisos de distribución está desactualizada: "
                  "sincronizarla puede desmentir algunos.")
     return text
+
+
+def _default_site_warning(findings: list) -> Optional[str]:
+    """El aviso de portada de que la IP aloja varias webs y sólo se ven algunas.
+
+    Cuando la IP sirve webs con nombre propio, lo que enseña a quien entra sin
+    nombre es su sitio por defecto (en un hosting, la página genérica del
+    panel). El escaneo por IP sólo ve las webs que la propia IP delata en sus
+    certificados o en su DNS inverso; el resto hay que escanearlas por nombre.
+
+    Args:
+        findings: Los hallazgos del informe.
+
+    Returns:
+        Optional[str]: El texto del aviso, o ``None`` si ningún hallazgo es del
+            sitio por defecto.
+    """
+    if not any(finding.get("vhost") == DEFAULT_SITE_VHOST for finding in findings):
+        return None
+    return ("<b>Aviso:</b> esta IP aloja varias webs. Los avisos de la página que "
+            "responde a quien entra por la IP, sin nombre (el «sitio por defecto»), se "
+            "muestran con prioridad baja, porque no es la que ven los visitantes. Solo se "
+            "han auditado las webs que la propia IP delata; para auditar cualquier otra "
+            "alojada aquí, escanéala por su nombre.")
 
 
 def _is_oval_stale() -> bool:

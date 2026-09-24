@@ -221,3 +221,28 @@ def test_the_response_cache_is_keyed_per_service_so_threads_never_collide():
     # Ninguna combinación (puerto, método, ruta) se pide dos veces: la caché
     # sigue haciendo su trabajo dentro de cada servicio.
     assert len(requested) == len(set(requested))
+
+
+# ================================================ una huella genérica no se reporta
+
+
+@pytest.mark.parametrize("product, is_generic", [
+    ("Web", True), (" httpd ", True), ("Server", True), (None, True), ("", True),
+    ("nginx", False), ("SonicWall", False), ("OpenSSH", False),
+])
+def test_a_reading_is_generic_when_it_names_no_product(product, is_generic):
+    assert DissectorResult(product, None, "HTTP").is_generic is is_generic
+
+
+def test_a_generic_reading_produces_no_fingerprint_finding(monkeypatch):
+    """«Fingerprint propio (HTTP): Web» ocupaba un grupo entero del informe sin
+    nombrar nada que se pudiera buscar."""
+
+    class _Dissector(_RecordingDissector):
+        def probe(self, target, service, rate_limiter):
+            product = "Web" if service.port == 8000 else "nginx"
+            return DissectorResult(product, None, self.label)
+
+    _updated, findings = _run_fingerprint(monkeypatch, _Dissector(), _services(2))
+
+    assert [finding["title"] for finding in findings] == ["Fingerprint propio (FALSO): nginx"]

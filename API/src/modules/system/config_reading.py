@@ -1395,6 +1395,12 @@ class LybraPlannerConfig:
     ignora siempre — es el escaneo completo bajo demanda que debe seguir
     disponible sin planificador de por medio."""
 
+    max_age_days: int = 7
+    """Cuántos días vale la identificación de un servicio antes de volver a
+    sondearlo aunque el planificador esté activo. Acota cuánto tarda en verse
+    un servidor actualizado o una mejora del identificador del motor: una
+    semana es el ritmo al que suelen publicarse los parches de seguridad."""
+
 
 def lybra_planner_config() -> LybraPlannerConfig:
     return load_block(LybraPlannerConfig)

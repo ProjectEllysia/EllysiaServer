@@ -994,6 +994,30 @@ checks:
       title: 'TCP: marcas de tiempo activas (permiten estimar el tiempo encendido del equipo)'
       qod: 99
       confirmed: true
+  - id: tls-no-forward-secrecy
+    version: 1
+    type: script
+    script: tls-no-forward-secrecy
+    category: tls
+    severity: LOW
+    service: tls
+    mode: safe
+    finding:
+      title: 'TLS: acepta cifrados sin confidencialidad directa (intercambio de claves RSA)'
+      qod: 99
+      confirmed: true
+  - id: tls-cbc-ciphers
+    version: 1
+    type: script
+    script: tls-cbc-ciphers
+    category: tls
+    severity: LOW
+    service: tls
+    mode: safe
+    finding:
+      title: 'TLS: acepta cifrados en modo CBC'
+      qod: 99
+      confirmed: true
   - id: ike-weak-transform
     version: 1
     type: script

@@ -201,6 +201,52 @@ class TlsProbe:
             return info
         return replace(info, requested_name=host)
 
+    def fetch_accepted_tls12_cipher(self, host: str, port: int, ciphers: str) -> Optional[str]:
+        """Qué conjunto de ``ciphers`` acepta el servidor en TLS 1.2, si acepta alguno.
+
+        Un servidor suele aceptar muchos conjuntos de cifrado y un cliente
+        moderno elige el mejor, así que el saludo de :meth:`fetch` casi nunca
+        enseña los débiles. Aquí se ofrece **sólo** una familia concreta: si el
+        servidor completa el saludo, la acepta. Se fija TLS 1.2 porque en TLS
+        1.3 no se pueden ofrecer conjuntos débiles.
+
+        Args:
+            host: El objetivo. Si es un nombre, viaja en el SNI.
+            port: El puerto TLS.
+            ciphers: La familia a ofrecer, en la sintaxis de cadenas de cifrado
+                de OpenSSL (``"kRSA:!aNULL:!eNULL"``).
+
+        Returns:
+            Optional[str]: El nombre del conjunto que el servidor eligió si
+                aceptó la familia; ``""`` si la rechazó; ``None`` si no se
+                pudo saber (la conexión falló o el OpenSSL local no tiene
+                ningún conjunto de la familia).
+        """
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+        context.minimum_version = ssl.TLSVersion.TLSv1_2
+        context.maximum_version = ssl.TLSVersion.TLSv1_2
+        try:
+            context.set_ciphers(ciphers)
+        except ssl.SSLError:
+            return None
+        try:
+            sock = self._connect((host, port), self._timeout)
+        except OSError as err:
+            logger.debug("TLS connect failed for %s:%s: %s", host, port, err)
+            return None
+        server_hostname = None if _is_ip_literal(host) else host
+        try:
+            with context.wrap_socket(sock, server_hostname=server_hostname) as tls_sock:
+                cipher = tls_sock.cipher()
+        except ssl.SSLError:
+            return ""
+        except OSError as err:
+            logger.debug("TLS handshake failed for %s:%s: %s", host, port, err)
+            return None
+        return cipher[0] if cipher else ""
+
     @staticmethod
     def _parse_cert(der: bytes, protocol: Optional[str], cipher: Optional[str]) -> Optional[TlsInfo]:
         """Parse a DER certificate into a :class:`TlsInfo`, best-effort."""

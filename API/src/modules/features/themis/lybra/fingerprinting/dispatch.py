@@ -23,6 +23,14 @@ from ..engine import Service
 # vulnerabilidad.
 QOD_FINGERPRINT = 20
 
+#: Palabras que un servicio pone donde iría su nombre sin nombrar ningún
+#: producto (``Server: Web``, ``Server: httpd``). Una huella así no dice qué
+#: corre ni se puede cruzar con ninguna vulnerabilidad. Se comparan en
+#: minúsculas.
+_GENERIC_PRODUCT_NAMES = frozenset({
+    "web", "www", "server", "webserver", "web server", "http", "https", "httpd", "unknown",
+})
+
 
 @dataclass(frozen=True)
 class DissectorResult:
@@ -52,6 +60,17 @@ class DissectorResult:
     qod: int = QOD_FINGERPRINT
     extra_layers: tuple = ()
     components: tuple = ()
+
+    @property
+    def is_generic(self) -> bool:
+        """Si la lectura no nombra ningún producto concreto.
+
+        Returns:
+            bool: ``True`` si no hay producto o si es una palabra genérica de
+                :data:`_GENERIC_PRODUCT_NAMES`; ``False`` si nombra algo que
+                se puede buscar (``nginx``, ``OpenSSH``).
+        """
+        return (self.product or "").strip().lower() in _GENERIC_PRODUCT_NAMES | {""}
 
 
 class Dissector:
