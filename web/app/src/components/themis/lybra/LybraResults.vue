@@ -1,11 +1,28 @@
 <template>
   <div class="results-wrap">
     <div class="results-toolbar">
-      <span class="toolbar-title">Veredictos de Lybra</span>
-      <button class="btn-refresh" :disabled="loading" @click="$emit('refresh')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ spin: loading }"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-        Actualizar
-      </button>
+      <div class="toolbar-lead">
+        <!-- La casilla de toda la página vive en la barra y no en una cabecera
+             de columna, que aquí no hay: cada veredicto es una tarjeta. Mismo
+             comportamiento que la de ScanTable.vue. -->
+        <input v-if="scans.length" type="checkbox" class="chk"
+          aria-label="Seleccionar todos los veredictos de la página"
+          :checked="allSelected" :indeterminate="someSelected"
+          @change="$emit('select-all', scans.map(s => s.id))" />
+        <span class="toolbar-title">Veredictos de Lybra</span>
+      </div>
+      <div class="toolbar-actions">
+        <Transition name="pop">
+          <button v-if="selectedIds.length" class="btn-bulk-del" @click="$emit('bulk-delete')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+            Eliminar ({{ selectedIds.length }})
+          </button>
+        </Transition>
+        <button class="btn-refresh" :disabled="loading" @click="$emit('refresh')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ spin: loading }"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          Actualizar
+        </button>
+      </div>
     </div>
 
     <!-- Sin mode="out-in": esperaría un transitionend de salida que el
@@ -27,9 +44,15 @@
 
       <div v-else key="list" class="scan-list-wrap">
       <TransitionGroup tag="div" name="scan-item" class="scan-list">
-        <article v-for="scan in scans" :key="scan.id" class="scan-card" :class="{ open: expanded.has(scan.id) }">
-          <!-- Cabecera de la tarjeta -->
-          <button class="scan-head" @click="toggle(scan.id)">
+        <article v-for="scan in scans" :key="scan.id" class="scan-card"
+          :class="{ open: expanded.has(scan.id), selected: selectedSet.has(scan.id) }">
+          <!-- Cabecera de la tarjeta. La casilla y la papelera van fuera del
+               botón que despliega: un control dentro de otro no es HTML
+               válido, y pulsarlos no debe abrir la tarjeta. -->
+          <div class="scan-head-row">
+          <input type="checkbox" class="chk" :aria-label="`Seleccionar el escaneo #${scan.id}`"
+            :checked="selectedSet.has(scan.id)" @change="$emit('toggle-select', scan.id)" />
+          <button class="scan-head" :aria-expanded="expanded.has(scan.id)" @click="toggle(scan.id)">
             <span class="chevron" :class="{ rot: expanded.has(scan.id) }" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
             </span>
@@ -59,6 +82,11 @@
 
             <span class="scan-date">{{ fmtDate(scan.finishedAt || scan.startedAt) }}</span>
           </button>
+          <button class="act-btn danger" :aria-label="`Eliminar el escaneo #${scan.id}`" title="Eliminar"
+            @click="$emit('delete', scan.id)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+          </button>
+          </div>
 
           <!-- Cuerpo expandible: alto animado con grid-template-rows (mismo
                patrón que FolderAccordion.vue), no solo opacidad. El v-if de
@@ -307,40 +335,39 @@
         </article>
       </TransitionGroup>
 
-      <button v-if="canLoadMore" class="load-more" :disabled="loading" @click="$emit('load-more')">
-        {{ loading ? 'Cargando…' : `Ver más (${scans.length} de ${totalCount})` }}
-      </button>
       </div>
     </Transition>
+    <div v-if="totalCount > perPage" class="results-footer">
+      <AppPagination :current="currentPage" :total="totalCount" :per-page="perPage" @go="page => $emit('page-change', page)" />
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed } from 'vue'
 import StatusBadge from '@/components/themis/StatusBadge.vue'
-import { MAX_PER_PAGE } from '@/stores/scanWindow'
+import AppPagination from '@/components/shared/AppPagination.vue'
 import { SITE_HINT, hasSeveralSites, siteLabel } from './findingSites'
 
 const props = defineProps({
   scans: { type: Array, default: () => [] },
   loading: { type: Boolean, default: false },
   totalCount: { type: Number, default: 0 },
+  currentPage: { type: Number, default: 1 },
+  perPage: { type: Number, default: 10 },
+  /** Ids seleccionados para el borrado en bloque; el estado vive en el padre. */
+  selectedIds: { type: Array, default: () => [] },
   docsByScan: { type: Object, default: () => ({}) },
   groupsByScan: { type: Object, default: () => ({}) },
 })
-const emit = defineEmits(['refresh', 'delete', 'load-docs', 'generate-pdf', 'download-doc', 'delete-doc', 'load-more', 'load-groups', 'set-finding-state'])
+const emit = defineEmits(['refresh', 'delete', 'bulk-delete', 'toggle-select', 'select-all', 'page-change', 'load-docs', 'generate-pdf', 'download-doc', 'delete-doc', 'load-groups', 'set-finding-state'])
 
 /** Veredictos fantasma mientras carga: los que caben sin alargar la caja. */
 const SKELETON_ROWS = 4
 
-/**
- * "Ver más" desaparece al llegar al tope de la ventana, no sólo al haberlos
- * cargado todos. El store pide la lista revelada en una sola petición, y
- * `per_page` está topado en el backend (`ResultsQuerySchema`), así que más allá
- * de ahí el botón seguiría ahí sin hacer nada — que es peor que no estar.
- */
-const canLoadMore = computed(
-  () => props.scans.length < props.totalCount && props.scans.length < MAX_PER_PAGE)
+const selectedSet = computed(() => new Set(props.selectedIds))
+const allSelected = computed(() => props.scans.length > 0 && props.scans.every(s => selectedSet.value.has(s.id)))
+const someSelected = computed(() => props.scans.some(s => selectedSet.value.has(s.id)) && !allSelected.value)
 
 const LADDER = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO']
 const PRIO_LABEL = { CRITICAL: 'Crítica', HIGH: 'Alta', MEDIUM: 'Media', LOW: 'Baja', INFO: 'Info' }
@@ -594,6 +621,34 @@ function fmtDate(iso) {
 .btn-refresh { display: flex; align-items: center; gap: 0.35rem; padding: 0.35rem 0.7rem; background: var(--surface-2); border: 1px solid var(--border-solid); border-radius: 6px; color: var(--text-dim); font-size: var(--fs-md); cursor: pointer; transition: all 0.2s; }
 .btn-refresh:hover:not(:disabled) { border-color: var(--accent); color: var(--text); }
 .btn-refresh svg { width: 12px; height: 12px; }
+.toolbar-lead, .toolbar-actions { display: flex; align-items: center; gap: 0.6rem; }
+/* Mismo botón que el "Eliminar (N)" de los escáneres de terceros
+   (`.batch-btn.danger` de ThemisView.vue). */
+.btn-bulk-del { display: flex; align-items: center; gap: 0.35rem; padding: 0.35rem 0.7rem; background: var(--danger); border: 1px solid var(--danger); border-radius: 6px; color: var(--on-accent); font-size: var(--fs-md); cursor: pointer; transition: opacity 0.2s; }
+.btn-bulk-del:hover { opacity: 0.85; }
+.btn-bulk-del svg { width: 12px; height: 12px; }
+.pop-enter-active { transition: opacity 0.2s ease, transform 0.25s cubic-bezier(0.34,1.56,0.64,1); }
+.pop-enter-from { opacity: 0; transform: scale(0.85); }
+.pop-leave-active { transition: opacity 0.15s ease; }
+.pop-leave-to { opacity: 0; }
+
+/* Casillas: las mismas que `.chk-col input` de ScanTable.vue. */
+.chk {
+  appearance: none; -webkit-appearance: none; flex-shrink: 0;
+  width: 12px; height: 12px; margin: 0; cursor: pointer;
+  border: 1.5px solid var(--border-med); border-radius: 3px;
+  background: var(--surface-2); transition: all 0.15s;
+}
+.chk:hover { border-color: var(--accent); }
+.chk:checked {
+  background: var(--accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='%230b0c10' stroke-width='2' d='M3 6l2 2 4-4'/%3E%3C/svg%3E") center/8px no-repeat;
+  border-color: var(--accent);
+}
+.chk:indeterminate {
+  background: var(--accent-dim) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cline x1='3' y1='6' x2='9' y2='6' stroke='%23d4a04a' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") center/8px no-repeat;
+  border-color: var(--border-med);
+}
+.chk:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .spin { animation: seq-spin 0.8s linear infinite; }
 
 .empty-state { display: flex; flex-direction: column; align-items: center; gap: 0.6rem; padding: 2.5rem 1rem; color: var(--text-muted); font-size: var(--fs-lg); text-align: center; }
@@ -635,13 +690,21 @@ function fmtDate(iso) {
 .scan-card { border-bottom: 1px solid var(--border); }
 .scan-card:last-child { border-bottom: none; }
 .scan-card.open { background: var(--surface-2); }
+.scan-card.selected .scan-head-row { background: var(--accent-dim); }
 
-.scan-head {
-  width: 100%; display: flex; align-items: center; gap: 0.65rem;
-  padding: 0.7rem 1rem; background: none; border: none; cursor: pointer; text-align: left;
+.scan-head-row {
+  display: flex; align-items: center; gap: 0.65rem; padding: 0 1rem;
   transition: background 0.15s;
 }
-.scan-head:hover { background: var(--surface-2); }
+.scan-head-row:hover { background: var(--surface-2); }
+.scan-head {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 0.65rem;
+  padding: 0.7rem 0; background: none; border: none; cursor: pointer; text-align: left;
+}
+/* Papelera de la cabecera: la de las filas de ScanTable.vue (`.act-btn`). */
+.act-btn { flex-shrink: 0; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; background: var(--surface-2); border: 1px solid var(--border); border-radius: 5px; color: var(--text-muted); cursor: pointer; transition: all 0.15s; }
+.act-btn svg { width: 13px; height: 13px; }
+.act-btn.danger:hover, .act-btn.danger:focus-visible { border-color: var(--danger); color: var(--danger); }
 .chevron { display: grid; place-items: center; color: var(--text-muted); transition: transform 0.2s; }
 .chevron svg { width: 14px; height: 14px; }
 .chevron.rot { transform: rotate(90deg); }
@@ -900,17 +963,12 @@ function fmtDate(iso) {
 .btn-del { font-size: var(--fs-md); color: var(--danger); background: none; border: 1px solid var(--danger-dim); padding: 0.3rem 0.7rem; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
 .btn-del:hover { background: var(--danger-dim); }
 
-.load-more {
-  width: 100%; padding: 0.75rem; margin-top: -1px;
-  background: none; border: none; border-top: 1px solid var(--border);
-  color: var(--text-dim); font-size: var(--fs-md); font-weight: 600; cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-.load-more:hover:not(:disabled) { background: var(--surface-2); color: var(--text); }
-.load-more:disabled { cursor: not-allowed; opacity: 0.6; }
+.results-footer { border-top: 1px solid var(--border); padding: 0.5rem; }
 
 @media (max-width: 700px) {
   .scan-head { flex-wrap: wrap; }
+  .scan-head-row { align-items: flex-start; }
+  .scan-head-row > .chk, .scan-head-row > .act-btn { margin-top: 0.7rem; }
   .prio-summary { margin-left: 0; }
   .scan-body { padding-left: 1rem; }
 }
@@ -919,7 +977,7 @@ function fmtDate(iso) {
   /* La barra se queda quieta y llena: sin movimiento sigue diciendo «esto está
      en curso», que es lo único que representa. */
   .state-progress span { animation: none !important; width: 100%; }
-  .chevron, .scan-collapse, .fade-swap-enter-active, .fade-swap-leave-active,
+  .chevron, .scan-collapse, .pop-enter-active, .pop-leave-active, .chk, .act-btn, .scan-head-row, .fade-swap-enter-active, .fade-swap-leave-active,
   .scan-item-enter-active, .scan-item-leave-active, .scan-item-move,
   .pill-pop-enter-active, .pill-pop-leave-active, .pill-pop-move,
   .findings-panel-enter-active, .findings-panel-leave-active,
