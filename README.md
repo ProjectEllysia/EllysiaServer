@@ -197,7 +197,7 @@ The web application checks MFA once when an authenticated session enters the SPA
 | `GET` | `/themis/findings/<id>/evidence` | The raw (redacted, hashed) response that produced a confirmed finding — 404 for a finding owned by another user |
 | `PATCH` | `/themis/findings/<id>` | Set a finding's triage state with a reason: `accepted` (the risk is real and assumed — expires for review), `false_positive` (the engine was wrong — never counts as risk) or `open` |
 | `GET` | `/themis/findings/false-positives` | Findings the user refuted, with the check, CPE and feed version that produced each — labelled samples for calibrating the engine |
-| `GET` | `/themis/kb/status` | Per-source freshness of the NVD/KEV/EPSS/OVAL mirror: last attempt, last success, staleness and the `feedVersion` findings are stamped with |
+| `GET` | `/themis/kb/status` | Per-source freshness of the NVD/KEV/EPSS/OVAL mirror: last attempt, last success, last error, staleness and the `feedVersion` findings are stamped with; OVAL is reported per distribution (`oval:debian:12`, `oval:ubuntu:24.04`…) |
 | `GET` | `/themis/lybra/unresolved-products` | Product names the CPE matcher could not resolve, ranked by frequency and split by origin — the working document for the alias feed |
 | `DELETE` | `/themis/<id>` · `/themis/scans` | Delete a scan / bulk delete |
 | `GET` | `/themis/stats` · `/themis/history/hosts` · `/themis/history/stats` | Scan counters and per-host historical trends |
