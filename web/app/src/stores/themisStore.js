@@ -7,7 +7,7 @@ import { useUtils } from '@/composables/useUtils'
 import { useToastStore } from '@/stores/toastStore'
 import { useThemisFoldersStore } from '@/stores/themisFoldersStore'
 import { useThemisHistoryStore } from '@/stores/themisHistoryStore'
-import { scanWindow, canRevealMore } from '@/stores/scanWindow'
+import { scanWindow, pageAfterRemoval } from '@/stores/scanWindow'
 
 /**
  * Store de Themis — gestiona escaneos, estadísticas, modales y documentos.
@@ -266,25 +266,6 @@ export const useThemisStore = defineStore('themis', () => {
   /** Carga la lista de escaneos Lybra (cada uno ya trae sus findings). */
   async function loadLybraScans() {
     return loadScans('lybra')
-  }
-
-  /**
-   * "Ver más": revela una página más de escaneos Lybra — el listado de
-   * veredictos crece hacia abajo sin perder el estado expandido de las
-   * tarjetas ya visibles (que vive en `LybraResults`, indexado por id de
-   * escaneo, y por tanto sobrevive a que la lista se vuelva a pintar).
-   *
-   * Solo se agranda la ventana (`d.loadedPages`) y se recarga con la ruta
-   * normal de `loadScans`, que entiende ese campo como el número de páginas
-   * a mostrar de una sola vez — una única petición, sin un `d.page` que avance
-   * por separado y pueda desincronizarse de la ventana visible, y sin
-   * duplicados cuando entra un escaneo nuevo entre una página y la siguiente.
-   */
-  async function loadMoreLybraScans(type = 'lybra') {
-    const d = _scandata(type)
-    if (d.loading || !canRevealMore(d)) return
-    d.loadedPages += 1
-    await loadScans(type)
   }
 
   /* ── AGENTES (escaneos nacidos del inventario de Hygeia) ── */
@@ -720,8 +701,33 @@ export const useThemisStore = defineStore('themis', () => {
     }
   }
 
-  /** Elimina multiples escaneos de forma masiva. */
-  async function bulkDeleteScans(scanIds) {
+  /**
+   * Recarga una lista tras quitarle escaneos, sin dejarla en una página vacía.
+   *
+   * Se recarga en vez de quitar las filas en local porque la lista es una
+   * página: los huecos los rellenan los escaneos de la página siguiente, y eso
+   * sólo lo sabe el backend.
+   *
+   * @param {'nmap'|'nikto'|'nuclei'|'lybra'|'agentLybra'} type - Lista a recargar.
+   * @param {number} removed - Escaneos quitados, para descontarlos del total.
+   * @returns {Promise<void>}
+   */
+  async function _reloadAfterRemoval(type, removed) {
+    const d = _scandata(type)
+    d.page = pageAfterRemoval(d, removed)
+    await loadScans(type)
+  }
+
+  /**
+   * Elimina varios escaneos de una vez y recarga la lista de la que salieron.
+   *
+   * @param {number[]} scanIds - Ids de los escaneos a eliminar.
+   * @param {'nmap'|'nikto'|'nuclei'|'lybra'|'agentLybra'} [type] - Lista que
+   *        se recarga después. Por defecto, la pestaña activa de terceros.
+   * @returns {Promise<boolean>} `true` si el backend aceptó la petición (algún
+   *          escaneo puede haber fallado igualmente; el aviso da el recuento).
+   */
+  async function bulkDeleteScans(scanIds, type = activeTab.value) {
     try {
       const res = await apiFetch('/themis/scans', {
         method: 'DELETE',
@@ -732,8 +738,9 @@ export const useThemisStore = defineStore('themis', () => {
         return false
       }
       const data = await res.json()
-      toast.show(`${data.deletedCount ?? scanIds.length} escaneo(s) eliminado(s).`, 'success')
-      await refreshCurrent()
+      const deleted = data.deletedCount ?? scanIds.length
+      toast.show(`${deleted} escaneo(s) eliminado(s).`, 'success')
+      await _reloadAfterRemoval(type, deleted)
       await foldersStore.loadFolders()
       await loadStats()
       return true
@@ -852,17 +859,17 @@ export const useThemisStore = defineStore('themis', () => {
   }
 
   /**
-   * Elimina un escaneo Lybra por ID y refresca la lista.
+   * Elimina un escaneo Lybra por ID y recarga su página.
    *
    * @param {number} id - Id del escaneo.
-   * @param {'lybra'|'agentLybra'} [type] - Lista de la que quitarlo.
+   * @param {'lybra'|'agentLybra'} [type] - Lista de la que quitarlo. Por
+   *        defecto, la del motor.
+   * @returns {Promise<boolean>} `true` si se eliminó.
    */
   async function deleteLybraScan(id, type = 'lybra') {
     const res = await apiFetch(`/themis/${id}`, { method: 'DELETE' })
     if (!res?.ok) { toast.show('No se pudo eliminar el escaneo.', 'error'); return false }
-    const d = _scandata(type)
-    const idx = d.results.findIndex(s => s.id === id)
-    if (idx !== -1) { d.results.splice(idx, 1); d.totalCount = Math.max(0, d.totalCount - 1) }
+    await _reloadAfterRemoval(type, 1)
     await loadStats()
     return true
   }
@@ -906,7 +913,7 @@ export const useThemisStore = defineStore('themis', () => {
     viewMode,
     loadStats, loadScans, switchTab, refreshCurrent, goToPage, stopScanPolling,
     launchNmap, launchNikto, launchNuclei,
-    launchLybra, loadLybraScans, loadMoreLybraScans, deleteLybraScan,
+    launchLybra, loadLybraScans, deleteLybraScan,
     selectedAssetId, selectAgentAsset, loadAgentScans,
     lybraDocs, loadLybraDocs, generateLybraPdf, deleteLybraDoc,
     lybraGroups, loadLybraGroups, setFindingState,
