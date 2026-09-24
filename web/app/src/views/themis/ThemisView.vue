@@ -69,10 +69,16 @@
             :scans="store.scans.lybra.results"
             :loading="store.scans.lybra.loading"
             :total-count="store.scans.lybra.totalCount"
+            :current-page="store.scans.lybra.page"
+            :per-page="store.scans.lybra.perPage"
+            :selected-ids="batchSelectedArray"
             :docs-by-scan="store.lybraDocs"
             :groups-by-scan="store.lybraGroups"
             @refresh="store.loadLybraScans()"
-            @load-more="store.loadMoreLybraScans()"
+            @page-change="page => handleLybraPageChange('lybra', page)"
+            @toggle-select="batchToggle"
+            @select-all="batchSelectAll"
+            @bulk-delete="openBatchAction('bulk-delete', 'lybra')"
             @load-groups="store.loadLybraGroups"
             @set-finding-state="store.setFindingState"
             @delete="handleDeleteLybra"
@@ -95,12 +101,18 @@
           :scans="store.scans.agentLybra.results"
           :loading="store.scans.agentLybra.loading"
           :total-count="store.scans.agentLybra.totalCount"
+          :current-page="store.scans.agentLybra.page"
+          :per-page="store.scans.agentLybra.perPage"
+          :selected-ids="batchSelectedArray"
           :docs-by-scan="store.lybraDocs"
           :groups-by-scan="store.lybraGroups"
-          @select="store.selectAgentAsset"
+          @select="id => { batchClear(); store.selectAgentAsset(id) }"
           @refresh-assets="hygeiaStore.fetchAssets()"
           @refresh-scans="store.loadAgentScans()"
-          @load-more="store.loadMoreLybraScans('agentLybra')"
+          @page-change="page => handleLybraPageChange('agentLybra', page)"
+          @toggle-select="batchToggle"
+          @select-all="batchSelectAll"
+          @bulk-delete="openBatchAction('bulk-delete', 'agentLybra')"
           @load-groups="store.loadLybraGroups"
           @set-finding-state="store.setFindingState"
           @delete="handleDeleteAgentScan"
@@ -127,7 +139,7 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
                 Añadir a carpeta ({{ selectedCount }})
               </button>
-              <button v-if="selectedCount > 0" class="batch-btn danger" @click="openBatchAction('bulk-delete')">
+              <button v-if="selectedCount > 0" class="batch-btn danger" @click="openBatchAction('bulk-delete', store.activeTab)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
                 Eliminar ({{ selectedCount }})
               </button>
@@ -301,6 +313,8 @@ const hasActiveLybraScan = computed(() =>
 )
 
 const activeBatchAction = ref(null)
+/** Lista que recarga el borrado en bloque: la pestaña de terceros, `lybra` o `agentLybra`. */
+const bulkDeleteType = ref(null)
 const batchSubmitting = ref(false)
 const selectedFolderId = ref('')
 
@@ -342,6 +356,25 @@ watch(() => store.world, (w) => {
   if (w === 'agents') hygeiaStore.fetchAssets()
 }, { immediate: true })
 
+// La selección es una sola para las tres listas (sólo se ve una a la vez), así
+// que se vacía al salir de la que se estaba viendo: si no, un borrado en bloque
+// desde Lybra se llevaría también lo que quedó marcado en terceros.
+watch(() => [store.world, store.viewMode], () => batchClear())
+
+/**
+ * Cambia de página en una lista de Lybra y vacía la selección.
+ *
+ * Una tarjeta marcada en otra página no se ve, y un "Eliminar (N)" que borra
+ * escaneos que el usuario no tiene delante es una sorpresa que no se deshace.
+ *
+ * @param {'lybra'|'agentLybra'} type - Lista a paginar.
+ * @param {number} page - Página destino, empezando en 1.
+ */
+function handleLybraPageChange(type, page) {
+  batchClear()
+  store.goToPage(type, page)
+}
+
 async function handleLaunchLybra(payload) { await store.launchLybra(payload) }
 function handleDeleteLybra(id) { pendingConfirm.value = { type: 'delete-lybra', id } }
 function handleDeleteAgentScan(id) { pendingConfirm.value = { type: 'delete-agent-scan', id } }
@@ -353,8 +386,16 @@ watch(activeBatchAction, (val) => {
   if (!val) { selectedFolderId.value = ''; batchSubmitting.value = false }
 })
 
-function openBatchAction(action) {
+/**
+ * Abre el modal de una acción en bloque sobre la selección.
+ *
+ * @param {'add-to-folder'|'bulk-delete'} action - Acción a confirmar.
+ * @param {'nmap'|'nikto'|'nuclei'|'lybra'|'agentLybra'} [type] - Lista que
+ *        recarga el borrado en bloque. Sólo lo usa `bulk-delete`.
+ */
+function openBatchAction(action, type = null) {
   if (action === 'add-to-folder') foldersStore.loadFolders()
+  bulkDeleteType.value = type
   activeBatchAction.value = action
 }
 
@@ -374,7 +415,7 @@ async function handleBatchAddToFolder() {
 async function handleBatchDelete() {
   if (batchSubmitting.value) return
   batchSubmitting.value = true
-  const ok = await store.bulkDeleteScans(batchSelectedArray.value)
+  const ok = await store.bulkDeleteScans(batchSelectedArray.value, bulkDeleteType.value ?? store.activeTab)
   batchSubmitting.value = false
   if (ok) { batchClear(); closeBatchAction() }
 }
@@ -396,6 +437,8 @@ async function runPendingConfirm() {
   const action = pendingConfirm.value
   pendingConfirm.value = null
   if (!action) return
+  // Un escaneo borrado desde su tarjeta no puede seguir contando en "Eliminar (N)".
+  if (action.type !== 'delete-folder' && batchSelectedIds.value.has(action.id)) batchToggle(action.id)
   if (action.type === 'delete-lybra') await store.deleteLybraScan(action.id)
   else if (action.type === 'delete-agent-scan') await store.deleteLybraScan(action.id, 'agentLybra')
   else if (action.type === 'delete-folder') await foldersStore.deleteFolder(action.id)

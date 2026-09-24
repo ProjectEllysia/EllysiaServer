@@ -1,11 +1,28 @@
 <template>
   <div class="results-wrap">
     <div class="results-toolbar">
-      <span class="toolbar-title">Veredictos de Lybra</span>
-      <button class="btn-refresh" :disabled="loading" @click="$emit('refresh')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ spin: loading }"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-        Actualizar
-      </button>
+      <div class="toolbar-lead">
+        <!-- La casilla de toda la página vive en la barra y no en una cabecera
+             de columna, que aquí no hay: cada veredicto es una tarjeta. Mismo
+             comportamiento que la de ScanTable.vue. -->
+        <input v-if="scans.length" type="checkbox" class="chk"
+          aria-label="Seleccionar todos los veredictos de la página"
+          :checked="allSelected" :indeterminate="someSelected"
+          @change="$emit('select-all', scans.map(s => s.id))" />
+        <span class="toolbar-title">Veredictos de Lybra</span>
+      </div>
+      <div class="toolbar-actions">
+        <Transition name="pop">
+          <button v-if="selectedIds.length" class="btn-bulk-del" @click="$emit('bulk-delete')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+            Eliminar ({{ selectedIds.length }})
+          </button>
+        </Transition>
+        <button class="btn-refresh" :disabled="loading" @click="$emit('refresh')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ spin: loading }"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          Actualizar
+        </button>
+      </div>
     </div>
 
     <!-- Sin mode="out-in": esperaría un transitionend de salida que el
@@ -27,9 +44,15 @@
 
       <div v-else key="list" class="scan-list-wrap">
       <TransitionGroup tag="div" name="scan-item" class="scan-list">
-        <article v-for="scan in scans" :key="scan.id" class="scan-card" :class="{ open: expanded.has(scan.id) }">
-          <!-- Cabecera de la tarjeta -->
-          <button class="scan-head" @click="toggle(scan.id)">
+        <article v-for="scan in scans" :key="scan.id" class="scan-card"
+          :class="{ open: expanded.has(scan.id), selected: selectedSet.has(scan.id) }">
+          <!-- Cabecera de la tarjeta. La casilla y la papelera van fuera del
+               botón que despliega: un control dentro de otro no es HTML
+               válido, y pulsarlos no debe abrir la tarjeta. -->
+          <div class="scan-head-row">
+          <input type="checkbox" class="chk" :aria-label="`Seleccionar el escaneo #${scan.id}`"
+            :checked="selectedSet.has(scan.id)" @change="$emit('toggle-select', scan.id)" />
+          <button class="scan-head" :aria-expanded="expanded.has(scan.id)" @click="toggle(scan.id)">
             <span class="chevron" :class="{ rot: expanded.has(scan.id) }" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
             </span>
@@ -59,6 +82,11 @@
 
             <span class="scan-date">{{ fmtDate(scan.finishedAt || scan.startedAt) }}</span>
           </button>
+          <button class="act-btn danger" :aria-label="`Eliminar el escaneo #${scan.id}`" title="Eliminar"
+            @click="$emit('delete', scan.id)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+          </button>
+          </div>
 
           <!-- Cuerpo expandible: alto animado con grid-template-rows (mismo
                patrón que FolderAccordion.vue), no solo opacidad. El v-if de
@@ -102,17 +130,36 @@
               </div>
 
               <template v-else>
-                <!-- Acordeón anidado, colapsado por defecto: la cabecera de la tarjeta ya
-                     resume la severidad (pills de arriba), así que abrir un escaneo para
-                     generar su PDF o gestionar sus documentos no obliga a desplazarse
-                     primero por una lista de hallazgos que puede ser muy larga. -->
-                <button type="button" class="findings-toggle" @click="toggleFindings(scan.id)">
-                  <span class="chevron findings-chevron" :class="{ rot: findingsOpen.has(scan.id) }" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-                  </span>
-                  {{ findingsOpen.has(scan.id) ? 'Ocultar hallazgos' : 'Mostrar hallazgos' }}
-                  <span class="findings-count">{{ scan.totalFindings }}</span>
-                </button>
+                <!-- Capítulo de hallazgos, colapsado por defecto: la cabecera de la
+                     tarjeta ya resume la severidad (pills de arriba), así que abrir un
+                     escaneo para generar su PDF o gestionar sus documentos no obliga a
+                     desplazarse primero por una lista que puede ser muy larga.
+                     La placa entera es el interruptor, y su borde inferior es la
+                     balanza del escaneo completo: plegada, sigue diciendo cuánto pesa
+                     lo que esconde. El botón va dentro del encabezado (y no al revés)
+                     porque un botón no admite un encabezado dentro. -->
+                <h4 class="chapter-h">
+                  <button type="button" class="chapter-plate chapter-toggle" :class="{ open: findingsOpen.has(scan.id) }"
+                    :aria-expanded="findingsOpen.has(scan.id)" @click="toggleFindings(scan.id)">
+                    <span class="chapter-head">
+                      <span class="chapter-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v18M7 21h10M5 7h14M5 7l-2.5 5a3 3 0 0 0 5 0L5 7zM19 7l-2.5 5a3 3 0 0 0 5 0L19 7z"/></svg></span>
+                      <span class="chapter-text">
+                        <span class="chapter-title">Hallazgos <span class="chapter-count">{{ scan.totalFindings }}</span></span>
+                        <span class="chapter-sub">{{ gravestLine(scan) }}</span>
+                      </span>
+                      <span class="chapter-action">
+                        {{ findingsOpen.has(scan.id) ? 'Plegar' : 'Desplegar' }}
+                        <span class="chevron" :class="{ rot: findingsOpen.has(scan.id) }" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        </span>
+                      </span>
+                    </span>
+                    <span class="balance balance--plate" aria-hidden="true">
+                      <span v-for="seg in scanBalance(scan)" :key="seg.level" class="balance-seg"
+                        :data-sev="seg.level.toLowerCase()" :style="{ flexGrow: seg.count }"></span>
+                    </span>
+                  </button>
+                </h4>
 
                 <Transition name="findings-panel">
                 <div v-if="findingsOpen.has(scan.id)" class="findings-panel">
@@ -124,9 +171,28 @@
                          de versión, y arreglar una configuración. Mezclarlas hacía que un
                          "falta la cabecera HSTS" pareciera un producto más del inventario. -->
                     <template v-for="section in sections(scan.id)" :key="section.key">
-                      <p v-if="section.groups.length" class="group-section">{{ section.title }}</p>
+                    <section v-if="section.groups.length" class="ledger-section">
+                      <header class="inscription">
+                        <span class="inscription-mark" aria-hidden="true"></span>
+                        <h5 class="inscription-title">{{ section.title }}</h5>
+                        <span class="inscription-rule" aria-hidden="true"></span>
+                        <span class="inscription-tally">{{ section.total }} {{ section.total === 1 ? 'hallazgo' : 'hallazgos' }}</span>
+                      </header>
+                      <!-- La balanza: cuánto pesa la sección, repartido por gravedad y
+                           a escala del número real de hallazgos. Es lo que Lybra hace
+                           —pesar cada amenaza— dicho sin palabras, y deja ver de un
+                           vistazo si una sección es ruido informativo o trabajo urgente. -->
+                      <div class="balance" role="img" :aria-label="balanceLabel(section)">
+                        <span v-for="seg in section.balance" :key="seg.level" class="balance-seg"
+                          :data-sev="seg.level.toLowerCase()" :style="{ flexGrow: seg.count }"
+                          :title="`${seg.count} ${PRIO_LABEL[seg.level]}`"></span>
+                      </div>
 
-                      <div v-for="group in section.groups" :key="section.key + groupKey(scan.id, group)" class="group">
+                      <!-- Los grupos son filas de un mismo registro, no cajas sueltas: un
+                           solo marco, separadores finos y un filo del color de su gravedad. -->
+                      <div class="ledger">
+                      <div v-for="group in section.groups" :key="section.key + groupKey(scan.id, group)" class="group"
+                        :class="{ open: isGroupOpen(scan.id, group) }" :data-sev="(group.priority || 'INFO').toLowerCase()">
                         <!-- La cabecera es el interruptor del grupo, y sigue visible al
                              plegarlo: lo que se esconde es la evidencia (los hallazgos
                              uno a uno), no la acción a tomar ni cuánto pesa. Así, con
@@ -214,6 +280,8 @@
                         </div>
                         </Transition>
                       </div>
+                      </div>
+                    </section>
                     </template>
                   </template>
                 </div>
@@ -249,13 +317,31 @@
                 verificación real.
               </div>
 
-              <div v-if="scan.status === 'finished'" class="doc-section">
-                <div class="doc-head">
-                  <span class="doc-title">Documentos <span class="doc-count">{{ docsFor(scan.id).length }}</span></span>
-                  <button class="doc-refresh-btn" @click="$emit('load-docs', scan.id)" :disabled="docsLoading(scan.id)" title="Refrescar">
+              <!-- Documentos es un capítulo del escaneo, no una sección más de los
+                   hallazgos: lleva la misma placa que "Hallazgos" y no la inscripción
+                   de "Productos afectados", y un friso lo separa de lo anterior. -->
+              <section v-if="scan.status === 'finished'" class="chapter doc-section">
+                <div class="frieze" aria-hidden="true">
+                  <span class="frieze-mark frieze-mark--sm"></span>
+                  <span class="frieze-mark"></span>
+                  <span class="frieze-mark frieze-mark--sm"></span>
+                </div>
+
+                <div class="chapter-plate">
+                <div class="chapter-head">
+                  <span class="chapter-mark" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                  </span>
+                  <span class="chapter-text">
+                    <h4 class="chapter-title">Documentos <span class="chapter-count">{{ docsFor(scan.id).length }}</span></h4>
+                    <span class="chapter-sub">Informes PDF de este veredicto</span>
+                  </span>
+                  <button class="doc-refresh-btn" @click="$emit('load-docs', scan.id)" :disabled="docsLoading(scan.id)" title="Refrescar documentos" aria-label="Refrescar documentos">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ spin: docsLoading(scan.id) }"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
                   </button>
                 </div>
+
+                <div class="doc-body">
 
                 <div v-if="docsLoading(scan.id) && !docsFor(scan.id).length" class="doc-empty">Cargando documentos…</div>
                 <div v-else-if="!docsFor(scan.id).length" class="doc-empty">Sin documentos generados</div>
@@ -296,7 +382,9 @@
                     Generar PDF
                   </button>
                 </div>
-              </div>
+                </div>
+                </div>
+              </section>
 
               <div class="body-actions">
                 <button class="btn-del" @click="$emit('delete', scan.id)">Eliminar escaneo</button>
@@ -307,40 +395,39 @@
         </article>
       </TransitionGroup>
 
-      <button v-if="canLoadMore" class="load-more" :disabled="loading" @click="$emit('load-more')">
-        {{ loading ? 'Cargando…' : `Ver más (${scans.length} de ${totalCount})` }}
-      </button>
       </div>
     </Transition>
+    <div v-if="totalCount > perPage" class="results-footer">
+      <AppPagination :current="currentPage" :total="totalCount" :per-page="perPage" @go="page => $emit('page-change', page)" />
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed } from 'vue'
 import StatusBadge from '@/components/themis/StatusBadge.vue'
-import { MAX_PER_PAGE } from '@/stores/scanWindow'
+import AppPagination from '@/components/shared/AppPagination.vue'
 import { SITE_HINT, hasSeveralSites, siteLabel } from './findingSites'
 
 const props = defineProps({
   scans: { type: Array, default: () => [] },
   loading: { type: Boolean, default: false },
   totalCount: { type: Number, default: 0 },
+  currentPage: { type: Number, default: 1 },
+  perPage: { type: Number, default: 10 },
+  /** Ids seleccionados para el borrado en bloque; el estado vive en el padre. */
+  selectedIds: { type: Array, default: () => [] },
   docsByScan: { type: Object, default: () => ({}) },
   groupsByScan: { type: Object, default: () => ({}) },
 })
-const emit = defineEmits(['refresh', 'delete', 'load-docs', 'generate-pdf', 'download-doc', 'delete-doc', 'load-more', 'load-groups', 'set-finding-state'])
+const emit = defineEmits(['refresh', 'delete', 'bulk-delete', 'toggle-select', 'select-all', 'page-change', 'load-docs', 'generate-pdf', 'download-doc', 'delete-doc', 'load-groups', 'set-finding-state'])
 
 /** Veredictos fantasma mientras carga: los que caben sin alargar la caja. */
 const SKELETON_ROWS = 4
 
-/**
- * "Ver más" desaparece al llegar al tope de la ventana, no sólo al haberlos
- * cargado todos. El store pide la lista revelada en una sola petición, y
- * `per_page` está topado en el backend (`ResultsQuerySchema`), así que más allá
- * de ahí el botón seguiría ahí sin hacer nada — que es peor que no estar.
- */
-const canLoadMore = computed(
-  () => props.scans.length < props.totalCount && props.scans.length < MAX_PER_PAGE)
+const selectedSet = computed(() => new Set(props.selectedIds))
+const allSelected = computed(() => props.scans.length > 0 && props.scans.every(s => selectedSet.value.has(s.id)))
+const someSelected = computed(() => props.scans.some(s => selectedSet.value.has(s.id)) && !allSelected.value)
 
 const LADDER = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO']
 const PRIO_LABEL = { CRITICAL: 'Crítica', HIGH: 'Alta', MEDIUM: 'Media', LOW: 'Baja', INFO: 'Info' }
@@ -491,9 +578,43 @@ function groupKey(scanId, group) { return `${scanId}|${group.port ?? '-'}|${grou
 function sections(scanId) {
   const groups = groupsFor(scanId)
   return [
-    { key: 'prod', title: 'Productos afectados', groups: groups.filter(g => g.isProduct) },
-    { key: 'conf', title: 'Configuración y exposición', groups: groups.filter(g => !g.isProduct) },
+    withBalance({ key: 'prod', title: 'Productos afectados', groups: groups.filter(g => g.isProduct) }),
+    withBalance({ key: 'conf', title: 'Configuración y exposición', groups: groups.filter(g => !g.isProduct) }),
   ]
+}
+
+/**
+ * Añade a una sección su balanza: cuántos hallazgos tiene de cada gravedad.
+ *
+ * Se cuenta hallazgo a hallazgo y no por la gravedad del grupo, que es la
+ * máxima de los suyos: un producto con un CVE crítico y nueve bajos pesa un
+ * crítico y nueve bajos, no diez críticos.
+ *
+ * @param {{key: string, title: string, groups: Array}} section - Sección sin balanza.
+ * @returns {{key: string, title: string, groups: Array, balance: Array<{level: string, count: number}>, total: number}}
+ *          La misma sección con `balance` (sólo los niveles presentes, en el
+ *          orden de `LADDER`) y `total`, la suma de todos ellos.
+ */
+function withBalance(section) {
+  const counts = {}
+  for (const group of section.groups) {
+    for (const finding of group.findings) {
+      const level = finding.priority || 'INFO'
+      counts[level] = (counts[level] || 0) + 1
+    }
+  }
+  const balance = LADDER.filter(level => counts[level]).map(level => ({ level, count: counts[level] }))
+  return { ...section, balance, total: balance.reduce((sum, seg) => sum + seg.count, 0) }
+}
+
+/**
+ * La balanza en palabras, para quien no la ve.
+ *
+ * @param {{balance: Array<{level: string, count: number}>}} section - Sección con balanza.
+ * @returns {string} P. ej. "Peso por gravedad: 1 Crítica, 9 Baja".
+ */
+function balanceLabel(section) {
+  return 'Peso por gravedad: ' + section.balance.map(seg => `${seg.count} ${PRIO_LABEL[seg.level]}`).join(', ')
 }
 
 function toggleFindings(id) {
@@ -555,6 +676,39 @@ function summary(scan) {
  * `v-if` para que la pastilla entre y salga del DOM de verdad, así que el
  * filtrado se saca aquí en vez de ponerlo en la plantilla.
  */
+/**
+ * La balanza de un escaneo completo, a partir del recuento que ya trae el
+ * listado (`byPriority`): no hace falta haber cargado los hallazgos.
+ *
+ * @param {object} scan - Escaneo del listado.
+ * @returns {Array<{level: string, count: number}>} Sólo los niveles presentes,
+ *          en el orden de `LADDER`.
+ */
+function scanBalance(scan) {
+  const s = summary(scan)
+  return LADDER.filter(level => s[level]).map(level => ({ level, count: s[level] }))
+}
+
+/**
+ * Lo más grave del escaneo, en una línea: la lectura de la balanza.
+ *
+ * Los niveles se nombran en femenino porque lo que se cuenta son
+ * vulnerabilidades ("1 crítica", "19 medias"). Si sólo hay hallazgos
+ * informativos se dice así, porque "lo más grave: 11 info" sugeriría que hay
+ * algo que corregir.
+ *
+ * @param {object} scan - Escaneo del listado.
+ * @returns {string} P. ej. "Lo más grave: 1 crítica" o "Solo hallazgos informativos".
+ */
+function gravestLine(scan) {
+  const s = summary(scan)
+  const top = LADDER.find(level => s[level])
+  if (!top) return 'Sin desglose por gravedad'
+  if (top === 'INFO') return 'Solo hallazgos informativos'
+  const count = s[top]
+  return `Lo más grave: ${count} ${PRIO_LABEL[top].toLowerCase()}${count === 1 ? '' : 's'}`
+}
+
 function visibleLadder(scan) {
   const s = summary(scan)
   return LADDER.filter(lvl => s[lvl])
@@ -594,6 +748,34 @@ function fmtDate(iso) {
 .btn-refresh { display: flex; align-items: center; gap: 0.35rem; padding: 0.35rem 0.7rem; background: var(--surface-2); border: 1px solid var(--border-solid); border-radius: 6px; color: var(--text-dim); font-size: var(--fs-md); cursor: pointer; transition: all 0.2s; }
 .btn-refresh:hover:not(:disabled) { border-color: var(--accent); color: var(--text); }
 .btn-refresh svg { width: 12px; height: 12px; }
+.toolbar-lead, .toolbar-actions { display: flex; align-items: center; gap: 0.6rem; }
+/* Mismo botón que el "Eliminar (N)" de los escáneres de terceros
+   (`.batch-btn.danger` de ThemisView.vue). */
+.btn-bulk-del { display: flex; align-items: center; gap: 0.35rem; padding: 0.35rem 0.7rem; background: var(--danger); border: 1px solid var(--danger); border-radius: 6px; color: var(--on-accent); font-size: var(--fs-md); cursor: pointer; transition: opacity 0.2s; }
+.btn-bulk-del:hover { opacity: 0.85; }
+.btn-bulk-del svg { width: 12px; height: 12px; }
+.pop-enter-active { transition: opacity 0.2s ease, transform 0.25s cubic-bezier(0.34,1.56,0.64,1); }
+.pop-enter-from { opacity: 0; transform: scale(0.85); }
+.pop-leave-active { transition: opacity 0.15s ease; }
+.pop-leave-to { opacity: 0; }
+
+/* Casillas: las mismas que `.chk-col input` de ScanTable.vue. */
+.chk {
+  appearance: none; -webkit-appearance: none; flex-shrink: 0;
+  width: 12px; height: 12px; margin: 0; cursor: pointer;
+  border: 1.5px solid var(--border-med); border-radius: 3px;
+  background: var(--surface-2); transition: all 0.15s;
+}
+.chk:hover { border-color: var(--accent); }
+.chk:checked {
+  background: var(--accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='%230b0c10' stroke-width='2' d='M3 6l2 2 4-4'/%3E%3C/svg%3E") center/8px no-repeat;
+  border-color: var(--accent);
+}
+.chk:indeterminate {
+  background: var(--accent-dim) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cline x1='3' y1='6' x2='9' y2='6' stroke='%23d4a04a' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") center/8px no-repeat;
+  border-color: var(--border-med);
+}
+.chk:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .spin { animation: seq-spin 0.8s linear infinite; }
 
 .empty-state { display: flex; flex-direction: column; align-items: center; gap: 0.6rem; padding: 2.5rem 1rem; color: var(--text-muted); font-size: var(--fs-lg); text-align: center; }
@@ -635,13 +817,21 @@ function fmtDate(iso) {
 .scan-card { border-bottom: 1px solid var(--border); }
 .scan-card:last-child { border-bottom: none; }
 .scan-card.open { background: var(--surface-2); }
+.scan-card.selected .scan-head-row { background: var(--accent-dim); }
 
-.scan-head {
-  width: 100%; display: flex; align-items: center; gap: 0.65rem;
-  padding: 0.7rem 1rem; background: none; border: none; cursor: pointer; text-align: left;
+.scan-head-row {
+  display: flex; align-items: center; gap: 0.65rem; padding: 0 1rem;
   transition: background 0.15s;
 }
-.scan-head:hover { background: var(--surface-2); }
+.scan-head-row:hover { background: var(--surface-2); }
+.scan-head {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 0.65rem;
+  padding: 0.7rem 0; background: none; border: none; cursor: pointer; text-align: left;
+}
+/* Papelera de la cabecera: la de las filas de ScanTable.vue (`.act-btn`). */
+.act-btn { flex-shrink: 0; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; background: var(--surface-2); border: 1px solid var(--border); border-radius: 5px; color: var(--text-muted); cursor: pointer; transition: all 0.15s; }
+.act-btn svg { width: 13px; height: 13px; }
+.act-btn.danger:hover, .act-btn.danger:focus-visible { border-color: var(--danger); color: var(--danger); }
 .chevron { display: grid; place-items: center; color: var(--text-muted); transition: transform 0.2s; }
 .chevron svg { width: 14px; height: 14px; }
 .chevron.rot { transform: rotate(90deg); }
@@ -724,18 +914,6 @@ function fmtDate(iso) {
 .finding-item-leave-to { opacity: 0; }
 .finding-item-move { transition: transform 0.25s ease; }
 
-.findings-toggle {
-  display: inline-flex; align-items: center; gap: 0.4rem;
-  padding: 0.4rem 0; margin-top: 0.2rem;
-  background: none; border: none; cursor: pointer;
-  font-size: var(--fs-md); font-weight: 600; color: var(--text-dim);
-  transition: color 0.15s;
-}
-.findings-toggle:hover { color: var(--text); }
-.findings-chevron { display: grid; place-items: center; color: var(--text-muted); transition: transform 0.2s; }
-.findings-chevron svg { width: 12px; height: 12px; }
-.findings-chevron.rot { transform: rotate(90deg); }
-.findings-count { font-size: var(--fs-body); font-weight: 700; color: var(--text-muted); background: var(--surface-2); padding: 0.05rem 0.45rem; border-radius: 8px; font-family: var(--font-mono); font-size-adjust: var(--fsa-mono); }
 .load-more-findings {
   display: block; width: 100%; margin-top: 0.4rem; padding: 0.45rem;
   background: none; border: 1px dashed var(--border-solid); border-radius: 7px;
@@ -750,7 +928,11 @@ function fmtDate(iso) {
   border-left: 3px solid var(--border-solid); border-radius: 7px;
 }
 .finding.potential { border-style: dashed; opacity: 0.92; }
-.f-prio { flex-shrink: 0; font-size: var(--fs-md); font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; padding: 0.15rem 0.4rem; border-radius: 5px; min-width: 52px; text-align: center; }
+/* Ancho fijo, no mínimo: con `min-width` la insignia crecía con la etiqueta
+   ("CRÍTICA" y "MEDIA" no cabían; "BAJA" sí) y el contenido de la derecha
+   arrancaba en una columna distinta en cada tarjeta. 4.4em cabe "CRÍTICA", la
+   más larga, y al ir en `em` sigue a la escala tipográfica. */
+.f-prio { flex: 0 0 4.4em; box-sizing: border-box; font-size: var(--fs-md); font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; padding: 0.15rem 0.3rem; border-radius: 5px; text-align: center; white-space: nowrap; }
 .f-main { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; flex: 1; }
 .f-title-row { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
 .f-conf { font-size: var(--fs-body); font-weight: 700; padding: 0.1rem 0.4rem; border-radius: 4px; flex-shrink: 0; text-transform: uppercase; letter-spacing: 0.03em; }
@@ -802,14 +984,134 @@ function fmtDate(iso) {
 .groups-loading, .groups-error { padding: 0.6rem 0.2rem; font-size: var(--fs-md); color: var(--text-muted); }
 .groups-error { color: var(--danger); }
 
-.group-section {
-  margin: 0.9rem 0 0.35rem; font-family: var(--font-display); font-size-adjust: var(--fsa-display);
-  font-size: var(--fs-md); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
-  color: var(--text-muted);
+/* ── Capítulos del escaneo: Hallazgos y Documentos ──
+   El nivel de arriba. Misma cabecera que el panel "Motor Lybra" (sello
+   circular, título en Cormorant, línea en cursiva), para que un capítulo se
+   lea como la continuación de aquello que lo produjo. */
+.chapter-h { margin: 0.35rem 0 0; font: inherit; }
+.chapter-plate {
+  position: relative; display: block; width: 100%; padding: 0;
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 220%);
+  border: 1px solid var(--border-med); border-radius: 10px; overflow: hidden;
+  color: inherit; font: inherit; text-align: left;
 }
-.group-section:first-child { margin-top: 0.2rem; }
+.chapter-toggle { cursor: pointer; transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+.chapter-toggle:hover { border-color: var(--accent); }
+.chapter-toggle.open { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-dim); }
+.chapter-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.chapter-head { display: flex; align-items: center; gap: 0.8rem; padding: 0.75rem 0.95rem; }
+.chapter-mark {
+  width: 36px; height: 36px; flex: none; border-radius: 50%;
+  display: grid; place-items: center;
+  color: var(--accent-bright); background: var(--accent-dim); border: 1px solid var(--accent);
+}
+.chapter-mark svg { width: 18px; height: 18px; transform-origin: 50% 15%; }
+/* La balanza del sello se mece al pasar por encima: se está pesando. */
+.chapter-toggle:hover .chapter-mark svg { animation: balanza-sway 0.9s ease-in-out; }
+@keyframes balanza-sway {
+  0%, 100% { transform: rotate(0); }
+  30% { transform: rotate(-9deg); }
+  60% { transform: rotate(6deg); }
+  82% { transform: rotate(-2deg); }
+}
+.chapter-text { display: flex; flex-direction: column; gap: 0.05rem; min-width: 0; margin-right: auto; }
+.chapter-title {
+  margin: 0; display: flex; align-items: baseline; gap: 0.5rem;
+  font-family: var(--font-display); font-size-adjust: var(--fsa-display);
+  font-size: var(--fs-lg); font-weight: 600; color: var(--text);
+}
+.chapter-count {
+  font-family: var(--font-mono); font-size-adjust: var(--fsa-mono); font-size: var(--fs-sm); font-weight: 600;
+  color: var(--text-dim); background: var(--surface-2); border: 1px solid var(--border-med);
+  padding: 0 0.45rem; border-radius: 999px;
+}
+.chapter-sub {
+  font-family: var(--font-display); font-size-adjust: var(--fsa-display);
+  font-style: italic; font-size: var(--fs-md); color: var(--text-muted);
+}
+.chapter-action {
+  display: inline-flex; align-items: center; gap: 0.35rem; flex: none;
+  font-family: var(--font-epic); font-size-adjust: var(--fsa-epic);
+  font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--text-dim); transition: color 0.2s ease;
+}
+.chapter-toggle:hover .chapter-action, .chapter-toggle.open .chapter-action { color: var(--accent); }
+.chapter-action .chevron svg { width: 12px; height: 12px; }
+/* La balanza del escaneo hace de borde inferior de la placa: tenue en reposo,
+   entera cuando la placa está abierta o bajo el ratón. */
+.balance--plate { height: 3px; margin: 0; gap: 1px; border-radius: 0; }
+.balance--plate .balance-seg { opacity: 0.5; transition: opacity 0.2s ease; }
+.chapter-toggle:hover .balance--plate .balance-seg,
+.chapter-toggle.open .balance--plate .balance-seg { opacity: 0.9; }
 
-.group { border: 1px solid var(--border); border-radius: 8px; padding: 0.55rem 0.7rem; margin-bottom: 0.5rem; background: var(--surface); }
+/* Friso entre capítulos: dos filetes de oro que se encienden hacia un rombo
+   central escoltado por dos menores. Separa capítulos; dentro de uno, las
+   secciones se separan con la inscripción. */
+.frieze { display: flex; align-items: center; gap: 0.5rem; margin: 1.1rem 0; }
+.frieze::before, .frieze::after { content: ''; flex: 1; height: 1px; opacity: 0.45; }
+.frieze::before { background: linear-gradient(to right, transparent, var(--accent)); }
+.frieze::after { background: linear-gradient(to left, transparent, var(--accent)); }
+.frieze-mark {
+  width: 8px; height: 8px; flex: none; transform: rotate(45deg);
+  border: 1px solid var(--accent); background: var(--accent-dim);
+}
+.frieze-mark--sm { width: 4px; height: 4px; background: var(--accent); opacity: 0.6; }
+
+/* ── Secciones de un capítulo: inscripción + balanza + registro ──
+   Cada sección se abre como una inscripción del templo: rombo, título en la
+   letra epigráfica de Ellysia (Cinzel, la del rótulo THEMIS) y un filete de
+   oro que se apaga hacia la derecha. Es lo que separa una sección de la
+   siguiente, así que se reserva sólo para eso. */
+.findings-panel { padding-top: 1.15rem; }
+.ledger-section + .ledger-section { margin-top: 1.6rem; }
+.inscription { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.45rem; }
+.inscription-mark {
+  width: 8px; height: 8px; flex: none; transform: rotate(45deg);
+  border: 1px solid var(--accent); background: var(--accent-dim);
+}
+.inscription-title {
+  margin: 0; font-family: var(--font-epic); font-size-adjust: var(--fsa-epic);
+  font-size: var(--fs-md); font-weight: 600; letter-spacing: 0.24em; text-transform: uppercase;
+  color: var(--accent); white-space: nowrap;
+}
+.inscription-rule {
+  flex: 1; min-width: 1.5rem; height: 1px;
+  background: linear-gradient(to right, var(--accent), transparent); opacity: 0.45;
+}
+.inscription-tally {
+  font-family: var(--font-mono); font-size-adjust: var(--fsa-mono);
+  font-size: var(--fs-sm); color: var(--text-dim); white-space: nowrap;
+}
+
+/* La balanza entra "pesando": se llena de izquierda a derecha una sola vez,
+   al montarse la sección. */
+.balance {
+  display: flex; gap: 2px; height: 3px; margin-bottom: 0.65rem;
+  border-radius: 2px; overflow: hidden;
+  transform-origin: left; animation: balance-weigh 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.balance-seg { min-width: 3px; background: var(--sev); opacity: 0.85; }
+@keyframes balance-weigh { from { transform: scaleX(0); } }
+
+/* Color de gravedad como variable, para el filo del grupo y la balanza (las
+   clases .critical/.high/… pintan además un fondo, que aquí no se quiere). */
+[data-sev="critical"] { --sev: var(--danger); }
+[data-sev="high"]     { --sev: var(--warn); }
+[data-sev="medium"]   { --sev: var(--info); }
+[data-sev="low"]      { --sev: var(--success); }
+[data-sev="info"]     { --sev: var(--text-muted); }
+
+.ledger { border: 1px solid var(--border-med); border-radius: 10px; background: var(--surface); overflow: hidden; }
+
+.group { position: relative; padding: 0.65rem 0.9rem 0.65rem 1.15rem; transition: background 0.15s; }
+.group + .group { border-top: 1px solid var(--border-med); }
+.group.open { background: var(--surface-2); }
+/* Filo de gravedad: tenue en reposo, entero al pasar por encima o al abrir. */
+.group::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--sev); opacity: 0.45; transition: opacity 0.15s;
+}
+.group:hover::before, .group.open::before { opacity: 1; }
 .group-head {
   display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem;
   width: 100%; padding: 0; background: none; border: none;
@@ -818,30 +1120,38 @@ function fmtDate(iso) {
 .group-head:hover .group-label { color: var(--accent-bright); }
 .group-head:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
 .group-chevron svg { width: 12px; height: 12px; }
-.group-body { margin-top: 0.1rem; }
+/* Los hallazgos cuelgan de su grupo: una guía baja desde el chevron y un
+   trazo corto enlaza cada tarjeta con ella. La tarjeta en sí no cambia. */
+.group-body {
+  --stem: calc(6px + 0.4rem);
+  position: relative; margin: 0.1rem 0 0 6px; padding-left: var(--stem);
+}
+.group-body::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 1.6rem; width: 1px;
+  background: linear-gradient(var(--accent), var(--text-muted)); opacity: 0.6;
+}
+.group-body .finding { position: relative; }
+.group-body .finding::before {
+  content: ''; position: absolute; top: 1.05rem; width: var(--stem); height: 1px;
+  left: calc(-1 * var(--stem) - 3px); background: var(--text-muted); opacity: 0.85;
+}
 .group-label { font-weight: 600; color: var(--text); font-size: var(--fs-lg); }
 .group-count { margin-left: auto; font-size: var(--fs-md); color: var(--text-muted); }
-.group-meta { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.35rem 0 0.1rem; }
+/* Sangrada hasta la insignia: las etiquetas del grupo se leen bajo su título, no bajo el chevron. */
+.group-meta { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.35rem 0 0.1rem; padding-left: calc(12px + 0.4rem); }
+.group-meta:empty { display: none; }
 .group .findings { margin-top: 0.4rem; }
 
 .body-unauth-hint { margin-top: 0.6rem; padding: 0.55rem 0.7rem; font-size: var(--fs-md); line-height: 1.4; color: var(--warn); background: var(--warn-dim); border: 1px dashed var(--warn); border-radius: 7px; }
 .body-coverage-hint { margin-top: 0.6rem; padding: 0.55rem 0.7rem; font-size: var(--fs-md); line-height: 1.4; color: var(--warn); background: var(--warn-dim); border: 1px dashed var(--warn); border-radius: 7px; }
 
 /* ── Documentos PDF ── */
-/* Antes era solo un borde superior de 1px: al lado de "Mostrar hallazgos" se
-   leía como una raya más dentro del mismo bloque, no como el arranque de una
-   sección distinta. El mismo fondo y borde que ya usan .group y .state-panel
-   en esta tarjeta —un recuadro propio, no una regla— es lo que aquí falta
-   para que "Documentos" se lea como su propio apartado. */
-.doc-section { margin-top: 1.1rem; padding: 0.75rem 0.85rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
-.doc-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; }
-.doc-title { font-size: var(--fs-lg); color: var(--text-dim); font-weight: 600; display: flex; align-items: center; gap: 0.35rem; }
-.doc-count { font-size: var(--fs-body); font-weight: 500; color: var(--text-muted); background: var(--surface-2); padding: 1px 6px; border-radius: 8px; }
+.doc-body { padding: 0.7rem 0.95rem 0.8rem; border-top: 1px solid var(--border-med); }
 .doc-refresh-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 3px; border-radius: 5px; display: flex; }
 .doc-refresh-btn:hover:not(:disabled) { color: var(--accent-bright); }
 .doc-refresh-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .doc-refresh-btn svg { width: 12px; height: 12px; }
-.doc-empty { font-size: var(--fs-md); color: var(--text-muted); padding: 0.5rem 0; }
+.doc-empty { font-size: var(--fs-md); color: var(--text-muted); padding: 0 0 0.6rem; }
 .doc-list { position: relative; display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.6rem; }
 .doc-item { display: flex; align-items: center; justify-content: space-between; padding: 0.4rem 0.55rem; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; }
 .doc-item:hover { border-color: var(--accent); }
@@ -896,26 +1206,28 @@ function fmtDate(iso) {
 .btn-del { font-size: var(--fs-md); color: var(--danger); background: none; border: 1px solid var(--danger-dim); padding: 0.3rem 0.7rem; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
 .btn-del:hover { background: var(--danger-dim); }
 
-.load-more {
-  width: 100%; padding: 0.75rem; margin-top: -1px;
-  background: none; border: none; border-top: 1px solid var(--border);
-  color: var(--text-dim); font-size: var(--fs-md); font-weight: 600; cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-.load-more:hover:not(:disabled) { background: var(--surface-2); color: var(--text); }
-.load-more:disabled { cursor: not-allowed; opacity: 0.6; }
+.results-footer { border-top: 1px solid var(--border); padding: 0.5rem; }
 
 @media (max-width: 700px) {
   .scan-head { flex-wrap: wrap; }
+  .scan-head-row { align-items: flex-start; }
+  .scan-head-row > .chk, .scan-head-row > .act-btn { margin-top: 0.7rem; }
   .prio-summary { margin-left: 0; }
   .scan-body { padding-left: 1rem; }
+  .inscription { flex-wrap: wrap; row-gap: 0.25rem; }
+  .inscription-title { white-space: normal; letter-spacing: 0.18em; }
+  .chapter-head { padding: 0.7rem 0.8rem; }
+  .chapter-toggle .chapter-head { flex-wrap: wrap; row-gap: 0.4rem; }
+  .chapter-action { margin-left: calc(36px + 0.8rem); }
 }
 @media (prefers-reduced-motion: reduce) {
   .spin { animation: none !important; }
   /* La barra se queda quieta y llena: sin movimiento sigue diciendo «esto está
      en curso», que es lo único que representa. */
   .state-progress span { animation: none !important; width: 100%; }
-  .chevron, .scan-collapse, .fade-swap-enter-active, .fade-swap-leave-active,
+  .balance { animation: none !important; }
+  .chapter-toggle:hover .chapter-mark svg { animation: none !important; }
+  .chevron, .scan-collapse, .group, .group::before, .chapter-toggle, .chapter-action, .balance--plate .balance-seg, .pop-enter-active, .pop-leave-active, .chk, .act-btn, .scan-head-row, .fade-swap-enter-active, .fade-swap-leave-active,
   .scan-item-enter-active, .scan-item-leave-active, .scan-item-move,
   .pill-pop-enter-active, .pill-pop-leave-active, .pill-pop-move,
   .findings-panel-enter-active, .findings-panel-leave-active,

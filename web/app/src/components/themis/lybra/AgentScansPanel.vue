@@ -70,10 +70,16 @@
         :scans="scans"
         :loading="loading"
         :total-count="totalCount"
+        :current-page="currentPage"
+        :per-page="perPage"
+        :selected-ids="selectedIds"
         :docs-by-scan="docsByScan"
         :groups-by-scan="groupsByScan"
         @refresh="$emit('refresh-scans')"
-        @load-more="$emit('load-more')"
+        @page-change="page => $emit('page-change', page)"
+        @toggle-select="id => $emit('toggle-select', id)"
+        @select-all="ids => $emit('select-all', ids)"
+        @bulk-delete="$emit('bulk-delete')"
         @load-groups="id => $emit('load-groups', id)"
         @set-finding-state="(...a) => $emit('set-finding-state', ...a)"
         @delete="id => $emit('delete', id)"
@@ -102,11 +108,14 @@ const props = defineProps({
   scans: { type: Array, default: () => [] },
   loading: { type: Boolean, default: false },
   totalCount: { type: Number, default: 0 },
+  currentPage: { type: Number, default: 1 },
+  perPage: { type: Number, default: 10 },
+  selectedIds: { type: Array, default: () => [] },
   docsByScan: { type: Object, default: () => ({}) },
   groupsByScan: { type: Object, default: () => ({}) },
 })
 defineEmits([
-  'select', 'refresh-assets', 'refresh-scans', 'load-more',
+  'select', 'refresh-assets', 'refresh-scans', 'page-change', 'toggle-select', 'select-all', 'bulk-delete',
   'delete', 'load-docs', 'load-groups', 'set-finding-state', 'generate-pdf', 'download-doc', 'delete-doc',
 ])
 
