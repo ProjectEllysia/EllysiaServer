@@ -406,6 +406,7 @@ from datetime import timedelta                                    # noqa: E402
 
 from src.modules.shared import utcnow_naive                       # noqa: E402
 from src.modules.features.themis.managers import KbSyncManager    # noqa: E402
+import src.modules.system.config_reading as CR                       # noqa: E402
 
 
 def test_a_failed_sync_keeps_the_last_success(app):
@@ -440,6 +441,17 @@ def test_a_successful_sync_clears_the_previous_error(app):
             assert row.rows_upserted == 9
 
 
+def _configured_sources():
+    """Los nombres de fuente que ``status()`` debe listar con la config real.
+
+    OVAL no es una fuente sino una por distribución (``oval:debian:12``…),
+    porque así se sincroniza y así falla.
+    """
+    sources = CR.knowledge_base_config().sources
+    return ({name for name in sources if name != "oval"}
+            | {f"oval:{key}" for key in sources["oval"]})
+
+
 def test_a_source_never_synced_counts_as_stale(app):
     """No saber nada de una fuente es peor que saber que lleva días parada, no
     mejor: se recorren las fuentes configuradas, no las filas de la tabla."""
@@ -447,9 +459,9 @@ def test_a_source_never_synced_counts_as_stale(app):
         status = KbSyncManager().status()
         by_source = {entry["source"]: entry for entry in status["sources"]}
 
-        # Las cuatro fuentes configuradas, `oval` incluida (el feed de avisos
-        # de distribución).
-        assert set(by_source) == {"nvd", "kev", "epss", "oval"}
+        # Las fuentes configuradas, con OVAL (el feed de avisos de
+        # distribución) desdoblada en una entrada por distribución.
+        assert set(by_source) == _configured_sources()
         assert all(entry["neverSynced"] for entry in by_source.values())
         assert all(entry["isStale"] for entry in by_source.values())
         assert status["isStale"] is True
@@ -459,7 +471,7 @@ def test_a_recent_sync_is_not_stale(app):
     with app.app_context():
         with UnitOfWork() as uow:
             repo = KbRepository(uow)
-            for source in ("nvd", "kev", "epss", "oval"):
+            for source in _configured_sources():
                 repo.record_sync(source, rows_upserted=1)
 
         status = KbSyncManager().status()
@@ -474,7 +486,7 @@ def test_an_aged_source_is_reported_stale(app):
     with app.app_context():
         with UnitOfWork() as uow:
             repo = KbRepository(uow)
-            for source in ("nvd", "kev", "epss", "oval"):
+            for source in _configured_sources():
                 repo.record_sync(source, rows_upserted=1)
 
         with UnitOfWork() as uow:
@@ -496,7 +508,7 @@ def test_the_kb_status_endpoint_reports_every_source(client, app, admin_user, au
     body = resp.get_json()
 
     by_source = {entry["source"]: entry for entry in body["sources"]}
-    assert set(by_source) == {"nvd", "kev", "epss", "oval"}
+    assert set(by_source) == _configured_sources()
     assert by_source["kev"]["rowsUpserted"] == 5
     assert by_source["kev"]["neverSynced"] is False
     assert by_source["nvd"]["neverSynced"] is True
@@ -607,9 +619,9 @@ def test_a_source_that_is_empty_and_unsynced_is_stale(app):
     with app.app_context():
         by_source = {e["source"]: e for e in KbSyncManager().status()["sources"]}
 
-        assert by_source["oval"]["hasContent"] is False
-        assert by_source["oval"]["isStale"] is True
-        assert by_source["oval"]["isUnverified"] is False
+        assert by_source["oval:debian:12"]["hasContent"] is False
+        assert by_source["oval:debian:12"]["isStale"] is True
+        assert by_source["oval:debian:12"]["isUnverified"] is False
 
 
 def test_the_alarm_separates_what_it_can_prove_from_what_it_cannot(app):
@@ -619,7 +631,7 @@ def test_the_alarm_separates_what_it_can_prove_from_what_it_cannot(app):
 
         status = KbSyncManager().status()
 
-    # `oval` sigue vacía, así que hay alarma; pero `nvd` no la provoca.
+    # OVAL sigue vacía, así que hay alarma; pero `nvd` no la provoca.
     assert status["isStale"] is True
     assert status["isUnverified"] is True
     stale = [e["source"] for e in status["sources"] if e["isStale"]]
@@ -664,3 +676,20 @@ def test_an_ambiguous_release_is_not_guessed(app):
             release = KbRepository(uow).distro_release_for("ubuntu", "openssh", "9.6p1-3ubuntu13.19")
 
     assert release is None
+
+
+def test_oval_content_is_reported_per_distribution(app):
+    """Tener datos de Debian no dice nada de Ubuntu: cada distribución OVAL
+    informa de su propio contenido, igual que de su propia sincronización."""
+    with app.app_context():
+        with UnitOfWork() as uow:
+            KbRepository(uow).upsert_distro_pkg_status({
+                "vendor": "debian", "release": "12", "package": "openssh",
+                "cve_id": "CVE-2024-6387", "fixed_in": "1:9.2p1-2+deb12u3", "status": "fixed"})
+
+        by_source = {e["source"]: e for e in KbSyncManager().status()["sources"]}
+
+    assert by_source["oval:debian:12"]["hasContent"] is True
+    assert by_source["oval:debian:12"]["isStale"] is False
+    assert by_source["oval:ubuntu:24.04"]["hasContent"] is False
+    assert by_source["oval:ubuntu:24.04"]["isStale"] is True
