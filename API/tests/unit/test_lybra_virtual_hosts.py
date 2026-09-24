@@ -125,3 +125,25 @@ def test_each_site_is_audited_by_name_and_pinned_to_the_scanned_ip(monkeypatch):
     assert seen == [("web.ejemplo.test", ADDRESS, [443])]
     assert [f["category"] for f in findings if "category" in f] == ["virtual_host"]
     assert all(finding["vhost"] == "web.ejemplo.test" for finding in findings)
+
+
+def test_a_machine_finding_is_not_repeated_for_each_named_site(monkeypatch):
+    """Las marcas de tiempo TCP son de la máquina: ya las da el escaneo por IP.
+
+    Repetirlas en cada sitio mostraría el mismo aviso dos veces, idéntico, y lo
+    sumaría dos veces en los totales de prioridad.
+    """
+    monkeypatch.setattr(engine_module, "discover_sites",
+                        lambda *_args, **_kwargs: [("web.ejemplo.test", "certificado TLS de 443/tcp")])
+    services = [Service(port=80, protocol="tcp", name="http")]
+
+    def run_checks(_name, _web_services):
+        return [
+            {"check_id": "lybra:x-frame-options-deprecated@1", "category": "security_header", "port": 80},
+            {"check_id": "lybra:tcp-timestamps-enabled@1", "category": "network_config", "port": 80},
+        ]
+
+    findings = engine_module._audit_named_sites(ADDRESS, services, lambda: False, run_checks)
+
+    check_ids = [finding.get("check_id") for finding in findings if finding.get("category") != "virtual_host"]
+    assert check_ids == ["lybra:x-frame-options-deprecated@1"]
