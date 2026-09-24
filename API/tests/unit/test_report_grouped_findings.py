@@ -24,6 +24,7 @@ from src.modules.tools.press import ColorType, ReportTheme
 from src.modules.features.themis.lybra.grouping import build_service_rollup
 from src.modules.features.themis.services.reports.findings import (
     FindingsPrintingStrategy,
+    _default_site_warning,
     _unverified_warning,
 )
 from src.modules.features.themis.services.reports.outline import OutlineEntry
@@ -306,3 +307,13 @@ def test_the_report_body_keeps_fixed_findings_out_of_the_cards_and_the_counts(mo
     assert "Corregidos desde el escaneo anterior: 1" in joined
     assert "Hallazgo #1.1" in joined and "Hallazgo #1.2" not in joined
     assert "• Cabecera X-Frame-Options ausente (http:80)" in joined
+
+
+def test_the_report_warns_when_the_ip_hosts_other_webs():
+    from src.modules.features.themis.lybra.correlation import DEFAULT_SITE_VHOST
+
+    warning = _default_site_warning([{"vhost": DEFAULT_SITE_VHOST}, {"vhost": None}])
+
+    assert "aloja varias webs" in warning
+    assert "escanéala por su nombre" in warning
+    assert _default_site_warning([{"vhost": "web.ejemplo.test"}, {}]) is None

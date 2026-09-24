@@ -13,15 +13,20 @@ red (el handshake, la resolución) la pone quien llama.
 from __future__ import annotations
 
 import ipaddress
-from typing import Callable, Iterable, List, Tuple
+from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
 from .correlation import DEFAULT_SITE_VHOST
 from .engine import QOD_OPEN_PORT
 
-#: Los checks cuyo hallazgo describe el certificado servido. Sobre el sitio
-#: por defecto de una IP con sitios con nombre se reclasifican (ver
-#: :func:`mark_default_site_certificates`).
-DEFAULT_SITE_CERTIFICATE_CHECKS = ("tls-self-signed-cert", "tls-expired-cert")
+#: Las categorías de hallazgo que describen la web servida (su certificado,
+#: sus cabeceras) y no la máquina. Sobre el sitio por defecto de una IP que
+#: aloja otras webs se reclasifican (ver :func:`mark_default_site_findings`).
+DEFAULT_SITE_CATEGORIES = ("tls", "security_header")
+
+#: Lo que un sitio sirve en un puerto web: ``(estado HTTP, huella del cuerpo,
+#: identidad del certificado)``. Cualquiera de los tres es ``None`` si no se
+#: pudo obtener. Lo construye la parte de red; aquí sólo se compara.
+SiteView = Tuple[Optional[int], Optional[str], Optional[tuple]]
 
 #: Las categorías que describen la máquina y no el sitio. Una configuración de
 #: red —las marcas de tiempo TCP, por ejemplo— la fija el sistema operativo
@@ -88,7 +93,32 @@ def select_site_names(
     return selected
 
 
-def site_finding(name: str, origin: str) -> dict:
+def is_alias_of_default_site(default_views: Dict[int, SiteView], site_views: Dict[int, SiteView]) -> bool:
+    """Si un sitio con nombre sirve exactamente lo mismo que la IP sin nombre.
+
+    Es el caso típico del nombre que da el DNS inverso de un proveedor de
+    hosting (``ip203-0-113-10.proveedor.test``): resuelve a la IP, pero el
+    servidor no lo conoce y contesta con su página por defecto. Auditarlo
+    aparte repetiría, con otro nombre, los hallazgos del sitio por defecto.
+
+    Se exige coincidencia completa en todos los puertos web, y que al menos
+    uno haya contestado: ante la duda (una página con contenido dinámico, un
+    puerto que no respondió) el sitio se audita como uno más.
+
+    Args:
+        default_views: Lo que sirve la IP sin nombre, por puerto.
+        site_views: Lo que sirve el sitio con nombre, por puerto.
+
+    Returns:
+        bool: ``True`` si los dos sirven lo mismo en todos los puertos y hubo
+            alguna respuesta; ``False`` en cualquier otro caso.
+    """
+    if default_views != site_views:
+        return False
+    return any(status is not None for status, _digest, _certificate in site_views.values())
+
+
+def site_finding(name: str, origin: str, serves_default_site: bool = False) -> dict:
     """El aviso de que la IP sirve un sitio con nombre, y de dónde salió.
 
     Categoría ``virtual_host``, que el ciclo de vida trata como evento y el
@@ -97,12 +127,20 @@ def site_finding(name: str, origin: str) -> dict:
     Args:
         name: El nombre del sitio.
         origin: De dónde se sacó el nombre.
+        serves_default_site: Si el nombre sólo sirve el sitio por defecto de la
+            IP (ver :func:`is_alias_of_default_site`). Se dice en el título y no
+            se audita aparte. Por defecto ``False``.
 
     Returns:
-        dict: El hallazgo, listo para persistir.
+        dict: El hallazgo, listo para persistir. La clave de trabajo
+            ``_serves_default_site`` (que no se persiste) repite
+            ``serves_default_site`` para quien decide si la IP aloja otras
+            webs.
     """
+    suffix = "; sirve el sitio por defecto de la IP" if serves_default_site else ""
     return {
-        "title":        f"{name} (origen: {origin})",
+        "title":        f"{name} (origen: {origin}{suffix})",
+        "_serves_default_site": serves_default_site,
         "category":     "virtual_host",
         "port":         None,
         "service":      name,
@@ -117,23 +155,39 @@ def site_finding(name: str, origin: str) -> dict:
     }
 
 
-def mark_default_site_certificates(findings: List[dict]) -> None:
-    """Etiqueta los hallazgos de certificado del sitio por defecto, en sitio.
+def mark_default_site_findings(findings: List[dict]) -> None:
+    """Etiqueta los hallazgos web del sitio por defecto, en sitio.
 
-    Cuando la IP aloja sitios con nombre, el certificado que sirve sin SNI es
-    el de su sitio por defecto (a menudo el del panel, autofirmado). Es
-    cierto para quien conecta sin nombre, así que no se borra, pero no es el
-    que ve ningún visitante: se marca con :data:`DEFAULT_SITE_VHOST`, que lo
-    deja en LOW y lo nombra como tal en el informe.
+    Cuando la IP aloja otras webs, lo que sirve a quien entra sin nombre (sin
+    SNI ni ``Host``) es su sitio por defecto: en un hosting, la página
+    genérica del panel con su certificado de fábrica. Lo que se dice de su
+    certificado y de sus cabeceras es cierto para quien conecta así, y no se
+    borra, pero no es lo que ve ningún visitante: se marca con
+    :data:`DEFAULT_SITE_VHOST`, que lo deja en LOW y lo nombra como tal en el
+    informe.
 
     Args:
         findings: Los hallazgos del escaneo por IP. Se modifican en sitio; sólo
-            se tocan los de :data:`DEFAULT_SITE_CERTIFICATE_CHECKS` sin sitio.
+            se tocan los de :data:`DEFAULT_SITE_CATEGORIES` sin sitio.
     """
     for finding in findings:
-        check_id = str(finding.get("check_id") or "").split(":", 1)[-1].split("@", 1)[0]
-        if check_id in DEFAULT_SITE_CERTIFICATE_CHECKS and not finding.get("vhost"):
+        if finding.get("category") in DEFAULT_SITE_CATEGORIES and not finding.get("vhost"):
             finding["vhost"] = DEFAULT_SITE_VHOST
+
+
+def has_own_named_sites(findings: List[dict]) -> bool:
+    """Si la IP aloja webs con nombre propio, además de su sitio por defecto.
+
+    Args:
+        findings: Los hallazgos de la auditoría de sitios con nombre, con sus
+            avisos ``virtual_host``.
+
+    Returns:
+        bool: ``True`` si algún sitio con nombre sirve algo distinto del sitio
+            por defecto; ``False`` si no hay sitios o todos son alias suyos.
+    """
+    return any(finding.get("category") == "virtual_host" and not finding.get("_serves_default_site")
+               for finding in findings)
 
 
 def _is_ip(name: str) -> bool:

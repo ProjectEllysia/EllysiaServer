@@ -13,6 +13,7 @@ from reportlab.platypus import CondPageBreak, Paragraph, Spacer, Table, TableSty
 import src.modules.system.config_reading as CR
 
 from src.modules.tools.press import ColorType, build_palette, safe_markup
+from ...lybra.correlation import DEFAULT_SITE_VHOST
 from ...lybra.grouping import build_service_rollup
 from ..cve_context import enrich_with_cve_context
 from .base import PrintingStrategy
@@ -178,12 +179,13 @@ class FindingsPrintingStrategy(PrintingStrategy):
         elements.append(Paragraph(self._HEADER_TITLE, theme.title))
         elements.append(Spacer(1, 0.1 * inch))
 
-        warning = _unverified_warning(findings)
-        if warning:
-            # Va antes que ninguna tabla porque cambia cómo se leen todas: son
-            # los hallazgos que más fácilmente resultan falsos.
-            elements.append(Paragraph(warning, theme.body))
-            elements.append(Spacer(1, 0.1 * inch))
+        # Van antes que ninguna tabla porque cambian cómo se leen todas: el
+        # primero señala los hallazgos que más fácilmente resultan falsos, y el
+        # segundo, lo que el escaneo no ha podido mirar.
+        for warning in (_unverified_warning(findings), _default_site_warning(findings)):
+            if warning:
+                elements.append(Paragraph(warning, theme.body))
+                elements.append(Spacer(1, 0.1 * inch))
 
         exposure_label = "Pública" if exposure == "public" else "Privada" if exposure == "private" else "Desconocida"
         target_info = [
@@ -737,7 +739,8 @@ def _append_sites_section(theme: "ReportTheme", elements: list, sites: list) -> 
     elements.append(Spacer(1, 0.1 * inch))
     elements.append(Paragraph(
         "Además del sitio por defecto de la IP, se auditaron por separado estos "
-        "sitios con nombre, que resuelven a la misma IP:", theme.body))
+        "sitios con nombre, que resuelven a la misma IP. Los que sirven la misma "
+        "página que el sitio por defecto no se auditan aparte:", theme.body))
     for site in sites:
         elements.append(Paragraph(f"• {site['title']}", theme.body))
     elements.append(Spacer(1, 0.3 * inch))
@@ -800,6 +803,30 @@ def _unverified_warning(findings: list) -> Optional[str]:
         text += (" La fuente OVAL de avisos de distribución está desactualizada: "
                  "sincronizarla puede desmentir algunos.")
     return text
+
+
+def _default_site_warning(findings: list) -> Optional[str]:
+    """El aviso de portada de que la IP aloja varias webs y sólo se ven algunas.
+
+    Cuando la IP sirve webs con nombre propio, lo que enseña a quien entra sin
+    nombre es su sitio por defecto (en un hosting, la página genérica del
+    panel). El escaneo por IP sólo ve las webs que la propia IP delata en sus
+    certificados o en su DNS inverso; el resto hay que escanearlas por nombre.
+
+    Args:
+        findings: Los hallazgos del informe.
+
+    Returns:
+        Optional[str]: El texto del aviso, o ``None`` si ningún hallazgo es del
+            sitio por defecto.
+    """
+    if not any(finding.get("vhost") == DEFAULT_SITE_VHOST for finding in findings):
+        return None
+    return ("<b>Aviso:</b> esta IP aloja varias webs. Los avisos de la página que "
+            "responde a quien entra por la IP, sin nombre (el «sitio por defecto»), se "
+            "muestran con prioridad baja, porque no es la que ven los visitantes. Solo se "
+            "han auditado las webs que la propia IP delata; para auditar cualquier otra "
+            "alojada aquí, escanéala por su nombre.")
 
 
 def _is_oval_stale() -> bool:
