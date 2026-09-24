@@ -1047,7 +1047,7 @@ function fmtDate(iso) {
 /* Friso entre capítulos: dos filetes de oro que se encienden hacia un rombo
    central escoltado por dos menores. Separa capítulos; dentro de uno, las
    secciones se separan con la inscripción. */
-.frieze { display: flex; align-items: center; gap: 0.5rem; margin: 2rem 0 1.4rem; }
+.frieze { display: flex; align-items: center; gap: 0.5rem; margin: 1.1rem 0; }
 .frieze::before, .frieze::after { content: ''; flex: 1; height: 1px; opacity: 0.45; }
 .frieze::before { background: linear-gradient(to right, transparent, var(--accent)); }
 .frieze::after { background: linear-gradient(to left, transparent, var(--accent)); }
