@@ -152,9 +152,28 @@
                          de versión, y arreglar una configuración. Mezclarlas hacía que un
                          "falta la cabecera HSTS" pareciera un producto más del inventario. -->
                     <template v-for="section in sections(scan.id)" :key="section.key">
-                      <p v-if="section.groups.length" class="group-section">{{ section.title }}</p>
+                    <section v-if="section.groups.length" class="ledger-section">
+                      <header class="inscription">
+                        <span class="inscription-mark" aria-hidden="true"></span>
+                        <h4 class="inscription-title">{{ section.title }}</h4>
+                        <span class="inscription-rule" aria-hidden="true"></span>
+                        <span class="inscription-tally">{{ section.total }} {{ section.total === 1 ? 'hallazgo' : 'hallazgos' }}</span>
+                      </header>
+                      <!-- La balanza: cuánto pesa la sección, repartido por gravedad y
+                           a escala del número real de hallazgos. Es lo que Lybra hace
+                           —pesar cada amenaza— dicho sin palabras, y deja ver de un
+                           vistazo si una sección es ruido informativo o trabajo urgente. -->
+                      <div class="balance" role="img" :aria-label="balanceLabel(section)">
+                        <span v-for="seg in section.balance" :key="seg.level" class="balance-seg"
+                          :data-sev="seg.level.toLowerCase()" :style="{ flexGrow: seg.count }"
+                          :title="`${seg.count} ${PRIO_LABEL[seg.level]}`"></span>
+                      </div>
 
-                      <div v-for="group in section.groups" :key="section.key + groupKey(scan.id, group)" class="group">
+                      <!-- Los grupos son filas de un mismo registro, no cajas sueltas: un
+                           solo marco, separadores finos y un filo del color de su gravedad. -->
+                      <div class="ledger">
+                      <div v-for="group in section.groups" :key="section.key + groupKey(scan.id, group)" class="group"
+                        :class="{ open: isGroupOpen(scan.id, group) }" :data-sev="(group.priority || 'INFO').toLowerCase()">
                         <!-- La cabecera es el interruptor del grupo, y sigue visible al
                              plegarlo: lo que se esconde es la evidencia (los hallazgos
                              uno a uno), no la acción a tomar ni cuánto pesa. Así, con
@@ -242,6 +261,8 @@
                         </div>
                         </Transition>
                       </div>
+                      </div>
+                    </section>
                     </template>
                   </template>
                 </div>
@@ -277,13 +298,18 @@
                 verificación real.
               </div>
 
-              <div v-if="scan.status === 'finished'" class="doc-section">
-                <div class="doc-head">
-                  <span class="doc-title">Documentos <span class="doc-count">{{ docsFor(scan.id).length }}</span></span>
-                  <button class="doc-refresh-btn" @click="$emit('load-docs', scan.id)" :disabled="docsLoading(scan.id)" title="Refrescar">
+              <section v-if="scan.status === 'finished'" class="ledger-section doc-section">
+                <header class="inscription">
+                  <span class="inscription-mark" aria-hidden="true"></span>
+                  <h4 class="inscription-title">Documentos</h4>
+                  <span class="inscription-rule" aria-hidden="true"></span>
+                  <span class="inscription-tally">{{ docsFor(scan.id).length }}</span>
+                  <button class="doc-refresh-btn" @click="$emit('load-docs', scan.id)" :disabled="docsLoading(scan.id)" title="Refrescar documentos" aria-label="Refrescar documentos">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ spin: docsLoading(scan.id) }"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
                   </button>
-                </div>
+                </header>
+
+                <div class="ledger doc-ledger">
 
                 <div v-if="docsLoading(scan.id) && !docsFor(scan.id).length" class="doc-empty">Cargando documentos…</div>
                 <div v-else-if="!docsFor(scan.id).length" class="doc-empty">Sin documentos generados</div>
@@ -324,7 +350,8 @@
                     Generar PDF
                   </button>
                 </div>
-              </div>
+                </div>
+              </section>
 
               <div class="body-actions">
                 <button class="btn-del" @click="$emit('delete', scan.id)">Eliminar escaneo</button>
@@ -518,9 +545,43 @@ function groupKey(scanId, group) { return `${scanId}|${group.port ?? '-'}|${grou
 function sections(scanId) {
   const groups = groupsFor(scanId)
   return [
-    { key: 'prod', title: 'Productos afectados', groups: groups.filter(g => g.isProduct) },
-    { key: 'conf', title: 'Configuración y exposición', groups: groups.filter(g => !g.isProduct) },
+    withBalance({ key: 'prod', title: 'Productos afectados', groups: groups.filter(g => g.isProduct) }),
+    withBalance({ key: 'conf', title: 'Configuración y exposición', groups: groups.filter(g => !g.isProduct) }),
   ]
+}
+
+/**
+ * Añade a una sección su balanza: cuántos hallazgos tiene de cada gravedad.
+ *
+ * Se cuenta hallazgo a hallazgo y no por la gravedad del grupo, que es la
+ * máxima de los suyos: un producto con un CVE crítico y nueve bajos pesa un
+ * crítico y nueve bajos, no diez críticos.
+ *
+ * @param {{key: string, title: string, groups: Array}} section - Sección sin balanza.
+ * @returns {{key: string, title: string, groups: Array, balance: Array<{level: string, count: number}>, total: number}}
+ *          La misma sección con `balance` (sólo los niveles presentes, en el
+ *          orden de `LADDER`) y `total`, la suma de todos ellos.
+ */
+function withBalance(section) {
+  const counts = {}
+  for (const group of section.groups) {
+    for (const finding of group.findings) {
+      const level = finding.priority || 'INFO'
+      counts[level] = (counts[level] || 0) + 1
+    }
+  }
+  const balance = LADDER.filter(level => counts[level]).map(level => ({ level, count: counts[level] }))
+  return { ...section, balance, total: balance.reduce((sum, seg) => sum + seg.count, 0) }
+}
+
+/**
+ * La balanza en palabras, para quien no la ve.
+ *
+ * @param {{balance: Array<{level: string, count: number}>}} section - Sección con balanza.
+ * @returns {string} P. ej. "Peso por gravedad: 1 Crítica, 9 Baja".
+ */
+function balanceLabel(section) {
+  return 'Peso por gravedad: ' + section.balance.map(seg => `${seg.count} ${PRIO_LABEL[seg.level]}`).join(', ')
 }
 
 function toggleFindings(id) {
@@ -869,14 +930,61 @@ function fmtDate(iso) {
 .groups-loading, .groups-error { padding: 0.6rem 0.2rem; font-size: var(--fs-md); color: var(--text-muted); }
 .groups-error { color: var(--danger); }
 
-.group-section {
-  margin: 0.9rem 0 0.35rem; font-family: var(--font-display); font-size-adjust: var(--fsa-display);
-  font-size: var(--fs-md); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
-  color: var(--text-muted);
+/* ── Secciones del escaneo: inscripción + balanza + registro ──
+   Cada sección se abre como una inscripción del templo: rombo, título en la
+   letra epigráfica de Ellysia (Cinzel, la del rótulo THEMIS) y un filete de
+   oro que se apaga hacia la derecha. Es lo que separa una sección de la
+   siguiente, así que se reserva sólo para eso. */
+.findings-panel { padding-top: 0.75rem; }
+.ledger-section + .ledger-section { margin-top: 1.6rem; }
+.inscription { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.45rem; }
+.inscription-mark {
+  width: 8px; height: 8px; flex: none; transform: rotate(45deg);
+  border: 1px solid var(--accent); background: var(--accent-dim);
 }
-.group-section:first-child { margin-top: 0.2rem; }
+.inscription-title {
+  margin: 0; font-family: var(--font-epic); font-size-adjust: var(--fsa-epic);
+  font-size: var(--fs-md); font-weight: 600; letter-spacing: 0.24em; text-transform: uppercase;
+  color: var(--accent); white-space: nowrap;
+}
+.inscription-rule {
+  flex: 1; min-width: 1.5rem; height: 1px;
+  background: linear-gradient(to right, var(--accent), transparent); opacity: 0.45;
+}
+.inscription-tally {
+  font-family: var(--font-mono); font-size-adjust: var(--fsa-mono);
+  font-size: var(--fs-sm); color: var(--text-dim); white-space: nowrap;
+}
 
-.group { border: 1px solid var(--border); border-radius: 8px; padding: 0.55rem 0.7rem; margin-bottom: 0.5rem; background: var(--surface); }
+/* La balanza entra "pesando": se llena de izquierda a derecha una sola vez,
+   al montarse la sección. */
+.balance {
+  display: flex; gap: 2px; height: 3px; margin-bottom: 0.65rem;
+  border-radius: 2px; overflow: hidden;
+  transform-origin: left; animation: balance-weigh 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.balance-seg { min-width: 3px; background: var(--sev); opacity: 0.85; }
+@keyframes balance-weigh { from { transform: scaleX(0); } }
+
+/* Color de gravedad como variable, para el filo del grupo y la balanza (las
+   clases .critical/.high/… pintan además un fondo, que aquí no se quiere). */
+[data-sev="critical"] { --sev: var(--danger); }
+[data-sev="high"]     { --sev: var(--warn); }
+[data-sev="medium"]   { --sev: var(--info); }
+[data-sev="low"]      { --sev: var(--success); }
+[data-sev="info"]     { --sev: var(--text-muted); }
+
+.ledger { border: 1px solid var(--border-med); border-radius: 10px; background: var(--surface); overflow: hidden; }
+
+.group { position: relative; padding: 0.65rem 0.9rem 0.65rem 1.15rem; transition: background 0.15s; }
+.group + .group { border-top: 1px solid var(--border-med); }
+.group.open { background: var(--surface-2); }
+/* Filo de gravedad: tenue en reposo, entero al pasar por encima o al abrir. */
+.group::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--sev); opacity: 0.45; transition: opacity 0.15s;
+}
+.group:hover::before, .group.open::before { opacity: 1; }
 .group-head {
   display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem;
   width: 100%; padding: 0; background: none; border: none;
@@ -885,30 +993,41 @@ function fmtDate(iso) {
 .group-head:hover .group-label { color: var(--accent-bright); }
 .group-head:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
 .group-chevron svg { width: 12px; height: 12px; }
-.group-body { margin-top: 0.1rem; }
+/* Los hallazgos cuelgan de su grupo: una guía baja desde el chevron y un
+   trazo corto enlaza cada tarjeta con ella. La tarjeta en sí no cambia. */
+.group-body {
+  --stem: calc(6px + 0.4rem);
+  position: relative; margin: 0.1rem 0 0 6px; padding-left: var(--stem);
+}
+.group-body::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 1.6rem; width: 1px;
+  background: linear-gradient(var(--accent), var(--text-muted)); opacity: 0.6;
+}
+.group-body .finding { position: relative; }
+.group-body .finding::before {
+  content: ''; position: absolute; top: 1.05rem; width: var(--stem); height: 1px;
+  left: calc(-1 * var(--stem) - 3px); background: var(--text-muted); opacity: 0.85;
+}
 .group-label { font-weight: 600; color: var(--text); font-size: var(--fs-lg); }
 .group-count { margin-left: auto; font-size: var(--fs-md); color: var(--text-muted); }
-.group-meta { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.35rem 0 0.1rem; }
+/* Sangrada hasta la insignia: las etiquetas del grupo se leen bajo su título, no bajo el chevron. */
+.group-meta { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.35rem 0 0.1rem; padding-left: calc(12px + 0.4rem); }
+.group-meta:empty { display: none; }
 .group .findings { margin-top: 0.4rem; }
 
 .body-unauth-hint { margin-top: 0.6rem; padding: 0.55rem 0.7rem; font-size: var(--fs-md); line-height: 1.4; color: var(--warn); background: var(--warn-dim); border: 1px dashed var(--warn); border-radius: 7px; }
 .body-coverage-hint { margin-top: 0.6rem; padding: 0.55rem 0.7rem; font-size: var(--fs-md); line-height: 1.4; color: var(--warn); background: var(--warn-dim); border: 1px dashed var(--warn); border-radius: 7px; }
 
 /* ── Documentos PDF ── */
-/* Antes era solo un borde superior de 1px: al lado de "Mostrar hallazgos" se
-   leía como una raya más dentro del mismo bloque, no como el arranque de una
-   sección distinta. El mismo fondo y borde que ya usan .group y .state-panel
-   en esta tarjeta —un recuadro propio, no una regla— es lo que aquí falta
-   para que "Documentos" se lea como su propio apartado. */
-.doc-section { margin-top: 1.1rem; padding: 0.75rem 0.85rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
-.doc-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; }
-.doc-title { font-size: var(--fs-lg); color: var(--text-dim); font-weight: 600; display: flex; align-items: center; gap: 0.35rem; }
-.doc-count { font-size: var(--fs-body); font-weight: 500; color: var(--text-muted); background: var(--surface-2); padding: 1px 6px; border-radius: 8px; }
+/* Misma inscripción que las secciones de hallazgos: son otra sección del mismo
+   escaneo, y se separan igual. */
+.doc-section { margin-top: 1.6rem; }
+.doc-ledger { padding: 0.7rem 0.85rem; }
 .doc-refresh-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 3px; border-radius: 5px; display: flex; }
 .doc-refresh-btn:hover:not(:disabled) { color: var(--accent-bright); }
 .doc-refresh-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .doc-refresh-btn svg { width: 12px; height: 12px; }
-.doc-empty { font-size: var(--fs-md); color: var(--text-muted); padding: 0.5rem 0; }
+.doc-empty { font-size: var(--fs-md); color: var(--text-muted); padding: 0 0 0.6rem; }
 .doc-list { position: relative; display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.6rem; }
 .doc-item { display: flex; align-items: center; justify-content: space-between; padding: 0.4rem 0.55rem; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; }
 .doc-item:hover { border-color: var(--accent); }
@@ -971,13 +1090,16 @@ function fmtDate(iso) {
   .scan-head-row > .chk, .scan-head-row > .act-btn { margin-top: 0.7rem; }
   .prio-summary { margin-left: 0; }
   .scan-body { padding-left: 1rem; }
+  .inscription { flex-wrap: wrap; row-gap: 0.25rem; }
+  .inscription-title { white-space: normal; letter-spacing: 0.18em; }
 }
 @media (prefers-reduced-motion: reduce) {
   .spin { animation: none !important; }
   /* La barra se queda quieta y llena: sin movimiento sigue diciendo «esto está
      en curso», que es lo único que representa. */
   .state-progress span { animation: none !important; width: 100%; }
-  .chevron, .scan-collapse, .pop-enter-active, .pop-leave-active, .chk, .act-btn, .scan-head-row, .fade-swap-enter-active, .fade-swap-leave-active,
+  .balance { animation: none !important; }
+  .chevron, .scan-collapse, .group, .group::before, .pop-enter-active, .pop-leave-active, .chk, .act-btn, .scan-head-row, .fade-swap-enter-active, .fade-swap-leave-active,
   .scan-item-enter-active, .scan-item-leave-active, .scan-item-move,
   .pill-pop-enter-active, .pill-pop-leave-active, .pill-pop-move,
   .findings-panel-enter-active, .findings-panel-leave-active,
