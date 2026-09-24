@@ -11,37 +11,49 @@
         <span class="engine-title">Motor Lybra</span>
         <span class="engine-sub">Pesa cada amenaza antes de que golpee</span>
       </div>
-      <Transition name="pop"><span v-if="props.launched" class="engine-launched">Motor en marcha</span></Transition>
+      <Transition name="pop"><span v-if="props.launched" class="engine-launched"><span class="pulse" aria-hidden="true"></span>Motor en marcha</span></Transition>
     </div>
 
     <!-- Campos según modo -->
     <div class="engine-fields">
       <div class="field-row">
-        <div class="field field-lg"><label>Target (IP única)</label>
-          <input v-model="target" placeholder="192.168.1.1" @keyup.enter="handleLaunch" /></div>
+        <div class="field field-lg"><label for="lybra-target">Target (IP única)</label>
+          <!-- El estado de autorización vive dentro del campo, como un sello
+               junto a lo que se escribe: es una propiedad de ese objetivo, no un
+               aviso aparte que empuje el resto del panel hacia abajo. -->
+          <div class="target-wrap" :class="{ sealed: authState }">
+            <input id="lybra-target" v-model="target" placeholder="192.168.1.1" @keyup.enter="handleLaunch" />
+            <Transition name="fade-swap" mode="out-in">
+              <span v-if="authState === 'ok'" key="ok" class="target-seal ok" title="Está en tu registro de objetivos autorizados">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+                Autorizado
+              </span>
+              <button v-else-if="authState === 'missing'" key="missing" type="button" class="target-seal missing"
+                :title="`Añadir '${target.trim()}' a tus objetivos autorizados`"
+                @click="$emit('add-authorized-target', { target: target.trim() })">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="9" x2="12" y2="15"/><line x1="9" y1="12" x2="15" y2="12"/></svg>
+                Autorizar
+              </button>
+            </Transition>
+          </div></div>
         <div class="field"><label>Puertos (opcional)</label>
           <input v-model="ports" placeholder="80,443 o 1-1000" /></div>
       </div>
       <Transition name="fade-swap">
-        <div v-if="target.trim()" class="auth-status" :class="{ ok: isTargetAuthorized(target) }">
-          <template v-if="isTargetAuthorized(target)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-            Objetivo autorizado
-          </template>
-          <template v-else>
-            <span>Este objetivo no está en tu registro de objetivos autorizados — el autodescubrimiento se rechazará.</span>
-            <button type="button" class="btn-authorize-inline" @click="$emit('add-authorized-target', { target: target.trim() })">
-              Autorizar '{{ target.trim() }}'
-            </button>
-          </template>
-        </div>
+        <p v-if="authState === 'missing'" class="auth-hint">
+          No está en tu registro de objetivos autorizados: el autodescubrimiento se rechazará.
+        </p>
       </Transition>
 
       <!-- Registro de objetivos autorizados -->
       <div class="auth-register">
-        <button type="button" class="auth-register-toggle" @click="showAuthRegister = !showAuthRegister">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          Objetivos autorizados ({{ authorizedTargets.length }})
+        <!-- Misma inscripción que las secciones de LybraResults.vue: el panel
+             y los veredictos hablan el mismo idioma visual. -->
+        <button type="button" class="auth-register-toggle" :aria-expanded="showAuthRegister" @click="showAuthRegister = !showAuthRegister">
+          <span class="inscription-mark" aria-hidden="true"></span>
+          <span class="inscription-title">Objetivos autorizados</span>
+          <span class="inscription-rule" aria-hidden="true"></span>
+          <span class="inscription-tally">{{ authorizedTargets.length }}</span>
           <span class="chevron" :class="{ rot: showAuthRegister }" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
           </span>
@@ -75,12 +87,14 @@
       </div>
 
       <div class="engine-row">
-        <div class="field field-sm"><label>Timeout (s)</label>
+        <div class="field field-sm"><label>Timeout (s)<span v-if="timeoutLabel" class="timeout-human"> · {{ timeoutLabel }}</span></label>
           <input v-model.number="timeout" type="number" min="1" max="86400" class="no-spin" /></div>
 
-        <button class="btn-launch" :class="launching ? 'loading' : ''" :disabled="launching || !canLaunch" @click="handleLaunch">
-          <span class="btn-label">Emitir veredicto</span>
-          <span class="btn-spin"></span>
+        <!-- Mientras se lanza, la balanza del botón se mece: el motor está
+             pesando. Sustituye al spinner genérico y mantiene el ancho. -->
+        <button class="btn-launch" :class="{ loading: launching }" :disabled="launching || !canLaunch" @click="handleLaunch">
+          <span class="btn-balanza" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v18M7 21h10M5 7h14M5 7l-2.5 5a3 3 0 0 0 5 0L5 7zM19 7l-2.5 5a3 3 0 0 0 5 0L19 7z"/></svg></span>
+          <span class="btn-label">{{ launching ? 'Pesando…' : 'Emitir veredicto' }}</span>
         </button>
       </div>
     </div>
@@ -109,6 +123,33 @@ const ports = ref('')
 const timeout = ref(120)
 
 const canLaunch = computed(() => !!target.value.trim())
+
+/**
+ * Estado de autorización del objetivo escrito, para el sello del campo.
+ *
+ * @returns {''|'ok'|'missing'} Vacío si no hay objetivo; `ok` si está en el
+ *          registro; `missing` si no lo está.
+ */
+const authState = computed(() => {
+  if (!target.value.trim()) return ''
+  return isTargetAuthorized(target.value) ? 'ok' : 'missing'
+})
+
+/**
+ * El timeout en una unidad legible ("2 min", "1 h 30 min"), junto a su etiqueta.
+ *
+ * Sólo se muestra a partir de un minuto: por debajo, los segundos ya se leen.
+ *
+ * @returns {string} La duración legible, o cadena vacía si no aplica.
+ */
+const timeoutLabel = computed(() => {
+  const seconds = Number(timeout.value)
+  if (!Number.isFinite(seconds) || seconds < 60) return ''
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.round((seconds % 3600) / 60)
+  if (!hours) return `${minutes} min`
+  return minutes ? `${hours} h ${minutes} min` : `${hours} h`
+})
 
 /**
  * Heurística de coincidencia exacta contra el registro (el backend, que sí
@@ -162,7 +203,10 @@ function handleLaunch() {
 .engine-title-wrap { display: flex; flex-direction: column; gap: 0.05rem; margin-right: auto; }
 .engine-title { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-weight: 600; font-size: var(--fs-xl); color: var(--text); }
 .engine-sub { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-style: italic; font-size: var(--fs-md); color: var(--text-muted); }
-.engine-launched { font-size: var(--fs-md); color: var(--success); background: var(--success-dim); padding: 0.2rem 0.55rem; border-radius: 6px; }
+.engine-launched { display: inline-flex; align-items: center; gap: 0.45rem; font-size: var(--fs-md); color: var(--success); background: var(--success-dim); padding: 0.2rem 0.6rem; border-radius: 6px; }
+.pulse { position: relative; width: 7px; height: 7px; border-radius: 50%; background: var(--success); }
+.pulse::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: var(--success); animation: pulse-ring 1.6s ease-out infinite; }
+@keyframes pulse-ring { from { transform: scale(1); opacity: 0.6; } to { transform: scale(2.6); opacity: 0; } }
 .pop-enter-active { transition: opacity 0.2s ease, transform 0.25s cubic-bezier(0.34,1.56,0.64,1); }
 .pop-enter-from { opacity: 0; transform: scale(0.8); }
 .pop-leave-active { transition: opacity 0.15s ease; }
@@ -181,6 +225,9 @@ function handleLaunch() {
 .field input:focus, .field select:focus { border-color: var(--accent); }
 .field-lg { flex: 2; min-width: 200px; }
 .field-sm { flex: 0 0 96px; min-width: 84px; }
+/* La etiqueta del timeout lleva la duración legible y puede ser más ancha que
+   el campo: se desborda hacia la derecha, donde la fila tiene hueco. */
+.field-sm label { white-space: nowrap; }
 .no-spin::-webkit-outer-spin-button, .no-spin::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .no-spin { -moz-appearance: textfield; }
 
@@ -188,44 +235,67 @@ function handleLaunch() {
 .engine-row { display: flex; align-items: flex-end; gap: 0.9rem; flex-wrap: wrap; }
 .engine-row .field-sm { margin-right: auto; }
 
-.btn-launch { height: 36px; padding: 0 1.25rem; background: var(--accent); border: 1px solid var(--accent); color: var(--on-accent); font-weight: 600; font-size: var(--fs-lg); border-radius: 7px; cursor: pointer; display: flex; align-items: center; gap: 0.35rem; transition: all 0.2s; white-space: nowrap; position: relative; }
+.btn-launch { height: 36px; padding: 0 1.2rem 0 1rem; background: var(--accent); border: 1px solid var(--accent); color: var(--on-accent); font-weight: 600; font-size: var(--fs-lg); border-radius: 7px; cursor: pointer; display: flex; align-items: center; gap: 0.35rem; transition: all 0.2s; white-space: nowrap; position: relative; }
 .btn-launch:hover:not(:disabled) { background: var(--accent-bright); border-color: var(--accent-bright); }
 .btn-launch:disabled { opacity: 0.4; cursor: not-allowed; }
-.btn-launch.loading .btn-label { opacity: 0; }
-.btn-launch.loading .btn-spin { display: block; }
-.btn-spin { display: none; position: absolute; left: 50%; top: 50%; margin: -7px 0 0 -7px; width: 14px; height: 14px; border: 2px solid rgba(0,0,0,0.25); border-top-color: currentColor; border-radius: 50%; animation: seq-spin 0.6s linear infinite; }
-
-/* ── Estado de autorización del objetivo ── */
-.auth-status {
-  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
-  padding: 0.5rem 0.7rem; margin-top: -0.15rem;
-  font-size: var(--fs-md); color: var(--warn); background: var(--warn-dim);
-  border: 1px dashed var(--warn); border-radius: 7px;
-  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+.btn-launch { gap: 0.5rem; }
+.btn-launch.loading:disabled { opacity: 0.85; cursor: progress; }
+.btn-balanza { display: grid; place-items: center; }
+.btn-balanza svg { width: 17px; height: 17px; transform-origin: 50% 15%; }
+.btn-launch:hover:not(:disabled) .btn-balanza svg { animation: balanza-sway 0.9s ease-in-out; }
+.btn-launch.loading .btn-balanza svg { animation: balanza-sway 1.1s ease-in-out infinite; }
+/* Mismo vaivén que el sello del capítulo "Hallazgos" de LybraResults.vue. */
+@keyframes balanza-sway {
+  0%, 100% { transform: rotate(0); }
+  30% { transform: rotate(-9deg); }
+  60% { transform: rotate(6deg); }
+  82% { transform: rotate(-2deg); }
 }
-.auth-status.ok { color: var(--success); background: var(--success-dim); border-style: solid; border-color: var(--success); }
-.auth-status svg { width: 14px; height: 14px; flex-shrink: 0; }
+.timeout-human { color: var(--text-dim); font-family: var(--font-mono); font-size-adjust: var(--fsa-mono); font-size: var(--fs-sm); }
+
+/* ── Sello de autorización dentro del campo de objetivo ── */
+.target-wrap { position: relative; display: flex; }
+.target-wrap input { flex: 1; min-width: 0; }
+.target-wrap.sealed input { padding-right: 7.2rem; }
+.target-seal {
+  position: absolute; right: 0.35rem; top: 50%; transform: translateY(-50%);
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  padding: 0.18rem 0.55rem; border-radius: 999px; white-space: nowrap;
+  font-size: var(--fs-sm); font-weight: 600;
+}
+.target-seal svg { width: 13px; height: 13px; flex: none; }
+.target-seal.ok { color: var(--success); background: var(--success-dim); border: 1px solid var(--success); }
+.target-seal.missing {
+  color: var(--accent-bright); background: var(--accent-dim); border: 1px dashed var(--accent);
+  cursor: pointer; transition: background 0.2s ease, color 0.2s ease;
+}
+.target-seal.missing:hover { background: var(--accent); color: var(--on-accent); border-style: solid; }
+.target-seal.missing:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.auth-hint { margin: -0.35rem 0 0; font-size: var(--fs-md); color: var(--warn); }
 .fade-swap-enter-active, .fade-swap-leave-active { transition: opacity 0.18s ease; }
 .fade-swap-enter-from, .fade-swap-leave-to { opacity: 0; }
 .panel-slide-enter-active, .panel-slide-leave-active { transition: all 0.25s ease; overflow: hidden; }
 .panel-slide-enter-from, .panel-slide-leave-to { max-height: 0; opacity: 0; }
 .panel-slide-enter-to, .panel-slide-leave-from { max-height: 2000px; opacity: 1; }
-.btn-authorize-inline {
-  padding: 0.25rem 0.6rem; background: var(--accent); border: 1px solid var(--accent);
-  color: var(--on-accent); font-size: var(--fs-md); font-weight: 600; border-radius: 6px; cursor: pointer;
-  white-space: nowrap; transition: all 0.2s;
-}
-.btn-authorize-inline:hover { background: var(--accent-bright); border-color: var(--accent-bright); }
 
 /* ── Registro de objetivos autorizados ── */
 .auth-register { border-top: 1px solid var(--border-solid); padding-top: 0.7rem; margin-top: 0.2rem; }
 .auth-register-toggle {
-  display: flex; align-items: center; gap: 0.45rem; width: 100%;
-  background: none; border: none; color: var(--text-dim); font-size: var(--fs-md); font-weight: 600;
-  cursor: pointer; padding: 0.15rem 0;
+  display: flex; align-items: center; gap: 0.6rem; width: 100%;
+  background: none; border: none; cursor: pointer; padding: 0.15rem 0;
 }
-.auth-register-toggle svg:first-child { width: 15px; height: 15px; color: var(--text-muted); }
-.auth-register-toggle .chevron { margin-left: auto; display: grid; place-items: center; color: var(--text-muted); transition: transform 0.2s; }
+.auth-register-toggle:hover .inscription-title { color: var(--accent-bright); }
+.auth-register-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+/* Inscripción: la misma que las secciones de LybraResults.vue. */
+.inscription-mark { width: 8px; height: 8px; flex: none; transform: rotate(45deg); border: 1px solid var(--accent); background: var(--accent-dim); }
+.inscription-title {
+  font-family: var(--font-epic); font-size-adjust: var(--fsa-epic);
+  font-size: var(--fs-md); font-weight: 600; letter-spacing: 0.24em; text-transform: uppercase;
+  color: var(--accent); white-space: nowrap; transition: color 0.2s ease;
+}
+.inscription-rule { flex: 1; min-width: 1.5rem; height: 1px; background: linear-gradient(to right, var(--accent), transparent); opacity: 0.45; }
+.inscription-tally { font-family: var(--font-mono); font-size-adjust: var(--fsa-mono); font-size: var(--fs-sm); color: var(--text-dim); }
+.auth-register-toggle .chevron { display: grid; place-items: center; color: var(--text-muted); transition: transform 0.2s; }
 .auth-register-toggle .chevron svg { width: 13px; height: 13px; }
 .auth-register-toggle .chevron.rot { transform: rotate(90deg); }
 .auth-register-body { padding-top: 0.6rem; display: flex; flex-direction: column; gap: 0.55rem; }
@@ -269,9 +339,13 @@ function handleLaunch() {
 
 @media (prefers-reduced-motion: reduce) {
   .pop-enter-active, .pop-leave-active, .btn-launch,
-  .auth-register-toggle .chevron, .btn-authorize-inline, .btn-add-target, .auth-chip-remove,
-  .auth-status, .fade-swap-enter-active, .fade-swap-leave-active,
+  .auth-register-toggle .chevron, .btn-add-target, .auth-chip-remove,
+  .target-seal, .inscription-title, .fade-swap-enter-active, .fade-swap-leave-active,
   .panel-slide-enter-active, .panel-slide-leave-active,
   .chip-item-enter-active, .chip-item-leave-active, .chip-item-move { transition: none !important; }
+  .pulse::after, .btn-balanza svg { animation: none !important; }
+}
+@media (max-width: 520px) {
+  .inscription-title { white-space: normal; letter-spacing: 0.16em; }
 }
 </style>
