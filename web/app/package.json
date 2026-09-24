@@ -17,7 +17,7 @@
     "test:campaigns": "node test/aegis.campaigns.test.mjs",
     "test:logs": "node test/logTransport.test.mjs && node test/logWindows.test.mjs",
     "test:iris": "node test/iris.intake.test.mjs && node test/iris.compare.test.mjs && node test/iris.verdict.test.mjs",
-    "test:themis": "node test/themis.scanWindow.test.mjs",
+    "test:themis": "node test/themis.scanWindow.test.mjs && node test/themis.findingSites.test.mjs",
     "test:launch": "node test/launchState.test.mjs",
     "test:fonts": "node test/selfHostedFonts.test.mjs"
   },

@@ -187,3 +187,10 @@ def test_finding_to_json_required_os_absent_is_none():
     out = finding_to_json(f, exposure="public")
     assert out["requiredOs"] is None
     assert out["priority"] == "CRITICAL"
+
+
+def test_finding_to_json_names_the_site_it_belongs_to():
+    """La interfaz necesita el sitio para distinguir el mismo aviso en dos webs
+    de la misma IP; sin él, las dos filas se leen como un duplicado."""
+    assert finding_to_json({"vhost": "web.ejemplo.test"}, exposure="public")["vhost"] == "web.ejemplo.test"
+    assert finding_to_json({}, exposure="public")["vhost"] is None

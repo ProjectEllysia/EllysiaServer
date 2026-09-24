@@ -170,6 +170,7 @@
                                 <span class="f-title">{{ f.title }}</span>
                               </div>
                               <div class="f-meta">
+                                <span v-if="hasSeveralSites(group)" class="f-tag site" :title="SITE_HINT">{{ siteLabel(f) }}</span>
                                 <span v-for="cve in (f.cveIds || [])" :key="cve" class="f-tag cve">{{ cve }}</span>
                                 <span v-if="f.inKev" class="f-tag kev" title="En la lista CISA de vulnerabilidades explotadas activamente">KEV · explotada</span>
                                 <span v-if="f.epssScore != null" class="f-tag epss" :title="`Probabilidad de explotación en 30 días (EPSS)`">EPSS {{ Math.round(f.epssScore * 100) }}%</span>
@@ -318,6 +319,7 @@
 import { ref, reactive, computed } from 'vue'
 import StatusBadge from '@/components/themis/StatusBadge.vue'
 import { MAX_PER_PAGE } from '@/stores/scanWindow'
+import { SITE_HINT, hasSeveralSites, siteLabel } from './findingSites'
 
 const props = defineProps({
   scans: { type: Array, default: () => [] },
@@ -780,6 +782,9 @@ function fmtDate(iso) {
 }
 .f-decided { font-size: var(--fs-md); color: var(--text-muted); }
 .f-tag.src { color: var(--info); background: var(--info-dim); }
+/* El sitio va en la tipografía del texto y no en la mono de las etiquetas
+   técnicas: es una frase para el usuario, no un identificador. */
+.f-tag.site { font-family: inherit; font-size-adjust: none; color: var(--text); border: 1px solid var(--border-solid); cursor: help; }
 .f-tag.fix { color: var(--success); background: var(--success-dim); font-weight: 600; }
 .prio-partial {
   font-size: var(--fs-md); font-weight: 700; padding: 0.1rem 0.45rem; border-radius: 999px;
