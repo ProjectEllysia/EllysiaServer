@@ -37,7 +37,6 @@ import bz2
 import gzip
 import io
 import json
-import logging
 import re
 import socket
 import time
@@ -49,8 +48,6 @@ from pathlib import Path
 from typing import IO, Dict, Iterator, List, Optional, Tuple, Union
 
 import requests
-
-logger = logging.getLogger(__name__)
 
 
 # =========================================================================
@@ -768,6 +765,14 @@ def parse_oval_definitions(document: Union[str, bytes, IO[bytes]], vendor: str,
             pronunciado) salvo que el feed diga expresamente que sigue
             vulnerable: traducir el silencio a "vulnerable" o a "corregida"
             sería inventar.
+
+    Raises:
+        ValueError: Si el documento no se puede leer hasta el final: un XML
+            mal formado o, lo más habitual, una descarga cortada, que llega
+            como un bzip2 truncado. Se lanza en vez de dejar de leer en
+            silencio porque media lista de parches guardada como si fuera
+            entera es peor que ninguna: la sincronización se daría por buena y
+            las distribuciones de la otra mitad se darían por no corregidas.
     """
     try:
         for _event, definition in ElementTree.iterparse(_as_stream(document), events=("end",)):
@@ -776,7 +781,7 @@ def parse_oval_definitions(document: Union[str, bytes, IO[bytes]], vendor: str,
             yield from _rows_for_definition(definition, vendor, release)
             definition.clear()
     except (ElementTree.ParseError, OSError, EOFError) as exc:
-        logger.error("OVAL: documento ilegible (%s)", exc)
+        raise ValueError(f"documento OVAL ilegible o incompleto ({exc})") from exc
 
 
 def _rows_for_definition(definition, vendor: str, release: Optional[str]) -> Iterator[dict]:
