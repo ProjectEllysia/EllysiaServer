@@ -1,7 +1,7 @@
 """themis: marcos de cumplimiento elegidos por usuario u organización
 
 Revision ID: d7f1a3c5e9b2
-Revises: c4e6a8b0d2f3
+Revises: a8d3f1c6e2b7
 Create Date: 2026-09-25 20:00:00.000000
 
 """
@@ -14,7 +14,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = 'd7f1a3c5e9b2'
-down_revision: Union[str, Sequence[str], None] = 'c4e6a8b0d2f3'
+down_revision: Union[str, Sequence[str], None] = 'a8d3f1c6e2b7'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
