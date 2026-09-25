@@ -550,7 +550,7 @@ npm run test:toast        # toast-store tests
 npm run test:quiz         # aegis quiz-shuffle permutation tests
 npm run test:campaigns    # aegis campaign helpers
 npm run test:logs         # gzip log-payload decoding tests
-npm run test:themis       # scan-window + Lybra finding-site label tests
+npm run test:themis       # scan-window + Lybra finding-site labels + finding sort/filter
 ```
 
 The suites run on plain `node` — no framework, no browser — and exit non-zero on failure. They run in CI as the `SPA suites` job of `tests.yml`, which installs with **`pnpm install --frozen-lockfile`, exactly as `web/Dockerfile` does in production**, and then builds with Vite.
