@@ -4,16 +4,16 @@
       <div v-if="show" class="modal-overlay" @click.self="$emit('cancel')">
         <div class="modal-box">
           <div class="modal-header">
-            <h3>{{ title }}</h3>
-            <button class="close-btn" @click="$emit('cancel')">&times;</button>
+            <h3>{{ title || t('confirm.title') }}</h3>
+            <button class="close-btn" :aria-label="t('confirm.close')" @click="$emit('cancel')">&times;</button>
           </div>
           <div class="modal-body">
             <p v-if="emphasis" class="emphasis">{{ emphasis }}</p>
             <p class="message">{{ message }}</p>
             <div class="modal-footer">
-              <button type="button" :class="swapEmphasis ? (danger ? 'btn-danger' : 'btn-primary') : 'btn-secondary'" @click="$emit('cancel')">Cancelar</button>
+              <button type="button" :class="swapEmphasis ? (danger ? 'btn-danger' : 'btn-primary') : 'btn-secondary'" @click="$emit('cancel')">{{ t('confirm.cancel') }}</button>
               <button type="button" :class="swapEmphasis ? 'btn-secondary' : (danger ? 'btn-danger' : 'btn-primary')" @click="$emit('confirm')">
-                {{ confirmLabel }}
+                {{ confirmLabel || t('confirm.confirm') }}
               </button>
             </div>
           </div>
@@ -29,11 +29,16 @@
  * del navegador (bloqueantes, sin estilo propio, incoherentes con el resto
  * de la UI) por el mismo idioma visual que BatchActionModal.
  */
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+
+// `title` y `confirmLabel` vacíos usan el rótulo «Confirmar» del idioma activo.
 defineProps({
   show: { type: Boolean, default: false },
-  title: { type: String, default: 'Confirmar' },
+  title: { type: String, default: '' },
   message: { type: String, required: true },
-  confirmLabel: { type: String, default: 'Confirmar' },
+  confirmLabel: { type: String, default: '' },
   danger: { type: Boolean, default: false },
   swapEmphasis: { type: Boolean, default: false },
   emphasis: { type: String, default: '' },

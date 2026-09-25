@@ -1,19 +1,21 @@
 <template>
   <header class="site-header">
-    <router-link to="/" class="brand" aria-label="Ellysia — inicio">
+    <router-link to="/" class="brand" :aria-label="t('shell.brandHome')">
       <span class="brand-glyph" aria-hidden="true"></span>
       <span class="brand-text">Ellysia</span>
     </router-link>
 
-    <nav class="site-nav" aria-label="Módulos">
+    <nav class="site-nav" :aria-label="t('shell.modulesNav')">
       <router-link v-for="m in modules" :key="m.id" :to="m.route" class="nav-link">{{ m.name }}</router-link>
     </nav>
 
     <div class="header-actions">
+      <LanguageSelect />
+
       <button
         class="icon-btn"
-        :title="theme.theme === 'dusk' ? 'Amanecer' : 'Ocaso'"
-        :aria-label="theme.theme === 'dusk' ? 'Cambiar a Amanecer' : 'Cambiar a Ocaso'"
+        :title="theme.theme === 'dusk' ? t('shell.theme.dawn') : t('shell.theme.dusk')"
+        :aria-label="theme.theme === 'dusk' ? t('shell.theme.switchToDawn') : t('shell.theme.switchToDusk')"
         @click="theme.toggleTheme()"
       >
         <svg v-if="theme.theme === 'dusk'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
@@ -24,17 +26,20 @@
         </svg>
       </button>
 
-      <router-link v-if="!auth.isAuthenticated" to="/login" class="enter-btn">Entrar</router-link>
+      <router-link v-if="!auth.isAuthenticated" to="/login" class="enter-btn">{{ t('shell.signIn') }}</router-link>
       <AccountMenu v-else />
     </div>
   </header>
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/authStore'
 import { useThemeStore } from '@/stores/themeStore'
 import AccountMenu from '@/components/shared/AccountMenu.vue'
+import LanguageSelect from '@/components/shared/LanguageSelect.vue'
 
+const { t } = useI18n()
 const auth = useAuthStore()
 const theme = useThemeStore()
 

@@ -1,6 +1,74 @@
 {
   "language": {
-    "name": "Español"
+    "name": "Español",
+    "label": "Idioma"
+  },
+  "shell": {
+    "brandHome": "Ellysia — inicio",
+    "modulesNav": "Módulos",
+    "home": "Inicio",
+    "signIn": "Entrar",
+    "theme": {
+      "dawn": "Amanecer",
+      "dusk": "Ocaso",
+      "switchToDawn": "Cambiar a Amanecer",
+      "switchToDusk": "Cambiar a Ocaso"
+    }
+  },
+  "footer": {
+    "linksNav": "Enlaces del pie",
+    "tools": "Herramientas",
+    "about": "Ellysia",
+    "plans": "Planes",
+    "aboutEllysia": "Sobre Ellysia",
+    "sourceCode": "Código ↗",
+    "documentation": "Documentación",
+    "usageDocs": "Documentación de uso",
+    "technicalDocs": "Documentación técnica",
+    "legal": "Legal",
+    "privacy": "Privacidad",
+    "terms": "Términos"
+  },
+  "accountMenu": {
+    "accountOf": "Cuenta de {name}",
+    "defaultName": "Usuario",
+    "roles": {
+      "root": "Root",
+      "admin": "Admin",
+      "user": "Usuario"
+    },
+    "verify": {
+      "title": "Confirma tu correo",
+      "text": "Puedes mirar, pero no lanzar escaneos ni pedirle nada a la IA hasta que pulses el enlace que te enviamos.",
+      "sending": "Enviando…",
+      "resend": "Enviar otro enlace",
+      "sent": "Te hemos enviado otro enlace. Revisa tu correo.",
+      "failed": "No se pudo enviar el enlace."
+    },
+    "planHint": "Ver consumo y límites",
+    "profile": "Perfil",
+    "myPlan": "Mi plan",
+    "manageOrganization": "Gestionar organización",
+    "myOrganization": "Mi organización",
+    "createOrganization": "Crear organización",
+    "users": "Usuarios",
+    "systemLogs": "Logs del sistema",
+    "rulesSimulator": "Simulador de reglas (Iris)",
+    "configuration": "Configuración",
+    "planManager": "Gestor de planes",
+    "taskQueue": "Cola de tareas",
+    "logout": "Cerrar sesión"
+  },
+  "pagination": {
+    "previous": "Página anterior",
+    "next": "Página siguiente",
+    "position": "{current} / {total}"
+  },
+  "confirm": {
+    "title": "Confirmar",
+    "confirm": "Confirmar",
+    "cancel": "Cancelar",
+    "close": "Cerrar"
   },
   "apiErrors": {
     "aegisFetch": "No se pudieron obtener las alertas de {source}.",

@@ -6,9 +6,9 @@
         <span class="footer-wordmark">Ellysia</span>
       </div>
 
-      <nav class="footer-cols" aria-label="Enlaces del pie">
+      <nav class="footer-cols" :aria-label="t('footer.linksNav')">
         <div class="footer-col">
-          <h3 class="footer-heading">Herramientas</h3>
+          <h3 class="footer-heading">{{ t('footer.tools') }}</h3>
           <ul>
             <li><router-link to="/themis">Themis</router-link></li>
             <li><router-link to="/aegis">Aegis</router-link></li>
@@ -18,27 +18,27 @@
           </ul>
         </div>
         <div class="footer-col">
-          <h3 class="footer-heading">Ellysia</h3>
+          <h3 class="footer-heading">{{ t('footer.about') }}</h3>
           <ul>
-            <li v-if="canSeePricing"><router-link to="/planes">Planes</router-link></li>
-            <li><router-link to="/sobre">Sobre Ellysia</router-link></li>
+            <li v-if="canSeePricing"><router-link to="/planes">{{ t('footer.plans') }}</router-link></li>
+            <li><router-link to="/sobre">{{ t('footer.aboutEllysia') }}</router-link></li>
             <li>
-              <a href="https://github.com/ProjectEllysia/Ellysia" target="_blank" rel="noopener noreferrer">Código ↗</a>
+              <a href="https://github.com/ProjectEllysia/Ellysia" target="_blank" rel="noopener noreferrer">{{ t('footer.sourceCode') }}</a>
             </li>
           </ul>
         </div>
         <div class="footer-col">
-          <h3 class="footer-heading">Documentación</h3>
+          <h3 class="footer-heading">{{ t('footer.documentation') }}</h3>
           <ul>
-            <li><router-link to="/docs/uso">Documentación de uso</router-link></li>
-            <li><router-link to="/docs/tecnica">Documentación técnica</router-link></li>
+            <li><router-link to="/docs/uso">{{ t('footer.usageDocs') }}</router-link></li>
+            <li><router-link to="/docs/tecnica">{{ t('footer.technicalDocs') }}</router-link></li>
           </ul>
         </div>
         <div class="footer-col">
-          <h3 class="footer-heading">Legal</h3>
+          <h3 class="footer-heading">{{ t('footer.legal') }}</h3>
           <ul>
-            <li><router-link to="/privacidad">Privacidad</router-link></li>
-            <li><router-link to="/terminos">Términos</router-link></li>
+            <li><router-link to="/privacidad">{{ t('footer.privacy') }}</router-link></li>
+            <li><router-link to="/terminos">{{ t('footer.terms') }}</router-link></li>
           </ul>
         </div>
       </nav>
@@ -53,10 +53,12 @@
 
 <script setup>
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import ellysiaIcon from '@/assets/images/ellysia/Ellysia-BgN.png'
 import { useAppVersion } from '@/composables/useAppVersion'
 import { useLaunch } from '@/composables/useLaunch'
 
+const { t } = useI18n()
 const year = new Date().getFullYear()
 // Compartida con la portada: antes cada uno pedía la suya y la misma página
 // gastaba dos peticiones para pintar el mismo número.

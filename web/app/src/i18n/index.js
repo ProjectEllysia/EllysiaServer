@@ -42,6 +42,51 @@ const messagesByLocale = Object.fromEntries(
 export const AVAILABLE_LOCALES = Object.keys(messagesByLocale).sort()
 
 /**
+ * Clave en localStorage del último idioma elegido en este dispositivo.
+ *
+ * Es solo el recuerdo local: sirve para que la interfaz arranque en el idioma
+ * que el usuario eligió la última vez, también antes de iniciar sesión. No se
+ * usa el idioma del navegador mientras ningún idioma aparte del castellano
+ * esté completo: un navegador en inglés vería la interfaz mezclada nada más
+ * entrar, sin haber pedido nada.
+ */
+const STORAGE_KEY = 'ellysia_locale'
+
+/**
+ * Lee el idioma guardado en este dispositivo.
+ *
+ * @returns {string|null} El código guardado si existe y tiene fichero en
+ *   `locales/`; `null` si no hay ninguno, no es válido o el navegador no deja
+ *   leer localStorage (modo privado estricto, almacenamiento bloqueado).
+ */
+function readStoredLocale() {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    return AVAILABLE_LOCALES.includes(stored) ? stored : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Guarda el idioma elegido en este dispositivo.
+ *
+ * Un fallo al escribir (almacenamiento bloqueado o lleno) se ignora: el idioma
+ * ya está aplicado y solo se pierde el recuerdo para la próxima visita.
+ *
+ * @param {string} localeCode - Código del idioma que se acaba de aplicar.
+ */
+function storeLocale(localeCode) {
+  try {
+    localStorage.setItem(STORAGE_KEY, localeCode)
+  } catch {
+    // Sin almacenamiento, el idioma dura lo que dure la pestaña.
+  }
+}
+
+activeLocale.value = readStoredLocale() ?? DEFAULT_LOCALE
+
+/**
  * Instancia de vue-i18n de la aplicación, en modo composición (`useI18n`).
  *
  * `missingWarn` y `fallbackWarn` avisan en consola solo en desarrollo: en
@@ -58,7 +103,7 @@ export const i18n = createI18n({
 })
 
 /**
- * Cambia el idioma de la interfaz.
+ * Cambia el idioma de la interfaz y lo recuerda en este dispositivo.
  *
  * Un código sin fichero en `locales/` se ignora y la interfaz sigue en el
  * idioma que tenía: mejor eso que una pantalla llena de textos de respaldo por
@@ -72,6 +117,7 @@ export const i18n = createI18n({
 export function setLocale(localeCode) {
   if (!AVAILABLE_LOCALES.includes(localeCode)) return false
   activeLocale.value = localeCode
+  storeLocale(localeCode)
   return true
 }
 
