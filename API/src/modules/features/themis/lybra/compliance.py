@@ -31,10 +31,12 @@ class ComplianceFramework:
     Attributes:
         key: Clave estable del marco (``"iso27001"``, ``"ens"``, ``"nis2"``).
         name: Nombre legible, con su versión (``"ISO/IEC 27001:2022"``).
+        short_name: Nombre corto para rótulos estrechos (``"ISO 27001"``).
     """
 
     key: str
     name: str
+    short_name: str
 
 
 @dataclass(frozen=True)
@@ -136,7 +138,7 @@ def parse_compliance_catalog(document: dict) -> ComplianceCatalog:
     frameworks: dict[str, ComplianceFramework] = {}
     controls: dict[str, ComplianceControl] = {}
     for key, entry in document.get("frameworks", {}).items():
-        frameworks[key] = ComplianceFramework(key=key, name=entry["name"])
+        frameworks[key] = ComplianceFramework(key=key, name=entry["name"], short_name=entry["shortName"])
         for identifier, control in entry.get("controls", {}).items():
             parent = control.get("parent")
             controls[f"{key}:{identifier}"] = ComplianceControl(

@@ -135,6 +135,7 @@ class AuthorizedTargetActionResponseSchema(Schema):
 class ComplianceFrameworkSchema(Schema):
     key = fields.String()
     name = fields.String()
+    shortName = fields.String()
 
 
 class ComplianceFrameworksRequestSchema(Schema):

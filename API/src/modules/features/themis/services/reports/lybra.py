@@ -23,6 +23,8 @@ class LybraPrintingStrategy(FindingsPrintingStrategy):
     _REPORT_TITLE = "Veredicto del Motor Lybra"
     _FILENAME_SUFFIX = "_Lybra.pdf"
     _LOGO_FILENAME = "Themis-Turqoise-BgW.png"
+    # Traducción a MITRE ATT&CK y a marcos de cumplimiento: exclusiva del motor propio.
+    _SHOWS_COMPLIANCE = True
     _DEFAULT_PALETTE = {
         "black": "#1A2410", "dark": "#4A6132", "main": "#7CA163",
         "secondary": "#A8C98F", "light": "#D4E8C4", "white": "#F3F8EE",

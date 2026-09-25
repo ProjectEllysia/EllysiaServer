@@ -42,9 +42,10 @@ _OPENSSH = "cpe:2.3:a:openbsd:openssh:8.2:*:*:*:*:*:*:*"
 
 class _Scan:
     """Lo único que el cuerpo agrupado mira del escaneo es su id, que va en la
-    clave de los marcadores."""
+    clave de los marcadores, y su dueño, del que salen los marcos de cumplimiento."""
 
     id = 7
+    user_id = 1
 
 
 def _strategy() -> FindingsPrintingStrategy:
@@ -271,7 +272,7 @@ def test_the_report_body_keeps_fixed_findings_out_of_the_cards_and_the_counts(mo
     """Un «Corregido» no es un riesgo vivo: ni ficha, ni prioridad, ni total."""
     from types import SimpleNamespace
     from src.modules.infrastructure import session as session_module
-    from src.modules.features.themis.managers import LybraEngineManager
+    from src.modules.features.themis.managers import ComplianceManager, LybraEngineManager
     from src.modules.features.themis.services.reports import findings as report_module
 
     def row(title, state, fixed_reason=None):
@@ -286,6 +287,7 @@ def test_the_report_body_keeps_fixed_findings_out_of_the_cards_and_the_counts(mo
     monkeypatch.setattr(session_module, "build_repository",
                         lambda _cls: SimpleNamespace(get_findings_by_scan=lambda _scan_id: rows))
     monkeypatch.setattr(LybraEngineManager, "exposure_for", staticmethod(lambda _scan: "public"))
+    monkeypatch.setattr(ComplianceManager, "resolve_effective_frameworks", lambda _self, _user_id: [])
     monkeypatch.setattr(report_module, "enrich_with_cve_context", lambda _findings: None)
     monkeypatch.setattr(report_module, "_knowledge_base_line", lambda _scan: "NVD 2026-09-24")
     monkeypatch.setattr(report_module, "_failing_sources_line", lambda: None)

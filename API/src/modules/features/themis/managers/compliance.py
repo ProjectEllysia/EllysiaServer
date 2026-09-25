@@ -75,7 +75,7 @@ class ComplianceManager:
             user_id: Usuario que consulta.
 
         Returns:
-            dict: ``frameworks`` (el catálogo: ``[{key, name}]``), ``mine`` (su
+            dict: ``frameworks`` (el catálogo: ``[{key, name, shortName}]``), ``mine`` (su
                 elección, o ``None`` si no eligió), ``organization`` (la de su
                 organización, o ``None`` si no tiene o no la fijó),
                 ``effective`` (la que se aplica en sus informes),
@@ -92,7 +92,7 @@ class ComplianceManager:
                 build_repository(ComplianceFrameworkSelectionRepository)
                 .get_by_organization(organization["id"]))
         return {
-            "frameworks": [{"key": framework.key, "name": framework.name}
+            "frameworks": [{"key": framework.key, "name": framework.name, "shortName": framework.short_name}
                            for framework in list_compliance_frameworks()],
             "mine": mine,
             "organization": organization_frameworks,
