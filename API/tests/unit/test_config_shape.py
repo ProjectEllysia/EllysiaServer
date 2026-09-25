@@ -61,7 +61,7 @@ def test_root_layout(raw_config):
 
 
 @pytest.mark.parametrize("branch, expected_children", [
-    ("general",        {"directories", "security", "registration", "launch", "logs"}),
+    ("general",        {"directories", "security", "registration", "launch", "logs", "localization"}),
     ("general.security", {"argon2", "jwt", "mfa"}),
     ("infrastructure", {"database", "redis", "taskqueue"}),
     ("tools",          {"scribe", "herald"}),
@@ -216,6 +216,7 @@ CONFIG_BLOCKS = [
     (CR.HeraldConfig, CR.herald_config),
     (CR.GeneralConfig, CR.general_config),
     (CR.RegistrationConfig, CR.registration_config),
+    (CR.LocalizationConfig, CR.localization_config),
     (CR.LaunchConfig, CR.launch_config),
     (CR.LogsConfig, CR.logs_config),
     (CR.Argon2Config, CR.argon2_config),
