@@ -7,17 +7,21 @@ FIRST-EPSS, avisos OVAL/CSAF de distribuciones) contra sus fuentes upstream.
 
 import json
 import logging
+import re
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import List, Optional
 import src.modules.system.config_reading as CR
+from src.modules.system.taskqueue import TaskTrackingMixin, job_context
 from src.modules.infrastructure import UnitOfWork
 from src.modules.shared import isoformat_utc, utcnow_naive
 from ..repositories import KbRepository
 
 
 logger = logging.getLogger(__name__)
+
+_CVE_ID = re.compile(r"^CVE-\d{4}-\d{4,}$", re.IGNORECASE)
 
 
 def _source_names(sources: dict) -> List[str]:
@@ -249,7 +253,7 @@ class KbSyncManager:
         self._record(source, rows_upserted=rows)
         return rows
 
-    def sync_all(self) -> dict:
+    def sync_all(self, only: Optional[str] = None) -> dict:
         """Run every configured source once; return a per-source count summary.
 
         Cada fuente se sincroniza y se anota por separado: una que falle deja su
@@ -259,18 +263,31 @@ class KbSyncManager:
         (``oval:debian:12``, ``oval:ubuntu:24.04``…), con su propia fila en
         ``KbSyncStatus``: un feed caído o una URL mal escrita cuesta esa
         distribución y deja registrado por qué.
+
+        Args:
+            only: Sincronizar sólo una fuente: ``"nvd"``, ``"kev"``, ``"epss"`` u
+                ``"oval"`` (todas sus distribuciones). Por defecto ``None``, que
+                las sincroniza todas. NVD es siempre el delta de
+                ``nvd_window_days``, nunca el histórico completo.
+
+        Returns:
+            dict: Filas escritas por fuente, ``None`` en la que falló.
         """
         config = CR.knowledge_base_config()
         sources = config.sources
         summary: dict = {}
-        if sources.get("kev"):
+
+        def wanted(name: str) -> bool:
+            return bool(sources.get(name)) and only in (None, name)
+
+        if wanted("kev"):
             summary["kev"] = self._sync_source("kev", lambda: self.sync_kev(sources["kev"]))
-        if sources.get("epss"):
+        if wanted("epss"):
             summary["epss"] = self._sync_source("epss", lambda: self.sync_epss(sources["epss"]))
-        for key, url in (sources.get("oval") or {}).items():
+        for key, url in ((sources.get("oval") or {}) if only in (None, "oval") else {}).items():
             summary[f"oval:{key}"] = self._sync_source(
                 f"oval:{key}", lambda key=key, url=url: self.sync_oval(key, url))
-        if sources.get("nvd"):
+        if wanted("nvd"):
             summary["nvd"] = self._sync_source("nvd", lambda: self.sync_nvd(
                 sources["nvd"],
                 window_days=config.nvd_window_days,
@@ -430,6 +447,108 @@ class KbSyncManager:
 # estos DTOs.
 
 
+#: Lo que se puede pedir sincronizar a mano: una fuente, u ``"all"`` para todas.
+KB_SYNC_TARGETS = ("all", "nvd", "kev", "epss", "oval")
+
+
+def _run_kb_sync(target: str) -> dict:
+    """Cuerpo del job de sincronización manual de la base de conocimiento.
+
+    Hace lo mismo que el job nocturno, limitado a una fuente si se pide. No es
+    cancelable a mitad: cada fuente es una descarga y una escritura que no se
+    pueden dejar a medias, y ninguna tarda más que el job nocturno.
+
+    Args:
+        target: Uno de :data:`KB_SYNC_TARGETS`.
+
+    Returns:
+        dict: El resumen de ``KbSyncManager.sync_all``: filas por fuente,
+            ``None`` en la que falló.
+    """
+    with job_context() as job:
+        summary = KbSyncManager().sync_all(only=None if target == "all" else target)
+        job.progress(100)
+        return summary
+
+
+class KbSyncTaskManager(TaskTrackingMixin):
+    """Sincronizaciones de la base de conocimiento lanzadas a mano, en la TaskQueue.
+
+    Separado de :class:`KbSyncManager` a propósito: aquel lo instancian el job
+    nocturno, los informes y el estado de la base de conocimiento, que no
+    necesitan cola, y este mixin la busca al construirse.
+
+    Se encola con ``submit()`` directo, sin la outbox: no hay ninguna fila
+    guardada antes que pueda quedarse huérfana, y repetir una sincronización
+    no crea datos duplicados (todo se escribe por clave). Si el envío falla,
+    el administrador vuelve a pulsar.
+    """
+
+    EXTERNAL_ID_PREFIX = "themis-kbsync:"
+    TASK_CATEGORY = "themis.kbsync"
+    _ACTIVE = ("pending", "running")
+
+    def sync_tasks(self) -> dict:
+        """El estado de la última sincronización manual de cada objetivo.
+
+        Returns:
+            dict: ``{objetivo: {"status": str | None, "progress": int | None}}``
+                para cada uno de :data:`KB_SYNC_TARGETS`. ``status`` es
+                ``pending``, ``running``, ``completed``, ``failed``,
+                ``cancelled`` o ``timeout``, o ``None`` si no hay ninguna
+                reciente.
+        """
+        tasks = {}
+        for target in KB_SYNC_TARGETS:
+            task = self.find_task(target)
+            tasks[target] = {"status": str(task.status) if task else None,
+                             "progress": task.progress if task else None}
+        return tasks
+
+    def request_sync(self, target: str) -> dict:
+        """Encola una sincronización manual, salvo que ya haya una en marcha.
+
+        No se admiten dos a la vez, sean del mismo objetivo o no: ``"all"`` y
+        ``"nvd"`` escribirían las mismas filas en paralelo. Tampoco se exponen
+        el histórico completo de NVD ni rangos de fechas: sin API key, NVD deja
+        de filtrar por fecha a partir de unos 20 días y devuelve el catálogo
+        entero, y eso tardó más de una hora la única vez que se hizo.
+
+        Args:
+            target: Uno de :data:`KB_SYNC_TARGETS`.
+
+        Returns:
+            dict: ``{"target": str, "queued": bool, "runningTarget": str |
+                None}``. ``queued`` es ``False`` si ya había una en marcha, y
+                entonces ``runningTarget`` dice cuál.
+        """
+        for running in KB_SYNC_TARGETS:
+            if self.task_status_of(running) in self._ACTIVE:
+                return {"target": target, "queued": False, "runningTarget": running}
+        self._task_queue.submit(
+            func=KbSyncTaskManager.execute_sync,
+            args=(target,),
+            name=f"KbSync-{target}",
+            category=self.TASK_CATEGORY,
+            external_id=self.external_id_for(target),
+            timeout=7200,
+        )
+        logger.info("KB: sincronización manual de '%s' encolada", target)
+        return {"target": target, "queued": True, "runningTarget": None}
+
+    @staticmethod
+    def execute_sync(target: str) -> dict:
+        """Punto de entrada que ejecuta el worker de la TaskQueue.
+
+        Args:
+            target: Uno de :data:`KB_SYNC_TARGETS`.
+
+        Returns:
+            dict: El resumen de la sincronización, filas por fuente.
+        """
+        return _run_kb_sync(target)
+
+
 @dataclass(frozen=True)
 class CveAdvisory:
     """Un CVE de la KB local, listo para consumir fuera de Themis."""
@@ -522,6 +641,76 @@ class KbQueryManager:
         ]
         advisories.sort(key=lambda a: a.published or datetime.min, reverse=True)
         return advisories[:limit_total]
+
+    def search(self, query: str, limit: int = 20) -> dict:
+        """Qué sabe la base de conocimiento de una CVE o de un producto.
+
+        Es la consulta del panel de administración: sirve para comprobar
+        rápido qué sabe Lybra de un componente o de una vulnerabilidad, para
+        diagnosticar un hallazgo o un falso negativo.
+
+        Args:
+            query: Un identificador de CVE (``CVE-2024-6387``, sin distinguir
+                mayúsculas) o un trozo del nombre de un producto o fabricante.
+            limit: Cuántos productos devolver como mucho. Por defecto ``20``.
+
+        Returns:
+            dict: ``{"kind": "cve", "cve": dict | None}`` si la consulta es un
+                identificador de CVE (``None`` si la base de conocimiento no sabe
+                nada de ella), o ``{"kind": "product", "products": [...]}`` en
+                otro caso, con ``vendor``, ``product`` y ``displayName``.
+        """
+        query = query.strip()
+        if _CVE_ID.match(query):
+            return {"kind": "cve", "cve": self.cve_detail(query.upper())}
+        return {"kind": "product", "products": [
+            {"vendor": product.vendor, "product": product.product,
+             "displayName": product.display_name}
+            for product in self.search_products(query, limit=limit)
+        ]}
+
+    def cve_detail(self, cve_id: str) -> Optional[dict]:
+        """Todo lo que la base de conocimiento sabe de una CVE, fuente a fuente.
+
+        Args:
+            cve_id: El identificador, en mayúsculas.
+
+        Returns:
+            Optional[dict]: La ficha en camelCase: datos de NVD (``published``,
+                ``cvssScore``, ``severity``, ``description``, ``products``), si
+                está en KEV (``inKev``), su EPSS (``epssScore``,
+                ``epssPercentile``) y lo que dice cada distribución
+                (``distroStatuses``). Una fuente que no la conoce deja sus
+                campos en ``None`` o vacíos. ``None`` si ninguna fuente la
+                conoce.
+        """
+        from src.modules.infrastructure.session import build_repository
+
+        repo = build_repository(KbRepository)
+        cves = repo.get_cves_with_matches([cve_id])
+        cve = cves[0] if cves else None
+        kev = repo.get_kev(cve_id)
+        epss = repo.get_epss(cve_id)
+        statuses = repo.distro_statuses_for_cve(cve_id)
+        if cve is None and kev is None and epss is None and not statuses:
+            return None
+        products = sorted({(match.vendor, match.product) for match in cve.cpe_matches}) if cve else []
+        return {
+            "cveId": cve_id,
+            "published": isoformat_utc(cve.published) if cve and cve.published else None,
+            "cvssScore": cve.cvss_score if cve else None,
+            "severity": cve.severity if cve else None,
+            "description": cve.description if cve else None,
+            "products": [{"vendor": vendor, "product": product} for vendor, product in products],
+            "inKev": kev is not None,
+            "epssScore": epss.score if epss else None,
+            "epssPercentile": epss.percentile if epss else None,
+            "distroStatuses": [
+                {"vendor": row.vendor, "release": row.release, "package": row.package,
+                 "status": row.status, "fixedIn": row.fixed_in}
+                for row in statuses
+            ],
+        }
 
     def search_products(self, term: str, limit: int = 20) -> List[KbProduct]:
         """Productos del índice CPE que empiezan por ``term``."""

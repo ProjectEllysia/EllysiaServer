@@ -50,7 +50,7 @@ from .services import (
 from .endpoints import themis_blp
 
 # Registro de las categorías de cola de este módulo (OCP).
-QueueRegistry.register("themis.scan", "themis.report", "themis.traceroute")
+QueueRegistry.register("themis.scan", "themis.report", "themis.traceroute", "themis.kbsync")
 
 __all__ = [
     "Host", "NiktoIncident", "NiktoScan", "NmapScan", "OpenPort",

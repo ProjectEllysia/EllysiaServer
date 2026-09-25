@@ -60,7 +60,8 @@
     "configuration": "Settings",
     "planManager": "Plan manager",
     "taskQueue": "Task queue",
-    "logout": "Sign out"
+    "logout": "Sign out",
+    "knowledgeBase": "Knowledge base"
   },
   "pagination": {
     "previous": "Previous page",
@@ -201,5 +202,74 @@
     "vaultRevisionMissing": "This operation needs the current version of the vault. Reload and try again.",
     "vaultRevisionOutdated": "The vault changed from another device. Reload and try again.",
     "xmlParsing": "The scan results could not be processed."
+  },
+  "kbAdmin": {
+    "title": "Knowledge base",
+    "eyebrow": "Lybra engine",
+    "subtitle": "How each source Lybra uses to decide what is vulnerable is doing, sync it without waiting for the night, and look up what it knows about a CVE or a product.",
+    "refresh": "Refresh",
+    "refreshing": "Refreshing…",
+    "status": {
+      "heading": "Source status",
+      "source": "Source",
+      "state": "State",
+      "lastSuccess": "Last successful sync",
+      "lastAttempt": "Last attempt",
+      "rows": "Rows"
+    },
+    "state": {
+      "ok": "Up to date",
+      "unverified": "No record",
+      "stale": "Out of date",
+      "failing": "Failing"
+    },
+    "sync": {
+      "heading": "Sync now",
+      "hint": "The same as the nightly job, without waiting for it. NVD only downloads recent changes, never the whole catalogue. While a sync is running another one cannot be started.",
+      "targets": {
+        "all": "All sources",
+        "nvd": "NVD",
+        "kev": "KEV",
+        "epss": "EPSS",
+        "oval": "OVAL (distributions)"
+      },
+      "taskStatus": {
+        "pending": "Queued",
+        "running": "Running",
+        "completed": "Finished",
+        "failed": "Failed",
+        "cancelled": "Cancelled",
+        "timeout": "Timed out"
+      },
+      "queued": "Sync of “{target}” queued.",
+      "alreadyRunning": "A sync is already running: “{target}”."
+    },
+    "search": {
+      "heading": "Look up",
+      "placeholder": "CVE-2024-6387 or openssh",
+      "submit": "Search",
+      "cveUnknown": "No knowledge base source knows that CVE.",
+      "cvss": "CVSS",
+      "kev": "Actively exploited (KEV)",
+      "epss": "Exploitation probability (EPSS)",
+      "products": "Affected products",
+      "yes": "Yes",
+      "no": "No",
+      "distro": "Distribution",
+      "package": "Package",
+      "fixedIn": "Fixed in",
+      "distroStatus": {
+        "fixed": "Fixed",
+        "vulnerable": "Vulnerable",
+        "unknown": "No statement"
+      },
+      "noDistroStatus": "No distribution has made a statement about this CVE.",
+      "noProducts": "No product in the index matches."
+    },
+    "errors": {
+      "status": "The knowledge base status could not be loaded.",
+      "sync": "The sync could not be started.",
+      "search": "The search could not be completed."
+    }
   }
 }
