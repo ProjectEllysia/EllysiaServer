@@ -759,20 +759,22 @@ function fmtDate(iso) {
 .pop-leave-active { transition: opacity 0.15s ease; }
 .pop-leave-to { opacity: 0; }
 
-/* Casillas: las mismas que `.chk-col input` de ScanTable.vue. */
+/* Casillas: las mismas que `.chk-col input` de ScanTable.vue. `padding: 0`
+   anula el relleno que shared.css da a todo `input`: sin él, el recuadro
+   crece hasta ~27×20 px y el tic queda diminuto en medio. */
 .chk {
   appearance: none; -webkit-appearance: none; flex-shrink: 0;
-  width: 12px; height: 12px; margin: 0; cursor: pointer;
+  width: 16px; height: 16px; padding: 0; margin: 0; cursor: pointer;
   border: 1.5px solid var(--border-med); border-radius: 3px;
   background: var(--surface-2); transition: all 0.15s;
 }
 .chk:hover { border-color: var(--accent); }
 .chk:checked {
-  background: var(--accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='%230b0c10' stroke-width='2' d='M3 6l2 2 4-4'/%3E%3C/svg%3E") center/8px no-repeat;
+  background: var(--accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='%230b0c10' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M2.5 6.2l2.4 2.4 4.6-4.8'/%3E%3C/svg%3E") center/11px no-repeat;
   border-color: var(--accent);
 }
 .chk:indeterminate {
-  background: var(--accent-dim) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cline x1='3' y1='6' x2='9' y2='6' stroke='%23d4a04a' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") center/8px no-repeat;
+  background: var(--accent-dim) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cline x1='3' y1='6' x2='9' y2='6' stroke='%23d4a04a' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") center/11px no-repeat;
   border-color: var(--border-med);
 }
 .chk:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
