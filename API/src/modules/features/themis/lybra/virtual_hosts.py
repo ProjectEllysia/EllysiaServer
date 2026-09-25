@@ -155,6 +155,31 @@ def site_finding(name: str, origin: str, serves_default_site: bool = False) -> d
     }
 
 
+def mark_alias_fixes(findings: List[dict]) -> None:
+    """Anota, en sitio, los «corregidos» que sólo son un sitio que resultó alias.
+
+    Cuando un nombre pasa a reconocerse como alias del sitio por defecto
+    (:func:`is_alias_of_default_site`), deja de auditarse aparte y sus avisos
+    del escaneo anterior dejan de aparecer con ese nombre. El ciclo de vida los
+    da por corregidos, pero el servidor no ha cambiado: los mismos avisos salen
+    ahora con el sitio por defecto. Se marcan con ``fixed_reason="alias"`` para
+    que el informe no se los atribuya al cliente.
+
+    Args:
+        findings: Los hallazgos del escaneo, ya con el ciclo de vida aplicado:
+            los avisos ``virtual_host`` de este escaneo (con su clave de
+            trabajo ``_serves_default_site``) y los ``fixed`` que arrastra del
+            anterior. Se modifican en sitio.
+    """
+    alias_names = {finding["vhost"] for finding in findings
+                   if finding.get("category") == "virtual_host"
+                   and finding.get("_serves_default_site")}
+    for finding in findings:
+        if (finding.get("state") == "fixed" and not finding.get("fixed_reason")
+                and finding.get("vhost") in alias_names):
+            finding["fixed_reason"] = "alias"
+
+
 def mark_default_site_findings(findings: List[dict]) -> None:
     """Etiqueta los hallazgos web del sitio por defecto, en sitio.
 

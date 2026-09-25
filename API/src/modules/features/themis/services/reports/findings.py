@@ -120,7 +120,7 @@ class FindingsPrintingStrategy(PrintingStrategy):
             "exploit_maturity": row.exploit_maturity, "state": row.state,
             "source": row.source, "state": row.state, "cpe_resolved": row.cpe_resolved,
             "required_os": row.required_os, "check_id": row.check_id, "vhost": row.vhost,
-            "severity": row.severity,
+            "severity": row.severity, "fixed_reason": row.fixed_reason,
         } for row in rows]
         # Los sitios con nombre que sirve la IP no son riesgos: van en su
         # propia sección, no entre las fichas ni en los recuentos.
@@ -130,7 +130,13 @@ class FindingsPrintingStrategy(PrintingStrategy):
         # vivo: va en su propia sección al final, sin prioridad y fuera de los
         # recuentos. Mezclado con los abiertos, el mismo problema salía dos
         # veces y el total se inflaba.
-        fixed_findings = [finding for finding in findings if finding.get("state") == "fixed"]
+        # Un «corregido» que sale de una mejora del motor (la distribución ya
+        # lo había parcheado, o su sitio es un alias) no es trabajo del
+        # cliente: va aparte y no cuenta como corregido.
+        fixed_findings = [finding for finding in findings
+                          if finding.get("state") == "fixed" and not finding.get("fixed_reason")]
+        dropped_findings = [finding for finding in findings
+                            if finding.get("state") == "fixed" and finding.get("fixed_reason")]
         findings = [finding for finding in findings if finding.get("state") != "fixed"]
         for finding in findings:
             finding["priority"] = score_finding(finding, exposure)
@@ -146,6 +152,7 @@ class FindingsPrintingStrategy(PrintingStrategy):
 
         self._append_findings_section(theme, elements, findings)
         _append_fixed_section(theme, elements, fixed_findings, self._outline_key("fixed"))
+        _append_dropped_section(theme, elements, dropped_findings, self._outline_key("dropped"))
 
         if ai_report:
             # La misma lista que imprime las fichas: ya priorizada por
@@ -777,6 +784,57 @@ def _append_fixed_section(theme: "ReportTheme", elements: list, fixed_findings: 
             where += f", sitio {finding['vhost']}"
         suffix = f" ({safe_markup(where)})" if where else ""
         elements.append(Paragraph(f"• {safe_markup(finding['title'])}{suffix}", theme.body))
+    elements.append(Spacer(1, 0.3 * inch))
+
+
+#: Cómo se explica en el informe cada motivo de ``Finding.fixed_reason``.
+_DROPPED_REASON_LABEL = {
+    "backport": ("Descartados: la distribución ya los había corregido en el paquete "
+                 "instalado, aunque su número de versión no lo refleje"),
+    "alias": ("El sitio resultó ser un alias del sitio por defecto de la IP: sus avisos "
+              "salen ahora con el sitio por defecto"),
+}
+
+
+def _append_dropped_section(theme: "ReportTheme", elements: list, dropped_findings: list,
+                            outline_key: str) -> None:
+    """La sección «Ya no se reportan (mejoras del motor)», si hay alguno.
+
+    Son hallazgos que el escaneo anterior mostraba y éste ya no, pero no porque
+    el cliente los haya arreglado: el motor ha aprendido a no reportarlos. Se
+    agrupan por motivo, con una frase que lo explica, para que nadie los lea
+    como una remediación.
+
+    Args:
+        theme: El tema del informe.
+        elements: La lista de elementos del documento; se amplía en sitio.
+        dropped_findings: Los hallazgos ``fixed`` con ``fixed_reason``; vacía,
+            no se añade nada.
+        outline_key: La clave del marcador de la sección en el índice del PDF.
+    """
+    if not dropped_findings:
+        return
+    title = "Ya no se reportan (mejoras del motor)"
+    elements.append(CondPageBreak(1.5 * inch))
+    elements.append(OutlineEntry(title, key=outline_key, level=0))
+    elements.append(Paragraph(title, theme.subtitle))
+    elements.append(Spacer(1, 0.1 * inch))
+    elements.append(Paragraph(
+        "El escaneo anterior los mostraba y éste ya no, pero no porque se hayan corregido: "
+        "el motor ha dejado de reportarlos. No cuentan en el total ni como corregidos.",
+        theme.body))
+    by_reason: dict = {}
+    for finding in dropped_findings:
+        by_reason.setdefault(finding["fixed_reason"], []).append(finding)
+    for reason, group in by_reason.items():
+        label = _DROPPED_REASON_LABEL.get(reason, reason)
+        elements.append(Paragraph(f"<b>{safe_markup(label)}</b>", theme.body))
+        for finding in group:
+            where = f"{finding.get('service') or 'servicio'}:{finding['port']}" if finding.get("port") else ""
+            if finding.get("vhost"):
+                where += f", sitio {finding['vhost']}"
+            suffix = f" ({safe_markup(where)})" if where else ""
+            elements.append(Paragraph(f"• {safe_markup(finding['title'])}{suffix}", theme.body))
     elements.append(Spacer(1, 0.3 * inch))
 
 

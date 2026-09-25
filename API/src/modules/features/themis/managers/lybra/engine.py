@@ -37,6 +37,7 @@ from ...lybra import (
     mark_default_site_findings,
     has_own_named_sites,
     is_alias_of_default_site,
+    mark_alias_fixes,
     site_finding,
     crawl,
     compute_dedup_key,
@@ -951,6 +952,7 @@ class LybraEngineManager(ScanManager):
                 advisories = KbRepository(uow)
                 apply_backport_verdicts(findings_data, advisories.distro_package_status,
                                         advisories.distro_release_for)
+            mark_alias_fixes(findings_data)
 
             with UnitOfWork() as uow:
                 scan_repo = ScanRepository(uow)
@@ -1546,6 +1548,7 @@ class LybraEngineManager(ScanManager):
         # quien lo puso.
         view["state_reason"] = finding.state_reason
         view["state_expires_at"] = finding.state_expires_at
+        view["fixed_reason"] = finding.fixed_reason
         return view
 
     def grouped_findings(self, scan_id: int, user_id: int) -> dict:
@@ -1943,7 +1946,11 @@ class LybraEngineManager(ScanManager):
                 if display_finding.get("category") == "outdated_software"
                 and display_finding.get("state") != "false_positive"),
             "openFindings": sum(1 for display_finding in display_findings if display_finding.get("state") == "open"),
-            "fixedFindings": sum(1 for display_finding in display_findings if display_finding.get("state") == "fixed"),
+            # Sólo lo que el cliente ha arreglado. Lo que deja de verse por una
+            # mejora del motor (backport, sitio alias) no es trabajo suyo.
+            "fixedFindings": sum(1 for display_finding in display_findings
+                                 if display_finding.get("state") == "fixed"
+                                 and not display_finding.get("fixed_reason")),
             "falsePositiveFindings": sum(
                 1 for display_finding in display_findings
                 if display_finding.get("state") == "false_positive"),
