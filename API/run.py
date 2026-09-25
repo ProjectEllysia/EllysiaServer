@@ -39,6 +39,10 @@ from src.modules.shared._exceptions import (
     MissingParameterError,
     MissingJsonBodyError,
     EllysiaException,
+    MethodNotAllowedError,
+    RouteNotFoundError,
+    TooManyRequestsError,
+    UnexpectedServerError,
     create_error_response
 )
 from src.modules.system     import configure_logging, config_reading, ping_redis
@@ -269,22 +273,18 @@ def _register_error_handlers(app: Flask) -> None:
     @app.errorhandler(404)
     def not_found(error):
         _logger.warning(f"Ruta no encontrada: {request.method} {request.url}")
-        return jsonify({
-            "error": "not_found",
-            "error_description": "La ruta solicitada no existe",
-            "path": request.path,
-        }), 404
+        body, status_code = create_error_response(RouteNotFoundError(request.path))
+        body["path"] = request.path
+        return jsonify(body), status_code
 
     @app.errorhandler(405)
     def method_not_allowed(error):
         _logger.warning(
             f"Método no permitido: {request.method} {request.url}"
         )
-        return jsonify({
-            "error": "method_not_allowed",
-            "error_description": f"El método {request.method} no está permitido en esta ruta",
-            "allowedMethods": list(error.valid_methods) if hasattr(error, "valid_methods") else [],
-        }), 405
+        body, status_code = create_error_response(MethodNotAllowedError(request.method))
+        body["allowedMethods"] = list(error.valid_methods) if hasattr(error, "valid_methods") else []
+        return jsonify(body), status_code
 
     @app.errorhandler(429)
     def too_many_requests(error):
@@ -304,10 +304,7 @@ def _register_error_handlers(app: Flask) -> None:
         if current is not None and getattr(current, "reset_at", None):
             retry_after = max(1, int(current.reset_at - time.time()))
 
-        payload = {
-            "error": "too_many_requests",
-            "error_description": "Has superado el límite de peticiones. Espera un momento e inténtalo de nuevo.",
-        }
+        payload, _ = create_error_response(TooManyRequestsError())
         if retry_after is not None:
             payload["retryAfter"] = retry_after
 
@@ -330,20 +327,14 @@ def _register_error_handlers(app: Flask) -> None:
     @app.errorhandler(MissingParameterError)
     def handle_missing_parameter(error):
         _logger.warning(f"Parámetro faltante: {error}")
-        return jsonify({
-            "error": "missing_parameter",
-            "error_description": str(error),
-            **error.to_message_reference(),
-        }), 400
+        body, status_code = create_error_response(error)
+        return jsonify(body), status_code
 
     @app.errorhandler(MissingJsonBodyError)
     def handle_missing_json_body(error):
         _logger.warning(f"Body JSON inválido: {error}")
-        return jsonify({
-            "error": "invalid_json",
-            "error_description": str(error),
-            **error.to_message_reference(),
-        }), 400
+        body, status_code = create_error_response(error)
+        return jsonify(body), status_code
 
     @app.errorhandler(500)
     def internal_error(error):
@@ -351,10 +342,8 @@ def _register_error_handlers(app: Flask) -> None:
             f"Error interno del servidor: {error}",
             exc_info=True
         )
-        return jsonify({
-            "error": "internal_server_error",
-            "error_description": "Ha ocurrido un error inesperado en el servidor.",
-        }), 500
+        body, status_code = create_error_response(UnexpectedServerError())
+        return jsonify(body), status_code
 
 
 def _register_conditional_get(app: Flask) -> None:

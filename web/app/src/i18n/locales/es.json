@@ -27,11 +27,25 @@
       "storable": "Storable no encontrado.",
       "subscription": "Suscripcion no encontrada.",
       "tag": "Etiqueta no encontrada.",
+      "task": "Tarea no encontrada.",
       "user": "Usuario no encontrado.",
       "vault": "Vault no encontrado."
     },
+    "insufficientPermissions": "No tienes permisos suficientes para realizar esta acción.",
+    "invalidAccessToken": "Tu sesión ha caducado. Inicia sesión de nuevo.",
+    "invalidAgentKey": "La clave del agente no es válida.",
+    "invalidAuthorizationHeader": "Tu sesión no es válida. Inicia sesión de nuevo.",
+    "logChanged": "El log cambió durante la consulta. Inicia una nueva lectura.",
+    "logNotFound": "No hay ningún log disponible en este momento.",
+    "methodNotAllowed": "El método {method} no está permitido en esta dirección.",
     "missingJsonBody": "El cuerpo de la petición debe ser JSON válido.",
     "missingParameter": "El parámetro '{parameter}' es obligatorio.",
-    "surfaceDisabled": "Esta función todavía no está disponible."
+    "passwordChanged": "Tu contraseña ha cambiado. Inicia sesión de nuevo.",
+    "permissionCheckFailed": "No se pudo comprobar tu acceso. Inténtalo de nuevo.",
+    "routeNotFound": "La dirección solicitada no existe.",
+    "surfaceDisabled": "Esta función todavía no está disponible.",
+    "taskNotCancellable": "La tarea no existe o ya ha terminado.",
+    "tooManyRequests": "Has superado el límite de peticiones. Espera un momento e inténtalo de nuevo.",
+    "unexpectedServerError": "Ha ocurrido un error inesperado en el servidor."
   }
 }

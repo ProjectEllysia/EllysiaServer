@@ -75,6 +75,7 @@ class VaultRevisionMismatchError(VaultError):
     default_code = ErrorCode.VAULT_REVISION_MISMATCH
     default_status_code = 409
     default_severity = ErrorSeverity.LOW
+    error_name = "vault_revision_mismatch"
 
     def __init__(self, current: int, provided: Optional[int] = None):
         self.current_revision = current

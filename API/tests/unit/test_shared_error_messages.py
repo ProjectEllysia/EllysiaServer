@@ -12,11 +12,18 @@ servidor quería decir, y ningún test de un lado ni del otro lo nota. Este
 fichero ata las dos mitades, igual que ``test_caddy_api_routes.py`` ata el
 Caddyfile a los blueprints:
 
-- cada error que declara ``message_key`` tiene su plantilla en ``es.json``,
-  y rellenada con sus ``params`` da **exactamente** su ``user_message``;
-- ``es.json`` no tiene plantillas de error que ningún error use.
+- cada excepción que declara ``message_key`` (y cada subclase suya) tiene su
+  plantilla en ``es.json``, y rellenada con sus ``params`` da **exactamente**
+  su ``user_message``;
+- ``es.json`` no tiene plantillas de error que ninguna excepción use.
+
+Las excepciones se descubren solas: se buscan en ``src/`` las clases que pasan
+``message_key=`` y se construye un ejemplar de cada una (y de sus subclases).
+La que necesite argumentos para construirse los toma de
+``_SAMPLE_ARGUMENTS``; si falta, el test lo dice.
 """
 
+import ast
 import importlib
 import json
 import re
@@ -25,10 +32,7 @@ from pathlib import Path
 import pytest
 
 from src.modules.shared._exceptions import (
-    DatabaseConnectionError,
-    EllysiaException,
     EntityNotFoundError,
-    MissingJsonBodyError,
     MissingParameterError,
     SurfaceDisabledError,
     ValidationError,
@@ -39,34 +43,78 @@ from src.modules.shared._exceptions import (
 pytestmark = pytest.mark.unit
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
-_MODULES_ROOT = _REPO_ROOT / "API" / "src" / "modules"
+_API_ROOT = _REPO_ROOT / "API"
+_SOURCE_ROOT = _API_ROOT / "src"
 _SPANISH_DICTIONARY = _REPO_ROOT / "web" / "app" / "src" / "i18n" / "locales" / "es.json"
 
 # {parameter} -> parameter. Es la interpolación con nombre de vue-i18n.
 _PLACEHOLDER_RE = re.compile(r"\{(\w+)\}")
 
+#: Argumentos con los que se construye un ejemplar de cada excepción que no se
+#: puede construir sin ellos. Los valores son de ejemplo: lo que se comprueba es
+#: que la plantilla, rellenada con los ``params`` que salen de ellos, dé el
+#: mismo texto que el servidor.
+_SAMPLE_ARGUMENTS: dict[str, tuple] = {
+    "RouteNotFoundError": ("/no-existe",),
+    "MethodNotAllowedError": ("PATCH",),
+    "MissingParameterError": ("port",),
+    "SurfaceDisabledError": ("registration",),
+    "DatabaseConnectionError": ("connection refused",),
+    "InvalidAuthorizationHeaderError": ("falta la cabecera",),
+    "InsufficientPermissionsError": ("falta el rol admin",),
+    "PermissionCheckError": ("fallo al calcular permisos",),
+    "TaskNotCancellableError": ("job-1",),
+    "InvalidAgentKeyError": ("clave rechazada",),
+}
+
+#: Clases que declaran ``message_key`` pero no se lanzan nunca tal cual: solo
+#: sus subclases llegan al cliente.
+_ABSTRACT_ERRORS = {"EntityNotFoundError"}
+
+
+def _find_classes_declaring_message_key() -> list[tuple[str, str]]:
+    """Busca en ``src/`` las clases que pasan ``message_key=`` en alguna llamada.
+
+    Returns:
+        list[tuple[str, str]]: Pares (módulo importable, nombre de la clase).
+    """
+    declaring: list[tuple[str, str]] = []
+    for path in _SOURCE_ROOT.rglob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        module_name = ".".join(path.relative_to(_API_ROOT).with_suffix("").parts)
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ClassDef):
+                continue
+            passes_message_key = any(
+                keyword.arg == "message_key"
+                for call in ast.walk(node) if isinstance(call, ast.Call)
+                for keyword in call.keywords
+            )
+            if passes_message_key:
+                declaring.append((module_name, node.name))
+    return declaring
+
 
 def _import_every_exceptions_module() -> None:
-    """Importa todos los ``exceptions.py`` de ``src/modules`` para registrar sus clases.
+    """Importa todos los ``exceptions.py`` de ``src/`` para registrar sus subclases.
 
     ``__subclasses__`` solo ve las clases de módulos ya importados; sin esto, una
-    excepción de un módulo que ningún otro test haya cargado quedaría fuera.
+    subclase de un módulo que ningún otro test haya cargado quedaría fuera.
     """
-    for path in _MODULES_ROOT.rglob("exceptions.py"):
-        module_name = ".".join(path.relative_to(_REPO_ROOT / "API").with_suffix("").parts)
-        importlib.import_module(module_name)
+    for path in _SOURCE_ROOT.rglob("exceptions.py"):
+        importlib.import_module(".".join(path.relative_to(_API_ROOT).with_suffix("").parts))
 
 
-def _collect_subclasses(base: type) -> list[type]:
-    """Devuelve todas las subclases de ``base``, a cualquier profundidad.
+def _collect_with_subclasses(base: type) -> list[type]:
+    """Devuelve ``base`` y todas sus subclases, a cualquier profundidad.
 
     Args:
         base: Clase de la que partir.
 
     Returns:
-        list[type]: Las subclases, sin repetir y sin incluir ``base``.
+        list[type]: ``base`` seguida de sus subclases, sin repetir.
     """
-    found: dict[type, None] = {}
+    found: dict[type, None] = {base: None}
     pending = list(base.__subclasses__())
     while pending:
         subclass = pending.pop()
@@ -76,21 +124,45 @@ def _collect_subclasses(base: type) -> list[type]:
     return list(found)
 
 
-def _build_translatable_errors() -> list[EllysiaException]:
-    """Construye un ejemplar de cada error cuyo mensaje sale de una plantilla.
+def _collect_translatable_error_classes() -> list[type]:
+    """Reúne las excepciones con plantilla: las que declaran clave y sus subclases.
 
     Returns:
-        list[EllysiaException]: Un «no encontrado» por cada entidad del
-            proyecto y un ejemplar de cada error con plantilla fija.
+        list[type]: Las clases, sin repetir y sin las de ``_ABSTRACT_ERRORS``.
     """
     _import_every_exceptions_module()
-    not_found_errors = [error_class() for error_class in _collect_subclasses(EntityNotFoundError)]
-    return not_found_errors + [
-        MissingParameterError("port"),
-        MissingJsonBodyError(),
-        SurfaceDisabledError("registration"),
-        DatabaseConnectionError("connection refused"),
-    ]
+    classes: dict[type, None] = {}
+    for module_name, class_name in _find_classes_declaring_message_key():
+        declaring_class = getattr(importlib.import_module(module_name), class_name)
+        for error_class in _collect_with_subclasses(declaring_class):
+            if error_class.__name__ not in _ABSTRACT_ERRORS:
+                classes[error_class] = None
+    return list(classes)
+
+
+def _build_translatable_errors() -> list:
+    """Construye un ejemplar de cada excepción con plantilla.
+
+    Returns:
+        list[EllysiaException]: Un ejemplar por clase.
+
+    Raises:
+        AssertionError: Si alguna no se puede construir con los argumentos de
+            ``_SAMPLE_ARGUMENTS``; el mensaje dice cuáles.
+    """
+    errors, unbuildable = [], []
+    for error_class in _collect_translatable_error_classes():
+        try:
+            errors.append(error_class(*_SAMPLE_ARGUMENTS.get(error_class.__name__, ())))
+        except TypeError as exc:
+            unbuildable.append(f"{error_class.__name__}: {exc}")
+    assert not unbuildable, (
+        "Estas excepciones declaran message_key pero el test no sabe construirlas; "
+        "añade sus argumentos de ejemplo a _SAMPLE_ARGUMENTS:\n" + "\n".join(unbuildable)
+    )
+    # Una subclase con texto propio no hereda la clave de su base: su mensaje
+    # ya no sale de la plantilla de la base.
+    return [error for error in errors if error.message_key]
 
 
 def _load_error_templates() -> dict[str, str]:
@@ -152,6 +224,16 @@ def test_the_spanish_dictionary_has_no_unused_error_templates():
     assert not unused_keys, f"Plantillas de es.json que ningún error usa: {unused_keys}"
 
 
+def test_the_discovery_finds_the_known_translatable_errors():
+    """El descubrimiento automático encuentra errores de varias familias.
+
+    Protege al propio test: si la búsqueda por AST dejara de encontrar clases,
+    los dos tests de arriba pasarían en verde sin comprobar nada.
+    """
+    class_names = {error_class.__name__ for error_class in _collect_translatable_error_classes()}
+    assert {"MissingParameterError", "ScanNotFoundError", "InvalidAccessTokenError", "TaskNotFoundError"} <= class_names
+
+
 def test_a_free_text_error_carries_no_message_reference():
     """Un texto libre no se traduce por plantilla: la interfaz lo enseña tal cual."""
     assert ValidationError("el puerto 70000 está fuera de rango").to_message_reference() == {}
@@ -162,6 +244,7 @@ def test_the_error_response_carries_the_message_reference():
     """La respuesta HTTP lleva la clave y los valores junto al texto."""
     response, status_code = create_error_response(MissingParameterError("port"))
     assert status_code == 400
+    assert response["error"] == "missing_parameter"
     assert response["messageKey"] == "missingParameter"
     assert response["params"] == {"parameter": "port"}
     assert response["error_description"] == "El parámetro 'port' es obligatorio."
@@ -172,3 +255,4 @@ def test_derive_entity_key_strips_the_suffix_and_lowercases_the_initial():
     assert _derive_entity_key("IrisCaseNotFoundError") == "irisCase"
     assert _derive_entity_key("ScanNotFoundError") == "scan"
     assert _derive_entity_key("EntityNotFoundError") == "entity"
+    assert issubclass(type(EntityNotFoundError()), Exception)

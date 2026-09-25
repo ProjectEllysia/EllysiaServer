@@ -36,7 +36,7 @@ export async function apiError(res, fallback) {
   if (translated) return translated
 
   const serverMsg = data.error_description || data.message || data.error
-  if (res.status === 403 && (data.error === 'forbidden' || data.error_description === 'Insufficient permissions')) {
+  if (res.status === 403 && data.error === 'forbidden') {
     return 'No tienes permisos suficientes para realizar esta acción.'
   }
   return serverMsg || fallback

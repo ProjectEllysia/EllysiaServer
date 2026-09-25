@@ -12,6 +12,9 @@ class ErrorCode(Enum):
     INTERNAL_SERVER_ERROR = 1001
     NOT_IMPLEMENTED = 1002
     ILLEGAL_STATE_ERROR = 1003
+    ROUTE_NOT_FOUND = 1004
+    METHOD_NOT_ALLOWED = 1005
+    TOO_MANY_REQUESTS = 1006
 
     VALIDATION_ERROR = 1100
     INVALID_PORT_SPEC = 1101
@@ -108,6 +111,16 @@ class EllysiaException(Exception):
     útil en vez de "error 402".
     """
 
+    error_name: Optional[str] = None
+    """Valor del campo ``error`` de la respuesta, si no es el nombre de la clase.
+
+    Por defecto el campo lleva el nombre de la clase (``"ScanNotFoundError"``).
+    Lo redefinen las excepciones cuyo ``error`` es un contrato externo que ya
+    esperan los clientes: los códigos de OAuth 2.0 (``"invalid_token"``,
+    ``"unauthorized"``, ``"forbidden"``…) o los que la interfaz compara a mano
+    (``"password_changed"``, ``"vault_revision_mismatch"``).
+    """
+
     def __init__(
         self,
         message: str,
@@ -179,7 +192,7 @@ class EllysiaException(Exception):
 
     def to_dict(self, include_traceback: bool = False) -> Dict[str, Any]:
         result = {
-            "error": self.__class__.__name__,
+            "error": self.error_name or self.__class__.__name__,
             "code": self.code.value,
             "message": self.user_message,
             "timestamp": isoformat_utc(self.timestamp),
@@ -354,6 +367,7 @@ class ValidationError(EllysiaException):
 
 class MissingParameterError(ValidationError):
     default_code = ErrorCode.MISSING_PARAMETER
+    error_name = "missing_parameter"
 
     def __init__(self, parameter: str):
         super().__init__(
@@ -369,12 +383,90 @@ class MissingJsonBodyError(EllysiaException):
     default_code = ErrorCode.JSON_PARSING_ERROR
     default_status_code = 400
     default_severity = ErrorSeverity.LOW
+    error_name = "invalid_json"
 
     def __init__(self, message: str = "Request body must be JSON"):
         super().__init__(
             message=message,
             user_message="El cuerpo de la petición debe ser JSON válido.",
             message_key="missingJsonBody",
+        )
+
+
+class RouteNotFoundError(EllysiaException):
+    """La dirección pedida no corresponde a ningún endpoint de la API."""
+
+    default_code = ErrorCode.ROUTE_NOT_FOUND
+    default_status_code = 404
+    default_severity = ErrorSeverity.LOW
+    error_name = "not_found"
+
+    def __init__(self, path: str):
+        """Construye el error para una dirección concreta.
+
+        Args:
+            path: Ruta pedida (``request.path``); solo va al log.
+        """
+        super().__init__(
+            message=f"Ruta no encontrada: {path}",
+            user_message="La dirección solicitada no existe.",
+            message_key="routeNotFound",
+        )
+
+
+class MethodNotAllowedError(EllysiaException):
+    """La dirección existe, pero no admite el método HTTP de la petición."""
+
+    default_code = ErrorCode.METHOD_NOT_ALLOWED
+    default_status_code = 405
+    default_severity = ErrorSeverity.LOW
+    error_name = "method_not_allowed"
+
+    def __init__(self, method: str):
+        """Construye el error para un método concreto.
+
+        Args:
+            method: Método HTTP de la petición (``"GET"``, ``"POST"``…).
+        """
+        super().__init__(
+            message=f"Método no permitido: {method}",
+            user_message=f"El método {method} no está permitido en esta dirección.",
+            message_key="methodNotAllowed",
+            params={"method": method},
+        )
+
+
+class TooManyRequestsError(EllysiaException):
+    """El cliente ha superado el límite de peticiones de un endpoint."""
+
+    default_code = ErrorCode.TOO_MANY_REQUESTS
+    default_status_code = 429
+    default_severity = ErrorSeverity.LOW
+    error_name = "too_many_requests"
+
+    def __init__(self):
+        """Construye el error; el límite superado no se cuenta al usuario."""
+        super().__init__(
+            message="Límite de peticiones superado",
+            user_message="Has superado el límite de peticiones. Espera un momento e inténtalo de nuevo.",
+            message_key="tooManyRequests",
+        )
+
+
+class UnexpectedServerError(EllysiaException):
+    """Un fallo no previsto llegó hasta Flask sin ser una ``EllysiaException``."""
+
+    default_code = ErrorCode.INTERNAL_SERVER_ERROR
+    default_status_code = 500
+    default_severity = ErrorSeverity.HIGH
+    error_name = "internal_server_error"
+
+    def __init__(self):
+        """Construye el error; el detalle del fallo va al log, no al usuario."""
+        super().__init__(
+            message="Error interno no controlado",
+            user_message="Ha ocurrido un error inesperado en el servidor.",
+            message_key="unexpectedServerError",
         )
 
 
@@ -685,7 +777,7 @@ def create_error_response(
     include_debug_info: bool = False
 ) -> tuple[Dict[str, Any], int]:
     response = {
-        "error": exception.__class__.__name__,
+        "error": exception.error_name or exception.__class__.__name__,
         "error_description": exception.user_message,
         "code": exception.code.value,
     }

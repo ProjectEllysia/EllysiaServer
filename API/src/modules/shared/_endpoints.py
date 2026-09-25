@@ -5,6 +5,7 @@ This module provides:
 - limiter: global rate limiter instance (lazy initialization).
 - current_actor(): readable user identity for endpoint context logs.
 - normalize_target(): normalize a user-supplied target to (ip, hostname).
+- render_error_response(): una EllysiaException como respuesta JSON de Flask.
 
 Module Variables:
     limiter: Global rate limiter instance (lazy initialization).
@@ -18,11 +19,32 @@ from functools import wraps
 from urllib.parse import urlparse
 from typing import Tuple, Optional
 
-from flask import request
+from flask import Response, jsonify, request
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
-from ._exceptions import MissingParameterError, MissingJsonBodyError
+from ._exceptions import EllysiaException, MissingParameterError, MissingJsonBodyError, create_error_response
+
+
+def render_error_response(exception: EllysiaException) -> Tuple[Response, int]:
+    """Convierte una ``EllysiaException`` en la respuesta JSON de Flask que la representa.
+
+    Es para el código que tiene que *devolver* el error en vez de lanzarlo: los
+    decoradores de autenticación, que cortan la petición antes de llegar al
+    endpoint y no deben pasar por el manejador global (que registra cada error
+    como tal, y una petición sin sesión no es un fallo del servidor). El cuerpo
+    es el mismo que construye el manejador global, así que el cliente no
+    distingue por dónde salió.
+
+    Args:
+        exception: El error a devolver.
+
+    Returns:
+        Tuple[Response, int]: La respuesta JSON y su código HTTP
+            (``exception.status_code``).
+    """
+    body, status_code = create_error_response(exception)
+    return jsonify(body), status_code
 
 
 # =========================================================================

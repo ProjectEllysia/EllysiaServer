@@ -4,7 +4,7 @@ import sys
 import psutil
 
 from flask_smorest import Blueprint as SmorestBlueprint
-from flask import jsonify, request
+from flask import request
 
 from src.modules.shared._endpoints import limiter, current_actor
 from src.modules.shared._exceptions import (
@@ -29,11 +29,7 @@ from .schemas import (
     SystemLogsResponseSchema,
     AIModelsResponseSchema,
 )
-from .exceptions import (
-    LogNotFoundError,
-    LogQueryError,
-    LogSnapshotChangedError,
-)
+from .exceptions import TaskNotCancellableError, TaskNotFoundError
 from .services import (
     read_logs,
 )
@@ -190,23 +186,9 @@ def status():
 @require_role(minimum_role=Role.ADMIN)
 def system_logs(query_args):
     """Devuelve una página filtrada del log central de la aplicación."""
-    try:
-        return read_logs(query_args)
-    except LogNotFoundError:
-        return jsonify({
-            "error": "log_not_found",
-            "error_description": "No hay ningún log disponible en este momento.",
-        }), 404
-    except LogSnapshotChangedError:
-        return jsonify({
-            "error": "log_changed",
-            "error_description": "El log cambió durante la consulta. Inicia una nueva lectura.",
-        }), 409
-    except LogQueryError as exc:
-        return jsonify({
-            "error": "invalid_log_query",
-            "error_description": str(exc),
-        }), 400
+    # LogNotFoundError, LogSnapshotChangedError y LogQueryError son
+    # EllysiaException: las serializa el manejador global.
+    return read_logs(query_args)
 
 
 @system_blp.get("")
@@ -350,7 +332,7 @@ def taskqueue_task_detail(task_id):
     """Obtiene el detalle de una tarea especifica por su ID."""
     task = TaskQueue.get_instance().get_task(task_id)
     if task is None:
-        return {"error": "not_found", "error_description": "Task not found"}, 404
+        raise TaskNotFoundError(task_id)
     return task.to_dict()
 
 
@@ -367,7 +349,7 @@ def taskqueue_cancel_task(task_id):
     task_queue = TaskQueue.get_instance()
     was_cancelled = task_queue.cancel(task_id)
     if not was_cancelled:
-        return {"error": "not_found", "error_description": "Task not found or already finished"}, 404
+        raise TaskNotCancellableError(task_id)
     task = task_queue.get_task(task_id)
     return (task or Task(id=task_id)).to_dict()
 

@@ -9,6 +9,7 @@ from flask_smorest import Blueprint as SmorestBlueprint
 from contextlib import contextmanager
 
 from src.modules.shared._exceptions import (
+    create_error_response,
     handle_exceptions,
     ValidationError,
 )
@@ -90,13 +91,10 @@ def handle_vault_revision_mismatch(error: VaultRevisionMismatchError):
     re-lee, reaplica su cambio sobre el estado fresco y reintenta.
     """
     logger.warning("Conflicto de revision de vault: %s", error.message)
-    return jsonify({
-        "error": "vault_revision_mismatch",
-        "error_description": error.user_message,
-        "code": error.code.value,
-        "currentRevision": error.current_revision,
-        "yourRevision": error.provided_revision,
-    }), 409, _etag(error.current_revision)
+    body, status_code = create_error_response(error)
+    body["currentRevision"] = error.current_revision
+    body["yourRevision"] = error.provided_revision
+    return jsonify(body), status_code, _etag(error.current_revision)
 
 
 @acheron_blp.get("/vault")

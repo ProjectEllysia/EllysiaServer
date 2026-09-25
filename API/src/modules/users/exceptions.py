@@ -59,11 +59,104 @@ class PasswordChangedError(AuthenticationError):
     en lugar de un error genérico. Se identifica por ``code == 1609``.
     """
     default_code = ErrorCode.PASSWORD_CHANGED
+    error_name = "password_changed"
 
     def __init__(self):
         super().__init__(
             message="La contraseña fue cambiada; el token/sesión ya no es válido",
             user_message="Tu contraseña ha cambiado. Inicia sesión de nuevo.",
+            message_key="passwordChanged",
+        )
+
+
+class InvalidAuthorizationHeaderError(AuthenticationError):
+    """La petición no trae la cabecera ``Authorization`` o no es ``Bearer <token>``.
+
+    El ``error`` es ``unauthorized``, el código de OAuth 2.0 que ya esperan los
+    clientes para una petición sin credenciales utilizables.
+    """
+
+    error_name = "unauthorized"
+
+    def __init__(self, message: str):
+        """Construye el error.
+
+        Args:
+            message: Qué le pasa a la cabecera, para el log («falta la
+                cabecera», «no es Bearer»…). No llega al usuario.
+        """
+        super().__init__(
+            message=message,
+            user_message="Tu sesión no es válida. Inicia sesión de nuevo.",
+            message_key="invalidAuthorizationHeader",
+        )
+
+
+class InvalidAccessTokenError(AuthenticationError):
+    """El access token no es válido o ha caducado.
+
+    El ``error`` es ``invalid_token``, el código de RFC 6750 con el que el
+    cliente sabe que debe renovar el token o volver a iniciar sesión.
+    """
+
+    default_code = ErrorCode.TOKEN_EXPIRED
+    error_name = "invalid_token"
+
+    def __init__(self):
+        """Construye el error; no distingue caducado de manipulado a propósito."""
+        super().__init__(
+            message="El access token no es válido o ha caducado",
+            user_message="Tu sesión ha caducado. Inicia sesión de nuevo.",
+            message_key="invalidAccessToken",
+        )
+
+
+class InsufficientPermissionsError(AuthorizationError):
+    """El usuario está identificado, pero su rol o sus permisos no alcanzan.
+
+    El ``error`` es ``forbidden``: la interfaz lo usa para distinguir «no
+    tienes permiso» de cualquier otro 403.
+    """
+
+    error_name = "forbidden"
+
+    def __init__(self, message: str):
+        """Construye el error.
+
+        Args:
+            message: Qué faltaba (el rol mínimo, los permisos concretos), para
+                el log. No llega al usuario: decirle qué permisos existen no le
+                ayuda y describe el modelo de permisos a quien no los tiene.
+        """
+        super().__init__(
+            message=message,
+            user_message="No tienes permisos suficientes para realizar esta acción.",
+            message_key="insufficientPermissions",
+        )
+
+
+class PermissionCheckError(EllysiaException):
+    """Falló la propia comprobación de identidad o de permisos, no el usuario.
+
+    El ``error`` es ``server_error``, el código de OAuth 2.0 para un fallo del
+    servidor de autorización.
+    """
+
+    default_code = ErrorCode.INTERNAL_SERVER_ERROR
+    default_status_code = 500
+    default_severity = ErrorSeverity.HIGH
+    error_name = "server_error"
+
+    def __init__(self, message: str):
+        """Construye el error.
+
+        Args:
+            message: Qué comprobación falló, para el log.
+        """
+        super().__init__(
+            message=message,
+            user_message="No se pudo comprobar tu acceso. Inténtalo de nuevo.",
+            message_key="permissionCheckFailed",
         )
 
 

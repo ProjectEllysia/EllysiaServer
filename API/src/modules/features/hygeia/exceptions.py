@@ -32,6 +32,31 @@ class HygeiaError(EllysiaException):
     default_status_code = 500
 
 
+class InvalidAgentKeyError(HygeiaError):
+    """La clave con la que se presenta un agente falta, está mal formada o no es válida.
+
+    Los tres casos dan el mismo mensaje y el mismo código a propósito: si la
+    respuesta dijera cuál de ellos ocurrió, un atacante podría usarla para
+    averiguar qué identificadores de clave existen.
+    """
+
+    default_code = ErrorCode.AUTHENTICATION_ERROR
+    default_status_code = 401
+    error_name = "unauthorized"
+
+    def __init__(self, message: str):
+        """Construye el error.
+
+        Args:
+            message: Qué falló, para el log. No llega al agente.
+        """
+        super().__init__(
+            message=message,
+            user_message="La clave del agente no es válida.",
+            message_key="invalidAgentKey",
+        )
+
+
 class AssetNotFoundError(EntityNotFoundError, HygeiaError):
     """Se lanza cuando un activo no existe o no pertenece al usuario.
 
