@@ -30,6 +30,7 @@ const MIGRATED_FILES = [
   'components/shared/SiteFooter.vue',
   'components/shared/SiteHeader.vue',
   'components/shared/Topbar.vue',
+  'views/system/KnowledgeBaseView.vue',
 ]
 
 /**

@@ -68,6 +68,20 @@ class UnresolvedProductsQuerySchema(Schema):
                            validate=validate.OneOf(["network", "inventory"]))
 
 
+class KbSearchQuerySchema(Schema):
+    # Un identificador de CVE o un trozo de nombre de producto; ver
+    # ``KbQueryManager.search``.
+    query = fields.String(required=True, validate=validate.Length(min=2, max=128))
+    limit = fields.Integer(load_default=20, validate=validate.Range(min=1, max=100))
+
+
+class KbSyncRequestSchema(Schema):
+    # Nunca el histórico completo de NVD: el botón lanza el mismo delta que el
+    # job nocturno. Ver ``KbSyncTaskManager.request_sync``.
+    source = fields.String(required=True, validate=validate.OneOf(
+        ["all", "nvd", "kev", "epss", "oval"]))
+
+
 class FindingStateRequestSchema(Schema):
     # ``accepted`` y ``false_positive`` dicen cosas opuestas y por eso son
     # estados distintos en vez de compartir casilla: aceptar un riesgo es

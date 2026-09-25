@@ -274,20 +274,21 @@ def test_the_report_body_keeps_fixed_findings_out_of_the_cards_and_the_counts(mo
     from src.modules.features.themis.managers import LybraEngineManager
     from src.modules.features.themis.services.reports import findings as report_module
 
-    def row(title, state):
-        return SimpleNamespace(
+    def row(title, state, fixed_reason=None):
+        return SimpleNamespace(fixed_reason=fixed_reason,
             title=title, category="security_header", port=80, service="http", cpe=None, cve_ids=[],
             cvss_score=None, epss_score=None, in_kev=False, qod=90, confirmed=True,
             exploit_maturity=None, state=state, source="lybra", cpe_resolved=False,
             required_os=None, check_id="lybra:hsts@2", vhost=None, severity="MEDIUM",
         )
-    rows = [row("Cabecera HSTS ausente", "open"), row("Cabecera X-Frame-Options ausente", "fixed")]
+    rows = [row("Cabecera HSTS ausente", "open"), row("Cabecera X-Frame-Options ausente", "fixed"),
+            row("Falta la cabecera Referrer-Policy", "fixed", fixed_reason="alias")]
     monkeypatch.setattr(session_module, "build_repository",
                         lambda _cls: SimpleNamespace(get_findings_by_scan=lambda _scan_id: rows))
     monkeypatch.setattr(LybraEngineManager, "exposure_for", staticmethod(lambda _scan: "public"))
     monkeypatch.setattr(report_module, "enrich_with_cve_context", lambda _findings: None)
-    monkeypatch.setattr(report_module.FindingsPrintingStrategy, "_knowledge_base_line",
-                        staticmethod(lambda: "NVD 2026-09-24"))
+    monkeypatch.setattr(report_module, "_knowledge_base_line", lambda _scan: "NVD 2026-09-24")
+    monkeypatch.setattr(report_module, "_failing_sources_line", lambda: None)
 
     from src.modules.features.themis.services.reports.lybra import LybraPrintingStrategy
     strategy = LybraPrintingStrategy.__new__(LybraPrintingStrategy)
@@ -301,12 +302,34 @@ def test_the_report_body_keeps_fixed_findings_out_of_the_cards_and_the_counts(mo
         if hasattr(element, "getPlainText"):
             texts.append(element.getPlainText())
         for cells in getattr(element, "_cellvalues", []):
-            texts.append(" ".join(str(cell) for cell in cells))
+            texts.append(" ".join(cell.getPlainText() if hasattr(cell, "getPlainText") else str(cell)
+                                  for cell in cells))
     joined = "\n".join(texts)
     assert "Total de hallazgos: 1" in joined
     assert "Corregidos desde el escaneo anterior: 1" in joined
     assert "Hallazgo #1.1" in joined and "Hallazgo #1.2" not in joined
     assert "• Cabecera X-Frame-Options ausente (http:80)" in joined
+    # Lo que deja de verse por una mejora del motor va aparte y no cuenta
+    # como corregido: el cliente no ha hecho nada.
+    assert "Ya no se reportan (mejoras del motor)" in joined
+    assert "• Falta la cabecera Referrer-Policy (http:80)" in joined
+
+
+def test_engine_dropped_findings_are_grouped_by_reason():
+    from src.modules.features.themis.services.reports.findings import _append_dropped_section
+
+    elements = []
+    _append_dropped_section(_theme(), elements, [
+        _finding(title="OpenSSH 9.6p1 — CVE-2024-6387", state="fixed", fixed_reason="backport"),
+        _finding(title="Falta la cabecera CSP", state="fixed", fixed_reason="alias",
+                 vhost="alias.example.org"),
+    ], "scan7-dropped")
+
+    assert _outline_entries(elements) == [(0, "Ya no se reportan (mejoras del motor)", "scan7-dropped")]
+    lines = [element.getPlainText() for element in elements if hasattr(element, "getPlainText")]
+    assert any(line.startswith("Descartados: la distribución ya los había corregido") for line in lines)
+    assert any(line.startswith("El sitio resultó ser un alias") for line in lines)
+    assert any("Falta la cabecera CSP (http:80, sitio alias.example.org)" in line for line in lines)
 
 
 def test_the_report_warns_when_the_ip_hosts_other_webs():
@@ -317,3 +340,60 @@ def test_the_report_warns_when_the_ip_hosts_other_webs():
     assert "aloja varias webs" in warning
     assert "escanéala por su nombre" in warning
     assert _default_site_warning([{"vhost": "web.ejemplo.test"}, {}]) is None
+
+
+# ────────────────────── la fila «Base de conocimiento»
+
+
+def test_the_knowledge_base_line_is_the_one_the_scan_used():
+    """La fila sale de la marca que guardó el escaneo, no del estado de hoy:
+    regenerar el informe después de una sincronización no la cambia."""
+    from datetime import datetime
+    from types import SimpleNamespace
+    from src.modules.features.themis.services.reports.findings import _knowledge_base_line
+
+    scan = SimpleNamespace(
+        kb_version="lybra-kb:nvd=2026-09-24,kev=2026-09-10,epss=2026-09-23,oval=none",
+        started_at=datetime(2026, 9, 24, 18, 10))
+
+    line = _knowledge_base_line(scan)
+
+    assert line == ("NVD 2026-09-24 · KEV 2026-09-10 (desactualizada) · EPSS 2026-09-23 · "
+                    "OVAL sin datos")
+
+
+def test_a_scan_without_a_mark_says_so():
+    from types import SimpleNamespace
+    from src.modules.features.themis.services.reports.findings import _knowledge_base_line
+
+    assert _knowledge_base_line(SimpleNamespace(kb_version=None, started_at=None)).startswith("No consta")
+
+
+def test_the_failing_sources_row_says_which_and_why(monkeypatch):
+    from src.modules.features.themis.managers import kb_sync
+    from src.modules.features.themis.services.reports.findings import _failing_sources_line
+
+    monkeypatch.setattr(kb_sync.KbSyncManager, "status", lambda self: {"sources": [
+        {"source": "nvd", "error": None, "lastSuccessAt": "2026-09-25T03:07:26Z"},
+        {"source": "oval:ubuntu:22.04", "error": "ValueError: no es una URL", "lastSuccessAt": None},
+        {"source": "kev", "error": "HTTPError: 503", "lastSuccessAt": "2026-09-20T03:00:01Z"},
+    ]})
+
+    assert _failing_sources_line() == (
+        "oval:ubuntu:22.04 (no ha terminado bien nunca): ValueError: no es una URL; "
+        "kev (sin éxito desde 2026-09-20): HTTPError: 503")
+
+
+def test_key_value_cells_wrap_instead_of_overflowing():
+    """Una cadena suelta en una celda de ReportLab no salta de línea: se sale
+    de la columna. Como párrafo, sí salta; y se escapa, porque es texto y no
+    marcado."""
+    from reportlab.platypus import Paragraph
+
+    table = _theme().kv_table([["Corregidos desde el escaneo anterior:", "<3 & 4>"]], [72, 144])
+    key, value = table._cellvalues[0]
+
+    assert isinstance(key, Paragraph) and isinstance(value, Paragraph)
+    assert value.getPlainText() == "<3 & 4>"
+    _, height = table.wrap(216, 1000)
+    assert height > 20, "la etiqueta larga ocupa dos líneas en su columna"

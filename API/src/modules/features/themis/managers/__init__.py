@@ -41,7 +41,9 @@ from .nikto import NiktoScanManager
 from .nuclei import NucleiScanManager
 from .authorized_target import AuthorizedTargetManager
 from .lybra import LybraEngineManager
-from .kb_sync import CveAdvisory, KbProduct, KbQueryManager, KbSyncManager
+from .kb_sync import (
+    KB_SYNC_TARGETS, CveAdvisory, KbProduct, KbQueryManager, KbSyncManager, KbSyncTaskManager,
+)
 from .reports import ThemisReportManager
 
 __all__ = [
@@ -56,6 +58,8 @@ __all__ = [
     "NucleiScanManager",
     "LybraEngineManager",
     "KbSyncManager",
+    "KbSyncTaskManager",
+    "KB_SYNC_TARGETS",
     # Lectura de la KB local: contrato público para otros módulos (Aegis).
     "KbQueryManager",
     "CveAdvisory",

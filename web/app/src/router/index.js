@@ -259,6 +259,14 @@ const routes = [
     meta: { requiresAuth: true, requiresAdmin: true },
   },
   {
+    path: '/base-de-conocimiento',
+    name: 'KnowledgeBase',
+    component: () => import('@/views/system/KnowledgeBaseView.vue'),
+    // La API ya exige ADMIN para sincronizar; el guard evita cargar la vista
+    // para quien de todos modos rebotaría.
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
+  {
     path: '/profile',
     name: 'Profile',
     component: () => import('@/views/accounts/ProfileView.vue'),

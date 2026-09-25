@@ -53,6 +53,7 @@
             <router-link to="/admin/iris/simulador" class="drop-item" @click="open = false">{{ t('accountMenu.rulesSimulator') }}</router-link>
             <router-link v-if="auth.isRoot" to="/config" class="drop-item" @click="open = false">{{ t('accountMenu.configuration') }}</router-link>
             <router-link v-if="auth.isRoot" to="/admin/planes" class="drop-item" @click="open = false">{{ t('accountMenu.planManager') }}</router-link>
+            <router-link to="/base-de-conocimiento" class="drop-item" @click="open = false">{{ t('accountMenu.knowledgeBase') }}</router-link>
             <router-link to="/queue" class="drop-item" @click="open = false">{{ t('accountMenu.taskQueue') }}</router-link>
           </template>
 

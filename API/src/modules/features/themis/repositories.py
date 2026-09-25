@@ -1267,6 +1267,22 @@ class KbRepository(BaseRepository[CveEntry]):
         )
         return [(vendor, product, name) for vendor, product, name in rows]
 
+    def distro_statuses_for_cve(self, cve_id: str) -> List[DistroPkgStatus]:
+        """Todo lo que las distribuciones han dicho de una CVE, paquete a paquete.
+
+        Args:
+            cve_id: El identificador, en mayúsculas (``CVE-2024-6387``).
+
+        Returns:
+            List[DistroPkgStatus]: Los pronunciamientos, ordenados por
+                distribución, versión y paquete; vacía si ninguna la menciona.
+        """
+        return (self._session.query(DistroPkgStatus)
+                .filter(DistroPkgStatus.cve_id == cve_id)
+                .order_by(DistroPkgStatus.vendor, DistroPkgStatus.release,
+                          DistroPkgStatus.package)
+                .all())
+
     def get_cves_with_matches(self, cve_ids: List[str]) -> List[CveEntry]:
         """Bulk-fetch CveEntry rows (with their CpeMatch rows eager-loaded) for a
         list of CVE ids. Used to enrich a report with description/CWE/fixed-version
@@ -1294,13 +1310,22 @@ class KbRepository(BaseRepository[CveEntry]):
         no rows, or whose rows carry no date, reports ``None``, which is
         information too and must not be dressed up as a date.
 
+        OVAL es la excepción: sus filas no llevan fecha propia, así que lo más
+        honesto que se puede decir es cuándo se descargó por última vez con
+        éxito. Y como se sincroniza por distribución, se toma la **más
+        antigua** de esas fechas: todas las distribuciones son al menos así de
+        recientes. Una distribución que no ha terminado nunca bien no entra en
+        el mínimo; la dice el estado de la sincronización, no esta marca.
+
         Returns:
-            ``{"nvd": datetime | None, "kev": ..., "epss": ...}``.
+            ``{"nvd": datetime | None, "kev": ..., "epss": ..., "oval": ...}``.
         """
         return {
             "nvd":  self._session.query(func.max(CveEntry.last_modified)).scalar(),
             "kev":  self._session.query(func.max(KevEntry.date_added)).scalar(),
             "epss": self._session.query(func.max(EpssScore.scored_at)).scalar(),
+            "oval": (self._session.query(func.min(KbSyncStatus.last_success_at))
+                     .filter(KbSyncStatus.source.like("oval:%")).scalar()),
         }
 
     def record_sync(self, source: str, rows_upserted: Optional[int] = None,

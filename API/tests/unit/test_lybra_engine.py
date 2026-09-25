@@ -341,8 +341,8 @@ def test_two_states_of_the_knowledge_base_produce_different_marks():
         "epss": datetime(2026, 8, 30),
     })
 
-    assert antes == "lybra-kb:nvd=2026-08-29,kev=2026-08-27,epss=none"
-    assert despues == "lybra-kb:nvd=2026-08-30,kev=2026-08-27,epss=2026-08-30"
+    assert antes == "lybra-kb:nvd=2026-08-29,kev=2026-08-27,epss=none,oval=none"
+    assert despues == "lybra-kb:nvd=2026-08-30,kev=2026-08-27,epss=2026-08-30,oval=none"
     assert antes != despues
 
 
@@ -351,7 +351,26 @@ def test_a_source_with_no_data_says_so_instead_of_pretending():
     # otra cosa: es justo lo que esta marca existe para hacer visible.
     from src.modules.features.themis.lybra import kb_feed_version
 
-    assert kb_feed_version({}) == "lybra-kb:nvd=none,kev=none,epss=none"
+    assert kb_feed_version({}) == "lybra-kb:nvd=none,kev=none,epss=none,oval=none"
+
+
+def test_the_mark_reads_back_to_dates_per_source():
+    """El informe cita la marca del escaneo, no el estado de hoy de la base de
+    conocimiento, así que tiene que poder leerla de vuelta."""
+    from datetime import datetime
+
+    from src.modules.features.themis.lybra import kb_feed_version, parse_kb_feed_version
+
+    mark = kb_feed_version({"nvd": datetime(2026, 9, 24, 2, 16), "kev": None,
+                            "epss": datetime(2026, 9, 23), "oval": datetime(2026, 9, 24, 17, 23)})
+
+    assert len(mark) <= 128, "tiene que caber en Finding.feed_version y LybraScan.kb_version"
+    assert parse_kb_feed_version(mark) == {
+        "nvd": "2026-09-24", "kev": None, "epss": "2026-09-23", "oval": "2026-09-24"}
+    # Una marca de antes de OVAL simplemente no la trae.
+    assert "oval" not in parse_kb_feed_version("lybra-kb:nvd=2026-08-29,kev=none,epss=none")
+    assert parse_kb_feed_version(None) is None
+    assert parse_kb_feed_version("lybra-surface-1") is None
 
 
 def test_the_mark_fits_in_the_column_that_stores_it():

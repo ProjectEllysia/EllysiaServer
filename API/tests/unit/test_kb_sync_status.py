@@ -164,3 +164,26 @@ def test_a_broken_oval_distribution_costs_only_that_distribution(recorded, monke
     assert by_source["oval:ubuntu:24.04"]["error"] is None
     error = by_source["oval:ubuntu:20"]["error"]
     assert "ubuntu:20" in error and "no es una URL" in error, error
+
+
+def test_a_manual_sync_can_be_limited_to_one_source(recorded, monkeypatch):
+    """El panel sincroniza una fuente suelta; las demás no se tocan."""
+    import src.modules.system.config_reading as CR
+
+    monkeypatch.setattr(
+        CR, "knowledge_base_config",
+        lambda: type("C", (), {
+            "sources": {"kev": "u1", "epss": "u2", "nvd": "u3",
+                        "oval": {"debian:12": "https://example.test/bookworm.xml.bz2"}},
+            "nvd_window_days": 8, "nvd_api_key": None,
+        })(),
+    )
+    monkeypatch.setattr(KbSyncManager, "sync_kev", lambda self, url: 1)
+    monkeypatch.setattr(KbSyncManager, "sync_epss", lambda self, url: 2)
+    monkeypatch.setattr(KbSyncManager, "sync_nvd", lambda self, url, **kw: 3)
+    monkeypatch.setattr(KbSyncManager, "sync_oval", lambda self, key, url: 4)
+    monkeypatch.setattr(KbSyncManager, "rebuild_cpe_product_index", lambda self: 5)
+
+    assert KbSyncManager().sync_all(only="kev") == {"kev": 1}
+    assert KbSyncManager().sync_all(only="oval") == {"oval:debian:12": 4}
+    assert KbSyncManager().sync_all(only="nvd") == {"nvd": 3, "cpeProductAliases": 5}

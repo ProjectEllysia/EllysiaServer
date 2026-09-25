@@ -672,7 +672,8 @@ llama desde `run.py::_configure_scheduling()` (ejemplo: `IrisManager.reconcile_o
 - generación con IA (`aegis.generate`, `iris.ai_summary`);
 - envío de correo (`aegis.campaign`, `iris.notify`, `hygeia.notify`);
 - ingesta de buzones (`iris.ingest`);
-- traceroute (`themis.traceroute`).
+- traceroute (`themis.traceroute`);
+- sincronización manual de la base de conocimiento (`themis.kbsync`).
 
 Todo lo que dependa de la red, de un binario externo o de un LLM, o que pueda tardar más de un par
 de segundos.

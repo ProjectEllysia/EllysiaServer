@@ -50,6 +50,7 @@ def test_a_backported_package_is_marked_fixed():
         [_finding()], _says("fixed", "2.4.49-1~deb11u1"))
 
     assert findings[0]["state"] == "fixed"
+    assert findings[0]["fixed_reason"] == "backport", "no es una remediación del cliente"
     assert findings[0]["confirmed"] is False
     assert findings[0]["check_id"] == BACKPORT_CHECK_ID
 
