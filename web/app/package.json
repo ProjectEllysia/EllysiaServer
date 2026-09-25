@@ -21,7 +21,7 @@
     "test:launch": "node test/launchState.test.mjs",
     "test:fonts": "node test/selfHostedFonts.test.mjs",
     "test:config": "node test/configFlatten.test.mjs",
-    "test:i18n": "node test/i18n.format.test.mjs"
+    "test:i18n": "node test/i18n.format.test.mjs && node test/i18n.apiErrors.test.mjs"
   },
   "dependencies": {
     "@projectellysia/acheron-core-js": "2.4.0",

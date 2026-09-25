@@ -1,5 +1,37 @@
 {
   "language": {
     "name": "Español"
+  },
+  "apiErrors": {
+    "databaseConnection": "No se pudo conectar a la base de datos.",
+    "entityNotFound": {
+      "anomaly": "Anomalía no encontrada.",
+      "asset": "Activo no encontrado.",
+      "authorizedTarget": "Objetivo autorizado no encontrado.",
+      "campaign": "Campaña no encontrada.",
+      "distributionList": "Lista de distribución no encontrada.",
+      "document": "Documento no encontrado.",
+      "finding": "Hallazgo no encontrado.",
+      "folder": "Carpeta no encontrada.",
+      "irisAnalysis": "Análisis no encontrado.",
+      "irisBatch": "Lote no encontrado.",
+      "irisCase": "Caso no encontrado.",
+      "irisMailboxConnection": "Conexión de buzón no encontrada.",
+      "irisSavedView": "Vista guardada no encontrada.",
+      "irisTrustedSender": "Excepción de confianza no encontrada.",
+      "organization": "Organizacion no encontrada.",
+      "plan": "Plan no encontrado.",
+      "programedScan": "Escaneo programado no encontrado.",
+      "report": "Reporte no encontrado.",
+      "scan": "Escaneo no encontrado.",
+      "storable": "Storable no encontrado.",
+      "subscription": "Suscripcion no encontrada.",
+      "tag": "Etiqueta no encontrada.",
+      "user": "Usuario no encontrado.",
+      "vault": "Vault no encontrado."
+    },
+    "missingJsonBody": "El cuerpo de la petición debe ser JSON válido.",
+    "missingParameter": "El parámetro '{parameter}' es obligatorio.",
+    "surfaceDisabled": "Esta función todavía no está disponible."
   }
 }

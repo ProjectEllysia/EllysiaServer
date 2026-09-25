@@ -333,6 +333,7 @@ def _register_error_handlers(app: Flask) -> None:
         return jsonify({
             "error": "missing_parameter",
             "error_description": str(error),
+            **error.to_message_reference(),
         }), 400
 
     @app.errorhandler(MissingJsonBodyError)
@@ -341,6 +342,7 @@ def _register_error_handlers(app: Flask) -> None:
         return jsonify({
             "error": "invalid_json",
             "error_description": str(error),
+            **error.to_message_reference(),
         }), 400
 
     @app.errorhandler(500)

@@ -117,11 +117,41 @@ class EllysiaException(Exception):
         severity: Optional[ErrorSeverity] = None,
         status_code: Optional[int] = None,
         user_message: Optional[str] = None,
+        message_key: Optional[str] = None,
+        params: Optional[Dict[str, Any]] = None,
     ):
+        """Construye la excepción.
+
+        Args:
+            message: Mensaje técnico, para el log; no llega al usuario.
+            code: Código estable del error. Por defecto, ``default_code`` de la
+                clase.
+            details: Contexto de diagnóstico. Solo viaja al cliente si la clase
+                declara ``expose_details`` o en modo depuración.
+            original_exception: Excepción que provocó esta, si la hay.
+            severity: Gravedad para el log. Por defecto, ``default_severity``.
+            status_code: Código HTTP de la respuesta. Por defecto,
+                ``default_status_code``.
+            user_message: Texto para el usuario, en el idioma por defecto de la
+                plataforma. Por defecto, uno genérico según ``code``.
+            message_key: Identificador estable de la plantilla de
+                ``user_message`` (``"missingParameter"``,
+                ``"entityNotFound.scan"``…), con la que la interfaz lo traduce
+                a su idioma. Solo se declara cuando ``user_message`` sale
+                entero de esa plantilla y de ``params``; un texto libre no lo
+                lleva, y la interfaz enseña entonces ``user_message`` tal cual.
+                Por defecto, ninguno.
+            params: Valores que rellenan los huecos de la plantilla de
+                ``message_key`` (``{"parameter": "port"}``). Viajan siempre al
+                cliente junto a la clave, así que no deben llevar nada interno.
+                Por defecto, ninguno.
+        """
         super().__init__(message)
         self.message = message
         self.code = code or self.default_code
         self.details = details or {}
+        self.message_key = message_key
+        self.params = params or {}
         self.original_exception = original_exception
         self.severity = severity or self.default_severity
         self.status_code = status_code or self.default_status_code
@@ -158,6 +188,8 @@ class EllysiaException(Exception):
         if self.details:
             result["details"] = self.details
 
+        result.update(self.to_message_reference())
+
         if include_traceback:
             result["technical_message"] = self.message
             result["traceback"] = self.traceback
@@ -165,6 +197,25 @@ class EllysiaException(Exception):
                 result["original_error"] = str(self.original_exception)
 
         return result
+
+    def to_message_reference(self) -> Dict[str, Any]:
+        """Devuelve la parte de la respuesta con la que la interfaz traduce el error.
+
+        El servidor contesta siempre con ``user_message`` en el idioma por
+        defecto de la plataforma. Para que la interfaz pueda enseñarlo en el
+        idioma del usuario sin que el servidor sepa cuál es, el error viaja
+        además identificado: qué plantilla de mensaje es y con qué valores se
+        rellena. La interfaz busca la plantilla en su diccionario y, si no la
+        tiene, enseña ``user_message``.
+
+        Returns:
+            Dict[str, Any]: ``{"messageKey": ..., "params": {...}}`` si el
+                error declara ``message_key``; un diccionario vacío si su
+                mensaje es texto libre y no se puede traducir por plantilla.
+        """
+        if not self.message_key:
+            return {}
+        return {"messageKey": self.message_key, "params": dict(self.params)}
 
     def __str__(self) -> str:
         return f"[{self.code.name}] {self.message}"
@@ -213,10 +264,13 @@ class SurfaceDisabledError(EllysiaException):
                 por ejemplo, para conservar un código heredado).
         """
         self.surface = str(surface)
+        # Un texto a medida no sale de la plantilla genérica: sin clave, la
+        # interfaz lo enseña tal cual en vez de sustituirlo por el genérico.
         super().__init__(
             message=f"La superficie '{self.surface}' está cerrada al público",
             details={"surface": self.surface},
             user_message=user_message or "Esta función todavía no está disponible.",
+            message_key=None if user_message else "surfaceDisabled",
             **kwargs,
         )
 
@@ -305,7 +359,9 @@ class MissingParameterError(ValidationError):
         super().__init__(
             message=f"Parámetro requerido '{parameter}' no proporcionado",
             field=parameter,
-            user_message=f"El parámetro '{parameter}' es obligatorio."
+            user_message=f"El parámetro '{parameter}' es obligatorio.",
+            message_key="missingParameter",
+            params={"parameter": str(parameter)},
         )
 
 
@@ -317,7 +373,8 @@ class MissingJsonBodyError(EllysiaException):
     def __init__(self, message: str = "Request body must be JSON"):
         super().__init__(
             message=message,
-            user_message="El cuerpo de la petición debe ser JSON válido."
+            user_message="El cuerpo de la petición debe ser JSON válido.",
+            message_key="missingJsonBody",
         )
 
 
@@ -325,6 +382,28 @@ class DatabaseError(EllysiaException):
     default_code = ErrorCode.DATABASE_ERROR
     default_status_code = 500
     default_severity = ErrorSeverity.HIGH
+
+
+def _derive_entity_key(class_name: str) -> str:
+    """Deduce la clave estable de una entidad a partir del nombre de su excepción.
+
+    Es la parte variable de la clave de mensaje ``entityNotFound.<entidad>``
+    con la que la interfaz traduce el «no encontrado». Se deduce del nombre de
+    la clase para que dar de alta una excepción nueva no obligue a declarar
+    nada más; el test de ``test_shared_error_messages.py`` avisa si la clave
+    resultante no tiene texto en el diccionario de la interfaz.
+
+    Args:
+        class_name: Nombre de la clase de la excepción, acabado en
+            ``NotFoundError`` (``"IrisCaseNotFoundError"``).
+
+    Returns:
+        str: El nombre sin el sufijo y con la inicial en minúscula
+            (``"irisCase"``). La base, ``EntityNotFoundError``, da
+            ``"entity"``.
+    """
+    entity_name = class_name.removesuffix("NotFoundError")
+    return entity_name[:1].lower() + entity_name[1:]
 
 
 class EntityNotFoundError(EllysiaException):
@@ -381,6 +460,7 @@ class EntityNotFoundError(EllysiaException):
             message=message,
             details=details,
             user_message=f"{self.entity_label} no {not_found}.",
+            message_key=f"entityNotFound.{_derive_entity_key(type(self).__name__)}",
         )
 
 
@@ -406,7 +486,8 @@ class DatabaseConnectionError(DatabaseError):
         super().__init__(
             message=f"Error de conexión a base de datos: {message}",
             details=details,
-            user_message="No se pudo conectar a la base de datos."
+            user_message="No se pudo conectar a la base de datos.",
+            message_key="databaseConnection",
         )
 
 
@@ -613,6 +694,8 @@ def create_error_response(
     # del contrato con el cliente, no diagnóstico: viaja siempre.
     if exception.expose_details and exception.details:
         response["details"] = exception.details
+
+    response.update(exception.to_message_reference())
 
     if include_debug_info:
         response["technical_message"] = exception.message

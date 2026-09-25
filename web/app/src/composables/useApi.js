@@ -1,6 +1,8 @@
 import { useAuthStore } from '@/stores/authStore'
 import { setRateLimited } from '@/composables/rateLimitState'
 import { formatDate } from '@/i18n/format'
+import { i18n } from '@/i18n'
+import { translateApiError } from '@/i18n/apiErrors'
 
 /**
  * Extrae un mensaje de error legible de una respuesta fallida (D3/B11).
@@ -27,6 +29,11 @@ export async function apiError(res, fallback) {
   // forma de saber QUÉ estaba mal.
   const validation = validationMessage(data)
   if (validation) return validation
+
+  // Un error con plantilla (`messageKey`) se enseña en el idioma de la
+  // interfaz; uno sin ella, con el texto del servidor.
+  const translated = translateApiError(data, i18n.global)
+  if (translated) return translated
 
   const serverMsg = data.error_description || data.message || data.error
   if (res.status === 403 && (data.error === 'forbidden' || data.error_description === 'Insufficient permissions')) {
