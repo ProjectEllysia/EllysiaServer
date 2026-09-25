@@ -2,6 +2,8 @@ from marshmallow import Schema, fields, validate, validates_schema, ValidationEr
 
 from src.modules.shared import UTCDateTime
 
+from .services.language import SUPPORTED_LANGUAGES
+
 
 class TokenRequestSchema(Schema):
     grantType = fields.String(required=True, validate=validate.OneOf(["password", "refresh_token"]))
@@ -103,6 +105,14 @@ class UpdateProfileRequestSchema(Schema):
     last_name = fields.String(required=True)
 
 
+class UpdateLanguageRequestSchema(Schema):
+    """Idioma que elige el usuario. ``null`` = seguir el de su organización."""
+
+    language = fields.String(
+        required=True, allow_none=True, validate=validate.OneOf(SUPPORTED_LANGUAGES),
+    )
+
+
 class UserProfileSchema(Schema):
     id = fields.Integer()
     username = fields.String()
@@ -114,6 +124,11 @@ class UserProfileSchema(Schema):
     password_changed_at = UTCDateTime(allow_none=True)
     emailVerified = fields.Boolean()
     mustChangePassword = fields.Boolean()
+    # Lo que eligió el usuario (``null`` si no eligió) y el idioma que resulta
+    # de aplicar la regla de escalones: la interfaz se pone en el segundo y
+    # usa el primero para marcar qué opción del selector está elegida.
+    language = fields.String(allow_none=True)
+    effectiveLanguage = fields.String()
 
 
 class UserListItemSchema(Schema):

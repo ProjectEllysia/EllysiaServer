@@ -49,6 +49,7 @@ from .schemas import (
     SubscriptionSchema,
     EffectivePlanResponseSchema,
     OrganizationCreateRequestSchema,
+    OrganizationLanguageRequestSchema,
     MyOrganizationResponseSchema,
     OrganizationMemberListSchema,
     InvitationAcceptRequestSchema,
@@ -154,6 +155,23 @@ def get_my_organization():
 def rename_organization(data, organization_id: int):
     """Cambiar el nombre visible de la organizacion"""
     return OrganizationManager().rename(organization_id, get_current_user().id, data["name"])
+
+
+@organizations_blp.put("/<int:organization_id>/language")
+@organizations_blp.arguments(OrganizationLanguageRequestSchema)
+@organizations_blp.response(200, OrganizationSchema, description="Default language updated")
+@organizations_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@organizations_blp.alt_response(404, schema=ErrorSchema, description="Not found or not yours")
+@organizations_blp.alt_response(422, schema=ErrorSchema, description="Unsupported language")
+@limiter.limit("20 per hour")
+@require_oauth_token
+@require_organization_owner
+@handle_exceptions(default_exception=AccountsError, logger=logger)
+def set_organization_language(data, organization_id: int):
+    """Fijar el idioma de los miembros que no eligen uno (null = el de la plataforma)"""
+    return OrganizationManager().set_default_language(
+        organization_id, get_current_user().id, data["defaultLanguage"],
+    )
 
 
 @organizations_blp.get("/<int:organization_id>/members")

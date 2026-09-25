@@ -123,6 +123,30 @@ class OrganizationManager:
             uow.session.flush()
             return organization.to_dict()
 
+    def set_default_language(
+        self, organization_id: int, user_id: int, language: Optional[str],
+    ) -> dict:
+        """Fija el idioma que siguen los miembros que no han elegido uno.
+
+        Args:
+            organization_id: Organización a cambiar.
+            user_id: Quien lo pide; tiene que ser el dueño.
+            language: Uno de ``SUPPORTED_LANGUAGES`` (lo valida el schema del
+                endpoint), o ``None`` para volver al idioma de la plataforma.
+
+        Returns:
+            dict: La organización ya actualizada, como ``Organization.to_dict``.
+
+        Raises:
+            OrganizationNotFoundError: Si no existe o el usuario no es su dueño.
+        """
+        get_owned_organization(user_id, organization_id)
+        with UnitOfWork() as uow:
+            organization = OrganizationRepository(uow).get_by_id(organization_id)
+            organization.default_language = language
+            organization.updated_at = utcnow_naive()
+            return organization.to_dict()
+
     # -------------------------------------------------------------- consulta
 
     def get_mine(self, user_id: int) -> Optional[dict]:
