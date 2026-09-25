@@ -1032,7 +1032,7 @@ function fmtDate(iso) {
 .chapter-action {
   display: inline-flex; align-items: center; gap: 0.35rem; flex: none;
   font-family: var(--font-epic); font-size-adjust: var(--fsa-epic);
-  font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase;
+  font-size: var(--fs-sm); font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
   color: var(--text-dim); transition: color 0.2s ease;
 }
 .chapter-toggle:hover .chapter-action, .chapter-toggle.open .chapter-action { color: var(--accent); }
