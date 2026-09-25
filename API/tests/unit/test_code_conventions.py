@@ -562,8 +562,6 @@ KNOWN_VIOLATIONS: dict[tuple[str, str, str], str] = {
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/themis/services/reports/findings.py", "FindingsPrintingStrategy._append_grouped_findings"):
         _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/themis/services/reports/findings.py", "FindingsPrintingStrategy._knowledge_base_line"):
-        _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/themis/services/reports/findings.py", "FindingsPrintingStrategy._outline_key"):
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/themis/services/reports/findings.py", "FindingsPrintingStrategy._sorted_findings"):

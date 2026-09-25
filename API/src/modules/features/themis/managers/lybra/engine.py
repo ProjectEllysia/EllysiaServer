@@ -823,12 +823,16 @@ class LybraEngineManager(ScanManager):
                         scan_repo, source_host_id, services, probed_service_keys,
                     )
 
+                # La marca se calcula una vez y se guarda también en el escaneo:
+                # es lo que el informe cita como «Base de conocimiento», y tiene
+                # que ser la de este momento, no la del día en que se genere.
+                kb_version = kb_feed_version(kb_repo.knowledge_state())
                 engine = LybraEngine(
                     cve_lookup=kb_repo.cves_for_cpe,
                     kev_lookup=lambda cve_id: kb_repo.get_kev(cve_id) is not None,
                     epss_lookup=lambda cve_id: getattr(kb_repo.get_epss(cve_id), "score", None),
                     product_alias_lookup=kb_repo.resolve_product_alias,
-                    feed_version=kb_feed_version(kb_repo.knowledge_state()),
+                    feed_version=kb_version,
                     # Qué nombres de producto no logramos identificar. El
                     # motor los cuenta, no los escribe — el paquete `lybra/` es
                     # libre de ORM y lo sigue siendo porque esto entra
@@ -959,6 +963,7 @@ class LybraEngineManager(ScanManager):
                 scan = scan_repo.get_by_id(scan_id)
                 scan.host_id = source_host_id
                 scan.is_partial = is_partial  # type: ignore
+                scan.kb_version = kb_version  # type: ignore
                 self._persist_scan_results(uow, scan, findings_data)
                 scan.status = ScanStatus.FINISHED.value  # type: ignore
                 scan.finished_at = utcnow_naive()  # type: ignore

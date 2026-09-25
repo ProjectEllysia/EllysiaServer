@@ -15,6 +15,7 @@ todo el que importe cualquier otra herramienta. Quien imprime, importa
 """
 
 from enum import Enum
+from xml.sax.saxutils import escape
 from typing import Dict, Mapping, Optional
 
 from reportlab.lib import colors
@@ -107,6 +108,9 @@ class ReportTheme:
         cell_header: Igual que ``cell_left``, centrada, en negrita y en blanco
             —va sobre el fondo de color de la fila de cabecera.
         kv_table_style: Estilo de las tablas de dos columnas clave-valor.
+        kv_key / kv_value: Texto de la columna de claves (negrita, color
+            principal) y de la de valores (negro) de esas tablas, a 9 puntos,
+            para que un texto largo salte de línea en vez de desbordar.
     """
 
     def __init__(self, base_styles, palette: Mapping[ColorType, str]) -> None:
@@ -238,6 +242,22 @@ class ReportTheme:
             fontName="Helvetica-Bold",
         )
 
+        self.kv_key = ParagraphStyle(
+            "KvKey",
+            parent=base_styles["Normal"],
+            fontName="Helvetica-Bold",
+            fontSize=9,
+            leading=11,
+            textColor=main,
+        )
+
+        self.kv_value = ParagraphStyle(
+            "KvValue",
+            parent=self.kv_key,
+            fontName="Helvetica",
+            textColor=black,
+        )
+
         self.kv_table_style = TableStyle([
             ("BACKGROUND", (0, 0), (0, -1), white),
             ("TEXTCOLOR", (0, 0), (0, -1), main),
@@ -254,13 +274,26 @@ class ReportTheme:
     def kv_table(self, data, col_widths) -> Table:
         """Compone una tabla de dos columnas clave-valor.
 
+        Cada texto va en un párrafo, no como cadena suelta: una cadena en una
+        celda de ReportLab no salta de línea, y un valor largo (la fila «Base
+        de conocimiento» de un informe) o una etiqueta larga se salen de su
+        columna y pisan la de al lado. Las cadenas se escapan, así que se
+        pintan tal cual, sin interpretar marcado.
+
         Args:
-            data: Filas de la tabla, cada una ``[clave, valor]``.
+            data: Filas de la tabla, cada una ``[clave, valor]``. Una celda que
+                no sea una cadena (un ``Paragraph`` ya hecho) se deja como
+                está.
             col_widths: Anchos de las dos columnas, en unidades de ReportLab.
 
         Returns:
             Table: La tabla con el estilo clave-valor ya aplicado.
         """
+        data = [
+            [Paragraph(escape(cell), style) if isinstance(cell, str) else cell
+             for cell, style in zip(row, (self.kv_key, self.kv_value))]
+            for row in data
+        ]
         table = Table(data, colWidths=col_widths)
         table.setStyle(self.kv_table_style)
         return table

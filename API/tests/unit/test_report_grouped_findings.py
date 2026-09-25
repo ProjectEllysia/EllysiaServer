@@ -287,8 +287,8 @@ def test_the_report_body_keeps_fixed_findings_out_of_the_cards_and_the_counts(mo
                         lambda _cls: SimpleNamespace(get_findings_by_scan=lambda _scan_id: rows))
     monkeypatch.setattr(LybraEngineManager, "exposure_for", staticmethod(lambda _scan: "public"))
     monkeypatch.setattr(report_module, "enrich_with_cve_context", lambda _findings: None)
-    monkeypatch.setattr(report_module.FindingsPrintingStrategy, "_knowledge_base_line",
-                        staticmethod(lambda: "NVD 2026-09-24"))
+    monkeypatch.setattr(report_module, "_knowledge_base_line", lambda _scan: "NVD 2026-09-24")
+    monkeypatch.setattr(report_module, "_failing_sources_line", lambda: None)
 
     from src.modules.features.themis.services.reports.lybra import LybraPrintingStrategy
     strategy = LybraPrintingStrategy.__new__(LybraPrintingStrategy)
@@ -302,7 +302,8 @@ def test_the_report_body_keeps_fixed_findings_out_of_the_cards_and_the_counts(mo
         if hasattr(element, "getPlainText"):
             texts.append(element.getPlainText())
         for cells in getattr(element, "_cellvalues", []):
-            texts.append(" ".join(str(cell) for cell in cells))
+            texts.append(" ".join(cell.getPlainText() if hasattr(cell, "getPlainText") else str(cell)
+                                  for cell in cells))
     joined = "\n".join(texts)
     assert "Total de hallazgos: 1" in joined
     assert "Corregidos desde el escaneo anterior: 1" in joined
@@ -339,3 +340,60 @@ def test_the_report_warns_when_the_ip_hosts_other_webs():
     assert "aloja varias webs" in warning
     assert "escanéala por su nombre" in warning
     assert _default_site_warning([{"vhost": "web.ejemplo.test"}, {}]) is None
+
+
+# ────────────────────── la fila «Base de conocimiento»
+
+
+def test_the_knowledge_base_line_is_the_one_the_scan_used():
+    """La fila sale de la marca que guardó el escaneo, no del estado de hoy:
+    regenerar el informe después de una sincronización no la cambia."""
+    from datetime import datetime
+    from types import SimpleNamespace
+    from src.modules.features.themis.services.reports.findings import _knowledge_base_line
+
+    scan = SimpleNamespace(
+        kb_version="lybra-kb:nvd=2026-09-24,kev=2026-09-10,epss=2026-09-23,oval=none",
+        started_at=datetime(2026, 9, 24, 18, 10))
+
+    line = _knowledge_base_line(scan)
+
+    assert line == ("NVD 2026-09-24 · KEV 2026-09-10 (desactualizada) · EPSS 2026-09-23 · "
+                    "OVAL sin datos")
+
+
+def test_a_scan_without_a_mark_says_so():
+    from types import SimpleNamespace
+    from src.modules.features.themis.services.reports.findings import _knowledge_base_line
+
+    assert _knowledge_base_line(SimpleNamespace(kb_version=None, started_at=None)).startswith("No consta")
+
+
+def test_the_failing_sources_row_says_which_and_why(monkeypatch):
+    from src.modules.features.themis.managers import kb_sync
+    from src.modules.features.themis.services.reports.findings import _failing_sources_line
+
+    monkeypatch.setattr(kb_sync.KbSyncManager, "status", lambda self: {"sources": [
+        {"source": "nvd", "error": None, "lastSuccessAt": "2026-09-25T03:07:26Z"},
+        {"source": "oval:ubuntu:22.04", "error": "ValueError: no es una URL", "lastSuccessAt": None},
+        {"source": "kev", "error": "HTTPError: 503", "lastSuccessAt": "2026-09-20T03:00:01Z"},
+    ]})
+
+    assert _failing_sources_line() == (
+        "oval:ubuntu:22.04 (no ha terminado bien nunca): ValueError: no es una URL; "
+        "kev (sin éxito desde 2026-09-20): HTTPError: 503")
+
+
+def test_key_value_cells_wrap_instead_of_overflowing():
+    """Una cadena suelta en una celda de ReportLab no salta de línea: se sale
+    de la columna. Como párrafo, sí salta; y se escapa, porque es texto y no
+    marcado."""
+    from reportlab.platypus import Paragraph
+
+    table = _theme().kv_table([["Corregidos desde el escaneo anterior:", "<3 & 4>"]], [72, 144])
+    key, value = table._cellvalues[0]
+
+    assert isinstance(key, Paragraph) and isinstance(value, Paragraph)
+    assert value.getPlainText() == "<3 & 4>"
+    _, height = table.wrap(216, 1000)
+    assert height > 20, "la etiqueta larga ocupa dos líneas en su columna"

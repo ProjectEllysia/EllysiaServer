@@ -1294,13 +1294,22 @@ class KbRepository(BaseRepository[CveEntry]):
         no rows, or whose rows carry no date, reports ``None``, which is
         information too and must not be dressed up as a date.
 
+        OVAL es la excepción: sus filas no llevan fecha propia, así que lo más
+        honesto que se puede decir es cuándo se descargó por última vez con
+        éxito. Y como se sincroniza por distribución, se toma la **más
+        antigua** de esas fechas: todas las distribuciones son al menos así de
+        recientes. Una distribución que no ha terminado nunca bien no entra en
+        el mínimo; la dice el estado de la sincronización, no esta marca.
+
         Returns:
-            ``{"nvd": datetime | None, "kev": ..., "epss": ...}``.
+            ``{"nvd": datetime | None, "kev": ..., "epss": ..., "oval": ...}``.
         """
         return {
             "nvd":  self._session.query(func.max(CveEntry.last_modified)).scalar(),
             "kev":  self._session.query(func.max(KevEntry.date_added)).scalar(),
             "epss": self._session.query(func.max(EpssScore.scored_at)).scalar(),
+            "oval": (self._session.query(func.min(KbSyncStatus.last_success_at))
+                     .filter(KbSyncStatus.source.like("oval:%")).scalar()),
         }
 
     def record_sync(self, source: str, rows_upserted: Optional[int] = None,
