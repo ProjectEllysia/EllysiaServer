@@ -7,7 +7,7 @@ PHISHING desde el último resumen. Ninguno alcanzaba el umbral de alta
 confianza que dispara un aviso inmediato, así que se han agrupado aquí.
 
 {% for analysis in analyses %}
-- Asunto:     {{ analysis.subject }}
+- Asunto:     {{ analysis.subject or "Correo sin asunto" }}
   Análisis:   #{{ analysis.analysis_id }}
   {% if analysis.score is defined and analysis.score is not none %}Puntuación:  {{ analysis.score }}{% endif %}
 

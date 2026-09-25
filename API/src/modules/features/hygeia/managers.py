@@ -3155,6 +3155,7 @@ class HygeiaNotifyManager:
         registrada y visible en ``GET /hygeia/alerts`` con independencia de
         si el correo llegó o no.
         """
+        from src.modules.users import resolve_effective_language
         from src.modules.users.managers import UserManager
 
         anomaly_repo = build_repository(AnomalyRepository)
@@ -3174,8 +3175,9 @@ class HygeiaNotifyManager:
             logger.error(f"Usuario {asset.user_id} no encontrado para notificar anomalía {anomaly_id}")
             return
 
-        html_body, text_body = render_email(
+        rendered = render_email(
             "anomaly",
+            language=resolve_effective_language(user),
             hostname=asset.hostname,
             kind=anomaly.kind,
             metric=anomaly.metric,
@@ -3186,9 +3188,9 @@ class HygeiaNotifyManager:
         message = EmailMessage(
             to=user.email,
             to_name=user.first_name,
-            subject=f"[Hygeia] Anomalía crítica en {asset.hostname}",
-            html_body=html_body,
-            text_body=text_body,
+            subject=rendered.subject,
+            html_body=rendered.html,
+            text_body=rendered.text,
         )
         try:
             build_mailer("hygeia").send(message)

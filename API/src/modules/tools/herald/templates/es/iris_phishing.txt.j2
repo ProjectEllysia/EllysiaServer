@@ -1,12 +1,12 @@
 {% if recipient_name %}Hola {{ recipient_name }},{% else %}Hola,{% endif %}
 
-TEN CUIDADO CON EL CORREO: {{ subject }}
+TEN CUIDADO CON EL CORREO: {{ subject or "Correo sin asunto" }}
 
 Iris ha analizado automáticamente un correo de tu buzón conectado y lo ha
 clasificado como PHISHING: hay una alta probabilidad de que intente engañarte
 para que reveles datos, pulses un enlace malicioso o abras un adjunto dañino.
 
-Asunto:     {{ subject }}
+Asunto:     {{ subject or "Correo sin asunto" }}
 Análisis:   #{{ analysis_id }}
 {% if score is defined and score is not none %}Puntuación:  {{ score }}{% endif %}
 
