@@ -4,6 +4,7 @@ viven enteramente en ``Finding`` (Lybra y Nuclei).
 """
 
 import logging
+from datetime import date
 from typing import Dict, Optional
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_LEFT
@@ -15,6 +16,7 @@ import src.modules.system.config_reading as CR
 from src.modules.tools.press import ColorType, build_palette, safe_markup
 from ...lybra.correlation import DEFAULT_SITE_VHOST
 from ...lybra.grouping import build_service_rollup
+from ...lybra.kb import KB_MARK_SOURCES, parse_kb_feed_version
 from ..cve_context import enrich_with_cve_context
 from .base import PrintingStrategy
 from .outline import OutlineEntry
@@ -225,8 +227,11 @@ class FindingsPrintingStrategy(PrintingStrategy):
             ["Fecha de inicio:", started_str],
             ["Total de hallazgos:", str(len(findings))],
             ["Confirmados activamente:", str(confirmed_count)],
-            ["Base de conocimiento:", self._knowledge_base_line()],
+            ["Base de conocimiento:", _knowledge_base_line(scan)],
         ]
+        failing_sources = _failing_sources_line()
+        if failing_sources:
+            scan_info.append(["Fuentes que fallan hoy:", failing_sources])
         if getattr(scan, "is_partial", False):
             # Un escaneo parcial no puede leerse como uno limpio: lo que no se
             # llegó a comprobar no está ausente, es desconocido.
@@ -242,34 +247,6 @@ class FindingsPrintingStrategy(PrintingStrategy):
         info_table = theme.kv_table(scan_info, col_widths=[2 * inch, 4 * inch])
         elements.append(info_table)
         elements.append(Spacer(1, 0.3 * inch))
-
-    @staticmethod
-    def _knowledge_base_line() -> str:
-        """Contra qué catálogo se resolvieron estos hallazgos, y de cuándo es.
-
-        Un informe que dice "sincronizada el 29/08/2026" es honesto; uno que
-        calla hace una afirmación sin fecha, y la detección por versión —que es
-        la que produce la mayoría de los hallazgos con CVE— vale exactamente lo
-        que valga la frescura de ese espejo.
-
-        Si alguna fuente está vieja, el informe lo dice: es preferible a que el
-        lector suponga que el catálogo estaba al día. Best-effort — un fallo
-        consultando el estado no puede impedir que se emita el informe.
-        """
-        from src.modules.features.themis.managers.kb_sync import KbSyncManager
-
-        try:
-            status = KbSyncManager().status()
-        except Exception:  # noqa: BLE001
-            logger.exception("No se pudo leer el estado de la base de conocimiento")
-            return "No disponible"
-
-        parts = []
-        for entry in status["sources"]:
-            when = (entry["lastSuccessAt"] or "")[:10] or "nunca"
-            parts.append(f"{entry['source'].upper()} {when}"
-                         + (" (desactualizada)" if entry["isStale"] else ""))
-        return " · ".join(parts) if parts else "Sin fuentes configuradas"
 
     #: Cómo se lee cada nivel de ``Finding.exploit_maturity`` en el informe.
     #: ``none`` no aparece: decir "no consta exploit" en cada ficha sería ruido
@@ -785,6 +762,85 @@ def _append_fixed_section(theme: "ReportTheme", elements: list, fixed_findings: 
         suffix = f" ({safe_markup(where)})" if where else ""
         elements.append(Paragraph(f"• {safe_markup(finding['title'])}{suffix}", theme.body))
     elements.append(Spacer(1, 0.3 * inch))
+
+
+#: Cómo se llama cada fuente de la base de conocimiento en el informe.
+_KB_SOURCE_LABEL = {"nvd": "NVD", "kev": "KEV", "epss": "EPSS", "oval": "OVAL"}
+
+
+def _knowledge_base_line(scan) -> str:
+    """Contra qué fecha de cada fuente de la base de conocimiento se resolvió el escaneo.
+
+    Sale de la marca que el escaneo guardó al empezar (``LybraScan.kb_version``),
+    no del estado actual de la base de conocimiento: un informe regenerado días
+    después no puede afirmar que usó datos que todavía no existían, ni callar
+    los que sí usó. La detección por versión —la que produce la mayoría de los
+    hallazgos con CVE— vale exactamente lo que valga la frescura de ese espejo,
+    así que una fuente que ya pasaba de su antigüedad máxima cuando se escaneó
+    se marca como desactualizada.
+
+    Args:
+        scan: El escaneo del informe. Se lee su ``kb_version`` (ausente en
+            escáneres que no son Lybra) y su ``started_at``.
+
+    Returns:
+        str: ``"NVD 2026-09-24 · KEV 2026-09-22 · EPSS 2026-09-23 · OVAL
+            2026-09-24"``, con ``sin datos`` en una fuente vacía y
+            ``(desactualizada)`` en una que ya estaba vieja; o una frase que
+            dice que no consta, si el escaneo es anterior a que se guardara la
+            marca.
+    """
+    dates = parse_kb_feed_version(getattr(scan, "kb_version", None))
+    if dates is None:
+        return "No consta: el escaneo es anterior a que se registrara"
+    max_age = CR.knowledge_base_config().max_age_days
+    started = getattr(scan, "started_at", None)
+    parts = []
+    for source in KB_MARK_SOURCES:
+        if source not in dates:
+            continue
+        label = _KB_SOURCE_LABEL.get(source, source.upper())
+        day = dates[source]
+        if day is None:
+            parts.append(f"{label} sin datos")
+            continue
+        is_stale = (started is not None and max_age.get(source) is not None
+                    and (started.date() - date.fromisoformat(day)).days > max_age[source])
+        parts.append(f"{label} {day}" + (" (desactualizada)" if is_stale else ""))
+    return " · ".join(parts)
+
+
+def _failing_sources_line() -> Optional[str]:
+    """Qué fuentes de la base de conocimiento fallan al sincronizarse, y por qué.
+
+    Es el estado **de hoy**, no el del escaneo, y por eso va en una fila aparte
+    de «Base de conocimiento»: sirve para que quien lee el informe sepa que una
+    fuente lleva tiempo sin actualizarse y el motivo, que de otro modo sólo
+    queda en el registro del servidor. OVAL aparece por distribución, que es
+    como se sincroniza y como falla. Best-effort: un fallo leyendo el estado no
+    puede impedir que se emita el informe.
+
+    Returns:
+        Optional[str]: ``"oval:ubuntu:22.04 (sin éxito desde 2026-09-20):
+            <motivo>"``, una entrada por fuente separadas por ``;``; o ``None``
+            si ninguna falla o no se pudo consultar.
+    """
+    from src.modules.features.themis.managers.kb_sync import KbSyncManager
+
+    try:
+        status = KbSyncManager().status()
+    except Exception:  # noqa: BLE001
+        logger.exception("No se pudo leer el estado de la base de conocimiento")
+        return None
+    parts = []
+    for entry in status["sources"]:
+        if not entry["error"]:
+            continue
+        since = (entry["lastSuccessAt"] or "")[:10]
+        when = f"sin éxito desde {since}" if since else "no ha terminado bien nunca"
+        reason = entry["error"] if len(entry["error"]) <= 120 else entry["error"][:117] + "..."
+        parts.append(f"{entry['source']} ({when}): {reason}")
+    return "; ".join(parts) or None
 
 
 #: Cómo se explica en el informe cada motivo de ``Finding.fixed_reason``.

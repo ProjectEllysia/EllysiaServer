@@ -234,6 +234,37 @@ def version_compare(a: str, b: str) -> int:
     return 0
 
 
+#: Las fuentes de la marca de reproducibilidad, en el orden en que se escriben.
+KB_MARK_SOURCES = ("nvd", "kev", "epss", "oval")
+
+
+def parse_kb_feed_version(mark: Optional[str]) -> Optional[Dict[str, Optional[str]]]:
+    """Leer una marca de :func:`kb_feed_version` de vuelta a fechas por fuente.
+
+    Es la inversa que necesita quien quiere decir contra qué se resolvió un
+    escaneo sin volver a consultar la base de conocimiento, que para entonces
+    puede haber cambiado. Una marca de antes de que existiera una fuente
+    simplemente no la trae.
+
+    Args:
+        mark: La marca guardada, p. ej.
+            ``"lybra-kb:nvd=2026-08-29,kev=none,epss=2026-08-30,oval=2026-08-30"``,
+            o ``None``.
+
+    Returns:
+        Optional[Dict[str, Optional[str]]]: ``{fuente: "AAAA-MM-DD" | None}``,
+            con ``None`` donde la marca dice ``none`` (la fuente estaba vacía);
+            o ``None`` si no hay marca o no es de la base de conocimiento.
+    """
+    if not mark or not mark.startswith("lybra-kb:"):
+        return None
+    dates: Dict[str, Optional[str]] = {}
+    for part in mark[len("lybra-kb:"):].split(","):
+        source, _, value = part.partition("=")
+        dates[source] = None if value in ("", "none") else value
+    return dates
+
+
 def kb_feed_version(state: Dict[str, Optional[datetime]]) -> str:
     """Build the reproducibility mark for findings resolved against the KB.
 
@@ -247,7 +278,8 @@ def kb_feed_version(state: Dict[str, Optional[datetime]]) -> str:
     can mark something ``fixed`` that merely stopped matching because NVD
     rewrote a range.
 
-    The mark reads ``lybra-kb:nvd=2026-08-29,kev=2026-08-27,epss=2026-08-30``.
+    The mark reads
+    ``lybra-kb:nvd=2026-08-29,kev=2026-08-27,epss=2026-08-30,oval=2026-08-30``.
     Spelled out rather than hashed on purpose: the point is that someone
     reading a finding a year from now can tell what it was resolved against,
     and a hash only says "not the same as that other one" — it needs a lookup
@@ -256,14 +288,15 @@ def kb_feed_version(state: Dict[str, Optional[datetime]]) -> str:
     this mark exists to make visible.
 
     Args:
-        state: ``{"nvd": datetime | None, "kev": ..., "epss": ...}``, as
-            :meth:`KbRepository.knowledge_state` returns it.
+        state: ``{"nvd": datetime | None, "kev": ..., "epss": ...,
+            "oval": ...}``, as :meth:`KbRepository.knowledge_state` returns it.
 
     Returns:
-        The mark, e.g. ``"lybra-kb:nvd=2026-08-29,kev=none,epss=2026-08-30"``.
+        The mark, e.g.
+        ``"lybra-kb:nvd=2026-08-29,kev=none,epss=2026-08-30,oval=2026-08-30"``.
     """
     parts = []
-    for source in ("nvd", "kev", "epss"):
+    for source in KB_MARK_SOURCES:
         moment = state.get(source)
         parts.append(f"{source}={moment.date().isoformat() if moment else 'none'}")
     return "lybra-kb:" + ",".join(parts)

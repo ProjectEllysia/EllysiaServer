@@ -596,7 +596,11 @@ def test_a_scan_stamps_findings_with_the_state_of_the_knowledge_base(app, admin_
             findings = ScanRepository(uow).get_findings_by_scan(escan.id)
 
     vuln = next(f for f in findings if f.category == "outdated_software")
-    assert vuln.feed_version == "lybra-kb:nvd=2026-08-29,kev=2026-08-27,epss=2026-08-30"
+    assert vuln.feed_version == "lybra-kb:nvd=2026-08-29,kev=2026-08-27,epss=2026-08-30,oval=none"
+    # El escaneo guarda la misma marca: es la que cita su informe.
+    with app.app_context():
+        with UnitOfWork() as uow:
+            assert ScanRepository(uow).get_by_id(escan.id).kb_version == vuln.feed_version
     # Y la marca cabe entera en la columna, sin recortes silenciosos.
     assert len(vuln.feed_version) <= Finding.__table__.c.feed_version.type.length
 
