@@ -32,6 +32,7 @@ import ModuleHub from '@/components/shared/ModuleHub.vue'
 import { useApi } from '@/composables/useApi'
 import { useAuthStore } from '@/stores/authStore'
 import acheronIcon from '@/assets/images/acheron/Acheron-Purple-BgN.png'
+import { formatDate } from '@/i18n/format'
 
 const { apiFetch } = useApi()
 const auth = useAuthStore()
@@ -44,7 +45,7 @@ const itemCount = ref(0)
 const lastUpdated = ref(null)
 
 const lastUpdatedLabel = computed(() =>
-  lastUpdated.value ? new Date(lastUpdated.value).toLocaleDateString('es-ES') : ''
+  lastUpdated.value ? formatDate(lastUpdated.value) : ''
 )
 
 const features = [

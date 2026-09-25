@@ -1,5 +1,6 @@
 import { useAuthStore } from '@/stores/authStore'
 import { setRateLimited } from '@/composables/rateLimitState'
+import { formatDate } from '@/i18n/format'
 
 /**
  * Extrae un mensaje de error legible de una respuesta fallida (D3/B11).
@@ -308,7 +309,7 @@ export function useApi() {
       return 'Tu plan no incluye esta funcionalidad. Puedes verlo en Planes.'
     }
     if (detail.resetsAt) {
-      const when = new Date(detail.resetsAt).toLocaleDateString('es-ES', {
+      const when = formatDate(detail.resetsAt, {
         day: 'numeric', month: 'long',
       })
       return `Has alcanzado el límite de tu plan (${detail.used}/${detail.value}). Se renueva el ${when}.`

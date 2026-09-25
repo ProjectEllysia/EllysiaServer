@@ -247,6 +247,7 @@ import StarBackground from '@/components/shared/StarBackground.vue'
 import ConfirmModal from '@/components/shared/ConfirmModal.vue'
 import { useApi } from '@/composables/useApi'
 import { useToastStore } from '@/stores/toastStore'
+import { formatDate } from '@/i18n/format'
 
 const { apiFetch, apiError } = useApi()
 const toast = useToastStore()
@@ -295,7 +296,7 @@ function planName(planId) {
 }
 
 function shortDate(iso) {
-  return new Date(iso).toLocaleDateString('es-ES')
+  return formatDate(iso)
 }
 
 async function loadUsers() {

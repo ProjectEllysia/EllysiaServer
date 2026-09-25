@@ -1,3 +1,5 @@
+import { formatDate as formatLocalizedDate } from '../i18n/format.js'
+
 /**
  * Utilidades comunes reutilizables en stores y componentes Vue.
  *
@@ -18,7 +20,7 @@ export function useUtils() {
   function formatDate(iso) {
     if (!iso) return ''
     try {
-      return new Date(iso).toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit' })
+      return formatLocalizedDate(iso, { year: 'numeric', month: '2-digit', day: '2-digit' })
     } catch { return iso }
   }
 

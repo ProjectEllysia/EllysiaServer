@@ -126,6 +126,7 @@
 <script setup>
 import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import { analysisStatusLabel, verdictClass, verdictLabel } from '@/components/iris/verdict'
+import { formatDate as formatLocalizedDate } from '@/i18n/format'
 
 const props = defineProps({
   items: { type: Array, default: () => [] },
@@ -206,7 +207,7 @@ function onItemEnter(id, event) {
 
 function formatDate(iso) {
   if (!iso) return ''
-  try { return new Date(iso).toLocaleDateString('es-ES', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) }
+  try { return formatLocalizedDate(iso, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) }
   catch { return iso }
 }
 

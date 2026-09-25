@@ -75,6 +75,7 @@
 <script setup>
 import { ref, reactive, computed, watch } from 'vue'
 import { SCAN_TYPES } from '@/constants/scanTypes'
+import { formatDateTime } from '@/i18n/format'
 
 const props = defineProps({ scheduled: { type: Object, required: true }, scheduling: { type: Object, required: true }, activeTab: { type: String, required: true } })
 const emit = defineEmits(['create', 'deactivate', 'delete', 'toggleForm'])
@@ -102,7 +103,7 @@ function formatSchedule(type, config) {
   if (type === 'cron') return config.cron
   return '—'
 }
-function formatDate(iso) { if (!iso) return '—'; return new Date(iso).toLocaleString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) }
+function formatDate(iso) { if (!iso) return '—'; return formatDateTime(iso, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) }
 </script>
 
 <style scoped>

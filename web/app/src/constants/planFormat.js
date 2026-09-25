@@ -10,6 +10,8 @@
  * devuelve `GET /plans`. Mismo criterio que `components/hygeia/format.js`.
  */
 
+import { formatNumber } from '@/i18n/format'
+
 /**
  * Las claves que se enseñan, de las 15 que trae cada plan. El orden importa:
  * es el que se pinta.
@@ -50,7 +52,7 @@ export const SHORT_LABELS = {
 }
 
 export function euros(cents) {
-  return `${(cents / 100).toLocaleString('es-ES', { maximumFractionDigits: 0 })} €`
+  return `${formatNumber(cents / 100, { maximumFractionDigits: 0 })} €`
 }
 
 /** El límite del titular del plan (no el de sus miembros). */

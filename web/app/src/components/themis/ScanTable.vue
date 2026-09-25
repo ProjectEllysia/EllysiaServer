@@ -110,6 +110,7 @@ import { ref, computed, watch, onUnmounted } from 'vue'
 import StatusBadge from './StatusBadge.vue'
 import AppPagination from '@/components/shared/AppPagination.vue'
 import ConfirmModal from '@/components/shared/ConfirmModal.vue'
+import { formatDate as formatLocalizedDate } from '@/i18n/format'
 
 const props = defineProps({ type: { type: String, required: true }, rows: { type: Array, default: () => [] }, loading: { type: Boolean, default: false }, error: { type: String, default: null }, currentPage: { type: Number, default: 1 }, totalCount: { type: Number, default: 0 }, perPage: { type: Number, default: 10 }, selectedIds: { type: Array, default: () => [] } })
 const emit = defineEmits(['preview', 'cancel', 'delete', 'refresh', 'page-change', 'toggle-select', 'select-all'])
@@ -152,7 +153,7 @@ function runPendingAction() {
   if (pendingAction.value) emit(pendingAction.value.type, pendingAction.value.id)
   pendingAction.value = null
 }
-function formatDate(iso) { if (!iso) return '—'; return new Date(iso).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) }
+function formatDate(iso) { if (!iso) return '—'; return formatLocalizedDate(iso, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) }
 </script>
 
 <style scoped>

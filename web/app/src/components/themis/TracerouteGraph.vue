@@ -53,6 +53,7 @@
 </template>
 
 <script setup>
+import { formatDateTime } from '@/i18n/format'
 defineProps({
   hops: { type: Array, default: () => [] },
   loading: Boolean,
@@ -63,8 +64,7 @@ defineEmits(['refresh'])
 
 function fmt(iso) {
   if (!iso) return ''
-  const d = new Date(iso)
-  return d.toLocaleString()
+  return formatDateTime(iso)
 }
 </script>
 

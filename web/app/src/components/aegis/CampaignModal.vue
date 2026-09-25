@@ -101,6 +101,7 @@ import { computed, ref } from 'vue'
 import { useAegisStore } from '@/stores/aegisStore'
 import { useUtils } from '@/composables/useUtils'
 import { useModalA11y } from '@/composables/useModalA11y'
+import { formatDate } from '@/i18n/format'
 
 const props = defineProps({ doc: { type: Object, required: true } })
 const emit = defineEmits(['close'])
@@ -112,7 +113,7 @@ const boxRef = ref(null)
 
 function defaultCampaignName() {
   const title = props.doc?.subtitle || props.doc?.title || 'Píldora'
-  const today = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })
+  const today = formatDate(new Date(), { day: '2-digit', month: '2-digit' })
   return `${title} — ${today}`
 }
 

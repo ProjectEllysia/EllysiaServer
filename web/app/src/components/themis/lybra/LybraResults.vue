@@ -437,6 +437,7 @@ import LybraFindingsToolbar from './LybraFindingsToolbar.vue'
 import LybraFindingsSkeleton from './LybraFindingsSkeleton.vue'
 import { SITE_HINT, hasSeveralSites, siteLabel } from './findingSites'
 import { LADDER, arrangeGroups, defaultCriteria } from './findingsArrangement'
+import { formatDateTime } from '@/i18n/format'
 
 const props = defineProps({
   scans: { type: Array, default: () => [] },
@@ -931,7 +932,7 @@ function coverageGap(scan) {
 
 function fmtDate(iso) {
   if (!iso) return '—'
-  try { return new Date(iso).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) }
+  try { return formatDateTime(iso, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) }
   catch { return iso }
 }
 </script>
