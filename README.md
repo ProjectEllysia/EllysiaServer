@@ -58,9 +58,9 @@ The REST API (Flask) orchestrates asynchronous scans and analysis over **RQ + Re
    Web SPA ────►│  │               ┌────────────────────────────┐     │     │
   (Vue 3, Caddy)│  │               │ RQ Workers (isolated procs)│     │──►  Nmap / Nikto / Nuclei / Lybra
                 │  │               │   themis.scan/report/...   │     │──►  Ollama / OpenAI / Gemini
-   Android  ────►│  │               │   aegis.generate/campaign  │     │──►  NVD · CISA-KEV · FIRST-EPSS
+  Android  ────►│  │               │   aegis.generate/campaign  │     │──►  NVD · CISA-KEV · FIRST-EPSS
   (Kotlin)      │  │               │   iris.analyze/ingest/...  │     │──►  INCIBE-CERT (Aegis alerts)
-   Hygeia agent─►│  │               │   hygeia.notify/report     │     │──►  Gmail / Microsoft Graph
+  Hygeia agent─►│  │               │   hygeia.notify/report     │     │──►  Gmail / Microsoft Graph
                 │  │               └────────────────────────────┘     │     │──►  SMTP relay (herald)
                 │  │  tools: scribe (AI) · press (PDF) · herald (mail)│     │
                 │  └──────────────────────────────────────────────────┘     │
