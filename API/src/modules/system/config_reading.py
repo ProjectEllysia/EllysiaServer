@@ -825,8 +825,9 @@ class HeraldConfig(_StrategySelection):
     lo rellena ``herald.branding.DEFAULT_BRAND``."""
 
     templates_dir: str = ""
-    """Directorio externo con plantillas que pisan a las del paquete. Vacío
-    (lo normal) = solo se usan las de ``herald/templates/``."""
+    """Directorio externo con plantillas que pisan a las del paquete, con la
+    misma carpeta por idioma (``<dir>/es/campaign.html.j2``). Vacío (lo
+    normal) = solo se usan las de ``herald/templates/``."""
 
 
 def scribe_config() -> ScribeConfig: # type: ignore

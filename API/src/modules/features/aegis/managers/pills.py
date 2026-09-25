@@ -521,7 +521,7 @@ class AegisManager(TaskTrackingMixin):
 
         with UnitOfWork() as uow:
             repo = AegisDocumentRepository(uow)
-            repo.update_content_fields(
+            document = repo.update_content_fields(
                 doc_id=document_id,
                 subtitle=content.subtitle,
                 intro=content.intro,
@@ -529,6 +529,10 @@ class AegisManager(TaskTrackingMixin):
                 contact_email=contact_email,
                 company=content.company,
             )
+            if document is not None:
+                # Se guarda porque de él depende el idioma de los correos de
+                # las campañas que entreguen esta píldora.
+                document.language = content.language
             repo.save_tips(document_id, tips_data)
             repo.save_questions(document_id, questions_data)
             logger.info(

@@ -441,6 +441,12 @@ class CampaignManager(TaskTrackingMixin):
             )
             brand, brand_images = apply_white_label(default_brand(), white_label)
 
+            # Los destinatarios no son usuarios de Ellysia y no tienen perfil:
+            # el correo sale en el idioma de la píldora, que es el del
+            # contenido que entrega. Las píldoras que no lo guardan se
+            # generaron con el idioma del perfil de Aegis.
+            pill_language = (document.language if document else None) or (profile.language if profile else None)
+
             sent_count = 0
             was_cancelled = False
             for i, recipient in enumerate(recipients):
@@ -453,8 +459,9 @@ class CampaignManager(TaskTrackingMixin):
                 # (matcher @api del Caddyfile, vite.config.js) — el
                 # destinatario vería el JSON.
                 link = f"{base_url}/quiz?t={recipient.token}"
-                html_body, text_body = render_email(
+                rendered = render_email(
                     "campaign",
+                    language=pill_language,
                     brand=brand,
                     pill_title=pill_title,
                     link=link,
@@ -470,9 +477,9 @@ class CampaignManager(TaskTrackingMixin):
                 message = EmailMessage(
                     to=recipient.recipient_email,
                     to_name=recipient.recipient_name,
-                    subject=f"Formación de concienciación: {pill_title}",
-                    html_body=html_body,
-                    text_body=text_body,
+                    subject=rendered.subject,
+                    html_body=rendered.html,
+                    text_body=rendered.text,
                     inline_images=brand_images,
                 )
                 try:

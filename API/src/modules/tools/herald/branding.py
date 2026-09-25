@@ -11,7 +11,7 @@ Un módulo que ofrezca white-labeling guarda los ajustes donde le convenga y
 hace::
 
     brand, images = apply_white_label(default_brand(), white_label)
-    html, text = render_email("campaign", brand=brand, …)
+    rendered = render_email("campaign", language=…, brand=brand, …)
     mailer.send(EmailMessage(…, inline_images=images))
 
 herald no sabe de qué módulo salen los ajustes, igual que no sabe de qué

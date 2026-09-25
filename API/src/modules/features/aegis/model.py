@@ -194,6 +194,9 @@ class AegisDocument(Document):
         closing: Conclusion/call to action.
         contact_email: Contact email shown in the document.
         company: Target company for the document.
+        language: Código del idioma en que se generó la píldora (``"es"``,
+            ``"en"``…). Es el idioma de los correos de sus campañas. ``None``
+            en las píldoras aún pendientes.
         topic_id: Foreign key to Topic.id.
         topic: Topic relationship.
         tips: List of AegisTip objects (ordered by position).
@@ -221,6 +224,7 @@ class AegisDocument(Document):
     closing       = Column(Text,        nullable=True)
     contact_email = Column(String(128), nullable=True)
     company       = Column(String(128), nullable=True)
+    language      = Column(String(8),   nullable=True)
 
     # Relación con el tema
     topic_id      = Column(Integer, ForeignKey("Topic.id"), nullable=False)
