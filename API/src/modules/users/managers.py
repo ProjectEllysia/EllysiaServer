@@ -213,10 +213,10 @@ class UserManager:
         default_role = "role_user"
 
         if role is not None and role not in valid_roles:
-            raise PermissionsError(f"Invalid role: {role}. Valid roles: {valid_roles}")
+            raise PermissionsError(f"El rol {role} no existe. Roles válidos: {', '.join(sorted(valid_roles))}.")
 
         if role and not actor_id:
-            raise PermissionsError("actor_id required when specifying a role")
+            raise PermissionsError("Para asignar un rol hay que indicar quién lo asigna.")
 
         if role == "role_admin" and actor_id:
             if not self.can_create_admin(actor_id):

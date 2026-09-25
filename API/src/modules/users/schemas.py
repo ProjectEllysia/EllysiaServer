@@ -13,12 +13,12 @@ class TokenRequestSchema(Schema):
     def validate_grant_fields(self, data, **kwargs):
         if data["grantType"] == "password":
             if not data.get("username"):
-                raise ValidationError("username is required for password grant")
+                raise ValidationError("Missing data for required field.", field_name="username")
             if not data.get("password"):
-                raise ValidationError("password is required for password grant")
+                raise ValidationError("Missing data for required field.", field_name="password")
         elif data["grantType"] == "refresh_token":
             if not data.get("refresh_token"):
-                raise ValidationError("refresh_token is required for refresh_token grant")
+                raise ValidationError("Missing data for required field.", field_name="refresh_token")
 
 
 class TokenResponseSchema(Schema):

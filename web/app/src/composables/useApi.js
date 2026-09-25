@@ -99,6 +99,9 @@ export function validationMessage(data) {
   if (!fields || typeof fields !== 'object') return null
 
   const problems = Object.entries(fields).map(([field, reasons]) => {
+    // Una regla entre campos (marshmallow `@validates_schema`) llega bajo
+    // `_schema`: no es un campo que nombrar, y su motivo ya viene redactado.
+    if (field === '_schema') return String(Array.isArray(reasons) ? reasons[0] : reasons).replace(/\.\s*$/, '')
     const label = FIELD_LABELS[field] ?? `El campo «${field}»`
     // Se quita el punto final del motivo antes de sustituir: si no, al unir
     // varios problemas salían dos puntos seguidos.

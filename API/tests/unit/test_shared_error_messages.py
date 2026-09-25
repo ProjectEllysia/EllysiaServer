@@ -65,6 +65,7 @@ _SAMPLE_ARGUMENTS: dict[str, tuple] = {
     "PermissionCheckError": ("fallo al calcular permisos",),
     "TaskNotCancellableError": ("job-1",),
     "InvalidAgentKeyError": ("clave rechazada",),
+    "StorableDeleteError": (7,),
 }
 
 #: Clases que declaran ``message_key`` pero no se lanzan nunca tal cual: solo

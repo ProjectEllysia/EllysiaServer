@@ -43,6 +43,7 @@
     "passwordChanged": "Tu contraseña ha cambiado. Inicia sesión de nuevo.",
     "permissionCheckFailed": "No se pudo comprobar tu acceso. Inténtalo de nuevo.",
     "routeNotFound": "La dirección solicitada no existe.",
+    "storableDeleteFailed": "No se pudo eliminar la entrada de la bóveda.",
     "surfaceDisabled": "Esta función todavía no está disponible.",
     "taskNotCancellable": "La tarea no existe o ya ha terminado.",
     "tooManyRequests": "Has superado el límite de peticiones. Espera un momento e inténtalo de nuevo.",

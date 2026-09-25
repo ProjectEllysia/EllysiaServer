@@ -140,7 +140,7 @@ class DocumentStatusQuerySchema(Schema):
     @validates_schema
     def validate_at_least_one(self, data, **kwargs):
         if not data.get("document_id") and not data.get("scan_id"):
-            raise ValidationError("document_id or scan_id is required")
+            raise ValidationError("Indica el documento o el escaneo.")
 
 
 class DocumentsQuerySchema(Schema):

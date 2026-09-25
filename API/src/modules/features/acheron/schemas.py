@@ -59,7 +59,7 @@ class StorableCreateSchema(Schema):
         }
         for field_name in required_by_kind.get(data["kind"], ()):
             if not data.get(field_name):
-                raise ValidationError(f"{field_name} is required for {data['kind']} storables")
+                raise ValidationError("Missing data for required field.", field_name=field_name)
 
 
 class StorableDeleteSchema(Schema):
@@ -121,7 +121,7 @@ class GeneratePasswordQuerySchema(Schema):
     @validates_schema
     def validate_at_least_one_set(self, data, **kwargs):
         if not any([data["uppercase"], data["lowercase"], data["digits"], data["symbols"]]):
-            raise ValidationError("At least one character set must be enabled")
+            raise ValidationError("Activa al menos un tipo de carácter.")
 
 
 class GeneratePasswordResponseSchema(Schema):

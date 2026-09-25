@@ -10,6 +10,7 @@ from src.modules.shared._endpoints import limiter, current_actor
 from src.modules.shared._exceptions import (
     handle_exceptions,
     IllegalStateError,
+    MissingJsonBodyError,
     ValidationError,
 )
 from src.modules.shared.schemas import ErrorSchema
@@ -224,11 +225,11 @@ def get_config():
 def update_config():
     """Actualiza la configuración de SecOpsConfig.json"""
     if not request.is_json:
-        raise ValidationError("Content-Type must be application/json")
+        raise MissingJsonBodyError("La petición no declara Content-Type: application/json")
 
     new_config = request.get_json(silent=True)
     if not new_config:
-        raise ValidationError("Request body must be JSON")
+        raise MissingJsonBodyError("El cuerpo de la petición no es JSON")
 
     # C9: If-Match obligatorio — sin él, dos sesiones root guardando a la
     # vez se pisan sin avisar (last-write-wins silencioso).
@@ -373,7 +374,7 @@ def taskqueue_update_config(json_data):
     """
     max_workers = json_data.get("max_workers")
     if not isinstance(max_workers, int) or max_workers < 1:
-        raise ValidationError("max_workers must be a positive integer")
+        raise ValidationError("El número de workers tiene que ser un entero mayor que cero.")
 
     config = CR.get_full_config()
     config.setdefault("infrastructure", {}).setdefault("taskqueue", {})["max_workers"] = max_workers

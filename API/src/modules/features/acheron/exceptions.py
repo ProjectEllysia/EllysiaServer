@@ -40,6 +40,22 @@ class VaultError(DatabaseError):
     default_severity = ErrorSeverity.HIGH
 
 
+class StorableDeleteError(VaultError):
+    """La entrada existía, pero la base de datos no llegó a borrarla."""
+
+    def __init__(self, storable_id: int):
+        """Construye el error.
+
+        Args:
+            storable_id: Identificador de la entrada; solo va al log.
+        """
+        super().__init__(
+            message=f"No se pudo eliminar el storable {storable_id}",
+            user_message="No se pudo eliminar la entrada de la bóveda.",
+            message_key="storableDeleteFailed",
+        )
+
+
 class VaultNotFoundError(EntityNotFoundError, VaultError):
     """
     Cuando un vault no existe en la base de datos.
