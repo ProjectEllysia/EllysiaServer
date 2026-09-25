@@ -60,7 +60,8 @@
     "configuration": "Configuración",
     "planManager": "Gestor de planes",
     "taskQueue": "Cola de tareas",
-    "logout": "Cerrar sesión"
+    "logout": "Cerrar sesión",
+    "knowledgeBase": "Base de conocimiento"
   },
   "pagination": {
     "previous": "Página anterior",
@@ -201,5 +202,74 @@
     "vaultRevisionMissing": "Esta operación necesita la versión actual de la bóveda. Recarga y vuelve a intentarlo.",
     "vaultRevisionOutdated": "La bóveda cambió desde otro dispositivo. Recarga y vuelve a intentarlo.",
     "xmlParsing": "No se pudieron procesar los resultados del escaneo."
+  },
+  "kbAdmin": {
+    "title": "Base de conocimiento",
+    "eyebrow": "Motor Lybra",
+    "subtitle": "Cómo está cada fuente con la que Lybra decide qué es vulnerable, sincronizarla sin esperar a la noche y consultar qué sabe de una CVE o de un producto.",
+    "refresh": "Actualizar",
+    "refreshing": "Actualizando…",
+    "status": {
+      "heading": "Estado de las fuentes",
+      "source": "Fuente",
+      "state": "Estado",
+      "lastSuccess": "Última sincronización correcta",
+      "lastAttempt": "Último intento",
+      "rows": "Filas"
+    },
+    "state": {
+      "ok": "Al día",
+      "unverified": "Sin registro",
+      "stale": "Desactualizada",
+      "failing": "Falla"
+    },
+    "sync": {
+      "heading": "Sincronizar ahora",
+      "hint": "Lo mismo que hace el job nocturno, sin esperar a él. NVD descarga sólo los cambios recientes, nunca el catálogo entero. Mientras hay una sincronización en marcha no se puede lanzar otra.",
+      "targets": {
+        "all": "Todas las fuentes",
+        "nvd": "NVD",
+        "kev": "KEV",
+        "epss": "EPSS",
+        "oval": "OVAL (distribuciones)"
+      },
+      "taskStatus": {
+        "pending": "En cola",
+        "running": "En curso",
+        "completed": "Terminada",
+        "failed": "Falló",
+        "cancelled": "Cancelada",
+        "timeout": "Se agotó el tiempo"
+      },
+      "queued": "Sincronización de «{target}» en cola.",
+      "alreadyRunning": "Ya hay una sincronización en marcha: «{target}»."
+    },
+    "search": {
+      "heading": "Consultar",
+      "placeholder": "CVE-2024-6387 u openssh",
+      "submit": "Buscar",
+      "cveUnknown": "Ninguna fuente de la base de conocimiento conoce esa CVE.",
+      "cvss": "CVSS",
+      "kev": "Explotada activamente (KEV)",
+      "epss": "Probabilidad de explotación (EPSS)",
+      "products": "Productos afectados",
+      "yes": "Sí",
+      "no": "No",
+      "distro": "Distribución",
+      "package": "Paquete",
+      "fixedIn": "Corregida en",
+      "distroStatus": {
+        "fixed": "Corregida",
+        "vulnerable": "Vulnerable",
+        "unknown": "Sin pronunciarse"
+      },
+      "noDistroStatus": "Ninguna distribución se ha pronunciado sobre esta CVE.",
+      "noProducts": "Ningún producto del índice coincide."
+    },
+    "errors": {
+      "status": "No se pudo cargar el estado de la base de conocimiento.",
+      "sync": "No se pudo lanzar la sincronización.",
+      "search": "No se pudo completar la búsqueda."
+    }
   }
 }

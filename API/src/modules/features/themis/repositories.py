@@ -1267,6 +1267,22 @@ class KbRepository(BaseRepository[CveEntry]):
         )
         return [(vendor, product, name) for vendor, product, name in rows]
 
+    def distro_statuses_for_cve(self, cve_id: str) -> List[DistroPkgStatus]:
+        """Todo lo que las distribuciones han dicho de una CVE, paquete a paquete.
+
+        Args:
+            cve_id: El identificador, en mayúsculas (``CVE-2024-6387``).
+
+        Returns:
+            List[DistroPkgStatus]: Los pronunciamientos, ordenados por
+                distribución, versión y paquete; vacía si ninguna la menciona.
+        """
+        return (self._session.query(DistroPkgStatus)
+                .filter(DistroPkgStatus.cve_id == cve_id)
+                .order_by(DistroPkgStatus.vendor, DistroPkgStatus.release,
+                          DistroPkgStatus.package)
+                .all())
+
     def get_cves_with_matches(self, cve_ids: List[str]) -> List[CveEntry]:
         """Bulk-fetch CveEntry rows (with their CpeMatch rows eager-loaded) for a
         list of CVE ids. Used to enrich a report with description/CWE/fixed-version
