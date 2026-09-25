@@ -67,6 +67,7 @@ from .services import (
     generate_recovery_codes,
     generate_opaque_token,
     hash_opaque_token,
+    resolve_effective_language,
 )
 
 logger = logging.getLogger(__name__)
@@ -316,8 +317,9 @@ class UserManager:
             user.email_verification_expires_at = utcnow_naive() + timedelta(hours=ttl_hours)
             repo.update(user)
             recipient, name = user.email, user.first_name
+            language = resolve_effective_language(user)
 
-        self._send_verification_email(recipient, name, token, ttl_hours)
+        self._send_verification_email(recipient, name, token, ttl_hours, language)
         return token
 
     def verify_email(self, token: str) -> User:
@@ -348,12 +350,23 @@ class UserManager:
             return user
 
     @staticmethod
-    def _send_verification_email(recipient: str, name: str, token: str, ttl_hours: int) -> None:
-        """Manda el correo de confirmación. Los fallos se registran, no se propagan."""
+    def _send_verification_email(
+        recipient: str, name: str, token: str, ttl_hours: int, language: str,
+    ) -> None:
+        """Manda el correo de confirmación. Los fallos se registran, no se propagan.
+
+        Args:
+            recipient: Dirección del destinatario.
+            name: Nombre con el que se le saluda.
+            token: Token opaco en claro que viaja en el enlace.
+            ttl_hours: Horas de validez del enlace, que se muestran en el correo.
+            language: Idioma del destinatario (``resolve_effective_language``).
+        """
         verify_url = f"{CR.general_config().public_url}/verificar?token={token}"
         try:
-            html, text = render_email(
+            rendered = render_email(
                 "email_verification",
+                language=language,
                 recipient_name=name,
                 verify_url=verify_url,
                 ttl_hours=ttl_hours,
@@ -361,9 +374,9 @@ class UserManager:
             build_mailer("accounts").send(EmailMessage(
                 to=recipient,
                 to_name=name,
-                subject="Confirma tu correo en Ellysia",
-                html_body=html,
-                text_body=text,
+                subject=rendered.subject,
+                html_body=rendered.html,
+                text_body=rendered.text,
             ))
         except Exception as exc:  # pylint: disable=broad-except
             logger.error(f"No se pudo enviar el correo de verificacion a {recipient}: {exc}")
@@ -460,19 +473,29 @@ class UserManager:
 
             repo.set_password_reset(user.id, hash_opaque_token(token), expires_at)
             recipient, name = user.email, user.first_name
+            language = resolve_effective_language(user)
 
-        self._send_password_reset_email(recipient, name, token, ttl_minutes)
+        self._send_password_reset_email(recipient, name, token, ttl_minutes, language)
 
     @staticmethod
     def _send_password_reset_email(
-        recipient: str, name: str, token: str, ttl_minutes: int,
+        recipient: str, name: str, token: str, ttl_minutes: int, language: str,
     ) -> None:
         """Manda el correo con el enlace de recuperación. Los fallos se
-        registran, no se propagan: el usuario puede pedir otro enlace."""
+        registran, no se propagan: el usuario puede pedir otro enlace.
+
+        Args:
+            recipient: Dirección del destinatario.
+            name: Nombre con el que se le saluda.
+            token: Token opaco en claro que viaja en el enlace.
+            ttl_minutes: Minutos de validez del enlace, que se muestran en el correo.
+            language: Idioma del destinatario (``resolve_effective_language``).
+        """
         reset_url = f"{CR.general_config().public_url}/recuperar?token={token}"
         try:
-            html, text = render_email(
+            rendered = render_email(
                 "password_reset",
+                language=language,
                 recipient_name=name,
                 reset_url=reset_url,
                 ttl_minutes=ttl_minutes,
@@ -480,9 +503,9 @@ class UserManager:
             build_mailer("accounts").send(EmailMessage(
                 to=recipient,
                 to_name=name,
-                subject="Recupera tu clave de Ellysia",
-                html_body=html,
-                text_body=text,
+                subject=rendered.subject,
+                html_body=rendered.html,
+                text_body=rendered.text,
             ))
         except Exception as exc:  # pylint: disable=broad-except
             logger.error(f"No se pudo enviar el correo de recuperacion a {recipient}: {exc}")

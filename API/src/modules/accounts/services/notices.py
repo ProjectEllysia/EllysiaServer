@@ -76,6 +76,7 @@ def _notify(subscription: Subscription, kind: str, deadline) -> bool:
     ha pagado no reciben nada: verán en la interfaz que ciertas funciones ya no
     están, pero "tu jefe no ha pagado" no es un mensaje nuestro que dar.
     """
+    from src.modules.users import resolve_effective_language
     from src.modules.users.model import User
 
     session = get_db_session()
@@ -85,8 +86,9 @@ def _notify(subscription: Subscription, kind: str, deadline) -> bool:
 
     plan = session.get(Plan, subscription.plan_id)
     try:
-        html, text = render_email(
+        rendered = render_email(
             "subscription_notice",
+            language=resolve_effective_language(user),
             recipient_name=user.first_name,
             kind=kind,
             plan_name=plan.name if plan else "",
@@ -96,12 +98,9 @@ def _notify(subscription: Subscription, kind: str, deadline) -> bool:
         build_mailer("accounts").send(EmailMessage(
             to=user.email,
             to_name=user.first_name,
-            subject=(
-                "Hay un problema con tu pago en Ellysia" if kind == "past_due"
-                else "Tu plan de Ellysia termina pronto"
-            ),
-            html_body=html,
-            text_body=text,
+            subject=rendered.subject,
+            html_body=rendered.html,
+            text_body=rendered.text,
         ))
         return True
     except Exception as exc:  # pylint: disable=broad-except

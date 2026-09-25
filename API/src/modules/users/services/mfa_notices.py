@@ -11,6 +11,7 @@ from src.modules.shared import utcnow_naive
 from src.modules.tools.herald import EmailMessage, build_mailer, render_email
 
 from ..repositories import UserRepository
+from .language import resolve_effective_language
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ def send_mfa_reminders() -> dict[str, int]:
             now - timedelta(days=interval_days)
         )
         recipients = [
-            (user.id, user.email, user.first_name)
+            (user.id, user.email, user.first_name, resolve_effective_language(user))
             for user in candidates
         ]
 
@@ -45,19 +46,20 @@ def send_mfa_reminders() -> dict[str, int]:
     failed = 0
     profile_url = f"{CR.general_config().public_url}/profile#mfa"
 
-    for user_id, email, first_name in recipients:
+    for user_id, email, first_name, language in recipients:
         try:
-            html, text = render_email(
+            rendered = render_email(
                 "mfa_reminder",
+                language=language,
                 recipient_name=first_name,
                 profile_url=profile_url,
             )
             result = mailer.send(EmailMessage(
                 to=email,
                 to_name=first_name,
-                subject="Activa la autenticación multifactor en Ellysia",
-                html_body=html,
-                text_body=text,
+                subject=rendered.subject,
+                html_body=rendered.html,
+                text_body=rendered.text,
             ))
             if result is not None and not result.ok:
                 raise RuntimeError(result.error or "El proveedor rechazó el correo")
