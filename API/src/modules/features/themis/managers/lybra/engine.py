@@ -69,6 +69,7 @@ from ...lybra import (
     CheckPlanner,
     KnownService,
     IDENTIFICATION_REVISION,
+    split_distro_version,
 )
 from ...lybra.ingest import select_for_services, translate_all
 from ...services import _Task
@@ -282,6 +283,37 @@ def _aggregate_child_scans(children: list, format_scan) -> dict:
         "unresolvedPackages": sum(summary["unresolvedPackages"] for summary in summaries),
         "byPriority": by_priority,
     }
+
+
+def _is_same_release(old_version: Optional[str], new_version: Optional[str]) -> bool:
+    """Si dos versiones de un mismo servicio son la misma, una con más detalle.
+
+    Un banner puede leerse entero o recortado: ``9.6p1`` y
+    ``9.6p1-3ubuntu13.19`` son el mismo OpenSSH, uno con la revisión con la
+    que lo empaqueta la distribución y otro sin ella. Que el motor pase de
+    leer una a leer la otra no cambia nada en el servidor, así que no es un
+    cambio de superficie. Sí lo es cambiar de versión de origen
+    (``9.6p1`` → ``9.7p1``) o de revisión (``…13.18`` → ``…13.19``): lo
+    segundo es una actualización real del paquete.
+
+    Args:
+        old_version: La versión guardada de la superficie; puede ser
+            ``None``.
+        new_version: La versión de este escaneo; puede ser ``None``.
+
+    Returns:
+        bool: ``True`` si las dos tienen la misma versión de origen y o
+            bien una no lleva revisión o bien llevan la misma (sólo difieren
+            en la época o en metadatos ``+…``); ``False`` en cualquier otro
+            caso, incluido que falte alguna de las dos.
+    """
+    if not old_version or not new_version:
+        return False
+    _old_epoch, old_upstream, old_revision = split_distro_version(old_version)
+    _new_epoch, new_upstream, new_revision = split_distro_version(new_version)
+    if old_upstream != new_upstream:
+        return False
+    return old_revision is None or new_revision is None or old_revision == new_revision
 
 
 @ScanManager.register(ScanType.LYBRA)
@@ -1426,7 +1458,9 @@ class LybraEngineManager(ScanManager):
                 if had_baseline:
                     findings.append(self._surface_finding(service, self._new_surface_title(service, protocol)))
             elif service.product and prior.product and (
-                service.product != prior.product or service.version != prior.version
+                service.product != prior.product
+                or (service.version != prior.version
+                    and not _is_same_release(prior.version, service.version))
             ):
                 findings.append(self._surface_finding(
                     service, self._changed_surface_title(service, prior)

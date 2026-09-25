@@ -2777,3 +2777,27 @@ def test_a_hostname_scan_connects_to_the_validated_address(app, admin_user, monk
         with UnitOfWork() as uow:
             host = ScanRepository(uow).get_by_id(escan.id).host
             assert (host.hostname, host.ip_address) == ("sitio.ejemplo.test", "8.8.8.8")
+
+
+def test_lybra_surface_change_ignores_a_version_read_in_more_detail(app, admin_user):
+    """Leer entero un banner que antes se leyó recortado no es un cambio del
+    servidor: `9.6p1` y `9.6p1-3ubuntu13.19` son el mismo OpenSSH. Sí lo es
+    que cambie la revisión del paquete, que es una actualización real."""
+
+    def ssh(version):
+        return [Service(port=22, protocol="tcp", name="ssh", product="OpenSSH", version=version)]
+
+    def surface_titles(mgr, services):
+        scan = mgr._create_scan_record(target="10.0.0.6", user_id=admin_user.id)
+        mgr._run_lybra(scan.id, services_payload=services)
+        with UnitOfWork() as uow:
+            findings = ScanRepository(uow).get_findings_by_scan(scan.id)
+        return [f.title for f in findings if f.category == "surface_change"]
+
+    with app.app_context():
+        mgr = LybraEngineManager()
+        assert surface_titles(mgr, ssh("9.6p1")) == []                     # línea base
+        assert surface_titles(mgr, ssh("9.6p1-3ubuntu13.18")) == []        # sólo más detalle
+        bumped = surface_titles(mgr, ssh("9.6p1-3ubuntu13.19"))            # otra revisión
+        assert len(bumped) == 1 and "3ubuntu13.18 -> OpenSSH 9.6p1-3ubuntu13.19" in bumped[0]
+        assert len(surface_titles(mgr, ssh("9.7p1"))) == 1                 # otra versión de origen
