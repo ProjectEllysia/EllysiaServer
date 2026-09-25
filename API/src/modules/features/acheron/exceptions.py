@@ -64,7 +64,8 @@ class VaultNotFoundError(EntityNotFoundError, VaultError):
     resuelve por el usuario de la sesión, no por un id de la petición. De
     ahí que ``EntityNotFoundError`` admita un ``entity_id`` opcional.
     """
-    entity_label = "Vault"
+    entity_label = "Bóveda"
+    entity_is_feminine = True
     id_field = "vault_id"
 
 
@@ -76,7 +77,8 @@ class StorableNotFoundError(EntityNotFoundError, VaultError):
     cliente), no una PK numérica — de ahí que ``entity_id`` no esté tipado
     como ``int`` en la base.
     """
-    entity_label = "Storable"
+    entity_label = "Entrada de la bóveda"
+    entity_is_feminine = True
     id_field = "internal_id"
 
 
@@ -102,22 +104,25 @@ class VaultRevisionMismatchError(VaultError):
                 f"es {current}"
             )
             user_facing_message = (
-                "Esta operación exige indicar la revisión del vault "
-                "(cabecera If-Match)."
+                "Esta operación necesita la versión actual de la bóveda. "
+                "Recarga y vuelve a intentarlo."
             )
+            message_key = "vaultRevisionMissing"
         else:
             message = (
                 f"Revisión de vault obsoleta: el cliente envió {provided} "
                 f"y la actual es {current}"
             )
             user_facing_message = (
-                "El vault cambió desde otro dispositivo. Recarga y vuelve a "
+                "La bóveda cambió desde otro dispositivo. Recarga y vuelve a "
                 "intentarlo."
             )
+            message_key = "vaultRevisionOutdated"
         super().__init__(
             message=message,
             details={"currentRevision": current, "yourRevision": provided},
             user_message=user_facing_message,
+            message_key=message_key,
         )
 
 
@@ -133,5 +138,6 @@ class StorableConflictError(VaultError):
         super().__init__(
             message=f"Storable con internalId '{internal_id}' ya existe",
             details={"internal_id": internal_id},
-            user_message="Ya existe un storable con ese identificador."
+            user_message="Ya existe una entrada de la bóveda con ese identificador.",
+            message_key="storableConflict"
         )

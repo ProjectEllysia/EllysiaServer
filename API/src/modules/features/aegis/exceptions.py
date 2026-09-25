@@ -54,7 +54,9 @@ class AegisFetchError(EllysiaException):
         super().__init__(
             message=f"Error fetching {source}: {message}",
             details={"source": source},
-            user_message=f"Error al obtener alertas de {source}."
+            user_message=f"No se pudieron obtener las alertas de {source}.",
+            message_key="aegisFetch",
+            params={"source": source}
         )
 
 
@@ -79,7 +81,9 @@ class ExporterFormatError(ExporterError):
         super().__init__(
             message=f"Formato de exportación no soportado: {format}",
             details={"format": format},
-            user_message=f"El formato '{format}' no es soportado."
+            user_message=f"El formato «{format}» no está disponible.",
+            message_key="exporterFormat",
+            params={"format": format}
         )
 
 
@@ -91,7 +95,8 @@ class ExporterConfigurationError(ExporterError):
         super().__init__(
             message=f"Exportador mal configurado. Faltan: {missing_fields}",
             details={"missing_fields": missing_fields},
-            user_message="Error de configuración del exportador."
+            user_message="El exportador no está bien configurado.",
+            message_key="exporterConfiguration"
         )
 
 
@@ -125,7 +130,8 @@ class CampaignAlreadyLaunchedError(CampaignError):
         super().__init__(
             message=f"Campaña {campaign_id} ya no está en borrador (estado: {status})",
             details={"campaign_id": campaign_id, "status": status},
-            user_message="La campaña ya ha sido lanzada."
+            user_message="La campaña ya se ha lanzado.",
+            message_key="campaignAlreadyLaunched"
         )
 
 
@@ -161,7 +167,8 @@ class QuizTokenInvalidError(CampaignError):
     def __init__(self):
         super().__init__(
             message="Token de quiz inválido o inexistente",
-            user_message="Este enlace no es válido."
+            user_message="Este enlace no es válido.",
+            message_key="quizTokenInvalid"
         )
 
 
@@ -174,5 +181,6 @@ class QuizAlreadyCompletedError(CampaignError):
     def __init__(self):
         super().__init__(
             message="Este test ya fue completado y no se puede repetir",
-            user_message="Ya has completado este test anteriormente."
+            user_message="Ya has completado este test.",
+            message_key="quizAlreadyCompleted"
         )

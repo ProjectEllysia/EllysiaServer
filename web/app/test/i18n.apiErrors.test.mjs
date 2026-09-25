@@ -27,7 +27,7 @@ console.log('i18n/apiErrors')
 
 test('traduce una plantilla con huecos', () => {
   const body = { messageKey: 'missingParameter', params: { parameter: 'port' }, error_description: 'x' }
-  assert.equal(translateApiError(body, i18n.global), "El parámetro 'port' es obligatorio.")
+  assert.equal(translateApiError(body, i18n.global), "El parámetro «port» es obligatorio.")
 })
 
 test('traduce una plantilla anidada sin huecos', () => {

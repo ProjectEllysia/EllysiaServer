@@ -274,16 +274,19 @@ class SurfaceDisabledError(EllysiaException):
             user_message: Texto para el usuario. Por defecto, uno genérico que
                 dice que la función todavía no está disponible.
             **kwargs: Resto de argumentos de ``EllysiaException`` (``code``,
-                por ejemplo, para conservar un código heredado).
+                por ejemplo, para conservar un código heredado, o
+                ``message_key`` para una subclase con texto fijo).
         """
         self.surface = str(surface)
         # Un texto a medida no sale de la plantilla genérica: sin clave, la
         # interfaz lo enseña tal cual en vez de sustituirlo por el genérico.
+        # Una subclase con texto fijo trae la suya en ``kwargs``.
+        default_message_key = None if user_message else "surfaceDisabled"
         super().__init__(
             message=f"La superficie '{self.surface}' está cerrada al público",
             details={"surface": self.surface},
             user_message=user_message or "Esta función todavía no está disponible.",
-            message_key=None if user_message else "surfaceDisabled",
+            message_key=kwargs.pop("message_key", default_message_key),
             **kwargs,
         )
 
@@ -373,7 +376,7 @@ class MissingParameterError(ValidationError):
         super().__init__(
             message=f"Parámetro requerido '{parameter}' no proporcionado",
             field=parameter,
-            user_message=f"El parámetro '{parameter}' es obligatorio.",
+            user_message=f"El parámetro «{parameter}» es obligatorio.",
             message_key="missingParameter",
             params={"parameter": str(parameter)},
         )
@@ -448,7 +451,9 @@ class TooManyRequestsError(EllysiaException):
         """Construye el error; el límite superado no se cuenta al usuario."""
         super().__init__(
             message="Límite de peticiones superado",
-            user_message="Has superado el límite de peticiones. Espera un momento e inténtalo de nuevo.",
+            user_message=(
+                "Has superado el límite de peticiones. Espera un momento e inténtalo de nuevo."
+            ),
             message_key="tooManyRequests",
         )
 
@@ -556,19 +561,6 @@ class EntityNotFoundError(EllysiaException):
         )
 
 
-class EntityAlreadyExistsError(DatabaseError):
-    default_code = ErrorCode.ENTITY_ALREADY_EXISTS
-    default_status_code = 409
-    default_severity = ErrorSeverity.LOW
-
-    def __init__(self, entity_type: str, identifier: str):
-        super().__init__(
-            message=f"{entity_type} con identificador '{identifier}' ya existe",
-            details={"entity_type": entity_type, "identifier": identifier},
-            user_message=f"El {entity_type} ya existe."
-        )
-
-
 class DatabaseConnectionError(DatabaseError):
     default_code = ErrorCode.DATABASE_CONNECTION_ERROR
     default_severity = ErrorSeverity.CRITICAL
@@ -616,7 +608,8 @@ class DocumentNotReadyError(DocumentError):
         super().__init__(
             message=f"Documento {doc_id} no disponible (estado: {status})",
             details={"document_id": doc_id, "status": status},
-            user_message="El documento aún no está listo."
+            user_message="El documento aún no está listo.",
+            message_key="documentNotReady"
         )
 
 
@@ -633,7 +626,8 @@ class XMLParsingError(ParsingError):
         super().__init__(
             message=f"Error parseando XML '{file_path}': {reason}",
             details={"file_path": file_path, "reason": reason},
-            user_message="Error procesando resultados del escaneo."
+            user_message="No se pudieron procesar los resultados del escaneo.",
+            message_key="xmlParsing"
         )
 
 
@@ -644,7 +638,8 @@ class JSONParsingError(ParsingError):
         super().__init__(
             message=f"Error parseando JSON: {reason}",
             details={"data": data[:100], "reason": reason},
-            user_message="Error procesando datos JSON."
+            user_message="No se pudieron procesar los datos JSON.",
+            message_key="jsonParsing"
         )
 
 

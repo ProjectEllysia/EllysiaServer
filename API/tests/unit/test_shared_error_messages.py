@@ -27,12 +27,12 @@ import ast
 import importlib
 import json
 import re
+from datetime import datetime
 from pathlib import Path
 
 import pytest
 
 from src.modules.shared._exceptions import (
-    EntityNotFoundError,
     MissingParameterError,
     SurfaceDisabledError,
     ValidationError,
@@ -50,22 +50,90 @@ _SPANISH_DICTIONARY = _REPO_ROOT / "web" / "app" / "src" / "i18n" / "locales" / 
 # {parameter} -> parameter. Es la interpolación con nombre de vue-i18n.
 _PLACEHOLDER_RE = re.compile(r"\{(\w+)\}")
 
-#: Argumentos con los que se construye un ejemplar de cada excepción que no se
-#: puede construir sin ellos. Los valores son de ejemplo: lo que se comprueba es
-#: que la plantilla, rellenada con los ``params`` que salen de ellos, dé el
-#: mismo texto que el servidor.
-_SAMPLE_ARGUMENTS: dict[str, tuple] = {
-    "RouteNotFoundError": ("/no-existe",),
-    "MethodNotAllowedError": ("PATCH",),
-    "MissingParameterError": ("port",),
-    "SurfaceDisabledError": ("registration",),
-    "DatabaseConnectionError": ("connection refused",),
-    "InvalidAuthorizationHeaderError": ("falta la cabecera",),
-    "InsufficientPermissionsError": ("falta el rol admin",),
-    "PermissionCheckError": ("fallo al calcular permisos",),
-    "TaskNotCancellableError": ("job-1",),
-    "InvalidAgentKeyError": ("clave rechazada",),
-    "StorableDeleteError": (7,),
+#: Argumentos con los que se construye cada excepción que no se puede construir
+#: sin ellos: una tupla por variante de su mensaje. Los valores son de ejemplo:
+#: lo que se comprueba es que la plantilla, rellenada con los ``params`` que
+#: salen de ellos, dé el mismo texto que el servidor.
+_SAMPLE_ARGUMENTS: dict[str, list[tuple]] = {
+    "RouteNotFoundError": [("/no-existe",)],
+    "MethodNotAllowedError": [("PATCH",)],
+    "MissingParameterError": [("port",)],
+    "SurfaceDisabledError": [("registration",)],
+    "DatabaseConnectionError": [("connection refused",)],
+    "InvalidAuthorizationHeaderError": [("falta la cabecera",)],
+    "InsufficientPermissionsError": [("falta el rol admin",)],
+    "PermissionCheckError": [("fallo al calcular permisos",)],
+    "TaskNotCancellableError": [("job-1",)],
+    "InvalidAgentKeyError": [("clave rechazada",)],
+    "StorableDeleteError": [(7,)],
+    "StorableConflictError": [("github",)],
+    "VaultRevisionMismatchError": [(4,), (4, 3)],
+    "PlanFeatureDisabledError": [("iris.analyses", "free")],
+    "QuotaExceededError": [
+        ("iris.analyses", 10, 10, "month", "free"),
+        ("iris.analyses", 10, 10, "month", "free", datetime(2026, 10, 1)),
+    ],
+    "PlanCodeTakenError": [("pro",)],
+    "PlanInUseError": [("pro",), ("pro", 3)],
+    "UnknownLimitKeyError": [("iris.nada",)],
+    "DocumentNotReadyError": [(12, "pending")],
+    "XMLParsingError": [("/tmp/nmap.xml", "etiqueta sin cerrar")],
+    "JSONParsingError": [("{", "fin inesperado")],
+    "UserBindingError": [("ana",)],
+    "DuplicatedUserCredentials": [("ana@example.com",)],
+    "ExistingUserError": [("ana", "ana@example.com"), (None, "ana@example.com"), ("ana", None)],
+    "MfaChallengeInvalidError": [(), (True,)],
+    "EmailConnectionError": [("timeout",)],
+    "EmailSendError": [("rechazado",)],
+    "EmailConfigurationError": [("falta el host",)],
+    "AIConnectionError": [("timeout",)],
+    "AIResponseError": [("JSON roto",)],
+    "AIPayloadTooLargeError": [(200000, 100000)],
+    "AIFallbackExhaustedError": [(3, "timeout")],
+    "CircuitBreakerOpenError": [("openai",)],
+    "AIStrategyConfigurationError": [("falta la clave",)],
+    "AegisFetchError": [("INCIBE", "timeout")],
+    "ExporterFormatError": [("docx",)],
+    "ExporterConfigurationError": [(["title"],)],
+    "CampaignAlreadyLaunchedError": [(1, "sending")],
+    "AssetQuotaExceededError": [(5,)],
+    "IngestPayloadTooLargeError": [("demasiados procesos",)],
+    "IngestClockSkewError": [("2020-01-01T00:00:00Z",)],
+    "IngestTooFrequentError": [(10,)],
+    "AnomalyStillOpenError": [(3,)],
+    "InventoryNotAvailableError": [(3,)],
+    "TagAlreadyExistsError": [("producción",)],
+    "TagQuotaExceededError": [(20,)],
+    "SystemTagImmutableError": [(1,)],
+    "UnknownMetricError": [("cpu.nada", ["cpu.usagePct"])],
+    "NonAdditiveMetricError": [("cpu.usagePct", ["net.bytesIn"])],
+    "InvalidDocumentRequestError": [("inventory", "assetId")],
+    "IrisBatchBackpressureError": [(8, 5, 10)],
+    "IrisMailboxInvalidFolderError": [("Spam2",)],
+    "ScanAlreadyRunningError": [("192.0.2.1", "nmap")],
+    "ScanTimeoutError": [(1, 600)],
+    "MaxConcurrentScansError": [(3, 3)],
+    "MaxHostsExceededError": [(256, 1024)],
+    "TargetNotAuthorizedError": [("192.0.2.1",)],
+    "DuplicateAuthorizedTargetError": [("192.0.2.1",)],
+    "ReportGenerationError": [(1, "sin datos")],
+    "PrivateIPRequested": [(["10.0.0.1"],)],
+    "HostUnreachableError": [("192.0.2.1", 443)],
+    "ScanFailedError": [("timeout", "el proceso murió")],
+    "PDFGenerationError": [("fuente ausente",)],
+    "ProgramedScanAlreadyActiveError": [(1, "nmap")],
+    "InvalidProgramedTaskArgumentError": [("nmap", "target")],
+    "FolderNameInvalidError": [("a/b",)],
+    "ScanAlreadyInFolderError": [(1, 2)],
+}
+
+#: Excepciones que fijan su ``user_message`` y aun así no llevan clave, porque
+#: su texto es libre de verdad: depende de un motivo concreto que no cabe en
+#: una plantilla. La interfaz los enseña tal cual. Cada entrada dice por qué.
+_FREE_TEXT_ERRORS: dict[str, str] = {
+    "AegisValidationError": "envuelve el motivo concreto de la validación que falló",
+    "ScanExecutionError": "envuelve el motivo del fallo que devuelve el escáner",
+    "LogQueryError": "dice qué filtro concreto de la consulta de logs no es válido",
 }
 
 #: Clases que declaran ``message_key`` pero no se lanzan nunca tal cual: solo
@@ -145,7 +213,7 @@ def _build_translatable_errors() -> list:
     """Construye un ejemplar de cada excepción con plantilla.
 
     Returns:
-        list[EllysiaException]: Un ejemplar por clase.
+        list[EllysiaException]: Un ejemplar por cada variante de cada clase.
 
     Raises:
         AssertionError: Si alguna no se puede construir con los argumentos de
@@ -153,10 +221,11 @@ def _build_translatable_errors() -> list:
     """
     errors, unbuildable = [], []
     for error_class in _collect_translatable_error_classes():
-        try:
-            errors.append(error_class(*_SAMPLE_ARGUMENTS.get(error_class.__name__, ())))
-        except TypeError as exc:
-            unbuildable.append(f"{error_class.__name__}: {exc}")
+        for arguments in _SAMPLE_ARGUMENTS.get(error_class.__name__, [()]):
+            try:
+                errors.append(error_class(*arguments))
+            except TypeError as exc:
+                unbuildable.append(f"{error_class.__name__}: {exc}")
     assert not unbuildable, (
         "Estas excepciones declaran message_key pero el test no sabe construirlas; "
         "añade sus argumentos de ejemplo a _SAMPLE_ARGUMENTS:\n" + "\n".join(unbuildable)
@@ -248,7 +317,7 @@ def test_the_error_response_carries_the_message_reference():
     assert response["error"] == "missing_parameter"
     assert response["messageKey"] == "missingParameter"
     assert response["params"] == {"parameter": "port"}
-    assert response["error_description"] == "El parámetro 'port' es obligatorio."
+    assert response["error_description"] == "El parámetro «port» es obligatorio."
 
 
 def test_derive_entity_key_strips_the_suffix_and_lowercases_the_initial():
@@ -256,4 +325,73 @@ def test_derive_entity_key_strips_the_suffix_and_lowercases_the_initial():
     assert _derive_entity_key("IrisCaseNotFoundError") == "irisCase"
     assert _derive_entity_key("ScanNotFoundError") == "scan"
     assert _derive_entity_key("EntityNotFoundError") == "entity"
-    assert issubclass(type(EntityNotFoundError()), Exception)
+
+
+def _find_fixed_messages_without_key() -> list[str]:
+    """Busca excepciones que fijan su propio mensaje sin declarar clave.
+
+    Una clase fija su mensaje cuando, dentro de su cuerpo, una llamada pasa
+    ``user_message=`` con un literal, una f-string o una elección entre
+    literales; y declara clave cuando esa misma llamada pasa también
+    ``message_key=``. Un ``user_message=message`` (el texto que le llega) no
+    cuenta: eso es texto libre.
+
+    Returns:
+        list[str]: ``"ruta:línea Clase"`` por cada caso que incumple la regla.
+    """
+    fixed_kinds = (ast.Constant, ast.JoinedStr, ast.IfExp, ast.BoolOp)
+    offenders = []
+    for path in _SOURCE_ROOT.rglob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for class_node in [node for node in ast.walk(tree) if isinstance(node, ast.ClassDef)]:
+            if class_node.name in _FREE_TEXT_ERRORS:
+                continue
+            for call in [node for node in ast.walk(class_node) if isinstance(node, ast.Call)]:
+                keywords = {keyword.arg: keyword.value for keyword in call.keywords}
+                user_message = keywords.get("user_message")
+                if isinstance(user_message, fixed_kinds) and "message_key" not in keywords:
+                    relative_path = path.relative_to(_API_ROOT).as_posix()
+                    offenders.append(f"{relative_path}:{user_message.lineno} {class_node.name}")
+    return offenders
+
+
+def test_an_exception_with_a_fixed_message_declares_its_message_key():
+    """Una excepción que fija su texto declara la clave con la que se traduce.
+
+    Sin clave, la interfaz no puede enseñarla en otro idioma: solo ve el texto
+    en castellano del servidor. Los textos escritos en el propio ``raise`` de
+    un manager son validaciones de texto libre y no entran en la regla.
+    """
+    offenders = [
+        offender for offender in _find_fixed_messages_without_key()
+        if not offender.endswith("Manager")
+    ]
+    assert not offenders, (
+        "Excepciones con mensaje fijo y sin message_key (ver CONVENCIONES.md § 13):\n" + "\n".join(offenders)
+    )
+
+
+def test_the_free_text_list_only_names_existing_exceptions():
+    """La lista de texto libre no guarda nombres de clases que ya no existen."""
+    source = "\n".join(path.read_text(encoding="utf-8") for path in _SOURCE_ROOT.rglob("*.py"))
+    missing_names = [name for name in _FREE_TEXT_ERRORS if f"class {name}(" not in source]
+    assert not missing_names, f"Entradas de _FREE_TEXT_ERRORS sin clase: {missing_names}"
+
+
+def test_no_error_response_is_built_by_hand():
+    """Ninguna respuesta de error se monta a mano: todas salen de create_error_response.
+
+    Una respuesta montada a mano no lleva código ni clave de mensaje, y es por
+    donde se colaban los textos en inglés.
+    """
+    offenders = []
+    for path in _SOURCE_ROOT.rglob("*.py"):
+        if path.name == "_exceptions.py":
+            continue
+        for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            if '"error_description"' in line or "'error_description'" in line:
+                offenders.append(f"{path.relative_to(_API_ROOT).as_posix()}:{line_number}")
+    assert not offenders, (
+        "Respuestas de error montadas a mano; lanza una excepción o usa render_error_response:\n"
+        + "\n".join(offenders)
+    )

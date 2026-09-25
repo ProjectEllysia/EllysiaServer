@@ -134,7 +134,12 @@ class IrisBatchBackpressureError(IrisError):
             f"Tienes {active} análisis en marcha y el lote añadiría {requested}; el máximo a la vez "
             f"es {limit}. Espera a que terminen y vuelve a enviarlo: no se ha creado nada."
         )
-        super().__init__(message, user_message=message)
+        super().__init__(
+            message,
+            user_message=message,
+            message_key="irisBatchBackpressure",
+            params={"active": active, "requested": requested, "limit": limit},
+        )
 
 
 class IrisMailboxInvalidProviderError(IrisError):
@@ -169,5 +174,7 @@ class IrisMailboxInvalidFolderError(IrisError):
     def __init__(self, folder: str) -> None:
         super().__init__(
             f"'{folder}' no es una carpeta válida para esta cuenta.",
-            user_message=f"'{folder}' no es una carpeta válida para esta cuenta.",
+            user_message=f"«{folder}» no es una carpeta válida para esta cuenta.",
+            message_key="irisMailboxInvalidFolder",
+            params={"folder": folder},
         )

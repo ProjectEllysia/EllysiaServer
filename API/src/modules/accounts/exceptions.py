@@ -6,6 +6,8 @@ Excepciones del módulo accounts.
 módulos) para que un ``except AccountsError`` las siga capturando.
 """
 
+from typing import Optional
+
 from src.modules.shared._exceptions import (
     EllysiaException,
     EntityNotFoundError,
@@ -55,6 +57,7 @@ class PlanFeatureDisabledError(PlanLimitError):
             message=f"El plan '{plan_code}' no incluye '{limit_key}'",
             details={"limitKey": limit_key, "value": 0, "planCode": plan_code},
             user_message="Tu plan no incluye esta funcionalidad.",
+            message_key="planFeatureDisabled",
         )
 
 
@@ -83,10 +86,11 @@ class QuotaExceededError(PlanLimitError):
                 "resetsAt": resets_at.isoformat() if resets_at else None,
             },
             user_message=(
-                "Has alcanzado el limite de tu plan para esta accion."
+                "Has alcanzado el límite de tu plan para esta acción."
                 if resets_at is None
-                else "Has alcanzado el limite de tu plan. Se renueva al empezar el proximo periodo."
+                else "Has alcanzado el límite de tu plan. Se renueva al empezar el próximo periodo."
             ),
+            message_key="quotaExceeded" if resets_at is None else "quotaExceededUntilNextPeriod",
         )
 
 
@@ -98,7 +102,7 @@ class OrganizationNotFoundError(EntityNotFoundError, AccountsError):
     organizaciones ajenas probando ids.
     """
 
-    entity_label = "Organizacion"
+    entity_label = "Organización"
     id_field = "organization_id"
     entity_is_feminine = True
 
@@ -119,9 +123,10 @@ class OrganizationNotAllowedError(AccountsError):
             message="La suscripcion no tiene habilitada la gestion de organizaciones",
             details={"limitKey": "organization.members", "requiresOrganizationAddon": True},
             user_message=(
-                "Tu plan no incluye la gestion de una organizacion. "
-                "Puedes anyadirla desde la pagina de planes."
+                "Tu plan no incluye la gestión de una organización. Puedes añadirla desde la "
+                "página de planes."
             ),
+            message_key="organizationNotAllowed",
         )
 
 
@@ -134,7 +139,8 @@ class OrganizationAlreadyExistsError(AccountsError):
     def __init__(self) -> None:
         super().__init__(
             message="El usuario ya es duenyo de una organizacion",
-            user_message="Ya tienes una organizacion. Solo se puede tener una.",
+            user_message="Ya tienes una organización. Solo se puede tener una.",
+            message_key="organizationAlreadyExists",
         )
 
 
@@ -152,9 +158,10 @@ class AlreadyInOrganizationError(AccountsError):
         super().__init__(
             message="El usuario ya pertenece a una organizacion",
             user_message=(
-                "Esta cuenta ya forma parte de una organizacion. "
-                "Tiene que salirse de ella antes de unirse a otra."
+                "Esta cuenta ya forma parte de una organización. Tiene que salir de ella antes de "
+                "unirse a otra."
             ),
+            message_key="alreadyInOrganization",
         )
 
 
@@ -167,7 +174,8 @@ class NotInOrganizationError(AccountsError):
     def __init__(self) -> None:
         super().__init__(
             message="El usuario no pertenece a ninguna organizacion",
-            user_message="No formas parte de ninguna organizacion.",
+            user_message="No formas parte de ninguna organización.",
+            message_key="notInOrganization",
         )
 
 
@@ -186,9 +194,10 @@ class InvitationInvalidError(AccountsError):
         super().__init__(
             message="Invitacion invalida, ya respondida o caducada",
             user_message=(
-                "Esta invitacion no es valida o ha caducado. "
-                "Pide a quien te invito que te mande otra."
+                "Esta invitación no es válida o ha caducado. Pide a quien te invitó que te mande "
+                "otra."
             ),
+            message_key="invitationInvalid",
         )
 
 
@@ -206,9 +215,10 @@ class CannotRemoveOwnerError(AccountsError):
         super().__init__(
             message="El duenyo no puede salir de su propia organizacion",
             user_message=(
-                "Eres el duenyo de esta organizacion. Para dejarla, "
-                "tendrias que disolverla o traspasarla antes."
+                "Eres el dueño de esta organización. Para dejarla, tendrías que disolverla o "
+                "traspasarla antes."
             ),
+            message_key="cannotRemoveOwner",
         )
 
 
@@ -228,9 +238,10 @@ class EmailNotVerifiedError(AccountsError):
         super().__init__(
             message="La cuenta no ha verificado su correo",
             user_message=(
-                "Confirma tu correo electronico para poder usar esta funcion. "
-                "Puedes pedir un enlace nuevo desde tu perfil."
+                "Confirma tu correo electrónico para poder usar esta función. Puedes pedir un "
+                "enlace nuevo desde tu perfil."
             ),
+            message_key="emailNotVerified",
         )
 
 
@@ -244,7 +255,9 @@ class PlanCodeTakenError(AccountsError):
         super().__init__(
             message=f"Ya existe un plan con el codigo '{code}'",
             details={"code": code},
-            user_message=f"Ya hay un plan con el codigo '{code}'.",
+            user_message=f"Ya hay un plan con el código «{code}».",
+            message_key="planCodeTaken",
+            params={"code": code},
         )
 
 
@@ -258,12 +271,36 @@ class PlanInUseError(AccountsError):
     default_code = ErrorCode.CONSTRAINT_VIOLATION
     default_status_code = 409
 
-    def __init__(self, code: str, reason: str) -> None:
-        super().__init__(
-            message=f"El plan '{code}' no se puede borrar: {reason}",
-            details={"code": code, "reason": reason},
-            user_message=f"No se puede borrar el plan '{code}' porque {reason}.",
-        )
+    def __init__(self, code: str, subscription_count: Optional[int] = None) -> None:
+        """Construye el error.
+
+        Args:
+            code: Código del plan que se intentaba borrar.
+            subscription_count: Cuántas cuentas lo tienen contratado. ``None``
+                significa que no se puede borrar por ser el plan por defecto.
+        """
+        if subscription_count is None:
+            super().__init__(
+                message=f"El plan '{code}' no se puede borrar: es el plan por defecto",
+                details={"code": code},
+                user_message=f"No se puede borrar el plan «{code}» porque es el plan por defecto.",
+                message_key="planInUseAsDefault",
+                params={"code": code},
+            )
+        else:
+            super().__init__(
+                message=(
+                    f"El plan '{code}' no se puede borrar: lo tienen "
+                    f"{subscription_count} cuenta(s)"
+                ),
+                details={"code": code, "subscriptionCount": subscription_count},
+                user_message=(
+                    f"No se puede borrar el plan «{code}» porque lo tienen "
+                    f"contratado {subscription_count} cuenta(s)."
+                ),
+                message_key="planInUseBySubscriptions",
+                params={"code": code, "subscriptionCount": subscription_count},
+            )
 
 
 class UnknownLimitKeyError(AccountsError):
@@ -280,7 +317,9 @@ class UnknownLimitKeyError(AccountsError):
         super().__init__(
             message=f"Clave o ambito de limite desconocido: '{value}'",
             details={"value": value},
-            user_message=f"'{value}' no es una clave de limite valida.",
+            user_message=f"«{value}» no es una clave de límite válida.",
+            message_key="unknownLimitKey",
+            params={"value": value},
         )
 
 
@@ -292,7 +331,7 @@ class SubscriptionNotFoundError(EntityNotFoundError, AccountsError):
     no existe — cancelar lo que nadie contrató.
     """
 
-    entity_label = "Suscripcion"
+    entity_label = "Suscripción"
     id_field = "user_id"
     entity_is_feminine = True
 
@@ -312,7 +351,7 @@ class DefaultPlanMissingError(AccountsError):
         super().__init__(
             message="No hay ningun plan marcado como is_default en el catalogo",
             user_message=(
-                "La plataforma no tiene configurado un plan por defecto. "
-                "Avisa a un administrador."
+                "La plataforma no tiene configurado un plan por defecto. Avisa a un administrador."
             ),
+            message_key="defaultPlanMissing",
         )
