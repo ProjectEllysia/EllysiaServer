@@ -1,9 +1,9 @@
 <template>
   <label class="language-select">
     <span class="sr-only">{{ t('language.label') }}</span>
-    <select :value="selectedValue" :title="t('language.label')" :disabled="saving" @change="choose($event.target.value)">
+    <select :value="selectedValue" :title="t('language.label')" :disabled="saving" @change="choose($event.target)">
       <option v-if="isAuthenticated" :value="FOLLOW_UPPER_LEVEL">{{ followUpperLevelLabel }}</option>
-      <option v-for="option in options" :key="option.code" :value="option.code" :lang="option.code">
+      <option v-for="option in LOCALE_OPTIONS" :key="option.code" :value="option.code" :lang="option.code">
         {{ option.name }}
       </option>
     </select>
@@ -27,7 +27,7 @@
  */
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { AVAILABLE_LOCALES, i18n, setLocale } from '@/i18n'
+import { LOCALE_OPTIONS, localeName, setLocale } from '@/i18n'
 import { activeLocale } from '@/i18n/locale.js'
 import { useAuthStore } from '@/stores/authStore'
 import { useAccountStore } from '@/stores/accountStore'
@@ -43,19 +43,6 @@ const profileStore = useProfileStore()
 
 const saving = ref(false)
 
-/**
- * Nombre de un idioma en sí mismo, según su fichero de textos.
- *
- * @param {string} code - Código del idioma.
- * @returns {string} El nombre («English»), o el código si su fichero no lo trae.
- */
-function nameOf(code) {
-  return i18n.global.getLocaleMessage(code)?.language?.name ?? code
-}
-
-/** @type {import('vue').ComputedRef<Array<{ code: string, name: string }>>} */
-const options = computed(() => AVAILABLE_LOCALES.map((code) => ({ code, name: nameOf(code) })))
-
 const isAuthenticated = computed(() => auth.isAuthenticated)
 
 /**
@@ -69,25 +56,40 @@ const selectedValue = computed(() => (
 /**
  * Rótulo de la opción de seguir al nivel de arriba, con el idioma que resulta
  * entre paréntesis para que se sepa qué se va a ver.
+ *
+ * Ese idioma solo se conoce con certeza cuando el usuario no ha elegido (el
+ * efectivo es entonces el del nivel de arriba) o cuando la organización fija
+ * uno; si el usuario eligió y su organización no fija ninguno, el de la
+ * plataforma no llega a la interfaz y el rótulo va sin paréntesis.
  */
 const followUpperLevelLabel = computed(() => {
-  const key = account.organization ? 'language.followOrganization' : 'language.followPlatform'
-  return t(key, { name: nameOf(profileStore.profile.effectiveLanguage ?? activeLocale.value) })
+  const label = t(account.organization ? 'language.followOrganization' : 'language.followPlatform')
+  const upperLevel = profileStore.profile.language === null
+    ? profileStore.profile.effectiveLanguage
+    : account.organization?.defaultLanguage
+  return upperLevel ? `${label} (${localeName(upperLevel)})` : label
 })
 
 /**
  * Aplica la opción elegida.
  *
- * @param {string} value - Código del idioma, o `FOLLOW_UPPER_LEVEL`.
+ * Si el servidor no la guarda, el desplegable vuelve a la opción que había:
+ * el valor ligado no ha cambiado, así que Vue no lo repintaría por su cuenta.
+ *
+ * @param {HTMLSelectElement} select - El desplegable; su `value` es el código
+ *   del idioma o `FOLLOW_UPPER_LEVEL`.
  */
-async function choose(value) {
+async function choose(select) {
   if (!isAuthenticated.value) {
-    setLocale(value)
+    setLocale(select.value)
     return
   }
   saving.value = true
   try {
-    await profileStore.updateLanguage(value === FOLLOW_UPPER_LEVEL ? null : value, t('language.saveFailed'))
+    const saved = await profileStore.updateLanguage(
+      select.value === FOLLOW_UPPER_LEVEL ? null : select.value, t('language.saveFailed'),
+    )
+    if (!saved) select.value = selectedValue.value
   } finally {
     saving.value = false
   }

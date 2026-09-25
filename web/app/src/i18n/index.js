@@ -42,6 +42,24 @@ const messagesByLocale = Object.fromEntries(
 export const AVAILABLE_LOCALES = Object.keys(messagesByLocale).sort()
 
 /**
+ * Nombre de un idioma en sí mismo, según su fichero de textos.
+ *
+ * @param {string} localeCode - Código del idioma.
+ * @returns {string} El nombre («English»), o el código si su fichero no lo trae.
+ */
+export function localeName(localeCode) {
+  return messagesByLocale[localeCode]?.language?.name ?? localeCode
+}
+
+/**
+ * Opciones para un selector de idioma: cada idioma con el nombre que se da a
+ * sí mismo, así que uno nuevo aparece con solo añadir su fichero.
+ *
+ * @type {Array<{ code: string, name: string }>}
+ */
+export const LOCALE_OPTIONS = AVAILABLE_LOCALES.map((code) => ({ code, name: localeName(code) }))
+
+/**
  * Clave en localStorage del último idioma elegido en este dispositivo.
  *
  * Es solo el recuerdo local: sirve para que la interfaz arranque en el idioma

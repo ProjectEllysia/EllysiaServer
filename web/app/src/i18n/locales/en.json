@@ -2,8 +2,8 @@
   "language": {
     "name": "English",
     "label": "Language",
-    "followOrganization": "My organization's language ({name})",
-    "followPlatform": "Default language ({name})",
+    "followOrganization": "My organization's language",
+    "followPlatform": "Default language",
     "saveFailed": "The language could not be saved."
   },
   "shell": {

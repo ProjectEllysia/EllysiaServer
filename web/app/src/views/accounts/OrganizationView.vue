@@ -57,7 +57,7 @@
             <select class="inp language-inp" :value="account.organization.defaultLanguage ?? ''"
                     :disabled="savingLanguage" @change="saveLanguage($event.target.value)">
               <option value="">Idioma de la plataforma</option>
-              <option v-for="option in languageOptions" :key="option.code" :value="option.code" :lang="option.code">
+              <option v-for="option in LOCALE_OPTIONS" :key="option.code" :value="option.code" :lang="option.code">
                 {{ option.name }}
               </option>
             </select>
@@ -155,7 +155,7 @@ import { useApi } from '@/composables/useApi'
 import { useAccountStore } from '@/stores/accountStore'
 import { useProfileStore } from '@/stores/profileStore'
 import { useToastStore } from '@/stores/toastStore'
-import { AVAILABLE_LOCALES, i18n } from '@/i18n'
+import { LOCALE_OPTIONS } from '@/i18n'
 
 const { apiFetch, apiError } = useApi()
 const account = useAccountStore()
@@ -180,12 +180,6 @@ const canCreate = computed(() => account.plan?.organizationEnabled === true)
 
 const profileStore = useProfileStore()
 const savingLanguage = ref(false)
-
-/** Idiomas de la interfaz, cada uno con su propio nombre («English»). */
-const languageOptions = computed(() => AVAILABLE_LOCALES.map((code) => ({
-  code,
-  name: i18n.global.getLocaleMessage(code)?.language?.name ?? code,
-})))
 
 /**
  * Guarda el idioma por defecto de la organización.

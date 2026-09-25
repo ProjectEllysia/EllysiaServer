@@ -2,8 +2,8 @@
   "language": {
     "name": "Español",
     "label": "Idioma",
-    "followOrganization": "Idioma de mi organización ({name})",
-    "followPlatform": "Idioma predeterminado ({name})",
+    "followOrganization": "Idioma de mi organización",
+    "followPlatform": "Idioma predeterminado",
     "saveFailed": "No se pudo guardar el idioma."
   },
   "shell": {
