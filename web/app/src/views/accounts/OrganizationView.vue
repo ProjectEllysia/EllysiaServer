@@ -49,6 +49,21 @@
 
         <template v-if="account.isOwner">
           <section class="section">
+            <h2>Idioma</h2>
+            <p class="section-desc">
+              El idioma de los miembros que no han elegido uno. Quien elige el
+              suyo desde el selector de idioma lo mantiene.
+            </p>
+            <select class="inp language-inp" :value="account.organization.defaultLanguage ?? ''"
+                    :disabled="savingLanguage" @change="saveLanguage($event.target.value)">
+              <option value="">Idioma de la plataforma</option>
+              <option v-for="option in languageOptions" :key="option.code" :value="option.code" :lang="option.code">
+                {{ option.name }}
+              </option>
+            </select>
+          </section>
+
+          <section class="section">
             <h2>Invitar</h2>
             <p class="section-desc">
               Si esa dirección ya tiene cuenta, recibirá un enlace y no entrará
@@ -138,7 +153,9 @@ import StarBackground from '@/components/shared/StarBackground.vue'
 import ConfirmModal from '@/components/shared/ConfirmModal.vue'
 import { useApi } from '@/composables/useApi'
 import { useAccountStore } from '@/stores/accountStore'
+import { useProfileStore } from '@/stores/profileStore'
 import { useToastStore } from '@/stores/toastStore'
+import { AVAILABLE_LOCALES, i18n } from '@/i18n'
 
 const { apiFetch, apiError } = useApi()
 const account = useAccountStore()
@@ -160,6 +177,32 @@ const inviting = ref(false)
 const confirm = ref({ open: false, title: '', message: '', action: () => {} })
 
 const canCreate = computed(() => account.plan?.organizationEnabled === true)
+
+const profileStore = useProfileStore()
+const savingLanguage = ref(false)
+
+/** Idiomas de la interfaz, cada uno con su propio nombre («English»). */
+const languageOptions = computed(() => AVAILABLE_LOCALES.map((code) => ({
+  code,
+  name: i18n.global.getLocaleMessage(code)?.language?.name ?? code,
+})))
+
+/**
+ * Guarda el idioma por defecto de la organización.
+ *
+ * Después se revalida el perfil propio: si el dueño no ha elegido idioma, el
+ * suyo acaba de cambiar también.
+ *
+ * @param {string} value - Código del idioma, o '' para volver al de la plataforma.
+ */
+async function saveLanguage(value) {
+  savingLanguage.value = true
+  try {
+    if (await account.setOrganizationLanguage(value || null)) await profileStore.refreshServerOwnedFields()
+  } finally {
+    savingLanguage.value = false
+  }
+}
 
 async function load() {
   await account.loadOrganization()
@@ -313,6 +356,7 @@ onMounted(async () => {
   border: 1px solid var(--border-med);
 }
 .inp:focus { outline: none; border-color: var(--accent); }
+.language-inp { margin-top: 0.8rem; max-width: 22rem; }
 
 .table { width: 100%; border-collapse: collapse; margin-top: 1.2rem; font-size: var(--fs-md); }
 .table th {
