@@ -168,6 +168,7 @@ def _apply(finding: dict, status: PackageStatus, installed: str) -> None:
         if installed and version_compare(installed, fixed_in) < 0:
             return
         finding["state"] = "fixed"
+        finding["fixed_reason"] = "backport"
         finding["confirmed"] = False
         finding["check_id"] = BACKPORT_CHECK_ID
         return

@@ -899,6 +899,13 @@ class Finding(Base):
             justificación es deuda; con justificación es una decisión.
         state_set_by: Quién la tomó.
         state_set_at: Cuándo.
+        fixed_reason: Por qué un hallazgo está en ``fixed``, cuando no es
+            porque se haya remediado: ``"backport"`` (la distribución ya lo
+            había corregido en el paquete instalado, así que nunca estuvo) o
+            ``"alias"`` (su sitio resultó ser un alias del sitio por defecto y
+            sus avisos ya salen con él). ``None`` en cualquier otro caso, que
+            es un ``fixed`` de verdad: lo vio el escaneo anterior y éste no. Lo
+            pone el motor, no el usuario, y por eso no va en ``state_reason``.
         state_expires_at: Cuándo vuelve el hallazgo a ``open`` por su cuenta.
             Se rellena sólo para ``accepted`` — un riesgo asumido hace un año
             merece revisarse otra vez, mientras que un falso positivo no
@@ -962,6 +969,7 @@ class Finding(Base):
     first_seen_at = Column(DateTime, default=utcnow_naive)
     last_seen_at  = Column(DateTime, default=utcnow_naive)
     state         = Column(String(20), default="open")
+    fixed_reason  = Column(String(16), nullable=True)
     
     @property
     def snapshot(self) -> dict:

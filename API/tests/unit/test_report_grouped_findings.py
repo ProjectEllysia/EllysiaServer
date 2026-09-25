@@ -274,14 +274,15 @@ def test_the_report_body_keeps_fixed_findings_out_of_the_cards_and_the_counts(mo
     from src.modules.features.themis.managers import LybraEngineManager
     from src.modules.features.themis.services.reports import findings as report_module
 
-    def row(title, state):
-        return SimpleNamespace(
+    def row(title, state, fixed_reason=None):
+        return SimpleNamespace(fixed_reason=fixed_reason,
             title=title, category="security_header", port=80, service="http", cpe=None, cve_ids=[],
             cvss_score=None, epss_score=None, in_kev=False, qod=90, confirmed=True,
             exploit_maturity=None, state=state, source="lybra", cpe_resolved=False,
             required_os=None, check_id="lybra:hsts@2", vhost=None, severity="MEDIUM",
         )
-    rows = [row("Cabecera HSTS ausente", "open"), row("Cabecera X-Frame-Options ausente", "fixed")]
+    rows = [row("Cabecera HSTS ausente", "open"), row("Cabecera X-Frame-Options ausente", "fixed"),
+            row("Falta la cabecera Referrer-Policy", "fixed", fixed_reason="alias")]
     monkeypatch.setattr(session_module, "build_repository",
                         lambda _cls: SimpleNamespace(get_findings_by_scan=lambda _scan_id: rows))
     monkeypatch.setattr(LybraEngineManager, "exposure_for", staticmethod(lambda _scan: "public"))
@@ -307,6 +308,27 @@ def test_the_report_body_keeps_fixed_findings_out_of_the_cards_and_the_counts(mo
     assert "Corregidos desde el escaneo anterior: 1" in joined
     assert "Hallazgo #1.1" in joined and "Hallazgo #1.2" not in joined
     assert "• Cabecera X-Frame-Options ausente (http:80)" in joined
+    # Lo que deja de verse por una mejora del motor va aparte y no cuenta
+    # como corregido: el cliente no ha hecho nada.
+    assert "Ya no se reportan (mejoras del motor)" in joined
+    assert "• Falta la cabecera Referrer-Policy (http:80)" in joined
+
+
+def test_engine_dropped_findings_are_grouped_by_reason():
+    from src.modules.features.themis.services.reports.findings import _append_dropped_section
+
+    elements = []
+    _append_dropped_section(_theme(), elements, [
+        _finding(title="OpenSSH 9.6p1 — CVE-2024-6387", state="fixed", fixed_reason="backport"),
+        _finding(title="Falta la cabecera CSP", state="fixed", fixed_reason="alias",
+                 vhost="alias.example.org"),
+    ], "scan7-dropped")
+
+    assert _outline_entries(elements) == [(0, "Ya no se reportan (mejoras del motor)", "scan7-dropped")]
+    lines = [element.getPlainText() for element in elements if hasattr(element, "getPlainText")]
+    assert any(line.startswith("Descartados: la distribución ya los había corregido") for line in lines)
+    assert any(line.startswith("El sitio resultó ser un alias") for line in lines)
+    assert any("Falta la cabecera CSP (http:80, sitio alias.example.org)" in line for line in lines)
 
 
 def test_the_report_warns_when_the_ip_hosts_other_webs():

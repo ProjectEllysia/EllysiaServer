@@ -209,3 +209,24 @@ def test_a_name_that_only_serves_the_default_site_is_listed_but_not_audited(monk
 def _distinct_views(host, web_services):
     """Cada sitio sirve una página propia: ninguno es alias del sitio por defecto."""
     return {service.port: (200, f"digest-{host}", None) for service in web_services}
+
+
+def test_fixed_findings_of_a_site_that_became_an_alias_are_not_a_remediation():
+    """Un sitio que pasa a reconocerse como alias del sitio por defecto deja
+    de auditarse aparte, y sus avisos del escaneo anterior salen como
+    «corregidos». No lo son: el servidor no cambió."""
+    from src.modules.features.themis.lybra import mark_alias_fixes, site_finding
+
+    findings = [
+        site_finding("alias.example.test", "DNS inverso de la IP", serves_default_site=True),
+        {"state": "fixed", "vhost": "alias.example.test", "title": "Falta la cabecera CSP"},
+        {"state": "fixed", "vhost": "propio.example.test", "title": "Falta la cabecera CSP"},
+        {"state": "fixed", "vhost": None, "title": "Certificado caducado"},
+        {"state": "open", "vhost": "alias.example.test", "title": "Abierto"},
+    ]
+    mark_alias_fixes(findings)
+
+    assert findings[1]["fixed_reason"] == "alias"
+    assert "fixed_reason" not in findings[2]     # otro sitio: remediación de verdad
+    assert "fixed_reason" not in findings[3]
+    assert "fixed_reason" not in findings[4]     # no está corregido
