@@ -29,6 +29,7 @@ from enum import Enum
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     Float,
@@ -836,6 +837,43 @@ class AuthorizedTarget(Base):
 
     def __repr__(self):
         return f"<AuthorizedTarget(id={self.id}, target='{self.target}', user_id={self.user_id})>"
+
+
+class ComplianceFrameworkSelection(Base):
+    """Los marcos de cumplimiento que un usuario o una organización quiere controlar.
+
+    Cada fila pertenece a un usuario **o** a una organización, nunca a los dos.
+    Que no haya fila significa «no he elegido»; una fila con la lista vacía
+    significa «ninguno». La diferencia importa en la organización: si tiene
+    fila, sus marcos sustituyen a los de cada miembro (ver
+    ``ComplianceManager.resolve_effective_frameworks``).
+
+    Los marcos se guardan por su clave del catálogo de Lybra (``"iso27001"``,
+    ``"ens"``, ``"nis2"``), la misma que forma el código global de cada control.
+
+    Attributes:
+        id: Clave primaria.
+        user_id: Usuario dueño de la elección, o ``None`` si es de una organización.
+        organization_id: Organización dueña de la elección, o ``None`` si es de un usuario.
+        frameworks: Lista de claves de marco, sin repetir, en el orden elegido.
+        updated_at: Última vez que se cambió.
+    """
+    __tablename__ = "ComplianceFrameworkSelection"
+
+    id              = Column(Integer, primary_key=True, autoincrement=True)
+    user_id         = Column(Integer, ForeignKey("User.id", ondelete="CASCADE"),
+                             nullable=True, unique=True)
+    organization_id = Column(Integer, ForeignKey("Organization.id", ondelete="CASCADE"),
+                             nullable=True, unique=True)
+    frameworks      = Column(JSONB, nullable=False)
+    updated_at      = Column(DateTime, nullable=False, default=utcnow_naive, onupdate=utcnow_naive)
+
+    __table_args__ = (
+        CheckConstraint(
+            "(user_id IS NULL) <> (organization_id IS NULL)",
+            name="ck_complianceframeworkselection_one_owner",
+        ),
+    )
 
 
 class Finding(Base):

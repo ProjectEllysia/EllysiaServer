@@ -2,6 +2,7 @@ from marshmallow import Schema, fields, validate, validates_schema, ValidationEr
 
 from src.modules.shared import UTCDateTime
 from .model import ScanType
+from .lybra.compliance import list_compliance_frameworks
 
 
 class ScanIdQuerySchema(Schema):
@@ -129,6 +130,31 @@ class AuthorizedTargetActionResponseSchema(Schema):
     targetId = fields.Integer()
     target = fields.String()
     user = fields.String()
+
+
+class ComplianceFrameworkSchema(Schema):
+    key = fields.String()
+    name = fields.String()
+
+
+class ComplianceFrameworksRequestSchema(Schema):
+    """Marcos de cumplimiento elegidos; ``null`` deja de elegir."""
+
+    frameworks = fields.List(
+        fields.String(validate=validate.OneOf([framework.key for framework in list_compliance_frameworks()])),
+        required=True, allow_none=True,
+    )
+
+
+class CompliancePreferencesResponseSchema(Schema):
+    """Preferencias de marcos: el catálogo, las elecciones y la que se aplica."""
+
+    frameworks = fields.List(fields.Nested(ComplianceFrameworkSchema))
+    mine = fields.List(fields.String(), allow_none=True)
+    organization = fields.List(fields.String(), allow_none=True)
+    effective = fields.List(fields.String())
+    isLockedByOrganization = fields.Boolean()
+    canManageOrganization = fields.Boolean()
 
 
 class ResultsQuerySchema(Schema):

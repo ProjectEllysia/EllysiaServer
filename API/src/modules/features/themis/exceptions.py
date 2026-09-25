@@ -173,6 +173,25 @@ class DuplicateAuthorizedTargetError(ScanError):
         )
 
 
+class ComplianceOrganizationNotOwnedError(EllysiaException):
+    """Quien intenta fijar los marcos de cumplimiento de una organización no es su dueño.
+
+    Sólo el dueño decide qué marcos se imponen a los miembros; un miembro
+    sigue pudiendo elegir los suyos mientras la organización no fije ninguno.
+    """
+
+    default_code = ErrorCode.AUTHORIZATION_ERROR
+    default_status_code = 403
+    default_severity = ErrorSeverity.LOW
+
+    def __init__(self):
+        super().__init__(
+            message="Sólo el dueño de la organización puede fijar sus marcos de cumplimiento",
+            user_message="Sólo el dueño de la organización puede fijar sus marcos de cumplimiento.",
+            message_key="complianceOrganizationOwnerOnly",
+        )
+
+
 class ReportError(EllysiaException):
     """Excepción base para errores de reportes y documentos."""
 

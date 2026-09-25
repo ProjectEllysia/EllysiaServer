@@ -192,6 +192,7 @@
     "systemTagImmutable": "Las etiquetas del catálogo común no se pueden borrar.",
     "tagAlreadyExists": "Ya existe una etiqueta «{name}».",
     "tagQuotaExceeded": "Has alcanzado el máximo de {maxTags} etiquetas personales.",
+    "complianceOrganizationOwnerOnly": "Sólo el dueño de la organización puede fijar sus marcos de cumplimiento.",
     "targetNotAuthorized": "«{target}» no está autorizado para operaciones activas de Lybra. Añádelo al registro de objetivos autorizados antes de lanzar este escaneo.",
     "taskNotCancellable": "La tarea no existe o ya ha terminado.",
     "tooManyRequests": "Has superado el límite de peticiones. Espera un momento e inténtalo de nuevo.",
