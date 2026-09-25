@@ -1120,21 +1120,34 @@ function fmtDate(iso) {
 .group-head:hover .group-label { color: var(--accent-bright); }
 .group-head:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
 .group-chevron svg { width: 12px; height: 12px; }
-/* Los hallazgos cuelgan de su grupo: una guía baja desde el chevron y un
-   trazo corto enlaza cada tarjeta con ella. La tarjeta en sí no cambia. */
+/* Los hallazgos cuelgan de su grupo con una guía de un solo trazo: baja desde
+   el chevron y se dobla hacia cada tarjeta, cuyo filo izquierdo es el final
+   del mismo trazo (mismo color). Cada tarjeta dibuja su propio tramo —un codo
+   (::before) desde el hueco de arriba hasta su altura, y la bajada (::after)
+   hasta el hueco siguiente, salvo la última—, de modo que la guía termina
+   justo en el último hallazgo sea cual sea su alto. Color sólido y sin
+   opacidad: los tramos se tocan, y uno translúcido oscurecería las juntas. */
 .group-body {
   --stem: calc(6px + 0.4rem);
-  position: relative; margin: 0.1rem 0 0 6px; padding-left: var(--stem);
+  --guide: var(--text-muted);
+  --elbow: 1.05rem;
+  margin: 0.1rem 0 0 6px; padding-left: var(--stem);
 }
-.group-body::before {
-  content: ''; position: absolute; left: 0; top: 0; bottom: 1.6rem; width: 1px;
-  background: linear-gradient(var(--accent), var(--text-muted)); opacity: 0.6;
+.group-body .finding { position: relative; border-left-color: var(--guide); }
+.group-body .finding::before, .group-body .finding::after {
+  content: ''; position: absolute; left: calc(-1 * var(--stem) - 3px);
+  border-left: 1px solid var(--guide); pointer-events: none;
 }
-.group-body .finding { position: relative; }
+/* El codo: sube hasta el hallazgo anterior (el hueco entre tarjetas) y, en el
+   primero, hasta el borde del cuerpo del grupo, que es donde está el chevron.
+   El píxel de más en cada extremo es el borde de la tarjeta: los pseudo-
+   elementos se sitúan desde el relleno, y sin él quedaría una junta abierta. */
 .group-body .finding::before {
-  content: ''; position: absolute; top: 1.05rem; width: var(--stem); height: 1px;
-  left: calc(-1 * var(--stem) - 3px); background: var(--text-muted); opacity: 0.85;
+  top: calc(-0.35rem - 1px); height: calc(var(--elbow) + 0.35rem + 1px); width: var(--stem);
+  border-bottom: 1px solid var(--guide); border-bottom-left-radius: 6px;
 }
+.group-body .finding:first-child::before { top: calc(-0.4rem - 1px); height: calc(var(--elbow) + 0.4rem + 1px); }
+.group-body .finding:not(:last-child)::after { top: var(--elbow); bottom: -1px; }
 .group-label { font-weight: 600; color: var(--text); font-size: var(--fs-lg); }
 .group-count { margin-left: auto; font-size: var(--fs-md); color: var(--text-muted); }
 /* Sangrada hasta la insignia: las etiquetas del grupo se leen bajo su título, no bajo el chevron. */
