@@ -14,6 +14,7 @@ from reportlab.platypus import CondPageBreak, Paragraph, Spacer, Table, TableSty
 import src.modules.system.config_reading as CR
 
 from src.modules.tools.press import ColorType, build_palette, safe_markup
+from ...lybra.compliance import load_compliance_catalog, map_finding_compliance
 from ...lybra.correlation import DEFAULT_SITE_VHOST
 from ...lybra.grouping import build_service_rollup
 from ...lybra.kb import KB_MARK_SOURCES, parse_kb_feed_version
@@ -63,6 +64,10 @@ class FindingsPrintingStrategy(PrintingStrategy):
                              (``get_logo_filename``).
         _DEFAULT_PALETTE:    Fallback color dict when ``SecOpsConfig.json``
                              carries no ``colorPalette`` for ``_TOOL``.
+        _SHOWS_COMPLIANCE:   Si el informe traduce cada hallazgo a técnicas de
+                             MITRE ATT&CK y a los controles de los marcos de
+                             cumplimiento del dueño del escaneo. Es exclusivo
+                             del motor propio: sólo Lybra lo activa.
 
     Attributes:
         writer: ``_WRITER_CLASS`` instance for AI analysis.
@@ -88,6 +93,11 @@ class FindingsPrintingStrategy(PrintingStrategy):
     _FILENAME_SUFFIX: str
     _LOGO_FILENAME: str
     _DEFAULT_PALETTE: Dict[str, str]
+    _SHOWS_COMPLIANCE: bool
+
+    # Los marcos de cumplimiento del dueño del escaneo; los fija `append_body`.
+    # Vacío por defecto para que una ficha pintada fuera de él no los necesite.
+    _frameworks: tuple = ()
 
     def __init__(self, scan) -> None:
         """Initialize the printing strategy.
@@ -144,6 +154,11 @@ class FindingsPrintingStrategy(PrintingStrategy):
             finding["priority"] = score_finding(finding, exposure)
             finding["is_unverified_distro_package"] = is_unverified_distro_package(finding)
         enrich_with_cve_context(findings)
+        if self._SHOWS_COMPLIANCE:
+            self._frameworks = _effective_frameworks(self.scan.user_id)
+            keys = [framework.key for framework in self._frameworks]
+            for finding in findings:
+                finding["compliance"] = map_finding_compliance(finding["category"], finding["check_id"], keys)
 
         self._append_finding_header(theme, elements, findings, exposure, len(fixed_findings))
         _append_sites_section(theme, elements, sites)
@@ -153,6 +168,9 @@ class FindingsPrintingStrategy(PrintingStrategy):
         self._append_cpe_coverage_note(theme, elements, findings)
 
         self._append_findings_section(theme, elements, findings)
+        if self._SHOWS_COMPLIANCE:
+            _append_compliance_section(theme, elements, findings, self._frameworks,
+                                       self.color_palette, self._outline_key("compliance"))
         _append_fixed_section(theme, elements, fixed_findings, self._outline_key("fixed"))
         _append_dropped_section(theme, elements, dropped_findings, self._outline_key("dropped"))
 
@@ -652,6 +670,7 @@ class FindingsPrintingStrategy(PrintingStrategy):
             details.append(["Estado:", self._STATE_LABEL.get(finding["state"], finding["state"])])
         if finding.get("source") and finding["source"] != self._OWN_SOURCE:
             details.append(["Corroborado por:", finding["source"]])
+        details.extend(_compliance_rows(theme, finding.get("compliance"), self._frameworks))
 
         if details:
             detail_table = Table(details, colWidths=[1.7 * inch, 4.3 * inch])
@@ -667,6 +686,7 @@ class FindingsPrintingStrategy(PrintingStrategy):
                 ("LEFTPADDING", (0, 0), (-1, -1), 8),
                 ("RIGHTPADDING", (0, 0), (-1, -1), 8),
                 ("GRID", (0, 0), (-1, -1), 0.4, border),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ]))
             elements.append(detail_table)
 
@@ -960,3 +980,187 @@ def _is_oval_stale() -> bool:
     except Exception:  # noqa: BLE001 - el informe no puede caerse por esto
         logger.exception("No se pudo leer el estado de la base de conocimiento")
         return False
+
+
+def _effective_frameworks(user_id: int) -> tuple:
+    """Los marcos de cumplimiento que se aplican al dueño de un escaneo.
+
+    Args:
+        user_id: Dueño del escaneo.
+
+    Returns:
+        tuple[ComplianceFramework, ...]: En el orden del catálogo; vacía si ni
+            el dueño ni su organización han elegido ninguno.
+    """
+    # Diferido: `managers` importa `services`, así que a nivel de módulo
+    # sería un ciclo.
+    from src.modules.features.themis.managers import ComplianceManager
+    keys = set(ComplianceManager().resolve_effective_frameworks(user_id))
+    return tuple(framework for framework in load_compliance_catalog().frameworks.values()
+                 if framework.key in keys)
+
+
+def _compliance_rows(theme: "ReportTheme", compliance, frameworks: tuple) -> list:
+    """Las filas de la ficha de un hallazgo con sus técnicas y sus controles.
+
+    El valor va como párrafo para que un título de control largo parta línea
+    en vez de salirse de la celda.
+
+    Args:
+        theme: El tema del informe.
+        compliance: El ``FindingCompliance`` del hallazgo, o ``None`` si el
+            informe no traduce a cumplimiento.
+        frameworks: Los ``ComplianceFramework`` del dueño, en el orden en que
+            salen las filas.
+
+    Returns:
+        list[list]: Pares ``[rótulo, valor]``: uno de MITRE ATT&CK si el
+            hallazgo tiene técnicas y uno por cada marco con controles
+            afectados. Vacía si no hay nada que enseñar.
+    """
+    if compliance is None:
+        return []
+    value_style = ParagraphStyle("ComplianceValue", parent=theme.body, fontSize=8.5, leading=10.5,
+                                 alignment=TA_LEFT)
+    rows = []
+    if compliance.techniques:
+        rows.append(["MITRE ATT&CK:", Paragraph("<br/>".join(
+            f"{technique.identifier} {safe_markup(technique.name)} "
+            f"({safe_markup(', '.join(technique.tactics))})"
+            for technique in compliance.techniques), value_style)])
+    for framework in frameworks:
+        controls = [control for control in compliance.controls if control.framework == framework.key]
+        if controls:
+            rows.append([f"{framework.short_name}:", Paragraph("<br/>".join(
+                f"{safe_markup(control.identifier)} {safe_markup(control.title)}"
+                for control in controls), value_style)])
+    return rows
+
+
+def _append_compliance_section(theme: "ReportTheme", elements: list, findings: list, frameworks: tuple,
+                               palette: dict, outline_key: str) -> None:
+    """La sección «Cumplimiento y técnicas de ataque».
+
+    Agrega las fichas: por cada técnica de ATT&CK y por cada control afectado,
+    cuántos hallazgos lo tocan y la prioridad más alta entre ellos. Los
+    controles se agrupan bajo su control padre (``op.exp`` sobre ``op.exp.4``),
+    que es como los lee quien prepara una auditoría. Los hallazgos que el
+    usuario desmintió no cuentan, igual que en el resumen por prioridad.
+
+    Args:
+        theme: El tema del informe.
+        elements: La lista de elementos del documento; se amplía en sitio.
+        findings: Los hallazgos abiertos, ya con su clave ``compliance``.
+        frameworks: Los ``ComplianceFramework`` del dueño; vacía, la sección
+            sólo enseña ATT&CK y explica dónde elegirlos.
+        palette: La paleta de colores del informe.
+        outline_key: La clave del marcador de la sección en el índice del PDF.
+    """
+    live = [finding for finding in findings
+            if finding.get("state") != "false_positive" and finding.get("compliance")
+            and (finding["compliance"].techniques or finding["compliance"].controls)]
+    if not live:
+        return
+    title = "Cumplimiento y técnicas de ataque"
+    elements.append(CondPageBreak(2 * inch))
+    elements.append(OutlineEntry(title, key=outline_key, level=0))
+    elements.append(Paragraph(title, theme.subtitle))
+    elements.append(Spacer(1, 0.1 * inch))
+    cell = ParagraphStyle("ComplianceCell", parent=theme.body, fontSize=8, leading=10)
+
+    techniques: Dict[str, tuple] = {}
+    for finding in live:
+        for technique in finding["compliance"].techniques:
+            techniques.setdefault(technique.identifier, (technique, []))[1].append(finding)
+    if techniques:
+        elements.append(Paragraph("<b>MITRE ATT&amp;CK</b>", theme.body))
+        rows = [[technique.identifier, Paragraph(safe_markup(technique.name), cell),
+                 Paragraph(safe_markup(", ".join(technique.tactics)), cell), *_tally(related)]
+                for _, (technique, related) in sorted(techniques.items())]
+        elements.append(_compliance_table(palette, ["Técnica", "Nombre", "Táctica"], [0.8, 2.4, 1.1], rows, []))
+        elements.append(Spacer(1, 0.2 * inch))
+
+    if not frameworks:
+        elements.append(Paragraph(
+            "No hay marcos de cumplimiento elegidos. Si eliges ISO 27001, ENS o NIS2 en tu "
+            "perfil, este informe dirá qué controles de cada uno afecta cada hallazgo.", theme.info))
+        elements.append(Spacer(1, 0.3 * inch))
+        return
+
+    catalog = load_compliance_catalog()
+    for framework in frameworks:
+        affected: Dict[str, list] = {}
+        for finding in live:
+            for control in finding["compliance"].controls:
+                if control.framework == framework.key:
+                    affected.setdefault(control.code, []).append(finding)
+        if not affected:
+            continue
+        rows, group_rows, current_parent = [], [], None
+        # El orden del catálogo es el del propio marco: los hermanos salen juntos.
+        for code in (code for code in catalog.controls if code in affected):
+            control = catalog.controls[code]
+            parent = catalog.controls.get(control.parent) if control.parent else None
+            if parent is not None and parent.code != current_parent:
+                current_parent = parent.code
+                group_rows.append(len(rows) + 1)
+                rows.append([Paragraph(f"<b>{safe_markup(parent.identifier)} "
+                                       f"{safe_markup(parent.title)}</b>", cell), "", "", ""])
+            rows.append([control.identifier, Paragraph(safe_markup(control.title), cell),
+                         *_tally(affected[code])])
+        elements.append(Paragraph(f"<b>{safe_markup(framework.name)}</b>", theme.body))
+        elements.append(_compliance_table(palette, ["Control", "Título"], [0.8, 3.5], rows, group_rows))
+        elements.append(Spacer(1, 0.2 * inch))
+    elements.append(Spacer(1, 0.1 * inch))
+
+
+def _tally(related: list) -> list:
+    """Las dos últimas celdas de una fila de cumplimiento.
+
+    Args:
+        related: Los hallazgos que tocan la técnica o el control.
+
+    Returns:
+        list[str]: El número de hallazgos y el rótulo de su prioridad más alta.
+    """
+    order = FindingsPrintingStrategy._PRIORITY_ORDER  # pylint: disable=protected-access
+    top = min((finding["priority"] for finding in related), key=lambda priority: order.get(priority, len(order)))
+    return [str(len(related)), FindingsPrintingStrategy._PRIORITY_LABEL.get(top, top)]  # pylint: disable=protected-access
+
+
+def _compliance_table(palette: dict, headers: list, widths: list, rows: list, group_rows: list) -> Table:
+    """Una tabla de la sección de cumplimiento.
+
+    Args:
+        palette: La paleta de colores del informe.
+        headers: Rótulos de las columnas descriptivas; se les añaden
+            «Hallazgos» y «Prioridad máx.».
+        widths: Anchos en pulgadas de las columnas descriptivas; las dos de
+            recuento ocupan 1.7 pulgadas más.
+        rows: Las filas, ya con sus celdas.
+        group_rows: Índices (contando la cabecera como 0) de las filas que son
+            un control padre: ocupan todo el ancho y van sombreadas.
+
+    Returns:
+        Table: La tabla lista para añadir al documento.
+    """
+    dark = colors.HexColor(palette[ColorType.DARK])
+    light = colors.HexColor(palette[ColorType.LIGHT])
+    table = Table([headers + ["Hallazgos", "Prioridad máx."], *rows],
+                  colWidths=[width * inch for width in widths] + [0.75 * inch, 0.95 * inch],
+                  repeatRows=1)
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(palette[ColorType.SECONDARY])),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+        ("FONTSIZE", (0, 0), (-1, -1), 8),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("ALIGN", (-2, 1), (-1, -1), "CENTER"),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("GRID", (0, 0), (-1, -1), 0.4, dark),
+        *[style for row in group_rows for style in (
+            ("SPAN", (0, row), (-1, row)), ("BACKGROUND", (0, row), (-1, row), light))],
+    ]))
+    return table

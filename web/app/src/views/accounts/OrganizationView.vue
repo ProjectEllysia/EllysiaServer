@@ -63,6 +63,14 @@
             </select>
           </section>
 
+          <ComplianceFrameworksPicker scope="organization" class="section">
+            <h2>Marcos de cumplimiento</h2>
+            <p class="section-desc">
+              Los marcos que salen en los informes de Lybra de todos los miembros. Si los fijas,
+              sustituyen a los que cada miembro haya elegido en su perfil.
+            </p>
+          </ComplianceFrameworksPicker>
+
           <section class="section">
             <h2>Invitar</h2>
             <p class="section-desc">
@@ -151,6 +159,7 @@ import { ref, computed, onMounted } from 'vue'
 import Topbar from '@/components/shared/Topbar.vue'
 import StarBackground from '@/components/shared/StarBackground.vue'
 import ConfirmModal from '@/components/shared/ConfirmModal.vue'
+import ComplianceFrameworksPicker from '@/components/themis/ComplianceFrameworksPicker.vue'
 import { useApi } from '@/composables/useApi'
 import { useAccountStore } from '@/stores/accountStore'
 import { useProfileStore } from '@/stores/profileStore'

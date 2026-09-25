@@ -39,6 +39,14 @@
           <LanguageSelect />
         </section>
 
+        <ComplianceFrameworksPicker scope="user" class="profile-section">
+          <h2>Marcos de cumplimiento</h2>
+          <p class="section-desc">
+            Los informes de Lybra indicarán qué controles de estos marcos afecta cada hallazgo, junto a
+            la técnica de ataque de MITRE ATT&amp;CK, que sale siempre.
+          </p>
+        </ComplianceFrameworksPicker>
+
         <section class="profile-section">
           <h2>Seguridad</h2>
           <form class="profile-form" @submit.prevent="handlePasswordSubmit">
@@ -165,6 +173,7 @@ import LanguageSelect from '@/components/shared/LanguageSelect.vue'
 import StarBackground from '@/components/shared/StarBackground.vue'
 import MfaSetupModal from '@/components/shared/MfaSetupModal.vue'
 import ConfirmModal from '@/components/shared/ConfirmModal.vue'
+import ComplianceFrameworksPicker from '@/components/themis/ComplianceFrameworksPicker.vue'
 import { useApi } from '@/composables/useApi'
 import { useToastStore } from '@/stores/toastStore'
 import { useProfileStore } from '@/stores/profileStore'
