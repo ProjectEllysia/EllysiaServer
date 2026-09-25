@@ -167,10 +167,22 @@
                   <div v-else-if="groupsError(scan.id)" class="groups-error">{{ groupsError(scan.id) }}</div>
 
                   <template v-else>
+                    <LybraFindingsToolbar :scan-id="scan.id" :model-value="criteriaFor(scan.id)"
+                      :priority-counts="arrangement(scan.id).priorityCounts" :state-counts="arrangement(scan.id).stateCounts"
+                      :visible-total="arrangement(scan.id).visibleTotal" :total="arrangement(scan.id).total"
+                      @update:model-value="criteria => setCriteria(scan.id, criteria)" @reset="resetCriteria(scan.id)" />
+
+                    <!-- Los filtros pueden dejar la lista vacía; decirlo evita que
+                         se lea como «este escaneo no tiene hallazgos». -->
+                    <div v-if="!arrangement(scan.id).visibleTotal && arrangement(scan.id).total" class="filtered-empty">
+                      Ningún hallazgo cumple estos filtros.
+                      <button type="button" class="f-act" @click="resetCriteria(scan.id)">Quitar filtros</button>
+                    </div>
+
                     <!-- Dos secciones porque son dos clases de trabajo: subir un producto
                          de versión, y arreglar una configuración. Mezclarlas hacía que un
                          "falta la cabecera HSTS" pareciera un producto más del inventario. -->
-                    <template v-for="section in sections(scan.id)" :key="section.key">
+                    <template v-for="section in arrangement(scan.id).sections" :key="section.key">
                     <section v-if="section.groups.length" class="ledger-section">
                       <header class="inscription">
                         <span class="inscription-mark" aria-hidden="true"></span>
@@ -206,7 +218,9 @@
                           <span class="f-prio" :class="(group.priority || 'INFO').toLowerCase()">{{ PRIO_LABEL[group.priority] || group.priority }}</span>
                           <span class="group-label">{{ group.label }}</span>
                           <span v-if="group.port" class="f-tag mono">{{ group.service || 'svc' }}:{{ group.port }}</span>
-                          <span class="group-count">{{ group.totalFindings }} {{ group.totalFindings === 1 ? 'hallazgo' : 'hallazgos' }}</span>
+                          <span class="group-count">
+                            <template v-if="group.totalFindings < group.allFindings">{{ group.totalFindings }} de </template>{{ group.allFindings }} {{ group.allFindings === 1 ? 'hallazgo' : 'hallazgos' }}
+                          </span>
                         </button>
 
                         <div class="group-meta">
@@ -404,10 +418,12 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, effectScope, onBeforeUnmount } from 'vue'
 import StatusBadge from '@/components/themis/StatusBadge.vue'
 import AppPagination from '@/components/shared/AppPagination.vue'
+import LybraFindingsToolbar from './LybraFindingsToolbar.vue'
 import { SITE_HINT, hasSeveralSites, siteLabel } from './findingSites'
+import { LADDER, arrangeGroups, defaultCriteria } from './findingsArrangement'
 
 const props = defineProps({
   scans: { type: Array, default: () => [] },
@@ -429,7 +445,6 @@ const selectedSet = computed(() => new Set(props.selectedIds))
 const allSelected = computed(() => props.scans.length > 0 && props.scans.every(s => selectedSet.value.has(s.id)))
 const someSelected = computed(() => props.scans.some(s => selectedSet.value.has(s.id)) && !allSelected.value)
 
-const LADDER = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO']
 const PRIO_LABEL = { CRITICAL: 'Crítica', HIGH: 'Alta', MEDIUM: 'Media', LOW: 'Baja', INFO: 'Info' }
 const STATE_LABEL = { fixed: 'Corregido', regressed: 'Regresado', accepted: 'Aceptado', false_positive: 'Falso positivo' }
 
@@ -568,43 +583,72 @@ function groupsError(scanId) { return props.groupsByScan[scanId]?.error || null 
 function groupKey(scanId, group) { return `${scanId}|${group.port ?? '-'}|${group.service ?? '-'}|${group.label}` }
 
 /**
- * Las dos secciones en que se parten los grupos.
+ * Criterios de orden y filtro de cada escaneo, por id.
  *
- * Son dos clases de trabajo distintas: subir un producto de versión, y arreglar
- * una configuración. Mezclarlas hacía que "falta la cabecera HSTS" pareciera un
- * producto más del inventario, y que un producto con veinte CVEs pareciera
- * veinte problemas.
+ * Son por escaneo y no globales porque la lista puede tener varias tarjetas
+ * abiertas a la vez, y filtrar una no debe reordenar la de al lado. Se crean
+ * al abrir el capítulo de hallazgos, nunca durante el pintado.
  */
-function sections(scanId) {
-  const groups = groupsFor(scanId)
-  return [
-    withBalance({ key: 'prod', title: 'Productos afectados', groups: groups.filter(g => g.isProduct) }),
-    withBalance({ key: 'conf', title: 'Configuración y exposición', groups: groups.filter(g => !g.isProduct) }),
-  ]
+const criteriaByScan = reactive({})
+
+/** Criterios por defecto compartidos para lo que aún no tiene los suyos; no se muta. */
+const DEFAULT_CRITERIA = Object.freeze(defaultCriteria())
+
+/**
+ * Criterios de un escaneo.
+ *
+ * @param {number} scanId - Escaneo.
+ * @returns {object} Sus criterios, o los de por defecto si aún no tiene.
+ */
+function criteriaFor(scanId) { return criteriaByScan[scanId] || DEFAULT_CRITERIA }
+
+/**
+ * Sustituye los criterios de un escaneo.
+ *
+ * @param {number} scanId - Escaneo.
+ * @param {object} criteria - Criterios nuevos, con la forma de `defaultCriteria()`.
+ */
+function setCriteria(scanId, criteria) { criteriaByScan[scanId] = criteria }
+
+/**
+ * Vuelve a los criterios con que se abre el capítulo, conservando el orden
+ * elegido: «Quitar filtros» quita filtros, no deshace el orden.
+ *
+ * @param {number} scanId - Escaneo.
+ */
+function resetCriteria(scanId) {
+  const { sortKey, reversed } = criteriaFor(scanId)
+  criteriaByScan[scanId] = { ...defaultCriteria(), sortKey, reversed }
 }
 
 /**
- * Añade a una sección su balanza: cuántos hallazgos tiene de cada gravedad.
- *
- * Se cuenta hallazgo a hallazgo y no por la gravedad del grupo, que es la
- * máxima de los suyos: un producto con un CVE crítico y nueve bajos pesa un
- * crítico y nueve bajos, no diez críticos.
- *
- * @param {{key: string, title: string, groups: Array}} section - Sección sin balanza.
- * @returns {{key: string, title: string, groups: Array, balance: Array<{level: string, count: number}>, total: number}}
- *          La misma sección con `balance` (sólo los niveles presentes, en el
- *          orden de `LADDER`) y `total`, la suma de todos ellos.
+ * Ámbito en el que viven los `computed` de `arrangement`. Se crean bajo
+ * demanda, fuera de `setup`, y sin un ámbito propio no se pararían al
+ * desmontar el componente.
  */
-function withBalance(section) {
-  const counts = {}
-  for (const group of section.groups) {
-    for (const finding of group.findings) {
-      const level = finding.priority || 'INFO'
-      counts[level] = (counts[level] || 0) + 1
-    }
+const arrangementScope = effectScope()
+onBeforeUnmount(() => arrangementScope.stop())
+const arrangementCache = new Map()
+
+/**
+ * Los hallazgos de un escaneo ya filtrados, ordenados y repartidos en sus dos
+ * secciones (ver `arrangeGroups`).
+ *
+ * Cada escaneo tiene su propio `computed`: el resultado se recalcula sólo
+ * cuando cambian sus grupos o sus criterios, no en cada repintado, y cambiar
+ * los filtros de una tarjeta no recalcula las demás. La plantilla lo lee
+ * varias veces por pintado y todas salen de la misma caché.
+ *
+ * @param {number} scanId - Escaneo.
+ * @returns {ReturnType<typeof arrangeGroups>} Secciones, recuentos y totales.
+ */
+function arrangement(scanId) {
+  let cached = arrangementCache.get(scanId)
+  if (!cached) {
+    cached = arrangementScope.run(() => computed(() => arrangeGroups(groupsFor(scanId), criteriaFor(scanId))))
+    arrangementCache.set(scanId, cached)
   }
-  const balance = LADDER.filter(level => counts[level]).map(level => ({ level, count: counts[level] }))
-  return { ...section, balance, total: balance.reduce((sum, seg) => sum + seg.count, 0) }
+  return cached.value
 }
 
 /**
@@ -623,6 +667,7 @@ function toggleFindings(id) {
     s.delete(id)
   } else {
     s.add(id)
+    if (!criteriaByScan[id]) criteriaByScan[id] = defaultCriteria()
     // Los hallazgos no vienen con el listado: se piden al abrir, igual que los
     // documentos. Una lista de diez tarjetas colapsadas no debe pagar los
     // hallazgos de las nueve que nadie va a abrir.
@@ -985,6 +1030,11 @@ function fmtDate(iso) {
 /* ── Grupos: la unidad sobre la que se actúa ── */
 .groups-loading, .groups-error { padding: 0.6rem 0.2rem; font-size: var(--fs-md); color: var(--text-muted); }
 .groups-error { color: var(--danger); }
+.filtered-empty {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 0.6rem;
+  padding: 0.8rem 0.9rem; border: 1px dashed var(--border-solid); border-radius: 10px;
+  font-size: var(--fs-md); color: var(--text-muted);
+}
 
 /* ── Capítulos del escaneo: Hallazgos y Documentos ──
    El nivel de arriba. Misma cabecera que el panel "Motor Lybra" (sello
