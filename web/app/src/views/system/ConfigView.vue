@@ -74,6 +74,13 @@
                   <input v-model.number="store.configFlat['general.logs.retentionDays']" type="number" min="1" max="365" class="inp" />
                   <span class="field-hint">Cada noche se archiva el día anterior y se borra lo que pase de este plazo. El registro guarda la IP de cada visita.</span>
                 </div>
+                <div class="form-group">
+                  <label>Idioma de la plataforma</label>
+                  <select v-model="store.configFlat['general.localization.defaultLanguage']" class="inp">
+                    <option v-for="option in languageOptions" :key="option.code" :value="option.code">{{ option.name }}</option>
+                  </select>
+                  <span class="field-hint">El de quien no ha elegido idioma y cuya organización tampoco lo ha fijado.</span>
+                </div>
               </div>
               <p class="field-hint">Plazos de los enlaces que se envían por correo. Si se admiten altas públicas se decide en «Lanzamiento».</p>
               <div class="cfg-grid">
@@ -513,8 +520,15 @@ import ScannerCard from '@/components/config/ScannerCard.vue'
 import CollapsibleSection from '@/components/config/CollapsibleSection.vue'
 import ModelPicker from '@/components/config/ModelPicker.vue'
 import PromptField from '@/components/shared/PromptField.vue'
+import { AVAILABLE_LOCALES, i18n } from '@/i18n'
 
 const store = useConfigStore()
+
+/** Idiomas que la interfaz sabe mostrar, cada uno con su propio nombre. */
+const languageOptions = computed(() => AVAILABLE_LOCALES.map((code) => ({
+  code,
+  name: i18n.global.getLocaleMessage(code)?.language?.name ?? code,
+})))
 
 const ICON = {
   launch:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>',
