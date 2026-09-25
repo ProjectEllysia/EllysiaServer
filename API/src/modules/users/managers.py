@@ -699,6 +699,32 @@ class UserManager:
             logger.error(f"Error actualizando perfil para usuario {user_id}: {e}")
             raise ProfileUpdateError(f"Error al actualizar el perfil: {e}")
 
+    def update_language(self, user_id: int, language: Optional[str]) -> User:
+        """Guarda el idioma que elige un usuario.
+
+        Args:
+            user_id: Usuario que elige.
+            language: Uno de ``SUPPORTED_LANGUAGES`` (lo valida el schema del
+                endpoint), o ``None`` para dejar de elegir y volver a seguir el
+                idioma de su organización o el de la plataforma.
+
+        Returns:
+            User: El usuario ya actualizado.
+
+        Raises:
+            UserNotFoundError: Si el usuario no existe.
+        """
+        with UnitOfWork() as uow:
+            user = UserRepository(uow).get_by_id(user_id)
+            if user is None:
+                raise UserNotFoundError(user_id)
+            user.language = language
+        logger.info(
+            "Idioma de la interfaz actualizado para el usuario %s: %s",
+            user_id, language or "(sin elegir)",
+        )
+        return user
+
     def preview_deletion(self, user_id: int) -> dict:
         """Qué se destruye si esta cuenta se borra. **No borra nada.**
 

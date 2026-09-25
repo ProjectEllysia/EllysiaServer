@@ -1733,6 +1733,26 @@ def registration_config() -> RegistrationConfig:
     return load_block(RegistrationConfig)
 
 
+@config_block("general.localization")
+@dataclass(frozen=True)
+class LocalizationConfig:
+    """Idioma de la instalación.
+
+    Attributes:
+        default_language: Idioma para quien no ha elegido uno y cuya
+            organización tampoco lo ha hecho. Es el último escalón de
+            ``users.services.language.resolve_effective_language``. Tiene que
+            ser uno de ``SUPPORTED_LANGUAGES`` (los que tienen fichero de
+            textos en la interfaz). Por defecto ``"es"``.
+    """
+
+    default_language: str = "es"
+
+
+def localization_config() -> LocalizationConfig:
+    return load_block(LocalizationConfig)
+
+
 class LaunchMode(StrEnum):
     """Modo de exposición al público de la instalación.
 

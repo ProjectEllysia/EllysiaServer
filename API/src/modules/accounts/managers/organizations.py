@@ -123,6 +123,30 @@ class OrganizationManager:
             uow.session.flush()
             return organization.to_dict()
 
+    def set_default_language(
+        self, organization_id: int, user_id: int, language: Optional[str],
+    ) -> dict:
+        """Fija el idioma que siguen los miembros que no han elegido uno.
+
+        Args:
+            organization_id: Organización a cambiar.
+            user_id: Quien lo pide; tiene que ser el dueño.
+            language: Uno de ``SUPPORTED_LANGUAGES`` (lo valida el schema del
+                endpoint), o ``None`` para volver al idioma de la plataforma.
+
+        Returns:
+            dict: La organización ya actualizada, como ``Organization.to_dict``.
+
+        Raises:
+            OrganizationNotFoundError: Si no existe o el usuario no es su dueño.
+        """
+        get_owned_organization(user_id, organization_id)
+        with UnitOfWork() as uow:
+            organization = OrganizationRepository(uow).get_by_id(organization_id)
+            organization.default_language = language
+            organization.updated_at = utcnow_naive()
+            return organization.to_dict()
+
     # -------------------------------------------------------------- consulta
 
     def get_mine(self, user_id: int) -> Optional[dict]:
@@ -141,6 +165,26 @@ class OrganizationManager:
         payload["myRole"] = membership.member_role
         payload["isOwner"] = organization.owner_user_id == user_id
         return payload
+
+    def get_default_language(self, user_id: int) -> Optional[str]:
+        """Devuelve el idioma por defecto de la organización a la que pertenece un usuario.
+
+        Es el escalón intermedio de la regla de idioma de ``users``: se consulta
+        cuando el usuario no ha elegido uno.
+
+        Args:
+            user_id: Usuario, sea dueño o miembro.
+
+        Returns:
+            Optional[str]: El código de idioma que fijó el dueño, o ``None`` si
+                el usuario no pertenece a ninguna organización o esta no tiene
+                idioma por defecto.
+        """
+        membership = build_repository(OrganizationMemberRepository).get_by_user(user_id)
+        if membership is None:
+            return None
+        organization = build_repository(OrganizationRepository).get_by_id(membership.organization_id)
+        return organization.default_language if organization is not None else None
 
     def list_members(self, organization_id: int, user_id: int) -> list[dict]:
         """Miembros de la organización, con lo justo para identificarlos.

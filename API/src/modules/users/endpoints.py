@@ -14,7 +14,7 @@ from src.modules.shared._exceptions import (
 from src.modules.shared.schemas import ErrorSchema, SuccessMessageSchema
 from src.modules.shared import utcnow_naive
 
-from .services import Role, require_oauth_token, require_role
+from .services import Role, require_oauth_token, require_role, resolve_effective_language
 from .managers import UserManager, OAuthTokenManager, MFAManager
 import src.modules.system.config_reading as CR
 from .exceptions import (
@@ -34,6 +34,7 @@ from .schemas import (
     CheckCredentialsResponseSchema,
     ChangePasswordRequestSchema,
     ChangePasswordResponseSchema,
+    UpdateLanguageRequestSchema,
     UpdateProfileRequestSchema,
     UserProfileSchema,
     UserListItemSchema,
@@ -102,6 +103,8 @@ def _serialize_user_profile(user: "User", *, include_attributes: bool = False) -
         # cualquier cosa sin entender por qué ni cómo salir de ahí.
         "emailVerified": user.email_verified_at is not None,
         "mustChangePassword": bool(user.must_change_password),
+        "language": user.language,
+        "effectiveLanguage": resolve_effective_language(user),
     }
     if include_attributes:
         profile["attributes"] = [attribute.attribute_name for attribute in user.attributes]
@@ -364,6 +367,20 @@ def update_current_profile(data: dict[str, Any]):
     user = get_current_user()
     user = USER_MANAGER.update_user_profile(user.id, first_name, last_name)
 
+    return _serialize_user_profile(user)
+
+
+@users_blp.put("/me/language")
+@users_blp.arguments(UpdateLanguageRequestSchema)
+@users_blp.response(200, UserProfileSchema, description="Updated profile")
+@users_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@users_blp.alt_response(422, schema=ErrorSchema, description="Unsupported language")
+@require_oauth_token
+@limiter.limit("30 per hour; 100 per day")
+@handle_exceptions(default_exception=DatabaseError, logger=logger)
+def update_current_language(data: dict[str, Any]):
+    """Elegir el idioma propio, o volver a seguir el de la organización con null"""
+    user = USER_MANAGER.update_language(get_current_user().id, data["language"])
     return _serialize_user_profile(user)
 
 

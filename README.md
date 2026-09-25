@@ -446,6 +446,7 @@ Hygeia has two separate auth surfaces: standard OAuth for the user-facing endpoi
 | `POST` | `/organizations` | Create the caller's organization (they become the owner) |
 | `GET` | `/organizations/mine` | The caller's organization, owner or member — `null` if none |
 | `PUT` | `/organizations/<id>` | Rename the organization (owner) |
+| `PUT` | `/organizations/<id>/language` | Set the language of members who have not chosen one (owner); `null` = the platform language |
 | `GET/DELETE` | `/organizations/<id>/members[/<userId>]` | List / remove members (owner) |
 | `DELETE` | `/organizations/mine` | Leave the organization (a non-owner member) |
 | `POST/GET/DELETE` | `/organizations/<id>/invitations[/<id>]` | Send / list / revoke an invitation (owner) |
@@ -469,7 +470,8 @@ A subscription with no explicit plan falls back to the default plan (seeded by m
 | `POST` | `/users/password-reset/mfa` | **Public** — resolve the reset challenge (TOTP or recovery code); only then is the link emailed to the account's registered address |
 | `POST` | `/users/password-reset/check` · `/users/password-reset/reset` | **Public** — validate a reset link / set the new password (single-use, 30-min TTL, revokes all sessions) |
 | `POST` | `/users/check-credentials` | Validate credentials without issuing tokens |
-| `GET/PUT` | `/users/me` | Read / update the authenticated user's own profile |
+| `GET/PUT` | `/users/me` | Read / update the authenticated user's own profile; it includes `language` (the user's choice, `null` if none) and `effectiveLanguage` |
+| `PUT` | `/users/me/language` | Choose a language, or `null` to follow the organization's (or the platform's) again |
 | `GET` | `/users/me/deletion-preview` | Preview what account self-deletion would remove |
 | `DELETE` | `/users/me` | Self-service account deletion |
 | `PUT` | `/users/change-password` | Password change (invalidates all tokens) |
@@ -579,6 +581,8 @@ npm run test:i18n         # languages: date/number formatting, API error transla
 ```
 
 The SPA is ready for more languages: each one is a file in `web/app/src/i18n/locales/` (`es.json` is the default and the only complete one; `en.json` covers what has been migrated so far — the shared page chrome and the API error messages). Adding a file makes the language appear in the selector; the rules and the recipe are in `CONVENCIONES.md` §12.5.
+
+Each person's language is stored on the server and resolved in one place (`users.services.language.resolve_effective_language`): the language the user chose, otherwise their organization's default (set by the owner), otherwise the platform's (`general.localization.defaultLanguage`, `es`). The profile returns the result as `effectiveLanguage` and the SPA switches to it on login; with a session the selector saves the choice to the profile and offers going back to the organization's language (`null`). The SPA never fills the field on its own, so a later change of the organization's language still reaches everyone who has not chosen. The accepted codes (`SUPPORTED_LANGUAGES`) are exactly the files in `locales/`; a test ties them together.
 
 The suites run on plain `node` — no framework, no browser — and exit non-zero on failure. They run in CI as the `SPA suites` job of `tests.yml`, which installs with **`pnpm install --frozen-lockfile`, exactly as `web/Dockerfile` does in production**, and then builds with Vite.
 
@@ -884,7 +888,7 @@ Iris also needs `IRIS_RAW_MESSAGE_ENCRYPTION_KEY`, which is **not** listed above
 
 Ellysia uses a layered configuration system (`API/src/modules/system/config_reading.py`, imported as `CR`):
 
-1. **`API/SecOpsConfig.json`** — base configuration. Exactly five root entries: `appVersion`, `general` (directories, security, registration, launch, logs), `infrastructure` (database, redis, taskqueue), `tools` (`scribe`, `herald` strategy selection), `features` (`themis`, `aegis`, `iris`, `hygeia` per-module settings). `general.security.mfa.notice_interval_days` controls the periodic email reminder cadence.
+1. **`API/SecOpsConfig.json`** — base configuration. Exactly five root entries: `appVersion`, `general` (directories, security, registration, launch, logs, localization), `infrastructure` (database, redis, taskqueue), `tools` (`scribe`, `herald` strategy selection), `features` (`themis`, `aegis`, `iris`, `hygeia` per-module settings). `general.security.mfa.notice_interval_days` controls the periodic email reminder cadence.
 2. **`API/.env`** — environment variables that **override** JSON values (required for the JWT secret, DB/Redis/SMTP/AI credentials, `PUBLIC_WEB_URL`).
 3. **Root `.env`** — docker-compose only (Postgres, Redis credentials — not read by the API).
 

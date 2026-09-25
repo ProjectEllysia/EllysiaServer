@@ -42,6 +42,9 @@
       "verificationTtlHours": 48,
       "invitationTtlHours": 168,
       "passwordResetTtlMinutes": 30
+    },
+    "localization": {
+      "defaultLanguage": "es"
     }
   },
   "infrastructure": {

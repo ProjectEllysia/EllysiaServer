@@ -8,6 +8,7 @@ Los nombres llevan prefijo ``Account``/``Plan`` para no chocar en el
 from marshmallow import Schema, fields, validate
 
 from src.modules.shared.schemas import UTCDateTime
+from src.modules.users import SUPPORTED_LANGUAGES
 
 
 class PlanLimitValueSchema(Schema):
@@ -71,12 +72,21 @@ class OrganizationCreateRequestSchema(Schema):
     name = fields.String(required=True, validate=validate.Length(min=2, max=128))
 
 
+class OrganizationLanguageRequestSchema(Schema):
+    """Idioma por defecto de la organización. ``null`` = el de la plataforma."""
+
+    defaultLanguage = fields.String(
+        required=True, allow_none=True, validate=validate.OneOf(SUPPORTED_LANGUAGES),
+    )
+
+
 class OrganizationSchema(Schema):
     id = fields.Integer()
     name = fields.String()
     slug = fields.String()
     ownerUserId = fields.Integer()
     memberCount = fields.Integer()
+    defaultLanguage = fields.String(allow_none=True)
     createdAt = UTCDateTime()
     myRole = fields.String()
     isOwner = fields.Boolean()

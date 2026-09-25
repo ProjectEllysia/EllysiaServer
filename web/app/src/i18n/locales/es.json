@@ -1,7 +1,10 @@
 {
   "language": {
     "name": "Español",
-    "label": "Idioma"
+    "label": "Idioma",
+    "followOrganization": "Idioma de mi organización",
+    "followPlatform": "Idioma predeterminado",
+    "saveFailed": "No se pudo guardar el idioma."
   },
   "shell": {
     "brandHome": "Ellysia — inicio",
