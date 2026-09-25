@@ -59,6 +59,15 @@ from .grouping import (
 )
 from .backports import apply_backport_verdicts, is_unverified_distro_package, BACKPORT_CHECK_ID
 from .distro import infer_distro_release, DistroRelease
+from .compliance import (
+    AttackTechnique,
+    ComplianceControl,
+    ComplianceFramework,
+    FindingCompliance,
+    list_compliance_frameworks,
+    load_compliance_catalog,
+    map_finding_compliance,
+)
 from .kb import (
     version_compare,
     split_distro_version,
@@ -264,6 +273,13 @@ __all__ = [
     "apply_backport_verdicts",
     "is_unverified_distro_package",
     "BACKPORT_CHECK_ID",
+    "AttackTechnique",
+    "ComplianceControl",
+    "ComplianceFramework",
+    "FindingCompliance",
+    "list_compliance_frameworks",
+    "load_compliance_catalog",
+    "map_finding_compliance",
     "infer_distro_release",
     "DistroRelease",
     "ServiceGroup",

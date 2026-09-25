@@ -1,0 +1,415 @@
+{
+  "_comment": "Qué controles de cumplimiento y qué técnicas de MITRE ATT&CK toca cada hallazgo de Lybra. 'categories' da el mapeo de cada Finding.category; 'checks' lo afina para un check_id concreto y sustituye sólo las claves que declara ('mitre' o 'controls'), heredando la otra de su categoría. Un control se cita por su código global '<marco>:<identificador>' (ens:op.exp.4), que es estable: lo guardan las preferencias de usuario y organización y será la clave natural del catálogo cuando pase a base de datos. 'parent' construye la jerarquía de cada marco (ens: op > op.exp > op.exp.4). Los nombres de MITRE van en inglés a propósito: son el nombre propio con el que se buscan en el catálogo público.",
+  "feedVersion": "lybra-compliance-1",
+  "mitre": {
+    "tactics": {
+      "TA0043": "Reconnaissance",
+      "TA0001": "Initial Access",
+      "TA0002": "Execution",
+      "TA0003": "Persistence",
+      "TA0004": "Privilege Escalation",
+      "TA0005": "Defense Evasion",
+      "TA0006": "Credential Access",
+      "TA0007": "Discovery",
+      "TA0008": "Lateral Movement",
+      "TA0009": "Collection",
+      "TA0040": "Impact"
+    },
+    "techniques": {
+      "T1021.001": {"name": "Remote Services: Remote Desktop Protocol", "tactics": ["TA0008"]},
+      "T1021.005": {"name": "Remote Services: VNC", "tactics": ["TA0008"]},
+      "T1040": {"name": "Network Sniffing", "tactics": ["TA0006", "TA0007"]},
+      "T1046": {"name": "Network Service Discovery", "tactics": ["TA0007"]},
+      "T1059": {"name": "Command and Scripting Interpreter", "tactics": ["TA0002"]},
+      "T1068": {"name": "Exploitation for Privilege Escalation", "tactics": ["TA0004"]},
+      "T1078.001": {"name": "Valid Accounts: Default Accounts", "tactics": ["TA0001", "TA0003", "TA0004", "TA0005"]},
+      "T1082": {"name": "System Information Discovery", "tactics": ["TA0007"]},
+      "T1083": {"name": "File and Directory Discovery", "tactics": ["TA0007"]},
+      "T1087": {"name": "Account Discovery", "tactics": ["TA0007"]},
+      "T1087.002": {"name": "Account Discovery: Domain Account", "tactics": ["TA0007"]},
+      "T1110": {"name": "Brute Force", "tactics": ["TA0006"]},
+      "T1133": {"name": "External Remote Services", "tactics": ["TA0001", "TA0003"]},
+      "T1189": {"name": "Drive-by Compromise", "tactics": ["TA0001"]},
+      "T1190": {"name": "Exploit Public-Facing Application", "tactics": ["TA0001"]},
+      "T1210": {"name": "Exploitation of Remote Services", "tactics": ["TA0008"]},
+      "T1213": {"name": "Data from Information Repositories", "tactics": ["TA0009"]},
+      "T1498.002": {"name": "Network Denial of Service: Reflection Amplification", "tactics": ["TA0040"]},
+      "T1539": {"name": "Steal Web Session Cookie", "tactics": ["TA0006"]},
+      "T1552.001": {"name": "Unsecured Credentials: Credentials In Files", "tactics": ["TA0006"]},
+      "T1552.004": {"name": "Unsecured Credentials: Private Keys", "tactics": ["TA0006"]},
+      "T1557": {"name": "Adversary-in-the-Middle", "tactics": ["TA0006", "TA0009"]},
+      "T1557.001": {"name": "Adversary-in-the-Middle: LLMNR/NBT-NS Poisoning and SMB Relay", "tactics": ["TA0006", "TA0009"]},
+      "T1566": {"name": "Phishing", "tactics": ["TA0001"]},
+      "T1592.002": {"name": "Gather Victim Host Information: Software", "tactics": ["TA0043"]},
+      "T1594": {"name": "Search Victim-Owned Websites", "tactics": ["TA0043"]},
+      "T1602.001": {"name": "Data from Configuration Repository: SNMP (MIB Dump)", "tactics": ["TA0009"]},
+      "T1609": {"name": "Container Administration Command", "tactics": ["TA0002"]},
+      "T1610": {"name": "Deploy Container", "tactics": ["TA0002", "TA0005"]},
+      "T1613": {"name": "Container and Resource Discovery", "tactics": ["TA0007"]}
+    }
+  },
+  "frameworks": {
+    "iso27001": {
+      "name": "ISO/IEC 27001:2022",
+      "controls": {
+        "A.5": {"title": "Controles organizativos"},
+        "A.5.9": {"title": "Inventario de información y otros activos asociados", "parent": "A.5"},
+        "A.5.14": {"title": "Transferencia de información", "parent": "A.5"},
+        "A.5.15": {"title": "Control de acceso", "parent": "A.5"},
+        "A.5.17": {"title": "Información de autenticación", "parent": "A.5"},
+        "A.8": {"title": "Controles tecnológicos"},
+        "A.8.2": {"title": "Derechos de acceso privilegiados", "parent": "A.8"},
+        "A.8.3": {"title": "Restricción del acceso a la información", "parent": "A.8"},
+        "A.8.4": {"title": "Acceso al código fuente", "parent": "A.8"},
+        "A.8.5": {"title": "Autenticación segura", "parent": "A.8"},
+        "A.8.8": {"title": "Gestión de las vulnerabilidades técnicas", "parent": "A.8"},
+        "A.8.9": {"title": "Gestión de la configuración", "parent": "A.8"},
+        "A.8.12": {"title": "Prevención de la fuga de datos", "parent": "A.8"},
+        "A.8.13": {"title": "Copias de seguridad de la información", "parent": "A.8"},
+        "A.8.19": {"title": "Instalación de software en sistemas en producción", "parent": "A.8"},
+        "A.8.20": {"title": "Seguridad de las redes", "parent": "A.8"},
+        "A.8.21": {"title": "Seguridad de los servicios de red", "parent": "A.8"},
+        "A.8.24": {"title": "Uso de la criptografía", "parent": "A.8"},
+        "A.8.26": {"title": "Requisitos de seguridad de las aplicaciones", "parent": "A.8"},
+        "A.8.31": {"title": "Separación de los entornos de desarrollo, prueba y producción", "parent": "A.8"}
+      }
+    },
+    "ens": {
+      "name": "ENS (Real Decreto 311/2022)",
+      "controls": {
+        "op": {"title": "Marco operacional"},
+        "op.acc": {"title": "Control de acceso", "parent": "op"},
+        "op.acc.2": {"title": "Requisitos de acceso", "parent": "op.acc"},
+        "op.acc.4": {"title": "Proceso de gestión de derechos de acceso", "parent": "op.acc"},
+        "op.acc.5": {"title": "Mecanismo de autenticación (usuarios externos)", "parent": "op.acc"},
+        "op.acc.6": {"title": "Mecanismo de autenticación (usuarios de la organización)", "parent": "op.acc"},
+        "op.exp": {"title": "Explotación", "parent": "op"},
+        "op.exp.1": {"title": "Inventario de activos", "parent": "op.exp"},
+        "op.exp.2": {"title": "Configuración de seguridad", "parent": "op.exp"},
+        "op.exp.3": {"title": "Gestión de la configuración de seguridad", "parent": "op.exp"},
+        "op.exp.4": {"title": "Mantenimiento y actualizaciones de seguridad", "parent": "op.exp"},
+        "op.exp.10": {"title": "Protección de claves criptográficas", "parent": "op.exp"},
+        "mp": {"title": "Medidas de protección"},
+        "mp.com": {"title": "Protección de las comunicaciones", "parent": "mp"},
+        "mp.com.1": {"title": "Perímetro seguro", "parent": "mp.com"},
+        "mp.com.2": {"title": "Protección de la confidencialidad", "parent": "mp.com"},
+        "mp.com.3": {"title": "Protección de la integridad y de la autenticidad", "parent": "mp.com"},
+        "mp.sw": {"title": "Protección de las aplicaciones informáticas", "parent": "mp"},
+        "mp.sw.2": {"title": "Aceptación y puesta en servicio", "parent": "mp.sw"},
+        "mp.info": {"title": "Protección de la información", "parent": "mp"},
+        "mp.info.6": {"title": "Copias de seguridad", "parent": "mp.info"},
+        "mp.s": {"title": "Protección de los servicios", "parent": "mp"},
+        "mp.s.1": {"title": "Protección del correo electrónico", "parent": "mp.s"},
+        "mp.s.2": {"title": "Protección de servicios y aplicaciones web", "parent": "mp.s"},
+        "mp.s.4": {"title": "Protección frente a la denegación de servicio", "parent": "mp.s"}
+      }
+    },
+    "nis2": {
+      "name": "NIS2 (Directiva (UE) 2022/2555)",
+      "controls": {
+        "21.2": {"title": "Medidas para la gestión de riesgos de ciberseguridad (art. 21.2)"},
+        "21.2.c": {"title": "Continuidad de las actividades y gestión de crisis", "parent": "21.2"},
+        "21.2.e": {"title": "Seguridad en la adquisición, el desarrollo y el mantenimiento de los sistemas, incluida la gestión de vulnerabilidades", "parent": "21.2"},
+        "21.2.h": {"title": "Uso de la criptografía y, en su caso, del cifrado", "parent": "21.2"},
+        "21.2.i": {"title": "Seguridad de los recursos humanos, control de acceso y gestión de activos", "parent": "21.2"},
+        "21.2.j": {"title": "Autenticación multifactor o continua y comunicaciones seguras", "parent": "21.2"}
+      }
+    }
+  },
+  "categories": {
+    "exposed_path": {
+      "mitre": ["T1083", "T1213"],
+      "controls": ["iso27001:A.8.9", "iso27001:A.8.12", "ens:op.exp.2", "ens:mp.s.2", "nis2:21.2.e"]
+    },
+    "exposed_service": {
+      "mitre": ["T1133", "T1190"],
+      "controls": ["iso27001:A.8.5", "iso27001:A.8.20", "ens:op.acc.5", "ens:mp.com.1", "nis2:21.2.i"]
+    },
+    "default_credentials": {
+      "mitre": ["T1078.001"],
+      "controls": ["iso27001:A.5.17", "iso27001:A.8.5", "ens:op.acc.5", "ens:op.acc.6", "nis2:21.2.i", "nis2:21.2.j"]
+    },
+    "security_header": {
+      "mitre": ["T1189"],
+      "controls": ["iso27001:A.8.9", "iso27001:A.8.26", "ens:op.exp.2", "ens:mp.s.2", "nis2:21.2.e"]
+    },
+    "network_config": {
+      "mitre": ["T1046"],
+      "controls": ["iso27001:A.8.9", "iso27001:A.8.20", "ens:op.exp.2", "ens:mp.com.1", "nis2:21.2.e"]
+    },
+    "tls": {
+      "mitre": ["T1557", "T1040"],
+      "controls": ["iso27001:A.8.24", "iso27001:A.8.20", "ens:mp.com.2", "ens:mp.com.3", "nis2:21.2.h"]
+    },
+    "vulnerability": {
+      "mitre": ["T1190"],
+      "controls": ["iso27001:A.8.8", "ens:op.exp.4", "nis2:21.2.e"]
+    },
+    "web_finding": {
+      "mitre": ["T1190"],
+      "controls": ["iso27001:A.8.9", "iso27001:A.8.26", "ens:op.exp.2", "ens:mp.s.2", "nis2:21.2.e"]
+    },
+    "outdated_software": {
+      "mitre": ["T1190", "T1210"],
+      "controls": ["iso27001:A.8.8", "ens:op.exp.4", "nis2:21.2.e"]
+    },
+    "installed_package": {
+      "mitre": ["T1068"],
+      "controls": ["iso27001:A.8.8", "iso27001:A.8.19", "ens:op.exp.4", "nis2:21.2.e"]
+    },
+    "web_component": {
+      "mitre": ["T1190"],
+      "controls": ["iso27001:A.8.8", "ens:op.exp.4", "ens:mp.s.2", "nis2:21.2.e"]
+    },
+    "open_port": {
+      "mitre": ["T1046"],
+      "controls": ["iso27001:A.5.9", "iso27001:A.8.20", "ens:op.exp.1", "ens:mp.com.1", "nis2:21.2.i"]
+    }
+  },
+  "checks": {
+    "git-config-exposure": {
+      "mitre": ["T1213", "T1552.001"],
+      "controls": ["iso27001:A.8.4", "iso27001:A.8.9", "iso27001:A.8.12", "ens:op.exp.2", "ens:mp.s.2", "nis2:21.2.e"]
+    },
+    "svn-entries-exposure": {
+      "mitre": ["T1213", "T1552.001"],
+      "controls": ["iso27001:A.8.4", "iso27001:A.8.9", "iso27001:A.8.12", "ens:op.exp.2", "ens:mp.s.2", "nis2:21.2.e"]
+    },
+    "dotenv-exposure": {
+      "mitre": ["T1552.001"],
+      "controls": ["iso27001:A.5.17", "iso27001:A.8.9", "iso27001:A.8.12", "ens:op.acc.6", "ens:op.exp.2", "ens:mp.s.2", "nis2:21.2.i"]
+    },
+    "wpconfig-source-exposure": {
+      "mitre": ["T1552.001"],
+      "controls": ["iso27001:A.5.17", "iso27001:A.8.9", "iso27001:A.8.12", "ens:op.acc.6", "ens:op.exp.2", "ens:mp.s.2", "nis2:21.2.i"]
+    },
+    "joomla-configuration-backup": {
+      "mitre": ["T1552.001"],
+      "controls": ["iso27001:A.5.17", "iso27001:A.8.9", "iso27001:A.8.12", "ens:op.acc.6", "ens:op.exp.2", "ens:mp.s.2", "nis2:21.2.i"]
+    },
+    "wordpress-config-backup": {
+      "mitre": ["T1552.001"],
+      "controls": ["iso27001:A.5.17", "iso27001:A.8.9", "iso27001:A.8.12", "ens:op.acc.6", "ens:op.exp.2", "ens:mp.s.2", "nis2:21.2.i"]
+    },
+    "drupal-settings-backup": {
+      "mitre": ["T1552.001"],
+      "controls": ["iso27001:A.5.17", "iso27001:A.8.9", "iso27001:A.8.12", "ens:op.acc.6", "ens:op.exp.2", "ens:mp.s.2", "nis2:21.2.i"]
+    },
+    "web-config-exposure": {
+      "mitre": ["T1552.001"],
+      "controls": ["iso27001:A.5.17", "iso27001:A.8.9", "iso27001:A.8.12", "ens:op.acc.6", "ens:op.exp.2", "ens:mp.s.2", "nis2:21.2.i"]
+    },
+    "docker-compose-exposure": {
+      "mitre": ["T1552.001"],
+      "controls": ["iso27001:A.5.17", "iso27001:A.8.9", "iso27001:A.8.12", "ens:op.acc.6", "ens:op.exp.2", "ens:mp.s.2", "nis2:21.2.i"]
+    },
+    "htpasswd-exposure": {
+      "mitre": ["T1552.001", "T1110"],
+      "controls": ["iso27001:A.5.17", "iso27001:A.8.5", "iso27001:A.8.12", "ens:op.acc.6", "ens:mp.s.2", "nis2:21.2.i"]
+    },
+    "spring-actuator-env": {
+      "mitre": ["T1552.001"],
+      "controls": ["iso27001:A.5.17", "iso27001:A.8.9", "iso27001:A.8.12", "ens:op.acc.6", "ens:op.exp.2", "ens:mp.s.2", "nis2:21.2.i"]
+    },
+    "ssh-private-key-exposure": {
+      "mitre": ["T1552.004"],
+      "controls": ["iso27001:A.5.17", "iso27001:A.8.12", "iso27001:A.8.24", "ens:op.acc.6", "ens:op.exp.10", "nis2:21.2.h", "nis2:21.2.i"]
+    },
+    "sql-backup-exposure": {
+      "mitre": ["T1213"],
+      "controls": ["iso27001:A.8.3", "iso27001:A.8.12", "iso27001:A.8.13", "ens:mp.info.6", "ens:mp.s.2", "nis2:21.2.i"]
+    },
+    "sql-dump-exposure": {
+      "mitre": ["T1213"],
+      "controls": ["iso27001:A.8.3", "iso27001:A.8.12", "iso27001:A.8.13", "ens:mp.info.6", "ens:mp.s.2", "nis2:21.2.i"]
+    },
+    "phpinfo-exposure": {"mitre": ["T1592.002"]},
+    "apache-server-status-exposure": {"mitre": ["T1592.002"]},
+    "wordpress-debug-log": {"mitre": ["T1592.002"]},
+    "drupal-changelog-exposed": {"mitre": ["T1592.002"]},
+    "composer-lock-exposure": {"mitre": ["T1592.002"]},
+    "package-lock-exposure": {"mitre": ["T1592.002"]},
+    "spring-actuator-health": {"mitre": ["T1592.002"]},
+    "http-version-disclosure": {"mitre": ["T1592.002"]},
+    "ds-store-exposure": {"mitre": ["T1083"]},
+    "symfony-profiler-exposed": {
+      "mitre": ["T1592.002", "T1552.001"],
+      "controls": ["iso27001:A.8.9", "iso27001:A.8.31", "ens:op.exp.2", "ens:mp.sw.2", "nis2:21.2.e"]
+    },
+    "laravel-telescope-exposed": {
+      "mitre": ["T1592.002", "T1552.001"],
+      "controls": ["iso27001:A.8.9", "iso27001:A.8.31", "ens:op.exp.2", "ens:mp.sw.2", "nis2:21.2.e"]
+    },
+    "django-debug-enabled": {
+      "mitre": ["T1592.002"],
+      "controls": ["iso27001:A.8.9", "iso27001:A.8.31", "ens:op.exp.2", "ens:mp.sw.2", "nis2:21.2.e"]
+    },
+    "debug-token-header": {
+      "mitre": ["T1592.002"],
+      "controls": ["iso27001:A.8.9", "iso27001:A.8.31", "ens:op.exp.2", "ens:mp.sw.2", "nis2:21.2.e"]
+    },
+    "flask-werkzeug-debugger": {
+      "mitre": ["T1059"],
+      "controls": ["iso27001:A.8.9", "iso27001:A.8.31", "ens:op.exp.2", "ens:mp.sw.2", "nis2:21.2.e"]
+    },
+    "joomla-installation-directory": {
+      "mitre": ["T1190"],
+      "controls": ["iso27001:A.8.9", "ens:op.exp.2", "ens:mp.sw.2", "nis2:21.2.e"]
+    },
+    "wordpress-install-exposed": {
+      "mitre": ["T1190"],
+      "controls": ["iso27001:A.8.9", "ens:op.exp.2", "ens:mp.sw.2", "nis2:21.2.e"]
+    },
+    "drupal-install-exposed": {
+      "mitre": ["T1190"],
+      "controls": ["iso27001:A.8.9", "ens:op.exp.2", "ens:mp.sw.2", "nis2:21.2.e"]
+    },
+    "joomla-admin-exposed": {
+      "mitre": ["T1133", "T1110"],
+      "controls": ["iso27001:A.8.2", "iso27001:A.8.5", "iso27001:A.8.20", "ens:op.acc.6", "ens:mp.com.1", "nis2:21.2.i"]
+    },
+    "tomcat-manager-exposed": {
+      "mitre": ["T1133", "T1110"],
+      "controls": ["iso27001:A.8.2", "iso27001:A.8.5", "iso27001:A.8.20", "ens:op.acc.6", "ens:mp.com.1", "nis2:21.2.i"]
+    },
+    "jenkins-exposed": {
+      "mitre": ["T1133", "T1110"],
+      "controls": ["iso27001:A.8.2", "iso27001:A.8.5", "iso27001:A.8.20", "ens:op.acc.6", "ens:mp.com.1", "nis2:21.2.i"]
+    },
+    "solr-admin-exposed": {
+      "mitre": ["T1133", "T1110"],
+      "controls": ["iso27001:A.8.2", "iso27001:A.8.5", "iso27001:A.8.20", "ens:op.acc.6", "ens:mp.com.1", "nis2:21.2.i"]
+    },
+    "rabbitmq-management-exposed": {
+      "mitre": ["T1133", "T1110"],
+      "controls": ["iso27001:A.8.2", "iso27001:A.8.5", "iso27001:A.8.20", "ens:op.acc.6", "ens:mp.com.1", "nis2:21.2.i"]
+    },
+    "wordpress-user-enumeration": {
+      "mitre": ["T1087"],
+      "controls": ["iso27001:A.8.3", "iso27001:A.8.26", "ens:op.acc.2", "ens:mp.s.2", "nis2:21.2.i"]
+    },
+    "drupal-jsonapi-user-enumeration": {
+      "mitre": ["T1087"],
+      "controls": ["iso27001:A.8.3", "iso27001:A.8.26", "ens:op.acc.2", "ens:mp.s.2", "nis2:21.2.i"]
+    },
+    "wordpress-xmlrpc-enabled": {
+      "mitre": ["T1110"],
+      "controls": ["iso27001:A.8.5", "iso27001:A.8.9", "ens:op.acc.6", "ens:mp.s.2", "nis2:21.2.i"]
+    },
+    "wordpress-uploads-listing": {
+      "mitre": ["T1083"],
+      "controls": ["iso27001:A.8.3", "iso27001:A.8.9", "ens:op.exp.2", "ens:mp.s.2", "nis2:21.2.e"]
+    },
+    "directory-listing-enabled": {
+      "mitre": ["T1083"],
+      "controls": ["iso27001:A.8.3", "iso27001:A.8.9", "ens:op.exp.2", "ens:mp.s.2", "nis2:21.2.e"]
+    },
+    "swagger-json-exposure": {"mitre": ["T1594"]},
+    "openapi-json-exposure": {"mitre": ["T1594"]},
+    "api-docs-exposure": {"mitre": ["T1594"]},
+    "joomla-cve-2023-23752-api-config": {"mitre": ["T1190", "T1552.001"]},
+    "apache-cve-2021-41773-path-traversal": {"mitre": ["T1190", "T1083"]},
+    "apache-cve-2021-42013-path-traversal": {"mitre": ["T1190", "T1083"]},
+    "ssh-terrapin-confirm": {
+      "mitre": ["T1557"],
+      "controls": ["iso27001:A.8.8", "iso27001:A.8.24", "ens:op.exp.4", "ens:mp.com.3", "nis2:21.2.e", "nis2:21.2.h"]
+    },
+    "ssh-terrapin-refute": {"mitre": [], "controls": []},
+    "redis-unauthenticated-access": {"mitre": ["T1190"]},
+    "postgres-trust-authentication": {"mitre": ["T1190", "T1213"]},
+    "vnc-no-authentication": {"mitre": ["T1021.005"]},
+    "snmp-default-community": {"mitre": ["T1602.001", "T1078.001"]},
+    "mongodb-unauthenticated-access": {"mitre": ["T1213", "T1190"]},
+    "elasticsearch-unauthenticated": {"mitre": ["T1213", "T1190"]},
+    "docker-api-unauthenticated": {"mitre": ["T1609", "T1610"]},
+    "kubernetes-anonymous-api": {"mitre": ["T1609", "T1613"]},
+    "smb-signing-not-required": {
+      "mitre": ["T1557.001"],
+      "controls": ["iso27001:A.8.20", "iso27001:A.8.24", "ens:op.exp.2", "ens:mp.com.3", "nis2:21.2.h"]
+    },
+    "smbv1-enabled": {
+      "mitre": ["T1210"],
+      "controls": ["iso27001:A.8.8", "iso27001:A.8.9", "ens:op.exp.2", "ens:op.exp.4", "nis2:21.2.e"]
+    },
+    "ldap-anonymous-bind": {
+      "mitre": ["T1087.002"],
+      "controls": ["iso27001:A.5.15", "iso27001:A.8.3", "ens:op.acc.2", "ens:op.acc.4", "nis2:21.2.i"]
+    },
+    "ldap-cleartext-with-ldaps": {
+      "mitre": ["T1040", "T1557"],
+      "controls": ["iso27001:A.5.14", "iso27001:A.8.24", "ens:mp.com.2", "ens:op.acc.6", "nis2:21.2.h"]
+    },
+    "telnet-enabled": {
+      "mitre": ["T1040", "T1133"],
+      "controls": ["iso27001:A.5.14", "iso27001:A.8.24", "ens:mp.com.2", "ens:op.acc.6", "nis2:21.2.h"]
+    },
+    "smtp-no-starttls": {
+      "mitre": ["T1040", "T1557"],
+      "controls": ["iso27001:A.5.14", "iso27001:A.8.24", "ens:mp.com.2", "ens:mp.s.1", "nis2:21.2.h"]
+    },
+    "ftp-no-tls": {
+      "mitre": ["T1040", "T1557"],
+      "controls": ["iso27001:A.5.14", "iso27001:A.8.24", "ens:mp.com.2", "ens:op.acc.6", "nis2:21.2.h"]
+    },
+    "ftp-cleartext-login-allowed": {
+      "mitre": ["T1040", "T1557"],
+      "controls": ["iso27001:A.5.14", "iso27001:A.8.24", "ens:mp.com.2", "ens:op.acc.6", "nis2:21.2.h"]
+    },
+    "rdp-nla-not-required": {
+      "mitre": ["T1021.001", "T1110"],
+      "controls": ["iso27001:A.8.5", "iso27001:A.8.20", "ens:op.acc.6", "ens:mp.com.1", "nis2:21.2.i"]
+    },
+    "dns-open-resolver": {
+      "mitre": ["T1498.002"],
+      "controls": ["iso27001:A.8.20", "iso27001:A.8.21", "ens:mp.com.1", "ens:mp.s.4", "nis2:21.2.c"]
+    },
+    "ntp-monlist-enabled": {
+      "mitre": ["T1498.002", "T1046"],
+      "controls": ["iso27001:A.8.20", "iso27001:A.8.21", "ens:mp.com.1", "ens:mp.s.4", "nis2:21.2.c"]
+    },
+    "tcp-timestamps-enabled": {"mitre": ["T1082"]},
+    "ike-weak-transform": {
+      "mitre": ["T1557", "T1040"],
+      "controls": ["iso27001:A.8.24", "ens:mp.com.2", "ens:mp.com.3", "nis2:21.2.h"]
+    },
+    "ssh-weak-mac": {
+      "mitre": ["T1557"],
+      "controls": ["iso27001:A.8.24", "ens:mp.com.3", "ens:op.exp.2", "nis2:21.2.h"]
+    },
+    "ssh-weak-encryption": {
+      "mitre": ["T1557", "T1040"],
+      "controls": ["iso27001:A.8.24", "ens:mp.com.2", "ens:op.exp.2", "nis2:21.2.h"]
+    },
+    "ssh-weak-kex": {
+      "mitre": ["T1557"],
+      "controls": ["iso27001:A.8.24", "ens:mp.com.2", "ens:op.exp.2", "nis2:21.2.h"]
+    },
+    "ssh-weak-host-key": {
+      "mitre": ["T1557"],
+      "controls": ["iso27001:A.8.24", "ens:mp.com.3", "ens:op.exp.2", "nis2:21.2.h"]
+    },
+    "smtp-open-relay": {
+      "mitre": ["T1566"],
+      "controls": ["iso27001:A.5.14", "iso27001:A.8.21", "ens:mp.com.1", "ens:mp.s.1", "nis2:21.2.e"]
+    },
+    "missing-hsts-header": {
+      "mitre": ["T1557"],
+      "controls": ["iso27001:A.8.24", "iso27001:A.8.26", "ens:mp.com.2", "ens:mp.s.2", "nis2:21.2.h"]
+    },
+    "hsts-weak-max-age": {
+      "mitre": ["T1557"],
+      "controls": ["iso27001:A.8.24", "iso27001:A.8.26", "ens:mp.com.2", "ens:mp.s.2", "nis2:21.2.h"]
+    },
+    "http-no-https-redirect": {
+      "mitre": ["T1557", "T1040"],
+      "controls": ["iso27001:A.8.24", "iso27001:A.8.26", "ens:mp.com.2", "ens:mp.s.2", "nis2:21.2.h"]
+    },
+    "http-compression-breach": {
+      "mitre": ["T1557"],
+      "controls": ["iso27001:A.8.24", "iso27001:A.8.26", "ens:mp.com.2", "ens:mp.s.2", "nis2:21.2.h"]
+    },
+    "session-cookie-without-secure": {"mitre": ["T1539"]},
+    "session-cookie-without-httponly": {"mitre": ["T1539"]},
+    "session-cookie-without-samesite": {"mitre": ["T1539"]}
+  }
+}
