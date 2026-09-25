@@ -3,10 +3,18 @@ from enum import Enum
 from functools import wraps
 from typing import List, Optional, Set
 
-from flask import request, jsonify
+from flask import request
 
-from src.modules.shared._exceptions import MissingParameterError, MissingJsonBodyError, EllysiaException, ErrorCode
+from src.modules.shared import render_error_response
+from src.modules.shared._exceptions import MissingParameterError, MissingJsonBodyError, EllysiaException
 
+from ..exceptions import (
+    InsufficientPermissionsError,
+    InvalidAccessTokenError,
+    InvalidAuthorizationHeaderError,
+    PasswordChangedError,
+    PermissionCheckError,
+)
 from ..managers import OAuthTokenManager
 from ..repositories import AttributeRepository, UserRepository
 from src.modules.infrastructure import UnitOfWork
@@ -250,15 +258,8 @@ def _manage_invalid_token(
         ``invalid_token``.
     """
     if manager.is_token_stale_by_password(token):
-        return jsonify({
-            "error": "password_changed",
-            "error_description": "Tu contraseña ha cambiado. Inicia sesión de nuevo.",
-            "code": ErrorCode.PASSWORD_CHANGED.value,
-        }), 401
-    return jsonify({
-        "error": "invalid_token",
-        "error_description": "The access token is invalid or expired",
-    }), 401 
+        return render_error_response(PasswordChangedError())
+    return render_error_response(InvalidAccessTokenError())
 
 
 # =========================================================================
@@ -282,19 +283,13 @@ def require_oauth_token(f):
         try:
             auth_header = request.headers.get("Authorization")
             if not auth_header:
-                return jsonify({
-                    "error": "unauthorized",
-                    "error_description": "Missing Authorization header",
-                }), 401
+                return render_error_response(InvalidAuthorizationHeaderError("Falta la cabecera Authorization"))
 
             # Se espera que la cabecera tenga el 
             # siguiente contenido: "Bearer <token>"
             parts = auth_header.split()
             if len(parts) != 2 or parts[0].lower() != "bearer":
-                return jsonify({
-                    "error": "unauthorized",
-                    "error_description": "Invalid Authorization header format. Use: Bearer <token>",
-                }), 401
+                return render_error_response(InvalidAuthorizationHeaderError("La cabecera Authorization no es 'Bearer <token>'"))
 
             token = parts[1]
             manager = OAuthTokenManager()
@@ -313,10 +308,7 @@ def require_oauth_token(f):
             raise
         except Exception:
             logger.exception("Error durante la autenticación")
-            return jsonify({
-                "error": "server_error",
-                "error_description": "Authentication error",
-            }), 500
+            return render_error_response(PermissionCheckError("Fallo inesperado al verificar el access token"))
 
     return decorated
 
@@ -370,10 +362,7 @@ def require_role(minimum_role: Role):
                     f"Usuario {user_id} (rol={user_role_str}) denegado. "
                     f"Se requiere mínimo: {minimum_role.value}"
                 )
-                return jsonify({
-                    "error": "forbidden",
-                    "error_description": f"Requires at least role: {minimum_role.value}",
-                }), 403
+                return render_error_response(InsufficientPermissionsError(f"Se requiere como mínimo el rol {minimum_role.value}"))
 
             return f(*args, **kwargs)
         return decorated
@@ -417,10 +406,7 @@ def require_attributes(
             user_role_str = getattr(request, "current_user_role", Role.USER.value)
 
             if user_id is None:
-                return jsonify({
-                    "error": "forbidden",
-                    "error_description": "Authentication required before AttributeType check",
-                }), 403
+                return render_error_response(InsufficientPermissionsError("require_attributes sin usuario autenticado: falta require_oauth_token delante"))
 
             # Root bypasses all AttributeType checks.
             if user_role_str == Role.ROOT.value:
@@ -456,14 +442,7 @@ def require_attributes(
                         f"at_least_one_missing={[permission.db_name for permission in missing_at_least_one]}, "
                         f"all_required_missing={[permission.db_name for permission in missing_all_required]}"
                     )
-                    return jsonify({
-                        "error": "forbidden",
-                        "error_description": "Insufficient permissions",
-                        "missing_permissions": {
-                            "at_least_one": [permission.db_name for permission in missing_at_least_one],
-                            "all_required":  [permission.db_name for permission in missing_all_required],
-                        },
-                    }), 403
+                    return render_error_response(InsufficientPermissionsError(f"Permisos insuficientes para {f.__name__}"))
 
                 logger.info(
                     f"Usuario {user_id} autorizado para {f.__name__}. "
@@ -475,10 +454,7 @@ def require_attributes(
                 raise
             except Exception as exc:
                 logger.error(f"Error en require_permissions: {exc}", exc_info=True)
-                return jsonify({
-                    "error": "server_error",
-                    "error_description": "AttributeType check failed",
-                }), 500
+                return render_error_response(PermissionCheckError("Fallo inesperado al calcular los permisos efectivos"))
 
         return decorated
     return decorator

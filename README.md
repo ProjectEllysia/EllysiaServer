@@ -179,6 +179,30 @@ Content-Type: application/json
 
 The web application checks MFA once when an authenticated session enters the SPA. If MFA is not active, it shows a dismissible toast linking to `/profile#mfa`. A daily users scheduler sends the same reminder by email to verified users without a confirmed TOTP credential, respecting `general.security.mfa.notice_interval_days` (30 days by default).
 
+### Error responses
+
+Every error the API returns has the same shape, built by `create_error_response`:
+
+```json
+{
+  "error": "missing_parameter",
+  "error_description": "El parámetro «port» es obligatorio.",
+  "code": 1105,
+  "messageKey": "missingParameter",
+  "params": { "parameter": "port" }
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `error` | The exception class name, or a stable external code where clients already depend on it (`invalid_token`, `unauthorized`, `forbidden`, `password_changed`, `vault_revision_mismatch`, `not_found`, `too_many_requests`…) |
+| `error_description` | Text for the user, in Spanish |
+| `code` | Numeric `ErrorCode` (`1004` route not found, `1005` method not allowed and `1006` too many requests are new) |
+| `messageKey`, `params` | Present only when the text comes from a template: its key and the values of its placeholders. The SPA looks the key up under `apiErrors` in its language file and shows the message in the active language, falling back to `error_description` |
+| `details` | Only for exceptions whose details are part of the contract (plan limits, closed surfaces), or in development |
+
+Some endpoints add their own fields next to these: `path` on a 404, `allowedMethods` on a 405, `retryAfter` on a 429, `currentRevision`/`yourRevision` on an Acheron revision conflict.
+
 ## API Reference
 
 ### Themis — vulnerability scanning
@@ -539,7 +563,7 @@ A third workflow, `.github/workflows/lybra-bench.yml`, runs the `oracle` bench o
 
 ```bash
 cd web/app
-npm test                  # all ten suites — this is what CI runs
+npm test                  # every suite — this is what CI runs
 
 npm run test:acheron      # schema/label correspondence + crypto interop + CRUD + sync for the Acheron vault client
 npm run test:iris         # file intake (size limit from GET /iris/capabilities, explicit mode, batch drops), report comparison, and the Spanish labels for verdicts, statuses and rule results
@@ -551,7 +575,10 @@ npm run test:quiz         # aegis quiz-shuffle permutation tests
 npm run test:campaigns    # aegis campaign helpers
 npm run test:logs         # gzip log-payload decoding tests
 npm run test:themis       # scan-window + Lybra finding-site labels + finding sort/filter
+npm run test:i18n         # languages: date/number formatting, API error translation, language-file checks and guards
 ```
+
+The SPA is ready for more languages: each one is a file in `web/app/src/i18n/locales/` (`es.json` is the default and the only complete one; `en.json` covers what has been migrated so far — the shared page chrome and the API error messages). Adding a file makes the language appear in the selector; the rules and the recipe are in `CONVENCIONES.md` §12.5.
 
 The suites run on plain `node` — no framework, no browser — and exit non-zero on failure. They run in CI as the `SPA suites` job of `tests.yml`, which installs with **`pnpm install --frozen-lockfile`, exactly as `web/Dockerfile` does in production**, and then builds with Vite.
 

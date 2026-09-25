@@ -32,6 +32,31 @@ class HygeiaError(EllysiaException):
     default_status_code = 500
 
 
+class InvalidAgentKeyError(HygeiaError):
+    """La clave con la que se presenta un agente falta, está mal formada o no es válida.
+
+    Los tres casos dan el mismo mensaje y el mismo código a propósito: si la
+    respuesta dijera cuál de ellos ocurrió, un atacante podría usarla para
+    averiguar qué identificadores de clave existen.
+    """
+
+    default_code = ErrorCode.AUTHENTICATION_ERROR
+    default_status_code = 401
+    error_name = "unauthorized"
+
+    def __init__(self, message: str):
+        """Construye el error.
+
+        Args:
+            message: Qué falló, para el log. No llega al agente.
+        """
+        super().__init__(
+            message=message,
+            user_message="La clave del agente no es válida.",
+            message_key="invalidAgentKey",
+        )
+
+
 class AssetNotFoundError(EntityNotFoundError, HygeiaError):
     """Se lanza cuando un activo no existe o no pertenece al usuario.
 
@@ -53,6 +78,8 @@ class AssetQuotaExceededError(HygeiaError):
             message=f"Cuota de activos superada (máximo {max_assets})",
             details={"max_assets": max_assets},
             user_message=f"Has alcanzado el máximo de {max_assets} activos monitorizados.",
+            message_key="assetQuotaExceeded",
+            params={"maxAssets": max_assets},
         )
 
 
@@ -65,7 +92,8 @@ class IngestPayloadTooLargeError(HygeiaError):
         super().__init__(
             message=f"Payload de ingesta rechazado: {reason}",
             details={"reason": reason},
-            user_message="El payload enviado supera los límites permitidos.",
+            user_message="Los datos enviados por el agente superan el tamaño permitido.",
+            message_key="ingestPayloadTooLarge",
         )
 
 
@@ -79,6 +107,7 @@ class IngestClockSkewError(HygeiaError):
             message=f"collectedAt fuera de la ventana de reloj permitida: {collected_at}",
             details={"collected_at": collected_at},
             user_message="El reloj del agente está desincronizado.",
+            message_key="ingestClockSkew",
         )
 
 
@@ -105,7 +134,8 @@ class IngestTooFrequentError(HygeiaError):
         super().__init__(
             message=f"Heartbeat rechazado: por debajo del intervalo mínimo de {min_interval_sec}s",
             details={"min_interval_sec": min_interval_sec},
-            user_message="Cadencia de heartbeat demasiado alta.",
+            user_message="El agente envía datos con demasiada frecuencia.",
+            message_key="ingestTooFrequent",
         )
 
 
@@ -131,6 +161,7 @@ class AnomalyStillOpenError(HygeiaError):
             message=f"Anomalía {anomaly_id} sigue abierta, no se puede borrar",
             details={"anomaly_id": anomaly_id},
             user_message="Solo se pueden borrar anomalías reconocidas o resueltas.",
+            message_key="anomalyStillOpen",
         )
 
 
@@ -150,7 +181,8 @@ class InventoryNotAvailableError(HygeiaError):
         super().__init__(
             message=f"El activo {asset_id} no tiene inventario de software que analizar",
             details={"asset_id": asset_id},
-            user_message="Este activo aún no ha reportado un inventario de software.",
+            user_message="Este activo aún no ha enviado su inventario de software.",
+            message_key="inventoryNotAvailable",
         )
 
 
@@ -176,6 +208,8 @@ class TagAlreadyExistsError(HygeiaError):
             message=f"Ya existe una etiqueta llamada {name!r}",
             details={"name": name},
             user_message=f"Ya existe una etiqueta «{name}».",
+            message_key="tagAlreadyExists",
+            params={"name": name},
         )
 
 
@@ -189,6 +223,8 @@ class TagQuotaExceededError(HygeiaError):
             message=f"Tope de etiquetas personales superado (máximo {max_tags})",
             details={"max_tags": max_tags},
             user_message=f"Has alcanzado el máximo de {max_tags} etiquetas personales.",
+            message_key="tagQuotaExceeded",
+            params={"maxTags": max_tags},
         )
 
 
@@ -207,6 +243,7 @@ class SystemTagImmutableError(HygeiaError):
             message=f"La etiqueta {tag_id} es del catálogo común y no se puede borrar",
             details={"tag_id": tag_id},
             user_message="Las etiquetas del catálogo común no se pueden borrar.",
+            message_key="systemTagImmutable",
         )
 
 
@@ -230,9 +267,10 @@ class OrganizationScopeNotAllowedError(HygeiaError):
         super().__init__(
             message="El ámbito de organización exige ser dueño de una organización",
             user_message=(
-                "Solo el dueño de una organización puede generar el inventario "
-                "de todos sus activos."
+                "Solo el dueño de una organización puede generar el inventario de todos sus "
+                "activos."
             ),
+            message_key="organizationScopeNotAllowed",
         )
 
 
@@ -259,6 +297,8 @@ class UnknownMetricError(HygeiaError):
             message=f"Métrica desconocida: {metric_name!r}",
             details={"metric": metric_name, "valid_metrics": valid_metric_names},
             user_message=f"La métrica «{metric_name}» no existe.",
+            message_key="unknownMetric",
+            params={"metricName": metric_name},
         )
 
 
@@ -289,9 +329,11 @@ class NonAdditiveMetricError(HygeiaError):
                 "additive_metrics": additive_metric_names,
             },
             user_message=(
-                f"La métrica «{metric_name}» no se puede sumar entre equipos; "
-                "usa la media o el máximo."
+                f"La métrica «{metric_name}» no se puede sumar entre equipos; usa la media o el "
+                "máximo."
             ),
+            message_key="nonAdditiveMetric",
+            params={"metricName": metric_name},
         )
 
 
@@ -316,4 +358,5 @@ class InvalidDocumentRequestError(HygeiaError):
             message=f"El documento {dataset!r} necesita {missing_field!r}",
             details={"dataset": dataset, "missing": missing_field},
             user_message="Falta elegir qué quieres exportar.",
+            message_key="invalidDocumentRequest",
         )

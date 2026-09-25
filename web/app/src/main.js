@@ -3,6 +3,7 @@
  *
  * Inicializa la instancia de Vue con los plugins necesarios:
  * - Pinia: estado global reactivo (auth, toast, etc.)
+ * - vue-i18n: textos por idioma (`src/i18n/`)
  * - Vue Router: navegación SPA
  *
  * También importa el archivo CSS compartido del proyecto legacy
@@ -13,6 +14,7 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
+import { i18n } from '@/i18n'
 import { useAuthStore } from '@/stores/authStore'
 import { applyStoredTheme } from '@/stores/themeStore'
 import { resolveError } from '@/views/public/errorCatalog'
@@ -25,6 +27,7 @@ applyStoredTheme()
 const app = createApp(App)
 const pinia = createPinia()
 app.use(pinia)
+app.use(i18n)
 
 // Errores de render no atrapados (un fallo en cualquier componente) → vista
 // de error 500 en vez de dejar la pantalla rota. La guarda evita el bucle si

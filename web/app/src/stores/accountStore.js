@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { useToastStore } from '@/stores/toastStore'
+import { formatDate as formatLocalizedDate } from '@/i18n/format'
 
 /**
  * Store de la capa comercial: plan efectivo, consumo y organización.
@@ -62,7 +63,7 @@ export const useAccountStore = defineStore('account', () => {
 
   function formatDate(iso) {
     if (!iso) return ''
-    return new Date(iso).toLocaleDateString('es-ES', {
+    return formatLocalizedDate(iso, {
       day: 'numeric', month: 'long', year: 'numeric',
     })
   }

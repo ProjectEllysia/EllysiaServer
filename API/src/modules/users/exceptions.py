@@ -17,7 +17,7 @@ class AuthenticationError(EllysiaException):
 
     def __init__(self, message: str = "Error de autenticación", **kwargs):
         if "user_message" not in kwargs:
-            kwargs["user_message"] = "No se pudo verificar su identidad."
+            kwargs["user_message"] = "No se pudo verificar tu identidad."
         super().__init__(message=message, **kwargs)
 
 
@@ -28,7 +28,7 @@ class AuthorizationError(EllysiaException):
 
     def __init__(self, message: str = "Error de autorización", **kwargs):
         if "user_message" not in kwargs:
-            kwargs["user_message"] = "No tiene permisos para realizar esta acción."
+            kwargs["user_message"] = "No tienes permisos para realizar esta acción."
         super().__init__(message=message, **kwargs)
 
 
@@ -47,7 +47,8 @@ class InvalidCredentialsError(AuthenticationError):
     def __init__(self):
         super().__init__(
             message="Credenciales inválidas",
-            user_message="Usuario o contraseña incorrectos."
+            user_message="Usuario o contraseña incorrectos.",
+            message_key="invalidCredentials"
         )
 
 
@@ -59,11 +60,104 @@ class PasswordChangedError(AuthenticationError):
     en lugar de un error genérico. Se identifica por ``code == 1609``.
     """
     default_code = ErrorCode.PASSWORD_CHANGED
+    error_name = "password_changed"
 
     def __init__(self):
         super().__init__(
             message="La contraseña fue cambiada; el token/sesión ya no es válido",
             user_message="Tu contraseña ha cambiado. Inicia sesión de nuevo.",
+            message_key="passwordChanged",
+        )
+
+
+class InvalidAuthorizationHeaderError(AuthenticationError):
+    """La petición no trae la cabecera ``Authorization`` o no es ``Bearer <token>``.
+
+    El ``error`` es ``unauthorized``, el código de OAuth 2.0 que ya esperan los
+    clientes para una petición sin credenciales utilizables.
+    """
+
+    error_name = "unauthorized"
+
+    def __init__(self, message: str):
+        """Construye el error.
+
+        Args:
+            message: Qué le pasa a la cabecera, para el log («falta la
+                cabecera», «no es Bearer»…). No llega al usuario.
+        """
+        super().__init__(
+            message=message,
+            user_message="Tu sesión no es válida. Inicia sesión de nuevo.",
+            message_key="invalidAuthorizationHeader",
+        )
+
+
+class InvalidAccessTokenError(AuthenticationError):
+    """El access token no es válido o ha caducado.
+
+    El ``error`` es ``invalid_token``, el código de RFC 6750 con el que el
+    cliente sabe que debe renovar el token o volver a iniciar sesión.
+    """
+
+    default_code = ErrorCode.TOKEN_EXPIRED
+    error_name = "invalid_token"
+
+    def __init__(self):
+        """Construye el error; no distingue caducado de manipulado a propósito."""
+        super().__init__(
+            message="El access token no es válido o ha caducado",
+            user_message="Tu sesión ha caducado. Inicia sesión de nuevo.",
+            message_key="invalidAccessToken",
+        )
+
+
+class InsufficientPermissionsError(AuthorizationError):
+    """El usuario está identificado, pero su rol o sus permisos no alcanzan.
+
+    El ``error`` es ``forbidden``: la interfaz lo usa para distinguir «no
+    tienes permiso» de cualquier otro 403.
+    """
+
+    error_name = "forbidden"
+
+    def __init__(self, message: str):
+        """Construye el error.
+
+        Args:
+            message: Qué faltaba (el rol mínimo, los permisos concretos), para
+                el log. No llega al usuario: decirle qué permisos existen no le
+                ayuda y describe el modelo de permisos a quien no los tiene.
+        """
+        super().__init__(
+            message=message,
+            user_message="No tienes permisos suficientes para realizar esta acción.",
+            message_key="insufficientPermissions",
+        )
+
+
+class PermissionCheckError(EllysiaException):
+    """Falló la propia comprobación de identidad o de permisos, no el usuario.
+
+    El ``error`` es ``server_error``, el código de OAuth 2.0 para un fallo del
+    servidor de autorización.
+    """
+
+    default_code = ErrorCode.INTERNAL_SERVER_ERROR
+    default_status_code = 500
+    default_severity = ErrorSeverity.HIGH
+    error_name = "server_error"
+
+    def __init__(self, message: str):
+        """Construye el error.
+
+        Args:
+            message: Qué comprobación falló, para el log.
+        """
+        super().__init__(
+            message=message,
+            user_message="No se pudo comprobar tu acceso. Inténtalo de nuevo.",
+            message_key="permissionCheckFailed",
         )
 
 
@@ -86,7 +180,8 @@ class UserBindingError(AuthenticationError):
         super().__init__(
             message=f"No se pudo vincular el usuario '{username}' con una persona existente",
             details={"username": username},
-            user_message=f"Error al crear el usuario debido a datos incompletos"
+            user_message="No se pudo crear el usuario porque faltan datos.",
+            message_key="userBinding"
         )
 
 
@@ -96,8 +191,42 @@ class DuplicatedUserCredentials(AuthenticationError):
     def __init__(self, credentials: str):
         super().__init__(
             message=f"Se ha detectado una credencial duplicada para un usuario",
-            user_message=f"Se ha detectado duplicidad de datos para el siguiente valor: {credentials}"
+            user_message=f"Ya hay una cuenta con este dato: {credentials}.",
+            message_key="duplicatedUserCredentials",
+            params={"value": credentials}
         )
+
+
+def _describe_existing_user(username: Optional[str], email: Optional[str]) -> tuple[str, str, dict]:
+    """Elige el mensaje de ``ExistingUserError`` según qué dato está repetido.
+
+    Args:
+        username: Identificador que ya está en uso, o ``None`` si el repetido
+            es solo el correo.
+        email: Correo que ya está en uso, o ``None`` si el repetido es solo el
+            identificador.
+
+    Returns:
+        tuple[str, str, dict]: El texto para el usuario, su clave de mensaje y
+            los valores de sus huecos.
+    """
+    if username is None:
+        return (
+            f"Ya existe una cuenta con el correo {email}.",
+            "existingUserByEmail",
+            {"email": email},
+        )
+    if email is None:
+        return (
+            f"Ya existe una cuenta con el identificador {username}.",
+            "existingUserByUsername",
+            {"username": username},
+        )
+    return (
+        f"Ya existe una cuenta con el correo {email} o el identificador {username}.",
+        "existingUser",
+        {"email": email, "username": username},
+    )
 
 
 class ExistingUserError(AuthenticationError):
@@ -110,11 +239,20 @@ class ExistingUserError(AuthenticationError):
     # al intentar crear un usuario repetido.
     default_status_code = 409
 
-    def __init__(self, username: str, email: str):
+    def __init__(self, username: Optional[str], email: Optional[str]):
+        """Construye el error.
+
+        Args:
+            username: Identificador repetido, o ``None`` si solo lo está el correo.
+            email: Correo repetido, o ``None`` si solo lo está el identificador.
+        """
+        user_message, message_key, params = _describe_existing_user(username, email)
         super().__init__(
             message="Se ha intentado crear un usuario con un email o nombre de usuario existentes",
             details={"username": username, "email": email},
-            user_message=f"""Ya existe un usuario con los siguientes parámetros: {f"email: {email}" if email is not None else "" } {"|" if username is not None and email is not None else ""} {f"username: {username}" if username is not None else "" }"""
+            user_message=user_message,
+            message_key=message_key,
+            params=params,
         )
 
 
@@ -124,7 +262,8 @@ class ProfileUpdateError(AuthenticationError):
     def __init__(self, message: str = "Error al actualizar el perfil"):
         super().__init__(
             message=message,
-            user_message="No se pudo actualizar el perfil. Intente de nuevo."
+            user_message="No se pudo actualizar el perfil. Inténtalo de nuevo.",
+            message_key="profileUpdate"
         )
 
 
@@ -138,6 +277,7 @@ class MfaAlreadyEnabledError(AuthenticationError):
         super().__init__(
             message="El usuario ya tiene MFA (TOTP) activado y confirmado",
             user_message="Ya tienes la verificación en dos pasos activada.",
+            message_key="mfaAlreadyEnabled",
         )
 
 
@@ -150,6 +290,7 @@ class MfaNotEnabledError(AuthenticationError):
         super().__init__(
             message="El usuario no tiene MFA (TOTP) activado",
             user_message="No tienes la verificación en dos pasos activada.",
+            message_key="mfaNotEnabled",
         )
 
 
@@ -161,22 +302,36 @@ class InvalidMfaCodeError(AuthenticationError):
         super().__init__(
             message="Código MFA o de recuperación inválido",
             user_message="El código introducido no es válido.",
+            message_key="invalidMfaCode",
         )
 
 
 class MfaChallengeInvalidError(AuthenticationError):
     """El challenge de MFA no existe, expiró o agotó sus intentos.
 
-    ``user_message`` es pisable porque los dos flujos que lo usan siguen
-    caminos distintos: el de login debe decir "inicia sesión de nuevo" y el de
-    recuperación de contraseña "vuelve a solicitarlo".
+    Los dos flujos que lo usan piden al usuario cosas distintas: el de login
+    que inicie sesión de nuevo y el de recuperación de contraseña que vuelva a
+    solicitarla. Por eso tiene dos mensajes, cada uno con su clave.
     """
     default_code = ErrorCode.MFA_CHALLENGE_INVALID
 
-    def __init__(self, user_message: Optional[str] = None):
+    def __init__(self, is_password_reset: bool = False):
+        """Construye el error.
+
+        Args:
+            is_password_reset: ``True`` si el challenge era el de recuperación
+                de contraseña; ``False`` (por defecto) si era el de login.
+        """
         super().__init__(
             message="El challenge de MFA es inválido, expiró o agotó sus intentos",
-            user_message=user_message or "La verificación ha expirado. Inicia sesión de nuevo.",
+            user_message=(
+                "La verificación ha caducado. Vuelve a solicitar la recuperación."
+                if is_password_reset
+                else "La verificación ha caducado. Inicia sesión de nuevo."
+            ),
+            message_key=(
+                "mfaChallengeInvalidPasswordReset" if is_password_reset else "mfaChallengeInvalid"
+            ),
         )
 
 # =========================================================================
@@ -200,9 +355,10 @@ class RegistrationClosedError(SurfaceDisabledError):
         super().__init__(
             "registration",
             user_message=(
-                "Esta instalacion de Ellysia no acepta registros. "
-                "Pide a un administrador que te cree la cuenta."
+                "Esta instalación de Ellysia no acepta registros. Pide a un administrador que te "
+                "cree la cuenta."
             ),
+            message_key="registrationClosed",
         )
 
 
@@ -220,9 +376,10 @@ class InvalidVerificationTokenError(AuthenticationError):
         super().__init__(
             message="Token de verificacion invalido o caducado",
             user_message=(
-                "Este enlace de confirmacion no es valido o ha caducado. "
-                "Puedes pedir uno nuevo desde tu perfil."
+                "Este enlace de confirmación no es válido o ha caducado. Puedes pedir uno nuevo "
+                "desde tu perfil."
             ),
+            message_key="invalidVerificationToken",
         )
 
 
@@ -235,7 +392,8 @@ class EmailAlreadyVerifiedError(EllysiaException):
     def __init__(self) -> None:
         super().__init__(
             message="El correo ya esta verificado",
-            user_message="Tu correo ya esta confirmado.",
+            user_message="Tu correo ya está confirmado.",
+            message_key="emailAlreadyVerified",
         )
 
 
@@ -258,7 +416,8 @@ class PasswordResetTokenInvalidError(AuthenticationError):
         super().__init__(
             message="Token de recuperacion invalido o caducado",
             user_message=(
-                "Este enlace de recuperación no es válido o ha caducado. "
-                "Puedes pedir uno nuevo desde la pantalla de acceso."
+                "Este enlace de recuperación no es válido o ha caducado. Puedes pedir uno nuevo "
+                "desde la pantalla de acceso."
             ),
+            message_key="passwordResetTokenInvalid",
         )

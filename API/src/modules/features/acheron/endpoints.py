@@ -9,7 +9,9 @@ from flask_smorest import Blueprint as SmorestBlueprint
 from contextlib import contextmanager
 
 from src.modules.shared._exceptions import (
+    create_error_response,
     handle_exceptions,
+    MissingJsonBodyError,
     ValidationError,
 )
 from src.modules.shared._endpoints import limiter, current_actor
@@ -21,6 +23,7 @@ from src.modules.features.acheron.exceptions import (
     StorableNotFoundError,
     StorableConflictError,
     VaultRevisionMismatchError,
+    StorableDeleteError,
 )
 from src.modules.users import require_oauth_token, require_attributes, AttributeType, get_current_user
 from .managers import VaultManager
@@ -90,13 +93,10 @@ def handle_vault_revision_mismatch(error: VaultRevisionMismatchError):
     re-lee, reaplica su cambio sobre el estado fresco y reintenta.
     """
     logger.warning("Conflicto de revision de vault: %s", error.message)
-    return jsonify({
-        "error": "vault_revision_mismatch",
-        "error_description": error.user_message,
-        "code": error.code.value,
-        "currentRevision": error.current_revision,
-        "yourRevision": error.provided_revision,
-    }), 409, _etag(error.current_revision)
+    body, status_code = create_error_response(error)
+    body["currentRevision"] = error.current_revision
+    body["yourRevision"] = error.provided_revision
+    return jsonify(body), status_code, _etag(error.current_revision)
 
 
 @acheron_blp.get("/vault")
@@ -167,11 +167,11 @@ def upsert_vault():
     La creacion inicial no lleva ninguna de las dos: no hay nada que pisar.
     """
     if not request.is_json:
-        raise ValidationError("Content-Type must be application/json")
+        raise MissingJsonBodyError("La petición no declara Content-Type: application/json")
 
     data = request.get_json(silent=True)
     if not data or not isinstance(data, dict):
-        raise ValidationError("Request body must be a JSON object")
+        raise MissingJsonBodyError("El cuerpo de la petición no es un objeto JSON")
 
     expected_revision = _client_revision()
 
@@ -356,7 +356,7 @@ def delete_vault_storable(data):
 
         storable_id = storable.id
         if not manager.delete_storable(storable_id, expected_revision=_client_revision()):
-            raise VaultError("Could not delete storable")
+            raise StorableDeleteError(storable_id)
 
         logger.info("Storable %s (internalId=%s) eliminado | user=%s", storable_id, internal_id, current_actor())
     return {

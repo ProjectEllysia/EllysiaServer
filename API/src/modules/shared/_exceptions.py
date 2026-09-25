@@ -12,6 +12,9 @@ class ErrorCode(Enum):
     INTERNAL_SERVER_ERROR = 1001
     NOT_IMPLEMENTED = 1002
     ILLEGAL_STATE_ERROR = 1003
+    ROUTE_NOT_FOUND = 1004
+    METHOD_NOT_ALLOWED = 1005
+    TOO_MANY_REQUESTS = 1006
 
     VALIDATION_ERROR = 1100
     INVALID_PORT_SPEC = 1101
@@ -108,6 +111,16 @@ class EllysiaException(Exception):
     útil en vez de "error 402".
     """
 
+    error_name: Optional[str] = None
+    """Valor del campo ``error`` de la respuesta, si no es el nombre de la clase.
+
+    Por defecto el campo lleva el nombre de la clase (``"ScanNotFoundError"``).
+    Lo redefinen las excepciones cuyo ``error`` es un contrato externo que ya
+    esperan los clientes: los códigos de OAuth 2.0 (``"invalid_token"``,
+    ``"unauthorized"``, ``"forbidden"``…) o los que la interfaz compara a mano
+    (``"password_changed"``, ``"vault_revision_mismatch"``).
+    """
+
     def __init__(
         self,
         message: str,
@@ -117,11 +130,41 @@ class EllysiaException(Exception):
         severity: Optional[ErrorSeverity] = None,
         status_code: Optional[int] = None,
         user_message: Optional[str] = None,
+        message_key: Optional[str] = None,
+        params: Optional[Dict[str, Any]] = None,
     ):
+        """Construye la excepción.
+
+        Args:
+            message: Mensaje técnico, para el log; no llega al usuario.
+            code: Código estable del error. Por defecto, ``default_code`` de la
+                clase.
+            details: Contexto de diagnóstico. Solo viaja al cliente si la clase
+                declara ``expose_details`` o en modo depuración.
+            original_exception: Excepción que provocó esta, si la hay.
+            severity: Gravedad para el log. Por defecto, ``default_severity``.
+            status_code: Código HTTP de la respuesta. Por defecto,
+                ``default_status_code``.
+            user_message: Texto para el usuario, en el idioma por defecto de la
+                plataforma. Por defecto, uno genérico según ``code``.
+            message_key: Identificador estable de la plantilla de
+                ``user_message`` (``"missingParameter"``,
+                ``"entityNotFound.scan"``…), con la que la interfaz lo traduce
+                a su idioma. Solo se declara cuando ``user_message`` sale
+                entero de esa plantilla y de ``params``; un texto libre no lo
+                lleva, y la interfaz enseña entonces ``user_message`` tal cual.
+                Por defecto, ninguno.
+            params: Valores que rellenan los huecos de la plantilla de
+                ``message_key`` (``{"parameter": "port"}``). Viajan siempre al
+                cliente junto a la clave, así que no deben llevar nada interno.
+                Por defecto, ninguno.
+        """
         super().__init__(message)
         self.message = message
         self.code = code or self.default_code
         self.details = details or {}
+        self.message_key = message_key
+        self.params = params or {}
         self.original_exception = original_exception
         self.severity = severity or self.default_severity
         self.status_code = status_code or self.default_status_code
@@ -149,7 +192,7 @@ class EllysiaException(Exception):
 
     def to_dict(self, include_traceback: bool = False) -> Dict[str, Any]:
         result = {
-            "error": self.__class__.__name__,
+            "error": self.error_name or self.__class__.__name__,
             "code": self.code.value,
             "message": self.user_message,
             "timestamp": isoformat_utc(self.timestamp),
@@ -158,6 +201,8 @@ class EllysiaException(Exception):
         if self.details:
             result["details"] = self.details
 
+        result.update(self.to_message_reference())
+
         if include_traceback:
             result["technical_message"] = self.message
             result["traceback"] = self.traceback
@@ -165,6 +210,25 @@ class EllysiaException(Exception):
                 result["original_error"] = str(self.original_exception)
 
         return result
+
+    def to_message_reference(self) -> Dict[str, Any]:
+        """Devuelve la parte de la respuesta con la que la interfaz traduce el error.
+
+        El servidor contesta siempre con ``user_message`` en el idioma por
+        defecto de la plataforma. Para que la interfaz pueda enseñarlo en el
+        idioma del usuario sin que el servidor sepa cuál es, el error viaja
+        además identificado: qué plantilla de mensaje es y con qué valores se
+        rellena. La interfaz busca la plantilla en su diccionario y, si no la
+        tiene, enseña ``user_message``.
+
+        Returns:
+            Dict[str, Any]: ``{"messageKey": ..., "params": {...}}`` si el
+                error declara ``message_key``; un diccionario vacío si su
+                mensaje es texto libre y no se puede traducir por plantilla.
+        """
+        if not self.message_key:
+            return {}
+        return {"messageKey": self.message_key, "params": dict(self.params)}
 
     def __str__(self) -> str:
         return f"[{self.code.name}] {self.message}"
@@ -210,13 +274,19 @@ class SurfaceDisabledError(EllysiaException):
             user_message: Texto para el usuario. Por defecto, uno genérico que
                 dice que la función todavía no está disponible.
             **kwargs: Resto de argumentos de ``EllysiaException`` (``code``,
-                por ejemplo, para conservar un código heredado).
+                por ejemplo, para conservar un código heredado, o
+                ``message_key`` para una subclase con texto fijo).
         """
         self.surface = str(surface)
+        # Un texto a medida no sale de la plantilla genérica: sin clave, la
+        # interfaz lo enseña tal cual en vez de sustituirlo por el genérico.
+        # Una subclase con texto fijo trae la suya en ``kwargs``.
+        default_message_key = None if user_message else "surfaceDisabled"
         super().__init__(
             message=f"La superficie '{self.surface}' está cerrada al público",
             details={"surface": self.surface},
             user_message=user_message or "Esta función todavía no está disponible.",
+            message_key=kwargs.pop("message_key", default_message_key),
             **kwargs,
         )
 
@@ -300,12 +370,15 @@ class ValidationError(EllysiaException):
 
 class MissingParameterError(ValidationError):
     default_code = ErrorCode.MISSING_PARAMETER
+    error_name = "missing_parameter"
 
     def __init__(self, parameter: str):
         super().__init__(
             message=f"Parámetro requerido '{parameter}' no proporcionado",
             field=parameter,
-            user_message=f"El parámetro '{parameter}' es obligatorio."
+            user_message=f"El parámetro «{parameter}» es obligatorio.",
+            message_key="missingParameter",
+            params={"parameter": str(parameter)},
         )
 
 
@@ -313,11 +386,92 @@ class MissingJsonBodyError(EllysiaException):
     default_code = ErrorCode.JSON_PARSING_ERROR
     default_status_code = 400
     default_severity = ErrorSeverity.LOW
+    error_name = "invalid_json"
 
     def __init__(self, message: str = "Request body must be JSON"):
         super().__init__(
             message=message,
-            user_message="El cuerpo de la petición debe ser JSON válido."
+            user_message="El cuerpo de la petición debe ser JSON válido.",
+            message_key="missingJsonBody",
+        )
+
+
+class RouteNotFoundError(EllysiaException):
+    """La dirección pedida no corresponde a ningún endpoint de la API."""
+
+    default_code = ErrorCode.ROUTE_NOT_FOUND
+    default_status_code = 404
+    default_severity = ErrorSeverity.LOW
+    error_name = "not_found"
+
+    def __init__(self, path: str):
+        """Construye el error para una dirección concreta.
+
+        Args:
+            path: Ruta pedida (``request.path``); solo va al log.
+        """
+        super().__init__(
+            message=f"Ruta no encontrada: {path}",
+            user_message="La dirección solicitada no existe.",
+            message_key="routeNotFound",
+        )
+
+
+class MethodNotAllowedError(EllysiaException):
+    """La dirección existe, pero no admite el método HTTP de la petición."""
+
+    default_code = ErrorCode.METHOD_NOT_ALLOWED
+    default_status_code = 405
+    default_severity = ErrorSeverity.LOW
+    error_name = "method_not_allowed"
+
+    def __init__(self, method: str):
+        """Construye el error para un método concreto.
+
+        Args:
+            method: Método HTTP de la petición (``"GET"``, ``"POST"``…).
+        """
+        super().__init__(
+            message=f"Método no permitido: {method}",
+            user_message=f"El método {method} no está permitido en esta dirección.",
+            message_key="methodNotAllowed",
+            params={"method": method},
+        )
+
+
+class TooManyRequestsError(EllysiaException):
+    """El cliente ha superado el límite de peticiones de un endpoint."""
+
+    default_code = ErrorCode.TOO_MANY_REQUESTS
+    default_status_code = 429
+    default_severity = ErrorSeverity.LOW
+    error_name = "too_many_requests"
+
+    def __init__(self):
+        """Construye el error; el límite superado no se cuenta al usuario."""
+        super().__init__(
+            message="Límite de peticiones superado",
+            user_message=(
+                "Has superado el límite de peticiones. Espera un momento e inténtalo de nuevo."
+            ),
+            message_key="tooManyRequests",
+        )
+
+
+class UnexpectedServerError(EllysiaException):
+    """Un fallo no previsto llegó hasta Flask sin ser una ``EllysiaException``."""
+
+    default_code = ErrorCode.INTERNAL_SERVER_ERROR
+    default_status_code = 500
+    default_severity = ErrorSeverity.HIGH
+    error_name = "internal_server_error"
+
+    def __init__(self):
+        """Construye el error; el detalle del fallo va al log, no al usuario."""
+        super().__init__(
+            message="Error interno no controlado",
+            user_message="Ha ocurrido un error inesperado en el servidor.",
+            message_key="unexpectedServerError",
         )
 
 
@@ -325,6 +479,28 @@ class DatabaseError(EllysiaException):
     default_code = ErrorCode.DATABASE_ERROR
     default_status_code = 500
     default_severity = ErrorSeverity.HIGH
+
+
+def _derive_entity_key(class_name: str) -> str:
+    """Deduce la clave estable de una entidad a partir del nombre de su excepción.
+
+    Es la parte variable de la clave de mensaje ``entityNotFound.<entidad>``
+    con la que la interfaz traduce el «no encontrado». Se deduce del nombre de
+    la clase para que dar de alta una excepción nueva no obligue a declarar
+    nada más; el test de ``test_shared_error_messages.py`` avisa si la clave
+    resultante no tiene texto en el diccionario de la interfaz.
+
+    Args:
+        class_name: Nombre de la clase de la excepción, acabado en
+            ``NotFoundError`` (``"IrisCaseNotFoundError"``).
+
+    Returns:
+        str: El nombre sin el sufijo y con la inicial en minúscula
+            (``"irisCase"``). La base, ``EntityNotFoundError``, da
+            ``"entity"``.
+    """
+    entity_name = class_name.removesuffix("NotFoundError")
+    return entity_name[:1].lower() + entity_name[1:]
 
 
 class EntityNotFoundError(EllysiaException):
@@ -381,19 +557,7 @@ class EntityNotFoundError(EllysiaException):
             message=message,
             details=details,
             user_message=f"{self.entity_label} no {not_found}.",
-        )
-
-
-class EntityAlreadyExistsError(DatabaseError):
-    default_code = ErrorCode.ENTITY_ALREADY_EXISTS
-    default_status_code = 409
-    default_severity = ErrorSeverity.LOW
-
-    def __init__(self, entity_type: str, identifier: str):
-        super().__init__(
-            message=f"{entity_type} con identificador '{identifier}' ya existe",
-            details={"entity_type": entity_type, "identifier": identifier},
-            user_message=f"El {entity_type} ya existe."
+            message_key=f"entityNotFound.{_derive_entity_key(type(self).__name__)}",
         )
 
 
@@ -406,7 +570,8 @@ class DatabaseConnectionError(DatabaseError):
         super().__init__(
             message=f"Error de conexión a base de datos: {message}",
             details=details,
-            user_message="No se pudo conectar a la base de datos."
+            user_message="No se pudo conectar a la base de datos.",
+            message_key="databaseConnection",
         )
 
 
@@ -443,7 +608,8 @@ class DocumentNotReadyError(DocumentError):
         super().__init__(
             message=f"Documento {doc_id} no disponible (estado: {status})",
             details={"document_id": doc_id, "status": status},
-            user_message="El documento aún no está listo."
+            user_message="El documento aún no está listo.",
+            message_key="documentNotReady"
         )
 
 
@@ -460,7 +626,8 @@ class XMLParsingError(ParsingError):
         super().__init__(
             message=f"Error parseando XML '{file_path}': {reason}",
             details={"file_path": file_path, "reason": reason},
-            user_message="Error procesando resultados del escaneo."
+            user_message="No se pudieron procesar los resultados del escaneo.",
+            message_key="xmlParsing"
         )
 
 
@@ -471,7 +638,8 @@ class JSONParsingError(ParsingError):
         super().__init__(
             message=f"Error parseando JSON: {reason}",
             details={"data": data[:100], "reason": reason},
-            user_message="Error procesando datos JSON."
+            user_message="No se pudieron procesar los datos JSON.",
+            message_key="jsonParsing"
         )
 
 
@@ -604,7 +772,7 @@ def create_error_response(
     include_debug_info: bool = False
 ) -> tuple[Dict[str, Any], int]:
     response = {
-        "error": exception.__class__.__name__,
+        "error": exception.error_name or exception.__class__.__name__,
         "error_description": exception.user_message,
         "code": exception.code.value,
     }
@@ -613,6 +781,8 @@ def create_error_response(
     # del contrato con el cliente, no diagnóstico: viaja siempre.
     if exception.expose_details and exception.details:
         response["details"] = exception.details
+
+    response.update(exception.to_message_reference())
 
     if include_debug_info:
         response["technical_message"] = exception.message

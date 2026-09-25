@@ -1,6 +1,6 @@
 <template>
   <div v-if="totalPages > 1" class="pagination">
-    <button class="page-btn" :disabled="current <= 1" @click="$emit('go', current - 1)">
+    <button class="page-btn" :disabled="current <= 1" :aria-label="t('pagination.previous')" @click="$emit('go', current - 1)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
     </button>
     <button
@@ -10,15 +10,18 @@
       :class="{ active: p === current }"
       @click="$emit('go', p)"
     >{{ p }}</button>
-    <button class="page-btn" :disabled="current >= totalPages" @click="$emit('go', current + 1)">
+    <button class="page-btn" :disabled="current >= totalPages" :aria-label="t('pagination.next')" @click="$emit('go', current + 1)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
     </button>
-    <span class="page-count">{{ current }} / {{ totalPages }}</span>
+    <span class="page-count">{{ t('pagination.position', { current, total: totalPages }) }}</span>
   </div>
 </template>
 
 <script setup>
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   current: { type: Number, required: true },

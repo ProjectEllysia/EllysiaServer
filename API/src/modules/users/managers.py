@@ -213,10 +213,12 @@ class UserManager:
         default_role = "role_user"
 
         if role is not None and role not in valid_roles:
-            raise PermissionsError(f"Invalid role: {role}. Valid roles: {valid_roles}")
+            raise PermissionsError(
+                f"El rol {role} no existe. Roles válidos: {', '.join(sorted(valid_roles))}."
+            )
 
         if role and not actor_id:
-            raise PermissionsError("actor_id required when specifying a role")
+            raise PermissionsError("Para asignar un rol hay que indicar quién lo asigna.")
 
         if role == "role_admin" and actor_id:
             if not self.can_create_admin(actor_id):
@@ -416,9 +418,7 @@ class UserManager:
             challenge_token, purpose=MFA_CHALLENGE_PURPOSE_PASSWORD_RESET,
         )
         if user_id is None:
-            raise MfaChallengeInvalidError(
-                user_message="La verificacion ha expirado. Vuelve a solicitar la recuperacion.",
-            )
+            raise MfaChallengeInvalidError(is_password_reset=True)
 
         verified = MFAManager().verify_totp_or_recovery(
             user_id, code=code, recovery_code=recovery_code,
@@ -539,7 +539,7 @@ class UserManager:
                 raise EllysiaException(
                     "La nueva contraseña es igual a la actual",
                     status_code=400,
-                    user_message="La nueva clave no puede ser igual a la actual.",
+                    user_message="La nueva contraseña no puede ser igual a la actual.",
                 )
 
             user.password_hash = hash_password(new_password)

@@ -2,7 +2,8 @@
 
 Este documento responde a una sola pregunta: **si tengo que crear esto, ¿dónde lo creo, cómo lo creo
 y qué entidad le doy?** Cubre el backend (`API/`), que es donde vive casi todo el código; los textos
-que el SPA pone delante del usuario tienen su propia sección ([§ 12](#12-textos-de-la-interfaz)).
+que el SPA pone delante del usuario tienen su propia sección ([§ 12](#12-textos-de-la-interfaz)), y los
+errores que la API le devuelve, la suya ([§ 13](#13-errores-que-llegan-al-cliente)).
 
 Lo operativo —comandos, arquitectura, configuración, «cosas que muerden»— sigue en
 [`CLAUDE.md`](CLAUDE.md). La regla de docstrings también vive allí (§ *Documentación de funciones,
@@ -28,6 +29,7 @@ lista, se adapta en el mismo cambio.
 10. [Nombres](#10-nombres)
 11. [Estado actual y cumplimiento](#11-estado-actual-y-cumplimiento)
 12. [Textos de la interfaz](#12-textos-de-la-interfaz)
+13. [Errores que llegan al cliente](#13-errores-que-llegan-al-cliente)
 
 ---
 
@@ -48,11 +50,14 @@ lista, se adapta en el mismo cambio.
 | Un valor que un operador podría querer cambiar | campo de un `@config_block` | `SecOpsConfig.json` + `config_reading.py` ([§ 9](#9-constantes-y-configuración)) |
 | Un valor fijo que solo cambia cambiando código | constante `_NOMBRE` | cabecera del fichero que la usa |
 | Un conjunto cerrado de valores | `StrEnum` | `model.py` si se persiste; si no, el servicio dueño del concepto |
-| Una excepción de dominio | clase `<Algo>Error` | `<módulo>/exceptions.py` |
+| Una excepción de dominio | clase `<Algo>Error`; con texto fijo, también `message_key` | `<módulo>/exceptions.py` ([§ 13](#13-errores-que-llegan-al-cliente)) |
+| Devolver un error desde un decorador, sin lanzarlo | `render_error_response(excepción)` | `shared/_endpoints.py` ([§ 13.1](#131-una-sola-forma-de-responder-un-error)) |
 | Hablar con un proveedor de IA o de correo | estrategia | `tools/scribe/` o `tools/herald/` |
 | Un informe PDF nuevo | subclase de `PdfGenerator` | `<módulo>/services/reports.py`; la parte común ya está en `tools/press/` |
 | Un módulo de feature nuevo | paquete completo ([§ 3.1](#31-anatomía-de-un-módulo)) | `features/<nombre>/` + blueprint en `run.py` + `web/Caddyfile` + `web/app/vite.config.js` |
-| Un texto que ve el usuario (etiqueta, aviso, estado vacío, tooltip) | lenguaje del usuario; los enums, por un rótulo compartido | el `.vue` + `web/app/src/components/<módulo>/<tema>.js` ([§ 12](#12-textos-de-la-interfaz)) |
+| Un texto que ve el usuario (etiqueta, aviso, estado vacío, tooltip) | lenguaje del usuario; los enums, por un rótulo compartido | el `.vue` + `web/app/src/components/<módulo>/<tema>.js` ([§ 12](#12-textos-de-la-interfaz)); en un fichero migrado, `web/app/src/i18n/locales/es.json` ([§ 12.5](#125-idiomas-dónde-vive-cada-texto)) |
+| Formatear una fecha, un número u ordenar textos en el SPA | `formatDate` / `formatDateTime` / `formatNumber` / `getCollator` | `web/app/src/i18n/format.js` ([§ 12.5](#125-idiomas-dónde-vive-cada-texto)) |
+| Un idioma nuevo para la interfaz | fichero de textos | `web/app/src/i18n/locales/<código>.json` ([§ 12.5](#125-idiomas-dónde-vive-cada-texto)) |
 
 ---
 
@@ -76,6 +81,7 @@ EllysiaServer/
 │       ├── components/<módulo>/  piezas de ese módulo; shared/ para las transversales
 │       ├── stores/           estado Pinia, uno por dominio (irisStore.js…)
 │       ├── composables/      lógica reactiva reutilizable (usePolling…)
+│       ├── i18n/             idiomas: locales/<código>.json, formato de fechas y números
 │       ├── router/           rutas del SPA; deben seguir a los matchers de web/Caddyfile
 │       ├── constants/        constantes del frontend
 │       └── assets/images/    fuente de verdad de los assets de marca
@@ -1054,3 +1060,131 @@ para quien la busca.
 Ningún test la hace cumplir, a propósito: es una regla de significado, no de sintaxis, y una lista
 negra de palabras sobre las plantillas daría una falsa sensación de cobertura (los textos se montan
 tanto en la plantilla como en el script). Se aplica en la revisión.
+
+### 12.5 Idiomas: dónde vive cada texto
+
+El SPA tiene un mecanismo de idiomas (vue-i18n, en `web/app/src/i18n/`). Cada idioma es un fichero
+de `locales/` con el mismo árbol de claves; **`es.json` es el idioma por defecto y el único
+completo**, y lo que le falte a otro idioma se enseña en castellano.
+
+- **Un fichero se migra entero o no se migra.** En un fichero ya migrado (la lista está en
+  `MIGRATED_FILES` de `web/app/test/i18n.guard.test.mjs`), todo texto nuevo va a `es.json` y se
+  pide con `t('clave')`; la guarda falla si vuelve a aparecer texto escrito en su plantilla. En uno
+  sin migrar se sigue escribiendo como hasta ahora: medio fichero en el diccionario y medio escrito
+  a mano es peor que cualquiera de los dos. Un módulo se migra cuando se toca a fondo, como los
+  docstrings.
+- **Claves.** Un árbol por zona (`shell.*`, `accountMenu.*`, `apiErrors.*`), en `camelCase`, que
+  nombra el sitio o el propósito, no el texto: `accountMenu.logout`, no `cerrarSesion`. Los datos
+  variables van como huecos con nombre (`"Cuenta de {name}"`), nunca concatenados: el orden de las
+  palabras cambia de un idioma a otro.
+- **Fechas, números y orden alfabético** pasan por `src/i18n/format.js` (`formatDate`,
+  `formatDateTime`, `formatNumber`, `getCollator`), que toman el idioma activo. Nunca `'es-ES'`
+  escrito a mano ni `toLocaleString()` sin argumentos, que usa el idioma del navegador; la guarda
+  lo comprueba en todo `src/`.
+- **Los errores de la API** se traducen por su clave de mensaje (`apiErrors.<messageKey>`, ver
+  [§ 13](#13-errores-que-llegan-al-cliente)); `useApi` lo hace solo.
+- **No van al diccionario**: el idioma del *contenido* que se genera (el campo `language` de una
+  píldora de Aegis decide en qué idioma escribe la IA, no en cuál se ve la interfaz) ni los datos
+  de terceros (descripciones de NVD, cabeceras de un correo analizado).
+
+La guarda de § 12.5 no contradice a § 12.4: no juzga si un texto está bien dicho, solo si un
+fichero que ya vive en el diccionario sigue viviendo en él.
+
+**Cómo se añade un idioma:**
+
+1. Copiar `es.json` a `locales/<código>.json` (`en`, `fr`…; el código es también la etiqueta que se
+   le da a `Intl` para las fechas) y traducir los valores, sin tocar las claves ni los huecos.
+   `language.name` es el nombre del idioma en sí mismo («English»). Puede quedar a medias.
+2. Nada más: el idioma aparece en el selector y `test:i18n` comprueba que no trae claves ni huecos
+   que el castellano no tenga y que vue-i18n compila todos sus mensajes.
+
+Lo que un fichero nuevo **no** cubre: los textos de los ficheros aún sin migrar, y todo lo que el
+servidor genera en segundo plano —correos, informes PDF, textos de la IA—, que necesita antes una
+preferencia de idioma guardada por usuario u organización. Cuando un idioma esté completo, además,
+habrá que decidir si la interfaz arranca en el idioma del navegador; hoy solo recuerda el último
+elegido en el dispositivo.
+
+---
+
+## 13. Errores que llegan al cliente
+
+Un error de la API lo lee una persona, en la interfaz, y puede que en otro idioma que el del
+servidor. Estas reglas son las que permiten las dos cosas.
+
+### 13.1 Una sola forma de responder un error
+
+Todo error que llega al cliente sale de una `EllysiaException` y lo serializa
+`create_error_response` (`shared/_exceptions.py`): o se lanza y lo recoge el manejador global de
+`run.py`, o —en un decorador que corta la petición antes del endpoint y tiene que devolver la
+respuesta en vez de lanzarla— se devuelve con `render_error_response` (`shared/_endpoints.py`).
+**Nunca un diccionario `{"error": …, "error_description": …}` escrito a mano**: no lleva código ni
+clave de mensaje, y era por donde se colaban los textos en inglés. Lo comprueba
+`test_no_error_response_is_built_by_hand`.
+
+El cuerpo siempre tiene la misma forma:
+
+| Campo | Qué es |
+|---|---|
+| `error` | Nombre de la clase, o `error_name` si el valor es un contrato externo (`invalid_token`, `forbidden`, `password_changed`…) |
+| `error_description` | El texto para el usuario, en castellano |
+| `code` | El `ErrorCode` numérico |
+| `messageKey`, `params` | Solo si el texto sale de una plantilla: su clave y los valores de sus huecos |
+| `details` | Solo si la clase declara `expose_details` (o en desarrollo) |
+
+### 13.2 Dos textos, dos lectores
+
+- `message` es para el log: técnico, puede llevar ids, nombres de clases o de campos del esquema.
+- `user_message` es para la persona: castellano correcto (tildes y eñes), **tuteo**, el lenguaje de
+  [§ 12.1](#121-la-pregunta-que-decide), sin ids internos ni nombres de campos, y los valores
+  citados entre comillas angulares («pro»).
+
+### 13.3 Mensaje fijo → clave de mensaje
+
+Una excepción que fija su propio `user_message` declara también `message_key`, y `params` si el
+texto tiene datos:
+
+```python
+super().__init__(
+    message=f"Ya existe un plan con el codigo '{code}'",
+    user_message=f"Ya hay un plan con el código «{code}».",
+    message_key="planCodeTaken",
+    params={"code": code},
+)
+```
+
+- La clave es el nombre de la clase sin `Error`, en `lowerCamelCase`. Un mensaje con variantes
+  lleva una clave por variante (`quotaExceeded` / `quotaExceededUntilNextPeriod`). Los «no
+  encontrado» de `EntityNotFoundError` la reciben solos: `entityNotFound.<entidad>`.
+- La plantilla va en `apiErrors` de `web/app/src/i18n/locales/es.json`, con los huecos con el
+  nombre de `params`. `test_shared_error_messages.py` descubre las excepciones con clave, construye
+  un ejemplar de cada variante (los argumentos de ejemplo están en `_SAMPLE_ARGUMENTS`) y exige que
+  la plantilla dé **exactamente** el `user_message` del servidor.
+- `params` viaja siempre al cliente: solo valores que el usuario ya conoce o puede ver.
+- La interfaz enseña la plantilla de su idioma; si no la tiene (un servidor más nuevo que la
+  interfaz), enseña `error_description`.
+
+### 13.4 Texto libre
+
+No lleva clave el texto que depende de un motivo concreto que no cabe en una plantilla:
+
+- las excepciones que envuelven un motivo ajeno (`ScanExecutionError`, `AegisValidationError`,
+  `LogQueryError`), listadas con su porqué en `_FREE_TEXT_ERRORS` del test;
+- los textos de validación escritos en el propio `raise` de un manager («El caso necesita un
+  título.»).
+
+La interfaz los enseña tal cual, así que tienen que cumplir § 13.2 igual; eso lo vigila la
+revisión, no el test.
+
+### 13.5 Validación de esquema (marshmallow)
+
+- Un campo obligatorio según el valor de otro se señala en el propio campo y con el mensaje
+  estándar de marshmallow (`ValidationError("Missing data for required field.",
+  field_name="username")`): el SPA ya lo traduce como cualquier otro obligatorio.
+- Una regla entre campos (`@validates_schema` sin campo) va en castellano; llega bajo `_schema` y el
+  SPA la enseña sin nombrar ningún campo.
+
+### 13.6 Excepciones de Python
+
+`ValueError`, `KeyError` y compañía no son para el cliente: si una llega hasta Flask, sale como el
+500 genérico (`UnexpectedServerError`). Lo que el usuario deba leer se lanza como excepción de
+dominio.

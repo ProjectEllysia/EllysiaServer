@@ -11,6 +11,8 @@
  * nuevos o los mismos de entrada, nunca los de entrada retocados.
  */
 
+import { getCollator } from '../../../i18n/format.js'
+
 /** Niveles de gravedad, de más a menos grave. */
 export const LADDER = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO']
 
@@ -49,12 +51,11 @@ export const CERTAINTY_OPTIONS = [
 ]
 
 /**
- * Comparador de textos compartido. Crear un `Intl.Collator` es caro, y
- * `String.prototype.localeCompare` con locale crea uno por llamada: en una
- * ordenación de miles de elementos eso es la mayor parte del tiempo.
- * `numeric` hace que «CVE-2021-999» vaya antes que «CVE-2021-1000».
+ * Opciones del orden alfabético de títulos y productos. `numeric` hace que
+ * «CVE-2021-999» vaya antes que «CVE-2021-1000». El comparador se pide a
+ * `getCollator` una vez por ordenación, no por comparación: construirlo es caro.
  */
-const COLLATOR = new Intl.Collator('es', { numeric: true, sensitivity: 'base' })
+const COLLATOR_OPTIONS = { numeric: true, sensitivity: 'base' }
 
 /**
  * Texto en el que busca el cuadro de búsqueda, por hallazgo.
@@ -181,7 +182,8 @@ function compareFindings(sortKey, direction) {
   const bySeverity = (left, right) => left.rank - right.rank
     || (right.kev - left.kev)
     || nullsLast(left.cvss, right.cvss, 1)
-  const byTitle = (left, right) => COLLATOR.compare(left.title, right.title)
+  const collator = getCollator(COLLATOR_OPTIONS)
+  const byTitle = (left, right) => collator.compare(left.title, right.title)
   const byIndex = (left, right) => left.index - right.index
 
   switch (sortKey) {
@@ -214,6 +216,7 @@ function compareFindings(sortKey, direction) {
  * @returns {Function} Comparador de grupos decorados para `Array.prototype.sort`.
  */
 function compareGroups(sortKey, direction) {
+  const collator = getCollator(COLLATOR_OPTIONS)
   const byIndex = (left, right) => left.index - right.index
   const bySeverity = (left, right) => left.rank - right.rank
   switch (sortKey) {
@@ -222,7 +225,7 @@ function compareGroups(sortKey, direction) {
     case 'epss':
       return (left, right) => nullsLast(left.epss, right.epss, direction) || bySeverity(left, right) || byIndex(left, right)
     case 'product':
-      return (left, right) => direction * COLLATOR.compare(left.label, right.label) || bySeverity(left, right) || byIndex(left, right)
+      return (left, right) => direction * collator.compare(left.label, right.label) || bySeverity(left, right) || byIndex(left, right)
     case 'title':
       return (left, right) => bySeverity(left, right) || byIndex(left, right)
     default:

@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "npm run test:acheron && npm run test:hygeia && npm run test:polling && npm run test:element-width && npm run test:toast && npm run test:quiz && npm run test:campaigns && npm run test:logs && npm run test:iris && npm run test:themis && npm run test:launch && npm run test:fonts && npm run test:config",
+    "test": "npm run test:acheron && npm run test:hygeia && npm run test:polling && npm run test:element-width && npm run test:toast && npm run test:quiz && npm run test:campaigns && npm run test:logs && npm run test:iris && npm run test:themis && npm run test:launch && npm run test:fonts && npm run test:config && npm run test:i18n",
     "test:acheron": "node test/acheron.schema.test.mjs",
     "test:hygeia": "node test/hygeia.format.test.mjs && node test/hygeia.chartMath.test.mjs && node test/hygeia.statsMath.test.mjs && node test/hygeia.documents.test.mjs && node test/hygeia.assetSearch.test.mjs",
     "test:polling": "node test/usePolling.test.mjs",
@@ -20,13 +20,15 @@
     "test:themis": "node test/themis.scanWindow.test.mjs && node test/themis.findingSites.test.mjs && node test/themis.findingsArrangement.test.mjs",
     "test:launch": "node test/launchState.test.mjs",
     "test:fonts": "node test/selfHostedFonts.test.mjs",
-    "test:config": "node test/configFlatten.test.mjs"
+    "test:config": "node test/configFlatten.test.mjs",
+    "test:i18n": "node test/i18n.format.test.mjs && node test/i18n.apiErrors.test.mjs && node test/i18n.locales.test.mjs && node test/i18n.guard.test.mjs"
   },
   "dependencies": {
     "@projectellysia/acheron-core-js": "2.4.0",
     "pinia": "^3.0.4",
     "qrcode": "^1.5.4",
     "vue": "^3.5.34",
+    "vue-i18n": "^11.4.12",
     "vue-router": "^5.0.7"
   },
   "devDependencies": {

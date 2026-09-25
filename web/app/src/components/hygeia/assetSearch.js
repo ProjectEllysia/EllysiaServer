@@ -18,6 +18,8 @@
  * entero sin paginar y el cliente ya lo tiene en memoria.
  */
 
+import { getCollator } from '../../i18n/format.js'
+
 /**
  * Calidad de una coincidencia, de mejor (0) a peor (5). El número es el
  * criterio de orden principal, así que los huecos importan menos que el orden.
@@ -98,7 +100,7 @@ export function matchRank(asset, needle) {
  * @returns {number} Negativo, cero o positivo, como espera `Array.sort`.
  */
 function byHostname(a, b) {
-  return (a.hostname ?? '').localeCompare(b.hostname ?? '', 'es', { numeric: true })
+  return getCollator({ numeric: true }).compare(a.hostname ?? '', b.hostname ?? '')
 }
 
 /**

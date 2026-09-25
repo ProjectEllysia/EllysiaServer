@@ -23,12 +23,14 @@ import secrets
 from functools import wraps
 from typing import Optional, Tuple
 
-from flask import jsonify, request
+from flask import request
 from flask_limiter.util import get_remote_address
 
 from src.modules.infrastructure.session import build_repository
+from src.modules.shared import render_error_response
 from src.modules.users.services.secrets import hash_password, verify_password
 
+from ..exceptions import InvalidAgentKeyError
 from ..repositories import MonitoredAssetRepository
 
 logger = logging.getLogger(__name__)
@@ -114,10 +116,7 @@ def require_agent_key(f):
     def decorated(*args, **kwargs):
         full_key = _extract_key_from_request()
         if not full_key or "." not in full_key:
-            return jsonify({
-                "error": "unauthorized",
-                "error_description": "Missing or malformed agent key",
-            }), 401
+            return render_error_response(InvalidAgentKeyError("Falta la clave del agente o no tiene la forma <keyId>.<secreto>"))
 
         key_id, _, secret = full_key.partition(".")
         repo    = build_repository(MonitoredAssetRepository)
@@ -128,17 +127,11 @@ def require_agent_key(f):
             # contra un hash fijo para que el coste temporal sea indistinguible
             # del de un secreto incorrecto sobre un keyId real.
             verify_password(_DUMMY_HASH, secret)
-            return jsonify({
-                "error": "unauthorized",
-                "error_description": "Invalid agent key",
-            }), 401
+            return render_error_response(InvalidAgentKeyError("Clave de agente rechazada"))
 
         is_valid, _ = verify_password(asset.agent_key_hash, secret)
         if not is_valid:
-            return jsonify({
-                "error": "unauthorized",
-                "error_description": "Invalid agent key",
-            }), 401
+            return render_error_response(InvalidAgentKeyError("Clave de agente rechazada"))
 
         request.current_asset_id = asset.id  # type: ignore[attr-defined]
         return f(*args, **kwargs)

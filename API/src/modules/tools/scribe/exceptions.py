@@ -26,7 +26,8 @@ class AIConnectionError(EllysiaException):
         super().__init__(
             message=f"Error de conexión con IA: {message}",
             details=details,
-            user_message="Error al conectar con el servicio de IA.",
+            user_message="No se pudo conectar con el servicio de IA.",
+            message_key="aiConnection",
         )
 
 
@@ -41,7 +42,8 @@ class AIResponseError(EllysiaException):
         super().__init__(
             message=f"Error en respuesta de IA (intento {attempt}): {message}",
             details={"attempt": attempt},
-            user_message="La IA generó una respuesta inválida.",
+            user_message="La IA generó una respuesta no válida.",
+            message_key="aiResponse",
         )
 
 
@@ -65,6 +67,7 @@ class AIPayloadTooLargeError(EllysiaException):
             ),
             details={"estimated_tokens": estimated_tokens, "max_tokens": max_tokens},
             user_message="El escaneo es demasiado grande para generar un análisis de IA completo.",
+            message_key="aiPayloadTooLarge",
         )
 
 
@@ -80,6 +83,7 @@ class AIFallbackExhaustedError(EllysiaException):
             message=f"Fallo tras {attempts} intentos: {last_error}",
             details={"attempts": attempts, "last_error": last_error},
             user_message="No se pudo generar el contenido tras varios intentos.",
+            message_key="aiFallbackExhausted",
         )
 
 
@@ -94,7 +98,8 @@ class CircuitBreakerOpenError(EllysiaException):
         super().__init__(
             message=f"Circuit breaker abierto para {service}",
             details={"service": service},
-            user_message="El servicio está temporalmente no disponible.",
+            user_message="El servicio no está disponible temporalmente.",
+            message_key="circuitBreakerOpen",
         )
 
 
@@ -108,5 +113,6 @@ class AIStrategyConfigurationError(EllysiaException):
     def __init__(self, message: str):
         super().__init__(
             message=f"Configuración de estrategia IA inválida: {message}",
-            user_message="El servicio de IA no está configurado correctamente.",
+            user_message="El servicio de IA no está bien configurado.",
+            message_key="aiStrategyConfiguration",
         )

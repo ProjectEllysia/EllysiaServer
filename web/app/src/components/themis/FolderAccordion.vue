@@ -66,6 +66,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import StatusBadge from './StatusBadge.vue'
+import { formatDate as formatLocalizedDate } from '@/i18n/format'
 
 const props = defineProps({
   folder: { type: Object, required: true },
@@ -89,7 +90,7 @@ function isActive(status) {
 
 function formatDate(iso) {
   if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  return formatLocalizedDate(iso, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 </script>
 
