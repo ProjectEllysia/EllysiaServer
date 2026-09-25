@@ -88,6 +88,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { formatDateTime } from '@/i18n/format'
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -113,7 +114,7 @@ function barWidth(count) {
 
 function fmtDate(iso) {
   if (!iso) return '—'
-  try { return new Date(iso).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) }
+  try { return formatDateTime(iso, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) }
   catch { return iso }
 }
 </script>

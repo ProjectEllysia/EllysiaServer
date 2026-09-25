@@ -34,7 +34,7 @@ The REST API (Flask) orchestrates asynchronous scans and analysis over **RQ + Re
 ## Features
 
 - **Vulnerability scanning** — Nmap (port/OS detection), Nikto (web vulns), Nuclei (template-based), and **Lybra**, a self-built detection engine: its own TCP and UDP discovery, protocol dissectors for HTTP, SSH, FTP, SMTP/IMAP/POP3, SMB, TLS, MySQL, PostgreSQL, SQL Server, MongoDB, Redis, LDAP, RDP, VNC, SNMP, DNS, NTP, NetBIOS, mDNS, IKE and unauthenticated admin APIs (Docker, Elasticsearch, Kubernetes, etcd, Consul, Kibana); scanning by IP or domain name (name sent in SNI and `Host`, pinned to the validated address for the whole scan to close DNS rebinding) with automatic discovery of the other named sites an IP serves (from its certificates' SANs and reverse DNS, each audited as its own vhost — machine-level findings such as TCP timestamps are reported once, not per site, and each finding names the site it belongs to; a name that serves exactly the same page and certificate as the bare IP, such as a hosting provider's reverse-DNS name, is listed as an alias of the default site instead of being audited again, and when the IP hosts sites of its own, the default site's certificate and header findings are capped at LOW and the report warns that other hosted sites must be scanned by name); a web-application inventory that reads versions where modern software hides them — a CMS from its manifests (Joomla, WordPress, Drupal), JavaScript libraries and WordPress plugins from their assets, hosting panels (Plesk/cPanel) from their headers — so they enter CVE correlation; declarative checks with request chaining (extracted variables reused across requests), payload expansion (capped), and script plugins, including CMS misconfiguration checks (Joomla/WordPress/Drupal), SSH weak-algorithm and Terrapin detection, IKE vendor-ID and weak-transform findings, TCP-timestamp exposure, and TLS 1.2 cipher families the server accepts beyond the one it picks (no forward secrecy, CBC); a budgeted read-only crawler (`robots.txt` entries other than the whole-site `/`, login forms, HTTP-Basic paths); version→confirmer promotion for high-profile CVEs; a default-credentials engine (Tomcat/Jenkins-style panels and crawler-discovered Basic-auth paths, gated behind an explicit aggressive-mode request *and* the authorized-targets registry); scan-integrity detection (a firewall that fakes every port open, or a target that stops answering mid-scan, marks the scan partial rather than clean); redacted raw-evidence capture per confirmed finding, with secrets in the body redacted too; and CPE→CVE matching against a local NVD/CISA-KEV/FIRST-EPSS knowledge base, with distribution-advisory backport verification (Debian/Ubuntu OVAL) — with scheduled execution via APScheduler.
-- **AI-powered PDF reports** — Scan results enriched by a pluggable LLM backend with "Controls, Not Counts" calibrated risk assessment, plus per-host traceroute. Lybra and Nuclei reports group findings by *remediable unit* rather than listing them flat — one block per affected product, carrying the single version upgrade that closes the whole block, with configuration findings kept in their own section — preceded by an index table of every group and navigable through a collapsed-by-default PDF bookmark tree.
+- **AI-powered PDF reports** — Scan results enriched by a pluggable LLM backend with "Controls, Not Counts" calibrated risk assessment, plus per-host traceroute. Lybra and Nuclei reports group findings by *remediable unit* rather than listing them flat — one block per affected product, carrying the single version upgrade that closes the whole block, with configuration findings kept in their own section — preceded by an index table of every group and navigable through a collapsed-by-default PDF bookmark tree. Lybra reports (and only Lybra's, not those of the third-party tools) also translate every finding into its MITRE ATT&CK techniques and the controls it affects in the compliance frameworks its owner follows — ISO/IEC 27001:2022, ENS (RD 311/2022) and NIS2 (art. 21.2) — with a section that tallies findings per technique and per control, grouped under each control's parent.
 - **Anti-phishing analysis** — 46 atomic rules across 10 rule families evaluate email headers and content (SPF, DKIM, DMARC, ARC, QR-code/quishing detection, domain impersonation, IOC extraction), producing a calibrated `Legitimate` / `Suspicious` / `Phishing` verdict with optional AI summaries.
 - **Automated mailbox monitoring** — Connect Gmail or Microsoft 365 via OAuth; Iris periodically pulls new mail and analyzes it automatically, and emails the user when a connected mailbox receives phishing.
 - **Encrypted credential vault** — AES-256-GCM client-side encryption with optimistic-concurrency sync. The SPA consumes the engine as `@projectellysia/acheron-core-web`; the [AcheronMobile](https://github.com/ProjectEllysia/AcheronMobile) Android app uses the Java twin, [AcheronCore](https://github.com/ProjectEllysia/AcheronCore).
@@ -58,9 +58,9 @@ The REST API (Flask) orchestrates asynchronous scans and analysis over **RQ + Re
    Web SPA ────►│  │               ┌────────────────────────────┐     │     │
   (Vue 3, Caddy)│  │               │ RQ Workers (isolated procs)│     │──►  Nmap / Nikto / Nuclei / Lybra
                 │  │               │   themis.scan/report/...   │     │──►  Ollama / OpenAI / Gemini
-   Android  ────►│  │               │   aegis.generate/campaign  │     │──►  NVD · CISA-KEV · FIRST-EPSS
+  Android  ────►│  │               │   aegis.generate/campaign  │     │──►  NVD · CISA-KEV · FIRST-EPSS
   (Kotlin)      │  │               │   iris.analyze/ingest/...  │     │──►  INCIBE-CERT (Aegis alerts)
-   Hygeia agent─►│  │               │   hygeia.notify/report     │     │──►  Gmail / Microsoft Graph
+  Hygeia agent─►│  │               │   hygeia.notify/report     │     │──►  Gmail / Microsoft Graph
                 │  │               └────────────────────────────┘     │     │──►  SMTP relay (herald)
                 │  │  tools: scribe (AI) · press (PDF) · herald (mail)│     │
                 │  └──────────────────────────────────────────────────┘     │
@@ -179,6 +179,30 @@ Content-Type: application/json
 
 The web application checks MFA once when an authenticated session enters the SPA. If MFA is not active, it shows a dismissible toast linking to `/profile#mfa`. A daily users scheduler sends the same reminder by email to verified users without a confirmed TOTP credential, respecting `general.security.mfa.notice_interval_days` (30 days by default).
 
+### Error responses
+
+Every error the API returns has the same shape, built by `create_error_response`:
+
+```json
+{
+  "error": "missing_parameter",
+  "error_description": "El parámetro «port» es obligatorio.",
+  "code": 1105,
+  "messageKey": "missingParameter",
+  "params": { "parameter": "port" }
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `error` | The exception class name, or a stable external code where clients already depend on it (`invalid_token`, `unauthorized`, `forbidden`, `password_changed`, `vault_revision_mismatch`, `not_found`, `too_many_requests`…) |
+| `error_description` | Text for the user, in Spanish |
+| `code` | Numeric `ErrorCode` (`1004` route not found, `1005` method not allowed and `1006` too many requests are new) |
+| `messageKey`, `params` | Present only when the text comes from a template: its key and the values of its placeholders. The SPA looks the key up under `apiErrors` in its language file and shows the message in the active language, falling back to `error_description` |
+| `details` | Only for exceptions whose details are part of the contract (plan limits, closed surfaces), or in development |
+
+Some endpoints add their own fields next to these: `path` on a 404, `allowedMethods` on a 405, `retryAfter` on a 429, `currentRevision`/`yourRevision` on an Acheron revision conflict.
+
 ## API Reference
 
 ### Themis — vulnerability scanning
@@ -192,16 +216,22 @@ The web application checks MFA once when an authenticated session enters the SPA
 | `GET` | `/themis/lybra/scans/<id>/export?format=` | Export a scan's findings as `sarif`, `stix` or `ocsf` — pure translations of the same findings the API already returns, for a CI gate, a threat-intel platform or a SIEM |
 | `GET` | `/themis/scan-status?id=` | Scan status / progress: pending · running · done · cancelled |
 | `POST` | `/themis/scans/<id>/cancel` | Cancel a running scan |
-| `GET` | `/themis/results` · `/themis/results/<id>` | List scans (filterable, paginated) / scan detail. The Lybra listing carries per-scan counters, not every finding, and flags with `isPartial` a scan that ran out of time (or was cancelled) before covering the whole target. A failed scan carries `failureReason` — `host_unreachable`, `port_discovery_failed`, `no_results`, `orphaned`, `timeout` or `internal_error` — so the caller can tell a target that never answered from an error inside the engine; it is `null` on scans that failed before the field existed |
+| `GET` | `/themis/results` · `/themis/results/<id>` | List scans (filterable, paginated) / scan detail. The Lybra listing carries per-scan counters, not every finding, and flags with `isPartial` a scan that ran out of time (or was cancelled) before covering the whole target. A failed scan carries `failureReason` — `host_unreachable`, `port_discovery_failed`, `no_results`, `orphaned`, `timeout` or `internal_error` — so the caller can tell a target that never answered from an error inside the engine; it is `null` on scans that failed before the field existed. A finding in state `fixed` carries `fixedReason` when the engine stopped reporting it rather than it being remediated — `backport` (the distribution had already patched the installed package) or `alias` (its site turned out to serve the IP's default site) — and `fixedFindings` counts only real remediations |
 | `GET` | `/themis/lybra/scans/<id>/findings` | Lybra findings grouped by remediable unit (product + port), each group with its CVEs, KEV membership, worst priority and the version that closes it |
 | `GET` | `/themis/findings/<id>/evidence` | The raw (redacted, hashed) response that produced a confirmed finding — 404 for a finding owned by another user |
 | `PATCH` | `/themis/findings/<id>` | Set a finding's triage state with a reason: `accepted` (the risk is real and assumed — expires for review), `false_positive` (the engine was wrong — never counts as risk) or `open` |
 | `GET` | `/themis/findings/false-positives` | Findings the user refuted, with the check, CPE and feed version that produced each — labelled samples for calibrating the engine |
 | `GET` | `/themis/kb/status` | Per-source freshness of the NVD/KEV/EPSS/OVAL mirror: last attempt, last success, last error, staleness and the `feedVersion` findings are stamped with; OVAL is reported per distribution (`oval:debian:12`, `oval:ubuntu:24.04`…) |
+| `GET` | `/themis/kb/search?query=` | What the knowledge base knows: for a CVE id, its NVD data (CVSS, affected products), KEV membership, EPSS and every distribution's per-package statement; for any other text, the matching products of the CPE index |
+| `POST` | `/themis/kb/sync` | (admin) Queue a manual sync of `all`, `nvd`, `kev`, `epss` or `oval` — the same delta the nightly job runs, never the full NVD history. Answers `202` at once; while one is running no other is queued (`queued: false`, `runningTarget`) |
+| `GET` | `/themis/kb/sync` | (admin) Status and progress of the latest manual sync of each target |
 | `GET` | `/themis/lybra/unresolved-products` | Product names the CPE matcher could not resolve, ranked by frequency and split by origin — the working document for the alias feed |
 | `DELETE` | `/themis/<id>` · `/themis/scans` | Delete a scan / bulk delete |
 | `GET` | `/themis/stats` · `/themis/history/hosts` · `/themis/history/stats` | Scan counters and per-host historical trends |
 | `POST/GET/DELETE` | `/themis/authorized-targets[/<id>]` | Registry of IP/CIDR targets a user has authorized for deeper checks |
+| `GET` | `/themis/compliance` | Compliance-framework preferences for Lybra reports: the catalog (`iso27001`, `ens`, `nis2`), the user's own choice (`mine`, `null` if none), their organization's (`organization`), the one that applies (`effective`), `isLockedByOrganization` and `canManageOrganization` |
+| `PUT` | `/themis/compliance/frameworks` | Choose one's own frameworks (`{"frameworks": [...]}`), or stop choosing with `null`. Kept even while the organization imposes its own, and applied again if it stops |
+| `PUT` | `/themis/compliance/organization-frameworks` | (organization owner) Impose frameworks on every member — they replace each member's own choice, an empty list included — or lift them with `null` |
 | `GET` | `/themis/scan/<id>/traceroute` | Cached traceroute from the server to the scan target |
 | `POST` | `/themis/scan/<id>/traceroute/refresh` | Re-run the traceroute in the background |
 | `POST` | `/themis/generate-pdf` | Generate PDF report (`{ "id": <scanId>, "aiReport": true }`) |
@@ -422,6 +452,7 @@ Hygeia has two separate auth surfaces: standard OAuth for the user-facing endpoi
 | `POST` | `/organizations` | Create the caller's organization (they become the owner) |
 | `GET` | `/organizations/mine` | The caller's organization, owner or member — `null` if none |
 | `PUT` | `/organizations/<id>` | Rename the organization (owner) |
+| `PUT` | `/organizations/<id>/language` | Set the language of members who have not chosen one (owner); `null` = the platform language |
 | `GET/DELETE` | `/organizations/<id>/members[/<userId>]` | List / remove members (owner) |
 | `DELETE` | `/organizations/mine` | Leave the organization (a non-owner member) |
 | `POST/GET/DELETE` | `/organizations/<id>/invitations[/<id>]` | Send / list / revoke an invitation (owner) |
@@ -445,7 +476,8 @@ A subscription with no explicit plan falls back to the default plan (seeded by m
 | `POST` | `/users/password-reset/mfa` | **Public** — resolve the reset challenge (TOTP or recovery code); only then is the link emailed to the account's registered address |
 | `POST` | `/users/password-reset/check` · `/users/password-reset/reset` | **Public** — validate a reset link / set the new password (single-use, 30-min TTL, revokes all sessions) |
 | `POST` | `/users/check-credentials` | Validate credentials without issuing tokens |
-| `GET/PUT` | `/users/me` | Read / update the authenticated user's own profile |
+| `GET/PUT` | `/users/me` | Read / update the authenticated user's own profile; it includes `language` (the user's choice, `null` if none) and `effectiveLanguage` |
+| `PUT` | `/users/me/language` | Choose a language, or `null` to follow the organization's (or the platform's) again |
 | `GET` | `/users/me/deletion-preview` | Preview what account self-deletion would remove |
 | `DELETE` | `/users/me` | Self-service account deletion |
 | `PUT` | `/users/change-password` | Password change (invalidates all tokens) |
@@ -481,6 +513,7 @@ Each entry point is a `@staticmethod` on the owning module's manager class — p
 | `themis.scan` | Themis | `NmapScanManager.execute_nmap_scan` (also `NiktoScanManager`, `NucleiScanManager`, `LybraEngineManager`) | `scan:<id>` |
 | `themis.report` | Themis | `ThemisReportManager.execute_report_generation` | `themis-doc:<id>` |
 | `themis.traceroute` | Themis | `TracerouteManager.execute_traceroute` | `themis-traceroute:<key>` |
+| `themis.kbsync` | Themis | `KbSyncTaskManager.execute_sync` | `themis-kbsync:<target>` |
 | `aegis.generate` | Aegis | `AegisManager.execute_aegis_generation` | `aegis-doc:<id>` |
 | `aegis.campaign` | Aegis | `CampaignManager.execute_campaign_send` | `aegis-campaign:<id>` |
 | `iris.analyze` | Iris | `IrisManager.execute_iris_analysis` | `iris-analysis:<id>` |
@@ -500,7 +533,7 @@ Each entry point is a `@staticmethod` on the owning module's manager class — p
 - **Transactional outbox** (`system/taskqueue/outbox.py`): the naive "commit the entity, then `submit()` the job" sequence leaves a window where an API restart or a Redis blip strands the entity with no job to process it. The fix writes a `TaskDispatch` row in the same transaction as the entity and publishes it right after, falling back to a periodic sweep (`TaskDispatchScheduler`) and a startup reconciliation pass if the immediate publish fails. Delivery is at-least-once, so every entry point reached this way must be safe to run twice.
   - Publishing a row commits its `dispatched` mark immediately, independently of the surrounding HTTP request, so a request that fails after publishing never sends an already-queued job back to `pending`.
   - Applied to: `themis.scan` (all five scanners, via the shared `ScanManager._create_scan_and_dispatch`), `aegis.generate`, `aegis.campaign`, `iris.analyze`, `hygeia.notify` (critical anomalies from ingest and `host_down` from the presence check), and the two `iris.notify` notices guarded against repetition — mailbox re-authorization and stuck sync. In these notices the row committed before enqueuing is the anti-duplicate guard itself, so a lost enqueue used to suppress the email for good rather than delay it.
-  - Not applied to the remaining categories. `themis.traceroute` and `iris.ingest` persist no row before enqueuing, so no entity can be stranded; `themis.report`, `iris.report`, `hygeia.report` and `iris.ai_summary` already mark their row failed (and refund quota, for the AI summary) when the enqueue is rejected. The phishing and digest `iris.notify` notices have no guard: a lost phishing enqueue costs one email, and a lost digest is picked up by the next periodic pass.
+  - Not applied to the remaining categories. `themis.traceroute`, `themis.kbsync` and `iris.ingest` persist no row before enqueuing, so no entity can be stranded; `themis.report`, `iris.report`, `hygeia.report` and `iris.ai_summary` already mark their row failed (and refund quota, for the AI summary) when the enqueue is rejected. The phishing and digest `iris.notify` notices have no guard: a lost phishing enqueue costs one email, and a lost digest is picked up by the next periodic pass.
 - Admin REST surface: `/system/tasks/*` (status, list, detail, cancel).
 
 > [!WARNING]
@@ -539,7 +572,7 @@ A third workflow, `.github/workflows/lybra-bench.yml`, runs the `oracle` bench o
 
 ```bash
 cd web/app
-npm test                  # all ten suites — this is what CI runs
+npm test                  # every suite — this is what CI runs
 
 npm run test:acheron      # schema/label correspondence + crypto interop + CRUD + sync for the Acheron vault client
 npm run test:iris         # file intake (size limit from GET /iris/capabilities, explicit mode, batch drops), report comparison, and the Spanish labels for verdicts, statuses and rule results
@@ -550,8 +583,13 @@ npm run test:toast        # toast-store tests
 npm run test:quiz         # aegis quiz-shuffle permutation tests
 npm run test:campaigns    # aegis campaign helpers
 npm run test:logs         # gzip log-payload decoding tests
-npm run test:themis       # scan-window + Lybra finding-site label tests
+npm run test:themis       # scan-window + Lybra finding-site labels + finding sort/filter
+npm run test:i18n         # languages: date/number formatting, API error translation, language-file checks and guards
 ```
+
+The SPA is ready for more languages: each one is a file in `web/app/src/i18n/locales/` (`es.json` is the default and the only complete one; `en.json` covers what has been migrated so far — the shared page chrome and the API error messages). Adding a file makes the language appear in the selector; the rules and the recipe are in `CONVENCIONES.md` §12.5.
+
+Each person's language is stored on the server and resolved in one place (`users.services.language.resolve_effective_language`): the language the user chose, otherwise their organization's default (set by the owner), otherwise the platform's (`general.localization.defaultLanguage`, `es`). The profile returns the result as `effectiveLanguage` and the SPA switches to it on login; with a session the selector saves the choice to the profile and offers going back to the organization's language (`null`). The SPA never fills the field on its own, so a later change of the organization's language still reaches everyone who has not chosen. The accepted codes (`SUPPORTED_LANGUAGES`) are exactly the files in `locales/`; a test ties them together.
 
 The suites run on plain `node` — no framework, no browser — and exit non-zero on failure. They run in CI as the `SPA suites` job of `tests.yml`, which installs with **`pnpm install --frozen-lockfile`, exactly as `web/Dockerfile` does in production**, and then builds with Vite.
 
@@ -800,6 +838,8 @@ Transversal module for sending email — same philosophy as `scribe`: any module
 |---|---|---|
 | `smtp` | SMTP relay (STARTTLS) | Works with any provider that exposes an SMTP endpoint — Brevo, SES, Postmark, or a self-hosted relay. |
 
+**Languages.** Every email is three Jinja templates under `herald/templates/<language>/`: `<name>.subject.j2` (the subject — no subject is written in code), `<name>.html.j2` and an optional `<name>.txt.j2`. `render_email(name, language=…)` returns all three. An email goes out whole in the requested language when that language has its `.html.j2`, and whole in the platform language (`general.localization.defaultLanguage`) otherwise, so a half-translated language never mixes a subject in one language with a body in another; shared pieces (`base.html.j2`, `_macros.html.j2`) fall back file by file. Emails to Ellysia users use the recipient's effective language (`resolve_effective_language`: their choice, then their organization's, then the platform's); organization invitations use the invitee's choice, then the inviting organization's language; Aegis campaigns use the pill's language (`AegisDocument.language`, stored at generation; older pills fall back to the Aegis profile language), because their recipients have no profile. Only Spanish (`es/`) ships today: adding a language means adding its folder. `tools.herald.templatesDir` overrides templates from outside the package and mirrors the same per-language layout (`<templatesDir>/es/campaign.html.j2`).
+
 Recommended provider for teams without existing infrastructure: **Brevo** (EU-based, RGPD-friendly, free tier around 300 emails/day) via its SMTP relay (`smtp-relay.brevo.com:587`). Amazon SES is the cheaper option once volume grows, at the cost of AWS account setup and domain verification.
 
 Environment variables (in `API/.env`, credentials only — never in `SecOpsConfig.json`):
@@ -857,7 +897,7 @@ Iris also needs `IRIS_RAW_MESSAGE_ENCRYPTION_KEY`, which is **not** listed above
 
 Ellysia uses a layered configuration system (`API/src/modules/system/config_reading.py`, imported as `CR`):
 
-1. **`API/SecOpsConfig.json`** — base configuration. Exactly five root entries: `appVersion`, `general` (directories, security, registration, launch, logs), `infrastructure` (database, redis, taskqueue), `tools` (`scribe`, `herald` strategy selection), `features` (`themis`, `aegis`, `iris`, `hygeia` per-module settings). `general.security.mfa.notice_interval_days` controls the periodic email reminder cadence.
+1. **`API/SecOpsConfig.json`** — base configuration. Exactly five root entries: `appVersion`, `general` (directories, security, registration, launch, logs, localization), `infrastructure` (database, redis, taskqueue), `tools` (`scribe`, `herald` strategy selection), `features` (`themis`, `aegis`, `iris`, `hygeia` per-module settings). `general.security.mfa.notice_interval_days` controls the periodic email reminder cadence.
 2. **`API/.env`** — environment variables that **override** JSON values (required for the JWT secret, DB/Redis/SMTP/AI credentials, `PUBLIC_WEB_URL`).
 3. **Root `.env`** — docker-compose only (Postgres, Redis credentials — not read by the API).
 
@@ -929,7 +969,7 @@ python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().d
 - `API/src/data/` and `docs/` are gitignored (scan outputs, generated PDFs).
 - PostgreSQL uses port **15432** locally (not standard 5432).
 - There is a single `TaskStatus` enum, in `system/taskqueue/task.py`; `themis/services/tasks.py` imports it rather than defining its own.
-- The API version is declared as `appVersion` in `SecOpsConfig.json` (currently `0.5.28`, read by `CR.get_app_version()`).
+- The API version is declared as `appVersion` in `SecOpsConfig.json` (currently `0.5.29`, read by `CR.get_app_version()`).
 
 ## License
 

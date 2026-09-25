@@ -37,7 +37,6 @@ import bz2
 import gzip
 import io
 import json
-import logging
 import re
 import socket
 import time
@@ -49,8 +48,6 @@ from pathlib import Path
 from typing import IO, Dict, Iterator, List, Optional, Tuple, Union
 
 import requests
-
-logger = logging.getLogger(__name__)
 
 
 # =========================================================================
@@ -234,6 +231,37 @@ def version_compare(a: str, b: str) -> int:
     return 0
 
 
+#: Las fuentes de la marca de reproducibilidad, en el orden en que se escriben.
+KB_MARK_SOURCES = ("nvd", "kev", "epss", "oval")
+
+
+def parse_kb_feed_version(mark: Optional[str]) -> Optional[Dict[str, Optional[str]]]:
+    """Leer una marca de :func:`kb_feed_version` de vuelta a fechas por fuente.
+
+    Es la inversa que necesita quien quiere decir contra qué se resolvió un
+    escaneo sin volver a consultar la base de conocimiento, que para entonces
+    puede haber cambiado. Una marca de antes de que existiera una fuente
+    simplemente no la trae.
+
+    Args:
+        mark: La marca guardada, p. ej.
+            ``"lybra-kb:nvd=2026-08-29,kev=none,epss=2026-08-30,oval=2026-08-30"``,
+            o ``None``.
+
+    Returns:
+        Optional[Dict[str, Optional[str]]]: ``{fuente: "AAAA-MM-DD" | None}``,
+            con ``None`` donde la marca dice ``none`` (la fuente estaba vacía);
+            o ``None`` si no hay marca o no es de la base de conocimiento.
+    """
+    if not mark or not mark.startswith("lybra-kb:"):
+        return None
+    dates: Dict[str, Optional[str]] = {}
+    for part in mark[len("lybra-kb:"):].split(","):
+        source, _, value = part.partition("=")
+        dates[source] = None if value in ("", "none") else value
+    return dates
+
+
 def kb_feed_version(state: Dict[str, Optional[datetime]]) -> str:
     """Build the reproducibility mark for findings resolved against the KB.
 
@@ -247,7 +275,8 @@ def kb_feed_version(state: Dict[str, Optional[datetime]]) -> str:
     can mark something ``fixed`` that merely stopped matching because NVD
     rewrote a range.
 
-    The mark reads ``lybra-kb:nvd=2026-08-29,kev=2026-08-27,epss=2026-08-30``.
+    The mark reads
+    ``lybra-kb:nvd=2026-08-29,kev=2026-08-27,epss=2026-08-30,oval=2026-08-30``.
     Spelled out rather than hashed on purpose: the point is that someone
     reading a finding a year from now can tell what it was resolved against,
     and a hash only says "not the same as that other one" — it needs a lookup
@@ -256,14 +285,15 @@ def kb_feed_version(state: Dict[str, Optional[datetime]]) -> str:
     this mark exists to make visible.
 
     Args:
-        state: ``{"nvd": datetime | None, "kev": ..., "epss": ...}``, as
-            :meth:`KbRepository.knowledge_state` returns it.
+        state: ``{"nvd": datetime | None, "kev": ..., "epss": ...,
+            "oval": ...}``, as :meth:`KbRepository.knowledge_state` returns it.
 
     Returns:
-        The mark, e.g. ``"lybra-kb:nvd=2026-08-29,kev=none,epss=2026-08-30"``.
+        The mark, e.g.
+        ``"lybra-kb:nvd=2026-08-29,kev=none,epss=2026-08-30,oval=2026-08-30"``.
     """
     parts = []
-    for source in ("nvd", "kev", "epss"):
+    for source in KB_MARK_SOURCES:
         moment = state.get(source)
         parts.append(f"{source}={moment.date().isoformat() if moment else 'none'}")
     return "lybra-kb:" + ",".join(parts)
@@ -735,6 +765,14 @@ def parse_oval_definitions(document: Union[str, bytes, IO[bytes]], vendor: str,
             pronunciado) salvo que el feed diga expresamente que sigue
             vulnerable: traducir el silencio a "vulnerable" o a "corregida"
             sería inventar.
+
+    Raises:
+        ValueError: Si el documento no se puede leer hasta el final: un XML
+            mal formado o, lo más habitual, una descarga cortada, que llega
+            como un bzip2 truncado. Se lanza en vez de dejar de leer en
+            silencio porque media lista de parches guardada como si fuera
+            entera es peor que ninguna: la sincronización se daría por buena y
+            las distribuciones de la otra mitad se darían por no corregidas.
     """
     try:
         for _event, definition in ElementTree.iterparse(_as_stream(document), events=("end",)):
@@ -743,7 +781,7 @@ def parse_oval_definitions(document: Union[str, bytes, IO[bytes]], vendor: str,
             yield from _rows_for_definition(definition, vendor, release)
             definition.clear()
     except (ElementTree.ParseError, OSError, EOFError) as exc:
-        logger.error("OVAL: documento ilegible (%s)", exc)
+        raise ValueError(f"documento OVAL ilegible o incompleto ({exc})") from exc
 
 
 def _rows_for_definition(definition, vendor: str, release: Optional[str]) -> Iterator[dict]:

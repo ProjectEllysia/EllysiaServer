@@ -667,11 +667,27 @@ def test_oval_without_a_fixed_version_is_unknown_not_vulnerable():
     assert silent["fixed_in"] is None
 
 
-def test_an_unreadable_oval_document_yields_nothing_instead_of_raising():
-    """Un feed corrupto no puede tumbar la sincronización de los demás."""
+def test_an_unreadable_oval_document_raises_instead_of_stopping_silently():
+    """Un feed que no se puede leer entero tiene que fallar: dejar de leer en
+    silencio guardaba media lista de parches como si fuera la lista entera.
+    Que no tumbe a las demás distribuciones ya lo garantiza que cada una se
+    sincronice por separado."""
     from src.modules.features.themis.lybra.kb import parse_oval_definitions
 
-    assert list(parse_oval_definitions("<no cierra", "debian", "11")) == []
+    with pytest.raises(ValueError, match="ilegible o incompleto"):
+        list(parse_oval_definitions("<no cierra", "debian", "11"))
+
+
+def test_a_truncated_download_raises_too():
+    """Lo más habitual en la práctica: el feed llega en bzip2 y la descarga se
+    corta. Los bytes que sí llegaron se descomprimen bien hasta el corte."""
+    import bz2
+
+    from src.modules.features.themis.lybra.kb import parse_oval_definitions
+
+    compressed = bz2.compress(_OVAL_DOC.encode("utf-8"))
+    with pytest.raises(ValueError, match="ilegible o incompleto"):
+        list(parse_oval_definitions(compressed[: len(compressed) // 2], "debian", "11"))
 
 
 def test_csaf_reads_both_verdicts_explicitly():

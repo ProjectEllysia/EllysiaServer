@@ -257,13 +257,13 @@ class PlanManager:
             if plan is None:
                 raise PlanNotFoundError(plan_id)
             if plan.is_default:
-                raise PlanInUseError(plan.code, reason="es el plan por defecto")
+                raise PlanInUseError(plan.code)
 
             live = uow.session.query(Subscription).filter(
                 Subscription.plan_id == plan_id
             ).count()
             if live:
-                raise PlanInUseError(plan.code, reason=f"lo tienen {live} cuenta(s)")
+                raise PlanInUseError(plan.code, subscription_count=live)
 
             repo.delete(plan)
             logger.info(f"Plan '{plan.code}' eliminado")

@@ -249,6 +249,7 @@
 </template>
 
 <script setup>
+import { formatDateTime, formatNumber } from '@/i18n/format'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Topbar from '@/components/shared/Topbar.vue'
@@ -313,7 +314,7 @@ const completionRate = computed(() => percentOf(summary.value.completedCount, su
 const averageScorePercent = computed(() => scorePercent(summary.value.averageScore, detail.value?.questionCount))
 const averageScoreText = computed(() => {
   if (summary.value.averageScore == null) return '—'
-  const average = summary.value.averageScore.toLocaleString('es-ES', { maximumFractionDigits: 1 })
+  const average = formatNumber(summary.value.averageScore, { maximumFractionDigits: 1 })
   return `${average}/${detail.value.questionCount}`
 })
 const listName = computed(() => store.distributionLists.find(list => list.id === detail.value?.listId)?.name ?? '')
@@ -330,7 +331,7 @@ watch(selectedPillId, (id) => {
  */
 function formatMoment(iso) {
   if (!iso) return '—'
-  return new Date(iso).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+  return formatDateTime(iso, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
 /**

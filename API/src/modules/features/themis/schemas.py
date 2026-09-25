@@ -2,6 +2,7 @@ from marshmallow import Schema, fields, validate, validates_schema, ValidationEr
 
 from src.modules.shared import UTCDateTime
 from .model import ScanType
+from .lybra.compliance import list_compliance_frameworks
 
 
 class ScanIdQuerySchema(Schema):
@@ -68,6 +69,20 @@ class UnresolvedProductsQuerySchema(Schema):
                            validate=validate.OneOf(["network", "inventory"]))
 
 
+class KbSearchQuerySchema(Schema):
+    # Un identificador de CVE o un trozo de nombre de producto; ver
+    # ``KbQueryManager.search``.
+    query = fields.String(required=True, validate=validate.Length(min=2, max=128))
+    limit = fields.Integer(load_default=20, validate=validate.Range(min=1, max=100))
+
+
+class KbSyncRequestSchema(Schema):
+    # Nunca el histórico completo de NVD: el botón lanza el mismo delta que el
+    # job nocturno. Ver ``KbSyncTaskManager.request_sync``.
+    source = fields.String(required=True, validate=validate.OneOf(
+        ["all", "nvd", "kev", "epss", "oval"]))
+
+
 class FindingStateRequestSchema(Schema):
     # ``accepted`` y ``false_positive`` dicen cosas opuestas y por eso son
     # estados distintos en vez de compartir casilla: aceptar un riesgo es
@@ -117,6 +132,32 @@ class AuthorizedTargetActionResponseSchema(Schema):
     user = fields.String()
 
 
+class ComplianceFrameworkSchema(Schema):
+    key = fields.String()
+    name = fields.String()
+    shortName = fields.String()
+
+
+class ComplianceFrameworksRequestSchema(Schema):
+    """Marcos de cumplimiento elegidos; ``null`` deja de elegir."""
+
+    frameworks = fields.List(
+        fields.String(validate=validate.OneOf([framework.key for framework in list_compliance_frameworks()])),
+        required=True, allow_none=True,
+    )
+
+
+class CompliancePreferencesResponseSchema(Schema):
+    """Preferencias de marcos: el catálogo, las elecciones y la que se aplica."""
+
+    frameworks = fields.List(fields.Nested(ComplianceFrameworkSchema))
+    mine = fields.List(fields.String(), allow_none=True)
+    organization = fields.List(fields.String(), allow_none=True)
+    effective = fields.List(fields.String())
+    isLockedByOrganization = fields.Boolean()
+    canManageOrganization = fields.Boolean()
+
+
 class ResultsQuerySchema(Schema):
     type = fields.String(load_default="all", validate=validate.OneOf([scan_type.value for scan_type in ScanType] + ["all"]))
     page = fields.Integer(load_default=1, validate=validate.Range(min=1))
@@ -140,7 +181,7 @@ class DocumentStatusQuerySchema(Schema):
     @validates_schema
     def validate_at_least_one(self, data, **kwargs):
         if not data.get("document_id") and not data.get("scan_id"):
-            raise ValidationError("document_id or scan_id is required")
+            raise ValidationError("Indica el documento o el escaneo.")
 
 
 class DocumentsQuerySchema(Schema):

@@ -32,6 +32,22 @@
         </section>
 
         <section class="profile-section">
+          <h2>Idioma</h2>
+          <p class="section-desc">
+            Si no eliges ninguno, sigues el de tu organización o, sin ella, el de la plataforma.
+          </p>
+          <LanguageSelect />
+        </section>
+
+        <ComplianceFrameworksPicker scope="user" class="profile-section">
+          <h2>Marcos de cumplimiento</h2>
+          <p class="section-desc">
+            Los informes de Lybra indicarán qué controles de estos marcos afecta cada hallazgo, junto a
+            la técnica de ataque de MITRE ATT&amp;CK, que sale siempre.
+          </p>
+        </ComplianceFrameworksPicker>
+
+        <section class="profile-section">
           <h2>Seguridad</h2>
           <form class="profile-form" @submit.prevent="handlePasswordSubmit">
             <div class="form-row form-row--single">
@@ -153,9 +169,11 @@
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import Topbar from '@/components/shared/Topbar.vue'
+import LanguageSelect from '@/components/shared/LanguageSelect.vue'
 import StarBackground from '@/components/shared/StarBackground.vue'
 import MfaSetupModal from '@/components/shared/MfaSetupModal.vue'
 import ConfirmModal from '@/components/shared/ConfirmModal.vue'
+import ComplianceFrameworksPicker from '@/components/themis/ComplianceFrameworksPicker.vue'
 import { useApi } from '@/composables/useApi'
 import { useToastStore } from '@/stores/toastStore'
 import { useProfileStore } from '@/stores/profileStore'
@@ -302,6 +320,7 @@ function downloadRecoveryCodes() {
 /* ── Baja de la cuenta ── */
 .profile-section--danger { border-color: var(--danger); }
 .profile-section--danger h2 { color: var(--danger); }
+.section-desc { font-size: var(--fs-md); color: var(--text-dim); margin: 0 0 0.85rem; }
 .danger-text { color: var(--text-muted); font-size: var(--fs-md); margin-top: 0.5rem; }
 .danger-warning {
   margin-top: 1rem; padding: 0.9rem 1.1rem; border-radius: 8px;

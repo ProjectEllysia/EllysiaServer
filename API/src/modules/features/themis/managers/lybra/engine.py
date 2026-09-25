@@ -37,6 +37,7 @@ from ...lybra import (
     mark_default_site_findings,
     has_own_named_sites,
     is_alias_of_default_site,
+    mark_alias_fixes,
     site_finding,
     crawl,
     compute_dedup_key,
@@ -69,6 +70,7 @@ from ...lybra import (
     CheckPlanner,
     KnownService,
     IDENTIFICATION_REVISION,
+    split_distro_version,
 )
 from ...lybra.ingest import select_for_services, translate_all
 from ...services import _Task
@@ -282,6 +284,37 @@ def _aggregate_child_scans(children: list, format_scan) -> dict:
         "unresolvedPackages": sum(summary["unresolvedPackages"] for summary in summaries),
         "byPriority": by_priority,
     }
+
+
+def _is_same_release(old_version: Optional[str], new_version: Optional[str]) -> bool:
+    """Si dos versiones de un mismo servicio son la misma, una con más detalle.
+
+    Un banner puede leerse entero o recortado: ``9.6p1`` y
+    ``9.6p1-3ubuntu13.19`` son el mismo OpenSSH, uno con la revisión con la
+    que lo empaqueta la distribución y otro sin ella. Que el motor pase de
+    leer una a leer la otra no cambia nada en el servidor, así que no es un
+    cambio de superficie. Sí lo es cambiar de versión de origen
+    (``9.6p1`` → ``9.7p1``) o de revisión (``…13.18`` → ``…13.19``): lo
+    segundo es una actualización real del paquete.
+
+    Args:
+        old_version: La versión guardada de la superficie; puede ser
+            ``None``.
+        new_version: La versión de este escaneo; puede ser ``None``.
+
+    Returns:
+        bool: ``True`` si las dos tienen la misma versión de origen y o
+            bien una no lleva revisión o bien llevan la misma (sólo difieren
+            en la época o en metadatos ``+…``); ``False`` en cualquier otro
+            caso, incluido que falte alguna de las dos.
+    """
+    if not old_version or not new_version:
+        return False
+    _old_epoch, old_upstream, old_revision = split_distro_version(old_version)
+    _new_epoch, new_upstream, new_revision = split_distro_version(new_version)
+    if old_upstream != new_upstream:
+        return False
+    return old_revision is None or new_revision is None or old_revision == new_revision
 
 
 @ScanManager.register(ScanType.LYBRA)
@@ -790,12 +823,16 @@ class LybraEngineManager(ScanManager):
                         scan_repo, source_host_id, services, probed_service_keys,
                     )
 
+                # La marca se calcula una vez y se guarda también en el escaneo:
+                # es lo que el informe cita como «Base de conocimiento», y tiene
+                # que ser la de este momento, no la del día en que se genere.
+                kb_version = kb_feed_version(kb_repo.knowledge_state())
                 engine = LybraEngine(
                     cve_lookup=kb_repo.cves_for_cpe,
                     kev_lookup=lambda cve_id: kb_repo.get_kev(cve_id) is not None,
                     epss_lookup=lambda cve_id: getattr(kb_repo.get_epss(cve_id), "score", None),
                     product_alias_lookup=kb_repo.resolve_product_alias,
-                    feed_version=kb_feed_version(kb_repo.knowledge_state()),
+                    feed_version=kb_version,
                     # Qué nombres de producto no logramos identificar. El
                     # motor los cuenta, no los escribe — el paquete `lybra/` es
                     # libre de ORM y lo sigue siendo porque esto entra
@@ -919,12 +956,14 @@ class LybraEngineManager(ScanManager):
                 advisories = KbRepository(uow)
                 apply_backport_verdicts(findings_data, advisories.distro_package_status,
                                         advisories.distro_release_for)
+            mark_alias_fixes(findings_data)
 
             with UnitOfWork() as uow:
                 scan_repo = ScanRepository(uow)
                 scan = scan_repo.get_by_id(scan_id)
                 scan.host_id = source_host_id
                 scan.is_partial = is_partial  # type: ignore
+                scan.kb_version = kb_version  # type: ignore
                 self._persist_scan_results(uow, scan, findings_data)
                 scan.status = ScanStatus.FINISHED.value  # type: ignore
                 scan.finished_at = utcnow_naive()  # type: ignore
@@ -1426,7 +1465,9 @@ class LybraEngineManager(ScanManager):
                 if had_baseline:
                     findings.append(self._surface_finding(service, self._new_surface_title(service, protocol)))
             elif service.product and prior.product and (
-                service.product != prior.product or service.version != prior.version
+                service.product != prior.product
+                or (service.version != prior.version
+                    and not _is_same_release(prior.version, service.version))
             ):
                 findings.append(self._surface_finding(
                     service, self._changed_surface_title(service, prior)
@@ -1512,6 +1553,7 @@ class LybraEngineManager(ScanManager):
         # quien lo puso.
         view["state_reason"] = finding.state_reason
         view["state_expires_at"] = finding.state_expires_at
+        view["fixed_reason"] = finding.fixed_reason
         return view
 
     def grouped_findings(self, scan_id: int, user_id: int) -> dict:
@@ -1909,7 +1951,11 @@ class LybraEngineManager(ScanManager):
                 if display_finding.get("category") == "outdated_software"
                 and display_finding.get("state") != "false_positive"),
             "openFindings": sum(1 for display_finding in display_findings if display_finding.get("state") == "open"),
-            "fixedFindings": sum(1 for display_finding in display_findings if display_finding.get("state") == "fixed"),
+            # Sólo lo que el cliente ha arreglado. Lo que deja de verse por una
+            # mejora del motor (backport, sitio alias) no es trabajo suyo.
+            "fixedFindings": sum(1 for display_finding in display_findings
+                                 if display_finding.get("state") == "fixed"
+                                 and not display_finding.get("fixed_reason")),
             "falsePositiveFindings": sum(
                 1 for display_finding in display_findings
                 if display_finding.get("state") == "false_positive"),

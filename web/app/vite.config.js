@@ -11,6 +11,12 @@ import { fileURLToPath, URL } from 'node:url'
  * Resolve:
  * - Alias `@` → directorio `src/` para imports limpios.
  *
+ * Define:
+ * - Flags de compilación de vue-i18n. Solo se usa la API de composición
+ *   (`useI18n`), así que la API heredada se elimina del bundle; las devtools
+ *   de producción, también. El compilador de mensajes se conserva porque los
+ *   textos de `src/i18n/locales/*.json` se compilan al cargarlos.
+ *
  * Server (solo desarrollo):
  * - Puerto 80.
  * - Proxy inverso: cualquier ruta que empiece por /oauth, /themis, etc.
@@ -31,6 +37,12 @@ export default defineConfig(({ mode }) => {
   return {
     appType: 'spa',
     plugins: [vue()],
+    define: {
+      __VUE_I18N_FULL_INSTALL__: 'true',
+      __VUE_I18N_LEGACY_API__: 'false',
+      __INTLIFY_PROD_DEVTOOLS__: 'false',
+      __INTLIFY_DROP_MESSAGE_COMPILER__: 'false',
+    },
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url))

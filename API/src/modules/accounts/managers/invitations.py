@@ -18,6 +18,7 @@ Bronze pagado, sigue teniéndolo, y se lo lleva intacto si algún día se va.
 import logging
 import secrets
 from datetime import timedelta
+from typing import Optional
 
 import src.modules.system.config_reading as CR
 from src.modules.infrastructure import UnitOfWork
@@ -85,6 +86,7 @@ def _send_invitation_email(
     organization_name: str,
     token: str,
     ttl_hours: int,
+    language: str,
 ) -> None:
     """Envía el correo con el enlace para aceptar una invitación pendiente.
 
@@ -97,11 +99,13 @@ def _send_invitation_email(
         organization_name: Nombre de la organización que invita.
         token: Token opaco en claro que viaja en el enlace de aceptación.
         ttl_hours: Horas de validez del enlace, que se muestran en el correo.
+        language: Idioma del correo (ver ``_invitation_language``).
     """
     accept_url = f"{CR.general_config().public_url}/invitacion?token={token}"
     try:
-        html, text = render_email(
+        rendered = render_email(
             "org_invitation",
+            language=language,
             recipient_name=name,
             organization_name=organization_name,
             accept_url=accept_url,
@@ -109,8 +113,8 @@ def _send_invitation_email(
         )
         build_mailer("accounts").send(EmailMessage(
             to=email, to_name=name,
-            subject=f"Te han invitado a {organization_name} en Ellysia",
-            html_body=html, text_body=text,
+            subject=rendered.subject,
+            html_body=rendered.html, text_body=rendered.text,
         ))
     except Exception as exc:  # pylint: disable=broad-except
         logger.error(f"No se pudo enviar la invitacion a {email}: {exc}")
@@ -120,6 +124,7 @@ def _send_credentials_email(
     organization_name: str,
     username: str,
     password: str,
+    language: str,
 ) -> None:
     """Envía las credenciales de una cuenta creada al invitar a un correo nuevo.
 
@@ -131,11 +136,13 @@ def _send_credentials_email(
         organization_name: Nombre de la organización a la que se ha unido.
         username: Nombre de usuario asignado.
         password: Contraseña aleatoria en claro; se exige cambiarla al entrar.
+        language: Idioma del correo (ver ``_invitation_language``).
     """
     login_url = f"{CR.general_config().public_url}/login"
     try:
-        html, text = render_email(
+        rendered = render_email(
             "org_credentials",
+            language=language,
             organization_name=organization_name,
             username=username,
             password=password,
@@ -143,11 +150,32 @@ def _send_credentials_email(
         )
         build_mailer("accounts").send(EmailMessage(
             to=email,
-            subject=f"Tu cuenta en Ellysia ({organization_name})",
-            html_body=html, text_body=text,
+            subject=rendered.subject,
+            html_body=rendered.html, text_body=rendered.text,
         ))
     except Exception as exc:  # pylint: disable=broad-except
         logger.error(f"No se pudieron enviar las credenciales a {email}: {exc}")
+
+def _invitation_language(user_language: Optional[str], organization: Organization) -> str:
+    """Idioma de los correos de una invitación.
+
+    Es la regla de siempre (``users.services.language.choose_language``), con
+    la organización que invita como nivel intermedio: el invitado todavía no es
+    miembro, pero lo será al aceptar, y es ella quien le escribe.
+
+    Args:
+        user_language: Idioma que eligió la cuenta invitada, o ``None`` si no
+            eligió o si la cuenta se acaba de crear.
+        organization: Organización que invita.
+
+    Returns:
+        str: El idioma elegido por la cuenta; si no, el de la organización; si
+            no, el de la plataforma.
+    """
+    # Import diferido: users → acheron → accounts cerraría un ciclo.
+    from src.modules.users import choose_language  # pylint: disable=import-outside-toplevel
+    return choose_language(user_language, organization.default_language)
+
 
 def _build_available_username(email: str) -> str:
     """Construye un nombre de usuario libre a partir de la parte local del correo.
@@ -180,6 +208,7 @@ def _invite_existing_account(
     owner_user_id: int,
     email: str,
     user_first_name: str,
+    user_language: Optional[str],
 ) -> dict:
     """Emite una invitación pendiente para un correo que ya tiene cuenta.
 
@@ -191,6 +220,7 @@ def _invite_existing_account(
         owner_user_id: Primary key del dueño que emite la invitación.
         email: Correo invitado, ya normalizado.
         user_first_name: Nombre de la cuenta invitada, para el saludo del correo.
+        user_language: Idioma que eligió la cuenta invitada, o ``None``.
 
     Returns:
         dict: La invitación serializada con ``OrganizationInvitation.to_dict``.
@@ -211,7 +241,10 @@ def _invite_existing_account(
         ))
         payload = invitation.to_dict()
 
-    _send_invitation_email(email, user_first_name, organization.name, token, ttl_hours)
+    _send_invitation_email(
+        email, user_first_name, organization.name, token, ttl_hours,
+        _invitation_language(user_language, organization),
+    )
     logger.info(f"Invitacion enviada a {email} para la organizacion {organization.id}")
     return payload
 
@@ -278,7 +311,9 @@ def _invite_new_account(
         ))
         payload = invitation.to_dict()
 
-    _send_credentials_email(email, organization.name, username, password)
+    _send_credentials_email(
+        email, organization.name, username, password, _invitation_language(None, organization),
+    )
     logger.info(f"Cuenta creada por invitacion para {email} (organizacion {organization.id})")
     return payload
 
@@ -318,7 +353,7 @@ class InvitationManager:
 
         if user is None:
             return _invite_new_account(organization, owner_user_id, email)
-        return _invite_existing_account(organization, owner_user_id, email, user.first_name)
+        return _invite_existing_account(organization, owner_user_id, email, user.first_name, user.language)
 
     def list_invitations(self, organization_id: int, owner_user_id: int) -> list[dict]:
         get_owned_organization(owner_user_id, organization_id)

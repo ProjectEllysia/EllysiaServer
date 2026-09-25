@@ -4,12 +4,13 @@ import sys
 import psutil
 
 from flask_smorest import Blueprint as SmorestBlueprint
-from flask import jsonify, request
+from flask import request
 
 from src.modules.shared._endpoints import limiter, current_actor
 from src.modules.shared._exceptions import (
     handle_exceptions,
     IllegalStateError,
+    MissingJsonBodyError,
     ValidationError,
 )
 from src.modules.shared.schemas import ErrorSchema
@@ -29,11 +30,7 @@ from .schemas import (
     SystemLogsResponseSchema,
     AIModelsResponseSchema,
 )
-from .exceptions import (
-    LogNotFoundError,
-    LogQueryError,
-    LogSnapshotChangedError,
-)
+from .exceptions import TaskNotCancellableError, TaskNotFoundError
 from .services import (
     read_logs,
 )
@@ -190,23 +187,9 @@ def status():
 @require_role(minimum_role=Role.ADMIN)
 def system_logs(query_args):
     """Devuelve una página filtrada del log central de la aplicación."""
-    try:
-        return read_logs(query_args)
-    except LogNotFoundError:
-        return jsonify({
-            "error": "log_not_found",
-            "error_description": "No hay ningún log disponible en este momento.",
-        }), 404
-    except LogSnapshotChangedError:
-        return jsonify({
-            "error": "log_changed",
-            "error_description": "El log cambió durante la consulta. Inicia una nueva lectura.",
-        }), 409
-    except LogQueryError as exc:
-        return jsonify({
-            "error": "invalid_log_query",
-            "error_description": str(exc),
-        }), 400
+    # LogNotFoundError, LogSnapshotChangedError y LogQueryError son
+    # EllysiaException: las serializa el manejador global.
+    return read_logs(query_args)
 
 
 @system_blp.get("")
@@ -242,11 +225,11 @@ def get_config():
 def update_config():
     """Actualiza la configuración de SecOpsConfig.json"""
     if not request.is_json:
-        raise ValidationError("Content-Type must be application/json")
+        raise MissingJsonBodyError("La petición no declara Content-Type: application/json")
 
     new_config = request.get_json(silent=True)
     if not new_config:
-        raise ValidationError("Request body must be JSON")
+        raise MissingJsonBodyError("El cuerpo de la petición no es JSON")
 
     # C9: If-Match obligatorio — sin él, dos sesiones root guardando a la
     # vez se pisan sin avisar (last-write-wins silencioso).
@@ -350,7 +333,7 @@ def taskqueue_task_detail(task_id):
     """Obtiene el detalle de una tarea especifica por su ID."""
     task = TaskQueue.get_instance().get_task(task_id)
     if task is None:
-        return {"error": "not_found", "error_description": "Task not found"}, 404
+        raise TaskNotFoundError(task_id)
     return task.to_dict()
 
 
@@ -367,7 +350,7 @@ def taskqueue_cancel_task(task_id):
     task_queue = TaskQueue.get_instance()
     was_cancelled = task_queue.cancel(task_id)
     if not was_cancelled:
-        return {"error": "not_found", "error_description": "Task not found or already finished"}, 404
+        raise TaskNotCancellableError(task_id)
     task = task_queue.get_task(task_id)
     return (task or Task(id=task_id)).to_dict()
 
@@ -391,7 +374,7 @@ def taskqueue_update_config(json_data):
     """
     max_workers = json_data.get("max_workers")
     if not isinstance(max_workers, int) or max_workers < 1:
-        raise ValidationError("max_workers must be a positive integer")
+        raise ValidationError("El número de workers tiene que ser un entero mayor que cero.")
 
     config = CR.get_full_config()
     config.setdefault("infrastructure", {}).setdefault("taskqueue", {})["max_workers"] = max_workers

@@ -217,6 +217,7 @@ import IrisCompareModal from '@/components/iris/IrisCompareModal.vue'
 import { useIrisStore } from '@/stores/irisStore'
 import { useModalA11y } from '@/composables/useModalA11y'
 import { analysisStatusLabel, verdictClass, verdictLabel } from '@/components/iris/verdict'
+import { formatDate as formatLocalizedDate } from '@/i18n/format'
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -347,7 +348,7 @@ function clampScore(score) {
 
 function formatDate(iso) {
   if (!iso) return ''
-  try { return new Date(iso).toLocaleDateString('es-ES', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) }
+  try { return formatLocalizedDate(iso, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) }
   catch { return iso }
 }
 

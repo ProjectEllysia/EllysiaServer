@@ -3,6 +3,7 @@ import { reactive, ref } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { useToastStore } from '@/stores/toastStore'
 import { useCache } from '@/composables/useCache'
+import { setLocale } from '@/i18n'
 
 const CACHE_KEY = 'me'
 const PROFILE_TTL = 5 * 60 * 1000
@@ -23,7 +24,10 @@ export const useProfileStore = defineStore('profile', () => {
   // emailVerified arranca en null y no en false: hasta que el perfil llega
   // no se sabe, y pintar el aviso de "confirma tu correo" a quien ya lo
   // confirmo seria acusarle por un dato que aun no habia cargado.
-  const profile = reactive({ first_name: '', last_name: '', email: '', username: '', role: '', created_at: '', emailVerified: null, mustChangePassword: false })
+  // language es lo que eligió el usuario (null = no eligió) y effectiveLanguage
+  // el idioma que le corresponde según el servidor: el suyo, si no el de su
+  // organización, si no el de la plataforma.
+  const profile = reactive({ first_name: '', last_name: '', email: '', username: '', role: '', created_at: '', emailVerified: null, mustChangePassword: false, language: null, effectiveLanguage: null })
   /** Indicador de carga en curso */
   const loading = ref(false)
 
@@ -38,13 +42,30 @@ export const useProfileStore = defineStore('profile', () => {
       emailVerified: data.emailVerified ?? null,
       mustChangePassword: data.mustChangePassword ?? false,
     })
+    hydrateLanguage(data)
+  }
+
+  /**
+   * Copia el idioma del perfil y pone la interfaz en el idioma efectivo.
+   *
+   * Es el único sitio donde la sesión decide el idioma: al iniciar sesión, al
+   * recargar y al cambiarlo desde otro dispositivo, lo que diga el servidor
+   * manda sobre lo recordado en este navegador. `setLocale` ignora un código
+   * que la interfaz no tenga.
+   *
+   * @param {{ language?: string|null, effectiveLanguage?: string }} data - Respuesta de GET /users/me.
+   */
+  function hydrateLanguage(data) {
+    profile.language = data.language ?? null
+    profile.effectiveLanguage = data.effectiveLanguage ?? null
+    if (profile.effectiveLanguage) setLocale(profile.effectiveLanguage)
   }
 
   function _snapshot() {
-    // emailVerified se queda fuera a propósito: la confirmación llega desde
-    // fuera de la SPA (el clic en el enlace del correo, quizá en otra pestaña)
-    // y una copia en caché la mantendría obsoleta tras recargar — la tarjeta
-    // de "confirma tu correo" seguiría visible pese a tener la cuenta activada.
+    // emailVerified y el idioma se quedan fuera a propósito: cambian desde
+    // fuera de esta pestaña (el clic en el enlace del correo, el idioma
+    // elegido en otro dispositivo o fijado por el dueño de la organización) y
+    // una copia en caché los mantendría obsoletos tras recargar.
     return {
       first_name: profile.first_name,
       last_name: profile.last_name,
@@ -70,7 +91,7 @@ export const useProfileStore = defineStore('profile', () => {
       // las entradas antiguas que aún lo llevan.
       const { emailVerified: _ignored, ...rest } = cached
       _hydrate(rest)
-      await refreshEmailVerification()
+      await refreshServerOwnedFields()
       return
     }
 
@@ -85,19 +106,20 @@ export const useProfileStore = defineStore('profile', () => {
   }
 
   /**
-   * Revalida la confirmación del correo contra el servidor.
+   * Revalida contra el servidor los datos del perfil que cambian desde fuera.
    *
    * La cuenta se activa pulsando el enlace del correo, que puede abrirse en
-   * otra pestaña o ventana: esta pestaña no recibe ninguna notificación, así
-   * que cada carga de perfil lo comprueba para no mostrar la tarjeta de
-   * "confirma tu correo" a quien ya la activó y acaba de recargar.
+   * otra pestaña, y el idioma puede cambiarse desde otro dispositivo o fijarlo
+   * el dueño de la organización: esta pestaña no recibe ninguna notificación,
+   * así que cada carga de perfil lo comprueba.
    */
-  async function refreshEmailVerification() {
+  async function refreshServerOwnedFields() {
     try {
       const res = await apiFetch('/users/me')
       if (!res?.ok) return
       const data = await res.json()
       profile.emailVerified = data.emailVerified ?? null
+      hydrateLanguage(data)
     } catch {
       // Sin respuesta no se sabe si el correo está confirmado: se mantiene el
       // valor anterior (null si venía de caché) y no se acusa a nadie.
@@ -128,6 +150,29 @@ export const useProfileStore = defineStore('profile', () => {
   }
 
   /**
+   * Guarda el idioma que elige el usuario vía PUT /users/me/language.
+   *
+   * @param {string|null} language - Código del idioma, o `null` para volver a
+   *   seguir el de la organización o el de la plataforma.
+   * @param {string} failureMessage - Texto del aviso si el servidor no
+   *   responde; si responde con un error, se enseña el suyo, ya traducido.
+   * @returns {Promise<boolean>} `true` si se guardó; la interfaz ya está en el
+   *   idioma efectivo que devolvió el servidor.
+   */
+  async function updateLanguage(language, failureMessage) {
+    const res = await apiFetch('/users/me/language', {
+      method: 'PUT',
+      body: JSON.stringify({ language }),
+    })
+    if (!res?.ok) {
+      toast.show(await apiError(res, failureMessage), 'error')
+      return false
+    }
+    hydrateLanguage(await res.json())
+    return true
+  }
+
+  /**
    * Cambia la contraseña del usuario vía PUT /users/change-password.
    * @param {string} currentPassword - Contraseña actual (el servidor la reverifica)
    * @param {string} newPassword - Nueva contraseña (mín. 8 caracteres)
@@ -151,10 +196,10 @@ export const useProfileStore = defineStore('profile', () => {
    * nuevo en la misma pestaña vería el nombre/email del anterior hasta que
    * expirase por su cuenta. */
   function $reset() {
-    Object.assign(profile, { first_name: '', last_name: '', email: '', username: '', role: '', created_at: '', emailVerified: null, mustChangePassword: false })
+    Object.assign(profile, { first_name: '', last_name: '', email: '', username: '', role: '', created_at: '', emailVerified: null, mustChangePassword: false, language: null, effectiveLanguage: null })
     loading.value = false
     profileCache.clear()
   }
 
-  return { profile, loading, loadProfile, updateProfile, changePassword, $reset }
+  return { profile, loading, loadProfile, refreshServerOwnedFields, updateProfile, updateLanguage, changePassword, $reset }
 })

@@ -190,6 +190,7 @@ class IrisPhishingNotifyManager:
         ``iris.criticalPhishingScoreThreshold``) ignora tanto el silenciado
         como el digest: una incidencia crítica nunca debe perderse.
         """
+        from src.modules.users import resolve_effective_language
         from src.modules.users.managers import UserManager
 
         analysis = build_repository(IrisAnalysisRepository).get_by_id(analysis_id)
@@ -224,10 +225,10 @@ class IrisPhishingNotifyManager:
             logger.error(f"Usuario {analysis.user_id} no encontrado para notificar el análisis {analysis_id}")
             return
 
-        subject = analysis.title or "Correo sin asunto"
-        html_body, text_body = render_email(
+        rendered = render_email(
             "iris_phishing",
-            subject=subject,
+            language=resolve_effective_language(user),
+            subject=analysis.title,
             analysis_id=analysis_id,
             score=analysis.total_score,
             recipient_name=user.first_name,
@@ -235,9 +236,9 @@ class IrisPhishingNotifyManager:
         message = EmailMessage(
             to=user.email,
             to_name=user.first_name,
-            subject=f"[Iris] Ten cuidado con el correo: {subject}",
-            html_body=html_body,
-            text_body=text_body,
+            subject=rendered.subject,
+            html_body=rendered.html,
+            text_body=rendered.text,
         )
         try:
             build_mailer("iris").send(message)
@@ -291,6 +292,7 @@ class IrisDigestNotifyManager:
         el siguiente ciclo del scheduler que dar por enviado un digest que
         nunca llegó.
         """
+        from src.modules.users import resolve_effective_language
         from src.modules.users.managers import UserManager
 
         preference = build_repository(IrisNotificationPreferenceRepository).get_by_user_id(user_id)
@@ -309,10 +311,11 @@ class IrisDigestNotifyManager:
             if user is None:
                 logger.error(f"Usuario {user_id} no encontrado para enviar su digest de Iris")
                 return
-            html_body, text_body = render_email(
+            rendered = render_email(
                 "iris_digest",
+                language=resolve_effective_language(user),
                 analyses=[
-                    {"analysis_id": a.id, "subject": a.title or "Correo sin asunto", "score": a.total_score}
+                    {"analysis_id": a.id, "subject": a.title, "score": a.total_score}
                     for a in analyses
                 ],
                 recipient_name=user.first_name,
@@ -320,9 +323,9 @@ class IrisDigestNotifyManager:
             message = EmailMessage(
                 to=user.email,
                 to_name=user.first_name,
-                subject=f"[Iris] Resumen diario: {len(analyses)} correo(s) sospechoso(s)",
-                html_body=html_body,
-                text_body=text_body,
+                subject=rendered.subject,
+                html_body=rendered.html,
+                text_body=rendered.text,
             )
             try:
                 build_mailer("iris").send(message)
@@ -390,6 +393,7 @@ class IrisReauthNotifyManager:
         dejado de vigilar un buzón por completo -- eso lo controla solo
         ``notify_reauth_required``.
         """
+        from src.modules.users import resolve_effective_language
         from src.modules.users.managers import UserManager
 
         connection = build_repository(IrisMailboxConnectionRepository).get_by_id(connection_id)
@@ -411,17 +415,18 @@ class IrisReauthNotifyManager:
             logger.error(f"Usuario {connection.user_id} no encontrado para avisar de la conexión {connection_id}")
             return
 
-        html_body, text_body = render_email(
+        rendered = render_email(
             "iris_reauth_required",
+            language=resolve_effective_language(user),
             account_email=connection.account_email,
             recipient_name=user.first_name,
         )
         message = EmailMessage(
             to=user.email,
             to_name=user.first_name,
-            subject=f"[Iris] Reconecta tu buzón: {connection.account_email}",
-            html_body=html_body,
-            text_body=text_body,
+            subject=rendered.subject,
+            html_body=rendered.html,
+            text_body=rendered.text,
         )
         try:
             build_mailer("iris").send(message)
@@ -501,6 +506,7 @@ class IrisStuckSyncNotifyManager:
                 ya no existe, se recuperó, o el usuario desactivó el aviso.
                 Un fallo SMTP se registra y se descarta.
         """
+        from src.modules.users import resolve_effective_language
         from src.modules.users.managers import UserManager
 
         connection = build_repository(IrisMailboxConnectionRepository).get_by_id(connection_id)
@@ -525,8 +531,9 @@ class IrisStuckSyncNotifyManager:
             logger.error(f"Usuario {connection.user_id} no encontrado para avisar de la conexión {connection_id}")
             return
 
-        html_body, text_body = render_email(
+        rendered = render_email(
             "iris_sync_stuck",
+            language=resolve_effective_language(user),
             account_email=connection.account_email,
             last_success_at=connection.last_success_at,
             recipient_name=user.first_name,
@@ -534,9 +541,9 @@ class IrisStuckSyncNotifyManager:
         message = EmailMessage(
             to=user.email,
             to_name=user.first_name,
-            subject=f"[Iris] Tu buzón lleva un tiempo sin sincronizar: {connection.account_email}",
-            html_body=html_body,
-            text_body=text_body,
+            subject=rendered.subject,
+            html_body=rendered.html,
+            text_body=rendered.text,
         )
         try:
             build_mailer("iris").send(message)

@@ -52,7 +52,9 @@ class ScanAlreadyRunningError(ScanError):
         super().__init__(
             message=f"Ya existe un {scan_type} en ejecución para '{target}'",
             details={"target": target, "scan_type": scan_type},
-            user_message=f"Ya hay un {scan_type} activo para este objetivo."
+            user_message=f"Ya hay un {scan_type} activo para este objetivo.",
+            message_key="scanAlreadyRunning",
+            params={"scanType": scan_type}
         )
 
 
@@ -81,7 +83,9 @@ class ScanTimeoutError(ScanError):
         super().__init__(
             message=f"Escaneo {scan_id} excedió timeout de {timeout}s",
             details={"scan_id": scan_id, "timeout": timeout},
-            user_message=f"El escaneo excedió el tiempo límite de {timeout} segundos."
+            user_message=f"El escaneo superó el tiempo límite de {timeout} segundos.",
+            message_key="scanTimeout",
+            params={"timeoutSeconds": timeout}
         )
 
 
@@ -96,7 +100,9 @@ class MaxConcurrentScansError(ScanError):
         super().__init__(
             message=f"Límite de escaneos concurrentes alcanzado ({current}/{max_scans})",
             details={"max_concurrent": max_scans, "current": current},
-            user_message=f"Se alcanzó el límite de {max_scans} escaneos simultáneos."
+            user_message=f"Se alcanzó el límite de {max_scans} escaneos simultáneos.",
+            message_key="maxConcurrentScans",
+            params={"maxScans": max_scans}
         )
 
 
@@ -111,7 +117,9 @@ class MaxHostsExceededError(ScanError):
         super().__init__(
             message=f"Límite de hosts excedido ({found} > {max_hosts})",
             details={"max_hosts": max_hosts, "found": found},
-            user_message=f"El objetivo incluye más de {max_hosts} hosts."
+            user_message=f"El objetivo incluye más de {max_hosts} hosts.",
+            message_key="maxHostsExceeded",
+            params={"maxHosts": max_hosts}
         )
 
 
@@ -132,9 +140,11 @@ class TargetNotAuthorizedError(ScanError):
             message=f"El objetivo '{target}' no está en el registro de objetivos autorizados",
             details={"target": target},
             user_message=(
-                f"'{target}' no está autorizado para operaciones activas de Lybra. "
-                "Añádelo al registro de objetivos autorizados antes de lanzar este escaneo."
+                f"«{target}» no está autorizado para operaciones activas de Lybra. Añádelo al "
+                "registro de objetivos autorizados antes de lanzar este escaneo."
             ),
+            message_key="targetNotAuthorized",
+            params={"target": target},
         )
 
 
@@ -157,7 +167,28 @@ class DuplicateAuthorizedTargetError(ScanError):
         super().__init__(
             message=f"El objetivo '{target}' ya está en el registro de objetivos autorizados",
             details={"target": target},
-            user_message=f"'{target}' ya está en tu registro de objetivos autorizados."
+            user_message=f"«{target}» ya está en tu registro de objetivos autorizados.",
+            message_key="duplicateAuthorizedTarget",
+            params={"target": target}
+        )
+
+
+class ComplianceOrganizationNotOwnedError(EllysiaException):
+    """Quien intenta fijar los marcos de cumplimiento de una organización no es su dueño.
+
+    Sólo el dueño decide qué marcos se imponen a los miembros; un miembro
+    sigue pudiendo elegir los suyos mientras la organización no fije ninguno.
+    """
+
+    default_code = ErrorCode.AUTHORIZATION_ERROR
+    default_status_code = 403
+    default_severity = ErrorSeverity.LOW
+
+    def __init__(self):
+        super().__init__(
+            message="Sólo el dueño de la organización puede fijar sus marcos de cumplimiento",
+            user_message="Sólo el dueño de la organización puede fijar sus marcos de cumplimiento.",
+            message_key="complianceOrganizationOwnerOnly",
         )
 
 
@@ -178,7 +209,8 @@ class ReportGenerationError(ReportError):
         super().__init__(
             message=f"Error generando reporte para escaneo {scan_id}: {reason}",
             details={"scan_id": scan_id, "reason": reason},
-            user_message="No se pudo generar el reporte."
+            user_message="No se pudo generar el informe.",
+            message_key="reportGeneration"
         )
 
 
@@ -186,7 +218,7 @@ class ReportNotFoundError(EntityNotFoundError, ReportError):
     """Reporte o documento no encontrado."""
 
     default_code = ErrorCode.REPORT_NOT_FOUND
-    entity_label = "Reporte"
+    entity_label = "Informe"
     id_field = "report_id"
 
 
@@ -244,7 +276,8 @@ class PrivateIPRequested(ScanError):
         super().__init__(
             message=f"No se permite escanear IPs privadas: {ips_list}",
             details={"private_ips": private_ips},
-            user_message="El escaneo de IPs locales/privadas está deshabilitado."
+            user_message="El escaneo de IPs locales o privadas está desactivado.",
+            message_key="privateIpRequested"
         )
 
 
@@ -262,7 +295,9 @@ class HostUnreachableError(ScanError):
         super().__init__(
             message=f"Host '{host}' no alcanzable en puerto {port}: {details}",
             details={"host": host, "port": port, "reason": details},
-            user_message=f"No se pudo conectar con {host} antes de iniciar el escaneo."
+            user_message=f"No se pudo conectar con {host} antes de iniciar el escaneo.",
+            message_key="hostUnreachable",
+            params={"host": host}
         )
 
 
@@ -291,6 +326,7 @@ class ScanFailedError(ScanError):
             message=message,
             details={"reason": getattr(reason, "value", reason)},
             user_message="El escaneo no pudo completarse.",
+            message_key="scanFailed",
         )
 
 
@@ -305,7 +341,8 @@ class PDFGenerationError(ReportError):
         super().__init__(
             message=f"Error generando PDF: {message}",
             details=details,
-            user_message="Error al generar el informe PDF."
+            user_message="No se pudo generar el informe PDF.",
+            message_key="pdfGeneration"
         )
 
 
@@ -338,7 +375,9 @@ class ProgramedScanAlreadyActiveError(ProgramedScanError):
             message=f"Ya existe un escaneo programado activo de tipo "
                     f"'{scan_type}' para el usuario {user_id}",
             details={"user_id": user_id, "scan_type": scan_type},
-            user_message=f"Ya tienes un escaneo {scan_type} programado activo."
+            user_message=f"Ya tienes un escaneo {scan_type} programado activo.",
+            message_key="programedScanAlreadyActive",
+            params={"scanType": scan_type}
         )
 
 
@@ -354,8 +393,9 @@ class InvalidProgramedTaskArgumentError(ProgramedScanError):
             message=f"Argumento '{field}' requerido para escaneo "
                     f"{scan_type} no encontrado o inválido",
             details={"scan_type": scan_type, "field": field},
-            user_message=f"Falta el argumento '{field}' para el escaneo de "
-                         f"tipo '{scan_type}'."
+            user_message=f"Falta el argumento «{field}» para el escaneo de tipo «{scan_type}».",
+            message_key="invalidProgramedTaskArgument",
+            params={"field": field, "scanType": scan_type}
         )
 
 
@@ -392,7 +432,11 @@ class FolderNameInvalidError(FolderError):
         super().__init__(
             message=f"Nombre de carpeta inválido: '{name}'",
             details={"name": name},
-            user_message="El nombre de carpeta solo puede contener letras, números, espacios, guiones y guiones bajos."
+            user_message=(
+                "El nombre de carpeta solo puede contener letras, números, espacios, guiones y "
+                "guiones bajos."
+            ),
+            message_key="folderNameInvalid"
         )
 
 
@@ -407,5 +451,6 @@ class ScanAlreadyInFolderError(FolderError):
         super().__init__(
             message=f"El escaneo {scan_id} ya está en la carpeta {folder_id}",
             details={"scan_id": scan_id, "folder_id": folder_id},
-            user_message="El escaneo ya pertenece a esta carpeta."
+            user_message="El escaneo ya pertenece a esta carpeta.",
+            message_key="scanAlreadyInFolder"
         )

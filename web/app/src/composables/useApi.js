@@ -1,5 +1,8 @@
 import { useAuthStore } from '@/stores/authStore'
 import { setRateLimited } from '@/composables/rateLimitState'
+import { formatDate } from '@/i18n/format'
+import { i18n } from '@/i18n'
+import { translateApiError } from '@/i18n/apiErrors'
 
 /**
  * Extrae un mensaje de error legible de una respuesta fallida (D3/B11).
@@ -27,8 +30,13 @@ export async function apiError(res, fallback) {
   const validation = validationMessage(data)
   if (validation) return validation
 
+  // Un error con plantilla (`messageKey`) se enseña en el idioma de la
+  // interfaz; uno sin ella, con el texto del servidor.
+  const translated = translateApiError(data, i18n.global)
+  if (translated) return translated
+
   const serverMsg = data.error_description || data.message || data.error
-  if (res.status === 403 && (data.error === 'forbidden' || data.error_description === 'Insufficient permissions')) {
+  if (res.status === 403 && data.error === 'forbidden') {
     return 'No tienes permisos suficientes para realizar esta acción.'
   }
   return serverMsg || fallback
@@ -91,6 +99,9 @@ export function validationMessage(data) {
   if (!fields || typeof fields !== 'object') return null
 
   const problems = Object.entries(fields).map(([field, reasons]) => {
+    // Una regla entre campos (marshmallow `@validates_schema`) llega bajo
+    // `_schema`: no es un campo que nombrar, y su motivo ya viene redactado.
+    if (field === '_schema') return String(Array.isArray(reasons) ? reasons[0] : reasons).replace(/\.\s*$/, '')
     const label = FIELD_LABELS[field] ?? `El campo «${field}»`
     // Se quita el punto final del motivo antes de sustituir: si no, al unir
     // varios problemas salían dos puntos seguidos.
@@ -308,7 +319,7 @@ export function useApi() {
       return 'Tu plan no incluye esta funcionalidad. Puedes verlo en Planes.'
     }
     if (detail.resetsAt) {
-      const when = new Date(detail.resetsAt).toLocaleDateString('es-ES', {
+      const when = formatDate(detail.resetsAt, {
         day: 'numeric', month: 'long',
       })
       return `Has alcanzado el límite de tu plan (${detail.used}/${detail.value}). Se renueva el ${when}.`

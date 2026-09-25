@@ -6,7 +6,9 @@ import os
 from flask import send_file
 from flask_smorest import Blueprint as SmorestBlueprint
 
-from src.modules.users import require_oauth_token, require_attributes, AttributeType, get_current_user
+from src.modules.users import (
+    require_oauth_token, require_attributes, require_role, AttributeType, Role, get_current_user,
+)
 from src.modules.shared import (
     handle_exceptions,
     limiter,
@@ -35,7 +37,10 @@ from .managers import (
     ScanHistoryManager,
     TracerouteManager,
     AuthorizedTargetManager,
+    ComplianceManager,
     KbSyncManager,
+    KbSyncTaskManager,
+    KbQueryManager,
 )
 from .model import ScanType
 from .services.parsing import is_hostname
@@ -67,8 +72,12 @@ from .schemas import (
     AddAuthorizedTargetSchema,
     AuthorizedTargetListResponseSchema,
     AuthorizedTargetActionResponseSchema,
+    ComplianceFrameworksRequestSchema,
+    CompliancePreferencesResponseSchema,
     ResultsQuerySchema,
     UnresolvedProductsQuerySchema,
+    KbSearchQuerySchema,
+    KbSyncRequestSchema,
     GeneratePdfRequestSchema,
     DocumentStatusQuerySchema,
     DocumentsQuerySchema,
@@ -419,6 +428,49 @@ def start_lybra_scan(data):
     }
 
 
+@themis_blp.get("/compliance")
+@themis_blp.response(200, CompliancePreferencesResponseSchema, description="Compliance framework preferences")
+@themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@themis_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.THEMIS_READ])
+@limiter.limit("300 per hour; 2000 per day")
+@handle_exceptions(default_exception=EllysiaException, logger=logger)
+def get_compliance_preferences():
+    """Catálogo de marcos de cumplimiento, los elegidos y los que se aplican en los informes de Lybra."""
+    return ComplianceManager().get_preferences(get_current_user().id)
+
+
+@themis_blp.put("/compliance/frameworks")
+@themis_blp.arguments(ComplianceFrameworksRequestSchema)
+@themis_blp.response(200, CompliancePreferencesResponseSchema, description="Updated preferences")
+@themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@themis_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@themis_blp.alt_response(422, schema=ErrorSchema, description="Unknown framework")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.THEMIS_READ])
+@limiter.limit("30 per hour; 100 per day")
+@handle_exceptions(default_exception=EllysiaException, logger=logger)
+def update_compliance_frameworks(data):
+    """Elegir los marcos de cumplimiento propios, o dejar de elegir con null."""
+    return ComplianceManager().set_user_frameworks(get_current_user().id, data["frameworks"])
+
+
+@themis_blp.put("/compliance/organization-frameworks")
+@themis_blp.arguments(ComplianceFrameworksRequestSchema)
+@themis_blp.response(200, CompliancePreferencesResponseSchema, description="Updated preferences")
+@themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@themis_blp.alt_response(403, schema=ErrorSchema, description="Not the organization owner")
+@themis_blp.alt_response(422, schema=ErrorSchema, description="Unknown framework")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.THEMIS_READ])
+@limiter.limit("30 per hour; 100 per day")
+@handle_exceptions(default_exception=EllysiaException, logger=logger)
+def update_organization_compliance_frameworks(data):
+    """Fijar los marcos que se imponen a los miembros de la organización propia, o liberarlos con null."""
+    return ComplianceManager().set_organization_frameworks(get_current_user().id, data["frameworks"])
+
+
 @themis_blp.post("/authorized-targets")
 @themis_blp.arguments(AddAuthorizedTargetSchema)
 @themis_blp.response(201, AuthorizedTargetActionResponseSchema, description="Authorized target added")
@@ -571,6 +623,71 @@ def get_kb_status():
         **status,
         "user": user.username,
     }
+
+
+@themis_blp.get("/kb/search")
+@themis_blp.arguments(KbSearchQuerySchema, location="query")
+@themis_blp.response(200, description="What the knowledge base knows about a CVE or a product")
+@themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@themis_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.THEMIS_READ])
+@limiter.limit("120 per hour; 1000 per day")
+@handle_exceptions(default_exception=ScanError, logger=logger)
+def search_kb(args):
+    """Qué sabe la base de conocimiento de una CVE o de un producto.
+
+    Con un identificador de CVE devuelve su ficha fuente a fuente (NVD, KEV,
+    EPSS y lo que dice cada distribución); con cualquier otro texto, los
+    productos del índice que casan. Sirve para diagnosticar un hallazgo sin
+    entrar al servidor.
+    """
+    user = get_current_user()
+    return {
+        "message": "Búsqueda en la base de conocimiento completada",
+        **KbQueryManager().search(args["query"], limit=args["limit"]),
+        "user": user.username,
+    }
+
+
+@themis_blp.get("/kb/sync")
+@themis_blp.response(200, description="State of the latest manual sync of each target")
+@themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@themis_blp.alt_response(403, schema=ErrorSchema, description="Insufficient role")
+@require_oauth_token
+@require_role(minimum_role=Role.ADMIN)
+@limiter.limit("600 per hour")
+@handle_exceptions(default_exception=ScanError, logger=logger)
+def get_kb_sync_tasks():
+    """El estado de la última sincronización manual de cada fuente.
+
+    El panel lo sondea mientras hay una en marcha. Sólo administradores: dice
+    qué está haciendo el servidor.
+    """
+    return {"tasks": KbSyncTaskManager().sync_tasks()}
+
+
+@themis_blp.post("/kb/sync")
+@themis_blp.arguments(KbSyncRequestSchema)
+@themis_blp.response(202, description="Manual sync queued, or already running")
+@themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@themis_blp.alt_response(403, schema=ErrorSchema, description="Insufficient role")
+@require_oauth_token
+@require_role(minimum_role=Role.ADMIN)
+@limiter.limit("20 per hour; 60 per day")
+@handle_exceptions(default_exception=ScanError, logger=logger)
+def request_kb_sync(args):
+    """Lanza a mano la sincronización de una fuente de la base de conocimiento.
+
+    Lo mismo que el job nocturno, sin esperar a él: tras arreglar una fuente
+    rota, o para comprobar que se ha arreglado. Va a la TaskQueue y responde en
+    el acto; si ya hay una en marcha no encola otra (``queued`` falso). Sólo
+    administradores: ``Role.ADMIN`` cubre también ``root``.
+    """
+    user = get_current_user()
+    result = KbSyncTaskManager().request_sync(args["source"])
+    logger.info("Sincronización manual de la KB pedida | user=%s | %s", user.username, result)
+    return result, 202
 
 
 @themis_blp.get("/lybra/scans/<int:scan_id>/findings")

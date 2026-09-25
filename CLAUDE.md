@@ -73,6 +73,7 @@ npm run test:polling   # composable usePolling
 npm run test:toast     # store de toasts
 npm run test:quiz      # barajado del quiz de Aegis
 npm run test:logs      # transporte de logs
+npm run test:i18n      # idiomas: formato, errores de la API, ficheros de idioma y guardas
 ```
 
 ### Docker (desde la raíz)
@@ -114,6 +115,14 @@ informe de la API necesita una imagen, se copia ese fichero al módulo que lo us
 real, con un comentario que dice por qué). No se replica el árbol de assets en `API/`; esa copia
 existió, pesaba 18 MB, era idéntica byte a byte, iba dentro de la imagen Docker y no la
 referenciaba nada.
+
+**Idiomas: la interfaz traduce, el servidor identifica.** El SPA tiene vue-i18n
+(`web/app/src/i18n/`): un fichero por idioma en `locales/`, con `es.json` como idioma por defecto
+y único completo. Los errores de la API viajan con su texto en castellano y, si sale de una
+plantilla, con `messageKey` + `params`; el SPA los enseña en el idioma activo buscando esa clave
+en `apiErrors`, así que el servidor no necesita saber el idioma del usuario. Lo que el servidor
+genera en segundo plano (correos, PDF, IA) sigue en castellano. Reglas y receta para añadir un
+idioma: [`CONVENCIONES.md`](CONVENCIONES.md) §12.5 y §13.
 
 ### Punto de entrada
 
@@ -225,12 +234,12 @@ con backend RQ+Redis), `worker.py` (entrada del worker), `tracking.py` (`TaskTra
   el cuerpo del job (patrón `execute_*` como costura → cuerpo en la función de módulo `_run_*`).
   Cuándo encolar por la outbox (`build_dispatch` + `OutboxDispatcher`) y cuándo con `submit()`
   directo, y la receta completa: [`CONVENCIONES.md`](CONVENCIONES.md) §7.
-- **Categorías**: `themis.scan`, `themis.report`, `themis.traceroute`, `aegis.generate`,
+- **Categorías**: `themis.scan`, `themis.report`, `themis.traceroute`, `themis.kbsync`, `aegis.generate`,
   `aegis.campaign`, `iris.analyze`, `iris.ai_summary`, `iris.report`, `iris.ingest`,
   `iris.notify`, `hygeia.notify`, `hygeia.report` (+ `default`). Cada módulo las da de alta en su `__init__.py` con `QueueRegistry.register(...)`;
   los workers escuchan en colas por categoría.
 - **`external_id`**: el prefijo lo declara el manager en `EXTERNAL_ID_PREFIX` (`scan:`,
-  `themis-doc:`, `themis-traceroute:`, `aegis-doc:`, `aegis-campaign:`, `iris-analysis:`,
+  `themis-doc:`, `themis-traceroute:`, `themis-kbsync:`, `aegis-doc:`, `aegis-campaign:`, `iris-analysis:`,
   `iris-doc:`, `iris-mailbox-sync:`, `iris-phishing-notify:`, `hygeia-doc:`) y `TaskTrackingMixin.external_id_for`
   lo compone. No lo escribas a mano.
 - **Cancelación** cooperativa: pone la clave Redis `taskqueue:cancel:{job_id}`; los workers la

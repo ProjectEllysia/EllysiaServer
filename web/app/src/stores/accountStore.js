@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { useToastStore } from '@/stores/toastStore'
+import { formatDate as formatLocalizedDate } from '@/i18n/format'
 
 /**
  * Store de la capa comercial: plan efectivo, consumo y organización.
@@ -62,7 +63,7 @@ export const useAccountStore = defineStore('account', () => {
 
   function formatDate(iso) {
     if (!iso) return ''
-    return new Date(iso).toLocaleDateString('es-ES', {
+    return formatLocalizedDate(iso, {
       day: 'numeric', month: 'long', year: 'numeric',
     })
   }
@@ -154,6 +155,27 @@ export const useAccountStore = defineStore('account', () => {
     return true
   }
 
+  /**
+   * Fija el idioma que siguen los miembros que no han elegido uno.
+   *
+   * @param {string|null} language - Código del idioma, o `null` para volver al
+   *   de la plataforma.
+   * @returns {Promise<boolean>} `true` si se guardó.
+   */
+  async function setOrganizationLanguage(language) {
+    const res = await apiFetch(`/organizations/${organization.value.id}/language`, {
+      method: 'PUT',
+      body: JSON.stringify({ defaultLanguage: language }),
+    })
+    if (!res?.ok) {
+      toast.show(await apiError(res, 'No se pudo guardar el idioma de la organización.'), 'error')
+      return false
+    }
+    organization.value = { ...organization.value, defaultLanguage: (await res.json()).defaultLanguage ?? null }
+    toast.show('Idioma de la organización guardado.', 'success')
+    return true
+  }
+
   function reset() {
     plan.value = null
     usage.value = {}
@@ -165,6 +187,6 @@ export const useAccountStore = defineStore('account', () => {
     plan, usage, organization, catalog, loading,
     notice, exceededKeys, isOwner,
     loadCatalog, loadPlan, loadUsage, loadOrganization, loadAll,
-    createOrganization, reset, invalidate, formatDate,
+    createOrganization, setOrganizationLanguage, reset, invalidate, formatDate,
   }
 })

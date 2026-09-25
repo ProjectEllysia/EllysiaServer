@@ -110,6 +110,7 @@ import { ref, computed, watch, onUnmounted } from 'vue'
 import StatusBadge from './StatusBadge.vue'
 import AppPagination from '@/components/shared/AppPagination.vue'
 import ConfirmModal from '@/components/shared/ConfirmModal.vue'
+import { formatDate as formatLocalizedDate } from '@/i18n/format'
 
 const props = defineProps({ type: { type: String, required: true }, rows: { type: Array, default: () => [] }, loading: { type: Boolean, default: false }, error: { type: String, default: null }, currentPage: { type: Number, default: 1 }, totalCount: { type: Number, default: 0 }, perPage: { type: Number, default: 10 }, selectedIds: { type: Array, default: () => [] } })
 const emit = defineEmits(['preview', 'cancel', 'delete', 'refresh', 'page-change', 'toggle-select', 'select-all'])
@@ -152,7 +153,7 @@ function runPendingAction() {
   if (pendingAction.value) emit(pendingAction.value.type, pendingAction.value.id)
   pendingAction.value = null
 }
-function formatDate(iso) { if (!iso) return '—'; return new Date(iso).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) }
+function formatDate(iso) { if (!iso) return '—'; return formatLocalizedDate(iso, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) }
 </script>
 
 <style scoped>
@@ -187,9 +188,11 @@ td { padding: 0.55rem 0.85rem; font-size: var(--fs-lg); border-top: 1px solid va
 tr:hover td { background: var(--surface-2); }
 tr.selected td { background: rgba(99,102,241,0.06); }
 .chk-col { width: 32px; text-align: center; vertical-align: middle; }
+/* `padding: 0` anula el relleno que shared.css da a todo `input`: sin él, el
+   recuadro crece hasta ~27×20 px y el tic queda diminuto en medio. */
 .chk-col input {
   appearance: none; -webkit-appearance: none;
-  width: 12px; height: 12px;
+  width: 16px; height: 16px; padding: 0;
   display: block; margin: 0 auto;
   cursor: pointer;
   border: 1.5px solid var(--border-med);
@@ -199,11 +202,11 @@ tr.selected td { background: rgba(99,102,241,0.06); }
 }
 .chk-col input:hover { border-color: var(--accent); }
 .chk-col input:checked {
-  background: var(--accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='%230b0c10' stroke-width='2' d='M3 6l2 2 4-4'/%3E%3C/svg%3E") center/8px no-repeat;
+  background: var(--accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='%230b0c10' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M2.5 6.2l2.4 2.4 4.6-4.8'/%3E%3C/svg%3E") center/11px no-repeat;
   border-color: var(--accent);
 }
 .chk-col input:indeterminate {
-  background: var(--accent-dim) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cline x1='3' y1='6' x2='9' y2='6' stroke='%23d4a04a' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") center/8px no-repeat;
+  background: var(--accent-dim) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cline x1='3' y1='6' x2='9' y2='6' stroke='%23d4a04a' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") center/11px no-repeat;
   border-color: var(--border-med);
 }
 .mono { font-family: var(--font-mono); font-size-adjust: var(--fsa-mono); font-size: var(--fs-lg); }
@@ -234,7 +237,7 @@ tr.selected td { background: rgba(99,102,241,0.06); }
    puede deducir de --fs-lg y hay que fijarlo. Si cambia el alto de .badge,
    este número deja de cuadrar y vuelve el salto. */
 .skeleton-table td { height: 3.375rem; }
-.chk-ghost { width: 12px; margin: 0 auto; }
+.chk-ghost { width: 16px; margin: 0 auto; }
 .actions-ghost { width: 62px; }
 
 .empty-state { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; padding: 2.5rem 1rem; color: var(--text-muted); font-size: var(--fs-lg); text-align: center; }

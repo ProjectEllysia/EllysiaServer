@@ -268,6 +268,9 @@ class Organization(Base):
     name          = Column(String(128), nullable=False)
     slug          = Column(String(64),  nullable=False, unique=True, index=True)
     owner_user_id = Column(Integer,     ForeignKey("User.id"), nullable=False, unique=True)
+    # Idioma para los miembros que no han elegido uno. NULL = el de la
+    # plataforma. Lo fija el dueño.
+    default_language = Column(String(8), nullable=True)
     created_at    = Column(DateTime,    nullable=False, default=utcnow_naive)
     updated_at    = Column(DateTime,    nullable=False, default=utcnow_naive,
                                         onupdate=utcnow_naive)
@@ -287,6 +290,7 @@ class Organization(Base):
             "slug":        self.slug,
             "ownerUserId": self.owner_user_id,
             "memberCount": len(self.members),
+            "defaultLanguage": self.default_language,
             "createdAt":   self.created_at,
         }
 

@@ -42,7 +42,6 @@ from .managers import (
 from .exceptions import (
     IrisAnalysisNotFoundError,
     IrisExecutionError,
-    IrisInvalidInputError,
     IrisMailboxConnectionNotFoundError,
     IrisMailboxOAuthStateError,
     IrisBatchNotFoundError,
@@ -168,14 +167,7 @@ def analyze_headers(data):
     user = get_current_user()
 
     manager = IrisManager()
-    try:
-        analysis_id = manager.analyze(raw_headers, user.id, title=title, raw_message=raw_message)
-    except IrisInvalidInputError as e:
-        return {
-            "error": e.__class__.__name__,
-            "error_description": str(e.user_message or e),
-            "code": e.code.value if e.code else 1100,
-        }, 400
+    analysis_id = manager.analyze(raw_headers, user.id, title=title, raw_message=raw_message)
 
     logger.info(f"Iris analysis {analysis_id} started by user {user.username}")
     return {

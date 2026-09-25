@@ -18,7 +18,8 @@ from ._launch       import assert_surface_enabled
 from ._endpoints    import (
     current_actor,
     normalize_target,
-    limiter
+    limiter,
+    render_error_response,
 )
 from ._ownership import assert_owned
 from ._time import utcnow_naive, isoformat_utc
@@ -57,6 +58,7 @@ __all__ = [
     "current_actor",
     "normalize_target",
     "limiter",
+    "render_error_response",
     "assert_owned",
     "utcnow_naive",
     "isoformat_utc",

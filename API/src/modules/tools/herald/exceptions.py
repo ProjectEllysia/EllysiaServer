@@ -23,7 +23,8 @@ class EmailConnectionError(EllysiaException):
         super().__init__(
             message=f"Error de conexión con el servidor de correo: {message}",
             details=details,
-            user_message="Error al conectar con el servicio de correo.",
+            user_message="No se pudo conectar con el servicio de correo.",
+            message_key="emailConnection",
         )
 
 
@@ -40,6 +41,7 @@ class EmailSendError(EllysiaException):
             message=f"Envío de correo rechazado: {message}",
             details=details,
             user_message="No se pudo enviar el correo.",
+            message_key="emailSend",
         )
 
 
@@ -53,5 +55,6 @@ class EmailConfigurationError(EllysiaException):
     def __init__(self, message: str):
         super().__init__(
             message=f"Configuración de correo inválida: {message}",
-            user_message="El servicio de correo no está configurado correctamente.",
+            user_message="El servicio de correo no está bien configurado.",
+            message_key="emailConfiguration",
         )

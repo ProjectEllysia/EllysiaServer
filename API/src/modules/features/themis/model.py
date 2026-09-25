@@ -29,6 +29,7 @@ from enum import Enum
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     Float,
@@ -752,6 +753,12 @@ class LybraScan(Scan):
             aquí y no en ``Scan`` por la misma razón que ``is_partial``: es
             un concepto propio del barrido de Lybra, no de los otros tres
             escáneres, que reciben el objetivo ya resuelto.
+        kb_version: La marca de la base de conocimiento contra la que se
+            resolvió el escaneo (``lybra/kb.py::kb_feed_version``), o ``None``
+            en los escaneos anteriores a que se guardara. Los hallazgos por
+            versión ya la llevan, pero un escaneo sin ninguno no tendría dónde
+            decirlo, y el informe tiene que poder afirmar contra qué datos se
+            dio el veredicto aunque se regenere semanas después.
         parent_scan_id: El escaneo de red que lanzó este host como uno de los
             suyos, o ``None`` para un escaneo de un solo objetivo. El padre
             en sí no descubre nada — es la fila que agrupa; sus propios
@@ -764,6 +771,7 @@ class LybraScan(Scan):
     asset_id       = Column(Integer, nullable=True, index=True)
     is_partial     = Column(Boolean, nullable=False, default=False, server_default=sa_false())
     profile        = Column(String(20), nullable=False, default="standard", server_default="standard")
+    kb_version     = Column(String(128), nullable=True)
     parent_scan_id = Column(Integer, ForeignKey("LybraScan.id", ondelete="CASCADE"),
                             nullable=True, index=True)
 
@@ -829,6 +837,43 @@ class AuthorizedTarget(Base):
 
     def __repr__(self):
         return f"<AuthorizedTarget(id={self.id}, target='{self.target}', user_id={self.user_id})>"
+
+
+class ComplianceFrameworkSelection(Base):
+    """Los marcos de cumplimiento que un usuario o una organización quiere controlar.
+
+    Cada fila pertenece a un usuario **o** a una organización, nunca a los dos.
+    Que no haya fila significa «no he elegido»; una fila con la lista vacía
+    significa «ninguno». La diferencia importa en la organización: si tiene
+    fila, sus marcos sustituyen a los de cada miembro (ver
+    ``ComplianceManager.resolve_effective_frameworks``).
+
+    Los marcos se guardan por su clave del catálogo de Lybra (``"iso27001"``,
+    ``"ens"``, ``"nis2"``), la misma que forma el código global de cada control.
+
+    Attributes:
+        id: Clave primaria.
+        user_id: Usuario dueño de la elección, o ``None`` si es de una organización.
+        organization_id: Organización dueña de la elección, o ``None`` si es de un usuario.
+        frameworks: Lista de claves de marco, sin repetir, en el orden elegido.
+        updated_at: Última vez que se cambió.
+    """
+    __tablename__ = "ComplianceFrameworkSelection"
+
+    id              = Column(Integer, primary_key=True, autoincrement=True)
+    user_id         = Column(Integer, ForeignKey("User.id", ondelete="CASCADE"),
+                             nullable=True, unique=True)
+    organization_id = Column(Integer, ForeignKey("Organization.id", ondelete="CASCADE"),
+                             nullable=True, unique=True)
+    frameworks      = Column(JSONB, nullable=False)
+    updated_at      = Column(DateTime, nullable=False, default=utcnow_naive, onupdate=utcnow_naive)
+
+    __table_args__ = (
+        CheckConstraint(
+            "(user_id IS NULL) <> (organization_id IS NULL)",
+            name="ck_complianceframeworkselection_one_owner",
+        ),
+    )
 
 
 class Finding(Base):
@@ -899,6 +944,13 @@ class Finding(Base):
             justificación es deuda; con justificación es una decisión.
         state_set_by: Quién la tomó.
         state_set_at: Cuándo.
+        fixed_reason: Por qué un hallazgo está en ``fixed``, cuando no es
+            porque se haya remediado: ``"backport"`` (la distribución ya lo
+            había corregido en el paquete instalado, así que nunca estuvo) o
+            ``"alias"`` (su sitio resultó ser un alias del sitio por defecto y
+            sus avisos ya salen con él). ``None`` en cualquier otro caso, que
+            es un ``fixed`` de verdad: lo vio el escaneo anterior y éste no. Lo
+            pone el motor, no el usuario, y por eso no va en ``state_reason``.
         state_expires_at: Cuándo vuelve el hallazgo a ``open`` por su cuenta.
             Se rellena sólo para ``accepted`` — un riesgo asumido hace un año
             merece revisarse otra vez, mientras que un falso positivo no
@@ -940,12 +992,12 @@ class Finding(Base):
     # Quality / provenance
     source       = Column(String(32), index=True)
     check_id     = Column(String(128))
-    # 64 y no 32: la marca de la detección por versión describe el
+    # 128 y no 32: la marca de la detección por versión describe el
     # estado de la base de conocimiento ("lybra-kb:nvd=2026-08-29,kev=...,
-    # epss=..."), que ocupa hasta 54 caracteres. Se escribe entera en vez de
-    # resumirla en un hash para que un hallazgo guardado siga diciendo, por sí
-    # solo, contra qué se resolvió.
-    feed_version = Column(String(64))
+    # epss=...,oval=..."), que ocupa hasta 70 caracteres. Se escribe entera en
+    # vez de resumirla en un hash para que un hallazgo guardado siga diciendo,
+    # por sí solo, contra qué se resolvió.
+    feed_version = Column(String(128))
     dedup_key    = Column(String(64), index=True)
     qod          = Column(Integer)
     confirmed    = Column(Boolean, default=False)
@@ -962,6 +1014,7 @@ class Finding(Base):
     first_seen_at = Column(DateTime, default=utcnow_naive)
     last_seen_at  = Column(DateTime, default=utcnow_naive)
     state         = Column(String(20), default="open")
+    fixed_reason  = Column(String(16), nullable=True)
     
     @property
     def snapshot(self) -> dict:

@@ -27,7 +27,7 @@ _BASE_BRAND = {
 
 class TestCampaignTemplate:
     def test_renders_shell_and_link(self):
-        html, text = render_email(
+        _, html, text, _ = render_email(
             "campaign",
             pill_title="Phishing por SMS",
             link="https://ellysia.es/quiz?t=abc123",
@@ -50,14 +50,14 @@ class TestCampaignTemplate:
         assert "&amp;" not in text
 
     def test_greeting_without_name(self):
-        html, text = render_email(
+        _, html, text, _ = render_email(
             "campaign", pill_title="X", link="https://e.es/quiz?t=1", recipient_name=None
         )
         assert "Hola:" in html
         assert "Hola:" in text
 
     def test_escapes_untrusted_values(self):
-        html, _ = render_email(
+        _, html, _, _ = render_email(
             "campaign",
             pill_title='Título "raro" & <b>negrita</b>',
             link="https://ellysia.es/quiz?t=abc",
@@ -72,7 +72,7 @@ class TestCampaignTemplate:
     def test_includes_the_pill_content_not_just_the_link(self):
         """El correo entrega la píldora entera, no solo el enlace al test —
         antes se pedía responder un test sobre un contenido nunca enviado."""
-        html, text = render_email(
+        _, html, text, _ = render_email(
             "campaign",
             pill_title="Phishing por SMS",
             link="https://ellysia.es/quiz?t=abc123",
@@ -107,7 +107,7 @@ class TestCampaignTemplate:
         """seguridad@empresa.com es el placeholder por defecto de la IA — no
         se envía como si fuera una dirección real (mismo criterio que
         services/exporters.py)."""
-        html, text = render_email(
+        _, html, text, _ = render_email(
             "campaign",
             pill_title="X",
             link="https://e.es/quiz?t=1",
@@ -132,7 +132,7 @@ class TestCampaignTemplate:
             "sourceLabel": "NVD/CVE",
             "published": "2026-07-01",
         }]
-        html, text = render_email(
+        _, html, text, _ = render_email(
             "campaign", pill_title="X", link="https://e.es/quiz?t=1",
             recipient_name=None, alerts=alerts,
         )
@@ -144,7 +144,7 @@ class TestCampaignTemplate:
         assert "Avisos recientes" in html
 
     def test_advisory_section_absent_without_alerts(self):
-        html, text = render_email(
+        _, html, text, _ = render_email(
             "campaign", pill_title="X", link="https://e.es/quiz?t=1", recipient_name=None,
         )
         assert "Avisos recientes" not in html
@@ -153,7 +153,7 @@ class TestCampaignTemplate:
     def test_omits_sections_with_no_content(self):
         """Sin intro/tips/closing/contacto, la plantilla no debe reventar ni
         dejar huecos en blanco con títulos vacíos."""
-        html, _ = render_email(
+        _, html, _, _ = render_email(
             "campaign", pill_title="X", link="https://e.es/quiz?t=1", recipient_name=None,
         )
         assert "Recomendaciones" not in html
@@ -162,7 +162,7 @@ class TestCampaignTemplate:
 
 class TestAnomalyTemplate:
     def test_renders_with_metric(self):
-        html, text = render_email(
+        _, html, text, _ = render_email(
             "anomaly",
             hostname="srv-01.local",
             kind="cpu_spike",
@@ -177,7 +177,7 @@ class TestAnomalyTemplate:
         assert "srv-01.local" in text
 
     def test_metric_block_omitted_when_absent(self):
-        html, _ = render_email(
+        _, html, _, _ = render_email(
             "anomaly", hostname="srv-01", kind="offline", metric=None,
             value=None, threshold=None, recipient_name=None,
         )
@@ -187,7 +187,7 @@ class TestAnomalyTemplate:
 
 class TestIrisPhishingTemplate:
     def test_renders_subject_analysis_id_and_score(self):
-        html, text = render_email(
+        _, html, text, _ = render_email(
             "iris_phishing",
             subject="Tu factura caduca hoy",
             analysis_id=42,
@@ -203,7 +203,7 @@ class TestIrisPhishingTemplate:
         assert "#42" in text
 
     def test_score_row_omitted_when_absent(self):
-        html, text = render_email(
+        _, html, text, _ = render_email(
             "iris_phishing", subject="X", analysis_id=1, recipient_name=None,
         )
         assert "Puntuación" not in html
@@ -211,7 +211,7 @@ class TestIrisPhishingTemplate:
         assert "None" not in html
 
     def test_escapes_untrusted_subject(self):
-        html, _ = render_email(
+        _, html, _, _ = render_email(
             "iris_phishing", subject='<script>alert(1)</script>', analysis_id=1, recipient_name=None,
         )
         assert "<script>" not in html
@@ -220,7 +220,7 @@ class TestIrisPhishingTemplate:
 
 class TestMfaReminderTemplate:
     def test_renders_profile_link_in_html_and_text(self):
-        html, text = render_email(
+        _, html, text, _ = render_email(
             "mfa_reminder",
             recipient_name="Ana",
             profile_url="https://ellysia.es/profile",
@@ -233,7 +233,7 @@ class TestMfaReminderTemplate:
         assert "Hola Ana" in text
 
     def test_escapes_recipient_and_profile_url(self):
-        html, text = render_email(
+        _, html, text, _ = render_email(
             "mfa_reminder",
             recipient_name='<script>alert(1)</script>',
             profile_url="https://ellysia.es/profile?a=1&amp;b=2",
@@ -246,7 +246,7 @@ class TestMfaReminderTemplate:
 
 class TestPasswordResetTemplate:
     def test_renders_the_reset_link_and_ttl(self):
-        html, text = render_email(
+        _, html, text, _ = render_email(
             "password_reset",
             recipient_name="Ana",
             reset_url="https://ellysia.es/recuperar?token=abc123",
@@ -263,7 +263,7 @@ class TestPasswordResetTemplate:
         assert "<" not in text
 
     def test_escapes_the_reset_url(self):
-        html, _ = render_email(
+        _, html, _, _ = render_email(
             "password_reset",
             recipient_name=None,
             reset_url="https://ellysia.es/recuperar?token=<script>",
@@ -273,7 +273,7 @@ class TestPasswordResetTemplate:
         assert "&lt;script&gt;" in html
 
     def test_warns_when_not_requested(self):
-        html, text = render_email(
+        _, html, text, _ = render_email(
             "password_reset",
             recipient_name=None,
             reset_url="https://ellysia.es/recuperar?token=abc123",
@@ -285,7 +285,7 @@ class TestPasswordResetTemplate:
 
 def test_brand_defaults_are_injected():
     """Sin ``brand`` explícita, render_email la saca de la config + defaults."""
-    html, _ = render_email("campaign", pill_title="X", link="https://e.es/q", recipient_name=None)
+    _, html, _, _ = render_email("campaign", pill_title="X", link="https://e.es/q", recipient_name=None)
     assert "Ellysia" in html
 
 
@@ -314,7 +314,7 @@ class TestWhiteLabel:
                 level=WhiteLabelLevel(level), logo=logo, color=color, brand_name=brand_name,
             ),
         )
-        html, text = render_email(
+        _, html, text, _ = render_email(
             "campaign",
             brand=brand,
             pill_title="Phishing por SMS",

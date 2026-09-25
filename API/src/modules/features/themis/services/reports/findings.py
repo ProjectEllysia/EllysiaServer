@@ -4,6 +4,7 @@ viven enteramente en ``Finding`` (Lybra y Nuclei).
 """
 
 import logging
+from datetime import date
 from typing import Dict, Optional
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_LEFT
@@ -13,8 +14,10 @@ from reportlab.platypus import CondPageBreak, Paragraph, Spacer, Table, TableSty
 import src.modules.system.config_reading as CR
 
 from src.modules.tools.press import ColorType, build_palette, safe_markup
+from ...lybra.compliance import load_compliance_catalog, map_finding_compliance
 from ...lybra.correlation import DEFAULT_SITE_VHOST
 from ...lybra.grouping import build_service_rollup
+from ...lybra.kb import KB_MARK_SOURCES, parse_kb_feed_version
 from ..cve_context import enrich_with_cve_context
 from .base import PrintingStrategy
 from .outline import OutlineEntry
@@ -61,6 +64,10 @@ class FindingsPrintingStrategy(PrintingStrategy):
                              (``get_logo_filename``).
         _DEFAULT_PALETTE:    Fallback color dict when ``SecOpsConfig.json``
                              carries no ``colorPalette`` for ``_TOOL``.
+        _SHOWS_COMPLIANCE:   Si el informe traduce cada hallazgo a técnicas de
+                             MITRE ATT&CK y a los controles de los marcos de
+                             cumplimiento del dueño del escaneo. Es exclusivo
+                             del motor propio: sólo Lybra lo activa.
 
     Attributes:
         writer: ``_WRITER_CLASS`` instance for AI analysis.
@@ -86,6 +93,11 @@ class FindingsPrintingStrategy(PrintingStrategy):
     _FILENAME_SUFFIX: str
     _LOGO_FILENAME: str
     _DEFAULT_PALETTE: Dict[str, str]
+    _SHOWS_COMPLIANCE: bool
+
+    # Los marcos de cumplimiento del dueño del escaneo; los fija `append_body`.
+    # Vacío por defecto para que una ficha pintada fuera de él no los necesite.
+    _frameworks: tuple = ()
 
     def __init__(self, scan) -> None:
         """Initialize the printing strategy.
@@ -120,7 +132,7 @@ class FindingsPrintingStrategy(PrintingStrategy):
             "exploit_maturity": row.exploit_maturity, "state": row.state,
             "source": row.source, "state": row.state, "cpe_resolved": row.cpe_resolved,
             "required_os": row.required_os, "check_id": row.check_id, "vhost": row.vhost,
-            "severity": row.severity,
+            "severity": row.severity, "fixed_reason": row.fixed_reason,
         } for row in rows]
         # Los sitios con nombre que sirve la IP no son riesgos: van en su
         # propia sección, no entre las fichas ni en los recuentos.
@@ -130,12 +142,23 @@ class FindingsPrintingStrategy(PrintingStrategy):
         # vivo: va en su propia sección al final, sin prioridad y fuera de los
         # recuentos. Mezclado con los abiertos, el mismo problema salía dos
         # veces y el total se inflaba.
-        fixed_findings = [finding for finding in findings if finding.get("state") == "fixed"]
+        # Un «corregido» que sale de una mejora del motor (la distribución ya
+        # lo había parcheado, o su sitio es un alias) no es trabajo del
+        # cliente: va aparte y no cuenta como corregido.
+        fixed_findings = [finding for finding in findings
+                          if finding.get("state") == "fixed" and not finding.get("fixed_reason")]
+        dropped_findings = [finding for finding in findings
+                            if finding.get("state") == "fixed" and finding.get("fixed_reason")]
         findings = [finding for finding in findings if finding.get("state") != "fixed"]
         for finding in findings:
             finding["priority"] = score_finding(finding, exposure)
             finding["is_unverified_distro_package"] = is_unverified_distro_package(finding)
         enrich_with_cve_context(findings)
+        if self._SHOWS_COMPLIANCE:
+            self._frameworks = _effective_frameworks(self.scan.user_id)
+            keys = [framework.key for framework in self._frameworks]
+            for finding in findings:
+                finding["compliance"] = map_finding_compliance(finding["category"], finding["check_id"], keys)
 
         self._append_finding_header(theme, elements, findings, exposure, len(fixed_findings))
         _append_sites_section(theme, elements, sites)
@@ -145,7 +168,11 @@ class FindingsPrintingStrategy(PrintingStrategy):
         self._append_cpe_coverage_note(theme, elements, findings)
 
         self._append_findings_section(theme, elements, findings)
+        if self._SHOWS_COMPLIANCE:
+            _append_compliance_section(theme, elements, findings, self._frameworks,
+                                       self.color_palette, self._outline_key("compliance"))
         _append_fixed_section(theme, elements, fixed_findings, self._outline_key("fixed"))
+        _append_dropped_section(theme, elements, dropped_findings, self._outline_key("dropped"))
 
         if ai_report:
             # La misma lista que imprime las fichas: ya priorizada por
@@ -218,8 +245,11 @@ class FindingsPrintingStrategy(PrintingStrategy):
             ["Fecha de inicio:", started_str],
             ["Total de hallazgos:", str(len(findings))],
             ["Confirmados activamente:", str(confirmed_count)],
-            ["Base de conocimiento:", self._knowledge_base_line()],
+            ["Base de conocimiento:", _knowledge_base_line(scan)],
         ]
+        failing_sources = _failing_sources_line()
+        if failing_sources:
+            scan_info.append(["Fuentes que fallan hoy:", failing_sources])
         if getattr(scan, "is_partial", False):
             # Un escaneo parcial no puede leerse como uno limpio: lo que no se
             # llegó a comprobar no está ausente, es desconocido.
@@ -235,34 +265,6 @@ class FindingsPrintingStrategy(PrintingStrategy):
         info_table = theme.kv_table(scan_info, col_widths=[2 * inch, 4 * inch])
         elements.append(info_table)
         elements.append(Spacer(1, 0.3 * inch))
-
-    @staticmethod
-    def _knowledge_base_line() -> str:
-        """Contra qué catálogo se resolvieron estos hallazgos, y de cuándo es.
-
-        Un informe que dice "sincronizada el 29/08/2026" es honesto; uno que
-        calla hace una afirmación sin fecha, y la detección por versión —que es
-        la que produce la mayoría de los hallazgos con CVE— vale exactamente lo
-        que valga la frescura de ese espejo.
-
-        Si alguna fuente está vieja, el informe lo dice: es preferible a que el
-        lector suponga que el catálogo estaba al día. Best-effort — un fallo
-        consultando el estado no puede impedir que se emita el informe.
-        """
-        from src.modules.features.themis.managers.kb_sync import KbSyncManager
-
-        try:
-            status = KbSyncManager().status()
-        except Exception:  # noqa: BLE001
-            logger.exception("No se pudo leer el estado de la base de conocimiento")
-            return "No disponible"
-
-        parts = []
-        for entry in status["sources"]:
-            when = (entry["lastSuccessAt"] or "")[:10] or "nunca"
-            parts.append(f"{entry['source'].upper()} {when}"
-                         + (" (desactualizada)" if entry["isStale"] else ""))
-        return " · ".join(parts) if parts else "Sin fuentes configuradas"
 
     #: Cómo se lee cada nivel de ``Finding.exploit_maturity`` en el informe.
     #: ``none`` no aparece: decir "no consta exploit" en cada ficha sería ruido
@@ -668,6 +670,7 @@ class FindingsPrintingStrategy(PrintingStrategy):
             details.append(["Estado:", self._STATE_LABEL.get(finding["state"], finding["state"])])
         if finding.get("source") and finding["source"] != self._OWN_SOURCE:
             details.append(["Corroborado por:", finding["source"]])
+        details.extend(_compliance_rows(theme, finding.get("compliance"), self._frameworks))
 
         if details:
             detail_table = Table(details, colWidths=[1.7 * inch, 4.3 * inch])
@@ -683,6 +686,7 @@ class FindingsPrintingStrategy(PrintingStrategy):
                 ("LEFTPADDING", (0, 0), (-1, -1), 8),
                 ("RIGHTPADDING", (0, 0), (-1, -1), 8),
                 ("GRID", (0, 0), (-1, -1), 0.4, border),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ]))
             elements.append(detail_table)
 
@@ -780,6 +784,136 @@ def _append_fixed_section(theme: "ReportTheme", elements: list, fixed_findings: 
     elements.append(Spacer(1, 0.3 * inch))
 
 
+#: Cómo se llama cada fuente de la base de conocimiento en el informe.
+_KB_SOURCE_LABEL = {"nvd": "NVD", "kev": "KEV", "epss": "EPSS", "oval": "OVAL"}
+
+
+def _knowledge_base_line(scan) -> str:
+    """Contra qué fecha de cada fuente de la base de conocimiento se resolvió el escaneo.
+
+    Sale de la marca que el escaneo guardó al empezar (``LybraScan.kb_version``),
+    no del estado actual de la base de conocimiento: un informe regenerado días
+    después no puede afirmar que usó datos que todavía no existían, ni callar
+    los que sí usó. La detección por versión —la que produce la mayoría de los
+    hallazgos con CVE— vale exactamente lo que valga la frescura de ese espejo,
+    así que una fuente que ya pasaba de su antigüedad máxima cuando se escaneó
+    se marca como desactualizada.
+
+    Args:
+        scan: El escaneo del informe. Se lee su ``kb_version`` (ausente en
+            escáneres que no son Lybra) y su ``started_at``.
+
+    Returns:
+        str: ``"NVD 2026-09-24 · KEV 2026-09-22 · EPSS 2026-09-23 · OVAL
+            2026-09-24"``, con ``sin datos`` en una fuente vacía y
+            ``(desactualizada)`` en una que ya estaba vieja; o una frase que
+            dice que no consta, si el escaneo es anterior a que se guardara la
+            marca.
+    """
+    dates = parse_kb_feed_version(getattr(scan, "kb_version", None))
+    if dates is None:
+        return "No consta: el escaneo es anterior a que se registrara"
+    max_age = CR.knowledge_base_config().max_age_days
+    started = getattr(scan, "started_at", None)
+    parts = []
+    for source in KB_MARK_SOURCES:
+        if source not in dates:
+            continue
+        label = _KB_SOURCE_LABEL.get(source, source.upper())
+        day = dates[source]
+        if day is None:
+            parts.append(f"{label} sin datos")
+            continue
+        is_stale = (started is not None and max_age.get(source) is not None
+                    and (started.date() - date.fromisoformat(day)).days > max_age[source])
+        parts.append(f"{label} {day}" + (" (desactualizada)" if is_stale else ""))
+    return " · ".join(parts)
+
+
+def _failing_sources_line() -> Optional[str]:
+    """Qué fuentes de la base de conocimiento fallan al sincronizarse, y por qué.
+
+    Es el estado **de hoy**, no el del escaneo, y por eso va en una fila aparte
+    de «Base de conocimiento»: sirve para que quien lee el informe sepa que una
+    fuente lleva tiempo sin actualizarse y el motivo, que de otro modo sólo
+    queda en el registro del servidor. OVAL aparece por distribución, que es
+    como se sincroniza y como falla. Best-effort: un fallo leyendo el estado no
+    puede impedir que se emita el informe.
+
+    Returns:
+        Optional[str]: ``"oval:ubuntu:22.04 (sin éxito desde 2026-09-20):
+            <motivo>"``, una entrada por fuente separadas por ``;``; o ``None``
+            si ninguna falla o no se pudo consultar.
+    """
+    from src.modules.features.themis.managers.kb_sync import KbSyncManager
+
+    try:
+        status = KbSyncManager().status()
+    except Exception:  # noqa: BLE001
+        logger.exception("No se pudo leer el estado de la base de conocimiento")
+        return None
+    parts = []
+    for entry in status["sources"]:
+        if not entry["error"]:
+            continue
+        since = (entry["lastSuccessAt"] or "")[:10]
+        when = f"sin éxito desde {since}" if since else "no ha terminado bien nunca"
+        reason = entry["error"] if len(entry["error"]) <= 120 else entry["error"][:117] + "..."
+        parts.append(f"{entry['source']} ({when}): {reason}")
+    return "; ".join(parts) or None
+
+
+#: Cómo se explica en el informe cada motivo de ``Finding.fixed_reason``.
+_DROPPED_REASON_LABEL = {
+    "backport": ("Descartados: la distribución ya los había corregido en el paquete "
+                 "instalado, aunque su número de versión no lo refleje"),
+    "alias": ("El sitio resultó ser un alias del sitio por defecto de la IP: sus avisos "
+              "salen ahora con el sitio por defecto"),
+}
+
+
+def _append_dropped_section(theme: "ReportTheme", elements: list, dropped_findings: list,
+                            outline_key: str) -> None:
+    """La sección «Ya no se reportan (mejoras del motor)», si hay alguno.
+
+    Son hallazgos que el escaneo anterior mostraba y éste ya no, pero no porque
+    el cliente los haya arreglado: el motor ha aprendido a no reportarlos. Se
+    agrupan por motivo, con una frase que lo explica, para que nadie los lea
+    como una remediación.
+
+    Args:
+        theme: El tema del informe.
+        elements: La lista de elementos del documento; se amplía en sitio.
+        dropped_findings: Los hallazgos ``fixed`` con ``fixed_reason``; vacía,
+            no se añade nada.
+        outline_key: La clave del marcador de la sección en el índice del PDF.
+    """
+    if not dropped_findings:
+        return
+    title = "Ya no se reportan (mejoras del motor)"
+    elements.append(CondPageBreak(1.5 * inch))
+    elements.append(OutlineEntry(title, key=outline_key, level=0))
+    elements.append(Paragraph(title, theme.subtitle))
+    elements.append(Spacer(1, 0.1 * inch))
+    elements.append(Paragraph(
+        "El escaneo anterior los mostraba y éste ya no, pero no porque se hayan corregido: "
+        "el motor ha dejado de reportarlos. No cuentan en el total ni como corregidos.",
+        theme.body))
+    by_reason: dict = {}
+    for finding in dropped_findings:
+        by_reason.setdefault(finding["fixed_reason"], []).append(finding)
+    for reason, group in by_reason.items():
+        label = _DROPPED_REASON_LABEL.get(reason, reason)
+        elements.append(Paragraph(f"<b>{safe_markup(label)}</b>", theme.body))
+        for finding in group:
+            where = f"{finding.get('service') or 'servicio'}:{finding['port']}" if finding.get("port") else ""
+            if finding.get("vhost"):
+                where += f", sitio {finding['vhost']}"
+            suffix = f" ({safe_markup(where)})" if where else ""
+            elements.append(Paragraph(f"• {safe_markup(finding['title'])}{suffix}", theme.body))
+    elements.append(Spacer(1, 0.3 * inch))
+
+
 def _unverified_warning(findings: list) -> Optional[str]:
     """El aviso de portada sobre los hallazgos que el proveedor no ha contrastado.
 
@@ -846,3 +980,187 @@ def _is_oval_stale() -> bool:
     except Exception:  # noqa: BLE001 - el informe no puede caerse por esto
         logger.exception("No se pudo leer el estado de la base de conocimiento")
         return False
+
+
+def _effective_frameworks(user_id: int) -> tuple:
+    """Los marcos de cumplimiento que se aplican al dueño de un escaneo.
+
+    Args:
+        user_id: Dueño del escaneo.
+
+    Returns:
+        tuple[ComplianceFramework, ...]: En el orden del catálogo; vacía si ni
+            el dueño ni su organización han elegido ninguno.
+    """
+    # Diferido: `managers` importa `services`, así que a nivel de módulo
+    # sería un ciclo.
+    from src.modules.features.themis.managers import ComplianceManager
+    keys = set(ComplianceManager().resolve_effective_frameworks(user_id))
+    return tuple(framework for framework in load_compliance_catalog().frameworks.values()
+                 if framework.key in keys)
+
+
+def _compliance_rows(theme: "ReportTheme", compliance, frameworks: tuple) -> list:
+    """Las filas de la ficha de un hallazgo con sus técnicas y sus controles.
+
+    El valor va como párrafo para que un título de control largo parta línea
+    en vez de salirse de la celda.
+
+    Args:
+        theme: El tema del informe.
+        compliance: El ``FindingCompliance`` del hallazgo, o ``None`` si el
+            informe no traduce a cumplimiento.
+        frameworks: Los ``ComplianceFramework`` del dueño, en el orden en que
+            salen las filas.
+
+    Returns:
+        list[list]: Pares ``[rótulo, valor]``: uno de MITRE ATT&CK si el
+            hallazgo tiene técnicas y uno por cada marco con controles
+            afectados. Vacía si no hay nada que enseñar.
+    """
+    if compliance is None:
+        return []
+    value_style = ParagraphStyle("ComplianceValue", parent=theme.body, fontSize=8.5, leading=10.5,
+                                 alignment=TA_LEFT)
+    rows = []
+    if compliance.techniques:
+        rows.append(["MITRE ATT&CK:", Paragraph("<br/>".join(
+            f"{technique.identifier} {safe_markup(technique.name)} "
+            f"({safe_markup(', '.join(technique.tactics))})"
+            for technique in compliance.techniques), value_style)])
+    for framework in frameworks:
+        controls = [control for control in compliance.controls if control.framework == framework.key]
+        if controls:
+            rows.append([f"{framework.short_name}:", Paragraph("<br/>".join(
+                f"{safe_markup(control.identifier)} {safe_markup(control.title)}"
+                for control in controls), value_style)])
+    return rows
+
+
+def _append_compliance_section(theme: "ReportTheme", elements: list, findings: list, frameworks: tuple,
+                               palette: dict, outline_key: str) -> None:
+    """La sección «Cumplimiento y técnicas de ataque».
+
+    Agrega las fichas: por cada técnica de ATT&CK y por cada control afectado,
+    cuántos hallazgos lo tocan y la prioridad más alta entre ellos. Los
+    controles se agrupan bajo su control padre (``op.exp`` sobre ``op.exp.4``),
+    que es como los lee quien prepara una auditoría. Los hallazgos que el
+    usuario desmintió no cuentan, igual que en el resumen por prioridad.
+
+    Args:
+        theme: El tema del informe.
+        elements: La lista de elementos del documento; se amplía en sitio.
+        findings: Los hallazgos abiertos, ya con su clave ``compliance``.
+        frameworks: Los ``ComplianceFramework`` del dueño; vacía, la sección
+            sólo enseña ATT&CK y explica dónde elegirlos.
+        palette: La paleta de colores del informe.
+        outline_key: La clave del marcador de la sección en el índice del PDF.
+    """
+    live = [finding for finding in findings
+            if finding.get("state") != "false_positive" and finding.get("compliance")
+            and (finding["compliance"].techniques or finding["compliance"].controls)]
+    if not live:
+        return
+    title = "Cumplimiento y técnicas de ataque"
+    elements.append(CondPageBreak(2 * inch))
+    elements.append(OutlineEntry(title, key=outline_key, level=0))
+    elements.append(Paragraph(title, theme.subtitle))
+    elements.append(Spacer(1, 0.1 * inch))
+    cell = ParagraphStyle("ComplianceCell", parent=theme.body, fontSize=8, leading=10)
+
+    techniques: Dict[str, tuple] = {}
+    for finding in live:
+        for technique in finding["compliance"].techniques:
+            techniques.setdefault(technique.identifier, (technique, []))[1].append(finding)
+    if techniques:
+        elements.append(Paragraph("<b>MITRE ATT&amp;CK</b>", theme.body))
+        rows = [[technique.identifier, Paragraph(safe_markup(technique.name), cell),
+                 Paragraph(safe_markup(", ".join(technique.tactics)), cell), *_tally(related)]
+                for _, (technique, related) in sorted(techniques.items())]
+        elements.append(_compliance_table(palette, ["Técnica", "Nombre", "Táctica"], [0.8, 2.4, 1.1], rows, []))
+        elements.append(Spacer(1, 0.2 * inch))
+
+    if not frameworks:
+        elements.append(Paragraph(
+            "No hay marcos de cumplimiento elegidos. Si eliges ISO 27001, ENS o NIS2 en tu "
+            "perfil, este informe dirá qué controles de cada uno afecta cada hallazgo.", theme.info))
+        elements.append(Spacer(1, 0.3 * inch))
+        return
+
+    catalog = load_compliance_catalog()
+    for framework in frameworks:
+        affected: Dict[str, list] = {}
+        for finding in live:
+            for control in finding["compliance"].controls:
+                if control.framework == framework.key:
+                    affected.setdefault(control.code, []).append(finding)
+        if not affected:
+            continue
+        rows, group_rows, current_parent = [], [], None
+        # El orden del catálogo es el del propio marco: los hermanos salen juntos.
+        for code in (code for code in catalog.controls if code in affected):
+            control = catalog.controls[code]
+            parent = catalog.controls.get(control.parent) if control.parent else None
+            if parent is not None and parent.code != current_parent:
+                current_parent = parent.code
+                group_rows.append(len(rows) + 1)
+                rows.append([Paragraph(f"<b>{safe_markup(parent.identifier)} "
+                                       f"{safe_markup(parent.title)}</b>", cell), "", "", ""])
+            rows.append([control.identifier, Paragraph(safe_markup(control.title), cell),
+                         *_tally(affected[code])])
+        elements.append(Paragraph(f"<b>{safe_markup(framework.name)}</b>", theme.body))
+        elements.append(_compliance_table(palette, ["Control", "Título"], [0.8, 3.5], rows, group_rows))
+        elements.append(Spacer(1, 0.2 * inch))
+    elements.append(Spacer(1, 0.1 * inch))
+
+
+def _tally(related: list) -> list:
+    """Las dos últimas celdas de una fila de cumplimiento.
+
+    Args:
+        related: Los hallazgos que tocan la técnica o el control.
+
+    Returns:
+        list[str]: El número de hallazgos y el rótulo de su prioridad más alta.
+    """
+    order = FindingsPrintingStrategy._PRIORITY_ORDER  # pylint: disable=protected-access
+    top = min((finding["priority"] for finding in related), key=lambda priority: order.get(priority, len(order)))
+    return [str(len(related)), FindingsPrintingStrategy._PRIORITY_LABEL.get(top, top)]  # pylint: disable=protected-access
+
+
+def _compliance_table(palette: dict, headers: list, widths: list, rows: list, group_rows: list) -> Table:
+    """Una tabla de la sección de cumplimiento.
+
+    Args:
+        palette: La paleta de colores del informe.
+        headers: Rótulos de las columnas descriptivas; se les añaden
+            «Hallazgos» y «Prioridad máx.».
+        widths: Anchos en pulgadas de las columnas descriptivas; las dos de
+            recuento ocupan 1.7 pulgadas más.
+        rows: Las filas, ya con sus celdas.
+        group_rows: Índices (contando la cabecera como 0) de las filas que son
+            un control padre: ocupan todo el ancho y van sombreadas.
+
+    Returns:
+        Table: La tabla lista para añadir al documento.
+    """
+    dark = colors.HexColor(palette[ColorType.DARK])
+    light = colors.HexColor(palette[ColorType.LIGHT])
+    table = Table([headers + ["Hallazgos", "Prioridad máx."], *rows],
+                  colWidths=[width * inch for width in widths] + [0.75 * inch, 0.95 * inch],
+                  repeatRows=1)
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(palette[ColorType.SECONDARY])),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+        ("FONTSIZE", (0, 0), (-1, -1), 8),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("ALIGN", (-2, 1), (-1, -1), "CENTER"),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("GRID", (0, 0), (-1, -1), 0.4, dark),
+        *[style for row in group_rows for style in (
+            ("SPAN", (0, row), (-1, row)), ("BACKGROUND", (0, row), (-1, row), light))],
+    ]))
+    return table

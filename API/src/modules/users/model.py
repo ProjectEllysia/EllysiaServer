@@ -205,6 +205,14 @@ class User(Base):
     # se dirige a quien todavía no tiene una credencial TOTP confirmada.
     last_mfa_reminder_at = Column(DateTime, nullable=True)
 
+    # Idioma que el usuario eligió para la interfaz y, más adelante, para los
+    # correos. NULL no es «castellano»: es «no he elegido», y entonces manda
+    # el de su organización o el de la plataforma (ver
+    # ``users.services.language.resolve_effective_language``). Por eso nadie lo
+    # rellena por su cuenta: un valor puesto de oficio haría que un cambio del
+    # idioma de la organización ya no le llegara.
+    language = Column(String(8), nullable=True)
+
     scans          = relationship("Scan",         back_populates="user", cascade="all, delete-orphan")
     tokens         = relationship("AccessToken",  back_populates="user", cascade="all, delete-orphan")
     refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")

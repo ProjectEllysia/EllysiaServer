@@ -108,6 +108,7 @@ import StatusBadge from './StatusBadge.vue'
 import TracerouteGraph from './TracerouteGraph.vue'
 import NucleiFindings from './NucleiFindings.vue'
 import { SCAN_TYPES } from '@/constants/scanTypes'
+import { formatDate, formatDateTime } from '@/i18n/format'
 
 const props = defineProps({
   show: Boolean,
@@ -122,8 +123,8 @@ defineEmits(['close', 'refresh-docs', 'download-doc', 'delete-doc', 'generate-pd
 
 const useAi = ref(false)
 const typeLabel = computed(() => SCAN_TYPES[props.type]?.previewLabel || '')
-function fmt(iso) { if (!iso || iso === 'null') return 'N/A'; return new Date(iso).toLocaleString() }
-function fmtDate(iso) { if (!iso) return ''; return new Date(iso).toLocaleDateString() }
+function fmt(iso) { if (!iso || iso === 'null') return 'N/A'; return formatDateTime(iso) }
+function fmtDate(iso) { if (!iso) return ''; return formatDate(iso) }
 </script>
 
 <style scoped>

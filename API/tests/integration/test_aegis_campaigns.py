@@ -892,3 +892,63 @@ def test_public_quiz_without_white_label_reports_nothing_to_replace(
     assert quiz["whiteLabel"] == {
         "level": "none", "brandName": "", "brandLogo": "", "brandColor": "",
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Idioma del correo de campaña
+# ─────────────────────────────────────────────────────────────────────────
+
+@pytest.fixture
+def english_campaign_template(tmp_path, monkeypatch, local_email_config):
+    """Añade a la config de herald un ``templatesDir`` con la campaña en inglés."""
+    import dataclasses
+
+    import src.modules.system.config_reading as CR
+
+    english = tmp_path / "en"
+    english.mkdir()
+    (english / "campaign.subject.j2").write_text("Awareness training: {{ pill_title }}", encoding="utf-8")
+    (english / "campaign.html.j2").write_text(
+        '{% extends "base.html.j2" %}{% block content %}<p>English pill: {{ link }}</p>{% endblock %}',
+        encoding="utf-8",
+    )
+    configured = CR.herald_config()
+    monkeypatch.setattr(CR, "herald_config", lambda: dataclasses.replace(configured, templates_dir=str(tmp_path)))
+    return local_email_config
+
+
+def _set_pill_language(app, doc_id: int, language: str | None) -> None:
+    """Fija el idioma en que se generó una píldora de prueba."""
+    from src.modules.features.aegis.model import AegisDocument
+    from src.modules.infrastructure.unit_of_work import UnitOfWork
+
+    with app.app_context():
+        with UnitOfWork() as uow:
+            uow.session.get(AegisDocument, doc_id).language = language
+
+
+def test_campaign_email_follows_the_pill_language(
+    app, client, admin_user, admin_headers, make_aegis_doc_with_quiz, english_campaign_template,
+):
+    """Los destinatarios no tienen perfil: el correo sale en el idioma de la píldora."""
+    doc_id = make_aegis_doc_with_quiz(admin_user.id)
+    _set_pill_language(app, doc_id, "en")
+    _save_org_profile(client, admin_headers, language="es")
+
+    _run_campaign(client, app, admin_headers, admin_user.id, doc_id)
+
+    sent = english_campaign_template.messages[0]
+    assert "English pill:" in sent["html"]
+    assert "Subject: Awareness training: Phishing 101" in sent["content"]
+
+
+def test_campaign_email_of_a_pill_without_language_follows_the_aegis_profile(
+    app, client, admin_user, admin_headers, make_aegis_doc_with_quiz, english_campaign_template,
+):
+    """Una píldora que no guarda su idioma se generó con el del perfil de Aegis."""
+    doc_id = make_aegis_doc_with_quiz(admin_user.id)
+    _save_org_profile(client, admin_headers, language="en")
+
+    _run_campaign(client, app, admin_headers, admin_user.id, doc_id)
+
+    assert "English pill:" in english_campaign_template.messages[0]["html"]

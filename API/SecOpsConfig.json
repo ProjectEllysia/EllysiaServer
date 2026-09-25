@@ -1,5 +1,5 @@
 {
-  "appVersion": "0.5.28",
+  "appVersion": "0.5.29",
   "general": {
     "directories": {
       "logdir": "..",
@@ -42,6 +42,9 @@
       "verificationTtlHours": 48,
       "invitationTtlHours": 168,
       "passwordResetTtlMinutes": 30
+    },
+    "localization": {
+      "defaultLanguage": "es"
     }
   },
   "infrastructure": {
@@ -101,7 +104,7 @@
         "accentColor": "#d4a04a",
         "logoUrl": "",
         "supportEmail": "",
-        "footerNote": "Recibes este correo porque tu organización te ha incluido en su plan de concienciación en seguridad."
+        "footerNote": ""
       },
       "templatesDir": "",
       "modules": {

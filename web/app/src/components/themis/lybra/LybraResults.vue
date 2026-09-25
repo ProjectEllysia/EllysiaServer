@@ -163,14 +163,34 @@
 
                 <Transition name="findings-panel">
                 <div v-if="findingsOpen.has(scan.id)" class="findings-panel">
-                  <div v-if="groupsLoading(scan.id)" class="groups-loading">Cargando hallazgos…</div>
+                  <!-- Silueta solo si no hay nada que enseñar: al recargar tras
+                       desmentir o aceptar un hallazgo, la lista anterior sigue
+                       visible hasta que llega la nueva en vez de parpadear. -->
+                  <LybraFindingsSkeleton v-if="groupsLoading(scan.id) && !groupsFor(scan.id).length" />
                   <div v-else-if="groupsError(scan.id)" class="groups-error">{{ groupsError(scan.id) }}</div>
 
                   <template v-else>
+                    <LybraFindingsToolbar :scan-id="scan.id" :model-value="criteriaFor(scan.id)"
+                      :priority-counts="arrangement(scan.id).priorityCounts" :state-counts="arrangement(scan.id).stateCounts"
+                      :visible-total="arrangement(scan.id).visibleTotal" :total="arrangement(scan.id).total"
+                      @update:model-value="criteria => setCriteria(scan.id, criteria)" @reset="resetCriteria(scan.id)" />
+
+                    <!-- Reordenar una lista enorme puede tardar lo bastante como para
+                         notarse; entonces se pinta primero esta silueta y el orden se
+                         calcula en el fotograma siguiente (ver `applyCriteria`). -->
+                    <LybraFindingsSkeleton v-if="isArranging(scan.id)" label="Reordenando hallazgos" />
+                    <template v-else>
+                    <!-- Los filtros pueden dejar la lista vacía; decirlo evita que
+                         se lea como «este escaneo no tiene hallazgos». -->
+                    <div v-if="!arrangement(scan.id).visibleTotal && arrangement(scan.id).total" class="filtered-empty">
+                      Ningún hallazgo cumple estos filtros.
+                      <button type="button" class="f-act" @click="resetCriteria(scan.id)">Quitar filtros</button>
+                    </div>
+
                     <!-- Dos secciones porque son dos clases de trabajo: subir un producto
                          de versión, y arreglar una configuración. Mezclarlas hacía que un
                          "falta la cabecera HSTS" pareciera un producto más del inventario. -->
-                    <template v-for="section in sections(scan.id)" :key="section.key">
+                    <template v-for="section in arrangement(scan.id).sections" :key="section.key">
                     <section v-if="section.groups.length" class="ledger-section">
                       <header class="inscription">
                         <span class="inscription-mark" aria-hidden="true"></span>
@@ -189,8 +209,11 @@
                       </div>
 
                       <!-- Los grupos son filas de un mismo registro, no cajas sueltas: un
-                           solo marco, separadores finos y un filo del color de su gravedad. -->
-                      <div class="ledger">
+                           solo marco, separadores finos y un filo del color de su gravedad.
+                           Es un TransitionGroup para que, al cambiar el orden, cada grupo
+                           se deslice hasta su nuevo sitio (clase -move) en vez de saltar,
+                           y se vea adónde ha ido a parar. -->
+                      <TransitionGroup tag="div" name="group-item" class="ledger">
                       <div v-for="group in section.groups" :key="section.key + groupKey(scan.id, group)" class="group"
                         :class="{ open: isGroupOpen(scan.id, group) }" :data-sev="(group.priority || 'INFO').toLowerCase()">
                         <!-- La cabecera es el interruptor del grupo, y sigue visible al
@@ -206,7 +229,9 @@
                           <span class="f-prio" :class="(group.priority || 'INFO').toLowerCase()">{{ PRIO_LABEL[group.priority] || group.priority }}</span>
                           <span class="group-label">{{ group.label }}</span>
                           <span v-if="group.port" class="f-tag mono">{{ group.service || 'svc' }}:{{ group.port }}</span>
-                          <span class="group-count">{{ group.totalFindings }} {{ group.totalFindings === 1 ? 'hallazgo' : 'hallazgos' }}</span>
+                          <span class="group-count">
+                            <template v-if="group.totalFindings < group.allFindings">{{ group.totalFindings }} de </template>{{ group.allFindings }} {{ group.allFindings === 1 ? 'hallazgo' : 'hallazgos' }}
+                          </span>
                         </button>
 
                         <div class="group-meta">
@@ -280,8 +305,9 @@
                         </div>
                         </Transition>
                       </div>
-                      </div>
+                      </TransitionGroup>
                     </section>
+                    </template>
                     </template>
                   </template>
                 </div>
@@ -404,10 +430,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, effectScope, nextTick, onBeforeUnmount } from 'vue'
 import StatusBadge from '@/components/themis/StatusBadge.vue'
 import AppPagination from '@/components/shared/AppPagination.vue'
+import LybraFindingsToolbar from './LybraFindingsToolbar.vue'
+import LybraFindingsSkeleton from './LybraFindingsSkeleton.vue'
 import { SITE_HINT, hasSeveralSites, siteLabel } from './findingSites'
+import { LADDER, arrangeGroups, defaultCriteria } from './findingsArrangement'
+import { formatDateTime } from '@/i18n/format'
 
 const props = defineProps({
   scans: { type: Array, default: () => [] },
@@ -429,7 +459,6 @@ const selectedSet = computed(() => new Set(props.selectedIds))
 const allSelected = computed(() => props.scans.length > 0 && props.scans.every(s => selectedSet.value.has(s.id)))
 const someSelected = computed(() => props.scans.some(s => selectedSet.value.has(s.id)) && !allSelected.value)
 
-const LADDER = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO']
 const PRIO_LABEL = { CRITICAL: 'Crítica', HIGH: 'Alta', MEDIUM: 'Media', LOW: 'Baja', INFO: 'Info' }
 const STATE_LABEL = { fixed: 'Corregido', regressed: 'Regresado', accepted: 'Aceptado', false_positive: 'Falso positivo' }
 
@@ -568,43 +597,206 @@ function groupsError(scanId) { return props.groupsByScan[scanId]?.error || null 
 function groupKey(scanId, group) { return `${scanId}|${group.port ?? '-'}|${group.service ?? '-'}|${group.label}` }
 
 /**
- * Las dos secciones en que se parten los grupos.
+ * Criterios de orden y filtro de cada escaneo, por id: lo que la barra
+ * muestra, que es lo último que el usuario ha pedido.
  *
- * Son dos clases de trabajo distintas: subir un producto de versión, y arreglar
- * una configuración. Mezclarlas hacía que "falta la cabecera HSTS" pareciera un
- * producto más del inventario, y que un producto con veinte CVEs pareciera
- * veinte problemas.
+ * Son por escaneo y no globales porque la lista puede tener varias tarjetas
+ * abiertas a la vez, y filtrar una no debe reordenar la de al lado. Se crean
+ * al abrir el capítulo de hallazgos, nunca durante el pintado.
  */
-function sections(scanId) {
-  const groups = groupsFor(scanId)
-  return [
-    withBalance({ key: 'prod', title: 'Productos afectados', groups: groups.filter(g => g.isProduct) }),
-    withBalance({ key: 'conf', title: 'Configuración y exposición', groups: groups.filter(g => !g.isProduct) }),
-  ]
+const criteriaByScan = reactive({})
+
+/**
+ * Criterios con los que está calculada la lista de cada escaneo.
+ *
+ * Van aparte de `criteriaByScan` porque no siempre se aplican en el acto: la
+ * búsqueda espera a que se deje de teclear, y en una lista lenta de ordenar se
+ * pinta antes la silueta (ver `applyCriteria`). Mientras tanto la barra ya
+ * refleja lo pedido y la lista sigue siendo la anterior, entera y usable.
+ */
+const appliedCriteriaByScan = reactive({})
+
+/** Escaneos cuya lista se está recalculando tras mostrar la silueta. */
+const arrangingScans = ref(new Set())
+
+/** Pausa tras la última pulsación en la búsqueda antes de filtrar, en ms. */
+const SEARCH_DEBOUNCE_MS = 150
+
+/**
+ * A partir de cuántos ms un recálculo se nota, y merece la silueta en vez de
+ * congelar la pantalla sin explicación. Unos 100 ms es el umbral a partir del
+ * cual una respuesta deja de percibirse como inmediata.
+ */
+const SLOW_ARRANGE_MS = 100
+
+/**
+ * Hallazgos a partir de los cuales se da por lento un escaneo que aún no se
+ * ha podido medir: la primera vez no hay tiempo previo con el que decidir.
+ */
+const LARGE_FINDINGS_LIST = 5000
+
+/** Lo que tardó el último recálculo de cada escaneo (cálculo y pintado), en ms. */
+const lastArrangeMs = new Map()
+
+/** Temporizadores de la espera de la búsqueda, por escaneo. */
+const searchTimers = new Map()
+onBeforeUnmount(() => searchTimers.forEach(timer => clearTimeout(timer)))
+
+/** Criterios por defecto compartidos para lo que aún no tiene los suyos; no se muta. */
+const DEFAULT_CRITERIA = Object.freeze(defaultCriteria())
+
+/**
+ * Criterios de un escaneo.
+ *
+ * @param {number} scanId - Escaneo.
+ * @returns {object} Sus criterios, o los de por defecto si aún no tiene.
+ */
+function criteriaFor(scanId) { return criteriaByScan[scanId] || DEFAULT_CRITERIA }
+
+/**
+ * Criterios con los que está calculada la lista de un escaneo.
+ *
+ * @param {number} scanId - Escaneo.
+ * @returns {object} Los aplicados, o los de por defecto si aún no hay.
+ */
+function appliedCriteriaFor(scanId) { return appliedCriteriaByScan[scanId] || DEFAULT_CRITERIA }
+
+/**
+ * Indica si la lista de un escaneo espera a recalcularse tras la silueta.
+ *
+ * @param {number} scanId - Escaneo.
+ * @returns {boolean} `true` mientras se muestra la silueta de reordenación.
+ */
+function isArranging(scanId) { return arrangingScans.value.has(scanId) }
+
+/**
+ * Marca o desmarca un escaneo como en reordenación.
+ *
+ * @param {number} scanId - Escaneo.
+ * @param {boolean} arranging - `true` para mostrar su silueta, `false` para quitarla.
+ */
+function setArranging(scanId, arranging) {
+  if (arranging === arrangingScans.value.has(scanId)) return
+  const next = new Set(arrangingScans.value)
+  if (arranging) next.add(scanId)
+  else next.delete(scanId)
+  arrangingScans.value = next
 }
 
 /**
- * Añade a una sección su balanza: cuántos hallazgos tiene de cada gravedad.
+ * Sustituye los criterios de un escaneo y programa su aplicación.
  *
- * Se cuenta hallazgo a hallazgo y no por la gravedad del grupo, que es la
- * máxima de los suyos: un producto con un CVE crítico y nueve bajos pesa un
- * crítico y nueve bajos, no diez críticos.
+ * Un cambio en la búsqueda espera `SEARCH_DEBOUNCE_MS` desde la última
+ * pulsación, para no recalcular la lista por cada letra; cualquier otro
+ * cambio se aplica en el acto.
  *
- * @param {{key: string, title: string, groups: Array}} section - Sección sin balanza.
- * @returns {{key: string, title: string, groups: Array, balance: Array<{level: string, count: number}>, total: number}}
- *          La misma sección con `balance` (sólo los niveles presentes, en el
- *          orden de `LADDER`) y `total`, la suma de todos ellos.
+ * @param {number} scanId - Escaneo.
+ * @param {object} criteria - Criterios nuevos, con la forma de `defaultCriteria()`.
  */
-function withBalance(section) {
-  const counts = {}
-  for (const group of section.groups) {
-    for (const finding of group.findings) {
-      const level = finding.priority || 'INFO'
-      counts[level] = (counts[level] || 0) + 1
-    }
+function setCriteria(scanId, criteria) {
+  const previousText = criteriaFor(scanId).text
+  criteriaByScan[scanId] = criteria
+  clearTimeout(searchTimers.get(scanId))
+  searchTimers.delete(scanId)
+  if (criteria.text !== previousText) {
+    searchTimers.set(scanId, setTimeout(() => applyCriteria(scanId), SEARCH_DEBOUNCE_MS))
+    return
   }
-  const balance = LADDER.filter(level => counts[level]).map(level => ({ level, count: counts[level] }))
-  return { ...section, balance, total: balance.reduce((sum, seg) => sum + seg.count, 0) }
+  applyCriteria(scanId)
+}
+
+/**
+ * Espera a que el navegador haya pintado el fotograma en curso.
+ *
+ * `requestAnimationFrame` corre justo antes de pintar, y el `setTimeout` de
+ * dentro sale ya después. El temporizador de reserva existe porque en una
+ * pestaña en segundo plano `requestAnimationFrame` no llega a dispararse, y
+ * ahí no hay nada pintado por lo que merezca la pena esperar.
+ *
+ * @returns {Promise<void>} Se resuelve tras el pintado, o a los 100 ms como mucho.
+ */
+function afterNextPaint() {
+  return new Promise(resolve => {
+    requestAnimationFrame(() => setTimeout(resolve, 0))
+    setTimeout(resolve, 100)
+  })
+}
+
+/**
+ * Aplica a la lista de un escaneo los últimos criterios pedidos.
+ *
+ * Si el escaneo tardó más de `SLOW_ARRANGE_MS` la vez anterior (o, sin medida
+ * previa, si tiene más de `LARGE_FINDINGS_LIST` hallazgos), primero se pinta la
+ * silueta y el cálculo se hace en el fotograma siguiente: el recálculo bloquea
+ * el hilo igual, pero el usuario ve que su petición se está atendiendo en vez
+ * de una pantalla congelada. En el caso normal, que tarda unos pocos
+ * milisegundos, la silueta sería un parpadeo y un retraso artificial, así que
+ * la lista se reordena en el acto con su animación.
+ *
+ * Si mientras se esperaba al pintado llegan otros criterios, esta aplicación
+ * se abandona y la nueva toma el relevo.
+ *
+ * @param {number} scanId - Escaneo.
+ * @returns {Promise<void>} Se resuelve cuando la lista nueva ya está en el DOM.
+ */
+async function applyCriteria(scanId) {
+  searchTimers.delete(scanId)
+  const criteria = criteriaFor(scanId)
+  const measured = lastArrangeMs.get(scanId)
+  const isSlow = measured === undefined
+    ? arrangement(scanId).total > LARGE_FINDINGS_LIST
+    : measured > SLOW_ARRANGE_MS
+  if (isSlow) {
+    setArranging(scanId, true)
+    await afterNextPaint()
+    if (criteriaFor(scanId) !== criteria) return
+  }
+  const started = performance.now()
+  appliedCriteriaByScan[scanId] = criteria
+  setArranging(scanId, false)
+  await nextTick()
+  lastArrangeMs.set(scanId, performance.now() - started)
+}
+
+/**
+ * Vuelve a los criterios con que se abre el capítulo, conservando el orden
+ * elegido: «Quitar filtros» quita filtros, no deshace el orden.
+ *
+ * @param {number} scanId - Escaneo.
+ */
+function resetCriteria(scanId) {
+  const { sortKey, reversed } = criteriaFor(scanId)
+  setCriteria(scanId, { ...defaultCriteria(), sortKey, reversed })
+}
+
+/**
+ * Ámbito en el que viven los `computed` de `arrangement`. Se crean bajo
+ * demanda, fuera de `setup`, y sin un ámbito propio no se pararían al
+ * desmontar el componente.
+ */
+const arrangementScope = effectScope()
+onBeforeUnmount(() => arrangementScope.stop())
+const arrangementCache = new Map()
+
+/**
+ * Los hallazgos de un escaneo ya filtrados, ordenados y repartidos en sus dos
+ * secciones (ver `arrangeGroups`).
+ *
+ * Cada escaneo tiene su propio `computed`: el resultado se recalcula sólo
+ * cuando cambian sus grupos o sus criterios aplicados, no en cada repintado, y cambiar
+ * los filtros de una tarjeta no recalcula las demás. La plantilla lo lee
+ * varias veces por pintado y todas salen de la misma caché.
+ *
+ * @param {number} scanId - Escaneo.
+ * @returns {ReturnType<typeof arrangeGroups>} Secciones, recuentos y totales.
+ */
+function arrangement(scanId) {
+  let cached = arrangementCache.get(scanId)
+  if (!cached) {
+    cached = arrangementScope.run(() => computed(() => arrangeGroups(groupsFor(scanId), appliedCriteriaFor(scanId))))
+    arrangementCache.set(scanId, cached)
+  }
+  return cached.value
 }
 
 /**
@@ -623,6 +815,10 @@ function toggleFindings(id) {
     s.delete(id)
   } else {
     s.add(id)
+    if (!criteriaByScan[id]) {
+      criteriaByScan[id] = defaultCriteria()
+      appliedCriteriaByScan[id] = criteriaByScan[id]
+    }
     // Los hallazgos no vienen con el listado: se piden al abrir, igual que los
     // documentos. Una lista de diez tarjetas colapsadas no debe pagar los
     // hallazgos de las nueve que nadie va a abrir.
@@ -736,7 +932,7 @@ function coverageGap(scan) {
 
 function fmtDate(iso) {
   if (!iso) return '—'
-  try { return new Date(iso).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) }
+  try { return formatDateTime(iso, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) }
   catch { return iso }
 }
 </script>
@@ -759,20 +955,22 @@ function fmtDate(iso) {
 .pop-leave-active { transition: opacity 0.15s ease; }
 .pop-leave-to { opacity: 0; }
 
-/* Casillas: las mismas que `.chk-col input` de ScanTable.vue. */
+/* Casillas: las mismas que `.chk-col input` de ScanTable.vue. `padding: 0`
+   anula el relleno que shared.css da a todo `input`: sin él, el recuadro
+   crece hasta ~27×20 px y el tic queda diminuto en medio. */
 .chk {
   appearance: none; -webkit-appearance: none; flex-shrink: 0;
-  width: 12px; height: 12px; margin: 0; cursor: pointer;
+  width: 16px; height: 16px; padding: 0; margin: 0; cursor: pointer;
   border: 1.5px solid var(--border-med); border-radius: 3px;
   background: var(--surface-2); transition: all 0.15s;
 }
 .chk:hover { border-color: var(--accent); }
 .chk:checked {
-  background: var(--accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='%230b0c10' stroke-width='2' d='M3 6l2 2 4-4'/%3E%3C/svg%3E") center/8px no-repeat;
+  background: var(--accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='%230b0c10' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M2.5 6.2l2.4 2.4 4.6-4.8'/%3E%3C/svg%3E") center/11px no-repeat;
   border-color: var(--accent);
 }
 .chk:indeterminate {
-  background: var(--accent-dim) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cline x1='3' y1='6' x2='9' y2='6' stroke='%23d4a04a' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") center/8px no-repeat;
+  background: var(--accent-dim) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cline x1='3' y1='6' x2='9' y2='6' stroke='%23d4a04a' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") center/11px no-repeat;
   border-color: var(--border-med);
 }
 .chk:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -981,8 +1179,12 @@ function fmtDate(iso) {
 .f-tag.conf { color: var(--success); background: var(--success-dim); }
 
 /* ── Grupos: la unidad sobre la que se actúa ── */
-.groups-loading, .groups-error { padding: 0.6rem 0.2rem; font-size: var(--fs-md); color: var(--text-muted); }
-.groups-error { color: var(--danger); }
+.groups-error { padding: 0.6rem 0.2rem; font-size: var(--fs-md); color: var(--danger); }
+.filtered-empty {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 0.6rem;
+  padding: 0.8rem 0.9rem; border: 1px dashed var(--border-solid); border-radius: 10px;
+  font-size: var(--fs-md); color: var(--text-muted);
+}
 
 /* ── Capítulos del escaneo: Hallazgos y Documentos ──
    El nivel de arriba. Misma cabecera que el panel "Motor Lybra" (sello
@@ -1032,7 +1234,7 @@ function fmtDate(iso) {
 .chapter-action {
   display: inline-flex; align-items: center; gap: 0.35rem; flex: none;
   font-family: var(--font-epic); font-size-adjust: var(--fsa-epic);
-  font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase;
+  font-size: var(--fs-sm); font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
   color: var(--text-dim); transition: color 0.2s ease;
 }
 .chapter-toggle:hover .chapter-action, .chapter-toggle.open .chapter-action { color: var(--accent); }
@@ -1101,7 +1303,15 @@ function fmtDate(iso) {
 [data-sev="low"]      { --sev: var(--success); }
 [data-sev="info"]     { --sev: var(--text-muted); }
 
-.ledger { border: 1px solid var(--border-med); border-radius: 10px; background: var(--surface); overflow: hidden; }
+.ledger { position: relative; border: 1px solid var(--border-med); border-radius: 10px; background: var(--surface); overflow: hidden; }
+/* Al reordenar, cada grupo se desliza a su sitio nuevo; los que entran o salen
+   por un filtro lo hacen con un fundido, y el que sale se saca del flujo para
+   que el hueco lo cierre el desplazamiento de los demás. */
+.group-item-move { transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1); }
+.group-item-enter-active { transition: opacity 0.25s ease; }
+.group-item-enter-from { opacity: 0; }
+.group-item-leave-active { transition: opacity 0.15s ease; position: absolute; left: 0; right: 0; }
+.group-item-leave-to { opacity: 0; }
 
 .group { position: relative; padding: 0.65rem 0.9rem 0.65rem 1.15rem; transition: background 0.15s; }
 .group + .group { border-top: 1px solid var(--border-med); }
@@ -1120,21 +1330,34 @@ function fmtDate(iso) {
 .group-head:hover .group-label { color: var(--accent-bright); }
 .group-head:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
 .group-chevron svg { width: 12px; height: 12px; }
-/* Los hallazgos cuelgan de su grupo: una guía baja desde el chevron y un
-   trazo corto enlaza cada tarjeta con ella. La tarjeta en sí no cambia. */
+/* Los hallazgos cuelgan de su grupo con una guía de un solo trazo: baja desde
+   el chevron y se dobla hacia cada tarjeta, cuyo filo izquierdo es el final
+   del mismo trazo (mismo color). Cada tarjeta dibuja su propio tramo —un codo
+   (::before) desde el hueco de arriba hasta su altura, y la bajada (::after)
+   hasta el hueco siguiente, salvo la última—, de modo que la guía termina
+   justo en el último hallazgo sea cual sea su alto. Color sólido y sin
+   opacidad: los tramos se tocan, y uno translúcido oscurecería las juntas. */
 .group-body {
   --stem: calc(6px + 0.4rem);
-  position: relative; margin: 0.1rem 0 0 6px; padding-left: var(--stem);
+  --guide: var(--text-muted);
+  --elbow: 1.05rem;
+  margin: 0.1rem 0 0 6px; padding-left: var(--stem);
 }
-.group-body::before {
-  content: ''; position: absolute; left: 0; top: 0; bottom: 1.6rem; width: 1px;
-  background: linear-gradient(var(--accent), var(--text-muted)); opacity: 0.6;
+.group-body .finding { position: relative; border-left-color: var(--guide); }
+.group-body .finding::before, .group-body .finding::after {
+  content: ''; position: absolute; left: calc(-1 * var(--stem) - 3px);
+  border-left: 1px solid var(--guide); pointer-events: none;
 }
-.group-body .finding { position: relative; }
+/* El codo: sube hasta el hallazgo anterior (el hueco entre tarjetas) y, en el
+   primero, hasta el borde del cuerpo del grupo, que es donde está el chevron.
+   El píxel de más en cada extremo es el borde de la tarjeta: los pseudo-
+   elementos se sitúan desde el relleno, y sin él quedaría una junta abierta. */
 .group-body .finding::before {
-  content: ''; position: absolute; top: 1.05rem; width: var(--stem); height: 1px;
-  left: calc(-1 * var(--stem) - 3px); background: var(--text-muted); opacity: 0.85;
+  top: calc(-0.35rem - 1px); height: calc(var(--elbow) + 0.35rem + 1px); width: var(--stem);
+  border-bottom: 1px solid var(--guide); border-bottom-left-radius: 6px;
 }
+.group-body .finding:first-child::before { top: calc(-0.4rem - 1px); height: calc(var(--elbow) + 0.4rem + 1px); }
+.group-body .finding:not(:last-child)::after { top: var(--elbow); bottom: -1px; }
 .group-label { font-weight: 600; color: var(--text); font-size: var(--fs-lg); }
 .group-count { margin-left: auto; font-size: var(--fs-md); color: var(--text-muted); }
 /* Sangrada hasta la insignia: las etiquetas del grupo se leen bajo su título, no bajo el chevron. */
@@ -1232,6 +1455,7 @@ function fmtDate(iso) {
   .pill-pop-enter-active, .pill-pop-leave-active, .pill-pop-move,
   .findings-panel-enter-active, .findings-panel-leave-active,
   .finding-item-enter-active, .finding-item-leave-active, .finding-item-move,
+  .group-item-enter-active, .group-item-leave-active, .group-item-move,
   .doc-checkbox input[type="checkbox"], .doc-checkbox input[type="checkbox"]::after,
   .doc-item-enter-active, .doc-item-leave-active, .doc-item-move { transition: none !important; }
 }

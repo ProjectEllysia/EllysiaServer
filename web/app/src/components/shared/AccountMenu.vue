@@ -1,7 +1,7 @@
 <template>
   <div class="account-menu" ref="rootRef">
     <button class="avatar-btn" :aria-expanded="open" aria-haspopup="menu"
-            :aria-label="`Cuenta de ${name}`" @click="open = !open">
+            :aria-label="t('accountMenu.accountOf', { name })" @click="open = !open">
       {{ initials }}
       <span v-if="hasNotice" class="avatar-dot" aria-hidden="true"></span>
     </button>
@@ -20,47 +20,45 @@
              interfaz no lo decía en ninguna parte: el usuario se comía un 403
              sin saber por qué ni cómo salir. -->
         <div v-if="needsVerification" class="drop-verify">
-          <span class="drop-verify-title">Confirma tu correo</span>
-          <span class="drop-verify-text">
-            Puedes mirar, pero no lanzar escaneos ni pedirle nada a la IA hasta
-            que pulses el enlace que te enviamos.
-          </span>
+          <span class="drop-verify-title">{{ t('accountMenu.verify.title') }}</span>
+          <span class="drop-verify-text">{{ t('accountMenu.verify.text') }}</span>
           <button class="drop-verify-btn" :disabled="resending" @click="resend">
-            {{ resending ? 'Enviando…' : 'Enviar otro enlace' }}
+            {{ resending ? t('accountMenu.verify.sending') : t('accountMenu.verify.resend') }}
           </button>
         </div>
 
         <router-link v-if="account.plan" to="/mi-plan" class="drop-plan" @click="open = false">
           <span class="drop-plan-name">{{ account.plan.plan.name }}</span>
           <span v-if="notice" class="drop-plan-notice">{{ notice.text }}</span>
-          <span v-else class="drop-plan-hint">Ver consumo y límites</span>
+          <span v-else class="drop-plan-hint">{{ t('accountMenu.planHint') }}</span>
         </router-link>
 
         <nav class="drop-menu">
-          <router-link to="/profile" class="drop-item" @click="open = false">Perfil</router-link>
-          <router-link to="/mi-plan" class="drop-item" @click="open = false">Mi plan</router-link>
+          <router-link to="/profile" class="drop-item" @click="open = false">{{ t('accountMenu.profile') }}</router-link>
+          <router-link to="/mi-plan" class="drop-item" @click="open = false">{{ t('accountMenu.myPlan') }}</router-link>
 
           <router-link v-if="account.organization" to="/organizacion" class="drop-item"
                        @click="open = false">
-            {{ account.isOwner ? 'Gestionar organización' : 'Mi organización' }}
+            {{ account.isOwner ? t('accountMenu.manageOrganization') : t('accountMenu.myOrganization') }}
           </router-link>
           <router-link v-else-if="canCreateOrganization" to="/organizacion" class="drop-item"
                        @click="open = false">
-            Crear organización
+            {{ t('accountMenu.createOrganization') }}
           </router-link>
 
           <template v-if="auth.isAdmin">
             <div class="drop-divider"></div>
-            <router-link to="/usuarios" class="drop-item" @click="open = false">Usuarios</router-link>
-            <router-link to="/logs" class="drop-item" @click="open = false">Logs del sistema</router-link>
-            <router-link to="/admin/iris/simulador" class="drop-item" @click="open = false">Simulador de reglas (Iris)</router-link>
-            <router-link v-if="auth.isRoot" to="/config" class="drop-item" @click="open = false">Configuración</router-link>
-            <router-link v-if="auth.isRoot" to="/admin/planes" class="drop-item" @click="open = false">Gestor de planes</router-link>
-            <router-link to="/queue" class="drop-item" @click="open = false">Cola de tareas</router-link>
+            <router-link to="/usuarios" class="drop-item" @click="open = false">{{ t('accountMenu.users') }}</router-link>
+            <router-link to="/logs" class="drop-item" @click="open = false">{{ t('accountMenu.systemLogs') }}</router-link>
+            <router-link to="/admin/iris/simulador" class="drop-item" @click="open = false">{{ t('accountMenu.rulesSimulator') }}</router-link>
+            <router-link v-if="auth.isRoot" to="/config" class="drop-item" @click="open = false">{{ t('accountMenu.configuration') }}</router-link>
+            <router-link v-if="auth.isRoot" to="/admin/planes" class="drop-item" @click="open = false">{{ t('accountMenu.planManager') }}</router-link>
+            <router-link to="/base-de-conocimiento" class="drop-item" @click="open = false">{{ t('accountMenu.knowledgeBase') }}</router-link>
+            <router-link to="/queue" class="drop-item" @click="open = false">{{ t('accountMenu.taskQueue') }}</router-link>
           </template>
 
           <div class="drop-divider"></div>
-          <button class="drop-item drop-item--danger" @click="logout">Cerrar sesión</button>
+          <button class="drop-item drop-item--danger" @click="logout">{{ t('accountMenu.logout') }}</button>
         </nav>
       </div>
     </Transition>
@@ -77,11 +75,13 @@
  * y `Topbar` lo montan igual y las opciones están en todas las vistas.
  */
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/authStore'
 import { useProfileStore } from '@/stores/profileStore'
 import { useAccountStore } from '@/stores/accountStore'
 import { useApi } from '@/composables/useApi'
 
+const { t } = useI18n()
 const auth = useAuthStore()
 const profileStore = useProfileStore()
 const account = useAccountStore()
@@ -93,7 +93,7 @@ const name = computed(() => {
   const first = profileStore.profile.first_name
   const last = profileStore.profile.last_name
   if (first || last) return `${first} ${last}`.trim()
-  return auth.username() || 'Usuario'
+  return auth.username() || t('accountMenu.defaultName')
 })
 
 const initials = computed(() => {
@@ -105,9 +105,9 @@ const initials = computed(() => {
 
 const roleLabel = computed(() => {
   const role = profileStore.profile.role || auth.role
-  if (role === 'role_root') return 'Root'
-  if (role === 'role_admin') return 'Admin'
-  return 'Usuario'
+  if (role === 'role_root') return t('accountMenu.roles.root')
+  if (role === 'role_admin') return t('accountMenu.roles.admin')
+  return t('accountMenu.roles.user')
 })
 
 const notice = computed(() => account.notice)
@@ -131,8 +131,8 @@ async function resend() {
     const toast = useToastStore()
     toast.show(
       res?.ok
-        ? 'Te hemos enviado otro enlace. Revisa tu correo.'
-        : await apiError(res, 'No se pudo enviar el enlace.'),
+        ? t('accountMenu.verify.sent')
+        : await apiError(res, t('accountMenu.verify.failed')),
       res?.ok ? 'success' : 'error',
     )
   } finally {
