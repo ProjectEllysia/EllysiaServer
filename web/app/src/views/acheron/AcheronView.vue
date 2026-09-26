@@ -1,7 +1,7 @@
 <template>
   <div class="acheron-page" data-module="acheron">
     <StarBackground />
-    <Topbar title="Acheron" badge="Bóveda cifrada" back-to="/acheron" back-label="Volver" />
+    <Topbar :title="'Acheron'" :badge="t('acheronView.badge')" back-to="/acheron" :back-label="t('common.back')" />
 
     <main class="acheron-main">
       <Transition name="view-fade" mode="out-in">
@@ -15,8 +15,8 @@
               <path d="M7 11V7a5 5 0 0 1 10 0v4" />
             </svg>
           </div>
-          <h1 class="unlock-title">Comprobando tu bóveda…</h1>
-          <p class="unlock-sub">Un momento, por favor.</p>
+          <h1 class="unlock-title">{{ t('acheronHub.loading') }}</h1>
+          <p class="unlock-sub">{{ t('acheronView.wait') }}</p>
         </div>
 
         <!-- Sin bóveda todavía: crear contraseña maestra -->
@@ -27,14 +27,13 @@
               <path d="M7 11V7a5 5 0 0 1 10 0v4" />
             </svg>
           </div>
-          <h1 class="unlock-title">Crea tu contraseña maestra</h1>
-          <p class="unlock-sub">
-            Todavía no tienes ninguna bóveda. Elige una contraseña maestra para crearla:
-            el cifrado ocurre <strong>en tu navegador</strong> y nunca se envía al servidor.
-          </p>
+          <h1 class="unlock-title">{{ t('acheronView.createTitle') }}</h1>
+          <i18n-t keypath="acheronView.createIntro" tag="p" class="unlock-sub">
+            <template #browser><strong>{{ t('acheron.inYourBrowser') }}</strong></template>
+          </i18n-t>
 
           <label class="field">
-            <span class="field-label">Nueva contraseña maestra</span>
+            <span class="field-label">{{ t('acheronView.newMaster') }}</span>
             <div class="field-input field-input--with-generate">
               <input
                 ref="createPasswordInput"
@@ -47,7 +46,7 @@
               />
               <button
                 type="button" class="gen-btn" tabindex="-1"
-                aria-label="Generar contraseña"
+                :aria-label="t('acheron.generate')"
                 :disabled="createBusy"
                 @click="generateNewPassword"
               >
@@ -55,7 +54,7 @@
               </button>
               <button
                 type="button" class="reveal-btn" tabindex="-1"
-                :aria-label="showCreatePassword ? 'Ocultar' : 'Mostrar'"
+                :aria-label="showCreatePassword ? t('acheron.hide') : t('acheron.show')"
                 @click="showCreatePassword = !showCreatePassword"
               >
                 <svg v-if="showCreatePassword" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
@@ -66,7 +65,7 @@
           </label>
 
           <label class="field">
-            <span class="field-label">Repite la contraseña</span>
+            <span class="field-label">{{ t('acheronView.repeat') }}</span>
             <div class="field-input">
               <input
                 v-model="confirmPassword"
@@ -83,7 +82,7 @@
 
           <button type="submit" class="unlock-btn" :disabled="createBusy || !newPassword || !confirmPassword">
             <span v-if="createBusy" class="spinner" aria-hidden="true"></span>
-            {{ createBusy ? 'Creando…' : 'Crear bóveda' }}
+            {{ createBusy ? t('acheronView.creating') : t('acheronView.create') }}
           </button>
         </form>
 
@@ -95,14 +94,13 @@
               <path d="M7 11V7a5 5 0 0 1 10 0v4" />
             </svg>
           </div>
-          <h1 class="unlock-title">Desbloquear bóveda</h1>
-          <p class="unlock-sub">
-            El cifrado y descifrado ocurren <strong>en tu navegador</strong>. Tu contraseña
-            maestra nunca se envía al servidor.
-          </p>
+          <h1 class="unlock-title">{{ t('acheronView.unlockTitle') }}</h1>
+          <i18n-t keypath="acheronView.unlockIntro" tag="p" class="unlock-sub">
+            <template #browser><strong>{{ t('acheron.inYourBrowser') }}</strong></template>
+          </i18n-t>
 
           <label class="field">
-            <span class="field-label">Contraseña maestra</span>
+            <span class="field-label">{{ t('acheronView.master') }}</span>
             <div class="field-input">
               <input
                 ref="passwordInput"
@@ -115,7 +113,7 @@
               />
               <button
                 type="button" class="reveal-btn" tabindex="-1"
-                :aria-label="showPassword ? 'Ocultar' : 'Mostrar'"
+                :aria-label="showPassword ? t('acheron.hide') : t('acheron.show')"
                 @click="showPassword = !showPassword"
               >
                 <svg v-if="showPassword" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
@@ -128,7 +126,7 @@
 
           <button type="submit" class="unlock-btn" :disabled="busy || !masterPassword">
             <span v-if="busy" class="spinner" aria-hidden="true"></span>
-            {{ busy ? 'Descifrando…' : 'Desbloquear' }}
+            {{ busy ? t('acheronView.decrypting') : t('acheronView.unlock') }}
           </button>
         </form>
       </section>
@@ -162,32 +160,32 @@
       <section v-else key="vault" class="vault-wrap vault-appear">
         <header class="vault-head">
           <div class="vault-head-info">
-            <h1 class="vault-title">Tu bóveda</h1>
-            <span class="vault-count">{{ totalItems }} elementos · {{ algorithmLabel }}</span>
+            <h1 class="vault-title">{{ t('acheronView.yourVault') }}</h1>
+            <span class="vault-count">{{ t('acheronView.itemCount', { count: totalItems }, totalItems) }} · {{ algorithmLabel }}</span>
           </div>
           <div class="vault-head-actions">
             <button class="add-btn" @click="openAdd">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Añadir
+              {{ t('acheronView.add') }}
             </button>
             <button class="lock-btn" :disabled="refreshing" @click="refreshNow">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-              {{ refreshing ? 'Actualizando…' : 'Actualizar' }}
+              {{ refreshing ? t('acheronView.refreshing') : t('acheronView.refresh') }}
             </button>
             <button class="lock-btn" @click="openChangePassword">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1"/></svg>
-              Contraseña
+              {{ t('acheronView.password') }}
             </button>
             <button class="lock-btn" @click="lock">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-              Bloquear
+              {{ t('acheronView.lock') }}
             </button>
           </div>
         </header>
 
-        <p v-if="totalItems === 0" class="vault-empty">
-          Tu bóveda está vacía. Pulsa <strong>Añadir</strong> para crear tu primer elemento.
-        </p>
+        <i18n-t v-if="totalItems === 0" keypath="acheronView.empty" tag="p" class="vault-empty">
+          <template #add><strong>{{ t('acheronView.add') }}</strong></template>
+        </i18n-t>
 
         <div
           v-for="cat in nonEmptyCategories"
@@ -195,19 +193,19 @@
           class="vault-section"
         >
           <h2 class="section-title">
-            {{ TYPE_BY_CATEGORY[cat].plural }}
+            {{ t(TYPE_BY_CATEGORY[cat].pluralKey) }}
             <span class="section-count">{{ entries[cat].length }}</span>
           </h2>
 
           <div class="cards-grid">
             <article v-for="item in entries[cat]" :key="item.id" class="entry-card">
               <header class="entry-head">
-                <h3 class="entry-title">{{ item.title || 'Sin título' }}</h3>
+                <h3 class="entry-title">{{ item.title || t('acheronView.untitled') }}</h3>
                 <div class="entry-actions">
-                  <button type="button" class="icon-btn" aria-label="Editar" @click="openEdit(cat, item)">
+                  <button type="button" class="icon-btn" :aria-label="t('common.edit')" @click="openEdit(cat, item)">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                   </button>
-                  <button type="button" class="icon-btn icon-btn--danger" aria-label="Eliminar" @click="removeItem(cat, item)">
+                  <button type="button" class="icon-btn icon-btn--danger" :aria-label="t('hygeia.list.delete')" @click="removeItem(cat, item)">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                   </button>
                 </div>
@@ -215,19 +213,19 @@
 
               <dl class="entry-fields">
                 <div v-for="f in TYPE_BY_CATEGORY[cat].fields" :key="f.key" class="entry-field">
-                  <dt>{{ f.label }}</dt>
+                  <dt>{{ t(f.labelKey) }}</dt>
                   <dd>
                     <span class="field-value">
                       {{ f.secret && !revealed.has(item.id) ? '••••••••' : item[f.key] }}
                     </span>
                     <button
                       v-if="f.secret" type="button" class="icon-btn"
-                      :aria-label="revealed.has(item.id) ? 'Ocultar' : 'Mostrar'"
+                      :aria-label="revealed.has(item.id) ? t('acheron.hide') : t('acheron.show')"
                       @click="toggleReveal(item.id)"
                     >
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                     </button>
-                    <button type="button" class="icon-btn" aria-label="Copiar" @click="copy(item[f.key])">
+                    <button type="button" class="icon-btn" :aria-label="t('hygeia.agentKey.copy')" @click="copy(item[f.key])">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                     </button>
                   </dd>
@@ -282,6 +280,9 @@ import { vaultWrite as writeWithRevision, peekJson } from '@projectellysia/acher
 import { generatePassword } from '@projectellysia/acheron-core-js'
 import { STORABLE_CATEGORIES } from '@projectellysia/acheron-core-js'
 import { TYPE_BY_CATEGORY } from '@/components/acheron/storableTypes.js'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const { apiFetch } = useApi()
 const auth = useAuthStore()
@@ -344,7 +345,7 @@ function toggleReveal(id) {
 async function copy(value) {
   try {
     await navigator.clipboard.writeText(value)
-    flash('Copiado al portapapeles.')
+    flash(t('acheronView.copied'))
   } catch {
     /* clipboard no disponible: silencioso */
   }
@@ -389,11 +390,11 @@ async function createVaultHandler() {
   if (createBusy.value) return
   createError.value = ''
   if (!newPassword.value || newPassword.value.length < 8) {
-    createError.value = 'La contraseña debe tener al menos 8 caracteres.'
+    createError.value = t('acheronView.errors.tooShort', { min: 8 })
     return
   }
   if (newPassword.value !== confirmPassword.value) {
-    createError.value = 'Las contraseñas no coinciden.'
+    createError.value = t('acheronView.errors.mismatch')
     return
   }
   createBusy.value = true
@@ -408,16 +409,16 @@ async function createVaultHandler() {
       newPassword.value = ''
       confirmPassword.value = ''
       vaultState.value = 'exists'
-      flash('Bóveda creada. Desbloquéala con tu contraseña maestra.')
+      flash(t('acheronView.created'))
       nextTick(() => passwordInput.value?.focus())
     } else if (res.status === 403) {
-      createError.value = 'Tu cuenta todavía no tiene acceso a Acheron. Contacta con un administrador.'
+      createError.value = t('acheronView.errors.noAccess')
     } else {
-      createError.value = await errMessage(res, 'No se pudo crear la bóveda.')
+      createError.value = await errMessage(res, t('acheronView.errors.createFailed'))
     }
   } catch (e) {
     console.error('[Acheron] error al crear la bóveda:', e)
-    createError.value = 'Error al generar las claves de cifrado.'
+    createError.value = t('acheronView.errors.keysFailed')
   } finally {
     createBusy.value = false
   }
@@ -433,11 +434,11 @@ async function unlock() {
     const res = await apiFetch('/acheron/vault')
     if (!res) return // sesión expirada: useApi ya redirige
     if (res.status === 404) {
-      error.value = 'Todavía no tienes ninguna bóveda. Crea una desde la app móvil.'
+      error.value = t('acheronView.errors.noVault')
       return
     }
     if (!res.ok) {
-      error.value = `No se pudo obtener la bóveda (error ${res.status}).`
+      error.value = t('acheronView.errors.fetchFailed', { status: res.status })
       return
     }
 
@@ -453,10 +454,10 @@ async function unlock() {
     unlocked.value = true
   } catch (e) {
     if (e instanceof WrongPasswordError) {
-      error.value = 'Contraseña maestra incorrecta.'
+      error.value = t('acheronView.errors.wrongMaster')
     } else {
       console.error('[Acheron] error al desbloquear:', e)
-      error.value = 'No se pudo descifrar la bóveda.'
+      error.value = t('acheronView.errors.decryptFailed')
     }
   } finally {
     busy.value = false
@@ -501,7 +502,7 @@ async function refreshVault() {
   const serverVersion = vaultJson.metadataVersion ?? null
   if (currentMetadataVersion != null && serverVersion != null && serverVersion > currentMetadataVersion) {
     lock()
-    error.value = 'Tu contraseña maestra cambió en otro dispositivo. Vuelve a introducirla.'
+    error.value = t('acheronView.errors.masterChanged')
     return false
   }
 
@@ -517,10 +518,10 @@ async function refreshNow() {
   if (!vault || refreshing.value) return
   refreshing.value = true
   try {
-    if (await refreshVault()) flash('Bóveda actualizada.')
+    if (await refreshVault()) flash(t('acheronView.refreshed'))
   } catch (e) {
     console.error('[Acheron] error al actualizar:', e)
-    flash('No se pudo actualizar la bóveda.', true)
+    flash(t('acheronView.errors.refreshFailed'), true)
   } finally {
     refreshing.value = false
   }
@@ -550,7 +551,7 @@ async function checkVaultFreshness() {
   const body = await peekJson(res)
   if (typeof body?.revision !== 'number' || body.revision === sync.revision) return
 
-  if (await refreshVault()) flash('La bóveda cambió en otro dispositivo: actualizada.')
+  if (await refreshVault()) flash(t('acheronView.changedElsewhere'))
 }
 
 function onVisibilityChange() {
@@ -576,16 +577,16 @@ async function onChangePassword({ current, next }) {
     if (res && res.ok) {
       pwdModal.open = false
       lock()
-      flash('Contraseña maestra actualizada. Desbloquea con la nueva.')
+      flash(t('acheronView.masterUpdated'))
     } else {
-      pwdModal.error = await errMessage(res, 'No se pudo cambiar la contraseña.')
+      pwdModal.error = await errMessage(res, t('acheronView.errors.changeFailed'))
     }
   } catch (e) {
     if (e instanceof WrongPasswordError) {
-      pwdModal.error = 'Contraseña actual incorrecta.'
+      pwdModal.error = t('acheronView.errors.wrongCurrent')
     } else {
       console.error('[Acheron] error al cambiar la contraseña:', e)
-      pwdModal.error = 'Error al cifrar o enviar los datos.'
+      pwdModal.error = t('acheronView.errors.sendFailed')
     }
   } finally {
     pwdModal.saving = false
@@ -627,9 +628,9 @@ async function onSave({ mode, category, title, fields, item }) {
         if (refreshed) await refreshVault()
         else entries[category] = [...(entries[category] || []), newItem]
         modal.open = false
-        flash('Elemento añadido.')
+        flash(t('acheronView.added'))
       } else {
-        modalError.value = await errMessage(res, 'No se pudo crear el elemento.')
+        modalError.value = await errMessage(res, t('acheronView.errors.addFailed'))
       }
     } else {
       const { changes, item: updated } = await vault.buildUpdateChanges(
@@ -652,14 +653,14 @@ async function onSave({ mode, category, title, fields, item }) {
           if (idx !== -1) list[idx] = updated
         }
         modal.open = false
-        flash('Cambios guardados.')
+        flash(t('acheronView.saved'))
       } else {
-        modalError.value = await errMessage(res, 'No se pudieron guardar los cambios.')
+        modalError.value = await errMessage(res, t('aegisStore.saveFailed'))
       }
     }
   } catch (e) {
     console.error('[Acheron] error al guardar:', e)
-    modalError.value = 'Error al cifrar o enviar los datos.'
+    modalError.value = t('acheronView.errors.sendFailed')
   } finally {
     saving.value = false
   }
@@ -667,7 +668,7 @@ async function onSave({ mode, category, title, fields, item }) {
 
 /* ── borrado ── */
 async function removeItem(category, item) {
-  if (!window.confirm(`¿Eliminar «${item.title || item.id}»? No se puede deshacer.`)) return
+  if (!window.confirm(t('acheronView.deleteConfirm', { name: item.title || item.id }))) return
   try {
     const { res, refreshed } = await vaultWrite('/acheron/storables', {
       method: 'DELETE',
@@ -676,26 +677,26 @@ async function removeItem(category, item) {
     if (res && res.ok) {
       if (refreshed) await refreshVault()
       else entries[category] = (entries[category] || []).filter((e) => e.id !== item.id)
-      flash('Elemento eliminado.')
+      flash(t('acheronView.deleted'))
     } else {
-      flash(await errMessage(res, 'No se pudo eliminar.'), true)
+      flash(await errMessage(res, t('acheronView.errors.deleteFailed')), true)
     }
   } catch (e) {
     console.error('[Acheron] error al eliminar:', e)
-    flash('Error al eliminar.', true)
+    flash(t('acheronView.errors.deleteFailed'), true)
   }
 }
 
 async function errMessage(res, fallback) {
-  if (!res) return 'Sesión expirada.'
-  if (res.status === 403) return 'No tienes permisos para esta acción.'
+  if (!res) return t('acheronView.errors.sessionExpired')
+  if (res.status === 403) return t('acheronView.errors.forbidden')
   const data = await peekJson(res)
   if (res.status === 409) {
     // Dos 409 distintos: colisión de internalId, o revisión obsoleta que ni
     // siquiera el reintento automático pudo resolver.
     return data?.error === 'vault_revision_mismatch'
-      ? 'La bóveda cambió en otro dispositivo. Actualiza y vuelve a intentarlo.'
-      : 'Ya existe un elemento con ese identificador.'
+      ? t('acheronView.errors.revisionMismatch')
+      : t('acheronView.errors.duplicate')
   }
   return data?.error_description || data?.message || data?.error || fallback
 }

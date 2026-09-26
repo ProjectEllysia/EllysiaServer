@@ -21,9 +21,16 @@
  *   node web/app/test/acheron.schema.test.mjs
  */
 
+import { readFileSync } from 'node:fs'
 import { STORABLE_SCHEMA } from '@projectellysia/acheron-core-js'
 import { STORABLE_LABELS } from '../src/components/acheron/storableLabels.js'
 import { STORABLE_TYPES } from '../src/components/acheron/storableTypes.js'
+
+// Las etiquetas son claves de los ficheros de idioma: se exige que existan en
+// castellano, que es el idioma completo.
+const spanish = JSON.parse(readFileSync(new URL('../src/i18n/locales/es.json', import.meta.url), 'utf-8'))
+const translates = (key) => typeof key === 'string'
+  && typeof key.split('.').reduce((node, part) => node?.[part], spanish) === 'string'
 
 let passed = 0
 let failed = 0
@@ -79,19 +86,19 @@ for (const type of STORABLE_SCHEMA) {
     `huérfanas: ${missingFrom(labelFields, schemaFields).join(', ')}`,
   )
 
-  // Una etiqueta vacía pinta igual de mal que una ausente.
+  // Una clave que no existe pinta la propia clave, igual de mal que una ausente.
   for (const [key, field] of Object.entries(labels.fields ?? {})) {
     check(
-      `${type.kind}.${key}: la etiqueta no está vacía`,
-      typeof field.label === 'string' && field.label.trim() !== '',
-      `label = ${JSON.stringify(field.label)}`,
+      `${type.kind}.${key}: la etiqueta existe en castellano`,
+      translates(field.labelKey),
+      `labelKey = ${JSON.stringify(field.labelKey)}`,
     )
   }
 
-  for (const meta of ['label', 'plural', 'newLabel']) {
+  for (const meta of ['labelKey', 'pluralKey', 'newLabelKey']) {
     check(
-      `${type.kind}: tiene ${meta}`,
-      typeof labels[meta] === 'string' && labels[meta].trim() !== '',
+      `${type.kind}: ${meta} existe en castellano`,
+      translates(labels[meta]),
       `${meta} = ${JSON.stringify(labels[meta])}`,
     )
   }
@@ -102,7 +109,7 @@ for (const type of STORABLE_SCHEMA) {
 // El paquete ya lo valida en su suite, pero comprobarlo aquí cuesta nada y
 // cubre el caso de que alguien "arregle" un undefined en el formulario
 // parcheando el esquema en node_modules en vez de las etiquetas.
-const TEXTO_VISIBLE = ['label', 'plural', 'newLabel', 'subtitleKey']
+const TEXTO_VISIBLE = ['label', 'plural', 'newLabel', 'labelKey', 'pluralKey', 'newLabelKey', 'subtitleKey']
 for (const type of STORABLE_SCHEMA) {
   const enTipo = TEXTO_VISIBLE.filter((k) => k in type)
   check(
@@ -123,7 +130,7 @@ for (const type of STORABLE_SCHEMA) {
 /* ── 4) La vista compuesta sirve lo que el formulario espera ── */
 
 for (const type of STORABLE_TYPES) {
-  const sinLabel = type.fields.filter((f) => !f.label).map((f) => f.key)
+  const sinLabel = type.fields.filter((f) => !f.labelKey).map((f) => f.key)
   check(
     `${type.kind}: compuesto, todo campo trae label`,
     sinLabel.length === 0,
