@@ -12,7 +12,6 @@
       <span v-if="badge" class="topbar-badge">{{ badge }}</span>
     </div>
     <div class="topbar-right">
-      <LanguageSelect />
       <div class="session-pill">
         <div class="session-dot"></div>
         <span>{{ auth.username() }}</span>
@@ -34,7 +33,6 @@
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/authStore'
 import AccountMenu from '@/components/shared/AccountMenu.vue'
-import LanguageSelect from '@/components/shared/LanguageSelect.vue'
 
 const { t } = useI18n()
 
