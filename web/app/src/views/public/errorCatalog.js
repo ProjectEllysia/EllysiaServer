@@ -7,78 +7,61 @@
  * (o en la de 500 si es un error de servidor), así que ninguna URL puede
  * terminar en una pantalla en blanco.
  *
- * Cada entrada:
- * - `title`: titular de la página.
- * - `paragraphs`: párrafos explicativos.
- * - `links`: enlaces de salida; se renderizan como "Desde aquí puedes ...".
- *   Las etiquetas llevan el verbo y el artículo incorporados para que la
- *   frase suene bien sin tener que concordar nada.
+ * Los textos viven en el diccionario, bajo `errorPage.<clave>`:
+ * `title` (con el hueco `{code}`) y `p1`, `p2`… Cada entrada:
+ * - `key`: la rama del diccionario (`'404'`, `'generic'`…).
+ * - `paragraphs`: cuántos párrafos tiene esa rama.
+ * - `links`: enlaces de salida; `label` es la clave de `errorPage.links`, cuyo
+ *   texto lleva el verbo y el artículo incorporados para que la frase «Desde
+ *   aquí puedes …» suene bien sin concordar nada.
  * - `reload`: opcional; si es true, la vista muestra un botón de recarga.
  */
 export const ERROR_CATALOG = {
   404: {
-    title: 'Esta página no existe',
-    paragraphs: [
-      'La dirección a la que has llegado no corresponde a ninguna página de Ellysia. Puede que el enlace esté mal escrito, o que la página se moviera de sitio.',
-    ],
+    key: '404',
+    paragraphs: 1,
     links: [
-      { to: '/', label: 'volver a la portada' },
-      { to: '/themis', label: 'ver las herramientas' },
-      { to: '/planes', label: 'consultar los planes' },
+      { to: '/', label: 'home' },
+      { to: '/themis', label: 'tools' },
+      { to: '/planes', label: 'plans' },
     ],
   },
   403: {
-    title: 'No tienes permiso para ver esto',
-    paragraphs: [
-      'La página existe, pero tu cuenta no puede abrirla: es una sección restringida a un rol concreto, o la sesión cambió de permisos desde que entraste.',
-      'Si crees que deberías poder acceder, ponte en contacto con quien administra Ellysia.',
-    ],
+    key: '403',
+    paragraphs: 2,
     links: [
-      { to: '/', label: 'volver a la portada' },
-      { to: '/themis', label: 'ver las herramientas' },
-      { to: '/planes', label: 'consultar los planes' },
+      { to: '/', label: 'home' },
+      { to: '/themis', label: 'tools' },
+      { to: '/planes', label: 'plans' },
     ],
   },
   409: {
-    title: 'La operación no se pudo completar',
-    paragraphs: [
-      'Lo que intentabas hacer choca con el estado actual de los datos: el elemento puede que ya exista, que haya cambiado desde que lo cargaste o que la acción ya se hubiera hecho antes.',
-      'Recarga la página para ver el estado actual e inténtalo de nuevo.',
-    ],
+    key: '409',
+    paragraphs: 2,
     reload: true,
     links: [
-      { to: '/', label: 'volver a la portada' },
-      { to: '/themis', label: 'ver las herramientas' },
+      { to: '/', label: 'home' },
+      { to: '/themis', label: 'tools' },
     ],
   },
   500: {
-    title: 'Algo se ha roto',
-    paragraphs: [
-      'La página ha fallado al cargar: el servidor ha respondido con un error. No es culpa de lo que estuvieras haciendo, y normalmente basta con reintentar.',
-      'Si el problema persiste, vuelve a intentarlo en unos minutos.',
-    ],
+    key: '500',
+    paragraphs: 2,
     reload: true,
     links: [
-      { to: '/', label: 'volver a la portada' },
+      { to: '/', label: 'home' },
     ],
   },
 }
 
-/**
- * Entrada genérica para códigos 4xx sin entrada propia en el catálogo.
- * `title` es una función porque lleva el código dentro.
- */
-function genericEntry(code) {
-  return {
-    title: `Error ${code}`,
-    paragraphs: [
-      'Algo no ha salido como se esperaba y esta página no sabe decirte mucho más. Vuelve a la portada; si el problema se repite, guarda este código por si necesitas referirte a él.',
-    ],
-    links: [
-      { to: '/', label: 'volver a la portada' },
-      { to: '/planes', label: 'consultar los planes' },
-    ],
-  }
+/** Entrada para los códigos 4xx sin entrada propia; su título lleva el código. */
+const GENERIC_ENTRY = {
+  key: 'generic',
+  paragraphs: 1,
+  links: [
+    { to: '/', label: 'home' },
+    { to: '/planes', label: 'plans' },
+  ],
 }
 
 /**
@@ -98,6 +81,6 @@ export function resolveError(code) {
   if (!Number.isInteger(numeric) || numeric < 100 || numeric > 599) {
     return { code: 404, entry: ERROR_CATALOG[404] }
   }
-  const entry = ERROR_CATALOG[numeric] ?? (numeric >= 500 ? ERROR_CATALOG[500] : genericEntry(numeric))
+  const entry = ERROR_CATALOG[numeric] ?? (numeric >= 500 ? ERROR_CATALOG[500] : GENERIC_ENTRY)
   return { code: numeric, entry }
 }

@@ -1,61 +1,51 @@
 <template>
-  <InfoPage eyebrow="Legal" title="Privacidad">
-    <p>
-      Ellysia es un <strong>proyecto personal</strong> y no un servicio: no se ofrecen cuentas a otras
-      personas ni se contrata nada. Esta nota explica qué datos se tratan de quien visita la web, que es
-      lo único que Ellysia sabe de alguien que no sea su autor.
-    </p>
+  <InfoPage :eyebrow="t('legal.eyebrow')" :title="t('privacy.title')">
+    <p v-if="locale !== 'es'" class="note">{{ t('legal.translationNotice') }}</p>
+    <i18n-t keypath="privacy.intro" tag="p">
+      <template #project><strong>{{ t('privacy.introProject') }}</strong></template>
+    </i18n-t>
 
-    <h2>Quién es el responsable</h2>
-    <p>
-      Gabriel Musteata, autor del proyecto, como persona física. Puedes contactar a través de su perfil de
-      GitHub,
-      <a href="https://github.com/gamustea" target="_blank" rel="noopener noreferrer">github.com/gamustea</a>.
-    </p>
+    <h2>{{ t('privacy.controllerHeading') }}</h2>
+    <i18n-t keypath="privacy.controller" tag="p">
+      <template #link>
+        <a :href="`https://${CONTROLLER_PROFILE}`" target="_blank" rel="noopener noreferrer">{{ CONTROLLER_PROFILE }}</a>
+      </template>
+    </i18n-t>
 
-    <h2>Qué datos se guardan de quien visita la web</h2>
-    <p>
-      Cada vez que tu navegador pide algo a Ellysia, el servidor lo anota en su registro de actividad:
-      la <strong>dirección IP</strong> desde la que se hace la petición, la fecha y la hora, qué se pidió,
-      la respuesta que se dio y cuánto tardó.
-    </p>
+    <h2>{{ t('privacy.dataHeading') }}</h2>
+    <i18n-t keypath="privacy.data" tag="p">
+      <template #ip><strong>{{ t('privacy.dataIp') }}</strong></template>
+    </i18n-t>
     <ul>
-      <li><strong>Para qué:</strong> para mantener el servidor seguro y diagnosticar errores.</li>
-      <li><strong>Por qué se puede:</strong> por el interés legítimo en proteger el servidor (artículo 6.1.f del Reglamento General de Protección de Datos).</li>
-      <li><strong>Cuánto tiempo:</strong> cada día se archiva por separado y se borra a los {{ LOG_RETENTION_DAYS }} días.</li>
-      <li><strong>Quién lo ve:</strong> solo el autor. No se comparte con nadie ni sale del servidor, que está en España.</li>
+      <li><strong>{{ t('privacy.purposeLabel') }}</strong> {{ t('privacy.purpose') }}</li>
+      <li><strong>{{ t('privacy.legalBasisLabel') }}</strong> {{ t('privacy.legalBasis') }}</li>
+      <li><strong>{{ t('privacy.retentionLabel') }}</strong> {{ t('privacy.retention', { days: LOG_RETENTION_DAYS }) }}</li>
+      <li><strong>{{ t('privacy.accessLabel') }}</strong> {{ t('privacy.access') }}</li>
     </ul>
 
-    <h2>Cookies y almacenamiento del navegador</h2>
-    <p>
-      Ellysia <strong>no usa cookies</strong>, ni herramientas de analítica, ni publicidad, ni ningún
-      sistema de seguimiento. Tampoco carga recursos de otras webs: las tipografías se sirven desde el
-      propio servidor. Por eso no hay aviso de cookies que aceptar.
-    </p>
-    <p>
-      El navegador solo guarda, en su almacenamiento local, lo imprescindible para que la web funcione:
-      que has cerrado el aviso de proyecto personal (hasta que cierres la pestaña), el tema de color si lo
-      cambias y, si inicias sesión, la sesión. Puedes borrarlo en cualquier momento desde los ajustes del
-      navegador.
-    </p>
+    <h2>{{ t('privacy.cookiesHeading') }}</h2>
+    <i18n-t keypath="privacy.cookies" tag="p">
+      <template #noCookies><strong>{{ t('privacy.cookiesNone') }}</strong></template>
+    </i18n-t>
+    <p>{{ t('privacy.storage') }}</p>
 
-    <h2>Tus derechos</h2>
-    <p>
-      Puedes pedir acceder a los datos que se guardan sobre ti, que se borren o que se dejen de tratar.
-      Como el registro solo guarda direcciones IP, indica desde qué dirección y en qué fechas visitaste
-      la web. También puedes reclamar ante la
-      <a href="https://www.aepd.es" target="_blank" rel="noopener noreferrer">Agencia Española de Protección de Datos</a>.
-    </p>
+    <h2>{{ t('privacy.rightsHeading') }}</h2>
+    <i18n-t keypath="privacy.rights" tag="p">
+      <template #authority>
+        <a href="https://www.aepd.es" target="_blank" rel="noopener noreferrer">{{ t('privacy.rightsAuthority') }}</a>
+      </template>
+    </i18n-t>
 
-    <p class="note">
-      Versión de {{ LAST_UPDATED }}. Si Ellysia llegara a ofrecerse a otras personas, esta nota se
-      sustituiría antes por una política de privacidad completa.
-    </p>
+    <p class="note">{{ t('privacy.version', { date: formatDate(LAST_UPDATED, { day: 'numeric', month: 'long', year: 'numeric' }) }) }}</p>
   </InfoPage>
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n'
 import InfoPage from '@/components/shared/InfoPage.vue'
+import { formatDate } from '@/i18n/format'
+
+const { t, locale } = useI18n()
 
 /**
  * Plazo de conservación del registro de actividad que se anuncia. Tiene que
@@ -64,6 +54,9 @@ import InfoPage from '@/components/shared/InfoPage.vue'
  */
 const LOG_RETENTION_DAYS = 30
 
-/** Fecha de la versión vigente de esta nota. */
-const LAST_UPDATED = '23 de septiembre de 2026'
+/** Fecha de la versión vigente de esta nota, en ISO; se pinta en el idioma activo. */
+const LAST_UPDATED = '2026-09-23T12:00:00'
+
+/** Perfil público por el que se contacta con el responsable. */
+const CONTROLLER_PROFILE = 'github.com/gamustea'
 </script>
