@@ -1,5 +1,8 @@
 <script setup>
+import { useI18n } from 'vue-i18n'
 import { useToastStore } from '@/stores/toastStore'
+
+const { t } = useI18n()
 const toast = useToastStore()
 </script>
 
@@ -31,7 +34,7 @@ const toast = useToastStore()
                       @click="toast.dismiss">
             {{ toast.action.label }}
           </RouterLink>
-          <button type="button" class="toast__close" aria-label="Cerrar notificación"
+          <button type="button" class="toast__close" :aria-label="t('toast.close')"
                   @click="toast.dismiss">&times;</button>
         </div>
       </Transition>

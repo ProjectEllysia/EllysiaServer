@@ -1,36 +1,34 @@
 <template>
   <fieldset class="wl">
-    <legend class="wl-legend">White-labeling</legend>
-    <p class="wl-hint">
-      Cuánto de la marca de Ellysia ve quien recibe los envíos de este módulo.
-    </p>
+    <legend class="wl-legend">{{ t('whiteLabel.legend') }}</legend>
+    <p class="wl-hint">{{ t('whiteLabel.hint') }}</p>
 
     <label
-      v-for="option in options"
-      :key="option.value"
+      v-for="option in LEVELS"
+      :key="option"
       class="wl-option"
-      :class="{ 'wl-option--active': modelValue.level === option.value, 'wl-option--locked': isLocked(option.value) }"
+      :class="{ 'wl-option--active': modelValue.level === option, 'wl-option--locked': isLocked(option) }"
     >
       <input
         type="radio"
-        :value="option.value"
-        :checked="modelValue.level === option.value"
-        :disabled="isLocked(option.value)"
-        @change="setLevel(option.value)"
+        :value="option"
+        :checked="modelValue.level === option"
+        :disabled="isLocked(option)"
+        @change="setLevel(option)"
       />
       <span class="wl-option-text">
         <span class="wl-option-title">
-          {{ option.title }}
-          <span v-if="isLocked(option.value)" class="wl-lock">No incluido en tu plan</span>
+          {{ t(`whiteLabel.levels.${option}.title`) }}
+          <span v-if="isLocked(option)" class="wl-lock">{{ t('whiteLabel.notInPlan') }}</span>
         </span>
-        <small>{{ option.description }}</small>
+        <small>{{ t(`whiteLabel.levels.${option}.description`) }}</small>
       </span>
     </label>
 
     <!-- Cada campo se pide desde el escalón que lo usa: ofrecerlo antes sería
          un control que no se pinta en ninguna parte. -->
     <div v-if="modelValue.level !== 'none'" class="wl-color">
-      <label class="wl-color-label" for="wl-color-input">Color de énfasis</label>
+      <label class="wl-color-label" for="wl-color-input">{{ t('whiteLabel.accentColor') }}</label>
       <input
         id="wl-color-input"
         type="color"
@@ -48,34 +46,27 @@
         class="wl-remove"
         @click="update({ color: DEFAULT_COLOR })"
       >
-        Restablecer
+        {{ t('whiteLabel.reset') }}
       </button>
     </div>
 
     <div v-if="levelRank >= LEVELS.indexOf('logo')" class="wl-logo">
       <div v-if="modelValue.logo" class="wl-preview">
-        <img :src="modelValue.logo" alt="Logo de la organización" />
-        <button type="button" class="wl-remove" @click="clearLogo">Quitar</button>
+        <img :src="modelValue.logo" :alt="t('whiteLabel.logoAlt')" />
+        <button type="button" class="wl-remove" @click="clearLogo">{{ t('whiteLabel.removeLogo') }}</button>
       </div>
 
       <label class="wl-file">
         <input type="file" :accept="ACCEPTED_TYPES.join(',')" @change="onFile" />
-        <span>{{ modelValue.logo ? 'Cambiar imagen' : 'Añadir imagen corporativa' }}</span>
+        <span>{{ modelValue.logo ? t('whiteLabel.changeImage') : t('whiteLabel.addImage') }}</span>
       </label>
 
       <p v-if="error" class="wl-error">{{ error }}</p>
-      <p v-else-if="!modelValue.logo" class="wl-warning">
-        Sin imagen este nivel no se aplica: los envíos saldrán con el escalón
-        anterior, «Aplicar color corporativo».
-      </p>
-      <p v-else class="wl-hint">PNG, JPG o GIF, hasta {{ MAX_KB }} KB.</p>
+      <p v-else-if="!modelValue.logo" class="wl-warning">{{ t('whiteLabel.missingLogo') }}</p>
+      <p v-else class="wl-hint">{{ t('whiteLabel.logoFormats', { maxKb: MAX_KB }) }}</p>
     </div>
 
-    <p v-if="modelValue.level === 'full'" class="wl-note">
-      El remitente del correo sigue siendo el del servidor configurado en la
-      instancia: el white-labeling cambia lo que se ve dentro del mensaje, no
-      el dominio desde el que sale.
-    </p>
+    <p v-if="modelValue.level === 'full'" class="wl-note">{{ t('whiteLabel.senderNote') }}</p>
   </fieldset>
 </template>
 
@@ -93,6 +84,9 @@
  * previsualiza sin subir nada todavía.
  */
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   modelValue: { type: Object, required: true },
@@ -111,30 +105,9 @@ const MAX_KB = 200
 //: partida del selector cuando la organización todavía no ha elegido color.
 const DEFAULT_COLOR = '#d4a04a'
 
+//: Niveles de menos a más; su rótulo y su descripción salen de
+//: `whiteLabel.levels.<nivel>` en el diccionario.
 const LEVELS = ['none', 'color', 'logo', 'full']
-
-const options = [
-  {
-    value: 'none',
-    title: 'Nada de white-labeling',
-    description: 'Los envíos salen con la marca de Ellysia, como hasta ahora.',
-  },
-  {
-    value: 'color',
-    title: 'Aplicar color corporativo',
-    description: 'El color de énfasis (botones, filetes y bordes) pasa a ser el de la organización.',
-  },
-  {
-    value: 'logo',
-    title: 'Añadir imagen corporativa',
-    description: 'Además del color, se añade el logo de la organización sobre el texto introductorio.',
-  },
-  {
-    value: 'full',
-    title: 'Eliminar todo lo relacionado con Ellysia',
-    description: 'La cabecera, el pie y la página del test pasan a la marca de la organización.',
-  },
-]
 
 const error = ref('')
 
@@ -173,16 +146,16 @@ function onFile(event) {
 
   error.value = ''
   if (!ACCEPTED_TYPES.includes(file.type)) {
-    error.value = 'Formato no admitido. Usa PNG, JPG o GIF.'
+    error.value = t('whiteLabel.unsupportedFormat')
     return
   }
   if (file.size > MAX_KB * 1024) {
-    error.value = `La imagen ocupa ${Math.round(file.size / 1024)} KB y el máximo son ${MAX_KB} KB.`
+    error.value = t('whiteLabel.tooLarge', { sizeKb: Math.round(file.size / 1024), maxKb: MAX_KB })
     return
   }
 
   const reader = new FileReader()
-  reader.onerror = () => { error.value = 'No se ha podido leer la imagen.' }
+  reader.onerror = () => { error.value = t('whiteLabel.unreadable') }
   reader.onload = () => update({ logo: String(reader.result || '') })
   reader.readAsDataURL(file)
 }

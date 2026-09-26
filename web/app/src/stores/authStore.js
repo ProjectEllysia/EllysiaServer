@@ -1,6 +1,8 @@
 import { defineStore, getActivePinia } from 'pinia'
 import { ref, computed } from 'vue'
 import router from '@/router'
+import { i18n } from '@/i18n'
+import { translateApiError } from '@/i18n/apiErrors'
 
 /**
  * Clave usada en localStorage para persistir los datos de sesión del usuario.
@@ -9,6 +11,20 @@ import router from '@/router'
  * @type {string}
  */
 const STORAGE_KEY = 'seq_session'
+
+/**
+ * Texto de un error de las rutas de autenticación que no tiene caso propio.
+ *
+ * @param {object} data - Cuerpo JSON de la respuesta de error.
+ * @param {number} status - Código HTTP de la respuesta.
+ * @returns {string} El error de la API en el idioma activo si trae plantilla;
+ *   si no, su texto; y si no trae ninguno, un aviso genérico con el código.
+ */
+function serverErrorMessage(data, status) {
+  return translateApiError(data, i18n.global)
+    || data.error_description
+    || i18n.global.t('session.serverError', { status })
+}
 
 /**
  * Clave en sessionStorage para el motivo de fin de sesión, de forma que
@@ -195,9 +211,9 @@ export const useAuthStore = defineStore('auth', () => {
     })
     const data = await res.json()
     if (!res.ok) {
-      if (res.status === 401) throw new Error('Credenciales incorrectas.')
-      if (res.status === 429) throw new Error('Demasiados intentos. Espera unos minutos.')
-      throw new Error(data.error_description || `Error del servidor (${res.status})`)
+      if (res.status === 401) throw new Error(i18n.global.t('session.wrongCredentials'))
+      if (res.status === 429) throw new Error(i18n.global.t('session.tooManyAttempts'))
+      throw new Error(serverErrorMessage(data, res.status))
     }
 
     if (data.mfaRequired) {
@@ -224,9 +240,9 @@ export const useAuthStore = defineStore('auth', () => {
     })
     const data = await res.json()
     if (!res.ok) {
-      if (res.status === 401) throw new Error(data.error_description || 'Código inválido o verificación expirada.')
-      if (res.status === 429) throw new Error('Demasiados intentos. Espera unos minutos.')
-      throw new Error(data.error_description || `Error del servidor (${res.status})`)
+      if (res.status === 401) throw new Error(translateApiError(data, i18n.global) || data.error_description || i18n.global.t('session.invalidMfaCode'))
+      if (res.status === 429) throw new Error(i18n.global.t('session.tooManyAttempts'))
+      throw new Error(serverErrorMessage(data, res.status))
     }
     _applyTokens(data)
   }
