@@ -3,9 +3,12 @@
  *
  * Node puro, sin framework, misma convención que el resto de `test/`.
  *
- * `es.json` es el idioma por defecto y el único completo: cualquier otro puede
- * estar a medias (lo que le falte se enseña en castellano), pero no puede
- * inventarse nada. Por cada fichero se comprueba que:
+ * `es.json` es el idioma por defecto. Los idiomas de `COMPLETE_LOCALES` tienen
+ * que traer todas sus claves: la interfaz está entera en ellos, y un texto
+ * nuevo que solo se escriba en castellano saldría mezclado. Cualquier otro
+ * idioma puede estar a medias (lo que le falte se enseña en castellano). Ninguno
+ * puede inventarse nada. Por cada fichero se comprueba que:
+ *   - si es un idioma completo, tiene todas las claves de `es.json`;
  *   - todas sus claves existen en `es.json` (una clave que solo existe en otro
  *     idioma es una errata o un texto que ya nadie pide);
  *   - no usa huecos `{…}` que el castellano no tenga (el código solo rellena
@@ -53,6 +56,9 @@ function placeholdersOf(message) {
 
 const spanish = flattenMessages(messagesByLocale.es)
 
+/** Idiomas en los que la interfaz está entera, además del castellano. */
+const COMPLETE_LOCALES = ['en']
+
 let failures = 0
 function test(name, fn) {
   try { fn(); console.log(`  ok   ${name}`) }
@@ -71,6 +77,13 @@ for (const [localeCode, tree] of Object.entries(messagesByLocale)) {
   test(`${localeCode}: declara su propio nombre en language.name`, () => {
     assert.equal(typeof tree.language?.name, 'string')
   })
+
+  if (COMPLETE_LOCALES.includes(localeCode)) {
+    test(`${localeCode}: tiene todas las claves del castellano`, () => {
+      const missingKeys = Object.keys(spanish).filter((key) => !(key in messages))
+      assert.deepEqual(missingKeys, [])
+    })
+  }
 
   test(`${localeCode}: no tiene claves que el castellano no tenga`, () => {
     const unknownKeys = Object.keys(messages).filter((key) => !(key in spanish))
