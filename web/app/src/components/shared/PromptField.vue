@@ -6,12 +6,12 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
         </svg>
-        Editar prompt
+        {{ t('promptField.edit') }}
       </button>
     </div>
     <p v-if="hint" class="pf-hint">{{ hint }}</p>
     <div class="pf-preview" :class="{ 'pf-preview--empty': !modelValue }" @click="openEditor">
-      {{ modelValue || 'Sin contenido' }}
+      {{ modelValue || t('promptField.empty') }}
     </div>
     <span class="pf-count">{{ stats(modelValue) }}</span>
 
@@ -24,7 +24,7 @@
           <div class="modal-box" role="dialog" aria-modal="true" :aria-label="title || label">
             <div class="modal-header">
               <h3>{{ title || label }}</h3>
-              <button type="button" class="close-btn" @click="close">&times;</button>
+              <button type="button" class="close-btn" :aria-label="t('common.close')" @click="close">&times;</button>
             </div>
             <p v-if="hint" class="modal-hint">{{ hint }}</p>
             <textarea
@@ -38,8 +38,8 @@
             <div class="modal-footer">
               <span class="pf-count">{{ stats(draft) }}</span>
               <div class="footer-actions">
-                <button type="button" class="btn btn--secondary" @click="close">Cancelar</button>
-                <button type="button" class="btn btn--primary" @click="apply">Aplicar</button>
+                <button type="button" class="btn btn--secondary" @click="close">{{ t('common.cancel') }}</button>
+                <button type="button" class="btn btn--primary" @click="apply">{{ t('common.apply') }}</button>
               </div>
             </div>
           </div>
@@ -62,6 +62,9 @@
  * texto largo, no solo para la vista de configuración.
  */
 import { ref, nextTick, onBeforeUnmount } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
@@ -80,7 +83,11 @@ const editor = ref(null)
 /** «N caracteres · M líneas» — el proxy barato del presupuesto de tokens */
 function stats(text) {
   const value = text || ''
-  return `${value.length} caracteres · ${value ? value.split('\n').length : 0} líneas`
+  const lineCount = value ? value.split('\n').length : 0
+  return t('promptField.stats', {
+    characters: t('common.characterCount', { count: value.length }, value.length),
+    lines: t('common.lineCount', { count: lineCount }, lineCount),
+  })
 }
 
 async function openEditor() {

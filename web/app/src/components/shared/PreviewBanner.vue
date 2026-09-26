@@ -2,14 +2,15 @@
   <Transition name="preview-banner">
     <aside v-if="isVisible" class="preview-banner" role="status">
       <span class="preview-dot" aria-hidden="true"></span>
-      <span>Ellysia es un proyecto personal en desarrollo. No es un servicio: no se ofrecen cuentas ni se contrata nada.</span>
-      <button type="button" class="preview-close" aria-label="Cerrar el aviso de vista previa" @click="dismiss">&times;</button>
+      <span>{{ t('previewBanner.message') }}</span>
+      <button type="button" class="preview-close" :aria-label="t('previewBanner.close')" @click="dismiss">&times;</button>
     </aside>
   </Transition>
 </template>
 
 <script setup>
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useLaunch } from '@/composables/useLaunch'
 
 /**
@@ -25,6 +26,7 @@ import { useLaunch } from '@/composables/useLaunch'
 
 const DISMISSED_KEY = 'ellysia_preview_banner_dismissed'
 
+const { t } = useI18n()
 const { isLoaded, isPreview } = useLaunch()
 
 /** Lee si ya se cerró en esta visita; sin almacenamiento, no se recuerda. */

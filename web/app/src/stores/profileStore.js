@@ -3,7 +3,7 @@ import { reactive, ref } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { useToastStore } from '@/stores/toastStore'
 import { useCache } from '@/composables/useCache'
-import { setLocale } from '@/i18n'
+import { i18n, setLocale } from '@/i18n'
 
 const CACHE_KEY = 'me'
 const PROFILE_TTL = 5 * 60 * 1000
@@ -184,10 +184,10 @@ export const useProfileStore = defineStore('profile', () => {
       body: JSON.stringify({ currentPassword, newPassword }),
     })
     if (!res?.ok) {
-      toast.show(await apiError(res, 'Error al cambiar la contraseña.'), 'error')
+      toast.show(await apiError(res, i18n.global.t('profile.passwordChangeFailed')), 'error')
       return false
     }
-    toast.show('Contraseña actualizada. Cerrando sesión…', 'success')
+    toast.show(i18n.global.t('profile.passwordChanged'), 'success')
     return true
   }
 

@@ -3,29 +3,29 @@
     <div v-if="open" class="modal-backdrop" @click.self="$emit('cancel')">
       <div class="modal-card" role="dialog" aria-modal="true">
         <header class="modal-head">
-          <h2 class="modal-title">Activar verificación en dos pasos</h2>
-          <button class="modal-close" aria-label="Cerrar" @click="$emit('cancel')">
+          <h2 class="modal-title">{{ t('mfaSetup.title') }}</h2>
+          <button class="modal-close" :aria-label="t('common.close')" @click="$emit('cancel')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </header>
 
         <form class="modal-form" @submit.prevent="submit">
-          <p class="modal-intro">Escanea este código con tu app autenticadora (Google Authenticator, Authy, 1Password…):</p>
+          <p class="modal-intro">{{ t('mfaSetup.intro') }}</p>
 
           <div class="qr-wrap">
-            <img v-if="qrDataUrl" :src="qrDataUrl" alt="Código QR de activación MFA" class="qr-img" />
+            <img v-if="qrDataUrl" :src="qrDataUrl" :alt="t('mfaSetup.qrAlt')" class="qr-img" />
             <div v-else class="qr-placeholder skeleton"></div>
           </div>
 
           <button type="button" class="secret-toggle" @click="showSecret = !showSecret">
-            {{ showSecret ? 'Ocultar clave manual' : '¿No puedes escanear? Introducir clave manualmente' }}
+            {{ showSecret ? t('mfaSetup.hideSecret') : t('mfaSetup.showSecret') }}
           </button>
           <Transition name="collapse">
             <code v-if="showSecret" class="mfa-secret">{{ secret }}</code>
           </Transition>
 
           <label class="form-field">
-            <span class="form-label">Código de la app</span>
+            <span class="form-label">{{ t('mfaSetup.codeLabel') }}</span>
             <input
               ref="codeInput"
               v-model="code"
@@ -36,10 +36,10 @@
 
           <div class="modal-actions">
             <span class="spacer"></span>
-            <button type="button" class="btn-ghost" :disabled="confirming" @click="$emit('cancel')">Cancelar</button>
+            <button type="button" class="btn-ghost" :disabled="confirming" @click="$emit('cancel')">{{ t('common.cancel') }}</button>
             <button type="submit" class="btn-primary" :disabled="confirming || !code.trim()">
               <span v-if="confirming" class="spinner" aria-hidden="true"></span>
-              {{ confirming ? 'Confirmando…' : 'Confirmar' }}
+              {{ confirming ? t('common.confirming') : t('common.confirm') }}
             </button>
           </div>
         </form>
@@ -51,6 +51,9 @@
 <script setup>
 import { ref, watch, nextTick } from 'vue'
 import QRCode from 'qrcode'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   open: { type: Boolean, default: false },

@@ -272,5 +272,167 @@
       "sync": "No se pudo lanzar la sincronización.",
       "search": "No se pudo completar la búsqueda."
     }
+  },
+  "common": {
+    "cancel": "Cancelar",
+    "close": "Cerrar",
+    "confirm": "Confirmar",
+    "confirming": "Confirmando…",
+    "apply": "Aplicar",
+    "save": "Guardar",
+    "saving": "Guardando…",
+    "delete": "Borrar",
+    "edit": "Editar",
+    "loading": "Cargando…",
+    "retry": "Reintentar",
+    "back": "Volver",
+    "yes": "Sí",
+    "no": "No",
+    "none": "Ninguno",
+    "unknown": "Desconocido",
+    "characterCount": "{count} carácter | {count} caracteres",
+    "lineCount": "{count} línea | {count} líneas"
+  },
+  "toast": {
+    "close": "Cerrar notificación"
+  },
+  "previewBanner": {
+    "message": "Ellysia es un proyecto personal en desarrollo. No es un servicio: no se ofrecen cuentas ni se contrata nada.",
+    "close": "Cerrar el aviso de vista previa"
+  },
+  "mfaSetup": {
+    "title": "Activar verificación en dos pasos",
+    "intro": "Escanea este código con tu app autenticadora (Google Authenticator, Authy, 1Password…):",
+    "qrAlt": "Código QR de activación MFA",
+    "hideSecret": "Ocultar clave manual",
+    "showSecret": "¿No puedes escanear? Introducir clave manualmente",
+    "codeLabel": "Código de la app"
+  },
+  "promptField": {
+    "edit": "Editar prompt",
+    "empty": "Sin contenido",
+    "stats": "{characters} · {lines}"
+  },
+  "whiteLabel": {
+    "legend": "White-labeling",
+    "hint": "Cuánto de la marca de Ellysia ve quien recibe los envíos de este módulo.",
+    "notInPlan": "No incluido en tu plan",
+    "accentColor": "Color de énfasis",
+    "reset": "Restablecer",
+    "logoAlt": "Logo de la organización",
+    "removeLogo": "Quitar",
+    "changeImage": "Cambiar imagen",
+    "addImage": "Añadir imagen corporativa",
+    "missingLogo": "Sin imagen este nivel no se aplica: los envíos saldrán con el escalón anterior, «Aplicar color corporativo».",
+    "logoFormats": "PNG, JPG o GIF, hasta {maxKb} KB.",
+    "senderNote": "El remitente del correo sigue siendo el del servidor configurado en la instancia: el white-labeling cambia lo que se ve dentro del mensaje, no el dominio desde el que sale.",
+    "unsupportedFormat": "Formato no admitido. Usa PNG, JPG o GIF.",
+    "tooLarge": "La imagen ocupa {sizeKb} KB y el máximo son {maxKb} KB.",
+    "unreadable": "No se ha podido leer la imagen.",
+    "levels": {
+      "none": {
+        "title": "Nada de white-labeling",
+        "description": "Los envíos salen con la marca de Ellysia, como hasta ahora."
+      },
+      "color": {
+        "title": "Aplicar color corporativo",
+        "description": "El color de énfasis (botones, filetes y bordes) pasa a ser el de la organización."
+      },
+      "logo": {
+        "title": "Añadir imagen corporativa",
+        "description": "Además del color, se añade el logo de la organización sobre el texto introductorio."
+      },
+      "full": {
+        "title": "Eliminar todo lo relacionado con Ellysia",
+        "description": "La cabecera, el pie y la página del test pasan a la marca de la organización."
+      }
+    }
+  },
+  "moduleHub": {
+    "signIn": "Entrar",
+    "learnMore": "Conocer más",
+    "noActivity": "Todavía no hay actividad que mostrar.",
+    "shortcuts": "Atajos",
+    "scrollToFeatures": "Bajar a las capacidades",
+    "whatItDoes": "Qué hace {name}",
+    "resources": "Recursos",
+    "restOfPantheon": "El resto del panteón",
+    "modules": {
+      "themis": "Pesa cada amenaza antes de que golpee: motor propio, escáneres clásicos, informes IA.",
+      "aegis": "Concienciación que llega antes que el ataque: píldoras IA y campañas con seguimiento.",
+      "iris": "Verifica quién firma cada correo: 37 reglas contra el phishing.",
+      "acheron": "Guarda lo que no debe perderse: bóveda cifrada en tu navegador.",
+      "hygeia": "Vigila el pulso de cada activo: telemetría en vivo y alertas antes del fallo."
+    }
+  },
+  "api": {
+    "forbidden": "No tienes permisos suficientes para realizar esta acción.",
+    "rateLimited": {
+      "hours": "Has hecho demasiadas peticiones. Vuelve a intentarlo en {count} hora. | Has hecho demasiadas peticiones. Vuelve a intentarlo en {count} horas.",
+      "minutes": "Has hecho demasiadas peticiones. Vuelve a intentarlo en {count} minuto. | Has hecho demasiadas peticiones. Vuelve a intentarlo en {count} minutos.",
+      "seconds": "Has hecho demasiadas peticiones. Vuelve a intentarlo en {count} segundo. | Has hecho demasiadas peticiones. Vuelve a intentarlo en {count} segundos."
+    },
+    "planLimit": {
+      "notIncluded": "Tu plan no incluye esta funcionalidad. Puedes verlo en Planes.",
+      "reachedUntil": "Has alcanzado el límite de tu plan ({used}/{limit}). Se renueva el {date}.",
+      "reached": "Has alcanzado el límite de tu plan ({used}/{limit}).",
+      "generic": "Has alcanzado un límite de tu plan."
+    },
+    "validation": {
+      "sentence": "{field} {reason}",
+      "unknownField": "El campo «{field}»",
+      "fields": {
+        "username": "El identificador",
+        "email": "El correo",
+        "first_name": "El nombre",
+        "last_name": "El apellido",
+        "password": "La contraseña",
+        "name": "El nombre",
+        "code": "El código",
+        "limitKey": "La clave de límite",
+        "monthlyPriceCents": "El precio",
+        "operation": "La operación",
+        "token": "El token",
+        "identifier": "El identificador o correo",
+        "newPassword": "La nueva contraseña"
+      },
+      "reasons": {
+        "missing": "falta por rellenar",
+        "invalidEmail": "no parece una dirección válida",
+        "lengthBetween": "debe tener entre {min} y {max} caracteres",
+        "tooShort": "necesita al menos {min} caracteres",
+        "tooLong": "no puede pasar de {max} caracteres",
+        "oneOf": "tiene que ser uno de: {choices}",
+        "notNumber": "tiene que ser un número",
+        "unknown": "no se reconoce"
+      }
+    }
+  },
+  "session": {
+    "mfaDisabled": "Tu cuenta no tiene activada la autenticación multifactor.",
+    "enableMfa": "Activar MFA",
+    "wrongCredentials": "Credenciales incorrectas.",
+    "tooManyAttempts": "Demasiados intentos. Espera unos minutos.",
+    "serverError": "Error del servidor ({status})",
+    "invalidMfaCode": "Código inválido o verificación expirada."
+  },
+  "account": {
+    "notice": {
+      "pastDue": "Hay un problema con tu pago. Tu plan sigue activo hasta el {date}.",
+      "cancelled": "Has cancelado tu plan. Seguirá funcionando hasta el {date}.",
+      "ended": "Tu plan ha terminado. Estás en el plan gratuito; no se ha borrado nada."
+    },
+    "createOrganizationFailed": "No se pudo crear la organización.",
+    "organizationCreated": "Organización creada.",
+    "organizationLanguageFailed": "No se pudo guardar el idioma de la organización.",
+    "organizationLanguageSaved": "Idioma de la organización guardado."
+  },
+  "profile": {
+    "passwordChangeFailed": "Error al cambiar la contraseña.",
+    "passwordChanged": "Contraseña actualizada. Cerrando sesión…"
+  },
+  "mfa": {
+    "setupFailed": "No se pudo iniciar la activación de MFA.",
+    "invalidCode": "Código inválido."
   }
 }

@@ -15,6 +15,9 @@ import { useLaunch } from '@/composables/useLaunch'
 import { useAuthStore } from '@/stores/authStore'
 import { useMfaStore } from '@/stores/mfaStore'
 import { useToastStore } from '@/stores/toastStore'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const auth = useAuthStore()
 const mfa = useMfaStore()
@@ -37,10 +40,10 @@ async function notifyIfMfaIsDisabled() {
       // muestres un aviso de una sesión anterior al usuario siguiente.
       if (auth.accessToken !== token || !status || status.enabled) return
       toast.show(
-        'Tu cuenta no tiene activada la autenticación multifactor.',
+        t('session.mfaDisabled'),
         'warn',
         10000,
-        { label: 'Activar MFA', to: '/profile#mfa' },
+        { label: t('session.enableMfa'), to: '/profile#mfa' },
       )
     } catch (error) {
       // Un fallo al consultar el estado de seguridad no debe bloquear el SPA.
