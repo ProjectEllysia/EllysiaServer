@@ -729,8 +729,11 @@ watch(() => store.loading, (isLoading) => {
   if (!isLoading) savedLaunchMode.value = store.configFlat['general.launch.mode']
 }, { immediate: true })
 
+/** Milisegundos entre un guardado correcto y la recarga de la pestaña. */
+const RELOAD_DELAY_MS = 800
+
 /**
- * Guarda la configuración. Pasar de vista previa a abierto al público pide
+ * Guarda la configuración y, si sale bien, recarga la pestaña. Pasar de vista previa a abierto al público pide
  * confirmación y enumera lo que se va a abrir: es el cambio de más alcance
  * del panel, y un clic distraído no debería bastar.
  */
@@ -745,7 +748,12 @@ async function handleSave() {
       : t('configView.confirmOpenNothing')
     if (!window.confirm(message)) return
   }
-  if (await store.saveConfig()) savedLaunchMode.value = selectedMode
+  if (!(await store.saveConfig())) return
+  savedLaunchMode.value = selectedMode
+  // La SPA lee algunos ajustes una sola vez al arrancar (p. ej. el estado de
+  // lanzamiento de useLaunch): se recarga para aplicarlos. La espera deja leer
+  // el aviso de «guardado», que la recarga destruiría.
+  setTimeout(() => window.location.reload(), RELOAD_DELAY_MS)
 }
 </script>
 
