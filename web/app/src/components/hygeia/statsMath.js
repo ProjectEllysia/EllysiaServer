@@ -45,14 +45,14 @@ function isMissing(value) {
  * decide si un 9.400.000 se lee como "9,4 MB/s" o como un número crudo.
  */
 export const STATS_METRICS = [
-  { key: 'cpuPct', name: 'CPU', unit: 'percent', additive: false },
-  { key: 'memPct', name: 'Memoria', unit: 'percent', additive: false },
-  { key: 'swapPct', name: 'Swap', unit: 'percent', additive: false },
-  { key: 'diskMaxPct', name: 'Disco', unit: 'percent', additive: false },
-  { key: 'load1', name: 'Carga', unit: 'loadAverage', additive: false },
-  { key: 'netRxBps', name: 'Red · entrada', unit: 'bytesPerSecond', additive: true },
-  { key: 'netTxBps', name: 'Red · salida', unit: 'bytesPerSecond', additive: true },
-  { key: 'powerWatts', name: 'Potencia', unit: 'watts', additive: true },
+  { key: 'cpuPct', labelKey: 'hygeia.metrics.cpuPct', unit: 'percent', additive: false },
+  { key: 'memPct', labelKey: 'hygeia.metrics.memPct', unit: 'percent', additive: false },
+  { key: 'swapPct', labelKey: 'hygeia.metrics.swapPct', unit: 'percent', additive: false },
+  { key: 'diskMaxPct', labelKey: 'hygeia.metrics.diskMaxPct', unit: 'percent', additive: false },
+  { key: 'load1', labelKey: 'hygeia.metrics.load1', unit: 'loadAverage', additive: false },
+  { key: 'netRxBps', labelKey: 'hygeia.metrics.netRxBps', unit: 'bytesPerSecond', additive: true },
+  { key: 'netTxBps', labelKey: 'hygeia.metrics.netTxBps', unit: 'bytesPerSecond', additive: true },
+  { key: 'powerWatts', labelKey: 'hygeia.metrics.powerWatts', unit: 'watts', additive: true },
 ]
 
 /**
@@ -73,9 +73,9 @@ export function metricOf(key) {
  * ramificar por el valor a mano.
  */
 export const STATS_SCOPES = [
-  { value: 'asset', label: 'Un activo', needs: 'asset' },
-  { value: 'tag', label: 'Una etiqueta', needs: 'tag' },
-  { value: 'fleet', label: 'Todo el parque', needs: null },
+  { value: 'asset', labelKey: 'hygeia.stats.scopes.asset', needs: 'asset' },
+  { value: 'tag', labelKey: 'hygeia.stats.scopes.tag', needs: 'tag' },
+  { value: 'fleet', labelKey: 'hygeia.stats.scopes.fleet', needs: null },
 ]
 
 /**
@@ -87,16 +87,16 @@ export const STATS_SCOPES = [
  * respuesta deja de venir recortada, no en este selector.
  */
 export const STATS_PERIODS = [
-  { value: '24h', label: '24 h' },
-  { value: '7d', label: '7 días' },
-  { value: '30d', label: '30 días' },
+  { value: '24h', labelKey: 'hygeia.stats.periods.24h' },
+  { value: '7d', labelKey: 'hygeia.stats.periods.7d' },
+  { value: '30d', labelKey: 'hygeia.stats.periods.30d' },
 ]
 
 /** Cómo se combinan entre activos los valores de cada uno, en los alcances agregados. */
 export const STATS_AGGREGATIONS = [
-  { value: 'avg', label: 'Media', needsAdditive: false },
-  { value: 'max', label: 'Máximo', needsAdditive: false },
-  { value: 'sum', label: 'Total', needsAdditive: true },
+  { value: 'avg', labelKey: 'hygeia.stats.aggregations.avg', needsAdditive: false },
+  { value: 'max', labelKey: 'hygeia.stats.aggregations.max', needsAdditive: false },
+  { value: 'sum', labelKey: 'hygeia.stats.aggregations.sum', needsAdditive: true },
 ]
 
 const UNIT_FORMATTERS = {
@@ -151,7 +151,7 @@ export function summaryRows(metricsByName) {
     const summary = metricsByName[metric.key] ?? {}
     return {
       key: metric.key,
-      name: metric.name,
+      labelKey: metric.labelKey,
       hasData: (summary.sampleCount ?? 0) > 0,
       sampleCount: summary.sampleCount ?? 0,
       min: formatStatValue(metric, summary.min),
@@ -209,7 +209,7 @@ export function tagMetricRows(metricsByName) {
     const aggregate = metricsByName[metric.key] ?? {}
     return {
       key: metric.key,
-      name: metric.name,
+      labelKey: metric.labelKey,
       hasData: (aggregate.assetsWithData ?? 0) > 0,
       assetsWithData: aggregate.assetsWithData ?? 0,
       value: formatStatValue({ unit: aggregate.unit ?? metric.unit }, aggregate.value),
@@ -228,13 +228,15 @@ export function tagMetricRows(metricsByName) {
  *
  * @param {object|null} body - Cualquier respuesta de estadísticas con
  *   `periodCoveredFrom`/`periodCoveredTo`/`isPeriodClipped`.
+ * @param {Function} t - Función de traducción de vue-i18n (`useI18n().t` o
+ *   `i18n.global.t`).
  * @returns {string} «Periodo analizado: 7 días.» si se cubrió lo pedido;
  *   «Solo se guardan 30 días de historial: el resultado cubre ese tiempo.» si
  *   se recortó; o cadena vacía si la respuesta no trae ventana (los endpoints
  *   que son una foto del ahora, como el panorama del parque) o trae fechas
  *   ilegibles.
  */
-export function describeCoverage(body) {
+export function describeCoverage(body, t) {
   if (!body?.periodCoveredFrom || !body?.periodCoveredTo) return ''
   const from = new Date(body.periodCoveredFrom)
   const to = new Date(body.periodCoveredTo)
@@ -243,11 +245,10 @@ export function describeCoverage(body) {
   const days = Math.round((to.getTime() - from.getTime()) / 86400e3)
   const hours = Math.round((to.getTime() - from.getTime()) / 3600e3)
   const amount = days >= 1 ? days : hours
-  const unit = days >= 1 ? (amount === 1 ? 'día' : 'días') : (amount === 1 ? 'hora' : 'horas')
-  const span = `${amount} ${unit}`
+  const span = t(days >= 1 ? 'hygeia.stats.spanDays' : 'hygeia.stats.spanHours', { count: amount }, amount)
   return body.isPeriodClipped
-    ? `Solo se ${amount === 1 ? 'guarda' : 'guardan'} ${span} de historial: el resultado cubre ese tiempo.`
-    : `Periodo analizado: ${span}.`
+    ? t('hygeia.stats.coverageClipped', { span }, amount)
+    : t('hygeia.stats.coverage', { span })
 }
 
 /**

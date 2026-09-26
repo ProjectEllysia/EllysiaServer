@@ -11,12 +11,18 @@
  *   node web/app/test/hygeia.statsMath.test.mjs
  */
 
+import { readFileSync } from 'node:fs'
+import { createI18n } from 'vue-i18n'
 import {
   MAX_COMPARISON_METRICS, STATS_METRICS, STATS_PERIODS, STATS_SCOPES, STATS_AGGREGATIONS,
   alignComparisonSeries, bucketForPeriod, comparisonPath, describeCoverage, describeLaneRange,
   buildStatsDocumentRequest, formatStatValue, inactivityRanges, isAggregationAllowed, metricOf,
   oldestInstant, rankingRows, summaryRows, tagMetricRows,
 } from '../src/components/hygeia/statsMath.js'
+
+// Los rótulos salen de los ficheros de idioma: se comprueban en castellano.
+const spanish = JSON.parse(readFileSync(new URL('../src/i18n/locales/es.json', import.meta.url), 'utf-8'))
+const { t } = createI18n({ legacy: false, locale: 'es', messages: { es: spanish } }).global
 
 let passed = 0
 let failed = 0
@@ -49,8 +55,8 @@ check(
     === 'netRxBps,netTxBps,powerWatts',
 )
 check('toda métrica declara unidad', STATS_METRICS.every((m) => Boolean(m.unit)))
-check('toda métrica declara nombre en castellano', STATS_METRICS.every((m) => Boolean(m.name)))
-eq('metricOf devuelve la entrada por su clave', metricOf('cpuPct')?.name, 'CPU')
+check('toda métrica tiene rótulo en castellano', STATS_METRICS.every((m) => t(m.labelKey) !== m.labelKey))
+eq('metricOf devuelve la entrada por su clave', t(metricOf('cpuPct')?.labelKey), 'CPU')
 eq('metricOf de una clave desconocida es null', metricOf('inventada'), null)
 
 console.log('\nalcances y periodos')
@@ -162,18 +168,18 @@ const day = {
   isPeriodClipped: false,
 }
 check('una ventana de un día se describe en días',
-  describeCoverage(day) === 'Periodo analizado: 1 día.', describeCoverage(day))
+  describeCoverage(day, t) === 'Periodo analizado: 1 día.', describeCoverage(day, t))
 check('una ventana corta se describe en horas',
-  describeCoverage({ ...day, periodCoveredTo: '2026-09-01T06:00:00Z' })
+  describeCoverage({ ...day, periodCoveredTo: '2026-09-01T06:00:00Z' }, t)
     === 'Periodo analizado: 6 horas.')
 // Un "máximo de los últimos 365 días" calculado sobre 30 tiene que decirlo.
 check('una ventana recortada lo dice',
-  describeCoverage({ ...day, isPeriodClipped: true })
+  describeCoverage({ ...day, isPeriodClipped: true }, t)
     === 'Solo se guarda 1 día de historial: el resultado cubre ese tiempo.')
-eq('una respuesta sin ventana no describe nada', describeCoverage({}), '')
-eq('una respuesta nula tampoco', describeCoverage(null), '')
+eq('una respuesta sin ventana no describe nada', describeCoverage({}, t), '')
+eq('una respuesta nula tampoco', describeCoverage(null, t), '')
 eq('unas fechas ilegibles no producen texto basura',
-  describeCoverage({ periodCoveredFrom: 'ayer', periodCoveredTo: 'hoy' }), '')
+  describeCoverage({ periodCoveredFrom: 'ayer', periodCoveredTo: 'hoy' }, t), '')
 
 console.log('\ncombinaciones válidas de métrica y agregación')
 

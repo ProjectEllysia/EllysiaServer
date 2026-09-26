@@ -30,24 +30,8 @@ const PENDING_FILES = [
   'components/aegis/DocumentViewer.vue',
   'components/config/ModelPicker.vue',
   'components/config/ScannerCard.vue',
-  'components/hygeia/AgentKeyModal.vue',
-  'components/hygeia/AssetDetail.vue',
-  'components/hygeia/AssetList.vue',
-  'components/hygeia/AssetPicker.vue',
-  'components/hygeia/AssetTabs.vue',
-  'components/hygeia/AssetTagsModal.vue',
-  'components/hygeia/CreateAssetModal.vue',
-  'components/hygeia/InventoryAnalysisModal.vue',
-  'components/hygeia/InventoryReportModal.vue',
-  'components/hygeia/MetricNav.vue',
-  'components/hygeia/MetricsChart.vue',
   'views/acheron/AcheronHubView.vue',
   'views/acheron/AcheronView.vue',
-  'views/hygeia/HygeiaDocumentsView.vue',
-  'views/hygeia/HygeiaHubView.vue',
-  'views/hygeia/HygeiaStatsView.vue',
-  'views/hygeia/HygeiaTagsView.vue',
-  'views/hygeia/HygeiaView.vue',
   'views/system/ConfigView.vue',
   'views/system/LogsView.vue',
   'views/system/QueueView.vue',
@@ -58,7 +42,7 @@ const PENDING_FILES = [
  * plantilla migrada: nombres propios del producto y su dominio. Las siglas
  * tampoco cuentan (ver `findHandwrittenText`).
  */
-const LANGUAGE_NEUTRAL_WORDS = new Set(['Ellysia', 'Themis', 'Aegis', 'Iris', 'Acheron', 'Hygeia', 'Lybra', 'GitHub', 'ProjectEllysia', 'Nmap', 'Nikto', 'Nuclei', 'Cron', 'ellysia', 'es', 'v', 'ms'])
+const LANGUAGE_NEUTRAL_WORDS = new Set(['Ellysia', 'Themis', 'Aegis', 'Iris', 'Acheron', 'Hygeia', 'Lybra', 'GitHub', 'ProjectEllysia', 'Nmap', 'Nikto', 'Nuclei', 'Cron', 'Linux', 'Windows', 'macOS', 'ellysia', 'es', 'v', 'ms'])
 
 /** Una etiqueta HTML entera, aunque sus atributos lleven `>` entre comillas. */
 const TAG_RE = /<(?:[^>"']|"[^"]*"|'[^']*')*>/g

@@ -5,7 +5,7 @@
       v-if="removable"
       type="button"
       class="tag-remove"
-      :aria-label="`Quitar la etiqueta ${tag.name}`"
+      :aria-label="t('hygeia.tags.remove', { name: tag.name })"
       @click.stop="$emit('remove', tag.id)"
     >&times;</button>
   </span>
@@ -13,6 +13,9 @@
 
 <script setup>
 import { hueOf } from './tagColors'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 defineProps({
   tag: { type: Object, required: true },

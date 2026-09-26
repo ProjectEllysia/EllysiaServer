@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { reactive } from 'vue'
 import { useApi } from '@/composables/useApi'
+import { i18n } from '@/i18n'
 
 /**
  * Store del catálogo de etiquetas de Hygeia.
@@ -32,11 +33,11 @@ export const useHygeiaTagsStore = defineStore('hygeiaTags', () => {
     if (!silent) state.loading = true
     try {
       const res = await apiFetch('/hygeia/tags')
-      if (!res?.ok) { state.error = await apiError(res, 'No se pudieron cargar las etiquetas.'); return }
+      if (!res?.ok) { state.error = await apiError(res, i18n.global.t('hygeiaStore.tags.loadFailed')); return }
       const data = await res.json()
       state.tags = data.tags ?? []
       state.error = null
-    } catch { state.error = 'No se pudo conectar con la API.' }
+    } catch { state.error = i18n.global.t('hygeiaStore.tags.offline') }
     finally { if (!silent) state.loading = false }
   }
 
@@ -54,12 +55,12 @@ export const useHygeiaTagsStore = defineStore('hygeiaTags', () => {
         method: 'POST',
         body: JSON.stringify({ name, color }),
       })
-      if (!res?.ok) { state.error = await apiError(res, 'No se pudo crear la etiqueta.'); return null }
+      if (!res?.ok) { state.error = await apiError(res, i18n.global.t('hygeiaStore.tags.createFailed')); return null }
       const tag = await res.json()
       state.tags.push(tag)
       state.error = null
       return tag
-    } catch { state.error = 'No se pudo conectar con la API.'; return null }
+    } catch { state.error = i18n.global.t('hygeiaStore.tags.offline'); return null }
   }
 
   /**
@@ -74,11 +75,11 @@ export const useHygeiaTagsStore = defineStore('hygeiaTags', () => {
   async function deleteTag(id) {
     try {
       const res = await apiFetch(`/hygeia/tags/${id}`, { method: 'DELETE' })
-      if (!res?.ok) { state.error = await apiError(res, 'No se pudo borrar la etiqueta.'); return false }
+      if (!res?.ok) { state.error = await apiError(res, i18n.global.t('hygeiaStore.tags.deleteFailed')); return false }
       state.tags = state.tags.filter((tag) => tag.id !== id)
       state.error = null
       return true
-    } catch { state.error = 'No se pudo conectar con la API.'; return false }
+    } catch { state.error = i18n.global.t('hygeiaStore.tags.offline'); return false }
   }
 
   /**

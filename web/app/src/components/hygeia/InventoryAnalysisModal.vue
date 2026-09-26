@@ -4,56 +4,48 @@
       <div v-if="show" class="modal-overlay" @click.self="$emit('close')">
         <div class="modal-box">
           <div class="modal-header">
-            <h3>Análisis del inventario</h3>
-            <button class="close-btn" @click="$emit('close')">&times;</button>
+            <h3>{{ t('hygeia.analysis.title') }}</h3>
+            <button class="close-btn" :aria-label="t('common.close')" @click="$emit('close')">&times;</button>
           </div>
 
           <div class="modal-body">
-            <p v-if="!analysis || !analysis.scanId" class="state-msg">
-              Este activo aún no se ha analizado.
-            </p>
+            <p v-if="!analysis || !analysis.scanId" class="state-msg">{{ t('hygeia.analysis.notYet') }}</p>
 
             <template v-else>
               <div class="summary-head">
-                <span class="scan-status" :class="analysis.status">{{ STATUS_LABEL[analysis.status] || 'Desconocido' }}</span>
+                <span class="scan-status" :class="analysis.status">{{ STATUSES.includes(analysis.status) ? t(`hygeia.analysis.status.${analysis.status}`) : t('common.unknown') }}</span>
                 <span class="scan-date">{{ fmtDate(analysis.finishedAt || analysis.startedAt) }}</span>
               </div>
 
-              <p v-if="isRunning" class="state-msg">
-                Analizando el software instalado… el resumen se actualizará solo al terminar.
-              </p>
+              <p v-if="isRunning" class="state-msg">{{ t('hygeia.analysis.running') }}</p>
 
               <template v-else>
                 <div class="totals">
                   <div class="total">
                     <span class="total-value">{{ analysis.vulnerableCount ?? 0 }}</span>
-                    <span class="total-label">con vulnerabilidad conocida</span>
+                    <span class="total-label">{{ t('hygeia.analysis.vulnerable') }}</span>
                   </div>
                   <div class="total">
                     <span class="total-value">{{ analysis.confirmedCount ?? 0 }}</span>
-                    <span class="total-label">comprobados</span>
+                    <span class="total-label">{{ t('hygeia.analysis.confirmed') }}</span>
                   </div>
                   <div class="total">
                     <span class="total-value">{{ analysis.totalFindings ?? 0 }}</span>
-                    <span class="total-label">hallazgos en total</span>
+                    <span class="total-label">{{ t('hygeia.analysis.findings') }}</span>
                   </div>
                 </div>
 
-                <p v-if="!analysis.totalFindings" class="state-msg state-msg--clean">
-                  Ningún hallazgo. El software instalado está limpio.
-                </p>
+                <p v-if="!analysis.totalFindings" class="state-msg state-msg--clean">{{ t('hygeia.analysis.clean') }}</p>
 
                 <!-- Solo cuando el matcher no pudo identificar parte del inventario. -->
                 <p v-else-if="analysis.unresolvedCount" class="coverage-note">
-                  <strong>Nota de cobertura:</strong> {{ analysis.unresolvedCount }} de los
-                  {{ analysis.packageCount }} paquetes inventariados no se pudieron identificar contra el
-                  catálogo de vulnerabilidades, así que no se comprobaron. El resto sí se comprobó — su
-                  ausencia de hallazgos es una verificación real.
+                  <strong>{{ t('hygeia.analysis.coverageTitle') }}</strong>
+                  {{ t('hygeia.analysis.coverage', { unresolved: analysis.unresolvedCount, total: analysis.packageCount }) }}
                 </p>
 
                 <ul v-else class="prio-list">
                   <li v-for="lvl in LADDER" :key="lvl" v-show="byPriority[lvl]" class="prio-row">
-                    <span class="prio-chip" :class="lvl.toLowerCase()">{{ PRIO_LABEL[lvl] }}</span>
+                    <span class="prio-chip" :class="lvl.toLowerCase()">{{ priorityLabel(lvl) }}</span>
                     <span class="prio-bar">
                       <span class="prio-fill" :class="lvl.toLowerCase()" :style="{ width: barWidth(byPriority[lvl]) }"></span>
                     </span>
@@ -65,18 +57,15 @@
                      inventario: mirar los paquetes instalados no dice nada de
                      lo que el host expone a la red. Conviene decirlo, para que
                      nadie lea estas prioridades como una foto completa. -->
-                <p class="scope-note">
-                  Solo software instalado. La superficie expuesta a la red (puertos, TLS, rutas)
-                  se analiza desde Themis, con un escaneo propio.
-                </p>
+                <p class="scope-note">{{ t('hygeia.analysis.scope') }}</p>
               </template>
             </template>
           </div>
 
           <div class="modal-footer">
-            <button type="button" class="btn-ghost" @click="$emit('close')">Cerrar</button>
+            <button type="button" class="btn-ghost" @click="$emit('close')">{{ t('common.close') }}</button>
             <button v-if="analysis && analysis.scanId" type="button" class="btn-primary" @click="$emit('open-in-themis')">
-              Ver desglose en Themis
+              {{ t('hygeia.analysis.openInThemis') }}
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </button>
           </div>
@@ -89,6 +78,10 @@
 <script setup>
 import { computed } from 'vue'
 import { formatDateTime } from '@/i18n/format'
+import { priorityLabel } from '@/components/themis/labels'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -99,8 +92,8 @@ defineEmits(['close', 'open-in-themis'])
 // Misma escala que LybraResults.vue, para que un hallazgo se lea igual en
 // los dos paneles.
 const LADDER = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO']
-const PRIO_LABEL = { CRITICAL: 'Crítica', HIGH: 'Alta', MEDIUM: 'Media', LOW: 'Baja', INFO: 'Info' }
-const STATUS_LABEL = { pending: 'Pendiente', running: 'En curso', finished: 'Terminado', failed: 'Fallido' }
+/** Estados de un análisis de inventario; su rótulo está en `hygeia.analysis.status.<estado>`. */
+const STATUSES = ['pending', 'running', 'finished', 'failed']
 
 const isRunning = computed(() => ['pending', 'running'].includes(props.analysis?.status))
 const byPriority = computed(() => props.analysis?.byPriority || {})

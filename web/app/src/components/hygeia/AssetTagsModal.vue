@@ -7,8 +7,8 @@
       <div v-if="show" class="modal-overlay" data-module="hygeia" @click.self="$emit('close')">
         <div class="modal-box">
           <div class="modal-header">
-            <h3>Etiquetas de {{ asset?.hostname }}</h3>
-            <button class="close-btn" @click="$emit('close')">&times;</button>
+            <h3>{{ t('hygeia.assetTags.title', { host: asset?.hostname }) }}</h3>
+            <button class="close-btn" :aria-label="t('common.close')" @click="$emit('close')">&times;</button>
           </div>
 
           <div class="modal-body">
@@ -17,7 +17,7 @@
               v-model.trim="search"
               type="search"
               class="search-input"
-              placeholder="Buscar o crear una etiqueta…"
+              :placeholder="t('hygeia.assetTags.search')"
               @keydown.enter.prevent="onEnter"
             />
 
@@ -39,9 +39,7 @@
                 </label>
               </template>
 
-              <p v-if="!hasVisibleTags && !canCreate" class="empty">
-                No hay ninguna etiqueta que coincida.
-              </p>
+              <p v-if="!hasVisibleTags && !canCreate" class="empty">{{ t('hygeia.assetTags.noMatch') }}</p>
             </div>
 
             <!-- Crear desde aquí: lo que se escriba y no exista se puede añadir
@@ -49,14 +47,14 @@
                  con el resto al aceptar, en una sola operación. -->
             <div v-if="canCreate" class="create">
               <button type="button" class="create-btn" @click="stageNewTag">
-                Crear «{{ search }}»
+                {{ t('hygeia.assetTags.create', { name: search }) }}
               </button>
               <span class="swatches">
                 <button
                   v-for="color in TAG_COLOR_NAMES" :key="color"
                   type="button" class="swatch" :class="{ 'swatch--on': color === newColor }"
                   :style="{ background: hueOf(color) }"
-                  :aria-label="`Color ${color}`" :aria-pressed="color === newColor"
+                  :aria-label="t('hygeia.assetTags.color', { color })" :aria-pressed="color === newColor"
                   @click="newColor = color"
                 ></button>
               </span>
@@ -65,9 +63,9 @@
             <p v-if="error" class="error">{{ error }}</p>
 
             <div class="modal-footer">
-              <button type="button" class="btn-secondary" @click="$emit('close')">Cancelar</button>
+              <button type="button" class="btn-secondary" @click="$emit('close')">{{ t('common.cancel') }}</button>
               <button type="button" class="btn-primary" :disabled="submitting" @click="submit">
-                {{ submitting ? 'Guardando…' : 'Guardar' }}
+                {{ submitting ? t('common.saving') : t('common.save') }}
               </button>
             </div>
           </div>
@@ -81,6 +79,9 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import TagBadge from './TagBadge.vue'
 import { TAG_COLOR_NAMES, hueOf } from './tagColors'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -118,8 +119,8 @@ function matches(tag) {
 }
 
 const groups = computed(() => [
-  { title: 'Catálogo común', tags: props.tags.filter((t) => t.tagType === 'system' && matches(t)) },
-  { title: 'Mis etiquetas', tags: props.tags.filter((t) => t.tagType === 'user' && matches(t)) },
+  { title: t('hygeia.assetTags.system'), tags: props.tags.filter((tag) => tag.tagType === 'system' && matches(tag)) },
+  { title: t('hygeia.assetTags.mine'), tags: props.tags.filter((tag) => tag.tagType === 'user' && matches(tag)) },
 ])
 
 const hasVisibleTags = computed(() => groups.value.some((group) => group.tags.length))
@@ -154,7 +155,7 @@ function toggle(tag) {
 
 function countLabel(tag) {
   const count = tag.assetCount ?? 0
-  return count === 1 ? '1 activo' : `${count} activos`
+  return t('hygeia.assetCount', { count }, count)
 }
 
 function stageNewTag() {

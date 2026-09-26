@@ -4,7 +4,7 @@
       :id="inputId" ref="field"
       v-model="query"
       type="text" class="picker-field" autocomplete="off" spellcheck="false"
-      :placeholder="placeholder"
+      :placeholder="placeholder ?? t('hygeia.picker.placeholder')"
       role="combobox" aria-autocomplete="list" :aria-expanded="isOpen"
       :aria-controls="listId"
       :aria-activedescendant="isOpen && highlighted !== null ? optionId(highlighted) : undefined"
@@ -15,7 +15,7 @@
          cuando el campo está vacío: un botón que no hace nada estorba. -->
     <button
       v-if="query" type="button" class="picker-clear"
-      aria-label="Vaciar la búsqueda" @click="clearQuery"
+      :aria-label="t('hygeia.picker.clear')" @click="clearQuery"
     >×</button>
 
     <!-- La lista se monta solo mientras está abierta: así no hay nada que un
@@ -30,7 +30,7 @@
           @mousemove="highlighted = asset.id"
           @mousedown.prevent="choose(asset.id)"
         >
-          <span class="pulse" :class="assetPresence(asset).pulseClass" aria-hidden="true"></span>
+          <span class="pulse" :class="assetPresence(asset, t).pulseClass" aria-hidden="true"></span>
           <span class="picker-text">
             <span class="picker-host">
               <span
@@ -39,7 +39,7 @@
               >{{ part.text }}</span>
             </span>
             <span class="picker-meta">
-              {{ assetPresence(asset).label }}<template v-if="asset.os"> · {{ asset.os }}</template>
+              {{ assetPresence(asset, t).label }}<template v-if="asset.os"> · {{ asset.os }}</template>
             </span>
           </span>
           <span v-if="asset.tags?.length" class="picker-tags">
@@ -51,17 +51,15 @@
         </li>
       </ul>
 
-      <p v-if="!matches.length" class="picker-note">
-        Ningún activo se parece a «{{ query }}».
-      </p>
+      <p v-if="!matches.length" class="picker-note">{{ t('hygeia.picker.noMatch', { query }) }}</p>
       <!-- Decir cuántos quedan fuera es lo que convierte un recorte en un
            aviso: sin esta línea, el tope parecería que el activo no existe. -->
       <p v-else-if="matches.length > visible.length" class="picker-note">
         <template v-if="query.trim()">
-          {{ matches.length - visible.length }} activos más coinciden. Escribe algo más para acotar.
+          {{ t('hygeia.picker.more', { count: matches.length - visible.length }, matches.length - visible.length) }}
         </template>
         <template v-else>
-          Tienes {{ matches.length }} activos. Escribe para buscar el que quieras.
+          {{ t('hygeia.picker.total', { count: matches.length }) }}
         </template>
       </p>
     </div>
@@ -73,6 +71,9 @@ import { computed, nextTick, ref, useId, watch } from 'vue'
 import TagBadge from '@/components/hygeia/TagBadge.vue'
 import { assetPresence } from '@/components/hygeia/format'
 import { highlightParts, searchAssets } from '@/components/hygeia/assetSearch'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 /**
  * Buscador de un activo del parque.
@@ -96,7 +97,8 @@ const props = defineProps({
   modelValue: { type: Number, default: null },
   /** Id del `<input>`, para poder atarlo a un `<label for>` de fuera. */
   inputId: { type: String, default: undefined },
-  placeholder: { type: String, default: 'Busca un activo por nombre…' },
+  /** Texto de ayuda del campo; sin él, el del idioma activo. */
+  placeholder: { type: String, default: null },
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -128,8 +130,8 @@ const matches = computed(() => searchAssets(props.assets, query.value))
  * @type {import('vue').ComputedRef<string>}
  */
 const listLabel = computed(() => (query.value.trim()
-  ? `Activos que se parecen a «${query.value.trim()}»`
-  : 'Tus activos'))
+  ? t('hygeia.picker.listMatching', { query: query.value.trim() })
+  : t('hygeia.picker.listAll')))
 const visible = computed(() => matches.value.slice(0, MAX_VISIBLE))
 
 /**

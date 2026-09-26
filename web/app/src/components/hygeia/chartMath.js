@@ -35,28 +35,28 @@ const PCT = (v) => ({ text: fmtPct(v), unit: '%' })
  *   añadir una serie no obligue a tocar la hoja de estilos.
  */
 export const SERIES = [
-  { key: 'cpu',    name: 'CPU',       field: 'cpuPct',    color: 'var(--accent-bright)',
+  { key: 'cpu',    labelKey: 'hygeia.metrics.cpuPct',       field: 'cpuPct',    color: 'var(--accent-bright)',
     fixedMax: 100, minSpan: 6,    fmt: PCT },
-  { key: 'mem',    name: 'Memoria',   field: 'memPct',    color: 'var(--info)',
+  { key: 'mem',    labelKey: 'hygeia.metrics.memPct',   field: 'memPct',    color: 'var(--info)',
     fixedMax: 100, minSpan: 6,    fmt: PCT },
-  { key: 'swap',   name: 'Swap',      field: 'swapPct',   color: 'var(--warn)',
+  { key: 'swap',   labelKey: 'hygeia.metrics.swapPct',      field: 'swapPct',   color: 'var(--warn)',
     fixedMax: 100, minSpan: 6,    fmt: PCT },
-  { key: 'disk',   name: 'Disco',     field: 'diskMaxPct', color: 'var(--danger)',
+  { key: 'disk',   labelKey: 'hygeia.metrics.diskMaxPct',     field: 'diskMaxPct', color: 'var(--danger)',
     fixedMax: 100, minSpan: 6,    fmt: PCT },
   // Entrada y salida comparten tono a propósito: son la misma magnitud en
   // dos sentidos, y la paleta no tiene seis matices distintos que repartir.
-  { key: 'net-rx', name: 'Red · entrada', field: 'netRxBps', color: 'var(--success)',
+  { key: 'net-rx', labelKey: 'hygeia.metrics.netRxBps', field: 'netRxBps', color: 'var(--success)',
     fixedMax: null, minSpan: 8192, fmt: fmtRate },
-  { key: 'net-tx', name: 'Red · salida', field: 'netTxBps',
+  { key: 'net-tx', labelKey: 'hygeia.metrics.netTxBps', field: 'netTxBps',
     color: 'color-mix(in srgb, var(--success) 50%, var(--text-muted))',
     fixedMax: null, minSpan: 8192, fmt: fmtRate },
-  { key: 'load1',  name: 'Carga',     field: 'load1',     color: 'var(--accent)',
+  { key: 'load1',  labelKey: 'hygeia.metrics.load1',     field: 'load1',     color: 'var(--accent)',
     fixedMax: null, minSpan: 1,    fmt: (v) => ({ text: fmtLoad1(v), unit: '' }) },
   // Sin techo natural: un portátil son decenas de vatios y un servidor con
   // GPU centenares, así que el eje se escala al dato con `niceCeil`, como
   // las series de red. `minSpan: 20` evita que un equipo estable en 45 W
   // parezca oscilar salvajemente por decenas de vatios de ruido.
-  { key: 'power',  name: 'Potencia',  field: 'powerWatts', color: 'var(--warn)',
+  { key: 'power',  labelKey: 'hygeia.metrics.powerWatts',  field: 'powerWatts', color: 'var(--warn)',
     fixedMax: null, minSpan: 20,   fmt: fmtWatts },
 ]
 

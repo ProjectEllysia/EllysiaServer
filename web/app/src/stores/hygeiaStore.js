@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { reactive } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { DEFAULT_WINDOW_MS, bucketForWindow } from '@/components/hygeia/chartMath'
+import { i18n } from '@/i18n'
 
 /**
  * Store de activos monitorizados de Hygeia: alta, listado, baja, rotación
@@ -47,11 +48,11 @@ export const useHygeiaStore = defineStore('hygeia', () => {
     if (!silent) state.loading = true
     try {
       const res = await apiFetch('/hygeia/assets')
-      if (!res?.ok) { state.error = await apiError(res, 'No se pudieron cargar los activos.'); return }
+      if (!res?.ok) { state.error = await apiError(res, i18n.global.t('hygeiaStore.assetsFailed')); return }
       const data = await res.json()
       state.assets = data.assets ?? []
       state.error = null
-    } catch { state.error = 'No se pudo conectar con la API.' }
+    } catch { state.error = i18n.global.t('hygeiaStore.offline') }
     finally { if (!silent) state.loading = false }
   }
 
@@ -62,34 +63,34 @@ export const useHygeiaStore = defineStore('hygeia', () => {
         method: 'POST',
         body: JSON.stringify({ hostname, os, labels, isPersistent }),
       })
-      if (!res?.ok) { state.error = await apiError(res, 'No se pudo dar de alta el activo.'); return null }
+      if (!res?.ok) { state.error = await apiError(res, i18n.global.t('hygeiaStore.createFailed')); return null }
       const data = await res.json()
       state.assets.unshift(data.asset)
       state.lastAgentKey = data.agentKey
       return data.asset
-    } catch { state.error = 'No se pudo conectar con la API.'; return null }
+    } catch { state.error = i18n.global.t('hygeiaStore.offline'); return null }
   }
 
   /** Da de baja un activo, revocando su clave de agente. */
   async function deleteAsset(id) {
     try {
       const res = await apiFetch(`/hygeia/assets/${id}`, { method: 'DELETE' })
-      if (!res?.ok) { state.error = await apiError(res, 'No se pudo eliminar el activo.'); return false }
+      if (!res?.ok) { state.error = await apiError(res, i18n.global.t('hygeiaStore.deleteFailed')); return false }
       state.assets = state.assets.filter((a) => a.id !== id)
       if (state.selectedId === id) state.selectedId = null
       return true
-    } catch { state.error = 'No se pudo conectar con la API.'; return false }
+    } catch { state.error = i18n.global.t('hygeiaStore.offline'); return false }
   }
 
   /** Regenera la clave de agente de un activo. La nueva clave queda en `state.lastAgentKey`. */
   async function rotateKey(id) {
     try {
       const res = await apiFetch(`/hygeia/assets/${id}/rotate-key`, { method: 'POST' })
-      if (!res?.ok) { state.error = await apiError(res, 'No se pudo rotar la clave.'); return null }
+      if (!res?.ok) { state.error = await apiError(res, i18n.global.t('hygeiaStore.rotateFailed')); return null }
       const data = await res.json()
       state.lastAgentKey = data.agentKey
       return data.agentKey
-    } catch { state.error = 'No se pudo conectar con la API.'; return null }
+    } catch { state.error = i18n.global.t('hygeiaStore.offline'); return null }
   }
 
   /**
@@ -105,12 +106,12 @@ export const useHygeiaStore = defineStore('hygeia', () => {
         method: 'PATCH',
         body: JSON.stringify({ isPersistent }),
       })
-      if (!res?.ok) { state.error = await apiError(res, 'No se pudo actualizar el activo.'); return false }
+      if (!res?.ok) { state.error = await apiError(res, i18n.global.t('hygeiaStore.updateFailed')); return false }
       const asset = await res.json()
       const index = state.assets.findIndex((a) => a.id === id)
       if (index !== -1) state.assets[index] = asset
       return true
-    } catch { state.error = 'No se pudo conectar con la API.'; return false }
+    } catch { state.error = i18n.global.t('hygeiaStore.offline'); return false }
   }
 
   /**
@@ -130,12 +131,12 @@ export const useHygeiaStore = defineStore('hygeia', () => {
         method: 'PUT',
         body: JSON.stringify({ tagIds }),
       })
-      if (!res?.ok) { state.error = await apiError(res, 'No se pudieron guardar las etiquetas.'); return false }
+      if (!res?.ok) { state.error = await apiError(res, i18n.global.t('hygeiaStore.tagsSaveFailed')); return false }
       const asset = await res.json()
       const index = state.assets.findIndex((a) => a.id === id)
       if (index !== -1) state.assets[index] = asset
       return true
-    } catch { state.error = 'No se pudo conectar con la API.'; return false }
+    } catch { state.error = i18n.global.t('hygeiaStore.offline'); return false }
   }
 
   /**
@@ -205,12 +206,12 @@ export const useHygeiaStore = defineStore('hygeia', () => {
       // La selección puede haber cambiado mientras la petición volaba: sin
       // esta guarda, la respuesta del activo anterior pisaría la del actual.
       if (state.selectedId !== id) return
-      if (!res?.ok) { state.metricsError = await apiError(res, 'No se pudieron cargar las métricas.'); return }
+      if (!res?.ok) { state.metricsError = await apiError(res, i18n.global.t('hygeiaStore.metricsFailed')); return }
       const data = await res.json()
       state.metrics = data.snapshots ?? []
       state.metricsTruncated = data.truncated ?? false
       state.metricsError = null
-    } catch { if (state.selectedId === id) state.metricsError = 'No se pudo conectar con la API.' }
+    } catch { if (state.selectedId === id) state.metricsError = i18n.global.t('hygeiaStore.offline') }
     finally { if (!silent) state.metricsLoading = false }
   }
 
@@ -231,10 +232,10 @@ export const useHygeiaStore = defineStore('hygeia', () => {
     try {
       const res = await apiFetch(`/hygeia/assets/${id}/metrics/latest`)
       if (state.selectedId !== id) return
-      if (!res?.ok) { state.latestError = await apiError(res, 'No se pudo cargar el último heartbeat.'); return }
+      if (!res?.ok) { state.latestError = await apiError(res, i18n.global.t('hygeiaStore.latestFailed')); return }
       state.latest = await res.json()
       state.latestError = null
-    } catch { if (state.selectedId === id) state.latestError = 'No se pudo conectar con la API.' }
+    } catch { if (state.selectedId === id) state.latestError = i18n.global.t('hygeiaStore.offline') }
   }
 
   /**
@@ -251,12 +252,12 @@ export const useHygeiaStore = defineStore('hygeia', () => {
     try {
       const res = await apiFetch(`/hygeia/assets/${id}/inventory`)
       if (state.selectedId !== id) return
-      if (!res?.ok) { state.inventoryError = await apiError(res, 'No se pudo cargar el inventario.'); return }
+      if (!res?.ok) { state.inventoryError = await apiError(res, i18n.global.t('hygeiaStore.inventoryFailed')); return }
       const data = await res.json()
       state.inventory = data.software ?? []
       state.inventoryCollectedAt = data.collectedAt ?? null
       state.inventoryError = null
-    } catch { if (state.selectedId === id) state.inventoryError = 'No se pudo conectar con la API.' }
+    } catch { if (state.selectedId === id) state.inventoryError = i18n.global.t('hygeiaStore.offline') }
     finally { if (state.selectedId === id) state.inventoryLoading = false }
   }
 
@@ -274,10 +275,10 @@ export const useHygeiaStore = defineStore('hygeia', () => {
       const res = await apiFetch(`/hygeia/assets/${id}/analysis`)
       // La selección puede haber cambiado mientras la petición volaba.
       if (state.selectedId !== id) return
-      if (!res?.ok) { state.analysisError = await apiError(res, 'No se pudo cargar el análisis.'); return }
+      if (!res?.ok) { state.analysisError = await apiError(res, i18n.global.t('hygeiaStore.analysisFailed')); return }
       state.analysis = await res.json()
       state.analysisError = null
-    } catch { if (state.selectedId === id) state.analysisError = 'No se pudo conectar con la API.' }
+    } catch { if (state.selectedId === id) state.analysisError = i18n.global.t('hygeiaStore.offline') }
     finally { if (state.selectedId === id) state.analysisLoading = false }
   }
 
@@ -294,12 +295,12 @@ export const useHygeiaStore = defineStore('hygeia', () => {
     state.analyzing = true
     try {
       const res = await apiFetch(`/hygeia/assets/${id}/analyze`, { method: 'POST' })
-      if (!res?.ok) { state.analysisError = await apiError(res, 'No se pudo lanzar el análisis.'); return null }
+      if (!res?.ok) { state.analysisError = await apiError(res, i18n.global.t('hygeiaStore.analysisLaunchFailed')); return null }
       const data = await res.json()
       state.analysisError = null
       await fetchAnalysis(id)
       return data.scanId ?? null
-    } catch { state.analysisError = 'No se pudo conectar con la API.'; return null }
+    } catch { state.analysisError = i18n.global.t('hygeiaStore.offline'); return null }
     finally { state.analyzing = false }
   }
 
@@ -318,10 +319,10 @@ export const useHygeiaStore = defineStore('hygeia', () => {
     try {
       const res = await apiFetch(`/hygeia/assets/${id}/power-summary`)
       if (state.selectedId !== id) return
-      if (!res?.ok) { state.powerSummaryError = await apiError(res, 'No se pudo cargar el consumo.'); return }
+      if (!res?.ok) { state.powerSummaryError = await apiError(res, i18n.global.t('hygeiaStore.powerFailed')); return }
       state.powerSummary = await res.json()
       state.powerSummaryError = null
-    } catch { if (state.selectedId === id) state.powerSummaryError = 'No se pudo conectar con la API.' }
+    } catch { if (state.selectedId === id) state.powerSummaryError = i18n.global.t('hygeiaStore.offline') }
   }
 
   /** Descarta la clave de agente mostrada — llamar al cerrar el modal de una sola vez. */
