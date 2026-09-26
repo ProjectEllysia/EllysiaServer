@@ -130,16 +130,25 @@ def test_every_reason_has_its_prose_in_the_spa():
     explicación falsa en lugar de la suya. El fallo es silencioso por diseño,
     así que hace falta atarlo aquí.
     """
-    from pathlib import Path
+    import json
     import re
+    from pathlib import Path
 
-    repo_root = Path(__file__).resolve().parents[3]
-    source = (repo_root / "web" / "app" / "src" / "components" / "themis" / "lybra"
+    reasons = {reason.value for reason in ScanFailureReason}
+    spa_root = Path(__file__).resolve().parents[3] / "web" / "app" / "src"
+
+    # La tarjeta solo usa la prosa de los códigos que reconoce en esta lista;
+    # el resto cae en `unknown`.
+    source = (spa_root / "components" / "themis" / "lybra"
               / "LybraResults.vue").read_text(encoding="utf-8")
-    catalogue = source[source.index("const FAILURE = {"):source.index("const FAILURE_UNKNOWN")]
-    documented = set(re.findall(r"^  ([a-z_]+): \{", catalogue, re.MULTILINE))
+    recognised = re.search(r"const FAILURE_REASONS = \[([^\]]*)\]", source).group(1)
+    assert set(re.findall(r"'([a-z_]+)'", recognised)) == reasons
 
-    assert {reason.value for reason in ScanFailureReason} == documented
+    # Y cada idioma tiene que traer el título y el consejo de cada código.
+    for locale in sorted((spa_root / "i18n" / "locales").glob("*.json")):
+        catalogue = json.loads(locale.read_text(encoding="utf-8"))["lybra"]["failure"]
+        for reason in reasons:
+            assert {"title", "hint"} <= set(catalogue.get(reason, {})), (locale.name, reason)
 
 
 def test_every_reason_is_a_plain_string_code():
