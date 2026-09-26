@@ -10,20 +10,20 @@
           <img class="wordmark-mark" :src="ellysiaIcon" alt="" aria-hidden="true" />
           <span class="wordmark-text">Ellysia</span>
         </a>
-        <nav class="ely-nav" aria-label="Navegación principal">
+        <nav class="ely-nav" :aria-label="t('landing.mainNav')">
           <div class="nav-dd" :class="{ open: toolsOpen }" @keyup.esc="toolsOpen = false">
             <button class="nav-link nav-trigger" @click="toggleDropdown('tools')"
                     :aria-expanded="toolsOpen" aria-haspopup="menu">
-              Herramientas
+              {{ t('landing.toolsMenu') }}
               <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
             </button>
             <Transition name="drop">
               <div v-if="toolsOpen" class="nav-panel nav-panel--tools" role="menu">
-                <router-link v-for="t in tools" :key="t.id" :to="t.route" class="nav-panel-item nav-panel-item--tool" role="menuitem" @click="toolsOpen = false">
-                  <img :src="t.icon" :alt="t.name" class="nav-panel-icon" />
+                <router-link v-for="tool in tools" :key="tool.id" :to="tool.route" class="nav-panel-item nav-panel-item--tool" role="menuitem" @click="toolsOpen = false">
+                  <img :src="tool.icon" :alt="tool.name" class="nav-panel-icon" />
                   <span class="nav-panel-text">
-                    <span class="nav-panel-name">{{ t.name }}</span>
-                    <span class="nav-panel-blurb">{{ t.blurb }}</span>
+                    <span class="nav-panel-name">{{ tool.name }}</span>
+                    <span class="nav-panel-blurb">{{ t(`landing.tools.${tool.id}.blurb`) }}</span>
                   </span>
                 </router-link>
               </div>
@@ -33,19 +33,19 @@
           <div class="nav-dd" :class="{ open: docsOpen }" @keyup.esc="docsOpen = false">
             <button class="nav-link nav-trigger" @click="toggleDropdown('docs')"
                     :aria-expanded="docsOpen" aria-haspopup="menu">
-              Documentación
+              {{ t('landing.docsMenu') }}
               <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
             </button>
             <Transition name="drop">
               <div v-if="docsOpen" class="nav-panel" role="menu">
                 <router-link v-for="d in docsLinks" :key="d.to" :to="d.to" class="nav-panel-item" role="menuitem" @click="docsOpen = false">
-                  {{ d.label }}
+                  {{ t(`docs.${d.docKey}.title`) }}
                 </router-link>
               </div>
             </Transition>
           </div>
 
-          <router-link v-if="canSeePricing" to="/planes" class="nav-link nav-link--plain">Planes</router-link>
+          <router-link v-if="canSeePricing" to="/planes" class="nav-link nav-link--plain">{{ t('landing.plans') }}</router-link>
         </nav>
 
         <div class="header-actions">
@@ -56,7 +56,7 @@
             class="menu-toggle"
             :aria-expanded="mobileOpen"
             aria-controls="menu-movil"
-            :aria-label="mobileOpen ? 'Cerrar el menú' : 'Abrir el menú'"
+            :aria-label="mobileOpen ? t('landing.closeMenu') : t('landing.openMenu')"
             @click="mobileOpen = !mobileOpen"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
@@ -68,8 +68,8 @@
           <button
             class="theme-toggle"
             @click="themeStore.toggleTheme()"
-            :aria-label="themeStore.theme === 'dusk' ? 'Cambiar a Amanecer' : 'Cambiar a Ocaso'"
-            :title="themeStore.theme === 'dusk' ? 'Amanecer' : 'Ocaso'"
+            :aria-label="themeStore.theme === 'dusk' ? t('shell.theme.switchToDawn') : t('shell.theme.switchToDusk')"
+            :title="themeStore.theme === 'dusk' ? t('shell.theme.dawn') : t('shell.theme.dusk')"
           >
             <!-- Ocaso activo → ofrece el sol -->
             <svg v-if="themeStore.theme === 'dusk'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
@@ -81,58 +81,57 @@
             </svg>
           </button>
 
-          <router-link v-if="!auth.isAuthenticated" to="/login" class="enter-btn">Entrar</router-link>
+          <router-link v-if="!auth.isAuthenticated" to="/login" class="enter-btn">{{ t('shell.signIn') }}</router-link>
           <AccountMenu v-else />
         </div>
 
         <!-- Menú móvil. Lista plana a propósito: en una pantalla estrecha,
              desplegables anidados dentro de un desplegable son una trampa. -->
         <Transition name="drop">
-          <nav v-if="mobileOpen" id="menu-movil" class="mobile-menu" aria-label="Navegación principal">
-            <span class="mobile-heading">Herramientas</span>
+          <nav v-if="mobileOpen" id="menu-movil" class="mobile-menu" :aria-label="t('landing.mainNav')">
+            <span class="mobile-heading">{{ t('landing.toolsMenu') }}</span>
             <router-link
-              v-for="t in tools" :key="t.id" :to="t.route"
+              v-for="tool in tools" :key="tool.id" :to="tool.route"
               class="mobile-item mobile-item--tool" @click="mobileOpen = false"
             >
               <!-- Decorativo: el nombre de la herramienta va justo al lado. -->
-              <img :src="t.icon" alt="" aria-hidden="true" class="mobile-icon" />
+              <img :src="tool.icon" alt="" aria-hidden="true" class="mobile-icon" />
               <span class="mobile-text">
-                <span class="mobile-name">{{ t.name }}</span>
-                <span class="mobile-blurb">{{ t.blurb }}</span>
+                <span class="mobile-name">{{ tool.name }}</span>
+                <span class="mobile-blurb">{{ t(`landing.tools.${tool.id}.blurb`) }}</span>
               </span>
             </router-link>
 
-            <span class="mobile-heading">Documentación</span>
+            <span class="mobile-heading">{{ t('landing.docsMenu') }}</span>
             <router-link
               v-for="d in docsLinks" :key="d.to" :to="d.to"
-              class="mobile-item" @click="mobileOpen = false"
-            >{{ d.label }}</router-link>
-
-            <router-link v-if="canSeePricing" to="/planes" class="mobile-item" @click="mobileOpen = false">Planes</router-link>
+                            class="mobile-item" @click="mobileOpen = false"
+            >{{ t(`docs.${d.docKey}.title`) }}</router-link>
+            <router-link v-if="canSeePricing" to="/planes" class="mobile-item" @click="mobileOpen = false">{{ t('landing.plans') }}</router-link>
 
             <router-link
               v-if="!auth.isAuthenticated && canRegister" to="/login?registro"
               class="mobile-cta" @click="mobileOpen = false"
-            >Crear cuenta gratis</router-link>
+            >{{ t('landing.createAccount') }}</router-link>
           </nav>
         </Transition>
       </header>
 
       <!-- Contenido del héroe -->
       <div class="hero-copy">
-        <span class="eyebrow">Security Operations Suite</span>
+        <span class="eyebrow">{{ t('landing.eyebrow') }}</span>
         <h1 class="hero-title">Ellysia</h1>
-        <p class="verse">Vigila. Conciencia. Verifica. Guarda.</p>
+        <p class="verse">{{ t('landing.verse') }}</p>
         <!-- En vista previa, Ellysia es un proyecto personal: dicho arriba del
              todo para que nadie lo confunda con un servicio. -->
-        <p v-if="isPreview" class="hero-disclaimer">Proyecto personal en desarrollo · no es un servicio comercial</p>
+        <p v-if="isPreview" class="hero-disclaimer">{{ t('landing.disclaimer') }}</p>
         <div class="hero-actions">
-          <router-link v-if="!auth.isAuthenticated" to="/login" class="cta cta--solid">Entrar</router-link>
-          <button class="cta cta--line" @click="scrollToSection('tools')">Conocer las herramientas</button>
+          <router-link v-if="!auth.isAuthenticated" to="/login" class="cta cta--solid">{{ t('shell.signIn') }}</router-link>
+          <button class="cta cta--line" @click="scrollToSection('tools')">{{ t('landing.discoverTools') }}</button>
         </div>
       </div>
 
-      <button class="scroll-cue" @click="scrollToSection('tools')" aria-label="Bajar a las herramientas">
+      <button class="scroll-cue" @click="scrollToSection('tools')" :aria-label="t('landing.scrollToTools')">
         <span></span>
       </button>
     </section>
@@ -153,28 +152,18 @@
         <img class="philo-figure" :src="socratesIcon" alt="" aria-hidden="true" />
 
         <div class="philosophy-copy">
-          <span class="philo-eyebrow">Razón de ser</span>
-          <h2 class="philo-title">La filosofía detrás de Ellysia</h2>
+          <span class="philo-eyebrow">{{ t('landing.philosophy.eyebrow') }}</span>
+          <h2 class="philo-title">{{ t('landing.philosophy.title') }}</h2>
 
           <!-- Pauta vertical: el margen de una inscripción, no un adorno -->
           <div class="philo-text" ref="philosophyTextRef">
-            <p class="philo-para">
-              La seguridad en la red dejó de ser asunto de unos pocos. Hoy basta con
-              abrir un correo, guardar una contraseña o encender un servidor para
-              quedar expuesto. Lo que cambió no fue la amenaza: fue quién la recibe.
-            </p>
-            <p class="philo-para">
-              Defenderse, en cambio, sigue siendo caro. Media docena de productos,
-              cada uno con su licencia y su consola, al alcance de quien puede pagar
-              un equipo que los maneje. Ellysia reúne esas piezas
-              <em class="philo-gold">bajo un mismo cielo</em> — detectar, formar,
-              verificar, guardar, vigilar — para quien no tiene un departamento de
-              seguridad detrás.
-            </p>
-            <p class="philo-para philo-para--close">
-              No prometemos invulnerabilidad; nadie honesto lo hace. Prometemos que
-              <em class="philo-gold">defenderse deje de ser un privilegio</em>.
-            </p>
+            <p class="philo-para">{{ t('landing.philosophy.p1') }}</p>
+            <i18n-t keypath="landing.philosophy.p2" tag="p" class="philo-para">
+              <template #sky><em class="philo-gold">{{ t('landing.philosophy.p2Sky') }}</em></template>
+            </i18n-t>
+            <i18n-t keypath="landing.philosophy.p3" tag="p" class="philo-para philo-para--close">
+              <template #privilege><em class="philo-gold">{{ t('landing.philosophy.p3Privilege') }}</em></template>
+            </i18n-t>
           </div>
         </div>
       </div>
@@ -184,34 +173,34 @@
     <section id="tools" class="stelae">
       <!-- Cabecera de sección -->
       <div class="stelae-intro">
-        <h2 class="stelae-title">Las cinco herramientas</h2>
-        <p class="stelae-bajada">Cada una guarda un aspecto de tu seguridad.</p>
+        <h2 class="stelae-title">{{ t('landing.toolsTitle') }}</h2>
+        <p class="stelae-bajada">{{ t('landing.toolsSubtitle') }}</p>
         <div class="horizon-divider"></div>
       </div>
 
-      <template v-for="(t, index) in tools" :key="t.id">
+      <template v-for="(tool, index) in tools" :key="tool.id">
         <article
-          :id="t.id"
+          :id="tool.id"
           class="stele"
-          :data-module="t.id"
-          :data-numeral="t.numeral"
+          :data-module="tool.id"
+          :data-numeral="tool.numeral"
           ref="steleRefs"
         >
           <div class="stele-medallion">
             <span class="medallion-ring" aria-hidden="true"></span>
-            <img :src="t.icon" :alt="t.name" />
+            <img :src="tool.icon" :alt="tool.name" />
           </div>
           <div class="stele-body">
-            <span class="stele-kicker">{{ t.numeral }} · {{ t.name }}</span>
-            <p class="stele-myth">{{ t.myth }}</p>
-            <span class="stele-epigraph">{{ t.epigraph }}</span>
-            <h2 class="stele-title">{{ t.title }}</h2>
-            <p class="stele-desc">{{ t.desc }}</p>
+            <span class="stele-kicker">{{ tool.numeral }} · {{ tool.name }}</span>
+            <p class="stele-myth">{{ t(`landing.tools.${tool.id}.myth`) }}</p>
+            <span class="stele-epigraph">{{ tool.epigraph }}</span>
+            <h2 class="stele-title">{{ t(`landing.tools.${tool.id}.title`) }}</h2>
+            <p class="stele-desc">{{ t(`landing.tools.${tool.id}.desc`) }}</p>
             <ul class="stele-chips">
-              <li v-for="c in t.chips" :key="c">{{ c }}</li>
+              <li v-for="chip in tool.chips" :key="chip">{{ t(`landing.chips.${chip}`) }}</li>
             </ul>
-            <router-link :to="t.route" class="stele-cta">
-              Explorar {{ t.name }}
+            <router-link :to="tool.route" class="stele-cta">
+              {{ t('landing.explore', { name: tool.name }) }}
               <span aria-hidden="true">→</span>
             </router-link>
           </div>
@@ -234,17 +223,17 @@
     <!-- Los pasos empiezan por «Crea tu cuenta»: sin alta, no hay camino que enseñar. -->
     <section v-if="canRegister" id="empezar" class="path-section">
       <div class="path-intro">
-        <span class="path-eyebrow">Cómo se empieza</span>
-        <h2 class="path-title">Tres pasos hasta el primer veredicto</h2>
+        <span class="path-eyebrow">{{ t('landing.steps.eyebrow') }}</span>
+        <h2 class="path-title">{{ t('landing.steps.title') }}</h2>
       </div>
 
       <ol class="path">
-        <li v-for="step in steps" :key="step.title" class="path-step">
+        <li v-for="step in STEPS" :key="step" class="path-step">
           <span class="path-mark" aria-hidden="true">
             <span class="path-ring"></span>
           </span>
-          <h3 class="path-step-title">{{ step.title }}</h3>
-          <p class="path-step-desc">{{ step.desc }}</p>
+          <h3 class="path-step-title">{{ t(`landing.steps.${step}.title`) }}</h3>
+          <p class="path-step-desc">{{ t(`landing.steps.${step}.desc`) }}</p>
         </li>
       </ol>
     </section>
@@ -254,9 +243,9 @@
          cerrada, no hay título de «Planes» sobre un hueco. -->
     <section v-if="canSeePricing" id="planes" class="plans-section">
       <div class="plans-intro">
-        <span class="path-eyebrow">Planes</span>
-        <h2 class="path-title">Empieza gratis; crece si te hace falta</h2>
-        <p class="plans-bajada">Sin tarjeta para empezar. El plan gratuito no caduca.</p>
+        <span class="path-eyebrow">{{ t('landing.plans') }}</span>
+        <h2 class="path-title">{{ t('landing.pricing.title') }}</h2>
+        <p class="plans-bajada">{{ t('landing.pricing.subtitle') }}</p>
         <div class="horizon-divider"></div>
       </div>
 
@@ -268,12 +257,12 @@
           v-for="plan in account.catalog" :key="plan.code"
           class="plan-card" :class="{ 'plan-card--default': plan.isDefault }"
         >
-          <span v-if="plan.isDefault" class="plan-tag">Para empezar</span>
+          <span v-if="plan.isDefault" class="plan-tag">{{ t('landing.pricing.starter') }}</span>
           <h3 class="plan-name">{{ plan.name }}</h3>
           <p class="plan-tagline">{{ plan.tagline }}</p>
           <p class="plan-price">
             <span class="plan-amount">{{ euros(plan.monthlyPriceCents) }}</span>
-            <span class="plan-period">/mes</span>
+            <span class="plan-period">{{ t('landing.pricing.perMonth') }}</span>
           </p>
           <ul class="plan-limits">
             <li v-for="item in headlineLimits(plan)" :key="item.label">
@@ -286,14 +275,14 @@
                cómo se asigna. Prometer un "Contratar" que no existe sería
                mentir en el sitio donde más caro sale. -->
           <router-link v-if="plan.isDefault && canRegister" to="/login?registro" class="plan-cta plan-cta--solid">
-            Empezar gratis
+            {{ t('landing.pricing.startFree') }}
           </router-link>
-          <router-link v-else-if="!plan.isDefault" to="/planes" class="plan-cta">Ver detalles</router-link>
+          <router-link v-else-if="!plan.isDefault" to="/planes" class="plan-cta">{{ t('landing.pricing.details') }}</router-link>
         </article>
       </div>
 
       <p v-if="account.catalog.length" class="plans-foot">
-        <router-link to="/planes">Comparar todos los límites de cada plan →</router-link>
+        <router-link to="/planes">{{ t('landing.pricing.compare') }}</router-link>
       </p>
     </section>
 
@@ -302,17 +291,17 @@
          JS que mantener. -->
     <section id="preguntas" class="faq-section">
       <div class="plans-intro">
-        <span class="path-eyebrow">Antes de que preguntes</span>
-        <h2 class="path-title">Lo que suele costar decidir</h2>
+        <span class="path-eyebrow">{{ t('landing.faq.eyebrow') }}</span>
+        <h2 class="path-title">{{ t('landing.faq.title') }}</h2>
       </div>
 
       <div class="faq-list">
-        <details v-for="item in visibleFaqs" :key="item.q" class="faq-item" v-animate-details>
+        <details v-for="item in visibleFaqs" :key="item.id" class="faq-item" v-animate-details>
           <summary class="faq-q">
-            {{ item.q }}
+            {{ t(`landing.faq.${item.id}.q`) }}
             <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
           </summary>
-          <p class="faq-a">{{ item.a }}</p>
+          <p class="faq-a">{{ t(`landing.faq.${item.id}.a`) }}</p>
         </details>
       </div>
     </section>
@@ -324,26 +313,22 @@
          de un borde recto — es el mismo recurso que ya separa las estelas. -->
     <div class="horizon-divider closing-seam" aria-hidden="true"></div>
     <section class="closing">
-      <h2 class="closing-title">Defenderse no debería ser un privilegio</h2>
-      <p v-if="canRegister" class="closing-lede">
-        Crea tu cuenta y lanza tu primer análisis hoy. Gratis, sin tarjeta.
-      </p>
-      <p v-else class="closing-lede">
-        Ellysia es un proyecto personal: no admite cuentas nuevas ni ofrece ningún servicio.
-      </p>
+      <h2 class="closing-title">{{ t('landing.closing.title') }}</h2>
+      <p v-if="canRegister" class="closing-lede">{{ t('landing.closing.register') }}</p>
+      <p v-else class="closing-lede">{{ t('landing.closing.personal') }}</p>
       <div class="closing-actions">
         <router-link v-if="!auth.isAuthenticated && canRegister" to="/login?registro" class="cta cta--solid">
-          Crear cuenta gratis
+          {{ t('landing.createAccount') }}
         </router-link>
-        <router-link v-else-if="auth.isAuthenticated" to="/themis" class="cta cta--solid">Ir a mis herramientas</router-link>
-        <button v-else class="cta cta--solid" @click="scrollToSection('tools')">Conocer las herramientas</button>
-        <router-link v-if="canSeePricing" to="/planes" class="cta cta--line">Ver los planes</router-link>
+        <router-link v-else-if="auth.isAuthenticated" to="/themis" class="cta cta--solid">{{ t('landing.closing.myTools') }}</router-link>
+        <button v-else class="cta cta--solid" @click="scrollToSection('tools')">{{ t('landing.discoverTools') }}</button>
+        <router-link v-if="canSeePricing" to="/planes" class="cta cta--line">{{ t('landing.closing.seePlans') }}</router-link>
       </div>
     </section>
 
     <!-- ═══════════ TECNOLOGÍAS — cinta en marcha ═══════════ -->
-    <section class="forge" aria-label="Tecnologías con las que está construida Ellysia">
-      <span class="forge-eyebrow">Construida con</span>
+    <section class="forge" :aria-label="t('landing.forgeLabel')">
+      <span class="forge-eyebrow">{{ t('landing.forgeEyebrow') }}</span>
       <div class="forge-viewport">
         <!-- Dos copias de la lista: cuando la primera termina de entrar, la
              segunda ocupa su sitio exacto y el bucle no tiene costura. -->
@@ -359,7 +344,7 @@
 
     <!-- ═══════════ PLACA ═══════════ -->
     <section class="plaque">
-      <span class="plaque-item"><i class="plaque-dot"></i>Operativo — {{ tools.length }} herramientas</span>
+      <span class="plaque-item"><i class="plaque-dot"></i>{{ t('landing.plaque', { count: tools.length }) }}</span>
       <span class="plaque-sep" aria-hidden="true">·</span>
       <span class="plaque-item">v{{ appVersion }}</span>
       <span class="plaque-sep" aria-hidden="true">·</span>
@@ -395,6 +380,9 @@ import irisIcon from '@/assets/images/iris/Iris-Red-BgN.png'
 import acheronIcon from '@/assets/images/acheron/Acheron-Purple-BgN.png'
 import hygeiaIcon from '@/assets/images/hygeia/Hygeia-DarkGreen-BgN.png'
 import socratesIcon from '@/assets/images/socrastes/Socrates-BgN.png'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const auth = useAuthStore()
 const profileStore = useProfileStore()
@@ -436,27 +424,16 @@ const technologies = [
 const techMarquee = [...technologies, ...technologies]
 
 /**
- * Los tres pasos hasta el primer resultado. Descritos por lo que el producto
- * hace de verdad: la cuenta nace en el plan gratuito sin pedir tarjeta, y el
- * primer objetivo es o un dominio en Themis o un agente de Hygeia.
+ * Los tres pasos hasta el primer resultado (`landing.steps.<paso>`). Descritos
+ * por lo que el producto hace de verdad: la cuenta nace en el plan gratuito sin
+ * pedir tarjeta, y el primer objetivo es o un dominio en Themis o un agente de
+ * Hygeia.
  */
-const steps = [
-  {
-    title: 'Crea tu cuenta',
-    desc: 'Gratis y sin tarjeta. El plan de entrada no caduca ni pide datos de pago.',
-  },
-  {
-    title: 'Apunta tu primer objetivo',
-    desc: 'Un dominio en Themis, o el agente de Hygeia en el servidor que quieras vigilar.',
-  },
-  {
-    title: 'Recibe el veredicto',
-    desc: 'El motor pesa cada indicio y redacta el informe, listo para leer o entregar.',
-  },
-]
+const STEPS = ['account', 'target', 'verdict']
 
 /**
- * Las objeciones que de verdad frenan una decisión, respondidas sin adornos.
+ * Las objeciones que de verdad frenan una decisión, respondidas sin adornos
+ * (`landing.faq.<id>.q` y `.a`).
  *
  * La de Acheron dice que no hay recuperación porque no la hay: el servidor es
  * zero-knowledge (`@projectellysia/acheron-core-js`), la clave se deriva en el navegador
@@ -464,38 +441,12 @@ const steps = [
  * red de seguridad inexistente a quien va a guardar sus credenciales.
  */
 const faqs = [
-  {
-    q: '¿Mis contraseñas salen de mi navegador?',
-    a: 'No. Acheron cifra en tu navegador antes de enviar nada: el servidor solo '
-     + 've texto cifrado y nunca recibe tu contraseña maestra ni la clave que se '
-     + 'deriva de ella.',
-  },
-  {
-    q: '¿Qué pasa si pierdo mi contraseña maestra de Acheron?',
-    a: 'Se pierde el contenido de la bóveda, y no hay forma de recuperarlo. Es la '
-     + 'consecuencia directa de que la clave no viaje: si nosotros pudiéramos '
-     + 'devolvértela, también podríamos leer tus secretos. Guárdala donde guardarías '
-     + 'la llave de tu casa.',
-  },
-  {
-    q: '¿Necesito ser técnico para usarlo?',
-    a: 'Para lanzar un análisis y leer el informe, no: eliges un objetivo y recibes '
-     + 'el resultado redactado. Instalar el agente de Hygeia en un servidor sí pide '
-     + 'acceso a esa máquina.',
-  },
-  {
-    q: '¿Qué necesita el agente de Hygeia?',
-    a: 'Un servicio ligero en la máquina que quieras vigilar. Es él quien envía los '
-     + 'datos hacia fuera cada pocos segundos, así que no hace falta abrir ningún '
-     + 'puerto entrante.',
-  },
-  {
-    q: '¿Cuánto cuesta empezar?',
-    // Habla de precios: se calla con la tabla de precios cerrada.
-    surface: 'pricing',
-    a: 'Nada. El plan de entrada es gratuito, no pide tarjeta y no caduca. Si te '
-     + 'quedas corto de cupo, los planes de pago están más arriba.',
-  },
+  { id: 'passwordsLeave' },
+  { id: 'lostMasterPassword' },
+  { id: 'technical' },
+  { id: 'hygeiaAgent' },
+  // Habla de precios: se calla con la tabla de precios cerrada.
+  { id: 'cost', surface: 'pricing' },
 ]
 
 /** Las preguntas cuya superficie (si la tienen) está abierta. */
@@ -508,8 +459,8 @@ function headlineLimits(plan) {
 
 /** Enlaces del desplegable "Documentación" — de momento apuntan a páginas placeholder. */
 const docsLinks = [
-  { label: 'Documentación de uso', to: '/docs/uso' },
-  { label: 'Documentación técnica', to: '/docs/tecnica' },
+  { docKey: 'usage', to: '/docs/uso' },
+  { docKey: 'technical', to: '/docs/tecnica' },
 ]
 
 /** Abre uno de los desplegables del nav y cierra el otro (mutuamente excluyentes). */
@@ -527,7 +478,11 @@ const reduceMotion =
   typeof window !== 'undefined' &&
   window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
-/** Las cinco herramientas, con su epígrafe mitológico y su función real. */
+/**
+ * Las cinco herramientas, con su epígrafe mitológico. Sus textos (reclamo,
+ * mito, título y descripción) están en `landing.tools.<id>`, y los de sus
+ * etiquetas en `landing.chips.<chip>`.
+ */
 const tools = [
   {
     id: 'themis',
@@ -536,11 +491,7 @@ const tools = [
     name: 'Themis',
     icon: themisIcon,
     route: '/themis',
-    blurb: 'Detección de vulnerabilidades',
-    myth: 'La que sostiene la balanza y no dicta sentencia sin pesar antes cada indicio.',
-    title: 'Pesa cada amenaza antes de que golpee',
-    desc: 'Motor de detección propio (Lybra), que descubre y analiza por su cuenta, junto a Nmap, Nikto y Nuclei como escáneres independientes, e informes redactados por IA listos para entregar.',
-    chips: ['Lybra', 'Nmap', 'Nikto', 'Nuclei', 'Informes IA'],
+    chips: ['lybra', 'nmap', 'nikto', 'nuclei', 'aiReports'],
   },
   {
     id: 'aegis',
@@ -549,11 +500,7 @@ const tools = [
     name: 'Aegis',
     icon: aegisIcon,
     route: '/aegis',
-    blurb: 'Concienciación con IA',
-    myth: 'El escudo de Zeus y Atenea, forjado para proteger antes del golpe.',
-    title: 'Concienciación que llega antes que el ataque',
-    desc: 'Boletines de inteligencia de seguridad generados por IA para formar a tu organización.',
-    chips: ['Newsletter IA', 'Markdown', 'JSON'],
+    chips: ['aiNewsletter', 'markdown', 'json'],
   },
   {
     id: 'iris',
@@ -562,11 +509,7 @@ const tools = [
     name: 'Iris',
     icon: irisIcon,
     route: '/iris',
-    blurb: 'Análisis anti-phishing',
-    myth: 'La mensajera de los dioses; ningún mensaje falso cruza su arco.',
-    title: 'Verifica quién firma cada correo',
-    desc: 'Análisis de cabeceras de correo para detectar phishing mediante reglas de verificación.',
-    chips: ['SPF', 'DKIM', 'DMARC', 'Anti-phishing'],
+    chips: ['spf', 'dkim', 'dmarc', 'antiPhishing'],
   },
   {
     id: 'acheron',
@@ -575,11 +518,7 @@ const tools = [
     name: 'Acheron',
     icon: acheronIcon,
     route: '/acheron',
-    blurb: 'Bóveda cifrada',
-    myth: 'El río que nadie cruza sin la llave.',
-    title: 'Guarda lo que no debe perderse',
-    desc: 'Bóveda cifrada de credenciales y tarjetas para tu organización. El cifrado ocurre en tu navegador: la llave nunca viaja.',
-    chips: ['Cifrado en navegador', 'Credenciales', 'Tarjetas'],
+    chips: ['browserEncryption', 'credentials', 'cards'],
   },
   {
     id: 'hygeia',
@@ -588,11 +527,7 @@ const tools = [
     name: 'Hygeia',
     icon: hygeiaIcon,
     route: '/hygeia',
-    blurb: 'Monitorización de activos',
-    myth: 'La diosa de la salud; vigila los signos vitales de cada activo.',
-    title: 'Vigila el pulso de cada activo',
-    desc: 'Agentes ligeros empujan telemetría de hardware; los umbrales con histéresis abren y resuelven anomalías solos, con aviso por correo en lo crítico.',
-    chips: ['Push', 'Umbrales', 'Host caído', 'Alertas'],
+    chips: ['push', 'thresholds', 'hostDown', 'alerts'],
   },
 ]
 

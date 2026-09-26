@@ -108,15 +108,6 @@ const PENDING_FILES = [
   'views/iris/IrisReplayView.vue',
   'views/iris/IrisTrustView.vue',
   'views/iris/IrisView.vue',
-  'views/public/AboutView.vue',
-  'views/public/DocsPlaceholderView.vue',
-  'views/public/ErrorView.vue',
-  'views/public/LandingView.vue',
-  'views/public/LoginView.vue',
-  'views/public/NotAvailableView.vue',
-  'views/public/PrivacyView.vue',
-  'views/public/RecoverView.vue',
-  'views/public/TermsView.vue',
   'views/system/ConfigView.vue',
   'views/system/LogsView.vue',
   'views/system/QueueView.vue',
@@ -126,9 +117,10 @@ const PENDING_FILES = [
 
 /**
  * Palabras que se escriben igual en todos los idiomas y pueden quedar en una
- * plantilla migrada: nombres propios del producto y su dominio.
+ * plantilla migrada: nombres propios del producto y su dominio. Las siglas
+ * tampoco cuentan (ver `findHandwrittenText`).
  */
-const LANGUAGE_NEUTRAL_WORDS = new Set(['Ellysia', 'Themis', 'Aegis', 'Iris', 'Acheron', 'Hygeia', 'ellysia', 'es', 'v'])
+const LANGUAGE_NEUTRAL_WORDS = new Set(['Ellysia', 'Themis', 'Aegis', 'Iris', 'Acheron', 'Hygeia', 'Lybra', 'GitHub', 'ProjectEllysia', 'ellysia', 'es', 'v'])
 
 /** Una etiqueta HTML entera, aunque sus atributos lleven `>` entre comillas. */
 const TAG_RE = /<(?:[^>"']|"[^"]*"|'[^']*')*>/g
@@ -203,8 +195,9 @@ function findHandwrittenText(source) {
     .replace(/<svg[\s\S]*?<\/svg>/g, ' ')
     .replace(TAG_RE, ' ')
     .replace(/&\w+;/g, ' ')
+  // Las siglas (NVD, MFA, PDF) se escriben igual en todos los idiomas.
   const words = (withoutMarkup.match(/\p{L}[\p{L}'’-]*/gu) ?? [])
-    .filter((word) => !LANGUAGE_NEUTRAL_WORDS.has(word))
+    .filter((word) => !LANGUAGE_NEUTRAL_WORDS.has(word) && word !== word.toUpperCase())
   const literalAttributes = [...template.matchAll(/\s(title|aria-label|placeholder|alt)="([^"]*\p{L}[^"]*)"/gu)]
     .map((match) => `${match[1]}="${match[2]}"`)
   return [...new Set(words), ...literalAttributes]

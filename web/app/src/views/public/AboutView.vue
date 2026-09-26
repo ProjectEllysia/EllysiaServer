@@ -1,50 +1,48 @@
 <template>
-  <InfoPage eyebrow="Ellysia" title="Sobre Ellysia">
-    <p>
-      Ellysia es un <strong>proyecto personal</strong>: un banco de pruebas donde su autor construye y
-      experimenta con herramientas de ciberseguridad. <strong>No es un servicio ni un producto
-      comercial.</strong> No se ofrecen cuentas, no se contrata nada y no hay ninguna empresa detrás.
-    </p>
+  <InfoPage eyebrow="Ellysia" :title="t('about.title')">
+    <i18n-t keypath="about.intro" tag="p">
+      <template #project><strong>{{ t('about.introProject') }}</strong></template>
+      <template #notService><strong>{{ t('about.introNotService') }}</strong></template>
+    </i18n-t>
 
-    <h2>Qué contiene</h2>
+    <h2>{{ t('about.contentsHeading') }}</h2>
     <ul>
-      <li><strong>Themis</strong> — detección de vulnerabilidades con un motor propio (Lybra) y escáneres clásicos como contraste.</li>
-      <li><strong>Aegis</strong> — formaciones de concienciación en seguridad generadas con inteligencia artificial.</li>
-      <li><strong>Iris</strong> — análisis de correos electrónicos para detectar fraudes (phishing), con el veredicto explicado.</li>
-      <li><strong>Acheron</strong> — caja fuerte de contraseñas cifrada en el navegador: la llave nunca viaja al servidor.</li>
-      <li><strong>Hygeia</strong> — vigilancia del estado de servidores y equipos.</li>
+      <li v-for="module in MODULES" :key="module">
+        <strong>{{ MODULE_NAMES[module] }}</strong> — {{ t(`about.modules.${module}`) }}
+      </li>
     </ul>
 
-    <h2>La idea de fondo</h2>
-    <p>
-      La motivación es aprender y explorar qué haría falta para que protegerse no fuera un privilegio
-      de quien puede pagar un equipo de seguridad. Si Ellysia llegara a ofrecerse algún día a otras
-      personas, esta página y las condiciones legales cambiarían antes.
-    </p>
+    <h2>{{ t('about.ideaHeading') }}</h2>
+    <p>{{ t('about.idea') }}</p>
 
-    <h2>Fuentes de datos</h2>
-    <p>
-      La detección de vulnerabilidades usa catálogos públicos. Ninguno de sus responsables respalda
-      Ellysia:
-    </p>
+    <h2>{{ t('about.sourcesHeading') }}</h2>
+    <p>{{ t('about.sourcesIntro') }}</p>
     <ul>
       <li>
-        <strong>NVD</strong> (National Vulnerability Database, del NIST). Este producto usa la API de la NVD,
-        pero no está respaldado ni certificado por la NVD. <em lang="en">This product uses the NVD API but is
-        not endorsed or certified by the NVD.</em>
+        <strong>NVD</strong> {{ t('about.nvd') }}
+        <em lang="en">{{ t('about.nvdNotice') }}</em>
       </li>
-      <li><strong>KEV</strong> — catálogo de vulnerabilidades explotadas conocidas de CISA (EE. UU.).</li>
-      <li><strong>EPSS</strong> — puntuaciones de probabilidad de explotación de FIRST (first.org/epss).</li>
+      <li><strong>KEV</strong> — {{ t('about.kev') }}</li>
+      <li><strong>EPSS</strong> — {{ t('about.epss') }}</li>
     </ul>
 
-    <p class="note">
-      El código se puede consultar en
-      <a href="https://github.com/ProjectEllysia/EllysiaServer" target="_blank" rel="noopener noreferrer">GitHub</a>,
-      con todos los derechos reservados.
-    </p>
+    <i18n-t keypath="about.sourceCode" tag="p" class="note">
+      <template #link>
+        <a href="https://github.com/ProjectEllysia/EllysiaServer" target="_blank" rel="noopener noreferrer">GitHub</a>
+      </template>
+    </i18n-t>
   </InfoPage>
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n'
 import InfoPage from '@/components/shared/InfoPage.vue'
+
+const { t } = useI18n()
+
+/** Módulos que se presentan, en el orden del panteón. */
+const MODULES = ['themis', 'aegis', 'iris', 'acheron', 'hygeia']
+
+/** Los nombres de los módulos son propios y no se traducen. */
+const MODULE_NAMES = { themis: 'Themis', aegis: 'Aegis', iris: 'Iris', acheron: 'Acheron', hygeia: 'Hygeia' }
 </script>

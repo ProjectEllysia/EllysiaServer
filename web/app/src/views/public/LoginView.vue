@@ -6,8 +6,8 @@
     <button
       class="theme-toggle"
       @click="themeStore.toggleTheme()"
-      :aria-label="themeStore.theme === 'dusk' ? 'Cambiar a Amanecer' : 'Cambiar a Ocaso'"
-      :title="themeStore.theme === 'dusk' ? 'Amanecer' : 'Ocaso'"
+      :aria-label="themeStore.theme === 'dusk' ? t('shell.theme.switchToDawn') : t('shell.theme.switchToDusk')"
+      :title="themeStore.theme === 'dusk' ? t('shell.theme.dawn') : t('shell.theme.dusk')"
     >
       <svg v-if="themeStore.theme === 'dusk'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
         <circle cx="12" cy="12" r="4" /><circle cx="12" cy="12" r="8" opacity="0.45" />
@@ -20,13 +20,13 @@
     <!-- ───────── El umbral ───────── -->
     <div class="portal">
       <div class="portal-body" :inert="granted">
-        <router-link to="/" class="wordmark" aria-label="Ellysia — inicio">
+        <router-link to="/" class="wordmark" :aria-label="t('shell.brandHome')">
           <img class="wordmark-mark" :src="ellysiaIcon" alt="" aria-hidden="true" />
           <span class="wordmark-text">Ellysia</span>
         </router-link>
 
-        <h1 class="title">El umbral</h1>
-        <p class="subtitle">Identifícate para cruzar</p>
+        <h1 class="title">{{ t('login.title') }}</h1>
+        <p class="subtitle">{{ t('login.subtitle') }}</p>
 
         <div class="title-rule" aria-hidden="true"></div>
 
@@ -51,7 +51,7 @@
         <form v-if="!mfaStep && mode === 'login'" novalidate @submit.prevent="handleSubmit">
           <!-- Identificador -->
           <div class="field" :class="{ focused: focus === 'user' }">
-            <label for="username">Identificador</label>
+            <label for="username">{{ t('login.username') }}</label>
             <div class="field-box">
               <svg class="field-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                 <circle cx="12" cy="8" r="4" />
@@ -61,7 +61,7 @@
                 id="username"
                 v-model="username"
                 type="text"
-                placeholder="nombre de usuario"
+                :placeholder="t('login.usernamePlaceholder')"
                 autocomplete="username"
                 spellcheck="false"
                 required
@@ -76,9 +76,9 @@
           <!-- Clave -->
           <div class="field" :class="{ focused: focus === 'pass' }">
             <label for="password">
-              <span>Clave de acceso</span>
+              <span>{{ t('login.password') }}</span>
               <transition name="caps">
-                <span v-if="capsOn" class="caps-warn" role="status">⇪ Mayúsculas activas</span>
+                <span v-if="capsOn" class="caps-warn" role="status">{{ t('login.capsLock') }}</span>
               </transition>
             </label>
             <div class="field-box">
@@ -103,7 +103,7 @@
               <button
                 type="button"
                 class="reveal"
-                :aria-label="showPassword ? 'Ocultar clave' : 'Mostrar clave'"
+                :aria-label="showPassword ? t('login.hidePassword') : t('login.showPassword')"
                 :disabled="loading"
                 @click="showPassword = !showPassword"
               >
@@ -120,20 +120,20 @@
           </div>
 
           <button type="submit" class="submit" :class="{ loading }" :disabled="loading">
-            <span class="submit-label">{{ loading ? 'Cruzando…' : 'Cruzar el umbral' }}</span>
+            <span class="submit-label">{{ loading ? t('login.submitting') : t('login.submit') }}</span>
             <span class="submit-arrow" aria-hidden="true">→</span>
             <span class="submit-spin" aria-hidden="true"></span>
           </button>
 
           <p class="signup-hint">
             <button type="button" class="link-btn" @click="enterRecover">
-              ¿Olvidaste tu clave?
+              {{ t('login.forgotPassword') }}
             </button>
             <template v-if="canRegister">
               <span class="hint-sep">·</span>
-              ¿No tienes cuenta?
+              {{ t('login.noAccount') }}
               <button type="button" class="link-btn" @click="mode = 'register'">
-                Regístrate gratis y prueba Ellysia
+                {{ t('login.registerCta') }}
               </button>
             </template>
           </p>
@@ -142,7 +142,7 @@
         <!-- ───────── Alta pública ───────── -->
         <form v-else-if="!mfaStep && mode === 'register'" novalidate @submit.prevent="handleRegister">
           <div class="field" :class="{ focused: focus === 'reg-user' }">
-            <label for="reg-username">Nombre de usuario</label>
+            <label for="reg-username">{{ t('login.register.username') }}</label>
             <div class="field-box">
               <input id="reg-username" v-model="reg.username" type="text" required
                      minlength="3" maxlength="64" autocomplete="username"
@@ -151,7 +151,7 @@
           </div>
 
           <div class="field" :class="{ focused: focus === 'reg-mail' }">
-            <label for="reg-email">Correo</label>
+            <label for="reg-email">{{ t('login.register.email') }}</label>
             <div class="field-box">
               <input id="reg-email" v-model="reg.email" type="email" required
                      autocomplete="email" @focus="focus = 'reg-mail'" @blur="focus = ''" />
@@ -160,14 +160,14 @@
 
           <div class="field-row">
             <div class="field" :class="{ focused: focus === 'reg-first' }">
-              <label for="reg-first">Nombre</label>
+              <label for="reg-first">{{ t('login.register.firstName') }}</label>
               <div class="field-box">
                 <input id="reg-first" v-model="reg.first_name" type="text" required
                        maxlength="64" @focus="focus = 'reg-first'" @blur="focus = ''" />
               </div>
             </div>
             <div class="field" :class="{ focused: focus === 'reg-last' }">
-              <label for="reg-last">Apellidos</label>
+              <label for="reg-last">{{ t('login.register.lastName') }}</label>
               <div class="field-box">
                 <input id="reg-last" v-model="reg.last_name" type="text" required
                        maxlength="64" @focus="focus = 'reg-last'" @blur="focus = ''" />
@@ -176,7 +176,7 @@
           </div>
 
           <div class="field" :class="{ focused: focus === 'reg-pass' }">
-            <label for="reg-password">Clave de acceso</label>
+            <label for="reg-password">{{ t('login.password') }}</label>
             <div class="field-box">
               <input id="reg-password" v-model="reg.password"
                      :type="showRegPassword ? 'text' : 'password'" required
@@ -186,8 +186,8 @@
                 type="button"
                 class="reveal reveal-gen"
                 tabindex="-1"
-                aria-label="Generar una clave segura"
-                title="Generar una clave segura"
+                :aria-label="t('login.register.generate')"
+                :title="t('login.register.generate')"
                 @click="generateRegPassword"
               >
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -200,7 +200,7 @@
                 type="button"
                 class="reveal"
                 tabindex="-1"
-                :aria-label="showRegPassword ? 'Ocultar las claves' : 'Mostrar las claves'"
+                :aria-label="showRegPassword ? t('login.register.hidePasswords') : t('login.register.showPasswords')"
                 @click="showRegPassword = !showRegPassword"
               >
                 <svg v-if="!showRegPassword" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -213,11 +213,11 @@
                 </svg>
               </button>
             </div>
-            <span class="field-hint">Mínimo 8 caracteres.</span>
+            <span class="field-hint">{{ t('login.register.minLength') }}</span>
           </div>
 
           <div class="field" :class="{ focused: focus === 'reg-pass2' }">
-            <label for="reg-password-confirm">Repite la clave</label>
+            <label for="reg-password-confirm">{{ t('login.register.confirm') }}</label>
             <div class="field-box">
               <input id="reg-password-confirm" v-model="regConfirm"
                      :type="showRegPassword ? 'text' : 'password'" required
@@ -228,7 +228,7 @@
                 type="button"
                 class="reveal"
                 tabindex="-1"
-                :aria-label="showRegPassword ? 'Ocultar las claves' : 'Mostrar las claves'"
+                :aria-label="showRegPassword ? t('login.register.hidePasswords') : t('login.register.showPasswords')"
                 @click="showRegPassword = !showRegPassword"
               >
                 <svg v-if="!showRegPassword" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -244,29 +244,25 @@
           </div>
 
           <button type="submit" class="submit" :class="{ loading }" :disabled="loading">
-            <span class="submit-label">{{ loading ? 'Creando…' : 'Crear mi cuenta' }}</span>
+            <span class="submit-label">{{ loading ? t('login.register.submitting') : t('login.register.submit') }}</span>
             <span class="submit-arrow" aria-hidden="true">→</span>
             <span class="submit-spin" aria-hidden="true"></span>
           </button>
 
           <p class="signup-hint">
-            Empezarás en el plan gratuito. Te mandaremos un correo para
-            confirmarlo.
+            {{ t('login.register.freePlanHint') }}
             <button type="button" class="link-btn" @click="mode = 'login'">
-              Ya tengo cuenta
+              {{ t('login.register.haveAccount') }}
             </button>
           </p>
         </form>
 
         <!-- ───────── Recuperar clave ───────── -->
         <form v-else-if="!mfaStep && mode === 'recover'" novalidate @submit.prevent="handleRecoverSubmit">
-          <p class="recover-hint">
-            Te enviaremos un enlace para restablecer tu clave. Si tu cuenta
-            tiene verificación en dos pasos, te la pediremos antes de enviarlo.
-          </p>
+          <p class="recover-hint">{{ t('login.recover.hint') }}</p>
 
           <div class="field" :class="{ focused: focus === 'recover-id' }">
-            <label for="recover-identifier">Identificador o correo</label>
+            <label for="recover-identifier">{{ t('login.recover.identifier') }}</label>
             <div class="field-box">
               <svg class="field-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                 <circle cx="12" cy="8" r="4" />
@@ -276,7 +272,7 @@
                 id="recover-identifier"
                 v-model="recover.identifier"
                 type="text"
-                placeholder="nombre de usuario o correo"
+                :placeholder="t('login.recover.identifierPlaceholder')"
                 autocomplete="username"
                 spellcheck="false"
                 required
@@ -288,20 +284,20 @@
           </div>
 
           <button type="submit" class="submit" :class="{ loading }" :disabled="loading">
-            <span class="submit-label">{{ loading ? 'Enviando…' : 'Recuperar mi clave' }}</span>
+            <span class="submit-label">{{ loading ? t('login.recover.submitting') : t('login.recover.submit') }}</span>
             <span class="submit-arrow" aria-hidden="true">→</span>
             <span class="submit-spin" aria-hidden="true"></span>
           </button>
 
           <p class="signup-hint">
-            <button type="button" class="link-btn" @click="mode = 'login'">← Volver a entrar</button>
+            <button type="button" class="link-btn" @click="mode = 'login'">{{ t('login.recover.back') }}</button>
           </p>
         </form>
 
         <!-- ───────── Segundo factor (MFA) ───────── -->
         <form v-else novalidate @submit.prevent="handleMfaSubmit">
           <div class="field focused">
-            <label for="mfa-code">{{ useRecovery ? 'Código de recuperación' : 'Código de verificación' }}</label>
+            <label for="mfa-code">{{ useRecovery ? t('login.mfa.recoveryCode') : t('login.mfa.code') }}</label>
             <div class="field-box">
               <svg class="field-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                 <rect x="3" y="11" width="18" height="10" rx="2" />
@@ -323,27 +319,27 @@
           </div>
 
           <button type="submit" class="submit" :class="{ loading }" :disabled="loading">
-            <span class="submit-label">{{ loading ? 'Verificando…' : 'Verificar' }}</span>
+            <span class="submit-label">{{ loading ? t('login.mfa.submitting') : t('login.mfa.submit') }}</span>
             <span class="submit-arrow" aria-hidden="true">→</span>
             <span class="submit-spin" aria-hidden="true"></span>
           </button>
 
           <div class="mfa-links">
             <button type="button" class="link-btn" :disabled="loading" @click="toggleRecoveryMode">
-              {{ useRecovery ? 'Usar código de la app' : '¿Perdiste el acceso? Usar código de recuperación' }}
+              {{ useRecovery ? t('login.mfa.useApp') : t('login.mfa.useRecovery') }}
             </button>
             <button type="button" class="link-btn" :disabled="loading" @click="resetToCredentials">
-              ← Volver
+              {{ t('login.mfa.back') }}
             </button>
           </div>
         </form>
 
         <p v-if="mode === 'login'" class="plans-hint">
-          <router-link to="/planes" class="link-btn">Ver los planes</router-link>
+          <router-link to="/planes" class="link-btn">{{ t('landing.closing.seePlans') }}</router-link>
         </p>
 
         <footer class="portal-foot">
-          <span class="foot-pulse"><i></i>Enlace cifrado activo</span>
+          <span class="foot-pulse"><i></i>{{ t('login.encrypted') }}</span>
           <span class="foot-ver">Ellysia © 2026</span>
         </footer>
       </div>
@@ -357,8 +353,8 @@
           <circle class="grant-ring grant-ring--out" cx="60" cy="60" r="46" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="3 7" />
           <path class="grant-check" d="M46 60l10 10 20-22" stroke="var(--accent-bright)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
-        <p class="grant-title">Bienvenido</p>
-        <p class="grant-sub">Estableciendo sesión segura…</p>
+        <p class="grant-title">{{ t('login.welcome') }}</p>
+        <p class="grant-sub">{{ t('login.establishing') }}</p>
       </div>
     </transition>
   </div>
@@ -370,10 +366,14 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { useThemeStore } from '@/stores/themeStore'
 import { validationMessage } from '@/composables/useApi'
+import { translateApiError } from '@/i18n/apiErrors'
 import { useLaunch } from '@/composables/useLaunch'
 import { generatePassword } from '@projectellysia/acheron-core-js'
 import ElysianScene from '@/components/shared/ElysianScene.vue'
 import ellysiaIcon from '@/assets/images/ellysia/Ellysia-BgN.png'
+import { useI18n } from 'vue-i18n'
+
+const { t, te } = useI18n()
 
 const router = useRouter()
 const route = useRoute()
@@ -452,7 +452,7 @@ function generateRegPassword() {
 async function handleRegister() {
   // Lo único que el servidor no puede comprobar: nunca ve la confirmación.
   if (reg.value.password !== regConfirm.value) {
-    showAlert('Las claves no coinciden. Repítela tal cual la escribiste.', 'error')
+    showAlert(t('login.register.mismatch'), 'error')
     return
   }
 
@@ -469,14 +469,14 @@ async function handleRegister() {
       // Un 422 dice qué campo falla y por qué; sin traducirlo, el usuario solo
       // veía "no se pudo crear la cuenta" y no tenía forma de arreglarlo.
       showAlert(
-        validationMessage(body) || body.error_description || 'No se pudo crear la cuenta.',
+        validationMessage(body) || serverMessage(body) || t('login.register.failed'),
         'error',
       )
       return
     }
 
     showAlert(
-      'Cuenta creada. Revisa tu correo para confirmarla y ya puedes entrar.',
+      t('login.register.created'),
       'success',
     )
     username.value = reg.value.username
@@ -485,7 +485,7 @@ async function handleRegister() {
     showRegPassword.value = false
     mode.value = 'login'
   } catch {
-    showAlert('No se pudo conectar con el servidor.', 'error')
+    showAlert(t('login.unreachable'), 'error')
   } finally {
     loading.value = false
   }
@@ -518,7 +518,7 @@ async function handleRecoverSubmit() {
   alertMsg.value = ''
   const identifier = recover.value.identifier.trim()
   if (!identifier) {
-    showAlert('Introduce tu identificador o correo.', 'error')
+    showAlert(t('login.recover.missingIdentifier'), 'error')
     document.getElementById('recover-identifier')?.focus()
     return
   }
@@ -533,7 +533,7 @@ async function handleRecoverSubmit() {
     const body = await res.json().catch(() => ({}))
     if (!res.ok) {
       showAlert(
-        validationMessage(body) || body.error_description || 'No se pudo procesar la solicitud.',
+        validationMessage(body) || serverMessage(body) || t('login.recover.failed'),
         'error',
       )
       return
@@ -546,12 +546,12 @@ async function handleRecoverSubmit() {
     }
 
     showAlert(
-      'Si la cuenta existe, te hemos enviado un enlace para restablecer tu clave. Revisa tu correo.',
+      t('login.recover.sent'),
       'success',
     )
     finishRecover()
   } catch {
-    showAlert('No se pudo conectar con el servidor.', 'error')
+    showAlert(t('login.unreachable'), 'error')
   } finally {
     loading.value = false
   }
@@ -569,10 +569,10 @@ async function submitRecoverMfa(value) {
     })
     const body = await res.json().catch(() => ({}))
     if (!res.ok) {
-      throw new Error(body.error_description || 'El código no es válido o la verificación caducó.')
+      throw new Error(serverMessage(body) || t('login.mfa.invalid'))
     }
     showAlert(
-      'Si la cuenta existe, te hemos enviado un enlace para restablecer tu clave. Revisa tu correo.',
+      t('login.recover.sent'),
       'success',
     )
     finishRecover()
@@ -604,13 +604,13 @@ async function handleSubmit() {
   const pw = password.value
 
   if (!un) {
-    showAlert('El identificador es obligatorio.', 'error')
+    showAlert(t('login.usernameRequired'), 'error')
     usernameError.value = true
     document.getElementById('username')?.focus()
     return
   }
   if (!pw) {
-    showAlert('La clave de acceso es obligatoria.', 'error')
+    showAlert(t('login.passwordRequired'), 'error')
     passwordError.value = true
     document.getElementById('password')?.focus()
     return
@@ -627,7 +627,7 @@ async function handleSubmit() {
     }
     completeLogin()
   } catch (err) {
-    showAlert(err.message || 'Error desconocido.', 'error')
+    showAlert(err.message || t('login.unknownError'), 'error')
     if (err.message?.includes('Credenciales')) {
       usernameError.value = true
       passwordError.value = true
@@ -642,7 +642,7 @@ async function handleMfaSubmit() {
   alertMsg.value = ''
   const value = mfaCode.value.trim()
   if (!value) {
-    showAlert('Introduce el código.', 'error')
+    showAlert(t('login.mfa.missingCode'), 'error')
     return
   }
 
@@ -658,7 +658,7 @@ async function handleMfaSubmit() {
     )
     completeLogin()
   } catch (err) {
-    showAlert(err.message || 'Error desconocido.', 'error')
+    showAlert(err.message || t('login.unknownError'), 'error')
     mfaCode.value = ''
     loading.value = false
   }
@@ -689,6 +689,17 @@ function completeLogin() {
   setTimeout(() => router.push(target), delay)
 }
 
+/**
+ * Texto de un error de la API: su plantilla traducida si la trae, o el texto
+ * del servidor.
+ *
+ * @param {object} body - Cuerpo JSON de la respuesta de error.
+ * @returns {string|undefined} El mensaje, o `undefined` si el cuerpo no trae ninguno.
+ */
+function serverMessage(body) {
+  return translateApiError(body, { t, te }) || body.error_description
+}
+
 function showAlert(msg, type = 'error') {
   alertMsg.value = msg
   alertType.value = type
@@ -699,7 +710,7 @@ onMounted(() => {
   // Si la sesión terminó por un cambio de contraseña, avisar de forma destacada.
   if (auth.takeSessionEndReason() === 'password_changed') {
     showAlert(
-      'Tu contraseña ha cambiado. Inicia sesión de nuevo con la contraseña actual.',
+      t('login.passwordChanged'),
       'warning',
     )
   }

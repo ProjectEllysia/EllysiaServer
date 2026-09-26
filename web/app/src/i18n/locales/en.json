@@ -434,5 +434,347 @@
   "mfa": {
     "setupFailed": "MFA activation could not be started.",
     "invalidCode": "Invalid code."
+  },
+  "about": {
+    "title": "About Ellysia",
+    "intro": "Ellysia is a {project}: a test bench where its author builds and experiments with cybersecurity tools. {notService} No accounts are offered, nothing can be purchased and there is no company behind it.",
+    "introProject": "personal project",
+    "introNotService": "It is not a service or a commercial product.",
+    "contentsHeading": "What it contains",
+    "modules": {
+      "themis": "vulnerability detection with its own engine (Lybra) and classic scanners for comparison.",
+      "aegis": "security awareness training generated with artificial intelligence.",
+      "iris": "email analysis to detect fraud (phishing), with the verdict explained.",
+      "acheron": "a password vault encrypted in the browser: the key never travels to the server.",
+      "hygeia": "monitoring of the health of servers and devices."
+    },
+    "ideaHeading": "The idea behind it",
+    "idea": "The motivation is to learn and explore what it would take for protection not to be a privilege of those who can afford a security team. If Ellysia were ever offered to other people, this page and the legal terms would change first.",
+    "sourcesHeading": "Data sources",
+    "sourcesIntro": "Vulnerability detection uses public catalogs. None of their maintainers endorse Ellysia:",
+    "nvd": "(National Vulnerability Database, from NIST).",
+    "nvdNotice": "This product uses the NVD API but is not endorsed or certified by the NVD.",
+    "kev": "CISA's (US) catalog of known exploited vulnerabilities.",
+    "epss": "exploit prediction scores from FIRST (first.org/epss).",
+    "sourceCode": "The source code can be read on {link}, with all rights reserved."
+  },
+  "docs": {
+    "eyebrow": "Documentation",
+    "underConstruction": "This section is under construction — it will be filled in along with the rest of Ellysia's documentation.",
+    "usage": {
+      "title": "User guide",
+      "intro": "Step-by-step guides to get the most out of each Ellysia tool: launch a scan in Themis, generate a pill in Aegis, analyze an email in Iris or store a credential in Acheron."
+    },
+    "technical": {
+      "title": "Technical documentation",
+      "intro": "Technical reference for Ellysia's API, internal architecture and data models, meant for anyone integrating or extending the platform."
+    }
+  },
+  "notAvailable": {
+    "title": "Not available yet",
+    "feature": "{feature} is not available yet.",
+    "generic": "This feature is not available yet.",
+    "preview": "Ellysia is in preview and each part opens as soon as everything needed to offer it reliably is in place.",
+    "fromHere": "From here you can:",
+    "home": "go back to the home page",
+    "about": "learn about Ellysia",
+    "features": {
+      "plans": "The plans and pricing page",
+      "mailboxConnections": "Connecting email mailboxes"
+    }
+  },
+  "legal": {
+    "eyebrow": "Legal",
+    "translationNotice": "This is a translation provided for convenience. If it differs from the Spanish version, the Spanish version prevails."
+  },
+  "terms": {
+    "title": "Terms",
+    "intro": "We are preparing our terms of service. This text is preliminary and describes, in general terms, how we understand the use of Ellysia.",
+    "responsibleUseHeading": "Responsible use",
+    "responsibleUse": "Ellysia includes security analysis tools such as Themis. You must use them only on systems and targets you are expressly authorized to test. Scanning someone else's infrastructure without permission may be illegal and is the sole responsibility of whoever does it.",
+    "noWarrantyHeading": "No warranties yet",
+    "noWarranty": "Ellysia is under active development. The service is provided “as is”, with no guarantee of availability or results, while the product matures.",
+    "note": "Ellysia is a personal project and is not offered as a service, so there are no purchase conditions. If it were ever opened to other people, complete terms would be published first."
+  },
+  "privacy": {
+    "title": "Privacy",
+    "intro": "Ellysia is a {project} and not a service: no accounts are offered to other people and nothing can be purchased. This note explains what data is processed about website visitors, which is all Ellysia knows about anyone other than its author.",
+    "introProject": "personal project",
+    "controllerHeading": "Who is the data controller",
+    "controller": "Gabriel Musteata, the project's author, as a private individual. You can get in touch through the GitHub profile {link}.",
+    "dataHeading": "What data is stored about website visitors",
+    "data": "Every time your browser requests something from Ellysia, the server writes it to its activity log: the {ip} the request comes from, the date and time, what was requested, the response given and how long it took.",
+    "dataIp": "IP address",
+    "purposeLabel": "Purpose:",
+    "purpose": "to keep the server secure and diagnose errors.",
+    "legalBasisLabel": "Legal basis:",
+    "legalBasis": "the legitimate interest in protecting the server (article 6.1.f of the General Data Protection Regulation).",
+    "retentionLabel": "How long:",
+    "retention": "each day is archived separately and deleted after {days} days.",
+    "accessLabel": "Who sees it:",
+    "access": "only the author. It is not shared with anyone and never leaves the server, which is in Spain.",
+    "cookiesHeading": "Cookies and browser storage",
+    "cookies": "Ellysia {noCookies}, analytics tools, advertising or any tracking system. Nor does it load resources from other websites: fonts are served from its own server. That is why there is no cookie notice to accept.",
+    "cookiesNone": "uses no cookies",
+    "storage": "The browser only keeps, in its local storage, what is essential for the website to work: that you closed the personal project notice (until you close the tab), the color theme if you change it and, if you sign in, your session. You can delete it at any time from your browser settings.",
+    "rightsHeading": "Your rights",
+    "rights": "You can ask to access the data stored about you, to have it deleted or to stop it being processed. Since the log only stores IP addresses, say which address you visited the website from and on which dates. You can also file a complaint with the {authority}.",
+    "rightsAuthority": "Spanish Data Protection Agency (AEPD)",
+    "version": "Version of {date}. If Ellysia were ever offered to other people, this note would first be replaced by a complete privacy policy."
+  },
+  "errorPage": {
+    "403": {
+      "title": "You do not have permission to see this",
+      "p1": "The page exists, but your account cannot open it: it is a section restricted to a specific role, or your session's permissions changed since you signed in.",
+      "p2": "If you think you should have access, contact whoever administers Ellysia."
+    },
+    "404": {
+      "title": "This page does not exist",
+      "p1": "The address you reached does not match any Ellysia page. The link may be mistyped, or the page may have moved."
+    },
+    "409": {
+      "title": "The operation could not be completed",
+      "p1": "What you were trying to do conflicts with the current state of the data: the item may already exist, may have changed since you loaded it, or the action may already have been done.",
+      "p2": "Reload the page to see the current state and try again."
+    },
+    "500": {
+      "title": "Something broke",
+      "p1": "The page failed to load: the server responded with an error. It is not caused by what you were doing, and retrying is usually enough.",
+      "p2": "If the problem persists, try again in a few minutes."
+    },
+    "eyebrow": "Error {code}",
+    "retry": "Try again",
+    "fromHere": "From here you can",
+    "separator": ", ",
+    "lastSeparator": " or ",
+    "links": {
+      "home": "go back to the home page",
+      "tools": "see the tools",
+      "plans": "check the plans"
+    },
+    "generic": {
+      "title": "Error {code}",
+      "p1": "Something did not go as expected and this page cannot tell you much more. Go back to the home page; if the problem happens again, keep this code in case you need to refer to it."
+    }
+  },
+  "landing": {
+    "mainNav": "Main navigation",
+    "toolsMenu": "Tools",
+    "docsMenu": "Documentation",
+    "plans": "Plans",
+    "openMenu": "Open the menu",
+    "closeMenu": "Close the menu",
+    "createAccount": "Create a free account",
+    "verse": "Watch. Train. Verify. Keep.",
+    "disclaimer": "Personal project in development · not a commercial service",
+    "discoverTools": "Discover the tools",
+    "scrollToTools": "Scroll down to the tools",
+    "philosophy": {
+      "eyebrow": "Why it exists",
+      "title": "The philosophy behind Ellysia",
+      "p1": "Online security is no longer a matter for a few. Today, opening an email, saving a password or switching on a server is enough to be exposed. What changed was not the threat: it was who receives it.",
+      "p2": "Defending yourself, however, is still expensive. Half a dozen products, each with its own license and console, within reach of those who can pay a team to run them. Ellysia brings those pieces together {sky} — detect, train, verify, keep, watch — for those without a security department behind them.",
+      "p2Sky": "under one sky",
+      "p3": "We do not promise invulnerability; no honest person does. We promise that {privilege}.",
+      "p3Privilege": "defending yourself stops being a privilege"
+    },
+    "toolsTitle": "The five tools",
+    "toolsSubtitle": "Each one guards one side of your security.",
+    "explore": "Explore {name}",
+    "tools": {
+      "themis": {
+        "blurb": "Vulnerability detection",
+        "myth": "She who holds the scales and passes no judgement before weighing every clue.",
+        "title": "Weighs every threat before it strikes",
+        "desc": "Its own detection engine (Lybra), which discovers and analyzes on its own, alongside Nmap, Nikto and Nuclei as independent scanners, plus AI-written reports ready to hand over."
+      },
+      "aegis": {
+        "blurb": "AI-powered awareness",
+        "myth": "The shield of Zeus and Athena, forged to protect before the blow.",
+        "title": "Awareness that arrives before the attack",
+        "desc": "AI-generated security intelligence bulletins to train your organization."
+      },
+      "iris": {
+        "blurb": "Anti-phishing analysis",
+        "myth": "The messenger of the gods; no false message crosses her rainbow.",
+        "title": "Verifies who signs every email",
+        "desc": "Email header analysis to detect phishing through verification rules."
+      },
+      "acheron": {
+        "blurb": "Encrypted vault",
+        "myth": "The river no one crosses without the key.",
+        "title": "Keeps what must not be lost",
+        "desc": "An encrypted vault of credentials and cards for your organization. Encryption happens in your browser: the key never travels."
+      },
+      "hygeia": {
+        "blurb": "Asset monitoring",
+        "myth": "The goddess of health; she watches the vital signs of every asset.",
+        "title": "Watches the pulse of every asset",
+        "desc": "Lightweight agents push hardware telemetry; thresholds with hysteresis open and resolve anomalies on their own, with an email alert for critical ones."
+      }
+    },
+    "chips": {
+      "lybra": "Lybra",
+      "nmap": "Nmap",
+      "nikto": "Nikto",
+      "nuclei": "Nuclei",
+      "aiReports": "AI reports",
+      "aiNewsletter": "AI newsletter",
+      "markdown": "Markdown",
+      "json": "JSON",
+      "spf": "SPF",
+      "dkim": "DKIM",
+      "dmarc": "DMARC",
+      "antiPhishing": "Anti-phishing",
+      "browserEncryption": "In-browser encryption",
+      "credentials": "Credentials",
+      "cards": "Cards",
+      "push": "Push",
+      "thresholds": "Thresholds",
+      "hostDown": "Host down",
+      "alerts": "Alerts"
+    },
+    "steps": {
+      "eyebrow": "How to start",
+      "title": "Three steps to the first verdict",
+      "account": {
+        "title": "Create your account",
+        "desc": "Free and with no card. The entry plan never expires and asks for no payment details."
+      },
+      "target": {
+        "title": "Set your first target",
+        "desc": "A domain in Themis, or the Hygeia agent on the server you want to watch."
+      },
+      "verdict": {
+        "title": "Get the verdict",
+        "desc": "The engine weighs every clue and writes the report, ready to read or hand over."
+      }
+    },
+    "pricing": {
+      "title": "Start free; grow if you need to",
+      "subtitle": "No card to start. The free plan never expires.",
+      "starter": "To get started",
+      "perMonth": "/month",
+      "startFree": "Start for free",
+      "details": "See details",
+      "compare": "Compare every limit of each plan →"
+    },
+    "faq": {
+      "eyebrow": "Before you ask",
+      "title": "What is usually hard to decide",
+      "passwordsLeave": {
+        "q": "Do my passwords leave my browser?",
+        "a": "No. Acheron encrypts in your browser before sending anything: the server only sees ciphertext and never receives your master password or the key derived from it."
+      },
+      "lostMasterPassword": {
+        "q": "What happens if I lose my Acheron master password?",
+        "a": "The vault's content is lost, and there is no way to recover it. It is the direct consequence of the key never travelling: if we could give it back to you, we could also read your secrets. Keep it where you would keep your house key."
+      },
+      "technical": {
+        "q": "Do I need to be technical to use it?",
+        "a": "To launch an analysis and read the report, no: you choose a target and receive the written result. Installing the Hygeia agent on a server does require access to that machine."
+      },
+      "hygeiaAgent": {
+        "q": "What does the Hygeia agent need?",
+        "a": "A lightweight service on the machine you want to watch. It is the agent that sends data out every few seconds, so no inbound port needs to be opened."
+      },
+      "cost": {
+        "q": "How much does it cost to start?",
+        "a": "Nothing. The entry plan is free, asks for no card and never expires. If you run short of quota, the paid plans are further up."
+      }
+    },
+    "closing": {
+      "title": "Defending yourself should not be a privilege",
+      "register": "Create your account and launch your first analysis today. Free, no card.",
+      "personal": "Ellysia is a personal project: it does not accept new accounts or offer any service.",
+      "myTools": "Go to my tools",
+      "seePlans": "See the plans"
+    },
+    "forgeLabel": "Technologies Ellysia is built with",
+    "forgeEyebrow": "Built with",
+    "plaque": "Operational — {count} tools",
+    "eyebrow": "Security Operations Suite"
+  },
+  "login": {
+    "title": "The threshold",
+    "subtitle": "Identify yourself to cross",
+    "username": "Username",
+    "usernamePlaceholder": "username",
+    "password": "Password",
+    "capsLock": "⇪ Caps Lock is on",
+    "hidePassword": "Hide password",
+    "showPassword": "Show password",
+    "submit": "Cross the threshold",
+    "submitting": "Crossing…",
+    "forgotPassword": "Forgot your password?",
+    "noAccount": "No account?",
+    "registerCta": "Sign up for free and try Ellysia",
+    "encrypted": "Encrypted link active",
+    "welcome": "Welcome",
+    "establishing": "Establishing a secure session…",
+    "unreachable": "Could not connect to the server.",
+    "usernameRequired": "The username is required.",
+    "passwordRequired": "The password is required.",
+    "unknownError": "Unknown error.",
+    "passwordChanged": "Your password has changed. Sign in again with your current password.",
+    "register": {
+      "username": "Username",
+      "email": "Email",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "generate": "Generate a strong password",
+      "hidePasswords": "Hide the passwords",
+      "showPasswords": "Show the passwords",
+      "minLength": "At least 8 characters.",
+      "confirm": "Repeat the password",
+      "submit": "Create my account",
+      "submitting": "Creating…",
+      "freePlanHint": "You will start on the free plan. We will send you an email to confirm it.",
+      "haveAccount": "I already have an account",
+      "mismatch": "The passwords do not match. Repeat it exactly as you typed it.",
+      "failed": "The account could not be created.",
+      "created": "Account created. Check your email to confirm it; you can sign in now."
+    },
+    "recover": {
+      "hint": "We will send you a link to reset your password. If your account has two-step verification, we will ask for it before sending it.",
+      "identifier": "Username or email",
+      "identifierPlaceholder": "username or email",
+      "submit": "Recover my password",
+      "submitting": "Sending…",
+      "back": "← Back to sign in",
+      "missingIdentifier": "Enter your username or email.",
+      "failed": "The request could not be processed.",
+      "sent": "If the account exists, we have sent you a link to reset your password. Check your email."
+    },
+    "mfa": {
+      "code": "Verification code",
+      "recoveryCode": "Recovery code",
+      "submit": "Verify",
+      "submitting": "Verifying…",
+      "useApp": "Use the app code",
+      "useRecovery": "Lost access? Use a recovery code",
+      "back": "← Back",
+      "invalid": "The code is not valid or the verification expired.",
+      "missingCode": "Enter the code."
+    }
+  },
+  "resetPassword": {
+    "title": "Reset password",
+    "checking": "Checking your link…",
+    "invalidTitle": "This link is not valid",
+    "invalidSubtitle": "You may have used it already, or it may have expired.",
+    "invalidHint": "Recovery links expire after 30 minutes and can only be used once.",
+    "requestAnother": "Request another link",
+    "backToLogin": "← Back to the threshold",
+    "formTitle": "Choose your new password",
+    "formSubtitle": "With it you will cross the threshold again",
+    "newPassword": "New password",
+    "hint": "At least 8 characters. Changing it signs you out on all your devices.",
+    "submit": "Reset my password",
+    "doneTitle": "Password reset",
+    "doneSubtitle": "Your other sessions have been closed",
+    "done": "You can now sign in with your new password.",
+    "missing": "Enter the new password.",
+    "failed": "The password could not be reset."
   }
 }

@@ -229,19 +229,14 @@ const routes = [
     path: '/docs/uso',
     name: 'DocsUsage',
     component: () => import('@/views/public/DocsPlaceholderView.vue'),
-    meta: {
-      docTitle: 'Documentación de uso',
-      docIntro: 'Guías paso a paso para sacar partido a cada herramienta de Ellysia: lanzar un escaneo en Themis, generar una píldora en Aegis, analizar un correo en Iris o guardar una credencial en Acheron.',
-    },
+    // Título y entradilla en `docs.usage` del diccionario.
+    meta: { docKey: 'usage' },
   },
   {
     path: '/docs/tecnica',
     name: 'DocsTechnical',
     component: () => import('@/views/public/DocsPlaceholderView.vue'),
-    meta: {
-      docTitle: 'Documentación técnica',
-      docIntro: 'Referencia técnica de la API, la arquitectura interna y los modelos de datos de Ellysia, pensada para quien integra o extiende la plataforma.',
-    },
+    meta: { docKey: 'technical' },
   },
   {
     path: '/config',

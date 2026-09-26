@@ -434,5 +434,347 @@
   "mfa": {
     "setupFailed": "No se pudo iniciar la activación de MFA.",
     "invalidCode": "Código inválido."
+  },
+  "about": {
+    "title": "Sobre Ellysia",
+    "intro": "Ellysia es un {project}: un banco de pruebas donde su autor construye y experimenta con herramientas de ciberseguridad. {notService} No se ofrecen cuentas, no se contrata nada y no hay ninguna empresa detrás.",
+    "introProject": "proyecto personal",
+    "introNotService": "No es un servicio ni un producto comercial.",
+    "contentsHeading": "Qué contiene",
+    "modules": {
+      "themis": "detección de vulnerabilidades con un motor propio (Lybra) y escáneres clásicos como contraste.",
+      "aegis": "formaciones de concienciación en seguridad generadas con inteligencia artificial.",
+      "iris": "análisis de correos electrónicos para detectar fraudes (phishing), con el veredicto explicado.",
+      "acheron": "caja fuerte de contraseñas cifrada en el navegador: la llave nunca viaja al servidor.",
+      "hygeia": "vigilancia del estado de servidores y equipos."
+    },
+    "ideaHeading": "La idea de fondo",
+    "idea": "La motivación es aprender y explorar qué haría falta para que protegerse no fuera un privilegio de quien puede pagar un equipo de seguridad. Si Ellysia llegara a ofrecerse algún día a otras personas, esta página y las condiciones legales cambiarían antes.",
+    "sourcesHeading": "Fuentes de datos",
+    "sourcesIntro": "La detección de vulnerabilidades usa catálogos públicos. Ninguno de sus responsables respalda Ellysia:",
+    "nvd": "(National Vulnerability Database, del NIST). Este producto usa la API de la NVD, pero no está respaldado ni certificado por la NVD.",
+    "nvdNotice": "This product uses the NVD API but is not endorsed or certified by the NVD.",
+    "kev": "catálogo de vulnerabilidades explotadas conocidas de CISA (EE. UU.).",
+    "epss": "puntuaciones de probabilidad de explotación de FIRST (first.org/epss).",
+    "sourceCode": "El código se puede consultar en {link}, con todos los derechos reservados."
+  },
+  "docs": {
+    "eyebrow": "Documentación",
+    "underConstruction": "Esta sección está en construcción — se irá completando junto al resto de la documentación de Ellysia.",
+    "usage": {
+      "title": "Documentación de uso",
+      "intro": "Guías paso a paso para sacar partido a cada herramienta de Ellysia: lanzar un escaneo en Themis, generar una píldora en Aegis, analizar un correo en Iris o guardar una credencial en Acheron."
+    },
+    "technical": {
+      "title": "Documentación técnica",
+      "intro": "Referencia técnica de la API, la arquitectura interna y los modelos de datos de Ellysia, pensada para quien integra o extiende la plataforma."
+    }
+  },
+  "notAvailable": {
+    "title": "Todavía no disponible",
+    "feature": "{feature} todavía no está disponible.",
+    "generic": "Esta función todavía no está disponible.",
+    "preview": "Ellysia está en vista previa y abrimos cada parte a medida que completamos lo necesario para ofrecerla con garantías.",
+    "fromHere": "Desde aquí puedes:",
+    "home": "volver a la portada",
+    "about": "conocer Ellysia",
+    "features": {
+      "plans": "La página de planes y precios",
+      "mailboxConnections": "La conexión de buzones de correo"
+    }
+  },
+  "legal": {
+    "eyebrow": "Legal",
+    "translationNotice": "Esta es la versión original."
+  },
+  "terms": {
+    "title": "Términos",
+    "intro": "Estamos preparando nuestros términos de servicio. Este texto es preliminar y describe, de forma general, cómo entendemos el uso de Ellysia.",
+    "responsibleUseHeading": "Uso responsable",
+    "responsibleUse": "Ellysia incluye herramientas de análisis de seguridad como Themis. Debes usarlas únicamente sobre sistemas y objetivos para los que tengas autorización expresa. El escaneo de infraestructuras ajenas sin permiso puede ser ilegal y es responsabilidad exclusiva de quien lo realiza.",
+    "noWarrantyHeading": "Sin garantías todavía",
+    "noWarranty": "Ellysia se encuentra en desarrollo activo. El servicio se ofrece «tal cual», sin garantías de disponibilidad ni de resultados, mientras maduramos el producto.",
+    "note": "Ellysia es un proyecto personal y no se ofrece como servicio, así que no hay condiciones de contratación. Si algún día se abriera a otras personas, se publicarían antes unos términos completos."
+  },
+  "privacy": {
+    "title": "Privacidad",
+    "intro": "Ellysia es un {project} y no un servicio: no se ofrecen cuentas a otras personas ni se contrata nada. Esta nota explica qué datos se tratan de quien visita la web, que es lo único que Ellysia sabe de alguien que no sea su autor.",
+    "introProject": "proyecto personal",
+    "controllerHeading": "Quién es el responsable",
+    "controller": "Gabriel Musteata, autor del proyecto, como persona física. Puedes contactar a través de su perfil de GitHub, {link}.",
+    "dataHeading": "Qué datos se guardan de quien visita la web",
+    "data": "Cada vez que tu navegador pide algo a Ellysia, el servidor lo anota en su registro de actividad: la {ip} desde la que se hace la petición, la fecha y la hora, qué se pidió, la respuesta que se dio y cuánto tardó.",
+    "dataIp": "dirección IP",
+    "purposeLabel": "Para qué:",
+    "purpose": "para mantener el servidor seguro y diagnosticar errores.",
+    "legalBasisLabel": "Por qué se puede:",
+    "legalBasis": "por el interés legítimo en proteger el servidor (artículo 6.1.f del Reglamento General de Protección de Datos).",
+    "retentionLabel": "Cuánto tiempo:",
+    "retention": "cada día se archiva por separado y se borra a los {days} días.",
+    "accessLabel": "Quién lo ve:",
+    "access": "solo el autor. No se comparte con nadie ni sale del servidor, que está en España.",
+    "cookiesHeading": "Cookies y almacenamiento del navegador",
+    "cookies": "Ellysia {noCookies}, ni herramientas de analítica, ni publicidad, ni ningún sistema de seguimiento. Tampoco carga recursos de otras webs: las tipografías se sirven desde el propio servidor. Por eso no hay aviso de cookies que aceptar.",
+    "cookiesNone": "no usa cookies",
+    "storage": "El navegador solo guarda, en su almacenamiento local, lo imprescindible para que la web funcione: que has cerrado el aviso de proyecto personal (hasta que cierres la pestaña), el tema de color si lo cambias y, si inicias sesión, la sesión. Puedes borrarlo en cualquier momento desde los ajustes del navegador.",
+    "rightsHeading": "Tus derechos",
+    "rights": "Puedes pedir acceder a los datos que se guardan sobre ti, que se borren o que se dejen de tratar. Como el registro solo guarda direcciones IP, indica desde qué dirección y en qué fechas visitaste la web. También puedes reclamar ante la {authority}.",
+    "rightsAuthority": "Agencia Española de Protección de Datos",
+    "version": "Versión de {date}. Si Ellysia llegara a ofrecerse a otras personas, esta nota se sustituiría antes por una política de privacidad completa."
+  },
+  "errorPage": {
+    "403": {
+      "title": "No tienes permiso para ver esto",
+      "p1": "La página existe, pero tu cuenta no puede abrirla: es una sección restringida a un rol concreto, o la sesión cambió de permisos desde que entraste.",
+      "p2": "Si crees que deberías poder acceder, ponte en contacto con quien administra Ellysia."
+    },
+    "404": {
+      "title": "Esta página no existe",
+      "p1": "La dirección a la que has llegado no corresponde a ninguna página de Ellysia. Puede que el enlace esté mal escrito, o que la página se moviera de sitio."
+    },
+    "409": {
+      "title": "La operación no se pudo completar",
+      "p1": "Lo que intentabas hacer choca con el estado actual de los datos: el elemento puede que ya exista, que haya cambiado desde que lo cargaste o que la acción ya se hubiera hecho antes.",
+      "p2": "Recarga la página para ver el estado actual e inténtalo de nuevo."
+    },
+    "500": {
+      "title": "Algo se ha roto",
+      "p1": "La página ha fallado al cargar: el servidor ha respondido con un error. No es culpa de lo que estuvieras haciendo, y normalmente basta con reintentar.",
+      "p2": "Si el problema persiste, vuelve a intentarlo en unos minutos."
+    },
+    "eyebrow": "Error {code}",
+    "retry": "Volver a intentar",
+    "fromHere": "Desde aquí puedes",
+    "separator": ", ",
+    "lastSeparator": " o ",
+    "links": {
+      "home": "volver a la portada",
+      "tools": "ver las herramientas",
+      "plans": "consultar los planes"
+    },
+    "generic": {
+      "title": "Error {code}",
+      "p1": "Algo no ha salido como se esperaba y esta página no sabe decirte mucho más. Vuelve a la portada; si el problema se repite, guarda este código por si necesitas referirte a él."
+    }
+  },
+  "landing": {
+    "mainNav": "Navegación principal",
+    "toolsMenu": "Herramientas",
+    "docsMenu": "Documentación",
+    "plans": "Planes",
+    "openMenu": "Abrir el menú",
+    "closeMenu": "Cerrar el menú",
+    "createAccount": "Crear cuenta gratis",
+    "verse": "Vigila. Conciencia. Verifica. Guarda.",
+    "disclaimer": "Proyecto personal en desarrollo · no es un servicio comercial",
+    "discoverTools": "Conocer las herramientas",
+    "scrollToTools": "Bajar a las herramientas",
+    "philosophy": {
+      "eyebrow": "Razón de ser",
+      "title": "La filosofía detrás de Ellysia",
+      "p1": "La seguridad en la red dejó de ser asunto de unos pocos. Hoy basta con abrir un correo, guardar una contraseña o encender un servidor para quedar expuesto. Lo que cambió no fue la amenaza: fue quién la recibe.",
+      "p2": "Defenderse, en cambio, sigue siendo caro. Media docena de productos, cada uno con su licencia y su consola, al alcance de quien puede pagar un equipo que los maneje. Ellysia reúne esas piezas {sky} — detectar, formar, verificar, guardar, vigilar — para quien no tiene un departamento de seguridad detrás.",
+      "p2Sky": "bajo un mismo cielo",
+      "p3": "No prometemos invulnerabilidad; nadie honesto lo hace. Prometemos que {privilege}.",
+      "p3Privilege": "defenderse deje de ser un privilegio"
+    },
+    "toolsTitle": "Las cinco herramientas",
+    "toolsSubtitle": "Cada una guarda un aspecto de tu seguridad.",
+    "explore": "Explorar {name}",
+    "tools": {
+      "themis": {
+        "blurb": "Detección de vulnerabilidades",
+        "myth": "La que sostiene la balanza y no dicta sentencia sin pesar antes cada indicio.",
+        "title": "Pesa cada amenaza antes de que golpee",
+        "desc": "Motor de detección propio (Lybra), que descubre y analiza por su cuenta, junto a Nmap, Nikto y Nuclei como escáneres independientes, e informes redactados por IA listos para entregar."
+      },
+      "aegis": {
+        "blurb": "Concienciación con IA",
+        "myth": "El escudo de Zeus y Atenea, forjado para proteger antes del golpe.",
+        "title": "Concienciación que llega antes que el ataque",
+        "desc": "Boletines de inteligencia de seguridad generados por IA para formar a tu organización."
+      },
+      "iris": {
+        "blurb": "Análisis anti-phishing",
+        "myth": "La mensajera de los dioses; ningún mensaje falso cruza su arco.",
+        "title": "Verifica quién firma cada correo",
+        "desc": "Análisis de cabeceras de correo para detectar phishing mediante reglas de verificación."
+      },
+      "acheron": {
+        "blurb": "Bóveda cifrada",
+        "myth": "El río que nadie cruza sin la llave.",
+        "title": "Guarda lo que no debe perderse",
+        "desc": "Bóveda cifrada de credenciales y tarjetas para tu organización. El cifrado ocurre en tu navegador: la llave nunca viaja."
+      },
+      "hygeia": {
+        "blurb": "Monitorización de activos",
+        "myth": "La diosa de la salud; vigila los signos vitales de cada activo.",
+        "title": "Vigila el pulso de cada activo",
+        "desc": "Agentes ligeros empujan telemetría de hardware; los umbrales con histéresis abren y resuelven anomalías solos, con aviso por correo en lo crítico."
+      }
+    },
+    "chips": {
+      "lybra": "Lybra",
+      "nmap": "Nmap",
+      "nikto": "Nikto",
+      "nuclei": "Nuclei",
+      "aiReports": "Informes IA",
+      "aiNewsletter": "Newsletter IA",
+      "markdown": "Markdown",
+      "json": "JSON",
+      "spf": "SPF",
+      "dkim": "DKIM",
+      "dmarc": "DMARC",
+      "antiPhishing": "Anti-phishing",
+      "browserEncryption": "Cifrado en navegador",
+      "credentials": "Credenciales",
+      "cards": "Tarjetas",
+      "push": "Push",
+      "thresholds": "Umbrales",
+      "hostDown": "Host caído",
+      "alerts": "Alertas"
+    },
+    "steps": {
+      "eyebrow": "Cómo se empieza",
+      "title": "Tres pasos hasta el primer veredicto",
+      "account": {
+        "title": "Crea tu cuenta",
+        "desc": "Gratis y sin tarjeta. El plan de entrada no caduca ni pide datos de pago."
+      },
+      "target": {
+        "title": "Apunta tu primer objetivo",
+        "desc": "Un dominio en Themis, o el agente de Hygeia en el servidor que quieras vigilar."
+      },
+      "verdict": {
+        "title": "Recibe el veredicto",
+        "desc": "El motor pesa cada indicio y redacta el informe, listo para leer o entregar."
+      }
+    },
+    "pricing": {
+      "title": "Empieza gratis; crece si te hace falta",
+      "subtitle": "Sin tarjeta para empezar. El plan gratuito no caduca.",
+      "starter": "Para empezar",
+      "perMonth": "/mes",
+      "startFree": "Empezar gratis",
+      "details": "Ver detalles",
+      "compare": "Comparar todos los límites de cada plan →"
+    },
+    "faq": {
+      "eyebrow": "Antes de que preguntes",
+      "title": "Lo que suele costar decidir",
+      "passwordsLeave": {
+        "q": "¿Mis contraseñas salen de mi navegador?",
+        "a": "No. Acheron cifra en tu navegador antes de enviar nada: el servidor solo ve texto cifrado y nunca recibe tu contraseña maestra ni la clave que se deriva de ella."
+      },
+      "lostMasterPassword": {
+        "q": "¿Qué pasa si pierdo mi contraseña maestra de Acheron?",
+        "a": "Se pierde el contenido de la bóveda, y no hay forma de recuperarlo. Es la consecuencia directa de que la clave no viaje: si nosotros pudiéramos devolvértela, también podríamos leer tus secretos. Guárdala donde guardarías la llave de tu casa."
+      },
+      "technical": {
+        "q": "¿Necesito ser técnico para usarlo?",
+        "a": "Para lanzar un análisis y leer el informe, no: eliges un objetivo y recibes el resultado redactado. Instalar el agente de Hygeia en un servidor sí pide acceso a esa máquina."
+      },
+      "hygeiaAgent": {
+        "q": "¿Qué necesita el agente de Hygeia?",
+        "a": "Un servicio ligero en la máquina que quieras vigilar. Es él quien envía los datos hacia fuera cada pocos segundos, así que no hace falta abrir ningún puerto entrante."
+      },
+      "cost": {
+        "q": "¿Cuánto cuesta empezar?",
+        "a": "Nada. El plan de entrada es gratuito, no pide tarjeta y no caduca. Si te quedas corto de cupo, los planes de pago están más arriba."
+      }
+    },
+    "closing": {
+      "title": "Defenderse no debería ser un privilegio",
+      "register": "Crea tu cuenta y lanza tu primer análisis hoy. Gratis, sin tarjeta.",
+      "personal": "Ellysia es un proyecto personal: no admite cuentas nuevas ni ofrece ningún servicio.",
+      "myTools": "Ir a mis herramientas",
+      "seePlans": "Ver los planes"
+    },
+    "forgeLabel": "Tecnologías con las que está construida Ellysia",
+    "forgeEyebrow": "Construida con",
+    "plaque": "Operativo — {count} herramientas",
+    "eyebrow": "Security Operations Suite"
+  },
+  "login": {
+    "title": "El umbral",
+    "subtitle": "Identifícate para cruzar",
+    "username": "Identificador",
+    "usernamePlaceholder": "nombre de usuario",
+    "password": "Clave de acceso",
+    "capsLock": "⇪ Mayúsculas activas",
+    "hidePassword": "Ocultar clave",
+    "showPassword": "Mostrar clave",
+    "submit": "Cruzar el umbral",
+    "submitting": "Cruzando…",
+    "forgotPassword": "¿Olvidaste tu clave?",
+    "noAccount": "¿No tienes cuenta?",
+    "registerCta": "Regístrate gratis y prueba Ellysia",
+    "encrypted": "Enlace cifrado activo",
+    "welcome": "Bienvenido",
+    "establishing": "Estableciendo sesión segura…",
+    "unreachable": "No se pudo conectar con el servidor.",
+    "usernameRequired": "El identificador es obligatorio.",
+    "passwordRequired": "La clave de acceso es obligatoria.",
+    "unknownError": "Error desconocido.",
+    "passwordChanged": "Tu contraseña ha cambiado. Inicia sesión de nuevo con la contraseña actual.",
+    "register": {
+      "username": "Nombre de usuario",
+      "email": "Correo",
+      "firstName": "Nombre",
+      "lastName": "Apellidos",
+      "generate": "Generar una clave segura",
+      "hidePasswords": "Ocultar las claves",
+      "showPasswords": "Mostrar las claves",
+      "minLength": "Mínimo 8 caracteres.",
+      "confirm": "Repite la clave",
+      "submit": "Crear mi cuenta",
+      "submitting": "Creando…",
+      "freePlanHint": "Empezarás en el plan gratuito. Te mandaremos un correo para confirmarlo.",
+      "haveAccount": "Ya tengo cuenta",
+      "mismatch": "Las claves no coinciden. Repítela tal cual la escribiste.",
+      "failed": "No se pudo crear la cuenta.",
+      "created": "Cuenta creada. Revisa tu correo para confirmarla y ya puedes entrar."
+    },
+    "recover": {
+      "hint": "Te enviaremos un enlace para restablecer tu clave. Si tu cuenta tiene verificación en dos pasos, te la pediremos antes de enviarlo.",
+      "identifier": "Identificador o correo",
+      "identifierPlaceholder": "nombre de usuario o correo",
+      "submit": "Recuperar mi clave",
+      "submitting": "Enviando…",
+      "back": "← Volver a entrar",
+      "missingIdentifier": "Introduce tu identificador o correo.",
+      "failed": "No se pudo procesar la solicitud.",
+      "sent": "Si la cuenta existe, te hemos enviado un enlace para restablecer tu clave. Revisa tu correo."
+    },
+    "mfa": {
+      "code": "Código de verificación",
+      "recoveryCode": "Código de recuperación",
+      "submit": "Verificar",
+      "submitting": "Verificando…",
+      "useApp": "Usar código de la app",
+      "useRecovery": "¿Perdiste el acceso? Usar código de recuperación",
+      "back": "← Volver",
+      "invalid": "El código no es válido o la verificación caducó.",
+      "missingCode": "Introduce el código."
+    }
+  },
+  "resetPassword": {
+    "title": "Restablecer clave",
+    "checking": "Comprobando tu enlace…",
+    "invalidTitle": "Este enlace no vale",
+    "invalidSubtitle": "Puede que ya lo hayas usado o que haya caducado.",
+    "invalidHint": "Los enlaces de recuperación caducan a los 30 minutos y solo valen una vez.",
+    "requestAnother": "Solicitar otro enlace",
+    "backToLogin": "← Volver al umbral",
+    "formTitle": "Elige tu nueva clave",
+    "formSubtitle": "Con ella volverás a cruzar el umbral",
+    "newPassword": "Nueva clave de acceso",
+    "hint": "Mínimo 8 caracteres. Al cambiarla, se cerrará la sesión en todos tus dispositivos.",
+    "submit": "Restablecer mi clave",
+    "doneTitle": "Clave restablecida",
+    "doneSubtitle": "Tus otras sesiones se han cerrado",
+    "done": "Ya puedes entrar con tu nueva clave.",
+    "missing": "Introduce la nueva clave.",
+    "failed": "No se pudo restablecer la clave."
   }
 }
