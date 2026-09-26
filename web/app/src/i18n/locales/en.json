@@ -429,7 +429,9 @@
   },
   "profile": {
     "passwordChangeFailed": "The password could not be changed.",
-    "passwordChanged": "Password updated. Signing out…"
+    "passwordChanged": "Password updated. Signing out…",
+    "updateFailed": "The profile could not be updated.",
+    "updated": "Profile updated."
   },
   "mfa": {
     "setupFailed": "MFA activation could not be started.",
@@ -776,5 +778,370 @@
     "done": "You can now sign in with your new password.",
     "missing": "Enter the new password.",
     "failed": "The password could not be reset."
+  },
+  "planFormat": {
+    "labels": {
+      "scans": "Vulnerability scans",
+      "mailAnalyses": "Email analyses",
+      "vaultSecrets": "Secrets in the vault",
+      "assets": "Monitored assets",
+      "aiRequests": "AI requests",
+      "members": "Organization members"
+    },
+    "shortLabels": {
+      "scans": "Scans",
+      "mailAnalyses": "Email analyses",
+      "vaultSecrets": "Secrets",
+      "assets": "Assets",
+      "aiRequests": "AI requests",
+      "members": "Members"
+    },
+    "notIncluded": "Not included",
+    "unlimited": "Unlimited",
+    "perMonth": "{value} a month"
+  },
+  "plansPage": {
+    "lede": "Start for free. Upgrade when your assets need it, not when a license demands it.",
+    "empty": "No plans have been published yet.",
+    "yourPlan": "Your plan",
+    "orgAddon": "+{price}/month with an organization",
+    "seeUsage": "See usage",
+    "askAdmin": "Ask whoever administers your account",
+    "footnote": "Plans with an organization share their limits among members: a common pool, not a license per head. And joining an organization never replaces your personal plan — they add up."
+  },
+  "myPlan": {
+    "title": "My plan",
+    "compare": "Compare plans",
+    "upgradeHint": "Want to upgrade? Write to whoever administers your account — self-service plan changes are not available yet.",
+    "usage": "Usage",
+    "usageDesc": "So far this period. Stock limits do not reset: space is freed by deleting.",
+    "exceeded": "Over the limit: you can read and delete, but not create more until you are below {limit}. Nothing has been deleted.",
+    "renews": "Renews on {date}",
+    "loadFailed": "Your plan could not be loaded.",
+    "freePlan": "You are on the free plan.",
+    "upTo": "up to {limit}",
+    "usedUnlimited": "{used} · unlimited",
+    "limits": {
+      "lybraScans": "Lybra scans",
+      "thirdPartyScans": "Nmap / Nikto / Nuclei scans",
+      "scheduledScans": "Scheduled scans",
+      "aiReports": "AI reports",
+      "pills": "Awareness pills",
+      "campaigns": "Campaigns launched",
+      "recipients": "Recipients in lists",
+      "mailAnalyses": "Email analyses",
+      "aiSummaries": "AI summaries",
+      "mailboxes": "Connected mailboxes",
+      "vaults": "Vaults",
+      "secrets": "Stored secrets",
+      "assets": "Monitored assets",
+      "aiRequests": "AI requests",
+      "members": "Organization members"
+    }
+  },
+  "invitationLanding": {
+    "home": "Back to the home page",
+    "verify": {
+      "loading": {
+        "title": "Confirming your email…",
+        "text": "One moment."
+      },
+      "ok": {
+        "title": "Email confirmed",
+        "text": "You can now use Ellysia without the limits of an unverified account.",
+        "cta": "Sign in"
+      },
+      "error": {
+        "title": "This link is not valid",
+        "text": "You may have used it already, or it may have expired. Request a new one from your profile."
+      }
+    },
+    "invitation": {
+      "loading": {
+        "title": "Accepting the invitation…",
+        "text": "One moment."
+      },
+      "ok": {
+        "title": "You are now part of the organization",
+        "text": "Your personal plan has not changed: what the organization includes adds to what you already had, and if you ever leave you keep it intact.",
+        "cta": "See my organization"
+      },
+      "error": {
+        "title": "This invitation is not valid",
+        "text": "You may have accepted it already, it may have been revoked or it may have expired. Ask whoever invited you to send another one."
+      }
+    }
+  },
+  "users": {
+    "topbar": "User management",
+    "title": "Users",
+    "subtitle": "Manage users and their ABAC attributes",
+    "count": "{count} user | {count} users",
+    "new": "+ New user",
+    "admins": "Administrators ({count})",
+    "regular": "Users ({count})",
+    "empty": "There are no registered users.",
+    "fields": {
+      "firstName": "First name",
+      "lastName": "Last name",
+      "username": "Username",
+      "email": "Email",
+      "password": "Password",
+      "role": "Role"
+    },
+    "roles": {
+      "user": "User",
+      "admin": "Administrator"
+    },
+    "strength": {
+      "weak": "Weak",
+      "medium": "Medium",
+      "strong": "Strong"
+    },
+    "create": {
+      "title": "New user",
+      "personal": "Personal information",
+      "credentials": "Credentials",
+      "passwordPlaceholder": "At least 8 characters",
+      "submit": "Create user",
+      "passwordTooShort": "The password must be at least 8 characters long."
+    },
+    "toast": {
+      "loadFailed": "The users could not be loaded.",
+      "duplicate": "The username or email already exists.",
+      "createForbidden": "You do not have permission to create users.",
+      "createFailed": "The user could not be created.",
+      "created": "User created.",
+      "deleteForbidden": "You do not have permission to delete this user.",
+      "deleteFailed": "The user could not be deleted.",
+      "deleted": "User deleted.",
+      "attributesAddFailed": "The attributes could not be added.",
+      "attributesUpdated": "Attributes updated.",
+      "attributesRemoveFailed": "The attributes could not be removed.",
+      "attributeRemoved": "Attribute removed."
+    },
+    "details": {
+      "title": "User details",
+      "name": "Name",
+      "created": "Created",
+      "attributes": "ABAC attributes",
+      "noAttributes": "No attributes",
+      "addAttribute": "+ Add attribute",
+      "permissions": {
+        "read": "Read",
+        "write": "Write",
+        "create": "Create",
+        "delete": "Delete"
+      },
+      "deleteTitle": "Remove account",
+      "deleteText": "The account and everything that hangs from it are deleted: scans, campaigns, reports and its vault. There is no going back.",
+      "deleteButton": "Delete user",
+      "irreversible": "This action cannot be undone.",
+      "deleteMessage": "You are about to delete {'@'}{username}'s account and all its data.",
+      "deleteOrg": "{base} Their organization “{name}” disappears too.",
+      "deleteOrgWithMembers": "{base} Their organization “{name}” disappears too, and {count} member is left without it. | {base} Their organization “{name}” disappears too, and {count} members are left without it."
+    },
+    "roots": "Root ({count})"
+  },
+  "profilePage": {
+    "topbar": "User profile",
+    "personal": "Personal information",
+    "firstNamePlaceholder": "Your first name",
+    "lastNamePlaceholder": "Your last name",
+    "saveChanges": "Save changes",
+    "languageDesc": "If you do not choose one, you follow your organization's or, without one, the platform's.",
+    "complianceTitle": "Compliance frameworks",
+    "complianceDesc": "Lybra reports will show which controls of these frameworks each finding affects, along with the MITRE ATT&CK attack technique, which is always shown.",
+    "security": "Security",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm password",
+    "repeatPassword": "Repeat the password",
+    "changing": "Changing…",
+    "changePassword": "Change password",
+    "passwordMismatch": "The passwords do not match.",
+    "passwordSame": "The new password must be different from the current one.",
+    "mfa": {
+      "title": "Two-step verification (MFA)",
+      "recoveryWarning": "Keep these codes somewhere safe: each one works for a single emergency sign-in if you lose your authenticator app. They will not be shown again.",
+      "download": "Download .txt",
+      "saved": "I have saved them",
+      "enabled": "✓ Two-step verification is on.",
+      "disableCode": "App or recovery code",
+      "disablePlaceholder": "123456 or XXXX-XXXX",
+      "disabling": "Turning off…",
+      "disable": "Turn off MFA",
+      "disabled": "You do not have two-step verification turned on.",
+      "generating": "Generating…",
+      "recoveryFile": "ELLYSIA MFA RECOVERY CODES\n\nKeep these codes somewhere safe. Each one works for a single emergency sign-in if you lose your authenticator app.\n\n{codes}\n\nNote: These codes will not be shown again. If you lose them, you will have to turn MFA off and set it up again."
+    },
+    "delete": {
+      "title": "Delete my account",
+      "text": "Everything of yours is deleted: vaults, scans, analyses, assets and lists. There is no going back.",
+      "orgDisappears": "Your organization “{name}” will disappear with your account.",
+      "membersWarning": "There is no one else in it. | 1 person will be left without an organization. | {count} people will be left without an organization.",
+      "membersKeep": "They will keep their account, their data and their personal plan, but lose everything your plan gave them.",
+      "leaves": "You will leave your organization. The others are not affected.",
+      "confirmPassword": "Confirm with your password",
+      "deleting": "Deleting…",
+      "confirmTitle": "Are you sure you want to delete your account?",
+      "confirmLabel": "Yes, delete my account",
+      "confirmBase": "Everything of yours will be deleted and it cannot be undone.",
+      "confirmWithOrg": "{base} Your organization “{name}” will also disappear: {members}",
+      "failed": "The account could not be deleted.",
+      "done": "Your account has been deleted."
+    }
+  },
+  "organization": {
+    "topbar": "My organization",
+    "none": "You do not have an organization yet",
+    "lede": "An organization lets your people use Ellysia under your plan, without paying a license per head. It shares plan and billing — never data: you will not see their vaults, their analyzed emails or their scans.",
+    "name": "Organization name",
+    "create": "Create organization",
+    "notInPlan": "Your plan does not include managing an organization.",
+    "seePlans": "See plans",
+    "youManage": "You manage",
+    "youBelong": "You belong to",
+    "memberCount": "{count} member | {count} members",
+    "leave": "Leave the organization",
+    "memberHint": "Your personal plan is still yours: what the organization includes adds to what you already have, and if you leave you keep it intact.",
+    "languageDesc": "The language for members who have not chosen one. Anyone who picks their own in the language selector keeps it.",
+    "platformLanguage": "Platform language",
+    "complianceDesc": "The frameworks shown in every member's Lybra reports. If you set them, they replace the ones each member chose in their profile.",
+    "inviteTitle": "Invite",
+    "inviteDesc": "If that address already has an account, it will receive a link and will not join until it accepts. If it does not, an account is created and the credentials are sent to it.",
+    "invitePlaceholder": "person{'@'}company.com",
+    "invite": "Invite",
+    "members": "Members",
+    "owner": "Owner",
+    "member": "Member",
+    "expel": "Remove",
+    "invitations": "Invitations",
+    "noInvitations": "There are no invitations.",
+    "status": "Status",
+    "expires": "Expires",
+    "revoke": "Revoke",
+    "statuses": {
+      "pending": "Pending",
+      "accepted": "Accepted",
+      "revoked": "Revoked",
+      "expired": "Expired"
+    },
+    "confirmExpel": {
+      "title": "Remove {username}?",
+      "message": "They will keep their account, their data and their personal plan. They only lose what the organization gave them."
+    },
+    "confirmRevoke": {
+      "title": "Revoke the invitation?",
+      "message": "The link sent to {email} will stop working."
+    },
+    "confirmLeave": {
+      "title": "Leave the organization?",
+      "message": "You will keep your account, your data and your personal plan. You will lose what the organization gave you, and whatever exceeds your plan becomes read-only — nothing is deleted."
+    },
+    "toast": {
+      "inviteFailed": "The invitation could not be sent.",
+      "invited": "Invitation sent.",
+      "expelFailed": "The member could not be removed.",
+      "expelled": "Member removed.",
+      "revokeFailed": "The invitation could not be revoked.",
+      "leaveFailed": "You could not leave the organization.",
+      "left": "You have left the organization."
+    },
+    "namePlaceholder": "Acme Ltd."
+  },
+  "adminPlans": {
+    "topbar": "Plan manager",
+    "intro": "Plans and their limits live in the database, not in the code: whatever changes here takes effect on the next request, with no deployment.",
+    "catalog": "Catalog",
+    "newPlan": "New plan",
+    "emptyCatalog": "There are no plans in the database. If you have just deployed, apply the migrations — the catalog seed is in one of them:",
+    "code": "Code",
+    "name": "Name",
+    "price": "Price",
+    "rank": "Order",
+    "default": "Default",
+    "hidden": "Hidden",
+    "limits": "Limits",
+    "makeDefault": "Make default",
+    "editTitle": "Edit {name}",
+    "editDesc": "The code cannot be edited: existing assignments refer to it and, once there is a payment gateway, so will its mapping. If another code is needed, it is another plan. Limits are edited below, in their own table.",
+    "createDesc": "It starts with no limits: every key is 0 until filled in. A half-configured plan gives nothing away.",
+    "tagline": "Tagline",
+    "priceCents": "Price (cents)",
+    "orgAddon": "Organization add-on",
+    "visibility": "Visibility",
+    "public": "Shown in the pricing table",
+    "private": "Hidden (custom plan)",
+    "create": "Create",
+    "subscriptions": "Subscriptions",
+    "subscriptionsDesc": "The six lifecycle operations, by hand. It is the same path the payment gateway will use once it is plugged in: here root drives them, later a webhook adapter.",
+    "account": "Account",
+    "chooseAccount": "Choose an account…",
+    "now": "Now:",
+    "withOrganization": "with organization",
+    "until": "until {date}",
+    "noSubscription": "No subscription — this account is on the default plan.",
+    "operation": "Operation",
+    "operations": {
+      "activate": "Activate or change plan",
+      "start_trial": "Start trial",
+      "mark_past_due": "Mark as past due",
+      "resume": "Resume",
+      "cancel": "Cancel",
+      "expire": "Expire now"
+    },
+    "plan": "Plan",
+    "trialEnds": "Trial ends on",
+    "validUntil": "Valid until",
+    "graceUntil": "Grace period until",
+    "organization": "Organization",
+    "noOrganization": "No organization",
+    "canManageOrganization": "Can manage an organization",
+    "when": "When",
+    "atPeriodEnd": "At the end of the paid period",
+    "immediately": "Right now (refund)",
+    "applying": "Applying…",
+    "limitsOf": "Limits of {name}",
+    "saveLimits": "Save limits",
+    "limitsDesc": "The whole table is saved: what you see here is exactly what remains. Empty cell = {unlimited} (∞) · {zero} = not included · a number = limit. Every key is always shown, so none is left undecided.",
+    "unlimitedWord": "unlimited",
+    "key": "Key",
+    "period": "Period",
+    "holder": "Holder",
+    "periods": {
+      "month": "monthly",
+      "day": "daily",
+      "stock": "stock",
+      "tier": "tier"
+    },
+    "statuses": {
+      "active": "active",
+      "trialing": "on trial",
+      "past_due": "past due",
+      "canceled": "cancelled"
+    },
+    "confirmDefault": {
+      "title": "Make \"{name}\" the default plan?",
+      "message": "Every account without an active subscription will get it, and those on the current default will move to this one."
+    },
+    "confirmDelete": {
+      "title": "Delete the \"{name}\" plan?",
+      "message": "Only possible if no one is subscribed to it."
+    },
+    "toast": {
+      "operationFailed": "The operation could not be applied.",
+      "subscriptionUpdated": "Subscription updated.",
+      "catalogFailed": "The catalog could not be loaded.",
+      "keysFailed": "The limit key catalog could not be loaded.",
+      "planSaveFailed": "The plan could not be saved.",
+      "planUpdated": "Plan updated.",
+      "planCreated": "Plan created.",
+      "keysMissing": "The limit keys have not loaded: reload before saving.",
+      "limitsFailed": "The limits could not be saved.",
+      "limitsSaved": "Limits saved.",
+      "defaultFailed": "It could not be changed.",
+      "deleteFailed": "It could not be deleted."
+    }
   }
 }

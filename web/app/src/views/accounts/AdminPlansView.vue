@@ -1,18 +1,15 @@
 <template>
   <div class="admin-page">
     <StarBackground />
-    <Topbar title="Gestor de planes" backTo="/" />
+    <Topbar :title="t('adminPlans.topbar')" backTo="/" />
 
     <main class="main">
-      <p class="intro">
-        Los planes y sus topes viven en base de datos, no en el código: lo que se
-        cambie aquí surte efecto en la siguiente petición, sin desplegar.
-      </p>
+      <p class="intro">{{ t('adminPlans.intro') }}</p>
 
       <section class="section">
         <div class="section-head">
-          <h2>Catálogo</h2>
-          <button class="btn btn--primary" @click="startCreate">Nuevo plan</button>
+          <h2>{{ t('adminPlans.catalog') }}</h2>
+          <button class="btn btn--primary" @click="startCreate">{{ t('adminPlans.newPlan') }}</button>
         </div>
 
         <!-- Sin esto la tabla se quedaba vacía y en silencio, que es la peor
@@ -21,14 +18,13 @@
           {{ loadError }}
         </p>
         <p v-else-if="loaded && !plans.length" class="state">
-          No hay ningún plan en la base de datos. Si acabas de desplegar, aplica
-          las migraciones — la semilla del catálogo va en una de ellas:
-          <code>cd API &amp;&amp; alembic upgrade head</code>
+          {{ t('adminPlans.emptyCatalog') }}
+          <code>{{ MIGRATE_COMMAND }}</code>
         </p>
 
         <table v-else-if="plans.length" class="table">
           <thead>
-            <tr><th>Código</th><th>Nombre</th><th>Precio</th><th>Orden</th><th>Estado</th><th></th></tr>
+            <tr><th>{{ t('adminPlans.code') }}</th><th>{{ t('adminPlans.name') }}</th><th>{{ t('adminPlans.price') }}</th><th>{{ t('adminPlans.rank') }}</th><th>{{ t('organization.status') }}</th><th></th></tr>
           </thead>
           <tbody>
             <tr v-for="plan in plans" :key="plan.id" :class="{ 'row--active': plan.id === selectedId }">
@@ -37,17 +33,17 @@
               <td class="mono">{{ euros(plan.monthlyPriceCents) }}</td>
               <td class="mono">{{ plan.rank }}</td>
               <td>
-                <span v-if="plan.isDefault" class="tag tag--default">Por defecto</span>
-                <span v-if="!plan.isPublic" class="tag">Oculto</span>
+                <span v-if="plan.isDefault" class="tag tag--default">{{ t('adminPlans.default') }}</span>
+                <span v-if="!plan.isPublic" class="tag">{{ t('adminPlans.hidden') }}</span>
               </td>
               <td class="td-actions">
-                <button class="btn-link" @click="startEdit(plan)">Editar</button>
-                <button class="btn-link" @click="select(plan)">Topes</button>
+                <button class="btn-link" @click="startEdit(plan)">{{ t('common.edit') }}</button>
+                <button class="btn-link" @click="select(plan)">{{ t('adminPlans.limits') }}</button>
                 <button v-if="!plan.isDefault" class="btn-link" @click="makeDefault(plan)">
-                  Hacer por defecto
+                  {{ t('adminPlans.makeDefault') }}
                 </button>
                 <button v-if="!plan.isDefault" class="btn-link btn-link--danger" @click="remove(plan)">
-                  Borrar
+                  {{ t('common.delete') }}
                 </button>
               </td>
             </tr>
@@ -57,37 +53,30 @@
 
       <!-- Alta y edición de un plan: el mismo formulario -->
       <section v-if="editing" class="section">
-        <h2>{{ editingId ? `Editar ${draft.name}` : 'Nuevo plan' }}</h2>
-        <p v-if="editingId" class="section-desc">
-          El código no se edita: lo nombran las asignaciones ya hechas y, el día
-          de la pasarela, su correspondencia con ella. Si hace falta otro código,
-          es otro plan. Los topes se editan abajo, en su propia tabla.
-        </p>
-        <p v-else class="section-desc">
-          Nace sin topes: todas sus claves valen 0 hasta que se rellenen. Un plan
-          a medio configurar no regala nada.
-        </p>
+        <h2>{{ editingId ? t('adminPlans.editTitle', { name: draft.name }) : t('adminPlans.newPlan') }}</h2>
+        <p v-if="editingId" class="section-desc">{{ t('adminPlans.editDesc') }}</p>
+        <p v-else class="section-desc">{{ t('adminPlans.createDesc') }}</p>
         <form class="grid-form" @submit.prevent="save">
           <div class="form-group">
-            <label>Código</label>
+            <label>{{ t('adminPlans.code') }}</label>
             <input v-model="draft.code" class="inp" required minlength="2" :disabled="!!editingId" />
           </div>
-          <div class="form-group"><label>Nombre</label><input v-model="draft.name" class="inp" required minlength="2" /></div>
-          <div class="form-group form-group--wide"><label>Lema</label><input v-model="draft.tagline" class="inp" /></div>
-          <div class="form-group"><label>Precio (céntimos)</label><input v-model.number="draft.monthlyPriceCents" type="number" min="0" class="inp" /></div>
-          <div class="form-group"><label>Añadido de organización</label><input v-model.number="draft.orgAddonPriceCents" type="number" min="0" class="inp" /></div>
-          <div class="form-group"><label>Orden</label><input v-model.number="draft.rank" type="number" class="inp" /></div>
+          <div class="form-group"><label>{{ t('adminPlans.name') }}</label><input v-model="draft.name" class="inp" required minlength="2" /></div>
+          <div class="form-group form-group--wide"><label>{{ t('adminPlans.tagline') }}</label><input v-model="draft.tagline" class="inp" /></div>
+          <div class="form-group"><label>{{ t('adminPlans.priceCents') }}</label><input v-model.number="draft.monthlyPriceCents" type="number" min="0" class="inp" /></div>
+          <div class="form-group"><label>{{ t('adminPlans.orgAddon') }}</label><input v-model.number="draft.orgAddonPriceCents" type="number" min="0" class="inp" /></div>
+          <div class="form-group"><label>{{ t('adminPlans.rank') }}</label><input v-model.number="draft.rank" type="number" class="inp" /></div>
           <div class="form-group">
-            <label for="plan-public">Visibilidad</label>
+            <label for="plan-public">{{ t('adminPlans.visibility') }}</label>
             <select id="plan-public" v-model="draft.isPublic" class="inp">
-              <option :value="true">Se enseña en la tabla de precios</option>
-              <option :value="false">Oculto (plan a medida)</option>
+              <option :value="true">{{ t('adminPlans.public') }}</option>
+              <option :value="false">{{ t('adminPlans.private') }}</option>
             </select>
           </div>
           <div class="form-actions">
-            <button type="button" class="btn" @click="editing = false">Cancelar</button>
+            <button type="button" class="btn" @click="editing = false">{{ t('common.cancel') }}</button>
             <button type="submit" class="btn btn--primary" :disabled="savingPlan">
-              {{ savingPlan ? 'Guardando…' : (editingId ? 'Guardar cambios' : 'Crear') }}
+              {{ savingPlan ? t('common.saving') : (editingId ? t('profilePage.saveChanges') : t('adminPlans.create')) }}
             </button>
           </div>
         </form>
@@ -95,18 +84,14 @@
 
       <!-- Asignar un plan a una cuenta -->
       <section class="section">
-        <h2>Suscripciones</h2>
-        <p class="section-desc">
-          Las seis operaciones del ciclo de vida, a mano. Es el mismo camino que
-          usará la pasarela el día que se enchufe: aquí las mueve root, mañana un
-          adaptador de webhooks.
-        </p>
+        <h2>{{ t('adminPlans.subscriptions') }}</h2>
+        <p class="section-desc">{{ t('adminPlans.subscriptionsDesc') }}</p>
 
         <div class="sub-picker">
           <div class="form-group">
-            <label for="sub-user">Cuenta</label>
+            <label for="sub-user">{{ t('adminPlans.account') }}</label>
             <select id="sub-user" v-model.number="subUserId" class="inp" @change="loadSubscription">
-              <option :value="null">Elige una cuenta…</option>
+              <option :value="null">{{ t('adminPlans.chooseAccount') }}</option>
               <option v-for="user in users" :key="user.id" :value="user.id">
                 {{ user.username }} — {{ user.email }}
               </option>
@@ -117,33 +102,28 @@
         <template v-if="subUserId">
           <p class="sub-current">
             <template v-if="subscription">
-              Ahora: <strong>{{ planName(subscription.planId) }}</strong> ·
-              {{ STATUS[subscription.status] ?? subscription.status }}
-              <span v-if="subscription.organizationEnabled"> · con organización</span>
+              {{ t('adminPlans.now') }} <strong>{{ planName(subscription.planId) }}</strong> ·
+              {{ subscriptionStatus(subscription.status) }}
+              <span v-if="subscription.organizationEnabled"> · {{ t('adminPlans.withOrganization') }}</span>
               <span v-if="subscription.currentPeriodEnd">
-                · hasta {{ shortDate(subscription.currentPeriodEnd) }}
+                · {{ t('adminPlans.until', { date: shortDate(subscription.currentPeriodEnd) }) }}
               </span>
             </template>
             <template v-else>
-              Sin suscripción — esta cuenta está en el plan por defecto.
+              {{ t('adminPlans.noSubscription') }}
             </template>
           </p>
 
           <div class="sub-form">
             <div class="form-group">
-              <label for="sub-op">Operación</label>
+              <label for="sub-op">{{ t('adminPlans.operation') }}</label>
               <select id="sub-op" v-model="operation" class="inp">
-                <option value="activate">Activar o cambiar de plan</option>
-                <option value="start_trial">Empezar prueba</option>
-                <option value="mark_past_due">Marcar impago</option>
-                <option value="resume">Reanudar</option>
-                <option value="cancel">Cancelar</option>
-                <option value="expire">Caducar ahora</option>
+                <option v-for="op in OPERATIONS" :key="op" :value="op">{{ t(`adminPlans.operations.${op}`) }}</option>
               </select>
             </div>
 
             <div v-if="needsPlan" class="form-group">
-              <label for="sub-plan">Plan</label>
+              <label for="sub-plan">{{ t('adminPlans.plan') }}</label>
               <select id="sub-plan" v-model="opPlanCode" class="inp">
                 <option v-for="plan in plans" :key="plan.code" :value="plan.code">
                   {{ plan.name }}
@@ -152,34 +132,34 @@
             </div>
 
             <div v-if="needsPeriodEnd" class="form-group">
-              <label for="sub-end">{{ operation === 'start_trial' ? 'La prueba acaba el' : 'Vigente hasta' }}</label>
+              <label for="sub-end">{{ operation === 'start_trial' ? t('adminPlans.trialEnds') : t('adminPlans.validUntil') }}</label>
               <input id="sub-end" v-model="opPeriodEnd" type="date" class="inp" />
             </div>
 
             <div v-if="operation === 'mark_past_due'" class="form-group">
-              <label for="sub-grace">Cortesía hasta</label>
+              <label for="sub-grace">{{ t('adminPlans.graceUntil') }}</label>
               <input id="sub-grace" v-model="opGraceUntil" type="date" class="inp" />
             </div>
 
             <div v-if="operation === 'activate'" class="form-group">
-              <label for="sub-org">Organización</label>
+              <label for="sub-org">{{ t('adminPlans.organization') }}</label>
               <select id="sub-org" v-model="opOrgEnabled" class="inp">
-                <option :value="false">Sin organización</option>
-                <option :value="true">Puede gestionar una organización</option>
+                <option :value="false">{{ t('adminPlans.noOrganization') }}</option>
+                <option :value="true">{{ t('adminPlans.canManageOrganization') }}</option>
               </select>
             </div>
 
             <div v-if="operation === 'cancel'" class="form-group">
-              <label for="sub-immediate">Cuándo</label>
+              <label for="sub-immediate">{{ t('adminPlans.when') }}</label>
               <select id="sub-immediate" v-model="opImmediate" class="inp">
-                <option :value="false">Al terminar el periodo pagado</option>
-                <option :value="true">Ahora mismo (devolución)</option>
+                <option :value="false">{{ t('adminPlans.atPeriodEnd') }}</option>
+                <option :value="true">{{ t('adminPlans.immediately') }}</option>
               </select>
             </div>
 
             <div class="form-actions">
               <button class="btn btn--primary" :disabled="applying" @click="applyOperation">
-                {{ applying ? 'Aplicando…' : 'Aplicar' }}
+                {{ applying ? t('adminPlans.applying') : t('common.apply') }}
               </button>
             </div>
           </div>
@@ -189,26 +169,24 @@
       <!-- Topes del plan seleccionado -->
       <section v-if="selected" class="section">
         <div class="section-head">
-          <h2>Topes de {{ selected.name }}</h2>
+          <h2>{{ t('adminPlans.limitsOf', { name: selected.name }) }}</h2>
           <button class="btn btn--primary" @click="saveLimits" :disabled="saving">
-            {{ saving ? 'Guardando…' : 'Guardar topes' }}
+            {{ saving ? t('common.saving') : t('adminPlans.saveLimits') }}
           </button>
         </div>
-        <p class="section-desc">
-          Se guarda la tabla entera: lo que se ve aquí es exactamente lo que
-          queda. Casilla vacía = <strong>ilimitado</strong> (∞) ·
-          <strong>0</strong> = no incluido · un número = tope. Aparecen siempre
-          todas las claves, así que ninguna se queda sin decidir.
-        </p>
+        <i18n-t keypath="adminPlans.limitsDesc" tag="p" class="section-desc">
+          <template #unlimited><strong>{{ t('adminPlans.unlimitedWord') }}</strong></template>
+          <template #zero><strong>0</strong></template>
+        </i18n-t>
 
         <table class="table">
           <thead>
-            <tr><th>Clave</th><th>Periodo</th><th>Titular</th><th>Miembro</th></tr>
+            <tr><th>{{ t('adminPlans.key') }}</th><th>{{ t('adminPlans.period') }}</th><th>{{ t('adminPlans.holder') }}</th><th>{{ t('organization.member') }}</th></tr>
           </thead>
           <tbody>
             <tr v-for="key in limitKeys" :key="key.key">
               <td class="mono">{{ key.key }}</td>
-              <td class="mono muted">{{ PERIODS[key.period] ?? key.period }}</td>
+              <td class="mono muted">{{ periodLabel(key.period) }}</td>
               <td><input v-model="holder[key.key]" type="number" min="0" class="inp inp--num" placeholder="∞" /></td>
               <td><input v-model="member[key.key]" type="number" min="0" class="inp inp--num" placeholder="∞" /></td>
             </tr>
@@ -222,7 +200,7 @@
       :title="confirm.title"
       :message="confirm.message"
       :danger="true"
-      confirm-label="Confirmar"
+      :confirm-label="t('common.confirm')"
       @confirm="confirm.action()"
       @cancel="confirm.open = false"
     />
@@ -247,12 +225,27 @@ import StarBackground from '@/components/shared/StarBackground.vue'
 import ConfirmModal from '@/components/shared/ConfirmModal.vue'
 import { useApi } from '@/composables/useApi'
 import { useToastStore } from '@/stores/toastStore'
-import { formatDate } from '@/i18n/format'
+import { formatDate, formatNumber } from '@/i18n/format'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const { apiFetch, apiError } = useApi()
 const toast = useToastStore()
 
-const PERIODS = { month: 'mensual', day: 'diario', stock: 'existencias', tier: 'nivel' }
+/** Orden que siembra el catálogo de planes en una base de datos recién desplegada. */
+const MIGRATE_COMMAND = 'cd API && alembic upgrade head'
+
+/** Periodos de una clave de límite con rótulo en `adminPlans.periods`. */
+const PERIODS = ['month', 'day', 'stock', 'tier']
+
+/** Rótulo de un periodo; uno que el servidor añada cae en «Desconocido». */
+function periodLabel(period) {
+  return PERIODS.includes(period) ? t(`adminPlans.periods.${period}`) : t('common.unknown')
+}
+
+/** Operaciones del ciclo de vida de una suscripción, en el orden del desplegable. */
+const OPERATIONS = ['activate', 'start_trial', 'mark_past_due', 'resume', 'cancel', 'expire']
 
 const plans = ref([])
 const limitKeys = ref([])
@@ -271,11 +264,12 @@ const draft = ref(emptyDraft())
 const confirm = ref({ open: false, title: '', message: '', action: () => {} })
 
 /* ── Suscripciones ── */
-const STATUS = {
-  active: 'activa',
-  trialing: 'en prueba',
-  past_due: 'impago',
-  canceled: 'cancelada',
+/** Estados de suscripción con rótulo en `adminPlans.statuses`. */
+const STATUSES = ['active', 'trialing', 'past_due', 'canceled']
+
+/** Rótulo de un estado de suscripción; uno nuevo cae en «Desconocido». */
+function subscriptionStatus(status) {
+  return STATUSES.includes(status) ? t(`adminPlans.statuses.${status}`) : t('common.unknown')
 }
 const users = ref([])
 const subUserId = ref(null)
@@ -331,11 +325,11 @@ async function applyOperation() {
       body: JSON.stringify(body),
     })
     if (!res?.ok) {
-      toast.show(await apiError(res, 'No se pudo aplicar la operación.'), 'error')
+      toast.show(await apiError(res, t('adminPlans.toast.operationFailed')), 'error')
       return
     }
     subscription.value = await res.json()
-    toast.show('Suscripción actualizada.', 'success')
+    toast.show(t('adminPlans.toast.subscriptionUpdated'), 'success')
   } finally {
     applying.value = false
   }
@@ -349,7 +343,7 @@ function emptyDraft() {
 }
 
 function euros(cents) {
-  return `${(cents / 100).toFixed(2)} €`
+  return formatNumber(cents / 100, { style: 'currency', currency: 'EUR' })
 }
 
 /**
@@ -360,7 +354,7 @@ async function loadPlans() {
   loadError.value = ''
   const res = await apiFetch('/plans/all')
   if (!res?.ok) {
-    loadError.value = await apiError(res, 'No se ha podido cargar el catálogo.')
+    loadError.value = await apiError(res, t('adminPlans.toast.catalogFailed'))
     return
   }
   plans.value = (await res.json()).plans ?? []
@@ -370,7 +364,7 @@ async function loadKeys() {
   const res = await apiFetch('/plans/limit-keys')
   if (!res?.ok) {
     limitKeys.value = []
-    toast.show(await apiError(res, 'No se pudo cargar el catálogo de claves.'), 'error')
+    toast.show(await apiError(res, t('adminPlans.toast.keysFailed')), 'error')
     return
   }
   limitKeys.value = (await res.json()).keys ?? []
@@ -439,10 +433,10 @@ async function save() {
 
     const res = await apiFetch(path, { method, body: JSON.stringify(body) })
     if (!res?.ok) {
-      toast.show(await apiError(res, 'No se pudo guardar el plan.'), 'error')
+      toast.show(await apiError(res, t('adminPlans.toast.planSaveFailed')), 'error')
       return
     }
-    toast.show(editingId.value ? 'Plan actualizado.' : 'Plan creado.', 'success')
+    toast.show(editingId.value ? t('adminPlans.toast.planUpdated') : t('adminPlans.toast.planCreated'), 'success')
     editing.value = false
     await loadPlans()
     // El panel de topes puede estar enseñando el plan que se acaba de editar:
@@ -461,7 +455,7 @@ async function saveLimits() {
   // REEMPLAZA el conjunto entero, guardar aquí borraría todos los topes del
   // plan. Es el único sitio de esta pantalla que puede destruir datos.
   if (!limitKeys.value.length) {
-    toast.show('No se han cargado las claves de límite: recarga antes de guardar.', 'error')
+    toast.show(t('adminPlans.toast.keysMissing'), 'error')
     return
   }
 
@@ -476,10 +470,10 @@ async function saveLimits() {
       body: JSON.stringify({ limits }),
     })
     if (!res?.ok) {
-      toast.show(await apiError(res, 'No se pudieron guardar los topes.'), 'error')
+      toast.show(await apiError(res, t('adminPlans.toast.limitsFailed')), 'error')
       return
     }
-    toast.show('Topes guardados.', 'success')
+    toast.show(t('adminPlans.toast.limitsSaved'), 'success')
     await loadPlans()
     select(plans.value.find((plan) => plan.id === selectedId.value) ?? selected.value)
   } finally {
@@ -504,14 +498,13 @@ function toPayload(form, scope) {
 function makeDefault(plan) {
   confirm.value = {
     open: true,
-    title: `¿Hacer de "${plan.name}" el plan por defecto?`,
-    message: 'Lo recibirán todas las cuentas sin suscripción vigente, y las que '
-      + 'hoy están en el actual pasarán a este.',
+    title: t('adminPlans.confirmDefault.title', { name: plan.name }),
+    message: t('adminPlans.confirmDefault.message'),
     action: async () => {
       confirm.value.open = false
       const res = await apiFetch(`/plans/${plan.id}/default`, { method: 'PUT' })
       if (!res?.ok) {
-        toast.show(await apiError(res, 'No se pudo cambiar.'), 'error')
+        toast.show(await apiError(res, t('adminPlans.toast.defaultFailed')), 'error')
         return
       }
       await loadPlans()
@@ -522,13 +515,13 @@ function makeDefault(plan) {
 function remove(plan) {
   confirm.value = {
     open: true,
-    title: `¿Borrar el plan "${plan.name}"?`,
-    message: 'Solo se puede si nadie lo tiene contratado.',
+    title: t('adminPlans.confirmDelete.title', { name: plan.name }),
+    message: t('adminPlans.confirmDelete.message'),
     action: async () => {
       confirm.value.open = false
       const res = await apiFetch(`/plans/${plan.id}`, { method: 'DELETE' })
       if (!res?.ok) {
-        toast.show(await apiError(res, 'No se pudo borrar.'), 'error')
+        toast.show(await apiError(res, t('adminPlans.toast.deleteFailed')), 'error')
         return
       }
       if (selectedId.value === plan.id) selected.value = null

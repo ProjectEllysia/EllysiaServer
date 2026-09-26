@@ -368,7 +368,7 @@ import { useDismissable } from '@/composables/useDismissable'
 import { useAppVersion } from '@/composables/useAppVersion'
 import { useLaunch } from '@/composables/useLaunch'
 import { vAnimateDetails } from '@/composables/useAnimatedDetails'
-import { HEADLINE, SHORT_LABELS, euros, describe } from '@/constants/planFormat'
+import { HEADLINE, labelOf, euros, describe } from '@/constants/planFormat'
 import ElysianScene from '@/components/shared/ElysianScene.vue'
 import SiteFooter from '@/components/shared/SiteFooter.vue'
 import AccountMenu from '@/components/shared/AccountMenu.vue'
@@ -454,7 +454,7 @@ const visibleFaqs = computed(() => faqs.filter((item) => !item.surface || isSurf
 
 /** Los tres límites que mejor resumen un plan en la portada. */
 function headlineLimits(plan) {
-  return HEADLINE.map(key => ({ label: SHORT_LABELS[key], value: describe(plan, key) }))
+  return HEADLINE.map(key => ({ label: labelOf(key, true), value: describe(plan, key) }))
 }
 
 /** Enlaces del desplegable "Documentación" — de momento apuntan a páginas placeholder. */

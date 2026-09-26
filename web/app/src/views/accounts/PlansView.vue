@@ -4,17 +4,12 @@
 
     <main class="main">
       <header class="intro">
-        <span class="eyebrow">Planes</span>
-        <h1 class="title">Defenderse no debería ser un privilegio</h1>
-        <p class="lede">
-          Empieza gratis. Sube cuando tus activos lo pidan, no cuando lo pida una
-          licencia.
-        </p>
+        <span class="eyebrow">{{ t('landing.plans') }}</span>
+        <h1 class="title">{{ t('landing.closing.title') }}</h1>
+        <p class="lede">{{ t('plansPage.lede') }}</p>
       </header>
 
-      <p v-if="loaded && !account.catalog.length" class="empty">
-        Todavía no hay planes publicados.
-      </p>
+      <p v-if="loaded && !account.catalog.length" class="empty">{{ t('plansPage.empty') }}</p>
 
       <section v-else class="grid">
         <article v-for="plan in account.catalog" :key="plan.code" class="card"
@@ -22,21 +17,21 @@
           <header class="card-head">
             <h2 class="card-name">
               {{ plan.name }}
-              <span v-if="isCurrent(plan)" class="card-current-tag">Tu plan</span>
+              <span v-if="isCurrent(plan)" class="card-current-tag">{{ t('plansPage.yourPlan') }}</span>
             </h2>
             <p v-if="plan.tagline" class="card-tagline">{{ plan.tagline }}</p>
             <p class="card-price">
               <span class="card-amount">{{ euros(plan.monthlyPriceCents) }}</span>
-              <span class="card-period">/mes</span>
+              <span class="card-period">{{ t('landing.pricing.perMonth') }}</span>
             </p>
             <p v-if="plan.orgAddonPriceCents" class="card-addon">
-              +{{ euros(plan.orgAddonPriceCents) }}/mes con organización
+              {{ t('plansPage.orgAddon', { price: euros(plan.orgAddonPriceCents) }) }}
             </p>
           </header>
 
           <ul class="card-limits">
             <li v-for="key in FEATURED" :key="key" class="limit">
-              <span class="limit-label">{{ LABELS[key] }}</span>
+              <span class="limit-label">{{ labelOf(key) }}</span>
               <span class="limit-value" :class="{ 'limit-value--none': isZero(plan, key) }">
                 {{ describe(plan, key) }}
               </span>
@@ -44,22 +39,18 @@
           </ul>
 
           <router-link v-if="!auth.isAuthenticated" to="/login" class="card-cta">
-            {{ plan.isDefault ? 'Empezar gratis' : 'Entrar' }}
+            {{ plan.isDefault ? t('landing.pricing.startFree') : t('shell.signIn') }}
           </router-link>
           <router-link v-else-if="isCurrent(plan)" to="/mi-plan" class="card-cta card-cta--current">
-            Ver consumo
+            {{ t('plansPage.seeUsage') }}
           </router-link>
           <p v-else class="card-cta card-cta--muted">
-            Pídeselo a quien administre tu cuenta
+            {{ t('plansPage.askAdmin') }}
           </p>
         </article>
       </section>
 
-      <p class="footnote">
-        Los planes con organización reparten sus límites entre los miembros: una
-        bolsa común, no una licencia por cabeza. Y unirse a una organización nunca
-        sustituye tu plan personal — se suman.
-      </p>
+      <p class="footnote">{{ t('plansPage.footnote') }}</p>
     </main>
 
     <SiteFooter />
@@ -78,8 +69,11 @@ import { onMounted, ref } from 'vue'
 import SiteHeader from '@/components/shared/SiteHeader.vue'
 import SiteFooter from '@/components/shared/SiteFooter.vue'
 import { useAccountStore } from '@/stores/accountStore'
-import { FEATURED, LABELS, euros, limitOf, isZero, describe } from '@/constants/planFormat'
+import { FEATURED, labelOf, euros, isZero, describe } from '@/constants/planFormat'
 import { useAuthStore } from '@/stores/authStore'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const account = useAccountStore()
 const auth = useAuthStore()

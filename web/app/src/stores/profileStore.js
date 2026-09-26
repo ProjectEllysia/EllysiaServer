@@ -139,13 +139,13 @@ export const useProfileStore = defineStore('profile', () => {
       body: JSON.stringify({ first_name, last_name }),
     })
     if (!res?.ok) {
-      toast.show(await apiError(res, 'Error al actualizar el perfil.'), 'error')
+      toast.show(await apiError(res, i18n.global.t('profile.updateFailed')), 'error')
       return false
     }
     profile.first_name = first_name
     profile.last_name = last_name
     profileCache.set(CACHE_KEY, _snapshot())
-    toast.show('Perfil actualizado.', 'success')
+    toast.show(i18n.global.t('profile.updated'), 'success')
     return true
   }
 
