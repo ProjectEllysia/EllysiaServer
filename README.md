@@ -587,7 +587,7 @@ npm run test:themis       # scan-window + Lybra finding-site labels + finding so
 npm run test:i18n         # languages: date/number formatting, API error translation, language-file checks and guards
 ```
 
-The SPA is ready for more languages: each one is a file in `web/app/src/i18n/locales/` (`es.json` is the default and the only complete one; `en.json` covers what has been migrated so far — the shared page chrome and the API error messages). Adding a file makes the language appear in the selector; the rules and the recipe are in `CONVENCIONES.md` §12.5.
+The SPA is ready for more languages: each one is a file in `web/app/src/i18n/locales/` (`es.json` is the default; `en.json` covers the whole interface, and CI fails if a key is added to `es.json` without it). Adding a file makes the language appear in the selector; the rules and the recipe are in `CONVENCIONES.md` §12.5.
 
 Each person's language is stored on the server and resolved in one place (`users.services.language.resolve_effective_language`): the language the user chose, otherwise their organization's default (set by the owner), otherwise the platform's (`general.localization.defaultLanguage`, `es`). The profile returns the result as `effectiveLanguage` and the SPA switches to it on login; with a session the selector saves the choice to the profile and offers going back to the organization's language (`null`). The SPA never fills the field on its own, so a later change of the organization's language still reaches everyone who has not chosen. The accepted codes (`SUPPORTED_LANGUAGES`) are exactly the files in `locales/`; a test ties them together.
 
