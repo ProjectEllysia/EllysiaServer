@@ -58,9 +58,9 @@ const features = computed(() => ['pills', 'quiz', 'campaigns', 'evidence'].map((
   desc: t(`aegisHub.features.${id}.desc`),
 })))
 
-const resources = [
-  { label: 'INCIBE — Guías de concienciación para empresas', href: 'https://www.incibe.es/', external: true },
-]
+const resources = computed(() => [
+  { label: t('aegisHub.resources.incibe'), href: 'https://www.incibe.es/', external: true },
+])
 
 /** Última campaña lanzada (no en borrador) — para la placa de actividad. */
 async function loadLastCampaignMetric() {
