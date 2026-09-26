@@ -59,7 +59,10 @@ const modules = [
   top: 0;
   z-index: 40;
   height: 72px;
-  display: flex; align-items: center; justify-content: space-between;
+  /* Tres columnas: las laterales se reparten el sobrante a partes iguales, así
+     la lista de herramientas queda centrada sea cual sea el ancho de la marca o
+     de las acciones, y crecer por un lado no la empuja hacia el otro. */
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
   gap: 1.5rem;
   padding: 0 2rem;
   background: color-mix(in srgb, var(--bg) 80%, transparent);
@@ -68,7 +71,7 @@ const modules = [
 }
 
 /* ── Marca ── */
-.brand { display: inline-flex; align-items: center; gap: 0.65rem; flex-shrink: 0; }
+.brand { display: inline-flex; align-items: center; gap: 0.65rem; justify-self: start; }
 .brand-glyph {
   width: 10px; height: 10px; border-radius: 50%;
   border: 1.5px solid var(--accent);
@@ -82,7 +85,7 @@ const modules = [
 }
 
 /* ── Navegación de módulos ── */
-.site-nav { display: flex; gap: 1.5rem; margin-left: auto; }
+.site-nav { display: flex; gap: 1.5rem; }
 .nav-link {
   font-family: var(--font-epic); font-size-adjust: var(--fsa-epic);
   font-size: var(--fs-md); font-weight: 500;
@@ -96,7 +99,9 @@ const modules = [
 .nav-link.router-link-exact-active { color: var(--accent); border-color: var(--accent); }
 
 /* ── Acciones ── */
-.header-actions { display: flex; align-items: center; gap: 0.8rem; flex-shrink: 0; }
+/* Columna fija: cuando la lista se oculta en pantallas estrechas, las acciones
+   no deben caer en el hueco central. */
+.header-actions { grid-column: 3; justify-self: end; display: flex; align-items: center; gap: 0.8rem; }
 .icon-btn {
   width: 40px; height: 40px; border-radius: 50%;
   display: grid; place-items: center;
