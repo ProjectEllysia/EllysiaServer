@@ -1068,12 +1068,15 @@ El SPA tiene un mecanismo de idiomas (vue-i18n, en `web/app/src/i18n/`). Cada id
 de `locales/` con el mismo árbol de claves; **`es.json` es el idioma por defecto y el único
 completo**, y lo que le falte a otro idioma se enseña en castellano.
 
-- **Un fichero se migra entero o no se migra.** En un fichero ya migrado (la lista está en
-  `MIGRATED_FILES` de `web/app/test/i18n.guard.test.mjs`), todo texto nuevo va a `es.json` y se
-  pide con `t('clave')`; la guarda falla si vuelve a aparecer texto escrito en su plantilla. En uno
-  sin migrar se sigue escribiendo como hasta ahora: medio fichero en el diccionario y medio escrito
-  a mano es peor que cualquiera de los dos. Un módulo se migra cuando se toca a fondo, como los
-  docstrings.
+- **Todo texto va al diccionario**, en `es.json` y en `en.json` a la vez, y se pide con
+  `t('clave')`. La guarda (`web/app/test/i18n.guard.test.mjs`) falla si un componente tiene texto
+  escrito en su plantilla, salvo los que aún esperan su migración en `PENDING_FILES`; un componente
+  nuevo nace vigilado. Un fichero se migra entero o no se migra: medio fichero en el diccionario y
+  medio escrito a mano es peor que cualquiera de los dos. La guarda no ve el texto que se monta en
+  el `<script>` (rótulos, avisos): ese se revisa a mano.
+- **Idiomas completos.** El inglés está en `COMPLETE_LOCALES` de `i18n.locales.test.mjs`: tiene que
+  traer todas las claves del castellano, así que una clave que solo se añada en `es.json` hace
+  fallar la CI.
 - **Claves.** Un árbol por zona (`shell.*`, `accountMenu.*`, `apiErrors.*`), en `camelCase`, que
   nombra el sitio o el propósito, no el texto: `accountMenu.logout`, no `cerrarSesion`. Los datos
   variables van como huecos con nombre (`"Cuenta de {name}"`), nunca concatenados: el orden de las

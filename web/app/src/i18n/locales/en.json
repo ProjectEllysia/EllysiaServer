@@ -192,6 +192,7 @@
     "systemTagImmutable": "Tags from the shared catalog cannot be deleted.",
     "tagAlreadyExists": "A tag named “{name}” already exists.",
     "tagQuotaExceeded": "You have reached the maximum of {maxTags} personal tags.",
+    "complianceOrganizationOwnerOnly": "Only the organization owner can set its compliance frameworks.",
     "targetNotAuthorized": "“{target}” is not authorized for active Lybra operations. Add it to the authorized targets registry before launching this scan.",
     "taskNotCancellable": "The task does not exist or has already finished.",
     "tooManyRequests": "You have exceeded the request limit. Wait a moment and try again.",
