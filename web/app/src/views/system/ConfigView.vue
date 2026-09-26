@@ -1,7 +1,7 @@
 <template>
   <div class="config-page">
     <StarBackground />
-    <Topbar title="Configuración" />
+    <Topbar :title="t('configView.title')" />
 
     <main class="main">
       <div v-if="store.loading" class="loading-block">
@@ -12,13 +12,13 @@
         <div class="config-nav-column">
           <aside class="config-nav">
             <nav>
-              <template v-for="g in navGroups" :key="g.label">
-                <span class="nav-group-label">{{ g.label }}</span>
+              <template v-for="g in navGroups" :key="g.id">
+                <span class="nav-group-label">{{ t(`configView.nav.${g.id}`) }}</span>
                 <a v-for="s in g.items" :key="s.id"
                   :class="['nav-link', { active: activeSection === s.id }]"
                   href="#" @click.prevent="scrollTo(s.id)">
                   <span class="nav-icon" v-html="s.icon"></span>
-                  <span class="nav-label">{{ s.label }}</span>
+                  <span class="nav-label">{{ t(s.labelKey) }}</span>
                 </a>
               </template>
             </nav>
@@ -27,20 +27,18 @@
 
         <form class="config-form" @submit.prevent="handleSave">
           <section id="section-launch" class="section">
-            <div class="section-head"><h2>Lanzamiento</h2><p class="section-desc">Qué funciones están abiertas al público</p></div>
+            <div class="section-head"><h2>{{ t('configView.lanzamiento') }}</h2><p class="section-desc">{{ t('configView.queFuncionesEstanAbiertasAl') }}</p></div>
             <div class="section-body">
-              <p class="field-hint">
-                En <strong>vista previa</strong> todas las funciones de abajo están cerradas al público, digan lo que digan sus
-                interruptores; tu cuenta de administrador principal puede seguir probándolas, salvo el alta, los precios y la IA
-                externa. En <strong>abierto al público</strong> cada función sigue su interruptor, para poder abrir Ellysia por
-                partes a medida que cada una tenga su cobertura legal.
-              </p>
+              <i18n-t keypath="configView.enS1TodasLasFunciones" tag="p" class="field-hint">
+                <template #s1><strong>{{ t('configView.vistaPrevia') }}</strong></template>
+                <template #s2><strong>{{ t('configView.abiertoAlPublico') }}</strong></template>
+              </i18n-t>
               <div class="cfg-grid">
                 <div class="form-group">
-                  <label>Modo</label>
+                  <label>{{ t('configView.modo') }}</label>
                   <select v-model="store.configFlat['general.launch.mode']" class="inp">
-                    <option value="preview">Vista previa</option>
-                    <option value="public">Abierto al público</option>
+                    <option value="preview">{{ t('configView.vistaPrevia2') }}</option>
+                    <option value="public">{{ t('configView.abiertoAlPublico2') }}</option>
                   </select>
                 </div>
               </div>
@@ -51,49 +49,49 @@
                       v-model="store.configFlat[`general.launch.surfaces.${surface.key}`]"
                       type="checkbox" :disabled="isLaunchPreview"
                     />
-                    <span class="launch-name">{{ surface.label }}</span>
+                    <span class="launch-name">{{ t(`configView.surfaces.${surface.key}.label`) }}</span>
                   </label>
-                  <span class="field-hint">{{ surface.covers }} Antes de abrirla: {{ surface.unlocks }}.</span>
+                  <span class="field-hint">{{ t(`configView.surfaces.${surface.key}.covers`) }} {{ t('configView.beforeOpening', { unlocks: t(`configView.surfaces.${surface.key}.unlocks`) }) }}</span>
                 </li>
               </ul>
-              <p v-if="isLaunchPreview" class="field-hint">Los interruptores no cuentan mientras el modo sea «Vista previa».</p>
+              <p v-if="isLaunchPreview" class="field-hint">{{ t('configView.switchesIgnored') }}</p>
             </div>
           </section>
 
           <section id="section-general" class="section">
             <div class="section-head section-head--row">
-              <div><h2>General</h2><p class="section-desc">Directorios del sistema y alta de cuentas</p></div>
-              <span class="version-chip" title="Versión de la aplicación">v{{ store.configFlat['appVersion'] }}</span>
+              <div><h2>{{ t('configView.general') }}</h2><p class="section-desc">{{ t('configView.directoriosDelSistemaYAlta') }}</p></div>
+              <span class="version-chip" :title="t('configView.appVersion')">v{{ store.configFlat['appVersion'] }}</span>
             </div>
             <div class="section-body">
               <div class="cfg-grid">
-                <div class="form-group"><label>Temp</label><input v-model="store.configFlat['general.directories.tempdir']" type="text" class="inp" /></div>
-                <div class="form-group"><label>Logs</label><input v-model="store.configFlat['general.directories.logdir']" type="text" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.tech.temp') }}</label><input v-model="store.configFlat['general.directories.tempdir']" type="text" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.tech.logs') }}</label><input v-model="store.configFlat['general.directories.logdir']" type="text" class="inp" /></div>
                 <div class="form-group">
-                  <label>Conservación del registro de actividad (días)</label>
+                  <label>{{ t('configView.conservacionDelRegistroDeActividad') }}</label>
                   <input v-model.number="store.configFlat['general.logs.retentionDays']" type="number" min="1" max="365" class="inp" />
-                  <span class="field-hint">Cada noche se archiva el día anterior y se borra lo que pase de este plazo. El registro guarda la IP de cada visita.</span>
+                  <span class="field-hint">{{ t('configView.cadaNocheSeArchivaEl') }}</span>
                 </div>
                 <div class="form-group">
-                  <label>Idioma de la plataforma</label>
+                  <label>{{ t('configView.idiomaDeLaPlataforma') }}</label>
                   <select v-model="store.configFlat['general.localization.defaultLanguage']" class="inp">
                     <option v-for="option in LOCALE_OPTIONS" :key="option.code" :value="option.code">{{ option.name }}</option>
                   </select>
-                  <span class="field-hint">El de quien no ha elegido idioma y cuya organización tampoco lo ha fijado.</span>
+                  <span class="field-hint">{{ t('configView.elDeQuienNoHa') }}</span>
                 </div>
               </div>
-              <p class="field-hint">Plazos de los enlaces que se envían por correo. Si se admiten altas públicas se decide en «Lanzamiento».</p>
+              <p class="field-hint">{{ t('configView.plazosDeLosEnlacesQue') }}</p>
               <div class="cfg-grid">
                 <div class="form-group">
-                  <label>Vigencia del enlace de verificación (horas)</label>
+                  <label>{{ t('configView.vigenciaDelEnlaceDeVerificacion') }}</label>
                   <input v-model.number="store.configFlat['general.registration.verificationTtlHours']" type="number" min="1" max="720" class="inp" />
                 </div>
                 <div class="form-group">
-                  <label>Vigencia del enlace de recuperación (minutos)</label>
+                  <label>{{ t('configView.vigenciaDelEnlaceDeRecuperacion') }}</label>
                   <input v-model.number="store.configFlat['general.registration.passwordResetTtlMinutes']" type="number" min="5" max="1440" class="inp" />
                 </div>
                 <div class="form-group">
-                  <label>Vigencia de la invitación a una organización (horas)</label>
+                  <label>{{ t('configView.vigenciaDeLaInvitacionA') }}</label>
                   <input v-model.number="store.configFlat['general.registration.invitationTtlHours']" type="number" min="1" max="2160" class="inp" />
                 </div>
               </div>
@@ -101,87 +99,102 @@
           </section>
 
           <section id="section-security" class="section">
-            <div class="section-head"><h2>Seguridad</h2><p class="section-desc">Contraseñas, sesión y segundo factor</p></div>
+            <div class="section-head"><h2>{{ t('configView.seguridad') }}</h2><p class="section-desc">{{ t('configView.contrasenasSesionYSegundoFactor') }}</p></div>
             <div class="section-body">
-              <p class="field-hint">Parámetros de coste de Argon2id. Subirlos endurece los hashes pero ralentiza el inicio de sesión. Solo afectan a contraseñas creadas o cambiadas tras guardar.</p>
+              <p class="field-hint">{{ t('configView.parametrosDeCosteDeArgon2id') }}</p>
               <div class="cfg-grid">
-                <div class="form-group"><label>Iteraciones (time cost)</label><input v-model.number="store.configFlat['general.security.argon2.time_cost']" type="number" min="1" max="20" class="inp" /></div>
-                <div class="form-group"><label>Memoria (KiB)</label><input v-model.number="store.configFlat['general.security.argon2.memory_cost']" type="number" min="8192" step="1024" class="inp" /><span class="field-hint">65536 KiB = 64 MiB por hash</span></div>
-                <div class="form-group"><label>Paralelismo (hilos)</label><input v-model.number="store.configFlat['general.security.argon2.parallelism']" type="number" min="1" max="16" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.iteracionesTimeCost') }}</label><input v-model.number="store.configFlat['general.security.argon2.time_cost']" type="number" min="1" max="20" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.memoriaKib') }}</label><input v-model.number="store.configFlat['general.security.argon2.memory_cost']" type="number" min="8192" step="1024" class="inp" /><span class="field-hint">{{ t('configView.65536Kib64MibPor') }}</span></div>
+                <div class="form-group"><label>{{ t('configView.paralelismoHilos') }}</label><input v-model.number="store.configFlat['general.security.argon2.parallelism']" type="number" min="1" max="16" class="inp" /></div>
               </div>
 
-              <h3 class="subsection-title">Sesión (JWT)</h3>
-              <p class="field-hint">Cuánto vive una sesión. El token de acceso es el que acompaña a cada petición; el de refresco es el que permite renovarlo sin volver a pedir la contraseña, así que su vigencia es la duración real de la sesión. El secreto de firma vive en <code>JWT_SECRET_KEY</code> y no está aquí. En contenedores, <code>JWT_ALGORITHM</code>, <code>ACCESS_TOKEN_EXPIRY_MINUTES</code> y <code>REFRESH_TOKEN_EXPIRY_DAYS</code> tienen prioridad sobre estos valores.</p>
+              <h3 class="subsection-title">{{ t('configView.sesionJwt') }}</h3>
+              <i18n-t keypath="configView.cuantoViveUnaSesionEl" tag="p" class="field-hint">
+                <template #c1><code>JWT_SECRET_KEY</code></template>
+                <template #c2><code>JWT_ALGORITHM</code></template>
+                <template #c3><code>ACCESS_TOKEN_EXPIRY_MINUTES</code></template>
+                <template #c4><code>REFRESH_TOKEN_EXPIRY_DAYS</code></template>
+              </i18n-t>
               <div class="cfg-grid">
-                <div class="form-group"><label>Algoritmo de firma</label>
+                <div class="form-group"><label>{{ t('configView.algoritmoDeFirma') }}</label>
                   <select v-model="store.configFlat['general.security.jwt.algorithm']" class="inp sel">
                     <option v-for="alg in jwtAlgorithms" :key="alg" :value="alg">{{ alg }}</option>
                   </select>
-                  <span class="field-hint">Solo la familia HS*: la firma usa un secreto simétrico</span>
+                  <span class="field-hint">{{ t('configView.soloLaFamiliaHsLa') }}</span>
                 </div>
-                <div class="form-group"><label>Vigencia del token de acceso (min)</label><input v-model.number="store.configFlat['general.security.jwt.access_token_expiry_minutes']" type="number" min="1" max="1440" class="inp" /></div>
-                <div class="form-group"><label>Vigencia del token de refresco (días)</label><input v-model.number="store.configFlat['general.security.jwt.refresh_token_expiry_days']" type="number" min="1" max="365" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.vigenciaDelTokenDeAcceso') }}</label><input v-model.number="store.configFlat['general.security.jwt.access_token_expiry_minutes']" type="number" min="1" max="1440" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.vigenciaDelTokenDeRefresco') }}</label><input v-model.number="store.configFlat['general.security.jwt.refresh_token_expiry_days']" type="number" min="1" max="365" class="inp" /></div>
               </div>
 
-              <h3 class="subsection-title">Segundo factor (TOTP)</h3>
-              <p class="field-hint">El emisor es el nombre que la aplicación autenticadora enseña junto al código. Los códigos de recuperación se generan una sola vez al activar el segundo factor: cambiar aquí su número no afecta a quien ya lo tenga activado.</p>
+              <h3 class="subsection-title">{{ t('configView.segundoFactorTotp') }}</h3>
+              <p class="field-hint">{{ t('configView.elEmisorEsElNombre') }}</p>
               <div class="cfg-grid">
-                <div class="form-group"><label>Emisor</label><input v-model="store.configFlat['general.security.mfa.issuer']" type="text" class="inp" /></div>
-                <div class="form-group"><label>Vigencia del reto (min)</label><input v-model.number="store.configFlat['general.security.mfa.challenge_expiry_minutes']" type="number" min="1" max="60" class="inp" /></div>
-                <div class="form-group"><label>Intentos por reto</label><input v-model.number="store.configFlat['general.security.mfa.max_challenge_attempts']" type="number" min="1" max="20" class="inp" /></div>
-                <div class="form-group"><label>Códigos de recuperación</label><input v-model.number="store.configFlat['general.security.mfa.recovery_codes_count']" type="number" min="1" max="50" class="inp" /></div>
-                <div class="form-group"><label>Recordatorio de activación (días)</label><input v-model.number="store.configFlat['general.security.mfa.notice_interval_days']" type="number" min="1" max="365" class="inp" /><span class="field-hint">Cada cuánto se le recuerda a quien no lo tiene activado</span></div>
+                <div class="form-group"><label>{{ t('configView.emisor') }}</label><input v-model="store.configFlat['general.security.mfa.issuer']" type="text" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.vigenciaDelRetoMin') }}</label><input v-model.number="store.configFlat['general.security.mfa.challenge_expiry_minutes']" type="number" min="1" max="60" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.intentosPorReto') }}</label><input v-model.number="store.configFlat['general.security.mfa.max_challenge_attempts']" type="number" min="1" max="20" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.codigosDeRecuperacion') }}</label><input v-model.number="store.configFlat['general.security.mfa.recovery_codes_count']" type="number" min="1" max="50" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.recordatorioDeActivacionDias') }}</label><input v-model.number="store.configFlat['general.security.mfa.notice_interval_days']" type="number" min="1" max="365" class="inp" /><span class="field-hint">{{ t('configView.cadaCuantoSeLeRecuerda') }}</span></div>
               </div>
             </div>
           </section>
 
           <section id="section-database" class="section">
-            <div class="section-head"><h2>Base de datos</h2><p class="section-desc">Conexión PostgreSQL y pool de conexiones</p></div>
+            <div class="section-head"><h2>{{ t('configView.baseDeDatos') }}</h2><p class="section-desc">{{ t('configView.conexionPostgresqlYPoolDe') }}</p></div>
             <div class="section-body">
-              <p class="field-hint">Las credenciales viven en el archivo <code>.env</code>. Estos ajustes requieren reiniciar la API para aplicarse.</p>
+              <i18n-t keypath="configView.lasCredencialesVivenEnEl" tag="p" class="field-hint">
+                <template #c1><code>{{ '.env' }}</code></template>
+              </i18n-t>
               <div class="cfg-grid">
-                <div class="form-group"><label>Nivel de aislamiento</label>
+                <div class="form-group"><label>{{ t('configView.nivelDeAislamiento') }}</label>
                   <select v-model="store.configFlat['infrastructure.database.isolation_level']" class="inp sel">
                     <option v-for="lvl in isolationLevels" :key="lvl" :value="lvl">{{ lvl }}</option>
                   </select>
                 </div>
-                <div class="form-group"><label>Tamaño del pool</label><input v-model.number="store.configFlat['infrastructure.database.pool_size']" type="number" min="1" max="100" class="inp" /></div>
-                <div class="form-group"><label>Conexiones extra (overflow)</label><input v-model.number="store.configFlat['infrastructure.database.max_overflow']" type="number" min="0" max="100" class="inp" /></div>
-                <div class="form-group"><label>Timeout del pool (s)</label><input v-model.number="store.configFlat['infrastructure.database.pool_timeout']" type="number" min="1" max="300" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.tamanoDelPool') }}</label><input v-model.number="store.configFlat['infrastructure.database.pool_size']" type="number" min="1" max="100" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.conexionesExtraOverflow') }}</label><input v-model.number="store.configFlat['infrastructure.database.max_overflow']" type="number" min="0" max="100" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.timeoutDelPoolS') }}</label><input v-model.number="store.configFlat['infrastructure.database.pool_timeout']" type="number" min="1" max="300" class="inp" /></div>
               </div>
             </div>
           </section>
 
           <section id="section-redis" class="section">
-            <div class="section-head"><h2>Redis</h2><p class="section-desc">Backend de la cola de tareas</p></div>
+            <div class="section-head"><h2>{{ t('configView.tech.redis') }}</h2><p class="section-desc">{{ t('configView.backendDeLaColaDe') }}</p></div>
             <div class="section-body">
-              <p class="field-hint">La contraseña se toma de <code>REDIS_PASSWORD</code> en <code>.env</code>. En contenedores, las variables <code>REDIS_HOST</code> / <code>REDIS_PORT</code> / <code>REDIS_DB</code> tienen prioridad sobre estos valores.</p>
+              <i18n-t keypath="configView.laContrasenaSeTomaDe" tag="p" class="field-hint">
+                <template #c1><code>REDIS_PASSWORD</code></template>
+                <template #c2><code>{{ '.env' }}</code></template>
+                <template #c3><code>REDIS_HOST</code></template>
+                <template #c4><code>REDIS_PORT</code></template>
+                <template #c5><code>REDIS_DB</code></template>
+              </i18n-t>
               <div class="cfg-grid">
-                <div class="form-group"><label>Host</label><input v-model="store.configFlat['infrastructure.redis.host']" type="text" class="inp mono" /></div>
-                <div class="form-group"><label>Puerto</label><input v-model.number="store.configFlat['infrastructure.redis.port']" type="number" min="1" max="65535" class="inp" /></div>
-                <div class="form-group"><label>Base de datos (db)</label><input v-model.number="store.configFlat['infrastructure.redis.db']" type="number" min="0" max="15" class="inp" /></div>
-                <div class="form-group"><label>Timeout de conexión (s)</label><input v-model.number="store.configFlat['infrastructure.redis.socket_connect_timeout']" type="number" min="1" max="60" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.tech.host') }}</label><input v-model="store.configFlat['infrastructure.redis.host']" type="text" class="inp mono" /></div>
+                <div class="form-group"><label>{{ t('configView.puerto') }}</label><input v-model.number="store.configFlat['infrastructure.redis.port']" type="number" min="1" max="65535" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.baseDeDatosDb') }}</label><input v-model.number="store.configFlat['infrastructure.redis.db']" type="number" min="0" max="15" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.timeoutDeConexionS') }}</label><input v-model.number="store.configFlat['infrastructure.redis.socket_connect_timeout']" type="number" min="1" max="60" class="inp" /></div>
               </div>
             </div>
           </section>
 
           <section id="section-taskqueue" class="section">
-            <div class="section-head"><h2>TaskQueue</h2><p class="section-desc">Cola de tareas en segundo plano</p></div>
+            <div class="section-head"><h2>{{ t('configView.tech.taskqueue') }}</h2><p class="section-desc">{{ t('configView.colaDeTareasEnSegundo') }}</p></div>
             <div class="section-body">
               <div class="cfg-grid">
-                <div class="form-group"><label>Max Workers</label><input v-model.number="store.configFlat['infrastructure.taskqueue.max_workers']" type="number" min="1" max="32" class="inp" /></div>
-                <div class="form-group"><label>Historial TTL (s)</label><input v-model.number="store.configFlat['infrastructure.taskqueue.history_ttl_seconds']" type="number" min="60" max="86400" class="inp" /></div>
-                <div class="form-group"><label>Max items en historial</label><input v-model.number="store.configFlat['infrastructure.taskqueue.history_max_items']" type="number" min="10" max="1000" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.tech.maxWorkers') }}</label><input v-model.number="store.configFlat['infrastructure.taskqueue.max_workers']" type="number" min="1" max="32" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.historialTtlS') }}</label><input v-model.number="store.configFlat['infrastructure.taskqueue.history_ttl_seconds']" type="number" min="60" max="86400" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.maxItemsEnHistorial') }}</label><input v-model.number="store.configFlat['infrastructure.taskqueue.history_max_items']" type="number" min="10" max="1000" class="inp" /></div>
               </div>
             </div>
           </section>
 
           <section id="section-ai" class="section">
-            <div class="section-head"><h2>IA</h2><p class="section-desc">Estrategia de los modelos de lenguaje por módulo</p></div>
+            <div class="section-head"><h2>{{ t('configView.ia') }}</h2><p class="section-desc">{{ t('configView.estrategiaDeLosModelosDe') }}</p></div>
             <div class="section-body">
-              <p class="field-hint">Elige qué proveedor genera el contenido de cada módulo. Las credenciales siguen en <code>.env</code>; el modelo se elige aquí y se aplica al siguiente trabajo en segundo plano, sin reiniciar nada.</p>
+              <i18n-t keypath="configView.eligeQueProveedorGeneraEl" tag="p" class="field-hint">
+                <template #c1><code>{{ '.env' }}</code></template>
+              </i18n-t>
               <div class="cfg-grid">
-                <div class="form-group"><label>Estrategia por defecto</label>
+                <div class="form-group"><label>{{ t('configView.estrategiaPorDefecto') }}</label>
                   <select v-model="store.configFlat['tools.scribe.defaultStrategy']" class="inp sel">
                     <option v-for="s in aiStrategies" :key="s.value" :value="s.value">{{ s.label }}</option>
                   </select>
@@ -193,8 +206,8 @@
                 </div>
               </div>
 
-              <h3 class="subsection-title">Modelo de cada proveedor</h3>
-              <p class="field-hint">La lista sale de preguntarle al proveedor qué sirve ahora mismo. Dejar el campo vacío significa usar la variable de entorno, que es como funcionaba antes de que el modelo se pudiera elegir desde aquí.</p>
+              <h3 class="subsection-title">{{ t('configView.modeloDeCadaProveedor') }}</h3>
+              <p class="field-hint">{{ t('configView.laListaSaleDePreguntarle') }}</p>
               <div class="cfg-grid">
                 <ModelPicker
                   v-for="s in aiStrategies" :key="s.value"
@@ -203,18 +216,18 @@
                   :catalog="store.aiModels[s.value]" :loading="store.aiModelsLoading" />
               </div>
 
-              <h3 class="subsection-title">Límites y reintentos</h3>
-              <p class="field-hint">El tope de tokens rechaza un prompt desproporcionado antes de gastar la llamada. El corte automático deja de llamar al proveedor tras los fallos seguidos indicados, para no encadenar esperas contra un backend que ya se sabe caído.</p>
+              <h3 class="subsection-title">{{ t('configView.limitesYReintentos') }}</h3>
+              <p class="field-hint">{{ t('configView.elTopeDeTokensRechaza') }}</p>
               <div class="cfg-grid">
-                <div class="form-group"><label>Tokens máximos del prompt</label><input v-model.number="store.configFlat['tools.scribe.maxInputTokens']" type="number" min="1000" max="200000" step="1000" class="inp" /></div>
-                <div class="form-group"><label>Intentos por generación</label><input v-model.number="store.configFlat['tools.scribe.resilience.maxRetries']" type="number" min="1" max="10" class="inp" /></div>
-                <div class="form-group"><label>Base de la espera entre intentos (s)</label><input v-model.number="store.configFlat['tools.scribe.resilience.retryBaseSeconds']" type="number" min="1" max="10" step="0.1" class="inp" /></div>
-                <div class="form-group"><label>Fallos que abren el corte</label><input v-model.number="store.configFlat['tools.scribe.resilience.breakerThreshold']" type="number" min="1" max="20" class="inp" /></div>
-                <div class="form-group"><label>Duración del corte (s)</label><input v-model.number="store.configFlat['tools.scribe.resilience.breakerTimeoutSeconds']" type="number" min="5" max="3600" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.tokensMaximosDelPrompt') }}</label><input v-model.number="store.configFlat['tools.scribe.maxInputTokens']" type="number" min="1000" max="200000" step="1000" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.intentosPorGeneracion') }}</label><input v-model.number="store.configFlat['tools.scribe.resilience.maxRetries']" type="number" min="1" max="10" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.baseDeLaEsperaEntre') }}</label><input v-model.number="store.configFlat['tools.scribe.resilience.retryBaseSeconds']" type="number" min="1" max="10" step="0.1" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.fallosQueAbrenElCorte') }}</label><input v-model.number="store.configFlat['tools.scribe.resilience.breakerThreshold']" type="number" min="1" max="20" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.duracionDelCorteS') }}</label><input v-model.number="store.configFlat['tools.scribe.resilience.breakerTimeoutSeconds']" type="number" min="5" max="3600" class="inp" /></div>
               </div>
 
-              <h3 class="subsection-title">Timeout de cada proveedor (s)</h3>
-              <p class="field-hint">Un modelo local tarda mucho más que una API en la nube, así que cada proveedor lleva el suyo.</p>
+              <h3 class="subsection-title">{{ t('configView.timeoutDeCadaProveedorS') }}</h3>
+              <p class="field-hint">{{ t('configView.unModeloLocalTardaMucho') }}</p>
               <div class="cfg-grid">
                 <div v-for="s in aiStrategies" :key="s.value" class="form-group">
                   <label>{{ s.label }}</label>
@@ -225,119 +238,123 @@
           </section>
 
           <section id="section-herald" class="section">
-            <div class="section-head"><h2>Correo</h2><p class="section-desc">Relay de salida y marca de los mensajes</p></div>
+            <div class="section-head"><h2>{{ t('configView.correo') }}</h2><p class="section-desc">{{ t('configView.relayDeSalidaYMarca') }}</p></div>
             <div class="section-body">
-              <p class="field-hint">Por aquí salen las campañas de Aegis, los avisos de Hygeia e Iris y los correos de cuenta (verificación, invitaciones, recuperación). El usuario y la contraseña del relay viven en <code>SMTP_USERNAME</code> y <code>SMTP_PASSWORD</code> del <code>.env</code>; lo de aquí no es secreto.</p>
+              <i18n-t keypath="configView.porAquiSalenLasCampanas" tag="p" class="field-hint">
+                <template #c1><code>SMTP_USERNAME</code></template>
+                <template #c2><code>SMTP_PASSWORD</code></template>
+                <template #c3><code>{{ '.env' }}</code></template>
+              </i18n-t>
               <div class="cfg-grid">
-                <div class="form-group"><label>Estrategia por defecto</label>
+                <div class="form-group"><label>{{ t('configView.estrategiaPorDefecto') }}</label>
                   <select v-model="store.configFlat['tools.herald.defaultStrategy']" class="inp sel">
                     <option v-for="s in mailStrategies" :key="s.value" :value="s.value">{{ s.label }}</option>
                   </select>
                 </div>
-                <div v-for="m in mailModules" :key="m.key" class="form-group"><label>{{ m.label }}</label>
+                <div v-for="m in mailModules" :key="m.key" class="form-group"><label>{{ t(`configView.mailModules.${m.key}`) }}</label>
                   <select v-model="store.configFlat[`tools.herald.modules.${m.key}`]" class="inp sel">
                     <option v-for="s in mailStrategies" :key="s.value" :value="s.value">{{ s.label }}</option>
                   </select>
                 </div>
               </div>
 
-              <h3 class="subsection-title">Relay SMTP</h3>
+              <h3 class="subsection-title">{{ t('configView.relaySmtp') }}</h3>
               <div class="cfg-grid">
-                <div class="form-group"><label>Host</label><input v-model="store.configFlat['tools.herald.strategies.smtp.host']" type="text" class="inp mono" /></div>
-                <div class="form-group"><label>Puerto</label><input v-model.number="store.configFlat['tools.herald.strategies.smtp.port']" type="number" min="1" max="65535" class="inp" /></div>
-                <div class="form-group"><label>Dirección del remitente</label><input v-model="store.configFlat['tools.herald.strategies.smtp.fromAddress']" type="text" class="inp mono" /></div>
-                <div class="form-group"><label>Nombre del remitente</label><input v-model="store.configFlat['tools.herald.strategies.smtp.fromName']" type="text" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.tech.host') }}</label><input v-model="store.configFlat['tools.herald.strategies.smtp.host']" type="text" class="inp mono" /></div>
+                <div class="form-group"><label>{{ t('configView.puerto') }}</label><input v-model.number="store.configFlat['tools.herald.strategies.smtp.port']" type="number" min="1" max="65535" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.direccionDelRemitente') }}</label><input v-model="store.configFlat['tools.herald.strategies.smtp.fromAddress']" type="text" class="inp mono" /></div>
+                <div class="form-group"><label>{{ t('configView.nombreDelRemitente') }}</label><input v-model="store.configFlat['tools.herald.strategies.smtp.fromName']" type="text" class="inp" /></div>
               </div>
-              <div class="cfg-row"><label class="toggle-row"><input v-model="store.configFlat['tools.herald.strategies.smtp.useTls']" type="checkbox" class="toggle" /><span>Cifrar con STARTTLS</span></label></div>
+              <div class="cfg-row"><label class="toggle-row"><input v-model="store.configFlat['tools.herald.strategies.smtp.useTls']" type="checkbox" class="toggle" /><span>{{ t('configView.cifrarConStarttls') }}</span></label></div>
 
-              <h3 class="subsection-title">Marca de los correos</h3>
-              <p class="field-hint">Lo que pintan las plantillas. Es la marca base del producto: el white-label por organización se configura en cada organización y se aplica encima de esta.</p>
+              <h3 class="subsection-title">{{ t('configView.marcaDeLosCorreos') }}</h3>
+              <p class="field-hint">{{ t('configView.loQuePintanLasPlantillas') }}</p>
               <div class="cfg-grid">
-                <div class="form-group"><label>Nombre del producto</label><input v-model="store.configFlat['tools.herald.branding.productName']" type="text" class="inp" /></div>
-                <div class="form-group"><label>Color de acento</label><input v-model="store.configFlat['tools.herald.branding.accentColor']" type="color" class="inp color-inp" /></div>
-                <div class="form-group"><label>URL del logotipo</label><input v-model="store.configFlat['tools.herald.branding.logoUrl']" type="text" class="inp mono" /><span class="field-hint">Vacío = sin logotipo</span></div>
-                <div class="form-group"><label>Correo de soporte</label><input v-model="store.configFlat['tools.herald.branding.supportEmail']" type="text" class="inp mono" /></div>
+                <div class="form-group"><label>{{ t('configView.nombreDelProducto') }}</label><input v-model="store.configFlat['tools.herald.branding.productName']" type="text" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.colorDeAcento') }}</label><input v-model="store.configFlat['tools.herald.branding.accentColor']" type="color" class="inp color-inp" /></div>
+                <div class="form-group"><label>{{ t('configView.urlDelLogotipo') }}</label><input v-model="store.configFlat['tools.herald.branding.logoUrl']" type="text" class="inp mono" /><span class="field-hint">{{ t('configView.vacioSinLogotipo') }}</span></div>
+                <div class="form-group"><label>{{ t('configView.correoDeSoporte') }}</label><input v-model="store.configFlat['tools.herald.branding.supportEmail']" type="text" class="inp mono" /></div>
               </div>
-              <div class="form-group"><label>Nota del pie</label><input v-model="store.configFlat['tools.herald.branding.footerNote']" type="text" class="inp" /></div>
-              <div class="form-group"><label>Directorio de plantillas</label><input v-model="store.configFlat['tools.herald.templatesDir']" type="text" class="inp mono" /><span class="field-hint">Vacío = las plantillas que trae la aplicación</span></div>
+              <div class="form-group"><label>{{ t('configView.notaDelPie') }}</label><input v-model="store.configFlat['tools.herald.branding.footerNote']" type="text" class="inp" /></div>
+              <div class="form-group"><label>{{ t('configView.directorioDePlantillas') }}</label><input v-model="store.configFlat['tools.herald.templatesDir']" type="text" class="inp mono" /><span class="field-hint">{{ t('configView.vacioLasPlantillasQueTrae') }}</span></div>
             </div>
           </section>
 
           <section id="section-iris" class="section">
-            <div class="section-head"><h2>Iris</h2><p class="section-desc">Umbrales de análisis de cabeceras de correo</p></div>
+            <div class="section-head"><h2>Iris</h2><p class="section-desc">{{ t('configView.umbralesDeAnalisisDeCabeceras') }}</p></div>
             <div class="section-body">
-              <p class="field-hint">Puntuación de autenticidad de un correo. Por encima del umbral legítimo se considera fiable; por debajo del sospechoso, una amenaza. El umbral sospechoso puede ser negativo.</p>
+              <p class="field-hint">{{ t('configView.puntuacionDeAutenticidadDeUn') }}</p>
               <div class="cfg-grid">
-                <div class="form-group"><label>Umbral legítimo</label><input v-model.number="store.configFlat['features.iris.legitimateThreshold']" type="number" class="inp" /></div>
-                <div class="form-group"><label>Umbral sospechoso</label><input v-model.number="store.configFlat['features.iris.suspiciousThreshold']" type="number" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.umbralLegitimo') }}</label><input v-model.number="store.configFlat['features.iris.legitimateThreshold']" type="number" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.umbralSospechoso') }}</label><input v-model.number="store.configFlat['features.iris.suspiciousThreshold']" type="number" class="inp" /></div>
                 <div class="form-group">
-                  <label>Perfil de sensibilidad</label>
+                  <label>{{ t('configView.perfilDeSensibilidad') }}</label>
                   <select v-model="store.configFlat['features.iris.sensitivityProfile']" class="inp sel">
-                    <option value="strict">Estricto</option>
-                    <option value="balanced">Equilibrado</option>
-                    <option value="lenient">Permisivo</option>
+                    <option value="strict">{{ t('configView.estricto') }}</option>
+                    <option value="balanced">{{ t('configView.equilibrado') }}</option>
+                    <option value="lenient">{{ t('configView.permisivo') }}</option>
                   </select>
-                  <span class="field-hint">Estricto sube los dos umbrales 5 puntos (avisa antes); permisivo los baja 5</span>
+                  <span class="field-hint">{{ t('configView.estrictoSubeLosDosUmbrales') }}</span>
                 </div>
-                <div class="form-group"><label>Cabeceras mínimas</label><input v-model.number="store.configFlat['features.iris.minHeaders']" type="number" min="0" max="50" class="inp" /></div>
-                <div class="form-group"><label>Tamaño máx. del mensaje (bytes)</label><input v-model.number="store.configFlat['features.iris.maxMessageBytes']" type="number" min="1024" step="1024" class="inp" /><span class="field-hint">10485760 = 10 MiB</span></div>
+                <div class="form-group"><label>{{ t('configView.cabecerasMinimas') }}</label><input v-model.number="store.configFlat['features.iris.minHeaders']" type="number" min="0" max="50" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.tamanoMaxDelMensajeBytes') }}</label><input v-model.number="store.configFlat['features.iris.maxMessageBytes']" type="number" min="1024" step="1024" class="inp" /><span class="field-hint">{{ t('configView.1048576010Mib') }}</span></div>
               </div>
-              <h3 class="subsection-title">Buzones vigilados</h3>
+              <h3 class="subsection-title">{{ t('configView.buzonesVigilados') }}</h3>
               <div class="cfg-grid">
-                <div class="form-group"><label>Conexiones por usuario</label><input v-model.number="store.configFlat['features.iris.maxConnectionsPerUser']" type="number" min="1" max="50" class="inp" /></div>
-                <div class="form-group"><label>Correos ingeridos al día</label><input v-model.number="store.configFlat['features.iris.maxIngestedPerDay']" type="number" min="1" max="10000" class="inp" /></div>
-                <div class="form-group"><label>Intervalo de sondeo (min)</label><input v-model.number="store.configFlat['features.iris.pollIntervalMinutes']" type="number" min="1" max="1440" class="inp" /></div>
-                <div class="form-group"><label>Directorio de salida</label><input v-model="store.configFlat['features.iris.directories.output']" type="text" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.conexionesPorUsuario') }}</label><input v-model.number="store.configFlat['features.iris.maxConnectionsPerUser']" type="number" min="1" max="50" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.correosIngeridosAlDia') }}</label><input v-model.number="store.configFlat['features.iris.maxIngestedPerDay']" type="number" min="1" max="10000" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.intervaloDeSondeoMin') }}</label><input v-model.number="store.configFlat['features.iris.pollIntervalMinutes']" type="number" min="1" max="1440" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.directorioDeSalida') }}</label><input v-model="store.configFlat['features.iris.directories.output']" type="text" class="inp" /></div>
               </div>
-              <h3 class="subsection-title">Resumen con IA</h3>
-              <PromptField v-model="store.configFlat['features.iris.prompts.summary.system']" label="Prompt del sistema" title="Iris — prompt del sistema" />
-              <PromptField v-model="store.configFlat['features.iris.prompts.summary.userTemplate']" label="Plantilla de usuario" title="Iris — plantilla de usuario" />
+              <h3 class="subsection-title">{{ t('configView.resumenConIa') }}</h3>
+              <PromptField v-model="store.configFlat['features.iris.prompts.summary.system']" :label="t('config.scanner.systemPrompt')" :title="t('config.scanner.systemPromptTitle', { name: 'Iris' })" />
+              <PromptField v-model="store.configFlat['features.iris.prompts.summary.userTemplate']" :label="t('config.scanner.userTemplate')" :title="t('config.scanner.userTemplateTitle', { name: 'Iris' })" />
             </div>
           </section>
 
           <section id="section-themis" class="section">
-            <div class="section-head"><h2>Themis</h2><p class="section-desc">Escáner de red, análisis web y vulnerabilidades</p></div>
+            <div class="section-head"><h2>Themis</h2><p class="section-desc">{{ t('configView.escanerDeRedAnalisisWeb') }}</p></div>
             <div class="section-body">
-              <div class="cfg-row"><label class="toggle-row"><input v-model="store.configFlat['features.themis.enabled']" type="checkbox" class="toggle" /><span>Habilitado</span></label></div>
+              <div class="cfg-row"><label class="toggle-row"><input v-model="store.configFlat['features.themis.enabled']" type="checkbox" class="toggle" /><span>{{ t('configView.habilitado') }}</span></label></div>
               <div class="cfg-grid">
-                <div class="form-group"><label>Directorio de salida (PDFs)</label><input v-model="store.configFlat['features.themis.directories.output']" type="text" class="inp" /></div>
-                <div class="form-group"><label>Directorio CSV</label><input v-model="store.configFlat['features.themis.directories.csv']" type="text" class="inp" /></div>
-                <div class="form-group"><label>Directorio de recursos</label><input v-model="store.configFlat['features.themis.directories.resources']" type="text" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.directorioDeSalidaPdfs') }}</label><input v-model="store.configFlat['features.themis.directories.output']" type="text" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.directorioCsv') }}</label><input v-model="store.configFlat['features.themis.directories.csv']" type="text" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.directorioDeRecursos') }}</label><input v-model="store.configFlat['features.themis.directories.resources']" type="text" class="inp" /></div>
               </div>
-              <div class="cfg-row"><label class="toggle-row"><input v-model="store.configFlat['features.themis.areLocalIpsAllowed']" type="checkbox" class="toggle" /><span>Permitir IPs locales</span></label></div>
+              <div class="cfg-row"><label class="toggle-row"><input v-model="store.configFlat['features.themis.areLocalIpsAllowed']" type="checkbox" class="toggle" /><span>{{ t('configView.permitirIpsLocales') }}</span></label></div>
               <div class="cfg-grid">
-                <div class="form-group"><label>Carpeta por defecto</label><input v-model="store.configFlat['features.themis.folders.defaultFolderName']" type="text" class="inp" /><span class="field-hint">Nombre de la carpeta virtual para escaneos sin agrupar</span></div>
-                <div class="form-group"><label>Escaneos en estadísticas</label><input v-model.number="store.configFlat['features.themis.history.maxScans']" type="number" min="1" max="100" class="inp" /><span class="field-hint">Escaneos recientes que se promedian en el histórico</span></div>
-                <div class="form-group"><label>Vigencia del riesgo aceptado (días)</label><input v-model.number="store.configFlat['features.themis.acceptedRiskDays']" type="number" min="1" max="3650" class="inp" /><span class="field-hint">Pasado ese plazo, un hallazgo aceptado vuelve a contar</span></div>
-                <div class="form-group"><label>Plazo por defecto de un trabajo (s)</label><input v-model.number="store.configFlat['features.themis.taskDefaults.timeout']" type="number" min="60" max="604800" class="inp" /><span class="field-hint">Lo que espera la cola antes de dar por muerto un escaneo</span></div>
+                <div class="form-group"><label>{{ t('configView.carpetaPorDefecto') }}</label><input v-model="store.configFlat['features.themis.folders.defaultFolderName']" type="text" class="inp" /><span class="field-hint">{{ t('configView.nombreDeLaCarpetaVirtual') }}</span></div>
+                <div class="form-group"><label>{{ t('configView.escaneosEnEstadisticas') }}</label><input v-model.number="store.configFlat['features.themis.history.maxScans']" type="number" min="1" max="100" class="inp" /><span class="field-hint">{{ t('configView.escaneosRecientesQueSePromedian') }}</span></div>
+                <div class="form-group"><label>{{ t('configView.vigenciaDelRiesgoAceptadoDias') }}</label><input v-model.number="store.configFlat['features.themis.acceptedRiskDays']" type="number" min="1" max="3650" class="inp" /><span class="field-hint">{{ t('configView.pasadoEsePlazoUnHallazgo') }}</span></div>
+                <div class="form-group"><label>{{ t('configView.plazoPorDefectoDeUn') }}</label><input v-model.number="store.configFlat['features.themis.taskDefaults.timeout']" type="number" min="60" max="604800" class="inp" /><span class="field-hint">{{ t('configView.loQueEsperaLaCola') }}</span></div>
               </div>
-              <h3 class="subsection-title">Verificación de accesibilidad del host</h3>
+              <h3 class="subsection-title">{{ t('configView.verificacionDeAccesibilidadDelHost') }}</h3>
               <div class="cfg-grid">
-                <div class="form-group"><label class="toggle-row"><input v-model="store.configFlat['features.themis.hostReachabilityCheck.enabled']" type="checkbox" class="toggle" /><span>Habilitado</span></label></div>
-                <div class="form-group"><label>Timeout (s)</label><input v-model.number="store.configFlat['features.themis.hostReachabilityCheck.timeout']" type="number" step="0.5" min="0.5" class="inp" /></div>
-                <div class="form-group"><label>Puerto</label><input v-model.number="store.configFlat['features.themis.hostReachabilityCheck.port']" type="number" min="1" max="65535" class="inp" /></div>
+                <div class="form-group"><label class="toggle-row"><input v-model="store.configFlat['features.themis.hostReachabilityCheck.enabled']" type="checkbox" class="toggle" /><span>{{ t('configView.habilitado') }}</span></label></div>
+                <div class="form-group"><label>{{ t('configView.timeoutS') }}</label><input v-model.number="store.configFlat['features.themis.hostReachabilityCheck.timeout']" type="number" step="0.5" min="0.5" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.puerto') }}</label><input v-model.number="store.configFlat['features.themis.hostReachabilityCheck.port']" type="number" min="1" max="65535" class="inp" /></div>
               </div>
-              <h3 class="subsection-title">Traceroute</h3>
+              <h3 class="subsection-title">{{ t('configView.tech.traceroute') }}</h3>
               <div class="cfg-grid">
-                <div class="form-group"><label>Validez de caché (h)</label><input v-model.number="store.configFlat['features.themis.traceroute.cacheHours']" type="number" min="1" max="720" class="inp" /></div>
-                <div class="form-group"><label>Saltos máximos</label><input v-model.number="store.configFlat['features.themis.traceroute.maxHops']" type="number" min="1" max="64" class="inp" /></div>
-                <div class="form-group"><label>Timeout (s)</label><input v-model.number="store.configFlat['features.themis.traceroute.timeout']" type="number" min="1" max="600" class="inp" /></div>
-                <div class="form-group"><label>Reintento si falla (min)</label><input v-model.number="store.configFlat['features.themis.traceroute.retryFailedMinutes']" type="number" min="1" max="1440" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.validezDeCacheH') }}</label><input v-model.number="store.configFlat['features.themis.traceroute.cacheHours']" type="number" min="1" max="720" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.saltosMaximos') }}</label><input v-model.number="store.configFlat['features.themis.traceroute.maxHops']" type="number" min="1" max="64" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.timeoutS') }}</label><input v-model.number="store.configFlat['features.themis.traceroute.timeout']" type="number" min="1" max="600" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.reintentoSiFallaMin') }}</label><input v-model.number="store.configFlat['features.themis.traceroute.retryFailedMinutes']" type="number" min="1" max="1440" class="inp" /></div>
               </div>
-              <h3 class="subsection-title">Base de conocimiento</h3>
-              <p class="field-hint">El espejo local de NVD, KEV, EPSS y OVAL con el que Lybra decide si un servicio detectado es vulnerable. «Antigüedad máxima» es lo que se tolera desde la última sincronización de cada fuente antes de avisar de que está rancia; no borra nada.</p>
-              <div class="cfg-row"><label class="toggle-row"><input v-model="store.configFlat['features.themis.kb.enabled']" type="checkbox" class="toggle" /><span>Sincronización activa</span></label></div>
+              <h3 class="subsection-title">{{ t('configView.baseDeConocimiento') }}</h3>
+              <p class="field-hint">{{ t('configView.elEspejoLocalDeNvd') }}</p>
+              <div class="cfg-row"><label class="toggle-row"><input v-model="store.configFlat['features.themis.kb.enabled']" type="checkbox" class="toggle" /><span>{{ t('configView.sincronizacionActiva') }}</span></label></div>
               <div class="cfg-grid">
-                <div class="form-group"><label>Cron de sincronización</label><input v-model="store.configFlat['features.themis.kb.syncCron']" type="text" class="inp mono" /><span class="field-hint">Formato cron de cinco campos</span></div>
-                <div class="form-group"><label>Ventana pedida a NVD (días)</label><input v-model.number="store.configFlat['features.themis.kb.nvdWindowDays']" type="number" min="1" max="120" class="inp" /><span class="field-hint">Cuánto histórico se pide en cada pasada</span></div>
+                <div class="form-group"><label>{{ t('configView.cronDeSincronizacion') }}</label><input v-model="store.configFlat['features.themis.kb.syncCron']" type="text" class="inp mono" /><span class="field-hint">{{ t('configView.formatoCronDeCincoCampos') }}</span></div>
+                <div class="form-group"><label>{{ t('configView.ventanaPedidaANvdDias') }}</label><input v-model.number="store.configFlat['features.themis.kb.nvdWindowDays']" type="number" min="1" max="120" class="inp" /><span class="field-hint">{{ t('configView.cuantoHistoricoSePideEn') }}</span></div>
                 <div v-for="feed in kbFeeds" :key="feed.key" class="form-group">
-                  <label>Antigüedad máxima — {{ feed.label }} (días)</label>
+                  <label>{{ t('configView.maxAge', { feed: feed.label }) }}</label>
                   <input v-model.number="store.configFlat[`features.themis.kb.maxAgeDays.${feed.key}`]" type="number" min="1" max="365" class="inp" />
                 </div>
               </div>
               <div class="cfg-grid">
                 <div v-for="source in kbSourcePaths" :key="source.path" class="form-group">
-                  <label>Origen — {{ source.label }}</label>
+                  <label>{{ t('configView.source', { source: source.label }) }}</label>
                   <input v-model="store.configFlat[source.path]" type="text" class="inp mono" />
                 </div>
               </div>
@@ -347,76 +364,76 @@
               <ScannerCard name="Nikto" icon="web" :flat="store.configFlat" prefix="features.themis.scanners.nikto" />
               <ScannerCard name="Nuclei" icon="vuln" :flat="store.configFlat" prefix="features.themis.scanners.nuclei">
                 <div class="cfg-grid cfg-grid--tight">
-                  <div class="form-group"><label>Binario</label><input v-model="store.configFlat['features.themis.scanners.nuclei.binaryPath']" type="text" class="inp mono" /></div>
-                  <div class="form-group"><label>Directorio de plantillas</label><input v-model="store.configFlat['features.themis.scanners.nuclei.templatesDir']" type="text" class="inp mono" /><span class="field-hint">Vacío = las que trae el binario</span></div>
-                  <div class="form-group"><label>Versión de plantillas</label><input v-model="store.configFlat['features.themis.scanners.nuclei.templatesVersion']" type="text" class="inp mono" /></div>
-                  <div class="form-group"><label>Peticiones por segundo</label><input v-model.number="store.configFlat['features.themis.scanners.nuclei.rateLimit']" type="number" min="1" max="1000" class="inp" /></div>
-                  <div class="form-group"><label>Timeout por petición (s)</label><input v-model.number="store.configFlat['features.themis.scanners.nuclei.requestTimeout']" type="number" min="1" max="120" class="inp" /></div>
-                  <div class="form-group"><label>Timeout del escaneo (s)</label><input v-model.number="store.configFlat['features.themis.scanners.nuclei.timeout']" type="number" min="60" max="14400" class="inp" /></div>
+                  <div class="form-group"><label>{{ t('configView.binario') }}</label><input v-model="store.configFlat['features.themis.scanners.nuclei.binaryPath']" type="text" class="inp mono" /></div>
+                  <div class="form-group"><label>{{ t('configView.directorioDePlantillas') }}</label><input v-model="store.configFlat['features.themis.scanners.nuclei.templatesDir']" type="text" class="inp mono" /><span class="field-hint">{{ t('configView.vacioLasQueTraeEl') }}</span></div>
+                  <div class="form-group"><label>{{ t('configView.versionDePlantillas') }}</label><input v-model="store.configFlat['features.themis.scanners.nuclei.templatesVersion']" type="text" class="inp mono" /></div>
+                  <div class="form-group"><label>{{ t('configView.peticionesPorSegundo') }}</label><input v-model.number="store.configFlat['features.themis.scanners.nuclei.rateLimit']" type="number" min="1" max="1000" class="inp" /></div>
+                  <div class="form-group"><label>{{ t('configView.timeoutPorPeticionS') }}</label><input v-model.number="store.configFlat['features.themis.scanners.nuclei.requestTimeout']" type="number" min="1" max="120" class="inp" /></div>
+                  <div class="form-group"><label>{{ t('configView.timeoutDelEscaneoS') }}</label><input v-model.number="store.configFlat['features.themis.scanners.nuclei.timeout']" type="number" min="60" max="14400" class="inp" /></div>
                 </div>
                 <div class="form-group">
-                  <label>Severidades por defecto</label>
+                  <label>{{ t('configView.severidadesPorDefecto') }}</label>
                   <div class="chip-row">
                     <label v-for="sev in nucleiSeverities" :key="sev" class="chip">
                       <input v-model="store.configFlat['features.themis.scanners.nuclei.defaultSeverities']" type="checkbox" :value="sev" />
                       <span>{{ sev }}</span>
                     </label>
                   </div>
-                  <span class="field-hint">Lo que se escanea si el usuario no elige otra cosa</span>
+                  <span class="field-hint">{{ t('configView.loQueSeEscaneaSi') }}</span>
                 </div>
               </ScannerCard>
               <ScannerCard name="Lybra" icon="scan" :flat="store.configFlat" prefix="features.themis.scanners.lybra">
-                <div class="cfg-row"><label class="toggle-row"><input v-model="store.configFlat['features.themis.scanners.lybra.activeChecks']" type="checkbox" class="toggle" /><span>Comprobaciones activas</span></label></div>
-                <div class="cfg-row"><label class="toggle-row"><input v-model="store.configFlat['features.themis.scanners.lybra.fingerprintingEnabled']" type="checkbox" class="toggle" /><span>Fingerprinting</span></label></div>
-                <div class="cfg-row"><label class="toggle-row"><input v-model="store.configFlat['features.themis.scanners.lybra.ingest.enabled']" type="checkbox" class="toggle" /><span>Ingesta de hallazgos</span></label></div>
+                <div class="cfg-row"><label class="toggle-row"><input v-model="store.configFlat['features.themis.scanners.lybra.activeChecks']" type="checkbox" class="toggle" /><span>{{ t('configView.comprobacionesActivas') }}</span></label></div>
+                <div class="cfg-row"><label class="toggle-row"><input v-model="store.configFlat['features.themis.scanners.lybra.fingerprintingEnabled']" type="checkbox" class="toggle" /><span>{{ t('configView.tech.fingerprinting') }}</span></label></div>
+                <div class="cfg-row"><label class="toggle-row"><input v-model="store.configFlat['features.themis.scanners.lybra.ingest.enabled']" type="checkbox" class="toggle" /><span>{{ t('configView.ingestaDeHallazgos') }}</span></label></div>
                 <div class="cfg-grid cfg-grid--tight">
-                  <div class="form-group"><label>Severidad mínima</label>
+                  <div class="form-group"><label>{{ t('configView.severidadMinima') }}</label>
                     <select v-model="store.configFlat['features.themis.scanners.lybra.ingest.minSeverity']" class="inp sel">
                       <option v-for="sev in severities" :key="sev" :value="sev">{{ sev }}</option>
                     </select>
                   </div>
-                  <div class="form-group"><label>Máx. comprobaciones</label><input v-model.number="store.configFlat['features.themis.scanners.lybra.ingest.maxChecks']" type="number" min="1" max="5000" class="inp" /></div>
+                  <div class="form-group"><label>{{ t('configView.maxComprobaciones') }}</label><input v-model.number="store.configFlat['features.themis.scanners.lybra.ingest.maxChecks']" type="number" min="1" max="5000" class="inp" /></div>
                 </div>
 
                 <CollapsibleSection default-open>
-                  <template #header><h4 class="card-subtitle">Motor</h4></template>
-                  <p class="field-hint">Cuánto empuja el motor contra el objetivo. Subir la concurrencia o bajar el intervalo acelera el escaneo y aumenta el riesgo de que el objetivo lo trate como un ataque.</p>
+                  <template #header><h4 class="card-subtitle">{{ t('configView.motor') }}</h4></template>
+                  <p class="field-hint">{{ t('configView.cuantoEmpujaElMotorContra') }}</p>
                   <div class="cfg-grid cfg-grid--tight">
                     <div v-for="dial in lybraEngineDials" :key="dial.key" class="form-group">
-                      <label>{{ dial.label }}</label>
+                      <label>{{ t(`configView.dials.${dial.key}`) }}</label>
                       <input
                         v-model.number="store.configFlat[`features.themis.scanners.lybra.engine.${dial.key}`]"
                         type="number" :min="dial.min" :max="dial.max" :step="dial.step || 1" class="inp" />
                     </div>
-                    <div class="form-group"><label>User-Agent</label><input v-model="store.configFlat['features.themis.scanners.lybra.engine.httpUserAgent']" type="text" class="inp mono" /></div>
+                    <div class="form-group"><label>{{ t('configView.tech.userAgent') }}</label><input v-model="store.configFlat['features.themis.scanners.lybra.engine.httpUserAgent']" type="text" class="inp mono" /></div>
                   </div>
                 </CollapsibleSection>
 
                 <CollapsibleSection default-open>
-                  <template #header><h4 class="card-subtitle">Evidencia</h4></template>
-                  <p class="field-hint">El trozo de respuesta cruda que se guarda junto a cada hallazgo para poder revisarlo después.</p>
-                  <div class="cfg-row"><label class="toggle-row"><input v-model="store.configFlat['features.themis.scanners.lybra.evidence.enabled']" type="checkbox" class="toggle" /><span>Guardar evidencia</span></label></div>
+                  <template #header><h4 class="card-subtitle">{{ t('configView.evidencia') }}</h4></template>
+                  <p class="field-hint">{{ t('configView.elTrozoDeRespuestaCruda') }}</p>
+                  <div class="cfg-row"><label class="toggle-row"><input v-model="store.configFlat['features.themis.scanners.lybra.evidence.enabled']" type="checkbox" class="toggle" /><span>{{ t('configView.guardarEvidencia') }}</span></label></div>
                   <div class="cfg-grid cfg-grid--tight">
-                    <div class="form-group"><label>Tamaño máx. (bytes)</label><input v-model.number="store.configFlat['features.themis.scanners.lybra.evidence.maxBodyBytes']" type="number" min="256" step="256" class="inp" /></div>
-                    <div class="form-group"><label>Retención (días)</label><input v-model.number="store.configFlat['features.themis.scanners.lybra.evidence.retentionDays']" type="number" min="1" max="3650" class="inp" /></div>
+                    <div class="form-group"><label>{{ t('configView.tamanoMaxBytes') }}</label><input v-model.number="store.configFlat['features.themis.scanners.lybra.evidence.maxBodyBytes']" type="number" min="256" step="256" class="inp" /></div>
+                    <div class="form-group"><label>{{ t('configView.retencionDias') }}</label><input v-model.number="store.configFlat['features.themis.scanners.lybra.evidence.retentionDays']" type="number" min="1" max="3650" class="inp" /></div>
                   </div>
                 </CollapsibleSection>
 
                 <CollapsibleSection default-open>
-                  <template #header><h4 class="card-subtitle">Credenciales por defecto</h4></template>
-                  <p class="field-hint">Es la única fase que escribe en el objetivo: cada intento es un inicio de sesión real. El tope es por cuenta, no por servicio, y evita que la comprobación se convierta en fuerza bruta.</p>
+                  <template #header><h4 class="card-subtitle">{{ t('configView.credencialesPorDefecto') }}</h4></template>
+                  <p class="field-hint">{{ t('configView.esLaUnicaFaseQue') }}</p>
                   <div class="cfg-grid cfg-grid--tight">
-                    <div class="form-group"><label>Intentos por cuenta</label><input v-model.number="store.configFlat['features.themis.scanners.lybra.credentials.maxAttempts']" type="number" min="1" max="20" class="inp" /></div>
+                    <div class="form-group"><label>{{ t('configView.intentosPorCuenta') }}</label><input v-model.number="store.configFlat['features.themis.scanners.lybra.credentials.maxAttempts']" type="number" min="1" max="20" class="inp" /></div>
                   </div>
                 </CollapsibleSection>
 
                 <CollapsibleSection default-open>
-                  <template #header><h4 class="card-subtitle">Rastreo de sólo lectura</h4></template>
-                  <p class="field-hint">Descubre lo que los checks no conocen de antemano: rutas de robots.txt, formularios de login y rutas con autenticación. Sólo lectura y del mismo origen, con presupuesto duro. A cero páginas, no se hace.</p>
+                  <template #header><h4 class="card-subtitle">{{ t('configView.rastreoDeSoloLectura') }}</h4></template>
+                  <p class="field-hint">{{ t('configView.descubreLoQueLosChecks') }}</p>
                   <div class="cfg-grid cfg-grid--tight">
-                    <div class="form-group"><label>Páginas máximas</label><input v-model.number="store.configFlat['features.themis.scanners.lybra.crawler.maxPages']" type="number" min="0" max="500" class="inp" /></div>
-                    <div class="form-group"><label>Profundidad máxima</label><input v-model.number="store.configFlat['features.themis.scanners.lybra.crawler.maxDepth']" type="number" min="1" max="10" class="inp" /></div>
-                    <div class="form-group"><label>Tiempo máximo (s)</label><input v-model.number="store.configFlat['features.themis.scanners.lybra.crawler.timeBudgetSeconds']" type="number" min="1" max="120" class="inp" /></div>
+                    <div class="form-group"><label>{{ t('configView.paginasMaximas') }}</label><input v-model.number="store.configFlat['features.themis.scanners.lybra.crawler.maxPages']" type="number" min="0" max="500" class="inp" /></div>
+                    <div class="form-group"><label>{{ t('configView.profundidadMaxima') }}</label><input v-model.number="store.configFlat['features.themis.scanners.lybra.crawler.maxDepth']" type="number" min="1" max="10" class="inp" /></div>
+                    <div class="form-group"><label>{{ t('configView.tiempoMaximoS') }}</label><input v-model.number="store.configFlat['features.themis.scanners.lybra.crawler.timeBudgetSeconds']" type="number" min="1" max="120" class="inp" /></div>
                   </div>
                 </CollapsibleSection>
               </ScannerCard>
@@ -424,86 +441,86 @@
           </section>
 
           <section id="section-aegis" class="section">
-            <div class="section-head"><h2>Aegis</h2><p class="section-desc">Generación de píldoras de concienciación con IA</p></div>
+            <div class="section-head"><h2>Aegis</h2><p class="section-desc">{{ t('configView.generacionDePildorasDeConcienciacion') }}</p></div>
             <div class="section-body">
-              <div class="cfg-row"><label class="toggle-row"><input v-model="store.configFlat['features.aegis.enabled']" type="checkbox" class="toggle" /><span>Habilitado</span></label></div>
+              <div class="cfg-row"><label class="toggle-row"><input v-model="store.configFlat['features.aegis.enabled']" type="checkbox" class="toggle" /><span>{{ t('configView.habilitado') }}</span></label></div>
               <div class="cfg-grid">
-                <div class="form-group"><label>Consejos por píldora</label><input v-model.number="store.configFlat['features.aegis.tipsAmount']" type="number" min="1" max="20" class="inp" /></div>
-                <div class="form-group"><label>Preguntas del test</label><input v-model.number="store.configFlat['features.aegis.questionsAmount']" type="number" min="1" max="20" class="inp" /></div>
-                <div class="form-group"><label>Opciones por pregunta</label><input v-model.number="store.configFlat['features.aegis.optionsAmount']" type="number" min="2" max="8" class="inp" /></div>
-                <div class="form-group"><label>Antigüedad máx. de alertas (años)</label><input v-model.number="store.configFlat['features.aegis.vulnerabilitiesAntiquity']" type="number" min="1" max="30" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.consejosPorPildora') }}</label><input v-model.number="store.configFlat['features.aegis.tipsAmount']" type="number" min="1" max="20" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.preguntasDelTest') }}</label><input v-model.number="store.configFlat['features.aegis.questionsAmount']" type="number" min="1" max="20" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.opcionesPorPregunta') }}</label><input v-model.number="store.configFlat['features.aegis.optionsAmount']" type="number" min="2" max="8" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.antiguedadMaxDeAlertasAnos') }}</label><input v-model.number="store.configFlat['features.aegis.vulnerabilitiesAntiquity']" type="number" min="1" max="30" class="inp" /></div>
               </div>
               <div class="cfg-grid">
-                <div class="form-group"><label>Directorio de salida</label><input v-model="store.configFlat['features.aegis.directories.output']" type="text" class="inp" /></div>
-                <div class="form-group"><label>Stack de documentos</label><input v-model="store.configFlat['features.aegis.directories.stack']" type="text" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.directorioDeSalida') }}</label><input v-model="store.configFlat['features.aegis.directories.output']" type="text" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.stackDeDocumentos') }}</label><input v-model="store.configFlat['features.aegis.directories.stack']" type="text" class="inp" /></div>
               </div>
-              <PromptField v-model="store.configFlat['features.aegis.prompts.system']" label="Prompt del sistema" title="Aegis — prompt del sistema" />
-              <PromptField v-model="store.configFlat['features.aegis.prompts.userTemplate']" label="Plantilla de usuario" title="Aegis — plantilla de usuario" />
+              <PromptField v-model="store.configFlat['features.aegis.prompts.system']" :label="t('config.scanner.systemPrompt')" :title="t('config.scanner.systemPromptTitle', { name: 'Aegis' })" />
+              <PromptField v-model="store.configFlat['features.aegis.prompts.userTemplate']" :label="t('config.scanner.userTemplate')" :title="t('config.scanner.userTemplateTitle', { name: 'Aegis' })" />
             </div>
           </section>
 
           <section id="section-hygeia" class="section">
-            <div class="section-head"><h2>Hygeia</h2><p class="section-desc">Monitorización de activos vía agente</p></div>
+            <div class="section-head"><h2>Hygeia</h2><p class="section-desc">{{ t('configView.monitorizacionDeActivosViaAgente') }}</p></div>
             <div class="section-body">
-              <p class="field-hint">Un activo pasa a «desconectado» cuando falla el número de latidos seguidos indicado. Bajar el intervalo multiplica el volumen de datos: la retención es la que decide cuánto histórico se conserva.</p>
+              <p class="field-hint">{{ t('configView.unActivoPasaADesconectado') }}</p>
               <div class="cfg-grid">
-                <div class="form-group"><label>Intervalo de latido (s)</label><input v-model.number="store.configFlat['features.hygeia.heartbeatIntervalSec']" type="number" min="5" max="3600" class="inp" /></div>
-                <div class="form-group"><label>Latidos perdidos para desconectar</label><input v-model.number="store.configFlat['features.hygeia.offlineAfterMissed']" type="number" min="1" max="100" class="inp" /></div>
-                <div class="form-group"><label>Retención (días)</label><input v-model.number="store.configFlat['features.hygeia.retentionDays']" type="number" min="1" max="3650" class="inp" /></div>
-                <div class="form-group"><label>Cron de purga</label><input v-model="store.configFlat['features.hygeia.retentionCron']" type="text" class="inp mono" /><span class="field-hint">Formato cron de cinco campos</span></div>
-                <div class="form-group"><label>Precio de la electricidad (por kWh)</label><input v-model.number="store.configFlat['features.hygeia.energyPricePerKwh']" type="number" min="0" step="0.01" class="inp" /></div>
-                <div class="form-group"><label>Moneda</label><input v-model="store.configFlat['features.hygeia.energyPriceCurrency']" type="text" maxlength="3" class="inp mono" /><span class="field-hint">Código ISO 4217 (EUR, USD...)</span></div>
-                <div class="form-group"><label>Directorio de salida (CSV y PDF)</label><input v-model="store.configFlat['features.hygeia.directories.output']" type="text" class="inp" /></div>
-                <div class="form-group"><label>Versión mínima de agente</label><input v-model="store.configFlat['features.hygeia.minAgentVersion']" type="text" class="inp mono" placeholder="0.0.0" /><span class="field-hint">Formato X.Y.Z. Un activo con una versión anterior se marca como desactualizado en la lista; "0.0.0" no marca ninguno.</span></div>
+                <div class="form-group"><label>{{ t('configView.intervaloDeLatidoS') }}</label><input v-model.number="store.configFlat['features.hygeia.heartbeatIntervalSec']" type="number" min="5" max="3600" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.latidosPerdidosParaDesconectar') }}</label><input v-model.number="store.configFlat['features.hygeia.offlineAfterMissed']" type="number" min="1" max="100" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.retencionDias') }}</label><input v-model.number="store.configFlat['features.hygeia.retentionDays']" type="number" min="1" max="3650" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.cronDePurga') }}</label><input v-model="store.configFlat['features.hygeia.retentionCron']" type="text" class="inp mono" /><span class="field-hint">{{ t('configView.formatoCronDeCincoCampos') }}</span></div>
+                <div class="form-group"><label>{{ t('configView.precioDeLaElectricidadPor') }}</label><input v-model.number="store.configFlat['features.hygeia.energyPricePerKwh']" type="number" min="0" step="0.01" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.moneda') }}</label><input v-model="store.configFlat['features.hygeia.energyPriceCurrency']" type="text" maxlength="3" class="inp mono" /><span class="field-hint">{{ t('configView.codigoIso4217EurUsd') }}</span></div>
+                <div class="form-group"><label>{{ t('configView.directorioDeSalidaCsvY') }}</label><input v-model="store.configFlat['features.hygeia.directories.output']" type="text" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.versionMinimaDeAgente') }}</label><input v-model="store.configFlat['features.hygeia.minAgentVersion']" type="text" class="inp mono" placeholder="0.0.0" /><span class="field-hint">{{ t('configView.formatoXYZUn') }}</span></div>
               </div>
-              <h3 class="subsection-title">Umbrales</h3>
-              <p class="field-hint">«Latidos sostenidos» evita las alertas por un pico puntual: la métrica tiene que seguir alta ese número de latidos seguidos. Disco y swap avisan al primero.</p>
+              <h3 class="subsection-title">{{ t('configView.umbrales') }}</h3>
+              <p class="field-hint">{{ t('configView.latidosSostenidosEvitaLasAlertas') }}</p>
               <div class="cfg-grid">
                 <template v-for="metric in hygeiaMetrics" :key="metric.key">
-                  <div class="form-group"><label>{{ metric.label }} — aviso</label><input v-model.number="store.configFlat[`features.hygeia.thresholds.${metric.key}.warning`]" type="number" min="1" max="100" class="inp" /></div>
-                  <div class="form-group"><label>{{ metric.label }} — crítico</label><input v-model.number="store.configFlat[`features.hygeia.thresholds.${metric.key}.critical`]" type="number" min="1" max="100" class="inp" /></div>
-                  <div v-if="metric.sustained" class="form-group"><label>{{ metric.label }} — latidos sostenidos</label><input v-model.number="store.configFlat[`features.hygeia.thresholds.${metric.key}.sustainedHeartbeats`]" type="number" min="1" max="60" class="inp" /></div>
+                  <div class="form-group"><label>{{ t('configView.thresholdWarning', { metric: t(`configView.metrics.${metric.key}`) }) }}</label><input v-model.number="store.configFlat[`features.hygeia.thresholds.${metric.key}.warning`]" type="number" min="1" max="100" class="inp" /></div>
+                  <div class="form-group"><label>{{ t('configView.thresholdCritical', { metric: t(`configView.metrics.${metric.key}`) }) }}</label><input v-model.number="store.configFlat[`features.hygeia.thresholds.${metric.key}.critical`]" type="number" min="1" max="100" class="inp" /></div>
+                  <div v-if="metric.sustained" class="form-group"><label>{{ t('configView.thresholdSustained', { metric: t(`configView.metrics.${metric.key}`) }) }}</label><input v-model.number="store.configFlat[`features.hygeia.thresholds.${metric.key}.sustainedHeartbeats`]" type="number" min="1" max="60" class="inp" /></div>
                 </template>
               </div>
-              <h3 class="subsection-title">Colores del informe</h3>
-              <p class="field-hint">La paleta con la que se genera el PDF de Hygeia, igual que la de cada escáner de Themis.</p>
+              <h3 class="subsection-title">{{ t('configView.coloresDelInforme') }}</h3>
+              <p class="field-hint">{{ t('configView.laPaletaConLaQue') }}</p>
               <div class="color-grid">
                 <div v-for="color in reportColors" :key="color.key" class="color-pick">
                   <input v-model="store.configFlat[`features.hygeia.colorPalette.${color.key}`]" type="color" class="color-input" />
-                  <span class="color-label">{{ color.label }}</span>
+                  <span class="color-label">{{ t(`config.scanner.colors.${color.key}`) }}</span>
                   <span class="color-hex">{{ store.configFlat[`features.hygeia.colorPalette.${color.key}`] }}</span>
                 </div>
               </div>
-              <h3 class="subsection-title">Análisis derivado</h3>
-              <p class="field-hint">Cuándo el análisis se atreve a afirmar algo. Una tendencia que no supera estos umbrales no devuelve una estimación: se retira y dice por qué, en vez de dar una fecha inventada.</p>
+              <h3 class="subsection-title">{{ t('configView.analisisDerivado') }}</h3>
+              <p class="field-hint">{{ t('configView.cuandoElAnalisisSeAtreve') }}</p>
               <div class="cfg-grid">
-                <div class="form-group"><label>Ajuste mínimo de la tendencia (R²)</label><input v-model.number="store.configFlat['features.hygeia.analysis.minTrendRSquared']" type="number" min="0" max="1" step="0.05" class="inp" /><span class="field-hint">De 0 a 1. Cuánto tiene que parecerse la serie a una recta para creerse su dirección; subirlo deja sin estimación a los discos que crecen a escalones</span></div>
-                <div class="form-group"><label>Crecimiento mínimo (puntos porcentuales al día)</label><input v-model.number="store.configFlat['features.hygeia.analysis.minTrendSlopePctPerDay']" type="number" min="0" step="0.01" class="inp" /><span class="field-hint">Por debajo de esto se considera que la métrica oscila, no que crece</span></div>
-                <div class="form-group"><label>Ventana de coincidencia de picos (s)</label><input v-model.number="store.configFlat['features.hygeia.analysis.peakCoincidenceWindowSec']" type="number" min="1" class="inp" /><span class="field-hint">Cuánto pueden separarse dos picos de métricas distintas para considerarlos simultáneos</span></div>
+                <div class="form-group"><label>{{ t('configView.ajusteMinimoDeLaTendencia') }}</label><input v-model.number="store.configFlat['features.hygeia.analysis.minTrendRSquared']" type="number" min="0" max="1" step="0.05" class="inp" /><span class="field-hint">{{ t('configView.de0A1Cuanto') }}</span></div>
+                <div class="form-group"><label>{{ t('configView.crecimientoMinimoPuntosPorcentualesAl') }}</label><input v-model.number="store.configFlat['features.hygeia.analysis.minTrendSlopePctPerDay']" type="number" min="0" step="0.01" class="inp" /><span class="field-hint">{{ t('configView.porDebajoDeEstoSe') }}</span></div>
+                <div class="form-group"><label>{{ t('configView.ventanaDeCoincidenciaDePicos') }}</label><input v-model.number="store.configFlat['features.hygeia.analysis.peakCoincidenceWindowSec']" type="number" min="1" class="inp" /><span class="field-hint">{{ t('configView.cuantoPuedenSepararseDosPicos') }}</span></div>
               </div>
-              <h3 class="subsection-title">Caché de estadísticas</h3>
-              <p class="field-hint">Cuánto tiempo se reutiliza una estadística ya calculada antes de recalcularla. Cuanto más largo es el periodo pedido, más despacio cambia el resultado. Dar de alta o de baja un activo o cambiar sus etiquetas descarta lo guardado de ese usuario.</p>
-              <div class="cfg-row"><label class="toggle-row"><input v-model="store.configFlat['features.hygeia.statsCache.isEnabled']" type="checkbox" class="toggle" /><span>Reutilizar resultados</span></label></div>
+              <h3 class="subsection-title">{{ t('configView.cacheDeEstadisticas') }}</h3>
+              <p class="field-hint">{{ t('configView.cuantoTiempoSeReutilizaUna') }}</p>
+              <div class="cfg-row"><label class="toggle-row"><input v-model="store.configFlat['features.hygeia.statsCache.isEnabled']" type="checkbox" class="toggle" /><span>{{ t('configView.reutilizarResultados') }}</span></label></div>
               <div class="cfg-grid">
-                <div class="form-group"><label>Periodos de hasta 24 h (s)</label><input v-model.number="store.configFlat['features.hygeia.statsCache.shortPeriodTtlSeconds']" type="number" min="1" class="inp" /></div>
-                <div class="form-group"><label>Periodos de hasta 7 días (s)</label><input v-model.number="store.configFlat['features.hygeia.statsCache.mediumPeriodTtlSeconds']" type="number" min="1" class="inp" /></div>
-                <div class="form-group"><label>Periodos más largos (s)</label><input v-model.number="store.configFlat['features.hygeia.statsCache.longPeriodTtlSeconds']" type="number" min="1" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.periodosDeHasta24H') }}</label><input v-model.number="store.configFlat['features.hygeia.statsCache.shortPeriodTtlSeconds']" type="number" min="1" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.periodosDeHasta7Dias') }}</label><input v-model.number="store.configFlat['features.hygeia.statsCache.mediumPeriodTtlSeconds']" type="number" min="1" class="inp" /></div>
+                <div class="form-group"><label>{{ t('configView.periodosMasLargosS') }}</label><input v-model.number="store.configFlat['features.hygeia.statsCache.longPeriodTtlSeconds']" type="number" min="1" class="inp" /></div>
               </div>
-              <h3 class="subsection-title">Límites</h3>
-              <p class="field-hint">Topes de lo que el agente puede enviar y de lo que la API acepta. Recortarlos protege a la API de un agente comprometido o mal configurado.</p>
+              <h3 class="subsection-title">{{ t('configView.limites') }}</h3>
+              <p class="field-hint">{{ t('configView.topesDeLoQueEl') }}</p>
               <div class="cfg-grid">
                 <div v-for="limit in hygeiaLimits" :key="limit.key" class="form-group">
-                  <label>{{ limit.label }}</label>
+                  <label>{{ t(`configView.limits.${limit.key}.label`) }}</label>
                   <input v-model.number="store.configFlat[`features.hygeia.limits.${limit.key}`]" type="number" min="1" class="inp" />
-                  <span v-if="limit.hint" class="field-hint">{{ limit.hint }}</span>
+                  <span v-if="limit.hasHint" class="field-hint">{{ t(`configView.limits.${limit.key}.hint`) }}</span>
                 </div>
               </div>
             </div>
           </section>
 
           <div class="form-actions">
-            <button type="button" class="btn btn--secondary" @click="store.resetForm()">Restablecer</button>
-            <button type="submit" class="btn btn--primary" :disabled="store.saving">{{ store.saving ? 'Guardando…' : 'Guardar Configuración' }}</button>
+            <button type="button" class="btn btn--secondary" @click="store.resetForm()">{{ t('configView.reset') }}</button>
+            <button type="submit" class="btn btn--primary" :disabled="store.saving">{{ store.saving ? t('common.saving') : t('configView.save') }}</button>
           </div>
         </form>
       </div>
@@ -521,6 +538,9 @@ import CollapsibleSection from '@/components/config/CollapsibleSection.vue'
 import ModelPicker from '@/components/config/ModelPicker.vue'
 import PromptField from '@/components/shared/PromptField.vue'
 import { LOCALE_OPTIONS } from '@/i18n'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const store = useConfigStore()
 
@@ -539,22 +559,23 @@ const ICON = {
   hygeia:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>',
 }
 
+/** Índice lateral; `labelKey` es la clave del rótulo de cada sección (el mismo título que su cabecera). */
 const navGroups = [
-  { label: 'Plataforma', items: [
-    { id: 'launch',    label: 'Lanzamiento',   icon: ICON.launch },
-    { id: 'general',   label: 'General',       icon: ICON.general },
-    { id: 'security',  label: 'Seguridad',     icon: ICON.security },
-    { id: 'database',  label: 'Base de datos', icon: ICON.database },
-    { id: 'redis',     label: 'Redis',         icon: ICON.redis },
-    { id: 'taskqueue', label: 'TaskQueue',     icon: ICON.taskqueue },
+  { id: 'platform', items: [
+    { id: 'launch',    labelKey: 'configView.lanzamiento', icon: ICON.launch },
+    { id: 'general',   labelKey: 'configView.general',     icon: ICON.general },
+    { id: 'security',  labelKey: 'configView.seguridad',   icon: ICON.security },
+    { id: 'database',  labelKey: 'configView.baseDeDatos', icon: ICON.database },
+    { id: 'redis',     labelKey: 'configView.tech.redis',  icon: ICON.redis },
+    { id: 'taskqueue', labelKey: 'configView.tech.taskqueue', icon: ICON.taskqueue },
   ]},
-  { label: 'Módulos', items: [
-    { id: 'ai',       label: 'IA',       icon: ICON.ai },
-    { id: 'herald',   label: 'Correo',   icon: ICON.herald },
-    { id: 'iris',     label: 'Iris',     icon: ICON.iris },
-    { id: 'themis', label: 'Themis', icon: ICON.themis },
-    { id: 'aegis',    label: 'Aegis',    icon: ICON.aegis },
-    { id: 'hygeia',   label: 'Hygeia',   icon: ICON.hygeia },
+  { id: 'modules', items: [
+    { id: 'ai',       labelKey: 'configView.ia',     icon: ICON.ai },
+    { id: 'herald',   labelKey: 'configView.correo', icon: ICON.herald },
+    { id: 'iris',     labelKey: 'configView.modules.iris',   icon: ICON.iris },
+    { id: 'themis',   labelKey: 'configView.modules.themis', icon: ICON.themis },
+    { id: 'aegis',    labelKey: 'configView.modules.aegis',  icon: ICON.aegis },
+    { id: 'hygeia',   labelKey: 'configView.modules.hygeia', icon: ICON.hygeia },
   ]},
 ]
 const navSections = navGroups.flatMap((g) => g.items)
@@ -566,11 +587,11 @@ const jwtAlgorithms = ['HS256', 'HS384', 'HS512']
 // `envVar` es la variable que se usa cuando el campo de modelo queda vacío, y
 // se enseña como pista dentro del propio control: sin ella, un campo vacío se
 // lee como «sin modelo» en vez de como «el que diga el entorno».
-const aiStrategies = [
-  { value: 'ollama', label: 'Ollama (local)', envVar: 'OLLAMA_MODEL' },
+const aiStrategies = computed(() => [
+  { value: 'ollama', label: t('configView.ollamaLocal'), envVar: 'OLLAMA_MODEL' },
   { value: 'openai', label: 'OpenAI',        envVar: 'OPENAI_MODEL' },
   { value: 'google', label: 'Google Gemini', envVar: 'GOOGLE_MODEL' },
-]
+])
 // Los módulos que generan contenido con IA. Iris faltaba: llama a
 // `build_generator("iris")` desde su redactor de resúmenes, pero su estrategia
 // no estaba declarada, así que caía en la de por defecto sin que se viera.
@@ -583,15 +604,11 @@ const aiModules = [
 // Herald solo tiene una estrategia registrada hoy (relay SMTP). El selector se
 // mantiene porque la capa es enchufable por diseño y la alternativa —esconder
 // el control— haría invisible qué está eligiendo el sistema.
-const mailStrategies = [
-  { value: 'smtp', label: 'Relay SMTP' },
-]
-const mailModules = [
-  { key: 'aegis',    label: 'Aegis (campañas)' },
-  { key: 'iris',     label: 'Iris (avisos)' },
-  { key: 'hygeia',   label: 'Hygeia (avisos)' },
-  { key: 'accounts', label: 'Cuentas (verificación, invitaciones)' },
-]
+const mailStrategies = computed(() => [
+  { value: 'smtp', label: t('configView.relaySmtp') },
+])
+/** Módulos que envían correo; su rótulo está en `configView.mailModules.<key>`. */
+const mailModules = [{ key: 'aegis' }, { key: 'iris' }, { key: 'hygeia' }, { key: 'accounts' }]
 const severities = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']
 // Nuclei etiqueta sus plantillas en minúsculas; el valor que se guarda tiene
 // que coincidir exactamente con lo que espera el binario.
@@ -608,55 +625,49 @@ const kbFeeds = [
 // forma: se describen aquí y se pintan con v-for, como ya se hace con los
 // umbrales y los límites de Hygeia.
 const lybraEngineDials = [
-  { key: 'tcpConcurrency',       label: 'Concurrencia TCP',        min: 1,   max: 2000 },
-  { key: 'tcpTimeout',           label: 'Timeout TCP (s)',         min: 0.1, max: 60, step: 0.1 },
-  { key: 'udpTimeout',           label: 'Timeout UDP (s)',         min: 0.1, max: 60, step: 0.1 },
-  { key: 'udpRetries',           label: 'Reintentos UDP',          min: 0,   max: 10 },
-  { key: 'udpBudgetSeconds',     label: 'Presupuesto UDP (s)',     min: 1,   max: 600, step: 0.5 },
-  { key: 'rateLimitInterval',    label: 'Intervalo entre envíos (s)', min: 0, max: 10, step: 0.05 },
-  { key: 'hostPoolSize',         label: 'Hosts en paralelo',       min: 1,   max: 64 },
-  { key: 'httpTimeout',          label: 'Timeout HTTP (s)',        min: 1,   max: 120 },
-  { key: 'httpMaxBodyBytes',     label: 'Cuerpo HTTP máx. (bytes)', min: 1024, max: 8388608, step: 1024 },
-  { key: 'networkTimeout',       label: 'Timeout de red (s)',      min: 0.5, max: 120, step: 0.5 },
-  { key: 'bannerTimeout',        label: 'Timeout de banner (s)',   min: 0.5, max: 60, step: 0.5 },
-  { key: 'maxBlindProbes',       label: 'Sondeos a ciegas máx.',   min: 0,   max: 20 },
-  { key: 'maxPayloadExpansions', label: 'Expansiones de payload máx.', min: 1, max: 500 },
+  { key: 'tcpConcurrency',       min: 1,   max: 2000 },
+  { key: 'tcpTimeout',           min: 0.1, max: 60, step: 0.1 },
+  { key: 'udpTimeout',           min: 0.1, max: 60, step: 0.1 },
+  { key: 'udpRetries',           min: 0,   max: 10 },
+  { key: 'udpBudgetSeconds',     min: 1,   max: 600, step: 0.5 },
+  { key: 'rateLimitInterval',    min: 0,   max: 10, step: 0.05 },
+  { key: 'hostPoolSize',         min: 1,   max: 64 },
+  { key: 'httpTimeout',          min: 1,   max: 120 },
+  { key: 'httpMaxBodyBytes',     min: 1024, max: 8388608, step: 1024 },
+  { key: 'networkTimeout',       min: 0.5, max: 120, step: 0.5 },
+  { key: 'bannerTimeout',        min: 0.5, max: 60, step: 0.5 },
+  { key: 'maxBlindProbes',       min: 0,   max: 20 },
+  { key: 'maxPayloadExpansions', min: 1,   max: 500 },
 ]
 
 // Los umbrales y los límites de Hygeia son 22 campos con la misma forma: se
 // describen aquí y se pintan con v-for en vez de a mano uno por uno.
 const hygeiaMetrics = [
-  { key: 'cpuPct',  label: 'CPU (%)',    sustained: true },
-  { key: 'memPct',  label: 'Memoria (%)', sustained: true },
-  { key: 'diskPct', label: 'Disco (%)',  sustained: false },
-  { key: 'swapPct', label: 'Swap (%)',   sustained: false },
+  { key: 'cpuPct',  sustained: true },
+  { key: 'memPct',  sustained: true },
+  { key: 'diskPct', sustained: false },
+  { key: 'swapPct', sustained: false },
 ]
 // Las seis tintas de una paleta de informe. Mismo juego que usa ScannerCard
 // para los escáneres de Themis; aquí se repite la lista porque Hygeia no pasa
 // por ese componente (no es un escáner, no tiene prompts ni tarjeta propia).
-const reportColors = [
-  { key: 'black',     label: 'Negro' },
-  { key: 'dark',      label: 'Oscuro' },
-  { key: 'main',      label: 'Principal' },
-  { key: 'secondary', label: 'Secundario' },
-  { key: 'light',     label: 'Claro' },
-  { key: 'white',     label: 'Blanco' },
-]
+/** Colores de la paleta del informe; el rótulo está en `config.scanner.colors.<key>`. */
+const reportColors = ['black', 'dark', 'main', 'secondary', 'light', 'white'].map((key) => ({ key }))
 
 const hygeiaLimits = [
-  { key: 'maxBodyBytes',         label: 'Tamaño máx. del cuerpo (bytes)', hint: '1048576 = 1 MiB' },
-  { key: 'maxDecompressedBytes', label: 'Tamaño máx. descomprimido (bytes)', hint: '4194304 = 4 MiB' },
-  { key: 'maxProcesses',         label: 'Procesos por latido' },
-  { key: 'maxDiskMounts',        label: 'Puntos de montaje' },
-  { key: 'maxNetInterfaces',     label: 'Interfaces de red' },
-  { key: 'maxSeriesPoints',      label: 'Puntos por serie temporal' },
-  { key: 'maxStatsPeriodDays',   label: 'Periodo máx. de estadísticas (días)', hint: 'Nunca abarca más que la retención' },
-  { key: 'maxEntityStatsPeriodDays', label: 'Periodo máx. por montaje, interfaz o núcleo (días)', hint: 'Estas consultas leen el detalle completo de cada latido; nunca abarca más que el periodo máx. de estadísticas' },
-  { key: 'minIntervalSec',       label: 'Intervalo mínimo entre latidos (s)' },
-  { key: 'clockSkewSec',         label: 'Desfase de reloj tolerado (s)', hint: 'Cuánto se acepta que el reloj del agente vaya adelantado' },
-  { key: 'maxBackfillSec',       label: 'Antigüedad máx. de un latido (s)', hint: '86400 = un día; más viejo que eso se rechaza' },
-  { key: 'maxAssetsPerUser',     label: 'Activos por usuario' },
-  { key: 'maxInventoryItems',    label: 'Elementos de inventario' },
+  { key: 'maxBodyBytes',         hasHint: true },
+  { key: 'maxDecompressedBytes', hasHint: true },
+  { key: 'maxProcesses' },
+  { key: 'maxDiskMounts' },
+  { key: 'maxNetInterfaces' },
+  { key: 'maxSeriesPoints' },
+  { key: 'maxStatsPeriodDays',   hasHint: true },
+  { key: 'maxEntityStatsPeriodDays', hasHint: true },
+  { key: 'minIntervalSec' },
+  { key: 'clockSkewSec',         hasHint: true },
+  { key: 'maxBackfillSec',       hasHint: true },
+  { key: 'maxAssetsPerUser' },
+  { key: 'maxInventoryItems' },
 ]
 
 const kbSourcePaths = computed(() => {
@@ -707,14 +718,8 @@ onUnmounted(() => { if (observer) observer.disconnect() })
  * pintan. `unlocks` resume qué tiene que estar resuelto antes de abrir cada
  * una (lo detalla el proyecto «Legal» de la organización).
  */
-const LAUNCH_SURFACES = [
-  { key: 'registration', label: 'Alta pública de cuentas', covers: 'Cualquiera puede crearse una cuenta desde la pantalla de acceso.', unlocks: 'aviso legal, privacidad, términos, uso aceptable y aceptación registrada en el alta' },
-  { key: 'pricing', label: 'Planes y precios', covers: 'La página de planes y la tabla de precios de la portada.', unlocks: 'titular identificado, público decidido y aviso legal' },
-  { key: 'thirdPartyScanners', label: 'Escáneres de sistemas externos', covers: 'Análisis con Nmap, Nikto y Nuclei, también los programados.', unlocks: 'autorización exigida en todos los escáneres, uso aceptable y revisión jurídica' },
-  { key: 'campaigns', label: 'Campañas de Aegis', covers: 'Enviar formaciones por correo a los empleados de un cliente.', unlocks: 'contrato de encargo, guía para informar a los empleados y aviso de contenido generado con IA' },
-  { key: 'mailboxConnectors', label: 'Buzones de Iris', covers: 'Conectar y sincronizar buzones de Gmail y Microsoft.', unlocks: 'verificaciones de Google y Microsoft' },
-  { key: 'externalAi', label: 'IA de proveedores externos', covers: 'Generar con OpenAI o Google; Ollama no depende de esto.', unlocks: 'contratos con los proveedores y página sobre el uso de la IA' },
-]
+/** Funciones que se abren por separado; sus textos están en `configView.surfaces.<key>`. */
+const LAUNCH_SURFACES = ['registration', 'pricing', 'thirdPartyScanners', 'campaigns', 'mailboxConnectors', 'externalAi'].map((key) => ({ key }))
 
 const isLaunchPreview = computed(() => store.configFlat['general.launch.mode'] !== 'public')
 
@@ -734,10 +739,10 @@ async function handleSave() {
   if (savedLaunchMode.value !== 'public' && selectedMode === 'public') {
     const openingLabels = LAUNCH_SURFACES
       .filter((surface) => store.configFlat[`general.launch.surfaces.${surface.key}`] === true)
-      .map((surface) => `• ${surface.label}`)
+      .map((surface) => `• ${t(`configView.surfaces.${surface.key}.label`)}`)
     const message = openingLabels.length
-      ? `Vas a abrir al público:\n${openingLabels.join('\n')}\n\n¿Continuar?`
-      : 'Vas a pasar a «Abierto al público», pero todos los interruptores están apagados: no se abrirá nada. ¿Continuar?'
+      ? t('configView.confirmOpen', { surfaces: openingLabels.join('\n') })
+      : t('configView.confirmOpenNothing')
     if (!window.confirm(message)) return
   }
   if (await store.saveConfig()) savedLaunchMode.value = selectedMode

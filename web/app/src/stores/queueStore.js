@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { useToastStore } from '@/stores/toastStore'
+import { i18n } from '@/i18n'
 
 /**
  * Store de gestion de la cola de tareas en segundo plano (TaskQueue / RQ).
@@ -46,13 +47,13 @@ export const useQueueStore = defineStore('queue', () => {
     try {
       const res = await apiFetch('/system/tasks/status')
       if (!res?.ok) {
-        toast.show('Error al cargar el estado de la cola.', 'error')
+        toast.show(i18n.global.t('queueStore.statusFailed'), 'error')
         return
       }
       const data = await res.json()
       status.value = data
     } catch {
-      toast.show('Error al conectar con la cola.', 'error')
+      toast.show(i18n.global.t('queueStore.connectFailed'), 'error')
     }
   }
 
@@ -70,7 +71,7 @@ export const useQueueStore = defineStore('queue', () => {
       const res = await apiFetch(`/system/tasks?${params}`)
       if (!res?.ok) {
         tasks.value = []
-        listError.value = 'Error al cargar las tareas.'
+        listError.value = i18n.global.t('queueStore.tasksFailed')
         return
       }
       const data = await res.json()
@@ -79,7 +80,7 @@ export const useQueueStore = defineStore('queue', () => {
       listError.value = null
     } catch {
       tasks.value = []
-      listError.value = 'Error de conexión con la cola.'
+      listError.value = i18n.global.t('queueStore.connectionError')
     } finally {
       loading.value = false
     }
@@ -94,15 +95,15 @@ export const useQueueStore = defineStore('queue', () => {
         method: 'POST',
       })
       if (!res?.ok) {
-        toast.show(await apiError(res, 'Error al cancelar la tarea.'), 'error')
+        toast.show(await apiError(res, i18n.global.t('queueStore.cancelFailed')), 'error')
         return false
       }
-      toast.show('Tarea cancelada.', 'success')
+      toast.show(i18n.global.t('queueStore.cancelled'), 'success')
       await loadStatus()
       await loadTasks()
       return true
     } catch {
-      toast.show('Error al cancelar la tarea.', 'error')
+      toast.show(i18n.global.t('queueStore.cancelFailed'), 'error')
       return false
     }
   }
@@ -117,16 +118,16 @@ export const useQueueStore = defineStore('queue', () => {
         body: JSON.stringify({ max_workers: maxWorkers }),
       })
       if (!res?.ok) {
-        toast.show(await apiError(res, 'Error al actualizar configuracion.'), 'error')
+        toast.show(await apiError(res, i18n.global.t('queueStore.configFailed')), 'error')
         return false
       }
       // C6: el backend solo persiste la config — no reinicia el proceso
       // worker, así que aliveWorkers no cambia hasta el próximo reinicio.
-      toast.show(`Config actualizada a ${maxWorkers}. Se aplicará al reiniciar el worker.`, 'success')
+      toast.show(i18n.global.t('queueStore.configUpdated', { count: maxWorkers }), 'success')
       await loadStatus()
       return true
     } catch {
-      toast.show('Error al actualizar la configuracion.', 'error')
+      toast.show(i18n.global.t('queueStore.configError'), 'error')
       return false
     }
   }

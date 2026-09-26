@@ -22,7 +22,7 @@ import {
   DEFAULT_WINDOW_ID,
   buildLogQuery,
   windowMinutes,
-  windowLabel,
+  windowLabelKey,
 } from '../src/composables/logWindows.js'
 
 const asObject = (params) => Object.fromEntries(params.entries())
@@ -70,12 +70,12 @@ test('los minutos de los atajos crecen y no se repiten', () => {
 test('el atajo por defecto existe y acota', () => {
   assert.ok(LOG_WINDOWS.some((option) => option.id === DEFAULT_WINDOW_ID))
   assert.equal(typeof windowMinutes(DEFAULT_WINDOW_ID), 'number')
-  assert.ok(windowLabel(DEFAULT_WINDOW_ID).length > 0)
+  assert.ok(windowLabelKey(DEFAULT_WINDOW_ID).length > 0)
 })
 
 test('un identificador desconocido no acota ni revienta', () => {
   assert.equal(windowMinutes('no-existe'), null)
-  assert.equal(windowLabel('no-existe'), '')
+  assert.equal(windowLabelKey('no-existe'), '')
 })
 
 test('los filtros de nivel y texto viajan junto a la ventana', () => {

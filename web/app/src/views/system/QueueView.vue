@@ -1,41 +1,41 @@
 <template>
   <div class="queue-page">
     <StarBackground />
-    <Topbar title="Cola de Tareas" />
+    <Topbar :title="t('queue.title')" />
 
     <main class="main">
       <div class="page-header">
-        <div><h1>Cola de Tareas</h1><p class="subtitle">Monitoriza y gestiona las tareas asíncronas en segundo plano</p></div>
+        <div><h1>{{ t('queue.title') }}</h1><p class="subtitle">{{ t('queue.subtitle') }}</p></div>
       </div>
 
       <div class="status-bar">
-        <div class="stat-item" title="maxWorkers es la config objetivo; solo se aplica al reiniciar el proceso worker, no en caliente">
-          <span class="stat-label">Workers</span>
+        <div class="stat-item" :title="t('queue.workersHint')">
+          <span class="stat-label">{{ t('queue.workers') }}</span>
           <span class="stat-value">{{ store.status.aliveWorkers }} / {{ store.status.maxWorkers }}</span>
         </div>
         <div class="stat-item stat-item--running">
-          <span class="stat-label">En ejecución</span>
+          <span class="stat-label">{{ t('queue.running') }}</span>
           <span class="stat-value">{{ store.status.runningCount }}</span>
         </div>
         <div class="stat-item stat-item--pending">
-          <span class="stat-label">En espera</span>
+          <span class="stat-label">{{ t('queue.pending') }}</span>
           <span class="stat-value">{{ store.status.pendingCount }}</span>
         </div>
         <div class="stat-item stat-item--history">
-          <span class="stat-label">Historial</span>
+          <span class="stat-label">{{ t('queue.history') }}</span>
           <span class="stat-value">{{ store.status.historyCount }}</span>
         </div>
       </div>
 
       <div class="tab-bar">
         <button class="tab-btn" :class="{ active: store.activeTab === 'running' }" @click="store.switchTab('running')">
-          En ejecución <span class="tab-count">{{ store.status.runningCount }}</span>
+          {{ t('queue.running') }} <span class="tab-count">{{ store.status.runningCount }}</span>
         </button>
         <button class="tab-btn" :class="{ active: store.activeTab === 'pending' }" @click="store.switchTab('pending')">
-          En espera <span class="tab-count">{{ store.status.pendingCount }}</span>
+          {{ t('queue.pending') }} <span class="tab-count">{{ store.status.pendingCount }}</span>
         </button>
         <button class="tab-btn" :class="{ active: store.activeTab === 'history' }" @click="store.switchTab('history')">
-          Historial <span class="tab-count">{{ store.status.historyCount }}</span>
+          {{ t('queue.history') }} <span class="tab-count">{{ store.status.historyCount }}</span>
         </button>
       </div>
 
@@ -58,24 +58,24 @@
             <span class="task-status-badge" :class="'status--' + task.status">{{ statusLabel(task.status) }}</span>
           </div>
           <div class="task-times">
-            <span class="task-time">Creado: {{ formatDate(task.createdAt) }}</span>
-            <span v-if="task.startedAt" class="task-time">Inicio: {{ formatDate(task.startedAt) }}</span>
-            <span v-if="task.finishedAt" class="task-time">Fin: {{ formatDate(task.finishedAt) }}</span>
+            <span class="task-time">{{ t('queue.created', { date: formatDate(task.createdAt) }) }}</span>
+            <span v-if="task.startedAt" class="task-time">{{ t('queue.started', { date: formatDate(task.startedAt) }) }}</span>
+            <span v-if="task.finishedAt" class="task-time">{{ t('queue.finished', { date: formatDate(task.finishedAt) }) }}</span>
             <span v-if="task.error" class="task-error">{{ task.error }}</span>
           </div>
           <div v-if="task.status === 'running'" class="task-progress">
             <div class="progress-track"><div class="progress-fill" :style="{ width: task.progress + '%' }"></div></div>
             <span class="progress-text">{{ task.progress }}%</span>
           </div>
-          <button v-if="task.status === 'pending' || task.status === 'running'" class="btn-cancel" @click="handleCancel(task.id)">Cancelar</button>
+          <button v-if="task.status === 'pending' || task.status === 'running'" class="btn-cancel" @click="handleCancel(task.id)">{{ t('common.cancel') }}</button>
         </div>
       </div>
 
       <div v-else-if="store.listError" class="empty-state error-state">
         {{ store.listError }}
-        <button class="btn-refresh" @click="store.loadTasks()">Reintentar</button>
+        <button class="btn-refresh" @click="store.loadTasks()">{{ t('common.retry') }}</button>
       </div>
-      <div v-else class="empty-state">No hay tareas en esta categoría.</div>
+      <div v-else class="empty-state">{{ t('queue.empty') }}</div>
 
       <AppPagination :current="store.currentPage" :total="store.totalCount" :per-page="store.perPage" @go="store.goToPage" />
     </main>
@@ -89,14 +89,38 @@ import StarBackground from '@/components/shared/StarBackground.vue'
 import AppPagination from '@/components/shared/AppPagination.vue'
 import { useQueueStore } from '@/stores/queueStore'
 import { useUtils } from '@/composables/useUtils'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const store = useQueueStore()
 const { formatDate } = useUtils()
 
 onMounted(() => { store.loadStatus(); store.loadTasks() })
 
-function categoryLabel(c) { const m = { 'themis.scan': 'Escaneo', 'themis.report': 'Informe PDF', 'aegis.generate': 'IA Aegis' }; return m[c] || c }
-function statusLabel(s) { const m = { pending: 'Pendiente', running: 'En ejecución', completed: 'Completado', failed: 'Fallido', cancelled: 'Cancelado' }; return m[s] || s }
+/** Categorías con nombre propio; el resto se enseña con su identificador. */
+const NAMED_CATEGORIES = { 'themis.scan': 'themisScan', 'themis.report': 'themisReport', 'aegis.generate': 'aegisGenerate' }
+const STATUSES = ['pending', 'running', 'completed', 'failed', 'cancelled']
+
+/**
+ * Nombre de la categoría de una tarea.
+ *
+ * @param {string} category - Categoría de TaskQueue (`themis.scan`…).
+ * @returns {string} El nombre en el idioma activo, o la categoría tal cual.
+ */
+function categoryLabel(category) {
+  return NAMED_CATEGORIES[category] ? t(`queue.categories.${NAMED_CATEGORIES[category]}`) : category
+}
+
+/**
+ * Rótulo del estado de una tarea.
+ *
+ * @param {string} status - `pending`, `running`, `completed`, `failed` o `cancelled`.
+ * @returns {string} El rótulo en el idioma activo, o el estado tal cual si no se conoce.
+ */
+function statusLabel(status) {
+  return STATUSES.includes(status) ? t(`queue.status.${status}`) : status
+}
 async function handleCancel(id) { await store.cancelTask(id) }
 </script>
 
