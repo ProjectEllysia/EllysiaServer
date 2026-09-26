@@ -1,16 +1,16 @@
 <template>
   <div class="add-to-case">
-    <button v-if="!open" type="button" class="feedback-option" @click="openPicker">Añadir a un caso…</button>
+    <button v-if="!open" type="button" class="feedback-option" @click="openPicker">{{ t('iris.addToCase.open') }}</button>
     <form v-else class="case-picker" @submit.prevent="submit">
-      <select v-model="target" class="case-select" aria-label="Caso de destino">
-        <option value="new">Nuevo caso con este análisis</option>
+      <select v-model="target" class="case-select" :aria-label="t('iris.addToCase.target')">
+        <option value="new">{{ t('iris.addToCase.new') }}</option>
         <option v-for="entry in openCases" :key="entry.caseId" :value="entry.caseId">
-          #{{ entry.caseId }} · {{ entry.title }} ({{ STATUS_LABELS[entry.status] }})
+          #{{ entry.caseId }} · {{ entry.title }} ({{ caseStatusLabel(entry.status) }})
         </option>
       </select>
-      <button type="submit" class="case-save" :disabled="saving">{{ saving ? 'Guardando…' : 'Añadir' }}</button>
-      <button type="button" class="case-cancel" @click="open = false">Cancelar</button>
-      <router-link v-if="lastCaseId" to="/iris/casos" class="case-link">Ver el caso #{{ lastCaseId }}</router-link>
+      <button type="submit" class="case-save" :disabled="saving">{{ saving ? t('common.saving') : t('lybra.launch.add') }}</button>
+      <button type="button" class="case-cancel" @click="open = false">{{ t('common.cancel') }}</button>
+      <router-link v-if="lastCaseId" to="/iris/casos" class="case-link">{{ t('iris.addToCase.see', { id: lastCaseId }) }}</router-link>
     </form>
   </div>
 </template>
@@ -18,6 +18,10 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useIrisStore } from '@/stores/irisStore'
+import { caseStatusLabel } from '@/components/iris/labels'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   analysisId: { type: Number, required: true },
@@ -25,7 +29,6 @@ const props = defineProps({
 })
 
 const store = useIrisStore()
-const STATUS_LABELS = { new: 'nuevo', triage: 'en triaje', contained: 'contenido', resolved: 'resuelto', false_positive: 'falso positivo' }
 const CLOSED = ['resolved', 'false_positive']
 
 const open = ref(false)
@@ -48,7 +51,7 @@ async function openPicker() {
 async function submit() {
   saving.value = true
   const result = target.value === 'new'
-    ? await store.createCase({ title: props.analysisTitle || `Análisis #${props.analysisId}`, analysisIds: [props.analysisId] })
+    ? await store.createCase({ title: props.analysisTitle || t('iris.addToCase.defaultTitle', { id: props.analysisId }), analysisIds: [props.analysisId] })
     : await store.linkCaseAnalysis(target.value, props.analysisId)
   saving.value = false
   if (result) lastCaseId.value = result.caseId

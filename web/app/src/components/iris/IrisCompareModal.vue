@@ -4,22 +4,22 @@
       <div v-if="show" class="compare-overlay" @click.self="$emit('close')">
         <div ref="boxRef" class="compare-box" role="dialog" aria-modal="true" aria-labelledby="compare-title">
           <header class="compare-header">
-            <h2 id="compare-title" class="compare-title">Comparar análisis</h2>
-            <button type="button" class="compare-close" aria-label="Cerrar comparación" @click="$emit('close')">&times;</button>
+            <h2 id="compare-title" class="compare-title">{{ t('iris.compare.title') }}</h2>
+            <button type="button" class="compare-close" :aria-label="t('iris.compare.close')" @click="$emit('close')">&times;</button>
           </header>
 
-          <p v-if="loading" class="compare-state">Cargando los dos informes…</p>
+          <p v-if="loading" class="compare-state">{{ t('iris.compare.loading') }}</p>
           <p v-else-if="error" class="compare-state compare-state--error">{{ error }}</p>
           <template v-else-if="comparison">
             <div class="compare-columns">
               <section v-for="report in [left, right]" :key="report.analysisId" class="compare-card">
-                <p class="compare-id">#{{ report.analysisId }} · {{ report.title || '(sin título)' }}</p>
+                <p class="compare-id">#{{ report.analysisId }} · {{ report.title || t('iris.untitled') }}</p>
                 <p class="compare-verdict" :class="`verdict--${(report.verdict || '').toLowerCase()}`">
-                  {{ verdictLabel(report.verdict) }} · {{ report.totalScore }}
+                  {{ t(verdictKey(report.verdict)) }} · {{ report.totalScore }}
                 </p>
                 <p class="compare-meta">
-                  Confianza {{ CONFIDENCE_LABELS[report.confidence] || 'sin evaluar' }} ·
-                  {{ report.coverage?.mode === 'headers_only' ? 'solo cabeceras' : 'mensaje completo' }}
+                  {{ ['high', 'medium', 'low'].includes(report.confidence) ? t('iris.hero.confidence', { level: t(`iris.hero.confidenceLevel.${report.confidence}`) }) : t('iris.compare.notEvaluated') }} ·
+                  {{ report.coverage?.mode === 'headers_only' ? t('iris.hero.headersOnly') : t('iris.hero.fullMessage') }}
                 </p>
                 <p class="compare-meta">{{ report.previewHeaders?.from || '' }}</p>
                 <ul v-if="report.gateReasons?.length" class="compare-gates">
@@ -29,15 +29,15 @@
             </div>
 
             <p class="compare-summary">
-              {{ comparison.verdictChanged ? 'Veredictos distintos' : 'Mismo veredicto' }}
-              <template v-if="comparison.scoreDelta !== null"> · diferencia de score {{ comparison.scoreDelta > 0 ? '+' : '' }}{{ comparison.scoreDelta }}</template>
-              · {{ comparison.changedCount }} reglas distintas
+              {{ comparison.verdictChanged ? t('iris.compare.differentVerdicts') : t('iris.compare.sameVerdict') }}
+              <template v-if="comparison.scoreDelta !== null"> · {{ t('iris.compare.scoreDelta', { delta: `${comparison.scoreDelta > 0 ? '+' : ''}${comparison.scoreDelta}` }) }}</template>
+              · {{ t('iris.compare.changedRules', { count: comparison.changedCount }, comparison.changedCount) }}
             </p>
 
             <div class="compare-table-wrap">
               <table class="compare-table">
                 <thead>
-                  <tr><th>Regla</th><th>#{{ left.analysisId }}</th><th>#{{ right.analysisId }}</th></tr>
+                  <tr><th>{{ t('iris.compare.rule') }}</th><th>#{{ left.analysisId }}</th><th>#{{ right.analysisId }}</th></tr>
                 </thead>
                 <tbody>
                   <tr v-for="entry in visibleRules" :key="entry.ruleName" :class="{ 'row--changed': entry.changed }">
@@ -49,7 +49,7 @@
               </table>
             </div>
             <button v-if="comparison.rules.length > comparison.changedCount" type="button" class="compare-toggle" @click="showAll = !showAll">
-              {{ showAll ? 'Ver solo las que cambian' : `Ver también las ${comparison.rules.length - comparison.changedCount} que no cambian` }}
+              {{ showAll ? t('iris.compare.onlyChanged') : t('iris.compare.showUnchanged', { count: comparison.rules.length - comparison.changedCount }) }}
             </button>
           </template>
         </div>
@@ -63,7 +63,10 @@ import { computed, ref, watch } from 'vue'
 import { useIrisStore } from '@/stores/irisStore'
 import { useModalA11y } from '@/composables/useModalA11y'
 import { compareReports } from '@/components/iris/compare.js'
-import { ruleVerdictLabel, verdictLabel } from '@/components/iris/verdict'
+import { ruleVerdictKey, verdictKey } from '@/components/iris/verdict'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -80,7 +83,6 @@ const loading = ref(false)
 const error = ref(null)
 const showAll = ref(false)
 
-const CONFIDENCE_LABELS = { high: 'alta', medium: 'media', low: 'baja' }
 
 const comparison = computed(() => (left.value && right.value ? compareReports(left.value, right.value) : null))
 const visibleRules = computed(() =>
@@ -95,7 +97,7 @@ const visibleRules = computed(() =>
  * @returns {string} «Correcto (0)», «Falla (-20)»…, o «—» si falta.
  */
 function describe(side) {
-  return side ? `${ruleVerdictLabel(side.verdict)} (${side.score})` : '—'
+  return side ? `${t(ruleVerdictKey(side.verdict))} (${side.score})` : '—'
 }
 
 watch(() => [props.show, ...props.analysisIds], async () => {
@@ -106,7 +108,7 @@ watch(() => [props.show, ...props.analysisIds], async () => {
   const [leftReport, rightReport] = await Promise.all(props.analysisIds.map(id => store.fetchReportById(id)))
   left.value = leftReport
   right.value = rightReport
-  if (!leftReport || !rightReport) error.value = 'Solo se pueden comparar análisis terminados.'
+  if (!leftReport || !rightReport) error.value = t('iris.compare.onlyFinished')
   loading.value = false
 }, { immediate: true })
 

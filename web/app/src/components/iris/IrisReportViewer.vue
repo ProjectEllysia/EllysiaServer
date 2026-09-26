@@ -12,21 +12,21 @@
     <!-- LOADING -->
     <div v-else-if="reportLoading" class="rv-loading">
       <div class="spinner"></div>
-      <p>Cargando informe…</p>
+      <p>{{ t('iris.report.loading') }}</p>
     </div>
 
     <!-- RUNNING / PENDING -->
     <div v-else-if="status && (status === 'pending' || status === 'running')" class="rv-running">
       <div class="rv-running-header">
-        <span class="badge badge--running">En análisis</span>
+        <span class="badge badge--running">{{ t('iris.analysisStatus.running') }}</span>
         <span class="analysis-id">#{{ reportId }}</span>
       </div>
       <div class="progress-track">
         <div class="progress-fill" :style="{ width: (progress ?? 0) + '%' }"></div>
       </div>
-      <div class="progress-label">{{ progress ?? 0 }}% — ejecutando reglas de verificación</div>
+      <div class="progress-label">{{ t('iris.report.progress', { percent: progress ?? 0 }) }}</div>
       <button type="button" class="btn-cancel" @click="$emit('cancel')">
-        Cancelar análisis
+        {{ t('iris.report.cancel') }}
       </button>
     </div>
 
@@ -35,8 +35,8 @@
       <div class="rv-result-icon rv-result-icon--fail">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
       </div>
-      <h3>Análisis fallido</h3>
-      <p>El análisis #{{ reportId }} no pudo completarse. Intenta de nuevo.</p>
+      <h3>{{ t('iris.report.failedTitle') }}</h3>
+      <p>{{ t('iris.report.failed', { id: reportId }) }}</p>
     </div>
 
     <!-- CANCELLED -->
@@ -44,8 +44,8 @@
       <div class="rv-result-icon rv-result-icon--warn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
       </div>
-      <h3>Análisis cancelado</h3>
-      <p>El análisis #{{ reportId }} fue cancelado por el usuario.</p>
+      <h3>{{ t('iris.report.cancelledTitle') }}</h3>
+      <p>{{ t('iris.report.cancelled', { id: reportId }) }}</p>
     </div>
 
     <!-- FINISHED REPORT -->
@@ -58,17 +58,17 @@
           <span class="report-date" v-if="reportData.finishedAt">{{ formatDate(reportData.finishedAt) }}</span>
         </div>
         <div class="rv-actions">
-          <button type="button" class="action-btn" title="Informes PDF" @click="docsModalOpen = true">
+          <button type="button" class="action-btn" :title="t('iris.documents.title')" @click="docsModalOpen = true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="9" y1="11" x2="13" y2="11"/></svg>
             <span v-if="irisStore.documents.length" class="action-btn-badge">{{ irisStore.documents.length }}</span>
           </button>
-          <button type="button" class="action-btn" title="Cancelar" @click="$emit('cancel')" v-if="status === 'running' || status === 'pending'">
+          <button type="button" class="action-btn" :title="t('common.cancel')" @click="$emit('cancel')" v-if="status === 'running' || status === 'pending'">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
           </button>
-          <button type="button" class="action-btn" title="Reanalizar con las reglas actuales" @click="irisStore.reanalyzeAnalysis(reportData.analysisId)" v-if="reportData && reportData.status === 'finished'">
+          <button type="button" class="action-btn" :title="t('iris.report.reanalyze')" @click="irisStore.reanalyzeAnalysis(reportData.analysisId)" v-if="reportData && reportData.status === 'finished'">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-3.51-7.14"/><polyline points="21 3 21 9 15 9"/></svg>
           </button>
-          <button type="button" class="action-btn action-btn--danger" title="Eliminar" @click="$emit('delete', reportData.analysisId)" v-if="reportData && reportData.status !== 'running' && reportData.status !== 'pending'">
+          <button type="button" class="action-btn action-btn--danger" :title="t('common.delete')" @click="$emit('delete', reportData.analysisId)" v-if="reportData && reportData.status !== 'running' && reportData.status !== 'pending'">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
           </button>
         </div>
@@ -79,10 +79,10 @@
       <div class="rv-tags">
         <span v-for="tag in reportData.tags || []" :key="tag" class="rv-tag">
           {{ tag }}
-          <button type="button" class="rv-tag-remove" :aria-label="`Quitar la etiqueta ${tag}`" @click="removeTag(tag)">&times;</button>
+          <button type="button" class="rv-tag-remove" :aria-label="t('iris.report.removeTag', { tag })" @click="removeTag(tag)">&times;</button>
         </span>
         <form class="rv-tag-add" @submit.prevent="addTag">
-          <input v-model="newTag" type="text" maxlength="40" class="rv-tag-input" placeholder="+ etiqueta" aria-label="Añadir etiqueta" list="iris-user-tags" />
+          <input v-model="newTag" type="text" maxlength="40" class="rv-tag-input" :placeholder="t('iris.report.tagPlaceholder')" :aria-label="t('iris.report.addTag')" list="iris-user-tags" />
           <datalist id="iris-user-tags"><option v-for="tag in irisStore.userTags" :key="tag.name" :value="tag.name" /></datalist>
         </form>
       </div>
@@ -93,20 +93,20 @@
       <div v-if="reportData.unwrappedFromForward" class="rv-unwrap-notice">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="unwrap-icon"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 6L2 7"/></svg>
         <div class="unwrap-text">
-          <strong>Correo reenviado como adjunto detectado.</strong>
+          <strong>{{ t('iris.report.forwardDetected') }}</strong>
           <template v-if="reportData.winningContext === 'wrapper'">
-            El veredicto sale del envoltorio del reenvío, no del mensaje original adjunto.
+            {{ t('iris.report.fromWrapper') }}
           </template>
           <template v-else>
-            Se analizó el mensaje original adjunto (.eml), no el envoltorio del reenvío.
+            {{ t('iris.report.fromOriginal') }}
           </template>
           <span v-if="reportData.winningReason" class="unwrap-wrapper-info">{{ reportData.winningReason }}</span>
           <span v-if="reportData.secondaryContext" class="unwrap-wrapper-info">
-            {{ reportData.secondaryContext.contextType === 'wrapper' ? 'Envoltorio' : 'Original' }}:
-            {{ verdictLabel(reportData.secondaryContext.verdict) }} ({{ reportData.secondaryContext.totalScore }} puntos)
+            {{ reportData.secondaryContext.contextType === 'wrapper' ? t('iris.report.wrapper') : t('iris.report.original') }}:
+            {{ t(verdictKey(reportData.secondaryContext.verdict)) }} ({{ t('iris.report.points', { count: reportData.secondaryContext.totalScore }) }})
           </span>
           <span v-if="reportData.wrapperFrom || reportData.wrapperSubject" class="unwrap-wrapper-info">
-            Envoltorio: <template v-if="reportData.wrapperFrom">de {{ reportData.wrapperFrom }}</template>
+            {{ t('iris.report.wrapper') }}: <template v-if="reportData.wrapperFrom">{{ t('iris.report.wrapperFrom', { from: reportData.wrapperFrom }) }}</template>
             <template v-if="reportData.wrapperSubject">— «{{ reportData.wrapperSubject }}»</template>
           </span>
         </div>
@@ -124,12 +124,12 @@
            porque lo matiza; en solo cabeceras lista además qué reglas no
            tuvieron cuerpo, enlaces ni adjuntos que inspeccionar. -->
       <div v-if="uncertaintyReasons.length || uncoveredRules.length" class="rv-uncertainty">
-        <strong class="uncertainty-title">Qué limita este veredicto</strong>
+        <strong class="uncertainty-title">{{ t('iris.report.limits') }}</strong>
         <ul v-if="uncertaintyReasons.length" class="uncertainty-list">
           <li v-for="(reason, i) in uncertaintyReasons" :key="i">{{ reason }}</li>
         </ul>
         <p v-if="uncoveredRules.length" class="uncertainty-rules">
-          Sin contenido que inspeccionar: {{ uncoveredRules.join(' · ') }}
+          {{ t('iris.report.noContent', { rules: uncoveredRules.join(' · ') }) }}
         </p>
       </div>
 
@@ -138,7 +138,7 @@
            y la calibración del detector. -->
       <div class="rv-feedback">
         <div class="feedback-row">
-          <span class="feedback-title">¿Es correcto este veredicto?</span>
+          <span class="feedback-title">{{ t('iris.report.feedbackQuestion') }}</span>
           <div class="feedback-actions">
             <button
               v-for="option in FEEDBACK_OPTIONS"
@@ -147,7 +147,7 @@
               class="feedback-option"
               :class="{ 'feedback-option--active': feedbackLabel === option.value }"
               @click="feedbackLabel = option.value"
-            >{{ option.label }}</button>
+            >{{ t(`iris.report.feedbackOptions.${option.value}`) }}</button>
           </div>
         </div>
         <div v-if="feedbackLabel" class="feedback-form">
@@ -156,15 +156,18 @@
             class="feedback-note"
             maxlength="2000"
             rows="2"
-            placeholder="Nota opcional (por qué)"
+            :placeholder="t('iris.report.notePlaceholder')"
           ></textarea>
           <button type="button" class="feedback-save" :disabled="feedbackSaving" @click="saveFeedback">
-            Guardar
+            {{ t('common.save') }}
           </button>
         </div>
         <p v-if="reportData.latestFeedback" class="feedback-current">
-          Revisado como <strong>{{ FEEDBACK_LABELS[reportData.latestFeedback.label] }}</strong>
-          por {{ reportData.latestFeedback.author }} · {{ formatDate(reportData.latestFeedback.createdAt) }}
+          <i18n-t keypath="iris.report.reviewedAs" tag="span">
+            <template #label><strong>{{ feedbackLabelOf(reportData.latestFeedback.label) }}</strong></template>
+            <template #author>{{ reportData.latestFeedback.author }}</template>
+          </i18n-t>
+          · {{ formatDate(reportData.latestFeedback.createdAt) }}
           <template v-if="reportData.latestFeedback.note"> — «{{ reportData.latestFeedback.note }}»</template>
         </p>
         <!-- Falso positivo recurrente: confiar en el remitente para los
@@ -172,7 +175,7 @@
         <!-- Convertir el informe en trabajo: añadirlo a un caso de analista. -->
         <IrisAddToCase :analysis-id="reportData.analysisId" :analysis-title="reportData.title || ''" />
         <button v-if="!trustFormOpen" type="button" class="feedback-option trust-open" @click="trustFormOpen = true">
-          Confiar en este remitente…
+          {{ t('iris.report.trustSender') }}
         </button>
         <IrisTrustForm
           v-else
@@ -188,16 +191,16 @@
            ahí). Es parte de la explicación del veredicto. -->
       <div v-if="reportData.trustApplied" class="rv-trust" :class="{ 'rv-trust--ignored': !reportData.trustApplied.applied }">
         <strong class="uncertainty-title">
-          {{ reportData.trustApplied.applied ? 'Excepción de confianza aplicada' : 'Excepción de confianza no aplicada' }}
+          {{ reportData.trustApplied.applied ? t('iris.report.trustApplied') : t('iris.report.trustNotApplied') }}
         </strong>
         <p class="trust-detail">
-          {{ reportData.trustApplied.kind === 'domain' ? 'Dominio' : 'Remitente' }}
+          {{ reportData.trustApplied.kind === 'domain' ? t('iris.trust.domain') : t('iris.report.sender') }}
           <code>{{ reportData.trustApplied.value }}</code> — «{{ reportData.trustApplied.reason }}».
           <template v-if="reportData.trustApplied.applied">
-            Reglas neutralizadas: {{ reportData.trustApplied.modulatedRules.join(' · ') || 'ninguna penalizaba' }}.
+            {{ t('iris.report.neutralized', { rules: reportData.trustApplied.modulatedRules.join(' · ') || t('iris.report.nonePenalized') }) }}
           </template>
           <template v-else>
-            El mensaje no demuestra venir de ahí, así que se analizó sin la excepción.
+            {{ t('iris.report.trustIgnored') }}
           </template>
         </p>
       </div>
@@ -209,11 +212,9 @@
       <div v-if="isDegraded" class="rv-degraded">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="degraded-icon"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
         <div class="degraded-body">
-          <strong class="degraded-title">Análisis incompleto</strong>
+          <strong class="degraded-title">{{ t('iris.report.incompleteTitle') }}</strong>
           <p class="degraded-text">
-            No se pudieron ejecutar {{ failedRuleNames.length }}
-            {{ failedRuleNames.length === 1 ? 'regla' : 'reglas' }}, así que la parte
-            del mensaje que les correspondía no se ha inspeccionado.
+            {{ t('iris.report.incomplete', { count: failedRuleNames.length }, failedRuleNames.length) }}
           </p>
           <p v-if="failedRuleNames.length" class="degraded-rules">
             {{ failedRuleNames.join(' · ') }}
@@ -223,7 +224,7 @@
 
       <!-- Gate reasons: señales de alta confianza que fijaron el veredicto -->
       <div v-if="reportData.gateReasons && reportData.gateReasons.length" class="rv-gates">
-        <h3 class="section-title">Por qué este veredicto</h3>
+        <h3 class="section-title">{{ t('iris.report.why') }}</h3>
         <ul class="gate-list">
           <li v-for="(reason, i) in reportData.gateReasons" :key="i" class="gate-item">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="gate-bullet"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
@@ -234,7 +235,7 @@
 
       <!-- Top signals: reglas que más penalizaron el score -->
       <div v-if="reportData.topSignals && reportData.topSignals.length" class="rv-top-signals">
-        <h3 class="section-title">Principales señales</h3>
+        <h3 class="section-title">{{ t('iris.report.topSignals') }}</h3>
         <div class="signal-list">
           <button
             type="button"
@@ -251,36 +252,36 @@
 
       <!-- Resumen ejecutivo IA (IA1) -->
       <div v-if="reportData.status === 'finished'" class="rv-ai-summary">
-        <h3 class="section-title">Resumen ejecutivo (IA)</h3>
+        <h3 class="section-title">{{ t('iris.report.aiSummary') }}</h3>
         <div v-if="reportData.aiSummary" class="ai-summary-card">
           <p class="ai-summary-text">{{ reportData.aiSummary.executive_summary }}</p>
           <div class="ai-summary-row">
-            <span class="ai-summary-label">Intención probable del atacante</span>
+            <span class="ai-summary-label">{{ t('iris.report.attackerIntent') }}</span>
             <p class="ai-summary-text">{{ reportData.aiSummary.attacker_intent }}</p>
           </div>
           <ul v-if="reportData.aiSummary.recommendations && reportData.aiSummary.recommendations.length" class="ai-summary-recs">
             <li v-for="(rec, i) in reportData.aiSummary.recommendations" :key="i">{{ rec }}</li>
           </ul>
           <span class="ai-summary-confidence" :class="`confidence--${(reportData.aiSummary.confidence || '').toLowerCase()}`">
-            Confianza: {{ reportData.aiSummary.confidence }}
+            {{ t('iris.report.aiConfidence', { level: reportData.aiSummary.confidence }) }}
           </span>
         </div>
         <div v-else-if="irisStore.aiSummaryLoading" class="rv-path-loading">
           <div class="spinner spinner--sm"></div>
-          <span>Generando narrativa con IA…</span>
+          <span>{{ t('iris.report.aiGenerating') }}</span>
           <button type="button" class="btn-export-csv" @click="irisStore.checkAiSummary(reportData.analysisId)">
-            Comprobar estado
+            {{ t('iris.report.checkStatus') }}
           </button>
         </div>
         <button v-else type="button" class="btn-export-csv" @click="irisStore.generateAiSummary(reportData.analysisId)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2.4 7.2H22l-6 4.4 2.4 7.2L12 16.4l-6.4 4.4 2.4-7.2-6-4.4h7.6z"/></svg>
-          Generar resumen ejecutivo con IA
+          {{ t('iris.report.generateAi') }}
         </button>
       </div>
 
       <!-- Rule cards -->
       <div class="rv-rules" ref="rulesSection">
-        <h3 class="section-title" v-if="flaggedRules.length">Reglas con hallazgos</h3>
+        <h3 class="section-title" v-if="flaggedRules.length">{{ t('iris.report.flaggedRules') }}</h3>
         <IrisRuleCard
           v-for="entry in flaggedRules"
           :key="entry.i"
@@ -295,7 +296,7 @@
         <div v-if="passedRules.length" class="rv-raw">
           <button type="button" class="raw-toggle" @click="passedRulesOpen = !passedRulesOpen">
             <svg :class="{ rotated: passedRulesOpen }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="toggle-chevron"><polyline points="6 9 12 15 18 9"/></svg>
-            Reglas superadas sin incidencias ({{ passedRules.length }})
+            {{ t('iris.report.passedRules', { count: passedRules.length }) }}
           </button>
           <Transition name="raw-reveal">
             <div v-if="passedRulesOpen">
@@ -315,7 +316,7 @@
 
       <!-- Recommendations -->
       <div v-if="reportData.recommendations && reportData.recommendations.length" class="rv-recommendations">
-        <h3 class="section-title">Recomendaciones</h3>
+        <h3 class="section-title">{{ t('iris.report.recommendations') }}</h3>
         <ul class="rec-list">
           <li v-for="(rec, i) in visibleRecommendations" :key="i" class="rec-item">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="rec-bullet"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
@@ -329,16 +330,16 @@
           @click="recsExpanded = !recsExpanded"
         >
           <svg :class="{ rotated: recsExpanded }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="toggle-chevron"><polyline points="6 9 12 15 18 9"/></svg>
-          {{ recsExpanded ? 'Mostrar menos' : `Mostrar ${reportData.recommendations.length - RECS_PREVIEW_COUNT} más` }}
+          {{ recsExpanded ? t('iris.report.showLess') : t('iris.report.showMore', { count: reportData.recommendations.length - RECS_PREVIEW_COUNT }) }}
         </button>
       </div>
 
       <!-- Email path (Received chain) -->
       <div v-if="pathVisible" class="rv-path">
-        <h3 class="section-title">Recorrido del correo</h3>
+        <h3 class="section-title">{{ t('iris.report.path') }}</h3>
         <div v-if="pathLoading" class="rv-path-loading">
           <div class="spinner spinner--sm"></div>
-          <span>Cargando recorrido…</span>
+          <span>{{ t('iris.report.pathLoading') }}</span>
         </div>
         <IrisEmailPath
           v-else-if="pathData && pathData.available"
@@ -346,7 +347,7 @@
           :transitions="pathData.transitions"
         />
         <p v-else class="rv-path-empty">
-          {{ pathData?.reason || 'Recorrido no disponible para este análisis.' }}
+          {{ pathData?.reason || t('iris.report.pathUnavailable') }}
         </p>
       </div>
 
@@ -354,16 +355,16 @@
       <div v-if="reportData.status === 'finished'" class="rv-raw">
         <button type="button" class="raw-toggle" @click="toggleIocs">
           <svg :class="{ rotated: iocsOpen }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="toggle-chevron"><polyline points="6 9 12 15 18 9"/></svg>
-          Indicadores de compromiso (IOCs)
+          {{ t('iris.report.iocs') }}
         </button>
         <Transition name="raw-reveal">
           <div v-if="iocsOpen" class="ioc-panel">
             <div v-if="iocsLoading" class="rv-path-loading">
               <div class="spinner spinner--sm"></div>
-              <span>Extrayendo IOCs…</span>
+              <span>{{ t('iris.report.iocsLoading') }}</span>
             </div>
             <IrisIocsPanel v-else-if="iocsData" :data="iocsData" :report-id="reportId" />
-            <p v-else class="rv-path-empty">No se pudieron cargar los IOCs.</p>
+            <p v-else class="rv-path-empty">{{ t('iris.report.iocsFailed') }}</p>
           </div>
         </Transition>
       </div>
@@ -372,7 +373,7 @@
       <div class="rv-raw">
         <button type="button" class="raw-toggle" @click="rawOpen = !rawOpen">
           <svg :class="{ rotated: rawOpen }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="toggle-chevron"><polyline points="6 9 12 15 18 9"/></svg>
-          Cabeceras originales
+          {{ t('iris.report.rawHeaders') }}
         </button>
         <Transition name="raw-reveal">
           <pre v-if="rawOpen" ref="rawBlock" class="raw-block"><span
@@ -405,7 +406,7 @@
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue'
 import { useUtils } from '@/composables/useUtils'
-import { verdictLabel } from '@/components/iris/verdict'
+import { verdictKey } from '@/components/iris/verdict'
 import { useIrisStore } from '@/stores/irisStore'
 import IrisEmailPath from '@/components/iris/IrisEmailPath.vue'
 import IrisDocumentsModal from '@/components/iris/IrisDocumentsModal.vue'
@@ -414,6 +415,9 @@ import IrisIocsPanel from '@/components/iris/IrisIocsPanel.vue'
 import IrisVerdictHero from '@/components/iris/IrisVerdictHero.vue'
 import IrisTrustForm from '@/components/iris/IrisTrustForm.vue'
 import IrisAddToCase from '@/components/iris/IrisAddToCase.vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const { formatDate } = useUtils()
 const irisStore = useIrisStore()
@@ -510,11 +514,19 @@ const passedRulesOpen = ref(false)
 
 // Feedback del analista (ver el bloque .rv-feedback de la plantilla).
 const FEEDBACK_OPTIONS = [
-  { value: 'malicious', label: 'Es malicioso' },
-  { value: 'legitimate', label: 'Es legítimo' },
-  { value: 'unknown', label: 'No se puede saber' },
+  { value: 'malicious' },
+  { value: 'legitimate' },
+  { value: 'unknown' },
 ]
-const FEEDBACK_LABELS = { malicious: 'malicioso', legitimate: 'legítimo', unknown: 'indeterminado' }
+/**
+ * Rótulo de la etiqueta que puso el analista.
+ *
+ * @param {string} label - `malicious`, `legitimate` o `unknown`.
+ * @returns {string} El rótulo en el idioma activo.
+ */
+function feedbackLabelOf(label) {
+  return ['malicious', 'legitimate', 'unknown'].includes(label) ? t(`iris.report.feedbackLabels.${label}`) : t('common.unknown')
+}
 const feedbackLabel = ref(null)
 const feedbackNote = ref('')
 const feedbackSaving = ref(false)

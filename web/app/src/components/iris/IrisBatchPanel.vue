@@ -3,36 +3,36 @@
   <section v-if="batch" class="batch-panel" aria-live="polite">
     <header class="batch-header">
       <div>
-        <p class="batch-eyebrow">Lote #{{ batch.batchId }}</p>
+        <p class="batch-eyebrow">{{ t('iris.batch.title', { id: batch.batchId }) }}</p>
         <h3 class="batch-title">
-          {{ batch.total }} {{ batch.total === 1 ? 'mensaje' : 'mensajes' }} ·
-          {{ finishedCount }}/{{ trackedCount }} análisis terminados
+          {{ t('iris.batch.messages', { count: batch.total }, batch.total) }} ·
+          {{ t('iris.batch.finished', { done: finishedCount, total: trackedCount }) }}
         </h3>
       </div>
-      <button type="button" class="batch-close" aria-label="Cerrar el lote" @click="$emit('close')">&times;</button>
+      <button type="button" class="batch-close" :aria-label="t('iris.batch.close')" @click="$emit('close')">&times;</button>
     </header>
 
     <p class="batch-counts">
-      <span v-for="(label, status) in STATUS_LABELS" :key="status" class="count" :class="`count--${status}`">
-        {{ label }}: {{ batch.counts[status] ?? 0 }}
+      <span v-for="status in ITEM_STATUSES" :key="status" class="count" :class="`count--${status}`">
+        {{ t(`iris.batch.status.${status}`) }}: {{ batch.counts[status] ?? 0 }}
       </span>
     </p>
 
     <div class="batch-table-wrap">
       <table class="batch-table">
         <thead>
-          <tr><th>Mensaje</th><th>Resultado</th><th>Análisis</th></tr>
+          <tr><th>{{ t('iris.batch.message') }}</th><th>{{ t('iris.batch.result') }}</th><th>{{ t('iris.batch.analysis') }}</th></tr>
         </thead>
         <tbody>
           <tr v-for="item in batch.items" :key="item.position">
             <td class="mono">{{ item.filename }}</td>
             <td>
-              <span class="count" :class="`count--${item.status}`">{{ STATUS_LABELS[item.status] }}</span>
+              <span class="count" :class="`count--${item.status}`">{{ ITEM_STATUSES.includes(item.status) ? t(`iris.batch.status.${item.status}`) : t('common.unknown') }}</span>
               <span v-if="item.error" class="item-error">{{ item.error }}</span>
             </td>
             <td>
               <button v-if="item.analysisId" type="button" class="link-btn" @click="$emit('open', item.analysisId)">
-                #{{ item.analysisId }} · {{ item.verdict || ANALYSIS_LABELS[item.analysisStatus] || item.analysisStatus }}
+                #{{ item.analysisId }} · {{ item.verdict ? t(verdictKey(item.verdict)) : t(analysisStatusKey(item.analysisStatus)) }}
               </button>
               <span v-else class="muted">—</span>
             </td>
@@ -46,6 +46,10 @@
 
 <script setup>
 import { computed } from 'vue'
+import { analysisStatusKey, verdictKey } from '@/components/iris/verdict'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   // Respuesta de POST /iris/analyze/batch o de GET /iris/batches/<id>.
@@ -53,8 +57,8 @@ const props = defineProps({
 })
 defineEmits(['close', 'open'])
 
-const STATUS_LABELS = { created: 'Creado', duplicate: 'Repetido', rejected: 'Rechazado', failed: 'Fallido' }
-const ANALYSIS_LABELS = { pending: 'en cola', running: 'analizando', finished: 'terminado', failed: 'falló', cancelled: 'cancelado' }
+/** Resultado de cada mensaje del lote; rótulos en `iris.batch.status`. */
+const ITEM_STATUSES = ['created', 'duplicate', 'rejected', 'failed']
 const TERMINAL = ['finished', 'failed', 'cancelled']
 
 const tracked = computed(() => (props.batch?.items ?? []).filter(item => item.analysisId))

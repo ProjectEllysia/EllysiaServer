@@ -2,51 +2,47 @@
   <form class="trust-form" @submit.prevent="submit">
     <div class="trust-row">
       <label class="trust-field">
-        <span class="trust-label">Confiar en</span>
+        <span class="trust-label">{{ t('iris.trust.trustIn') }}</span>
         <select v-model="kind" class="trust-input">
-          <option value="domain">El dominio</option>
-          <option value="sender">Solo esta dirección</option>
+          <option value="domain">{{ t('iris.trust.theDomain') }}</option>
+          <option value="sender">{{ t('iris.trust.onlyAddress') }}</option>
         </select>
       </label>
       <label class="trust-field trust-field--grow">
-        <span class="trust-label">{{ kind === 'domain' ? 'Dominio' : 'Dirección' }}</span>
+        <span class="trust-label">{{ kind === 'domain' ? t('iris.trust.domain') : t('iris.trust.address') }}</span>
         <input
           v-model="value"
           class="trust-input"
           type="text"
           maxlength="320"
-          :placeholder="kind === 'domain' ? 'proveedor.com' : 'facturas@proveedor.com'"
+          :placeholder="kind === 'domain' ? t('iris.trust.domainPlaceholder') : t('iris.trust.addressPlaceholder')"
           required
         />
       </label>
       <label class="trust-field">
-        <span class="trust-label">Caduca en</span>
+        <span class="trust-label">{{ t('iris.trust.expiresIn') }}</span>
         <select v-model.number="expiresInDays" class="trust-input">
-          <option v-for="days in EXPIRY_OPTIONS" :key="days" :value="days">{{ days }} días</option>
+          <option v-for="days in EXPIRY_OPTIONS" :key="days" :value="days">{{ t('iris.trust.days', { count: days }) }}</option>
         </select>
       </label>
     </div>
     <label class="trust-field">
-      <span class="trust-label">Motivo (obligatorio, queda en la auditoría)</span>
+      <span class="trust-label">{{ t('iris.trust.reason') }}</span>
       <input
         v-model="reason"
         class="trust-input"
         type="text"
         maxlength="500"
-        placeholder="Proveedor habitual: siempre responde desde otra dirección"
+        :placeholder="t('iris.trust.reasonPlaceholder')"
         required
       />
     </label>
-    <p class="trust-hint">
-      Solo se aplica a correo que demuestra venir de ahí (DMARC verificado) y solo neutraliza
-      señales de redacción y de forma. Nunca desactiva los avisos de autenticación, adjuntos
-      peligrosos ni enlaces engañosos.
-    </p>
+    <p class="trust-hint">{{ t('iris.trust.hint') }}</p>
     <div class="trust-actions">
       <button type="submit" class="trust-save" :disabled="saving || !value.trim() || !reason.trim()">
-        {{ saving ? 'Guardando…' : 'Guardar excepción' }}
+        {{ saving ? t('common.saving') : t('iris.trust.save') }}
       </button>
-      <button v-if="cancellable" type="button" class="trust-cancel" @click="$emit('cancel')">Cancelar</button>
+      <button v-if="cancellable" type="button" class="trust-cancel" @click="$emit('cancel')">{{ t('common.cancel') }}</button>
     </div>
   </form>
 </template>
@@ -54,6 +50,9 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { useIrisStore } from '@/stores/irisStore'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   // Cabecera From del informe del que se parte, para rellenar el valor.

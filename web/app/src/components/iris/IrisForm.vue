@@ -1,15 +1,12 @@
 <template>
   <div class="iris-form">
     <div class="form-header">
-      <h2>Nuevo Análisis</h2>
-      <p class="form-hint">
-        Arrastra un archivo .eml o pega las cabeceras, y elige qué parte del correo quieres que Iris examine.
-        Para varios correos a la vez o para un .msg de Outlook, suelta los ficheros o un ZIP, o
-        <label class="batch-link">
-          elige un lote
-          <input type="file" accept=".eml,.msg,.zip,message/rfc822,application/vnd.ms-outlook,application/zip" multiple class="batch-input" @change="pickBatch" />
-        </label>.
-      </p>
+      <h2>{{ t('iris.form.title') }}</h2>
+      <i18n-t keypath="iris.form.hint" tag="p" class="form-hint">
+        <template #batch>
+          <label class="batch-link">{{ t('iris.form.pickBatch') }}<input type="file" accept=".eml,.msg,.zip,message/rfc822,application/vnd.ms-outlook,application/zip" multiple class="batch-input" @change="pickBatch" /></label>
+        </template>
+      </i18n-t>
     </div>
 
     <div class="form-body">
@@ -18,12 +15,12 @@
         type="text"
         class="form-title"
         maxlength="120"
-        placeholder="Título opcional para identificar el análisis (ej: Correo sospechoso)"
+        :placeholder="t('iris.form.titlePlaceholder')"
       />
 
       <!-- El modo es una elección explícita y reversible, no algo que se deduce
            de si el usuario tocó el textarea. -->
-      <div class="mode-switch" role="radiogroup" aria-label="Qué se analiza">
+      <div class="mode-switch" role="radiogroup" :aria-label="t('iris.form.whatToAnalyze')">
         <button
           type="button"
           role="radio"
@@ -32,8 +29,8 @@
           :aria-checked="mode === MODE_HEADERS"
           @click="mode = MODE_HEADERS"
         >
-          <span class="mode-name">Solo cabeceras</span>
-          <span class="mode-sub">Autenticación, remitente y ruta de entrega</span>
+          <span class="mode-name">{{ t('iris.form.headersOnly') }}</span>
+          <span class="mode-sub">{{ t('iris.form.headersOnlyHint') }}</span>
         </button>
         <button
           type="button"
@@ -44,14 +41,14 @@
           :disabled="!message"
           @click="mode = MODE_MESSAGE"
         >
-          <span class="mode-name">Mensaje completo (.eml)</span>
-          <span class="mode-sub">{{ message ? 'Añade cuerpo, enlaces y adjuntos' : 'Arrastra un .eml para activarlo' }}</span>
+          <span class="mode-name">{{ t('iris.form.fullMessage') }}</span>
+          <span class="mode-sub">{{ message ? t('iris.form.fullMessageHint') : t('iris.form.dropEml') }}</span>
         </button>
       </div>
 
       <p v-if="mode === MODE_MESSAGE" class="mode-notice mode-notice--warn">{{ fullMessageNotice }}</p>
       <details v-else-if="uncoveredRules.length" class="mode-notice">
-        <summary>{{ uncoveredRules.length }} reglas no se evaluarán en este modo (necesitan cuerpo, enlaces o adjuntos)</summary>
+        <summary>{{ t('iris.form.uncovered', { count: uncoveredRules.length }, uncoveredRules.length) }}</summary>
         <p class="mode-rules">{{ uncoveredRules.join(' · ') }}</p>
       </details>
 
@@ -59,17 +56,17 @@
         v-model="shownHeaders"
         class="form-textarea"
         :readonly="mode === MODE_MESSAGE"
-        placeholder="Received: from mail.example.com (209.85.220.41)&#10;DKIM-Signature: v=1; a=rsa-sha256; d=example.com;&#10;From: &quot;Usuario&quot; &lt;user@example.com&gt;&#10;Reply-To: user@example.com&#10;Return-Path: &lt;user@example.com&gt;&#10;Message-ID: &lt;20260607120000.abc123@mail.example.com&gt;&#10;Authentication-Results: mx.google.com;&#10;  spf=pass smtp.mailfrom=example.com;&#10;  dkim=pass header.i=@example.com;&#10;  dmarc=pass action=none;"
+        :placeholder="EXAMPLE_HEADERS"
         rows="14"
         spellcheck="false"
       ></textarea>
       <p v-if="mode === MODE_MESSAGE" class="form-subhint">
-        Se analiza el .eml tal como se cargó. Para editar las cabeceras, cambia a «Solo cabeceras».
+        {{ t('iris.form.emlAsLoaded') }}
       </p>
     </div>
 
     <div class="form-footer">
-      <div class="char-count">{{ shownHeaders.length }} caracteres</div>
+      <div class="char-count">{{ t('common.characterCount', { count: shownHeaders.length }, shownHeaders.length) }}</div>
       <button
         type="button"
         class="btn-analyze"
@@ -82,7 +79,7 @@
           <polyline points="12 8 12 16"/>
           <line x1="8" y1="12" x2="16" y2="12"/>
         </svg>
-        {{ submitting ? 'Analizando…' : (mode === MODE_MESSAGE ? 'Analizar mensaje completo' : 'Analizar cabeceras') }}
+        {{ submitting ? t('iris.form.analyzing') : (mode === MODE_MESSAGE ? t('iris.form.analyzeMessage') : t('iris.form.analyzeHeaders')) }}
       </button>
     </div>
   </div>
@@ -92,6 +89,9 @@
 import { computed, ref, watch } from 'vue'
 import { useIrisStore } from '@/stores/irisStore'
 import { MODE_HEADERS, MODE_MESSAGE } from '@/components/iris/intake.js'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const emit = defineEmits(['submit', 'batch'])
 const props = defineProps({
@@ -104,7 +104,22 @@ const store = useIrisStore()
 
 // Respaldo mientras `/iris/capabilities` no ha respondido: el texto de verdad
 // lo publica el servidor, para que la UI y la API avisen de lo mismo.
-const FALLBACK_NOTICE = 'El mensaje completo incluye cuerpo y adjuntos, que pueden contener datos personales o confidenciales.'
+/**
+ * Cabeceras de ejemplo del área de texto vacía. Son cabeceras técnicas, iguales
+ * en cualquier idioma.
+ */
+const EXAMPLE_HEADERS = [
+  'Received: from mail.example.com (209.85.220.41)',
+  'DKIM-Signature: v=1; a=rsa-sha256; d=example.com;',
+  'From: "User" <user@example.com>',
+  'Reply-To: user@example.com',
+  'Return-Path: <user@example.com>',
+  'Message-ID: <20260607120000.abc123@mail.example.com>',
+  'Authentication-Results: mx.google.com;',
+  '  spf=pass smtp.mailfrom=example.com;',
+  '  dkim=pass header.i=@example.com;',
+  '  dmarc=pass action=none;',
+].join('\n')
 
 const title = ref('')
 // Cabeceras editables (modo solo cabeceras).
@@ -133,7 +148,7 @@ const shownHeaders = computed({
 })
 
 const uncoveredRules = computed(() => store.capabilities?.headersOnlyUncoveredRules ?? [])
-const fullMessageNotice = computed(() => store.capabilities?.fullMessageNotice || FALLBACK_NOTICE)
+const fullMessageNotice = computed(() => store.capabilities?.fullMessageNotice || t('iris.form.fullMessageNotice'))
 
 const canSubmit = computed(() =>
   mode.value === MODE_MESSAGE ? !!message.value : headers.value.length >= 10

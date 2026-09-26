@@ -1,19 +1,19 @@
 <template>
-  <p class="ioc-hint">
-    Valores <em>defanged</em> para pegar de forma segura sin activar enlaces.
-  </p>
+  <i18n-t keypath="iris.iocs.hint" tag="p" class="ioc-hint">
+    <template #defanged><em>{{ t('iris.iocs.defanged') }}</em></template>
+  </i18n-t>
   <div v-for="cat in iocCategories" :key="cat.key" class="ioc-category">
     <div class="ioc-category-header">
-      <span class="ioc-category-title">{{ cat.label }} ({{ data[cat.key].length }})</span>
+      <span class="ioc-category-title">{{ t(`iris.iocs.categories.${cat.key}`) }} ({{ data[cat.key].length }})</span>
     </div>
     <ul v-if="data[cat.key].length" class="ioc-list">
       <li v-for="(val, i) in data[cat.key]" :key="i" class="ioc-item">{{ defang(val) }}</li>
     </ul>
-    <p v-else class="ioc-empty">Ninguno detectado.</p>
+    <p v-else class="ioc-empty">{{ t('iris.iocs.none') }}</p>
   </div>
   <button type="button" class="btn-export-csv" @click="exportCsv">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-    Exportar CSV
+    {{ t('iris.iocs.export') }}
   </button>
 </template>
 
@@ -29,6 +29,9 @@
  * esas otras secciones. Este componente solo recibe el dato ya resuelto.
  */
 import { useUtils } from '@/composables/useUtils'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   reportId: { type: [Number, null], default: null },
@@ -37,12 +40,13 @@ const props = defineProps({
 
 const { triggerDownload } = useUtils()
 
+/** Categorías de IOC; su rótulo sale de `iris.iocs.categories.<key>`. */
 const iocCategories = [
-  { key: 'domains', label: 'Dominios' },
-  { key: 'urls', label: 'URLs' },
-  { key: 'ips', label: 'IPs' },
-  { key: 'emails', label: 'Emails' },
-  { key: 'hashes', label: 'Hashes (SHA256)' },
+  { key: 'domains' },
+  { key: 'urls' },
+  { key: 'ips' },
+  { key: 'emails' },
+  { key: 'hashes' },
 ]
 
 // Neutraliza dominios/URLs/IPs/emails para que no se conviertan en enlaces

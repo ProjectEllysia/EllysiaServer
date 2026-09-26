@@ -1,19 +1,17 @@
 <template>
   <div class="connections-page" data-module="iris">
     <StarBackground />
-    <Topbar title="Iris" badge="Conexiones de buzón" back-to="/iris/analisis" back-label="Análisis" />
+    <Topbar :title="'Iris'" :badge="t('iris.connections.badge')" back-to="/iris/analisis" :back-label="t('iris.batch.analysis')" />
 
     <div class="connections-layout">
       <section class="connect-panel">
-        <p class="panel-eyebrow">Conector de buzón</p>
-        <h2 class="panel-title">Conectar un buzón</h2>
-        <p class="panel-sub">
-          Iris no te deja "entrar" a tu bandeja desde aquí — nunca muestra el correo en sí. Cada pocos
-          minutos revisa los mensajes nuevos del buzón conectado, analiza sus cabeceras igual que si las
-          hubieras pegado a mano, y el resultado aparece automáticamente en tu
-          <router-link to="/iris/analisis" class="inline-link">historial de Análisis</router-link>.
-          Puedes pausar o desconectar la cuenta en cualquier momento.
-        </p>
+        <p class="panel-eyebrow">{{ t('iris.connections.eyebrow') }}</p>
+        <h2 class="panel-title">{{ t('iris.connections.title') }}</h2>
+        <i18n-t keypath="iris.connections.intro" tag="p" class="panel-sub">
+          <template #history>
+            <router-link to="/iris/analisis" class="inline-link">{{ t('iris.connections.history') }}</router-link>
+          </template>
+        </i18n-t>
 
         <div v-if="store.providers.length" class="provider-grid">
           <button
@@ -43,7 +41,7 @@
             </span>
             <span class="provider-text">
               <span class="provider-label">{{ providerLabel(provider) }}</span>
-              <span class="provider-cta">{{ store.connecting ? 'Conectando…' : 'Conectar cuenta' }}</span>
+              <span class="provider-cta">{{ store.connecting ? t('iris.connections.connecting') : t('iris.connections.connect') }}</span>
             </span>
             <svg class="provider-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18l6-6-6-6" /></svg>
           </button>
@@ -67,10 +65,10 @@
 
     <ConfirmModal
       :show="pendingDelete !== null"
-      title="Eliminar conexión"
+      :title="t('iris.connections.deleteTitle')"
       danger
-      confirm-label="Eliminar"
-      :message="pendingDelete ? `Se eliminará la conexión con ${pendingDelete.accountEmail}. Iris dejará de analizar este buzón automáticamente.` : ''"
+      :confirm-label="t('common.delete')"
+      :message="pendingDelete ? t('iris.connections.deleteMessage', { email: pendingDelete.accountEmail }) : ''"
       @confirm="confirmDelete"
       @cancel="pendingDelete = null"
     />
@@ -86,6 +84,9 @@ import ConfirmModal from '@/components/shared/ConfirmModal.vue'
 import MailboxConnectionList from '@/components/iris/MailboxConnectionList.vue'
 import { useIrisMailboxStore } from '@/stores/irisMailboxStore'
 import { useToastStore } from '@/stores/toastStore'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const store = useIrisMailboxStore()
 const toast = useToastStore()
@@ -97,12 +98,8 @@ const pendingDelete = ref(null)
 const PROVIDER_LABELS = { microsoft: 'Microsoft 365', gmail: 'Gmail' }
 function providerLabel(provider) { return PROVIDER_LABELS[provider] || provider }
 
-const CALLBACK_ERROR_MESSAGES = {
-  consent_denied: 'Cancelaste el proceso de conexión en el proveedor.',
-  missing_code: 'El proveedor no devolvió un código de autorización válido.',
-  invalid_state: 'El enlace de conexión caducó o no es válido. Inténtalo de nuevo.',
-  connection_failed: 'No se pudo completar la conexión. Inténtalo de nuevo.',
-}
+/** Errores con los que vuelve el callback OAuth; texto en `iris.connections.callbackErrors`. */
+const CALLBACK_ERRORS = ['consent_denied', 'missing_code', 'invalid_state', 'connection_failed']
 
 onMounted(async () => {
   // El backend redirige aquí tras el callback OAuth con ?connected=1 o
@@ -110,10 +107,10 @@ onMounted(async () => {
   // de servidor, así que el resultado viaja por query string). Se limpia
   // con router.replace para que un refresco de página no repita el toast.
   if (route.query.connected) {
-    toast.show('Buzón conectado correctamente.', 'success')
+    toast.show(t('iris.connections.connected'), 'success')
     router.replace({ query: {} })
   } else if (route.query.error) {
-    toast.show(CALLBACK_ERROR_MESSAGES[route.query.error] || 'No se pudo conectar el buzón.', 'error')
+    toast.show(CALLBACK_ERRORS.includes(route.query.error) ? t(`iris.connections.callbackErrors.${route.query.error}`) : t('iris.connections.failed'), 'error')
     router.replace({ query: {} })
   }
 

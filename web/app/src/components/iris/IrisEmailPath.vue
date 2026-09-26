@@ -1,19 +1,17 @@
 <template>
   <div class="iep">
     <div class="iep-legend">
-      <span class="legend-item legend-item--origin">Origen</span>
+      <span class="legend-item legend-item--origin">{{ t('themis.traceroute.originLabel') }}</span>
       <span class="legend-arrow">→</span>
-      <span class="legend-item legend-item--dest">Destino</span>
+      <span class="legend-item legend-item--dest">{{ t('iris.path.destination') }}</span>
       <span class="legend-sep">·</span>
       <span class="legend-item"><span class="legend-lock" aria-hidden="true">🔒</span> TLS</span>
-      <span class="legend-item"><span class="legend-lock legend-lock--off" aria-hidden="true">🔓</span> clear</span>
+      <span class="legend-item"><span class="legend-lock legend-lock--off" aria-hidden="true">🔓</span> {{ t('iris.path.clear') }}</span>
       <span class="legend-sep">·</span>
-      <span class="legend-item"><span class="legend-dot legend-dot--bad"></span> sospechoso</span>
+      <span class="legend-item"><span class="legend-dot legend-dot--bad"></span> {{ t('iris.path.suspicious') }}</span>
     </div>
 
-    <div v-if="!hops || hops.length === 0" class="iep-empty">
-      Recorrido no disponible (envío sólo de cabeceras).
-    </div>
+    <div v-if="!hops || hops.length === 0" class="iep-empty">{{ t('iris.path.unavailable') }}</div>
 
     <div v-else class="iep-scroll">
       <div class="iep-chain">
@@ -27,12 +25,12 @@
               hasFlag(hop) ? 'iep-node--bad' : '',
             ]"
             @click="select(hop)"
-            :aria-label="`Hop ${hop.hop}: ${hop.by || hop.fromAddress || 'desconocido'}`"
+            :aria-label="t('iris.path.hopLabel', { hop: hop.hop, host: hop.by || hop.fromAddress || t('iris.path.unknown') })"
           >
             <span class="iep-node-num">#{{ hop.hop }}</span>
-            <span class="iep-node-by">{{ hop.by || hop.fromAddress || 'desconocido' }}</span>
+            <span class="iep-node-by">{{ hop.by || hop.fromAddress || t('iris.path.unknown') }}</span>
             <span v-if="hop.fromIp" class="iep-node-ip">{{ hop.fromIp }}</span>
-            <span class="iep-node-tls" :class="hop.tls ? 'on' : 'off'" :title="hop.tls ? 'TLS' : 'clear'">
+            <span class="iep-node-tls" :class="hop.tls ? 'on' : 'off'" :title="hop.tls ? 'TLS' : t('iris.path.clear')">
               {{ hop.tls ? '🔒' : '🔓' }}
             </span>
             <span v-if="hop.timestamp" class="iep-node-time">{{ formatTime(hop.timestamp) }}</span>
@@ -55,27 +53,27 @@
     <Transition name="iep-detail">
       <div v-if="selected" class="iep-detail">
         <div class="iep-detail-head">
-          <span class="iep-detail-title">Hop #{{ selected.hop }}</span>
-          <button type="button" class="iep-detail-close" @click="selected = null" aria-label="Cerrar">×</button>
+          <span class="iep-detail-title">{{ t('iris.path.hop', { hop: selected.hop }) }}</span>
+          <button type="button" class="iep-detail-close" @click="selected = null" :aria-label="t('common.close')">×</button>
         </div>
         <dl class="iep-detail-grid">
-          <dt>De</dt><dd>{{ selected.fromAddress || '—' }}</dd>
+          <dt>{{ t('iris.path.from') }}</dt><dd>{{ selected.fromAddress || '—' }}</dd>
           <dt>IP</dt><dd>{{ selected.fromIp || '—' }}</dd>
-          <dt>Por</dt><dd>{{ selected.by || '—' }}</dd>
-          <dt>Con</dt><dd>{{ selected.withProtocol || '—' }}</dd>
-          <dt>Protocolo</dt><dd>{{ selected.protocol || '—' }}</dd>
-          <dt>Para</dt><dd>{{ selected.forAddress || '—' }}</dd>
-          <dt>TLS</dt><dd>{{ selected.tls ? 'sí' : 'no' }}</dd>
-          <dt>Timestamp</dt><dd>{{ selected.timestamp || '—' }}</dd>
+          <dt>{{ t('iris.path.by') }}</dt><dd>{{ selected.by || '—' }}</dd>
+          <dt>{{ t('iris.path.with') }}</dt><dd>{{ selected.withProtocol || '—' }}</dd>
+          <dt>{{ t('iris.path.protocol') }}</dt><dd>{{ selected.protocol || '—' }}</dd>
+          <dt>{{ t('iris.path.for') }}</dt><dd>{{ selected.forAddress || '—' }}</dd>
+          <dt>TLS</dt><dd>{{ selected.tls ? t('common.yes') : t('common.no') }}</dd>
+          <dt>{{ t('iris.path.timestamp') }}</dt><dd>{{ selected.timestamp || '—' }}</dd>
           <template v-if="selected.flags && selected.flags.length">
-            <dt>Flags</dt>
+            <dt>{{ t('iris.path.flags') }}</dt>
             <dd>
               <span v-for="f in selected.flags" :key="f" class="iep-flag">{{ f }}</span>
             </dd>
           </template>
         </dl>
         <details class="iep-detail-raw">
-          <summary>Cabecera original</summary>
+          <summary>{{ t('iris.path.rawHeader') }}</summary>
           <pre>{{ selected.raw }}</pre>
         </details>
       </div>
@@ -85,6 +83,9 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   hops: { type: Array, default: () => [] },
@@ -101,21 +102,21 @@ function hasFlag(hop) {
   return (hop.flags || []).length > 0
 }
 
-function edgeClass(t) {
-  if (!t) return ''
-  return t.suspicious ? 'iep-edge--bad' : 'iep-edge--ok'
+function edgeClass(transition) {
+  if (!transition) return ''
+  return transition.suspicious ? 'iep-edge--bad' : 'iep-edge--ok'
 }
 
-function edgeTitle(t) {
-  if (!t) return ''
-  if (!t.reasons || t.reasons.length === 0) return 'tránsito normal'
-  return `sospechoso: ${t.reasons.join(', ')}`
+function edgeTitle(transition) {
+  if (!transition) return ''
+  if (!transition.reasons || transition.reasons.length === 0) return t('iris.path.normalTransit')
+  return t('iris.path.suspiciousTransit', { reasons: transition.reasons.join(', ') })
 }
 
-function delayLabel(t) {
-  if (!t || t.delayMs == null) return ''
-  const ms = t.delayMs
-  if (ms < 0) return `${Math.abs(ms / 1000).toFixed(1)}s invertido`
+function delayLabel(transition) {
+  if (!transition || transition.delayMs == null) return ''
+  const ms = transition.delayMs
+  if (ms < 0) return t('iris.path.reversed', { seconds: Math.abs(ms / 1000).toFixed(1) })
   if (ms < 1000) return `${ms} ms`
   if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`
   return `${(ms / 60000).toFixed(1)}m`

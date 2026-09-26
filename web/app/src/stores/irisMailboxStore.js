@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { reactive, ref } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { useToastStore } from '@/stores/toastStore'
+import { i18n } from '@/i18n'
 
 export const useIrisMailboxStore = defineStore('irisMailbox', () => {
   const { apiFetch, apiError } = useApi()
@@ -28,13 +29,13 @@ export const useIrisMailboxStore = defineStore('irisMailbox', () => {
     loading.value = true
     try {
       const res = await apiFetch('/iris/mailbox/connections')
-      if (!res?.ok) { connections.value = []; listError.value = 'No se pudieron cargar las conexiones.'; return }
+      if (!res?.ok) { connections.value = []; listError.value = i18n.global.t('irisStore.mailbox.loadFailed'); return }
       const data = await res.json()
       connections.value = data.connections ?? []
       listError.value = null
     } catch {
       connections.value = []
-      listError.value = 'Error de conexión al cargar las conexiones de buzón.'
+      listError.value = i18n.global.t('irisStore.mailbox.loadConnection')
     } finally {
       loading.value = false
     }
@@ -55,7 +56,7 @@ export const useIrisMailboxStore = defineStore('irisMailbox', () => {
         body: JSON.stringify({ provider }),
       })
       if (!res?.ok) {
-        toast.show(await apiError(res, 'No se pudo iniciar la conexión.'), 'error')
+        toast.show(await apiError(res, i18n.global.t('irisStore.mailbox.connectFailed')), 'error')
         return
       }
       const data = await res.json()
@@ -74,10 +75,10 @@ export const useIrisMailboxStore = defineStore('irisMailbox', () => {
       body: JSON.stringify(body),
     })
     if (!res?.ok) {
-      toast.show(await apiError(res, 'No se pudo actualizar la conexión.'), 'error')
+      toast.show(await apiError(res, i18n.global.t('irisStore.mailbox.updateFailed')), 'error')
       return false
     }
-    toast.show('Conexión actualizada.', 'success')
+    toast.show(i18n.global.t('irisStore.mailbox.updated'), 'success')
     await fetchConnections()
     return true
   }
@@ -85,10 +86,10 @@ export const useIrisMailboxStore = defineStore('irisMailbox', () => {
   async function deleteConnection(id) {
     const res = await apiFetch(`/iris/mailbox/connections/${id}`, { method: 'DELETE' })
     if (!res?.ok) {
-      toast.show(await apiError(res, 'No se pudo eliminar la conexión.'), 'error')
+      toast.show(await apiError(res, i18n.global.t('irisStore.mailbox.deleteFailed')), 'error')
       return false
     }
-    toast.show('Conexión eliminada.', 'success')
+    toast.show(i18n.global.t('irisStore.mailbox.deleted'), 'success')
     connections.value = connections.value.filter((c) => c.connectionId !== id)
     return true
   }
@@ -108,10 +109,10 @@ export const useIrisMailboxStore = defineStore('irisMailbox', () => {
     try {
       const res = await apiFetch(`/iris/mailbox/connections/${id}/sync`, { method: 'POST' })
       if (!res?.ok) {
-        toast.show(await apiError(res, 'No se pudo sincronizar la conexión.'), 'error')
+        toast.show(await apiError(res, i18n.global.t('irisStore.mailbox.syncFailed')), 'error')
         return false
       }
-      toast.show('Sincronización en cola.', 'success')
+      toast.show(i18n.global.t('irisStore.mailbox.syncQueued'), 'success')
       await fetchConnections()
       setTimeout(() => { fetchConnections() }, 3000)
       return true
