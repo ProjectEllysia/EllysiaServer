@@ -1,12 +1,12 @@
 <template>
   <div class="table-wrap">
     <div class="table-toolbar">
-      <span class="toolbar-title">Resultados {{ type.toUpperCase() }}</span>
+      <span class="toolbar-title">{{ t('themis.table.results', { type: type.toUpperCase() }) }}</span>
       <div class="toolbar-actions">
         <slot name="batch-actions" :selected-count="selectedIds.length" :selected-ids="selectedIds" />
         <button class="btn-refresh" :disabled="loading" @click="$emit('refresh')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ spin: loading }"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-          Actualizar
+          {{ t('themis.refresh') }}
         </button>
       </div>
     </div>
@@ -18,15 +18,15 @@
       <!-- Filas fantasma con el ancho de las columnas reales: al llegar los
            datos ocupan el mismo sitio y la tabla no da el salto que daba
            antes, cuando el hueco era un "Cargando…" centrado de una línea. -->
-      <div v-if="showLoading" key="loading" class="table-scroll" aria-busy="true" aria-label="Cargando escaneos">
+      <div v-if="showLoading" key="loading" class="table-scroll" aria-busy="true" :aria-label="t('themis.table.loading')">
         <table class="skeleton-table" aria-hidden="true">
           <thead><tr>
             <th class="chk-col"></th>
-            <th>ID</th><th>Target</th><th>Estado</th>
-            <th v-if="type === 'nmap'">Puertos</th>
-            <th v-if="type === 'nikto'">Incidencias</th>
-            <template v-if="type === 'nuclei'"><th>Hallazgos</th><th>Críticos</th><th>Altos</th></template>
-            <th>Fecha</th><th>Acciones</th>
+                        <th>ID</th><th>{{ t('themis.table.target') }}</th><th>{{ t('themis.table.status') }}</th>
+            <th v-if="type === 'nmap'">{{ t('scanTypes.fields.ports') }}</th>
+            <th v-if="type === 'nikto'">{{ t('themis.historyChart.metric.nikto') }}</th>
+            <template v-if="type === 'nuclei'"><th>{{ t('lybra.results.findings') }}</th><th>{{ t('themis.preview.critical') }}</th><th>{{ t('themis.preview.high') }}</th></template>
+            <th>{{ t('themis.table.date') }}</th><th>{{ t('themis.table.actions') }}</th>
           </tr></thead>
           <tbody>
             <tr v-for="n in SKELETON_ROWS" :key="n">
@@ -40,11 +40,11 @@
       <div v-else-if="error" key="error" class="empty-state error-state">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
         <span>{{ error }}</span>
-        <button class="btn-refresh" @click="$emit('refresh')">Reintentar</button>
+        <button class="btn-refresh" @click="$emit('refresh')">{{ t('common.retry') }}</button>
       </div>
       <div v-else-if="!rows.length && !loading" key="empty" class="empty-state">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-        <span>No hay escaneos todavía. ¡Lanza el primero!</span>
+        <span>{{ t('themis.table.empty') }}</span>
       </div>
       <!-- El scroll va en un envoltorio propio, no en .table-wrap: ahí dentro
            están también la barra de herramientas y el paginador, que no deben
@@ -52,21 +52,21 @@
       <div v-else key="table" class="table-scroll">
       <table>
         <thead><tr>
-          <th class="chk-col"><input type="checkbox" aria-label="Seleccionar todos los escaneos de la página" :checked="allSelected" :indeterminate="someSelected" @change="$emit('select-all', rows.map(r => r.id))" /></th>
-          <th>ID</th><th>Target</th><th>Estado</th>
-          <th v-if="type === 'nmap'">Puertos</th>
-          <th v-if="type === 'nikto'">Incidencias</th>
-          <template v-if="type === 'nuclei'"><th>Hallazgos</th><th>Críticos</th><th>Altos</th></template>
-          <th>Fecha</th><th>Acciones</th>
+          <th class="chk-col"><input type="checkbox" :aria-label="t('themis.table.selectAll')" :checked="allSelected" :indeterminate="someSelected" @change="$emit('select-all', rows.map(r => r.id))" /></th>
+                      <th>ID</th><th>{{ t('themis.table.target') }}</th><th>{{ t('themis.table.status') }}</th>
+            <th v-if="type === 'nmap'">{{ t('scanTypes.fields.ports') }}</th>
+            <th v-if="type === 'nikto'">{{ t('themis.historyChart.metric.nikto') }}</th>
+            <template v-if="type === 'nuclei'"><th>{{ t('lybra.results.findings') }}</th><th>{{ t('themis.preview.critical') }}</th><th>{{ t('themis.preview.high') }}</th></template>
+            <th>{{ t('themis.table.date') }}</th><th>{{ t('themis.table.actions') }}</th>
         </tr></thead>
         <TransitionGroup name="row" tag="tbody">
           <tr v-for="row in rows" :key="row.id" :class="{ selected: _selectedSet.has(row.id) }">
-            <td class="chk-col"><input type="checkbox" :aria-label="`Seleccionar el escaneo #${row.id}`" :checked="_selectedSet.has(row.id)" @change="$emit('toggle-select', row.id)" /></td>
+            <td class="chk-col"><input type="checkbox" :aria-label="t('themis.selectScan', { id: row.id })" :checked="_selectedSet.has(row.id)" @change="$emit('toggle-select', row.id)" /></td>
             <td class="mono">#{{ row.id }}</td>
             <td class="target">{{ row.target }}</td>
             <td><StatusBadge :status="row.status" /></td>
-            <td v-if="type === 'nmap'" class="mono">{{ row.totalOpenPorts ?? 0 }} <span class="muted">puertos</span></td>
-            <td v-if="type === 'nikto'" class="mono">{{ row.totalIncidents ?? 0 }} <span class="muted">hallazgos</span></td>
+            <td v-if="type === 'nmap'" class="mono">{{ row.totalOpenPorts ?? 0 }} <span class="muted">{{ t('themis.table.portsUnit') }}</span></td>
+            <td v-if="type === 'nikto'" class="mono">{{ row.totalIncidents ?? 0 }} <span class="muted">{{ t('themis.table.findingsUnit') }}</span></td>
             <template v-if="type === 'nuclei'">
               <td class="mono">{{ row.totalFindings ?? 0 }}</td>
               <td class="sev-critical"><span v-if="row.criticalCount">{{ row.criticalCount }}</span><span v-else class="muted">0</span></td>
@@ -75,13 +75,13 @@
             <td class="date">{{ formatDate(row.startedAt) }}</td>
             <td class="actions">
               <div class="actions-row">
-                <button class="act-btn" :aria-label="`Vista previa del escaneo #${row.id}`" title="Vista previa" @click="$emit('preview', row.id, type)">
+                <button class="act-btn" :aria-label="t('themis.table.previewScan', { id: row.id })" :title="t('themis.table.preview')" @click="$emit('preview', row.id, type)">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                 </button>
-                <button v-if="isActive(row.status)" class="act-btn warn" :aria-label="`Cancelar el escaneo #${row.id}`" title="Cancelar" @click="confirmCancel(row.id)">
+                <button v-if="isActive(row.status)" class="act-btn warn" :aria-label="t('themis.table.cancelScanLabel', { id: row.id })" :title="t('common.cancel')" @click="confirmCancel(row.id)">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
                 </button>
-                <button class="act-btn danger" :aria-label="`Eliminar el escaneo #${row.id}`" title="Eliminar" @click="confirmDelete(row.id)">
+                <button class="act-btn danger" :aria-label="t('themis.deleteScanLabel', { id: row.id })" :title="t('common.delete')" @click="confirmDelete(row.id)">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
                 </button>
               </div>
@@ -96,9 +96,9 @@
     </div>
     <ConfirmModal
       :show="!!pendingAction"
-      :title="pendingAction?.type === 'delete' ? 'Eliminar escaneo' : 'Cancelar escaneo'"
-      :message="pendingAction?.type === 'delete' ? `¿Eliminar el escaneo #${pendingAction.id}?` : `¿Cancelar el escaneo #${pendingAction?.id}?`"
-      :confirm-label="pendingAction?.type === 'delete' ? 'Eliminar' : 'Cancelar escaneo'"
+      :title="pendingAction?.type === 'delete' ? t('themis.deleteScan') : t('themis.table.cancelScan')"
+      :message="pendingAction?.type === 'delete' ? t('themis.table.confirmDelete', { id: pendingAction.id }) : t('themis.table.confirmCancel', { id: pendingAction?.id })"
+      :confirm-label="pendingAction?.type === 'delete' ? t('common.delete') : t('themis.table.cancelScan')"
       :danger="pendingAction?.type === 'delete'"
       @confirm="runPendingAction"
       @cancel="pendingAction = null" />
@@ -111,6 +111,9 @@ import StatusBadge from './StatusBadge.vue'
 import AppPagination from '@/components/shared/AppPagination.vue'
 import ConfirmModal from '@/components/shared/ConfirmModal.vue'
 import { formatDate as formatLocalizedDate } from '@/i18n/format'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({ type: { type: String, required: true }, rows: { type: Array, default: () => [] }, loading: { type: Boolean, default: false }, error: { type: String, default: null }, currentPage: { type: Number, default: 1 }, totalCount: { type: Number, default: 0 }, perPage: { type: Number, default: 10 }, selectedIds: { type: Array, default: () => [] } })
 const emit = defineEmits(['preview', 'cancel', 'delete', 'refresh', 'page-change', 'toggle-select', 'select-all'])

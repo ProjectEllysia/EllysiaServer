@@ -2,38 +2,38 @@
   <div class="history-panel">
     <div class="panel-head">
       <div>
-        <h2 class="panel-title">Estadísticas históricas</h2>
-        <p class="panel-sub">Evolución de tus escaneos a lo largo del tiempo, por host.</p>
+        <h2 class="panel-title">{{ t('themis.history.title') }}</h2>
+        <p class="panel-sub">{{ t('themis.history.subtitle') }}</p>
       </div>
       <button class="refresh-btn" :disabled="store.history.loading" @click="store.loadHistoryHosts({ force: true })">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-        Actualizar
+        {{ t('themis.refresh') }}
       </button>
     </div>
 
-    <div v-if="store.history.loading" class="state">Cargando hosts…</div>
+    <div v-if="store.history.loading" class="state">{{ t('themis.history.loadingHosts') }}</div>
 
     <div v-else-if="!store.history.hosts.length" class="state">
-      Todavía no has completado ningún escaneo. Lanza un escaneo para ver su historial aquí.
+      {{ t('themis.history.empty') }}
     </div>
 
     <template v-else>
       <div class="selector">
-        <label for="history-host">Selecciona un host escaneado</label>
+        <label for="history-host">{{ t('themis.history.selectHost') }}</label>
         <select id="history-host" :value="selectedKey" @change="onSelect">
-          <option value="" disabled>-- Elige un host --</option>
+          <option value="" disabled>{{ t('themis.history.chooseHost') }}</option>
           <optgroup v-for="group in groupedHosts" :key="group.type" :label="group.label">
             <option v-for="h in group.hosts" :key="`${h.scanType}|${h.target}`" :value="`${h.scanType}|${h.target}`">
-              {{ h.target }} · {{ h.scanCount }} escaneo{{ h.scanCount === 1 ? '' : 's' }}
+              {{ h.target }} · {{ t('themis.history.scanCount', { count: h.scanCount }, h.scanCount) }}
             </option>
           </optgroup>
         </select>
       </div>
 
       <div class="chart-area">
-        <div v-if="store.history.chartLoading" class="state">Generando estadísticas…</div>
+        <div v-if="store.history.chartLoading" class="state">{{ t('themis.history.generating') }}</div>
         <HistoryChart v-else-if="store.history.chart" :chart="store.history.chart" />
-        <div v-else class="state hint">Selecciona un host para ver su gráfico.</div>
+        <div v-else class="state hint">{{ t('themis.history.pickHost') }}</div>
       </div>
     </template>
   </div>
@@ -44,6 +44,9 @@ import { computed } from 'vue'
 import { useThemisHistoryStore } from '@/stores/themisHistoryStore'
 import HistoryChart from '@/components/themis/HistoryChart.vue'
 import { SCAN_TYPES, SCAN_TYPE_ORDER } from '@/constants/scanTypes'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const store = useThemisHistoryStore()
 

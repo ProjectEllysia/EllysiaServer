@@ -5,7 +5,7 @@
     <div class="modal-content preview-modal">
       <div class="modal-header">
         <h2>{{ typeLabel }}</h2>
-        <button class="modal-close" @click="$emit('close')" aria-label="Cerrar">
+        <button class="modal-close" @click="$emit('close')" :aria-label="t('common.close')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
@@ -22,23 +22,23 @@
           <div class="pv-meta">
             <StatusBadge :status="scan.status" />
             <span class="pv-sep">·</span>
-            <span class="pv-date">Iniciado {{ fmt(scan.startedAt) }}</span>
+            <span class="pv-date">{{ t('themis.preview.started', { date: fmt(scan.startedAt) }) }}</span>
             <span class="pv-sep">·</span>
-            <span class="pv-date">Finalizado {{ fmt(scan.finishedAt) || 'En curso' }}</span>
+            <span class="pv-date">{{ scan.finishedAt ? t('themis.preview.finished', { date: fmt(scan.finishedAt) }) : t('themis.preview.inProgress') }}</span>
           </div>
         </div>
         <div class="pv-card pv-stats-card">
           <div class="pv-stats-row">
             <template v-if="type === 'nmap'">
-              <div class="pv-stat"><span class="pv-stat-val">{{ scan.totalOpenPorts ?? 0 }}</span><span class="pv-stat-lbl">Puertos Abiertos</span></div>
+              <div class="pv-stat"><span class="pv-stat-val">{{ scan.totalOpenPorts ?? 0 }}</span><span class="pv-stat-lbl">{{ t('themis.historyChart.metric.nmap') }}</span></div>
             </template>
             <template v-if="type === 'nikto'">
-              <div class="pv-stat"><span class="pv-stat-val">{{ scan.totalIncidents ?? 0 }}</span><span class="pv-stat-lbl">Incidencias</span></div>
+              <div class="pv-stat"><span class="pv-stat-val">{{ scan.totalIncidents ?? 0 }}</span><span class="pv-stat-lbl">{{ t('themis.historyChart.metric.nikto') }}</span></div>
             </template>
             <template v-if="type === 'nuclei'">
-              <div class="pv-stat"><span class="pv-stat-val">{{ scan.totalFindings ?? 0 }}</span><span class="pv-stat-lbl">Hallazgos</span></div>
-              <div class="pv-stat crit"><span class="pv-stat-val">{{ scan.criticalCount ?? 0 }}</span><span class="pv-stat-lbl">Críticos</span></div>
-              <div class="pv-stat high"><span class="pv-stat-val">{{ scan.highCount ?? 0 }}</span><span class="pv-stat-lbl">Altos</span></div>
+              <div class="pv-stat"><span class="pv-stat-val">{{ scan.totalFindings ?? 0 }}</span><span class="pv-stat-lbl">{{ t('lybra.results.findings') }}</span></div>
+              <div class="pv-stat crit"><span class="pv-stat-val">{{ scan.criticalCount ?? 0 }}</span><span class="pv-stat-lbl">{{ t('themis.preview.critical') }}</span></div>
+              <div class="pv-stat high"><span class="pv-stat-val">{{ scan.highCount ?? 0 }}</span><span class="pv-stat-lbl">{{ t('themis.preview.high') }}</span></div>
             </template>
           </div>
         </div>
@@ -55,47 +55,47 @@
         </div>
         <div class="pv-card pv-docs-card">
           <div class="pv-docs-head">
-            <h4>Documentos <span class="pv-count">{{ docs.length }}</span></h4>
-            <button class="pv-refresh-btn" @click="$emit('refresh-docs')" :disabled="docsLoading" title="Refrescar">
+            <h4>{{ t('themis.documents.title') }} <span class="pv-count">{{ docs.length }}</span></h4>
+            <button class="pv-refresh-btn" @click="$emit('refresh-docs')" :disabled="docsLoading" :title="t('themis.documents.refresh')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ spin: docsLoading }"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
             </button>
           </div>
-          <div v-if="docsLoading" class="pv-empty">Cargando documentos…</div>
-          <div v-else-if="!docs.length" class="pv-empty">Sin documentos generados</div>
+          <div v-if="docsLoading" class="pv-empty">{{ t('themis.documents.loading') }}</div>
+          <div v-else-if="!docs.length" class="pv-empty">{{ t('themis.documents.empty') }}</div>
           <div v-else class="pv-docs-list">
             <div v-for="doc in docs" :key="doc.documentId" class="pv-doc-item">
               <div class="pv-doc-left">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="pv-doc-icon"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                <span class="pv-doc-name">PDF {{ doc.scanType?.toUpperCase() }} <span v-if="doc.isAiGenerated" class="pv-ai-pill">IA</span></span>
+                <span class="pv-doc-name">PDF {{ doc.scanType?.toUpperCase() }} <span v-if="doc.isAiGenerated" class="pv-ai-pill">{{ t('themis.documents.ai') }}</span></span>
                 <span v-if="doc.createdAt" class="pv-doc-date">{{ fmtDate(doc.createdAt) }}</span>
               </div>
               <div class="pv-doc-right">
                 <template v-if="doc.status === 'done'">
-                  <button class="pv-icon-btn" @click="$emit('download-doc', doc.documentId)" title="Descargar">
+                  <button class="pv-icon-btn" @click="$emit('download-doc', doc.documentId)" :title="t('themis.documents.download')">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                   </button>
-                  <button class="pv-icon-btn danger" @click="$emit('delete-doc', doc.documentId)" title="Eliminar">
+                  <button class="pv-icon-btn danger" @click="$emit('delete-doc', doc.documentId)" :title="t('common.delete')">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
                   </button>
                 </template>
-                <span v-else-if="doc.status === 'running'" class="pv-doc-status running">Generando…</span>
-                <span v-else-if="doc.status === 'pending'" class="pv-doc-status pending">Pendiente</span>
-                <span v-else-if="doc.status === 'error'" class="pv-doc-status error">Error</span>
+                <span v-else-if="doc.status === 'running'" class="pv-doc-status running">{{ t('themis.documents.running') }}</span>
+                <span v-else-if="doc.status === 'pending'" class="pv-doc-status pending">{{ t('themis.documents.pending') }}</span>
+                <span v-else-if="doc.status === 'error'" class="pv-doc-status error">{{ t('themis.documents.error') }}</span>
               </div>
             </div>
           </div>
           <div class="pv-gen-bar">
-            <label class="pv-checkbox"><input type="checkbox" v-model="useAi" /><span>Análisis IA</span></label>
+            <label class="pv-checkbox"><input type="checkbox" v-model="useAi" /><span>{{ t('themis.documents.aiAnalysis') }}</span></label>
             <button class="pv-gen-btn" @click="$emit('generate-pdf', scan.id, type, useAi)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="pv-gen-icon"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-              Generar PDF
+              {{ t('themis.documents.generatePdf') }}
             </button>
           </div>
         </div>
       </div>
       <div class="modal-body empty-state" v-else-if="!scan">
         <svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:22px"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-        <span>Cargando…</span>
+        <span>{{ t('common.loading') }}</span>
       </div>
     </div>
   </div>
@@ -109,6 +109,9 @@ import TracerouteGraph from './TracerouteGraph.vue'
 import NucleiFindings from './NucleiFindings.vue'
 import { SCAN_TYPES } from '@/constants/scanTypes'
 import { formatDate, formatDateTime } from '@/i18n/format'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   show: Boolean,

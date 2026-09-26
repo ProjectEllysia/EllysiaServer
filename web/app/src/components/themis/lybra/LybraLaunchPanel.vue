@@ -8,41 +8,39 @@
         </svg>
       </div>
       <div class="engine-title-wrap">
-        <span class="engine-title">Motor Lybra</span>
-        <span class="engine-sub">Pesa cada amenaza antes de que golpee</span>
+        <span class="engine-title">{{ t('lybra.launch.title') }}</span>
+        <span class="engine-sub">{{ t('lybra.launch.subtitle') }}</span>
       </div>
-      <Transition name="pop"><span v-if="props.launched" class="engine-launched"><span class="pulse" aria-hidden="true"></span>Motor en marcha</span></Transition>
+      <Transition name="pop"><span v-if="props.launched" class="engine-launched"><span class="pulse" aria-hidden="true"></span>{{ t('lybra.launch.running') }}</span></Transition>
     </div>
 
     <!-- Campos según modo -->
     <div class="engine-fields">
       <div class="field-row">
-        <div class="field field-lg"><label for="lybra-target">Target (IP única)</label>
+        <div class="field field-lg"><label for="lybra-target">{{ t('lybra.launch.target') }}</label>
           <!-- El estado de autorización vive dentro del campo, como un sello
                junto a lo que se escribe: es una propiedad de ese objetivo, no un
                aviso aparte que empuje el resto del panel hacia abajo. -->
           <div class="target-wrap" :class="{ sealed: authState }">
             <input id="lybra-target" v-model="target" placeholder="192.168.1.1" @keyup.enter="handleLaunch" />
             <Transition name="fade-swap" mode="out-in">
-              <span v-if="authState === 'ok'" key="ok" class="target-seal ok" title="Está en tu registro de objetivos autorizados">
+              <span v-if="authState === 'ok'" key="ok" class="target-seal ok" :title="t('lybra.launch.authorizedHint')">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
-                Autorizado
+                {{ t('lybra.launch.authorized') }}
               </span>
               <button v-else-if="authState === 'missing'" key="missing" type="button" class="target-seal missing"
-                :title="`Añadir '${target.trim()}' a tus objetivos autorizados`"
+                :title="t('lybra.launch.authorizeHint', { target: target.trim() })"
                 @click="$emit('add-authorized-target', { target: target.trim() })">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="9" x2="12" y2="15"/><line x1="9" y1="12" x2="15" y2="12"/></svg>
-                Autorizar
+                {{ t('lybra.launch.authorize') }}
               </button>
             </Transition>
           </div></div>
-        <div class="field"><label>Puertos (opcional)</label>
-          <input v-model="ports" placeholder="80,443 o 1-1000" /></div>
+        <div class="field"><label>{{ t('lybra.launch.ports') }}</label>
+          <input v-model="ports" :placeholder="t('lybra.launch.portsPlaceholder')" /></div>
       </div>
       <Transition name="fade-swap">
-        <p v-if="authState === 'missing'" class="auth-hint">
-          No está en tu registro de objetivos autorizados: el autodescubrimiento se rechazará.
-        </p>
+        <p v-if="authState === 'missing'" class="auth-hint">{{ t('lybra.launch.missingHint') }}</p>
       </Transition>
 
       <!-- Registro de objetivos autorizados -->
@@ -51,7 +49,7 @@
              y los veredictos hablan el mismo idioma visual. -->
         <button type="button" class="auth-register-toggle" :aria-expanded="showAuthRegister" @click="showAuthRegister = !showAuthRegister">
           <span class="inscription-mark" aria-hidden="true"></span>
-          <span class="inscription-title">Objetivos autorizados</span>
+          <span class="inscription-title">{{ t('lybra.launch.register') }}</span>
           <span class="inscription-rule" aria-hidden="true"></span>
           <span class="inscription-tally">{{ authorizedTargets.length }}</span>
           <span class="chevron" :class="{ rot: showAuthRegister }" aria-hidden="true">
@@ -63,38 +61,35 @@
              panel de escaneos programados que está justo debajo. -->
         <Transition name="panel-slide">
         <div v-if="showAuthRegister" class="auth-register-body">
-          <p class="auth-register-hint">
-            Objetivos (IP o CIDR) que has declarado autorizados para el autodescubrimiento, el fingerprinting
-            propio y las comprobaciones activas de Lybra.
-          </p>
-          <div v-if="authTargetsLoading" class="auth-loading">Cargando…</div>
+          <p class="auth-register-hint">{{ t('lybra.launch.registerHint') }}</p>
+          <div v-if="authTargetsLoading" class="auth-loading">{{ t('common.loading') }}</div>
           <TransitionGroup v-else-if="authorizedTargets.length" tag="ul" name="chip-item" class="auth-chip-list">
-            <li v-for="t in authorizedTargets" :key="t.id" class="auth-chip">
-              <span class="mono">{{ t.target }}</span>
-              <span v-if="t.label" class="auth-chip-label">{{ t.label }}</span>
-              <button type="button" class="auth-chip-remove" title="Eliminar" @click="$emit('remove-authorized-target', t.id)">×</button>
+            <li v-for="entry in authorizedTargets" :key="entry.id" class="auth-chip">
+              <span class="mono">{{ entry.target }}</span>
+              <span v-if="entry.label" class="auth-chip-label">{{ entry.label }}</span>
+              <button type="button" class="auth-chip-remove" :title="t('common.delete')" @click="$emit('remove-authorized-target', entry.id)">×</button>
             </li>
           </TransitionGroup>
-          <p v-else class="auth-empty">Aún no has autorizado ningún objetivo.</p>
+          <p v-else class="auth-empty">{{ t('lybra.launch.registerEmpty') }}</p>
 
           <div class="auth-add-row">
-            <input v-model="newAuthTarget" placeholder="10.0.0.5 o 10.0.0.0/24" @keyup.enter="submitNewAuthTarget" />
-            <input v-model="newAuthLabel" placeholder="Etiqueta (opcional)" @keyup.enter="submitNewAuthTarget" />
-            <button type="button" class="btn-add-target" :disabled="!newAuthTarget.trim()" @click="submitNewAuthTarget">Añadir</button>
+            <input v-model="newAuthTarget" :placeholder="t('lybra.launch.newTargetPlaceholder')" @keyup.enter="submitNewAuthTarget" />
+            <input v-model="newAuthLabel" :placeholder="t('lybra.launch.labelPlaceholder')" @keyup.enter="submitNewAuthTarget" />
+            <button type="button" class="btn-add-target" :disabled="!newAuthTarget.trim()" @click="submitNewAuthTarget">{{ t('lybra.launch.add') }}</button>
           </div>
         </div>
         </Transition>
       </div>
 
       <div class="engine-row">
-        <div class="field field-sm"><label>Timeout (s)<span v-if="timeoutLabel" class="timeout-human"> · {{ timeoutLabel }}</span></label>
+        <div class="field field-sm"><label>{{ t('lybra.launch.timeout') }}<span v-if="timeoutLabel" class="timeout-human"> · {{ timeoutLabel }}</span></label>
           <input v-model.number="timeout" type="number" min="1" max="86400" class="no-spin" /></div>
 
         <!-- Mientras se lanza, la balanza del botón se mece: el motor está
              pesando. Sustituye al spinner genérico y mantiene el ancho. -->
         <button class="btn-launch" :class="{ loading: launching }" :disabled="launching || !canLaunch" @click="handleLaunch">
           <span class="btn-balanza" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v18M7 21h10M5 7h14M5 7l-2.5 5a3 3 0 0 0 5 0L5 7zM19 7l-2.5 5a3 3 0 0 0 5 0L19 7z"/></svg></span>
-          <span class="btn-label">{{ launching ? 'Pesando…' : 'Emitir veredicto' }}</span>
+          <span class="btn-label">{{ launching ? t('lybra.launch.launching') : t('lybra.launch.launch') }}</span>
         </button>
       </div>
     </div>
@@ -103,6 +98,9 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   launching: { type: Boolean, default: false },
@@ -147,8 +145,8 @@ const timeoutLabel = computed(() => {
   if (!Number.isFinite(seconds) || seconds < 60) return ''
   const hours = Math.floor(seconds / 3600)
   const minutes = Math.round((seconds % 3600) / 60)
-  if (!hours) return `${minutes} min`
-  return minutes ? `${hours} h ${minutes} min` : `${hours} h`
+  if (!hours) return t('lybra.launch.minutes', { minutes })
+  return minutes ? t('lybra.launch.hoursMinutes', { hours, minutes }) : t('lybra.launch.hours', { hours })
 })
 
 /**

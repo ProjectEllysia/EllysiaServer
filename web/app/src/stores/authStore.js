@@ -211,7 +211,9 @@ export const useAuthStore = defineStore('auth', () => {
     })
     const data = await res.json()
     if (!res.ok) {
-      if (res.status === 401) throw new Error(i18n.global.t('session.wrongCredentials'))
+      // El código, y no el texto, es lo que se compara: el texto sale en el
+      // idioma de la interfaz.
+      if (res.status === 401) throw Object.assign(new Error(i18n.global.t('session.wrongCredentials')), { code: 'invalid_credentials' })
       if (res.status === 429) throw new Error(i18n.global.t('session.tooManyAttempts'))
       throw new Error(serverErrorMessage(data, res.status))
     }

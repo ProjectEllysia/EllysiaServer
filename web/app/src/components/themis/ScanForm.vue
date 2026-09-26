@@ -1,68 +1,68 @@
 <template>
   <div class="card launch-card">
     <div class="launch-header">
-      <span class="launch-title">Nuevo escaneo {{ type.toUpperCase() }}</span>
-      <Transition name="pop"><span v-if="launched" class="launch-success">Escaneo iniciado</span></Transition>
+      <span class="launch-title">{{ t('themis.form.title', { type: type.toUpperCase() }) }}</span>
+      <Transition name="pop"><span v-if="launched" class="launch-success">{{ t('themis.form.started') }}</span></Transition>
     </div>
     <div class="launch-fields">
       <div class="field-row">
         <template v-if="type === 'nmap'">
-          <div class="field"><label>Target (IP / CIDR)</label>
+          <div class="field"><label>{{ t('themis.form.targetCidr') }}</label>
             <input v-model="form.target" placeholder="192.168.1.0/24" /></div>
-          <div class="field field-sm"><label>Timeout (s)</label>
+          <div class="field field-sm"><label>{{ t('lybra.launch.timeout') }}</label>
             <input v-model.number="form.timeout" type="number" min="30" max="86400" class="no-spin" /></div>
         </template>
         <template v-if="type === 'nikto'">
-          <div class="field field-lg"><label>Target URL</label>
-            <input v-model="form.target" placeholder="http://example.com" /></div>
-          <div class="field field-sm"><label>Timeout (s)</label>
+          <div class="field field-lg"><label>{{ t('scanTypes.fields.url') }}</label>
+            <input v-model="form.target" :placeholder="'http://example.com'" /></div>
+          <div class="field field-sm"><label>{{ t('lybra.launch.timeout') }}</label>
             <input v-model.number="form.timeout" type="number" min="10" max="86400" class="no-spin" /></div>
         </template>
         <template v-if="type === 'nuclei'">
-          <div class="field field-lg"><label>Target URL</label>
-            <input v-model="form.target" placeholder="https://example.com" /></div>
+          <div class="field field-lg"><label>{{ t('scanTypes.fields.url') }}</label>
+            <input v-model="form.target" :placeholder="'https://example.com'" /></div>
         </template>
         <button class="btn-launch" :class="launching ? 'loading' : ''" :disabled="launching" @click="handleLaunch">
-          <span class="btn-label">Lanzar</span>
+          <span class="btn-label">{{ t('themis.form.launch') }}</span>
           <span class="btn-spin"></span>
         </button>
       </div>
       <div v-if="type === 'nmap'" class="ports-row">
         <div class="field field-lg">
-          <label>Estrategia de puertos</label>
-          <div class="strategy-picker" role="radiogroup" aria-label="Estrategia de puertos">
+          <label>{{ t('themis.form.portStrategy') }}</label>
+          <div class="strategy-picker" role="radiogroup" :aria-label="t('themis.form.portStrategy')">
             <button v-for="opt in PORT_STRATEGIES" :key="opt.id" type="button"
               class="strategy-chip" :class="[opt.id, { active: portMode === opt.id }]"
-              role="radio" :aria-checked="portMode === opt.id" :title="opt.hint"
+              role="radio" :aria-checked="portMode === opt.id" :title="t(`themis.form.strategies.${opt.id}.hint`)"
               @click="selectPortMode(opt.id)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path :d="opt.icon"/></svg>
-              <span class="strategy-label">{{ opt.label }}</span>
+              <span class="strategy-label">{{ t(`themis.form.strategies.${opt.id}.label`) }}</span>
             </button>
           </div>
         </div>
-        <div class="field" :class="{ hidden: portMode !== 'custom' }"><label>Rango de puertos</label>
-          <input v-model="form.ports" placeholder="80,443 o 1-1000" /></div>
+        <div class="field" :class="{ hidden: portMode !== 'custom' }"><label>{{ t('themis.form.portRange') }}</label>
+          <input v-model="form.ports" :placeholder="t('scanTypes.fields.portsPlaceholder')" /></div>
       </div>
       <div v-if="type === 'nuclei'" class="nuclei-row">
         <div class="field field-lg">
           <!-- "info" queda fuera por defecto: son miles de plantillas de
                tech-detect que, al ser confirmed=true sin CVSS, el suelo de
                score_finding subiría todas a MEDIO. -->
-          <label>Severidades</label>
-          <div class="strategy-picker" role="group" aria-label="Severidades de Nuclei">
+          <label>{{ t('themis.form.severities') }}</label>
+          <div class="strategy-picker" role="group" :aria-label="t('themis.form.nucleiSeverities')">
             <button v-for="sev in NUCLEI_SEVERITIES" :key="sev.id" type="button"
               class="strategy-chip" :class="[sev.id, { active: form.severities.includes(sev.id) }]"
-              :aria-pressed="form.severities.includes(sev.id)" :title="sev.hint"
+              :aria-pressed="form.severities.includes(sev.id)" :title="t(`themis.form.severityHints.${sev.id}`)"
               @click="toggleSeverity(sev.id)">
-              <span class="strategy-label">{{ sev.label }}</span>
+              <span class="strategy-label">{{ priorityLabel(sev.id.toUpperCase()) }}</span>
             </button>
           </div>
         </div>
-        <div class="field field-md"><label>Tags (opcional)</label>
-          <input v-model="form.tags" placeholder="cve,exposure" /></div>
-        <div class="field field-sm"><label>Rate limit</label>
+        <div class="field field-md"><label>{{ t('themis.form.tags') }}</label>
+          <input v-model="form.tags" :placeholder="'cve,exposure'" /></div>
+        <div class="field field-sm"><label>{{ t('themis.form.rateLimit') }}</label>
           <input v-model.number="form.rateLimit" type="number" min="1" max="1000" class="no-spin" /></div>
-        <div class="field field-sm"><label>Timeout petición (s)</label>
+        <div class="field field-sm"><label>{{ t('themis.form.requestTimeout') }}</label>
           <input v-model.number="form.requestTimeout" type="number" min="1" max="120" class="no-spin" /></div>
       </div>
     </div>
@@ -71,6 +71,10 @@
 
 <script setup>
 import { ref, watch } from 'vue'
+import { priorityLabel } from './labels'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   type: { type: String, required: true },
@@ -88,12 +92,14 @@ const DEFAULTS = {
 }
 const form = ref({ ...DEFAULTS.nmap })
 
+/** Severidades de Nuclei; su rótulo es el de la prioridad y su ayuda sale de
+ *  `themis.form.severityHints.<id>`. */
 const NUCLEI_SEVERITIES = [
-  { id: 'critical', label: 'Crítica', hint: 'Severidad crítica' },
-  { id: 'high', label: 'Alta', hint: 'Severidad alta' },
-  { id: 'medium', label: 'Media', hint: 'Severidad media' },
-  { id: 'low', label: 'Baja', hint: 'Severidad baja' },
-  { id: 'info', label: 'Info', hint: 'Plantillas de tech-detect — miles de peticiones, sin CVSS propio' },
+  { id: 'critical' },
+  { id: 'high' },
+  { id: 'medium' },
+  { id: 'low' },
+  { id: 'info' },
 ]
 function toggleSeverity(id) {
   form.value.severities = form.value.severities.includes(id)
@@ -103,12 +109,14 @@ function toggleSeverity(id) {
 
 // Rangos IANA: bien conocidos (0–1023), registrados (1024–49151), privados/dinámicos (49152–65535), y completo (0–65535).
 const PORT_PRESETS = { wellknown: '1-1023', registered: '1024-49151', private: '49152-65535', complete: '1-65535' }
+/** Estrategias de puertos; su rótulo y su ayuda salen de
+ *  `themis.form.strategies.<id>`. */
 const PORT_STRATEGIES = [
-  { id: 'wellknown', label: 'Conocidos', hint: 'Puertos 1-1023 · servicios estándar del sistema', icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' },
-  { id: 'registered', label: 'Registrados', hint: 'Puertos 1024-49151 · aplicaciones registradas', icon: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01' },
-  { id: 'private', label: 'Privados', hint: 'Puertos 49152-65535 · uso dinámico/privado', icon: 'M22 12h-4l-3 9L9 3l-3 9H2' },
-  { id: 'complete', label: 'Completo', hint: 'Rango 0-65535 · escaneo exhaustivo', icon: 'M12 2a10 10 0 100 20 10 10 0 000-20zM2 12h20M12 2a15.3 15.3 0 010 20 15.3 15.3 0 010-20z' },
-  { id: 'custom', label: 'Personalizado', hint: 'Define tu propio rango de puertos', icon: 'M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6' },
+  { id: 'wellknown', icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' },
+  { id: 'registered', icon: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01' },
+  { id: 'private', icon: 'M22 12h-4l-3 9L9 3l-3 9H2' },
+  { id: 'complete', icon: 'M12 2a10 10 0 100 20 10 10 0 000-20zM2 12h20M12 2a15.3 15.3 0 010 20 15.3 15.3 0 010-20z' },
+  { id: 'custom', icon: 'M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6' },
 ]
 const portMode = ref('custom')
 function selectPortMode(id) {
@@ -126,7 +134,7 @@ function handleLaunch() {
   if (props.type === 'nikto') { payload.timeout = form.value.timeout }
   if (props.type === 'nuclei') {
     if (form.value.severities.length) payload.severities = form.value.severities
-    const tags = (form.value.tags || '').split(',').map(t => t.trim()).filter(Boolean)
+    const tags = (form.value.tags || '').split(',').map(tag => tag.trim()).filter(Boolean)
     if (tags.length) payload.tags = tags
     if (form.value.rateLimit) payload.rateLimit = form.value.rateLimit
     if (form.value.requestTimeout) payload.requestTimeout = form.value.requestTimeout

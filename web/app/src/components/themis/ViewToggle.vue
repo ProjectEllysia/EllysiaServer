@@ -9,18 +9,22 @@
         <path v-else-if="v.id === 'folders'" d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
         <path v-else d="M3 3v18h18M7 16l4-5 3 3 5-7"/>
       </svg>
-      {{ v.label }}
+      {{ t(`themis.views.${v.id}`) }}
     </button>
   </div>
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 defineProps({ modelValue: { type: String, required: true } })
 defineEmits(['update:modelValue'])
+/** Vistas de la lista; su rótulo sale de `themis.views.<id>`. */
 const views = [
-  { id: 'full', label: 'Vista completa' },
-  { id: 'folders', label: 'Carpetas' },
-  { id: 'history', label: 'Estadísticas' },
+  { id: 'full' },
+  { id: 'folders' },
+  { id: 'history' },
 ]
 </script>
 

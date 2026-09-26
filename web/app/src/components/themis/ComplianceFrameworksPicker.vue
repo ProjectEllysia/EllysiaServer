@@ -7,15 +7,12 @@
     <template v-if="scope === 'organization'">
       <label class="option option--impose">
         <input type="checkbox" :checked="isImposing" :disabled="saving" @change="setImposing($event.target.checked)" />
-        <span>Aplicar estos marcos a todos los miembros</span>
+        <span>{{ t('themis.compliance.impose') }}</span>
       </label>
-      <p v-if="!isImposing" class="hint">Mientras no lo actives, cada miembro elige los suyos en su perfil.</p>
+      <p v-if="!isImposing" class="hint">{{ t('themis.compliance.notImposing') }}</p>
     </template>
 
-    <p v-else-if="preferences.isLockedByOrganization" class="hint">
-      Tu organización ha fijado los marcos para todos sus miembros. Tu elección se guarda y vuelve a
-      aplicarse si la organización deja de fijarlos.
-    </p>
+    <p v-else-if="preferences.isLockedByOrganization" class="hint">{{ t('themis.compliance.locked') }}</p>
 
     <div class="options">
       <label v-for="framework in preferences.frameworks" :key="framework.key" class="option">
@@ -31,6 +28,9 @@
 import { ref, computed, onMounted } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { useToastStore } from '@/stores/toastStore'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 /**
  * Elección de los marcos de cumplimiento (ISO 27001, ENS, NIS2) que salen en
@@ -86,11 +86,11 @@ async function save(frameworks) {
       body: JSON.stringify({ frameworks }),
     })
     if (!res?.ok) {
-      toast.show(await apiError(res, 'No se pudieron guardar los marcos de cumplimiento.'), 'error')
+      toast.show(await apiError(res, t('themis.compliance.saveFailed')), 'error')
       return
     }
     preferences.value = await res.json()
-    toast.show('Marcos de cumplimiento guardados.', 'success')
+    toast.show(t('themis.compliance.saved'), 'success')
   } finally {
     saving.value = false
   }

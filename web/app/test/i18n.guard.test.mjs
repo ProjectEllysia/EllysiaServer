@@ -63,25 +63,6 @@ const PENDING_FILES = [
   'components/iris/IrisTrustForm.vue',
   'components/iris/IrisVerdictHero.vue',
   'components/iris/MailboxConnectionList.vue',
-  'components/themis/BatchActionModal.vue',
-  'components/themis/ComplianceFrameworksPicker.vue',
-  'components/themis/FolderAccordion.vue',
-  'components/themis/FolderFormModal.vue',
-  'components/themis/HistoryChart.vue',
-  'components/themis/HistoryPanel.vue',
-  'components/themis/MoveScanModal.vue',
-  'components/themis/NucleiFindings.vue',
-  'components/themis/ScanFolderView.vue',
-  'components/themis/ScanForm.vue',
-  'components/themis/ScanPreviewModal.vue',
-  'components/themis/ScanTable.vue',
-  'components/themis/ScheduledScansPanel.vue',
-  'components/themis/StatsRow.vue',
-  'components/themis/TracerouteGraph.vue',
-  'components/themis/lybra/AgentScansPanel.vue',
-  'components/themis/lybra/LybraFindingsToolbar.vue',
-  'components/themis/lybra/LybraLaunchPanel.vue',
-  'components/themis/lybra/LybraResults.vue',
   'views/acheron/AcheronHubView.vue',
   'views/acheron/AcheronView.vue',
   'views/aegis/AegisCampaignsView.vue',
@@ -102,8 +83,6 @@ const PENDING_FILES = [
   'views/system/ConfigView.vue',
   'views/system/LogsView.vue',
   'views/system/QueueView.vue',
-  'views/themis/ThemisHubView.vue',
-  'views/themis/ThemisView.vue',
 ]
 
 /**
@@ -111,7 +90,7 @@ const PENDING_FILES = [
  * plantilla migrada: nombres propios del producto y su dominio. Las siglas
  * tampoco cuentan (ver `findHandwrittenText`).
  */
-const LANGUAGE_NEUTRAL_WORDS = new Set(['Ellysia', 'Themis', 'Aegis', 'Iris', 'Acheron', 'Hygeia', 'Lybra', 'GitHub', 'ProjectEllysia', 'ellysia', 'es', 'v'])
+const LANGUAGE_NEUTRAL_WORDS = new Set(['Ellysia', 'Themis', 'Aegis', 'Iris', 'Acheron', 'Hygeia', 'Lybra', 'GitHub', 'ProjectEllysia', 'Nmap', 'Nikto', 'Nuclei', 'Cron', 'ellysia', 'es', 'v', 'ms'])
 
 /** Una etiqueta HTML entera, aunque sus atributos lleven `>` entre comillas. */
 const TAG_RE = /<(?:[^>"']|"[^"]*"|'[^']*')*>/g

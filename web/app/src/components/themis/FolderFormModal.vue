@@ -4,28 +4,28 @@
       <div v-if="show" class="modal-overlay" @click.self="close">
         <div class="modal-box">
             <div class="modal-header">
-              <h3>{{ title }}</h3>
-              <button class="close-btn" @click="close">&times;</button>
+              <h3>{{ title || t('themis.folders.folder') }}</h3>
+              <button class="close-btn" :aria-label="t('common.close')" @click="close">&times;</button>
             </div>
             <form @submit.prevent="submit">
               <div class="modal-body">
-                <label for="folder-name">Nombre de la carpeta</label>
+                <label for="folder-name">{{ t('themis.folders.name') }}</label>
                 <input
                   id="folder-name"
                   v-model="name"
                   type="text"
-                  placeholder="Ej. Producción"
+                  :placeholder="t('themis.folders.namePlaceholder')"
                   maxlength="255"
                   :disabled="submitting"
                   required
                 />
-                <p class="hint">Solo letras, números, espacios, guiones y guiones bajos.</p>
+                <p class="hint">{{ t('themis.folders.nameHint') }}</p>
               </div>
               <div class="modal-footer">
-                <button type="button" class="btn-secondary" :disabled="submitting" @click="close">Cancelar</button>
+                <button type="button" class="btn-secondary" :disabled="submitting" @click="close">{{ t('common.cancel') }}</button>
                 <button type="submit" class="btn-primary" :disabled="submitting || !isValid">
-                  <span v-if="submitting">Guardando…</span>
-                  <span v-else>Guardar</span>
+                  <span v-if="submitting">{{ t('common.saving') }}</span>
+                  <span v-else>{{ t('common.save') }}</span>
                 </button>
               </div>
             </form>
@@ -37,10 +37,14 @@
 
 <script setup>
 import { ref, watch, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   show: { type: Boolean, default: false },
-  title: { type: String, default: 'Carpeta' },
+  /** Título del modal; por defecto, «Carpeta» en el idioma activo. */
+  title: { type: String, default: '' },
   initialName: { type: String, default: '' },
   submitting: { type: Boolean, default: false },
 })

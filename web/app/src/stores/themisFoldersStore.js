@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { reactive } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { useToastStore } from '@/stores/toastStore'
+import { i18n } from '@/i18n'
 
 /**
  * Store de carpetas de Themis (A2: extraído de themisStore).
@@ -41,7 +42,8 @@ export const useThemisFoldersStore = defineStore('themisFolders', () => {
   function _getUnfoldered() {
     let unf = folders.items.find(f => f.id === null)
     if (!unf) {
-      unf = { id: null, name: 'Sin carpeta', scans: [], scanCount: 0 }
+      // El nombre visible del grupo sin carpeta lo pone FolderAccordion.
+      unf = { id: null, name: '', scans: [], scanCount: 0 }
       folders.items.unshift(unf)
     }
     return unf
@@ -51,13 +53,13 @@ export const useThemisFoldersStore = defineStore('themisFolders', () => {
     folders.loading = true
     try {
       const res = await apiFetch('/themis/folders')
-      if (!res?.ok) { folders.items = []; folders.error = 'No se pudieron cargar las carpetas.'; return }
+      if (!res?.ok) { folders.items = []; folders.error = i18n.global.t('themisStore.folders.loadFailed'); return }
       const data = await res.json()
       folders.items = data.folders ?? []
       // Append the virtual unfoldered group as a folder-like entry
       if (data.unfoldered) folders.items.push(data.unfoldered)
       folders.error = null
-    } catch { folders.items = []; folders.error = 'Error de conexión.' }
+    } catch { folders.items = []; folders.error = i18n.global.t('themisStore.folders.connectionError') }
     finally { folders.loading = false }
   }
 
@@ -66,7 +68,7 @@ export const useThemisFoldersStore = defineStore('themisFolders', () => {
     try {
       const res = await apiFetch('/themis/folders', { method: 'POST', body: JSON.stringify({ name }) })
       if (!res?.ok) {
-        toast.show(await apiError(res, 'Error al crear la carpeta.'), 'error')
+        toast.show(await apiError(res, i18n.global.t('themisStore.folders.createFailed')), 'error')
         return false
       }
       const data = await res.json()
@@ -74,10 +76,10 @@ export const useThemisFoldersStore = defineStore('themisFolders', () => {
       folders.items.splice(folders.items.findIndex(f => f.id === null) + 1, 0, {
         id: data.folderId, name, scans: [], scanCount: 0, createdAt: now, updatedAt: now,
       })
-      toast.show(`Carpeta "${name}" creada`, 'success')
+      toast.show(i18n.global.t('themisStore.folders.created', { name }), 'success')
       return true
     } catch {
-      toast.show('No se pudo conectar con la API.', 'error')
+      toast.show(i18n.global.t('themisStore.folders.unreachable'), 'error')
       return false
     } finally { folderForms.create.submitting = false }
   }
@@ -90,22 +92,22 @@ export const useThemisFoldersStore = defineStore('themisFolders', () => {
         body: JSON.stringify({ name }),
       })
       if (!res?.ok) {
-        toast.show(await apiError(res, 'Error al renombrar la carpeta.'), 'error')
+        toast.show(await apiError(res, i18n.global.t('themisStore.folders.renameFailed')), 'error')
         return false
       }
       const folder = _findFolder(folderId)
       if (folder) folder.name = name
-      toast.show('Carpeta renombrada', 'success')
+      toast.show(i18n.global.t('themisStore.folders.renamed'), 'success')
       return true
     } catch {
-      toast.show('No se pudo conectar con la API.', 'error')
+      toast.show(i18n.global.t('themisStore.folders.unreachable'), 'error')
       return false
     } finally { folderForms.rename.submitting = false }
   }
 
   async function deleteFolder(folderId) {
     const res = await apiFetch(`/themis/folders/${folderId}`, { method: 'DELETE' })
-    if (!res?.ok) { toast.show('No se pudo eliminar la carpeta.', 'error'); return false }
+    if (!res?.ok) { toast.show(i18n.global.t('themisStore.folders.deleteFailed'), 'error'); return false }
 
     const idx = folders.items.findIndex(f => f.id === folderId)
     if (idx !== -1) {
@@ -118,7 +120,7 @@ export const useThemisFoldersStore = defineStore('themisFolders', () => {
       folders.items.splice(idx, 1)
     }
 
-    toast.show('Carpeta eliminada.', 'success')
+    toast.show(i18n.global.t('themisStore.folders.deleted'), 'success')
     return true
   }
 
@@ -130,21 +132,21 @@ export const useThemisFoldersStore = defineStore('themisFolders', () => {
         body: JSON.stringify({ scanId }),
       })
       if (!res?.ok) {
-        toast.show(await apiError(res, 'Error al mover el escaneo.'), 'error')
+        toast.show(await apiError(res, i18n.global.t('themisStore.folders.moveFailed')), 'error')
         return false
       }
-      toast.show('Escaneo movido a la carpeta.', 'success')
+      toast.show(i18n.global.t('themisStore.folders.moved'), 'success')
       await loadFolders()
       return true
     } catch {
-      toast.show('No se pudo conectar con la API.', 'error')
+      toast.show(i18n.global.t('themisStore.folders.unreachable'), 'error')
       return false
     } finally { moveScan.submitting = false }
   }
 
   async function removeScanFromFolder(scanId, folderId) {
     const res = await apiFetch(`/themis/folders/${folderId}/scans/${scanId}`, { method: 'DELETE' })
-    if (!res?.ok) { toast.show('No se pudo quitar el escaneo de la carpeta.', 'error'); return false }
+    if (!res?.ok) { toast.show(i18n.global.t('themisStore.folders.removeFailed'), 'error'); return false }
 
     const folder = _findFolder(folderId)
     if (folder) {
@@ -158,7 +160,7 @@ export const useThemisFoldersStore = defineStore('themisFolders', () => {
       }
     }
 
-    toast.show('Escaneo eliminado de la carpeta.', 'success')
+    toast.show(i18n.global.t('themisStore.folders.removed'), 'success')
     return true
   }
 
@@ -169,14 +171,14 @@ export const useThemisFoldersStore = defineStore('themisFolders', () => {
         body: JSON.stringify({ scanIds }),
       })
       if (!res?.ok) {
-        toast.show(await apiError(res, 'Error al añadir escaneos a la carpeta.'), 'error')
+        toast.show(await apiError(res, i18n.global.t('themisStore.folders.addFailed')), 'error')
         return false
       }
       toast.show(`${scanIds.length} escaneo(s) añadido(s) a la carpeta.`, 'success')
       await loadFolders()
       return true
     } catch {
-      toast.show('No se pudo conectar con la API.', 'error')
+      toast.show(i18n.global.t('themisStore.folders.unreachable'), 'error')
       return false
     }
   }
