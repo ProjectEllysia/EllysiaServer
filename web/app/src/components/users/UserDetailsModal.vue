@@ -3,10 +3,10 @@
     <div v-if="show" class="modal-overlay" @click.self="$emit('close')">
       <div class="modal-box">
         <div class="modal-header">
-          <h3>Detalles del Usuario</h3>
-          <button class="modal-close" @click="$emit('close')">&times;</button>
+          <h3>{{ t('users.details.title') }}</h3>
+          <button class="modal-close" :aria-label="t('common.close')" @click="$emit('close')">&times;</button>
         </div>
-        <div v-if="loadingUser" class="modal-loading">Cargando…</div>
+        <div v-if="loadingUser" class="modal-loading">{{ t('common.loading') }}</div>
         <template v-else-if="user">
           <div class="detail-header">
             <div class="detail-avatar" :class="`role-avatar--${roleClass}`">{{ initials }}</div>
@@ -14,47 +14,44 @@
             <span class="detail-role-badge" :class="`role-badge--${roleClass}`">{{ roleLabel }}</span>
           </div>
           <div class="detail-grid">
-            <div class="detail-item"><span class="detail-label">Nombre</span><span class="detail-value">{{ user.first_name || '—' }} {{ user.last_name || '' }}</span></div>
-            <div class="detail-item"><span class="detail-label">Email</span><span class="detail-value">{{ user.email }}</span></div>
-            <div class="detail-item"><span class="detail-label">Rol</span><span class="detail-value">{{ roleLabel }}</span></div>
-            <div class="detail-item"><span class="detail-label">Creado</span><span class="detail-value">{{ formatDate(user.created_at) }}</span></div>
+            <div class="detail-item"><span class="detail-label">{{ t('users.details.name') }}</span><span class="detail-value">{{ user.first_name || '—' }} {{ user.last_name || '' }}</span></div>
+            <div class="detail-item"><span class="detail-label">{{ t('users.fields.email') }}</span><span class="detail-value">{{ user.email }}</span></div>
+            <div class="detail-item"><span class="detail-label">{{ t('users.fields.role') }}</span><span class="detail-value">{{ roleLabel }}</span></div>
+            <div class="detail-item"><span class="detail-label">{{ t('users.details.created') }}</span><span class="detail-value">{{ formatDate(user.created_at) }}</span></div>
           </div>
           <div class="detail-section">
-            <h4>Atributos ABAC</h4>
+            <h4>{{ t('users.details.attributes') }}</h4>
             <div class="attr-tags">
               <span v-for="attr in attributes" :key="attr" class="attr-tag">
                 {{ attr }}
-                <button v-if="canManage" class="attr-remove" @click="handleRemoveAttribute(attr)" title="Eliminar">&times;</button>
+                <button v-if="canManage" class="attr-remove" @click="handleRemoveAttribute(attr)" :title="t('common.delete')">&times;</button>
               </span>
-              <span v-if="attributes.length === 0" class="attr-empty">Sin atributos</span>
+              <span v-if="attributes.length === 0" class="attr-empty">{{ t('users.details.noAttributes') }}</span>
             </div>
             <div v-if="canManage" class="attr-manage">
-              <button v-if="!showAttrForm" class="btn btn--sm btn--secondary" @click="showAttrForm = true">+ Añadir atributo</button>
+              <button v-if="!showAttrForm" class="btn btn--sm btn--secondary" @click="showAttrForm = true">{{ t('users.details.addAttribute') }}</button>
               <div v-else class="attr-form">
                 <div v-for="mod in ALL_ATTRIBUTES" :key="mod.module" class="attr-module">
                   <h5>{{ mod.module }}</h5>
                   <div class="attr-checks">
                     <label v-for="a in mod.attrs" :key="a.name" class="attr-check">
                       <input type="checkbox" :value="a.name" v-model="selectedAttrs" :disabled="attributes.includes(a.name)" />
-                      <span>{{ a.desc }}</span>
+                      <span>{{ t(`users.details.permissions.${a.permission}`) }}</span>
                     </label>
                   </div>
                 </div>
                 <div class="attr-form-actions">
-                  <button type="button" class="btn btn--sm btn--secondary" @click="showAttrForm = false; selectedAttrs = []">Cancelar</button>
-                  <button type="button" class="btn btn--sm btn--primary" :disabled="selectedAttrs.length === 0" @click="handleAddAttributes">Guardar</button>
+                  <button type="button" class="btn btn--sm btn--secondary" @click="showAttrForm = false; selectedAttrs = []">{{ t('common.cancel') }}</button>
+                  <button type="button" class="btn btn--sm btn--primary" :disabled="selectedAttrs.length === 0" @click="handleAddAttributes">{{ t('common.save') }}</button>
                 </div>
               </div>
             </div>
           </div>
           <div v-if="canDelete" class="detail-section danger-zone">
-            <h4>Dar de baja</h4>
-            <p class="danger-note">
-              Se borra la cuenta y todo lo que cuelga de ella: escaneos, campañas,
-              informes y su bóveda. No hay vuelta atrás.
-            </p>
+            <h4>{{ t('users.details.deleteTitle') }}</h4>
+            <p class="danger-note">{{ t('users.details.deleteText') }}</p>
             <button class="btn btn--sm btn--danger" @click="askDelete">
-              Eliminar usuario
+              {{ t('users.details.deleteButton') }}
             </button>
           </div>
         </template>
@@ -63,10 +60,10 @@
 
     <ConfirmModal
       :show="showDeleteConfirm"
-      title="Eliminar usuario"
-      emphasis="Esta acción no se puede deshacer."
+      :title="t('users.details.deleteButton')"
+      :emphasis="t('users.details.irreversible')"
       :message="deleteMessage"
-      confirm-label="Eliminar"
+      :confirm-label="t('common.delete')"
       danger
       @confirm="handleDelete"
       @cancel="showDeleteConfirm = false"
@@ -80,6 +77,9 @@ import { useUtils } from '@/composables/useUtils'
 import { useAuthStore } from '@/stores/authStore'
 import { useUsersStore } from '@/stores/usersStore'
 import ConfirmModal from '@/components/shared/ConfirmModal.vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const { formatDate, getInitials } = useUtils()
 const auth = useAuthStore()
@@ -107,26 +107,27 @@ const canDelete = computed(() => {
   return auth.isRoot || (user.value.role || 'role_user') === 'role_user'
 })
 const deleteMessage = computed(() => {
-  const base = `Vas a eliminar la cuenta de @${user.value?.username} y todos sus datos.`
+  const base = t('users.details.deleteMessage', { username: user.value?.username })
   const owned = deletionPreview.value?.ownedOrganization
   if (!owned) return base
   // La única consecuencia que sale de la cuenta borrada: su organización se
   // disuelve con ella y los demás se enteran después si nadie lo dice antes.
   const members = owned.membersLosingAccess
-  const tail = members
-    ? ` y ${members} ${members === 1 ? 'miembro se queda' : 'miembros se quedan'} sin ella`
-    : ''
-  return `${base} También desaparece su organización «${owned.name}»${tail}.`
+  return members
+    ? t('users.details.deleteOrgWithMembers', { base, name: owned.name, count: members }, members)
+    : t('users.details.deleteOrg', { base, name: owned.name })
 })
-const ALL_ATTRIBUTES = [
-  { module: 'Aegis', attrs: [{ name: 'aegis_read', desc: 'Lectura' }, { name: 'aegis_write', desc: 'Escritura' }, { name: 'aegis_create', desc: 'Creación' }, { name: 'aegis_delete', desc: 'Eliminación' }] },
-  { module: 'Themis', attrs: [{ name: 'themis_read', desc: 'Lectura' }, { name: 'themis_write', desc: 'Escritura' }, { name: 'themis_create', desc: 'Creación' }, { name: 'themis_delete', desc: 'Eliminación' }] },
-  { module: 'Acheron', attrs: [{ name: 'acheron_read', desc: 'Lectura' }, { name: 'acheron_write', desc: 'Escritura' }, { name: 'acheron_create', desc: 'Creación' }, { name: 'acheron_delete', desc: 'Eliminación' }] },
-]
+/** Atributos que se pueden conceder, por módulo; el rótulo de cada permiso
+ *  sale de `users.details.permissions.<permiso>`. */
+const PERMISSIONS = ['read', 'write', 'create', 'delete']
+const ALL_ATTRIBUTES = ['Aegis', 'Themis', 'Acheron'].map((module) => ({
+  module,
+  attrs: PERMISSIONS.map((permission) => ({ name: `${module.toLowerCase()}_${permission}`, permission })),
+}))
 
 const initials = computed(() => getInitials(user.value?.first_name || '', user.value?.last_name || ''))
 const roleClass = computed(() => { const r = user.value?.role || 'role_user'; if (r === 'role_root') return 'root'; if (r === 'role_admin') return 'admin'; return 'user' })
-const roleLabel = computed(() => { const r = user.value?.role || 'role_user'; if (r === 'role_root') return 'Root'; if (r === 'role_admin') return 'Admin'; return 'Usuario' })
+const roleLabel = computed(() => t(`accountMenu.roles.${roleClass.value}`))
 
 watch(() => props.show, async (v) => {
   if (!v || !props.userId) return

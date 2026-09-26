@@ -1,7 +1,7 @@
 <template>
   <div class="plan-page">
     <StarBackground />
-    <Topbar title="Mi plan" />
+    <Topbar :title="t('myPlan.title')" />
 
     <main class="main">
       <div v-if="account.loading" class="skeleton skeleton--lg"></div>
@@ -14,13 +14,13 @@
 
         <section class="head">
           <div>
-            <span class="head-eyebrow">Tu plan</span>
+            <span class="head-eyebrow">{{ t('plansPage.yourPlan') }}</span>
             <h1 class="head-name">{{ account.plan.plan.name }}</h1>
             <p v-if="account.plan.plan.tagline" class="head-tagline">
               {{ account.plan.plan.tagline }}
             </p>
           </div>
-          <router-link to="/planes" class="btn btn--secondary">Comparar planes</router-link>
+          <router-link to="/planes" class="btn btn--secondary">{{ t('myPlan.compare') }}</router-link>
         </section>
 
         <section v-if="source" class="source">{{ source }}</section>
@@ -28,17 +28,11 @@
         <!-- Sin pasarela de pago no hay autoservicio real: el plan lo asigna
              root a mano. Decirlo aquí es más honesto que un botón "Cambiar
              de plan" que no haría nada al pulsarlo. -->
-        <p class="upgrade-hint">
-          ¿Quieres subir de plan? Escribe a quien administre tu cuenta —
-          todavía no hay cambio de plan en autoservicio.
-        </p>
+        <p class="upgrade-hint">{{ t('myPlan.upgradeHint') }}</p>
 
         <section class="section">
-          <h2>Consumo</h2>
-          <p class="section-desc">
-            Lo que va del periodo. Las existencias no se reinician: se liberan
-            borrando.
-          </p>
+          <h2>{{ t('myPlan.usage') }}</h2>
+          <p class="section-desc">{{ t('myPlan.usageDesc') }}</p>
 
           <ul class="limits">
             <li v-for="(entry, key) in sortedUsage" :key="key" class="row"
@@ -50,19 +44,16 @@
               <div class="bar" :aria-hidden="entry.value === null || entry.value === 0">
                 <div class="bar-fill" :style="{ width: percent(entry) }"></div>
               </div>
-              <p v-if="entry.exceeded" class="row-note">
-                Por encima del tope: puedes leer y borrar, pero no crear más hasta
-                bajar de {{ entry.value }}. No se ha borrado nada.
-              </p>
+              <p v-if="entry.exceeded" class="row-note">{{ t('myPlan.exceeded', { limit: entry.value }) }}</p>
               <p v-else-if="entry.resetsAt" class="row-note row-note--muted">
-                Se renueva el {{ account.formatDate(entry.resetsAt) }}
+                {{ t('myPlan.renews', { date: account.formatDate(entry.resetsAt) }) }}
               </p>
             </li>
           </ul>
         </section>
       </template>
 
-      <p v-else class="empty">No se ha podido cargar tu plan.</p>
+      <p v-else class="empty">{{ t('myPlan.loadFailed') }}</p>
     </main>
   </div>
 </template>
@@ -79,25 +70,32 @@ import { computed, onMounted } from 'vue'
 import Topbar from '@/components/shared/Topbar.vue'
 import StarBackground from '@/components/shared/StarBackground.vue'
 import { useAccountStore } from '@/stores/accountStore'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const account = useAccountStore()
 
-const LABELS = {
-  'themis.lybra.scans': 'Escaneos de Lybra',
-  'themis.thirdparty.scans': 'Escaneos con Nmap / Nikto / Nuclei',
-  'themis.scheduled': 'Escaneos programados',
-  'themis.reports.ai': 'Informes con IA',
-  'aegis.pills': 'Píldoras de concienciación',
-  'aegis.campaigns': 'Campañas lanzadas',
-  'aegis.recipients': 'Destinatarios en listas',
-  'iris.analyses': 'Análisis de correo',
-  'iris.ai_summaries': 'Resúmenes con IA',
-  'iris.mailbox.connections': 'Buzones conectados',
-  'acheron.vaults': 'Bóvedas',
-  'acheron.items': 'Secretos guardados',
-  'hygeia.assets': 'Activos monitorizados',
-  'ai.requests': 'Peticiones a la IA',
-  'organization.members': 'Miembros de la organización',
+/**
+ * Rama de `myPlan.limits` de cada clave de límite. Las claves llevan puntos, y
+ * vue-i18n los lee como niveles del árbol, así que se nombran aparte.
+ */
+const LABEL_IDS = {
+  'themis.lybra.scans': 'lybraScans',
+  'themis.thirdparty.scans': 'thirdPartyScans',
+  'themis.scheduled': 'scheduledScans',
+  'themis.reports.ai': 'aiReports',
+  'aegis.pills': 'pills',
+  'aegis.campaigns': 'campaigns',
+  'aegis.recipients': 'recipients',
+  'iris.analyses': 'mailAnalyses',
+  'iris.ai_summaries': 'aiSummaries',
+  'iris.mailbox.connections': 'mailboxes',
+  'acheron.vaults': 'vaults',
+  'acheron.items': 'secrets',
+  'hygeia.assets': 'assets',
+  'ai.requests': 'aiRequests',
+  'organization.members': 'members',
 }
 
 /** Lo excedido primero: es lo único que exige una acción. */
@@ -110,19 +108,19 @@ const sortedUsage = computed(() => {
 const source = computed(() => {
   if (!account.plan) return ''
   if (account.plan.source === 'default') {
-    return 'Estás en el plan gratuito.'
+    return t('myPlan.freePlan')
   }
   return ''
 })
 
 function label(key) {
-  return LABELS[key] ?? key
+  return LABEL_IDS[key] ? t(`myPlan.limits.${LABEL_IDS[key]}`) : key
 }
 
 function describe(entry) {
-  if (entry.value === 0) return 'No incluido'
-  if (entry.used === null) return entry.value === null ? 'Ilimitado' : `hasta ${entry.value}`
-  if (entry.value === null) return `${entry.used} · ilimitado`
+  if (entry.value === 0) return t('planFormat.notIncluded')
+  if (entry.used === null) return entry.value === null ? t('planFormat.unlimited') : t('myPlan.upTo', { limit: entry.value })
+  if (entry.value === null) return t('myPlan.usedUnlimited', { used: entry.used })
   return `${entry.used} / ${entry.value}`
 }
 

@@ -429,7 +429,9 @@
   },
   "profile": {
     "passwordChangeFailed": "Error al cambiar la contraseña.",
-    "passwordChanged": "Contraseña actualizada. Cerrando sesión…"
+    "passwordChanged": "Contraseña actualizada. Cerrando sesión…",
+    "updateFailed": "Error al actualizar el perfil.",
+    "updated": "Perfil actualizado."
   },
   "mfa": {
     "setupFailed": "No se pudo iniciar la activación de MFA.",
@@ -776,5 +778,370 @@
     "done": "Ya puedes entrar con tu nueva clave.",
     "missing": "Introduce la nueva clave.",
     "failed": "No se pudo restablecer la clave."
+  },
+  "planFormat": {
+    "labels": {
+      "scans": "Escaneos de vulnerabilidades",
+      "mailAnalyses": "Análisis de correo",
+      "vaultSecrets": "Secretos en la bóveda",
+      "assets": "Activos monitorizados",
+      "aiRequests": "Peticiones a la IA",
+      "members": "Miembros de la organización"
+    },
+    "shortLabels": {
+      "scans": "Escaneos",
+      "mailAnalyses": "Análisis de correo",
+      "vaultSecrets": "Secretos",
+      "assets": "Activos",
+      "aiRequests": "Peticiones a la IA",
+      "members": "Miembros"
+    },
+    "notIncluded": "No incluido",
+    "unlimited": "Ilimitado",
+    "perMonth": "{value} al mes"
+  },
+  "plansPage": {
+    "lede": "Empieza gratis. Sube cuando tus activos lo pidan, no cuando lo pida una licencia.",
+    "empty": "Todavía no hay planes publicados.",
+    "yourPlan": "Tu plan",
+    "orgAddon": "+{price}/mes con organización",
+    "seeUsage": "Ver consumo",
+    "askAdmin": "Pídeselo a quien administre tu cuenta",
+    "footnote": "Los planes con organización reparten sus límites entre los miembros: una bolsa común, no una licencia por cabeza. Y unirse a una organización nunca sustituye tu plan personal — se suman."
+  },
+  "myPlan": {
+    "title": "Mi plan",
+    "compare": "Comparar planes",
+    "upgradeHint": "¿Quieres subir de plan? Escribe a quien administre tu cuenta — todavía no hay cambio de plan en autoservicio.",
+    "usage": "Consumo",
+    "usageDesc": "Lo que va del periodo. Las existencias no se reinician: se liberan borrando.",
+    "exceeded": "Por encima del tope: puedes leer y borrar, pero no crear más hasta bajar de {limit}. No se ha borrado nada.",
+    "renews": "Se renueva el {date}",
+    "loadFailed": "No se ha podido cargar tu plan.",
+    "freePlan": "Estás en el plan gratuito.",
+    "upTo": "hasta {limit}",
+    "usedUnlimited": "{used} · ilimitado",
+    "limits": {
+      "lybraScans": "Escaneos de Lybra",
+      "thirdPartyScans": "Escaneos con Nmap / Nikto / Nuclei",
+      "scheduledScans": "Escaneos programados",
+      "aiReports": "Informes con IA",
+      "pills": "Píldoras de concienciación",
+      "campaigns": "Campañas lanzadas",
+      "recipients": "Destinatarios en listas",
+      "mailAnalyses": "Análisis de correo",
+      "aiSummaries": "Resúmenes con IA",
+      "mailboxes": "Buzones conectados",
+      "vaults": "Bóvedas",
+      "secrets": "Secretos guardados",
+      "assets": "Activos monitorizados",
+      "aiRequests": "Peticiones a la IA",
+      "members": "Miembros de la organización"
+    }
+  },
+  "invitationLanding": {
+    "home": "Volver a la portada",
+    "verify": {
+      "loading": {
+        "title": "Confirmando tu correo…",
+        "text": "Un momento."
+      },
+      "ok": {
+        "title": "Correo confirmado",
+        "text": "Ya puedes usar Ellysia sin límites de cuenta sin verificar.",
+        "cta": "Entrar"
+      },
+      "error": {
+        "title": "Este enlace no vale",
+        "text": "Puede que ya lo hayas usado o que haya caducado. Pide uno nuevo desde tu perfil."
+      }
+    },
+    "invitation": {
+      "loading": {
+        "title": "Aceptando la invitación…",
+        "text": "Un momento."
+      },
+      "ok": {
+        "title": "Ya formas parte de la organización",
+        "text": "Tu plan personal no ha cambiado: lo que la organización incluye se suma a lo que ya tenías, y si algún día sales te lo llevas intacto.",
+        "cta": "Ver mi organización"
+      },
+      "error": {
+        "title": "Esta invitación no vale",
+        "text": "Puede que ya la hayas aceptado, que la hayan revocado o que haya caducado. Pide a quien te invitó que te mande otra."
+      }
+    }
+  },
+  "users": {
+    "topbar": "Gestión de Usuarios",
+    "title": "Usuarios",
+    "subtitle": "Administra los usuarios y sus atributos ABAC",
+    "count": "{count} usuario | {count} usuarios",
+    "new": "+ Nuevo Usuario",
+    "admins": "Administradores ({count})",
+    "regular": "Usuarios ({count})",
+    "empty": "No hay usuarios registrados.",
+    "fields": {
+      "firstName": "Nombre",
+      "lastName": "Apellido",
+      "username": "Usuario",
+      "email": "Email",
+      "password": "Contraseña",
+      "role": "Rol"
+    },
+    "roles": {
+      "user": "Usuario",
+      "admin": "Administrador"
+    },
+    "strength": {
+      "weak": "Débil",
+      "medium": "Media",
+      "strong": "Fuerte"
+    },
+    "create": {
+      "title": "Nuevo Usuario",
+      "personal": "Información personal",
+      "credentials": "Credenciales",
+      "passwordPlaceholder": "Mínimo 8 caracteres",
+      "submit": "Crear Usuario",
+      "passwordTooShort": "La contraseña debe tener al menos 8 caracteres."
+    },
+    "toast": {
+      "loadFailed": "Error al cargar usuarios.",
+      "duplicate": "Usuario o email ya existe.",
+      "createForbidden": "Permisos insuficientes para crear usuarios.",
+      "createFailed": "Error al crear usuario.",
+      "created": "Usuario creado exitosamente.",
+      "deleteForbidden": "No tienes permiso para eliminar a este usuario.",
+      "deleteFailed": "Error al eliminar el usuario.",
+      "deleted": "Usuario eliminado.",
+      "attributesAddFailed": "Error al añadir atributos.",
+      "attributesUpdated": "Atributos actualizados.",
+      "attributesRemoveFailed": "Error al eliminar atributos.",
+      "attributeRemoved": "Atributo eliminado."
+    },
+    "details": {
+      "title": "Detalles del Usuario",
+      "name": "Nombre",
+      "created": "Creado",
+      "attributes": "Atributos ABAC",
+      "noAttributes": "Sin atributos",
+      "addAttribute": "+ Añadir atributo",
+      "permissions": {
+        "read": "Lectura",
+        "write": "Escritura",
+        "create": "Creación",
+        "delete": "Eliminación"
+      },
+      "deleteTitle": "Dar de baja",
+      "deleteText": "Se borra la cuenta y todo lo que cuelga de ella: escaneos, campañas, informes y su bóveda. No hay vuelta atrás.",
+      "deleteButton": "Eliminar usuario",
+      "irreversible": "Esta acción no se puede deshacer.",
+      "deleteMessage": "Vas a eliminar la cuenta de {'@'}{username} y todos sus datos.",
+      "deleteOrg": "{base} También desaparece su organización «{name}».",
+      "deleteOrgWithMembers": "{base} También desaparece su organización «{name}» y {count} miembro se queda sin ella. | {base} También desaparece su organización «{name}» y {count} miembros se quedan sin ella."
+    },
+    "roots": "Root ({count})"
+  },
+  "profilePage": {
+    "topbar": "Perfil de Usuario",
+    "personal": "Información Personal",
+    "firstNamePlaceholder": "Tu nombre",
+    "lastNamePlaceholder": "Tu apellido",
+    "saveChanges": "Guardar Cambios",
+    "languageDesc": "Si no eliges ninguno, sigues el de tu organización o, sin ella, el de la plataforma.",
+    "complianceTitle": "Marcos de cumplimiento",
+    "complianceDesc": "Los informes de Lybra indicarán qué controles de estos marcos afecta cada hallazgo, junto a la técnica de ataque de MITRE ATT&CK, que sale siempre.",
+    "security": "Seguridad",
+    "currentPassword": "Contraseña actual",
+    "newPassword": "Nueva contraseña",
+    "confirmPassword": "Confirmar contraseña",
+    "repeatPassword": "Repite la contraseña",
+    "changing": "Cambiando…",
+    "changePassword": "Cambiar Contraseña",
+    "passwordMismatch": "Las contraseñas no coinciden.",
+    "passwordSame": "La nueva contraseña debe ser diferente de la actual.",
+    "mfa": {
+      "title": "Verificación en dos pasos (MFA)",
+      "recoveryWarning": "Guarda estos códigos en un lugar seguro: cada uno sirve para un solo inicio de sesión de emergencia si pierdes tu app autenticadora. No se volverán a mostrar.",
+      "download": "Descargar .txt",
+      "saved": "Ya los guardé",
+      "enabled": "✓ Verificación en dos pasos activada.",
+      "disableCode": "Código de la app o de recuperación",
+      "disablePlaceholder": "123456 o XXXX-XXXX",
+      "disabling": "Desactivando…",
+      "disable": "Desactivar MFA",
+      "disabled": "No tienes la verificación en dos pasos activada.",
+      "generating": "Generando…",
+      "recoveryFile": "CÓDIGOS DE RECUPERACIÓN MFA - ELLYSIA\n\nGuarda estos códigos en un lugar seguro. Cada uno sirve para un solo inicio de sesión de emergencia si pierdes tu app autenticadora.\n\n{codes}\n\nNota: Estos códigos no se volverán a mostrar. Si los pierdes, deberás desactivar y reconfigurar MFA."
+    },
+    "delete": {
+      "title": "Borrar mi cuenta",
+      "text": "Se borra todo lo tuyo: bóvedas, escaneos, análisis, activos y listas. No hay vuelta atrás.",
+      "orgDisappears": "Tu organización «{name}» desaparecerá con tu cuenta.",
+      "membersWarning": "No hay nadie más dentro. | 1 persona se quedará sin organización. | {count} personas se quedarán sin organización.",
+      "membersKeep": "Conservarán su cuenta, sus datos y su plan personal, pero perderán todo lo que tu plan les daba.",
+      "leaves": "Saldrás de tu organización. Los demás no se ven afectados.",
+      "confirmPassword": "Confirma con tu contraseña",
+      "deleting": "Borrando…",
+      "confirmTitle": "¿Seguro que quieres borrar tu cuenta?",
+      "confirmLabel": "Sí, borrar mi cuenta",
+      "confirmBase": "Se borrará todo lo tuyo y no se puede deshacer.",
+      "confirmWithOrg": "{base} Además, tu organización «{name}» desaparecerá: {members}",
+      "failed": "No se pudo borrar la cuenta.",
+      "done": "Tu cuenta se ha eliminado."
+    }
+  },
+  "organization": {
+    "topbar": "Mi organización",
+    "none": "Aún no tienes organización",
+    "lede": "Una organización deja que tu gente use Ellysia bajo tu plan, sin pagar una licencia por cabeza. Comparte plan y factura — nunca datos: no verás sus bóvedas, ni sus correos analizados, ni sus escaneos.",
+    "name": "Nombre de la organización",
+    "create": "Crear organización",
+    "notInPlan": "Tu plan no incluye la gestión de una organización.",
+    "seePlans": "Ver planes",
+    "youManage": "Gestionas",
+    "youBelong": "Perteneces a",
+    "memberCount": "{count} miembro | {count} miembros",
+    "leave": "Salir de la organización",
+    "memberHint": "Tu plan personal sigue siendo tuyo: lo que la organización incluye se suma a lo que ya tienes, y si te vas te lo llevas intacto.",
+    "languageDesc": "El idioma de los miembros que no han elegido uno. Quien elige el suyo desde el selector de idioma lo mantiene.",
+    "platformLanguage": "Idioma de la plataforma",
+    "complianceDesc": "Los marcos que salen en los informes de Lybra de todos los miembros. Si los fijas, sustituyen a los que cada miembro haya elegido en su perfil.",
+    "inviteTitle": "Invitar",
+    "inviteDesc": "Si esa dirección ya tiene cuenta, recibirá un enlace y no entrará hasta que acepte. Si no la tiene, se le crea una y se le mandan las credenciales.",
+    "invitePlaceholder": "persona{'@'}empresa.com",
+    "invite": "Invitar",
+    "members": "Miembros",
+    "owner": "Dueño",
+    "member": "Miembro",
+    "expel": "Expulsar",
+    "invitations": "Invitaciones",
+    "noInvitations": "No hay invitaciones.",
+    "status": "Estado",
+    "expires": "Caduca",
+    "revoke": "Revocar",
+    "statuses": {
+      "pending": "Pendiente",
+      "accepted": "Aceptada",
+      "revoked": "Revocada",
+      "expired": "Caducada"
+    },
+    "confirmExpel": {
+      "title": "¿Expulsar a {username}?",
+      "message": "Conservará su cuenta, sus datos y su plan personal. Solo perderá lo que la organización le daba."
+    },
+    "confirmRevoke": {
+      "title": "¿Revocar la invitación?",
+      "message": "El enlace enviado a {email} dejará de funcionar."
+    },
+    "confirmLeave": {
+      "title": "¿Salir de la organización?",
+      "message": "Conservarás tu cuenta, tus datos y tu plan personal. Perderás lo que la organización te daba, y lo que quede por encima de tu plan se quedará en solo lectura — no se borra nada."
+    },
+    "toast": {
+      "inviteFailed": "No se pudo invitar.",
+      "invited": "Invitación enviada.",
+      "expelFailed": "No se pudo expulsar.",
+      "expelled": "Miembro expulsado.",
+      "revokeFailed": "No se pudo revocar.",
+      "leaveFailed": "No se pudo salir.",
+      "left": "Has salido de la organización."
+    },
+    "namePlaceholder": "Acme S.L."
+  },
+  "adminPlans": {
+    "topbar": "Gestor de planes",
+    "intro": "Los planes y sus topes viven en base de datos, no en el código: lo que se cambie aquí surte efecto en la siguiente petición, sin desplegar.",
+    "catalog": "Catálogo",
+    "newPlan": "Nuevo plan",
+    "emptyCatalog": "No hay ningún plan en la base de datos. Si acabas de desplegar, aplica las migraciones — la semilla del catálogo va en una de ellas:",
+    "code": "Código",
+    "name": "Nombre",
+    "price": "Precio",
+    "rank": "Orden",
+    "default": "Por defecto",
+    "hidden": "Oculto",
+    "limits": "Topes",
+    "makeDefault": "Hacer por defecto",
+    "editTitle": "Editar {name}",
+    "editDesc": "El código no se edita: lo nombran las asignaciones ya hechas y, el día de la pasarela, su correspondencia con ella. Si hace falta otro código, es otro plan. Los topes se editan abajo, en su propia tabla.",
+    "createDesc": "Nace sin topes: todas sus claves valen 0 hasta que se rellenen. Un plan a medio configurar no regala nada.",
+    "tagline": "Lema",
+    "priceCents": "Precio (céntimos)",
+    "orgAddon": "Añadido de organización",
+    "visibility": "Visibilidad",
+    "public": "Se enseña en la tabla de precios",
+    "private": "Oculto (plan a medida)",
+    "create": "Crear",
+    "subscriptions": "Suscripciones",
+    "subscriptionsDesc": "Las seis operaciones del ciclo de vida, a mano. Es el mismo camino que usará la pasarela el día que se enchufe: aquí las mueve root, mañana un adaptador de webhooks.",
+    "account": "Cuenta",
+    "chooseAccount": "Elige una cuenta…",
+    "now": "Ahora:",
+    "withOrganization": "con organización",
+    "until": "hasta {date}",
+    "noSubscription": "Sin suscripción — esta cuenta está en el plan por defecto.",
+    "operation": "Operación",
+    "operations": {
+      "activate": "Activar o cambiar de plan",
+      "start_trial": "Empezar prueba",
+      "mark_past_due": "Marcar impago",
+      "resume": "Reanudar",
+      "cancel": "Cancelar",
+      "expire": "Caducar ahora"
+    },
+    "plan": "Plan",
+    "trialEnds": "La prueba acaba el",
+    "validUntil": "Vigente hasta",
+    "graceUntil": "Cortesía hasta",
+    "organization": "Organización",
+    "noOrganization": "Sin organización",
+    "canManageOrganization": "Puede gestionar una organización",
+    "when": "Cuándo",
+    "atPeriodEnd": "Al terminar el periodo pagado",
+    "immediately": "Ahora mismo (devolución)",
+    "applying": "Aplicando…",
+    "limitsOf": "Topes de {name}",
+    "saveLimits": "Guardar topes",
+    "limitsDesc": "Se guarda la tabla entera: lo que se ve aquí es exactamente lo que queda. Casilla vacía = {unlimited} (∞) · {zero} = no incluido · un número = tope. Aparecen siempre todas las claves, así que ninguna se queda sin decidir.",
+    "unlimitedWord": "ilimitado",
+    "key": "Clave",
+    "period": "Periodo",
+    "holder": "Titular",
+    "periods": {
+      "month": "mensual",
+      "day": "diario",
+      "stock": "existencias",
+      "tier": "nivel"
+    },
+    "statuses": {
+      "active": "activa",
+      "trialing": "en prueba",
+      "past_due": "impago",
+      "canceled": "cancelada"
+    },
+    "confirmDefault": {
+      "title": "¿Hacer de \"{name}\" el plan por defecto?",
+      "message": "Lo recibirán todas las cuentas sin suscripción vigente, y las que hoy están en el actual pasarán a este."
+    },
+    "confirmDelete": {
+      "title": "¿Borrar el plan \"{name}\"?",
+      "message": "Solo se puede si nadie lo tiene contratado."
+    },
+    "toast": {
+      "operationFailed": "No se pudo aplicar la operación.",
+      "subscriptionUpdated": "Suscripción actualizada.",
+      "catalogFailed": "No se ha podido cargar el catálogo.",
+      "keysFailed": "No se pudo cargar el catálogo de claves.",
+      "planSaveFailed": "No se pudo guardar el plan.",
+      "planUpdated": "Plan actualizado.",
+      "planCreated": "Plan creado.",
+      "keysMissing": "No se han cargado las claves de límite: recarga antes de guardar.",
+      "limitsFailed": "No se pudieron guardar los topes.",
+      "limitsSaved": "Topes guardados.",
+      "defaultFailed": "No se pudo cambiar.",
+      "deleteFailed": "No se pudo borrar."
+    }
   }
 }

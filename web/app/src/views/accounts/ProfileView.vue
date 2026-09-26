@@ -1,7 +1,7 @@
 <template>
   <div class="profile-page">
     <StarBackground />
-    <Topbar title="Perfil de Usuario" />
+    <Topbar :title="t('profilePage.topbar')" />
 
     <main class="main">
       <div v-if="store.loading" class="loading-block"><div class="skeleton skeleton--lg"></div></div>
@@ -14,93 +14,88 @@
         </section>
 
         <section class="profile-section">
-          <h2>Información Personal</h2>
+          <h2>{{ t('profilePage.personal') }}</h2>
           <form class="profile-form" @submit.prevent="handleProfileSubmit">
             <div class="form-row">
-              <div class="form-group"><label for="first-name">Nombre</label><input id="first-name" v-model="firstName" type="text" required class="inp" placeholder="Tu nombre" /></div>
-              <div class="form-group"><label for="last-name">Apellido</label><input id="last-name" v-model="lastName" type="text" required class="inp" placeholder="Tu apellido" /></div>
+              <div class="form-group"><label for="first-name">{{ t('users.fields.firstName') }}</label><input id="first-name" v-model="firstName" type="text" required class="inp" :placeholder="t('profilePage.firstNamePlaceholder')" /></div>
+              <div class="form-group"><label for="last-name">{{ t('users.fields.lastName') }}</label><input id="last-name" v-model="lastName" type="text" required class="inp" :placeholder="t('profilePage.lastNamePlaceholder')" /></div>
             </div>
             <div class="form-row">
-              <div class="form-group"><label for="profile-email">Email</label><input id="profile-email" type="email" :value="store.profile.email" disabled class="inp inp--disabled" /></div>
-              <div class="form-group"><label for="profile-username">Usuario</label><input id="profile-username" type="text" :value="store.profile.username" disabled class="inp inp--disabled" /></div>
+              <div class="form-group"><label for="profile-email">{{ t('users.fields.email') }}</label><input id="profile-email" type="email" :value="store.profile.email" disabled class="inp inp--disabled" /></div>
+              <div class="form-group"><label for="profile-username">{{ t('users.fields.username') }}</label><input id="profile-username" type="text" :value="store.profile.username" disabled class="inp inp--disabled" /></div>
             </div>
             <div class="form-actions">
-              <button type="button" class="btn btn--secondary" @click="$router.push('/')">Cancelar</button>
-              <button type="submit" class="btn btn--primary" :disabled="savingProfile">{{ savingProfile ? 'Guardando…' : 'Guardar Cambios' }}</button>
+              <button type="button" class="btn btn--secondary" @click="$router.push('/')">{{ t('common.cancel') }}</button>
+              <button type="submit" class="btn btn--primary" :disabled="savingProfile">{{ savingProfile ? t('common.saving') : t('profilePage.saveChanges') }}</button>
             </div>
           </form>
         </section>
 
         <section class="profile-section">
-          <h2>Idioma</h2>
-          <p class="section-desc">
-            Si no eliges ninguno, sigues el de tu organización o, sin ella, el de la plataforma.
-          </p>
+          <h2>{{ t('language.label') }}</h2>
+          <p class="section-desc">{{ t('profilePage.languageDesc') }}</p>
           <LanguageSelect />
         </section>
 
         <ComplianceFrameworksPicker scope="user" class="profile-section">
-          <h2>Marcos de cumplimiento</h2>
-          <p class="section-desc">
-            Los informes de Lybra indicarán qué controles de estos marcos afecta cada hallazgo, junto a
-            la técnica de ataque de MITRE ATT&amp;CK, que sale siempre.
-          </p>
+          <h2>{{ t('profilePage.complianceTitle') }}</h2>
+          <p class="section-desc">{{ t('profilePage.complianceDesc') }}</p>
         </ComplianceFrameworksPicker>
 
         <section class="profile-section">
-          <h2>Seguridad</h2>
+          <h2>{{ t('profilePage.security') }}</h2>
           <form class="profile-form" @submit.prevent="handlePasswordSubmit">
             <div class="form-row form-row--single">
-              <div class="form-group"><label for="current-pwd">Contraseña actual</label><input id="current-pwd" v-model="currentPassword" type="password" required class="inp" placeholder="••••••••" /></div>
+              <div class="form-group"><label for="current-pwd">{{ t('profilePage.currentPassword') }}</label><input id="current-pwd" v-model="currentPassword" type="password" required class="inp" placeholder="••••••••" /></div>
             </div>
             <div class="form-row">
-              <div class="form-group"><label for="new-pwd">Nueva contraseña</label><input id="new-pwd" v-model="newPassword" type="password" required minlength="8" class="inp" placeholder="Mínimo 8 caracteres" /></div>
-              <div class="form-group"><label for="confirm-pwd">Confirmar contraseña</label><input id="confirm-pwd" v-model="confirmPassword" type="password" required minlength="8" class="inp" placeholder="Repite la contraseña" /></div>
+              <div class="form-group"><label for="new-pwd">{{ t('profilePage.newPassword') }}</label><input id="new-pwd" v-model="newPassword" type="password" required minlength="8" class="inp" :placeholder="t('users.create.passwordPlaceholder')" /></div>
+              <div class="form-group"><label for="confirm-pwd">{{ t('profilePage.confirmPassword') }}</label><input id="confirm-pwd" v-model="confirmPassword" type="password" required minlength="8" class="inp" :placeholder="t('profilePage.repeatPassword')" /></div>
             </div>
             <p v-if="passwordError" class="form-error">{{ passwordError }}</p>
             <div class="form-actions">
-              <button type="submit" class="btn btn--danger" :disabled="savingPassword">{{ savingPassword ? 'Cambiando…' : 'Cambiar Contraseña' }}</button>
+              <button type="submit" class="btn btn--danger" :disabled="savingPassword">{{ savingPassword ? t('profilePage.changing') : t('profilePage.changePassword') }}</button>
             </div>
           </form>
         </section>
 
         <section id="mfa" class="profile-section">
-          <h2>Verificación en dos pasos (MFA)</h2>
+          <h2>{{ t('profilePage.mfa.title') }}</h2>
 
           <Transition name="mfa-fade" mode="out-in">
             <!-- Códigos de recuperación: se muestran una sola vez tras confirmar -->
             <div v-if="recoveryCodes.length" key="recovery" class="mfa-recovery-codes">
-              <p class="mfa-recovery-warning">Guarda estos códigos en un lugar seguro: cada uno sirve para un solo inicio de sesión de emergencia si pierdes tu app autenticadora. No se volverán a mostrar.</p>
+              <p class="mfa-recovery-warning">{{ t('profilePage.mfa.recoveryWarning') }}</p>
               <ul class="mfa-recovery-list">
                 <li v-for="c in recoveryCodes" :key="c"><code>{{ c }}</code></li>
               </ul>
               <div class="form-actions">
-                <button type="button" class="btn btn--secondary" @click="downloadRecoveryCodes">Descargar .txt</button>
-                <button type="button" class="btn btn--primary" @click="recoveryCodes = []">Ya los guardé</button>
+                <button type="button" class="btn btn--secondary" @click="downloadRecoveryCodes">{{ t('profilePage.mfa.download') }}</button>
+                <button type="button" class="btn btn--primary" @click="recoveryCodes = []">{{ t('profilePage.mfa.saved') }}</button>
               </div>
             </div>
 
             <!-- Activado -->
             <div v-else-if="mfa.status.enabled" key="enabled">
-              <p class="mfa-status-text mfa-status-text--on">✓ Verificación en dos pasos activada.</p>
+              <p class="mfa-status-text mfa-status-text--on">{{ t('profilePage.mfa.enabled') }}</p>
               <form class="profile-form" @submit.prevent="handleDisableMfa">
                 <div class="form-row form-row--single">
                   <div class="form-group">
-                    <label for="disable-code">Código de la app o de recuperación</label>
-                    <input id="disable-code" v-model="disableCode" type="text" class="inp" placeholder="123456 o XXXX-XXXX" required />
+                    <label for="disable-code">{{ t('profilePage.mfa.disableCode') }}</label>
+                    <input id="disable-code" v-model="disableCode" type="text" class="inp" :placeholder="t('profilePage.mfa.disablePlaceholder')" required />
                   </div>
                 </div>
                 <div class="form-actions">
-                  <button type="submit" class="btn btn--danger" :disabled="disabling">{{ disabling ? 'Desactivando…' : 'Desactivar MFA' }}</button>
+                  <button type="submit" class="btn btn--danger" :disabled="disabling">{{ disabling ? t('profilePage.mfa.disabling') : t('profilePage.mfa.disable') }}</button>
                 </div>
               </form>
             </div>
 
             <!-- Sin activar -->
             <div v-else key="disabled">
-              <p class="mfa-status-text">No tienes la verificación en dos pasos activada.</p>
+              <p class="mfa-status-text">{{ t('profilePage.mfa.disabled') }}</p>
               <div class="form-actions">
-                <button type="button" class="btn btn--primary" :disabled="startingSetup" @click="handleStartSetup">{{ startingSetup ? 'Generando…' : 'Activar MFA' }}</button>
+                <button type="button" class="btn btn--primary" :disabled="startingSetup" @click="handleStartSetup">{{ startingSetup ? t('profilePage.mfa.generating') : t('session.enableMfa') }}</button>
               </div>
             </div>
           </Transition>
@@ -108,35 +103,29 @@
 
         <!-- ───────── Baja de la cuenta ───────── -->
         <section class="profile-section profile-section--danger">
-          <h2>Borrar mi cuenta</h2>
-          <p class="danger-text">
-            Se borra todo lo tuyo: bóvedas, escaneos, análisis, activos y listas.
-            No hay vuelta atrás.
-          </p>
+          <h2>{{ t('profilePage.delete.title') }}</h2>
+          <p class="danger-text">{{ t('profilePage.delete.text') }}</p>
 
           <!-- La consecuencia sobre terceros: la que quien pulsa no tiene
                presente, y por eso va antes y destacada. -->
           <p v-if="deletion?.ownedOrganization" class="danger-warning">
-            <strong>Tu organización «{{ deletion.ownedOrganization.name }}» desaparecerá con tu cuenta.</strong>
+            <strong>{{ t('profilePage.delete.orgDisappears', { name: deletion.ownedOrganization.name }) }}</strong>
             {{ membersWarning }}
-            Conservarán su cuenta, sus datos y su plan personal, pero perderán
-            todo lo que tu plan les daba.
+            {{ t('profilePage.delete.membersKeep') }}
           </p>
-          <p v-else-if="deletion?.leavesOrganizationId" class="danger-note">
-            Saldrás de tu organización. Los demás no se ven afectados.
-          </p>
+          <p v-else-if="deletion?.leavesOrganizationId" class="danger-note">{{ t('profilePage.delete.leaves') }}</p>
 
           <form class="profile-form" @submit.prevent="askToDelete">
             <div class="form-row form-row--single">
               <div class="form-group">
-                <label for="delete-pwd">Confirma con tu contraseña</label>
+                <label for="delete-pwd">{{ t('profilePage.delete.confirmPassword') }}</label>
                 <input id="delete-pwd" v-model="deletePassword" type="password"
                        class="inp" placeholder="••••••••" required />
               </div>
             </div>
             <div class="form-actions">
               <button type="submit" class="btn btn--danger" :disabled="deleting">
-                {{ deleting ? 'Borrando…' : 'Borrar mi cuenta' }}
+                {{ deleting ? t('profilePage.delete.deleting') : t('profilePage.delete.title') }}
               </button>
             </div>
           </form>
@@ -146,10 +135,10 @@
 
     <ConfirmModal
       :show="confirmDelete"
-      title="¿Seguro que quieres borrar tu cuenta?"
+      :title="t('profilePage.delete.confirmTitle')"
       :message="confirmMessage"
       :danger="true"
-      confirm-label="Sí, borrar mi cuenta"
+      :confirm-label="t('profilePage.delete.confirmLabel')"
       @confirm="handleDelete"
       @cancel="confirmDelete = false"
     />
@@ -180,6 +169,9 @@ import { useProfileStore } from '@/stores/profileStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useMfaStore } from '@/stores/mfaStore'
 import { useUtils } from '@/composables/useUtils'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const store = useProfileStore()
 const auth = useAuthStore()
@@ -213,16 +205,15 @@ const confirmDelete = ref(false)
 
 const membersWarning = computed(() => {
   const count = deletion.value?.ownedOrganization?.membersLosingAccess ?? 0
-  if (count === 0) return 'No hay nadie más dentro.'
-  if (count === 1) return '1 persona se quedará sin organización.'
-  return `${count} personas se quedarán sin organización.`
+  return t('profilePage.delete.membersWarning', { count }, count)
 })
 
 const confirmMessage = computed(() => {
-  const base = 'Se borrará todo lo tuyo y no se puede deshacer.'
+  const base = t('profilePage.delete.confirmBase')
   if (!deletion.value?.ownedOrganization) return base
-  return `${base} Además, tu organización «${deletion.value.ownedOrganization.name}» `
-    + `desaparecerá: ${membersWarning.value.toLowerCase()}`
+  return t('profilePage.delete.confirmWithOrg', {
+    base, name: deletion.value.ownedOrganization.name, members: membersWarning.value,
+  })
 })
 
 async function loadDeletionPreview() {
@@ -243,10 +234,10 @@ async function handleDelete() {
       body: JSON.stringify({ password: deletePassword.value }),
     })
     if (!res?.ok) {
-      toast.show(await apiError(res, 'No se pudo borrar la cuenta.'), 'error')
+      toast.show(await apiError(res, t('profilePage.delete.failed')), 'error')
       return
     }
-    toast.show('Tu cuenta se ha eliminado.', 'success')
+    toast.show(t('profilePage.delete.done'), 'success')
     auth.logout()
   } finally {
     deleting.value = false
@@ -277,9 +268,9 @@ onMounted(async () => {
 async function handleProfileSubmit() { if (!firstName.value.trim() || !lastName.value.trim()) return; savingProfile.value = true; await store.updateProfile(firstName.value.trim(), lastName.value.trim()); savingProfile.value = false }
 async function handlePasswordSubmit() {
   passwordError.value = ''
-  if (newPassword.value.length < 8) { passwordError.value = 'La contraseña debe tener al menos 8 caracteres.'; return }
-  if (newPassword.value !== confirmPassword.value) { passwordError.value = 'Las contraseñas no coinciden.'; return }
-  if (newPassword.value === currentPassword.value) { passwordError.value = 'La nueva contraseña debe ser diferente de la actual.'; return }
+  if (newPassword.value.length < 8) { passwordError.value = t('users.create.passwordTooShort'); return }
+  if (newPassword.value !== confirmPassword.value) { passwordError.value = t('profilePage.passwordMismatch'); return }
+  if (newPassword.value === currentPassword.value) { passwordError.value = t('profilePage.passwordSame'); return }
   savingPassword.value = true
   const ok = await store.changePassword(currentPassword.value, newPassword.value)
   savingPassword.value = false
@@ -310,7 +301,7 @@ async function handleDisableMfa() {
 }
 
 function downloadRecoveryCodes() {
-  const content = `CÓDIGOS DE RECUPERACIÓN MFA - ELLYSIA\n\nGuarda estos códigos en un lugar seguro. Cada uno sirve para un solo inicio de sesión de emergencia si pierdes tu app autenticadora.\n\n${recoveryCodes.value.join('\n')}\n\nNota: Estos códigos no se volverán a mostrar. Si los pierdes, deberás desactivar y reconfigurar MFA.`
+  const content = t('profilePage.mfa.recoveryFile', { codes: recoveryCodes.value.join('\n') })
   const blob = new Blob([content], { type: 'text/plain' })
   triggerDownload(blob, `ellysia-recovery-codes-${new Date().toISOString().split('T')[0]}.txt`)
 }

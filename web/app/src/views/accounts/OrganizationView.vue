@@ -1,62 +1,52 @@
 <template>
   <div class="org-page">
     <StarBackground />
-    <Topbar title="Mi organización" />
+    <Topbar :title="t('organization.topbar')" />
 
     <main class="main">
       <!-- Sin organización: crearla, o explicar por qué no se puede -->
       <section v-if="!account.organization" class="section section--empty">
-        <h1>Aún no tienes organización</h1>
-        <p class="lede">
-          Una organización deja que tu gente use Ellysia bajo tu plan, sin pagar
-          una licencia por cabeza. Comparte plan y factura — nunca datos: no verás
-          sus bóvedas, ni sus correos analizados, ni sus escaneos.
-        </p>
+        <h1>{{ t('organization.none') }}</h1>
+        <p class="lede">{{ t('organization.lede') }}</p>
 
         <form v-if="canCreate" class="create-form" @submit.prevent="create">
           <div class="form-group">
-            <label for="org-name">Nombre de la organización</label>
+            <label for="org-name">{{ t('organization.name') }}</label>
             <input id="org-name" v-model="newName" type="text" required minlength="2"
-                   maxlength="128" class="inp" placeholder="Acme S.L." />
+                   maxlength="128" class="inp" :placeholder="t('organization.namePlaceholder')" />
           </div>
           <button type="submit" class="btn btn--primary" :disabled="creating">
-            {{ creating ? 'Creando…' : 'Crear organización' }}
+            {{ creating ? t('login.register.submitting') : t('organization.create') }}
           </button>
         </form>
 
         <p v-else class="hint">
-          Tu plan no incluye la gestión de una organización.
-          <router-link to="/planes" class="link">Ver planes</router-link>.
+          {{ t('organization.notInPlan') }}
+          <router-link to="/planes" class="link">{{ t('organization.seePlans') }}</router-link>.
         </p>
       </section>
 
       <template v-else>
         <section class="head">
           <div>
-            <span class="head-eyebrow">{{ account.isOwner ? 'Gestionas' : 'Perteneces a' }}</span>
+            <span class="head-eyebrow">{{ account.isOwner ? t('organization.youManage') : t('organization.youBelong') }}</span>
             <h1 class="head-name">{{ account.organization.name }}</h1>
-            <p class="head-meta">{{ account.organization.memberCount }} miembro(s)</p>
+            <p class="head-meta">{{ t('organization.memberCount', { count: account.organization.memberCount }, account.organization.memberCount) }}</p>
           </div>
           <button v-if="!account.isOwner" class="btn btn--danger" @click="leave">
-            Salir de la organización
+            {{ t('organization.leave') }}
           </button>
         </section>
 
-        <p v-if="!account.isOwner" class="hint">
-          Tu plan personal sigue siendo tuyo: lo que la organización incluye se
-          suma a lo que ya tienes, y si te vas te lo llevas intacto.
-        </p>
+        <p v-if="!account.isOwner" class="hint">{{ t('organization.memberHint') }}</p>
 
         <template v-if="account.isOwner">
           <section class="section">
-            <h2>Idioma</h2>
-            <p class="section-desc">
-              El idioma de los miembros que no han elegido uno. Quien elige el
-              suyo desde el selector de idioma lo mantiene.
-            </p>
+            <h2>{{ t('language.label') }}</h2>
+            <p class="section-desc">{{ t('organization.languageDesc') }}</p>
             <select class="inp language-inp" :value="account.organization.defaultLanguage ?? ''"
                     :disabled="savingLanguage" @change="saveLanguage($event.target.value)">
-              <option value="">Idioma de la plataforma</option>
+              <option value="">{{ t('organization.platformLanguage') }}</option>
               <option v-for="option in LOCALE_OPTIONS" :key="option.code" :value="option.code" :lang="option.code">
                 {{ option.name }}
               </option>
@@ -64,44 +54,37 @@
           </section>
 
           <ComplianceFrameworksPicker scope="organization" class="section">
-            <h2>Marcos de cumplimiento</h2>
-            <p class="section-desc">
-              Los marcos que salen en los informes de Lybra de todos los miembros. Si los fijas,
-              sustituyen a los que cada miembro haya elegido en su perfil.
-            </p>
+            <h2>{{ t('profilePage.complianceTitle') }}</h2>
+            <p class="section-desc">{{ t('organization.complianceDesc') }}</p>
           </ComplianceFrameworksPicker>
 
           <section class="section">
-            <h2>Invitar</h2>
-            <p class="section-desc">
-              Si esa dirección ya tiene cuenta, recibirá un enlace y no entrará
-              hasta que acepte. Si no la tiene, se le crea una y se le mandan las
-              credenciales.
-            </p>
+            <h2>{{ t('organization.inviteTitle') }}</h2>
+            <p class="section-desc">{{ t('organization.inviteDesc') }}</p>
             <form class="invite-form" @submit.prevent="invite">
               <input v-model="inviteEmail" type="email" required class="inp"
-                     placeholder="persona@empresa.com" />
+                     :placeholder="t('organization.invitePlaceholder')" />
               <button type="submit" class="btn btn--primary" :disabled="inviting">
-                {{ inviting ? 'Enviando…' : 'Invitar' }}
+                {{ inviting ? t('login.recover.submitting') : t('organization.invite') }}
               </button>
             </form>
           </section>
 
           <section class="section">
-            <h2>Miembros</h2>
+            <h2>{{ t('organization.members') }}</h2>
             <table class="table">
               <thead>
-                <tr><th>Usuario</th><th>Correo</th><th>Rol</th><th></th></tr>
+                <tr><th>{{ t('users.fields.username') }}</th><th>{{ t('login.register.email') }}</th><th>{{ t('users.fields.role') }}</th><th></th></tr>
               </thead>
               <tbody>
                 <tr v-for="member in members" :key="member.userId">
                   <td>{{ member.fullName || member.username }}</td>
                   <td class="mono">{{ member.email }}</td>
-                  <td>{{ member.role === 'owner' ? 'Dueño' : 'Miembro' }}</td>
+                  <td>{{ member.role === 'owner' ? t('organization.owner') : t('organization.member') }}</td>
                   <td class="td-actions">
                     <button v-if="member.role !== 'owner'" class="btn-link btn-link--danger"
                             @click="expel(member)">
-                      Expulsar
+                      {{ t('organization.expel') }}
                     </button>
                   </td>
                 </tr>
@@ -110,21 +93,21 @@
           </section>
 
           <section class="section">
-            <h2>Invitaciones</h2>
-            <p v-if="!invitations.length" class="hint">No hay invitaciones.</p>
+            <h2>{{ t('organization.invitations') }}</h2>
+            <p v-if="!invitations.length" class="hint">{{ t('organization.noInvitations') }}</p>
             <table v-else class="table">
               <thead>
-                <tr><th>Correo</th><th>Estado</th><th>Caduca</th><th></th></tr>
+                <tr><th>{{ t('login.register.email') }}</th><th>{{ t('organization.status') }}</th><th>{{ t('organization.expires') }}</th><th></th></tr>
               </thead>
               <tbody>
                 <tr v-for="invitation in invitations" :key="invitation.id">
                   <td class="mono">{{ invitation.email }}</td>
-                  <td>{{ STATUS[invitation.status] ?? invitation.status }}</td>
+                  <td>{{ statusLabel(invitation.status) }}</td>
                   <td>{{ account.formatDate(invitation.expiresAt) }}</td>
                   <td class="td-actions">
                     <button v-if="invitation.status === 'pending'" class="btn-link btn-link--danger"
                             @click="revoke(invitation)">
-                      Revocar
+                      {{ t('organization.revoke') }}
                     </button>
                   </td>
                 </tr>
@@ -140,7 +123,7 @@
       :title="confirm.title"
       :message="confirm.message"
       :danger="true"
-      confirm-label="Confirmar"
+      :confirm-label="t('common.confirm')"
       @confirm="confirm.action()"
       @cancel="confirm.open = false"
     />
@@ -165,16 +148,25 @@ import { useAccountStore } from '@/stores/accountStore'
 import { useProfileStore } from '@/stores/profileStore'
 import { useToastStore } from '@/stores/toastStore'
 import { LOCALE_OPTIONS } from '@/i18n'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const { apiFetch, apiError } = useApi()
 const account = useAccountStore()
 const toast = useToastStore()
 
-const STATUS = {
-  pending: 'Pendiente',
-  accepted: 'Aceptada',
-  revoked: 'Revocada',
-  expired: 'Caducada',
+/** Estados de invitación que tienen rótulo en `organization.statuses`. */
+const STATUSES = ['pending', 'accepted', 'revoked', 'expired']
+
+/**
+ * Rótulo de un estado de invitación.
+ *
+ * @param {string} status - Estado que devuelve la API.
+ * @returns {string} El rótulo, o «Desconocido» si el servidor manda uno nuevo.
+ */
+function statusLabel(status) {
+  return STATUSES.includes(status) ? t(`organization.statuses.${status}`) : t('common.unknown')
 }
 
 const members = ref([])
@@ -242,11 +234,11 @@ async function invite() {
     if (!res?.ok) {
       // El 402 ya lo avisa useApi; aquí solo el resto.
       if (res?.status !== 402) {
-        toast.show(await apiError(res, 'No se pudo invitar.'), 'error')
+        toast.show(await apiError(res, t('organization.toast.inviteFailed')), 'error')
       }
       return
     }
-    toast.show('Invitación enviada.', 'success')
+    toast.show(t('organization.toast.invited'), 'success')
     inviteEmail.value = ''
     await load()
   } finally {
@@ -257,9 +249,8 @@ async function invite() {
 function expel(member) {
   confirm.value = {
     open: true,
-    title: `¿Expulsar a ${member.username}?`,
-    message: 'Conservará su cuenta, sus datos y su plan personal. Solo perderá '
-      + 'lo que la organización le daba.',
+    title: t('organization.confirmExpel.title', { username: member.username }),
+    message: t('organization.confirmExpel.message'),
     action: async () => {
       confirm.value.open = false
       const res = await apiFetch(
@@ -267,10 +258,10 @@ function expel(member) {
         { method: 'DELETE' },
       )
       if (!res?.ok) {
-        toast.show(await apiError(res, 'No se pudo expulsar.'), 'error')
+        toast.show(await apiError(res, t('organization.toast.expelFailed')), 'error')
         return
       }
-      toast.show('Miembro expulsado.', 'success')
+      toast.show(t('organization.toast.expelled'), 'success')
       await load()
     },
   }
@@ -279,15 +270,15 @@ function expel(member) {
 function revoke(invitation) {
   confirm.value = {
     open: true,
-    title: '¿Revocar la invitación?',
-    message: `El enlace enviado a ${invitation.email} dejará de funcionar.`,
+    title: t('organization.confirmRevoke.title'),
+    message: t('organization.confirmRevoke.message', { email: invitation.email }),
     action: async () => {
       confirm.value.open = false
       const res = await apiFetch(`/organizations/invitations/${invitation.id}`, {
         method: 'DELETE',
       })
       if (!res?.ok) {
-        toast.show(await apiError(res, 'No se pudo revocar.'), 'error')
+        toast.show(await apiError(res, t('organization.toast.revokeFailed')), 'error')
         return
       }
       await load()
@@ -298,18 +289,16 @@ function revoke(invitation) {
 function leave() {
   confirm.value = {
     open: true,
-    title: '¿Salir de la organización?',
-    message: 'Conservarás tu cuenta, tus datos y tu plan personal. Perderás lo '
-      + 'que la organización te daba, y lo que quede por encima de tu plan se '
-      + 'quedará en solo lectura — no se borra nada.',
+    title: t('organization.confirmLeave.title'),
+    message: t('organization.confirmLeave.message'),
     action: async () => {
       confirm.value.open = false
       const res = await apiFetch('/organizations/mine', { method: 'DELETE' })
       if (!res?.ok) {
-        toast.show(await apiError(res, 'No se pudo salir.'), 'error')
+        toast.show(await apiError(res, t('organization.toast.leaveFailed')), 'error')
         return
       }
-      toast.show('Has salido de la organización.', 'success')
+      toast.show(t('organization.toast.left'), 'success')
       await load()
     },
   }

@@ -19,6 +19,9 @@
 <script setup>
 import { computed } from 'vue'
 import { useUtils } from '@/composables/useUtils'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const { formatDate, getInitials } = useUtils()
 const props = defineProps({ user: { type: Object, required: true } })
@@ -26,7 +29,7 @@ defineEmits(['details'])
 
 const initials = computed(() => getInitials(props.user.first_name, props.user.last_name))
 const roleClass = computed(() => { const r = props.user.role || 'role_user'; if (r === 'role_root') return 'root'; if (r === 'role_admin') return 'admin'; return 'user' })
-const roleLabel = computed(() => { const r = props.user.role || 'role_user'; if (r === 'role_root') return 'Root'; if (r === 'role_admin') return 'Admin'; return 'Usuario' })
+const roleLabel = computed(() => t(`accountMenu.roles.${roleClass.value}`))
 </script>
 
 <style scoped>

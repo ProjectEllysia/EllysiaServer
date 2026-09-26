@@ -6,11 +6,11 @@
       <div class="card">
         <div class="state" :class="`state--${state}`" aria-hidden="true"></div>
 
-        <h1 class="title">{{ copy.title }}</h1>
-        <p class="text">{{ copy.text }}</p>
+        <h1 class="title">{{ t(`invitationLanding.${kind}.${state}.title`) }}</h1>
+        <p class="text">{{ state === 'error' && serverMessage ? serverMessage : t(`invitationLanding.${kind}.${state}.text`) }}</p>
 
-        <router-link v-if="state === 'ok'" :to="okRoute" class="cta">{{ copy.cta }}</router-link>
-        <router-link v-else-if="state === 'error'" to="/" class="cta">Volver a la portada</router-link>
+        <router-link v-if="state === 'ok'" :to="okRoute" class="cta">{{ t(`invitationLanding.${kind}.ok.cta`) }}</router-link>
+        <router-link v-else-if="state === 'error'" to="/" class="cta">{{ t('invitationLanding.home') }}</router-link>
       </div>
     </main>
 
@@ -32,8 +32,12 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import { translateApiError } from '@/i18n/apiErrors'
 import SiteHeader from '@/components/shared/SiteHeader.vue'
 import SiteFooter from '@/components/shared/SiteFooter.vue'
+import { useI18n } from 'vue-i18n'
+
+const { t, te } = useI18n()
 
 const props = defineProps({
   /** 'verify' (confirmar correo) o 'invitation' (aceptar invitación). */
@@ -49,42 +53,6 @@ const ENDPOINTS = {
   invitation: '/organizations/invitations/accept',
 }
 
-const COPY = {
-  verify: {
-    loading: { title: 'Confirmando tu correo…', text: 'Un momento.' },
-    ok: {
-      title: 'Correo confirmado',
-      text: 'Ya puedes usar Ellysia sin límites de cuenta sin verificar.',
-      cta: 'Entrar',
-    },
-    error: {
-      title: 'Este enlace no vale',
-      text: 'Puede que ya lo hayas usado o que haya caducado. Pide uno nuevo desde tu perfil.',
-    },
-  },
-  invitation: {
-    loading: { title: 'Aceptando la invitación…', text: 'Un momento.' },
-    ok: {
-      title: 'Ya formas parte de la organización',
-      text: 'Tu plan personal no ha cambiado: lo que la organización incluye se '
-        + 'suma a lo que ya tenías, y si algún día sales te lo llevas intacto.',
-      cta: 'Ver mi organización',
-    },
-    error: {
-      title: 'Esta invitación no vale',
-      text: 'Puede que ya la hayas aceptado, que la hayan revocado o que haya '
-        + 'caducado. Pide a quien te invitó que te mande otra.',
-    },
-  },
-}
-
-const copy = computed(() => {
-  const base = COPY[props.kind][state.value]
-  if (state.value === 'error' && serverMessage.value) {
-    return { ...base, text: serverMessage.value }
-  }
-  return base
-})
 
 const okRoute = computed(() => (props.kind === 'verify' ? '/login' : '/organizacion'))
 
@@ -106,7 +74,7 @@ onMounted(async () => {
       return
     }
     const body = await res.json().catch(() => ({}))
-    serverMessage.value = body.error_description || ''
+    serverMessage.value = translateApiError(body, { t, te }) || body.error_description || ''
     state.value = 'error'
   } catch {
     state.value = 'error'
