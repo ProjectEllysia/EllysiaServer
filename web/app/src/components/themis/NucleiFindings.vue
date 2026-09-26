@@ -1,33 +1,33 @@
 <template>
   <div class="nuclei-findings">
-    <div v-if="!findings.length" class="nf-empty">Sin hallazgos.</div>
+    <div v-if="!findings.length" class="nf-empty">{{ t('themis.nuclei.empty') }}</div>
     <template v-else>
       <TransitionGroup tag="ul" name="nf-item" class="nf-list">
         <li v-for="f in visible" :key="f.id" class="nf-item" :class="{ potential: !f.confirmed }">
-          <span class="nf-prio" :class="(f.priority || 'INFO').toLowerCase()">{{ PRIO_LABEL[f.priority] || f.priority }}</span>
+          <span class="nf-prio" :class="(f.priority || 'INFO').toLowerCase()">{{ priorityLabel(f.priority) }}</span>
           <div class="nf-main">
             <div class="nf-title-row">
               <span class="nf-conf" :class="f.confirmed ? 'confirmed' : 'hypothesis'"
-                :title="f.confirmed ? `Comprobado activamente (QoD ${f.qod})` : `Deducido (QoD ${f.qod})`">
-                {{ f.confirmed ? 'Comprobado' : 'Potencial' }}
+                :title="f.confirmed ? t('lybra.results.confirmedHint', { qod: f.qod }) : t('themis.nuclei.inferred', { qod: f.qod })">
+                {{ f.confirmed ? t('lybra.results.confirmed') : t('lybra.results.potential') }}
               </span>
               <span class="nf-title">{{ f.title }}</span>
             </div>
             <div class="nf-meta">
               <span v-if="f.port" class="nf-tag mono">{{ f.service || 'svc' }}:{{ f.port }}</span>
               <span v-for="cve in (f.cveIds || [])" :key="cve" class="nf-tag cve">{{ cve }}</span>
-              <span v-if="f.inKev" class="nf-tag kev" title="En la lista CISA de vulnerabilidades explotadas activamente">KEV · explotada</span>
-              <span v-if="f.epssScore != null" class="nf-tag epss" title="Probabilidad de explotación en 30 días (EPSS)">EPSS {{ Math.round(f.epssScore * 100) }}%</span>
+              <span v-if="f.inKev" class="nf-tag kev" :title="t('lybra.results.kevHint')">{{ t('lybra.results.kevExploited') }}</span>
+              <span v-if="f.epssScore != null" class="nf-tag epss" :title="t('lybra.results.epssHint')">EPSS {{ Math.round(f.epssScore * 100) }}%</span>
               <span v-if="f.cvssScore != null" class="nf-tag cvss">CVSS {{ f.cvssScore }}</span>
-              <span v-if="f.state && f.state !== 'open'" class="nf-tag state" :class="f.state">{{ STATE_LABEL[f.state] || f.state }}</span>
-              <span v-if="f.source && f.source !== 'nuclei'" class="nf-tag src" :title="`Corroborado por ${f.source}`">+{{ f.source }}</span>
+              <span v-if="f.state && f.state !== 'open'" class="nf-tag state" :class="f.state">{{ findingStateLabel(f.state) }}</span>
+              <span v-if="f.source && f.source !== 'nuclei'" class="nf-tag src" :title="t('themis.nuclei.corroborated', { source: f.source })">+{{ f.source }}</span>
             </div>
           </div>
         </li>
       </TransitionGroup>
 
       <button v-if="visible.length < sorted.length" type="button" class="nf-load-more" @click="page++">
-        Ver más ({{ visible.length }} de {{ sorted.length }})
+        {{ t('lybra.results.showMore', { shown: visible.length, total: sorted.length }) }}
       </button>
     </template>
   </div>
@@ -35,6 +35,10 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { priorityLabel, findingStateLabel } from './labels'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   findings: { type: Array, default: () => [] },
@@ -43,8 +47,6 @@ const props = defineProps({
 // Mismo orden y vocabulario que LybraResults.vue: la prioridad ya viene
 // calculada por el backend (score_finding), aquí solo se ordena y se pinta.
 const PRIO_ORDER = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3, INFO: 4 }
-const PRIO_LABEL = { CRITICAL: 'CRÍTICA', HIGH: 'ALTA', MEDIUM: 'MEDIA', LOW: 'BAJA', INFO: 'INFO' }
-const STATE_LABEL = { fixed: 'Corregido', regressed: 'Regresado', accepted: 'Aceptado' }
 
 const PAGE_SIZE = 20
 const page = ref(1)

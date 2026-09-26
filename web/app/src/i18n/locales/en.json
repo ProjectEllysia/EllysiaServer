@@ -435,7 +435,9 @@
   },
   "mfa": {
     "setupFailed": "MFA activation could not be started.",
-    "invalidCode": "Invalid code."
+    "invalidCode": "Invalid code.",
+    "enabled": "MFA turned on.",
+    "disabled": "MFA turned off."
   },
   "about": {
     "title": "About Ellysia",
@@ -1142,6 +1144,573 @@
       "limitsSaved": "Limits saved.",
       "defaultFailed": "It could not be changed.",
       "deleteFailed": "It could not be deleted."
+    }
+  },
+  "themis": {
+    "refresh": "Refresh",
+    "deleteSelected": "Delete ({count})",
+    "selectScan": "Select scan #{id}",
+    "deleteScanLabel": "Delete scan #{id}",
+    "deleteScan": "Delete scan",
+    "priority": {
+      "CRITICAL": "Critical",
+      "HIGH": "High",
+      "MEDIUM": "Medium",
+      "LOW": "Low",
+      "INFO": "Info"
+    },
+    "findingState": {
+      "open": "Open",
+      "fixed": "Fixed",
+      "regressed": "Regressed",
+      "accepted": "Accepted",
+      "false_positive": "False positive"
+    },
+    "documents": {
+      "title": "Documents",
+      "refresh": "Refresh documents",
+      "loading": "Loading documents…",
+      "empty": "No documents generated",
+      "ai": "AI",
+      "download": "Download",
+      "running": "Generating…",
+      "pending": "Pending",
+      "error": "Error",
+      "aiAnalysis": "AI analysis",
+      "generatePdf": "Generate PDF"
+    },
+    "batch": {
+      "selected": "{count} scan selected | {count} scans selected",
+      "processing": "Processing…"
+    },
+    "folders": {
+      "folder": "Folder",
+      "name": "Folder name",
+      "namePlaceholder": "E.g. Production",
+      "nameHint": "Letters, numbers, spaces, hyphens and underscores only.",
+      "moveTitle": "Move scan to folder",
+      "select": "Select a folder",
+      "choose": "— Choose a folder —",
+      "moving": "Moving…",
+      "move": "Move",
+      "title": "Scan folders",
+      "new": "New folder",
+      "loading": "Loading folders",
+      "empty": "There are no folders yet. Create the first one!",
+      "emptyFolder": "There are no scans in this folder.",
+      "moveToOther": "Move to another folder",
+      "removeFromFolder": "Remove from folder",
+      "showMore": "Show more ({count} left)",
+      "rename": "Rename",
+      "delete": "Delete folder",
+      "none": "No folder"
+    },
+    "stats": {
+      "total": "Total scans",
+      "allTypes": "all types",
+      "network": "network scans",
+      "web": "web scans",
+      "templates": "templates"
+    },
+    "status": {
+      "running": "Running",
+      "done": "Completed",
+      "pending": "Pending",
+      "failed": "Failed",
+      "cancelled": "Cancelled"
+    },
+    "views": {
+      "full": "Full view",
+      "folders": "Folders",
+      "history": "Statistics"
+    },
+    "nuclei": {
+      "empty": "No findings.",
+      "inferred": "Inferred (QoD {qod})",
+      "corroborated": "Corroborated by {source}"
+    },
+    "traceroute": {
+      "title": "Network route (traceroute)",
+      "cached": "Cached {date}",
+      "computed": "Computed {date}",
+      "refresh": "Recompute route",
+      "loading": "Computing the route to the target…",
+      "failed": "The route to the target could not be traced.",
+      "origin": "Ellysia server",
+      "originLabel": "Origin",
+      "noReply": "No reply (*)",
+      "target": "Target"
+    },
+    "history": {
+      "title": "Historical statistics",
+      "subtitle": "How your scans evolve over time, by host.",
+      "loadingHosts": "Loading hosts…",
+      "empty": "You have not completed any scan yet. Launch a scan to see its history here.",
+      "selectHost": "Select a scanned host",
+      "chooseHost": "-- Choose a host --",
+      "scanCount": "{count} scan | {count} scans",
+      "generating": "Generating statistics…",
+      "pickHost": "Select a host to see its chart."
+    },
+    "historyChart": {
+      "empty": "There is no historical data for this host yet.",
+      "ariaLabel": "{metric} in the last {count} scans of {target}",
+      "xAxis": "Scan (date)",
+      "metric": {
+        "nmap": "Open ports",
+        "nikto": "Issues",
+        "lybra": "Findings",
+        "nuclei": "Findings"
+      },
+      "legend": {
+        "new": "New",
+        "unchanged": "Unchanged",
+        "disappeared": "Gone"
+      },
+      "caption": "Comparison of the latest scan with the one right before it."
+    },
+    "table": {
+      "type": "Type",
+      "target": "Target",
+      "status": "Status",
+      "date": "Date",
+      "actions": "Actions",
+      "preview": "Preview",
+      "results": "{type} results",
+      "loading": "Loading scans",
+      "empty": "There are no scans yet. Launch the first one!",
+      "selectAll": "Select every scan on the page",
+      "portsUnit": "ports",
+      "findingsUnit": "findings",
+      "previewScan": "Preview scan #{id}",
+      "cancelScanLabel": "Cancel scan #{id}",
+      "cancelScan": "Cancel scan",
+      "confirmDelete": "Delete scan #{id}?",
+      "confirmCancel": "Cancel scan #{id}?"
+    },
+    "compliance": {
+      "impose": "Apply these frameworks to every member",
+      "notImposing": "Until you turn this on, each member chooses their own in their profile.",
+      "locked": "Your organization has set the frameworks for all its members. Your choice is kept and applies again if the organization stops setting them.",
+      "saveFailed": "The compliance frameworks could not be saved.",
+      "saved": "Compliance frameworks saved."
+    },
+    "form": {
+      "title": "New {type} scan",
+      "started": "Scan started",
+      "targetCidr": "Target (IP / CIDR)",
+      "launch": "Launch",
+      "portStrategy": "Port strategy",
+      "strategies": {
+        "wellknown": {
+          "label": "Well-known",
+          "hint": "Ports 1-1023 · standard system services"
+        },
+        "registered": {
+          "label": "Registered",
+          "hint": "Ports 1024-49151 · registered applications"
+        },
+        "private": {
+          "label": "Private",
+          "hint": "Ports 49152-65535 · dynamic/private use"
+        },
+        "complete": {
+          "label": "Complete",
+          "hint": "Range 0-65535 · exhaustive scan"
+        },
+        "custom": {
+          "label": "Custom",
+          "hint": "Define your own port range"
+        }
+      },
+      "portRange": "Port range",
+      "severities": "Severities",
+      "nucleiSeverities": "Nuclei severities",
+      "severityHints": {
+        "critical": "Critical severity",
+        "high": "High severity",
+        "medium": "Medium severity",
+        "low": "Low severity",
+        "info": "Tech-detect templates — thousands of requests, no CVSS of their own"
+      },
+      "tags": "Tags (optional)",
+      "rateLimit": "Rate limit",
+      "requestTimeout": "Request timeout (s)"
+    },
+    "preview": {
+      "started": "Started {date}",
+      "finished": "Finished {date}",
+      "inProgress": "In progress",
+      "critical": "Critical",
+      "high": "High"
+    },
+    "scheduled": {
+      "title": "Scheduled scans",
+      "new": "New scheduled scan",
+      "schedule": "Schedule",
+      "interval": "Interval",
+      "every": "Every",
+      "unit": "Unit",
+      "units": {
+        "minutes": "Minutes",
+        "hours": "Hours",
+        "days": "Days"
+      },
+      "shortUnits": {
+        "minutes": "min",
+        "hours": "h",
+        "days": "d"
+      },
+      "everySummary": "every {every} {unit}",
+      "cron": "Cron expression",
+      "empty": "There are no scheduled {type} scans",
+      "arguments": "Arguments",
+      "nextRun": "Next run",
+      "active": "Active",
+      "revoked": "Revoked",
+      "confirmDeactivate": "Deactivate this scheduled scan?",
+      "confirmDelete": "Permanently delete this scheduled scan?"
+    }
+  },
+  "lybra": {
+    "sections": {
+      "prod": "Affected products",
+      "conf": "Configuration and exposure"
+    },
+    "site": {
+      "ip": "When reached by IP",
+      "vhost": "On {vhost}",
+      "hint": "This server hosts several websites on the same address and each one is checked separately: the same issue can appear on more than one, and it has to be fixed on every site where it appears."
+    },
+    "gravest": {
+      "CRITICAL": "Most severe: {count} critical",
+      "HIGH": "Most severe: {count} high",
+      "MEDIUM": "Most severe: {count} medium",
+      "LOW": "Most severe: {count} low"
+    },
+    "failure": {
+      "host_unreachable": {
+        "title": "The target did not respond.",
+        "hint": "The engine could not open any connection, so there is nothing to analyze. Check that the machine is on, that the address is right and that no firewall is dropping the traffic."
+      },
+      "port_discovery_failed": {
+        "title": "Port discovery could not be completed.",
+        "hint": "The target was responding, but the sweep did not finish. It is usually a firewall cutting the probe halfway; try narrowing the port list."
+      },
+      "no_results": {
+        "title": "The scanner finished without returning results.",
+        "hint": "The tool ran but produced nothing to process. Launch it again; if it happens again, the target may be filtering the scan."
+      },
+      "orphaned": {
+        "title": "The scan was interrupted when the service restarted.",
+        "hint": "It is not a problem with the target: the job was lost halfway and closed when the service started again. Launch it again."
+      },
+      "timeout": {
+        "title": "Time ran out before it finished.",
+        "hint": "The requested work did not fit in the requested time. It happens when a very wide port range meets a target with many open ports: every service found is analyzed afterwards, and that takes time too. Narrow the ports or raise the time limit in the launch panel."
+      },
+      "internal_error": {
+        "title": "The engine hit an unexpected error.",
+        "hint": "The failure is in the product, not in your network. The details are in the server log; if it happens again with the same target, it is worth reporting."
+      },
+      "unknown": {
+        "title": "The scan failed.",
+        "hint": "The reason was not recorded — this scan predates the engine storing it."
+      }
+    },
+    "results": {
+      "selectAll": "Select every verdict on the page",
+      "title": "Lybra verdicts",
+      "loading": "Loading verdicts",
+      "empty": "The engine has not issued any verdict yet. Launch the first one!",
+      "publicHint": "Public IP — priority is adjusted upwards",
+      "privateHint": "Private LAN — priority is tempered",
+      "public": "Public",
+      "private": "Private",
+      "noFindings": "No findings",
+      "partialHint": "Discovery ran out of time: what is shown is accurate, but it is not the whole surface",
+      "partial": "Partial",
+      "queued": "Queued, about to start.",
+      "running": "The engine is weighing the evidence…",
+      "clean": "No findings. The analyzed surface is clean.",
+      "findings": "Findings",
+      "collapse": "Collapse",
+      "expand": "Expand",
+      "rearranging": "Rearranging findings",
+      "noMatch": "No finding matches these filters.",
+      "clearFilters": "Clear filters",
+      "findingCount": "{count} finding | {count} findings",
+      "findingsOf": "{shown} of {count} finding | {shown} of {count} findings",
+      "fixedHint": "Updating to this version closes the whole group at once",
+      "fixedIn": "Fixed in {version} or later",
+      "kevHint": "On CISA's list of actively exploited vulnerabilities",
+      "cveCount": "{count} CVE | {count} CVEs",
+      "maxCvss": "Max CVSS {score}",
+      "confirmedCount": "{count} confirmed",
+      "confirmedHint": "Actively confirmed (QoD {qod})",
+      "potentialHint": "Inferred from the version (QoD {qod}) — potential, not confirmed",
+      "confirmed": "Confirmed",
+      "potential": "Potential",
+      "kevExploited": "KEV · exploited",
+      "epssHint": "Probability of exploitation within 30 days (EPSS)",
+      "source": "Source: {source}",
+      "falsePositiveReason": "Why is it not real? (e.g. a Debian backport)",
+      "acceptedReason": "Why is it accepted? (e.g. mitigated by the WAF)",
+      "reopen": "Reopen",
+      "dispute": "Dispute",
+      "acceptRisk": "Accept risk",
+      "showMore": "Show more ({shown} of {total})",
+      "partialNote": "Incomplete analysis: port discovery ran out of time before covering the whole target. What appears is accurate, but {absence} — which is why this scan has not marked any earlier finding as fixed. Raise the time limit or narrow the port list for a complete analysis.",
+      "partialNoteAbsence": "the absence of something does not mean it is not there",
+      "unauthorized": "Target not authorized: Lybra's own fingerprinting and active checks were not run against '{target}'. Authorize it in the launch panel for a more complete analysis.",
+      "coverage": "Coverage note: {unresolved} of the {packages} inventoried packages could not be identified against the vulnerability catalog, so they were not checked. The rest were checked — their lack of findings is a real verification.",
+      "docsSubtitle": "PDF reports for this verdict",
+      "pdfName": "Lybra PDF",
+      "balance": "Weight by severity: {levels}",
+      "noBreakdown": "No breakdown by severity",
+      "onlyInfo": "Informational findings only"
+    },
+    "toolbar": {
+      "label": "Sort and filter the findings of scan #{id}",
+      "search": "Search findings",
+      "searchPlaceholder": "Search by title, CVE or product",
+      "sortBy": "Sort by",
+      "sort": {
+        "severity": "Severity",
+        "cvss": "CVSS",
+        "epss": "EPSS",
+        "title": "Name",
+        "product": "Product"
+      },
+      "invert": "Reverse: {direction}",
+      "direction": {
+        "severity": {
+          "natural": "Most severe first",
+          "reversed": "Least severe first"
+        },
+        "numeric": {
+          "natural": "Highest first",
+          "reversed": "Lowest first"
+        },
+        "alphabetic": {
+          "natural": "A → Z",
+          "reversed": "Z → A"
+        }
+      },
+      "severity": "Severity",
+      "stateLabel": "Status",
+      "state": {
+        "all": "All",
+        "pending": "Pending",
+        "resolved": "Resolved"
+      },
+      "certaintyLabel": "Certainty",
+      "certainty": {
+        "all": "All",
+        "confirmed": "Confirmed",
+        "potential": "Potential"
+      },
+      "showing": "Showing {visible} of {count} finding | Showing {visible} of {count} findings",
+      "loadingFindings": "Loading findings"
+    },
+    "launch": {
+      "title": "Lybra engine",
+      "subtitle": "Weighs every threat before it strikes",
+      "running": "Engine running",
+      "target": "Target (single IP)",
+      "authorizedHint": "It is in your register of authorized targets",
+      "authorized": "Authorized",
+      "authorizeHint": "Add '{target}' to your authorized targets",
+      "authorize": "Authorize",
+      "ports": "Ports (optional)",
+      "portsPlaceholder": "80,443 or 1-1000",
+      "missingHint": "It is not in your register of authorized targets: auto-discovery will be rejected.",
+      "register": "Authorized targets",
+      "registerHint": "Targets (IP or CIDR) you have declared authorized for Lybra's auto-discovery, its own fingerprinting and its active checks.",
+      "registerEmpty": "You have not authorized any target yet.",
+      "newTargetPlaceholder": "10.0.0.5 or 10.0.0.0/24",
+      "labelPlaceholder": "Label (optional)",
+      "add": "Add",
+      "timeout": "Timeout (s)",
+      "launching": "Weighing…",
+      "launch": "Issue verdict",
+      "minutes": "{minutes} min",
+      "hours": "{hours} h",
+      "hoursMinutes": "{hours} h {minutes} min"
+    },
+    "agents": {
+      "title": "Hygeia agents",
+      "loading": "Loading agents…",
+      "empty": "No monitored assets yet. Register an agent in Hygeia and, once it reports its software inventory, you can analyze it here without scanning the network.",
+      "notAnalyzed": "Not analyzed",
+      "analysesOf": "Analyses of {host}",
+      "assetFallback": "asset {id}",
+      "note": "Installed software only — the network surface is analyzed from the engine",
+      "pick": "Choose an agent to see its inventory analyses."
+    }
+  },
+  "assetStatus": {
+    "pending": "Not reporting yet",
+    "online": "Online",
+    "stale": "Delayed",
+    "offline": "Down",
+    "poweredOff": "Powered off"
+  },
+  "scanTypes": {
+    "nmap": {
+      "full": "Nmap (network)"
+    },
+    "nikto": {
+      "full": "Nikto (web)"
+    },
+    "lybra": {
+      "full": "Lybra (own engine)"
+    },
+    "nuclei": {
+      "full": "Nuclei (templates)"
+    },
+    "preview": "Preview — {name}",
+    "portsSummary": "ports {ports}",
+    "fields": {
+      "host": "Host",
+      "ports": "Ports",
+      "portsPlaceholder": "80,443 or 1-1000",
+      "domain": "Domain",
+      "singleIp": "Target (single IP)",
+      "url": "Target URL"
+    }
+  },
+  "themisHub": {
+    "tagline": "Vulnerability detection with its own engine and the classic scanners as witnesses.",
+    "toolLabel": "Open scanner",
+    "loadingStats": "Loading statistics…",
+    "scansIssued": "Scans issued",
+    "noScans": "You have not launched any scan yet. The first one takes a minute.",
+    "highlight": {
+      "label": "The verdict",
+      "sub": "its own engine, with three scanners as witnesses"
+    },
+    "shortcuts": {
+      "newLybra": "New Lybra scan",
+      "external": "External scanners",
+      "history": "History"
+    },
+    "features": {
+      "engine": {
+        "kicker": "Own engine",
+        "title": "Lybra issues the verdict",
+        "desc": "It discovers ports on its own, scores every finding in context and follows its lifecycle: open, fixed, back again."
+      },
+      "classics": {
+        "kicker": "The classics",
+        "title": "Nmap, Nikto and Nuclei, each on its own",
+        "desc": "The usual scanners are still here, as independent tools you launch whenever you want. None of them overrides Lybra, and Lybra overrides none of them."
+      },
+      "reports": {
+        "kicker": "Reports",
+        "title": "Written by AI, ready to hand over",
+        "desc": "Every scan can become a plain-language PDF, meant for whoever decides, not just whoever administers."
+      },
+      "schedule": {
+        "kicker": "Vigil",
+        "title": "Scans that repeat themselves",
+        "desc": "Set up the recurrence once and Themis returns to the target on time, without you having to remember."
+      }
+    }
+  },
+  "themisView": {
+    "badge": "Vulnerability scans",
+    "mode": "Themis mode",
+    "agents": "Agents",
+    "backToEngine": "← Back to the engine",
+    "seeHistory": "See history",
+    "kbStale": {
+      "title": "Outdated knowledge base.",
+      "body": "Version-based findings are resolved against that catalog, so a CVE published later will not appear and an absence of findings is not conclusive.",
+      "neverSynced": "{source} is empty and has never been synchronized",
+      "age": "{source} has not been updated for {days} day | {source} has not been updated for {days} days"
+    },
+    "thirdPartyClosed": "Analysis with Nmap, Nikto and Nuclei is not available yet. You can check the results of earlier analyses.",
+    "addToFolderCount": "Add to folder ({count})",
+    "addToFolder": "Add to folder",
+    "renameFolder": "Rename folder",
+    "deleteScans": "Delete scans",
+    "bulkDeleteWarning": "This action permanently deletes the selected scans and their associated PDF documents.",
+    "bulkDeleteRunning": "Running scans will be cancelled before being deleted.",
+    "confirm": {
+      "lybra": "Delete this Lybra scan and its findings?",
+      "agentScan": "Delete this inventory analysis and its findings? The Hygeia asset is not deleted.",
+      "folder": "Delete this folder? The scans are not deleted; they are just left without a folder."
+    }
+  },
+  "themisStore": {
+    "folders": {
+      "loadFailed": "The folders could not be loaded.",
+      "connectionError": "Connection error.",
+      "createFailed": "The folder could not be created.",
+      "unreachable": "Could not connect to the API.",
+      "renameFailed": "The folder could not be renamed.",
+      "renamed": "Folder renamed",
+      "deleteFailed": "The folder could not be deleted.",
+      "deleted": "Folder deleted.",
+      "moveFailed": "The scan could not be moved.",
+      "moved": "Scan moved to the folder.",
+      "removeFailed": "The scan could not be removed from the folder.",
+      "removed": "Scan removed from the folder.",
+      "addFailed": "The scans could not be added to the folder.",
+      "created": "Folder \"{name}\" created"
+    },
+    "history": {
+      "hostsFailed": "The hosts could not be loaded.",
+      "connectionError": "Connection error.",
+      "statsFailed": "The statistics could not be retrieved.",
+      "unreachable": "Could not connect to the API."
+    },
+    "scheduled": {
+      "loadFailed": "The scheduled scans could not be loaded.",
+      "connectionError": "Connection error.",
+      "createFailed": "The scheduled scan could not be created.",
+      "unreachable": "Could not connect to the API.",
+      "revokeFailed": "The scheduled scan could not be revoked.",
+      "revoked": "Scheduled scan revoked.",
+      "deleteFailed": "The scheduled scan could not be deleted.",
+      "deleted": "Scheduled scan deleted.",
+      "created": "Scheduled scan created (ID: {id})"
+    },
+    "scans": {
+      "statsFailed": "The statistics could not be loaded.",
+      "statsConnection": "Connection error while loading the statistics.",
+      "loadFailed": "The scans could not be loaded.",
+      "loadConnection": "Connection error while loading the scans.",
+      "targetsFailed": "The targets could not be loaded.",
+      "connectionError": "Connection error.",
+      "targetAddFailed": "The authorized target could not be added.",
+      "unreachable": "Could not connect to the API.",
+      "targetRemoveFailed": "The authorized target could not be removed.",
+      "targetRemoved": "Authorized target removed.",
+      "lybraLaunchFailed": "The Lybra scan could not be launched.",
+      "launchFailed": "The scan could not be launched.",
+      "deleteFailed": "The scan could not be deleted.",
+      "cancelFailed": "The scan could not be cancelled.",
+      "tracerouteFailed": "The traceroute could not be recomputed.",
+      "tracerouteError": "Error while recomputing the traceroute.",
+      "documentFailed": "The document could not be generated",
+      "documentGenerating": "Generating document…",
+      "downloadFailed": "The document could not be downloaded.",
+      "downloaded": "Document downloaded.",
+      "documentDeleteFailed": "The document could not be deleted.",
+      "documentDeleted": "Document deleted.",
+      "bulkDeleteFailed": "The scans could not be deleted.",
+      "findingStateFailed": "The finding's status could not be changed.",
+      "disputed": "Finding disputed.",
+      "accepted": "Risk accepted.",
+      "reopened": "Finding reopened.",
+      "findingsFailed": "The findings could not be loaded.",
+      "findingsConnection": "Connection error while loading the findings.",
+      "targetAuthorized": "Target '{target}' authorized.",
+      "lybraStarted": "Lybra engine started (ID: {id})",
+      "started": "{type} scan started (ID: {id})",
+      "downloadError": "Download error: {message}"
     }
   }
 }

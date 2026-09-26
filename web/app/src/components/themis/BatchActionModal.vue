@@ -5,16 +5,16 @@
         <div class="modal-box">
           <div class="modal-header">
             <h3>{{ title }}</h3>
-            <button class="close-btn" @click="close">&times;</button>
+            <button class="close-btn" :aria-label="t('common.close')" @click="close">&times;</button>
           </div>
           <div class="modal-body">
-            <p class="hint">{{ selectedCount }} escaneo(s) seleccionado(s)</p>
+            <p class="hint">{{ t('themis.batch.selected', { count: selectedCount }, selectedCount) }}</p>
             <slot name="content" />
             <div class="modal-footer">
-              <button type="button" class="btn-secondary" :disabled="submitting" @click="close">Cancelar</button>
+              <button type="button" class="btn-secondary" :disabled="submitting" @click="close">{{ t('common.cancel') }}</button>
               <button type="button" class="btn-primary" :disabled="submitting || !canSubmit" @click="$emit('confirm')">
-                <span v-if="submitting">Procesando...</span>
-                <span v-else>{{ actionLabel }}</span>
+                <span v-if="submitting">{{ t('themis.batch.processing') }}</span>
+                <span v-else>{{ actionLabel || t('common.confirm') }}</span>
               </button>
             </div>
           </div>
@@ -25,10 +25,14 @@
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 defineProps({
   show: { type: Boolean, default: false },
   title: { type: String, default: '' },
-  actionLabel: { type: String, default: 'Confirmar' },
+  /** Texto del botón de acción; por defecto, «Confirmar» en el idioma activo. */
+  actionLabel: { type: String, default: '' },
   selectedCount: { type: Number, default: 0 },
   submitting: { type: Boolean, default: false },
   canSubmit: { type: Boolean, default: true },

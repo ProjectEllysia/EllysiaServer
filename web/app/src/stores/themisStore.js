@@ -8,6 +8,7 @@ import { useToastStore } from '@/stores/toastStore'
 import { useThemisFoldersStore } from '@/stores/themisFoldersStore'
 import { useThemisHistoryStore } from '@/stores/themisHistoryStore'
 import { scanWindow, pageAfterRemoval } from '@/stores/scanWindow'
+import { i18n } from '@/i18n'
 
 /**
  * Store de Themis — gestiona escaneos, estadísticas, modales y documentos.
@@ -86,7 +87,7 @@ export const useThemisStore = defineStore('themis', () => {
     loadingStats.value = true
     try {
       const res = await apiFetch('/themis/stats')
-      if (!res?.ok) { statsError.value = 'No se pudieron cargar las estadísticas.'; return }
+      if (!res?.ok) { statsError.value = i18n.global.t('themisStore.scans.statsFailed'); return }
       const data = await res.json()
       stats.nmap    = data.nmap    ?? 0
       stats.nikto   = data.nikto   ?? 0
@@ -94,7 +95,7 @@ export const useThemisStore = defineStore('themis', () => {
       stats.nuclei  = data.nuclei  ?? 0
       stats.total   = data.total   ?? 0
       statsError.value = null
-    } catch { statsError.value = 'Error de conexión al cargar las estadísticas.' }
+    } catch { statsError.value = i18n.global.t('themisStore.scans.statsConnection') }
     finally { loadingStats.value = false }
   }
 
@@ -205,7 +206,7 @@ export const useThemisStore = defineStore('themis', () => {
       const res = await apiFetch(`/themis/results?${params}`)
       if (!res?.ok) {
         d.results = []
-        d.error = await apiError(res, 'No se pudieron cargar los escaneos.')
+        d.error = await apiError(res, i18n.global.t('themisStore.scans.loadFailed'))
         return
       }
       const data = await res.json()
@@ -214,7 +215,7 @@ export const useThemisStore = defineStore('themis', () => {
       d.error = null
     } catch (e) {
       d.results = []
-      d.error = 'Error de conexión al cargar los escaneos.'
+      d.error = i18n.global.t('themisStore.scans.loadConnection')
     } finally {
       d.loading = false
       _scheduleScanPoll(type)
@@ -296,11 +297,11 @@ export const useThemisStore = defineStore('themis', () => {
     authorizedTargets.loading = true
     try {
       const res = await apiFetch('/themis/authorized-targets')
-      if (!res?.ok) { authorizedTargets.items = []; authorizedTargets.error = 'No se pudieron cargar los objetivos.'; return }
+      if (!res?.ok) { authorizedTargets.items = []; authorizedTargets.error = i18n.global.t('themisStore.scans.targetsFailed'); return }
       const data = await res.json()
       authorizedTargets.items = data.targets ?? []
       authorizedTargets.error = null
-    } catch { authorizedTargets.items = []; authorizedTargets.error = 'Error de conexión.' }
+    } catch { authorizedTargets.items = []; authorizedTargets.error = i18n.global.t('themisStore.scans.connectionError') }
     finally { authorizedTargets.loading = false }
   }
 
@@ -344,17 +345,17 @@ export const useThemisStore = defineStore('themis', () => {
         body: JSON.stringify({ target, label: label || undefined }),
       })
       if (!res?.ok) {
-        toast.show(await apiError(res, 'No se pudo añadir el objetivo autorizado.'), 'error')
+        toast.show(await apiError(res, i18n.global.t('themisStore.scans.targetAddFailed')), 'error')
         return false
       }
       const data = await res.json()
       authorizedTargets.items.unshift({
         id: data.targetId, target: data.target, label: label || null, createdAt: new Date().toISOString(),
       })
-      toast.show(`Objetivo '${data.target}' autorizado.`, 'success')
+      toast.show(i18n.global.t('themisStore.scans.targetAuthorized', { target: data.target }), 'success')
       return true
     } catch {
-      toast.show('No se pudo conectar con la API.', 'error')
+      toast.show(i18n.global.t('themisStore.scans.unreachable'), 'error')
       return false
     }
   }
@@ -362,10 +363,10 @@ export const useThemisStore = defineStore('themis', () => {
   /** Elimina una entrada del registro de objetivos autorizados. */
   async function removeAuthorizedTarget(id) {
     const res = await apiFetch(`/themis/authorized-targets/${id}`, { method: 'DELETE' })
-    if (!res?.ok) { toast.show('No se pudo eliminar el objetivo autorizado.', 'error'); return false }
+    if (!res?.ok) { toast.show(i18n.global.t('themisStore.scans.targetRemoveFailed'), 'error'); return false }
     const idx = authorizedTargets.items.findIndex(t => t.id === id)
     if (idx !== -1) authorizedTargets.items.splice(idx, 1)
-    toast.show('Objetivo autorizado eliminado.', 'success')
+    toast.show(i18n.global.t('themisStore.scans.targetRemoved'), 'success')
     return true
   }
 
@@ -375,16 +376,16 @@ export const useThemisStore = defineStore('themis', () => {
     try {
       const res = await apiFetch('/themis/lybra', { method: 'POST', body: JSON.stringify(payload) })
       if (!res?.ok) {
-        toast.show(await apiError(res, 'Error al lanzar el escaneo Lybra.'), 'error')
+        toast.show(await apiError(res, i18n.global.t('themisStore.scans.lybraLaunchFailed')), 'error')
         return false
       }
       const data = await res.json()
-      toast.show(`Motor Lybra iniciado (ID: ${data.scanId})`, 'success')
+      toast.show(i18n.global.t('themisStore.scans.lybraStarted', { id: data.scanId }), 'success')
       await loadLybraScans()
       await loadStats()
       return true
     } catch {
-      toast.show('No se pudo conectar con la API.', 'error')
+      toast.show(i18n.global.t('themisStore.scans.unreachable'), 'error')
       return false
     } finally { launching.value = false }
   }
@@ -394,17 +395,17 @@ export const useThemisStore = defineStore('themis', () => {
     try {
       const res = await apiFetch(endpoint, { method: 'POST', body: JSON.stringify(payload) })
       if (!res?.ok) {
-        toast.show(await apiError(res, 'Error al lanzar el escaneo.'), 'error')
+        toast.show(await apiError(res, i18n.global.t('themisStore.scans.launchFailed')), 'error')
         return false
       }
       const data = await res.json()
       const id = data.scanIds ? data.scanIds.join(', ') : data.scanId
-      toast.show(`Escaneo ${type.toUpperCase()} iniciado (ID: ${id})`, 'success')
+      toast.show(i18n.global.t('themisStore.scans.started', { type: type.toUpperCase(), id }), 'success')
       await refreshCurrent()
       await foldersStore.loadFolders()
       return true
     } catch {
-      toast.show('No se pudo conectar con la API.', 'error')
+      toast.show(i18n.global.t('themisStore.scans.unreachable'), 'error')
       return false
     } finally { launching.value = false }
   }
@@ -413,7 +414,7 @@ export const useThemisStore = defineStore('themis', () => {
   /** Elimina un escaneo por ID. Actualiza el estado local sin refetch completo. */
   async function deleteScan(id) {
     const res = await apiFetch(`/themis/${id}`, { method: 'DELETE' })
-    if (!res?.ok) { toast.show('No se pudo eliminar el escaneo.', 'error'); return false }
+    if (!res?.ok) { toast.show(i18n.global.t('themisStore.scans.deleteFailed'), 'error'); return false }
 
     const hit = foldersStore.findScanInFolders(id)
     if (hit) {
@@ -446,7 +447,7 @@ export const useThemisStore = defineStore('themis', () => {
   async function cancelScan(id) {
     const res = await apiFetch(`/themis/scans/${id}/cancel`, { method: 'POST' })
     if (!res?.ok) {
-      toast.show(await apiError(res, 'No se pudo cancelar el escaneo.'), 'error')
+      toast.show(await apiError(res, i18n.global.t('themisStore.scans.cancelFailed')), 'error')
       return false
     }
 
@@ -526,9 +527,9 @@ export const useThemisStore = defineStore('themis', () => {
     if (force) {
       try {
         const res = await apiFetch(`/themis/scan/${scanId}/traceroute/refresh`, { method: 'POST' })
-        if (!res?.ok) toast.show('No se pudo recalcular el traceroute.', 'error')
+        if (!res?.ok) toast.show(i18n.global.t('themisStore.scans.tracerouteFailed'), 'error')
       } catch {
-        toast.show('Error al recalcular el traceroute.', 'error')
+        toast.show(i18n.global.t('themisStore.scans.tracerouteError'), 'error')
       }
     }
 
@@ -635,10 +636,10 @@ export const useThemisStore = defineStore('themis', () => {
       body: JSON.stringify({ id: scanId, aiReport: useAi }),
     })
     if (!res?.ok) {
-      toast.show(await apiError(res, 'Error al generar documento'), 'error')
+      toast.show(await apiError(res, i18n.global.t('themisStore.scans.documentFailed')), 'error')
       return false
     }
-    toast.show('Documento en generación...', 'success')
+    toast.show(i18n.global.t('themisStore.scans.documentGenerating'), 'success')
     return true
   }
 
@@ -667,14 +668,14 @@ export const useThemisStore = defineStore('themis', () => {
   async function downloadDocument(docId) {
     try {
       const res = await apiFetch(`/themis/document/${docId}/download`)
-      if (!res?.ok) { toast.show('No se pudo descargar el documento.', 'error'); return false }
+      if (!res?.ok) { toast.show(i18n.global.t('themisStore.scans.downloadFailed'), 'error'); return false }
       const blob = await res.blob()
       const name = filenameFromResponse(res, `scan_${docId}.pdf`)
       triggerDownload(blob, name)
-      toast.show('Documento descargado.', 'success')
+      toast.show(i18n.global.t('themisStore.scans.downloaded'), 'success')
       return true
     } catch (e) {
-      toast.show('Error al descargar: ' + e.message, 'error')
+      toast.show(i18n.global.t('themisStore.scans.downloadError', { message: e.message }), 'error')
       return false
     }
   }
@@ -683,10 +684,10 @@ export const useThemisStore = defineStore('themis', () => {
   async function deleteDocument(docId) {
     const res = await apiFetch(`/themis/document/${docId}`, { method: 'DELETE' })
     if (!res?.ok) {
-      toast.show(await apiError(res, 'No se pudo eliminar el documento.'), 'error')
+      toast.show(await apiError(res, i18n.global.t('themisStore.scans.documentDeleteFailed')), 'error')
       return false
     }
-    toast.show('Documento eliminado.', 'success')
+    toast.show(i18n.global.t('themisStore.scans.documentDeleted'), 'success')
     return true
   }
 
@@ -734,7 +735,7 @@ export const useThemisStore = defineStore('themis', () => {
         body: JSON.stringify({ scanIds }),
       })
       if (!res?.ok) {
-        toast.show(await apiError(res, 'Error al eliminar escaneos.'), 'error')
+        toast.show(await apiError(res, i18n.global.t('themisStore.scans.bulkDeleteFailed')), 'error')
         return false
       }
       const data = await res.json()
@@ -745,7 +746,7 @@ export const useThemisStore = defineStore('themis', () => {
       await loadStats()
       return true
     } catch {
-      toast.show('No se pudo conectar con la API.', 'error')
+      toast.show(i18n.global.t('themisStore.scans.unreachable'), 'error')
       return false
     }
   }
@@ -787,13 +788,13 @@ export const useThemisStore = defineStore('themis', () => {
       body: JSON.stringify({ state, reason }),
     })
     if (!res?.ok) {
-      toast.show(await apiError(res, 'No se pudo cambiar el estado del hallazgo.'), 'error')
+      toast.show(await apiError(res, i18n.global.t('themisStore.scans.findingStateFailed')), 'error')
       return false
     }
     await loadLybraGroups(scanId)
     await loadLybraScans()
-    toast.show(state === 'false_positive' ? 'Hallazgo desmentido.'
-      : state === 'accepted' ? 'Riesgo aceptado.' : 'Hallazgo reabierto.', 'success')
+    toast.show(state === 'false_positive' ? i18n.global.t('themisStore.scans.disputed')
+      : state === 'accepted' ? i18n.global.t('themisStore.scans.accepted') : i18n.global.t('themisStore.scans.reopened'), 'success')
     return true
   }
 
@@ -806,7 +807,7 @@ export const useThemisStore = defineStore('themis', () => {
       const res = await apiFetch(`/themis/lybra/scans/${scanId}/findings`)
       if (!res?.ok) {
         g.groups = []
-        g.error = await apiError(res, 'No se pudieron cargar los hallazgos.')
+        g.error = await apiError(res, i18n.global.t('themisStore.scans.findingsFailed'))
         return
       }
       const data = await res.json()
@@ -814,7 +815,7 @@ export const useThemisStore = defineStore('themis', () => {
       g.error = null
     } catch {
       g.groups = []
-      g.error = 'Error de conexión al cargar los hallazgos.'
+      g.error = i18n.global.t('themisStore.scans.findingsConnection')
     } finally { g.loading = false }
   }
 
@@ -868,7 +869,7 @@ export const useThemisStore = defineStore('themis', () => {
    */
   async function deleteLybraScan(id, type = 'lybra') {
     const res = await apiFetch(`/themis/${id}`, { method: 'DELETE' })
-    if (!res?.ok) { toast.show('No se pudo eliminar el escaneo.', 'error'); return false }
+    if (!res?.ok) { toast.show(i18n.global.t('themisStore.scans.deleteFailed'), 'error'); return false }
     await _reloadAfterRemoval(type, 1)
     await loadStats()
     return true

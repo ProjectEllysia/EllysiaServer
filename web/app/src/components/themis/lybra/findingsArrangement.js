@@ -29,25 +29,26 @@ const RESOLVED_STATES = new Set(['fixed', 'accepted', 'false_positive'])
 
 /** Criterios de orden que ofrece la barra, con su etiqueta. */
 export const SORT_OPTIONS = [
-  { value: 'severity', label: 'Gravedad' },
-  { value: 'cvss', label: 'CVSS' },
-  { value: 'epss', label: 'EPSS' },
-  { value: 'title', label: 'Nombre' },
-  { value: 'product', label: 'Producto' },
+  { value: 'severity' },
+  { value: 'cvss' },
+  { value: 'epss' },
+  { value: 'title' },
+  { value: 'product' },
 ]
 
-/** Filtro por estado del hallazgo. */
+/** Filtro por estado del hallazgo; rótulos en `lybra.toolbar.state`. */
 export const STATE_OPTIONS = [
-  { value: 'all', label: 'Todos' },
-  { value: 'pending', label: 'Pendientes' },
-  { value: 'resolved', label: 'Resueltos' },
+  { value: 'all' },
+  { value: 'pending' },
+  { value: 'resolved' },
 ]
 
-/** Filtro por certeza: comprobado activamente o deducido por versión. */
+/** Filtro por certeza: comprobado activamente o deducido por versión; rótulos
+ *  en `lybra.toolbar.certainty`. */
 export const CERTAINTY_OPTIONS = [
-  { value: 'all', label: 'Todos' },
-  { value: 'confirmed', label: 'Comprobados' },
-  { value: 'potential', label: 'Potenciales' },
+  { value: 'all' },
+  { value: 'confirmed' },
+  { value: 'potential' },
 ]
 
 /**
@@ -349,8 +350,8 @@ export function arrangeGroups(groups, criteria) {
 
   const groupOrder = compareGroups(criteria.sortKey, direction)
   const sections = [
-    buildSection('prod', 'Productos afectados', decoratedGroups.prod, groupOrder),
-    buildSection('conf', 'Configuración y exposición', decoratedGroups.conf, groupOrder),
+    buildSection('prod', decoratedGroups.prod, groupOrder),
+    buildSection('conf', decoratedGroups.conf, groupOrder),
   ]
   return { sections, priorityCounts, stateCounts, visibleTotal, total }
 }
@@ -362,16 +363,16 @@ export function arrangeGroups(groups, criteria) {
  * es la máxima de los suyos: un producto con un CVE crítico y nueve bajos pesa
  * un crítico y nueve bajos, no diez críticos.
  *
- * @param {string} key - `prod` o `conf`.
- * @param {string} title - Título visible de la sección.
+ * @param {string} key - `prod` o `conf`; el título visible sale de
+ *   `lybra.sections.<key>` en el diccionario.
  * @param {Array<object>} decorated - Grupos decorados de la sección.
  * @param {Function} groupOrder - Comparador de `compareGroups`.
- * @returns {{key: string, title: string, groups: Array<object>,
+ * @returns {{key: string, groups: Array<object>,
  *           balance: Array<{level: string, count: number}>, total: number}}
  *          La sección, con `balance` limitado a los niveles presentes en el
  *          orden de `LADDER` y `total` como suma de todos ellos.
  */
-function buildSection(key, title, decorated, groupOrder) {
+function buildSection(key, decorated, groupOrder) {
   decorated.sort(groupOrder)
   const counts = emptyPriorityCounts()
   const groups = decorated.map(entry => entry.group)
@@ -382,5 +383,5 @@ function buildSection(key, title, decorated, groupOrder) {
     }
   }
   const balance = LADDER.filter(level => counts[level]).map(level => ({ level, count: counts[level] }))
-  return { key, title, groups, balance, total: balance.reduce((sum, segment) => sum + segment.count, 0) }
+  return { key, groups, balance, total: balance.reduce((sum, segment) => sum + segment.count, 0) }
 }

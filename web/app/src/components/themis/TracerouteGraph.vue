@@ -2,23 +2,23 @@
   <div class="tr-wrap">
     <div class="tr-head">
       <div class="tr-title-wrap">
-        <h3>Ruta de red (traceroute)</h3>
+        <h3>{{ t('themis.traceroute.title') }}</h3>
         <span v-if="computedAt && !loading" class="tr-meta">
-          {{ cached ? 'Cacheado' : 'Calculado' }} {{ fmt(computedAt) }}
+          {{ cached ? t('themis.traceroute.cached', { date: fmt(computedAt) }) : t('themis.traceroute.computed', { date: fmt(computedAt) }) }}
         </span>
       </div>
-      <button class="tr-refresh" :disabled="loading" title="Recalcular ruta" @click="$emit('refresh')">
+      <button class="tr-refresh" :disabled="loading" :title="t('themis.traceroute.refresh')" @click="$emit('refresh')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ spin: loading }"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
       </button>
     </div>
 
     <div v-if="loading" class="tr-state">
       <svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-      <span>Calculando ruta hasta el objetivo…</span>
+      <span>{{ t('themis.traceroute.loading') }}</span>
     </div>
 
     <div v-else-if="!hops.length" class="tr-state">
-      <span>No se pudo trazar la ruta hasta el objetivo.</span>
+      <span>{{ t('themis.traceroute.failed') }}</span>
     </div>
 
     <ol v-else class="tr-chain">
@@ -26,8 +26,8 @@
         <span class="tr-ttl"></span>
         <span class="tr-dot"></span>
         <div class="tr-body">
-          <span class="tr-host">Servidor Ellysia</span>
-          <span class="tr-sub">Origen</span>
+          <span class="tr-host">{{ t('themis.traceroute.origin') }}</span>
+          <span class="tr-sub">{{ t('themis.traceroute.originLabel') }}</span>
         </div>
       </li>
       <li
@@ -43,10 +43,10 @@
             <span class="tr-host mono">{{ hop.hostname || hop.ip }}</span>
             <span v-if="hop.hostname" class="tr-sub mono">{{ hop.ip }}</span>
           </template>
-          <span v-else class="tr-host muted">Sin respuesta (*)</span>
+          <span v-else class="tr-host muted">{{ t('themis.traceroute.noReply') }}</span>
         </div>
         <span v-if="hop.rtt_ms != null" class="tr-rtt">{{ hop.rtt_ms }} ms</span>
-        <span v-if="idx === hops.length - 1 && hop.ip" class="tr-target-tag">Objetivo</span>
+        <span v-if="idx === hops.length - 1 && hop.ip" class="tr-target-tag">{{ t('themis.traceroute.target') }}</span>
       </li>
     </ol>
   </div>
@@ -54,6 +54,9 @@
 
 <script setup>
 import { formatDateTime } from '@/i18n/format'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 defineProps({
   hops: { type: Array, default: () => [] },
   loading: Boolean,

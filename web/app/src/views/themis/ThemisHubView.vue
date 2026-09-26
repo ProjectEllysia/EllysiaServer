@@ -5,69 +5,57 @@
     name="Themis"
     numeral="I"
     epigraph="Iudicium"
-    tagline="Detección de vulnerabilidades con motor propio y los escáneres clásicos como testigos."
-    myth="La que sostiene la balanza y no dicta sentencia sin pesar antes cada indicio."
-    claim="Pesa cada amenaza antes de que golpee"
+    :tagline="t('themisHub.tagline')"
+    :myth="t('landing.tools.themis.myth')"
+    :claim="t('landing.tools.themis.title')"
     tool-route="/themis/escaneos"
-    tool-label="Abrir escáner"
+    :tool-label="t('themisHub.toolLabel')"
     :highlight="highlight"
     :shortcuts="shortcuts"
     :features="features"
     :resources="resources"
   >
     <template #metric>
-      <p v-if="store.loadingStats" class="metric-loading">Cargando estadísticas…</p>
+      <p v-if="store.loadingStats" class="metric-loading">{{ t('themisHub.loadingStats') }}</p>
       <template v-else-if="store.stats.total">
-        <span class="metric-label">Escaneos emitidos</span>
+        <span class="metric-label">{{ t('themisHub.scansIssued') }}</span>
         <span class="metric-value">{{ store.stats.total }}</span>
         <span class="metric-sub">Lybra {{ store.stats.lybra }} · Nmap {{ store.stats.nmap }} · Nikto {{ store.stats.nikto }} · Nuclei {{ store.stats.nuclei }}</span>
       </template>
-      <p v-else class="metric-empty">Todavía no has lanzado ningún escaneo. El primero tarda un minuto.</p>
+      <p v-else class="metric-empty">{{ t('themisHub.noScans') }}</p>
     </template>
   </ModuleHub>
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import ModuleHub from '@/components/shared/ModuleHub.vue'
 import { useThemisStore } from '@/stores/themisStore'
 import { useAuthStore } from '@/stores/authStore'
 import themisIcon from '@/assets/images/themis/Themis-Turqoise-BgN.png'
 
+const { t } = useI18n()
 const store = useThemisStore()
 const auth = useAuthStore()
 
+/** Capacidades que se presentan, en orden; sus textos están en `themisHub.features.<id>`. */
+const FEATURE_IDS = ['engine', 'classics', 'reports', 'schedule']
+
 // Dato de producto para la visita pública (sin sesión no hay actividad propia).
-const highlight = { label: 'El veredicto', value: 'Lybra', sub: 'motor propio, y tres escáneres como testigos' }
+const highlight = computed(() => ({ label: t('themisHub.highlight.label'), value: 'Lybra', sub: t('themisHub.highlight.sub') }))
 
-const shortcuts = [
-  { label: 'Nuevo escaneo Lybra', to: '/themis/escaneos?world=lybra' },
-  { label: 'Escáneres externos', to: '/themis/escaneos?world=external' },
-  { label: 'Historial', to: '/themis/escaneos?world=lybra&view=history' },
-]
+const shortcuts = computed(() => [
+  { label: t('themisHub.shortcuts.newLybra'), to: '/themis/escaneos?world=lybra' },
+  { label: t('themisHub.shortcuts.external'), to: '/themis/escaneos?world=external' },
+  { label: t('themisHub.shortcuts.history'), to: '/themis/escaneos?world=lybra&view=history' },
+])
 
-const features = [
-  {
-    kicker: 'Motor propio',
-    title: 'Lybra emite el veredicto',
-    desc: 'Descubre los puertos por su cuenta, puntúa cada hallazgo en su contexto y sigue su ciclo de vida: abierto, corregido, reaparecido.',
-  },
-  {
-    kicker: 'Los clásicos',
-    title: 'Nmap, Nikto y Nuclei, cada uno por su cuenta',
-    desc: 'Los escáneres de siempre siguen aquí, como herramientas independientes que lanzas cuando los quieres. Ninguno manda sobre Lybra, y Lybra no manda sobre ninguno.',
-  },
-  {
-    kicker: 'Informes',
-    title: 'Redactados por IA, listos para entregar',
-    desc: 'Cada escaneo puede convertirse en un PDF en lenguaje claro, pensado para quien decide, no solo para quien administra.',
-  },
-  {
-    kicker: 'Vigilia',
-    title: 'Escaneos que se repiten solos',
-    desc: 'Programa la recurrencia una vez y Themis vuelve al objetivo puntualmente, sin que tengas que acordarte.',
-  },
-]
+const features = computed(() => FEATURE_IDS.map((id) => ({
+  kicker: t(`themisHub.features.${id}.kicker`),
+  title: t(`themisHub.features.${id}.title`),
+  desc: t(`themisHub.features.${id}.desc`),
+})))
 
 const resources = [
   { label: 'NVD — National Vulnerability Database', href: 'https://nvd.nist.gov/', external: true },

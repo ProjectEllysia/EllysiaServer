@@ -71,7 +71,7 @@ export const useMfaStore = defineStore('mfa', () => {
     status.confirmedAt = new Date().toISOString()
     pendingSetup.secret = ''
     pendingSetup.provisioningUri = ''
-    toast.show('MFA activado correctamente.', 'success')
+    toast.show(i18n.global.t('mfa.enabled'), 'success')
     return data.recoveryCodes
   }
 
@@ -92,7 +92,7 @@ export const useMfaStore = defineStore('mfa', () => {
     }
     status.enabled = false
     status.confirmedAt = null
-    toast.show('MFA desactivado.', 'success')
+    toast.show(i18n.global.t('mfa.disabled'), 'success')
     return true
   }
 

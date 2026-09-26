@@ -628,7 +628,7 @@ async function handleSubmit() {
     completeLogin()
   } catch (err) {
     showAlert(err.message || t('login.unknownError'), 'error')
-    if (err.message?.includes('Credenciales')) {
+    if (err.code === 'invalid_credentials') {
       usernameError.value = true
       passwordError.value = true
       password.value = ''

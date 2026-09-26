@@ -4,14 +4,14 @@
       <div v-if="show" class="modal-overlay" @click.self="close">
         <div class="modal-box">
             <div class="modal-header">
-              <h3>Mover escaneo a carpeta</h3>
-              <button class="close-btn" @click="close">&times;</button>
+              <h3>{{ t('themis.folders.moveTitle') }}</h3>
+              <button class="close-btn" :aria-label="t('common.close')" @click="close">&times;</button>
             </div>
             <form @submit.prevent="submit">
               <div class="modal-body">
-                <label for="target-folder">Selecciona una carpeta</label>
+                <label for="target-folder">{{ t('themis.folders.select') }}</label>
                 <select id="target-folder" v-model="selectedFolderId" :disabled="submitting" required>
-                  <option value="" disabled>— Elige carpeta —</option>
+                  <option value="" disabled>{{ t('themis.folders.choose') }}</option>
                   <option
                     v-for="folder in selectableFolders"
                     :key="folder.id"
@@ -21,10 +21,10 @@
                 </select>
               </div>
               <div class="modal-footer">
-                <button type="button" class="btn-secondary" :disabled="submitting" @click="close">Cancelar</button>
+                <button type="button" class="btn-secondary" :disabled="submitting" @click="close">{{ t('common.cancel') }}</button>
                 <button type="submit" class="btn-primary" :disabled="submitting || !selectedFolderId">
-                  <span v-if="submitting">Moviendo…</span>
-                  <span v-else>Mover</span>
+                  <span v-if="submitting">{{ t('themis.folders.moving') }}</span>
+                  <span v-else>{{ t('themis.folders.move') }}</span>
                 </button>
               </div>
             </form>
@@ -36,6 +36,9 @@
 
 <script setup>
 import { ref, watch, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   show: { type: Boolean, default: false },
