@@ -26,11 +26,6 @@ const sourceRoot = fileURLToPath(new URL('../src/', import.meta.url))
  */
 const PENDING_FILES = [
   'components/aegis/DocumentViewer.vue',
-  'components/config/ModelPicker.vue',
-  'components/config/ScannerCard.vue',
-  'views/system/ConfigView.vue',
-  'views/system/LogsView.vue',
-  'views/system/QueueView.vue',
 ]
 
 /**

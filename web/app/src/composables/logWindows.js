@@ -15,13 +15,13 @@
  * `lastMinutes`, y el backend lee el fichero entero.
  */
 export const LOG_WINDOWS = [
-  { id: '10m', label: '10 min', minutes: 10 },
-  { id: '30m', label: '30 min', minutes: 30 },
-  { id: '1h', label: '1 hora', minutes: 60 },
-  { id: '6h', label: '6 horas', minutes: 360 },
-  { id: '24h', label: '24 horas', minutes: 1440 },
-  { id: '7d', label: '7 días', minutes: 10080 },
-  { id: 'all', label: 'Todo', minutes: null },
+  { id: '10m', labelKey: 'logs.windows.10m', minutes: 10 },
+  { id: '30m', labelKey: 'logs.windows.30m', minutes: 30 },
+  { id: '1h', labelKey: 'logs.windows.1h', minutes: 60 },
+  { id: '6h', labelKey: 'logs.windows.6h', minutes: 360 },
+  { id: '24h', labelKey: 'logs.windows.24h', minutes: 1440 },
+  { id: '7d', labelKey: 'logs.windows.7d', minutes: 10080 },
+  { id: 'all', labelKey: 'logs.windows.all', minutes: null },
 ]
 
 export const DEFAULT_WINDOW_ID = '1h'
@@ -33,9 +33,9 @@ export function windowMinutes(windowId) {
 }
 
 /** Etiqueta legible del atajo, para los textos de la vista. */
-export function windowLabel(windowId) {
+export function windowLabelKey(windowId) {
   const found = LOG_WINDOWS.find((option) => option.id === windowId)
-  return found ? found.label : ''
+  return found ? found.labelKey : ''
 }
 
 /**

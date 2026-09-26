@@ -1,25 +1,25 @@
 <template>
   <div class="logs-page">
     <StarBackground />
-    <Topbar title="Logs del sistema" />
+    <Topbar :title="t('logs.title')" />
 
     <main class="main">
       <header class="page-header">
         <div>
-          <span class="eyebrow">Observatorio interno</span>
-          <h1>Logs del sistema</h1>
-          <p class="subtitle">Busca actividad de la API sin abandonar el hilo de la operación.</p>
+          <span class="eyebrow">{{ t('logs.eyebrow') }}</span>
+          <h1>{{ t('logs.title') }}</h1>
+          <p class="subtitle">{{ t('logs.subtitle') }}</p>
         </div>
         <div class="header-actions">
           <label class="live-toggle" :class="{ 'live-toggle--on': isLiveRefreshOn }">
             <input v-model="isLiveRefreshOn" type="checkbox" />
-            <span>Refresco automático</span>
+            <span>{{ t('logs.live') }}</span>
           </label>
           <button class="btn btn--secondary" type="button" :disabled="store.loading" @click="refresh">
-            {{ store.loading ? 'Actualizando…' : 'Actualizar' }}
+            {{ store.loading ? t('acheronView.refreshing') : t('acheronView.refresh') }}
           </button>
           <button class="btn btn--primary" type="button" :disabled="store.loading" @click="showLatest">
-            Ver últimos logs
+            {{ t('logs.latest') }}
           </button>
         </div>
       </header>
@@ -27,8 +27,8 @@
       <form class="filter-panel" @submit.prevent="applyFilters">
         <div class="filter-heading">
           <div>
-            <span class="filter-kicker">Consulta</span>
-            <h2>Acota la lectura</h2>
+            <span class="filter-kicker">{{ t('logs.query') }}</span>
+            <h2>{{ t('logs.narrow') }}</h2>
           </div>
           <span class="snapshot-state" :class="{ 'snapshot-state--live': store.meta.currentBytes > store.meta.snapshotBytes }">
             {{ snapshotLabel }}
@@ -36,8 +36,8 @@
         </div>
 
         <div class="window-row">
-          <span class="window-label">Ver los últimos</span>
-          <div class="chips" role="group" aria-label="Ventana temporal">
+          <span class="window-label">{{ t('logs.windowLabel') }}</span>
+          <div class="chips" :aria-label="t('logs.window')" role="group">
             <button
               v-for="option in LOG_WINDOWS"
               :key="option.id"
@@ -47,7 +47,7 @@
               :aria-pressed="draft.windowId === option.id"
               @click="selectWindow(option.id)"
             >
-              {{ option.label }}
+              {{ t(option.labelKey) }}
             </button>
             <button
               class="chip"
@@ -56,50 +56,47 @@
               :aria-pressed="draft.windowId === 'custom'"
               @click="selectWindow('custom')"
             >
-              Personalizado
+              {{ t('logs.custom') }}
             </button>
           </div>
         </div>
 
         <div class="filter-grid">
           <div class="form-group form-group--wide">
-            <label>Orden de lectura</label>
-            <div class="segmented" role="radiogroup" aria-label="Orden de lectura">
+            <label>{{ t('logs.order') }}</label>
+            <div class="segmented" role="radiogroup" :aria-label="t('logs.order')">
               <label class="segment" :class="{ active: draft.position === 'tail' }">
                 <input v-model="draft.position" type="radio" value="tail" />
-                <span>Últimas líneas</span>
+                <span>{{ t('logs.tail') }}</span>
               </label>
               <label class="segment" :class="{ active: draft.position === 'head' }">
                 <input v-model="draft.position" type="radio" value="head" />
-                <span>Primeras líneas</span>
+                <span>{{ t('logs.head') }}</span>
               </label>
             </div>
           </div>
 
           <template v-if="draft.windowId === 'custom'">
             <div class="form-group">
-              <label for="logs-from">Desde</label>
+              <label for="logs-from">{{ t('logs.from') }}</label>
               <input id="logs-from" v-model="draft.from" type="datetime-local" step="1" class="inp" />
             </div>
             <div class="form-group">
-              <label for="logs-to">Hasta</label>
+              <label for="logs-to">{{ t('logs.to') }}</label>
               <input id="logs-to" v-model="draft.to" type="datetime-local" step="1" class="inp" />
             </div>
           </template>
 
           <div class="form-group">
-            <label for="logs-level">Nivel mínimo</label>
+            <label for="logs-level">{{ t('logs.minLevel') }}</label>
             <select id="logs-level" v-model="draft.minLevel" class="inp">
-              <option value="">Todos</option>
-              <option value="DEBUG">DEBUG y superiores</option>
-              <option value="INFO">INFO y superiores</option>
-              <option value="WARNING">WARNING y superiores</option>
-              <option value="ERROR">ERROR y superiores</option>
-              <option value="CRITICAL">Solo CRITICAL</option>
+              <option value="">{{ t('logs.allLevels') }}</option>
+              <option v-for="level in ['DEBUG', 'INFO', 'WARNING', 'ERROR']" :key="level" :value="level">{{ t('logs.levelAndAbove', { level }) }}</option>
+              <option value="CRITICAL">{{ t('logs.onlyLevel', { level: 'CRITICAL' }) }}</option>
             </select>
           </div>
           <div class="form-group">
-            <label for="logs-page-size">Líneas por página</label>
+            <label for="logs-page-size">{{ t('logs.perPage') }}</label>
             <select id="logs-page-size" v-model.number="draft.perPage" class="inp">
               <option :value="50">50</option>
               <option :value="100">100</option>
@@ -108,14 +105,14 @@
             </select>
           </div>
           <div class="form-group form-group--wide">
-            <label for="logs-contains">Contiene</label>
+            <label for="logs-contains">{{ t('logs.contains') }}</label>
             <input
               id="logs-contains"
               v-model.trim="draft.contains"
               type="search"
               maxlength="200"
               class="inp"
-              placeholder="usuario, ruta, excepción…"
+              :placeholder="t('logs.containsPlaceholder')"
             />
           </div>
         </div>
@@ -129,9 +126,9 @@
               type="button"
               @click="toggleProblemsOnly"
             >
-              {{ draft.minLevel === 'WARNING' ? 'Viendo solo problemas' : 'Solo avisos y errores' }}
+              {{ draft.minLevel === 'WARNING' ? t('logs.problemsOn') : t('logs.problemsOff') }}
             </button>
-            <button class="btn btn--primary" type="submit" :disabled="store.loading">Aplicar filtros</button>
+            <button class="btn btn--primary" type="submit" :disabled="store.loading">{{ t('logs.apply') }}</button>
           </div>
         </div>
       </form>
@@ -143,25 +140,25 @@
       <section v-else-if="store.error" class="state state--error" role="alert">
         <span class="state-mark">!</span>
         <div>
-          <h2>{{ store.errorStatus === 409 ? 'La lectura quedó obsoleta' : 'No se pudo cargar el log' }}</h2>
+          <h2>{{ store.errorStatus === 409 ? t('logs.stale') : t('logs.loadError') }}</h2>
           <p>{{ store.error }}</p>
         </div>
-        <button class="btn btn--secondary" type="button" @click="recover">Iniciar lectura nueva</button>
+        <button class="btn btn--secondary" type="button" @click="recover">{{ t('logs.restart') }}</button>
       </section>
 
       <section v-else class="log-card" aria-live="polite">
         <div class="log-card-head">
           <div>
-            <span class="log-card-kicker">secops.log</span>
+            <span class="log-card-kicker">{{ 'secops.log' }}</span>
             <h2>{{ resultLabel }}</h2>
           </div>
           <div class="log-stats">
             <span>{{ formatBytes(store.meta.totalBytes) }}</span>
-            <span>{{ store.meta.totalLines }} líneas</span>
+            <span>{{ t('logs.lines', { count: store.meta.totalLines }, store.meta.totalLines) }}</span>
           </div>
         </div>
 
-        <div class="level-summary" role="group" aria-label="Resumen por nivel de la ventana">
+        <div class="level-summary" role="group" :aria-label="t('logs.tallies')">
           <button
             v-for="tally in levelTallies"
             :key="tally.level"
@@ -169,17 +166,17 @@
             :class="[`tally--${tally.level}`, { 'tally--active': applied.minLevel === tally.level }]"
             type="button"
             :aria-pressed="applied.minLevel === tally.level"
-            :title="`Ver ${tally.level} y superiores`"
+            :title="t('logs.viewLevel', { level: tally.level })"
             @click="filterFromLevel(tally.level)"
           >
             <span class="tally-count">{{ tally.count }}</span>
             <span class="tally-level">{{ tally.level }}</span>
           </button>
-          <span v-if="!hasAnyTally" class="tally-empty">Sin líneas clasificadas en esta ventana.</span>
+          <span v-if="!hasAnyTally" class="tally-empty">{{ t('logs.noTallies') }}</span>
         </div>
 
         <div v-if="store.meta.truncated" class="notice" role="status">
-          Esta vista muestra una página de {{ store.meta.totalLines }} líneas coincidentes.
+          {{ t('logs.truncated', { count: store.meta.totalLines }) }}
         </div>
         <div v-if="store.content" class="log-window">
           <pre><span
@@ -192,17 +189,17 @@
             class="hit"
           >{{ part.text }}</mark><template v-else>{{ part.text }}</template></template></span></pre>
         </div>
-        <div v-else class="empty-state">No hay líneas que coincidan con estos filtros.</div>
+        <div v-else class="empty-state">{{ t('logs.empty') }}</div>
 
         <footer class="log-card-foot">
           <span class="line-range">{{ lineRange }}</span>
-          <nav class="pagination" aria-label="Paginación de logs">
+          <nav class="pagination" :aria-label="t('logs.pagination')">
             <button class="page-btn" type="button" :disabled="!store.meta.hasPrevious || store.loading" @click="goToPage(store.meta.page - 1)">
-              Anterior
+              {{ t('logs.previous') }}
             </button>
-            <span class="page-status">Página {{ store.meta.page }} / {{ store.meta.totalPages || 1 }}</span>
+            <span class="page-status">{{ t('logs.page', { page: store.meta.page, total: store.meta.totalPages || 1 }) }}</span>
             <button class="page-btn" type="button" :disabled="!store.meta.hasNext || store.loading" @click="goToPage(store.meta.page + 1)">
-              Siguiente
+              {{ t('logs.next') }}
             </button>
           </nav>
         </footer>
@@ -216,8 +213,11 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import Topbar from '@/components/shared/Topbar.vue'
 import StarBackground from '@/components/shared/StarBackground.vue'
 import { usePolling } from '@/composables/usePolling'
-import { LOG_WINDOWS, DEFAULT_WINDOW_ID, windowLabel } from '@/composables/logWindows'
+import { LOG_WINDOWS, DEFAULT_WINDOW_ID, windowLabelKey } from '@/composables/logWindows'
 import { useLogsStore } from '@/stores/logsStore'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const LIVE_REFRESH_MS = 15000
 const LEVEL_ORDER = ['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG']
@@ -238,30 +238,30 @@ const applied = ref({ ...draft, page: 1 })
 const isLiveRefreshOn = ref(false)
 
 const snapshotLabel = computed(() => {
-  if (!store.meta.snapshotBytes) return 'Sin snapshot'
-  return store.meta.currentBytes > store.meta.snapshotBytes ? 'Hay líneas nuevas' : 'Lectura estable'
+  if (!store.meta.snapshotBytes) return t('logs.noSnapshot')
+  return store.meta.currentBytes > store.meta.snapshotBytes ? t('logs.newLines') : t('logs.stable')
 })
 
 const resultLabel = computed(() => {
-  if (!store.meta.returnedLines) return 'Sin coincidencias'
-  return store.meta.position === 'tail' ? 'Entradas más recientes' : 'Entradas iniciales'
+  if (!store.meta.returnedLines) return t('logs.noMatches')
+  return store.meta.position === 'tail' ? t('logs.newest') : t('logs.oldest')
 })
 
 const lineRange = computed(() => {
-  if (!store.meta.returnedLines) return '0 líneas en esta página'
-  if (store.meta.firstLine === store.meta.lastLine) return `Línea ${store.meta.firstLine}`
-  return `Líneas ${store.meta.firstLine}–${store.meta.lastLine}`
+  if (!store.meta.returnedLines) return t('logs.noLinesOnPage')
+  if (store.meta.firstLine === store.meta.lastLine) return t('logs.line', { line: store.meta.firstLine })
+  return t('logs.lineRange', { first: store.meta.firstLine, last: store.meta.lastLine })
 })
 
 const windowHint = computed(() => {
   const zone = store.meta.timeZone ? ` (${store.meta.timeZone})` : ''
   if (applied.value.windowId === 'custom') {
-    return `Las fechas usan la hora del servidor${zone}.`
+    return t('logs.customHint', { zone })
   }
   // La ventana la resuelve el servidor con su propio reloj, así que se enseña
   // el instante que él eligió y no uno recalculado aquí.
-  const since = store.meta.windowStart ? ` — desde ${store.meta.windowStart.replace('T', ' ')}` : ''
-  return `Últimos ${windowLabel(applied.value.windowId)} de la hora del servidor${zone}${since}.`
+  const since = store.meta.windowStart ? t('logs.since', { start: store.meta.windowStart.replace('T', ' ') }) : ''
+  return t('logs.windowHint', { window: t(windowLabelKey(applied.value.windowId)), zone, since })
 })
 
 /**

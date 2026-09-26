@@ -3,7 +3,7 @@
     <label>{{ label }}</label>
 
     <select v-if="usesDropdown" :value="modelValue" class="inp sel" @change="pick($event.target.value)">
-      <option value="">Usar el del entorno ({{ envHint }})</option>
+      <option value="">{{ t('config.modelPicker.useEnv', { env: envHint }) }}</option>
       <option v-for="name in options" :key="name" :value="name">{{ name }}</option>
     </select>
 
@@ -17,16 +17,16 @@
     />
 
     <div class="mp-foot">
-      <span v-if="loading" class="field-hint">Consultando al proveedor…</span>
+      <span v-if="loading" class="field-hint">{{ t('config.modelPicker.loading') }}</span>
       <span v-else-if="catalog?.isReachable" class="field-hint">
-        {{ options.length }} {{ options.length === 1 ? 'modelo disponible' : 'modelos disponibles' }}
+        {{ t('config.modelPicker.available', { count: options.length }, options.length) }}
       </span>
       <span v-else class="field-hint field-hint--warn" :title="catalog?.error">
-        No se pudo consultar el proveedor: escribe el identificador a mano.
+        {{ t('config.modelPicker.unreachable') }}
       </span>
 
       <button v-if="catalog?.isReachable" type="button" class="mp-toggle" @click="isManual = !isManual">
-        {{ isManual ? 'Elegir de la lista' : 'Escribirlo a mano' }}
+        {{ isManual ? t('config.modelPicker.fromList') : t('config.modelPicker.manual') }}
       </button>
     </div>
   </div>
@@ -53,6 +53,9 @@
  * modelo se pudiera configurar desde aquí.
  */
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
