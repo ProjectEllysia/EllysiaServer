@@ -1,50 +1,46 @@
 <template>
   <div class="trust-page" data-module="iris">
     <StarBackground />
-    <Topbar title="Iris" badge="Remitentes de confianza" back-to="/iris/analisis" back-label="Análisis" />
+    <Topbar :title="'Iris'" :badge="t('iris.trustView.badge')" back-to="/iris/analisis" :back-label="t('iris.batch.analysis')" />
 
     <div class="trust-layout">
       <section class="panel">
-        <p class="panel-eyebrow">Excepciones de confianza</p>
-        <h2 class="panel-title">Quitar un falso positivo que se repite</h2>
-        <p class="panel-sub">
-          Si un remitente que conoces dispara siempre la misma alerta —un proveedor que responde desde
-          otra dirección, un banco que escribe «urgente»—, declara aquí que confías en él. Solo te afecta
-          a ti, caduca sola y cada análisis en que se aplica lo dice.
-        </p>
+        <p class="panel-eyebrow">{{ t('iris.trustView.eyebrow') }}</p>
+        <h2 class="panel-title">{{ t('iris.trustView.title') }}</h2>
+        <p class="panel-sub">{{ t('iris.trustView.intro') }}</p>
         <IrisTrustForm @saved="store.fetchTrustedSenders(showInactive)" />
       </section>
 
       <section class="panel">
         <div class="list-header">
-          <h3 class="list-title">Tus excepciones</h3>
+          <h3 class="list-title">{{ t('iris.trustView.yours') }}</h3>
           <label class="list-toggle">
             <input v-model="showInactive" type="checkbox" @change="store.fetchTrustedSenders(showInactive)" />
-            Mostrar caducadas y revocadas
+            {{ t('iris.trustView.showInactive') }}
           </label>
         </div>
 
-        <p v-if="store.trustedSendersLoading" class="list-empty">Cargando…</p>
-        <p v-else-if="!store.trustedSenders.length" class="list-empty">No tienes ninguna excepción {{ showInactive ? '' : 'activa' }}.</p>
+        <p v-if="store.trustedSendersLoading" class="list-empty">{{ t('common.loading') }}</p>
+        <p v-else-if="!store.trustedSenders.length" class="list-empty">{{ showInactive ? t('iris.trustView.none') : t('iris.trustView.noneActive') }}</p>
         <ul v-else class="trust-list">
           <li v-for="entry in store.trustedSenders" :key="entry.trustedSenderId" class="trust-item">
             <div class="trust-main">
               <span class="trust-value">{{ entry.value }}</span>
-              <span class="trust-kind">{{ entry.kind === 'domain' ? 'dominio' : 'dirección' }}</span>
-              <span class="trust-status" :class="`trust-status--${entry.status}`">{{ STATUS_LABELS[entry.status] }}</span>
+              <span class="trust-kind">{{ entry.kind === 'domain' ? t('iris.trustView.domain') : t('iris.trustView.address') }}</span>
+              <span class="trust-status" :class="`trust-status--${entry.status}`">{{ ['active', 'expired', 'revoked'].includes(entry.status) ? t(`iris.trustView.status.${entry.status}`) : t('common.unknown') }}</span>
             </div>
             <p class="trust-reason">«{{ entry.reason }}»</p>
             <p class="trust-dates">
-              Creada {{ formatDate(entry.createdAt) }} ·
-              <template v-if="entry.revokedAt">revocada {{ formatDate(entry.revokedAt) }}</template>
-              <template v-else>caduca {{ formatDate(entry.expiresAt) }}</template>
+              {{ t('iris.trustView.created', { date: formatDate(entry.createdAt) }) }} ·
+              <template v-if="entry.revokedAt">{{ t('iris.trustView.revokedOn', { date: formatDate(entry.revokedAt) }) }}</template>
+              <template v-else>{{ t('iris.trustView.expires', { date: formatDate(entry.expiresAt) }) }}</template>
             </p>
             <button
               v-if="entry.status === 'active'"
               type="button"
               class="trust-revoke"
               @click="pendingRevoke = entry"
-            >Revocar</button>
+            >{{ t('organization.revoke') }}</button>
           </li>
         </ul>
       </section>
@@ -52,10 +48,10 @@
 
     <ConfirmModal
       :show="pendingRevoke !== null"
-      title="Revocar excepción"
+      :title="t('iris.trustView.revokeTitle')"
       danger
-      confirm-label="Revocar"
-      :message="pendingRevoke ? `Los próximos correos de ${pendingRevoke.value} se analizarán sin excepción. La excepción seguirá en la auditoría.` : ''"
+      :confirm-label="t('organization.revoke')"
+      :message="pendingRevoke ? t('iris.trustView.revokeMessage', { value: pendingRevoke.value }) : ''"
       @confirm="confirmRevoke"
       @cancel="pendingRevoke = null"
     />
@@ -70,11 +66,13 @@ import ConfirmModal from '@/components/shared/ConfirmModal.vue'
 import IrisTrustForm from '@/components/iris/IrisTrustForm.vue'
 import { useIrisStore } from '@/stores/irisStore'
 import { useUtils } from '@/composables/useUtils'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const store = useIrisStore()
 const { formatDate } = useUtils()
 
-const STATUS_LABELS = { active: 'activa', expired: 'caducada', revoked: 'revocada' }
 const showInactive = ref(false)
 const pendingRevoke = ref(null)
 

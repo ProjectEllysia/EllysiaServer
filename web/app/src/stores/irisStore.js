@@ -5,6 +5,8 @@ import { usePolling } from '@/composables/usePolling'
 import { useUtils } from '@/composables/useUtils'
 import { useToastStore } from '@/stores/toastStore'
 import { MODE_HEADERS, MODE_MESSAGE, buildSubmission } from '@/components/iris/intake.js'
+import { i18n } from '@/i18n'
+import { translateApiError } from '@/i18n/apiErrors'
 
 export const useIrisStore = defineStore('iris', () => {
   const { apiFetch, apiError } = useApi()
@@ -93,10 +95,10 @@ export const useIrisStore = defineStore('iris', () => {
       if (!res) return null
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        toast.show(data.error_description || data.message || 'Error al iniciar el an\u00e1lisis.', 'error')
+        toast.show(translateApiError(data, i18n.global) || data.error_description || data.message || i18n.global.t('irisStore.startFailed'), 'error')
         return null
       }
-      toast.show(`An\u00e1lisis iniciado (ID: ${data.analysisId})`, 'success')
+      toast.show(i18n.global.t('irisStore.started', { id: data.analysisId }), 'success')
       currentId.value = data.analysisId
       currentReport.data = null
       await fetchResults()
@@ -119,7 +121,7 @@ export const useIrisStore = defineStore('iris', () => {
     try {
       const params = new URLSearchParams({ page: 1, per_page: BENCH_SIZE })
       const res = await apiFetch(`/iris/results?${params}`)
-      if (!res?.ok) { analyses.value = []; listError.value = 'No se pudieron cargar los análisis.'; return }
+      if (!res?.ok) { analyses.value = []; listError.value = i18n.global.t('irisStore.loadFailed'); return }
       const data = await res.json()
       analyses.value = data.analyses ?? []
       totalCount.value = data.total ?? 0
@@ -127,7 +129,7 @@ export const useIrisStore = defineStore('iris', () => {
       listError.value = null
     } catch {
       analyses.value = []
-      listError.value = 'Error de conexión al cargar los análisis.'
+      listError.value = i18n.global.t('irisStore.loadConnection')
     } finally {
       loading.value = false
     }
@@ -174,14 +176,14 @@ export const useIrisStore = defineStore('iris', () => {
     archive.loading = true
     try {
       const res = await apiFetch(`/iris/results?${_archiveParams()}`)
-      if (!res?.ok) { archive.error = 'No se pudieron cargar los análisis.'; return }
+      if (!res?.ok) { archive.error = i18n.global.t('irisStore.loadFailed'); return }
       const data = await res.json()
       archive.items = data.analyses ?? []
       archive.total = data.total ?? 0
       if (data.thresholds) Object.assign(thresholds, data.thresholds)
       archive.error = null
     } catch {
-      archive.error = 'Error de conexión al cargar los análisis.'
+      archive.error = i18n.global.t('irisStore.loadConnection')
     } finally {
       archive.loading = false
     }
@@ -240,10 +242,10 @@ export const useIrisStore = defineStore('iris', () => {
     const filters = { ...archive.filters, sort_by: archive.sort.by, sort_dir: archive.sort.dir }
     const res = await apiFetch('/iris/triage/views', { method: 'POST', body: JSON.stringify({ name, filters }) })
     if (!res?.ok) {
-      toast.show(await apiError(res, 'No se pudo guardar la vista.'), 'error')
+      toast.show(await apiError(res, i18n.global.t('irisStore.viewSaveFailed')), 'error')
       return false
     }
-    toast.show('Vista guardada.', 'success')
+    toast.show(i18n.global.t('irisStore.viewSaved'), 'success')
     await fetchSavedViews()
     return true
   }
@@ -261,7 +263,7 @@ export const useIrisStore = defineStore('iris', () => {
   async function deleteSavedView(id) {
     const res = await apiFetch(`/iris/triage/views/${id}`, { method: 'DELETE' })
     if (!res?.ok) {
-      toast.show(await apiError(res, 'No se pudo borrar la vista.'), 'error')
+      toast.show(await apiError(res, i18n.global.t('irisStore.viewDeleteFailed')), 'error')
       return
     }
     await fetchSavedViews()
@@ -282,7 +284,7 @@ export const useIrisStore = defineStore('iris', () => {
   async function setAnalysisTags(id, tags) {
     const res = await apiFetch(`/iris/results/${id}/tags`, { method: 'PUT', body: JSON.stringify({ tags }) })
     if (!res?.ok) {
-      toast.show(await apiError(res, 'No se pudieron guardar las etiquetas.'), 'error')
+      toast.show(await apiError(res, i18n.global.t('irisStore.tagsFailed')), 'error')
       return null
     }
     const saved = (await res.json()).tags ?? []
@@ -312,7 +314,7 @@ export const useIrisStore = defineStore('iris', () => {
           currentReport.loading = false
           return
         }
-        toast.show('No se pudo cargar el reporte.', 'error')
+        toast.show(i18n.global.t('irisStore.reportFailed'), 'error')
         return
       }
       const data = await res.json()
@@ -467,11 +469,11 @@ export const useIrisStore = defineStore('iris', () => {
   async function reanalyzeAnalysis(id) {
     const res = await apiFetch(`/iris/results/${id}/reanalyze`, { method: 'POST' })
     if (!res?.ok) {
-      toast.show(await apiError(res, 'No se pudo relanzar el análisis.'), 'error')
+      toast.show(await apiError(res, i18n.global.t('irisStore.reanalyzeFailed')), 'error')
       return null
     }
     const data = await res.json()
-    toast.show(`Reanálisis iniciado (ID: ${data.analysisId})`, 'success')
+    toast.show(i18n.global.t('irisStore.reanalyzeStarted', { id: data.analysisId }), 'success')
     await fetchResults()
     selectAnalysis(data.analysisId)
     return data.analysisId
@@ -490,7 +492,7 @@ export const useIrisStore = defineStore('iris', () => {
       body: JSON.stringify(payload),
     })
     if (!res?.ok) {
-      toast.show(await apiError(res, 'No se pudo ejecutar el simulador de reglas.'), 'error')
+      toast.show(await apiError(res, i18n.global.t('irisStore.replayFailed')), 'error')
       return null
     }
     return res.json()
@@ -509,10 +511,10 @@ export const useIrisStore = defineStore('iris', () => {
       body: JSON.stringify({ label, note }),
     })
     if (!res?.ok) {
-      toast.show(await apiError(res, 'No se pudo guardar la corrección.'), 'error')
+      toast.show(await apiError(res, i18n.global.t('irisStore.feedbackFailed')), 'error')
       return false
     }
-    toast.show('Corrección guardada. El veredicto original no cambia.', 'success')
+    toast.show(i18n.global.t('irisStore.feedbackSaved'), 'success')
     await getReport(id)
     return true
   }
@@ -538,13 +540,14 @@ export const useIrisStore = defineStore('iris', () => {
       for (const file of files) form.append('files', file, file.name)
       const res = await apiFetch('/iris/analyze/batch', { method: 'POST', body: form })
       if (!res?.ok) {
-        toast.show(await apiError(res, 'No se pudo enviar el lote.'), 'error')
+        toast.show(await apiError(res, i18n.global.t('irisStore.batchFailed')), 'error')
         return null
       }
       currentBatch.value = await res.json()
       const { created, duplicate, rejected, failed } = currentBatch.value.counts
-      toast.show(`Lote #${currentBatch.value.batchId}: ${created} creados, ${duplicate} repetidos, `
-        + `${rejected + failed} sin analizar.`, created ? 'success' : 'info')
+      toast.show(i18n.global.t('irisStore.batchSummary', {
+        id: currentBatch.value.batchId, created, duplicate, skipped: rejected + failed,
+      }), created ? 'success' : 'info')
       fetchResults()
       watchBatch(currentBatch.value.batchId)
       return currentBatch.value
@@ -644,38 +647,38 @@ export const useIrisStore = defineStore('iris', () => {
    * @returns {Promise<object|null>} El caso abierto, o null si falló.
    */
   async function createCase(data) {
-    const created = await _caseRequest('/iris/cases', 'POST', data, 'No se pudo abrir el caso.')
-    if (created) toast.show(`Caso #${created.caseId} abierto.`, 'success')
+    const created = await _caseRequest('/iris/cases', 'POST', data, i18n.global.t('irisStore.caseOpenFailed'))
+    if (created) toast.show(i18n.global.t('irisStore.caseOpened', { id: created.caseId }), 'success')
     return created
   }
 
   /** Cambia título, prioridad, etiquetas o asignación (`assigneeId: null` la quita). */
   function updateCase(id, changes) {
-    return _caseRequest(`/iris/cases/${id}`, 'PATCH', changes, 'No se pudo actualizar el caso.')
+    return _caseRequest(`/iris/cases/${id}`, 'PATCH', changes, i18n.global.t('irisStore.caseUpdateFailed'))
   }
 
   /** Mueve un caso de estado; cerrarlo exige `reason`. */
   function changeCaseStatus(id, status, reason = null) {
-    return _caseRequest(`/iris/cases/${id}/status`, 'POST', { status, reason }, 'No se pudo cambiar el estado.')
+    return _caseRequest(`/iris/cases/${id}/status`, 'POST', { status, reason }, i18n.global.t('irisStore.caseStatusFailed'))
   }
 
   /** Añade una nota a la timeline del caso. */
   function addCaseNote(id, note) {
-    return _caseRequest(`/iris/cases/${id}/notes`, 'POST', { note }, 'No se pudo guardar la nota.')
+    return _caseRequest(`/iris/cases/${id}/notes`, 'POST', { note }, i18n.global.t('irisStore.caseNoteFailed'))
   }
 
   /** Vincula un análisis a un caso. */
   async function linkCaseAnalysis(id, analysisId) {
     const updated = await _caseRequest(`/iris/cases/${id}/analyses`, 'POST', { analysisId },
-      'No se pudo añadir el análisis al caso.')
-    if (updated) toast.show(`Análisis #${analysisId} añadido al caso #${id}.`, 'success')
+      i18n.global.t('irisStore.caseLinkFailed'))
+    if (updated) toast.show(i18n.global.t('irisStore.caseLinked', { analysisId, caseId: id }), 'success')
     return updated
   }
 
   /** Desvincula un análisis de un caso (el análisis no se borra). */
   function unlinkCaseAnalysis(id, analysisId) {
     return _caseRequest(`/iris/cases/${id}/analyses/${analysisId}`, 'DELETE', undefined,
-      'No se pudo quitar el análisis del caso.')
+      i18n.global.t('irisStore.caseUnlinkFailed'))
   }
 
   /* ═══════════════════ EXCEPCIONES DE CONFIANZA ═══════════════════════ */
@@ -711,10 +714,10 @@ export const useIrisStore = defineStore('iris', () => {
       body: JSON.stringify(entry),
     })
     if (!res?.ok) {
-      toast.show(await apiError(res, 'No se pudo guardar la excepción.'), 'error')
+      toast.show(await apiError(res, i18n.global.t('irisStore.trustSaveFailed')), 'error')
       return null
     }
-    toast.show('Excepción guardada. Se aplicará a los próximos análisis (reanaliza este para verla).', 'success')
+    toast.show(i18n.global.t('irisStore.trustSaved'), 'success')
     return res.json()
   }
 
@@ -726,10 +729,10 @@ export const useIrisStore = defineStore('iris', () => {
   async function revokeTrustedSender(id) {
     const res = await apiFetch(`/iris/trusted-senders/${id}`, { method: 'DELETE' })
     if (!res?.ok) {
-      toast.show(await apiError(res, 'No se pudo revocar la excepción.'), 'error')
+      toast.show(await apiError(res, i18n.global.t('irisStore.trustRevokeFailed')), 'error')
       return false
     }
-    toast.show('Excepción revocada.', 'success')
+    toast.show(i18n.global.t('irisStore.trustRevoked'), 'success')
     return true
   }
 
@@ -741,10 +744,10 @@ export const useIrisStore = defineStore('iris', () => {
   async function generateAiSummary(id) {
     const res = await apiFetch(`/iris/results/${id}/ai-summary`, { method: 'POST' })
     if (!res?.ok) {
-      toast.show(await apiError(res, 'No se pudo generar el resumen IA.'), 'error')
+      toast.show(await apiError(res, i18n.global.t('irisStore.aiFailed')), 'error')
       return false
     }
-    toast.show('Generando resumen ejecutivo con IA…', 'success')
+    toast.show(i18n.global.t('irisStore.aiGenerating'), 'success')
     aiSummaryLoading.value = true
     return true
   }
@@ -760,7 +763,7 @@ export const useIrisStore = defineStore('iris', () => {
     if (data?.aiSummary) {
       aiSummaryLoading.value = false
     } else {
-      toast.show('El resumen IA todavía se está generando. Vuelve a comprobar en unos segundos.', 'info')
+      toast.show(i18n.global.t('irisStore.aiStillRunning'), 'info')
     }
     return data
   }
@@ -768,10 +771,10 @@ export const useIrisStore = defineStore('iris', () => {
   async function cancelAnalysis(id) {
     const res = await apiFetch(`/iris/analyze/${id}/cancel`, { method: 'POST' })
     if (!res?.ok) {
-      toast.show('No se pudo cancelar el an\u00e1lisis.', 'error')
+      toast.show(i18n.global.t('irisStore.cancelFailed'), 'error')
       return false
     }
-    toast.show('An\u00e1lisis cancelado.', 'success')
+    toast.show(i18n.global.t('irisStore.cancelled'), 'success')
     stopPolling()
     await getReport(id)
     await fetchResults()
@@ -781,10 +784,10 @@ export const useIrisStore = defineStore('iris', () => {
   async function deleteAnalysis(id) {
     const res = await apiFetch(`/iris/results/${id}`, { method: 'DELETE' })
     if (!res?.ok) {
-      toast.show('No se pudo eliminar el an\u00e1lisis.', 'error')
+      toast.show(i18n.global.t('irisStore.deleteFailed'), 'error')
       return false
     }
-    toast.show('An\u00e1lisis eliminado.', 'success')
+    toast.show(i18n.global.t('irisStore.deleted'), 'success')
     pathCache.delete(id)
     iocsCache.delete(id)
     if (currentId.value === id) {
@@ -830,11 +833,11 @@ export const useIrisStore = defineStore('iris', () => {
   async function generateDocument(analysisId) {
     const res = await apiFetch(`/iris/results/${analysisId}/document`, { method: 'POST' })
     if (!res?.ok) {
-      toast.show(await apiError(res, 'No se pudo generar el informe.'), 'error')
+      toast.show(await apiError(res, i18n.global.t('irisStore.reportGenerateFailed')), 'error')
       return null
     }
     const data = await res.json()
-    toast.show('Generación de informe iniciada.', 'success')
+    toast.show(i18n.global.t('irisStore.reportGenerating'), 'success')
     await fetchDocuments(analysisId)
     pollDocumentStatus(data.documentId, analysisId)
     return data.documentId
@@ -892,14 +895,14 @@ export const useIrisStore = defineStore('iris', () => {
   async function downloadDocument(documentId) {
     try {
       const res = await apiFetch(`/iris/document/${documentId}/download`)
-      if (!res?.ok) { toast.show('No se pudo descargar el informe.', 'error'); return false }
+      if (!res?.ok) { toast.show(i18n.global.t('irisStore.reportDownloadFailed'), 'error'); return false }
       const blob = await res.blob()
       const name = filenameFromResponse(res, `iris_analysis_${documentId}.pdf`)
       triggerDownload(blob, name)
-      toast.show('Informe descargado.', 'success')
+      toast.show(i18n.global.t('irisStore.reportDownloaded'), 'success')
       return true
     } catch (e) {
-      toast.show('Error al descargar: ' + e.message, 'error')
+      toast.show(i18n.global.t('themisStore.scans.downloadError', { message: e.message }), 'error')
       return false
     }
   }
@@ -908,10 +911,10 @@ export const useIrisStore = defineStore('iris', () => {
   async function deleteDocument(documentId, analysisId) {
     const res = await apiFetch(`/iris/document/${documentId}`, { method: 'DELETE' })
     if (!res?.ok) {
-      toast.show('No se pudo eliminar el informe.', 'error')
+      toast.show(i18n.global.t('irisStore.reportDeleteFailed'), 'error')
       return false
     }
-    toast.show('Informe eliminado.', 'success')
+    toast.show(i18n.global.t('irisStore.reportDeleted'), 'success')
     if (analysisId) await fetchDocuments(analysisId)
     return true
   }

@@ -2,13 +2,13 @@
   <div class="rv-hero" :class="`rv-hero--${verdictClass}`">
     <div class="rv-hero-score">
       <span class="score-num">{{ score }}</span>
-      <span class="score-unit">/ máx</span>
+      <span class="score-unit">{{ t('iris.hero.max') }}</span>
     </div>
     <div class="rv-hero-verdict">
-      <span class="verdict-badge" :class="`verdict--${verdictClass}`">{{ verdictLabel(verdict) }}</span>
+      <span class="verdict-badge" :class="`verdict--${verdictClass}`">{{ t(verdictKey(verdict)) }}</span>
       <span class="verdict-status">{{ statusLabel }}</span>
       <span v-if="confidenceLabel" class="verdict-confidence" :class="`confidence--${confidence}`">
-        Confianza {{ confidenceLabel }} · {{ coverageLabel }}
+        {{ t('iris.hero.confidence', { level: confidenceLabel }) }} · {{ coverageLabel }}
       </span>
     </div>
   </div>
@@ -21,7 +21,10 @@
  * sección del informe, así que no hace falta duplicar nada en el padre.
  */
 import { computed } from 'vue'
-import { verdictClass as toVerdictClass, verdictLabel } from '@/components/iris/verdict'
+import { verdictClass as toVerdictClass, verdictKey } from '@/components/iris/verdict'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   score: { type: [Number, null], default: null },
@@ -33,19 +36,20 @@ const props = defineProps({
   coverageMode: { type: [String, null], default: null },
 })
 
-const CONFIDENCE_LABELS = { high: 'alta', medium: 'media', low: 'baja' }
-const confidenceLabel = computed(() => CONFIDENCE_LABELS[props.confidence] ?? '')
+const confidenceLabel = computed(() =>
+  ['high', 'medium', 'low'].includes(props.confidence) ? t(`iris.hero.confidenceLevel.${props.confidence}`) : ''
+)
 const coverageLabel = computed(() =>
-  props.coverageMode === 'headers_only' ? 'solo cabeceras' : 'mensaje completo'
+  props.coverageMode === 'headers_only' ? t('iris.hero.headersOnly') : t('iris.hero.fullMessage')
 )
 
 const verdictClass = computed(() => toVerdictClass(props.verdict))
 
 const statusLabel = computed(() => {
   const v = props.verdict?.toLowerCase() ?? ''
-  if (v === 'legitimate') return 'Correo verificado'
-  if (v === 'suspicious') return 'Posible amenaza'
-  if (v === 'phishing') return 'Phishing detectado'
+  if (v === 'legitimate') return t('iris.hero.status.legitimate')
+  if (v === 'suspicious') return t('iris.hero.status.suspicious')
+  if (v === 'phishing') return t('iris.hero.status.phishing')
   return ''
 })
 </script>

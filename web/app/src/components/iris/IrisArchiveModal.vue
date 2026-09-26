@@ -10,10 +10,10 @@
 
           <header class="archive-header">
             <div class="archive-heading">
-              <p class="archive-eyebrow">Archivo de análisis</p>
-              <h2 id="archive-title" class="archive-title">Histórico completo</h2>
+              <p class="archive-eyebrow">{{ t('iris.archive.eyebrow') }}</p>
+              <h2 id="archive-title" class="archive-title">{{ t('iris.archive.title') }}</h2>
             </div>
-            <button type="button" class="archive-close" title="Cerrar (Esc)" aria-label="Cerrar archivo" @click="close">
+            <button type="button" class="archive-close" :title="t('iris.archive.closeHint')" :aria-label="t('iris.archive.close')" @click="close">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </header>
@@ -28,36 +28,36 @@
                 v-model="searchInput"
                 type="text"
                 class="search-input"
-                placeholder="Buscar por título… (/)"
-                aria-label="Buscar por título"
+                :placeholder="t('iris.archive.searchPlaceholder')"
+                :aria-label="t('iris.archive.search')"
               />
-              <button v-if="searchInput" type="button" class="search-clear" aria-label="Limpiar búsqueda" @click="searchInput = ''">&times;</button>
+              <button v-if="searchInput" type="button" class="search-clear" :aria-label="t('iris.archive.clearSearch')" @click="searchInput = ''">&times;</button>
             </div>
 
-            <div class="pill-group" role="group" aria-label="Filtrar por veredicto">
+            <div class="pill-group" role="group" :aria-label="t('iris.archive.filterVerdict')">
               <button v-for="opt in verdictOptions" :key="opt.value" type="button" class="pill"
                 :class="{ active: store.archive.filters.verdict === opt.value }"
                 @click="store.setArchiveFilters({ verdict: opt.value })">
-                <span v-if="opt.dot" class="pill-dot" :class="`pill-dot--${opt.dot}`"></span>{{ opt.label }}
+                <span v-if="opt.dot" class="pill-dot" :class="`pill-dot--${opt.dot}`"></span>{{ t(opt.labelKey) }}
               </button>
             </div>
 
-            <div class="pill-group" role="group" aria-label="Filtrar por origen">
+            <div class="pill-group" role="group" :aria-label="t('iris.archive.filterSource')">
               <button v-for="opt in sourceOptions" :key="opt.value" type="button" class="pill"
                 :class="{ active: store.archive.filters.source === opt.value }"
-                @click="store.setArchiveFilters({ source: opt.value })">{{ opt.label }}</button>
+                @click="store.setArchiveFilters({ source: opt.value })">{{ t(opt.labelKey) }}</button>
             </div>
 
-            <div class="pill-group" role="group" aria-label="Filtrar por estado">
+            <div class="pill-group" role="group" :aria-label="t('iris.archive.filterStatus')">
               <button v-for="opt in statusOptions" :key="opt.value" type="button" class="pill"
                 :class="{ active: store.archive.filters.status === opt.value }"
-                @click="store.setArchiveFilters({ status: opt.value })">{{ opt.label }}</button>
+                @click="store.setArchiveFilters({ status: opt.value })">{{ t(opt.labelKey) }}</button>
             </div>
 
-            <div class="pill-group" role="group" aria-label="Filtrar por revisión">
+            <div class="pill-group" role="group" :aria-label="t('iris.archive.filterReview')">
               <button v-for="opt in reviewOptions" :key="opt.value" type="button" class="pill"
                 :class="{ active: store.archive.filters.review === opt.value }"
-                @click="store.setArchiveFilters({ review: opt.value })">{{ opt.label }}</button>
+                @click="store.setArchiveFilters({ review: opt.value })">{{ t(opt.labelKey) }}</button>
             </div>
 
             <div class="archive-search archive-search--ioc">
@@ -65,75 +65,75 @@
                 v-model="iocInput"
                 type="text"
                 class="search-input"
-                placeholder="IOC: dominio, IP, URL o hash"
-                aria-label="Buscar por indicador de compromiso"
+                :placeholder="t('iris.archive.iocPlaceholder')"
+                :aria-label="t('iris.archive.iocSearch')"
               />
             </div>
 
             <select
               v-if="store.userTags.length"
               class="tag-select"
-              aria-label="Filtrar por etiqueta"
+              :aria-label="t('iris.archive.filterTag')"
               :value="store.archive.filters.tag"
               @change="store.setArchiveFilters({ tag: $event.target.value })"
             >
-              <option value="">Todas las etiquetas</option>
+              <option value="">{{ t('iris.archive.allTags') }}</option>
               <option v-for="tag in store.userTags" :key="tag.name" :value="tag.name">{{ tag.name }} ({{ tag.count }})</option>
             </select>
 
             <button v-if="store.archiveHasFilters" type="button" class="clear-filters" @click="store.resetArchiveFilters()">
-              Limpiar filtros
+              {{ t('iris.archive.clearFilters') }}
             </button>
           </div>
 
           <!-- Vistas guardadas: volver a una cola de trabajo sin reconstruir cada filtro. -->
           <div class="archive-views">
-            <span class="views-label">Vistas</span>
+            <span class="views-label">{{ t('iris.archive.views') }}</span>
             <span v-for="view in store.savedViews" :key="view.viewId" class="view-chip">
               <button type="button" class="view-apply" @click="store.applySavedView(view)">{{ view.name }}</button>
-              <button type="button" class="view-delete" :aria-label="`Borrar la vista ${view.name}`" @click="store.deleteSavedView(view.viewId)">&times;</button>
+              <button type="button" class="view-delete" :aria-label="t('iris.archive.deleteView', { name: view.name })" @click="store.deleteSavedView(view.viewId)">&times;</button>
             </span>
             <form v-if="store.archiveHasFilters" class="view-save" @submit.prevent="saveView">
-              <input v-model="viewName" type="text" maxlength="60" class="view-name" placeholder="Nombre de la vista" aria-label="Nombre de la vista" />
-              <button type="submit" class="view-save-btn" :disabled="!viewName.trim()">Guardar vista</button>
+              <input v-model="viewName" type="text" maxlength="60" class="view-name" :placeholder="t('iris.archive.viewName')" :aria-label="t('iris.archive.viewName')" />
+              <button type="submit" class="view-save-btn" :disabled="!viewName.trim()">{{ t('iris.archive.saveView') }}</button>
             </form>
-            <span v-else-if="!store.savedViews.length" class="views-hint">Filtra y guarda la combinación para volver a ella.</span>
+            <span v-else-if="!store.savedViews.length" class="views-hint">{{ t('iris.archive.viewsHint') }}</span>
           </div>
 
           <div class="archive-table-wrap">
             <Transition name="fade-swap" mode="out-in">
               <div v-if="showLoading" key="loading" class="archive-state">
                 <span class="spinner"></span>
-                <span>Cargando análisis…</span>
+                <span>{{ t('iris.archive.loading') }}</span>
               </div>
               <div v-else-if="store.archive.error" key="error" class="archive-state archive-state--error">
                 <span>{{ store.archive.error }}</span>
-                <button type="button" class="retry-btn" @click="store.fetchArchive()">Reintentar</button>
+                <button type="button" class="retry-btn" @click="store.fetchArchive()">{{ t('common.retry') }}</button>
               </div>
               <div v-else-if="!store.archive.items.length && store.archiveHasFilters" key="empty-filtered" class="archive-state">
-                <span>Ningún análisis coincide con estos filtros.</span>
-                <button type="button" class="retry-btn" @click="store.resetArchiveFilters()">Limpiar filtros</button>
+                <span>{{ t('iris.archive.noMatch') }}</span>
+                <button type="button" class="retry-btn" @click="store.resetArchiveFilters()">{{ t('iris.archive.clearFilters') }}</button>
               </div>
               <div v-else-if="!store.archive.items.length" key="empty" class="archive-state">
-                <span>Todavía no hay análisis. Pega unas cabeceras o conecta un buzón para empezar.</span>
+                <span>{{ t('iris.archive.empty') }}</span>
               </div>
               <table v-else key="table">
                 <thead>
                   <tr>
-                    <th class="col-compare" title="Marca dos para compararlos (x)"></th>
+                    <th class="col-compare" :title="t('iris.archive.compareHint')"></th>
                     <th class="col-id">ID</th>
                     <th class="sortable" :class="{ 'sortable--active': store.archive.sort.by === 'title' }" @click="store.setArchiveSort('title')">
-                      Título<span class="sort-indicator">{{ sortIndicator('title') }}</span>
+                      {{ t('iris.strip.title') }}<span class="sort-indicator">{{ sortIndicator('title') }}</span>
                     </th>
-                    <th class="col-origin">Origen</th>
+                    <th class="col-origin">{{ t('themis.traceroute.originLabel') }}</th>
                     <th class="sortable col-date" :class="{ 'sortable--active': store.archive.sort.by === 'date' }" @click="store.setArchiveSort('date')">
-                      Fecha<span class="sort-indicator">{{ sortIndicator('date') }}</span>
+                      {{ t('themis.table.date') }}<span class="sort-indicator">{{ sortIndicator('date') }}</span>
                     </th>
                     <th class="sortable" :class="{ 'sortable--active': store.archive.sort.by === 'status' }" @click="store.setArchiveSort('status')">
-                      Estado<span class="sort-indicator">{{ sortIndicator('status') }}</span>
+                      {{ t('themis.table.status') }}<span class="sort-indicator">{{ sortIndicator('status') }}</span>
                     </th>
                     <th class="sortable col-score" :class="{ 'sortable--active': store.archive.sort.by === 'score' }" @click="store.setArchiveSort('score')">
-                      Puntuación<span class="sort-indicator">{{ sortIndicator('score') }}</span>
+                      {{ t('iris.strip.score') }}<span class="sort-indicator">{{ sortIndicator('score') }}</span>
                     </th>
                   </tr>
                 </thead>
@@ -148,25 +148,25 @@
                     @mouseenter="focusedIndex = index"
                   >
                     <td class="col-compare" @click.stop>
-                      <input type="checkbox" :checked="compareIds.includes(item.analysisId)" :aria-label="`Comparar #${item.analysisId}`" @change="toggleCompare(item.analysisId)" />
+                      <input type="checkbox" :checked="compareIds.includes(item.analysisId)" :aria-label="t('iris.archive.compareItem', { id: item.analysisId })" @change="toggleCompare(item.analysisId)" />
                     </td>
                     <td class="mono col-id">#{{ item.analysisId }}</td>
                     <td class="col-title">
-                      {{ item.title || '(sin título)' }}
-                      <span v-if="item.reviewed" class="reviewed-chip" title="Revisado por un analista">revisado</span>
+                      {{ item.title || t('iris.untitled') }}
+                      <span v-if="item.reviewed" class="reviewed-chip" :title="t('iris.archive.reviewedHint')">{{ t('iris.archive.reviewedChip') }}</span>
                       <span v-for="tag in item.tags || []" :key="tag" class="tag-chip">{{ tag }}</span>
                     </td>
                     <td class="col-origin">
                       <span class="origin-chip" :class="item.connectionId ? 'origin-chip--auto' : 'origin-chip--manual'">
-                        {{ item.connectionId ? 'AUTO' : 'MANUAL' }}
+                        {{ item.connectionId ? t('iris.strip.auto') : t('iris.strip.manual') }}
                       </span>
                     </td>
                     <td class="mono col-date">{{ formatDate(item.startedAt) }}</td>
                     <td>
-                      <span class="status-chip" :class="`status--${item.status}`">{{ analysisStatusLabel(item.status) }}</span>
+                      <span class="status-chip" :class="`status--${item.status}`">{{ t(analysisStatusKey(item.status)) }}</span>
                     </td>
                     <td class="col-score">
-                      <div v-if="item.totalScore != null" class="score-rail" :title="`${item.totalScore} · ${verdictLabel(item.verdict)}`">
+                      <div v-if="item.totalScore != null" class="score-rail" :title="`${item.totalScore} · ${t(verdictKey(item.verdict))}`">
                         <span class="rail-track"></span>
                         <span class="rail-tick" :style="{ left: store.thresholds.suspicious + '%' }"></span>
                         <span class="rail-tick" :style="{ left: store.thresholds.legitimate + '%' }"></span>
@@ -182,12 +182,12 @@
           </div>
 
           <footer class="archive-footer">
-            <button type="button" class="compare-btn" :disabled="compareIds.length !== 2" title="Marca dos filas (x) y compáralas (c)" @click="compareOpen = true">
-              Comparar ({{ compareIds.length }}/2)
+            <button type="button" class="compare-btn" :disabled="compareIds.length !== 2" :title="t('iris.archive.compareButtonHint')" @click="compareOpen = true">
+              {{ t('iris.archive.compare', { count: compareIds.length }) }}
             </button>
             <span class="archive-summary">
-              <template v-if="store.archiveHasFilters">{{ store.archive.total }} de {{ store.totalCount }} análisis</template>
-              <template v-else>{{ store.archive.total }} análisis en total</template>
+              <template v-if="store.archiveHasFilters">{{ t('iris.archive.filteredTotal', { shown: store.archive.total, total: store.totalCount }) }}</template>
+              <template v-else>{{ t('iris.archive.total', { total: store.archive.total }) }}</template>
             </span>
             <AppPagination
               :current="store.archive.page"
@@ -216,8 +216,11 @@ import AppPagination from '@/components/shared/AppPagination.vue'
 import IrisCompareModal from '@/components/iris/IrisCompareModal.vue'
 import { useIrisStore } from '@/stores/irisStore'
 import { useModalA11y } from '@/composables/useModalA11y'
-import { analysisStatusLabel, verdictClass, verdictLabel } from '@/components/iris/verdict'
+import { analysisStatusKey, verdictClass, verdictKey } from '@/components/iris/verdict'
 import { formatDate as formatLocalizedDate } from '@/i18n/format'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -231,28 +234,30 @@ const searchRef = ref(null)
 const searchInput = ref('')
 const focusedIndex = ref(-1)
 
+// Opciones de los filtros; `labelKey` es la clave de su rótulo.
+const ALL = { value: '', labelKey: 'iris.archive.all' }
 const verdictOptions = [
-  { value: '', label: 'Todos' },
-  { value: 'Legitimate', label: 'Legítimo', dot: 'legit' },
-  { value: 'Suspicious', label: 'Sospechoso', dot: 'susp' },
-  { value: 'Phishing', label: 'Phishing', dot: 'phish' },
+  ALL,
+  { value: 'Legitimate', labelKey: 'iris.verdict.legitimate', dot: 'legit' },
+  { value: 'Suspicious', labelKey: 'iris.verdict.suspicious', dot: 'susp' },
+  { value: 'Phishing', labelKey: 'iris.verdict.phishing', dot: 'phish' },
 ]
 const sourceOptions = [
-  { value: '', label: 'Todos' },
-  { value: 'manual', label: 'Manual' },
-  { value: 'mailbox', label: 'Buzón' },
+  ALL,
+  { value: 'manual', labelKey: 'iris.strip.manualOrigin' },
+  { value: 'mailbox', labelKey: 'iris.strip.mailbox' },
 ]
 const statusOptions = [
-  { value: '', label: 'Todos' },
-  { value: 'finished', label: 'Finalizado' },
-  { value: 'failed', label: 'Fallido' },
-  { value: 'cancelled', label: 'Cancelado' },
+  ALL,
+  { value: 'finished', labelKey: 'iris.analysisStatus.finished' },
+  { value: 'failed', labelKey: 'iris.analysisStatus.failed' },
+  { value: 'cancelled', labelKey: 'iris.analysisStatus.cancelled' },
 ]
 // «Pendiente» es un análisis terminado que nadie ha corregido todavía.
 const reviewOptions = [
-  { value: '', label: 'Todos' },
-  { value: 'pending', label: 'Pendiente de revisar' },
-  { value: 'reviewed', label: 'Revisado' },
+  ALL,
+  { value: 'pending', labelKey: 'iris.archive.pendingReview' },
+  { value: 'reviewed', labelKey: 'iris.archive.reviewed' },
 ]
 
 const iocInput = ref('')

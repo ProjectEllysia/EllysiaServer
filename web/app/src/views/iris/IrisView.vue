@@ -8,7 +8,7 @@
     @drop="onDrop"
   >
     <StarBackground />
-    <Topbar title="Iris" badge="Análisis de Cabeceras" back-to="/iris" back-label="Volver" />
+    <Topbar :title="'Iris'" :badge="t('irisView.badge')" back-to="/iris" :back-label="t('common.back')" />
 
     <!-- Intake de evidencia: visor que aparece al arrastrar un .eml -->
     <Transition name="intake-fade">
@@ -27,11 +27,11 @@
             <span class="scanline"></span>
           </div>
 
-          <p class="intake-eyebrow">{{ rejecting ? 'Formato no válido' : 'Intake de evidencia' }}</p>
+          <p class="intake-eyebrow">{{ rejecting ? t('irisView.invalidFormat') : t('irisView.intake') }}</p>
           <h2 class="intake-title">
-            {{ rejecting ? 'Solo se admiten archivos .eml, .msg o un ZIP' : 'Suelta el correo (o varios) para examinarlo' }}
+            {{ rejecting ? t('irisView.onlyAccepted') : t('irisView.dropHere') }}
           </h2>
-          <span class="intake-chip">.eml · .msg · .zip</span>
+          <span class="intake-chip">{{ ACCEPTED_FORMATS }}</span>
         </div>
       </div>
     </Transition>
@@ -39,7 +39,7 @@
     <div class="iris-layout">
       <div v-if="store.listError" class="history-error-banner">
         {{ store.listError }}
-        <button type="button" @click="store.fetchResults()">Reintentar</button>
+        <button type="button" @click="store.fetchResults()">{{ t('common.retry') }}</button>
       </div>
       <IrisHistoryStrip
         :items="store.analyses"
@@ -60,25 +60,25 @@
 
       <!-- Accesos a las subpáginas de Iris: una sola fila, no un hijo suelto
            por enlace de la columna flex de .iris-layout. -->
-      <nav class="iris-subnav" aria-label="Secciones de Iris">
+      <nav class="iris-subnav" :aria-label="t('irisView.sections')">
         <router-link v-if="canConnectMailboxes" to="/iris/conexiones" class="back-link">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <rect x="2" y="4" width="20" height="16" rx="2" />
             <path d="m2 7 10 6 10-6" />
           </svg>
-          Conexiones de buzón
+          {{ t('iris.connections.badge') }}
         </router-link>
         <router-link to="/iris/confianza" class="back-link">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
           </svg>
-          Remitentes de confianza
+          {{ t('iris.trustView.badge') }}
         </router-link>
         <router-link to="/iris/casos" class="back-link">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2" />
           </svg>
-          Casos
+          {{ t('iris.cases.badge') }}
         </router-link>
       </nav>
 
@@ -121,6 +121,9 @@ import { useToastStore } from '@/stores/toastStore'
 import { useLaunch } from '@/composables/useLaunch'
 import { parseEml } from '@/composables/useEml'
 import { classifyIntake, formatByteLimit, isBatchDrop } from '@/components/iris/intake.js'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const store = useIrisStore()
 
@@ -128,6 +131,9 @@ const store = useIrisStore()
 const { isSurfaceEnabled } = useLaunch()
 const canConnectMailboxes = computed(() => isSurfaceEnabled('mailboxConnectors'))
 const toast = useToastStore()
+
+/** Formatos que admite la zona de arrastre; iguales en cualquier idioma. */
+const ACCEPTED_FORMATS = '.eml · .msg · .zip'
 const formKey = ref(0)
 const archiveOpen = ref(false)
 
@@ -198,7 +204,7 @@ async function onDrop(e) {
   const intake = classifyIntake(file, capabilities)
   if (!intake.accepted) {
     flashReject()
-    toast.show('Solo se aceptan archivos .eml, .msg o un ZIP', 'error')
+    toast.show(t('irisView.onlyAccepted'), 'error')
     return
   }
 
@@ -208,7 +214,7 @@ async function onDrop(e) {
     const { rawHeaders, subject } = parseEml(text)
     if (!rawHeaders) {
       flashReject()
-      toast.show('No se pudieron leer las cabeceras del correo.', 'error')
+      toast.show(t('irisView.headersUnreadable'), 'error')
       return
     }
     // Conservamos el mensaje completo (cuerpo, enlaces, adjuntos) para que
@@ -224,16 +230,15 @@ async function onDrop(e) {
     if (tooBig) {
       const readable = formatByteLimit(intake.limit)
       toast.show(
-        `El archivo supera el máximo que admite el servidor${readable ? ` (${readable})` : ''}: `
-        + 'solo se analizarán las cabeceras.',
+        readable ? t('irisView.tooBigWithLimit', { limit: readable }) : t('irisView.tooBig'),
         'info',
       )
     } else {
-      toast.show('Correo cargado.', 'success')
+      toast.show(t('irisView.loaded'), 'success')
     }
   } catch {
     flashReject()
-    toast.show('No se pudo leer el archivo.', 'error')
+    toast.show(t('irisView.unreadable'), 'error')
   }
 }
 
