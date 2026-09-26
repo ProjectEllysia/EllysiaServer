@@ -55,7 +55,7 @@ lista, se adapta en el mismo cambio.
 | Hablar con un proveedor de IA o de correo | estrategia | `tools/scribe/` o `tools/herald/` |
 | Un informe PDF nuevo | subclase de `PdfGenerator` | `<módulo>/services/reports.py`; la parte común ya está en `tools/press/` |
 | Un módulo de feature nuevo | paquete completo ([§ 3.1](#31-anatomía-de-un-módulo)) | `features/<nombre>/` + blueprint en `run.py` + `web/Caddyfile` + `web/app/vite.config.js` |
-| Un texto que ve el usuario (etiqueta, aviso, estado vacío, tooltip) | lenguaje del usuario; los enums, por un rótulo compartido | el `.vue` + `web/app/src/components/<módulo>/<tema>.js` ([§ 12](#12-textos-de-la-interfaz)); en un fichero migrado, `web/app/src/i18n/locales/es.json` ([§ 12.5](#125-idiomas-dónde-vive-cada-texto)) |
+| Un texto que ve el usuario (etiqueta, aviso, estado vacío, tooltip) | lenguaje del usuario; los enums, por un rótulo compartido | `web/app/src/i18n/locales/es.json` y `en.json`, pedido con `t()` desde el `.vue` o desde `web/app/src/components/<módulo>/<tema>.js` ([§ 12](#12-textos-de-la-interfaz), [§ 12.5](#125-idiomas-dónde-vive-cada-texto)) |
 | Formatear una fecha, un número u ordenar textos en el SPA | `formatDate` / `formatDateTime` / `formatNumber` / `getCollator` | `web/app/src/i18n/format.js` ([§ 12.5](#125-idiomas-dónde-vive-cada-texto)) |
 | Un idioma nuevo para la interfaz | fichero de textos | `web/app/src/i18n/locales/<código>.json` ([§ 12.5](#125-idiomas-dónde-vive-cada-texto)) |
 
@@ -1065,15 +1065,21 @@ tanto en la plantilla como en el script). Se aplica en la revisión.
 ### 12.5 Idiomas: dónde vive cada texto
 
 El SPA tiene un mecanismo de idiomas (vue-i18n, en `web/app/src/i18n/`). Cada idioma es un fichero
-de `locales/` con el mismo árbol de claves; **`es.json` es el idioma por defecto y el único
-completo**, y lo que le falte a otro idioma se enseña en castellano.
+de `locales/` con el mismo árbol de claves; **`es.json` es el idioma por defecto**, `en.json` está
+completo, y lo que le falte a otro idioma se enseña en castellano.
 
 - **Todo texto va al diccionario**, en `es.json` y en `en.json` a la vez, y se pide con
   `t('clave')`. La guarda (`web/app/test/i18n.guard.test.mjs`) falla si un componente tiene texto
-  escrito en su plantilla, salvo los que aún esperan su migración en `PENDING_FILES`; un componente
-  nuevo nace vigilado. Un fichero se migra entero o no se migra: medio fichero en el diccionario y
-  medio escrito a mano es peor que cualquiera de los dos. La guarda no ve el texto que se monta en
-  el `<script>` (rótulos, avisos): ese se revisa a mano.
+  escrito en su plantilla, sin excepciones: un componente nuevo nace vigilado. Los nombres que se
+  escriben igual en todos los idiomas (Ellysia, Nmap, Linux…) van en `LANGUAGE_NEUTRAL_WORDS`; un
+  término técnico cualquiera («Host», «Timeout») se pide al diccionario aunque su traducción sea la
+  misma palabra. La guarda no ve el texto que se monta en el `<script>` (rótulos, avisos): ese se
+  revisa a mano.
+- **Ayudantes sin Vue** (`components/<módulo>/<tema>.js`, los que se prueban con `node` a secas) no
+  escriben frases: devuelven la clave del rótulo (`labelKey`, `campaignStatusKey`) o reciben `t` como
+  último argumento cuando componen una frase con datos (`timeAgo(iso, t)`). Sus tests crean `t` con
+  `es.json` y comprueban el texto final, así que un cambio de redacción sigue saltando en la suite.
+  Un error que se enseña al usuario lleva un `code` estable y quien lo muestra elige el texto.
 - **Idiomas completos.** El inglés está en `COMPLETE_LOCALES` de `i18n.locales.test.mjs`: tiene que
   traer todas las claves del castellano, así que una clave que solo se añada en `es.json` hace
   fallar la CI.
@@ -1102,11 +1108,11 @@ fichero que ya vive en el diccionario sigue viviendo en él.
 2. Nada más: el idioma aparece en el selector y `test:i18n` comprueba que no trae claves ni huecos
    que el castellano no tenga y que vue-i18n compila todos sus mensajes.
 
-Lo que un fichero nuevo **no** cubre: los textos de los ficheros aún sin migrar, y todo lo que el
-servidor genera en segundo plano —correos, informes PDF, textos de la IA—, que necesita antes una
-preferencia de idioma guardada por usuario u organización. Cuando un idioma esté completo, además,
-habrá que decidir si la interfaz arranca en el idioma del navegador; hoy solo recuerda el último
-elegido en el dispositivo.
+Lo que un fichero nuevo **no** cubre: todo lo que el servidor genera en segundo plano —correos,
+informes PDF, textos de la IA—, que hoy sale en castellano.
+Tampoco decide el idioma de quien llega sin sesión: la interfaz arranca en el último idioma elegido
+en ese dispositivo, o en castellano, no en el del navegador. Eso afecta sobre todo al quiz público de
+Aegis, cuyo destinatario no tiene cuenta.
 
 ---
 

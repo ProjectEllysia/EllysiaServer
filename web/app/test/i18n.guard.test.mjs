@@ -8,8 +8,8 @@
  * degradan en cuanto alguien copia un trozo de código viejo:
  *   - fechas, números y orden alfabético no llevan el idioma escrito a mano
  *     ni usan el del navegador: pasan por `src/i18n/format.js`;
- *   - un componente no tiene texto escrito en su plantilla, salvo los que
- *     aún esperan su migración en `PENDING_FILES`.
+ *   - un componente no tiene texto escrito en su plantilla: sus textos van en
+ *     `locales/es.json` y se piden con `t()`.
  */
 
 import assert from 'node:assert/strict'
@@ -20,20 +20,11 @@ import { fileURLToPath } from 'node:url'
 const sourceRoot = fileURLToPath(new URL('../src/', import.meta.url))
 
 /**
- * Ficheros que todavía llevan texto escrito en su plantilla. Todo `.vue` que
- * no esté aquí tiene que sacar sus textos del diccionario; al migrar uno, se
- * quita de la lista. Un componente nuevo nace vigilado.
- */
-const PENDING_FILES = [
-  'components/aegis/DocumentViewer.vue',
-]
-
-/**
  * Palabras que se escriben igual en todos los idiomas y pueden quedar en una
  * plantilla migrada: nombres propios del producto y su dominio. Las siglas
  * tampoco cuentan (ver `findHandwrittenText`).
  */
-const LANGUAGE_NEUTRAL_WORDS = new Set(['Ellysia', 'Themis', 'Aegis', 'Iris', 'Acheron', 'Hygeia', 'Lybra', 'GitHub', 'ProjectEllysia', 'Nmap', 'Nikto', 'Nuclei', 'Cron', 'Linux', 'Windows', 'macOS', 'ellysia', 'es', 'v', 'ms'])
+const LANGUAGE_NEUTRAL_WORDS = new Set(['Ellysia', 'Themis', 'Aegis', 'Iris', 'Acheron', 'Hygeia', 'Lybra', 'GitHub', 'ProjectEllysia', 'Nmap', 'Nikto', 'Nuclei', 'Cron', 'Linux', 'Windows', 'macOS', 'Markdown', 'ellysia', 'es', 'v', 'ms'])
 
 /** Una etiqueta HTML entera, aunque sus atributos lleven `>` entre comillas. */
 const TAG_RE = /<(?:[^>"']|"[^"]*"|'[^']*')*>/g
@@ -120,20 +111,12 @@ const componentFiles = listSourceFiles(sourceRoot)
   .filter((path) => path.endsWith('.vue'))
   .map((path) => relative(sourceRoot, path).replaceAll('\\', '/'))
 
-test('ningún componente fuera de PENDING_FILES tiene texto escrito en su plantilla', () => {
+test('ningún componente tiene texto escrito en su plantilla', () => {
   const offenders = componentFiles
-    .filter((relativePath) => !PENDING_FILES.includes(relativePath))
     .map((relativePath) => [relativePath, findHandwrittenText(readFileSync(join(sourceRoot, relativePath), 'utf-8'))])
     .filter(([, handwritten]) => handwritten.length)
     .map(([relativePath, handwritten]) => `${relativePath}: ${handwritten.join(', ')}`)
   assert.deepEqual(offenders, [], 'los textos de un componente van en locales/es.json y se piden con t()')
-})
-
-test('PENDING_FILES solo lista componentes que existen y aún tienen texto escrito', () => {
-  // Un fichero ya migrado que sigue en la lista dejaría de estar vigilado.
-  const stale = PENDING_FILES.filter((relativePath) => !componentFiles.includes(relativePath)
-    || findHandwrittenText(readFileSync(join(sourceRoot, relativePath), 'utf-8')).length === 0)
-  assert.deepEqual(stale, [], 'quita de PENDING_FILES los ficheros ya migrados o borrados')
 })
 
 test('la guarda de texto detecta una plantilla sin migrar', () => {

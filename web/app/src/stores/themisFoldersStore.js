@@ -174,7 +174,7 @@ export const useThemisFoldersStore = defineStore('themisFolders', () => {
         toast.show(await apiError(res, i18n.global.t('themisStore.folders.addFailed')), 'error')
         return false
       }
-      toast.show(`${scanIds.length} escaneo(s) añadido(s) a la carpeta.`, 'success')
+      toast.show(i18n.global.t('themisStore.folders.scansAdded', { count: scanIds.length }, scanIds.length), 'success')
       await loadFolders()
       return true
     } catch {

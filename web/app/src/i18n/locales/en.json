@@ -1658,7 +1658,8 @@
       "removeFailed": "The scan could not be removed from the folder.",
       "removed": "Scan removed from the folder.",
       "addFailed": "The scans could not be added to the folder.",
-      "created": "Folder \"{name}\" created"
+      "created": "Folder \"{name}\" created",
+      "scansAdded": "{count} scan added to the folder. | {count} scans added to the folder."
     },
     "history": {
       "hostsFailed": "The hosts could not be loaded.",
@@ -2166,6 +2167,9 @@
         "title": "Explained, not just scored",
         "desc": "A plain-language summary explains why the email is legitimate, suspicious or phishing — it does not leave you alone with a number."
       }
+    },
+    "resources": {
+      "osi": "INCIBE — Internet User Security Office (OSI, Spanish)"
     }
   },
   "irisView": {
@@ -2520,6 +2524,9 @@
         "title": "Exportable as compliance",
         "desc": "Markdown, JSON or PDF ready to file as proof that the training happened."
       }
+    },
+    "resources": {
+      "incibe": "INCIBE — Awareness guides for companies (Spanish)"
     }
   },
   "aegisCampaigns": {
@@ -2650,7 +2657,8 @@
     "campaignCreateFailed": "The campaign could not be created.",
     "launchFailed": "The campaign could not be launched.",
     "launched": "Campaign launched. Sending continues in the background.",
-    "generating": "Pill being generated (ID: {id})"
+    "generating": "Pill being generated (ID: {id})",
+    "recipientsAdded": "{count} recipient added. | {count} recipients added."
   },
   "hygeia": {
     "ago": {

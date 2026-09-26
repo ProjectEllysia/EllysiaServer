@@ -650,7 +650,7 @@ export const useAegisStore = defineStore('aegis', () => {
     const data = await res.json().catch(() => ({}))
     listRecipients.value = [...listRecipients.value, ...(data.recipients ?? [])]
     await loadDistributionLists()
-    toast.show(`${data.count ?? recipients.length} destinatario(s) añadido(s).`, 'success')
+    toast.show(i18n.global.t('aegisStore.recipientsAdded', { count: data.count ?? recipients.length }, data.count ?? recipients.length), 'success')
     return true
   }
 

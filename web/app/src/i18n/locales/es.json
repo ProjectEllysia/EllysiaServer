@@ -1658,7 +1658,8 @@
       "removeFailed": "No se pudo quitar el escaneo de la carpeta.",
       "removed": "Escaneo eliminado de la carpeta.",
       "addFailed": "Error al añadir escaneos a la carpeta.",
-      "created": "Carpeta \"{name}\" creada"
+      "created": "Carpeta \"{name}\" creada",
+      "scansAdded": "{count} escaneo añadido a la carpeta. | {count} escaneos añadidos a la carpeta."
     },
     "history": {
       "hostsFailed": "No se pudieron cargar los hosts.",
@@ -2166,6 +2167,9 @@
         "title": "Explicado, no solo puntuado",
         "desc": "Un resumen en lenguaje natural cuenta por qué el correo es legítimo, sospechoso o phishing — no te deja solo ante un número."
       }
+    },
+    "resources": {
+      "osi": "INCIBE — Oficina de Seguridad del Internauta (OSI)"
     }
   },
   "irisView": {
@@ -2520,6 +2524,9 @@
         "title": "Exportable como cumplimiento",
         "desc": "Markdown, JSON o PDF listos para archivar como prueba de que la formación ocurrió."
       }
+    },
+    "resources": {
+      "incibe": "INCIBE — Guías de concienciación para empresas"
     }
   },
   "aegisCampaigns": {
@@ -2650,7 +2657,8 @@
     "campaignCreateFailed": "No se pudo crear la campaña.",
     "launchFailed": "No se pudo lanzar la campaña.",
     "launched": "Campaña lanzada. El envío continúa en segundo plano.",
-    "generating": "Píldora en generación (ID: {id})"
+    "generating": "Píldora en generación (ID: {id})",
+    "recipientsAdded": "{count} destinatario añadido. | {count} destinatarios añadidos."
   },
   "hygeia": {
     "ago": {

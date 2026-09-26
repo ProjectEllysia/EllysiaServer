@@ -57,9 +57,9 @@ const features = computed(() => ['rules', 'quishing', 'iocs', 'verdict'].map((id
   desc: t(`irisHub.features.${id}.desc`),
 })))
 
-const resources = [
-  { label: 'INCIBE — Oficina de Seguridad del Internauta (OSI)', href: 'https://www.osi.es/', external: true },
-]
+const resources = computed(() => [
+  { label: t('irisHub.resources.osi'), href: 'https://www.osi.es/', external: true },
+])
 
 /** Actividad reciente (hasta 100 análisis más nuevos) — para la placa de actividad. */
 async function loadRecentActivity() {
