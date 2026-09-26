@@ -5,35 +5,35 @@
          principal comparte fila con el título; las herramientas van debajo. -->
     <header class="toolbar">
       <div class="toolbar-head">
-        <h3 class="toolbar-title">Activos</h3>
-        <button class="btn-new" @click="$emit('create')">Nuevo activo</button>
+        <h3 class="toolbar-title">{{ t('hygeia.list.title') }}</h3>
+        <button class="btn-new" @click="$emit('create')">{{ t('hygeia.createAsset.title') }}</button>
       </div>
       <div class="toolbar-actions">
-        <RouterLink class="btn-icon" to="/hygeia/etiquetas" title="Gestionar etiquetas" aria-label="Gestionar etiquetas">
+        <RouterLink class="btn-icon" to="/hygeia/etiquetas" :title="t('hygeia.list.manageTags')" :aria-label="t('hygeia.list.manageTags')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
             <path d="M7 7h.01" />
           </svg>
         </RouterLink>
-        <RouterLink class="btn-icon" to="/hygeia/estadisticas" title="Estadísticas" aria-label="Ver las estadísticas del parque">
+        <RouterLink class="btn-icon" to="/hygeia/estadisticas" :title="t('hygeia.tabs.estadisticas')" :aria-label="t('hygeia.list.statsLabel')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M3 3v18h18" />
             <path d="M7 15v3M12 9v9M17 5v13" />
           </svg>
         </RouterLink>
-        <button class="btn-icon" title="Inventario en PDF" aria-label="Preparar el inventario en PDF"
+        <button class="btn-icon" :title="t('hygeia.inventoryReport.title')" :aria-label="t('hygeia.list.reportLabel')"
           @click="$emit('report')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
             <path d="M14 2v6h6M12 18v-6M9 15l3 3 3-3" />
           </svg>
         </button>
-        <RouterLink class="btn-icon" to="/hygeia/documentos" title="Documentos" aria-label="Ver los documentos pedidos">
+        <RouterLink class="btn-icon" to="/hygeia/documentos" :title="t('hygeia.list.documents')" :aria-label="t('hygeia.list.documentsLabel')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
           </svg>
         </RouterLink>
-        <button class="btn-icon" title="Recargar" aria-label="Recargar activos" @click="$emit('refresh')">
+        <button class="btn-icon" :title="t('hygeia.list.reload')" :aria-label="t('hygeia.list.reloadLabel')" @click="$emit('refresh')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M23 4v6h-6M1 20v-6h6" />
             <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
@@ -54,7 +54,7 @@
         @click="toggleFilter(tag.id)"
       >{{ tag.name }}</button>
       <button v-if="activeTagIds.length" type="button" class="filter-clear" @click="activeTagIds = []">
-        Quitar filtros
+        {{ t('hygeia.list.clearFilters') }}
       </button>
     </div>
 
@@ -66,7 +66,7 @@
     <!-- Filas fantasma con la misma silueta que las reales (punto de pulso +
          dos líneas de texto): al llegar los activos ocupan el mismo alto y la
          lista no se estira de golpe. -->
-    <ul v-if="loading" class="rows" aria-busy="true" aria-label="Cargando activos">
+    <ul v-if="loading" class="rows" aria-busy="true" :aria-label="t('hygeia.list.loading')">
       <li v-for="n in SKELETON_ROWS" :key="n" class="row row--ghost" aria-hidden="true">
         <span class="skeleton skeleton--circle ghost-pulse"></span>
         <span class="ghost-text">
@@ -78,39 +78,39 @@
 
     <p v-else-if="error" class="state-msg state-msg--error">
       {{ error }}
-      <button type="button" class="retry" @click="$emit('refresh')">Reintentar</button>
+      <button type="button" class="retry" @click="$emit('refresh')">{{ t('common.retry') }}</button>
     </p>
 
     <div v-else-if="!assets.length" class="state-empty">
-      <p class="empty-title">Ningún activo todavía</p>
-      <p class="empty-sub">Da de alta el primero para empezar a vigilarlo.</p>
-      <button class="btn-new" @click="$emit('create')">Nuevo activo</button>
+      <p class="empty-title">{{ t('hygeia.list.emptyTitle') }}</p>
+      <p class="empty-sub">{{ t('hygeia.list.emptySub') }}</p>
+      <button class="btn-new" @click="$emit('create')">{{ t('hygeia.createAsset.title') }}</button>
     </div>
 
     <div v-else-if="!visibleAssets.length" class="state-empty">
-      <p class="empty-title">Ningún activo con esas etiquetas</p>
-      <p class="empty-sub">Prueba a quitar algún filtro.</p>
-      <button class="btn-new" @click="activeTagIds = []">Quitar filtros</button>
+      <p class="empty-title">{{ t('hygeia.list.noMatchTitle') }}</p>
+      <p class="empty-sub">{{ t('hygeia.list.noMatchSub') }}</p>
+      <button class="btn-new" @click="activeTagIds = []">{{ t('hygeia.list.clearFilters') }}</button>
     </div>
 
     <ul v-else class="rows">
       <li v-for="asset in visibleAssets" :key="asset.id" class="row" :class="{ 'row--selected': asset.id === selectedId }">
         <button class="row-select" :aria-pressed="asset.id === selectedId" @click="$emit('select', asset.id)">
-          <span class="pulse" :class="assetPresence(asset).pulseClass" aria-hidden="true"></span>
+          <span class="pulse" :class="assetPresence(asset, t).pulseClass" aria-hidden="true"></span>
           <span class="row-text">
             <span class="row-host-line">
               <span class="row-host">{{ asset.hostname }}</span>
               <svg
                 v-if="asset.agentOutdated"
                 class="row-warn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                role="img" :aria-label="`Agente desactualizado (versión ${asset.agentVersion})`"
-                :title="`Agente desactualizado (versión ${asset.agentVersion})`"
+                role="img" :aria-label="t('hygeia.list.agentOutdated', { version: asset.agentVersion })"
+                :title="t('hygeia.list.agentOutdated', { version: asset.agentVersion })"
               >
                 <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
                 <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
               </svg>
             </span>
-            <span class="row-meta">{{ assetPresence(asset).label }} · {{ timeAgo(asset.lastSeenAt) }}</span>
+            <span class="row-meta">{{ assetPresence(asset, t).label }} · {{ timeAgo(asset.lastSeenAt, t) }}</span>
             <!-- Tira aparte y con salto de línea propio: `.row-host` y
                  `.row-meta` son `nowrap` con elipsis y no sirven de molde. -->
             <span v-if="asset.tags?.length" class="row-tags">
@@ -123,7 +123,7 @@
         </button>
 
         <span class="row-actions">
-          <button class="btn-icon" title="Etiquetas" :aria-label="`Etiquetas de ${asset.hostname}`"
+          <button class="btn-icon" :title="t('hygeia.list.tags')" :aria-label="t('hygeia.assetTags.title', { host: asset.hostname })"
             @click="$emit('tag', asset.id)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
@@ -131,23 +131,23 @@
             </svg>
           </button>
           <button class="btn-icon" :class="{ 'btn-icon--muted': !asset.isPersistent }"
-            :title="asset.isPersistent ? 'Marcar como host que se apaga a propósito' : 'Marcar como host siempre encendido'"
+            :title="asset.isPersistent ? t('hygeia.list.markPowersOff') : t('hygeia.list.markAlwaysOn')"
             :aria-pressed="!asset.isPersistent"
-            :aria-label="`${asset.hostname}: ${asset.isPersistent ? 'dejar de avisar cuando esté caído' : 'volver a avisar cuando esté caído'}`"
+            :aria-label="asset.isPersistent ? t('hygeia.list.stopAlerting', { host: asset.hostname }) : t('hygeia.list.resumeAlerting', { host: asset.hostname })"
             @click="$emit('toggle-persistent', asset.id)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <path d="M12 3v9" />
               <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
             </svg>
           </button>
-          <button class="btn-icon" title="Rotar clave" :aria-label="`Rotar la clave de ${asset.hostname}`"
+          <button class="btn-icon" :title="t('hygeia.list.rotate')" :aria-label="t('hygeia.list.rotateLabel', { host: asset.hostname })"
             @click="$emit('rotate', asset.id)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <path d="M21 2v6h-6M3 22v-6h6" />
               <path d="M3.51 9a9 9 0 0 1 14.85-3.36L21 8M21 15a9 9 0 0 1-14.85 3.36L3 16" />
             </svg>
           </button>
-          <button class="btn-icon btn-icon--danger" title="Eliminar" :aria-label="`Eliminar ${asset.hostname}`"
+          <button class="btn-icon btn-icon--danger" :title="t('hygeia.list.delete')" :aria-label="t('hygeia.list.deleteLabel', { host: asset.hostname })"
             @click="$emit('delete', asset.id)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z" />
@@ -165,6 +165,9 @@ import { RouterLink } from 'vue-router'
 import TagBadge from './TagBadge.vue'
 import { hueOf } from './tagColors'
 import { assetPresence, timeAgo } from './format'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   assets: { type: Array, default: () => [] },

@@ -3,7 +3,7 @@
        extremos, que es lo que un lector de pantalla anuncia y lo que espera
        quien navega sin ratón. Solo la pestaña activa entra en el orden de
        tabulación (tabindex -1 en las demás), como manda el patrón de tablist. -->
-  <div class="tabs" role="tablist" aria-label="Vistas del activo" @keydown="onKeydown">
+  <div class="tabs" role="tablist" :aria-label="t('hygeia.tabs.label')" @keydown="onKeydown">
     <button v-for="(tab, index) in tabs" :key="tab.id"
       ref="tabButtons"
       class="tab" :class="{ active: active === tab.id }"
@@ -12,19 +12,19 @@
       :aria-selected="active === tab.id"
       :aria-controls="`panel-${tab.id}`"
       :tabindex="active === tab.id ? 0 : -1"
-      :title="tab.hint"
+      :title="t('hygeia.tabs.shortcut', { key: index + 1 })"
       @click="$emit('switch', tab.id)">
-      {{ tab.label }}
+      {{ t(`hygeia.tabs.${tab.id}`) }}
       <span v-if="tab.id === 'anomalias' && anomalyCount" class="tab-badge">
         {{ anomalyCount }}
-        <span class="sr-only">anomalías abiertas</span>
+        <span class="sr-only">{{ t('hygeia.tabs.openAnomalies') }}</span>
       </span>
       <span
         v-else-if="tab.id === 'estadisticas' && statsWarning"
         class="tab-dot"
         role="img"
-        aria-label="Hay lecturas de disco o CPU por encima del umbral"
-        title="Hay lecturas (disco o CPU) por encima del umbral"
+        :aria-label="t('hygeia.tabs.statsWarning')"
+        :title="t('hygeia.tabs.statsWarning')"
       ></span>
     </button>
   </div>
@@ -32,6 +32,9 @@
 
 <script setup>
 import { ref, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   active: { type: String, required: true },
@@ -40,12 +43,8 @@ const props = defineProps({
 })
 const emit = defineEmits(['switch'])
 
-const tabs = [
-  { id: 'graficas', label: 'Gráficas', hint: 'Atajo: 1' },
-  { id: 'estadisticas', label: 'Estadísticas', hint: 'Atajo: 2' },
-  { id: 'inventario', label: 'Inventario', hint: 'Atajo: 3' },
-  { id: 'anomalias', label: 'Anomalías', hint: 'Atajo: 4' },
-]
+/** Pestañas en su orden; el rótulo está en `hygeia.tabs.<id>` y el atajo es su posición. */
+const tabs = [{ id: 'graficas' }, { id: 'estadisticas' }, { id: 'inventario' }, { id: 'anomalias' }]
 
 const tabButtons = ref([])
 
@@ -58,7 +57,7 @@ async function focusTab(index) {
 }
 
 function onKeydown(event) {
-  const actual = tabs.findIndex(t => t.id === props.active)
+  const actual = tabs.findIndex((tab) => tab.id === props.active)
   const teclas = {
     ArrowRight: () => focusTab(actual + 1),
     ArrowLeft:  () => focusTab(actual - 1),

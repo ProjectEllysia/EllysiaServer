@@ -5,28 +5,24 @@
     name="Hygeia"
     numeral="V"
     epigraph="Salus"
-    tagline="Telemetría de hardware en tiempo real, con alertas antes de que el problema se note."
-    myth="La diosa de la salud; vigila los signos vitales de cada activo antes de que se apague ninguno."
-    claim="Vigila el pulso de cada activo"
+    :tagline="t('hygeiaHub.tagline')"
+    :myth="t('hygeiaHub.myth')"
+    :claim="t('landing.tools.hygeia.title')"
     tool-route="/hygeia/activos"
-    tool-label="Ver mis activos"
-    :shortcuts="[
-      { label: 'Etiquetas', to: '/hygeia/etiquetas' },
-      { label: 'Estadísticas', to: '/hygeia/estadisticas' },
-      { label: 'Documentos', to: '/hygeia/documentos' },
-    ]"
+    :tool-label="t('hygeiaHub.toolLabel')"
+    :shortcuts="shortcuts"
     :highlight="highlight"
     :features="features"
     :resources="resources"
   >
     <template #metric>
-      <p v-if="loading" class="metric-loading">Cargando actividad reciente…</p>
+      <p v-if="loading" class="metric-loading">{{ t('hygeiaHub.loading') }}</p>
       <template v-else-if="total">
-        <span class="metric-label">Activos monitorizados</span>
+        <span class="metric-label">{{ t('hygeiaHub.monitored') }}</span>
         <span class="metric-value">{{ total }}</span>
-        <span class="metric-sub">{{ online }} en línea ahora mismo</span>
+        <span class="metric-sub">{{ t('hygeiaHub.online', { count: online }) }}</span>
       </template>
-      <p v-else class="metric-empty">Todavía no monitorizas ningún activo. Da de alta el primero.</p>
+      <p v-else class="metric-empty">{{ t('hygeiaHub.empty') }}</p>
     </template>
   </ModuleHub>
 </template>
@@ -37,39 +33,32 @@ import ModuleHub from '@/components/shared/ModuleHub.vue'
 import { useApi } from '@/composables/useApi'
 import { useAuthStore } from '@/stores/authStore'
 import hygeiaIcon from '@/assets/images/hygeia/Hygeia-DarkGreen-BgN.png'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const { apiFetch } = useApi()
 const auth = useAuthStore()
 
 // Dato de producto para la visita pública (sin sesión no hay activos propios).
-const highlight = { label: 'Detección de presencia', value: '< 1 min', sub: 'para saber si un host se ha caído' }
+const highlight = computed(() => ({ label: t('hygeiaHub.highlight.label'), value: '< 1 min', sub: t('hygeiaHub.highlight.sub') }))
+
+const shortcuts = computed(() => [
+  { label: t('hygeia.list.tags'), to: '/hygeia/etiquetas' },
+  { label: t('hygeia.tabs.estadisticas'), to: '/hygeia/estadisticas' },
+  { label: t('hygeia.list.documents'), to: '/hygeia/documentos' },
+])
 
 const loading = ref(true)
 const total = ref(0)
 const online = ref(0)
 
-const features = [
-  {
-    kicker: 'Sin abrir puertos',
-    title: 'El equipo avisa, tú no preguntas',
-    desc: 'Un agente ligero informa cada pocos segundos, también detrás del router de la oficina, sin abrir ningún puerto en el equipo.',
-  },
-  {
-    kicker: 'Alertas sin ruido',
-    title: 'Una alerta, no un aluvión',
-    desc: 'CPU, memoria, disco y swap se vigilan con umbrales configurables; una anomalía se abre una vez y se resuelve sola al normalizarse.',
-  },
-  {
-    kicker: 'Host caído',
-    title: 'El silencio también es una señal',
-    desc: 'Si un activo deja de reportar, Hygeia lo detecta en dos escalones — inestable primero, caído después — y avisa.',
-  },
-  {
-    kicker: 'Aviso por correo',
-    title: 'Las anomalías críticas no esperan',
-    desc: 'Una anomalía crítica dispara un correo al dueño del activo, sin bloquear ni ralentizar la ingesta de telemetría.',
-  },
-]
+/** Capacidades que se presentan; sus textos están en `hygeiaHub.features.<id>`. */
+const features = computed(() => ['push', 'alerts', 'down', 'email'].map((id) => ({
+  kicker: t(`hygeiaHub.features.${id}.kicker`),
+  title: t(`hygeiaHub.features.${id}.title`),
+  desc: t(`hygeiaHub.features.${id}.desc`),
+})))
 
 const resources = []
 

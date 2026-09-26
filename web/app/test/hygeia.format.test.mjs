@@ -7,11 +7,17 @@
  *   node web/app/test/hygeia.format.test.mjs
  */
 
+import { readFileSync } from 'node:fs'
+import { createI18n } from 'vue-i18n'
 import {
   fmtBytes, fmtRate, fmtUptime, fmtPct, fmtLoad1,
   fmtWatts, classifyPower, fmtEnergy, fmtCost, describePowerPeriod,
   anomalyKindLabel, assetStatusLabel,
 } from '../src/components/hygeia/format.js'
+
+// Los rótulos salen de los ficheros de idioma: se comprueban en castellano.
+const spanish = JSON.parse(readFileSync(new URL('../src/i18n/locales/es.json', import.meta.url), 'utf-8'))
+const { t } = createI18n({ legacy: false, locale: 'es', messages: { es: spanish } }).global
 
 let passed = 0
 let failed = 0
@@ -113,24 +119,24 @@ eq('sin coste', fmtCost(null, 'EUR'), NO_DATA)
 
 console.log('\ndescribePowerPeriod (P24/P25)')
 eq('periodo observado',
-  describePowerPeriod({ kwh: 1.0, cost: 0.15, currency: 'EUR', classification: 'observed', coverageFraction: 0.97 }),
+  describePowerPeriod({ kwh: 1.0, cost: 0.15, currency: 'EUR', classification: 'observed', coverageFraction: 0.97 }, t),
   {
     kwh: { text: '1.00', unit: 'kWh' }, cost: { text: '0.15', unit: '€' },
     classification: 'observed', classificationLabel: 'Observado', coverageFraction: 0.97,
   })
 eq('periodo proyectado', describePowerPeriod({
   kwh: 30, cost: 4.5, currency: 'EUR', classification: 'projected', coverageFraction: null,
-}).classificationLabel, 'Proyección')
-eq('periodo nulo no rompe', describePowerPeriod(null), null)
+}, t).classificationLabel, 'Proyección')
+eq('periodo nulo no rompe', describePowerPeriod(null, t), null)
 
 console.log('\nanomalyKindLabel')
-eq('tipo conocido', anomalyKindLabel('host_down'), 'Host caído')
-eq('tipo desconocido: rótulo genérico, nunca el identificador crudo', anomalyKindLabel('disk_io_high'), 'Anomalía')
-eq('sin tipo', anomalyKindLabel(null), 'Anomalía')
+eq('tipo conocido', anomalyKindLabel('host_down', t), 'Host caído')
+eq('tipo desconocido: rótulo genérico, nunca el identificador crudo', anomalyKindLabel('disk_io_high', t), 'Anomalía')
+eq('sin tipo', anomalyKindLabel(null, t), 'Anomalía')
 
 console.log('\nassetStatusLabel')
-eq('estado conocido', assetStatusLabel('stale'), 'Inestable')
-eq('estado desconocido: rótulo genérico, nunca el valor crudo', assetStatusLabel('degraded'), 'Desconocido')
+eq('estado conocido', assetStatusLabel('stale', t), 'Con retraso')
+eq('estado desconocido: rótulo genérico, nunca el valor crudo', assetStatusLabel('degraded', t), 'Desconocido')
 
 console.log(`\n${passed} pasados, ${failed} fallidos\n`)
 process.exit(failed === 0 ? 0 : 1)

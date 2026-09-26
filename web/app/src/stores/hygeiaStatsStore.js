@@ -4,6 +4,7 @@ import { useApi } from '@/composables/useApi'
 import {
   MAX_COMPARISON_METRICS, STATS_METRICS, bucketForPeriod, metricOf, oldestInstant,
 } from '@/components/hygeia/statsMath'
+import { i18n } from '@/i18n'
 
 /**
  * Store de la vista de estadísticas de Hygeia.
@@ -62,12 +63,12 @@ export const useHygeiaStatsStore = defineStore('hygeiaStats', () => {
     try {
       const res = await apiFetch('/hygeia/stats/overview')
       if (!res?.ok) {
-        state.overviewError = await apiError(res, 'No se pudo cargar el panorama del parque.')
+        state.overviewError = await apiError(res, i18n.global.t('hygeiaStore.stats.overviewFailed'))
         return
       }
       state.overview = await res.json()
       state.overviewError = null
-    } catch { state.overviewError = 'No se pudo conectar con la API.' }
+    } catch { state.overviewError = i18n.global.t('hygeiaStore.stats.offline') }
     finally { state.overviewLoading = false }
   }
 
@@ -91,7 +92,7 @@ export const useHygeiaStatsStore = defineStore('hygeiaStats', () => {
     try {
       const res = await apiFetch(isRefresh ? `${request.path}&refresh=true` : request.path)
       if (!res?.ok) {
-        state.scopeError = await apiError(res, 'No se pudieron cargar las estadísticas.')
+        state.scopeError = await apiError(res, i18n.global.t('hygeiaStore.stats.statsFailed'))
         return
       }
       const body = await res.json()
@@ -99,7 +100,7 @@ export const useHygeiaStatsStore = defineStore('hygeiaStats', () => {
       state.tagStats = request.kind === 'tag' ? body : null
       state.ranking = request.kind === 'fleet' ? body : null
       state.scopeError = null
-    } catch { state.scopeError = 'No se pudo conectar con la API.' }
+    } catch { state.scopeError = i18n.global.t('hygeiaStore.stats.offline') }
     finally { state.scopeLoading = false }
   }
 
@@ -177,7 +178,7 @@ export const useHygeiaStatsStore = defineStore('hygeiaStats', () => {
         const [series] = body.series ?? []
         return {
           key: request.key,
-          name: metricOf(request.key)?.name ?? request.key,
+          name: metricOf(request.key) ? i18n.global.t(metricOf(request.key).labelKey) : request.key,
           points: series?.points ?? [],
           bucket: body.bucket ?? null,
           computedAt: body.periodCoveredTo ?? null,
@@ -191,8 +192,8 @@ export const useHygeiaStatsStore = defineStore('hygeiaStats', () => {
       state.seriesComputedFrom = loaded[0]?.computedFrom ?? null
       state.seriesError = loaded.length
         ? null
-        : 'No se pudo cargar la evolución de las métricas elegidas.'
-    } catch { state.seriesError = 'No se pudo conectar con la API.' }
+        : i18n.global.t('hygeiaStore.stats.seriesFailed')
+    } catch { state.seriesError = i18n.global.t('hygeiaStore.stats.offline') }
     finally { state.seriesLoading = false }
   }
 

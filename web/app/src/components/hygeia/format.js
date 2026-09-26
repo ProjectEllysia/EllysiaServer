@@ -15,19 +15,22 @@ const DAY = 86400
  * Antigüedad de un instante en lenguaje natural.
  *
  * @param {string|null} iso - Instante en ISO 8601, o null si nunca ocurrió.
- * @returns {string} "ahora mismo", "hace 4 s", "hace 3 min", "hace 2 h", "hace 5 d" o "nunca".
+ * @param {Function} t - Función de traducción de vue-i18n (`useI18n().t` o
+ *   `i18n.global.t`).
+ * @returns {string} «ahora mismo», «hace 4 s», «hace 3 min», «hace 2 h», «hace 5 d»
+ *   o «nunca», en el idioma activo; «—» si la fecha no se puede leer.
  */
-export function timeAgo(iso) {
-  if (!iso) return 'nunca'
+export function timeAgo(iso, t) {
+  if (!iso) return t('hygeia.ago.never')
   const then = new Date(iso).getTime()
   if (Number.isNaN(then)) return '—'
 
   const secs = Math.max(0, Math.round((Date.now() - then) / 1000))
-  if (secs < 5) return 'ahora mismo'
-  if (secs < MINUTE) return `hace ${secs} s`
-  if (secs < HOUR) return `hace ${Math.floor(secs / MINUTE)} min`
-  if (secs < DAY) return `hace ${Math.floor(secs / HOUR)} h`
-  return `hace ${Math.floor(secs / DAY)} d`
+  if (secs < 5) return t('hygeia.ago.justNow')
+  if (secs < MINUTE) return t('hygeia.ago.ago', { value: `${secs} s` })
+  if (secs < HOUR) return t('hygeia.ago.ago', { value: `${Math.floor(secs / MINUTE)} min` })
+  if (secs < DAY) return t('hygeia.ago.ago', { value: `${Math.floor(secs / HOUR)} h` })
+  return t('hygeia.ago.ago', { value: `${Math.floor(secs / DAY)} d` })
 }
 
 /**
@@ -205,15 +208,21 @@ export function fmtCost(cost, currency = 'EUR') {
   return { text: cost.toFixed(2), unit: CURRENCY_SYMBOLS[currency] || currency }
 }
 
-const CLASSIFICATION_LABELS = {
-  observed: 'Observado',
-  observed_partial: 'Datos parciales',
-  projected: 'Proyección',
-}
+const CLASSIFICATIONS = ['observed', 'observed_partial', 'projected']
 
-/** Rótulo en castellano de una clasificación de procedencia. */
-export function powerPeriodLabel(classification) {
-  return CLASSIFICATION_LABELS[classification] || classification
+/**
+ * Rótulo de una clasificación de procedencia del consumo.
+ *
+ * @param {string} classification - `observed`, `observed_partial` o `projected`.
+ * @param {Function} t - Función de traducción de vue-i18n (`useI18n().t` o
+ *   `i18n.global.t`).
+ * @returns {string} El rótulo en el idioma activo, o la clasificación tal cual
+ *   si el servidor manda una que este módulo no conoce.
+ */
+export function powerPeriodLabel(classification, t) {
+  return CLASSIFICATIONS.includes(classification)
+    ? t(`hygeia.powerClassification.${classification}`)
+    : classification
 }
 
 /**
@@ -225,24 +234,30 @@ export function powerPeriodLabel(classification) {
  * ficha, sin decidir dónde ni cómo se muestra.
  *
  * @param {object|null} period - Un bloque ``day``/``week``/``month``/``monthProjected``.
+ * @param {Function} t - Función de traducción de vue-i18n (`useI18n().t` o
+ *   `i18n.global.t`).
  * @returns {{kwh: {text,unit}, cost: {text,unit}, classification: string,
  *   classificationLabel: string, coverageFraction: number|null}|null}
  */
-export function describePowerPeriod(period) {
+export function describePowerPeriod(period, t) {
   if (!period) return null
   return {
     kwh: fmtEnergy(period.kwh),
     cost: fmtCost(period.cost, period.currency),
     classification: period.classification,
-    classificationLabel: powerPeriodLabel(period.classification),
+    classificationLabel: powerPeriodLabel(period.classification, t),
     coverageFraction: period.coverageFraction ?? null,
   }
 }
 
-const ASSET_STATUS_LABELS = { pending: 'Pendiente', online: 'En línea', stale: 'Inestable', offline: 'Caído' }
+const ASSET_STATUSES = ['pending', 'online', 'stale', 'offline']
 
 /**
- * Rótulo en castellano del estado de conexión de un activo.
+ * Rótulo del estado de conexión de un activo.
+ *
+ * Usa las claves compartidas `assetStatus.*`, las mismas que el panel de
+ * escaneos de agentes de Themis: un mismo estado se llama igual en toda la
+ * plataforma.
  *
  * Solo traduce el estado: el matiz de «Apagado» para un activo que se apaga
  * a propósito depende también de `isPersistent`, y lo resuelve
@@ -250,10 +265,12 @@ const ASSET_STATUS_LABELS = { pending: 'Pendiente', online: 'En línea', stale: 
  *
  * @param {string|null} status - Estado del servidor: `pending`, `online`,
  *   `stale` u `offline`.
+ * @param {Function} t - Función de traducción de vue-i18n (`useI18n().t` o
+ *   `i18n.global.t`).
  * @returns {string} El rótulo del estado, o «Desconocido» si no se conoce.
  */
-export function assetStatusLabel(status) {
-  return ASSET_STATUS_LABELS[status] || 'Desconocido'
+export function assetStatusLabel(status, t) {
+  return ASSET_STATUSES.includes(status) ? t(`assetStatus.${status}`) : t('common.unknown')
 }
 
 /**
@@ -267,37 +284,38 @@ export function assetStatusLabel(status) {
  * activo.
  *
  * @param {object} asset - Activo de la API; se miran `status` e `isPersistent`.
+ * @param {Function} t - Función de traducción de vue-i18n (`useI18n().t` o
+ *   `i18n.global.t`).
  * @returns {{label: string, pulseClass: string}} `label` es el rótulo que se
  *   enseña («En línea», «Caído», «Apagado»…) y `pulseClass` el modificador
  *   del punto de color (`pulse--online`, `pulse--dormant`…), que cada
  *   componente define en sus propios estilos.
  */
-export function assetPresence(asset) {
+export function assetPresence(asset, t) {
   if (asset.status === 'offline' && asset.isPersistent === false) {
-    return { label: 'Apagado', pulseClass: 'pulse--dormant' }
+    return { label: t('assetStatus.poweredOff'), pulseClass: 'pulse--dormant' }
   }
-  return { label: assetStatusLabel(asset.status), pulseClass: `pulse--${asset.status}` }
+  return { label: assetStatusLabel(asset.status, t), pulseClass: `pulse--${asset.status}` }
 }
 
-const ANOMALY_KIND_LABELS = {
-  cpu_spike: 'Pico de CPU', mem_high: 'Memoria alta', swap_thrash: 'Swap saturado',
-  disk_full: 'Disco lleno', host_down: 'Host caído',
-}
+const ANOMALY_KINDS = ['cpu_spike', 'mem_high', 'swap_thrash', 'disk_full', 'host_down']
 
 /**
- * Rótulo en castellano de un tipo de anomalía, para la lista de anomalías y
- * las marcas de la gráfica.
+ * Rótulo de un tipo de anomalía, para la lista de anomalías y las marcas de
+ * la gráfica.
  *
- * Un tipo que el mapa no conoce —uno que el servidor añada antes que el
+ * Un tipo que la lista no conoce —uno que el servidor añada antes que el
  * SPA— cae en el rótulo genérico y no en el identificador crudo: la pantalla
- * tiene que seguir leyéndose en castellano (CONVENCIONES.md § 12.2).
+ * tiene que seguir leyéndose en el idioma del usuario (CONVENCIONES.md § 12.2).
  *
  * @param {string|null} kind - Tipo de anomalía del servidor (`cpu_spike`,
  *   `mem_high`, `swap_thrash`, `disk_full`, `host_down`…).
+ * @param {Function} t - Función de traducción de vue-i18n (`useI18n().t` o
+ *   `i18n.global.t`).
  * @returns {string} El rótulo del tipo, o «Anomalía» si no se conoce.
  */
-export function anomalyKindLabel(kind) {
-  return ANOMALY_KIND_LABELS[kind] || 'Anomalía'
+export function anomalyKindLabel(kind, t) {
+  return t(`hygeia.anomalyKinds.${ANOMALY_KINDS.includes(kind) ? kind : 'unknown'}`)
 }
 
 /**

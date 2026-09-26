@@ -16,6 +16,7 @@ import { usePolling } from '@/composables/usePolling'
 import { useUtils } from '@/composables/useUtils'
 import { describeDocument, documentStatusOf, hasActiveDocuments } from '@/components/hygeia/documents'
 import { useToastStore } from '@/stores/toastStore'
+import { i18n } from '@/i18n'
 
 // Cada cuánto se pregunta por los documentos que siguen generándose. Un CSV
 // tarda segundos y un inventario grande algo más; con el backoff, un documento
@@ -68,12 +69,12 @@ export const useHygeiaDocumentsStore = defineStore('hygeiaDocuments', () => {
       const previous = lastStatusById.get(document.id)
       lastStatusById.set(document.id, document.status)
       if (!previous || !documentStatusOf(previous).isActive) continue
-      const { title } = describeDocument(document)
+      const { title } = describeDocument(document, i18n.global.t)
       if (document.status === 'done') {
-        toast.show(`Listo para descargar: ${title}.`, 'success', undefined,
-          { label: 'Ver documentos', to: '/hygeia/documentos' })
+        toast.show(i18n.global.t('hygeiaStore.documents.ready', { title }), 'success', undefined,
+          { label: i18n.global.t('hygeiaStore.documents.viewDocuments'), to: '/hygeia/documentos' })
       } else if (document.status === 'error') {
-        toast.show(`No se pudo generar: ${title}. Vuelve a pedirlo.`, 'error')
+        toast.show(i18n.global.t('hygeiaStore.documents.failed', { title }), 'error')
       }
     }
   }
@@ -92,7 +93,7 @@ export const useHygeiaDocumentsStore = defineStore('hygeiaDocuments', () => {
     try {
       const res = await apiFetch(`/hygeia/documents?page=${page}&perPage=${state.perPage}`)
       if (!res?.ok) {
-        state.error = await apiError(res, 'No se pudieron cargar los documentos.')
+        state.error = await apiError(res, i18n.global.t('hygeiaStore.documents.loadFailed'))
         return false
       }
       const body = await res.json()
@@ -104,7 +105,7 @@ export const useHygeiaDocumentsStore = defineStore('hygeiaDocuments', () => {
       if (hasActiveDocuments(state.documents)) startPolling()
       return true
     } catch {
-      state.error = 'No se pudo conectar con la API.'
+      state.error = i18n.global.t('hygeiaStore.documents.offline')
       return false
     } finally {
       if (!silent) state.loading = false
@@ -138,19 +139,19 @@ export const useHygeiaDocumentsStore = defineStore('hygeiaDocuments', () => {
         body: JSON.stringify(request),
       })
       if (!res?.ok) {
-        toast.show(await apiError(res, 'No se pudo pedir el documento.'), 'error')
+        toast.show(await apiError(res, i18n.global.t('hygeiaStore.documents.requestFailed')), 'error')
         return null
       }
       const document = await res.json()
       lastStatusById.set(document.id, document.status)
       state.documents = [document, ...state.documents.filter((item) => item.id !== document.id)]
       state.total += 1
-      toast.show(`Preparando: ${describeDocument(document).title}. Te avisamos cuando esté listo.`,
-        'info', undefined, { label: 'Ver documentos', to: '/hygeia/documentos' })
+      toast.show(i18n.global.t('hygeiaStore.documents.preparing', { title: describeDocument(document, i18n.global.t).title }),
+        'info', undefined, { label: i18n.global.t('hygeiaStore.documents.viewDocuments'), to: '/hygeia/documentos' })
       startPolling()
       return document
     } catch {
-      toast.show('No se pudo conectar con la API.', 'error')
+      toast.show(i18n.global.t('hygeiaStore.documents.offline'), 'error')
       return null
     } finally {
       state.requesting = false
@@ -170,13 +171,13 @@ export const useHygeiaDocumentsStore = defineStore('hygeiaDocuments', () => {
     try {
       const res = await apiFetch(`/hygeia/documents/${document.id}/download`)
       if (!res?.ok) {
-        toast.show(await apiError(res, 'No se pudo descargar el documento.'), 'error')
+        toast.show(await apiError(res, i18n.global.t('hygeiaStore.documents.downloadFailed')), 'error')
         return false
       }
       triggerDownload(await res.blob(), filenameFromResponse(res, document.downloadName || 'documento'))
       return true
     } catch {
-      toast.show('No se pudo conectar con la API.', 'error')
+      toast.show(i18n.global.t('hygeiaStore.documents.offline'), 'error')
       return false
     }
   }
@@ -191,7 +192,7 @@ export const useHygeiaDocumentsStore = defineStore('hygeiaDocuments', () => {
     try {
       const res = await apiFetch(`/hygeia/documents/${documentId}`, { method: 'DELETE' })
       if (!res?.ok) {
-        toast.show(await apiError(res, 'No se pudo borrar el documento.'), 'error')
+        toast.show(await apiError(res, i18n.global.t('hygeiaStore.documents.deleteFailed')), 'error')
         return false
       }
       lastStatusById.delete(documentId)
@@ -199,7 +200,7 @@ export const useHygeiaDocumentsStore = defineStore('hygeiaDocuments', () => {
       state.total = Math.max(0, state.total - 1)
       return true
     } catch {
-      toast.show('No se pudo conectar con la API.', 'error')
+      toast.show(i18n.global.t('hygeiaStore.documents.offline'), 'error')
       return false
     }
   }

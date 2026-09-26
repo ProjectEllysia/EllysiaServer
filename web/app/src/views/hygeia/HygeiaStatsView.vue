@@ -1,28 +1,25 @@
 <template>
   <div class="stats-page" data-module="hygeia">
     <StarBackground />
-    <Topbar title="Hygeia" badge="Estadísticas" back-to="/hygeia/activos" back-label="Activos" />
+    <Topbar :title="'Hygeia'" :badge="t('hygeia.tabs.estadisticas')" back-to="/hygeia/activos" :back-label="t('hygeia.list.title')" />
 
     <main class="stats-layout">
       <header class="head">
         <div class="head-text">
-          <h2 class="head-title">Estadísticas</h2>
-          <p class="head-sub">
-            Picos, medias y evolución de lo que miden tus agentes, en un activo, en una etiqueta o
-            en todo el parque.
-          </p>
+          <h2 class="head-title">{{ t('hygeia.tabs.estadisticas') }}</h2>
+          <p class="head-sub">{{ t('hygeiaStats.intro') }}</p>
         </div>
-        <RouterLink class="btn-documents" to="/hygeia/documentos">Documentos</RouterLink>
+        <RouterLink class="btn-documents" to="/hygeia/documentos">{{ t('hygeia.list.documents') }}</RouterLink>
       </header>
 
       <!-- Panorama del parque: una foto del ahora, sin periodo. Es la pantalla
            de aterrizaje, y por eso no depende del selector. -->
-      <section class="overview" aria-label="Panorama del parque">
+      <section class="overview" :aria-label="t('hygeia.documentTitles.overview')">
         <!-- Tarjetas fantasma con la silueta de las reales (rótulo, cifra y
              pie): reservan el alto y el panorama no empuja la página al llegar. -->
         <div
           v-if="store.state.overviewLoading && !store.state.overview"
-          class="tiles" aria-busy="true" aria-label="Cargando el panorama"
+          class="tiles" aria-busy="true" :aria-label="t('hygeiaStats.loadingOverview')"
         >
           <div v-for="n in OVERVIEW_TILE_COUNT" :key="n" class="tile" aria-hidden="true">
             <span class="tile-label"><span class="skeleton skeleton--line skeleton-inline skeleton--w60"></span></span>
@@ -35,28 +32,28 @@
         </p>
         <div v-else-if="store.state.overview" class="tiles tiles--ready">
           <div class="tile">
-            <span class="tile-label">Activos</span>
+            <span class="tile-label">{{ t('hygeia.list.title') }}</span>
             <span class="tile-value">{{ store.state.overview.assetCount }}</span>
-            <span class="tile-sub">{{ onlineCount }} en línea</span>
+            <span class="tile-sub">{{ t('hygeiaStats.online', { count: onlineCount }) }}</span>
           </div>
           <div class="tile">
-            <span class="tile-label">Anomalías abiertas</span>
+            <span class="tile-label">{{ t('hygeiaStats.openAnomalies') }}</span>
             <span class="tile-value">{{ openAnomalies }}</span>
             <span class="tile-sub">
-              {{ criticalAnomalies }} {{ criticalAnomalies === 1 ? 'crítica' : 'críticas' }}
+              {{ t('hygeiaStats.critical', { count: criticalAnomalies }, criticalAnomalies) }}
             </span>
           </div>
           <div class="tile">
-            <span class="tile-label">Reconocidas</span>
+            <span class="tile-label">{{ t('hygeiaStats.acknowledged') }}</span>
             <span class="tile-value">{{ store.state.overview.acknowledgedAnomalyCount }}</span>
-            <span class="tile-sub">ya se están atendiendo</span>
+            <span class="tile-sub">{{ t('hygeiaStats.acknowledgedSub') }}</span>
           </div>
           <div class="tile">
-            <span class="tile-label">Última actividad</span>
+            <span class="tile-label">{{ t('hygeiaStats.lastActivity') }}</span>
             <span class="tile-value tile-value--text">
-              {{ timeAgo(store.state.overview.lastActivityAt) }}
+              {{ timeAgo(store.state.overview.lastActivityAt, t) }}
             </span>
-            <span class="tile-sub">último dato de un agente</span>
+            <span class="tile-sub">{{ t('hygeiaStats.lastActivitySub') }}</span>
           </div>
         </div>
       </section>
@@ -65,12 +62,12 @@
            combinan los activos y durante cuánto. La métrica del ranking no
            está aquí porque solo la usa «Resumen», y la gráfica elige sus
            métricas con sus propios botones. -->
-      <section class="controls" aria-label="Selector de estadísticas">
+      <section class="controls" :aria-label="t('hygeiaStats.controls')">
         <div class="control">
-          <label class="control-label" for="scope-select">Alcance</label>
+          <label class="control-label" for="scope-select">{{ t('hygeiaStats.scope') }}</label>
           <select id="scope-select" class="inp" :value="store.state.scope" @change="onScopeChange">
             <option v-for="option in STATS_SCOPES" :key="option.value" :value="option.value">
-              {{ option.label }}
+              {{ t(option.labelKey) }}
             </option>
           </select>
         </div>
@@ -79,7 +76,7 @@
              crece con el parque, y con cientos de máquinas una lista de
              opciones deja de ser navegable. -->
         <div v-if="store.state.scope === 'asset'" class="control control--picker">
-          <label class="control-label" for="asset-search">Activo</label>
+          <label class="control-label" for="asset-search">{{ t('hygeiaStats.asset') }}</label>
           <AssetPicker
             input-id="asset-search"
             :assets="assets" :model-value="store.state.assetId"
@@ -88,25 +85,25 @@
         </div>
 
         <div v-if="store.state.scope === 'tag'" class="control">
-          <label class="control-label" for="tag-select">Etiqueta</label>
+          <label class="control-label" for="tag-select">{{ t('hygeiaStats.tag') }}</label>
           <select id="tag-select" v-model.number="store.state.tagId" class="inp">
-            <option :value="null" disabled>Elige una etiqueta…</option>
+            <option :value="null" disabled>{{ t('hygeiaStats.chooseTag') }}</option>
             <option v-for="tag in tags" :key="tag.id" :value="tag.id">{{ tag.name }}</option>
           </select>
         </div>
 
         <div v-if="store.state.scope !== 'asset'" class="control">
-          <label class="control-label" for="agg-select">Combinar activos</label>
+          <label class="control-label" for="agg-select">{{ t('hygeiaStats.combine') }}</label>
           <select id="agg-select" v-model="store.state.aggregation" class="inp">
             <option
               v-for="option in aggregationOptions" :key="option.value"
               :value="option.value" :disabled="option.disabled"
-            >{{ option.label }}</option>
+            >{{ t(option.labelKey) }}</option>
           </select>
         </div>
 
         <div class="control">
-          <span class="control-label">Periodo</span>
+          <span class="control-label">{{ t('hygeiaStats.period') }}</span>
           <div class="periods">
             <button
               v-for="option in STATS_PERIODS" :key="option.value"
@@ -114,7 +111,7 @@
               :class="{ 'period-btn--on': store.state.period === option.value }"
               :aria-pressed="store.state.period === option.value"
               @click="store.state.period = option.value"
-            >{{ option.label }}</button>
+            >{{ t(option.labelKey) }}</button>
           </div>
         </div>
       </section>
@@ -123,7 +120,7 @@
            periodo y cómo evolucionan en el tiempo. Solo se pide lo de la
            pestaña visible. Teclado según el patrón de tablist: flechas para
            moverse, Inicio/Fin a los extremos, y solo la activa es tabulable. -->
-      <div class="tabs" role="tablist" aria-label="Vistas de estadísticas" @keydown="onTabKeydown">
+      <div class="tabs" role="tablist" :aria-label="t('hygeiaStats.tabsLabel')" @keydown="onTabKeydown">
         <button
           v-for="tab in STATS_TABS" :key="tab.id"
           :id="`tab-${tab.id}`" ref="tabButtons"
@@ -131,7 +128,7 @@
           role="tab" :aria-selected="activeTab === tab.id" :aria-controls="`panel-${tab.id}`"
           :tabindex="activeTab === tab.id ? 0 : -1"
           @click="selectTab(tab.id)"
-        >{{ tab.label }}</button>
+        >{{ t(`hygeiaStats.tabs.${tab.id}`) }}</button>
       </div>
 
       <section
@@ -140,10 +137,10 @@
       >
         <div class="results-bar">
           <div v-if="store.state.scope === 'fleet'" class="control">
-            <label class="control-label" for="metric-select">Métrica</label>
+            <label class="control-label" for="metric-select">{{ t('hygeiaStats.metric') }}</label>
             <select id="metric-select" v-model="store.state.metric" class="inp">
               <option v-for="metric in STATS_METRICS" :key="metric.key" :value="metric.key">
-                {{ metric.name }}
+                {{ t(metric.labelKey) }}
               </option>
             </select>
           </div>
@@ -151,17 +148,15 @@
             <button
               class="btn-export" type="button"
               :disabled="!isSelectionComplete || documentsStore.state.requesting"
-              :title="isSelectionComplete ? 'Prepara esta tabla en CSV; la descargas desde Documentos'
-                : 'Elige un activo o una etiqueta para exportar'"
+              :title="isSelectionComplete ? t('hygeiaStats.exportCsvHint') : t('hygeiaStats.exportUnavailable')"
               @click="exportCsv"
-            >{{ documentsStore.state.requesting ? 'Pidiendo…' : 'Exportar CSV' }}</button>
+            >{{ documentsStore.state.requesting ? t('hygeia.inventoryReport.requesting') : t('hygeiaStats.exportCsv') }}</button>
             <button
               class="btn-export" type="button"
               :disabled="!isSelectionComplete || documentsStore.state.requesting"
-              :title="isSelectionComplete ? 'Prepara esta tabla en PDF; la descargas desde Documentos'
-                : 'Elige un activo o una etiqueta para exportar'"
+              :title="isSelectionComplete ? t('hygeiaStats.exportPdfHint') : t('hygeiaStats.exportUnavailable')"
               @click="exportPdf"
-            >{{ documentsStore.state.requesting ? 'Pidiendo…' : 'Exportar PDF' }}</button>
+            >{{ documentsStore.state.requesting ? t('hygeia.inventoryReport.requesting') : t('hygeiaStats.exportPdf') }}</button>
           </div>
         </div>
 
@@ -169,7 +164,7 @@
              que la que va a llegar, para que el panel no cambie de alto. -->
         <div
           v-if="store.state.scopeLoading" class="table-ghost"
-          aria-busy="true" aria-label="Calculando las estadísticas"
+          aria-busy="true" :aria-label="t('hygeiaStats.computing')"
         >
           <span class="table-ghost-caption" aria-hidden="true">
             <span class="skeleton skeleton--line skeleton-inline skeleton--w40"></span>
@@ -194,43 +189,42 @@
           {{ store.state.scopeError }}
         </p>
         <p v-else-if="!isSelectionComplete" class="state-msg">
-          {{ store.state.scope === 'asset' ? 'Elige un activo para ver su resumen.'
-            : 'Elige una etiqueta para ver sus estadísticas.' }}
+          {{ store.state.scope === 'asset' ? t('hygeiaStats.chooseAssetSummary') : t('hygeiaStats.chooseTagStats') }}
         </p>
 
         <!-- Un activo: el resumen completo, una fila por métrica. -->
         <template v-else-if="store.state.scope === 'asset' && store.state.summary">
           <table class="table reveal">
             <caption class="table-caption">
-              {{ describeCoverage(store.state.summary) }}
+              {{ describeCoverage(store.state.summary, t) }}
             </caption>
             <thead>
               <tr>
-                <th scope="col">Métrica</th>
-                <th scope="col">Mín.</th>
-                <th scope="col">Media</th>
+                <th scope="col">{{ t('hygeiaStats.metric') }}</th>
+                <th scope="col">{{ t('hygeiaStats.columns.min') }}</th>
+                <th scope="col">{{ t('hygeia.stats.aggregations.avg') }}</th>
                 <th scope="col">
-                  <abbr title="El 95 % de las lecturas quedó por debajo de este valor">p95</abbr>
+                  <abbr :title="t('hygeiaStats.columns.p95')">{{ 'p95' }}</abbr>
                 </th>
-                <th scope="col">Máx.</th>
-                <th scope="col">Ahora</th>
-                <th scope="col">Lecturas</th>
+                <th scope="col">{{ t('hygeiaStats.columns.max') }}</th>
+                <th scope="col">{{ t('hygeiaStats.columns.now') }}</th>
+                <th scope="col">{{ t('hygeiaStats.columns.readings') }}</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="row in summaryTable" :key="row.key" :class="{ 'row--empty': !row.hasData }">
-                <th scope="row" class="row-name">{{ row.name }}</th>
+                <th scope="row" class="row-name">{{ t(row.labelKey) }}</th>
                 <td><Stat :value="row.min" /></td>
                 <td><Stat :value="row.avg" /></td>
                 <td><Stat :value="row.p95" /></td>
                 <td>
                   <Stat :value="row.max" />
                   <span v-if="row.timestampOfMax" class="cell-sub">
-                    {{ timeAgo(row.timestampOfMax) }}
+                    {{ timeAgo(row.timestampOfMax, t) }}
                   </span>
                 </td>
                 <td><Stat :value="row.current" /></td>
-                <td class="cell-num">{{ row.hasData ? row.sampleCount : 'sin datos' }}</td>
+                <td class="cell-num">{{ row.hasData ? row.sampleCount : t('hygeiaStats.noData') }}</td>
               </tr>
             </tbody>
           </table>
@@ -240,20 +234,19 @@
         <template v-else-if="store.state.scope === 'tag' && store.state.tagStats">
           <table class="table reveal">
             <caption class="table-caption">
-              {{ store.state.tagStats.assetCount }}
-              {{ store.state.tagStats.assetCount === 1 ? 'activo lleva' : 'activos llevan' }}
-              esta etiqueta. {{ describeCoverage(store.state.tagStats) }}
+              {{ t('hygeiaStats.tagCarriers', { count: store.state.tagStats.assetCount }, store.state.tagStats.assetCount) }}
+              {{ describeCoverage(store.state.tagStats, t) }}
             </caption>
             <thead>
               <tr>
-                <th scope="col">Métrica</th>
+                <th scope="col">{{ t('hygeiaStats.metric') }}</th>
                 <th scope="col">{{ aggregationLabel }}</th>
-                <th scope="col">Activos con datos</th>
+                <th scope="col">{{ t('hygeiaStats.columns.assetsWithData') }}</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="row in tagTable" :key="row.key" :class="{ 'row--empty': !row.hasData }">
-                <th scope="row" class="row-name">{{ row.name }}</th>
+                <th scope="row" class="row-name">{{ t(row.labelKey) }}</th>
                 <td><Stat :value="row.value" /></td>
                 <td class="cell-num">{{ row.assetsWithData }}</td>
               </tr>
@@ -265,16 +258,15 @@
         <template v-else-if="store.state.scope === 'fleet' && store.state.ranking">
           <table class="table reveal">
             <caption class="table-caption">
-              {{ rankingHeadline }} ({{ store.state.ranking.assetsWithData }} de
-              {{ store.state.ranking.assetCount }} tienen datos).
-              {{ describeCoverage(store.state.ranking) }}
+              {{ t('hygeiaStats.rankingCaption', { headline: rankingHeadline, withData: store.state.ranking.assetsWithData, total: store.state.ranking.assetCount }) }}
+              {{ describeCoverage(store.state.ranking, t) }}
             </caption>
             <thead>
               <tr>
                 <th scope="col">#</th>
-                <th scope="col">Activo</th>
+                <th scope="col">{{ t('hygeiaStats.asset') }}</th>
                 <th scope="col">{{ metricName }}</th>
-                <th scope="col">Lecturas</th>
+                <th scope="col">{{ t('hygeiaStats.columns.readings') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -286,9 +278,7 @@
               </tr>
             </tbody>
           </table>
-          <p v-if="!rankingTable.length" class="state-msg">
-            Ningún activo tiene datos de esta métrica en el periodo elegido.
-          </p>
+          <p v-if="!rankingTable.length" class="state-msg">{{ t('hygeiaStats.noRanking') }}</p>
         </template>
 
         <!-- Siempre ocupa su línea, aunque no se vea mientras carga: si
@@ -297,13 +287,13 @@
           v-if="isSelectionComplete" class="freshness"
           :class="{ 'freshness--pending': !scopeComputedAt || store.state.scopeLoading }"
         >
-          Actualizado {{ describeAge(scopeComputedAt) }}
+          {{ t('hygeiaStats.updated', { when: describeAge(scopeComputedAt) }) }}
           <span aria-hidden="true">·</span>
           <button
             type="button" class="freshness-btn"
             :disabled="!scopeComputedAt || store.state.scopeLoading"
             @click="refreshVisibleTabNow"
-          >Actualizar</button>
+          >{{ t('hygeiaDocuments.refresh') }}</button>
         </p>
       </section>
 
@@ -316,8 +306,8 @@
         id="panel-evolucion" class="compare" role="tabpanel" aria-labelledby="tab-evolucion"
       >
         <header class="compare-head">
-          <h3 class="compare-title">Evolución de las métricas</h3>
-          <div class="metric-toggles" role="group" aria-label="Métricas superpuestas">
+          <h3 class="compare-title">{{ t('hygeiaStats.evolution') }}</h3>
+          <div class="metric-toggles" role="group" :aria-label="t('hygeiaStats.overlaid')">
             <button
               v-for="metric in STATS_METRICS" :key="metric.key"
               type="button" class="toggle"
@@ -325,7 +315,7 @@
               :aria-pressed="store.state.comparisonMetrics.includes(metric.key)"
               :disabled="isToggleDisabled(metric.key)"
               @click="store.toggleComparisonMetric(metric.key)"
-            >{{ metric.name }}</button>
+            >{{ t(metric.labelKey) }}</button>
           </div>
         </header>
 
@@ -335,9 +325,7 @@
         <p v-else-if="store.state.seriesError && !store.state.seriesLoading" class="state-msg state-msg--error">
           {{ store.state.seriesError }}
         </p>
-        <p v-else-if="!store.state.seriesLoading && !lanes.length" class="state-msg">
-          Ninguna de las métricas elegidas tiene datos en el periodo.
-        </p>
+        <p v-else-if="!store.state.seriesLoading && !lanes.length" class="state-msg">{{ t('hygeiaStats.noSeries') }}</p>
         <!-- La gráfica va en dos capas con la misma caja: debajo la rejilla y
              las fechas, encima las líneas. Así el marco se queda quieto
              mientras carga (con un barrido que dice que está trabajando) y
@@ -352,7 +340,7 @@
             <svg
               class="chart" :viewBox="`0 0 ${PLOT.width} ${PLOT.height + AXIS_HEIGHT}`"
               preserveAspectRatio="none" role="img"
-              :aria-label="store.state.seriesLoading ? 'Cargando la gráfica' : chartLabel"
+              :aria-label="store.state.seriesLoading ? t('hygeiaStats.loadingChart') : chartLabel"
             >
               <!-- Tramos sin ningún dato: el activo estuvo inactivo, no solo una
                    métrica con un hueco. Va antes que la rejilla para quedar
@@ -416,29 +404,28 @@
             <ul class="legend">
               <li v-for="lane in lanes" :key="lane.key" class="legend-item">
                 <span class="legend-dot" :style="{ background: lane.color }"></span>
-                <span class="legend-name">{{ lane.name }}</span>
+                <span class="legend-name">{{ laneName(lane) }}</span>
                 <span class="legend-range">{{ describeLaneRange(lane) }}</span>
               </li>
             </ul>
           </div>
           <p class="compare-note">
-            Cada línea tiene su propia escala: compara cuándo sube o baja cada métrica, no su
-            altura. Un punto cada {{ fmtDuration(bucketMs) }}.
+            {{ t('hygeiaStats.scaleNote', { bucket: fmtDuration(bucketMs) }) }}
           </p>
           <p v-if="inactivity.length" class="compare-note">
-            Los tramos sombreados son periodos en los que el activo no reportó ningún dato.
+            {{ t('hygeiaStats.inactivityNote') }}
           </p>
           <p
             class="freshness"
             :class="{ 'freshness--pending': !store.state.seriesComputedAt || store.state.seriesLoading }"
           >
-            Actualizado {{ describeAge(store.state.seriesComputedAt) }}
+            {{ t('hygeiaStats.updated', { when: describeAge(store.state.seriesComputedAt) }) }}
             <span aria-hidden="true">·</span>
             <button
               type="button" class="freshness-btn"
               :disabled="!store.state.seriesComputedAt || store.state.seriesLoading"
               @click="refreshVisibleTabNow"
-            >Actualizar</button>
+            >{{ t('hygeiaDocuments.refresh') }}</button>
           </p>
         </template>
       </section>
@@ -463,6 +450,9 @@ import { useHygeiaStore } from '@/stores/hygeiaStore'
 import { useHygeiaStatsStore } from '@/stores/hygeiaStatsStore'
 import { useHygeiaDocumentsStore } from '@/stores/hygeiaDocumentsStore'
 import { useHygeiaTagsStore } from '@/stores/hygeiaTagsStore'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const store = useHygeiaStatsStore()
 const documentsStore = useHygeiaDocumentsStore()
@@ -477,10 +467,8 @@ const router = useRouter()
  * Pestañas de la vista. El `id` es también el valor de `?vista=` en la URL,
  * para que una pestaña se pueda enlazar y sobreviva a recargar.
  */
-const STATS_TABS = [
-  { id: 'resumen', label: 'Resumen' },
-  { id: 'evolucion', label: 'Evolución' },
-]
+/** Pestañas; el rótulo de cada una está en `hygeiaStats.tabs.<id>`. */
+const STATS_TABS = [{ id: 'resumen' }, { id: 'evolucion' }]
 
 /**
  * Pestaña visible, leída de la URL: la de `?vista=` si es una pestaña
@@ -562,7 +550,10 @@ const criticalAnomalies = computed(
   () => store.state.overview?.openAnomaliesBySeverity?.critical ?? 0,
 )
 
-const metricName = computed(() => metricOf(store.state.metric)?.name ?? store.state.metric)
+const metricName = computed(() => {
+  const metric = metricOf(store.state.metric)
+  return metric ? t(metric.labelKey) : store.state.metric
+})
 
 /**
  * Opciones de agregación, con «Total» desactivado en las métricas que no se
@@ -575,7 +566,10 @@ const aggregationOptions = computed(() => STATS_AGGREGATIONS.map((option) => ({
 })))
 
 const aggregationLabel = computed(
-  () => STATS_AGGREGATIONS.find((o) => o.value === store.state.aggregation)?.label ?? '',
+  () => {
+    const option = STATS_AGGREGATIONS.find((o) => o.value === store.state.aggregation)
+    return option ? t(option.labelKey) : ''
+  },
 )
 
 /**
@@ -589,8 +583,8 @@ const aggregationLabel = computed(
  * @type {import('vue').ComputedRef<string>}
  */
 const rankingHeadline = computed(() => (store.state.aggregation === 'max'
-  ? `Activos con el pico de ${metricName.value} más alto`
-  : `Activos con la media de ${metricName.value} más alta`))
+  ? t('hygeiaStats.rankingByPeak', { metric: metricName.value })
+  : t('hygeiaStats.rankingByAverage', { metric: metricName.value })))
 
 const isSelectionComplete = computed(() => {
   if (store.state.scope === 'asset') return Boolean(store.state.assetId)
@@ -613,12 +607,11 @@ const canCompare = computed(() => {
 const compareUnavailableReason = computed(() => {
   if (!isSelectionComplete.value) {
     return store.state.scope === 'asset'
-      ? 'Elige un activo para ver su evolución.'
-      : 'Elige una etiqueta para ver su evolución.'
+      ? t('hygeiaStats.chooseAssetEvolution')
+      : t('hygeiaStats.chooseTagEvolution')
   }
-  if (!fleetAssetIds.value.length) return 'Todavía no tienes activos. Da de alta uno para ver su evolución.'
-  return `La gráfica de todo el parque admite hasta ${MAX_FLEET_SERIES_ASSETS} activos y tienes `
-    + `${fleetAssetIds.value.length}. Elige una etiqueta o un activo.`
+  if (!fleetAssetIds.value.length) return t('hygeiaStats.noAssets')
+  return t('hygeiaStats.fleetTooLarge', { max: MAX_FLEET_SERIES_ASSETS, count: fleetAssetIds.value.length })
 })
 
 /**
@@ -686,8 +679,21 @@ const axisTicks = computed(() => {
 })
 
 const chartLabel = computed(
-  () => `Comparación de ${lanes.value.map((lane) => lane.name).join(', ')} en el periodo elegido`,
+  () => t('hygeiaStats.chartLabel', { metrics: lanes.value.map(laneName).join(', ') }),
 )
+
+/**
+ * Nombre de una línea de la gráfica en el idioma activo.
+ *
+ * @param {{key: string, name?: string}} lane - Línea, cuya `key` es la de una
+ *   métrica del catálogo (`cpuPct`…).
+ * @returns {string} El nombre de la métrica, o el que trajo la serie si la
+ *   clave no está en el catálogo.
+ */
+function laneName(lane) {
+  const metric = metricOf(lane.key)
+  return metric ? t(metric.labelKey) : lane.name
+}
 
 const summaryTable = computed(() => summaryRows(store.state.summary?.metrics))
 const tagTable = computed(() => tagMetricRows(store.state.tagStats?.metrics))
@@ -857,7 +863,7 @@ let ageTimer = null
  */
 function describeAge(instant) {
   void ageNow.value
-  return timeAgo(instant)
+  return timeAgo(instant, t)
 }
 
 onMounted(() => {

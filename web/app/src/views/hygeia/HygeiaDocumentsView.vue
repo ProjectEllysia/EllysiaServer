@@ -1,28 +1,25 @@
 <template>
   <div class="documents-page" data-module="hygeia">
     <StarBackground />
-    <Topbar title="Hygeia" badge="Documentos" back-to="/hygeia/activos" back-label="Activos" />
+    <Topbar :title="'Hygeia'" :badge="t('hygeia.list.documents')" back-to="/hygeia/activos" :back-label="t('hygeia.list.title')" />
 
     <main class="documents-layout">
       <header class="head">
         <div class="head-text">
-          <h2 class="head-title">Documentos</h2>
-          <p class="head-sub">
-            Las estadísticas en CSV y los inventarios en PDF que has pedido. Se preparan en segundo
-            plano: puedes seguir trabajando y descargarlos aquí cuando estén listos.
-          </p>
+          <h2 class="head-title">{{ t('hygeia.list.documents') }}</h2>
+          <p class="head-sub">{{ t('hygeiaDocuments.intro') }}</p>
         </div>
         <button
           type="button" class="btn-secondary" :disabled="store.state.loading"
           @click="store.fetchDocuments()"
-        >Actualizar</button>
+        >{{ t('hygeiaDocuments.refresh') }}</button>
       </header>
 
       <!-- Filas fantasma con la silueta de las reales mientras carga la
            primera vez; en las recargas se queda la lista que ya había. -->
       <ul
         v-if="store.state.loading && !store.state.documents.length"
-        class="rows" aria-busy="true" aria-label="Cargando documentos"
+        class="rows" aria-busy="true" :aria-label="t('hygeiaDocuments.loading')"
       >
         <li v-for="n in SKELETON_ROWS" :key="n" class="row" aria-hidden="true">
           <span class="skeleton skeleton--block format-ghost"></span>
@@ -35,41 +32,39 @@
 
       <p v-else-if="store.state.error" class="state-msg state-msg--error">
         {{ store.state.error }}
-        <button type="button" class="retry" @click="store.fetchDocuments()">Reintentar</button>
+        <button type="button" class="retry" @click="store.fetchDocuments()">{{ t('common.retry') }}</button>
       </p>
 
       <div v-else-if="!store.state.documents.length" class="state-empty">
-        <p class="empty-title">Todavía no has pedido ningún documento</p>
-        <p class="empty-sub">
-          Exporta una tabla desde
-          <RouterLink to="/hygeia/estadisticas">Estadísticas</RouterLink>
-          o descarga el inventario desde
-          <RouterLink to="/hygeia/activos">Activos</RouterLink>.
-        </p>
+        <p class="empty-title">{{ t('hygeiaDocuments.emptyTitle') }}</p>
+        <i18n-t keypath="hygeiaDocuments.emptySub" tag="p" class="empty-sub">
+          <template #stats><RouterLink to="/hygeia/estadisticas">{{ t('hygeia.tabs.estadisticas') }}</RouterLink></template>
+          <template #assets><RouterLink to="/hygeia/activos">{{ t('hygeia.list.title') }}</RouterLink></template>
+        </i18n-t>
       </div>
 
       <ul v-else class="rows">
         <li v-for="document in store.state.documents" :key="document.id" class="row">
           <span class="format" :class="`format--${document.format}`">{{ formatLabel(document) }}</span>
           <span class="row-text">
-            <span class="row-title">{{ describeDocument(document).title }}</span>
+            <span class="row-title">{{ describeDocument(document, t).title }}</span>
             <span class="row-detail">
-              {{ [describeDocument(document).detail, describeWhen(document)].filter(Boolean).join(' · ') }}
+              {{ [describeDocument(document, t).detail, describeWhen(document)].filter(Boolean).join(' · ') }}
             </span>
           </span>
           <span class="status" :class="`status--${document.status}`">
             <span v-if="documentStatusOf(document.status).isActive" class="status-spinner" aria-hidden="true"></span>
-            {{ documentStatusOf(document.status).label }}
+            {{ t(documentStatusOf(document.status).labelKey) }}
           </span>
           <span class="row-actions">
             <button
               v-if="document.status === 'done'" type="button" class="btn-download"
-              :aria-label="`Descargar «${describeDocument(document).title}»`"
+              :aria-label="t('hygeiaDocuments.downloadLabel', { title: describeDocument(document, t).title })"
               @click="store.downloadDocument(document)"
-            >Descargar</button>
+            >{{ t('hygeiaDocuments.download') }}</button>
             <button
               type="button" class="btn-icon btn-icon--danger"
-              title="Borrar" :aria-label="`Borrar «${describeDocument(document).title}»`"
+              :title="t('common.delete')" :aria-label="t('hygeiaDocuments.deleteLabel', { title: describeDocument(document, t).title })"
               @click="pendingDelete = document"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -80,24 +75,24 @@
         </li>
       </ul>
 
-      <nav v-if="pageCount > 1" class="pager" aria-label="Páginas de documentos">
+      <nav v-if="pageCount > 1" class="pager" :aria-label="t('hygeiaDocuments.pages')">
         <button
           type="button" class="btn-secondary" :disabled="store.state.page <= 1 || store.state.loading"
           @click="store.fetchDocuments({ page: store.state.page - 1 })"
-        >Anteriores</button>
-        <span class="pager-label">Página {{ store.state.page }} de {{ pageCount }}</span>
+        >{{ t('hygeiaDocuments.previous') }}</button>
+        <span class="pager-label">{{ t('hygeiaDocuments.page', { page: store.state.page, total: pageCount }) }}</span>
         <button
           type="button" class="btn-secondary" :disabled="store.state.page >= pageCount || store.state.loading"
           @click="store.fetchDocuments({ page: store.state.page + 1 })"
-        >Siguientes</button>
+        >{{ t('hygeiaDocuments.next') }}</button>
       </nav>
     </main>
 
     <ConfirmModal
       :show="!!pendingDelete"
-      title="Borrar documento"
-      :message="pendingDelete ? `Se borrará «${describeDocument(pendingDelete).title}». Si lo necesitas otra vez, tendrás que volver a pedirlo.` : ''"
-      confirm-label="Borrar"
+      :title="t('hygeiaDocuments.deleteTitle')"
+      :message="pendingDelete ? t('hygeiaDocuments.deleteMessage', { title: describeDocument(pendingDelete, t).title }) : ''"
+      :confirm-label="t('common.delete')"
       danger
       @confirm="confirmDelete"
       @cancel="pendingDelete = null"
@@ -115,6 +110,9 @@ import { timeAgo } from '@/components/hygeia/format'
 import { describeDocument, documentStatusOf } from '@/components/hygeia/documents'
 import { useHygeiaDocumentsStore } from '@/stores/hygeiaDocumentsStore'
 import { useToastStore } from '@/stores/toastStore'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const store = useHygeiaDocumentsStore()
 const toast = useToastStore()
@@ -152,8 +150,8 @@ function formatLabel(document) {
 function describeWhen(document) {
   void ageNow.value
   return document.status === 'done' && document.generatedAt
-    ? `generado ${timeAgo(document.generatedAt)}`
-    : `pedido ${timeAgo(document.createdAt)}`
+    ? t('hygeiaDocuments.generated', { when: timeAgo(document.generatedAt, t) })
+    : t('hygeiaDocuments.requested', { when: timeAgo(document.createdAt, t) })
 }
 
 /** Borra el documento cuya confirmación está abierta. */
@@ -161,7 +159,7 @@ async function confirmDelete() {
   const document = pendingDelete.value
   pendingDelete.value = null
   if (!document) return
-  if (await store.deleteDocument(document.id)) toast.show('Documento borrado.', 'success')
+  if (await store.deleteDocument(document.id)) toast.show(t('hygeiaDocuments.deleted'), 'success')
 }
 
 onMounted(() => {
