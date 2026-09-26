@@ -2274,5 +2274,382 @@
     "batchSummary": "Batch #{id}: {created} created, {duplicate} duplicates, {skipped} not analyzed.",
     "caseOpened": "Case #{id} opened.",
     "caseLinked": "Analysis #{analysisId} added to case #{caseId}."
+  },
+  "aegis": {
+    "campaignStatus": {
+      "draft": "Draft",
+      "sending": "Sending",
+      "sent": "Sent",
+      "failed": "Failed",
+      "closed": "Closed"
+    },
+    "recipientStatus": {
+      "sent": "Sent",
+      "opened": "Opened",
+      "completed": "Completed"
+    },
+    "topics": {
+      "title": "Topics",
+      "searchPlaceholder": "Search topic…",
+      "search": "Search topic",
+      "noMatch": "No topic matches “{search}”.",
+      "empty": "There are no topics available."
+    },
+    "tweaks": {
+      "title": "New pill",
+      "audience": "Audience",
+      "audiences": {
+        "mixed": "Mixed",
+        "technical": "Technical",
+        "nonTechnical": "Non-technical"
+      },
+      "focus": "Topic focus",
+      "focusPlaceholder": "E.g. QR phishing",
+      "incident": "Recent incident",
+      "incidentPlaceholder": "Optional — e.g. a phishing attempt against Accounting last week",
+      "generate": "Generate pill"
+    },
+    "history": {
+      "count": "{count} doc | {count} docs",
+      "sort": {
+        "newest": "Newest",
+        "oldest": "Oldest",
+        "name": "Name A–Z"
+      },
+      "empty": "No documents yet",
+      "document": "Document #{id}",
+      "topic": "Topic #{id}",
+      "export": "Export",
+      "exportLabel": "Export “{title}”",
+      "deleteLabel": "Delete “{title}”",
+      "deleteTitle": "Delete document",
+      "deleteMessage": "Delete “{title}”? This action cannot be undone.",
+      "status": {
+        "done": "Ready",
+        "pending": "Generating",
+        "error": "Error"
+      }
+    },
+    "campaign": {
+      "launch": "Launch campaign",
+      "running": "Campaign running",
+      "sending": "Sending to {count} recipient. Sending continues in the background. | Sending to {count} recipients. Sending continues in the background.",
+      "questionsReady": "{count} check question ready | {count} check questions ready",
+      "noQuestions": "This pill has no quiz questions — a campaign cannot be launched",
+      "name": "Campaign name",
+      "namePlaceholder": "E.g. Q1 training — Sales",
+      "existingList": "Existing list",
+      "noLists": "You do not have any distribution lists yet — create a new one.",
+      "selectList": "Select a list",
+      "listNamePlaceholder": "E.g. Whole staff",
+      "emailsPlaceholder": "One email per line (or comma-separated)\nana{'@'}company.com\nbob{'@'}company.com",
+      "launching": "Launching…",
+      "pill": "Pill",
+      "seeAll": "See all campaigns",
+      "seePrevious": "See this pill's previous campaign | See this pill's {count} previous campaigns"
+    },
+    "lists": {
+      "title": "Distribution lists",
+      "subtitle": "Recipients of the awareness campaigns",
+      "loading": "Loading lists…",
+      "empty": "You do not have any distribution lists yet — create the first one below.",
+      "recipients": "{count} recipient | {count} recipients",
+      "recipientsLabel": "Recipients",
+      "detectedRecipients": "{count} recipient detected | {count} recipients detected",
+      "detected": "{count} detected",
+      "delete": "Delete list",
+      "remove": "Remove {email}",
+      "listEmpty": "This list is empty.",
+      "addRecipients": "Add recipients",
+      "emailsPlaceholder": "One email per line (or comma-separated)",
+      "new": "New list",
+      "name": "List name",
+      "create": "Create list",
+      "deleteMessage": "Delete “{name}” and its recipients? Campaigns launched with this list are deleted too, with their results, and their quiz links will stop working."
+    },
+    "viewer": {
+      "writing": "Writing the pill…",
+      "keepUsing": "You can keep using the rest of Aegis in the meantime.",
+      "title": "Document viewer",
+      "empty": "Select a document from the history or generate a new pill to see its content here.",
+      "loading": "Loading document…",
+      "doc": "Doc #{id}",
+      "campaignHint": "Launch a campaign with this pill",
+      "campaignNeedsQuestions": "Add quiz questions in the editor to be able to launch a campaign",
+      "alerts": "Security alerts"
+    },
+    "editor": {
+      "editing": "Editing Doc #{id}",
+      "titlePlaceholder": "Pill title",
+      "intro": "Introduction",
+      "introPlaceholder": "Introductory text. Separate paragraphs with a blank line.",
+      "addTip": "+ Add recommendation",
+      "noTips": "No recommendations. Add the first one.",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "tipTitle": "Recommendation title",
+      "body": "Body",
+      "bodyPlaceholder": "Recommendation details",
+      "links": "Links",
+      "addLink": "+ Link",
+      "linkText": "Text",
+      "removeLink": "Remove link",
+      "questions": "Quiz questions",
+      "addQuestion": "+ Add question",
+      "questionsHint": "Without questions a campaign cannot be launched. Mark the correct option of each one. Up to {questions} questions of {options} options.",
+      "noQuestions": "No questions. Add the first one.",
+      "prompt": "Question",
+      "promptPlaceholder": "What would you do if you got a text message claiming to be from your bank?",
+      "options": "Options · mark the correct one",
+      "addOption": "+ Option",
+      "markCorrect": "Mark option {n} as correct",
+      "correctOption": "Option {n} correct",
+      "option": "Option {n}",
+      "removeOption": "Remove option",
+      "closing": "Closing",
+      "closingPlaceholder": "Conclusion or call to action",
+      "contact": "Contact email",
+      "contactPlaceholder": "security{'@'}company.com",
+      "errors": {
+        "titleRequired": "The title is required.",
+        "max": "At most {max} characters.",
+        "bodyRequired": "The body is required.",
+        "promptRequired": "The question is required.",
+        "emptyOption": "Do not leave any option empty.",
+        "optionCount": "Each question needs between {min} and {max} options.",
+        "markCorrect": "Mark which option is correct."
+      }
+    },
+    "profile": {
+      "title": "Organization profile",
+      "notConfigured": "Not configured yet",
+      "company": "Company",
+      "companyPlaceholder": "Company name",
+      "contactPlaceholder": "contact{'@'}company.com",
+      "language": "Pill language",
+      "tone": "Tone",
+      "tones": {
+        "profesional": "Professional",
+        "formal": "Formal",
+        "cercano": "Friendly",
+        "tecnico": "Technical"
+      },
+      "sector": "Sector",
+      "sectorPlaceholder": "E.g. banking",
+      "size": "Company size",
+      "unspecified": "Not specified",
+      "sizes": {
+        "micro": "Micro (<10)",
+        "small": "Small (10-50)",
+        "medium": "Medium (50-250)"
+      },
+      "employees": "No. of employees",
+      "optional": "Optional",
+      "jurisdiction": "Jurisdiction",
+      "jurisdictionPlaceholder": "E.g. Spain (GDPR)",
+      "workModel": "Work model",
+      "workModels": {
+        "remote": "Remote",
+        "hybrid": "Hybrid",
+        "onSite": "On-site"
+      },
+      "manageProducts": "Manage products",
+      "update": "Update profile",
+      "save": "Save profile",
+      "agentProducts": "products from my agents",
+      "noProducts": "no products",
+      "productCount": "{count} product | {count} products"
+    },
+    "products": {
+      "title": "Watched products",
+      "fromAgents": "Infer the products from my agents",
+      "fromAgentsHint": "Uses the software Hygeia inventories on your assets instead of the list below.",
+      "usingAgents": "Right now your agents' products are used. This list is kept as an alternative if you turn off the option above.",
+      "searchPlaceholder": "Search a product: windows, firefox, apache…",
+      "searching": "Searching…",
+      "minChars": "Type at least 2 characters.",
+      "noMatch": "No matches in the vulnerability catalog.",
+      "none": "You are not watching any product yet.",
+      "saveNote": "Changes are saved with “Save profile”.",
+      "done": "Done",
+      "selected": "Selected",
+      "watchedCount": "{count} watched product | {count} watched products"
+    }
+  },
+  "aegisView": {
+    "badge": "Pill generation",
+    "expandLeft": "Expand the profile and generation panel",
+    "collapseLeft": "Collapse the profile and generation panel",
+    "editLists": "Edit distribution lists",
+    "expandHistory": "Expand history",
+    "collapseHistory": "Collapse history",
+    "campaigns": "Campaigns",
+    "campaignsSub": "Results of what you have already sent"
+  },
+  "aegisHub": {
+    "tagline": "AI-generated awareness training, sent and proven with campaigns.",
+    "toolLabel": "Open generator",
+    "loading": "Loading latest campaign…",
+    "lastCampaign": "Latest campaign — {name}",
+    "completed": "{rate}% completed",
+    "recipients": "{done} of {total} recipients",
+    "empty": "You have not launched any campaign yet. Generate a pill and launch it.",
+    "highlight": {
+      "label": "The training",
+      "value": "Tailored",
+      "sub": "AI-generated for your regulations"
+    },
+    "features": {
+      "pills": {
+        "kicker": "AI pills",
+        "title": "Training tailored to your company",
+        "desc": "The AI writes each pill according to your size, your regulatory framework (GDPR, ENS, NIS2), your work model and even your recent incidents."
+      },
+      "quiz": {
+        "kicker": "Quiz",
+        "title": "Every pill checks that it sank in",
+        "desc": "Multiple-choice questions are generated with the content, editable before launch. Knowing is not assuming."
+      },
+      "campaigns": {
+        "kicker": "Campaigns",
+        "title": "Send, track, prove",
+        "desc": "Distribution lists, email delivery and tracking of who opened and who completed. The quiz is public: your staff need no accounts."
+      },
+      "evidence": {
+        "kicker": "Evidence",
+        "title": "Exportable as compliance",
+        "desc": "Markdown, JSON or PDF ready to file as proof that the training happened."
+      }
+    }
+  },
+  "aegisCampaigns": {
+    "generator": "Generator",
+    "pillsLabel": "Pills with campaigns",
+    "pills": "Pills",
+    "refresh": "Refresh",
+    "refreshLabel": "Refresh campaigns",
+    "loading": "Loading campaigns…",
+    "empty": "You have not launched any campaign yet.",
+    "emptyLink": "Open a pill in the generator and launch it",
+    "pillMeta": "{count} campaign · last on {date} | {count} campaigns · last on {date}",
+    "pillCampaignsLabel": "Pill campaigns",
+    "pill": "Pill",
+    "pillFallback": "Pill #{id}",
+    "people": "People",
+    "opened": "Opened the link",
+    "completed": "Completed the quiz",
+    "averageHits": "Average correct",
+    "completedOf": "{done}/{total} completed",
+    "choosePill": "Choose a pill to see its campaigns.",
+    "resultsLabel": "Campaign results",
+    "loadingResults": "Loading results…",
+    "delete": "Delete campaign",
+    "createdOn": "Created on {date}",
+    "launchedOn": "launched on {date}",
+    "list": "list “{name}”",
+    "questions": "{count} question | {count} questions",
+    "recipients": "Recipients",
+    "averageScore": "Average score",
+    "hitRate": "{rate}% correct",
+    "openedRate": "{rate}% opened the link",
+    "completedRate": "{rate}% completed the quiz",
+    "byQuestion": "Results by question",
+    "questionRate": "{rate}% got it right",
+    "noAnswers": "No answers",
+    "correct": "Correct",
+    "noRecipients": "This campaign has no recipients yet.",
+    "columns": {
+      "recipient": "Recipient",
+      "status": "Status",
+      "sent": "Sent",
+      "opened": "Opened",
+      "completed": "Completed",
+      "score": "Score"
+    },
+    "loadError": "The results could not be loaded.",
+    "chooseCampaign": "Choose a campaign to see its results.",
+    "deleteConfirm": "Delete “{name}”? The quiz links already sent to its recipients will stop working."
+  },
+  "quiz": {
+    "brandSub": "Awareness training",
+    "loading": "Loading your training…",
+    "justCompleted": "Quiz completed!",
+    "alreadyCompleted": "You already completed this quiz",
+    "singleUse": "This link is single-use and no longer accepts answers.",
+    "yourTraining": "Your training",
+    "intro": "Answer {count} question to complete the training. You can only submit the quiz once. | Answer {count} questions to complete the training. You can only submit the quiz once.",
+    "question": "Question {number}",
+    "pending": "{count} question left to answer. | {count} questions left to answer.",
+    "sending": "Sending…",
+    "submit": "Submit answers",
+    "footer": "Security awareness",
+    "recorded": "Quiz recorded.",
+    "passed": "Well done. You passed the check.",
+    "failed": "Review the training with your security lead.",
+    "errors": {
+      "incomplete": {
+        "title": "Incomplete link",
+        "detail": "The link is missing its identifier. Open the one you received by email as is, without trimming it."
+      },
+      "offline": {
+        "title": "We could not connect",
+        "detail": "Check your connection and try again in a few minutes."
+      },
+      "notFound": {
+        "title": "Invalid link",
+        "detail": "This link does not match any training. It may have been mistyped or the campaign may no longer exist."
+      },
+      "tooMany": {
+        "title": "Too many attempts",
+        "detail": "The request limit has been reached. Wait a while before opening the link again."
+      },
+      "failed": {
+        "title": "Something went wrong",
+        "detail": "We could not load your training. Try again later."
+      },
+      "noQuestions": {
+        "title": "Training without questions",
+        "detail": "This campaign has no quiz attached. Let whoever sent it to you know."
+      }
+    },
+    "submitErrors": {
+      "offline": "We could not send your answers. Check your connection and try again.",
+      "tooMany": "Too many submissions in a row. Wait a moment before retrying.",
+      "failed": "We could not record your answers. Try again."
+    }
+  },
+  "aegisStore": {
+    "searchLimited": "You have used up your searches for now. Try again in a few minutes.",
+    "searchFailed": "The vulnerability catalog could not be queried.",
+    "profileSaveFailed": "The organization profile could not be saved.",
+    "profileSaved": "Organization profile saved.",
+    "documentsFailed": "The documents could not be loaded.",
+    "connectionError": "Connection error.",
+    "pickTopic": "Select a topic first.",
+    "generateFailed": "The pill could not be generated.",
+    "documentFailed": "The document could not be loaded.",
+    "saveFailed": "The changes could not be saved.",
+    "pillUpdated": "Pill updated.",
+    "deleteFailed": "The document could not be deleted.",
+    "exportFailed": "The export failed.",
+    "downloaded": "Document downloaded.",
+    "downloadFailed": "The download failed.",
+    "previewFailed": "The preview failed.",
+    "previewError": "Error while previewing.",
+    "campaignsFailed": "The campaigns could not be loaded.",
+    "campaignDetailFailed": "The campaign details could not be loaded.",
+    "campaignDeleteFailed": "The campaign could not be deleted.",
+    "campaignDeleted": "Campaign deleted.",
+    "listCreateFailed": "The list could not be created.",
+    "listCreatedPartial": "List created, but the recipients could not be added.",
+    "recipientsFailed": "The recipients could not be loaded.",
+    "recipientsAddFailed": "The recipients could not be added.",
+    "recipientDeleteFailed": "The recipient could not be deleted.",
+    "listDeleteFailed": "The list could not be deleted.",
+    "listDeleted": "List deleted.",
+    "campaignCreateFailed": "The campaign could not be created.",
+    "launchFailed": "The campaign could not be launched.",
+    "launched": "Campaign launched. Sending continues in the background.",
+    "generating": "Pill being generated (ID: {id})"
   }
 }

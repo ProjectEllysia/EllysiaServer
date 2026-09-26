@@ -1,18 +1,18 @@
 <template>
   <div class="history-panel">
     <div class="history-header">
-      <h2>Historial</h2>
-      <span class="history-count">{{ documents.length }} doc(s)</span>
+      <h2>{{ t('themisHub.shortcuts.history') }}</h2>
+      <span class="history-count">{{ t('aegis.history.count', { count: documents.length }, documents.length) }}</span>
     </div>
 
     <div class="history-controls">
       <select class="input select sort" v-model="sortModeLocal" @change="$emit('sort', sortModeLocal)">
-        <option value="date-desc">Más recientes</option>
-        <option value="date-asc">Más antiguos</option>
-        <option value="name-asc">Nombre A–Z</option>
-        <option value="status">Estado</option>
+        <option value="date-desc">{{ t('aegis.history.sort.newest') }}</option>
+        <option value="date-asc">{{ t('aegis.history.sort.oldest') }}</option>
+        <option value="name-asc">{{ t('aegis.history.sort.name') }}</option>
+        <option value="status">{{ t('themis.table.status') }}</option>
       </select>
-      <button type="button" class="btn-icon" :class="{ spinning }" @click="handleRefresh" title="Refrescar">
+      <button type="button" class="btn-icon" :class="{ spinning }" @click="handleRefresh" :title="t('themis.documents.refresh')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
       </button>
     </div>
@@ -22,26 +22,26 @@
            entera. Su hermano (ScanTable) ya ofrece reintentar; se iguala. -->
       <div v-if="error" class="history-empty history-error">
         <p class="history-error-text">{{ error }}</p>
-        <button type="button" class="retry" @click="handleRefresh">Reintentar</button>
+        <button type="button" class="retry" @click="handleRefresh">{{ t('common.retry') }}</button>
       </div>
-      <div v-else-if="documents.length === 0" class="history-empty">Sin documentos aún</div>
+      <div v-else-if="documents.length === 0" class="history-empty">{{ t('aegis.history.empty') }}</div>
 
       <div v-for="doc in documents" :key="doc.id"
         class="history-item" :class="{ active: doc.id === currentDocId }">
         <div class="item-info" @click="$emit('view', doc.id)">
-          <div class="item-title">{{ doc.title || `Documento #${doc.id}` }}</div>
+          <div class="item-title">{{ doc.title || t('aegis.history.document', { id: doc.id }) }}</div>
           <div class="item-meta">
             <span class="item-status" :class="`status--${doc.status || 'pending'}`">{{ statusLabel(doc.status) }}</span>
-            <span class="item-topic">Tema #{{ doc.topicId }}</span>
+            <span class="item-topic">{{ t('aegis.history.topic', { id: doc.topicId }) }}</span>
             <span class="item-date">{{ formatDate(doc.generatedAt) }}</span>
           </div>
         </div>
         <div class="item-actions">
           <button type="button" class="action-btn"
-            :aria-label="`Exportar «${doc.title || `Documento #${doc.id}`}»`"
+            :aria-label="t('aegis.history.exportLabel', { title: doc.title || t('aegis.history.document', { id: doc.id }) })"
             :aria-expanded="exportOpen === doc.id"
             aria-haspopup="menu"
-            title="Exportar"
+            :title="t('aegis.history.export')"
             @click="exportOpen = exportOpen === doc.id ? null : doc.id">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           </button>
@@ -51,8 +51,8 @@
             <button role="menuitem" @click="emitExport(doc.id, 'json')">JSON</button>
           </div>
           <button type="button" class="action-btn action-btn--danger"
-            :aria-label="`Eliminar «${doc.title || `Documento #${doc.id}`}»`"
-            title="Eliminar" @click="confirmDelete(doc.id)">
+            :aria-label="t('aegis.history.deleteLabel', { title: doc.title || t('aegis.history.document', { id: doc.id }) })"
+            :title="t('common.delete')" @click="confirmDelete(doc.id)">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
           </button>
         </div>
@@ -66,9 +66,9 @@
        este panel. ConfirmModal ya hace lo mismo, acotado y con transición. -->
   <ConfirmModal
     :show="deleteTarget !== null"
-    title="Eliminar documento"
-    :message="`¿Eliminar «${deleteTargetTitle}»? Esta acción no se puede deshacer.`"
-    confirm-label="Eliminar"
+    :title="t('aegis.history.deleteTitle')"
+    :message="t('aegis.history.deleteMessage', { title: deleteTargetTitle })"
+    :confirm-label="t('common.delete')"
     danger
     @confirm="doDelete"
     @cancel="deleteTarget = null" />
@@ -79,6 +79,9 @@ import { ref, computed } from 'vue'
 import { useUtils } from '@/composables/useUtils'
 import { useDismissable } from '@/composables/useDismissable'
 import ConfirmModal from '@/components/shared/ConfirmModal.vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const { formatDate } = useUtils()
 const props = defineProps({ documents: { type: Array, default: () => [] }, error: { type: String, default: null }, currentDocId: { type: [Number, null], default: null }, sortMode: { type: String, default: 'date-desc' } })
@@ -88,8 +91,11 @@ const sortModeLocal = ref(props.sortMode)
 const spinning = ref(false)
 const exportOpen = ref(null)
 const deleteTarget = ref(null)
-const statusLabels = { done: 'Listo', pending: 'Generando', error: 'Error' }
-function statusLabel(s) { return statusLabels[s] || s || '—' }
+/** Rótulo del estado de generación de una píldora. */
+function statusLabel(status) {
+  if (!status) return '—'
+  return ['done', 'pending', 'error'].includes(status) ? t(`aegis.history.status.${status}`) : t('common.unknown')
+}
 function emitExport(docId, fmt) { exportOpen.value = null; emit('export', docId, fmt) }
 async function handleRefresh() { spinning.value = true; emit('refresh'); setTimeout(() => { spinning.value = false }, 800) }
 function confirmDelete(id) { deleteTarget.value = id }
@@ -102,7 +108,7 @@ useDismissable('.item-actions', () => { exportOpen.value = null })
 /** El título del documento a borrar: "#12" no dice qué se está borrando. */
 const deleteTargetTitle = computed(() => {
   const doc = props.documents.find(d => d.id === deleteTarget.value)
-  return doc?.title || `Documento #${deleteTarget.value}`
+  return doc?.title || t('aegis.history.document', { id: deleteTarget.value })
 })
 </script>
 

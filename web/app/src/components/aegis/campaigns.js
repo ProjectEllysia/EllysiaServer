@@ -1,10 +1,11 @@
 /**
- * Rótulos y cifras de las campañas de Aegis.
+ * Claves de rótulo y cifras de las campañas de Aegis.
  *
  * Los estados de campaña y de destinatario los pintan la vista de campañas y
  * su detalle; con un mapa por componente, al traducir uno el de al lado se
  * quedaba atrás (CONVENCIONES.md § 12.2). Las cifras viven aquí porque son
- * aritmética pura y se prueban con `node` sin montar la vista.
+ * aritmética pura y se prueban con `node` sin montar la vista. Por eso los
+ * rótulos salen como claves del diccionario, que el componente pinta con `t()`.
  *
  * Los estados de un destinatario son acumulativos: cada uno guarda solo el
  * punto más avanzado al que llegó, así que quien completó el test también
@@ -12,44 +13,42 @@
  * cuenta igual en el resumen de `GET /aegis/campaigns`.
  */
 
-const CAMPAIGN_STATUS_LABELS = {
-  draft: 'Borrador', sending: 'Enviando', sent: 'Enviada', failed: 'Fallida', closed: 'Cerrada',
-}
+const CAMPAIGN_STATUSES = ['draft', 'sending', 'sent', 'failed', 'closed']
 const CAMPAIGN_STATUS_BADGES = {
   draft: 'badge--pending', sending: 'badge--running', sent: 'badge--done',
   failed: 'badge--error', closed: 'badge--cancelled',
 }
 
 /**
- * Rótulo del estado de una campaña.
+ * Clave del rótulo del estado de una campaña.
  *
  * @param {string|null} status - `draft`, `sending`, `sent`, `failed` o `closed`.
- * @returns {string} El rótulo del estado, o «Desconocido» si no se conoce.
+ * @returns {string} `aegis.campaignStatus.<estado>`, o `common.unknown` si no se conoce.
  */
-export function campaignStatusLabel(status) {
-  return CAMPAIGN_STATUS_LABELS[status] || 'Desconocido'
+export function campaignStatusKey(status) {
+  return CAMPAIGN_STATUSES.includes(status) ? `aegis.campaignStatus.${status}` : 'common.unknown'
 }
 
 /**
  * Clase de insignia (de `shared.css`) con la que se colorea el estado de una campaña.
  *
- * @param {string|null} status - Estado de la campaña, como en `campaignStatusLabel`.
+ * @param {string|null} status - Estado de la campaña, como en `campaignStatusKey`.
  * @returns {string} La clase `badge--*` del estado, o `'badge--pending'` si no se conoce.
  */
 export function campaignStatusBadge(status) {
   return CAMPAIGN_STATUS_BADGES[status] || 'badge--pending'
 }
 
-const RECIPIENT_STATUS_LABELS = { sent: 'Enviado', opened: 'Abierto', completed: 'Completado' }
+const RECIPIENT_STATUSES = ['sent', 'opened', 'completed']
 
 /**
- * Rótulo del punto al que llegó un destinatario.
+ * Clave del rótulo del punto al que llegó un destinatario.
  *
  * @param {string|null} status - `sent`, `opened` o `completed`.
- * @returns {string} El rótulo del estado, o «Desconocido» si no se conoce.
+ * @returns {string} `aegis.recipientStatus.<estado>`, o `common.unknown` si no se conoce.
  */
-export function recipientStatusLabel(status) {
-  return RECIPIENT_STATUS_LABELS[status] || 'Desconocido'
+export function recipientStatusKey(status) {
+  return RECIPIENT_STATUSES.includes(status) ? `aegis.recipientStatus.${status}` : 'common.unknown'
 }
 
 /**

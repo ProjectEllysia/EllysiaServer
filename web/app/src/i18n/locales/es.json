@@ -2274,5 +2274,382 @@
     "batchSummary": "Lote #{id}: {created} creados, {duplicate} repetidos, {skipped} sin analizar.",
     "caseOpened": "Caso #{id} abierto.",
     "caseLinked": "Análisis #{analysisId} añadido al caso #{caseId}."
+  },
+  "aegis": {
+    "campaignStatus": {
+      "draft": "Borrador",
+      "sending": "Enviando",
+      "sent": "Enviada",
+      "failed": "Fallida",
+      "closed": "Cerrada"
+    },
+    "recipientStatus": {
+      "sent": "Enviado",
+      "opened": "Abierto",
+      "completed": "Completado"
+    },
+    "topics": {
+      "title": "Temas",
+      "searchPlaceholder": "Buscar tema…",
+      "search": "Buscar tema",
+      "noMatch": "Ningún tema coincide con «{search}».",
+      "empty": "No hay temas disponibles."
+    },
+    "tweaks": {
+      "title": "Nueva Píldora",
+      "audience": "Audiencia",
+      "audiences": {
+        "mixed": "Mixta",
+        "technical": "Técnica",
+        "nonTechnical": "No técnica"
+      },
+      "focus": "Foco del tema",
+      "focusPlaceholder": "Ej: phishing por QR",
+      "incident": "Incidente reciente",
+      "incidentPlaceholder": "Opcional — ej: intento de phishing a Contabilidad la semana pasada",
+      "generate": "Generar Píldora"
+    },
+    "history": {
+      "count": "{count} doc | {count} docs",
+      "sort": {
+        "newest": "Más recientes",
+        "oldest": "Más antiguos",
+        "name": "Nombre A–Z"
+      },
+      "empty": "Sin documentos aún",
+      "document": "Documento #{id}",
+      "topic": "Tema #{id}",
+      "export": "Exportar",
+      "exportLabel": "Exportar «{title}»",
+      "deleteLabel": "Eliminar «{title}»",
+      "deleteTitle": "Eliminar documento",
+      "deleteMessage": "¿Eliminar «{title}»? Esta acción no se puede deshacer.",
+      "status": {
+        "done": "Listo",
+        "pending": "Generando",
+        "error": "Error"
+      }
+    },
+    "campaign": {
+      "launch": "Lanzar campaña",
+      "running": "Campaña en marcha",
+      "sending": "Enviando a {count} destinatario. El envío continúa en segundo plano. | Enviando a {count} destinatarios. El envío continúa en segundo plano.",
+      "questionsReady": "{count} pregunta de comprobación lista | {count} preguntas de comprobación listas",
+      "noQuestions": "Esta píldora no tiene preguntas de quiz — no se puede lanzar una campaña",
+      "name": "Nombre de la campaña",
+      "namePlaceholder": "Ej: Formación Q1 — Ventas",
+      "existingList": "Lista existente",
+      "noLists": "Aún no tienes listas de distribución — crea una nueva.",
+      "selectList": "Selecciona una lista",
+      "listNamePlaceholder": "Ej: Plantilla completa",
+      "emailsPlaceholder": "Un email por línea (o separados por coma)\nana{'@'}empresa.com\nbob{'@'}empresa.com",
+      "launching": "Lanzando…",
+      "pill": "Píldora",
+      "seeAll": "Ver todas las campañas",
+      "seePrevious": "Ver la campaña anterior de esta píldora | Ver las {count} campañas anteriores de esta píldora"
+    },
+    "lists": {
+      "title": "Listas de distribución",
+      "subtitle": "Destinatarios de las campañas de concienciación",
+      "loading": "Cargando listas…",
+      "empty": "Aún no tienes listas de distribución — crea la primera abajo.",
+      "recipients": "{count} destinatario | {count} destinatarios",
+      "recipientsLabel": "Destinatarios",
+      "detectedRecipients": "{count} destinatario detectado | {count} destinatarios detectados",
+      "detected": "{count} detectado | {count} detectados",
+      "delete": "Eliminar lista",
+      "remove": "Quitar {email}",
+      "listEmpty": "Esta lista está vacía.",
+      "addRecipients": "Añadir destinatarios",
+      "emailsPlaceholder": "Un email por línea (o separados por coma)",
+      "new": "Nueva lista",
+      "name": "Nombre de la lista",
+      "create": "Crear lista",
+      "deleteMessage": "¿Eliminar «{name}» y sus destinatarios? Las campañas lanzadas con esta lista se borran también, con sus resultados, y sus enlaces de quiz dejarán de funcionar."
+    },
+    "viewer": {
+      "writing": "Redactando la píldora…",
+      "keepUsing": "Puedes seguir usando el resto de Aegis mientras tanto.",
+      "title": "Visor de Documentos",
+      "empty": "Selecciona un documento del historial o genera una nueva píldora para ver su contenido aquí.",
+      "loading": "Cargando documento…",
+      "doc": "Doc #{id}",
+      "campaignHint": "Lanzar una campaña con esta píldora",
+      "campaignNeedsQuestions": "Añade preguntas al test desde el editor para poder lanzar una campaña",
+      "alerts": "Alertas de Seguridad"
+    },
+    "editor": {
+      "editing": "Editando Doc #{id}",
+      "titlePlaceholder": "Título de la píldora",
+      "intro": "Introducción",
+      "introPlaceholder": "Texto introductorio. Separa los párrafos con una línea en blanco.",
+      "addTip": "+ Añadir recomendación",
+      "noTips": "Sin recomendaciones. Añade la primera.",
+      "moveUp": "Subir",
+      "moveDown": "Bajar",
+      "tipTitle": "Título de la recomendación",
+      "body": "Cuerpo",
+      "bodyPlaceholder": "Desarrollo de la recomendación",
+      "links": "Enlaces",
+      "addLink": "+ Enlace",
+      "linkText": "Texto",
+      "removeLink": "Quitar enlace",
+      "questions": "Preguntas del test",
+      "addQuestion": "+ Añadir pregunta",
+      "questionsHint": "Sin preguntas no se puede lanzar una campaña. Marca la opción correcta de cada una. Máximo {questions} preguntas de {options} opciones.",
+      "noQuestions": "Sin preguntas. Añade la primera.",
+      "prompt": "Enunciado",
+      "promptPlaceholder": "¿Qué harías si recibes un SMS que dice ser de tu banco?",
+      "options": "Opciones · marca la correcta",
+      "addOption": "+ Opción",
+      "markCorrect": "Marcar la opción {n} como correcta",
+      "correctOption": "Opción {n} correcta",
+      "option": "Opción {n}",
+      "removeOption": "Quitar opción",
+      "closing": "Cierre",
+      "closingPlaceholder": "Conclusión o llamada a la acción",
+      "contact": "Email de contacto",
+      "contactPlaceholder": "seguridad{'@'}empresa.com",
+      "errors": {
+        "titleRequired": "El título es obligatorio.",
+        "max": "Máximo {max} caracteres.",
+        "bodyRequired": "El cuerpo es obligatorio.",
+        "promptRequired": "El enunciado es obligatorio.",
+        "emptyOption": "No dejes ninguna opción vacía.",
+        "optionCount": "Cada pregunta necesita entre {min} y {max} opciones.",
+        "markCorrect": "Marca cuál es la opción correcta."
+      }
+    },
+    "profile": {
+      "title": "Perfil de la organización",
+      "notConfigured": "Sin configurar todavía",
+      "company": "Empresa",
+      "companyPlaceholder": "Nombre de la empresa",
+      "contactPlaceholder": "contacto{'@'}empresa.com",
+      "language": "Idioma de las píldoras",
+      "tone": "Tono",
+      "tones": {
+        "profesional": "Profesional",
+        "formal": "Formal",
+        "cercano": "Cercano",
+        "tecnico": "Técnico"
+      },
+      "sector": "Sector",
+      "sectorPlaceholder": "Ej: banca",
+      "size": "Tamaño de empresa",
+      "unspecified": "Sin especificar",
+      "sizes": {
+        "micro": "Micro (<10)",
+        "small": "Pequeña (10-50)",
+        "medium": "Mediana (50-250)"
+      },
+      "employees": "Nº empleados",
+      "optional": "Opcional",
+      "jurisdiction": "Jurisdicción",
+      "jurisdictionPlaceholder": "Ej: España (RGPD)",
+      "workModel": "Modelo de trabajo",
+      "workModels": {
+        "remote": "Remoto",
+        "hybrid": "Híbrido",
+        "onSite": "Presencial"
+      },
+      "manageProducts": "Gestionar productos",
+      "update": "Actualizar perfil",
+      "save": "Guardar perfil",
+      "agentProducts": "productos de mis agentes",
+      "noProducts": "sin productos",
+      "productCount": "{count} producto | {count} productos"
+    },
+    "products": {
+      "title": "Productos vigilados",
+      "fromAgents": "Deducir los productos de mis agentes",
+      "fromAgentsHint": "Usa el software que Hygeia inventaría en tus activos en lugar de la lista de abajo.",
+      "usingAgents": "Ahora mismo se usan los de tus agentes. Esta lista queda como alternativa si desactivas la opción de arriba.",
+      "searchPlaceholder": "Busca un producto: windows, firefox, apache…",
+      "searching": "Buscando…",
+      "minChars": "Escribe al menos 2 caracteres.",
+      "noMatch": "Sin coincidencias en el catálogo de vulnerabilidades.",
+      "none": "Aún no vigilas ningún producto.",
+      "saveNote": "Los cambios se guardan con «Guardar perfil».",
+      "done": "Listo",
+      "selected": "Seleccionados",
+      "watchedCount": "{count} producto vigilado | {count} productos vigilados"
+    }
+  },
+  "aegisView": {
+    "badge": "Generación de Píldoras",
+    "expandLeft": "Expandir panel de perfil y generación",
+    "collapseLeft": "Contraer panel de perfil y generación",
+    "editLists": "Editar listas de distribución",
+    "expandHistory": "Expandir historial",
+    "collapseHistory": "Contraer historial",
+    "campaigns": "Campañas",
+    "campaignsSub": "Resultados de lo que ya has enviado"
+  },
+  "aegisHub": {
+    "tagline": "Formación de concienciación generada por IA, enviada y demostrada con campañas.",
+    "toolLabel": "Abrir generador",
+    "loading": "Cargando última campaña…",
+    "lastCampaign": "Última campaña — {name}",
+    "completed": "{rate}% completado",
+    "recipients": "{done} de {total} destinatarios",
+    "empty": "Aún no has lanzado ninguna campaña. Genera una píldora y estrénala.",
+    "highlight": {
+      "label": "La formación",
+      "value": "A Medida",
+      "sub": "generada por IA para tu normativa"
+    },
+    "features": {
+      "pills": {
+        "kicker": "Píldoras IA",
+        "title": "Formación a la medida de tu empresa",
+        "desc": "La IA escribe cada píldora según tu tamaño, tu marco regulatorio (RGPD, ENS, NIS2), tu modelo de trabajo e incluso tus incidentes recientes."
+      },
+      "quiz": {
+        "kicker": "Quiz",
+        "title": "Cada píldora comprueba que caló",
+        "desc": "Junto al contenido se generan preguntas tipo test, editables antes de lanzar. Saber no es suponer."
+      },
+      "campaigns": {
+        "kicker": "Campañas",
+        "title": "Envía, sigue, demuestra",
+        "desc": "Listas de distribución, envío por correo y seguimiento de quién abrió y quién completó. El test es público: tu plantilla no necesita cuentas."
+      },
+      "evidence": {
+        "kicker": "Evidencia",
+        "title": "Exportable como cumplimiento",
+        "desc": "Markdown, JSON o PDF listos para archivar como prueba de que la formación ocurrió."
+      }
+    }
+  },
+  "aegisCampaigns": {
+    "generator": "Generador",
+    "pillsLabel": "Píldoras con campañas",
+    "pills": "Píldoras",
+    "refresh": "Refrescar",
+    "refreshLabel": "Refrescar campañas",
+    "loading": "Cargando campañas…",
+    "empty": "Aún no has lanzado ninguna campaña.",
+    "emptyLink": "Abre una píldora en el generador y lánzala",
+    "pillMeta": "{count} campaña · última el {date} | {count} campañas · última el {date}",
+    "pillCampaignsLabel": "Campañas de la píldora",
+    "pill": "Píldora",
+    "pillFallback": "Píldora #{id}",
+    "people": "Personas",
+    "opened": "Abrieron el enlace",
+    "completed": "Completaron el test",
+    "averageHits": "Aciertos de media",
+    "completedOf": "{done}/{total} completaron",
+    "choosePill": "Elige una píldora para ver sus campañas.",
+    "resultsLabel": "Resultados de la campaña",
+    "loadingResults": "Cargando resultados…",
+    "delete": "Eliminar campaña",
+    "createdOn": "Creada el {date}",
+    "launchedOn": "lanzada el {date}",
+    "list": "lista «{name}»",
+    "questions": "{count} pregunta | {count} preguntas",
+    "recipients": "Destinatarios",
+    "averageScore": "Nota media",
+    "hitRate": "{rate}% de aciertos",
+    "openedRate": "{rate}% abrió el enlace",
+    "completedRate": "{rate}% completó el test",
+    "byQuestion": "Resultados por pregunta",
+    "questionRate": "{rate}% acertó",
+    "noAnswers": "Sin respuestas",
+    "correct": "Correcta",
+    "noRecipients": "Esta campaña todavía no tiene destinatarios.",
+    "columns": {
+      "recipient": "Destinatario",
+      "status": "Estado",
+      "sent": "Enviado",
+      "opened": "Abrió",
+      "completed": "Completó",
+      "score": "Nota"
+    },
+    "loadError": "No se pudieron cargar los resultados.",
+    "chooseCampaign": "Elige una campaña para ver sus resultados.",
+    "deleteConfirm": "¿Eliminar «{name}»? Los enlaces de quiz ya enviados a sus destinatarios dejarán de funcionar."
+  },
+  "quiz": {
+    "brandSub": "Formación de concienciación",
+    "loading": "Cargando tu formación…",
+    "justCompleted": "¡Test completado!",
+    "alreadyCompleted": "Ya completaste este test",
+    "singleUse": "Este enlace es de un solo uso y ya no admite más respuestas.",
+    "yourTraining": "Tu formación",
+    "intro": "Responde a {count} pregunta para completar la formación. Solo puedes enviar el test una vez. | Responde a {count} preguntas para completar la formación. Solo puedes enviar el test una vez.",
+    "question": "Pregunta {number}",
+    "pending": "Te falta {count} pregunta por responder. | Te faltan {count} preguntas por responder.",
+    "sending": "Enviando…",
+    "submit": "Enviar respuestas",
+    "footer": "Concienciación en seguridad",
+    "recorded": "Test registrado.",
+    "passed": "Buen trabajo. Has superado la comprobación.",
+    "failed": "Repasa la formación con tu responsable de seguridad.",
+    "errors": {
+      "incomplete": {
+        "title": "Enlace incompleto",
+        "detail": "Al enlace le falta el identificador. Abre el que recibiste por correo tal cual, sin recortarlo."
+      },
+      "offline": {
+        "title": "No hemos podido conectar",
+        "detail": "Revisa tu conexión y vuelve a intentarlo en unos minutos."
+      },
+      "notFound": {
+        "title": "Enlace no válido",
+        "detail": "Este enlace no corresponde a ninguna formación. Puede que se haya escrito mal o que la campaña ya no exista."
+      },
+      "tooMany": {
+        "title": "Demasiados intentos",
+        "detail": "Se ha alcanzado el límite de peticiones. Espera un rato antes de volver a abrir el enlace."
+      },
+      "failed": {
+        "title": "Algo ha fallado",
+        "detail": "No hemos podido cargar tu formación. Inténtalo de nuevo más tarde."
+      },
+      "noQuestions": {
+        "title": "Formación sin preguntas",
+        "detail": "Esta campaña no tiene ningún test asociado. Avisa a quien te la envió."
+      }
+    },
+    "submitErrors": {
+      "offline": "No hemos podido enviar tus respuestas. Revisa tu conexión e inténtalo otra vez.",
+      "tooMany": "Demasiados envíos seguidos. Espera un momento antes de reintentar.",
+      "failed": "No hemos podido registrar tus respuestas. Inténtalo de nuevo."
+    }
+  },
+  "aegisStore": {
+    "searchLimited": "Has agotado las búsquedas por ahora. Inténtalo de nuevo en unos minutos.",
+    "searchFailed": "No se pudo consultar el catálogo de vulnerabilidades.",
+    "profileSaveFailed": "No se pudo guardar el perfil de organización.",
+    "profileSaved": "Perfil de organización guardado.",
+    "documentsFailed": "No se pudieron cargar los documentos.",
+    "connectionError": "Error de conexión.",
+    "pickTopic": "Selecciona un tema primero.",
+    "generateFailed": "Error al generar la píldora.",
+    "documentFailed": "No se pudo cargar el documento.",
+    "saveFailed": "No se pudieron guardar los cambios.",
+    "pillUpdated": "Píldora actualizada.",
+    "deleteFailed": "No se pudo eliminar el documento.",
+    "exportFailed": "No se pudo exportar.",
+    "downloaded": "Documento descargado.",
+    "downloadFailed": "Error al descargar.",
+    "previewFailed": "No se pudo previsualizar.",
+    "previewError": "Error al previsualizar.",
+    "campaignsFailed": "No se pudieron cargar las campañas.",
+    "campaignDetailFailed": "No se pudo cargar el detalle de la campaña.",
+    "campaignDeleteFailed": "No se pudo eliminar la campaña.",
+    "campaignDeleted": "Campaña eliminada.",
+    "listCreateFailed": "No se pudo crear la lista.",
+    "listCreatedPartial": "Lista creada, pero no se pudieron añadir los destinatarios.",
+    "recipientsFailed": "No se pudieron cargar los destinatarios.",
+    "recipientsAddFailed": "No se pudieron añadir los destinatarios.",
+    "recipientDeleteFailed": "No se pudo eliminar el destinatario.",
+    "listDeleteFailed": "No se pudo eliminar la lista.",
+    "listDeleted": "Lista eliminada.",
+    "campaignCreateFailed": "No se pudo crear la campaña.",
+    "launchFailed": "No se pudo lanzar la campaña.",
+    "launched": "Campaña lanzada. El envío continúa en segundo plano.",
+    "generating": "Píldora en generación (ID: {id})"
   }
 }

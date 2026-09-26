@@ -8,7 +8,7 @@
          endpoint de progreso para la generación, y unas etapas de adorno
          mentirían sobre en qué punto está. -->
     <div v-if="generating" class="viewer-generating">
-      <p class="gen-title">Redactando la píldora…</p>
+      <p class="gen-title">{{ t('aegis.viewer.writing') }}</p>
       <p class="gen-elapsed">{{ elapsedLabel }}</p>
       <div class="gen-skeleton" aria-hidden="true">
         <span class="skeleton skeleton--title"></span>
@@ -19,55 +19,55 @@
         <span class="skeleton skeleton--line"></span>
         <span class="skeleton skeleton--line skeleton--w60"></span>
       </div>
-      <p class="gen-note">Puedes seguir usando el resto de Aegis mientras tanto.</p>
+      <p class="gen-note">{{ t('aegis.viewer.keepUsing') }}</p>
     </div>
 
     <div v-else-if="!viewerDoc.data && !viewerDoc.loading" class="viewer-empty">
-      <h3>Visor de Documentos</h3>
-      <p>Selecciona un documento del historial o genera una nueva píldora para ver su contenido aquí.</p>
+      <h3>{{ t('aegis.viewer.title') }}</h3>
+      <p>{{ t('aegis.viewer.empty') }}</p>
     </div>
 
     <div v-else-if="viewerDoc.loading" class="viewer-loading">
       <div class="spinner-lg"></div>
-      <p>Cargando documento…</p>
+      <p>{{ t('aegis.viewer.loading') }}</p>
     </div>
 
     <Transition name="pill-reveal" mode="out-in">
       <div v-if="viewerDoc.data && !viewerDoc.loading && !generating" class="viewer-content">
         <div class="viewer-toolbar">
-          <span class="doc-id">Doc #{{ viewerDoc.data.id }}</span>
-          <span v-if="viewerDoc.data.topicId" class="doc-topic">Tema #{{ viewerDoc.data.topicId }}</span>
+          <span class="doc-id">{{ t('aegis.viewer.doc', { id: viewerDoc.data.id }) }}</span>
+          <span v-if="viewerDoc.data.topicId" class="doc-topic">{{ t('aegis.history.topic', { id: viewerDoc.data.topicId }) }}</span>
           <span class="doc-date">{{ formatDate(viewerDoc.data.generatedAt) }}</span>
           <div class="toolbar-spacer"></div>
           <div class="export-dropdown">
             <button type="button" class="toolbar-btn"
               :aria-expanded="exportOpen" aria-haspopup="menu"
-              @click="exportOpen = !exportOpen">Exportar</button>
+              @click="exportOpen = !exportOpen">{{ t('aegis.history.export') }}</button>
             <div v-if="exportOpen" class="export-menu" role="menu">
               <button role="menuitem" @click="emitExport('md')">Markdown</button>
               <button role="menuitem" @click="emitExport('html')">HTML</button>
               <button role="menuitem" @click="emitExport('json')">JSON</button>
             </div>
           </div>
-          <button type="button" class="toolbar-btn" @click="emit('preview')">Vista previa</button>
+          <button type="button" class="toolbar-btn" @click="emit('preview')">{{ t('themis.table.preview') }}</button>
           <button
             v-if="viewerDoc.data.status === 'done'"
             type="button"
             class="toolbar-btn"
             @click="emit('edit')"
-          >Editar</button>
+          >{{ t('common.edit') }}</button>
           <button
             v-if="viewerDoc.data.status === 'done' && canLaunchCampaigns"
             type="button"
             class="toolbar-btn toolbar-btn--campaign"
             :disabled="!hasQuestions"
-            :title="hasQuestions ? 'Lanzar una campaña con esta píldora' : 'Añade preguntas al test desde el editor para poder lanzar una campaña'"
+            :title="hasQuestions ? t('aegis.viewer.campaignHint') : t('aegis.viewer.campaignNeedsQuestions')"
             @click="emit('campaign')"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-            Lanzar campaña
+            {{ t('aegis.campaign.launch') }}
           </button>
-          <button type="button" class="toolbar-btn toolbar-close" @click="emit('close')">&times;</button>
+          <button type="button" class="toolbar-btn toolbar-close" :aria-label="t('common.close')" @click="emit('close')">&times;</button>
         </div>
 
         <div class="pill-body">
@@ -79,7 +79,7 @@
           </section>
 
           <section v-if="viewerDoc.data.pill?.tips?.length" class="pill-section">
-            <h3>Recomendaciones</h3>
+            <h3>{{ t('iris.report.recommendations') }}</h3>
             <div v-for="(tip, i) in viewerDoc.data.pill.tips" :key="i" class="pill-tip">
               <span class="tip-num">{{ i + 1 }}</span>
               <div class="tip-body">
@@ -97,7 +97,7 @@
           </section>
 
           <section v-if="viewerDoc.data.alerts?.length" class="pill-section">
-            <h3>Alertas de Seguridad</h3>
+            <h3>{{ t('aegis.viewer.alerts') }}</h3>
             <div v-for="(alert, i) in viewerDoc.data.alerts" :key="i" class="pill-alert" :class="`pill-alert--${alert.severity || 'informativa'}`">
               <div class="alert-header">
                 <span class="alert-severity">{{ sevIcon(alert.severity) }}</span>
@@ -122,6 +122,9 @@ import { computed, ref, watch, onUnmounted } from 'vue'
 import { useUtils } from '@/composables/useUtils'
 import { useDismissable } from '@/composables/useDismissable'
 import { useLaunch } from '@/composables/useLaunch'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const { formatDate } = useUtils()
 const props = defineProps({
@@ -164,9 +167,9 @@ onUnmounted(() => clearInterval(elapsedTimer))
 const elapsedLabel = computed(() => {
   const s = elapsed.value
   if (s < 60) return `${s} s`
-  const minutos = Math.floor(s / 60)
-  const segundos = String(s % 60).padStart(2, '0')
-  return `${minutos}:${segundos} min`
+  const minutes = Math.floor(s / 60)
+  const seconds = String(s % 60).padStart(2, '0')
+  return `${minutes}:${seconds} min`
 })
 </script>
 

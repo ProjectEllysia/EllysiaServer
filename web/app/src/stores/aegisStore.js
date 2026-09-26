@@ -4,6 +4,7 @@ import { useApi } from '@/composables/useApi'
 import { useCache } from '@/composables/useCache'
 import { useUtils } from '@/composables/useUtils'
 import { useToastStore } from '@/stores/toastStore'
+import { i18n } from '@/i18n'
 
 /**
  * Store de Aegis — generación de píldoras de concienciación con IA.
@@ -174,8 +175,8 @@ export const useAegisStore = defineStore('aegis', () => {
         // a 120 peticiones/hora; useApi ya lanza un toast, pero el toast se va
         // a los pocos segundos y esto se queda junto a la lista vacía.
         productSearchError.value = res?.status === 429
-          ? 'Has agotado las búsquedas por ahora. Inténtalo de nuevo en unos minutos.'
-          : 'No se pudo consultar el catálogo de vulnerabilidades.'
+          ? i18n.global.t('aegisStore.searchLimited')
+          : i18n.global.t('aegisStore.searchFailed')
         return
       }
       const data = await res.json()
@@ -185,7 +186,7 @@ export const useAegisStore = defineStore('aegis', () => {
       // fallos de red los absorbe `apiFetch`, que devuelve `null` y entra por
       // la rama de arriba. Mismo mensaje: para el usuario es el mismo problema.
       productResults.value = []
-      productSearchError.value = 'No se pudo consultar el catálogo de vulnerabilidades.'
+      productSearchError.value = i18n.global.t('aegisStore.searchFailed')
     }
     finally { searchingProducts.value = false }
   }
@@ -267,10 +268,10 @@ export const useAegisStore = defineStore('aegis', () => {
       }
       const res = await apiFetch('/aegis/org-profile', { method: 'PUT', body: JSON.stringify(payload) })
       if (!res?.ok) {
-        toast.show(await apiError(res, 'No se pudo guardar el perfil de organización.'), 'error')
+        toast.show(await apiError(res, i18n.global.t('aegisStore.profileSaveFailed')), 'error')
         return false
       }
-      toast.show('Perfil de organización guardado.', 'success')
+      toast.show(i18n.global.t('aegisStore.profileSaved'), 'success')
       return true
     } finally { savingOrgProfile.value = false }
   }
@@ -282,13 +283,13 @@ export const useAegisStore = defineStore('aegis', () => {
     loading.value = true
     try {
       const res = await apiFetch('/aegis/documents')
-      if (!res?.ok) { documents.value = []; listError.value = 'No se pudieron cargar los documentos.'; return }
+      if (!res?.ok) { documents.value = []; listError.value = i18n.global.t('aegisStore.documentsFailed'); return }
       const data = await res.json()
       documents.value = [...(data.documents ?? [])]
       listError.value = null
     } catch {
       documents.value = []
-      listError.value = 'Error de conexión.'
+      listError.value = i18n.global.t('aegisStore.connectionError')
     } finally { loading.value = false }
   }
 
@@ -315,7 +316,7 @@ export const useAegisStore = defineStore('aegis', () => {
    */
   async function generate() {
     if (!selectedTopicId.value) {
-      toast.show('Selecciona un tema primero.', 'warn')
+      toast.show(i18n.global.t('aegisStore.pickTopic'), 'warn')
       return false
     }
     generating.value = true
@@ -336,12 +337,12 @@ export const useAegisStore = defineStore('aegis', () => {
         // generación falló y no queda rastro en ninguna parte: la vista sigue
         // igual que antes de pulsar. El error se guarda además en la store
         // para poder pintarlo donde ocurrió.
-        generateError.value = await apiError(res, 'Error al generar la píldora.')
+        generateError.value = await apiError(res, i18n.global.t('aegisStore.generateFailed'))
         toast.show(generateError.value, 'error')
         return false
       }
       const data = await res.json()
-      toast.show(`Píldora en generación (ID: ${data.documentId})`, 'success')
+      toast.show(i18n.global.t('aegisStore.generating', { id: data.documentId }), 'success')
       await loadHistory()
       return true
     } finally { generating.value = false }
@@ -368,7 +369,7 @@ export const useAegisStore = defineStore('aegis', () => {
     viewerDoc.data = null
     try {
       const res = await apiFetch(`/aegis/document?id=${id}`)
-      if (!res?.ok) { toast.show('No se pudo cargar el documento.', 'error'); return }
+      if (!res?.ok) { toast.show(i18n.global.t('aegisStore.documentFailed'), 'error'); return }
       const data = await res.json()
       viewerDoc.data = data
       docCache.set(id, data)
@@ -408,14 +409,14 @@ export const useAegisStore = defineStore('aegis', () => {
         body: JSON.stringify(pillData),
       })
       if (!res?.ok) {
-        toast.show(await apiError(res, 'No se pudieron guardar los cambios.'), 'error')
+        toast.show(await apiError(res, i18n.global.t('aegisStore.saveFailed')), 'error')
         return false
       }
       const data = await res.json()
       viewerDoc.data = data
       docCache.set(docId, data)
       editing.value = false
-      toast.show('Píldora actualizada.', 'success')
+      toast.show(i18n.global.t('aegisStore.pillUpdated'), 'success')
       await loadHistory()
       return true
     } finally { saving.value = false }
@@ -431,7 +432,7 @@ export const useAegisStore = defineStore('aegis', () => {
   async function deleteDocument(id) {
     const res = await apiFetch(`/aegis/document?id=${id}`, { method: 'DELETE' })
     if (!res?.ok) {
-      toast.show('No se pudo eliminar el documento.', 'error')
+      toast.show(i18n.global.t('aegisStore.deleteFailed'), 'error')
       return false
     }
     docCache.delete(id)
@@ -449,13 +450,13 @@ export const useAegisStore = defineStore('aegis', () => {
   async function downloadExport(docId, format) {
     try {
       const res = await apiFetch(`/aegis/export/${docId}/download?format=${format}&inline=false`)
-      if (!res?.ok) { toast.show('No se pudo exportar.', 'error'); return false }
+      if (!res?.ok) { toast.show(i18n.global.t('aegisStore.exportFailed'), 'error'); return false }
       const blob = await res.blob()
       const name = filenameFromResponse(res, `documento_${docId}.${format}`)
       triggerDownload(blob, name)
-      toast.show('Documento descargado.', 'success')
+      toast.show(i18n.global.t('aegisStore.downloaded'), 'success')
       return true
-    } catch { toast.show('Error al descargar.', 'error'); return false }
+    } catch { toast.show(i18n.global.t('aegisStore.downloadFailed'), 'error'); return false }
   }
 
   /**
@@ -465,13 +466,13 @@ export const useAegisStore = defineStore('aegis', () => {
   async function previewMarkdown(docId) {
     try {
       const res = await apiFetch(`/aegis/export/md/${docId}?inline=true`)
-      if (!res?.ok) { toast.show('No se pudo previsualizar.', 'error'); return }
+      if (!res?.ok) { toast.show(i18n.global.t('aegisStore.previewFailed'), 'error'); return }
       const text = await res.text()
       const w = window.open('', '_blank')
       if (w) {
         w.document.write(`<pre style="padding:2rem;white-space:pre-wrap;font-family:monospace;line-height:1.6">${text.replace(/</g, '&lt;')}</pre>`)
       }
-    } catch { toast.show('Error al previsualizar.', 'error') }
+    } catch { toast.show(i18n.global.t('aegisStore.previewError'), 'error') }
   }
 
   /* ── CAMPAÑAS ── */
@@ -517,13 +518,13 @@ export const useAegisStore = defineStore('aegis', () => {
     loadingCampaigns.value = true
     try {
       const res = await apiFetch('/aegis/campaigns')
-      if (!res?.ok) { campaigns.value = []; campaignsError.value = 'No se pudieron cargar las campañas.'; return }
+      if (!res?.ok) { campaigns.value = []; campaignsError.value = i18n.global.t('aegisStore.campaignsFailed'); return }
       const data = await res.json()
       campaigns.value = data.campaigns ?? []
       campaignsError.value = null
     } catch {
       campaigns.value = []
-      campaignsError.value = 'Error de conexión.'
+      campaignsError.value = i18n.global.t('aegisStore.connectionError')
     } finally { loadingCampaigns.value = false }
   }
 
@@ -543,7 +544,7 @@ export const useAegisStore = defineStore('aegis', () => {
     try {
       const res = await apiFetch(`/aegis/campaigns/${campaignId}`)
       if (request !== campaignDetailRequest) return
-      if (!res?.ok) { toast.show('No se pudo cargar el detalle de la campaña.', 'error'); return }
+      if (!res?.ok) { toast.show(i18n.global.t('aegisStore.campaignDetailFailed'), 'error'); return }
       const detail = await res.json()
       if (request === campaignDetailRequest) campaignDetail.value = detail
     } finally {
@@ -563,10 +564,10 @@ export const useAegisStore = defineStore('aegis', () => {
     deletingCampaign.value = true
     try {
       const res = await apiFetch(`/aegis/campaigns/${campaignId}`, { method: 'DELETE' })
-      if (!res?.ok) { toast.show('No se pudo eliminar la campaña.', 'error'); return false }
+      if (!res?.ok) { toast.show(i18n.global.t('aegisStore.campaignDeleteFailed'), 'error'); return false }
       if (campaignDetail.value?.id === campaignId) campaignDetail.value = null
       campaigns.value = campaigns.value.filter(c => c.id !== campaignId)
-      toast.show('Campaña eliminada.', 'success')
+      toast.show(i18n.global.t('aegisStore.campaignDeleted'), 'success')
       return true
     } finally { deletingCampaign.value = false }
   }
@@ -583,7 +584,7 @@ export const useAegisStore = defineStore('aegis', () => {
       const res = await apiFetch('/aegis/lists', { method: 'POST', body: JSON.stringify({ name }) })
       const list = await res?.json().catch(() => null)
       if (!res?.ok || !list?.id) {
-        toast.show(list?.message || 'No se pudo crear la lista.', 'error')
+        toast.show(list?.message || i18n.global.t('aegisStore.listCreateFailed'), 'error')
         return null
       }
       if (recipients.length) {
@@ -592,7 +593,7 @@ export const useAegisStore = defineStore('aegis', () => {
           body: JSON.stringify({ recipients }),
         })
         if (!recRes?.ok) {
-          toast.show('Lista creada, pero no se pudieron añadir los destinatarios.', 'warn')
+          toast.show(i18n.global.t('aegisStore.listCreatedPartial'), 'warn')
         }
       }
       await loadDistributionLists()
@@ -628,7 +629,7 @@ export const useAegisStore = defineStore('aegis', () => {
     expandedListId.value = listId
     listRecipients.value = []
     const res = await apiFetch(`/aegis/lists/${listId}/recipients`)
-    if (!res?.ok) { toast.show('No se pudieron cargar los destinatarios.', 'error'); return }
+    if (!res?.ok) { toast.show(i18n.global.t('aegisStore.recipientsFailed'), 'error'); return }
     const data = await res.json()
     listRecipients.value = data.recipients ?? []
   }
@@ -645,7 +646,7 @@ export const useAegisStore = defineStore('aegis', () => {
       method: 'POST',
       body: JSON.stringify({ recipients }),
     })
-    if (!res?.ok) { toast.show('No se pudieron añadir los destinatarios.', 'error'); return false }
+    if (!res?.ok) { toast.show(i18n.global.t('aegisStore.recipientsAddFailed'), 'error'); return false }
     const data = await res.json().catch(() => ({}))
     listRecipients.value = [...listRecipients.value, ...(data.recipients ?? [])]
     await loadDistributionLists()
@@ -660,7 +661,7 @@ export const useAegisStore = defineStore('aegis', () => {
    */
   async function removeRecipientFromList(listId, recipientId) {
     const res = await apiFetch(`/aegis/lists/${listId}/recipients/${recipientId}`, { method: 'DELETE' })
-    if (!res?.ok) { toast.show('No se pudo eliminar el destinatario.', 'error'); return false }
+    if (!res?.ok) { toast.show(i18n.global.t('aegisStore.recipientDeleteFailed'), 'error'); return false }
     listRecipients.value = listRecipients.value.filter(r => r.id !== recipientId)
     await loadDistributionLists()
     return true
@@ -672,10 +673,10 @@ export const useAegisStore = defineStore('aegis', () => {
    */
   async function deleteDistributionList(listId) {
     const res = await apiFetch(`/aegis/lists/${listId}`, { method: 'DELETE' })
-    if (!res?.ok) { toast.show('No se pudo eliminar la lista.', 'error'); return false }
+    if (!res?.ok) { toast.show(i18n.global.t('aegisStore.listDeleteFailed'), 'error'); return false }
     if (expandedListId.value === listId) { expandedListId.value = null; listRecipients.value = [] }
     distributionLists.value = distributionLists.value.filter(l => l.id !== listId)
-    toast.show('Lista eliminada.', 'success')
+    toast.show(i18n.global.t('aegisStore.listDeleted'), 'success')
     return true
   }
 
@@ -694,18 +695,18 @@ export const useAegisStore = defineStore('aegis', () => {
       })
       const campaign = await createRes?.json().catch(() => null)
       if (!createRes?.ok || !campaign?.id) {
-        toast.show(campaign?.message || 'No se pudo crear la campaña.', 'error')
+        toast.show(campaign?.message || i18n.global.t('aegisStore.campaignCreateFailed'), 'error')
         return false
       }
 
       const launchRes = await apiFetch(`/aegis/campaigns/${campaign.id}/launch`, { method: 'POST' })
       const launchData = await launchRes?.json().catch(() => ({}))
       if (!launchRes?.ok) {
-        toast.show(launchData.message || 'No se pudo lanzar la campaña.', 'error')
+        toast.show(launchData.message || i18n.global.t('aegisStore.launchFailed'), 'error')
         return false
       }
 
-      toast.show('Campaña lanzada. El envío continúa en segundo plano.', 'success')
+      toast.show(i18n.global.t('aegisStore.launched'), 'success')
       await loadCampaigns()
       return true
     } finally { launchingCampaign.value = false }
