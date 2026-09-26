@@ -3120,5 +3120,222 @@
     "noAssets": "Todavía no tienes activos. Da de alta uno para ver su evolución.",
     "fleetTooLarge": "La gráfica de todo el parque admite hasta {max} activos y tienes {count}. Elige una etiqueta o un activo.",
     "chartLabel": "Comparación de {metrics} en el periodo elegido"
+  },
+  "acheron": {
+    "types": {
+      "account": {
+        "label": "Cuenta",
+        "plural": "Cuentas",
+        "newLabel": "Nueva cuenta"
+      },
+      "creditcard": {
+        "label": "Tarjeta",
+        "plural": "Tarjetas",
+        "newLabel": "Nueva tarjeta"
+      },
+      "securenote": {
+        "label": "Nota segura",
+        "plural": "Notas",
+        "newLabel": "Nueva nota"
+      },
+      "identity": {
+        "label": "Identidad",
+        "plural": "Identidades",
+        "newLabel": "Nueva identidad"
+      },
+      "bankaccount": {
+        "label": "Cuenta bancaria",
+        "plural": "Bancos",
+        "newLabel": "Nueva cuenta bancaria"
+      },
+      "wifi": {
+        "label": "Wi-Fi",
+        "plural": "Wi-Fi",
+        "newLabel": "Nueva red Wi-Fi"
+      },
+      "license": {
+        "label": "Licencia",
+        "plural": "Licencias",
+        "newLabel": "Nueva licencia"
+      }
+    },
+    "fields": {
+      "account": {
+        "username": "Usuario / Email",
+        "domain": "Dominio / Servicio",
+        "password": "Contraseña"
+      },
+      "creditcard": {
+        "cardHolderName": "Titular",
+        "cardNumber": "Número de tarjeta",
+        "expirationDate": "Caducidad (MM/YY)",
+        "cvv": "CVV",
+        "postalCode": "Código postal"
+      },
+      "securenote": {
+        "content": "Contenido"
+      },
+      "identity": {
+        "fullName": "Nombre completo",
+        "email": "Email",
+        "phone": "Teléfono",
+        "address": "Dirección",
+        "city": "Ciudad",
+        "country": "País",
+        "documentId": "Documento (DNI/Pasaporte)"
+      },
+      "bankaccount": {
+        "bankName": "Banco",
+        "holder": "Titular",
+        "iban": "IBAN",
+        "swiftBic": "SWIFT / BIC",
+        "accountNumber": "Número de cuenta"
+      },
+      "wifi": {
+        "ssid": "Nombre de red (SSID)",
+        "password": "Contraseña",
+        "securityType": "Seguridad (WPA2/WPA3)"
+      },
+      "license": {
+        "product": "Producto",
+        "licenseKey": "Clave de licencia",
+        "licensedTo": "Licenciado a",
+        "version": "Versión"
+      }
+    },
+    "strength": {
+      "0": "Muy débil",
+      "1": "Débil",
+      "2": "Regular",
+      "3": "Fuerte",
+      "4": "Muy fuerte"
+    },
+    "hide": "Ocultar",
+    "show": "Mostrar",
+    "generate": "Generar contraseña",
+    "inYourBrowser": "en tu navegador",
+    "changePassword": {
+      "title": "Cambiar contraseña maestra",
+      "intro": "La nueva contraseña se aplica {browser}: se vuelve a cifrar la clave de la bóveda con ella. Tus elementos no se modifican.",
+      "current": "Contraseña actual",
+      "next": "Nueva contraseña",
+      "confirm": "Repite la nueva contraseña",
+      "applying": "Aplicando…",
+      "submit": "Cambiar contraseña",
+      "errors": {
+        "current": "Introduce tu contraseña actual.",
+        "next": "Introduce la nueva contraseña.",
+        "tooShort": "La nueva contraseña debe tener al menos {min} caracteres.",
+        "mismatch": "Las contraseñas nuevas no coinciden.",
+        "same": "La nueva contraseña debe ser distinta de la actual."
+      }
+    },
+    "form": {
+      "title": "Título",
+      "titlePlaceholder": "Nombre para reconocerlo",
+      "blankUnchanged": "(en blanco = sin cambios)",
+      "type": "Tipo",
+      "edit": "Editar {type}",
+      "item": "elemento",
+      "newItem": "Nuevo elemento",
+      "titleRequired": "El título es obligatorio.",
+      "fieldRequired": "El campo «{field}» es obligatorio.",
+      "fieldTooShort": "«{field}» debe tener al menos {min} caracteres."
+    }
+  },
+  "acheronView": {
+    "badge": "Bóveda cifrada",
+    "wait": "Un momento, por favor.",
+    "createTitle": "Crea tu contraseña maestra",
+    "createIntro": "Todavía no tienes ninguna bóveda. Elige una contraseña maestra para crearla: el cifrado ocurre {browser} y nunca se envía al servidor.",
+    "newMaster": "Nueva contraseña maestra",
+    "repeat": "Repite la contraseña",
+    "creating": "Creando…",
+    "create": "Crear bóveda",
+    "unlockTitle": "Desbloquear bóveda",
+    "unlockIntro": "El cifrado y descifrado ocurren {browser}. Tu contraseña maestra nunca se envía al servidor.",
+    "master": "Contraseña maestra",
+    "decrypting": "Descifrando…",
+    "unlock": "Desbloquear",
+    "yourVault": "Tu bóveda",
+    "itemCount": "{count} elemento | {count} elementos",
+    "add": "Añadir",
+    "refreshing": "Actualizando…",
+    "refresh": "Actualizar",
+    "password": "Contraseña",
+    "lock": "Bloquear",
+    "empty": "Tu bóveda está vacía. Pulsa {add} para crear tu primer elemento.",
+    "untitled": "Sin título",
+    "copied": "Copiado al portapapeles.",
+    "created": "Bóveda creada. Desbloquéala con tu contraseña maestra.",
+    "refreshed": "Bóveda actualizada.",
+    "changedElsewhere": "La bóveda cambió en otro dispositivo: actualizada.",
+    "masterUpdated": "Contraseña maestra actualizada. Desbloquea con la nueva.",
+    "added": "Elemento añadido.",
+    "saved": "Cambios guardados.",
+    "deleteConfirm": "¿Eliminar «{name}»? No se puede deshacer.",
+    "deleted": "Elemento eliminado.",
+    "errors": {
+      "tooShort": "La contraseña debe tener al menos {min} caracteres.",
+      "mismatch": "Las contraseñas no coinciden.",
+      "noAccess": "Tu cuenta todavía no tiene acceso a Acheron. Contacta con un administrador.",
+      "createFailed": "No se pudo crear la bóveda.",
+      "keysFailed": "Error al generar las claves de cifrado.",
+      "noVault": "Todavía no tienes ninguna bóveda. Crea una desde la app móvil.",
+      "fetchFailed": "No se pudo obtener la bóveda (error {status}).",
+      "wrongMaster": "Contraseña maestra incorrecta.",
+      "decryptFailed": "No se pudo descifrar la bóveda.",
+      "masterChanged": "Tu contraseña maestra cambió en otro dispositivo. Vuelve a introducirla.",
+      "refreshFailed": "No se pudo actualizar la bóveda.",
+      "changeFailed": "No se pudo cambiar la contraseña.",
+      "wrongCurrent": "Contraseña actual incorrecta.",
+      "sendFailed": "Error al cifrar o enviar los datos.",
+      "addFailed": "No se pudo crear el elemento.",
+      "deleteFailed": "No se pudo eliminar.",
+      "sessionExpired": "Sesión expirada.",
+      "forbidden": "No tienes permisos para esta acción.",
+      "revisionMismatch": "La bóveda cambió en otro dispositivo. Actualiza y vuelve a intentarlo.",
+      "duplicate": "Ya existe un elemento con ese identificador."
+    }
+  },
+  "acheronHub": {
+    "tagline": "Bóveda cifrada en tu navegador: el servidor solo ve el cifrado, nunca la llave.",
+    "myth": "El río que nadie cruza sin la llave.",
+    "claim": "Guarda lo que no debe perderse",
+    "toolLabel": "Abrir bóveda",
+    "loading": "Comprobando tu bóveda…",
+    "secrets": "Secretos custodiados",
+    "lastUpdated": "Última actualización: {date}",
+    "empty": "Todavía no tienes bóveda. Crear la tuya lleva un minuto.",
+    "highlight": {
+      "label": "Conocimiento cero",
+      "value": "0 llaves",
+      "sub": "viajan a nuestro servidor"
+    },
+    "features": {
+      "local": {
+        "kicker": "Cifrado local",
+        "title": "La llave nunca viaja",
+        "desc": "AES-256-GCM en tu navegador: el servidor guarda el cifrado y solo tú posees la contraseña maestra. Ni siquiera nosotros podemos leer tu bóveda."
+      },
+      "types": {
+        "kicker": "Siete tipos",
+        "title": "Una bóveda para todo",
+        "desc": "Credenciales, tarjetas, notas y más, bajo la misma contraseña maestra y el mismo cifrado."
+      },
+      "generator": {
+        "kicker": "Generador",
+        "title": "Contraseñas fuertes al vuelo",
+        "desc": "Genera y guarda contraseñas robustas sin salir de la bóveda, con medidor de fortaleza incluido."
+      },
+      "lybra": {
+        "kicker": "La llave de Lybra",
+        "title": "Alimenta el escaneo autenticado",
+        "desc": "Las credenciales custodiadas aquí pueden abrir la puerta a los escaneos autenticados de Themis. Acheron no es solo el candado: es la llave."
+      }
+    },
+    "resources": {
+      "nist": "NIST — Guía de gestión de contraseñas (SP 800-63B)"
+    }
   }
 }

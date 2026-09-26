@@ -25,13 +25,9 @@ const sourceRoot = fileURLToPath(new URL('../src/', import.meta.url))
  * quita de la lista. Un componente nuevo nace vigilado.
  */
 const PENDING_FILES = [
-  'components/acheron/ChangePasswordModal.vue',
-  'components/acheron/StorableFormModal.vue',
   'components/aegis/DocumentViewer.vue',
   'components/config/ModelPicker.vue',
   'components/config/ScannerCard.vue',
-  'views/acheron/AcheronHubView.vue',
-  'views/acheron/AcheronView.vue',
   'views/system/ConfigView.vue',
   'views/system/LogsView.vue',
   'views/system/QueueView.vue',

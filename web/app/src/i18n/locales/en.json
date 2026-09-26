@@ -3120,5 +3120,222 @@
     "noAssets": "You have no assets yet. Register one to see its history.",
     "fleetTooLarge": "The whole-fleet chart supports up to {max} assets and you have {count}. Choose a tag or an asset.",
     "chartLabel": "Comparison of {metrics} in the chosen period"
+  },
+  "acheron": {
+    "types": {
+      "account": {
+        "label": "Account",
+        "plural": "Accounts",
+        "newLabel": "New account"
+      },
+      "creditcard": {
+        "label": "Card",
+        "plural": "Cards",
+        "newLabel": "New card"
+      },
+      "securenote": {
+        "label": "Secure note",
+        "plural": "Notes",
+        "newLabel": "New note"
+      },
+      "identity": {
+        "label": "Identity",
+        "plural": "Identities",
+        "newLabel": "New identity"
+      },
+      "bankaccount": {
+        "label": "Bank account",
+        "plural": "Banks",
+        "newLabel": "New bank account"
+      },
+      "wifi": {
+        "label": "Wi-Fi",
+        "plural": "Wi-Fi",
+        "newLabel": "New Wi-Fi network"
+      },
+      "license": {
+        "label": "License",
+        "plural": "Licenses",
+        "newLabel": "New license"
+      }
+    },
+    "fields": {
+      "account": {
+        "username": "Username / Email",
+        "domain": "Domain / Service",
+        "password": "Password"
+      },
+      "creditcard": {
+        "cardHolderName": "Cardholder",
+        "cardNumber": "Card number",
+        "expirationDate": "Expiry (MM/YY)",
+        "cvv": "CVV",
+        "postalCode": "Postal code"
+      },
+      "securenote": {
+        "content": "Content"
+      },
+      "identity": {
+        "fullName": "Full name",
+        "email": "Email",
+        "phone": "Phone",
+        "address": "Address",
+        "city": "City",
+        "country": "Country",
+        "documentId": "ID document (national ID/passport)"
+      },
+      "bankaccount": {
+        "bankName": "Bank",
+        "holder": "Holder",
+        "iban": "IBAN",
+        "swiftBic": "SWIFT / BIC",
+        "accountNumber": "Account number"
+      },
+      "wifi": {
+        "ssid": "Network name (SSID)",
+        "password": "Password",
+        "securityType": "Security (WPA2/WPA3)"
+      },
+      "license": {
+        "product": "Product",
+        "licenseKey": "License key",
+        "licensedTo": "Licensed to",
+        "version": "Version"
+      }
+    },
+    "strength": {
+      "0": "Very weak",
+      "1": "Weak",
+      "2": "Fair",
+      "3": "Strong",
+      "4": "Very strong"
+    },
+    "hide": "Hide",
+    "show": "Show",
+    "generate": "Generate password",
+    "inYourBrowser": "in your browser",
+    "changePassword": {
+      "title": "Change master password",
+      "intro": "The new password is applied {browser}: the vault key is re-encrypted with it. Your items are not modified.",
+      "current": "Current password",
+      "next": "New password",
+      "confirm": "Repeat the new password",
+      "applying": "Applying…",
+      "submit": "Change password",
+      "errors": {
+        "current": "Enter your current password.",
+        "next": "Enter the new password.",
+        "tooShort": "The new password must be at least {min} characters long.",
+        "mismatch": "The new passwords do not match.",
+        "same": "The new password must differ from the current one."
+      }
+    },
+    "form": {
+      "title": "Title",
+      "titlePlaceholder": "A name to recognize it",
+      "blankUnchanged": "(blank = unchanged)",
+      "type": "Type",
+      "edit": "Edit {type}",
+      "item": "item",
+      "newItem": "New item",
+      "titleRequired": "The title is required.",
+      "fieldRequired": "The field “{field}” is required.",
+      "fieldTooShort": "“{field}” must be at least {min} characters long."
+    }
+  },
+  "acheronView": {
+    "badge": "Encrypted vault",
+    "wait": "One moment, please.",
+    "createTitle": "Create your master password",
+    "createIntro": "You do not have a vault yet. Choose a master password to create it: encryption happens {browser} and it is never sent to the server.",
+    "newMaster": "New master password",
+    "repeat": "Repeat the password",
+    "creating": "Creating…",
+    "create": "Create vault",
+    "unlockTitle": "Unlock vault",
+    "unlockIntro": "Encryption and decryption happen {browser}. Your master password is never sent to the server.",
+    "master": "Master password",
+    "decrypting": "Decrypting…",
+    "unlock": "Unlock",
+    "yourVault": "Your vault",
+    "itemCount": "{count} item | {count} items",
+    "add": "Add",
+    "refreshing": "Refreshing…",
+    "refresh": "Refresh",
+    "password": "Password",
+    "lock": "Lock",
+    "empty": "Your vault is empty. Press {add} to create your first item.",
+    "untitled": "Untitled",
+    "copied": "Copied to the clipboard.",
+    "created": "Vault created. Unlock it with your master password.",
+    "refreshed": "Vault refreshed.",
+    "changedElsewhere": "The vault changed on another device: refreshed.",
+    "masterUpdated": "Master password updated. Unlock with the new one.",
+    "added": "Item added.",
+    "saved": "Changes saved.",
+    "deleteConfirm": "Delete “{name}”? This cannot be undone.",
+    "deleted": "Item deleted.",
+    "errors": {
+      "tooShort": "The password must be at least {min} characters long.",
+      "mismatch": "The passwords do not match.",
+      "noAccess": "Your account does not have access to Acheron yet. Contact an administrator.",
+      "createFailed": "The vault could not be created.",
+      "keysFailed": "The encryption keys could not be generated.",
+      "noVault": "You do not have a vault yet. Create one from the mobile app.",
+      "fetchFailed": "The vault could not be fetched (error {status}).",
+      "wrongMaster": "Wrong master password.",
+      "decryptFailed": "The vault could not be decrypted.",
+      "masterChanged": "Your master password changed on another device. Enter it again.",
+      "refreshFailed": "The vault could not be refreshed.",
+      "changeFailed": "The password could not be changed.",
+      "wrongCurrent": "Wrong current password.",
+      "sendFailed": "The data could not be encrypted or sent.",
+      "addFailed": "The item could not be created.",
+      "deleteFailed": "It could not be deleted.",
+      "sessionExpired": "Session expired.",
+      "forbidden": "You do not have permission for this action.",
+      "revisionMismatch": "The vault changed on another device. Refresh and try again.",
+      "duplicate": "An item with that identifier already exists."
+    }
+  },
+  "acheronHub": {
+    "tagline": "A vault encrypted in your browser: the server only sees ciphertext, never the key.",
+    "myth": "The river no one crosses without the key.",
+    "claim": "Keep what must not be lost",
+    "toolLabel": "Open vault",
+    "loading": "Checking your vault…",
+    "secrets": "Secrets in custody",
+    "lastUpdated": "Last updated: {date}",
+    "empty": "You do not have a vault yet. Creating yours takes a minute.",
+    "highlight": {
+      "label": "Zero knowledge",
+      "value": "0 keys",
+      "sub": "travel to our server"
+    },
+    "features": {
+      "local": {
+        "kicker": "Local encryption",
+        "title": "The key never travels",
+        "desc": "AES-256-GCM in your browser: the server stores the ciphertext and only you hold the master password. Not even we can read your vault."
+      },
+      "types": {
+        "kicker": "Seven types",
+        "title": "One vault for everything",
+        "desc": "Credentials, cards, notes and more, under the same master password and the same encryption."
+      },
+      "generator": {
+        "kicker": "Generator",
+        "title": "Strong passwords on the fly",
+        "desc": "Generate and store robust passwords without leaving the vault, with a strength meter included."
+      },
+      "lybra": {
+        "kicker": "Lybra's key",
+        "title": "Feeds authenticated scanning",
+        "desc": "The credentials kept here can open the door to Themis's authenticated scans. Acheron is not just the lock: it is the key."
+      }
+    },
+    "resources": {
+      "nist": "NIST — Password management guidelines (SP 800-63B)"
+    }
   }
 }

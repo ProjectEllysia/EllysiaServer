@@ -3,23 +3,22 @@
     <div v-if="open" class="modal-backdrop" @click.self="$emit('close')">
       <div class="modal-card" role="dialog" aria-modal="true">
         <header class="modal-head">
-          <h2 class="modal-title">Cambiar contraseña maestra</h2>
-          <button class="modal-close" aria-label="Cerrar" @click="$emit('close')">
+          <h2 class="modal-title">{{ t('acheron.changePassword.title') }}</h2>
+          <button class="modal-close" :aria-label="t('common.close')" @click="$emit('close')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </header>
 
         <form class="modal-form" @submit.prevent="submit">
-          <p class="modal-intro">
-            La nueva contraseña se aplica <strong>en tu navegador</strong>: se vuelve a
-            cifrar la clave de la bóveda con ella. Tus elementos no se modifican.
-          </p>
+          <i18n-t keypath="acheron.changePassword.intro" tag="p" class="modal-intro">
+            <template #browser><strong>{{ t('acheron.inYourBrowser') }}</strong></template>
+          </i18n-t>
 
           <label
             v-for="f in fields" :key="f.key"
             class="form-field"
           >
-            <span class="form-label">{{ f.label }}</span>
+            <span class="form-label">{{ t(`acheron.changePassword.${f.key}`) }}</span>
             <div class="form-input" :class="{ 'form-input--with-generate': f.key === 'next' }">
               <input
                 :ref="(el) => { if (f.key === 'current') firstInput = el }"
@@ -27,12 +26,12 @@
                 :type="revealed.has(f.key) ? 'text' : 'password'"
                 :disabled="saving"
                 autocomplete="off" spellcheck="false"
-                :placeholder="f.label"
+                :placeholder="t(`acheron.changePassword.${f.key}`)"
               />
               <button
                 v-if="f.key === 'next'"
                 type="button" class="gen-btn" tabindex="-1"
-                aria-label="Generar contraseña"
+                :aria-label="t('acheron.generate')"
                 :disabled="saving"
                 @click="generateNext"
               >
@@ -40,7 +39,7 @@
               </button>
               <button
                 type="button" class="reveal-btn" tabindex="-1"
-                :aria-label="revealed.has(f.key) ? 'Ocultar' : 'Mostrar'"
+                :aria-label="revealed.has(f.key) ? t('acheron.hide') : t('acheron.show')"
                 @click="toggleReveal(f.key)"
               >
                 <svg v-if="revealed.has(f.key)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
@@ -55,11 +54,11 @@
           <div class="modal-actions">
             <span class="spacer"></span>
             <button type="button" class="btn-ghost" :disabled="saving" @click="$emit('close')">
-              Cancelar
+              {{ t('common.cancel') }}
             </button>
             <button type="submit" class="btn-primary" :disabled="saving">
               <span v-if="saving" class="spinner" aria-hidden="true"></span>
-              {{ saving ? 'Aplicando…' : 'Cambiar contraseña' }}
+              {{ saving ? t('acheron.changePassword.applying') : t('acheron.changePassword.submit') }}
             </button>
           </div>
         </form>
@@ -72,6 +71,9 @@
 import { reactive, ref, computed, watch, nextTick } from 'vue'
 import PasswordStrengthMeter from './PasswordStrengthMeter.vue'
 import { generatePassword } from '@projectellysia/acheron-core-js'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -82,11 +84,8 @@ const emit = defineEmits(['save', 'close'])
 
 const MIN_LENGTH = 8
 
-const fields = [
-  { key: 'current', label: 'Contraseña actual' },
-  { key: 'next', label: 'Nueva contraseña' },
-  { key: 'confirm', label: 'Repite la nueva contraseña' },
-]
+/** Campos del formulario; su rótulo está en `acheron.changePassword.<key>`. */
+const fields = [{ key: 'current' }, { key: 'next' }, { key: 'confirm' }]
 
 const form = reactive({ current: '', next: '', confirm: '' })
 const revealed = reactive(new Set())
@@ -123,13 +122,13 @@ function generateNext() {
 }
 
 function validate() {
-  if (!form.current) return 'Introduce tu contraseña actual.'
-  if (!form.next) return 'Introduce la nueva contraseña.'
+  if (!form.current) return t('acheron.changePassword.errors.current')
+  if (!form.next) return t('acheron.changePassword.errors.next')
   if (form.next.length < MIN_LENGTH) {
-    return `La nueva contraseña debe tener al menos ${MIN_LENGTH} caracteres.`
+    return t('acheron.changePassword.errors.tooShort', { min: MIN_LENGTH })
   }
-  if (form.next !== form.confirm) return 'Las contraseñas nuevas no coinciden.'
-  if (form.next === form.current) return 'La nueva contraseña debe ser distinta de la actual.'
+  if (form.next !== form.confirm) return t('acheron.changePassword.errors.mismatch')
+  if (form.next === form.current) return t('acheron.changePassword.errors.same')
   return ''
 }
 

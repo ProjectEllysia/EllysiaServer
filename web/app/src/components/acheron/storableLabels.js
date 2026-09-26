@@ -1,6 +1,8 @@
 /**
  * Presentación de los tipos de storable: lo que se ve en pantalla y cómo se
- * comporta el formulario. Es la otra mitad de `storableSchema.js`, y la que
+ * comporta el formulario. Los textos no están aquí sino en los ficheros de
+ * idioma; cada entrada lleva la clave de su rótulo (`labelKey`, y en el tipo
+ * también `pluralKey` y `newLabelKey`). Es la otra mitad de `storableSchema.js`, y la que
  * NO viaja al paquete compartido — la extensión de navegador no pinta este
  * formulario y no necesita estas cadenas.
  *
@@ -10,7 +12,7 @@
  * un campo sin etiqueta pinta un `undefined`, y una etiqueta sin campo es
  * código muerto que nadie ve.
  *
- * Por campo, más de `label`:
+ * Por campo, más de `labelKey`:
  *   - prefill:   en EDICIÓN se pre-rellena con el valor actual. Los secretos
  *                más sensibles (contraseña, PAN, CVV) van a false: se dejan en
  *                blanco y solo se reescriben si el usuario teclea algo.
@@ -26,66 +28,73 @@
  */
 export const STORABLE_LABELS = {
   account: {
-    label: 'Cuenta', plural: 'Cuentas', newLabel: 'Nueva cuenta', subtitleKey: 'username',
+    labelKey: 'acheron.types.account.label', pluralKey: 'acheron.types.account.plural', newLabelKey: 'acheron.types.account.newLabel',
+    subtitleKey: 'username',
     fields: {
-      username: { label: 'Usuario / Email' },
-      domain: { label: 'Dominio / Servicio' },
-      password: { label: 'Contraseña', prefill: false },
+      username: { labelKey: 'acheron.fields.account.username' },
+      domain: { labelKey: 'acheron.fields.account.domain' },
+      password: { labelKey: 'acheron.fields.account.password', prefill: false },
     },
   },
   creditcard: {
-    label: 'Tarjeta', plural: 'Tarjetas', newLabel: 'Nueva tarjeta', subtitleKey: 'cardNumber',
+    labelKey: 'acheron.types.creditcard.label', pluralKey: 'acheron.types.creditcard.plural', newLabelKey: 'acheron.types.creditcard.newLabel',
+    subtitleKey: 'cardNumber',
     fields: {
-      cardHolderName: { label: 'Titular' },
-      cardNumber: { label: 'Número de tarjeta', prefill: false, numeric: true, minLength: 4 },
-      expirationDate: { label: 'Caducidad (MM/YY)' },
-      cvv: { label: 'CVV', prefill: false, numeric: true },
-      postalCode: { label: 'Código postal' },
+      cardHolderName: { labelKey: 'acheron.fields.creditcard.cardHolderName' },
+      cardNumber: { labelKey: 'acheron.fields.creditcard.cardNumber', prefill: false, numeric: true, minLength: 4 },
+      expirationDate: { labelKey: 'acheron.fields.creditcard.expirationDate' },
+      cvv: { labelKey: 'acheron.fields.creditcard.cvv', prefill: false, numeric: true },
+      postalCode: { labelKey: 'acheron.fields.creditcard.postalCode' },
     },
   },
   securenote: {
-    label: 'Nota segura', plural: 'Notas', newLabel: 'Nueva nota', subtitleKey: 'content',
+    labelKey: 'acheron.types.securenote.label', pluralKey: 'acheron.types.securenote.plural', newLabelKey: 'acheron.types.securenote.newLabel',
+    subtitleKey: 'content',
     fields: {
-      content: { label: 'Contenido', multiline: true },
+      content: { labelKey: 'acheron.fields.securenote.content', multiline: true },
     },
   },
   identity: {
-    label: 'Identidad', plural: 'Identidades', newLabel: 'Nueva identidad', subtitleKey: 'fullName',
+    labelKey: 'acheron.types.identity.label', pluralKey: 'acheron.types.identity.plural', newLabelKey: 'acheron.types.identity.newLabel',
+    subtitleKey: 'fullName',
     fields: {
-      fullName: { label: 'Nombre completo' },
-      email: { label: 'Email' },
-      phone: { label: 'Teléfono' },
-      address: { label: 'Dirección' },
-      city: { label: 'Ciudad' },
-      country: { label: 'País' },
-      documentId: { label: 'Documento (DNI/Pasaporte)' },
+      fullName: { labelKey: 'acheron.fields.identity.fullName' },
+      email: { labelKey: 'acheron.fields.identity.email' },
+      phone: { labelKey: 'acheron.fields.identity.phone' },
+      address: { labelKey: 'acheron.fields.identity.address' },
+      city: { labelKey: 'acheron.fields.identity.city' },
+      country: { labelKey: 'acheron.fields.identity.country' },
+      documentId: { labelKey: 'acheron.fields.identity.documentId' },
     },
   },
   bankaccount: {
-    label: 'Cuenta bancaria', plural: 'Bancos', newLabel: 'Nueva cuenta bancaria', subtitleKey: 'bankName',
+    labelKey: 'acheron.types.bankaccount.label', pluralKey: 'acheron.types.bankaccount.plural', newLabelKey: 'acheron.types.bankaccount.newLabel',
+    subtitleKey: 'bankName',
     fields: {
-      bankName: { label: 'Banco' },
-      holder: { label: 'Titular' },
-      iban: { label: 'IBAN' },
-      swiftBic: { label: 'SWIFT / BIC' },
-      accountNumber: { label: 'Número de cuenta' },
+      bankName: { labelKey: 'acheron.fields.bankaccount.bankName' },
+      holder: { labelKey: 'acheron.fields.bankaccount.holder' },
+      iban: { labelKey: 'acheron.fields.bankaccount.iban' },
+      swiftBic: { labelKey: 'acheron.fields.bankaccount.swiftBic' },
+      accountNumber: { labelKey: 'acheron.fields.bankaccount.accountNumber' },
     },
   },
   wifi: {
-    label: 'Wi-Fi', plural: 'Wi-Fi', newLabel: 'Nueva red Wi-Fi', subtitleKey: 'ssid',
+    labelKey: 'acheron.types.wifi.label', pluralKey: 'acheron.types.wifi.plural', newLabelKey: 'acheron.types.wifi.newLabel',
+    subtitleKey: 'ssid',
     fields: {
-      ssid: { label: 'Nombre de red (SSID)' },
-      password: { label: 'Contraseña', prefill: false },
-      securityType: { label: 'Seguridad (WPA2/WPA3)' },
+      ssid: { labelKey: 'acheron.fields.wifi.ssid' },
+      password: { labelKey: 'acheron.fields.wifi.password', prefill: false },
+      securityType: { labelKey: 'acheron.fields.wifi.securityType' },
     },
   },
   license: {
-    label: 'Licencia', plural: 'Licencias', newLabel: 'Nueva licencia', subtitleKey: 'product',
+    labelKey: 'acheron.types.license.label', pluralKey: 'acheron.types.license.plural', newLabelKey: 'acheron.types.license.newLabel',
+    subtitleKey: 'product',
     fields: {
-      product: { label: 'Producto' },
-      licenseKey: { label: 'Clave de licencia' },
-      licensedTo: { label: 'Licenciado a' },
-      version: { label: 'Versión' },
+      product: { labelKey: 'acheron.fields.license.product' },
+      licenseKey: { labelKey: 'acheron.fields.license.licenseKey' },
+      licensedTo: { labelKey: 'acheron.fields.license.licensedTo' },
+      version: { labelKey: 'acheron.fields.license.version' },
     },
   },
 }

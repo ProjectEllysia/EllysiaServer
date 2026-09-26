@@ -4,7 +4,7 @@
       <div class="modal-card" role="dialog" aria-modal="true">
         <header class="modal-head">
           <h2 class="modal-title">{{ headerTitle }}</h2>
-          <button class="modal-close" aria-label="Cerrar" @click="$emit('close')">
+          <button class="modal-close" :aria-label="t('common.close')" @click="$emit('close')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </header>
@@ -12,35 +12,35 @@
         <!-- Selector de tipo (solo al añadir, antes de elegir) -->
         <div v-if="mode === 'add' && !selectedCategory" class="type-grid">
           <button
-            v-for="t in STORABLE_TYPES" :key="t.kind"
+            v-for="option in STORABLE_TYPES" :key="option.kind"
             type="button" class="type-btn"
-            @click="pickType(t.category)"
+            @click="pickType(option.category)"
           >
-            <span class="type-btn-label">{{ t.label }}</span>
-            <span class="type-btn-sub">{{ t.newLabel }}</span>
+            <span class="type-btn-label">{{ t(option.labelKey) }}</span>
+            <span class="type-btn-sub">{{ t(option.newLabelKey) }}</span>
           </button>
         </div>
 
         <!-- Formulario de campos -->
         <form v-else class="modal-form" @submit.prevent="submit">
           <label class="form-field">
-            <span class="form-label">Título</span>
+            <span class="form-label">{{ t('acheron.form.title') }}</span>
             <input
               ref="firstInput" v-model.trim="form.title" type="text"
-              :disabled="saving" placeholder="Nombre para reconocerlo"
+              :disabled="saving" :placeholder="t('acheron.form.titlePlaceholder')"
             />
           </label>
 
           <label v-for="f in type.fields" :key="f.key" class="form-field">
             <span class="form-label">
-              {{ f.label }}
-              <span v-if="mode === 'edit' && f.prefill === false" class="form-hint">(en blanco = sin cambios)</span>
+              {{ t(f.labelKey) }}
+              <span v-if="mode === 'edit' && f.prefill === false" class="form-hint">{{ t('acheron.form.blankUnchanged') }}</span>
             </span>
 
             <textarea
               v-if="f.multiline"
               v-model="form[f.key]" :disabled="saving" rows="4"
-              :placeholder="f.label"
+              :placeholder="t(f.labelKey)"
             ></textarea>
 
             <div v-else class="form-input">
@@ -50,11 +50,11 @@
                 :inputmode="f.numeric ? 'numeric' : 'text'"
                 :disabled="saving"
                 autocomplete="off" spellcheck="false"
-                :placeholder="f.label"
+                :placeholder="t(f.labelKey)"
               />
               <button
                 v-if="f.secret" type="button" class="reveal-btn" tabindex="-1"
-                :aria-label="revealed.has(f.key) ? 'Ocultar' : 'Mostrar'"
+                :aria-label="revealed.has(f.key) ? t('acheron.hide') : t('acheron.show')"
                 @click="toggleReveal(f.key)"
               >
                 <svg v-if="revealed.has(f.key)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
@@ -70,15 +70,15 @@
               v-if="mode === 'add'" type="button" class="btn-ghost"
               :disabled="saving" @click="selectedCategory = null"
             >
-              ← Tipo
+              ← {{ t('acheron.form.type') }}
             </button>
             <span class="spacer"></span>
             <button type="button" class="btn-ghost" :disabled="saving" @click="$emit('close')">
-              Cancelar
+              {{ t('common.cancel') }}
             </button>
             <button type="submit" class="btn-primary" :disabled="saving">
               <span v-if="saving" class="spinner" aria-hidden="true"></span>
-              {{ saving ? 'Guardando…' : 'Guardar' }}
+              {{ saving ? t('common.saving') : t('common.save') }}
             </button>
           </div>
         </form>
@@ -90,6 +90,9 @@
 <script setup>
 import { ref, reactive, computed, watch, nextTick } from 'vue'
 import { STORABLE_TYPES, TYPE_BY_CATEGORY } from '@/components/acheron/storableTypes.js'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -111,8 +114,10 @@ const type = computed(() =>
   selectedCategory.value ? TYPE_BY_CATEGORY[selectedCategory.value] : null,
 )
 const headerTitle = computed(() => {
-  if (props.mode === 'edit') return `Editar ${type.value?.label ?? 'elemento'}`
-  return selectedCategory.value ? type.value.newLabel : 'Nuevo elemento'
+  if (props.mode === 'edit') {
+    return t('acheron.form.edit', { type: type.value ? t(type.value.labelKey) : t('acheron.form.item') })
+  }
+  return selectedCategory.value ? t(type.value.newLabelKey) : t('acheron.form.newItem')
 })
 const displayError = computed(() => localError.value || props.serverError)
 
@@ -152,16 +157,16 @@ function toggleReveal(key) {
 }
 
 function validate() {
-  if (!form.title?.trim()) return 'El título es obligatorio.'
+  if (!form.title?.trim()) return t('acheron.form.titleRequired')
   for (const f of type.value.fields) {
     const v = (form[f.key] ?? '').toString().trim()
     const optionalOnEdit = props.mode === 'edit' && f.prefill === false
     if (!v) {
-      if (!optionalOnEdit) return `El campo «${f.label}» es obligatorio.`
+      if (!optionalOnEdit) return t('acheron.form.fieldRequired', { field: t(f.labelKey) })
       continue // secreto no-prefill vacío en edición = sin cambios
     }
     if (f.minLength && v.length < f.minLength) {
-      return `«${f.label}» debe tener al menos ${f.minLength} caracteres.`
+      return t('acheron.form.fieldTooShort', { field: t(f.labelKey), min: f.minLength })
     }
   }
   return ''
