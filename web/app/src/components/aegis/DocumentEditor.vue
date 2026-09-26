@@ -1,88 +1,88 @@
 <template>
   <div class="editor">
     <div class="editor-toolbar">
-      <span class="doc-id">Editando Doc #{{ doc.id }}</span>
+      <span class="doc-id">{{ t('aegis.editor.editing', { id: doc.id }) }}</span>
       <div class="toolbar-spacer"></div>
-      <button type="button" class="toolbar-btn" :disabled="saving" @click="emit('cancel')">Cancelar</button>
+      <button type="button" class="toolbar-btn" :disabled="saving" @click="emit('cancel')">{{ t('common.cancel') }}</button>
       <button type="button" class="toolbar-btn toolbar-save" :disabled="saving" @click="save">
-        {{ saving ? 'Guardando…' : 'Guardar' }}
+        {{ saving ? t('common.saving') : t('common.save') }}
       </button>
     </div>
 
     <div class="editor-body">
       <!-- ── TÍTULO ── -->
       <section class="editor-section">
-        <label class="field-label" for="ed-subtitle">Título</label>
+        <label class="field-label" for="ed-subtitle">{{ t('iris.strip.title') }}</label>
         <input
           id="ed-subtitle"
           v-model="form.subtitle"
           type="text"
           class="field-input field-title"
           maxlength="256"
-          placeholder="Título de la píldora"
+          :placeholder="t('aegis.editor.titlePlaceholder')"
         />
         <p v-if="errors.subtitle" class="field-error">{{ errors.subtitle }}</p>
       </section>
 
       <!-- ── INTRODUCCIÓN ── -->
       <section class="editor-section">
-        <label class="field-label" for="ed-intro">Introducción</label>
+        <label class="field-label" for="ed-intro">{{ t('aegis.editor.intro') }}</label>
         <textarea
           id="ed-intro"
           v-model="form.intro"
           class="field-input field-area"
           rows="6"
-          placeholder="Texto introductorio. Separa los párrafos con una línea en blanco."
+          :placeholder="t('aegis.editor.introPlaceholder')"
         ></textarea>
       </section>
 
       <!-- ── RECOMENDACIONES ── -->
       <section class="editor-section">
         <div class="section-head">
-          <span class="field-label">Recomendaciones</span>
-          <button type="button" class="add-btn add-btn--primary" @click="addTip">+ Añadir recomendación</button>
+          <span class="field-label">{{ t('iris.report.recommendations') }}</span>
+          <button type="button" class="add-btn add-btn--primary" @click="addTip">{{ t('aegis.editor.addTip') }}</button>
         </div>
 
-        <div v-if="!form.tips.length" class="empty-hint">Sin recomendaciones. Añade la primera.</div>
+        <div v-if="!form.tips.length" class="empty-hint">{{ t('aegis.editor.noTips') }}</div>
 
         <div v-for="(tip, i) in form.tips" :key="i" class="tip-card">
           <div class="tip-card-head">
             <span class="tip-num">{{ i + 1 }}</span>
             <div class="tip-card-actions">
-              <button type="button" class="icon-btn" title="Subir" :disabled="i === 0" @click="moveTip(i, -1)">↑</button>
-              <button type="button" class="icon-btn" title="Bajar" :disabled="i === form.tips.length - 1" @click="moveTip(i, 1)">↓</button>
-              <button type="button" class="icon-btn icon-danger" title="Eliminar" @click="removeTip(i)">✕</button>
+              <button type="button" class="icon-btn" :title="t('aegis.editor.moveUp')" :disabled="i === 0" @click="moveTip(i, -1)">↑</button>
+              <button type="button" class="icon-btn" :title="t('aegis.editor.moveDown')" :disabled="i === form.tips.length - 1" @click="moveTip(i, 1)">↓</button>
+              <button type="button" class="icon-btn icon-danger" :title="t('common.delete')" @click="removeTip(i)">✕</button>
             </div>
           </div>
 
-          <label class="field-sublabel">Título de la recomendación</label>
+          <label class="field-sublabel">{{ t('aegis.editor.tipTitle') }}</label>
           <input
             v-model="tip.headline"
             type="text"
             class="field-input"
             maxlength="150"
-            placeholder="Título de la recomendación"
+            :placeholder="t('aegis.editor.tipTitle')"
           />
           <p v-if="errors.tips[i]?.headline" class="field-error">{{ errors.tips[i].headline }}</p>
 
-          <label class="field-sublabel">Cuerpo</label>
+          <label class="field-sublabel">{{ t('aegis.editor.body') }}</label>
           <textarea
             v-model="tip.body"
             class="field-input field-area"
             rows="3"
-            placeholder="Desarrollo de la recomendación"
+            :placeholder="t('aegis.editor.bodyPlaceholder')"
           ></textarea>
           <p v-if="errors.tips[i]?.body" class="field-error">{{ errors.tips[i].body }}</p>
 
           <div class="links-block">
             <div class="section-head">
-              <span class="field-sublabel">Enlaces</span>
-              <button type="button" class="add-btn add-btn--sm" @click="addLink(tip)">+ Enlace</button>
+              <span class="field-sublabel">{{ t('aegis.editor.links') }}</span>
+              <button type="button" class="add-btn add-btn--sm" @click="addLink(tip)">{{ t('aegis.editor.addLink') }}</button>
             </div>
             <div v-for="(link, j) in tip.links" :key="j" class="link-row">
-              <input v-model="link.text" type="text" class="field-input link-text" placeholder="Texto" />
-              <input v-model="link.url" type="url" class="field-input link-url" placeholder="https://…" />
-              <button type="button" class="icon-btn icon-danger" title="Quitar enlace" @click="removeLink(tip, j)">✕</button>
+              <input v-model="link.text" type="text" class="field-input link-text" :placeholder="t('aegis.editor.linkText')" />
+              <input v-model="link.url" type="url" class="field-input link-url" :placeholder="'https://…'" />
+              <button type="button" class="icon-btn icon-danger" :title="t('aegis.editor.removeLink')" @click="removeLink(tip, j)">✕</button>
             </div>
           </div>
         </div>
@@ -91,51 +91,48 @@
       <!-- ── PREGUNTAS DEL TEST ── -->
       <section class="editor-section">
         <div class="section-head">
-          <span class="field-label">Preguntas del test</span>
+          <span class="field-label">{{ t('aegis.editor.questions') }}</span>
           <button
             type="button"
             class="add-btn add-btn--primary"
             :disabled="form.questions.length >= maxQuestions"
             @click="addQuestion"
-          >+ Añadir pregunta</button>
+          >{{ t('aegis.editor.addQuestion') }}</button>
         </div>
 
-        <p class="section-hint">
-          Sin preguntas no se puede lanzar una campaña. Marca la opción correcta de cada una.
-          Máximo {{ maxQuestions }} preguntas de {{ maxOptions }} opciones.
-        </p>
+        <p class="section-hint">{{ t('aegis.editor.questionsHint', { questions: maxQuestions, options: maxOptions }) }}</p>
 
-        <div v-if="!form.questions.length" class="empty-hint">Sin preguntas. Añade la primera.</div>
+        <div v-if="!form.questions.length" class="empty-hint">{{ t('aegis.editor.noQuestions') }}</div>
 
         <div v-for="(question, i) in form.questions" :key="i" class="tip-card">
           <div class="tip-card-head">
             <span class="tip-num">{{ i + 1 }}</span>
             <div class="tip-card-actions">
-              <button type="button" class="icon-btn" title="Subir" :disabled="i === 0" @click="moveQuestion(i, -1)">↑</button>
-              <button type="button" class="icon-btn" title="Bajar" :disabled="i === form.questions.length - 1" @click="moveQuestion(i, 1)">↓</button>
-              <button type="button" class="icon-btn icon-danger" title="Eliminar" @click="removeQuestion(i)">✕</button>
+              <button type="button" class="icon-btn" :title="t('aegis.editor.moveUp')" :disabled="i === 0" @click="moveQuestion(i, -1)">↑</button>
+              <button type="button" class="icon-btn" :title="t('aegis.editor.moveDown')" :disabled="i === form.questions.length - 1" @click="moveQuestion(i, 1)">↓</button>
+              <button type="button" class="icon-btn icon-danger" :title="t('common.delete')" @click="removeQuestion(i)">✕</button>
             </div>
           </div>
 
-          <label class="field-sublabel">Enunciado</label>
+          <label class="field-sublabel">{{ t('aegis.editor.prompt') }}</label>
           <textarea
             v-model="question.prompt"
             class="field-input field-area"
             rows="2"
             maxlength="300"
-            placeholder="¿Qué harías si recibes un SMS que dice ser de tu banco?"
+            :placeholder="t('aegis.editor.promptPlaceholder')"
           ></textarea>
           <p v-if="errors.questions[i]?.prompt" class="field-error">{{ errors.questions[i].prompt }}</p>
 
           <div class="links-block">
             <div class="section-head">
-              <span class="field-sublabel">Opciones · marca la correcta</span>
+              <span class="field-sublabel">{{ t('aegis.editor.options') }}</span>
               <button
                 type="button"
                 class="add-btn add-btn--sm"
                 :disabled="question.options.length >= maxOptions"
                 @click="addOption(question)"
-              >+ Opción</button>
+              >{{ t('aegis.editor.addOption') }}</button>
             </div>
 
             <div v-for="(option, j) in question.options" :key="j" class="option-row">
@@ -144,8 +141,8 @@
                 class="option-radio"
                 :name="`correct-${i}`"
                 :checked="question.correctIndex === j"
-                :title="`Marcar la opción ${j + 1} como correcta`"
-                :aria-label="`Opción ${j + 1} correcta`"
+                :title="t('aegis.editor.markCorrect', { n: j + 1 })"
+                :aria-label="t('aegis.editor.correctOption', { n: j + 1 })"
                 @change="question.correctIndex = j"
               />
               <input
@@ -153,12 +150,12 @@
                 type="text"
                 class="field-input option-text"
                 maxlength="200"
-                :placeholder="`Opción ${j + 1}`"
+                :placeholder="t('aegis.editor.option', { n: j + 1 })"
               />
               <button
                 type="button"
                 class="icon-btn icon-danger"
-                title="Quitar opción"
+                :title="t('aegis.editor.removeOption')"
                 :disabled="question.options.length <= MIN_OPTIONS"
                 @click="removeOption(question, j)"
               >✕</button>
@@ -170,26 +167,26 @@
 
       <!-- ── CIERRE ── -->
       <section class="editor-section">
-        <label class="field-label" for="ed-closing">Cierre</label>
+        <label class="field-label" for="ed-closing">{{ t('aegis.editor.closing') }}</label>
         <textarea
           id="ed-closing"
           v-model="form.closing"
           class="field-input field-area"
           rows="3"
-          placeholder="Conclusión o llamada a la acción"
+          :placeholder="t('aegis.editor.closingPlaceholder')"
         ></textarea>
       </section>
 
       <!-- ── CONTACTO ── -->
       <section class="editor-section">
-        <label class="field-label" for="ed-contact">Email de contacto</label>
+        <label class="field-label" for="ed-contact">{{ t('aegis.editor.contact') }}</label>
         <input
           id="ed-contact"
           v-model="form.contactEmail"
           type="email"
           class="field-input"
           maxlength="128"
-          placeholder="seguridad@empresa.com"
+          :placeholder="t('aegis.editor.contactPlaceholder')"
         />
       </section>
     </div>
@@ -198,6 +195,9 @@
 
 <script setup>
 import { reactive } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   doc: { type: Object, required: true },
@@ -291,27 +291,27 @@ function validate() {
   let ok = true
 
   if (!form.subtitle.trim()) {
-    errors.subtitle = 'El título es obligatorio.'
+    errors.subtitle = t('aegis.editor.errors.titleRequired')
     ok = false
   }
   form.tips.forEach((tip, i) => {
-    if (!tip.headline.trim()) { errors.tips[i].headline = 'El título es obligatorio.'; ok = false }
-    else if (tip.headline.length > 150) { errors.tips[i].headline = 'Máximo 150 caracteres.'; ok = false }
-    if (!tip.body.trim()) { errors.tips[i].body = 'El cuerpo es obligatorio.'; ok = false }
+    if (!tip.headline.trim()) { errors.tips[i].headline = t('aegis.editor.errors.titleRequired'); ok = false }
+    else if (tip.headline.length > 150) { errors.tips[i].headline = t('aegis.editor.errors.max', { max: 150 }); ok = false }
+    if (!tip.body.trim()) { errors.tips[i].body = t('aegis.editor.errors.bodyRequired'); ok = false }
   })
   form.questions.forEach((question, i) => {
-    if (!question.prompt.trim()) { errors.questions[i].prompt = 'El enunciado es obligatorio.'; ok = false }
-    else if (question.prompt.length > 300) { errors.questions[i].prompt = 'Máximo 300 caracteres.'; ok = false }
+    if (!question.prompt.trim()) { errors.questions[i].prompt = t('aegis.editor.errors.promptRequired'); ok = false }
+    else if (question.prompt.length > 300) { errors.questions[i].prompt = t('aegis.editor.errors.max', { max: 300 }); ok = false }
 
     const filled = question.options.filter(o => o.trim())
     if (filled.length !== question.options.length) {
-      errors.questions[i].options = 'No dejes ninguna opción vacía.'
+      errors.questions[i].options = t('aegis.editor.errors.emptyOption')
       ok = false
     } else if (filled.length < MIN_OPTIONS || filled.length > maxOptions) {
-      errors.questions[i].options = `Cada pregunta necesita entre ${MIN_OPTIONS} y ${maxOptions} opciones.`
+      errors.questions[i].options = t('aegis.editor.errors.optionCount', { min: MIN_OPTIONS, max: maxOptions })
       ok = false
     } else if (question.correctIndex < 0 || question.correctIndex >= question.options.length) {
-      errors.questions[i].options = 'Marca cuál es la opción correcta.'
+      errors.questions[i].options = t('aegis.editor.errors.markCorrect')
       ok = false
     }
   })

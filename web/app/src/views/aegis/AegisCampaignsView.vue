@@ -1,19 +1,19 @@
 <template>
   <div class="campaigns-page" data-module="aegis">
     <StarBackground />
-    <Topbar title="Aegis" badge="Campañas" back-to="/aegis/generador" back-label="Generador" />
+    <Topbar :title="'Aegis'" :badge="t('aegisView.campaigns')" back-to="/aegis/generador" :back-label="t('aegisCampaigns.generator')" />
 
     <div class="campaigns-layout">
       <!-- Píldoras que tienen alguna campaña, de la más reciente a la más antigua -->
-      <aside class="panel panel--pills" aria-label="Píldoras con campañas">
+      <aside class="panel panel--pills" :aria-label="t('aegisCampaigns.pillsLabel')">
         <header class="panel-head">
-          <h2>Píldoras</h2>
+          <h2>{{ t('aegisCampaigns.pills') }}</h2>
           <button
             type="button"
             class="btn-icon"
             :class="{ spinning: store.loadingCampaigns }"
-            title="Refrescar"
-            aria-label="Refrescar campañas"
+            :title="t('aegisCampaigns.refresh')"
+            :aria-label="t('aegisCampaigns.refreshLabel')"
             @click="refresh"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
@@ -21,14 +21,14 @@
         </header>
 
         <div class="panel-scroll">
-          <p v-if="!loaded" class="panel-note">Cargando campañas…</p>
+          <p v-if="!loaded" class="panel-note">{{ t('aegisCampaigns.loading') }}</p>
           <div v-else-if="store.campaignsError" class="panel-note panel-note--error">
             <p>{{ store.campaignsError }}</p>
-            <button type="button" class="retry" @click="refresh">Reintentar</button>
+            <button type="button" class="retry" @click="refresh">{{ t('common.retry') }}</button>
           </div>
           <div v-else-if="!pills.length" class="panel-note">
-            <p>Aún no has lanzado ninguna campaña.</p>
-            <router-link to="/aegis/generador" class="inline-link">Abre una píldora en el generador y lánzala</router-link>
+            <p>{{ t('aegisCampaigns.empty') }}</p>
+            <router-link to="/aegis/generador" class="inline-link">{{ t('aegisCampaigns.emptyLink') }}</router-link>
           </div>
 
           <button
@@ -42,43 +42,42 @@
           >
             <span class="pill-title">{{ pill.title }}</span>
             <span class="pill-meta">
-              {{ pill.campaigns.length }} campaña{{ pill.campaigns.length === 1 ? '' : 's' }}
-              · última el {{ formatDate(pill.lastAt) }}
+              {{ t('aegisCampaigns.pillMeta', { count: pill.campaigns.length, date: formatDate(pill.lastAt) }, pill.campaigns.length) }}
             </span>
           </button>
         </div>
       </aside>
 
       <!-- Campañas de la píldora elegida y su resumen conjunto -->
-      <section class="panel panel--campaigns" aria-label="Campañas de la píldora">
+      <section class="panel panel--campaigns" :aria-label="t('aegisCampaigns.pillCampaignsLabel')">
         <template v-if="selectedPill">
           <header class="pill-head">
-            <p class="eyebrow">Píldora</p>
+            <p class="eyebrow">{{ t('aegisCampaigns.pill') }}</p>
             <h2 class="pill-heading">{{ selectedPill.title }}</h2>
           </header>
 
           <div class="summary-grid">
             <div class="stat">
               <span class="stat-value">{{ selectedPill.summary.campaignCount }}</span>
-              <span class="stat-label">Campañas</span>
+              <span class="stat-label">{{ t('aegisView.campaigns') }}</span>
             </div>
             <div class="stat">
               <span class="stat-value">{{ selectedPill.summary.recipientCount }}</span>
-              <span class="stat-label">Personas</span>
+              <span class="stat-label">{{ t('aegisCampaigns.people') }}</span>
             </div>
             <div class="stat">
               <span class="stat-value">{{ selectedPill.summary.openRate }}%</span>
-              <span class="stat-label">Abrieron el enlace</span>
+              <span class="stat-label">{{ t('aegisCampaigns.opened') }}</span>
             </div>
             <div class="stat">
               <span class="stat-value">{{ selectedPill.summary.completionRate }}%</span>
-              <span class="stat-label">Completaron el test</span>
+              <span class="stat-label">{{ t('aegisCampaigns.completed') }}</span>
             </div>
             <div class="stat">
               <span class="stat-value">
                 {{ selectedPill.summary.averageScorePercent == null ? '—' : `${selectedPill.summary.averageScorePercent}%` }}
               </span>
-              <span class="stat-label">Aciertos de media</span>
+              <span class="stat-label">{{ t('aegisCampaigns.averageHits') }}</span>
             </div>
           </div>
 
@@ -93,7 +92,7 @@
               @click="selectCampaign(campaign.id)"
             >
               <span class="campaign-row-top">
-                <span class="badge" :class="campaignStatusBadge(campaign.status)">{{ campaignStatusLabel(campaign.status) }}</span>
+                <span class="badge" :class="campaignStatusBadge(campaign.status)">{{ t(campaignStatusKey(campaign.status)) }}</span>
                 <span class="campaign-name">{{ campaign.name }}</span>
                 <span class="campaign-date">{{ formatDate(campaign.launchedAt || campaign.createdAt) }}</span>
               </span>
@@ -101,62 +100,62 @@
                 <span class="mini-progress" aria-hidden="true">
                   <span :style="{ width: `${percentOf(campaign.completedCount, campaign.recipientCount)}%` }"></span>
                 </span>
-                <span class="campaign-count">{{ campaign.completedCount }}/{{ campaign.recipientCount }} completaron</span>
+                <span class="campaign-count">{{ t('aegisCampaigns.completedOf', { done: campaign.completedCount, total: campaign.recipientCount }) }}</span>
               </span>
             </button>
           </div>
         </template>
-        <p v-else-if="pills.length" class="panel-note">Elige una píldora para ver sus campañas.</p>
+        <p v-else-if="pills.length" class="panel-note">{{ t('aegisCampaigns.choosePill') }}</p>
       </section>
 
       <!-- Resultados de la campaña elegida -->
-      <section class="panel panel--detail" aria-label="Resultados de la campaña">
-        <p v-if="store.loadingCampaignDetail" class="panel-note">Cargando resultados…</p>
+      <section class="panel panel--detail" :aria-label="t('aegisCampaigns.resultsLabel')">
+        <p v-if="store.loadingCampaignDetail" class="panel-note">{{ t('aegisCampaigns.loadingResults') }}</p>
 
         <template v-else-if="detail">
           <header class="detail-head">
             <div class="detail-title">
-              <span class="badge" :class="campaignStatusBadge(detail.status)">{{ campaignStatusLabel(detail.status) }}</span>
+              <span class="badge" :class="campaignStatusBadge(detail.status)">{{ t(campaignStatusKey(detail.status)) }}</span>
               <h2>{{ detail.name }}</h2>
             </div>
-            <button type="button" class="delete-btn" @click="deleteTarget = detail">Eliminar campaña</button>
+            <button type="button" class="delete-btn" @click="deleteTarget = detail">{{ t('aegisCampaigns.delete') }}</button>
           </header>
           <p class="detail-meta">
-            Creada el {{ formatDate(detail.createdAt) }}<template v-if="detail.launchedAt"> · lanzada el {{ formatMoment(detail.launchedAt) }}</template><template v-if="listName"> · lista «{{ listName }}»</template>
-            · {{ detail.questionCount }} pregunta{{ detail.questionCount === 1 ? '' : 's' }}
+            {{ t('aegisCampaigns.createdOn', { date: formatDate(detail.createdAt) }) }}<template v-if="detail.launchedAt"> · {{ t('aegisCampaigns.launchedOn', { date: formatMoment(detail.launchedAt) }) }}</template><template v-if="listName"> · {{ t('aegisCampaigns.list', { name: listName }) }}</template>
+            · {{ t('aegisCampaigns.questions', { count: detail.questionCount }, detail.questionCount) }}
           </p>
 
           <div class="detail-stats">
             <div class="stat">
               <span class="stat-value">{{ summary.recipientCount }}</span>
-              <span class="stat-label">Destinatarios</span>
+              <span class="stat-label">{{ t('aegisCampaigns.recipients') }}</span>
             </div>
             <div class="stat">
               <span class="stat-value">{{ summary.openedCount }}</span>
-              <span class="stat-label">Abrieron el enlace</span>
+              <span class="stat-label">{{ t('aegisCampaigns.opened') }}</span>
             </div>
             <div class="stat">
               <span class="stat-value">{{ summary.completedCount }}</span>
-              <span class="stat-label">Completaron el test</span>
+              <span class="stat-label">{{ t('aegisCampaigns.completed') }}</span>
             </div>
             <div class="stat">
               <span class="stat-value">{{ averageScoreText }}</span>
-              <span class="stat-label">Nota media</span>
-              <span v-if="averageScorePercent != null" class="stat-sub">{{ averageScorePercent }}% de aciertos</span>
+              <span class="stat-label">{{ t('aegisCampaigns.averageScore') }}</span>
+              <span v-if="averageScorePercent != null" class="stat-sub">{{ t('aegisCampaigns.hitRate', { rate: averageScorePercent }) }}</span>
             </div>
           </div>
 
           <div class="funnel">
             <div class="funnel-row">
-              <span class="funnel-label">Abrieron el enlace</span>
-              <span class="progress" role="img" :aria-label="`${openRate}% abrió el enlace`">
+              <span class="funnel-label">{{ t('aegisCampaigns.opened') }}</span>
+              <span class="progress" role="img" :aria-label="t('aegisCampaigns.openedRate', { rate: openRate })">
                 <span class="progress-fill progress-fill--opened" :style="{ width: `${openRate}%` }"></span>
               </span>
               <span class="funnel-value">{{ openRate }}%</span>
             </div>
             <div class="funnel-row">
-              <span class="funnel-label">Completaron el test</span>
-              <span class="progress" role="img" :aria-label="`${completionRate}% completó el test`">
+              <span class="funnel-label">{{ t('aegisCampaigns.completed') }}</span>
+              <span class="progress" role="img" :aria-label="t('aegisCampaigns.completedRate', { rate: completionRate })">
                 <span class="progress-fill" :style="{ width: `${completionRate}%` }"></span>
               </span>
               <span class="funnel-value">{{ completionRate }}%</span>
@@ -164,13 +163,13 @@
           </div>
 
           <template v-if="detail.questions?.length">
-            <h3 class="section-label">Resultados por pregunta</h3>
+            <h3 class="section-label">{{ t('aegisCampaigns.byQuestion') }}</h3>
             <ol class="questions">
               <li v-for="question in detail.questions" :key="question.position" class="question">
                 <div class="question-head">
                   <span class="question-prompt">{{ question.prompt }}</span>
                   <span class="question-rate">
-                    {{ question.answeredCount ? `${percentOf(question.correctCount, question.answeredCount)}% acertó` : 'Sin respuestas' }}
+                    {{ question.answeredCount ? t('aegisCampaigns.questionRate', { rate: percentOf(question.correctCount, question.answeredCount) }) : t('aegisCampaigns.noAnswers') }}
                   </span>
                 </div>
                 <ul class="options">
@@ -182,7 +181,7 @@
                   >
                     <span class="option-text">
                       {{ option }}
-                      <span v-if="index === question.correctIndex" class="option-tag">Correcta</span>
+                      <span v-if="index === question.correctIndex" class="option-tag">{{ t('aegisCampaigns.correct') }}</span>
                     </span>
                     <span class="option-bar" aria-hidden="true">
                       <span :style="{ width: `${percentOf(question.optionCounts[index], question.answeredCount)}%` }"></span>
@@ -194,18 +193,18 @@
             </ol>
           </template>
 
-          <h3 class="section-label">Destinatarios</h3>
-          <p v-if="!detail.recipients.length" class="panel-note panel-note--inline">Esta campaña todavía no tiene destinatarios.</p>
+          <h3 class="section-label">{{ t('aegisCampaigns.recipients') }}</h3>
+          <p v-if="!detail.recipients.length" class="panel-note panel-note--inline">{{ t('aegisCampaigns.noRecipients') }}</p>
           <div v-else class="table-wrap">
             <table class="recipients">
               <thead>
                 <tr>
-                  <th scope="col">Destinatario</th>
-                  <th scope="col">Estado</th>
-                  <th scope="col">Enviado</th>
-                  <th scope="col">Abrió</th>
-                  <th scope="col">Completó</th>
-                  <th scope="col" class="num">Nota</th>
+                  <th scope="col">{{ t('aegisCampaigns.columns.recipient') }}</th>
+                  <th scope="col">{{ t('aegisCampaigns.columns.status') }}</th>
+                  <th scope="col">{{ t('aegisCampaigns.columns.sent') }}</th>
+                  <th scope="col">{{ t('aegisCampaigns.columns.opened') }}</th>
+                  <th scope="col">{{ t('aegisCampaigns.columns.completed') }}</th>
+                  <th scope="col" class="num">{{ t('aegisCampaigns.columns.score') }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -216,7 +215,7 @@
                   </td>
                   <td class="nowrap">
                     <span class="dot" :class="`dot--${recipient.status}`" aria-hidden="true"></span>
-                    {{ recipientStatusLabel(recipient.status) }}
+                    {{ t(recipientStatusKey(recipient.status)) }}
                   </td>
                   <td class="moment">{{ formatMoment(recipient.sentAt) }}</td>
                   <td class="moment">{{ formatMoment(recipient.openedAt) }}</td>
@@ -229,18 +228,18 @@
         </template>
 
         <div v-else-if="selectedCampaignId" class="panel-note panel-note--error">
-          <p>No se pudieron cargar los resultados.</p>
-          <button type="button" class="retry" @click="store.loadCampaignDetail(selectedCampaignId)">Reintentar</button>
+          <p>{{ t('aegisCampaigns.loadError') }}</p>
+          <button type="button" class="retry" @click="store.loadCampaignDetail(selectedCampaignId)">{{ t('common.retry') }}</button>
         </div>
-        <p v-else-if="selectedPill" class="panel-note">Elige una campaña para ver sus resultados.</p>
+        <p v-else-if="selectedPill" class="panel-note">{{ t('aegisCampaigns.chooseCampaign') }}</p>
       </section>
     </div>
 
     <ConfirmModal
       :show="!!deleteTarget"
-      title="Eliminar campaña"
-      :message="`¿Eliminar «${deleteTarget?.name}»? Los enlaces de quiz ya enviados a sus destinatarios dejarán de funcionar.`"
-      confirm-label="Eliminar"
+      :title="t('aegisCampaigns.delete')"
+      :message="t('aegisCampaigns.deleteConfirm', { name: deleteTarget?.name })"
+      :confirm-label="t('common.delete')"
       danger
       @confirm="confirmDelete"
       @cancel="deleteTarget = null"
@@ -259,14 +258,17 @@ import { useAegisStore } from '@/stores/aegisStore'
 import { useUtils } from '@/composables/useUtils'
 import {
   campaignStatusBadge,
-  campaignStatusLabel,
+  campaignStatusKey,
   percentOf,
-  recipientStatusLabel,
+  recipientStatusKey,
   scorePercent,
   summarizePill,
   summarizeRecipients,
 } from '@/components/aegis/campaigns'
 
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 const store = useAegisStore()
 const route = useRoute()
 const router = useRouter()
@@ -296,7 +298,7 @@ const pills = computed(() => {
   return [...campaignsByPill].map(([id, campaigns]) => ({
     id,
     campaigns,
-    title: titles.get(id) || `Píldora #${id}`,
+    title: titles.get(id) || t('aegisCampaigns.pillFallback', { id }),
     lastAt: campaigns[0].launchedAt || campaigns[0].createdAt,
     summary: summarizePill(campaigns),
   }))

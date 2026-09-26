@@ -1,7 +1,7 @@
 <template>
   <div class="org-profile-panel">
     <button type="button" class="op-header" @click="expanded = !expanded">
-      <h2>Perfil de la organización</h2>
+      <h2>{{ t('aegis.profile.title') }}</h2>
       <span
         class="op-chevron"
         :class="{ 'op-chevron--open': expanded }"
@@ -11,7 +11,7 @@
     </button>
 
     <p v-if="!expanded" class="op-summary">
-      {{ store.tweaks.company || "Sin configurar todavía" }} ·
+      {{ store.tweaks.company || t('aegis.profile.notConfigured') }} ·
       {{ productsSummary }}
     </p>
 
@@ -19,120 +19,114 @@
       <div class="op-collapse-inner">
         <div class="op-body">
           <div class="form-group">
-            <label for="op-company">Empresa</label>
+            <label for="op-company">{{ t('aegis.profile.company') }}</label>
             <input
               id="op-company"
               v-model="store.tweaks.company"
               type="text"
               maxlength="60"
               class="input"
-              placeholder="Nombre de la empresa"
+              :placeholder="t('aegis.profile.companyPlaceholder')"
             />
           </div>
 
           <div class="form-group">
-            <label for="op-contact">Email de contacto</label>
+            <label for="op-contact">{{ t('aegis.editor.contact') }}</label>
             <input
               id="op-contact"
               v-model="store.tweaks.mentionContact"
               type="email"
               maxlength="100"
               class="input"
-              placeholder="contacto@empresa.com"
+              :placeholder="t('aegis.profile.contactPlaceholder')"
             />
           </div>
 
           <div class="form-row">
             <div class="form-group">
-              <label for="op-lang">Idioma</label>
+              <label for="op-lang">{{ t('aegis.profile.language') }}</label>
               <select
                 id="op-lang"
                 v-model="store.tweaks.language"
                 class="input select"
               >
-                <option value="es">Español</option>
-                <option value="en">English</option>
-                <option value="fr">Français</option>
-                <option value="de">Deutsch</option>
+                <option v-for="language in GENERATION_LANGUAGES" :key="language.code" :value="language.code" :lang="language.code">{{ language.name }}</option>
               </select>
             </div>
             <div class="form-group">
-              <label for="op-tone">Tono</label>
+              <label for="op-tone">{{ t('aegis.profile.tone') }}</label>
               <select
                 id="op-tone"
                 v-model="store.tweaks.tone"
                 class="input select"
               >
-                <option value="profesional">Profesional</option>
-                <option value="formal">Formal</option>
-                <option value="cercano">Cercano</option>
-                <option value="tecnico">Técnico</option>
+                <option v-for="tone in TONES" :key="tone" :value="tone">{{ t(`aegis.profile.tones.${tone}`) }}</option>
               </select>
             </div>
           </div>
 
           <div class="form-group">
-            <label for="op-sector">Sector</label>
+            <label for="op-sector">{{ t('aegis.profile.sector') }}</label>
             <input
               id="op-sector"
               v-model="store.tweaks.sector"
               type="text"
               maxlength="40"
               class="input"
-              placeholder="Ej: banca"
+              :placeholder="t('aegis.profile.sectorPlaceholder')"
             />
           </div>
 
           <div class="form-row">
             <div class="form-group">
-              <label for="op-size">Tamaño de empresa</label>
+              <label for="op-size">{{ t('aegis.profile.size') }}</label>
               <select
                 id="op-size"
                 v-model="store.tweaks.companySize"
                 class="input select"
               >
-                <option value="">Sin especificar</option>
-                <option value="micro">Micro (&lt;10)</option>
-                <option value="pequeña">Pequeña (10-50)</option>
-                <option value="mediana">Mediana (50-250)</option>
+                <option value="">{{ t('aegis.profile.unspecified') }}</option>
+                <option value="micro">{{ t('aegis.profile.sizes.micro') }}</option>
+                <option value="pequeña">{{ t('aegis.profile.sizes.small') }}</option>
+                <option value="mediana">{{ t('aegis.profile.sizes.medium') }}</option>
               </select>
             </div>
             <div class="form-group">
-              <label for="op-employees">Nº empleados</label>
+              <label for="op-employees">{{ t('aegis.profile.employees') }}</label>
               <input
                 id="op-employees"
                 v-model.number="store.tweaks.employeeCount"
                 type="number"
                 min="1"
                 class="input"
-                placeholder="Opcional"
+                :placeholder="t('aegis.profile.optional')"
               />
             </div>
           </div>
 
           <div class="form-row">
             <div class="form-group">
-              <label for="op-jurisdiction">Jurisdicción</label>
+              <label for="op-jurisdiction">{{ t('aegis.profile.jurisdiction') }}</label>
               <input
                 id="op-jurisdiction"
                 v-model="store.tweaks.jurisdiction"
                 type="text"
                 maxlength="256"
                 class="input"
-                placeholder="Ej: España (RGPD)"
+                :placeholder="t('aegis.profile.jurisdictionPlaceholder')"
               />
             </div>
             <div class="form-group">
-              <label for="op-workmodel">Modelo de trabajo</label>
+              <label for="op-workmodel">{{ t('aegis.profile.workModel') }}</label>
               <select
                 id="op-workmodel"
                 v-model="store.tweaks.workModel"
                 class="input select"
               >
-                <option value="">Sin especificar</option>
-                <option value="remoto">Remoto</option>
-                <option value="híbrido">Híbrido</option>
-                <option value="presencial">Presencial</option>
+                <option value="">{{ t('aegis.profile.unspecified') }}</option>
+                <option value="remoto">{{ t('aegis.profile.workModels.remote') }}</option>
+                <option value="híbrido">{{ t('aegis.profile.workModels.hybrid') }}</option>
+                <option value="presencial">{{ t('aegis.profile.workModels.onSite') }}</option>
               </select>
             </div>
           </div>
@@ -142,13 +136,13 @@
                seleccionados crecía sin tope y empujaba el buscador, y la de
                resultados desplazaba al botón de guardar. -->
           <div class="form-group">
-            <label>Productos vigilados</label>
+            <label>{{ t('aegis.products.title') }}</label>
             <button
               type="button"
               class="products-btn"
               @click="productsModalOpen = true"
             >
-              <span>Gestionar productos</span>
+              <span>{{ t('aegis.profile.manageProducts') }}</span>
               <span class="products-count">{{ productsSummary }}</span>
             </button>
           </div>
@@ -167,10 +161,10 @@
             <span v-if="store.savingOrgProfile" class="spinner"></span>
             {{
               store.savingOrgProfile
-                ? "Guardando…"
+                ? t('common.saving')
                 : store.orgProfileConfigured
-                  ? "Actualizar perfil"
-                  : "Guardar perfil"
+                  ? t('aegis.profile.update')
+                  : t('aegis.profile.save')
             }}
           </button>
         </div>
@@ -189,8 +183,25 @@ import { ref, computed, onMounted } from "vue";
 import { useAegisStore } from "@/stores/aegisStore";
 import WhiteLabelFields from "@/components/shared/WhiteLabelFields.vue";
 import TrackedProductsModal from "./TrackedProductsModal.vue";
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
 
 const store = useAegisStore();
+
+/**
+ * Idiomas en los que la IA puede escribir la píldora, cada uno con su propio
+ * nombre. Es el idioma del contenido, no el de la interfaz.
+ */
+const GENERATION_LANGUAGES = [
+  { code: "es", name: "Español" },
+  { code: "en", name: "English" },
+  { code: "fr", name: "Français" },
+  { code: "de", name: "Deutsch" },
+];
+
+/** Tonos que acepta la generación; el valor es el que entiende el servidor. */
+const TONES = ["profesional", "formal", "cercano", "tecnico"];
 
 // Colapsado por defecto si ya hay perfil guardado (nada que revisar cada
 // mes); expandido si es la primera vez. Se ajusta tras cargar el perfil.
@@ -209,10 +220,10 @@ const usingInventory = computed(
  * cuenta en el template.
  */
 const productsSummary = computed(() => {
-  if (usingInventory.value) return "productos de mis agentes";
+  if (usingInventory.value) return t('aegis.profile.agentProducts');
   const count = store.trackedProducts.length;
-  if (!count) return "sin productos";
-  return count === 1 ? "1 producto" : `${count} productos`;
+  if (!count) return t('aegis.profile.noProducts');
+  return t('aegis.profile.productCount', { count }, count);
 });
 
 async function handleSave() {
