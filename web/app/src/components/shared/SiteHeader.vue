@@ -10,7 +10,9 @@
     </nav>
 
     <div class="header-actions">
-      <LanguageSelect />
+      <!-- Con sesión el idioma es una preferencia del perfil y se elige desde el
+           menú de cuenta; aquí su rótulo largo descolocaría la cabecera. -->
+      <LanguageSelect v-if="!auth.isAuthenticated" />
 
       <button
         class="icon-btn"
