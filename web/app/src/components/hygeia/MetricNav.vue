@@ -3,7 +3,7 @@
        mismo patrón de tablist que AssetTabs (flechas, Inicio/Fin, tabindex
        dinámico). El catálogo viene de `SERIES`: una sola fuente de verdad
        para lo que se puede trazar. -->
-  <div class="metric-nav" role="tablist" aria-label="Métrica a graficar" @keydown="onKeydown">
+  <div class="metric-nav" role="tablist" :aria-label="t('hygeia.metricNav.label')" @keydown="onKeydown">
     <button
       v-for="(m, index) in options"
       :key="m.key"
@@ -17,7 +17,7 @@
       :tabindex="active === m.key ? 0 : -1"
       @click="$emit('switch', m.key)"
     >
-      {{ m.label }}
+      {{ t(m.labelKey) }}
     </button>
   </div>
 </template>
@@ -25,13 +25,16 @@
 <script setup>
 import { ref, nextTick } from 'vue'
 import { SERIES } from './chartMath'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   active: { type: String, required: true },
 })
 const emit = defineEmits(['switch'])
 
-const options = SERIES.map(({ key, name }) => ({ key, label: name }))
+const options = SERIES.map(({ key, labelKey }) => ({ key, labelKey }))
 
 const tabButtons = ref([])
 

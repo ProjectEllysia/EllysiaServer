@@ -1,14 +1,14 @@
 <template>
   <div class="users-page">
     <StarBackground />
-    <Topbar title="Gestión de Usuarios" />
+    <Topbar :title="t('users.topbar')" />
 
     <main class="main">
       <div class="page-header">
-        <div><h1>Usuarios</h1><p class="subtitle">Administra los usuarios y sus atributos ABAC</p></div>
+        <div><h1>{{ t('users.title') }}</h1><p class="subtitle">{{ t('users.subtitle') }}</p></div>
         <div class="header-right">
-          <span class="user-count">{{ store.users.length }} usuario(s)</span>
-          <button class="btn btn--primary" @click="showCreateModal = true">+ Nuevo Usuario</button>
+          <span class="user-count">{{ t('users.count', { count: store.users.length }, store.users.length) }}</span>
+          <button class="btn btn--primary" @click="showCreateModal = true">{{ t('users.new') }}</button>
         </div>
       </div>
 
@@ -17,21 +17,21 @@
       </div>
 
       <section v-if="store.grouped.root.length" class="role-section">
-        <h2 class="role-heading role-heading--root">Root ({{ store.grouped.root.length }})</h2>
+        <h2 class="role-heading role-heading--root">{{ t('users.roots', { count: store.grouped.root.length }) }}</h2>
         <div class="card-grid"><UserCard v-for="u in store.grouped.root" :key="u.id" :user="u" @details="openDetails(u.id)" /></div>
       </section>
 
       <section v-if="store.grouped.admin.length" class="role-section">
-        <h2 class="role-heading role-heading--admin">Administradores ({{ store.grouped.admin.length }})</h2>
+        <h2 class="role-heading role-heading--admin">{{ t('users.admins', { count: store.grouped.admin.length }) }}</h2>
         <div class="card-grid"><UserCard v-for="u in store.grouped.admin" :key="u.id" :user="u" @details="openDetails(u.id)" /></div>
       </section>
 
       <section v-if="store.grouped.user.length" class="role-section">
-        <h2 class="role-heading role-heading--user">Usuarios ({{ store.grouped.user.length }})</h2>
+        <h2 class="role-heading role-heading--user">{{ t('users.regular', { count: store.grouped.user.length }) }}</h2>
         <div class="card-grid"><UserCard v-for="u in store.grouped.user" :key="u.id" :user="u" @details="openDetails(u.id)" /></div>
       </section>
 
-      <div v-if="!store.loading && store.users.length === 0" class="empty-state">No hay usuarios registrados.</div>
+      <div v-if="!store.loading && store.users.length === 0" class="empty-state">{{ t('users.empty') }}</div>
     </main>
 
     <CreateUserModal :show="showCreateModal" @close="showCreateModal = false" @created="handleCreateUser" ref="createModal" />
@@ -47,6 +47,9 @@ import { useUsersStore } from '@/stores/usersStore'
 import UserCard from '@/components/users/UserCard.vue'
 import CreateUserModal from '@/components/users/CreateUserModal.vue'
 import UserDetailsModal from '@/components/users/UserDetailsModal.vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const store = useUsersStore()
 const showCreateModal = ref(false)

@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { decodeLogPayload } from '@/composables/logTransport'
 import { buildLogQuery } from '@/composables/logWindows'
+import { i18n } from '@/i18n'
 
 /**
  * Store de lectura del log del sistema.
@@ -47,7 +48,7 @@ export const useLogsStore = defineStore('logs', () => {
 
       if (!response?.ok) {
         errorStatus.value = response?.status ?? null
-        error.value = await apiError(response, 'No se pudo cargar el log del sistema.')
+        error.value = await apiError(response, i18n.global.t('logs.loadFailed'))
         return false
       }
 
@@ -60,9 +61,9 @@ export const useLogsStore = defineStore('logs', () => {
       return true
     } catch (cause) {
       errorStatus.value = null
-      error.value = cause instanceof Error
-        ? cause.message
-        : 'No se pudo leer el contenido comprimido del log.'
+      error.value = i18n.global.te(`logs.decode.${cause?.code}`)
+        ? i18n.global.t(`logs.decode.${cause.code}`)
+        : i18n.global.t('logs.decode.unknown')
       return false
     } finally {
       loading.value = false

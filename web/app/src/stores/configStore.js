@@ -3,6 +3,7 @@ import { reactive, ref } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { useToastStore } from '@/stores/toastStore'
 import { useUtils } from '@/composables/useUtils'
+import { i18n } from '@/i18n'
 
 /**
  * Store de configuración del sistema — carga/guarda SecOpsConfig.json.
@@ -45,7 +46,7 @@ export const useConfigStore = defineStore('config', () => {
     loading.value = true
     try {
       const res = await apiFetch('/system')
-      if (!res?.ok) { toast.show('Error al cargar la configuración.', 'error'); return }
+      if (!res?.ok) { toast.show(i18n.global.t('configStore.loadFailed'), 'error'); return }
       const data = await res.json()
       etag = res.headers.get('ETag')
       const flat = flatten(data)
@@ -93,17 +94,17 @@ export const useConfigStore = defineStore('config', () => {
       if (!res?.ok) {
         if (res?.status === 409) {
           toast.show(
-            await apiError(res, 'La configuración cambió desde que la cargaste. Recárgala antes de guardar.'),
+            await apiError(res, i18n.global.t('configStore.conflict')),
             'error',
           )
         } else {
-          toast.show(await apiError(res, 'Error al guardar la configuración.'), 'error')
+          toast.show(await apiError(res, i18n.global.t('configStore.saveFailed')), 'error')
         }
         return false
       }
       etag = res.headers.get('ETag')
       originalFlat = { ...configFlat }
-      toast.show('Configuración guardada.', 'success')
+      toast.show(i18n.global.t('configStore.saved'), 'success')
       return true
     } finally { saving.value = false }
   }

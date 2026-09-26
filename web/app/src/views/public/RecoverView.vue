@@ -4,23 +4,23 @@
 
     <div class="portal">
       <div class="portal-body">
-        <router-link to="/" class="wordmark" aria-label="Ellysia — inicio">
+        <router-link to="/" class="wordmark" :aria-label="t('shell.brandHome')">
           <img class="wordmark-mark" :src="ellysiaIcon" alt="" aria-hidden="true" />
           <span class="wordmark-text">Ellysia</span>
         </router-link>
 
         <!-- ───────── Comprobando el enlace ───────── -->
         <template v-if="state === 'loading'">
-          <h1 class="title">Restablecer clave</h1>
-          <p class="subtitle">Comprobando tu enlace…</p>
+          <h1 class="title">{{ t('resetPassword.title') }}</h1>
+          <p class="subtitle">{{ t('resetPassword.checking') }}</p>
           <div class="title-rule" aria-hidden="true"></div>
           <div class="glyph glyph--loading" aria-hidden="true"></div>
         </template>
 
         <!-- ───────── Enlace inválido ───────── -->
         <template v-else-if="state === 'invalid'">
-          <h1 class="title">Este enlace no vale</h1>
-          <p class="subtitle">Puede que ya lo hayas usado o que haya caducado.</p>
+          <h1 class="title">{{ t('resetPassword.invalidTitle') }}</h1>
+          <p class="subtitle">{{ t('resetPassword.invalidSubtitle') }}</p>
           <div class="title-rule" aria-hidden="true"></div>
 
           <div class="gate-alert gate-alert-warning" role="alert">
@@ -29,19 +29,19 @@
               <line x1="12" y1="8" x2="12" y2="12" />
               <line x1="12" y1="16" x2="12.01" y2="16" />
             </svg>
-            <span>Los enlaces de recuperación caducan a los 30 minutos y solo valen una vez.</span>
+            <span>{{ t('resetPassword.invalidHint') }}</span>
           </div>
 
-          <router-link to="/login?recuperar" class="submit submit--link">Solicitar otro enlace</router-link>
+          <router-link to="/login?recuperar" class="submit submit--link">{{ t('resetPassword.requestAnother') }}</router-link>
           <p class="signup-hint">
-            <router-link to="/login" class="link-btn">← Volver al umbral</router-link>
+            <router-link to="/login" class="link-btn">{{ t('resetPassword.backToLogin') }}</router-link>
           </p>
         </template>
 
         <!-- ───────── Nueva clave ───────── -->
         <form v-else-if="state === 'form'" novalidate @submit.prevent="handleSubmit">
-          <h1 class="title">Elige tu nueva clave</h1>
-          <p class="subtitle">Con ella volverás a cruzar el umbral</p>
+          <h1 class="title">{{ t('resetPassword.formTitle') }}</h1>
+          <p class="subtitle">{{ t('resetPassword.formSubtitle') }}</p>
           <div class="title-rule" aria-hidden="true"></div>
 
           <transition name="alert">
@@ -57,9 +57,9 @@
 
           <div class="field">
             <label for="new-password">
-              <span>Nueva clave de acceso</span>
+              <span>{{ t('resetPassword.newPassword') }}</span>
               <transition name="caps">
-                <span v-if="capsOn" class="caps-warn" role="status">⇪ Mayúsculas activas</span>
+                <span v-if="capsOn" class="caps-warn" role="status">{{ t('login.capsLock') }}</span>
               </transition>
             </label>
             <div class="field-box">
@@ -82,7 +82,7 @@
               <button
                 type="button"
                 class="reveal"
-                :aria-label="showPassword ? 'Ocultar clave' : 'Mostrar clave'"
+                :aria-label="showPassword ? t('login.hidePassword') : t('login.showPassword')"
                 :disabled="loading"
                 @click="showPassword = !showPassword"
               >
@@ -96,11 +96,11 @@
                 </svg>
               </button>
             </div>
-            <span class="field-hint">Mínimo 8 caracteres. Al cambiarla, se cerrará la sesión en todos tus dispositivos.</span>
+            <span class="field-hint">{{ t('resetPassword.hint') }}</span>
           </div>
 
           <button type="submit" class="submit" :class="{ loading }" :disabled="loading">
-            <span class="submit-label">{{ loading ? 'Guardando…' : 'Restablecer mi clave' }}</span>
+            <span class="submit-label">{{ loading ? t('common.saving') : t('resetPassword.submit') }}</span>
             <span class="submit-arrow" aria-hidden="true">→</span>
             <span class="submit-spin" aria-hidden="true"></span>
           </button>
@@ -108,8 +108,8 @@
 
         <!-- ───────── Hecho ───────── -->
         <template v-else-if="state === 'done'">
-          <h1 class="title">Clave restablecida</h1>
-          <p class="subtitle">Tus otras sesiones se han cerrado</p>
+          <h1 class="title">{{ t('resetPassword.doneTitle') }}</h1>
+          <p class="subtitle">{{ t('resetPassword.doneSubtitle') }}</p>
           <div class="title-rule" aria-hidden="true"></div>
 
           <div class="gate-alert gate-alert-success" role="alert">
@@ -117,14 +117,14 @@
               <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
               <polyline points="22 4 12 14.01 9 11.01" />
             </svg>
-            <span>Ya puedes entrar con tu nueva clave.</span>
+            <span>{{ t('resetPassword.done') }}</span>
           </div>
 
-          <router-link to="/login" class="submit submit--link">Cruzar el umbral</router-link>
+          <router-link to="/login" class="submit submit--link">{{ t('login.submit') }}</router-link>
         </template>
 
         <footer class="portal-foot">
-          <span class="foot-pulse"><i></i>Enlace cifrado activo</span>
+          <span class="foot-pulse"><i></i>{{ t('login.encrypted') }}</span>
           <span class="foot-ver">Ellysia © 2026</span>
         </footer>
       </div>
@@ -147,8 +147,12 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { validationMessage } from '@/composables/useApi'
+import { translateApiError } from '@/i18n/apiErrors'
 import ElysianScene from '@/components/shared/ElysianScene.vue'
 import ellysiaIcon from '@/assets/images/ellysia/Ellysia-BgN.png'
+import { useI18n } from 'vue-i18n'
+
+const { t, te } = useI18n()
 
 const route = useRoute()
 const router = useRouter()
@@ -185,7 +189,7 @@ async function handleSubmit() {
   alertMsg.value = ''
   const pw = newPassword.value
   if (!pw) {
-    alertMsg.value = 'Introduce la nueva clave.'
+    alertMsg.value = t('resetPassword.missing')
     return
   }
 
@@ -203,13 +207,13 @@ async function handleSubmit() {
         return
       }
       alertMsg.value =
-        validationMessage(body) || body.error_description || 'No se pudo restablecer la clave.'
+        validationMessage(body) || translateApiError(body, { t, te }) || body.error_description || t('resetPassword.failed')
       return
     }
     newPassword.value = ''
     state.value = 'done'
   } catch {
-    alertMsg.value = 'No se pudo conectar con el servidor.'
+    alertMsg.value = t('login.unreachable')
   } finally {
     loading.value = false
   }

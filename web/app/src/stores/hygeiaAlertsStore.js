@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { reactive } from 'vue'
 import { useApi } from '@/composables/useApi'
+import { i18n } from '@/i18n'
 
 /**
  * Store de anomalías (alertas) de Hygeia: listado con filtros, reconocimiento
@@ -23,11 +24,11 @@ export const useHygeiaAlertsStore = defineStore('hygeiaAlerts', () => {
       if (severity) params.set('severity', severity)
       const qs = params.toString()
       const res = await apiFetch(`/hygeia/alerts${qs ? `?${qs}` : ''}`)
-      if (!res?.ok) { state.error = await apiError(res, 'No se pudieron cargar las alertas.'); return }
+      if (!res?.ok) { state.error = await apiError(res, i18n.global.t('hygeiaStore.alerts.loadFailed')); return }
       const data = await res.json()
       state.anomalies = data.anomalies ?? []
       state.error = null
-    } catch { state.error = 'No se pudo conectar con la API.' }
+    } catch { state.error = i18n.global.t('hygeiaStore.alerts.offline') }
     finally { state.loading = false }
   }
 
@@ -35,34 +36,34 @@ export const useHygeiaAlertsStore = defineStore('hygeiaAlerts', () => {
   async function ackAlert(id) {
     try {
       const res = await apiFetch(`/hygeia/alerts/${id}/ack`, { method: 'POST' })
-      if (!res?.ok) { state.error = await apiError(res, 'No se pudo reconocer la anomalía.'); return false }
+      if (!res?.ok) { state.error = await apiError(res, i18n.global.t('hygeiaStore.alerts.ackFailed')); return false }
       const updated = await res.json()
       const idx = state.anomalies.findIndex((a) => a.id === id)
       if (idx !== -1) state.anomalies[idx] = updated
       return true
-    } catch { state.error = 'No se pudo conectar con la API.'; return false }
+    } catch { state.error = i18n.global.t('hygeiaStore.alerts.offline'); return false }
   }
 
   /** Resuelve manualmente una anomalía. */
   async function resolveAlert(id) {
     try {
       const res = await apiFetch(`/hygeia/alerts/${id}/resolve`, { method: 'POST' })
-      if (!res?.ok) { state.error = await apiError(res, 'No se pudo resolver la anomalía.'); return false }
+      if (!res?.ok) { state.error = await apiError(res, i18n.global.t('hygeiaStore.alerts.resolveFailed')); return false }
       const updated = await res.json()
       const idx = state.anomalies.findIndex((a) => a.id === id)
       if (idx !== -1) state.anomalies[idx] = updated
       return true
-    } catch { state.error = 'No se pudo conectar con la API.'; return false }
+    } catch { state.error = i18n.global.t('hygeiaStore.alerts.offline'); return false }
   }
 
   /** Borra una anomalía ya reconocida o resuelta (la API rechaza una abierta). */
   async function deleteAlert(id) {
     try {
       const res = await apiFetch(`/hygeia/alerts/${id}`, { method: 'DELETE' })
-      if (!res?.ok) { state.error = await apiError(res, 'No se pudo borrar la anomalía.'); return false }
+      if (!res?.ok) { state.error = await apiError(res, i18n.global.t('hygeiaStore.alerts.deleteFailed')); return false }
       state.anomalies = state.anomalies.filter((a) => a.id !== id)
       return true
-    } catch { state.error = 'No se pudo conectar con la API.'; return false }
+    } catch { state.error = i18n.global.t('hygeiaStore.alerts.offline'); return false }
   }
 
   /** Limpia el estado (logout SPA sin recarga dura). */

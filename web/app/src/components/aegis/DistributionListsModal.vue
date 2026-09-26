@@ -7,17 +7,15 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
           </div>
           <div class="lists-header-text">
-            <h2 id="lists-modal-title">Listas de distribución</h2>
-            <p>Destinatarios de las campañas de concienciación</p>
+            <h2 id="lists-modal-title">{{ t('aegis.lists.title') }}</h2>
+            <p>{{ t('aegis.lists.subtitle') }}</p>
           </div>
-          <button type="button" class="modal-close" @click="close" aria-label="Cerrar">&times;</button>
+          <button type="button" class="modal-close" @click="close" :aria-label="t('common.close')">&times;</button>
         </header>
 
         <div class="lists-body">
-          <p v-if="store.loadingLists" class="hint">Cargando listas…</p>
-          <p v-else-if="!store.distributionLists.length" class="hint">
-            Aún no tienes listas de distribución — crea la primera abajo.
-          </p>
+          <p v-if="store.loadingLists" class="hint">{{ t('aegis.lists.loading') }}</p>
+          <p v-else-if="!store.distributionLists.length" class="hint">{{ t('aegis.lists.empty') }}</p>
 
           <div v-for="list in store.distributionLists" :key="list.id" class="list-block">
             <div class="list-row" :class="{ 'list-row--open': store.expandedListId === list.id }">
@@ -30,14 +28,14 @@
                 <span class="list-chevron" aria-hidden="true">›</span>
                 <span class="list-name">{{ list.name }}</span>
                 <span class="list-count">
-                  {{ list.recipientCount }} destinatario{{ list.recipientCount === 1 ? '' : 's' }}
+                  {{ t('aegis.lists.recipients', { count: list.recipientCount }, list.recipientCount) }}
                 </span>
               </button>
               <button
                 type="button"
                 class="list-delete"
-                title="Eliminar lista"
-                aria-label="Eliminar lista"
+                :title="t('aegis.lists.delete')"
+                :aria-label="t('aegis.lists.delete')"
                 @click="deleteTarget = list"
               >✕</button>
             </div>
@@ -49,29 +47,29 @@
                   <button
                     type="button"
                     class="recipient-remove"
-                    :title="`Quitar ${recipient.email}`"
-                    :aria-label="`Quitar ${recipient.email}`"
+                    :title="t('aegis.lists.remove', { email: recipient.email })"
+                    :aria-label="t('aegis.lists.remove', { email: recipient.email })"
                     @click="store.removeRecipientFromList(list.id, recipient.id)"
                   >✕</button>
                 </div>
               </div>
-              <p v-else class="hint">Esta lista está vacía.</p>
+              <p v-else class="hint">{{ t('aegis.lists.listEmpty') }}</p>
 
               <div class="form-group">
-                <label :for="`add-${list.id}`">Añadir destinatarios</label>
+                <label :for="`add-${list.id}`">{{ t('aegis.lists.addRecipients') }}</label>
                 <textarea
                   :id="`add-${list.id}`"
                   v-model="addRaw"
                   rows="2"
                   class="input textarea"
-                  placeholder="Un email por línea (o separados por coma)"
+                  :placeholder="t('aegis.lists.emailsPlaceholder')"
                 ></textarea>
                 <div class="row-end">
                   <span class="recipient-count" :class="{ 'recipient-count--empty': !addParsed.length }">
-                    {{ addParsed.length }} detectado{{ addParsed.length === 1 ? '' : 's' }}
+                    {{ t('aegis.lists.detected', { count: addParsed.length }, addParsed.length) }}
                   </span>
                   <button type="button" class="btn btn--secondary btn--sm" :disabled="!addParsed.length" @click="handleAdd(list.id)">
-                    Añadir
+                    {{ t('lybra.launch.add') }}
                   </button>
                 </div>
               </div>
@@ -81,24 +79,24 @@
           <!-- Crear lista nueva: mismo formulario que el modo "Nueva lista" del
                modal de campaña, pero aquí sin lanzar nada. -->
           <div class="new-list">
-            <span class="new-list-label">Nueva lista</span>
+            <span class="new-list-label">{{ t('aegis.lists.new') }}</span>
             <div class="form-group">
-              <input v-model="newListName" type="text" maxlength="128" class="input" placeholder="Nombre de la lista" />
+              <input v-model="newListName" type="text" maxlength="128" class="input" :placeholder="t('aegis.lists.name')" />
             </div>
             <div class="form-group">
               <textarea
                 v-model="newListRaw"
                 rows="3"
                 class="input textarea"
-                placeholder="Un email por línea (o separados por coma)"
+                :placeholder="t('aegis.lists.emailsPlaceholder')"
               ></textarea>
               <div class="row-end">
                 <span class="recipient-count" :class="{ 'recipient-count--empty': !newListParsed.length }">
-                  {{ newListParsed.length }} destinatario{{ newListParsed.length === 1 ? '' : 's' }}
+                  {{ t('aegis.lists.recipients', { count: newListParsed.length }, newListParsed.length) }}
                 </span>
                 <button type="button" class="btn btn--primary btn--sm" :disabled="!canCreate || store.creatingList" @click="handleCreate">
                   <span v-if="store.creatingList" class="btn-spin-inline"></span>
-                  {{ store.creatingList ? 'Creando…' : 'Crear lista' }}
+                  {{ store.creatingList ? t('login.register.submitting') : t('aegis.lists.create') }}
                 </button>
               </div>
             </div>
@@ -106,16 +104,16 @@
         </div>
 
         <footer class="lists-footer">
-          <button type="button" class="btn btn--secondary" @click="close">Cerrar</button>
+          <button type="button" class="btn btn--secondary" @click="close">{{ t('common.close') }}</button>
         </footer>
       </div>
     </div>
 
     <ConfirmModal
       :show="!!deleteTarget"
-      title="Eliminar lista"
-      :message="`¿Eliminar «${deleteTarget?.name}» y sus destinatarios? Las campañas lanzadas con esta lista se borran también, con sus resultados, y sus enlaces de quiz dejarán de funcionar.`"
-      confirm-label="Eliminar"
+      :title="t('aegis.lists.delete')"
+      :message="t('aegis.lists.deleteMessage', { name: deleteTarget?.name })"
+      :confirm-label="t('common.delete')"
       danger
       @confirm="confirmDelete"
       @cancel="deleteTarget = null"
@@ -129,6 +127,9 @@ import { useAegisStore } from '@/stores/aegisStore'
 import { useUtils } from '@/composables/useUtils'
 import { useModalA11y } from '@/composables/useModalA11y'
 import ConfirmModal from '@/components/shared/ConfirmModal.vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const emit = defineEmits(['close'])
 

@@ -1,7 +1,7 @@
 <template>
   <div class="hygeia-page" data-module="hygeia">
     <StarBackground />
-    <Topbar title="Hygeia" badge="Monitorización de Activos" back-to="/hygeia" back-label="Volver" />
+    <Topbar :title="'Hygeia'" :badge="t('hygeiaView.badge')" back-to="/hygeia" :back-label="t('common.back')" />
 
     <main class="hygeia-layout" :data-pane="mobilePane">
       <section class="panel panel--list">
@@ -24,7 +24,7 @@
       <section class="panel panel--detail">
         <button class="back-to-list" @click="mobilePane = 'list'">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
-          Todos los activos
+          {{ t('hygeiaView.allAssets') }}
         </button>
         <AssetDetail
           :asset="selectedAsset"
@@ -88,9 +88,9 @@
 
     <ConfirmModal
       :show="!!pendingDeleteId"
-      title="Eliminar activo"
-      message="Se eliminará el activo y se revocará su clave de agente. El agente instalado en ese equipo dejará de poder enviar datos."
-      confirm-label="Eliminar"
+      :title="t('hygeiaView.deleteTitle')"
+      :message="t('hygeiaView.deleteMessage')"
+      :confirm-label="t('hygeia.list.delete')"
       danger
       @confirm="handleDeleteConfirm"
       @cancel="pendingDeleteId = null"
@@ -98,10 +98,10 @@
 
     <ConfirmModal
       :show="!!pendingRotateId"
-      title="Rotar clave de agente"
+      :title="t('hygeiaView.rotateTitle')"
       emphasis="¡Cuidado!"
-      message="Esta acción revocará la clave de agente actual y deberá sustituirla manualmente (no se preocupe, le entregaremos una clave nueva si acepta). ¿Está seguro de que quiere continuar?"
-      confirm-label="Continuar"
+      :message="t('hygeiaView.rotateMessage')"
+      :confirm-label="t('hygeiaView.continue')"
       danger
       swap-emphasis
       @confirm="handleRotateConfirm"
@@ -110,9 +110,9 @@
 
     <ConfirmModal
       :show="!!pendingDeleteAnomalyId"
-      title="Borrar anomalía"
-      message="Se eliminará el registro de esta anomalía. Esta acción no se puede deshacer."
-      confirm-label="Borrar"
+      :title="t('hygeiaView.deleteAnomalyTitle')"
+      :message="t('hygeiaView.deleteAnomalyMessage')"
+      :confirm-label="t('common.delete')"
       danger
       @confirm="handleDeleteAnomalyConfirm"
       @cancel="pendingDeleteAnomalyId = null"
@@ -123,9 +123,9 @@
          ya no aparece (correlación de ciclo de vida). -->
     <ConfirmModal
       :show="pendingReanalyze"
-      title="Volver a analizar"
-      message="Se lanzará un análisis nuevo sobre el inventario actual. El resultado vigente pasará a ser el anterior, y los hallazgos que ya no aparezcan se marcarán como corregidos."
-      confirm-label="Analizar"
+      :title="t('hygeia.detail.reanalyze')"
+      :message="t('hygeiaView.reanalyzeMessage')"
+      :confirm-label="t('hygeiaView.analyze')"
       @confirm="handleReanalyzeConfirm"
       @cancel="pendingReanalyze = false"
     />
@@ -160,6 +160,9 @@ import { useHygeiaTagsStore } from '@/stores/hygeiaTagsStore'
 import { useHygeiaDocumentsStore } from '@/stores/hygeiaDocumentsStore'
 import { useAccountStore } from '@/stores/accountStore'
 import { useToastStore } from '@/stores/toastStore'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const store = useHygeiaStore()
 const alerts = useHygeiaAlertsStore()
@@ -237,7 +240,7 @@ async function handleCreate({ hostname, os, isPersistent }) {
     const asset = await store.createAsset({ hostname, os, isPersistent })
     if (asset) {
       showCreateModal.value = false
-      toast.show(`Activo «${asset.hostname}» dado de alta.`, 'success')
+      toast.show(t('hygeiaView.created', { host: asset.hostname }), 'success')
     } else if (store.state.error) {
       toast.show(store.state.error, 'error')
     }
@@ -256,13 +259,13 @@ async function handleTogglePersistent(id) {
   const next = !asset.isPersistent
   const ok = await store.setPersistence(id, next)
   if (!ok) {
-    toast.show(store.state.error || 'No se pudo actualizar el activo.', 'error')
+    toast.show(store.state.error || t('hygeiaStore.updateFailed'), 'error')
     return
   }
   toast.show(
     next
-      ? `Se volverá a avisar cuando «${asset.hostname}» esté caído.`
-      : `«${asset.hostname}» se marca como host que se apaga a propósito: no se avisará de sus caídas.`,
+      ? t('hygeiaView.alertingAgain', { host: asset.hostname })
+      : t('hygeiaView.alertingStopped', { host: asset.hostname }),
     'success',
   )
 }
@@ -316,7 +319,7 @@ async function handleTagsSubmit({ tagIds, newTags }) {
     for (const pending of newTags) {
       const created = await tagsStore.createTag(pending)
       if (!created) {
-        tagsError.value = tagsStore.state.error || 'No se pudo crear la etiqueta.'
+        tagsError.value = tagsStore.state.error || t('hygeiaStore.tags.createFailed')
         return
       }
       finalIds.push(created.id)
@@ -325,7 +328,7 @@ async function handleTagsSubmit({ tagIds, newTags }) {
     const before = (taggingAsset.value?.tags ?? []).map((tag) => tag.id)
     const ok = await store.setAssetTags(assetId, finalIds)
     if (!ok) {
-      tagsError.value = store.state.error || 'No se pudieron guardar las etiquetas.'
+      tagsError.value = store.state.error || t('hygeiaStore.tagsSaveFailed')
       return
     }
 
@@ -334,7 +337,7 @@ async function handleTagsSubmit({ tagIds, newTags }) {
       before.filter((id) => !finalIds.includes(id)),
     )
     closeTagsModal()
-    toast.show('Etiquetas actualizadas.', 'success')
+    toast.show(t('hygeiaView.tagsSaved'), 'success')
   } finally {
     savingTags.value = false
   }
@@ -349,7 +352,7 @@ async function handleDeleteConfirm() {
   pendingDeleteId.value = null
   if (!id) return
   const ok = await store.deleteAsset(id)
-  toast.show(ok ? 'Activo eliminado.' : (store.state.error || 'No se pudo eliminar.'), ok ? 'success' : 'error')
+  toast.show(ok ? t('hygeiaView.deleted') : (store.state.error || t('hygeiaStore.deleteFailed')), ok ? 'success' : 'error')
 }
 
 function handleRotate(id) {
@@ -361,17 +364,17 @@ async function handleRotateConfirm() {
   pendingRotateId.value = null
   if (!id) return
   const key = await store.rotateKey(id)
-  if (!key) toast.show(store.state.error || 'No se pudo rotar la clave.', 'error')
+  if (!key) toast.show(store.state.error || t('hygeiaStore.rotateFailed'), 'error')
 }
 
 async function handleAck(id) {
   const ok = await alerts.ackAlert(id)
-  if (!ok) toast.show(alerts.state.error || 'No se pudo reconocer la anomalía.', 'error')
+  if (!ok) toast.show(alerts.state.error || t('hygeiaStore.alerts.ackFailed'), 'error')
 }
 
 async function handleResolve(id) {
   const ok = await alerts.resolveAlert(id)
-  if (!ok) toast.show(alerts.state.error || 'No se pudo resolver la anomalía.', 'error')
+  if (!ok) toast.show(alerts.state.error || t('hygeiaStore.alerts.resolveFailed'), 'error')
 }
 
 function handleDeleteAnomalyRequest(id) {
@@ -383,7 +386,7 @@ async function handleDeleteAnomalyConfirm() {
   pendingDeleteAnomalyId.value = null
   if (!id) return
   const ok = await alerts.deleteAlert(id)
-  toast.show(ok ? 'Anomalía eliminada.' : (alerts.state.error || 'No se pudo borrar la anomalía.'), ok ? 'success' : 'error')
+  toast.show(ok ? t('hygeiaView.anomalyDeleted') : (alerts.state.error || t('hygeiaStore.alerts.deleteFailed')), ok ? 'success' : 'error')
 }
 
 /* ── Análisis del inventario con Lybra ── */
@@ -393,8 +396,8 @@ async function handleAnalyze() {
   if (!id) return
   const scanId = await store.analyzeInventory(id)
   toast.show(
-    scanId ? 'Análisis iniciado. El resumen se actualizará al terminar.'
-           : (store.state.analysisError || 'No se pudo lanzar el análisis.'),
+    scanId ? t('hygeiaView.analysisStarted')
+           : (store.state.analysisError || t('hygeiaStore.analysisLaunchFailed')),
     scanId ? 'success' : 'error',
   )
 }

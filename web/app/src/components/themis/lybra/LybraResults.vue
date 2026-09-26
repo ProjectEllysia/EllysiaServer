@@ -6,21 +6,21 @@
              de columna, que aquí no hay: cada veredicto es una tarjeta. Mismo
              comportamiento que la de ScanTable.vue. -->
         <input v-if="scans.length" type="checkbox" class="chk"
-          aria-label="Seleccionar todos los veredictos de la página"
+          :aria-label="t('lybra.results.selectAll')"
           :checked="allSelected" :indeterminate="someSelected"
           @change="$emit('select-all', scans.map(s => s.id))" />
-        <span class="toolbar-title">Veredictos de Lybra</span>
+        <span class="toolbar-title">{{ t('lybra.results.title') }}</span>
       </div>
       <div class="toolbar-actions">
         <Transition name="pop">
           <button v-if="selectedIds.length" class="btn-bulk-del" @click="$emit('bulk-delete')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
-            Eliminar ({{ selectedIds.length }})
+            {{ t('themis.deleteSelected', { count: selectedIds.length }) }}
           </button>
         </Transition>
         <button class="btn-refresh" :disabled="loading" @click="$emit('refresh')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ spin: loading }"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-          Actualizar
+          {{ t('themis.refresh') }}
         </button>
       </div>
     </div>
@@ -31,7 +31,7 @@
          ScanTable.vue: se saca el saliente del flujo con position: absolute. -->
     <Transition name="fade-swap">
       <div v-if="loading && !scans.length" key="loading" class="scan-list"
-           aria-busy="true" aria-label="Cargando veredictos">
+           aria-busy="true" :aria-label="t('lybra.results.loading')">
         <div v-for="n in SKELETON_ROWS" :key="n" class="scan-ghost" aria-hidden="true">
           <span class="skeleton skeleton--circle ghost-dot"></span>
           <span class="skeleton skeleton--line skeleton--w60"></span>
@@ -39,7 +39,7 @@
       </div>
       <div v-else-if="!scans.length" key="empty" class="empty-state">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M12 3v18M7 21h10M5 7h14M5 7l-2.5 5a3 3 0 0 0 5 0L5 7zM19 7l-2.5 5a3 3 0 0 0 5 0L19 7z"/></svg>
-        <span>El motor aún no ha emitido ningún veredicto. ¡Lanza el primero!</span>
+        <span>{{ t('lybra.results.empty') }}</span>
       </div>
 
       <div v-else key="list" class="scan-list-wrap">
@@ -50,7 +50,7 @@
                botón que despliega: un control dentro de otro no es HTML
                válido, y pulsarlos no debe abrir la tarjeta. -->
           <div class="scan-head-row">
-          <input type="checkbox" class="chk" :aria-label="`Seleccionar el escaneo #${scan.id}`"
+          <input type="checkbox" class="chk" :aria-label="t('themis.selectScan', { id: scan.id })"
             :checked="selectedSet.has(scan.id)" @change="$emit('toggle-select', scan.id)" />
           <button class="scan-head" :aria-expanded="expanded.has(scan.id)" @click="toggle(scan.id)">
             <span class="chevron" :class="{ rot: expanded.has(scan.id) }" aria-hidden="true">
@@ -60,8 +60,8 @@
             <span class="scan-target">{{ scan.target }}</span>
             <StatusBadge :status="scan.status" />
             <span v-if="scan.exposure" class="exposure" :class="scan.exposure"
-              :title="scan.exposure === 'public' ? 'IP pública — la prioridad se ajusta al alza' : 'LAN privada — la prioridad se modera'">
-              {{ scan.exposure === 'public' ? 'Pública' : 'Privada' }}
+              :title="scan.exposure === 'public' ? t('lybra.results.publicHint') : t('lybra.results.privateHint')">
+              {{ scan.exposure === 'public' ? t('lybra.results.public') : t('lybra.results.private') }}
             </span>
 
 
@@ -72,17 +72,17 @@
             <TransitionGroup tag="span" name="pill-pop" class="prio-summary">
               <span v-for="lvl in visibleLadder(scan)" :key="lvl"
                 class="prio-pill" :class="lvl.toLowerCase()"
-                :title="`${summary(scan)[lvl]} ${PRIO_LABEL[lvl]}`">
+                :title="`${summary(scan)[lvl]} ${priorityLabel(lvl)}`">
                 {{ summary(scan)[lvl] }}
               </span>
-              <span v-if="scan.status === 'finished' && !scan.totalFindings && !scan.isPartial" key="clean" class="prio-clean">Sin hallazgos</span>
+              <span v-if="scan.status === 'finished' && !scan.totalFindings && !scan.isPartial" key="clean" class="prio-clean">{{ t('lybra.results.noFindings') }}</span>
               <span v-if="scan.isPartial" key="partial" class="prio-partial"
-                title="El descubrimiento se quedó sin tiempo: lo que se ve es cierto, pero no es toda la superficie">Parcial</span>
+                :title="t('lybra.results.partialHint')">{{ t('lybra.results.partial') }}</span>
             </TransitionGroup>
 
             <span class="scan-date">{{ fmtDate(scan.finishedAt || scan.startedAt) }}</span>
           </button>
-          <button class="act-btn danger" :aria-label="`Eliminar el escaneo #${scan.id}`" title="Eliminar"
+          <button class="act-btn danger" :aria-label="t('themis.deleteScanLabel', { id: scan.id })" :title="t('common.delete')"
             @click="$emit('delete', scan.id)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
           </button>
@@ -107,7 +107,7 @@
                   <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
                 </svg>
                 <div class="state-text">
-                  <p class="state-title">{{ scan.status === 'pending' ? 'En cola, a punto de empezar.' : 'El motor está pesando las pruebas…' }}</p>
+                  <p class="state-title">{{ scan.status === 'pending' ? t('lybra.results.queued') : t('lybra.results.running') }}</p>
                   <div class="state-progress" aria-hidden="true"><span></span></div>
                 </div>
               </div>
@@ -121,12 +121,12 @@
                   <circle cx="12" cy="12" r="10"/><line x1="12" y1="7" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
                 </svg>
                 <div class="state-text">
-                  <p class="state-title">{{ failureOf(scan).title }}</p>
-                  <p class="state-hint">{{ failureOf(scan).hint }}</p>
+                  <p class="state-title">{{ t(`lybra.failure.${failureOf(scan)}.title`) }}</p>
+                  <p class="state-hint">{{ t(`lybra.failure.${failureOf(scan)}.hint`) }}</p>
                 </div>
               </div>
               <div v-else-if="!scan.totalFindings && !scan.isPartial" class="body-clean">
-                Ningún hallazgo. La superficie analizada está limpia.
+                {{ t('lybra.results.clean') }}
               </div>
 
               <template v-else>
@@ -144,11 +144,11 @@
                     <span class="chapter-head">
                       <span class="chapter-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v18M7 21h10M5 7h14M5 7l-2.5 5a3 3 0 0 0 5 0L5 7zM19 7l-2.5 5a3 3 0 0 0 5 0L19 7z"/></svg></span>
                       <span class="chapter-text">
-                        <span class="chapter-title">Hallazgos <span class="chapter-count">{{ scan.totalFindings }}</span></span>
+                        <span class="chapter-title">{{ t('lybra.results.findings') }} <span class="chapter-count">{{ scan.totalFindings }}</span></span>
                         <span class="chapter-sub">{{ gravestLine(scan) }}</span>
                       </span>
                       <span class="chapter-action">
-                        {{ findingsOpen.has(scan.id) ? 'Plegar' : 'Desplegar' }}
+                        {{ findingsOpen.has(scan.id) ? t('lybra.results.collapse') : t('lybra.results.expand') }}
                         <span class="chevron" :class="{ rot: findingsOpen.has(scan.id) }" aria-hidden="true">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
                         </span>
@@ -178,13 +178,13 @@
                     <!-- Reordenar una lista enorme puede tardar lo bastante como para
                          notarse; entonces se pinta primero esta silueta y el orden se
                          calcula en el fotograma siguiente (ver `applyCriteria`). -->
-                    <LybraFindingsSkeleton v-if="isArranging(scan.id)" label="Reordenando hallazgos" />
+                    <LybraFindingsSkeleton v-if="isArranging(scan.id)" :label="t('lybra.results.rearranging')" />
                     <template v-else>
                     <!-- Los filtros pueden dejar la lista vacía; decirlo evita que
                          se lea como «este escaneo no tiene hallazgos». -->
                     <div v-if="!arrangement(scan.id).visibleTotal && arrangement(scan.id).total" class="filtered-empty">
-                      Ningún hallazgo cumple estos filtros.
-                      <button type="button" class="f-act" @click="resetCriteria(scan.id)">Quitar filtros</button>
+                      {{ t('lybra.results.noMatch') }}
+                      <button type="button" class="f-act" @click="resetCriteria(scan.id)">{{ t('lybra.results.clearFilters') }}</button>
                     </div>
 
                     <!-- Dos secciones porque son dos clases de trabajo: subir un producto
@@ -194,9 +194,9 @@
                     <section v-if="section.groups.length" class="ledger-section">
                       <header class="inscription">
                         <span class="inscription-mark" aria-hidden="true"></span>
-                        <h5 class="inscription-title">{{ section.title }}</h5>
+                        <h5 class="inscription-title">{{ t(`lybra.sections.${section.key}`) }}</h5>
                         <span class="inscription-rule" aria-hidden="true"></span>
-                        <span class="inscription-tally">{{ section.total }} {{ section.total === 1 ? 'hallazgo' : 'hallazgos' }}</span>
+                        <span class="inscription-tally">{{ t('lybra.results.findingCount', { count: section.total }, section.total) }}</span>
                       </header>
                       <!-- La balanza: cuánto pesa la sección, repartido por gravedad y
                            a escala del número real de hallazgos. Es lo que Lybra hace
@@ -205,7 +205,7 @@
                       <div class="balance" role="img" :aria-label="balanceLabel(section)">
                         <span v-for="seg in section.balance" :key="seg.level" class="balance-seg"
                           :data-sev="seg.level.toLowerCase()" :style="{ flexGrow: seg.count }"
-                          :title="`${seg.count} ${PRIO_LABEL[seg.level]}`"></span>
+                          :title="`${seg.count} ${priorityLabel(seg.level)}`"></span>
                       </div>
 
                       <!-- Los grupos son filas de un mismo registro, no cajas sueltas: un
@@ -226,24 +226,25 @@
                           <span class="chevron group-chevron" :class="{ rot: isGroupOpen(scan.id, group) }" aria-hidden="true">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
                           </span>
-                          <span class="f-prio" :class="(group.priority || 'INFO').toLowerCase()">{{ PRIO_LABEL[group.priority] || group.priority }}</span>
+                          <span class="f-prio" :class="(group.priority || 'INFO').toLowerCase()">{{ priorityLabel(group.priority) }}</span>
                           <span class="group-label">{{ group.label }}</span>
                           <span v-if="group.port" class="f-tag mono">{{ group.service || 'svc' }}:{{ group.port }}</span>
                           <span class="group-count">
-                            <template v-if="group.totalFindings < group.allFindings">{{ group.totalFindings }} de </template>{{ group.allFindings }} {{ group.allFindings === 1 ? 'hallazgo' : 'hallazgos' }}
+                            <template v-if="group.totalFindings < group.allFindings">{{ t('lybra.results.findingsOf', { shown: group.totalFindings, count: group.allFindings }, group.allFindings) }}</template>
+                            <template v-else>{{ t('lybra.results.findingCount', { count: group.allFindings }, group.allFindings) }}</template>
                           </span>
                         </button>
 
                         <div class="group-meta">
-                          <span v-if="group.fixedVersion" class="f-tag fix" title="Actualizar hasta aquí cierra todo el grupo de una vez">
-                            Corregido en {{ group.fixedVersion }} o superior
+                          <span v-if="group.fixedVersion" class="f-tag fix" :title="t('lybra.results.fixedHint')">
+                            {{ t('lybra.results.fixedIn', { version: group.fixedVersion }) }}
                           </span>
-                          <span v-if="group.kevCveIds?.length" class="f-tag kev" title="En la lista CISA de vulnerabilidades explotadas activamente">
+                          <span v-if="group.kevCveIds?.length" class="f-tag kev" :title="t('lybra.results.kevHint')">
                             KEV · {{ group.kevCveIds.length }}
                           </span>
-                          <span v-if="group.totalCves" class="f-tag cve">{{ group.totalCves }} CVE{{ group.totalCves === 1 ? '' : 's' }}</span>
-                          <span v-if="group.maxCvss != null" class="f-tag cvss">CVSS máx. {{ group.maxCvss }}</span>
-                          <span v-if="group.confirmedCount" class="f-tag conf">{{ group.confirmedCount }} comprobado{{ group.confirmedCount === 1 ? '' : 's' }}</span>
+                          <span v-if="group.totalCves" class="f-tag cve">{{ t('lybra.results.cveCount', { count: group.totalCves }, group.totalCves) }}</span>
+                          <span v-if="group.maxCvss != null" class="f-tag cvss">{{ t('lybra.results.maxCvss', { score: group.maxCvss }) }}</span>
+                          <span v-if="group.confirmedCount" class="f-tag conf">{{ t('lybra.results.confirmedCount', { count: group.confirmedCount }, group.confirmedCount) }}</span>
                         </div>
 
                         <Transition name="findings-panel">
@@ -251,23 +252,23 @@
                         <TransitionGroup tag="ul" name="finding-item" class="findings">
                           <li v-for="(f, idx) in visibleGroupFindings(scan.id, group)" :key="f.id" class="finding" :class="{ potential: !f.confirmed }"
                             :style="{ '--enter-delay': (idx % FINDINGS_PAGE) * 22 + 'ms' }">
-                            <span class="f-prio" :class="(f.priority || 'INFO').toLowerCase()">{{ PRIO_LABEL[f.priority] || f.priority }}</span>
+                            <span class="f-prio" :class="(f.priority || 'INFO').toLowerCase()">{{ priorityLabel(f.priority) }}</span>
                             <div class="f-main">
                               <div class="f-title-row">
                                 <span class="f-conf" :class="f.confirmed ? 'confirmed' : 'hypothesis'"
-                                  :title="f.confirmed ? `Comprobado activamente (QoD ${f.qod})` : `Deducido por versión (QoD ${f.qod}) — potencial, sin confirmar`">
-                                  {{ f.confirmed ? 'Comprobado' : 'Potencial' }}
+                                  :title="f.confirmed ? t('lybra.results.confirmedHint', { qod: f.qod }) : t('lybra.results.potentialHint', { qod: f.qod })">
+                                  {{ f.confirmed ? t('lybra.results.confirmed') : t('lybra.results.potential') }}
                                 </span>
                                 <span class="f-title">{{ f.title }}</span>
                               </div>
                               <div class="f-meta">
-                                <span v-if="hasSeveralSites(group)" class="f-tag site" :title="SITE_HINT">{{ siteLabel(f) }}</span>
+                                <span v-if="hasSeveralSites(group)" class="f-tag site" :title="t('lybra.site.hint')">{{ siteOf(f) ? t('lybra.site.vhost', { vhost: siteOf(f) }) : t('lybra.site.ip') }}</span>
                                 <span v-for="cve in (f.cveIds || [])" :key="cve" class="f-tag cve">{{ cve }}</span>
-                                <span v-if="f.inKev" class="f-tag kev" title="En la lista CISA de vulnerabilidades explotadas activamente">KEV · explotada</span>
-                                <span v-if="f.epssScore != null" class="f-tag epss" :title="`Probabilidad de explotación en 30 días (EPSS)`">EPSS {{ Math.round(f.epssScore * 100) }}%</span>
+                                <span v-if="f.inKev" class="f-tag kev" :title="t('lybra.results.kevHint')">{{ t('lybra.results.kevExploited') }}</span>
+                                <span v-if="f.epssScore != null" class="f-tag epss" :title="t('lybra.results.epssHint')">EPSS {{ Math.round(f.epssScore * 100) }}%</span>
                                 <span v-if="f.cvssScore != null" class="f-tag cvss">CVSS {{ f.cvssScore }}</span>
-                                <span v-if="f.state && f.state !== 'open'" class="f-tag state" :class="f.state">{{ STATE_LABEL[f.state] || f.state }}</span>
-                                <span v-if="f.source && f.source !== 'lybra'" class="f-tag src" :title="`Origen: ${f.source}`">+{{ f.source }}</span>
+                                <span v-if="f.state && f.state !== 'open'" class="f-tag state" :class="f.state">{{ findingStateLabel(f.state) }}</span>
+                                <span v-if="f.source && f.source !== 'lybra'" class="f-tag src" :title="t('lybra.results.source', { source: f.source })">+{{ f.source }}</span>
                               </div>
 
                               <!-- Desmentir un hallazgo y aceptar su riesgo son
@@ -279,19 +280,19 @@
                                 <template v-if="deciding === f.id">
                                   <input v-model="decisionReason" class="f-reason" type="text"
                                     :placeholder="decisionState === 'false_positive'
-                                      ? '¿Por qué no es real? (p. ej. backport de Debian)'
-                                      : '¿Por qué se asume? (p. ej. mitigado por el WAF)'"
+                                      ? t('lybra.results.falsePositiveReason')
+                                      : t('lybra.results.acceptedReason')"
                                     @keyup.enter="confirmDecision(scan.id)" />
-                                  <button type="button" class="f-act primary" @click="confirmDecision(scan.id)">Confirmar</button>
-                                  <button type="button" class="f-act" @click="cancelDecision">Cancelar</button>
+                                  <button type="button" class="f-act primary" @click="confirmDecision(scan.id)">{{ t('common.confirm') }}</button>
+                                  <button type="button" class="f-act" @click="cancelDecision">{{ t('common.cancel') }}</button>
                                 </template>
                                 <template v-else-if="f.state === 'accepted' || f.state === 'false_positive'">
-                                  <span class="f-decided">{{ STATE_LABEL[f.state] }}<template v-if="f.stateReason">: {{ f.stateReason }}</template></span>
-                                  <button type="button" class="f-act" @click="$emit('set-finding-state', scan.id, f.id, 'open', null)">Reabrir</button>
+                                  <span class="f-decided">{{ findingStateLabel(f.state) }}<template v-if="f.stateReason">: {{ f.stateReason }}</template></span>
+                                  <button type="button" class="f-act" @click="$emit('set-finding-state', scan.id, f.id, 'open', null)">{{ t('lybra.results.reopen') }}</button>
                                 </template>
                                 <template v-else>
-                                  <button type="button" class="f-act" @click="startDecision(f.id, 'false_positive')">Desmentir</button>
-                                  <button type="button" class="f-act" @click="startDecision(f.id, 'accepted')">Aceptar riesgo</button>
+                                  <button type="button" class="f-act" @click="startDecision(f.id, 'false_positive')">{{ t('lybra.results.dispute') }}</button>
+                                  <button type="button" class="f-act" @click="startDecision(f.id, 'accepted')">{{ t('lybra.results.acceptRisk') }}</button>
                                 </template>
                               </div>
                             </div>
@@ -300,7 +301,7 @@
 
                         <button v-if="visibleGroupFindings(scan.id, group).length < group.findings.length" type="button"
                           class="load-more-findings" @click="showMoreFindings(groupKey(scan.id, group))">
-                          Ver más ({{ visibleGroupFindings(scan.id, group).length }} de {{ group.findings.length }})
+                          {{ t('lybra.results.showMore', { shown: visibleGroupFindings(scan.id, group).length, total: group.findings.length }) }}
                         </button>
                         </div>
                         </Transition>
@@ -317,13 +318,9 @@
               <!-- El descubrimiento no llegó a recorrer todo el objetivo. Va antes que
                    cualquier otra nota porque cambia cómo se leen todas las demás: la
                    ausencia de un hallazgo aquí no significa que no esté. -->
-              <div v-if="scan.isPartial" class="body-partial-hint">
-                Análisis incompleto: el descubrimiento de puertos agotó su tiempo antes de recorrer
-                todo el objetivo. Lo que aparece es cierto, pero <strong>la ausencia de algo no
-                significa que no esté</strong> — por eso este escaneo no ha dado por corregido ningún
-                hallazgo anterior. Sube el tiempo límite o acota la lista de puertos para un análisis
-                completo.
-              </div>
+              <i18n-t v-if="scan.isPartial" keypath="lybra.results.partialNote" tag="div" class="body-partial-hint">
+                <template #absence><strong>{{ t('lybra.results.partialNoteAbsence') }}</strong></template>
+              </i18n-t>
 
               <!-- No se muestra para un escaneo de agente (uno nacido del inventario
                    de un activo Hygeia, con `assetId`): ahí el fingerprinting y las
@@ -331,16 +328,12 @@
                    (modo payload) — autorizar el objetivo no cambiaría nada, así que
                    sugerirlo sería un consejo sin efecto. -->
               <div v-if="scan.status === 'finished' && scan.targetAuthorized === false && !scan.assetId" class="body-unauth-hint">
-                Objetivo no autorizado: el fingerprinting propio y las comprobaciones activas de Lybra no se
-                ejecutaron sobre '{{ scan.target }}'. Autorízalo en el panel de lanzamiento para un análisis más completo.
+                {{ t('lybra.results.unauthorized', { target: scan.target }) }}
               </div>
 
               <!-- Solo cuando hay paquetes que el matcher no pudo ni identificar. -->
               <div v-if="scan.status === 'finished' && coverageGap(scan)" class="body-coverage-hint">
-                Nota de cobertura: {{ coverageGap(scan).unresolved }} de los {{ coverageGap(scan).packages }}
-                paquetes inventariados no se pudieron identificar contra el catálogo de vulnerabilidades,
-                así que no se comprobaron. El resto sí se comprobó — su ausencia de hallazgos es una
-                verificación real.
+                {{ t('lybra.results.coverage', coverageGap(scan)) }}
               </div>
 
               <!-- Documentos es un capítulo del escaneo, no una sección más de los
@@ -359,18 +352,18 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                   </span>
                   <span class="chapter-text">
-                    <h4 class="chapter-title">Documentos <span class="chapter-count">{{ docsFor(scan.id).length }}</span></h4>
-                    <span class="chapter-sub">Informes PDF de este veredicto</span>
+                    <h4 class="chapter-title">{{ t('themis.documents.title') }} <span class="chapter-count">{{ docsFor(scan.id).length }}</span></h4>
+                    <span class="chapter-sub">{{ t('lybra.results.docsSubtitle') }}</span>
                   </span>
-                  <button class="doc-refresh-btn" @click="$emit('load-docs', scan.id)" :disabled="docsLoading(scan.id)" title="Refrescar documentos" aria-label="Refrescar documentos">
+                  <button class="doc-refresh-btn" @click="$emit('load-docs', scan.id)" :disabled="docsLoading(scan.id)" :title="t('themis.documents.refresh')" :aria-label="t('themis.documents.refresh')">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ spin: docsLoading(scan.id) }"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
                   </button>
                 </div>
 
                 <div class="doc-body">
 
-                <div v-if="docsLoading(scan.id) && !docsFor(scan.id).length" class="doc-empty">Cargando documentos…</div>
-                <div v-else-if="!docsFor(scan.id).length" class="doc-empty">Sin documentos generados</div>
+                <div v-if="docsLoading(scan.id) && !docsFor(scan.id).length" class="doc-empty">{{ t('themis.documents.loading') }}</div>
+                <div v-else-if="!docsFor(scan.id).length" class="doc-empty">{{ t('themis.documents.empty') }}</div>
                 <!-- TransitionGroup: la tarjeta de un documento nuevo (recién generado) entra
                      con una animación en vez de aparecer de golpe, y el resto se desliza para
                      hacerle sitio. El estado (pendiente → generando → listo) es un cambio en el
@@ -380,32 +373,32 @@
                   <div v-for="doc in docsFor(scan.id)" :key="doc.documentId" class="doc-item">
                     <div class="doc-left">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="doc-icon"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                      <span class="doc-name">PDF Lybra <span v-if="doc.isAiGenerated" class="doc-ai-pill">IA</span></span>
+                      <span class="doc-name">{{ t('lybra.results.pdfName') }} <span v-if="doc.isAiGenerated" class="doc-ai-pill">{{ t('themis.documents.ai') }}</span></span>
                       <span v-if="doc.createdAt" class="doc-date">{{ fmtDate(doc.createdAt) }}</span>
                     </div>
                     <div class="doc-right">
                       <Transition name="fade-swap" mode="out-in">
                         <span v-if="doc.status === 'done'" key="done" class="doc-actions">
-                          <button class="doc-icon-btn" @click="$emit('download-doc', doc.documentId)" title="Descargar">
+                          <button class="doc-icon-btn" @click="$emit('download-doc', doc.documentId)" :title="t('themis.documents.download')">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                           </button>
-                          <button class="doc-icon-btn danger" @click="$emit('delete-doc', scan.id, doc.documentId)" title="Eliminar">
+                          <button class="doc-icon-btn danger" @click="$emit('delete-doc', scan.id, doc.documentId)" :title="t('common.delete')">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
                           </button>
                         </span>
-                        <span v-else-if="doc.status === 'running'" key="running" class="doc-status running">Generando…</span>
-                        <span v-else-if="doc.status === 'pending'" key="pending" class="doc-status pending">Pendiente</span>
-                        <span v-else-if="doc.status === 'error'" key="error" class="doc-status error">Error</span>
+                        <span v-else-if="doc.status === 'running'" key="running" class="doc-status running">{{ t('themis.documents.running') }}</span>
+                        <span v-else-if="doc.status === 'pending'" key="pending" class="doc-status pending">{{ t('themis.documents.pending') }}</span>
+                        <span v-else-if="doc.status === 'error'" key="error" class="doc-status error">{{ t('themis.documents.error') }}</span>
                       </Transition>
                     </div>
                   </div>
                 </TransitionGroup>
 
                 <div class="doc-gen-bar">
-                  <label class="doc-checkbox"><input type="checkbox" v-model="aiFlags[scan.id]" /><span>Análisis IA</span></label>
+                  <label class="doc-checkbox"><input type="checkbox" v-model="aiFlags[scan.id]" /><span>{{ t('themis.documents.aiAnalysis') }}</span></label>
                   <button class="doc-gen-btn" @click="$emit('generate-pdf', scan.id, !!aiFlags[scan.id])">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-                    Generar PDF
+                    {{ t('themis.documents.generatePdf') }}
                   </button>
                 </div>
                 </div>
@@ -413,7 +406,7 @@
               </section>
 
               <div class="body-actions">
-                <button class="btn-del" @click="$emit('delete', scan.id)">Eliminar escaneo</button>
+                <button class="btn-del" @click="$emit('delete', scan.id)">{{ t('themis.deleteScan') }}</button>
               </div>
             </div>
             </div>
@@ -435,9 +428,13 @@ import StatusBadge from '@/components/themis/StatusBadge.vue'
 import AppPagination from '@/components/shared/AppPagination.vue'
 import LybraFindingsToolbar from './LybraFindingsToolbar.vue'
 import LybraFindingsSkeleton from './LybraFindingsSkeleton.vue'
-import { SITE_HINT, hasSeveralSites, siteLabel } from './findingSites'
+import { hasSeveralSites, siteOf } from './findingSites'
+import { priorityLabel, findingStateLabel } from '../labels'
 import { LADDER, arrangeGroups, defaultCriteria } from './findingsArrangement'
 import { formatDateTime } from '@/i18n/format'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   scans: { type: Array, default: () => [] },
@@ -459,13 +456,11 @@ const selectedSet = computed(() => new Set(props.selectedIds))
 const allSelected = computed(() => props.scans.length > 0 && props.scans.every(s => selectedSet.value.has(s.id)))
 const someSelected = computed(() => props.scans.some(s => selectedSet.value.has(s.id)) && !allSelected.value)
 
-const PRIO_LABEL = { CRITICAL: 'Crítica', HIGH: 'Alta', MEDIUM: 'Media', LOW: 'Baja', INFO: 'Info' }
-const STATE_LABEL = { fixed: 'Corregido', regressed: 'Regresado', accepted: 'Aceptado', false_positive: 'Falso positivo' }
 
 /**
  * Por qué falló un escaneo, en prosa. El backend manda un código corto
- * (`failureReason`) y la redacción vive aquí, que es donde vive el resto del
- * castellano de cara al usuario.
+ * (`failureReason`) y la redacción vive en `lybra.failure.<código>` del
+ * diccionario, con su título y su consejo.
  *
  * Cada entrada trae además un consejo, porque la diferencia que importa no es
  * cuál de los cinco motivos fue: es si el usuario puede hacer algo al respecto.
@@ -473,49 +468,18 @@ const STATE_LABEL = { fixed: 'Corregido', regressed: 'Regresado', accepted: 'Ace
  * el consejo enumera qué comprobar. En un error interno no puede hacer nada, y
  * decírselo evita que pierda el tiempo revisando su red.
  */
-const FAILURE = {
-  host_unreachable: {
-    title: 'El objetivo no respondió.',
-    hint: 'El motor no llegó a abrir ninguna conexión, así que no hay nada que analizar. '
-        + 'Comprueba que la máquina esté encendida, que la dirección sea la correcta y que '
-        + 'no haya un cortafuegos descartando el tráfico.',
-  },
-  port_discovery_failed: {
-    title: 'El descubrimiento de puertos no pudo completarse.',
-    hint: 'El objetivo respondía, pero el barrido no llegó a terminar. Suele ser un '
-        + 'cortafuegos que corta el sondeo a mitad; prueba a acotar la lista de puertos.',
-  },
-  no_results: {
-    title: 'El escáner terminó sin devolver resultados.',
-    hint: 'La herramienta se ejecutó pero no produjo nada que procesar. Vuelve a lanzarlo; '
-        + 'si se repite, el objetivo puede estar filtrando el escaneo.',
-  },
-  orphaned: {
-    title: 'El escaneo se interrumpió al reiniciarse el servicio.',
-    hint: 'No es un problema del objetivo: el trabajo se perdió a mitad y se cerró al '
-        + 'arrancar de nuevo. Lánzalo otra vez.',
-  },
-  timeout: {
-    title: 'Se acabó el tiempo antes de terminar.',
-    hint: 'El trabajo pedido no cabía en el plazo pedido. Es lo que pasa al cruzar un '
-        + 'rango de puertos muy ancho con un objetivo que tiene muchos abiertos: cada '
-        + 'servicio encontrado se analiza después, y eso también cuesta tiempo. Acota '
-        + 'los puertos o sube el plazo del panel de lanzamiento.',
-  },
-  internal_error: {
-    title: 'El motor encontró un error inesperado.',
-    hint: 'El fallo es del producto, no de tu red. El detalle queda en el registro del '
-        + 'servidor; si se repite con el mismo objetivo, merece un aviso.',
-  },
-}
-// Los escaneos que fallaron antes de que existiera la columna no traen código,
-// y decir «no se registró» es más honesto que elegir un motivo por ellos.
-const FAILURE_UNKNOWN = {
-  title: 'El escaneo falló.',
-  hint: 'No se registró el motivo — es un escaneo anterior a que el motor empezara a '
-      + 'guardarlo.',
-}
-function failureOf(scan) { return FAILURE[scan.failureReason] || FAILURE_UNKNOWN }
+const FAILURE_REASONS = ['host_unreachable', 'port_discovery_failed', 'no_results', 'orphaned', 'timeout', 'internal_error']
+
+/**
+ * Clave de `lybra.failure` con la que se explica el fallo de un escaneo.
+ *
+ * Los escaneos que fallaron antes de que existiera la columna no traen código,
+ * y decir «no se registró» es más honesto que elegir un motivo por ellos.
+ *
+ * @param {object} scan - Escaneo del listado.
+ * @returns {string} El código del motivo, o `unknown`.
+ */
+function failureOf(scan) { return FAILURE_REASONS.includes(scan.failureReason) ? scan.failureReason : 'unknown' }
 
 /** Casilla "Análisis IA" del generador de PDF, por escaneo. */
 const aiFlags = reactive({})
@@ -806,7 +770,7 @@ function arrangement(scanId) {
  * @returns {string} P. ej. "Peso por gravedad: 1 Crítica, 9 Baja".
  */
 function balanceLabel(section) {
-  return 'Peso por gravedad: ' + section.balance.map(seg => `${seg.count} ${PRIO_LABEL[seg.level]}`).join(', ')
+  return t('lybra.results.balance', { levels: section.balance.map(seg => `${seg.count} ${priorityLabel(seg.level)}`).join(', ') })
 }
 
 function toggleFindings(id) {
@@ -899,10 +863,10 @@ function scanBalance(scan) {
 function gravestLine(scan) {
   const s = summary(scan)
   const top = LADDER.find(level => s[level])
-  if (!top) return 'Sin desglose por gravedad'
-  if (top === 'INFO') return 'Solo hallazgos informativos'
+  if (!top) return t('lybra.results.noBreakdown')
+  if (top === 'INFO') return t('lybra.results.onlyInfo')
   const count = s[top]
-  return `Lo más grave: ${count} ${PRIO_LABEL[top].toLowerCase()}${count === 1 ? '' : 's'}`
+  return t(`lybra.gravest.${top}`, { count }, count)
 }
 
 function visibleLadder(scan) {

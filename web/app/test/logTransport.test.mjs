@@ -16,12 +16,12 @@ assert.equal(await decodeLogPayload(payload), text)
 
 await assert.rejects(
   decodeLogPayload({ ...payload, compression: 'deflate' }),
-  /formato de log no compatible/,
+  { code: 'unsupportedFormat' },
 )
 
 await assert.rejects(
   decodeLogPayload({ ...payload, returnedBytes: payload.returnedBytes + 1 }),
-  /contenido del log llegó incompleto/,
+  { code: 'incomplete' },
 )
 
 console.log('logTransport: 3 pruebas pasaron')

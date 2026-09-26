@@ -118,7 +118,7 @@ referenciaba nada.
 
 **Idiomas: la interfaz traduce, el servidor identifica.** El SPA tiene vue-i18n
 (`web/app/src/i18n/`): un fichero por idioma en `locales/`, con `es.json` como idioma por defecto
-y único completo. Los errores de la API viajan con su texto en castellano y, si sale de una
+y `en.json` completo (la CI obliga a que siga estándolo). Los errores de la API viajan con su texto en castellano y, si sale de una
 plantilla, con `messageKey` + `params`; el SPA los enseña en el idioma activo buscando esa clave
 en `apiErrors`, así que el servidor no necesita saber el idioma del usuario. Lo que el servidor
 genera en segundo plano (correos, PDF, IA) sigue en castellano. Reglas y receta para añadir un

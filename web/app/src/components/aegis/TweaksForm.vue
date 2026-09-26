@@ -1,41 +1,41 @@
 <template>
   <div class="tweaks-form">
-    <h2>Nueva Píldora</h2>
+    <h2>{{ t('aegis.tweaks.title') }}</h2>
 
     <div class="form-group">
-      <label for="tw-audience">Audiencia</label>
+      <label for="tw-audience">{{ t('aegis.tweaks.audience') }}</label>
       <select
         id="tw-audience"
         v-model="store.tweaks.audienceLevel"
         class="input select"
       >
-        <option value="mixed">Mixta</option>
-        <option value="technical">Técnica</option>
-        <option value="non-technical">No técnica</option>
+        <option value="mixed">{{ t('aegis.tweaks.audiences.mixed') }}</option>
+        <option value="technical">{{ t('aegis.tweaks.audiences.technical') }}</option>
+        <option value="non-technical">{{ t('aegis.tweaks.audiences.nonTechnical') }}</option>
       </select>
     </div>
 
     <div class="form-group">
-      <label for="tw-focus">Foco del tema</label>
+      <label for="tw-focus">{{ t('aegis.tweaks.focus') }}</label>
       <input
         id="tw-focus"
         v-model="store.tweaks.topicFocus"
         type="text"
         maxlength="120"
         class="input"
-        placeholder="Ej: phishing por QR"
+        :placeholder="t('aegis.tweaks.focusPlaceholder')"
       />
     </div>
 
     <div class="form-group">
-      <label for="tw-incident">Incidente reciente</label>
+      <label for="tw-incident">{{ t('aegis.tweaks.incident') }}</label>
       <textarea
         id="tw-incident"
         v-model="store.tweaks.recentIncident"
         maxlength="500"
         rows="2"
         class="input textarea"
-        placeholder="Opcional — ej: intento de phishing a Contabilidad la semana pasada"
+        :placeholder="t('aegis.tweaks.incidentPlaceholder')"
       ></textarea>
     </div>
 
@@ -52,7 +52,7 @@
       @click="store.generate()"
     >
       <span v-if="store.generating" class="spinner"></span>
-      {{ store.generating ? "Generando…" : "Generar Píldora" }}
+      {{ store.generating ? t('themis.documents.running') : t('aegis.tweaks.generate') }}
     </button>
 
     <!-- El fallo se anunciaba solo con un toast, que desaparece a los pocos
@@ -68,6 +68,9 @@
 <script setup>
 import { useAegisStore } from "@/stores/aegisStore";
 import TopicGrid from "./TopicGrid.vue";
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
 
 const store = useAegisStore();
 </script>

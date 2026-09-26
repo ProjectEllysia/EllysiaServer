@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { useToastStore } from '@/stores/toastStore'
 import { formatDate as formatLocalizedDate } from '@/i18n/format'
+import { i18n } from '@/i18n'
 
 /**
  * Store de la capa comercial: plan efectivo, consumo y organización.
@@ -34,19 +35,19 @@ export const useAccountStore = defineStore('account', () => {
     if (plan.value.status === 'past_due' && plan.value.graceUntil) {
       return {
         kind: 'warn',
-        text: `Hay un problema con tu pago. Tu plan sigue activo hasta el ${formatDate(plan.value.graceUntil)}.`,
+        text: i18n.global.t('account.notice.pastDue', { date: formatDate(plan.value.graceUntil) }),
       }
     }
     if (plan.value.cancelAtPeriodEnd && plan.value.currentPeriodEnd) {
       return {
         kind: 'info',
-        text: `Has cancelado tu plan. Seguirá funcionando hasta el ${formatDate(plan.value.currentPeriodEnd)}.`,
+        text: i18n.global.t('account.notice.cancelled', { date: formatDate(plan.value.currentPeriodEnd) }),
       }
     }
     if (plan.value.status && !plan.value.isEffective) {
       return {
         kind: 'warn',
-        text: 'Tu plan ha terminado. Estás en el plan gratuito; no se ha borrado nada.',
+        text: i18n.global.t('account.notice.ended'),
       }
     }
     return null
@@ -145,13 +146,13 @@ export const useAccountStore = defineStore('account', () => {
       body: JSON.stringify({ name }),
     })
     if (!res?.ok) {
-      toast.show(await apiError(res, 'No se pudo crear la organización.'), 'error')
+      toast.show(await apiError(res, i18n.global.t('account.createOrganizationFailed')), 'error')
       return false
     }
     organization.value = await res.json()
     // Acaba de cambiar la organización: lo que hubiera cacheado ya no vale.
     invalidate()
-    toast.show('Organización creada.', 'success')
+    toast.show(i18n.global.t('account.organizationCreated'), 'success')
     return true
   }
 
@@ -168,11 +169,11 @@ export const useAccountStore = defineStore('account', () => {
       body: JSON.stringify({ defaultLanguage: language }),
     })
     if (!res?.ok) {
-      toast.show(await apiError(res, 'No se pudo guardar el idioma de la organización.'), 'error')
+      toast.show(await apiError(res, i18n.global.t('account.organizationLanguageFailed')), 'error')
       return false
     }
     organization.value = { ...organization.value, defaultLanguage: (await res.json()).defaultLanguage ?? null }
-    toast.show('Idioma de la organización guardado.', 'success')
+    toast.show(i18n.global.t('account.organizationLanguageSaved'), 'success')
     return true
   }
 

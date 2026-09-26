@@ -7,65 +7,63 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
           </div>
           <div class="campaign-header-text">
-            <h2 id="campaign-modal-title">Lanzar campaña</h2>
+            <h2 id="campaign-modal-title">{{ t('aegis.campaign.launch') }}</h2>
             <p>{{ doc?.subtitle || doc?.title }}</p>
           </div>
-          <button type="button" class="modal-close" @click="close" aria-label="Cerrar">&times;</button>
+          <button type="button" class="modal-close" @click="close" :aria-label="t('common.close')">&times;</button>
         </header>
 
         <Transition name="campaign-fade" mode="out-in">
           <div v-if="launched" key="success" class="campaign-success">
             <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="8 12 11 15 16 9"/></svg>
-            <h3>Campaña en marcha</h3>
-            <p>Enviando a {{ launchedCount }} destinatario{{ launchedCount === 1 ? '' : 's' }}. El envío continúa en segundo plano.</p>
+            <h3>{{ t('aegis.campaign.running') }}</h3>
+            <p>{{ t('aegis.campaign.sending', { count: launchedCount }, launchedCount) }}</p>
           </div>
 
           <div v-else key="form" class="campaign-body">
             <div class="quiz-status" :class="{ 'quiz-status--warn': questionCount === 0 }">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 2-3 4"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-              <span v-if="questionCount > 0">{{ questionCount }} pregunta{{ questionCount === 1 ? '' : 's' }} de comprobación listas</span>
-              <span v-else>Esta píldora no tiene preguntas de quiz — no se puede lanzar una campaña</span>
+              <span v-if="questionCount > 0">{{ t('aegis.campaign.questionsReady', { count: questionCount }, questionCount) }}</span>
+              <span v-else>{{ t('aegis.campaign.noQuestions') }}</span>
             </div>
 
             <div class="form-group">
-              <label for="camp-name">Nombre de la campaña</label>
-              <input id="camp-name" v-model="campaignName" type="text" maxlength="128" class="input" placeholder="Ej: Formación Q1 — Ventas" />
+              <label for="camp-name">{{ t('aegis.campaign.name') }}</label>
+              <input id="camp-name" v-model="campaignName" type="text" maxlength="128" class="input" :placeholder="t('aegis.campaign.namePlaceholder')" />
             </div>
 
             <div class="list-source-toggle" role="tablist">
-              <button type="button" role="tab" :aria-selected="mode === 'existing'" :class="{ active: mode === 'existing' }" @click="mode = 'existing'">Lista existente</button>
-              <button type="button" role="tab" :aria-selected="mode === 'new'" :class="{ active: mode === 'new' }" @click="mode = 'new'">Nueva lista</button>
+              <button type="button" role="tab" :aria-selected="mode === 'existing'" :class="{ active: mode === 'existing' }" @click="mode = 'existing'">{{ t('aegis.campaign.existingList') }}</button>
+              <button type="button" role="tab" :aria-selected="mode === 'new'" :class="{ active: mode === 'new' }" @click="mode = 'new'">{{ t('aegis.lists.new') }}</button>
             </div>
 
             <div v-if="mode === 'existing'" class="form-group">
-              <p v-if="store.loadingLists" class="hint">Cargando listas…</p>
-              <p v-else-if="!store.distributionLists.length" class="hint">Aún no tienes listas de distribución — crea una nueva.</p>
+              <p v-if="store.loadingLists" class="hint">{{ t('aegis.lists.loading') }}</p>
+              <p v-else-if="!store.distributionLists.length" class="hint">{{ t('aegis.campaign.noLists') }}</p>
               <select v-else v-model.number="selectedListId" class="input select">
-                <option :value="null">Selecciona una lista</option>
+                <option :value="null">{{ t('aegis.campaign.selectList') }}</option>
                 <option v-for="l in store.distributionLists" :key="l.id" :value="l.id">
-                  {{ l.name }} — {{ l.recipientCount }} destinatario{{ l.recipientCount === 1 ? '' : 's' }}
+                  {{ l.name }} — {{ t('aegis.lists.recipients', { count: l.recipientCount }, l.recipientCount) }}
                 </option>
               </select>
             </div>
 
             <template v-else>
               <div class="form-group">
-                <label for="camp-list-name">Nombre de la lista</label>
-                <input id="camp-list-name" v-model="newListName" type="text" maxlength="128" class="input" placeholder="Ej: Plantilla completa" />
+                <label for="camp-list-name">{{ t('aegis.lists.name') }}</label>
+                <input id="camp-list-name" v-model="newListName" type="text" maxlength="128" class="input" :placeholder="t('aegis.campaign.listNamePlaceholder')" />
               </div>
               <div class="form-group">
-                <label for="camp-emails">Destinatarios</label>
+                <label for="camp-emails">{{ t('aegis.lists.recipientsLabel') }}</label>
                 <textarea
                   id="camp-emails"
                   v-model="emailsRaw"
                   rows="4"
                   class="input textarea"
-                  placeholder="Un email por línea (o separados por coma)
-ana@empresa.com
-bob@empresa.com"
+                  :placeholder="t('aegis.campaign.emailsPlaceholder')"
                 ></textarea>
                 <span class="recipient-count" :class="{ 'recipient-count--empty': recipientCount === 0 }">
-                  {{ recipientCount }} destinatario{{ recipientCount === 1 ? '' : 's' }} detectado{{ recipientCount === 1 ? '' : 's' }}
+                  {{ t('aegis.lists.detectedRecipients', { count: recipientCount }, recipientCount) }}
                 </span>
               </div>
             </template>
@@ -85,10 +83,10 @@ bob@empresa.com"
         </Transition>
 
         <footer v-if="!launched" class="campaign-footer">
-          <button type="button" class="btn btn--secondary" @click="close">Cancelar</button>
+          <button type="button" class="btn btn--secondary" @click="close">{{ t('common.cancel') }}</button>
           <button type="button" class="btn btn--primary" :disabled="!canLaunch || busy" @click="handleLaunch">
             <span v-if="busy" class="btn-spin-inline"></span>
-            {{ busy ? 'Lanzando…' : 'Lanzar campaña' }}
+            {{ busy ? t('aegis.campaign.launching') : t('aegis.campaign.launch') }}
           </button>
         </footer>
       </div>
@@ -102,6 +100,9 @@ import { useAegisStore } from '@/stores/aegisStore'
 import { useUtils } from '@/composables/useUtils'
 import { useModalA11y } from '@/composables/useModalA11y'
 import { formatDate } from '@/i18n/format'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({ doc: { type: Object, required: true } })
 const emit = defineEmits(['close'])
@@ -112,7 +113,7 @@ const { parseEmails } = useUtils()
 const boxRef = ref(null)
 
 function defaultCampaignName() {
-  const title = props.doc?.subtitle || props.doc?.title || 'Píldora'
+  const title = props.doc?.subtitle || props.doc?.title || t('aegis.campaign.pill')
   const today = formatDate(new Date(), { day: '2-digit', month: '2-digit' })
   return `${title} — ${today}`
 }
@@ -143,9 +144,8 @@ const pastCampaignCount = computed(() =>
   store.campaigns.filter(campaign => campaign.documentId === props.doc.id).length,
 )
 const campaignsLinkText = computed(() => {
-  if (!pastCampaignCount.value) return 'Ver todas las campañas'
-  if (pastCampaignCount.value === 1) return 'Ver la campaña anterior de esta píldora'
-  return `Ver las ${pastCampaignCount.value} campañas anteriores de esta píldora`
+  if (!pastCampaignCount.value) return t('aegis.campaign.seeAll')
+  return t('aegis.campaign.seePrevious', { count: pastCampaignCount.value }, pastCampaignCount.value)
 })
 
 async function handleLaunch() {

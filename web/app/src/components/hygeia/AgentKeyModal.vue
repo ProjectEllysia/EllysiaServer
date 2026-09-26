@@ -4,26 +4,24 @@
       <div v-if="show" class="modal-overlay" @click.self="$emit('close')">
         <div class="modal-box">
           <div class="modal-header">
-            <h3>Clave de agente</h3>
-            <button class="close-btn" @click="$emit('close')">&times;</button>
+            <h3>{{ t('hygeia.agentKey.title') }}</h3>
+            <button class="close-btn" :aria-label="t('common.close')" @click="$emit('close')">&times;</button>
           </div>
           <div class="modal-body">
-            <p class="warning">
-              Esta clave se muestra <strong>una única vez</strong>. Cópiala y configúrala en el
-              agente ahora — no podrás volver a verla.
-            </p>
+            <i18n-t keypath="hygeia.agentKey.warning" tag="p" class="warning">
+              <template #once><strong>{{ t('hygeia.agentKey.once') }}</strong></template>
+            </i18n-t>
 
             <div class="key-box">
               <code>{{ agentKey }}</code>
-              <button class="copy-btn" @click="copyKey">{{ copied ? 'Copiado ✓' : 'Copiar' }}</button>
+              <button class="copy-btn" @click="copyKey">{{ copied ? t('hygeia.agentKey.copied') : t('hygeia.agentKey.copy') }}</button>
             </div>
 
-            <p class="snippet-label">Configuración del agente:</p>
-            <pre class="snippet">serverUrl: {{ serverUrl }}
-agentKey: {{ agentKey }}</pre>
+            <p class="snippet-label">{{ t('hygeia.agentKey.config') }}</p>
+            <pre class="snippet">{{ snippet }}</pre>
 
             <div class="modal-footer">
-              <button type="button" class="btn-primary" @click="$emit('close')">Ya la he guardado</button>
+              <button type="button" class="btn-primary" @click="$emit('close')">{{ t('hygeia.agentKey.saved') }}</button>
             </div>
           </div>
         </div>
@@ -33,7 +31,10 @@ agentKey: {{ agentKey }}</pre>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -43,6 +44,9 @@ defineEmits(['close'])
 
 const copied = ref(false)
 const serverUrl = typeof window !== 'undefined' ? window.location.origin : ''
+
+/** Configuración que se pega en el agente; las claves son las del fichero del agente y no se traducen. */
+const snippet = computed(() => `serverUrl: ${serverUrl}\nagentKey: ${props.agentKey}`)
 
 async function copyKey() {
   try {

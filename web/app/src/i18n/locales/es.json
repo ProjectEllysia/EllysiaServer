@@ -272,5 +272,3551 @@
       "sync": "No se pudo lanzar la sincronización.",
       "search": "No se pudo completar la búsqueda."
     }
+  },
+  "common": {
+    "cancel": "Cancelar",
+    "close": "Cerrar",
+    "confirm": "Confirmar",
+    "confirming": "Confirmando…",
+    "apply": "Aplicar",
+    "save": "Guardar",
+    "saving": "Guardando…",
+    "delete": "Borrar",
+    "edit": "Editar",
+    "loading": "Cargando…",
+    "retry": "Reintentar",
+    "back": "Volver",
+    "yes": "Sí",
+    "no": "No",
+    "none": "Ninguno",
+    "unknown": "Desconocido",
+    "characterCount": "{count} carácter | {count} caracteres",
+    "lineCount": "{count} línea | {count} líneas"
+  },
+  "toast": {
+    "close": "Cerrar notificación"
+  },
+  "previewBanner": {
+    "message": "Ellysia es un proyecto personal en desarrollo. No es un servicio: no se ofrecen cuentas ni se contrata nada.",
+    "close": "Cerrar el aviso de vista previa"
+  },
+  "mfaSetup": {
+    "title": "Activar verificación en dos pasos",
+    "intro": "Escanea este código con tu app autenticadora (Google Authenticator, Authy, 1Password…):",
+    "qrAlt": "Código QR de activación MFA",
+    "hideSecret": "Ocultar clave manual",
+    "showSecret": "¿No puedes escanear? Introducir clave manualmente",
+    "codeLabel": "Código de la app"
+  },
+  "promptField": {
+    "edit": "Editar prompt",
+    "empty": "Sin contenido",
+    "stats": "{characters} · {lines}"
+  },
+  "whiteLabel": {
+    "legend": "White-labeling",
+    "hint": "Cuánto de la marca de Ellysia ve quien recibe los envíos de este módulo.",
+    "notInPlan": "No incluido en tu plan",
+    "accentColor": "Color de énfasis",
+    "reset": "Restablecer",
+    "logoAlt": "Logo de la organización",
+    "removeLogo": "Quitar",
+    "changeImage": "Cambiar imagen",
+    "addImage": "Añadir imagen corporativa",
+    "missingLogo": "Sin imagen este nivel no se aplica: los envíos saldrán con el escalón anterior, «Aplicar color corporativo».",
+    "logoFormats": "PNG, JPG o GIF, hasta {maxKb} KB.",
+    "senderNote": "El remitente del correo sigue siendo el del servidor configurado en la instancia: el white-labeling cambia lo que se ve dentro del mensaje, no el dominio desde el que sale.",
+    "unsupportedFormat": "Formato no admitido. Usa PNG, JPG o GIF.",
+    "tooLarge": "La imagen ocupa {sizeKb} KB y el máximo son {maxKb} KB.",
+    "unreadable": "No se ha podido leer la imagen.",
+    "levels": {
+      "none": {
+        "title": "Nada de white-labeling",
+        "description": "Los envíos salen con la marca de Ellysia, como hasta ahora."
+      },
+      "color": {
+        "title": "Aplicar color corporativo",
+        "description": "El color de énfasis (botones, filetes y bordes) pasa a ser el de la organización."
+      },
+      "logo": {
+        "title": "Añadir imagen corporativa",
+        "description": "Además del color, se añade el logo de la organización sobre el texto introductorio."
+      },
+      "full": {
+        "title": "Eliminar todo lo relacionado con Ellysia",
+        "description": "La cabecera, el pie y la página del test pasan a la marca de la organización."
+      }
+    }
+  },
+  "moduleHub": {
+    "signIn": "Entrar",
+    "learnMore": "Conocer más",
+    "noActivity": "Todavía no hay actividad que mostrar.",
+    "shortcuts": "Atajos",
+    "scrollToFeatures": "Bajar a las capacidades",
+    "whatItDoes": "Qué hace {name}",
+    "resources": "Recursos",
+    "restOfPantheon": "El resto del panteón",
+    "modules": {
+      "themis": "Pesa cada amenaza antes de que golpee: motor propio, escáneres clásicos, informes IA.",
+      "aegis": "Concienciación que llega antes que el ataque: píldoras IA y campañas con seguimiento.",
+      "iris": "Verifica quién firma cada correo: 37 reglas contra el phishing.",
+      "acheron": "Guarda lo que no debe perderse: bóveda cifrada en tu navegador.",
+      "hygeia": "Vigila el pulso de cada activo: telemetría en vivo y alertas antes del fallo."
+    }
+  },
+  "api": {
+    "forbidden": "No tienes permisos suficientes para realizar esta acción.",
+    "rateLimited": {
+      "hours": "Has hecho demasiadas peticiones. Vuelve a intentarlo en {count} hora. | Has hecho demasiadas peticiones. Vuelve a intentarlo en {count} horas.",
+      "minutes": "Has hecho demasiadas peticiones. Vuelve a intentarlo en {count} minuto. | Has hecho demasiadas peticiones. Vuelve a intentarlo en {count} minutos.",
+      "seconds": "Has hecho demasiadas peticiones. Vuelve a intentarlo en {count} segundo. | Has hecho demasiadas peticiones. Vuelve a intentarlo en {count} segundos."
+    },
+    "planLimit": {
+      "notIncluded": "Tu plan no incluye esta funcionalidad. Puedes verlo en Planes.",
+      "reachedUntil": "Has alcanzado el límite de tu plan ({used}/{limit}). Se renueva el {date}.",
+      "reached": "Has alcanzado el límite de tu plan ({used}/{limit}).",
+      "generic": "Has alcanzado un límite de tu plan."
+    },
+    "validation": {
+      "sentence": "{field} {reason}",
+      "unknownField": "El campo «{field}»",
+      "fields": {
+        "username": "El identificador",
+        "email": "El correo",
+        "first_name": "El nombre",
+        "last_name": "El apellido",
+        "password": "La contraseña",
+        "name": "El nombre",
+        "code": "El código",
+        "limitKey": "La clave de límite",
+        "monthlyPriceCents": "El precio",
+        "operation": "La operación",
+        "token": "El token",
+        "identifier": "El identificador o correo",
+        "newPassword": "La nueva contraseña"
+      },
+      "reasons": {
+        "missing": "falta por rellenar",
+        "invalidEmail": "no parece una dirección válida",
+        "lengthBetween": "debe tener entre {min} y {max} caracteres",
+        "tooShort": "necesita al menos {min} caracteres",
+        "tooLong": "no puede pasar de {max} caracteres",
+        "oneOf": "tiene que ser uno de: {choices}",
+        "notNumber": "tiene que ser un número",
+        "unknown": "no se reconoce"
+      }
+    }
+  },
+  "session": {
+    "mfaDisabled": "Tu cuenta no tiene activada la autenticación multifactor.",
+    "enableMfa": "Activar MFA",
+    "wrongCredentials": "Credenciales incorrectas.",
+    "tooManyAttempts": "Demasiados intentos. Espera unos minutos.",
+    "serverError": "Error del servidor ({status})",
+    "invalidMfaCode": "Código inválido o verificación expirada."
+  },
+  "account": {
+    "notice": {
+      "pastDue": "Hay un problema con tu pago. Tu plan sigue activo hasta el {date}.",
+      "cancelled": "Has cancelado tu plan. Seguirá funcionando hasta el {date}.",
+      "ended": "Tu plan ha terminado. Estás en el plan gratuito; no se ha borrado nada."
+    },
+    "createOrganizationFailed": "No se pudo crear la organización.",
+    "organizationCreated": "Organización creada.",
+    "organizationLanguageFailed": "No se pudo guardar el idioma de la organización.",
+    "organizationLanguageSaved": "Idioma de la organización guardado."
+  },
+  "profile": {
+    "passwordChangeFailed": "Error al cambiar la contraseña.",
+    "passwordChanged": "Contraseña actualizada. Cerrando sesión…",
+    "updateFailed": "Error al actualizar el perfil.",
+    "updated": "Perfil actualizado."
+  },
+  "mfa": {
+    "setupFailed": "No se pudo iniciar la activación de MFA.",
+    "invalidCode": "Código inválido.",
+    "enabled": "MFA activado correctamente.",
+    "disabled": "MFA desactivado."
+  },
+  "about": {
+    "title": "Sobre Ellysia",
+    "intro": "Ellysia es un {project}: un banco de pruebas donde su autor construye y experimenta con herramientas de ciberseguridad. {notService} No se ofrecen cuentas, no se contrata nada y no hay ninguna empresa detrás.",
+    "introProject": "proyecto personal",
+    "introNotService": "No es un servicio ni un producto comercial.",
+    "contentsHeading": "Qué contiene",
+    "modules": {
+      "themis": "detección de vulnerabilidades con un motor propio (Lybra) y escáneres clásicos como contraste.",
+      "aegis": "formaciones de concienciación en seguridad generadas con inteligencia artificial.",
+      "iris": "análisis de correos electrónicos para detectar fraudes (phishing), con el veredicto explicado.",
+      "acheron": "caja fuerte de contraseñas cifrada en el navegador: la llave nunca viaja al servidor.",
+      "hygeia": "vigilancia del estado de servidores y equipos."
+    },
+    "ideaHeading": "La idea de fondo",
+    "idea": "La motivación es aprender y explorar qué haría falta para que protegerse no fuera un privilegio de quien puede pagar un equipo de seguridad. Si Ellysia llegara a ofrecerse algún día a otras personas, esta página y las condiciones legales cambiarían antes.",
+    "sourcesHeading": "Fuentes de datos",
+    "sourcesIntro": "La detección de vulnerabilidades usa catálogos públicos. Ninguno de sus responsables respalda Ellysia:",
+    "nvd": "(National Vulnerability Database, del NIST). Este producto usa la API de la NVD, pero no está respaldado ni certificado por la NVD.",
+    "nvdNotice": "This product uses the NVD API but is not endorsed or certified by the NVD.",
+    "kev": "catálogo de vulnerabilidades explotadas conocidas de CISA (EE. UU.).",
+    "epss": "puntuaciones de probabilidad de explotación de FIRST (first.org/epss).",
+    "sourceCode": "El código se puede consultar en {link}, con todos los derechos reservados."
+  },
+  "docs": {
+    "eyebrow": "Documentación",
+    "underConstruction": "Esta sección está en construcción — se irá completando junto al resto de la documentación de Ellysia.",
+    "usage": {
+      "title": "Documentación de uso",
+      "intro": "Guías paso a paso para sacar partido a cada herramienta de Ellysia: lanzar un escaneo en Themis, generar una píldora en Aegis, analizar un correo en Iris o guardar una credencial en Acheron."
+    },
+    "technical": {
+      "title": "Documentación técnica",
+      "intro": "Referencia técnica de la API, la arquitectura interna y los modelos de datos de Ellysia, pensada para quien integra o extiende la plataforma."
+    }
+  },
+  "notAvailable": {
+    "title": "Todavía no disponible",
+    "feature": "{feature} todavía no está disponible.",
+    "generic": "Esta función todavía no está disponible.",
+    "preview": "Ellysia está en vista previa y abrimos cada parte a medida que completamos lo necesario para ofrecerla con garantías.",
+    "fromHere": "Desde aquí puedes:",
+    "home": "volver a la portada",
+    "about": "conocer Ellysia",
+    "features": {
+      "plans": "La página de planes y precios",
+      "mailboxConnections": "La conexión de buzones de correo"
+    }
+  },
+  "legal": {
+    "eyebrow": "Legal",
+    "translationNotice": "Esta es la versión original."
+  },
+  "terms": {
+    "title": "Términos",
+    "intro": "Estamos preparando nuestros términos de servicio. Este texto es preliminar y describe, de forma general, cómo entendemos el uso de Ellysia.",
+    "responsibleUseHeading": "Uso responsable",
+    "responsibleUse": "Ellysia incluye herramientas de análisis de seguridad como Themis. Debes usarlas únicamente sobre sistemas y objetivos para los que tengas autorización expresa. El escaneo de infraestructuras ajenas sin permiso puede ser ilegal y es responsabilidad exclusiva de quien lo realiza.",
+    "noWarrantyHeading": "Sin garantías todavía",
+    "noWarranty": "Ellysia se encuentra en desarrollo activo. El servicio se ofrece «tal cual», sin garantías de disponibilidad ni de resultados, mientras maduramos el producto.",
+    "note": "Ellysia es un proyecto personal y no se ofrece como servicio, así que no hay condiciones de contratación. Si algún día se abriera a otras personas, se publicarían antes unos términos completos."
+  },
+  "privacy": {
+    "title": "Privacidad",
+    "intro": "Ellysia es un {project} y no un servicio: no se ofrecen cuentas a otras personas ni se contrata nada. Esta nota explica qué datos se tratan de quien visita la web, que es lo único que Ellysia sabe de alguien que no sea su autor.",
+    "introProject": "proyecto personal",
+    "controllerHeading": "Quién es el responsable",
+    "controller": "Gabriel Musteata, autor del proyecto, como persona física. Puedes contactar a través de su perfil de GitHub, {link}.",
+    "dataHeading": "Qué datos se guardan de quien visita la web",
+    "data": "Cada vez que tu navegador pide algo a Ellysia, el servidor lo anota en su registro de actividad: la {ip} desde la que se hace la petición, la fecha y la hora, qué se pidió, la respuesta que se dio y cuánto tardó.",
+    "dataIp": "dirección IP",
+    "purposeLabel": "Para qué:",
+    "purpose": "para mantener el servidor seguro y diagnosticar errores.",
+    "legalBasisLabel": "Por qué se puede:",
+    "legalBasis": "por el interés legítimo en proteger el servidor (artículo 6.1.f del Reglamento General de Protección de Datos).",
+    "retentionLabel": "Cuánto tiempo:",
+    "retention": "cada día se archiva por separado y se borra a los {days} días.",
+    "accessLabel": "Quién lo ve:",
+    "access": "solo el autor. No se comparte con nadie ni sale del servidor, que está en España.",
+    "cookiesHeading": "Cookies y almacenamiento del navegador",
+    "cookies": "Ellysia {noCookies}, ni herramientas de analítica, ni publicidad, ni ningún sistema de seguimiento. Tampoco carga recursos de otras webs: las tipografías se sirven desde el propio servidor. Por eso no hay aviso de cookies que aceptar.",
+    "cookiesNone": "no usa cookies",
+    "storage": "El navegador solo guarda, en su almacenamiento local, lo imprescindible para que la web funcione: que has cerrado el aviso de proyecto personal (hasta que cierres la pestaña), el tema de color si lo cambias y, si inicias sesión, la sesión. Puedes borrarlo en cualquier momento desde los ajustes del navegador.",
+    "rightsHeading": "Tus derechos",
+    "rights": "Puedes pedir acceder a los datos que se guardan sobre ti, que se borren o que se dejen de tratar. Como el registro solo guarda direcciones IP, indica desde qué dirección y en qué fechas visitaste la web. También puedes reclamar ante la {authority}.",
+    "rightsAuthority": "Agencia Española de Protección de Datos",
+    "version": "Versión de {date}. Si Ellysia llegara a ofrecerse a otras personas, esta nota se sustituiría antes por una política de privacidad completa."
+  },
+  "errorPage": {
+    "403": {
+      "title": "No tienes permiso para ver esto",
+      "p1": "La página existe, pero tu cuenta no puede abrirla: es una sección restringida a un rol concreto, o la sesión cambió de permisos desde que entraste.",
+      "p2": "Si crees que deberías poder acceder, ponte en contacto con quien administra Ellysia."
+    },
+    "404": {
+      "title": "Esta página no existe",
+      "p1": "La dirección a la que has llegado no corresponde a ninguna página de Ellysia. Puede que el enlace esté mal escrito, o que la página se moviera de sitio."
+    },
+    "409": {
+      "title": "La operación no se pudo completar",
+      "p1": "Lo que intentabas hacer choca con el estado actual de los datos: el elemento puede que ya exista, que haya cambiado desde que lo cargaste o que la acción ya se hubiera hecho antes.",
+      "p2": "Recarga la página para ver el estado actual e inténtalo de nuevo."
+    },
+    "500": {
+      "title": "Algo se ha roto",
+      "p1": "La página ha fallado al cargar: el servidor ha respondido con un error. No es culpa de lo que estuvieras haciendo, y normalmente basta con reintentar.",
+      "p2": "Si el problema persiste, vuelve a intentarlo en unos minutos."
+    },
+    "eyebrow": "Error {code}",
+    "retry": "Volver a intentar",
+    "fromHere": "Desde aquí puedes",
+    "separator": ", ",
+    "lastSeparator": " o ",
+    "links": {
+      "home": "volver a la portada",
+      "tools": "ver las herramientas",
+      "plans": "consultar los planes"
+    },
+    "generic": {
+      "title": "Error {code}",
+      "p1": "Algo no ha salido como se esperaba y esta página no sabe decirte mucho más. Vuelve a la portada; si el problema se repite, guarda este código por si necesitas referirte a él."
+    }
+  },
+  "landing": {
+    "mainNav": "Navegación principal",
+    "toolsMenu": "Herramientas",
+    "docsMenu": "Documentación",
+    "plans": "Planes",
+    "openMenu": "Abrir el menú",
+    "closeMenu": "Cerrar el menú",
+    "createAccount": "Crear cuenta gratis",
+    "verse": "Vigila. Conciencia. Verifica. Guarda.",
+    "disclaimer": "Proyecto personal en desarrollo · no es un servicio comercial",
+    "discoverTools": "Conocer las herramientas",
+    "scrollToTools": "Bajar a las herramientas",
+    "philosophy": {
+      "eyebrow": "Razón de ser",
+      "title": "La filosofía detrás de Ellysia",
+      "p1": "La seguridad en la red dejó de ser asunto de unos pocos. Hoy basta con abrir un correo, guardar una contraseña o encender un servidor para quedar expuesto. Lo que cambió no fue la amenaza: fue quién la recibe.",
+      "p2": "Defenderse, en cambio, sigue siendo caro. Media docena de productos, cada uno con su licencia y su consola, al alcance de quien puede pagar un equipo que los maneje. Ellysia reúne esas piezas {sky} — detectar, formar, verificar, guardar, vigilar — para quien no tiene un departamento de seguridad detrás.",
+      "p2Sky": "bajo un mismo cielo",
+      "p3": "No prometemos invulnerabilidad; nadie honesto lo hace. Prometemos que {privilege}.",
+      "p3Privilege": "defenderse deje de ser un privilegio"
+    },
+    "toolsTitle": "Las cinco herramientas",
+    "toolsSubtitle": "Cada una guarda un aspecto de tu seguridad.",
+    "explore": "Explorar {name}",
+    "tools": {
+      "themis": {
+        "blurb": "Detección de vulnerabilidades",
+        "myth": "La que sostiene la balanza y no dicta sentencia sin pesar antes cada indicio.",
+        "title": "Pesa cada amenaza antes de que golpee",
+        "desc": "Motor de detección propio (Lybra), que descubre y analiza por su cuenta, junto a Nmap, Nikto y Nuclei como escáneres independientes, e informes redactados por IA listos para entregar."
+      },
+      "aegis": {
+        "blurb": "Concienciación con IA",
+        "myth": "El escudo de Zeus y Atenea, forjado para proteger antes del golpe.",
+        "title": "Concienciación que llega antes que el ataque",
+        "desc": "Boletines de inteligencia de seguridad generados por IA para formar a tu organización."
+      },
+      "iris": {
+        "blurb": "Análisis anti-phishing",
+        "myth": "La mensajera de los dioses; ningún mensaje falso cruza su arco.",
+        "title": "Verifica quién firma cada correo",
+        "desc": "Análisis de cabeceras de correo para detectar phishing mediante reglas de verificación."
+      },
+      "acheron": {
+        "blurb": "Bóveda cifrada",
+        "myth": "El río que nadie cruza sin la llave.",
+        "title": "Guarda lo que no debe perderse",
+        "desc": "Bóveda cifrada de credenciales y tarjetas para tu organización. El cifrado ocurre en tu navegador: la llave nunca viaja."
+      },
+      "hygeia": {
+        "blurb": "Monitorización de activos",
+        "myth": "La diosa de la salud; vigila los signos vitales de cada activo.",
+        "title": "Vigila el pulso de cada activo",
+        "desc": "Agentes ligeros empujan telemetría de hardware; los umbrales con histéresis abren y resuelven anomalías solos, con aviso por correo en lo crítico."
+      }
+    },
+    "chips": {
+      "lybra": "Lybra",
+      "nmap": "Nmap",
+      "nikto": "Nikto",
+      "nuclei": "Nuclei",
+      "aiReports": "Informes IA",
+      "aiNewsletter": "Newsletter IA",
+      "markdown": "Markdown",
+      "json": "JSON",
+      "spf": "SPF",
+      "dkim": "DKIM",
+      "dmarc": "DMARC",
+      "antiPhishing": "Anti-phishing",
+      "browserEncryption": "Cifrado en navegador",
+      "credentials": "Credenciales",
+      "cards": "Tarjetas",
+      "push": "Push",
+      "thresholds": "Umbrales",
+      "hostDown": "Host caído",
+      "alerts": "Alertas"
+    },
+    "steps": {
+      "eyebrow": "Cómo se empieza",
+      "title": "Tres pasos hasta el primer veredicto",
+      "account": {
+        "title": "Crea tu cuenta",
+        "desc": "Gratis y sin tarjeta. El plan de entrada no caduca ni pide datos de pago."
+      },
+      "target": {
+        "title": "Apunta tu primer objetivo",
+        "desc": "Un dominio en Themis, o el agente de Hygeia en el servidor que quieras vigilar."
+      },
+      "verdict": {
+        "title": "Recibe el veredicto",
+        "desc": "El motor pesa cada indicio y redacta el informe, listo para leer o entregar."
+      }
+    },
+    "pricing": {
+      "title": "Empieza gratis; crece si te hace falta",
+      "subtitle": "Sin tarjeta para empezar. El plan gratuito no caduca.",
+      "starter": "Para empezar",
+      "perMonth": "/mes",
+      "startFree": "Empezar gratis",
+      "details": "Ver detalles",
+      "compare": "Comparar todos los límites de cada plan →"
+    },
+    "faq": {
+      "eyebrow": "Antes de que preguntes",
+      "title": "Lo que suele costar decidir",
+      "passwordsLeave": {
+        "q": "¿Mis contraseñas salen de mi navegador?",
+        "a": "No. Acheron cifra en tu navegador antes de enviar nada: el servidor solo ve texto cifrado y nunca recibe tu contraseña maestra ni la clave que se deriva de ella."
+      },
+      "lostMasterPassword": {
+        "q": "¿Qué pasa si pierdo mi contraseña maestra de Acheron?",
+        "a": "Se pierde el contenido de la bóveda, y no hay forma de recuperarlo. Es la consecuencia directa de que la clave no viaje: si nosotros pudiéramos devolvértela, también podríamos leer tus secretos. Guárdala donde guardarías la llave de tu casa."
+      },
+      "technical": {
+        "q": "¿Necesito ser técnico para usarlo?",
+        "a": "Para lanzar un análisis y leer el informe, no: eliges un objetivo y recibes el resultado redactado. Instalar el agente de Hygeia en un servidor sí pide acceso a esa máquina."
+      },
+      "hygeiaAgent": {
+        "q": "¿Qué necesita el agente de Hygeia?",
+        "a": "Un servicio ligero en la máquina que quieras vigilar. Es él quien envía los datos hacia fuera cada pocos segundos, así que no hace falta abrir ningún puerto entrante."
+      },
+      "cost": {
+        "q": "¿Cuánto cuesta empezar?",
+        "a": "Nada. El plan de entrada es gratuito, no pide tarjeta y no caduca. Si te quedas corto de cupo, los planes de pago están más arriba."
+      }
+    },
+    "closing": {
+      "title": "Defenderse no debería ser un privilegio",
+      "register": "Crea tu cuenta y lanza tu primer análisis hoy. Gratis, sin tarjeta.",
+      "personal": "Ellysia es un proyecto personal: no admite cuentas nuevas ni ofrece ningún servicio.",
+      "myTools": "Ir a mis herramientas",
+      "seePlans": "Ver los planes"
+    },
+    "forgeLabel": "Tecnologías con las que está construida Ellysia",
+    "forgeEyebrow": "Construida con",
+    "plaque": "Operativo — {count} herramientas",
+    "eyebrow": "Security Operations Suite"
+  },
+  "login": {
+    "title": "El umbral",
+    "subtitle": "Identifícate para cruzar",
+    "username": "Identificador",
+    "usernamePlaceholder": "nombre de usuario",
+    "password": "Clave de acceso",
+    "capsLock": "⇪ Mayúsculas activas",
+    "hidePassword": "Ocultar clave",
+    "showPassword": "Mostrar clave",
+    "submit": "Cruzar el umbral",
+    "submitting": "Cruzando…",
+    "forgotPassword": "¿Olvidaste tu clave?",
+    "noAccount": "¿No tienes cuenta?",
+    "registerCta": "Regístrate gratis y prueba Ellysia",
+    "encrypted": "Enlace cifrado activo",
+    "welcome": "Bienvenido",
+    "establishing": "Estableciendo sesión segura…",
+    "unreachable": "No se pudo conectar con el servidor.",
+    "usernameRequired": "El identificador es obligatorio.",
+    "passwordRequired": "La clave de acceso es obligatoria.",
+    "unknownError": "Error desconocido.",
+    "passwordChanged": "Tu contraseña ha cambiado. Inicia sesión de nuevo con la contraseña actual.",
+    "register": {
+      "username": "Nombre de usuario",
+      "email": "Correo",
+      "firstName": "Nombre",
+      "lastName": "Apellidos",
+      "generate": "Generar una clave segura",
+      "hidePasswords": "Ocultar las claves",
+      "showPasswords": "Mostrar las claves",
+      "minLength": "Mínimo 8 caracteres.",
+      "confirm": "Repite la clave",
+      "submit": "Crear mi cuenta",
+      "submitting": "Creando…",
+      "freePlanHint": "Empezarás en el plan gratuito. Te mandaremos un correo para confirmarlo.",
+      "haveAccount": "Ya tengo cuenta",
+      "mismatch": "Las claves no coinciden. Repítela tal cual la escribiste.",
+      "failed": "No se pudo crear la cuenta.",
+      "created": "Cuenta creada. Revisa tu correo para confirmarla y ya puedes entrar."
+    },
+    "recover": {
+      "hint": "Te enviaremos un enlace para restablecer tu clave. Si tu cuenta tiene verificación en dos pasos, te la pediremos antes de enviarlo.",
+      "identifier": "Identificador o correo",
+      "identifierPlaceholder": "nombre de usuario o correo",
+      "submit": "Recuperar mi clave",
+      "submitting": "Enviando…",
+      "back": "← Volver a entrar",
+      "missingIdentifier": "Introduce tu identificador o correo.",
+      "failed": "No se pudo procesar la solicitud.",
+      "sent": "Si la cuenta existe, te hemos enviado un enlace para restablecer tu clave. Revisa tu correo."
+    },
+    "mfa": {
+      "code": "Código de verificación",
+      "recoveryCode": "Código de recuperación",
+      "submit": "Verificar",
+      "submitting": "Verificando…",
+      "useApp": "Usar código de la app",
+      "useRecovery": "¿Perdiste el acceso? Usar código de recuperación",
+      "back": "← Volver",
+      "invalid": "El código no es válido o la verificación caducó.",
+      "missingCode": "Introduce el código."
+    }
+  },
+  "resetPassword": {
+    "title": "Restablecer clave",
+    "checking": "Comprobando tu enlace…",
+    "invalidTitle": "Este enlace no vale",
+    "invalidSubtitle": "Puede que ya lo hayas usado o que haya caducado.",
+    "invalidHint": "Los enlaces de recuperación caducan a los 30 minutos y solo valen una vez.",
+    "requestAnother": "Solicitar otro enlace",
+    "backToLogin": "← Volver al umbral",
+    "formTitle": "Elige tu nueva clave",
+    "formSubtitle": "Con ella volverás a cruzar el umbral",
+    "newPassword": "Nueva clave de acceso",
+    "hint": "Mínimo 8 caracteres. Al cambiarla, se cerrará la sesión en todos tus dispositivos.",
+    "submit": "Restablecer mi clave",
+    "doneTitle": "Clave restablecida",
+    "doneSubtitle": "Tus otras sesiones se han cerrado",
+    "done": "Ya puedes entrar con tu nueva clave.",
+    "missing": "Introduce la nueva clave.",
+    "failed": "No se pudo restablecer la clave."
+  },
+  "planFormat": {
+    "labels": {
+      "scans": "Escaneos de vulnerabilidades",
+      "mailAnalyses": "Análisis de correo",
+      "vaultSecrets": "Secretos en la bóveda",
+      "assets": "Activos monitorizados",
+      "aiRequests": "Peticiones a la IA",
+      "members": "Miembros de la organización"
+    },
+    "shortLabels": {
+      "scans": "Escaneos",
+      "mailAnalyses": "Análisis de correo",
+      "vaultSecrets": "Secretos",
+      "assets": "Activos",
+      "aiRequests": "Peticiones a la IA",
+      "members": "Miembros"
+    },
+    "notIncluded": "No incluido",
+    "unlimited": "Ilimitado",
+    "perMonth": "{value} al mes"
+  },
+  "plansPage": {
+    "lede": "Empieza gratis. Sube cuando tus activos lo pidan, no cuando lo pida una licencia.",
+    "empty": "Todavía no hay planes publicados.",
+    "yourPlan": "Tu plan",
+    "orgAddon": "+{price}/mes con organización",
+    "seeUsage": "Ver consumo",
+    "askAdmin": "Pídeselo a quien administre tu cuenta",
+    "footnote": "Los planes con organización reparten sus límites entre los miembros: una bolsa común, no una licencia por cabeza. Y unirse a una organización nunca sustituye tu plan personal — se suman."
+  },
+  "myPlan": {
+    "title": "Mi plan",
+    "compare": "Comparar planes",
+    "upgradeHint": "¿Quieres subir de plan? Escribe a quien administre tu cuenta — todavía no hay cambio de plan en autoservicio.",
+    "usage": "Consumo",
+    "usageDesc": "Lo que va del periodo. Las existencias no se reinician: se liberan borrando.",
+    "exceeded": "Por encima del tope: puedes leer y borrar, pero no crear más hasta bajar de {limit}. No se ha borrado nada.",
+    "renews": "Se renueva el {date}",
+    "loadFailed": "No se ha podido cargar tu plan.",
+    "freePlan": "Estás en el plan gratuito.",
+    "upTo": "hasta {limit}",
+    "usedUnlimited": "{used} · ilimitado",
+    "limits": {
+      "lybraScans": "Escaneos de Lybra",
+      "thirdPartyScans": "Escaneos con Nmap / Nikto / Nuclei",
+      "scheduledScans": "Escaneos programados",
+      "aiReports": "Informes con IA",
+      "pills": "Píldoras de concienciación",
+      "campaigns": "Campañas lanzadas",
+      "recipients": "Destinatarios en listas",
+      "mailAnalyses": "Análisis de correo",
+      "aiSummaries": "Resúmenes con IA",
+      "mailboxes": "Buzones conectados",
+      "vaults": "Bóvedas",
+      "secrets": "Secretos guardados",
+      "assets": "Activos monitorizados",
+      "aiRequests": "Peticiones a la IA",
+      "members": "Miembros de la organización"
+    }
+  },
+  "invitationLanding": {
+    "home": "Volver a la portada",
+    "verify": {
+      "loading": {
+        "title": "Confirmando tu correo…",
+        "text": "Un momento."
+      },
+      "ok": {
+        "title": "Correo confirmado",
+        "text": "Ya puedes usar Ellysia sin límites de cuenta sin verificar.",
+        "cta": "Entrar"
+      },
+      "error": {
+        "title": "Este enlace no vale",
+        "text": "Puede que ya lo hayas usado o que haya caducado. Pide uno nuevo desde tu perfil."
+      }
+    },
+    "invitation": {
+      "loading": {
+        "title": "Aceptando la invitación…",
+        "text": "Un momento."
+      },
+      "ok": {
+        "title": "Ya formas parte de la organización",
+        "text": "Tu plan personal no ha cambiado: lo que la organización incluye se suma a lo que ya tenías, y si algún día sales te lo llevas intacto.",
+        "cta": "Ver mi organización"
+      },
+      "error": {
+        "title": "Esta invitación no vale",
+        "text": "Puede que ya la hayas aceptado, que la hayan revocado o que haya caducado. Pide a quien te invitó que te mande otra."
+      }
+    }
+  },
+  "users": {
+    "topbar": "Gestión de Usuarios",
+    "title": "Usuarios",
+    "subtitle": "Administra los usuarios y sus atributos ABAC",
+    "count": "{count} usuario | {count} usuarios",
+    "new": "+ Nuevo Usuario",
+    "admins": "Administradores ({count})",
+    "regular": "Usuarios ({count})",
+    "empty": "No hay usuarios registrados.",
+    "fields": {
+      "firstName": "Nombre",
+      "lastName": "Apellido",
+      "username": "Usuario",
+      "email": "Email",
+      "password": "Contraseña",
+      "role": "Rol"
+    },
+    "roles": {
+      "user": "Usuario",
+      "admin": "Administrador"
+    },
+    "strength": {
+      "weak": "Débil",
+      "medium": "Media",
+      "strong": "Fuerte"
+    },
+    "create": {
+      "title": "Nuevo Usuario",
+      "personal": "Información personal",
+      "credentials": "Credenciales",
+      "passwordPlaceholder": "Mínimo 8 caracteres",
+      "submit": "Crear Usuario",
+      "passwordTooShort": "La contraseña debe tener al menos 8 caracteres."
+    },
+    "toast": {
+      "loadFailed": "Error al cargar usuarios.",
+      "duplicate": "Usuario o email ya existe.",
+      "createForbidden": "Permisos insuficientes para crear usuarios.",
+      "createFailed": "Error al crear usuario.",
+      "created": "Usuario creado exitosamente.",
+      "deleteForbidden": "No tienes permiso para eliminar a este usuario.",
+      "deleteFailed": "Error al eliminar el usuario.",
+      "deleted": "Usuario eliminado.",
+      "attributesAddFailed": "Error al añadir atributos.",
+      "attributesUpdated": "Atributos actualizados.",
+      "attributesRemoveFailed": "Error al eliminar atributos.",
+      "attributeRemoved": "Atributo eliminado."
+    },
+    "details": {
+      "title": "Detalles del Usuario",
+      "name": "Nombre",
+      "created": "Creado",
+      "attributes": "Atributos ABAC",
+      "noAttributes": "Sin atributos",
+      "addAttribute": "+ Añadir atributo",
+      "permissions": {
+        "read": "Lectura",
+        "write": "Escritura",
+        "create": "Creación",
+        "delete": "Eliminación"
+      },
+      "deleteTitle": "Dar de baja",
+      "deleteText": "Se borra la cuenta y todo lo que cuelga de ella: escaneos, campañas, informes y su bóveda. No hay vuelta atrás.",
+      "deleteButton": "Eliminar usuario",
+      "irreversible": "Esta acción no se puede deshacer.",
+      "deleteMessage": "Vas a eliminar la cuenta de {'@'}{username} y todos sus datos.",
+      "deleteOrg": "{base} También desaparece su organización «{name}».",
+      "deleteOrgWithMembers": "{base} También desaparece su organización «{name}» y {count} miembro se queda sin ella. | {base} También desaparece su organización «{name}» y {count} miembros se quedan sin ella."
+    },
+    "roots": "Root ({count})"
+  },
+  "profilePage": {
+    "topbar": "Perfil de Usuario",
+    "personal": "Información Personal",
+    "firstNamePlaceholder": "Tu nombre",
+    "lastNamePlaceholder": "Tu apellido",
+    "saveChanges": "Guardar Cambios",
+    "languageDesc": "Si no eliges ninguno, sigues el de tu organización o, sin ella, el de la plataforma.",
+    "complianceTitle": "Marcos de cumplimiento",
+    "complianceDesc": "Los informes de Lybra indicarán qué controles de estos marcos afecta cada hallazgo, junto a la técnica de ataque de MITRE ATT&CK, que sale siempre.",
+    "security": "Seguridad",
+    "currentPassword": "Contraseña actual",
+    "newPassword": "Nueva contraseña",
+    "confirmPassword": "Confirmar contraseña",
+    "repeatPassword": "Repite la contraseña",
+    "changing": "Cambiando…",
+    "changePassword": "Cambiar Contraseña",
+    "passwordMismatch": "Las contraseñas no coinciden.",
+    "passwordSame": "La nueva contraseña debe ser diferente de la actual.",
+    "mfa": {
+      "title": "Verificación en dos pasos (MFA)",
+      "recoveryWarning": "Guarda estos códigos en un lugar seguro: cada uno sirve para un solo inicio de sesión de emergencia si pierdes tu app autenticadora. No se volverán a mostrar.",
+      "download": "Descargar .txt",
+      "saved": "Ya los guardé",
+      "enabled": "✓ Verificación en dos pasos activada.",
+      "disableCode": "Código de la app o de recuperación",
+      "disablePlaceholder": "123456 o XXXX-XXXX",
+      "disabling": "Desactivando…",
+      "disable": "Desactivar MFA",
+      "disabled": "No tienes la verificación en dos pasos activada.",
+      "generating": "Generando…",
+      "recoveryFile": "CÓDIGOS DE RECUPERACIÓN MFA - ELLYSIA\n\nGuarda estos códigos en un lugar seguro. Cada uno sirve para un solo inicio de sesión de emergencia si pierdes tu app autenticadora.\n\n{codes}\n\nNota: Estos códigos no se volverán a mostrar. Si los pierdes, deberás desactivar y reconfigurar MFA."
+    },
+    "delete": {
+      "title": "Borrar mi cuenta",
+      "text": "Se borra todo lo tuyo: bóvedas, escaneos, análisis, activos y listas. No hay vuelta atrás.",
+      "orgDisappears": "Tu organización «{name}» desaparecerá con tu cuenta.",
+      "membersWarning": "No hay nadie más dentro. | 1 persona se quedará sin organización. | {count} personas se quedarán sin organización.",
+      "membersKeep": "Conservarán su cuenta, sus datos y su plan personal, pero perderán todo lo que tu plan les daba.",
+      "leaves": "Saldrás de tu organización. Los demás no se ven afectados.",
+      "confirmPassword": "Confirma con tu contraseña",
+      "deleting": "Borrando…",
+      "confirmTitle": "¿Seguro que quieres borrar tu cuenta?",
+      "confirmLabel": "Sí, borrar mi cuenta",
+      "confirmBase": "Se borrará todo lo tuyo y no se puede deshacer.",
+      "confirmWithOrg": "{base} Además, tu organización «{name}» desaparecerá: {members}",
+      "failed": "No se pudo borrar la cuenta.",
+      "done": "Tu cuenta se ha eliminado."
+    }
+  },
+  "organization": {
+    "topbar": "Mi organización",
+    "none": "Aún no tienes organización",
+    "lede": "Una organización deja que tu gente use Ellysia bajo tu plan, sin pagar una licencia por cabeza. Comparte plan y factura — nunca datos: no verás sus bóvedas, ni sus correos analizados, ni sus escaneos.",
+    "name": "Nombre de la organización",
+    "create": "Crear organización",
+    "notInPlan": "Tu plan no incluye la gestión de una organización.",
+    "seePlans": "Ver planes",
+    "youManage": "Gestionas",
+    "youBelong": "Perteneces a",
+    "memberCount": "{count} miembro | {count} miembros",
+    "leave": "Salir de la organización",
+    "memberHint": "Tu plan personal sigue siendo tuyo: lo que la organización incluye se suma a lo que ya tienes, y si te vas te lo llevas intacto.",
+    "languageDesc": "El idioma de los miembros que no han elegido uno. Quien elige el suyo desde el selector de idioma lo mantiene.",
+    "platformLanguage": "Idioma de la plataforma",
+    "complianceDesc": "Los marcos que salen en los informes de Lybra de todos los miembros. Si los fijas, sustituyen a los que cada miembro haya elegido en su perfil.",
+    "inviteTitle": "Invitar",
+    "inviteDesc": "Si esa dirección ya tiene cuenta, recibirá un enlace y no entrará hasta que acepte. Si no la tiene, se le crea una y se le mandan las credenciales.",
+    "invitePlaceholder": "persona{'@'}empresa.com",
+    "invite": "Invitar",
+    "members": "Miembros",
+    "owner": "Dueño",
+    "member": "Miembro",
+    "expel": "Expulsar",
+    "invitations": "Invitaciones",
+    "noInvitations": "No hay invitaciones.",
+    "status": "Estado",
+    "expires": "Caduca",
+    "revoke": "Revocar",
+    "statuses": {
+      "pending": "Pendiente",
+      "accepted": "Aceptada",
+      "revoked": "Revocada",
+      "expired": "Caducada"
+    },
+    "confirmExpel": {
+      "title": "¿Expulsar a {username}?",
+      "message": "Conservará su cuenta, sus datos y su plan personal. Solo perderá lo que la organización le daba."
+    },
+    "confirmRevoke": {
+      "title": "¿Revocar la invitación?",
+      "message": "El enlace enviado a {email} dejará de funcionar."
+    },
+    "confirmLeave": {
+      "title": "¿Salir de la organización?",
+      "message": "Conservarás tu cuenta, tus datos y tu plan personal. Perderás lo que la organización te daba, y lo que quede por encima de tu plan se quedará en solo lectura — no se borra nada."
+    },
+    "toast": {
+      "inviteFailed": "No se pudo invitar.",
+      "invited": "Invitación enviada.",
+      "expelFailed": "No se pudo expulsar.",
+      "expelled": "Miembro expulsado.",
+      "revokeFailed": "No se pudo revocar.",
+      "leaveFailed": "No se pudo salir.",
+      "left": "Has salido de la organización."
+    },
+    "namePlaceholder": "Acme S.L."
+  },
+  "adminPlans": {
+    "topbar": "Gestor de planes",
+    "intro": "Los planes y sus topes viven en base de datos, no en el código: lo que se cambie aquí surte efecto en la siguiente petición, sin desplegar.",
+    "catalog": "Catálogo",
+    "newPlan": "Nuevo plan",
+    "emptyCatalog": "No hay ningún plan en la base de datos. Si acabas de desplegar, aplica las migraciones — la semilla del catálogo va en una de ellas:",
+    "code": "Código",
+    "name": "Nombre",
+    "price": "Precio",
+    "rank": "Orden",
+    "default": "Por defecto",
+    "hidden": "Oculto",
+    "limits": "Topes",
+    "makeDefault": "Hacer por defecto",
+    "editTitle": "Editar {name}",
+    "editDesc": "El código no se edita: lo nombran las asignaciones ya hechas y, el día de la pasarela, su correspondencia con ella. Si hace falta otro código, es otro plan. Los topes se editan abajo, en su propia tabla.",
+    "createDesc": "Nace sin topes: todas sus claves valen 0 hasta que se rellenen. Un plan a medio configurar no regala nada.",
+    "tagline": "Lema",
+    "priceCents": "Precio (céntimos)",
+    "orgAddon": "Añadido de organización",
+    "visibility": "Visibilidad",
+    "public": "Se enseña en la tabla de precios",
+    "private": "Oculto (plan a medida)",
+    "create": "Crear",
+    "subscriptions": "Suscripciones",
+    "subscriptionsDesc": "Las seis operaciones del ciclo de vida, a mano. Es el mismo camino que usará la pasarela el día que se enchufe: aquí las mueve root, mañana un adaptador de webhooks.",
+    "account": "Cuenta",
+    "chooseAccount": "Elige una cuenta…",
+    "now": "Ahora:",
+    "withOrganization": "con organización",
+    "until": "hasta {date}",
+    "noSubscription": "Sin suscripción — esta cuenta está en el plan por defecto.",
+    "operation": "Operación",
+    "operations": {
+      "activate": "Activar o cambiar de plan",
+      "start_trial": "Empezar prueba",
+      "mark_past_due": "Marcar impago",
+      "resume": "Reanudar",
+      "cancel": "Cancelar",
+      "expire": "Caducar ahora"
+    },
+    "plan": "Plan",
+    "trialEnds": "La prueba acaba el",
+    "validUntil": "Vigente hasta",
+    "graceUntil": "Cortesía hasta",
+    "organization": "Organización",
+    "noOrganization": "Sin organización",
+    "canManageOrganization": "Puede gestionar una organización",
+    "when": "Cuándo",
+    "atPeriodEnd": "Al terminar el periodo pagado",
+    "immediately": "Ahora mismo (devolución)",
+    "applying": "Aplicando…",
+    "limitsOf": "Topes de {name}",
+    "saveLimits": "Guardar topes",
+    "limitsDesc": "Se guarda la tabla entera: lo que se ve aquí es exactamente lo que queda. Casilla vacía = {unlimited} (∞) · {zero} = no incluido · un número = tope. Aparecen siempre todas las claves, así que ninguna se queda sin decidir.",
+    "unlimitedWord": "ilimitado",
+    "key": "Clave",
+    "period": "Periodo",
+    "holder": "Titular",
+    "periods": {
+      "month": "mensual",
+      "day": "diario",
+      "stock": "existencias",
+      "tier": "nivel"
+    },
+    "statuses": {
+      "active": "activa",
+      "trialing": "en prueba",
+      "past_due": "impago",
+      "canceled": "cancelada"
+    },
+    "confirmDefault": {
+      "title": "¿Hacer de \"{name}\" el plan por defecto?",
+      "message": "Lo recibirán todas las cuentas sin suscripción vigente, y las que hoy están en el actual pasarán a este."
+    },
+    "confirmDelete": {
+      "title": "¿Borrar el plan \"{name}\"?",
+      "message": "Solo se puede si nadie lo tiene contratado."
+    },
+    "toast": {
+      "operationFailed": "No se pudo aplicar la operación.",
+      "subscriptionUpdated": "Suscripción actualizada.",
+      "catalogFailed": "No se ha podido cargar el catálogo.",
+      "keysFailed": "No se pudo cargar el catálogo de claves.",
+      "planSaveFailed": "No se pudo guardar el plan.",
+      "planUpdated": "Plan actualizado.",
+      "planCreated": "Plan creado.",
+      "keysMissing": "No se han cargado las claves de límite: recarga antes de guardar.",
+      "limitsFailed": "No se pudieron guardar los topes.",
+      "limitsSaved": "Topes guardados.",
+      "defaultFailed": "No se pudo cambiar.",
+      "deleteFailed": "No se pudo borrar."
+    }
+  },
+  "themis": {
+    "refresh": "Actualizar",
+    "deleteSelected": "Eliminar ({count})",
+    "selectScan": "Seleccionar el escaneo #{id}",
+    "deleteScanLabel": "Eliminar el escaneo #{id}",
+    "deleteScan": "Eliminar escaneo",
+    "priority": {
+      "CRITICAL": "Crítica",
+      "HIGH": "Alta",
+      "MEDIUM": "Media",
+      "LOW": "Baja",
+      "INFO": "Info"
+    },
+    "findingState": {
+      "open": "Abierto",
+      "fixed": "Corregido",
+      "regressed": "Regresado",
+      "accepted": "Aceptado",
+      "false_positive": "Falso positivo"
+    },
+    "documents": {
+      "title": "Documentos",
+      "refresh": "Refrescar documentos",
+      "loading": "Cargando documentos…",
+      "empty": "Sin documentos generados",
+      "ai": "IA",
+      "download": "Descargar",
+      "running": "Generando…",
+      "pending": "Pendiente",
+      "error": "Error",
+      "aiAnalysis": "Análisis IA",
+      "generatePdf": "Generar PDF"
+    },
+    "batch": {
+      "selected": "{count} escaneo seleccionado | {count} escaneos seleccionados",
+      "processing": "Procesando…"
+    },
+    "folders": {
+      "folder": "Carpeta",
+      "name": "Nombre de la carpeta",
+      "namePlaceholder": "Ej. Producción",
+      "nameHint": "Solo letras, números, espacios, guiones y guiones bajos.",
+      "moveTitle": "Mover escaneo a carpeta",
+      "select": "Selecciona una carpeta",
+      "choose": "— Elige carpeta —",
+      "moving": "Moviendo…",
+      "move": "Mover",
+      "title": "Carpetas de escaneos",
+      "new": "Nueva carpeta",
+      "loading": "Cargando carpetas",
+      "empty": "No hay carpetas todavía. ¡Crea la primera!",
+      "emptyFolder": "No hay escaneos en esta carpeta.",
+      "moveToOther": "Mover a otra carpeta",
+      "removeFromFolder": "Quitar de la carpeta",
+      "showMore": "Ver más ({count} restantes)",
+      "rename": "Renombrar",
+      "delete": "Eliminar carpeta",
+      "none": "Sin carpeta"
+    },
+    "stats": {
+      "total": "Escaneos totales",
+      "allTypes": "todos los tipos",
+      "network": "escaneos de red",
+      "web": "escaneos web",
+      "templates": "plantillas"
+    },
+    "status": {
+      "running": "Ejecutando",
+      "done": "Completado",
+      "pending": "Pendiente",
+      "failed": "Fallido",
+      "cancelled": "Cancelado"
+    },
+    "views": {
+      "full": "Vista completa",
+      "folders": "Carpetas",
+      "history": "Estadísticas"
+    },
+    "nuclei": {
+      "empty": "Sin hallazgos.",
+      "inferred": "Deducido (QoD {qod})",
+      "corroborated": "Corroborado por {source}"
+    },
+    "traceroute": {
+      "title": "Ruta de red (traceroute)",
+      "cached": "Cacheado {date}",
+      "computed": "Calculado {date}",
+      "refresh": "Recalcular ruta",
+      "loading": "Calculando ruta hasta el objetivo…",
+      "failed": "No se pudo trazar la ruta hasta el objetivo.",
+      "origin": "Servidor Ellysia",
+      "originLabel": "Origen",
+      "noReply": "Sin respuesta (*)",
+      "target": "Objetivo"
+    },
+    "history": {
+      "title": "Estadísticas históricas",
+      "subtitle": "Evolución de tus escaneos a lo largo del tiempo, por host.",
+      "loadingHosts": "Cargando hosts…",
+      "empty": "Todavía no has completado ningún escaneo. Lanza un escaneo para ver su historial aquí.",
+      "selectHost": "Selecciona un host escaneado",
+      "chooseHost": "-- Elige un host --",
+      "scanCount": "{count} escaneo | {count} escaneos",
+      "generating": "Generando estadísticas…",
+      "pickHost": "Selecciona un host para ver su gráfico."
+    },
+    "historyChart": {
+      "empty": "No hay datos históricos para este host todavía.",
+      "ariaLabel": "{metric} en los últimos {count} escaneos de {target}",
+      "xAxis": "Escaneo (fecha)",
+      "metric": {
+        "nmap": "Puertos abiertos",
+        "nikto": "Incidencias",
+        "lybra": "Hallazgos",
+        "nuclei": "Hallazgos"
+      },
+      "legend": {
+        "new": "Nuevos",
+        "unchanged": "Iguales",
+        "disappeared": "Desaparecidos"
+      },
+      "caption": "Comparativa del último escaneo frente al inmediatamente anterior."
+    },
+    "table": {
+      "type": "Tipo",
+      "target": "Target",
+      "status": "Estado",
+      "date": "Fecha",
+      "actions": "Acciones",
+      "preview": "Vista previa",
+      "results": "Resultados {type}",
+      "loading": "Cargando escaneos",
+      "empty": "No hay escaneos todavía. ¡Lanza el primero!",
+      "selectAll": "Seleccionar todos los escaneos de la página",
+      "portsUnit": "puertos",
+      "findingsUnit": "hallazgos",
+      "previewScan": "Vista previa del escaneo #{id}",
+      "cancelScanLabel": "Cancelar el escaneo #{id}",
+      "cancelScan": "Cancelar escaneo",
+      "confirmDelete": "¿Eliminar el escaneo #{id}?",
+      "confirmCancel": "¿Cancelar el escaneo #{id}?"
+    },
+    "compliance": {
+      "impose": "Aplicar estos marcos a todos los miembros",
+      "notImposing": "Mientras no lo actives, cada miembro elige los suyos en su perfil.",
+      "locked": "Tu organización ha fijado los marcos para todos sus miembros. Tu elección se guarda y vuelve a aplicarse si la organización deja de fijarlos.",
+      "saveFailed": "No se pudieron guardar los marcos de cumplimiento.",
+      "saved": "Marcos de cumplimiento guardados."
+    },
+    "form": {
+      "title": "Nuevo escaneo {type}",
+      "started": "Escaneo iniciado",
+      "targetCidr": "Target (IP / CIDR)",
+      "launch": "Lanzar",
+      "portStrategy": "Estrategia de puertos",
+      "strategies": {
+        "wellknown": {
+          "label": "Conocidos",
+          "hint": "Puertos 1-1023 · servicios estándar del sistema"
+        },
+        "registered": {
+          "label": "Registrados",
+          "hint": "Puertos 1024-49151 · aplicaciones registradas"
+        },
+        "private": {
+          "label": "Privados",
+          "hint": "Puertos 49152-65535 · uso dinámico/privado"
+        },
+        "complete": {
+          "label": "Completo",
+          "hint": "Rango 0-65535 · escaneo exhaustivo"
+        },
+        "custom": {
+          "label": "Personalizado",
+          "hint": "Define tu propio rango de puertos"
+        }
+      },
+      "portRange": "Rango de puertos",
+      "severities": "Severidades",
+      "nucleiSeverities": "Severidades de Nuclei",
+      "severityHints": {
+        "critical": "Severidad crítica",
+        "high": "Severidad alta",
+        "medium": "Severidad media",
+        "low": "Severidad baja",
+        "info": "Plantillas de tech-detect — miles de peticiones, sin CVSS propio"
+      },
+      "tags": "Tags (opcional)",
+      "rateLimit": "Rate limit",
+      "requestTimeout": "Timeout petición (s)"
+    },
+    "preview": {
+      "started": "Iniciado {date}",
+      "finished": "Finalizado {date}",
+      "inProgress": "En curso",
+      "critical": "Críticos",
+      "high": "Altos"
+    },
+    "scheduled": {
+      "title": "Escaneos Programados",
+      "new": "Nuevo escaneo programado",
+      "schedule": "Programación",
+      "interval": "Intervalo",
+      "every": "Cada",
+      "unit": "Unidad",
+      "units": {
+        "minutes": "Minutos",
+        "hours": "Horas",
+        "days": "Días"
+      },
+      "shortUnits": {
+        "minutes": "min",
+        "hours": "h",
+        "days": "d"
+      },
+      "everySummary": "cada {every} {unit}",
+      "cron": "Expresión Cron",
+      "empty": "No hay escaneos programados de {type}",
+      "arguments": "Argumentos",
+      "nextRun": "Prox. ejecución",
+      "active": "Activo",
+      "revoked": "Revocado",
+      "confirmDeactivate": "¿Desactivar este escaneo programado?",
+      "confirmDelete": "¿Eliminar permanentemente este escaneo programado?"
+    }
+  },
+  "lybra": {
+    "sections": {
+      "prod": "Productos afectados",
+      "conf": "Configuración y exposición"
+    },
+    "site": {
+      "ip": "Al entrar por la IP",
+      "vhost": "En {vhost}",
+      "hint": "Este servidor aloja varias webs en la misma dirección y cada una se revisa por separado: el mismo aviso puede aparecer en más de una, y hay que corregirlo en cada web donde aparezca."
+    },
+    "gravest": {
+      "CRITICAL": "Lo más grave: {count} crítica | Lo más grave: {count} críticas",
+      "HIGH": "Lo más grave: {count} alta | Lo más grave: {count} altas",
+      "MEDIUM": "Lo más grave: {count} media | Lo más grave: {count} medias",
+      "LOW": "Lo más grave: {count} baja | Lo más grave: {count} bajas"
+    },
+    "failure": {
+      "host_unreachable": {
+        "title": "El objetivo no respondió.",
+        "hint": "El motor no llegó a abrir ninguna conexión, así que no hay nada que analizar. Comprueba que la máquina esté encendida, que la dirección sea la correcta y que no haya un cortafuegos descartando el tráfico."
+      },
+      "port_discovery_failed": {
+        "title": "El descubrimiento de puertos no pudo completarse.",
+        "hint": "El objetivo respondía, pero el barrido no llegó a terminar. Suele ser un cortafuegos que corta el sondeo a mitad; prueba a acotar la lista de puertos."
+      },
+      "no_results": {
+        "title": "El escáner terminó sin devolver resultados.",
+        "hint": "La herramienta se ejecutó pero no produjo nada que procesar. Vuelve a lanzarlo; si se repite, el objetivo puede estar filtrando el escaneo."
+      },
+      "orphaned": {
+        "title": "El escaneo se interrumpió al reiniciarse el servicio.",
+        "hint": "No es un problema del objetivo: el trabajo se perdió a mitad y se cerró al arrancar de nuevo. Lánzalo otra vez."
+      },
+      "timeout": {
+        "title": "Se acabó el tiempo antes de terminar.",
+        "hint": "El trabajo pedido no cabía en el plazo pedido. Es lo que pasa al cruzar un rango de puertos muy ancho con un objetivo que tiene muchos abiertos: cada servicio encontrado se analiza después, y eso también cuesta tiempo. Acota los puertos o sube el plazo del panel de lanzamiento."
+      },
+      "internal_error": {
+        "title": "El motor encontró un error inesperado.",
+        "hint": "El fallo es del producto, no de tu red. El detalle queda en el registro del servidor; si se repite con el mismo objetivo, merece un aviso."
+      },
+      "unknown": {
+        "title": "El escaneo falló.",
+        "hint": "No se registró el motivo — es un escaneo anterior a que el motor empezara a guardarlo."
+      }
+    },
+    "results": {
+      "selectAll": "Seleccionar todos los veredictos de la página",
+      "title": "Veredictos de Lybra",
+      "loading": "Cargando veredictos",
+      "empty": "El motor aún no ha emitido ningún veredicto. ¡Lanza el primero!",
+      "publicHint": "IP pública — la prioridad se ajusta al alza",
+      "privateHint": "LAN privada — la prioridad se modera",
+      "public": "Pública",
+      "private": "Privada",
+      "noFindings": "Sin hallazgos",
+      "partialHint": "El descubrimiento se quedó sin tiempo: lo que se ve es cierto, pero no es toda la superficie",
+      "partial": "Parcial",
+      "queued": "En cola, a punto de empezar.",
+      "running": "El motor está pesando las pruebas…",
+      "clean": "Ningún hallazgo. La superficie analizada está limpia.",
+      "findings": "Hallazgos",
+      "collapse": "Plegar",
+      "expand": "Desplegar",
+      "rearranging": "Reordenando hallazgos",
+      "noMatch": "Ningún hallazgo cumple estos filtros.",
+      "clearFilters": "Quitar filtros",
+      "findingCount": "{count} hallazgo | {count} hallazgos",
+      "findingsOf": "{shown} de {count} hallazgo | {shown} de {count} hallazgos",
+      "fixedHint": "Actualizar hasta aquí cierra todo el grupo de una vez",
+      "fixedIn": "Corregido en {version} o superior",
+      "kevHint": "En la lista CISA de vulnerabilidades explotadas activamente",
+      "cveCount": "{count} CVE | {count} CVEs",
+      "maxCvss": "CVSS máx. {score}",
+      "confirmedCount": "{count} comprobado | {count} comprobados",
+      "confirmedHint": "Comprobado activamente (QoD {qod})",
+      "potentialHint": "Deducido por versión (QoD {qod}) — potencial, sin confirmar",
+      "confirmed": "Comprobado",
+      "potential": "Potencial",
+      "kevExploited": "KEV · explotada",
+      "epssHint": "Probabilidad de explotación en 30 días (EPSS)",
+      "source": "Origen: {source}",
+      "falsePositiveReason": "¿Por qué no es real? (p. ej. backport de Debian)",
+      "acceptedReason": "¿Por qué se asume? (p. ej. mitigado por el WAF)",
+      "reopen": "Reabrir",
+      "dispute": "Desmentir",
+      "acceptRisk": "Aceptar riesgo",
+      "showMore": "Ver más ({shown} de {total})",
+      "partialNote": "Análisis incompleto: el descubrimiento de puertos agotó su tiempo antes de recorrer todo el objetivo. Lo que aparece es cierto, pero {absence} — por eso este escaneo no ha dado por corregido ningún hallazgo anterior. Sube el tiempo límite o acota la lista de puertos para un análisis completo.",
+      "partialNoteAbsence": "la ausencia de algo no significa que no esté",
+      "unauthorized": "Objetivo no autorizado: el fingerprinting propio y las comprobaciones activas de Lybra no se ejecutaron sobre '{target}'. Autorízalo en el panel de lanzamiento para un análisis más completo.",
+      "coverage": "Nota de cobertura: {unresolved} de los {packages} paquetes inventariados no se pudieron identificar contra el catálogo de vulnerabilidades, así que no se comprobaron. El resto sí se comprobó — su ausencia de hallazgos es una verificación real.",
+      "docsSubtitle": "Informes PDF de este veredicto",
+      "pdfName": "PDF Lybra",
+      "balance": "Peso por gravedad: {levels}",
+      "noBreakdown": "Sin desglose por gravedad",
+      "onlyInfo": "Solo hallazgos informativos"
+    },
+    "toolbar": {
+      "label": "Ordenar y filtrar los hallazgos del escaneo #{id}",
+      "search": "Buscar hallazgos",
+      "searchPlaceholder": "Buscar por título, CVE o producto",
+      "sortBy": "Ordenar por",
+      "sort": {
+        "severity": "Gravedad",
+        "cvss": "CVSS",
+        "epss": "EPSS",
+        "title": "Nombre",
+        "product": "Producto"
+      },
+      "invert": "Invertir: {direction}",
+      "direction": {
+        "severity": {
+          "natural": "Más grave primero",
+          "reversed": "Más leve primero"
+        },
+        "numeric": {
+          "natural": "Mayor primero",
+          "reversed": "Menor primero"
+        },
+        "alphabetic": {
+          "natural": "A → Z",
+          "reversed": "Z → A"
+        }
+      },
+      "severity": "Gravedad",
+      "stateLabel": "Estado",
+      "state": {
+        "all": "Todos",
+        "pending": "Pendientes",
+        "resolved": "Resueltos"
+      },
+      "certaintyLabel": "Certeza",
+      "certainty": {
+        "all": "Todos",
+        "confirmed": "Comprobados",
+        "potential": "Potenciales"
+      },
+      "showing": "Mostrando {visible} de {count} hallazgo | Mostrando {visible} de {count} hallazgos",
+      "loadingFindings": "Cargando hallazgos"
+    },
+    "launch": {
+      "title": "Motor Lybra",
+      "subtitle": "Pesa cada amenaza antes de que golpee",
+      "running": "Motor en marcha",
+      "target": "Target (IP única)",
+      "authorizedHint": "Está en tu registro de objetivos autorizados",
+      "authorized": "Autorizado",
+      "authorizeHint": "Añadir '{target}' a tus objetivos autorizados",
+      "authorize": "Autorizar",
+      "ports": "Puertos (opcional)",
+      "portsPlaceholder": "80,443 o 1-1000",
+      "missingHint": "No está en tu registro de objetivos autorizados: el autodescubrimiento se rechazará.",
+      "register": "Objetivos autorizados",
+      "registerHint": "Objetivos (IP o CIDR) que has declarado autorizados para el autodescubrimiento, el fingerprinting propio y las comprobaciones activas de Lybra.",
+      "registerEmpty": "Aún no has autorizado ningún objetivo.",
+      "newTargetPlaceholder": "10.0.0.5 o 10.0.0.0/24",
+      "labelPlaceholder": "Etiqueta (opcional)",
+      "add": "Añadir",
+      "timeout": "Timeout (s)",
+      "launching": "Pesando…",
+      "launch": "Emitir veredicto",
+      "minutes": "{minutes} min",
+      "hours": "{hours} h",
+      "hoursMinutes": "{hours} h {minutes} min"
+    },
+    "agents": {
+      "title": "Agentes de Hygeia",
+      "loading": "Cargando agentes…",
+      "empty": "Ningún activo monitorizado todavía. Da de alta un agente en Hygeia y, cuando reporte su inventario de software, podrás analizarlo aquí sin escanear la red.",
+      "notAnalyzed": "Sin analizar",
+      "analysesOf": "Análisis de {host}",
+      "assetFallback": "activo {id}",
+      "note": "Solo software instalado — la superficie de red se analiza desde el motor",
+      "pick": "Elige un agente para ver sus análisis de inventario."
+    }
+  },
+  "assetStatus": {
+    "pending": "Sin reportar",
+    "online": "En línea",
+    "stale": "Con retraso",
+    "offline": "Caído",
+    "poweredOff": "Apagado"
+  },
+  "scanTypes": {
+    "nmap": {
+      "full": "Nmap (red)"
+    },
+    "nikto": {
+      "full": "Nikto (web)"
+    },
+    "lybra": {
+      "full": "Lybra (motor propio)"
+    },
+    "nuclei": {
+      "full": "Nuclei (plantillas)"
+    },
+    "preview": "Vista Previa — {name}",
+    "portsSummary": "puertos {ports}",
+    "fields": {
+      "host": "Host",
+      "ports": "Puertos",
+      "portsPlaceholder": "80,443 o 1-1000",
+      "domain": "Dominio",
+      "singleIp": "Target (IP única)",
+      "url": "Target URL"
+    }
+  },
+  "themisHub": {
+    "tagline": "Detección de vulnerabilidades con motor propio y los escáneres clásicos como testigos.",
+    "toolLabel": "Abrir escáner",
+    "loadingStats": "Cargando estadísticas…",
+    "scansIssued": "Escaneos emitidos",
+    "noScans": "Todavía no has lanzado ningún escaneo. El primero tarda un minuto.",
+    "highlight": {
+      "label": "El veredicto",
+      "sub": "motor propio, y tres escáneres como testigos"
+    },
+    "shortcuts": {
+      "newLybra": "Nuevo escaneo Lybra",
+      "external": "Escáneres externos",
+      "history": "Historial"
+    },
+    "features": {
+      "engine": {
+        "kicker": "Motor propio",
+        "title": "Lybra emite el veredicto",
+        "desc": "Descubre los puertos por su cuenta, puntúa cada hallazgo en su contexto y sigue su ciclo de vida: abierto, corregido, reaparecido."
+      },
+      "classics": {
+        "kicker": "Los clásicos",
+        "title": "Nmap, Nikto y Nuclei, cada uno por su cuenta",
+        "desc": "Los escáneres de siempre siguen aquí, como herramientas independientes que lanzas cuando los quieres. Ninguno manda sobre Lybra, y Lybra no manda sobre ninguno."
+      },
+      "reports": {
+        "kicker": "Informes",
+        "title": "Redactados por IA, listos para entregar",
+        "desc": "Cada escaneo puede convertirse en un PDF en lenguaje claro, pensado para quien decide, no solo para quien administra."
+      },
+      "schedule": {
+        "kicker": "Vigilia",
+        "title": "Escaneos que se repiten solos",
+        "desc": "Programa la recurrencia una vez y Themis vuelve al objetivo puntualmente, sin que tengas que acordarte."
+      }
+    }
+  },
+  "themisView": {
+    "badge": "Escaneos de Vulnerabilidades",
+    "mode": "Modo de Themis",
+    "agents": "Agentes",
+    "backToEngine": "← Volver al motor",
+    "seeHistory": "Ver historial",
+    "kbStale": {
+      "title": "Base de conocimiento desactualizada.",
+      "body": "Los hallazgos por versión se resuelven contra ese catálogo, así que un CVE publicado después no aparecerá y la ausencia de hallazgos no es concluyente.",
+      "neverSynced": "{source} está vacía y nunca se ha sincronizado",
+      "age": "{source} lleva {days} día sin actualizarse | {source} lleva {days} días sin actualizarse"
+    },
+    "thirdPartyClosed": "El análisis con Nmap, Nikto y Nuclei todavía no está disponible. Puedes consultar los resultados de análisis anteriores.",
+    "addToFolderCount": "Añadir a carpeta ({count})",
+    "addToFolder": "Añadir a carpeta",
+    "renameFolder": "Renombrar carpeta",
+    "deleteScans": "Eliminar escaneos",
+    "bulkDeleteWarning": "Esta acción eliminará permanentemente los escaneos seleccionados y sus documentos PDF asociados.",
+    "bulkDeleteRunning": "Los escaneos en ejecución se cancelarán antes de ser eliminados.",
+    "confirm": {
+      "lybra": "¿Eliminar este escaneo Lybra y sus hallazgos?",
+      "agentScan": "¿Eliminar este análisis de inventario y sus hallazgos? El activo de Hygeia no se borra.",
+      "folder": "¿Eliminar esta carpeta? Los escaneos no se borrarán, solo quedarán sin carpeta."
+    }
+  },
+  "themisStore": {
+    "folders": {
+      "loadFailed": "No se pudieron cargar las carpetas.",
+      "connectionError": "Error de conexión.",
+      "createFailed": "Error al crear la carpeta.",
+      "unreachable": "No se pudo conectar con la API.",
+      "renameFailed": "Error al renombrar la carpeta.",
+      "renamed": "Carpeta renombrada",
+      "deleteFailed": "No se pudo eliminar la carpeta.",
+      "deleted": "Carpeta eliminada.",
+      "moveFailed": "Error al mover el escaneo.",
+      "moved": "Escaneo movido a la carpeta.",
+      "removeFailed": "No se pudo quitar el escaneo de la carpeta.",
+      "removed": "Escaneo eliminado de la carpeta.",
+      "addFailed": "Error al añadir escaneos a la carpeta.",
+      "created": "Carpeta \"{name}\" creada",
+      "scansAdded": "{count} escaneo añadido a la carpeta. | {count} escaneos añadidos a la carpeta."
+    },
+    "history": {
+      "hostsFailed": "No se pudieron cargar los hosts.",
+      "connectionError": "Error de conexión.",
+      "statsFailed": "No se pudieron obtener las estadísticas.",
+      "unreachable": "No se pudo conectar con la API."
+    },
+    "scheduled": {
+      "loadFailed": "No se pudieron cargar los escaneos programados.",
+      "connectionError": "Error de conexión.",
+      "createFailed": "Error al crear escaneo programado.",
+      "unreachable": "No se pudo conectar con la API.",
+      "revokeFailed": "No se pudo revocar el escaneo programado.",
+      "revoked": "Escaneo programado revocado.",
+      "deleteFailed": "No se pudo eliminar el escaneo programado.",
+      "deleted": "Escaneo programado eliminado.",
+      "created": "Escaneo programado creado (ID: {id})"
+    },
+    "scans": {
+      "statsFailed": "No se pudieron cargar las estadísticas.",
+      "statsConnection": "Error de conexión al cargar las estadísticas.",
+      "loadFailed": "No se pudieron cargar los escaneos.",
+      "loadConnection": "Error de conexión al cargar los escaneos.",
+      "targetsFailed": "No se pudieron cargar los objetivos.",
+      "connectionError": "Error de conexión.",
+      "targetAddFailed": "No se pudo añadir el objetivo autorizado.",
+      "unreachable": "No se pudo conectar con la API.",
+      "targetRemoveFailed": "No se pudo eliminar el objetivo autorizado.",
+      "targetRemoved": "Objetivo autorizado eliminado.",
+      "lybraLaunchFailed": "Error al lanzar el escaneo Lybra.",
+      "launchFailed": "Error al lanzar el escaneo.",
+      "deleteFailed": "No se pudo eliminar el escaneo.",
+      "cancelFailed": "No se pudo cancelar el escaneo.",
+      "tracerouteFailed": "No se pudo recalcular el traceroute.",
+      "tracerouteError": "Error al recalcular el traceroute.",
+      "documentFailed": "Error al generar documento",
+      "documentGenerating": "Documento en generación...",
+      "downloadFailed": "No se pudo descargar el documento.",
+      "downloaded": "Documento descargado.",
+      "documentDeleteFailed": "No se pudo eliminar el documento.",
+      "documentDeleted": "Documento eliminado.",
+      "bulkDeleteFailed": "Error al eliminar escaneos.",
+      "findingStateFailed": "No se pudo cambiar el estado del hallazgo.",
+      "disputed": "Hallazgo desmentido.",
+      "accepted": "Riesgo aceptado.",
+      "reopened": "Hallazgo reabierto.",
+      "findingsFailed": "No se pudieron cargar los hallazgos.",
+      "findingsConnection": "Error de conexión al cargar los hallazgos.",
+      "targetAuthorized": "Objetivo '{target}' autorizado.",
+      "lybraStarted": "Motor Lybra iniciado (ID: {id})",
+      "started": "Escaneo {type} iniciado (ID: {id})",
+      "downloadError": "Error al descargar: {message}"
+    }
+  },
+  "iris": {
+    "verdict": {
+      "legitimate": "Legítimo",
+      "suspicious": "Sospechoso",
+      "phishing": "Phishing",
+      "none": "Sin veredicto"
+    },
+    "analysisStatus": {
+      "pending": "Pendiente",
+      "running": "En análisis",
+      "finished": "Finalizado",
+      "failed": "Fallido",
+      "cancelled": "Cancelado"
+    },
+    "ruleCategory": {
+      "authentication": "Autenticación",
+      "header_analysis": "Cabeceras",
+      "content_analysis": "Contenido",
+      "other": "Otra"
+    },
+    "ruleVerdict": {
+      "pass": "Correcto",
+      "fail": "Falla",
+      "softfail": "Falla leve",
+      "suspicious": "Sospechoso",
+      "neutral": "Neutro",
+      "missing": "Ausente",
+      "error": "Error",
+      "trusted": "De confianza",
+      "bestguess": "Estimado",
+      "policy": "Política aplicada",
+      "none": "Sin política",
+      "spoof": "Suplantación",
+      "empty": "Sin destinatarios",
+      "empty_to": "Solo en copia",
+      "undisclosed": "Destinatarios ocultos",
+      "future": "Fecha futura",
+      "past": "Fecha antigua",
+      "unparseable": "Fecha ilegible",
+      "other": "Otro"
+    },
+    "caseStatus": {
+      "new": "Nuevo",
+      "triage": "En triaje",
+      "contained": "Contenido",
+      "resolved": "Resuelto",
+      "false_positive": "Falso positivo"
+    },
+    "addToCase": {
+      "open": "Añadir a un caso…",
+      "target": "Caso de destino",
+      "new": "Nuevo caso con este análisis",
+      "see": "Ver el caso #{id}",
+      "defaultTitle": "Análisis #{id}"
+    },
+    "batch": {
+      "title": "Lote #{id}",
+      "messages": "{count} mensaje | {count} mensajes",
+      "finished": "{done}/{total} análisis terminados",
+      "close": "Cerrar el lote",
+      "status": {
+        "created": "Creado",
+        "duplicate": "Repetido",
+        "rejected": "Rechazado",
+        "failed": "Fallido"
+      },
+      "message": "Mensaje",
+      "result": "Resultado",
+      "analysis": "Análisis"
+    },
+    "iocs": {
+      "hint": "Valores {defanged} para pegar de forma segura sin activar enlaces.",
+      "categories": {
+        "domains": "Dominios",
+        "urls": "URLs",
+        "ips": "IPs",
+        "emails": "Emails",
+        "hashes": "Hashes (SHA256)"
+      },
+      "none": "Ninguno detectado.",
+      "export": "Exportar CSV",
+      "defanged": "defanged"
+    },
+    "hero": {
+      "max": "/ máx",
+      "confidence": "Confianza {level}",
+      "confidenceLevel": {
+        "high": "alta",
+        "medium": "media",
+        "low": "baja"
+      },
+      "headersOnly": "solo cabeceras",
+      "fullMessage": "mensaje completo",
+      "status": {
+        "legitimate": "Correo verificado",
+        "suspicious": "Posible amenaza",
+        "phishing": "Phishing detectado"
+      }
+    },
+    "trust": {
+      "trustIn": "Confiar en",
+      "theDomain": "El dominio",
+      "onlyAddress": "Solo esta dirección",
+      "domain": "Dominio",
+      "address": "Dirección",
+      "domainPlaceholder": "proveedor.com",
+      "addressPlaceholder": "facturas{'@'}proveedor.com",
+      "expiresIn": "Caduca en",
+      "days": "{count} días",
+      "reason": "Motivo (obligatorio, queda en la auditoría)",
+      "reasonPlaceholder": "Proveedor habitual: siempre responde desde otra dirección",
+      "hint": "Solo se aplica a correo que demuestra venir de ahí (DMARC verificado) y solo neutraliza señales de redacción y de forma. Nunca desactiva los avisos de autenticación, adjuntos peligrosos ni enlaces engañosos.",
+      "save": "Guardar excepción"
+    },
+    "untitled": "(sin título)",
+    "compare": {
+      "title": "Comparar análisis",
+      "close": "Cerrar comparación",
+      "loading": "Cargando los dos informes…",
+      "notEvaluated": "Confianza sin evaluar",
+      "differentVerdicts": "Veredictos distintos",
+      "sameVerdict": "Mismo veredicto",
+      "scoreDelta": "diferencia de score {delta}",
+      "changedRules": "{count} regla distinta | {count} reglas distintas",
+      "rule": "Regla",
+      "onlyChanged": "Ver solo las que cambian",
+      "showUnchanged": "Ver también las {count} que no cambian",
+      "onlyFinished": "Solo se pueden comparar análisis terminados."
+    },
+    "documents": {
+      "title": "Informes PDF",
+      "generate": "Generar informe",
+      "notFinished": "El informe PDF solo puede generarse cuando el análisis ha finalizado.",
+      "empty": "Aún no se ha generado ningún informe para este análisis.",
+      "status": {
+        "running": "Generando",
+        "done": "Listo",
+        "error": "Error"
+      }
+    },
+    "path": {
+      "destination": "Destino",
+      "clear": "sin cifrar",
+      "suspicious": "sospechoso",
+      "unavailable": "Recorrido no disponible (envío sólo de cabeceras).",
+      "hopLabel": "Salto {hop}: {host}",
+      "unknown": "desconocido",
+      "hop": "Salto #{hop}",
+      "from": "De",
+      "by": "Por",
+      "with": "Con",
+      "protocol": "Protocolo",
+      "for": "Para",
+      "timestamp": "Fecha",
+      "flags": "Señales",
+      "rawHeader": "Cabecera original",
+      "normalTransit": "tránsito normal",
+      "suspiciousTransit": "sospechoso: {reasons}",
+      "reversed": "{seconds}s invertido"
+    },
+    "rule": {
+      "code": "Código: {code}",
+      "evidence": "Evidencia",
+      "jump": "Ver en las cabeceras originales",
+      "noEvidence": "Sin evidencia anclada: {reason}",
+      "header": "Cabecera {header}",
+      "qrUrl": "URL en QR",
+      "link": "Enlace",
+      "attachment": "Adjunto",
+      "body": "Cuerpo",
+      "mimePart": "Parte MIME"
+    },
+    "form": {
+      "title": "Nuevo Análisis",
+      "hint": "Arrastra un archivo .eml o pega las cabeceras, y elige qué parte del correo quieres que Iris examine. Para varios correos a la vez o para un .msg de Outlook, suelta los ficheros o un ZIP, o {batch}.",
+      "pickBatch": "elige un lote",
+      "titlePlaceholder": "Título opcional para identificar el análisis (ej: Correo sospechoso)",
+      "whatToAnalyze": "Qué se analiza",
+      "headersOnly": "Solo cabeceras",
+      "headersOnlyHint": "Autenticación, remitente y ruta de entrega",
+      "fullMessage": "Mensaje completo (.eml)",
+      "fullMessageHint": "Añade cuerpo, enlaces y adjuntos",
+      "dropEml": "Arrastra un .eml para activarlo",
+      "uncovered": "{count} regla no se evaluará en este modo (necesita cuerpo, enlaces o adjuntos) | {count} reglas no se evaluarán en este modo (necesitan cuerpo, enlaces o adjuntos)",
+      "emlAsLoaded": "Se analiza el .eml tal como se cargó. Para editar las cabeceras, cambia a «Solo cabeceras».",
+      "analyzing": "Analizando…",
+      "analyzeMessage": "Analizar mensaje completo",
+      "analyzeHeaders": "Analizar cabeceras",
+      "fullMessageNotice": "El mensaje completo incluye cuerpo y adjuntos, que pueden contener datos personales o confidenciales."
+    },
+    "strip": {
+      "previous": "Anteriores",
+      "next": "Siguientes",
+      "new": "Nuevo",
+      "auto": "AUTO",
+      "manual": "MANUAL",
+      "confirmDelete": "¿Eliminar #{id}?",
+      "title": "Título",
+      "score": "Puntuación",
+      "verdict": "Veredicto",
+      "archiveHint": "Ver el archivo completo de análisis (Ctrl/Cmd+K)",
+      "archive": "Archivo",
+      "manualOrigin": "Manual",
+      "mailbox": "Buzón"
+    },
+    "mailboxes": {
+      "reload": "Recargar",
+      "reloadConnections": "Recargar conexiones",
+      "loading": "Cargando conexiones…",
+      "emptyTitle": "Ningún buzón conectado todavía",
+      "emptySub": "Conecta Gmail o Microsoft 365 arriba para que Iris analice tu correo automáticamente.",
+      "reauthTitle": "{provider} — {email} necesita reconectarse",
+      "accessExpired": "El acceso concedido ha caducado o fue revocado.",
+      "stoppedPolling": "Iris dejó de sondear este buzón.",
+      "reconnect": "Reconectar",
+      "watchedFolder": "Carpeta vigilada: {folder}",
+      "defaultInbox": "Vigila la bandeja de entrada por defecto",
+      "inbox": "Bandeja de entrada",
+      "fullHint": "Iris lee el correo completo (cuerpo y adjuntos incluidos)",
+      "headersHint": "Iris solo lee las cabeceras",
+      "full": "Correo completo",
+      "lastSync": "Último sondeo: {when}",
+      "resume": "Reanudar",
+      "pause": "Pausar",
+      "syncNow": "Sondear ahora",
+      "syncAccount": "Sondear {email} ahora",
+      "deleteAccount": "Eliminar {email}",
+      "status": {
+        "active": "Activa",
+        "reauth_required": "Requiere reautenticación",
+        "revoked": "Revocada",
+        "paused": "Pausada"
+      },
+      "never": "nunca",
+      "justNow": "ahora mismo",
+      "ago": "hace {value}"
+    },
+    "archive": {
+      "eyebrow": "Archivo de análisis",
+      "title": "Histórico completo",
+      "closeHint": "Cerrar (Esc)",
+      "close": "Cerrar archivo",
+      "searchPlaceholder": "Buscar por título… (/)",
+      "search": "Buscar por título",
+      "clearSearch": "Limpiar búsqueda",
+      "filterVerdict": "Filtrar por veredicto",
+      "filterSource": "Filtrar por origen",
+      "filterStatus": "Filtrar por estado",
+      "filterReview": "Filtrar por revisión",
+      "iocPlaceholder": "IOC: dominio, IP, URL o hash",
+      "iocSearch": "Buscar por indicador de compromiso",
+      "filterTag": "Filtrar por etiqueta",
+      "allTags": "Todas las etiquetas",
+      "clearFilters": "Limpiar filtros",
+      "views": "Vistas",
+      "deleteView": "Borrar la vista {name}",
+      "viewName": "Nombre de la vista",
+      "saveView": "Guardar vista",
+      "viewsHint": "Filtra y guarda la combinación para volver a ella.",
+      "loading": "Cargando análisis…",
+      "noMatch": "Ningún análisis coincide con estos filtros.",
+      "empty": "Todavía no hay análisis. Pega unas cabeceras o conecta un buzón para empezar.",
+      "compareHint": "Marca dos para compararlos (x)",
+      "compareItem": "Comparar #{id}",
+      "reviewedHint": "Revisado por un analista",
+      "reviewedChip": "revisado",
+      "compareButtonHint": "Marca dos filas (x) y compáralas (c)",
+      "compare": "Comparar ({count}/2)",
+      "filteredTotal": "{shown} de {total} análisis",
+      "total": "{total} análisis en total",
+      "all": "Todos",
+      "pendingReview": "Pendiente de revisar",
+      "reviewed": "Revisado"
+    },
+    "report": {
+      "loading": "Cargando informe…",
+      "progress": "{percent}% — ejecutando reglas de verificación",
+      "cancel": "Cancelar análisis",
+      "failedTitle": "Análisis fallido",
+      "failed": "El análisis #{id} no pudo completarse. Intenta de nuevo.",
+      "cancelledTitle": "Análisis cancelado",
+      "cancelled": "El análisis #{id} fue cancelado por el usuario.",
+      "reanalyze": "Reanalizar con las reglas actuales",
+      "removeTag": "Quitar la etiqueta {tag}",
+      "tagPlaceholder": "+ etiqueta",
+      "addTag": "Añadir etiqueta",
+      "forwardDetected": "Correo reenviado como adjunto detectado.",
+      "fromWrapper": "El veredicto sale del envoltorio del reenvío, no del mensaje original adjunto.",
+      "fromOriginal": "Se analizó el mensaje original adjunto (.eml), no el envoltorio del reenvío.",
+      "wrapper": "Envoltorio",
+      "original": "Original",
+      "points": "{count} puntos",
+      "wrapperFrom": "de {from}",
+      "limits": "Qué limita este veredicto",
+      "noContent": "Sin contenido que inspeccionar: {rules}",
+      "feedbackQuestion": "¿Es correcto este veredicto?",
+      "feedbackOptions": {
+        "malicious": "Es malicioso",
+        "legitimate": "Es legítimo",
+        "unknown": "No se puede saber"
+      },
+      "feedbackLabels": {
+        "malicious": "malicioso",
+        "legitimate": "legítimo",
+        "unknown": "indeterminado"
+      },
+      "notePlaceholder": "Nota opcional (por qué)",
+      "reviewedAs": "Revisado como {label} por {author}",
+      "trustSender": "Confiar en este remitente…",
+      "trustApplied": "Excepción de confianza aplicada",
+      "trustNotApplied": "Excepción de confianza no aplicada",
+      "sender": "Remitente",
+      "neutralized": "Reglas neutralizadas: {rules}.",
+      "nonePenalized": "ninguna penalizaba",
+      "trustIgnored": "El mensaje no demuestra venir de ahí, así que se analizó sin la excepción.",
+      "incompleteTitle": "Análisis incompleto",
+      "incomplete": "No se pudo ejecutar {count} regla, así que la parte del mensaje que le correspondía no se ha inspeccionado. | No se pudieron ejecutar {count} reglas, así que la parte del mensaje que les correspondía no se ha inspeccionado.",
+      "why": "Por qué este veredicto",
+      "topSignals": "Principales señales",
+      "aiSummary": "Resumen ejecutivo (IA)",
+      "attackerIntent": "Intención probable del atacante",
+      "aiConfidence": "Confianza: {level}",
+      "aiGenerating": "Generando narrativa con IA…",
+      "checkStatus": "Comprobar estado",
+      "generateAi": "Generar resumen ejecutivo con IA",
+      "flaggedRules": "Reglas con hallazgos",
+      "passedRules": "Reglas superadas sin incidencias ({count})",
+      "recommendations": "Recomendaciones",
+      "showLess": "Mostrar menos",
+      "showMore": "Mostrar {count} más",
+      "path": "Recorrido del correo",
+      "pathLoading": "Cargando recorrido…",
+      "pathUnavailable": "Recorrido no disponible para este análisis.",
+      "iocs": "Indicadores de compromiso (IOCs)",
+      "iocsLoading": "Extrayendo IOCs…",
+      "iocsFailed": "No se pudieron cargar los IOCs.",
+      "rawHeaders": "Cabeceras originales"
+    },
+    "cases": {
+      "badge": "Casos",
+      "onlyMine": "Solo los asignados a mí",
+      "newTitle": "Título del nuevo caso",
+      "priority": "Prioridad",
+      "open": "Abrir caso",
+      "empty": "No hay casos con estos filtros.",
+      "analysisCount": "{count} análisis",
+      "pick": "Elige un caso para ver sus análisis, su estado y su timeline.",
+      "closed": "Cerrado: «{reason}»",
+      "assigned": "Asignado",
+      "unassign": "quitar",
+      "assignMe": "Asignármelo",
+      "tags": "Etiquetas (separadas por comas)",
+      "moveTo": "Mover a",
+      "closeReason": "Por qué se cierra como «{status}» (obligatorio)",
+      "close": "Cerrar caso",
+      "analyses": "Análisis ({count})",
+      "analysisId": "Id de análisis",
+      "analysisIdLabel": "Id del análisis a añadir",
+      "addAnalysis": "Añadir análisis",
+      "timeline": "Timeline",
+      "addNote": "Añadir una nota",
+      "note": "Anotar",
+      "events": {
+        "created": "Caso abierto",
+        "status_changed": "Cambio de estado",
+        "priority_changed": "Cambio de prioridad",
+        "assigned": "Cambio de asignación",
+        "title_changed": "Cambio de título",
+        "tags_changed": "Cambio de etiquetas",
+        "note": "Nota",
+        "analysis_linked": "Análisis añadido",
+        "analysis_unlinked": "Análisis quitado"
+      },
+      "noteEvent": "Nota: {note}",
+      "statusWithReason": "{change} — «{reason}»",
+      "priorityChange": "Prioridad: {from} → {to}",
+      "createdWith": "Caso abierto con {count} análisis"
+    },
+    "connections": {
+      "badge": "Conexiones de buzón",
+      "eyebrow": "Conector de buzón",
+      "title": "Conectar un buzón",
+      "intro": "Iris no te deja «entrar» a tu bandeja desde aquí — nunca muestra el correo en sí. Cada pocos minutos revisa los mensajes nuevos del buzón conectado, analiza sus cabeceras igual que si las hubieras pegado a mano, y el resultado aparece automáticamente en tu {history}. Puedes pausar o desconectar la cuenta en cualquier momento.",
+      "history": "historial de Análisis",
+      "connecting": "Conectando…",
+      "connect": "Conectar cuenta",
+      "deleteTitle": "Eliminar conexión",
+      "deleteMessage": "Se eliminará la conexión con {email}. Iris dejará de analizar este buzón automáticamente.",
+      "connected": "Buzón conectado correctamente.",
+      "failed": "No se pudo conectar el buzón.",
+      "callbackErrors": {
+        "consent_denied": "Cancelaste el proceso de conexión en el proveedor.",
+        "missing_code": "El proveedor no devolvió un código de autorización válido.",
+        "invalid_state": "El enlace de conexión caducó o no es válido. Inténtalo de nuevo.",
+        "connection_failed": "No se pudo completar la conexión. Inténtalo de nuevo."
+      }
+    },
+    "trustView": {
+      "badge": "Remitentes de confianza",
+      "eyebrow": "Excepciones de confianza",
+      "title": "Quitar un falso positivo que se repite",
+      "intro": "Si un remitente que conoces dispara siempre la misma alerta —un proveedor que responde desde otra dirección, un banco que escribe «urgente»—, declara aquí que confías en él. Solo te afecta a ti, caduca sola y cada análisis en que se aplica lo dice.",
+      "yours": "Tus excepciones",
+      "showInactive": "Mostrar caducadas y revocadas",
+      "none": "No tienes ninguna excepción.",
+      "noneActive": "No tienes ninguna excepción activa.",
+      "domain": "dominio",
+      "address": "dirección",
+      "status": {
+        "active": "activa",
+        "expired": "caducada",
+        "revoked": "revocada"
+      },
+      "created": "Creada {date}",
+      "revokedOn": "revocada {date}",
+      "expires": "caduca {date}",
+      "revokeTitle": "Revocar excepción",
+      "revokeMessage": "Los próximos correos de {value} se analizarán sin excepción. La excepción seguirá en la auditoría."
+    }
+  },
+  "irisHub": {
+    "tagline": "Análisis de cabeceras de correo contra el phishing, con veredicto explicado.",
+    "toolLabel": "Analizar un correo",
+    "loading": "Cargando actividad reciente…",
+    "examined": "Correos examinados",
+    "flagged": "{count} marcados como phishing ({rate}%)",
+    "empty": "Todavía no has examinado ningún correo. Arrastra un .eml y empieza.",
+    "highlight": {
+      "label": "La verificación",
+      "value": "37 reglas",
+      "sub": "contra el phishing en cada correo"
+    },
+    "features": {
+      "rules": {
+        "kicker": "37 reglas",
+        "title": "La firma del correo, a examen",
+        "desc": "SPF, DKIM, DMARC, suplantación de remitente y anomalías en la ruta de entrega: cada cabecera declara, y las 37 reglas escuchan."
+      },
+      "quishing": {
+        "kicker": "Quishing",
+        "title": "Los códigos QR también declaran",
+        "desc": "Los QR incrustados en el correo se decodifican y analizan como el vector de phishing que pueden ser."
+      },
+      "iocs": {
+        "kicker": "IOCs",
+        "title": "Listos para bloquear",
+        "desc": "Dominios, IPs y enlaces sospechosos extraídos del mensaje, preparados para llevarlos a tu gateway."
+      },
+      "verdict": {
+        "kicker": "Veredicto",
+        "title": "Explicado, no solo puntuado",
+        "desc": "Un resumen en lenguaje natural cuenta por qué el correo es legítimo, sospechoso o phishing — no te deja solo ante un número."
+      }
+    },
+    "resources": {
+      "osi": "INCIBE — Oficina de Seguridad del Internauta (OSI)"
+    }
+  },
+  "irisView": {
+    "badge": "Análisis de Cabeceras",
+    "invalidFormat": "Formato no válido",
+    "intake": "Intake de evidencia",
+    "onlyAccepted": "Solo se admiten archivos .eml, .msg o un ZIP",
+    "dropHere": "Suelta el correo (o varios) para examinarlo",
+    "sections": "Secciones de Iris",
+    "headersUnreadable": "No se pudieron leer las cabeceras del correo.",
+    "tooBigWithLimit": "El archivo supera el máximo que admite el servidor ({limit}): solo se analizarán las cabeceras.",
+    "tooBig": "El archivo supera el máximo que admite el servidor: solo se analizarán las cabeceras.",
+    "loaded": "Correo cargado.",
+    "unreadable": "No se pudo leer el archivo."
+  },
+  "irisReplay": {
+    "title": "Simulador de reglas de Iris",
+    "intro": "Compara la política de puntuación vigente con una candidata sobre el corpus versionado de Iris antes de desplegarla: qué veredictos cambian, qué gates aparecen o desaparecen y cuántos falsos positivos y negativos tiene cada una. Nada de lo que se evalúa aquí se guarda.",
+    "candidate": "Política candidata",
+    "emptyKeeps": "Lo que dejes vacío se queda como en la política vigente.",
+    "profile": "Perfil de sensibilidad",
+    "currentProfile": "(el vigente)",
+    "profiles": {
+      "strict": "Estricto",
+      "balanced": "Equilibrado",
+      "lenient": "Permisivo"
+    },
+    "legitimateThreshold": "Umbral legítimo",
+    "suspiciousThreshold": "Umbral sospechoso",
+    "current": "(vigente)",
+    "weights": "Pesos a sobreescribir (JSON, se suman a los vigentes)",
+    "adHoc": "Mensaje suelto (opcional: cabeceras o un .eml completo)",
+    "messageLabel": "Etiqueta del mensaje",
+    "noLabel": "sin etiqueta",
+    "includeCorpus": "Incluir el corpus versionado",
+    "comparing": "Comparando…",
+    "compare": "Comparar",
+    "corpus": "Corpus",
+    "notIncluded": "(no incluido)",
+    "catalog": "catálogo",
+    "changed": "{changed} de {total} muestras cambian de veredicto.",
+    "policy": "Política",
+    "version": "Versión",
+    "falsePositives": "Falsos positivos",
+    "falseNegatives": "Falsos negativos",
+    "precision": "Precisión",
+    "recall": "Recall",
+    "policies": {
+      "baseline": "Vigente",
+      "candidate": "Candidata"
+    },
+    "sample": "Muestra",
+    "gatesChanged": "Gates que cambian",
+    "invalidJson": "Los pesos no son un JSON válido."
+  },
+  "irisStore": {
+    "mailbox": {
+      "loadFailed": "No se pudieron cargar las conexiones.",
+      "loadConnection": "Error de conexión al cargar las conexiones de buzón.",
+      "connectFailed": "No se pudo iniciar la conexión.",
+      "updateFailed": "No se pudo actualizar la conexión.",
+      "updated": "Conexión actualizada.",
+      "deleteFailed": "No se pudo eliminar la conexión.",
+      "deleted": "Conexión eliminada.",
+      "syncFailed": "No se pudo sincronizar la conexión.",
+      "syncQueued": "Sincronización en cola."
+    },
+    "startFailed": "Error al iniciar el an\\u00e1lisis.",
+    "loadFailed": "No se pudieron cargar los análisis.",
+    "loadConnection": "Error de conexión al cargar los análisis.",
+    "viewSaveFailed": "No se pudo guardar la vista.",
+    "viewSaved": "Vista guardada.",
+    "viewDeleteFailed": "No se pudo borrar la vista.",
+    "tagsFailed": "No se pudieron guardar las etiquetas.",
+    "reportFailed": "No se pudo cargar el reporte.",
+    "reanalyzeFailed": "No se pudo relanzar el análisis.",
+    "replayFailed": "No se pudo ejecutar el simulador de reglas.",
+    "feedbackFailed": "No se pudo guardar la corrección.",
+    "feedbackSaved": "Corrección guardada. El veredicto original no cambia.",
+    "batchFailed": "No se pudo enviar el lote.",
+    "caseOpenFailed": "No se pudo abrir el caso.",
+    "caseUpdateFailed": "No se pudo actualizar el caso.",
+    "caseStatusFailed": "No se pudo cambiar el estado.",
+    "caseNoteFailed": "No se pudo guardar la nota.",
+    "caseLinkFailed": "No se pudo añadir el análisis al caso.",
+    "caseUnlinkFailed": "No se pudo quitar el análisis del caso.",
+    "trustSaveFailed": "No se pudo guardar la excepción.",
+    "trustSaved": "Excepción guardada. Se aplicará a los próximos análisis (reanaliza este para verla).",
+    "trustRevokeFailed": "No se pudo revocar la excepción.",
+    "trustRevoked": "Excepción revocada.",
+    "aiFailed": "No se pudo generar el resumen IA.",
+    "aiGenerating": "Generando resumen ejecutivo con IA…",
+    "aiStillRunning": "El resumen IA todavía se está generando. Vuelve a comprobar en unos segundos.",
+    "cancelFailed": "No se pudo cancelar el an\\u00e1lisis.",
+    "cancelled": "An\\u00e1lisis cancelado.",
+    "deleteFailed": "No se pudo eliminar el an\\u00e1lisis.",
+    "deleted": "An\\u00e1lisis eliminado.",
+    "reportGenerateFailed": "No se pudo generar el informe.",
+    "reportGenerating": "Generación de informe iniciada.",
+    "reportDownloadFailed": "No se pudo descargar el informe.",
+    "reportDownloaded": "Informe descargado.",
+    "reportDeleteFailed": "No se pudo eliminar el informe.",
+    "reportDeleted": "Informe eliminado.",
+    "started": "Análisis iniciado (ID: {id})",
+    "reanalyzeStarted": "Reanálisis iniciado (ID: {id})",
+    "batchSummary": "Lote #{id}: {created} creados, {duplicate} repetidos, {skipped} sin analizar.",
+    "caseOpened": "Caso #{id} abierto.",
+    "caseLinked": "Análisis #{analysisId} añadido al caso #{caseId}."
+  },
+  "aegis": {
+    "campaignStatus": {
+      "draft": "Borrador",
+      "sending": "Enviando",
+      "sent": "Enviada",
+      "failed": "Fallida",
+      "closed": "Cerrada"
+    },
+    "recipientStatus": {
+      "sent": "Enviado",
+      "opened": "Abierto",
+      "completed": "Completado"
+    },
+    "topics": {
+      "title": "Temas",
+      "searchPlaceholder": "Buscar tema…",
+      "search": "Buscar tema",
+      "noMatch": "Ningún tema coincide con «{search}».",
+      "empty": "No hay temas disponibles."
+    },
+    "tweaks": {
+      "title": "Nueva Píldora",
+      "audience": "Audiencia",
+      "audiences": {
+        "mixed": "Mixta",
+        "technical": "Técnica",
+        "nonTechnical": "No técnica"
+      },
+      "focus": "Foco del tema",
+      "focusPlaceholder": "Ej: phishing por QR",
+      "incident": "Incidente reciente",
+      "incidentPlaceholder": "Opcional — ej: intento de phishing a Contabilidad la semana pasada",
+      "generate": "Generar Píldora"
+    },
+    "history": {
+      "count": "{count} doc | {count} docs",
+      "sort": {
+        "newest": "Más recientes",
+        "oldest": "Más antiguos",
+        "name": "Nombre A–Z"
+      },
+      "empty": "Sin documentos aún",
+      "document": "Documento #{id}",
+      "topic": "Tema #{id}",
+      "export": "Exportar",
+      "exportLabel": "Exportar «{title}»",
+      "deleteLabel": "Eliminar «{title}»",
+      "deleteTitle": "Eliminar documento",
+      "deleteMessage": "¿Eliminar «{title}»? Esta acción no se puede deshacer.",
+      "status": {
+        "done": "Listo",
+        "pending": "Generando",
+        "error": "Error"
+      }
+    },
+    "campaign": {
+      "launch": "Lanzar campaña",
+      "running": "Campaña en marcha",
+      "sending": "Enviando a {count} destinatario. El envío continúa en segundo plano. | Enviando a {count} destinatarios. El envío continúa en segundo plano.",
+      "questionsReady": "{count} pregunta de comprobación lista | {count} preguntas de comprobación listas",
+      "noQuestions": "Esta píldora no tiene preguntas de quiz — no se puede lanzar una campaña",
+      "name": "Nombre de la campaña",
+      "namePlaceholder": "Ej: Formación Q1 — Ventas",
+      "existingList": "Lista existente",
+      "noLists": "Aún no tienes listas de distribución — crea una nueva.",
+      "selectList": "Selecciona una lista",
+      "listNamePlaceholder": "Ej: Plantilla completa",
+      "emailsPlaceholder": "Un email por línea (o separados por coma)\nana{'@'}empresa.com\nbob{'@'}empresa.com",
+      "launching": "Lanzando…",
+      "pill": "Píldora",
+      "seeAll": "Ver todas las campañas",
+      "seePrevious": "Ver la campaña anterior de esta píldora | Ver las {count} campañas anteriores de esta píldora"
+    },
+    "lists": {
+      "title": "Listas de distribución",
+      "subtitle": "Destinatarios de las campañas de concienciación",
+      "loading": "Cargando listas…",
+      "empty": "Aún no tienes listas de distribución — crea la primera abajo.",
+      "recipients": "{count} destinatario | {count} destinatarios",
+      "recipientsLabel": "Destinatarios",
+      "detectedRecipients": "{count} destinatario detectado | {count} destinatarios detectados",
+      "detected": "{count} detectado | {count} detectados",
+      "delete": "Eliminar lista",
+      "remove": "Quitar {email}",
+      "listEmpty": "Esta lista está vacía.",
+      "addRecipients": "Añadir destinatarios",
+      "emailsPlaceholder": "Un email por línea (o separados por coma)",
+      "new": "Nueva lista",
+      "name": "Nombre de la lista",
+      "create": "Crear lista",
+      "deleteMessage": "¿Eliminar «{name}» y sus destinatarios? Las campañas lanzadas con esta lista se borran también, con sus resultados, y sus enlaces de quiz dejarán de funcionar."
+    },
+    "viewer": {
+      "writing": "Redactando la píldora…",
+      "keepUsing": "Puedes seguir usando el resto de Aegis mientras tanto.",
+      "title": "Visor de Documentos",
+      "empty": "Selecciona un documento del historial o genera una nueva píldora para ver su contenido aquí.",
+      "loading": "Cargando documento…",
+      "doc": "Doc #{id}",
+      "campaignHint": "Lanzar una campaña con esta píldora",
+      "campaignNeedsQuestions": "Añade preguntas al test desde el editor para poder lanzar una campaña",
+      "alerts": "Alertas de Seguridad"
+    },
+    "editor": {
+      "editing": "Editando Doc #{id}",
+      "titlePlaceholder": "Título de la píldora",
+      "intro": "Introducción",
+      "introPlaceholder": "Texto introductorio. Separa los párrafos con una línea en blanco.",
+      "addTip": "+ Añadir recomendación",
+      "noTips": "Sin recomendaciones. Añade la primera.",
+      "moveUp": "Subir",
+      "moveDown": "Bajar",
+      "tipTitle": "Título de la recomendación",
+      "body": "Cuerpo",
+      "bodyPlaceholder": "Desarrollo de la recomendación",
+      "links": "Enlaces",
+      "addLink": "+ Enlace",
+      "linkText": "Texto",
+      "removeLink": "Quitar enlace",
+      "questions": "Preguntas del test",
+      "addQuestion": "+ Añadir pregunta",
+      "questionsHint": "Sin preguntas no se puede lanzar una campaña. Marca la opción correcta de cada una. Máximo {questions} preguntas de {options} opciones.",
+      "noQuestions": "Sin preguntas. Añade la primera.",
+      "prompt": "Enunciado",
+      "promptPlaceholder": "¿Qué harías si recibes un SMS que dice ser de tu banco?",
+      "options": "Opciones · marca la correcta",
+      "addOption": "+ Opción",
+      "markCorrect": "Marcar la opción {n} como correcta",
+      "correctOption": "Opción {n} correcta",
+      "option": "Opción {n}",
+      "removeOption": "Quitar opción",
+      "closing": "Cierre",
+      "closingPlaceholder": "Conclusión o llamada a la acción",
+      "contact": "Email de contacto",
+      "contactPlaceholder": "seguridad{'@'}empresa.com",
+      "errors": {
+        "titleRequired": "El título es obligatorio.",
+        "max": "Máximo {max} caracteres.",
+        "bodyRequired": "El cuerpo es obligatorio.",
+        "promptRequired": "El enunciado es obligatorio.",
+        "emptyOption": "No dejes ninguna opción vacía.",
+        "optionCount": "Cada pregunta necesita entre {min} y {max} opciones.",
+        "markCorrect": "Marca cuál es la opción correcta."
+      }
+    },
+    "profile": {
+      "title": "Perfil de la organización",
+      "notConfigured": "Sin configurar todavía",
+      "company": "Empresa",
+      "companyPlaceholder": "Nombre de la empresa",
+      "contactPlaceholder": "contacto{'@'}empresa.com",
+      "language": "Idioma de las píldoras",
+      "tone": "Tono",
+      "tones": {
+        "profesional": "Profesional",
+        "formal": "Formal",
+        "cercano": "Cercano",
+        "tecnico": "Técnico"
+      },
+      "sector": "Sector",
+      "sectorPlaceholder": "Ej: banca",
+      "size": "Tamaño de empresa",
+      "unspecified": "Sin especificar",
+      "sizes": {
+        "micro": "Micro (<10)",
+        "small": "Pequeña (10-50)",
+        "medium": "Mediana (50-250)"
+      },
+      "employees": "Nº empleados",
+      "optional": "Opcional",
+      "jurisdiction": "Jurisdicción",
+      "jurisdictionPlaceholder": "Ej: España (RGPD)",
+      "workModel": "Modelo de trabajo",
+      "workModels": {
+        "remote": "Remoto",
+        "hybrid": "Híbrido",
+        "onSite": "Presencial"
+      },
+      "manageProducts": "Gestionar productos",
+      "update": "Actualizar perfil",
+      "save": "Guardar perfil",
+      "agentProducts": "productos de mis agentes",
+      "noProducts": "sin productos",
+      "productCount": "{count} producto | {count} productos"
+    },
+    "products": {
+      "title": "Productos vigilados",
+      "fromAgents": "Deducir los productos de mis agentes",
+      "fromAgentsHint": "Usa el software que Hygeia inventaría en tus activos en lugar de la lista de abajo.",
+      "usingAgents": "Ahora mismo se usan los de tus agentes. Esta lista queda como alternativa si desactivas la opción de arriba.",
+      "searchPlaceholder": "Busca un producto: windows, firefox, apache…",
+      "searching": "Buscando…",
+      "minChars": "Escribe al menos 2 caracteres.",
+      "noMatch": "Sin coincidencias en el catálogo de vulnerabilidades.",
+      "none": "Aún no vigilas ningún producto.",
+      "saveNote": "Los cambios se guardan con «Guardar perfil».",
+      "done": "Listo",
+      "selected": "Seleccionados",
+      "watchedCount": "{count} producto vigilado | {count} productos vigilados"
+    }
+  },
+  "aegisView": {
+    "badge": "Generación de Píldoras",
+    "expandLeft": "Expandir panel de perfil y generación",
+    "collapseLeft": "Contraer panel de perfil y generación",
+    "editLists": "Editar listas de distribución",
+    "expandHistory": "Expandir historial",
+    "collapseHistory": "Contraer historial",
+    "campaigns": "Campañas",
+    "campaignsSub": "Resultados de lo que ya has enviado"
+  },
+  "aegisHub": {
+    "tagline": "Formación de concienciación generada por IA, enviada y demostrada con campañas.",
+    "toolLabel": "Abrir generador",
+    "loading": "Cargando última campaña…",
+    "lastCampaign": "Última campaña — {name}",
+    "completed": "{rate}% completado",
+    "recipients": "{done} de {total} destinatarios",
+    "empty": "Aún no has lanzado ninguna campaña. Genera una píldora y estrénala.",
+    "highlight": {
+      "label": "La formación",
+      "value": "A Medida",
+      "sub": "generada por IA para tu normativa"
+    },
+    "features": {
+      "pills": {
+        "kicker": "Píldoras IA",
+        "title": "Formación a la medida de tu empresa",
+        "desc": "La IA escribe cada píldora según tu tamaño, tu marco regulatorio (RGPD, ENS, NIS2), tu modelo de trabajo e incluso tus incidentes recientes."
+      },
+      "quiz": {
+        "kicker": "Quiz",
+        "title": "Cada píldora comprueba que caló",
+        "desc": "Junto al contenido se generan preguntas tipo test, editables antes de lanzar. Saber no es suponer."
+      },
+      "campaigns": {
+        "kicker": "Campañas",
+        "title": "Envía, sigue, demuestra",
+        "desc": "Listas de distribución, envío por correo y seguimiento de quién abrió y quién completó. El test es público: tu plantilla no necesita cuentas."
+      },
+      "evidence": {
+        "kicker": "Evidencia",
+        "title": "Exportable como cumplimiento",
+        "desc": "Markdown, JSON o PDF listos para archivar como prueba de que la formación ocurrió."
+      }
+    },
+    "resources": {
+      "incibe": "INCIBE — Guías de concienciación para empresas"
+    }
+  },
+  "aegisCampaigns": {
+    "generator": "Generador",
+    "pillsLabel": "Píldoras con campañas",
+    "pills": "Píldoras",
+    "refresh": "Refrescar",
+    "refreshLabel": "Refrescar campañas",
+    "loading": "Cargando campañas…",
+    "empty": "Aún no has lanzado ninguna campaña.",
+    "emptyLink": "Abre una píldora en el generador y lánzala",
+    "pillMeta": "{count} campaña · última el {date} | {count} campañas · última el {date}",
+    "pillCampaignsLabel": "Campañas de la píldora",
+    "pill": "Píldora",
+    "pillFallback": "Píldora #{id}",
+    "people": "Personas",
+    "opened": "Abrieron el enlace",
+    "completed": "Completaron el test",
+    "averageHits": "Aciertos de media",
+    "completedOf": "{done}/{total} completaron",
+    "choosePill": "Elige una píldora para ver sus campañas.",
+    "resultsLabel": "Resultados de la campaña",
+    "loadingResults": "Cargando resultados…",
+    "delete": "Eliminar campaña",
+    "createdOn": "Creada el {date}",
+    "launchedOn": "lanzada el {date}",
+    "list": "lista «{name}»",
+    "questions": "{count} pregunta | {count} preguntas",
+    "recipients": "Destinatarios",
+    "averageScore": "Nota media",
+    "hitRate": "{rate}% de aciertos",
+    "openedRate": "{rate}% abrió el enlace",
+    "completedRate": "{rate}% completó el test",
+    "byQuestion": "Resultados por pregunta",
+    "questionRate": "{rate}% acertó",
+    "noAnswers": "Sin respuestas",
+    "correct": "Correcta",
+    "noRecipients": "Esta campaña todavía no tiene destinatarios.",
+    "columns": {
+      "recipient": "Destinatario",
+      "status": "Estado",
+      "sent": "Enviado",
+      "opened": "Abrió",
+      "completed": "Completó",
+      "score": "Nota"
+    },
+    "loadError": "No se pudieron cargar los resultados.",
+    "chooseCampaign": "Elige una campaña para ver sus resultados.",
+    "deleteConfirm": "¿Eliminar «{name}»? Los enlaces de quiz ya enviados a sus destinatarios dejarán de funcionar."
+  },
+  "quiz": {
+    "brandSub": "Formación de concienciación",
+    "loading": "Cargando tu formación…",
+    "justCompleted": "¡Test completado!",
+    "alreadyCompleted": "Ya completaste este test",
+    "singleUse": "Este enlace es de un solo uso y ya no admite más respuestas.",
+    "yourTraining": "Tu formación",
+    "intro": "Responde a {count} pregunta para completar la formación. Solo puedes enviar el test una vez. | Responde a {count} preguntas para completar la formación. Solo puedes enviar el test una vez.",
+    "question": "Pregunta {number}",
+    "pending": "Te falta {count} pregunta por responder. | Te faltan {count} preguntas por responder.",
+    "sending": "Enviando…",
+    "submit": "Enviar respuestas",
+    "footer": "Concienciación en seguridad",
+    "recorded": "Test registrado.",
+    "passed": "Buen trabajo. Has superado la comprobación.",
+    "failed": "Repasa la formación con tu responsable de seguridad.",
+    "errors": {
+      "incomplete": {
+        "title": "Enlace incompleto",
+        "detail": "Al enlace le falta el identificador. Abre el que recibiste por correo tal cual, sin recortarlo."
+      },
+      "offline": {
+        "title": "No hemos podido conectar",
+        "detail": "Revisa tu conexión y vuelve a intentarlo en unos minutos."
+      },
+      "notFound": {
+        "title": "Enlace no válido",
+        "detail": "Este enlace no corresponde a ninguna formación. Puede que se haya escrito mal o que la campaña ya no exista."
+      },
+      "tooMany": {
+        "title": "Demasiados intentos",
+        "detail": "Se ha alcanzado el límite de peticiones. Espera un rato antes de volver a abrir el enlace."
+      },
+      "failed": {
+        "title": "Algo ha fallado",
+        "detail": "No hemos podido cargar tu formación. Inténtalo de nuevo más tarde."
+      },
+      "noQuestions": {
+        "title": "Formación sin preguntas",
+        "detail": "Esta campaña no tiene ningún test asociado. Avisa a quien te la envió."
+      }
+    },
+    "submitErrors": {
+      "offline": "No hemos podido enviar tus respuestas. Revisa tu conexión e inténtalo otra vez.",
+      "tooMany": "Demasiados envíos seguidos. Espera un momento antes de reintentar.",
+      "failed": "No hemos podido registrar tus respuestas. Inténtalo de nuevo."
+    }
+  },
+  "aegisStore": {
+    "searchLimited": "Has agotado las búsquedas por ahora. Inténtalo de nuevo en unos minutos.",
+    "searchFailed": "No se pudo consultar el catálogo de vulnerabilidades.",
+    "profileSaveFailed": "No se pudo guardar el perfil de organización.",
+    "profileSaved": "Perfil de organización guardado.",
+    "documentsFailed": "No se pudieron cargar los documentos.",
+    "connectionError": "Error de conexión.",
+    "pickTopic": "Selecciona un tema primero.",
+    "generateFailed": "Error al generar la píldora.",
+    "documentFailed": "No se pudo cargar el documento.",
+    "saveFailed": "No se pudieron guardar los cambios.",
+    "pillUpdated": "Píldora actualizada.",
+    "deleteFailed": "No se pudo eliminar el documento.",
+    "exportFailed": "No se pudo exportar.",
+    "downloaded": "Documento descargado.",
+    "downloadFailed": "Error al descargar.",
+    "previewFailed": "No se pudo previsualizar.",
+    "previewError": "Error al previsualizar.",
+    "campaignsFailed": "No se pudieron cargar las campañas.",
+    "campaignDetailFailed": "No se pudo cargar el detalle de la campaña.",
+    "campaignDeleteFailed": "No se pudo eliminar la campaña.",
+    "campaignDeleted": "Campaña eliminada.",
+    "listCreateFailed": "No se pudo crear la lista.",
+    "listCreatedPartial": "Lista creada, pero no se pudieron añadir los destinatarios.",
+    "recipientsFailed": "No se pudieron cargar los destinatarios.",
+    "recipientsAddFailed": "No se pudieron añadir los destinatarios.",
+    "recipientDeleteFailed": "No se pudo eliminar el destinatario.",
+    "listDeleteFailed": "No se pudo eliminar la lista.",
+    "listDeleted": "Lista eliminada.",
+    "campaignCreateFailed": "No se pudo crear la campaña.",
+    "launchFailed": "No se pudo lanzar la campaña.",
+    "launched": "Campaña lanzada. El envío continúa en segundo plano.",
+    "generating": "Píldora en generación (ID: {id})",
+    "recipientsAdded": "{count} destinatario añadido. | {count} destinatarios añadidos."
+  },
+  "hygeia": {
+    "ago": {
+      "never": "nunca",
+      "justNow": "ahora mismo",
+      "ago": "hace {value}"
+    },
+    "powerClassification": {
+      "observed": "Observado",
+      "observed_partial": "Datos parciales",
+      "projected": "Proyección"
+    },
+    "anomalyKinds": {
+      "cpu_spike": "Pico de CPU",
+      "mem_high": "Memoria alta",
+      "swap_thrash": "Swap saturado",
+      "disk_full": "Disco lleno",
+      "host_down": "Host caído",
+      "unknown": "Anomalía"
+    },
+    "documentStatus": {
+      "pending": "En cola",
+      "running": "Generándose",
+      "done": "Listo",
+      "error": "Ha fallado"
+    },
+    "lastHours": "última hora | últimas {count} horas",
+    "lastDays": "último día | últimos {count} días",
+    "documentTitles": {
+      "organizationInventory": "Inventario de la organización",
+      "myInventory": "Inventario de mis activos",
+      "withSoftware": "con software instalado",
+      "assetStats": "Estadísticas de «{name}»",
+      "anAssetStats": "Estadísticas de un activo",
+      "tagStats": "Estadísticas de la etiqueta «{name}»",
+      "aTagStats": "Estadísticas de la etiqueta",
+      "ranking": "Ranking del parque por {metric}",
+      "metric": "métrica",
+      "overview": "Panorama del parque",
+      "stats": "Estadísticas",
+      "document": "Documento"
+    },
+    "metrics": {
+      "cpuPct": "CPU",
+      "memPct": "Memoria",
+      "swapPct": "Swap",
+      "diskMaxPct": "Disco",
+      "load1": "Carga",
+      "netRxBps": "Red · entrada",
+      "netTxBps": "Red · salida",
+      "powerWatts": "Potencia"
+    },
+    "stats": {
+      "scopes": {
+        "asset": "Un activo",
+        "tag": "Una etiqueta",
+        "fleet": "Todo el parque"
+      },
+      "periods": {
+        "24h": "24 h",
+        "7d": "7 días",
+        "30d": "30 días"
+      },
+      "aggregations": {
+        "avg": "Media",
+        "max": "Máximo",
+        "sum": "Total"
+      },
+      "spanDays": "{count} día | {count} días",
+      "spanHours": "{count} hora | {count} horas",
+      "coverage": "Periodo analizado: {span}.",
+      "coverageClipped": "Solo se guarda {span} de historial: el resultado cubre ese tiempo. | Solo se guardan {span} de historial: el resultado cubre ese tiempo."
+    },
+    "tags": {
+      "remove": "Quitar la etiqueta {name}"
+    },
+    "metricNav": {
+      "label": "Métrica a graficar"
+    },
+    "agentKey": {
+      "title": "Clave de agente",
+      "warning": "Esta clave se muestra {once}. Cópiala y configúrala en el agente ahora — no podrás volver a verla.",
+      "once": "una única vez",
+      "copied": "Copiado ✓",
+      "copy": "Copiar",
+      "config": "Configuración del agente:",
+      "saved": "Ya la he guardado"
+    },
+    "tabs": {
+      "label": "Vistas del activo",
+      "shortcut": "Atajo: {key}",
+      "graficas": "Gráficas",
+      "estadisticas": "Estadísticas",
+      "inventario": "Inventario",
+      "anomalias": "Anomalías",
+      "openAnomalies": "anomalías abiertas",
+      "statsWarning": "Hay lecturas de disco o CPU por encima del umbral"
+    },
+    "createAsset": {
+      "title": "Nuevo activo",
+      "os": "Sistema operativo (opcional)",
+      "powersOff": "Este host se apaga a propósito",
+      "powersOffHint": "Un portátil o un equipo que se suspende. No se avisará cuando esté caído.",
+      "creating": "Creando…",
+      "submit": "Dar de alta",
+      "hostnameRequired": "El hostname es obligatorio.",
+      "hostname": "Hostname"
+    },
+    "inventoryReport": {
+      "title": "Inventario en PDF",
+      "include": "Qué incluir",
+      "mine": "Mis activos",
+      "organization": "Toda la organización",
+      "software": "Incluir el software instalado",
+      "softwareHint": "Añade un anexo con las aplicaciones de cada activo. Alarga bastante el documento.",
+      "note": "Se prepara en segundo plano: te avisamos cuando esté listo y lo descargas desde Documentos.",
+      "requesting": "Pidiendo…",
+      "submit": "Preparar PDF",
+      "mineHint": "El único activo dado de alta con tu cuenta. | Los {count} activos dados de alta con tu cuenta.",
+      "noOrganization": "No perteneces a ninguna organización.",
+      "ownerOnly": "Solo el dueño de «{name}» puede sacar este informe.",
+      "organizationHint": "Los activos del único miembro de «{name}». | Los activos de los {count} miembros de «{name}»."
+    },
+    "assetCount": "{count} activo | {count} activos",
+    "analysis": {
+      "title": "Análisis del inventario",
+      "notYet": "Este activo aún no se ha analizado.",
+      "status": {
+        "pending": "Pendiente",
+        "running": "En curso",
+        "finished": "Terminado",
+        "failed": "Fallido"
+      },
+      "running": "Analizando el software instalado… el resumen se actualizará solo al terminar.",
+      "vulnerable": "con vulnerabilidad conocida",
+      "confirmed": "comprobados",
+      "findings": "hallazgos en total",
+      "clean": "Ningún hallazgo. El software instalado está limpio.",
+      "coverageTitle": "Nota de cobertura:",
+      "coverage": "{unresolved} de los {total} paquetes inventariados no se pudieron identificar contra el catálogo de vulnerabilidades, así que no se comprobaron. El resto sí se comprobó — su ausencia de hallazgos es una verificación real.",
+      "scope": "Solo software instalado. La superficie expuesta a la red (puertos, TLS, rutas) se analiza desde Themis, con un escaneo propio.",
+      "openInThemis": "Ver desglose en Themis"
+    },
+    "assetTags": {
+      "title": "Etiquetas de {host}",
+      "search": "Buscar o crear una etiqueta…",
+      "noMatch": "No hay ninguna etiqueta que coincida.",
+      "create": "Crear «{name}»",
+      "color": "Color {color}",
+      "system": "Catálogo común",
+      "mine": "Mis etiquetas"
+    },
+    "picker": {
+      "placeholder": "Busca un activo por nombre…",
+      "clear": "Vaciar la búsqueda",
+      "noMatch": "Ningún activo se parece a «{query}».",
+      "more": "{count} activo más coincide. Escribe algo más para acotar. | {count} activos más coinciden. Escribe algo más para acotar.",
+      "total": "Tienes {count} activos. Escribe para buscar el que quieras.",
+      "listMatching": "Activos que se parecen a «{query}»",
+      "listAll": "Tus activos"
+    },
+    "list": {
+      "title": "Activos",
+      "manageTags": "Gestionar etiquetas",
+      "statsLabel": "Ver las estadísticas del parque",
+      "reportLabel": "Preparar el inventario en PDF",
+      "documents": "Documentos",
+      "documentsLabel": "Ver los documentos pedidos",
+      "reload": "Recargar",
+      "reloadLabel": "Recargar activos",
+      "clearFilters": "Quitar filtros",
+      "loading": "Cargando activos",
+      "emptyTitle": "Ningún activo todavía",
+      "emptySub": "Da de alta el primero para empezar a vigilarlo.",
+      "noMatchTitle": "Ningún activo con esas etiquetas",
+      "noMatchSub": "Prueba a quitar algún filtro.",
+      "agentOutdated": "Agente desactualizado (versión {version})",
+      "tags": "Etiquetas",
+      "markPowersOff": "Marcar como host que se apaga a propósito",
+      "markAlwaysOn": "Marcar como host siempre encendido",
+      "stopAlerting": "{host}: dejar de avisar cuando esté caído",
+      "resumeAlerting": "{host}: volver a avisar cuando esté caído",
+      "rotate": "Rotar clave",
+      "rotateLabel": "Rotar la clave de {host}",
+      "delete": "Eliminar",
+      "deleteLabel": "Eliminar {host}"
+    },
+    "chart": {
+      "gapTitle": "Sin señal: {duration}",
+      "noSignal": "sin señal",
+      "downDetected": "caída detectada",
+      "max": "máx",
+      "avg": "media",
+      "min": "mín",
+      "truncated": "Hay más datos de los que caben: el gráfico muestra solo una parte del periodo.",
+      "gapSummary": "sin señal {missing} de {span}",
+      "downTitle": "Caída detectada · {duration}",
+      "gapCount": "{count} tramo sin señal | {count} tramos sin señal",
+      "summary": "{metric}: {current} ahora, {max} máximo, {avg} de media, {min} mínimo{gaps}.",
+      "noMetricData": "Sin datos de {metric}",
+      "thisMetric": "esta métrica",
+      "noPeriodData": "Sin datos en este periodo",
+      "noDataSpan": "El equipo no ha enviado datos en las últimas {span}.",
+      "notSent": "Este equipo no envía «{metric}»: no todos los sistemas la miden (Windows, por ejemplo, no da la carga).",
+      "neverSent": "Este equipo todavía no ha enviado ningún dato. Comprueba que el agente está instalado y en marcha.",
+      "lastSeen": "Última señal {when}. Prueba con una ventana más amplia."
+    },
+    "detail": {
+      "select": "Selecciona un activo para ver sus constantes.",
+      "lastSignal": "Última señal {when}",
+      "system": "Sistema",
+      "booted": "Arrancado",
+      "agent": "Agente",
+      "notReported": "Sin reportar",
+      "outdatedHint": "Versión de agente desactualizada",
+      "outdated": "Desactualizado",
+      "registered": "Alta",
+      "vitals": "Constantes",
+      "loadingMetrics": "Cargando métricas",
+      "window": "Ventana",
+      "windowLabel": "Ventana temporal del gráfico",
+      "power": "Consumo eléctrico",
+      "powerUnavailable": "Consumo no disponible — este equipo no expone sensores de potencia compatibles.",
+      "powerVirtual": "Consumo no disponible — esta es una máquina virtual. El consumo eléctrico lo mide el equipo físico que la hospeda.",
+      "powerVirtualNamed": "Consumo no disponible — esta es una máquina virtual ({system}). El consumo eléctrico lo mide el equipo físico que la hospeda.",
+      "powerSource": "Fuente: {source}",
+      "measured": "Medición de sensor",
+      "estimated": "Estimación · precisión no garantizada",
+      "estimatedWarning": "Consumo estimado a partir de los sensores disponibles del equipo: puede no coincidir con la medición real, su precisión varía según el hardware, y no equivale necesariamente al consumo medido en el enchufe.",
+      "measuredWarning": "Lectura de un sensor del equipo: puede no cubrir el consumo completo de la máquina (fuente de alimentación, discos, ventiladores…) y no equivale necesariamente al consumo medido en el enchufe.",
+      "monthProjected": "Proyección mensual",
+      "inUse": "En uso",
+      "storage": "Almacenamiento",
+      "free": "{amount} libres",
+      "network": "Red",
+      "networkHint": "el gráfico no cuenta el tráfico interno del propio equipo",
+      "errors": "{count} error | {count} errores",
+      "processes": "Procesos",
+      "core": "Núcleo {index}: {pct} %",
+      "hiddenCores": "+{count} núcleo más sin representar | +{count} núcleos más sin representar",
+      "byCpu": "Por CPU",
+      "byMemory": "Por memoria",
+      "zombies": "{count} en estado zombi",
+      "inventory": "Inventario de software",
+      "loadingInventory": "Cargando inventario",
+      "scanned": "Escaneado {when}",
+      "analyzing": "Analizando el inventario…",
+      "vulnerablePackages": "{count} paquete con vulnerabilidades conocidas | {count} paquetes con vulnerabilidades conocidas",
+      "noVulnerabilities": "Sin vulnerabilidades conocidas",
+      "notSearched": "Aún no se han buscado vulnerabilidades",
+      "viewAnalysis": "Ver análisis",
+      "reanalyze": "Volver a analizar",
+      "analyze": "Buscar vulnerabilidades",
+      "noInventory": "Este activo aún no ha reportado un escaneo de inventario.",
+      "emptyInventory": "El último escaneo no encontró software instalado.",
+      "filter": "Filtrar por nombre o fabricante…",
+      "noResults": "Ningún resultado para «{query}».",
+      "noAnomalies": "Ninguna anomalía registrada. El activo está sano.",
+      "threshold": "umbral {value}%",
+      "opened": "Abierta {when}",
+      "ack": "Reconocer",
+      "resolve": "Resolver",
+      "anomalyState": {
+        "open": "Abierta",
+        "acknowledged": "Reconocida",
+        "resolved": "Resuelta"
+      },
+      "kernel": "Kernel"
+    }
+  },
+  "hygeiaStore": {
+    "offline": "No se pudo conectar con la API.",
+    "assetsFailed": "No se pudieron cargar los activos.",
+    "createFailed": "No se pudo dar de alta el activo.",
+    "deleteFailed": "No se pudo eliminar el activo.",
+    "rotateFailed": "No se pudo rotar la clave.",
+    "updateFailed": "No se pudo actualizar el activo.",
+    "tagsSaveFailed": "No se pudieron guardar las etiquetas.",
+    "metricsFailed": "No se pudieron cargar las métricas.",
+    "latestFailed": "No se pudo cargar el último heartbeat.",
+    "inventoryFailed": "No se pudo cargar el inventario.",
+    "analysisFailed": "No se pudo cargar el análisis.",
+    "analysisLaunchFailed": "No se pudo lanzar el análisis.",
+    "powerFailed": "No se pudo cargar el consumo.",
+    "alerts": {
+      "offline": "No se pudo conectar con la API.",
+      "loadFailed": "No se pudieron cargar las alertas.",
+      "ackFailed": "No se pudo reconocer la anomalía.",
+      "resolveFailed": "No se pudo resolver la anomalía.",
+      "deleteFailed": "No se pudo borrar la anomalía."
+    },
+    "tags": {
+      "offline": "No se pudo conectar con la API.",
+      "loadFailed": "No se pudieron cargar las etiquetas.",
+      "createFailed": "No se pudo crear la etiqueta.",
+      "deleteFailed": "No se pudo borrar la etiqueta."
+    },
+    "stats": {
+      "offline": "No se pudo conectar con la API.",
+      "overviewFailed": "No se pudo cargar el panorama del parque.",
+      "statsFailed": "No se pudieron cargar las estadísticas.",
+      "seriesFailed": "No se pudo cargar la evolución de las métricas elegidas."
+    },
+    "documents": {
+      "offline": "No se pudo conectar con la API.",
+      "loadFailed": "No se pudieron cargar los documentos.",
+      "requestFailed": "No se pudo pedir el documento.",
+      "downloadFailed": "No se pudo descargar el documento.",
+      "deleteFailed": "No se pudo borrar el documento.",
+      "viewDocuments": "Ver documentos",
+      "ready": "Listo para descargar: {title}.",
+      "failed": "No se pudo generar: {title}. Vuelve a pedirlo.",
+      "preparing": "Preparando: {title}. Te avisamos cuando esté listo."
+    }
+  },
+  "hygeiaHub": {
+    "tagline": "Telemetría de hardware en tiempo real, con alertas antes de que el problema se note.",
+    "myth": "La diosa de la salud; vigila los signos vitales de cada activo antes de que se apague ninguno.",
+    "toolLabel": "Ver mis activos",
+    "loading": "Cargando actividad reciente…",
+    "monitored": "Activos monitorizados",
+    "online": "{count} en línea ahora mismo",
+    "empty": "Todavía no monitorizas ningún activo. Da de alta el primero.",
+    "highlight": {
+      "label": "Detección de presencia",
+      "sub": "para saber si un host se ha caído"
+    },
+    "features": {
+      "push": {
+        "kicker": "Sin abrir puertos",
+        "title": "El equipo avisa, tú no preguntas",
+        "desc": "Un agente ligero informa cada pocos segundos, también detrás del router de la oficina, sin abrir ningún puerto en el equipo."
+      },
+      "alerts": {
+        "kicker": "Alertas sin ruido",
+        "title": "Una alerta, no un aluvión",
+        "desc": "CPU, memoria, disco y swap se vigilan con umbrales configurables; una anomalía se abre una vez y se resuelve sola al normalizarse."
+      },
+      "down": {
+        "kicker": "Host caído",
+        "title": "El silencio también es una señal",
+        "desc": "Si un activo deja de reportar, Hygeia lo detecta en dos escalones — inestable primero, caído después — y avisa."
+      },
+      "email": {
+        "kicker": "Aviso por correo",
+        "title": "Las anomalías críticas no esperan",
+        "desc": "Una anomalía crítica dispara un correo al dueño del activo, sin bloquear ni ralentizar la ingesta de telemetría."
+      }
+    }
+  },
+  "hygeiaView": {
+    "badge": "Monitorización de Activos",
+    "allAssets": "Todos los activos",
+    "deleteTitle": "Eliminar activo",
+    "deleteMessage": "Se eliminará el activo y se revocará su clave de agente. El agente instalado en ese equipo dejará de poder enviar datos.",
+    "rotateTitle": "Rotar clave de agente",
+    "rotateMessage": "Esta acción revocará la clave de agente actual y deberá sustituirla manualmente (no se preocupe, le entregaremos una clave nueva si acepta). ¿Está seguro de que quiere continuar?",
+    "continue": "Continuar",
+    "deleteAnomalyTitle": "Borrar anomalía",
+    "deleteAnomalyMessage": "Se eliminará el registro de esta anomalía. Esta acción no se puede deshacer.",
+    "reanalyzeMessage": "Se lanzará un análisis nuevo sobre el inventario actual. El resultado vigente pasará a ser el anterior, y los hallazgos que ya no aparezcan se marcarán como corregidos.",
+    "analyze": "Analizar",
+    "created": "Activo «{host}» dado de alta.",
+    "alertingAgain": "Se volverá a avisar cuando «{host}» esté caído.",
+    "alertingStopped": "«{host}» se marca como host que se apaga a propósito: no se avisará de sus caídas.",
+    "tagsSaved": "Etiquetas actualizadas.",
+    "deleted": "Activo eliminado.",
+    "anomalyDeleted": "Anomalía eliminada.",
+    "analysisStarted": "Análisis iniciado. El resumen se actualizará al terminar."
+  },
+  "hygeiaDocuments": {
+    "intro": "Las estadísticas en CSV y los inventarios en PDF que has pedido. Se preparan en segundo plano: puedes seguir trabajando y descargarlos aquí cuando estén listos.",
+    "refresh": "Actualizar",
+    "loading": "Cargando documentos",
+    "emptyTitle": "Todavía no has pedido ningún documento",
+    "emptySub": "Exporta una tabla desde {stats} o descarga el inventario desde {assets}.",
+    "downloadLabel": "Descargar «{title}»",
+    "download": "Descargar",
+    "deleteLabel": "Borrar «{title}»",
+    "pages": "Páginas de documentos",
+    "previous": "Anteriores",
+    "page": "Página {page} de {total}",
+    "next": "Siguientes",
+    "deleteTitle": "Borrar documento",
+    "deleteMessage": "Se borrará «{title}». Si lo necesitas otra vez, tendrás que volver a pedirlo.",
+    "generated": "generado {when}",
+    "requested": "pedido {when}",
+    "deleted": "Documento borrado."
+  },
+  "hygeiaTags": {
+    "intro": "El catálogo común lo comparte todo el mundo; las tuyas solo las ves tú. Borrar una la quita de los activos que la llevaban — los activos se quedan.",
+    "new": "Nueva etiqueta",
+    "search": "Buscar una etiqueta…",
+    "name": "Nombre de la etiqueta",
+    "create": "Crear",
+    "loading": "Cargando etiquetas…",
+    "noMatch": "Ninguna etiqueta que coincida",
+    "noMatchSub": "Prueba con otra búsqueda, o crea una nueva.",
+    "personal": "Personal",
+    "deleteTitle": "Borrar etiqueta",
+    "deleteLabel": "Borrar la etiqueta {name}",
+    "carriers": "Activos con «{name}»",
+    "noCarriers": "Ningún activo lleva esta etiqueta todavía.",
+    "scopes": {
+      "all": "Todas",
+      "mine": "Mías"
+    },
+    "deleteCarried": "Se quitará «{name}» del activo que la lleva. Los activos no se borran. | Se quitará «{name}» de los {count} activos que la llevan. Los activos no se borran.",
+    "deleteUnused": "Se borrará la etiqueta «{name}». No la lleva ningún activo.",
+    "created": "Etiqueta «{name}» creada.",
+    "deleted": "Etiqueta «{name}» borrada."
+  },
+  "hygeiaStats": {
+    "intro": "Picos, medias y evolución de lo que miden tus agentes, en un activo, en una etiqueta o en todo el parque.",
+    "loadingOverview": "Cargando el panorama",
+    "online": "{count} en línea",
+    "openAnomalies": "Anomalías abiertas",
+    "critical": "{count} crítica | {count} críticas",
+    "acknowledged": "Reconocidas",
+    "acknowledgedSub": "ya se están atendiendo",
+    "lastActivity": "Última actividad",
+    "lastActivitySub": "último dato de un agente",
+    "controls": "Selector de estadísticas",
+    "scope": "Alcance",
+    "asset": "Activo",
+    "tag": "Etiqueta",
+    "chooseTag": "Elige una etiqueta…",
+    "combine": "Combinar activos",
+    "period": "Periodo",
+    "tabsLabel": "Vistas de estadísticas",
+    "tabs": {
+      "resumen": "Resumen",
+      "evolucion": "Evolución"
+    },
+    "metric": "Métrica",
+    "exportCsvHint": "Prepara esta tabla en CSV; la descargas desde Documentos",
+    "exportPdfHint": "Prepara esta tabla en PDF; la descargas desde Documentos",
+    "exportUnavailable": "Elige un activo o una etiqueta para exportar",
+    "exportCsv": "Exportar CSV",
+    "exportPdf": "Exportar PDF",
+    "computing": "Calculando las estadísticas",
+    "chooseAssetSummary": "Elige un activo para ver su resumen.",
+    "chooseTagStats": "Elige una etiqueta para ver sus estadísticas.",
+    "columns": {
+      "min": "Mín.",
+      "max": "Máx.",
+      "now": "Ahora",
+      "readings": "Lecturas",
+      "p95": "El 95 % de las lecturas quedó por debajo de este valor",
+      "assetsWithData": "Activos con datos"
+    },
+    "noData": "sin datos",
+    "tagCarriers": "{count} activo lleva esta etiqueta. | {count} activos llevan esta etiqueta.",
+    "rankingCaption": "{headline} ({withData} de {total} tienen datos).",
+    "noRanking": "Ningún activo tiene datos de esta métrica en el periodo elegido.",
+    "updated": "Actualizado {when}",
+    "evolution": "Evolución de las métricas",
+    "overlaid": "Métricas superpuestas",
+    "noSeries": "Ninguna de las métricas elegidas tiene datos en el periodo.",
+    "loadingChart": "Cargando la gráfica",
+    "scaleNote": "Cada línea tiene su propia escala: compara cuándo sube o baja cada métrica, no su altura. Un punto cada {bucket}.",
+    "inactivityNote": "Los tramos sombreados son periodos en los que el activo no reportó ningún dato.",
+    "rankingByPeak": "Activos con el pico de {metric} más alto",
+    "rankingByAverage": "Activos con la media de {metric} más alta",
+    "chooseAssetEvolution": "Elige un activo para ver su evolución.",
+    "chooseTagEvolution": "Elige una etiqueta para ver su evolución.",
+    "noAssets": "Todavía no tienes activos. Da de alta uno para ver su evolución.",
+    "fleetTooLarge": "La gráfica de todo el parque admite hasta {max} activos y tienes {count}. Elige una etiqueta o un activo.",
+    "chartLabel": "Comparación de {metrics} en el periodo elegido"
+  },
+  "acheron": {
+    "types": {
+      "account": {
+        "label": "Cuenta",
+        "plural": "Cuentas",
+        "newLabel": "Nueva cuenta"
+      },
+      "creditcard": {
+        "label": "Tarjeta",
+        "plural": "Tarjetas",
+        "newLabel": "Nueva tarjeta"
+      },
+      "securenote": {
+        "label": "Nota segura",
+        "plural": "Notas",
+        "newLabel": "Nueva nota"
+      },
+      "identity": {
+        "label": "Identidad",
+        "plural": "Identidades",
+        "newLabel": "Nueva identidad"
+      },
+      "bankaccount": {
+        "label": "Cuenta bancaria",
+        "plural": "Bancos",
+        "newLabel": "Nueva cuenta bancaria"
+      },
+      "wifi": {
+        "label": "Wi-Fi",
+        "plural": "Wi-Fi",
+        "newLabel": "Nueva red Wi-Fi"
+      },
+      "license": {
+        "label": "Licencia",
+        "plural": "Licencias",
+        "newLabel": "Nueva licencia"
+      }
+    },
+    "fields": {
+      "account": {
+        "username": "Usuario / Email",
+        "domain": "Dominio / Servicio",
+        "password": "Contraseña"
+      },
+      "creditcard": {
+        "cardHolderName": "Titular",
+        "cardNumber": "Número de tarjeta",
+        "expirationDate": "Caducidad (MM/YY)",
+        "cvv": "CVV",
+        "postalCode": "Código postal"
+      },
+      "securenote": {
+        "content": "Contenido"
+      },
+      "identity": {
+        "fullName": "Nombre completo",
+        "email": "Email",
+        "phone": "Teléfono",
+        "address": "Dirección",
+        "city": "Ciudad",
+        "country": "País",
+        "documentId": "Documento (DNI/Pasaporte)"
+      },
+      "bankaccount": {
+        "bankName": "Banco",
+        "holder": "Titular",
+        "iban": "IBAN",
+        "swiftBic": "SWIFT / BIC",
+        "accountNumber": "Número de cuenta"
+      },
+      "wifi": {
+        "ssid": "Nombre de red (SSID)",
+        "password": "Contraseña",
+        "securityType": "Seguridad (WPA2/WPA3)"
+      },
+      "license": {
+        "product": "Producto",
+        "licenseKey": "Clave de licencia",
+        "licensedTo": "Licenciado a",
+        "version": "Versión"
+      }
+    },
+    "strength": {
+      "0": "Muy débil",
+      "1": "Débil",
+      "2": "Regular",
+      "3": "Fuerte",
+      "4": "Muy fuerte"
+    },
+    "hide": "Ocultar",
+    "show": "Mostrar",
+    "generate": "Generar contraseña",
+    "inYourBrowser": "en tu navegador",
+    "changePassword": {
+      "title": "Cambiar contraseña maestra",
+      "intro": "La nueva contraseña se aplica {browser}: se vuelve a cifrar la clave de la bóveda con ella. Tus elementos no se modifican.",
+      "current": "Contraseña actual",
+      "next": "Nueva contraseña",
+      "confirm": "Repite la nueva contraseña",
+      "applying": "Aplicando…",
+      "submit": "Cambiar contraseña",
+      "errors": {
+        "current": "Introduce tu contraseña actual.",
+        "next": "Introduce la nueva contraseña.",
+        "tooShort": "La nueva contraseña debe tener al menos {min} caracteres.",
+        "mismatch": "Las contraseñas nuevas no coinciden.",
+        "same": "La nueva contraseña debe ser distinta de la actual."
+      }
+    },
+    "form": {
+      "title": "Título",
+      "titlePlaceholder": "Nombre para reconocerlo",
+      "blankUnchanged": "(en blanco = sin cambios)",
+      "type": "Tipo",
+      "edit": "Editar {type}",
+      "item": "elemento",
+      "newItem": "Nuevo elemento",
+      "titleRequired": "El título es obligatorio.",
+      "fieldRequired": "El campo «{field}» es obligatorio.",
+      "fieldTooShort": "«{field}» debe tener al menos {min} caracteres."
+    }
+  },
+  "acheronView": {
+    "badge": "Bóveda cifrada",
+    "wait": "Un momento, por favor.",
+    "createTitle": "Crea tu contraseña maestra",
+    "createIntro": "Todavía no tienes ninguna bóveda. Elige una contraseña maestra para crearla: el cifrado ocurre {browser} y nunca se envía al servidor.",
+    "newMaster": "Nueva contraseña maestra",
+    "repeat": "Repite la contraseña",
+    "creating": "Creando…",
+    "create": "Crear bóveda",
+    "unlockTitle": "Desbloquear bóveda",
+    "unlockIntro": "El cifrado y descifrado ocurren {browser}. Tu contraseña maestra nunca se envía al servidor.",
+    "master": "Contraseña maestra",
+    "decrypting": "Descifrando…",
+    "unlock": "Desbloquear",
+    "yourVault": "Tu bóveda",
+    "itemCount": "{count} elemento | {count} elementos",
+    "add": "Añadir",
+    "refreshing": "Actualizando…",
+    "refresh": "Actualizar",
+    "password": "Contraseña",
+    "lock": "Bloquear",
+    "empty": "Tu bóveda está vacía. Pulsa {add} para crear tu primer elemento.",
+    "untitled": "Sin título",
+    "copied": "Copiado al portapapeles.",
+    "created": "Bóveda creada. Desbloquéala con tu contraseña maestra.",
+    "refreshed": "Bóveda actualizada.",
+    "changedElsewhere": "La bóveda cambió en otro dispositivo: actualizada.",
+    "masterUpdated": "Contraseña maestra actualizada. Desbloquea con la nueva.",
+    "added": "Elemento añadido.",
+    "saved": "Cambios guardados.",
+    "deleteConfirm": "¿Eliminar «{name}»? No se puede deshacer.",
+    "deleted": "Elemento eliminado.",
+    "errors": {
+      "tooShort": "La contraseña debe tener al menos {min} caracteres.",
+      "mismatch": "Las contraseñas no coinciden.",
+      "noAccess": "Tu cuenta todavía no tiene acceso a Acheron. Contacta con un administrador.",
+      "createFailed": "No se pudo crear la bóveda.",
+      "keysFailed": "Error al generar las claves de cifrado.",
+      "noVault": "Todavía no tienes ninguna bóveda. Crea una desde la app móvil.",
+      "fetchFailed": "No se pudo obtener la bóveda (error {status}).",
+      "wrongMaster": "Contraseña maestra incorrecta.",
+      "decryptFailed": "No se pudo descifrar la bóveda.",
+      "masterChanged": "Tu contraseña maestra cambió en otro dispositivo. Vuelve a introducirla.",
+      "refreshFailed": "No se pudo actualizar la bóveda.",
+      "changeFailed": "No se pudo cambiar la contraseña.",
+      "wrongCurrent": "Contraseña actual incorrecta.",
+      "sendFailed": "Error al cifrar o enviar los datos.",
+      "addFailed": "No se pudo crear el elemento.",
+      "deleteFailed": "No se pudo eliminar.",
+      "sessionExpired": "Sesión expirada.",
+      "forbidden": "No tienes permisos para esta acción.",
+      "revisionMismatch": "La bóveda cambió en otro dispositivo. Actualiza y vuelve a intentarlo.",
+      "duplicate": "Ya existe un elemento con ese identificador."
+    }
+  },
+  "acheronHub": {
+    "tagline": "Bóveda cifrada en tu navegador: el servidor solo ve el cifrado, nunca la llave.",
+    "myth": "El río que nadie cruza sin la llave.",
+    "claim": "Guarda lo que no debe perderse",
+    "toolLabel": "Abrir bóveda",
+    "loading": "Comprobando tu bóveda…",
+    "secrets": "Secretos custodiados",
+    "lastUpdated": "Última actualización: {date}",
+    "empty": "Todavía no tienes bóveda. Crear la tuya lleva un minuto.",
+    "highlight": {
+      "label": "Conocimiento cero",
+      "value": "0 llaves",
+      "sub": "viajan a nuestro servidor"
+    },
+    "features": {
+      "local": {
+        "kicker": "Cifrado local",
+        "title": "La llave nunca viaja",
+        "desc": "AES-256-GCM en tu navegador: el servidor guarda el cifrado y solo tú posees la contraseña maestra. Ni siquiera nosotros podemos leer tu bóveda."
+      },
+      "types": {
+        "kicker": "Siete tipos",
+        "title": "Una bóveda para todo",
+        "desc": "Credenciales, tarjetas, notas y más, bajo la misma contraseña maestra y el mismo cifrado."
+      },
+      "generator": {
+        "kicker": "Generador",
+        "title": "Contraseñas fuertes al vuelo",
+        "desc": "Genera y guarda contraseñas robustas sin salir de la bóveda, con medidor de fortaleza incluido."
+      },
+      "lybra": {
+        "kicker": "La llave de Lybra",
+        "title": "Alimenta el escaneo autenticado",
+        "desc": "Las credenciales custodiadas aquí pueden abrir la puerta a los escaneos autenticados de Themis. Acheron no es solo el candado: es la llave."
+      }
+    },
+    "resources": {
+      "nist": "NIST — Guía de gestión de contraseñas (SP 800-63B)"
+    }
+  },
+  "configStore": {
+    "loadFailed": "Error al cargar la configuración.",
+    "conflict": "La configuración cambió desde que la cargaste. Recárgala antes de guardar.",
+    "saveFailed": "Error al guardar la configuración.",
+    "saved": "Configuración guardada."
+  },
+  "queueStore": {
+    "statusFailed": "Error al cargar el estado de la cola.",
+    "connectFailed": "Error al conectar con la cola.",
+    "tasksFailed": "Error al cargar las tareas.",
+    "connectionError": "Error de conexión con la cola.",
+    "cancelFailed": "Error al cancelar la tarea.",
+    "cancelled": "Tarea cancelada.",
+    "configFailed": "Error al actualizar configuracion.",
+    "configError": "Error al actualizar la configuracion.",
+    "configUpdated": "Config actualizada a {count}. Se aplicará al reiniciar el worker."
+  },
+  "logs": {
+    "loadFailed": "No se pudo cargar el log del sistema.",
+    "decode": {
+      "unknown": "No se pudo leer el contenido comprimido del log.",
+      "unsupportedFormat": "El servidor devolvió un formato de log no compatible.",
+      "tooLarge": "La respuesta del log supera el tamaño permitido.",
+      "noDecompression": "Este navegador no permite descomprimir el log.",
+      "incomplete": "El contenido del log llegó incompleto."
+    },
+    "windows": {
+      "10m": "10 min",
+      "30m": "30 min",
+      "1h": "1 hora",
+      "6h": "6 horas",
+      "24h": "24 horas",
+      "7d": "7 días",
+      "all": "Todo"
+    },
+    "title": "Logs del sistema",
+    "eyebrow": "Observatorio interno",
+    "subtitle": "Busca actividad de la API sin abandonar el hilo de la operación.",
+    "live": "Refresco automático",
+    "latest": "Ver últimos logs",
+    "query": "Consulta",
+    "narrow": "Acota la lectura",
+    "windowLabel": "Ver los últimos",
+    "window": "Ventana temporal",
+    "custom": "Personalizado",
+    "order": "Orden de lectura",
+    "tail": "Últimas líneas",
+    "head": "Primeras líneas",
+    "from": "Desde",
+    "to": "Hasta",
+    "minLevel": "Nivel mínimo",
+    "allLevels": "Todos",
+    "levelAndAbove": "{level} y superiores",
+    "onlyLevel": "Solo {level}",
+    "perPage": "Líneas por página",
+    "contains": "Contiene",
+    "containsPlaceholder": "usuario, ruta, excepción…",
+    "problemsOn": "Viendo solo problemas",
+    "problemsOff": "Solo avisos y errores",
+    "apply": "Aplicar filtros",
+    "stale": "La lectura quedó obsoleta",
+    "loadError": "No se pudo cargar el log",
+    "restart": "Iniciar lectura nueva",
+    "lines": "{count} línea | {count} líneas",
+    "tallies": "Resumen por nivel de la ventana",
+    "viewLevel": "Ver {level} y superiores",
+    "noTallies": "Sin líneas clasificadas en esta ventana.",
+    "truncated": "Esta vista muestra una página de {count} líneas coincidentes.",
+    "empty": "No hay líneas que coincidan con estos filtros.",
+    "pagination": "Paginación de logs",
+    "previous": "Anterior",
+    "page": "Página {page} / {total}",
+    "next": "Siguiente",
+    "noSnapshot": "Sin snapshot",
+    "newLines": "Hay líneas nuevas",
+    "stable": "Lectura estable",
+    "noMatches": "Sin coincidencias",
+    "newest": "Entradas más recientes",
+    "oldest": "Entradas iniciales",
+    "noLinesOnPage": "0 líneas en esta página",
+    "line": "Línea {line}",
+    "lineRange": "Líneas {first}–{last}",
+    "customHint": "Las fechas usan la hora del servidor{zone}.",
+    "since": " — desde {start}",
+    "windowHint": "Últimos {window} de la hora del servidor{zone}{since}."
+  },
+  "config": {
+    "modelPicker": {
+      "useEnv": "Usar el del entorno ({env})",
+      "loading": "Consultando al proveedor…",
+      "available": "{count} modelo disponible | {count} modelos disponibles",
+      "unreachable": "No se pudo consultar el proveedor: escribe el identificador a mano.",
+      "fromList": "Elegir de la lista",
+      "manual": "Escribirlo a mano"
+    },
+    "scanner": {
+      "palette": "Paleta de colores",
+      "colors": {
+        "black": "Negro",
+        "dark": "Oscuro",
+        "main": "Principal",
+        "secondary": "Secundario",
+        "light": "Claro",
+        "white": "Blanco"
+      },
+      "systemPrompt": "Prompt del sistema",
+      "systemPromptTitle": "{name} — prompt del sistema",
+      "userTemplate": "Plantilla de usuario",
+      "userTemplateTitle": "{name} — plantilla de usuario"
+    }
+  },
+  "queue": {
+    "title": "Cola de Tareas",
+    "subtitle": "Monitoriza y gestiona las tareas asíncronas en segundo plano",
+    "workersHint": "maxWorkers es la config objetivo; solo se aplica al reiniciar el proceso worker, no en caliente",
+    "workers": "Workers",
+    "running": "En ejecución",
+    "pending": "En espera",
+    "history": "Historial",
+    "created": "Creado: {date}",
+    "started": "Inicio: {date}",
+    "finished": "Fin: {date}",
+    "empty": "No hay tareas en esta categoría.",
+    "categories": {
+      "themisScan": "Escaneo",
+      "themisReport": "Informe PDF",
+      "aegisGenerate": "IA Aegis"
+    },
+    "status": {
+      "pending": "Pendiente",
+      "running": "En ejecución",
+      "completed": "Completado",
+      "failed": "Fallido",
+      "cancelled": "Cancelado"
+    }
+  },
+  "configView": {
+    "enS1TodasLasFunciones": "En {s1} todas las funciones de abajo están cerradas al público, digan lo que digan sus interruptores; tu cuenta de administrador principal puede seguir probándolas, salvo el alta, los precios y la IA externa. En {s2} cada función sigue su interruptor, para poder abrir Ellysia por partes a medida que cada una tenga su cobertura legal.",
+    "vistaPrevia": "vista previa",
+    "abiertoAlPublico": "abierto al público",
+    "plazosDeLosEnlacesQue": "Plazos de los enlaces que se envían por correo. Si se admiten altas públicas se decide en «Lanzamiento».",
+    "parametrosDeCosteDeArgon2id": "Parámetros de coste de Argon2id. Subirlos endurece los hashes pero ralentiza el inicio de sesión. Solo afectan a contraseñas creadas o cambiadas tras guardar.",
+    "cuantoViveUnaSesionEl": "Cuánto vive una sesión. El token de acceso es el que acompaña a cada petición; el de refresco es el que permite renovarlo sin volver a pedir la contraseña, así que su vigencia es la duración real de la sesión. El secreto de firma vive en {c1} y no está aquí. En contenedores, {c2}, {c3} y {c4} tienen prioridad sobre estos valores.",
+    "elEmisorEsElNombre": "El emisor es el nombre que la aplicación autenticadora enseña junto al código. Los códigos de recuperación se generan una sola vez al activar el segundo factor: cambiar aquí su número no afecta a quien ya lo tenga activado.",
+    "lasCredencialesVivenEnEl": "Las credenciales viven en el archivo {c1}. Estos ajustes requieren reiniciar la API para aplicarse.",
+    "laContrasenaSeTomaDe": "La contraseña se toma de {c1} en {c2}. En contenedores, las variables {c3} / {c4} / {c5} tienen prioridad sobre estos valores.",
+    "eligeQueProveedorGeneraEl": "Elige qué proveedor genera el contenido de cada módulo. Las credenciales siguen en {c1}; el modelo se elige aquí y se aplica al siguiente trabajo en segundo plano, sin reiniciar nada.",
+    "laListaSaleDePreguntarle": "La lista sale de preguntarle al proveedor qué sirve ahora mismo. Dejar el campo vacío significa usar la variable de entorno, que es como funcionaba antes de que el modelo se pudiera elegir desde aquí.",
+    "elTopeDeTokensRechaza": "El tope de tokens rechaza un prompt desproporcionado antes de gastar la llamada. El corte automático deja de llamar al proveedor tras los fallos seguidos indicados, para no encadenar esperas contra un backend que ya se sabe caído.",
+    "unModeloLocalTardaMucho": "Un modelo local tarda mucho más que una API en la nube, así que cada proveedor lleva el suyo.",
+    "porAquiSalenLasCampanas": "Por aquí salen las campañas de Aegis, los avisos de Hygeia e Iris y los correos de cuenta (verificación, invitaciones, recuperación). El usuario y la contraseña del relay viven en {c1} y {c2} del {c3}; lo de aquí no es secreto.",
+    "loQuePintanLasPlantillas": "Lo que pintan las plantillas. Es la marca base del producto: el white-label por organización se configura en cada organización y se aplica encima de esta.",
+    "puntuacionDeAutenticidadDeUn": "Puntuación de autenticidad de un correo. Por encima del umbral legítimo se considera fiable; por debajo del sospechoso, una amenaza. El umbral sospechoso puede ser negativo.",
+    "elEspejoLocalDeNvd": "El espejo local de NVD, KEV, EPSS y OVAL con el que Lybra decide si un servicio detectado es vulnerable. «Antigüedad máxima» es lo que se tolera desde la última sincronización de cada fuente antes de avisar de que está rancia; no borra nada.",
+    "cuantoEmpujaElMotorContra": "Cuánto empuja el motor contra el objetivo. Subir la concurrencia o bajar el intervalo acelera el escaneo y aumenta el riesgo de que el objetivo lo trate como un ataque.",
+    "elTrozoDeRespuestaCruda": "El trozo de respuesta cruda que se guarda junto a cada hallazgo para poder revisarlo después.",
+    "esLaUnicaFaseQue": "Es la única fase que escribe en el objetivo: cada intento es un inicio de sesión real. El tope es por cuenta, no por servicio, y evita que la comprobación se convierta en fuerza bruta.",
+    "descubreLoQueLosChecks": "Descubre lo que los checks no conocen de antemano: rutas de robots.txt, formularios de login y rutas con autenticación. Sólo lectura y del mismo origen, con presupuesto duro. A cero páginas, no se hace.",
+    "unActivoPasaADesconectado": "Un activo pasa a «desconectado» cuando falla el número de latidos seguidos indicado. Bajar el intervalo multiplica el volumen de datos: la retención es la que decide cuánto histórico se conserva.",
+    "latidosSostenidosEvitaLasAlertas": "«Latidos sostenidos» evita las alertas por un pico puntual: la métrica tiene que seguir alta ese número de latidos seguidos. Disco y swap avisan al primero.",
+    "laPaletaConLaQue": "La paleta con la que se genera el PDF de Hygeia, igual que la de cada escáner de Themis.",
+    "cuandoElAnalisisSeAtreve": "Cuándo el análisis se atreve a afirmar algo. Una tendencia que no supera estos umbrales no devuelve una estimación: se retira y dice por qué, en vez de dar una fecha inventada.",
+    "cuantoTiempoSeReutilizaUna": "Cuánto tiempo se reutiliza una estadística ya calculada antes de recalcularla. Cuanto más largo es el periodo pedido, más despacio cambia el resultado. Dar de alta o de baja un activo o cambiar sus etiquetas descarta lo guardado de ese usuario.",
+    "topesDeLoQueEl": "Topes de lo que el agente puede enviar y de lo que la API acepta. Recortarlos protege a la API de un agente comprometido o mal configurado.",
+    "modo": "Modo",
+    "conservacionDelRegistroDeActividad": "Conservación del registro de actividad (días)",
+    "idiomaDeLaPlataforma": "Idioma de la plataforma",
+    "vigenciaDelEnlaceDeVerificacion": "Vigencia del enlace de verificación (horas)",
+    "vigenciaDelEnlaceDeRecuperacion": "Vigencia del enlace de recuperación (minutos)",
+    "vigenciaDeLaInvitacionA": "Vigencia de la invitación a una organización (horas)",
+    "iteracionesTimeCost": "Iteraciones (time cost)",
+    "memoriaKib": "Memoria (KiB)",
+    "paralelismoHilos": "Paralelismo (hilos)",
+    "algoritmoDeFirma": "Algoritmo de firma",
+    "vigenciaDelTokenDeAcceso": "Vigencia del token de acceso (min)",
+    "vigenciaDelTokenDeRefresco": "Vigencia del token de refresco (días)",
+    "emisor": "Emisor",
+    "vigenciaDelRetoMin": "Vigencia del reto (min)",
+    "intentosPorReto": "Intentos por reto",
+    "codigosDeRecuperacion": "Códigos de recuperación",
+    "recordatorioDeActivacionDias": "Recordatorio de activación (días)",
+    "nivelDeAislamiento": "Nivel de aislamiento",
+    "tamanoDelPool": "Tamaño del pool",
+    "conexionesExtraOverflow": "Conexiones extra (overflow)",
+    "timeoutDelPoolS": "Timeout del pool (s)",
+    "puerto": "Puerto",
+    "baseDeDatosDb": "Base de datos (db)",
+    "timeoutDeConexionS": "Timeout de conexión (s)",
+    "historialTtlS": "Historial TTL (s)",
+    "maxItemsEnHistorial": "Max items en historial",
+    "estrategiaPorDefecto": "Estrategia por defecto",
+    "tokensMaximosDelPrompt": "Tokens máximos del prompt",
+    "intentosPorGeneracion": "Intentos por generación",
+    "baseDeLaEsperaEntre": "Base de la espera entre intentos (s)",
+    "fallosQueAbrenElCorte": "Fallos que abren el corte",
+    "duracionDelCorteS": "Duración del corte (s)",
+    "direccionDelRemitente": "Dirección del remitente",
+    "nombreDelRemitente": "Nombre del remitente",
+    "nombreDelProducto": "Nombre del producto",
+    "colorDeAcento": "Color de acento",
+    "urlDelLogotipo": "URL del logotipo",
+    "correoDeSoporte": "Correo de soporte",
+    "notaDelPie": "Nota del pie",
+    "directorioDePlantillas": "Directorio de plantillas",
+    "umbralLegitimo": "Umbral legítimo",
+    "umbralSospechoso": "Umbral sospechoso",
+    "perfilDeSensibilidad": "Perfil de sensibilidad",
+    "cabecerasMinimas": "Cabeceras mínimas",
+    "tamanoMaxDelMensajeBytes": "Tamaño máx. del mensaje (bytes)",
+    "conexionesPorUsuario": "Conexiones por usuario",
+    "correosIngeridosAlDia": "Correos ingeridos al día",
+    "intervaloDeSondeoMin": "Intervalo de sondeo (min)",
+    "directorioDeSalida": "Directorio de salida",
+    "directorioDeSalidaPdfs": "Directorio de salida (PDFs)",
+    "directorioCsv": "Directorio CSV",
+    "directorioDeRecursos": "Directorio de recursos",
+    "carpetaPorDefecto": "Carpeta por defecto",
+    "escaneosEnEstadisticas": "Escaneos en estadísticas",
+    "vigenciaDelRiesgoAceptadoDias": "Vigencia del riesgo aceptado (días)",
+    "plazoPorDefectoDeUn": "Plazo por defecto de un trabajo (s)",
+    "timeoutS": "Timeout (s)",
+    "validezDeCacheH": "Validez de caché (h)",
+    "saltosMaximos": "Saltos máximos",
+    "reintentoSiFallaMin": "Reintento si falla (min)",
+    "cronDeSincronizacion": "Cron de sincronización",
+    "ventanaPedidaANvdDias": "Ventana pedida a NVD (días)",
+    "binario": "Binario",
+    "versionDePlantillas": "Versión de plantillas",
+    "peticionesPorSegundo": "Peticiones por segundo",
+    "timeoutPorPeticionS": "Timeout por petición (s)",
+    "timeoutDelEscaneoS": "Timeout del escaneo (s)",
+    "severidadesPorDefecto": "Severidades por defecto",
+    "severidadMinima": "Severidad mínima",
+    "maxComprobaciones": "Máx. comprobaciones",
+    "tamanoMaxBytes": "Tamaño máx. (bytes)",
+    "retencionDias": "Retención (días)",
+    "intentosPorCuenta": "Intentos por cuenta",
+    "paginasMaximas": "Páginas máximas",
+    "profundidadMaxima": "Profundidad máxima",
+    "tiempoMaximoS": "Tiempo máximo (s)",
+    "consejosPorPildora": "Consejos por píldora",
+    "preguntasDelTest": "Preguntas del test",
+    "opcionesPorPregunta": "Opciones por pregunta",
+    "antiguedadMaxDeAlertasAnos": "Antigüedad máx. de alertas (años)",
+    "stackDeDocumentos": "Stack de documentos",
+    "intervaloDeLatidoS": "Intervalo de latido (s)",
+    "latidosPerdidosParaDesconectar": "Latidos perdidos para desconectar",
+    "cronDePurga": "Cron de purga",
+    "precioDeLaElectricidadPor": "Precio de la electricidad (por kWh)",
+    "moneda": "Moneda",
+    "directorioDeSalidaCsvY": "Directorio de salida (CSV y PDF)",
+    "versionMinimaDeAgente": "Versión mínima de agente",
+    "ajusteMinimoDeLaTendencia": "Ajuste mínimo de la tendencia (R²)",
+    "crecimientoMinimoPuntosPorcentualesAl": "Crecimiento mínimo (puntos porcentuales al día)",
+    "ventanaDeCoincidenciaDePicos": "Ventana de coincidencia de picos (s)",
+    "periodosDeHasta24H": "Periodos de hasta 24 h (s)",
+    "periodosDeHasta7Dias": "Periodos de hasta 7 días (s)",
+    "periodosMasLargosS": "Periodos más largos (s)",
+    "lanzamiento": "Lanzamiento",
+    "general": "General",
+    "seguridad": "Seguridad",
+    "baseDeDatos": "Base de datos",
+    "ia": "IA",
+    "correo": "Correo",
+    "sesionJwt": "Sesión (JWT)",
+    "segundoFactorTotp": "Segundo factor (TOTP)",
+    "modeloDeCadaProveedor": "Modelo de cada proveedor",
+    "limitesYReintentos": "Límites y reintentos",
+    "timeoutDeCadaProveedorS": "Timeout de cada proveedor (s)",
+    "relaySmtp": "Relay SMTP",
+    "marcaDeLosCorreos": "Marca de los correos",
+    "buzonesVigilados": "Buzones vigilados",
+    "resumenConIa": "Resumen con IA",
+    "verificacionDeAccesibilidadDelHost": "Verificación de accesibilidad del host",
+    "baseDeConocimiento": "Base de conocimiento",
+    "umbrales": "Umbrales",
+    "coloresDelInforme": "Colores del informe",
+    "analisisDerivado": "Análisis derivado",
+    "cacheDeEstadisticas": "Caché de estadísticas",
+    "limites": "Límites",
+    "motor": "Motor",
+    "evidencia": "Evidencia",
+    "credencialesPorDefecto": "Credenciales por defecto",
+    "rastreoDeSoloLectura": "Rastreo de sólo lectura",
+    "queFuncionesEstanAbiertasAl": "Qué funciones están abiertas al público",
+    "directoriosDelSistemaYAlta": "Directorios del sistema y alta de cuentas",
+    "contrasenasSesionYSegundoFactor": "Contraseñas, sesión y segundo factor",
+    "conexionPostgresqlYPoolDe": "Conexión PostgreSQL y pool de conexiones",
+    "backendDeLaColaDe": "Backend de la cola de tareas",
+    "colaDeTareasEnSegundo": "Cola de tareas en segundo plano",
+    "estrategiaDeLosModelosDe": "Estrategia de los modelos de lenguaje por módulo",
+    "relayDeSalidaYMarca": "Relay de salida y marca de los mensajes",
+    "umbralesDeAnalisisDeCabeceras": "Umbrales de análisis de cabeceras de correo",
+    "escanerDeRedAnalisisWeb": "Escáner de red, análisis web y vulnerabilidades",
+    "generacionDePildorasDeConcienciacion": "Generación de píldoras de concienciación con IA",
+    "monitorizacionDeActivosViaAgente": "Monitorización de activos vía agente",
+    "cadaNocheSeArchivaEl": "Cada noche se archiva el día anterior y se borra lo que pase de este plazo. El registro guarda la IP de cada visita.",
+    "elDeQuienNoHa": "El de quien no ha elegido idioma y cuya organización tampoco lo ha fijado.",
+    "65536Kib64MibPor": "65536 KiB = 64 MiB por hash",
+    "soloLaFamiliaHsLa": "Solo la familia HS*: la firma usa un secreto simétrico",
+    "cadaCuantoSeLeRecuerda": "Cada cuánto se le recuerda a quien no lo tiene activado",
+    "vacioSinLogotipo": "Vacío = sin logotipo",
+    "vacioLasPlantillasQueTrae": "Vacío = las plantillas que trae la aplicación",
+    "estrictoSubeLosDosUmbrales": "Estricto sube los dos umbrales 5 puntos (avisa antes); permisivo los baja 5",
+    "1048576010Mib": "10485760 = 10 MiB",
+    "nombreDeLaCarpetaVirtual": "Nombre de la carpeta virtual para escaneos sin agrupar",
+    "escaneosRecientesQueSePromedian": "Escaneos recientes que se promedian en el histórico",
+    "pasadoEsePlazoUnHallazgo": "Pasado ese plazo, un hallazgo aceptado vuelve a contar",
+    "loQueEsperaLaCola": "Lo que espera la cola antes de dar por muerto un escaneo",
+    "formatoCronDeCincoCampos": "Formato cron de cinco campos",
+    "cuantoHistoricoSePideEn": "Cuánto histórico se pide en cada pasada",
+    "vacioLasQueTraeEl": "Vacío = las que trae el binario",
+    "loQueSeEscaneaSi": "Lo que se escanea si el usuario no elige otra cosa",
+    "codigoIso4217EurUsd": "Código ISO 4217 (EUR, USD...)",
+    "formatoXYZUn": "Formato X.Y.Z. Un activo con una versión anterior se marca como desactualizado en la lista; \"0.0.0\" no marca ninguno.",
+    "de0A1Cuanto": "De 0 a 1. Cuánto tiene que parecerse la serie a una recta para creerse su dirección; subirlo deja sin estimación a los discos que crecen a escalones",
+    "porDebajoDeEstoSe": "Por debajo de esto se considera que la métrica oscila, no que crece",
+    "cuantoPuedenSepararseDosPicos": "Cuánto pueden separarse dos picos de métricas distintas para considerarlos simultáneos",
+    "cifrarConStarttls": "Cifrar con STARTTLS",
+    "habilitado": "Habilitado",
+    "permitirIpsLocales": "Permitir IPs locales",
+    "sincronizacionActiva": "Sincronización activa",
+    "comprobacionesActivas": "Comprobaciones activas",
+    "ingestaDeHallazgos": "Ingesta de hallazgos",
+    "guardarEvidencia": "Guardar evidencia",
+    "reutilizarResultados": "Reutilizar resultados",
+    "vistaPrevia2": "Vista previa",
+    "abiertoAlPublico2": "Abierto al público",
+    "estricto": "Estricto",
+    "equilibrado": "Equilibrado",
+    "permisivo": "Permisivo",
+    "title": "Configuración",
+    "beforeOpening": "Antes de abrirla: {unlocks}.",
+    "switchesIgnored": "Los interruptores no cuentan mientras el modo sea «Vista previa».",
+    "appVersion": "Versión de la aplicación",
+    "tech": {
+      "temp": "Temp",
+      "logs": "Logs",
+      "redis": "Redis",
+      "host": "Host",
+      "taskqueue": "TaskQueue",
+      "maxWorkers": "Max Workers",
+      "traceroute": "Traceroute",
+      "fingerprinting": "Fingerprinting",
+      "userAgent": "User-Agent"
+    },
+    "maxAge": "Antigüedad máxima — {feed} (días)",
+    "source": "Origen — {source}",
+    "dials": {
+      "tcpConcurrency": "Concurrencia TCP",
+      "tcpTimeout": "Timeout TCP (s)",
+      "udpTimeout": "Timeout UDP (s)",
+      "udpRetries": "Reintentos UDP",
+      "udpBudgetSeconds": "Presupuesto UDP (s)",
+      "rateLimitInterval": "Intervalo entre envíos (s)",
+      "hostPoolSize": "Hosts en paralelo",
+      "httpTimeout": "Timeout HTTP (s)",
+      "httpMaxBodyBytes": "Cuerpo HTTP máx. (bytes)",
+      "networkTimeout": "Timeout de red (s)",
+      "bannerTimeout": "Timeout de banner (s)",
+      "maxBlindProbes": "Sondeos a ciegas máx.",
+      "maxPayloadExpansions": "Expansiones de payload máx."
+    },
+    "metrics": {
+      "cpuPct": "CPU (%)",
+      "memPct": "Memoria (%)",
+      "diskPct": "Disco (%)",
+      "swapPct": "Swap (%)"
+    },
+    "thresholdWarning": "{metric} — aviso",
+    "thresholdCritical": "{metric} — crítico",
+    "thresholdSustained": "{metric} — latidos sostenidos",
+    "limits": {
+      "maxBodyBytes": {
+        "label": "Tamaño máx. del cuerpo (bytes)",
+        "hint": "1048576 = 1 MiB"
+      },
+      "maxDecompressedBytes": {
+        "label": "Tamaño máx. descomprimido (bytes)",
+        "hint": "4194304 = 4 MiB"
+      },
+      "maxProcesses": {
+        "label": "Procesos por latido"
+      },
+      "maxDiskMounts": {
+        "label": "Puntos de montaje"
+      },
+      "maxNetInterfaces": {
+        "label": "Interfaces de red"
+      },
+      "maxSeriesPoints": {
+        "label": "Puntos por serie temporal"
+      },
+      "maxStatsPeriodDays": {
+        "label": "Periodo máx. de estadísticas (días)",
+        "hint": "Nunca abarca más que la retención"
+      },
+      "maxEntityStatsPeriodDays": {
+        "label": "Periodo máx. por montaje, interfaz o núcleo (días)",
+        "hint": "Estas consultas leen el detalle completo de cada latido; nunca abarca más que el periodo máx. de estadísticas"
+      },
+      "minIntervalSec": {
+        "label": "Intervalo mínimo entre latidos (s)"
+      },
+      "clockSkewSec": {
+        "label": "Desfase de reloj tolerado (s)",
+        "hint": "Cuánto se acepta que el reloj del agente vaya adelantado"
+      },
+      "maxBackfillSec": {
+        "label": "Antigüedad máx. de un latido (s)",
+        "hint": "86400 = un día; más viejo que eso se rechaza"
+      },
+      "maxAssetsPerUser": {
+        "label": "Activos por usuario"
+      },
+      "maxInventoryItems": {
+        "label": "Elementos de inventario"
+      }
+    },
+    "nav": {
+      "platform": "Plataforma",
+      "modules": "Módulos"
+    },
+    "modules": {
+      "iris": "Iris",
+      "themis": "Themis",
+      "aegis": "Aegis",
+      "hygeia": "Hygeia"
+    },
+    "mailModules": {
+      "aegis": "Aegis (campañas)",
+      "iris": "Iris (avisos)",
+      "hygeia": "Hygeia (avisos)",
+      "accounts": "Cuentas (verificación, invitaciones)"
+    },
+    "ollamaLocal": "Ollama (local)",
+    "reset": "Restablecer",
+    "save": "Guardar Configuración",
+    "surfaces": {
+      "registration": {
+        "label": "Alta pública de cuentas",
+        "covers": "Cualquiera puede crearse una cuenta desde la pantalla de acceso.",
+        "unlocks": "aviso legal, privacidad, términos, uso aceptable y aceptación registrada en el alta"
+      },
+      "pricing": {
+        "label": "Planes y precios",
+        "covers": "La página de planes y la tabla de precios de la portada.",
+        "unlocks": "titular identificado, público decidido y aviso legal"
+      },
+      "thirdPartyScanners": {
+        "label": "Escáneres de sistemas externos",
+        "covers": "Análisis con Nmap, Nikto y Nuclei, también los programados.",
+        "unlocks": "autorización exigida en todos los escáneres, uso aceptable y revisión jurídica"
+      },
+      "campaigns": {
+        "label": "Campañas de Aegis",
+        "covers": "Enviar formaciones por correo a los empleados de un cliente.",
+        "unlocks": "contrato de encargo, guía para informar a los empleados y aviso de contenido generado con IA"
+      },
+      "mailboxConnectors": {
+        "label": "Buzones de Iris",
+        "covers": "Conectar y sincronizar buzones de Gmail y Microsoft.",
+        "unlocks": "verificaciones de Google y Microsoft"
+      },
+      "externalAi": {
+        "label": "IA de proveedores externos",
+        "covers": "Generar con OpenAI o Google; Ollama no depende de esto.",
+        "unlocks": "contratos con los proveedores y página sobre el uso de la IA"
+      }
+    },
+    "confirmOpen": "Vas a abrir al público:\n{surfaces}\n\n¿Continuar?",
+    "confirmOpenNothing": "Vas a pasar a «Abierto al público», pero todos los interruptores están apagados: no se abrirá nada. ¿Continuar?"
   }
 }

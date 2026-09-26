@@ -3,24 +3,24 @@
        criterios viven en LybraResults.vue, por escaneo, y aquí solo se pintan y
        se devuelven cambiados. Así dos tarjetas abiertas a la vez no comparten
        filtros. -->
-  <div class="findings-toolbar" role="search" :aria-label="`Ordenar y filtrar los hallazgos del escaneo #${scanId}`">
+  <div class="findings-toolbar" role="search" :aria-label="t('lybra.toolbar.label', { id: scanId })">
     <div class="toolbar-row">
       <label class="search">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <span class="visually-hidden">Buscar hallazgos</span>
-        <input type="search" :value="modelValue.text" placeholder="Buscar por título, CVE o producto"
+        <span class="visually-hidden">{{ t('lybra.toolbar.search') }}</span>
+        <input type="search" :value="modelValue.text" :placeholder="t('lybra.toolbar.searchPlaceholder')"
           @input="update({ text: $event.target.value })" />
       </label>
 
       <div class="sort">
-        <label class="sort-label" :for="`lybra-sort-${scanId}`">Ordenar por</label>
+        <label class="sort-label" :for="`lybra-sort-${scanId}`">{{ t('lybra.toolbar.sortBy') }}</label>
         <select :id="`lybra-sort-${scanId}`" :value="modelValue.sortKey" @change="update({ sortKey: $event.target.value, reversed: false })">
-          <option v-for="option in SORT_OPTIONS" :key="option.value" :value="option.value">{{ option.label }}</option>
+          <option v-for="option in SORT_OPTIONS" :key="option.value" :value="option.value">{{ t(`lybra.toolbar.sort.${option.value}`) }}</option>
         </select>
         <!-- El texto dice el orden que hay, no la acción: «Más grave primero»
              se entiende sin saber qué significa una flecha hacia abajo. -->
         <button type="button" class="direction" :aria-pressed="modelValue.reversed"
-          :title="`Invertir: ${directionLabel(!modelValue.reversed)}`"
+          :title="t('lybra.toolbar.invert', { direction: directionLabel(!modelValue.reversed) })"
           @click="update({ reversed: !modelValue.reversed })">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" :class="{ flipped: modelValue.reversed }">
             <path d="M7 4v16M3 16l4 4 4-4"/><path d="M14 6h7M14 11h5M14 16h3"/>
@@ -34,36 +34,36 @@
          se abre el capítulo. El número es cuántos se verían con esa gravedad y
          el resto de filtros, esté encendida o no. -->
     <div class="facet">
-      <span :id="`lybra-sev-label-${scanId}`" class="facet-label">Gravedad</span>
+      <span :id="`lybra-sev-label-${scanId}`" class="facet-label">{{ t('lybra.toolbar.severity') }}</span>
       <div class="severity-chips" role="group" :aria-labelledby="`lybra-sev-label-${scanId}`">
         <button v-for="level in LADDER" :key="level" type="button" class="sev-chip" :data-sev="level.toLowerCase()"
           :class="{ on: modelValue.priorities.includes(level), idle: !modelValue.priorities.length }"
           :aria-pressed="modelValue.priorities.includes(level)" :disabled="!priorityCounts[level] && !modelValue.priorities.includes(level)"
           @click="togglePriority(level)">
-          {{ PRIO_LABEL[level] }} <span class="chip-count">{{ priorityCounts[level] }}</span>
+          {{ priorityLabel(level) }} <span class="chip-count">{{ priorityCounts[level] }}</span>
         </button>
       </div>
     </div>
 
     <div class="toolbar-row">
       <div class="facet">
-        <span :id="`lybra-state-label-${scanId}`" class="facet-label">Estado</span>
+        <span :id="`lybra-state-label-${scanId}`" class="facet-label">{{ t('lybra.toolbar.stateLabel') }}</span>
         <div class="segmented" role="radiogroup" :aria-labelledby="`lybra-state-label-${scanId}`">
           <label v-for="option in STATE_OPTIONS" :key="option.value" class="segment" :class="{ active: modelValue.state === option.value }">
             <input type="radio" :name="`lybra-state-${scanId}`" :value="option.value" :checked="modelValue.state === option.value"
               @change="update({ state: option.value })" />
-            {{ option.label }}<span v-if="option.value !== 'all'" class="chip-count">{{ stateCounts[option.value] }}</span>
+            {{ t(`lybra.toolbar.state.${option.value}`) }}<span v-if="option.value !== 'all'" class="chip-count">{{ stateCounts[option.value] }}</span>
           </label>
         </div>
       </div>
 
       <div class="facet">
-        <span :id="`lybra-certainty-label-${scanId}`" class="facet-label">Certeza</span>
+        <span :id="`lybra-certainty-label-${scanId}`" class="facet-label">{{ t('lybra.toolbar.certaintyLabel') }}</span>
         <div class="segmented" role="radiogroup" :aria-labelledby="`lybra-certainty-label-${scanId}`">
           <label v-for="option in CERTAINTY_OPTIONS" :key="option.value" class="segment" :class="{ active: modelValue.certainty === option.value }">
             <input type="radio" :name="`lybra-certainty-${scanId}`" :value="option.value" :checked="modelValue.certainty === option.value"
               @change="update({ certainty: option.value })" />
-            {{ option.label }}
+            {{ t(`lybra.toolbar.certainty.${option.value}`) }}
           </label>
         </div>
       </div>
@@ -71,8 +71,11 @@
 
     <Transition name="tally">
       <p v-if="isFiltering(modelValue)" class="tally" aria-live="polite">
-        Mostrando <strong>{{ visibleTotal }}</strong> de {{ total }} {{ total === 1 ? 'hallazgo' : 'hallazgos' }}
-        <button type="button" class="reset" @click="$emit('reset')">Quitar filtros</button>
+        <i18n-t keypath="lybra.toolbar.showing" :plural="total" tag="span">
+          <template #visible><strong>{{ visibleTotal }}</strong></template>
+          <template #count>{{ total }}</template>
+        </i18n-t>
+        <button type="button" class="reset" @click="$emit('reset')">{{ t('lybra.results.clearFilters') }}</button>
       </p>
     </Transition>
   </div>
@@ -82,6 +85,10 @@
 import {
   LADDER, SORT_OPTIONS, STATE_OPTIONS, CERTAINTY_OPTIONS, isFiltering,
 } from './findingsArrangement'
+import { priorityLabel } from '../labels'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   /** Escaneo al que pertenece la barra; da nombres únicos a sus controles. */
@@ -99,18 +106,18 @@ const props = defineProps({
 })
 const emit = defineEmits(['update:modelValue', 'reset'])
 
-const PRIO_LABEL = { CRITICAL: 'Crítica', HIGH: 'Alta', MEDIUM: 'Media', LOW: 'Baja', INFO: 'Info' }
 
 /**
- * Cómo se lee el sentido del orden para cada criterio.
- * El primer texto es el sentido natural (sin invertir) y el segundo, el invertido.
+ * Cómo se lee el sentido del orden para cada criterio: la rama de
+ * `lybra.toolbar.direction` con su texto natural (`natural`) e invertido
+ * (`reversed`).
  */
-const DIRECTION_LABELS = {
-  severity: ['Más grave primero', 'Más leve primero'],
-  cvss: ['Mayor primero', 'Menor primero'],
-  epss: ['Mayor primero', 'Menor primero'],
-  title: ['A → Z', 'Z → A'],
-  product: ['A → Z', 'Z → A'],
+const DIRECTION_KEYS = {
+  severity: 'severity',
+  cvss: 'numeric',
+  epss: 'numeric',
+  title: 'alphabetic',
+  product: 'alphabetic',
 }
 
 /**
@@ -120,8 +127,8 @@ const DIRECTION_LABELS = {
  * @returns {string} P. ej. «Más grave primero» o «Z → A».
  */
 function directionLabel(reversed) {
-  const labels = DIRECTION_LABELS[props.modelValue.sortKey] || DIRECTION_LABELS.severity
-  return labels[reversed ? 1 : 0]
+  const key = DIRECTION_KEYS[props.modelValue.sortKey] || DIRECTION_KEYS.severity
+  return t(`lybra.toolbar.direction.${key}.${reversed ? 'reversed' : 'natural'}`)
 }
 
 /**

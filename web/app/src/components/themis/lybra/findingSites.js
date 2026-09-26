@@ -9,10 +9,6 @@
 /** Marca con la que el backend nombra el sitio que responde sin nombre. */
 const DEFAULT_SITE_MARKER = '(sitio por defecto)'
 
-/** Explicación que acompaña a la etiqueta del sitio al pasar el ratón. */
-export const SITE_HINT = 'Este servidor aloja varias webs en la misma dirección y cada una se '
-  + 'revisa por separado: el mismo aviso puede aparecer en más de una, y hay que '
-  + 'corregirlo en cada web donde aparezca.'
 
 /**
  * Indica si un grupo mezcla hallazgos de varias webs.
@@ -29,20 +25,22 @@ export const SITE_HINT = 'Este servidor aloja varias webs en la misma dirección
 export function hasSeveralSites(group) {
   const findings = group?.findings || []
   if (findings.some(finding => finding.category === 'virtual_host')) return false
-  return new Set(findings.map(finding => siteLabel(finding))).size > 1
+  return new Set(findings.map(finding => siteOf(finding))).size > 1
 }
 
 /**
- * Nombra la web de un hallazgo para el usuario.
+ * La web de un hallazgo. El rótulo que ve el usuario lo pone el componente
+ * (`lybra.site.ip` o `lybra.site.vhost`), en el idioma activo.
  *
  * @param {{ vhost?: string|null }} finding Hallazgo tal como lo devuelve la
  *   API. `vhost` es el nombre de la web, `null` si el hallazgo se obtuvo
  *   entrando por la IP, o la marca del sitio por defecto, que significa lo
  *   mismo.
- * @returns {string} `"Al entrar por la IP"` o `"En <nombre de la web>"`.
+ * @returns {string|null} El nombre de la web, o `null` si el hallazgo se
+ *   obtuvo entrando por la IP.
  */
-export function siteLabel(finding) {
+export function siteOf(finding) {
   const vhost = finding?.vhost
-  if (!vhost || vhost === DEFAULT_SITE_MARKER) return 'Al entrar por la IP'
-  return `En ${vhost}`
+  if (!vhost || vhost === DEFAULT_SITE_MARKER) return null
+  return vhost
 }

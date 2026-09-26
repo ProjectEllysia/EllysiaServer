@@ -1,22 +1,22 @@
 <template>
   <div class="themis-page" data-module="themis">
     <StarBackground />
-    <Topbar title="Themis" badge="Escaneos de Vulnerabilidades" back-to="/themis" back-label="Volver" />
+    <Topbar :title="'Themis'" :badge="t('themisView.badge')" back-to="/themis" :back-label="t('common.back')" />
 
     <main class="main">
       <!-- Toggle de dos mundos: el motor propio vs los escáneres externos -->
-      <div class="world-toggle" role="tablist" aria-label="Modo de Themis">
+      <div class="world-toggle" role="tablist" :aria-label="t('themisView.mode')">
         <button class="world-opt" :class="{ active: store.world === 'lybra' }" role="tab" :aria-selected="store.world === 'lybra'" @click="store.setWorld('lybra')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3v18M7 21h10M5 7h14M5 7l-2.5 5a3 3 0 0 0 5 0L5 7zM19 7l-2.5 5a3 3 0 0 0 5 0L19 7z"/></svg>
-          <span class="world-label">Motor Lybra</span>
+          <span class="world-label">{{ t('lybra.launch.title') }}</span>
         </button>
         <button class="world-opt" :class="{ active: store.world === 'external' }" role="tab" :aria-selected="store.world === 'external'" @click="store.setWorld('external')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-          <span class="world-label">Escáneres externos</span>
+          <span class="world-label">{{ t('themisHub.shortcuts.external') }}</span>
         </button>
         <button class="world-opt" :class="{ active: store.world === 'agents' }" role="tab" :aria-selected="store.world === 'agents'" @click="store.setWorld('agents')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-          <span class="world-label">Agentes</span>
+          <span class="world-label">{{ t('themisView.agents') }}</span>
         </button>
       </div>
 
@@ -32,7 +32,7 @@
       <!-- ═══════════ MUNDO: MOTOR LYBRA ═══════════ -->
       <div v-if="store.world === 'lybra'" key="lybra" class="world-block">
         <button class="lybra-history-toggle" @click="store.setViewMode(store.viewMode === 'history' ? 'full' : 'history')">
-          {{ store.viewMode === 'history' ? '← Volver al motor' : 'Ver historial' }}
+          {{ store.viewMode === 'history' ? t('themisView.backToEngine') : t('themisView.seeHistory') }}
         </button>
         <!-- Fundido motor ↔ historial, igual que en escáneres externos. Sin
              mode="out-in" y con el saliente sacado del flujo (mismo motivo
@@ -52,10 +52,8 @@
                eso le pasa a toda instalación recién desplegada, porque la tabla
                de estado nace vacía—, así que ésa no dispara la alarma. -->
           <div v-if="store.kbStatus.loaded && store.kbStatus.isStale" class="kb-stale">
-            <strong>Base de conocimiento desactualizada.</strong>
-            {{ staleSourcesLabel }} Los hallazgos por versión se resuelven contra ese catálogo,
-            así que un CVE publicado después no aparecerá y la ausencia de hallazgos no es
-            concluyente.
+            <strong>{{ t('themisView.kbStale.title') }}</strong>
+            {{ staleSourcesLabel }} {{ t('themisView.kbStale.body') }}
           </div>
           <LybraLaunchPanel
             :launching="store.launching"
@@ -130,18 +128,18 @@
         <div v-if="store.viewMode === 'full'" key="full" class="view-block">
           <ScanTabs :active="store.activeTab" @switch="handleTabSwitch" />
           <ScanForm v-if="canUseThirdPartyScanners" :type="store.activeTab" :launching="store.launching" :launched="hasActiveScan" @launch="handleLaunch" />
-          <SurfaceClosedNotice v-else message="El análisis con Nmap, Nikto y Nuclei todavía no está disponible. Puedes consultar los resultados de análisis anteriores." />
+          <SurfaceClosedNotice v-else :message="t('themisView.thirdPartyClosed')" />
           <ScanTable :type="store.activeTab" :rows="currentData.results" :loading="currentData.loading" :error="currentData.error" :current-page="currentData.page" :total-count="currentData.totalCount" :per-page="currentData.perPage" :selected-ids="batchSelectedArray"
             @preview="(id, type) => store.openPreview(id, type)" @cancel="handleCancel" @delete="handleDelete" @refresh="store.refreshCurrent()" @page-change="page => store.goToPage(store.activeTab, page)"
             @toggle-select="batchToggle" @select-all="batchSelectAll">
             <template #batch-actions="{ selectedCount }">
               <button v-if="selectedCount > 0" class="batch-btn" @click="openBatchAction('add-to-folder')">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-                Añadir a carpeta ({{ selectedCount }})
+                {{ t('themisView.addToFolderCount', { count: selectedCount }) }}
               </button>
               <button v-if="selectedCount > 0" class="batch-btn danger" @click="openBatchAction('bulk-delete', store.activeTab)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
-                Eliminar ({{ selectedCount }})
+                {{ t('themis.deleteSelected', { count: selectedCount }) }}
               </button>
             </template>
           </ScanTable>
@@ -170,14 +168,14 @@
     <FolderFormModal
       :key="'create-folder'"
       :show="foldersStore.folderForms.create.show"
-      title="Nueva carpeta"
+      :title="t('themis.folders.new')"
       :submitting="foldersStore.folderForms.create.submitting"
       @close="foldersStore.folderForms.create.show = false"
       @submit="async name => { if (await foldersStore.createFolder(name)) foldersStore.folderForms.create.show = false }" />
     <FolderFormModal
       :key="'rename-folder'"
       :show="foldersStore.folderForms.rename.show"
-      title="Renombrar carpeta"
+      :title="t('themisView.renameFolder')"
       :initial-name="foldersStore.folderForms.rename.name"
       :submitting="foldersStore.folderForms.rename.submitting"
       @close="foldersStore.folderForms.rename.show = false"
@@ -194,17 +192,17 @@
 
     <BatchActionModal
       :show="activeBatchAction === 'add-to-folder'"
-      title="Añadir a carpeta"
-      action-label="Añadir a carpeta"
+      :title="t('themisView.addToFolder')"
+      :action-label="t('themisView.addToFolder')"
       :selected-count="batchSelectedCount"
       :submitting="batchSubmitting"
       :can-submit="!!selectedFolderId"
       @close="closeBatchAction"
       @confirm="handleBatchAddToFolder">
       <template #content>
-        <label for="target-folder">Selecciona una carpeta</label>
+        <label for="target-folder">{{ t('themis.folders.select') }}</label>
         <select id="target-folder" v-model="selectedFolderId" :disabled="batchSubmitting" required>
-          <option value="" disabled>-- Elige carpeta --</option>
+          <option value="" disabled>{{ t('themis.folders.choose') }}</option>
           <option v-for="folder in selectableFolders" :key="folder.id" :value="folder.id">{{ folder.name }}</option>
         </select>
       </template>
@@ -212,27 +210,27 @@
 
     <BatchActionModal
       :show="activeBatchAction === 'bulk-delete'"
-      title="Eliminar escaneos"
-      action-label="Eliminar"
+      :title="t('themisView.deleteScans')"
+      :action-label="t('common.delete')"
       :selected-count="batchSelectedCount"
       :submitting="batchSubmitting"
       :can-submit="true"
       @close="closeBatchAction"
       @confirm="handleBatchDelete">
       <template #content>
-        <p class="batch-warning">Esta accion eliminara permanentemente los escaneos seleccionados y sus documentos PDF asociados.</p>
-        <p class="batch-warning-sub">Los escaneos en ejecucion se cancelaran antes de ser eliminados.</p>
+        <p class="batch-warning">{{ t('themisView.bulkDeleteWarning') }}</p>
+        <p class="batch-warning-sub">{{ t('themisView.bulkDeleteRunning') }}</p>
       </template>
     </BatchActionModal>
     <ConfirmModal
       :show="!!pendingConfirm"
-      title="Eliminar"
+      :title="t('common.delete')"
       :message="pendingConfirm?.type === 'delete-lybra'
-        ? '¿Eliminar este escaneo Lybra y sus hallazgos?'
+        ? t('themisView.confirm.lybra')
         : pendingConfirm?.type === 'delete-agent-scan'
-          ? '¿Eliminar este análisis de inventario y sus hallazgos? El activo de Hygeia no se borra.'
-          : '¿Eliminar esta carpeta? Los escaneos no se borrarán, solo quedarán sin carpeta.'"
-      confirm-label="Eliminar"
+          ? t('themisView.confirm.agentScan')
+          : t('themisView.confirm.folder')"
+      :confirm-label="t('common.delete')"
       danger
       @confirm="runPendingConfirm"
       @cancel="pendingConfirm = null" />
@@ -270,6 +268,9 @@ import { useThemisFoldersStore } from '@/stores/themisFoldersStore'
 // existe, y así el backend de Themis sigue sin saber que Hygeia existe.
 import { useHygeiaStore } from '@/stores/hygeiaStore'
 import { useBatchSelection } from '@/composables/useBatchSelection'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const route = useRoute()
 const store = useThemisStore()
@@ -303,8 +304,8 @@ const hasActiveScan = computed(() =>
 const staleSourcesLabel = computed(() => {
   const stale = store.kbStatus.sources.filter(s => s.isStale)
   const parts = stale.map(s => s.neverSynced
-    ? `${s.source.toUpperCase()} está vacía y nunca se ha sincronizado`
-    : `${s.source.toUpperCase()} lleva ${s.ageDays} días sin actualizarse`)
+    ? t('themisView.kbStale.neverSynced', { source: s.source.toUpperCase() })
+    : t('themisView.kbStale.age', { source: s.source.toUpperCase(), days: s.ageDays }, s.ageDays))
   return parts.length ? `${parts.join('; ')}.` : ''
 })
 

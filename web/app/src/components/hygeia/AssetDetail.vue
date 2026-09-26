@@ -1,43 +1,43 @@
 <template>
   <div v-if="!asset" class="detail-empty">
-    <p>Selecciona un activo para ver sus constantes.</p>
+    <p>{{ t('hygeia.detail.select') }}</p>
   </div>
 
   <div v-else class="detail">
     <header class="detail-head">
       <div class="head-id">
         <h3 class="detail-host">{{ asset.hostname }}</h3>
-        <p class="detail-seen">Última señal {{ timeAgo(asset.lastSeenAt) }}</p>
+        <p class="detail-seen">{{ t('hygeia.detail.lastSignal', { when: timeAgo(asset.lastSeenAt, t) }) }}</p>
       </div>
       <span class="status" :class="`status--${asset.status}`">
-        <span class="status-dot" aria-hidden="true"></span>{{ assetStatusLabel(asset.status) }}
+        <span class="status-dot" aria-hidden="true"></span>{{ assetStatusLabel(asset.status, t) }}
       </span>
     </header>
 
     <dl class="meta">
       <div class="meta-item">
-        <dt>Sistema</dt>
-        <dd>{{ asset.os || 'Desconocido' }}</dd>
+        <dt>{{ t('hygeia.detail.system') }}</dt>
+        <dd>{{ asset.os || t('common.unknown') }}</dd>
       </div>
       <div v-if="asset.kernel" class="meta-item">
-        <dt>Kernel</dt>
+        <dt>{{ t('hygeia.detail.kernel') }}</dt>
         <dd>{{ asset.kernel }}</dd>
       </div>
       <div v-if="bootedAgo" class="meta-item">
-        <dt>Arrancado</dt>
+        <dt>{{ t('hygeia.detail.booted') }}</dt>
         <dd>{{ bootedAgo }}</dd>
       </div>
       <div class="meta-item">
-        <dt>Agente</dt>
+        <dt>{{ t('hygeia.detail.agent') }}</dt>
         <dd>
-          {{ asset.agentVersion || 'Sin reportar' }}
-          <span v-if="asset.agentOutdated" class="agent-outdated-badge" title="Versión de agente desactualizada">
-            Desactualizado
+          {{ asset.agentVersion || t('hygeia.detail.notReported') }}
+          <span v-if="asset.agentOutdated" class="agent-outdated-badge" :title="t('hygeia.detail.outdatedHint')">
+            {{ t('hygeia.detail.outdated') }}
           </span>
         </dd>
       </div>
       <div class="meta-item">
-        <dt>Alta</dt>
+        <dt>{{ t('hygeia.detail.registered') }}</dt>
         <dd>{{ formatDate(asset.createdAt) }}</dd>
       </div>
     </dl>
@@ -57,13 +57,13 @@
     <div v-if="activeTab === 'graficas'" key="graficas" class="tab-panel"
          role="tabpanel" id="panel-graficas" aria-labelledby="tab-graficas" tabindex="0">
       <section class="section">
-        <h4 class="section-title">Constantes</h4>
+        <h4 class="section-title">{{ t('hygeia.detail.vitals') }}</h4>
         <!-- Silueta de una tarjeta de gráfica, con el alto real de
              MetricsChart (cabecera, gráfico de 214px, eje X, leyenda y pie)
              y su misma rejilla, con una franja que la barre en el sentido en
              que luego se revela la traza. Si esa tarjeta cambia de alto, este
              número deja de cuadrar y vuelve el salto. -->
-        <div v-if="metricsLoading" class="vitals-ghost" aria-busy="true" aria-label="Cargando métricas">
+        <div v-if="metricsLoading" class="vitals-ghost" aria-busy="true" :aria-label="t('hygeia.detail.loadingMetrics')">
           <div class="vital-ghost" aria-hidden="true">
             <div class="vital-ghost-head">
               <span class="skeleton skeleton--line vital-ghost-name"></span>
@@ -83,8 +83,8 @@
           <MetricNav :active="activeMetric" @switch="switchMetric" />
 
           <div class="window-bar">
-            <span class="window-bar-label">Ventana</span>
-            <div class="window-presets" role="group" aria-label="Ventana temporal del gráfico">
+            <span class="window-bar-label">{{ t('hygeia.detail.window') }}</span>
+            <div class="window-presets" role="group" :aria-label="t('hygeia.detail.windowLabel')">
               <button
                 v-for="w in WINDOW_PRESETS"
                 :key="w.ms"
@@ -122,18 +122,17 @@
 
       <template v-if="m">
         <section class="section section--power">
-          <h4 class="section-title">Consumo eléctrico</h4>
+          <h4 class="section-title">{{ t('hygeia.detail.power') }}</h4>
 
-          <p v-if="powerState.state === 'unavailable'" class="state-msg">
-            Consumo no disponible — este equipo no expone sensores de potencia compatibles.
-          </p>
+          <p v-if="powerState.state === 'unavailable'" class="state-msg">{{ t('hygeia.detail.powerUnavailable') }}</p>
 
           <!-- Un invitado no tiene registro de energía del procesador que
                leer: no es un defecto de su hardware, así que el mensaje no
                es el genérico de "sin sensores". -->
           <p v-else-if="powerState.state === 'virtual'" class="state-msg">
-            Consumo no disponible — esta es una máquina virtual{{ powerState.virtualizationSystem ? ` (${powerState.virtualizationSystem})` : '' }}.
-            El consumo eléctrico lo mide el equipo físico que la hospeda.
+            {{ powerState.virtualizationSystem
+              ? t('hygeia.detail.powerVirtualNamed', { system: powerState.virtualizationSystem })
+              : t('hygeia.detail.powerVirtual') }}
           </p>
 
           <template v-else>
@@ -141,32 +140,28 @@
               <span
                 class="power-value"
                 :class="{ 'power-value--estimated': powerState.state === 'estimated' }"
-                :title="powerState.source ? `Fuente: ${powerState.source}` : null"
+                :title="powerState.source ? t('hygeia.detail.powerSource', { source: powerState.source }) : null"
               >
                 {{ powerReading.text }}<small class="unit--wide">{{ powerReading.unit }}</small>
               </span>
               <span class="power-badge" :class="`power-badge--${powerState.state}`">
-                {{ powerState.state === 'measured' ? 'Medición de sensor' : 'Estimación · precisión no garantizada' }}
+                {{ powerState.state === 'measured' ? t('hygeia.detail.measured') : t('hygeia.detail.estimated') }}
               </span>
             </div>
 
             <p class="power-warning" :class="{ 'power-warning--attenuated': powerState.state === 'measured' }">
               <template v-if="powerState.state === 'estimated'">
-                Consumo estimado a partir de los sensores disponibles del equipo: puede no
-                coincidir con la medición real, su precisión varía según el hardware, y no
-                equivale necesariamente al consumo medido en el enchufe.
+                {{ t('hygeia.detail.estimatedWarning') }}
               </template>
               <template v-else>
-                Lectura de un sensor del equipo: puede no cubrir el consumo completo de la máquina
-                (fuente de alimentación, discos, ventiladores…) y no equivale necesariamente al
-                consumo medido en el enchufe.
+                {{ t('hygeia.detail.measuredWarning') }}
               </template>
             </p>
           </template>
 
           <ul v-if="powerPeriods.length" class="power-periods">
             <li v-for="period in powerPeriods" :key="period.key" class="power-period">
-              <span class="power-period-label">{{ period.label }}</span>
+              <span class="power-period-label">{{ t(period.labelKey) }}</span>
               <span class="power-period-value">
                 {{ period.kwh.text }}<small>{{ period.kwh.unit }}</small>
                 · {{ period.cost.text }}<small>{{ period.cost.unit }}</small>
@@ -182,25 +177,25 @@
         </section>
 
         <section v-if="memory" class="section">
-          <h4 class="section-title">Memoria</h4>
+          <h4 class="section-title">{{ t('hygeia.metrics.memPct') }}</h4>
           <dl class="readout">
             <div class="readout-item">
-              <dt>En uso</dt>
+              <dt>{{ t('hygeia.detail.inUse') }}</dt>
               <dd>{{ used.text }}<small class="unit--wide">{{ used.unit }}</small></dd>
             </div>
             <div class="readout-item">
-              <dt>Total</dt>
+              <dt>{{ t('hygeia.stats.aggregations.sum') }}</dt>
               <dd>{{ totalMem.text }}<small class="unit--wide">{{ totalMem.unit }}</small></dd>
             </div>
             <div v-if="memory.swapUsedPct !== null && memory.swapUsedPct !== undefined" class="readout-item">
-              <dt>Swap</dt>
+              <dt>{{ t('hygeia.metrics.swapPct') }}</dt>
               <dd>{{ fmtPct(memory.swapUsedPct) }}<small>%</small></dd>
             </div>
           </dl>
         </section>
 
         <section v-if="disks.length" class="section">
-          <h4 class="section-title">Almacenamiento</h4>
+          <h4 class="section-title">{{ t('hygeia.detail.storage') }}</h4>
           <ul class="rows">
             <li v-for="d in disks" :key="d.mount" class="row row--disk">
               <span class="row-name" :title="d.mount">{{ d.mount }}</span>
@@ -208,29 +203,29 @@
                 <span class="bar-fill" :style="{ width: `${Math.min(100, d.usagePct)}%` }"></span>
               </span>
               <span class="row-value">{{ fmtPct(d.usagePct) }}%</span>
-              <span class="row-note">{{ free(d).text }} {{ free(d).unit }} libres</span>
+              <span class="row-note">{{ t('hygeia.detail.free', { amount: `${free(d).text} ${free(d).unit}` }) }}</span>
             </li>
           </ul>
         </section>
 
         <section v-if="nets.length" class="section">
           <h4 class="section-title">
-            Red
-            <span class="hint">el gráfico no cuenta el tráfico interno del propio equipo</span>
+            {{ t('hygeia.detail.network') }}
+            <span class="hint">{{ t('hygeia.detail.networkHint') }}</span>
           </h4>
           <ul class="rows">
             <li v-for="n in nets" :key="n.iface" class="row row--net">
               <span class="row-name" :title="n.iface">{{ n.iface }}</span>
               <span class="row-value">↓ {{ rate(n.rxBytesPerSec).text }} <small>{{ rate(n.rxBytesPerSec).unit }}</small></span>
               <span class="row-value">↑ {{ rate(n.txBytesPerSec).text }} <small>{{ rate(n.txBytesPerSec).unit }}</small></span>
-              <span v-if="errorsOf(n)" class="row-note row-note--bad">{{ errorsOf(n) }} {{ errorsOf(n) === 1 ? 'error' : 'errores' }}</span>
+              <span v-if="errorsOf(n)" class="row-note row-note--bad">{{ t('hygeia.detail.errors', { count: errorsOf(n) }, errorsOf(n)) }}</span>
             </li>
           </ul>
         </section>
 
         <section v-if="topCpu.length || topMem.length || cores.length" class="section">
           <h4 class="section-title">
-            Procesos
+            {{ t('hygeia.detail.processes') }}
             <span v-if="procTotal !== null" class="count">{{ procTotal }}</span>
           </h4>
 
@@ -241,17 +236,17 @@
                 :key="i"
                 class="core"
                 :class="{ 'core--hot': pct >= 85 }"
-                :title="`Núcleo ${i}: ${fmtPct(pct)} %`"
+                :title="t('hygeia.detail.core', { index: i, pct: fmtPct(pct) })"
               >
                 <span class="core-fill" :style="{ height: `${Math.min(100, pct)}%` }"></span>
               </span>
             </div>
-            <p v-if="hiddenCores" class="hint hint--block">+{{ hiddenCores }} núcleos más sin representar</p>
+            <p v-if="hiddenCores" class="hint hint--block">{{ t('hygeia.detail.hiddenCores', { count: hiddenCores }, hiddenCores) }}</p>
           </div>
 
           <div class="proc-cols">
             <div v-if="topCpu.length" class="proc-col">
-              <h5 class="proc-head">Por CPU</h5>
+              <h5 class="proc-head">{{ t('hygeia.detail.byCpu') }}</h5>
               <TransitionGroup tag="ul" name="proc-row" class="rows">
                 <li v-for="p in topCpu" :key="`c${p.pid}`" class="row row--proc">
                   <span class="row-name" :title="p.name">{{ p.name }}</span>
@@ -262,7 +257,7 @@
             </div>
 
             <div v-if="topMem.length" class="proc-col">
-              <h5 class="proc-head">Por memoria</h5>
+              <h5 class="proc-head">{{ t('hygeia.detail.byMemory') }}</h5>
               <TransitionGroup tag="ul" name="proc-row" class="rows">
                 <li v-for="p in topMem" :key="`m${p.pid}`" class="row row--proc">
                   <span class="row-name" :title="p.name">{{ p.name }}</span>
@@ -273,7 +268,7 @@
             </div>
           </div>
 
-          <p v-if="zombies" class="hint hint--block">{{ zombies }} en estado zombi</p>
+          <p v-if="zombies" class="hint hint--block">{{ t('hygeia.detail.zombies', { count: zombies }, zombies) }}</p>
         </section>
       </template>
     </div>
@@ -282,7 +277,7 @@
          role="tabpanel" id="panel-inventario" aria-labelledby="tab-inventario" tabindex="0">
       <section class="section">
         <h4 class="section-title">
-          Inventario de software
+          {{ t('hygeia.detail.inventory') }}
           <span v-if="inventory.length" class="count">{{ inventory.length }}</span>
         </h4>
 
@@ -292,7 +287,7 @@
              (nombre y versión, fabricante, tamaño y fecha), tantas como el
              inventario de este activo tenía la última vez que se vio. -->
         <div v-else-if="inventoryLoading" class="inventory-ghost" aria-busy="true"
-             aria-label="Cargando inventario">
+             :aria-label="t('hygeia.detail.loadingInventory')">
           <p class="inventory-scanned" aria-hidden="true">
             <span class="skeleton skeleton--line inventory-ghost-scanned"></span>
           </p>
@@ -315,7 +310,7 @@
 
         <template v-else>
           <p v-if="inventoryCollectedAt" class="inventory-scanned">
-            Escaneado {{ timeAgo(inventoryCollectedAt) }}
+            {{ t('hygeia.detail.scanned', { when: timeAgo(inventoryCollectedAt, t) }) }}
           </p>
 
           <!-- Análisis con Lybra. Solo se ofrece si hay algo que
@@ -326,21 +321,21 @@
               <template v-if="hasAnalysis">
                 <span class="analysis-dot" :class="analysisTone"></span>
                 <span class="analysis-text">
-                  <template v-if="analysisRunning">Analizando el inventario…</template>
+                  <template v-if="analysisRunning">{{ t('hygeia.detail.analyzing') }}</template>
                   <template v-else-if="analysis.vulnerableCount">
-                    {{ analysis.vulnerableCount }} {{ analysis.vulnerableCount === 1 ? 'paquete' : 'paquetes' }} con vulnerabilidades conocidas
+                    {{ t('hygeia.detail.vulnerablePackages', { count: analysis.vulnerableCount }, analysis.vulnerableCount) }}
                   </template>
-                  <template v-else>Sin vulnerabilidades conocidas</template>
+                  <template v-else>{{ t('hygeia.detail.noVulnerabilities') }}</template>
                 </span>
               </template>
               <span v-else class="analysis-text analysis-text--muted">
-                Aún no se han buscado vulnerabilidades
+                {{ t('hygeia.detail.notSearched') }}
               </span>
             </div>
 
             <div class="analysis-actions">
               <button v-if="hasAnalysis" type="button" class="btn-analysis" @click="$emit('view-analysis')">
-                Ver análisis
+                {{ t('hygeia.detail.viewAnalysis') }}
               </button>
               <button
                 type="button"
@@ -349,16 +344,16 @@
                 @click="$emit(hasAnalysis ? 'reanalyze' : 'analyze')"
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ spin: analyzing }"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                {{ hasAnalysis ? 'Volver a analizar' : 'Buscar vulnerabilidades' }}
+                {{ hasAnalysis ? t('hygeia.detail.reanalyze') : t('hygeia.detail.analyze') }}
               </button>
             </div>
           </div>
 
           <p v-if="!inventory.length && !inventoryCollectedAt" class="state-msg">
-            Este activo aún no ha reportado un escaneo de inventario.
+            {{ t('hygeia.detail.noInventory') }}
           </p>
           <p v-else-if="!inventory.length" class="state-msg">
-            El último escaneo no encontró software instalado.
+            {{ t('hygeia.detail.emptyInventory') }}
           </p>
 
           <template v-else>
@@ -366,10 +361,10 @@
               v-model="inventoryFilter"
               type="search"
               class="inventory-filter"
-              placeholder="Filtrar por nombre o fabricante…"
+              :placeholder="t('hygeia.detail.filter')"
             />
 
-            <p v-if="!filteredInventory.length" class="state-msg">Ningún resultado para «{{ inventoryFilter }}».</p>
+            <p v-if="!filteredInventory.length" class="state-msg">{{ t('hygeia.detail.noResults', { query: inventoryFilter }) }}</p>
 
             <ul v-else class="rows inventory-rows">
               <li v-for="(sw, i) in renderedInventory" :key="`${sw.name}-${i}`" class="row row--software">
@@ -393,16 +388,16 @@
          role="tabpanel" id="panel-anomalias" aria-labelledby="tab-anomalias" tabindex="0">
       <section class="section">
         <h4 class="section-title">
-          Anomalías
+          {{ t('hygeia.tabs.anomalias') }}
           <span v-if="anomalies.length" class="count">{{ anomalies.length }}</span>
         </h4>
 
-        <p v-if="!anomalies.length" class="state-msg">Ninguna anomalía registrada. El activo está sano.</p>
+        <p v-if="!anomalies.length" class="state-msg">{{ t('hygeia.detail.noAnomalies') }}</p>
 
         <TransitionGroup v-else tag="ul" name="anomaly-row" class="anomalies">
           <li v-for="a in anomalies" :key="a.id" class="anomaly" :class="`anomaly--${a.severity}`">
             <div class="anomaly-top">
-              <span class="anomaly-kind">{{ anomalyKindLabel(a.kind) }}</span>
+              <span class="anomaly-kind">{{ anomalyKindLabel(a.kind, t) }}</span>
               <span class="anomaly-state" :class="`anomaly-state--${a.state}`">{{ stateLabel(a.state) }}</span>
             </div>
 
@@ -410,15 +405,15 @@
               <span class="reading-value">{{ a.value }}%</span>
               <!-- Sin `a.metric`: es la clave interna (`cpu.usagePct`), y el
                    tipo de arriba ya dice de qué métrica se trata. -->
-              <span class="reading-ctx">umbral {{ a.threshold }}%</span>
+              <span class="reading-ctx">{{ t('hygeia.detail.threshold', { value: a.threshold }) }}</span>
             </p>
 
-            <p class="anomaly-time">Abierta {{ timeAgo(a.openedAt) }}</p>
+            <p class="anomaly-time">{{ t('hygeia.detail.opened', { when: timeAgo(a.openedAt, t) }) }}</p>
 
             <div class="anomaly-actions">
-              <button v-if="a.state === 'open'" class="btn-sm" @click="$emit('ack', a.id)">Reconocer</button>
-              <button v-if="a.state !== 'resolved'" class="btn-sm btn-sm--primary" @click="$emit('resolve', a.id)">Resolver</button>
-              <button v-if="a.state !== 'open'" class="btn-sm btn-sm--danger" @click="$emit('delete', a.id)">Borrar</button>
+              <button v-if="a.state === 'open'" class="btn-sm" @click="$emit('ack', a.id)">{{ t('hygeia.detail.ack') }}</button>
+              <button v-if="a.state !== 'resolved'" class="btn-sm btn-sm--primary" @click="$emit('resolve', a.id)">{{ t('hygeia.detail.resolve') }}</button>
+              <button v-if="a.state !== 'open'" class="btn-sm btn-sm--danger" @click="$emit('delete', a.id)">{{ t('common.delete') }}</button>
             </div>
           </li>
         </TransitionGroup>
@@ -440,6 +435,9 @@ import {
   fmtBytes, fmtPct, fmtRate, fmtWatts, timeAgo,
 } from './format'
 
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 const props = defineProps({
   asset: { type: Object, default: null },
   metrics: { type: Array, default: () => [] },
@@ -689,17 +687,17 @@ const powerReading = computed(() => fmtWatts(powerState.value.watts))
 
 /** Etiquetas de cada bloque del resumen, en el orden en que se presentan. */
 const POWER_PERIODS = [
-  { key: 'day', label: '24 h' },
-  { key: 'week', label: '7 días' },
-  { key: 'month', label: '30 días' },
-  { key: 'monthProjected', label: 'Proyección mensual' },
+  { key: 'day', labelKey: 'hygeia.stats.periods.24h' },
+  { key: 'week', labelKey: 'hygeia.stats.periods.7d' },
+  { key: 'month', labelKey: 'hygeia.stats.periods.30d' },
+  { key: 'monthProjected', labelKey: 'hygeia.detail.monthProjected' },
 ]
 
 const powerPeriods = computed(() => {
   if (!props.powerSummary) return []
-  return POWER_PERIODS.map(({ key, label }) => {
-    const described = describePowerPeriod(props.powerSummary[key])
-    return described && { key, label, ...described }
+  return POWER_PERIODS.map(({ key, labelKey }) => {
+    const described = describePowerPeriod(props.powerSummary[key], t)
+    return described && { key, labelKey, ...described }
   }).filter(Boolean)
 })
 
@@ -733,14 +731,14 @@ const bootedAgo = computed(() => {
 
   const bootedAt = new Date(seen).getTime() - uptime * 1000
   if (Number.isNaN(bootedAt)) return null
-  return timeAgo(new Date(bootedAt).toISOString())
+  return timeAgo(new Date(bootedAt).toISOString(), t)
 })
 
 function free(disk) { return fmtBytes(disk.freeBytes) }
 function rate(value) { return fmtRate(value) }
 function errorsOf(iface) { return (iface.errIn ?? 0) + (iface.errOut ?? 0) }
 
-const STATE_LABELS = { open: 'Abierta', acknowledged: 'Reconocida', resolved: 'Resuelta' }
+const ANOMALY_STATES = ['open', 'acknowledged', 'resolved']
 
 /**
  * Rótulo del estado de gestión de una anomalía.
@@ -748,7 +746,9 @@ const STATE_LABELS = { open: 'Abierta', acknowledged: 'Reconocida', resolved: 'R
  * @param {string|null} state - `open`, `acknowledged` o `resolved`.
  * @returns {string} El rótulo del estado, o «Desconocido» si no se conoce.
  */
-function stateLabel(state) { return STATE_LABELS[state] || 'Desconocido' }
+function stateLabel(state) {
+  return ANOMALY_STATES.includes(state) ? t(`hygeia.detail.anomalyState.${state}`) : t('common.unknown')
+}
 </script>
 
 <style scoped>

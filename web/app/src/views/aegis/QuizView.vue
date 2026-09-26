@@ -7,43 +7,39 @@
         <img v-if="whiteLabel.brandLogo" class="brand-logo" :src="whiteLabel.brandLogo" :alt="whiteLabel.brandName" />
         <span v-if="productBrandVisible" class="brand-mark">Ellysia</span>
         <span v-else-if="!whiteLabel.brandLogo" class="brand-mark">{{ whiteLabel.brandName }}</span>
-        <span class="brand-sub">Formación de concienciación</span>
+        <span class="brand-sub">{{ t('quiz.brandSub') }}</span>
       </header>
 
       <!-- ── Cargando ── -->
       <section v-if="state === 'loading'" class="card card--center">
         <div class="spinner" aria-hidden="true"></div>
-        <p class="muted">Cargando tu formación…</p>
+        <p class="muted">{{ t('quiz.loading') }}</p>
       </section>
 
       <!-- ── Token inválido / error ── -->
       <section v-else-if="state === 'error'" class="card card--center">
         <div class="glyph glyph--danger" aria-hidden="true">✕</div>
-        <h1 class="card-title">{{ errorTitle }}</h1>
-        <p class="muted">{{ errorDetail }}</p>
+        <h1 class="card-title">{{ t(`quiz.errors.${errorKey}.title`) }}</h1>
+        <p class="muted">{{ t(`quiz.errors.${errorKey}.detail`) }}</p>
       </section>
 
       <!-- ── Ya completado (al abrir o tras enviar) ── -->
       <section v-else-if="state === 'completed'" class="card card--center">
         <div class="glyph" :class="scoreGlyphClass" aria-hidden="true">{{ passed ? '✓' : '!' }}</div>
-        <h1 class="card-title">{{ justSubmitted ? '¡Test completado!' : 'Ya completaste este test' }}</h1>
+        <h1 class="card-title">{{ justSubmitted ? t('quiz.justCompleted') : t('quiz.alreadyCompleted') }}</h1>
         <p class="score">
           <strong>{{ result.score }}</strong><span class="score-sep">/</span>{{ result.total }}
         </p>
         <p class="muted">{{ scoreMessage }}</p>
-        <p class="muted fine">Este enlace es de un solo uso y ya no admite más respuestas.</p>
+        <p class="muted fine">{{ t('quiz.singleUse') }}</p>
       </section>
 
       <!-- ── Cuestionario ── -->
       <template v-else>
         <section class="card intro-card">
-          <p class="eyebrow">Tu formación</p>
+          <p class="eyebrow">{{ t('quiz.yourTraining') }}</p>
           <h1 class="pill-title">{{ quiz.pillTitle }}</h1>
-          <p class="muted">
-            Responde a {{ quiz.questions.length }}
-            {{ quiz.questions.length === 1 ? 'pregunta' : 'preguntas' }} para
-            completar la formación. Solo puedes enviar el test una vez.
-          </p>
+          <p class="muted">{{ t('quiz.intro', { count: quiz.questions.length }, quiz.questions.length) }}</p>
         </section>
 
         <form class="quiz-form" @submit.prevent="submit">
@@ -53,7 +49,7 @@
             class="card question-card"
             :disabled="state === 'submitting'"
           >
-            <legend class="sr-only">Pregunta {{ index + 1 }}</legend>
+            <legend class="sr-only">{{ t('quiz.question', { number: index + 1 }) }}</legend>
             <div class="question-head">
               <span class="question-num">{{ index + 1 }}</span>
               <p class="question-prompt">{{ question.prompt }}</p>
@@ -80,19 +76,16 @@
           </fieldset>
 
           <div class="quiz-actions">
-            <p v-if="!allAnswered" class="muted fine">
-              Te faltan {{ pendingCount }}
-              {{ pendingCount === 1 ? 'pregunta' : 'preguntas' }} por responder.
-            </p>
-            <p v-if="submitError" class="submit-error">{{ submitError }}</p>
+            <p v-if="!allAnswered" class="muted fine">{{ t('quiz.pending', { count: pendingCount }, pendingCount) }}</p>
+            <p v-if="submitError" class="submit-error">{{ t(`quiz.submitErrors.${submitError}`) }}</p>
             <button type="submit" class="submit-btn" :disabled="!allAnswered || state === 'submitting'">
-              {{ state === 'submitting' ? 'Enviando…' : 'Enviar respuestas' }}
+              {{ state === 'submitting' ? t('quiz.sending') : t('quiz.submit') }}
             </button>
           </div>
         </form>
       </template>
 
-      <footer class="quiz-foot">{{ footerBrand }} · Concienciación en seguridad</footer>
+      <footer class="quiz-foot">{{ footerBrand }} · {{ t('quiz.footer') }}</footer>
     </main>
   </div>
 </template>
@@ -115,6 +108,9 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import StarBackground from '@/components/shared/StarBackground.vue'
 import { shuffledOrder } from '@/components/aegis/quizShuffle.js'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const route = useRoute()
 const token = String(route.query.t || '')
@@ -133,9 +129,10 @@ const optionOrder = reactive({})
 // white-labeling llega en nivel 'none' y la página queda como siempre.
 const whiteLabel = ref({ level: 'none', brandName: '', brandLogo: '', brandColor: '' })
 const justSubmitted = ref(false)
+/** Clave del error de envío en `quiz.submitErrors` ('' = ninguno). */
 const submitError = ref('')
-const errorTitle = ref('')
-const errorDetail = ref('')
+/** Clave del error de carga en `quiz.errors`, con su título y su detalle. */
+const errorKey = ref('')
 
 /** En nivel 'full' la marca del producto desaparece de la página, igual que
  *  desaparece del correo. En 'logo' solo se suma el logo del cliente. */
@@ -159,10 +156,8 @@ const allAnswered = computed(() => quiz.value.questions.length > 0 && pendingCou
 const passed = computed(() => result.value.total > 0 && result.value.score / result.value.total >= 0.6)
 const scoreGlyphClass = computed(() => (passed.value ? 'glyph--success' : 'glyph--warn'))
 const scoreMessage = computed(() => {
-  if (!result.value.total) return 'Test registrado.'
-  return passed.value
-    ? 'Buen trabajo. Has superado la comprobación.'
-    : 'Repasa la formación con tu responsable de seguridad.'
+  if (!result.value.total) return t('quiz.recorded')
+  return passed.value ? t('quiz.passed') : t('quiz.failed')
 })
 
 /** Orden barajado de la pregunta, o el natural si por lo que sea falta: una
@@ -171,15 +166,20 @@ function orderFor(question) {
   return optionOrder[question.position] ?? question.options.map((_, index) => index)
 }
 
-function fail(title, detail) {
-  errorTitle.value = title
-  errorDetail.value = detail
+/**
+ * Pasa la página al estado de error.
+ *
+ * @param {string} key - Clave del error en `quiz.errors` (`incomplete`, `offline`,
+ *   `notFound`, `tooMany`, `failed` o `noQuestions`).
+ */
+function fail(key) {
+  errorKey.value = key
   state.value = 'error'
 }
 
 async function load() {
   if (!token) {
-    fail('Enlace incompleto', 'Al enlace le falta el identificador. Abre el que recibiste por correo tal cual, sin recortarlo.')
+    fail('incomplete')
     return
   }
 
@@ -187,20 +187,20 @@ async function load() {
   try {
     response = await fetch(`/aegis/quiz?t=${encodeURIComponent(token)}`)
   } catch {
-    fail('No hemos podido conectar', 'Revisa tu conexión y vuelve a intentarlo en unos minutos.')
+    fail('offline')
     return
   }
 
   if (response.status === 404) {
-    fail('Enlace no válido', 'Este enlace no corresponde a ninguna formación. Puede que se haya escrito mal o que la campaña ya no exista.')
+    fail('notFound')
     return
   }
   if (response.status === 429) {
-    fail('Demasiados intentos', 'Se ha alcanzado el límite de peticiones. Espera un rato antes de volver a abrir el enlace.')
+    fail('tooMany')
     return
   }
   if (!response.ok) {
-    fail('Algo ha fallado', 'No hemos podido cargar tu formación. Inténtalo de nuevo más tarde.')
+    fail('failed')
     return
   }
 
@@ -212,9 +212,9 @@ async function load() {
     return
   }
 
-  quiz.value = { pillTitle: data.pillTitle || 'Formación de concienciación', questions: data.questions || [] }
+  quiz.value = { pillTitle: data.pillTitle || t('quiz.brandSub'), questions: data.questions || [] }
   if (!quiz.value.questions.length) {
-    fail('Formación sin preguntas', 'Esta campaña no tiene ningún test asociado. Avisa a quien te la envió.')
+    fail('noQuestions')
     return
   }
 
@@ -246,7 +246,7 @@ async function submit() {
     })
   } catch {
     state.value = 'quiz'
-    submitError.value = 'No hemos podido enviar tus respuestas. Revisa tu conexión e inténtalo otra vez.'
+    submitError.value = 'offline'
     return
   }
 
@@ -259,9 +259,7 @@ async function submit() {
   }
   if (!response.ok) {
     state.value = 'quiz'
-    submitError.value = response.status === 429
-      ? 'Demasiados envíos seguidos. Espera un momento antes de reintentar.'
-      : 'No hemos podido registrar tus respuestas. Inténtalo de nuevo.'
+    submitError.value = response.status === 429 ? 'tooMany' : 'failed'
     return
   }
 

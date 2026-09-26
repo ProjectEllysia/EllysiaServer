@@ -4,18 +4,18 @@
       <div v-if="show" class="modal-overlay" @click.self="$emit('close')">
         <div class="modal-box">
           <div class="modal-header">
-            <h3>Nuevo activo</h3>
-            <button class="close-btn" @click="$emit('close')">&times;</button>
+            <h3>{{ t('hygeia.createAsset.title') }}</h3>
+            <button class="close-btn" :aria-label="t('common.close')" @click="$emit('close')">&times;</button>
           </div>
           <form class="modal-body" @submit.prevent="submit">
             <label class="field">
-              <span class="field-label">Hostname</span>
-              <input v-model.trim="hostname" type="text" placeholder="web-01" required maxlength="255" />
+              <span class="field-label">{{ t('hygeia.createAsset.hostname') }}</span>
+              <input v-model.trim="hostname" type="text" :placeholder="'web-01'" required maxlength="255" />
             </label>
             <label class="field">
-              <span class="field-label">Sistema operativo (opcional)</span>
+              <span class="field-label">{{ t('hygeia.createAsset.os') }}</span>
               <select v-model="os">
-                <option :value="null">Desconocido</option>
+                <option :value="null">{{ t('common.unknown') }}</option>
                 <option value="linux">Linux</option>
                 <option value="windows">Windows</option>
                 <option value="darwin">macOS</option>
@@ -25,17 +25,17 @@
             <label class="check">
               <input v-model="powersOff" type="checkbox" />
               <span class="check-text">
-                Este host se apaga a propósito
-                <small>Un portátil o un equipo que se suspende. No se avisará cuando esté caído.</small>
+                {{ t('hygeia.createAsset.powersOff') }}
+                <small>{{ t('hygeia.createAsset.powersOffHint') }}</small>
               </span>
             </label>
 
             <p v-if="localError" class="error">{{ localError }}</p>
 
             <div class="modal-footer">
-              <button type="button" class="btn-secondary" @click="$emit('close')">Cancelar</button>
+              <button type="button" class="btn-secondary" @click="$emit('close')">{{ t('common.cancel') }}</button>
               <button type="submit" class="btn-primary" :disabled="submitting">
-                {{ submitting ? 'Creando…' : 'Dar de alta' }}
+                {{ submitting ? t('hygeia.createAsset.creating') : t('hygeia.createAsset.submit') }}
               </button>
             </div>
           </form>
@@ -47,6 +47,9 @@
 
 <script setup>
 import { ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -67,7 +70,7 @@ watch(() => props.show, (v) => {
 })
 
 function submit() {
-  if (!hostname.value) { localError.value = 'El hostname es obligatorio.'; return }
+  if (!hostname.value) { localError.value = t('hygeia.createAsset.hostnameRequired'); return }
   localError.value = ''
   emit('submit', { hostname: hostname.value, os: os.value, isPersistent: !powersOff.value })
 }

@@ -8,23 +8,30 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({ status: { type: String, required: true } })
+/** Estado del backend → [clase de color, clave de `themis.status`]. */
 const MAP = {
-  running: ['running', 'Ejecutando'],
-  done: ['done', 'Completado'],
-  finished: ['done', 'Completado'],
-  pending: ['pending', 'Pendiente'],
+  running: ['running', 'running'],
+  done: ['done', 'done'],
+  finished: ['done', 'done'],
+  pending: ['pending', 'pending'],
   // El backend escribe "failed" (ScanStatus.FAILED), nunca "error": la entrada
   // que había aquí no la alcanzaba ningún escaneo, y la que hacía falta no
   // estaba. Sin ella el fallback pintaba el peor estado posible en gris —el
   // color de "aún no ha pasado nada"— y con la cadena cruda del backend, que
   // el estilo pone en mayúsculas: de ahí el "FAILED" gris.
-  failed: ['error', 'Fallido'],
-  cancelled: ['cancelled', 'Cancelado'],
+  failed: ['error', 'failed'],
+  cancelled: ['cancelled', 'cancelled'],
 }
 const classMap = computed(() => (MAP[(props.status ?? '').toLowerCase()] ?? ['pending'])[0])
-const label = computed(() => (MAP[(props.status ?? '').toLowerCase()] ?? ['pending', props.status ?? '—'])[1])
+const label = computed(() => {
+  const entry = MAP[(props.status ?? '').toLowerCase()]
+  return entry ? t(`themis.status.${entry[1]}`) : t('common.unknown')
+})
 
 /**
  * Themis sostiene la balanza: cuando un escaneo deja de estar en vuelo, el

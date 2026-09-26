@@ -3,7 +3,7 @@ import { reactive, ref } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { useToastStore } from '@/stores/toastStore'
 import { useCache } from '@/composables/useCache'
-import { setLocale } from '@/i18n'
+import { i18n, setLocale } from '@/i18n'
 
 const CACHE_KEY = 'me'
 const PROFILE_TTL = 5 * 60 * 1000
@@ -139,13 +139,13 @@ export const useProfileStore = defineStore('profile', () => {
       body: JSON.stringify({ first_name, last_name }),
     })
     if (!res?.ok) {
-      toast.show(await apiError(res, 'Error al actualizar el perfil.'), 'error')
+      toast.show(await apiError(res, i18n.global.t('profile.updateFailed')), 'error')
       return false
     }
     profile.first_name = first_name
     profile.last_name = last_name
     profileCache.set(CACHE_KEY, _snapshot())
-    toast.show('Perfil actualizado.', 'success')
+    toast.show(i18n.global.t('profile.updated'), 'success')
     return true
   }
 
@@ -184,10 +184,10 @@ export const useProfileStore = defineStore('profile', () => {
       body: JSON.stringify({ currentPassword, newPassword }),
     })
     if (!res?.ok) {
-      toast.show(await apiError(res, 'Error al cambiar la contraseña.'), 'error')
+      toast.show(await apiError(res, i18n.global.t('profile.passwordChangeFailed')), 'error')
       return false
     }
-    toast.show('Contraseña actualizada. Cerrando sesión…', 'success')
+    toast.show(i18n.global.t('profile.passwordChanged'), 'success')
     return true
   }
 

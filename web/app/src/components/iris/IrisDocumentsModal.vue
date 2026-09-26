@@ -4,8 +4,8 @@
       <div class="modal-backdrop" @click="$emit('close')"></div>
       <div class="modal-content docs-modal-content">
         <div class="modal-header">
-          <h2>Informes PDF</h2>
-          <button class="modal-close" @click="$emit('close')" aria-label="Cerrar">
+          <h2>{{ t('iris.documents.title') }}</h2>
+          <button class="modal-close" @click="$emit('close')" :aria-label="t('common.close')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
@@ -15,7 +15,7 @@
             <button
               type="button"
               class="icon-btn"
-              title="Refrescar"
+              :title="t('themis.documents.refresh')"
               :disabled="loading"
               @click="$emit('refresh')"
             >
@@ -31,31 +31,26 @@
               @click="$emit('generate')"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="9" y1="11" x2="13" y2="11"/></svg>
-              {{ generating ? 'Generando…' : 'Generar informe' }}
+              {{ generating ? t('themis.documents.running') : t('iris.documents.generate') }}
             </button>
           </div>
 
-          <p v-if="!canGenerate" class="docs-hint">
-            El informe PDF solo puede generarse cuando el análisis ha finalizado.
-          </p>
-
-          <div v-if="!documents.length" class="docs-empty">
-            Aún no se ha generado ningún informe para este análisis.
-          </div>
+                    <p v-if="!canGenerate" class="docs-hint">{{ t('iris.documents.notFinished') }}</p>
+          <div v-if="!documents.length" class="docs-empty">{{ t('iris.documents.empty') }}</div>
 
           <ul v-else class="docs-list">
             <li v-for="doc in documents" :key="doc.documentId" class="doc-item">
               <div class="doc-info">
                 <span class="doc-status" :class="`status--${doc.status}`">{{ statusLabel(doc.status) }}</span>
                 <span class="doc-id">#{{ doc.documentId }}</span>
-                <span v-if="doc.verdict" class="doc-verdict" :class="`verdict--${verdictClass(doc.verdict)}`">{{ verdictLabel(doc.verdict) }}</span>
+                <span v-if="doc.verdict" class="doc-verdict" :class="`verdict--${verdictClass(doc.verdict)}`">{{ t(verdictKey(doc.verdict)) }}</span>
                 <span class="doc-date">{{ formatDate(doc.generatedAt || doc.createdAt) }}</span>
               </div>
               <div class="doc-buttons">
                 <button
                   type="button"
                   class="icon-btn"
-                  title="Descargar"
+                  :title="t('themis.documents.download')"
                   :disabled="doc.status !== 'done'"
                   @click="$emit('download', doc.documentId)"
                 >
@@ -64,7 +59,7 @@
                 <button
                   type="button"
                   class="icon-btn icon-btn--danger"
-                  title="Eliminar"
+                  :title="t('common.delete')"
                   @click="$emit('delete', doc.documentId)"
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
@@ -80,7 +75,10 @@
 
 <script setup>
 import { useUtils } from '@/composables/useUtils'
-import { verdictClass, verdictLabel } from '@/components/iris/verdict'
+import { verdictClass, verdictKey } from '@/components/iris/verdict'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const { formatDate } = useUtils()
 
@@ -101,10 +99,8 @@ defineEmits(['close', 'refresh', 'generate', 'download', 'delete'])
  * @returns {string} «Generando», «Listo», «Error», o «Desconocido» si no se conoce.
  */
 function statusLabel(status) {
-  if (status === 'running') return 'Generando'
-  if (status === 'done') return 'Listo'
-  if (status === 'error') return 'Error'
-  return 'Desconocido'
+  if (['running', 'done', 'error'].includes(status)) return t(`iris.documents.status.${status}`)
+  return t('common.unknown')
 }
 </script>
 

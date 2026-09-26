@@ -2,28 +2,31 @@
   <div class="stats-row">
     <div class="card stat-card green">
       <div class="stat-value"><Transition name="num-flip" mode="out-in"><span :key="total">{{ total }}</span></Transition></div>
-      <div class="stat-label">Escaneos totales</div>
-      <div class="stat-sub">todos los tipos</div>
+      <div class="stat-label">{{ t('themis.stats.total') }}</div>
+      <div class="stat-sub">{{ t('themis.stats.allTypes') }}</div>
     </div>
     <div class="card stat-card blue">
       <div class="stat-value"><Transition name="num-flip" mode="out-in"><span :key="nmap">{{ nmap }}</span></Transition></div>
       <div class="stat-label">Nmap</div>
-      <div class="stat-sub">escaneos de red</div>
+      <div class="stat-sub">{{ t('themis.stats.network') }}</div>
     </div>
     <div class="card stat-card amber">
       <div class="stat-value"><Transition name="num-flip" mode="out-in"><span :key="nikto">{{ nikto }}</span></Transition></div>
       <div class="stat-label">Nikto</div>
-      <div class="stat-sub">escaneos web</div>
+      <div class="stat-sub">{{ t('themis.stats.web') }}</div>
     </div>
     <div class="card stat-card blue">
       <div class="stat-value"><Transition name="num-flip" mode="out-in"><span :key="nuclei">{{ nuclei }}</span></Transition></div>
       <div class="stat-label">Nuclei</div>
-      <div class="stat-sub">plantillas</div>
+      <div class="stat-sub">{{ t('themis.stats.templates') }}</div>
     </div>
   </div>
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 defineProps({
   total:   { type: Number, default: 0 },
   nmap:    { type: Number, default: 0 },

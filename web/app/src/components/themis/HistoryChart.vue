@@ -1,12 +1,12 @@
 <template>
   <div class="history-chart">
     <div v-if="!hasData" class="empty">
-      <p>No hay datos históricos para este host todavía.</p>
+      <p>{{ t('themis.historyChart.empty') }}</p>
     </div>
 
     <template v-else>
       <svg :viewBox="`0 0 ${W} ${H}`" preserveAspectRatio="xMidYMid meet" class="chart-svg" role="img"
-        :aria-label="`${metricLabel} en los últimos ${points.length} escaneos de ${chart.target}`">
+        :aria-label="t('themis.historyChart.ariaLabel', { metric: metricLabel, count: points.length, target: chart.target })">
         <!-- Y gridlines + labels -->
         <g class="grid">
           <g v-for="tick in yTicks" :key="`y${tick.value}`">
@@ -30,21 +30,19 @@
         </g>
 
         <!-- Axis titles -->
-        <text :x="M.left + plotW / 2" :y="H - 4" text-anchor="middle" class="axis-title">{{ chart.axes.x.label }}</text>
+        <text :x="M.left + plotW / 2" :y="H - 4" text-anchor="middle" class="axis-title">{{ t('themis.historyChart.xAxis') }}</text>
         <text :x="14" :y="M.top + plotH / 2" text-anchor="middle" class="axis-title"
-          :transform="`rotate(-90 14 ${M.top + plotH / 2})`">{{ chart.axes.y.label }}</text>
+          :transform="`rotate(-90 14 ${M.top + plotH / 2})`">{{ metricLabel }}</text>
       </svg>
 
       <!-- Diff legend -->
       <div v-if="chart.scanCount >= 2" class="legend">
-        <div v-for="item in chart.legend" :key="item.label" class="legend-item" :class="legendClass(item.label)">
+        <div v-for="item in legend" :key="item.key" class="legend-item" :class="item.className">
           <span class="legend-value">{{ item.value }}</span>
-          <span class="legend-label">{{ item.label }}</span>
+          <span class="legend-label">{{ t(`themis.historyChart.legend.${item.key}`) }}</span>
         </div>
       </div>
-      <p v-if="chart.scanCount >= 2" class="legend-caption">
-        Comparativa del último escaneo frente al inmediatamente anterior.
-      </p>
+      <p v-if="chart.scanCount >= 2" class="legend-caption">{{ t('themis.historyChart.caption') }}</p>
     </template>
   </div>
 </template>
@@ -52,6 +50,9 @@
 <script setup>
 import { computed } from 'vue'
 import { SCAN_TYPES } from '@/constants/scanTypes'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   chart: { type: Object, required: true },
@@ -64,7 +65,31 @@ const M = { top: 24, right: 18, bottom: 64, left: 52 }
 const plotW = W - M.left - M.right
 const plotH = H - M.top - M.bottom
 
-const metricLabel = computed(() => props.chart?.metricLabel ?? 'Hallazgos')
+/**
+ * Qué se cuenta en el eje vertical. El servidor manda también su rótulo en
+ * castellano (`metricLabel`), para el PDF; aquí se nombra por el tipo de
+ * escaneo para que salga en el idioma activo.
+ */
+const metricLabel = computed(() => {
+  const type = props.chart?.scanType
+  return ['nmap', 'nikto', 'lybra', 'nuclei'].includes(type)
+    ? t(`themis.historyChart.metric.${type}`)
+    : t('themis.historyChart.metric.lybra')
+})
+
+/**
+ * La leyenda de la comparativa, a partir de los recuentos de `diff`. El
+ * servidor manda la leyenda ya rotulada en castellano; aquí se usan solo sus
+ * números, que son el dato.
+ */
+const legend = computed(() => {
+  const diff = props.chart?.diff ?? {}
+  return [
+    { key: 'new', value: diff.new ?? 0, className: 'new' },
+    { key: 'unchanged', value: diff.unchanged ?? 0, className: 'same' },
+    { key: 'disappeared', value: diff.disappeared ?? 0, className: 'gone' },
+  ]
+})
 const points = computed(() => props.chart?.series?.[0]?.points ?? [])
 const hasData = computed(() => points.value.length > 0)
 
@@ -99,11 +124,6 @@ const bars = computed(() => {
   })
 })
 
-function legendClass(label) {
-  if (label === 'Nuevos') return 'new'
-  if (label === 'Desaparecidos') return 'gone'
-  return 'same'
-}
 </script>
 
 <style scoped>

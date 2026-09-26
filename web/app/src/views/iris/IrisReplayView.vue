@@ -1,85 +1,80 @@
 <template>
   <div class="admin-page">
     <StarBackground />
-    <Topbar title="Simulador de reglas de Iris" backTo="/" />
+    <Topbar :title="t('irisReplay.title')" backTo="/" />
 
     <main class="main">
-      <p class="intro">
-        Compara la política de puntuación vigente con una candidata sobre el corpus
-        versionado de Iris antes de desplegarla: qué veredictos cambian, qué gates
-        aparecen o desaparecen y cuántos falsos positivos y negativos tiene cada una.
-        Nada de lo que se evalúa aquí se guarda.
-      </p>
+      <p class="intro">{{ t('irisReplay.intro') }}</p>
 
       <section class="section">
-        <h2>Política candidata</h2>
-        <p class="hint">Lo que dejes vacío se queda como en la política vigente.</p>
+        <h2>{{ t('irisReplay.candidate') }}</h2>
+        <p class="hint">{{ t('irisReplay.emptyKeeps') }}</p>
 
         <div class="form-grid">
           <label class="field">
-            <span>Perfil de sensibilidad</span>
+            <span>{{ t('irisReplay.profile') }}</span>
             <select v-model="candidate.profile" class="inp">
-              <option value="">(el vigente)</option>
-              <option value="strict">Estricto</option>
-              <option value="balanced">Equilibrado</option>
-              <option value="lenient">Permisivo</option>
+              <option value="">{{ t('irisReplay.currentProfile') }}</option>
+              <option value="strict">{{ t('irisReplay.profiles.strict') }}</option>
+              <option value="balanced">{{ t('irisReplay.profiles.balanced') }}</option>
+              <option value="lenient">{{ t('irisReplay.profiles.lenient') }}</option>
             </select>
           </label>
           <label class="field">
-            <span>Umbral legítimo</span>
-            <input v-model="candidate.legitimateThreshold" type="number" min="0" max="100" class="inp" placeholder="(vigente)" />
+            <span>{{ t('irisReplay.legitimateThreshold') }}</span>
+            <input v-model="candidate.legitimateThreshold" type="number" min="0" max="100" class="inp" :placeholder="t('irisReplay.current')" />
           </label>
           <label class="field">
-            <span>Umbral sospechoso</span>
-            <input v-model="candidate.suspiciousThreshold" type="number" min="0" max="100" class="inp" placeholder="(vigente)" />
+            <span>{{ t('irisReplay.suspiciousThreshold') }}</span>
+            <input v-model="candidate.suspiciousThreshold" type="number" min="0" max="100" class="inp" :placeholder="t('irisReplay.current')" />
           </label>
         </div>
 
         <label class="field">
-          <span>Pesos a sobreescribir (JSON, se suman a los vigentes)</span>
-          <textarea v-model="weightOverridesText" class="inp mono" rows="3" placeholder='{"dmarc.fail": -20}'></textarea>
+          <span>{{ t('irisReplay.weights') }}</span>
+          <textarea v-model="weightOverridesText" class="inp mono" rows="3" :placeholder="WEIGHTS_EXAMPLE"></textarea>
         </label>
 
         <label class="field">
-          <span>Mensaje suelto (opcional: cabeceras o un .eml completo)</span>
+          <span>{{ t('irisReplay.adHoc') }}</span>
           <textarea v-model="adHocRaw" class="inp mono" rows="5"></textarea>
         </label>
         <div class="form-row">
           <label v-if="adHocRaw.trim()" class="field field--inline">
-            <span>Etiqueta del mensaje</span>
+            <span>{{ t('irisReplay.messageLabel') }}</span>
             <select v-model="adHocLabel" class="inp">
-              <option value="">sin etiqueta</option>
-              <option value="malicious">malicioso</option>
-              <option value="legitimate">legítimo</option>
+              <option value="">{{ t('irisReplay.noLabel') }}</option>
+              <option value="malicious">{{ t('iris.report.feedbackLabels.malicious') }}</option>
+              <option value="legitimate">{{ t('iris.report.feedbackLabels.legitimate') }}</option>
             </select>
           </label>
           <label class="field field--inline">
             <input v-model="includeCorpus" type="checkbox" />
-            <span>Incluir el corpus versionado</span>
+            <span>{{ t('irisReplay.includeCorpus') }}</span>
           </label>
         </div>
 
         <p v-if="formError" class="state state--error">{{ formError }}</p>
         <button type="button" class="btn btn--primary" :disabled="running" @click="run">
-          {{ running ? 'Comparando…' : 'Comparar' }}
+          {{ running ? t('irisReplay.comparing') : t('irisReplay.compare') }}
         </button>
       </section>
 
       <section v-if="report" class="section">
-        <h2>Resultado</h2>
+        <h2>{{ t('iris.batch.result') }}</h2>
         <p class="hint">
-          Corpus <span class="mono">{{ report.corpusVersion || '(no incluido)' }}</span> ·
-          catálogo <span class="mono">{{ report.detectorVersion }}</span> ·
-          {{ report.changedCount }} de {{ report.samples.length }} muestras cambian de veredicto.
+          {{ t('irisReplay.corpus') }} <span class="mono">{{ report.corpusVersion || t('irisReplay.notIncluded') }}</span> ·
+          {{ t('irisReplay.catalog') }} <span class="mono">{{ report.detectorVersion }}</span> ·
+          {{ t('irisReplay.changed', { changed: report.changedCount, total: report.samples.length }) }}
         </p>
 
         <table class="table">
           <thead>
-            <tr><th>Política</th><th>Versión</th><th>Falsos positivos</th><th>Falsos negativos</th><th>Precisión</th><th>Recall</th></tr>
+            <tr><th>{{ t('irisReplay.policy') }}</th><th>{{ t('irisReplay.version') }}</th><th>{{ t('irisReplay.falsePositives') }}</th><th>{{ t('irisReplay.falseNegatives') }}</th><th>{{ t('irisReplay.precision') }}</th><th>{{ t('irisReplay.recall') }}</th></tr>
           </thead>
           <tbody>
             <tr v-for="(policy, name) in report.policies" :key="name">
-              <td>{{ POLICY_LABELS[name] || name }}</td>
+              <td>{{ ['baseline', 'candidate'].includes(name) ? t(`irisReplay.policies.${name}`) : name }}</td>
               <td class="mono">{{ policy.scoringVersion }}</td>
               <td>
                 <span class="mono">{{ policy.metrics.overall.falsePositives }}</span>
@@ -97,12 +92,12 @@
 
         <table class="table">
           <thead>
-            <tr><th>Muestra</th><th>Etiqueta</th><th>Vigente</th><th>Candidata</th><th>Gates que cambian</th></tr>
+            <tr><th>{{ t('irisReplay.sample') }}</th><th>{{ t('irisReplay.messageLabel') }}</th><th>{{ t('irisReplay.policies.baseline') }}</th><th>{{ t('irisReplay.policies.candidate') }}</th><th>{{ t('irisReplay.gatesChanged') }}</th></tr>
           </thead>
           <tbody>
             <tr v-for="sample in report.samples" :key="sample.id" :class="{ 'row--changed': sample.verdictChanged }">
               <td class="mono">{{ sample.id }}</td>
-              <td>{{ LABELS[sample.label] || '—' }}</td>
+              <td>{{ ['malicious', 'legitimate', 'unknown'].includes(sample.label) ? t(`iris.report.feedbackLabels.${sample.label}`) : '—' }}</td>
               <td>{{ sample.results.baseline.verdict }} <span class="muted">({{ sample.results.baseline.totalScore }})</span></td>
               <td>{{ sample.results.candidate.verdict }} <span class="muted">({{ sample.results.candidate.totalScore }})</span></td>
               <td class="gates">
@@ -127,11 +122,14 @@ import { ref, reactive } from 'vue'
 import Topbar from '@/components/shared/Topbar.vue'
 import StarBackground from '@/components/shared/StarBackground.vue'
 import { useIrisStore } from '@/stores/irisStore'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const irisStore = useIrisStore()
 
-const POLICY_LABELS = { baseline: 'Vigente', candidate: 'Candidata' }
-const LABELS = { malicious: 'malicioso', legitimate: 'legítimo', unknown: 'indeterminado' }
+/** Ejemplo del campo de pesos: JSON, igual en cualquier idioma. */
+const WEIGHTS_EXAMPLE = '{"dmarc.fail": -20}'
 
 const candidate = reactive({ profile: '', legitimateThreshold: '', suspiciousThreshold: '' })
 const weightOverridesText = ref('')
@@ -168,7 +166,7 @@ async function run() {
   try {
     payload = buildPayload()
   } catch {
-    formError.value = 'Los pesos no son un JSON válido.'
+    formError.value = t('irisReplay.invalidJson')
     return
   }
   running.value = true

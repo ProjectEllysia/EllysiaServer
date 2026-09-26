@@ -4,8 +4,9 @@
  * desde el catálogo de `AcheronCore`) con su presentación (`storableLabels.js`).
  *
  * Las dos mitades van separadas porque el esquema se publica con el paquete de
- * criptografía y las etiquetas en castellano no: cambiar el texto de un botón
- * no debe obligar a publicar una versión nueva del motor.
+ * criptografía y la presentación no: cambiar el texto de un botón no debe
+ * obligar a publicar una versión nueva del motor. Los textos en sí están en los
+ * ficheros de idioma; aquí solo viajan sus claves.
  *
  * La capa cripto NO pasa por aquí: vive en el
  * paquete y lee el esquema directamente, y por eso nunca ve una etiqueta.
@@ -18,8 +19,8 @@ import { STORABLE_LABELS } from './storableLabels.js'
 
 /**
  * Tipos con esquema y etiquetas fusionados. Cada campo lleva su `key` y
- * `secret` del esquema, más `label` y las pistas de formulario de las
- * etiquetas.
+ * `secret` del esquema, más `labelKey` (la clave de su rótulo) y las pistas de
+ * formulario de las etiquetas.
  */
 export const STORABLE_TYPES = STORABLE_SCHEMA.map((type) => {
   const labels = STORABLE_LABELS[type.kind] ?? { fields: {} }
@@ -34,7 +35,7 @@ export const STORABLE_TYPES = STORABLE_SCHEMA.map((type) => {
 })
 
 /** Spec por categoría (clave plural del vault JSON). */
-export const TYPE_BY_CATEGORY = Object.fromEntries(STORABLE_TYPES.map((t) => [t.category, t]))
+export const TYPE_BY_CATEGORY = Object.fromEntries(STORABLE_TYPES.map((type) => [type.category, type]))
 
 /** Spec por kind (singular de la API). */
-export const TYPE_BY_KIND = Object.fromEntries(STORABLE_TYPES.map((t) => [t.kind, t]))
+export const TYPE_BY_KIND = Object.fromEntries(STORABLE_TYPES.map((type) => [type.kind, type]))

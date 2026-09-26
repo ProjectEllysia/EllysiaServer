@@ -1,18 +1,15 @@
 <template>
   <div class="tags-page" data-module="hygeia">
     <StarBackground />
-    <Topbar title="Hygeia" badge="Etiquetas" back-to="/hygeia/activos" back-label="Activos" />
+    <Topbar :title="'Hygeia'" :badge="t('hygeia.list.tags')" back-to="/hygeia/activos" :back-label="t('hygeia.list.title')" />
 
     <main class="tags-layout">
       <header class="head">
         <div class="head-text">
-          <h2 class="head-title">Etiquetas</h2>
-          <p class="head-sub">
-            El catálogo común lo comparte todo el mundo; las tuyas solo las ves tú.
-            Borrar una la quita de los activos que la llevaban — los activos se quedan.
-          </p>
+          <h2 class="head-title">{{ t('hygeia.list.tags') }}</h2>
+          <p class="head-sub">{{ t('hygeiaTags.intro') }}</p>
         </div>
-        <button class="btn-new" @click="startCreating">Nueva etiqueta</button>
+        <button class="btn-new" @click="startCreating">{{ t('hygeiaTags.new') }}</button>
       </header>
 
       <div class="controls">
@@ -20,7 +17,7 @@
           v-model.trim="search"
           type="search"
           class="search-input"
-          placeholder="Buscar una etiqueta…"
+          :placeholder="t('hygeiaTags.search')"
         />
         <div class="scope">
           <button
@@ -28,7 +25,7 @@
             type="button" class="scope-btn" :class="{ 'scope-btn--on': scope === option.value }"
             :aria-pressed="scope === option.value"
             @click="scope = option.value"
-          >{{ option.label }}</button>
+          >{{ t(option.labelKey) }}</button>
         </div>
       </div>
 
@@ -39,33 +36,33 @@
           ref="newNameInput"
           v-model.trim="newName"
           type="text" class="search-input"
-          placeholder="Nombre de la etiqueta" maxlength="48" required
+          :placeholder="t('hygeiaTags.name')" maxlength="48" required
         />
         <span class="swatches">
           <button
             v-for="color in TAG_COLOR_NAMES" :key="color"
             type="button" class="swatch" :class="{ 'swatch--on': color === newColor }"
             :style="{ background: hueOf(color) }"
-            :aria-label="`Color ${color}`" :aria-pressed="color === newColor"
+            :aria-label="t('hygeia.assetTags.color', { color })" :aria-pressed="color === newColor"
             @click="newColor = color"
           ></button>
         </span>
         <button type="submit" class="btn-primary" :disabled="saving">
-          {{ saving ? 'Creando…' : 'Crear' }}
+          {{ saving ? t('hygeia.createAsset.creating') : t('hygeiaTags.create') }}
         </button>
-        <button type="button" class="btn-secondary" @click="creating = false">Cancelar</button>
+        <button type="button" class="btn-secondary" @click="creating = false">{{ t('common.cancel') }}</button>
       </form>
 
-      <p v-if="tagsStore.state.loading" class="state-msg">Cargando etiquetas…</p>
+      <p v-if="tagsStore.state.loading" class="state-msg">{{ t('hygeiaTags.loading') }}</p>
 
       <p v-else-if="tagsStore.state.error" class="state-msg state-msg--error">
         {{ tagsStore.state.error }}
-        <button type="button" class="retry" @click="tagsStore.fetchTags()">Reintentar</button>
+        <button type="button" class="retry" @click="tagsStore.fetchTags()">{{ t('common.retry') }}</button>
       </p>
 
       <div v-else-if="!filteredTags.length" class="state-empty">
-        <p class="empty-title">Ninguna etiqueta que coincida</p>
-        <p class="empty-sub">Prueba con otra búsqueda, o crea una nueva.</p>
+        <p class="empty-title">{{ t('hygeiaTags.noMatch') }}</p>
+        <p class="empty-sub">{{ t('hygeiaTags.noMatchSub') }}</p>
       </div>
 
       <ul v-else class="tag-grid">
@@ -76,7 +73,7 @@
           <button class="tag-main" :aria-pressed="tag.id === selectedId" @click="toggleSelected(tag.id)">
             <TagBadge :tag="tag" />
             <span class="tag-meta">
-              {{ tag.tagType === 'system' ? 'Catálogo común' : 'Personal' }}
+              {{ tag.tagType === 'system' ? t('hygeia.assetTags.system') : t('hygeiaTags.personal') }}
               · {{ countLabel(tag) }}
             </span>
           </button>
@@ -84,7 +81,7 @@
           <button
             v-if="tag.tagType === 'user'"
             class="btn-icon btn-icon--danger"
-            title="Borrar etiqueta" :aria-label="`Borrar la etiqueta ${tag.name}`"
+            :title="t('hygeiaTags.deleteTitle')" :aria-label="t('hygeiaTags.deleteLabel', { name: tag.name })"
             @click="pendingDelete = tag"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -98,11 +95,9 @@
            a alguien a esta pantalla. -->
       <section v-if="selectedTag" class="carriers">
         <h3 class="carriers-title">
-          Activos con «{{ selectedTag.name }}»
+          {{ t('hygeiaTags.carriers', { name: selectedTag.name }) }}
         </h3>
-        <p v-if="!carriers.length" class="carriers-empty">
-          Ningún activo lleva esta etiqueta todavía.
-        </p>
+        <p v-if="!carriers.length" class="carriers-empty">{{ t('hygeiaTags.noCarriers') }}</p>
         <ul v-else class="carriers-list">
           <li v-for="asset in carriers" :key="asset.id">
             <RouterLink class="carrier" to="/hygeia/activos">
@@ -116,9 +111,9 @@
 
     <ConfirmModal
       :show="!!pendingDelete"
-      title="Borrar etiqueta"
+      :title="t('hygeiaTags.deleteTitle')"
       :message="deleteMessage"
-      confirm-label="Borrar"
+      :confirm-label="t('common.delete')"
       danger
       @confirm="confirmDelete"
       @cancel="pendingDelete = null"
@@ -137,15 +132,18 @@ import { TAG_COLOR_NAMES, hueOf } from '@/components/hygeia/tagColors'
 import { useHygeiaStore } from '@/stores/hygeiaStore'
 import { useHygeiaTagsStore } from '@/stores/hygeiaTagsStore'
 import { useToastStore } from '@/stores/toastStore'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const store = useHygeiaStore()
 const tagsStore = useHygeiaTagsStore()
 const toast = useToastStore()
 
 const SCOPES = [
-  { value: 'all', label: 'Todas' },
-  { value: 'system', label: 'Catálogo común' },
-  { value: 'user', label: 'Mías' },
+  { value: 'all', labelKey: 'hygeiaTags.scopes.all' },
+  { value: 'system', labelKey: 'hygeia.assetTags.system' },
+  { value: 'user', labelKey: 'hygeiaTags.scopes.mine' },
 ]
 
 const search = ref('')
@@ -180,15 +178,14 @@ const carriers = computed(() => {
 
 const deleteMessage = computed(() => {
   const count = pendingDelete.value?.assetCount ?? 0
-  const carried = count === 1 ? 'del activo que la lleva' : `de los ${count} activos que la llevan`
   return count
-    ? `Se quitará «${pendingDelete.value.name}» ${carried}. Los activos no se borran.`
-    : `Se borrará la etiqueta «${pendingDelete.value?.name}». No la lleva ningún activo.`
+    ? t('hygeiaTags.deleteCarried', { name: pendingDelete.value.name, count }, count)
+    : t('hygeiaTags.deleteUnused', { name: pendingDelete.value?.name })
 })
 
 function countLabel(tag) {
   const count = tag.assetCount ?? 0
-  return count === 1 ? '1 activo' : `${count} activos`
+  return t('hygeia.assetCount', { count }, count)
 }
 
 function toggleSelected(id) {
@@ -208,11 +205,11 @@ async function submitNewTag() {
   try {
     const tag = await tagsStore.createTag({ name: newName.value, color: newColor.value })
     if (!tag) {
-      toast.show(tagsStore.state.error || 'No se pudo crear la etiqueta.', 'error')
+      toast.show(tagsStore.state.error || t('hygeiaStore.tags.createFailed'), 'error')
       return
     }
     creating.value = false
-    toast.show(`Etiqueta «${tag.name}» creada.`, 'success')
+    toast.show(t('hygeiaTags.created', { name: tag.name }), 'success')
   } finally {
     saving.value = false
   }
@@ -225,14 +222,14 @@ async function confirmDelete() {
 
   const ok = await tagsStore.deleteTag(tag.id)
   if (!ok) {
-    toast.show(tagsStore.state.error || 'No se pudo borrar la etiqueta.', 'error')
+    toast.show(tagsStore.state.error || t('hygeiaStore.tags.deleteFailed'), 'error')
     return
   }
   // La lista de activos ya está en memoria: quitarle la etiqueta aquí evita
   // volver a pedirla entera por un cambio que el cliente ya sabe hacer.
   store.dropTagFromAssets(tag.id)
   if (selectedId.value === tag.id) selectedId.value = null
-  toast.show(`Etiqueta «${tag.name}» borrada.`, 'success')
+  toast.show(t('hygeiaTags.deleted', { name: tag.name }), 'success')
 }
 
 onMounted(() => {

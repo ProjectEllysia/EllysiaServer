@@ -1,8 +1,8 @@
 <template>
   <div class="mailbox-list">
     <header class="toolbar">
-      <h3 class="toolbar-title">Buzones conectados</h3>
-      <button class="btn-icon" title="Recargar" aria-label="Recargar conexiones" @click="$emit('refresh')">
+      <h3 class="toolbar-title">{{ t('myPlan.limits.mailboxes') }}</h3>
+      <button class="btn-icon" :title="t('iris.mailboxes.reload')" :aria-label="t('iris.mailboxes.reloadConnections')" @click="$emit('refresh')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
           <path d="M23 4v6h-6M1 20v-6h6" />
           <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
@@ -10,11 +10,11 @@
       </button>
     </header>
 
-    <p v-if="loading" class="state-msg">Cargando conexiones…</p>
+    <p v-if="loading" class="state-msg">{{ t('iris.mailboxes.loading') }}</p>
 
     <p v-else-if="error" class="state-msg state-msg--error">
       {{ error }}
-      <button type="button" class="retry" @click="$emit('refresh')">Reintentar</button>
+      <button type="button" class="retry" @click="$emit('refresh')">{{ t('common.retry') }}</button>
     </p>
 
     <div v-else-if="!connections.length" class="state-empty">
@@ -22,8 +22,8 @@
         <rect x="2" y="4" width="20" height="16" rx="2" />
         <path d="m2 7 10 6 10-6" />
       </svg>
-      <p class="empty-title">Ningún buzón conectado todavía</p>
-      <p class="empty-sub">Conecta Gmail o Microsoft 365 arriba para que Iris analice tu correo automáticamente.</p>
+      <p class="empty-title">{{ t('iris.mailboxes.emptyTitle') }}</p>
+      <p class="empty-sub">{{ t('iris.mailboxes.emptySub') }}</p>
     </div>
 
     <template v-else>
@@ -36,10 +36,10 @@
             <path d="M12 9v4M12 17h.01" /><circle cx="12" cy="12" r="10" />
           </svg>
           <div class="reauth-text">
-            <p class="reauth-title">{{ providerLabel(conn.provider) }} — {{ conn.accountEmail }} necesita reconectarse</p>
-            <p class="reauth-sub">{{ conn.lastError || 'El acceso concedido ha caducado o fue revocado.' }} Iris dejó de sondear este buzón.</p>
+            <p class="reauth-title">{{ t('iris.mailboxes.reauthTitle', { provider: providerLabel(conn.provider), email: conn.accountEmail }) }}</p>
+            <p class="reauth-sub">{{ conn.lastError || t('iris.mailboxes.accessExpired') }} {{ t('iris.mailboxes.stoppedPolling') }}</p>
           </div>
-          <button type="button" class="btn-primary" @click="$emit('reconnect', conn)">Reconectar</button>
+          <button type="button" class="btn-primary" @click="$emit('reconnect', conn)">{{ t('iris.mailboxes.reconnect') }}</button>
         </div>
       </div>
 
@@ -55,24 +55,24 @@
           <p class="card-email">{{ conn.accountEmail }}</p>
 
           <div class="card-meta">
-            <span class="meta-chip" :title="conn.folder ? `Carpeta vigilada: ${conn.folder}` : 'Vigila la bandeja de entrada por defecto'">
+            <span class="meta-chip" :title="conn.folder ? t('iris.mailboxes.watchedFolder', { folder: conn.folder }) : t('iris.mailboxes.defaultInbox')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 7l9-4 9 4-9 4-9-4z" /><path d="M3 7v10l9 4 9-4V7" /></svg>
-              {{ conn.folder || 'Bandeja de entrada' }}
+              {{ conn.folder || t('iris.mailboxes.inbox') }}
             </span>
             <span class="meta-chip" :class="{ 'meta-chip--full': conn.fullMessageMode }"
-              :title="conn.fullMessageMode ? 'Iris lee el correo completo (cuerpo y adjuntos incluidos)' : 'Iris solo lee las cabeceras'">
+              :title="conn.fullMessageMode ? t('iris.mailboxes.fullHint') : t('iris.mailboxes.headersHint')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M7 8h10M7 12h10M7 16h6" /></svg>
-              {{ conn.fullMessageMode ? 'Correo completo' : 'Solo cabeceras' }}
+              {{ conn.fullMessageMode ? t('iris.mailboxes.full') : t('iris.form.headersOnly') }}
             </span>
           </div>
 
-          <p class="card-sync">Último sondeo: {{ timeAgo(conn.lastSyncAt) }}</p>
+          <p class="card-sync">{{ t('iris.mailboxes.lastSync', { when: timeAgo(conn.lastSyncAt) }) }}</p>
 
           <div class="card-actions">
             <button
               class="btn-icon"
-              :title="conn.status === 'paused' ? 'Reanudar' : 'Pausar'"
-              :aria-label="`${conn.status === 'paused' ? 'Reanudar' : 'Pausar'} ${conn.accountEmail}`"
+              :title="conn.status === 'paused' ? t('iris.mailboxes.resume') : t('iris.mailboxes.pause')"
+              :aria-label="`${conn.status === 'paused' ? t('iris.mailboxes.resume') : t('iris.mailboxes.pause')} ${conn.accountEmail}`"
               @click="$emit('toggle-pause', conn)"
             >
               <svg v-if="conn.status === 'paused'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -87,8 +87,8 @@
               class="btn-icon"
               :class="{ 'btn-icon--busy': syncingIds.has(conn.connectionId) }"
               :disabled="syncingIds.has(conn.connectionId)"
-              title="Sondear ahora"
-              :aria-label="`Sondear ${conn.accountEmail} ahora`"
+              :title="t('iris.mailboxes.syncNow')"
+              :aria-label="t('iris.mailboxes.syncAccount', { email: conn.accountEmail })"
               @click="$emit('sync', conn)"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -98,8 +98,8 @@
             </button>
             <button
               class="btn-icon btn-icon--danger"
-              title="Eliminar"
-              :aria-label="`Eliminar ${conn.accountEmail}`"
+              :title="t('common.delete')"
+              :aria-label="t('iris.mailboxes.deleteAccount', { email: conn.accountEmail })"
               @click="$emit('delete', conn)"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -115,6 +115,9 @@
 
 <script setup>
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   connections: { type: Array, default: () => [] },
@@ -136,26 +139,21 @@ const normalConnections = computed(() => props.connections.filter(c => c.status 
 const PROVIDER_LABELS = { microsoft: 'Microsoft 365', gmail: 'Gmail' }
 function providerLabel(provider) { return PROVIDER_LABELS[provider] || provider }
 
-const STATUS_LABELS = {
-  active: 'Activa',
-  reauth_required: 'Requiere reautenticación',
-  revoked: 'Revocada',
-  paused: 'Pausada',
-}
-function statusLabel(status) { return STATUS_LABELS[status] || status }
+const STATUSES = ['active', 'reauth_required', 'revoked', 'paused']
+function statusLabel(status) { return STATUSES.includes(status) ? t(`iris.mailboxes.status.${status}`) : t('common.unknown') }
 
 // Antigüedad relativa, igual que components/hygeia/format.js::timeAgo — no
 // se comparte porque es la única vista fuera de Hygeia que la necesita.
 function timeAgo(iso) {
-  if (!iso) return 'nunca'
+  if (!iso) return t('iris.mailboxes.never')
   const then = new Date(iso).getTime()
   if (Number.isNaN(then)) return '—'
   const secs = Math.max(0, Math.round((Date.now() - then) / 1000))
-  if (secs < 5) return 'ahora mismo'
-  if (secs < 60) return `hace ${secs} s`
-  if (secs < 3600) return `hace ${Math.floor(secs / 60)} min`
-  if (secs < 86400) return `hace ${Math.floor(secs / 3600)} h`
-  return `hace ${Math.floor(secs / 86400)} d`
+  if (secs < 5) return t('iris.mailboxes.justNow')
+  if (secs < 60) return t('iris.mailboxes.ago', { value: `${secs} s` })
+  if (secs < 3600) return t('iris.mailboxes.ago', { value: `${Math.floor(secs / 60)} min` })
+  if (secs < 86400) return t('iris.mailboxes.ago', { value: `${Math.floor(secs / 3600)} h` })
+  return t('iris.mailboxes.ago', { value: `${Math.floor(secs / 86400)} d` })
 }
 </script>
 

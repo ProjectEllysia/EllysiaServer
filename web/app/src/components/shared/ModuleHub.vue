@@ -21,14 +21,14 @@
 
         <div class="hero-actions">
           <router-link v-if="auth.isAuthenticated" :to="toolRoute" class="cta cta--solid">{{ toolLabel }}</router-link>
-          <router-link v-else :to="{ path: '/login', query: { redirect: toolRoute } }" class="cta cta--solid">Entrar</router-link>
-          <button class="cta cta--line" @click="scrollToFeatures">Conocer más</button>
+          <router-link v-else :to="{ path: '/login', query: { redirect: toolRoute } }" class="cta cta--solid">{{ t('moduleHub.signIn') }}</router-link>
+          <button class="cta cta--line" @click="scrollToFeatures">{{ t('moduleHub.learnMore') }}</button>
         </div>
 
         <!-- Placa: actividad real si hay sesión; dato de producto si es visita pública -->
         <div class="hero-plaque">
           <slot v-if="auth.isAuthenticated" name="metric">
-            <p class="metric-empty">Todavía no hay actividad que mostrar.</p>
+            <p class="metric-empty">{{ t('moduleHub.noActivity') }}</p>
           </slot>
           <template v-else>
             <span class="metric-label">{{ highlight.label }}</span>
@@ -37,14 +37,14 @@
           </template>
         </div>
 
-        <nav v-if="shortcuts.length && auth.isAuthenticated" class="hero-shortcuts" aria-label="Atajos">
+        <nav v-if="shortcuts.length && auth.isAuthenticated" class="hero-shortcuts" :aria-label="t('moduleHub.shortcuts')">
           <router-link v-for="s in shortcuts" :key="s.label" :to="s.to" class="shortcut">
             {{ s.label }} <span aria-hidden="true">→</span>
           </router-link>
         </nav>
       </div>
 
-      <button class="scroll-cue" @click="scrollToFeatures" aria-label="Bajar a las capacidades">
+      <button class="scroll-cue" @click="scrollToFeatures" :aria-label="t('moduleHub.scrollToFeatures')">
         <span></span>
       </button>
     </header>
@@ -55,7 +55,7 @@
     <!-- ═══════════ CAPACIDADES ═══════════ -->
     <section id="features" class="rites">
       <div class="rites-intro">
-        <h2 class="rites-title">Qué hace {{ name }}</h2>
+        <h2 class="rites-title">{{ t('moduleHub.whatItDoes', { name }) }}</h2>
         <p class="rites-bajada">{{ tagline }}</p>
       </div>
 
@@ -70,7 +70,7 @@
 
     <!-- ═══════════ RECURSOS ═══════════ -->
     <section v-if="resources.length" class="scrolls">
-      <h2 class="scrolls-title">Recursos</h2>
+      <h2 class="scrolls-title">{{ t('moduleHub.resources') }}</h2>
       <ul class="scrolls-list">
         <li v-for="r in resources" :key="r.label">
           <a v-if="r.external" :href="r.href" target="_blank" rel="noopener noreferrer" class="scroll-link">
@@ -83,7 +83,7 @@
 
     <!-- ═══════════ EL RESTO DEL PANTEÓN ═══════════ -->
     <section class="pantheon">
-      <h2 class="pantheon-title">El resto del panteón</h2>
+      <h2 class="pantheon-title">{{ t('moduleHub.restOfPantheon') }}</h2>
       <div class="pantheon-grid">
         <router-link
           v-for="m in otherModules"
@@ -94,7 +94,7 @@
         >
           <img :src="m.icon" alt="" aria-hidden="true" />
           <span class="pantheon-name">{{ m.numeral }} · {{ m.name }}</span>
-          <p class="pantheon-desc">{{ m.desc }}</p>
+          <p class="pantheon-desc">{{ t(`moduleHub.modules.${m.id}`) }}</p>
         </router-link>
       </div>
     </section>
@@ -104,7 +104,7 @@
       <span class="call-epigraph">{{ epigraph }}</span>
       <h2 class="call-title">{{ claim }}</h2>
       <router-link v-if="auth.isAuthenticated" :to="toolRoute" class="call-cta">{{ toolLabel }}</router-link>
-      <router-link v-else :to="{ path: '/login', query: { redirect: toolRoute } }" class="call-cta">Entrar</router-link>
+      <router-link v-else :to="{ path: '/login', query: { redirect: toolRoute } }" class="call-cta">{{ t('moduleHub.signIn') }}</router-link>
     </section>
 
     <SiteFooter />
@@ -123,6 +123,9 @@ import aegisIcon from '@/assets/images/aegis/Ellysia-Aegis-Blue-BgN.png'
 import irisIcon from '@/assets/images/iris/Iris-Red-BgN.png'
 import acheronIcon from '@/assets/images/acheron/Acheron-Purple-BgN.png'
 import hygeiaIcon from '@/assets/images/hygeia/Hygeia-DarkGreen-BgN.png'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   moduleId: { type: String, required: true }, // 'themis' | 'aegis' | 'iris' | 'acheron' | 'hygeia'
@@ -145,13 +148,14 @@ const props = defineProps({
 
 const auth = useAuthStore()
 
-/** El panteón completo, para las tarjetas de los otros tres módulos. */
+/** El panteón completo, para las tarjetas de los otros módulos. La
+ *  descripción de cada uno sale de `moduleHub.modules.<id>`. */
 const ALL_MODULES = [
-  { id: 'themis', numeral: 'I', name: 'Themis', icon: themisIcon, route: '/themis', desc: 'Pesa cada amenaza antes de que golpee: motor propio, escáneres clásicos, informes IA.' },
-  { id: 'aegis', numeral: 'II', name: 'Aegis', icon: aegisIcon, route: '/aegis', desc: 'Concienciación que llega antes que el ataque: píldoras IA y campañas con seguimiento.' },
-  { id: 'iris', numeral: 'III', name: 'Iris', icon: irisIcon, route: '/iris', desc: 'Verifica quién firma cada correo: 37 reglas contra el phishing.' },
-  { id: 'acheron', numeral: 'IV', name: 'Acheron', icon: acheronIcon, route: '/acheron', desc: 'Guarda lo que no debe perderse: bóveda cifrada en tu navegador.' },
-  { id: 'hygeia', numeral: 'V', name: 'Hygeia', icon: hygeiaIcon, route: '/hygeia', desc: 'Vigila el pulso de cada activo: telemetría en vivo y alertas antes del fallo.' },
+  { id: 'themis', numeral: 'I', name: 'Themis', icon: themisIcon, route: '/themis' },
+  { id: 'aegis', numeral: 'II', name: 'Aegis', icon: aegisIcon, route: '/aegis' },
+  { id: 'iris', numeral: 'III', name: 'Iris', icon: irisIcon, route: '/iris' },
+  { id: 'acheron', numeral: 'IV', name: 'Acheron', icon: acheronIcon, route: '/acheron' },
+  { id: 'hygeia', numeral: 'V', name: 'Hygeia', icon: hygeiaIcon, route: '/hygeia' },
 ]
 
 const otherModules = computed(() => ALL_MODULES.filter((m) => m.id !== props.moduleId))

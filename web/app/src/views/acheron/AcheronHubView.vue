@@ -5,23 +5,23 @@
     name="Acheron"
     numeral="IV"
     epigraph="Custodia"
-    tagline="Bóveda cifrada en tu navegador: el servidor solo ve el cifrado, nunca la llave."
-    myth="El río que nadie cruza sin la llave."
-    claim="Guarda lo que no debe perderse"
+    :tagline="t('acheronHub.tagline')"
+    :myth="t('acheronHub.myth')"
+    :claim="t('acheronHub.claim')"
     tool-route="/acheron/boveda"
-    tool-label="Abrir bóveda"
+    :tool-label="t('acheronHub.toolLabel')"
     :highlight="highlight"
     :features="features"
     :resources="resources"
   >
     <template #metric>
-      <p v-if="loading" class="metric-loading">Comprobando tu bóveda…</p>
+      <p v-if="loading" class="metric-loading">{{ t('acheronHub.loading') }}</p>
       <template v-else-if="itemCount">
-        <span class="metric-label">Secretos custodiados</span>
+        <span class="metric-label">{{ t('acheronHub.secrets') }}</span>
         <span class="metric-value">{{ itemCount }}</span>
-        <span v-if="lastUpdated" class="metric-sub">Última actualización: {{ lastUpdatedLabel }}</span>
+        <span v-if="lastUpdated" class="metric-sub">{{ t('acheronHub.lastUpdated', { date: lastUpdatedLabel }) }}</span>
       </template>
-      <p v-else class="metric-empty">Todavía no tienes bóveda. Crear la tuya lleva un minuto.</p>
+      <p v-else class="metric-empty">{{ t('acheronHub.empty') }}</p>
     </template>
   </ModuleHub>
 </template>
@@ -33,12 +33,15 @@ import { useApi } from '@/composables/useApi'
 import { useAuthStore } from '@/stores/authStore'
 import acheronIcon from '@/assets/images/acheron/Acheron-Purple-BgN.png'
 import { formatDate } from '@/i18n/format'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const { apiFetch } = useApi()
 const auth = useAuthStore()
 
 // Dato de producto para la visita pública (sin sesión no hay bóveda propia).
-const highlight = { label: 'Conocimiento cero', value: '0 llaves', sub: 'viajan a nuestro servidor' }
+const highlight = computed(() => ({ label: t('acheronHub.highlight.label'), value: t('acheronHub.highlight.value'), sub: t('acheronHub.highlight.sub') }))
 
 const loading = ref(true)
 const itemCount = ref(0)
@@ -48,32 +51,16 @@ const lastUpdatedLabel = computed(() =>
   lastUpdated.value ? formatDate(lastUpdated.value) : ''
 )
 
-const features = [
-  {
-    kicker: 'Cifrado local',
-    title: 'La llave nunca viaja',
-    desc: 'AES-256-GCM en tu navegador: el servidor guarda el cifrado y solo tú posees la contraseña maestra. Ni siquiera nosotros podemos leer tu bóveda.',
-  },
-  {
-    kicker: 'Siete tipos',
-    title: 'Una bóveda para todo',
-    desc: 'Credenciales, tarjetas, notas y más, bajo la misma contraseña maestra y el mismo cifrado.',
-  },
-  {
-    kicker: 'Generador',
-    title: 'Contraseñas fuertes al vuelo',
-    desc: 'Genera y guarda contraseñas robustas sin salir de la bóveda, con medidor de fortaleza incluido.',
-  },
-  {
-    kicker: 'La llave de Lybra',
-    title: 'Alimenta el escaneo autenticado',
-    desc: 'Las credenciales custodiadas aquí pueden abrir la puerta a los escaneos autenticados de Themis. Acheron no es solo el candado: es la llave.',
-  },
-]
+/** Capacidades que se presentan; sus textos están en `acheronHub.features.<id>`. */
+const features = computed(() => ['local', 'types', 'generator', 'lybra'].map((id) => ({
+  kicker: t(`acheronHub.features.${id}.kicker`),
+  title: t(`acheronHub.features.${id}.title`),
+  desc: t(`acheronHub.features.${id}.desc`),
+})))
 
-const resources = [
-  { label: 'NIST — Guía de gestión de contraseñas (SP 800-63B)', href: 'https://pages.nist.gov/800-63-3/sp800-63b.html', external: true },
-]
+const resources = computed(() => [
+  { label: t('acheronHub.resources.nist'), href: 'https://pages.nist.gov/800-63-3/sp800-63b.html', external: true },
+])
 
 /**
  * El recuento de secretos y la fecha de última modificación son metadatos en

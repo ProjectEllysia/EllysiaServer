@@ -3,14 +3,14 @@
     <button type="button" class="rule-header" @click="$emit('toggle')">
       <div class="rule-left">
         <span class="rule-name">{{ rule.ruleName }}</span>
-        <span class="rule-category" v-if="rule.category">{{ ruleCategoryLabel(rule.category) }}</span>
-        <span v-if="rule.severity" class="rule-severity" :class="`rule-severity--${rule.severity}`">{{ SEVERITY_LABELS[rule.severity] || rule.severity }}</span>
+        <span class="rule-category" v-if="rule.category">{{ t(ruleCategoryKey(rule.category)) }}</span>
+        <span v-if="rule.severity" class="rule-severity" :class="`rule-severity--${rule.severity}`">{{ ['low', 'medium', 'high', 'critical'].includes(rule.severity) ? priorityLabel(rule.severity.toUpperCase()) : t('common.unknown') }}</span>
       </div>
       <div class="rule-right">
         <span class="rule-score" :class="scoreClass(rule.score, rule.verdict)">{{ sign(rule.score) }}{{ rule.score }}</span>
         <!-- El código exacto (`softfail`, `bestguess`…) es lo que busca un
              técnico: se queda en el tooltip, no en la primera lectura. -->
-        <span class="rule-verdict" :class="`verdict-chip--${rule.verdict}`" :title="`Código: ${rule.verdict}`">{{ ruleVerdictLabel(rule.verdict) }}</span>
+        <span class="rule-verdict" :class="`verdict-chip--${rule.verdict}`" :title="t('iris.rule.code', { code: rule.verdict })">{{ t(ruleVerdictKey(rule.verdict)) }}</span>
         <svg class="rule-chevron" :class="{ rotated: expanded }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
       </div>
     </button>
@@ -39,13 +39,13 @@
              cabeceras saltan a su línea en "Cabeceras originales"; enlaces y
              adjuntos muestran el extracto, ya desactivado (hxxp, [.], [@]). -->
         <div v-if="rule.evidence && rule.evidence.length" class="rule-evidence">
-          <span class="evidence-title">Evidencia</span>
+          <span class="evidence-title">{{ t('iris.rule.evidence') }}</span>
           <template v-for="(item, k) in rule.evidence" :key="k">
             <button
               v-if="item.kind === 'header'"
               type="button"
               class="evidence-item evidence-item--jump"
-              title="Ver en las cabeceras originales"
+              :title="t('iris.rule.jump')"
               @click="$emit('jump-evidence', item)"
             >
               <span class="evidence-kind">{{ evidenceLabel(item) }}</span>
@@ -58,7 +58,7 @@
           </template>
         </div>
         <p v-else-if="rule.evidenceUnavailableReason" class="evidence-unavailable">
-          Sin evidencia anclada: {{ rule.evidenceUnavailableReason }}
+          {{ t('iris.rule.noEvidence', { reason: rule.evidenceUnavailableReason }) }}
         </p>
         <div v-if="rule.recommendation" class="rule-recommendation">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="rec-icon"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
@@ -70,7 +70,11 @@
 </template>
 
 <script setup>
-import { ruleCategoryLabel, ruleVerdictLabel } from '@/components/iris/verdict'
+import { ruleCategoryKey, ruleVerdictKey } from '@/components/iris/verdict'
+import { priorityLabel } from '@/components/themis/labels'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 defineProps({
   rule: { type: Object, required: true },
@@ -79,7 +83,6 @@ defineProps({
 
 defineEmits(['toggle', 'jump-evidence'])
 
-const SEVERITY_LABELS = { low: 'baja', medium: 'media', high: 'alta', critical: 'crítica' }
 
 /** Página de MITRE ATT&CK de una técnica: T1566.002 -> /techniques/T1566/002/. */
 function attackUrl(technique) {
@@ -91,13 +94,13 @@ function evidenceLabel(item) {
   const locator = item.locator ?? {}
   if (item.kind === 'header') {
     const occurrence = locator.occurrence ? ` #${locator.occurrence + 1}` : ''
-    return `Cabecera ${locator.header}${occurrence}`
+    return t('iris.rule.header', { header: `${locator.header}${occurrence}` })
   }
-  if (item.kind === 'url') return locator.source === 'qr_code' ? 'URL en QR' : 'Enlace'
-  if (item.kind === 'attachment') return 'Adjunto'
-  if (item.kind === 'body') return 'Cuerpo'
-  if (item.kind === 'mime_part') return 'Parte MIME'
-  return 'Evidencia'
+  if (item.kind === 'url') return locator.source === 'qr_code' ? t('iris.rule.qrUrl') : t('iris.rule.link')
+  if (item.kind === 'attachment') return t('iris.rule.attachment')
+  if (item.kind === 'body') return t('iris.rule.body')
+  if (item.kind === 'mime_part') return t('iris.rule.mimePart')
+  return t('iris.rule.evidence')
 }
 
 function sign(s) {

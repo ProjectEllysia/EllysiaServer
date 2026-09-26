@@ -4,7 +4,7 @@
        registro real, así que al llegar los datos no hay salto. El estado se
        anuncia con aria-busy y `label`, no repitiendo la silueta, que va
        marcada como decorativa (misma convención que `.skeleton` de shared.css). -->
-  <div class="findings-skeleton" aria-busy="true" role="status" :aria-label="label">
+  <div class="findings-skeleton" aria-busy="true" role="status" :aria-label="label || t('lybra.toolbar.loadingFindings')">
     <div class="ghost-inscription" aria-hidden="true">
       <span class="ghost-mark"></span>
       <span class="skeleton skeleton--line ghost-title"></span>
@@ -22,9 +22,13 @@
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 defineProps({
-  /** Qué se está esperando, para quien usa lector de pantalla. */
-  label: { type: String, default: 'Cargando hallazgos' },
+  /** Qué se está esperando, para quien usa lector de pantalla. Por defecto,
+   *  «Cargando hallazgos» en el idioma activo. */
+  label: { type: String, default: '' },
   /** Filas de grupo fantasma. Por defecto `4`, las que caben sin alargar el panel. */
   rows: { type: Number, default: 4 },
 })

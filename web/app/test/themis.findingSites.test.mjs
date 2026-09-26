@@ -10,7 +10,7 @@
 
 import assert from 'node:assert/strict'
 
-const { hasSeveralSites, siteLabel } =
+const { hasSeveralSites, siteOf } =
   await import('../src/components/themis/lybra/findingSites.js')
 
 let failures = 0
@@ -42,10 +42,10 @@ test('el grupo de sitios detectados no se etiqueta: su título ya es el sitio', 
 })
 
 test('la etiqueta habla en lenguaje de usuario', () => {
-  assert.equal(siteLabel({ vhost: 'web.ejemplo.test' }), 'En web.ejemplo.test')
-  assert.equal(siteLabel({ vhost: null }), 'Al entrar por la IP')
-  assert.equal(siteLabel({}), 'Al entrar por la IP')
-  assert.equal(siteLabel({ vhost: '(sitio por defecto)' }), 'Al entrar por la IP')
+  assert.equal(siteOf({ vhost: 'web.ejemplo.test' }), 'web.ejemplo.test')
+  assert.equal(siteOf({ vhost: null }), null)
+  assert.equal(siteOf({}), null)
+  assert.equal(siteOf({ vhost: '(sitio por defecto)' }), null)
 })
 
 if (failures) {

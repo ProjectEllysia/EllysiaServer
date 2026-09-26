@@ -1,6 +1,6 @@
 <template>
   <div class="history-strip" ref="stripRef">
-    <button v-if="canScrollLeft" type="button" class="strip-arrow strip-arrow--left" @click="scrollLeft" tabindex="-1" aria-label="Anteriores">&lsaquo;</button>
+    <button v-if="canScrollLeft" type="button" class="strip-arrow strip-arrow--left" @click="scrollLeft" tabindex="-1" :aria-label="t('iris.strip.previous')">&lsaquo;</button>
     <div class="strip-scroll" ref="scrollRef" @scroll="onStripScroll" @wheel="onStripWheel" @keydown.left="scrollLeft" @keydown.right.prevent="scrollRight" tabindex="0">
       <!-- New analysis button -->
       <button
@@ -8,13 +8,13 @@
         class="strip-item strip-item--new"
         :class="{ active: activeId === null }"
         @click="$emit('select', null)"
-        title="Nuevo análisis"
+        :title="t('iris.form.title')"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="new-icon">
           <line x1="12" y1="5" x2="12" y2="19"/>
           <line x1="5" y1="12" x2="19" y2="12"/>
         </svg>
-        <span>Nuevo</span>
+        <span>{{ t('iris.strip.new') }}</span>
       </button>
 
       <!-- Analysis items -->
@@ -39,14 +39,14 @@
         >
           <span class="strip-dot" :class="`dot--${item.status || 'pending'}`"></span>
           <span class="strip-origin" :class="item.connectionId ? 'strip-origin--auto' : 'strip-origin--manual'">
-            {{ item.connectionId ? 'AUTO' : 'MANUAL' }}
+            {{ item.connectionId ? t('iris.strip.auto') : t('iris.strip.manual') }}
           </span>
           <span v-if="item.title" class="strip-title">{{ item.title }}</span>
           <span v-else class="strip-id">#{{ item.analysisId }}</span>
           <span v-if="item.verdict && item.status === 'finished'" class="strip-verdict" :class="`verdict--${verdictClass(item.verdict)}`">
             {{ item.totalScore }}
           </span>
-          <span v-else-if="item.status === 'running' || item.status === 'pending'" class="strip-status">{{ analysisStatusLabel(item.status) }}</span>
+          <span v-else-if="item.status === 'running' || item.status === 'pending'" class="strip-status">{{ t(analysisStatusKey(item.status)) }}</span>
         </button>
 
         <!-- Delete button (visible on hover) -->
@@ -55,7 +55,7 @@
           type="button"
           class="strip-del"
           :class="{ 'strip-del--visible': hoverId === item.analysisId }"
-          title="Eliminar"
+          :title="t('common.delete')"
           @click.stop="confirmDeleteId = item.analysisId"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
@@ -63,11 +63,11 @@
 
         <!-- Inline confirmation -->
         <div v-else-if="confirmDeleteId === item.analysisId" class="strip-confirm">
-          <span class="confirm-text">¿Eliminar #{{ item.analysisId }}?</span>
-          <button type="button" class="confirm-yes" title="Sí" @click.stop="handleDelete(item.analysisId)">
+          <span class="confirm-text">{{ t('iris.strip.confirmDelete', { id: item.analysisId }) }}</span>
+          <button type="button" class="confirm-yes" :title="t('common.yes')" @click.stop="handleDelete(item.analysisId)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
           </button>
-          <button type="button" class="confirm-no" title="No" @click.stop="confirmDeleteId = null">
+          <button type="button" class="confirm-no" :title="t('common.no')" @click.stop="confirmDeleteId = null">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
@@ -76,13 +76,13 @@
       <div class="strip-fade"></div>
     </div>
 
-    <button v-if="canScrollRight" type="button" class="strip-arrow strip-arrow--right" @click="scrollRight" tabindex="-1" aria-label="Siguientes">&rsaquo;</button>
+    <button v-if="canScrollRight" type="button" class="strip-arrow strip-arrow--right" @click="scrollRight" tabindex="-1" :aria-label="t('iris.strip.next')">&rsaquo;</button>
 
     <!-- Hover card (outside scroll to avoid overflow clip) -->
     <Transition name="card">
       <div v-if="hoverItem" class="strip-card" :style="{ left: cardLeft + 'px' }">
         <div class="card-row card-title-row">
-          <span class="card-label">Título</span>
+          <span class="card-label">{{ t('iris.strip.title') }}</span>
           <span class="card-value card-value--title">{{ hoverItem.title || `#${hoverItem.analysisId}` }}</span>
         </div>
         <div class="card-row">
@@ -90,34 +90,34 @@
           <span class="card-value">#{{ hoverItem.analysisId }}</span>
         </div>
         <div class="card-row">
-          <span class="card-label">Fecha</span>
+          <span class="card-label">{{ t('themis.table.date') }}</span>
           <span class="card-value">{{ formatDate(hoverItem.startedAt) }}</span>
         </div>
         <div class="card-row">
-          <span class="card-label">Origen</span>
+          <span class="card-label">{{ t('themis.traceroute.originLabel') }}</span>
           <span class="card-value">{{ originLabel(hoverItem) }}</span>
         </div>
         <div class="card-row" v-if="hoverItem.status === 'finished'">
-          <span class="card-label">Puntuación</span>
+          <span class="card-label">{{ t('iris.strip.score') }}</span>
           <span class="card-value" :class="scoreClass(hoverItem.totalScore)">{{ hoverItem.totalScore }}</span>
         </div>
         <div class="card-row" v-if="hoverItem.verdict && hoverItem.status === 'finished'">
-          <span class="card-label">Veredicto</span>
-          <span class="card-verdict" :class="`v--${verdictClass(hoverItem.verdict)}`">{{ verdictLabel(hoverItem.verdict) }}</span>
+          <span class="card-label">{{ t('iris.strip.verdict') }}</span>
+          <span class="card-verdict" :class="`v--${verdictClass(hoverItem.verdict)}`">{{ t(verdictKey(hoverItem.verdict)) }}</span>
         </div>
         <div class="card-row" v-else-if="hoverItem.status !== 'finished'">
-          <span class="card-label">Estado</span>
-          <span class="card-value card-value--status">{{ analysisStatusLabel(hoverItem.status) }}</span>
+          <span class="card-label">{{ t('themis.table.status') }}</span>
+          <span class="card-value card-value--status">{{ t(analysisStatusKey(hoverItem.status)) }}</span>
         </div>
       </div>
     </Transition>
 
-    <button type="button" class="archive-btn" title="Ver el archivo completo de análisis (Ctrl/Cmd+K)" @click="$emit('open-archive')">
+    <button type="button" class="archive-btn" :title="t('iris.strip.archiveHint')" @click="$emit('open-archive')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
         <rect x="3" y="3" width="18" height="18" rx="2"/>
         <path d="M3 9h18M9 21V9"/>
       </svg>
-      <span class="archive-btn-label">Archivo</span>
+      <span class="archive-btn-label">{{ t('iris.strip.archive') }}</span>
       <span v-if="total" class="archive-btn-count">{{ total }}</span>
     </button>
   </div>
@@ -125,8 +125,11 @@
 
 <script setup>
 import { ref, computed, watch, nextTick, onMounted } from 'vue'
-import { analysisStatusLabel, verdictClass, verdictLabel } from '@/components/iris/verdict'
+import { analysisStatusKey, verdictClass, verdictKey } from '@/components/iris/verdict'
 import { formatDate as formatLocalizedDate } from '@/i18n/format'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   items: { type: Array, default: () => [] },
@@ -224,9 +227,9 @@ function handleDelete(id) {
 }
 
 function originLabel(item) {
-  if (!item?.connectionId) return 'Manual'
+  if (!item?.connectionId) return t('iris.strip.manualOrigin')
   const providerNames = { microsoft: 'Microsoft 365', gmail: 'Gmail' }
-  const provider = providerNames[item.provider] || item.provider || 'Buzón'
+  const provider = providerNames[item.provider] || item.provider || t('iris.strip.mailbox')
   return item.accountEmail ? `${provider} (${item.accountEmail})` : provider
 }
 </script>

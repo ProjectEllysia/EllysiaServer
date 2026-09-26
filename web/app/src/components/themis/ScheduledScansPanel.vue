@@ -2,10 +2,10 @@
   <div class="card scheduled-card">
     <div class="scheduled-header" @click="expanded = !expanded">
       <div class="scheduled-header-left">
-        <span class="scheduled-title">Escaneos Programados</span>
+        <span class="scheduled-title">{{ t('themis.scheduled.title') }}</span>
         <span class="scheduled-badge">{{ filtered.length }}</span>
       </div>
-      <button class="btn-toggle" :class="{ open: expanded }" :aria-label="expanded ? 'Colapsar' : 'Expandir'">
+      <button class="btn-toggle" :class="{ open: expanded }" :aria-label="expanded ? t('lybra.results.collapse') : t('lybra.results.expand')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9" /></svg>
       </button>
     </div>
@@ -13,7 +13,7 @@
       <div v-if="expanded" class="scheduled-body">
         <button class="btn-new" @click="$emit('toggleForm')">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-          Nuevo escaneo programado
+          {{ t('themis.scheduled.new') }}
         </button>
         <transition name="form-fade">
           <div v-if="scheduling.showForm" class="create-form">
@@ -23,44 +23,44 @@
               </div>
             </div>
             <div class="form-row">
-              <div class="field field-sm"><label>Programación</label>
-                <select v-model="form.scheduleType"><option value="interval">Intervalo</option><option value="cron">Cron</option></select>
+              <div class="field field-sm"><label>{{ t('themis.scheduled.schedule') }}</label>
+                <select v-model="form.scheduleType"><option value="interval">{{ t('themis.scheduled.interval') }}</option><option value="cron">Cron</option></select>
               </div>
             </div>
             <div class="form-row" v-if="form.scheduleType === 'interval'">
-              <div class="field field-xs"><label>Cada</label><input v-model.number="form.scheduleConfig.every" type="number" min="1" class="no-spin" /></div>
-              <div class="field field-sm"><label>Unidad</label>
-                <select v-model="form.scheduleConfig.unit"><option value="minutes">Minutos</option><option value="hours">Horas</option><option value="days">Días</option></select>
+              <div class="field field-xs"><label>{{ t('themis.scheduled.every') }}</label><input v-model.number="form.scheduleConfig.every" type="number" min="1" class="no-spin" /></div>
+              <div class="field field-sm"><label>{{ t('themis.scheduled.unit') }}</label>
+                <select v-model="form.scheduleConfig.unit"><option value="minutes">{{ t('themis.scheduled.units.minutes') }}</option><option value="hours">{{ t('themis.scheduled.units.hours') }}</option><option value="days">{{ t('themis.scheduled.units.days') }}</option></select>
               </div>
             </div>
             <div class="form-row" v-if="form.scheduleType === 'cron'">
-              <div class="field field-md"><label>Expresión Cron</label><input v-model="form.scheduleConfig.cron" placeholder="0 2 * * *" /></div>
+              <div class="field field-md"><label>{{ t('themis.scheduled.cron') }}</label><input v-model="form.scheduleConfig.cron" placeholder="0 2 * * *" /></div>
             </div>
             <button class="btn-create" :disabled="scheduling.submitting" @click="handleCreate">
-              <span v-if="!scheduling.submitting">Crear</span>
+              <span v-if="!scheduling.submitting">{{ t('adminPlans.create') }}</span>
               <span v-else class="btn-spin"></span>
             </button>
           </div>
         </transition>
-        <div v-if="scheduled.loading" class="scheduled-loading"><span class="spinner"></span> Cargando...</div>
+        <div v-if="scheduled.loading" class="scheduled-loading"><span class="spinner"></span> {{ t('common.loading') }}</div>
         <div v-else-if="!filtered.length" class="scheduled-empty">
-          <span>No hay escaneos programados de {{ activeTab.toUpperCase() }}</span>
+          <span>{{ t('themis.scheduled.empty', { type: activeTab.toUpperCase() }) }}</span>
         </div>
         <table v-else class="scheduled-table">
-          <thead><tr><th>ID</th><th>Tipo</th><th>Argumentos</th><th>Programación</th><th>Estado</th><th>Prox. ejecución</th><th></th></tr></thead>
+          <thead><tr><th>ID</th><th>{{ t('themis.table.type') }}</th><th>{{ t('themis.scheduled.arguments') }}</th><th>{{ t('themis.scheduled.schedule') }}</th><th>{{ t('themis.table.status') }}</th><th>{{ t('themis.scheduled.nextRun') }}</th><th></th></tr></thead>
           <tbody>
             <tr v-for="ps in filtered" :key="ps.id" :class="{ inactive: !ps.isActive }">
               <td class="mono">{{ ps.id }}</td>
               <td><span class="type-badge" :class="ps.scanType">{{ ps.scanType }}</span></td>
               <td class="args-cell" :title="formatArgs(ps.scanType, ps.arguments)">{{ formatArgs(ps.scanType, ps.arguments) }}</td>
               <td class="mono">{{ formatSchedule(ps.scheduleType, ps.scheduleConfig) }}</td>
-              <td><span class="status-dot" :class="ps.isActive ? 'active' : 'revoked'"></span>{{ ps.isActive ? 'Activo' : 'Revocado' }}</td>
+              <td><span class="status-dot" :class="ps.isActive ? 'active' : 'revoked'"></span>{{ ps.isActive ? t('themis.scheduled.active') : t('themis.scheduled.revoked') }}</td>
               <td class="mono text-muted">{{ formatDate(ps.nextRunAt) }}</td>
               <td class="actions-cell">
-                <button v-if="ps.isActive" class="btn-action btn-revoke" title="Revocar" @click="handleDeactivate(ps.id)">
+                <button v-if="ps.isActive" class="btn-action btn-revoke" :title="t('organization.revoke')" @click="handleDeactivate(ps.id)">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" /><line x1="4.93" y1="4.93" x2="19.07" y2="19.07" /></svg>
                 </button>
-                <button class="btn-action btn-delete" title="Eliminar" @click="handleDelete(ps.id)">
+                <button class="btn-action btn-delete" :title="t('common.delete')" @click="handleDelete(ps.id)">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
                 </button>
               </td>
@@ -76,6 +76,9 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { SCAN_TYPES } from '@/constants/scanTypes'
 import { formatDateTime } from '@/i18n/format'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({ scheduled: { type: Object, required: true }, scheduling: { type: Object, required: true }, activeTab: { type: String, required: true } })
 const emit = defineEmits(['create', 'deactivate', 'delete', 'toggleForm'])
@@ -92,14 +95,17 @@ watch(() => props.activeTab, (type) => {
 }, { immediate: true })
 
 function handleCreate() { emit('create', { scan_type: props.activeTab, arguments: { ...form.args }, schedule_type: form.scheduleType, schedule_config: { ...form.scheduleConfig } }) }
-function handleDeactivate(id) { if (confirm('Desactivar este escaneo programado?')) emit('deactivate', id) }
-function handleDelete(id) { if (confirm('Eliminar permanentemente este escaneo programado?')) emit('delete', id) }
+function handleDeactivate(id) { if (confirm(t('themis.scheduled.confirmDeactivate'))) emit('deactivate', id) }
+function handleDelete(id) { if (confirm(t('themis.scheduled.confirmDelete'))) emit('delete', id) }
 function formatArgs(type, args) {
   return SCAN_TYPES[type]?.formatArgs?.(args) ?? '—'
 }
 function formatSchedule(type, config) {
   if (!config) return '—'
-  if (type === 'interval') { const u = { minutes: 'min', hours: 'h', days: 'd' }; return `cada ${config.every} ${u[config.unit] || config.unit}` }
+  if (type === 'interval') {
+    const unit = ['minutes', 'hours', 'days'].includes(config.unit) ? t(`themis.scheduled.shortUnits.${config.unit}`) : config.unit
+    return t('themis.scheduled.everySummary', { every: config.every, unit })
+  }
   if (type === 'cron') return config.cron
   return '—'
 }

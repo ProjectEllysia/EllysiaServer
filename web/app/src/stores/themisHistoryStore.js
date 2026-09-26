@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { reactive } from 'vue'
 import { useApi } from '@/composables/useApi'
+import { i18n } from '@/i18n'
 
 /**
  * Store de estadísticas históricas de Themis (A2: extraído de themisStore).
@@ -24,12 +25,12 @@ export const useThemisHistoryStore = defineStore('themisHistory', () => {
     history.loading = true
     try {
       const res = await apiFetch('/themis/history/hosts')
-      if (!res?.ok) { history.hosts = []; history.error = 'No se pudieron cargar los hosts.'; return }
+      if (!res?.ok) { history.hosts = []; history.error = i18n.global.t('themisStore.history.hostsFailed'); return }
       const data = await res.json()
       history.hosts = data.hosts ?? []
       if (force) history.cache = {}
       history.error = null
-    } catch { history.hosts = []; history.error = 'Error de conexión.' }
+    } catch { history.hosts = []; history.error = i18n.global.t('themisStore.history.connectionError') }
     finally { history.loading = false }
   }
 
@@ -49,7 +50,7 @@ export const useThemisHistoryStore = defineStore('themisHistory', () => {
       const params = new URLSearchParams({ target, type })
       const res = await apiFetch(`/themis/history/stats?${params}`)
       if (!res?.ok) {
-        history.chartError = await apiError(res, 'No se pudieron obtener las estadísticas.')
+        history.chartError = await apiError(res, i18n.global.t('themisStore.history.statsFailed'))
         return
       }
       const data = await res.json()
@@ -57,7 +58,7 @@ export const useThemisHistoryStore = defineStore('themisHistory', () => {
       history.cache[key] = data
       history.chartError = null
     } catch {
-      history.chartError = 'No se pudo conectar con la API.'
+      history.chartError = i18n.global.t('themisStore.history.unreachable')
     } finally { history.chartLoading = false }
   }
 

@@ -1,15 +1,30 @@
 const MAX_DECODED_BYTES = 4 * 1024 * 1024
 
+/**
+ * Error de decodificación con un código estable, para que quien lo muestre
+ * elija el texto en el idioma de la interfaz (`logs.decode.<código>`).
+ *
+ * @param {'unsupportedFormat'|'tooLarge'|'noDecompression'|'incomplete'} code -
+ *   Qué falló: formato distinto de gzip+base64, tamaño fuera del límite,
+ *   navegador sin `DecompressionStream`, o contenido que no suma lo anunciado.
+ * @returns {Error} Un `Error` cuyo `message` y `code` son el propio código.
+ */
+function decodeError(code) {
+  const error = new Error(code)
+  error.code = code
+  return error
+}
+
 /** Decodifica el contrato gzip/base64 servido por GET /system/logs. */
 export async function decodeLogPayload(data) {
   if (data?.encoding !== 'base64' || data?.compression !== 'gzip') {
-    throw new Error('El servidor devolvió un formato de log no compatible.')
+    throw decodeError('unsupportedFormat')
   }
   if (!Number.isInteger(data.returnedBytes) || data.returnedBytes < 0 || data.returnedBytes > MAX_DECODED_BYTES) {
-    throw new Error('La respuesta del log supera el tamaño permitido.')
+    throw decodeError('tooLarge')
   }
   if (typeof globalThis.DecompressionStream !== 'function') {
-    throw new Error('Este navegador no permite descomprimir el log.')
+    throw decodeError('noDecompression')
   }
 
   const binary = atob(data.content || '')
@@ -24,7 +39,7 @@ export async function decodeLogPayload(data) {
   const text = await new Response(stream).text()
   const actualBytes = new TextEncoder().encode(text).byteLength
   if (actualBytes !== data.returnedBytes) {
-    throw new Error('El contenido del log llegó incompleto.')
+    throw decodeError('incomplete')
   }
   return text
 }

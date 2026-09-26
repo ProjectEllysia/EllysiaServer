@@ -23,12 +23,12 @@
           aria-labelledby="tp-title"
         >
           <div class="tp-header">
-            <h3 id="tp-title">Productos vigilados</h3>
+            <h3 id="tp-title">{{ t('aegis.products.title') }}</h3>
             <button
               type="button"
               class="tp-close"
-              aria-label="Cerrar"
-              title="Cerrar (Esc)"
+              :aria-label="t('common.close')"
+              :title="t('iris.archive.closeHint')"
               @click="close"
             >
               &times;
@@ -41,18 +41,12 @@
             <label v-if="store.hygeiaInventoryAvailable" class="tp-switch">
               <input type="checkbox" v-model="store.useHygeiaInventory" />
               <span>
-                Deducir los productos de mis agentes
-                <small
-                  >Usa el software que Hygeia inventaría en tus activos en lugar
-                  de la lista de abajo.</small
-                >
+                {{ t('aegis.products.fromAgents') }}
+                <small>{{ t('aegis.products.fromAgentsHint') }}</small>
               </span>
             </label>
 
-            <p v-if="usingInventory" class="tp-hint">
-              Ahora mismo se usan los de tus agentes. Esta lista queda como
-              alternativa si desactivas la opción de arriba.
-            </p>
+            <p v-if="usingInventory" class="tp-hint">{{ t('aegis.products.usingAgents') }}</p>
 
             <input
               id="tp-search"
@@ -60,7 +54,7 @@
               v-model="productQuery"
               type="search"
               class="tp-search"
-              placeholder="Busca un producto: windows, firefox, apache…"
+              :placeholder="t('aegis.products.searchPlaceholder')"
               autocomplete="off"
               @input="onProductQuery"
             />
@@ -68,16 +62,14 @@
             <!-- Un solo hueco para todos los estados, encadenados por
                  prioridad: lo que esté pasando ahora manda sobre lo anterior. -->
             <p class="tp-hint" aria-live="polite">
-              <template v-if="store.searchingProducts">Buscando…</template>
+              <template v-if="store.searchingProducts">{{ t('aegis.products.searching') }}</template>
               <template v-else-if="store.productSearchError">{{
                 store.productSearchError
               }}</template>
-              <template v-else-if="trimmedQuery.length === 1"
-                >Escribe al menos 2 caracteres.</template
-              >
+              <template v-else-if="trimmedQuery.length === 1">{{ t('aegis.products.minChars') }}</template>
               <template
                 v-else-if="trimmedQuery.length >= 2 && !store.productResults.length"
-                >Sin coincidencias en el catálogo de vulnerabilidades.</template
+                >{{ t('aegis.products.noMatch') }}</template
               >
             </p>
 
@@ -112,24 +104,22 @@
                   <button
                     type="button"
                     class="tp-chip-remove"
-                    :aria-label="`Quitar ${p.vendor} ${p.product}`"
+                    :aria-label="t('aegis.lists.remove', { email: `${p.vendor} ${p.product}` })"
                     @click="store.removeTrackedProduct(p)"
                   >
                     &times;
                   </button>
                 </span>
               </div>
-              <p v-else class="empty-state">Aún no vigilas ningún producto.</p>
+              <p v-else class="empty-state">{{ t('aegis.products.none') }}</p>
             </div>
           </div>
 
           <!-- El pie es hermano de `.tp-body`, no hijo: así queda fuera del
                scroll y el botón no se mueve por muchos resultados que haya. -->
           <div class="tp-footer">
-            <p class="tp-save-note">
-              Los cambios se guardan con «Guardar perfil».
-            </p>
-            <button type="button" class="tp-done" @click="close">Listo</button>
+            <p class="tp-save-note">{{ t('aegis.products.saveNote') }}</p>
+            <button type="button" class="tp-done" @click="close">{{ t('aegis.products.done') }}</button>
           </div>
         </div>
       </div>
@@ -141,6 +131,9 @@
 import { computed, ref, watch } from "vue";
 import { useAegisStore } from "@/stores/aegisStore";
 import { useModalA11y } from "@/composables/useModalA11y";
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -162,8 +155,8 @@ const usingInventory = computed(
 
 const countLabel = computed(() => {
   const count = store.trackedProducts.length;
-  if (!count) return "Seleccionados";
-  return count === 1 ? "1 producto vigilado" : `${count} productos vigilados`;
+  if (!count) return t('aegis.products.selected');
+  return t('aegis.products.watchedCount', { count }, count);
 });
 
 // Debounce: cada pulsación consultaría el índice CPE, y el endpoint está

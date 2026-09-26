@@ -8,15 +8,22 @@
  *   node web/app/test/aegis.campaigns.test.mjs
  */
 
+import { readFileSync } from 'node:fs'
+import { createI18n } from 'vue-i18n'
 import {
-  campaignStatusLabel,
+  campaignStatusKey,
   campaignStatusBadge,
-  recipientStatusLabel,
+  recipientStatusKey,
   percentOf,
   summarizeRecipients,
   scorePercent,
   summarizePill,
 } from '../src/components/aegis/campaigns.js'
+
+// Los rótulos salen como claves; se resuelven contra el castellano para
+// comprobar también lo que se lee.
+const spanish = JSON.parse(readFileSync(new URL('../src/i18n/locales/es.json', import.meta.url), 'utf-8'))
+const { t } = createI18n({ legacy: false, locale: 'es', messages: { es: spanish } }).global
 
 let passed = 0
 let failed = 0
@@ -32,12 +39,12 @@ function eq(name, actual, expected) {
 }
 
 console.log('\nrótulos')
-eq('estado de campaña conocido', campaignStatusLabel('sent'), 'Enviada')
+eq('estado de campaña conocido', t(campaignStatusKey('sent')), 'Enviada')
 // Un estado nuevo del servidor no puede llegar en crudo a la pantalla.
-eq('estado de campaña desconocido cae en genérico', campaignStatusLabel('archived'), 'Desconocido')
+eq('estado de campaña desconocido cae en genérico', t(campaignStatusKey('archived')), 'Desconocido')
 eq('insignia desconocida cae en pendiente', campaignStatusBadge('archived'), 'badge--pending')
-eq('estado de destinatario', recipientStatusLabel('opened'), 'Abierto')
-eq('estado de destinatario desconocido', recipientStatusLabel(undefined), 'Desconocido')
+eq('estado de destinatario', t(recipientStatusKey('opened')), 'Abierto')
+eq('estado de destinatario desconocido', t(recipientStatusKey(undefined)), 'Desconocido')
 
 console.log('\nporcentajes')
 eq('sin total no divide por cero', percentOf(3, 0), 0)

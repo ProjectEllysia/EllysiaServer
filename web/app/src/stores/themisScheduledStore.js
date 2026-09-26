@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { reactive } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { useToastStore } from '@/stores/toastStore'
+import { i18n } from '@/i18n'
 
 /**
  * Store de escaneos programados de Themis (A2: extraído de themisStore).
@@ -22,11 +23,11 @@ export const useThemisScheduledStore = defineStore('themisScheduled', () => {
     scheduled.loading = true
     try {
       const res = await apiFetch('/themis/scheduled-scans')
-      if (!res?.ok) { scheduled.scans = []; scheduled.error = 'No se pudieron cargar los escaneos programados.'; return }
+      if (!res?.ok) { scheduled.scans = []; scheduled.error = i18n.global.t('themisStore.scheduled.loadFailed'); return }
       const data = await res.json()
       scheduled.scans = data.scheduledScans ?? []
       scheduled.error = null
-    } catch { scheduled.scans = []; scheduled.error = 'Error de conexión.' }
+    } catch { scheduled.scans = []; scheduled.error = i18n.global.t('themisStore.scheduled.connectionError') }
     finally { scheduled.loading = false }
   }
 
@@ -36,16 +37,16 @@ export const useThemisScheduledStore = defineStore('themisScheduled', () => {
     try {
       const res = await apiFetch('/themis/scheduled-scans', { method: 'POST', body: JSON.stringify(payload) })
       if (!res?.ok) {
-        toast.show(await apiError(res, 'Error al crear escaneo programado.'), 'error')
+        toast.show(await apiError(res, i18n.global.t('themisStore.scheduled.createFailed')), 'error')
         return false
       }
       const data = await res.json()
-      toast.show(`Escaneo programado creado (ID: ${data.programedScanId})`, 'success')
+      toast.show(i18n.global.t('themisStore.scheduled.created', { id: data.programedScanId }), 'success')
       await loadScheduledScans()
       scheduling.showForm = false
       return true
     } catch {
-      toast.show('No se pudo conectar con la API.', 'error')
+      toast.show(i18n.global.t('themisStore.scheduled.unreachable'), 'error')
       return false
     } finally { scheduling.submitting = false }
   }
@@ -53,8 +54,8 @@ export const useThemisScheduledStore = defineStore('themisScheduled', () => {
   /** Revoca (desactiva) un escaneo programado. */
   async function deactivateScheduledScan(id) {
     const res = await apiFetch(`/themis/scheduled-scans/${id}`, { method: 'DELETE' })
-    if (!res?.ok) { toast.show('No se pudo revocar el escaneo programado.', 'error'); return false }
-    toast.show('Escaneo programado revocado.', 'success')
+    if (!res?.ok) { toast.show(i18n.global.t('themisStore.scheduled.revokeFailed'), 'error'); return false }
+    toast.show(i18n.global.t('themisStore.scheduled.revoked'), 'success')
     await loadScheduledScans()
     return true
   }
@@ -62,8 +63,8 @@ export const useThemisScheduledStore = defineStore('themisScheduled', () => {
   /** Elimina permanentemente un escaneo programado. */
   async function deleteScheduledScan(id) {
     const res = await apiFetch(`/themis/scheduled-scans/${id}/permanent`, { method: 'DELETE' })
-    if (!res?.ok) { toast.show('No se pudo eliminar el escaneo programado.', 'error'); return false }
-    toast.show('Escaneo programado eliminado.', 'success')
+    if (!res?.ok) { toast.show(i18n.global.t('themisStore.scheduled.deleteFailed'), 'error'); return false }
+    toast.show(i18n.global.t('themisStore.scheduled.deleted'), 'success')
     await loadScheduledScans()
     return true
   }

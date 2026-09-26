@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { useToastStore } from '@/stores/toastStore'
+import { i18n } from '@/i18n'
 
 /**
  * Store de gestión de usuarios — lista, crea y administra atributos ABAC.
@@ -40,7 +41,7 @@ export const useUsersStore = defineStore('users', () => {
     loading.value = true
     try {
       const res = await apiFetch('/users')
-      if (!res?.ok) { toast.show('Error al cargar usuarios.', 'error'); return }
+      if (!res?.ok) { toast.show(i18n.global.t('users.toast.loadFailed'), 'error'); return }
       const data = await res.json()
       users.value = (data.users || data || []).map(u => ({
         ...u,
@@ -60,12 +61,12 @@ export const useUsersStore = defineStore('users', () => {
       body: JSON.stringify(userData),
     })
     if (!res?.ok) {
-      if (res?.status === 409) toast.show(await apiError(res, 'Usuario o email ya existe.'), 'error')
-      else if (res?.status === 403) toast.show('Permisos insuficientes para crear usuarios.', 'error')
-      else toast.show(await apiError(res, 'Error al crear usuario.'), 'error')
+      if (res?.status === 409) toast.show(await apiError(res, i18n.global.t('users.toast.duplicate')), 'error')
+      else if (res?.status === 403) toast.show(i18n.global.t('users.toast.createForbidden'), 'error')
+      else toast.show(await apiError(res, i18n.global.t('users.toast.createFailed')), 'error')
       return false
     }
-    toast.show('Usuario creado exitosamente.', 'success')
+    toast.show(i18n.global.t('users.toast.created'), 'success')
     await loadUsers()
     return true
   }
@@ -81,11 +82,11 @@ export const useUsersStore = defineStore('users', () => {
   async function deleteUser(userId) {
     const res = await apiFetch(`/users/${userId}`, { method: 'DELETE' })
     if (!res?.ok) {
-      if (res?.status === 403) toast.show('No tienes permiso para eliminar a este usuario.', 'error')
-      else toast.show(await apiError(res, 'Error al eliminar el usuario.'), 'error')
+      if (res?.status === 403) toast.show(i18n.global.t('users.toast.deleteForbidden'), 'error')
+      else toast.show(await apiError(res, i18n.global.t('users.toast.deleteFailed')), 'error')
       return false
     }
-    toast.show('Usuario eliminado.', 'success')
+    toast.show(i18n.global.t('users.toast.deleted'), 'success')
     await loadUsers()
     return true
   }
@@ -141,8 +142,8 @@ export const useUsersStore = defineStore('users', () => {
    */
   function addAttributes(userId, attrs) {
     return _updateAttributes(userId, attrs, 'PUT', {
-      errorMsg: 'Error al añadir atributos.',
-      successMsg: 'Atributos actualizados.',
+      errorMsg: i18n.global.t('users.toast.attributesAddFailed'),
+      successMsg: i18n.global.t('users.toast.attributesUpdated'),
     })
   }
 
@@ -154,8 +155,8 @@ export const useUsersStore = defineStore('users', () => {
    */
   function removeAttributes(userId, attrs) {
     return _updateAttributes(userId, attrs, 'DELETE', {
-      errorMsg: 'Error al eliminar atributos.',
-      successMsg: 'Atributo eliminado.',
+      errorMsg: i18n.global.t('users.toast.attributesRemoveFailed'),
+      successMsg: i18n.global.t('users.toast.attributeRemoved'),
     })
   }
 

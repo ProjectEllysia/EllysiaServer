@@ -5,7 +5,7 @@
         <svg v-if="isDefault" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
         <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
       </span>
-      <span class="folder-name">{{ folder.name }}</span>
+      <span class="folder-name">{{ isDefault ? t('themis.folders.none') : folder.name }}</span>
       <span class="folder-count">{{ folder.scanCount }}</span>
       <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
     </button>
@@ -13,9 +13,9 @@
     <div class="accordion-collapse" :class="{ expanded: isExpanded }">
       <div class="accordion-collapse-inner">
         <div class="accordion-body">
-          <div v-if="!folder.scans?.length" class="empty-folder">No hay escaneos en esta carpeta.</div>
+          <div v-if="!folder.scans?.length" class="empty-folder">{{ t('themis.folders.emptyFolder') }}</div>
           <table v-else>
-            <thead><tr><th>ID</th><th>Tipo</th><th>Target</th><th>Estado</th><th>Fecha</th><th>Acciones</th></tr></thead>
+            <thead><tr><th>ID</th><th>{{ t('themis.table.type') }}</th><th>{{ t('themis.table.target') }}</th><th>{{ t('themis.table.status') }}</th><th>{{ t('themis.table.date') }}</th><th>{{ t('themis.table.actions') }}</th></tr></thead>
             <tbody>
               <tr v-for="scan in visibleScans" :key="scan.id">
                 <td class="mono">#{{ scan.id }}</td>
@@ -24,19 +24,19 @@
                 <td><StatusBadge :status="scan.status" /></td>
                 <td class="date">{{ formatDate(scan.startedAt) }}</td>
                 <td class="actions">
-                  <button class="act-btn" title="Vista previa" @click="$emit('preview', scan.id, scan.scanType)">
+                  <button class="act-btn" :title="t('themis.table.preview')" @click="$emit('preview', scan.id, scan.scanType)">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                   </button>
-                  <button class="act-btn" title="Mover a otra carpeta" @click="$emit('move-scan', { scanId: scan.id })">
+                  <button class="act-btn" :title="t('themis.folders.moveToOther')" @click="$emit('move-scan', { scanId: scan.id })">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 9l7-7 7 7M12 2v14"/></svg>
                   </button>
-                  <button v-if="!isDefault" class="act-btn" title="Quitar de la carpeta" @click="$emit('remove-scan', { scanId: scan.id })">
+                  <button v-if="!isDefault" class="act-btn" :title="t('themis.folders.removeFromFolder')" @click="$emit('remove-scan', { scanId: scan.id })">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
                   </button>
-                  <button v-if="isActive(scan.status)" class="act-btn warn" title="Cancelar" @click="$emit('cancel', scan.id)">
+                  <button v-if="isActive(scan.status)" class="act-btn warn" :title="t('common.cancel')" @click="$emit('cancel', scan.id)">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
                   </button>
-                  <button class="act-btn danger" title="Eliminar escaneo" @click="$emit('delete', scan.id)">
+                  <button class="act-btn danger" :title="t('themis.deleteScan')" @click="$emit('delete', scan.id)">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
                   </button>
                 </td>
@@ -44,18 +44,18 @@
             </tbody>
           </table>
           <button v-if="hasMore" class="load-more" @click="visibleCount += step">
-            Ver más ({{ remaining }} restantes)
+            {{ t('themis.folders.showMore', { count: remaining }) }}
           </button>
         </div>
 
         <div v-if="!isDefault" class="accordion-footer">
           <button class="footer-btn" @click="$emit('rename', folder)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            Renombrar
+            {{ t('themis.folders.rename') }}
           </button>
           <button class="footer-btn danger" @click="$emit('delete-folder', folder.id)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
-            Eliminar carpeta
+            {{ t('themis.folders.delete') }}
           </button>
         </div>
       </div>
@@ -67,6 +67,9 @@
 import { ref, computed } from 'vue'
 import StatusBadge from './StatusBadge.vue'
 import { formatDate as formatLocalizedDate } from '@/i18n/format'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   folder: { type: Object, required: true },

@@ -1,14 +1,14 @@
 <template>
   <div class="aegis-page" data-module="aegis">
     <StarBackground />
-    <Topbar title="Aegis" badge="Generación de Píldoras" back-to="/aegis" back-label="Volver" />
+    <Topbar :title="'Aegis'" :badge="t('aegisView.badge')" back-to="/aegis" :back-label="t('common.back')" />
 
     <div class="app-layout">
       <aside class="panel panel--left" :class="{ 'panel--collapsed': leftCollapsed }" :style="{ width: leftWidth }">
         <button
           type="button"
           class="panel-toggle panel-toggle--left"
-          :aria-label="leftCollapsed ? 'Expandir panel de perfil y generación' : 'Contraer panel de perfil y generación'"
+          :aria-label="leftCollapsed ? t('aegisView.expandLeft') : t('aegisView.collapseLeft')"
           @click="toggleLeft"
         >
           <span :class="{ 'chevron--flipped': leftCollapsed }">‹</span>
@@ -20,7 +20,7 @@
                el modal de campaña, y no había forma de editarlas después. -->
           <button type="button" class="lists-btn" @click="store.openListsModal()">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-            Editar listas de distribución
+            {{ t('aegisView.editLists') }}
           </button>
         </div>
       </aside>
@@ -53,7 +53,7 @@
         <button
           type="button"
           class="panel-toggle panel-toggle--right"
-          :aria-label="rightCollapsed ? 'Expandir historial' : 'Contraer historial'"
+          :aria-label="rightCollapsed ? t('aegisView.expandHistory') : t('aegisView.collapseHistory')"
           @click="toggleRight"
         >
           <span :class="{ 'chevron--flipped': rightCollapsed }">›</span>
@@ -66,8 +66,8 @@
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
             </span>
             <span class="campaigns-cta-text">
-              <span class="campaigns-cta-title">Campañas</span>
-              <span class="campaigns-cta-sub">Resultados de lo que ya has enviado</span>
+              <span class="campaigns-cta-title">{{ t('aegisView.campaigns') }}</span>
+              <span class="campaigns-cta-sub">{{ t('aegisView.campaignsSub') }}</span>
             </span>
             <span class="campaigns-cta-arrow" aria-hidden="true">›</span>
           </router-link>
@@ -115,6 +115,9 @@ import DocumentEditor from '@/components/aegis/DocumentEditor.vue'
 import HistoryPanel from '@/components/aegis/HistoryPanel.vue'
 import CampaignModal from '@/components/aegis/CampaignModal.vue'
 import DistributionListsModal from '@/components/aegis/DistributionListsModal.vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const store = useAegisStore()
 

@@ -5,23 +5,23 @@
     name="Aegis"
     numeral="II"
     epigraph="Praesidio"
-    tagline="Formación de concienciación generada por IA, enviada y demostrada con campañas."
-    myth="El escudo de Zeus y Atenea, forjado para proteger antes del golpe."
-    claim="Concienciación que llega antes que el ataque"
+    :tagline="t('aegisHub.tagline')"
+    :myth="t('landing.tools.aegis.myth')"
+    :claim="t('landing.tools.aegis.title')"
     tool-route="/aegis/generador"
-    tool-label="Abrir generador"
+    :tool-label="t('aegisHub.toolLabel')"
     :highlight="highlight"
     :features="features"
     :resources="resources"
   >
     <template #metric>
-      <p v-if="loading" class="metric-loading">Cargando última campaña…</p>
+      <p v-if="loading" class="metric-loading">{{ t('aegisHub.loading') }}</p>
       <template v-else-if="lastCampaign">
-        <span class="metric-label">Última campaña — {{ lastCampaign.name }}</span>
-        <span class="metric-value">{{ completionRate }}% completado</span>
-        <span class="metric-sub">{{ completedCount }} de {{ totalRecipients }} destinatarios</span>
+        <span class="metric-label">{{ t('aegisHub.lastCampaign', { name: lastCampaign.name }) }}</span>
+        <span class="metric-value">{{ t('aegisHub.completed', { rate: completionRate }) }}</span>
+        <span class="metric-sub">{{ t('aegisHub.recipients', { done: completedCount, total: totalRecipients }) }}</span>
       </template>
-      <p v-else class="metric-empty">Aún no has lanzado ninguna campaña. Genera una píldora y estrénala.</p>
+      <p v-else class="metric-empty">{{ t('aegisHub.empty') }}</p>
     </template>
   </ModuleHub>
 </template>
@@ -32,12 +32,15 @@ import ModuleHub from '@/components/shared/ModuleHub.vue'
 import { useApi } from '@/composables/useApi'
 import { useAuthStore } from '@/stores/authStore'
 import aegisIcon from '@/assets/images/aegis/Ellysia-Aegis-Blue-BgN.png'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const { apiFetch } = useApi()
 const auth = useAuthStore()
 
 // Dato de producto para la visita pública (sin sesión no hay campañas propias).
-const highlight = { label: 'La formación', value: 'A Medida', sub: 'generada por IA para tu normativa' }
+const highlight = computed(() => ({ label: t('aegisHub.highlight.label'), value: t('aegisHub.highlight.value'), sub: t('aegisHub.highlight.sub') }))
 
 const loading = ref(true)
 const lastCampaign = ref(null)
@@ -48,32 +51,16 @@ const completionRate = computed(() =>
   totalRecipients.value ? Math.round((completedCount.value / totalRecipients.value) * 100) : 0
 )
 
-const features = [
-  {
-    kicker: 'Píldoras IA',
-    title: 'Formación a la medida de tu empresa',
-    desc: 'La IA escribe cada píldora según tu tamaño, tu marco regulatorio (RGPD, ENS, NIS2), tu modelo de trabajo e incluso tus incidentes recientes.',
-  },
-  {
-    kicker: 'Quiz',
-    title: 'Cada píldora comprueba que caló',
-    desc: 'Junto al contenido se generan preguntas tipo test, editables antes de lanzar. Saber no es suponer.',
-  },
-  {
-    kicker: 'Campañas',
-    title: 'Envía, sigue, demuestra',
-    desc: 'Listas de distribución, envío por correo y seguimiento de quién abrió y quién completó. El test es público: tu plantilla no necesita cuentas.',
-  },
-  {
-    kicker: 'Evidencia',
-    title: 'Exportable como cumplimiento',
-    desc: 'Markdown, JSON o PDF listos para archivar como prueba de que la formación ocurrió.',
-  },
-]
+/** Capacidades que se presentan; sus textos están en `aegisHub.features.<id>`. */
+const features = computed(() => ['pills', 'quiz', 'campaigns', 'evidence'].map((id) => ({
+  kicker: t(`aegisHub.features.${id}.kicker`),
+  title: t(`aegisHub.features.${id}.title`),
+  desc: t(`aegisHub.features.${id}.desc`),
+})))
 
-const resources = [
-  { label: 'INCIBE — Guías de concienciación para empresas', href: 'https://www.incibe.es/', external: true },
-]
+const resources = computed(() => [
+  { label: t('aegisHub.resources.incibe'), href: 'https://www.incibe.es/', external: true },
+])
 
 /** Última campaña lanzada (no en borrador) — para la placa de actividad. */
 async function loadLastCampaignMetric() {

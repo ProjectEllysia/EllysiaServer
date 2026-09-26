@@ -1,32 +1,21 @@
 <template>
-  <InfoPage eyebrow="Legal" title="Términos">
-    <p>
-      Estamos preparando nuestros términos de servicio. Este texto es preliminar y describe, de
-      forma general, cómo entendemos el uso de Ellysia.
-    </p>
+  <InfoPage :eyebrow="t('legal.eyebrow')" :title="t('terms.title')">
+    <p v-if="locale !== 'es'" class="note">{{ t('legal.translationNotice') }}</p>
+    <p>{{ t('terms.intro') }}</p>
 
-    <h2>Uso responsable</h2>
-    <p>
-      Ellysia incluye herramientas de análisis de seguridad como Themis. Debes usarlas
-      únicamente sobre sistemas y objetivos para los que tengas autorización expresa. El escaneo
-      de infraestructuras ajenas sin permiso puede ser ilegal y es responsabilidad exclusiva de
-      quien lo realiza.
-    </p>
+    <h2>{{ t('terms.responsibleUseHeading') }}</h2>
+    <p>{{ t('terms.responsibleUse') }}</p>
 
-    <h2>Sin garantías todavía</h2>
-    <p>
-      Ellysia se encuentra en desarrollo activo. El servicio se ofrece «tal cual», sin garantías
-      de disponibilidad ni de resultados, mientras maduramos el producto.
-    </p>
+    <h2>{{ t('terms.noWarrantyHeading') }}</h2>
+    <p>{{ t('terms.noWarranty') }}</p>
 
-    <p class="note">
-      Ellysia es un proyecto personal y no se ofrece como servicio, así que no hay condiciones de
-      contratación. Si algún día se abriera a otras personas, se publicarían antes unos términos
-      completos.
-    </p>
+    <p class="note">{{ t('terms.note') }}</p>
   </InfoPage>
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n'
 import InfoPage from '@/components/shared/InfoPage.vue'
+
+const { t, locale } = useI18n()
 </script>

@@ -6,44 +6,39 @@
       <div v-if="show" class="modal-overlay" data-module="hygeia" @click.self="$emit('close')">
         <div class="modal-box">
           <div class="modal-header">
-            <h3>Inventario en PDF</h3>
-            <button class="close-btn" @click="$emit('close')">&times;</button>
+            <h3>{{ t('hygeia.inventoryReport.title') }}</h3>
+            <button class="close-btn" :aria-label="t('common.close')" @click="$emit('close')">&times;</button>
           </div>
 
           <form class="modal-body" @submit.prevent="submit">
             <fieldset class="scope">
-              <legend class="field-label">Qué incluir</legend>
+              <legend class="field-label">{{ t('hygeia.inventoryReport.include') }}</legend>
 
               <label class="option">
                 <input v-model="scope" type="radio" value="user" />
-                <span class="option-title">Mis activos</span>
+                <span class="option-title">{{ t('hygeia.inventoryReport.mine') }}</span>
                 <small class="option-hint">{{ ownScopeHint }}</small>
               </label>
 
               <label class="option" :class="{ 'option--off': !canUseOrganization }">
                 <input v-model="scope" type="radio" value="organization" :disabled="!canUseOrganization" />
-                <span class="option-title">Toda la organización</span>
+                <span class="option-title">{{ t('hygeia.inventoryReport.organization') }}</span>
                 <small class="option-hint">{{ organizationHint }}</small>
               </label>
             </fieldset>
 
             <label class="option">
               <input v-model="includeSoftware" type="checkbox" />
-              <span class="option-title">Incluir el software instalado</span>
-              <small class="option-hint">
-                Añade un anexo con las aplicaciones de cada activo. Alarga bastante el documento.
-              </small>
+              <span class="option-title">{{ t('hygeia.inventoryReport.software') }}</span>
+              <small class="option-hint">{{ t('hygeia.inventoryReport.softwareHint') }}</small>
             </label>
 
-            <p class="note">
-              Se prepara en segundo plano: te avisamos cuando esté listo y lo descargas desde
-              Documentos.
-            </p>
+            <p class="note">{{ t('hygeia.inventoryReport.note') }}</p>
 
             <div class="modal-footer">
-              <button type="button" class="btn-secondary" @click="$emit('close')">Cancelar</button>
+              <button type="button" class="btn-secondary" @click="$emit('close')">{{ t('common.cancel') }}</button>
               <button type="submit" class="btn-primary" :disabled="generating">
-                {{ generating ? 'Pidiendo…' : 'Preparar PDF' }}
+                {{ generating ? t('hygeia.inventoryReport.requesting') : t('hygeia.inventoryReport.submit') }}
               </button>
             </div>
           </form>
@@ -55,6 +50,9 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -79,22 +77,20 @@ const includeSoftware = ref(false)
  */
 const canUseOrganization = computed(() => props.organization?.isOwner === true)
 
-/** «Los 1 activos» no lo dice nadie. */
+/** «Los 1 activos» no lo dice nadie: la clave tiene forma singular. */
 const ownScopeHint = computed(() =>
-  props.assetCount === 1
-    ? 'El único activo dado de alta con tu cuenta.'
-    : `Los ${props.assetCount} activos dados de alta con tu cuenta.`,
+  t('hygeia.inventoryReport.mineHint', { count: props.assetCount }, props.assetCount),
 )
 
 /** Se deshabilita con explicación, no se oculta: una opción que desaparece
  *  parece que no existe; una deshabilitada que dice por qué, enseña. */
 const organizationHint = computed(() => {
-  if (!props.organization) return 'No perteneces a ninguna organización.'
+  if (!props.organization) return t('hygeia.inventoryReport.noOrganization')
   if (!canUseOrganization.value) {
-    return `Solo el dueño de «${props.organization.name}» puede sacar este informe.`
+    return t('hygeia.inventoryReport.ownerOnly', { name: props.organization.name })
   }
   const count = props.organization.memberCount ?? 0
-  return `Los activos de los ${count} miembros de «${props.organization.name}».`
+  return t('hygeia.inventoryReport.organizationHint', { count, name: props.organization.name }, count)
 })
 
 watch(() => props.show, (visible) => {

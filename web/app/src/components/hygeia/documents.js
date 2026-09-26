@@ -10,25 +10,27 @@
 import { metricOf } from './statsMath.js'
 
 /**
- * Estados de un documento y su rótulo. `isActive` marca los que todavía no han
- * terminado, que son los que obligan a seguir preguntando por el documento.
+ * Estados de un documento y la clave de su rótulo. `isActive` marca los que
+ * todavía no han terminado, que son los que obligan a seguir preguntando por
+ * el documento.
  */
 export const DOCUMENT_STATUSES = {
-  pending: { label: 'En cola', isActive: true },
-  running: { label: 'Generándose', isActive: true },
-  done: { label: 'Listo', isActive: false },
-  error: { label: 'Ha fallado', isActive: false },
+  pending: { labelKey: 'hygeia.documentStatus.pending', isActive: true },
+  running: { labelKey: 'hygeia.documentStatus.running', isActive: true },
+  done: { labelKey: 'hygeia.documentStatus.done', isActive: false },
+  error: { labelKey: 'hygeia.documentStatus.error', isActive: false },
 }
 
-/** Rótulo de un estado que este módulo no conoce. */
-const UNKNOWN_STATUS = { label: 'Desconocido', isActive: false }
+/** Estado que este módulo no conoce. */
+const UNKNOWN_STATUS = { labelKey: 'common.unknown', isActive: false }
 
 /**
  * El estado de un documento con su rótulo.
  *
  * @param {string} status - Estado tal como llega del servidor.
- * @returns {{label: string, isActive: boolean}} El del catálogo, o uno genérico
- *   («Desconocido», no activo) si el servidor manda un estado nuevo.
+ * @returns {{labelKey: string, isActive: boolean}} El del catálogo, o uno
+ *   genérico («Desconocido», no activo) si el servidor manda un estado nuevo.
+ *   `labelKey` es la clave del rótulo en los ficheros de idioma.
  */
 export function documentStatusOf(status) {
   return DOCUMENT_STATUSES[status] ?? UNKNOWN_STATUS
@@ -48,14 +50,15 @@ export function hasActiveDocuments(documents) {
  * Periodo pedido en palabras: `24h` → «últimas 24 horas», `7d` → «últimos 7 días».
  *
  * @param {string|null|undefined} period - Periodo en la forma `<n>h`/`<n>d`.
+ * @param {Function} t - Función de traducción de vue-i18n (`useI18n().t` o
+ *   `i18n.global.t`).
  * @returns {string} La frase, o cadena vacía si no hay periodo o no se entiende.
  */
-export function describePeriod(period) {
+export function describePeriod(period, t) {
   const match = /^(\d+)([hd])$/.exec(period ?? '')
   if (!match) return ''
   const amount = Number(match[1])
-  if (match[2] === 'h') return amount === 1 ? 'última hora' : `últimas ${amount} horas`
-  return amount === 1 ? 'último día' : `últimos ${amount} días`
+  return t(match[2] === 'h' ? 'hygeia.lastHours' : 'hygeia.lastDays', { count: amount }, amount)
 }
 
 /**
@@ -69,33 +72,36 @@ export function describePeriod(period) {
  * la insignia de cada fila.
  *
  * @param {{kind: string, parameters?: object}} document - Documento.
+ * @param {Function} t - Función de traducción de vue-i18n (`useI18n().t` o
+ *   `i18n.global.t`).
  * @returns {{title: string, detail: string}} `title` dice qué es; `detail`,
  *   lo que lo matiza (el periodo, o si lleva el software instalado), o cadena
  *   vacía si no hay nada que matizar.
  */
-export function describeDocument(document) {
+export function describeDocument(document, t) {
   const parameters = document?.parameters ?? {}
 
   if (document?.kind === 'inventory-pdf') {
     const title = parameters.scope === 'organization'
-      ? 'Inventario de la organización'
-      : 'Inventario de mis activos'
-    return { title, detail: parameters.includeSoftware ? 'con software instalado' : '' }
+      ? t('hygeia.documentTitles.organizationInventory')
+      : t('hygeia.documentTitles.myInventory')
+    return { title, detail: parameters.includeSoftware ? t('hygeia.documentTitles.withSoftware') : '' }
   }
 
   if (document?.kind === 'stats-csv' || document?.kind === 'stats-pdf') {
     const label = parameters.scopeLabel
+    const metric = metricOf(parameters.metric)
     const titles = {
-      summary: `Estadísticas de ${label ? `«${label}»` : 'un activo'}`,
-      'tag-stats': `Estadísticas de la etiqueta ${label ? `«${label}»` : ''}`.trim(),
-      ranking: `Ranking del parque por ${metricOf(parameters.metric)?.name ?? 'métrica'}`,
-      overview: 'Panorama del parque',
+      summary: () => (label ? t('hygeia.documentTitles.assetStats', { name: label }) : t('hygeia.documentTitles.anAssetStats')),
+      'tag-stats': () => (label ? t('hygeia.documentTitles.tagStats', { name: label }) : t('hygeia.documentTitles.aTagStats')),
+      ranking: () => t('hygeia.documentTitles.ranking', { metric: metric ? t(metric.labelKey) : t('hygeia.documentTitles.metric') }),
+      overview: () => t('hygeia.documentTitles.overview'),
     }
     return {
-      title: titles[parameters.dataset] ?? 'Estadísticas',
-      detail: describePeriod(parameters.period),
+      title: titles[parameters.dataset]?.() ?? t('hygeia.documentTitles.stats'),
+      detail: describePeriod(parameters.period, t),
     }
   }
 
-  return { title: 'Documento', detail: '' }
+  return { title: t('hygeia.documentTitles.document'), detail: '' }
 }

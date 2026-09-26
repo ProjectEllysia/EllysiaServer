@@ -1,14 +1,14 @@
 <template>
   <div class="cases-page" data-module="iris">
     <StarBackground />
-    <Topbar title="Iris" badge="Casos" back-to="/iris/analisis" back-label="Análisis" />
+    <Topbar :title="'Iris'" :badge="t('iris.cases.badge')" back-to="/iris/analisis" :back-label="t('iris.batch.analysis')" />
 
     <div class="cases-layout">
       <!-- Cola de trabajo: cuántos casos hay en cada estado y cuáles. -->
       <section class="panel list-panel">
-        <div class="status-pills" role="group" aria-label="Filtrar por estado">
+        <div class="status-pills" role="group" :aria-label="t('iris.archive.filterStatus')">
           <button type="button" class="pill" :class="{ active: !store.cases.filters.status }" @click="setStatusFilter('')">
-            Todos <span class="pill-count">{{ totalCases }}</span>
+            {{ t('iris.archive.all') }} <span class="pill-count">{{ totalCases }}</span>
           </button>
           <button
             v-for="status in STATUSES"
@@ -18,24 +18,24 @@
             :class="{ active: store.cases.filters.status === status }"
             @click="setStatusFilter(status)"
           >
-            {{ STATUS_LABELS[status] }} <span class="pill-count">{{ store.cases.countsByStatus[status] ?? 0 }}</span>
+            {{ caseStatusLabel(status) }} <span class="pill-count">{{ store.cases.countsByStatus[status] ?? 0 }}</span>
           </button>
         </div>
         <label class="mine-toggle">
           <input v-model="store.cases.filters.assignedToMe" type="checkbox" @change="store.fetchCases()" />
-          Solo los asignados a mí
+          {{ t('iris.cases.onlyMine') }}
         </label>
 
         <form class="new-case" @submit.prevent="openCase">
-          <input v-model="newTitle" type="text" maxlength="120" class="text-input" placeholder="Título del nuevo caso" aria-label="Título del nuevo caso" />
-          <select v-model="newPriority" class="text-input" aria-label="Prioridad">
-            <option v-for="priority in PRIORITIES" :key="priority" :value="priority">{{ PRIORITY_LABELS[priority] }}</option>
+          <input v-model="newTitle" type="text" maxlength="120" class="text-input" :placeholder="t('iris.cases.newTitle')" :aria-label="t('iris.cases.newTitle')" />
+          <select v-model="newPriority" class="text-input" :aria-label="t('iris.cases.priority')">
+            <option v-for="priority in PRIORITIES" :key="priority" :value="priority">{{ priorityLabel(priority.toUpperCase()) }}</option>
           </select>
-          <button type="submit" class="primary-btn" :disabled="!newTitle.trim()">Abrir caso</button>
+          <button type="submit" class="primary-btn" :disabled="!newTitle.trim()">{{ t('iris.cases.open') }}</button>
         </form>
 
-        <p v-if="store.cases.loading && !store.cases.items.length" class="empty">Cargando…</p>
-        <p v-else-if="!store.cases.items.length" class="empty">No hay casos con estos filtros.</p>
+        <p v-if="store.cases.loading && !store.cases.items.length" class="empty">{{ t('common.loading') }}</p>
+        <p v-else-if="!store.cases.items.length" class="empty">{{ t('iris.cases.empty') }}</p>
         <ul v-else class="case-list">
           <li
             v-for="entry in store.cases.items"
@@ -48,9 +48,9 @@
           >
             <span class="case-title">#{{ entry.caseId }} · {{ entry.title }}</span>
             <span class="case-meta">
-              <span class="chip" :class="`chip--${entry.status}`">{{ STATUS_LABELS[entry.status] }}</span>
-              <span class="chip" :class="`priority--${entry.priority}`">{{ PRIORITY_LABELS[entry.priority] }}</span>
-              {{ entry.analysisCount }} análisis · {{ formatDate(entry.updatedAt) }}
+              <span class="chip" :class="`chip--${entry.status}`">{{ caseStatusLabel(entry.status) }}</span>
+              <span class="chip" :class="`priority--${entry.priority}`">{{ priorityLabel(entry.priority?.toUpperCase()) }}</span>
+              {{ t('iris.cases.analysisCount', { count: entry.analysisCount }) }} · {{ formatDate(entry.updatedAt) }}
             </span>
           </li>
         </ul>
@@ -58,32 +58,32 @@
 
       <!-- Detalle del caso seleccionado. -->
       <section class="panel detail-panel">
-        <p v-if="!detail" class="empty">Elige un caso para ver sus análisis, su estado y su timeline.</p>
+        <p v-if="!detail" class="empty">{{ t('iris.cases.pick') }}</p>
         <template v-else>
           <header class="detail-header">
             <h2 class="detail-title">#{{ detail.caseId }} · {{ detail.title }}</h2>
-            <span class="chip" :class="`chip--${detail.status}`">{{ STATUS_LABELS[detail.status] }}</span>
+            <span class="chip" :class="`chip--${detail.status}`">{{ caseStatusLabel(detail.status) }}</span>
           </header>
-          <p v-if="detail.resolutionReason" class="resolution">Cerrado: «{{ detail.resolutionReason }}» · {{ formatDate(detail.closedAt) }}</p>
+          <p v-if="detail.resolutionReason" class="resolution">{{ t('iris.cases.closed', { reason: detail.resolutionReason }) }} · {{ formatDate(detail.closedAt) }}</p>
 
           <div class="controls">
             <label class="control">
-              <span class="control-label">Prioridad</span>
+              <span class="control-label">{{ t('iris.cases.priority') }}</span>
               <select class="text-input" :value="detail.priority" @change="store.updateCase(detail.caseId, { priority: $event.target.value })">
-                <option v-for="priority in PRIORITIES" :key="priority" :value="priority">{{ PRIORITY_LABELS[priority] }}</option>
+                <option v-for="priority in PRIORITIES" :key="priority" :value="priority">{{ priorityLabel(priority.toUpperCase()) }}</option>
               </select>
             </label>
             <div class="control">
-              <span class="control-label">Asignado</span>
+              <span class="control-label">{{ t('iris.cases.assigned') }}</span>
               <button v-if="detail.assigneeId" type="button" class="ghost-btn" @click="store.updateCase(detail.caseId, { assigneeId: null })">
-                {{ detail.assignee }} · quitar
+                {{ detail.assignee }} · {{ t('iris.cases.unassign') }}
               </button>
               <!-- Solo el dueño ve el caso, así que asignárselo a uno mismo es
                    asignarlo a su dueño. -->
-              <button v-else type="button" class="ghost-btn" @click="store.updateCase(detail.caseId, { assigneeId: detail.ownerId })">Asignármelo</button>
+              <button v-else type="button" class="ghost-btn" @click="store.updateCase(detail.caseId, { assigneeId: detail.ownerId })">{{ t('iris.cases.assignMe') }}</button>
             </div>
             <label class="control control--grow">
-              <span class="control-label">Etiquetas (separadas por comas)</span>
+              <span class="control-label">{{ t('iris.cases.tags') }}</span>
               <input
                 class="text-input"
                 :value="detail.tags.join(', ')"
@@ -93,41 +93,41 @@
           </div>
 
           <div class="transitions">
-            <span class="control-label">Mover a</span>
+            <span class="control-label">{{ t('iris.cases.moveTo') }}</span>
             <button
               v-for="status in STATUSES.filter(candidate => candidate !== detail.status)"
               :key="status"
               type="button"
               class="ghost-btn"
               @click="requestStatus(status)"
-            >{{ STATUS_LABELS[status] }}</button>
+            >{{ caseStatusLabel(status) }}</button>
           </div>
           <form v-if="pendingClose" class="close-form" @submit.prevent="confirmClose">
             <textarea v-model="closeReason" class="text-input" rows="2" maxlength="4000"
-              :placeholder="`Por qué se cierra como «${STATUS_LABELS[pendingClose]}» (obligatorio)`"></textarea>
-            <button type="submit" class="primary-btn" :disabled="!closeReason.trim()">Cerrar caso</button>
-            <button type="button" class="ghost-btn" @click="pendingClose = null">Cancelar</button>
+              :placeholder="t('iris.cases.closeReason', { status: caseStatusLabel(pendingClose) })"></textarea>
+            <button type="submit" class="primary-btn" :disabled="!closeReason.trim()">{{ t('iris.cases.close') }}</button>
+            <button type="button" class="ghost-btn" @click="pendingClose = null">{{ t('common.cancel') }}</button>
           </form>
 
-          <h3 class="section-title">Análisis ({{ detail.analyses.length }})</h3>
+          <h3 class="section-title">{{ t('iris.cases.analyses', { count: detail.analyses.length }) }}</h3>
           <ul class="analysis-list">
             <li v-for="analysis in detail.analyses" :key="analysis.analysisId" class="analysis-row">
               <button type="button" class="link-btn" @click="openAnalysis(analysis.analysisId)">
-                #{{ analysis.analysisId }} · {{ analysis.title || '(sin título)' }}
+                #{{ analysis.analysisId }} · {{ analysis.title || t('iris.untitled') }}
               </button>
-              <span class="case-meta">{{ analysis.verdict ? verdictLabel(analysis.verdict) : analysisStatusLabel(analysis.status) }} · {{ analysis.totalScore ?? '—' }}</span>
-              <button type="button" class="ghost-btn ghost-btn--small" @click="store.unlinkCaseAnalysis(detail.caseId, analysis.analysisId)">Quitar</button>
+              <span class="case-meta">{{ analysis.verdict ? t(verdictKey(analysis.verdict)) : t(analysisStatusKey(analysis.status)) }} · {{ analysis.totalScore ?? '—' }}</span>
+              <button type="button" class="ghost-btn ghost-btn--small" @click="store.unlinkCaseAnalysis(detail.caseId, analysis.analysisId)">{{ t('whiteLabel.removeLogo') }}</button>
             </li>
           </ul>
           <form class="inline-form" @submit.prevent="linkAnalysis">
-            <input v-model.number="analysisToLink" type="number" min="1" class="text-input" placeholder="Id de análisis" aria-label="Id del análisis a añadir" />
-            <button type="submit" class="ghost-btn" :disabled="!analysisToLink">Añadir análisis</button>
+            <input v-model.number="analysisToLink" type="number" min="1" class="text-input" :placeholder="t('iris.cases.analysisId')" :aria-label="t('iris.cases.analysisIdLabel')" />
+            <button type="submit" class="ghost-btn" :disabled="!analysisToLink">{{ t('iris.cases.addAnalysis') }}</button>
           </form>
 
-          <h3 class="section-title">Timeline</h3>
+          <h3 class="section-title">{{ t('iris.cases.timeline') }}</h3>
           <form class="inline-form" @submit.prevent="addNote">
-            <textarea v-model="note" class="text-input" rows="2" maxlength="4000" placeholder="Añadir una nota"></textarea>
-            <button type="submit" class="primary-btn" :disabled="!note.trim()">Anotar</button>
+            <textarea v-model="note" class="text-input" rows="2" maxlength="4000" :placeholder="t('iris.cases.addNote')"></textarea>
+            <button type="submit" class="primary-btn" :disabled="!note.trim()">{{ t('iris.cases.note') }}</button>
           </form>
           <ol class="timeline">
             <li v-for="event in [...detail.timeline].reverse()" :key="event.eventId" class="timeline-item">
@@ -148,7 +148,12 @@ import Topbar from '@/components/shared/Topbar.vue'
 import StarBackground from '@/components/shared/StarBackground.vue'
 import { useIrisStore } from '@/stores/irisStore'
 import { useUtils } from '@/composables/useUtils'
-import { analysisStatusLabel, verdictLabel } from '@/components/iris/verdict'
+import { analysisStatusKey, verdictKey } from '@/components/iris/verdict'
+import { caseStatusLabel } from '@/components/iris/labels'
+import { priorityLabel } from '@/components/themis/labels'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const store = useIrisStore()
 const router = useRouter()
@@ -156,9 +161,7 @@ const { formatDate } = useUtils()
 
 const STATUSES = ['new', 'triage', 'contained', 'resolved', 'false_positive']
 const CLOSED = ['resolved', 'false_positive']
-const STATUS_LABELS = { new: 'Nuevo', triage: 'En triaje', contained: 'Contenido', resolved: 'Resuelto', false_positive: 'Falso positivo' }
 const PRIORITIES = ['low', 'medium', 'high', 'critical']
-const PRIORITY_LABELS = { low: 'Baja', medium: 'Media', high: 'Alta', critical: 'Crítica' }
 
 const newTitle = ref('')
 const newPriority = ref('medium')
@@ -212,34 +215,32 @@ function openAnalysis(analysisId) {
   router.push('/iris/analisis')
 }
 
-const EVENT_LABELS = {
-  created: 'Caso abierto',
-  status_changed: 'Cambio de estado',
-  priority_changed: 'Cambio de prioridad',
-  assigned: 'Cambio de asignación',
-  title_changed: 'Cambio de título',
-  tags_changed: 'Cambio de etiquetas',
-  note: 'Nota',
-  analysis_linked: 'Análisis añadido',
-  analysis_unlinked: 'Análisis quitado',
+/** Tipos de entrada de la timeline con rótulo en `iris.cases.events`. */
+const EVENT_KINDS = ['created', 'status_changed', 'priority_changed', 'assigned', 'title_changed', 'tags_changed', 'note', 'analysis_linked', 'analysis_unlinked']
+
+/** Rótulo de un tipo de entrada; uno nuevo cae en «Desconocido». */
+function eventLabel(kind) {
+  return EVENT_KINDS.includes(kind) ? t(`iris.cases.events.${kind}`) : t('common.unknown')
 }
 
 /** Frase de una entrada de la timeline a partir de su tipo y su detalle. */
 function describeEvent(event) {
   const detailData = event.detail ?? {}
-  if (event.kind === 'note') return `Nota: ${event.note}`
+  if (event.kind === 'note') return t('iris.cases.noteEvent', { note: event.note })
   if (event.kind === 'status_changed') {
-    const reason = detailData.reason ? ` — «${detailData.reason}»` : ''
-    return `${STATUS_LABELS[detailData.from] ?? detailData.from} → ${STATUS_LABELS[detailData.to] ?? detailData.to}${reason}`
+    const change = `${caseStatusLabel(detailData.from)} → ${caseStatusLabel(detailData.to)}`
+    return detailData.reason ? t('iris.cases.statusWithReason', { change, reason: detailData.reason }) : change
   }
-  if (event.kind === 'priority_changed') return `Prioridad: ${PRIORITY_LABELS[detailData.from]} → ${PRIORITY_LABELS[detailData.to]}`
+  if (event.kind === 'priority_changed') {
+    return t('iris.cases.priorityChange', { from: priorityLabel(detailData.from?.toUpperCase()), to: priorityLabel(detailData.to?.toUpperCase()) })
+  }
   if (event.kind === 'analysis_linked' || event.kind === 'analysis_unlinked') {
-    return `${EVENT_LABELS[event.kind]}: #${detailData.analysisId}`
+    return `${eventLabel(event.kind)}: #${detailData.analysisId}`
   }
   if (event.kind === 'created' && detailData.analysisIds?.length) {
-    return `Caso abierto con ${detailData.analysisIds.length} análisis`
+    return t('iris.cases.createdWith', { count: detailData.analysisIds.length })
   }
-  return EVENT_LABELS[event.kind] ?? event.kind
+  return eventLabel(event.kind)
 }
 
 onMounted(() => store.fetchCases())

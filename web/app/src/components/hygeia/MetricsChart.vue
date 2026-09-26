@@ -8,7 +8,7 @@
   <article v-if="hasPlottableData" class="metric-card" :class="`metric--${metric.key}`"
            :style="{ '--metric-color': metric.color }">
     <header class="metric-head">
-      <h5 class="metric-name">{{ metric.name }}</h5>
+      <h5 class="metric-name">{{ t(metric.labelKey) }}</h5>
       <p v-if="current" class="metric-now">
         <span class="now-value">{{ current.text }}</span><span
           v-if="current.unit"
@@ -33,15 +33,15 @@
       >
         <g class="grid">
           <line
-            v-for="t in yTickValues"
-            :key="`y${t}`"
-            :x1="0" :x2="plotDataW" :y1="yFor(t)" :y2="yFor(t)"
+            v-for="tick in yTickValues"
+            :key="`y${tick}`"
+            :x1="0" :x2="plotDataW" :y1="yFor(tick)" :y2="yFor(tick)"
             class="grid-line"
           />
           <line
-            v-for="(t, i) in xTickValues"
+            v-for="(tick, i) in xTickValues"
             :key="`x${i}`"
-            :x1="xFor(t)" :x2="xFor(t)" :y1="PLOT_TOP" :y2="PLOT_BOTTOM"
+            :x1="xFor(tick)" :x2="xFor(tick)" :y1="PLOT_TOP" :y2="PLOT_BOTTOM"
             class="grid-line grid-line--x"
           />
         </g>
@@ -57,7 +57,7 @@
             :y="PLOT_TOP" :height="PLOT_H"
             class="gap-band"
           >
-            <title>Sin señal: {{ fmtDuration(g.end - g.start) }}</title>
+            <title>{{ t('hygeia.chart.gapTitle', { duration: fmtDuration(g.end - g.start) }) }}</title>
           </rect>
         </g>
 
@@ -87,12 +87,12 @@
 
         <g class="axis-y">
           <text
-            v-for="t in yTickValues"
-            :key="`l${t}`"
-            :x="plotDataW + 4" :y="yFor(t) + 3"
+            v-for="tick in yTickValues"
+            :key="`l${tick}`"
+            :x="plotDataW + 4" :y="yFor(tick) + 3"
             class="axis-y-label"
             text-anchor="start"
-          >{{ formatTick(t) }}</text>
+          >{{ formatTick(tick) }}</text>
         </g>
       </svg>
 
@@ -139,33 +139,31 @@
 
     <div v-if="points.length" class="axis-x">
       <span
-        v-for="(t, i) in xTickValues"
+        v-for="(tick, i) in xTickValues"
         :key="i"
         class="axis-x-label"
-        :style="{ left: (xFor(t) / plotW) * 100 + '%' }"
-      >{{ formatTimeTick(t, windowMs) }}</span>
+        :style="{ left: (xFor(tick) / plotW) * 100 + '%' }"
+      >{{ formatTimeTick(tick, windowMs) }}</span>
     </div>
 
     <p v-if="gaps.length || anomalyBands.length" class="plot-legend">
-      <span v-if="gaps.length" class="legend-item"><i class="swatch swatch--gap"></i>sin señal</span>
-      <span v-if="anomalyBands.length" class="legend-item"><i class="swatch swatch--hostdown"></i>caída detectada</span>
+      <span v-if="gaps.length" class="legend-item"><i class="swatch swatch--gap"></i>{{ t('hygeia.chart.noSignal') }}</span>
+      <span v-if="anomalyBands.length" class="legend-item"><i class="swatch swatch--hostdown"></i>{{ t('hygeia.chart.downDetected') }}</span>
       <!-- Al final y empujada con margin-left:auto, para que quede al borde
            derecho por muchas entradas que tenga la leyenda. -->
       <span v-if="gapSummary" class="legend-total">{{ gapSummary }}</span>
     </p>
 
     <footer class="metric-foot">
-      <span class="stat"><b>{{ maxLabel }}</b> máx</span>
-      <span class="stat"><b>{{ avgLabel }}</b> media</span>
-      <span class="stat"><b>{{ minLabel }}</b> mín</span>
+      <span class="stat"><b>{{ maxLabel }}</b> {{ t('hygeia.chart.max') }}</span>
+      <span class="stat"><b>{{ avgLabel }}</b> {{ t('hygeia.chart.avg') }}</span>
+      <span class="stat"><b>{{ minLabel }}</b> {{ t('hygeia.chart.min') }}</span>
     </footer>
 
     <!-- Cuántos puntos hay o de cuánto es cada cubo es cosa de cómo se
          dibuja, no del equipo (CONVENCIONES.md § 12): no se cuenta. Lo único
          que el usuario necesita saber es si le falta parte del periodo. -->
-    <p v-if="truncated" class="metric-window-note">
-      Hay más datos de los que caben: el gráfico muestra solo una parte del periodo.
-    </p>
+    <p v-if="truncated" class="metric-window-note">{{ t('hygeia.chart.truncated') }}</p>
     <p class="sr-only">{{ srText }}</p>
   </article>
 
@@ -192,6 +190,9 @@ import {
   yRange, yTicks,
 } from './chartMath'
 
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 const props = defineProps({
   metricKey: { type: String, required: true },
   snapshots: { type: Array, default: () => [] },
@@ -358,7 +359,7 @@ const gapSummary = computed(() => {
   const missing = totalGapMs(gaps.value)
   const span = props.windowMs || DEFAULT_WINDOW_MS
   if (!missing || missing < span * GAP_NOTICE_RATIO) return ''
-  return `sin señal ${fmtDuration(missing)} de ${fmtDuration(span)}`
+  return t('hygeia.chart.gapSummary', { missing: fmtDuration(missing), span: fmtDuration(span) })
 })
 
 /* ── Incidencias ── */
@@ -372,7 +373,7 @@ const anomalyBands = computed(() =>
         ? Math.min(new Date(a.resolvedAt).getTime(), t1.value)
         : t1.value
       if (!Number.isFinite(start) || end <= start) return null
-      return { start, end, title: `Caída detectada · ${fmtDuration(end - start)}` }
+      return { start, end, title: t('hygeia.chart.downTitle', { duration: fmtDuration(end - start) }) }
     })
     .filter(Boolean)
 )
@@ -400,7 +401,7 @@ const anomalyMarks = computed(() =>
     .map((a) => {
       const at = new Date(a.openedAt).getTime()
       if (!Number.isFinite(at) || at < t0.value || at > t1.value) return null
-      return { at, title: `${anomalyKindLabel(a.kind)} · ${formatValue(metric.value.fmt(a.value))}` }
+      return { at, title: `${anomalyKindLabel(a.kind, t)} · ${formatValue(metric.value.fmt(a.value))}` }
     })
     .filter(Boolean)
 )
@@ -421,9 +422,12 @@ const avgLabel = computed(() => formatValue(metric.value.fmt(
 const srText = computed(() => {
   if (!metric.value || !points.value.length) return ''
   const gapsText = gaps.value.length
-    ? `; ${gaps.value.length} tramo${gaps.value.length === 1 ? '' : 's'} sin señal${gapSummary.value ? `, ${gapSummary.value}` : ''}`
+    ? `; ${t('hygeia.chart.gapCount', { count: gaps.value.length }, gaps.value.length)}${gapSummary.value ? `, ${gapSummary.value}` : ''}`
     : ''
-  return `${metric.value.name}: ${formatValue(current.value)} ahora, ${maxLabel.value} máximo, ${avgLabel.value} de media, ${minLabel.value} mínimo${gapsText}.`
+  return t('hygeia.chart.summary', {
+    metric: t(metric.value.labelKey), current: formatValue(current.value),
+    max: maxLabel.value, avg: avgLabel.value, min: minLabel.value, gaps: gapsText,
+  })
 })
 
 /* ── Estados vacíos ── */
@@ -436,15 +440,17 @@ const srText = computed(() => {
 const hasPlottableData = computed(() => !!metric.value && points.value.length > 0)
 
 const emptyTitle = computed(() =>
-  props.snapshots.length ? `Sin datos de ${metric.value?.name ?? 'esta métrica'}` : 'Sin datos en este periodo'
+  props.snapshots.length
+    ? t('hygeia.chart.noMetricData', { metric: metric.value ? t(metric.value.labelKey) : t('hygeia.chart.thisMetric') })
+    : t('hygeia.chart.noPeriodData')
 )
 
 const emptySub = computed(() => {
   if (!props.snapshots.length) {
     const span = fmtDuration(props.windowMs || DEFAULT_WINDOW_MS)
-    return `El equipo no ha enviado datos en las últimas ${span}.`
+    return t('hygeia.chart.noDataSpan', { span })
   }
-  return `Este equipo no envía «${metric.value?.name ?? ''}»: no todos los sistemas la miden (Windows, por ejemplo, no da la carga).`
+  return t('hygeia.chart.notSent', { metric: metric.value ? t(metric.value.labelKey) : '' })
 })
 
 /**
@@ -454,8 +460,8 @@ const emptySub = computed(() => {
  */
 const lastSeenNote = computed(() => {
   if (props.snapshots.length) return ''
-  if (!props.lastSeenAt) return 'Este equipo todavía no ha enviado ningún dato. Comprueba que el agente está instalado y en marcha.'
-  return `Última señal ${timeAgo(props.lastSeenAt)}. Prueba con una ventana más amplia.`
+  if (!props.lastSeenAt) return t('hygeia.chart.neverSent')
+  return t('hygeia.chart.lastSeen', { when: timeAgo(props.lastSeenAt, t) })
 })
 
 /* ── Crosshair ── */

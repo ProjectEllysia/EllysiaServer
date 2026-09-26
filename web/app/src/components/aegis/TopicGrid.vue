@@ -1,6 +1,6 @@
 <template>
   <div class="topic-grid">
-    <h4>Temas</h4>
+    <h4>{{ t('aegis.topics.title') }}</h4>
 
     <div class="topic-search">
       <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -10,30 +10,33 @@
         v-model="search"
         type="text"
         class="search-input"
-        placeholder="Buscar tema…"
-        aria-label="Buscar tema"
+        :placeholder="t('aegis.topics.searchPlaceholder')"
+        :aria-label="t('aegis.topics.search')"
       />
-      <button v-if="search" type="button" class="search-clear" aria-label="Limpiar búsqueda" @click="search = ''">&times;</button>
+      <button v-if="search" type="button" class="search-clear" :aria-label="t('iris.archive.clearSearch')" @click="search = ''">&times;</button>
     </div>
 
     <div class="grid-scroll">
-      <button v-for="t in filteredTopics" :key="t.id" type="button"
-        class="topic-btn" :class="{ selected: selectedTopicId === t.id }"
-        @click="$emit('select', t.id)">
-        <span class="topic-name">{{ t.name || t.title || `#${t.id}` }}</span>
-        <span v-if="t.description" class="topic-desc">{{ t.description }}</span>
+      <button v-for="topic in filteredTopics" :key="topic.id" type="button"
+        class="topic-btn" :class="{ selected: selectedTopicId === topic.id }"
+        @click="$emit('select', topic.id)">
+        <span class="topic-name">{{ topic.name || topic.title || `#${topic.id}` }}</span>
+        <span v-if="topic.description" class="topic-desc">{{ topic.description }}</span>
       </button>
       <p v-if="topics.length && !filteredTopics.length" class="empty-hint">
-        Ningún tema coincide con «{{ search }}».
+        {{ t('aegis.topics.noMatch', { search }) }}
       </p>
     </div>
 
-    <p v-if="topics.length === 0" class="empty-hint">No hay temas disponibles.</p>
+    <p v-if="topics.length === 0" class="empty-hint">{{ t('aegis.topics.empty') }}</p>
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   topics: { type: Array, default: () => [] },
@@ -47,8 +50,8 @@ const search = ref('')
 const filteredTopics = computed(() => {
   const q = search.value.trim().toLowerCase()
   if (!q) return props.topics
-  return props.topics.filter((t) => {
-    const label = (t.name || t.title || '').toLowerCase()
+  return props.topics.filter((topic) => {
+    const label = (topic.name || topic.title || '').toLowerCase()
     return label.includes(q)
   })
 })

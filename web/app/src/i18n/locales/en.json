@@ -192,6 +192,7 @@
     "systemTagImmutable": "Tags from the shared catalog cannot be deleted.",
     "tagAlreadyExists": "A tag named “{name}” already exists.",
     "tagQuotaExceeded": "You have reached the maximum of {maxTags} personal tags.",
+    "complianceOrganizationOwnerOnly": "Only the organization owner can set its compliance frameworks.",
     "targetNotAuthorized": "“{target}” is not authorized for active Lybra operations. Add it to the authorized targets registry before launching this scan.",
     "taskNotCancellable": "The task does not exist or has already finished.",
     "tooManyRequests": "You have exceeded the request limit. Wait a moment and try again.",
@@ -271,5 +272,3551 @@
       "sync": "The sync could not be started.",
       "search": "The search could not be completed."
     }
+  },
+  "common": {
+    "cancel": "Cancel",
+    "close": "Close",
+    "confirm": "Confirm",
+    "confirming": "Confirming…",
+    "apply": "Apply",
+    "save": "Save",
+    "saving": "Saving…",
+    "delete": "Delete",
+    "edit": "Edit",
+    "loading": "Loading…",
+    "retry": "Retry",
+    "back": "Back",
+    "yes": "Yes",
+    "no": "No",
+    "none": "None",
+    "unknown": "Unknown",
+    "characterCount": "{count} character | {count} characters",
+    "lineCount": "{count} line | {count} lines"
+  },
+  "toast": {
+    "close": "Close notification"
+  },
+  "previewBanner": {
+    "message": "Ellysia is a personal project in development. It is not a service: no accounts are offered and nothing can be purchased.",
+    "close": "Close the preview notice"
+  },
+  "mfaSetup": {
+    "title": "Turn on two-step verification",
+    "intro": "Scan this code with your authenticator app (Google Authenticator, Authy, 1Password…):",
+    "qrAlt": "MFA activation QR code",
+    "hideSecret": "Hide manual key",
+    "showSecret": "Can't scan it? Enter the key manually",
+    "codeLabel": "App code"
+  },
+  "promptField": {
+    "edit": "Edit prompt",
+    "empty": "Empty",
+    "stats": "{characters} · {lines}"
+  },
+  "whiteLabel": {
+    "legend": "White-labeling",
+    "hint": "How much of the Ellysia brand the recipients of this module's messages see.",
+    "notInPlan": "Not included in your plan",
+    "accentColor": "Accent color",
+    "reset": "Reset",
+    "logoAlt": "Organization logo",
+    "removeLogo": "Remove",
+    "changeImage": "Change image",
+    "addImage": "Add corporate image",
+    "missingLogo": "Without an image this level does not apply: messages will go out with the previous level, “Apply corporate color”.",
+    "logoFormats": "PNG, JPG or GIF, up to {maxKb} KB.",
+    "senderNote": "The email sender is still the one configured on this instance's server: white-labeling changes what is shown inside the message, not the domain it is sent from.",
+    "unsupportedFormat": "Unsupported format. Use PNG, JPG or GIF.",
+    "tooLarge": "The image is {sizeKb} KB and the maximum is {maxKb} KB.",
+    "unreadable": "The image could not be read.",
+    "levels": {
+      "none": {
+        "title": "No white-labeling",
+        "description": "Messages go out with the Ellysia brand."
+      },
+      "color": {
+        "title": "Apply corporate color",
+        "description": "The accent color (buttons, rules and borders) becomes the organization's."
+      },
+      "logo": {
+        "title": "Add corporate image",
+        "description": "Besides the color, the organization's logo is added above the introductory text."
+      },
+      "full": {
+        "title": "Remove everything related to Ellysia",
+        "description": "The header, the footer and the quiz page switch to the organization's brand."
+      }
+    }
+  },
+  "moduleHub": {
+    "signIn": "Sign in",
+    "learnMore": "Learn more",
+    "noActivity": "There is no activity to show yet.",
+    "shortcuts": "Shortcuts",
+    "scrollToFeatures": "Scroll down to the features",
+    "whatItDoes": "What {name} does",
+    "resources": "Resources",
+    "restOfPantheon": "The rest of the pantheon",
+    "modules": {
+      "themis": "Weighs every threat before it strikes: its own engine, classic scanners, AI reports.",
+      "aegis": "Awareness that arrives before the attack: AI pills and tracked campaigns.",
+      "iris": "Verifies who signs every email: 37 rules against phishing.",
+      "acheron": "Keeps what must not be lost: a vault encrypted in your browser.",
+      "hygeia": "Watches the pulse of every asset: live telemetry and alerts before failure."
+    }
+  },
+  "api": {
+    "forbidden": "You do not have enough permissions to do this.",
+    "rateLimited": {
+      "hours": "You have made too many requests. Try again in {count} hour. | You have made too many requests. Try again in {count} hours.",
+      "minutes": "You have made too many requests. Try again in {count} minute. | You have made too many requests. Try again in {count} minutes.",
+      "seconds": "You have made too many requests. Try again in {count} second. | You have made too many requests. Try again in {count} seconds."
+    },
+    "planLimit": {
+      "notIncluded": "Your plan does not include this feature. You can check it in Plans.",
+      "reachedUntil": "You have reached your plan's limit ({used}/{limit}). It renews on {date}.",
+      "reached": "You have reached your plan's limit ({used}/{limit}).",
+      "generic": "You have reached a limit of your plan."
+    },
+    "validation": {
+      "sentence": "{field} {reason}",
+      "unknownField": "The “{field}” field",
+      "fields": {
+        "username": "The username",
+        "email": "The email",
+        "first_name": "The first name",
+        "last_name": "The last name",
+        "password": "The password",
+        "name": "The name",
+        "code": "The code",
+        "limitKey": "The limit key",
+        "monthlyPriceCents": "The price",
+        "operation": "The operation",
+        "token": "The token",
+        "identifier": "The username or email",
+        "newPassword": "The new password"
+      },
+      "reasons": {
+        "missing": "is missing",
+        "invalidEmail": "does not look like a valid address",
+        "lengthBetween": "must be between {min} and {max} characters long",
+        "tooShort": "needs at least {min} characters",
+        "tooLong": "cannot be longer than {max} characters",
+        "oneOf": "must be one of: {choices}",
+        "notNumber": "must be a number",
+        "unknown": "is not recognized"
+      }
+    }
+  },
+  "session": {
+    "mfaDisabled": "Your account does not have multi-factor authentication turned on.",
+    "enableMfa": "Turn on MFA",
+    "wrongCredentials": "Incorrect credentials.",
+    "tooManyAttempts": "Too many attempts. Wait a few minutes.",
+    "serverError": "Server error ({status})",
+    "invalidMfaCode": "Invalid code or expired verification."
+  },
+  "account": {
+    "notice": {
+      "pastDue": "There is a problem with your payment. Your plan stays active until {date}.",
+      "cancelled": "You have cancelled your plan. It will keep working until {date}.",
+      "ended": "Your plan has ended. You are on the free plan; nothing has been deleted."
+    },
+    "createOrganizationFailed": "The organization could not be created.",
+    "organizationCreated": "Organization created.",
+    "organizationLanguageFailed": "The organization's language could not be saved.",
+    "organizationLanguageSaved": "Organization language saved."
+  },
+  "profile": {
+    "passwordChangeFailed": "The password could not be changed.",
+    "passwordChanged": "Password updated. Signing out…",
+    "updateFailed": "The profile could not be updated.",
+    "updated": "Profile updated."
+  },
+  "mfa": {
+    "setupFailed": "MFA activation could not be started.",
+    "invalidCode": "Invalid code.",
+    "enabled": "MFA turned on.",
+    "disabled": "MFA turned off."
+  },
+  "about": {
+    "title": "About Ellysia",
+    "intro": "Ellysia is a {project}: a test bench where its author builds and experiments with cybersecurity tools. {notService} No accounts are offered, nothing can be purchased and there is no company behind it.",
+    "introProject": "personal project",
+    "introNotService": "It is not a service or a commercial product.",
+    "contentsHeading": "What it contains",
+    "modules": {
+      "themis": "vulnerability detection with its own engine (Lybra) and classic scanners for comparison.",
+      "aegis": "security awareness training generated with artificial intelligence.",
+      "iris": "email analysis to detect fraud (phishing), with the verdict explained.",
+      "acheron": "a password vault encrypted in the browser: the key never travels to the server.",
+      "hygeia": "monitoring of the health of servers and devices."
+    },
+    "ideaHeading": "The idea behind it",
+    "idea": "The motivation is to learn and explore what it would take for protection not to be a privilege of those who can afford a security team. If Ellysia were ever offered to other people, this page and the legal terms would change first.",
+    "sourcesHeading": "Data sources",
+    "sourcesIntro": "Vulnerability detection uses public catalogs. None of their maintainers endorse Ellysia:",
+    "nvd": "(National Vulnerability Database, from NIST).",
+    "nvdNotice": "This product uses the NVD API but is not endorsed or certified by the NVD.",
+    "kev": "CISA's (US) catalog of known exploited vulnerabilities.",
+    "epss": "exploit prediction scores from FIRST (first.org/epss).",
+    "sourceCode": "The source code can be read on {link}, with all rights reserved."
+  },
+  "docs": {
+    "eyebrow": "Documentation",
+    "underConstruction": "This section is under construction — it will be filled in along with the rest of Ellysia's documentation.",
+    "usage": {
+      "title": "User guide",
+      "intro": "Step-by-step guides to get the most out of each Ellysia tool: launch a scan in Themis, generate a pill in Aegis, analyze an email in Iris or store a credential in Acheron."
+    },
+    "technical": {
+      "title": "Technical documentation",
+      "intro": "Technical reference for Ellysia's API, internal architecture and data models, meant for anyone integrating or extending the platform."
+    }
+  },
+  "notAvailable": {
+    "title": "Not available yet",
+    "feature": "{feature} is not available yet.",
+    "generic": "This feature is not available yet.",
+    "preview": "Ellysia is in preview and each part opens as soon as everything needed to offer it reliably is in place.",
+    "fromHere": "From here you can:",
+    "home": "go back to the home page",
+    "about": "learn about Ellysia",
+    "features": {
+      "plans": "The plans and pricing page",
+      "mailboxConnections": "Connecting email mailboxes"
+    }
+  },
+  "legal": {
+    "eyebrow": "Legal",
+    "translationNotice": "This is a translation provided for convenience. If it differs from the Spanish version, the Spanish version prevails."
+  },
+  "terms": {
+    "title": "Terms",
+    "intro": "We are preparing our terms of service. This text is preliminary and describes, in general terms, how we understand the use of Ellysia.",
+    "responsibleUseHeading": "Responsible use",
+    "responsibleUse": "Ellysia includes security analysis tools such as Themis. You must use them only on systems and targets you are expressly authorized to test. Scanning someone else's infrastructure without permission may be illegal and is the sole responsibility of whoever does it.",
+    "noWarrantyHeading": "No warranties yet",
+    "noWarranty": "Ellysia is under active development. The service is provided “as is”, with no guarantee of availability or results, while the product matures.",
+    "note": "Ellysia is a personal project and is not offered as a service, so there are no purchase conditions. If it were ever opened to other people, complete terms would be published first."
+  },
+  "privacy": {
+    "title": "Privacy",
+    "intro": "Ellysia is a {project} and not a service: no accounts are offered to other people and nothing can be purchased. This note explains what data is processed about website visitors, which is all Ellysia knows about anyone other than its author.",
+    "introProject": "personal project",
+    "controllerHeading": "Who is the data controller",
+    "controller": "Gabriel Musteata, the project's author, as a private individual. You can get in touch through the GitHub profile {link}.",
+    "dataHeading": "What data is stored about website visitors",
+    "data": "Every time your browser requests something from Ellysia, the server writes it to its activity log: the {ip} the request comes from, the date and time, what was requested, the response given and how long it took.",
+    "dataIp": "IP address",
+    "purposeLabel": "Purpose:",
+    "purpose": "to keep the server secure and diagnose errors.",
+    "legalBasisLabel": "Legal basis:",
+    "legalBasis": "the legitimate interest in protecting the server (article 6.1.f of the General Data Protection Regulation).",
+    "retentionLabel": "How long:",
+    "retention": "each day is archived separately and deleted after {days} days.",
+    "accessLabel": "Who sees it:",
+    "access": "only the author. It is not shared with anyone and never leaves the server, which is in Spain.",
+    "cookiesHeading": "Cookies and browser storage",
+    "cookies": "Ellysia {noCookies}, analytics tools, advertising or any tracking system. Nor does it load resources from other websites: fonts are served from its own server. That is why there is no cookie notice to accept.",
+    "cookiesNone": "uses no cookies",
+    "storage": "The browser only keeps, in its local storage, what is essential for the website to work: that you closed the personal project notice (until you close the tab), the color theme if you change it and, if you sign in, your session. You can delete it at any time from your browser settings.",
+    "rightsHeading": "Your rights",
+    "rights": "You can ask to access the data stored about you, to have it deleted or to stop it being processed. Since the log only stores IP addresses, say which address you visited the website from and on which dates. You can also file a complaint with the {authority}.",
+    "rightsAuthority": "Spanish Data Protection Agency (AEPD)",
+    "version": "Version of {date}. If Ellysia were ever offered to other people, this note would first be replaced by a complete privacy policy."
+  },
+  "errorPage": {
+    "403": {
+      "title": "You do not have permission to see this",
+      "p1": "The page exists, but your account cannot open it: it is a section restricted to a specific role, or your session's permissions changed since you signed in.",
+      "p2": "If you think you should have access, contact whoever administers Ellysia."
+    },
+    "404": {
+      "title": "This page does not exist",
+      "p1": "The address you reached does not match any Ellysia page. The link may be mistyped, or the page may have moved."
+    },
+    "409": {
+      "title": "The operation could not be completed",
+      "p1": "What you were trying to do conflicts with the current state of the data: the item may already exist, may have changed since you loaded it, or the action may already have been done.",
+      "p2": "Reload the page to see the current state and try again."
+    },
+    "500": {
+      "title": "Something broke",
+      "p1": "The page failed to load: the server responded with an error. It is not caused by what you were doing, and retrying is usually enough.",
+      "p2": "If the problem persists, try again in a few minutes."
+    },
+    "eyebrow": "Error {code}",
+    "retry": "Try again",
+    "fromHere": "From here you can",
+    "separator": ", ",
+    "lastSeparator": " or ",
+    "links": {
+      "home": "go back to the home page",
+      "tools": "see the tools",
+      "plans": "check the plans"
+    },
+    "generic": {
+      "title": "Error {code}",
+      "p1": "Something did not go as expected and this page cannot tell you much more. Go back to the home page; if the problem happens again, keep this code in case you need to refer to it."
+    }
+  },
+  "landing": {
+    "mainNav": "Main navigation",
+    "toolsMenu": "Tools",
+    "docsMenu": "Documentation",
+    "plans": "Plans",
+    "openMenu": "Open the menu",
+    "closeMenu": "Close the menu",
+    "createAccount": "Create a free account",
+    "verse": "Watch. Train. Verify. Keep.",
+    "disclaimer": "Personal project in development · not a commercial service",
+    "discoverTools": "Discover the tools",
+    "scrollToTools": "Scroll down to the tools",
+    "philosophy": {
+      "eyebrow": "Why it exists",
+      "title": "The philosophy behind Ellysia",
+      "p1": "Online security is no longer a matter for a few. Today, opening an email, saving a password or switching on a server is enough to be exposed. What changed was not the threat: it was who receives it.",
+      "p2": "Defending yourself, however, is still expensive. Half a dozen products, each with its own license and console, within reach of those who can pay a team to run them. Ellysia brings those pieces together {sky} — detect, train, verify, keep, watch — for those without a security department behind them.",
+      "p2Sky": "under one sky",
+      "p3": "We do not promise invulnerability; no honest person does. We promise that {privilege}.",
+      "p3Privilege": "defending yourself stops being a privilege"
+    },
+    "toolsTitle": "The five tools",
+    "toolsSubtitle": "Each one guards one side of your security.",
+    "explore": "Explore {name}",
+    "tools": {
+      "themis": {
+        "blurb": "Vulnerability detection",
+        "myth": "She who holds the scales and passes no judgement before weighing every clue.",
+        "title": "Weighs every threat before it strikes",
+        "desc": "Its own detection engine (Lybra), which discovers and analyzes on its own, alongside Nmap, Nikto and Nuclei as independent scanners, plus AI-written reports ready to hand over."
+      },
+      "aegis": {
+        "blurb": "AI-powered awareness",
+        "myth": "The shield of Zeus and Athena, forged to protect before the blow.",
+        "title": "Awareness that arrives before the attack",
+        "desc": "AI-generated security intelligence bulletins to train your organization."
+      },
+      "iris": {
+        "blurb": "Anti-phishing analysis",
+        "myth": "The messenger of the gods; no false message crosses her rainbow.",
+        "title": "Verifies who signs every email",
+        "desc": "Email header analysis to detect phishing through verification rules."
+      },
+      "acheron": {
+        "blurb": "Encrypted vault",
+        "myth": "The river no one crosses without the key.",
+        "title": "Keeps what must not be lost",
+        "desc": "An encrypted vault of credentials and cards for your organization. Encryption happens in your browser: the key never travels."
+      },
+      "hygeia": {
+        "blurb": "Asset monitoring",
+        "myth": "The goddess of health; she watches the vital signs of every asset.",
+        "title": "Watches the pulse of every asset",
+        "desc": "Lightweight agents push hardware telemetry; thresholds with hysteresis open and resolve anomalies on their own, with an email alert for critical ones."
+      }
+    },
+    "chips": {
+      "lybra": "Lybra",
+      "nmap": "Nmap",
+      "nikto": "Nikto",
+      "nuclei": "Nuclei",
+      "aiReports": "AI reports",
+      "aiNewsletter": "AI newsletter",
+      "markdown": "Markdown",
+      "json": "JSON",
+      "spf": "SPF",
+      "dkim": "DKIM",
+      "dmarc": "DMARC",
+      "antiPhishing": "Anti-phishing",
+      "browserEncryption": "In-browser encryption",
+      "credentials": "Credentials",
+      "cards": "Cards",
+      "push": "Push",
+      "thresholds": "Thresholds",
+      "hostDown": "Host down",
+      "alerts": "Alerts"
+    },
+    "steps": {
+      "eyebrow": "How to start",
+      "title": "Three steps to the first verdict",
+      "account": {
+        "title": "Create your account",
+        "desc": "Free and with no card. The entry plan never expires and asks for no payment details."
+      },
+      "target": {
+        "title": "Set your first target",
+        "desc": "A domain in Themis, or the Hygeia agent on the server you want to watch."
+      },
+      "verdict": {
+        "title": "Get the verdict",
+        "desc": "The engine weighs every clue and writes the report, ready to read or hand over."
+      }
+    },
+    "pricing": {
+      "title": "Start free; grow if you need to",
+      "subtitle": "No card to start. The free plan never expires.",
+      "starter": "To get started",
+      "perMonth": "/month",
+      "startFree": "Start for free",
+      "details": "See details",
+      "compare": "Compare every limit of each plan →"
+    },
+    "faq": {
+      "eyebrow": "Before you ask",
+      "title": "What is usually hard to decide",
+      "passwordsLeave": {
+        "q": "Do my passwords leave my browser?",
+        "a": "No. Acheron encrypts in your browser before sending anything: the server only sees ciphertext and never receives your master password or the key derived from it."
+      },
+      "lostMasterPassword": {
+        "q": "What happens if I lose my Acheron master password?",
+        "a": "The vault's content is lost, and there is no way to recover it. It is the direct consequence of the key never travelling: if we could give it back to you, we could also read your secrets. Keep it where you would keep your house key."
+      },
+      "technical": {
+        "q": "Do I need to be technical to use it?",
+        "a": "To launch an analysis and read the report, no: you choose a target and receive the written result. Installing the Hygeia agent on a server does require access to that machine."
+      },
+      "hygeiaAgent": {
+        "q": "What does the Hygeia agent need?",
+        "a": "A lightweight service on the machine you want to watch. It is the agent that sends data out every few seconds, so no inbound port needs to be opened."
+      },
+      "cost": {
+        "q": "How much does it cost to start?",
+        "a": "Nothing. The entry plan is free, asks for no card and never expires. If you run short of quota, the paid plans are further up."
+      }
+    },
+    "closing": {
+      "title": "Defending yourself should not be a privilege",
+      "register": "Create your account and launch your first analysis today. Free, no card.",
+      "personal": "Ellysia is a personal project: it does not accept new accounts or offer any service.",
+      "myTools": "Go to my tools",
+      "seePlans": "See the plans"
+    },
+    "forgeLabel": "Technologies Ellysia is built with",
+    "forgeEyebrow": "Built with",
+    "plaque": "Operational — {count} tools",
+    "eyebrow": "Security Operations Suite"
+  },
+  "login": {
+    "title": "The threshold",
+    "subtitle": "Identify yourself to cross",
+    "username": "Username",
+    "usernamePlaceholder": "username",
+    "password": "Password",
+    "capsLock": "⇪ Caps Lock is on",
+    "hidePassword": "Hide password",
+    "showPassword": "Show password",
+    "submit": "Cross the threshold",
+    "submitting": "Crossing…",
+    "forgotPassword": "Forgot your password?",
+    "noAccount": "No account?",
+    "registerCta": "Sign up for free and try Ellysia",
+    "encrypted": "Encrypted link active",
+    "welcome": "Welcome",
+    "establishing": "Establishing a secure session…",
+    "unreachable": "Could not connect to the server.",
+    "usernameRequired": "The username is required.",
+    "passwordRequired": "The password is required.",
+    "unknownError": "Unknown error.",
+    "passwordChanged": "Your password has changed. Sign in again with your current password.",
+    "register": {
+      "username": "Username",
+      "email": "Email",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "generate": "Generate a strong password",
+      "hidePasswords": "Hide the passwords",
+      "showPasswords": "Show the passwords",
+      "minLength": "At least 8 characters.",
+      "confirm": "Repeat the password",
+      "submit": "Create my account",
+      "submitting": "Creating…",
+      "freePlanHint": "You will start on the free plan. We will send you an email to confirm it.",
+      "haveAccount": "I already have an account",
+      "mismatch": "The passwords do not match. Repeat it exactly as you typed it.",
+      "failed": "The account could not be created.",
+      "created": "Account created. Check your email to confirm it; you can sign in now."
+    },
+    "recover": {
+      "hint": "We will send you a link to reset your password. If your account has two-step verification, we will ask for it before sending it.",
+      "identifier": "Username or email",
+      "identifierPlaceholder": "username or email",
+      "submit": "Recover my password",
+      "submitting": "Sending…",
+      "back": "← Back to sign in",
+      "missingIdentifier": "Enter your username or email.",
+      "failed": "The request could not be processed.",
+      "sent": "If the account exists, we have sent you a link to reset your password. Check your email."
+    },
+    "mfa": {
+      "code": "Verification code",
+      "recoveryCode": "Recovery code",
+      "submit": "Verify",
+      "submitting": "Verifying…",
+      "useApp": "Use the app code",
+      "useRecovery": "Lost access? Use a recovery code",
+      "back": "← Back",
+      "invalid": "The code is not valid or the verification expired.",
+      "missingCode": "Enter the code."
+    }
+  },
+  "resetPassword": {
+    "title": "Reset password",
+    "checking": "Checking your link…",
+    "invalidTitle": "This link is not valid",
+    "invalidSubtitle": "You may have used it already, or it may have expired.",
+    "invalidHint": "Recovery links expire after 30 minutes and can only be used once.",
+    "requestAnother": "Request another link",
+    "backToLogin": "← Back to the threshold",
+    "formTitle": "Choose your new password",
+    "formSubtitle": "With it you will cross the threshold again",
+    "newPassword": "New password",
+    "hint": "At least 8 characters. Changing it signs you out on all your devices.",
+    "submit": "Reset my password",
+    "doneTitle": "Password reset",
+    "doneSubtitle": "Your other sessions have been closed",
+    "done": "You can now sign in with your new password.",
+    "missing": "Enter the new password.",
+    "failed": "The password could not be reset."
+  },
+  "planFormat": {
+    "labels": {
+      "scans": "Vulnerability scans",
+      "mailAnalyses": "Email analyses",
+      "vaultSecrets": "Secrets in the vault",
+      "assets": "Monitored assets",
+      "aiRequests": "AI requests",
+      "members": "Organization members"
+    },
+    "shortLabels": {
+      "scans": "Scans",
+      "mailAnalyses": "Email analyses",
+      "vaultSecrets": "Secrets",
+      "assets": "Assets",
+      "aiRequests": "AI requests",
+      "members": "Members"
+    },
+    "notIncluded": "Not included",
+    "unlimited": "Unlimited",
+    "perMonth": "{value} a month"
+  },
+  "plansPage": {
+    "lede": "Start for free. Upgrade when your assets need it, not when a license demands it.",
+    "empty": "No plans have been published yet.",
+    "yourPlan": "Your plan",
+    "orgAddon": "+{price}/month with an organization",
+    "seeUsage": "See usage",
+    "askAdmin": "Ask whoever administers your account",
+    "footnote": "Plans with an organization share their limits among members: a common pool, not a license per head. And joining an organization never replaces your personal plan — they add up."
+  },
+  "myPlan": {
+    "title": "My plan",
+    "compare": "Compare plans",
+    "upgradeHint": "Want to upgrade? Write to whoever administers your account — self-service plan changes are not available yet.",
+    "usage": "Usage",
+    "usageDesc": "So far this period. Stock limits do not reset: space is freed by deleting.",
+    "exceeded": "Over the limit: you can read and delete, but not create more until you are below {limit}. Nothing has been deleted.",
+    "renews": "Renews on {date}",
+    "loadFailed": "Your plan could not be loaded.",
+    "freePlan": "You are on the free plan.",
+    "upTo": "up to {limit}",
+    "usedUnlimited": "{used} · unlimited",
+    "limits": {
+      "lybraScans": "Lybra scans",
+      "thirdPartyScans": "Nmap / Nikto / Nuclei scans",
+      "scheduledScans": "Scheduled scans",
+      "aiReports": "AI reports",
+      "pills": "Awareness pills",
+      "campaigns": "Campaigns launched",
+      "recipients": "Recipients in lists",
+      "mailAnalyses": "Email analyses",
+      "aiSummaries": "AI summaries",
+      "mailboxes": "Connected mailboxes",
+      "vaults": "Vaults",
+      "secrets": "Stored secrets",
+      "assets": "Monitored assets",
+      "aiRequests": "AI requests",
+      "members": "Organization members"
+    }
+  },
+  "invitationLanding": {
+    "home": "Back to the home page",
+    "verify": {
+      "loading": {
+        "title": "Confirming your email…",
+        "text": "One moment."
+      },
+      "ok": {
+        "title": "Email confirmed",
+        "text": "You can now use Ellysia without the limits of an unverified account.",
+        "cta": "Sign in"
+      },
+      "error": {
+        "title": "This link is not valid",
+        "text": "You may have used it already, or it may have expired. Request a new one from your profile."
+      }
+    },
+    "invitation": {
+      "loading": {
+        "title": "Accepting the invitation…",
+        "text": "One moment."
+      },
+      "ok": {
+        "title": "You are now part of the organization",
+        "text": "Your personal plan has not changed: what the organization includes adds to what you already had, and if you ever leave you keep it intact.",
+        "cta": "See my organization"
+      },
+      "error": {
+        "title": "This invitation is not valid",
+        "text": "You may have accepted it already, it may have been revoked or it may have expired. Ask whoever invited you to send another one."
+      }
+    }
+  },
+  "users": {
+    "topbar": "User management",
+    "title": "Users",
+    "subtitle": "Manage users and their ABAC attributes",
+    "count": "{count} user | {count} users",
+    "new": "+ New user",
+    "admins": "Administrators ({count})",
+    "regular": "Users ({count})",
+    "empty": "There are no registered users.",
+    "fields": {
+      "firstName": "First name",
+      "lastName": "Last name",
+      "username": "Username",
+      "email": "Email",
+      "password": "Password",
+      "role": "Role"
+    },
+    "roles": {
+      "user": "User",
+      "admin": "Administrator"
+    },
+    "strength": {
+      "weak": "Weak",
+      "medium": "Medium",
+      "strong": "Strong"
+    },
+    "create": {
+      "title": "New user",
+      "personal": "Personal information",
+      "credentials": "Credentials",
+      "passwordPlaceholder": "At least 8 characters",
+      "submit": "Create user",
+      "passwordTooShort": "The password must be at least 8 characters long."
+    },
+    "toast": {
+      "loadFailed": "The users could not be loaded.",
+      "duplicate": "The username or email already exists.",
+      "createForbidden": "You do not have permission to create users.",
+      "createFailed": "The user could not be created.",
+      "created": "User created.",
+      "deleteForbidden": "You do not have permission to delete this user.",
+      "deleteFailed": "The user could not be deleted.",
+      "deleted": "User deleted.",
+      "attributesAddFailed": "The attributes could not be added.",
+      "attributesUpdated": "Attributes updated.",
+      "attributesRemoveFailed": "The attributes could not be removed.",
+      "attributeRemoved": "Attribute removed."
+    },
+    "details": {
+      "title": "User details",
+      "name": "Name",
+      "created": "Created",
+      "attributes": "ABAC attributes",
+      "noAttributes": "No attributes",
+      "addAttribute": "+ Add attribute",
+      "permissions": {
+        "read": "Read",
+        "write": "Write",
+        "create": "Create",
+        "delete": "Delete"
+      },
+      "deleteTitle": "Remove account",
+      "deleteText": "The account and everything that hangs from it are deleted: scans, campaigns, reports and its vault. There is no going back.",
+      "deleteButton": "Delete user",
+      "irreversible": "This action cannot be undone.",
+      "deleteMessage": "You are about to delete {'@'}{username}'s account and all its data.",
+      "deleteOrg": "{base} Their organization “{name}” disappears too.",
+      "deleteOrgWithMembers": "{base} Their organization “{name}” disappears too, and {count} member is left without it. | {base} Their organization “{name}” disappears too, and {count} members are left without it."
+    },
+    "roots": "Root ({count})"
+  },
+  "profilePage": {
+    "topbar": "User profile",
+    "personal": "Personal information",
+    "firstNamePlaceholder": "Your first name",
+    "lastNamePlaceholder": "Your last name",
+    "saveChanges": "Save changes",
+    "languageDesc": "If you do not choose one, you follow your organization's or, without one, the platform's.",
+    "complianceTitle": "Compliance frameworks",
+    "complianceDesc": "Lybra reports will show which controls of these frameworks each finding affects, along with the MITRE ATT&CK attack technique, which is always shown.",
+    "security": "Security",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm password",
+    "repeatPassword": "Repeat the password",
+    "changing": "Changing…",
+    "changePassword": "Change password",
+    "passwordMismatch": "The passwords do not match.",
+    "passwordSame": "The new password must be different from the current one.",
+    "mfa": {
+      "title": "Two-step verification (MFA)",
+      "recoveryWarning": "Keep these codes somewhere safe: each one works for a single emergency sign-in if you lose your authenticator app. They will not be shown again.",
+      "download": "Download .txt",
+      "saved": "I have saved them",
+      "enabled": "✓ Two-step verification is on.",
+      "disableCode": "App or recovery code",
+      "disablePlaceholder": "123456 or XXXX-XXXX",
+      "disabling": "Turning off…",
+      "disable": "Turn off MFA",
+      "disabled": "You do not have two-step verification turned on.",
+      "generating": "Generating…",
+      "recoveryFile": "ELLYSIA MFA RECOVERY CODES\n\nKeep these codes somewhere safe. Each one works for a single emergency sign-in if you lose your authenticator app.\n\n{codes}\n\nNote: These codes will not be shown again. If you lose them, you will have to turn MFA off and set it up again."
+    },
+    "delete": {
+      "title": "Delete my account",
+      "text": "Everything of yours is deleted: vaults, scans, analyses, assets and lists. There is no going back.",
+      "orgDisappears": "Your organization “{name}” will disappear with your account.",
+      "membersWarning": "There is no one else in it. | 1 person will be left without an organization. | {count} people will be left without an organization.",
+      "membersKeep": "They will keep their account, their data and their personal plan, but lose everything your plan gave them.",
+      "leaves": "You will leave your organization. The others are not affected.",
+      "confirmPassword": "Confirm with your password",
+      "deleting": "Deleting…",
+      "confirmTitle": "Are you sure you want to delete your account?",
+      "confirmLabel": "Yes, delete my account",
+      "confirmBase": "Everything of yours will be deleted and it cannot be undone.",
+      "confirmWithOrg": "{base} Your organization “{name}” will also disappear: {members}",
+      "failed": "The account could not be deleted.",
+      "done": "Your account has been deleted."
+    }
+  },
+  "organization": {
+    "topbar": "My organization",
+    "none": "You do not have an organization yet",
+    "lede": "An organization lets your people use Ellysia under your plan, without paying a license per head. It shares plan and billing — never data: you will not see their vaults, their analyzed emails or their scans.",
+    "name": "Organization name",
+    "create": "Create organization",
+    "notInPlan": "Your plan does not include managing an organization.",
+    "seePlans": "See plans",
+    "youManage": "You manage",
+    "youBelong": "You belong to",
+    "memberCount": "{count} member | {count} members",
+    "leave": "Leave the organization",
+    "memberHint": "Your personal plan is still yours: what the organization includes adds to what you already have, and if you leave you keep it intact.",
+    "languageDesc": "The language for members who have not chosen one. Anyone who picks their own in the language selector keeps it.",
+    "platformLanguage": "Platform language",
+    "complianceDesc": "The frameworks shown in every member's Lybra reports. If you set them, they replace the ones each member chose in their profile.",
+    "inviteTitle": "Invite",
+    "inviteDesc": "If that address already has an account, it will receive a link and will not join until it accepts. If it does not, an account is created and the credentials are sent to it.",
+    "invitePlaceholder": "person{'@'}company.com",
+    "invite": "Invite",
+    "members": "Members",
+    "owner": "Owner",
+    "member": "Member",
+    "expel": "Remove",
+    "invitations": "Invitations",
+    "noInvitations": "There are no invitations.",
+    "status": "Status",
+    "expires": "Expires",
+    "revoke": "Revoke",
+    "statuses": {
+      "pending": "Pending",
+      "accepted": "Accepted",
+      "revoked": "Revoked",
+      "expired": "Expired"
+    },
+    "confirmExpel": {
+      "title": "Remove {username}?",
+      "message": "They will keep their account, their data and their personal plan. They only lose what the organization gave them."
+    },
+    "confirmRevoke": {
+      "title": "Revoke the invitation?",
+      "message": "The link sent to {email} will stop working."
+    },
+    "confirmLeave": {
+      "title": "Leave the organization?",
+      "message": "You will keep your account, your data and your personal plan. You will lose what the organization gave you, and whatever exceeds your plan becomes read-only — nothing is deleted."
+    },
+    "toast": {
+      "inviteFailed": "The invitation could not be sent.",
+      "invited": "Invitation sent.",
+      "expelFailed": "The member could not be removed.",
+      "expelled": "Member removed.",
+      "revokeFailed": "The invitation could not be revoked.",
+      "leaveFailed": "You could not leave the organization.",
+      "left": "You have left the organization."
+    },
+    "namePlaceholder": "Acme Ltd."
+  },
+  "adminPlans": {
+    "topbar": "Plan manager",
+    "intro": "Plans and their limits live in the database, not in the code: whatever changes here takes effect on the next request, with no deployment.",
+    "catalog": "Catalog",
+    "newPlan": "New plan",
+    "emptyCatalog": "There are no plans in the database. If you have just deployed, apply the migrations — the catalog seed is in one of them:",
+    "code": "Code",
+    "name": "Name",
+    "price": "Price",
+    "rank": "Order",
+    "default": "Default",
+    "hidden": "Hidden",
+    "limits": "Limits",
+    "makeDefault": "Make default",
+    "editTitle": "Edit {name}",
+    "editDesc": "The code cannot be edited: existing assignments refer to it and, once there is a payment gateway, so will its mapping. If another code is needed, it is another plan. Limits are edited below, in their own table.",
+    "createDesc": "It starts with no limits: every key is 0 until filled in. A half-configured plan gives nothing away.",
+    "tagline": "Tagline",
+    "priceCents": "Price (cents)",
+    "orgAddon": "Organization add-on",
+    "visibility": "Visibility",
+    "public": "Shown in the pricing table",
+    "private": "Hidden (custom plan)",
+    "create": "Create",
+    "subscriptions": "Subscriptions",
+    "subscriptionsDesc": "The six lifecycle operations, by hand. It is the same path the payment gateway will use once it is plugged in: here root drives them, later a webhook adapter.",
+    "account": "Account",
+    "chooseAccount": "Choose an account…",
+    "now": "Now:",
+    "withOrganization": "with organization",
+    "until": "until {date}",
+    "noSubscription": "No subscription — this account is on the default plan.",
+    "operation": "Operation",
+    "operations": {
+      "activate": "Activate or change plan",
+      "start_trial": "Start trial",
+      "mark_past_due": "Mark as past due",
+      "resume": "Resume",
+      "cancel": "Cancel",
+      "expire": "Expire now"
+    },
+    "plan": "Plan",
+    "trialEnds": "Trial ends on",
+    "validUntil": "Valid until",
+    "graceUntil": "Grace period until",
+    "organization": "Organization",
+    "noOrganization": "No organization",
+    "canManageOrganization": "Can manage an organization",
+    "when": "When",
+    "atPeriodEnd": "At the end of the paid period",
+    "immediately": "Right now (refund)",
+    "applying": "Applying…",
+    "limitsOf": "Limits of {name}",
+    "saveLimits": "Save limits",
+    "limitsDesc": "The whole table is saved: what you see here is exactly what remains. Empty cell = {unlimited} (∞) · {zero} = not included · a number = limit. Every key is always shown, so none is left undecided.",
+    "unlimitedWord": "unlimited",
+    "key": "Key",
+    "period": "Period",
+    "holder": "Holder",
+    "periods": {
+      "month": "monthly",
+      "day": "daily",
+      "stock": "stock",
+      "tier": "tier"
+    },
+    "statuses": {
+      "active": "active",
+      "trialing": "on trial",
+      "past_due": "past due",
+      "canceled": "cancelled"
+    },
+    "confirmDefault": {
+      "title": "Make \"{name}\" the default plan?",
+      "message": "Every account without an active subscription will get it, and those on the current default will move to this one."
+    },
+    "confirmDelete": {
+      "title": "Delete the \"{name}\" plan?",
+      "message": "Only possible if no one is subscribed to it."
+    },
+    "toast": {
+      "operationFailed": "The operation could not be applied.",
+      "subscriptionUpdated": "Subscription updated.",
+      "catalogFailed": "The catalog could not be loaded.",
+      "keysFailed": "The limit key catalog could not be loaded.",
+      "planSaveFailed": "The plan could not be saved.",
+      "planUpdated": "Plan updated.",
+      "planCreated": "Plan created.",
+      "keysMissing": "The limit keys have not loaded: reload before saving.",
+      "limitsFailed": "The limits could not be saved.",
+      "limitsSaved": "Limits saved.",
+      "defaultFailed": "It could not be changed.",
+      "deleteFailed": "It could not be deleted."
+    }
+  },
+  "themis": {
+    "refresh": "Refresh",
+    "deleteSelected": "Delete ({count})",
+    "selectScan": "Select scan #{id}",
+    "deleteScanLabel": "Delete scan #{id}",
+    "deleteScan": "Delete scan",
+    "priority": {
+      "CRITICAL": "Critical",
+      "HIGH": "High",
+      "MEDIUM": "Medium",
+      "LOW": "Low",
+      "INFO": "Info"
+    },
+    "findingState": {
+      "open": "Open",
+      "fixed": "Fixed",
+      "regressed": "Regressed",
+      "accepted": "Accepted",
+      "false_positive": "False positive"
+    },
+    "documents": {
+      "title": "Documents",
+      "refresh": "Refresh documents",
+      "loading": "Loading documents…",
+      "empty": "No documents generated",
+      "ai": "AI",
+      "download": "Download",
+      "running": "Generating…",
+      "pending": "Pending",
+      "error": "Error",
+      "aiAnalysis": "AI analysis",
+      "generatePdf": "Generate PDF"
+    },
+    "batch": {
+      "selected": "{count} scan selected | {count} scans selected",
+      "processing": "Processing…"
+    },
+    "folders": {
+      "folder": "Folder",
+      "name": "Folder name",
+      "namePlaceholder": "E.g. Production",
+      "nameHint": "Letters, numbers, spaces, hyphens and underscores only.",
+      "moveTitle": "Move scan to folder",
+      "select": "Select a folder",
+      "choose": "— Choose a folder —",
+      "moving": "Moving…",
+      "move": "Move",
+      "title": "Scan folders",
+      "new": "New folder",
+      "loading": "Loading folders",
+      "empty": "There are no folders yet. Create the first one!",
+      "emptyFolder": "There are no scans in this folder.",
+      "moveToOther": "Move to another folder",
+      "removeFromFolder": "Remove from folder",
+      "showMore": "Show more ({count} left)",
+      "rename": "Rename",
+      "delete": "Delete folder",
+      "none": "No folder"
+    },
+    "stats": {
+      "total": "Total scans",
+      "allTypes": "all types",
+      "network": "network scans",
+      "web": "web scans",
+      "templates": "templates"
+    },
+    "status": {
+      "running": "Running",
+      "done": "Completed",
+      "pending": "Pending",
+      "failed": "Failed",
+      "cancelled": "Cancelled"
+    },
+    "views": {
+      "full": "Full view",
+      "folders": "Folders",
+      "history": "Statistics"
+    },
+    "nuclei": {
+      "empty": "No findings.",
+      "inferred": "Inferred (QoD {qod})",
+      "corroborated": "Corroborated by {source}"
+    },
+    "traceroute": {
+      "title": "Network route (traceroute)",
+      "cached": "Cached {date}",
+      "computed": "Computed {date}",
+      "refresh": "Recompute route",
+      "loading": "Computing the route to the target…",
+      "failed": "The route to the target could not be traced.",
+      "origin": "Ellysia server",
+      "originLabel": "Origin",
+      "noReply": "No reply (*)",
+      "target": "Target"
+    },
+    "history": {
+      "title": "Historical statistics",
+      "subtitle": "How your scans evolve over time, by host.",
+      "loadingHosts": "Loading hosts…",
+      "empty": "You have not completed any scan yet. Launch a scan to see its history here.",
+      "selectHost": "Select a scanned host",
+      "chooseHost": "-- Choose a host --",
+      "scanCount": "{count} scan | {count} scans",
+      "generating": "Generating statistics…",
+      "pickHost": "Select a host to see its chart."
+    },
+    "historyChart": {
+      "empty": "There is no historical data for this host yet.",
+      "ariaLabel": "{metric} in the last {count} scans of {target}",
+      "xAxis": "Scan (date)",
+      "metric": {
+        "nmap": "Open ports",
+        "nikto": "Issues",
+        "lybra": "Findings",
+        "nuclei": "Findings"
+      },
+      "legend": {
+        "new": "New",
+        "unchanged": "Unchanged",
+        "disappeared": "Gone"
+      },
+      "caption": "Comparison of the latest scan with the one right before it."
+    },
+    "table": {
+      "type": "Type",
+      "target": "Target",
+      "status": "Status",
+      "date": "Date",
+      "actions": "Actions",
+      "preview": "Preview",
+      "results": "{type} results",
+      "loading": "Loading scans",
+      "empty": "There are no scans yet. Launch the first one!",
+      "selectAll": "Select every scan on the page",
+      "portsUnit": "ports",
+      "findingsUnit": "findings",
+      "previewScan": "Preview scan #{id}",
+      "cancelScanLabel": "Cancel scan #{id}",
+      "cancelScan": "Cancel scan",
+      "confirmDelete": "Delete scan #{id}?",
+      "confirmCancel": "Cancel scan #{id}?"
+    },
+    "compliance": {
+      "impose": "Apply these frameworks to every member",
+      "notImposing": "Until you turn this on, each member chooses their own in their profile.",
+      "locked": "Your organization has set the frameworks for all its members. Your choice is kept and applies again if the organization stops setting them.",
+      "saveFailed": "The compliance frameworks could not be saved.",
+      "saved": "Compliance frameworks saved."
+    },
+    "form": {
+      "title": "New {type} scan",
+      "started": "Scan started",
+      "targetCidr": "Target (IP / CIDR)",
+      "launch": "Launch",
+      "portStrategy": "Port strategy",
+      "strategies": {
+        "wellknown": {
+          "label": "Well-known",
+          "hint": "Ports 1-1023 · standard system services"
+        },
+        "registered": {
+          "label": "Registered",
+          "hint": "Ports 1024-49151 · registered applications"
+        },
+        "private": {
+          "label": "Private",
+          "hint": "Ports 49152-65535 · dynamic/private use"
+        },
+        "complete": {
+          "label": "Complete",
+          "hint": "Range 0-65535 · exhaustive scan"
+        },
+        "custom": {
+          "label": "Custom",
+          "hint": "Define your own port range"
+        }
+      },
+      "portRange": "Port range",
+      "severities": "Severities",
+      "nucleiSeverities": "Nuclei severities",
+      "severityHints": {
+        "critical": "Critical severity",
+        "high": "High severity",
+        "medium": "Medium severity",
+        "low": "Low severity",
+        "info": "Tech-detect templates — thousands of requests, no CVSS of their own"
+      },
+      "tags": "Tags (optional)",
+      "rateLimit": "Rate limit",
+      "requestTimeout": "Request timeout (s)"
+    },
+    "preview": {
+      "started": "Started {date}",
+      "finished": "Finished {date}",
+      "inProgress": "In progress",
+      "critical": "Critical",
+      "high": "High"
+    },
+    "scheduled": {
+      "title": "Scheduled scans",
+      "new": "New scheduled scan",
+      "schedule": "Schedule",
+      "interval": "Interval",
+      "every": "Every",
+      "unit": "Unit",
+      "units": {
+        "minutes": "Minutes",
+        "hours": "Hours",
+        "days": "Days"
+      },
+      "shortUnits": {
+        "minutes": "min",
+        "hours": "h",
+        "days": "d"
+      },
+      "everySummary": "every {every} {unit}",
+      "cron": "Cron expression",
+      "empty": "There are no scheduled {type} scans",
+      "arguments": "Arguments",
+      "nextRun": "Next run",
+      "active": "Active",
+      "revoked": "Revoked",
+      "confirmDeactivate": "Deactivate this scheduled scan?",
+      "confirmDelete": "Permanently delete this scheduled scan?"
+    }
+  },
+  "lybra": {
+    "sections": {
+      "prod": "Affected products",
+      "conf": "Configuration and exposure"
+    },
+    "site": {
+      "ip": "When reached by IP",
+      "vhost": "On {vhost}",
+      "hint": "This server hosts several websites on the same address and each one is checked separately: the same issue can appear on more than one, and it has to be fixed on every site where it appears."
+    },
+    "gravest": {
+      "CRITICAL": "Most severe: {count} critical",
+      "HIGH": "Most severe: {count} high",
+      "MEDIUM": "Most severe: {count} medium",
+      "LOW": "Most severe: {count} low"
+    },
+    "failure": {
+      "host_unreachable": {
+        "title": "The target did not respond.",
+        "hint": "The engine could not open any connection, so there is nothing to analyze. Check that the machine is on, that the address is right and that no firewall is dropping the traffic."
+      },
+      "port_discovery_failed": {
+        "title": "Port discovery could not be completed.",
+        "hint": "The target was responding, but the sweep did not finish. It is usually a firewall cutting the probe halfway; try narrowing the port list."
+      },
+      "no_results": {
+        "title": "The scanner finished without returning results.",
+        "hint": "The tool ran but produced nothing to process. Launch it again; if it happens again, the target may be filtering the scan."
+      },
+      "orphaned": {
+        "title": "The scan was interrupted when the service restarted.",
+        "hint": "It is not a problem with the target: the job was lost halfway and closed when the service started again. Launch it again."
+      },
+      "timeout": {
+        "title": "Time ran out before it finished.",
+        "hint": "The requested work did not fit in the requested time. It happens when a very wide port range meets a target with many open ports: every service found is analyzed afterwards, and that takes time too. Narrow the ports or raise the time limit in the launch panel."
+      },
+      "internal_error": {
+        "title": "The engine hit an unexpected error.",
+        "hint": "The failure is in the product, not in your network. The details are in the server log; if it happens again with the same target, it is worth reporting."
+      },
+      "unknown": {
+        "title": "The scan failed.",
+        "hint": "The reason was not recorded — this scan predates the engine storing it."
+      }
+    },
+    "results": {
+      "selectAll": "Select every verdict on the page",
+      "title": "Lybra verdicts",
+      "loading": "Loading verdicts",
+      "empty": "The engine has not issued any verdict yet. Launch the first one!",
+      "publicHint": "Public IP — priority is adjusted upwards",
+      "privateHint": "Private LAN — priority is tempered",
+      "public": "Public",
+      "private": "Private",
+      "noFindings": "No findings",
+      "partialHint": "Discovery ran out of time: what is shown is accurate, but it is not the whole surface",
+      "partial": "Partial",
+      "queued": "Queued, about to start.",
+      "running": "The engine is weighing the evidence…",
+      "clean": "No findings. The analyzed surface is clean.",
+      "findings": "Findings",
+      "collapse": "Collapse",
+      "expand": "Expand",
+      "rearranging": "Rearranging findings",
+      "noMatch": "No finding matches these filters.",
+      "clearFilters": "Clear filters",
+      "findingCount": "{count} finding | {count} findings",
+      "findingsOf": "{shown} of {count} finding | {shown} of {count} findings",
+      "fixedHint": "Updating to this version closes the whole group at once",
+      "fixedIn": "Fixed in {version} or later",
+      "kevHint": "On CISA's list of actively exploited vulnerabilities",
+      "cveCount": "{count} CVE | {count} CVEs",
+      "maxCvss": "Max CVSS {score}",
+      "confirmedCount": "{count} confirmed",
+      "confirmedHint": "Actively confirmed (QoD {qod})",
+      "potentialHint": "Inferred from the version (QoD {qod}) — potential, not confirmed",
+      "confirmed": "Confirmed",
+      "potential": "Potential",
+      "kevExploited": "KEV · exploited",
+      "epssHint": "Probability of exploitation within 30 days (EPSS)",
+      "source": "Source: {source}",
+      "falsePositiveReason": "Why is it not real? (e.g. a Debian backport)",
+      "acceptedReason": "Why is it accepted? (e.g. mitigated by the WAF)",
+      "reopen": "Reopen",
+      "dispute": "Dispute",
+      "acceptRisk": "Accept risk",
+      "showMore": "Show more ({shown} of {total})",
+      "partialNote": "Incomplete analysis: port discovery ran out of time before covering the whole target. What appears is accurate, but {absence} — which is why this scan has not marked any earlier finding as fixed. Raise the time limit or narrow the port list for a complete analysis.",
+      "partialNoteAbsence": "the absence of something does not mean it is not there",
+      "unauthorized": "Target not authorized: Lybra's own fingerprinting and active checks were not run against '{target}'. Authorize it in the launch panel for a more complete analysis.",
+      "coverage": "Coverage note: {unresolved} of the {packages} inventoried packages could not be identified against the vulnerability catalog, so they were not checked. The rest were checked — their lack of findings is a real verification.",
+      "docsSubtitle": "PDF reports for this verdict",
+      "pdfName": "Lybra PDF",
+      "balance": "Weight by severity: {levels}",
+      "noBreakdown": "No breakdown by severity",
+      "onlyInfo": "Informational findings only"
+    },
+    "toolbar": {
+      "label": "Sort and filter the findings of scan #{id}",
+      "search": "Search findings",
+      "searchPlaceholder": "Search by title, CVE or product",
+      "sortBy": "Sort by",
+      "sort": {
+        "severity": "Severity",
+        "cvss": "CVSS",
+        "epss": "EPSS",
+        "title": "Name",
+        "product": "Product"
+      },
+      "invert": "Reverse: {direction}",
+      "direction": {
+        "severity": {
+          "natural": "Most severe first",
+          "reversed": "Least severe first"
+        },
+        "numeric": {
+          "natural": "Highest first",
+          "reversed": "Lowest first"
+        },
+        "alphabetic": {
+          "natural": "A → Z",
+          "reversed": "Z → A"
+        }
+      },
+      "severity": "Severity",
+      "stateLabel": "Status",
+      "state": {
+        "all": "All",
+        "pending": "Pending",
+        "resolved": "Resolved"
+      },
+      "certaintyLabel": "Certainty",
+      "certainty": {
+        "all": "All",
+        "confirmed": "Confirmed",
+        "potential": "Potential"
+      },
+      "showing": "Showing {visible} of {count} finding | Showing {visible} of {count} findings",
+      "loadingFindings": "Loading findings"
+    },
+    "launch": {
+      "title": "Lybra engine",
+      "subtitle": "Weighs every threat before it strikes",
+      "running": "Engine running",
+      "target": "Target (single IP)",
+      "authorizedHint": "It is in your register of authorized targets",
+      "authorized": "Authorized",
+      "authorizeHint": "Add '{target}' to your authorized targets",
+      "authorize": "Authorize",
+      "ports": "Ports (optional)",
+      "portsPlaceholder": "80,443 or 1-1000",
+      "missingHint": "It is not in your register of authorized targets: auto-discovery will be rejected.",
+      "register": "Authorized targets",
+      "registerHint": "Targets (IP or CIDR) you have declared authorized for Lybra's auto-discovery, its own fingerprinting and its active checks.",
+      "registerEmpty": "You have not authorized any target yet.",
+      "newTargetPlaceholder": "10.0.0.5 or 10.0.0.0/24",
+      "labelPlaceholder": "Label (optional)",
+      "add": "Add",
+      "timeout": "Timeout (s)",
+      "launching": "Weighing…",
+      "launch": "Issue verdict",
+      "minutes": "{minutes} min",
+      "hours": "{hours} h",
+      "hoursMinutes": "{hours} h {minutes} min"
+    },
+    "agents": {
+      "title": "Hygeia agents",
+      "loading": "Loading agents…",
+      "empty": "No monitored assets yet. Register an agent in Hygeia and, once it reports its software inventory, you can analyze it here without scanning the network.",
+      "notAnalyzed": "Not analyzed",
+      "analysesOf": "Analyses of {host}",
+      "assetFallback": "asset {id}",
+      "note": "Installed software only — the network surface is analyzed from the engine",
+      "pick": "Choose an agent to see its inventory analyses."
+    }
+  },
+  "assetStatus": {
+    "pending": "Not reporting yet",
+    "online": "Online",
+    "stale": "Delayed",
+    "offline": "Down",
+    "poweredOff": "Powered off"
+  },
+  "scanTypes": {
+    "nmap": {
+      "full": "Nmap (network)"
+    },
+    "nikto": {
+      "full": "Nikto (web)"
+    },
+    "lybra": {
+      "full": "Lybra (own engine)"
+    },
+    "nuclei": {
+      "full": "Nuclei (templates)"
+    },
+    "preview": "Preview — {name}",
+    "portsSummary": "ports {ports}",
+    "fields": {
+      "host": "Host",
+      "ports": "Ports",
+      "portsPlaceholder": "80,443 or 1-1000",
+      "domain": "Domain",
+      "singleIp": "Target (single IP)",
+      "url": "Target URL"
+    }
+  },
+  "themisHub": {
+    "tagline": "Vulnerability detection with its own engine and the classic scanners as witnesses.",
+    "toolLabel": "Open scanner",
+    "loadingStats": "Loading statistics…",
+    "scansIssued": "Scans issued",
+    "noScans": "You have not launched any scan yet. The first one takes a minute.",
+    "highlight": {
+      "label": "The verdict",
+      "sub": "its own engine, with three scanners as witnesses"
+    },
+    "shortcuts": {
+      "newLybra": "New Lybra scan",
+      "external": "External scanners",
+      "history": "History"
+    },
+    "features": {
+      "engine": {
+        "kicker": "Own engine",
+        "title": "Lybra issues the verdict",
+        "desc": "It discovers ports on its own, scores every finding in context and follows its lifecycle: open, fixed, back again."
+      },
+      "classics": {
+        "kicker": "The classics",
+        "title": "Nmap, Nikto and Nuclei, each on its own",
+        "desc": "The usual scanners are still here, as independent tools you launch whenever you want. None of them overrides Lybra, and Lybra overrides none of them."
+      },
+      "reports": {
+        "kicker": "Reports",
+        "title": "Written by AI, ready to hand over",
+        "desc": "Every scan can become a plain-language PDF, meant for whoever decides, not just whoever administers."
+      },
+      "schedule": {
+        "kicker": "Vigil",
+        "title": "Scans that repeat themselves",
+        "desc": "Set up the recurrence once and Themis returns to the target on time, without you having to remember."
+      }
+    }
+  },
+  "themisView": {
+    "badge": "Vulnerability scans",
+    "mode": "Themis mode",
+    "agents": "Agents",
+    "backToEngine": "← Back to the engine",
+    "seeHistory": "See history",
+    "kbStale": {
+      "title": "Outdated knowledge base.",
+      "body": "Version-based findings are resolved against that catalog, so a CVE published later will not appear and an absence of findings is not conclusive.",
+      "neverSynced": "{source} is empty and has never been synchronized",
+      "age": "{source} has not been updated for {days} day | {source} has not been updated for {days} days"
+    },
+    "thirdPartyClosed": "Analysis with Nmap, Nikto and Nuclei is not available yet. You can check the results of earlier analyses.",
+    "addToFolderCount": "Add to folder ({count})",
+    "addToFolder": "Add to folder",
+    "renameFolder": "Rename folder",
+    "deleteScans": "Delete scans",
+    "bulkDeleteWarning": "This action permanently deletes the selected scans and their associated PDF documents.",
+    "bulkDeleteRunning": "Running scans will be cancelled before being deleted.",
+    "confirm": {
+      "lybra": "Delete this Lybra scan and its findings?",
+      "agentScan": "Delete this inventory analysis and its findings? The Hygeia asset is not deleted.",
+      "folder": "Delete this folder? The scans are not deleted; they are just left without a folder."
+    }
+  },
+  "themisStore": {
+    "folders": {
+      "loadFailed": "The folders could not be loaded.",
+      "connectionError": "Connection error.",
+      "createFailed": "The folder could not be created.",
+      "unreachable": "Could not connect to the API.",
+      "renameFailed": "The folder could not be renamed.",
+      "renamed": "Folder renamed",
+      "deleteFailed": "The folder could not be deleted.",
+      "deleted": "Folder deleted.",
+      "moveFailed": "The scan could not be moved.",
+      "moved": "Scan moved to the folder.",
+      "removeFailed": "The scan could not be removed from the folder.",
+      "removed": "Scan removed from the folder.",
+      "addFailed": "The scans could not be added to the folder.",
+      "created": "Folder \"{name}\" created",
+      "scansAdded": "{count} scan added to the folder. | {count} scans added to the folder."
+    },
+    "history": {
+      "hostsFailed": "The hosts could not be loaded.",
+      "connectionError": "Connection error.",
+      "statsFailed": "The statistics could not be retrieved.",
+      "unreachable": "Could not connect to the API."
+    },
+    "scheduled": {
+      "loadFailed": "The scheduled scans could not be loaded.",
+      "connectionError": "Connection error.",
+      "createFailed": "The scheduled scan could not be created.",
+      "unreachable": "Could not connect to the API.",
+      "revokeFailed": "The scheduled scan could not be revoked.",
+      "revoked": "Scheduled scan revoked.",
+      "deleteFailed": "The scheduled scan could not be deleted.",
+      "deleted": "Scheduled scan deleted.",
+      "created": "Scheduled scan created (ID: {id})"
+    },
+    "scans": {
+      "statsFailed": "The statistics could not be loaded.",
+      "statsConnection": "Connection error while loading the statistics.",
+      "loadFailed": "The scans could not be loaded.",
+      "loadConnection": "Connection error while loading the scans.",
+      "targetsFailed": "The targets could not be loaded.",
+      "connectionError": "Connection error.",
+      "targetAddFailed": "The authorized target could not be added.",
+      "unreachable": "Could not connect to the API.",
+      "targetRemoveFailed": "The authorized target could not be removed.",
+      "targetRemoved": "Authorized target removed.",
+      "lybraLaunchFailed": "The Lybra scan could not be launched.",
+      "launchFailed": "The scan could not be launched.",
+      "deleteFailed": "The scan could not be deleted.",
+      "cancelFailed": "The scan could not be cancelled.",
+      "tracerouteFailed": "The traceroute could not be recomputed.",
+      "tracerouteError": "Error while recomputing the traceroute.",
+      "documentFailed": "The document could not be generated",
+      "documentGenerating": "Generating document…",
+      "downloadFailed": "The document could not be downloaded.",
+      "downloaded": "Document downloaded.",
+      "documentDeleteFailed": "The document could not be deleted.",
+      "documentDeleted": "Document deleted.",
+      "bulkDeleteFailed": "The scans could not be deleted.",
+      "findingStateFailed": "The finding's status could not be changed.",
+      "disputed": "Finding disputed.",
+      "accepted": "Risk accepted.",
+      "reopened": "Finding reopened.",
+      "findingsFailed": "The findings could not be loaded.",
+      "findingsConnection": "Connection error while loading the findings.",
+      "targetAuthorized": "Target '{target}' authorized.",
+      "lybraStarted": "Lybra engine started (ID: {id})",
+      "started": "{type} scan started (ID: {id})",
+      "downloadError": "Download error: {message}"
+    }
+  },
+  "iris": {
+    "verdict": {
+      "legitimate": "Legitimate",
+      "suspicious": "Suspicious",
+      "phishing": "Phishing",
+      "none": "No verdict"
+    },
+    "analysisStatus": {
+      "pending": "Pending",
+      "running": "Analyzing",
+      "finished": "Finished",
+      "failed": "Failed",
+      "cancelled": "Cancelled"
+    },
+    "ruleCategory": {
+      "authentication": "Authentication",
+      "header_analysis": "Headers",
+      "content_analysis": "Content",
+      "other": "Other"
+    },
+    "ruleVerdict": {
+      "pass": "Pass",
+      "fail": "Fail",
+      "softfail": "Soft fail",
+      "suspicious": "Suspicious",
+      "neutral": "Neutral",
+      "missing": "Missing",
+      "error": "Error",
+      "trusted": "Trusted",
+      "bestguess": "Best guess",
+      "policy": "Policy applied",
+      "none": "No policy",
+      "spoof": "Spoofing",
+      "empty": "No recipients",
+      "empty_to": "Only in Cc",
+      "undisclosed": "Undisclosed recipients",
+      "future": "Future date",
+      "past": "Old date",
+      "unparseable": "Unreadable date",
+      "other": "Other"
+    },
+    "caseStatus": {
+      "new": "New",
+      "triage": "In triage",
+      "contained": "Contained",
+      "resolved": "Resolved",
+      "false_positive": "False positive"
+    },
+    "addToCase": {
+      "open": "Add to a case…",
+      "target": "Target case",
+      "new": "New case with this analysis",
+      "see": "See case #{id}",
+      "defaultTitle": "Analysis #{id}"
+    },
+    "batch": {
+      "title": "Batch #{id}",
+      "messages": "{count} message | {count} messages",
+      "finished": "{done}/{total} analyses finished",
+      "close": "Close the batch",
+      "status": {
+        "created": "Created",
+        "duplicate": "Duplicate",
+        "rejected": "Rejected",
+        "failed": "Failed"
+      },
+      "message": "Message",
+      "result": "Result",
+      "analysis": "Analysis"
+    },
+    "iocs": {
+      "hint": "{defanged} values, to paste safely without activating links.",
+      "categories": {
+        "domains": "Domains",
+        "urls": "URLs",
+        "ips": "IPs",
+        "emails": "Emails",
+        "hashes": "Hashes (SHA256)"
+      },
+      "none": "None detected.",
+      "export": "Export CSV",
+      "defanged": "Defanged"
+    },
+    "hero": {
+      "max": "/ max",
+      "confidence": "{level} confidence",
+      "confidenceLevel": {
+        "high": "High",
+        "medium": "Medium",
+        "low": "Low"
+      },
+      "headersOnly": "headers only",
+      "fullMessage": "full message",
+      "status": {
+        "legitimate": "Verified email",
+        "suspicious": "Possible threat",
+        "phishing": "Phishing detected"
+      }
+    },
+    "trust": {
+      "trustIn": "Trust",
+      "theDomain": "The domain",
+      "onlyAddress": "Only this address",
+      "domain": "Domain",
+      "address": "Address",
+      "domainPlaceholder": "supplier.com",
+      "addressPlaceholder": "invoices{'@'}supplier.com",
+      "expiresIn": "Expires in",
+      "days": "{count} days",
+      "reason": "Reason (required, kept in the audit log)",
+      "reasonPlaceholder": "Regular supplier: always replies from another address",
+      "hint": "It only applies to email that proves it comes from there (verified DMARC) and only neutralizes wording and formatting signals. It never turns off authentication warnings, dangerous attachments or misleading links.",
+      "save": "Save exception"
+    },
+    "untitled": "(untitled)",
+    "compare": {
+      "title": "Compare analyses",
+      "close": "Close comparison",
+      "loading": "Loading both reports…",
+      "notEvaluated": "Confidence not evaluated",
+      "differentVerdicts": "Different verdicts",
+      "sameVerdict": "Same verdict",
+      "scoreDelta": "score difference {delta}",
+      "changedRules": "{count} rule differs | {count} rules differ",
+      "rule": "Rule",
+      "onlyChanged": "Show only the ones that change",
+      "showUnchanged": "Also show the {count} that do not change",
+      "onlyFinished": "Only finished analyses can be compared."
+    },
+    "documents": {
+      "title": "PDF reports",
+      "generate": "Generate report",
+      "notFinished": "The PDF report can only be generated once the analysis has finished.",
+      "empty": "No report has been generated for this analysis yet.",
+      "status": {
+        "running": "Generating",
+        "done": "Ready",
+        "error": "Error"
+      }
+    },
+    "path": {
+      "destination": "Destination",
+      "clear": "clear",
+      "suspicious": "suspicious",
+      "unavailable": "Route unavailable (headers-only submission).",
+      "hopLabel": "Hop {hop}: {host}",
+      "unknown": "unknown",
+      "hop": "Hop #{hop}",
+      "from": "From",
+      "by": "By",
+      "with": "With",
+      "protocol": "Protocol",
+      "for": "For",
+      "timestamp": "Timestamp",
+      "flags": "Flags",
+      "rawHeader": "Original header",
+      "normalTransit": "normal transit",
+      "suspiciousTransit": "suspicious: {reasons}",
+      "reversed": "{seconds}s reversed"
+    },
+    "rule": {
+      "code": "Code: {code}",
+      "evidence": "Evidence",
+      "jump": "See in the original headers",
+      "noEvidence": "No anchored evidence: {reason}",
+      "header": "Header {header}",
+      "qrUrl": "URL in QR",
+      "link": "Link",
+      "attachment": "Attachment",
+      "body": "Body",
+      "mimePart": "MIME part"
+    },
+    "form": {
+      "title": "New analysis",
+      "hint": "Drop an .eml file or paste the headers, and choose which part of the email Iris should examine. For several emails at once or for an Outlook .msg, drop the files or a ZIP, or {batch}.",
+      "pickBatch": "choose a batch",
+      "titlePlaceholder": "Optional title to identify the analysis (e.g. Suspicious email)",
+      "whatToAnalyze": "What is analyzed",
+      "headersOnly": "Headers only",
+      "headersOnlyHint": "Authentication, sender and delivery route",
+      "fullMessage": "Full message (.eml)",
+      "fullMessageHint": "Adds body, links and attachments",
+      "dropEml": "Drop an .eml to enable it",
+      "uncovered": "{count} rule will not be evaluated in this mode (it needs body, links or attachments) | {count} rules will not be evaluated in this mode (they need body, links or attachments)",
+      "emlAsLoaded": "The .eml is analyzed as loaded. To edit the headers, switch to “Headers only”.",
+      "analyzing": "Analyzing…",
+      "analyzeMessage": "Analyze full message",
+      "analyzeHeaders": "Analyze headers",
+      "fullMessageNotice": "The full message includes body and attachments, which may contain personal or confidential data."
+    },
+    "strip": {
+      "previous": "Previous",
+      "next": "Next",
+      "new": "New",
+      "auto": "AUTO",
+      "manual": "MANUAL",
+      "confirmDelete": "Delete #{id}?",
+      "title": "Title",
+      "score": "Score",
+      "verdict": "Verdict",
+      "archiveHint": "See the full analysis archive (Ctrl/Cmd+K)",
+      "archive": "Archive",
+      "manualOrigin": "Manual",
+      "mailbox": "Mailbox"
+    },
+    "mailboxes": {
+      "reload": "Reload",
+      "reloadConnections": "Reload connections",
+      "loading": "Loading connections…",
+      "emptyTitle": "No mailbox connected yet",
+      "emptySub": "Connect Gmail or Microsoft 365 above so Iris analyzes your email automatically.",
+      "reauthTitle": "{provider} — {email} needs to reconnect",
+      "accessExpired": "The granted access has expired or was revoked.",
+      "stoppedPolling": "Iris stopped polling this mailbox.",
+      "reconnect": "Reconnect",
+      "watchedFolder": "Watched folder: {folder}",
+      "defaultInbox": "Watches the default inbox",
+      "inbox": "Inbox",
+      "fullHint": "Iris reads the full email (body and attachments included)",
+      "headersHint": "Iris only reads the headers",
+      "full": "Full email",
+      "lastSync": "Last poll: {when}",
+      "resume": "Resume",
+      "pause": "Pause",
+      "syncNow": "Poll now",
+      "syncAccount": "Poll {email} now",
+      "deleteAccount": "Delete {email}",
+      "status": {
+        "active": "Active",
+        "reauth_required": "Needs re-authentication",
+        "revoked": "Revoked",
+        "paused": "Paused"
+      },
+      "never": "never",
+      "justNow": "just now",
+      "ago": "{value} ago"
+    },
+    "archive": {
+      "eyebrow": "Analysis archive",
+      "title": "Full history",
+      "closeHint": "Close (Esc)",
+      "close": "Close archive",
+      "searchPlaceholder": "Search by title… (/)",
+      "search": "Search by title",
+      "clearSearch": "Clear search",
+      "filterVerdict": "Filter by verdict",
+      "filterSource": "Filter by source",
+      "filterStatus": "Filter by status",
+      "filterReview": "Filter by review",
+      "iocPlaceholder": "IOC: domain, IP, URL or hash",
+      "iocSearch": "Search by indicator of compromise",
+      "filterTag": "Filter by tag",
+      "allTags": "All tags",
+      "clearFilters": "Clear filters",
+      "views": "Views",
+      "deleteView": "Delete the {name} view",
+      "viewName": "View name",
+      "saveView": "Save view",
+      "viewsHint": "Filter and save the combination to come back to it.",
+      "loading": "Loading analyses…",
+      "noMatch": "No analysis matches these filters.",
+      "empty": "There are no analyses yet. Paste some headers or connect a mailbox to start.",
+      "compareHint": "Mark two to compare them (x)",
+      "compareItem": "Compare #{id}",
+      "reviewedHint": "Reviewed by an analyst",
+      "reviewedChip": "reviewed",
+      "compareButtonHint": "Mark two rows (x) and compare them (c)",
+      "compare": "Compare ({count}/2)",
+      "filteredTotal": "{shown} of {total} analyses",
+      "total": "{total} analyses in total",
+      "all": "All",
+      "pendingReview": "Pending review",
+      "reviewed": "Reviewed"
+    },
+    "report": {
+      "loading": "Loading report…",
+      "progress": "{percent}% — running verification rules",
+      "cancel": "Cancel analysis",
+      "failedTitle": "Analysis failed",
+      "failed": "Analysis #{id} could not be completed. Try again.",
+      "cancelledTitle": "Analysis cancelled",
+      "cancelled": "Analysis #{id} was cancelled by the user.",
+      "reanalyze": "Reanalyze with the current rules",
+      "removeTag": "Remove the {tag} tag",
+      "tagPlaceholder": "+ tag",
+      "addTag": "Add tag",
+      "forwardDetected": "Email forwarded as an attachment detected.",
+      "fromWrapper": "The verdict comes from the forwarding wrapper, not from the attached original message.",
+      "fromOriginal": "The attached original message (.eml) was analyzed, not the forwarding wrapper.",
+      "wrapper": "Wrapper",
+      "original": "Original",
+      "points": "{count} points",
+      "wrapperFrom": "from {from}",
+      "limits": "What limits this verdict",
+      "noContent": "No content to inspect: {rules}",
+      "feedbackQuestion": "Is this verdict correct?",
+      "feedbackOptions": {
+        "malicious": "It is malicious",
+        "legitimate": "It is legitimate",
+        "unknown": "Cannot tell"
+      },
+      "feedbackLabels": {
+        "malicious": "malicious",
+        "legitimate": "legitimate",
+        "unknown": "undetermined"
+      },
+      "notePlaceholder": "Optional note (why)",
+      "reviewedAs": "Reviewed as {label} by {author}",
+      "trustSender": "Trust this sender…",
+      "trustApplied": "Trust exception applied",
+      "trustNotApplied": "Trust exception not applied",
+      "sender": "Sender",
+      "neutralized": "Neutralized rules: {rules}.",
+      "nonePenalized": "none were penalizing",
+      "trustIgnored": "The message does not prove it comes from there, so it was analyzed without the exception.",
+      "incompleteTitle": "Incomplete analysis",
+      "incomplete": "{count} rule could not run, so the part of the message it covers has not been inspected. | {count} rules could not run, so the part of the message they cover has not been inspected.",
+      "why": "Why this verdict",
+      "topSignals": "Main signals",
+      "aiSummary": "Executive summary (AI)",
+      "attackerIntent": "Attacker's likely intent",
+      "aiConfidence": "Confidence: {level}",
+      "aiGenerating": "Generating the narrative with AI…",
+      "checkStatus": "Check status",
+      "generateAi": "Generate an executive summary with AI",
+      "flaggedRules": "Rules with findings",
+      "passedRules": "Rules passed without issues ({count})",
+      "recommendations": "Recommendations",
+      "showLess": "Show less",
+      "showMore": "Show {count} more",
+      "path": "Email route",
+      "pathLoading": "Loading route…",
+      "pathUnavailable": "Route unavailable for this analysis.",
+      "iocs": "Indicators of compromise (IOCs)",
+      "iocsLoading": "Extracting IOCs…",
+      "iocsFailed": "The IOCs could not be loaded.",
+      "rawHeaders": "Original headers"
+    },
+    "cases": {
+      "badge": "Cases",
+      "onlyMine": "Only the ones assigned to me",
+      "newTitle": "New case title",
+      "priority": "Priority",
+      "open": "Open case",
+      "empty": "There are no cases with these filters.",
+      "analysisCount": "{count} analyses",
+      "pick": "Choose a case to see its analyses, status and timeline.",
+      "closed": "Closed: “{reason}”",
+      "assigned": "Assigned",
+      "unassign": "remove",
+      "assignMe": "Assign to me",
+      "tags": "Tags (comma-separated)",
+      "moveTo": "Move to",
+      "closeReason": "Why it is closed as “{status}” (required)",
+      "close": "Close case",
+      "analyses": "Analyses ({count})",
+      "analysisId": "Analysis ID",
+      "analysisIdLabel": "ID of the analysis to add",
+      "addAnalysis": "Add analysis",
+      "timeline": "Timeline",
+      "addNote": "Add a note",
+      "note": "Add note",
+      "events": {
+        "created": "Case opened",
+        "status_changed": "Status change",
+        "priority_changed": "Priority change",
+        "assigned": "Assignment change",
+        "title_changed": "Title change",
+        "tags_changed": "Tags change",
+        "note": "Note",
+        "analysis_linked": "Analysis added",
+        "analysis_unlinked": "Analysis removed"
+      },
+      "noteEvent": "Note: {note}",
+      "statusWithReason": "{change} — “{reason}”",
+      "priorityChange": "Priority: {from} → {to}",
+      "createdWith": "Case opened with {count} analyses"
+    },
+    "connections": {
+      "badge": "Mailbox connections",
+      "eyebrow": "Mailbox connector",
+      "title": "Connect a mailbox",
+      "intro": "Iris does not let you “enter” your inbox from here — it never shows the email itself. Every few minutes it checks the connected mailbox for new messages, analyzes their headers just as if you had pasted them by hand, and the result appears automatically in your {history}. You can pause or disconnect the account at any time.",
+      "history": "Analysis history",
+      "connecting": "Connecting…",
+      "connect": "Connect account",
+      "deleteTitle": "Delete connection",
+      "deleteMessage": "The connection with {email} will be deleted. Iris will stop analyzing this mailbox automatically.",
+      "connected": "Mailbox connected.",
+      "failed": "The mailbox could not be connected.",
+      "callbackErrors": {
+        "consent_denied": "You cancelled the connection process with the provider.",
+        "missing_code": "The provider did not return a valid authorization code.",
+        "invalid_state": "The connection link expired or is not valid. Try again.",
+        "connection_failed": "The connection could not be completed. Try again."
+      }
+    },
+    "trustView": {
+      "badge": "Trusted senders",
+      "eyebrow": "Trust exceptions",
+      "title": "Remove a recurring false positive",
+      "intro": "If a sender you know always triggers the same alert — a supplier replying from another address, a bank that writes “urgent” — declare here that you trust it. It only affects you, expires on its own and every analysis it applies to says so.",
+      "yours": "Your exceptions",
+      "showInactive": "Show expired and revoked",
+      "none": "You have no exceptions.",
+      "noneActive": "You have no active exceptions.",
+      "domain": "domain",
+      "address": "address",
+      "status": {
+        "active": "active",
+        "expired": "expired",
+        "revoked": "revoked"
+      },
+      "created": "Created {date}",
+      "revokedOn": "revoked {date}",
+      "expires": "expires {date}",
+      "revokeTitle": "Revoke exception",
+      "revokeMessage": "The next emails from {value} will be analyzed without the exception. The exception stays in the audit log."
+    }
+  },
+  "irisHub": {
+    "tagline": "Email header analysis against phishing, with an explained verdict.",
+    "toolLabel": "Analyze an email",
+    "loading": "Loading recent activity…",
+    "examined": "Emails examined",
+    "flagged": "{count} flagged as phishing ({rate}%)",
+    "empty": "You have not examined any email yet. Drop an .eml and start.",
+    "highlight": {
+      "label": "The verification",
+      "value": "37 rules",
+      "sub": "against phishing in every email"
+    },
+    "features": {
+      "rules": {
+        "kicker": "37 rules",
+        "title": "The email's signature, under examination",
+        "desc": "SPF, DKIM, DMARC, sender spoofing and delivery route anomalies: every header testifies, and the 37 rules listen."
+      },
+      "quishing": {
+        "kicker": "Quishing",
+        "title": "QR codes testify too",
+        "desc": "QR codes embedded in the email are decoded and analyzed as the phishing vector they can be."
+      },
+      "iocs": {
+        "kicker": "IOCs",
+        "title": "Ready to block",
+        "desc": "Suspicious domains, IPs and links extracted from the message, ready to take to your gateway."
+      },
+      "verdict": {
+        "kicker": "Verdict",
+        "title": "Explained, not just scored",
+        "desc": "A plain-language summary explains why the email is legitimate, suspicious or phishing — it does not leave you alone with a number."
+      }
+    },
+    "resources": {
+      "osi": "INCIBE — Internet User Security Office (OSI, Spanish)"
+    }
+  },
+  "irisView": {
+    "badge": "Header analysis",
+    "invalidFormat": "Invalid format",
+    "intake": "Evidence intake",
+    "onlyAccepted": "Only .eml, .msg or ZIP files are accepted",
+    "dropHere": "Drop the email (or several) to examine it",
+    "sections": "Iris sections",
+    "headersUnreadable": "The email's headers could not be read.",
+    "tooBigWithLimit": "The file exceeds the maximum the server accepts ({limit}): only the headers will be analyzed.",
+    "tooBig": "The file exceeds the maximum the server accepts: only the headers will be analyzed.",
+    "loaded": "Email loaded.",
+    "unreadable": "The file could not be read."
+  },
+  "irisReplay": {
+    "title": "Iris rule simulator",
+    "intro": "Compare the current scoring policy with a candidate on Iris's versioned corpus before deploying it: which verdicts change, which gates appear or disappear and how many false positives and negatives each one has. Nothing evaluated here is saved.",
+    "candidate": "Candidate policy",
+    "emptyKeeps": "Whatever you leave empty stays as in the current policy.",
+    "profile": "Sensitivity profile",
+    "currentProfile": "(the current one)",
+    "profiles": {
+      "strict": "Strict",
+      "balanced": "Balanced",
+      "lenient": "Lenient"
+    },
+    "legitimateThreshold": "Legitimate threshold",
+    "suspiciousThreshold": "Suspicious threshold",
+    "current": "(current)",
+    "weights": "Weights to override (JSON, added to the current ones)",
+    "adHoc": "Single message (optional: headers or a full .eml)",
+    "messageLabel": "Message label",
+    "noLabel": "no label",
+    "includeCorpus": "Include the versioned corpus",
+    "comparing": "Comparing…",
+    "compare": "Compare",
+    "corpus": "Corpus",
+    "notIncluded": "(not included)",
+    "catalog": "catalog",
+    "changed": "{changed} of {total} samples change verdict.",
+    "policy": "Policy",
+    "version": "Version",
+    "falsePositives": "False positives",
+    "falseNegatives": "False negatives",
+    "precision": "Precision",
+    "recall": "Recall",
+    "policies": {
+      "baseline": "Current",
+      "candidate": "Candidate"
+    },
+    "sample": "Sample",
+    "gatesChanged": "Gates that change",
+    "invalidJson": "The weights are not valid JSON."
+  },
+  "irisStore": {
+    "mailbox": {
+      "loadFailed": "The connections could not be loaded.",
+      "loadConnection": "Connection error while loading the mailbox connections.",
+      "connectFailed": "The connection could not be started.",
+      "updateFailed": "The connection could not be updated.",
+      "updated": "Connection updated.",
+      "deleteFailed": "The connection could not be deleted.",
+      "deleted": "Connection deleted.",
+      "syncFailed": "The connection could not be synchronized.",
+      "syncQueued": "Synchronization queued."
+    },
+    "startFailed": "The analysis could not be started.",
+    "loadFailed": "The analyses could not be loaded.",
+    "loadConnection": "Connection error while loading the analyses.",
+    "viewSaveFailed": "The view could not be saved.",
+    "viewSaved": "View saved.",
+    "viewDeleteFailed": "The view could not be deleted.",
+    "tagsFailed": "The tags could not be saved.",
+    "reportFailed": "The report could not be loaded.",
+    "reanalyzeFailed": "The analysis could not be relaunched.",
+    "replayFailed": "The rule simulator could not run.",
+    "feedbackFailed": "The correction could not be saved.",
+    "feedbackSaved": "Correction saved. The original verdict does not change.",
+    "batchFailed": "The batch could not be sent.",
+    "caseOpenFailed": "The case could not be opened.",
+    "caseUpdateFailed": "The case could not be updated.",
+    "caseStatusFailed": "The status could not be changed.",
+    "caseNoteFailed": "The note could not be saved.",
+    "caseLinkFailed": "The analysis could not be added to the case.",
+    "caseUnlinkFailed": "The analysis could not be removed from the case.",
+    "trustSaveFailed": "The exception could not be saved.",
+    "trustSaved": "Exception saved. It will apply to the next analyses (reanalyze this one to see it).",
+    "trustRevokeFailed": "The exception could not be revoked.",
+    "trustRevoked": "Exception revoked.",
+    "aiFailed": "The AI summary could not be generated.",
+    "aiGenerating": "Generating the executive summary with AI…",
+    "aiStillRunning": "The AI summary is still being generated. Check again in a few seconds.",
+    "cancelFailed": "The analysis could not be cancelled.",
+    "cancelled": "Analysis cancelled.",
+    "deleteFailed": "The analysis could not be deleted.",
+    "deleted": "Analysis deleted.",
+    "reportGenerateFailed": "The report could not be generated.",
+    "reportGenerating": "Report generation started.",
+    "reportDownloadFailed": "The report could not be downloaded.",
+    "reportDownloaded": "Report downloaded.",
+    "reportDeleteFailed": "The report could not be deleted.",
+    "reportDeleted": "Report deleted.",
+    "started": "Analysis started (ID: {id})",
+    "reanalyzeStarted": "Reanalysis started (ID: {id})",
+    "batchSummary": "Batch #{id}: {created} created, {duplicate} duplicates, {skipped} not analyzed.",
+    "caseOpened": "Case #{id} opened.",
+    "caseLinked": "Analysis #{analysisId} added to case #{caseId}."
+  },
+  "aegis": {
+    "campaignStatus": {
+      "draft": "Draft",
+      "sending": "Sending",
+      "sent": "Sent",
+      "failed": "Failed",
+      "closed": "Closed"
+    },
+    "recipientStatus": {
+      "sent": "Sent",
+      "opened": "Opened",
+      "completed": "Completed"
+    },
+    "topics": {
+      "title": "Topics",
+      "searchPlaceholder": "Search topic…",
+      "search": "Search topic",
+      "noMatch": "No topic matches “{search}”.",
+      "empty": "There are no topics available."
+    },
+    "tweaks": {
+      "title": "New pill",
+      "audience": "Audience",
+      "audiences": {
+        "mixed": "Mixed",
+        "technical": "Technical",
+        "nonTechnical": "Non-technical"
+      },
+      "focus": "Topic focus",
+      "focusPlaceholder": "E.g. QR phishing",
+      "incident": "Recent incident",
+      "incidentPlaceholder": "Optional — e.g. a phishing attempt against Accounting last week",
+      "generate": "Generate pill"
+    },
+    "history": {
+      "count": "{count} doc | {count} docs",
+      "sort": {
+        "newest": "Newest",
+        "oldest": "Oldest",
+        "name": "Name A–Z"
+      },
+      "empty": "No documents yet",
+      "document": "Document #{id}",
+      "topic": "Topic #{id}",
+      "export": "Export",
+      "exportLabel": "Export “{title}”",
+      "deleteLabel": "Delete “{title}”",
+      "deleteTitle": "Delete document",
+      "deleteMessage": "Delete “{title}”? This action cannot be undone.",
+      "status": {
+        "done": "Ready",
+        "pending": "Generating",
+        "error": "Error"
+      }
+    },
+    "campaign": {
+      "launch": "Launch campaign",
+      "running": "Campaign running",
+      "sending": "Sending to {count} recipient. Sending continues in the background. | Sending to {count} recipients. Sending continues in the background.",
+      "questionsReady": "{count} check question ready | {count} check questions ready",
+      "noQuestions": "This pill has no quiz questions — a campaign cannot be launched",
+      "name": "Campaign name",
+      "namePlaceholder": "E.g. Q1 training — Sales",
+      "existingList": "Existing list",
+      "noLists": "You do not have any distribution lists yet — create a new one.",
+      "selectList": "Select a list",
+      "listNamePlaceholder": "E.g. Whole staff",
+      "emailsPlaceholder": "One email per line (or comma-separated)\nana{'@'}company.com\nbob{'@'}company.com",
+      "launching": "Launching…",
+      "pill": "Pill",
+      "seeAll": "See all campaigns",
+      "seePrevious": "See this pill's previous campaign | See this pill's {count} previous campaigns"
+    },
+    "lists": {
+      "title": "Distribution lists",
+      "subtitle": "Recipients of the awareness campaigns",
+      "loading": "Loading lists…",
+      "empty": "You do not have any distribution lists yet — create the first one below.",
+      "recipients": "{count} recipient | {count} recipients",
+      "recipientsLabel": "Recipients",
+      "detectedRecipients": "{count} recipient detected | {count} recipients detected",
+      "detected": "{count} detected",
+      "delete": "Delete list",
+      "remove": "Remove {email}",
+      "listEmpty": "This list is empty.",
+      "addRecipients": "Add recipients",
+      "emailsPlaceholder": "One email per line (or comma-separated)",
+      "new": "New list",
+      "name": "List name",
+      "create": "Create list",
+      "deleteMessage": "Delete “{name}” and its recipients? Campaigns launched with this list are deleted too, with their results, and their quiz links will stop working."
+    },
+    "viewer": {
+      "writing": "Writing the pill…",
+      "keepUsing": "You can keep using the rest of Aegis in the meantime.",
+      "title": "Document viewer",
+      "empty": "Select a document from the history or generate a new pill to see its content here.",
+      "loading": "Loading document…",
+      "doc": "Doc #{id}",
+      "campaignHint": "Launch a campaign with this pill",
+      "campaignNeedsQuestions": "Add quiz questions in the editor to be able to launch a campaign",
+      "alerts": "Security alerts"
+    },
+    "editor": {
+      "editing": "Editing Doc #{id}",
+      "titlePlaceholder": "Pill title",
+      "intro": "Introduction",
+      "introPlaceholder": "Introductory text. Separate paragraphs with a blank line.",
+      "addTip": "+ Add recommendation",
+      "noTips": "No recommendations. Add the first one.",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "tipTitle": "Recommendation title",
+      "body": "Body",
+      "bodyPlaceholder": "Recommendation details",
+      "links": "Links",
+      "addLink": "+ Link",
+      "linkText": "Text",
+      "removeLink": "Remove link",
+      "questions": "Quiz questions",
+      "addQuestion": "+ Add question",
+      "questionsHint": "Without questions a campaign cannot be launched. Mark the correct option of each one. Up to {questions} questions of {options} options.",
+      "noQuestions": "No questions. Add the first one.",
+      "prompt": "Question",
+      "promptPlaceholder": "What would you do if you got a text message claiming to be from your bank?",
+      "options": "Options · mark the correct one",
+      "addOption": "+ Option",
+      "markCorrect": "Mark option {n} as correct",
+      "correctOption": "Option {n} correct",
+      "option": "Option {n}",
+      "removeOption": "Remove option",
+      "closing": "Closing",
+      "closingPlaceholder": "Conclusion or call to action",
+      "contact": "Contact email",
+      "contactPlaceholder": "security{'@'}company.com",
+      "errors": {
+        "titleRequired": "The title is required.",
+        "max": "At most {max} characters.",
+        "bodyRequired": "The body is required.",
+        "promptRequired": "The question is required.",
+        "emptyOption": "Do not leave any option empty.",
+        "optionCount": "Each question needs between {min} and {max} options.",
+        "markCorrect": "Mark which option is correct."
+      }
+    },
+    "profile": {
+      "title": "Organization profile",
+      "notConfigured": "Not configured yet",
+      "company": "Company",
+      "companyPlaceholder": "Company name",
+      "contactPlaceholder": "contact{'@'}company.com",
+      "language": "Pill language",
+      "tone": "Tone",
+      "tones": {
+        "profesional": "Professional",
+        "formal": "Formal",
+        "cercano": "Friendly",
+        "tecnico": "Technical"
+      },
+      "sector": "Sector",
+      "sectorPlaceholder": "E.g. banking",
+      "size": "Company size",
+      "unspecified": "Not specified",
+      "sizes": {
+        "micro": "Micro (<10)",
+        "small": "Small (10-50)",
+        "medium": "Medium (50-250)"
+      },
+      "employees": "No. of employees",
+      "optional": "Optional",
+      "jurisdiction": "Jurisdiction",
+      "jurisdictionPlaceholder": "E.g. Spain (GDPR)",
+      "workModel": "Work model",
+      "workModels": {
+        "remote": "Remote",
+        "hybrid": "Hybrid",
+        "onSite": "On-site"
+      },
+      "manageProducts": "Manage products",
+      "update": "Update profile",
+      "save": "Save profile",
+      "agentProducts": "products from my agents",
+      "noProducts": "no products",
+      "productCount": "{count} product | {count} products"
+    },
+    "products": {
+      "title": "Watched products",
+      "fromAgents": "Infer the products from my agents",
+      "fromAgentsHint": "Uses the software Hygeia inventories on your assets instead of the list below.",
+      "usingAgents": "Right now your agents' products are used. This list is kept as an alternative if you turn off the option above.",
+      "searchPlaceholder": "Search a product: windows, firefox, apache…",
+      "searching": "Searching…",
+      "minChars": "Type at least 2 characters.",
+      "noMatch": "No matches in the vulnerability catalog.",
+      "none": "You are not watching any product yet.",
+      "saveNote": "Changes are saved with “Save profile”.",
+      "done": "Done",
+      "selected": "Selected",
+      "watchedCount": "{count} watched product | {count} watched products"
+    }
+  },
+  "aegisView": {
+    "badge": "Pill generation",
+    "expandLeft": "Expand the profile and generation panel",
+    "collapseLeft": "Collapse the profile and generation panel",
+    "editLists": "Edit distribution lists",
+    "expandHistory": "Expand history",
+    "collapseHistory": "Collapse history",
+    "campaigns": "Campaigns",
+    "campaignsSub": "Results of what you have already sent"
+  },
+  "aegisHub": {
+    "tagline": "AI-generated awareness training, sent and proven with campaigns.",
+    "toolLabel": "Open generator",
+    "loading": "Loading latest campaign…",
+    "lastCampaign": "Latest campaign — {name}",
+    "completed": "{rate}% completed",
+    "recipients": "{done} of {total} recipients",
+    "empty": "You have not launched any campaign yet. Generate a pill and launch it.",
+    "highlight": {
+      "label": "The training",
+      "value": "Tailored",
+      "sub": "AI-generated for your regulations"
+    },
+    "features": {
+      "pills": {
+        "kicker": "AI pills",
+        "title": "Training tailored to your company",
+        "desc": "The AI writes each pill according to your size, your regulatory framework (GDPR, ENS, NIS2), your work model and even your recent incidents."
+      },
+      "quiz": {
+        "kicker": "Quiz",
+        "title": "Every pill checks that it sank in",
+        "desc": "Multiple-choice questions are generated with the content, editable before launch. Knowing is not assuming."
+      },
+      "campaigns": {
+        "kicker": "Campaigns",
+        "title": "Send, track, prove",
+        "desc": "Distribution lists, email delivery and tracking of who opened and who completed. The quiz is public: your staff need no accounts."
+      },
+      "evidence": {
+        "kicker": "Evidence",
+        "title": "Exportable as compliance",
+        "desc": "Markdown, JSON or PDF ready to file as proof that the training happened."
+      }
+    },
+    "resources": {
+      "incibe": "INCIBE — Awareness guides for companies (Spanish)"
+    }
+  },
+  "aegisCampaigns": {
+    "generator": "Generator",
+    "pillsLabel": "Pills with campaigns",
+    "pills": "Pills",
+    "refresh": "Refresh",
+    "refreshLabel": "Refresh campaigns",
+    "loading": "Loading campaigns…",
+    "empty": "You have not launched any campaign yet.",
+    "emptyLink": "Open a pill in the generator and launch it",
+    "pillMeta": "{count} campaign · last on {date} | {count} campaigns · last on {date}",
+    "pillCampaignsLabel": "Pill campaigns",
+    "pill": "Pill",
+    "pillFallback": "Pill #{id}",
+    "people": "People",
+    "opened": "Opened the link",
+    "completed": "Completed the quiz",
+    "averageHits": "Average correct",
+    "completedOf": "{done}/{total} completed",
+    "choosePill": "Choose a pill to see its campaigns.",
+    "resultsLabel": "Campaign results",
+    "loadingResults": "Loading results…",
+    "delete": "Delete campaign",
+    "createdOn": "Created on {date}",
+    "launchedOn": "launched on {date}",
+    "list": "list “{name}”",
+    "questions": "{count} question | {count} questions",
+    "recipients": "Recipients",
+    "averageScore": "Average score",
+    "hitRate": "{rate}% correct",
+    "openedRate": "{rate}% opened the link",
+    "completedRate": "{rate}% completed the quiz",
+    "byQuestion": "Results by question",
+    "questionRate": "{rate}% got it right",
+    "noAnswers": "No answers",
+    "correct": "Correct",
+    "noRecipients": "This campaign has no recipients yet.",
+    "columns": {
+      "recipient": "Recipient",
+      "status": "Status",
+      "sent": "Sent",
+      "opened": "Opened",
+      "completed": "Completed",
+      "score": "Score"
+    },
+    "loadError": "The results could not be loaded.",
+    "chooseCampaign": "Choose a campaign to see its results.",
+    "deleteConfirm": "Delete “{name}”? The quiz links already sent to its recipients will stop working."
+  },
+  "quiz": {
+    "brandSub": "Awareness training",
+    "loading": "Loading your training…",
+    "justCompleted": "Quiz completed!",
+    "alreadyCompleted": "You already completed this quiz",
+    "singleUse": "This link is single-use and no longer accepts answers.",
+    "yourTraining": "Your training",
+    "intro": "Answer {count} question to complete the training. You can only submit the quiz once. | Answer {count} questions to complete the training. You can only submit the quiz once.",
+    "question": "Question {number}",
+    "pending": "{count} question left to answer. | {count} questions left to answer.",
+    "sending": "Sending…",
+    "submit": "Submit answers",
+    "footer": "Security awareness",
+    "recorded": "Quiz recorded.",
+    "passed": "Well done. You passed the check.",
+    "failed": "Review the training with your security lead.",
+    "errors": {
+      "incomplete": {
+        "title": "Incomplete link",
+        "detail": "The link is missing its identifier. Open the one you received by email as is, without trimming it."
+      },
+      "offline": {
+        "title": "We could not connect",
+        "detail": "Check your connection and try again in a few minutes."
+      },
+      "notFound": {
+        "title": "Invalid link",
+        "detail": "This link does not match any training. It may have been mistyped or the campaign may no longer exist."
+      },
+      "tooMany": {
+        "title": "Too many attempts",
+        "detail": "The request limit has been reached. Wait a while before opening the link again."
+      },
+      "failed": {
+        "title": "Something went wrong",
+        "detail": "We could not load your training. Try again later."
+      },
+      "noQuestions": {
+        "title": "Training without questions",
+        "detail": "This campaign has no quiz attached. Let whoever sent it to you know."
+      }
+    },
+    "submitErrors": {
+      "offline": "We could not send your answers. Check your connection and try again.",
+      "tooMany": "Too many submissions in a row. Wait a moment before retrying.",
+      "failed": "We could not record your answers. Try again."
+    }
+  },
+  "aegisStore": {
+    "searchLimited": "You have used up your searches for now. Try again in a few minutes.",
+    "searchFailed": "The vulnerability catalog could not be queried.",
+    "profileSaveFailed": "The organization profile could not be saved.",
+    "profileSaved": "Organization profile saved.",
+    "documentsFailed": "The documents could not be loaded.",
+    "connectionError": "Connection error.",
+    "pickTopic": "Select a topic first.",
+    "generateFailed": "The pill could not be generated.",
+    "documentFailed": "The document could not be loaded.",
+    "saveFailed": "The changes could not be saved.",
+    "pillUpdated": "Pill updated.",
+    "deleteFailed": "The document could not be deleted.",
+    "exportFailed": "The export failed.",
+    "downloaded": "Document downloaded.",
+    "downloadFailed": "The download failed.",
+    "previewFailed": "The preview failed.",
+    "previewError": "Error while previewing.",
+    "campaignsFailed": "The campaigns could not be loaded.",
+    "campaignDetailFailed": "The campaign details could not be loaded.",
+    "campaignDeleteFailed": "The campaign could not be deleted.",
+    "campaignDeleted": "Campaign deleted.",
+    "listCreateFailed": "The list could not be created.",
+    "listCreatedPartial": "List created, but the recipients could not be added.",
+    "recipientsFailed": "The recipients could not be loaded.",
+    "recipientsAddFailed": "The recipients could not be added.",
+    "recipientDeleteFailed": "The recipient could not be deleted.",
+    "listDeleteFailed": "The list could not be deleted.",
+    "listDeleted": "List deleted.",
+    "campaignCreateFailed": "The campaign could not be created.",
+    "launchFailed": "The campaign could not be launched.",
+    "launched": "Campaign launched. Sending continues in the background.",
+    "generating": "Pill being generated (ID: {id})",
+    "recipientsAdded": "{count} recipient added. | {count} recipients added."
+  },
+  "hygeia": {
+    "ago": {
+      "never": "never",
+      "justNow": "just now",
+      "ago": "{value} ago"
+    },
+    "powerClassification": {
+      "observed": "Observed",
+      "observed_partial": "Partial data",
+      "projected": "Projection"
+    },
+    "anomalyKinds": {
+      "cpu_spike": "CPU spike",
+      "mem_high": "High memory",
+      "swap_thrash": "Swap thrashing",
+      "disk_full": "Disk full",
+      "host_down": "Host down",
+      "unknown": "Anomaly"
+    },
+    "documentStatus": {
+      "pending": "Queued",
+      "running": "Generating",
+      "done": "Ready",
+      "error": "Failed"
+    },
+    "lastHours": "last hour | last {count} hours",
+    "lastDays": "last day | last {count} days",
+    "documentTitles": {
+      "organizationInventory": "Organization inventory",
+      "myInventory": "Inventory of my assets",
+      "withSoftware": "with installed software",
+      "assetStats": "Statistics for “{name}”",
+      "anAssetStats": "Statistics for an asset",
+      "tagStats": "Statistics for the tag “{name}”",
+      "aTagStats": "Tag statistics",
+      "ranking": "Fleet ranking by {metric}",
+      "metric": "metric",
+      "overview": "Fleet overview",
+      "stats": "Statistics",
+      "document": "Document"
+    },
+    "metrics": {
+      "cpuPct": "CPU",
+      "memPct": "Memory",
+      "swapPct": "Swap",
+      "diskMaxPct": "Disk",
+      "load1": "Load",
+      "netRxBps": "Network · in",
+      "netTxBps": "Network · out",
+      "powerWatts": "Power"
+    },
+    "stats": {
+      "scopes": {
+        "asset": "One asset",
+        "tag": "One tag",
+        "fleet": "Whole fleet"
+      },
+      "periods": {
+        "24h": "24 h",
+        "7d": "7 days",
+        "30d": "30 days"
+      },
+      "aggregations": {
+        "avg": "Average",
+        "max": "Maximum",
+        "sum": "Total"
+      },
+      "spanDays": "{count} day | {count} days",
+      "spanHours": "{count} hour | {count} hours",
+      "coverage": "Period analyzed: {span}.",
+      "coverageClipped": "Only {span} of history is kept: the result covers that time. | Only {span} of history are kept: the result covers that time."
+    },
+    "tags": {
+      "remove": "Remove the tag {name}"
+    },
+    "metricNav": {
+      "label": "Metric to chart"
+    },
+    "agentKey": {
+      "title": "Agent key",
+      "warning": "This key is shown {once}. Copy it and configure it in the agent now — you will not be able to see it again.",
+      "once": "only once",
+      "copied": "Copied ✓",
+      "copy": "Copy",
+      "config": "Agent configuration:",
+      "saved": "I have saved it"
+    },
+    "tabs": {
+      "label": "Asset views",
+      "shortcut": "Shortcut: {key}",
+      "graficas": "Charts",
+      "estadisticas": "Statistics",
+      "inventario": "Inventory",
+      "anomalias": "Anomalies",
+      "openAnomalies": "open anomalies",
+      "statsWarning": "There are disk or CPU readings above the threshold"
+    },
+    "createAsset": {
+      "title": "New asset",
+      "os": "Operating system (optional)",
+      "powersOff": "This host powers off on purpose",
+      "powersOffHint": "A laptop or a machine that sleeps. No alert is raised when it is down.",
+      "creating": "Creating…",
+      "submit": "Register",
+      "hostnameRequired": "The hostname is required.",
+      "hostname": "Hostname"
+    },
+    "inventoryReport": {
+      "title": "PDF inventory",
+      "include": "What to include",
+      "mine": "My assets",
+      "organization": "The whole organization",
+      "software": "Include installed software",
+      "softwareHint": "Adds an appendix with each asset's applications. It makes the document quite a bit longer.",
+      "note": "It is prepared in the background: we will let you know when it is ready and you download it from Documents.",
+      "requesting": "Requesting…",
+      "submit": "Prepare PDF",
+      "mineHint": "The only asset registered with your account. | The {count} assets registered with your account.",
+      "noOrganization": "You do not belong to any organization.",
+      "ownerOnly": "Only the owner of “{name}” can produce this report.",
+      "organizationHint": "The assets of the only member of “{name}”. | The assets of the {count} members of “{name}”."
+    },
+    "assetCount": "{count} asset | {count} assets",
+    "analysis": {
+      "title": "Inventory analysis",
+      "notYet": "This asset has not been analyzed yet.",
+      "status": {
+        "pending": "Pending",
+        "running": "Running",
+        "finished": "Finished",
+        "failed": "Failed"
+      },
+      "running": "Analyzing the installed software… the summary will update itself when it finishes.",
+      "vulnerable": "with a known vulnerability",
+      "confirmed": "confirmed",
+      "findings": "findings in total",
+      "clean": "No findings. The installed software is clean.",
+      "coverageTitle": "Coverage note:",
+      "coverage": "{unresolved} of the {total} inventoried packages could not be matched against the vulnerability catalog, so they were not checked. The rest were — their lack of findings is a real verification.",
+      "scope": "Installed software only. The network-exposed surface (ports, TLS, paths) is analyzed from Themis, with its own scan.",
+      "openInThemis": "See the breakdown in Themis"
+    },
+    "assetTags": {
+      "title": "Tags of {host}",
+      "search": "Search or create a tag…",
+      "noMatch": "No tag matches.",
+      "create": "Create “{name}”",
+      "color": "Color {color}",
+      "system": "Shared catalog",
+      "mine": "My tags"
+    },
+    "picker": {
+      "placeholder": "Search an asset by name…",
+      "clear": "Clear the search",
+      "noMatch": "No asset looks like “{query}”.",
+      "more": "{count} more asset matches. Type more to narrow it down. | {count} more assets match. Type more to narrow it down.",
+      "total": "You have {count} assets. Type to find the one you want.",
+      "listMatching": "Assets that look like “{query}”",
+      "listAll": "Your assets"
+    },
+    "list": {
+      "title": "Assets",
+      "manageTags": "Manage tags",
+      "statsLabel": "See the fleet statistics",
+      "reportLabel": "Prepare the PDF inventory",
+      "documents": "Documents",
+      "documentsLabel": "See the requested documents",
+      "reload": "Reload",
+      "reloadLabel": "Reload assets",
+      "clearFilters": "Clear filters",
+      "loading": "Loading assets",
+      "emptyTitle": "No assets yet",
+      "emptySub": "Register the first one to start monitoring it.",
+      "noMatchTitle": "No asset with those tags",
+      "noMatchSub": "Try removing a filter.",
+      "agentOutdated": "Outdated agent (version {version})",
+      "tags": "Tags",
+      "markPowersOff": "Mark as a host that powers off on purpose",
+      "markAlwaysOn": "Mark as an always-on host",
+      "stopAlerting": "{host}: stop alerting when it is down",
+      "resumeAlerting": "{host}: alert again when it is down",
+      "rotate": "Rotate key",
+      "rotateLabel": "Rotate the key of {host}",
+      "delete": "Delete",
+      "deleteLabel": "Delete {host}"
+    },
+    "chart": {
+      "gapTitle": "No signal: {duration}",
+      "noSignal": "no signal",
+      "downDetected": "downtime detected",
+      "max": "max",
+      "avg": "avg",
+      "min": "min",
+      "truncated": "There is more data than fits: the chart shows only part of the period.",
+      "gapSummary": "no signal {missing} out of {span}",
+      "downTitle": "Downtime detected · {duration}",
+      "gapCount": "{count} stretch without signal | {count} stretches without signal",
+      "summary": "{metric}: {current} now, {max} maximum, {avg} average, {min} minimum{gaps}.",
+      "noMetricData": "No {metric} data",
+      "thisMetric": "this metric",
+      "noPeriodData": "No data in this period",
+      "noDataSpan": "The machine has not sent data in the last {span}.",
+      "notSent": "This machine does not send “{metric}”: not every system measures it (Windows, for example, does not report load).",
+      "neverSent": "This machine has not sent any data yet. Check that the agent is installed and running.",
+      "lastSeen": "Last signal {when}. Try a wider window."
+    },
+    "detail": {
+      "select": "Select an asset to see its vitals.",
+      "lastSignal": "Last signal {when}",
+      "system": "System",
+      "booted": "Booted",
+      "agent": "Agent",
+      "notReported": "Not reported",
+      "outdatedHint": "Outdated agent version",
+      "outdated": "Outdated",
+      "registered": "Registered",
+      "vitals": "Vitals",
+      "loadingMetrics": "Loading metrics",
+      "window": "Window",
+      "windowLabel": "Chart time window",
+      "power": "Power consumption",
+      "powerUnavailable": "Consumption unavailable — this machine does not expose compatible power sensors.",
+      "powerVirtual": "Consumption unavailable — this is a virtual machine. Power is measured by the physical host.",
+      "powerVirtualNamed": "Consumption unavailable — this is a virtual machine ({system}). Power is measured by the physical host.",
+      "powerSource": "Source: {source}",
+      "measured": "Sensor measurement",
+      "estimated": "Estimate · accuracy not guaranteed",
+      "estimatedWarning": "Consumption estimated from the machine's available sensors: it may not match the real measurement, its accuracy varies with the hardware, and it is not necessarily the consumption measured at the plug.",
+      "measuredWarning": "Reading from a sensor of the machine: it may not cover the machine's full consumption (power supply, disks, fans…) and is not necessarily the consumption measured at the plug.",
+      "monthProjected": "Monthly projection",
+      "inUse": "In use",
+      "storage": "Storage",
+      "free": "{amount} free",
+      "network": "Network",
+      "networkHint": "the chart does not count the machine's own internal traffic",
+      "errors": "{count} error | {count} errors",
+      "processes": "Processes",
+      "core": "Core {index}: {pct} %",
+      "hiddenCores": "+{count} more core not shown | +{count} more cores not shown",
+      "byCpu": "By CPU",
+      "byMemory": "By memory",
+      "zombies": "{count} in zombie state",
+      "inventory": "Software inventory",
+      "loadingInventory": "Loading inventory",
+      "scanned": "Scanned {when}",
+      "analyzing": "Analyzing the inventory…",
+      "vulnerablePackages": "{count} package with known vulnerabilities | {count} packages with known vulnerabilities",
+      "noVulnerabilities": "No known vulnerabilities",
+      "notSearched": "Vulnerabilities have not been searched yet",
+      "viewAnalysis": "View analysis",
+      "reanalyze": "Analyze again",
+      "analyze": "Search for vulnerabilities",
+      "noInventory": "This asset has not reported an inventory scan yet.",
+      "emptyInventory": "The last scan found no installed software.",
+      "filter": "Filter by name or vendor…",
+      "noResults": "No results for “{query}”.",
+      "noAnomalies": "No anomalies recorded. The asset is healthy.",
+      "threshold": "threshold {value}%",
+      "opened": "Opened {when}",
+      "ack": "Acknowledge",
+      "resolve": "Resolve",
+      "anomalyState": {
+        "open": "Open",
+        "acknowledged": "Acknowledged",
+        "resolved": "Resolved"
+      },
+      "kernel": "Kernel"
+    }
+  },
+  "hygeiaStore": {
+    "offline": "Could not connect to the API.",
+    "assetsFailed": "The assets could not be loaded.",
+    "createFailed": "The asset could not be registered.",
+    "deleteFailed": "The asset could not be deleted.",
+    "rotateFailed": "The key could not be rotated.",
+    "updateFailed": "The asset could not be updated.",
+    "tagsSaveFailed": "The tags could not be saved.",
+    "metricsFailed": "The metrics could not be loaded.",
+    "latestFailed": "The latest heartbeat could not be loaded.",
+    "inventoryFailed": "The inventory could not be loaded.",
+    "analysisFailed": "The analysis could not be loaded.",
+    "analysisLaunchFailed": "The analysis could not be launched.",
+    "powerFailed": "The power consumption could not be loaded.",
+    "alerts": {
+      "offline": "Could not connect to the API.",
+      "loadFailed": "The alerts could not be loaded.",
+      "ackFailed": "The anomaly could not be acknowledged.",
+      "resolveFailed": "The anomaly could not be resolved.",
+      "deleteFailed": "The anomaly could not be deleted."
+    },
+    "tags": {
+      "offline": "Could not connect to the API.",
+      "loadFailed": "The tags could not be loaded.",
+      "createFailed": "The tag could not be created.",
+      "deleteFailed": "The tag could not be deleted."
+    },
+    "stats": {
+      "offline": "Could not connect to the API.",
+      "overviewFailed": "The fleet overview could not be loaded.",
+      "statsFailed": "The statistics could not be loaded.",
+      "seriesFailed": "The history of the chosen metrics could not be loaded."
+    },
+    "documents": {
+      "offline": "Could not connect to the API.",
+      "loadFailed": "The documents could not be loaded.",
+      "requestFailed": "The document could not be requested.",
+      "downloadFailed": "The document could not be downloaded.",
+      "deleteFailed": "The document could not be deleted.",
+      "viewDocuments": "View documents",
+      "ready": "Ready to download: {title}.",
+      "failed": "Could not generate: {title}. Request it again.",
+      "preparing": "Preparing: {title}. We will let you know when it is ready."
+    }
+  },
+  "hygeiaHub": {
+    "tagline": "Real-time hardware telemetry, with alerts before the problem shows.",
+    "myth": "The goddess of health; she watches every asset's vital signs before any of them goes out.",
+    "toolLabel": "See my assets",
+    "loading": "Loading recent activity…",
+    "monitored": "Monitored assets",
+    "online": "{count} online right now",
+    "empty": "You are not monitoring any asset yet. Register the first one.",
+    "highlight": {
+      "label": "Presence detection",
+      "sub": "to know whether a host is down"
+    },
+    "features": {
+      "push": {
+        "kicker": "No open ports",
+        "title": "The machine reports, you don't ask",
+        "desc": "A lightweight agent reports every few seconds, even behind the office router, without opening any port on the machine."
+      },
+      "alerts": {
+        "kicker": "Quiet alerts",
+        "title": "One alert, not a flood",
+        "desc": "CPU, memory, disk and swap are watched with configurable thresholds; an anomaly opens once and resolves itself when things return to normal."
+      },
+      "down": {
+        "kicker": "Host down",
+        "title": "Silence is a signal too",
+        "desc": "If an asset stops reporting, Hygeia detects it in two steps — delayed first, down afterwards — and alerts."
+      },
+      "email": {
+        "kicker": "Email alert",
+        "title": "Critical anomalies don't wait",
+        "desc": "A critical anomaly triggers an email to the asset owner, without blocking or slowing down telemetry ingestion."
+      }
+    }
+  },
+  "hygeiaView": {
+    "badge": "Asset Monitoring",
+    "allAssets": "All assets",
+    "deleteTitle": "Delete asset",
+    "deleteMessage": "The asset will be deleted and its agent key revoked. The agent installed on that machine will no longer be able to send data.",
+    "rotateTitle": "Rotate agent key",
+    "rotateMessage": "This will revoke the current agent key and you will have to replace it manually (don't worry, you will get a new key if you accept). Are you sure you want to continue?",
+    "continue": "Continue",
+    "deleteAnomalyTitle": "Delete anomaly",
+    "deleteAnomalyMessage": "This anomaly's record will be deleted. This cannot be undone.",
+    "reanalyzeMessage": "A new analysis will run on the current inventory. The current result will become the previous one, and findings that no longer appear will be marked as fixed.",
+    "analyze": "Analyze",
+    "created": "Asset “{host}” registered.",
+    "alertingAgain": "You will be alerted again when “{host}” is down.",
+    "alertingStopped": "“{host}” is marked as a host that powers off on purpose: its downtime will not be alerted.",
+    "tagsSaved": "Tags updated.",
+    "deleted": "Asset deleted.",
+    "anomalyDeleted": "Anomaly deleted.",
+    "analysisStarted": "Analysis started. The summary will update when it finishes."
+  },
+  "hygeiaDocuments": {
+    "intro": "The CSV statistics and PDF inventories you have requested. They are prepared in the background: you can keep working and download them here when they are ready.",
+    "refresh": "Refresh",
+    "loading": "Loading documents",
+    "emptyTitle": "You have not requested any document yet",
+    "emptySub": "Export a table from {stats} or download the inventory from {assets}.",
+    "downloadLabel": "Download “{title}”",
+    "download": "Download",
+    "deleteLabel": "Delete “{title}”",
+    "pages": "Document pages",
+    "previous": "Previous",
+    "page": "Page {page} of {total}",
+    "next": "Next",
+    "deleteTitle": "Delete document",
+    "deleteMessage": "“{title}” will be deleted. If you need it again, you will have to request it again.",
+    "generated": "generated {when}",
+    "requested": "requested {when}",
+    "deleted": "Document deleted."
+  },
+  "hygeiaTags": {
+    "intro": "Everyone shares the common catalog; only you see yours. Deleting one removes it from the assets that carried it — the assets stay.",
+    "new": "New tag",
+    "search": "Search a tag…",
+    "name": "Tag name",
+    "create": "Create",
+    "loading": "Loading tags…",
+    "noMatch": "No matching tag",
+    "noMatchSub": "Try another search, or create a new one.",
+    "personal": "Personal",
+    "deleteTitle": "Delete tag",
+    "deleteLabel": "Delete the tag {name}",
+    "carriers": "Assets with “{name}”",
+    "noCarriers": "No asset carries this tag yet.",
+    "scopes": {
+      "all": "All",
+      "mine": "Mine"
+    },
+    "deleteCarried": "“{name}” will be removed from the asset that carries it. Assets are not deleted. | “{name}” will be removed from the {count} assets that carry it. Assets are not deleted.",
+    "deleteUnused": "The tag “{name}” will be deleted. No asset carries it.",
+    "created": "Tag “{name}” created.",
+    "deleted": "Tag “{name}” deleted."
+  },
+  "hygeiaStats": {
+    "intro": "Peaks, averages and history of what your agents measure, for one asset, one tag or the whole fleet.",
+    "loadingOverview": "Loading the overview",
+    "online": "{count} online",
+    "openAnomalies": "Open anomalies",
+    "critical": "{count} critical | {count} critical",
+    "acknowledged": "Acknowledged",
+    "acknowledgedSub": "already being handled",
+    "lastActivity": "Last activity",
+    "lastActivitySub": "latest data from an agent",
+    "controls": "Statistics selector",
+    "scope": "Scope",
+    "asset": "Asset",
+    "tag": "Tag",
+    "chooseTag": "Choose a tag…",
+    "combine": "Combine assets",
+    "period": "Period",
+    "tabsLabel": "Statistics views",
+    "tabs": {
+      "resumen": "Summary",
+      "evolucion": "History"
+    },
+    "metric": "Metric",
+    "exportCsvHint": "Prepares this table as CSV; download it from Documents",
+    "exportPdfHint": "Prepares this table as PDF; download it from Documents",
+    "exportUnavailable": "Choose an asset or a tag to export",
+    "exportCsv": "Export CSV",
+    "exportPdf": "Export PDF",
+    "computing": "Computing the statistics",
+    "chooseAssetSummary": "Choose an asset to see its summary.",
+    "chooseTagStats": "Choose a tag to see its statistics.",
+    "columns": {
+      "min": "Min.",
+      "max": "Max.",
+      "now": "Now",
+      "readings": "Readings",
+      "p95": "95% of the readings were below this value",
+      "assetsWithData": "Assets with data"
+    },
+    "noData": "no data",
+    "tagCarriers": "{count} asset carries this tag. | {count} assets carry this tag.",
+    "rankingCaption": "{headline} ({withData} of {total} have data).",
+    "noRanking": "No asset has data for this metric in the chosen period.",
+    "updated": "Updated {when}",
+    "evolution": "Metric history",
+    "overlaid": "Overlaid metrics",
+    "noSeries": "None of the chosen metrics has data in the period.",
+    "loadingChart": "Loading the chart",
+    "scaleNote": "Each line has its own scale: compare when each metric rises or falls, not its height. One point every {bucket}.",
+    "inactivityNote": "Shaded stretches are periods in which the asset reported no data.",
+    "rankingByPeak": "Assets with the highest {metric} peak",
+    "rankingByAverage": "Assets with the highest {metric} average",
+    "chooseAssetEvolution": "Choose an asset to see its history.",
+    "chooseTagEvolution": "Choose a tag to see its history.",
+    "noAssets": "You have no assets yet. Register one to see its history.",
+    "fleetTooLarge": "The whole-fleet chart supports up to {max} assets and you have {count}. Choose a tag or an asset.",
+    "chartLabel": "Comparison of {metrics} in the chosen period"
+  },
+  "acheron": {
+    "types": {
+      "account": {
+        "label": "Account",
+        "plural": "Accounts",
+        "newLabel": "New account"
+      },
+      "creditcard": {
+        "label": "Card",
+        "plural": "Cards",
+        "newLabel": "New card"
+      },
+      "securenote": {
+        "label": "Secure note",
+        "plural": "Notes",
+        "newLabel": "New note"
+      },
+      "identity": {
+        "label": "Identity",
+        "plural": "Identities",
+        "newLabel": "New identity"
+      },
+      "bankaccount": {
+        "label": "Bank account",
+        "plural": "Banks",
+        "newLabel": "New bank account"
+      },
+      "wifi": {
+        "label": "Wi-Fi",
+        "plural": "Wi-Fi",
+        "newLabel": "New Wi-Fi network"
+      },
+      "license": {
+        "label": "License",
+        "plural": "Licenses",
+        "newLabel": "New license"
+      }
+    },
+    "fields": {
+      "account": {
+        "username": "Username / Email",
+        "domain": "Domain / Service",
+        "password": "Password"
+      },
+      "creditcard": {
+        "cardHolderName": "Cardholder",
+        "cardNumber": "Card number",
+        "expirationDate": "Expiry (MM/YY)",
+        "cvv": "CVV",
+        "postalCode": "Postal code"
+      },
+      "securenote": {
+        "content": "Content"
+      },
+      "identity": {
+        "fullName": "Full name",
+        "email": "Email",
+        "phone": "Phone",
+        "address": "Address",
+        "city": "City",
+        "country": "Country",
+        "documentId": "ID document (national ID/passport)"
+      },
+      "bankaccount": {
+        "bankName": "Bank",
+        "holder": "Holder",
+        "iban": "IBAN",
+        "swiftBic": "SWIFT / BIC",
+        "accountNumber": "Account number"
+      },
+      "wifi": {
+        "ssid": "Network name (SSID)",
+        "password": "Password",
+        "securityType": "Security (WPA2/WPA3)"
+      },
+      "license": {
+        "product": "Product",
+        "licenseKey": "License key",
+        "licensedTo": "Licensed to",
+        "version": "Version"
+      }
+    },
+    "strength": {
+      "0": "Very weak",
+      "1": "Weak",
+      "2": "Fair",
+      "3": "Strong",
+      "4": "Very strong"
+    },
+    "hide": "Hide",
+    "show": "Show",
+    "generate": "Generate password",
+    "inYourBrowser": "in your browser",
+    "changePassword": {
+      "title": "Change master password",
+      "intro": "The new password is applied {browser}: the vault key is re-encrypted with it. Your items are not modified.",
+      "current": "Current password",
+      "next": "New password",
+      "confirm": "Repeat the new password",
+      "applying": "Applying…",
+      "submit": "Change password",
+      "errors": {
+        "current": "Enter your current password.",
+        "next": "Enter the new password.",
+        "tooShort": "The new password must be at least {min} characters long.",
+        "mismatch": "The new passwords do not match.",
+        "same": "The new password must differ from the current one."
+      }
+    },
+    "form": {
+      "title": "Title",
+      "titlePlaceholder": "A name to recognize it",
+      "blankUnchanged": "(blank = unchanged)",
+      "type": "Type",
+      "edit": "Edit {type}",
+      "item": "item",
+      "newItem": "New item",
+      "titleRequired": "The title is required.",
+      "fieldRequired": "The field “{field}” is required.",
+      "fieldTooShort": "“{field}” must be at least {min} characters long."
+    }
+  },
+  "acheronView": {
+    "badge": "Encrypted vault",
+    "wait": "One moment, please.",
+    "createTitle": "Create your master password",
+    "createIntro": "You do not have a vault yet. Choose a master password to create it: encryption happens {browser} and it is never sent to the server.",
+    "newMaster": "New master password",
+    "repeat": "Repeat the password",
+    "creating": "Creating…",
+    "create": "Create vault",
+    "unlockTitle": "Unlock vault",
+    "unlockIntro": "Encryption and decryption happen {browser}. Your master password is never sent to the server.",
+    "master": "Master password",
+    "decrypting": "Decrypting…",
+    "unlock": "Unlock",
+    "yourVault": "Your vault",
+    "itemCount": "{count} item | {count} items",
+    "add": "Add",
+    "refreshing": "Refreshing…",
+    "refresh": "Refresh",
+    "password": "Password",
+    "lock": "Lock",
+    "empty": "Your vault is empty. Press {add} to create your first item.",
+    "untitled": "Untitled",
+    "copied": "Copied to the clipboard.",
+    "created": "Vault created. Unlock it with your master password.",
+    "refreshed": "Vault refreshed.",
+    "changedElsewhere": "The vault changed on another device: refreshed.",
+    "masterUpdated": "Master password updated. Unlock with the new one.",
+    "added": "Item added.",
+    "saved": "Changes saved.",
+    "deleteConfirm": "Delete “{name}”? This cannot be undone.",
+    "deleted": "Item deleted.",
+    "errors": {
+      "tooShort": "The password must be at least {min} characters long.",
+      "mismatch": "The passwords do not match.",
+      "noAccess": "Your account does not have access to Acheron yet. Contact an administrator.",
+      "createFailed": "The vault could not be created.",
+      "keysFailed": "The encryption keys could not be generated.",
+      "noVault": "You do not have a vault yet. Create one from the mobile app.",
+      "fetchFailed": "The vault could not be fetched (error {status}).",
+      "wrongMaster": "Wrong master password.",
+      "decryptFailed": "The vault could not be decrypted.",
+      "masterChanged": "Your master password changed on another device. Enter it again.",
+      "refreshFailed": "The vault could not be refreshed.",
+      "changeFailed": "The password could not be changed.",
+      "wrongCurrent": "Wrong current password.",
+      "sendFailed": "The data could not be encrypted or sent.",
+      "addFailed": "The item could not be created.",
+      "deleteFailed": "It could not be deleted.",
+      "sessionExpired": "Session expired.",
+      "forbidden": "You do not have permission for this action.",
+      "revisionMismatch": "The vault changed on another device. Refresh and try again.",
+      "duplicate": "An item with that identifier already exists."
+    }
+  },
+  "acheronHub": {
+    "tagline": "A vault encrypted in your browser: the server only sees ciphertext, never the key.",
+    "myth": "The river no one crosses without the key.",
+    "claim": "Keep what must not be lost",
+    "toolLabel": "Open vault",
+    "loading": "Checking your vault…",
+    "secrets": "Secrets in custody",
+    "lastUpdated": "Last updated: {date}",
+    "empty": "You do not have a vault yet. Creating yours takes a minute.",
+    "highlight": {
+      "label": "Zero knowledge",
+      "value": "0 keys",
+      "sub": "travel to our server"
+    },
+    "features": {
+      "local": {
+        "kicker": "Local encryption",
+        "title": "The key never travels",
+        "desc": "AES-256-GCM in your browser: the server stores the ciphertext and only you hold the master password. Not even we can read your vault."
+      },
+      "types": {
+        "kicker": "Seven types",
+        "title": "One vault for everything",
+        "desc": "Credentials, cards, notes and more, under the same master password and the same encryption."
+      },
+      "generator": {
+        "kicker": "Generator",
+        "title": "Strong passwords on the fly",
+        "desc": "Generate and store robust passwords without leaving the vault, with a strength meter included."
+      },
+      "lybra": {
+        "kicker": "Lybra's key",
+        "title": "Feeds authenticated scanning",
+        "desc": "The credentials kept here can open the door to Themis's authenticated scans. Acheron is not just the lock: it is the key."
+      }
+    },
+    "resources": {
+      "nist": "NIST — Password management guidelines (SP 800-63B)"
+    }
+  },
+  "configStore": {
+    "loadFailed": "The configuration could not be loaded.",
+    "conflict": "The configuration changed since you loaded it. Reload it before saving.",
+    "saveFailed": "The configuration could not be saved.",
+    "saved": "Configuration saved."
+  },
+  "queueStore": {
+    "statusFailed": "The queue status could not be loaded.",
+    "connectFailed": "Could not connect to the queue.",
+    "tasksFailed": "The tasks could not be loaded.",
+    "connectionError": "Connection error with the queue.",
+    "cancelFailed": "The task could not be cancelled.",
+    "cancelled": "Task cancelled.",
+    "configFailed": "The configuration could not be updated.",
+    "configError": "The configuration could not be updated.",
+    "configUpdated": "Configuration set to {count}. It will apply when the worker restarts."
+  },
+  "logs": {
+    "loadFailed": "The system log could not be loaded.",
+    "decode": {
+      "unknown": "The compressed log content could not be read.",
+      "unsupportedFormat": "The server returned an unsupported log format.",
+      "tooLarge": "The log response exceeds the allowed size.",
+      "noDecompression": "This browser cannot decompress the log.",
+      "incomplete": "The log content arrived incomplete."
+    },
+    "windows": {
+      "10m": "10 min",
+      "30m": "30 min",
+      "1h": "1 hour",
+      "6h": "6 hours",
+      "24h": "24 hours",
+      "7d": "7 days",
+      "all": "All"
+    },
+    "title": "System logs",
+    "eyebrow": "Internal observatory",
+    "subtitle": "Search API activity without losing the thread of the operation.",
+    "live": "Auto refresh",
+    "latest": "See latest logs",
+    "query": "Query",
+    "narrow": "Narrow the reading",
+    "windowLabel": "Show the last",
+    "window": "Time window",
+    "custom": "Custom",
+    "order": "Reading order",
+    "tail": "Last lines",
+    "head": "First lines",
+    "from": "From",
+    "to": "To",
+    "minLevel": "Minimum level",
+    "allLevels": "All",
+    "levelAndAbove": "{level} and above",
+    "onlyLevel": "Only {level}",
+    "perPage": "Lines per page",
+    "contains": "Contains",
+    "containsPlaceholder": "user, path, exception…",
+    "problemsOn": "Showing problems only",
+    "problemsOff": "Warnings and errors only",
+    "apply": "Apply filters",
+    "stale": "The reading is stale",
+    "loadError": "The log could not be loaded",
+    "restart": "Start a new reading",
+    "lines": "{count} line | {count} lines",
+    "tallies": "Summary by level for the window",
+    "viewLevel": "Show {level} and above",
+    "noTallies": "No classified lines in this window.",
+    "truncated": "This view shows one page of {count} matching lines.",
+    "empty": "No lines match these filters.",
+    "pagination": "Log pagination",
+    "previous": "Previous",
+    "page": "Page {page} / {total}",
+    "next": "Next",
+    "noSnapshot": "No snapshot",
+    "newLines": "There are new lines",
+    "stable": "Stable reading",
+    "noMatches": "No matches",
+    "newest": "Most recent entries",
+    "oldest": "Earliest entries",
+    "noLinesOnPage": "0 lines on this page",
+    "line": "Line {line}",
+    "lineRange": "Lines {first}–{last}",
+    "customHint": "Dates use the server time{zone}.",
+    "since": " — since {start}",
+    "windowHint": "Last {window} of server time{zone}{since}."
+  },
+  "config": {
+    "modelPicker": {
+      "useEnv": "Use the environment's ({env})",
+      "loading": "Asking the provider…",
+      "available": "{count} model available | {count} models available",
+      "unreachable": "The provider could not be queried: type the identifier by hand.",
+      "fromList": "Pick from the list",
+      "manual": "Type it by hand"
+    },
+    "scanner": {
+      "palette": "Color palette",
+      "colors": {
+        "black": "Black",
+        "dark": "Dark",
+        "main": "Main",
+        "secondary": "Secondary",
+        "light": "Light",
+        "white": "White"
+      },
+      "systemPrompt": "System prompt",
+      "systemPromptTitle": "{name} — system prompt",
+      "userTemplate": "User template",
+      "userTemplateTitle": "{name} — user template"
+    }
+  },
+  "queue": {
+    "title": "Task Queue",
+    "subtitle": "Monitor and manage asynchronous background tasks",
+    "workersHint": "maxWorkers is the target setting; it only applies when the worker process restarts, not live",
+    "workers": "Workers",
+    "running": "Running",
+    "pending": "Waiting",
+    "history": "History",
+    "created": "Created: {date}",
+    "started": "Started: {date}",
+    "finished": "Finished: {date}",
+    "empty": "There are no tasks in this category.",
+    "categories": {
+      "themisScan": "Scan",
+      "themisReport": "PDF report",
+      "aegisGenerate": "Aegis AI"
+    },
+    "status": {
+      "pending": "Pending",
+      "running": "Running",
+      "completed": "Completed",
+      "failed": "Failed",
+      "cancelled": "Cancelled"
+    }
+  },
+  "configView": {
+    "enS1TodasLasFunciones": "In {s1} every feature below is closed to the public, whatever its switch says; your main administrator account can keep trying them, except sign-up, pricing and external AI. In {s2} each feature follows its switch, so Ellysia can be opened in parts as each one gets its legal coverage.",
+    "vistaPrevia": "preview",
+    "abiertoAlPublico": "open to the public",
+    "plazosDeLosEnlacesQue": "Lifetimes of the links sent by email. Whether public sign-ups are allowed is decided in “Launch”.",
+    "parametrosDeCosteDeArgon2id": "Argon2id cost parameters. Raising them hardens the hashes but slows down sign-in. They only affect passwords created or changed after saving.",
+    "cuantoViveUnaSesionEl": "How long a session lives. The access token travels with every request; the refresh token renews it without asking for the password again, so its lifetime is the real session length. The signing secret lives in {c1} and is not here. In containers, {c2}, {c3} and {c4} take precedence over these values.",
+    "elEmisorEsElNombre": "The issuer is the name the authenticator app shows next to the code. Recovery codes are generated once when the second factor is enabled: changing their number here does not affect anyone who already has it enabled.",
+    "lasCredencialesVivenEnEl": "The credentials live in the {c1} file. These settings require restarting the API to apply.",
+    "laContrasenaSeTomaDe": "The password is taken from {c1} in {c2}. In containers, the {c3} / {c4} / {c5} variables take precedence over these values.",
+    "eligeQueProveedorGeneraEl": "Choose which provider generates each module's content. The credentials stay in {c1}; the model is chosen here and applies to the next background job, with no restart.",
+    "laListaSaleDePreguntarle": "The list comes from asking the provider what it serves right now. Leaving the field empty means using the environment variable, which is how it worked before the model could be chosen here.",
+    "elTopeDeTokensRechaza": "The token cap rejects an oversized prompt before spending the call. The circuit breaker stops calling the provider after the given consecutive failures, so as not to chain waits against a backend already known to be down.",
+    "unModeloLocalTardaMucho": "A local model takes much longer than a cloud API, so each provider has its own.",
+    "porAquiSalenLasCampanas": "Aegis campaigns, Hygeia and Iris alerts and account emails (verification, invitations, recovery) go out through here. The relay username and password live in {c1} and {c2} in {c3}; nothing here is secret.",
+    "loQuePintanLasPlantillas": "What the templates render. This is the product's base brand: per-organization white-labeling is configured in each organization and applied on top of it.",
+    "puntuacionDeAutenticidadDeUn": "Authenticity score of an email. Above the legitimate threshold it is considered trustworthy; below the suspicious one, a threat. The suspicious threshold can be negative.",
+    "elEspejoLocalDeNvd": "The local mirror of NVD, KEV, EPSS and OVAL that Lybra uses to decide whether a detected service is vulnerable. “Maximum age” is how much is tolerated since each source's last sync before warning that it is stale; it deletes nothing.",
+    "cuantoEmpujaElMotorContra": "How hard the engine pushes against the target. Raising concurrency or lowering the interval speeds up the scan and increases the risk of the target treating it as an attack.",
+    "elTrozoDeRespuestaCruda": "The chunk of raw response kept with each finding so it can be reviewed later.",
+    "esLaUnicaFaseQue": "This is the only phase that writes to the target: each attempt is a real sign-in. The cap is per account, not per service, and keeps the check from turning into brute force.",
+    "descubreLoQueLosChecks": "Discovers what the checks do not know beforehand: robots.txt paths, login forms and authenticated paths. Read-only and same-origin, with a hard budget. At zero pages, it is skipped.",
+    "unActivoPasaADesconectado": "An asset becomes “offline” when it misses the given number of consecutive heartbeats. Lowering the interval multiplies the data volume: retention decides how much history is kept.",
+    "latidosSostenidosEvitaLasAlertas": "“Sustained heartbeats” avoids alerts for a one-off spike: the metric has to stay high for that many consecutive heartbeats. Disk and swap alert on the first one.",
+    "laPaletaConLaQue": "The palette used to generate the Hygeia PDF, like each Themis scanner's.",
+    "cuandoElAnalisisSeAtreve": "When the analysis dares to state something. A trend that does not pass these thresholds returns no estimate: it steps back and says why, instead of giving a made-up date.",
+    "cuantoTiempoSeReutilizaUna": "How long an already computed statistic is reused before recomputing it. The longer the requested period, the slower the result changes. Registering or removing an asset or changing its tags discards that user's cached results.",
+    "topesDeLoQueEl": "Caps on what the agent can send and what the API accepts. Tightening them protects the API from a compromised or misconfigured agent.",
+    "modo": "Mode",
+    "conservacionDelRegistroDeActividad": "Activity log retention (days)",
+    "idiomaDeLaPlataforma": "Platform language",
+    "vigenciaDelEnlaceDeVerificacion": "Verification link lifetime (hours)",
+    "vigenciaDelEnlaceDeRecuperacion": "Recovery link lifetime (minutes)",
+    "vigenciaDeLaInvitacionA": "Organization invitation lifetime (hours)",
+    "iteracionesTimeCost": "Iterations (time cost)",
+    "memoriaKib": "Memory (KiB)",
+    "paralelismoHilos": "Parallelism (threads)",
+    "algoritmoDeFirma": "Signing algorithm",
+    "vigenciaDelTokenDeAcceso": "Access token lifetime (min)",
+    "vigenciaDelTokenDeRefresco": "Refresh token lifetime (days)",
+    "emisor": "Issuer",
+    "vigenciaDelRetoMin": "Challenge lifetime (min)",
+    "intentosPorReto": "Attempts per challenge",
+    "codigosDeRecuperacion": "Recovery codes",
+    "recordatorioDeActivacionDias": "Activation reminder (days)",
+    "nivelDeAislamiento": "Isolation level",
+    "tamanoDelPool": "Pool size",
+    "conexionesExtraOverflow": "Extra connections (overflow)",
+    "timeoutDelPoolS": "Pool timeout (s)",
+    "puerto": "Port",
+    "baseDeDatosDb": "Database (db)",
+    "timeoutDeConexionS": "Connection timeout (s)",
+    "historialTtlS": "History TTL (s)",
+    "maxItemsEnHistorial": "Max items in history",
+    "estrategiaPorDefecto": "Default strategy",
+    "tokensMaximosDelPrompt": "Maximum prompt tokens",
+    "intentosPorGeneracion": "Attempts per generation",
+    "baseDeLaEsperaEntre": "Base wait between attempts (s)",
+    "fallosQueAbrenElCorte": "Failures that open the breaker",
+    "duracionDelCorteS": "Breaker duration (s)",
+    "direccionDelRemitente": "Sender address",
+    "nombreDelRemitente": "Sender name",
+    "nombreDelProducto": "Product name",
+    "colorDeAcento": "Accent color",
+    "urlDelLogotipo": "Logo URL",
+    "correoDeSoporte": "Support email",
+    "notaDelPie": "Footer note",
+    "directorioDePlantillas": "Templates directory",
+    "umbralLegitimo": "Legitimate threshold",
+    "umbralSospechoso": "Suspicious threshold",
+    "perfilDeSensibilidad": "Sensitivity profile",
+    "cabecerasMinimas": "Minimum headers",
+    "tamanoMaxDelMensajeBytes": "Max message size (bytes)",
+    "conexionesPorUsuario": "Connections per user",
+    "correosIngeridosAlDia": "Emails ingested per day",
+    "intervaloDeSondeoMin": "Polling interval (min)",
+    "directorioDeSalida": "Output directory",
+    "directorioDeSalidaPdfs": "Output directory (PDFs)",
+    "directorioCsv": "CSV directory",
+    "directorioDeRecursos": "Resources directory",
+    "carpetaPorDefecto": "Default folder",
+    "escaneosEnEstadisticas": "Scans in statistics",
+    "vigenciaDelRiesgoAceptadoDias": "Accepted risk lifetime (days)",
+    "plazoPorDefectoDeUn": "Default job timeout (s)",
+    "timeoutS": "Timeout (s)",
+    "validezDeCacheH": "Cache validity (h)",
+    "saltosMaximos": "Maximum hops",
+    "reintentoSiFallaMin": "Retry on failure (min)",
+    "cronDeSincronizacion": "Sync cron",
+    "ventanaPedidaANvdDias": "Window requested from NVD (days)",
+    "binario": "Binary",
+    "versionDePlantillas": "Templates version",
+    "peticionesPorSegundo": "Requests per second",
+    "timeoutPorPeticionS": "Timeout per request (s)",
+    "timeoutDelEscaneoS": "Scan timeout (s)",
+    "severidadesPorDefecto": "Default severities",
+    "severidadMinima": "Minimum severity",
+    "maxComprobaciones": "Max checks",
+    "tamanoMaxBytes": "Max size (bytes)",
+    "retencionDias": "Retention (days)",
+    "intentosPorCuenta": "Attempts per account",
+    "paginasMaximas": "Maximum pages",
+    "profundidadMaxima": "Maximum depth",
+    "tiempoMaximoS": "Maximum time (s)",
+    "consejosPorPildora": "Tips per pill",
+    "preguntasDelTest": "Quiz questions",
+    "opcionesPorPregunta": "Options per question",
+    "antiguedadMaxDeAlertasAnos": "Max alert age (years)",
+    "stackDeDocumentos": "Documents stack",
+    "intervaloDeLatidoS": "Heartbeat interval (s)",
+    "latidosPerdidosParaDesconectar": "Missed heartbeats before offline",
+    "cronDePurga": "Purge cron",
+    "precioDeLaElectricidadPor": "Electricity price (per kWh)",
+    "moneda": "Currency",
+    "directorioDeSalidaCsvY": "Output directory (CSV and PDF)",
+    "versionMinimaDeAgente": "Minimum agent version",
+    "ajusteMinimoDeLaTendencia": "Minimum trend fit (R²)",
+    "crecimientoMinimoPuntosPorcentualesAl": "Minimum growth (percentage points per day)",
+    "ventanaDeCoincidenciaDePicos": "Peak coincidence window (s)",
+    "periodosDeHasta24H": "Periods up to 24 h (s)",
+    "periodosDeHasta7Dias": "Periods up to 7 days (s)",
+    "periodosMasLargosS": "Longer periods (s)",
+    "lanzamiento": "Launch",
+    "general": "General",
+    "seguridad": "Security",
+    "baseDeDatos": "Database",
+    "ia": "AI",
+    "correo": "Email",
+    "sesionJwt": "Session (JWT)",
+    "segundoFactorTotp": "Second factor (TOTP)",
+    "modeloDeCadaProveedor": "Model for each provider",
+    "limitesYReintentos": "Limits and retries",
+    "timeoutDeCadaProveedorS": "Timeout for each provider (s)",
+    "relaySmtp": "SMTP relay",
+    "marcaDeLosCorreos": "Email branding",
+    "buzonesVigilados": "Watched mailboxes",
+    "resumenConIa": "AI summary",
+    "verificacionDeAccesibilidadDelHost": "Host reachability check",
+    "baseDeConocimiento": "Knowledge base",
+    "umbrales": "Thresholds",
+    "coloresDelInforme": "Report colors",
+    "analisisDerivado": "Derived analysis",
+    "cacheDeEstadisticas": "Statistics cache",
+    "limites": "Limits",
+    "motor": "Engine",
+    "evidencia": "Evidence",
+    "credencialesPorDefecto": "Default credentials",
+    "rastreoDeSoloLectura": "Read-only crawling",
+    "queFuncionesEstanAbiertasAl": "Which features are open to the public",
+    "directoriosDelSistemaYAlta": "System directories and account sign-up",
+    "contrasenasSesionYSegundoFactor": "Passwords, session and second factor",
+    "conexionPostgresqlYPoolDe": "PostgreSQL connection and connection pool",
+    "backendDeLaColaDe": "Task queue backend",
+    "colaDeTareasEnSegundo": "Background task queue",
+    "estrategiaDeLosModelosDe": "Language model strategy per module",
+    "relayDeSalidaYMarca": "Outgoing relay and message branding",
+    "umbralesDeAnalisisDeCabeceras": "Email header analysis thresholds",
+    "escanerDeRedAnalisisWeb": "Network scanner, web analysis and vulnerabilities",
+    "generacionDePildorasDeConcienciacion": "AI-generated awareness pills",
+    "monitorizacionDeActivosViaAgente": "Agent-based asset monitoring",
+    "cadaNocheSeArchivaEl": "Every night the previous day is archived and anything older than this is deleted. The log stores the IP of each visit.",
+    "elDeQuienNoHa": "The one used by anyone who has not chosen a language and whose organization has not set one either.",
+    "65536Kib64MibPor": "65536 KiB = 64 MiB per hash",
+    "soloLaFamiliaHsLa": "HS* family only: signing uses a symmetric secret",
+    "cadaCuantoSeLeRecuerda": "How often it is recalled to anyone who does not have it enabled",
+    "vacioSinLogotipo": "Empty = no logo",
+    "vacioLasPlantillasQueTrae": "Empty = the templates shipped with the application",
+    "estrictoSubeLosDosUmbrales": "Strict raises both thresholds by 5 points (alerts earlier); lenient lowers them by 5",
+    "1048576010Mib": "10485760 = 10 MiB",
+    "nombreDeLaCarpetaVirtual": "Name of the virtual folder for ungrouped scans",
+    "escaneosRecientesQueSePromedian": "Recent scans averaged in the history",
+    "pasadoEsePlazoUnHallazgo": "After that period, an accepted finding counts again",
+    "loQueEsperaLaCola": "How long the queue waits before considering a scan dead",
+    "formatoCronDeCincoCampos": "Five-field cron format",
+    "cuantoHistoricoSePideEn": "How much history is requested in each pass",
+    "vacioLasQueTraeEl": "Empty = the ones shipped with the binary",
+    "loQueSeEscaneaSi": "What is scanned if the user chooses nothing else",
+    "codigoIso4217EurUsd": "ISO 4217 code (EUR, USD...)",
+    "formatoXYZUn": "X.Y.Z format. An asset with an older version is marked as outdated in the list; \"0.0.0\" marks none.",
+    "de0A1Cuanto": "From 0 to 1. How closely the series must resemble a straight line to trust its direction; raising it leaves disks that grow in steps without an estimate",
+    "porDebajoDeEstoSe": "Below this the metric is considered to fluctuate, not to grow",
+    "cuantoPuedenSepararseDosPicos": "How far apart two peaks of different metrics can be and still count as simultaneous",
+    "cifrarConStarttls": "Encrypt with STARTTLS",
+    "habilitado": "Enabled",
+    "permitirIpsLocales": "Allow local IPs",
+    "sincronizacionActiva": "Sync enabled",
+    "comprobacionesActivas": "Active checks",
+    "ingestaDeHallazgos": "Findings ingestion",
+    "guardarEvidencia": "Store evidence",
+    "reutilizarResultados": "Reuse results",
+    "vistaPrevia2": "Preview",
+    "abiertoAlPublico2": "Open to the public",
+    "estricto": "Strict",
+    "equilibrado": "Balanced",
+    "permisivo": "Lenient",
+    "title": "Configuration",
+    "beforeOpening": "Before opening it: {unlocks}.",
+    "switchesIgnored": "The switches do not count while the mode is “Preview”.",
+    "appVersion": "Application version",
+    "tech": {
+      "temp": "Temp",
+      "logs": "Logs",
+      "redis": "Redis",
+      "host": "Host",
+      "taskqueue": "TaskQueue",
+      "maxWorkers": "Max workers",
+      "traceroute": "Traceroute",
+      "fingerprinting": "Fingerprinting",
+      "userAgent": "User-Agent"
+    },
+    "maxAge": "Maximum age — {feed} (days)",
+    "source": "Source — {source}",
+    "dials": {
+      "tcpConcurrency": "TCP concurrency",
+      "tcpTimeout": "TCP timeout (s)",
+      "udpTimeout": "UDP timeout (s)",
+      "udpRetries": "UDP retries",
+      "udpBudgetSeconds": "UDP budget (s)",
+      "rateLimitInterval": "Interval between sends (s)",
+      "hostPoolSize": "Hosts in parallel",
+      "httpTimeout": "HTTP timeout (s)",
+      "httpMaxBodyBytes": "Max HTTP body (bytes)",
+      "networkTimeout": "Network timeout (s)",
+      "bannerTimeout": "Banner timeout (s)",
+      "maxBlindProbes": "Max blind probes",
+      "maxPayloadExpansions": "Max payload expansions"
+    },
+    "metrics": {
+      "cpuPct": "CPU (%)",
+      "memPct": "Memory (%)",
+      "diskPct": "Disk (%)",
+      "swapPct": "Swap (%)"
+    },
+    "thresholdWarning": "{metric} — warning",
+    "thresholdCritical": "{metric} — critical",
+    "thresholdSustained": "{metric} — sustained heartbeats",
+    "limits": {
+      "maxBodyBytes": {
+        "label": "Max body size (bytes)",
+        "hint": "1048576 = 1 MiB"
+      },
+      "maxDecompressedBytes": {
+        "label": "Max decompressed size (bytes)",
+        "hint": "4194304 = 4 MiB"
+      },
+      "maxProcesses": {
+        "label": "Processes per heartbeat"
+      },
+      "maxDiskMounts": {
+        "label": "Mount points"
+      },
+      "maxNetInterfaces": {
+        "label": "Network interfaces"
+      },
+      "maxSeriesPoints": {
+        "label": "Points per time series"
+      },
+      "maxStatsPeriodDays": {
+        "label": "Max statistics period (days)",
+        "hint": "Never spans more than the retention"
+      },
+      "maxEntityStatsPeriodDays": {
+        "label": "Max period per mount, interface or core (days)",
+        "hint": "These queries read each heartbeat's full detail; never spans more than the max statistics period"
+      },
+      "minIntervalSec": {
+        "label": "Minimum interval between heartbeats (s)"
+      },
+      "clockSkewSec": {
+        "label": "Tolerated clock skew (s)",
+        "hint": "How far ahead the agent's clock is allowed to be"
+      },
+      "maxBackfillSec": {
+        "label": "Max heartbeat age (s)",
+        "hint": "86400 = one day; anything older is rejected"
+      },
+      "maxAssetsPerUser": {
+        "label": "Assets per user"
+      },
+      "maxInventoryItems": {
+        "label": "Inventory items"
+      }
+    },
+    "nav": {
+      "platform": "Platform",
+      "modules": "Modules"
+    },
+    "modules": {
+      "iris": "Iris",
+      "themis": "Themis",
+      "aegis": "Aegis",
+      "hygeia": "Hygeia"
+    },
+    "mailModules": {
+      "aegis": "Aegis (campaigns)",
+      "iris": "Iris (alerts)",
+      "hygeia": "Hygeia (alerts)",
+      "accounts": "Accounts (verification, invitations)"
+    },
+    "ollamaLocal": "Ollama (local)",
+    "reset": "Reset",
+    "save": "Save configuration",
+    "surfaces": {
+      "registration": {
+        "label": "Public account sign-up",
+        "covers": "Anyone can create an account from the sign-in screen.",
+        "unlocks": "legal notice, privacy, terms, acceptable use and acceptance recorded at sign-up"
+      },
+      "pricing": {
+        "label": "Plans and pricing",
+        "covers": "The plans page and the pricing table on the landing page.",
+        "unlocks": "identified owner, decided audience and legal notice"
+      },
+      "thirdPartyScanners": {
+        "label": "Scanners for external systems",
+        "covers": "Scans with Nmap, Nikto and Nuclei, scheduled ones included.",
+        "unlocks": "authorization required in every scanner, acceptable use and legal review"
+      },
+      "campaigns": {
+        "label": "Aegis campaigns",
+        "covers": "Sending training by email to a client's employees.",
+        "unlocks": "processing agreement, guide for informing employees and notice of AI-generated content"
+      },
+      "mailboxConnectors": {
+        "label": "Iris mailboxes",
+        "covers": "Connecting and syncing Gmail and Microsoft mailboxes.",
+        "unlocks": "Google and Microsoft verifications"
+      },
+      "externalAi": {
+        "label": "External AI providers",
+        "covers": "Generating with OpenAI or Google; Ollama does not depend on this.",
+        "unlocks": "contracts with the providers and a page about AI use"
+      }
+    },
+    "confirmOpen": "You are about to open to the public:\n{surfaces}\n\nContinue?",
+    "confirmOpenNothing": "You are switching to “Open to the public”, but every switch is off: nothing will open. Continue?"
   }
 }

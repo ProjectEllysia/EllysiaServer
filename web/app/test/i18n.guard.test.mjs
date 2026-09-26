@@ -8,7 +8,8 @@
  * degradan en cuanto alguien copia un trozo de código viejo:
  *   - fechas, números y orden alfabético no llevan el idioma escrito a mano
  *     ni usan el del navegador: pasan por `src/i18n/format.js`;
- *   - un fichero ya migrado no vuelve a tener texto escrito en su plantilla.
+ *   - un componente no tiene texto escrito en su plantilla: sus textos van en
+ *     `locales/es.json` y se piden con `t()`.
  */
 
 import assert from 'node:assert/strict'
@@ -19,25 +20,11 @@ import { fileURLToPath } from 'node:url'
 const sourceRoot = fileURLToPath(new URL('../src/', import.meta.url))
 
 /**
- * Ficheros cuyos textos ya viven entero en el diccionario. Al migrar otro, se
- * añade aquí: a partir de entonces la guarda lo vigila.
- */
-const MIGRATED_FILES = [
-  'components/shared/AccountMenu.vue',
-  'components/shared/AppPagination.vue',
-  'components/shared/ConfirmModal.vue',
-  'components/shared/LanguageSelect.vue',
-  'components/shared/SiteFooter.vue',
-  'components/shared/SiteHeader.vue',
-  'components/shared/Topbar.vue',
-  'views/system/KnowledgeBaseView.vue',
-]
-
-/**
  * Palabras que se escriben igual en todos los idiomas y pueden quedar en una
- * plantilla migrada: nombres propios del producto y su dominio.
+ * plantilla migrada: nombres propios del producto y su dominio. Las siglas
+ * tampoco cuentan (ver `findHandwrittenText`).
  */
-const LANGUAGE_NEUTRAL_WORDS = new Set(['Ellysia', 'Themis', 'Aegis', 'Iris', 'Acheron', 'Hygeia', 'ellysia', 'es', 'v'])
+const LANGUAGE_NEUTRAL_WORDS = new Set(['Ellysia', 'Themis', 'Aegis', 'Iris', 'Acheron', 'Hygeia', 'Lybra', 'GitHub', 'ProjectEllysia', 'Nmap', 'Nikto', 'Nuclei', 'Cron', 'Linux', 'Windows', 'macOS', 'Markdown', 'ellysia', 'es', 'v', 'ms'])
 
 /** Una etiqueta HTML entera, aunque sus atributos lleven `>` entre comillas. */
 const TAG_RE = /<(?:[^>"']|"[^"]*"|'[^']*')*>/g
@@ -112,25 +99,33 @@ function findHandwrittenText(source) {
     .replace(/<svg[\s\S]*?<\/svg>/g, ' ')
     .replace(TAG_RE, ' ')
     .replace(/&\w+;/g, ' ')
+  // Las siglas (NVD, MFA, PDF) se escriben igual en todos los idiomas.
   const words = (withoutMarkup.match(/\p{L}[\p{L}'’-]*/gu) ?? [])
-    .filter((word) => !LANGUAGE_NEUTRAL_WORDS.has(word))
+    .filter((word) => !LANGUAGE_NEUTRAL_WORDS.has(word) && word !== word.toUpperCase())
   const literalAttributes = [...template.matchAll(/\s(title|aria-label|placeholder|alt)="([^"]*\p{L}[^"]*)"/gu)]
     .map((match) => `${match[1]}="${match[2]}"`)
   return [...new Set(words), ...literalAttributes]
 }
 
-test('los ficheros migrados no tienen texto escrito en su plantilla', () => {
-  const offenders = MIGRATED_FILES
+const componentFiles = listSourceFiles(sourceRoot)
+  .filter((path) => path.endsWith('.vue'))
+  .map((path) => relative(sourceRoot, path).replaceAll('\\', '/'))
+
+test('ningún componente tiene texto escrito en su plantilla', () => {
+  const offenders = componentFiles
     .map((relativePath) => [relativePath, findHandwrittenText(readFileSync(join(sourceRoot, relativePath), 'utf-8'))])
     .filter(([, handwritten]) => handwritten.length)
     .map(([relativePath, handwritten]) => `${relativePath}: ${handwritten.join(', ')}`)
-  assert.deepEqual(offenders, [], 'los textos de un fichero migrado van en locales/es.json y se piden con t()')
+  assert.deepEqual(offenders, [], 'los textos de un componente van en locales/es.json y se piden con t()')
 })
 
 test('la guarda de texto detecta una plantilla sin migrar', () => {
-  // Protege a la propia guarda: un fichero sin migrar tiene que dar positivo.
-  const handwritten = findHandwrittenText(readFileSync(join(sourceRoot, 'views/public/NotAvailableView.vue'), 'utf-8'))
-  assert.ok(handwritten.length > 0, 'NotAvailableView ya no tiene texto: elige otro fichero sin migrar para esta prueba')
+  // Protege a la propia guarda: una plantilla con texto tiene que dar positivo,
+  // y una que lo pide todo al diccionario, negativo.
+  const handwritten = '<template><p title="Ayuda">Hola, {{ name }}</p></template>'
+  const translated = `<template><p :title="t('help')">{{ t('greeting', { name }) }}</p></template>`
+  assert.deepEqual(findHandwrittenText(handwritten), ['Hola', 'title="Ayuda"'])
+  assert.deepEqual(findHandwrittenText(translated), [])
 })
 
 test('la guarda de formato detecta un idioma escrito a mano', () => {

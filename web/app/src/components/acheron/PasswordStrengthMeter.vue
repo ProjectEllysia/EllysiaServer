@@ -6,13 +6,16 @@
         :style="{ width: strength.percent + '%', background: strength.color }"
       ></div>
     </div>
-    <span class="strength-label" :style="{ color: strength.color }">{{ strength.label }}</span>
+    <span class="strength-label" :style="{ color: strength.color }">{{ t(`acheron.strength.${strength.score}`) }}</span>
   </div>
 </template>
 
 <script setup>
 import { computed } from 'vue'
 import { scorePassword } from '@projectellysia/acheron-core-js'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   password: { type: String, default: '' },

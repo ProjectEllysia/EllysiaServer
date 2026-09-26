@@ -9,16 +9,16 @@
       </template>
       <div class="scanner-body">
         <slot />
-        <h4>Paleta de colores</h4>
+        <h4>{{ t('config.scanner.palette') }}</h4>
         <div class="color-grid">
           <div v-for="c in colors" :key="prefix + c.key" class="color-pick">
             <input :id="prefix + '.colorPalette.' + c.key" v-model="flat[prefix + '.colorPalette.' + c.key]" type="color" class="color-input" />
-            <span class="color-label">{{ c.label }}</span>
+            <span class="color-label">{{ t(`config.scanner.colors.${c.key}`) }}</span>
             <span class="color-hex">{{ flat[prefix + '.colorPalette.' + c.key] }}</span>
           </div>
         </div>
-        <PromptField v-model="flat[prefix + '.prompts.system']" label="Prompt del sistema" :title="name + ' — prompt del sistema'" />
-        <PromptField v-model="flat[prefix + '.prompts.userTemplate']" label="Plantilla de usuario" :title="name + ' — plantilla de usuario'" />
+        <PromptField v-model="flat[prefix + '.prompts.system']" :label="t('config.scanner.systemPrompt')" :title="t('config.scanner.systemPromptTitle', { name })" />
+        <PromptField v-model="flat[prefix + '.prompts.userTemplate']" :label="t('config.scanner.userTemplate')" :title="t('config.scanner.userTemplateTitle', { name })" />
       </div>
     </CollapsibleSection>
   </div>
@@ -28,6 +28,9 @@
 import { computed } from 'vue'
 import PromptField from '@/components/shared/PromptField.vue'
 import CollapsibleSection from '@/components/config/CollapsibleSection.vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 const props = defineProps({
   name: { type: String, required: true },
   icon: { type: String, default: 'scan' },
@@ -38,10 +41,8 @@ const props = defineProps({
   // así que cada tarjeta abre de forma independiente, no en modo acordeón.
   defaultOpen: { type: Boolean, default: false },
 })
-const colors = [
-  { key: 'black', label: 'Negro' }, { key: 'dark', label: 'Oscuro' }, { key: 'main', label: 'Principal' },
-  { key: 'secondary', label: 'Secundario' }, { key: 'light', label: 'Claro' }, { key: 'white', label: 'Blanco' },
-]
+/** Colores de la paleta, en su orden; el rótulo está en `config.scanner.colors.<key>`. */
+const colors = ['black', 'dark', 'main', 'secondary', 'light', 'white'].map((key) => ({ key }))
 const icons = {
   scan: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/><path d="M11 8v3l2 2"/></svg>`,
   web: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`,

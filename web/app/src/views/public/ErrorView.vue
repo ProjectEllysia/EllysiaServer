@@ -1,16 +1,16 @@
 <template>
-  <InfoPage :eyebrow="`Error ${error.code}`" :title="error.entry.title">
-    <p v-for="(paragraph, index) in error.entry.paragraphs" :key="index">{{ paragraph }}</p>
+  <InfoPage :eyebrow="t('errorPage.eyebrow', { code: error.code })" :title="t(`errorPage.${error.entry.key}.title`, { code: error.code })">
+    <p v-for="index in error.entry.paragraphs" :key="index">{{ t(`errorPage.${error.entry.key}.p${index}`) }}</p>
 
     <p v-if="error.entry.reload" class="note">
-      <button type="button" class="retry" @click="reload">Volver a intentar</button>
+      <button type="button" class="retry" @click="reload">{{ t('errorPage.retry') }}</button>
     </p>
 
     <p v-if="links.length" class="note">
-      Desde aquí puedes
+      {{ t('errorPage.fromHere') }}
       <template v-for="(link, index) in links" :key="link.to">
-        <template v-if="index > 0">{{ index === links.length - 1 ? ' o ' : ', ' }}</template>
-        <router-link :to="link.to">{{ link.label }}</router-link>
+        <template v-if="index > 0">{{ index === links.length - 1 ? t('errorPage.lastSeparator') : t('errorPage.separator') }}</template>
+        <router-link :to="link.to">{{ t(`errorPage.links.${link.label}`) }}</router-link>
       </template>.
     </p>
   </InfoPage>
@@ -22,6 +22,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { useLaunch } from '@/composables/useLaunch'
 import InfoPage from '@/components/shared/InfoPage.vue'
 import { resolveError } from '@/views/public/errorCatalog'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const route = useRoute()
 

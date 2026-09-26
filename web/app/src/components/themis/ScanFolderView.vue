@@ -1,26 +1,26 @@
 <template>
   <div class="folder-view">
     <div class="folder-toolbar">
-      <span class="toolbar-title">Carpetas de escaneos</span>
+      <span class="toolbar-title">{{ t('themis.folders.title') }}</span>
       <div class="toolbar-actions">
         <button type="button" class="btn-new" @click="$emit('create-folder')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Nueva carpeta
+          {{ t('themis.folders.new') }}
         </button>
         <button class="btn-refresh" :disabled="loading" @click="$emit('refresh')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ spin: loading }"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-          Actualizar
+          {{ t('themis.refresh') }}
         </button>
       </div>
     </div>
 
     <div v-if="loading && !folders.length" class="folder-list"
-         aria-busy="true" aria-label="Cargando carpetas">
+         aria-busy="true" :aria-label="t('themis.folders.loading')">
       <span v-for="n in SKELETON_ROWS" :key="n" class="skeleton folder-ghost" aria-hidden="true"></span>
     </div>
     <div v-else-if="!folders.length" class="empty-state">
       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-      <span>No hay carpetas todavía. ¡Crea la primera!</span>
+      <span>{{ t('themis.folders.empty') }}</span>
     </div>
     <div v-else class="folder-list">
       <FolderAccordion
@@ -40,6 +40,9 @@
 
 <script setup>
 import FolderAccordion from './FolderAccordion.vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 /** Carpetas fantasma mientras carga. */
 const SKELETON_ROWS = 3

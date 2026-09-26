@@ -2,24 +2,21 @@
   <div class="agents-wrap">
     <!-- ── Tarjetas de agentes ── -->
     <div class="agents-head">
-      <span class="agents-title">Agentes de Hygeia</span>
+      <span class="agents-title">{{ t('lybra.agents.title') }}</span>
       <button class="btn-refresh" :disabled="assetsLoading" @click="$emit('refresh-assets')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ spin: assetsLoading }"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-        Actualizar
+        {{ t('themis.refresh') }}
       </button>
     </div>
 
     <div v-if="assetsLoading && !assets.length" class="empty-state">
       <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="spin"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-      <span>Cargando agentes…</span>
+      <span>{{ t('lybra.agents.loading') }}</span>
     </div>
 
     <div v-else-if="!assets.length" class="empty-state">
       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-      <span>
-        Ningún activo monitorizado todavía. Da de alta un agente en Hygeia y, cuando reporte
-        su inventario de software, podrás analizarlo aquí sin escanear la red.
-      </span>
+      <span>{{ t('lybra.agents.empty') }}</span>
     </div>
 
     <!-- Entrada escalonada: cada tarjeta aparece con un pequeño retardo
@@ -41,10 +38,10 @@
           <span class="agent-state-label">{{ statusLabel(asset) }}</span>
         </span>
         <span class="agent-findings">
-          <span v-if="countFor(asset) === null" class="agent-pill muted">Sin analizar</span>
-          <span v-else-if="countFor(asset) === 0" class="agent-pill clean">Sin hallazgos</span>
+          <span v-if="countFor(asset) === null" class="agent-pill muted">{{ t('lybra.agents.notAnalyzed') }}</span>
+          <span v-else-if="countFor(asset) === 0" class="agent-pill clean">{{ t('lybra.results.noFindings') }}</span>
           <span v-else class="agent-pill vulnerable">
-            {{ countFor(asset) }} {{ countFor(asset) === 1 ? 'hallazgo' : 'hallazgos' }}
+            {{ t('lybra.results.findingCount', { count: countFor(asset) }, countFor(asset)) }}
           </span>
         </span>
       </button>
@@ -55,11 +52,11 @@
     <div v-if="selectedAssetId" key="scans" class="agent-scans">
       <div class="agent-scans-head">
         <span class="agent-scans-title">
-          Análisis de <strong>{{ selectedAsset?.hostname || `activo ${selectedAssetId}` }}</strong>
+          <i18n-t keypath="lybra.agents.analysesOf" tag="span">
+            <template #host><strong>{{ selectedAsset?.hostname || t('lybra.agents.assetFallback', { id: selectedAssetId }) }}</strong></template>
+          </i18n-t>
         </span>
-        <span class="agent-scans-note">
-          Solo software instalado — la superficie de red se analiza desde el motor
-        </span>
+        <span class="agent-scans-note">{{ t('lybra.agents.note') }}</span>
       </div>
 
       <!-- Se reutiliza LybraResults tal cual: un escaneo de agente es un
@@ -90,9 +87,7 @@
       />
     </div>
 
-    <p v-else-if="assets.length" key="hint" class="pick-hint">
-      Elige un agente para ver sus análisis de inventario.
-    </p>
+    <p v-else-if="assets.length" key="hint" class="pick-hint">{{ t('lybra.agents.pick') }}</p>
     </Transition>
   </div>
 </template>
@@ -100,6 +95,9 @@
 <script setup>
 import { computed } from 'vue'
 import LybraResults from '@/components/themis/lybra/LybraResults.vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   assets: { type: Array, default: () => [] },
@@ -119,7 +117,8 @@ defineEmits([
   'delete', 'load-docs', 'load-groups', 'set-finding-state', 'generate-pdf', 'download-doc', 'delete-doc',
 ])
 
-const STATUS_LABEL = { pending: 'Sin reportar', online: 'En línea', stale: 'Con retraso', offline: 'Caído' }
+/** Estados de un activo con rótulo en `assetStatus`. */
+const ASSET_STATUSES = ['pending', 'online', 'stale', 'offline']
 
 /**
  * Texto del estado de un activo. Un activo no persistente está "caído" por
@@ -127,8 +126,8 @@ const STATUS_LABEL = { pending: 'Sin reportar', online: 'En línea', stale: 'Con
  * Hygeia sino el comportamiento esperado, y eso es lo que el texto dice.
  */
 function statusLabel(asset) {
-  if (asset.status === 'offline' && asset.isPersistent === false) return 'Apagado'
-  return STATUS_LABEL[asset.status] || asset.status
+  if (asset.status === 'offline' && asset.isPersistent === false) return t('assetStatus.poweredOff')
+  return ASSET_STATUSES.includes(asset.status) ? t(`assetStatus.${asset.status}`) : t('common.unknown')
 }
 
 const selectedAsset = computed(() =>

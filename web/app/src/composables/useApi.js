@@ -37,52 +37,32 @@ export async function apiError(res, fallback) {
 
   const serverMsg = data.error_description || data.message || data.error
   if (res.status === 403 && data.error === 'forbidden') {
-    return 'No tienes permisos suficientes para realizar esta acción.'
+    return i18n.global.t('api.forbidden')
   }
   return serverMsg || fallback
 }
 
 /**
- * Etiquetas de los campos que se rellenan a mano.
+ * Motivos de Marshmallow, que llegan en inglés, y la clave de
+ * `api.validation.reasons` con que se enseñan. Cada motivo recibe los grupos
+ * capturados por su patrón con el nombre de su hueco.
  *
- * Llevan el artículo incorporado y van en singular a propósito: el mensaje se
- * arma concatenando etiqueta + motivo, y sin artículo sale "Contraseña es
- * obligatorio" — mal de género y de sonido. Con él, cada motivo de abajo encaja
- * con cualquier etiqueta sin tener que concordar nada.
- */
-const FIELD_LABELS = {
-  username: 'El identificador',
-  email: 'El correo',
-  first_name: 'El nombre',
-  last_name: 'El apellido',
-  password: 'La contraseña',
-  name: 'El nombre',
-  code: 'El código',
-  limitKey: 'La clave de límite',
-  monthlyPriceCents: 'El precio',
-  operation: 'La operación',
-  token: 'El token',
-  identifier: 'El identificador o correo',
-  newPassword: 'La nueva contraseña',
-}
-
-/**
- * Motivos de Marshmallow, que llegan en inglés, traducidos.
- *
- * Todos están redactados para que funcionen detrás de cualquier etiqueta, sin
- * concordar en género ni número — de ahí "falta por rellenar" en vez de "es
- * obligatorio".
+ * Las etiquetas de los campos (`api.validation.fields`) llevan el artículo
+ * incorporado y van en singular a propósito: la frase se arma como etiqueta +
+ * motivo, y los motivos están redactados para encajar con cualquier etiqueta
+ * sin concordar en género ni número — de ahí "falta por rellenar" en vez de
+ * "es obligatorio".
  */
 const REASONS = [
-  [/Missing data for required field/i, 'falta por rellenar'],
-  [/Not a valid email address/i, 'no parece una dirección válida'],
-  [/Length must be between (\d+) and (\d+)/i, 'debe tener entre $1 y $2 caracteres'],
-  [/Shorter than minimum length (\d+)/i, 'necesita al menos $1 caracteres'],
-  [/Longer than maximum length (\d+)/i, 'no puede pasar de $1 caracteres'],
-  [/Must be one of: (.+)/i, 'tiene que ser uno de: $1'],
-  [/Not a valid integer/i, 'tiene que ser un número'],
-  [/Not a valid number/i, 'tiene que ser un número'],
-  [/Unknown field/i, 'no se reconoce'],
+  [/Missing data for required field/i, 'missing', []],
+  [/Not a valid email address/i, 'invalidEmail', []],
+  [/Length must be between (\d+) and (\d+)/i, 'lengthBetween', ['min', 'max']],
+  [/Shorter than minimum length (\d+)/i, 'tooShort', ['min']],
+  [/Longer than maximum length (\d+)/i, 'tooLong', ['max']],
+  [/Must be one of: (.+)/i, 'oneOf', ['choices']],
+  [/Not a valid integer/i, 'notNumber', []],
+  [/Not a valid number/i, 'notNumber', []],
+  [/Unknown field/i, 'unknown', []],
 ]
 
 /**
@@ -102,12 +82,18 @@ export function validationMessage(data) {
     // Una regla entre campos (marshmallow `@validates_schema`) llega bajo
     // `_schema`: no es un campo que nombrar, y su motivo ya viene redactado.
     if (field === '_schema') return String(Array.isArray(reasons) ? reasons[0] : reasons).replace(/\.\s*$/, '')
-    const label = FIELD_LABELS[field] ?? `El campo «${field}»`
+    const { t, te } = i18n.global
+    const label = te(`api.validation.fields.${field}`)
+      ? t(`api.validation.fields.${field}`)
+      : t('api.validation.unknownField', { field })
     // Se quita el punto final del motivo antes de sustituir: si no, al unir
     // varios problemas salían dos puntos seguidos.
     const raw = String(Array.isArray(reasons) ? reasons[0] : reasons).replace(/\.\s*$/, '')
-    for (const [pattern, spanish] of REASONS) {
-      if (pattern.test(raw)) return `${label} ${raw.replace(pattern, spanish)}`
+    for (const [pattern, reasonKey, groupNames] of REASONS) {
+      const match = raw.match(pattern)
+      if (!match) continue
+      const params = Object.fromEntries(groupNames.map((name, index) => [name, match[index + 1]]))
+      return t('api.validation.sentence', { field: label, reason: t(`api.validation.reasons.${reasonKey}`, params) })
     }
     return `${label}: ${raw}`
   })
@@ -295,15 +281,16 @@ export function useApi() {
 
   /** El aviso de cupo agotado, con la espera en unidades que se leen bien. */
   function rateLimitMessage(seconds) {
+    const { t } = i18n.global
     if (seconds >= 3600) {
       const hours = Math.ceil(seconds / 3600)
-      return `Has hecho demasiadas peticiones. Vuelve a intentarlo en ${hours} ${hours === 1 ? 'hora' : 'horas'}.`
+      return t('api.rateLimited.hours', { count: hours }, hours)
     }
     if (seconds >= 60) {
       const minutes = Math.ceil(seconds / 60)
-      return `Has hecho demasiadas peticiones. Vuelve a intentarlo en ${minutes} ${minutes === 1 ? 'minuto' : 'minutos'}.`
+      return t('api.rateLimited.minutes', { count: minutes }, minutes)
     }
-    return `Has hecho demasiadas peticiones. Vuelve a intentarlo en ${seconds} segundos.`
+    return t('api.rateLimited.seconds', { count: seconds }, seconds)
   }
 
   /**
@@ -314,20 +301,21 @@ export function useApi() {
    * razón de que sean dos códigos distintos y no uno.
    */
   function planLimitMessage(body) {
+    const { t } = i18n.global
     const detail = body?.details ?? {}
     if (body?.code === 1902) {
-      return 'Tu plan no incluye esta funcionalidad. Puedes verlo en Planes.'
+      return t('api.planLimit.notIncluded')
     }
     if (detail.resetsAt) {
       const when = formatDate(detail.resetsAt, {
         day: 'numeric', month: 'long',
       })
-      return `Has alcanzado el límite de tu plan (${detail.used}/${detail.value}). Se renueva el ${when}.`
+      return t('api.planLimit.reachedUntil', { used: detail.used, limit: detail.value, date: when })
     }
     if (detail.value != null) {
-      return `Has alcanzado el límite de tu plan (${detail.used}/${detail.value}).`
+      return t('api.planLimit.reached', { used: detail.used, limit: detail.value })
     }
-    return body?.error_description || 'Has alcanzado un límite de tu plan.'
+    return translateApiError(body, i18n.global) || body?.error_description || t('api.planLimit.generic')
   }
 
   return { apiFetch, apiError }
