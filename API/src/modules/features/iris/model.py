@@ -165,6 +165,12 @@ class IrisAnalysis(Base):
                  ninguna.
         campaign_link: Pertenencia del análisis a una campaña
                  (``IrisCampaignMember``); ``None`` si no está en ninguna.
+        contact_deviation: Desviación respecto a los contactos habituales del
+                 usuario que se vio al terminar el análisis (ver
+                 ``services/graph.detect_deviation``): ``kind``,
+                 ``senderAddress``, ``displayName``, ``habitualAddress`` y
+                 ``habitualMessages``. NULL si el remitente no imitaba a
+                 ningún contacto habitual.
         connection_id: FK to the IrisMailboxConnection that ingested this
                  message automatically; NULL for manual submissions (the
                  original, still-default flow).
@@ -207,6 +213,7 @@ class IrisAnalysis(Base):
     subject_fingerprint = Column(String(64), nullable=True)
     template_fingerprint = Column(String(64), nullable=True)
     impersonated_brands = Column(JSONB, nullable=True)
+    contact_deviation = Column(JSONB, nullable=True)
     started_at = Column(DateTime, nullable=False, default=utcnow_naive)
     finished_at = Column(DateTime, nullable=True)
     cancel_requested_at = Column(DateTime, nullable=True)
@@ -1133,6 +1140,65 @@ class IrisCampaignMember(Base):
     __table_args__ = (
         UniqueConstraint("analysis_id", name="uq_iris_campaign_member_analysis"),
         Index("ix_iris_campaign_member_campaign_id", "campaign_id"),
+    )
+
+
+class CommunicationKind(StrEnum):
+    """Relación que une a un remitente con una dirección en un mensaje.
+
+    - ``TO`` / ``CC``: la dirección era destinataria directa o en copia.
+    - ``REPLY_TO``: el remitente pedía las respuestas en esa dirección.
+    """
+
+    TO = "to"
+    CC = "cc"
+    REPLY_TO = "reply_to"
+
+
+class IrisCommunicationEdge(Base):
+    """Arista del grafo de comunicación de un usuario: quién escribe a quién.
+
+    Es metadato puro —direcciones, nombre visible, recuentos y fechas—, nunca
+    contenido. Sirve para saber si un remitente es alguien con quien se habla
+    habitualmente, y así detectar a quien imita su nombre desde otra
+    dirección. Tiene retención corta (``features.iris.graph.retentionDays``) y
+    es de un solo usuario.
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        user_id: FK al ``User`` dueño; ``ondelete="CASCADE"``.
+        sender_address: Dirección del ``From``, en minúsculas.
+        sender_domain: Su dominio.
+        sender_display_name: Último nombre visible con el que escribió; NULL
+                 si no traía.
+        recipient_address: Dirección del otro extremo, en minúsculas.
+        kind: ``CommunicationKind``.
+        message_count: Mensajes que la han usado.
+        legitimate_count: De ellos, los que Iris consideró legítimos. Solo
+                 estos hacen «habitual» a un contacto: si contaran todos, un
+                 atacante insistente se volvería contacto habitual.
+        first_seen_at / last_seen_at: Primer y último mensaje; la retención
+                 borra la arista cuando ``last_seen_at`` vence.
+    """
+    __tablename__ = "IrisCommunicationEdge"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("User.id", ondelete="CASCADE"), nullable=False)
+    sender_address = Column(String(320), nullable=False)
+    sender_domain = Column(String(253), nullable=False)
+    sender_display_name = Column(String(200), nullable=True)
+    recipient_address = Column(String(320), nullable=False)
+    kind = Column(String(16), nullable=False)
+    message_count = Column(Integer, nullable=False, default=0)
+    legitimate_count = Column(Integer, nullable=False, default=0)
+    first_seen_at = Column(DateTime, nullable=False, default=utcnow_naive)
+    last_seen_at = Column(DateTime, nullable=False, default=utcnow_naive)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "sender_address", "recipient_address", "kind",
+                         name="uq_iris_communication_edge"),
+        Index("ix_iris_communication_edge_user_sender", "user_id", "sender_address"),
+        Index("ix_iris_communication_edge_last_seen_at", "last_seen_at"),
     )
 
 

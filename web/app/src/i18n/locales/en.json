@@ -2054,7 +2054,13 @@
       "rawHeaders": "Original headers",
       "campaignTitle": "Part of a campaign",
       "campaignRelated": "There is {count} more message like this one. | There are {count} more messages like this one.",
-      "campaignOpen": "See the campaign"
+      "campaignOpen": "See the campaign",
+      "deviationTitle": "The sender imitates a usual contact",
+      "deviation": {
+        "display_name_reuse": "“{name}” writes from {sender}, but that name belongs to one of your usual contacts, {habitual} ({count} legitimate messages).",
+        "address_domain_change": "{sender} looks like {habitual}, one of your usual contacts ({count} legitimate messages), but on another domain.",
+        "other": "{sender} looks like {habitual}, one of your usual contacts."
+      }
     },
     "cases": {
       "badge": "Cases",
@@ -2135,7 +2141,16 @@
       "revokedOn": "revoked {date}",
       "expires": "expires {date}",
       "revokeTitle": "Revoke exception",
-      "revokeMessage": "The next emails from {value} will be analyzed without the exception. The exception stays in the audit log."
+      "revokeMessage": "The next emails from {value} will be analyzed without the exception. The exception stays in the audit log.",
+      "contactsTitle": "Usual contacts",
+      "contactsIntro": "Senders you have received at least {count} legitimate messages from. Iris warns you when another address uses their name. Only addresses and dates are kept, and they are forgotten after {days} days unseen.",
+      "contactsDisabled": "Usual contacts are turned off on this installation.",
+      "noContacts": "No usual contacts yet.",
+      "contactMessages": "{count} legitimate message | {count} legitimate messages",
+      "lastSeen": "last on {date}",
+      "forget": "Forget contacts",
+      "forgetTitle": "Forget your usual contacts",
+      "forgetMessage": "Everything Iris knows about who you talk to is deleted. Your analyses don't change, and the next ones will start learning it again."
     },
     "indicatorKind": {
       "domain": "Domain",
@@ -2313,7 +2328,9 @@
     "reanalyzeStarted": "Reanalysis started (ID: {id})",
     "batchSummary": "Batch #{id}: {created} created, {duplicate} duplicates, {skipped} not analyzed.",
     "caseOpened": "Case #{id} opened.",
-    "caseLinked": "Analysis #{analysisId} added to case #{caseId}."
+    "caseLinked": "Analysis #{analysisId} added to case #{caseId}.",
+    "graphForgotten": "Contacts forgotten.",
+    "graphForgetFailed": "Contacts could not be forgotten."
   },
   "aegis": {
     "campaignStatus": {

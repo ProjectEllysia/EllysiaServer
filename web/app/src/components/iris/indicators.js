@@ -42,3 +42,17 @@ const CAMPAIGN_SIGNALS = ['url', 'hash', 'template', 'subject', 'sender', 'domai
 export function campaignSignalKey(signal) {
   return CAMPAIGN_SIGNALS.includes(signal) ? `iris.campaigns.signals.${signal}` : 'common.unknown'
 }
+
+const CONTACT_DEVIATIONS = ['display_name_reuse', 'address_domain_change']
+
+/**
+ * Clave de la frase que explica cómo imita un remitente a un contacto habitual.
+ *
+ * @param {string} kind - `display_name_reuse` o `address_domain_change`.
+ * @returns {string} `iris.report.deviation.<tipo>`, o `iris.report.deviation.other`
+ *   si no se conoce. Las frases llevan los huecos `sender`, `name`,
+ *   `habitual` y `count`.
+ */
+export function contactDeviationKey(kind) {
+  return `iris.report.deviation.${CONTACT_DEVIATIONS.includes(kind) ? kind : 'other'}`
+}

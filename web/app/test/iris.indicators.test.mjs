@@ -11,7 +11,7 @@
 
 import { readFileSync } from 'node:fs'
 import { createI18n } from 'vue-i18n'
-import { campaignSignalKey, defang, indicatorKindKey } from '../src/components/iris/indicators.js'
+import { campaignSignalKey, contactDeviationKey, defang, indicatorKindKey } from '../src/components/iris/indicators.js'
 
 const spanish = JSON.parse(readFileSync(new URL('../src/i18n/locales/es.json', import.meta.url), 'utf-8'))
 const { t, te } = createI18n({ legacy: false, locale: 'es', messages: { es: spanish } }).global
@@ -35,11 +35,16 @@ eq('tipo de indicador', t(indicatorKindKey('email')), 'Dirección')
 eq('tipo desconocido', t(indicatorKindKey('asn')), 'Desconocido')
 eq('señal', t(campaignSignalKey('hash')), 'adjunto idéntico')
 eq('señal desconocida', t(campaignSignalKey('embedding')), 'Desconocido')
+eq('desviación de contacto',
+  t(contactDeviationKey('display_name_reuse'), { sender: 'x@evil.example', name: 'Juan', habitual: 'juan@corp.example', count: 3 }),
+  '«Juan» escribe desde x@evil.example, pero ese nombre lo usa un contacto habitual tuyo, juan@corp.example (3 mensajes legítimos).')
+eq('desviación desconocida', contactDeviationKey('embedding'), 'iris.report.deviation.other')
 
 console.log('\ncada clave que puede devolver el módulo existe en el diccionario')
 const keys = [
   ...['domain', 'url', 'ip', 'email', 'hash'].map(indicatorKindKey),
   ...['url', 'hash', 'template', 'subject', 'sender', 'domain', 'brand'].map(campaignSignalKey),
+  ...['display_name_reuse', 'address_domain_change', 'unknown'].map(contactDeviationKey),
 ]
 eq('sin claves huérfanas', keys.filter(key => !te(key)), [])
 

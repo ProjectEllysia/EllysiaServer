@@ -22,7 +22,7 @@ from .model import (
     IrisRawMessage, IrisRuleResult, IrisDocument, IrisTrustedSender,
     IrisAnalysisTag, IrisIndicator, IrisSavedView,
     IrisCase, IrisCaseAnalysis, IrisCaseEvent, IrisBatch, IrisBatchItem,
-    IrisCampaign, IrisCampaignMember,
+    IrisCampaign, IrisCampaignMember, IrisCommunicationEdge,
 )
 
 
@@ -188,6 +188,25 @@ class IrisAnalysisRepository(BaseRepository[IrisAnalysis]):
             .order_by(IrisAnalysis.id.desc())
             .first()
         )
+
+    def has_earlier_with_fingerprint(self, user_id: int, fingerprint: str, analysis_id: int) -> bool:
+        """Indica si el usuario ya había analizado antes el mismo correo.
+
+        Args:
+            user_id: Dueño de los análisis.
+            fingerprint: ``IrisAnalysis.content_sha256`` del análisis actual.
+            analysis_id: El análisis actual; solo cuentan los anteriores a él.
+
+        Returns:
+            bool: ``True`` si hay otro análisis del usuario, con id menor, con
+                la misma huella.
+        """
+        return self._session.query(
+            self._session.query(IrisAnalysis.id)
+            .filter(IrisAnalysis.user_id == user_id, IrisAnalysis.content_sha256 == fingerprint,
+                    IrisAnalysis.id < analysis_id)
+            .exists()
+        ).scalar()
 
     def count_active_by_user(self, user_id: int) -> int:
         """Cuántos análisis de un usuario están pendientes o en curso.
@@ -1171,6 +1190,152 @@ class IrisCampaignMemberRepository(BaseRepository[IrisCampaignMember]):
             .order_by(IrisAnalysis.created_at.desc(), IrisAnalysis.id.desc())
             .all()
         )
+
+
+class IrisCommunicationEdgeRepository(BaseRepository[IrisCommunicationEdge]):
+    """Acceso al grafo de comunicación (``IrisCommunicationEdge``)."""
+
+    _MODEL = IrisCommunicationEdge
+
+    def get_edge(self, user_id: int, sender_address: str, recipient_address: str,
+                 kind: str) -> Optional[IrisCommunicationEdge]:
+        """La arista entre dos direcciones de un usuario, si existe.
+
+        Args:
+            user_id: Dueño del grafo.
+            sender_address: Dirección del remitente, en minúsculas.
+            recipient_address: Dirección del otro extremo, en minúsculas.
+            kind: ``CommunicationKind``.
+
+        Returns:
+            Optional[IrisCommunicationEdge]: La arista, o ``None``.
+        """
+        return (
+            self._session.query(IrisCommunicationEdge)
+            .filter(
+                IrisCommunicationEdge.user_id == user_id,
+                IrisCommunicationEdge.sender_address == sender_address,
+                IrisCommunicationEdge.recipient_address == recipient_address,
+                IrisCommunicationEdge.kind == kind,
+            )
+            .one_or_none()
+        )
+
+    def get_senders(self, user_id: int, min_legitimate: int = 0,
+                    limit: Optional[int] = None) -> List[Tuple[str, Optional[str], int, int, datetime, datetime]]:
+        """Remitentes del grafo de un usuario con sus recuentos.
+
+        Un mensaje con varios destinatarios deja una arista por cada uno, así
+        que los mensajes de un remitente son el máximo de sus aristas, no la
+        suma.
+
+        Args:
+            user_id: Dueño del grafo.
+            min_legitimate: Solo los que tienen al menos estos mensajes
+                legítimos. Por defecto ``0``: todos.
+            limit: Máximo de remitentes. Por defecto ``None``: sin límite.
+
+        Returns:
+            List[Tuple]: ``(dirección, uno de sus nombres visibles —el último
+                en orden alfabético—, mensajes, legítimos, primer avistamiento,
+                último avistamiento)``, de más a menos mensajes legítimos.
+        """
+        legitimate = func.max(IrisCommunicationEdge.legitimate_count)
+        query = (
+            self._session.query(
+                IrisCommunicationEdge.sender_address,
+                func.max(IrisCommunicationEdge.sender_display_name),
+                func.max(IrisCommunicationEdge.message_count),
+                legitimate,
+                func.min(IrisCommunicationEdge.first_seen_at),
+                func.max(IrisCommunicationEdge.last_seen_at),
+            )
+            .filter(IrisCommunicationEdge.user_id == user_id)
+            .group_by(IrisCommunicationEdge.sender_address)
+            .having(legitimate >= min_legitimate)
+            .order_by(legitimate.desc(), IrisCommunicationEdge.sender_address.asc())
+        )
+        if limit is not None:
+            query = query.limit(limit)
+        return [tuple(row) for row in query.all()]
+
+    def get_display_names(self, user_id: int, sender_addresses: List[str]) -> dict[str, set[str]]:
+        """Nombres visibles con los que ha escrito cada remitente.
+
+        Args:
+            user_id: Dueño del grafo.
+            sender_addresses: Remitentes que interesan.
+
+        Returns:
+            dict: ``{dirección: {nombre, ...}}``; un remitente que nunca trajo
+                nombre no aparece.
+        """
+        if not sender_addresses:
+            return {}
+        rows = (
+            self._session.query(IrisCommunicationEdge.sender_address, IrisCommunicationEdge.sender_display_name)
+            .filter(
+                IrisCommunicationEdge.user_id == user_id,
+                IrisCommunicationEdge.sender_address.in_(sender_addresses),
+                IrisCommunicationEdge.sender_display_name.isnot(None),
+            )
+            .distinct()
+            .all()
+        )
+        names_by_sender: dict[str, set[str]] = {}
+        for address, name in rows:
+            names_by_sender.setdefault(address, set()).add(name)
+        return names_by_sender
+
+    def get_by_user(self, user_id: int, address: Optional[str] = None,
+                    limit: int = 500) -> List[IrisCommunicationEdge]:
+        """Aristas de un usuario, de la usada más recientemente a la que menos.
+
+        Args:
+            user_id: Dueño del grafo.
+            address: Solo las que tocan esta dirección, como remitente o como
+                otro extremo. Por defecto ``None``: todas.
+            limit: Máximo de aristas. Por defecto ``500``.
+
+        Returns:
+            List[IrisCommunicationEdge]: Las aristas.
+        """
+        query = self._session.query(IrisCommunicationEdge).filter(IrisCommunicationEdge.user_id == user_id)
+        if address:
+            query = query.filter(or_(
+                IrisCommunicationEdge.sender_address == address,
+                IrisCommunicationEdge.recipient_address == address,
+            ))
+        return query.order_by(IrisCommunicationEdge.last_seen_at.desc(), IrisCommunicationEdge.id.desc()) \
+            .limit(limit).all()
+
+    def delete_by_user(self, user_id: int) -> int:
+        """Borra el grafo entero de un usuario.
+
+        Args:
+            user_id: Dueño del grafo.
+
+        Returns:
+            int: Aristas borradas.
+        """
+        result = self._session.execute(
+            delete(IrisCommunicationEdge).where(IrisCommunicationEdge.user_id == user_id)
+        )
+        return result.rowcount or 0
+
+    def purge_older_than(self, cutoff: datetime) -> int:
+        """Borra las aristas que no se han visto desde ``cutoff``.
+
+        Args:
+            cutoff: Instante límite; se borra lo visto por última vez antes.
+
+        Returns:
+            int: Aristas borradas.
+        """
+        result = self._session.execute(
+            delete(IrisCommunicationEdge).where(IrisCommunicationEdge.last_seen_at < cutoff)
+        )
+        return result.rowcount or 0
 
 
 class IrisCaseRepository(BaseRepository[IrisCase]):

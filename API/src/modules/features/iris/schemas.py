@@ -412,6 +412,7 @@ class AnalysisDetailResponseSchema(Schema):
     trustApplied = fields.Dict(load_default=None, allow_none=True)
     tags = fields.List(fields.String(), load_default=list)
     campaign = fields.Nested("AnalysisCampaignSchema", load_default=None, allow_none=True)
+    contactDeviation = fields.Nested("ContactDeviationSchema", load_default=None, allow_none=True)
 
 
 class AnalysisCampaignSchema(Schema):
@@ -419,6 +420,19 @@ class AnalysisCampaignSchema(Schema):
     campaignId = fields.Integer()
     label = fields.String(allow_none=True)
     relatedCount = fields.Integer()
+
+
+class ContactDeviationSchema(Schema):
+    """El remitente imita a un contacto habitual del usuario.
+
+    ``kind`` es ``display_name_reuse`` (usa su nombre desde otra dirección) o
+    ``address_domain_change`` (su misma dirección con otro dominio).
+    """
+    kind = fields.String()
+    senderAddress = fields.String()
+    displayName = fields.String(allow_none=True)
+    habitualAddress = fields.String()
+    habitualMessages = fields.Integer()
 
 
 class AnalysisListItemSchema(Schema):
@@ -1141,3 +1155,45 @@ class IrisCampaignDetailSchema(IrisCampaignSummarySchema):
     analyses = fields.List(fields.Nested(IrisCampaignAnalysisSchema))
     sharedIndicators = fields.List(fields.Nested(IrisCampaignIndicatorSchema))
     brands = fields.List(fields.String())
+
+
+class IrisGraphQuerySchema(Schema):
+    """Filtros de ``GET /iris/graph``."""
+    address = fields.String(load_default=None, validate=validate.Length(max=320))
+    limit = fields.Integer(load_default=200, validate=validate.Range(min=1, max=500))
+
+
+class IrisGraphSenderSchema(Schema):
+    """Un remitente del grafo con sus recuentos."""
+    address = fields.String()
+    displayName = fields.String(allow_none=True)
+    messageCount = fields.Integer()
+    legitimateCount = fields.Integer()
+    isHabitual = fields.Boolean()
+    firstSeenAt = fields.String(allow_none=True)
+    lastSeenAt = fields.String(allow_none=True)
+
+
+class IrisGraphEdgeSchema(Schema):
+    """Una arista: el remitente escribió a (o pidió respuesta en) otra dirección."""
+    sender = fields.String()
+    recipient = fields.String()
+    kind = fields.String()
+    messageCount = fields.Integer()
+    legitimateCount = fields.Integer()
+    firstSeenAt = fields.String(allow_none=True)
+    lastSeenAt = fields.String(allow_none=True)
+
+
+class IrisGraphResponseSchema(Schema):
+    """El grafo de comunicación del usuario y cómo se interpreta."""
+    senders = fields.List(fields.Nested(IrisGraphSenderSchema))
+    edges = fields.List(fields.Nested(IrisGraphEdgeSchema))
+    habitualMinMessages = fields.Integer()
+    retentionDays = fields.Integer()
+    enabled = fields.Boolean()
+
+
+class IrisGraphDeleteResponseSchema(Schema):
+    """Cuántas aristas se olvidaron."""
+    deletedEdges = fields.Integer()

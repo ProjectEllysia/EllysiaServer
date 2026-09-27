@@ -770,6 +770,43 @@ export const useIrisStore = defineStore('iris', () => {
     return true
   }
 
+  /* ═════════════════════ GRAFO DE COMUNICACIÓN ═════════════════════════ */
+
+  const contactGraph = reactive({ senders: [], habitualMinMessages: 0, retentionDays: 0, enabled: true, loading: false })
+
+  /** Carga los remitentes del grafo de comunicación del usuario. */
+  async function fetchContactGraph() {
+    contactGraph.loading = true
+    try {
+      const res = await apiFetch('/iris/graph')
+      if (!res?.ok) return
+      const data = await res.json()
+      Object.assign(contactGraph, {
+        senders: data.senders ?? [],
+        habitualMinMessages: data.habitualMinMessages ?? 0,
+        retentionDays: data.retentionDays ?? 0,
+        enabled: data.enabled ?? true,
+      })
+    } finally {
+      contactGraph.loading = false
+    }
+  }
+
+  /**
+   * Olvida el grafo de comunicación entero. Los análisis no cambian.
+   * @returns {Promise<boolean>} true si se olvidó.
+   */
+  async function forgetContactGraph() {
+    const res = await apiFetch('/iris/graph', { method: 'DELETE' })
+    if (!res?.ok) {
+      toast.show(await apiError(res, i18n.global.t('irisStore.graphForgetFailed')), 'error')
+      return false
+    }
+    contactGraph.senders = []
+    toast.show(i18n.global.t('irisStore.graphForgotten'), 'success')
+    return true
+  }
+
   /**
    * Solicita la narrativa ejecutiva IA (IA1) y sondea el informe hasta que
    * aparece `aiSummary` — no hay endpoint de estado propio, la narrativa es
@@ -980,6 +1017,7 @@ export const useIrisStore = defineStore('iris', () => {
       filters: { status: '', priority: '', assignedToMe: false } })
     currentCase.value = null
     Object.assign(campaigns, { items: [], total: 0, page: 1, loading: false })
+    Object.assign(contactGraph, { senders: [], habitualMinMessages: 0, retentionDays: 0, enabled: true, loading: false })
     currentCampaign.value = null
     closeBatch()
 
@@ -1010,6 +1048,7 @@ export const useIrisStore = defineStore('iris', () => {
     cases, currentCase, fetchCases, fetchCase, createCase, updateCase, changeCaseStatus,
     addCaseNote, linkCaseAnalysis, unlinkCaseAnalysis,
     currentBatch, batchSubmitting, submitBatch, closeBatch,
+    contactGraph, fetchContactGraph, forgetContactGraph,
     trustedSenders, trustedSendersLoading, fetchTrustedSenders, createTrustedSender, revokeTrustedSender,
     submitAnalysis, fetchResults, getReport, getStatus, pathFor, iocsFor,
     resolvedPathFor, isPathLoadingFor, resolvedIocsFor, isIocsLoadingFor,
