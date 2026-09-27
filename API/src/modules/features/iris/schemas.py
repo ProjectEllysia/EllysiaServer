@@ -1284,3 +1284,37 @@ class UrlExpansionListSchema(Schema):
     """Las URLs de un análisis con su expansión."""
     analysisId = fields.Integer()
     expansions = fields.List(fields.Nested(UrlExpansionSchema))
+
+
+class ReputationRequestSchema(Schema):
+    """Indicador por el que se pregunta la reputación."""
+    kind = fields.String(required=True, validate=validate.OneOf(["domain", "url", "ip", "hash"]))
+    value = fields.String(required=True, validate=validate.Length(min=1, max=4096))
+
+
+class ReputationProviderSchema(Schema):
+    """Lo que dijo un proveedor.
+
+    ``verdict`` es ``known_malicious``, ``suspicious``, ``unknown``,
+    ``unavailable`` o ``rate_limited`` (no se preguntó por falta de cupo).
+    """
+    provider = fields.String()
+    verdict = fields.String()
+    detail = fields.Dict()
+    error = fields.String(allow_none=True)
+    checkedAt = fields.String(allow_none=True)
+    cached = fields.Boolean()
+
+
+class ReputationResponseSchema(Schema):
+    """Reputación de un indicador en los proveedores configurados.
+
+    ``status`` es ``ok``, ``disabled`` (consultas externas apagadas) o
+    ``not_configured`` (ningún proveedor con clave). ``verdict`` es el más
+    grave de los proveedores que respondieron.
+    """
+    kind = fields.String()
+    value = fields.String()
+    status = fields.String()
+    verdict = fields.String()
+    providers = fields.List(fields.Nested(ReputationProviderSchema))

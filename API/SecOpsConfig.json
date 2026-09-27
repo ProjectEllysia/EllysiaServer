@@ -381,6 +381,16 @@
           "maxBodyBytes": 262144,
           "ttlHours": 24,
           "requestsPerMinute": 20
+        },
+        "threatIntel": {
+          "ttlHours": 12,
+          "negativeTtlMinutes": 30,
+          "providers": {
+            "virustotal": {"enabled": false, "requestsPerMinute": 4},
+            "urlscan": {"enabled": false, "requestsPerMinute": 30},
+            "phishtank": {"enabled": false, "requestsPerMinute": 30},
+            "urlhaus": {"enabled": false, "requestsPerMinute": 30}
+          }
         }
       },
       "prompts": {

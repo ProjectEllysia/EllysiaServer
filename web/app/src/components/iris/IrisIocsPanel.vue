@@ -32,6 +32,17 @@
           <span v-else-if="store.urlExpansions[val].loading" class="ioc-context">{{ t('iris.enrichment.expanding') }}</span>
           <span v-else class="ioc-context">{{ describeExpansion(store.urlExpansions[val].data) }}</span>
         </template>
+        <template v-if="REPUTATION_KIND_BY_CATEGORY[cat.key] && canEnrich">
+          <button
+            v-if="!store.reputations[`${REPUTATION_KIND_BY_CATEGORY[cat.key]}:${val}`]"
+            type="button"
+            class="ioc-action"
+            :title="t('iris.enrichment.reputationHint')"
+            @click="store.fetchReputation(REPUTATION_KIND_BY_CATEGORY[cat.key], val)"
+          >{{ t('iris.enrichment.reputation') }}</button>
+          <span v-else-if="store.reputations[`${REPUTATION_KIND_BY_CATEGORY[cat.key]}:${val}`].loading" class="ioc-context">{{ t('common.loading') }}</span>
+          <span v-else class="ioc-context">{{ describeReputationOf(store.reputations[`${REPUTATION_KIND_BY_CATEGORY[cat.key]}:${val}`].data) }}</span>
+        </template>
       </li>
     </ul>
     <p v-else class="ioc-empty">{{ t('iris.iocs.none') }}</p>
@@ -56,7 +67,7 @@
 import { useUtils } from '@/composables/useUtils'
 import { useI18n } from 'vue-i18n'
 import { computed } from 'vue'
-import { defang, describeDomainContext, describeUrlExpansion } from './indicators'
+import { defang, describeDomainContext, describeReputation, describeUrlExpansion } from './indicators'
 import { useIrisStore } from '@/stores/irisStore'
 import { useLaunch } from '@/composables/useLaunch'
 
@@ -73,6 +84,14 @@ const { isSurfaceEnabled } = useLaunch()
 
 /** Si se puede preguntar fuera por un indicador (superficie `externalEnrichment`). */
 const canEnrich = computed(() => isSurfaceEnabled('externalEnrichment'))
+
+/** Tipo de indicador de la API de reputación para cada categoría de IOCs; los emails no se consultan. */
+const REPUTATION_KIND_BY_CATEGORY = { domains: 'domain', urls: 'url', ips: 'ip', hashes: 'hash' }
+
+/** Frase con la reputación de un indicador (ver `describeReputation`). */
+function describeReputationOf(result) {
+  return describeReputation(result, t)
+}
 
 /** Frase con el destino real de una URL (ver `describeUrlExpansion`). */
 function describeExpansion(expansion) {

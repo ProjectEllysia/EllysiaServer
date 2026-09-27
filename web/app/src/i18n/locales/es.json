@@ -2233,6 +2233,16 @@
         "protocol": "Se detuvo: el servidor no respondió como una web.",
         "too_many_redirects": "Se detuvo: demasiadas redirecciones seguidas.",
         "other": "Se detuvo antes de llegar al final."
+      },
+      "reputation": "Reputación",
+      "reputationHint": "Pregunta a los servicios de reputación configurados si conocen este indicador. Solo se envía el indicador, nunca el correo.",
+      "notConfigured": "No hay ningún servicio de reputación configurado en esta instalación.",
+      "reputationVerdicts": {
+        "known_malicious": "conocido como malicioso",
+        "suspicious": "sospechoso",
+        "unknown": "sin marcar",
+        "unavailable": "sin respuesta",
+        "rate_limited": "demasiadas consultas; prueba en un rato"
       }
     }
   },

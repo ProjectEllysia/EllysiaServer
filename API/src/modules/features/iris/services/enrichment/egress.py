@@ -17,7 +17,9 @@ el módulo. Esta capa lo impide así:
 - **Redirects**: no se siguen solos. ``fetch_following`` los sigue a mano y
   cada salto pasa otra vez por todas las comprobaciones.
 - **Sin credenciales**: ni cookies, ni ``Authorization``, ni el ``usuario:clave@``
-  que traiga la URL. Se manda un ``User-Agent`` propio.
+  que traiga la URL. Se manda un ``User-Agent`` propio. La única excepción son
+  las claves de API de un proveedor de reputación, que el adaptador pasa
+  explícitamente en ``extra_headers`` para llamar a **ese** proveedor.
 - **Límites**: tiempo por operación de red y bytes leídos.
 
 A propósito no hay interruptor para permitir direcciones privadas, ni siquiera
@@ -45,6 +47,9 @@ ALLOWED_PORTS = frozenset({80, 443, 8080, 8443})
 #: Cómo se presenta Ellysia al pedir algo fuera.
 USER_AGENT = "Ellysia-Iris/1.0 (+https://ellysia.es; enrichment)"
 
+#: Métodos que se usan: leer una página o consultar la API de un proveedor.
+_ALLOWED_METHODS = frozenset({"GET", "HEAD", "POST"})
+
 #: Códigos HTTP que son un redirect.
 _REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
 
@@ -53,8 +58,8 @@ class EgressBlockedError(Exception):
     """Una petición que no se hace porque saldría de lo permitido.
 
     Attributes:
-        reason: Por qué: ``scheme``, ``port``, ``host``, ``unresolvable``,
-            ``private_address`` o ``too_many_redirects``.
+        reason: Por qué: ``method``, ``scheme``, ``port``, ``host``,
+            ``unresolvable``, ``private_address`` o ``too_many_redirects``.
     """
 
     def __init__(self, reason: str, detail: str = "") -> None:
@@ -180,15 +185,19 @@ def resolve_public_address(host: str, port: int) -> str:
 
 
 def fetch(url: str, *, timeout_seconds: float, max_bytes: int, method: str = "GET",
-          accept: str = "*/*") -> EgressResponse:
+          accept: str = "*/*", extra_headers: Optional[Dict[str, str]] = None,
+          body: Optional[bytes] = None) -> EgressResponse:
     """Hace una petición, sin seguir redirects, con todas las comprobaciones.
 
     Args:
         url: URL absoluta ``http`` o ``https``.
         timeout_seconds: Tiempo máximo de cada operación de red.
         max_bytes: Bytes del cuerpo que se leen como mucho.
-        method: ``GET`` o ``HEAD``. Por defecto ``GET``.
+        method: ``GET``, ``HEAD`` o ``POST``. Por defecto ``GET``.
         accept: Cabecera ``Accept``. Por defecto ``*/*``.
+        extra_headers: Cabeceras añadidas, solo para la clave de API y el tipo
+            de contenido de una llamada a un proveedor. Por defecto ``None``.
+        body: Cuerpo de un ``POST``. Por defecto ``None``.
 
     Returns:
         EgressResponse: La respuesta.
@@ -199,6 +208,8 @@ def fetch(url: str, *, timeout_seconds: float, max_bytes: int, method: str = "GE
             error TLS…).
         http.client.HTTPException: Si la respuesta no es HTTP válido.
     """
+    if method not in _ALLOWED_METHODS:
+        raise EgressBlockedError("method", method)
     parts = urlsplit(url)
     scheme = (parts.scheme or "").lower()
     if scheme not in ALLOWED_SCHEMES:
@@ -223,10 +234,12 @@ def fetch(url: str, *, timeout_seconds: float, max_bytes: int, method: str = "GE
     path = (parts.path or "/") + (f"?{parts.query}" if parts.query else "")
     host_header = ascii_host if port in (80, 443) else f"{ascii_host}:{port}"
     try:
-        connection.request(method, path, headers={
+        headers = {
             "Host": host_header, "User-Agent": USER_AGENT, "Accept": accept,
             "Accept-Encoding": "identity", "Connection": "close",
-        })
+        }
+        headers.update(extra_headers or {})
+        connection.request(method, path, body=body, headers=headers)
         response = connection.getresponse()
         body = response.read(max_bytes + 1) if method != "HEAD" else b""
         certificate = connection.peer_certificate()

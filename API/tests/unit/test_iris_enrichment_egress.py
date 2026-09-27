@@ -99,7 +99,7 @@ def test_credentials_in_the_url_are_never_sent():
         def __init__(self, host, address, port, timeout):
             pass
 
-        def request(self, method, path, headers):
+        def request(self, method, path, body=None, headers=None):
             sent.update(headers)
             raise ConnectionRefusedError
 
