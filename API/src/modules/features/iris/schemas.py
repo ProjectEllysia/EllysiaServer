@@ -411,6 +411,14 @@ class AnalysisDetailResponseSchema(Schema):
     latestFeedback = fields.Nested(IrisFeedbackItemSchema, load_default=None, allow_none=True)
     trustApplied = fields.Dict(load_default=None, allow_none=True)
     tags = fields.List(fields.String(), load_default=list)
+    campaign = fields.Nested("AnalysisCampaignSchema", load_default=None, allow_none=True)
+
+
+class AnalysisCampaignSchema(Schema):
+    """La campaña de un análisis, tal como acompaña a su informe."""
+    campaignId = fields.Integer()
+    label = fields.String(allow_none=True)
+    relatedCount = fields.Integer()
 
 
 class AnalysisListItemSchema(Schema):
@@ -1078,3 +1086,58 @@ class IrisBatchSummarySchema(Schema):
 class IrisBatchListResponseSchema(Schema):
     """Lotes recientes del usuario, del más nuevo al más antiguo."""
     batches = fields.List(fields.Nested(IrisBatchSummarySchema))
+
+
+class IrisCampaignsQuerySchema(Schema):
+    """Paginación de ``GET /iris/campaigns``."""
+    page = fields.Integer(load_default=1, validate=validate.Range(min=1))
+    per_page = fields.Integer(load_default=20, validate=validate.Range(min=1, max=100))
+
+
+class IrisCampaignSummarySchema(Schema):
+    """Una campaña en el listado.
+
+    ``analysisCount`` cuenta análisis y ``messageCount`` correos distintos: un
+    mismo correo analizado otra vez suma un análisis pero no un mensaje.
+    ``verdicts`` es ``{veredicto: análisis}``.
+    """
+    campaignId = fields.Integer()
+    label = fields.String(allow_none=True)
+    analysisCount = fields.Integer()
+    messageCount = fields.Integer()
+    firstSeenAt = fields.String(allow_none=True)
+    lastSeenAt = fields.String(allow_none=True)
+    verdicts = fields.Dict(keys=fields.String(), values=fields.Integer())
+
+
+class IrisCampaignListResponseSchema(Schema):
+    """Campañas del usuario, de la de actividad más reciente a la que menos."""
+    campaigns = fields.List(fields.Nested(IrisCampaignSummarySchema))
+    total = fields.Integer()
+    page = fields.Integer()
+    perPage = fields.Integer()
+
+
+class IrisCampaignAnalysisSchema(Schema):
+    """Un mensaje de la campaña y por qué entró en ella."""
+    analysisId = fields.Integer()
+    title = fields.String(allow_none=True)
+    verdict = fields.String(allow_none=True)
+    totalScore = fields.Float(allow_none=True)
+    receivedAt = fields.String(allow_none=True)
+    similarity = fields.Float()
+    matchedSignals = fields.List(fields.String())
+
+
+class IrisCampaignIndicatorSchema(Schema):
+    """Un indicador que comparten varios mensajes de la campaña."""
+    kind = fields.String()
+    value = fields.String()
+    analysisCount = fields.Integer()
+
+
+class IrisCampaignDetailSchema(IrisCampaignSummarySchema):
+    """Una campaña con sus mensajes, los indicadores comunes y las marcas suplantadas."""
+    analyses = fields.List(fields.Nested(IrisCampaignAnalysisSchema))
+    sharedIndicators = fields.List(fields.Nested(IrisCampaignIndicatorSchema))
+    brands = fields.List(fields.String())

@@ -151,6 +151,20 @@ class IrisAnalysis(Base):
         indicators: Índice de IOCs del contexto ganador (``IrisIndicator``).
                  Se rellena al terminar el análisis y sobrevive a la purga
                  del raw por retención.
+        subject_fingerprint: Huella del asunto normalizado del contexto
+                 ganador (ver ``services/campaigns.fingerprint_subject``):
+                 dos mensajes con el mismo asunto salvo números, prefijos
+                 ``Re:``/``Fwd:`` y mayúsculas comparten huella. NULL sin
+                 asunto o en análisis anteriores a las campañas.
+        template_fingerprint: Huella del esqueleto del cuerpo (etiquetas
+                 HTML, o el texto sin números ni enlaces): la plantilla
+                 visual de una campaña. NULL en envíos de solo cabeceras o
+                 con un cuerpo demasiado corto para decir nada.
+        impersonated_brands: Marcas que las reglas vieron suplantadas en el
+                 contexto ganador, en minúsculas y sin duplicados. NULL si
+                 ninguna.
+        campaign_link: Pertenencia del análisis a una campaña
+                 (``IrisCampaignMember``); ``None`` si no está en ninguna.
         connection_id: FK to the IrisMailboxConnection that ingested this
                  message automatically; NULL for manual submissions (the
                  original, still-default flow).
@@ -190,6 +204,9 @@ class IrisAnalysis(Base):
     ai_summary_job_id = Column(String(64), nullable=True)
     ai_summary_model = Column(String(64), nullable=True)
     ai_summary_prompt_version = Column(String(32), nullable=True)
+    subject_fingerprint = Column(String(64), nullable=True)
+    template_fingerprint = Column(String(64), nullable=True)
+    impersonated_brands = Column(JSONB, nullable=True)
     started_at = Column(DateTime, nullable=False, default=utcnow_naive)
     finished_at = Column(DateTime, nullable=True)
     cancel_requested_at = Column(DateTime, nullable=True)
@@ -234,6 +251,11 @@ class IrisAnalysis(Base):
         "IrisCaseAnalysis", back_populates="analysis",
         cascade="all, delete",
     )
+    # Igual que ``case_links``: el vínculo cuelga también de la campaña.
+    campaign_link = relationship(
+        "IrisCampaignMember", back_populates="analysis", uselist=False,
+        cascade="all, delete",
+    )
 
     __table_args__ = (
         UniqueConstraint("connection_id", "source_message_uid",
@@ -244,6 +266,8 @@ class IrisAnalysis(Base):
         Index("ix_iris_analysis_verdict", "verdict"),
         Index("ix_iris_analysis_connection_id", "connection_id"),
         Index("ix_iris_analysis_user_fingerprint", "user_id", "content_sha256"),
+        Index("ix_iris_analysis_user_subject_fingerprint", "user_id", "subject_fingerprint"),
+        Index("ix_iris_analysis_user_template_fingerprint", "user_id", "template_fingerprint"),
     )
 
     @property
@@ -1007,6 +1031,108 @@ class IrisIndicator(Base):
     __table_args__ = (
         Index("ix_iris_indicator_analysis_id", "analysis_id"),
         Index("ix_iris_indicator_value", "value"),
+    )
+
+
+class CampaignSignal(StrEnum):
+    """Señal por la que dos análisis se parecen lo bastante para ser una campaña.
+
+    Es el valor que se guarda en ``IrisCampaignMember.matched_signals``.
+
+    - ``URL``: comparten una URL del cuerpo.
+    - ``HASH``: comparten un adjunto (mismo SHA-256).
+    - ``TEMPLATE``: el cuerpo tiene el mismo esqueleto.
+    - ``SUBJECT``: el asunto normalizado es el mismo.
+    - ``SENDER``: comparten una dirección de remitente, de respuesta o de
+      retorno.
+    - ``DOMAIN``: comparten un dominio que no es de correo gratuito.
+    - ``BRAND``: suplantan la misma marca.
+    """
+
+    URL = "url"
+    HASH = "hash"
+    TEMPLATE = "template"
+    SUBJECT = "subject"
+    SENDER = "sender"
+    DOMAIN = "domain"
+    BRAND = "brand"
+
+
+class IrisCampaign(Base):
+    """Campaña: mensajes de un mismo usuario que comparten origen.
+
+    Agrupa análisis que se parecen por señales deterministas —URL, hash de
+    adjunto, plantilla, asunto, remitente, dominios, marca suplantada— dentro
+    de una ventana de tiempo (ver ``services/campaigns.py``), para investigar
+    la campaña una vez en lugar de mensaje a mensaje. Los análisis no cambian:
+    la campaña es una capa encima, igual que un caso.
+
+    Es de un usuario, como sus análisis. Las cifras que se enseñan (mensajes,
+    primer y último avistamiento, veredictos) se calculan al leer a partir de
+    los miembros, así que borrar un análisis no deja ninguna desactualizada.
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        user_id: FK al ``User`` dueño; ``ondelete="CASCADE"``.
+        label: Asunto del mensaje cuya llegada la abrió (el primero que se
+                 pareció a otro), recortado a 120 caracteres;
+                 NULL si no tenía.
+        created_at: Cuándo se abrió.
+        updated_at: Cuándo entró su último miembro.
+        members: Análisis que la forman (``IrisCampaignMember``), en el orden
+                 en que entraron.
+    """
+    __tablename__ = "IrisCampaign"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("User.id", ondelete="CASCADE"), nullable=False)
+    label = Column(String(120), nullable=True)
+    created_at = Column(DateTime, nullable=False, default=utcnow_naive)
+    updated_at = Column(DateTime, nullable=False, default=utcnow_naive)
+
+    members = relationship(
+        "IrisCampaignMember", back_populates="campaign",
+        order_by="IrisCampaignMember.id",
+        cascade="all, delete-orphan",
+    )
+
+    __table_args__ = (
+        Index("ix_iris_campaign_user_id", "user_id"),
+    )
+
+
+class IrisCampaignMember(Base):
+    """Pertenencia de un análisis a una campaña, con el motivo.
+
+    Un análisis está como mucho en una campaña (``analysis_id`` es único).
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        campaign_id: FK al ``IrisCampaign``; ``ondelete="CASCADE"``.
+        analysis_id: FK al ``IrisAnalysis``; ``ondelete="CASCADE"``. Único.
+        similarity: Puntuación de parecido con el miembro con el que se
+                 emparejó (ver ``services/campaigns.score_similarity``).
+        matched_signals: Tipos de señal que coincidieron (``url``, ``hash``,
+                 ``template``, ``subject``, ``sender``, ``domain``,
+                 ``brand``), ordenados.
+        added_at: Cuándo entró.
+        campaign / analysis: Relaciones inversas.
+    """
+    __tablename__ = "IrisCampaignMember"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    campaign_id = Column(Integer, ForeignKey("IrisCampaign.id", ondelete="CASCADE"), nullable=False)
+    analysis_id = Column(Integer, ForeignKey("IrisAnalysis.id", ondelete="CASCADE"), nullable=False)
+    similarity = Column(Float, nullable=False, default=0.0)
+    matched_signals = Column(JSONB, nullable=False, default=list)
+    added_at = Column(DateTime, nullable=False, default=utcnow_naive)
+
+    campaign = relationship("IrisCampaign", back_populates="members")
+    analysis = relationship("IrisAnalysis", back_populates="campaign_link")
+
+    __table_args__ = (
+        UniqueConstraint("analysis_id", name="uq_iris_campaign_member_analysis"),
+        Index("ix_iris_campaign_member_campaign_id", "campaign_id"),
     )
 
 

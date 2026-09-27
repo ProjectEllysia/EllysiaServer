@@ -24,6 +24,8 @@ Managers del módulo Iris (análisis de correo).
   prioridad, asignación, notas y timeline sobre uno o varios análisis.
 - ``IrisBatchManager`` (``batch.py``): análisis por lotes de varios .eml o
   un ZIP, con límites, duplicados y back pressure.
+- ``IrisCampaignManager`` (``campaigns.py``): campañas que agrupan los
+  análisis parecidos de un usuario, con los indicadores que comparten.
 
 Iris era el único módulo con
 **dos** ficheros de managers en la raíz — ``managers.py`` (64 KB, el
@@ -48,6 +50,7 @@ from .trust import IrisTrustPolicyManager
 from .triage import IrisTriageManager
 from .cases import IrisCaseManager
 from .batch import IrisBatchManager
+from .campaigns import IrisCampaignManager
 
 __all__ = [
     "IrisManager",
@@ -55,6 +58,7 @@ __all__ = [
     "IrisTriageManager",
     "IrisCaseManager",
     "IrisBatchManager",
+    "IrisCampaignManager",
     "IrisFeedbackManager",
     "IrisReplayManager",
     "IrisReportManager",

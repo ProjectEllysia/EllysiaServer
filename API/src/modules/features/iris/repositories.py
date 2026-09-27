@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any, List, Optional, Tuple
 
-from sqlalchemy import and_, asc, delete, desc, func, nullslast, select, update
+from sqlalchemy import String, and_, asc, cast, delete, desc, func, nullslast, or_, select, update
 from sqlalchemy.orm import joinedload, selectinload
 
 from src.modules.infrastructure import BaseRepository, DocumentRepository
@@ -22,6 +22,7 @@ from .model import (
     IrisRawMessage, IrisRuleResult, IrisDocument, IrisTrustedSender,
     IrisAnalysisTag, IrisIndicator, IrisSavedView,
     IrisCase, IrisCaseAnalysis, IrisCaseEvent, IrisBatch, IrisBatchItem,
+    IrisCampaign, IrisCampaignMember,
 )
 
 
@@ -370,6 +371,61 @@ class IrisAnalysisRepository(BaseRepository[IrisAnalysis]):
         return (
             self._session.query(IrisAnalysis)
             .filter(IrisAnalysis.created_at < cutoff)
+            .all()
+        )
+
+    def get_campaign_candidates(self, *, user_id: int, since: datetime, exclude_id: int,
+                                subject_fingerprint: Optional[str], template_fingerprint: Optional[str],
+                                indicator_pairs: List[Tuple[str, str]], limit: int) -> List[IrisAnalysis]:
+        """Análisis recientes de un usuario que comparten alguna señal con uno nuevo.
+
+        Es el primer filtro de la agrupación en campañas: solo trae los que
+        pueden parecerse (mismo asunto normalizado, misma plantilla o algún
+        IOC en común); cuánto se parecen lo decide ``services/campaigns.py``.
+
+        Args:
+            user_id: Dueño; nunca se mezclan análisis de otro usuario.
+            since: Solo los recibidos desde este instante (la ventana).
+            exclude_id: El propio análisis nuevo.
+            subject_fingerprint: Huella del asunto; ``None`` si no tiene.
+            template_fingerprint: Huella de la plantilla; ``None`` si no tiene.
+            indicator_pairs: Pares ``(kind, value)`` del índice de IOCs.
+            limit: Máximo de candidatos.
+
+        Returns:
+            List[IrisAnalysis]: Análisis terminados y no legítimos, del más
+                reciente al más antiguo. Vacía si ninguno comparte nada.
+        """
+        conditions = []
+        if subject_fingerprint:
+            conditions.append(IrisAnalysis.subject_fingerprint == subject_fingerprint)
+        if template_fingerprint:
+            conditions.append(IrisAnalysis.template_fingerprint == template_fingerprint)
+        values_by_kind: dict[str, list[str]] = {}
+        for kind, value in indicator_pairs:
+            values_by_kind.setdefault(kind, []).append(value)
+        if values_by_kind:
+            conditions.append(IrisAnalysis.id.in_(
+                select(IrisIndicator.analysis_id).where(or_(*(
+                    and_(IrisIndicator.kind == kind, IrisIndicator.value.in_(values))
+                    for kind, values in values_by_kind.items()
+                )))
+            ))
+        if not conditions:
+            return []
+        return (
+            self._session.query(IrisAnalysis)
+            .filter(
+                IrisAnalysis.user_id == user_id,
+                IrisAnalysis.id != exclude_id,
+                IrisAnalysis.status == "finished",
+                IrisAnalysis.verdict.isnot(None),
+                IrisAnalysis.verdict != "Legitimate",
+                IrisAnalysis.created_at >= since,
+                or_(*conditions),
+            )
+            .order_by(IrisAnalysis.created_at.desc(), IrisAnalysis.id.desc())
+            .limit(limit)
             .all()
         )
 
@@ -938,6 +994,183 @@ class IrisIndicatorRepository(BaseRepository[IrisIndicator]):
     """
 
     _MODEL = IrisIndicator
+
+    def get_pairs_by_analysis_ids(self, analysis_ids: List[int]) -> dict[int, List[Tuple[str, str]]]:
+        """Indicadores de varios análisis de una vez.
+
+        Args:
+            analysis_ids: Análisis cuyos indicadores se quieren.
+
+        Returns:
+            dict: ``{analysis_id: [(kind, value), ...]}``; un análisis sin
+                indicadores no aparece.
+        """
+        if not analysis_ids:
+            return {}
+        pairs_by_analysis: dict[int, List[Tuple[str, str]]] = {}
+        rows = (
+            self._session.query(IrisIndicator.analysis_id, IrisIndicator.kind, IrisIndicator.value)
+            .filter(IrisIndicator.analysis_id.in_(analysis_ids))
+            .all()
+        )
+        for analysis_id, kind, value in rows:
+            pairs_by_analysis.setdefault(analysis_id, []).append((kind, value))
+        return pairs_by_analysis
+
+    def get_shared_in_campaign(self, campaign_id: int, min_analyses: int = 2) -> List[Tuple[str, str, int]]:
+        """Indicadores que comparten varios análisis de una campaña.
+
+        Son los *pivots* de la campaña: lo que un analista busca en el SIEM o
+        bloquea una sola vez para todos sus mensajes.
+
+        Args:
+            campaign_id: Campaña.
+            min_analyses: En cuántos análisis tiene que aparecer como mínimo.
+                Por defecto ``2``.
+
+        Returns:
+            List[Tuple[str, str, int]]: ``(kind, value, análisis)``, del más
+                repetido al menos, y por tipo y valor a igualdad.
+        """
+        analysis_count = func.count(func.distinct(IrisIndicator.analysis_id))
+        return [
+            (kind, value, total) for kind, value, total in (
+                self._session.query(IrisIndicator.kind, IrisIndicator.value, analysis_count)
+                .join(IrisCampaignMember, IrisCampaignMember.analysis_id == IrisIndicator.analysis_id)
+                .filter(IrisCampaignMember.campaign_id == campaign_id)
+                .group_by(IrisIndicator.kind, IrisIndicator.value)
+                .having(analysis_count >= min_analyses)
+                .order_by(analysis_count.desc(), IrisIndicator.kind.asc(), IrisIndicator.value.asc())
+                .all()
+            )
+        ]
+
+
+class IrisCampaignRepository(BaseRepository[IrisCampaign]):
+    """Acceso a las campañas (``IrisCampaign``)."""
+
+    _MODEL = IrisCampaign
+
+    def get_page_for_user(self, user_id: int, page: int, per_page: int,
+                          min_members: int = 2) -> Tuple[List[Tuple[IrisCampaign, int, int, datetime, datetime]], int]:
+        """Campañas de un usuario con sus cifras, de la más activa a la menos.
+
+        Las cifras se calculan aquí a partir de los miembros, no se guardan:
+        así borrar un análisis nunca deja una campaña con cifras viejas.
+
+        Args:
+            user_id: Dueño.
+            page: Página, empezando en 1.
+            per_page: Campañas por página.
+            min_members: Miembros mínimos para contar como campaña. Por
+                defecto ``2``: una campaña que se quedó con un solo análisis
+                (porque se borraron los demás) no se enseña.
+
+        Returns:
+            Tuple: La página, como tuplas ``(campaña, análisis, mensajes
+                distintos, primer avistamiento, último avistamiento)``, y el
+                total de campañas. «Mensajes distintos» no cuenta dos veces el
+                mismo correo analizado de nuevo (misma ``content_sha256``).
+        """
+        analysis_count = func.count(IrisAnalysis.id)
+        message_count = func.count(func.distinct(
+            func.coalesce(IrisAnalysis.content_sha256, cast(IrisAnalysis.id, String))
+        ))
+        first_seen = func.min(IrisAnalysis.created_at)
+        last_seen = func.max(IrisAnalysis.created_at)
+        query = (
+            self._session.query(IrisCampaign, analysis_count, message_count, first_seen, last_seen)
+            .join(IrisCampaignMember, IrisCampaignMember.campaign_id == IrisCampaign.id)
+            .join(IrisAnalysis, IrisAnalysis.id == IrisCampaignMember.analysis_id)
+            .filter(IrisCampaign.user_id == user_id)
+            .group_by(IrisCampaign.id)
+            .having(analysis_count >= min_members)
+        )
+        total = query.count()
+        rows = (
+            query.order_by(last_seen.desc(), IrisCampaign.id.desc())
+            .limit(per_page)
+            .offset((page - 1) * per_page)
+            .all()
+        )
+        return [tuple(row) for row in rows], total
+
+    def count_verdicts(self, campaign_ids: List[int]) -> dict[int, dict[str, int]]:
+        """Cuántos análisis de cada campaña hay por veredicto.
+
+        Args:
+            campaign_ids: Campañas.
+
+        Returns:
+            dict: ``{campaign_id: {veredicto: análisis}}``.
+        """
+        if not campaign_ids:
+            return {}
+        rows = (
+            self._session.query(IrisCampaignMember.campaign_id, IrisAnalysis.verdict, func.count(IrisAnalysis.id))
+            .join(IrisAnalysis, IrisAnalysis.id == IrisCampaignMember.analysis_id)
+            .filter(IrisCampaignMember.campaign_id.in_(campaign_ids))
+            .group_by(IrisCampaignMember.campaign_id, IrisAnalysis.verdict)
+            .all()
+        )
+        verdicts_by_campaign: dict[int, dict[str, int]] = {}
+        for campaign_id, verdict, total in rows:
+            verdicts_by_campaign.setdefault(campaign_id, {})[verdict or "unknown"] = total
+        return verdicts_by_campaign
+
+
+class IrisCampaignMemberRepository(BaseRepository[IrisCampaignMember]):
+    """Acceso a la pertenencia de los análisis a campañas (``IrisCampaignMember``)."""
+
+    _MODEL = IrisCampaignMember
+
+    def get_by_analysis(self, analysis_id: int) -> Optional[IrisCampaignMember]:
+        """La pertenencia de un análisis, si está en alguna campaña.
+
+        Args:
+            analysis_id: Análisis.
+
+        Returns:
+            Optional[IrisCampaignMember]: La fila, o ``None``.
+        """
+        return (
+            self._session.query(IrisCampaignMember)
+            .filter(IrisCampaignMember.analysis_id == analysis_id)
+            .one_or_none()
+        )
+
+    def count_by_campaign(self, campaign_id: int) -> int:
+        """Cuántos análisis tiene una campaña.
+
+        Args:
+            campaign_id: Campaña.
+
+        Returns:
+            int: Miembros; ``0`` si no tiene ninguno.
+        """
+        return (
+            self._session.query(func.count(IrisCampaignMember.id))
+            .filter(IrisCampaignMember.campaign_id == campaign_id)
+            .scalar() or 0
+        )
+
+    def get_by_campaign(self, campaign_id: int) -> List[IrisCampaignMember]:
+        """Miembros de una campaña con su análisis, del más reciente al más antiguo.
+
+        Args:
+            campaign_id: Campaña.
+
+        Returns:
+            List[IrisCampaignMember]: Los miembros, con ``analysis`` cargado.
+        """
+        return (
+            self._session.query(IrisCampaignMember)
+            .join(IrisAnalysis, IrisAnalysis.id == IrisCampaignMember.analysis_id)
+            .options(joinedload(IrisCampaignMember.analysis))
+            .filter(IrisCampaignMember.campaign_id == campaign_id)
+            .order_by(IrisAnalysis.created_at.desc(), IrisAnalysis.id.desc())
+            .all()
+        )
 
 
 class IrisCaseRepository(BaseRepository[IrisCase]):

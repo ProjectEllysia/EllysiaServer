@@ -30,6 +30,7 @@
  */
 import { useUtils } from '@/composables/useUtils'
 import { useI18n } from 'vue-i18n'
+import { defang } from './indicators'
 
 const { t } = useI18n()
 
@@ -48,15 +49,6 @@ const iocCategories = [
   { key: 'emails' },
   { key: 'hashes' },
 ]
-
-// Neutraliza dominios/URLs/IPs/emails para que no se conviertan en enlaces
-// clicables ni resuelvan accidentalmente al pegarlos en otra herramienta.
-function defang(value) {
-  return String(value)
-    .replace(/https?/gi, (m) => m.replace(/^http/i, 'hxxp'))
-    .replace(/\./g, '[.]')
-    .replace(/@/g, '[at]')
-}
 
 function exportCsv() {
   const rows = [['type', 'value']]

@@ -108,6 +108,7 @@
       "folder": "Folder not found.",
       "irisAnalysis": "Analysis not found.",
       "irisBatch": "Batch not found.",
+      "irisCampaign": "Campaign not found.",
       "irisCase": "Case not found.",
       "irisMailboxConnection": "Mailbox connection not found.",
       "irisSavedView": "Saved view not found.",
@@ -2050,7 +2051,10 @@
       "iocs": "Indicators of compromise (IOCs)",
       "iocsLoading": "Extracting IOCs…",
       "iocsFailed": "The IOCs could not be loaded.",
-      "rawHeaders": "Original headers"
+      "rawHeaders": "Original headers",
+      "campaignTitle": "Part of a campaign",
+      "campaignRelated": "There is {count} more message like this one. | There are {count} more messages like this one.",
+      "campaignOpen": "See the campaign"
     },
     "cases": {
       "badge": "Cases",
@@ -2132,6 +2136,38 @@
       "expires": "expires {date}",
       "revokeTitle": "Revoke exception",
       "revokeMessage": "The next emails from {value} will be analyzed without the exception. The exception stays in the audit log."
+    },
+    "indicatorKind": {
+      "domain": "Domain",
+      "url": "URL",
+      "ip": "IP",
+      "email": "Address",
+      "hash": "Hash (SHA-256)"
+    },
+    "campaigns": {
+      "badge": "Campaigns",
+      "intro": "Messages that look alike —the same link, the same attachment, the same template or the same subject and sender— grouped so you investigate them once. Only messages that don't look legitimate are grouped.",
+      "empty": "No campaigns yet: they appear when two suspicious messages look alike.",
+      "pick": "Pick a campaign to see its messages and what they have in common.",
+      "unnamed": "Campaign #{id}",
+      "messageCount": "{count} message | {count} messages",
+      "seenBetween": "from {first} to {last}",
+      "brands": "Impersonating: {brands}",
+      "shared": "What they have in common",
+      "sharedHint": "Indicators that appear in several messages: look them up or block them once for the whole campaign.",
+      "noShared": "They share no indicators: they look alike by subject, template or brand.",
+      "inMessages": "in {count} message | in {count} messages",
+      "messages": "Messages ({count})",
+      "matchedBy": "Matched by:",
+      "signals": {
+        "url": "link",
+        "hash": "identical attachment",
+        "template": "template",
+        "subject": "subject",
+        "sender": "sender",
+        "domain": "domain",
+        "brand": "impersonated brand"
+      }
     }
   },
   "irisHub": {

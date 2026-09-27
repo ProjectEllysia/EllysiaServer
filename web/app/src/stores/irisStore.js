@@ -588,6 +588,40 @@ export const useIrisStore = defineStore('iris', () => {
     currentBatch.value = null
   }
 
+  /* ═══════════════════════════ CAMPAÑAS ═══════════════════════════════ */
+
+  const campaigns = reactive({ items: [], total: 0, page: 1, perPage: 20, loading: false })
+  const currentCampaign = ref(null)
+
+  /**
+   * Carga una página de las campañas del usuario.
+   * @param {number} [page] Página, empezando en 1; por defecto la actual.
+   */
+  async function fetchCampaigns(page = campaigns.page) {
+    campaigns.loading = true
+    try {
+      const res = await apiFetch(`/iris/campaigns?page=${page}&per_page=${campaigns.perPage}`)
+      if (!res?.ok) return
+      const data = await res.json()
+      campaigns.items = data.campaigns ?? []
+      campaigns.total = data.total ?? 0
+      campaigns.page = data.page ?? page
+    } finally {
+      campaigns.loading = false
+    }
+  }
+
+  /**
+   * Carga una campaña entera (mensajes e indicadores comunes) en `currentCampaign`.
+   * @param {number} id Id de la campaña.
+   * @returns {Promise<object|null>} La campaña, o null si no se pudo cargar.
+   */
+  async function fetchCampaign(id) {
+    const res = await apiFetch(`/iris/campaigns/${id}`)
+    currentCampaign.value = res?.ok ? await res.json() : null
+    return currentCampaign.value
+  }
+
   /* ═══════════════════════ CASOS DE ANALISTA ══════════════════════════ */
 
   const cases = reactive({
@@ -945,6 +979,8 @@ export const useIrisStore = defineStore('iris', () => {
     Object.assign(cases, { items: [], total: 0, countsByStatus: {}, loading: false,
       filters: { status: '', priority: '', assignedToMe: false } })
     currentCase.value = null
+    Object.assign(campaigns, { items: [], total: 0, page: 1, loading: false })
+    currentCampaign.value = null
     closeBatch()
 
     currentId.value = null
@@ -970,6 +1006,7 @@ export const useIrisStore = defineStore('iris', () => {
     fetchArchive, setArchiveFilters, resetArchiveFilters, setArchiveSort, goToArchivePage,
     savedViews, userTags, fetchSavedViews, saveArchiveView, applySavedView, deleteSavedView,
     fetchTags, setAnalysisTags, fetchReportById,
+    campaigns, currentCampaign, fetchCampaigns, fetchCampaign,
     cases, currentCase, fetchCases, fetchCase, createCase, updateCase, changeCaseStatus,
     addCaseNote, linkCaseAnalysis, unlinkCaseAnalysis,
     currentBatch, batchSubmitting, submitBatch, closeBatch,

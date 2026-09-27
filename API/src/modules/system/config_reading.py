@@ -2611,6 +2611,35 @@ def iris_ocr_config() -> IrisOcrConfig:
     return load_block(IrisOcrConfig)
 
 
+@config_block("features.iris.campaigns")
+@dataclass(frozen=True)
+class IrisCampaignsConfig:
+    """Agrupación de análisis parecidos en campañas (``iris/services/campaigns.py``).
+
+    El parecido se mide con señales deterministas y se compara con un umbral:
+    cuánto pesa cada señal es código (``services/campaigns.py``), porque es la
+    definición de qué cuenta como la misma campaña; aquí solo se ajusta hasta
+    dónde se mira.
+    """
+
+    window_days: int = 14
+    """Días hacia atrás en los que se busca con qué emparejar un análisis
+    nuevo. Una campaña que vuelve pasado ese plazo abre una campaña nueva."""
+
+    similarity_threshold: float = 5.0
+    """Puntuación mínima de parecido para meter dos análisis en la misma
+    campaña. Con los pesos actuales basta una URL o un adjunto compartidos, o
+    el asunto más un dominio, pero no el asunto solo."""
+
+    max_candidates: int = 200
+    """Análisis recientes que se comparan como mucho con uno nuevo; acota el
+    coste de terminar un análisis en una cuenta con mucho volumen."""
+
+
+def iris_campaigns_config() -> IrisCampaignsConfig:
+    return load_block(IrisCampaignsConfig)
+
+
 # --- Datasets y pesos: buscados por clave, no por campo ---------------------
 #
 # Ninguno de los dos encaja en un bloque: los datasets son dos docenas de listas

@@ -37,7 +37,7 @@ import src.modules.system.config_reading as CR
 from .managers import (
     IrisFeedbackManager, IrisManager, IrisReportManager, IrisMailboxManager,
     IrisNotificationPreferenceManager, IrisReplayManager, IrisTriageManager, IrisTrustPolicyManager,
-    IrisCaseManager, IrisBatchManager,
+    IrisCaseManager, IrisBatchManager, IrisCampaignManager,
 )
 from .exceptions import (
     IrisAnalysisNotFoundError,
@@ -45,6 +45,7 @@ from .exceptions import (
     IrisMailboxConnectionNotFoundError,
     IrisMailboxOAuthStateError,
     IrisBatchNotFoundError,
+    IrisCampaignNotFoundError,
     IrisCaseNotFoundError,
     IrisSavedViewNotFoundError,
     IrisTrustedSenderNotFoundError,
@@ -112,6 +113,9 @@ from .schemas import (
     IrisCaseUpdateRequestSchema,
     IrisBatchListResponseSchema,
     IrisBatchResponseSchema,
+    IrisCampaignDetailSchema,
+    IrisCampaignListResponseSchema,
+    IrisCampaignsQuerySchema,
 )
 
 
@@ -556,6 +560,38 @@ def link_case_analysis(data, case_id: int):
 def unlink_case_analysis(case_id: int, analysis_id: int):
     """Desvincular un análisis de un caso (el análisis no se borra)"""
     return IrisCaseManager().unlink_analysis(case_id, get_current_user().id, analysis_id)
+
+
+# =============================================================================
+# Campañas
+# =============================================================================
+
+@iris_blp.get("/campaigns")
+@iris_blp.arguments(IrisCampaignsQuerySchema, location="query")
+@iris_blp.response(200, IrisCampaignListResponseSchema, description="Campaigns grouping similar analyses")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("300 per hour; 2000 per day")
+@handle_exceptions(logger=logger)
+def list_campaigns(args: dict):
+    """Campañas del usuario: sus análisis parecidos, agrupados"""
+    return IrisCampaignManager.list_campaigns(get_current_user().id, args["page"], args["per_page"])
+
+
+@iris_blp.get("/campaigns/<int:campaign_id>")
+@iris_blp.response(200, IrisCampaignDetailSchema, description="Campaign with its messages and shared indicators")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Campaign not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("300 per hour; 2000 per day")
+@handle_exceptions(default_exception=IrisCampaignNotFoundError, logger=logger)
+def get_campaign(campaign_id: int):
+    """Una campaña: sus mensajes, los indicadores que comparten y las marcas suplantadas"""
+    return IrisCampaignManager.get_campaign(campaign_id, get_current_user().id)
 
 
 @iris_blp.get("/retention-policy")

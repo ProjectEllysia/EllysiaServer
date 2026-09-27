@@ -114,6 +114,13 @@ class IrisCaseNotFoundError(EntityNotFoundError, IrisError):
     id_field = "case_id"
 
 
+class IrisCampaignNotFoundError(EntityNotFoundError, IrisError):
+    """La campaña no existe o no es del usuario (mismo error para los dos)."""
+    entity_label = "Campaña"
+    entity_is_feminine = True
+    id_field = "campaign_id"
+
+
 class IrisBatchNotFoundError(EntityNotFoundError, IrisError):
     """El lote no existe o no es del usuario (mismo error para los dos)."""
     entity_label = "Lote"
