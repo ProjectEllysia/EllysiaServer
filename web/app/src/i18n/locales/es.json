@@ -107,6 +107,7 @@
       "finding": "Hallazgo no encontrado.",
       "folder": "Carpeta no encontrada.",
       "irisAnalysis": "Análisis no encontrado.",
+      "irisAnalysisUrl": "Enlace no encontrado.",
       "irisBatch": "Lote no encontrado.",
       "irisCampaign": "Campaña no encontrada.",
       "irisCase": "Caso no encontrado.",
@@ -2213,7 +2214,26 @@
       "noData": "El registro no da datos de este dominio.",
       "unavailable": "El registro no ha respondido; no se puede decir nada de este dominio.",
       "rateLimited": "Demasiadas consultas en este minuto; prueba en un rato.",
-      "disabled": "Las consultas externas están desactivadas en esta instalación."
+      "disabled": "Las consultas externas están desactivadas en esta instalación.",
+      "expand": "Seguir enlace",
+      "expandHint": "Sigue los redirects del enlace hasta la página a la que lleva, sin abrirla en tu navegador. La petición sale desde el servidor, nunca hacia una red interna.",
+      "expanding": "Siguiendo el enlace…",
+      "stillExpanding": "Sigue en marcha; vuelve a mirar en un rato.",
+      "leadsTo": "Lleva a {domain} sin redirecciones | Lleva a {domain} tras {count} redirección | Lleva a {domain} tras {count} redirecciones",
+      "domainChanged": "Cambia de dominio",
+      "pageTitle": "Título: «{title}»",
+      "hopErrors": {
+        "private_address": "Se detuvo: el siguiente salto apuntaba a una red interna.",
+        "scheme": "Se detuvo: el siguiente salto no era una página web.",
+        "port": "Se detuvo: el siguiente salto iba a un puerto que no es web.",
+        "unresolvable": "Se detuvo: el siguiente dominio no existe.",
+        "timeout": "Se detuvo: el servidor tardó demasiado en responder.",
+        "tls": "Se detuvo: el certificado del servidor no es válido.",
+        "connection": "Se detuvo: no se pudo conectar con el servidor.",
+        "protocol": "Se detuvo: el servidor no respondió como una web.",
+        "too_many_redirects": "Se detuvo: demasiadas redirecciones seguidas.",
+        "other": "Se detuvo antes de llegar al final."
+      }
     }
   },
   "irisHub": {

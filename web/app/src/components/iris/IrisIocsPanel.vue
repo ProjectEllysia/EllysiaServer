@@ -21,6 +21,17 @@
           <span v-else-if="store.domainContexts[val].loading" class="ioc-context">{{ t('common.loading') }}</span>
           <span v-else class="ioc-context">{{ describeDomain(store.domainContexts[val].data) }}</span>
         </template>
+        <template v-if="cat.key === 'urls' && canEnrich && reportId">
+          <button
+            v-if="!store.urlExpansions[val]"
+            type="button"
+            class="ioc-action"
+            :title="t('iris.enrichment.expandHint')"
+            @click="store.expandUrl(reportId, val)"
+          >{{ t('iris.enrichment.expand') }}</button>
+          <span v-else-if="store.urlExpansions[val].loading" class="ioc-context">{{ t('iris.enrichment.expanding') }}</span>
+          <span v-else class="ioc-context">{{ describeExpansion(store.urlExpansions[val].data) }}</span>
+        </template>
       </li>
     </ul>
     <p v-else class="ioc-empty">{{ t('iris.iocs.none') }}</p>
@@ -45,7 +56,7 @@
 import { useUtils } from '@/composables/useUtils'
 import { useI18n } from 'vue-i18n'
 import { computed } from 'vue'
-import { defang, describeDomainContext } from './indicators'
+import { defang, describeDomainContext, describeUrlExpansion } from './indicators'
 import { useIrisStore } from '@/stores/irisStore'
 import { useLaunch } from '@/composables/useLaunch'
 
@@ -62,6 +73,11 @@ const { isSurfaceEnabled } = useLaunch()
 
 /** Si se puede preguntar fuera por un indicador (superficie `externalEnrichment`). */
 const canEnrich = computed(() => isSurfaceEnabled('externalEnrichment'))
+
+/** Frase con el destino real de una URL (ver `describeUrlExpansion`). */
+function describeExpansion(expansion) {
+  return describeUrlExpansion(expansion, t)
+}
 
 /** Frase con el contexto RDAP de un dominio (ver `describeDomainContext`). */
 function describeDomain(context) {

@@ -1240,3 +1240,47 @@ class IrisDomainContextSchema(Schema):
     asn = fields.String(allow_none=True)
     error = fields.String(allow_none=True)
     fetchedAt = fields.String(allow_none=True)
+
+
+class UrlExpansionRequestSchema(Schema):
+    """URL de un análisis que se quiere seguir hasta su destino."""
+    url = fields.String(required=True, validate=validate.Length(min=1, max=4096))
+
+
+class UrlExpansionHopSchema(Schema):
+    """Un salto de la cadena de redirects.
+
+    ``error`` dice por qué se cortó ahí: ``private_address`` (apuntaba a la
+    red interna), ``scheme``, ``port``, ``unresolvable``, ``timeout``,
+    ``tls``, ``connection``, ``protocol`` o ``too_many_redirects``.
+    """
+    url = fields.String()
+    status = fields.Integer(allow_none=True)
+    peerAddress = fields.String(allow_none=True)
+    certificate = fields.Dict(allow_none=True)
+    error = fields.String(allow_none=True)
+
+
+class UrlExpansionSchema(Schema):
+    """Expansión de una URL.
+
+    ``status`` es ``not_requested``, ``pending``, ``running``, ``done``,
+    ``unavailable``, ``rate_limited`` o ``disabled``.
+    """
+    url = fields.String()
+    status = fields.String()
+    hops = fields.List(fields.Nested(UrlExpansionHopSchema))
+    finalUrl = fields.String(allow_none=True)
+    finalDomain = fields.String(allow_none=True)
+    finalStatus = fields.Integer(allow_none=True)
+    pageTitle = fields.String(allow_none=True)
+    contentType = fields.String(allow_none=True)
+    isDomainChanged = fields.Boolean(allow_none=True)
+    requestedAt = fields.String(allow_none=True)
+    fetchedAt = fields.String(allow_none=True)
+
+
+class UrlExpansionListSchema(Schema):
+    """Las URLs de un análisis con su expansión."""
+    analysisId = fields.Integer()
+    expansions = fields.List(fields.Nested(UrlExpansionSchema))

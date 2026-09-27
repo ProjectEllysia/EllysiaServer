@@ -11,7 +11,7 @@
 
 import { readFileSync } from 'node:fs'
 import { createI18n } from 'vue-i18n'
-import { campaignSignalKey, contactDeviationKey, defang, describeDomainContext, indicatorKindKey } from '../src/components/iris/indicators.js'
+import { campaignSignalKey, contactDeviationKey, defang, describeDomainContext, describeUrlExpansion, indicatorKindKey } from '../src/components/iris/indicators.js'
 
 const spanish = JSON.parse(readFileSync(new URL('../src/i18n/locales/es.json', import.meta.url), 'utf-8'))
 const { t, te } = createI18n({ legacy: false, locale: 'es', messages: { es: spanish } }).global
@@ -45,6 +45,12 @@ eq('reciente', describeDomainContext({ status: 'ok', ageDays: 3, isRecentlyRegis
   'Registrado hace 3 días (reciente) · Registrador: R · Red NET (US) · AS1')
 eq('neutro', describeDomainContext({ status: 'unavailable' }, t), 'El registro no ha respondido; no se puede decir nada de este dominio.')
 eq('sin respuesta', describeDomainContext(null, t), 'El registro no ha respondido; no se puede decir nada de este dominio.')
+
+console.log('\nexpansión de URL')
+eq('acortador', describeUrlExpansion({ status: 'done', hops: [{}, { error: null }], finalUrl: 'https://x.evil/a', finalDomain: 'x.evil', isDomainChanged: true, pageTitle: 'Login' }, t),
+  'Lleva a x.evil tras 1 redirección · Cambia de dominio · Título: «Login»')
+eq('cortada', describeUrlExpansion({ status: 'done', hops: [{}, { error: 'private_address' }], finalUrl: 'https://a.example', finalDomain: 'a.example' }, t),
+  'Lleva a a.example tras 1 redirección · Se detuvo: el siguiente salto apuntaba a una red interna.')
 
 console.log('\ncada clave que puede devolver el módulo existe en el diccionario')
 const keys = [

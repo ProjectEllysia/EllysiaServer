@@ -131,6 +131,16 @@ class IrisIndicatorNotFoundError(EntityNotFoundError, IrisError):
     id_field = "indicator"
 
 
+class IrisAnalysisUrlNotFoundError(EntityNotFoundError, IrisError):
+    """La URL no es de ese análisis (o el análisis no es del usuario).
+
+    Solo se sigue una URL que aparece en un correo del usuario: Iris no es un
+    servicio para visitar URLs arbitrarias.
+    """
+    entity_label = "Enlace"
+    id_field = "url"
+
+
 class IrisBatchNotFoundError(EntityNotFoundError, IrisError):
     """El lote no existe o no es del usuario (mismo error para los dos)."""
     entity_label = "Lote"

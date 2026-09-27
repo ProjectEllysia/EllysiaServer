@@ -1264,6 +1264,71 @@ class IrisDomainCache(Base):
     expires_at = Column(DateTime, nullable=False)
 
 
+class UrlExpansionStatus(StrEnum):
+    """Estado de la expansión de una URL.
+
+    - ``PENDING``: encolada, esperando a un worker.
+    - ``RUNNING``: un worker la está siguiendo.
+    - ``DONE``: terminada; los saltos dicen hasta dónde llegó (el último puede
+      traer un ``error`` si se cortó, por ejemplo al apuntar a la red interna).
+    - ``UNAVAILABLE``: no se pudo hacer nada (ni el primer salto respondió).
+    """
+
+    PENDING = "pending"
+    RUNNING = "running"
+    DONE = "done"
+    UNAVAILABLE = "unavailable"
+
+
+class IrisUrlExpansion(Base):
+    """A dónde lleva de verdad una URL de un correo: sus redirects, uno a uno.
+
+    Es por usuario, no compartida: una URL de phishing lleva a menudo un
+    identificador del destinatario (``?u=ana@empresa.com``), y su expansión no
+    debe verla nadie más.
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        user_id: FK al ``User`` que la pidió; ``ondelete="CASCADE"``.
+        url_sha256: SHA-256 de la URL; con ``user_id``, único.
+        url: La URL de partida, tal cual.
+        status: ``UrlExpansionStatus``.
+        hops: Cada salto: ``url``, ``status``, ``peerAddress``, ``certificate``
+                 y ``error``. NULL hasta que termina.
+        final_url: Última URL que respondió, o NULL.
+        final_domain: Su nombre de host, o NULL.
+        final_status: Código HTTP de esa última respuesta, o NULL.
+        page_title: ``<title>`` de la página final, si era HTML, o NULL.
+        content_type: Tipo de contenido de la página final, o NULL.
+        is_domain_changed: Si el dominio registrable final no es el de la URL
+                 de partida (un acortador, un *cloaking*). NULL hasta terminar.
+        requested_at: Cuándo se pidió por última vez.
+        fetched_at: Cuándo terminó, o NULL.
+        expires_at: Hasta cuándo vale el resultado, o NULL mientras no hay.
+    """
+    __tablename__ = "IrisUrlExpansion"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("User.id", ondelete="CASCADE"), nullable=False)
+    url_sha256 = Column(String(64), nullable=False)
+    url = Column(Text, nullable=False)
+    status = Column(String(16), nullable=False, default=UrlExpansionStatus.PENDING.value)
+    hops = Column(JSONB, nullable=True)
+    final_url = Column(Text, nullable=True)
+    final_domain = Column(String(253), nullable=True)
+    final_status = Column(Integer, nullable=True)
+    page_title = Column(String(300), nullable=True)
+    content_type = Column(String(120), nullable=True)
+    is_domain_changed = Column(Boolean, nullable=True)
+    requested_at = Column(DateTime, nullable=False, default=utcnow_naive)
+    fetched_at = Column(DateTime, nullable=True)
+    expires_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "url_sha256", name="uq_iris_url_expansion_user_url"),
+    )
+
+
 class CaseStatus(StrEnum):
     """Estado de un caso de analista (``IrisCase.status``).
 

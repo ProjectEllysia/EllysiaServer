@@ -216,6 +216,7 @@ CONFIG_BLOCKS = [
     (CR.IrisExportsConfig, CR.iris_exports_config),
     (CR.IrisEnrichmentConfig, CR.iris_enrichment_config),
     (CR.IrisRdapConfig, CR.iris_rdap_config),
+    (CR.IrisUrlExpansionConfig, CR.iris_url_expansion_config),
     (CR.ScribeConfig, CR.scribe_config),
     (CR.ScribeResilienceConfig, CR.scribe_resilience_config),
     (CR.HeraldConfig, CR.herald_config),

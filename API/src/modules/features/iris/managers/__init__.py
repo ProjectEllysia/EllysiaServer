@@ -32,6 +32,8 @@ Managers del módulo Iris (análisis de correo).
   análisis o una campaña en JSON versionado, STIX 2.1 o MISP.
 - ``IrisEnrichmentManager`` (``enrichment.py``): consultas bajo demanda a
   servicios externos sobre un indicador del usuario (RDAP…).
+- ``IrisUrlExpansionManager`` (``url_expansion.py``): seguir en segundo plano
+  los redirects de una URL de un análisis hasta su destino real.
 
 Iris era el único módulo con
 **dos** ficheros de managers en la raíz — ``managers.py`` (64 KB, el
@@ -60,6 +62,7 @@ from .campaigns import IrisCampaignManager
 from .graph import IrisContactGraphManager
 from .exports import IrisExportManager
 from .enrichment import IrisEnrichmentManager
+from .url_expansion import IrisUrlExpansionManager
 
 __all__ = [
     "IrisManager",
@@ -71,6 +74,7 @@ __all__ = [
     "IrisContactGraphManager",
     "IrisExportManager",
     "IrisEnrichmentManager",
+    "IrisUrlExpansionManager",
     "IrisFeedbackManager",
     "IrisReplayManager",
     "IrisReportManager",

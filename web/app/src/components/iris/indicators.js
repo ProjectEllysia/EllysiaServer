@@ -83,3 +83,32 @@ export function describeDomainContext(context, t) {
   if (context.asn) parts.push(context.asn)
   return parts.length ? parts.join(' · ') : t('iris.enrichment.noData')
 }
+
+const HOP_ERRORS = ['private_address', 'scheme', 'port', 'unresolvable', 'timeout', 'tls', 'connection', 'protocol', 'too_many_redirects']
+
+/**
+ * Frase con a dónde lleva de verdad una URL tras seguir sus redirects.
+ *
+ * @param {object|null} expansion - Una expansión de `GET /iris/results/<id>/url-expansions`.
+ * @param {Function} t - Función de traducción de vue-i18n.
+ * @returns {string} La frase en el idioma activo: saltos, destino, título de
+ *   la página, si cambia de dominio y, si la cadena se cortó, por qué.
+ */
+export function describeUrlExpansion(expansion, t) {
+  if (!expansion) return t('iris.enrichment.unavailable')
+  if (expansion.status === 'rate_limited') return t('iris.enrichment.rateLimited')
+  if (expansion.status === 'disabled') return t('iris.enrichment.disabled')
+  if (['pending', 'running'].includes(expansion.status)) return t('iris.enrichment.stillExpanding')
+  const parts = []
+  const redirects = Math.max(0, (expansion.hops?.length ?? 1) - 1)
+  if (expansion.finalUrl) {
+    parts.push(t('iris.enrichment.leadsTo', { count: redirects, domain: expansion.finalDomain || expansion.finalUrl }))
+  }
+  if (expansion.isDomainChanged) parts.push(t('iris.enrichment.domainChanged'))
+  if (expansion.pageTitle) parts.push(t('iris.enrichment.pageTitle', { title: expansion.pageTitle }))
+  const lastError = expansion.hops?.at(-1)?.error
+  if (lastError) {
+    parts.push(t(`iris.enrichment.hopErrors.${HOP_ERRORS.includes(lastError) ? lastError : 'other'}`))
+  }
+  return parts.length ? parts.join(' · ') : t('iris.enrichment.unavailable')
+}
