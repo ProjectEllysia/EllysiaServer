@@ -56,3 +56,30 @@ const CONTACT_DEVIATIONS = ['display_name_reuse', 'address_domain_change']
 export function contactDeviationKey(kind) {
   return `iris.report.deviation.${CONTACT_DEVIATIONS.includes(kind) ? kind : 'other'}`
 }
+
+/**
+ * Frase con el contexto de infraestructura (RDAP) de un dominio.
+ *
+ * Sin datos del registro —no respondió, cupo agotado o consultas apagadas— la
+ * frase lo dice sin sacar ninguna conclusión: es el modo neutro.
+ *
+ * @param {object|null} context - Respuesta de `GET /iris/domains/<dominio>/context`.
+ * @param {Function} t - Función de traducción de vue-i18n.
+ * @returns {string} La frase en el idioma activo.
+ */
+export function describeDomainContext(context, t) {
+  if (!context) return t('iris.enrichment.unavailable')
+  if (context.status === 'rate_limited') return t('iris.enrichment.rateLimited')
+  if (context.status === 'disabled') return t('iris.enrichment.disabled')
+  if (context.status !== 'ok') return t('iris.enrichment.unavailable')
+  const parts = []
+  if (context.ageDays !== null && context.ageDays !== undefined) {
+    parts.push(t(context.isRecentlyRegistered ? 'iris.enrichment.ageRecent' : 'iris.enrichment.age', { days: context.ageDays }))
+  }
+  if (context.registrar) parts.push(t('iris.enrichment.registrar', { name: context.registrar }))
+  if (context.networkName || context.country) {
+    parts.push(t('iris.enrichment.network', { name: context.networkName || '—', country: context.country || '—' }))
+  }
+  if (context.asn) parts.push(context.asn)
+  return parts.length ? parts.join(' · ') : t('iris.enrichment.noData')
+}

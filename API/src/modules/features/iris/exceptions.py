@@ -121,6 +121,16 @@ class IrisCampaignNotFoundError(EntityNotFoundError, IrisError):
     id_field = "campaign_id"
 
 
+class IrisIndicatorNotFoundError(EntityNotFoundError, IrisError):
+    """El indicador no aparece en ningún análisis del usuario.
+
+    Iris solo consulta fuera lo que el usuario ya vio en su correo; lo demás
+    responde igual que si no existiera.
+    """
+    entity_label = "Indicador"
+    id_field = "indicator"
+
+
 class IrisBatchNotFoundError(EntityNotFoundError, IrisError):
     """El lote no existe o no es del usuario (mismo error para los dos)."""
     entity_label = "Lote"

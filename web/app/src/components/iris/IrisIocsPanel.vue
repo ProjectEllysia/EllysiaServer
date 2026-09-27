@@ -7,7 +7,21 @@
       <span class="ioc-category-title">{{ t(`iris.iocs.categories.${cat.key}`) }} ({{ data[cat.key].length }})</span>
     </div>
     <ul v-if="data[cat.key].length" class="ioc-list">
-      <li v-for="(val, i) in data[cat.key]" :key="i" class="ioc-item">{{ defang(val) }}</li>
+      <li v-for="(val, i) in data[cat.key]" :key="i" class="ioc-item">
+        <span class="ioc-value">{{ defang(val) }}</span>
+        <!-- Consultas externas bajo demanda, solo si la instalación las permite. -->
+        <template v-if="cat.key === 'domains' && canEnrich">
+          <button
+            v-if="!store.domainContexts[val]"
+            type="button"
+            class="ioc-action"
+            :title="t('iris.enrichment.domainHint')"
+            @click="store.fetchDomainContext(val)"
+          >{{ t('iris.enrichment.domainContext') }}</button>
+          <span v-else-if="store.domainContexts[val].loading" class="ioc-context">{{ t('common.loading') }}</span>
+          <span v-else class="ioc-context">{{ describeDomain(store.domainContexts[val].data) }}</span>
+        </template>
+      </li>
     </ul>
     <p v-else class="ioc-empty">{{ t('iris.iocs.none') }}</p>
   </div>
@@ -30,7 +44,10 @@
  */
 import { useUtils } from '@/composables/useUtils'
 import { useI18n } from 'vue-i18n'
-import { defang } from './indicators'
+import { computed } from 'vue'
+import { defang, describeDomainContext } from './indicators'
+import { useIrisStore } from '@/stores/irisStore'
+import { useLaunch } from '@/composables/useLaunch'
 
 const { t } = useI18n()
 
@@ -40,6 +57,16 @@ const props = defineProps({
 })
 
 const { triggerDownload } = useUtils()
+const store = useIrisStore()
+const { isSurfaceEnabled } = useLaunch()
+
+/** Si se puede preguntar fuera por un indicador (superficie `externalEnrichment`). */
+const canEnrich = computed(() => isSurfaceEnabled('externalEnrichment'))
+
+/** Frase con el contexto RDAP de un dominio (ver `describeDomainContext`). */
+function describeDomain(context) {
+  return describeDomainContext(context, t)
+}
 
 /** Categorías de IOC; su rótulo sale de `iris.iocs.categories.<key>`. */
 const iocCategories = [
@@ -100,6 +127,21 @@ function exportCsv() {
   font-size: var(--fs-lg);
   color: var(--text-dim);
   word-break: break-all;
+}
+
+.ioc-value { margin-right: 0.5rem; }
+
+.ioc-action {
+  padding: 0.1rem 0.5rem; font-size: var(--fs-sm); font-weight: 600; border-radius: 6px; cursor: pointer;
+  border: 1px solid var(--border-med); background: transparent; color: var(--text-dim);
+  font-family: var(--font-body, inherit);
+}
+
+.ioc-action:hover { border-color: var(--accent); color: var(--accent-bright); }
+
+.ioc-context {
+  display: block; margin-top: 0.3rem; font-family: var(--font-body, inherit);
+  font-size: var(--fs-sm); color: var(--text-muted); word-break: normal;
 }
 
 .ioc-empty {

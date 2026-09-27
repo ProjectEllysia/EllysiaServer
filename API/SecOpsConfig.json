@@ -35,7 +35,8 @@
         "thirdPartyScanners": true,
         "campaigns": true,
         "mailboxConnectors": true,
-        "externalAi": true
+        "externalAi": true,
+        "externalEnrichment": true
       }
     },
     "registration": {
@@ -363,6 +364,18 @@
       },
       "exports": {
         "indicatorValidityDays": 30
+      },
+      "enrichment": {
+        "enabled": true,
+        "timeoutSeconds": 5.0,
+        "maxResponseBytes": 1048576,
+        "rdap": {
+          "baseUrl": "https://rdap.org",
+          "ttlHours": 24,
+          "negativeTtlMinutes": 30,
+          "requestsPerMinute": 30,
+          "recentDomainDays": 30
+        }
       },
       "prompts": {
         "summary": {

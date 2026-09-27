@@ -1214,3 +1214,29 @@ class IntelExportRequestSchema(Schema):
     """
     format = fields.String(required=True, validate=validate.OneOf(["json", "stix", "misp"]))
     defang = fields.Boolean(load_default=True)
+
+
+class IrisDomainContextSchema(Schema):
+    """Contexto de infraestructura de un dominio (RDAP).
+
+    ``status`` es ``ok``, ``unavailable`` (el registro no respondió: modo
+    neutro), ``rate_limited`` o ``disabled``. La edad es contexto: ninguna
+    decisión de Iris depende solo de ella.
+    """
+    domain = fields.String()
+    registrableDomain = fields.String()
+    status = fields.String()
+    cached = fields.Boolean()
+    registeredAt = fields.String(allow_none=True)
+    ageDays = fields.Integer(allow_none=True)
+    isRecentlyRegistered = fields.Boolean()
+    registryExpiresAt = fields.String(allow_none=True)
+    registrar = fields.String(allow_none=True)
+    registryStatus = fields.List(fields.String())
+    nameservers = fields.List(fields.String())
+    address = fields.String(allow_none=True)
+    networkName = fields.String(allow_none=True)
+    country = fields.String(allow_none=True)
+    asn = fields.String(allow_none=True)
+    error = fields.String(allow_none=True)
+    fetchedAt = fields.String(allow_none=True)

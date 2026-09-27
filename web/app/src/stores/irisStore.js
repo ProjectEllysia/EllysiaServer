@@ -995,6 +995,29 @@ export const useIrisStore = defineStore('iris', () => {
     return true
   }
 
+  /* ══════════════════════ ENRIQUECIMIENTO EXTERNO ════════════════════════ */
+
+  /** Contexto RDAP ya pedido, por dominio: `{ loading, data }`. */
+  const domainContexts = reactive({})
+
+  /**
+   * Pide el contexto de infraestructura (RDAP) de un dominio del usuario.
+   * @param {string} domain Dominio tal como sale en los IOCs.
+   * @returns {Promise<object|null>} El contexto, o null si falló la petición.
+   */
+  async function fetchDomainContext(domain) {
+    domainContexts[domain] = { loading: true, data: null }
+    const res = await apiFetch(`/iris/domains/${encodeURIComponent(domain)}/context`)
+    if (!res?.ok) {
+      toast.show(await apiError(res, i18n.global.t('irisStore.enrichmentFailed')), 'error')
+      delete domainContexts[domain]
+      return null
+    }
+    const data = await res.json()
+    domainContexts[domain] = { loading: false, data }
+    return data
+  }
+
   /** Elimina un documento generado. */
   async function deleteDocument(documentId, analysisId) {
     const res = await apiFetch(`/iris/document/${documentId}`, { method: 'DELETE' })
@@ -1073,6 +1096,7 @@ export const useIrisStore = defineStore('iris', () => {
     cancelAnalysis, deleteAnalysis, reanalyzeAnalysis, selectAnalysis, submitFeedback, runReplay,
     startPolling, stopPolling,
     downloadIntelExport,
+    domainContexts, fetchDomainContext,
     generateDocument, fetchDocuments, getDocumentStatus, downloadDocument, deleteDocument,
     stopDocumentPolling,
     $reset,

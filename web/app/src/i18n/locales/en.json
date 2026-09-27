@@ -110,6 +110,7 @@
       "irisBatch": "Batch not found.",
       "irisCampaign": "Campaign not found.",
       "irisCase": "Case not found.",
+      "irisIndicator": "Indicator not found.",
       "irisMailboxConnection": "Mailbox connection not found.",
       "irisSavedView": "Saved view not found.",
       "irisTrustedSender": "Trust exception not found.",
@@ -2201,6 +2202,18 @@
           "hint": "Event to import into a MISP instance."
         }
       }
+    },
+    "enrichment": {
+      "domainContext": "Context",
+      "domainHint": "Looks up the domain's age, registrar and network in the public registry (RDAP). The lookup goes to an external service.",
+      "age": "Registered {days} days ago",
+      "ageRecent": "Registered {days} days ago (recent)",
+      "registrar": "Registrar: {name}",
+      "network": "Network {name} ({country})",
+      "noData": "The registry has no data for this domain.",
+      "unavailable": "The registry did not answer; nothing can be said about this domain.",
+      "rateLimited": "Too many lookups this minute; try again shortly.",
+      "disabled": "External lookups are turned off on this installation."
     }
   },
   "irisHub": {
@@ -2349,7 +2362,8 @@
     "caseLinked": "Analysis #{analysisId} added to case #{caseId}.",
     "graphForgotten": "Contacts forgotten.",
     "graphForgetFailed": "Contacts could not be forgotten.",
-    "exportFailed": "Could not export."
+    "exportFailed": "Could not export.",
+    "enrichmentFailed": "The indicator could not be looked up."
   },
   "aegis": {
     "campaignStatus": {
@@ -3886,6 +3900,11 @@
         "label": "External AI providers",
         "covers": "Generating with OpenAI or Google; Ollama does not depend on this.",
         "unlocks": "contracts with the providers and a page about AI use"
+      },
+      "externalEnrichment": {
+        "label": "Iris external lookups",
+        "covers": "Asking third-party services about an email's indicators: domain registry, reputation and following links.",
+        "unlocks": "public list of providers and an explanation of what data they receive"
       }
     },
     "confirmOpen": "You are about to open to the public:\n{surfaces}\n\nContinue?",

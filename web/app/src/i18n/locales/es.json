@@ -110,6 +110,7 @@
       "irisBatch": "Lote no encontrado.",
       "irisCampaign": "Campaña no encontrada.",
       "irisCase": "Caso no encontrado.",
+      "irisIndicator": "Indicador no encontrado.",
       "irisMailboxConnection": "Conexión de buzón no encontrada.",
       "irisSavedView": "Vista guardada no encontrada.",
       "irisTrustedSender": "Excepción de confianza no encontrada.",
@@ -2201,6 +2202,18 @@
           "hint": "Evento para importar en una instancia MISP."
         }
       }
+    },
+    "enrichment": {
+      "domainContext": "Contexto",
+      "domainHint": "Consulta en el registro público (RDAP) la edad, el registrador y la red del dominio. La consulta sale a un servicio externo.",
+      "age": "Registrado hace {days} días",
+      "ageRecent": "Registrado hace {days} días (reciente)",
+      "registrar": "Registrador: {name}",
+      "network": "Red {name} ({country})",
+      "noData": "El registro no da datos de este dominio.",
+      "unavailable": "El registro no ha respondido; no se puede decir nada de este dominio.",
+      "rateLimited": "Demasiadas consultas en este minuto; prueba en un rato.",
+      "disabled": "Las consultas externas están desactivadas en esta instalación."
     }
   },
   "irisHub": {
@@ -2349,7 +2362,8 @@
     "caseLinked": "Análisis #{analysisId} añadido al caso #{caseId}.",
     "graphForgotten": "Contactos olvidados.",
     "graphForgetFailed": "No se pudieron olvidar los contactos.",
-    "exportFailed": "No se pudo exportar."
+    "exportFailed": "No se pudo exportar.",
+    "enrichmentFailed": "No se pudo consultar el indicador."
   },
   "aegis": {
     "campaignStatus": {
@@ -3886,6 +3900,11 @@
         "label": "IA de proveedores externos",
         "covers": "Generar con OpenAI o Google; Ollama no depende de esto.",
         "unlocks": "contratos con los proveedores y página sobre el uso de la IA"
+      },
+      "externalEnrichment": {
+        "label": "Consultas externas de Iris",
+        "covers": "Preguntar a servicios de terceros por los indicadores de un correo: registro de dominios, reputación y seguir enlaces.",
+        "unlocks": "lista pública de proveedores y explicación de qué datos se les envían"
       }
     },
     "confirmOpen": "Vas a abrir al público:\n{surfaces}\n\n¿Continuar?",
