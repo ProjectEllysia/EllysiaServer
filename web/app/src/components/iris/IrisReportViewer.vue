@@ -174,6 +174,8 @@
              próximos análisis. No toca este veredicto. -->
         <!-- Convertir el informe en trabajo: añadirlo a un caso de analista. -->
         <IrisAddToCase :analysis-id="reportData.analysisId" :analysis-title="reportData.title || ''" />
+        <!-- Llevarse los indicadores a un SIEM o a MISP. -->
+        <IrisIntelExport :url="`/iris/results/${reportData.analysisId}/export/intel`" />
         <button v-if="!trustFormOpen" type="button" class="feedback-option trust-open" @click="trustFormOpen = true">
           {{ t('iris.report.trustSender') }}
         </button>
@@ -441,6 +443,7 @@ import IrisIocsPanel from '@/components/iris/IrisIocsPanel.vue'
 import IrisVerdictHero from '@/components/iris/IrisVerdictHero.vue'
 import IrisTrustForm from '@/components/iris/IrisTrustForm.vue'
 import IrisAddToCase from '@/components/iris/IrisAddToCase.vue'
+import IrisIntelExport from '@/components/iris/IrisIntelExport.vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()

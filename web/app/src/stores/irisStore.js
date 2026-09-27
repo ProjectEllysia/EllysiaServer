@@ -978,6 +978,23 @@ export const useIrisStore = defineStore('iris', () => {
     }
   }
 
+  /**
+   * Descarga la exportación de indicadores de un análisis o de una campaña.
+   * @param {string} url Recurso de exportación (`/iris/results/<id>/export/intel`
+   *   o `/iris/campaigns/<id>/export`).
+   * @param {'json'|'stix'|'misp'} format Formato pedido.
+   * @returns {Promise<boolean>} true si se descargó.
+   */
+  async function downloadIntelExport(url, format) {
+    const res = await apiFetch(url, { method: 'POST', body: JSON.stringify({ format }) })
+    if (!res?.ok) {
+      toast.show(await apiError(res, i18n.global.t('irisStore.exportFailed')), 'error')
+      return false
+    }
+    triggerDownload(await res.blob(), filenameFromResponse(res, `iris-export.${format}.json`))
+    return true
+  }
+
   /** Elimina un documento generado. */
   async function deleteDocument(documentId, analysisId) {
     const res = await apiFetch(`/iris/document/${documentId}`, { method: 'DELETE' })
@@ -1055,6 +1072,7 @@ export const useIrisStore = defineStore('iris', () => {
     generateAiSummary, checkAiSummary,
     cancelAnalysis, deleteAnalysis, reanalyzeAnalysis, selectAnalysis, submitFeedback, runReplay,
     startPolling, stopPolling,
+    downloadIntelExport,
     generateDocument, fetchDocuments, getDocumentStatus, downloadDocument, deleteDocument,
     stopDocumentPolling,
     $reset,

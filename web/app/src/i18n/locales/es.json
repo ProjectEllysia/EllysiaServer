@@ -2183,6 +2183,24 @@
         "domain": "dominio",
         "brand": "marca suplantada"
       }
+    },
+    "intelExport": {
+      "label": "Exportar indicadores",
+      "hint": "Los indicadores y las reglas que saltaron, para un SIEM o una plataforma de inteligencia.",
+      "formats": {
+        "json": {
+          "name": "JSON",
+          "hint": "Formato propio de Iris, con los valores desactivados para no abrirlos por accidente."
+        },
+        "stix": {
+          "name": "STIX 2.1",
+          "hint": "Estándar de intercambio de inteligencia; lo importan la mayoría de SIEM y plataformas."
+        },
+        "misp": {
+          "name": "MISP",
+          "hint": "Evento para importar en una instancia MISP."
+        }
+      }
     }
   },
   "irisHub": {
@@ -2330,7 +2348,8 @@
     "caseOpened": "Caso #{id} abierto.",
     "caseLinked": "Análisis #{analysisId} añadido al caso #{caseId}.",
     "graphForgotten": "Contactos olvidados.",
-    "graphForgetFailed": "No se pudieron olvidar los contactos."
+    "graphForgetFailed": "No se pudieron olvidar los contactos.",
+    "exportFailed": "No se pudo exportar."
   },
   "aegis": {
     "campaignStatus": {

@@ -2183,6 +2183,24 @@
         "domain": "domain",
         "brand": "impersonated brand"
       }
+    },
+    "intelExport": {
+      "label": "Export indicators",
+      "hint": "The indicators and the rules that fired, for a SIEM or a threat intelligence platform.",
+      "formats": {
+        "json": {
+          "name": "JSON",
+          "hint": "Iris's own format, with values defanged so nobody opens them by accident."
+        },
+        "stix": {
+          "name": "STIX 2.1",
+          "hint": "Threat intelligence exchange standard; most SIEMs and platforms import it."
+        },
+        "misp": {
+          "name": "MISP",
+          "hint": "Event to import into a MISP instance."
+        }
+      }
     }
   },
   "irisHub": {
@@ -2330,7 +2348,8 @@
     "caseOpened": "Case #{id} opened.",
     "caseLinked": "Analysis #{analysisId} added to case #{caseId}.",
     "graphForgotten": "Contacts forgotten.",
-    "graphForgetFailed": "Contacts could not be forgotten."
+    "graphForgetFailed": "Contacts could not be forgotten.",
+    "exportFailed": "Could not export."
   },
   "aegis": {
     "campaignStatus": {
