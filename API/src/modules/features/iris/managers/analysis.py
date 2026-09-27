@@ -50,6 +50,7 @@ from ..repositories import (
 )
 from ..services.batch import message_fingerprint
 from ..services.campaigns import CampaignTraits, assign_to_campaign, build_features, build_traits
+from ..services.graph import detect_deviation, load_habitual_contacts, parse_participants, record_communication
 from ..services.indicators import extract_indicators, indicator_rows, refang
 from ..services.rules import iris_rules, RuleResult
 from ..services.text import extract_domain, is_free_provider, url_host
@@ -675,6 +676,50 @@ def _group_into_campaign(analysis_id: int, verdict: str, traits: CampaignTraits,
     except Exception as e:
         logger.error(f"No se pudo agrupar el análisis {analysis_id} en una campaña: {e}", exc_info=True)
 
+def _update_contact_graph(analysis_id: int, verdict: str, headers: Dict[str, str]) -> None:
+    """Compara el remitente con los contactos habituales y suma el mensaje al grafo.
+
+    Primero se busca la desviación, con el grafo tal como estaba antes de este
+    mensaje; después se suman sus aristas. Un mensaje que el usuario ya había
+    analizado (misma huella de contenido) no vuelve a sumar: reanalizarlo no
+    lo convierte en un mensaje más de ese remitente.
+
+    Va en su propia transacción y no propaga excepciones, por lo mismo que
+    ``_group_into_campaign``: el análisis ya tiene su veredicto.
+
+    Args:
+        analysis_id: Análisis recién terminado.
+        verdict: Su veredicto; solo ``Legitimate`` cuenta para hacer habitual
+            a un remitente.
+        headers: Cabeceras del contexto ganador.
+    """
+    config = CR.iris_graph_config()
+    if not config.enabled:
+        return
+    try:
+        with UnitOfWork() as uow:
+            analysis_repo = IrisAnalysisRepository(uow)
+            analysis = analysis_repo.get_by_id(analysis_id)
+            if analysis is None:
+                return
+            participants = parse_participants(headers)
+            if not participants.sender_address:
+                return
+            habitual_contacts = load_habitual_contacts(uow, analysis.user_id, config.habitual_min_messages)
+            deviation = detect_deviation(participants, habitual_contacts)
+            if deviation is not None:
+                analysis.contact_deviation = deviation
+                logger.info(f"Análisis {analysis_id}: el remitente imita a un contacto habitual ({deviation['kind']})")
+            is_repeat = bool(analysis.content_sha256) and analysis_repo.has_earlier_with_fingerprint(
+                analysis.user_id, analysis.content_sha256, analysis_id,
+            )
+            if not is_repeat:
+                record_communication(uow, analysis.user_id, participants, verdict == "Legitimate",
+                                     analysis.created_at)
+    except Exception as e:
+        logger.error(f"No se pudo actualizar el grafo de contactos con el análisis {analysis_id}: {e}",
+                     exc_info=True)
+
 def _evaluate_contexts(analysis_id: Optional[int], context, job, rules_defs: List[dict],
                         policy: Optional[ScoringPolicy] = None,
                         trust_entries: Optional[List[TrustEntry]] = None) -> Optional[List[ContextEvaluation]]:
@@ -942,6 +987,7 @@ def _run_analysis(analysis_id: int, raw_input: str) -> None:
 
         if is_finished:
             _group_into_campaign(analysis_id, verdict, campaign_traits, indicators)
+            _update_contact_graph(analysis_id, verdict, winning_message.headers)
 
         if verdict == "Phishing":
             _enqueue_phishing_notification(analysis_id, verdict)
@@ -1462,7 +1508,9 @@ class IrisManager(TaskTrackingMixin):
                 ``AnalysisDetailResponseSchema``). ``secondaryContext`` es
                 ``None`` cuando el mensaje no era un reenvío; ``campaign`` es
                 ``None`` cuando el análisis no está en ninguna campaña (ver
-                ``IrisCampaignManager.get_campaign_of_analysis``).
+                ``IrisCampaignManager.get_campaign_of_analysis``), y
+                ``contactDeviation``, cuando el remitente no imitaba a ningún
+                contacto habitual (ver ``services/graph.detect_deviation``).
 
         Raises:
             IrisAnalysisNotFoundError: Si *analysis_id* no existe.
@@ -1553,6 +1601,7 @@ class IrisManager(TaskTrackingMixin):
             "trustApplied": analysis.trust_applied,
             "tags": [tag.name for tag in analysis.tags],
             "campaign": campaign,
+            "contactDeviation": analysis.contact_deviation,
         }
 
     def get_analysis_path(self, analysis_id: int, user_id: int) -> Dict[str, Any]:

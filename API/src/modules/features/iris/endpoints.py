@@ -37,7 +37,7 @@ import src.modules.system.config_reading as CR
 from .managers import (
     IrisFeedbackManager, IrisManager, IrisReportManager, IrisMailboxManager,
     IrisNotificationPreferenceManager, IrisReplayManager, IrisTriageManager, IrisTrustPolicyManager,
-    IrisCaseManager, IrisBatchManager, IrisCampaignManager,
+    IrisCaseManager, IrisBatchManager, IrisCampaignManager, IrisContactGraphManager,
 )
 from .exceptions import (
     IrisAnalysisNotFoundError,
@@ -116,6 +116,9 @@ from .schemas import (
     IrisCampaignDetailSchema,
     IrisCampaignListResponseSchema,
     IrisCampaignsQuerySchema,
+    IrisGraphDeleteResponseSchema,
+    IrisGraphQuerySchema,
+    IrisGraphResponseSchema,
 )
 
 
@@ -592,6 +595,37 @@ def list_campaigns(args: dict):
 def get_campaign(campaign_id: int):
     """Una campaña: sus mensajes, los indicadores que comparten y las marcas suplantadas"""
     return IrisCampaignManager.get_campaign(campaign_id, get_current_user().id)
+
+
+# =============================================================================
+# Grafo de comunicación
+# =============================================================================
+
+@iris_blp.get("/graph")
+@iris_blp.arguments(IrisGraphQuerySchema, location="query")
+@iris_blp.response(200, IrisGraphResponseSchema, description="Who writes to whom, from the user's analyses")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("300 per hour; 2000 per day")
+@handle_exceptions(logger=logger)
+def get_contact_graph(args: dict):
+    """Grafo de comunicación del usuario: remitentes habituales y a quién escriben"""
+    return IrisContactGraphManager.get_graph(get_current_user().id, args["address"], args["limit"])
+
+
+@iris_blp.delete("/graph")
+@iris_blp.response(200, IrisGraphDeleteResponseSchema, description="Graph forgotten")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_DELETE])
+@limiter.limit("30 per hour; 100 per day")
+@handle_exceptions(logger=logger)
+def forget_contact_graph():
+    """Olvidar el grafo de comunicación entero (los análisis no cambian)"""
+    return IrisContactGraphManager.forget_graph(get_current_user().id)
 
 
 @iris_blp.get("/retention-policy")

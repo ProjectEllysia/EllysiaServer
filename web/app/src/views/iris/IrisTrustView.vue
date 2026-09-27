@@ -44,7 +44,46 @@
           </li>
         </ul>
       </section>
+
+      <!-- Contactos habituales: con quién habla el usuario, según sus
+           análisis legítimos. Es lo que permite avisar de quien imita a uno. -->
+      <section class="panel">
+        <div class="list-header">
+          <h3 class="list-title">{{ t('iris.trustView.contactsTitle') }}</h3>
+          <button v-if="store.contactGraph.senders.length" type="button" class="trust-forget" @click="forgetOpen = true">
+            {{ t('iris.trustView.forget') }}
+          </button>
+        </div>
+        <p class="panel-sub">
+          {{ t('iris.trustView.contactsIntro', { count: store.contactGraph.habitualMinMessages, days: store.contactGraph.retentionDays }) }}
+        </p>
+        <p v-if="!store.contactGraph.enabled" class="list-empty">{{ t('iris.trustView.contactsDisabled') }}</p>
+        <p v-else-if="store.contactGraph.loading" class="list-empty">{{ t('common.loading') }}</p>
+        <p v-else-if="!habitualContacts.length" class="list-empty">{{ t('iris.trustView.noContacts') }}</p>
+        <ul v-else class="trust-list">
+          <li v-for="contact in habitualContacts" :key="contact.address" class="trust-item">
+            <div class="trust-main">
+              <span class="trust-value">{{ contact.address }}</span>
+              <span v-if="contact.displayName" class="trust-kind">{{ contact.displayName }}</span>
+            </div>
+            <p class="trust-dates">
+              {{ t('iris.trustView.contactMessages', { count: contact.legitimateCount }) }} ·
+              {{ t('iris.trustView.lastSeen', { date: formatDate(contact.lastSeenAt) }) }}
+            </p>
+          </li>
+        </ul>
+      </section>
     </div>
+
+    <ConfirmModal
+      :show="forgetOpen"
+      :title="t('iris.trustView.forgetTitle')"
+      danger
+      :confirm-label="t('iris.trustView.forget')"
+      :message="t('iris.trustView.forgetMessage')"
+      @confirm="confirmForget"
+      @cancel="forgetOpen = false"
+    />
 
     <ConfirmModal
       :show="pendingRevoke !== null"
@@ -59,7 +98,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import Topbar from '@/components/shared/Topbar.vue'
 import StarBackground from '@/components/shared/StarBackground.vue'
 import ConfirmModal from '@/components/shared/ConfirmModal.vue'
@@ -75,6 +114,14 @@ const { formatDate } = useUtils()
 
 const showInactive = ref(false)
 const pendingRevoke = ref(null)
+const forgetOpen = ref(false)
+
+const habitualContacts = computed(() => store.contactGraph.senders.filter(sender => sender.isHabitual))
+
+async function confirmForget() {
+  forgetOpen.value = false
+  await store.forgetContactGraph()
+}
 
 async function confirmRevoke() {
   if (!pendingRevoke.value) return
@@ -83,7 +130,10 @@ async function confirmRevoke() {
   await store.fetchTrustedSenders(showInactive.value)
 }
 
-onMounted(() => store.fetchTrustedSenders(false))
+onMounted(() => {
+  store.fetchTrustedSenders(false)
+  store.fetchContactGraph()
+})
 </script>
 
 <style scoped>
@@ -123,4 +173,9 @@ onMounted(() => store.fetchTrustedSenders(false))
   border: 1px solid var(--danger); border-radius: 6px; background: transparent; color: var(--danger); cursor: pointer;
 }
 .trust-revoke:hover { background: var(--danger); color: #fff; }
+.trust-forget {
+  padding: 0.25rem 0.7rem; font-size: var(--fs-sm); font-weight: 600;
+  border: 1px solid var(--border-med); border-radius: 6px; background: transparent; color: var(--text-dim); cursor: pointer;
+}
+.trust-forget:hover { border-color: var(--danger); color: var(--danger); }
 </style>

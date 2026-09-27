@@ -26,6 +26,8 @@ Managers del módulo Iris (análisis de correo).
   un ZIP, con límites, duplicados y back pressure.
 - ``IrisCampaignManager`` (``campaigns.py``): campañas que agrupan los
   análisis parecidos de un usuario, con los indicadores que comparten.
+- ``IrisContactGraphManager`` (``graph.py``): consulta y olvido del grafo de
+  comunicación (quién escribe a quién) de un usuario.
 
 Iris era el único módulo con
 **dos** ficheros de managers en la raíz — ``managers.py`` (64 KB, el
@@ -51,6 +53,7 @@ from .triage import IrisTriageManager
 from .cases import IrisCaseManager
 from .batch import IrisBatchManager
 from .campaigns import IrisCampaignManager
+from .graph import IrisContactGraphManager
 
 __all__ = [
     "IrisManager",
@@ -59,6 +62,7 @@ __all__ = [
     "IrisCaseManager",
     "IrisBatchManager",
     "IrisCampaignManager",
+    "IrisContactGraphManager",
     "IrisFeedbackManager",
     "IrisReplayManager",
     "IrisReportManager",

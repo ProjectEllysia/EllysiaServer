@@ -186,6 +186,21 @@
         />
       </div>
 
+      <!-- Remitente que imita a un contacto habitual del usuario. No cambia
+           el veredicto (depende de la historia del usuario, no del mensaje),
+           pero es lo primero que hay que saber en un fraude del CEO. -->
+      <div v-if="reportData.contactDeviation" class="rv-trust rv-trust--ignored">
+        <strong class="uncertainty-title">{{ t('iris.report.deviationTitle') }}</strong>
+        <p class="trust-detail">
+          {{ t(deviationKey(reportData.contactDeviation.kind), {
+            sender: reportData.contactDeviation.senderAddress,
+            name: reportData.contactDeviation.displayName || reportData.contactDeviation.senderAddress,
+            habitual: reportData.contactDeviation.habitualAddress,
+            count: reportData.contactDeviation.habitualMessages,
+          }) }}
+        </p>
+      </div>
+
       <!-- Campaña: otros mensajes parecidos del usuario, para investigarlos
            juntos en vez de uno a uno. -->
       <div v-if="reportData.campaign" class="rv-campaign">
@@ -417,6 +432,7 @@
 import { ref, computed, watch, nextTick } from 'vue'
 import { useUtils } from '@/composables/useUtils'
 import { verdictKey } from '@/components/iris/verdict'
+import { contactDeviationKey as deviationKey } from '@/components/iris/indicators'
 import { useIrisStore } from '@/stores/irisStore'
 import IrisEmailPath from '@/components/iris/IrisEmailPath.vue'
 import IrisDocumentsModal from '@/components/iris/IrisDocumentsModal.vue'

@@ -2640,6 +2640,31 @@ def iris_campaigns_config() -> IrisCampaignsConfig:
     return load_block(IrisCampaignsConfig)
 
 
+@config_block("features.iris.graph")
+@dataclass(frozen=True)
+class IrisGraphConfig:
+    """Grafo de comunicación de Iris: quién escribe a quién (``iris/services/graph.py``).
+
+    Son metadatos de correo de personas reales, así que se guardan poco tiempo
+    y solo por usuario.
+    """
+
+    enabled: bool = True
+    """Si se construye el grafo. Apagado, no se guarda ninguna arista nueva
+    ni se busca desviación de contacto; las que ya había caducan solas."""
+
+    habitual_min_messages: int = 3
+    """Mensajes legítimos de un remitente a partir de los cuales es un
+    contacto habitual."""
+
+    retention_days: int = 90
+    """Días sin ver una arista tras los que se borra."""
+
+
+def iris_graph_config() -> IrisGraphConfig:
+    return load_block(IrisGraphConfig)
+
+
 # --- Datasets y pesos: buscados por clave, no por campo ---------------------
 #
 # Ninguno de los dos encaja en un bloque: los datasets son dos docenas de listas

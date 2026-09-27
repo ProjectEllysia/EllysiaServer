@@ -2054,7 +2054,13 @@
       "rawHeaders": "Cabeceras originales",
       "campaignTitle": "Forma parte de una campaña",
       "campaignRelated": "Hay {count} mensaje más que se parece a este. | Hay {count} mensajes más que se parecen a este.",
-      "campaignOpen": "Ver la campaña"
+      "campaignOpen": "Ver la campaña",
+      "deviationTitle": "El remitente imita a un contacto habitual",
+      "deviation": {
+        "display_name_reuse": "«{name}» escribe desde {sender}, pero ese nombre lo usa un contacto habitual tuyo, {habitual} ({count} mensajes legítimos).",
+        "address_domain_change": "{sender} se parece a {habitual}, un contacto habitual tuyo ({count} mensajes legítimos), pero es de otro dominio.",
+        "other": "{sender} se parece a {habitual}, un contacto habitual tuyo."
+      }
     },
     "cases": {
       "badge": "Casos",
@@ -2135,7 +2141,16 @@
       "revokedOn": "revocada {date}",
       "expires": "caduca {date}",
       "revokeTitle": "Revocar excepción",
-      "revokeMessage": "Los próximos correos de {value} se analizarán sin excepción. La excepción seguirá en la auditoría."
+      "revokeMessage": "Los próximos correos de {value} se analizarán sin excepción. La excepción seguirá en la auditoría.",
+      "contactsTitle": "Contactos habituales",
+      "contactsIntro": "Remitentes de los que has recibido al menos {count} mensajes legítimos. Iris te avisa cuando otra dirección usa su nombre. Solo se guardan direcciones y fechas, y se olvidan a los {days} días sin verlas.",
+      "contactsDisabled": "El registro de contactos habituales está desactivado en esta instalación.",
+      "noContacts": "Todavía no hay contactos habituales.",
+      "contactMessages": "{count} mensaje legítimo | {count} mensajes legítimos",
+      "lastSeen": "último el {date}",
+      "forget": "Olvidar contactos",
+      "forgetTitle": "Olvidar tus contactos habituales",
+      "forgetMessage": "Se borra todo lo que Iris sabe de con quién hablas. Tus análisis no cambian, y los próximos empezarán a aprenderlo de nuevo."
     },
     "indicatorKind": {
       "domain": "Dominio",
@@ -2313,7 +2328,9 @@
     "reanalyzeStarted": "Reanálisis iniciado (ID: {id})",
     "batchSummary": "Lote #{id}: {created} creados, {duplicate} repetidos, {skipped} sin analizar.",
     "caseOpened": "Caso #{id} abierto.",
-    "caseLinked": "Análisis #{analysisId} añadido al caso #{caseId}."
+    "caseLinked": "Análisis #{analysisId} añadido al caso #{caseId}.",
+    "graphForgotten": "Contactos olvidados.",
+    "graphForgetFailed": "No se pudieron olvidar los contactos."
   },
   "aegis": {
     "campaignStatus": {
