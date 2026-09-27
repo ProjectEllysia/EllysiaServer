@@ -38,7 +38,7 @@ from .managers import (
     IrisFeedbackManager, IrisManager, IrisReportManager, IrisMailboxManager,
     IrisNotificationPreferenceManager, IrisReplayManager, IrisTriageManager, IrisTrustPolicyManager,
     IrisCaseManager, IrisBatchManager, IrisCampaignManager, IrisContactGraphManager, IrisExportManager,
-    IrisEnrichmentManager,
+    IrisEnrichmentManager, IrisUrlExpansionManager,
 )
 from .exceptions import (
     IrisAnalysisNotFoundError,
@@ -124,6 +124,9 @@ from .schemas import (
     IntelExportQuerySchema,
     IntelExportRequestSchema,
     IrisDomainContextSchema,
+    UrlExpansionListSchema,
+    UrlExpansionRequestSchema,
+    UrlExpansionSchema,
 )
 
 
@@ -685,6 +688,36 @@ def forget_contact_graph():
 def get_domain_context(domain: str):
     """Edad, registrador, red y país de un dominio que aparece en tus análisis"""
     return IrisEnrichmentManager.get_domain_context(domain, get_current_user().id)
+
+
+
+@iris_blp.get("/results/<int:analysis_id>/url-expansions")
+@iris_blp.response(200, UrlExpansionListSchema, description="URLs of the analysis and where they lead")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Analysis not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("600 per hour; 4000 per day")
+@handle_exceptions(default_exception=IrisAnalysisNotFoundError, logger=logger)
+def list_url_expansions(analysis_id: int):
+    """Las URLs del análisis y, las que se siguieron, a dónde llevan"""
+    return IrisUrlExpansionManager.list_expansions(analysis_id, get_current_user().id)
+
+
+@iris_blp.post("/results/<int:analysis_id>/url-expansions")
+@iris_blp.arguments(UrlExpansionRequestSchema)
+@iris_blp.response(202, UrlExpansionSchema, description="Expansion queued (or already available)")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions or surface closed")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Analysis or URL not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("60 per hour; 300 per day")
+@handle_exceptions(default_exception=IrisAnalysisNotFoundError, logger=logger)
+def request_url_expansion(data: dict, analysis_id: int):
+    """Seguir una URL del análisis hasta su destino real, sin alcanzar nunca la red interna"""
+    return IrisUrlExpansionManager().request_expansion(analysis_id, get_current_user().id, data["url"])
 
 
 @iris_blp.get("/retention-policy")

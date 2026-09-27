@@ -107,6 +107,7 @@
       "finding": "Finding not found.",
       "folder": "Folder not found.",
       "irisAnalysis": "Analysis not found.",
+      "irisAnalysisUrl": "Link not found.",
       "irisBatch": "Batch not found.",
       "irisCampaign": "Campaign not found.",
       "irisCase": "Case not found.",
@@ -2213,7 +2214,26 @@
       "noData": "The registry has no data for this domain.",
       "unavailable": "The registry did not answer; nothing can be said about this domain.",
       "rateLimited": "Too many lookups this minute; try again shortly.",
-      "disabled": "External lookups are turned off on this installation."
+      "disabled": "External lookups are turned off on this installation.",
+      "expand": "Follow link",
+      "expandHint": "Follows the link's redirects to the page it leads to, without opening it in your browser. The request is made by the server, never towards an internal network.",
+      "expanding": "Following the link…",
+      "stillExpanding": "Still running; check again shortly.",
+      "leadsTo": "Leads to {domain} with no redirects | Leads to {domain} after {count} redirect | Leads to {domain} after {count} redirects",
+      "domainChanged": "Changes domain",
+      "pageTitle": "Title: “{title}”",
+      "hopErrors": {
+        "private_address": "Stopped: the next hop pointed to an internal network.",
+        "scheme": "Stopped: the next hop was not a web page.",
+        "port": "Stopped: the next hop went to a non-web port.",
+        "unresolvable": "Stopped: the next domain does not exist.",
+        "timeout": "Stopped: the server took too long to answer.",
+        "tls": "Stopped: the server's certificate is not valid.",
+        "connection": "Stopped: could not connect to the server.",
+        "protocol": "Stopped: the server did not answer like a website.",
+        "too_many_redirects": "Stopped: too many redirects in a row.",
+        "other": "Stopped before reaching the end."
+      }
     }
   },
   "irisHub": {

@@ -22,7 +22,7 @@ from .model import (
     IrisRawMessage, IrisRuleResult, IrisDocument, IrisTrustedSender,
     IrisAnalysisTag, IrisIndicator, IrisSavedView,
     IrisCase, IrisCaseAnalysis, IrisCaseEvent, IrisBatch, IrisBatchItem,
-    IrisCampaign, IrisCampaignMember, IrisCommunicationEdge, IrisDomainCache,
+    IrisCampaign, IrisCampaignMember, IrisCommunicationEdge, IrisDomainCache, IrisUrlExpansion,
 )
 
 
@@ -1058,6 +1058,24 @@ class IrisIndicatorRepository(BaseRepository[IrisIndicator]):
             .exists()
         ).scalar()
 
+    def get_values_of_analysis(self, analysis_id: int, kind: str) -> List[str]:
+        """Valores de un tipo de indicador de un análisis.
+
+        Args:
+            analysis_id: Análisis.
+            kind: ``IrisIndicator.kind``.
+
+        Returns:
+            List[str]: Los valores (en minúsculas), ordenados.
+        """
+        return [
+            value for (value,) in
+            self._session.query(IrisIndicator.value)
+            .filter(IrisIndicator.analysis_id == analysis_id, IrisIndicator.kind == kind)
+            .order_by(IrisIndicator.value.asc())
+            .all()
+        ]
+
     def get_shared_in_campaign(self, campaign_id: int, min_analyses: int = 2) -> List[Tuple[str, str, int]]:
         """Indicadores que comparten varios análisis de una campaña.
 
@@ -1375,6 +1393,66 @@ class IrisDomainCacheRepository(BaseRepository[IrisDomainCache]):
             Optional[IrisDomainCache]: La entrada, o ``None``.
         """
         return self._session.query(IrisDomainCache).filter(IrisDomainCache.domain == domain).one_or_none()
+
+
+class IrisUrlExpansionRepository(BaseRepository[IrisUrlExpansion]):
+    """Acceso a las expansiones de URLs (``IrisUrlExpansion``)."""
+
+    _MODEL = IrisUrlExpansion
+
+    def get_by_user_and_hash(self, user_id: int, url_sha256: str) -> Optional[IrisUrlExpansion]:
+        """La expansión de una URL de un usuario, si existe.
+
+        Args:
+            user_id: Usuario.
+            url_sha256: ``IrisUrlExpansion.url_sha256``.
+
+        Returns:
+            Optional[IrisUrlExpansion]: La expansión, o ``None``.
+        """
+        return (
+            self._session.query(IrisUrlExpansion)
+            .filter(IrisUrlExpansion.user_id == user_id, IrisUrlExpansion.url_sha256 == url_sha256)
+            .one_or_none()
+        )
+
+    def get_by_user_and_hashes(self, user_id: int, url_hashes: List[str]) -> List[IrisUrlExpansion]:
+        """Las expansiones de varias URLs de un usuario.
+
+        Args:
+            user_id: Usuario.
+            url_hashes: Huellas de las URLs.
+
+        Returns:
+            List[IrisUrlExpansion]: Las que existen, por URL.
+        """
+        if not url_hashes:
+            return []
+        return (
+            self._session.query(IrisUrlExpansion)
+            .filter(IrisUrlExpansion.user_id == user_id, IrisUrlExpansion.url_sha256.in_(url_hashes))
+            .order_by(IrisUrlExpansion.url.asc())
+            .all()
+        )
+
+    def claim_for_run(self, expansion_id: int) -> bool:
+        """Pasa una expansión de ``pending`` a ``running`` si nadie la ha cogido ya.
+
+        La outbox garantiza al menos una entrega: si el job llega dos veces,
+        solo el primero la sigue.
+
+        Args:
+            expansion_id: Expansión.
+
+        Returns:
+            bool: ``True`` si este worker la ha reclamado.
+        """
+        result = self._session.execute(
+            update(IrisUrlExpansion)
+            .where(and_(IrisUrlExpansion.id == expansion_id, IrisUrlExpansion.status == "pending"))
+            .values(status="running")
+        )
+        return bool(result.rowcount)
 
 
 class IrisCaseRepository(BaseRepository[IrisCase]):

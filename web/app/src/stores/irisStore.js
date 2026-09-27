@@ -1018,6 +1018,40 @@ export const useIrisStore = defineStore('iris', () => {
     return data
   }
 
+  /** Expansiones de URLs pedidas, por URL: `{ loading, data }`. */
+  const urlExpansions = reactive({})
+
+  /** Espera entre sondeos de una expansión en marcha, en ms. */
+  const URL_EXPANSION_POLL_MS = 2000
+  /** Sondeos como mucho antes de dejar de esperar (un minuto). */
+  const URL_EXPANSION_MAX_POLLS = 30
+
+  /**
+   * Pide seguir una URL de un análisis y sondea hasta que termina.
+   * @param {number} analysisId Análisis en el que aparece.
+   * @param {string} url URL tal como sale en los IOCs.
+   * @returns {Promise<object|null>} La expansión final, o null si falló.
+   */
+  async function expandUrl(analysisId, url) {
+    urlExpansions[url] = { loading: true, data: null }
+    const res = await apiFetch(`/iris/results/${analysisId}/url-expansions`, { method: 'POST', body: JSON.stringify({ url }) })
+    if (!res?.ok) {
+      toast.show(await apiError(res, i18n.global.t('irisStore.enrichmentFailed')), 'error')
+      delete urlExpansions[url]
+      return null
+    }
+    let expansion = await res.json()
+    for (let poll = 0; ['pending', 'running'].includes(expansion.status) && poll < URL_EXPANSION_MAX_POLLS; poll++) {
+      await new Promise((resolve) => setTimeout(resolve, URL_EXPANSION_POLL_MS))
+      const listRes = await apiFetch(`/iris/results/${analysisId}/url-expansions`)
+      if (!listRes?.ok) break
+      const { expansions = [] } = await listRes.json()
+      expansion = expansions.find((item) => item.url.toLowerCase() === url.toLowerCase()) ?? expansion
+    }
+    urlExpansions[url] = { loading: false, data: expansion }
+    return expansion
+  }
+
   /** Elimina un documento generado. */
   async function deleteDocument(documentId, analysisId) {
     const res = await apiFetch(`/iris/document/${documentId}`, { method: 'DELETE' })
@@ -1097,6 +1131,7 @@ export const useIrisStore = defineStore('iris', () => {
     startPolling, stopPolling,
     downloadIntelExport,
     domainContexts, fetchDomainContext,
+    urlExpansions, expandUrl,
     generateDocument, fetchDocuments, getDocumentStatus, downloadDocument, deleteDocument,
     stopDocumentPolling,
     $reset,

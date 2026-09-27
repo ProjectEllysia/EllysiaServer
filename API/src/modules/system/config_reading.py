@@ -2737,6 +2737,29 @@ def iris_rdap_config() -> IrisRdapConfig:
     return load_block(IrisRdapConfig)
 
 
+@config_block("features.iris.enrichment.urlExpansion")
+@dataclass(frozen=True)
+class IrisUrlExpansionConfig:
+    """Seguir los redirects de una URL de un correo hasta su destino real."""
+
+    max_redirects: int = 10
+    """Redirects que se siguen como mucho; un acortador encadenado rara vez
+    pasa de cinco."""
+
+    max_body_bytes: int = 256 * 1024
+    """Bytes que se leen de cada salto: basta para el ``<title>``."""
+
+    ttl_hours: int = 24
+    """Horas que vale una expansión antes de volver a seguirla."""
+
+    requests_per_minute: int = 20
+    """Expansiones por minuto que se encolan desde cada proceso."""
+
+
+def iris_url_expansion_config() -> IrisUrlExpansionConfig:
+    return load_block(IrisUrlExpansionConfig)
+
+
 # --- Datasets y pesos: buscados por clave, no por campo ---------------------
 #
 # Ninguno de los dos encaja en un bloque: los datasets son dos docenas de listas

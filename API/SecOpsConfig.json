@@ -375,6 +375,12 @@
           "negativeTtlMinutes": 30,
           "requestsPerMinute": 30,
           "recentDomainDays": 30
+        },
+        "urlExpansion": {
+          "maxRedirects": 10,
+          "maxBodyBytes": 262144,
+          "ttlHours": 24,
+          "requestsPerMinute": 20
         }
       },
       "prompts": {
