@@ -151,6 +151,26 @@ class IrisAnalysis(Base):
         indicators: Índice de IOCs del contexto ganador (``IrisIndicator``).
                  Se rellena al terminar el análisis y sobrevive a la purga
                  del raw por retención.
+        subject_fingerprint: Huella del asunto normalizado del contexto
+                 ganador (ver ``services/campaigns.fingerprint_subject``):
+                 dos mensajes con el mismo asunto salvo números, prefijos
+                 ``Re:``/``Fwd:`` y mayúsculas comparten huella. NULL sin
+                 asunto o en análisis anteriores a las campañas.
+        template_fingerprint: Huella del esqueleto del cuerpo (etiquetas
+                 HTML, o el texto sin números ni enlaces): la plantilla
+                 visual de una campaña. NULL en envíos de solo cabeceras o
+                 con un cuerpo demasiado corto para decir nada.
+        impersonated_brands: Marcas que las reglas vieron suplantadas en el
+                 contexto ganador, en minúsculas y sin duplicados. NULL si
+                 ninguna.
+        campaign_link: Pertenencia del análisis a una campaña
+                 (``IrisCampaignMember``); ``None`` si no está en ninguna.
+        contact_deviation: Desviación respecto a los contactos habituales del
+                 usuario que se vio al terminar el análisis (ver
+                 ``services/graph.detect_deviation``): ``kind``,
+                 ``senderAddress``, ``displayName``, ``habitualAddress`` y
+                 ``habitualMessages``. NULL si el remitente no imitaba a
+                 ningún contacto habitual.
         connection_id: FK to the IrisMailboxConnection that ingested this
                  message automatically; NULL for manual submissions (the
                  original, still-default flow).
@@ -190,6 +210,10 @@ class IrisAnalysis(Base):
     ai_summary_job_id = Column(String(64), nullable=True)
     ai_summary_model = Column(String(64), nullable=True)
     ai_summary_prompt_version = Column(String(32), nullable=True)
+    subject_fingerprint = Column(String(64), nullable=True)
+    template_fingerprint = Column(String(64), nullable=True)
+    impersonated_brands = Column(JSONB, nullable=True)
+    contact_deviation = Column(JSONB, nullable=True)
     started_at = Column(DateTime, nullable=False, default=utcnow_naive)
     finished_at = Column(DateTime, nullable=True)
     cancel_requested_at = Column(DateTime, nullable=True)
@@ -234,6 +258,11 @@ class IrisAnalysis(Base):
         "IrisCaseAnalysis", back_populates="analysis",
         cascade="all, delete",
     )
+    # Igual que ``case_links``: el vínculo cuelga también de la campaña.
+    campaign_link = relationship(
+        "IrisCampaignMember", back_populates="analysis", uselist=False,
+        cascade="all, delete",
+    )
 
     __table_args__ = (
         UniqueConstraint("connection_id", "source_message_uid",
@@ -244,6 +273,8 @@ class IrisAnalysis(Base):
         Index("ix_iris_analysis_verdict", "verdict"),
         Index("ix_iris_analysis_connection_id", "connection_id"),
         Index("ix_iris_analysis_user_fingerprint", "user_id", "content_sha256"),
+        Index("ix_iris_analysis_user_subject_fingerprint", "user_id", "subject_fingerprint"),
+        Index("ix_iris_analysis_user_template_fingerprint", "user_id", "template_fingerprint"),
     )
 
     @property
@@ -1007,6 +1038,409 @@ class IrisIndicator(Base):
     __table_args__ = (
         Index("ix_iris_indicator_analysis_id", "analysis_id"),
         Index("ix_iris_indicator_value", "value"),
+    )
+
+
+class CampaignSignal(StrEnum):
+    """Señal por la que dos análisis se parecen lo bastante para ser una campaña.
+
+    Es el valor que se guarda en ``IrisCampaignMember.matched_signals``.
+
+    - ``URL``: comparten una URL del cuerpo.
+    - ``HASH``: comparten un adjunto (mismo SHA-256).
+    - ``TEMPLATE``: el cuerpo tiene el mismo esqueleto.
+    - ``SUBJECT``: el asunto normalizado es el mismo.
+    - ``SENDER``: comparten una dirección de remitente, de respuesta o de
+      retorno.
+    - ``DOMAIN``: comparten un dominio que no es de correo gratuito.
+    - ``BRAND``: suplantan la misma marca.
+    """
+
+    URL = "url"
+    HASH = "hash"
+    TEMPLATE = "template"
+    SUBJECT = "subject"
+    SENDER = "sender"
+    DOMAIN = "domain"
+    BRAND = "brand"
+
+
+class IrisCampaign(Base):
+    """Campaña: mensajes de un mismo usuario que comparten origen.
+
+    Agrupa análisis que se parecen por señales deterministas —URL, hash de
+    adjunto, plantilla, asunto, remitente, dominios, marca suplantada— dentro
+    de una ventana de tiempo (ver ``services/campaigns.py``), para investigar
+    la campaña una vez en lugar de mensaje a mensaje. Los análisis no cambian:
+    la campaña es una capa encima, igual que un caso.
+
+    Es de un usuario, como sus análisis. Las cifras que se enseñan (mensajes,
+    primer y último avistamiento, veredictos) se calculan al leer a partir de
+    los miembros, así que borrar un análisis no deja ninguna desactualizada.
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        user_id: FK al ``User`` dueño; ``ondelete="CASCADE"``.
+        label: Asunto del mensaje cuya llegada la abrió (el primero que se
+                 pareció a otro), recortado a 120 caracteres;
+                 NULL si no tenía.
+        created_at: Cuándo se abrió.
+        updated_at: Cuándo entró su último miembro.
+        members: Análisis que la forman (``IrisCampaignMember``), en el orden
+                 en que entraron.
+    """
+    __tablename__ = "IrisCampaign"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("User.id", ondelete="CASCADE"), nullable=False)
+    label = Column(String(120), nullable=True)
+    created_at = Column(DateTime, nullable=False, default=utcnow_naive)
+    updated_at = Column(DateTime, nullable=False, default=utcnow_naive)
+
+    members = relationship(
+        "IrisCampaignMember", back_populates="campaign",
+        order_by="IrisCampaignMember.id",
+        cascade="all, delete-orphan",
+    )
+
+    __table_args__ = (
+        Index("ix_iris_campaign_user_id", "user_id"),
+    )
+
+
+class IrisCampaignMember(Base):
+    """Pertenencia de un análisis a una campaña, con el motivo.
+
+    Un análisis está como mucho en una campaña (``analysis_id`` es único).
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        campaign_id: FK al ``IrisCampaign``; ``ondelete="CASCADE"``.
+        analysis_id: FK al ``IrisAnalysis``; ``ondelete="CASCADE"``. Único.
+        similarity: Puntuación de parecido con el miembro con el que se
+                 emparejó (ver ``services/campaigns.score_similarity``).
+        matched_signals: Tipos de señal que coincidieron (``url``, ``hash``,
+                 ``template``, ``subject``, ``sender``, ``domain``,
+                 ``brand``), ordenados.
+        added_at: Cuándo entró.
+        campaign / analysis: Relaciones inversas.
+    """
+    __tablename__ = "IrisCampaignMember"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    campaign_id = Column(Integer, ForeignKey("IrisCampaign.id", ondelete="CASCADE"), nullable=False)
+    analysis_id = Column(Integer, ForeignKey("IrisAnalysis.id", ondelete="CASCADE"), nullable=False)
+    similarity = Column(Float, nullable=False, default=0.0)
+    matched_signals = Column(JSONB, nullable=False, default=list)
+    added_at = Column(DateTime, nullable=False, default=utcnow_naive)
+
+    campaign = relationship("IrisCampaign", back_populates="members")
+    analysis = relationship("IrisAnalysis", back_populates="campaign_link")
+
+    __table_args__ = (
+        UniqueConstraint("analysis_id", name="uq_iris_campaign_member_analysis"),
+        Index("ix_iris_campaign_member_campaign_id", "campaign_id"),
+    )
+
+
+class CommunicationKind(StrEnum):
+    """Relación que une a un remitente con una dirección en un mensaje.
+
+    - ``TO`` / ``CC``: la dirección era destinataria directa o en copia.
+    - ``REPLY_TO``: el remitente pedía las respuestas en esa dirección.
+    """
+
+    TO = "to"
+    CC = "cc"
+    REPLY_TO = "reply_to"
+
+
+class IrisCommunicationEdge(Base):
+    """Arista del grafo de comunicación de un usuario: quién escribe a quién.
+
+    Es metadato puro —direcciones, nombre visible, recuentos y fechas—, nunca
+    contenido. Sirve para saber si un remitente es alguien con quien se habla
+    habitualmente, y así detectar a quien imita su nombre desde otra
+    dirección. Tiene retención corta (``features.iris.graph.retentionDays``) y
+    es de un solo usuario.
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        user_id: FK al ``User`` dueño; ``ondelete="CASCADE"``.
+        sender_address: Dirección del ``From``, en minúsculas.
+        sender_domain: Su dominio.
+        sender_display_name: Último nombre visible con el que escribió; NULL
+                 si no traía.
+        recipient_address: Dirección del otro extremo, en minúsculas.
+        kind: ``CommunicationKind``.
+        message_count: Mensajes que la han usado.
+        legitimate_count: De ellos, los que Iris consideró legítimos. Solo
+                 estos hacen «habitual» a un contacto: si contaran todos, un
+                 atacante insistente se volvería contacto habitual.
+        first_seen_at / last_seen_at: Primer y último mensaje; la retención
+                 borra la arista cuando ``last_seen_at`` vence.
+    """
+    __tablename__ = "IrisCommunicationEdge"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("User.id", ondelete="CASCADE"), nullable=False)
+    sender_address = Column(String(320), nullable=False)
+    sender_domain = Column(String(253), nullable=False)
+    sender_display_name = Column(String(200), nullable=True)
+    recipient_address = Column(String(320), nullable=False)
+    kind = Column(String(16), nullable=False)
+    message_count = Column(Integer, nullable=False, default=0)
+    legitimate_count = Column(Integer, nullable=False, default=0)
+    first_seen_at = Column(DateTime, nullable=False, default=utcnow_naive)
+    last_seen_at = Column(DateTime, nullable=False, default=utcnow_naive)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "sender_address", "recipient_address", "kind",
+                         name="uq_iris_communication_edge"),
+        Index("ix_iris_communication_edge_user_sender", "user_id", "sender_address"),
+        Index("ix_iris_communication_edge_last_seen_at", "last_seen_at"),
+    )
+
+
+class EnrichmentStatus(StrEnum):
+    """Resultado de una consulta de enriquecimiento a un servicio externo.
+
+    - ``OK``: el servicio respondió y hay datos.
+    - ``UNAVAILABLE``: el servicio no respondió, respondió mal o no tenía el
+      dato. Es el modo neutro: no dice nada a favor ni en contra.
+    - ``RATE_LIMITED``: se agotó el cupo por minuto del proveedor; se puede
+      repetir en un rato. No se guarda en caché.
+    - ``DISABLED``: el enriquecimiento está apagado en la configuración. No se
+      guarda en caché.
+    """
+
+    OK = "ok"
+    UNAVAILABLE = "unavailable"
+    RATE_LIMITED = "rate_limited"
+    DISABLED = "disabled"
+
+
+class IrisDomainCache(Base):
+    """Contexto de infraestructura de un dominio, consultado por RDAP.
+
+    Es información pública de registro —fechas, registrador, servidores de
+    nombres— y de la red donde se aloja, así que se cachea para toda la
+    instalación y no por usuario: la fila no dice quién preguntó.
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        domain: Dominio registrable consultado, en minúsculas. Único.
+        status: ``EnrichmentStatus`` (``ok`` o ``unavailable``).
+        registered_at: Fecha de alta en el registro, o NULL.
+        registry_expires_at: Fecha de caducidad del registro, o NULL.
+        registrar: Nombre del registrador, o NULL.
+        registry_status: Estados EPP del dominio (``client transfer
+                 prohibited``…), o NULL.
+        nameservers: Servidores de nombres, o NULL.
+        address: Primera IP pública a la que resuelve, o NULL.
+        network_name: Nombre de la red que la contiene según RDAP, o NULL.
+        country: País de esa red (código de dos letras), o NULL.
+        asn: Sistema autónomo de origen, si el registro RDAP lo trae, o NULL.
+        error: Por qué no hubo datos cuando ``status`` es ``unavailable``.
+        fetched_at: Cuándo se consultó.
+        expires_at: Cuándo deja de valer la caché.
+    """
+    __tablename__ = "IrisDomainCache"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    domain = Column(String(253), nullable=False, unique=True)
+    status = Column(String(16), nullable=False)
+    registered_at = Column(DateTime, nullable=True)
+    registry_expires_at = Column(DateTime, nullable=True)
+    registrar = Column(String(255), nullable=True)
+    registry_status = Column(JSONB, nullable=True)
+    nameservers = Column(JSONB, nullable=True)
+    address = Column(String(45), nullable=True)
+    network_name = Column(String(255), nullable=True)
+    country = Column(String(8), nullable=True)
+    asn = Column(String(32), nullable=True)
+    error = Column(String(64), nullable=True)
+    fetched_at = Column(DateTime, nullable=False, default=utcnow_naive)
+    expires_at = Column(DateTime, nullable=False)
+
+
+class UrlExpansionStatus(StrEnum):
+    """Estado de la expansión de una URL.
+
+    - ``PENDING``: encolada, esperando a un worker.
+    - ``RUNNING``: un worker la está siguiendo.
+    - ``DONE``: terminada; los saltos dicen hasta dónde llegó (el último puede
+      traer un ``error`` si se cortó, por ejemplo al apuntar a la red interna).
+    - ``UNAVAILABLE``: no se pudo hacer nada (ni el primer salto respondió).
+    """
+
+    PENDING = "pending"
+    RUNNING = "running"
+    DONE = "done"
+    UNAVAILABLE = "unavailable"
+
+
+class IrisUrlExpansion(Base):
+    """A dónde lleva de verdad una URL de un correo: sus redirects, uno a uno.
+
+    Es por usuario, no compartida: una URL de phishing lleva a menudo un
+    identificador del destinatario (``?u=ana@empresa.com``), y su expansión no
+    debe verla nadie más.
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        user_id: FK al ``User`` que la pidió; ``ondelete="CASCADE"``.
+        url_sha256: SHA-256 de la URL; con ``user_id``, único.
+        url: La URL de partida, tal cual.
+        status: ``UrlExpansionStatus``.
+        hops: Cada salto: ``url``, ``status``, ``peerAddress``, ``certificate``
+                 y ``error``. NULL hasta que termina.
+        final_url: Última URL que respondió, o NULL.
+        final_domain: Su nombre de host, o NULL.
+        final_status: Código HTTP de esa última respuesta, o NULL.
+        page_title: ``<title>`` de la página final, si era HTML, o NULL.
+        content_type: Tipo de contenido de la página final, o NULL.
+        is_domain_changed: Si el dominio registrable final no es el de la URL
+                 de partida (un acortador, un *cloaking*). NULL hasta terminar.
+        requested_at: Cuándo se pidió por última vez.
+        fetched_at: Cuándo terminó, o NULL.
+        expires_at: Hasta cuándo vale el resultado, o NULL mientras no hay.
+    """
+    __tablename__ = "IrisUrlExpansion"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("User.id", ondelete="CASCADE"), nullable=False)
+    url_sha256 = Column(String(64), nullable=False)
+    url = Column(Text, nullable=False)
+    status = Column(String(16), nullable=False, default=UrlExpansionStatus.PENDING.value)
+    hops = Column(JSONB, nullable=True)
+    final_url = Column(Text, nullable=True)
+    final_domain = Column(String(253), nullable=True)
+    final_status = Column(Integer, nullable=True)
+    page_title = Column(String(300), nullable=True)
+    content_type = Column(String(120), nullable=True)
+    is_domain_changed = Column(Boolean, nullable=True)
+    requested_at = Column(DateTime, nullable=False, default=utcnow_naive)
+    fetched_at = Column(DateTime, nullable=True)
+    expires_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "url_sha256", name="uq_iris_url_expansion_user_url"),
+    )
+
+
+class ThreatIntelVerdict(StrEnum):
+    """Veredicto común al que cada proveedor de reputación traduce su respuesta.
+
+    - ``KNOWN_MALICIOUS``: el proveedor lo tiene como malicioso.
+    - ``SUSPICIOUS``: alguna señal, sin confirmar (un solo motor, una denuncia
+      sin verificar).
+    - ``UNKNOWN``: el proveedor respondió y no lo tiene marcado. No significa
+      que sea legítimo.
+    - ``UNAVAILABLE``: no respondió o respondió mal. Es el modo neutro.
+    """
+
+    KNOWN_MALICIOUS = "known_malicious"
+    SUSPICIOUS = "suspicious"
+    UNKNOWN = "unknown"
+    UNAVAILABLE = "unavailable"
+
+
+class IrisThreatIntelResult(Base):
+    """Lo que dijo un proveedor de reputación sobre un indicador, en caché.
+
+    Es reputación pública del indicador, no un dato del usuario, así que se
+    comparte en la instalación y la fila no guarda quién preguntó.
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        provider: Proveedor (``virustotal``, ``urlscan``, ``phishtank``,
+                 ``urlhaus``).
+        kind: Tipo de indicador (``domain``, ``url``, ``ip``, ``hash``).
+        value_sha256: SHA-256 del indicador en minúsculas; con ``provider`` y
+                 ``kind``, único.
+        value: El indicador.
+        verdict: ``ThreatIntelVerdict``.
+        detail: Datos del proveedor que justifican el veredicto.
+        error: Por qué no hubo veredicto cuando es ``unavailable``.
+        checked_at: Cuándo se consultó.
+        expires_at: Cuándo deja de valer la caché.
+    """
+    __tablename__ = "IrisThreatIntelResult"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    provider = Column(String(32), nullable=False)
+    kind = Column(String(16), nullable=False)
+    value_sha256 = Column(String(64), nullable=False)
+    value = Column(Text, nullable=False)
+    verdict = Column(String(20), nullable=False)
+    detail = Column(JSONB, nullable=True)
+    error = Column(String(64), nullable=True)
+    checked_at = Column(DateTime, nullable=False, default=utcnow_naive)
+    expires_at = Column(DateTime, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("provider", "kind", "value_sha256", name="uq_iris_threat_intel_result"),
+    )
+
+
+class IrisTenantProfile(Base):
+    """Política de inteligencia compartida de Iris en una organización.
+
+    La activa el dueño de la organización. Aunque esté activa, solo entra en
+    lo compartido lo de los miembros que han dado su consentimiento
+    (``IrisTenantConsent``), y lo compartido son **agregados anonimizados** de
+    indicadores y dominios, nunca un correo ni un análisis (ver
+    ``services/tenant.py``).
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        organization_id: FK a la ``Organization``; ``ondelete="CASCADE"``. Único.
+        is_sharing_enabled: Si la organización comparte inteligencia.
+        changed_by_user_id: Quién cambió la política por última vez; NULL si
+                 ese usuario ya no existe.
+        protected_domains: Dominios propios que la organización quiere vigilar
+                 (los suyos y los de sus proveedores), en minúsculas.
+        protected_brands: Marcas propias, en minúsculas.
+        updated_at: Último cambio.
+    """
+    __tablename__ = "IrisTenantProfile"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    organization_id = Column(Integer, ForeignKey("Organization.id", ondelete="CASCADE"), nullable=False, unique=True)
+    is_sharing_enabled = Column(Boolean, nullable=False, default=False)
+    changed_by_user_id = Column(Integer, ForeignKey("User.id", ondelete="SET NULL"), nullable=True)
+    protected_domains = Column(JSONB, nullable=False, default=list)
+    protected_brands = Column(JSONB, nullable=False, default=list)
+    updated_at = Column(DateTime, nullable=False, default=utcnow_naive)
+
+
+class IrisTenantConsent(Base):
+    """Consentimiento de un miembro para que sus indicadores entren en lo compartido.
+
+    Sin él, lo del miembro no se agrega ni él ve lo agregado: quien no aporta
+    no recibe. Revocarlo lo saca de todos los agregados al momento, porque se
+    calculan al leer.
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        user_id: FK al ``User``; ``ondelete="CASCADE"``. Único.
+        organization_id: Organización en la que lo dio; ``ondelete="CASCADE"``.
+                 Si el usuario cambia de organización, el consentimiento no le
+                 sigue: se comprueba contra su pertenencia actual.
+        consented_at: Cuándo lo dio por última vez.
+        revoked_at: Cuándo lo retiró; NULL si está vigente.
+    """
+    __tablename__ = "IrisTenantConsent"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("User.id", ondelete="CASCADE"), nullable=False, unique=True)
+    organization_id = Column(Integer, ForeignKey("Organization.id", ondelete="CASCADE"), nullable=False)
+    consented_at = Column(DateTime, nullable=False, default=utcnow_naive)
+    revoked_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        Index("ix_iris_tenant_consent_organization_id", "organization_id"),
     )
 
 

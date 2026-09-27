@@ -282,10 +282,20 @@ Content-Type: application/json
 | `GET`/`PATCH` | `/iris/cases/<id>` | `IRIS_READ` / `IRIS_UPDATE` | A case with its analyses and timeline; change title, priority, tags or assignment |
 | `POST` | `/iris/cases/<id>/status` · `/iris/cases/<id>/notes` | `IRIS_UPDATE` | Move a case through its lifecycle (closing requires a reason); add a note to its timeline |
 | `POST`/`DELETE` | `/iris/cases/<id>/analyses[/<analysisId>]` | `IRIS_UPDATE` | Link or unlink an analysis |
-| `GET` | `/iris/results/<id>` | `IRIS_READ` | Full report with per-rule scores (each rule with its stable `ruleId`, `severity` and MITRE ATT&CK `mitreTechniques`), analysis quality and detector version |
+| `GET` | `/iris/campaigns` · `/iris/campaigns/<id>` | `IRIS_READ` | Campaigns grouping the user's similar non-legitimate analyses (message counts, first/last seen, verdicts); one campaign with its messages, the signals each matched on, the indicators several messages share and the impersonated brands |
+| `POST` | `/iris/campaigns/<id>/export` | `IRIS_READ` | A whole campaign's indicators and findings as one document: `format` = `json` (versioned, defanged unless `defang=false`), `stix` (STIX 2.1 bundle) or `misp` (MISP event) |
+| `GET`/`DELETE` | `/iris/graph` | `IRIS_READ` / `IRIS_DELETE` | The user's communication graph (who writes to whom: senders with their counts, whether they are usual contacts, and edges; `?address=` filters); forget it entirely |
+| `GET` | `/iris/organization/intel` | `IRIS_READ` | Anonymised intelligence shared in the user's organization — indicators seen by several consenting members, frequent legitimate sender domains, protected domains and brands (empty until the owner enables sharing and the user consents) |
+| `PUT` | `/iris/organization/intel/policy` | `IRIS_UPDATE` | Organization owner only: enable sharing and set protected domains/brands |
+| `PUT` | `/iris/organization/intel/consent` | `IRIS_READ` | A member gives or withdraws consent to contribute |
+| `GET` | `/iris/domains/<domain>/context` | `IRIS_READ` | RDAP context of a domain from the user's analyses: registration date and age, registrar, statuses, nameservers, hosting network, country and ASN. Cached; neutral (`unavailable`) when the registry does not answer |
+| `POST` | `/iris/indicators/reputation` | `IRIS_READ` | Reputation of an indicator from the user's analyses (`kind` = `domain`/`url`/`ip`/`hash`) in the configured providers (VirusTotal, urlscan.io, PhishTank, URLhaus), normalised to `known_malicious`/`suspicious`/`unknown`/`unavailable`. Only the indicator is sent |
+| `GET` | `/iris/results/<id>` | `IRIS_READ` | Full report with per-rule scores (each rule with its stable `ruleId`, `severity` and MITRE ATT&CK `mitreTechniques`), analysis quality and detector version; `campaign` (how many other messages share its campaign), `contactDeviation` (the sender imitates a usual contact) and `organizationSightings` (how many organization members saw its indicators) |
 | `GET` | `/iris/results/<id>/path` | `IRIS_READ` | Which rules fired and why |
 | `GET` | `/iris/results/<id>/iocs` | `IRIS_READ` | Extracted indicators of compromise |
 | `GET` | `/iris/results/<id>/export` | `IRIS_READ` | Full analysis bundle (result, rules, raw if still retained, Received-path, IOCs) as a downloadable JSON file |
+| `GET`/`POST` | `/iris/results/<id>/export/intel` | `IRIS_READ` | Indicators and findings for a SOC. `GET`: the versioned JSON (`iris-export/1`), defanged unless `?defang=false`. `POST {format}`: `json`, `stix` (STIX 2.1) or `misp`. Built from the IOC index, so it still works after the raw purge |
+| `GET`/`POST` | `/iris/results/<id>/url-expansions` | `IRIS_READ` | The analysis' URLs and where they really lead; `POST {url}` follows one in the background (`iris.enrichment`): every redirect hop with its status, IP and certificate, the final domain, whether it changed domain and the page title. No hop ever reaches an internal address |
 | `POST` | `/iris/results/<id>/reanalyze` | `IRIS_CREATE` | Re-run the current ruleset as a **new** analysis (returns the new id) |
 | `POST` | `/iris/results/<id>/ai-summary` | `IRIS_CREATE` | Generate an AI plain-language summary (background task); idempotent per analysis, `?regenerate=true` forces a new one |
 | `POST` | `/iris/analyze/<id>/cancel` | `IRIS_UPDATE` | Cancel a running analysis |
@@ -325,6 +335,14 @@ Iris applies rules across authentication (SPF, DKIM, DMARC, ARC), header anomali
 **Trusted senders.** A user can declare a sender address or domain as trusted, with a reason and an expiry, to stop a recurring false positive without touching the global configuration. An exception only applies when the message proves it comes from that sender (DMARC `pass` stated by a verifier above the trust boundary, see below), and it only neutralises the wording and layout heuristics it covers — never authentication, attachments, links, domain impersonation or structural forgeries, whose gates keep firing. Each analysis records the exception that matched (`trustApplied`): whether it applied and which rules it neutralised. Exceptions are per user, not per organisation: an organisation shares plan and billing, not data.
 
 **Triage history.** The analysis list supports saved views, analyst tags, a pending-review queue and search by indicator of compromise. IOCs of the verdict-deciding message are indexed in `IrisIndicator` when an analysis finishes and survive the raw purge; analyses finished before this index existed are only searchable by IOC after a reanalysis. Two analyses can be opened side by side, with the rules that differ listed first.
+
+**Campaigns.** When a non-legitimate analysis finishes, it is compared with the same user's recent analyses (`features.iris.campaigns.windowDays`, 14 by default) that share a signal with it, and joins the campaign of the most similar one if the similarity reaches `similarityThreshold`. Similarity is deterministic — a sum of weights per matching signal: a URL or attachment hash (5), the body template (the HTML tag skeleton, 4), the normalised subject (3), a sender/reply-to/return-path address (3), a non-free-mail domain (2, counted once) and an impersonated brand (1) — so an analyst can see why messages were grouped. Campaign counts are computed on read; a campaign left with a single message stops being shown. Grouping never crosses users.
+
+**Communication graph and contact deviation.** Each finished analysis adds one edge per recipient (`To`, `Cc`) and per `Reply-To` of its sender to the user's graph (`IrisCommunicationEdge`): metadata only, per user, purged after `features.iris.graph.retentionDays` without being seen. A sender becomes a usual contact through *legitimate* messages only (`habitualMinMessages`). When a new sender reuses a usual contact's display name, or the same local part on another domain, the report says so in `contactDeviation`. The verdict does not change: it depends only on the message, so replays and reanalyses stay reproducible.
+
+**External enrichment.** Iris's lookups outside the server — RDAP (`/iris/domains/<domain>/context`), following links (`/iris/results/<id>/url-expansions`) and reputation (`/iris/indicators/reputation`) — are always on demand, only for indicators already in the user's analyses, cached, rate-limited per provider, neutral when the provider does not answer, and never change a verdict. They all leave through one gate (`services/enrichment/egress.py`): only `http`/`https` to web ports, no private, loopback, link-local or reserved address (a name resolving to any of them is refused), the connection goes to the already-checked IP (no second DNS resolution for a rebinding attack to exploit), redirects are followed by hand with every hop checked again, and no credentials or cookies are sent. There is deliberately no switch to allow private addresses. They are gated by `features.iris.enrichment.enabled` and by the `externalEnrichment` launch surface. Reputation providers only receive the indicator and their own API key — never the email.
+
+**Organization intelligence.** The owner of an organization can enable sharing (`IrisTenantProfile`) and each member gives or withdraws consent (`IrisTenantConsent`). Only anonymised aggregates of consenting members are shared: indicators from suspicious or phishing emails and frequent legitimate sender domains, as counts, and only when at least `features.iris.tenant.minMembers` distinct members saw them. No email, analysis, address or member id crosses from one member to another, and nothing crosses organizations.
 
 **Analyst cases.** A case (`IrisCase`) groups one or several analyses — which never change — and records the human decision: status (`new` → `triage` → `contained` → `resolved` / `false_positive`; closing requires a reason and a closed case reopens to `triage`), priority, tags, assignment and a timeline of every change and note. A case can only be assigned to its owner, the only user who can see its analyses.
 
@@ -520,6 +538,7 @@ Each entry point is a `@staticmethod` on the owning module's manager class — p
 | `iris.ai_summary` | Iris | `IrisManager.execute_ai_summary_generation` | `iris-ai-summary:<id>` |
 | `iris.ingest` | Iris | `IrisMailboxManager.execute_sync_connection` (periodic mailbox sync) | `iris-mailbox-sync:<id>` |
 | `iris.report` | Iris | `IrisReportManager.execute_report_generation` | `iris-doc:<id>` |
+| `iris.enrichment` | Iris | `IrisUrlExpansionManager.execute_url_expansion` (follow a URL's redirects) | `iris-url-expansion:<id>` |
 | `iris.notify` | Iris | `IrisPhishingNotifyManager.execute_notify_phishing` | `iris-phishing-notify:<id>` |
 | `iris.notify` | Iris | `IrisDigestNotifyManager.execute_notify_digest` (daily digest of non-critical Phishing verdicts) | `iris-digest-notify:<userId>` |
 | `iris.notify` | Iris | `IrisReauthNotifyManager.execute_notify_reauth` (mailbox connection needs reauthorization) | `iris-reauth-notify:<connectionId>` |
@@ -532,7 +551,7 @@ Each entry point is a `@staticmethod` on the owning module's manager class — p
 - The `max_workers` setting is read at worker startup only — changes via `PUT /system/tasks/config` apply on the next worker restart.
 - **Transactional outbox** (`system/taskqueue/outbox.py`): the naive "commit the entity, then `submit()` the job" sequence leaves a window where an API restart or a Redis blip strands the entity with no job to process it. The fix writes a `TaskDispatch` row in the same transaction as the entity and publishes it right after, falling back to a periodic sweep (`TaskDispatchScheduler`) and a startup reconciliation pass if the immediate publish fails. Delivery is at-least-once, so every entry point reached this way must be safe to run twice.
   - Publishing a row commits its `dispatched` mark immediately, independently of the surrounding HTTP request, so a request that fails after publishing never sends an already-queued job back to `pending`.
-  - Applied to: `themis.scan` (all five scanners, via the shared `ScanManager._create_scan_and_dispatch`), `aegis.generate`, `aegis.campaign`, `iris.analyze`, `hygeia.notify` (critical anomalies from ingest and `host_down` from the presence check), and the two `iris.notify` notices guarded against repetition — mailbox re-authorization and stuck sync. In these notices the row committed before enqueuing is the anti-duplicate guard itself, so a lost enqueue used to suppress the email for good rather than delay it.
+  - Applied to: `themis.scan` (all five scanners, via the shared `ScanManager._create_scan_and_dispatch`), `aegis.generate`, `aegis.campaign`, `iris.analyze`, `iris.enrichment`, `hygeia.notify` (critical anomalies from ingest and `host_down` from the presence check), and the two `iris.notify` notices guarded against repetition — mailbox re-authorization and stuck sync. In these notices the row committed before enqueuing is the anti-duplicate guard itself, so a lost enqueue used to suppress the email for good rather than delay it.
   - Not applied to the remaining categories. `themis.traceroute`, `themis.kbsync` and `iris.ingest` persist no row before enqueuing, so no entity can be stranded; `themis.report`, `iris.report`, `hygeia.report` and `iris.ai_summary` already mark their row failed (and refund quota, for the AI summary) when the enqueue is rejected. The phishing and digest `iris.notify` notices have no guard: a lost phishing enqueue costs one email, and a lost digest is picked up by the next periodic pass.
 - Admin REST surface: `/system/tasks/*` (status, list, detail, cancel).
 
@@ -575,7 +594,7 @@ cd web/app
 npm test                  # every suite — this is what CI runs
 
 npm run test:acheron      # schema/label correspondence + crypto interop + CRUD + sync for the Acheron vault client
-npm run test:iris         # file intake (size limit from GET /iris/capabilities, explicit mode, batch drops), report comparison, and the Spanish labels for verdicts, statuses and rule results
+npm run test:iris         # file intake (size limit from GET /iris/capabilities, explicit mode, batch drops), report comparison, the Spanish labels for verdicts, statuses and rule results, and the indicator helpers (defanging, campaign signals, contact deviation, RDAP/link/reputation sentences)
 npm run test:hygeia       # metric formatting, chart math, statistics-view formatting and comparative-chart geometry, and asset-status/anomaly labels for the Hygeia dashboard
 npm run test:polling      # usePolling composable tests
 npm run test:element-width # useElementWidth composable tests
@@ -862,6 +881,15 @@ GRAPH_TENANT_ID=...             # optional; "common" allows any account
 IRIS_MAILBOX_ENCRYPTION_KEY=... # Fernet key that encrypts stored OAuth refresh tokens at rest
 ```
 
+Reputation providers for Iris (all optional; each also needs `features.iris.enrichment.threatIntel.providers.<name>.enabled`, and a provider without its key is never called):
+
+```
+IRIS_VIRUSTOTAL_API_KEY=...
+IRIS_URLSCAN_API_KEY=...
+IRIS_PHISHTANK_API_KEY=...
+IRIS_URLHAUS_API_KEY=...        # abuse.ch Auth-Key
+```
+
 Iris also needs `IRIS_RAW_MESSAGE_ENCRYPTION_KEY`, which is **not** listed above because it is not a connector setting: it encrypts the raw content of every analysed email, mailbox or not. See [Encryption keys](#encryption-keys).
 
 **What each provider's OAuth scope actually grants (B19):** Gmail uses `gmail.metadata`, a true headers-only scope — when a connection has "full message mode" off, the app never sees the message body at all, not just at the application level. Microsoft Graph has no equivalent: `Mail.Read` grants the full message body regardless of Iris's own headers-only setting, because Graph does not offer a metadata-only delegated permission for mail. With full message mode off, the Microsoft connector still only *requests* headers — it never calls for the body — but the OAuth consent itself grants more than Iris uses. This is a platform limitation, not a gap in this codebase (see `services/mailbox/microsoft.py`'s module docstring). Whichever provider is used, the raw content Iris does fetch is stored encrypted and separately from the analysis result (`IrisRawMessage`), and is purged independently of it by the retention policy — see `GET /iris/retention-policy`.
@@ -880,7 +908,7 @@ Iris also needs `IRIS_RAW_MESSAGE_ENCRYPTION_KEY`, which is **not** listed above
 | Scanning | Nmap + python-nmap, Nikto, Nuclei, Lybra (self-built engine), traceroute |
 | Vulnerability data | Local Lybra KB: NVD API 2.0 · CISA KEV · FIRST EPSS · distribution advisories in OVAL/CSAF for backport verification (daily sync); INCIBE-CERT RSS for Aegis alerts |
 | PDF reports | ReportLab + Pillow |
-| Email analysis (Iris) | Python `email` (RFC 5322/MIME), olefile (Outlook `.msg`), publicsuffixlist + confusable-homoglyphs (registrable domains, IDN homographs), OpenCV (QR codes), Tesseract (local OCR) |
+| Email analysis (Iris) | Python `email` (RFC 5322/MIME), olefile (Outlook `.msg`), publicsuffixlist + confusable-homoglyphs (registrable domains, IDN homographs), OpenCV (QR codes), Tesseract (local OCR); STIX 2.1 / MISP export; RDAP, VirusTotal, urlscan.io, PhishTank, URLhaus (optional enrichment) |
 | AI / LLM | Ollama (local) / OpenAI / Google Gemini (swappable via `scribe`) |
 | Mailbox connectors | Gmail API, Microsoft Graph (OAuth 2.0) |
 | Email delivery | SMTP via `herald` |
@@ -929,8 +957,9 @@ The config panel (`web/app/src/views/system/ConfigView.vue`) exposes every setta
 | `campaigns` | Launching Aegis campaigns | `CampaignManager.launch_campaign` |
 | `mailboxConnectors` | Connecting and syncing Gmail / Microsoft mailboxes | `IrisMailboxManager.start_connect` and `submit_sync` (existing connections are paused, not deleted) |
 | `externalAi` | AI generation with a provider outside the server (OpenAI, Google); Ollama is not affected | `tools/scribe` `build_generator` |
+| `externalEnrichment` | Iris lookups in third-party services about an email's indicators: RDAP, following links, reputation | `IrisEnrichmentManager` and `IrisUrlExpansionManager` |
 
-The versioned `SecOpsConfig.json` ships in **`preview`**, and `tests/unit/test_config_shape.py::test_the_launch_mode_ships_as_preview` pins it (the suite itself runs with `LAUNCH_MODE=public`). A closed surface answers **403 with code 1618** (`SurfaceDisabledError`) and `details.surface`; the sign-up keeps its own code, 1616. The main administrator (`role_root`) is exempt on `thirdPartyScanners`, `campaigns` and `mailboxConnectors`, so it can test them in production; not on `registration` and `pricing` (anonymous requests) nor on `externalAi` (the generator does not know which user it works for). Organization invitations are not gated: they are sent by someone who already has an account.
+The versioned `SecOpsConfig.json` ships in **`preview`**, and `tests/unit/test_config_shape.py::test_the_launch_mode_ships_as_preview` pins it (the suite itself runs with `LAUNCH_MODE=public`). A closed surface answers **403 with code 1618** (`SurfaceDisabledError`) and `details.surface`; the sign-up keeps its own code, 1616. The main administrator (`role_root`) is exempt on `thirdPartyScanners`, `campaigns`, `mailboxConnectors` and `externalEnrichment`, so it can test them in production; not on `registration` and `pricing` (anonymous requests) nor on `externalAi` (the generator does not know which user it works for). Organization invitations are not gated: they are sent by someone who already has an account.
 
 `GET /system/launch` publishes the resolved state, the SPA hides closed features and sends direct links to `/no-disponible`, shows a preview notice and sets `noindex`, and the config panel has a **Launch** section to change the mode and each switch without a restart (switching to `public` asks for confirmation).
 

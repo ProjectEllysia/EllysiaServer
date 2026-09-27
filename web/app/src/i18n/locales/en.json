@@ -87,6 +87,7 @@
     "campaignAlreadyLaunched": "The campaign has already been launched.",
     "cannotRemoveOwner": "You own this organization. To leave it, you would have to dissolve it or transfer it first.",
     "circuitBreakerOpen": "The service is temporarily unavailable.",
+    "complianceOrganizationOwnerOnly": "Only the organization owner can set its compliance frameworks.",
     "databaseConnection": "Could not connect to the database.",
     "defaultPlanMissing": "The platform has no default plan configured. Contact an administrator.",
     "documentNotReady": "The document is not ready yet.",
@@ -107,8 +108,11 @@
       "finding": "Finding not found.",
       "folder": "Folder not found.",
       "irisAnalysis": "Analysis not found.",
+      "irisAnalysisUrl": "Link not found.",
       "irisBatch": "Batch not found.",
+      "irisCampaign": "Campaign not found.",
       "irisCase": "Case not found.",
+      "irisIndicator": "Indicator not found.",
       "irisMailboxConnection": "Mailbox connection not found.",
       "irisSavedView": "Saved view not found.",
       "irisTrustedSender": "Trust exception not found.",
@@ -147,6 +151,8 @@
     "invitationInvalid": "This invitation is not valid or has expired. Ask whoever invited you to send you another one.",
     "irisBatchBackpressure": "You have {active} analyses running and the batch would add {requested}; the maximum at once is {limit}. Wait for them to finish and send it again: nothing has been created.",
     "irisMailboxInvalidFolder": "“{folder}” is not a valid folder for this account.",
+    "irisNotInOrganization": "You don't belong to any organization.",
+    "irisTenantOwnerRequired": "Only the organization owner can change this.",
     "jsonParsing": "The JSON data could not be processed.",
     "logChanged": "The log changed during the query. Start a new read.",
     "logNotFound": "There is no log available right now.",
@@ -192,7 +198,6 @@
     "systemTagImmutable": "Tags from the shared catalog cannot be deleted.",
     "tagAlreadyExists": "A tag named “{name}” already exists.",
     "tagQuotaExceeded": "You have reached the maximum of {maxTags} personal tags.",
-    "complianceOrganizationOwnerOnly": "Only the organization owner can set its compliance frameworks.",
     "targetNotAuthorized": "“{target}” is not authorized for active Lybra operations. Add it to the authorized targets registry before launching this scan.",
     "taskNotCancellable": "The task does not exist or has already finished.",
     "tooManyRequests": "You have exceeded the request limit. Wait a moment and try again.",
@@ -2050,7 +2055,18 @@
       "iocs": "Indicators of compromise (IOCs)",
       "iocsLoading": "Extracting IOCs…",
       "iocsFailed": "The IOCs could not be loaded.",
-      "rawHeaders": "Original headers"
+      "rawHeaders": "Original headers",
+      "campaignTitle": "Part of a campaign",
+      "campaignRelated": "There is {count} more message like this one. | There are {count} more messages like this one.",
+      "campaignOpen": "See the campaign",
+      "deviationTitle": "The sender imitates a usual contact",
+      "deviation": {
+        "display_name_reuse": "“{name}” writes from {sender}, but that name belongs to one of your usual contacts, {habitual} ({count} legitimate messages).",
+        "address_domain_change": "{sender} looks like {habitual}, one of your usual contacts ({count} legitimate messages), but on another domain.",
+        "other": "{sender} looks like {habitual}, one of your usual contacts."
+      },
+      "sightingsTitle": "Also seen in your organization",
+      "sightingsCount": "received by {count} members"
     },
     "cases": {
       "badge": "Cases",
@@ -2131,7 +2147,132 @@
       "revokedOn": "revoked {date}",
       "expires": "expires {date}",
       "revokeTitle": "Revoke exception",
-      "revokeMessage": "The next emails from {value} will be analyzed without the exception. The exception stays in the audit log."
+      "revokeMessage": "The next emails from {value} will be analyzed without the exception. The exception stays in the audit log.",
+      "contactsTitle": "Usual contacts",
+      "contactsIntro": "Senders you have received at least {count} legitimate messages from. Iris warns you when another address uses their name. Only addresses and dates are kept, and they are forgotten after {days} days unseen.",
+      "contactsDisabled": "Usual contacts are turned off on this installation.",
+      "noContacts": "No usual contacts yet.",
+      "contactMessages": "{count} legitimate message | {count} legitimate messages",
+      "lastSeen": "last on {date}",
+      "forget": "Forget contacts",
+      "forgetTitle": "Forget your usual contacts",
+      "forgetMessage": "Everything Iris knows about who you talk to is deleted. Your analyses don't change, and the next ones will start learning it again."
+    },
+    "indicatorKind": {
+      "domain": "Domain",
+      "url": "URL",
+      "ip": "IP",
+      "email": "Address",
+      "hash": "Hash (SHA-256)"
+    },
+    "campaigns": {
+      "badge": "Campaigns",
+      "intro": "Messages that look alike —the same link, the same attachment, the same template or the same subject and sender— grouped so you investigate them once. Only messages that don't look legitimate are grouped.",
+      "empty": "No campaigns yet: they appear when two suspicious messages look alike.",
+      "pick": "Pick a campaign to see its messages and what they have in common.",
+      "unnamed": "Campaign #{id}",
+      "messageCount": "{count} message | {count} messages",
+      "seenBetween": "from {first} to {last}",
+      "brands": "Impersonating: {brands}",
+      "shared": "What they have in common",
+      "sharedHint": "Indicators that appear in several messages: look them up or block them once for the whole campaign.",
+      "noShared": "They share no indicators: they look alike by subject, template or brand.",
+      "inMessages": "in {count} message | in {count} messages",
+      "messages": "Messages ({count})",
+      "matchedBy": "Matched by:",
+      "signals": {
+        "url": "link",
+        "hash": "identical attachment",
+        "template": "template",
+        "subject": "subject",
+        "sender": "sender",
+        "domain": "domain",
+        "brand": "impersonated brand"
+      }
+    },
+    "intelExport": {
+      "label": "Export indicators",
+      "hint": "The indicators and the rules that fired, for a SIEM or a threat intelligence platform.",
+      "formats": {
+        "json": {
+          "name": "JSON",
+          "hint": "Iris's own format, with values defanged so nobody opens them by accident."
+        },
+        "stix": {
+          "name": "STIX 2.1",
+          "hint": "Threat intelligence exchange standard; most SIEMs and platforms import it."
+        },
+        "misp": {
+          "name": "MISP",
+          "hint": "Event to import into a MISP instance."
+        }
+      }
+    },
+    "enrichment": {
+      "domainContext": "Context",
+      "domainHint": "Looks up the domain's age, registrar and network in the public registry (RDAP). The lookup goes to an external service.",
+      "age": "Registered {days} days ago",
+      "ageRecent": "Registered {days} days ago (recent)",
+      "registrar": "Registrar: {name}",
+      "network": "Network {name} ({country})",
+      "noData": "The registry has no data for this domain.",
+      "unavailable": "The registry did not answer; nothing can be said about this domain.",
+      "rateLimited": "Too many lookups this minute; try again shortly.",
+      "disabled": "External lookups are turned off on this installation.",
+      "expand": "Follow link",
+      "expandHint": "Follows the link's redirects to the page it leads to, without opening it in your browser. The request is made by the server, never towards an internal network.",
+      "expanding": "Following the link…",
+      "stillExpanding": "Still running; check again shortly.",
+      "leadsTo": "Leads to {domain} with no redirects | Leads to {domain} after {count} redirect | Leads to {domain} after {count} redirects",
+      "domainChanged": "Changes domain",
+      "pageTitle": "Title: “{title}”",
+      "hopErrors": {
+        "private_address": "Stopped: the next hop pointed to an internal network.",
+        "scheme": "Stopped: the next hop was not a web page.",
+        "port": "Stopped: the next hop went to a non-web port.",
+        "unresolvable": "Stopped: the next domain does not exist.",
+        "timeout": "Stopped: the server took too long to answer.",
+        "tls": "Stopped: the server's certificate is not valid.",
+        "connection": "Stopped: could not connect to the server.",
+        "protocol": "Stopped: the server did not answer like a website.",
+        "too_many_redirects": "Stopped: too many redirects in a row.",
+        "other": "Stopped before reaching the end."
+      },
+      "reputation": "Reputation",
+      "reputationHint": "Asks the configured reputation services whether they know this indicator. Only the indicator is sent, never the email.",
+      "notConfigured": "No reputation service is configured on this installation.",
+      "reputationVerdicts": {
+        "known_malicious": "known malicious",
+        "suspicious": "suspicious",
+        "unknown": "not flagged",
+        "unavailable": "no answer",
+        "rate_limited": "too many lookups; try again shortly"
+      }
+    },
+    "organization": {
+      "badge": "Organization",
+      "eyebrow": "Shared intelligence",
+      "title": "Your organization",
+      "intro": "Members who agree pool what they see: domains, links and attachments from suspicious emails that reached several of them, and domains several of them get legitimate email from. Only counts are shown, and only for what at least {count} people have seen: nobody sees the others' emails, analyses or names.",
+      "noOrganization": "You don't belong to any organization. Once you are part of one, you can share intelligence with the rest here.",
+      "sharingOn": "Your organization shares intelligence",
+      "sharingOff": "Your organization does not share intelligence; its owner decides",
+      "contributing": "{count} member contributes | {count} members contribute",
+      "consent": "I agree to contribute my indicators to the organization's intelligence",
+      "consentHint": "Whoever doesn't agree neither contributes nor sees what is shared. You can withdraw at any time: yours is removed from everything at once.",
+      "policyTitle": "Organization policy",
+      "enableSharing": "Share intelligence among members who agree",
+      "protectedDomains": "Protected domains",
+      "protectedDomainsHint": "Yours and your suppliers', one per line: lookalikes are flagged.",
+      "protectedBrands": "Protected brands",
+      "protectedBrandsHint": "One per line.",
+      "sharedTitle": "What several members have seen",
+      "sharedHint": "Indicators from suspicious or phishing emails in the last {days} days.",
+      "noShared": "Nothing has been seen by enough members yet.",
+      "seenBy": "seen by {count} members",
+      "imitates": "imitates {domain}",
+      "frequentTitle": "Frequent domains",
+      "noFrequent": "No domains yet that enough members get email from."
     }
   },
   "irisHub": {
@@ -2277,7 +2418,16 @@
     "reanalyzeStarted": "Reanalysis started (ID: {id})",
     "batchSummary": "Batch #{id}: {created} created, {duplicate} duplicates, {skipped} not analyzed.",
     "caseOpened": "Case #{id} opened.",
-    "caseLinked": "Analysis #{analysisId} added to case #{caseId}."
+    "caseLinked": "Analysis #{analysisId} added to case #{caseId}.",
+    "graphForgotten": "Contacts forgotten.",
+    "graphForgetFailed": "Contacts could not be forgotten.",
+    "exportFailed": "Could not export.",
+    "enrichmentFailed": "The indicator could not be looked up.",
+    "organizationPolicySaved": "Policy saved.",
+    "organizationPolicyFailed": "The policy could not be saved.",
+    "organizationConsentGiven": "You now contribute to your organization's intelligence.",
+    "organizationConsentWithdrawn": "You no longer contribute to your organization's intelligence.",
+    "organizationConsentFailed": "Your consent could not be changed."
   },
   "aegis": {
     "campaignStatus": {
@@ -3814,6 +3964,11 @@
         "label": "External AI providers",
         "covers": "Generating with OpenAI or Google; Ollama does not depend on this.",
         "unlocks": "contracts with the providers and a page about AI use"
+      },
+      "externalEnrichment": {
+        "label": "Iris external lookups",
+        "covers": "Asking third-party services about an email's indicators: domain registry, reputation and following links.",
+        "unlocks": "public list of providers and an explanation of what data they receive"
       }
     },
     "confirmOpen": "You are about to open to the public:\n{surfaces}\n\nContinue?",

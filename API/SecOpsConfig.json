@@ -35,7 +35,8 @@
         "thirdPartyScanners": true,
         "campaigns": true,
         "mailboxConnectors": true,
-        "externalAi": true
+        "externalAi": true,
+        "externalEnrichment": true
       }
     },
     "registration": {
@@ -350,6 +351,52 @@
         "minImageBytes": 2048,
         "maxPixels": 16000000,
         "timeoutSeconds": 10
+      },
+      "campaigns": {
+        "windowDays": 14,
+        "similarityThreshold": 5.0,
+        "maxCandidates": 200
+      },
+      "graph": {
+        "enabled": true,
+        "habitualMinMessages": 3,
+        "retentionDays": 90
+      },
+      "exports": {
+        "indicatorValidityDays": 30
+      },
+      "tenant": {
+        "minMembers": 3,
+        "windowDays": 30,
+        "maxItems": 100
+      },
+      "enrichment": {
+        "enabled": true,
+        "timeoutSeconds": 5.0,
+        "maxResponseBytes": 1048576,
+        "rdap": {
+          "baseUrl": "https://rdap.org",
+          "ttlHours": 24,
+          "negativeTtlMinutes": 30,
+          "requestsPerMinute": 30,
+          "recentDomainDays": 30
+        },
+        "urlExpansion": {
+          "maxRedirects": 10,
+          "maxBodyBytes": 262144,
+          "ttlHours": 24,
+          "requestsPerMinute": 20
+        },
+        "threatIntel": {
+          "ttlHours": 12,
+          "negativeTtlMinutes": 30,
+          "providers": {
+            "virustotal": {"enabled": false, "requestsPerMinute": 4},
+            "urlscan": {"enabled": false, "requestsPerMinute": 30},
+            "phishtank": {"enabled": false, "requestsPerMinute": 30},
+            "urlhaus": {"enabled": false, "requestsPerMinute": 30}
+          }
+        }
       },
       "prompts": {
         "summary": {

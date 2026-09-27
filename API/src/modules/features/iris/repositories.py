@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any, List, Optional, Tuple
 
-from sqlalchemy import and_, asc, delete, desc, func, nullslast, select, update
+from sqlalchemy import String, and_, asc, cast, delete, desc, func, nullslast, or_, select, update
 from sqlalchemy.orm import joinedload, selectinload
 
 from src.modules.infrastructure import BaseRepository, DocumentRepository
@@ -22,6 +22,8 @@ from .model import (
     IrisRawMessage, IrisRuleResult, IrisDocument, IrisTrustedSender,
     IrisAnalysisTag, IrisIndicator, IrisSavedView,
     IrisCase, IrisCaseAnalysis, IrisCaseEvent, IrisBatch, IrisBatchItem,
+    IrisCampaign, IrisCampaignMember, IrisCommunicationEdge, IrisDomainCache, IrisUrlExpansion,
+    IrisThreatIntelResult, IrisTenantProfile, IrisTenantConsent,
 )
 
 
@@ -187,6 +189,25 @@ class IrisAnalysisRepository(BaseRepository[IrisAnalysis]):
             .order_by(IrisAnalysis.id.desc())
             .first()
         )
+
+    def has_earlier_with_fingerprint(self, user_id: int, fingerprint: str, analysis_id: int) -> bool:
+        """Indica si el usuario ya había analizado antes el mismo correo.
+
+        Args:
+            user_id: Dueño de los análisis.
+            fingerprint: ``IrisAnalysis.content_sha256`` del análisis actual.
+            analysis_id: El análisis actual; solo cuentan los anteriores a él.
+
+        Returns:
+            bool: ``True`` si hay otro análisis del usuario, con id menor, con
+                la misma huella.
+        """
+        return self._session.query(
+            self._session.query(IrisAnalysis.id)
+            .filter(IrisAnalysis.user_id == user_id, IrisAnalysis.content_sha256 == fingerprint,
+                    IrisAnalysis.id < analysis_id)
+            .exists()
+        ).scalar()
 
     def count_active_by_user(self, user_id: int) -> int:
         """Cuántos análisis de un usuario están pendientes o en curso.
@@ -370,6 +391,61 @@ class IrisAnalysisRepository(BaseRepository[IrisAnalysis]):
         return (
             self._session.query(IrisAnalysis)
             .filter(IrisAnalysis.created_at < cutoff)
+            .all()
+        )
+
+    def get_campaign_candidates(self, *, user_id: int, since: datetime, exclude_id: int,
+                                subject_fingerprint: Optional[str], template_fingerprint: Optional[str],
+                                indicator_pairs: List[Tuple[str, str]], limit: int) -> List[IrisAnalysis]:
+        """Análisis recientes de un usuario que comparten alguna señal con uno nuevo.
+
+        Es el primer filtro de la agrupación en campañas: solo trae los que
+        pueden parecerse (mismo asunto normalizado, misma plantilla o algún
+        IOC en común); cuánto se parecen lo decide ``services/campaigns.py``.
+
+        Args:
+            user_id: Dueño; nunca se mezclan análisis de otro usuario.
+            since: Solo los recibidos desde este instante (la ventana).
+            exclude_id: El propio análisis nuevo.
+            subject_fingerprint: Huella del asunto; ``None`` si no tiene.
+            template_fingerprint: Huella de la plantilla; ``None`` si no tiene.
+            indicator_pairs: Pares ``(kind, value)`` del índice de IOCs.
+            limit: Máximo de candidatos.
+
+        Returns:
+            List[IrisAnalysis]: Análisis terminados y no legítimos, del más
+                reciente al más antiguo. Vacía si ninguno comparte nada.
+        """
+        conditions = []
+        if subject_fingerprint:
+            conditions.append(IrisAnalysis.subject_fingerprint == subject_fingerprint)
+        if template_fingerprint:
+            conditions.append(IrisAnalysis.template_fingerprint == template_fingerprint)
+        values_by_kind: dict[str, list[str]] = {}
+        for kind, value in indicator_pairs:
+            values_by_kind.setdefault(kind, []).append(value)
+        if values_by_kind:
+            conditions.append(IrisAnalysis.id.in_(
+                select(IrisIndicator.analysis_id).where(or_(*(
+                    and_(IrisIndicator.kind == kind, IrisIndicator.value.in_(values))
+                    for kind, values in values_by_kind.items()
+                )))
+            ))
+        if not conditions:
+            return []
+        return (
+            self._session.query(IrisAnalysis)
+            .filter(
+                IrisAnalysis.user_id == user_id,
+                IrisAnalysis.id != exclude_id,
+                IrisAnalysis.status == "finished",
+                IrisAnalysis.verdict.isnot(None),
+                IrisAnalysis.verdict != "Legitimate",
+                IrisAnalysis.created_at >= since,
+                or_(*conditions),
+            )
+            .order_by(IrisAnalysis.created_at.desc(), IrisAnalysis.id.desc())
+            .limit(limit)
             .all()
         )
 
@@ -938,6 +1014,625 @@ class IrisIndicatorRepository(BaseRepository[IrisIndicator]):
     """
 
     _MODEL = IrisIndicator
+
+    def get_pairs_by_analysis_ids(self, analysis_ids: List[int]) -> dict[int, List[Tuple[str, str]]]:
+        """Indicadores de varios análisis de una vez.
+
+        Args:
+            analysis_ids: Análisis cuyos indicadores se quieren.
+
+        Returns:
+            dict: ``{analysis_id: [(kind, value), ...]}``; un análisis sin
+                indicadores no aparece.
+        """
+        if not analysis_ids:
+            return {}
+        pairs_by_analysis: dict[int, List[Tuple[str, str]]] = {}
+        rows = (
+            self._session.query(IrisIndicator.analysis_id, IrisIndicator.kind, IrisIndicator.value)
+            .filter(IrisIndicator.analysis_id.in_(analysis_ids))
+            .all()
+        )
+        for analysis_id, kind, value in rows:
+            pairs_by_analysis.setdefault(analysis_id, []).append((kind, value))
+        return pairs_by_analysis
+
+    def exists_for_user(self, user_id: int, kind: str, value: str) -> bool:
+        """Indica si un indicador aparece en algún análisis del usuario.
+
+        Es la condición para enriquecerlo: Iris solo consulta fuera lo que el
+        usuario ya ha visto en su correo, para no ser un proxy de consultas
+        arbitrarias.
+
+        Args:
+            user_id: Usuario.
+            kind: ``IrisIndicator.kind``.
+            value: Valor exacto, en minúsculas.
+
+        Returns:
+            bool: ``True`` si está en su índice.
+        """
+        return self._session.query(
+            self._session.query(IrisIndicator.id)
+            .join(IrisAnalysis, IrisAnalysis.id == IrisIndicator.analysis_id)
+            .filter(IrisAnalysis.user_id == user_id, IrisIndicator.kind == kind, IrisIndicator.value == value)
+            .exists()
+        ).scalar()
+
+    def get_values_of_analysis(self, analysis_id: int, kind: str) -> List[str]:
+        """Valores de un tipo de indicador de un análisis.
+
+        Args:
+            analysis_id: Análisis.
+            kind: ``IrisIndicator.kind``.
+
+        Returns:
+            List[str]: Los valores (en minúsculas), ordenados.
+        """
+        return [
+            value for (value,) in
+            self._session.query(IrisIndicator.value)
+            .filter(IrisIndicator.analysis_id == analysis_id, IrisIndicator.kind == kind)
+            .order_by(IrisIndicator.value.asc())
+            .all()
+        ]
+
+    def aggregate_across_users(self, user_ids: List[int], since: datetime, kinds: List[str],
+                               min_users: int, limit: int) -> List[Tuple[str, str, int, int, datetime, datetime]]:
+        """Indicadores de análisis no legítimos que comparten varios usuarios.
+
+        Es el agregado anonimizado de la inteligencia de una organización:
+        devuelve recuentos, nunca qué usuario ni qué análisis.
+
+        Args:
+            user_ids: Usuarios que aportan (los que han consentido).
+            since: Solo análisis recibidos desde este instante.
+            kinds: Tipos de indicador que entran.
+            min_users: Usuarios distintos mínimos para que un indicador salga.
+            limit: Máximo de indicadores.
+
+        Returns:
+            List[Tuple]: ``(kind, value, usuarios, análisis, primer
+                avistamiento, último avistamiento)``, de más a menos usuarios.
+        """
+        if not user_ids:
+            return []
+        user_count = func.count(func.distinct(IrisAnalysis.user_id))
+        rows = (
+            self._session.query(
+                IrisIndicator.kind, IrisIndicator.value, user_count,
+                func.count(func.distinct(IrisAnalysis.id)),
+                func.min(IrisAnalysis.created_at), func.max(IrisAnalysis.created_at),
+            )
+            .join(IrisAnalysis, IrisAnalysis.id == IrisIndicator.analysis_id)
+            .filter(
+                IrisAnalysis.user_id.in_(user_ids), IrisAnalysis.created_at >= since,
+                IrisAnalysis.verdict.in_(["Suspicious", "Phishing"]), IrisIndicator.kind.in_(kinds),
+            )
+            .group_by(IrisIndicator.kind, IrisIndicator.value)
+            .having(user_count >= min_users)
+            .order_by(user_count.desc(), IrisIndicator.kind.asc(), IrisIndicator.value.asc())
+            .limit(limit)
+            .all()
+        )
+        return [tuple(row) for row in rows]
+
+    def count_users_per_indicator(self, user_ids: List[int], since: datetime,
+                                  pairs: List[Tuple[str, str]]) -> dict[Tuple[str, str], int]:
+        """Cuántos usuarios distintos han visto cada uno de unos indicadores.
+
+        Args:
+            user_ids: Usuarios que cuentan.
+            since: Solo análisis recibidos desde este instante.
+            pairs: Pares ``(kind, value)`` por los que se pregunta.
+
+        Returns:
+            dict: ``{(kind, value): usuarios}``; los que nadie vio no aparecen.
+        """
+        if not user_ids or not pairs:
+            return {}
+        values_by_kind: dict[str, list[str]] = {}
+        for kind, value in pairs:
+            values_by_kind.setdefault(kind, []).append(value)
+        rows = (
+            self._session.query(IrisIndicator.kind, IrisIndicator.value,
+                                func.count(func.distinct(IrisAnalysis.user_id)))
+            .join(IrisAnalysis, IrisAnalysis.id == IrisIndicator.analysis_id)
+            .filter(
+                IrisAnalysis.user_id.in_(user_ids), IrisAnalysis.created_at >= since,
+                or_(*(and_(IrisIndicator.kind == kind, IrisIndicator.value.in_(values))
+                      for kind, values in values_by_kind.items())),
+            )
+            .group_by(IrisIndicator.kind, IrisIndicator.value)
+            .all()
+        )
+        return {(kind, value): total for kind, value, total in rows}
+
+    def get_shared_in_campaign(self, campaign_id: int, min_analyses: int = 2) -> List[Tuple[str, str, int]]:
+        """Indicadores que comparten varios análisis de una campaña.
+
+        Son los *pivots* de la campaña: lo que un analista busca en el SIEM o
+        bloquea una sola vez para todos sus mensajes.
+
+        Args:
+            campaign_id: Campaña.
+            min_analyses: En cuántos análisis tiene que aparecer como mínimo.
+                Por defecto ``2``.
+
+        Returns:
+            List[Tuple[str, str, int]]: ``(kind, value, análisis)``, del más
+                repetido al menos, y por tipo y valor a igualdad.
+        """
+        analysis_count = func.count(func.distinct(IrisIndicator.analysis_id))
+        return [
+            (kind, value, total) for kind, value, total in (
+                self._session.query(IrisIndicator.kind, IrisIndicator.value, analysis_count)
+                .join(IrisCampaignMember, IrisCampaignMember.analysis_id == IrisIndicator.analysis_id)
+                .filter(IrisCampaignMember.campaign_id == campaign_id)
+                .group_by(IrisIndicator.kind, IrisIndicator.value)
+                .having(analysis_count >= min_analyses)
+                .order_by(analysis_count.desc(), IrisIndicator.kind.asc(), IrisIndicator.value.asc())
+                .all()
+            )
+        ]
+
+
+class IrisCampaignRepository(BaseRepository[IrisCampaign]):
+    """Acceso a las campañas (``IrisCampaign``)."""
+
+    _MODEL = IrisCampaign
+
+    def get_page_for_user(self, user_id: int, page: int, per_page: int,
+                          min_members: int = 2) -> Tuple[List[Tuple[IrisCampaign, int, int, datetime, datetime]], int]:
+        """Campañas de un usuario con sus cifras, de la más activa a la menos.
+
+        Las cifras se calculan aquí a partir de los miembros, no se guardan:
+        así borrar un análisis nunca deja una campaña con cifras viejas.
+
+        Args:
+            user_id: Dueño.
+            page: Página, empezando en 1.
+            per_page: Campañas por página.
+            min_members: Miembros mínimos para contar como campaña. Por
+                defecto ``2``: una campaña que se quedó con un solo análisis
+                (porque se borraron los demás) no se enseña.
+
+        Returns:
+            Tuple: La página, como tuplas ``(campaña, análisis, mensajes
+                distintos, primer avistamiento, último avistamiento)``, y el
+                total de campañas. «Mensajes distintos» no cuenta dos veces el
+                mismo correo analizado de nuevo (misma ``content_sha256``).
+        """
+        analysis_count = func.count(IrisAnalysis.id)
+        message_count = func.count(func.distinct(
+            func.coalesce(IrisAnalysis.content_sha256, cast(IrisAnalysis.id, String))
+        ))
+        first_seen = func.min(IrisAnalysis.created_at)
+        last_seen = func.max(IrisAnalysis.created_at)
+        query = (
+            self._session.query(IrisCampaign, analysis_count, message_count, first_seen, last_seen)
+            .join(IrisCampaignMember, IrisCampaignMember.campaign_id == IrisCampaign.id)
+            .join(IrisAnalysis, IrisAnalysis.id == IrisCampaignMember.analysis_id)
+            .filter(IrisCampaign.user_id == user_id)
+            .group_by(IrisCampaign.id)
+            .having(analysis_count >= min_members)
+        )
+        total = query.count()
+        rows = (
+            query.order_by(last_seen.desc(), IrisCampaign.id.desc())
+            .limit(per_page)
+            .offset((page - 1) * per_page)
+            .all()
+        )
+        return [tuple(row) for row in rows], total
+
+    def count_verdicts(self, campaign_ids: List[int]) -> dict[int, dict[str, int]]:
+        """Cuántos análisis de cada campaña hay por veredicto.
+
+        Args:
+            campaign_ids: Campañas.
+
+        Returns:
+            dict: ``{campaign_id: {veredicto: análisis}}``.
+        """
+        if not campaign_ids:
+            return {}
+        rows = (
+            self._session.query(IrisCampaignMember.campaign_id, IrisAnalysis.verdict, func.count(IrisAnalysis.id))
+            .join(IrisAnalysis, IrisAnalysis.id == IrisCampaignMember.analysis_id)
+            .filter(IrisCampaignMember.campaign_id.in_(campaign_ids))
+            .group_by(IrisCampaignMember.campaign_id, IrisAnalysis.verdict)
+            .all()
+        )
+        verdicts_by_campaign: dict[int, dict[str, int]] = {}
+        for campaign_id, verdict, total in rows:
+            verdicts_by_campaign.setdefault(campaign_id, {})[verdict or "unknown"] = total
+        return verdicts_by_campaign
+
+
+class IrisCampaignMemberRepository(BaseRepository[IrisCampaignMember]):
+    """Acceso a la pertenencia de los análisis a campañas (``IrisCampaignMember``)."""
+
+    _MODEL = IrisCampaignMember
+
+    def get_by_analysis(self, analysis_id: int) -> Optional[IrisCampaignMember]:
+        """La pertenencia de un análisis, si está en alguna campaña.
+
+        Args:
+            analysis_id: Análisis.
+
+        Returns:
+            Optional[IrisCampaignMember]: La fila, o ``None``.
+        """
+        return (
+            self._session.query(IrisCampaignMember)
+            .filter(IrisCampaignMember.analysis_id == analysis_id)
+            .one_or_none()
+        )
+
+    def count_by_campaign(self, campaign_id: int) -> int:
+        """Cuántos análisis tiene una campaña.
+
+        Args:
+            campaign_id: Campaña.
+
+        Returns:
+            int: Miembros; ``0`` si no tiene ninguno.
+        """
+        return (
+            self._session.query(func.count(IrisCampaignMember.id))
+            .filter(IrisCampaignMember.campaign_id == campaign_id)
+            .scalar() or 0
+        )
+
+    def get_by_campaign(self, campaign_id: int) -> List[IrisCampaignMember]:
+        """Miembros de una campaña con su análisis, del más reciente al más antiguo.
+
+        Args:
+            campaign_id: Campaña.
+
+        Returns:
+            List[IrisCampaignMember]: Los miembros, con ``analysis`` cargado.
+        """
+        return (
+            self._session.query(IrisCampaignMember)
+            .join(IrisAnalysis, IrisAnalysis.id == IrisCampaignMember.analysis_id)
+            .options(joinedload(IrisCampaignMember.analysis))
+            .filter(IrisCampaignMember.campaign_id == campaign_id)
+            .order_by(IrisAnalysis.created_at.desc(), IrisAnalysis.id.desc())
+            .all()
+        )
+
+
+class IrisCommunicationEdgeRepository(BaseRepository[IrisCommunicationEdge]):
+    """Acceso al grafo de comunicación (``IrisCommunicationEdge``)."""
+
+    _MODEL = IrisCommunicationEdge
+
+    def get_edge(self, user_id: int, sender_address: str, recipient_address: str,
+                 kind: str) -> Optional[IrisCommunicationEdge]:
+        """La arista entre dos direcciones de un usuario, si existe.
+
+        Args:
+            user_id: Dueño del grafo.
+            sender_address: Dirección del remitente, en minúsculas.
+            recipient_address: Dirección del otro extremo, en minúsculas.
+            kind: ``CommunicationKind``.
+
+        Returns:
+            Optional[IrisCommunicationEdge]: La arista, o ``None``.
+        """
+        return (
+            self._session.query(IrisCommunicationEdge)
+            .filter(
+                IrisCommunicationEdge.user_id == user_id,
+                IrisCommunicationEdge.sender_address == sender_address,
+                IrisCommunicationEdge.recipient_address == recipient_address,
+                IrisCommunicationEdge.kind == kind,
+            )
+            .one_or_none()
+        )
+
+    def get_senders(self, user_id: int, min_legitimate: int = 0,
+                    limit: Optional[int] = None) -> List[Tuple[str, Optional[str], int, int, datetime, datetime]]:
+        """Remitentes del grafo de un usuario con sus recuentos.
+
+        Un mensaje con varios destinatarios deja una arista por cada uno, así
+        que los mensajes de un remitente son el máximo de sus aristas, no la
+        suma.
+
+        Args:
+            user_id: Dueño del grafo.
+            min_legitimate: Solo los que tienen al menos estos mensajes
+                legítimos. Por defecto ``0``: todos.
+            limit: Máximo de remitentes. Por defecto ``None``: sin límite.
+
+        Returns:
+            List[Tuple]: ``(dirección, uno de sus nombres visibles —el último
+                en orden alfabético—, mensajes, legítimos, primer avistamiento,
+                último avistamiento)``, de más a menos mensajes legítimos.
+        """
+        legitimate = func.max(IrisCommunicationEdge.legitimate_count)
+        query = (
+            self._session.query(
+                IrisCommunicationEdge.sender_address,
+                func.max(IrisCommunicationEdge.sender_display_name),
+                func.max(IrisCommunicationEdge.message_count),
+                legitimate,
+                func.min(IrisCommunicationEdge.first_seen_at),
+                func.max(IrisCommunicationEdge.last_seen_at),
+            )
+            .filter(IrisCommunicationEdge.user_id == user_id)
+            .group_by(IrisCommunicationEdge.sender_address)
+            .having(legitimate >= min_legitimate)
+            .order_by(legitimate.desc(), IrisCommunicationEdge.sender_address.asc())
+        )
+        if limit is not None:
+            query = query.limit(limit)
+        return [tuple(row) for row in query.all()]
+
+    def get_display_names(self, user_id: int, sender_addresses: List[str]) -> dict[str, set[str]]:
+        """Nombres visibles con los que ha escrito cada remitente.
+
+        Args:
+            user_id: Dueño del grafo.
+            sender_addresses: Remitentes que interesan.
+
+        Returns:
+            dict: ``{dirección: {nombre, ...}}``; un remitente que nunca trajo
+                nombre no aparece.
+        """
+        if not sender_addresses:
+            return {}
+        rows = (
+            self._session.query(IrisCommunicationEdge.sender_address, IrisCommunicationEdge.sender_display_name)
+            .filter(
+                IrisCommunicationEdge.user_id == user_id,
+                IrisCommunicationEdge.sender_address.in_(sender_addresses),
+                IrisCommunicationEdge.sender_display_name.isnot(None),
+            )
+            .distinct()
+            .all()
+        )
+        names_by_sender: dict[str, set[str]] = {}
+        for address, name in rows:
+            names_by_sender.setdefault(address, set()).add(name)
+        return names_by_sender
+
+    def get_by_user(self, user_id: int, address: Optional[str] = None,
+                    limit: int = 500) -> List[IrisCommunicationEdge]:
+        """Aristas de un usuario, de la usada más recientemente a la que menos.
+
+        Args:
+            user_id: Dueño del grafo.
+            address: Solo las que tocan esta dirección, como remitente o como
+                otro extremo. Por defecto ``None``: todas.
+            limit: Máximo de aristas. Por defecto ``500``.
+
+        Returns:
+            List[IrisCommunicationEdge]: Las aristas.
+        """
+        query = self._session.query(IrisCommunicationEdge).filter(IrisCommunicationEdge.user_id == user_id)
+        if address:
+            query = query.filter(or_(
+                IrisCommunicationEdge.sender_address == address,
+                IrisCommunicationEdge.recipient_address == address,
+            ))
+        return query.order_by(IrisCommunicationEdge.last_seen_at.desc(), IrisCommunicationEdge.id.desc()) \
+            .limit(limit).all()
+
+    def aggregate_sender_domains(self, user_ids: List[int], min_users: int,
+                                 limit: int) -> List[Tuple[str, int, int]]:
+        """Dominios de los que varios usuarios reciben correo legítimo.
+
+        Args:
+            user_ids: Usuarios que aportan.
+            min_users: Usuarios distintos mínimos para que un dominio salga.
+            limit: Máximo de dominios.
+
+        Returns:
+            List[Tuple[str, int, int]]: ``(dominio, usuarios, mensajes
+                legítimos)``, de más a menos usuarios.
+        """
+        if not user_ids:
+            return []
+        user_count = func.count(func.distinct(IrisCommunicationEdge.user_id))
+        rows = (
+            self._session.query(IrisCommunicationEdge.sender_domain, user_count,
+                                func.sum(IrisCommunicationEdge.legitimate_count))
+            .filter(IrisCommunicationEdge.user_id.in_(user_ids), IrisCommunicationEdge.legitimate_count > 0)
+            .group_by(IrisCommunicationEdge.sender_domain)
+            .having(user_count >= min_users)
+            .order_by(user_count.desc(), IrisCommunicationEdge.sender_domain.asc())
+            .limit(limit)
+            .all()
+        )
+        return [(domain, users, int(messages or 0)) for domain, users, messages in rows]
+
+    def delete_by_user(self, user_id: int) -> int:
+        """Borra el grafo entero de un usuario.
+
+        Args:
+            user_id: Dueño del grafo.
+
+        Returns:
+            int: Aristas borradas.
+        """
+        result = self._session.execute(
+            delete(IrisCommunicationEdge).where(IrisCommunicationEdge.user_id == user_id)
+        )
+        return result.rowcount or 0
+
+    def purge_older_than(self, cutoff: datetime) -> int:
+        """Borra las aristas que no se han visto desde ``cutoff``.
+
+        Args:
+            cutoff: Instante límite; se borra lo visto por última vez antes.
+
+        Returns:
+            int: Aristas borradas.
+        """
+        result = self._session.execute(
+            delete(IrisCommunicationEdge).where(IrisCommunicationEdge.last_seen_at < cutoff)
+        )
+        return result.rowcount or 0
+
+
+class IrisDomainCacheRepository(BaseRepository[IrisDomainCache]):
+    """Acceso a la caché RDAP de dominios (``IrisDomainCache``)."""
+
+    _MODEL = IrisDomainCache
+
+    def get_by_domain(self, domain: str) -> Optional[IrisDomainCache]:
+        """La entrada de caché de un dominio, caducada o no.
+
+        Args:
+            domain: Dominio registrable, en minúsculas.
+
+        Returns:
+            Optional[IrisDomainCache]: La entrada, o ``None``.
+        """
+        return self._session.query(IrisDomainCache).filter(IrisDomainCache.domain == domain).one_or_none()
+
+
+class IrisUrlExpansionRepository(BaseRepository[IrisUrlExpansion]):
+    """Acceso a las expansiones de URLs (``IrisUrlExpansion``)."""
+
+    _MODEL = IrisUrlExpansion
+
+    def get_by_user_and_hash(self, user_id: int, url_sha256: str) -> Optional[IrisUrlExpansion]:
+        """La expansión de una URL de un usuario, si existe.
+
+        Args:
+            user_id: Usuario.
+            url_sha256: ``IrisUrlExpansion.url_sha256``.
+
+        Returns:
+            Optional[IrisUrlExpansion]: La expansión, o ``None``.
+        """
+        return (
+            self._session.query(IrisUrlExpansion)
+            .filter(IrisUrlExpansion.user_id == user_id, IrisUrlExpansion.url_sha256 == url_sha256)
+            .one_or_none()
+        )
+
+    def get_by_user_and_hashes(self, user_id: int, url_hashes: List[str]) -> List[IrisUrlExpansion]:
+        """Las expansiones de varias URLs de un usuario.
+
+        Args:
+            user_id: Usuario.
+            url_hashes: Huellas de las URLs.
+
+        Returns:
+            List[IrisUrlExpansion]: Las que existen, por URL.
+        """
+        if not url_hashes:
+            return []
+        return (
+            self._session.query(IrisUrlExpansion)
+            .filter(IrisUrlExpansion.user_id == user_id, IrisUrlExpansion.url_sha256.in_(url_hashes))
+            .order_by(IrisUrlExpansion.url.asc())
+            .all()
+        )
+
+    def claim_for_run(self, expansion_id: int) -> bool:
+        """Pasa una expansión de ``pending`` a ``running`` si nadie la ha cogido ya.
+
+        La outbox garantiza al menos una entrega: si el job llega dos veces,
+        solo el primero la sigue.
+
+        Args:
+            expansion_id: Expansión.
+
+        Returns:
+            bool: ``True`` si este worker la ha reclamado.
+        """
+        result = self._session.execute(
+            update(IrisUrlExpansion)
+            .where(and_(IrisUrlExpansion.id == expansion_id, IrisUrlExpansion.status == "pending"))
+            .values(status="running")
+        )
+        return bool(result.rowcount)
+
+
+class IrisThreatIntelResultRepository(BaseRepository[IrisThreatIntelResult]):
+    """Acceso a la caché de reputación (``IrisThreatIntelResult``)."""
+
+    _MODEL = IrisThreatIntelResult
+
+    def get_entry(self, provider: str, kind: str, value_sha256: str) -> Optional[IrisThreatIntelResult]:
+        """Lo que dijo un proveedor de un indicador, caducado o no.
+
+        Args:
+            provider: Proveedor.
+            kind: Tipo de indicador.
+            value_sha256: Huella del indicador en minúsculas.
+
+        Returns:
+            Optional[IrisThreatIntelResult]: La entrada, o ``None``.
+        """
+        return (
+            self._session.query(IrisThreatIntelResult)
+            .filter(IrisThreatIntelResult.provider == provider, IrisThreatIntelResult.kind == kind,
+                    IrisThreatIntelResult.value_sha256 == value_sha256)
+            .one_or_none()
+        )
+
+
+class IrisTenantProfileRepository(BaseRepository[IrisTenantProfile]):
+    """Acceso a la política de inteligencia de cada organización (``IrisTenantProfile``)."""
+
+    _MODEL = IrisTenantProfile
+
+    def get_by_organization(self, organization_id: int) -> Optional[IrisTenantProfile]:
+        """La política de una organización, si se ha configurado alguna vez.
+
+        Args:
+            organization_id: Organización.
+
+        Returns:
+            Optional[IrisTenantProfile]: La política, o ``None``.
+        """
+        return (
+            self._session.query(IrisTenantProfile)
+            .filter(IrisTenantProfile.organization_id == organization_id)
+            .one_or_none()
+        )
+
+
+class IrisTenantConsentRepository(BaseRepository[IrisTenantConsent]):
+    """Acceso a los consentimientos de los miembros (``IrisTenantConsent``)."""
+
+    _MODEL = IrisTenantConsent
+
+    def get_by_user(self, user_id: int) -> Optional[IrisTenantConsent]:
+        """El consentimiento de un usuario, vigente o revocado.
+
+        Args:
+            user_id: Usuario.
+
+        Returns:
+            Optional[IrisTenantConsent]: La fila, o ``None`` si nunca lo dio.
+        """
+        return self._session.query(IrisTenantConsent).filter(IrisTenantConsent.user_id == user_id).one_or_none()
+
+    def get_active_user_ids(self, organization_id: int) -> List[int]:
+        """Usuarios con consentimiento vigente dado en una organización.
+
+        Args:
+            organization_id: Organización.
+
+        Returns:
+            List[int]: Sus ids, ordenados. Quien pueda haber salido de la
+                organización después lo filtra el llamante.
+        """
+        return [
+            user_id for (user_id,) in
+            self._session.query(IrisTenantConsent.user_id)
+            .filter(IrisTenantConsent.organization_id == organization_id, IrisTenantConsent.revoked_at.is_(None))
+            .order_by(IrisTenantConsent.user_id.asc())
+            .all()
+        ]
 
 
 class IrisCaseRepository(BaseRepository[IrisCase]):

@@ -411,6 +411,42 @@ class AnalysisDetailResponseSchema(Schema):
     latestFeedback = fields.Nested(IrisFeedbackItemSchema, load_default=None, allow_none=True)
     trustApplied = fields.Dict(load_default=None, allow_none=True)
     tags = fields.List(fields.String(), load_default=list)
+    campaign = fields.Nested("AnalysisCampaignSchema", load_default=None, allow_none=True)
+    contactDeviation = fields.Nested("ContactDeviationSchema", load_default=None, allow_none=True)
+    organizationSightings = fields.Nested("OrganizationSightingsSchema", load_default=None, allow_none=True)
+
+
+class AnalysisCampaignSchema(Schema):
+    """La campaña de un análisis, tal como acompaña a su informe."""
+    campaignId = fields.Integer()
+    label = fields.String(allow_none=True)
+    relatedCount = fields.Integer()
+
+
+class OrganizationSightingIndicatorSchema(Schema):
+    """Un indicador del análisis y cuántos miembros de la organización lo han visto."""
+    kind = fields.String()
+    value = fields.String()
+    memberCount = fields.Integer()
+
+
+class OrganizationSightingsSchema(Schema):
+    """Indicadores del análisis que también han visto otros miembros de la organización."""
+    minMembers = fields.Integer()
+    indicators = fields.List(fields.Nested(OrganizationSightingIndicatorSchema))
+
+
+class ContactDeviationSchema(Schema):
+    """El remitente imita a un contacto habitual del usuario.
+
+    ``kind`` es ``display_name_reuse`` (usa su nombre desde otra dirección) o
+    ``address_domain_change`` (su misma dirección con otro dominio).
+    """
+    kind = fields.String()
+    senderAddress = fields.String()
+    displayName = fields.String(allow_none=True)
+    habitualAddress = fields.String()
+    habitualMessages = fields.Integer()
 
 
 class AnalysisListItemSchema(Schema):
@@ -1078,3 +1114,283 @@ class IrisBatchSummarySchema(Schema):
 class IrisBatchListResponseSchema(Schema):
     """Lotes recientes del usuario, del más nuevo al más antiguo."""
     batches = fields.List(fields.Nested(IrisBatchSummarySchema))
+
+
+class IrisCampaignsQuerySchema(Schema):
+    """Paginación de ``GET /iris/campaigns``."""
+    page = fields.Integer(load_default=1, validate=validate.Range(min=1))
+    per_page = fields.Integer(load_default=20, validate=validate.Range(min=1, max=100))
+
+
+class IrisCampaignSummarySchema(Schema):
+    """Una campaña en el listado.
+
+    ``analysisCount`` cuenta análisis y ``messageCount`` correos distintos: un
+    mismo correo analizado otra vez suma un análisis pero no un mensaje.
+    ``verdicts`` es ``{veredicto: análisis}``.
+    """
+    campaignId = fields.Integer()
+    label = fields.String(allow_none=True)
+    analysisCount = fields.Integer()
+    messageCount = fields.Integer()
+    firstSeenAt = fields.String(allow_none=True)
+    lastSeenAt = fields.String(allow_none=True)
+    verdicts = fields.Dict(keys=fields.String(), values=fields.Integer())
+
+
+class IrisCampaignListResponseSchema(Schema):
+    """Campañas del usuario, de la de actividad más reciente a la que menos."""
+    campaigns = fields.List(fields.Nested(IrisCampaignSummarySchema))
+    total = fields.Integer()
+    page = fields.Integer()
+    perPage = fields.Integer()
+
+
+class IrisCampaignAnalysisSchema(Schema):
+    """Un mensaje de la campaña y por qué entró en ella."""
+    analysisId = fields.Integer()
+    title = fields.String(allow_none=True)
+    verdict = fields.String(allow_none=True)
+    totalScore = fields.Float(allow_none=True)
+    receivedAt = fields.String(allow_none=True)
+    similarity = fields.Float()
+    matchedSignals = fields.List(fields.String())
+
+
+class IrisCampaignIndicatorSchema(Schema):
+    """Un indicador que comparten varios mensajes de la campaña."""
+    kind = fields.String()
+    value = fields.String()
+    analysisCount = fields.Integer()
+
+
+class IrisCampaignDetailSchema(IrisCampaignSummarySchema):
+    """Una campaña con sus mensajes, los indicadores comunes y las marcas suplantadas."""
+    analyses = fields.List(fields.Nested(IrisCampaignAnalysisSchema))
+    sharedIndicators = fields.List(fields.Nested(IrisCampaignIndicatorSchema))
+    brands = fields.List(fields.String())
+
+
+class IrisGraphQuerySchema(Schema):
+    """Filtros de ``GET /iris/graph``."""
+    address = fields.String(load_default=None, validate=validate.Length(max=320))
+    limit = fields.Integer(load_default=200, validate=validate.Range(min=1, max=500))
+
+
+class IrisGraphSenderSchema(Schema):
+    """Un remitente del grafo con sus recuentos."""
+    address = fields.String()
+    displayName = fields.String(allow_none=True)
+    messageCount = fields.Integer()
+    legitimateCount = fields.Integer()
+    isHabitual = fields.Boolean()
+    firstSeenAt = fields.String(allow_none=True)
+    lastSeenAt = fields.String(allow_none=True)
+
+
+class IrisGraphEdgeSchema(Schema):
+    """Una arista: el remitente escribió a (o pidió respuesta en) otra dirección."""
+    sender = fields.String()
+    recipient = fields.String()
+    kind = fields.String()
+    messageCount = fields.Integer()
+    legitimateCount = fields.Integer()
+    firstSeenAt = fields.String(allow_none=True)
+    lastSeenAt = fields.String(allow_none=True)
+
+
+class IrisGraphResponseSchema(Schema):
+    """El grafo de comunicación del usuario y cómo se interpreta."""
+    senders = fields.List(fields.Nested(IrisGraphSenderSchema))
+    edges = fields.List(fields.Nested(IrisGraphEdgeSchema))
+    habitualMinMessages = fields.Integer()
+    retentionDays = fields.Integer()
+    enabled = fields.Boolean()
+
+
+class IrisGraphDeleteResponseSchema(Schema):
+    """Cuántas aristas se olvidaron."""
+    deletedEdges = fields.Integer()
+
+
+class IntelExportQuerySchema(Schema):
+    """Opciones de ``GET /iris/results/<id>/export/intel`` (JSON versionado)."""
+    defang = fields.Boolean(load_default=True)
+
+
+class IntelExportRequestSchema(Schema):
+    """Petición explícita de exportación de indicadores.
+
+    ``format`` es ``json`` (el esquema versionado de Iris), ``stix`` (STIX 2.1)
+    o ``misp`` (evento MISP). ``defang`` solo cuenta en ``json``: STIX y MISP
+    llevan siempre los valores reales, porque un patrón desactivado no casa
+    con nada.
+    """
+    format = fields.String(required=True, validate=validate.OneOf(["json", "stix", "misp"]))
+    defang = fields.Boolean(load_default=True)
+
+
+class IrisDomainContextSchema(Schema):
+    """Contexto de infraestructura de un dominio (RDAP).
+
+    ``status`` es ``ok``, ``unavailable`` (el registro no respondió: modo
+    neutro), ``rate_limited`` o ``disabled``. La edad es contexto: ninguna
+    decisión de Iris depende solo de ella.
+    """
+    domain = fields.String()
+    registrableDomain = fields.String()
+    status = fields.String()
+    cached = fields.Boolean()
+    registeredAt = fields.String(allow_none=True)
+    ageDays = fields.Integer(allow_none=True)
+    isRecentlyRegistered = fields.Boolean()
+    registryExpiresAt = fields.String(allow_none=True)
+    registrar = fields.String(allow_none=True)
+    registryStatus = fields.List(fields.String())
+    nameservers = fields.List(fields.String())
+    address = fields.String(allow_none=True)
+    networkName = fields.String(allow_none=True)
+    country = fields.String(allow_none=True)
+    asn = fields.String(allow_none=True)
+    error = fields.String(allow_none=True)
+    fetchedAt = fields.String(allow_none=True)
+
+
+class UrlExpansionRequestSchema(Schema):
+    """URL de un análisis que se quiere seguir hasta su destino."""
+    url = fields.String(required=True, validate=validate.Length(min=1, max=4096))
+
+
+class UrlExpansionHopSchema(Schema):
+    """Un salto de la cadena de redirects.
+
+    ``error`` dice por qué se cortó ahí: ``private_address`` (apuntaba a la
+    red interna), ``scheme``, ``port``, ``unresolvable``, ``timeout``,
+    ``tls``, ``connection``, ``protocol`` o ``too_many_redirects``.
+    """
+    url = fields.String()
+    status = fields.Integer(allow_none=True)
+    peerAddress = fields.String(allow_none=True)
+    certificate = fields.Dict(allow_none=True)
+    error = fields.String(allow_none=True)
+
+
+class UrlExpansionSchema(Schema):
+    """Expansión de una URL.
+
+    ``status`` es ``not_requested``, ``pending``, ``running``, ``done``,
+    ``unavailable``, ``rate_limited`` o ``disabled``.
+    """
+    url = fields.String()
+    status = fields.String()
+    hops = fields.List(fields.Nested(UrlExpansionHopSchema))
+    finalUrl = fields.String(allow_none=True)
+    finalDomain = fields.String(allow_none=True)
+    finalStatus = fields.Integer(allow_none=True)
+    pageTitle = fields.String(allow_none=True)
+    contentType = fields.String(allow_none=True)
+    isDomainChanged = fields.Boolean(allow_none=True)
+    requestedAt = fields.String(allow_none=True)
+    fetchedAt = fields.String(allow_none=True)
+
+
+class UrlExpansionListSchema(Schema):
+    """Las URLs de un análisis con su expansión."""
+    analysisId = fields.Integer()
+    expansions = fields.List(fields.Nested(UrlExpansionSchema))
+
+
+class ReputationRequestSchema(Schema):
+    """Indicador por el que se pregunta la reputación."""
+    kind = fields.String(required=True, validate=validate.OneOf(["domain", "url", "ip", "hash"]))
+    value = fields.String(required=True, validate=validate.Length(min=1, max=4096))
+
+
+class ReputationProviderSchema(Schema):
+    """Lo que dijo un proveedor.
+
+    ``verdict`` es ``known_malicious``, ``suspicious``, ``unknown``,
+    ``unavailable`` o ``rate_limited`` (no se preguntó por falta de cupo).
+    """
+    provider = fields.String()
+    verdict = fields.String()
+    detail = fields.Dict()
+    error = fields.String(allow_none=True)
+    checkedAt = fields.String(allow_none=True)
+    cached = fields.Boolean()
+
+
+class ReputationResponseSchema(Schema):
+    """Reputación de un indicador en los proveedores configurados.
+
+    ``status`` es ``ok``, ``disabled`` (consultas externas apagadas) o
+    ``not_configured`` (ningún proveedor con clave). ``verdict`` es el más
+    grave de los proveedores que respondieron.
+    """
+    kind = fields.String()
+    value = fields.String()
+    status = fields.String()
+    verdict = fields.String()
+    providers = fields.List(fields.Nested(ReputationProviderSchema))
+
+
+class TenantSharedIndicatorSchema(Schema):
+    """Un indicador que han visto varios miembros en correos sospechosos o de phishing.
+
+    ``imitatesProtected`` es el dominio protegido de la organización que imita,
+    o ``null``.
+    """
+    kind = fields.String()
+    value = fields.String()
+    memberCount = fields.Integer()
+    analysisCount = fields.Integer()
+    firstSeenAt = fields.String(allow_none=True)
+    lastSeenAt = fields.String(allow_none=True)
+    imitatesProtected = fields.String(allow_none=True)
+
+
+class TenantFrequentDomainSchema(Schema):
+    """Un dominio del que varios miembros reciben correo legítimo."""
+    domain = fields.String()
+    memberCount = fields.Integer()
+    legitimateMessages = fields.Integer()
+
+
+class TenantOrganizationSchema(Schema):
+    """La organización del usuario."""
+    id = fields.Integer()
+    name = fields.String()
+
+
+class TenantIntelResponseSchema(Schema):
+    """Inteligencia compartida de la organización del usuario.
+
+    Las listas van vacías si la organización no comparte o el usuario no ha
+    dado su consentimiento.
+    """
+    organization = fields.Nested(TenantOrganizationSchema)
+    isOwner = fields.Boolean()
+    hasConsented = fields.Boolean()
+    contributingMembers = fields.Integer()
+    minMembers = fields.Integer()
+    windowDays = fields.Integer()
+    sharingEnabled = fields.Boolean()
+    protectedDomains = fields.List(fields.String())
+    protectedBrands = fields.List(fields.String())
+    updatedAt = fields.String(allow_none=True)
+    sharedIndicators = fields.List(fields.Nested(TenantSharedIndicatorSchema))
+    frequentDomains = fields.List(fields.Nested(TenantFrequentDomainSchema))
+
+
+class TenantPolicyRequestSchema(Schema):
+    """Política de inteligencia que fija el dueño de la organización."""
+    sharingEnabled = fields.Boolean(required=True)
+    protectedDomains = fields.List(fields.String(validate=validate.Length(max=253)), load_default=list,
+                                   validate=validate.Length(max=100))
+    protectedBrands = fields.List(fields.String(validate=validate.Length(max=200)), load_default=list,
+                                  validate=validate.Length(max=100))
+
+
+class TenantConsentRequestSchema(Schema):
+    """Consentimiento de un miembro para aportar a lo compartido."""
+    consent = fields.Boolean(required=True)

@@ -1778,6 +1778,8 @@ class LaunchSurface(StrEnum):
     - ``CAMPAIGNS``: envío de campañas de Aegis a destinatarios externos.
     - ``MAILBOX_CONNECTORS``: conexión y sincronización de buzones en Iris.
     - ``EXTERNAL_AI``: generación con proveedores de IA fuera del servidor.
+    - ``EXTERNAL_ENRICHMENT``: consultas de Iris a servicios de terceros sobre
+      los indicadores de un correo (RDAP, reputación, seguir enlaces).
     """
 
     REGISTRATION = "registration"
@@ -1786,6 +1788,7 @@ class LaunchSurface(StrEnum):
     CAMPAIGNS = "campaigns"
     MAILBOX_CONNECTORS = "mailboxConnectors"
     EXTERNAL_AI = "externalAi"
+    EXTERNAL_ENRICHMENT = "externalEnrichment"
 
 
 @config_block("general.launch")
@@ -2609,6 +2612,247 @@ class IrisOcrConfig:
 
 def iris_ocr_config() -> IrisOcrConfig:
     return load_block(IrisOcrConfig)
+
+
+@config_block("features.iris.campaigns")
+@dataclass(frozen=True)
+class IrisCampaignsConfig:
+    """Agrupación de análisis parecidos en campañas (``iris/services/campaigns.py``).
+
+    El parecido se mide con señales deterministas y se compara con un umbral:
+    cuánto pesa cada señal es código (``services/campaigns.py``), porque es la
+    definición de qué cuenta como la misma campaña; aquí solo se ajusta hasta
+    dónde se mira.
+    """
+
+    window_days: int = 14
+    """Días hacia atrás en los que se busca con qué emparejar un análisis
+    nuevo. Una campaña que vuelve pasado ese plazo abre una campaña nueva."""
+
+    similarity_threshold: float = 5.0
+    """Puntuación mínima de parecido para meter dos análisis en la misma
+    campaña. Con los pesos actuales basta una URL o un adjunto compartidos, o
+    el asunto más un dominio, pero no el asunto solo."""
+
+    max_candidates: int = 200
+    """Análisis recientes que se comparan como mucho con uno nuevo; acota el
+    coste de terminar un análisis en una cuenta con mucho volumen."""
+
+
+def iris_campaigns_config() -> IrisCampaignsConfig:
+    return load_block(IrisCampaignsConfig)
+
+
+@config_block("features.iris.graph")
+@dataclass(frozen=True)
+class IrisGraphConfig:
+    """Grafo de comunicación de Iris: quién escribe a quién (``iris/services/graph.py``).
+
+    Son metadatos de correo de personas reales, así que se guardan poco tiempo
+    y solo por usuario.
+    """
+
+    enabled: bool = True
+    """Si se construye el grafo. Apagado, no se guarda ninguna arista nueva
+    ni se busca desviación de contacto; las que ya había caducan solas."""
+
+    habitual_min_messages: int = 3
+    """Mensajes legítimos de un remitente a partir de los cuales es un
+    contacto habitual."""
+
+    retention_days: int = 90
+    """Días sin ver una arista tras los que se borra."""
+
+
+def iris_graph_config() -> IrisGraphConfig:
+    return load_block(IrisGraphConfig)
+
+
+@config_block("features.iris.exports")
+@dataclass(frozen=True)
+class IrisExportsConfig:
+    """Exportación de indicadores de Iris a JSON, STIX 2.1 y MISP."""
+
+    indicator_validity_days: int = 30
+    """Días que un indicador exportado se da por vigente desde la última vez
+    que se vio (``valid_until`` en STIX, ``last_seen`` en MISP). Las
+    infraestructuras de phishing se abandonan en días o semanas; bloquear un
+    dominio para siempre acaba bloqueando al siguiente que lo compre."""
+
+
+def iris_exports_config() -> IrisExportsConfig:
+    return load_block(IrisExportsConfig)
+
+
+@config_block("features.iris.enrichment")
+@dataclass(frozen=True)
+class IrisEnrichmentConfig:
+    """Consultas de Iris a servicios externos sobre un indicador (``iris/services/enrichment/``).
+
+    Son siempre bajo demanda. Además de este interruptor, las cierra la
+    superficie ``externalEnrichment`` de ``general.launch`` mientras la
+    instalación está en vista previa.
+    """
+
+    enabled: bool = True
+    """Si se consulta fuera. Apagado, cada consulta responde ``disabled`` sin
+    hacer red."""
+
+    timeout_seconds: float = 5.0
+    """Tiempo máximo de cada operación de red (conectar, enviar, leer)."""
+
+    max_response_bytes: int = 1024 * 1024
+    """Bytes que se leen como mucho de cada respuesta."""
+
+
+def iris_enrichment_config() -> IrisEnrichmentConfig:
+    return load_block(IrisEnrichmentConfig)
+
+
+@config_block("features.iris.enrichment.rdap")
+@dataclass(frozen=True)
+class IrisRdapConfig:
+    """Contexto de infraestructura de un dominio por RDAP: edad, registrador, red y país."""
+
+    base_url: str = "https://rdap.org"
+    """Servicio RDAP de arranque: redirige a la base de datos del registro
+    que corresponde a cada dominio o IP."""
+
+    ttl_hours: int = 24
+    """Horas que vale una respuesta en caché."""
+
+    negative_ttl_minutes: int = 30
+    """Minutos que se recuerda que el registro no respondió, para no
+    insistir en cada petición."""
+
+    requests_per_minute: int = 30
+    """Consultas por minuto al servicio RDAP desde cada proceso."""
+
+    recent_domain_days: int = 30
+    """Un dominio registrado hace menos días se señala como reciente. Es
+    contexto: no cambia ningún veredicto."""
+
+
+def iris_rdap_config() -> IrisRdapConfig:
+    return load_block(IrisRdapConfig)
+
+
+@config_block("features.iris.enrichment.urlExpansion")
+@dataclass(frozen=True)
+class IrisUrlExpansionConfig:
+    """Seguir los redirects de una URL de un correo hasta su destino real."""
+
+    max_redirects: int = 10
+    """Redirects que se siguen como mucho; un acortador encadenado rara vez
+    pasa de cinco."""
+
+    max_body_bytes: int = 256 * 1024
+    """Bytes que se leen de cada salto: basta para el ``<title>``."""
+
+    ttl_hours: int = 24
+    """Horas que vale una expansión antes de volver a seguirla."""
+
+    requests_per_minute: int = 20
+    """Expansiones por minuto que se encolan desde cada proceso."""
+
+
+def iris_url_expansion_config() -> IrisUrlExpansionConfig:
+    return load_block(IrisUrlExpansionConfig)
+
+
+#: Proveedores de reputación de Iris y el cupo por minuto de cada uno. El de
+#: VirusTotal es el de su API gratuita.
+_THREAT_INTEL_DEFAULT_PROVIDERS = {
+    "virustotal": {"enabled": False, "requestsPerMinute": 4},
+    "urlscan": {"enabled": False, "requestsPerMinute": 30},
+    "phishtank": {"enabled": False, "requestsPerMinute": 30},
+    "urlhaus": {"enabled": False, "requestsPerMinute": 30},
+}
+
+
+@config_block("features.iris.enrichment.threatIntel")
+@dataclass(frozen=True)
+class IrisThreatIntelConfig:
+    """Reputación de un indicador en servicios de terceros (``iris/services/enrichment/threat_intel/``).
+
+    Cada proveedor necesita, además de estar encendido aquí, su clave en el
+    entorno (``get_iris_threat_intel_key``). Solo se les envía el indicador,
+    nunca el correo.
+    """
+
+    ttl_hours: int = 12
+    """Horas que vale en caché lo que dijo un proveedor."""
+
+    negative_ttl_minutes: int = 30
+    """Minutos que se recuerda que un proveedor no respondió."""
+
+    providers: dict = field(default_factory=lambda: dict(_THREAT_INTEL_DEFAULT_PROVIDERS))
+    """Interruptor (``enabled``) y cupo por minuto (``requestsPerMinute``) de
+    cada proveedor, por nombre."""
+
+    def is_provider_enabled(self, provider: str) -> bool:
+        """Si un proveedor está encendido en la configuración.
+
+        Args:
+            provider: Nombre del proveedor.
+
+        Returns:
+            bool: ``True`` si su ``enabled`` es verdadero.
+        """
+        return bool((self.providers or {}).get(provider, {}).get("enabled", False))
+
+    def requests_per_minute(self, provider: str) -> int:
+        """Cupo por minuto de un proveedor.
+
+        Args:
+            provider: Nombre del proveedor.
+
+        Returns:
+            int: Su ``requestsPerMinute``; ``0`` si no está configurado.
+        """
+        return int((self.providers or {}).get(provider, {}).get("requestsPerMinute", 0))
+
+
+def iris_threat_intel_config() -> IrisThreatIntelConfig:
+    return load_block(IrisThreatIntelConfig)
+
+
+@config_block("features.iris.tenant")
+@dataclass(frozen=True)
+class IrisTenantConfig:
+    """Inteligencia de Iris compartida dentro de una organización (``iris/services/tenant.py``)."""
+
+    min_members: int = 3
+    """Miembros distintos que tienen que haber visto un indicador o un
+    dominio para que aparezca en lo compartido. Con menos, un agregado
+    señalaría a una persona concreta («esto solo lo recibió Ana»)."""
+
+    window_days: int = 30
+    """Días hacia atrás que se miran para los indicadores observados."""
+
+    max_items: int = 100
+    """Indicadores y dominios que se enseñan como mucho en cada lista."""
+
+
+def iris_tenant_config() -> IrisTenantConfig:
+    return load_block(IrisTenantConfig)
+
+
+def get_iris_threat_intel_key(provider: str) -> str:
+    """Clave de API de un proveedor de reputación de Iris, desde el entorno.
+
+    Solo variables de entorno: ``IRIS_VIRUSTOTAL_API_KEY``,
+    ``IRIS_URLSCAN_API_KEY``, ``IRIS_PHISHTANK_API_KEY`` o
+    ``IRIS_URLHAUS_API_KEY``.
+
+    Args:
+        provider: Nombre del proveedor.
+
+    Returns:
+        str: La clave, o cadena vacía si no está definida (el proveedor queda
+            fuera).
+    """
+    return os.getenv(f"IRIS_{provider.upper()}_API_KEY", "").strip()
 
 
 # --- Datasets y pesos: buscados por clave, no por campo ---------------------

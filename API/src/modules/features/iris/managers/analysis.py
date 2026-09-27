@@ -49,6 +49,8 @@ from ..repositories import (
     IrisRuleResultRepository,
 )
 from ..services.batch import message_fingerprint
+from ..services.campaigns import CampaignTraits, assign_to_campaign, build_features, build_traits
+from ..services.graph import detect_deviation, load_habitual_contacts, parse_participants, record_communication
 from ..services.indicators import extract_indicators, indicator_rows, refang
 from ..services.rules import iris_rules, RuleResult
 from ..services.text import extract_domain, is_free_provider, url_host
@@ -88,6 +90,8 @@ from ..services.trust import (
     find_matching_entry,
     is_sender_authenticated,
 )
+from .campaigns import IrisCampaignManager
+from .tenant import IrisTenantManager
 from .notifications import IrisPhishingNotifyManager
 from .trust import IrisTrustPolicyManager
 
@@ -534,7 +538,8 @@ def _persist_analysis_results(analysis_id: int, rules_defs: List[dict],
                                winning_reason: Optional[str] = None,
                                confidence: Optional[ConfidenceAssessment] = None,
                                scoring_policy: Optional[ScoringPolicy] = None,
-                               indicators: Optional[List[tuple]] = None) -> None:
+                               indicators: Optional[List[tuple]] = None,
+                               campaign_traits: Optional[CampaignTraits] = None) -> bool:
     """Persiste las filas de regla y el estado final del análisis en una
     única transacción.
 
@@ -572,6 +577,13 @@ def _persist_analysis_results(analysis_id: int, rules_defs: List[dict],
         indicators: Pares ``(kind, value)`` del índice de IOCs del
             contexto ganador (``services/indicators.indicator_rows``).
             Por defecto ``None``: no se indexa nada.
+        campaign_traits: Huellas y marcas del contexto ganador con las que
+            se agrupa en campañas (``services/campaigns.build_traits``). Por
+            defecto ``None``: esas columnas quedan a NULL.
+
+    Returns:
+        bool: ``True`` si el análisis pasó a ``finished``; ``False`` si ya no
+            estaba ``running`` (se canceló mientras se evaluaba).
     """
     with UnitOfWork() as uow:
         rule_repo = IrisRuleResultRepository(uow)
@@ -623,6 +635,9 @@ def _persist_analysis_results(analysis_id: int, rules_defs: List[dict],
             uncertainty_reasons=confidence.reasons if confidence else None,
             scoring_snapshot=scoring_policy.snapshot(detector) if scoring_policy else None,
             scoring_version=scoring_policy.version(detector) if scoring_policy else None,
+            subject_fingerprint=campaign_traits.subject_fingerprint if campaign_traits else None,
+            template_fingerprint=campaign_traits.template_fingerprint if campaign_traits else None,
+            impersonated_brands=list(campaign_traits.brands) or None if campaign_traits else None,
             finished_at=utcnow_naive(),
         )
         if not transitioned:
@@ -630,6 +645,81 @@ def _persist_analysis_results(analysis_id: int, rules_defs: List[dict],
                 f"Análisis {analysis_id} ya no estaba running al terminar de "
                 "evaluar las reglas (probablemente cancelado) -- no se sobreescribe."
             )
+        return transitioned
+
+def _group_into_campaign(analysis_id: int, verdict: str, traits: CampaignTraits,
+                         indicators: List[tuple]) -> None:
+    """Mete un análisis recién terminado en su campaña, si se parece a otro.
+
+    Va en su propia transacción, después de la del análisis: agrupar es una
+    ayuda para investigar, y un fallo aquí no puede dejar sin veredicto un
+    análisis que ya lo tiene. Por eso tampoco propaga ninguna excepción.
+
+    Args:
+        analysis_id: Análisis recién terminado.
+        verdict: Su veredicto; uno legítimo no se agrupa.
+        traits: Sus rasgos de campaña.
+        indicators: Sus pares ``(kind, value)`` del índice de IOCs.
+    """
+    if verdict == "Legitimate":
+        return
+    try:
+        with UnitOfWork() as uow:
+            analysis = IrisAnalysisRepository(uow).get_by_id(analysis_id)
+            if analysis is None:
+                return
+            features = build_features(traits.subject_fingerprint, traits.template_fingerprint,
+                                      traits.brands, indicators)
+            campaign_id = assign_to_campaign(uow, analysis_id, analysis.user_id, analysis.created_at,
+                                             features, traits.label)
+        if campaign_id is not None:
+            logger.info(f"Análisis {analysis_id} agrupado en la campaña {campaign_id}")
+    except Exception as e:
+        logger.error(f"No se pudo agrupar el análisis {analysis_id} en una campaña: {e}", exc_info=True)
+
+def _update_contact_graph(analysis_id: int, verdict: str, headers: Dict[str, str]) -> None:
+    """Compara el remitente con los contactos habituales y suma el mensaje al grafo.
+
+    Primero se busca la desviación, con el grafo tal como estaba antes de este
+    mensaje; después se suman sus aristas. Un mensaje que el usuario ya había
+    analizado (misma huella de contenido) no vuelve a sumar: reanalizarlo no
+    lo convierte en un mensaje más de ese remitente.
+
+    Va en su propia transacción y no propaga excepciones, por lo mismo que
+    ``_group_into_campaign``: el análisis ya tiene su veredicto.
+
+    Args:
+        analysis_id: Análisis recién terminado.
+        verdict: Su veredicto; solo ``Legitimate`` cuenta para hacer habitual
+            a un remitente.
+        headers: Cabeceras del contexto ganador.
+    """
+    config = CR.iris_graph_config()
+    if not config.enabled:
+        return
+    try:
+        with UnitOfWork() as uow:
+            analysis_repo = IrisAnalysisRepository(uow)
+            analysis = analysis_repo.get_by_id(analysis_id)
+            if analysis is None:
+                return
+            participants = parse_participants(headers)
+            if not participants.sender_address:
+                return
+            habitual_contacts = load_habitual_contacts(uow, analysis.user_id, config.habitual_min_messages)
+            deviation = detect_deviation(participants, habitual_contacts)
+            if deviation is not None:
+                analysis.contact_deviation = deviation
+                logger.info(f"Análisis {analysis_id}: el remitente imita a un contacto habitual ({deviation['kind']})")
+            is_repeat = bool(analysis.content_sha256) and analysis_repo.has_earlier_with_fingerprint(
+                analysis.user_id, analysis.content_sha256, analysis_id,
+            )
+            if not is_repeat:
+                record_communication(uow, analysis.user_id, participants, verdict == "Legitimate",
+                                     analysis.created_at)
+    except Exception as e:
+        logger.error(f"No se pudo actualizar el grafo de contactos con el análisis {analysis_id}: {e}",
+                     exc_info=True)
 
 def _evaluate_contexts(analysis_id: Optional[int], context, job, rules_defs: List[dict],
                         policy: Optional[ScoringPolicy] = None,
@@ -876,7 +966,10 @@ def _run_analysis(analysis_id: int, raw_input: str) -> None:
                 suspicious_threshold=policy.suspicious_threshold
             )
 
-            _persist_analysis_results(
+            winning_message = context_of_type(context, winner.context_type)
+            indicators = indicator_rows(extract_indicators(winning_message))
+            campaign_traits = build_traits(winning_message, winner.results)
+            is_finished = _persist_analysis_results(
                 analysis_id,
                 rules_defs,
                 winner,
@@ -885,13 +978,17 @@ def _run_analysis(analysis_id: int, raw_input: str) -> None:
                 winning_reason=winning_reason,
                 confidence=confidence,
                 scoring_policy=policy,
-                indicators=indicator_rows(extract_indicators(
-                    context_of_type(context, winner.context_type))),
+                indicators=indicators,
+                campaign_traits=campaign_traits,
             )
         except Exception as e:
             logger.error(f"Analysis {analysis_id} failed: {e}", exc_info=True)
             _fail_analysis(analysis_id, classify_failure(e))
             return
+
+        if is_finished:
+            _group_into_campaign(analysis_id, verdict, campaign_traits, indicators)
+            _update_contact_graph(analysis_id, verdict, winning_message.headers)
 
         if verdict == "Phishing":
             _enqueue_phishing_notification(analysis_id, verdict)
@@ -1410,7 +1507,14 @@ class IrisManager(TaskTrackingMixin):
                 ``verdict``, ``totalScore``, ``rules``, ``winningContext``,
                 ``secondaryContext``, ``previewHeaders``…; ver
                 ``AnalysisDetailResponseSchema``). ``secondaryContext`` es
-                ``None`` cuando el mensaje no era un reenvío.
+                ``None`` cuando el mensaje no era un reenvío; ``campaign`` es
+                ``None`` cuando el análisis no está en ninguna campaña (ver
+                ``IrisCampaignManager.get_campaign_of_analysis``), y
+                ``contactDeviation``, cuando el remitente no imitaba a ningún
+                contacto habitual (ver ``services/graph.detect_deviation``), y
+                ``organizationSightings`` cuando el usuario no comparte
+                inteligencia con su organización o ningún indicador lo han
+                visto bastantes miembros (ver ``IrisTenantManager.get_sightings``).
 
         Raises:
             IrisAnalysisNotFoundError: Si *analysis_id* no existe.
@@ -1460,6 +1564,10 @@ class IrisManager(TaskTrackingMixin):
         # comprobar la propiedad del análisis.
         from .feedback import IrisFeedbackManager
         latest_feedback = IrisFeedbackManager.latest_for_analysis(analysis_id)
+        campaign = IrisCampaignManager.get_campaign_of_analysis(analysis_id)
+        organization_sightings = IrisTenantManager.get_sightings(
+            analysis.user_id, [(indicator.kind, indicator.value) for indicator in analysis.indicators],
+        )
 
         return {
             "analysisId": analysis.id,
@@ -1499,6 +1607,9 @@ class IrisManager(TaskTrackingMixin):
             "latestFeedback": latest_feedback,
             "trustApplied": analysis.trust_applied,
             "tags": [tag.name for tag in analysis.tags],
+            "campaign": campaign,
+            "contactDeviation": analysis.contact_deviation,
+            "organizationSightings": organization_sightings,
         }
 
     def get_analysis_path(self, analysis_id: int, user_id: int) -> Dict[str, Any]:

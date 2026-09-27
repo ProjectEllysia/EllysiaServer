@@ -174,6 +174,8 @@
              próximos análisis. No toca este veredicto. -->
         <!-- Convertir el informe en trabajo: añadirlo a un caso de analista. -->
         <IrisAddToCase :analysis-id="reportData.analysisId" :analysis-title="reportData.title || ''" />
+        <!-- Llevarse los indicadores a un SIEM o a MISP. -->
+        <IrisIntelExport :url="`/iris/results/${reportData.analysisId}/export/intel`" />
         <button v-if="!trustFormOpen" type="button" class="feedback-option trust-open" @click="trustFormOpen = true">
           {{ t('iris.report.trustSender') }}
         </button>
@@ -184,6 +186,42 @@
           @saved="trustFormOpen = false"
           @cancel="trustFormOpen = false"
         />
+      </div>
+
+      <!-- Remitente que imita a un contacto habitual del usuario. No cambia
+           el veredicto (depende de la historia del usuario, no del mensaje),
+           pero es lo primero que hay que saber en un fraude del CEO. -->
+      <div v-if="reportData.contactDeviation" class="rv-trust rv-trust--ignored">
+        <strong class="uncertainty-title">{{ t('iris.report.deviationTitle') }}</strong>
+        <p class="trust-detail">
+          {{ t(deviationKey(reportData.contactDeviation.kind), {
+            sender: reportData.contactDeviation.senderAddress,
+            name: reportData.contactDeviation.displayName || reportData.contactDeviation.senderAddress,
+            habitual: reportData.contactDeviation.habitualAddress,
+            count: reportData.contactDeviation.habitualMessages,
+          }) }}
+        </p>
+      </div>
+
+      <!-- Indicadores que también han visto otros miembros de la organización
+           (solo recuentos: nunca quién ni qué correo). -->
+      <div v-if="reportData.organizationSightings" class="rv-campaign">
+        <strong class="uncertainty-title">{{ t('iris.report.sightingsTitle') }}</strong>
+        <ul class="trust-detail">
+          <li v-for="indicator in reportData.organizationSightings.indicators" :key="`${indicator.kind}:${indicator.value}`">
+            <code>{{ defangIndicator(indicator.value) }}</code> — {{ t('iris.report.sightingsCount', { count: indicator.memberCount }) }}
+          </li>
+        </ul>
+      </div>
+
+      <!-- Campaña: otros mensajes parecidos del usuario, para investigarlos
+           juntos en vez de uno a uno. -->
+      <div v-if="reportData.campaign" class="rv-campaign">
+        <strong class="uncertainty-title">{{ t('iris.report.campaignTitle') }}</strong>
+        <p class="trust-detail">
+          {{ t('iris.report.campaignRelated', { count: reportData.campaign.relatedCount }) }}
+          <router-link :to="{ path: '/iris/campanas', query: { id: reportData.campaign.campaignId } }">{{ t('iris.report.campaignOpen') }}</router-link>
+        </p>
       </div>
 
       <!-- Excepción de confianza que coincidió con el remitente: aplicada
@@ -407,6 +445,7 @@
 import { ref, computed, watch, nextTick } from 'vue'
 import { useUtils } from '@/composables/useUtils'
 import { verdictKey } from '@/components/iris/verdict'
+import { contactDeviationKey as deviationKey, defang as defangIndicator } from '@/components/iris/indicators'
 import { useIrisStore } from '@/stores/irisStore'
 import IrisEmailPath from '@/components/iris/IrisEmailPath.vue'
 import IrisDocumentsModal from '@/components/iris/IrisDocumentsModal.vue'
@@ -415,6 +454,7 @@ import IrisIocsPanel from '@/components/iris/IrisIocsPanel.vue'
 import IrisVerdictHero from '@/components/iris/IrisVerdictHero.vue'
 import IrisTrustForm from '@/components/iris/IrisTrustForm.vue'
 import IrisAddToCase from '@/components/iris/IrisAddToCase.vue'
+import IrisIntelExport from '@/components/iris/IrisIntelExport.vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -1216,6 +1256,12 @@ watch(
   border: 1px solid rgba(96, 128, 224, 0.25);
   border-radius: 10px;
   background: var(--info-dim);
+}
+.rv-campaign {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-med);
+  border-radius: 10px;
+  background: var(--accent-dim);
 }
 .rv-trust--ignored {
   border-color: rgba(212, 160, 74, 0.3);

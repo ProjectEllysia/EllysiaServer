@@ -588,6 +588,94 @@ export const useIrisStore = defineStore('iris', () => {
     currentBatch.value = null
   }
 
+  /* ═══════════════════════════ CAMPAÑAS ═══════════════════════════════ */
+
+  const campaigns = reactive({ items: [], total: 0, page: 1, perPage: 20, loading: false })
+  const currentCampaign = ref(null)
+
+  /**
+   * Carga una página de las campañas del usuario.
+   * @param {number} [page] Página, empezando en 1; por defecto la actual.
+   */
+  async function fetchCampaigns(page = campaigns.page) {
+    campaigns.loading = true
+    try {
+      const res = await apiFetch(`/iris/campaigns?page=${page}&per_page=${campaigns.perPage}`)
+      if (!res?.ok) return
+      const data = await res.json()
+      campaigns.items = data.campaigns ?? []
+      campaigns.total = data.total ?? 0
+      campaigns.page = data.page ?? page
+    } finally {
+      campaigns.loading = false
+    }
+  }
+
+  /**
+   * Carga una campaña entera (mensajes e indicadores comunes) en `currentCampaign`.
+   * @param {number} id Id de la campaña.
+   * @returns {Promise<object|null>} La campaña, o null si no se pudo cargar.
+   */
+  async function fetchCampaign(id) {
+    const res = await apiFetch(`/iris/campaigns/${id}`)
+    currentCampaign.value = res?.ok ? await res.json() : null
+    return currentCampaign.value
+  }
+
+  /* ══════════════════ INTELIGENCIA DE LA ORGANIZACIÓN ══════════════════ */
+
+  /** Estado de la inteligencia compartida; `data` es null si no hay organización. */
+  const organizationIntel = reactive({ loading: false, loaded: false, data: null, notInOrganization: false })
+
+  /** Carga lo que el usuario puede ver de la inteligencia de su organización. */
+  async function fetchOrganizationIntel() {
+    organizationIntel.loading = true
+    try {
+      const res = await apiFetch('/iris/organization/intel')
+      organizationIntel.notInOrganization = res?.status === 409
+      organizationIntel.data = res?.ok ? await res.json() : null
+      organizationIntel.loaded = true
+    } finally {
+      organizationIntel.loading = false
+    }
+  }
+
+  /**
+   * Petición que devuelve la inteligencia actualizada; si falla, avisa.
+   * @returns {Promise<boolean>} true si se aplicó.
+   */
+  async function _organizationIntelRequest(url, body, errorText, successText) {
+    const res = await apiFetch(url, { method: 'PUT', body: JSON.stringify(body) })
+    if (!res?.ok) {
+      toast.show(await apiError(res, errorText), 'error')
+      return false
+    }
+    organizationIntel.data = await res.json()
+    toast.show(successText, 'success')
+    return true
+  }
+
+  /**
+   * El dueño cambia la política de la organización.
+   * @param {{sharingEnabled: boolean, protectedDomains: string[], protectedBrands: string[]}} policy
+   * @returns {Promise<boolean>} true si se guardó.
+   */
+  function updateOrganizationPolicy(policy) {
+    return _organizationIntelRequest('/iris/organization/intel/policy', policy,
+      i18n.global.t('irisStore.organizationPolicyFailed'), i18n.global.t('irisStore.organizationPolicySaved'))
+  }
+
+  /**
+   * Da o retira el consentimiento del usuario.
+   * @param {boolean} consent Dar (true) o retirar (false).
+   * @returns {Promise<boolean>} true si se aplicó.
+   */
+  function setOrganizationConsent(consent) {
+    return _organizationIntelRequest('/iris/organization/intel/consent', { consent },
+      i18n.global.t('irisStore.organizationConsentFailed'),
+      i18n.global.t(consent ? 'irisStore.organizationConsentGiven' : 'irisStore.organizationConsentWithdrawn'))
+  }
+
   /* ═══════════════════════ CASOS DE ANALISTA ══════════════════════════ */
 
   const cases = reactive({
@@ -733,6 +821,43 @@ export const useIrisStore = defineStore('iris', () => {
       return false
     }
     toast.show(i18n.global.t('irisStore.trustRevoked'), 'success')
+    return true
+  }
+
+  /* ═════════════════════ GRAFO DE COMUNICACIÓN ═════════════════════════ */
+
+  const contactGraph = reactive({ senders: [], habitualMinMessages: 0, retentionDays: 0, enabled: true, loading: false })
+
+  /** Carga los remitentes del grafo de comunicación del usuario. */
+  async function fetchContactGraph() {
+    contactGraph.loading = true
+    try {
+      const res = await apiFetch('/iris/graph')
+      if (!res?.ok) return
+      const data = await res.json()
+      Object.assign(contactGraph, {
+        senders: data.senders ?? [],
+        habitualMinMessages: data.habitualMinMessages ?? 0,
+        retentionDays: data.retentionDays ?? 0,
+        enabled: data.enabled ?? true,
+      })
+    } finally {
+      contactGraph.loading = false
+    }
+  }
+
+  /**
+   * Olvida el grafo de comunicación entero. Los análisis no cambian.
+   * @returns {Promise<boolean>} true si se olvidó.
+   */
+  async function forgetContactGraph() {
+    const res = await apiFetch('/iris/graph', { method: 'DELETE' })
+    if (!res?.ok) {
+      toast.show(await apiError(res, i18n.global.t('irisStore.graphForgetFailed')), 'error')
+      return false
+    }
+    contactGraph.senders = []
+    toast.show(i18n.global.t('irisStore.graphForgotten'), 'success')
     return true
   }
 
@@ -907,6 +1032,103 @@ export const useIrisStore = defineStore('iris', () => {
     }
   }
 
+  /**
+   * Descarga la exportación de indicadores de un análisis o de una campaña.
+   * @param {string} url Recurso de exportación (`/iris/results/<id>/export/intel`
+   *   o `/iris/campaigns/<id>/export`).
+   * @param {'json'|'stix'|'misp'} format Formato pedido.
+   * @returns {Promise<boolean>} true si se descargó.
+   */
+  async function downloadIntelExport(url, format) {
+    const res = await apiFetch(url, { method: 'POST', body: JSON.stringify({ format }) })
+    if (!res?.ok) {
+      toast.show(await apiError(res, i18n.global.t('irisStore.exportFailed')), 'error')
+      return false
+    }
+    triggerDownload(await res.blob(), filenameFromResponse(res, `iris-export.${format}.json`))
+    return true
+  }
+
+  /* ══════════════════════ ENRIQUECIMIENTO EXTERNO ════════════════════════ */
+
+  /** Contexto RDAP ya pedido, por dominio: `{ loading, data }`. */
+  const domainContexts = reactive({})
+
+  /**
+   * Pide el contexto de infraestructura (RDAP) de un dominio del usuario.
+   * @param {string} domain Dominio tal como sale en los IOCs.
+   * @returns {Promise<object|null>} El contexto, o null si falló la petición.
+   */
+  async function fetchDomainContext(domain) {
+    domainContexts[domain] = { loading: true, data: null }
+    const res = await apiFetch(`/iris/domains/${encodeURIComponent(domain)}/context`)
+    if (!res?.ok) {
+      toast.show(await apiError(res, i18n.global.t('irisStore.enrichmentFailed')), 'error')
+      delete domainContexts[domain]
+      return null
+    }
+    const data = await res.json()
+    domainContexts[domain] = { loading: false, data }
+    return data
+  }
+
+  /** Expansiones de URLs pedidas, por URL: `{ loading, data }`. */
+  const urlExpansions = reactive({})
+
+  /** Espera entre sondeos de una expansión en marcha, en ms. */
+  const URL_EXPANSION_POLL_MS = 2000
+  /** Sondeos como mucho antes de dejar de esperar (un minuto). */
+  const URL_EXPANSION_MAX_POLLS = 30
+
+  /**
+   * Pide seguir una URL de un análisis y sondea hasta que termina.
+   * @param {number} analysisId Análisis en el que aparece.
+   * @param {string} url URL tal como sale en los IOCs.
+   * @returns {Promise<object|null>} La expansión final, o null si falló.
+   */
+  async function expandUrl(analysisId, url) {
+    urlExpansions[url] = { loading: true, data: null }
+    const res = await apiFetch(`/iris/results/${analysisId}/url-expansions`, { method: 'POST', body: JSON.stringify({ url }) })
+    if (!res?.ok) {
+      toast.show(await apiError(res, i18n.global.t('irisStore.enrichmentFailed')), 'error')
+      delete urlExpansions[url]
+      return null
+    }
+    let expansion = await res.json()
+    for (let poll = 0; ['pending', 'running'].includes(expansion.status) && poll < URL_EXPANSION_MAX_POLLS; poll++) {
+      await new Promise((resolve) => setTimeout(resolve, URL_EXPANSION_POLL_MS))
+      const listRes = await apiFetch(`/iris/results/${analysisId}/url-expansions`)
+      if (!listRes?.ok) break
+      const { expansions = [] } = await listRes.json()
+      expansion = expansions.find((item) => item.url.toLowerCase() === url.toLowerCase()) ?? expansion
+    }
+    urlExpansions[url] = { loading: false, data: expansion }
+    return expansion
+  }
+
+  /** Reputación ya pedida, por `tipo:valor`: `{ loading, data }`. */
+  const reputations = reactive({})
+
+  /**
+   * Pregunta la reputación de un indicador a los proveedores configurados.
+   * @param {'domain'|'url'|'ip'|'hash'} kind Tipo de indicador.
+   * @param {string} value El indicador tal como sale en los IOCs.
+   * @returns {Promise<object|null>} La respuesta, o null si falló la petición.
+   */
+  async function fetchReputation(kind, value) {
+    const key = `${kind}:${value}`
+    reputations[key] = { loading: true, data: null }
+    const res = await apiFetch('/iris/indicators/reputation', { method: 'POST', body: JSON.stringify({ kind, value }) })
+    if (!res?.ok) {
+      toast.show(await apiError(res, i18n.global.t('irisStore.enrichmentFailed')), 'error')
+      delete reputations[key]
+      return null
+    }
+    const data = await res.json()
+    reputations[key] = { loading: false, data }
+    return data
+  }
+
   /** Elimina un documento generado. */
   async function deleteDocument(documentId, analysisId) {
     const res = await apiFetch(`/iris/document/${documentId}`, { method: 'DELETE' })
@@ -945,6 +1167,10 @@ export const useIrisStore = defineStore('iris', () => {
     Object.assign(cases, { items: [], total: 0, countsByStatus: {}, loading: false,
       filters: { status: '', priority: '', assignedToMe: false } })
     currentCase.value = null
+    Object.assign(campaigns, { items: [], total: 0, page: 1, loading: false })
+    Object.assign(contactGraph, { senders: [], habitualMinMessages: 0, retentionDays: 0, enabled: true, loading: false })
+    currentCampaign.value = null
+    Object.assign(organizationIntel, { loading: false, loaded: false, data: null, notInOrganization: false })
     closeBatch()
 
     currentId.value = null
@@ -970,15 +1196,22 @@ export const useIrisStore = defineStore('iris', () => {
     fetchArchive, setArchiveFilters, resetArchiveFilters, setArchiveSort, goToArchivePage,
     savedViews, userTags, fetchSavedViews, saveArchiveView, applySavedView, deleteSavedView,
     fetchTags, setAnalysisTags, fetchReportById,
+    campaigns, currentCampaign, fetchCampaigns, fetchCampaign,
+    organizationIntel, fetchOrganizationIntel, updateOrganizationPolicy, setOrganizationConsent,
     cases, currentCase, fetchCases, fetchCase, createCase, updateCase, changeCaseStatus,
     addCaseNote, linkCaseAnalysis, unlinkCaseAnalysis,
     currentBatch, batchSubmitting, submitBatch, closeBatch,
+    contactGraph, fetchContactGraph, forgetContactGraph,
     trustedSenders, trustedSendersLoading, fetchTrustedSenders, createTrustedSender, revokeTrustedSender,
     submitAnalysis, fetchResults, getReport, getStatus, pathFor, iocsFor,
     resolvedPathFor, isPathLoadingFor, resolvedIocsFor, isIocsLoadingFor,
     generateAiSummary, checkAiSummary,
     cancelAnalysis, deleteAnalysis, reanalyzeAnalysis, selectAnalysis, submitFeedback, runReplay,
     startPolling, stopPolling,
+    downloadIntelExport,
+    domainContexts, fetchDomainContext,
+    urlExpansions, expandUrl,
+    reputations, fetchReputation,
     generateDocument, fetchDocuments, getDocumentStatus, downloadDocument, deleteDocument,
     stopDocumentPolling,
     $reset,

@@ -37,7 +37,8 @@ import src.modules.system.config_reading as CR
 from .managers import (
     IrisFeedbackManager, IrisManager, IrisReportManager, IrisMailboxManager,
     IrisNotificationPreferenceManager, IrisReplayManager, IrisTriageManager, IrisTrustPolicyManager,
-    IrisCaseManager, IrisBatchManager,
+    IrisCaseManager, IrisBatchManager, IrisCampaignManager, IrisContactGraphManager, IrisExportManager,
+    IrisEnrichmentManager, IrisUrlExpansionManager, IrisTenantManager,
 )
 from .exceptions import (
     IrisAnalysisNotFoundError,
@@ -45,6 +46,8 @@ from .exceptions import (
     IrisMailboxConnectionNotFoundError,
     IrisMailboxOAuthStateError,
     IrisBatchNotFoundError,
+    IrisCampaignNotFoundError,
+    IrisIndicatorNotFoundError,
     IrisCaseNotFoundError,
     IrisSavedViewNotFoundError,
     IrisTrustedSenderNotFoundError,
@@ -112,6 +115,23 @@ from .schemas import (
     IrisCaseUpdateRequestSchema,
     IrisBatchListResponseSchema,
     IrisBatchResponseSchema,
+    IrisCampaignDetailSchema,
+    IrisCampaignListResponseSchema,
+    IrisCampaignsQuerySchema,
+    IrisGraphDeleteResponseSchema,
+    IrisGraphQuerySchema,
+    IrisGraphResponseSchema,
+    IntelExportQuerySchema,
+    IntelExportRequestSchema,
+    IrisDomainContextSchema,
+    UrlExpansionListSchema,
+    UrlExpansionRequestSchema,
+    UrlExpansionSchema,
+    ReputationRequestSchema,
+    ReputationResponseSchema,
+    TenantConsentRequestSchema,
+    TenantIntelResponseSchema,
+    TenantPolicyRequestSchema,
 )
 
 
@@ -121,6 +141,23 @@ iris_blp = SmorestBlueprint(
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _download(document: dict, file_name: str) -> Response:
+    """Respuesta de descarga de un documento JSON exportado.
+
+    Args:
+        document: El documento, ya en su formato.
+        file_name: Nombre del fichero.
+
+    Returns:
+        Response: ``application/json`` con ``Content-Disposition: attachment``.
+    """
+    return Response(
+        json.dumps(document, ensure_ascii=False, indent=2),
+        mimetype="application/json",
+        headers={"Content-Disposition": f'attachment; filename="{file_name}"'},
+    )
 
 
 @iris_blp.post("/admin/replay")
@@ -558,6 +595,203 @@ def unlink_case_analysis(case_id: int, analysis_id: int):
     return IrisCaseManager().unlink_analysis(case_id, get_current_user().id, analysis_id)
 
 
+# =============================================================================
+# Campañas
+# =============================================================================
+
+@iris_blp.get("/campaigns")
+@iris_blp.arguments(IrisCampaignsQuerySchema, location="query")
+@iris_blp.response(200, IrisCampaignListResponseSchema, description="Campaigns grouping similar analyses")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("300 per hour; 2000 per day")
+@handle_exceptions(logger=logger)
+def list_campaigns(args: dict):
+    """Campañas del usuario: sus análisis parecidos, agrupados"""
+    return IrisCampaignManager.list_campaigns(get_current_user().id, args["page"], args["per_page"])
+
+
+@iris_blp.get("/campaigns/<int:campaign_id>")
+@iris_blp.response(200, IrisCampaignDetailSchema, description="Campaign with its messages and shared indicators")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Campaign not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("300 per hour; 2000 per day")
+@handle_exceptions(default_exception=IrisCampaignNotFoundError, logger=logger)
+def get_campaign(campaign_id: int):
+    """Una campaña: sus mensajes, los indicadores que comparten y las marcas suplantadas"""
+    return IrisCampaignManager.get_campaign(campaign_id, get_current_user().id)
+
+
+
+@iris_blp.post("/campaigns/<int:campaign_id>/export")
+@iris_blp.arguments(IntelExportRequestSchema)
+@iris_blp.response(200, description="Campaign indicators and findings as JSON, STIX 2.1 or MISP (file download)")
+@iris_blp.alt_response(400, schema=ErrorSchema, description="Unknown format")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Campaign not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("60 per hour; 300 per day")
+@handle_exceptions(default_exception=IrisCampaignNotFoundError, logger=logger)
+def export_campaign(data: dict, campaign_id: int):
+    """Exportar los indicadores y hallazgos de toda una campaña en un solo documento"""
+    user = get_current_user()
+    document, file_name = IrisExportManager.export_campaign(campaign_id, user.id, data["format"], data["defang"])
+    logger.info(f"Campaña {campaign_id} exportada en {data['format']} por {user.username}")
+    return _download(document, file_name)
+
+# =============================================================================
+# Grafo de comunicación
+# =============================================================================
+
+@iris_blp.get("/graph")
+@iris_blp.arguments(IrisGraphQuerySchema, location="query")
+@iris_blp.response(200, IrisGraphResponseSchema, description="Who writes to whom, from the user's analyses")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("300 per hour; 2000 per day")
+@handle_exceptions(logger=logger)
+def get_contact_graph(args: dict):
+    """Grafo de comunicación del usuario: remitentes habituales y a quién escriben"""
+    return IrisContactGraphManager.get_graph(get_current_user().id, args["address"], args["limit"])
+
+
+@iris_blp.delete("/graph")
+@iris_blp.response(200, IrisGraphDeleteResponseSchema, description="Graph forgotten")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_DELETE])
+@limiter.limit("30 per hour; 100 per day")
+@handle_exceptions(logger=logger)
+def forget_contact_graph():
+    """Olvidar el grafo de comunicación entero (los análisis no cambian)"""
+    return IrisContactGraphManager.forget_graph(get_current_user().id)
+
+
+# =============================================================================
+# Enriquecimiento (consultas externas bajo demanda)
+# =============================================================================
+
+@iris_blp.get("/domains/<string:domain>/context")
+@iris_blp.response(200, IrisDomainContextSchema, description="Registration and hosting context of a domain (RDAP)")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions or surface closed")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Domain not in any of the user's analyses")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("60 per hour; 300 per day")
+@handle_exceptions(default_exception=IrisIndicatorNotFoundError, logger=logger)
+def get_domain_context(domain: str):
+    """Edad, registrador, red y país de un dominio que aparece en tus análisis"""
+    return IrisEnrichmentManager.get_domain_context(domain, get_current_user().id)
+
+
+
+@iris_blp.get("/results/<int:analysis_id>/url-expansions")
+@iris_blp.response(200, UrlExpansionListSchema, description="URLs of the analysis and where they lead")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Analysis not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("600 per hour; 4000 per day")
+@handle_exceptions(default_exception=IrisAnalysisNotFoundError, logger=logger)
+def list_url_expansions(analysis_id: int):
+    """Las URLs del análisis y, las que se siguieron, a dónde llevan"""
+    return IrisUrlExpansionManager.list_expansions(analysis_id, get_current_user().id)
+
+
+@iris_blp.post("/results/<int:analysis_id>/url-expansions")
+@iris_blp.arguments(UrlExpansionRequestSchema)
+@iris_blp.response(202, UrlExpansionSchema, description="Expansion queued (or already available)")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions or surface closed")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Analysis or URL not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("60 per hour; 300 per day")
+@handle_exceptions(default_exception=IrisAnalysisNotFoundError, logger=logger)
+def request_url_expansion(data: dict, analysis_id: int):
+    """Seguir una URL del análisis hasta su destino real, sin alcanzar nunca la red interna"""
+    return IrisUrlExpansionManager().request_expansion(analysis_id, get_current_user().id, data["url"])
+
+
+
+@iris_blp.post("/indicators/reputation")
+@iris_blp.arguments(ReputationRequestSchema)
+@iris_blp.response(200, ReputationResponseSchema, description="Reputation of an indicator in the configured providers")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions or surface closed")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Indicator not in any of the user's analyses")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("60 per hour; 300 per day")
+@handle_exceptions(default_exception=IrisIndicatorNotFoundError, logger=logger)
+def get_indicator_reputation(data: dict):
+    """Reputación de un indicador de tus análisis; solo se envía el indicador, nunca el correo"""
+    return IrisEnrichmentManager.get_reputation(data["kind"], data["value"], get_current_user().id)
+
+
+
+# =============================================================================
+# Inteligencia compartida en la organización
+# =============================================================================
+
+@iris_blp.get("/organization/intel")
+@iris_blp.response(200, TenantIntelResponseSchema, description="Anonymised intelligence shared in the user's organization")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@iris_blp.alt_response(409, schema=ErrorSchema, description="The user is not in an organization")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("300 per hour; 2000 per day")
+@handle_exceptions(logger=logger)
+def get_organization_intel():
+    """Inteligencia agregada y anonimizada de tu organización, si la comparte y has dado tu consentimiento"""
+    return IrisTenantManager.get_intel(get_current_user().id)
+
+
+@iris_blp.put("/organization/intel/policy")
+@iris_blp.arguments(TenantPolicyRequestSchema)
+@iris_blp.response(200, TenantIntelResponseSchema, description="Policy updated")
+@iris_blp.alt_response(400, schema=ErrorSchema, description="Invalid domain or too many entries")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Only the organization owner")
+@iris_blp.alt_response(409, schema=ErrorSchema, description="The user is not in an organization")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_UPDATE])
+@limiter.limit("60 per hour; 300 per day")
+@handle_exceptions(logger=logger)
+def update_organization_intel_policy(data: dict):
+    """El dueño decide si la organización comparte inteligencia y qué dominios y marcas protege"""
+    return IrisTenantManager.update_policy(get_current_user().id, data["sharingEnabled"],
+                                           data["protectedDomains"], data["protectedBrands"])
+
+
+@iris_blp.put("/organization/intel/consent")
+@iris_blp.arguments(TenantConsentRequestSchema)
+@iris_blp.response(200, TenantIntelResponseSchema, description="Consent given or withdrawn")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@iris_blp.alt_response(409, schema=ErrorSchema, description="The user is not in an organization")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("60 per hour; 300 per day")
+@handle_exceptions(logger=logger)
+def set_organization_intel_consent(data: dict):
+    """Dar o retirar tu consentimiento para aportar a la inteligencia de la organización"""
+    return IrisTenantManager.set_consent(get_current_user().id, data["consent"])
+
+
 @iris_blp.get("/retention-policy")
 @iris_blp.response(200, IrisRetentionReportResponseSchema, description="Retention policy and current status")
 @iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
@@ -734,6 +968,43 @@ def export_analysis(analysis_id: int):
         mimetype="application/json",
         headers={"Content-Disposition": f'attachment; filename="iris-analysis-{analysis_id}.json"'},
     )
+
+
+@iris_blp.get("/results/<int:analysis_id>/export/intel")
+@iris_blp.arguments(IntelExportQuerySchema, location="query")
+@iris_blp.response(200, description="Versioned JSON of indicators and findings (file download)")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Analysis not found")
+@iris_blp.alt_response(409, schema=ErrorSchema, description="Analysis not ready")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("60 per hour; 300 per day")
+@handle_exceptions(default_exception=IrisAnalysisNotFoundError, logger=logger)
+def export_analysis_intel(args: dict, analysis_id: int):
+    """Indicadores y hallazgos del análisis en el JSON versionado de Iris, desactivados por defecto"""
+    document, file_name = IrisExportManager.export_analysis(analysis_id, get_current_user().id, "json", args["defang"])
+    return _download(document, file_name)
+
+
+@iris_blp.post("/results/<int:analysis_id>/export/intel")
+@iris_blp.arguments(IntelExportRequestSchema)
+@iris_blp.response(200, description="Indicators and findings as JSON, STIX 2.1 or MISP (file download)")
+@iris_blp.alt_response(400, schema=ErrorSchema, description="Unknown format")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Analysis not found")
+@iris_blp.alt_response(409, schema=ErrorSchema, description="Analysis not ready")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("60 per hour; 300 per day")
+@handle_exceptions(default_exception=IrisAnalysisNotFoundError, logger=logger)
+def export_analysis_intel_as(data: dict, analysis_id: int):
+    """Exportar indicadores y hallazgos del análisis en el formato pedido (JSON, STIX 2.1 o MISP)"""
+    user = get_current_user()
+    document, file_name = IrisExportManager.export_analysis(analysis_id, user.id, data["format"], data["defang"])
+    logger.info(f"Análisis {analysis_id} exportado en {data['format']} por {user.username}")
+    return _download(document, file_name)
 
 
 @iris_blp.post("/results/<int:analysis_id>/reanalyze")

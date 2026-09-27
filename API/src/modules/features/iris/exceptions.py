@@ -114,6 +114,33 @@ class IrisCaseNotFoundError(EntityNotFoundError, IrisError):
     id_field = "case_id"
 
 
+class IrisCampaignNotFoundError(EntityNotFoundError, IrisError):
+    """La campaña no existe o no es del usuario (mismo error para los dos)."""
+    entity_label = "Campaña"
+    entity_is_feminine = True
+    id_field = "campaign_id"
+
+
+class IrisIndicatorNotFoundError(EntityNotFoundError, IrisError):
+    """El indicador no aparece en ningún análisis del usuario.
+
+    Iris solo consulta fuera lo que el usuario ya vio en su correo; lo demás
+    responde igual que si no existiera.
+    """
+    entity_label = "Indicador"
+    id_field = "indicator"
+
+
+class IrisAnalysisUrlNotFoundError(EntityNotFoundError, IrisError):
+    """La URL no es de ese análisis (o el análisis no es del usuario).
+
+    Solo se sigue una URL que aparece en un correo del usuario: Iris no es un
+    servicio para visitar URLs arbitrarias.
+    """
+    entity_label = "Enlace"
+    id_field = "url"
+
+
 class IrisBatchNotFoundError(EntityNotFoundError, IrisError):
     """El lote no existe o no es del usuario (mismo error para los dos)."""
     entity_label = "Lote"
@@ -177,4 +204,30 @@ class IrisMailboxInvalidFolderError(IrisError):
             user_message=f"«{folder}» no es una carpeta válida para esta cuenta.",
             message_key="irisMailboxInvalidFolder",
             params={"folder": folder},
+        )
+
+
+class IrisNotInOrganizationError(IrisError):
+    """El usuario no pertenece a ninguna organización con la que compartir inteligencia."""
+    default_code = ErrorCode.CONSTRAINT_VIOLATION
+    default_status_code = 409
+
+    def __init__(self) -> None:
+        super().__init__(
+            message="El usuario no pertenece a ninguna organizacion",
+            user_message="No perteneces a ninguna organización.",
+            message_key="irisNotInOrganization",
+        )
+
+
+class IrisTenantOwnerRequiredError(IrisError):
+    """Solo el dueño de la organización decide si se comparte inteligencia y qué se protege."""
+    default_code = ErrorCode.AUTHORIZATION_ERROR
+    default_status_code = 403
+
+    def __init__(self) -> None:
+        super().__init__(
+            message="Solo el duenyo de la organizacion cambia la politica de inteligencia de Iris",
+            user_message="Solo el dueño de la organización puede cambiar esto.",
+            message_key="irisTenantOwnerRequired",
         )
