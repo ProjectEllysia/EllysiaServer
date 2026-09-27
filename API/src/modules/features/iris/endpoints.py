@@ -37,7 +37,7 @@ import src.modules.system.config_reading as CR
 from .managers import (
     IrisFeedbackManager, IrisManager, IrisReportManager, IrisMailboxManager,
     IrisNotificationPreferenceManager, IrisReplayManager, IrisTriageManager, IrisTrustPolicyManager,
-    IrisCaseManager, IrisBatchManager, IrisCampaignManager, IrisContactGraphManager,
+    IrisCaseManager, IrisBatchManager, IrisCampaignManager, IrisContactGraphManager, IrisExportManager,
 )
 from .exceptions import (
     IrisAnalysisNotFoundError,
@@ -119,6 +119,8 @@ from .schemas import (
     IrisGraphDeleteResponseSchema,
     IrisGraphQuerySchema,
     IrisGraphResponseSchema,
+    IntelExportQuerySchema,
+    IntelExportRequestSchema,
 )
 
 
@@ -128,6 +130,23 @@ iris_blp = SmorestBlueprint(
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _download(document: dict, file_name: str) -> Response:
+    """Respuesta de descarga de un documento JSON exportado.
+
+    Args:
+        document: El documento, ya en su formato.
+        file_name: Nombre del fichero.
+
+    Returns:
+        Response: ``application/json`` con ``Content-Disposition: attachment``.
+    """
+    return Response(
+        json.dumps(document, ensure_ascii=False, indent=2),
+        mimetype="application/json",
+        headers={"Content-Disposition": f'attachment; filename="{file_name}"'},
+    )
 
 
 @iris_blp.post("/admin/replay")
@@ -597,6 +616,25 @@ def get_campaign(campaign_id: int):
     return IrisCampaignManager.get_campaign(campaign_id, get_current_user().id)
 
 
+
+@iris_blp.post("/campaigns/<int:campaign_id>/export")
+@iris_blp.arguments(IntelExportRequestSchema)
+@iris_blp.response(200, description="Campaign indicators and findings as JSON, STIX 2.1 or MISP (file download)")
+@iris_blp.alt_response(400, schema=ErrorSchema, description="Unknown format")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Campaign not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("60 per hour; 300 per day")
+@handle_exceptions(default_exception=IrisCampaignNotFoundError, logger=logger)
+def export_campaign(data: dict, campaign_id: int):
+    """Exportar los indicadores y hallazgos de toda una campaña en un solo documento"""
+    user = get_current_user()
+    document, file_name = IrisExportManager.export_campaign(campaign_id, user.id, data["format"], data["defang"])
+    logger.info(f"Campaña {campaign_id} exportada en {data['format']} por {user.username}")
+    return _download(document, file_name)
+
 # =============================================================================
 # Grafo de comunicación
 # =============================================================================
@@ -804,6 +842,43 @@ def export_analysis(analysis_id: int):
         mimetype="application/json",
         headers={"Content-Disposition": f'attachment; filename="iris-analysis-{analysis_id}.json"'},
     )
+
+
+@iris_blp.get("/results/<int:analysis_id>/export/intel")
+@iris_blp.arguments(IntelExportQuerySchema, location="query")
+@iris_blp.response(200, description="Versioned JSON of indicators and findings (file download)")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Analysis not found")
+@iris_blp.alt_response(409, schema=ErrorSchema, description="Analysis not ready")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("60 per hour; 300 per day")
+@handle_exceptions(default_exception=IrisAnalysisNotFoundError, logger=logger)
+def export_analysis_intel(args: dict, analysis_id: int):
+    """Indicadores y hallazgos del análisis en el JSON versionado de Iris, desactivados por defecto"""
+    document, file_name = IrisExportManager.export_analysis(analysis_id, get_current_user().id, "json", args["defang"])
+    return _download(document, file_name)
+
+
+@iris_blp.post("/results/<int:analysis_id>/export/intel")
+@iris_blp.arguments(IntelExportRequestSchema)
+@iris_blp.response(200, description="Indicators and findings as JSON, STIX 2.1 or MISP (file download)")
+@iris_blp.alt_response(400, schema=ErrorSchema, description="Unknown format")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Analysis not found")
+@iris_blp.alt_response(409, schema=ErrorSchema, description="Analysis not ready")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("60 per hour; 300 per day")
+@handle_exceptions(default_exception=IrisAnalysisNotFoundError, logger=logger)
+def export_analysis_intel_as(data: dict, analysis_id: int):
+    """Exportar indicadores y hallazgos del análisis en el formato pedido (JSON, STIX 2.1 o MISP)"""
+    user = get_current_user()
+    document, file_name = IrisExportManager.export_analysis(analysis_id, user.id, data["format"], data["defang"])
+    logger.info(f"Análisis {analysis_id} exportado en {data['format']} por {user.username}")
+    return _download(document, file_name)
 
 
 @iris_blp.post("/results/<int:analysis_id>/reanalyze")

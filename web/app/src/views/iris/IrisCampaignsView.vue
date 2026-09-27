@@ -50,6 +50,7 @@
           <p v-if="detail.brands.length" class="campaign-meta">
             {{ t('iris.campaigns.brands', { brands: detail.brands.join(', ') }) }}
           </p>
+          <IrisIntelExport :url="`/iris/campaigns/${detail.campaignId}/export`" />
 
           <h3 class="section-title">{{ t('iris.campaigns.shared') }}</h3>
           <p class="hint">{{ t('iris.campaigns.sharedHint') }}</p>
@@ -89,6 +90,7 @@ import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Topbar from '@/components/shared/Topbar.vue'
 import StarBackground from '@/components/shared/StarBackground.vue'
+import IrisIntelExport from '@/components/iris/IrisIntelExport.vue'
 import { useIrisStore } from '@/stores/irisStore'
 import { formatDate, formatDateTime } from '@/i18n/format'
 import { verdictClass, verdictKey } from '@/components/iris/verdict'
