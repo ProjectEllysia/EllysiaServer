@@ -127,6 +127,8 @@ from .schemas import (
     UrlExpansionListSchema,
     UrlExpansionRequestSchema,
     UrlExpansionSchema,
+    ReputationRequestSchema,
+    ReputationResponseSchema,
 )
 
 
@@ -718,6 +720,22 @@ def list_url_expansions(analysis_id: int):
 def request_url_expansion(data: dict, analysis_id: int):
     """Seguir una URL del análisis hasta su destino real, sin alcanzar nunca la red interna"""
     return IrisUrlExpansionManager().request_expansion(analysis_id, get_current_user().id, data["url"])
+
+
+
+@iris_blp.post("/indicators/reputation")
+@iris_blp.arguments(ReputationRequestSchema)
+@iris_blp.response(200, ReputationResponseSchema, description="Reputation of an indicator in the configured providers")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions or surface closed")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Indicator not in any of the user's analyses")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("60 per hour; 300 per day")
+@handle_exceptions(default_exception=IrisIndicatorNotFoundError, logger=logger)
+def get_indicator_reputation(data: dict):
+    """Reputación de un indicador de tus análisis; solo se envía el indicador, nunca el correo"""
+    return IrisEnrichmentManager.get_reputation(data["kind"], data["value"], get_current_user().id)
 
 
 @iris_blp.get("/retention-policy")

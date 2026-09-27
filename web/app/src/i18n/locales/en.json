@@ -2233,6 +2233,16 @@
         "protocol": "Stopped: the server did not answer like a website.",
         "too_many_redirects": "Stopped: too many redirects in a row.",
         "other": "Stopped before reaching the end."
+      },
+      "reputation": "Reputation",
+      "reputationHint": "Asks the configured reputation services whether they know this indicator. Only the indicator is sent, never the email.",
+      "notConfigured": "No reputation service is configured on this installation.",
+      "reputationVerdicts": {
+        "known_malicious": "known malicious",
+        "suspicious": "suspicious",
+        "unknown": "not flagged",
+        "unavailable": "no answer",
+        "rate_limited": "too many lookups; try again shortly"
       }
     }
   },

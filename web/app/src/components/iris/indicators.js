@@ -112,3 +112,35 @@ export function describeUrlExpansion(expansion, t) {
   }
   return parts.length ? parts.join(' · ') : t('iris.enrichment.unavailable')
 }
+
+const REPUTATION_VERDICTS = ['known_malicious', 'suspicious', 'unknown', 'unavailable', 'rate_limited']
+const PROVIDER_NAMES = { virustotal: 'VirusTotal', urlscan: 'urlscan.io', phishtank: 'PhishTank', urlhaus: 'URLhaus' }
+
+/**
+ * Clave del rótulo de un veredicto de reputación.
+ *
+ * @param {string} verdict - `known_malicious`, `suspicious`, `unknown`,
+ *   `unavailable` o `rate_limited`.
+ * @returns {string} `iris.enrichment.reputationVerdicts.<veredicto>`, o el de
+ *   `unavailable` si no se conoce.
+ */
+export function reputationVerdictKey(verdict) {
+  return `iris.enrichment.reputationVerdicts.${REPUTATION_VERDICTS.includes(verdict) ? verdict : 'unavailable'}`
+}
+
+/**
+ * Frase con la reputación de un indicador en los proveedores configurados.
+ *
+ * @param {object|null} result - Respuesta de `POST /iris/indicators/reputation`.
+ * @param {Function} t - Función de traducción de vue-i18n.
+ * @returns {string} El veredicto global y el de cada proveedor.
+ */
+export function describeReputation(result, t) {
+  if (!result) return t('iris.enrichment.unavailable')
+  if (result.status === 'disabled') return t('iris.enrichment.disabled')
+  if (result.status === 'not_configured') return t('iris.enrichment.notConfigured')
+  const providers = (result.providers ?? [])
+    .map((provider) => `${PROVIDER_NAMES[provider.provider] ?? provider.provider}: ${t(reputationVerdictKey(provider.verdict))}`)
+  const summary = t(reputationVerdictKey(result.verdict))
+  return [summary.charAt(0).toUpperCase() + summary.slice(1), ...providers].join(' · ')
+}

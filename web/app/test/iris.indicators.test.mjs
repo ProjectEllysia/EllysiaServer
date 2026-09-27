@@ -11,7 +11,7 @@
 
 import { readFileSync } from 'node:fs'
 import { createI18n } from 'vue-i18n'
-import { campaignSignalKey, contactDeviationKey, defang, describeDomainContext, describeUrlExpansion, indicatorKindKey } from '../src/components/iris/indicators.js'
+import { campaignSignalKey, contactDeviationKey, defang, describeDomainContext, describeReputation, describeUrlExpansion, indicatorKindKey, reputationVerdictKey } from '../src/components/iris/indicators.js'
 
 const spanish = JSON.parse(readFileSync(new URL('../src/i18n/locales/es.json', import.meta.url), 'utf-8'))
 const { t, te } = createI18n({ legacy: false, locale: 'es', messages: { es: spanish } }).global
@@ -52,11 +52,19 @@ eq('acortador', describeUrlExpansion({ status: 'done', hops: [{}, { error: null 
 eq('cortada', describeUrlExpansion({ status: 'done', hops: [{}, { error: 'private_address' }], finalUrl: 'https://a.example', finalDomain: 'a.example' }, t),
   'Lleva a a.example tras 1 redirección · Se detuvo: el siguiente salto apuntaba a una red interna.')
 
+console.log('\nreputación')
+eq('proveedores', describeReputation({ status: 'ok', verdict: 'known_malicious', providers: [
+  { provider: 'virustotal', verdict: 'known_malicious' }, { provider: 'urlscan', verdict: 'unknown' }] }, t),
+  'Conocido como malicioso · VirusTotal: conocido como malicioso · urlscan.io: sin marcar')
+eq('sin proveedores', describeReputation({ status: 'not_configured', providers: [] }, t),
+  'No hay ningún servicio de reputación configurado en esta instalación.')
+
 console.log('\ncada clave que puede devolver el módulo existe en el diccionario')
 const keys = [
   ...['domain', 'url', 'ip', 'email', 'hash'].map(indicatorKindKey),
   ...['url', 'hash', 'template', 'subject', 'sender', 'domain', 'brand'].map(campaignSignalKey),
   ...['display_name_reuse', 'address_domain_change', 'unknown'].map(contactDeviationKey),
+  ...['known_malicious', 'suspicious', 'unknown', 'unavailable', 'rate_limited', 'x'].map(reputationVerdictKey),
 ]
 eq('sin claves huérfanas', keys.filter(key => !te(key)), [])
 

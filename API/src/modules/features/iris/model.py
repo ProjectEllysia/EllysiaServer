@@ -1329,6 +1329,61 @@ class IrisUrlExpansion(Base):
     )
 
 
+class ThreatIntelVerdict(StrEnum):
+    """Veredicto común al que cada proveedor de reputación traduce su respuesta.
+
+    - ``KNOWN_MALICIOUS``: el proveedor lo tiene como malicioso.
+    - ``SUSPICIOUS``: alguna señal, sin confirmar (un solo motor, una denuncia
+      sin verificar).
+    - ``UNKNOWN``: el proveedor respondió y no lo tiene marcado. No significa
+      que sea legítimo.
+    - ``UNAVAILABLE``: no respondió o respondió mal. Es el modo neutro.
+    """
+
+    KNOWN_MALICIOUS = "known_malicious"
+    SUSPICIOUS = "suspicious"
+    UNKNOWN = "unknown"
+    UNAVAILABLE = "unavailable"
+
+
+class IrisThreatIntelResult(Base):
+    """Lo que dijo un proveedor de reputación sobre un indicador, en caché.
+
+    Es reputación pública del indicador, no un dato del usuario, así que se
+    comparte en la instalación y la fila no guarda quién preguntó.
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        provider: Proveedor (``virustotal``, ``urlscan``, ``phishtank``,
+                 ``urlhaus``).
+        kind: Tipo de indicador (``domain``, ``url``, ``ip``, ``hash``).
+        value_sha256: SHA-256 del indicador en minúsculas; con ``provider`` y
+                 ``kind``, único.
+        value: El indicador.
+        verdict: ``ThreatIntelVerdict``.
+        detail: Datos del proveedor que justifican el veredicto.
+        error: Por qué no hubo veredicto cuando es ``unavailable``.
+        checked_at: Cuándo se consultó.
+        expires_at: Cuándo deja de valer la caché.
+    """
+    __tablename__ = "IrisThreatIntelResult"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    provider = Column(String(32), nullable=False)
+    kind = Column(String(16), nullable=False)
+    value_sha256 = Column(String(64), nullable=False)
+    value = Column(Text, nullable=False)
+    verdict = Column(String(20), nullable=False)
+    detail = Column(JSONB, nullable=True)
+    error = Column(String(64), nullable=True)
+    checked_at = Column(DateTime, nullable=False, default=utcnow_naive)
+    expires_at = Column(DateTime, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("provider", "kind", "value_sha256", name="uq_iris_threat_intel_result"),
+    )
+
+
 class CaseStatus(StrEnum):
     """Estado de un caso de analista (``IrisCase.status``).
 

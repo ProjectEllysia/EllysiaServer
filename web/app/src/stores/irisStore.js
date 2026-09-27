@@ -1052,6 +1052,29 @@ export const useIrisStore = defineStore('iris', () => {
     return expansion
   }
 
+  /** Reputación ya pedida, por `tipo:valor`: `{ loading, data }`. */
+  const reputations = reactive({})
+
+  /**
+   * Pregunta la reputación de un indicador a los proveedores configurados.
+   * @param {'domain'|'url'|'ip'|'hash'} kind Tipo de indicador.
+   * @param {string} value El indicador tal como sale en los IOCs.
+   * @returns {Promise<object|null>} La respuesta, o null si falló la petición.
+   */
+  async function fetchReputation(kind, value) {
+    const key = `${kind}:${value}`
+    reputations[key] = { loading: true, data: null }
+    const res = await apiFetch('/iris/indicators/reputation', { method: 'POST', body: JSON.stringify({ kind, value }) })
+    if (!res?.ok) {
+      toast.show(await apiError(res, i18n.global.t('irisStore.enrichmentFailed')), 'error')
+      delete reputations[key]
+      return null
+    }
+    const data = await res.json()
+    reputations[key] = { loading: false, data }
+    return data
+  }
+
   /** Elimina un documento generado. */
   async function deleteDocument(documentId, analysisId) {
     const res = await apiFetch(`/iris/document/${documentId}`, { method: 'DELETE' })
@@ -1132,6 +1155,7 @@ export const useIrisStore = defineStore('iris', () => {
     downloadIntelExport,
     domainContexts, fetchDomainContext,
     urlExpansions, expandUrl,
+    reputations, fetchReputation,
     generateDocument, fetchDocuments, getDocumentStatus, downloadDocument, deleteDocument,
     stopDocumentPolling,
     $reset,

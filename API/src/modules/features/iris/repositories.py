@@ -23,6 +23,7 @@ from .model import (
     IrisAnalysisTag, IrisIndicator, IrisSavedView,
     IrisCase, IrisCaseAnalysis, IrisCaseEvent, IrisBatch, IrisBatchItem,
     IrisCampaign, IrisCampaignMember, IrisCommunicationEdge, IrisDomainCache, IrisUrlExpansion,
+    IrisThreatIntelResult,
 )
 
 
@@ -1453,6 +1454,30 @@ class IrisUrlExpansionRepository(BaseRepository[IrisUrlExpansion]):
             .values(status="running")
         )
         return bool(result.rowcount)
+
+
+class IrisThreatIntelResultRepository(BaseRepository[IrisThreatIntelResult]):
+    """Acceso a la caché de reputación (``IrisThreatIntelResult``)."""
+
+    _MODEL = IrisThreatIntelResult
+
+    def get_entry(self, provider: str, kind: str, value_sha256: str) -> Optional[IrisThreatIntelResult]:
+        """Lo que dijo un proveedor de un indicador, caducado o no.
+
+        Args:
+            provider: Proveedor.
+            kind: Tipo de indicador.
+            value_sha256: Huella del indicador en minúsculas.
+
+        Returns:
+            Optional[IrisThreatIntelResult]: La entrada, o ``None``.
+        """
+        return (
+            self._session.query(IrisThreatIntelResult)
+            .filter(IrisThreatIntelResult.provider == provider, IrisThreatIntelResult.kind == kind,
+                    IrisThreatIntelResult.value_sha256 == value_sha256)
+            .one_or_none()
+        )
 
 
 class IrisCaseRepository(BaseRepository[IrisCase]):

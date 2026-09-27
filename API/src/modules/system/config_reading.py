@@ -2760,6 +2760,80 @@ def iris_url_expansion_config() -> IrisUrlExpansionConfig:
     return load_block(IrisUrlExpansionConfig)
 
 
+#: Proveedores de reputación de Iris y el cupo por minuto de cada uno. El de
+#: VirusTotal es el de su API gratuita.
+_THREAT_INTEL_DEFAULT_PROVIDERS = {
+    "virustotal": {"enabled": False, "requestsPerMinute": 4},
+    "urlscan": {"enabled": False, "requestsPerMinute": 30},
+    "phishtank": {"enabled": False, "requestsPerMinute": 30},
+    "urlhaus": {"enabled": False, "requestsPerMinute": 30},
+}
+
+
+@config_block("features.iris.enrichment.threatIntel")
+@dataclass(frozen=True)
+class IrisThreatIntelConfig:
+    """Reputación de un indicador en servicios de terceros (``iris/services/enrichment/threat_intel/``).
+
+    Cada proveedor necesita, además de estar encendido aquí, su clave en el
+    entorno (``get_iris_threat_intel_key``). Solo se les envía el indicador,
+    nunca el correo.
+    """
+
+    ttl_hours: int = 12
+    """Horas que vale en caché lo que dijo un proveedor."""
+
+    negative_ttl_minutes: int = 30
+    """Minutos que se recuerda que un proveedor no respondió."""
+
+    providers: dict = field(default_factory=lambda: dict(_THREAT_INTEL_DEFAULT_PROVIDERS))
+    """Interruptor (``enabled``) y cupo por minuto (``requestsPerMinute``) de
+    cada proveedor, por nombre."""
+
+    def is_provider_enabled(self, provider: str) -> bool:
+        """Si un proveedor está encendido en la configuración.
+
+        Args:
+            provider: Nombre del proveedor.
+
+        Returns:
+            bool: ``True`` si su ``enabled`` es verdadero.
+        """
+        return bool((self.providers or {}).get(provider, {}).get("enabled", False))
+
+    def requests_per_minute(self, provider: str) -> int:
+        """Cupo por minuto de un proveedor.
+
+        Args:
+            provider: Nombre del proveedor.
+
+        Returns:
+            int: Su ``requestsPerMinute``; ``0`` si no está configurado.
+        """
+        return int((self.providers or {}).get(provider, {}).get("requestsPerMinute", 0))
+
+
+def iris_threat_intel_config() -> IrisThreatIntelConfig:
+    return load_block(IrisThreatIntelConfig)
+
+
+def get_iris_threat_intel_key(provider: str) -> str:
+    """Clave de API de un proveedor de reputación de Iris, desde el entorno.
+
+    Solo variables de entorno: ``IRIS_VIRUSTOTAL_API_KEY``,
+    ``IRIS_URLSCAN_API_KEY``, ``IRIS_PHISHTANK_API_KEY`` o
+    ``IRIS_URLHAUS_API_KEY``.
+
+    Args:
+        provider: Nombre del proveedor.
+
+    Returns:
+        str: La clave, o cadena vacía si no está definida (el proveedor queda
+            fuera).
+    """
+    return os.getenv(f"IRIS_{provider.upper()}_API_KEY", "").strip()
+
+
 # --- Datasets y pesos: buscados por clave, no por campo ---------------------
 #
 # Ninguno de los dos encaja en un bloque: los datasets son dos docenas de listas
