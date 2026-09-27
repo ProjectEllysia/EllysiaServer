@@ -213,6 +213,7 @@ CONFIG_BLOCKS = [
     (CR.IrisOcrConfig, CR.iris_ocr_config),
     (CR.IrisCampaignsConfig, CR.iris_campaigns_config),
     (CR.IrisGraphConfig, CR.iris_graph_config),
+    (CR.IrisExportsConfig, CR.iris_exports_config),
     (CR.ScribeConfig, CR.scribe_config),
     (CR.ScribeResilienceConfig, CR.scribe_resilience_config),
     (CR.HeraldConfig, CR.herald_config),

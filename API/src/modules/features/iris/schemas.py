@@ -1197,3 +1197,20 @@ class IrisGraphResponseSchema(Schema):
 class IrisGraphDeleteResponseSchema(Schema):
     """Cuántas aristas se olvidaron."""
     deletedEdges = fields.Integer()
+
+
+class IntelExportQuerySchema(Schema):
+    """Opciones de ``GET /iris/results/<id>/export/intel`` (JSON versionado)."""
+    defang = fields.Boolean(load_default=True)
+
+
+class IntelExportRequestSchema(Schema):
+    """Petición explícita de exportación de indicadores.
+
+    ``format`` es ``json`` (el esquema versionado de Iris), ``stix`` (STIX 2.1)
+    o ``misp`` (evento MISP). ``defang`` solo cuenta en ``json``: STIX y MISP
+    llevan siempre los valores reales, porque un patrón desactivado no casa
+    con nada.
+    """
+    format = fields.String(required=True, validate=validate.OneOf(["json", "stix", "misp"]))
+    defang = fields.Boolean(load_default=True)

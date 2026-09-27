@@ -16,3 +16,7 @@ qrcode>=8.0
 # Servidor SMTP local para los tests de herald (SmtpStrategy) -- no es una
 # dependencia de producción, herald solo envía correo vía smtplib (stdlib).
 aiosmtpd>=1.4.6
+
+# Valida en los tests de Iris que la exportación STIX 2.1 es STIX de verdad --
+# no es una dependencia de producción: el exportador escribe el JSON a mano.
+stix2>=3.0

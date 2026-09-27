@@ -2665,6 +2665,22 @@ def iris_graph_config() -> IrisGraphConfig:
     return load_block(IrisGraphConfig)
 
 
+@config_block("features.iris.exports")
+@dataclass(frozen=True)
+class IrisExportsConfig:
+    """Exportación de indicadores de Iris a JSON, STIX 2.1 y MISP."""
+
+    indicator_validity_days: int = 30
+    """Días que un indicador exportado se da por vigente desde la última vez
+    que se vio (``valid_until`` en STIX, ``last_seen`` en MISP). Las
+    infraestructuras de phishing se abandonan en días o semanas; bloquear un
+    dominio para siempre acaba bloqueando al siguiente que lo compre."""
+
+
+def iris_exports_config() -> IrisExportsConfig:
+    return load_block(IrisExportsConfig)
+
+
 # --- Datasets y pesos: buscados por clave, no por campo ---------------------
 #
 # Ninguno de los dos encaja en un bloque: los datasets son dos docenas de listas
