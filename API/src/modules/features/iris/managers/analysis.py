@@ -91,6 +91,7 @@ from ..services.trust import (
     is_sender_authenticated,
 )
 from .campaigns import IrisCampaignManager
+from .tenant import IrisTenantManager
 from .notifications import IrisPhishingNotifyManager
 from .trust import IrisTrustPolicyManager
 
@@ -1510,7 +1511,10 @@ class IrisManager(TaskTrackingMixin):
                 ``None`` cuando el análisis no está en ninguna campaña (ver
                 ``IrisCampaignManager.get_campaign_of_analysis``), y
                 ``contactDeviation``, cuando el remitente no imitaba a ningún
-                contacto habitual (ver ``services/graph.detect_deviation``).
+                contacto habitual (ver ``services/graph.detect_deviation``), y
+                ``organizationSightings`` cuando el usuario no comparte
+                inteligencia con su organización o ningún indicador lo han
+                visto bastantes miembros (ver ``IrisTenantManager.get_sightings``).
 
         Raises:
             IrisAnalysisNotFoundError: Si *analysis_id* no existe.
@@ -1561,6 +1565,9 @@ class IrisManager(TaskTrackingMixin):
         from .feedback import IrisFeedbackManager
         latest_feedback = IrisFeedbackManager.latest_for_analysis(analysis_id)
         campaign = IrisCampaignManager.get_campaign_of_analysis(analysis_id)
+        organization_sightings = IrisTenantManager.get_sightings(
+            analysis.user_id, [(indicator.kind, indicator.value) for indicator in analysis.indicators],
+        )
 
         return {
             "analysisId": analysis.id,
@@ -1602,6 +1609,7 @@ class IrisManager(TaskTrackingMixin):
             "tags": [tag.name for tag in analysis.tags],
             "campaign": campaign,
             "contactDeviation": analysis.contact_deviation,
+            "organizationSightings": organization_sightings,
         }
 
     def get_analysis_path(self, analysis_id: int, user_id: int) -> Dict[str, Any]:

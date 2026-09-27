@@ -34,6 +34,8 @@ Managers del módulo Iris (análisis de correo).
   servicios externos sobre un indicador del usuario (RDAP…).
 - ``IrisUrlExpansionManager`` (``url_expansion.py``): seguir en segundo plano
   los redirects de una URL de un análisis hasta su destino real.
+- ``IrisTenantManager`` (``tenant.py``): inteligencia compartida en una
+  organización, con la política del dueño y el consentimiento de cada miembro.
 
 Iris era el único módulo con
 **dos** ficheros de managers en la raíz — ``managers.py`` (64 KB, el
@@ -63,6 +65,7 @@ from .graph import IrisContactGraphManager
 from .exports import IrisExportManager
 from .enrichment import IrisEnrichmentManager
 from .url_expansion import IrisUrlExpansionManager
+from .tenant import IrisTenantManager
 
 __all__ = [
     "IrisManager",
@@ -75,6 +78,7 @@ __all__ = [
     "IrisExportManager",
     "IrisEnrichmentManager",
     "IrisUrlExpansionManager",
+    "IrisTenantManager",
     "IrisFeedbackManager",
     "IrisReplayManager",
     "IrisReportManager",

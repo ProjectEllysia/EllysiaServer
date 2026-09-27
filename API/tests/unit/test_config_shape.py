@@ -218,6 +218,7 @@ CONFIG_BLOCKS = [
     (CR.IrisRdapConfig, CR.iris_rdap_config),
     (CR.IrisUrlExpansionConfig, CR.iris_url_expansion_config),
     (CR.IrisThreatIntelConfig, CR.iris_threat_intel_config),
+    (CR.IrisTenantConfig, CR.iris_tenant_config),
     (CR.ScribeConfig, CR.scribe_config),
     (CR.ScribeResilienceConfig, CR.scribe_resilience_config),
     (CR.HeraldConfig, CR.herald_config),

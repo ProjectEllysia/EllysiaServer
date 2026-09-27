@@ -258,7 +258,17 @@ class Organization(Base):
     ids. Y solo lo puede pedir el **dueño**, porque hoy no hay rol intermedio
     entre ``owner`` y ``member``.
 
-    Antes de abrir la segunda excepción conviene tener una razón igual de
+    La **segunda excepción** es la inteligencia compartida de Iris
+    (``GET /iris/organization/intel``). Tampoco comparte datos: comparte
+    agregados anonimizados de indicadores (dominios, URLs, hashes) y de
+    dominios con los que se habla, solo de los miembros que han dado su
+    consentimiento, solo cuando el dueño la activa, y solo lo que han visto
+    al menos ``features.iris.tenant.minMembers`` miembros distintos, para que
+    ningún agregado señale a uno. Ningún correo, análisis, dirección ni id de
+    miembro cruza de un miembro a otro. Tampoco hay relación en el modelo: la
+    política vive en ``IrisTenantProfile`` e ``IrisTenantConsent``.
+
+    Antes de abrir una tercera excepción conviene tener una razón igual de
     concreta: la frase de arriba sigue siendo la regla, no una recomendación.
     """
 

@@ -87,6 +87,7 @@
     "campaignAlreadyLaunched": "The campaign has already been launched.",
     "cannotRemoveOwner": "You own this organization. To leave it, you would have to dissolve it or transfer it first.",
     "circuitBreakerOpen": "The service is temporarily unavailable.",
+    "complianceOrganizationOwnerOnly": "Only the organization owner can set its compliance frameworks.",
     "databaseConnection": "Could not connect to the database.",
     "defaultPlanMissing": "The platform has no default plan configured. Contact an administrator.",
     "documentNotReady": "The document is not ready yet.",
@@ -150,6 +151,8 @@
     "invitationInvalid": "This invitation is not valid or has expired. Ask whoever invited you to send you another one.",
     "irisBatchBackpressure": "You have {active} analyses running and the batch would add {requested}; the maximum at once is {limit}. Wait for them to finish and send it again: nothing has been created.",
     "irisMailboxInvalidFolder": "“{folder}” is not a valid folder for this account.",
+    "irisNotInOrganization": "You don't belong to any organization.",
+    "irisTenantOwnerRequired": "Only the organization owner can change this.",
     "jsonParsing": "The JSON data could not be processed.",
     "logChanged": "The log changed during the query. Start a new read.",
     "logNotFound": "There is no log available right now.",
@@ -195,7 +198,6 @@
     "systemTagImmutable": "Tags from the shared catalog cannot be deleted.",
     "tagAlreadyExists": "A tag named “{name}” already exists.",
     "tagQuotaExceeded": "You have reached the maximum of {maxTags} personal tags.",
-    "complianceOrganizationOwnerOnly": "Only the organization owner can set its compliance frameworks.",
     "targetNotAuthorized": "“{target}” is not authorized for active Lybra operations. Add it to the authorized targets registry before launching this scan.",
     "taskNotCancellable": "The task does not exist or has already finished.",
     "tooManyRequests": "You have exceeded the request limit. Wait a moment and try again.",
@@ -2062,7 +2064,9 @@
         "display_name_reuse": "“{name}” writes from {sender}, but that name belongs to one of your usual contacts, {habitual} ({count} legitimate messages).",
         "address_domain_change": "{sender} looks like {habitual}, one of your usual contacts ({count} legitimate messages), but on another domain.",
         "other": "{sender} looks like {habitual}, one of your usual contacts."
-      }
+      },
+      "sightingsTitle": "Also seen in your organization",
+      "sightingsCount": "received by {count} members"
     },
     "cases": {
       "badge": "Cases",
@@ -2244,6 +2248,31 @@
         "unavailable": "no answer",
         "rate_limited": "too many lookups; try again shortly"
       }
+    },
+    "organization": {
+      "badge": "Organization",
+      "eyebrow": "Shared intelligence",
+      "title": "Your organization",
+      "intro": "Members who agree pool what they see: domains, links and attachments from suspicious emails that reached several of them, and domains several of them get legitimate email from. Only counts are shown, and only for what at least {count} people have seen: nobody sees the others' emails, analyses or names.",
+      "noOrganization": "You don't belong to any organization. Once you are part of one, you can share intelligence with the rest here.",
+      "sharingOn": "Your organization shares intelligence",
+      "sharingOff": "Your organization does not share intelligence; its owner decides",
+      "contributing": "{count} member contributes | {count} members contribute",
+      "consent": "I agree to contribute my indicators to the organization's intelligence",
+      "consentHint": "Whoever doesn't agree neither contributes nor sees what is shared. You can withdraw at any time: yours is removed from everything at once.",
+      "policyTitle": "Organization policy",
+      "enableSharing": "Share intelligence among members who agree",
+      "protectedDomains": "Protected domains",
+      "protectedDomainsHint": "Yours and your suppliers', one per line: lookalikes are flagged.",
+      "protectedBrands": "Protected brands",
+      "protectedBrandsHint": "One per line.",
+      "sharedTitle": "What several members have seen",
+      "sharedHint": "Indicators from suspicious or phishing emails in the last {days} days.",
+      "noShared": "Nothing has been seen by enough members yet.",
+      "seenBy": "seen by {count} members",
+      "imitates": "imitates {domain}",
+      "frequentTitle": "Frequent domains",
+      "noFrequent": "No domains yet that enough members get email from."
     }
   },
   "irisHub": {
@@ -2393,7 +2422,12 @@
     "graphForgotten": "Contacts forgotten.",
     "graphForgetFailed": "Contacts could not be forgotten.",
     "exportFailed": "Could not export.",
-    "enrichmentFailed": "The indicator could not be looked up."
+    "enrichmentFailed": "The indicator could not be looked up.",
+    "organizationPolicySaved": "Policy saved.",
+    "organizationPolicyFailed": "The policy could not be saved.",
+    "organizationConsentGiven": "You now contribute to your organization's intelligence.",
+    "organizationConsentWithdrawn": "You no longer contribute to your organization's intelligence.",
+    "organizationConsentFailed": "Your consent could not be changed."
   },
   "aegis": {
     "campaignStatus": {

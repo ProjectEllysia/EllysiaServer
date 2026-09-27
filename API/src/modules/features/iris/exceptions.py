@@ -205,3 +205,29 @@ class IrisMailboxInvalidFolderError(IrisError):
             message_key="irisMailboxInvalidFolder",
             params={"folder": folder},
         )
+
+
+class IrisNotInOrganizationError(IrisError):
+    """El usuario no pertenece a ninguna organización con la que compartir inteligencia."""
+    default_code = ErrorCode.CONSTRAINT_VIOLATION
+    default_status_code = 409
+
+    def __init__(self) -> None:
+        super().__init__(
+            message="El usuario no pertenece a ninguna organizacion",
+            user_message="No perteneces a ninguna organización.",
+            message_key="irisNotInOrganization",
+        )
+
+
+class IrisTenantOwnerRequiredError(IrisError):
+    """Solo el dueño de la organización decide si se comparte inteligencia y qué se protege."""
+    default_code = ErrorCode.AUTHORIZATION_ERROR
+    default_status_code = 403
+
+    def __init__(self) -> None:
+        super().__init__(
+            message="Solo el duenyo de la organizacion cambia la politica de inteligencia de Iris",
+            user_message="Solo el dueño de la organización puede cambiar esto.",
+            message_key="irisTenantOwnerRequired",
+        )

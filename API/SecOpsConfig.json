@@ -365,6 +365,11 @@
       "exports": {
         "indicatorValidityDays": 30
       },
+      "tenant": {
+        "minMembers": 3,
+        "windowDays": 30,
+        "maxItems": 100
+      },
       "enrichment": {
         "enabled": true,
         "timeoutSeconds": 5.0,

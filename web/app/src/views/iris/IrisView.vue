@@ -80,6 +80,12 @@
           </svg>
           {{ t('iris.campaigns.badge') }}
         </router-link>
+        <router-link to="/iris/organizacion" class="back-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6" />
+          </svg>
+          {{ t('iris.organization.badge') }}
+        </router-link>
         <router-link to="/iris/casos" class="back-link">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2" />
