@@ -38,7 +38,7 @@ from .managers import (
     IrisFeedbackManager, IrisManager, IrisReportManager, IrisMailboxManager,
     IrisNotificationPreferenceManager, IrisReplayManager, IrisTriageManager, IrisTrustPolicyManager,
     IrisCaseManager, IrisBatchManager, IrisCampaignManager, IrisContactGraphManager, IrisExportManager,
-    IrisEnrichmentManager, IrisUrlExpansionManager,
+    IrisEnrichmentManager, IrisUrlExpansionManager, IrisTenantManager,
 )
 from .exceptions import (
     IrisAnalysisNotFoundError,
@@ -129,6 +129,9 @@ from .schemas import (
     UrlExpansionSchema,
     ReputationRequestSchema,
     ReputationResponseSchema,
+    TenantConsentRequestSchema,
+    TenantIntelResponseSchema,
+    TenantPolicyRequestSchema,
 )
 
 
@@ -736,6 +739,57 @@ def request_url_expansion(data: dict, analysis_id: int):
 def get_indicator_reputation(data: dict):
     """Reputación de un indicador de tus análisis; solo se envía el indicador, nunca el correo"""
     return IrisEnrichmentManager.get_reputation(data["kind"], data["value"], get_current_user().id)
+
+
+
+# =============================================================================
+# Inteligencia compartida en la organización
+# =============================================================================
+
+@iris_blp.get("/organization/intel")
+@iris_blp.response(200, TenantIntelResponseSchema, description="Anonymised intelligence shared in the user's organization")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@iris_blp.alt_response(409, schema=ErrorSchema, description="The user is not in an organization")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("300 per hour; 2000 per day")
+@handle_exceptions(logger=logger)
+def get_organization_intel():
+    """Inteligencia agregada y anonimizada de tu organización, si la comparte y has dado tu consentimiento"""
+    return IrisTenantManager.get_intel(get_current_user().id)
+
+
+@iris_blp.put("/organization/intel/policy")
+@iris_blp.arguments(TenantPolicyRequestSchema)
+@iris_blp.response(200, TenantIntelResponseSchema, description="Policy updated")
+@iris_blp.alt_response(400, schema=ErrorSchema, description="Invalid domain or too many entries")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Only the organization owner")
+@iris_blp.alt_response(409, schema=ErrorSchema, description="The user is not in an organization")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_UPDATE])
+@limiter.limit("60 per hour; 300 per day")
+@handle_exceptions(logger=logger)
+def update_organization_intel_policy(data: dict):
+    """El dueño decide si la organización comparte inteligencia y qué dominios y marcas protege"""
+    return IrisTenantManager.update_policy(get_current_user().id, data["sharingEnabled"],
+                                           data["protectedDomains"], data["protectedBrands"])
+
+
+@iris_blp.put("/organization/intel/consent")
+@iris_blp.arguments(TenantConsentRequestSchema)
+@iris_blp.response(200, TenantIntelResponseSchema, description="Consent given or withdrawn")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@iris_blp.alt_response(409, schema=ErrorSchema, description="The user is not in an organization")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("60 per hour; 300 per day")
+@handle_exceptions(logger=logger)
+def set_organization_intel_consent(data: dict):
+    """Dar o retirar tu consentimiento para aportar a la inteligencia de la organización"""
+    return IrisTenantManager.set_consent(get_current_user().id, data["consent"])
 
 
 @iris_blp.get("/retention-policy")

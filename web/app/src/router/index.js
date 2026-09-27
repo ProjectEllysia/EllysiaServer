@@ -100,6 +100,12 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/iris/organizacion',
+    name: 'IrisOrganization',
+    component: () => import('@/views/iris/IrisOrganizationView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/iris/casos',
     name: 'IrisCases',
     component: () => import('@/views/iris/IrisCasesView.vue'),

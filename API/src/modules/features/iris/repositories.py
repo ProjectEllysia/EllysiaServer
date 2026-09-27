@@ -23,7 +23,7 @@ from .model import (
     IrisAnalysisTag, IrisIndicator, IrisSavedView,
     IrisCase, IrisCaseAnalysis, IrisCaseEvent, IrisBatch, IrisBatchItem,
     IrisCampaign, IrisCampaignMember, IrisCommunicationEdge, IrisDomainCache, IrisUrlExpansion,
-    IrisThreatIntelResult,
+    IrisThreatIntelResult, IrisTenantProfile, IrisTenantConsent,
 )
 
 
@@ -1077,6 +1077,77 @@ class IrisIndicatorRepository(BaseRepository[IrisIndicator]):
             .all()
         ]
 
+    def aggregate_across_users(self, user_ids: List[int], since: datetime, kinds: List[str],
+                               min_users: int, limit: int) -> List[Tuple[str, str, int, int, datetime, datetime]]:
+        """Indicadores de análisis no legítimos que comparten varios usuarios.
+
+        Es el agregado anonimizado de la inteligencia de una organización:
+        devuelve recuentos, nunca qué usuario ni qué análisis.
+
+        Args:
+            user_ids: Usuarios que aportan (los que han consentido).
+            since: Solo análisis recibidos desde este instante.
+            kinds: Tipos de indicador que entran.
+            min_users: Usuarios distintos mínimos para que un indicador salga.
+            limit: Máximo de indicadores.
+
+        Returns:
+            List[Tuple]: ``(kind, value, usuarios, análisis, primer
+                avistamiento, último avistamiento)``, de más a menos usuarios.
+        """
+        if not user_ids:
+            return []
+        user_count = func.count(func.distinct(IrisAnalysis.user_id))
+        rows = (
+            self._session.query(
+                IrisIndicator.kind, IrisIndicator.value, user_count,
+                func.count(func.distinct(IrisAnalysis.id)),
+                func.min(IrisAnalysis.created_at), func.max(IrisAnalysis.created_at),
+            )
+            .join(IrisAnalysis, IrisAnalysis.id == IrisIndicator.analysis_id)
+            .filter(
+                IrisAnalysis.user_id.in_(user_ids), IrisAnalysis.created_at >= since,
+                IrisAnalysis.verdict.in_(["Suspicious", "Phishing"]), IrisIndicator.kind.in_(kinds),
+            )
+            .group_by(IrisIndicator.kind, IrisIndicator.value)
+            .having(user_count >= min_users)
+            .order_by(user_count.desc(), IrisIndicator.kind.asc(), IrisIndicator.value.asc())
+            .limit(limit)
+            .all()
+        )
+        return [tuple(row) for row in rows]
+
+    def count_users_per_indicator(self, user_ids: List[int], since: datetime,
+                                  pairs: List[Tuple[str, str]]) -> dict[Tuple[str, str], int]:
+        """Cuántos usuarios distintos han visto cada uno de unos indicadores.
+
+        Args:
+            user_ids: Usuarios que cuentan.
+            since: Solo análisis recibidos desde este instante.
+            pairs: Pares ``(kind, value)`` por los que se pregunta.
+
+        Returns:
+            dict: ``{(kind, value): usuarios}``; los que nadie vio no aparecen.
+        """
+        if not user_ids or not pairs:
+            return {}
+        values_by_kind: dict[str, list[str]] = {}
+        for kind, value in pairs:
+            values_by_kind.setdefault(kind, []).append(value)
+        rows = (
+            self._session.query(IrisIndicator.kind, IrisIndicator.value,
+                                func.count(func.distinct(IrisAnalysis.user_id)))
+            .join(IrisAnalysis, IrisAnalysis.id == IrisIndicator.analysis_id)
+            .filter(
+                IrisAnalysis.user_id.in_(user_ids), IrisAnalysis.created_at >= since,
+                or_(*(and_(IrisIndicator.kind == kind, IrisIndicator.value.in_(values))
+                      for kind, values in values_by_kind.items())),
+            )
+            .group_by(IrisIndicator.kind, IrisIndicator.value)
+            .all()
+        )
+        return {(kind, value): total for kind, value, total in rows}
+
     def get_shared_in_campaign(self, campaign_id: int, min_analyses: int = 2) -> List[Tuple[str, str, int]]:
         """Indicadores que comparten varios análisis de una campaña.
 
@@ -1350,6 +1421,34 @@ class IrisCommunicationEdgeRepository(BaseRepository[IrisCommunicationEdge]):
         return query.order_by(IrisCommunicationEdge.last_seen_at.desc(), IrisCommunicationEdge.id.desc()) \
             .limit(limit).all()
 
+    def aggregate_sender_domains(self, user_ids: List[int], min_users: int,
+                                 limit: int) -> List[Tuple[str, int, int]]:
+        """Dominios de los que varios usuarios reciben correo legítimo.
+
+        Args:
+            user_ids: Usuarios que aportan.
+            min_users: Usuarios distintos mínimos para que un dominio salga.
+            limit: Máximo de dominios.
+
+        Returns:
+            List[Tuple[str, int, int]]: ``(dominio, usuarios, mensajes
+                legítimos)``, de más a menos usuarios.
+        """
+        if not user_ids:
+            return []
+        user_count = func.count(func.distinct(IrisCommunicationEdge.user_id))
+        rows = (
+            self._session.query(IrisCommunicationEdge.sender_domain, user_count,
+                                func.sum(IrisCommunicationEdge.legitimate_count))
+            .filter(IrisCommunicationEdge.user_id.in_(user_ids), IrisCommunicationEdge.legitimate_count > 0)
+            .group_by(IrisCommunicationEdge.sender_domain)
+            .having(user_count >= min_users)
+            .order_by(user_count.desc(), IrisCommunicationEdge.sender_domain.asc())
+            .limit(limit)
+            .all()
+        )
+        return [(domain, users, int(messages or 0)) for domain, users, messages in rows]
+
     def delete_by_user(self, user_id: int) -> int:
         """Borra el grafo entero de un usuario.
 
@@ -1478,6 +1577,62 @@ class IrisThreatIntelResultRepository(BaseRepository[IrisThreatIntelResult]):
                     IrisThreatIntelResult.value_sha256 == value_sha256)
             .one_or_none()
         )
+
+
+class IrisTenantProfileRepository(BaseRepository[IrisTenantProfile]):
+    """Acceso a la política de inteligencia de cada organización (``IrisTenantProfile``)."""
+
+    _MODEL = IrisTenantProfile
+
+    def get_by_organization(self, organization_id: int) -> Optional[IrisTenantProfile]:
+        """La política de una organización, si se ha configurado alguna vez.
+
+        Args:
+            organization_id: Organización.
+
+        Returns:
+            Optional[IrisTenantProfile]: La política, o ``None``.
+        """
+        return (
+            self._session.query(IrisTenantProfile)
+            .filter(IrisTenantProfile.organization_id == organization_id)
+            .one_or_none()
+        )
+
+
+class IrisTenantConsentRepository(BaseRepository[IrisTenantConsent]):
+    """Acceso a los consentimientos de los miembros (``IrisTenantConsent``)."""
+
+    _MODEL = IrisTenantConsent
+
+    def get_by_user(self, user_id: int) -> Optional[IrisTenantConsent]:
+        """El consentimiento de un usuario, vigente o revocado.
+
+        Args:
+            user_id: Usuario.
+
+        Returns:
+            Optional[IrisTenantConsent]: La fila, o ``None`` si nunca lo dio.
+        """
+        return self._session.query(IrisTenantConsent).filter(IrisTenantConsent.user_id == user_id).one_or_none()
+
+    def get_active_user_ids(self, organization_id: int) -> List[int]:
+        """Usuarios con consentimiento vigente dado en una organización.
+
+        Args:
+            organization_id: Organización.
+
+        Returns:
+            List[int]: Sus ids, ordenados. Quien pueda haber salido de la
+                organización después lo filtra el llamante.
+        """
+        return [
+            user_id for (user_id,) in
+            self._session.query(IrisTenantConsent.user_id)
+            .filter(IrisTenantConsent.organization_id == organization_id, IrisTenantConsent.revoked_at.is_(None))
+            .order_by(IrisTenantConsent.user_id.asc())
+            .all()
+        ]
 
 
 class IrisCaseRepository(BaseRepository[IrisCase]):

@@ -2817,6 +2817,27 @@ def iris_threat_intel_config() -> IrisThreatIntelConfig:
     return load_block(IrisThreatIntelConfig)
 
 
+@config_block("features.iris.tenant")
+@dataclass(frozen=True)
+class IrisTenantConfig:
+    """Inteligencia de Iris compartida dentro de una organización (``iris/services/tenant.py``)."""
+
+    min_members: int = 3
+    """Miembros distintos que tienen que haber visto un indicador o un
+    dominio para que aparezca en lo compartido. Con menos, un agregado
+    señalaría a una persona concreta («esto solo lo recibió Ana»)."""
+
+    window_days: int = 30
+    """Días hacia atrás que se miran para los indicadores observados."""
+
+    max_items: int = 100
+    """Indicadores y dominios que se enseñan como mucho en cada lista."""
+
+
+def iris_tenant_config() -> IrisTenantConfig:
+    return load_block(IrisTenantConfig)
+
+
 def get_iris_threat_intel_key(provider: str) -> str:
     """Clave de API de un proveedor de reputación de Iris, desde el entorno.
 

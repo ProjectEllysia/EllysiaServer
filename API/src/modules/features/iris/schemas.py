@@ -413,6 +413,7 @@ class AnalysisDetailResponseSchema(Schema):
     tags = fields.List(fields.String(), load_default=list)
     campaign = fields.Nested("AnalysisCampaignSchema", load_default=None, allow_none=True)
     contactDeviation = fields.Nested("ContactDeviationSchema", load_default=None, allow_none=True)
+    organizationSightings = fields.Nested("OrganizationSightingsSchema", load_default=None, allow_none=True)
 
 
 class AnalysisCampaignSchema(Schema):
@@ -420,6 +421,19 @@ class AnalysisCampaignSchema(Schema):
     campaignId = fields.Integer()
     label = fields.String(allow_none=True)
     relatedCount = fields.Integer()
+
+
+class OrganizationSightingIndicatorSchema(Schema):
+    """Un indicador del análisis y cuántos miembros de la organización lo han visto."""
+    kind = fields.String()
+    value = fields.String()
+    memberCount = fields.Integer()
+
+
+class OrganizationSightingsSchema(Schema):
+    """Indicadores del análisis que también han visto otros miembros de la organización."""
+    minMembers = fields.Integer()
+    indicators = fields.List(fields.Nested(OrganizationSightingIndicatorSchema))
 
 
 class ContactDeviationSchema(Schema):
@@ -1318,3 +1332,65 @@ class ReputationResponseSchema(Schema):
     status = fields.String()
     verdict = fields.String()
     providers = fields.List(fields.Nested(ReputationProviderSchema))
+
+
+class TenantSharedIndicatorSchema(Schema):
+    """Un indicador que han visto varios miembros en correos sospechosos o de phishing.
+
+    ``imitatesProtected`` es el dominio protegido de la organización que imita,
+    o ``null``.
+    """
+    kind = fields.String()
+    value = fields.String()
+    memberCount = fields.Integer()
+    analysisCount = fields.Integer()
+    firstSeenAt = fields.String(allow_none=True)
+    lastSeenAt = fields.String(allow_none=True)
+    imitatesProtected = fields.String(allow_none=True)
+
+
+class TenantFrequentDomainSchema(Schema):
+    """Un dominio del que varios miembros reciben correo legítimo."""
+    domain = fields.String()
+    memberCount = fields.Integer()
+    legitimateMessages = fields.Integer()
+
+
+class TenantOrganizationSchema(Schema):
+    """La organización del usuario."""
+    id = fields.Integer()
+    name = fields.String()
+
+
+class TenantIntelResponseSchema(Schema):
+    """Inteligencia compartida de la organización del usuario.
+
+    Las listas van vacías si la organización no comparte o el usuario no ha
+    dado su consentimiento.
+    """
+    organization = fields.Nested(TenantOrganizationSchema)
+    isOwner = fields.Boolean()
+    hasConsented = fields.Boolean()
+    contributingMembers = fields.Integer()
+    minMembers = fields.Integer()
+    windowDays = fields.Integer()
+    sharingEnabled = fields.Boolean()
+    protectedDomains = fields.List(fields.String())
+    protectedBrands = fields.List(fields.String())
+    updatedAt = fields.String(allow_none=True)
+    sharedIndicators = fields.List(fields.Nested(TenantSharedIndicatorSchema))
+    frequentDomains = fields.List(fields.Nested(TenantFrequentDomainSchema))
+
+
+class TenantPolicyRequestSchema(Schema):
+    """Política de inteligencia que fija el dueño de la organización."""
+    sharingEnabled = fields.Boolean(required=True)
+    protectedDomains = fields.List(fields.String(validate=validate.Length(max=253)), load_default=list,
+                                   validate=validate.Length(max=100))
+    protectedBrands = fields.List(fields.String(validate=validate.Length(max=200)), load_default=list,
+                                  validate=validate.Length(max=100))
+
+
+class TenantConsentRequestSchema(Schema):
+    """Consentimiento de un miembro para aportar a lo compartido."""
+    consent = fields.Boolean(required=True)

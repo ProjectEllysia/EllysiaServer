@@ -87,6 +87,7 @@
     "campaignAlreadyLaunched": "La campaña ya se ha lanzado.",
     "cannotRemoveOwner": "Eres el dueño de esta organización. Para dejarla, tendrías que disolverla o traspasarla antes.",
     "circuitBreakerOpen": "El servicio no está disponible temporalmente.",
+    "complianceOrganizationOwnerOnly": "Sólo el dueño de la organización puede fijar sus marcos de cumplimiento.",
     "databaseConnection": "No se pudo conectar a la base de datos.",
     "defaultPlanMissing": "La plataforma no tiene configurado un plan por defecto. Avisa a un administrador.",
     "documentNotReady": "El documento aún no está listo.",
@@ -150,6 +151,8 @@
     "invitationInvalid": "Esta invitación no es válida o ha caducado. Pide a quien te invitó que te mande otra.",
     "irisBatchBackpressure": "Tienes {active} análisis en marcha y el lote añadiría {requested}; el máximo a la vez es {limit}. Espera a que terminen y vuelve a enviarlo: no se ha creado nada.",
     "irisMailboxInvalidFolder": "«{folder}» no es una carpeta válida para esta cuenta.",
+    "irisNotInOrganization": "No perteneces a ninguna organización.",
+    "irisTenantOwnerRequired": "Solo el dueño de la organización puede cambiar esto.",
     "jsonParsing": "No se pudieron procesar los datos JSON.",
     "logChanged": "El log cambió durante la consulta. Inicia una nueva lectura.",
     "logNotFound": "No hay ningún log disponible en este momento.",
@@ -195,7 +198,6 @@
     "systemTagImmutable": "Las etiquetas del catálogo común no se pueden borrar.",
     "tagAlreadyExists": "Ya existe una etiqueta «{name}».",
     "tagQuotaExceeded": "Has alcanzado el máximo de {maxTags} etiquetas personales.",
-    "complianceOrganizationOwnerOnly": "Sólo el dueño de la organización puede fijar sus marcos de cumplimiento.",
     "targetNotAuthorized": "«{target}» no está autorizado para operaciones activas de Lybra. Añádelo al registro de objetivos autorizados antes de lanzar este escaneo.",
     "taskNotCancellable": "La tarea no existe o ya ha terminado.",
     "tooManyRequests": "Has superado el límite de peticiones. Espera un momento e inténtalo de nuevo.",
@@ -2062,7 +2064,9 @@
         "display_name_reuse": "«{name}» escribe desde {sender}, pero ese nombre lo usa un contacto habitual tuyo, {habitual} ({count} mensajes legítimos).",
         "address_domain_change": "{sender} se parece a {habitual}, un contacto habitual tuyo ({count} mensajes legítimos), pero es de otro dominio.",
         "other": "{sender} se parece a {habitual}, un contacto habitual tuyo."
-      }
+      },
+      "sightingsTitle": "También lo han visto en tu organización",
+      "sightingsCount": "lo han recibido {count} miembros"
     },
     "cases": {
       "badge": "Casos",
@@ -2244,6 +2248,31 @@
         "unavailable": "sin respuesta",
         "rate_limited": "demasiadas consultas; prueba en un rato"
       }
+    },
+    "organization": {
+      "badge": "Organización",
+      "eyebrow": "Inteligencia compartida",
+      "title": "Tu organización",
+      "intro": "Los miembros que lo aceptan ponen en común lo que ven: dominios, enlaces y adjuntos de correos sospechosos que han llegado a varios, y dominios de los que varios reciben correo legítimo. Solo se enseñan recuentos, y solo de lo que han visto al menos {count} personas: nadie ve los correos, los análisis ni los nombres de los demás.",
+      "noOrganization": "No perteneces a ninguna organización. Cuando formes parte de una, aquí podrás compartir inteligencia con el resto.",
+      "sharingOn": "Tu organización comparte inteligencia",
+      "sharingOff": "Tu organización no comparte inteligencia; lo decide su dueño",
+      "contributing": "{count} miembro aporta | {count} miembros aportan",
+      "consent": "Acepto aportar mis indicadores a la inteligencia de la organización",
+      "consentHint": "Quien no acepta no aporta ni ve lo compartido. Puedes retirarlo cuando quieras: lo tuyo sale de todo al momento.",
+      "policyTitle": "Política de la organización",
+      "enableSharing": "Compartir inteligencia entre los miembros que lo acepten",
+      "protectedDomains": "Dominios protegidos",
+      "protectedDomainsHint": "Los vuestros y los de vuestros proveedores, uno por línea: se avisa de los que los imitan.",
+      "protectedBrands": "Marcas protegidas",
+      "protectedBrandsHint": "Una por línea.",
+      "sharedTitle": "Lo que han visto varios miembros",
+      "sharedHint": "Indicadores de correos sospechosos o de phishing de los últimos {days} días.",
+      "noShared": "Todavía nada lo han visto suficientes miembros.",
+      "seenBy": "lo han visto {count} miembros",
+      "imitates": "imita a {domain}",
+      "frequentTitle": "Dominios frecuentes",
+      "noFrequent": "Todavía no hay dominios de los que reciban correo suficientes miembros."
     }
   },
   "irisHub": {
@@ -2393,7 +2422,12 @@
     "graphForgotten": "Contactos olvidados.",
     "graphForgetFailed": "No se pudieron olvidar los contactos.",
     "exportFailed": "No se pudo exportar.",
-    "enrichmentFailed": "No se pudo consultar el indicador."
+    "enrichmentFailed": "No se pudo consultar el indicador.",
+    "organizationPolicySaved": "Política guardada.",
+    "organizationPolicyFailed": "No se pudo guardar la política.",
+    "organizationConsentGiven": "Ahora aportas a la inteligencia de tu organización.",
+    "organizationConsentWithdrawn": "Has dejado de aportar a la inteligencia de tu organización.",
+    "organizationConsentFailed": "No se pudo cambiar tu consentimiento."
   },
   "aegis": {
     "campaignStatus": {

@@ -203,6 +203,17 @@
         </p>
       </div>
 
+      <!-- Indicadores que también han visto otros miembros de la organización
+           (solo recuentos: nunca quién ni qué correo). -->
+      <div v-if="reportData.organizationSightings" class="rv-campaign">
+        <strong class="uncertainty-title">{{ t('iris.report.sightingsTitle') }}</strong>
+        <ul class="trust-detail">
+          <li v-for="indicator in reportData.organizationSightings.indicators" :key="`${indicator.kind}:${indicator.value}`">
+            <code>{{ defangIndicator(indicator.value) }}</code> — {{ t('iris.report.sightingsCount', { count: indicator.memberCount }) }}
+          </li>
+        </ul>
+      </div>
+
       <!-- Campaña: otros mensajes parecidos del usuario, para investigarlos
            juntos en vez de uno a uno. -->
       <div v-if="reportData.campaign" class="rv-campaign">
@@ -434,7 +445,7 @@
 import { ref, computed, watch, nextTick } from 'vue'
 import { useUtils } from '@/composables/useUtils'
 import { verdictKey } from '@/components/iris/verdict'
-import { contactDeviationKey as deviationKey } from '@/components/iris/indicators'
+import { contactDeviationKey as deviationKey, defang as defangIndicator } from '@/components/iris/indicators'
 import { useIrisStore } from '@/stores/irisStore'
 import IrisEmailPath from '@/components/iris/IrisEmailPath.vue'
 import IrisDocumentsModal from '@/components/iris/IrisDocumentsModal.vue'

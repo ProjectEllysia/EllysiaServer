@@ -1384,6 +1384,66 @@ class IrisThreatIntelResult(Base):
     )
 
 
+class IrisTenantProfile(Base):
+    """Política de inteligencia compartida de Iris en una organización.
+
+    La activa el dueño de la organización. Aunque esté activa, solo entra en
+    lo compartido lo de los miembros que han dado su consentimiento
+    (``IrisTenantConsent``), y lo compartido son **agregados anonimizados** de
+    indicadores y dominios, nunca un correo ni un análisis (ver
+    ``services/tenant.py``).
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        organization_id: FK a la ``Organization``; ``ondelete="CASCADE"``. Único.
+        is_sharing_enabled: Si la organización comparte inteligencia.
+        changed_by_user_id: Quién cambió la política por última vez; NULL si
+                 ese usuario ya no existe.
+        protected_domains: Dominios propios que la organización quiere vigilar
+                 (los suyos y los de sus proveedores), en minúsculas.
+        protected_brands: Marcas propias, en minúsculas.
+        updated_at: Último cambio.
+    """
+    __tablename__ = "IrisTenantProfile"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    organization_id = Column(Integer, ForeignKey("Organization.id", ondelete="CASCADE"), nullable=False, unique=True)
+    is_sharing_enabled = Column(Boolean, nullable=False, default=False)
+    changed_by_user_id = Column(Integer, ForeignKey("User.id", ondelete="SET NULL"), nullable=True)
+    protected_domains = Column(JSONB, nullable=False, default=list)
+    protected_brands = Column(JSONB, nullable=False, default=list)
+    updated_at = Column(DateTime, nullable=False, default=utcnow_naive)
+
+
+class IrisTenantConsent(Base):
+    """Consentimiento de un miembro para que sus indicadores entren en lo compartido.
+
+    Sin él, lo del miembro no se agrega ni él ve lo agregado: quien no aporta
+    no recibe. Revocarlo lo saca de todos los agregados al momento, porque se
+    calculan al leer.
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        user_id: FK al ``User``; ``ondelete="CASCADE"``. Único.
+        organization_id: Organización en la que lo dio; ``ondelete="CASCADE"``.
+                 Si el usuario cambia de organización, el consentimiento no le
+                 sigue: se comprueba contra su pertenencia actual.
+        consented_at: Cuándo lo dio por última vez.
+        revoked_at: Cuándo lo retiró; NULL si está vigente.
+    """
+    __tablename__ = "IrisTenantConsent"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("User.id", ondelete="CASCADE"), nullable=False, unique=True)
+    organization_id = Column(Integer, ForeignKey("Organization.id", ondelete="CASCADE"), nullable=False)
+    consented_at = Column(DateTime, nullable=False, default=utcnow_naive)
+    revoked_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        Index("ix_iris_tenant_consent_organization_id", "organization_id"),
+    )
+
+
 class CaseStatus(StrEnum):
     """Estado de un caso de analista (``IrisCase.status``).
 

@@ -82,6 +82,7 @@ const FRONTEND_SUBROUTES = new Set([
   '/iris/analisis',
   '/iris/conexiones',
   '/iris/campanas',
+  '/iris/organizacion',
   '/acheron/boveda',
   '/hygeia/activos',
   '/hygeia/etiquetas',

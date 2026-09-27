@@ -622,6 +622,60 @@ export const useIrisStore = defineStore('iris', () => {
     return currentCampaign.value
   }
 
+  /* ══════════════════ INTELIGENCIA DE LA ORGANIZACIÓN ══════════════════ */
+
+  /** Estado de la inteligencia compartida; `data` es null si no hay organización. */
+  const organizationIntel = reactive({ loading: false, loaded: false, data: null, notInOrganization: false })
+
+  /** Carga lo que el usuario puede ver de la inteligencia de su organización. */
+  async function fetchOrganizationIntel() {
+    organizationIntel.loading = true
+    try {
+      const res = await apiFetch('/iris/organization/intel')
+      organizationIntel.notInOrganization = res?.status === 409
+      organizationIntel.data = res?.ok ? await res.json() : null
+      organizationIntel.loaded = true
+    } finally {
+      organizationIntel.loading = false
+    }
+  }
+
+  /**
+   * Petición que devuelve la inteligencia actualizada; si falla, avisa.
+   * @returns {Promise<boolean>} true si se aplicó.
+   */
+  async function _organizationIntelRequest(url, body, errorText, successText) {
+    const res = await apiFetch(url, { method: 'PUT', body: JSON.stringify(body) })
+    if (!res?.ok) {
+      toast.show(await apiError(res, errorText), 'error')
+      return false
+    }
+    organizationIntel.data = await res.json()
+    toast.show(successText, 'success')
+    return true
+  }
+
+  /**
+   * El dueño cambia la política de la organización.
+   * @param {{sharingEnabled: boolean, protectedDomains: string[], protectedBrands: string[]}} policy
+   * @returns {Promise<boolean>} true si se guardó.
+   */
+  function updateOrganizationPolicy(policy) {
+    return _organizationIntelRequest('/iris/organization/intel/policy', policy,
+      i18n.global.t('irisStore.organizationPolicyFailed'), i18n.global.t('irisStore.organizationPolicySaved'))
+  }
+
+  /**
+   * Da o retira el consentimiento del usuario.
+   * @param {boolean} consent Dar (true) o retirar (false).
+   * @returns {Promise<boolean>} true si se aplicó.
+   */
+  function setOrganizationConsent(consent) {
+    return _organizationIntelRequest('/iris/organization/intel/consent', { consent },
+      i18n.global.t('irisStore.organizationConsentFailed'),
+      i18n.global.t(consent ? 'irisStore.organizationConsentGiven' : 'irisStore.organizationConsentWithdrawn'))
+  }
+
   /* ═══════════════════════ CASOS DE ANALISTA ══════════════════════════ */
 
   const cases = reactive({
@@ -1116,6 +1170,7 @@ export const useIrisStore = defineStore('iris', () => {
     Object.assign(campaigns, { items: [], total: 0, page: 1, loading: false })
     Object.assign(contactGraph, { senders: [], habitualMinMessages: 0, retentionDays: 0, enabled: true, loading: false })
     currentCampaign.value = null
+    Object.assign(organizationIntel, { loading: false, loaded: false, data: null, notInOrganization: false })
     closeBatch()
 
     currentId.value = null
@@ -1142,6 +1197,7 @@ export const useIrisStore = defineStore('iris', () => {
     savedViews, userTags, fetchSavedViews, saveArchiveView, applySavedView, deleteSavedView,
     fetchTags, setAnalysisTags, fetchReportById,
     campaigns, currentCampaign, fetchCampaigns, fetchCampaign,
+    organizationIntel, fetchOrganizationIntel, updateOrganizationPolicy, setOrganizationConsent,
     cases, currentCase, fetchCases, fetchCase, createCase, updateCase, changeCaseStatus,
     addCaseNote, linkCaseAnalysis, unlinkCaseAnalysis,
     currentBatch, batchSubmitting, submitBatch, closeBatch,
