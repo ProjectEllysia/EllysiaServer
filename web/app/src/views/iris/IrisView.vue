@@ -74,6 +74,12 @@
           </svg>
           {{ t('iris.trustView.badge') }}
         </router-link>
+        <router-link to="/iris/campanas" class="back-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="6" cy="6" r="3" /><circle cx="18" cy="6" r="3" /><circle cx="12" cy="18" r="3" /><path d="M8.5 7.5l2.5 8M15.5 7.5l-2.5 8M9 6h6" />
+          </svg>
+          {{ t('iris.campaigns.badge') }}
+        </router-link>
         <router-link to="/iris/casos" class="back-link">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2" />

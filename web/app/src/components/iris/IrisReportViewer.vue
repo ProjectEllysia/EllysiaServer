@@ -186,6 +186,16 @@
         />
       </div>
 
+      <!-- Campaña: otros mensajes parecidos del usuario, para investigarlos
+           juntos en vez de uno a uno. -->
+      <div v-if="reportData.campaign" class="rv-campaign">
+        <strong class="uncertainty-title">{{ t('iris.report.campaignTitle') }}</strong>
+        <p class="trust-detail">
+          {{ t('iris.report.campaignRelated', { count: reportData.campaign.relatedCount }) }}
+          <router-link :to="{ path: '/iris/campanas', query: { id: reportData.campaign.campaignId } }">{{ t('iris.report.campaignOpen') }}</router-link>
+        </p>
+      </div>
+
       <!-- Excepción de confianza que coincidió con el remitente: aplicada
            (qué reglas neutralizó) o ignorada (el mensaje no demostró venir de
            ahí). Es parte de la explicación del veredicto. -->
@@ -1216,6 +1226,12 @@ watch(
   border: 1px solid rgba(96, 128, 224, 0.25);
   border-radius: 10px;
   background: var(--info-dim);
+}
+.rv-campaign {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-med);
+  border-radius: 10px;
+  background: var(--accent-dim);
 }
 .rv-trust--ignored {
   border-color: rgba(212, 160, 74, 0.3);

@@ -108,6 +108,7 @@
       "folder": "Carpeta no encontrada.",
       "irisAnalysis": "Análisis no encontrado.",
       "irisBatch": "Lote no encontrado.",
+      "irisCampaign": "Campaña no encontrada.",
       "irisCase": "Caso no encontrado.",
       "irisMailboxConnection": "Conexión de buzón no encontrada.",
       "irisSavedView": "Vista guardada no encontrada.",
@@ -2050,7 +2051,10 @@
       "iocs": "Indicadores de compromiso (IOCs)",
       "iocsLoading": "Extrayendo IOCs…",
       "iocsFailed": "No se pudieron cargar los IOCs.",
-      "rawHeaders": "Cabeceras originales"
+      "rawHeaders": "Cabeceras originales",
+      "campaignTitle": "Forma parte de una campaña",
+      "campaignRelated": "Hay {count} mensaje más que se parece a este. | Hay {count} mensajes más que se parecen a este.",
+      "campaignOpen": "Ver la campaña"
     },
     "cases": {
       "badge": "Casos",
@@ -2132,6 +2136,38 @@
       "expires": "caduca {date}",
       "revokeTitle": "Revocar excepción",
       "revokeMessage": "Los próximos correos de {value} se analizarán sin excepción. La excepción seguirá en la auditoría."
+    },
+    "indicatorKind": {
+      "domain": "Dominio",
+      "url": "URL",
+      "ip": "IP",
+      "email": "Dirección",
+      "hash": "Hash (SHA-256)"
+    },
+    "campaigns": {
+      "badge": "Campañas",
+      "intro": "Mensajes que se parecen entre sí —el mismo enlace, el mismo adjunto, la misma plantilla o el mismo asunto y remitente— agrupados para investigarlos una sola vez. Solo se agrupan los que no parecen legítimos.",
+      "empty": "Todavía no hay campañas: aparecen cuando dos mensajes sospechosos se parecen.",
+      "pick": "Elige una campaña para ver sus mensajes y lo que tienen en común.",
+      "unnamed": "Campaña #{id}",
+      "messageCount": "{count} mensaje | {count} mensajes",
+      "seenBetween": "del {first} al {last}",
+      "brands": "Suplantan a: {brands}",
+      "shared": "Lo que tienen en común",
+      "sharedHint": "Indicadores que aparecen en varios mensajes: búscalos o bloquéalos una vez para toda la campaña.",
+      "noShared": "No comparten indicadores: se parecen por el asunto, la plantilla o la marca.",
+      "inMessages": "en {count} mensaje | en {count} mensajes",
+      "messages": "Mensajes ({count})",
+      "matchedBy": "Coincide por:",
+      "signals": {
+        "url": "enlace",
+        "hash": "adjunto idéntico",
+        "template": "plantilla",
+        "subject": "asunto",
+        "sender": "remitente",
+        "domain": "dominio",
+        "brand": "marca suplantada"
+      }
     }
   },
   "irisHub": {
