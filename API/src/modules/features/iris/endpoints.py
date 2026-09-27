@@ -38,6 +38,7 @@ from .managers import (
     IrisFeedbackManager, IrisManager, IrisReportManager, IrisMailboxManager,
     IrisNotificationPreferenceManager, IrisReplayManager, IrisTriageManager, IrisTrustPolicyManager,
     IrisCaseManager, IrisBatchManager, IrisCampaignManager, IrisContactGraphManager, IrisExportManager,
+    IrisEnrichmentManager,
 )
 from .exceptions import (
     IrisAnalysisNotFoundError,
@@ -46,6 +47,7 @@ from .exceptions import (
     IrisMailboxOAuthStateError,
     IrisBatchNotFoundError,
     IrisCampaignNotFoundError,
+    IrisIndicatorNotFoundError,
     IrisCaseNotFoundError,
     IrisSavedViewNotFoundError,
     IrisTrustedSenderNotFoundError,
@@ -121,6 +123,7 @@ from .schemas import (
     IrisGraphResponseSchema,
     IntelExportQuerySchema,
     IntelExportRequestSchema,
+    IrisDomainContextSchema,
 )
 
 
@@ -664,6 +667,24 @@ def get_contact_graph(args: dict):
 def forget_contact_graph():
     """Olvidar el grafo de comunicación entero (los análisis no cambian)"""
     return IrisContactGraphManager.forget_graph(get_current_user().id)
+
+
+# =============================================================================
+# Enriquecimiento (consultas externas bajo demanda)
+# =============================================================================
+
+@iris_blp.get("/domains/<string:domain>/context")
+@iris_blp.response(200, IrisDomainContextSchema, description="Registration and hosting context of a domain (RDAP)")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions or surface closed")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Domain not in any of the user's analyses")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("60 per hour; 300 per day")
+@handle_exceptions(default_exception=IrisIndicatorNotFoundError, logger=logger)
+def get_domain_context(domain: str):
+    """Edad, registrador, red y país de un dominio que aparece en tus análisis"""
+    return IrisEnrichmentManager.get_domain_context(domain, get_current_user().id)
 
 
 @iris_blp.get("/retention-policy")

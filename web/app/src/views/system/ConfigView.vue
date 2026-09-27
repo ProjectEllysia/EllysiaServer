@@ -719,7 +719,7 @@ onUnmounted(() => { if (observer) observer.disconnect() })
  * una (lo detalla el proyecto «Legal» de la organización).
  */
 /** Funciones que se abren por separado; sus textos están en `configView.surfaces.<key>`. */
-const LAUNCH_SURFACES = ['registration', 'pricing', 'thirdPartyScanners', 'campaigns', 'mailboxConnectors', 'externalAi'].map((key) => ({ key }))
+const LAUNCH_SURFACES = ['registration', 'pricing', 'thirdPartyScanners', 'campaigns', 'mailboxConnectors', 'externalAi', 'externalEnrichment'].map((key) => ({ key }))
 
 const isLaunchPreview = computed(() => store.configFlat['general.launch.mode'] !== 'public')
 

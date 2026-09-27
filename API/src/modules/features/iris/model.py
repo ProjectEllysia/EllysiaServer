@@ -1202,6 +1202,68 @@ class IrisCommunicationEdge(Base):
     )
 
 
+class EnrichmentStatus(StrEnum):
+    """Resultado de una consulta de enriquecimiento a un servicio externo.
+
+    - ``OK``: el servicio respondió y hay datos.
+    - ``UNAVAILABLE``: el servicio no respondió, respondió mal o no tenía el
+      dato. Es el modo neutro: no dice nada a favor ni en contra.
+    - ``RATE_LIMITED``: se agotó el cupo por minuto del proveedor; se puede
+      repetir en un rato. No se guarda en caché.
+    - ``DISABLED``: el enriquecimiento está apagado en la configuración. No se
+      guarda en caché.
+    """
+
+    OK = "ok"
+    UNAVAILABLE = "unavailable"
+    RATE_LIMITED = "rate_limited"
+    DISABLED = "disabled"
+
+
+class IrisDomainCache(Base):
+    """Contexto de infraestructura de un dominio, consultado por RDAP.
+
+    Es información pública de registro —fechas, registrador, servidores de
+    nombres— y de la red donde se aloja, así que se cachea para toda la
+    instalación y no por usuario: la fila no dice quién preguntó.
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        domain: Dominio registrable consultado, en minúsculas. Único.
+        status: ``EnrichmentStatus`` (``ok`` o ``unavailable``).
+        registered_at: Fecha de alta en el registro, o NULL.
+        registry_expires_at: Fecha de caducidad del registro, o NULL.
+        registrar: Nombre del registrador, o NULL.
+        registry_status: Estados EPP del dominio (``client transfer
+                 prohibited``…), o NULL.
+        nameservers: Servidores de nombres, o NULL.
+        address: Primera IP pública a la que resuelve, o NULL.
+        network_name: Nombre de la red que la contiene según RDAP, o NULL.
+        country: País de esa red (código de dos letras), o NULL.
+        asn: Sistema autónomo de origen, si el registro RDAP lo trae, o NULL.
+        error: Por qué no hubo datos cuando ``status`` es ``unavailable``.
+        fetched_at: Cuándo se consultó.
+        expires_at: Cuándo deja de valer la caché.
+    """
+    __tablename__ = "IrisDomainCache"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    domain = Column(String(253), nullable=False, unique=True)
+    status = Column(String(16), nullable=False)
+    registered_at = Column(DateTime, nullable=True)
+    registry_expires_at = Column(DateTime, nullable=True)
+    registrar = Column(String(255), nullable=True)
+    registry_status = Column(JSONB, nullable=True)
+    nameservers = Column(JSONB, nullable=True)
+    address = Column(String(45), nullable=True)
+    network_name = Column(String(255), nullable=True)
+    country = Column(String(8), nullable=True)
+    asn = Column(String(32), nullable=True)
+    error = Column(String(64), nullable=True)
+    fetched_at = Column(DateTime, nullable=False, default=utcnow_naive)
+    expires_at = Column(DateTime, nullable=False)
+
+
 class CaseStatus(StrEnum):
     """Estado de un caso de analista (``IrisCase.status``).
 

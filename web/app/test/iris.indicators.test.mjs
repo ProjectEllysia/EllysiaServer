@@ -11,7 +11,7 @@
 
 import { readFileSync } from 'node:fs'
 import { createI18n } from 'vue-i18n'
-import { campaignSignalKey, contactDeviationKey, defang, indicatorKindKey } from '../src/components/iris/indicators.js'
+import { campaignSignalKey, contactDeviationKey, defang, describeDomainContext, indicatorKindKey } from '../src/components/iris/indicators.js'
 
 const spanish = JSON.parse(readFileSync(new URL('../src/i18n/locales/es.json', import.meta.url), 'utf-8'))
 const { t, te } = createI18n({ legacy: false, locale: 'es', messages: { es: spanish } }).global
@@ -39,6 +39,12 @@ eq('desviación de contacto',
   t(contactDeviationKey('display_name_reuse'), { sender: 'x@evil.example', name: 'Juan', habitual: 'juan@corp.example', count: 3 }),
   '«Juan» escribe desde x@evil.example, pero ese nombre lo usa un contacto habitual tuyo, juan@corp.example (3 mensajes legítimos).')
 eq('desviación desconocida', contactDeviationKey('embedding'), 'iris.report.deviation.other')
+
+console.log('\ncontexto de dominio')
+eq('reciente', describeDomainContext({ status: 'ok', ageDays: 3, isRecentlyRegistered: true, registrar: 'R', networkName: 'NET', country: 'US', asn: 'AS1' }, t),
+  'Registrado hace 3 días (reciente) · Registrador: R · Red NET (US) · AS1')
+eq('neutro', describeDomainContext({ status: 'unavailable' }, t), 'El registro no ha respondido; no se puede decir nada de este dominio.')
+eq('sin respuesta', describeDomainContext(null, t), 'El registro no ha respondido; no se puede decir nada de este dominio.')
 
 console.log('\ncada clave que puede devolver el módulo existe en el diccionario')
 const keys = [

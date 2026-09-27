@@ -30,6 +30,8 @@ Managers del módulo Iris (análisis de correo).
   comunicación (quién escribe a quién) de un usuario.
 - ``IrisExportManager`` (``exports.py``): indicadores y hallazgos de un
   análisis o una campaña en JSON versionado, STIX 2.1 o MISP.
+- ``IrisEnrichmentManager`` (``enrichment.py``): consultas bajo demanda a
+  servicios externos sobre un indicador del usuario (RDAP…).
 
 Iris era el único módulo con
 **dos** ficheros de managers en la raíz — ``managers.py`` (64 KB, el
@@ -57,6 +59,7 @@ from .batch import IrisBatchManager
 from .campaigns import IrisCampaignManager
 from .graph import IrisContactGraphManager
 from .exports import IrisExportManager
+from .enrichment import IrisEnrichmentManager
 
 __all__ = [
     "IrisManager",
@@ -67,6 +70,7 @@ __all__ = [
     "IrisCampaignManager",
     "IrisContactGraphManager",
     "IrisExportManager",
+    "IrisEnrichmentManager",
     "IrisFeedbackManager",
     "IrisReplayManager",
     "IrisReportManager",

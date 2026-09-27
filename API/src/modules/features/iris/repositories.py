@@ -22,7 +22,7 @@ from .model import (
     IrisRawMessage, IrisRuleResult, IrisDocument, IrisTrustedSender,
     IrisAnalysisTag, IrisIndicator, IrisSavedView,
     IrisCase, IrisCaseAnalysis, IrisCaseEvent, IrisBatch, IrisBatchItem,
-    IrisCampaign, IrisCampaignMember, IrisCommunicationEdge,
+    IrisCampaign, IrisCampaignMember, IrisCommunicationEdge, IrisDomainCache,
 )
 
 
@@ -1036,6 +1036,28 @@ class IrisIndicatorRepository(BaseRepository[IrisIndicator]):
             pairs_by_analysis.setdefault(analysis_id, []).append((kind, value))
         return pairs_by_analysis
 
+    def exists_for_user(self, user_id: int, kind: str, value: str) -> bool:
+        """Indica si un indicador aparece en algún análisis del usuario.
+
+        Es la condición para enriquecerlo: Iris solo consulta fuera lo que el
+        usuario ya ha visto en su correo, para no ser un proxy de consultas
+        arbitrarias.
+
+        Args:
+            user_id: Usuario.
+            kind: ``IrisIndicator.kind``.
+            value: Valor exacto, en minúsculas.
+
+        Returns:
+            bool: ``True`` si está en su índice.
+        """
+        return self._session.query(
+            self._session.query(IrisIndicator.id)
+            .join(IrisAnalysis, IrisAnalysis.id == IrisIndicator.analysis_id)
+            .filter(IrisAnalysis.user_id == user_id, IrisIndicator.kind == kind, IrisIndicator.value == value)
+            .exists()
+        ).scalar()
+
     def get_shared_in_campaign(self, campaign_id: int, min_analyses: int = 2) -> List[Tuple[str, str, int]]:
         """Indicadores que comparten varios análisis de una campaña.
 
@@ -1336,6 +1358,23 @@ class IrisCommunicationEdgeRepository(BaseRepository[IrisCommunicationEdge]):
             delete(IrisCommunicationEdge).where(IrisCommunicationEdge.last_seen_at < cutoff)
         )
         return result.rowcount or 0
+
+
+class IrisDomainCacheRepository(BaseRepository[IrisDomainCache]):
+    """Acceso a la caché RDAP de dominios (``IrisDomainCache``)."""
+
+    _MODEL = IrisDomainCache
+
+    def get_by_domain(self, domain: str) -> Optional[IrisDomainCache]:
+        """La entrada de caché de un dominio, caducada o no.
+
+        Args:
+            domain: Dominio registrable, en minúsculas.
+
+        Returns:
+            Optional[IrisDomainCache]: La entrada, o ``None``.
+        """
+        return self._session.query(IrisDomainCache).filter(IrisDomainCache.domain == domain).one_or_none()
 
 
 class IrisCaseRepository(BaseRepository[IrisCase]):

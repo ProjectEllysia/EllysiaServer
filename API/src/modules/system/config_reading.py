@@ -1778,6 +1778,8 @@ class LaunchSurface(StrEnum):
     - ``CAMPAIGNS``: envío de campañas de Aegis a destinatarios externos.
     - ``MAILBOX_CONNECTORS``: conexión y sincronización de buzones en Iris.
     - ``EXTERNAL_AI``: generación con proveedores de IA fuera del servidor.
+    - ``EXTERNAL_ENRICHMENT``: consultas de Iris a servicios de terceros sobre
+      los indicadores de un correo (RDAP, reputación, seguir enlaces).
     """
 
     REGISTRATION = "registration"
@@ -1786,6 +1788,7 @@ class LaunchSurface(StrEnum):
     CAMPAIGNS = "campaigns"
     MAILBOX_CONNECTORS = "mailboxConnectors"
     EXTERNAL_AI = "externalAi"
+    EXTERNAL_ENRICHMENT = "externalEnrichment"
 
 
 @config_block("general.launch")
@@ -2679,6 +2682,59 @@ class IrisExportsConfig:
 
 def iris_exports_config() -> IrisExportsConfig:
     return load_block(IrisExportsConfig)
+
+
+@config_block("features.iris.enrichment")
+@dataclass(frozen=True)
+class IrisEnrichmentConfig:
+    """Consultas de Iris a servicios externos sobre un indicador (``iris/services/enrichment/``).
+
+    Son siempre bajo demanda. Además de este interruptor, las cierra la
+    superficie ``externalEnrichment`` de ``general.launch`` mientras la
+    instalación está en vista previa.
+    """
+
+    enabled: bool = True
+    """Si se consulta fuera. Apagado, cada consulta responde ``disabled`` sin
+    hacer red."""
+
+    timeout_seconds: float = 5.0
+    """Tiempo máximo de cada operación de red (conectar, enviar, leer)."""
+
+    max_response_bytes: int = 1024 * 1024
+    """Bytes que se leen como mucho de cada respuesta."""
+
+
+def iris_enrichment_config() -> IrisEnrichmentConfig:
+    return load_block(IrisEnrichmentConfig)
+
+
+@config_block("features.iris.enrichment.rdap")
+@dataclass(frozen=True)
+class IrisRdapConfig:
+    """Contexto de infraestructura de un dominio por RDAP: edad, registrador, red y país."""
+
+    base_url: str = "https://rdap.org"
+    """Servicio RDAP de arranque: redirige a la base de datos del registro
+    que corresponde a cada dominio o IP."""
+
+    ttl_hours: int = 24
+    """Horas que vale una respuesta en caché."""
+
+    negative_ttl_minutes: int = 30
+    """Minutos que se recuerda que el registro no respondió, para no
+    insistir en cada petición."""
+
+    requests_per_minute: int = 30
+    """Consultas por minuto al servicio RDAP desde cada proceso."""
+
+    recent_domain_days: int = 30
+    """Un dominio registrado hace menos días se señala como reciente. Es
+    contexto: no cambia ningún veredicto."""
+
+
+def iris_rdap_config() -> IrisRdapConfig:
+    return load_block(IrisRdapConfig)
 
 
 # --- Datasets y pesos: buscados por clave, no por campo ---------------------
