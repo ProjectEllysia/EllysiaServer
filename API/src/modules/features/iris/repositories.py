@@ -24,7 +24,7 @@ from .model import (
     IrisCase, IrisCaseAnalysis, IrisCaseEvent, IrisBatch, IrisBatchItem,
     IrisCampaign, IrisCampaignMember, IrisCommunicationEdge, IrisDomainCache, IrisUrlExpansion,
     IrisThreatIntelResult, IrisTenantProfile, IrisTenantConsent,
-    IrisWebhookDelivery, IrisWebhookSubscription, WebhookDeliveryStatus,
+    IrisWebhookDelivery, IrisWebhookSubscription, WebhookDeliveryStatus, IrisIntegrationToken,
 )
 
 
@@ -2011,6 +2011,69 @@ class IrisWebhookDeliveryRepository(BaseRepository[IrisWebhookDelivery]):
                                                         WebhookDeliveryStatus.FAILED.value])))
         )
         return result.rowcount or 0
+
+
+class IrisIntegrationTokenRepository(BaseRepository[IrisIntegrationToken]):
+    """Acceso a los tokens de integración (``IrisIntegrationToken``)."""
+
+    _MODEL = IrisIntegrationToken
+
+    def get_by_user(self, user_id: int) -> List[IrisIntegrationToken]:
+        """Tokens de un usuario, también los revocados y caducados.
+
+        Args:
+            user_id: Dueño.
+
+        Returns:
+            List[IrisIntegrationToken]: Del más nuevo al más antiguo.
+        """
+        return (
+            self._session.query(IrisIntegrationToken)
+            .filter(IrisIntegrationToken.user_id == user_id)
+            .order_by(IrisIntegrationToken.id.desc())
+            .all()
+        )
+
+    def count_valid_by_user(self, user_id: int, now: datetime) -> int:
+        """Cuántos tokens vigentes (ni revocados ni caducados) tiene un usuario.
+
+        Args:
+            user_id: Dueño.
+            now: Hora actual, para descartar los caducados.
+
+        Returns:
+            int: Número de tokens vigentes.
+        """
+        return (
+            self._session.query(IrisIntegrationToken)
+            .filter(IrisIntegrationToken.user_id == user_id,
+                    IrisIntegrationToken.revoked_at.is_(None),
+                    or_(IrisIntegrationToken.expires_at.is_(None), IrisIntegrationToken.expires_at > now))
+            .count()
+        )
+
+    def get_by_key_id(self, key_id: str) -> Optional[IrisIntegrationToken]:
+        """Localiza un token por su parte pública.
+
+        Args:
+            key_id: Los 16 caracteres hexadecimales que siguen a ``irt_``.
+
+        Returns:
+            Optional[IrisIntegrationToken]: El token, vigente o no; ``None`` si
+                no existe.
+        """
+        return self._session.query(IrisIntegrationToken).filter(IrisIntegrationToken.key_id == key_id).first()
+
+    def touch(self, token_id: int, used_at: datetime) -> None:
+        """Anota el último uso de un token.
+
+        Args:
+            token_id: Token.
+            used_at: Cuándo se usó.
+        """
+        self._session.execute(
+            update(IrisIntegrationToken).where(IrisIntegrationToken.id == token_id).values(last_used_at=used_at)
+        )
 
 
 class IrisReportRepository(DocumentRepository[IrisDocument]):

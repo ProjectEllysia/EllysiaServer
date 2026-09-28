@@ -38,6 +38,8 @@ Managers del módulo Iris (análisis de correo).
   organización, con la política del dueño y el consentimiento de cada miembro.
 - ``IrisWebhookManager`` (``webhooks.py``): webhooks firmados hacia los
   sistemas del usuario (SIEM, SOAR), con reintentos, historial y reenvío.
+- ``IrisReportingManager`` (``reporting.py``): tokens de integración y
+  reportes de correo hechos desde un cliente de correo con ellos.
 
 Iris era el único módulo con
 **dos** ficheros de managers en la raíz — ``managers.py`` (64 KB, el
@@ -69,10 +71,12 @@ from .enrichment import IrisEnrichmentManager
 from .url_expansion import IrisUrlExpansionManager
 from .tenant import IrisTenantManager
 from .webhooks import IrisWebhookManager
+from .reporting import IrisReportingManager
 
 __all__ = [
     "IrisManager",
     "IrisWebhookManager",
+    "IrisReportingManager",
     "IrisTrustPolicyManager",
     "IrisTriageManager",
     "IrisCaseManager",

@@ -1095,6 +1095,8 @@ class IrisManager(TaskTrackingMixin):
         raw_message: str | None = None,
         connection_id: int | None = None,
         source_message_uid: str | None = None,
+        report_channel: str | None = None,
+        integration_token_id: int | None = None,
     ) -> int:
         """
         Envía cabeceras de correo crudas (o un mensaje completo) a análisis
@@ -1128,6 +1130,11 @@ class IrisManager(TaskTrackingMixin):
                 mismo mensaje nunca duplica el análisis ni cobra cuota dos
                 veces -- ver la comprobación de idempotencia más abajo.
                 Por defecto ``None``.
+            report_channel: Valor de ``ReportChannel`` cuando el mensaje lo
+                reportó el usuario desde un cliente de correo con un token de
+                integración. Por defecto ``None`` (no llegó por ese canal).
+            integration_token_id: Token de integración con que se reportó,
+                junto con ``report_channel``. Por defecto ``None``.
 
         Returns:
             int: La primary key del ``IrisAnalysis`` (``analysis_id``) --
@@ -1173,6 +1180,8 @@ class IrisManager(TaskTrackingMixin):
             connection_id=connection_id,
             source_message_uid=source_message_uid,
             content_sha256=message_fingerprint(raw_input),
+            report_channel=report_channel,
+            integration_token_id=integration_token_id,
         )
         try:
             with UnitOfWork() as uow:
@@ -1608,6 +1617,7 @@ class IrisManager(TaskTrackingMixin):
             "unwrappedFromForward": context.unwrapped_from_forward,
             "wrapperFrom": context.wrapper_from or None,
             "wrapperSubject": context.wrapper_subject or None,
+            "reportChannel": analysis.report_channel,
             "winningContext": analysis.winning_context,
             "winningReason": analysis.winning_reason,
             "secondaryContext": secondary_context,

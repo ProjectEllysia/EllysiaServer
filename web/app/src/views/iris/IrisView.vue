@@ -86,7 +86,7 @@
           </svg>
           {{ t('iris.organization.badge') }}
         </router-link>
-        <router-link v-if="canUseWebhooks" to="/iris/integraciones" class="back-link">
+        <router-link to="/iris/integraciones" class="back-link">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M10 13a5 5 0 007.07 0l3-3a5 5 0 00-7.07-7.07l-1.5 1.5M14 11a5 5 0 00-7.07 0l-3 3a5 5 0 007.07 7.07l1.5-1.5" />
           </svg>
@@ -148,8 +148,6 @@ const store = useIrisStore()
 // Conectar buzones es la superficie `mailboxConnectors` de general.launch.
 const { isSurfaceEnabled } = useLaunch()
 const canConnectMailboxes = computed(() => isSurfaceEnabled('mailboxConnectors'))
-// Enviar avisos a sistemas externos es la superficie `webhooks`.
-const canUseWebhooks = computed(() => isSurfaceEnabled('webhooks'))
 const toast = useToastStore()
 
 /** Formatos que admite la zona de arrastre; iguales en cualquier idioma. */

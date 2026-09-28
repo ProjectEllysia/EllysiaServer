@@ -382,6 +382,11 @@
         "retrySweepIntervalSeconds": 60,
         "deliveryRetentionDays": 30
       },
+      "reporting": {
+        "maxTokensPerUser": 10,
+        "defaultTokenLifetimeDays": 180,
+        "maxTokenLifetimeDays": 365
+      },
       "enrichment": {
         "enabled": true,
         "timeoutSeconds": 5.0,

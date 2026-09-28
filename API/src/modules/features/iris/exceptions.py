@@ -273,6 +273,44 @@ class IrisWebhookDeliveryInProgressError(IrisError):
         )
 
 
+class IrisIntegrationTokenNotFoundError(EntityNotFoundError, IrisError):
+    """El token de integración no existe o no es del usuario (mismo error para los dos)."""
+    entity_label = "Token de integración"
+    id_field = "token_id"
+
+
+class IrisInvalidIntegrationTokenError(IrisError):
+    """El token de integración falta, está mal formado, no existe, está revocado o caducó.
+
+    Una sola respuesta para todos los casos, a propósito: distinguir «no
+    existe» de «secreto incorrecto» permitiría averiguar qué ``key_id`` son
+    válidos probando.
+    """
+    default_code = ErrorCode.AUTHENTICATION_ERROR
+    default_status_code = 401
+
+    def __init__(self, reason: str = "") -> None:
+        super().__init__(
+            message=f"Token de integracion rechazado{f': {reason}' if reason else ''}",
+            user_message="El token de integración no es válido, está revocado o ha caducado.",
+            message_key="irisInvalidIntegrationToken",
+        )
+
+
+class IrisIntegrationTokenLimitReachedError(IrisError):
+    """El usuario ya tiene tantos tokens vigentes como permite la instalación."""
+    default_code = ErrorCode.VALIDATION_ERROR
+    default_status_code = 409
+
+    def __init__(self, limit: int) -> None:
+        super().__init__(
+            message=f"Limite de {limit} tokens de integracion vigentes alcanzado",
+            user_message=f"Ya tienes {limit} tokens de integración vigentes, el máximo. Revoca uno para crear otro.",
+            message_key="irisIntegrationTokenLimitReached",
+            params={"limit": limit},
+        )
+
+
 class IrisTenantOwnerRequiredError(IrisError):
     """Solo el dueño de la organización decide si se comparte inteligencia y qué se protege."""
     default_code = ErrorCode.AUTHORIZATION_ERROR

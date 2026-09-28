@@ -5,6 +5,64 @@
 
     <div class="integrations-layout">
       <section class="panel">
+        <p class="panel-eyebrow">{{ t('iris.reporting.eyebrow') }}</p>
+        <h2 class="panel-title">{{ t('iris.reporting.title') }}</h2>
+        <p class="panel-sub">{{ t('iris.reporting.intro') }}</p>
+
+        <form class="webhook-form" @submit.prevent="createToken">
+          <label class="field">
+            <span class="field-label">{{ t('iris.reporting.name') }}</span>
+            <input v-model="tokenDraft.name" class="text-input" maxlength="80" required :placeholder="t('iris.reporting.namePlaceholder')" />
+          </label>
+          <label class="field">
+            <span class="field-label">{{ t('iris.reporting.lifetime') }}</span>
+            <select v-model.number="tokenDraft.lifetimeDays" class="text-input">
+              <option v-for="days in TOKEN_LIFETIMES" :key="days" :value="days">{{ t('iris.reporting.days', { count: days }, days) }}</option>
+            </select>
+          </label>
+          <button type="submit" class="primary-btn">{{ t('iris.reporting.create') }}</button>
+        </form>
+
+        <!-- El token completo solo existe aquí y ahora: el servidor guarda su huella, no el token. -->
+        <div v-if="store.integrationTokens.lastToken" class="secret-box" role="alert">
+          <h3 class="list-title">{{ t('iris.reporting.tokenTitle') }}</h3>
+          <p class="hint">{{ t('iris.reporting.tokenHint') }}</p>
+          <div class="secret-row">
+            <code class="secret-value">{{ store.integrationTokens.lastToken.token }}</code>
+            <button type="button" class="ghost-btn" @click="copyText(store.integrationTokens.lastToken.token)">{{ t('iris.webhooks.copy') }}</button>
+            <button type="button" class="ghost-btn" @click="store.integrationTokens.lastToken = null">{{ t('iris.webhooks.secretSaved') }}</button>
+          </div>
+        </div>
+
+        <p v-if="!store.integrationTokens.items.length" class="empty">{{ t('iris.reporting.empty') }}</p>
+        <table v-else class="history-table">
+          <thead>
+            <tr>
+              <th>{{ t('iris.reporting.columns.name') }}</th>
+              <th>{{ t('iris.reporting.columns.status') }}</th>
+              <th>{{ t('iris.reporting.columns.expires') }}</th>
+              <th>{{ t('iris.reporting.columns.lastUsed') }}</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="token in store.integrationTokens.items" :key="token.tokenId">
+              <td :title="token.keyId">{{ token.name }}</td>
+              <td>{{ t(tokenStatusKey(token.status)) }}</td>
+              <td>{{ token.expiresAt ? formatDate(token.expiresAt) : '—' }}</td>
+              <td>{{ token.lastUsedAt ? formatDateTime(token.lastUsedAt) : t('iris.reporting.neverUsed') }}</td>
+              <td>
+                <button v-if="token.status === 'active'" type="button" class="ghost-btn ghost-btn--danger" @click="askRevoke(token)">
+                  {{ t('iris.reporting.revoke') }}
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="hint hint--spaced">{{ t('iris.reporting.howTo') }}</p>
+      </section>
+
+      <section v-if="canUseWebhooks" class="panel">
         <p class="panel-eyebrow">{{ t('iris.webhooks.eyebrow') }}</p>
         <h2 class="panel-title">{{ t('iris.webhooks.title') }}</h2>
         <p class="panel-sub">{{ t('iris.webhooks.intro') }}</p>
@@ -31,17 +89,17 @@
       </section>
 
       <!-- El secreto solo existe en claro aquí y ahora: el servidor no lo vuelve a enseñar. -->
-      <section v-if="store.webhooks.lastSecret" class="panel panel--secret" role="alert">
+      <section v-if="canUseWebhooks && store.webhooks.lastSecret" class="panel panel--secret" role="alert">
         <h3 class="list-title">{{ t('iris.webhooks.secretTitle') }}</h3>
         <p class="hint">{{ t('iris.webhooks.secretHint') }}</p>
         <div class="secret-row">
           <code class="secret-value">{{ store.webhooks.lastSecret.secret }}</code>
-          <button type="button" class="ghost-btn" @click="copySecret">{{ t('iris.webhooks.copy') }}</button>
+          <button type="button" class="ghost-btn" @click="copyText(store.webhooks.lastSecret.secret)">{{ t('iris.webhooks.copy') }}</button>
           <button type="button" class="ghost-btn" @click="store.webhooks.lastSecret = null">{{ t('iris.webhooks.secretSaved') }}</button>
         </div>
       </section>
 
-      <section class="panel">
+      <section v-if="canUseWebhooks" class="panel">
         <h3 class="list-title">{{ t('iris.webhooks.listTitle') }}</h3>
         <p v-if="store.webhooks.loading && !store.webhooks.loaded" class="empty">{{ t('common.loading') }}</p>
         <p v-else-if="!store.webhooks.items.length" class="empty">{{ t('iris.webhooks.empty') }}</p>
@@ -118,22 +176,33 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Topbar from '@/components/shared/Topbar.vue'
 import StarBackground from '@/components/shared/StarBackground.vue'
 import ConfirmModal from '@/components/shared/ConfirmModal.vue'
 import { useIrisStore } from '@/stores/irisStore'
 import { useToastStore } from '@/stores/toastStore'
-import { formatDateTime } from '@/i18n/format'
-import { deliveryStatusKey, disabledReasonKey, webhookEventKey } from '@/components/iris/webhooks'
+import { useLaunch } from '@/composables/useLaunch'
+import { formatDate, formatDateTime } from '@/i18n/format'
+import { deliveryStatusKey, disabledReasonKey, tokenStatusKey, webhookEventKey } from '@/components/iris/integrations'
 
 const { t } = useI18n()
 const store = useIrisStore()
 const toast = useToastStore()
 
+// Los webhooks son la superficie `webhooks` de general.launch; los tokens de
+// reporte no mandan nada fuera y no dependen de ninguna.
+const { isSurfaceEnabled } = useLaunch()
+const canUseWebhooks = computed(() => isSurfaceEnabled('webhooks'))
+
+/** Duraciones que se ofrecen para un token, en días; el servidor admite hasta 365. */
+const TOKEN_LIFETIMES = [30, 90, 180, 365]
+
 /** Borrador del alta: por defecto, todos los eventos marcados. */
 const draft = reactive({ name: '', url: '', eventTypes: [] })
+/** Borrador de un token de integración. */
+const tokenDraft = reactive({ name: '', lifetimeDays: 180 })
 /** Qué historiales están desplegados, por id de webhook. */
 const openHistory = reactive({})
 const confirm = ref({ open: false, title: '', message: '', action: () => {} })
@@ -143,12 +212,30 @@ async function create() {
   if (created) Object.assign(draft, { name: '', url: '', eventTypes: [...store.webhooks.availableEventTypes] })
 }
 
-async function copySecret() {
+async function createToken() {
+  const created = await store.createIntegrationToken({ name: tokenDraft.name, lifetimeDays: tokenDraft.lifetimeDays })
+  if (created) tokenDraft.name = ''
+}
+
+/** Copia un secreto que solo se enseña una vez; si el navegador no deja, lo dice. */
+async function copyText(value) {
   try {
-    await navigator.clipboard.writeText(store.webhooks.lastSecret.secret)
+    await navigator.clipboard.writeText(value)
     toast.show(t('iris.webhooks.copied'), 'success')
   } catch {
     toast.show(t('iris.webhooks.copyFailed'), 'error')
+  }
+}
+
+function askRevoke(token) {
+  confirm.value = {
+    open: true,
+    title: t('iris.reporting.confirmRevoke.title', { name: token.name }),
+    message: t('iris.reporting.confirmRevoke.message'),
+    action: async () => {
+      confirm.value.open = false
+      await store.revokeIntegrationToken(token.tokenId)
+    },
   }
 }
 
@@ -186,6 +273,8 @@ function askDelete(hook) {
 }
 
 onMounted(async () => {
+  store.fetchIntegrationTokens()
+  if (!canUseWebhooks.value) return
   await store.fetchWebhooks()
   draft.eventTypes = [...store.webhooks.availableEventTypes]
 })
@@ -208,6 +297,8 @@ onMounted(async () => {
 .panel-sub, .hint { margin: 0 0 0.9rem; font-size: var(--fs-md); line-height: 1.55; color: var(--text-dim); max-width: 70ch; }
 .hint { font-size: var(--fs-sm); color: var(--text-muted); }
 .hint--warn { color: var(--danger); margin: 0.3rem 0; }
+.hint--spaced { margin-top: 1rem; }
+.secret-box { margin: 1rem 0; padding: 0.9rem 1rem; border: 1px solid var(--accent); border-radius: 8px; }
 .empty { margin: 0; color: var(--text-muted); font-size: var(--fs-md); }
 .list-title { margin: 0 0 0.6rem; font-size: var(--fs-lg); color: var(--text); }
 .webhook-form { display: flex; flex-direction: column; gap: 0.8rem; }

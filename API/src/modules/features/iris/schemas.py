@@ -397,6 +397,7 @@ class AnalysisDetailResponseSchema(Schema):
     unwrappedFromForward = fields.Boolean(load_default=False)
     wrapperFrom = fields.String(load_default=None, allow_none=True)
     wrapperSubject = fields.String(load_default=None, allow_none=True)
+    reportChannel = fields.String(load_default=None, allow_none=True)
     winningContext = fields.String(load_default=None, allow_none=True)
     winningReason = fields.String(load_default=None, allow_none=True)
     secondaryContext = fields.Nested(SecondaryContextSchema, load_default=None, allow_none=True)
@@ -1463,6 +1464,47 @@ class IrisWebhookDeliverySchema(Schema):
     createdAt = fields.String()
     deliveredAt = fields.String(allow_none=True)
     payload = fields.Dict()
+
+
+class IrisIntegrationTokenCreateRequestSchema(Schema):
+    """Cuerpo de ``POST /iris/integration-tokens``; ``lifetimeDays`` por defecto lo fija la config."""
+    name = fields.String(required=True, validate=validate.Length(min=1, max=80))
+    lifetimeDays = fields.Integer(load_default=None, allow_none=True, validate=validate.Range(min=1))
+
+
+class IrisIntegrationTokenSchema(Schema):
+    """Un token de integración. ``token`` (completo, en claro) solo aparece al crearlo."""
+    tokenId = fields.Integer()
+    name = fields.String()
+    keyId = fields.String()
+    status = fields.String()
+    createdAt = fields.String()
+    expiresAt = fields.String(allow_none=True)
+    lastUsedAt = fields.String(allow_none=True)
+    revokedAt = fields.String(allow_none=True)
+    token = fields.String()
+
+
+class IrisIntegrationTokenListResponseSchema(Schema):
+    """Tokens de integración del usuario, del más nuevo al más antiguo."""
+    tokens = fields.List(fields.Nested(IrisIntegrationTokenSchema))
+
+
+class IrisReportResponseSchema(Schema):
+    """Resultado de reportar un correo: el análisis creado, o el que ya existía."""
+    analysisId = fields.Integer()
+    status = fields.String()
+    isDuplicate = fields.Boolean()
+    reportChannel = fields.String(allow_none=True)
+
+
+class IrisReportStatusSchema(Schema):
+    """Cómo va el análisis de un correo reportado (para un aviso breve en el cliente)."""
+    analysisId = fields.Integer()
+    status = fields.String()
+    verdict = fields.String(allow_none=True)
+    totalScore = fields.Float(allow_none=True)
+    finishedAt = fields.String(allow_none=True)
 
 
 class IrisWebhookDeliveryListResponseSchema(Schema):
