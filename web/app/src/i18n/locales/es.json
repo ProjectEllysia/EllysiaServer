@@ -4098,6 +4098,7 @@
       "udpRetries": "Reintentos UDP",
       "udpBudgetSeconds": "Presupuesto UDP (s)",
       "rateLimitInterval": "Intervalo entre envíos (s)",
+      "rateLimitMaxBackoffFactor": "Freno máx. ante un host que no responde (×)",
       "hostPoolSize": "Hosts en paralelo",
       "httpTimeout": "Timeout HTTP (s)",
       "httpMaxBodyBytes": "Cuerpo HTTP máx. (bytes)",

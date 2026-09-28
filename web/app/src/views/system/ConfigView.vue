@@ -621,7 +621,7 @@ const kbFeeds = [
   { key: 'oval', label: 'OVAL' },
 ]
 
-// Los diales del motor de Lybra son quince campos numéricos con la misma
+// Los diales del motor de Lybra son campos numéricos con la misma
 // forma: se describen aquí y se pintan con v-for, como ya se hace con los
 // umbrales y los límites de Hygeia.
 const lybraEngineDials = [
@@ -631,6 +631,7 @@ const lybraEngineDials = [
   { key: 'udpRetries',           min: 0,   max: 10 },
   { key: 'udpBudgetSeconds',     min: 1,   max: 600, step: 0.5 },
   { key: 'rateLimitInterval',    min: 0,   max: 10, step: 0.05 },
+  { key: 'rateLimitMaxBackoffFactor', min: 1, max: 64, step: 0.5 },
   { key: 'hostPoolSize',         min: 1,   max: 64 },
   { key: 'httpTimeout',          min: 1,   max: 120 },
   { key: 'httpMaxBodyBytes',     min: 1024, max: 8388608, step: 1024 },

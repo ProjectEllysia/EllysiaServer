@@ -965,6 +965,181 @@ def test_concurrent_requests_to_one_host_get_distinct_increasing_turns():
                                pytest.approx(0.6), pytest.approx(0.8)]
 
 
+# ------------------------------------ limitador adaptativo (freno por fallos)
+#
+# Contra un objetivo que deja de contestar, seguir enviando al mismo ritmo es la
+# forma de tumbar un appliance frágil. El limitador frena ese host —y sólo ese—
+# tras varios fallos seguidos, y vuelve poco a poco al ritmo base cuando el host
+# contesta otra vez.
+
+def _adaptive_limiter(reloj, min_interval=0.2, max_backoff_factor=8.0, failures_before_backoff=3):
+    from src.modules.features.themis.lybra import HostRateLimiter
+    return HostRateLimiter(
+        min_interval=min_interval, clock=reloj, sleeper=reloj.sleep,
+        max_backoff_factor=max_backoff_factor, failures_before_backoff=failures_before_backoff,
+    )
+
+
+def test_the_interval_does_not_widen_before_the_failure_threshold():
+    limiter = _adaptive_limiter(_RelojFalso())
+
+    limiter.report_failure("10.0.0.5")
+    limiter.report_failure("10.0.0.5")
+
+    assert limiter.get_interval_seconds("10.0.0.5") == pytest.approx(0.2)
+
+
+def test_the_interval_doubles_with_each_failure_past_the_threshold():
+    limiter = _adaptive_limiter(_RelojFalso())
+
+    for _ in range(3):
+        limiter.report_failure("10.0.0.5")
+    assert limiter.get_interval_seconds("10.0.0.5") == pytest.approx(0.4)
+
+    limiter.report_failure("10.0.0.5")
+    assert limiter.get_interval_seconds("10.0.0.5") == pytest.approx(0.8)
+
+
+def test_a_widened_interval_is_what_acquire_waits():
+    reloj = _RelojFalso()
+    limiter = _adaptive_limiter(reloj)
+    for _ in range(3):
+        limiter.report_failure("10.0.0.5")
+
+    limiter.acquire("10.0.0.5")
+    limiter.acquire("10.0.0.5")
+
+    assert reloj.esperas == [pytest.approx(0.4)]
+
+
+def test_the_widened_interval_is_capped():
+    limiter = _adaptive_limiter(_RelojFalso(), max_backoff_factor=8.0)
+
+    for _ in range(50):
+        limiter.report_failure("10.0.0.5")
+
+    assert limiter.get_interval_seconds("10.0.0.5") == pytest.approx(1.6)
+
+
+def test_the_interval_is_restored_gradually_as_the_host_answers_again():
+    limiter = _adaptive_limiter(_RelojFalso(), max_backoff_factor=8.0)
+    for _ in range(50):
+        limiter.report_failure("10.0.0.5")
+
+    # De 1,6 s se baja un intervalo base (0,2 s) por respuesta: gradual, no de golpe.
+    limiter.report_success("10.0.0.5")
+    assert limiter.get_interval_seconds("10.0.0.5") == pytest.approx(1.4)
+
+    for _ in range(20):
+        limiter.report_success("10.0.0.5")
+    # Y nunca por debajo del base configurado.
+    assert limiter.get_interval_seconds("10.0.0.5") == pytest.approx(0.2)
+
+
+def test_a_success_resets_the_failure_streak():
+    limiter = _adaptive_limiter(_RelojFalso())
+
+    limiter.report_failure("10.0.0.5")
+    limiter.report_failure("10.0.0.5")
+    limiter.report_success("10.0.0.5")
+    limiter.report_failure("10.0.0.5")
+    limiter.report_failure("10.0.0.5")
+
+    # Cuatro fallos, pero nunca tres seguidos: el host no se frena.
+    assert limiter.get_interval_seconds("10.0.0.5") == pytest.approx(0.2)
+
+
+def test_slowing_down_one_host_does_not_slow_down_another():
+    reloj = _RelojFalso()
+    limiter = _adaptive_limiter(reloj)
+    for _ in range(10):
+        limiter.report_failure("10.0.0.5")
+
+    limiter.acquire("10.0.0.6")
+    limiter.acquire("10.0.0.6")
+
+    assert limiter.get_interval_seconds("10.0.0.6") == pytest.approx(0.2)
+    assert reloj.esperas == [pytest.approx(0.2)]
+
+
+def test_without_a_backoff_factor_the_interval_stays_fixed():
+    # El default de la clase: quien no pide adaptación no la tiene, informe o no.
+    from src.modules.features.themis.lybra import HostRateLimiter
+    limiter = HostRateLimiter(min_interval=0.2, clock=_RelojFalso(), sleeper=lambda _: None)
+
+    for _ in range(10):
+        limiter.report_failure("10.0.0.5")
+
+    assert limiter.get_interval_seconds("10.0.0.5") == pytest.approx(0.2)
+
+
+def test_without_feedback_the_adaptive_limiter_behaves_like_a_fixed_one():
+    reloj = _RelojFalso()
+    limiter = _adaptive_limiter(reloj)
+
+    limiter.acquire("10.0.0.5")
+    limiter.acquire("10.0.0.5")
+    limiter.acquire("10.0.0.5")
+
+    assert reloj.esperas == [pytest.approx(0.2), pytest.approx(0.2)]
+
+
+class _LimitadorQueAnota:
+    """Un limitador que no espera y anota qué resultados le cuentan."""
+
+    def __init__(self):
+        self.avisos: list = []
+
+    def acquire(self, host):
+        pass
+
+    def report_failure(self, host):
+        self.avisos.append(("fallo", host))
+
+    def report_success(self, host):
+        self.avisos.append(("respuesta", host))
+
+
+def test_the_runtime_reports_http_requests_without_answer_as_failures():
+    limiter = _LimitadorQueAnota()
+
+    CheckRuntime(load_checks(), lambda *a: None, rate_limiter=limiter).run("10.0.0.5", [_HTTP])
+
+    assert limiter.avisos
+    assert set(limiter.avisos) == {("fallo", "10.0.0.5")}
+
+
+def test_the_runtime_reports_any_http_response_as_an_answer():
+    # Un 404 es el objetivo contestando: no es motivo para frenar.
+    limiter = _LimitadorQueAnota()
+
+    CheckRuntime(load_checks(), _fetcher({}), rate_limiter=limiter).run("10.0.0.5", [_HTTP])
+
+    assert limiter.avisos
+    assert set(limiter.avisos) == {("respuesta", "10.0.0.5")}
+
+
+def test_the_runtime_reports_a_network_session_that_does_not_open_as_a_failure():
+    limiter = _LimitadorQueAnota()
+
+    CheckRuntime(
+        load_checks(), lambda *a: None, rate_limiter=limiter,
+        network_open=lambda host, port: None,
+    ).run("10.0.0.5", [_FTP])
+
+    assert ("fallo", "10.0.0.5") in limiter.avisos
+    assert ("respuesta", "10.0.0.5") not in limiter.avisos
+
+
+def test_a_target_that_stops_answering_slows_the_runtime_down():
+    reloj = _RelojFalso()
+    limiter = _adaptive_limiter(reloj)
+
+    CheckRuntime(load_checks(), lambda *a: None, rate_limiter=limiter).run("10.0.0.5", [_HTTP])
+
+    assert limiter.get_interval_seconds("10.0.0.5") > 0.2
+
+
 # --------------------------- a qué protocolo aplica un check ``network``
 #
 # Un check `network` dice a qué protocolo va dirigido con una cadena

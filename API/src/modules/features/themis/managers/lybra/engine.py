@@ -1091,6 +1091,24 @@ class LybraEngineManager(ScanManager):
         si el agresivo procede, sólo lo aplica: un ``check`` marcado
         ``mode: aggressive`` en el feed sigue sin correr en modo ``safe``, y
         eso lo sigue decidiendo ``CheckRuntime._applies_mode`` como siempre.
+
+        El limitador de esta fase es adaptativo: frena contra un host que deja
+        de contestar, hasta ``rate_limit_max_backoff_factor`` veces el
+        intervalo base.
+
+        Args:
+            target: El objetivo (IP o nombre ya fijado a la IP validada).
+            services: Los servicios descubiertos del objetivo.
+            cancel_check: Función sin argumentos que dice si el escaneo se
+                canceló, o ``None``. Por defecto ``None``.
+            proposed_cves: CVE que el matcher de versiones ya propuso; los
+                checks confirmadores y refutadores sólo corren para ellas.
+                Por defecto ``None`` (ninguna).
+            mode: ``"safe"`` o ``"aggressive"``. Por defecto ``"safe"``.
+
+        Returns:
+            list: Los hallazgos de los checks que dispararon; vacía si el
+                runtime falló.
         """
         try:
             engine = CR.lybra_engine_config()
@@ -1102,7 +1120,14 @@ class LybraEngineManager(ScanManager):
                     user_agent=engine.http_user_agent,
                 ).fetch,
                 mode=mode,
-                rate_limiter=HostRateLimiter(min_interval=engine.rate_limit_interval),
+                # El runtime cuenta al limitador qué peticiones obtuvieron
+                # respuesta, así que aquí el ritmo se adapta: frena contra un
+                # host que deja de contestar. El resto de limitadores del
+                # motor no reciben esos avisos y mantienen el intervalo fijo.
+                rate_limiter=HostRateLimiter(
+                    min_interval=engine.rate_limit_interval,
+                    max_backoff_factor=engine.rate_limit_max_backoff_factor,
+                ),
                 tls_fetch=TlsProbe().fetch,
                 network_open=NetworkProbe(timeout=engine.network_timeout).open,
                 script_plugins=default_script_plugins(),
