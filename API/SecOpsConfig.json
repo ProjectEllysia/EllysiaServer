@@ -387,6 +387,10 @@
         "defaultTokenLifetimeDays": 180,
         "maxTokenLifetimeDays": 365
       },
+      "remediation": {
+        "quarantineFolderName": "Iris Cuarentena",
+        "suspiciousLabelName": "Iris: sospechoso"
+      },
       "enrichment": {
         "enabled": true,
         "timeoutSeconds": 5.0,

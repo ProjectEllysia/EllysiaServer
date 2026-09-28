@@ -47,13 +47,17 @@ export const useIrisMailboxStore = defineStore('irisMailbox', () => {
    * porque el backend ya cierra el flujo con un redirect de servidor tras
    * el callback (`GET /iris/mailbox/callback` -> vuelve aquí) -- no hace
    * falta postMessage ni gestión de ventanas.
+   *
+   * @param {string} provider - `gmail` o `microsoft`.
+   * @param {{remediationEnabled?: boolean}} [options] - `remediationEnabled` pide al
+   *   proveedor permiso de escritura para que Iris pueda actuar sobre el buzón.
    */
-  async function connect(provider) {
+  async function connect(provider, { remediationEnabled = false } = {}) {
     connecting.value = true
     try {
       const res = await apiFetch('/iris/mailbox/connect', {
         method: 'POST',
-        body: JSON.stringify({ provider }),
+        body: JSON.stringify({ provider, remediationEnabled }),
       })
       if (!res?.ok) {
         toast.show(await apiError(res, i18n.global.t('irisStore.mailbox.connectFailed')), 'error')

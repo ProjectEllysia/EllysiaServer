@@ -456,6 +456,12 @@ class IrisMailboxConnection(Base):
                  ``last_success_at``), así que un problema que se resuelve y
                  vuelve a aparecer más tarde genera un aviso nuevo en vez de
                  quedar silenciado para siempre por el primero.
+        remediation_enabled: Si el usuario pidió, al conectar, que Iris pueda
+                 actuar sobre este buzón (cuarentena, spam, papelera). Solo
+                 entonces se piden al proveedor permisos de escritura
+                 (``gmail.modify``, ``Mail.ReadWrite``); sin ellos, la conexión
+                 se queda en solo lectura. Que el proveedor los concediera de
+                 verdad se comprueba en ``scopes``, no aquí.
         created_at: When the connection was established.
         user: SQLAlchemy relationship to User.
         analyses: Analyses ingested through this connection.
@@ -493,6 +499,7 @@ class IrisMailboxConnection(Base):
     last_sync_duration_ms = Column(Integer, nullable=True)
     messages_discovered_total = Column(Integer, nullable=False, default=0)
     stuck_alert_sent_at = Column(DateTime, nullable=True)
+    remediation_enabled = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, nullable=False, default=utcnow_naive)
 
     user = relationship("User")
@@ -1917,4 +1924,125 @@ class IrisIntegrationToken(Base):
 
     __table_args__ = (
         Index("ix_iris_integration_token_user_id", "user_id"),
+    )
+
+
+class MailboxAction(StrEnum):
+    """Acciones que Iris puede hacer sobre un correo en el buzón conectado del usuario.
+
+    Todas son **reversibles** en el proveedor, a propósito: ninguna borra un
+    correo para siempre. «Eliminar» lo manda a la papelera, de donde se
+    recupera con el deshacer (o a mano, durante el tiempo que la guarde el
+    proveedor).
+
+    Attributes:
+        QUARANTINE: Sacarlo de la bandeja a una carpeta o etiqueta de
+            cuarentena de Iris.
+        LABEL: Marcarlo como sospechoso (etiqueta en Gmail, categoría en
+            Outlook) sin moverlo.
+        REPORT_PHISHING: Mandarlo a correo no deseado (spam), que además
+            enseña al filtro del proveedor.
+        DELETE: Mandarlo a la papelera.
+    """
+    QUARANTINE = "quarantine"
+    LABEL = "label"
+    REPORT_PHISHING = "report_phishing"
+    DELETE = "delete"
+
+
+#: Acciones que sacan el correo de donde el usuario lo ve: exigen confirmación
+#: explícita. Etiquetar no, porque el correo sigue donde estaba.
+DESTRUCTIVE_MAILBOX_ACTIONS = frozenset({
+    MailboxAction.QUARANTINE.value, MailboxAction.REPORT_PHISHING.value, MailboxAction.DELETE.value,
+})
+
+
+class MailboxActionStatus(StrEnum):
+    """En qué punto está una acción sobre el buzón (``IrisActionAudit.status``).
+
+    Attributes:
+        PENDING: Pedida; espera a que un worker la haga.
+        RUNNING: Un worker está hablando con el proveedor.
+        SUCCEEDED: El proveedor la aplicó.
+        FAILED: No se aplicó (el proveedor la rechazó, faltaba permiso, o el
+            worker se cayó a mitad: ver ``error``).
+        ROLLED_BACK: Se aplicó y después se deshizo (la fila del deshacer
+            apunta a esta con ``rollback_of_id``).
+    """
+    PENDING = "pending"
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+    ROLLED_BACK = "rolled_back"
+
+
+class IrisActionAudit(Base):
+    """Registro de una acción sobre el buzón del usuario: quién, qué, por qué y con qué permiso.
+
+    Es la condición para que Iris pueda tocar el correo de nadie: **toda**
+    acción —y todo deshacer— deja una fila con actor, motivo, permiso usado y
+    hora, y las cuatro columnas son obligatorias en la base de datos. La fila
+    se crea antes de hablar con el proveedor (``pending``), así que una acción
+    que no llegó a hacerse también queda registrada.
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        actor_id: Usuario que la pidió; ``ondelete="SET NULL"`` para que la
+                 auditoría sobreviva a su baja (con ``actor_username``).
+        actor_username: Nombre del actor en el momento de actuar.
+        connection_id: Conexión de buzón; NULL si se borró después.
+        analysis_id: Análisis del correo sobre el que se actuó; NULL si se
+                 borró después.
+        provider: ``gmail`` o ``microsoft``.
+        provider_message_id: Id del mensaje en el proveedor antes de actuar.
+        provider_message_id_after: Id después de actuar. En Microsoft Graph
+                 mover un mensaje le cambia el id; en Gmail es el mismo.
+        action: Valor de ``MailboxAction``.
+        is_destructive: Si la acción saca el correo de la vista del usuario.
+        is_rollback: Si esta fila deshace otra (``rollback_of_id``).
+        rollback_of_id: Fila que deshace; NULL si no es un deshacer.
+        status: Valor de ``MailboxActionStatus``.
+        reason: Por qué se hizo, escrito por el actor (obligatorio).
+        permission: Atributo ABAC que la autorizó (``iris_mailbox_action``).
+        was_recommended: Si coincidía con lo que Iris recomendaba para el
+                 veredicto del análisis.
+        idempotency_key: Clave que manda el cliente para que un reintento de
+                 la misma petición no haga la acción dos veces; NULL si no la
+                 manda.
+        previous_state: Dónde estaba el correo antes (etiquetas de Gmail,
+                 carpeta de Graph), para poder deshacer.
+        error: Motivo del fallo; NULL si no falló.
+        created_at: Cuándo se pidió.
+        started_at: Cuándo empezó el worker.
+        completed_at: Cuándo terminó, bien o mal.
+    """
+    __tablename__ = "IrisActionAudit"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    actor_id = Column(Integer, ForeignKey("User.id", ondelete="SET NULL"), nullable=True)
+    actor_username = Column(String(150), nullable=False)
+    connection_id = Column(Integer, ForeignKey("IrisMailboxConnection.id", ondelete="SET NULL"), nullable=True)
+    analysis_id = Column(Integer, ForeignKey("IrisAnalysis.id", ondelete="SET NULL"), nullable=True)
+    provider = Column(String(20), nullable=False)
+    provider_message_id = Column(String(255), nullable=False)
+    provider_message_id_after = Column(String(255), nullable=True)
+    action = Column(String(24), nullable=False)
+    is_destructive = Column(Boolean, nullable=False, default=False)
+    is_rollback = Column(Boolean, nullable=False, default=False)
+    rollback_of_id = Column(Integer, ForeignKey("IrisActionAudit.id", ondelete="SET NULL"), nullable=True)
+    status = Column(String(16), nullable=False, default=MailboxActionStatus.PENDING.value)
+    reason = Column(Text, nullable=False)
+    permission = Column(String(40), nullable=False)
+    was_recommended = Column(Boolean, nullable=False, default=False)
+    idempotency_key = Column(String(80), nullable=True)
+    previous_state = Column(JSONB, nullable=True)
+    error = Column(Text, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=utcnow_naive)
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("actor_id", "idempotency_key", name="uq_iris_action_audit_actor_idempotency"),
+        Index("ix_iris_action_audit_analysis_id", "analysis_id"),
+        Index("ix_iris_action_audit_actor_id", "actor_id"),
     )

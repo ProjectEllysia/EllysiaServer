@@ -11,7 +11,7 @@ import src.modules.system.config_reading as CR
 from src.modules.shared import UTCDateTime
 
 from .services.feedback_metrics import FEEDBACK_LABELS
-from .model import SUBSCRIBABLE_WEBHOOK_EVENTS, CasePriority, CaseStatus, TrustKind
+from .model import SUBSCRIBABLE_WEBHOOK_EVENTS, CasePriority, CaseStatus, MailboxAction, TrustKind
 from .services.quality import AnalysisMode
 from .services.scoring import PROFILE_THRESHOLD_OFFSETS
 from .services.trust import MAX_TRUST_EXPIRY_DAYS, MAX_TRUST_REASON_LENGTH
@@ -683,6 +683,9 @@ class IrisMailboxConnectRequestSchema(Schema):
     """Request body for ``POST /iris/mailbox/connect``."""
     provider = fields.String(required=True)
     fullMessageMode = fields.Boolean(load_default=False)
+    # Pide al proveedor permiso de escritura, necesario para la cuarentena y
+    # las demás acciones sobre el buzón. Por defecto, solo lectura.
+    remediationEnabled = fields.Boolean(load_default=False)
     # La validación real (existe, pertenece a esta cuenta/proveedor) es
     # de red y solo se puede hacer con un access_token en la mano -- ver
     # IrisMailboxManager._validate_folder(), llamada desde handle_callback().
@@ -705,6 +708,8 @@ class IrisMailboxConnectionItemSchema(Schema):
     folderDisplayName = fields.String(allow_none=True)
     folderType = fields.String(allow_none=True)
     fullMessageMode = fields.Boolean()
+    remediationEnabled = fields.Boolean()
+    canAct = fields.Boolean()
     status = fields.String()
     lastSyncAt = UTCDateTime(allow_none=True)
     lastError = fields.String(allow_none=True)
@@ -1510,6 +1515,76 @@ class IrisReportStatusSchema(Schema):
 class IrisWebhookDeliveryListResponseSchema(Schema):
     """Historial de entregas de un webhook, de la más nueva a la más antigua."""
     deliveries = fields.List(fields.Nested(IrisWebhookDeliverySchema))
+    total = fields.Integer()
+    page = fields.Integer()
+    perPage = fields.Integer()
+
+
+class IrisMailboxActionRequestSchema(Schema):
+    """Cuerpo de ``POST /iris/mailbox/messages/<id>/actions``.
+
+    ``confirm`` es obligatorio (``true``) en las acciones que sacan el correo de
+    la bandeja; ``idempotencyKey`` hace que repetir la petición no la repita.
+    """
+    action = fields.String(required=True, validate=validate.OneOf([action.value for action in MailboxAction]))
+    reason = fields.String(required=True, validate=validate.Length(min=1, max=1000))
+    confirm = fields.Boolean(load_default=False)
+    idempotencyKey = fields.String(load_default=None, allow_none=True, validate=validate.Length(min=8, max=80))
+
+
+class IrisMailboxRollbackRequestSchema(Schema):
+    """Cuerpo de ``POST /iris/mailbox/actions/<id>/rollback``."""
+    reason = fields.String(required=True, validate=validate.Length(min=1, max=1000))
+
+
+class IrisMailboxActionSchema(Schema):
+    """Una acción sobre el buzón tal como queda en la auditoría."""
+    actionId = fields.Integer()
+    analysisId = fields.Integer(allow_none=True)
+    connectionId = fields.Integer(allow_none=True)
+    provider = fields.String()
+    action = fields.String()
+    status = fields.String()
+    isDestructive = fields.Boolean()
+    isRollback = fields.Boolean()
+    rollbackOfId = fields.Integer(allow_none=True)
+    reason = fields.String()
+    actor = fields.String()
+    permission = fields.String()
+    wasRecommended = fields.Boolean()
+    error = fields.String(allow_none=True)
+    createdAt = fields.String()
+    startedAt = fields.String(allow_none=True)
+    completedAt = fields.String(allow_none=True)
+    isRepeat = fields.Boolean()
+
+
+class IrisMailboxActionOptionSchema(Schema):
+    """Una acción posible y si exige confirmación."""
+    action = fields.String()
+    isDestructive = fields.Boolean()
+
+
+class IrisMailboxMessageActionsSchema(Schema):
+    """Recomendación, acciones posibles e historial de un correo de un buzón conectado."""
+    analysisId = fields.Integer()
+    verdict = fields.String(allow_none=True)
+    recommendedAction = fields.String(allow_none=True)
+    canAct = fields.Boolean()
+    unavailableReason = fields.String(allow_none=True)
+    actions = fields.List(fields.Nested(IrisMailboxActionOptionSchema))
+    history = fields.List(fields.Nested(IrisMailboxActionSchema))
+
+
+class IrisMailboxActionsQuerySchema(Schema):
+    """Paginación de ``GET /iris/mailbox/actions``."""
+    page = fields.Integer(load_default=1, validate=validate.Range(min=1))
+    perPage = fields.Integer(load_default=50, validate=validate.Range(min=1, max=200))
+
+
+class IrisMailboxActionListSchema(Schema):
+    """Registro de acciones sobre buzones del usuario, de la más reciente a la más antigua."""
+    actions = fields.List(fields.Nested(IrisMailboxActionSchema))
     total = fields.Integer()
     page = fields.Integer()
     perPage = fields.Integer()

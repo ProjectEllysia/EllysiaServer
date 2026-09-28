@@ -114,6 +114,7 @@
       "irisCase": "Case not found.",
       "irisIndicator": "Indicator not found.",
       "irisIntegrationToken": "Integration token not found.",
+      "irisMailboxAction": "Action not found.",
       "irisMailboxConnection": "Mailbox connection not found.",
       "irisSavedView": "Saved view not found.",
       "irisTrustedSender": "Trust exception not found.",
@@ -155,7 +156,14 @@
     "irisBatchBackpressure": "You have {active} analyses running and the batch would add {requested}; the maximum at once is {limit}. Wait for them to finish and send it again: nothing has been created.",
     "irisIntegrationTokenLimitReached": "You already have {limit} valid integration tokens, the maximum. Revoke one to create another.",
     "irisInvalidIntegrationToken": "The integration token is not valid, has been revoked or has expired.",
+    "irisMailboxActionConfirmationRequired": "This action takes the email out of your inbox: confirm it to do it.",
+    "irisMailboxActionConnectionGone": "The mailbox this email came from is no longer connected.",
+    "irisMailboxActionInProgress": "An action on this email is already in progress. Wait until it finishes.",
+    "irisMailboxActionMissingScope": "This mailbox was connected read-only. Reconnect it with actions enabled.",
+    "irisMailboxActionNotFromMailbox": "This email did not arrive through a connected mailbox, so Iris cannot act on it.",
+    "irisMailboxActionNotReversible": "This action cannot be undone: it was never applied or it has already been undone.",
     "irisMailboxInvalidFolder": "“{folder}” is not a valid folder for this account.",
+    "irisMailboxReauthRequired": "This mailbox needs to be reconnected before Iris can act on it.",
     "irisNotInOrganization": "You don't belong to any organization.",
     "irisTenantOwnerRequired": "Only the organization owner can change this.",
     "irisWebhookDeliveryInProgress": "This delivery is still in progress; you can resend it once it finishes.",
@@ -1947,6 +1955,10 @@
       "inbox": "Inbox",
       "fullHint": "Iris reads the full email (body and attachments included)",
       "headersHint": "Iris only reads the headers",
+      "actions": "Actions enabled",
+      "actionsHint": "Iris can quarantine or send to spam the emails of this mailbox when you ask it to",
+      "readOnly": "Read-only",
+      "readOnlyHint": "Iris cannot move or delete anything in this mailbox",
       "full": "Full email",
       "lastSync": "Last poll: {when}",
       "resume": "Resume",
@@ -2124,6 +2136,8 @@
       "history": "Analysis history",
       "connecting": "Connecting…",
       "connect": "Connect account",
+      "remediation": "Allow Iris to act on this mailbox",
+      "remediationHint": "Asks Google or Microsoft for permission to move emails. Iris never acts on its own: you decide every action, with a reason, and all of them can be undone. Without this, the connection only reads.",
       "deleteTitle": "Delete connection",
       "deleteMessage": "The connection with {email} will be deleted. Iris will stop analyzing this mailbox automatically.",
       "connected": "Mailbox connected.",
@@ -2384,6 +2398,40 @@
         "title": "Revoke “{name}”?",
         "message": "The client using it will stop being able to report emails at once."
       }
+    },
+    "remediation": {
+      "title": "Act on your mailbox",
+      "intro": "This email arrived through a connected mailbox. Iris recommends what to do, but does nothing until you ask. Everything is logged and can be undone.",
+      "recommended": "Iris recommends: {action}",
+      "noRecommendation": "Iris does not recommend doing anything with this email.",
+      "reason": "Why you are doing it",
+      "reasonPlaceholder": "E.g.: it impersonates our bank and asks for the password",
+      "confirmTitle": "{action}?",
+      "confirmMessage": "The email will leave your inbox. It will be logged with your reason and you will be able to undo it.",
+      "requested": "Action requested; you will see the result in a few seconds.",
+      "undo": "Undo",
+      "undoReason": "Undone from the report",
+      "history": "What has been done with this email",
+      "undoneBy": "undo",
+      "actions": {
+        "quarantine": "Quarantine",
+        "label": "Mark as suspicious",
+        "report_phishing": "Send to spam",
+        "delete": "Send to trash"
+      },
+      "statuses": {
+        "pending": "Pending",
+        "running": "In progress",
+        "succeeded": "Done",
+        "failed": "Failed",
+        "rolled_back": "Undone"
+      },
+      "unavailable": {
+        "not_from_mailbox": "This email did not arrive through a connected mailbox.",
+        "connection_gone": "The mailbox it came from is no longer connected.",
+        "reauth_required": "The mailbox needs to be reconnected.",
+        "missing_scope": "The mailbox is read-only. Reconnect it with actions enabled to be able to act."
+      }
     }
   },
   "irisHub": {
@@ -2549,7 +2597,9 @@
     "webhookReplayFailed": "The notification could not be resent.",
     "integrationTokenCreateFailed": "The token could not be created.",
     "integrationTokenRevoked": "Token revoked.",
-    "integrationTokenRevokeFailed": "The token could not be revoked."
+    "integrationTokenRevokeFailed": "The token could not be revoked.",
+    "mailboxActionFailed": "The action could not be requested.",
+    "mailboxRollbackFailed": "The action could not be undone."
   },
   "aegis": {
     "campaignStatus": {

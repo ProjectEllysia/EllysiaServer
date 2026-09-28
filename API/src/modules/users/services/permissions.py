@@ -81,6 +81,7 @@ _ATTRIBUTE_DESCRIPTIONS: dict[str, str] = {
     "iris_read":       "Read access for Iris email header analysis",
     "iris_update":     "Update access for Iris email header analysis",
     "iris_delete":     "Delete access for Iris email header analysis",
+    "iris_mailbox_action": "Act on the user's connected mailbox from Iris (quarantine, spam, trash)",
     "themis_schedule_create": "Create access for scheduled scans",
     "themis_schedule_read":   "Read access for scheduled scans",
     "themis_schedule_delete": "Delete access for scheduled scans",
@@ -130,6 +131,9 @@ class AttributeType(Enum):
     IRIS_READ       = "iris_read"
     IRIS_UPDATE     = "iris_update"
     IRIS_DELETE     = "iris_delete"
+    # Distinto de IRIS_DELETE a propósito: aquel borra un análisis de Iris;
+    # este mueve o manda a la papelera un correo del buzón del propio usuario.
+    IRIS_MAILBOX_ACTION = "iris_mailbox_action"
 
     THEMIS_SCHEDULE_CREATE = "themis_schedule_create"
     THEMIS_SCHEDULE_READ   = "themis_schedule_read"
@@ -213,6 +217,7 @@ ROLE_PERMISSIONS: dict[Role, Set[AttributeType]] = {
         AttributeType.IRIS_READ,
         AttributeType.IRIS_UPDATE,
         AttributeType.IRIS_DELETE,
+        AttributeType.IRIS_MAILBOX_ACTION,
         AttributeType.THEMIS_SCHEDULE_CREATE,
         AttributeType.THEMIS_SCHEDULE_READ,
         AttributeType.THEMIS_SCHEDULE_DELETE,

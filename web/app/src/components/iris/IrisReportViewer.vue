@@ -191,6 +191,10 @@
         />
       </div>
 
+      <!-- Actuar sobre el correo en el buzón conectado (cuarentena, spam…).
+           Solo aparece si el correo llegó por un buzón; nada se hace solo. -->
+      <IrisMailboxActions :analysis-id="reportData.analysisId" />
+
       <!-- Remitente que imita a un contacto habitual del usuario. No cambia
            el veredicto (depende de la historia del usuario, no del mensaje),
            pero es lo primero que hay que saber en un fraude del CEO. -->
@@ -459,6 +463,7 @@ import IrisVerdictHero from '@/components/iris/IrisVerdictHero.vue'
 import IrisTrustForm from '@/components/iris/IrisTrustForm.vue'
 import IrisAddToCase from '@/components/iris/IrisAddToCase.vue'
 import IrisIntelExport from '@/components/iris/IrisIntelExport.vue'
+import IrisMailboxActions from '@/components/iris/IrisMailboxActions.vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()

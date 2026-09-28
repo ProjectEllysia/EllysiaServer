@@ -311,6 +311,97 @@ class IrisIntegrationTokenLimitReachedError(IrisError):
         )
 
 
+class IrisMailboxReauthRequiredError(IrisError):
+    """El proveedor ya no acepta la autorización del buzón: hay que volver a conectarlo."""
+    default_code = ErrorCode.CONSTRAINT_VIOLATION
+    default_status_code = 409
+
+    def __init__(self) -> None:
+        super().__init__(
+            message="La conexion de buzon necesita reautorizacion",
+            user_message="Este buzón necesita que lo vuelvas a conectar antes de poder actuar sobre él.",
+            message_key="irisMailboxReauthRequired",
+        )
+
+
+class IrisMailboxActionNotFoundError(EntityNotFoundError, IrisError):
+    """La acción sobre el buzón no existe o no la hizo el usuario (mismo error para los dos)."""
+    entity_label = "Acción"
+    entity_is_feminine = True
+    id_field = "action_id"
+
+
+#: Por qué no se puede actuar sobre el correo de un análisis: texto para el
+#: usuario y clave de su plantilla, por motivo.
+_UNAVAILABLE_REASONS = {
+    "not_from_mailbox": ("Este correo no llegó por un buzón conectado, así que Iris no puede actuar sobre él.",
+                         "irisMailboxActionNotFromMailbox"),
+    "connection_gone": ("El buzón por el que llegó este correo ya no está conectado.",
+                        "irisMailboxActionConnectionGone"),
+    "missing_scope": ("Este buzón se conectó en solo lectura. Vuelve a conectarlo con las acciones activadas.",
+                      "irisMailboxActionMissingScope"),
+}
+
+
+class IrisMailboxActionUnavailableError(IrisError):
+    """No se puede actuar sobre el correo de este análisis, por un motivo estable."""
+    default_code = ErrorCode.CONSTRAINT_VIOLATION
+    default_status_code = 409
+
+    def __init__(self, reason: str) -> None:
+        """Construye el error.
+
+        Args:
+            reason: ``not_from_mailbox``, ``connection_gone`` o ``missing_scope``.
+        """
+        user_message, message_key = _UNAVAILABLE_REASONS[reason]
+        super().__init__(
+            message=f"Accion sobre el buzon no disponible: {reason}",
+            user_message=user_message,
+            message_key=message_key,
+        )
+        self.reason = reason
+
+
+class IrisMailboxActionConfirmationRequiredError(IrisError):
+    """Una acción que saca el correo de la bandeja se pidió sin confirmarla."""
+    default_code = ErrorCode.VALIDATION_ERROR
+    default_status_code = 400
+
+    def __init__(self) -> None:
+        super().__init__(
+            message="La accion saca el correo de la bandeja y no se confirmo",
+            user_message="Esta acción saca el correo de tu bandeja: confírmala para hacerla.",
+            message_key="irisMailboxActionConfirmationRequired",
+        )
+
+
+class IrisMailboxActionInProgressError(IrisError):
+    """Ya hay una acción en curso sobre este correo; hay que esperar a que termine."""
+    default_code = ErrorCode.CONSTRAINT_VIOLATION
+    default_status_code = 409
+
+    def __init__(self) -> None:
+        super().__init__(
+            message="Ya hay una accion en curso sobre este correo",
+            user_message="Ya hay una acción en curso sobre este correo. Espera a que termine.",
+            message_key="irisMailboxActionInProgress",
+        )
+
+
+class IrisMailboxActionNotReversibleError(IrisError):
+    """La acción no se puede deshacer: no se llegó a aplicar, ya se deshizo o es ella misma un deshacer."""
+    default_code = ErrorCode.CONSTRAINT_VIOLATION
+    default_status_code = 409
+
+    def __init__(self) -> None:
+        super().__init__(
+            message="La accion no se puede deshacer en su estado actual",
+            user_message="Esta acción no se puede deshacer: no llegó a aplicarse o ya se deshizo.",
+            message_key="irisMailboxActionNotReversible",
+        )
+
+
 class IrisTenantOwnerRequiredError(IrisError):
     """Solo el dueño de la organización decide si se comparte inteligencia y qué se protege."""
     default_code = ErrorCode.AUTHORIZATION_ERROR

@@ -60,18 +60,83 @@ class MailboxFolder:
     folder_type: str  # "system" | "user"
 
 
+@dataclass
+class ActionResult:
+    """Lo que devuelve un conector al actuar sobre un mensaje.
+
+    Attributes:
+        provider_message_id: Id del mensaje después de la acción. En Gmail es
+            el mismo; en Microsoft Graph mover un mensaje le da un id nuevo, y
+            es el que hay que usar para cualquier cosa posterior (incluido
+            deshacer).
+        previous_state: Dónde estaba antes, en el formato de cada proveedor
+            (``{"labelIds": [...]}`` en Gmail, ``{"parentFolderId": ...}`` o
+            ``{"categories": [...]}`` en Graph). Se guarda en la auditoría y es
+            lo que ``undo`` necesita.
+    """
+    provider_message_id: str
+    previous_state: dict = field(default_factory=dict)
+
+
 class MailboxConnector(ABC):
     """Conector OAuth + API de correo para un proveedor concreto."""
 
     provider: str
 
     @abstractmethod
-    def authorize_url(self, state: str, full_message_mode: bool) -> str:
+    def authorize_url(self, state: str, full_message_mode: bool, remediation_enabled: bool = False) -> str:
         """URL de consentimiento OAuth a la que redirigir al usuario.
 
         ``full_message_mode`` puede influir en el scope pedido (ver
         ``GmailConnector`` — Graph no tiene un scope solo-metadata, ver
-        ``GraphConnector``).
+        ``GraphConnector``). ``remediation_enabled`` pide además permiso de
+        escritura, necesario para las acciones sobre el buzón; sin él, la
+        conexión solo puede leer.
+        """
+
+    @staticmethod
+    @abstractmethod
+    def can_act(scopes: str) -> bool:
+        """Si los scopes que concedió el proveedor permiten actuar sobre los mensajes.
+
+        Args:
+            scopes: ``IrisMailboxConnection.scopes`` (separados por espacios).
+
+        Returns:
+            bool: ``True`` si incluyen el permiso de escritura del proveedor.
+        """
+
+    @abstractmethod
+    def quarantine(self, access_token: str, message_id: str, folder_name: str) -> ActionResult:
+        """Saca el mensaje de la bandeja a la carpeta/etiqueta de cuarentena (la crea si falta)."""
+
+    @abstractmethod
+    def label(self, access_token: str, message_id: str, label_name: str) -> ActionResult:
+        """Marca el mensaje como sospechoso sin moverlo (etiqueta o categoría)."""
+
+    @abstractmethod
+    def report_phishing(self, access_token: str, message_id: str) -> ActionResult:
+        """Manda el mensaje a correo no deseado."""
+
+    @abstractmethod
+    def delete(self, access_token: str, message_id: str) -> ActionResult:
+        """Manda el mensaje a la papelera (recuperable, nunca borrado definitivo)."""
+
+    @abstractmethod
+    def undo(self, access_token: str, action: str, message_id: str, previous_state: dict,
+             label_name: str) -> str:
+        """Deshace una acción anterior devolviendo el mensaje a como estaba.
+
+        Args:
+            access_token: Token de acceso vigente.
+            action: Valor de ``MailboxAction`` que se deshace.
+            message_id: Id actual del mensaje (el de después de la acción).
+            previous_state: ``ActionResult.previous_state`` de la acción.
+            label_name: Nombre de la etiqueta de sospechoso, para quitarla al
+                deshacer ``label``.
+
+        Returns:
+            str: Id del mensaje tras deshacer (puede cambiar en Graph).
         """
 
     @abstractmethod

@@ -25,6 +25,7 @@ from .model import (
     IrisCampaign, IrisCampaignMember, IrisCommunicationEdge, IrisDomainCache, IrisUrlExpansion,
     IrisThreatIntelResult, IrisTenantProfile, IrisTenantConsent,
     IrisWebhookDelivery, IrisWebhookSubscription, WebhookDeliveryStatus, IrisIntegrationToken,
+    IrisActionAudit, MailboxActionStatus,
 )
 
 
@@ -2074,6 +2075,132 @@ class IrisIntegrationTokenRepository(BaseRepository[IrisIntegrationToken]):
         self._session.execute(
             update(IrisIntegrationToken).where(IrisIntegrationToken.id == token_id).values(last_used_at=used_at)
         )
+
+
+class IrisActionAuditRepository(BaseRepository[IrisActionAudit]):
+    """Acceso a la auditoría de acciones sobre el buzón (``IrisActionAudit``)."""
+
+    _MODEL = IrisActionAudit
+
+    def get_by_analysis(self, analysis_id: int) -> List[IrisActionAudit]:
+        """Acciones sobre el correo de un análisis, de la más antigua a la más reciente.
+
+        Args:
+            analysis_id: Análisis.
+
+        Returns:
+            List[IrisActionAudit]: Todas, también las fallidas y los deshacer.
+        """
+        return (
+            self._session.query(IrisActionAudit)
+            .filter(IrisActionAudit.analysis_id == analysis_id)
+            .order_by(IrisActionAudit.id.asc())
+            .all()
+        )
+
+    def get_page_by_actor(self, actor_id: int, page: int, per_page: int) -> Tuple[List[IrisActionAudit], int]:
+        """Registro de acciones de un usuario, de la más reciente a la más antigua.
+
+        Args:
+            actor_id: Usuario que las hizo.
+            page: Página, empezando en 1.
+            per_page: Filas por página.
+
+        Returns:
+            tuple: ``(acciones, total)``.
+        """
+        return self.paginate(page=page, per_page=per_page, filters={"actor_id": actor_id},
+                             order_by=IrisActionAudit.id.desc())
+
+    def get_by_idempotency_key(self, actor_id: int, idempotency_key: str) -> Optional[IrisActionAudit]:
+        """La acción que un usuario pidió con una clave de idempotencia, si existe.
+
+        Args:
+            actor_id: Usuario.
+            idempotency_key: Clave que mandó el cliente.
+
+        Returns:
+            Optional[IrisActionAudit]: La acción, o ``None``.
+        """
+        return (
+            self._session.query(IrisActionAudit)
+            .filter(IrisActionAudit.actor_id == actor_id, IrisActionAudit.idempotency_key == idempotency_key)
+            .first()
+        )
+
+    def has_in_flight_for_analysis(self, analysis_id: int) -> bool:
+        """Si hay una acción pendiente o en curso sobre el correo de un análisis.
+
+        Args:
+            analysis_id: Análisis.
+
+        Returns:
+            bool: ``True`` si alguna está ``pending`` o ``running``.
+        """
+        return self._session.query(
+            self._session.query(IrisActionAudit)
+            .filter(IrisActionAudit.analysis_id == analysis_id,
+                    IrisActionAudit.status.in_([MailboxActionStatus.PENDING.value, MailboxActionStatus.RUNNING.value]))
+            .exists()
+        ).scalar()
+
+    def get_standing_action(self, analysis_id: int, action: str) -> Optional[IrisActionAudit]:
+        """La acción aplicada y no deshecha de un tipo sobre el correo de un análisis.
+
+        Args:
+            analysis_id: Análisis.
+            action: Valor de ``MailboxAction``.
+
+        Returns:
+            Optional[IrisActionAudit]: La más reciente en ``succeeded`` que no
+                es un deshacer, o ``None``.
+        """
+        return (
+            self._session.query(IrisActionAudit)
+            .filter(IrisActionAudit.analysis_id == analysis_id, IrisActionAudit.action == action,
+                    IrisActionAudit.is_rollback.is_(False),
+                    IrisActionAudit.status == MailboxActionStatus.SUCCEEDED.value)
+            .order_by(IrisActionAudit.id.desc())
+            .first()
+        )
+
+    def claim_for_run(self, audit_id: int, started_at: datetime) -> bool:
+        """Pasa una acción de ``pending`` a ``running`` si nadie la ha cogido ya.
+
+        Args:
+            audit_id: Acción.
+            started_at: Hora de inicio.
+
+        Returns:
+            bool: ``True`` si este worker la ha reclamado.
+        """
+        result = self._session.execute(
+            update(IrisActionAudit)
+            .where(and_(IrisActionAudit.id == audit_id,
+                        IrisActionAudit.status == MailboxActionStatus.PENDING.value))
+            .values(status=MailboxActionStatus.RUNNING.value, started_at=started_at)
+        )
+        return result.rowcount == 1
+
+    def fail_stale_running(self, started_before: datetime, error: str, completed_at: datetime) -> int:
+        """Da por fallidas las acciones que un worker dejó a medias.
+
+        Args:
+            started_before: Una acción ``running`` que empezó antes se da por
+                abandonada.
+            error: Motivo que se anota.
+            completed_at: Hora que se anota como final.
+
+        Returns:
+            int: Cuántas se cerraron.
+        """
+        result = self._session.execute(
+            update(IrisActionAudit)
+            .where(and_(IrisActionAudit.status == MailboxActionStatus.RUNNING.value,
+                        IrisActionAudit.started_at < started_before))
+            .values(status=MailboxActionStatus.FAILED.value, error=error, completed_at=completed_at)
+        )
+        return result.rowcount or 0
 
 
 class IrisReportRepository(DocumentRepository[IrisDocument]):

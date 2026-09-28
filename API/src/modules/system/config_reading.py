@@ -2908,6 +2908,24 @@ def iris_reporting_config() -> IrisReportingConfig:
     return load_block(IrisReportingConfig)
 
 
+@config_block("features.iris.remediation")
+@dataclass(frozen=True)
+class IrisRemediationConfig:
+    """Acciones de Iris sobre el buzón conectado del usuario (``iris/managers/remediation.py``)."""
+
+    quarantine_folder_name: str = "Iris Cuarentena"
+    """Nombre de la etiqueta de Gmail o la carpeta de Outlook adonde va un
+    correo en cuarentena. Se crea la primera vez que hace falta."""
+
+    suspicious_label_name: str = "Iris: sospechoso"
+    """Etiqueta de Gmail o categoría de Outlook con que se marca un correo
+    sospechoso sin moverlo."""
+
+
+def iris_remediation_config() -> IrisRemediationConfig:
+    return load_block(IrisRemediationConfig)
+
+
 def get_iris_threat_intel_key(provider: str) -> str:
     """Clave de API de un proveedor de reputación de Iris, desde el entorno.
 
