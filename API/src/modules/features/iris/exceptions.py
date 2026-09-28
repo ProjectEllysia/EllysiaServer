@@ -220,6 +220,59 @@ class IrisNotInOrganizationError(IrisError):
         )
 
 
+class IrisWebhookSubscriptionNotFoundError(EntityNotFoundError, IrisError):
+    """El webhook no existe o no es del usuario (mismo error para los dos)."""
+    entity_label = "Webhook"
+    id_field = "subscription_id"
+
+
+class IrisWebhookDeliveryNotFoundError(EntityNotFoundError, IrisError):
+    """La entrega no existe o no es de ese webhook del usuario (mismo error para los dos)."""
+    entity_label = "Entrega"
+    entity_is_feminine = True
+    id_field = "delivery_id"
+
+
+class IrisWebhookLimitReachedError(IrisError):
+    """El usuario ya tiene tantos webhooks como permite la instalación."""
+    default_code = ErrorCode.VALIDATION_ERROR
+    default_status_code = 409
+
+    def __init__(self, limit: int) -> None:
+        super().__init__(
+            message=f"Limite de {limit} webhooks por usuario alcanzado",
+            user_message=f"Ya tienes {limit} webhooks, el máximo. Borra uno para dar de alta otro.",
+            message_key="irisWebhookLimitReached",
+            params={"limit": limit},
+        )
+
+
+class IrisWebhookInactiveError(IrisError):
+    """El webhook está desactivado: no se le puede enviar nada hasta reactivarlo."""
+    default_code = ErrorCode.CONSTRAINT_VIOLATION
+    default_status_code = 409
+
+    def __init__(self) -> None:
+        super().__init__(
+            message="El webhook esta desactivado",
+            user_message="Este webhook está desactivado. Actívalo antes de enviarle eventos.",
+            message_key="irisWebhookInactive",
+        )
+
+
+class IrisWebhookDeliveryInProgressError(IrisError):
+    """La entrega todavía está pendiente o enviándose: reenviarla no tiene sentido aún."""
+    default_code = ErrorCode.CONSTRAINT_VIOLATION
+    default_status_code = 409
+
+    def __init__(self) -> None:
+        super().__init__(
+            message="La entrega sigue pendiente o en curso",
+            user_message="Esta entrega todavía está en curso; se podrá reenviar cuando termine.",
+            message_key="irisWebhookDeliveryInProgress",
+        )
+
+
 class IrisTenantOwnerRequiredError(IrisError):
     """Solo el dueño de la organización decide si se comparte inteligencia y qué se protege."""
     default_code = ErrorCode.AUTHORIZATION_ERROR

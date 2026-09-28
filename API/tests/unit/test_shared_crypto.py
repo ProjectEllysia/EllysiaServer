@@ -53,6 +53,7 @@ _ENCRYPTED_COLUMNS = [
     ("src.modules.features.iris.model", "IrisMailboxConnection", "refresh_token", "iris_mailbox"),
     ("src.modules.features.iris.model", "IrisMailboxConnection", "access_token", "iris_mailbox"),
     ("src.modules.features.iris.model", "IrisRawMessage", "content", "iris_raw_message"),
+    ("src.modules.features.iris.model", "IrisWebhookSubscription", "secret", "iris_webhook"),
 ]
 
 

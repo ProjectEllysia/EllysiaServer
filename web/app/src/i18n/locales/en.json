@@ -116,6 +116,8 @@
       "irisMailboxConnection": "Mailbox connection not found.",
       "irisSavedView": "Saved view not found.",
       "irisTrustedSender": "Trust exception not found.",
+      "irisWebhookDelivery": "Delivery not found.",
+      "irisWebhookSubscription": "Webhook not found.",
       "organization": "Organization not found.",
       "plan": "Plan not found.",
       "programedScan": "Scheduled scan not found.",
@@ -153,6 +155,9 @@
     "irisMailboxInvalidFolder": "“{folder}” is not a valid folder for this account.",
     "irisNotInOrganization": "You don't belong to any organization.",
     "irisTenantOwnerRequired": "Only the organization owner can change this.",
+    "irisWebhookDeliveryInProgress": "This delivery is still in progress; you can resend it once it finishes.",
+    "irisWebhookInactive": "This webhook is disabled. Enable it before sending events to it.",
+    "irisWebhookLimitReached": "You already have {limit} webhooks, the maximum. Delete one to add another.",
     "jsonParsing": "The JSON data could not be processed.",
     "logChanged": "The log changed during the query. Start a new read.",
     "logNotFound": "There is no log available right now.",
@@ -2273,6 +2278,72 @@
       "imitates": "imitates {domain}",
       "frequentTitle": "Frequent domains",
       "noFrequent": "No domains yet that enough members get email from."
+    },
+    "webhooks": {
+      "badge": "Integrations",
+      "eyebrow": "Webhooks",
+      "title": "Notify your other systems",
+      "intro": "A webhook is an address of another system of yours —a SIEM, a SOAR, a chat channel— that Iris notifies whenever something happens: an analysis finishes, a case changes, a campaign appears or a mailbox stops syncing. If the other system does not answer, Iris keeps retrying for a few hours.",
+      "signatureHint": "Every notification is signed with a secret that only Iris and your system know, so your system can check it comes from here. The signature travels in the X-Ellysia-Signature header.",
+      "name": "Name",
+      "namePlaceholder": "Office SIEM",
+      "url": "Address (https)",
+      "urlPlaceholder": "https://siem.company.com/alerts/iris",
+      "eventsLabel": "What to notify",
+      "create": "Create webhook",
+      "secretTitle": "Save this secret now",
+      "secretHint": "This is the only time it is shown. Your system needs it to check the signature of every notification; if you lose it, generate another one.",
+      "copy": "Copy",
+      "copied": "Secret copied.",
+      "copyFailed": "It could not be copied; select it and copy it by hand.",
+      "secretSaved": "I have saved it",
+      "listTitle": "Your webhooks",
+      "empty": "You do not have any webhook yet.",
+      "active": "Active",
+      "inactive": "Disabled",
+      "lastSuccess": "Last notification delivered: {date}",
+      "lastFailure": "last failure: {date}",
+      "neverSent": "Nothing has been sent to it yet.",
+      "test": "Send test",
+      "disable": "Disable",
+      "enable": "Enable",
+      "rotate": "Change secret",
+      "showHistory": "Show notifications",
+      "hideHistory": "Hide notifications",
+      "noDeliveries": "No notifications yet.",
+      "replay": "Resend",
+      "columns": {
+        "event": "Notification",
+        "status": "Status",
+        "attempts": "Attempts",
+        "date": "Date"
+      },
+      "events": {
+        "analysisFinished": "Analysis finished",
+        "caseUpdated": "Case opened or changed",
+        "campaignDetected": "Campaign detected",
+        "mailboxReauthRequired": "Mailbox that must be reconnected",
+        "ping": "Test"
+      },
+      "deliveryStatus": {
+        "pending": "Pending",
+        "delivering": "Sending",
+        "delivered": "Delivered",
+        "failed": "Not delivered"
+      },
+      "disabledReason": {
+        "manual": "You disabled it.",
+        "failures": "It disabled itself because your system failed too many times in a row. Check the address and enable it again.",
+        "gone": "It disabled itself because your system answered that the address no longer exists."
+      },
+      "confirmRotate": {
+        "title": "Change the secret of “{name}”?",
+        "message": "The current secret stops working at once: your system will reject notifications until you give it the new one."
+      },
+      "confirmDelete": {
+        "title": "Delete “{name}”?",
+        "message": "It will stop receiving notifications and its history will be deleted."
+      }
     }
   },
   "irisHub": {
@@ -2427,7 +2498,15 @@
     "organizationPolicyFailed": "The policy could not be saved.",
     "organizationConsentGiven": "You now contribute to your organization's intelligence.",
     "organizationConsentWithdrawn": "You no longer contribute to your organization's intelligence.",
-    "organizationConsentFailed": "Your consent could not be changed."
+    "organizationConsentFailed": "Your consent could not be changed.",
+    "webhookCreated": "Webhook created.",
+    "webhookCreateFailed": "The webhook could not be created.",
+    "webhookUpdateFailed": "The webhook could not be changed.",
+    "webhookDeleted": "Webhook deleted.",
+    "webhookDeleteFailed": "The webhook could not be deleted.",
+    "webhookTestQueued": "Test sent; its result appears in the notifications in a few seconds.",
+    "webhookTestFailed": "The test could not be sent.",
+    "webhookReplayFailed": "The notification could not be resent."
   },
   "aegis": {
     "campaignStatus": {
@@ -3969,6 +4048,11 @@
         "label": "Iris external lookups",
         "covers": "Asking third-party services about an email's indicators: domain registry, reputation and following links.",
         "unlocks": "public list of providers and an explanation of what data they receive"
+      },
+      "webhooks": {
+        "label": "Iris webhooks",
+        "covers": "Sending Iris notifications (analyses, cases, campaigns, mailboxes) to an external system each user chooses.",
+        "unlocks": "data processing agreement and an explanation of what data each notification carries"
       }
     },
     "confirmOpen": "You are about to open to the public:\n{surfaces}\n\nContinue?",

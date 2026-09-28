@@ -36,7 +36,7 @@ import src.modules.system.config_reading as CR
 from src.modules.infrastructure import UnitOfWork
 from src.modules.shared import utcnow_naive
 
-from ..model import CampaignSignal, IrisCampaign, IrisCampaignMember
+from ..model import CampaignSignal, IrisCampaign, IrisCampaignMember, WebhookEventType
 from ..repositories import (
     IrisAnalysisRepository,
     IrisCampaignMemberRepository,
@@ -44,6 +44,7 @@ from ..repositories import (
     IrisIndicatorRepository,
 )
 from .text import is_free_provider
+from .webhook_events import build_campaign_detected_data, emit_event
 
 #: Peso de cada señal coincidente. Una URL o un adjunto compartidos bastan por
 #: sí solos para superar el umbral por defecto (5): nadie más manda ese enlace
@@ -326,7 +327,7 @@ def assign_to_campaign(uow: UnitOfWork, analysis_id: int, user_id: int, seen_at:
     ``window_days`` días, los que comparten alguna señal con este; se queda con
     el de mayor parecido que supere ``similarity_threshold``. Si ese análisis ya
     está en una campaña, este entra en ella; si no, se abre una campaña con los
-    dos.
+    dos y se emite ``campaign.detected`` para los webhooks del usuario.
 
     Dos análisis de la misma campaña que terminan a la vez no se ven entre sí
     (cada transacción aún no ve la otra) y pueden quedar sueltos; el siguiente
@@ -389,6 +390,13 @@ def assign_to_campaign(uow: UnitOfWork, analysis_id: int, user_id: int, seen_at:
             campaign_id=campaign.id, analysis_id=best_candidate.id, similarity=best_match.score,
             matched_signals=[signal.value for signal in best_match.signals], added_at=now,
         ))
+        # Una campaña se «detecta» una vez, al abrirse; los miembros que se le
+        # suman después no vuelven a avisar. El envío lo encola el barrido de
+        # webhooks: esta transacción la confirma quien llama.
+        emit_event(uow, user_id, WebhookEventType.CAMPAIGN_DETECTED.value, f"campaign.detected:{campaign.id}",
+                   build_campaign_detected_data(campaign.id, campaign.label, [best_candidate.id, analysis_id],
+                                                [signal.value for signal in best_match.signals]),
+                   occurred_at=now)
     member_repo.save(IrisCampaignMember(
         campaign_id=campaign.id, analysis_id=analysis_id, similarity=best_match.score,
         matched_signals=[signal.value for signal in best_match.signals], added_at=now,

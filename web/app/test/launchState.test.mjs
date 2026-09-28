@@ -67,7 +67,7 @@ await test('el estado inicial lo tiene todo cerrado', () => {
 })
 
 await test('el administrador principal está exento solo donde la API lo exime', () => {
-  assert.deepEqual([...ROOT_EXEMPT_SURFACES].sort(), ['campaigns', 'externalEnrichment', 'mailboxConnectors', 'thirdPartyScanners'])
+  assert.deepEqual([...ROOT_EXEMPT_SURFACES].sort(), ['campaigns', 'externalEnrichment', 'mailboxConnectors', 'thirdPartyScanners', 'webhooks'])
   for (const surface of ROOT_EXEMPT_SURFACES) {
     assert.equal(isSurfaceOpen(CLOSED_LAUNCH_STATE, surface, true), true)
   }

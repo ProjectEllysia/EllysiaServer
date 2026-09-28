@@ -36,7 +36,8 @@
         "campaigns": true,
         "mailboxConnectors": true,
         "externalAi": true,
-        "externalEnrichment": true
+        "externalEnrichment": true,
+        "webhooks": true
       }
     },
     "registration": {
@@ -369,6 +370,17 @@
         "minMembers": 3,
         "windowDays": 30,
         "maxItems": 100
+      },
+      "webhooks": {
+        "maxSubscriptionsPerUser": 10,
+        "maxAttempts": 8,
+        "retryBaseSeconds": 30,
+        "retryMaxSeconds": 3600,
+        "disableAfterConsecutiveFailures": 20,
+        "timeoutSeconds": 10.0,
+        "maxResponseBytes": 4096,
+        "retrySweepIntervalSeconds": 60,
+        "deliveryRetentionDays": 30
       },
       "enrichment": {
         "enabled": true,

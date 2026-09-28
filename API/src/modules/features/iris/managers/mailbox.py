@@ -43,7 +43,8 @@ from ..exceptions import (
 )
 from .analysis import IrisManager
 from .notifications import IrisReauthNotifyManager
-from ..model import IrisMailboxConnection, IrisMailboxInbox
+from .webhooks import IrisWebhookManager
+from ..model import IrisMailboxConnection, IrisMailboxInbox, WebhookEventType
 from ..repositories import (
     IrisAnalysisRepository, IrisMailboxConnectionRepository, IrisMailboxInboxRepository,
 )
@@ -52,6 +53,7 @@ from ..services.mailbox import (
 )
 from ..services.mailbox.locks import MailboxSyncLock
 from ..services.parsers import build_subject_title
+from ..services.webhook_events import build_mailbox_reauth_data, emit_event
 
 
 logger = logging.getLogger(__name__)
@@ -394,7 +396,8 @@ def _mark_reauth_is_required(connection_id: int, error: str) -> None:
     reintentar en bucle contra su API (mismo patrón degradado que
     ``execute_ai_summary_generation``).
 
-    Avisa al dueño de la conexión, pero solo en la transición
+    Avisa al dueño de la conexión (por correo y con el evento
+    ``mailbox.reauth_required`` a sus webhooks), pero solo en la transición
     hacia este estado: los tres puntos que llaman a este método pueden
     volver a invocarlo mientras la conexión sigue sin reautorizar (un
     segundo intento de cambiar de carpeta, por ejemplo), y sin esta
@@ -426,20 +429,32 @@ def _mark_reauth_is_required(connection_id: int, error: str) -> None:
             return
         was_already_reauth_required = fresh.status == "reauth_required"
         fresh.status = "reauth_required"
-        fresh.last_sync_at = utcnow_naive()
+        now = utcnow_naive()
+        fresh.last_sync_at = now
         fresh.last_sync_duration_ms = _duration_ms(fresh.sync_started_at)
         fresh.last_error = error[:2000]
         repo.update(fresh)
+        delivery_ids = []
         if not was_already_reauth_required:
             dispatch_id = TaskDispatchRepository(uow).save(
                 IrisReauthNotifyManager.build_dispatch_for(connection_id),
             ).id
+            # La clave lleva el momento de la transición: una conexión que se
+            # reautoriza y vuelve a caer es otro hecho, y avisa otra vez.
+            delivery_ids = emit_event(
+                uow, fresh.user_id, WebhookEventType.MAILBOX_REAUTH_REQUIRED.value,
+                f"mailbox.reauth_required:{connection_id}:{now.isoformat()}",
+                build_mailbox_reauth_data(connection_id, fresh.provider, fresh.account_email),
+                occurred_at=now,
+            )
         uow.commit_for_handoff()
     if dispatch_id is not None:
         # Camino feliz: publicar ya. Si Redis falla, la fila queda
         # `pending` y la recogen el barrido periódico o la reconciliación
         # de arranque.
         OutboxDispatcher.dispatch(dispatch_id)
+    if delivery_ids:
+        IrisWebhookManager().dispatch_deliveries(delivery_ids)
 
 
 def _sync_connection(connection_id: int, job_id: Optional[str] = None) -> None:

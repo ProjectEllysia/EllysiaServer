@@ -13,6 +13,7 @@ QueueRegistry.register("iris.report")
 QueueRegistry.register("iris.ingest")
 QueueRegistry.register("iris.notify")
 QueueRegistry.register("iris.enrichment")
+QueueRegistry.register("iris.webhook")
 
 __all__ = [
     "IrisAnalysis",

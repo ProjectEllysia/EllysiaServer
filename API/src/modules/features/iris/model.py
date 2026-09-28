@@ -1675,3 +1675,173 @@ class IrisBatchItem(Base):
     __table_args__ = (
         Index("ix_iris_batch_item_batch_id", "batch_id"),
     )
+
+
+class WebhookEventType(StrEnum):
+    """Eventos de Iris que se pueden enviar a un sistema externo.
+
+    El valor es el nombre del evento tal como viaja en el campo ``type`` del
+    cuerpo y en la cabecera ``X-Ellysia-Event``: es un contrato con quien
+    recibe, así que un valor publicado no se renombra.
+
+    Attributes:
+        ANALYSIS_FINISHED: Un análisis ha terminado con veredicto.
+        CASE_UPDATED: Un caso se ha abierto o ha cambiado (estado, prioridad,
+            asignación, notas, análisis vinculados…).
+        CAMPAIGN_DETECTED: Dos o más análisis parecidos han abierto una campaña.
+        MAILBOX_REAUTH_REQUIRED: Un buzón conectado ha dejado de sincronizarse
+            porque el proveedor ya no acepta su autorización.
+        PING: Evento de prueba que el usuario lanza a mano para comprobar el
+            receptor; no se puede suscribir a él.
+    """
+    ANALYSIS_FINISHED = "analysis.finished"
+    CASE_UPDATED = "case.updated"
+    CAMPAIGN_DETECTED = "campaign.detected"
+    MAILBOX_REAUTH_REQUIRED = "mailbox.reauth_required"
+    PING = "ping"
+
+
+#: Eventos a los que se puede suscribir una suscripción (todos menos ``ping``).
+SUBSCRIBABLE_WEBHOOK_EVENTS = tuple(
+    event_type.value for event_type in WebhookEventType if event_type is not WebhookEventType.PING
+)
+
+
+class WebhookDeliveryStatus(StrEnum):
+    """En qué punto está la entrega de un evento (``IrisWebhookDelivery.status``).
+
+    Attributes:
+        PENDING: Espera su primer intento o su siguiente reintento
+            (``next_attempt_at``).
+        DELIVERING: Un worker la está enviando ahora mismo.
+        DELIVERED: El receptor respondió con un 2xx.
+        FAILED: Agotó los intentos, o su suscripción se desactivó o se borró
+            antes de entregarla. Se puede volver a enviar a mano.
+    """
+    PENDING = "pending"
+    DELIVERING = "delivering"
+    DELIVERED = "delivered"
+    FAILED = "failed"
+
+
+class IrisWebhookSubscription(Base):
+    """Un receptor externo al que un usuario manda eventos de Iris.
+
+    Cada entrega va firmada con ``secret`` (HMAC-SHA256), para que el receptor
+    compruebe que viene de este Ellysia y no de cualquiera que conozca su URL.
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        user_id: FK al ``User`` dueño; ``ondelete="CASCADE"``. Solo recibe
+                 eventos de lo que es suyo.
+        name: Nombre para reconocerla en la lista (hasta 80 caracteres).
+        url: Dirección ``https`` a la que se envía cada evento.
+        secret: Secreto de firma. ``EncryptedText`` (``purpose="iris_webhook"``)
+                 y no un hash, porque hace falta en claro para firmar cada
+                 entrega; se enseña una sola vez, al crearla o rotarlo.
+                 ``deferred``: los listados no lo cargan.
+        event_types: Eventos a los que está suscrita (valores de
+                 ``WebhookEventType`` salvo ``ping``).
+        is_active: Si se le envían eventos. La desactiva el usuario, o sola
+                 tras demasiados fallos seguidos.
+        consecutive_failures: Intentos fallidos seguidos, sumando todas sus
+                 entregas; vuelve a ``0`` con cualquier entrega que llega.
+        disabled_reason: Por qué se desactivó sola: ``failures`` (demasiados
+                 fallos seguidos) o ``gone`` (el receptor respondió 410, «ya no
+                 existo»). NULL si está activa o la desactivó el usuario.
+        disabled_at: Cuándo se desactivó sola; NULL en los demás casos.
+        last_success_at: Última entrega que llegó.
+        last_failure_at: Último intento fallido.
+        last_error: Motivo del último intento fallido (código HTTP o error de
+                 red), recortado.
+        created_at: Cuándo se dio de alta.
+        updated_at: Último cambio de su configuración.
+        deliveries: Historial de entregas.
+    """
+    __tablename__ = "IrisWebhookSubscription"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("User.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(80), nullable=False)
+    url = Column(Text, nullable=False)
+    secret = deferred(Column(EncryptedText(purpose="iris_webhook"), nullable=False))
+    event_types = Column(JSONB, nullable=False, default=list)
+    is_active = Column(Boolean, nullable=False, default=True)
+    consecutive_failures = Column(Integer, nullable=False, default=0)
+    disabled_reason = Column(String(20), nullable=True)
+    disabled_at = Column(DateTime, nullable=True)
+    last_success_at = Column(DateTime, nullable=True)
+    last_failure_at = Column(DateTime, nullable=True)
+    last_error = Column(Text, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=utcnow_naive)
+    updated_at = Column(DateTime, nullable=False, default=utcnow_naive)
+
+    deliveries = relationship(
+        "IrisWebhookDelivery", back_populates="subscription",
+        cascade="all, delete-orphan", passive_deletes=True,
+    )
+
+    __table_args__ = (
+        Index("ix_iris_webhook_subscription_user_id", "user_id"),
+    )
+
+
+class IrisWebhookDelivery(Base):
+    """La entrega de un evento a una suscripción, con sus intentos.
+
+    Un mismo evento llega a cada suscripción una sola vez: ``event_id`` se
+    deriva de lo que pasó (el análisis 42 terminó, la entrada 7 de la timeline
+    del caso 3…), así que volver a emitir el mismo hecho —la outbox entrega al
+    menos una vez, un job puede repetirse— choca con la restricción única y no
+    crea una segunda entrega. El receptor recibe ese mismo ``event_id`` en cada
+    reintento y en cada reenvío manual, para descartar lo que ya procesó.
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        subscription_id: FK a la ``IrisWebhookSubscription``; ``ondelete="CASCADE"``.
+        event_id: Identificador estable del evento (UUID en texto).
+        event_type: Valor de ``WebhookEventType``.
+        payload: Cuerpo que se envía, ya completo (``id``, ``type``,
+                 ``createdAt``, ``data``). Se congela al emitir: un reintento
+                 manda exactamente lo mismo aunque el análisis o el caso hayan
+                 cambiado después.
+        status: ``WebhookDeliveryStatus``.
+        attempts: Intentos hechos.
+        next_attempt_at: Cuándo toca el siguiente intento mientras está
+                 ``pending``.
+        claimed_at: Cuándo la reclamó el worker que la está enviando; sirve
+                 para rescatar una entrega cuyo worker murió a mitad.
+        last_status_code: Código HTTP de la última respuesta; NULL si no llegó
+                 a responder.
+        last_error: Motivo del último fallo (``http_500``, ``timeout``,
+                 ``private_address``…); NULL si no ha fallado.
+        last_response_excerpt: Primeros bytes de la última respuesta, para
+                 diagnosticar un receptor que rechaza los eventos.
+        created_at: Cuándo se emitió el evento.
+        delivered_at: Cuándo llegó; NULL si no ha llegado.
+        subscription: Relación inversa.
+    """
+    __tablename__ = "IrisWebhookDelivery"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    subscription_id = Column(Integer, ForeignKey("IrisWebhookSubscription.id", ondelete="CASCADE"),
+                             nullable=False)
+    event_id = Column(String(36), nullable=False)
+    event_type = Column(String(40), nullable=False)
+    payload = Column(JSONB, nullable=False)
+    status = Column(String(16), nullable=False, default=WebhookDeliveryStatus.PENDING.value)
+    attempts = Column(Integer, nullable=False, default=0)
+    next_attempt_at = Column(DateTime, nullable=False, default=utcnow_naive)
+    claimed_at = Column(DateTime, nullable=True)
+    last_status_code = Column(Integer, nullable=True)
+    last_error = Column(String(120), nullable=True)
+    last_response_excerpt = Column(Text, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=utcnow_naive)
+    delivered_at = Column(DateTime, nullable=True)
+
+    subscription = relationship("IrisWebhookSubscription", back_populates="deliveries")
+
+    __table_args__ = (
+        UniqueConstraint("subscription_id", "event_id", name="uq_iris_webhook_delivery_subscription_event"),
+        Index("ix_iris_webhook_delivery_status_next_attempt", "status", "next_attempt_at"),
+    )

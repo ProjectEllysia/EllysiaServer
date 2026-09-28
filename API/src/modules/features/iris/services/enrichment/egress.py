@@ -17,9 +17,11 @@ el módulo. Esta capa lo impide así:
 - **Redirects**: no se siguen solos. ``fetch_following`` los sigue a mano y
   cada salto pasa otra vez por todas las comprobaciones.
 - **Sin credenciales**: ni cookies, ni ``Authorization``, ni el ``usuario:clave@``
-  que traiga la URL. Se manda un ``User-Agent`` propio. La única excepción son
-  las claves de API de un proveedor de reputación, que el adaptador pasa
-  explícitamente en ``extra_headers`` para llamar a **ese** proveedor.
+  que traiga la URL. Se manda un ``User-Agent`` propio. Las únicas excepciones
+  son las claves de API de un proveedor de reputación, que el adaptador pasa
+  explícitamente en ``extra_headers`` para llamar a **ese** proveedor, y la
+  firma HMAC de una entrega de webhook, que solo sirve al receptor que la
+  pidió.
 - **Límites**: tiempo por operación de red y bytes leídos.
 
 A propósito no hay interruptor para permitir direcciones privadas, ni siquiera
@@ -196,7 +198,9 @@ def fetch(url: str, *, timeout_seconds: float, max_bytes: int, method: str = "GE
         method: ``GET``, ``HEAD`` o ``POST``. Por defecto ``GET``.
         accept: Cabecera ``Accept``. Por defecto ``*/*``.
         extra_headers: Cabeceras añadidas, solo para la clave de API y el tipo
-            de contenido de una llamada a un proveedor. Por defecto ``None``.
+            de contenido de una llamada a un proveedor, o para la firma y el
+            tipo de contenido de una entrega de webhook. Pisan a las de por
+            defecto con el mismo nombre. Por defecto ``None``.
         body: Cuerpo de un ``POST``. Por defecto ``None``.
 
     Returns:
@@ -282,7 +286,7 @@ def fetch_following(url: str, *, max_redirects: int, timeout_seconds: float, max
             hops.append(EgressHop(url=current_url, error=e.reason))
             return RedirectChain(hops=tuple(hops), final=final)
         except (OSError, http.client.HTTPException) as e:
-            hops.append(EgressHop(url=current_url, error=_network_error_reason(e)))
+            hops.append(EgressHop(url=current_url, error=describe_network_error(e)))
             return RedirectChain(hops=tuple(hops), final=final)
         final = response
         hops.append(EgressHop(url=current_url, status=response.status, peer_address=response.peer_address,
@@ -294,8 +298,11 @@ def fetch_following(url: str, *, max_redirects: int, timeout_seconds: float, max
     return RedirectChain(hops=tuple(hops), final=final)
 
 
-def _network_error_reason(error: Exception) -> str:
+def describe_network_error(error: Exception) -> str:
     """Motivo estable de un fallo de red, para guardarlo y enseñarlo.
+
+    La usan los que piden algo por esta puerta y tienen que registrar por qué
+    no respondió: los saltos de ``fetch_following`` y las entregas de webhooks.
 
     Args:
         error: La excepción.

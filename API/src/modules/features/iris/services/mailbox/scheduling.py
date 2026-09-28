@@ -6,7 +6,8 @@ diarios pendientes y avisos de conexión atascada) y el job de retención
 (purgar raw vencido, borrar análisis enteros si hay un límite
 duro configurado) -- ver los docstrings de ``services/notifications/
 scheduling.py`` y ``services/retention.py`` sobre por qué comparten este
-scheduler en vez de tener uno propio cada uno.
+scheduler en vez de tener uno propio cada uno. Por la misma razón aloja el
+barrido de entregas de webhooks: la convención es un scheduler por módulo.
 
 Mismo patrón que ``hygeia/services/scheduling.py::HygeiaScheduler``:
 instancia propia de APScheduler (no compartida con Themis/Hygeia — acoplar
@@ -32,11 +33,26 @@ from src.modules.infrastructure.scheduling import make_background_scheduler, sch
 from src.modules.shared import SurfaceDisabledError
 
 from ...managers.mailbox import IrisMailboxManager
+from ...managers.webhooks import IrisWebhookManager
 from ...repositories import IrisMailboxConnectionRepository
 from ..notifications.scheduling import check_and_notify
 from ..retention import run_retention
 
 logger = logging.getLogger(__name__)
+
+
+@scheduler_job(logger, "Error encolando entregas de webhooks de Iris")
+def _run_webhook_deliveries() -> None:
+    """Barrido de webhooks: encola las entregas cuyo intento ya toca y rescata las abandonadas.
+
+    Es la red de seguridad del envío inmediato que se hace al emitir, y el
+    único camino de los reintentos. Como el sondeo de buzones, solo decide qué
+    encolar; la petición HTTP la hace el worker. El aislamiento de errores y el
+    cierre de sesión los pone ``scheduler_job``.
+    """
+    submitted = IrisWebhookManager().submit_due_deliveries()
+    if submitted:
+        logger.info("Barrido de webhooks de Iris: %d entrega(s) encolada(s)", submitted)
 
 
 class IrisMailboxScheduler:
@@ -81,11 +97,21 @@ class IrisMailboxScheduler:
             max_instances=1,
             name="Iris retention",
         )
+        webhook_interval = CR.iris_webhooks_config().retry_sweep_interval_seconds
+        cls._scheduler.add_job(
+            func=_run_webhook_deliveries,
+            trigger="interval",
+            seconds=webhook_interval,
+            id="iris_webhook_deliveries",
+            replace_existing=True,
+            max_instances=1,
+            name="Iris webhook deliveries",
+        )
         cls._scheduler.start()
         logger.info(
             "Scheduler de buzones de Iris iniciado (sondeo cada %d min, "
-            "notificaciones cada %d min, retención cada %d h)",
-            interval, notification_interval, retention_interval,
+            "notificaciones cada %d min, retención cada %d h, webhooks cada %d s)",
+            interval, notification_interval, retention_interval, webhook_interval,
         )
 
     @classmethod
@@ -139,5 +165,13 @@ class IrisMailboxScheduler:
     @scheduler_job(logger, "Error en la retención de Iris")
     def _run_retention() -> None:
         """Entry point del job de retención (aislamiento de
-        errores y cierre de sesión vía ``scheduler_job``)."""
+        errores y cierre de sesión vía ``scheduler_job``).
+
+        Además de la retención de análisis, borra el historial viejo de
+        entregas de webhooks: es el mismo tipo de trabajo (purgar por edad) y
+        con la misma cadencia basta.
+        """
         run_retention()
+        purged = IrisWebhookManager.purge_expired_deliveries()
+        if purged:
+            logger.info("Retención de Iris: %d entrega(s) de webhook antigua(s) borrada(s)", purged)

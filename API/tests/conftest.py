@@ -53,6 +53,8 @@ os.environ.setdefault("IRIS_MAILBOX_ENCRYPTION_KEY", "wMNiTz_4azXsQb3lJg8Fvv0hpR
 # Idem para el raw MIME/cabeceras de IrisAnalysis, separado en su propia
 # fila cifrada (IrisRawMessage) por M09/B19.
 os.environ.setdefault("IRIS_RAW_MESSAGE_ENCRYPTION_KEY", "PttUWa9N_8cdsC4t113HiqFmxjCYYTIoplsFkz5U71Y=")
+# Clave del secreto de firma de cada webhook de Iris; distinta de las demás.
+os.environ.setdefault("IRIS_WEBHOOK_ENCRYPTION_KEY", "q3Zr0l8mFJ2vYkq1s5wXo7tNcB4eHdUaGiPyRzLxKjM=")
 os.environ.setdefault("ACCESS_TOKEN_EXPIRY_MINUTES", "30")
 os.environ.setdefault("REFRESH_TOKEN_EXPIRY_DAYS", "7")
 os.environ.setdefault("FLASK_ENV", "development")

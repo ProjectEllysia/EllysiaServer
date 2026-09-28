@@ -24,6 +24,7 @@ from .model import (
     IrisCase, IrisCaseAnalysis, IrisCaseEvent, IrisBatch, IrisBatchItem,
     IrisCampaign, IrisCampaignMember, IrisCommunicationEdge, IrisDomainCache, IrisUrlExpansion,
     IrisThreatIntelResult, IrisTenantProfile, IrisTenantConsent,
+    IrisWebhookDelivery, IrisWebhookSubscription, WebhookDeliveryStatus,
 )
 
 
@@ -1749,6 +1750,267 @@ class IrisBatchItemRepository(BaseRepository[IrisBatchItem]):
     """
 
     _MODEL = IrisBatchItem
+
+
+class IrisWebhookSubscriptionRepository(BaseRepository[IrisWebhookSubscription]):
+    """Acceso a las suscripciones de webhooks (``IrisWebhookSubscription``)."""
+
+    _MODEL = IrisWebhookSubscription
+
+    def get_by_user(self, user_id: int) -> List[IrisWebhookSubscription]:
+        """Suscripciones de un usuario.
+
+        Args:
+            user_id: Dueño.
+
+        Returns:
+            List[IrisWebhookSubscription]: De la más antigua a la más nueva.
+        """
+        return (
+            self._session.query(IrisWebhookSubscription)
+            .filter(IrisWebhookSubscription.user_id == user_id)
+            .order_by(IrisWebhookSubscription.id.asc())
+            .all()
+        )
+
+    def count_by_user(self, user_id: int) -> int:
+        """Cuántas suscripciones tiene un usuario, activas o no.
+
+        Args:
+            user_id: Dueño.
+
+        Returns:
+            int: Número de suscripciones; ``0`` si no tiene ninguna.
+        """
+        return (
+            self._session.query(IrisWebhookSubscription)
+            .filter(IrisWebhookSubscription.user_id == user_id)
+            .count()
+        )
+
+    def get_active_for_event(self, user_id: int, event_type: str) -> List[IrisWebhookSubscription]:
+        """Suscripciones activas de un usuario que reciben un tipo de evento.
+
+        El filtro por tipo se hace en Python: ``event_types`` es una lista JSON
+        de pocos elementos y un usuario tiene como mucho unas pocas
+        suscripciones, así que no compensa una consulta distinta por dialecto.
+
+        Args:
+            user_id: Dueño.
+            event_type: Valor de ``WebhookEventType``.
+
+        Returns:
+            List[IrisWebhookSubscription]: Las que están activas y suscritas a
+                ``event_type``.
+        """
+        active = (
+            self._session.query(IrisWebhookSubscription)
+            .filter(IrisWebhookSubscription.user_id == user_id, IrisWebhookSubscription.is_active.is_(True))
+            .order_by(IrisWebhookSubscription.id.asc())
+            .all()
+        )
+        return [subscription for subscription in active if event_type in (subscription.event_types or [])]
+
+    def reset_failures(self, subscription_id: int, delivered_at: datetime) -> None:
+        """Anota una entrega que llegó: la cuenta de fallos seguidos vuelve a cero.
+
+        Args:
+            subscription_id: Suscripción.
+            delivered_at: Cuándo llegó.
+        """
+        self._session.execute(
+            update(IrisWebhookSubscription)
+            .where(IrisWebhookSubscription.id == subscription_id)
+            .values(consecutive_failures=0, last_success_at=delivered_at)
+        )
+
+    def increment_failures(self, subscription_id: int, failed_at: datetime, error: str) -> int:
+        """Suma un intento fallido a la suscripción, dentro del propio ``UPDATE``.
+
+        El incremento va en la base de datos y no en Python porque varios
+        workers pueden estar entregando a la vez eventos de la misma
+        suscripción.
+
+        Args:
+            subscription_id: Suscripción.
+            failed_at: Cuándo falló.
+            error: Motivo del fallo, ya recortado.
+
+        Returns:
+            int: Fallos seguidos después de sumar este; ``0`` si la suscripción
+                ya no existe.
+        """
+        self._session.execute(
+            update(IrisWebhookSubscription)
+            .where(IrisWebhookSubscription.id == subscription_id)
+            .values(
+                consecutive_failures=IrisWebhookSubscription.consecutive_failures + 1,
+                last_failure_at=failed_at,
+                last_error=error,
+            )
+        )
+        count = self._session.execute(
+            select(IrisWebhookSubscription.consecutive_failures)
+            .where(IrisWebhookSubscription.id == subscription_id)
+        ).scalar()
+        return int(count or 0)
+
+    def deactivate_if_active(self, subscription_id: int, reason: str, disabled_at: datetime) -> bool:
+        """Desactiva una suscripción que sigue activa, con su motivo.
+
+        Args:
+            subscription_id: Suscripción.
+            reason: ``failures`` o ``gone``.
+            disabled_at: Cuándo.
+
+        Returns:
+            bool: ``True`` si este llamante la desactivó; ``False`` si ya no
+                estaba activa (otro worker se adelantó o la apagó el usuario).
+        """
+        result = self._session.execute(
+            update(IrisWebhookSubscription)
+            .where(and_(IrisWebhookSubscription.id == subscription_id,
+                        IrisWebhookSubscription.is_active.is_(True)))
+            .values(is_active=False, disabled_reason=reason, disabled_at=disabled_at)
+        )
+        return result.rowcount == 1
+
+
+class IrisWebhookDeliveryRepository(BaseRepository[IrisWebhookDelivery]):
+    """Acceso a las entregas de eventos (``IrisWebhookDelivery``)."""
+
+    _MODEL = IrisWebhookDelivery
+
+    def exists_for_event(self, subscription_id: int, event_id: str) -> bool:
+        """Si un evento ya tiene entrega para una suscripción.
+
+        Args:
+            subscription_id: Suscripción.
+            event_id: Id estable del evento.
+
+        Returns:
+            bool: ``True`` si ya se emitió ese evento a esa suscripción.
+        """
+        return self._session.query(
+            self._session.query(IrisWebhookDelivery)
+            .filter(IrisWebhookDelivery.subscription_id == subscription_id,
+                    IrisWebhookDelivery.event_id == event_id)
+            .exists()
+        ).scalar()
+
+    def get_page_of_subscription(self, subscription_id: int, page: int,
+                                 per_page: int) -> Tuple[List[IrisWebhookDelivery], int]:
+        """Historial de entregas de una suscripción, de la más nueva a la más antigua.
+
+        Args:
+            subscription_id: Suscripción.
+            page: Página, empezando en 1.
+            per_page: Entregas por página.
+
+        Returns:
+            tuple: ``(entregas, total)``.
+        """
+        return self.paginate(page=page, per_page=per_page, filters={"subscription_id": subscription_id},
+                             order_by=IrisWebhookDelivery.id.desc())
+
+    def claim_for_attempt(self, delivery_id: int, now: datetime) -> bool:
+        """Pasa una entrega de ``pending`` a ``delivering`` si ya le toca y nadie la tiene.
+
+        El envío lo pueden disparar a la vez el camino inmediato tras emitir y
+        el barrido del scheduler; solo quien gana este ``UPDATE`` envía.
+
+        Args:
+            delivery_id: Entrega.
+            now: Hora actual; la entrega tiene que tener ``next_attempt_at``
+                anterior o igual.
+
+        Returns:
+            bool: ``True`` si este worker la ha reclamado.
+        """
+        result = self._session.execute(
+            update(IrisWebhookDelivery)
+            .where(and_(IrisWebhookDelivery.id == delivery_id,
+                        IrisWebhookDelivery.status == WebhookDeliveryStatus.PENDING.value,
+                        IrisWebhookDelivery.next_attempt_at <= now))
+            .values(status=WebhookDeliveryStatus.DELIVERING.value, claimed_at=now)
+        )
+        return result.rowcount == 1
+
+    def get_due_ids(self, now: datetime, limit: int) -> List[Tuple[int, int]]:
+        """Entregas pendientes cuyo intento ya toca, de suscripciones activas.
+
+        Args:
+            now: Hora actual.
+            limit: Cuántas como máximo.
+
+        Returns:
+            List[tuple]: Pares ``(id, intentos hechos)``, de la que más espera a
+                la que menos.
+        """
+        rows = (
+            self._session.query(IrisWebhookDelivery.id, IrisWebhookDelivery.attempts)
+            .join(IrisWebhookSubscription, IrisWebhookSubscription.id == IrisWebhookDelivery.subscription_id)
+            .filter(IrisWebhookDelivery.status == WebhookDeliveryStatus.PENDING.value,
+                    IrisWebhookDelivery.next_attempt_at <= now,
+                    IrisWebhookSubscription.is_active.is_(True))
+            .order_by(IrisWebhookDelivery.next_attempt_at.asc())
+            .limit(limit)
+            .all()
+        )
+        return [(row[0], row[1]) for row in rows]
+
+    def release_stale_claims(self, claimed_before: datetime) -> int:
+        """Devuelve a ``pending`` las entregas cuyo worker murió a mitad de envío.
+
+        Args:
+            claimed_before: Una entrega ``delivering`` reclamada antes de esto
+                se da por abandonada.
+
+        Returns:
+            int: Cuántas entregas se rescataron.
+        """
+        result = self._session.execute(
+            update(IrisWebhookDelivery)
+            .where(and_(IrisWebhookDelivery.status == WebhookDeliveryStatus.DELIVERING.value,
+                        IrisWebhookDelivery.claimed_at < claimed_before))
+            .values(status=WebhookDeliveryStatus.PENDING.value, claimed_at=None)
+        )
+        return result.rowcount or 0
+
+    def fail_pending_of_subscription(self, subscription_id: int, error: str) -> int:
+        """Da por fallidas las entregas pendientes de una suscripción que ya no recibe.
+
+        Args:
+            subscription_id: Suscripción desactivada.
+            error: Motivo (``subscription_disabled``).
+
+        Returns:
+            int: Cuántas entregas se cerraron.
+        """
+        result = self._session.execute(
+            update(IrisWebhookDelivery)
+            .where(and_(IrisWebhookDelivery.subscription_id == subscription_id,
+                        IrisWebhookDelivery.status == WebhookDeliveryStatus.PENDING.value))
+            .values(status=WebhookDeliveryStatus.FAILED.value, last_error=error)
+        )
+        return result.rowcount or 0
+
+    def purge_finished_older_than(self, cutoff: datetime) -> int:
+        """Borra el historial de entregas terminadas (llegadas o fallidas) anterior a una fecha.
+
+        Args:
+            cutoff: Se borran las emitidas antes de esto.
+
+        Returns:
+            int: Cuántas se borraron.
+        """
+        result = self._session.execute(
+            delete(IrisWebhookDelivery)
+            .where(and_(IrisWebhookDelivery.created_at < cutoff,
+                        IrisWebhookDelivery.status.in_([WebhookDeliveryStatus.DELIVERED.value,
+                                                        WebhookDeliveryStatus.FAILED.value])))
+        )
+        return result.rowcount or 0
 
 
 class IrisReportRepository(DocumentRepository[IrisDocument]):
