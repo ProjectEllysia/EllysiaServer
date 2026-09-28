@@ -1713,7 +1713,7 @@ checks:
   # cookie de sesión típica, y NO contiene "secure" — las tres condiciones en un
   # solo patrón para no depender del orden ni de matchers negativos separados.
   - id: session-cookie-without-secure
-    version: 2
+    version: 3
     type: http
     category: security_header
     severity: MEDIUM
@@ -1736,7 +1736,7 @@ checks:
   # y por tanto robables con un XSS) o sin SameSite (enviadas en peticiones
   # de otros sitios, la base de un CSRF).
   - id: session-cookie-without-httponly
-    version: 1
+    version: 2
     type: http
     category: security_header
     severity: MEDIUM
@@ -1756,7 +1756,7 @@ checks:
       qod: 99
       confirmed: true
   - id: session-cookie-without-samesite
-    version: 1
+    version: 2
     type: http
     category: security_header
     severity: LOW

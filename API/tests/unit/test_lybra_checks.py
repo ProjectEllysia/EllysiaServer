@@ -610,6 +610,79 @@ def test_an_ipv6_target_is_bracketed_in_the_url(monkeypatch):
     assert opener.urls == ["http://[2001:db8::1]:8080/"]
 
 
+# -------------------------------------- cabeceras repetidas (varias Set-Cookie)
+#
+# ``dict(response.headers)`` sobre un ``http.client.HTTPMessage`` real se
+# queda solo con la primera aparición de un nombre repetido; estos tests usan
+# un doble que, como el objeto real, expone la lista completa de pares por
+# ``.items()`` para comprobar que `_merge_repeated_headers` (y por tanto
+# `HttpProbe._request`) no pierde ninguna.
+
+
+class _CabecerasConDuplicados:
+    """Doble de ``http.client.HTTPMessage``: ``.items()`` repite un nombre
+    tantas veces como apareció, igual que hace el objeto real."""
+
+    def __init__(self, pairs):
+        self._pairs = pairs
+
+    def items(self):
+        return list(self._pairs)
+
+
+class _RespuestaFalsaConCookiesRepetidas:
+    status = 200
+    headers = _CabecerasConDuplicados([
+        ("Set-Cookie", "lang=es; Path=/"),
+        ("Set-Cookie", "PHPSESSID=abc123; Path=/"),
+    ])
+
+    def read(self, _n=None):
+        return b"<html>"
+
+    def geturl(self):
+        return "http://10.0.0.5:80/"
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        return False
+
+
+def test_merge_repeated_headers_keeps_every_occurrence():
+    merged = checks_mod._merge_repeated_headers(  # pylint: disable=protected-access
+        _CabecerasConDuplicados([("Set-Cookie", "lang=es"), ("Set-Cookie", "PHPSESSID=abc")])
+    )
+    assert merged == {"Set-Cookie": "lang=es\nPHPSESSID=abc"}
+
+
+def test_merge_repeated_headers_is_case_insensitive_when_grouping():
+    # Dos apariciones con distinta grafía del mismo nombre son la misma
+    # cabecera a efectos HTTP; agruparlas por clave exacta las trataría como
+    # dos cabeceras distintas y una se perdería al bajar a minúsculas después.
+    merged = checks_mod._merge_repeated_headers(  # pylint: disable=protected-access
+        _CabecerasConDuplicados([("Set-Cookie", "lang=es"), ("set-cookie", "PHPSESSID=abc")])
+    )
+    assert merged == {"Set-Cookie": "lang=es\nPHPSESSID=abc"}
+
+
+def test_a_request_with_several_set_cookie_headers_keeps_them_all(monkeypatch):
+    from src.modules.features.themis.lybra import HttpProbe
+
+    probe = HttpProbe(detect_scheme=lambda host, port: False)
+    opener = type("_Opener", (), {"open": lambda self, request, timeout=None:
+                                   _RespuestaFalsaConCookiesRepetidas()})()
+    monkeypatch.setattr(probe, "_opener", opener)
+
+    status, _body, headers, _url, _scheme = probe._request(  # pylint: disable=protected-access
+        "10.0.0.5", 80, "GET", "/"
+    )
+
+    assert status == 200
+    assert headers == {"Set-Cookie": "lang=es; Path=/\nPHPSESSID=abc123; Path=/"}
+
+
 def test_the_scheme_is_observed_once_per_service(monkeypatch):
     # La pregunta es sobre el servicio, no sobre la petición: no cambia entre
     # una ruta y otra dentro del mismo escaneo.
