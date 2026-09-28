@@ -163,6 +163,15 @@
     "irisMailboxActionNotFromMailbox": "Este correo no llegó por un buzón conectado, así que Iris no puede actuar sobre él.",
     "irisMailboxActionNotReversible": "Esta acción no se puede deshacer: no llegó a aplicarse o ya se deshizo.",
     "irisMailboxEventRejected": "Aviso rechazado.",
+    "irisSharedMailboxOwnerRequired": "Solo el dueño de la organización puede conectar buzones compartidos.",
+    "irisSharedMailboxMailboxLimit": "La organización ya tiene el máximo de {limit} buzones compartidos.",
+    "irisSharedMailboxMemberLimit": "Este buzón ya tiene el máximo de {limit} personas con acceso.",
+    "irisSharedMailboxAlreadyConnected": "Ese buzón ya está conectado como buzón compartido de la organización.",
+    "irisSharedMailboxMemberNotInOrganization": "Esa persona no pertenece a la organización.",
+    "irisSharedMailboxLastManager": "El buzón se quedaría sin nadie que lo administre.",
+    "irisMailboxCredentialsRejected": "El servidor rechazó el usuario o la contraseña.",
+    "irisMailboxServerUnreachable": "No se puede conectar con ese servidor: tiene que ser un servidor IMAP de internet con TLS.",
+    "irisMailboxServiceAccountRejected": "La cuenta de servicio no está configurada o no tiene acceso a ese buzón.",
     "irisMailboxInvalidFolder": "«{folder}» no es una carpeta válida para esta cuenta.",
     "irisMailboxReauthRequired": "Este buzón necesita que lo vuelvas a conectar antes de poder actuar sobre él.",
     "irisNotInOrganization": "No perteneces a ninguna organización.",
@@ -2433,6 +2442,71 @@
         "reauth_required": "El buzón necesita que lo vuelvas a conectar.",
         "missing_scope": "El buzón está en solo lectura. Vuelve a conectarlo con las acciones activadas para poder actuar."
       }
+    },
+    "shared": {
+      "badge": "Buzones compartidos",
+      "eyebrow": "Organización",
+      "title": "Buzones compartidos",
+      "intro": "Buzones de la organización, como soporte{'@'} o facturas{'@'}. Cada persona ve solo los buzones a los que tiene acceso explícito, y quien los administra decide quién más los ve. Salir de la organización quita el acceso en el acto.",
+      "create": "Conectar un buzón compartido",
+      "ownerOnly": "Solo el dueño de la organización puede conectar buzones compartidos. Aquí verás los que te hayan dado acceso.",
+      "access": "Cómo accede Iris",
+      "providers": {
+        "microsoft": "Microsoft 365 (cuenta de servicio)",
+        "gmail": "Google Workspace (cuenta de servicio)",
+        "imap": "IMAP"
+      },
+      "providerHints": {
+        "microsoft": "Usa la aplicación de servicio de la instalación, con el permiso de aplicación Mail.Read. Conviene limitarla a los buzones concretos con una política de acceso de Exchange.",
+        "gmail": "Usa la cuenta de servicio de la instalación con delegación de dominio limitada a gmail.readonly.",
+        "imap": "Cualquier otro proveedor, con una contraseña de aplicación y solo IMAP con TLS."
+      },
+      "address": "Dirección del buzón",
+      "fullMessage": "Leer el mensaje completo (no solo las cabeceras)",
+      "connect": "Conectar",
+      "created": "Buzón compartido conectado.",
+      "requestFailed": "No se pudo completar la operación con el buzón compartido.",
+      "empty": "No tienes acceso a ningún buzón compartido.",
+      "accessLevels": {
+        "viewer": "Ve los análisis",
+        "manager": "Administra"
+      },
+      "statuses": {
+        "active": "Activo",
+        "paused": "En pausa",
+        "reauth_required": "Hay que reconectar",
+        "revoked": "Revocado"
+      },
+      "analyses": "Análisis",
+      "members": "Personas con acceso",
+      "noAnalyses": "Todavía no hay análisis de este buzón.",
+      "untitled": "(sin asunto)",
+      "chooseMember": "Elige una persona de la organización",
+      "addMember": "Dar acceso",
+      "removeMember": "Quitar el acceso de {name}",
+      "membersHint": "Quien ve los análisis no puede cambiar nada; quien administra decide quién más tiene acceso, cambia carpetas y credenciales y puede desconectar el buzón."
+    },
+    "imap": {
+      "title": "Otro proveedor (IMAP)",
+      "intro": "Para buzones que no son de Google ni de Microsoft. Usa una contraseña de aplicación, no la de tu cuenta. Iris solo lee: no marca nada como leído ni mueve correos.",
+      "host": "Servidor IMAP",
+      "hostPlaceholder": "imap.tuproveedor.com",
+      "port": "Puerto",
+      "username": "Usuario",
+      "password": "Contraseña de aplicación",
+      "hint": "Solo IMAP con TLS (puerto 993) y servidores de internet. La contraseña se guarda cifrada y nunca se vuelve a enseñar.",
+      "rotate": "Cambiar contraseña",
+      "rotateFor": "Cambiar la contraseña de {email}",
+      "rotateTitle": "Cambiar la contraseña de aplicación",
+      "rotateIntro": "Nueva contraseña de aplicación para {email}. Se prueba contra el servidor antes de guardarla."
+    },
+    "folders": {
+      "title": "Carpetas",
+      "forAccount": "Carpetas vigiladas de {email}",
+      "intro": "Carpetas de {email} que Iris vigila además de la principal. Una carpeta nueva empieza a leerse desde el correo que llegue a partir de ahora.",
+      "primary": "principal",
+      "save": "Guardar",
+      "more": "+{count} carpetas"
     }
   },
   "irisHub": {

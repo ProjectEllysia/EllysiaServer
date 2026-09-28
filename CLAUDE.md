@@ -277,6 +277,11 @@ Los endpoints protegidos exigen `Authorization: Bearer <token>`; roles y atribut
 > token de integración `irt_…`, ver `features/iris/REPORTING.md`). Ese token solo reporta y
 > consulta lo reportado; no le pongas `require_oauth_token` ni lo aceptes en otros endpoints.
 >
+> Los buzones **compartidos** de Iris (`kind="shared"`) no siguen la regla de «solo lo ve su dueño»:
+> los conecta el dueño de la organización (atributo `iris_shared_mailbox`) y los ve quien tenga fila
+> en `IrisMailboxMember` **y** siga en esa organización. La política entera vive en
+> `IrisMailboxManager.has_shared_access`; no abras otro camino a sus análisis que no pase por ella.
+>
 > Los avisos de correo nuevo de Iris (`POST /iris/mailbox/events/gmail` y `/microsoft`) los llama
 > el proveedor, no una persona: se autentican con un secreto del proveedor (`IRIS_GMAIL_PUSH_TOKEN`
 > en la query para Gmail; el `clientState` de cada suscripción para Graph). Solo despiertan el sync

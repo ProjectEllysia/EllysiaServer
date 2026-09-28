@@ -1,6 +1,6 @@
 """
 MailboxConnector — interfaz común para los conectores de buzón externo
-(Gmail, Microsoft Graph).
+(Gmail, Microsoft Graph, IMAP).
 
 Mismo espíritu que ``tools/herald``/``tools/scribe`` (interfaz +
 implementaciones intercambiables), con una diferencia deliberada en cómo se
@@ -90,10 +90,61 @@ class SubscriptionInfo:
     external_id: Optional[str] = None
 
 
+class MailboxAuthenticationError(Exception):
+    """El servidor rechazó las credenciales guardadas (contraseña IMAP cambiada o revocada).
+
+    Es el equivalente, para lo que no es OAuth, a un ``refresh`` rechazado: el
+    manager pasa la conexión a ``reauth_required`` con su aviso.
+    """
+
+
+@dataclass
+class ServiceToken:
+    """Token de acceso de una cuenta de servicio, sin refresh token.
+
+    Attributes:
+        access_token: El token.
+        expires_at: Caducidad (UTC, naive).
+        scopes: Permisos del token, separados por espacios.
+    """
+    access_token: str
+    expires_at: datetime
+    scopes: str
+
+
 class MailboxConnector(ABC):
-    """Conector OAuth + API de correo para un proveedor concreto."""
+    """Conector OAuth + API de correo para un proveedor concreto.
+
+    Attributes:
+        provider: Nombre con que se registra (``gmail``, ``microsoft``, ``imap``).
+        supports_oauth: Si se conecta iniciando sesión en el proveedor. Los
+            que no (IMAP) no aparecen en la lista de proveedores del flujo OAuth.
+        supports_events: Si el proveedor puede avisar de correo nuevo
+            (ver ``managers/mailbox_events.py``).
+        supports_service_account: Si puede leer un buzón con una cuenta de
+            servicio de la instalación, sin sesión de ninguna persona.
+    """
 
     provider: str
+    supports_oauth: bool = True
+    supports_events: bool = True
+    supports_service_account: bool = False
+
+    def acquire_service_token(self, mailbox_address: str) -> ServiceToken:
+        """Token de la cuenta de servicio de la instalación para leer un buzón.
+
+        Args:
+            mailbox_address: Buzón que se va a leer.
+
+        Returns:
+            ServiceToken: El token, de solo lectura.
+
+        Raises:
+            NotImplementedError: Si el proveedor no admite cuentas de servicio.
+            ValueError: Si falta la configuración de la cuenta de servicio.
+            requests.HTTPError: Si el proveedor la rechaza.
+        """
+        raise NotImplementedError(f"{self.provider} no admite cuentas de servicio")
 
     @abstractmethod
     def subscribe(self, access_token: str, notification_url: str, client_state: str) -> SubscriptionInfo:

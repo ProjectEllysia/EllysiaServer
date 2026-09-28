@@ -430,3 +430,101 @@ class IrisTenantOwnerRequiredError(IrisError):
             user_message="Solo el dueño de la organización puede cambiar esto.",
             message_key="irisTenantOwnerRequired",
         )
+
+
+class IrisSharedMailboxOwnerRequiredError(IrisError):
+    """Solo el dueño de la organización conecta buzones compartidos de ella."""
+    default_code = ErrorCode.AUTHORIZATION_ERROR
+    default_status_code = 403
+
+    def __init__(self) -> None:
+        super().__init__(
+            message="Solo el duenyo de la organizacion conecta buzones compartidos",
+            user_message="Solo el dueño de la organización puede conectar buzones compartidos.",
+            message_key="irisSharedMailboxOwnerRequired",
+        )
+
+
+class IrisSharedMailboxLimitError(IrisError):
+    """La organización ya tiene todos los buzones compartidos que admite, o el buzón todas las personas."""
+    default_code = ErrorCode.CONSTRAINT_VIOLATION
+    default_status_code = 409
+
+    def __init__(self, what: str, limit: int) -> None:
+        """Construye el error.
+
+        Args:
+            what: ``mailboxes`` (buzones de la organización) o ``members``
+                (personas con acceso a un buzón).
+            limit: El máximo configurado.
+        """
+        text = (f"La organización ya tiene el máximo de {limit} buzones compartidos." if what == "mailboxes"
+                else f"Este buzón ya tiene el máximo de {limit} personas con acceso.")
+        super().__init__(
+            message=text,
+            user_message=text,
+            message_key="irisSharedMailboxMailboxLimit" if what == "mailboxes" else "irisSharedMailboxMemberLimit",
+            params={"limit": limit},
+        )
+
+
+class IrisSharedMailboxConflictError(IrisError):
+    """Un cambio en un buzón compartido que no se puede hacer tal como se pide.
+
+    Los motivos son un conjunto cerrado, cada uno con su clave de traducción:
+    ``already_connected`` (esa dirección ya está conectada en la
+    organización), ``member_not_in_organization`` (la persona no es de la
+    organización) y ``last_manager`` (quitaría al último responsable).
+    """
+    default_code = ErrorCode.CONSTRAINT_VIOLATION
+    default_status_code = 409
+
+    _TEXTS = {
+        "already_connected": ("irisSharedMailboxAlreadyConnected",
+                              "Ese buzón ya está conectado como buzón compartido de la organización."),
+        "member_not_in_organization": ("irisSharedMailboxMemberNotInOrganization",
+                                       "Esa persona no pertenece a la organización."),
+        "last_manager": ("irisSharedMailboxLastManager",
+                         "El buzón se quedaría sin nadie que lo administre."),
+    }
+
+    def __init__(self, reason: str) -> None:
+        """Construye el error.
+
+        Args:
+            reason: ``already_connected``, ``member_not_in_organization`` o ``last_manager``.
+        """
+        message_key, text = self._TEXTS[reason]
+        super().__init__(message=text, user_message=text, message_key=message_key)
+
+
+class IrisMailboxCredentialsRejectedError(IrisError):
+    """No se pudo entrar en el buzón con lo que se dio al conectarlo o al cambiar sus credenciales.
+
+    Lo que falló se dice en ``reason`` (conjunto cerrado, con su clave):
+    ``credentials`` (el servidor rechazó usuario o contraseña), ``server``
+    (servidor no alcanzable desde internet, de la red interna, o puerto no
+    admitido) y ``service_account`` (la cuenta de servicio no está
+    configurada o el proveedor no la acepta para ese buzón).
+    """
+    default_code = ErrorCode.VALIDATION_ERROR
+    default_status_code = 422
+
+    _TEXTS = {
+        "credentials": ("irisMailboxCredentialsRejected",
+                        "El servidor rechazó el usuario o la contraseña."),
+        "server": ("irisMailboxServerUnreachable",
+                   "No se puede conectar con ese servidor: tiene que ser un servidor IMAP de internet con TLS."),
+        "service_account": ("irisMailboxServiceAccountRejected",
+                            "La cuenta de servicio no está configurada o no tiene acceso a ese buzón."),
+    }
+
+    def __init__(self, reason: str, detail: str = "") -> None:
+        """Construye el error.
+
+        Args:
+            reason: ``credentials``, ``server`` o ``service_account``.
+            detail: Detalle técnico para el registro; no se enseña al usuario.
+        """
+        message_key, text = self._TEXTS[reason]
+        super().__init__(message=f"{text} {detail}".strip(), user_message=text, message_key=message_key)

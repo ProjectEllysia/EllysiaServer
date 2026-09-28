@@ -11,21 +11,31 @@ Scope según ``full_message_mode``: ``gmail.metadata`` (más restrictivo,
 "como mínimo las cabeceras") o ``gmail.readonly`` (cuerpo completo) — a
 diferencia de Microsoft Graph, Gmail sí tiene un scope granular para esto,
 fijado en el consentimiento inicial y no ampliable después sin re-consentir.
+
+Con una **cuenta de servicio** (``mailbox_address``) no hay consentimiento de
+nadie: la instalación firma una aserción JWT con la clave de su cuenta de
+servicio de Google Workspace, pidiendo actuar como ese buzón (delegación de
+dominio) y solo con ``gmail.readonly``. El administrador de Workspace decide a
+qué buzones alcanza esa delegación.
 """
 
 from __future__ import annotations
 
 import base64
+import json
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from urllib.parse import urlencode
 
+import jwt
 import requests
 
 import src.modules.system.config_reading as CR
 
-from .base import ActionResult, MailboxConnector, MailboxFolder, MessageRef, SubscriptionInfo, TokenSet
+from .base import (
+    ActionResult, MailboxConnector, MailboxFolder, MessageRef, ServiceToken, SubscriptionInfo, TokenSet,
+)
 from .registry import register_connector
 
 logger = logging.getLogger(__name__)
@@ -60,13 +70,20 @@ _METADATA_HEADERS = [
 
 _TIMEOUT_SECONDS = 20
 
+#: Validez que se pide para la aserción de la cuenta de servicio (Google admite una hora como mucho).
+_SERVICE_ASSERTION_SECONDS = 3600
+
 
 @register_connector("gmail")
 class GmailConnector(MailboxConnector):
     provider = "gmail"
+    supports_service_account = True
 
-    def __init__(self, redirect_uri: str, folder: Optional[str] = None) -> None:
-        env = CR.get_gmail_environment()
+    def __init__(self, redirect_uri: str, folder: Optional[str] = None,
+                 mailbox_address: Optional[str] = None) -> None:
+        # Con cuenta de servicio no se usa la app OAuth, y una instalación
+        # puede no tenerla configurada.
+        env = CR.get_gmail_environment() if mailbox_address is None else {"client_id": "", "client_secret": ""}
         self._client_id = env["client_id"]
         self._client_secret = env["client_secret"]
         self._redirect_uri = redirect_uri
@@ -229,6 +246,25 @@ class GmailConnector(MailboxConnector):
         if response.status_code not in (200, 204, 404):
             response.raise_for_status()
 
+    def acquire_service_token(self, mailbox_address: str) -> ServiceToken:
+        key = _load_service_account()
+        now = datetime.now(timezone.utc)
+        assertion = jwt.encode({
+            "iss": key["client_email"], "sub": mailbox_address, "scope": _SCOPE_READONLY,
+            "aud": key.get("token_uri") or _TOKEN_URL,
+            "iat": int(now.timestamp()), "exp": int(now.timestamp()) + _SERVICE_ASSERTION_SECONDS,
+        }, key["private_key"], algorithm="RS256")
+        response = requests.post(key.get("token_uri") or _TOKEN_URL, data={
+            "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer", "assertion": assertion,
+        }, timeout=_TIMEOUT_SECONDS)
+        response.raise_for_status()
+        data = response.json()
+        return ServiceToken(
+            access_token=data["access_token"],
+            expires_at=(now + timedelta(seconds=int(data.get("expires_in", 3600)))).replace(tzinfo=None),
+            scopes=_SCOPE_READONLY,
+        )
+
     @staticmethod
     def can_act(scopes: str) -> bool:
         return _SCOPE_MODIFY in (scopes or "").split()
@@ -382,3 +418,26 @@ def _ensure_label(connector: "GmailConnector", access_token: str, name: str) -> 
     )
     response.raise_for_status()
     return response.json()["id"]
+
+
+def _load_service_account() -> dict:
+    """Lee el JSON de la cuenta de servicio de Google (``GMAIL_SERVICE_ACCOUNT_FILE``).
+
+    Returns:
+        dict: Al menos ``client_email`` y ``private_key``.
+
+    Raises:
+        ValueError: Si la variable no está definida o el fichero no es una
+            cuenta de servicio válida.
+    """
+    path = CR.get_mailbox_service_account_environment()["gmail_service_account_file"]
+    if not path:
+        raise ValueError("Falta GMAIL_SERVICE_ACCOUNT_FILE: sin cuenta de servicio no se puede leer el buzón.")
+    try:
+        with open(path, encoding="utf-8") as handle:
+            key = json.load(handle)
+    except (OSError, ValueError) as e:
+        raise ValueError(f"No se pudo leer la cuenta de servicio de Google: {e}") from e
+    if not isinstance(key, dict) or not key.get("client_email") or not key.get("private_key"):
+        raise ValueError("El fichero de la cuenta de servicio de Google no tiene client_email y private_key.")
+    return key

@@ -39,7 +39,9 @@
             <p class="reauth-title">{{ t('iris.mailboxes.reauthTitle', { provider: providerLabel(conn.provider), email: conn.accountEmail }) }}</p>
             <p class="reauth-sub">{{ conn.lastError || t('iris.mailboxes.accessExpired') }} {{ t('iris.mailboxes.stoppedPolling') }}</p>
           </div>
-          <button type="button" class="btn-primary" @click="$emit('reconnect', conn)">{{ t('iris.mailboxes.reconnect') }}</button>
+          <button type="button" class="btn-primary" @click="$emit(conn.authMode === 'imap' ? 'rotate' : 'reconnect', conn)">
+            {{ conn.authMode === 'imap' ? t('iris.imap.rotate') : t('iris.mailboxes.reconnect') }}
+          </button>
         </div>
       </div>
 
@@ -63,6 +65,9 @@
               :title="conn.fullMessageMode ? t('iris.mailboxes.fullHint') : t('iris.mailboxes.headersHint')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M7 8h10M7 12h10M7 16h6" /></svg>
               {{ conn.fullMessageMode ? t('iris.mailboxes.full') : t('iris.form.headersOnly') }}
+            </span>
+            <span v-if="conn.additionalFolders?.length" class="meta-chip" :title="conn.additionalFolders.map(folder => folder.displayName).join(', ')">
+              {{ t('iris.folders.more', { count: conn.additionalFolders.length }) }}
             </span>
             <span class="meta-chip" :class="{ 'meta-chip--full': conn.canAct }"
               :title="conn.canAct ? t('iris.mailboxes.actionsHint') : t('iris.mailboxes.readOnlyHint')">
@@ -101,6 +106,27 @@
               </svg>
             </button>
             <button
+              class="btn-icon"
+              :title="t('iris.folders.title')"
+              :aria-label="t('iris.folders.forAccount', { email: conn.accountEmail })"
+              @click="$emit('folders', conn)"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+              </svg>
+            </button>
+            <button
+              v-if="conn.authMode === 'imap'"
+              class="btn-icon"
+              :title="t('iris.imap.rotate')"
+              :aria-label="t('iris.imap.rotateFor', { email: conn.accountEmail })"
+              @click="$emit('rotate', conn)"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+            </button>
+            <button
               class="btn-icon btn-icon--danger"
               :title="t('common.delete')"
               :aria-label="t('iris.mailboxes.deleteAccount', { email: conn.accountEmail })"
@@ -132,7 +158,7 @@ const props = defineProps({
   // que parezca que "Sondear ahora" no hizo nada.
   syncingIds: { type: Set, default: () => new Set() },
 })
-defineEmits(['refresh', 'reconnect', 'toggle-pause', 'sync', 'delete'])
+defineEmits(['refresh', 'reconnect', 'toggle-pause', 'sync', 'delete', 'folders', 'rotate'])
 
 // Los emits llevan siempre el objeto `conn` completo — antes `reconnect`
 // mandaba solo el provider y `sync` solo el id, una inconsistencia sin
@@ -140,7 +166,7 @@ defineEmits(['refresh', 'reconnect', 'toggle-pause', 'sync', 'delete'])
 const reauthConnections = computed(() => props.connections.filter(c => c.status === 'reauth_required'))
 const normalConnections = computed(() => props.connections.filter(c => c.status !== 'reauth_required'))
 
-const PROVIDER_LABELS = { microsoft: 'Microsoft 365', gmail: 'Gmail' }
+const PROVIDER_LABELS = { microsoft: 'Microsoft 365', gmail: 'Gmail', imap: 'IMAP' }
 function providerLabel(provider) { return PROVIDER_LABELS[provider] || provider }
 
 const STATUSES = ['active', 'reauth_required', 'revoked', 'paused']

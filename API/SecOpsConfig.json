@@ -391,6 +391,16 @@
         "quarantineFolderName": "Iris Cuarentena",
         "suspiciousLabelName": "Iris: sospechoso"
       },
+      "sharedMailboxes": {
+        "maxPerOrganization": 10,
+        "maxMembersPerMailbox": 50,
+        "maxFoldersPerConnection": 5
+      },
+      "imap": {
+        "allowedPorts": [993],
+        "timeoutSeconds": 20,
+        "maxMessagesPerSync": 200
+      },
       "events": {
         "enabled": false,
         "fallbackPollIntervalMinutes": 30,
