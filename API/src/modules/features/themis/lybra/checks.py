@@ -1195,15 +1195,10 @@ def _network_service_matchers() -> Dict[str, Callable[[Service], bool]]:
 _NETWORK_SERVICE_MATCHERS: Dict[str, Callable[[Service], bool]] = _network_service_matchers()
 
 
-# Protocol versions considered deprecated/weak for a service exposed today.
-_WEAK_TLS_PROTOCOLS = {"SSLv2", "SSLv3", "TLSv1", "TLSv1.1"}
-
-# Familias de cifrado que hoy se consideran débiles: sin autenticación (aNULL),
-# sin cifrado (eNULL), exportación, DES/3DES, RC4 y MD5. El nombre del suite
-# negociado los delata como subcadena — "ECDHE-RSA-DES-CBC3-SHA" trae "DES", y
-# "TLS_RSA_WITH_RC4_128_SHA" trae "RC4". Se compara en mayúsculas porque OpenSSL
-# y la RFC nombran los suites en formatos distintos.
-_WEAK_TLS_CIPHER_TOKENS = ("NULL", "EXPORT", "DES", "RC4", "MD5", "_CBC3_", "3DES")
+# La versión obsoleta y el cifrado débil no son reglas de aquí: la conexión
+# normal negocia lo mejor que el servidor acepta y nunca los enseña. Los dos se
+# preguntan ofreciendo sólo lo débil, con plugins ``script``
+# (``tls-deprecated-protocol`` y ``tls-weak-cipher`` en ``script_checks``).
 
 # TLS hygiene rules a ``type: "tls"`` check can reference via ``tlsRule`` in the
 # feed. Each takes the ``TlsInfo`` a probe returned (duck-typed — this module
@@ -1213,10 +1208,7 @@ _TLS_RULES: Dict[str, Callable] = {
     "self_signed": lambda info: info.self_signed,
     "expired": lambda info: info.expired,
     "expiring_soon": lambda info: not info.expired and info.days_until_expiry is not None and info.days_until_expiry <= 30,
-    "deprecated_protocol": lambda info: info.protocol in _WEAK_TLS_PROTOCOLS,
     "hostname_mismatch": lambda info: getattr(info, "is_name_mismatch", False),
-    "weak_cipher": lambda info: bool(info.cipher) and any(
-        token in info.cipher.upper() for token in _WEAK_TLS_CIPHER_TOKENS),
 }
 
 

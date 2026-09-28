@@ -722,16 +722,18 @@ checks:
       title: Certificado TLS caducado
       qod: 99
       confirmed: true
+  # version 2: se pregunta por cada version obsoleta ofreciendo solo esa, en
+  # vez de mirar la negociada (que es siempre la mas alta y no la ensena).
   - id: tls-deprecated-protocol
-    version: 1
-    type: tls
+    version: 2
+    type: script
+    script: tls-deprecated-protocol
     category: tls
     severity: MEDIUM
-    service: https
+    service: tls
     mode: safe
-    tlsRule: deprecated_protocol
     finding:
-      title: Protocolo TLS obsoleto negociado (SSLv3/TLSv1.0/TLSv1.1)
+      title: El servidor acepta un protocolo TLS obsoleto (SSLv3/TLSv1.0/TLSv1.1)
       qod: 99
       confirmed: true
   # expectBanner: un servidor FTP saluda (220 ...) en cuanto se abre la
@@ -1696,16 +1698,20 @@ checks:
       confirmed: true
   # ---- Cookies de sesión sin atributos de seguridad -------------------
   # ---- Higiene TLS: cifrado débil negociado ---------------------------
+  # version 2: se ofrecen solo cifrados debiles en vez de mirar el negociado.
+  # Lo que se puede ofrecer depende del OpenSSL local: en la practica NULL y,
+  # si la build lo trae, 3DES; RC4, DES y EXPORT no los tiene ninguna build
+  # moderna, y el titulo no los promete.
   - id: tls-weak-cipher
-    version: 1
-    type: tls
+    version: 2
+    type: script
+    script: tls-weak-cipher
     category: tls
     severity: MEDIUM
     service: tls
     mode: safe
-    tlsRule: weak_cipher
     finding:
-      title: El servidor negocia un cifrado débil (NULL/EXPORT/DES/RC4/MD5)
+      title: El servidor acepta un cifrado débil (sin cifrado NULL o 3DES)
       qod: 99
       confirmed: true
   # ---- Cookies de sesión sin atributos de seguridad -------------------
