@@ -18,11 +18,13 @@ from src.modules.features.themis.lybra.fingerprinting.ldap import (
     RESULT_SUCCESS,
     ROOTDSE_ATTRIBUTES,
     TAG_BIND_RESPONSE,
+    TAG_SEARCH_DONE,
     TAG_SEARCH_ENTRY,
     LdapDissector,
     LdapProbe,
     ber,
     build_anonymous_bind,
+    build_naming_context_search,
     build_rootdse_search,
     encode_length,
     fingerprint_ldap,
@@ -30,6 +32,7 @@ from src.modules.features.themis.lybra.fingerprinting.ldap import (
     parse_search_entry,
     read_length,
     read_tlv,
+    search_returned_entries,
 )
 
 pytestmark = pytest.mark.unit
@@ -53,6 +56,20 @@ def _search_reply(attributes):
     body = ber(0x04, b"") + ber(0x30, b"".join(
         _attribute(name, values) for name, values in attributes.items()))
     return _message(2, TAG_SEARCH_ENTRY, body)
+
+
+def _search_done(result_code=RESULT_SUCCESS):
+    """Un ``SearchResultDone`` sin ninguna entrada antes: la búsqueda no
+    encontró nada que devolver (rechazada o simplemente vacía)."""
+    body = ber(0x0A, bytes((result_code,))) + ber(0x04, b"") + ber(0x04, b"")
+    return _message(3, TAG_SEARCH_DONE, body)
+
+
+def _search_entry_reply(naming_context="DC=empresa,DC=local"):
+    """Una respuesta con exactamente una entrada bajo ``naming_context`` —lo
+    que confirma que la búsqueda anónima expone el directorio."""
+    body = ber(0x04, naming_context.encode()) + ber(0x30, _attribute("objectClass", ["top"]))
+    return _message(3, TAG_SEARCH_ENTRY, body) + _search_done()
 
 
 OPENLDAP_ROOTDSE = _search_reply({
@@ -148,6 +165,21 @@ def test_the_rootdse_search_needs_the_long_form_and_declares_it_right():
     assert tag == 0x30 and end == len(request) and value
 
 
+def test_the_naming_context_search_targets_the_given_base_with_no_attributes():
+    """Base el dominio publicado, ámbito singleLevel, tamaño 1 y el atributo
+    especial ``1.1`` (RFC 4511 §4.5.1): comprobar que hay algo ahí debajo sin
+    pedir su contenido."""
+    request = build_naming_context_search("DC=empresa,DC=local")
+    assert b"DC=empresa,DC=local" in request
+    assert b"1.1" in request
+
+
+def test_the_naming_context_search_is_a_well_formed_message():
+    request = build_naming_context_search("DC=empresa,DC=local")
+    tag, value, end = read_tlv(request, 0)
+    assert tag == 0x30 and end == len(request) and value
+
+
 # ========================================================== las respuestas
 
 
@@ -208,6 +240,21 @@ def test_something_that_is_not_ldap_is_not_identified():
     assert fingerprint_ldap(b"+OK POP3 ready\r\n", b"<html>").product is None
 
 
+# ==================================================== ¿la búsqueda trajo algo?
+
+
+def test_a_reply_with_an_entry_returned_something():
+    assert search_returned_entries(_search_entry_reply()) is True
+
+
+def test_a_bare_search_done_returned_nothing():
+    assert search_returned_entries(_search_done()) is False
+
+
+def test_an_unreadable_reply_returned_nothing():
+    assert search_returned_entries(b"") is False
+
+
 # ================================================================ la sonda
 
 
@@ -254,6 +301,29 @@ def test_a_refused_connection_yields_nothing():
     assert LdapProbe(connect=refuse).fetch("10.0.0.5") is None
 
 
+def test_the_naming_context_probe_binds_before_searching():
+    probe, sent = _probe_with([_bind_reply(RESULT_SUCCESS), _search_entry_reply()])
+    probe.fetch_naming_context_entries("10.0.0.5", "DC=empresa,DC=local")
+    assert sent == [build_anonymous_bind(), build_naming_context_search("DC=empresa,DC=local")]
+
+
+def test_the_naming_context_probe_gives_up_without_a_successful_bind():
+    """Si el servidor rechaza el bind anónimo no hay sesión sobre la que
+    buscar, así que la sonda ni siquiera manda el SearchRequest."""
+    probe, sent = _probe_with([_bind_reply(RESULT_INAPPROPRIATE_AUTHENTICATION)])
+    result = probe.fetch_naming_context_entries("10.0.0.5", "DC=empresa,DC=local")
+    assert result is None
+    assert sent == [build_anonymous_bind()]
+
+
+def test_the_naming_context_probe_yields_nothing_on_a_refused_connection():
+    def refuse(_address, _timeout):
+        raise ConnectionRefusedError("cerrado")
+
+    probe = LdapProbe(connect=refuse)
+    assert probe.fetch_naming_context_entries("10.0.0.5", "DC=empresa,DC=local") is None
+
+
 # ============================================================ el dissector
 
 
@@ -292,17 +362,58 @@ class _Context:
         pass
 
 
-def _anonymous_plugin(replies):
+def _anonymous_plugin(rootdse_replies, naming_search_replies=()):
+    """Construye el plugin con una sonda que da respuestas distintas a sus dos
+    conexiones: la primera para el bind + rootDSE, la segunda para la
+    búsqueda bajo el dominio publicado."""
     from src.modules.features.themis.lybra.script_checks import LdapAnonymousBindPlugin
-    probe, _sent = _probe_with(replies)
-    return LdapAnonymousBindPlugin(probe=probe)
+
+    connections = [list(rootdse_replies), list(naming_search_replies)]
+
+    def connect(_address, _timeout):
+        replies = connections.pop(0) if connections else []
+        return _ScriptedSocket(replies, [])
+
+    return LdapAnonymousBindPlugin(probe=LdapProbe(connect=connect))
 
 
-def test_the_anonymous_bind_check_follows_the_servers_answer():
-    accepted = [_bind_reply(RESULT_SUCCESS), OPENLDAP_ROOTDSE]
-    rejected = [_bind_reply(RESULT_INAPPROPRIATE_AUTHENTICATION), b""]
-    assert _anonymous_plugin(accepted).run(_Context()) is True
-    assert _anonymous_plugin(rejected).run(_Context()) is False
+def test_a_domain_controller_that_only_answers_the_rootdse_is_not_flagged():
+    """El falso positivo que este check tenía: todo controlador de dominio
+    conforme al estándar acepta el bind anónimo para servir el rootDSE, y eso
+    solo no expone nada. Sin una búsqueda que devuelva entradas, no hay
+    hallazgo."""
+    plugin = _anonymous_plugin(
+        [_bind_reply(RESULT_SUCCESS), ACTIVE_DIRECTORY_ROOTDSE],
+        [_bind_reply(RESULT_SUCCESS), _search_done()],
+    )
+    assert plugin.run(_Context()) is False
+
+
+def test_a_directory_that_returns_entries_to_an_anonymous_search_is_flagged():
+    plugin = _anonymous_plugin(
+        [_bind_reply(RESULT_SUCCESS), OPENLDAP_ROOTDSE],
+        [_bind_reply(RESULT_SUCCESS), _search_entry_reply()],
+    )
+    assert plugin.run(_Context()) is True
+
+
+def test_a_naming_context_search_rejected_outright_is_not_flagged():
+    """El segundo bind se acepta pero la búsqueda misma se rechaza (o vuelve
+    vacía): sigue sin haber entradas que ver."""
+    plugin = _anonymous_plugin(
+        [_bind_reply(RESULT_SUCCESS), OPENLDAP_ROOTDSE],
+        [_bind_reply(RESULT_INAPPROPRIATE_AUTHENTICATION)],
+    )
+    assert plugin.run(_Context()) is False
+
+
+def test_no_naming_context_means_no_search_and_no_finding():
+    """Sin un dominio publicado en el rootDSE no hay base sobre la que
+    buscar, así que el plugin ni siquiera abre la segunda conexión."""
+    plugin = _anonymous_plugin(
+        [_bind_reply(RESULT_SUCCESS), _search_done()],
+    )
+    assert plugin.run(_Context()) is False
 
 
 def test_the_anonymous_bind_check_stays_quiet_without_evidence():
