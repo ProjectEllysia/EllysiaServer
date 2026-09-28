@@ -29,6 +29,7 @@ from .model import (
 from .managers import (
     NmapScanManager,
     NiktoScanManager,
+    OsintManager,
     ProgramedScanManager,
     ScanManager,
     ScanFolderManager,
@@ -50,14 +51,16 @@ from .services import (
 from .endpoints import themis_blp
 
 # Registro de las categorías de cola de este módulo (OCP).
-QueueRegistry.register("themis.scan", "themis.report", "themis.traceroute", "themis.kbsync")
+QueueRegistry.register(
+    "themis.scan", "themis.report", "themis.traceroute", "themis.kbsync", "themis.osint",
+)
 
 __all__ = [
     "Host", "NiktoIncident", "NiktoScan", "NmapScan", "OpenPort",
     "Port",
     "ProgramedScan", "Scan", "ScanFolder", "ScanIncident", "ScanStatus",
     "ThemisDocument", "TargetPort",
-    "NmapScanManager", "NiktoScanManager",
+    "NmapScanManager", "NiktoScanManager", "OsintManager",
     "ProgramedScanManager", "ScanManager", "ScanFolderManager",
     "ProgramedScanRepository", "ScanRepository", "ScanFolderRepository",
     "ThemisReportRepository",
