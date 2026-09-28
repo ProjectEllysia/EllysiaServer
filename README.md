@@ -36,7 +36,8 @@ The REST API (Flask) orchestrates asynchronous scans and analysis over **RQ + Re
 - **Vulnerability scanning** — Nmap (port/OS detection), Nikto (web vulns), Nuclei (template-based), and **Lybra**, a self-built detection engine: its own TCP and UDP discovery, protocol dissectors for HTTP, SSH, FTP, SMTP/IMAP/POP3, SMB, TLS, MySQL, PostgreSQL, SQL Server, MongoDB, Redis, LDAP, RDP, VNC, SNMP, DNS, NTP, NetBIOS, mDNS, IKE and unauthenticated admin APIs (Docker, Elasticsearch, Kubernetes, etcd, Consul, Kibana); scanning by IP or domain name (name sent in SNI and `Host`, pinned to the validated address for the whole scan to close DNS rebinding) with automatic discovery of the other named sites an IP serves (from its certificates' SANs and reverse DNS, each audited as its own vhost — machine-level findings such as TCP timestamps are reported once, not per site, and each finding names the site it belongs to; a name that serves exactly the same page and certificate as the bare IP, such as a hosting provider's reverse-DNS name, is listed as an alias of the default site instead of being audited again, and when the IP hosts sites of its own, the default site's certificate and header findings are capped at LOW and the report warns that other hosted sites must be scanned by name); a web-application inventory that reads versions where modern software hides them — a CMS from its manifests (Joomla, WordPress, Drupal), JavaScript libraries and WordPress plugins from their assets, hosting panels (Plesk/cPanel) from their headers — so they enter CVE correlation; declarative checks with request chaining (extracted variables reused across requests), payload expansion (capped), and script plugins, including CMS misconfiguration checks (Joomla/WordPress/Drupal), SSH weak-algorithm and Terrapin detection, IKE vendor-ID and weak-transform findings, TCP-timestamp exposure, and TLS 1.2 cipher families the server accepts beyond the one it picks (no forward secrecy, CBC); a budgeted read-only crawler (`robots.txt` entries other than the whole-site `/`, login forms, HTTP-Basic paths); version→confirmer promotion for high-profile CVEs; a default-credentials engine (Tomcat/Jenkins-style panels and crawler-discovered Basic-auth paths, gated behind an explicit aggressive-mode request *and* the authorized-targets registry); scan-integrity detection (a firewall that fakes every port open, or a target that stops answering mid-scan, marks the scan partial rather than clean); redacted raw-evidence capture per confirmed finding, with secrets in the body redacted too; and CPE→CVE matching against a local NVD/CISA-KEV/FIRST-EPSS knowledge base, with distribution-advisory backport verification (Debian/Ubuntu OVAL) — with scheduled execution via APScheduler.
 - **AI-powered PDF reports** — Scan results enriched by a pluggable LLM backend with "Controls, Not Counts" calibrated risk assessment, plus per-host traceroute. Lybra and Nuclei reports group findings by *remediable unit* rather than listing them flat — one block per affected product, carrying the single version upgrade that closes the whole block, with configuration findings kept in their own section — preceded by an index table of every group and navigable through a collapsed-by-default PDF bookmark tree. Lybra reports (and only Lybra's, not those of the third-party tools) also translate every finding into its MITRE ATT&CK techniques and the controls it affects in the compliance frameworks its owner follows — ISO/IEC 27001:2022, ENS (RD 311/2022) and NIS2 (art. 21.2) — with a section that tallies findings per technique and per control, grouped under each control's parent.
 - **Anti-phishing analysis** — 46 atomic rules across 10 rule families evaluate email headers and content (SPF, DKIM, DMARC, ARC, QR-code/quishing detection, domain impersonation, IOC extraction), producing a calibrated `Legitimate` / `Suspicious` / `Phishing` verdict with optional AI summaries.
-- **Automated mailbox monitoring** — Connect Gmail or Microsoft 365 via OAuth; Iris periodically pulls new mail and analyzes it automatically, and emails the user when a connected mailbox receives phishing.
+- **Automated mailbox monitoring** — Connect Gmail or Microsoft 365 via OAuth, or any provider over IMAP; Iris pulls new mail and analyzes it automatically — near real time when the provider can push new-mail notifications, with polling as the fallback — and emails the user when a connected mailbox receives phishing. Organization-owned shared mailboxes (read through the installation's service account or IMAP) are visible only to the people explicitly given access.
+- **SOC response and integration** — Signed webhooks push Iris events to a SIEM/SOAR with bounded retries and replay; a report-phishing channel lets Outlook, Gmail, a browser extension or a script send a suspicious email with a per-user integration token; and, on the user's explicit request, a message in a connected mailbox can be quarantined, labelled, sent to spam or to the trash — always audited and reversible, never automatic.
 - **Encrypted credential vault** — AES-256-GCM client-side encryption with optimistic-concurrency sync. The SPA consumes the engine as `@projectellysia/acheron-core-web`; the [AcheronMobile](https://github.com/ProjectEllysia/AcheronMobile) Android app uses the Java twin, [AcheronCore](https://github.com/ProjectEllysia/AcheronCore).
 - **Security awareness training** — AI generates awareness pills across dozens of topics, enriched with current alerts from INCIBE-CERT and the local vulnerability knowledge base, each with an attached quiz; campaigns deliver them to distribution lists with per-recipient tracking.
 - **Infrastructure monitoring** — Lightweight agent heartbeats (CPU/memory/disk/network/processes) feed presence detection, software inventory (tagged), Lybra-powered inventory analysis, threshold-based anomaly alerting, and email notification on critical events.
@@ -312,6 +313,24 @@ Content-Type: application/json
 | `DELETE` | `/iris/mailbox/connections/<id>` | `IRIS_DELETE` | Disconnect a monitored mailbox |
 | `POST` | `/iris/mailbox/connections/<id>/sync` | `IRIS_UPDATE` | Trigger an out-of-cycle mailbox poll |
 | `GET` | `/iris/mailbox/connections/<id>/health` | `IRIS_READ` | Connection health: last successful sync vs. last attempt, discovered/accepted/pending/retrying/dead message counts, last sync duration |
+| `POST` | `/iris/mailbox/imap` | `IRIS_CREATE` | Connect a personal mailbox over IMAP (TLS only, app password); access is tested before anything is saved |
+| `PUT` | `/iris/mailbox/connections/<id>/credentials` | `IRIS_UPDATE` | Rotate an IMAP connection's app password (tested first; reactivates a connection that needed reconnecting) |
+| `PUT` | `/iris/mailbox/connections/<id>/folders` | `IRIS_UPDATE` | Folders watched in addition to the main one, validated against the account (capped by `maxFoldersPerConnection`) |
+| `POST` | `/iris/mailbox/shared` | `IRIS_SHARED_MAILBOX` | Organization owner only: connect a shared mailbox (`microsoft`/`gmail` through the installation's service account, or `imap`) |
+| `GET` | `/iris/mailbox/shared` | `IRIS_READ` | Shared mailboxes of the user's organization the user has explicit access to, with their access level |
+| `GET` · `PUT`/`DELETE` | `/iris/mailbox/shared/<id>/members` · `.../members/<userId>` | `IRIS_READ` | Managers only: who has access (`viewer`/`manager`); grant, change or remove it (only members of the same organization; never the last manager) |
+| `GET` | `/iris/mailbox/shared/<id>/analyses` · `.../analyses/<analysisId>` | `IRIS_READ` | Analyses of a shared mailbox and their full report, for people with explicit access |
+| `GET`/`POST` | `/iris/mailbox/messages/<analysisId>/actions` | `IRIS_READ` / `IRIS_MAILBOX_ACTION` | What Iris recommends doing with the email, whether it can act and why not, and the history; `POST {action, reason, confirm, idempotencyKey}` quarantines, labels, sends to spam or to the trash (destructive ones need `confirm`) |
+| `POST` | `/iris/mailbox/actions/<id>/rollback` | `IRIS_MAILBOX_ACTION` | Undo a mailbox action (with a reason); audited like the action |
+| `GET` | `/iris/mailbox/actions` · `/iris/mailbox/actions/<id>` | `IRIS_READ` | The user's audit log of mailbox actions; one action |
+| `POST` | `/iris/mailbox/events/gmail` · `/iris/mailbox/events/microsoft` | — (provider secret) | New-mail notifications from Gmail (Pub/Sub push, `?token=`) and Microsoft Graph (per-subscription `clientState`, plus Graph's validation handshake). They only wake the connection's sync; their content is never analysed |
+| `GET`/`POST` | `/iris/webhooks` | `IRIS_READ` / `IRIS_CREATE` | The user's signed webhooks and the subscribable events; create one (its signing secret is shown once) |
+| `PATCH`/`DELETE` | `/iris/webhooks/<id>` | `IRIS_UPDATE` / `IRIS_DELETE` | Change name, URL, events or enabled state; delete it with its delivery history |
+| `POST` | `/iris/webhooks/<id>/secret` · `/iris/webhooks/<id>/test` | `IRIS_UPDATE` | Rotate the signing secret (the old one stops working at once); send a `ping` event |
+| `GET` · `POST` | `/iris/webhooks/<id>/deliveries` · `.../deliveries/<deliveryId>/replay` | `IRIS_READ` · `IRIS_UPDATE` | Delivery history; resend a finished delivery with the same event id |
+| `GET`/`POST` | `/iris/integration-tokens` | `IRIS_READ` / `IRIS_CREATE` | Integration tokens (`irt_…`) for reporting emails from a mail client; the secret is shown once |
+| `DELETE` | `/iris/integration-tokens/<id>` | `IRIS_DELETE` or `IRIS_UPDATE` | Revoke a token immediately |
+| `POST` · `GET` | `/iris/reports` · `/iris/reports/<analysisId>` | Integration token (`Authorization: Bearer irt_…`) | Report a suspicious email (`.eml`, raw MIME or headers) from Outlook, Gmail, an extension or a script; its status and verdict. The token only reports and reads what it reported (see `API/src/modules/features/iris/REPORTING.md`) |
 | `GET`/`PUT` | `/iris/notification-preferences` | `IRIS_READ` / `IRIS_UPDATE` | Per-user notification settings: daily digest for non-critical Phishing verdicts, temporary mute, and toggles for the reauthorization-required and stuck-sync alerts. High-confidence Phishing verdicts always notify immediately regardless of these settings |
 | `GET` | `/iris/retention-policy` | `IRIS_READ` | Current retention policy (raw message / full analysis expiry, in days) plus how many of the current user's analyses still retain their raw content vs. have already had it purged |
 
@@ -347,6 +366,16 @@ Iris applies rules across authentication (SPF, DKIM, DMARC, ARC), header anomali
 **Analyst cases.** A case (`IrisCase`) groups one or several analyses — which never change — and records the human decision: status (`new` → `triage` → `contained` → `resolved` / `false_positive`; closing requires a reason and a closed case reopens to `triage`), priority, tags, assignment and a timeline of every change and note. A case can only be assigned to its owner, the only user who can see its analyses.
 
 **Batch analysis.** `POST /iris/analyze/batch` takes several `.eml` or `.msg` files or a ZIP and sends each message through the same `IrisManager.analyze()` as a single submission (a `.msg` is converted to `.eml` first, and the size cap applies to both the `.msg` and the converted message). Entries that cannot be analysed (neither `.eml` nor `.msg`, over `iris.maxMessageBytes`, encrypted, nested ZIP, a damaged `.msg`) are rejected one by one; ZIP entries are read with a size cap, so a decompression bomb is never fully expanded. A batch over `iris.batchMaxItems` or `iris.batchMaxTotalBytes` is rejected whole (400), and so is one that would push the user's analyses in flight over `iris.maxActiveAnalysesPerUser` (429): nothing is created in either case. A message already in the batch or already analysed by the user (same `IrisAnalysis.content_sha256`) is not analysed or charged again.
+
+**Signed webhooks (SIEM/SOAR).** Iris emits `analysis.finished`, `case.updated`, `campaign.detected` and `mailbox.reauth_required` (plus `ping` for tests) to each subscribed webhook. Every delivery carries `X-Ellysia-Signature: t=<unix>,v1=<hex>` — an HMAC-SHA256 of `<t>.<body>` with the webhook's secret, stored encrypted (`IRIS_WEBHOOK_ENCRYPTION_KEY`) — and a stable event id, so a receiver can verify it, reject old timestamps and drop duplicates. Deliveries leave through the same anti-SSRF gate as the rest of Iris (public HTTPS destinations only, no redirects), run in the `iris.webhook` queue, retry with exponential backoff up to `features.iris.webhooks.maxAttempts`, and a webhook that fails `disableAfterConsecutiveFailures` times in a row disables itself. History is kept `deliveryRetentionDays`. Gated by the `webhooks` launch surface.
+
+**Report phishing from a mail client.** A user creates an integration token (`irt_<keyId>.<secret>`, stored as a SHA-256 hash, with an expiry capped by `features.iris.reporting`) and uses it from an Outlook add-in, a Gmail add-on, a browser extension or a script to send a suspicious email to `POST /iris/reports`. The report becomes a normal analysis of that user, tagged with its `reportChannel`. The token authenticates only those two endpoints and never a session.
+
+**Acting on the mailbox.** On explicit request only — Iris recommends (quarantine for phishing, a label for suspicious) but never acts on its own — a message that came from a connected mailbox can be quarantined (folder/label from `features.iris.remediation`), labelled as suspicious, sent to spam or to the trash, and every action can be undone; nothing is ever deleted permanently. It needs the `iris_mailbox_action` attribute, a connection created with write access (`gmail.modify` / `Mail.ReadWrite`, checked against the scopes the provider actually granted), a reason, and `confirm` for the destructive ones. Every action and every undo is an `IrisActionAudit` row with actor, reason, permission and time, written before contacting the provider; retries are idempotent and two actions on the same email never overlap. Actions run in the `iris.remediation` queue; one a worker left half done is closed as failed at startup. Shared, service-account and IMAP connections are read-only.
+
+**Event-driven ingestion.** With `features.iris.events.enabled`, each active Gmail or Microsoft connection gets a subscription (`IrisMailboxSubscription`) to its provider's new-mail notifications — a Gmail `watch` publishing to the Pub/Sub topic in `GMAIL_PUBSUB_TOPIC`, whose push subscription calls `/iris/mailbox/events/gmail?token=<IRIS_GMAIL_PUSH_TOKEN>`, or a Graph change-notification subscription. The scheduler creates, retries and renews them (`renewBeforeHours`) through `iris.ingest`. A valid notification only enqueues the usual sync: the secret is compared in constant time, a repeated or older Gmail `historyId` and a notification older than `maxEventAgeMinutes` are ignored, and a burst within `debounceSeconds` wakes a single sync. Polling never stops: with a healthy subscription it is spaced to `fallbackPollIntervalMinutes`, and it returns to the normal rhythm by itself if the subscription fails or expires. A connection's health shows its `eventSubscription`.
+
+**Shared mailboxes, IMAP and service accounts.** A connection is `personal` or `shared`, and is reached through OAuth, the installation's **service account** (Google Workspace domain-wide delegation limited to `gmail.readonly`; a Microsoft Entra application with the `Mail.Read` application permission, best restricted with an Exchange application access policy) or **IMAP** (TLS only on `features.iris.imap.allowedPorts`, never to an internal address, read-only with `EXAMINE`/`BODY.PEEK`, app password encrypted with `IRIS_MAILBOX_ENCRYPTION_KEY`). A shared mailbox belongs to an organization: only its owner connects it (with the `iris_shared_mailbox` attribute), it stays in their charge (its analyses are theirs, as with a personal mailbox) and only people with an explicit `IrisMailboxMember` row who still belong to the organization see it — leaving the organization removes access at once, and if the person who connected it leaves, it is paused. Limits live in `features.iris.sharedMailboxes`. Any connection can watch several folders, each with its own cursor inside `sync_cursor`.
 
 **Trust boundary.** `Authentication-Results` and `Received` headers are partly written by whoever sent the message: MTAs *prepend* their own `Received`, so the lower hops are supplied by the sender and can be fabricated. Iris only trusts an `Authentication-Results` whose `authserv-id` matches a hop **above** the trust boundary — the contiguous run of hops belonging to the delivering organisation, plus any verifier listed in `features.iris.data.trusted_authserv_ids` (empty by default; without it trust is derived from the chain itself). An `ARC-Seal: cv=pass` is treated as context, never as permission to suppress SPF/DMARC/alignment gates, unless a trusted verifier confirms it with `arc=pass` in its own `Authentication-Results`.
 
@@ -537,6 +566,9 @@ Each entry point is a `@staticmethod` on the owning module's manager class — p
 | `iris.analyze` | Iris | `IrisManager.execute_iris_analysis` | `iris-analysis:<id>` |
 | `iris.ai_summary` | Iris | `IrisManager.execute_ai_summary_generation` | `iris-ai-summary:<id>` |
 | `iris.ingest` | Iris | `IrisMailboxManager.execute_sync_connection` (periodic mailbox sync) | `iris-mailbox-sync:<id>` |
+| `iris.ingest` | Iris | `IrisMailboxEventManager.execute_ensure_subscription` (create or renew a new-mail notification subscription) | `iris-mailbox-subscription:<connectionId>` |
+| `iris.webhook` | Iris | `IrisWebhookManager.execute_webhook_delivery` (one signed webhook delivery) | `iris-webhook-delivery:<id>` |
+| `iris.remediation` | Iris | `IrisRemediationManager.execute_mailbox_action` (quarantine, label, spam, trash or undo) | `iris-mailbox-action:<id>` |
 | `iris.report` | Iris | `IrisReportManager.execute_report_generation` | `iris-doc:<id>` |
 | `iris.enrichment` | Iris | `IrisUrlExpansionManager.execute_url_expansion` (follow a URL's redirects) | `iris-url-expansion:<id>` |
 | `iris.notify` | Iris | `IrisPhishingNotifyManager.execute_notify_phishing` | `iris-phishing-notify:<id>` |
@@ -878,7 +910,21 @@ GMAIL_CLIENT_SECRET=...
 GRAPH_CLIENT_ID=...
 GRAPH_CLIENT_SECRET=...
 GRAPH_TENANT_ID=...             # optional; "common" allows any account
-IRIS_MAILBOX_ENCRYPTION_KEY=... # Fernet key that encrypts stored OAuth refresh tokens at rest
+IRIS_MAILBOX_ENCRYPTION_KEY=... # Fernet key that encrypts stored OAuth tokens and IMAP passwords at rest
+```
+
+Optional, for the other ways of connecting a mailbox:
+
+```
+# Event-driven ingestion for Gmail (features.iris.events.enabled)
+GMAIL_PUBSUB_TOPIC=projects/<project>/topics/<topic>
+IRIS_GMAIL_PUSH_TOKEN=...       # long random secret in the Pub/Sub push URL
+# Service accounts for shared mailboxes (read-only)
+GMAIL_SERVICE_ACCOUNT_FILE=/path/to/service-account.json   # domain-wide delegation, gmail.readonly
+GRAPH_SERVICE_TENANT_ID=...
+GRAPH_SERVICE_CLIENT_ID=...
+GRAPH_SERVICE_CLIENT_SECRET=... # Entra app with the Mail.Read application permission
+IRIS_WEBHOOK_ENCRYPTION_KEY=... # Fernet key that encrypts webhook signing secrets
 ```
 
 Reputation providers for Iris (all optional; each also needs `features.iris.enrichment.threatIntel.providers.<name>.enabled`, and a provider without its key is never called):
@@ -955,9 +1001,10 @@ The config panel (`web/app/src/views/system/ConfigView.vue`) exposes every setta
 | `pricing` | The public plan catalog | `GET /plans` |
 | `thirdPartyScanners` | Nmap, Nikto and Nuclei, **including scheduled scans** | each scanner's `run_scan` |
 | `campaigns` | Launching Aegis campaigns | `CampaignManager.launch_campaign` |
-| `mailboxConnectors` | Connecting and syncing Gmail / Microsoft mailboxes | `IrisMailboxManager.start_connect` and `submit_sync` (existing connections are paused, not deleted) |
+| `mailboxConnectors` | Connecting and syncing mailboxes (Gmail, Microsoft, IMAP, shared) | `IrisMailboxManager.start_connect` and `submit_sync`, `IrisMailboxAccountManager.connect_imap`, `IrisSharedMailboxManager.create` (existing connections are paused, not deleted) |
 | `externalAi` | AI generation with a provider outside the server (OpenAI, Google); Ollama is not affected | `tools/scribe` `build_generator` |
 | `externalEnrichment` | Iris lookups in third-party services about an email's indicators: RDAP, following links, reputation | `IrisEnrichmentManager` and `IrisUrlExpansionManager` |
+| `webhooks` | Iris signed webhooks towards a SIEM/SOAR (creating them and sending events) | `IrisWebhookManager` and the event emission (`services/webhook_events.py`) |
 
 The versioned `SecOpsConfig.json` ships in **`preview`**, and `tests/unit/test_config_shape.py::test_the_launch_mode_ships_as_preview` pins it (the suite itself runs with `LAUNCH_MODE=public`). A closed surface answers **403 with code 1618** (`SurfaceDisabledError`) and `details.surface`; the sign-up keeps its own code, 1616. The main administrator (`role_root`) is exempt on `thirdPartyScanners`, `campaigns`, `mailboxConnectors` and `externalEnrichment`, so it can test them in production; not on `registration` and `pricing` (anonymous requests) nor on `externalAi` (the generator does not know which user it works for). Organization invitations are not gated: they are sent by someone who already has an account.
 
@@ -972,19 +1019,20 @@ There is no single encryption key. Each kind of secret has its own, so compromis
 | Variable | What it protects | Required |
 |---|---|---|
 | `MFA_ENCRYPTION_KEY` | Each user's TOTP secret | Only if MFA is used |
-| `IRIS_MAILBOX_ENCRYPTION_KEY` | OAuth refresh/access tokens of each connected mailbox | Only if a mailbox is connected |
+| `IRIS_MAILBOX_ENCRYPTION_KEY` | OAuth refresh/access tokens and IMAP app passwords of each connected mailbox | Only if a mailbox is connected |
+| `IRIS_WEBHOOK_ENCRYPTION_KEY` | Signing secret of each Iris webhook | Only if webhooks are used |
 | `IRIS_RAW_MESSAGE_ENCRYPTION_KEY` | Raw content (headers or full `.eml`) of every analysed email | **Yes, for any use of Iris** — including an email pasted by hand |
 
-All three are Fernet keys, generated the same way, and must be **different from each other**:
+All of them are Fernet keys, generated the same way, and must be **different from each other**:
 
 ```bash
 python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 ```
 
 > [!WARNING]
-> A missing encryption key fails **late**, not at boot: `get_encryption_key` resolves it lazily on first use, so the API starts fine and the deploy smoke test passes. The error surfaces when someone enables MFA, connects a mailbox, or analyses their first email. Set all three up front even if a feature is unused.
+> A missing encryption key fails **late**, not at boot: `get_encryption_key` resolves it lazily on first use, so the API starts fine and the deploy smoke test passes. The error surfaces when someone enables MFA, connects a mailbox, or analyses their first email. Set them all up front even if a feature is unused.
 
-`JWT_SECRET_KEY` is not in this table because it signs tokens rather than encrypting stored data — but unlike these three it is required always, since without it there is no authentication.
+`JWT_SECRET_KEY` is not in this table because it signs tokens rather than encrypting stored data — but unlike these keys it is required always, since without it there is no authentication.
 
 > [!WARNING]
 > `features.themis.areLocalIpsAllowed` ships as `false`, and a test pins that value (`test_the_anti_ssrf_defence_ships_enabled`): with `true`, a user can point a scan at the server's internal network or the cloud metadata endpoint. Flip it to `true` in your working copy for local development against private IPs, but do not commit it.
