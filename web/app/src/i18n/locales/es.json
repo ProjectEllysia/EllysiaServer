@@ -113,6 +113,7 @@
       "irisCampaign": "Campaña no encontrada.",
       "irisCase": "Caso no encontrado.",
       "irisIndicator": "Indicador no encontrado.",
+      "irisIntegrationToken": "Token de integración no encontrado.",
       "irisMailboxConnection": "Conexión de buzón no encontrada.",
       "irisSavedView": "Vista guardada no encontrada.",
       "irisTrustedSender": "Excepción de confianza no encontrada.",
@@ -152,6 +153,8 @@
     "inventoryNotAvailable": "Este activo aún no ha enviado su inventario de software.",
     "invitationInvalid": "Esta invitación no es válida o ha caducado. Pide a quien te invitó que te mande otra.",
     "irisBatchBackpressure": "Tienes {active} análisis en marcha y el lote añadiría {requested}; el máximo a la vez es {limit}. Espera a que terminen y vuelve a enviarlo: no se ha creado nada.",
+    "irisIntegrationTokenLimitReached": "Ya tienes {limit} tokens de integración vigentes, el máximo. Revoca uno para crear otro.",
+    "irisInvalidIntegrationToken": "El token de integración no es válido, está revocado o ha caducado.",
     "irisMailboxInvalidFolder": "«{folder}» no es una carpeta válida para esta cuenta.",
     "irisNotInOrganization": "No perteneces a ninguna organización.",
     "irisTenantOwnerRequired": "Solo el dueño de la organización puede cambiar esto.",
@@ -2344,6 +2347,43 @@
         "title": "¿Borrar «{name}»?",
         "message": "Dejará de recibir avisos y se borrará su historial."
       }
+    },
+    "reporting": {
+      "eyebrow": "Reportar desde el correo",
+      "title": "Botón de reportar phishing",
+      "intro": "Un token de integración deja que un botón en Outlook o Gmail, una extensión del navegador o un script propio te manden a Iris el correo sospechoso tal cual, sin copiar cabeceras. Solo sirve para eso: no abre tu cuenta, caduca y lo puedes revocar cuando quieras.",
+      "name": "Para qué es",
+      "namePlaceholder": "Outlook del portátil",
+      "lifetime": "Validez",
+      "days": "{count} día | {count} días",
+      "create": "Crear token",
+      "tokenTitle": "Copia este token ahora",
+      "tokenHint": "Es la única vez que se enseña. Pégalo en el complemento o en el script; si lo pierdes, revócalo y crea otro.",
+      "empty": "Todavía no tienes ningún token.",
+      "neverUsed": "Nunca",
+      "revoke": "Revocar",
+      "howTo": "Cómo se usa: el cliente manda el correo entero a /iris/reports con la cabecera Authorization: Bearer y el token. Si lo reenvías como adjunto, Iris analiza el original y recuerda quién lo reenvió.",
+      "columns": {
+        "name": "Token",
+        "status": "Estado",
+        "expires": "Caduca",
+        "lastUsed": "Último uso"
+      },
+      "tokenStatus": {
+        "active": "Vigente",
+        "expired": "Caducado",
+        "revoked": "Revocado"
+      },
+      "channels": {
+        "outlook_addin": "Reportado desde Outlook",
+        "gmail_addon": "Reportado desde Gmail",
+        "browser_extension": "Reportado desde la extensión del navegador",
+        "api": "Reportado por una integración"
+      },
+      "confirmRevoke": {
+        "title": "¿Revocar «{name}»?",
+        "message": "El cliente que lo use dejará de poder reportar correos al momento."
+      }
     }
   },
   "irisHub": {
@@ -2506,7 +2546,10 @@
     "webhookDeleteFailed": "No se pudo borrar el webhook.",
     "webhookTestQueued": "Prueba enviada; su resultado aparece en los avisos en unos segundos.",
     "webhookTestFailed": "No se pudo enviar la prueba.",
-    "webhookReplayFailed": "No se pudo reenviar el aviso."
+    "webhookReplayFailed": "No se pudo reenviar el aviso.",
+    "integrationTokenCreateFailed": "No se pudo crear el token.",
+    "integrationTokenRevoked": "Token revocado.",
+    "integrationTokenRevokeFailed": "No se pudo revocar el token."
   },
   "aegis": {
     "campaignStatus": {

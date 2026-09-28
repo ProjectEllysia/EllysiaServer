@@ -1,6 +1,7 @@
 /**
- * Rótulos de los webhooks de Iris: tipos de evento, estados de una entrega y
- * motivos por los que un webhook se desactivó solo.
+ * Rótulos de las integraciones de Iris: tipos de evento de los webhooks,
+ * estados de una entrega, motivos por los que un webhook se desactivó solo,
+ * estados de un token de integración y canal desde el que se reportó un correo.
  *
  * Devuelven la clave del diccionario, no el texto (CONVENCIONES § 12.5): así se
  * prueban con `node` a secas y un valor que el servidor añada mañana cae en un
@@ -19,6 +20,32 @@ const EVENT_TYPE_KEYS = {
 const DELIVERY_STATUSES = ['pending', 'delivering', 'delivered', 'failed']
 
 const DISABLED_REASONS = ['failures', 'gone']
+
+const TOKEN_STATUSES = ['active', 'expired', 'revoked']
+
+const REPORT_CHANNELS = ['outlook_addin', 'gmail_addon', 'browser_extension', 'api']
+
+/**
+ * Clave del texto que dice desde dónde reportó el usuario un correo.
+ *
+ * @param {string|null} channel - `outlook_addin`, `gmail_addon`, `browser_extension` o `api`.
+ * @returns {string|null} `iris.reporting.channels.<canal>`; `iris.reporting.channels.api` si no
+ *   se conoce, y `null` si el correo no llegó por el canal de reporte.
+ */
+export function reportChannelKey(channel) {
+  if (!channel) return null
+  return `iris.reporting.channels.${REPORT_CHANNELS.includes(channel) ? channel : 'api'}`
+}
+
+/**
+ * Clave del rótulo del estado de un token de integración.
+ *
+ * @param {string} status - `active`, `expired` o `revoked`.
+ * @returns {string} `iris.reporting.tokenStatus.<estado>`, o `common.unknown`.
+ */
+export function tokenStatusKey(status) {
+  return TOKEN_STATUSES.includes(status) ? `iris.reporting.tokenStatus.${status}` : 'common.unknown'
+}
 
 /**
  * Clave del rótulo de un tipo de evento.

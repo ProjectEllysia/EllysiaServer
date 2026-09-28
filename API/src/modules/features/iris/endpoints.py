@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+from functools import wraps
 
 from flask import redirect, request, send_file, Response
 from flask_smorest import Blueprint as SmorestBlueprint
@@ -26,9 +27,10 @@ from src.modules.users import (
     require_role,
     AttributeType,
     Role,
+    UserManager,
     get_current_user,
 )
-from src.modules.shared import handle_exceptions, limiter
+from src.modules.shared import handle_exceptions, limiter, render_error_response
 from src.modules.shared.schemas import ErrorSchema
 from src.modules.shared._exceptions import DocumentError, DocumentNotReadyError
 
@@ -39,6 +41,7 @@ from .managers import (
     IrisNotificationPreferenceManager, IrisReplayManager, IrisTriageManager, IrisTrustPolicyManager,
     IrisCaseManager, IrisBatchManager, IrisCampaignManager, IrisContactGraphManager, IrisExportManager,
     IrisEnrichmentManager, IrisUrlExpansionManager, IrisTenantManager, IrisWebhookManager,
+    IrisReportingManager,
 )
 from .exceptions import (
     IrisAnalysisNotFoundError,
@@ -52,6 +55,8 @@ from .exceptions import (
     IrisSavedViewNotFoundError,
     IrisTrustedSenderNotFoundError,
     IrisWebhookSubscriptionNotFoundError,
+    IrisIntegrationTokenNotFoundError,
+    IrisInvalidIntegrationTokenError,
 )
 from .schemas import (
     AnalysisIdQuerySchema,
@@ -141,6 +146,11 @@ from .schemas import (
     IrisWebhookListResponseSchema,
     IrisWebhookSubscriptionSchema,
     IrisWebhookUpdateRequestSchema,
+    IrisIntegrationTokenCreateRequestSchema,
+    IrisIntegrationTokenListResponseSchema,
+    IrisIntegrationTokenSchema,
+    IrisReportResponseSchema,
+    IrisReportStatusSchema,
 )
 
 
@@ -1735,3 +1745,170 @@ def replay_webhook_delivery(subscription_id: int, delivery_id: int):
 def test_webhook(subscription_id: int):
     """Mandar un evento de prueba (ping) a un webhook"""
     return IrisWebhookManager().send_test_event(subscription_id, get_current_user().id)
+
+
+# =============================================================================
+# Canal de reporte: tokens de integración y reportes desde el cliente de correo
+# =============================================================================
+
+def _bearer_token() -> str:
+    """Lo que viene tras ``Bearer`` en la cabecera ``Authorization``, o cadena vacía."""
+    parts = (request.headers.get("Authorization") or "").split()
+    return parts[1] if len(parts) == 2 and parts[0].lower() == "bearer" else ""
+
+
+def _integration_key_id() -> str:
+    """Clave del cupo de peticiones del canal de reporte: la parte pública del token.
+
+    Se acota por token y no por IP: varios usuarios detrás de la misma salida a
+    internet de una oficina no deben compartir cupo, y un token robado no debe
+    poder saltárselo cambiando de IP. Sin token reconocible, cae en la IP.
+
+    Returns:
+        str: El ``key_id`` del token, o la IP remota.
+    """
+    token = _bearer_token()
+    if token.startswith("irt_") and "." in token:
+        return token.split(".", 1)[0]
+    return request.remote_addr or "unknown"
+
+
+def _require_integration_token(function):
+    """Autentica una petición del canal de reporte con un token de integración.
+
+    Deja en la petición lo mismo que ``require_oauth_token`` (el usuario
+    dueño del token, leído de la base de datos), así que ``require_attributes``
+    puede ir detrás y comprobar **en cada uso** que ese usuario sigue teniendo
+    permiso para crear análisis: quitarle el permiso deja inservibles sus
+    tokens sin tener que revocarlos uno a uno. Añade además
+    ``request.current_integration_token_id``.
+
+    Args:
+        function: El endpoint a proteger.
+
+    Returns:
+        Callable: El endpoint envuelto; responde 401 con la misma respuesta
+            para cualquier token inválido.
+    """
+    @wraps(function)
+    def decorated(*args, **kwargs):
+        try:
+            token = IrisReportingManager.authenticate(_bearer_token())
+        except IrisInvalidIntegrationTokenError as e:
+            logger.warning(f"Reporte rechazado: {e.message}")
+            return render_error_response(e)
+        owner = UserManager().get_user_by_id(token.user_id)
+        if owner is None:
+            return render_error_response(IrisInvalidIntegrationTokenError("sin dueño"))
+        request.current_user_id = owner.id  # type: ignore[attr-defined]
+        request.current_username = owner.username  # type: ignore[attr-defined]
+        request.current_user_role = owner.role  # type: ignore[attr-defined]
+        request.current_integration_token_id = token.id  # type: ignore[attr-defined]
+        return function(*args, **kwargs)
+    return decorated
+
+
+def _read_reported_message() -> tuple:
+    """Saca de la petición el mensaje reportado, leyendo como mucho un byte más del máximo.
+
+    Se acepta de dos formas, para que sirva a cualquier cliente: un formulario
+    ``multipart/form-data`` con el fichero en el campo ``message`` (lo natural
+    en un navegador), o el mensaje tal cual en el cuerpo con
+    ``Content-Type: message/rfc822`` (lo más sencillo desde un script o un
+    complemento de Gmail).
+
+    Returns:
+        tuple: ``(nombre del fichero o None, bytes)``; bytes vacíos si no llegó
+            ningún mensaje.
+    """
+    limit = CR.iris_config().max_message_bytes + 1
+    if request.mimetype == "message/rfc822":
+        return None, request.stream.read(limit)
+    upload = request.files.get("message")
+    if upload is not None:
+        return upload.filename or None, upload.stream.read(limit)
+    return None, b""
+
+
+@iris_blp.get("/integration-tokens")
+@iris_blp.response(200, IrisIntegrationTokenListResponseSchema, description="Integration tokens of the user")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("300 per hour; 2000 per day")
+@handle_exceptions(logger=logger)
+def list_integration_tokens():
+    """Tokens de integración del usuario, sin su secreto"""
+    return IrisReportingManager.list_tokens(get_current_user().id)
+
+
+@iris_blp.post("/integration-tokens")
+@iris_blp.arguments(IrisIntegrationTokenCreateRequestSchema)
+@iris_blp.response(201, IrisIntegrationTokenSchema, description="Token created; the full token is shown only now")
+@iris_blp.alt_response(400, schema=ErrorSchema, description="Invalid name or lifetime")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@iris_blp.alt_response(409, schema=ErrorSchema, description="Token limit reached")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_CREATE])
+@limiter.limit("30 per hour; 100 per day")
+@handle_exceptions(default_exception=IrisExecutionError, logger=logger)
+def create_integration_token(data):
+    """Crear un token para reportar correos desde Outlook, Gmail, una extensión o un script"""
+    user = get_current_user()
+    token = IrisReportingManager.create_token(user.id, data["name"], data["lifetimeDays"])
+    logger.info(f"Token de integración {token['tokenId']} creado por {user.username}")
+    return token
+
+
+@iris_blp.delete("/integration-tokens/<int:token_id>")
+@iris_blp.response(200, IrisIntegrationTokenSchema, description="Token revoked")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Token not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_DELETE, AttributeType.IRIS_UPDATE])
+@limiter.limit("60 per hour; 300 per day")
+@handle_exceptions(default_exception=IrisIntegrationTokenNotFoundError, logger=logger)
+def revoke_integration_token(token_id: int):
+    """Revocar un token de integración: deja de valer al momento"""
+    user = get_current_user()
+    token = IrisReportingManager.revoke_token(token_id, user.id)
+    logger.info(f"Token de integración {token_id} revocado por {user.username}")
+    return token
+
+
+@iris_blp.post("/reports")
+@iris_blp.response(201, IrisReportResponseSchema, description="Report accepted; the analysis runs in the background")
+@iris_blp.alt_response(200, schema=IrisReportResponseSchema, description="Message already analysed; its analysis is returned")
+@iris_blp.alt_response(400, schema=ErrorSchema, description="No message, not an .eml/.msg, too big or not analysable")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Missing, invalid, revoked or expired integration token")
+@iris_blp.alt_response(402, schema=ErrorSchema, description="The analyses of the plan are used up")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="The token owner can no longer create analyses")
+@_require_integration_token
+@require_attributes(at_least_one=[AttributeType.IRIS_CREATE])
+@limiter.limit("60 per hour; 300 per day", key_func=_integration_key_id)
+@handle_exceptions(default_exception=IrisExecutionError, logger=logger)
+def submit_report():
+    """Reportar un correo sospechoso desde un cliente de correo (token de integración)"""
+    filename, data = _read_reported_message()
+    channel = request.headers.get("X-Ellysia-Report-Channel") or request.form.get("channel")
+    report = IrisReportingManager.submit_report(
+        request.current_user_id, request.current_integration_token_id, filename, data, channel,  # type: ignore[attr-defined]
+    )
+    return report, (200 if report["isDuplicate"] else 201)
+
+
+@iris_blp.get("/reports/<int:analysis_id>")
+@iris_blp.response(200, IrisReportStatusSchema, description="Status and verdict of a reported message")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Missing, invalid, revoked or expired integration token")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="The token owner can no longer read analyses")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Analysis not found")
+@_require_integration_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ, AttributeType.IRIS_CREATE])
+@limiter.limit("600 per hour; 4000 per day", key_func=_integration_key_id)
+@handle_exceptions(default_exception=IrisAnalysisNotFoundError, logger=logger)
+def get_report_status(analysis_id: int):
+    """Estado y veredicto del análisis de un correo reportado (token de integración)"""
+    return IrisReportingManager.get_report_status(analysis_id, request.current_user_id)  # type: ignore[attr-defined]

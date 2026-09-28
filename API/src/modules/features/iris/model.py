@@ -181,6 +181,13 @@ class IrisAnalysis(Base):
                  the DB level rather than a duplicate analysis. Two manual
                  submissions (connection_id NULL) never collide: standard
                  SQL UNIQUE treats NULL as distinct from every other NULL.
+        report_channel: Desde dónde lo reportó el usuario con un token de
+                 integración (valor de ``ReportChannel``: el complemento de
+                 Outlook, el de Gmail, la extensión del navegador o un script
+                 propio); NULL si no llegó por el canal de reporte.
+        integration_token_id: Token de integración con que se reportó; NULL
+                 si no llegó por ahí o si el token ya se borró
+                 (``ondelete="SET NULL"``: el análisis sigue siendo del usuario).
     """
     __tablename__ = "IrisAnalysis"
 
@@ -222,6 +229,9 @@ class IrisAnalysis(Base):
     user_id = Column(Integer, ForeignKey("User.id"), nullable=False)
     connection_id = Column(Integer, ForeignKey("IrisMailboxConnection.id", ondelete="SET NULL"), nullable=True)
     source_message_uid = Column(String(255), nullable=True)
+    report_channel = Column(String(32), nullable=True)
+    integration_token_id = Column(Integer, ForeignKey("IrisIntegrationToken.id", ondelete="SET NULL"),
+                                  nullable=True)
 
     user = relationship("User", back_populates="analyses")
     connection = relationship("IrisMailboxConnection", back_populates="analyses")
@@ -1844,4 +1854,67 @@ class IrisWebhookDelivery(Base):
     __table_args__ = (
         UniqueConstraint("subscription_id", "event_id", name="uq_iris_webhook_delivery_subscription_event"),
         Index("ix_iris_webhook_delivery_status_next_attempt", "status", "next_attempt_at"),
+    )
+
+
+class ReportChannel(StrEnum):
+    """Desde dónde reporta un usuario un correo con un token de integración.
+
+    Lo declara el cliente en la cabecera ``X-Ellysia-Report-Channel``; un valor
+    que no se conoce cuenta como ``api``. Solo sirve para enseñar de dónde vino
+    el reporte y para medir qué canal se usa: no cambia cómo se analiza.
+
+    Attributes:
+        OUTLOOK_ADDIN: Complemento de Outlook (botón «Reportar phishing»).
+        GMAIL_ADDON: Complemento de Gmail.
+        BROWSER_EXTENSION: Extensión del navegador.
+        API: Cualquier otro cliente: un script, una regla de reenvío propia…
+    """
+    OUTLOOK_ADDIN = "outlook_addin"
+    GMAIL_ADDON = "gmail_addon"
+    BROWSER_EXTENSION = "browser_extension"
+    API = "api"
+
+
+class IrisIntegrationToken(Base):
+    """Credencial con la que un cliente de correo reporta mensajes en nombre de un usuario.
+
+    Es distinta de la sesión del usuario a propósito: un complemento de
+    Outlook o una extensión del navegador viven mucho tiempo instalados y no
+    deben guardar la contraseña ni un token de sesión, que abre toda la cuenta.
+    Este token solo sirve para **reportar** un correo y consultar cómo acabó el
+    análisis de lo que se reportó; se puede revocar sin tocar nada más.
+
+    Tiene dos partes, ``irt_<key_id>.<secreto>`` (como una clave de agente de
+    Hygeia): ``key_id`` es público y localiza la fila por índice; del secreto,
+    32 bytes aleatorios, solo se guarda su SHA-256. Un hash rápido basta
+    porque el secreto no es una contraseña elegida por una persona: con esa
+    entropía no hay diccionario que probar.
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        user_id: FK al ``User`` dueño; ``ondelete="CASCADE"``. Los análisis que
+                 crea son suyos.
+        name: Para qué es («Outlook del portátil»), hasta 80 caracteres.
+        key_id: Parte pública del token (16 caracteres hexadecimales), única.
+        secret_sha256: SHA-256 hexadecimal del secreto.
+        created_at: Cuándo se creó.
+        expires_at: Cuándo deja de valer; NULL si no caduca.
+        last_used_at: Último reporte hecho con él; NULL si nunca se usó.
+        revoked_at: Cuándo se revocó; NULL si sigue vigente.
+    """
+    __tablename__ = "IrisIntegrationToken"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("User.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(80), nullable=False)
+    key_id = Column(String(16), nullable=False, unique=True)
+    secret_sha256 = Column(String(64), nullable=False)
+    created_at = Column(DateTime, nullable=False, default=utcnow_naive)
+    expires_at = Column(DateTime, nullable=True)
+    last_used_at = Column(DateTime, nullable=True)
+    revoked_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        Index("ix_iris_integration_token_user_id", "user_id"),
     )

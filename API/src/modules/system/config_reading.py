@@ -2888,6 +2888,26 @@ def iris_webhooks_config() -> IrisWebhooksConfig:
     return load_block(IrisWebhooksConfig)
 
 
+@config_block("features.iris.reporting")
+@dataclass(frozen=True)
+class IrisReportingConfig:
+    """Canal de reporte de Iris: tokens con que un cliente de correo reporta mensajes."""
+
+    max_tokens_per_user: int = 10
+    """Tokens de integración vigentes que puede tener un usuario a la vez."""
+
+    default_token_lifetime_days: int = 180
+    """Días que vale un token si al crearlo no se dice otra cosa."""
+
+    max_token_lifetime_days: int = 365
+    """Días que puede valer un token como mucho. Un token que no caduca nunca
+    es el que se queda olvidado en un portátil viejo."""
+
+
+def iris_reporting_config() -> IrisReportingConfig:
+    return load_block(IrisReportingConfig)
+
+
 def get_iris_threat_intel_key(provider: str) -> str:
     """Clave de API de un proveedor de reputación de Iris, desde el entorno.
 

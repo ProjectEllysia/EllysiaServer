@@ -700,10 +700,10 @@ export const useIrisStore = defineStore('iris', () => {
   }
 
   /**
-   * Petición sobre un webhook que devuelve JSON; si falla, avisa con el mensaje del servidor.
+   * Petición de la página de integraciones (webhooks y tokens) que devuelve JSON; si falla, avisa con el mensaje del servidor.
    * @returns {Promise<object|null>} La respuesta, o null si falló.
    */
-  async function _webhookRequest(url, method, body, errorText) {
+  async function _integrationRequest(url, method, body, errorText) {
     const res = await apiFetch(url, { method, body: body === undefined ? undefined : JSON.stringify(body) })
     if (!res?.ok) {
       toast.show(await apiError(res, errorText), 'error')
@@ -718,7 +718,7 @@ export const useIrisStore = defineStore('iris', () => {
    * @returns {Promise<object|null>} El webhook creado, o null si falló.
    */
   async function createWebhook(data) {
-    const created = await _webhookRequest('/iris/webhooks', 'POST', data, i18n.global.t('irisStore.webhookCreateFailed'))
+    const created = await _integrationRequest('/iris/webhooks', 'POST', data, i18n.global.t('irisStore.webhookCreateFailed'))
     if (!created) return null
     webhooks.lastSecret = { subscriptionId: created.subscriptionId, secret: created.secret }
     toast.show(i18n.global.t('irisStore.webhookCreated'), 'success')
@@ -728,21 +728,21 @@ export const useIrisStore = defineStore('iris', () => {
 
   /** Cambia nombre, destino, eventos o estado (`isActive`) de un webhook. */
   async function updateWebhook(id, changes) {
-    const updated = await _webhookRequest(`/iris/webhooks/${id}`, 'PATCH', changes, i18n.global.t('irisStore.webhookUpdateFailed'))
+    const updated = await _integrationRequest(`/iris/webhooks/${id}`, 'PATCH', changes, i18n.global.t('irisStore.webhookUpdateFailed'))
     if (updated) await fetchWebhooks()
     return updated
   }
 
   /** Genera un secreto nuevo; queda en `webhooks.lastSecret` para enseñarlo una vez. */
   async function rotateWebhookSecret(id) {
-    const rotated = await _webhookRequest(`/iris/webhooks/${id}/secret`, 'POST', undefined, i18n.global.t('irisStore.webhookUpdateFailed'))
+    const rotated = await _integrationRequest(`/iris/webhooks/${id}/secret`, 'POST', undefined, i18n.global.t('irisStore.webhookUpdateFailed'))
     if (rotated) webhooks.lastSecret = { subscriptionId: rotated.subscriptionId, secret: rotated.secret }
     return rotated
   }
 
   /** Borra un webhook y su historial. */
   async function deleteWebhook(id) {
-    const deleted = await _webhookRequest(`/iris/webhooks/${id}`, 'DELETE', undefined, i18n.global.t('irisStore.webhookDeleteFailed'))
+    const deleted = await _integrationRequest(`/iris/webhooks/${id}`, 'DELETE', undefined, i18n.global.t('irisStore.webhookDeleteFailed'))
     if (deleted) {
       toast.show(i18n.global.t('irisStore.webhookDeleted'), 'success')
       await fetchWebhooks()
@@ -758,7 +758,7 @@ export const useIrisStore = defineStore('iris', () => {
 
   /** Manda un evento de prueba y refresca el historial. */
   async function testWebhook(id) {
-    const queued = await _webhookRequest(`/iris/webhooks/${id}/test`, 'POST', undefined, i18n.global.t('irisStore.webhookTestFailed'))
+    const queued = await _integrationRequest(`/iris/webhooks/${id}/test`, 'POST', undefined, i18n.global.t('irisStore.webhookTestFailed'))
     if (queued) {
       toast.show(i18n.global.t('irisStore.webhookTestQueued'), 'success')
       await fetchWebhookDeliveries(id)
@@ -768,10 +768,51 @@ export const useIrisStore = defineStore('iris', () => {
 
   /** Vuelve a enviar una entrega terminada y refresca el historial. */
   async function replayWebhookDelivery(id, deliveryId) {
-    const queued = await _webhookRequest(`/iris/webhooks/${id}/deliveries/${deliveryId}/replay`, 'POST', undefined,
+    const queued = await _integrationRequest(`/iris/webhooks/${id}/deliveries/${deliveryId}/replay`, 'POST', undefined,
       i18n.global.t('irisStore.webhookReplayFailed'))
     if (queued) await fetchWebhookDeliveries(id)
     return queued
+  }
+
+  /* ══════════════════ TOKENS DE INTEGRACIÓN (CANAL DE REPORTE) ══════════════════ */
+
+  /** Tokens con que un cliente de correo reporta mensajes; `lastToken` es el recién creado, que solo se ve una vez. */
+  const integrationTokens = reactive({ items: [], loading: false, loaded: false, lastToken: null })
+
+  /** Carga los tokens de integración del usuario. */
+  async function fetchIntegrationTokens() {
+    integrationTokens.loading = true
+    try {
+      const res = await apiFetch('/iris/integration-tokens')
+      if (!res?.ok) return
+      integrationTokens.items = (await res.json()).tokens ?? []
+      integrationTokens.loaded = true
+    } finally {
+      integrationTokens.loading = false
+    }
+  }
+
+  /**
+   * Crea un token; el token completo queda en `integrationTokens.lastToken` para enseñarlo una vez.
+   * @param {{name: string, lifetimeDays?: number}} data
+   * @returns {Promise<object|null>} El token creado, o null si falló.
+   */
+  async function createIntegrationToken(data) {
+    const created = await _integrationRequest('/iris/integration-tokens', 'POST', data, i18n.global.t('irisStore.integrationTokenCreateFailed'))
+    if (!created) return null
+    integrationTokens.lastToken = { tokenId: created.tokenId, token: created.token }
+    await fetchIntegrationTokens()
+    return created
+  }
+
+  /** Revoca un token de integración. */
+  async function revokeIntegrationToken(id) {
+    const revoked = await _integrationRequest(`/iris/integration-tokens/${id}`, 'DELETE', undefined, i18n.global.t('irisStore.integrationTokenRevokeFailed'))
+    if (revoked) {
+      toast.show(i18n.global.t('irisStore.integrationTokenRevoked'), 'success')
+      await fetchIntegrationTokens()
+    }
+    return revoked
   }
 
   /* ═══════════════════════ CASOS DE ANALISTA ══════════════════════════ */
@@ -1270,6 +1311,7 @@ export const useIrisStore = defineStore('iris', () => {
     currentCampaign.value = null
     Object.assign(organizationIntel, { loading: false, loaded: false, data: null, notInOrganization: false })
     Object.assign(webhooks, { items: [], availableEventTypes: [], loading: false, loaded: false, lastSecret: null, deliveries: {} })
+    Object.assign(integrationTokens, { items: [], loading: false, loaded: false, lastToken: null })
     closeBatch()
 
     currentId.value = null
@@ -1299,6 +1341,7 @@ export const useIrisStore = defineStore('iris', () => {
     organizationIntel, fetchOrganizationIntel, updateOrganizationPolicy, setOrganizationConsent,
     webhooks, fetchWebhooks, createWebhook, updateWebhook, rotateWebhookSecret, deleteWebhook,
     fetchWebhookDeliveries, testWebhook, replayWebhookDelivery,
+    integrationTokens, fetchIntegrationTokens, createIntegrationToken, revokeIntegrationToken,
     cases, currentCase, fetchCases, fetchCase, createCase, updateCase, changeCaseStatus,
     addCaseNote, linkCaseAnalysis, unlinkCaseAnalysis,
     currentBatch, batchSubmitting, submitBatch, closeBatch,

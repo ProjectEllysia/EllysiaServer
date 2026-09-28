@@ -271,6 +271,11 @@ Los endpoints protegidos exigen `Authorization: Bearer <token>`; roles y atribut
 > Los **únicos** endpoints sin autenticar de toda la API son `GET/POST /aegis/quiz?t=<token>`
 > (quiz público de concienciación). El token opaco es la identidad entera: no añadas auth ahí, y
 > no filtres nada más allá del único destinatario al que pertenece el token.
+>
+> Dos superficies se autentican con una credencial propia en vez de la sesión, a propósito: la
+> ingesta de Hygeia (clave de agente) y el canal de reporte de Iris (`POST/GET /iris/reports`,
+> token de integración `irt_…`, ver `features/iris/REPORTING.md`). Ese token solo reporta y
+> consulta lo reportado; no le pongas `require_oauth_token` ni lo aceptes en otros endpoints.
 
 ### Themis — escaneo
 

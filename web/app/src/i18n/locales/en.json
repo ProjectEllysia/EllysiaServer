@@ -113,6 +113,7 @@
       "irisCampaign": "Campaign not found.",
       "irisCase": "Case not found.",
       "irisIndicator": "Indicator not found.",
+      "irisIntegrationToken": "Integration token not found.",
       "irisMailboxConnection": "Mailbox connection not found.",
       "irisSavedView": "Saved view not found.",
       "irisTrustedSender": "Trust exception not found.",
@@ -152,6 +153,8 @@
     "inventoryNotAvailable": "This asset has not sent its software inventory yet.",
     "invitationInvalid": "This invitation is not valid or has expired. Ask whoever invited you to send you another one.",
     "irisBatchBackpressure": "You have {active} analyses running and the batch would add {requested}; the maximum at once is {limit}. Wait for them to finish and send it again: nothing has been created.",
+    "irisIntegrationTokenLimitReached": "You already have {limit} valid integration tokens, the maximum. Revoke one to create another.",
+    "irisInvalidIntegrationToken": "The integration token is not valid, has been revoked or has expired.",
     "irisMailboxInvalidFolder": "“{folder}” is not a valid folder for this account.",
     "irisNotInOrganization": "You don't belong to any organization.",
     "irisTenantOwnerRequired": "Only the organization owner can change this.",
@@ -2344,6 +2347,43 @@
         "title": "Delete “{name}”?",
         "message": "It will stop receiving notifications and its history will be deleted."
       }
+    },
+    "reporting": {
+      "eyebrow": "Report from your email",
+      "title": "Report phishing button",
+      "intro": "An integration token lets a button in Outlook or Gmail, a browser extension or your own script send the suspicious email to Iris as it is, without copying headers. It is only good for that: it does not open your account, it expires and you can revoke it whenever you want.",
+      "name": "What it is for",
+      "namePlaceholder": "Laptop Outlook",
+      "lifetime": "Valid for",
+      "days": "{count} day | {count} days",
+      "create": "Create token",
+      "tokenTitle": "Copy this token now",
+      "tokenHint": "This is the only time it is shown. Paste it into the add-in or the script; if you lose it, revoke it and create another one.",
+      "empty": "You do not have any token yet.",
+      "neverUsed": "Never",
+      "revoke": "Revoke",
+      "howTo": "How to use it: the client sends the whole email to /iris/reports with the header Authorization: Bearer and the token. If you forward it as an attachment, Iris analyses the original and remembers who forwarded it.",
+      "columns": {
+        "name": "Token",
+        "status": "Status",
+        "expires": "Expires",
+        "lastUsed": "Last used"
+      },
+      "tokenStatus": {
+        "active": "Valid",
+        "expired": "Expired",
+        "revoked": "Revoked"
+      },
+      "channels": {
+        "outlook_addin": "Reported from Outlook",
+        "gmail_addon": "Reported from Gmail",
+        "browser_extension": "Reported from the browser extension",
+        "api": "Reported by an integration"
+      },
+      "confirmRevoke": {
+        "title": "Revoke “{name}”?",
+        "message": "The client using it will stop being able to report emails at once."
+      }
     }
   },
   "irisHub": {
@@ -2506,7 +2546,10 @@
     "webhookDeleteFailed": "The webhook could not be deleted.",
     "webhookTestQueued": "Test sent; its result appears in the notifications in a few seconds.",
     "webhookTestFailed": "The test could not be sent.",
-    "webhookReplayFailed": "The notification could not be resent."
+    "webhookReplayFailed": "The notification could not be resent.",
+    "integrationTokenCreateFailed": "The token could not be created.",
+    "integrationTokenRevoked": "Token revoked.",
+    "integrationTokenRevokeFailed": "The token could not be revoked."
   },
   "aegis": {
     "campaignStatus": {
