@@ -39,11 +39,11 @@ HEADER_CATEGORY = "security_header"
 # en todos los objetivos, no dispararía en ninguno, y saldría como falso
 # negativo ruidoso en vez de inflar la precisión en silencio.
 CONDITIONAL_HEADER_CHECKS: Dict[str, str] = {
-    "lybra:session-cookie-without-secure@2":
+    "lybra:session-cookie-without-secure@3":
         "necesita un Set-Cookie en la respuesta; los objetivos del catálogo "
         "sirven un 200 sin cookies, así que no hay cookie que juzgar",
-    "lybra:session-cookie-without-httponly@1": "necesita un Set-Cookie en la respuesta",
-    "lybra:session-cookie-without-samesite@1": "necesita un Set-Cookie en la respuesta",
+    "lybra:session-cookie-without-httponly@2": "necesita un Set-Cookie en la respuesta",
+    "lybra:session-cookie-without-samesite@2": "necesita un Set-Cookie en la respuesta",
     "lybra:http-no-https-redirect@1":
         "sólo en un puerto en claro que sirve la página sin redirigir a HTTPS",
     "lybra:hsts-weak-max-age@1": "necesita una HSTS presente y con max-age corto",

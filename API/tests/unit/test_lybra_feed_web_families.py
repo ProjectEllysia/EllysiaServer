@@ -139,6 +139,42 @@ def test_a_non_session_cookie_is_not_flagged():
     assert "session-cookie-without-secure" not in _fired({"/": other})
 
 
+# ------------------- varias Set-Cookie: la de sesión no siempre es la primera
+#
+# ``response.headers`` representa varias apariciones de la misma cabecera
+# uniendo sus valores con "\n" (lo que produce
+# ``HttpProbe._merge_repeated_headers`` a partir de las Set-Cookie reales de
+# la respuesta); estos tests construyen esa unión a mano para comprobar que el
+# check la recorre entera y no se queda solo con la primera línea.
+
+
+def test_a_session_cookie_arriving_after_another_set_cookie_is_still_detected():
+    # "lang" llega primero y "PHPSESSID" —la que importa— segunda: si el
+    # runtime sólo mirase la primera aparición de Set-Cookie, este hallazgo
+    # nunca dispararía aunque la cookie de sesión viaje en claro.
+    headers = {"set-cookie": "lang=es; Path=/\nPHPSESSID=abc123; Path=/"}
+    insecure = Response(200, "<html>", headers)
+    assert "session-cookie-without-secure" in _fired({"/": insecure})
+
+
+def test_a_session_cookie_arriving_after_another_set_cookie_and_hardened_is_not_flagged():
+    # Contraste del test anterior: la segunda Set-Cookie sí lleva Secure, así
+    # que no debe haber hallazgo aunque siga sin ser la primera aparición.
+    headers = {"set-cookie": "lang=es; Path=/\nPHPSESSID=abc123; Secure; Path=/"}
+    secure = Response(200, "<html>", headers)
+    assert "session-cookie-without-secure" not in _fired({"/": secure})
+
+
+def test_three_set_cookies_with_the_session_one_last_are_all_visible_to_the_checks():
+    # Refuerza el caso con más de dos apariciones y comprueba los tres checks
+    # de la familia (Secure, HttpOnly, SameSite) a la vez.
+    headers = {"set-cookie": "theme=dark; Path=/\nlang=es; Path=/\nPHPSESSID=abc123; Path=/"}
+    insecure = Response(200, "<html>", headers, url="https://h/", requested_scheme="https")
+    fired = _fired({"/": insecure})
+    assert {"session-cookie-without-secure", "session-cookie-without-httponly",
+            "session-cookie-without-samesite"} <= fired
+
+
 # ================================ criterio de las cabeceras (contraste de campo)
 
 

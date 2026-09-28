@@ -81,7 +81,9 @@ logger = logging.getLogger(__name__)
 # checks-23: las familias de WordPress y Drupal.
 # checks-24: el hallazgo de criptografia debil en IKE.
 # checks-25: marcas de tiempo TCP.
-CHECKS_FEED_VERSION = "lybra-checks-25"
+# checks-26: la familia session-cookie-without-* ya ve todas las Set-Cookie de
+# la respuesta, no solo la primera.
+CHECKS_FEED_VERSION = "lybra-checks-26"
 # Quality of Detection for a finding a check actively confirmed, as opposed to
 # one merely inferred from a version.
 QOD_CONFIRMED = 99
@@ -221,7 +223,11 @@ class Response:
     Attributes:
         status: The HTTP status code.
         body: The response body, decoded to text.
-        headers: The response headers, with their keys lowercased.
+        headers: The response headers, with their keys lowercased. When a name
+            arrived repeated (several ``Set-Cookie``, most commonly), its
+            value is the join of every occurrence separated by ``"\n"`` — see
+            :func:`_merge_repeated_headers` — so no occurrence after the first
+            is silently dropped.
         url: La URL final, tras las redirecciones que se hayan seguido. Vacía
             si no se sabe (un doble de test que no la rellena).
         requested_scheme: El esquema con el que se pidió (``"http"`` o
@@ -294,9 +300,23 @@ def _part_text(response: Response, part: str) -> str:
     ``"http->https"`` para un puerto en claro que redirige a HTTPS. Es lo que
     deja a un check de cabeceras decir «sólo sobre HTTPS» o «no sobre una
     redirección», que la presencia de una cabecera no puede expresar.
+
+    Cuando una misma cabecera llegó repetida (varias ``Set-Cookie``, típicamente),
+    ``response.headers`` guarda sus valores unidos por ``"\\n"`` (ver
+    :func:`_merge_repeated_headers`); aquí se reparte esa unión en una línea
+    ``"nombre: valor"`` por cada aparición, en vez de imprimir el nombre una
+    sola vez seguido de un valor multilínea. Los matchers de tipo ``regex``
+    sobre ``part: header`` usan anclas ``^``/``$`` en modo multilínea (p. ej.
+    ``(?im)^set-cookie:\\s*...``) para aislar una cabecera de las demás; con el
+    nombre una sola vez, la segunda ``Set-Cookie`` aparecería en una línea sin
+    el prefijo ``set-cookie:`` y ningún matcher la reconocería.
     """
     if part == "header":
-        return "\n".join(f"{name}: {value}" for name, value in response.headers.items())
+        return "\n".join(
+            f"{name}: {single_value}"
+            for name, value in response.headers.items()
+            for single_value in value.split("\n")
+        )
     if part == "status":
         return str(response.status)
     if part == "url":
@@ -1939,6 +1959,49 @@ def _format_netloc(host: str, port: Optional[int]) -> str:
     return f"{netloc_host}:{port}" if port else netloc_host
 
 
+def _merge_repeated_headers(raw_headers) -> Dict[str, str]:
+    """Aplana las cabeceras HTTP de una respuesta a ``Dict[str, str]`` sin perder repetidas.
+
+    ``dict(response.headers)`` sobre un ``http.client.HTTPMessage`` (lo que
+    devuelve ``urllib``) se queda solo con la primera aparición de cada nombre:
+    con varias ``Set-Cookie`` en la misma respuesta —una de sesión y otra, por
+    ejemplo, de preferencias— la segunda desaparecía antes de llegar a los
+    matchers de ``part: header``, así que un check como
+    ``session-cookie-without-secure`` nunca veía la cookie de sesión si no era
+    la primera. Esta función recorre ``raw_headers.items()`` (que sí conserva
+    cada repetición) y une los valores de un mismo nombre con ``"\\n"``.
+
+    No se usa ``", "`` como separador porque no es seguro para ``Set-Cookie``:
+    el atributo ``Expires`` de una cookie puede contener una coma
+    (``Expires=Wed, 21 Oct 2026 07:28:00 GMT``), así que unir con coma
+    fusionaría dos cookies distintas en un valor ambiguo. El salto de línea no
+    tiene ese problema y además es el separador natural para
+    ``_part_text``, que ya imprime una línea por cabecera.
+
+    Args:
+        raw_headers: La colección de cabeceras tal como la entrega la
+            librería HTTP — un ``http.client.HTTPMessage`` (con ``.items()``
+            devolviendo todas las repeticiones) o, en el camino de error donde
+            puede no haber cabeceras, un ``dict`` vacío o ``None``-safe ya
+            resuelto por el llamante.
+
+    Returns:
+        Dict[str, str]: Un nombre de cabecera por clave; si apareció varias
+            veces, el valor es la unión de todas sus apariciones separadas por
+            ``"\\n"``, en el orden en que llegaron.
+    """
+    merged: Dict[str, str] = {}
+    seen_case: Dict[str, str] = {}  # nombre en minúsculas -> primera grafía vista
+    for name, value in raw_headers.items():
+        name, value = str(name), str(value)
+        canonical = seen_case.setdefault(name.lower(), name)
+        if canonical in merged:
+            merged[canonical] = f"{merged[canonical]}\n{value}"
+        else:
+            merged[canonical] = value
+    return merged
+
+
 class HttpProbe:
     """Performs the runtime's actual HTTP requests — safe, read-only GETs.
 
@@ -2064,11 +2127,12 @@ class HttpProbe:
         try:
             request = urllib.request.Request(url, method=method, headers=request_headers, data=data)
             with self._opener.open(request, timeout=self._timeout) as response:
-                return (response.status, response.read(self._max_bytes), dict(response.headers),
+                return (response.status, response.read(self._max_bytes), _merge_repeated_headers(response.headers),
                         response.geturl(), scheme)
         except urllib.error.HTTPError as err:
             body = err.read(self._max_bytes) if hasattr(err, "read") else b""
-            return err.code, body, dict(err.headers or {}), getattr(err, "url", url) or url, scheme
+            return (err.code, body, _merge_repeated_headers(err.headers or {}),
+                    getattr(err, "url", url) or url, scheme)
         except Exception as err:  # noqa: BLE001 - transport failure: abandon this check
             logger.debug("HTTP probe failed for %s: %s", url, err)
             return None
