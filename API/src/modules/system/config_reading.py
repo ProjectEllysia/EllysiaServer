@@ -1780,6 +1780,8 @@ class LaunchSurface(StrEnum):
     - ``EXTERNAL_AI``: generación con proveedores de IA fuera del servidor.
     - ``EXTERNAL_ENRICHMENT``: consultas de Iris a servicios de terceros sobre
       los indicadores de un correo (RDAP, reputación, seguir enlaces).
+    - ``WEBHOOKS``: eventos de Iris enviados a un sistema externo que elige el
+      usuario (un SIEM, un SOAR, un canal de chat).
     """
 
     REGISTRATION = "registration"
@@ -1789,6 +1791,7 @@ class LaunchSurface(StrEnum):
     MAILBOX_CONNECTORS = "mailboxConnectors"
     EXTERNAL_AI = "externalAi"
     EXTERNAL_ENRICHMENT = "externalEnrichment"
+    WEBHOOKS = "webhooks"
 
 
 @config_block("general.launch")
@@ -2836,6 +2839,53 @@ class IrisTenantConfig:
 
 def iris_tenant_config() -> IrisTenantConfig:
     return load_block(IrisTenantConfig)
+
+
+@config_block("features.iris.webhooks")
+@dataclass(frozen=True)
+class IrisWebhooksConfig:
+    """Eventos firmados de Iris hacia sistemas externos (``iris/managers/webhooks.py``).
+
+    Además de estos límites, la superficie ``webhooks`` de ``general.launch``
+    cierra la función mientras la instalación está en vista previa.
+    """
+
+    max_subscriptions_per_user: int = 10
+    """Suscripciones que puede tener un usuario a la vez."""
+
+    max_attempts: int = 8
+    """Intentos de entrega de un evento antes de darlo por fallido, contando
+    el primero."""
+
+    retry_base_seconds: int = 30
+    """Espera tras el primer intento fallido; cada intento siguiente la
+    duplica hasta ``retry_max_seconds``."""
+
+    retry_max_seconds: int = 3600
+    """Espera máxima entre dos intentos de una misma entrega."""
+
+    disable_after_consecutive_failures: int = 20
+    """Intentos fallidos seguidos, sumando todas sus entregas, tras los que una
+    suscripción se desactiva sola. Cualquier entrega que llega pone la cuenta
+    a cero."""
+
+    timeout_seconds: float = 10.0
+    """Tiempo máximo de cada operación de red al entregar."""
+
+    max_response_bytes: int = 4096
+    """Bytes de la respuesta del receptor que se leen (y se guardan para
+    diagnosticar); el cuerpo de la respuesta no se interpreta."""
+
+    retry_sweep_interval_seconds: int = 60
+    """Cada cuánto busca el scheduler entregas pendientes cuyo reintento ya
+    toca."""
+
+    delivery_retention_days: int = 30
+    """Días que se conserva el historial de entregas terminadas."""
+
+
+def iris_webhooks_config() -> IrisWebhooksConfig:
+    return load_block(IrisWebhooksConfig)
 
 
 def get_iris_threat_intel_key(provider: str) -> str:

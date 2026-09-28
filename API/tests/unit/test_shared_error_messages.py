@@ -110,6 +110,7 @@ _SAMPLE_ARGUMENTS: dict[str, list[tuple]] = {
     "InvalidDocumentRequestError": [("inventory", "assetId")],
     "IrisBatchBackpressureError": [(8, 5, 10)],
     "IrisMailboxInvalidFolderError": [("Spam2",)],
+    "IrisWebhookLimitReachedError": [(10,)],
     "ScanAlreadyRunningError": [("192.0.2.1", "nmap")],
     "ScanTimeoutError": [(1, 600)],
     "MaxConcurrentScansError": [(3, 3)],

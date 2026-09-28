@@ -100,6 +100,12 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/iris/integraciones',
+    name: 'IrisIntegrations',
+    component: () => import('@/views/iris/IrisIntegrationsView.vue'),
+    meta: { requiresAuth: true, surface: 'webhooks' },
+  },
+  {
     path: '/iris/organizacion',
     name: 'IrisOrganization',
     component: () => import('@/views/iris/IrisOrganizationView.vue'),

@@ -21,7 +21,7 @@ export const CLOSED_LAUNCH_STATE = Object.freeze({ mode: 'preview', surfaces: Ob
  * no hay exención. Si la SPA eximiera donde la API no lo hace, el
  * administrador vería botones que acaban en un error.
  */
-export const ROOT_EXEMPT_SURFACES = Object.freeze(['thirdPartyScanners', 'campaigns', 'mailboxConnectors', 'externalEnrichment'])
+export const ROOT_EXEMPT_SURFACES = Object.freeze(['thirdPartyScanners', 'campaigns', 'mailboxConnectors', 'externalEnrichment', 'webhooks'])
 
 /**
  * Normaliza la respuesta de `GET /system/launch`.

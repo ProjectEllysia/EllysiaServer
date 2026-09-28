@@ -38,7 +38,7 @@ from .managers import (
     IrisFeedbackManager, IrisManager, IrisReportManager, IrisMailboxManager,
     IrisNotificationPreferenceManager, IrisReplayManager, IrisTriageManager, IrisTrustPolicyManager,
     IrisCaseManager, IrisBatchManager, IrisCampaignManager, IrisContactGraphManager, IrisExportManager,
-    IrisEnrichmentManager, IrisUrlExpansionManager, IrisTenantManager,
+    IrisEnrichmentManager, IrisUrlExpansionManager, IrisTenantManager, IrisWebhookManager,
 )
 from .exceptions import (
     IrisAnalysisNotFoundError,
@@ -51,6 +51,7 @@ from .exceptions import (
     IrisCaseNotFoundError,
     IrisSavedViewNotFoundError,
     IrisTrustedSenderNotFoundError,
+    IrisWebhookSubscriptionNotFoundError,
 )
 from .schemas import (
     AnalysisIdQuerySchema,
@@ -132,6 +133,14 @@ from .schemas import (
     TenantConsentRequestSchema,
     TenantIntelResponseSchema,
     TenantPolicyRequestSchema,
+    IrisWebhookCreateRequestSchema,
+    IrisWebhookDeleteResponseSchema,
+    IrisWebhookDeliveriesQuerySchema,
+    IrisWebhookDeliveryListResponseSchema,
+    IrisWebhookDeliverySchema,
+    IrisWebhookListResponseSchema,
+    IrisWebhookSubscriptionSchema,
+    IrisWebhookUpdateRequestSchema,
 )
 
 
@@ -1593,3 +1602,136 @@ def update_notification_preferences(data):
     preference = IrisNotificationPreferenceManager.update(user.id, **changes)
     logger.info(f"Preferencias de notificación de Iris actualizadas por usuario {user.username}")
     return _serialize_notification_preference(preference)
+
+
+# =============================================================================
+# Webhooks
+# =============================================================================
+
+@iris_blp.get("/webhooks")
+@iris_blp.response(200, IrisWebhookListResponseSchema, description="Webhooks of the user and available events")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("300 per hour; 2000 per day")
+@handle_exceptions(logger=logger)
+def list_webhooks():
+    """Webhooks del usuario (sin secretos) y los eventos que se pueden suscribir"""
+    return IrisWebhookManager.list_subscriptions(get_current_user().id)
+
+
+@iris_blp.post("/webhooks")
+@iris_blp.arguments(IrisWebhookCreateRequestSchema)
+@iris_blp.response(201, IrisWebhookSubscriptionSchema, description="Webhook created; the secret is shown only now")
+@iris_blp.alt_response(400, schema=ErrorSchema, description="Invalid name, URL or events")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions or surface closed")
+@iris_blp.alt_response(409, schema=ErrorSchema, description="Webhook limit reached")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_CREATE])
+@limiter.limit("30 per hour; 100 per day")
+@handle_exceptions(default_exception=IrisExecutionError, logger=logger)
+def create_webhook(data):
+    """Dar de alta un webhook firmado; devuelve su secreto de firma una sola vez"""
+    user = get_current_user()
+    subscription = IrisWebhookManager.create_subscription(user.id, data["name"], data["url"], data["eventTypes"])
+    logger.info(f"Webhook {subscription['subscriptionId']} creado por {user.username}")
+    return subscription
+
+
+@iris_blp.patch("/webhooks/<int:subscription_id>")
+@iris_blp.arguments(IrisWebhookUpdateRequestSchema)
+@iris_blp.response(200, IrisWebhookSubscriptionSchema, description="Webhook updated")
+@iris_blp.alt_response(400, schema=ErrorSchema, description="Invalid value")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions or surface closed")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Webhook not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_UPDATE])
+@limiter.limit("120 per hour; 500 per day")
+@handle_exceptions(default_exception=IrisWebhookSubscriptionNotFoundError, logger=logger)
+def update_webhook(data, subscription_id: int):
+    """Cambiar nombre, destino, eventos o activar/desactivar un webhook"""
+    fields_by_key = {"name": "name", "url": "url", "eventTypes": "event_types", "isActive": "is_active"}
+    changes = {argument: data[key] for key, argument in fields_by_key.items() if key in data}
+    return IrisWebhookManager.update_subscription(subscription_id, get_current_user().id, **changes)
+
+
+@iris_blp.post("/webhooks/<int:subscription_id>/secret")
+@iris_blp.response(200, IrisWebhookSubscriptionSchema, description="New signing secret, shown only now")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Webhook not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_UPDATE])
+@limiter.limit("30 per hour; 100 per day")
+@handle_exceptions(default_exception=IrisWebhookSubscriptionNotFoundError, logger=logger)
+def rotate_webhook_secret(subscription_id: int):
+    """Cambiar el secreto de firma de un webhook; el anterior deja de valer al momento"""
+    user = get_current_user()
+    subscription = IrisWebhookManager.rotate_secret(subscription_id, user.id)
+    logger.info(f"Secreto del webhook {subscription_id} rotado por {user.username}")
+    return subscription
+
+
+@iris_blp.delete("/webhooks/<int:subscription_id>")
+@iris_blp.response(200, IrisWebhookDeleteResponseSchema, description="Webhook deleted")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Webhook not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_DELETE])
+@limiter.limit("60 per hour; 300 per day")
+@handle_exceptions(default_exception=IrisWebhookSubscriptionNotFoundError, logger=logger)
+def delete_webhook(subscription_id: int):
+    """Borrar un webhook y su historial de entregas"""
+    user = get_current_user()
+    IrisWebhookManager.delete_subscription(subscription_id, user.id)
+    logger.info(f"Webhook {subscription_id} borrado por {user.username}")
+    return {"message": "Webhook borrado.", "subscriptionId": subscription_id}
+
+
+@iris_blp.get("/webhooks/<int:subscription_id>/deliveries")
+@iris_blp.arguments(IrisWebhookDeliveriesQuerySchema, location="query")
+@iris_blp.response(200, IrisWebhookDeliveryListResponseSchema, description="Delivery history of a webhook")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Webhook not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("300 per hour; 2000 per day")
+@handle_exceptions(default_exception=IrisWebhookSubscriptionNotFoundError, logger=logger)
+def list_webhook_deliveries(args: dict, subscription_id: int):
+    """Historial de entregas de un webhook, de la más nueva a la más antigua"""
+    return IrisWebhookManager.list_deliveries(subscription_id, get_current_user().id, args["page"], args["perPage"])
+
+
+@iris_blp.post("/webhooks/<int:subscription_id>/deliveries/<int:delivery_id>/replay")
+@iris_blp.response(202, IrisWebhookDeliverySchema, description="Delivery queued again with the same event id")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions or surface closed")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Webhook or delivery not found")
+@iris_blp.alt_response(409, schema=ErrorSchema, description="Webhook disabled or delivery still in progress")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_UPDATE])
+@limiter.limit("60 per hour; 300 per day")
+@handle_exceptions(default_exception=IrisWebhookSubscriptionNotFoundError, logger=logger)
+def replay_webhook_delivery(subscription_id: int, delivery_id: int):
+    """Volver a enviar una entrega terminada, con el mismo id de evento"""
+    return IrisWebhookManager().replay_delivery(subscription_id, delivery_id, get_current_user().id)
+
+
+@iris_blp.post("/webhooks/<int:subscription_id>/test")
+@iris_blp.response(202, IrisWebhookDeliverySchema, description="Test event queued")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions or surface closed")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Webhook not found")
+@iris_blp.alt_response(409, schema=ErrorSchema, description="Webhook disabled")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_UPDATE])
+@limiter.limit("30 per hour; 100 per day")
+@handle_exceptions(default_exception=IrisWebhookSubscriptionNotFoundError, logger=logger)
+def test_webhook(subscription_id: int):
+    """Mandar un evento de prueba (ping) a un webhook"""
+    return IrisWebhookManager().send_test_event(subscription_id, get_current_user().id)

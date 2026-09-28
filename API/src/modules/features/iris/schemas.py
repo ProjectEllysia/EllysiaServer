@@ -11,7 +11,7 @@ import src.modules.system.config_reading as CR
 from src.modules.shared import UTCDateTime
 
 from .services.feedback_metrics import FEEDBACK_LABELS
-from .model import CasePriority, CaseStatus, TrustKind
+from .model import SUBSCRIBABLE_WEBHOOK_EVENTS, CasePriority, CaseStatus, TrustKind
 from .services.quality import AnalysisMode
 from .services.scoring import PROFILE_THRESHOLD_OFFSETS
 from .services.trust import MAX_TRUST_EXPIRY_DAYS, MAX_TRUST_REASON_LENGTH
@@ -1394,3 +1394,80 @@ class TenantPolicyRequestSchema(Schema):
 class TenantConsentRequestSchema(Schema):
     """Consentimiento de un miembro para aportar a lo compartido."""
     consent = fields.Boolean(required=True)
+
+
+class IrisWebhookCreateRequestSchema(Schema):
+    """Cuerpo de ``POST /iris/webhooks``: nombre, destino ``https`` y eventos."""
+    name = fields.String(required=True, validate=validate.Length(min=1, max=80))
+    url = fields.String(required=True, validate=validate.Length(min=1, max=2048))
+    eventTypes = fields.List(fields.String(validate=validate.OneOf(SUBSCRIBABLE_WEBHOOK_EVENTS)),
+                             required=True, validate=validate.Length(min=1))
+
+
+class IrisWebhookUpdateRequestSchema(Schema):
+    """Cuerpo de ``PATCH /iris/webhooks/<id>``: solo cambia lo que viene."""
+    name = fields.String(validate=validate.Length(min=1, max=80))
+    url = fields.String(validate=validate.Length(min=1, max=2048))
+    eventTypes = fields.List(fields.String(validate=validate.OneOf(SUBSCRIBABLE_WEBHOOK_EVENTS)),
+                             validate=validate.Length(min=1))
+    isActive = fields.Boolean()
+
+
+class IrisWebhookSubscriptionSchema(Schema):
+    """Un webhook. ``secret`` solo aparece al crearlo o al rotar el secreto."""
+    subscriptionId = fields.Integer()
+    name = fields.String()
+    url = fields.String()
+    eventTypes = fields.List(fields.String())
+    isActive = fields.Boolean()
+    disabledReason = fields.String(allow_none=True)
+    disabledAt = fields.String(allow_none=True)
+    consecutiveFailures = fields.Integer()
+    lastSuccessAt = fields.String(allow_none=True)
+    lastFailureAt = fields.String(allow_none=True)
+    lastError = fields.String(allow_none=True)
+    createdAt = fields.String()
+    updatedAt = fields.String()
+    secret = fields.String()
+
+
+class IrisWebhookListResponseSchema(Schema):
+    """Webhooks del usuario y eventos a los que se puede suscribir."""
+    subscriptions = fields.List(fields.Nested(IrisWebhookSubscriptionSchema))
+    availableEventTypes = fields.List(fields.String())
+
+
+class IrisWebhookDeleteResponseSchema(Schema):
+    """Confirmación tras borrar un webhook."""
+    message = fields.String()
+    subscriptionId = fields.Integer()
+
+
+class IrisWebhookDeliveriesQuerySchema(Schema):
+    """Paginación de ``GET /iris/webhooks/<id>/deliveries``."""
+    page = fields.Integer(load_default=1, validate=validate.Range(min=1))
+    perPage = fields.Integer(load_default=20, validate=validate.Range(min=1, max=100))
+
+
+class IrisWebhookDeliverySchema(Schema):
+    """Una entrega de un evento: estado, intentos y lo que se envía."""
+    deliveryId = fields.Integer()
+    eventId = fields.String()
+    eventType = fields.String()
+    status = fields.String()
+    attempts = fields.Integer()
+    nextAttemptAt = fields.String(allow_none=True)
+    lastStatusCode = fields.Integer(allow_none=True)
+    lastError = fields.String(allow_none=True)
+    lastResponseExcerpt = fields.String(allow_none=True)
+    createdAt = fields.String()
+    deliveredAt = fields.String(allow_none=True)
+    payload = fields.Dict()
+
+
+class IrisWebhookDeliveryListResponseSchema(Schema):
+    """Historial de entregas de un webhook, de la más nueva a la más antigua."""
+    deliveries = fields.List(fields.Nested(IrisWebhookDeliverySchema))
+    total = fields.Integer()
+    page = fields.Integer()
+    perPage = fields.Integer()

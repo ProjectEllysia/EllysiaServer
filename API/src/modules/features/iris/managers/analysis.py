@@ -41,7 +41,7 @@ from ..exceptions import (
     IrisInvalidStateError,
     IrisRawMessagePurgedError,
 )
-from ..model import IrisAnalysis, IrisIndicator, IrisRuleResult
+from ..model import IrisAnalysis, IrisIndicator, IrisRuleResult, WebhookEventType
 from ..repositories import (
     IrisAnalysisRepository,
     IrisAnalystFeedbackRepository,
@@ -94,6 +94,8 @@ from .campaigns import IrisCampaignManager
 from .tenant import IrisTenantManager
 from .notifications import IrisPhishingNotifyManager
 from .trust import IrisTrustPolicyManager
+from .webhooks import IrisWebhookManager
+from ..services.webhook_events import build_analysis_finished_data, emit_event
 
 
 logger = logging.getLogger(__name__)
@@ -559,6 +561,10 @@ def _persist_analysis_results(analysis_id: int, rules_defs: List[dict],
     se sobreescribe en silencio de vuelta a ``finished``. Las filas de
     regla se escriben de todos modos: son ciertas pase lo que pase.
 
+    Si la transición gana, en la misma transacción queda emitido el evento
+    ``analysis.finished`` para los webhooks del dueño, y tras el commit se
+    encola su envío.
+
     Args:
         analysis_id: Primary key del análisis.
         rules_defs: Catálogo evaluado; se empareja por posición con los
@@ -622,6 +628,7 @@ def _persist_analysis_results(analysis_id: int, rules_defs: List[dict],
             }
 
         analysis_repo = IrisAnalysisRepository(uow)
+        finished_at = utcnow_naive()
         transitioned = analysis_repo.transition_if_state(
             analysis_id, ["running"],
             status="finished", total_score=winner.total_score, verdict=winner.verdict,
@@ -638,14 +645,30 @@ def _persist_analysis_results(analysis_id: int, rules_defs: List[dict],
             subject_fingerprint=campaign_traits.subject_fingerprint if campaign_traits else None,
             template_fingerprint=campaign_traits.template_fingerprint if campaign_traits else None,
             impersonated_brands=list(campaign_traits.brands) or None if campaign_traits else None,
-            finished_at=utcnow_naive(),
+            finished_at=finished_at,
         )
-        if not transitioned:
+        delivery_ids: List[int] = []
+        if transitioned:
+            # Solo emite quien gana la transición: un job repetido encuentra el
+            # análisis ya ``finished`` y no avisa dos veces.
+            analysis = analysis_repo.get_by_id(analysis_id)
+            delivery_ids = emit_event(
+                uow, analysis.user_id, WebhookEventType.ANALYSIS_FINISHED.value,
+                f"analysis.finished:{analysis_id}",
+                build_analysis_finished_data(
+                    analysis, winner.verdict, winner.total_score, winner.quality.quality,
+                    confidence.level if confidence else None, finished_at,
+                ),
+                occurred_at=finished_at,
+            )
+        else:
             logger.info(
                 f"Análisis {analysis_id} ya no estaba running al terminar de "
                 "evaluar las reglas (probablemente cancelado) -- no se sobreescribe."
             )
-        return transitioned
+    if delivery_ids:
+        IrisWebhookManager().dispatch_deliveries(delivery_ids)
+    return transitioned
 
 def _group_into_campaign(analysis_id: int, verdict: str, traits: CampaignTraits,
                          indicators: List[tuple]) -> None:

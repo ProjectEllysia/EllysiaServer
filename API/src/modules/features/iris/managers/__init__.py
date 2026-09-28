@@ -36,6 +36,8 @@ Managers del módulo Iris (análisis de correo).
   los redirects de una URL de un análisis hasta su destino real.
 - ``IrisTenantManager`` (``tenant.py``): inteligencia compartida en una
   organización, con la política del dueño y el consentimiento de cada miembro.
+- ``IrisWebhookManager`` (``webhooks.py``): webhooks firmados hacia los
+  sistemas del usuario (SIEM, SOAR), con reintentos, historial y reenvío.
 
 Iris era el único módulo con
 **dos** ficheros de managers en la raíz — ``managers.py`` (64 KB, el
@@ -66,9 +68,11 @@ from .exports import IrisExportManager
 from .enrichment import IrisEnrichmentManager
 from .url_expansion import IrisUrlExpansionManager
 from .tenant import IrisTenantManager
+from .webhooks import IrisWebhookManager
 
 __all__ = [
     "IrisManager",
+    "IrisWebhookManager",
     "IrisTrustPolicyManager",
     "IrisTriageManager",
     "IrisCaseManager",

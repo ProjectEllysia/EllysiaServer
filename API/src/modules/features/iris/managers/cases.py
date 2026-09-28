@@ -20,10 +20,11 @@ from src.modules.infrastructure import UnitOfWork, build_repository
 from src.modules.shared import assert_owned, isoformat_utc, utcnow_naive
 
 from ..exceptions import IrisCaseNotFoundError, IrisInvalidInputError
-from ..model import CasePriority, IrisCase, IrisCaseAnalysis, IrisCaseEvent
+from ..model import CasePriority, IrisCase, IrisCaseAnalysis, IrisCaseEvent, WebhookEventType
 from ..repositories import IrisCaseAnalysisRepository, IrisCaseEventRepository, IrisCaseRepository
 from ..services.cases import MAX_CASE_TEXT_LENGTH, validate_transition
 from ..services.tags import normalize_tags
+from ..services.webhook_events import build_case_updated_data, emit_event
 from .analysis import IrisManager
 
 #: Análisis que se pueden vincular a un caso al crearlo, en una sola petición.
@@ -75,11 +76,19 @@ def _record_event(uow: UnitOfWork, case: IrisCase, actor_id: int, kind: str,
             ``analysis_linked`` o ``analysis_unlinked``.
         detail: Datos del cambio (``from``/``to``, ``analysisId``…). Por defecto ``None``.
         note: Texto de una nota. Por defecto ``None``.
+
+    Se llama **después** de aplicar el cambio al caso: cada entrada emite
+    también ``case.updated`` para los webhooks del dueño, en la misma
+    transacción, con el caso tal como queda. No se encola el envío aquí: la request confirma
+    al terminar, después de esta función, y el worker no vería la entrega sin
+    confirmar; la recoge el barrido de webhooks en su siguiente pasada.
     """
     case.updated_at = utcnow_naive()
-    IrisCaseEventRepository(uow).save(IrisCaseEvent(
+    event = IrisCaseEventRepository(uow).save(IrisCaseEvent(
         case_id=case.id, actor_id=actor_id, kind=kind, detail=detail, note=note,
     ))
+    emit_event(uow, case.user_id, WebhookEventType.CASE_UPDATED.value, f"case.updated:event:{event.id}",
+               build_case_updated_data(case, event), occurred_at=event.created_at)
 
 def _assert_case(uow: UnitOfWork, case_id: int, user_id: int) -> IrisCase:
     """Carga un caso dentro de la transacción y comprueba que es del usuario.
@@ -274,25 +283,25 @@ class IrisCaseManager:
                 if not cleaned:
                     raise _invalid_input("El caso necesita un título.")
                 if cleaned != case.title:
-                    _record_event(uow, case, user_id, "title_changed", {"from": case.title, "to": cleaned})
-                    case.title = cleaned
+                    previous_title, case.title = case.title, cleaned
+                    _record_event(uow, case, user_id, "title_changed", {"from": previous_title, "to": cleaned})
             if priority is not _UNSET and priority != case.priority:
                 if priority not in {member.value for member in CasePriority}:
                     raise _invalid_input(f"Prioridad desconocida: {priority!r}.")
-                _record_event(uow, case, user_id, "priority_changed", {"from": case.priority, "to": priority})
-                case.priority = priority
+                previous_priority, case.priority = case.priority, priority
+                _record_event(uow, case, user_id, "priority_changed", {"from": previous_priority, "to": priority})
             if tags is not _UNSET:
                 cleaned_tags = _clean_tags(tags)
                 if cleaned_tags != list(case.tags or []):
-                    _record_event(uow, case, user_id, "tags_changed", {"from": list(case.tags or []), "to": cleaned_tags})
-                    case.tags = cleaned_tags
+                    previous_tags, case.tags = list(case.tags or []), cleaned_tags
+                    _record_event(uow, case, user_id, "tags_changed", {"from": previous_tags, "to": cleaned_tags})
             if assignee_id is not _UNSET and assignee_id != case.assignee_id:
                 if assignee_id is not None and assignee_id != case.user_id:
                     raise _invalid_input(
                         "Un caso solo se puede asignar a quien puede ver sus análisis: su dueño."
                     )
-                _record_event(uow, case, user_id, "assigned", {"from": case.assignee_id, "to": assignee_id})
-                case.assignee_id = assignee_id
+                previous_assignee, case.assignee_id = case.assignee_id, assignee_id
+                _record_event(uow, case, user_id, "assigned", {"from": previous_assignee, "to": assignee_id})
             IrisCaseRepository(uow).update(case)
         return self.get_case(case_id, user_id)
 
@@ -323,11 +332,12 @@ class IrisCaseManager:
                 cleaned_reason = validate_transition(case.status, status, reason)
             except ValueError as e:
                 raise _invalid_input(str(e)) from e
-            _record_event(uow, case, user_id, "status_changed",
-                          {"from": case.status, "to": status, "reason": cleaned_reason})
+            previous_status = case.status
             case.status = status
             case.resolution_reason = cleaned_reason
             case.closed_at = utcnow_naive() if cleaned_reason else None
+            _record_event(uow, case, user_id, "status_changed",
+                          {"from": previous_status, "to": status, "reason": cleaned_reason})
             IrisCaseRepository(uow).update(case)
         return self.get_case(case_id, user_id)
 
