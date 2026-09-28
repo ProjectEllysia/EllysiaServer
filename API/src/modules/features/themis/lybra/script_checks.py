@@ -53,7 +53,7 @@ from .checks import (
 )
 from .engine import Service
 from .fingerprinting.smb import SIGNING_REQUIRED_BIT, SmbProbe, fingerprint_smb
-from .fingerprinting.ldap import LdapProbe, fingerprint_ldap
+from .fingerprinting.ldap import LdapProbe, fingerprint_ldap, search_returned_entries
 from .fingerprinting.mongo import MongoProbe, fingerprint_mongo
 from .fingerprinting.postgres import PostgresProbe, fingerprint_postgres
 from .fingerprinting.rdp import RdpProbe, fingerprint_rdp
@@ -262,16 +262,22 @@ class MongoUnauthenticatedAccessPlugin(ScriptPlugin):
 
 
 class LdapAnonymousBindPlugin(ScriptPlugin):
-    """Detecta un servidor de directorio que acepta un bind **anónimo**.
+    """Detecta un servidor de directorio que expone contenido con un bind **anónimo**.
 
-    Si el rootDSE contesta sin credenciales, la información del directorio es
-    pública: quién sirve qué dominio, qué mecanismos de autenticación admite y,
-    en muchos despliegues, bastante más si la consulta se amplía.
+    Que el servidor acepte el bind anónimo no es, por sí solo, el hallazgo:
+    todo servidor LDAP conforme al estándar —y en particular cualquier
+    controlador de dominio de Active Directory— lo acepta para servir el
+    rootDSE público (RFC 4511 §4.2), y eso no expone nada. El hallazgo real es
+    que una búsqueda anónima bajo el dominio que el propio servidor publica
+    (``namingContexts``) devuelva entradas del directorio: ahí sí hay
+    información que debería requerir credenciales y no las pide.
 
-    Un bind anónimo no es un intento de adivinar credenciales: es la forma que
-    el propio protocolo define para preguntar sin identificarse (RFC 4511
-    §4.2), y lo que se observa es si el servidor **la acepta**. No se prueba
-    ninguna contraseña.
+    Por eso el check encadena dos sondas: primero el bind más el rootDSE
+    (:meth:`LdapProbe.fetch`, para leer el primer ``namingContexts``) y sólo
+    si hay un dominio publicado, una búsqueda de una sola entrada bajo ese
+    dominio (:meth:`LdapProbe.fetch_naming_context_entries`). Sin dominio
+    publicado no hay base sobre la que buscar, y sin entradas no hay nada que
+    el bind anónimo esté exponiendo.
 
     Args:
         probe: Sonda inyectable, para que un test use un socket falso.
@@ -287,10 +293,21 @@ class LdapAnonymousBindPlugin(ScriptPlugin):
 
     def run(self, context: ScriptContext) -> bool:
         context.acquire()
-        replies = self._probe.fetch(context.target, context.service.port or 389)
+        port = context.service.port or 389
+        replies = self._probe.fetch(context.target, port)
         if replies is None:
             return False
-        return fingerprint_ldap(*replies).allows_anonymous_bind
+        naming_contexts = fingerprint_ldap(*replies).naming_contexts
+        if not naming_contexts:
+            # Sin un dominio publicado no hay base sobre la que buscar, así
+            # que no hay forma de confirmar que el bind anónimo expone algo.
+            return False
+        context.acquire()
+        entries_reply = self._probe.fetch_naming_context_entries(
+            context.target, naming_contexts[0], port)
+        if entries_reply is None:
+            return False
+        return search_returned_entries(entries_reply)
 
 
 class LdapCleartextWithLdapsPlugin(ScriptPlugin):

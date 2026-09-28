@@ -922,7 +922,7 @@ checks:
       qod: 99
       confirmed: true
   - id: ldap-anonymous-bind
-    version: 1
+    version: 2
     type: script
     script: ldap-anonymous-bind
     category: network_config
@@ -930,7 +930,7 @@ checks:
     service: ldap
     mode: safe
     finding:
-      title: 'LDAP: bind anonimo permitido (el directorio es publico)'
+      title: 'LDAP: una busqueda anonima devuelve entradas del directorio'
       qod: 99
       confirmed: true
   - id: ldap-cleartext-with-ldaps
