@@ -509,9 +509,7 @@ class VaultManager:
 
             try:
                 if is_recovery not in vault_cache:
-                    vault_cache[is_recovery] = self.get_vault_for_user(
-                        is_recovery=is_recovery
-                    )
+                    vault_cache[is_recovery] = self.get_vault_for_user()
 
                 vault = vault_cache[is_recovery]
                 if not vault:
