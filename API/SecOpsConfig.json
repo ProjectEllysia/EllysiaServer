@@ -251,6 +251,7 @@
             "udpRetries": 1,
             "udpBudgetSeconds": 20.0,
             "rateLimitInterval": 0.2,
+            "rateLimitMaxBackoffFactor": 8.0,
             "hostPoolSize": 8,
             "httpTimeout": 8,
             "httpMaxBodyBytes": 131072,
@@ -1388,12 +1389,12 @@
         "cpuPct": {
           "warning": 85,
           "critical": 95,
-          "sustainedHeartbeats": 3
+          "sustainedHeartbeats": 6
         },
         "memPct": {
           "warning": 85,
           "critical": 95,
-          "sustainedHeartbeats": 3
+          "sustainedHeartbeats": 10
         },
         "diskPct": {
           "warning": 85,
