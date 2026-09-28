@@ -40,6 +40,10 @@ Everything here is deliberately free of the ORM and of network side effects
 where it can be: pure functions take plain values and return plain dicts, and the
 few pieces that must touch the network (the probes and fetchers) take injectable
 callables so they can be tested without it.
+
+El análisis web activo (DAST-lite) también está archivado, no pendiente: la
+decisión, con qué haría falta para reabrirla, está en el docstring de
+``crawler.py``.
 """
 
 from __future__ import annotations
