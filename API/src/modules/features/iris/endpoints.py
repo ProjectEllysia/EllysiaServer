@@ -41,7 +41,7 @@ from .managers import (
     IrisNotificationPreferenceManager, IrisReplayManager, IrisTriageManager, IrisTrustPolicyManager,
     IrisCaseManager, IrisBatchManager, IrisCampaignManager, IrisContactGraphManager, IrisExportManager,
     IrisEnrichmentManager, IrisUrlExpansionManager, IrisTenantManager, IrisWebhookManager,
-    IrisReportingManager,
+    IrisReportingManager, IrisRemediationManager,
 )
 from .exceptions import (
     IrisAnalysisNotFoundError,
@@ -57,6 +57,7 @@ from .exceptions import (
     IrisWebhookSubscriptionNotFoundError,
     IrisIntegrationTokenNotFoundError,
     IrisInvalidIntegrationTokenError,
+    IrisMailboxActionNotFoundError,
 )
 from .schemas import (
     AnalysisIdQuerySchema,
@@ -151,6 +152,12 @@ from .schemas import (
     IrisIntegrationTokenSchema,
     IrisReportResponseSchema,
     IrisReportStatusSchema,
+    IrisMailboxActionListSchema,
+    IrisMailboxActionRequestSchema,
+    IrisMailboxActionSchema,
+    IrisMailboxActionsQuerySchema,
+    IrisMailboxMessageActionsSchema,
+    IrisMailboxRollbackRequestSchema,
 )
 
 
@@ -1334,6 +1341,8 @@ def _serialize_connection(connection) -> dict:
         "folderDisplayName": connection.folder_display_name,
         "folderType": connection.folder_type,
         "fullMessageMode": connection.full_message_mode,
+        "remediationEnabled": connection.remediation_enabled,
+        "canAct": IrisMailboxManager.can_act_on(connection),
         "status": connection.status,
         "lastSyncAt": connection.last_sync_at,
         "lastError": connection.last_error,
@@ -1375,6 +1384,7 @@ def connect_mailbox(data):
         user.id, data["provider"],
         full_message_mode=data.get("fullMessageMode", False),
         folder=data.get("folder"),
+        remediation_enabled=data.get("remediationEnabled", False),
     )
     logger.info(f"Usuario {user.username} inició conexión de buzón ({data['provider']})")
     return {"authorizeUrl": authorize_url}, 201
@@ -1912,3 +1922,86 @@ def submit_report():
 def get_report_status(analysis_id: int):
     """Estado y veredicto del análisis de un correo reportado (token de integración)"""
     return IrisReportingManager.get_report_status(analysis_id, request.current_user_id)  # type: ignore[attr-defined]
+
+
+# =============================================================================
+# Acciones sobre el buzón conectado: cuarentena, spam, papelera (auditadas)
+# =============================================================================
+
+@iris_blp.get("/mailbox/messages/<int:analysis_id>/actions")
+@iris_blp.response(200, IrisMailboxMessageActionsSchema, description="Recommendation, possible actions and history")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Analysis not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("600 per hour; 4000 per day")
+@handle_exceptions(default_exception=IrisAnalysisNotFoundError, logger=logger)
+def get_mailbox_message_actions(analysis_id: int):
+    """Qué recomienda Iris hacer con el correo de un análisis, qué se puede hacer y qué se hizo"""
+    return IrisRemediationManager.get_message_actions(analysis_id, get_current_user().id)
+
+
+@iris_blp.post("/mailbox/messages/<int:analysis_id>/actions")
+@iris_blp.arguments(IrisMailboxActionRequestSchema)
+@iris_blp.response(202, IrisMailboxActionSchema, description="Action requested (or the one already applied)")
+@iris_blp.alt_response(400, schema=ErrorSchema, description="Unknown action, missing reason or confirmation")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Missing iris_mailbox_action or surface closed")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Analysis not found")
+@iris_blp.alt_response(409, schema=ErrorSchema, description="Not actionable, reconnection needed or action in progress")
+@require_oauth_token
+@require_attributes(all_required=[AttributeType.IRIS_MAILBOX_ACTION])
+@limiter.limit("120 per hour; 500 per day")
+@handle_exceptions(default_exception=IrisAnalysisNotFoundError, logger=logger)
+def request_mailbox_action(data, analysis_id: int):
+    """Actuar sobre el correo en el buzón conectado (cuarentena, etiqueta, spam, papelera)"""
+    user = get_current_user()
+    return IrisRemediationManager().request_action(
+        analysis_id, user.id, data["action"], data["reason"], data["confirm"], data["idempotencyKey"],
+    )
+
+
+@iris_blp.post("/mailbox/actions/<int:action_id>/rollback")
+@iris_blp.arguments(IrisMailboxRollbackRequestSchema)
+@iris_blp.response(202, IrisMailboxActionSchema, description="Rollback requested")
+@iris_blp.alt_response(400, schema=ErrorSchema, description="Missing reason")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Missing iris_mailbox_action or surface closed")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Action not found")
+@iris_blp.alt_response(409, schema=ErrorSchema, description="Not reversible, in progress or reconnection needed")
+@require_oauth_token
+@require_attributes(all_required=[AttributeType.IRIS_MAILBOX_ACTION])
+@limiter.limit("120 per hour; 500 per day")
+@handle_exceptions(default_exception=IrisMailboxActionNotFoundError, logger=logger)
+def rollback_mailbox_action(data, action_id: int):
+    """Deshacer una acción sobre el buzón: el correo vuelve a donde estaba"""
+    return IrisRemediationManager().request_rollback(action_id, get_current_user().id, data["reason"])
+
+
+@iris_blp.get("/mailbox/actions/<int:action_id>")
+@iris_blp.response(200, IrisMailboxActionSchema, description="One mailbox action, to poll its outcome")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Action not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("1200 per hour; 8000 per day")
+@handle_exceptions(default_exception=IrisMailboxActionNotFoundError, logger=logger)
+def get_mailbox_action(action_id: int):
+    """Una acción sobre el buzón, para ver cómo acabó"""
+    return IrisRemediationManager.get_action(action_id, get_current_user().id)
+
+
+@iris_blp.get("/mailbox/actions")
+@iris_blp.arguments(IrisMailboxActionsQuerySchema, location="query")
+@iris_blp.response(200, IrisMailboxActionListSchema, description="Audit log of the user's mailbox actions")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("300 per hour; 2000 per day")
+@handle_exceptions(logger=logger)
+def list_mailbox_actions(args: dict):
+    """Registro de las acciones sobre buzones hechas por el usuario"""
+    return IrisRemediationManager.list_actions(get_current_user().id, args["page"], args["perPage"])

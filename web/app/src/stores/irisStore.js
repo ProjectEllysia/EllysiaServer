@@ -815,6 +815,43 @@ export const useIrisStore = defineStore('iris', () => {
     return revoked
   }
 
+  /* ═════════════════ ACCIONES SOBRE EL BUZÓN (CUARENTENA…) ═════════════════ */
+
+  /** Recomendación, acciones posibles e historial del correo de cada análisis, por id de análisis. */
+  const mailboxActions = reactive({})
+
+  /** Carga lo que se puede hacer con el correo de un análisis y lo que ya se hizo. */
+  async function fetchMailboxActions(analysisId) {
+    const res = await apiFetch(`/iris/mailbox/messages/${analysisId}/actions`)
+    if (res?.ok) mailboxActions[analysisId] = await res.json()
+    return mailboxActions[analysisId] ?? null
+  }
+
+  /**
+   * Pide una acción sobre el correo de un análisis. La hace el servidor en segundo plano.
+   * @param {number} analysisId
+   * @param {{action: string, reason: string, confirm: boolean}} request
+   * @returns {Promise<object|null>} La acción pedida, o null si falló.
+   */
+  async function requestMailboxAction(analysisId, request) {
+    const idempotencyKey = globalThis.crypto?.randomUUID?.() ?? null
+    const requested = await _integrationRequest(`/iris/mailbox/messages/${analysisId}/actions`, 'POST',
+      { ...request, idempotencyKey }, i18n.global.t('irisStore.mailboxActionFailed'))
+    if (requested) {
+      toast.show(i18n.global.t('iris.remediation.requested'), 'success')
+      await fetchMailboxActions(analysisId)
+    }
+    return requested
+  }
+
+  /** Pide deshacer una acción y refresca el historial del análisis. */
+  async function rollbackMailboxAction(analysisId, actionId, reason) {
+    const requested = await _integrationRequest(`/iris/mailbox/actions/${actionId}/rollback`, 'POST', { reason },
+      i18n.global.t('irisStore.mailboxRollbackFailed'))
+    if (requested) await fetchMailboxActions(analysisId)
+    return requested
+  }
+
   /* ═══════════════════════ CASOS DE ANALISTA ══════════════════════════ */
 
   const cases = reactive({
@@ -1312,6 +1349,7 @@ export const useIrisStore = defineStore('iris', () => {
     Object.assign(organizationIntel, { loading: false, loaded: false, data: null, notInOrganization: false })
     Object.assign(webhooks, { items: [], availableEventTypes: [], loading: false, loaded: false, lastSecret: null, deliveries: {} })
     Object.assign(integrationTokens, { items: [], loading: false, loaded: false, lastToken: null })
+    for (const analysisId of Object.keys(mailboxActions)) delete mailboxActions[analysisId]
     closeBatch()
 
     currentId.value = null
@@ -1342,6 +1380,7 @@ export const useIrisStore = defineStore('iris', () => {
     webhooks, fetchWebhooks, createWebhook, updateWebhook, rotateWebhookSecret, deleteWebhook,
     fetchWebhookDeliveries, testWebhook, replayWebhookDelivery,
     integrationTokens, fetchIntegrationTokens, createIntegrationToken, revokeIntegrationToken,
+    mailboxActions, fetchMailboxActions, requestMailboxAction, rollbackMailboxAction,
     cases, currentCase, fetchCases, fetchCase, createCase, updateCase, changeCaseStatus,
     addCaseNote, linkCaseAnalysis, unlinkCaseAnalysis,
     currentBatch, batchSubmitting, submitBatch, closeBatch,

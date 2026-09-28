@@ -114,6 +114,7 @@
       "irisCase": "Caso no encontrado.",
       "irisIndicator": "Indicador no encontrado.",
       "irisIntegrationToken": "Token de integración no encontrado.",
+      "irisMailboxAction": "Acción no encontrada.",
       "irisMailboxConnection": "Conexión de buzón no encontrada.",
       "irisSavedView": "Vista guardada no encontrada.",
       "irisTrustedSender": "Excepción de confianza no encontrada.",
@@ -155,7 +156,14 @@
     "irisBatchBackpressure": "Tienes {active} análisis en marcha y el lote añadiría {requested}; el máximo a la vez es {limit}. Espera a que terminen y vuelve a enviarlo: no se ha creado nada.",
     "irisIntegrationTokenLimitReached": "Ya tienes {limit} tokens de integración vigentes, el máximo. Revoca uno para crear otro.",
     "irisInvalidIntegrationToken": "El token de integración no es válido, está revocado o ha caducado.",
+    "irisMailboxActionConfirmationRequired": "Esta acción saca el correo de tu bandeja: confírmala para hacerla.",
+    "irisMailboxActionConnectionGone": "El buzón por el que llegó este correo ya no está conectado.",
+    "irisMailboxActionInProgress": "Ya hay una acción en curso sobre este correo. Espera a que termine.",
+    "irisMailboxActionMissingScope": "Este buzón se conectó en solo lectura. Vuelve a conectarlo con las acciones activadas.",
+    "irisMailboxActionNotFromMailbox": "Este correo no llegó por un buzón conectado, así que Iris no puede actuar sobre él.",
+    "irisMailboxActionNotReversible": "Esta acción no se puede deshacer: no llegó a aplicarse o ya se deshizo.",
     "irisMailboxInvalidFolder": "«{folder}» no es una carpeta válida para esta cuenta.",
+    "irisMailboxReauthRequired": "Este buzón necesita que lo vuelvas a conectar antes de poder actuar sobre él.",
     "irisNotInOrganization": "No perteneces a ninguna organización.",
     "irisTenantOwnerRequired": "Solo el dueño de la organización puede cambiar esto.",
     "irisWebhookDeliveryInProgress": "Esta entrega todavía está en curso; se podrá reenviar cuando termine.",
@@ -1947,6 +1955,10 @@
       "inbox": "Bandeja de entrada",
       "fullHint": "Iris lee el correo completo (cuerpo y adjuntos incluidos)",
       "headersHint": "Iris solo lee las cabeceras",
+      "actions": "Acciones activadas",
+      "actionsHint": "Iris puede poner en cuarentena o mandar a spam los correos de este buzón cuando tú se lo pidas",
+      "readOnly": "Solo lectura",
+      "readOnlyHint": "Iris no puede mover ni borrar nada en este buzón",
       "full": "Correo completo",
       "lastSync": "Último sondeo: {when}",
       "resume": "Reanudar",
@@ -2124,6 +2136,8 @@
       "history": "historial de Análisis",
       "connecting": "Conectando…",
       "connect": "Conectar cuenta",
+      "remediation": "Permitir que Iris actúe sobre este buzón",
+      "remediationHint": "Pide a Google o Microsoft permiso para mover correos. Iris nunca actúa solo: tú decides cada acción, con un motivo, y todas se pueden deshacer. Sin esto, la conexión solo lee.",
       "deleteTitle": "Eliminar conexión",
       "deleteMessage": "Se eliminará la conexión con {email}. Iris dejará de analizar este buzón automáticamente.",
       "connected": "Buzón conectado correctamente.",
@@ -2384,6 +2398,40 @@
         "title": "¿Revocar «{name}»?",
         "message": "El cliente que lo use dejará de poder reportar correos al momento."
       }
+    },
+    "remediation": {
+      "title": "Actuar en tu buzón",
+      "intro": "Este correo llegó por un buzón conectado. Iris te recomienda qué hacer, pero no hace nada hasta que tú lo pides. Todo queda registrado y se puede deshacer.",
+      "recommended": "Recomendación de Iris: {action}",
+      "noRecommendation": "Iris no recomienda hacer nada con este correo.",
+      "reason": "Por qué lo haces",
+      "reasonPlaceholder": "Ej.: suplanta a nuestro banco y pide la contraseña",
+      "confirmTitle": "¿{action}?",
+      "confirmMessage": "El correo saldrá de tu bandeja. Quedará registrado con tu motivo y lo podrás deshacer.",
+      "requested": "Acción pedida; en unos segundos verás el resultado.",
+      "undo": "Deshacer",
+      "undoReason": "Deshecho desde el informe",
+      "history": "Lo que se ha hecho con este correo",
+      "undoneBy": "deshacer",
+      "actions": {
+        "quarantine": "Poner en cuarentena",
+        "label": "Marcar como sospechoso",
+        "report_phishing": "Mandar a spam",
+        "delete": "Mandar a la papelera"
+      },
+      "statuses": {
+        "pending": "Pendiente",
+        "running": "En curso",
+        "succeeded": "Hecho",
+        "failed": "Falló",
+        "rolled_back": "Deshecho"
+      },
+      "unavailable": {
+        "not_from_mailbox": "Este correo no llegó por un buzón conectado.",
+        "connection_gone": "El buzón por el que llegó ya no está conectado.",
+        "reauth_required": "El buzón necesita que lo vuelvas a conectar.",
+        "missing_scope": "El buzón está en solo lectura. Vuelve a conectarlo con las acciones activadas para poder actuar."
+      }
     }
   },
   "irisHub": {
@@ -2549,7 +2597,9 @@
     "webhookReplayFailed": "No se pudo reenviar el aviso.",
     "integrationTokenCreateFailed": "No se pudo crear el token.",
     "integrationTokenRevoked": "Token revocado.",
-    "integrationTokenRevokeFailed": "No se pudo revocar el token."
+    "integrationTokenRevokeFailed": "No se pudo revocar el token.",
+    "mailboxActionFailed": "No se pudo pedir la acción.",
+    "mailboxRollbackFailed": "No se pudo deshacer la acción."
   },
   "aegis": {
     "campaignStatus": {

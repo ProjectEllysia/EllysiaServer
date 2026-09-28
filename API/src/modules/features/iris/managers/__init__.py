@@ -40,6 +40,8 @@ Managers del módulo Iris (análisis de correo).
   sistemas del usuario (SIEM, SOAR), con reintentos, historial y reenvío.
 - ``IrisReportingManager`` (``reporting.py``): tokens de integración y
   reportes de correo hechos desde un cliente de correo con ellos.
+- ``IrisRemediationManager`` (``remediation.py``): acciones sobre el correo
+  del buzón conectado (cuarentena, spam, papelera), auditadas y reversibles.
 
 Iris era el único módulo con
 **dos** ficheros de managers en la raíz — ``managers.py`` (64 KB, el
@@ -72,11 +74,13 @@ from .url_expansion import IrisUrlExpansionManager
 from .tenant import IrisTenantManager
 from .webhooks import IrisWebhookManager
 from .reporting import IrisReportingManager
+from .remediation import IrisRemediationManager
 
 __all__ = [
     "IrisManager",
     "IrisWebhookManager",
     "IrisReportingManager",
+    "IrisRemediationManager",
     "IrisTrustPolicyManager",
     "IrisTriageManager",
     "IrisCaseManager",

@@ -13,6 +13,14 @@
           </template>
         </i18n-t>
 
+        <label class="remediation-toggle">
+          <input v-model="remediationEnabled" type="checkbox" />
+          <span>
+            <strong>{{ t('iris.connections.remediation') }}</strong>
+            <span class="remediation-hint">{{ t('iris.connections.remediationHint') }}</span>
+          </span>
+        </label>
+
         <div v-if="store.providers.length" class="provider-grid">
           <button
             v-for="(provider, index) in store.providers"
@@ -21,7 +29,7 @@
             class="provider-card"
             :style="{ '--card-delay': index * 60 + 'ms' }"
             :disabled="store.connecting"
-            @click="store.connect(provider)"
+            @click="store.connect(provider, { remediationEnabled })"
           >
             <span class="provider-icon">
               <svg v-if="provider === 'gmail'" viewBox="0 0 24 24" aria-hidden="true">
@@ -55,7 +63,7 @@
           :error="store.listError"
           :syncing-ids="store.syncingIds"
           @refresh="store.fetchConnections"
-          @reconnect="conn => store.connect(conn.provider)"
+          @reconnect="conn => store.connect(conn.provider, { remediationEnabled: conn.remediationEnabled })"
           @toggle-pause="handleTogglePause"
           @sync="handleSync"
           @delete="handleDeleteRequest"
@@ -94,6 +102,8 @@ const route = useRoute()
 const router = useRouter()
 
 const pendingDelete = ref(null)
+/** Si la próxima conexión pide permiso para actuar sobre el buzón (por defecto, solo lectura). */
+const remediationEnabled = ref(false)
 
 const PROVIDER_LABELS = { microsoft: 'Microsoft 365', gmail: 'Gmail' }
 function providerLabel(provider) { return PROVIDER_LABELS[provider] || provider }
@@ -186,6 +196,12 @@ async function confirmDelete() {
 .panel-sub { margin: 0 0 1.2rem; font-size: var(--fs-md); line-height: 1.55; color: var(--text-dim); max-width: 62ch; }
 .inline-link { color: var(--accent-bright); text-decoration: underline; text-underline-offset: 2px; }
 
+.remediation-toggle {
+  display: flex; align-items: flex-start; gap: 0.6rem; margin: 0 0 1rem;
+  font-size: var(--fs-md); color: var(--text);
+}
+.remediation-toggle input { margin-top: 0.25rem; }
+.remediation-hint { display: block; font-size: var(--fs-sm); color: var(--text-muted); line-height: 1.5; }
 .provider-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 0.75rem; }
 
 .provider-card {

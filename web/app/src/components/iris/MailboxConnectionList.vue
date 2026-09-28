@@ -64,6 +64,10 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M7 8h10M7 12h10M7 16h6" /></svg>
               {{ conn.fullMessageMode ? t('iris.mailboxes.full') : t('iris.form.headersOnly') }}
             </span>
+            <span class="meta-chip" :class="{ 'meta-chip--full': conn.canAct }"
+              :title="conn.canAct ? t('iris.mailboxes.actionsHint') : t('iris.mailboxes.readOnlyHint')">
+              {{ conn.canAct ? t('iris.mailboxes.actions') : t('iris.mailboxes.readOnly') }}
+            </span>
           </div>
 
           <p class="card-sync">{{ t('iris.mailboxes.lastSync', { when: timeAgo(conn.lastSyncAt) }) }}</p>

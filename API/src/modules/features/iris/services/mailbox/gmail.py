@@ -25,7 +25,7 @@ import requests
 
 import src.modules.system.config_reading as CR
 
-from .base import MailboxConnector, MailboxFolder, MessageRef, TokenSet
+from .base import ActionResult, MailboxConnector, MailboxFolder, MessageRef, TokenSet
 from .registry import register_connector
 
 logger = logging.getLogger(__name__)
@@ -37,6 +37,13 @@ _API_BASE = "https://gmail.googleapis.com/gmail/v1/users/me"
 
 _SCOPE_METADATA = "https://www.googleapis.com/auth/gmail.metadata"
 _SCOPE_READONLY = "https://www.googleapis.com/auth/gmail.readonly"
+# Leer y cambiar etiquetas, mover a spam y a la papelera. No incluye el
+# borrado definitivo (eso sería https://mail.google.com/), a propósito.
+_SCOPE_MODIFY = "https://www.googleapis.com/auth/gmail.modify"
+
+# Etiquetas de sistema de Gmail que tocan las acciones.
+_LABEL_INBOX = "INBOX"
+_LABEL_SPAM = "SPAM"
 
 # Cabeceras que alimentan las 40 reglas de Iris (ver services/shared.py y
 # services/rules/*) — restringir a estas en vez de pedir todas mantiene el
@@ -67,8 +74,13 @@ class GmailConnector(MailboxConnector):
         # every new message account-wide, Gmail's own default.
         self._label_id = folder
 
-    def authorize_url(self, state: str, full_message_mode: bool) -> str:
-        scope = _SCOPE_READONLY if full_message_mode else _SCOPE_METADATA
+    def authorize_url(self, state: str, full_message_mode: bool, remediation_enabled: bool = False) -> str:
+        # gmail.modify ya permite leer el mensaje entero, así que con acciones
+        # no hace falta pedir además readonly.
+        if remediation_enabled:
+            scope = _SCOPE_MODIFY
+        else:
+            scope = _SCOPE_READONLY if full_message_mode else _SCOPE_METADATA
         params = {
             "client_id": self._client_id,
             "redirect_uri": self._redirect_uri,
@@ -189,6 +201,45 @@ class GmailConnector(MailboxConnector):
             for label in response.json().get("labels", [])
         ]
 
+    @staticmethod
+    def can_act(scopes: str) -> bool:
+        return _SCOPE_MODIFY in (scopes or "").split()
+
+    def quarantine(self, access_token: str, message_id: str, folder_name: str) -> ActionResult:
+        label_id = _ensure_label(self, access_token, folder_name)
+        return _change_labels(access_token, message_id, add=[label_id], remove=[_LABEL_INBOX])
+
+    def label(self, access_token: str, message_id: str, label_name: str) -> ActionResult:
+        label_id = _ensure_label(self, access_token, label_name)
+        return _change_labels(access_token, message_id, add=[label_id], remove=[])
+
+    def report_phishing(self, access_token: str, message_id: str) -> ActionResult:
+        return _change_labels(access_token, message_id, add=[_LABEL_SPAM], remove=[_LABEL_INBOX])
+
+    def delete(self, access_token: str, message_id: str) -> ActionResult:
+        response = requests.post(
+            f"{_API_BASE}/messages/{message_id}/trash",
+            headers={"Authorization": f"Bearer {access_token}"}, timeout=_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        return ActionResult(provider_message_id=message_id, previous_state={"trashed": True})
+
+    def undo(self, access_token: str, action: str, message_id: str, previous_state: dict,
+             label_name: str) -> str:
+        if previous_state.get("trashed"):
+            response = requests.post(
+                f"{_API_BASE}/messages/{message_id}/untrash",
+                headers={"Authorization": f"Bearer {access_token}"}, timeout=_TIMEOUT_SECONDS,
+            )
+            response.raise_for_status()
+            return message_id
+        # Se revierte exactamente lo que cambió la acción, no el estado entero
+        # de antes: si el usuario ha leído o archivado el correo después, eso
+        # se respeta.
+        _modify(access_token, message_id, add=previous_state.get("removedLabelIds", []),
+                     remove=previous_state.get("addedLabelIds", []))
+        return message_id
+
     def revoke(self, refresh_token: str) -> None:
         response = requests.post(_REVOKE_URL, data={"token": refresh_token}, timeout=_TIMEOUT_SECONDS)
         # Un token ya revocado/expirado devuelve 400 -- no es un fallo real
@@ -216,3 +267,90 @@ class GmailConnector(MailboxConnector):
             scopes=payload.get("scope", ""),
             account_email=account_email,
         )
+
+
+def _change_labels(access_token: str, message_id: str, add: list, remove: list) -> ActionResult:
+    """Añade y quita etiquetas a un mensaje y anota exactamente qué cambió.
+
+    Solo se añade lo que no tenía y solo se quita lo que tenía, para que el
+    deshacer revierta la acción y nada más.
+
+    Args:
+        access_token: Token de acceso vigente.
+        message_id: Id del mensaje en Gmail.
+        add: Etiquetas a poner.
+        remove: Etiquetas a quitar.
+
+    Returns:
+        ActionResult: El mismo id (Gmail no lo cambia) y, en
+            ``previous_state``, ``labelIds`` (las de antes), ``addedLabelIds``
+            y ``removedLabelIds``.
+    """
+    current = set(_message_labels(access_token, message_id))
+    added = [label for label in add if label not in current]
+    removed = [label for label in remove if label in current]
+    _modify(access_token, message_id, add=added, remove=removed)
+    return ActionResult(provider_message_id=message_id, previous_state={
+        "labelIds": sorted(current), "addedLabelIds": added, "removedLabelIds": removed,
+    })
+
+
+def _message_labels(access_token: str, message_id: str) -> list:
+    """Etiquetas actuales de un mensaje.
+
+    Args:
+        access_token: Token de acceso vigente.
+        message_id: Id del mensaje en Gmail.
+
+    Returns:
+        list: Ids de etiqueta (``INBOX``, ``UNREAD``, ``Label_12``…).
+    """
+    response = requests.get(
+        f"{_API_BASE}/messages/{message_id}",
+        headers={"Authorization": f"Bearer {access_token}"}, params={"format": "minimal"},
+        timeout=_TIMEOUT_SECONDS,
+    )
+    response.raise_for_status()
+    return response.json().get("labelIds", [])
+
+
+def _modify(access_token: str, message_id: str, add: list, remove: list) -> None:
+    """Pone y quita etiquetas de un mensaje en una sola llamada; nada si no hay cambios.
+
+    Args:
+        access_token: Token de acceso vigente.
+        message_id: Id del mensaje en Gmail.
+        add: Etiquetas a poner.
+        remove: Etiquetas a quitar.
+    """
+    if not add and not remove:
+        return
+    response = requests.post(
+        f"{_API_BASE}/messages/{message_id}/modify",
+        headers={"Authorization": f"Bearer {access_token}"},
+        json={"addLabelIds": add, "removeLabelIds": remove}, timeout=_TIMEOUT_SECONDS,
+    )
+    response.raise_for_status()
+
+
+def _ensure_label(connector: "GmailConnector", access_token: str, name: str) -> str:
+    """Id de una etiqueta de usuario por su nombre, creándola si no existe.
+
+    Args:
+        connector: Conector, para listar las etiquetas de la cuenta.
+        access_token: Token de acceso vigente.
+        name: Nombre visible de la etiqueta.
+
+    Returns:
+        str: Id de la etiqueta.
+    """
+    match = next((folder for folder in connector.list_folders(access_token) if folder.display_name == name), None)
+    if match is not None:
+        return match.provider_id
+    response = requests.post(
+        f"{_API_BASE}/labels", headers={"Authorization": f"Bearer {access_token}"},
+        json={"name": name, "labelListVisibility": "labelShow", "messageListVisibility": "show"},
+        timeout=_TIMEOUT_SECONDS,
+    )
+    response.raise_for_status()
+    return response.json()["id"]
