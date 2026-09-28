@@ -36,6 +36,18 @@ Managers del módulo Iris (análisis de correo).
   los redirects de una URL de un análisis hasta su destino real.
 - ``IrisTenantManager`` (``tenant.py``): inteligencia compartida en una
   organización, con la política del dueño y el consentimiento de cada miembro.
+- ``IrisWebhookManager`` (``webhooks.py``): webhooks firmados hacia los
+  sistemas del usuario (SIEM, SOAR), con reintentos, historial y reenvío.
+- ``IrisReportingManager`` (``reporting.py``): tokens de integración y
+  reportes de correo hechos desde un cliente de correo con ellos.
+- ``IrisRemediationManager`` (``remediation.py``): acciones sobre el correo
+  del buzón conectado (cuarentena, spam, papelera), auditadas y reversibles.
+- ``IrisMailboxEventManager`` (``mailbox_events.py``): suscripciones a los
+  avisos de correo nuevo de Gmail y Graph, y recepción de esos avisos.
+- ``IrisMailboxAccountManager`` (``mailbox_accounts.py``): buzones por IMAP
+  y comprobación de cuentas de servicio y credenciales.
+- ``IrisSharedMailboxManager`` (``shared_mailboxes.py``): buzones compartidos
+  de la organización y quién ve sus análisis.
 
 Iris era el único módulo con
 **dos** ficheros de managers en la raíz — ``managers.py`` (64 KB, el
@@ -66,9 +78,21 @@ from .exports import IrisExportManager
 from .enrichment import IrisEnrichmentManager
 from .url_expansion import IrisUrlExpansionManager
 from .tenant import IrisTenantManager
+from .webhooks import IrisWebhookManager
+from .reporting import IrisReportingManager
+from .remediation import IrisRemediationManager
+from .mailbox_events import IrisMailboxEventManager
+from .mailbox_accounts import IrisMailboxAccountManager
+from .shared_mailboxes import IrisSharedMailboxManager
 
 __all__ = [
     "IrisManager",
+    "IrisWebhookManager",
+    "IrisReportingManager",
+    "IrisRemediationManager",
+    "IrisMailboxEventManager",
+    "IrisMailboxAccountManager",
+    "IrisSharedMailboxManager",
     "IrisTrustPolicyManager",
     "IrisTriageManager",
     "IrisCaseManager",

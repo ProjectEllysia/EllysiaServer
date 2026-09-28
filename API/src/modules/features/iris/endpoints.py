@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+from functools import wraps
 
 from flask import redirect, request, send_file, Response
 from flask_smorest import Blueprint as SmorestBlueprint
@@ -26,9 +27,10 @@ from src.modules.users import (
     require_role,
     AttributeType,
     Role,
+    UserManager,
     get_current_user,
 )
-from src.modules.shared import handle_exceptions, limiter
+from src.modules.shared import handle_exceptions, limiter, render_error_response
 from src.modules.shared.schemas import ErrorSchema
 from src.modules.shared._exceptions import DocumentError, DocumentNotReadyError
 
@@ -38,7 +40,9 @@ from .managers import (
     IrisFeedbackManager, IrisManager, IrisReportManager, IrisMailboxManager,
     IrisNotificationPreferenceManager, IrisReplayManager, IrisTriageManager, IrisTrustPolicyManager,
     IrisCaseManager, IrisBatchManager, IrisCampaignManager, IrisContactGraphManager, IrisExportManager,
-    IrisEnrichmentManager, IrisUrlExpansionManager, IrisTenantManager,
+    IrisEnrichmentManager, IrisUrlExpansionManager, IrisTenantManager, IrisWebhookManager,
+    IrisReportingManager, IrisRemediationManager, IrisMailboxEventManager, IrisMailboxAccountManager,
+    IrisSharedMailboxManager,
 )
 from .exceptions import (
     IrisAnalysisNotFoundError,
@@ -51,8 +55,24 @@ from .exceptions import (
     IrisCaseNotFoundError,
     IrisSavedViewNotFoundError,
     IrisTrustedSenderNotFoundError,
+    IrisWebhookSubscriptionNotFoundError,
+    IrisIntegrationTokenNotFoundError,
+    IrisInvalidIntegrationTokenError,
+    IrisMailboxActionNotFoundError,
+    IrisMailboxEventRejectedError,
 )
 from .schemas import (
+    IrisImapConnectRequestSchema,
+    IrisMailboxCredentialsRequestSchema,
+    IrisMailboxFoldersRequestSchema,
+    IrisSharedMailboxCreateRequestSchema,
+    IrisSharedMailboxItemSchema,
+    IrisSharedMailboxListResponseSchema,
+    IrisSharedMailboxMemberRequestSchema,
+    IrisSharedMailboxMemberSchema,
+    IrisSharedMailboxMemberListResponseSchema,
+    IrisSharedMailboxAnalysesQuerySchema,
+    IrisSharedMailboxAnalysesResponseSchema,
     AnalysisIdQuerySchema,
     IrisCapabilitiesResponseSchema,
     AnalyzeRequestSchema,
@@ -132,6 +152,25 @@ from .schemas import (
     TenantConsentRequestSchema,
     TenantIntelResponseSchema,
     TenantPolicyRequestSchema,
+    IrisWebhookCreateRequestSchema,
+    IrisWebhookDeleteResponseSchema,
+    IrisWebhookDeliveriesQuerySchema,
+    IrisWebhookDeliveryListResponseSchema,
+    IrisWebhookDeliverySchema,
+    IrisWebhookListResponseSchema,
+    IrisWebhookSubscriptionSchema,
+    IrisWebhookUpdateRequestSchema,
+    IrisIntegrationTokenCreateRequestSchema,
+    IrisIntegrationTokenListResponseSchema,
+    IrisIntegrationTokenSchema,
+    IrisReportResponseSchema,
+    IrisReportStatusSchema,
+    IrisMailboxActionListSchema,
+    IrisMailboxActionRequestSchema,
+    IrisMailboxActionSchema,
+    IrisMailboxActionsQuerySchema,
+    IrisMailboxMessageActionsSchema,
+    IrisMailboxRollbackRequestSchema,
 )
 
 
@@ -1315,11 +1354,15 @@ def _serialize_connection(connection) -> dict:
         "folderDisplayName": connection.folder_display_name,
         "folderType": connection.folder_type,
         "fullMessageMode": connection.full_message_mode,
+        "remediationEnabled": connection.remediation_enabled,
+        "canAct": IrisMailboxManager.can_act_on(connection),
         "status": connection.status,
         "lastSyncAt": connection.last_sync_at,
         "lastError": connection.last_error,
         "syncStartedAt": connection.sync_started_at,
         "createdAt": connection.created_at,
+        "authMode": connection.auth_mode,
+        "additionalFolders": connection.additional_folders or [],
     }
 
 
@@ -1356,6 +1399,7 @@ def connect_mailbox(data):
         user.id, data["provider"],
         full_message_mode=data.get("fullMessageMode", False),
         folder=data.get("folder"),
+        remediation_enabled=data.get("remediationEnabled", False),
     )
     logger.info(f"Usuario {user.username} inició conexión de buzón ({data['provider']})")
     return {"authorizeUrl": authorize_url}, 201
@@ -1383,7 +1427,7 @@ def mailbox_oauth_callback(args: dict):
         return redirect(f"{connections_url}?error=missing_code")
 
     try:
-        IrisMailboxManager().handle_callback(args["state"], args["code"])
+        connection_id = IrisMailboxManager().handle_callback(args["state"], args["code"])
     except IrisMailboxOAuthStateError:
         logger.warning("Mailbox OAuth callback: state inválido o caducado")
         return redirect(f"{connections_url}?error=invalid_state")
@@ -1391,6 +1435,9 @@ def mailbox_oauth_callback(args: dict):
         logger.error(f"Mailbox OAuth callback falló: {e}", exc_info=True)
         return redirect(f"{connections_url}?error=connection_failed")
 
+    # Con la ingesta por eventos encendida, se pide ya la suscripción a los
+    # avisos; si falla, el mantenimiento periódico la reintenta.
+    IrisMailboxEventManager().request_subscription(connection_id)
     return redirect(f"{connections_url}?connected=1")
 
 
@@ -1480,6 +1527,7 @@ def get_mailbox_connection_health(connection_id: int):
     user = get_current_user()
     health = IrisMailboxManager().get_connection_health(connection_id, user.id)
     return {
+        "eventSubscription": IrisMailboxEventManager.describe_subscription(connection_id),
         "status": health["status"],
         "lastSyncAt": health["last_sync_at"],
         "lastSuccessAt": health["last_success_at"],
@@ -1593,3 +1641,594 @@ def update_notification_preferences(data):
     preference = IrisNotificationPreferenceManager.update(user.id, **changes)
     logger.info(f"Preferencias de notificación de Iris actualizadas por usuario {user.username}")
     return _serialize_notification_preference(preference)
+
+
+# =============================================================================
+# Webhooks
+# =============================================================================
+
+@iris_blp.get("/webhooks")
+@iris_blp.response(200, IrisWebhookListResponseSchema, description="Webhooks of the user and available events")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("300 per hour; 2000 per day")
+@handle_exceptions(logger=logger)
+def list_webhooks():
+    """Webhooks del usuario (sin secretos) y los eventos que se pueden suscribir"""
+    return IrisWebhookManager.list_subscriptions(get_current_user().id)
+
+
+@iris_blp.post("/webhooks")
+@iris_blp.arguments(IrisWebhookCreateRequestSchema)
+@iris_blp.response(201, IrisWebhookSubscriptionSchema, description="Webhook created; the secret is shown only now")
+@iris_blp.alt_response(400, schema=ErrorSchema, description="Invalid name, URL or events")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions or surface closed")
+@iris_blp.alt_response(409, schema=ErrorSchema, description="Webhook limit reached")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_CREATE])
+@limiter.limit("30 per hour; 100 per day")
+@handle_exceptions(default_exception=IrisExecutionError, logger=logger)
+def create_webhook(data):
+    """Dar de alta un webhook firmado; devuelve su secreto de firma una sola vez"""
+    user = get_current_user()
+    subscription = IrisWebhookManager.create_subscription(user.id, data["name"], data["url"], data["eventTypes"])
+    logger.info(f"Webhook {subscription['subscriptionId']} creado por {user.username}")
+    return subscription
+
+
+@iris_blp.patch("/webhooks/<int:subscription_id>")
+@iris_blp.arguments(IrisWebhookUpdateRequestSchema)
+@iris_blp.response(200, IrisWebhookSubscriptionSchema, description="Webhook updated")
+@iris_blp.alt_response(400, schema=ErrorSchema, description="Invalid value")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions or surface closed")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Webhook not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_UPDATE])
+@limiter.limit("120 per hour; 500 per day")
+@handle_exceptions(default_exception=IrisWebhookSubscriptionNotFoundError, logger=logger)
+def update_webhook(data, subscription_id: int):
+    """Cambiar nombre, destino, eventos o activar/desactivar un webhook"""
+    fields_by_key = {"name": "name", "url": "url", "eventTypes": "event_types", "isActive": "is_active"}
+    changes = {argument: data[key] for key, argument in fields_by_key.items() if key in data}
+    return IrisWebhookManager.update_subscription(subscription_id, get_current_user().id, **changes)
+
+
+@iris_blp.post("/webhooks/<int:subscription_id>/secret")
+@iris_blp.response(200, IrisWebhookSubscriptionSchema, description="New signing secret, shown only now")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Webhook not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_UPDATE])
+@limiter.limit("30 per hour; 100 per day")
+@handle_exceptions(default_exception=IrisWebhookSubscriptionNotFoundError, logger=logger)
+def rotate_webhook_secret(subscription_id: int):
+    """Cambiar el secreto de firma de un webhook; el anterior deja de valer al momento"""
+    user = get_current_user()
+    subscription = IrisWebhookManager.rotate_secret(subscription_id, user.id)
+    logger.info(f"Secreto del webhook {subscription_id} rotado por {user.username}")
+    return subscription
+
+
+@iris_blp.delete("/webhooks/<int:subscription_id>")
+@iris_blp.response(200, IrisWebhookDeleteResponseSchema, description="Webhook deleted")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Webhook not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_DELETE])
+@limiter.limit("60 per hour; 300 per day")
+@handle_exceptions(default_exception=IrisWebhookSubscriptionNotFoundError, logger=logger)
+def delete_webhook(subscription_id: int):
+    """Borrar un webhook y su historial de entregas"""
+    user = get_current_user()
+    IrisWebhookManager.delete_subscription(subscription_id, user.id)
+    logger.info(f"Webhook {subscription_id} borrado por {user.username}")
+    return {"message": "Webhook borrado.", "subscriptionId": subscription_id}
+
+
+@iris_blp.get("/webhooks/<int:subscription_id>/deliveries")
+@iris_blp.arguments(IrisWebhookDeliveriesQuerySchema, location="query")
+@iris_blp.response(200, IrisWebhookDeliveryListResponseSchema, description="Delivery history of a webhook")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Webhook not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("300 per hour; 2000 per day")
+@handle_exceptions(default_exception=IrisWebhookSubscriptionNotFoundError, logger=logger)
+def list_webhook_deliveries(args: dict, subscription_id: int):
+    """Historial de entregas de un webhook, de la más nueva a la más antigua"""
+    return IrisWebhookManager.list_deliveries(subscription_id, get_current_user().id, args["page"], args["perPage"])
+
+
+@iris_blp.post("/webhooks/<int:subscription_id>/deliveries/<int:delivery_id>/replay")
+@iris_blp.response(202, IrisWebhookDeliverySchema, description="Delivery queued again with the same event id")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions or surface closed")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Webhook or delivery not found")
+@iris_blp.alt_response(409, schema=ErrorSchema, description="Webhook disabled or delivery still in progress")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_UPDATE])
+@limiter.limit("60 per hour; 300 per day")
+@handle_exceptions(default_exception=IrisWebhookSubscriptionNotFoundError, logger=logger)
+def replay_webhook_delivery(subscription_id: int, delivery_id: int):
+    """Volver a enviar una entrega terminada, con el mismo id de evento"""
+    return IrisWebhookManager().replay_delivery(subscription_id, delivery_id, get_current_user().id)
+
+
+@iris_blp.post("/webhooks/<int:subscription_id>/test")
+@iris_blp.response(202, IrisWebhookDeliverySchema, description="Test event queued")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions or surface closed")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Webhook not found")
+@iris_blp.alt_response(409, schema=ErrorSchema, description="Webhook disabled")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_UPDATE])
+@limiter.limit("30 per hour; 100 per day")
+@handle_exceptions(default_exception=IrisWebhookSubscriptionNotFoundError, logger=logger)
+def test_webhook(subscription_id: int):
+    """Mandar un evento de prueba (ping) a un webhook"""
+    return IrisWebhookManager().send_test_event(subscription_id, get_current_user().id)
+
+
+# =============================================================================
+# Canal de reporte: tokens de integración y reportes desde el cliente de correo
+# =============================================================================
+
+def _bearer_token() -> str:
+    """Lo que viene tras ``Bearer`` en la cabecera ``Authorization``, o cadena vacía."""
+    parts = (request.headers.get("Authorization") or "").split()
+    return parts[1] if len(parts) == 2 and parts[0].lower() == "bearer" else ""
+
+
+def _integration_key_id() -> str:
+    """Clave del cupo de peticiones del canal de reporte: la parte pública del token.
+
+    Se acota por token y no por IP: varios usuarios detrás de la misma salida a
+    internet de una oficina no deben compartir cupo, y un token robado no debe
+    poder saltárselo cambiando de IP. Sin token reconocible, cae en la IP.
+
+    Returns:
+        str: El ``key_id`` del token, o la IP remota.
+    """
+    token = _bearer_token()
+    if token.startswith("irt_") and "." in token:
+        return token.split(".", 1)[0]
+    return request.remote_addr or "unknown"
+
+
+def _require_integration_token(function):
+    """Autentica una petición del canal de reporte con un token de integración.
+
+    Deja en la petición lo mismo que ``require_oauth_token`` (el usuario
+    dueño del token, leído de la base de datos), así que ``require_attributes``
+    puede ir detrás y comprobar **en cada uso** que ese usuario sigue teniendo
+    permiso para crear análisis: quitarle el permiso deja inservibles sus
+    tokens sin tener que revocarlos uno a uno. Añade además
+    ``request.current_integration_token_id``.
+
+    Args:
+        function: El endpoint a proteger.
+
+    Returns:
+        Callable: El endpoint envuelto; responde 401 con la misma respuesta
+            para cualquier token inválido.
+    """
+    @wraps(function)
+    def decorated(*args, **kwargs):
+        try:
+            token = IrisReportingManager.authenticate(_bearer_token())
+        except IrisInvalidIntegrationTokenError as e:
+            logger.warning(f"Reporte rechazado: {e.message}")
+            return render_error_response(e)
+        owner = UserManager().get_user_by_id(token.user_id)
+        if owner is None:
+            return render_error_response(IrisInvalidIntegrationTokenError("sin dueño"))
+        request.current_user_id = owner.id  # type: ignore[attr-defined]
+        request.current_username = owner.username  # type: ignore[attr-defined]
+        request.current_user_role = owner.role  # type: ignore[attr-defined]
+        request.current_integration_token_id = token.id  # type: ignore[attr-defined]
+        return function(*args, **kwargs)
+    return decorated
+
+
+def _read_reported_message() -> tuple:
+    """Saca de la petición el mensaje reportado, leyendo como mucho un byte más del máximo.
+
+    Se acepta de dos formas, para que sirva a cualquier cliente: un formulario
+    ``multipart/form-data`` con el fichero en el campo ``message`` (lo natural
+    en un navegador), o el mensaje tal cual en el cuerpo con
+    ``Content-Type: message/rfc822`` (lo más sencillo desde un script o un
+    complemento de Gmail).
+
+    Returns:
+        tuple: ``(nombre del fichero o None, bytes)``; bytes vacíos si no llegó
+            ningún mensaje.
+    """
+    limit = CR.iris_config().max_message_bytes + 1
+    if request.mimetype == "message/rfc822":
+        return None, request.stream.read(limit)
+    upload = request.files.get("message")
+    if upload is not None:
+        return upload.filename or None, upload.stream.read(limit)
+    return None, b""
+
+
+@iris_blp.get("/integration-tokens")
+@iris_blp.response(200, IrisIntegrationTokenListResponseSchema, description="Integration tokens of the user")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("300 per hour; 2000 per day")
+@handle_exceptions(logger=logger)
+def list_integration_tokens():
+    """Tokens de integración del usuario, sin su secreto"""
+    return IrisReportingManager.list_tokens(get_current_user().id)
+
+
+@iris_blp.post("/integration-tokens")
+@iris_blp.arguments(IrisIntegrationTokenCreateRequestSchema)
+@iris_blp.response(201, IrisIntegrationTokenSchema, description="Token created; the full token is shown only now")
+@iris_blp.alt_response(400, schema=ErrorSchema, description="Invalid name or lifetime")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@iris_blp.alt_response(409, schema=ErrorSchema, description="Token limit reached")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_CREATE])
+@limiter.limit("30 per hour; 100 per day")
+@handle_exceptions(default_exception=IrisExecutionError, logger=logger)
+def create_integration_token(data):
+    """Crear un token para reportar correos desde Outlook, Gmail, una extensión o un script"""
+    user = get_current_user()
+    token = IrisReportingManager.create_token(user.id, data["name"], data["lifetimeDays"])
+    logger.info(f"Token de integración {token['tokenId']} creado por {user.username}")
+    return token
+
+
+@iris_blp.delete("/integration-tokens/<int:token_id>")
+@iris_blp.response(200, IrisIntegrationTokenSchema, description="Token revoked")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Token not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_DELETE, AttributeType.IRIS_UPDATE])
+@limiter.limit("60 per hour; 300 per day")
+@handle_exceptions(default_exception=IrisIntegrationTokenNotFoundError, logger=logger)
+def revoke_integration_token(token_id: int):
+    """Revocar un token de integración: deja de valer al momento"""
+    user = get_current_user()
+    token = IrisReportingManager.revoke_token(token_id, user.id)
+    logger.info(f"Token de integración {token_id} revocado por {user.username}")
+    return token
+
+
+@iris_blp.post("/reports")
+@iris_blp.response(201, IrisReportResponseSchema, description="Report accepted; the analysis runs in the background")
+@iris_blp.alt_response(200, schema=IrisReportResponseSchema, description="Message already analysed; its analysis is returned")
+@iris_blp.alt_response(400, schema=ErrorSchema, description="No message, not an .eml/.msg, too big or not analysable")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Missing, invalid, revoked or expired integration token")
+@iris_blp.alt_response(402, schema=ErrorSchema, description="The analyses of the plan are used up")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="The token owner can no longer create analyses")
+@_require_integration_token
+@require_attributes(at_least_one=[AttributeType.IRIS_CREATE])
+@limiter.limit("60 per hour; 300 per day", key_func=_integration_key_id)
+@handle_exceptions(default_exception=IrisExecutionError, logger=logger)
+def submit_report():
+    """Reportar un correo sospechoso desde un cliente de correo (token de integración)"""
+    filename, data = _read_reported_message()
+    channel = request.headers.get("X-Ellysia-Report-Channel") or request.form.get("channel")
+    report = IrisReportingManager.submit_report(
+        request.current_user_id, request.current_integration_token_id, filename, data, channel,  # type: ignore[attr-defined]
+    )
+    return report, (200 if report["isDuplicate"] else 201)
+
+
+@iris_blp.get("/reports/<int:analysis_id>")
+@iris_blp.response(200, IrisReportStatusSchema, description="Status and verdict of a reported message")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Missing, invalid, revoked or expired integration token")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="The token owner can no longer read analyses")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Analysis not found")
+@_require_integration_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ, AttributeType.IRIS_CREATE])
+@limiter.limit("600 per hour; 4000 per day", key_func=_integration_key_id)
+@handle_exceptions(default_exception=IrisAnalysisNotFoundError, logger=logger)
+def get_report_status(analysis_id: int):
+    """Estado y veredicto del análisis de un correo reportado (token de integración)"""
+    return IrisReportingManager.get_report_status(analysis_id, request.current_user_id)  # type: ignore[attr-defined]
+
+
+# =============================================================================
+# Acciones sobre el buzón conectado: cuarentena, spam, papelera (auditadas)
+# =============================================================================
+
+@iris_blp.get("/mailbox/messages/<int:analysis_id>/actions")
+@iris_blp.response(200, IrisMailboxMessageActionsSchema, description="Recommendation, possible actions and history")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Analysis not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("600 per hour; 4000 per day")
+@handle_exceptions(default_exception=IrisAnalysisNotFoundError, logger=logger)
+def get_mailbox_message_actions(analysis_id: int):
+    """Qué recomienda Iris hacer con el correo de un análisis, qué se puede hacer y qué se hizo"""
+    return IrisRemediationManager.get_message_actions(analysis_id, get_current_user().id)
+
+
+@iris_blp.post("/mailbox/messages/<int:analysis_id>/actions")
+@iris_blp.arguments(IrisMailboxActionRequestSchema)
+@iris_blp.response(202, IrisMailboxActionSchema, description="Action requested (or the one already applied)")
+@iris_blp.alt_response(400, schema=ErrorSchema, description="Unknown action, missing reason or confirmation")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Missing iris_mailbox_action or surface closed")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Analysis not found")
+@iris_blp.alt_response(409, schema=ErrorSchema, description="Not actionable, reconnection needed or action in progress")
+@require_oauth_token
+@require_attributes(all_required=[AttributeType.IRIS_MAILBOX_ACTION])
+@limiter.limit("120 per hour; 500 per day")
+@handle_exceptions(default_exception=IrisAnalysisNotFoundError, logger=logger)
+def request_mailbox_action(data, analysis_id: int):
+    """Actuar sobre el correo en el buzón conectado (cuarentena, etiqueta, spam, papelera)"""
+    user = get_current_user()
+    return IrisRemediationManager().request_action(
+        analysis_id, user.id, data["action"], data["reason"], data["confirm"], data["idempotencyKey"],
+    )
+
+
+@iris_blp.post("/mailbox/actions/<int:action_id>/rollback")
+@iris_blp.arguments(IrisMailboxRollbackRequestSchema)
+@iris_blp.response(202, IrisMailboxActionSchema, description="Rollback requested")
+@iris_blp.alt_response(400, schema=ErrorSchema, description="Missing reason")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Missing iris_mailbox_action or surface closed")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Action not found")
+@iris_blp.alt_response(409, schema=ErrorSchema, description="Not reversible, in progress or reconnection needed")
+@require_oauth_token
+@require_attributes(all_required=[AttributeType.IRIS_MAILBOX_ACTION])
+@limiter.limit("120 per hour; 500 per day")
+@handle_exceptions(default_exception=IrisMailboxActionNotFoundError, logger=logger)
+def rollback_mailbox_action(data, action_id: int):
+    """Deshacer una acción sobre el buzón: el correo vuelve a donde estaba"""
+    return IrisRemediationManager().request_rollback(action_id, get_current_user().id, data["reason"])
+
+
+@iris_blp.get("/mailbox/actions/<int:action_id>")
+@iris_blp.response(200, IrisMailboxActionSchema, description="One mailbox action, to poll its outcome")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Action not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("1200 per hour; 8000 per day")
+@handle_exceptions(default_exception=IrisMailboxActionNotFoundError, logger=logger)
+def get_mailbox_action(action_id: int):
+    """Una acción sobre el buzón, para ver cómo acabó"""
+    return IrisRemediationManager.get_action(action_id, get_current_user().id)
+
+
+@iris_blp.get("/mailbox/actions")
+@iris_blp.arguments(IrisMailboxActionsQuerySchema, location="query")
+@iris_blp.response(200, IrisMailboxActionListSchema, description="Audit log of the user's mailbox actions")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("300 per hour; 2000 per day")
+@handle_exceptions(logger=logger)
+def list_mailbox_actions(args: dict):
+    """Registro de las acciones sobre buzones hechas por el usuario"""
+    return IrisRemediationManager.list_actions(get_current_user().id, args["page"], args["perPage"])
+
+
+# =============================================================================
+# Avisos de correo nuevo (ingesta por eventos). Públicos: sin sesión de
+# usuario, autenticados por un secreto del proveedor.
+# =============================================================================
+
+@iris_blp.post("/mailbox/events/gmail")
+@iris_blp.response(204, description="Notification processed (or ignored as stale)")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Missing or wrong push secret")
+@limiter.limit("1200 per minute")
+@handle_exceptions(default_exception=IrisMailboxEventRejectedError, logger=logger)
+def receive_gmail_push():
+    """Aviso de correo nuevo de Gmail, por la suscripción de empuje de Pub/Sub (?token=secreto)"""
+    result = IrisMailboxEventManager().handle_gmail_push(request.args.get("token"), request.get_json(silent=True))
+    logger.info(f"Aviso de Gmail: aceptado={result['accepted']}, conexiones despertadas={result['woken']}")
+    return Response(status=204)
+
+
+@iris_blp.post("/mailbox/events/microsoft")
+@iris_blp.response(202, description="Notifications processed")
+@limiter.limit("1200 per minute")
+@handle_exceptions(logger=logger)
+def receive_graph_notifications():
+    """Avisos de correo nuevo de Microsoft Graph (y la validación del endpoint al suscribirse)"""
+    # Al crear una suscripción, Graph comprueba que la URL es nuestra pidiendo
+    # que se le devuelva el validationToken tal cual, en texto plano.
+    validation_token = request.args.get("validationToken")
+    if validation_token is not None:
+        return Response(IrisMailboxEventManager.build_validation_echo(validation_token), status=200,
+                        mimetype="text/plain",
+                        headers={"X-Content-Type-Options": "nosniff"})
+    result = IrisMailboxEventManager().handle_graph_notifications(request.get_json(silent=True))
+    logger.info(f"Avisos de Graph: aceptados={result['accepted']}, conexiones despertadas={result['woken']}")
+    return Response(status=202)
+
+
+# =============================================================================
+# Buzones por IMAP, varias carpetas y buzones compartidos de la organización.
+# Borrar, pausar, sincronizar, ver la salud o las carpetas de un buzón
+# compartido usa los mismos endpoints de /mailbox/connections/<id>: los
+# admiten sus responsables (acceso ``manager``).
+# =============================================================================
+
+@iris_blp.post("/mailbox/imap")
+@iris_blp.arguments(IrisImapConnectRequestSchema)
+@iris_blp.response(201, IrisMailboxConnectionItemSchema, description="IMAP mailbox connected")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions or surface closed")
+@iris_blp.alt_response(422, schema=ErrorSchema, description="Server unreachable or credentials rejected")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_CREATE])
+@limiter.limit("20 per hour; 100 per day")
+@handle_exceptions(default_exception=IrisExecutionError, logger=logger)
+def connect_imap_mailbox(data):
+    """Conectar un buzón personal por IMAP (TLS, contraseña de aplicación), probándolo antes"""
+    user = get_current_user()
+    connection = IrisMailboxAccountManager.connect_imap(
+        user.id, host=data["host"], port=data["port"], username=data["username"], password=data["password"],
+        folder=data["folder"], full_message_mode=data["fullMessageMode"],
+    )
+    logger.info(f"Usuario {user.username} conectó un buzón IMAP (conexión {connection.id})")
+    return _serialize_connection(connection), 201
+
+
+@iris_blp.put("/mailbox/connections/<int:connection_id>/credentials")
+@iris_blp.arguments(IrisMailboxCredentialsRequestSchema)
+@iris_blp.response(200, IrisMailboxConnectionItemSchema, description="Credentials rotated")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Connection not found")
+@iris_blp.alt_response(422, schema=ErrorSchema, description="New password rejected")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_UPDATE])
+@limiter.limit("20 per hour; 60 per day")
+@handle_exceptions(default_exception=IrisMailboxConnectionNotFoundError, logger=logger)
+def rotate_mailbox_credentials(data, connection_id: int):
+    """Cambiar la contraseña de aplicación de una conexión IMAP (se prueba antes de guardarla)"""
+    user = get_current_user()
+    connection = IrisMailboxAccountManager.rotate_imap_password(connection_id, user.id, data["password"])
+    logger.info(f"Credenciales de la conexión {connection_id} rotadas por {user.username}")
+    return _serialize_connection(connection)
+
+
+@iris_blp.put("/mailbox/connections/<int:connection_id>/folders")
+@iris_blp.arguments(IrisMailboxFoldersRequestSchema)
+@iris_blp.response(200, IrisMailboxConnectionItemSchema, description="Watched folders updated")
+@iris_blp.alt_response(400, schema=ErrorSchema, description="Folder not found or too many folders")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Connection not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_UPDATE])
+@limiter.limit("60 per hour; 300 per day")
+@handle_exceptions(default_exception=IrisMailboxConnectionNotFoundError, logger=logger)
+def set_mailbox_folders(data, connection_id: int):
+    """Carpetas que se vigilan además de la principal (validadas contra la cuenta)"""
+    user = get_current_user()
+    connection = IrisMailboxManager().set_additional_folders(connection_id, user.id, data["folders"])
+    return _serialize_connection(connection)
+
+
+@iris_blp.post("/mailbox/shared")
+@iris_blp.arguments(IrisSharedMailboxCreateRequestSchema)
+@iris_blp.response(201, IrisSharedMailboxItemSchema, description="Shared mailbox connected")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Not the organization owner or surface closed")
+@iris_blp.alt_response(409, schema=ErrorSchema, description="Already connected or limit reached")
+@iris_blp.alt_response(422, schema=ErrorSchema, description="Access to the mailbox could not be verified")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_SHARED_MAILBOX])
+@limiter.limit("20 per hour; 50 per day")
+@handle_exceptions(default_exception=IrisExecutionError, logger=logger)
+def create_shared_mailbox(data):
+    """Conectar un buzón compartido de la organización (cuenta de servicio o IMAP)"""
+    user = get_current_user()
+    mailbox = IrisSharedMailboxManager.create(
+        user.id, data["provider"], data.get("address") or "", folder=data["folder"],
+        full_message_mode=data["fullMessageMode"], imap=data.get("imap"),
+    )
+    logger.info(f"Usuario {user.username} conectó el buzón compartido {mailbox['id']}")
+    return mailbox, 201
+
+
+@iris_blp.get("/mailbox/shared")
+@iris_blp.response(200, IrisSharedMailboxListResponseSchema, description="Shared mailboxes the user can see")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("300 per hour")
+@handle_exceptions(logger=logger)
+def list_shared_mailboxes():
+    """Buzones compartidos de la organización a los que el usuario tiene acceso explícito"""
+    return {"mailboxes": IrisSharedMailboxManager.list_for_user(get_current_user().id)}
+
+
+@iris_blp.get("/mailbox/shared/<int:connection_id>/members")
+@iris_blp.response(200, IrisSharedMailboxMemberListResponseSchema, description="People with access")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Shared mailbox not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("120 per hour")
+@handle_exceptions(default_exception=IrisMailboxConnectionNotFoundError, logger=logger)
+def list_shared_mailbox_members(connection_id: int):
+    """Personas con acceso a un buzón compartido (solo para sus responsables)"""
+    return {"members": IrisSharedMailboxManager.list_members(connection_id, get_current_user().id)}
+
+
+@iris_blp.put("/mailbox/shared/<int:connection_id>/members/<int:member_user_id>")
+@iris_blp.arguments(IrisSharedMailboxMemberRequestSchema)
+@iris_blp.response(200, IrisSharedMailboxMemberSchema, description="Access granted or changed")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Shared mailbox not found")
+@iris_blp.alt_response(409, schema=ErrorSchema, description="Not in the organization, last manager or limit")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("120 per hour")
+@handle_exceptions(default_exception=IrisMailboxConnectionNotFoundError, logger=logger)
+def set_shared_mailbox_member(data, connection_id: int, member_user_id: int):
+    """Dar o cambiar el acceso de una persona de la organización a un buzón compartido"""
+    user = get_current_user()
+    member = IrisSharedMailboxManager.set_member(connection_id, user.id, member_user_id, data["access"])
+    logger.info(f"{user.username} dio acceso {data['access']} al usuario {member_user_id} "
+                f"en el buzón compartido {connection_id}")
+    return member
+
+
+@iris_blp.delete("/mailbox/shared/<int:connection_id>/members/<int:member_user_id>")
+@iris_blp.response(204, description="Access removed")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Shared mailbox not found")
+@iris_blp.alt_response(409, schema=ErrorSchema, description="Last manager")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("120 per hour")
+@handle_exceptions(default_exception=IrisMailboxConnectionNotFoundError, logger=logger)
+def remove_shared_mailbox_member(connection_id: int, member_user_id: int):
+    """Quitar el acceso de una persona a un buzón compartido"""
+    user = get_current_user()
+    IrisSharedMailboxManager.remove_member(connection_id, user.id, member_user_id)
+    logger.info(f"{user.username} quitó el acceso del usuario {member_user_id} al buzón compartido {connection_id}")
+    return Response(status=204)
+
+
+@iris_blp.get("/mailbox/shared/<int:connection_id>/analyses")
+@iris_blp.arguments(IrisSharedMailboxAnalysesQuerySchema, location="query")
+@iris_blp.response(200, IrisSharedMailboxAnalysesResponseSchema, description="Analyses of the shared mailbox")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Shared mailbox not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("300 per hour; 2000 per day")
+@handle_exceptions(default_exception=IrisMailboxConnectionNotFoundError, logger=logger)
+def list_shared_mailbox_analyses(args, connection_id: int):
+    """Análisis de los correos de un buzón compartido (con acceso explícito)"""
+    return IrisSharedMailboxManager.list_analyses(connection_id, get_current_user().id, args["page"], args["perPage"])
+
+
+@iris_blp.get("/mailbox/shared/<int:connection_id>/analyses/<int:analysis_id>")
+@iris_blp.response(200, AnalysisDetailResponseSchema, description="Full analysis report")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Shared mailbox or analysis not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("300 per hour; 2000 per day")
+@handle_exceptions(default_exception=IrisAnalysisNotFoundError, logger=logger)
+def get_shared_mailbox_analysis(connection_id: int, analysis_id: int):
+    """Informe completo de un análisis de un buzón compartido (con acceso explícito)"""
+    return IrisSharedMailboxManager.get_analysis(connection_id, analysis_id, get_current_user().id)

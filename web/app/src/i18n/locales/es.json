@@ -113,9 +113,13 @@
       "irisCampaign": "Campaña no encontrada.",
       "irisCase": "Caso no encontrado.",
       "irisIndicator": "Indicador no encontrado.",
+      "irisIntegrationToken": "Token de integración no encontrado.",
+      "irisMailboxAction": "Acción no encontrada.",
       "irisMailboxConnection": "Conexión de buzón no encontrada.",
       "irisSavedView": "Vista guardada no encontrada.",
       "irisTrustedSender": "Excepción de confianza no encontrada.",
+      "irisWebhookDelivery": "Entrega no encontrada.",
+      "irisWebhookSubscription": "Webhook no encontrado.",
       "organization": "Organización no encontrada.",
       "plan": "Plan no encontrado.",
       "programedScan": "Escaneo programado no encontrado.",
@@ -150,9 +154,31 @@
     "inventoryNotAvailable": "Este activo aún no ha enviado su inventario de software.",
     "invitationInvalid": "Esta invitación no es válida o ha caducado. Pide a quien te invitó que te mande otra.",
     "irisBatchBackpressure": "Tienes {active} análisis en marcha y el lote añadiría {requested}; el máximo a la vez es {limit}. Espera a que terminen y vuelve a enviarlo: no se ha creado nada.",
+    "irisIntegrationTokenLimitReached": "Ya tienes {limit} tokens de integración vigentes, el máximo. Revoca uno para crear otro.",
+    "irisInvalidIntegrationToken": "El token de integración no es válido, está revocado o ha caducado.",
+    "irisMailboxActionConfirmationRequired": "Esta acción saca el correo de tu bandeja: confírmala para hacerla.",
+    "irisMailboxActionConnectionGone": "El buzón por el que llegó este correo ya no está conectado.",
+    "irisMailboxActionInProgress": "Ya hay una acción en curso sobre este correo. Espera a que termine.",
+    "irisMailboxActionMissingScope": "Este buzón se conectó en solo lectura. Vuelve a conectarlo con las acciones activadas.",
+    "irisMailboxActionNotFromMailbox": "Este correo no llegó por un buzón conectado, así que Iris no puede actuar sobre él.",
+    "irisMailboxActionNotReversible": "Esta acción no se puede deshacer: no llegó a aplicarse o ya se deshizo.",
+    "irisMailboxEventRejected": "Aviso rechazado.",
+    "irisSharedMailboxOwnerRequired": "Solo el dueño de la organización puede conectar buzones compartidos.",
+    "irisSharedMailboxMailboxLimit": "La organización ya tiene el máximo de {limit} buzones compartidos.",
+    "irisSharedMailboxMemberLimit": "Este buzón ya tiene el máximo de {limit} personas con acceso.",
+    "irisSharedMailboxAlreadyConnected": "Ese buzón ya está conectado como buzón compartido de la organización.",
+    "irisSharedMailboxMemberNotInOrganization": "Esa persona no pertenece a la organización.",
+    "irisSharedMailboxLastManager": "El buzón se quedaría sin nadie que lo administre.",
+    "irisMailboxCredentialsRejected": "El servidor rechazó el usuario o la contraseña.",
+    "irisMailboxServerUnreachable": "No se puede conectar con ese servidor: tiene que ser un servidor IMAP de internet con TLS.",
+    "irisMailboxServiceAccountRejected": "La cuenta de servicio no está configurada o no tiene acceso a ese buzón.",
     "irisMailboxInvalidFolder": "«{folder}» no es una carpeta válida para esta cuenta.",
+    "irisMailboxReauthRequired": "Este buzón necesita que lo vuelvas a conectar antes de poder actuar sobre él.",
     "irisNotInOrganization": "No perteneces a ninguna organización.",
     "irisTenantOwnerRequired": "Solo el dueño de la organización puede cambiar esto.",
+    "irisWebhookDeliveryInProgress": "Esta entrega todavía está en curso; se podrá reenviar cuando termine.",
+    "irisWebhookInactive": "Este webhook está desactivado. Actívalo antes de enviarle eventos.",
+    "irisWebhookLimitReached": "Ya tienes {limit} webhooks, el máximo. Borra uno para dar de alta otro.",
     "jsonParsing": "No se pudieron procesar los datos JSON.",
     "logChanged": "El log cambió durante la consulta. Inicia una nueva lectura.",
     "logNotFound": "No hay ningún log disponible en este momento.",
@@ -1939,6 +1965,10 @@
       "inbox": "Bandeja de entrada",
       "fullHint": "Iris lee el correo completo (cuerpo y adjuntos incluidos)",
       "headersHint": "Iris solo lee las cabeceras",
+      "actions": "Acciones activadas",
+      "actionsHint": "Iris puede poner en cuarentena o mandar a spam los correos de este buzón cuando tú se lo pidas",
+      "readOnly": "Solo lectura",
+      "readOnlyHint": "Iris no puede mover ni borrar nada en este buzón",
       "full": "Correo completo",
       "lastSync": "Último sondeo: {when}",
       "resume": "Reanudar",
@@ -2116,6 +2146,8 @@
       "history": "historial de Análisis",
       "connecting": "Conectando…",
       "connect": "Conectar cuenta",
+      "remediation": "Permitir que Iris actúe sobre este buzón",
+      "remediationHint": "Pide a Google o Microsoft permiso para mover correos. Iris nunca actúa solo: tú decides cada acción, con un motivo, y todas se pueden deshacer. Sin esto, la conexión solo lee.",
       "deleteTitle": "Eliminar conexión",
       "deleteMessage": "Se eliminará la conexión con {email}. Iris dejará de analizar este buzón automáticamente.",
       "connected": "Buzón conectado correctamente.",
@@ -2273,6 +2305,208 @@
       "imitates": "imita a {domain}",
       "frequentTitle": "Dominios frecuentes",
       "noFrequent": "Todavía no hay dominios de los que reciban correo suficientes miembros."
+    },
+    "webhooks": {
+      "badge": "Integraciones",
+      "eyebrow": "Webhooks",
+      "title": "Avisar a tus otros sistemas",
+      "intro": "Un webhook es una dirección de otro sistema tuyo —un SIEM, un SOAR, un canal de chat— a la que Iris manda un aviso cada vez que pasa algo: termina un análisis, cambia un caso, aparece una campaña o un buzón deja de sincronizarse. Si el otro sistema no responde, Iris lo vuelve a intentar durante unas horas.",
+      "signatureHint": "Cada aviso va firmado con un secreto que solo conocéis Iris y tu sistema, para que este pueda comprobar que viene de aquí. La firma viaja en la cabecera X-Ellysia-Signature.",
+      "name": "Nombre",
+      "namePlaceholder": "SIEM de la oficina",
+      "url": "Dirección (https)",
+      "urlPlaceholder": "https://siem.empresa.com/avisos/iris",
+      "eventsLabel": "Qué avisar",
+      "create": "Crear webhook",
+      "secretTitle": "Guarda este secreto ahora",
+      "secretHint": "Es la única vez que se enseña. Tu sistema lo necesita para comprobar la firma de cada aviso; si lo pierdes, genera otro.",
+      "copy": "Copiar",
+      "copied": "Secreto copiado.",
+      "copyFailed": "No se pudo copiar; selecciónalo y cópialo a mano.",
+      "secretSaved": "Ya lo he guardado",
+      "listTitle": "Tus webhooks",
+      "empty": "Todavía no tienes ningún webhook.",
+      "active": "Activo",
+      "inactive": "Desactivado",
+      "lastSuccess": "Último aviso entregado: {date}",
+      "lastFailure": "último fallo: {date}",
+      "neverSent": "Todavía no se le ha enviado nada.",
+      "test": "Enviar prueba",
+      "disable": "Desactivar",
+      "enable": "Activar",
+      "rotate": "Cambiar secreto",
+      "showHistory": "Ver avisos",
+      "hideHistory": "Ocultar avisos",
+      "noDeliveries": "Todavía no hay avisos.",
+      "replay": "Reenviar",
+      "columns": {
+        "event": "Aviso",
+        "status": "Estado",
+        "attempts": "Intentos",
+        "date": "Fecha"
+      },
+      "events": {
+        "analysisFinished": "Análisis terminado",
+        "caseUpdated": "Caso abierto o cambiado",
+        "campaignDetected": "Campaña detectada",
+        "mailboxReauthRequired": "Buzón que hay que volver a conectar",
+        "ping": "Prueba"
+      },
+      "deliveryStatus": {
+        "pending": "Pendiente",
+        "delivering": "Enviándose",
+        "delivered": "Entregado",
+        "failed": "No entregado"
+      },
+      "disabledReason": {
+        "manual": "Lo desactivaste tú.",
+        "failures": "Se desactivó solo porque tu sistema falló demasiadas veces seguidas. Revisa la dirección y vuelve a activarlo.",
+        "gone": "Se desactivó solo porque tu sistema respondió que esa dirección ya no existe."
+      },
+      "confirmRotate": {
+        "title": "¿Cambiar el secreto de «{name}»?",
+        "message": "El secreto actual dejará de valer al momento: tu sistema rechazará los avisos hasta que le pongas el nuevo."
+      },
+      "confirmDelete": {
+        "title": "¿Borrar «{name}»?",
+        "message": "Dejará de recibir avisos y se borrará su historial."
+      }
+    },
+    "reporting": {
+      "eyebrow": "Reportar desde el correo",
+      "title": "Botón de reportar phishing",
+      "intro": "Un token de integración deja que un botón en Outlook o Gmail, una extensión del navegador o un script propio te manden a Iris el correo sospechoso tal cual, sin copiar cabeceras. Solo sirve para eso: no abre tu cuenta, caduca y lo puedes revocar cuando quieras.",
+      "name": "Para qué es",
+      "namePlaceholder": "Outlook del portátil",
+      "lifetime": "Validez",
+      "days": "{count} día | {count} días",
+      "create": "Crear token",
+      "tokenTitle": "Copia este token ahora",
+      "tokenHint": "Es la única vez que se enseña. Pégalo en el complemento o en el script; si lo pierdes, revócalo y crea otro.",
+      "empty": "Todavía no tienes ningún token.",
+      "neverUsed": "Nunca",
+      "revoke": "Revocar",
+      "howTo": "Cómo se usa: el cliente manda el correo entero a /iris/reports con la cabecera Authorization: Bearer y el token. Si lo reenvías como adjunto, Iris analiza el original y recuerda quién lo reenvió.",
+      "columns": {
+        "name": "Token",
+        "status": "Estado",
+        "expires": "Caduca",
+        "lastUsed": "Último uso"
+      },
+      "tokenStatus": {
+        "active": "Vigente",
+        "expired": "Caducado",
+        "revoked": "Revocado"
+      },
+      "channels": {
+        "outlook_addin": "Reportado desde Outlook",
+        "gmail_addon": "Reportado desde Gmail",
+        "browser_extension": "Reportado desde la extensión del navegador",
+        "api": "Reportado por una integración"
+      },
+      "confirmRevoke": {
+        "title": "¿Revocar «{name}»?",
+        "message": "El cliente que lo use dejará de poder reportar correos al momento."
+      }
+    },
+    "remediation": {
+      "title": "Actuar en tu buzón",
+      "intro": "Este correo llegó por un buzón conectado. Iris te recomienda qué hacer, pero no hace nada hasta que tú lo pides. Todo queda registrado y se puede deshacer.",
+      "recommended": "Recomendación de Iris: {action}",
+      "noRecommendation": "Iris no recomienda hacer nada con este correo.",
+      "reason": "Por qué lo haces",
+      "reasonPlaceholder": "Ej.: suplanta a nuestro banco y pide la contraseña",
+      "confirmTitle": "¿{action}?",
+      "confirmMessage": "El correo saldrá de tu bandeja. Quedará registrado con tu motivo y lo podrás deshacer.",
+      "requested": "Acción pedida; en unos segundos verás el resultado.",
+      "undo": "Deshacer",
+      "undoReason": "Deshecho desde el informe",
+      "history": "Lo que se ha hecho con este correo",
+      "undoneBy": "deshacer",
+      "actions": {
+        "quarantine": "Poner en cuarentena",
+        "label": "Marcar como sospechoso",
+        "report_phishing": "Mandar a spam",
+        "delete": "Mandar a la papelera"
+      },
+      "statuses": {
+        "pending": "Pendiente",
+        "running": "En curso",
+        "succeeded": "Hecho",
+        "failed": "Falló",
+        "rolled_back": "Deshecho"
+      },
+      "unavailable": {
+        "not_from_mailbox": "Este correo no llegó por un buzón conectado.",
+        "connection_gone": "El buzón por el que llegó ya no está conectado.",
+        "reauth_required": "El buzón necesita que lo vuelvas a conectar.",
+        "missing_scope": "El buzón está en solo lectura. Vuelve a conectarlo con las acciones activadas para poder actuar."
+      }
+    },
+    "shared": {
+      "badge": "Buzones compartidos",
+      "eyebrow": "Organización",
+      "title": "Buzones compartidos",
+      "intro": "Buzones de la organización, como soporte{'@'} o facturas{'@'}. Cada persona ve solo los buzones a los que tiene acceso explícito, y quien los administra decide quién más los ve. Salir de la organización quita el acceso en el acto.",
+      "create": "Conectar un buzón compartido",
+      "ownerOnly": "Solo el dueño de la organización puede conectar buzones compartidos. Aquí verás los que te hayan dado acceso.",
+      "access": "Cómo accede Iris",
+      "providers": {
+        "microsoft": "Microsoft 365 (cuenta de servicio)",
+        "gmail": "Google Workspace (cuenta de servicio)",
+        "imap": "IMAP"
+      },
+      "providerHints": {
+        "microsoft": "Usa la aplicación de servicio de la instalación, con el permiso de aplicación Mail.Read. Conviene limitarla a los buzones concretos con una política de acceso de Exchange.",
+        "gmail": "Usa la cuenta de servicio de la instalación con delegación de dominio limitada a gmail.readonly.",
+        "imap": "Cualquier otro proveedor, con una contraseña de aplicación y solo IMAP con TLS."
+      },
+      "address": "Dirección del buzón",
+      "fullMessage": "Leer el mensaje completo (no solo las cabeceras)",
+      "connect": "Conectar",
+      "created": "Buzón compartido conectado.",
+      "requestFailed": "No se pudo completar la operación con el buzón compartido.",
+      "empty": "No tienes acceso a ningún buzón compartido.",
+      "accessLevels": {
+        "viewer": "Ve los análisis",
+        "manager": "Administra"
+      },
+      "statuses": {
+        "active": "Activo",
+        "paused": "En pausa",
+        "reauth_required": "Hay que reconectar",
+        "revoked": "Revocado"
+      },
+      "analyses": "Análisis",
+      "members": "Personas con acceso",
+      "noAnalyses": "Todavía no hay análisis de este buzón.",
+      "untitled": "(sin asunto)",
+      "chooseMember": "Elige una persona de la organización",
+      "addMember": "Dar acceso",
+      "removeMember": "Quitar el acceso de {name}",
+      "membersHint": "Quien ve los análisis no puede cambiar nada; quien administra decide quién más tiene acceso, cambia carpetas y credenciales y puede desconectar el buzón."
+    },
+    "imap": {
+      "title": "Otro proveedor (IMAP)",
+      "intro": "Para buzones que no son de Google ni de Microsoft. Usa una contraseña de aplicación, no la de tu cuenta. Iris solo lee: no marca nada como leído ni mueve correos.",
+      "host": "Servidor IMAP",
+      "hostPlaceholder": "imap.tuproveedor.com",
+      "port": "Puerto",
+      "username": "Usuario",
+      "password": "Contraseña de aplicación",
+      "hint": "Solo IMAP con TLS (puerto 993) y servidores de internet. La contraseña se guarda cifrada y nunca se vuelve a enseñar.",
+      "rotate": "Cambiar contraseña",
+      "rotateFor": "Cambiar la contraseña de {email}",
+      "rotateTitle": "Cambiar la contraseña de aplicación",
+      "rotateIntro": "Nueva contraseña de aplicación para {email}. Se prueba contra el servidor antes de guardarla."
+    },
+    "folders": {
+      "title": "Carpetas",
+      "forAccount": "Carpetas vigiladas de {email}",
+      "intro": "Carpetas de {email} que Iris vigila además de la principal. Una carpeta nueva empieza a leerse desde el correo que llegue a partir de ahora.",
+      "primary": "principal",
+      "save": "Guardar",
+      "more": "+{count} carpetas"
     }
   },
   "irisHub": {
@@ -2427,7 +2661,20 @@
     "organizationPolicyFailed": "No se pudo guardar la política.",
     "organizationConsentGiven": "Ahora aportas a la inteligencia de tu organización.",
     "organizationConsentWithdrawn": "Has dejado de aportar a la inteligencia de tu organización.",
-    "organizationConsentFailed": "No se pudo cambiar tu consentimiento."
+    "organizationConsentFailed": "No se pudo cambiar tu consentimiento.",
+    "webhookCreated": "Webhook creado.",
+    "webhookCreateFailed": "No se pudo crear el webhook.",
+    "webhookUpdateFailed": "No se pudo cambiar el webhook.",
+    "webhookDeleted": "Webhook borrado.",
+    "webhookDeleteFailed": "No se pudo borrar el webhook.",
+    "webhookTestQueued": "Prueba enviada; su resultado aparece en los avisos en unos segundos.",
+    "webhookTestFailed": "No se pudo enviar la prueba.",
+    "webhookReplayFailed": "No se pudo reenviar el aviso.",
+    "integrationTokenCreateFailed": "No se pudo crear el token.",
+    "integrationTokenRevoked": "Token revocado.",
+    "integrationTokenRevokeFailed": "No se pudo revocar el token.",
+    "mailboxActionFailed": "No se pudo pedir la acción.",
+    "mailboxRollbackFailed": "No se pudo deshacer la acción."
   },
   "aegis": {
     "campaignStatus": {
@@ -3969,6 +4216,11 @@
         "label": "Consultas externas de Iris",
         "covers": "Preguntar a servicios de terceros por los indicadores de un correo: registro de dominios, reputación y seguir enlaces.",
         "unlocks": "lista pública de proveedores y explicación de qué datos se les envían"
+      },
+      "webhooks": {
+        "label": "Webhooks de Iris",
+        "covers": "Enviar avisos de Iris (análisis, casos, campañas, buzones) a un sistema externo que elige cada usuario.",
+        "unlocks": "contrato de encargo y explicación de qué datos salen en cada aviso"
       }
     },
     "confirmOpen": "Vas a abrir al público:\n{surfaces}\n\n¿Continuar?",

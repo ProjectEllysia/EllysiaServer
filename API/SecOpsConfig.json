@@ -36,7 +36,8 @@
         "campaigns": true,
         "mailboxConnectors": true,
         "externalAi": true,
-        "externalEnrichment": true
+        "externalEnrichment": true,
+        "webhooks": true
       }
     },
     "registration": {
@@ -369,6 +370,45 @@
         "minMembers": 3,
         "windowDays": 30,
         "maxItems": 100
+      },
+      "webhooks": {
+        "maxSubscriptionsPerUser": 10,
+        "maxAttempts": 8,
+        "retryBaseSeconds": 30,
+        "retryMaxSeconds": 3600,
+        "disableAfterConsecutiveFailures": 20,
+        "timeoutSeconds": 10.0,
+        "maxResponseBytes": 4096,
+        "retrySweepIntervalSeconds": 60,
+        "deliveryRetentionDays": 30
+      },
+      "reporting": {
+        "maxTokensPerUser": 10,
+        "defaultTokenLifetimeDays": 180,
+        "maxTokenLifetimeDays": 365
+      },
+      "remediation": {
+        "quarantineFolderName": "Iris Cuarentena",
+        "suspiciousLabelName": "Iris: sospechoso"
+      },
+      "sharedMailboxes": {
+        "maxPerOrganization": 10,
+        "maxMembersPerMailbox": 50,
+        "maxFoldersPerConnection": 5
+      },
+      "imap": {
+        "allowedPorts": [993],
+        "timeoutSeconds": 20,
+        "maxMessagesPerSync": 200
+      },
+      "events": {
+        "enabled": false,
+        "fallbackPollIntervalMinutes": 30,
+        "renewBeforeHours": 12,
+        "renewCheckIntervalMinutes": 60,
+        "debounceSeconds": 30,
+        "maxEventAgeMinutes": 60,
+        "graphSubscriptionMinutes": 4200
       },
       "enrichment": {
         "enabled": true,

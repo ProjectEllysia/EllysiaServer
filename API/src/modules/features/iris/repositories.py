@@ -24,6 +24,9 @@ from .model import (
     IrisCase, IrisCaseAnalysis, IrisCaseEvent, IrisBatch, IrisBatchItem,
     IrisCampaign, IrisCampaignMember, IrisCommunicationEdge, IrisDomainCache, IrisUrlExpansion,
     IrisThreatIntelResult, IrisTenantProfile, IrisTenantConsent,
+    IrisWebhookDelivery, IrisWebhookSubscription, WebhookDeliveryStatus, IrisIntegrationToken,
+    IrisActionAudit, MailboxActionStatus, IrisMailboxSubscription, MailboxSubscriptionStatus,
+    IrisMailboxMember, MailboxKind,
 )
 
 
@@ -64,6 +67,24 @@ class IrisAnalysisRepository(BaseRepository[IrisAnalysis]):
         "title": IrisAnalysis.title,
         "status": IrisAnalysis.status,
     }
+
+    def get_by_connection_paginated(self, connection_id: int, page: int,
+                                    per_page: int) -> Tuple[List[IrisAnalysis], int]:
+        """Análisis de los correos de un buzón, del más reciente al más antiguo.
+
+        Args:
+            connection_id: Buzón.
+            page: Página, desde 1.
+            per_page: Tamaño de página.
+
+        Returns:
+            Tuple[List[IrisAnalysis], int]: La página y el total.
+        """
+        query = self._session.query(IrisAnalysis).filter(IrisAnalysis.connection_id == connection_id)
+        total = query.count()
+        items = (query.order_by(IrisAnalysis.started_at.desc(), IrisAnalysis.id.desc())
+                 .offset((page - 1) * per_page).limit(per_page).all())
+        return items, total
 
     def get_by_user_paginated(
         self, user_id: int, page: int, per_page: int, *,
@@ -503,17 +524,77 @@ class IrisMailboxConnectionRepository(BaseRepository[IrisMailboxConnection]):
         """Return all connections belonging to a user, newest first."""
         return (
             self._session.query(IrisMailboxConnection)
-            .filter(IrisMailboxConnection.user_id == user_id)
+            .filter(IrisMailboxConnection.user_id == user_id,
+                    IrisMailboxConnection.kind == MailboxKind.PERSONAL.value)
             .order_by(IrisMailboxConnection.created_at.desc())
             .all()
         )
 
     def count_for_user(self, user_id: int) -> int:
-        """Number of connections a user already has (for the quota check)."""
+        """Buzones personales que ya tiene un usuario (para su tope); los compartidos cuentan aparte."""
         return (
             self._session.query(IrisMailboxConnection)
-            .filter(IrisMailboxConnection.user_id == user_id)
+            .filter(IrisMailboxConnection.user_id == user_id,
+                    IrisMailboxConnection.kind == MailboxKind.PERSONAL.value)
             .count()
+        )
+
+    def get_shared_by_organization(self, organization_id: int) -> List[IrisMailboxConnection]:
+        """Buzones compartidos de una organización, del más antiguo al más reciente.
+
+        Args:
+            organization_id: Organización.
+
+        Returns:
+            List[IrisMailboxConnection]: Sus buzones compartidos.
+        """
+        return (
+            self._session.query(IrisMailboxConnection)
+            .filter(IrisMailboxConnection.organization_id == organization_id,
+                    IrisMailboxConnection.kind == MailboxKind.SHARED.value)
+            .order_by(IrisMailboxConnection.id.asc())
+            .all()
+        )
+
+    def get_shared_by_organization_and_address(self, organization_id: int, provider: str,
+                                               account_email: str) -> Optional[IrisMailboxConnection]:
+        """El buzón compartido de una organización con esa dirección y proveedor, si ya está conectado.
+
+        Args:
+            organization_id: Organización.
+            provider: Proveedor.
+            account_email: Dirección, sin distinguir mayúsculas.
+
+        Returns:
+            Optional[IrisMailboxConnection]: El buzón, o ``None``.
+        """
+        return (
+            self._session.query(IrisMailboxConnection)
+            .filter(IrisMailboxConnection.organization_id == organization_id,
+                    IrisMailboxConnection.kind == MailboxKind.SHARED.value,
+                    IrisMailboxConnection.provider == provider,
+                    func.lower(IrisMailboxConnection.account_email) == account_email.lower())
+            .first()
+        )
+
+    def get_shared_for_member(self, user_id: int, organization_id: int) -> List[IrisMailboxConnection]:
+        """Buzones compartidos de una organización a los que una persona tiene acceso explícito.
+
+        Args:
+            user_id: La persona.
+            organization_id: Su organización actual (los de otra no cuentan).
+
+        Returns:
+            List[IrisMailboxConnection]: Los buzones.
+        """
+        return (
+            self._session.query(IrisMailboxConnection)
+            .join(IrisMailboxMember, IrisMailboxMember.connection_id == IrisMailboxConnection.id)
+            .filter(IrisMailboxMember.user_id == user_id,
+                    IrisMailboxConnection.organization_id == organization_id,
+                    IrisMailboxConnection.kind == MailboxKind.SHARED.value)
+            .order_by(IrisMailboxConnection.id.asc())
+            .all()
         )
 
     def get_by_user_provider_email(
@@ -545,6 +626,74 @@ class IrisMailboxConnectionRepository(BaseRepository[IrisMailboxConnection]):
                 (IrisMailboxConnection.last_sync_at.is_(None))
                 | (IrisMailboxConnection.last_sync_at < cutoff),
             )
+            .all()
+        )
+
+    def get_due_for_sync_with_events(self, poll_minutes: int, fallback_minutes: int) -> List[IrisMailboxConnection]:
+        """Conexiones activas que toca sondear cuando hay ingesta por eventos.
+
+        Una conexión con la suscripción a eventos sana (``active`` y sin
+        caducar) solo se sondea cada ``fallback_minutes``, como red de
+        seguridad por si un aviso se pierde; las demás, a su ritmo normal.
+
+        Args:
+            poll_minutes: Intervalo normal de sondeo.
+            fallback_minutes: Intervalo para las que reciben avisos.
+
+        Returns:
+            List[IrisMailboxConnection]: Las que toca sondear, incluidas las
+                que nunca se han sincronizado.
+        """
+        now = utcnow_naive()
+        poll_cutoff = now - timedelta(minutes=poll_minutes)
+        fallback_cutoff = now - timedelta(minutes=fallback_minutes)
+        healthy = (
+            select(IrisMailboxSubscription.connection_id)
+            .where(IrisMailboxSubscription.status == MailboxSubscriptionStatus.ACTIVE.value,
+                   IrisMailboxSubscription.expires_at > now)
+        )
+        stale_by_poll = (IrisMailboxConnection.last_sync_at.is_(None)) | (IrisMailboxConnection.last_sync_at < poll_cutoff)
+        stale_by_fallback = (IrisMailboxConnection.last_sync_at.is_(None)) | (IrisMailboxConnection.last_sync_at < fallback_cutoff)
+        return (
+            self._session.query(IrisMailboxConnection)
+            .filter(
+                IrisMailboxConnection.status == "active",
+                or_(
+                    and_(IrisMailboxConnection.id.notin_(healthy), stale_by_poll),
+                    and_(IrisMailboxConnection.id.in_(healthy), stale_by_fallback),
+                ),
+            )
+            .all()
+        )
+
+    def get_active_without_healthy_subscription(self, retry_failed_before: datetime, limit: int,
+                                                providers: Optional[List[str]] = None) -> List[IrisMailboxConnection]:
+        """Conexiones activas a las que hay que crear (o reintentar) la suscripción a eventos.
+
+        Args:
+            retry_failed_before: Una suscripción ``failed`` o ``pending`` se
+                reintenta si su último cambio es anterior a esto.
+            limit: Cuántas como mucho.
+            providers: Solo las de estos proveedores (los que pueden avisar de
+                correo nuevo). Por defecto ``None``: todas.
+
+        Returns:
+            List[IrisMailboxConnection]: Sin suscripción, o con una fallida o
+                atascada desde hace rato.
+        """
+        attempted_recently = (
+            select(IrisMailboxSubscription.connection_id)
+            .where(or_(IrisMailboxSubscription.status == MailboxSubscriptionStatus.ACTIVE.value,
+                       IrisMailboxSubscription.updated_at >= retry_failed_before))
+        )
+        query = self._session.query(IrisMailboxConnection).filter(
+            IrisMailboxConnection.status == "active", IrisMailboxConnection.id.notin_(attempted_recently))
+        if providers is not None:
+            query = query.filter(IrisMailboxConnection.provider.in_(providers))
+        return (
+            query
+            .order_by(IrisMailboxConnection.id.asc())
+            .limit(limit)
             .all()
         )
 
@@ -1749,6 +1898,629 @@ class IrisBatchItemRepository(BaseRepository[IrisBatchItem]):
     """
 
     _MODEL = IrisBatchItem
+
+
+class IrisWebhookSubscriptionRepository(BaseRepository[IrisWebhookSubscription]):
+    """Acceso a las suscripciones de webhooks (``IrisWebhookSubscription``)."""
+
+    _MODEL = IrisWebhookSubscription
+
+    def get_by_user(self, user_id: int) -> List[IrisWebhookSubscription]:
+        """Suscripciones de un usuario.
+
+        Args:
+            user_id: Dueño.
+
+        Returns:
+            List[IrisWebhookSubscription]: De la más antigua a la más nueva.
+        """
+        return (
+            self._session.query(IrisWebhookSubscription)
+            .filter(IrisWebhookSubscription.user_id == user_id)
+            .order_by(IrisWebhookSubscription.id.asc())
+            .all()
+        )
+
+    def count_by_user(self, user_id: int) -> int:
+        """Cuántas suscripciones tiene un usuario, activas o no.
+
+        Args:
+            user_id: Dueño.
+
+        Returns:
+            int: Número de suscripciones; ``0`` si no tiene ninguna.
+        """
+        return (
+            self._session.query(IrisWebhookSubscription)
+            .filter(IrisWebhookSubscription.user_id == user_id)
+            .count()
+        )
+
+    def get_active_for_event(self, user_id: int, event_type: str) -> List[IrisWebhookSubscription]:
+        """Suscripciones activas de un usuario que reciben un tipo de evento.
+
+        El filtro por tipo se hace en Python: ``event_types`` es una lista JSON
+        de pocos elementos y un usuario tiene como mucho unas pocas
+        suscripciones, así que no compensa una consulta distinta por dialecto.
+
+        Args:
+            user_id: Dueño.
+            event_type: Valor de ``WebhookEventType``.
+
+        Returns:
+            List[IrisWebhookSubscription]: Las que están activas y suscritas a
+                ``event_type``.
+        """
+        active = (
+            self._session.query(IrisWebhookSubscription)
+            .filter(IrisWebhookSubscription.user_id == user_id, IrisWebhookSubscription.is_active.is_(True))
+            .order_by(IrisWebhookSubscription.id.asc())
+            .all()
+        )
+        return [subscription for subscription in active if event_type in (subscription.event_types or [])]
+
+    def reset_failures(self, subscription_id: int, delivered_at: datetime) -> None:
+        """Anota una entrega que llegó: la cuenta de fallos seguidos vuelve a cero.
+
+        Args:
+            subscription_id: Suscripción.
+            delivered_at: Cuándo llegó.
+        """
+        self._session.execute(
+            update(IrisWebhookSubscription)
+            .where(IrisWebhookSubscription.id == subscription_id)
+            .values(consecutive_failures=0, last_success_at=delivered_at)
+        )
+
+    def increment_failures(self, subscription_id: int, failed_at: datetime, error: str) -> int:
+        """Suma un intento fallido a la suscripción, dentro del propio ``UPDATE``.
+
+        El incremento va en la base de datos y no en Python porque varios
+        workers pueden estar entregando a la vez eventos de la misma
+        suscripción.
+
+        Args:
+            subscription_id: Suscripción.
+            failed_at: Cuándo falló.
+            error: Motivo del fallo, ya recortado.
+
+        Returns:
+            int: Fallos seguidos después de sumar este; ``0`` si la suscripción
+                ya no existe.
+        """
+        self._session.execute(
+            update(IrisWebhookSubscription)
+            .where(IrisWebhookSubscription.id == subscription_id)
+            .values(
+                consecutive_failures=IrisWebhookSubscription.consecutive_failures + 1,
+                last_failure_at=failed_at,
+                last_error=error,
+            )
+        )
+        count = self._session.execute(
+            select(IrisWebhookSubscription.consecutive_failures)
+            .where(IrisWebhookSubscription.id == subscription_id)
+        ).scalar()
+        return int(count or 0)
+
+    def deactivate_if_active(self, subscription_id: int, reason: str, disabled_at: datetime) -> bool:
+        """Desactiva una suscripción que sigue activa, con su motivo.
+
+        Args:
+            subscription_id: Suscripción.
+            reason: ``failures`` o ``gone``.
+            disabled_at: Cuándo.
+
+        Returns:
+            bool: ``True`` si este llamante la desactivó; ``False`` si ya no
+                estaba activa (otro worker se adelantó o la apagó el usuario).
+        """
+        result = self._session.execute(
+            update(IrisWebhookSubscription)
+            .where(and_(IrisWebhookSubscription.id == subscription_id,
+                        IrisWebhookSubscription.is_active.is_(True)))
+            .values(is_active=False, disabled_reason=reason, disabled_at=disabled_at)
+        )
+        return result.rowcount == 1
+
+
+class IrisWebhookDeliveryRepository(BaseRepository[IrisWebhookDelivery]):
+    """Acceso a las entregas de eventos (``IrisWebhookDelivery``)."""
+
+    _MODEL = IrisWebhookDelivery
+
+    def exists_for_event(self, subscription_id: int, event_id: str) -> bool:
+        """Si un evento ya tiene entrega para una suscripción.
+
+        Args:
+            subscription_id: Suscripción.
+            event_id: Id estable del evento.
+
+        Returns:
+            bool: ``True`` si ya se emitió ese evento a esa suscripción.
+        """
+        return self._session.query(
+            self._session.query(IrisWebhookDelivery)
+            .filter(IrisWebhookDelivery.subscription_id == subscription_id,
+                    IrisWebhookDelivery.event_id == event_id)
+            .exists()
+        ).scalar()
+
+    def get_page_of_subscription(self, subscription_id: int, page: int,
+                                 per_page: int) -> Tuple[List[IrisWebhookDelivery], int]:
+        """Historial de entregas de una suscripción, de la más nueva a la más antigua.
+
+        Args:
+            subscription_id: Suscripción.
+            page: Página, empezando en 1.
+            per_page: Entregas por página.
+
+        Returns:
+            tuple: ``(entregas, total)``.
+        """
+        return self.paginate(page=page, per_page=per_page, filters={"subscription_id": subscription_id},
+                             order_by=IrisWebhookDelivery.id.desc())
+
+    def claim_for_attempt(self, delivery_id: int, now: datetime) -> bool:
+        """Pasa una entrega de ``pending`` a ``delivering`` si ya le toca y nadie la tiene.
+
+        El envío lo pueden disparar a la vez el camino inmediato tras emitir y
+        el barrido del scheduler; solo quien gana este ``UPDATE`` envía.
+
+        Args:
+            delivery_id: Entrega.
+            now: Hora actual; la entrega tiene que tener ``next_attempt_at``
+                anterior o igual.
+
+        Returns:
+            bool: ``True`` si este worker la ha reclamado.
+        """
+        result = self._session.execute(
+            update(IrisWebhookDelivery)
+            .where(and_(IrisWebhookDelivery.id == delivery_id,
+                        IrisWebhookDelivery.status == WebhookDeliveryStatus.PENDING.value,
+                        IrisWebhookDelivery.next_attempt_at <= now))
+            .values(status=WebhookDeliveryStatus.DELIVERING.value, claimed_at=now)
+        )
+        return result.rowcount == 1
+
+    def get_due_ids(self, now: datetime, limit: int) -> List[Tuple[int, int]]:
+        """Entregas pendientes cuyo intento ya toca, de suscripciones activas.
+
+        Args:
+            now: Hora actual.
+            limit: Cuántas como máximo.
+
+        Returns:
+            List[tuple]: Pares ``(id, intentos hechos)``, de la que más espera a
+                la que menos.
+        """
+        rows = (
+            self._session.query(IrisWebhookDelivery.id, IrisWebhookDelivery.attempts)
+            .join(IrisWebhookSubscription, IrisWebhookSubscription.id == IrisWebhookDelivery.subscription_id)
+            .filter(IrisWebhookDelivery.status == WebhookDeliveryStatus.PENDING.value,
+                    IrisWebhookDelivery.next_attempt_at <= now,
+                    IrisWebhookSubscription.is_active.is_(True))
+            .order_by(IrisWebhookDelivery.next_attempt_at.asc())
+            .limit(limit)
+            .all()
+        )
+        return [(row[0], row[1]) for row in rows]
+
+    def release_stale_claims(self, claimed_before: datetime) -> int:
+        """Devuelve a ``pending`` las entregas cuyo worker murió a mitad de envío.
+
+        Args:
+            claimed_before: Una entrega ``delivering`` reclamada antes de esto
+                se da por abandonada.
+
+        Returns:
+            int: Cuántas entregas se rescataron.
+        """
+        result = self._session.execute(
+            update(IrisWebhookDelivery)
+            .where(and_(IrisWebhookDelivery.status == WebhookDeliveryStatus.DELIVERING.value,
+                        IrisWebhookDelivery.claimed_at < claimed_before))
+            .values(status=WebhookDeliveryStatus.PENDING.value, claimed_at=None)
+        )
+        return result.rowcount or 0
+
+    def fail_pending_of_subscription(self, subscription_id: int, error: str) -> int:
+        """Da por fallidas las entregas pendientes de una suscripción que ya no recibe.
+
+        Args:
+            subscription_id: Suscripción desactivada.
+            error: Motivo (``subscription_disabled``).
+
+        Returns:
+            int: Cuántas entregas se cerraron.
+        """
+        result = self._session.execute(
+            update(IrisWebhookDelivery)
+            .where(and_(IrisWebhookDelivery.subscription_id == subscription_id,
+                        IrisWebhookDelivery.status == WebhookDeliveryStatus.PENDING.value))
+            .values(status=WebhookDeliveryStatus.FAILED.value, last_error=error)
+        )
+        return result.rowcount or 0
+
+    def purge_finished_older_than(self, cutoff: datetime) -> int:
+        """Borra el historial de entregas terminadas (llegadas o fallidas) anterior a una fecha.
+
+        Args:
+            cutoff: Se borran las emitidas antes de esto.
+
+        Returns:
+            int: Cuántas se borraron.
+        """
+        result = self._session.execute(
+            delete(IrisWebhookDelivery)
+            .where(and_(IrisWebhookDelivery.created_at < cutoff,
+                        IrisWebhookDelivery.status.in_([WebhookDeliveryStatus.DELIVERED.value,
+                                                        WebhookDeliveryStatus.FAILED.value])))
+        )
+        return result.rowcount or 0
+
+
+class IrisIntegrationTokenRepository(BaseRepository[IrisIntegrationToken]):
+    """Acceso a los tokens de integración (``IrisIntegrationToken``)."""
+
+    _MODEL = IrisIntegrationToken
+
+    def get_by_user(self, user_id: int) -> List[IrisIntegrationToken]:
+        """Tokens de un usuario, también los revocados y caducados.
+
+        Args:
+            user_id: Dueño.
+
+        Returns:
+            List[IrisIntegrationToken]: Del más nuevo al más antiguo.
+        """
+        return (
+            self._session.query(IrisIntegrationToken)
+            .filter(IrisIntegrationToken.user_id == user_id)
+            .order_by(IrisIntegrationToken.id.desc())
+            .all()
+        )
+
+    def count_valid_by_user(self, user_id: int, now: datetime) -> int:
+        """Cuántos tokens vigentes (ni revocados ni caducados) tiene un usuario.
+
+        Args:
+            user_id: Dueño.
+            now: Hora actual, para descartar los caducados.
+
+        Returns:
+            int: Número de tokens vigentes.
+        """
+        return (
+            self._session.query(IrisIntegrationToken)
+            .filter(IrisIntegrationToken.user_id == user_id,
+                    IrisIntegrationToken.revoked_at.is_(None),
+                    or_(IrisIntegrationToken.expires_at.is_(None), IrisIntegrationToken.expires_at > now))
+            .count()
+        )
+
+    def get_by_key_id(self, key_id: str) -> Optional[IrisIntegrationToken]:
+        """Localiza un token por su parte pública.
+
+        Args:
+            key_id: Los 16 caracteres hexadecimales que siguen a ``irt_``.
+
+        Returns:
+            Optional[IrisIntegrationToken]: El token, vigente o no; ``None`` si
+                no existe.
+        """
+        return self._session.query(IrisIntegrationToken).filter(IrisIntegrationToken.key_id == key_id).first()
+
+    def touch(self, token_id: int, used_at: datetime) -> None:
+        """Anota el último uso de un token.
+
+        Args:
+            token_id: Token.
+            used_at: Cuándo se usó.
+        """
+        self._session.execute(
+            update(IrisIntegrationToken).where(IrisIntegrationToken.id == token_id).values(last_used_at=used_at)
+        )
+
+
+class IrisActionAuditRepository(BaseRepository[IrisActionAudit]):
+    """Acceso a la auditoría de acciones sobre el buzón (``IrisActionAudit``)."""
+
+    _MODEL = IrisActionAudit
+
+    def get_by_analysis(self, analysis_id: int) -> List[IrisActionAudit]:
+        """Acciones sobre el correo de un análisis, de la más antigua a la más reciente.
+
+        Args:
+            analysis_id: Análisis.
+
+        Returns:
+            List[IrisActionAudit]: Todas, también las fallidas y los deshacer.
+        """
+        return (
+            self._session.query(IrisActionAudit)
+            .filter(IrisActionAudit.analysis_id == analysis_id)
+            .order_by(IrisActionAudit.id.asc())
+            .all()
+        )
+
+    def get_page_by_actor(self, actor_id: int, page: int, per_page: int) -> Tuple[List[IrisActionAudit], int]:
+        """Registro de acciones de un usuario, de la más reciente a la más antigua.
+
+        Args:
+            actor_id: Usuario que las hizo.
+            page: Página, empezando en 1.
+            per_page: Filas por página.
+
+        Returns:
+            tuple: ``(acciones, total)``.
+        """
+        return self.paginate(page=page, per_page=per_page, filters={"actor_id": actor_id},
+                             order_by=IrisActionAudit.id.desc())
+
+    def get_by_idempotency_key(self, actor_id: int, idempotency_key: str) -> Optional[IrisActionAudit]:
+        """La acción que un usuario pidió con una clave de idempotencia, si existe.
+
+        Args:
+            actor_id: Usuario.
+            idempotency_key: Clave que mandó el cliente.
+
+        Returns:
+            Optional[IrisActionAudit]: La acción, o ``None``.
+        """
+        return (
+            self._session.query(IrisActionAudit)
+            .filter(IrisActionAudit.actor_id == actor_id, IrisActionAudit.idempotency_key == idempotency_key)
+            .first()
+        )
+
+    def has_in_flight_for_analysis(self, analysis_id: int) -> bool:
+        """Si hay una acción pendiente o en curso sobre el correo de un análisis.
+
+        Args:
+            analysis_id: Análisis.
+
+        Returns:
+            bool: ``True`` si alguna está ``pending`` o ``running``.
+        """
+        return self._session.query(
+            self._session.query(IrisActionAudit)
+            .filter(IrisActionAudit.analysis_id == analysis_id,
+                    IrisActionAudit.status.in_([MailboxActionStatus.PENDING.value, MailboxActionStatus.RUNNING.value]))
+            .exists()
+        ).scalar()
+
+    def get_standing_action(self, analysis_id: int, action: str) -> Optional[IrisActionAudit]:
+        """La acción aplicada y no deshecha de un tipo sobre el correo de un análisis.
+
+        Args:
+            analysis_id: Análisis.
+            action: Valor de ``MailboxAction``.
+
+        Returns:
+            Optional[IrisActionAudit]: La más reciente en ``succeeded`` que no
+                es un deshacer, o ``None``.
+        """
+        return (
+            self._session.query(IrisActionAudit)
+            .filter(IrisActionAudit.analysis_id == analysis_id, IrisActionAudit.action == action,
+                    IrisActionAudit.is_rollback.is_(False),
+                    IrisActionAudit.status == MailboxActionStatus.SUCCEEDED.value)
+            .order_by(IrisActionAudit.id.desc())
+            .first()
+        )
+
+    def claim_for_run(self, audit_id: int, started_at: datetime) -> bool:
+        """Pasa una acción de ``pending`` a ``running`` si nadie la ha cogido ya.
+
+        Args:
+            audit_id: Acción.
+            started_at: Hora de inicio.
+
+        Returns:
+            bool: ``True`` si este worker la ha reclamado.
+        """
+        result = self._session.execute(
+            update(IrisActionAudit)
+            .where(and_(IrisActionAudit.id == audit_id,
+                        IrisActionAudit.status == MailboxActionStatus.PENDING.value))
+            .values(status=MailboxActionStatus.RUNNING.value, started_at=started_at)
+        )
+        return result.rowcount == 1
+
+    def fail_stale_running(self, started_before: datetime, error: str, completed_at: datetime) -> int:
+        """Da por fallidas las acciones que un worker dejó a medias.
+
+        Args:
+            started_before: Una acción ``running`` que empezó antes se da por
+                abandonada.
+            error: Motivo que se anota.
+            completed_at: Hora que se anota como final.
+
+        Returns:
+            int: Cuántas se cerraron.
+        """
+        result = self._session.execute(
+            update(IrisActionAudit)
+            .where(and_(IrisActionAudit.status == MailboxActionStatus.RUNNING.value,
+                        IrisActionAudit.started_at < started_before))
+            .values(status=MailboxActionStatus.FAILED.value, error=error, completed_at=completed_at)
+        )
+        return result.rowcount or 0
+
+
+class IrisMailboxMemberRepository(BaseRepository[IrisMailboxMember]):
+    """Acceso de personas a buzones compartidos (``IrisMailboxMember``)."""
+
+    _MODEL = IrisMailboxMember
+
+    def get_by_connection_and_user(self, connection_id: int, user_id: int) -> Optional[IrisMailboxMember]:
+        """El acceso de una persona a un buzón, si lo tiene.
+
+        Args:
+            connection_id: Buzón compartido.
+            user_id: Persona.
+
+        Returns:
+            Optional[IrisMailboxMember]: El acceso, o ``None``.
+        """
+        return (
+            self._session.query(IrisMailboxMember)
+            .filter(IrisMailboxMember.connection_id == connection_id, IrisMailboxMember.user_id == user_id)
+            .first()
+        )
+
+    def get_by_connection(self, connection_id: int) -> List[IrisMailboxMember]:
+        """Todas las personas con acceso a un buzón, por orden de alta.
+
+        Args:
+            connection_id: Buzón compartido.
+
+        Returns:
+            List[IrisMailboxMember]: Los accesos.
+        """
+        return (
+            self._session.query(IrisMailboxMember)
+            .filter(IrisMailboxMember.connection_id == connection_id)
+            .order_by(IrisMailboxMember.id.asc())
+            .all()
+        )
+
+    def count_managers(self, connection_id: int) -> int:
+        """Cuántas personas administran un buzón.
+
+        Args:
+            connection_id: Buzón compartido.
+
+        Returns:
+            int: Accesos ``manager``.
+        """
+        return (
+            self._session.query(IrisMailboxMember)
+            .filter(IrisMailboxMember.connection_id == connection_id, IrisMailboxMember.access == "manager")
+            .count()
+        )
+
+
+class IrisMailboxSubscriptionRepository(BaseRepository[IrisMailboxSubscription]):
+    """Acceso a las suscripciones a eventos de buzón (``IrisMailboxSubscription``)."""
+
+    _MODEL = IrisMailboxSubscription
+
+    def get_by_connection(self, connection_id: int) -> Optional[IrisMailboxSubscription]:
+        """La suscripción de una conexión, si la tiene.
+
+        Args:
+            connection_id: Conexión.
+
+        Returns:
+            Optional[IrisMailboxSubscription]: La suscripción, o ``None``.
+        """
+        return (
+            self._session.query(IrisMailboxSubscription)
+            .filter(IrisMailboxSubscription.connection_id == connection_id)
+            .first()
+        )
+
+    def get_by_external_id(self, external_id: str) -> Optional[IrisMailboxSubscription]:
+        """La suscripción con un id de Graph.
+
+        Args:
+            external_id: Id de la suscripción en el proveedor.
+
+        Returns:
+            Optional[IrisMailboxSubscription]: La suscripción, o ``None``.
+        """
+        return (
+            self._session.query(IrisMailboxSubscription)
+            .filter(IrisMailboxSubscription.external_id == external_id)
+            .first()
+        )
+
+    def get_active_for_gmail_account(self, email_address: str) -> List[IrisMailboxSubscription]:
+        """Suscripciones activas de Gmail de las conexiones activas de una cuenta.
+
+        Varias conexiones pueden vigilar la misma cuenta (dos usuarios que la
+        comparten, dos carpetas): un aviso las despierta a todas.
+
+        Args:
+            email_address: Cuenta de Gmail, en minúsculas.
+
+        Returns:
+            List[IrisMailboxSubscription]: Sus suscripciones activas.
+        """
+        return (
+            self._session.query(IrisMailboxSubscription)
+            .join(IrisMailboxConnection, IrisMailboxConnection.id == IrisMailboxSubscription.connection_id)
+            .filter(IrisMailboxSubscription.provider == "gmail",
+                    IrisMailboxSubscription.status == MailboxSubscriptionStatus.ACTIVE.value,
+                    IrisMailboxConnection.status == "active",
+                    func.lower(IrisMailboxConnection.account_email) == email_address)
+            .all()
+        )
+
+    def get_due_for_renewal(self, expiring_before: datetime, limit: int) -> List[IrisMailboxSubscription]:
+        """Suscripciones activas de conexiones activas que caducan pronto.
+
+        Args:
+            expiring_before: Las que caducan antes de esto.
+            limit: Cuántas como mucho.
+
+        Returns:
+            List[IrisMailboxSubscription]: De la que caduca antes a la que después.
+        """
+        return (
+            self._session.query(IrisMailboxSubscription)
+            .join(IrisMailboxConnection, IrisMailboxConnection.id == IrisMailboxSubscription.connection_id)
+            .filter(IrisMailboxSubscription.status == MailboxSubscriptionStatus.ACTIVE.value,
+                    IrisMailboxConnection.status == "active",
+                    IrisMailboxSubscription.expires_at < expiring_before)
+            .order_by(IrisMailboxSubscription.expires_at.asc())
+            .limit(limit)
+            .all()
+        )
+
+    def claim_event(self, subscription_id: int, now: datetime, quiet_since: datetime,
+                    history_id: Optional[str] = None) -> bool:
+        """Acepta un aviso si no llega en plena ráfaga, dentro del propio ``UPDATE``.
+
+        Un aviso despierta un sync solo si el anterior que despertó uno fue antes
+        de ``quiet_since``: una ráfaga de avisos (diez correos seguidos) se
+        convierte en un único sync, que recoge todo lo nuevo de una vez. La
+        condición va en el ``UPDATE`` porque los avisos llegan en paralelo. Los
+        avisos de la ráfaga que no despiertan nada se cuentan igualmente en
+        ``events_received``.
+
+        Args:
+            subscription_id: Suscripción.
+            now: Hora actual.
+            quiet_since: Límite de la ventana de agrupación.
+            history_id: En Gmail, el ``historyId`` del aviso, que se guarda.
+                Por defecto ``None``.
+
+        Returns:
+            bool: ``True`` si este aviso despierta un sync.
+        """
+        values = {"last_event_at": now, "events_received": IrisMailboxSubscription.events_received + 1}
+        if history_id is not None:
+            values["last_history_id"] = history_id
+        result = self._session.execute(
+            update(IrisMailboxSubscription)
+            .where(and_(IrisMailboxSubscription.id == subscription_id,
+                        or_(IrisMailboxSubscription.last_event_at.is_(None),
+                            IrisMailboxSubscription.last_event_at < quiet_since)))
+            .values(**values)
+        )
+        if result.rowcount == 1:
+            return True
+        # En plena ráfaga no despierta nada, pero cuenta como aviso recibido.
+        self._session.execute(
+            update(IrisMailboxSubscription)
+            .where(IrisMailboxSubscription.id == subscription_id)
+            .values(events_received=IrisMailboxSubscription.events_received + 1)
+        )
+        return False
 
 
 class IrisReportRepository(DocumentRepository[IrisDocument]):

@@ -1780,6 +1780,8 @@ class LaunchSurface(StrEnum):
     - ``EXTERNAL_AI``: generación con proveedores de IA fuera del servidor.
     - ``EXTERNAL_ENRICHMENT``: consultas de Iris a servicios de terceros sobre
       los indicadores de un correo (RDAP, reputación, seguir enlaces).
+    - ``WEBHOOKS``: eventos de Iris enviados a un sistema externo que elige el
+      usuario (un SIEM, un SOAR, un canal de chat).
     """
 
     REGISTRATION = "registration"
@@ -1789,6 +1791,7 @@ class LaunchSurface(StrEnum):
     MAILBOX_CONNECTORS = "mailboxConnectors"
     EXTERNAL_AI = "externalAi"
     EXTERNAL_ENRICHMENT = "externalEnrichment"
+    WEBHOOKS = "webhooks"
 
 
 @config_block("general.launch")
@@ -2836,6 +2839,215 @@ class IrisTenantConfig:
 
 def iris_tenant_config() -> IrisTenantConfig:
     return load_block(IrisTenantConfig)
+
+
+@config_block("features.iris.webhooks")
+@dataclass(frozen=True)
+class IrisWebhooksConfig:
+    """Eventos firmados de Iris hacia sistemas externos (``iris/managers/webhooks.py``).
+
+    Además de estos límites, la superficie ``webhooks`` de ``general.launch``
+    cierra la función mientras la instalación está en vista previa.
+    """
+
+    max_subscriptions_per_user: int = 10
+    """Suscripciones que puede tener un usuario a la vez."""
+
+    max_attempts: int = 8
+    """Intentos de entrega de un evento antes de darlo por fallido, contando
+    el primero."""
+
+    retry_base_seconds: int = 30
+    """Espera tras el primer intento fallido; cada intento siguiente la
+    duplica hasta ``retry_max_seconds``."""
+
+    retry_max_seconds: int = 3600
+    """Espera máxima entre dos intentos de una misma entrega."""
+
+    disable_after_consecutive_failures: int = 20
+    """Intentos fallidos seguidos, sumando todas sus entregas, tras los que una
+    suscripción se desactiva sola. Cualquier entrega que llega pone la cuenta
+    a cero."""
+
+    timeout_seconds: float = 10.0
+    """Tiempo máximo de cada operación de red al entregar."""
+
+    max_response_bytes: int = 4096
+    """Bytes de la respuesta del receptor que se leen (y se guardan para
+    diagnosticar); el cuerpo de la respuesta no se interpreta."""
+
+    retry_sweep_interval_seconds: int = 60
+    """Cada cuánto busca el scheduler entregas pendientes cuyo reintento ya
+    toca."""
+
+    delivery_retention_days: int = 30
+    """Días que se conserva el historial de entregas terminadas."""
+
+
+def iris_webhooks_config() -> IrisWebhooksConfig:
+    return load_block(IrisWebhooksConfig)
+
+
+@config_block("features.iris.reporting")
+@dataclass(frozen=True)
+class IrisReportingConfig:
+    """Canal de reporte de Iris: tokens con que un cliente de correo reporta mensajes."""
+
+    max_tokens_per_user: int = 10
+    """Tokens de integración vigentes que puede tener un usuario a la vez."""
+
+    default_token_lifetime_days: int = 180
+    """Días que vale un token si al crearlo no se dice otra cosa."""
+
+    max_token_lifetime_days: int = 365
+    """Días que puede valer un token como mucho. Un token que no caduca nunca
+    es el que se queda olvidado en un portátil viejo."""
+
+
+def iris_reporting_config() -> IrisReportingConfig:
+    return load_block(IrisReportingConfig)
+
+
+@config_block("features.iris.remediation")
+@dataclass(frozen=True)
+class IrisRemediationConfig:
+    """Acciones de Iris sobre el buzón conectado del usuario (``iris/managers/remediation.py``)."""
+
+    quarantine_folder_name: str = "Iris Cuarentena"
+    """Nombre de la etiqueta de Gmail o la carpeta de Outlook adonde va un
+    correo en cuarentena. Se crea la primera vez que hace falta."""
+
+    suspicious_label_name: str = "Iris: sospechoso"
+    """Etiqueta de Gmail o categoría de Outlook con que se marca un correo
+    sospechoso sin moverlo."""
+
+
+def iris_remediation_config() -> IrisRemediationConfig:
+    return load_block(IrisRemediationConfig)
+
+
+@config_block("features.iris.events")
+@dataclass(frozen=True)
+class IrisMailboxEventsConfig:
+    """Ingesta por eventos: el proveedor avisa de correo nuevo y eso despierta el sync.
+
+    Viene apagada: hace falta que la instalación tenga una URL pública
+    alcanzable por Google y Microsoft y, para Gmail, un tema de Pub/Sub. Con
+    ella apagada, o con una suscripción rota, todo sigue por sondeo.
+    """
+
+    enabled: bool = False
+    """Si se crean suscripciones a eventos para las conexiones activas."""
+
+    fallback_poll_interval_minutes: int = 30
+    """Cada cuánto se sondea igualmente una conexión con la suscripción sana:
+    es la red de seguridad por si un aviso se pierde. Sin suscripción sana se
+    sondea a ``pollIntervalMinutes``."""
+
+    renew_before_hours: int = 12
+    """Horas antes de caducar a partir de las que se renueva una suscripción
+    (las de Gmail duran 7 días; las de Graph, unos 3)."""
+
+    renew_check_interval_minutes: int = 60
+    """Cada cuánto se revisan suscripciones por renovar, que faltan o que
+    fallaron."""
+
+    debounce_seconds: int = 30
+    """Una ráfaga de avisos de la misma conexión dentro de este margen
+    despierta un solo sync: el sync recoge todo lo nuevo de una vez."""
+
+    max_event_age_minutes: int = 60
+    """Un aviso de Gmail publicado hace más de esto se ignora (reenvío tardío
+    o repetido); el sondeo cubre lo que pudiera traer."""
+
+    graph_subscription_minutes: int = 4200
+    """Duración que se pide para una suscripción de Graph a mensajes (el
+    máximo que admite Microsoft ronda los 4230 minutos)."""
+
+
+def iris_mailbox_events_config() -> IrisMailboxEventsConfig:
+    return load_block(IrisMailboxEventsConfig)
+
+
+@config_block("features.iris.sharedMailboxes")
+@dataclass(frozen=True)
+class IrisSharedMailboxesConfig:
+    """Límites de los buzones compartidos de una organización y de las carpetas por conexión."""
+
+    max_per_organization: int = 10
+    """Buzones compartidos que puede conectar una organización."""
+
+    max_members_per_mailbox: int = 50
+    """Personas con acceso a un mismo buzón compartido."""
+
+    max_folders_per_connection: int = 5
+    """Carpetas que vigila una conexión, contando la principal."""
+
+
+def iris_shared_mailboxes_config() -> IrisSharedMailboxesConfig:
+    return load_block(IrisSharedMailboxesConfig)
+
+
+@config_block("features.iris.imap")
+@dataclass(frozen=True)
+class IrisImapConfig:
+    """Conexiones IMAP: siempre con TLS, contra servidores de internet y con un tope por sync."""
+
+    allowed_ports: list = field(default_factory=lambda: [993])
+    """Puertos admitidos. Solo IMAP sobre TLS directo (993 por defecto): no
+    se admite IMAP en claro ni STARTTLS, que un intermediario puede degradar."""
+
+    timeout_seconds: int = 20
+    """Tiempo máximo de cada operación contra el servidor."""
+
+    max_messages_per_sync: int = 200
+    """Mensajes nuevos que se recogen como mucho en un sync; el resto, en el siguiente."""
+
+
+def iris_imap_config() -> IrisImapConfig:
+    return load_block(IrisImapConfig)
+
+
+def get_mailbox_service_account_environment() -> dict[str, str]:
+    """Credenciales de las cuentas de servicio de buzón, desde el entorno.
+
+    Con ellas la instalación lee un buzón (típicamente uno compartido) sin que
+    ninguna persona inicie sesión: en Google Workspace, una cuenta de servicio
+    con delegación de dominio limitada a ``gmail.readonly``; en Microsoft 365,
+    una aplicación de Entra ID con el permiso de aplicación ``Mail.Read``
+    (conviene restringirla a los buzones concretos con una *application
+    access policy* de Exchange).
+
+    Returns:
+        dict: ``gmail_service_account_file`` (ruta al JSON de la cuenta de
+            servicio de Google), ``graph_tenant_id``, ``graph_client_id`` y
+            ``graph_client_secret`` (la aplicación de Microsoft); cadenas
+            vacías si no están definidas.
+    """
+    return {
+        "gmail_service_account_file": os.getenv("GMAIL_SERVICE_ACCOUNT_FILE", "").strip(),
+        "graph_tenant_id": os.getenv("GRAPH_SERVICE_TENANT_ID", "").strip(),
+        "graph_client_id": os.getenv("GRAPH_SERVICE_CLIENT_ID", "").strip(),
+        "graph_client_secret": os.getenv("GRAPH_SERVICE_CLIENT_SECRET", "").strip(),
+    }
+
+
+def get_gmail_events_environment() -> dict[str, str]:
+    """Lo que necesita la ingesta por eventos de Gmail, desde el entorno.
+
+    Gmail no llama a una URL directamente: publica en un tema de Google Cloud
+    Pub/Sub, y una suscripción de empuje de ese tema llama a
+    ``/iris/mailbox/events/gmail?token=<IRIS_GMAIL_PUSH_TOKEN>``.
+
+    Returns:
+        dict: ``topic`` (``GMAIL_PUBSUB_TOPIC``, ``projects/<p>/topics/<t>``) y
+            ``push_token`` (``IRIS_GMAIL_PUSH_TOKEN``); cadenas vacías si no
+            están definidas (entonces Gmail sigue solo por sondeo).
+    """
+    return {
+        "topic": os.getenv("GMAIL_PUBSUB_TOPIC", "").strip(),
+        "push_token": os.getenv("IRIS_GMAIL_PUSH_TOKEN", "").strip(),
+    }
 
 
 def get_iris_threat_intel_key(provider: str) -> str:

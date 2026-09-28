@@ -13,6 +13,14 @@
           </template>
         </i18n-t>
 
+        <label class="remediation-toggle">
+          <input v-model="remediationEnabled" type="checkbox" />
+          <span>
+            <strong>{{ t('iris.connections.remediation') }}</strong>
+            <span class="remediation-hint">{{ t('iris.connections.remediationHint') }}</span>
+          </span>
+        </label>
+
         <div v-if="store.providers.length" class="provider-grid">
           <button
             v-for="(provider, index) in store.providers"
@@ -21,7 +29,7 @@
             class="provider-card"
             :style="{ '--card-delay': index * 60 + 'ms' }"
             :disabled="store.connecting"
-            @click="store.connect(provider)"
+            @click="store.connect(provider, { remediationEnabled })"
           >
             <span class="provider-icon">
               <svg v-if="provider === 'gmail'" viewBox="0 0 24 24" aria-hidden="true">
@@ -46,6 +54,19 @@
             <svg class="provider-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18l6-6-6-6" /></svg>
           </button>
         </div>
+
+        <details class="imap-panel">
+          <summary>{{ t('iris.imap.title') }}</summary>
+          <p class="panel-sub">{{ t('iris.imap.intro') }}</p>
+          <form @submit.prevent="submitImap">
+            <ImapConnectFields v-model="imapForm" />
+            <div class="imap-actions">
+              <button type="submit" class="btn-primary" :disabled="store.connecting || !isImapReady">
+                {{ store.connecting ? t('iris.connections.connecting') : t('iris.connections.connect') }}
+              </button>
+            </div>
+          </form>
+        </details>
       </section>
 
       <section class="list-panel">
@@ -55,13 +76,18 @@
           :error="store.listError"
           :syncing-ids="store.syncingIds"
           @refresh="store.fetchConnections"
-          @reconnect="conn => store.connect(conn.provider)"
+          @reconnect="conn => store.connect(conn.provider, { remediationEnabled: conn.remediationEnabled })"
           @toggle-pause="handleTogglePause"
           @sync="handleSync"
           @delete="handleDeleteRequest"
+          @folders="conn => (foldersConnection = conn)"
+          @rotate="conn => (passwordConnection = conn)"
         />
       </section>
     </div>
+
+    <MailboxFoldersModal :connection="foldersConnection" @close="foldersConnection = null" @saved="foldersConnection = null" />
+    <MailboxPasswordModal :connection="passwordConnection" @close="passwordConnection = null" @saved="passwordConnection = null" />
 
     <ConfirmModal
       :show="pendingDelete !== null"
@@ -76,12 +102,15 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Topbar from '@/components/shared/Topbar.vue'
 import StarBackground from '@/components/shared/StarBackground.vue'
 import ConfirmModal from '@/components/shared/ConfirmModal.vue'
 import MailboxConnectionList from '@/components/iris/MailboxConnectionList.vue'
+import ImapConnectFields from '@/components/iris/ImapConnectFields.vue'
+import MailboxFoldersModal from '@/components/iris/MailboxFoldersModal.vue'
+import MailboxPasswordModal from '@/components/iris/MailboxPasswordModal.vue'
 import { useIrisMailboxStore } from '@/stores/irisMailboxStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useI18n } from 'vue-i18n'
@@ -94,6 +123,21 @@ const route = useRoute()
 const router = useRouter()
 
 const pendingDelete = ref(null)
+/** Si la próxima conexión pide permiso para actuar sobre el buzón (por defecto, solo lectura). */
+const remediationEnabled = ref(false)
+/** Conexión cuyas carpetas se están eligiendo, o null. */
+const foldersConnection = ref(null)
+/** Conexión IMAP cuya contraseña se está cambiando, o null. */
+const passwordConnection = ref(null)
+/** Formulario de un buzón IMAP; solo TLS directo, de ahí el 993. */
+const imapForm = ref({ host: '', port: 993, username: '', password: '' })
+const isImapReady = computed(() => Boolean(imapForm.value.host && imapForm.value.username && imapForm.value.password))
+
+async function submitImap() {
+  if (await store.connectImap({ ...imapForm.value })) {
+    imapForm.value = { host: '', port: 993, username: '', password: '' }
+  }
+}
 
 const PROVIDER_LABELS = { microsoft: 'Microsoft 365', gmail: 'Gmail' }
 function providerLabel(provider) { return PROVIDER_LABELS[provider] || provider }
@@ -186,6 +230,15 @@ async function confirmDelete() {
 .panel-sub { margin: 0 0 1.2rem; font-size: var(--fs-md); line-height: 1.55; color: var(--text-dim); max-width: 62ch; }
 .inline-link { color: var(--accent-bright); text-decoration: underline; text-underline-offset: 2px; }
 
+.remediation-toggle {
+  display: flex; align-items: flex-start; gap: 0.6rem; margin: 0 0 1rem;
+  font-size: var(--fs-md); color: var(--text);
+}
+.remediation-toggle input { margin-top: 0.25rem; }
+.remediation-hint { display: block; font-size: var(--fs-sm); color: var(--text-muted); line-height: 1.5; }
+.imap-panel { margin-top: 1.2rem; border-top: 1px solid var(--border); padding-top: 1rem; }
+.imap-panel summary { cursor: pointer; font-weight: 700; color: var(--text); margin-bottom: 0.6rem; }
+.imap-actions { display: flex; justify-content: flex-end; margin-top: 0.8rem; }
 .provider-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 0.75rem; }
 
 .provider-card {

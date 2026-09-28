@@ -90,6 +90,9 @@
       <!-- Aviso: el mensaje enviado era un reenvío que envolvía el correo -->
       <!-- original como adjunto .eml. Se evalúan los dos y el informe describe -->
       <!-- el que produjo el veredicto (winningContext); el otro queda como secundario -->
+      <p v-if="reportChannelKey(reportData.reportChannel)" class="rv-report-channel">
+        {{ t(reportChannelKey(reportData.reportChannel)) }}
+      </p>
       <div v-if="reportData.unwrappedFromForward" class="rv-unwrap-notice">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="unwrap-icon"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 6L2 7"/></svg>
         <div class="unwrap-text">
@@ -187,6 +190,10 @@
           @cancel="trustFormOpen = false"
         />
       </div>
+
+      <!-- Actuar sobre el correo en el buzón conectado (cuarentena, spam…).
+           Solo aparece si el correo llegó por un buzón; nada se hace solo. -->
+      <IrisMailboxActions :analysis-id="reportData.analysisId" />
 
       <!-- Remitente que imita a un contacto habitual del usuario. No cambia
            el veredicto (depende de la historia del usuario, no del mensaje),
@@ -445,6 +452,7 @@
 import { ref, computed, watch, nextTick } from 'vue'
 import { useUtils } from '@/composables/useUtils'
 import { verdictKey } from '@/components/iris/verdict'
+import { reportChannelKey } from '@/components/iris/integrations'
 import { contactDeviationKey as deviationKey, defang as defangIndicator } from '@/components/iris/indicators'
 import { useIrisStore } from '@/stores/irisStore'
 import IrisEmailPath from '@/components/iris/IrisEmailPath.vue'
@@ -455,6 +463,7 @@ import IrisVerdictHero from '@/components/iris/IrisVerdictHero.vue'
 import IrisTrustForm from '@/components/iris/IrisTrustForm.vue'
 import IrisAddToCase from '@/components/iris/IrisAddToCase.vue'
 import IrisIntelExport from '@/components/iris/IrisIntelExport.vue'
+import IrisMailboxActions from '@/components/iris/IrisMailboxActions.vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -1056,6 +1065,9 @@ watch(
 }
 
 /* Unwrapped-forward notice */
+.rv-report-channel {
+  margin: 0 0 0.6rem; font-size: var(--fs-sm); color: var(--text-muted);
+}
 .rv-unwrap-notice {
   display: flex;
   align-items: flex-start;

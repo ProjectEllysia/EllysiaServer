@@ -220,6 +220,205 @@ class IrisNotInOrganizationError(IrisError):
         )
 
 
+class IrisWebhookSubscriptionNotFoundError(EntityNotFoundError, IrisError):
+    """El webhook no existe o no es del usuario (mismo error para los dos)."""
+    entity_label = "Webhook"
+    id_field = "subscription_id"
+
+
+class IrisWebhookDeliveryNotFoundError(EntityNotFoundError, IrisError):
+    """La entrega no existe o no es de ese webhook del usuario (mismo error para los dos)."""
+    entity_label = "Entrega"
+    entity_is_feminine = True
+    id_field = "delivery_id"
+
+
+class IrisWebhookLimitReachedError(IrisError):
+    """El usuario ya tiene tantos webhooks como permite la instalación."""
+    default_code = ErrorCode.VALIDATION_ERROR
+    default_status_code = 409
+
+    def __init__(self, limit: int) -> None:
+        super().__init__(
+            message=f"Limite de {limit} webhooks por usuario alcanzado",
+            user_message=f"Ya tienes {limit} webhooks, el máximo. Borra uno para dar de alta otro.",
+            message_key="irisWebhookLimitReached",
+            params={"limit": limit},
+        )
+
+
+class IrisWebhookInactiveError(IrisError):
+    """El webhook está desactivado: no se le puede enviar nada hasta reactivarlo."""
+    default_code = ErrorCode.CONSTRAINT_VIOLATION
+    default_status_code = 409
+
+    def __init__(self) -> None:
+        super().__init__(
+            message="El webhook esta desactivado",
+            user_message="Este webhook está desactivado. Actívalo antes de enviarle eventos.",
+            message_key="irisWebhookInactive",
+        )
+
+
+class IrisWebhookDeliveryInProgressError(IrisError):
+    """La entrega todavía está pendiente o enviándose: reenviarla no tiene sentido aún."""
+    default_code = ErrorCode.CONSTRAINT_VIOLATION
+    default_status_code = 409
+
+    def __init__(self) -> None:
+        super().__init__(
+            message="La entrega sigue pendiente o en curso",
+            user_message="Esta entrega todavía está en curso; se podrá reenviar cuando termine.",
+            message_key="irisWebhookDeliveryInProgress",
+        )
+
+
+class IrisIntegrationTokenNotFoundError(EntityNotFoundError, IrisError):
+    """El token de integración no existe o no es del usuario (mismo error para los dos)."""
+    entity_label = "Token de integración"
+    id_field = "token_id"
+
+
+class IrisInvalidIntegrationTokenError(IrisError):
+    """El token de integración falta, está mal formado, no existe, está revocado o caducó.
+
+    Una sola respuesta para todos los casos, a propósito: distinguir «no
+    existe» de «secreto incorrecto» permitiría averiguar qué ``key_id`` son
+    válidos probando.
+    """
+    default_code = ErrorCode.AUTHENTICATION_ERROR
+    default_status_code = 401
+
+    def __init__(self, reason: str = "") -> None:
+        super().__init__(
+            message=f"Token de integracion rechazado{f': {reason}' if reason else ''}",
+            user_message="El token de integración no es válido, está revocado o ha caducado.",
+            message_key="irisInvalidIntegrationToken",
+        )
+
+
+class IrisIntegrationTokenLimitReachedError(IrisError):
+    """El usuario ya tiene tantos tokens vigentes como permite la instalación."""
+    default_code = ErrorCode.VALIDATION_ERROR
+    default_status_code = 409
+
+    def __init__(self, limit: int) -> None:
+        super().__init__(
+            message=f"Limite de {limit} tokens de integracion vigentes alcanzado",
+            user_message=f"Ya tienes {limit} tokens de integración vigentes, el máximo. Revoca uno para crear otro.",
+            message_key="irisIntegrationTokenLimitReached",
+            params={"limit": limit},
+        )
+
+
+class IrisMailboxReauthRequiredError(IrisError):
+    """El proveedor ya no acepta la autorización del buzón: hay que volver a conectarlo."""
+    default_code = ErrorCode.CONSTRAINT_VIOLATION
+    default_status_code = 409
+
+    def __init__(self) -> None:
+        super().__init__(
+            message="La conexion de buzon necesita reautorizacion",
+            user_message="Este buzón necesita que lo vuelvas a conectar antes de poder actuar sobre él.",
+            message_key="irisMailboxReauthRequired",
+        )
+
+
+class IrisMailboxActionNotFoundError(EntityNotFoundError, IrisError):
+    """La acción sobre el buzón no existe o no la hizo el usuario (mismo error para los dos)."""
+    entity_label = "Acción"
+    entity_is_feminine = True
+    id_field = "action_id"
+
+
+#: Por qué no se puede actuar sobre el correo de un análisis: texto para el
+#: usuario y clave de su plantilla, por motivo.
+_UNAVAILABLE_REASONS = {
+    "not_from_mailbox": ("Este correo no llegó por un buzón conectado, así que Iris no puede actuar sobre él.",
+                         "irisMailboxActionNotFromMailbox"),
+    "connection_gone": ("El buzón por el que llegó este correo ya no está conectado.",
+                        "irisMailboxActionConnectionGone"),
+    "missing_scope": ("Este buzón se conectó en solo lectura. Vuelve a conectarlo con las acciones activadas.",
+                      "irisMailboxActionMissingScope"),
+}
+
+
+class IrisMailboxActionUnavailableError(IrisError):
+    """No se puede actuar sobre el correo de este análisis, por un motivo estable."""
+    default_code = ErrorCode.CONSTRAINT_VIOLATION
+    default_status_code = 409
+
+    def __init__(self, reason: str) -> None:
+        """Construye el error.
+
+        Args:
+            reason: ``not_from_mailbox``, ``connection_gone`` o ``missing_scope``.
+        """
+        user_message, message_key = _UNAVAILABLE_REASONS[reason]
+        super().__init__(
+            message=f"Accion sobre el buzon no disponible: {reason}",
+            user_message=user_message,
+            message_key=message_key,
+        )
+        self.reason = reason
+
+
+class IrisMailboxActionConfirmationRequiredError(IrisError):
+    """Una acción que saca el correo de la bandeja se pidió sin confirmarla."""
+    default_code = ErrorCode.VALIDATION_ERROR
+    default_status_code = 400
+
+    def __init__(self) -> None:
+        super().__init__(
+            message="La accion saca el correo de la bandeja y no se confirmo",
+            user_message="Esta acción saca el correo de tu bandeja: confírmala para hacerla.",
+            message_key="irisMailboxActionConfirmationRequired",
+        )
+
+
+class IrisMailboxActionInProgressError(IrisError):
+    """Ya hay una acción en curso sobre este correo; hay que esperar a que termine."""
+    default_code = ErrorCode.CONSTRAINT_VIOLATION
+    default_status_code = 409
+
+    def __init__(self) -> None:
+        super().__init__(
+            message="Ya hay una accion en curso sobre este correo",
+            user_message="Ya hay una acción en curso sobre este correo. Espera a que termine.",
+            message_key="irisMailboxActionInProgress",
+        )
+
+
+class IrisMailboxActionNotReversibleError(IrisError):
+    """La acción no se puede deshacer: no se llegó a aplicar, ya se deshizo o es ella misma un deshacer."""
+    default_code = ErrorCode.CONSTRAINT_VIOLATION
+    default_status_code = 409
+
+    def __init__(self) -> None:
+        super().__init__(
+            message="La accion no se puede deshacer en su estado actual",
+            user_message="Esta acción no se puede deshacer: no llegó a aplicarse o ya se deshizo.",
+            message_key="irisMailboxActionNotReversible",
+        )
+
+
+class IrisMailboxEventRejectedError(IrisError):
+    """Un aviso de correo nuevo que no trae el secreto que prueba de dónde viene.
+
+    Lo ve el servicio del proveedor, no una persona; la respuesta no dice qué
+    falló para no ayudar a quien pruebe secretos.
+    """
+    default_code = ErrorCode.AUTHENTICATION_ERROR
+    default_status_code = 401
+
+    def __init__(self, reason: str = "") -> None:
+        super().__init__(
+            message=f"Aviso de buzon rechazado{f': {reason}' if reason else ''}",
+            user_message="Aviso rechazado.",
+            message_key="irisMailboxEventRejected",
+        )
+
+
 class IrisTenantOwnerRequiredError(IrisError):
     """Solo el dueño de la organización decide si se comparte inteligencia y qué se protege."""
     default_code = ErrorCode.AUTHORIZATION_ERROR
@@ -231,3 +430,101 @@ class IrisTenantOwnerRequiredError(IrisError):
             user_message="Solo el dueño de la organización puede cambiar esto.",
             message_key="irisTenantOwnerRequired",
         )
+
+
+class IrisSharedMailboxOwnerRequiredError(IrisError):
+    """Solo el dueño de la organización conecta buzones compartidos de ella."""
+    default_code = ErrorCode.AUTHORIZATION_ERROR
+    default_status_code = 403
+
+    def __init__(self) -> None:
+        super().__init__(
+            message="Solo el duenyo de la organizacion conecta buzones compartidos",
+            user_message="Solo el dueño de la organización puede conectar buzones compartidos.",
+            message_key="irisSharedMailboxOwnerRequired",
+        )
+
+
+class IrisSharedMailboxLimitError(IrisError):
+    """La organización ya tiene todos los buzones compartidos que admite, o el buzón todas las personas."""
+    default_code = ErrorCode.CONSTRAINT_VIOLATION
+    default_status_code = 409
+
+    def __init__(self, what: str, limit: int) -> None:
+        """Construye el error.
+
+        Args:
+            what: ``mailboxes`` (buzones de la organización) o ``members``
+                (personas con acceso a un buzón).
+            limit: El máximo configurado.
+        """
+        text = (f"La organización ya tiene el máximo de {limit} buzones compartidos." if what == "mailboxes"
+                else f"Este buzón ya tiene el máximo de {limit} personas con acceso.")
+        super().__init__(
+            message=text,
+            user_message=text,
+            message_key="irisSharedMailboxMailboxLimit" if what == "mailboxes" else "irisSharedMailboxMemberLimit",
+            params={"limit": limit},
+        )
+
+
+class IrisSharedMailboxConflictError(IrisError):
+    """Un cambio en un buzón compartido que no se puede hacer tal como se pide.
+
+    Los motivos son un conjunto cerrado, cada uno con su clave de traducción:
+    ``already_connected`` (esa dirección ya está conectada en la
+    organización), ``member_not_in_organization`` (la persona no es de la
+    organización) y ``last_manager`` (quitaría al último responsable).
+    """
+    default_code = ErrorCode.CONSTRAINT_VIOLATION
+    default_status_code = 409
+
+    _TEXTS = {
+        "already_connected": ("irisSharedMailboxAlreadyConnected",
+                              "Ese buzón ya está conectado como buzón compartido de la organización."),
+        "member_not_in_organization": ("irisSharedMailboxMemberNotInOrganization",
+                                       "Esa persona no pertenece a la organización."),
+        "last_manager": ("irisSharedMailboxLastManager",
+                         "El buzón se quedaría sin nadie que lo administre."),
+    }
+
+    def __init__(self, reason: str) -> None:
+        """Construye el error.
+
+        Args:
+            reason: ``already_connected``, ``member_not_in_organization`` o ``last_manager``.
+        """
+        message_key, text = self._TEXTS[reason]
+        super().__init__(message=text, user_message=text, message_key=message_key)
+
+
+class IrisMailboxCredentialsRejectedError(IrisError):
+    """No se pudo entrar en el buzón con lo que se dio al conectarlo o al cambiar sus credenciales.
+
+    Lo que falló se dice en ``reason`` (conjunto cerrado, con su clave):
+    ``credentials`` (el servidor rechazó usuario o contraseña), ``server``
+    (servidor no alcanzable desde internet, de la red interna, o puerto no
+    admitido) y ``service_account`` (la cuenta de servicio no está
+    configurada o el proveedor no la acepta para ese buzón).
+    """
+    default_code = ErrorCode.VALIDATION_ERROR
+    default_status_code = 422
+
+    _TEXTS = {
+        "credentials": ("irisMailboxCredentialsRejected",
+                        "El servidor rechazó el usuario o la contraseña."),
+        "server": ("irisMailboxServerUnreachable",
+                   "No se puede conectar con ese servidor: tiene que ser un servidor IMAP de internet con TLS."),
+        "service_account": ("irisMailboxServiceAccountRejected",
+                            "La cuenta de servicio no está configurada o no tiene acceso a ese buzón."),
+    }
+
+    def __init__(self, reason: str, detail: str = "") -> None:
+        """Construye el error.
+
+        Args:
+            reason: ``credentials``, ``server`` o ``service_account``.
+            detail: Detalle técnico para el registro; no se enseña al usuario.
+        """
+        message_key, text = self._TEXTS[reason]
+        super().__init__(message=f"{text} {detail}".strip(), user_message=text, message_key=message_key)

@@ -11,7 +11,7 @@ import src.modules.system.config_reading as CR
 from src.modules.shared import UTCDateTime
 
 from .services.feedback_metrics import FEEDBACK_LABELS
-from .model import CasePriority, CaseStatus, TrustKind
+from .model import SUBSCRIBABLE_WEBHOOK_EVENTS, CasePriority, CaseStatus, MailboxAction, TrustKind
 from .services.quality import AnalysisMode
 from .services.scoring import PROFILE_THRESHOLD_OFFSETS
 from .services.trust import MAX_TRUST_EXPIRY_DAYS, MAX_TRUST_REASON_LENGTH
@@ -397,6 +397,7 @@ class AnalysisDetailResponseSchema(Schema):
     unwrappedFromForward = fields.Boolean(load_default=False)
     wrapperFrom = fields.String(load_default=None, allow_none=True)
     wrapperSubject = fields.String(load_default=None, allow_none=True)
+    reportChannel = fields.String(load_default=None, allow_none=True)
     winningContext = fields.String(load_default=None, allow_none=True)
     winningReason = fields.String(load_default=None, allow_none=True)
     secondaryContext = fields.Nested(SecondaryContextSchema, load_default=None, allow_none=True)
@@ -682,6 +683,9 @@ class IrisMailboxConnectRequestSchema(Schema):
     """Request body for ``POST /iris/mailbox/connect``."""
     provider = fields.String(required=True)
     fullMessageMode = fields.Boolean(load_default=False)
+    # Pide al proveedor permiso de escritura, necesario para la cuarentena y
+    # las demás acciones sobre el buzón. Por defecto, solo lectura.
+    remediationEnabled = fields.Boolean(load_default=False)
     # La validación real (existe, pertenece a esta cuenta/proveedor) es
     # de red y solo se puede hacer con un access_token en la mano -- ver
     # IrisMailboxManager._validate_folder(), llamada desde handle_callback().
@@ -704,11 +708,15 @@ class IrisMailboxConnectionItemSchema(Schema):
     folderDisplayName = fields.String(allow_none=True)
     folderType = fields.String(allow_none=True)
     fullMessageMode = fields.Boolean()
+    remediationEnabled = fields.Boolean()
+    canAct = fields.Boolean()
     status = fields.String()
     lastSyncAt = UTCDateTime(allow_none=True)
     lastError = fields.String(allow_none=True)
     syncStartedAt = UTCDateTime(allow_none=True)
     createdAt = UTCDateTime(allow_none=True)
+    authMode = fields.String()
+    additionalFolders = fields.List(fields.Dict())
 
 
 class IrisMailboxConnectionListResponseSchema(Schema):
@@ -755,6 +763,7 @@ class IrisMailboxHealthResponseSchema(Schema):
     messagesRetrying = fields.Integer()
     messagesDead = fields.Integer()
     oldestPendingMessageAgeSeconds = fields.Integer(allow_none=True)
+    eventSubscription = fields.Dict(allow_none=True)
 
 
 class IrisMailboxConnectionDeleteResponseSchema(Schema):
@@ -1394,3 +1403,302 @@ class TenantPolicyRequestSchema(Schema):
 class TenantConsentRequestSchema(Schema):
     """Consentimiento de un miembro para aportar a lo compartido."""
     consent = fields.Boolean(required=True)
+
+
+class IrisWebhookCreateRequestSchema(Schema):
+    """Cuerpo de ``POST /iris/webhooks``: nombre, destino ``https`` y eventos."""
+    name = fields.String(required=True, validate=validate.Length(min=1, max=80))
+    url = fields.String(required=True, validate=validate.Length(min=1, max=2048))
+    eventTypes = fields.List(fields.String(validate=validate.OneOf(SUBSCRIBABLE_WEBHOOK_EVENTS)),
+                             required=True, validate=validate.Length(min=1))
+
+
+class IrisWebhookUpdateRequestSchema(Schema):
+    """Cuerpo de ``PATCH /iris/webhooks/<id>``: solo cambia lo que viene."""
+    name = fields.String(validate=validate.Length(min=1, max=80))
+    url = fields.String(validate=validate.Length(min=1, max=2048))
+    eventTypes = fields.List(fields.String(validate=validate.OneOf(SUBSCRIBABLE_WEBHOOK_EVENTS)),
+                             validate=validate.Length(min=1))
+    isActive = fields.Boolean()
+
+
+class IrisWebhookSubscriptionSchema(Schema):
+    """Un webhook. ``secret`` solo aparece al crearlo o al rotar el secreto."""
+    subscriptionId = fields.Integer()
+    name = fields.String()
+    url = fields.String()
+    eventTypes = fields.List(fields.String())
+    isActive = fields.Boolean()
+    disabledReason = fields.String(allow_none=True)
+    disabledAt = fields.String(allow_none=True)
+    consecutiveFailures = fields.Integer()
+    lastSuccessAt = fields.String(allow_none=True)
+    lastFailureAt = fields.String(allow_none=True)
+    lastError = fields.String(allow_none=True)
+    createdAt = fields.String()
+    updatedAt = fields.String()
+    secret = fields.String()
+
+
+class IrisWebhookListResponseSchema(Schema):
+    """Webhooks del usuario y eventos a los que se puede suscribir."""
+    subscriptions = fields.List(fields.Nested(IrisWebhookSubscriptionSchema))
+    availableEventTypes = fields.List(fields.String())
+
+
+class IrisWebhookDeleteResponseSchema(Schema):
+    """Confirmación tras borrar un webhook."""
+    message = fields.String()
+    subscriptionId = fields.Integer()
+
+
+class IrisWebhookDeliveriesQuerySchema(Schema):
+    """Paginación de ``GET /iris/webhooks/<id>/deliveries``."""
+    page = fields.Integer(load_default=1, validate=validate.Range(min=1))
+    perPage = fields.Integer(load_default=20, validate=validate.Range(min=1, max=100))
+
+
+class IrisWebhookDeliverySchema(Schema):
+    """Una entrega de un evento: estado, intentos y lo que se envía."""
+    deliveryId = fields.Integer()
+    eventId = fields.String()
+    eventType = fields.String()
+    status = fields.String()
+    attempts = fields.Integer()
+    nextAttemptAt = fields.String(allow_none=True)
+    lastStatusCode = fields.Integer(allow_none=True)
+    lastError = fields.String(allow_none=True)
+    lastResponseExcerpt = fields.String(allow_none=True)
+    createdAt = fields.String()
+    deliveredAt = fields.String(allow_none=True)
+    payload = fields.Dict()
+
+
+class IrisIntegrationTokenCreateRequestSchema(Schema):
+    """Cuerpo de ``POST /iris/integration-tokens``; ``lifetimeDays`` por defecto lo fija la config."""
+    name = fields.String(required=True, validate=validate.Length(min=1, max=80))
+    lifetimeDays = fields.Integer(load_default=None, allow_none=True, validate=validate.Range(min=1))
+
+
+class IrisIntegrationTokenSchema(Schema):
+    """Un token de integración. ``token`` (completo, en claro) solo aparece al crearlo."""
+    tokenId = fields.Integer()
+    name = fields.String()
+    keyId = fields.String()
+    status = fields.String()
+    createdAt = fields.String()
+    expiresAt = fields.String(allow_none=True)
+    lastUsedAt = fields.String(allow_none=True)
+    revokedAt = fields.String(allow_none=True)
+    token = fields.String()
+
+
+class IrisIntegrationTokenListResponseSchema(Schema):
+    """Tokens de integración del usuario, del más nuevo al más antiguo."""
+    tokens = fields.List(fields.Nested(IrisIntegrationTokenSchema))
+
+
+class IrisReportResponseSchema(Schema):
+    """Resultado de reportar un correo: el análisis creado, o el que ya existía."""
+    analysisId = fields.Integer()
+    status = fields.String()
+    isDuplicate = fields.Boolean()
+    reportChannel = fields.String(allow_none=True)
+
+
+class IrisReportStatusSchema(Schema):
+    """Cómo va el análisis de un correo reportado (para un aviso breve en el cliente)."""
+    analysisId = fields.Integer()
+    status = fields.String()
+    verdict = fields.String(allow_none=True)
+    totalScore = fields.Float(allow_none=True)
+    finishedAt = fields.String(allow_none=True)
+
+
+class IrisWebhookDeliveryListResponseSchema(Schema):
+    """Historial de entregas de un webhook, de la más nueva a la más antigua."""
+    deliveries = fields.List(fields.Nested(IrisWebhookDeliverySchema))
+    total = fields.Integer()
+    page = fields.Integer()
+    perPage = fields.Integer()
+
+
+class IrisMailboxActionRequestSchema(Schema):
+    """Cuerpo de ``POST /iris/mailbox/messages/<id>/actions``.
+
+    ``confirm`` es obligatorio (``true``) en las acciones que sacan el correo de
+    la bandeja; ``idempotencyKey`` hace que repetir la petición no la repita.
+    """
+    action = fields.String(required=True, validate=validate.OneOf([action.value for action in MailboxAction]))
+    reason = fields.String(required=True, validate=validate.Length(min=1, max=1000))
+    confirm = fields.Boolean(load_default=False)
+    idempotencyKey = fields.String(load_default=None, allow_none=True, validate=validate.Length(min=8, max=80))
+
+
+class IrisMailboxRollbackRequestSchema(Schema):
+    """Cuerpo de ``POST /iris/mailbox/actions/<id>/rollback``."""
+    reason = fields.String(required=True, validate=validate.Length(min=1, max=1000))
+
+
+class IrisMailboxActionSchema(Schema):
+    """Una acción sobre el buzón tal como queda en la auditoría."""
+    actionId = fields.Integer()
+    analysisId = fields.Integer(allow_none=True)
+    connectionId = fields.Integer(allow_none=True)
+    provider = fields.String()
+    action = fields.String()
+    status = fields.String()
+    isDestructive = fields.Boolean()
+    isRollback = fields.Boolean()
+    rollbackOfId = fields.Integer(allow_none=True)
+    reason = fields.String()
+    actor = fields.String()
+    permission = fields.String()
+    wasRecommended = fields.Boolean()
+    error = fields.String(allow_none=True)
+    createdAt = fields.String()
+    startedAt = fields.String(allow_none=True)
+    completedAt = fields.String(allow_none=True)
+    isRepeat = fields.Boolean()
+
+
+class IrisMailboxActionOptionSchema(Schema):
+    """Una acción posible y si exige confirmación."""
+    action = fields.String()
+    isDestructive = fields.Boolean()
+
+
+class IrisMailboxMessageActionsSchema(Schema):
+    """Recomendación, acciones posibles e historial de un correo de un buzón conectado."""
+    analysisId = fields.Integer()
+    verdict = fields.String(allow_none=True)
+    recommendedAction = fields.String(allow_none=True)
+    canAct = fields.Boolean()
+    unavailableReason = fields.String(allow_none=True)
+    actions = fields.List(fields.Nested(IrisMailboxActionOptionSchema))
+    history = fields.List(fields.Nested(IrisMailboxActionSchema))
+
+
+class IrisMailboxActionsQuerySchema(Schema):
+    """Paginación de ``GET /iris/mailbox/actions``."""
+    page = fields.Integer(load_default=1, validate=validate.Range(min=1))
+    perPage = fields.Integer(load_default=50, validate=validate.Range(min=1, max=200))
+
+
+class IrisMailboxActionListSchema(Schema):
+    """Registro de acciones sobre buzones del usuario, de la más reciente a la más antigua."""
+    actions = fields.List(fields.Nested(IrisMailboxActionSchema))
+    total = fields.Integer()
+    page = fields.Integer()
+    perPage = fields.Integer()
+
+
+class IrisImapCredentialsSchema(Schema):
+    """Servidor y credenciales de un buzón IMAP (solo TLS directo)."""
+    host = fields.String(required=True, validate=validate.Length(min=3, max=255))
+    port = fields.Integer(load_default=993, validate=validate.Range(min=1, max=65535))
+    username = fields.String(required=True, validate=validate.Length(min=1, max=320))
+    password = fields.String(required=True, load_only=True, validate=validate.Length(min=1, max=512))
+
+
+class IrisImapConnectRequestSchema(IrisImapCredentialsSchema):
+    """Cuerpo de ``POST /iris/mailbox/imap``: conectar un buzón personal por IMAP."""
+    folder = fields.String(load_default=None, allow_none=True, validate=validate.Length(max=255))
+    fullMessageMode = fields.Boolean(load_default=False)
+
+
+class IrisMailboxCredentialsRequestSchema(Schema):
+    """Cuerpo de ``PUT /iris/mailbox/connections/<id>/credentials``: contraseña IMAP nueva."""
+    password = fields.String(required=True, load_only=True, validate=validate.Length(min=1, max=512))
+
+
+class IrisMailboxFoldersRequestSchema(Schema):
+    """Cuerpo de ``PUT /iris/mailbox/connections/<id>/folders``: carpetas que se vigilan además de la principal."""
+    folders = fields.List(fields.String(validate=validate.Length(min=1, max=255)), required=True,
+                          validate=validate.Length(max=20))
+
+
+class IrisSharedMailboxCreateRequestSchema(Schema):
+    """Cuerpo de ``POST /iris/mailbox/shared``: conectar un buzón compartido de la organización.
+
+    Con ``gmail`` o ``microsoft`` se usa la cuenta de servicio de la
+    instalación y ``address`` es obligatoria; con ``imap``, las credenciales.
+    """
+    provider = fields.String(required=True, validate=validate.OneOf(["gmail", "microsoft", "imap"]))
+    address = fields.Email(load_default=None, allow_none=True)
+    folder = fields.String(load_default=None, allow_none=True, validate=validate.Length(max=255))
+    fullMessageMode = fields.Boolean(load_default=False)
+    imap = fields.Nested(IrisImapCredentialsSchema, load_default=None, allow_none=True)
+
+    @validates_schema
+    def validate_access(self, data, **kwargs):
+        """Exige la dirección con cuenta de servicio y las credenciales con IMAP."""
+        if data["provider"] == "imap" and not data.get("imap"):
+            raise ValidationError("Un buzón IMAP necesita servidor y credenciales.", field_name="imap")
+        if data["provider"] != "imap" and not data.get("address"):
+            raise ValidationError("Falta la dirección del buzón.", field_name="address")
+
+
+class IrisSharedMailboxItemSchema(Schema):
+    """Un buzón compartido, visto por una persona con acceso. Nunca credenciales."""
+    id = fields.Integer()
+    provider = fields.String()
+    accountEmail = fields.String()
+    authMode = fields.String()
+    status = fields.String()
+    folder = fields.String(allow_none=True)
+    folderDisplayName = fields.String(allow_none=True)
+    additionalFolders = fields.List(fields.Dict())
+    fullMessageMode = fields.Boolean()
+    lastSyncAt = fields.String(allow_none=True)
+    lastError = fields.String(allow_none=True)
+    createdAt = fields.String(allow_none=True)
+    myAccess = fields.String()
+
+
+class IrisSharedMailboxListResponseSchema(Schema):
+    """Buzones compartidos a los que tiene acceso la persona."""
+    mailboxes = fields.List(fields.Nested(IrisSharedMailboxItemSchema))
+
+
+class IrisSharedMailboxMemberRequestSchema(Schema):
+    """Cuerpo de ``PUT /iris/mailbox/shared/<id>/members/<userId>``."""
+    access = fields.String(required=True, validate=validate.OneOf(["viewer", "manager"]))
+
+
+class IrisSharedMailboxMemberSchema(Schema):
+    """Una persona con acceso a un buzón compartido."""
+    userId = fields.Integer()
+    username = fields.String(allow_none=True)
+    access = fields.String()
+    grantedAt = fields.String(allow_none=True)
+
+
+class IrisSharedMailboxMemberListResponseSchema(Schema):
+    """Personas con acceso a un buzón compartido."""
+    members = fields.List(fields.Nested(IrisSharedMailboxMemberSchema))
+
+
+class IrisSharedMailboxAnalysesQuerySchema(Schema):
+    """Paginación de ``GET /iris/mailbox/shared/<id>/analyses``."""
+    page = fields.Integer(load_default=1, validate=validate.Range(min=1))
+    perPage = fields.Integer(load_default=20, validate=validate.Range(min=1, max=100))
+
+
+class IrisSharedMailboxAnalysisItemSchema(Schema):
+    """Resumen de un análisis de un buzón compartido."""
+    analysisId = fields.Integer()
+    title = fields.String(allow_none=True)
+    status = fields.String()
+    verdict = fields.String(allow_none=True)
+    totalScore = fields.Float(allow_none=True)
+    startedAt = fields.String(allow_none=True)
+    finishedAt = fields.String(allow_none=True)
+
+
+class IrisSharedMailboxAnalysesResponseSchema(Schema):
+    """Página de análisis de un buzón compartido."""
+    analyses = fields.List(fields.Nested(IrisSharedMailboxAnalysisItemSchema))
+    total = fields.Integer()
+    page = fields.Integer()
+    perPage = fields.Integer()

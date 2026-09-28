@@ -676,6 +676,182 @@ export const useIrisStore = defineStore('iris', () => {
       i18n.global.t(consent ? 'irisStore.organizationConsentGiven' : 'irisStore.organizationConsentWithdrawn'))
   }
 
+  /* ═════════════════════════ WEBHOOKS (SIEM/SOAR) ════════════════════════ */
+
+  /** Webhooks del usuario; `lastSecret` es el secreto recién creado o rotado, que solo se ve una vez. */
+  const webhooks = reactive({
+    items: [], availableEventTypes: [], loading: false, loaded: false,
+    lastSecret: null, deliveries: {},
+  })
+
+  /** Carga los webhooks del usuario y los eventos a los que se puede suscribir. */
+  async function fetchWebhooks() {
+    webhooks.loading = true
+    try {
+      const res = await apiFetch('/iris/webhooks')
+      if (!res?.ok) return
+      const data = await res.json()
+      webhooks.items = data.subscriptions ?? []
+      webhooks.availableEventTypes = data.availableEventTypes ?? []
+      webhooks.loaded = true
+    } finally {
+      webhooks.loading = false
+    }
+  }
+
+  /**
+   * Petición de la página de integraciones (webhooks y tokens) que devuelve JSON; si falla, avisa con el mensaje del servidor.
+   * @returns {Promise<object|null>} La respuesta, o null si falló.
+   */
+  async function _integrationRequest(url, method, body, errorText) {
+    const res = await apiFetch(url, { method, body: body === undefined ? undefined : JSON.stringify(body) })
+    if (!res?.ok) {
+      toast.show(await apiError(res, errorText), 'error')
+      return null
+    }
+    return res.json()
+  }
+
+  /**
+   * Da de alta un webhook. Su secreto queda en `webhooks.lastSecret` para enseñarlo una vez.
+   * @param {{name: string, url: string, eventTypes: string[]}} data
+   * @returns {Promise<object|null>} El webhook creado, o null si falló.
+   */
+  async function createWebhook(data) {
+    const created = await _integrationRequest('/iris/webhooks', 'POST', data, i18n.global.t('irisStore.webhookCreateFailed'))
+    if (!created) return null
+    webhooks.lastSecret = { subscriptionId: created.subscriptionId, secret: created.secret }
+    toast.show(i18n.global.t('irisStore.webhookCreated'), 'success')
+    await fetchWebhooks()
+    return created
+  }
+
+  /** Cambia nombre, destino, eventos o estado (`isActive`) de un webhook. */
+  async function updateWebhook(id, changes) {
+    const updated = await _integrationRequest(`/iris/webhooks/${id}`, 'PATCH', changes, i18n.global.t('irisStore.webhookUpdateFailed'))
+    if (updated) await fetchWebhooks()
+    return updated
+  }
+
+  /** Genera un secreto nuevo; queda en `webhooks.lastSecret` para enseñarlo una vez. */
+  async function rotateWebhookSecret(id) {
+    const rotated = await _integrationRequest(`/iris/webhooks/${id}/secret`, 'POST', undefined, i18n.global.t('irisStore.webhookUpdateFailed'))
+    if (rotated) webhooks.lastSecret = { subscriptionId: rotated.subscriptionId, secret: rotated.secret }
+    return rotated
+  }
+
+  /** Borra un webhook y su historial. */
+  async function deleteWebhook(id) {
+    const deleted = await _integrationRequest(`/iris/webhooks/${id}`, 'DELETE', undefined, i18n.global.t('irisStore.webhookDeleteFailed'))
+    if (deleted) {
+      toast.show(i18n.global.t('irisStore.webhookDeleted'), 'success')
+      await fetchWebhooks()
+    }
+    return deleted
+  }
+
+  /** Carga el historial de entregas de un webhook en `webhooks.deliveries[id]`. */
+  async function fetchWebhookDeliveries(id) {
+    const res = await apiFetch(`/iris/webhooks/${id}/deliveries?perPage=20`)
+    if (res?.ok) webhooks.deliveries[id] = (await res.json()).deliveries ?? []
+  }
+
+  /** Manda un evento de prueba y refresca el historial. */
+  async function testWebhook(id) {
+    const queued = await _integrationRequest(`/iris/webhooks/${id}/test`, 'POST', undefined, i18n.global.t('irisStore.webhookTestFailed'))
+    if (queued) {
+      toast.show(i18n.global.t('irisStore.webhookTestQueued'), 'success')
+      await fetchWebhookDeliveries(id)
+    }
+    return queued
+  }
+
+  /** Vuelve a enviar una entrega terminada y refresca el historial. */
+  async function replayWebhookDelivery(id, deliveryId) {
+    const queued = await _integrationRequest(`/iris/webhooks/${id}/deliveries/${deliveryId}/replay`, 'POST', undefined,
+      i18n.global.t('irisStore.webhookReplayFailed'))
+    if (queued) await fetchWebhookDeliveries(id)
+    return queued
+  }
+
+  /* ══════════════════ TOKENS DE INTEGRACIÓN (CANAL DE REPORTE) ══════════════════ */
+
+  /** Tokens con que un cliente de correo reporta mensajes; `lastToken` es el recién creado, que solo se ve una vez. */
+  const integrationTokens = reactive({ items: [], loading: false, loaded: false, lastToken: null })
+
+  /** Carga los tokens de integración del usuario. */
+  async function fetchIntegrationTokens() {
+    integrationTokens.loading = true
+    try {
+      const res = await apiFetch('/iris/integration-tokens')
+      if (!res?.ok) return
+      integrationTokens.items = (await res.json()).tokens ?? []
+      integrationTokens.loaded = true
+    } finally {
+      integrationTokens.loading = false
+    }
+  }
+
+  /**
+   * Crea un token; el token completo queda en `integrationTokens.lastToken` para enseñarlo una vez.
+   * @param {{name: string, lifetimeDays?: number}} data
+   * @returns {Promise<object|null>} El token creado, o null si falló.
+   */
+  async function createIntegrationToken(data) {
+    const created = await _integrationRequest('/iris/integration-tokens', 'POST', data, i18n.global.t('irisStore.integrationTokenCreateFailed'))
+    if (!created) return null
+    integrationTokens.lastToken = { tokenId: created.tokenId, token: created.token }
+    await fetchIntegrationTokens()
+    return created
+  }
+
+  /** Revoca un token de integración. */
+  async function revokeIntegrationToken(id) {
+    const revoked = await _integrationRequest(`/iris/integration-tokens/${id}`, 'DELETE', undefined, i18n.global.t('irisStore.integrationTokenRevokeFailed'))
+    if (revoked) {
+      toast.show(i18n.global.t('irisStore.integrationTokenRevoked'), 'success')
+      await fetchIntegrationTokens()
+    }
+    return revoked
+  }
+
+  /* ═════════════════ ACCIONES SOBRE EL BUZÓN (CUARENTENA…) ═════════════════ */
+
+  /** Recomendación, acciones posibles e historial del correo de cada análisis, por id de análisis. */
+  const mailboxActions = reactive({})
+
+  /** Carga lo que se puede hacer con el correo de un análisis y lo que ya se hizo. */
+  async function fetchMailboxActions(analysisId) {
+    const res = await apiFetch(`/iris/mailbox/messages/${analysisId}/actions`)
+    if (res?.ok) mailboxActions[analysisId] = await res.json()
+    return mailboxActions[analysisId] ?? null
+  }
+
+  /**
+   * Pide una acción sobre el correo de un análisis. La hace el servidor en segundo plano.
+   * @param {number} analysisId
+   * @param {{action: string, reason: string, confirm: boolean}} request
+   * @returns {Promise<object|null>} La acción pedida, o null si falló.
+   */
+  async function requestMailboxAction(analysisId, request) {
+    const idempotencyKey = globalThis.crypto?.randomUUID?.() ?? null
+    const requested = await _integrationRequest(`/iris/mailbox/messages/${analysisId}/actions`, 'POST',
+      { ...request, idempotencyKey }, i18n.global.t('irisStore.mailboxActionFailed'))
+    if (requested) {
+      toast.show(i18n.global.t('iris.remediation.requested'), 'success')
+      await fetchMailboxActions(analysisId)
+    }
+    return requested
+  }
+
+  /** Pide deshacer una acción y refresca el historial del análisis. */
+  async function rollbackMailboxAction(analysisId, actionId, reason) {
+    const requested = await _integrationRequest(`/iris/mailbox/actions/${actionId}/rollback`, 'POST', { reason },
+      i18n.global.t('irisStore.mailboxRollbackFailed'))
+    if (requested) await fetchMailboxActions(analysisId)
+    return requested
+  }
+
   /* ═══════════════════════ CASOS DE ANALISTA ══════════════════════════ */
 
   const cases = reactive({
@@ -1171,6 +1347,9 @@ export const useIrisStore = defineStore('iris', () => {
     Object.assign(contactGraph, { senders: [], habitualMinMessages: 0, retentionDays: 0, enabled: true, loading: false })
     currentCampaign.value = null
     Object.assign(organizationIntel, { loading: false, loaded: false, data: null, notInOrganization: false })
+    Object.assign(webhooks, { items: [], availableEventTypes: [], loading: false, loaded: false, lastSecret: null, deliveries: {} })
+    Object.assign(integrationTokens, { items: [], loading: false, loaded: false, lastToken: null })
+    for (const analysisId of Object.keys(mailboxActions)) delete mailboxActions[analysisId]
     closeBatch()
 
     currentId.value = null
@@ -1198,6 +1377,10 @@ export const useIrisStore = defineStore('iris', () => {
     fetchTags, setAnalysisTags, fetchReportById,
     campaigns, currentCampaign, fetchCampaigns, fetchCampaign,
     organizationIntel, fetchOrganizationIntel, updateOrganizationPolicy, setOrganizationConsent,
+    webhooks, fetchWebhooks, createWebhook, updateWebhook, rotateWebhookSecret, deleteWebhook,
+    fetchWebhookDeliveries, testWebhook, replayWebhookDelivery,
+    integrationTokens, fetchIntegrationTokens, createIntegrationToken, revokeIntegrationToken,
+    mailboxActions, fetchMailboxActions, requestMailboxAction, rollbackMailboxAction,
     cases, currentCase, fetchCases, fetchCase, createCase, updateCase, changeCaseStatus,
     addCaseNote, linkCaseAnalysis, unlinkCaseAnalysis,
     currentBatch, batchSubmitting, submitBatch, closeBatch,

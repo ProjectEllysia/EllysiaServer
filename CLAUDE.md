@@ -236,11 +236,12 @@ con backend RQ+Redis), `worker.py` (entrada del worker), `tracking.py` (`TaskTra
   directo, y la receta completa: [`CONVENCIONES.md`](CONVENCIONES.md) §7.
 - **Categorías**: `themis.scan`, `themis.report`, `themis.traceroute`, `themis.kbsync`, `aegis.generate`,
   `aegis.campaign`, `iris.analyze`, `iris.ai_summary`, `iris.report`, `iris.ingest`,
-  `iris.notify`, `iris.enrichment`, `hygeia.notify`, `hygeia.report` (+ `default`). Cada módulo las da de alta en su `__init__.py` con `QueueRegistry.register(...)`;
+  `iris.notify`, `iris.enrichment`, `iris.webhook`, `iris.remediation`, `hygeia.notify`, `hygeia.report` (+ `default`). Cada módulo las da de alta en su `__init__.py` con `QueueRegistry.register(...)`;
   los workers escuchan en colas por categoría.
 - **`external_id`**: el prefijo lo declara el manager en `EXTERNAL_ID_PREFIX` (`scan:`,
   `themis-doc:`, `themis-traceroute:`, `themis-kbsync:`, `aegis-doc:`, `aegis-campaign:`, `iris-analysis:`,
-  `iris-doc:`, `iris-mailbox-sync:`, `iris-phishing-notify:`, `iris-url-expansion:`, `hygeia-doc:`) y `TaskTrackingMixin.external_id_for`
+  `iris-doc:`, `iris-mailbox-sync:`, `iris-phishing-notify:`, `iris-url-expansion:`, `iris-webhook-delivery:`,
+  `iris-mailbox-action:`, `iris-mailbox-subscription:`, `hygeia-doc:`) y `TaskTrackingMixin.external_id_for`
   lo compone. No lo escribas a mano.
 - **Cancelación** cooperativa: pone la clave Redis `taskqueue:cancel:{job_id}`; los workers la
   sondean vía `_Task.wait(cancel_check=...)`. **Progreso** por `job.meta["progress"]`.
@@ -270,6 +271,21 @@ Los endpoints protegidos exigen `Authorization: Bearer <token>`; roles y atribut
 > Los **únicos** endpoints sin autenticar de toda la API son `GET/POST /aegis/quiz?t=<token>`
 > (quiz público de concienciación). El token opaco es la identidad entera: no añadas auth ahí, y
 > no filtres nada más allá del único destinatario al que pertenece el token.
+>
+> Dos superficies se autentican con una credencial propia en vez de la sesión, a propósito: la
+> ingesta de Hygeia (clave de agente) y el canal de reporte de Iris (`POST/GET /iris/reports`,
+> token de integración `irt_…`, ver `features/iris/REPORTING.md`). Ese token solo reporta y
+> consulta lo reportado; no le pongas `require_oauth_token` ni lo aceptes en otros endpoints.
+>
+> Los buzones **compartidos** de Iris (`kind="shared"`) no siguen la regla de «solo lo ve su dueño»:
+> los conecta el dueño de la organización (atributo `iris_shared_mailbox`) y los ve quien tenga fila
+> en `IrisMailboxMember` **y** siga en esa organización. La política entera vive en
+> `IrisMailboxManager.has_shared_access`; no abras otro camino a sus análisis que no pase por ella.
+>
+> Los avisos de correo nuevo de Iris (`POST /iris/mailbox/events/gmail` y `/microsoft`) los llama
+> el proveedor, no una persona: se autentican con un secreto del proveedor (`IRIS_GMAIL_PUSH_TOKEN`
+> en la query para Gmail; el `clientState` de cada suscripción para Graph). Solo despiertan el sync
+> de la conexión; nunca se analiza lo que traen.
 
 ### Themis — escaneo
 
