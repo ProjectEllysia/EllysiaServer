@@ -4098,6 +4098,7 @@
       "udpRetries": "UDP retries",
       "udpBudgetSeconds": "UDP budget (s)",
       "rateLimitInterval": "Interval between sends (s)",
+      "rateLimitMaxBackoffFactor": "Max slowdown for an unresponsive host (×)",
       "hostPoolSize": "Hosts in parallel",
       "httpTimeout": "HTTP timeout (s)",
       "httpMaxBodyBytes": "Max HTTP body (bytes)",

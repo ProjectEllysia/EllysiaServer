@@ -1323,6 +1323,12 @@ class CheckRuntime:
             the check is abandoned rather than counted as a hit.
         mode: ``"safe"`` runs only checks marked safe; ``"aggressive"`` runs both.
         rate_limiter: An optional per-host limiter applied before each request.
+            El runtime le cuenta además si cada petición HTTP y cada apertura
+            de sesión ``network`` obtuvo respuesta, para que frene ante un
+            objetivo que deja de contestar (ver :class:`HostRateLimiter`).
+            Los handshakes TLS y los plugins ``script`` sólo piden turno: un
+            handshake fallido dice más del protocolo que de la carga del
+            objetivo.
         tls_fetch: An optional ``(host, port) -> TlsInfo | None`` callable for
             ``type: "tls"`` checks. When omitted, TLS checks are simply skipped
             — callers that never wire a TLS probe pay nothing for this family.
@@ -1686,6 +1692,24 @@ class CheckRuntime:
         A transport failure is remembered too. Not caching it would mean three
         attempts against a service that is down — the case where retrying costs
         the most and informs the least.
+
+        El resultado de cada petición que sí sale se le cuenta al limitador
+        (ver :meth:`HostRateLimiter.report_failure`): un ``None`` del
+        ``fetch`` es una petición sin respuesta, y cualquier respuesta, sea
+        del código que sea, es un objetivo que contesta. Una respuesta sacada
+        de la caché no se cuenta: no ha tocado la red.
+
+        Args:
+            host: El host destino.
+            service: El servicio al que va la petición.
+            method: El método HTTP.
+            path: La ruta ya sustituida.
+            body: El cuerpo de la petición, o ``None``. Por defecto ``None``.
+            headers: Cabeceras extra, o ``None``. Por defecto ``None``.
+
+        Returns:
+            Optional[Response]: La respuesta, o ``None`` si la petición no
+                obtuvo ninguna (ahora o en la llamada que la cacheó).
         """
         header_key = tuple(sorted(headers.items())) if headers else None
         key = (host, service.port, method, path, body, header_key)
@@ -1697,6 +1721,7 @@ class CheckRuntime:
             response = self._fetch(host, service.port, method, path)
         else:
             response = self._fetch(host, service.port, method, path, body, headers)
+        _report_outcome(self._rl, host, has_answered=response is not None)
         self._responses[key] = response
         return response
 
@@ -1747,10 +1772,25 @@ class CheckRuntime:
         already in the socket buffer at connect time, so leaving it there would
         put every later read one reply out of step — the check would evaluate
         ``USER``'s matchers against the greeting and never fire.
+
+        Que la conexión se abra o no es lo que se le cuenta al limitador: una
+        conexión que no llega a abrirse es un objetivo que no contesta. Lo que
+        pase después dentro de la sesión no se cuenta, porque un servicio que
+        cierra ante un comando que no entiende sí está contestando.
+
+        Args:
+            check: El check ``network`` a ejecutar.
+            host: El host destino.
+            service: El servicio contra el que corre.
+
+        Returns:
+            Optional[dict]: El hallazgo si todas las peticiones casaron, o
+                ``None`` si alguna no lo hizo o la conexión no se abrió.
         """
         if self._rl is not None:
             self._rl.acquire(host)
         session = self._network_open(host, service.port)
+        _report_outcome(self._rl, host, has_answered=session is not None)
         if session is None:
             return None
         try:
@@ -1824,7 +1864,17 @@ class CheckRuntime:
 # HTTP PROBE + RATE LIMITER (the network edge)
 # =========================================================================
 
-class HostRateLimiter:
+#: Fallos seguidos contra un host antes de empezar a frenar. Tres y no uno:
+#: un paquete perdido o un servicio lento de vez en cuando no es un objetivo
+#: saturado, y frenar por un fallo suelto alargaría escaneos sanos.
+_FAILURES_BEFORE_BACKOFF = 3
+
+#: Cuánto se multiplica el intervalo de un host en cada fallo por encima del
+#: umbral. Duplicar es la reducción multiplicativa clásica de un AIMD: basta
+#: con unos pocos fallos para llegar al tope.
+_BACKOFF_MULTIPLIER = 2.0
+
+class HostRateLimiter:  # pylint: disable=too-many-instance-attributes
     """Enforces a minimum interval between requests to the same host.
 
     Thread-safe, so it can be shared across concurrent probes without letting any
@@ -1843,34 +1893,83 @@ class HostRateLimiter:
     current one) is what makes concurrent callers for the same host stagger
     instead of all waking up at the same instant and firing together.
 
+    **El intervalo se adapta al objetivo** (un AIMD reducido: aumento aditivo
+    del ritmo, reducción multiplicativa). Quien usa el limitador y ve el
+    resultado de cada petición se lo cuenta con :meth:`report_failure` y
+    :meth:`report_success`. Tras ``failures_before_backoff`` fallos seguidos
+    contra un host —plazos agotados, conexiones que no llegan a abrirse—, el
+    intervalo de **ese** host se duplica en cada fallo nuevo, hasta
+    ``max_backoff_factor`` veces el intervalo base. Cada respuesta que llega
+    corta la racha de fallos y le quita al intervalo un intervalo base, hasta
+    volver al configurado. Un objetivo que deja de contestar suele ser un
+    objetivo que no da abasto, y seguir enviándole al mismo ritmo es la forma
+    de tumbar un appliance frágil; el propósito es la cortesía, no la
+    velocidad. Sin avisos, o con ``max_backoff_factor`` a ``1``, el limitador
+    se comporta como un intervalo fijo.
+
     Args:
         min_interval: The minimum time, in seconds, between two requests to the
-            same host.
+            same host. Es también el suelo del intervalo adaptado: nunca se
+            baja de él.
         clock: An injectable monotonic clock, so a test can assert the schedule
             instead of waiting for it.
         sleeper: An injectable sleep, same reason.
+        max_backoff_factor: Cuántas veces el intervalo base puede llegar a
+            valer el intervalo de un host que no contesta. Cualquier número
+            ``>= 1``; un valor menor se trata como ``1``. Por defecto ``1.0``:
+            sin adaptación, que es lo que espera quien no informa de
+            resultados.
+        failures_before_backoff: Fallos **seguidos** contra un host antes de
+            empezar a ampliar su intervalo. Un fallo suelto es ruido de red,
+            no un objetivo saturado. Entero ``>= 1``; un valor menor se trata
+            como ``1``. Por defecto ``3``.
     """
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         min_interval: float = 0.2,
         clock: Callable[[], float] = time.monotonic,
         sleeper: Callable[[float], None] = time.sleep,
+        max_backoff_factor: float = 1.0,
+        failures_before_backoff: int = _FAILURES_BEFORE_BACKOFF,
     ) -> None:
+        """Prepara un limitador sin ningún host visto todavía.
+
+        Args:
+            min_interval: Intervalo base entre dos peticiones al mismo host,
+                en segundos. Por defecto ``0.2``.
+            clock: Reloj monótono inyectable. Por defecto ``time.monotonic``.
+            sleeper: Espera inyectable. Por defecto ``time.sleep``.
+            max_backoff_factor: Tope del intervalo adaptado, en múltiplos del
+                base. Por defecto ``1.0`` (sin adaptación).
+            failures_before_backoff: Fallos seguidos antes de ampliar el
+                intervalo. Por defecto ``3``.
+        """
         self._min = min_interval
         self._last: Dict[str, float] = {}
         self._lock = threading.Lock()
         self._clock = clock
         self._sleeper = sleeper
+        self._max_interval = min_interval * max(1.0, float(max_backoff_factor))
+        self._failures_before_backoff = max(1, int(failures_before_backoff))
+        # Sólo los hosts que se han salido del ritmo base tienen entrada aquí;
+        # el resto usa ``self._min``. Así un limitador al que nadie informa
+        # nunca guarda estado de más ni cambia su comportamiento.
+        self._interval_by_host: Dict[str, float] = {}
+        self._failure_streak_by_host: Dict[str, int] = {}
 
     def acquire(self, host: str) -> None:
         """Block, if necessary, until it is safe to hit ``host`` again.
+
+        El intervalo que se respeta es el del host en este momento: el base,
+        o el ampliado si el host viene fallando (ver :meth:`report_failure`).
 
         Args:
             host: The host about to be requested.
         """
         with self._lock:
             now = self._clock()
+            interval = self._interval_by_host.get(host, self._min)
             # El turno se reserva escribiendo la marca *futura*, no la actual:
             # así dos hilos que piden el mismo host se escalonan en vez de
             # despertarse a la vez y disparar juntos.
@@ -1880,11 +1979,95 @@ class HostRateLimiter:
             # infinitamente atrás), pero contra uno inyectado que empiece en
             # cero, ese 0.0 haría esperar a la primera petición de cada host.
             last_turn = self._last.get(host)
-            earliest = now if last_turn is None else max(now, last_turn + self._min)
+            earliest = now if last_turn is None else max(now, last_turn + interval)
             self._last[host] = earliest
         wait = earliest - now
         if wait > 0:
             self._sleeper(wait)
+
+    def report_failure(self, host: str) -> None:
+        """Anota que una petición a ``host`` no obtuvo respuesta.
+
+        Cuenta como fallo lo que sugiere un objetivo que no da abasto o que
+        ha dejado de ser alcanzable: un plazo agotado o una conexión que no
+        llega a abrirse. Una respuesta de error del servicio (un 404, un
+        ``-ERR``) **no** es un fallo: el objetivo contestó.
+
+        A partir de ``failures_before_backoff`` fallos seguidos, cada fallo
+        nuevo duplica el intervalo de ese host, sin pasar del tope. Los demás
+        hosts no se ven afectados.
+
+        Args:
+            host: El host cuya petición falló.
+        """
+        with self._lock:
+            streak = self._failure_streak_by_host.get(host, 0) + 1
+            self._failure_streak_by_host[host] = streak
+            if streak < self._failures_before_backoff:
+                return
+            current = self._interval_by_host.get(host, self._min)
+            widened = min(current * _BACKOFF_MULTIPLIER, self._max_interval)
+            if widened <= current:
+                return
+            self._interval_by_host[host] = widened
+        logger.info(
+            "%s no responde (%s fallos seguidos): el intervalo entre peticiones pasa a %.2f s",
+            host, streak, widened,
+        )
+
+    def report_success(self, host: str) -> None:
+        """Anota que una petición a ``host`` obtuvo respuesta.
+
+        Corta la racha de fallos del host y, si su intervalo estaba ampliado,
+        le resta un intervalo base: la recuperación es gradual, para no volver
+        de golpe al ritmo que lo saturó. Nunca baja del intervalo base.
+
+        Args:
+            host: El host que contestó.
+        """
+        with self._lock:
+            self._failure_streak_by_host.pop(host, None)
+            current = self._interval_by_host.get(host)
+            if current is None:
+                return
+            restored = current - self._min
+            if restored <= self._min:
+                del self._interval_by_host[host]
+            else:
+                self._interval_by_host[host] = restored
+
+    def get_interval_seconds(self, host: str) -> float:
+        """Devuelve el intervalo que se aplica ahora mismo a ``host``.
+
+        Args:
+            host: El host a consultar.
+
+        Returns:
+            float: El intervalo en segundos: el base si el host no está
+                frenado (o nunca se ha visto), o el ampliado si lo está.
+        """
+        with self._lock:
+            return self._interval_by_host.get(host, self._min)
+
+
+def _report_outcome(rate_limiter: Optional[HostRateLimiter], host: str, has_answered: bool) -> None:
+    """Cuenta al limitador si una petición a ``host`` obtuvo respuesta.
+
+    Existe para que cada punto del runtime que ve el resultado de una
+    petición informe con una sola línea, haya limitador o no.
+
+    Args:
+        rate_limiter: El limitador de la ejecución, o ``None`` si no hay.
+        host: El host al que iba la petición.
+        has_answered: ``True`` si el objetivo contestó (con lo que sea);
+            ``False`` si la petición no llegó a obtener respuesta.
+    """
+    if rate_limiter is None:
+        return
+    if has_answered:
+        rate_limiter.report_success(host)
+    else:
+        rate_limiter.report_failure(host)
 
 
 def negotiates_tls(host: str, port: int, timeout: float = 5.0, connect: Optional[Callable] = None) -> bool:

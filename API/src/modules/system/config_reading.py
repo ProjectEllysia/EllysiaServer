@@ -1101,6 +1101,14 @@ class LybraEngineConfig:  # pylint: disable=too-many-instance-attributes
     """Intervalo mínimo, en segundos, entre dos peticiones al mismo
     host. Es la cortesía con el objetivo, y manda por encima del pool."""
 
+    rate_limit_max_backoff_factor: float = 8.0
+    """Cuánto puede llegar a frenar el motor, en múltiplos de
+    ``rate_limit_interval``, contra un host que deja de contestar a los checks
+    activos. Tras varios plazos agotados seguidos el intervalo de ese host se
+    duplica en cada fallo hasta este tope, y vuelve poco a poco al base cuando
+    el host contesta de nuevo. Un objetivo que deja de responder suele ser uno
+    que no da abasto. A ``1``, el intervalo es fijo."""
+
     host_pool_size: int = 8
     """Cuántos servicios del **mismo host** se sondan a la vez. El
     fingerprinting y los checks activos son espera de red casi entera, y en fila
