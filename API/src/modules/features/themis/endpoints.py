@@ -31,6 +31,7 @@ from .managers import (
     NiktoScanManager,
     NucleiScanManager,
     LybraEngineManager,
+    OsintManager,
     ProgramedScanManager,
     ThemisReportManager,
     ScanFolderManager,
@@ -67,6 +68,11 @@ from .schemas import (
     NiktoScanRequestSchema,
     NucleiScanRequestSchema,
     LybraScanRequestSchema,
+    OsintScanRequestSchema,
+    OsintScanListQuerySchema,
+    OsintScanStartResponseSchema,
+    OsintScanDetailResponseSchema,
+    OsintScanListResponseSchema,
     FindingStateRequestSchema,
     FindingStateResponseSchema,
     AddAuthorizedTargetSchema,
@@ -417,6 +423,7 @@ def start_lybra_scan(data):
         timeout=timeout,
         aggressive=data.get("aggressive", False),
         profile=data.get("profile", "standard"),
+        osint_enrichment=data.get("osintEnrichment", False),
     )
     logger.info(f"Lybra lanzado: ID={scan_id} hosts={len(targets)} user={user.username}")
 
@@ -426,6 +433,76 @@ def start_lybra_scan(data):
         "scanType": "lybra",
         "user": user.username,
     }
+
+
+@themis_blp.post("/osint")
+@themis_blp.arguments(OsintScanRequestSchema)
+@themis_blp.response(201, OsintScanStartResponseSchema, description="Passive domain scan queued")
+@themis_blp.alt_response(400, schema=ErrorSchema, description="Validation error")
+@themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@themis_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.THEMIS_CREATE])
+@limiter.limit("10 per hour; 50 per day")
+@handle_exceptions(default_exception=ScanExecutionError, logger=logger)
+def start_osint_scan(data):
+    """Lanzar un escaneo pasivo de un dominio.
+
+    Consulta Certificate Transparency (y Shodan, Censys o SecurityTrails si
+    están configurados) y la higiene del DNS del dominio. No contacta con el
+    objetivo, así que no pasa por el registro de objetivos autorizados ni por
+    el rechazo de direcciones privadas; el límite de ritmo es más estricto que
+    el de los escáneres porque cada escaneo gasta cuota de fuentes externas.
+    """
+    user = get_current_user()
+    scan = OsintManager().create_passive_scan(
+        user_id=user.id, domain=data["domain"], dkim_selectors=data.get("dkimSelectors"),
+    )
+    logger.info(f"Escaneo pasivo lanzado: ID={scan.id} dominio={scan.domain} user={user.username}")
+    return {
+        "message": "Escaneo pasivo iniciado correctamente",
+        "osintScanId": scan.id,
+        "domain": scan.domain,
+        "mode": scan.mode,
+        "status": scan.status,
+        "user": user.username,
+    }
+
+
+@themis_blp.get("/osint")
+@themis_blp.arguments(OsintScanListQuerySchema, location="query")
+@themis_blp.response(200, OsintScanListResponseSchema, description="Recent passive domain scans")
+@themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@themis_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.THEMIS_READ])
+@limiter.limit("300 per hour; 2000 per day")
+@handle_exceptions(default_exception=EllysiaException, logger=logger)
+def list_osint_scans(args):
+    """Los escaneos pasivos recientes del usuario, con sus recuentos."""
+    user = get_current_user()
+    results = OsintManager().list_scans(user.id, args["limit"])
+    return {
+        "message": "Escaneos pasivos recuperados",
+        "count": len(results),
+        "results": results,
+        "user": user.username,
+    }
+
+
+@themis_blp.get("/osint/<int:osint_scan_id>")
+@themis_blp.response(200, OsintScanDetailResponseSchema, description="Passive domain scan detail")
+@themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@themis_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@themis_blp.alt_response(404, schema=ErrorSchema, description="Scan not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.THEMIS_READ])
+@limiter.limit("300 per hour; 2000 per day")
+@handle_exceptions(default_exception=ScanNotFoundError, logger=logger)
+def get_osint_scan(osint_scan_id: int):
+    """Un escaneo pasivo con sus fuentes, subdominios, comprobaciones DNS y hallazgos."""
+    user = get_current_user()
+    return OsintManager().get_scan(osint_scan_id, user.id)
 
 
 @themis_blp.get("/compliance")

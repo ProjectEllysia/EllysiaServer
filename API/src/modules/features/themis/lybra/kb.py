@@ -1158,30 +1158,38 @@ _BACKOFF_BASE = 1.5
 _RATE_LIMIT_WAIT = 30.0
 
 
-def _http_get(url: str, timeout: int = 30, api_key: Optional[str] = None) -> bytes:
-    """GET a URL, retrying a few times with exponential backoff.
+def _http_get(url: str, timeout: int = 30, api_key: Optional[str] = None,
+              extra_headers: Optional[Dict[str, str]] = None) -> bytes:
+    """Descarga una URL con unos pocos reintentos y espera exponencial entre ellos.
 
-    A 429 (rate limited) is retried after ``_RATE_LIMIT_WAIT`` seconds (or the
-    server's ``Retry-After`` header, if longer) instead of the short backoff
-    used for other errors — that backoff is too brief to clear a rolling
-    rate-limit window and would just burn through the retry budget failing.
+    Un 429 (límite de ritmo) se reintenta tras ``_RATE_LIMIT_WAIT`` segundos
+    (o lo que diga la cabecera ``Retry-After`` del servidor, si es más) en vez
+    de con la espera corta del resto de errores: ésa no llega a vaciar una
+    ventana de límite deslizante y sólo gastaría los reintentos fallando.
 
     Args:
-        url: The URL to fetch.
-        timeout: Per-attempt socket timeout, in seconds.
-        api_key: Optional API key sent as the ``apiKey`` header (NVD uses this to
-            grant a higher rate limit).
+        url: La URL que se descarga.
+        timeout: Tiempo máximo de cada intento, en segundos. Por defecto ``30``.
+        api_key: Clave de API opcional que viaja en la cabecera ``apiKey`` (la
+            usa NVD para conceder un ritmo mayor). Por defecto ``None``: sin
+            cabecera.
+        extra_headers: Cabeceras adicionales de la petición, por nombre (la
+            autenticación de las fuentes de inteligencia pasiva, por ejemplo).
+            Por defecto ``None``: sólo el ``User-Agent``.
 
     Returns:
-        The raw response body.
+        bytes: El cuerpo crudo de la respuesta.
 
     Raises:
-        Exception: The last error encountered, re-raised after all retries are
-            exhausted.
+        Exception: El último error encontrado, relanzado cuando se agotan los
+            reintentos. Un 4xx o 5xx llega como ``requests.HTTPError``, con la
+            respuesta en su atributo ``response``.
     """
     headers = {"User-Agent": "Lybra-KB/1.0"}
     if api_key:
         headers["apiKey"] = api_key
+    if extra_headers:
+        headers.update(extra_headers)
     last_error: Optional[Exception] = None
     for attempt in range(_RETRIES):
         try:
@@ -1212,6 +1220,30 @@ def _http_get(url: str, timeout: int = 30, api_key: Optional[str] = None) -> byt
                 else:
                     time.sleep(_BACKOFF_BASE ** attempt)
     raise last_error  # type: ignore[misc]
+
+
+def fetch_document(url: str, timeout: int = 30,
+                   headers: Optional[Dict[str, str]] = None) -> bytes:
+    """Descarga un documento de una fuente externa con los reintentos de la KB.
+
+    Es la misma costura de red que usan los feeds de la base de conocimiento
+    (reintentos, espera ante un 429 y tope de resolución DNS), abierta para
+    los consumidores que necesitan su propia autenticación por cabecera: las
+    fuentes de inteligencia pasiva de ``managers/lybra/osint.py``.
+
+    Args:
+        url: La URL que se descarga.
+        timeout: Tiempo máximo de cada intento, en segundos. Por defecto ``30``.
+        headers: Cabeceras adicionales de la petición. Por defecto ``None``.
+
+    Returns:
+        bytes: El cuerpo crudo de la respuesta.
+
+    Raises:
+        Exception: El último error tras agotar los reintentos; un 4xx o 5xx
+            llega como ``requests.HTTPError`` con la respuesta adjunta.
+    """
+    return _http_get(url, timeout, extra_headers=headers)
 
 
 def fetch_kev(url: str, timeout: int = 30) -> List[dict]:

@@ -14,10 +14,12 @@ módulo) sigan funcionando sin cambios.
 """
 
 from .engine import LybraEngineManager
+from .osint import OsintManager
 from .sources import ServiceSource, DiscoveryProbes, ResolvedServices
 
 __all__ = [
     "LybraEngineManager",
+    "OsintManager",
     "ServiceSource",
     "DiscoveryProbes",
     "ResolvedServices",

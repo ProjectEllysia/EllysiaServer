@@ -88,6 +88,7 @@ from ...exceptions import (
 
 from ..scan import ScanManager
 from ..authorized_target import AuthorizedTargetManager
+from .osint import OsintManager
 from .sources import ServiceSource, DiscoveryProbes
 from .virtual_hosts import discover_sites
 
@@ -341,8 +342,11 @@ class LybraEngineManager(ScanManager):
 
     # Categories that are point-in-time events, not persistent vulnerability
     # state - excluded from lifecycle tracking (see the lifecycle pass in
-    # _run_lybra).
-    _EVENT_CATEGORIES = {"fingerprint", "surface_change", "scan_integrity", "virtual_host"}
+    # _run_lybra). ``passive_exposure`` también: es lo que un tercero dijo en
+    # su momento y sólo aparece si el usuario pide el enriquecimiento en ese
+    # escaneo, así que no pedirlo la vez siguiente no puede darlo por corregido.
+    _EVENT_CATEGORIES = {"fingerprint", "surface_change", "scan_integrity", "virtual_host",
+                         "passive_exposure"}
 
     def __init__(self, task_queue: ITaskQueue | None = None) -> None:
         super().__init__(task_queue)
@@ -376,6 +380,7 @@ class LybraEngineManager(ScanManager):
         aggressive: bool = False,
         profile: str = "standard",
         parent_scan_id: Optional[int] = None,
+        osint_enrichment: bool = False,
     ) -> int:
         """
         Start an Lybra engine scan in one of two modes.
@@ -420,6 +425,13 @@ class LybraEngineManager(ScanManager):
                 lanza desde :meth:`run_network_scan`. ``None`` para un
                 escaneo de un único objetivo — el caso normal, y el único que
                 existía antes de que las listas de objetivos fueran posibles.
+            osint_enrichment: Si, además del análisis propio, se pregunta a
+                Shodan y Censys por la dirección del objetivo para sugerir un
+                CPE en los puertos que el fingerprint no identificó (ver
+                ``OsintManager.build_enrichment_findings``). Por defecto
+                ``False``: consultar a un tercero le revela que el objetivo nos
+                interesa, y eso lo decide el usuario escaneo a escaneo. Nunca
+                llega desde un escaneo programado.
 
         Returns:
             Primary key of the created LybraScan record.
@@ -468,7 +480,7 @@ class LybraEngineManager(ScanManager):
             job_name="LybraScan",
             trailing_args=(
                 discover_ports, services_payload, timeout, aggressive,
-                active_checks_override, planner_enabled,
+                active_checks_override, planner_enabled, osint_enrichment,
             ),
             timeout=timeout,
         )
@@ -487,6 +499,7 @@ class LybraEngineManager(ScanManager):
         asset_id: Optional[int] = None,
         aggressive: bool = False,
         profile: str = "standard",
+        osint_enrichment: bool = False,
     ) -> int:
         """Lanza un escaneo Lybra por cada host de ``targets``.
 
@@ -511,8 +524,8 @@ class LybraEngineManager(ScanManager):
                 ``"192.168.1.0/28"``), para que el escaneo padre lo muestre
                 en vez de reconstruir algo a partir de la lista ya expandida.
                 Por defecto, los objetivos unidos por coma.
-            asset_id / aggressive / profile: Se reenvían tal cual a cada
-                escaneo hijo — ver ``run_scan``.
+            asset_id / aggressive / profile / osint_enrichment: Se reenvían
+                tal cual a cada escaneo hijo — ver ``run_scan``.
 
         Returns:
             int: El id del escaneo padre (o, con un único host, el id de ese
@@ -522,6 +535,7 @@ class LybraEngineManager(ScanManager):
             return self.run_scan(
                 user_id=user_id, target=targets[0], discover_ports=discover_ports,
                 timeout=timeout, asset_id=asset_id, aggressive=aggressive, profile=profile,
+                osint_enrichment=osint_enrichment,
             )
 
         parent = self._create_scan_record(
@@ -533,7 +547,7 @@ class LybraEngineManager(ScanManager):
             self.run_scan(
                 user_id=user_id, target=host, discover_ports=discover_ports,
                 timeout=timeout, asset_id=asset_id, aggressive=aggressive, profile=profile,
-                parent_scan_id=parent.id,
+                parent_scan_id=parent.id, osint_enrichment=osint_enrichment,
             )
 
         logger.info(f"Escaneo de red Lybra {parent.id} iniciado ({len(targets)} hosts)")
@@ -548,6 +562,7 @@ class LybraEngineManager(ScanManager):
         aggressive: bool = False,
         active_checks_override: Optional[bool] = None,
         planner_enabled: bool = True,
+        osint_enrichment: bool = False,
     ) -> None:
         """Entry point submitted to the TaskQueue. Runs the engine in the worker.
 
@@ -562,6 +577,8 @@ class LybraEngineManager(ScanManager):
         ya tenía. ``planner_enabled`` por el mismo motivo, con el default que
         reproduce el comportamiento anterior al planificador: un job antiguo
         sondea todo, que es justo lo que hacía antes de que existiera.
+        ``osint_enrichment`` es opcional con el default que no consulta a
+        ningún tercero: un job que no lo trae no lo pidió.
 
         ``services`` acepta tanto ``Service`` como el dict equivalente, y por el
         mismo motivo de compatibilidad: desde que ``run_scan`` encola por la
@@ -581,6 +598,7 @@ class LybraEngineManager(ScanManager):
                 aggressive=aggressive,
                 active_checks_override=active_checks_override,
                 planner_enabled=planner_enabled,
+                osint_enrichment=osint_enrichment,
             )
 
     @staticmethod
@@ -633,6 +651,7 @@ class LybraEngineManager(ScanManager):
         aggressive: bool = False,
         active_checks_override: Optional[bool] = None,
         planner_enabled: bool = True,
+        osint_enrichment: bool = False,
     ) -> None:
         """Resolve services (own discovery or a payload), detect, persist.
 
@@ -673,6 +692,11 @@ class LybraEngineManager(ScanManager):
         planificador ahorra es la sonda de red, nunca el análisis. ``False``
         para el perfil "thorough", que es el escaneo completo sin atajos que
         debe seguir disponible siempre.
+
+        ``osint_enrichment`` (por defecto ``False``) añade los CPE que Shodan o
+        Censys sugieren para los puertos sin identificar. No toca el objetivo
+        —pregunta a terceros—, así que no depende del registro de objetivos
+        autorizados; pero con el valor por defecto no se consulta a nadie.
         """
         # pylint: disable=too-many-arguments,too-many-locals,too-many-statements
         # pylint: disable=too-many-positional-arguments,too-many-branches
@@ -854,6 +878,14 @@ class LybraEngineManager(ScanManager):
             proposed_cves = frozenset(
                 cve for finding in findings_data
                 for cve in (finding.get("cve_ids") or ()))
+
+            # Enriquecimiento pasivo, sólo si el usuario lo pidió para este
+            # escaneo: preguntar a Shodan o Censys por el objetivo les revela
+            # que nos interesa. Va fuera de la transacción de arriba porque
+            # hace peticiones de red y escribe su propia caché.
+            if osint_enrichment and source_target and not should_stop():
+                findings_data.extend(
+                    OsintManager.build_enrichment_findings(source_target, findings_data))
 
             active_checks_enabled = (
                 CR.lybra_config().active_checks

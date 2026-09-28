@@ -839,6 +839,120 @@ class AuthorizedTarget(Base):
         return f"<AuthorizedTarget(id={self.id}, target='{self.target}', user_id={self.user_id})>"
 
 
+class OsintScanMode(str, Enum):
+    """Qué mira un escaneo pasivo de un dominio.
+
+    Hereda de ``str`` para compararse y guardarse como su valor.
+
+    Attributes:
+        PASSIVE: Inteligencia pasiva: lo que Certificate Transparency, Shodan,
+            Censys y SecurityTrails saben del dominio, y la higiene de su DNS.
+            Encuentra los subdominios que otros modos pueden tomar como punto
+            de partida (almacenamiento en la nube, subdominios secuestrables),
+            leyéndolos de ``OsintScan.subdomains``.
+    """
+    PASSIVE = "passive"
+
+
+class OsintScan(Base):
+    """Un escaneo pasivo de un dominio: lo que se sabe de él sin tocarlo.
+
+    No es un ``Scan``. Un ``Scan`` tiene un objetivo que se sondea, un host y
+    un tipo de escáner del catálogo ``ScanType``, y todo lo que recorre los
+    escaneos (reconciliación, informes, programación, historial) cuenta con
+    ello; un escaneo pasivo no sondea nada ni tiene host. Por eso vive en su
+    propia tabla, y sus hallazgos viajan dentro de la fila en vez de en
+    ``Finding``, que exige un ``Scan``.
+
+    Attributes:
+        id: Clave primaria.
+        user_id: Dueño del escaneo. La clave foránea borra en cascada: al
+            borrarse la cuenta, sus escaneos pasivos se van con ella sin que el
+            borrado de cuentas tenga que conocer esta tabla.
+        domain: El dominio consultado, normalizado (minúsculas, ASCII, sin
+            punto final).
+        mode: Qué mira el escaneo, uno de :class:`OsintScanMode`.
+        status: Estado, con los valores de ``ScanStatus``.
+        started_at: Cuándo se pidió.
+        finished_at: Cuándo terminó, o ``None`` si no ha terminado.
+        failure_reason: Por qué falló, con los valores de
+            ``ScanFailureReason``; ``None`` si no falló.
+        parameters: Lo que pidió el usuario además del dominio
+            (``{"dkim_selectors": [...]}``).
+        sources: El resultado de cada fuente de terceros (``SourceStatus``
+            serializado): si respondió, si se omitió por falta de clave y de
+            cuándo es su dato.
+        dns_checks: El veredicto de cada comprobación de higiene DNS.
+        subdomains: Los subdominios conocidos, con sus fuentes y fechas.
+        findings: Los hallazgos, con las columnas de ``Finding`` en snake_case
+            y su procedencia en ``provenance``.
+    """
+    __tablename__ = "OsintScan"
+
+    id             = Column(Integer, primary_key=True, autoincrement=True)
+    user_id        = Column(Integer, ForeignKey("User.id", ondelete="CASCADE"),
+                            nullable=False, index=True)
+    domain         = Column(String(255), nullable=False, index=True)
+    mode           = Column(String(16), nullable=False, default=OsintScanMode.PASSIVE.value,
+                            server_default=OsintScanMode.PASSIVE.value)
+    status         = Column(String(20), nullable=False, default=ScanStatus.PENDING.value)
+    started_at     = Column(DateTime, nullable=False, default=utcnow_naive)
+    finished_at    = Column(DateTime, nullable=True)
+    failure_reason = Column(String(40), nullable=True)
+    parameters     = Column(JSONB, nullable=True)
+    sources        = Column(JSONB, nullable=True)
+    dns_checks     = Column(JSONB, nullable=True)
+    subdomains     = Column(JSONB, nullable=True)
+    findings       = Column(JSONB, nullable=True)
+
+    def __repr__(self):
+        """Representación de depuración con id, dominio, modo y estado."""
+        return (f"<OsintScan(id={self.id}, domain='{self.domain}', mode='{self.mode}', "
+                f"status='{self.status}')>")
+
+
+class OsintSourceCache(Base):
+    """La última respuesta de una fuente de inteligencia pasiva a una consulta.
+
+    Caché con caducidad de las respuestas de crt.sh, Shodan, Censys y
+    SecurityTrails. Vive en la base de datos y no en Redis por tres razones:
+    la escriben el worker y la leen la API y el worker, que son procesos
+    distintos; la respuesta de una fuente de pago cuesta cuota y tiene que
+    sobrevivir a un reinicio de Redis; y la fecha de descarga es parte del
+    dato —es la que dice cuán viejo es lo que se muestra—, así que no puede
+    perderse con él.
+
+    La caducidad no se guarda: se calcula al leer, con ``fetched_at`` y el
+    ``ttlHours`` vigente, para que cambiar la configuración valga también
+    para lo ya guardado. Sólo se guardan respuestas: un fallo de la fuente
+    nunca se cachea.
+
+    Attributes:
+        id: Clave primaria.
+        source: La fuente (``crtsh``, ``shodan``, ``censys``, ``securitytrails``).
+        query: Lo consultado: un dominio o una dirección IP.
+        payload: El JSON de la respuesta, o ``None`` si la fuente respondió que
+            no sabe nada de la consulta.
+        fetched_at: Cuándo se descargó.
+    """
+    __tablename__ = "OsintSourceCache"
+
+    id         = Column(Integer, primary_key=True, autoincrement=True)
+    source     = Column(String(32), nullable=False)
+    query      = Column(String(255), nullable=False)
+    payload    = Column(JSONB, nullable=True)
+    fetched_at = Column(DateTime, nullable=False, default=utcnow_naive)
+
+    __table_args__ = (
+        UniqueConstraint("source", "query", name="uq_osintsourcecache_source_query"),
+    )
+
+    def __repr__(self):
+        """Representación de depuración con fuente, consulta y fecha."""
+        return (f"<OsintSourceCache(source='{self.source}', query='{self.query}', "
+                f"fetched_at={self.fetched_at})>")
+
+
 class ComplianceFrameworkSelection(Base):
     """Los marcos de cumplimiento que un usuario o una organización quiere controlar.
 

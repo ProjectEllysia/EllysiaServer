@@ -55,7 +55,7 @@ _PRIVATE_KEY_RE = re.compile(
 
 # Las clases de evidencia que el modelo reconoce. Una entrada con otro
 # ``kind`` no se descarta, pero conviene que la lista viva en un sitio.
-EVIDENCE_KINDS = ("http_response", "ssh_banner", "tls_cert", "probe_output")
+EVIDENCE_KINDS = ("http_response", "ssh_banner", "tls_cert", "probe_output", "osint_record")
 
 
 @dataclass

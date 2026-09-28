@@ -36,6 +36,15 @@ them:
     Bridges Nikto and Nuclei results into the shared ``Finding`` model, so every
     scanner can be correlated together.
 
+``osint``
+    La inteligencia pasiva: lo que Certificate Transparency, Shodan, Censys o
+    SecurityTrails ya saben de un dominio, sin tocar el objetivo. Las fuentes
+    llegan por un fetcher inyectado.
+
+``dns_hygiene``
+    Lo que un dominio publica en su DNS sobre su correo y sus certificados
+    (SPF, DMARC, DKIM, MTA-STS, CAA, DNSSEC), con la búsqueda DNS inyectada.
+
 Everything here is deliberately free of the ORM and of network side effects
 where it can be: pure functions take plain values and return plain dicts, and the
 few pieces that must touch the network (the probes and fetchers) take injectable
@@ -92,7 +101,34 @@ from .kb import (
     fetch_oval,
     fetch_kev,
     fetch_epss,
+    fetch_document,
     iter_nvd_pages,
+)
+from .osint import (
+    CREDENTIALED_SOURCES,
+    PASSIVE_EXPOSURE_CATEGORY,
+    QOD_THIRD_PARTY,
+    FetchedDocument,
+    OsintSource,
+    PassiveReport,
+    ServiceObservation,
+    SourceOutcome,
+    SourceSetting,
+    SourceStatus,
+    SubdomainRecord,
+    collect_host_observations,
+    collect_passive_intelligence,
+    finding_to_osint_json,
+    normalize_domain,
+    suggest_cpe_findings,
+)
+from .dns_hygiene import (
+    DNS_HYGIENE_CATEGORY,
+    QOD_DNS_RECORD,
+    DnsCheckResult,
+    DnsCheckStatus,
+    assess_dns_hygiene,
+    is_valid_dkim_selector,
 )
 from .checks import (
     load_checks,
@@ -298,7 +334,30 @@ __all__ = [
     "fetch_oval",
     "fetch_kev",
     "fetch_epss",
+    "fetch_document",
     "iter_nvd_pages",
+    "CREDENTIALED_SOURCES",
+    "DNS_HYGIENE_CATEGORY",
+    "PASSIVE_EXPOSURE_CATEGORY",
+    "QOD_DNS_RECORD",
+    "QOD_THIRD_PARTY",
+    "DnsCheckResult",
+    "DnsCheckStatus",
+    "FetchedDocument",
+    "OsintSource",
+    "PassiveReport",
+    "ServiceObservation",
+    "SourceOutcome",
+    "SourceSetting",
+    "SourceStatus",
+    "SubdomainRecord",
+    "assess_dns_hygiene",
+    "collect_host_observations",
+    "collect_passive_intelligence",
+    "finding_to_osint_json",
+    "is_valid_dkim_selector",
+    "normalize_domain",
+    "suggest_cpe_findings",
     "load_checks",
     "validate_checks",
     "CheckRuntime",

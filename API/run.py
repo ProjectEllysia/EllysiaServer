@@ -451,6 +451,15 @@ def _configure_scheduling() -> None:
     except Exception as e:
         _logger.warning("No se pudo reconciliar escaneos huérfanos: %s", e)
 
+    _logger.info("Reconciliando escaneos pasivos huérfanos...")
+    try:
+        from src.modules.features.themis.managers import OsintManager
+        fixed_osint = OsintManager.reconcile_orphaned_scans()
+        if fixed_osint:
+            _logger.info("Se marcaron %d escaneo(s) pasivo(s) huérfano(s) como FAILED", fixed_osint)
+    except Exception as e:
+        _logger.warning("No se pudo reconciliar escaneos pasivos huérfanos: %s", e)
+
     _logger.info("Reconciliando análisis Iris huérfanos...")
     try:
         from src.modules.features.iris.managers import IrisManager
