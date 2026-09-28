@@ -18,6 +18,13 @@ Las acciones sobre el buzón (cuarentena, spam, papelera, categoría de
 sospechoso) necesitan ``Mail.ReadWrite``, que solo se pide si el usuario
 activa las acciones al conectar. Mover un mensaje en Graph le da un id nuevo:
 cada acción devuelve el id resultante para que el siguiente paso lo use.
+
+Con una **cuenta de servicio** (``mailbox_address``) no hay sesión de nadie: la
+instalación pide un token de aplicación (*client credentials*) con el permiso
+de aplicación ``Mail.Read`` y lee ``users/<buzón>`` en vez de ``me``. Ese
+permiso alcanza por defecto a todos los buzones del inquilino; el
+administrador lo limita a los buzones concretos con una *application access
+policy* de Exchange. Las acciones sobre el buzón no se ofrecen en este modo.
 """
 
 from __future__ import annotations
@@ -25,13 +32,15 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 import requests
 
 import src.modules.system.config_reading as CR
 
-from .base import ActionResult, MailboxConnector, MailboxFolder, MessageRef, SubscriptionInfo, TokenSet
+from .base import (
+    ActionResult, MailboxConnector, MailboxFolder, MessageRef, ServiceToken, SubscriptionInfo, TokenSet,
+)
 from .registry import register_connector
 
 logger = logging.getLogger(__name__)
@@ -47,6 +56,9 @@ _TIMEOUT_SECONDS = 20
 # Permiso delegado para mover y categorizar mensajes del propio usuario.
 _SCOPE_READ_WRITE = "Mail.ReadWrite"
 
+# Permiso de aplicación con que lee una cuenta de servicio (solo lectura).
+_SCOPE_APPLICATION_READ = "Mail.Read (application)"
+
 # Carpetas bien conocidas de Graph adonde van «no deseado» y «papelera».
 _FOLDER_JUNK = "junkemail"
 _FOLDER_DELETED = "deleteditems"
@@ -55,15 +67,23 @@ _FOLDER_DELETED = "deleteditems"
 @register_connector("microsoft")
 class GraphConnector(MailboxConnector):
     provider = "microsoft"
+    supports_service_account = True
 
-    def __init__(self, redirect_uri: str, folder: Optional[str] = None) -> None:
-        env = CR.get_graph_environment()
+    def __init__(self, redirect_uri: str, folder: Optional[str] = None,
+                 mailbox_address: Optional[str] = None) -> None:
+        # Con cuenta de servicio no se usa la app OAuth delegada, y una
+        # instalación puede no tenerla configurada.
+        env = (CR.get_graph_environment() if mailbox_address is None
+               else {"client_id": "", "client_secret": "", "tenant": ""})
         self._client_id = env["client_id"]
         self._client_secret = env["client_secret"]
         self._tenant = env["tenant"]
         self._redirect_uri = redirect_uri
         # Nombre bien conocido ("inbox") o id de mailFolder de Graph.
         self._folder = folder or "inbox"
+        # Raíz del buzón en las URLs de Graph: el del usuario que inició
+        # sesión, o el que se lee con la cuenta de servicio.
+        self._mailbox_root = "me" if mailbox_address is None else f"users/{quote(mailbox_address, safe='@')}"
 
     @property
     def _authority(self) -> str:
@@ -117,7 +137,7 @@ class GraphConnector(MailboxConnector):
             # Bootstrap: paginar el delta completo UNA vez, descartando el
             # contenido, hasta obtener el deltaLink final -- sin backfill.
             url = (
-                f"{_GRAPH_API}/me/mailFolders/{self._folder}/messages/delta"
+                f"{_GRAPH_API}/{self._mailbox_root}/mailFolders/{self._folder}/messages/delta"
                 f"?$select={_SELECT_FIELDS}"
             )
             while True:
@@ -158,7 +178,7 @@ class GraphConnector(MailboxConnector):
         cached = message_ref.raw.get("internetMessageHeaders")
         if cached is None:
             response = requests.get(
-                f"{_GRAPH_API}/me/messages/{message_ref.provider_message_id}",
+                f"{_GRAPH_API}/{self._mailbox_root}/messages/{message_ref.provider_message_id}",
                 headers={"Authorization": f"Bearer {access_token}"},
                 params={"$select": _SELECT_FIELDS}, timeout=_TIMEOUT_SECONDS,
             )
@@ -168,7 +188,7 @@ class GraphConnector(MailboxConnector):
 
     def fetch_raw(self, access_token: str, message_ref: MessageRef) -> str:
         response = requests.get(
-            f"{_GRAPH_API}/me/messages/{message_ref.provider_message_id}/$value",
+            f"{_GRAPH_API}/{self._mailbox_root}/messages/{message_ref.provider_message_id}/$value",
             headers={"Authorization": f"Bearer {access_token}"}, timeout=_TIMEOUT_SECONDS,
         )
         response.raise_for_status()
@@ -179,7 +199,7 @@ class GraphConnector(MailboxConnector):
         folders: list[MailboxFolder] = []
         # Solo carpetas de primer nivel -- Gmail tampoco anida etiquetas, y
         # bajar a subcarpetas exigiría recorrer el árbol entero por cuenta.
-        url = f"{_GRAPH_API}/me/mailFolders?$top=250"
+        url = f"{_GRAPH_API}/{self._mailbox_root}/mailFolders?$top=250"
         while url:
             response = requests.get(url, headers=headers, timeout=_TIMEOUT_SECONDS)
             response.raise_for_status()
@@ -202,7 +222,7 @@ class GraphConnector(MailboxConnector):
             json={
                 "changeType": "created",
                 "notificationUrl": notification_url,
-                "resource": f"me/mailFolders('{self._folder}')/messages",
+                "resource": f"{self._mailbox_root}/mailFolders('{self._folder}')/messages",
                 "expirationDateTime": expires_at.strftime("%Y-%m-%dT%H:%M:%S.0000000Z"),
                 "clientState": client_state,
             },
@@ -234,6 +254,26 @@ class GraphConnector(MailboxConnector):
                                    headers={"Authorization": f"Bearer {access_token}"}, timeout=_TIMEOUT_SECONDS)
         if response.status_code not in (200, 204, 404):
             response.raise_for_status()
+
+    def acquire_service_token(self, mailbox_address: str) -> ServiceToken:
+        env = CR.get_mailbox_service_account_environment()
+        if not (env["graph_tenant_id"] and env["graph_client_id"] and env["graph_client_secret"]):
+            raise ValueError("Faltan GRAPH_SERVICE_TENANT_ID, GRAPH_SERVICE_CLIENT_ID o GRAPH_SERVICE_CLIENT_SECRET: "
+                             "sin la aplicación de servicio no se puede leer el buzón.")
+        response = requests.post(
+            f"https://login.microsoftonline.com/{quote(env['graph_tenant_id'], safe='')}/oauth2/v2.0/token",
+            data={"grant_type": "client_credentials", "client_id": env["graph_client_id"],
+                  "client_secret": env["graph_client_secret"], "scope": "https://graph.microsoft.com/.default"},
+            timeout=_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        data = response.json()
+        return ServiceToken(
+            access_token=data["access_token"],
+            expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(
+                seconds=int(data.get("expires_in", 3600))),
+            scopes=_SCOPE_APPLICATION_READ,
+        )
 
     @staticmethod
     def can_act(scopes: str) -> bool:

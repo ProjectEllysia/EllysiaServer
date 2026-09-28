@@ -2969,6 +2969,69 @@ def iris_mailbox_events_config() -> IrisMailboxEventsConfig:
     return load_block(IrisMailboxEventsConfig)
 
 
+@config_block("features.iris.sharedMailboxes")
+@dataclass(frozen=True)
+class IrisSharedMailboxesConfig:
+    """Límites de los buzones compartidos de una organización y de las carpetas por conexión."""
+
+    max_per_organization: int = 10
+    """Buzones compartidos que puede conectar una organización."""
+
+    max_members_per_mailbox: int = 50
+    """Personas con acceso a un mismo buzón compartido."""
+
+    max_folders_per_connection: int = 5
+    """Carpetas que vigila una conexión, contando la principal."""
+
+
+def iris_shared_mailboxes_config() -> IrisSharedMailboxesConfig:
+    return load_block(IrisSharedMailboxesConfig)
+
+
+@config_block("features.iris.imap")
+@dataclass(frozen=True)
+class IrisImapConfig:
+    """Conexiones IMAP: siempre con TLS, contra servidores de internet y con un tope por sync."""
+
+    allowed_ports: list = field(default_factory=lambda: [993])
+    """Puertos admitidos. Solo IMAP sobre TLS directo (993 por defecto): no
+    se admite IMAP en claro ni STARTTLS, que un intermediario puede degradar."""
+
+    timeout_seconds: int = 20
+    """Tiempo máximo de cada operación contra el servidor."""
+
+    max_messages_per_sync: int = 200
+    """Mensajes nuevos que se recogen como mucho en un sync; el resto, en el siguiente."""
+
+
+def iris_imap_config() -> IrisImapConfig:
+    return load_block(IrisImapConfig)
+
+
+def get_mailbox_service_account_environment() -> dict[str, str]:
+    """Credenciales de las cuentas de servicio de buzón, desde el entorno.
+
+    Con ellas la instalación lee un buzón (típicamente uno compartido) sin que
+    ninguna persona inicie sesión: en Google Workspace, una cuenta de servicio
+    con delegación de dominio limitada a ``gmail.readonly``; en Microsoft 365,
+    una aplicación de Entra ID con el permiso de aplicación ``Mail.Read``
+    (conviene restringirla a los buzones concretos con una *application
+    access policy* de Exchange).
+
+    Returns:
+        dict: ``gmail_service_account_file`` (ruta al JSON de la cuenta de
+            servicio de Google), ``graph_tenant_id``, ``graph_client_id`` y
+            ``graph_client_secret`` (la aplicación de Microsoft); cadenas
+            vacías si no están definidas.
+    """
+    return {
+        "gmail_service_account_file": os.getenv("GMAIL_SERVICE_ACCOUNT_FILE", "").strip(),
+        "graph_tenant_id": os.getenv("GRAPH_SERVICE_TENANT_ID", "").strip(),
+        "graph_client_id": os.getenv("GRAPH_SERVICE_CLIENT_ID", "").strip(),
+        "graph_client_secret": os.getenv("GRAPH_SERVICE_CLIENT_SECRET", "").strip(),
+    }
+
+
 def get_gmail_events_environment() -> dict[str, str]:
     """Lo que necesita la ingesta por eventos de Gmail, desde el entorno.
 

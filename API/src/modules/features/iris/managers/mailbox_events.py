@@ -39,6 +39,7 @@ from src.modules.system.taskqueue import TaskTrackingMixin, job_context
 from ..exceptions import IrisMailboxEventRejectedError
 from ..model import IrisMailboxSubscription, MailboxSubscriptionStatus
 from ..repositories import IrisMailboxConnectionRepository, IrisMailboxSubscriptionRepository
+from ..services.mailbox import MAILBOX_CONNECTORS
 from ..services.mailbox.events import (
     MAX_VALIDATION_TOKEN_LENGTH,
     generate_client_state,
@@ -311,9 +312,11 @@ class IrisMailboxEventManager(TaskTrackingMixin):
         if not config.enabled:
             return 0
         now = utcnow_naive()
+        # IMAP no avisa de correo nuevo: sigue siempre por sondeo.
+        event_providers = [name for name, connector in MAILBOX_CONNECTORS.items() if connector.supports_events]
         connection_ids = [connection.id for connection in build_repository(
-            IrisMailboxConnectionRepository).get_active_without_healthy_subscription(now - _RETRY_AFTER,
-                                                                                     _MAINTENANCE_BATCH_SIZE)]
+            IrisMailboxConnectionRepository).get_active_without_healthy_subscription(
+                now - _RETRY_AFTER, _MAINTENANCE_BATCH_SIZE, providers=event_providers)]
         connection_ids += [subscription.connection_id for subscription in build_repository(
             IrisMailboxSubscriptionRepository).get_due_for_renewal(now + timedelta(hours=config.renew_before_hours),
                                                                    _MAINTENANCE_BATCH_SIZE)]

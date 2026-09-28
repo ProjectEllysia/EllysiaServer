@@ -80,6 +80,7 @@ _AUTHORIZATION_MODULE = "users"
 EXTERNAL_HOOKS: dict[tuple[str, str], str] = {
     ("src/modules/shared/schemas.py", "UTCDateTime._serialize"): "marshmallow (fields.Field)",
     ("src/modules/system/taskqueue/worker.py", "_ThreadSafeWorker._install_signal_handlers"): "rq (SimpleWorker)",
+    ("src/modules/features/iris/services/mailbox/imap.py", "PinnedImapClient._create_socket"): "imaplib (IMAP4_SSL)",
 }
 
 _PLAN_SQL = "pendiente de mover la consulta a un repositorio del módulo (§ 4)"

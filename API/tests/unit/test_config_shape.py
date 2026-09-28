@@ -223,6 +223,8 @@ CONFIG_BLOCKS = [
     (CR.IrisReportingConfig, CR.iris_reporting_config),
     (CR.IrisRemediationConfig, CR.iris_remediation_config),
     (CR.IrisMailboxEventsConfig, CR.iris_mailbox_events_config),
+    (CR.IrisSharedMailboxesConfig, CR.iris_shared_mailboxes_config),
+    (CR.IrisImapConfig, CR.iris_imap_config),
     (CR.ScribeConfig, CR.scribe_config),
     (CR.ScribeResilienceConfig, CR.scribe_resilience_config),
     (CR.HeraldConfig, CR.herald_config),

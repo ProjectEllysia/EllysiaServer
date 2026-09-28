@@ -372,7 +372,8 @@ class IrisMailboxConnection(Base):
         account_email: The connected mailbox's address (plaintext — not a
                  secret, needed to show "which account is this").
         scopes: Space-separated OAuth scopes actually granted.
-        refresh_token: Refresh token de OAuth. La columna es
+        refresh_token: Refresh token de OAuth; NULL si ``auth_mode`` no es
+                 ``oauth``. La columna es
                  ``EncryptedText`` (``purpose="iris_mailbox"``), así que en
                  Python es siempre el token en claro y lo cifrado es la fila.
                  Nunca lo devuelve ningún endpoint.
@@ -462,6 +463,30 @@ class IrisMailboxConnection(Base):
                  (``gmail.modify``, ``Mail.ReadWrite``); sin ellos, la conexión
                  se queda en solo lectura. Que el proveedor los concediera de
                  verdad se comprueba en ``scopes``, no aquí.
+        kind: ``MailboxKind``: ``personal`` (el buzón de quien lo conecta) o
+                 ``shared`` (un buzón de la organización, como
+                 ``soporte@empresa.com``). En uno compartido ``user_id`` es
+                 quien lo conectó y responde de él, y quién más ve sus
+                 análisis lo decide ``IrisMailboxMember``.
+        organization_id: Organización dueña de un buzón compartido; NULL en
+                 uno personal. ``ondelete="CASCADE"``: sin organización no hay
+                 a quién pertenezca.
+        auth_mode: ``MailboxAuthMode``: ``oauth`` (el usuario inicia sesión
+                 en Google o Microsoft), ``service_account`` (la instalación
+                 accede con su propia cuenta de servicio, sin sesión de nadie:
+                 delegación de dominio en Google, permisos de aplicación en
+                 Microsoft) o ``imap`` (usuario y contraseña de aplicación).
+                 Con ``service_account`` e ``imap`` no hay ``refresh_token``.
+        imap_host / imap_port / imap_username: Servidor IMAP (siempre con
+                 TLS) y usuario; NULL si no es IMAP.
+        imap_password: Contraseña de aplicación IMAP, ``EncryptedText``
+                 (``purpose="iris_mailbox"``) y ``deferred``: solo la mira el
+                 sync. Nunca la devuelve ningún endpoint; se cambia con la
+                 rotación de credenciales.
+        additional_folders: Carpetas que se vigilan además de ``folder``,
+                 como lista de ``{"id", "displayName", "type"}`` ya validadas
+                 contra la cuenta. Cada carpeta lleva su propio cursor dentro
+                 de ``sync_cursor`` (ver ``services/mailbox/folders.py``).
         created_at: When the connection was established.
         user: SQLAlchemy relationship to User.
         analyses: Analyses ingested through this connection.
@@ -477,7 +502,7 @@ class IrisMailboxConnection(Base):
     scopes = Column(String(512), nullable=False)
 
     refresh_token = deferred(
-        Column(EncryptedText(purpose="iris_mailbox"), nullable=False), group="oauth_tokens")
+        Column(EncryptedText(purpose="iris_mailbox"), nullable=True), group="oauth_tokens")
     access_token = deferred(
         Column(EncryptedText(purpose="iris_mailbox"), nullable=True), group="oauth_tokens")
     access_token_expires_at = Column(DateTime, nullable=True)
@@ -500,9 +525,18 @@ class IrisMailboxConnection(Base):
     messages_discovered_total = Column(Integer, nullable=False, default=0)
     stuck_alert_sent_at = Column(DateTime, nullable=True)
     remediation_enabled = Column(Boolean, nullable=False, default=False)
+    kind = Column(String(16), nullable=False, default="personal")
+    organization_id = Column(Integer, ForeignKey("Organization.id", ondelete="CASCADE"), nullable=True)
+    auth_mode = Column(String(20), nullable=False, default="oauth")
+    imap_host = Column(String(255), nullable=True)
+    imap_port = Column(Integer, nullable=True)
+    imap_username = Column(String(320), nullable=True)
+    imap_password = deferred(Column(EncryptedText(purpose="iris_mailbox"), nullable=True), group="imap_credentials")
+    additional_folders = Column(JSONB, nullable=False, default=list)
     created_at = Column(DateTime, nullable=False, default=utcnow_naive)
 
     user = relationship("User")
+    members = relationship("IrisMailboxMember", back_populates="connection", cascade="all, delete-orphan")
     analyses = relationship("IrisAnalysis", back_populates="connection")
     inbox_entries = relationship(
         "IrisMailboxInbox", back_populates="connection",
@@ -512,6 +546,77 @@ class IrisMailboxConnection(Base):
     __table_args__ = (
         UniqueConstraint("user_id", "provider", "account_email",
                           name="uq_iris_mailbox_connection_user_provider_email"),
+    )
+
+
+class MailboxKind(StrEnum):
+    """De quién es un buzón conectado (``IrisMailboxConnection.kind``).
+
+    Attributes:
+        PERSONAL: El de quien lo conecta; solo lo ve esa persona.
+        SHARED: De la organización; lo ven los miembros con acceso explícito.
+    """
+    PERSONAL = "personal"
+    SHARED = "shared"
+
+
+class MailboxAuthMode(StrEnum):
+    """Cómo accede Iris a un buzón (``IrisMailboxConnection.auth_mode``).
+
+    Attributes:
+        OAUTH: El usuario inicia sesión en el proveedor y autoriza a Iris.
+        SERVICE_ACCOUNT: La instalación usa su propia cuenta de servicio
+            (delegación de dominio en Google Workspace, permisos de
+            aplicación en Microsoft 365), sin sesión de ninguna persona.
+        IMAP: Usuario y contraseña de aplicación contra un servidor IMAP con TLS.
+    """
+    OAUTH = "oauth"
+    SERVICE_ACCOUNT = "service_account"
+    IMAP = "imap"
+
+
+class SharedMailboxAccess(StrEnum):
+    """Qué puede hacer un miembro con un buzón compartido (``IrisMailboxMember.access``).
+
+    Attributes:
+        VIEWER: Ver los análisis de los correos del buzón.
+        MANAGER: Además, decidir quién más tiene acceso, cambiar carpetas y
+            credenciales, y desconectarlo.
+    """
+    VIEWER = "viewer"
+    MANAGER = "manager"
+
+
+class IrisMailboxMember(Base):
+    """Acceso explícito de una persona a un buzón compartido.
+
+    Es la política de quién ve qué: los análisis de un buzón compartido solo
+    los ve quien tiene una fila aquí **y** sigue perteneciendo a la
+    organización dueña del buzón. Salir de la organización quita el acceso
+    en el acto, sin tocar esta tabla.
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        connection_id: FK al buzón compartido; ``ondelete="CASCADE"``.
+        user_id: FK a la persona; ``ondelete="CASCADE"``.
+        access: ``SharedMailboxAccess`` (``viewer`` o ``manager``).
+        granted_by_user_id: Quién le dio el acceso; ``ondelete="SET NULL"``.
+        granted_at: Cuándo.
+    """
+    __tablename__ = "IrisMailboxMember"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    connection_id = Column(Integer, ForeignKey("IrisMailboxConnection.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("User.id", ondelete="CASCADE"), nullable=False)
+    access = Column(String(16), nullable=False, default=SharedMailboxAccess.VIEWER.value)
+    granted_by_user_id = Column(Integer, ForeignKey("User.id", ondelete="SET NULL"), nullable=True)
+    granted_at = Column(DateTime, nullable=False, default=utcnow_naive)
+
+    connection = relationship("IrisMailboxConnection", back_populates="members")
+
+    __table_args__ = (
+        UniqueConstraint("connection_id", "user_id", name="uq_iris_mailbox_member_connection_user"),
+        Index("ix_iris_mailbox_member_user_id", "user_id"),
     )
 
 

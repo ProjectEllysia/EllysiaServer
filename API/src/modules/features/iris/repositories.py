@@ -26,6 +26,7 @@ from .model import (
     IrisThreatIntelResult, IrisTenantProfile, IrisTenantConsent,
     IrisWebhookDelivery, IrisWebhookSubscription, WebhookDeliveryStatus, IrisIntegrationToken,
     IrisActionAudit, MailboxActionStatus, IrisMailboxSubscription, MailboxSubscriptionStatus,
+    IrisMailboxMember, MailboxKind,
 )
 
 
@@ -66,6 +67,24 @@ class IrisAnalysisRepository(BaseRepository[IrisAnalysis]):
         "title": IrisAnalysis.title,
         "status": IrisAnalysis.status,
     }
+
+    def get_by_connection_paginated(self, connection_id: int, page: int,
+                                    per_page: int) -> Tuple[List[IrisAnalysis], int]:
+        """Análisis de los correos de un buzón, del más reciente al más antiguo.
+
+        Args:
+            connection_id: Buzón.
+            page: Página, desde 1.
+            per_page: Tamaño de página.
+
+        Returns:
+            Tuple[List[IrisAnalysis], int]: La página y el total.
+        """
+        query = self._session.query(IrisAnalysis).filter(IrisAnalysis.connection_id == connection_id)
+        total = query.count()
+        items = (query.order_by(IrisAnalysis.started_at.desc(), IrisAnalysis.id.desc())
+                 .offset((page - 1) * per_page).limit(per_page).all())
+        return items, total
 
     def get_by_user_paginated(
         self, user_id: int, page: int, per_page: int, *,
@@ -505,17 +524,77 @@ class IrisMailboxConnectionRepository(BaseRepository[IrisMailboxConnection]):
         """Return all connections belonging to a user, newest first."""
         return (
             self._session.query(IrisMailboxConnection)
-            .filter(IrisMailboxConnection.user_id == user_id)
+            .filter(IrisMailboxConnection.user_id == user_id,
+                    IrisMailboxConnection.kind == MailboxKind.PERSONAL.value)
             .order_by(IrisMailboxConnection.created_at.desc())
             .all()
         )
 
     def count_for_user(self, user_id: int) -> int:
-        """Number of connections a user already has (for the quota check)."""
+        """Buzones personales que ya tiene un usuario (para su tope); los compartidos cuentan aparte."""
         return (
             self._session.query(IrisMailboxConnection)
-            .filter(IrisMailboxConnection.user_id == user_id)
+            .filter(IrisMailboxConnection.user_id == user_id,
+                    IrisMailboxConnection.kind == MailboxKind.PERSONAL.value)
             .count()
+        )
+
+    def get_shared_by_organization(self, organization_id: int) -> List[IrisMailboxConnection]:
+        """Buzones compartidos de una organización, del más antiguo al más reciente.
+
+        Args:
+            organization_id: Organización.
+
+        Returns:
+            List[IrisMailboxConnection]: Sus buzones compartidos.
+        """
+        return (
+            self._session.query(IrisMailboxConnection)
+            .filter(IrisMailboxConnection.organization_id == organization_id,
+                    IrisMailboxConnection.kind == MailboxKind.SHARED.value)
+            .order_by(IrisMailboxConnection.id.asc())
+            .all()
+        )
+
+    def get_shared_by_organization_and_address(self, organization_id: int, provider: str,
+                                               account_email: str) -> Optional[IrisMailboxConnection]:
+        """El buzón compartido de una organización con esa dirección y proveedor, si ya está conectado.
+
+        Args:
+            organization_id: Organización.
+            provider: Proveedor.
+            account_email: Dirección, sin distinguir mayúsculas.
+
+        Returns:
+            Optional[IrisMailboxConnection]: El buzón, o ``None``.
+        """
+        return (
+            self._session.query(IrisMailboxConnection)
+            .filter(IrisMailboxConnection.organization_id == organization_id,
+                    IrisMailboxConnection.kind == MailboxKind.SHARED.value,
+                    IrisMailboxConnection.provider == provider,
+                    func.lower(IrisMailboxConnection.account_email) == account_email.lower())
+            .first()
+        )
+
+    def get_shared_for_member(self, user_id: int, organization_id: int) -> List[IrisMailboxConnection]:
+        """Buzones compartidos de una organización a los que una persona tiene acceso explícito.
+
+        Args:
+            user_id: La persona.
+            organization_id: Su organización actual (los de otra no cuentan).
+
+        Returns:
+            List[IrisMailboxConnection]: Los buzones.
+        """
+        return (
+            self._session.query(IrisMailboxConnection)
+            .join(IrisMailboxMember, IrisMailboxMember.connection_id == IrisMailboxConnection.id)
+            .filter(IrisMailboxMember.user_id == user_id,
+                    IrisMailboxConnection.organization_id == organization_id,
+                    IrisMailboxConnection.kind == MailboxKind.SHARED.value)
+            .order_by(IrisMailboxConnection.id.asc())
+            .all()
         )
 
     def get_by_user_provider_email(
@@ -587,14 +666,16 @@ class IrisMailboxConnectionRepository(BaseRepository[IrisMailboxConnection]):
             .all()
         )
 
-    def get_active_without_healthy_subscription(self, retry_failed_before: datetime,
-                                                limit: int) -> List[IrisMailboxConnection]:
+    def get_active_without_healthy_subscription(self, retry_failed_before: datetime, limit: int,
+                                                providers: Optional[List[str]] = None) -> List[IrisMailboxConnection]:
         """Conexiones activas a las que hay que crear (o reintentar) la suscripción a eventos.
 
         Args:
             retry_failed_before: Una suscripción ``failed`` o ``pending`` se
                 reintenta si su último cambio es anterior a esto.
             limit: Cuántas como mucho.
+            providers: Solo las de estos proveedores (los que pueden avisar de
+                correo nuevo). Por defecto ``None``: todas.
 
         Returns:
             List[IrisMailboxConnection]: Sin suscripción, o con una fallida o
@@ -605,10 +686,12 @@ class IrisMailboxConnectionRepository(BaseRepository[IrisMailboxConnection]):
             .where(or_(IrisMailboxSubscription.status == MailboxSubscriptionStatus.ACTIVE.value,
                        IrisMailboxSubscription.updated_at >= retry_failed_before))
         )
+        query = self._session.query(IrisMailboxConnection).filter(
+            IrisMailboxConnection.status == "active", IrisMailboxConnection.id.notin_(attempted_recently))
+        if providers is not None:
+            query = query.filter(IrisMailboxConnection.provider.in_(providers))
         return (
-            self._session.query(IrisMailboxConnection)
-            .filter(IrisMailboxConnection.status == "active",
-                    IrisMailboxConnection.id.notin_(attempted_recently))
+            query
             .order_by(IrisMailboxConnection.id.asc())
             .limit(limit)
             .all()
@@ -2265,6 +2348,59 @@ class IrisActionAuditRepository(BaseRepository[IrisActionAudit]):
             .values(status=MailboxActionStatus.FAILED.value, error=error, completed_at=completed_at)
         )
         return result.rowcount or 0
+
+
+class IrisMailboxMemberRepository(BaseRepository[IrisMailboxMember]):
+    """Acceso de personas a buzones compartidos (``IrisMailboxMember``)."""
+
+    _MODEL = IrisMailboxMember
+
+    def get_by_connection_and_user(self, connection_id: int, user_id: int) -> Optional[IrisMailboxMember]:
+        """El acceso de una persona a un buzón, si lo tiene.
+
+        Args:
+            connection_id: Buzón compartido.
+            user_id: Persona.
+
+        Returns:
+            Optional[IrisMailboxMember]: El acceso, o ``None``.
+        """
+        return (
+            self._session.query(IrisMailboxMember)
+            .filter(IrisMailboxMember.connection_id == connection_id, IrisMailboxMember.user_id == user_id)
+            .first()
+        )
+
+    def get_by_connection(self, connection_id: int) -> List[IrisMailboxMember]:
+        """Todas las personas con acceso a un buzón, por orden de alta.
+
+        Args:
+            connection_id: Buzón compartido.
+
+        Returns:
+            List[IrisMailboxMember]: Los accesos.
+        """
+        return (
+            self._session.query(IrisMailboxMember)
+            .filter(IrisMailboxMember.connection_id == connection_id)
+            .order_by(IrisMailboxMember.id.asc())
+            .all()
+        )
+
+    def count_managers(self, connection_id: int) -> int:
+        """Cuántas personas administran un buzón.
+
+        Args:
+            connection_id: Buzón compartido.
+
+        Returns:
+            int: Accesos ``manager``.
+        """
+        return (
+            self._session.query(IrisMailboxMember)
+            .filter(IrisMailboxMember.connection_id == connection_id, IrisMailboxMember.access == "manager")
+            .count()
+        )
 
 
 class IrisMailboxSubscriptionRepository(BaseRepository[IrisMailboxSubscription]):

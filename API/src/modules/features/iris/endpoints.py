@@ -41,7 +41,8 @@ from .managers import (
     IrisNotificationPreferenceManager, IrisReplayManager, IrisTriageManager, IrisTrustPolicyManager,
     IrisCaseManager, IrisBatchManager, IrisCampaignManager, IrisContactGraphManager, IrisExportManager,
     IrisEnrichmentManager, IrisUrlExpansionManager, IrisTenantManager, IrisWebhookManager,
-    IrisReportingManager, IrisRemediationManager, IrisMailboxEventManager,
+    IrisReportingManager, IrisRemediationManager, IrisMailboxEventManager, IrisMailboxAccountManager,
+    IrisSharedMailboxManager,
 )
 from .exceptions import (
     IrisAnalysisNotFoundError,
@@ -61,6 +62,17 @@ from .exceptions import (
     IrisMailboxEventRejectedError,
 )
 from .schemas import (
+    IrisImapConnectRequestSchema,
+    IrisMailboxCredentialsRequestSchema,
+    IrisMailboxFoldersRequestSchema,
+    IrisSharedMailboxCreateRequestSchema,
+    IrisSharedMailboxItemSchema,
+    IrisSharedMailboxListResponseSchema,
+    IrisSharedMailboxMemberRequestSchema,
+    IrisSharedMailboxMemberSchema,
+    IrisSharedMailboxMemberListResponseSchema,
+    IrisSharedMailboxAnalysesQuerySchema,
+    IrisSharedMailboxAnalysesResponseSchema,
     AnalysisIdQuerySchema,
     IrisCapabilitiesResponseSchema,
     AnalyzeRequestSchema,
@@ -1349,6 +1361,8 @@ def _serialize_connection(connection) -> dict:
         "lastError": connection.last_error,
         "syncStartedAt": connection.sync_started_at,
         "createdAt": connection.created_at,
+        "authMode": connection.auth_mode,
+        "additionalFolders": connection.additional_folders or [],
     }
 
 
@@ -2045,3 +2059,176 @@ def receive_graph_notifications():
     result = IrisMailboxEventManager().handle_graph_notifications(request.get_json(silent=True))
     logger.info(f"Avisos de Graph: aceptados={result['accepted']}, conexiones despertadas={result['woken']}")
     return Response(status=202)
+
+
+# =============================================================================
+# Buzones por IMAP, varias carpetas y buzones compartidos de la organización.
+# Borrar, pausar, sincronizar, ver la salud o las carpetas de un buzón
+# compartido usa los mismos endpoints de /mailbox/connections/<id>: los
+# admiten sus responsables (acceso ``manager``).
+# =============================================================================
+
+@iris_blp.post("/mailbox/imap")
+@iris_blp.arguments(IrisImapConnectRequestSchema)
+@iris_blp.response(201, IrisMailboxConnectionItemSchema, description="IMAP mailbox connected")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions or surface closed")
+@iris_blp.alt_response(422, schema=ErrorSchema, description="Server unreachable or credentials rejected")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_CREATE])
+@limiter.limit("20 per hour; 100 per day")
+@handle_exceptions(default_exception=IrisExecutionError, logger=logger)
+def connect_imap_mailbox(data):
+    """Conectar un buzón personal por IMAP (TLS, contraseña de aplicación), probándolo antes"""
+    user = get_current_user()
+    connection = IrisMailboxAccountManager.connect_imap(
+        user.id, host=data["host"], port=data["port"], username=data["username"], password=data["password"],
+        folder=data["folder"], full_message_mode=data["fullMessageMode"],
+    )
+    logger.info(f"Usuario {user.username} conectó un buzón IMAP (conexión {connection.id})")
+    return _serialize_connection(connection), 201
+
+
+@iris_blp.put("/mailbox/connections/<int:connection_id>/credentials")
+@iris_blp.arguments(IrisMailboxCredentialsRequestSchema)
+@iris_blp.response(200, IrisMailboxConnectionItemSchema, description="Credentials rotated")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Connection not found")
+@iris_blp.alt_response(422, schema=ErrorSchema, description="New password rejected")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_UPDATE])
+@limiter.limit("20 per hour; 60 per day")
+@handle_exceptions(default_exception=IrisMailboxConnectionNotFoundError, logger=logger)
+def rotate_mailbox_credentials(data, connection_id: int):
+    """Cambiar la contraseña de aplicación de una conexión IMAP (se prueba antes de guardarla)"""
+    user = get_current_user()
+    connection = IrisMailboxAccountManager.rotate_imap_password(connection_id, user.id, data["password"])
+    logger.info(f"Credenciales de la conexión {connection_id} rotadas por {user.username}")
+    return _serialize_connection(connection)
+
+
+@iris_blp.put("/mailbox/connections/<int:connection_id>/folders")
+@iris_blp.arguments(IrisMailboxFoldersRequestSchema)
+@iris_blp.response(200, IrisMailboxConnectionItemSchema, description="Watched folders updated")
+@iris_blp.alt_response(400, schema=ErrorSchema, description="Folder not found or too many folders")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Connection not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_UPDATE])
+@limiter.limit("60 per hour; 300 per day")
+@handle_exceptions(default_exception=IrisMailboxConnectionNotFoundError, logger=logger)
+def set_mailbox_folders(data, connection_id: int):
+    """Carpetas que se vigilan además de la principal (validadas contra la cuenta)"""
+    user = get_current_user()
+    connection = IrisMailboxManager().set_additional_folders(connection_id, user.id, data["folders"])
+    return _serialize_connection(connection)
+
+
+@iris_blp.post("/mailbox/shared")
+@iris_blp.arguments(IrisSharedMailboxCreateRequestSchema)
+@iris_blp.response(201, IrisSharedMailboxItemSchema, description="Shared mailbox connected")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(403, schema=ErrorSchema, description="Not the organization owner or surface closed")
+@iris_blp.alt_response(409, schema=ErrorSchema, description="Already connected or limit reached")
+@iris_blp.alt_response(422, schema=ErrorSchema, description="Access to the mailbox could not be verified")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_SHARED_MAILBOX])
+@limiter.limit("20 per hour; 50 per day")
+@handle_exceptions(default_exception=IrisExecutionError, logger=logger)
+def create_shared_mailbox(data):
+    """Conectar un buzón compartido de la organización (cuenta de servicio o IMAP)"""
+    user = get_current_user()
+    mailbox = IrisSharedMailboxManager.create(
+        user.id, data["provider"], data.get("address") or "", folder=data["folder"],
+        full_message_mode=data["fullMessageMode"], imap=data.get("imap"),
+    )
+    logger.info(f"Usuario {user.username} conectó el buzón compartido {mailbox['id']}")
+    return mailbox, 201
+
+
+@iris_blp.get("/mailbox/shared")
+@iris_blp.response(200, IrisSharedMailboxListResponseSchema, description="Shared mailboxes the user can see")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("300 per hour")
+@handle_exceptions(logger=logger)
+def list_shared_mailboxes():
+    """Buzones compartidos de la organización a los que el usuario tiene acceso explícito"""
+    return {"mailboxes": IrisSharedMailboxManager.list_for_user(get_current_user().id)}
+
+
+@iris_blp.get("/mailbox/shared/<int:connection_id>/members")
+@iris_blp.response(200, IrisSharedMailboxMemberListResponseSchema, description="People with access")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Shared mailbox not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("120 per hour")
+@handle_exceptions(default_exception=IrisMailboxConnectionNotFoundError, logger=logger)
+def list_shared_mailbox_members(connection_id: int):
+    """Personas con acceso a un buzón compartido (solo para sus responsables)"""
+    return {"members": IrisSharedMailboxManager.list_members(connection_id, get_current_user().id)}
+
+
+@iris_blp.put("/mailbox/shared/<int:connection_id>/members/<int:member_user_id>")
+@iris_blp.arguments(IrisSharedMailboxMemberRequestSchema)
+@iris_blp.response(200, IrisSharedMailboxMemberSchema, description="Access granted or changed")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Shared mailbox not found")
+@iris_blp.alt_response(409, schema=ErrorSchema, description="Not in the organization, last manager or limit")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("120 per hour")
+@handle_exceptions(default_exception=IrisMailboxConnectionNotFoundError, logger=logger)
+def set_shared_mailbox_member(data, connection_id: int, member_user_id: int):
+    """Dar o cambiar el acceso de una persona de la organización a un buzón compartido"""
+    user = get_current_user()
+    member = IrisSharedMailboxManager.set_member(connection_id, user.id, member_user_id, data["access"])
+    logger.info(f"{user.username} dio acceso {data['access']} al usuario {member_user_id} "
+                f"en el buzón compartido {connection_id}")
+    return member
+
+
+@iris_blp.delete("/mailbox/shared/<int:connection_id>/members/<int:member_user_id>")
+@iris_blp.response(204, description="Access removed")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Shared mailbox not found")
+@iris_blp.alt_response(409, schema=ErrorSchema, description="Last manager")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("120 per hour")
+@handle_exceptions(default_exception=IrisMailboxConnectionNotFoundError, logger=logger)
+def remove_shared_mailbox_member(connection_id: int, member_user_id: int):
+    """Quitar el acceso de una persona a un buzón compartido"""
+    user = get_current_user()
+    IrisSharedMailboxManager.remove_member(connection_id, user.id, member_user_id)
+    logger.info(f"{user.username} quitó el acceso del usuario {member_user_id} al buzón compartido {connection_id}")
+    return Response(status=204)
+
+
+@iris_blp.get("/mailbox/shared/<int:connection_id>/analyses")
+@iris_blp.arguments(IrisSharedMailboxAnalysesQuerySchema, location="query")
+@iris_blp.response(200, IrisSharedMailboxAnalysesResponseSchema, description="Analyses of the shared mailbox")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Shared mailbox not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("300 per hour; 2000 per day")
+@handle_exceptions(default_exception=IrisMailboxConnectionNotFoundError, logger=logger)
+def list_shared_mailbox_analyses(args, connection_id: int):
+    """Análisis de los correos de un buzón compartido (con acceso explícito)"""
+    return IrisSharedMailboxManager.list_analyses(connection_id, get_current_user().id, args["page"], args["perPage"])
+
+
+@iris_blp.get("/mailbox/shared/<int:connection_id>/analyses/<int:analysis_id>")
+@iris_blp.response(200, AnalysisDetailResponseSchema, description="Full analysis report")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@iris_blp.alt_response(404, schema=ErrorSchema, description="Shared mailbox or analysis not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.IRIS_READ])
+@limiter.limit("300 per hour; 2000 per day")
+@handle_exceptions(default_exception=IrisAnalysisNotFoundError, logger=logger)
+def get_shared_mailbox_analysis(connection_id: int, analysis_id: int):
+    """Informe completo de un análisis de un buzón compartido (con acceso explícito)"""
+    return IrisSharedMailboxManager.get_analysis(connection_id, analysis_id, get_current_user().id)

@@ -163,6 +163,15 @@
     "irisMailboxActionNotFromMailbox": "This email did not arrive through a connected mailbox, so Iris cannot act on it.",
     "irisMailboxActionNotReversible": "This action cannot be undone: it was never applied or it has already been undone.",
     "irisMailboxEventRejected": "Notification rejected.",
+    "irisSharedMailboxOwnerRequired": "Only the organization owner can connect shared mailboxes.",
+    "irisSharedMailboxMailboxLimit": "The organization already has the maximum of {limit} shared mailboxes.",
+    "irisSharedMailboxMemberLimit": "This mailbox already has the maximum of {limit} people with access.",
+    "irisSharedMailboxAlreadyConnected": "That mailbox is already connected as a shared mailbox of the organization.",
+    "irisSharedMailboxMemberNotInOrganization": "That person does not belong to the organization.",
+    "irisSharedMailboxLastManager": "The mailbox would be left with nobody to manage it.",
+    "irisMailboxCredentialsRejected": "The server rejected the username or password.",
+    "irisMailboxServerUnreachable": "Cannot connect to that server: it must be an internet IMAP server with TLS.",
+    "irisMailboxServiceAccountRejected": "The service account is not configured or has no access to that mailbox.",
     "irisMailboxInvalidFolder": "“{folder}” is not a valid folder for this account.",
     "irisMailboxReauthRequired": "This mailbox needs to be reconnected before Iris can act on it.",
     "irisNotInOrganization": "You don't belong to any organization.",
@@ -2433,6 +2442,71 @@
         "reauth_required": "The mailbox needs to be reconnected.",
         "missing_scope": "The mailbox is read-only. Reconnect it with actions enabled to be able to act."
       }
+    },
+    "shared": {
+      "badge": "Shared mailboxes",
+      "eyebrow": "Organization",
+      "title": "Shared mailboxes",
+      "intro": "Organization mailboxes such as support{'@'} or invoices{'@'}. Each person only sees the mailboxes they have explicit access to, and whoever manages them decides who else sees them. Leaving the organization removes access immediately.",
+      "create": "Connect a shared mailbox",
+      "ownerOnly": "Only the organization owner can connect shared mailboxes. Here you will see the ones you have been given access to.",
+      "access": "How Iris accesses it",
+      "providers": {
+        "microsoft": "Microsoft 365 (service account)",
+        "gmail": "Google Workspace (service account)",
+        "imap": "IMAP"
+      },
+      "providerHints": {
+        "microsoft": "Uses the installation's service application with the Mail.Read application permission. Restrict it to the specific mailboxes with an Exchange application access policy.",
+        "gmail": "Uses the installation's service account with domain-wide delegation limited to gmail.readonly.",
+        "imap": "Any other provider, with an app password and IMAP over TLS only."
+      },
+      "address": "Mailbox address",
+      "fullMessage": "Read the full message (not only the headers)",
+      "connect": "Connect",
+      "created": "Shared mailbox connected.",
+      "requestFailed": "The shared mailbox operation could not be completed.",
+      "empty": "You do not have access to any shared mailbox.",
+      "accessLevels": {
+        "viewer": "Sees the analyses",
+        "manager": "Manages"
+      },
+      "statuses": {
+        "active": "Active",
+        "paused": "Paused",
+        "reauth_required": "Needs reconnecting",
+        "revoked": "Revoked"
+      },
+      "analyses": "Analyses",
+      "members": "People with access",
+      "noAnalyses": "There are no analyses of this mailbox yet.",
+      "untitled": "(no subject)",
+      "chooseMember": "Choose a person from the organization",
+      "addMember": "Give access",
+      "removeMember": "Remove {name}'s access",
+      "membersHint": "Viewers cannot change anything; managers decide who else has access, change folders and credentials and can disconnect the mailbox."
+    },
+    "imap": {
+      "title": "Another provider (IMAP)",
+      "intro": "For mailboxes that are not Google or Microsoft. Use an app password, not your account password. Iris only reads: it marks nothing as read and moves no email.",
+      "host": "IMAP server",
+      "hostPlaceholder": "imap.yourprovider.com",
+      "port": "Port",
+      "username": "Username",
+      "password": "App password",
+      "hint": "IMAP over TLS only (port 993) and internet servers. The password is stored encrypted and never shown again.",
+      "rotate": "Change password",
+      "rotateFor": "Change the password of {email}",
+      "rotateTitle": "Change the app password",
+      "rotateIntro": "New app password for {email}. It is tested against the server before being saved."
+    },
+    "folders": {
+      "title": "Folders",
+      "forAccount": "Watched folders of {email}",
+      "intro": "Folders of {email} that Iris watches in addition to the main one. A new folder is read from the email that arrives from now on.",
+      "primary": "main",
+      "save": "Save",
+      "more": "+{count} folders"
     }
   },
   "irisHub": {

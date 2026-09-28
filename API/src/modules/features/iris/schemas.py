@@ -715,6 +715,8 @@ class IrisMailboxConnectionItemSchema(Schema):
     lastError = fields.String(allow_none=True)
     syncStartedAt = UTCDateTime(allow_none=True)
     createdAt = UTCDateTime(allow_none=True)
+    authMode = fields.String()
+    additionalFolders = fields.List(fields.Dict())
 
 
 class IrisMailboxConnectionListResponseSchema(Schema):
@@ -1586,6 +1588,117 @@ class IrisMailboxActionsQuerySchema(Schema):
 class IrisMailboxActionListSchema(Schema):
     """Registro de acciones sobre buzones del usuario, de la más reciente a la más antigua."""
     actions = fields.List(fields.Nested(IrisMailboxActionSchema))
+    total = fields.Integer()
+    page = fields.Integer()
+    perPage = fields.Integer()
+
+
+class IrisImapCredentialsSchema(Schema):
+    """Servidor y credenciales de un buzón IMAP (solo TLS directo)."""
+    host = fields.String(required=True, validate=validate.Length(min=3, max=255))
+    port = fields.Integer(load_default=993, validate=validate.Range(min=1, max=65535))
+    username = fields.String(required=True, validate=validate.Length(min=1, max=320))
+    password = fields.String(required=True, load_only=True, validate=validate.Length(min=1, max=512))
+
+
+class IrisImapConnectRequestSchema(IrisImapCredentialsSchema):
+    """Cuerpo de ``POST /iris/mailbox/imap``: conectar un buzón personal por IMAP."""
+    folder = fields.String(load_default=None, allow_none=True, validate=validate.Length(max=255))
+    fullMessageMode = fields.Boolean(load_default=False)
+
+
+class IrisMailboxCredentialsRequestSchema(Schema):
+    """Cuerpo de ``PUT /iris/mailbox/connections/<id>/credentials``: contraseña IMAP nueva."""
+    password = fields.String(required=True, load_only=True, validate=validate.Length(min=1, max=512))
+
+
+class IrisMailboxFoldersRequestSchema(Schema):
+    """Cuerpo de ``PUT /iris/mailbox/connections/<id>/folders``: carpetas que se vigilan además de la principal."""
+    folders = fields.List(fields.String(validate=validate.Length(min=1, max=255)), required=True,
+                          validate=validate.Length(max=20))
+
+
+class IrisSharedMailboxCreateRequestSchema(Schema):
+    """Cuerpo de ``POST /iris/mailbox/shared``: conectar un buzón compartido de la organización.
+
+    Con ``gmail`` o ``microsoft`` se usa la cuenta de servicio de la
+    instalación y ``address`` es obligatoria; con ``imap``, las credenciales.
+    """
+    provider = fields.String(required=True, validate=validate.OneOf(["gmail", "microsoft", "imap"]))
+    address = fields.Email(load_default=None, allow_none=True)
+    folder = fields.String(load_default=None, allow_none=True, validate=validate.Length(max=255))
+    fullMessageMode = fields.Boolean(load_default=False)
+    imap = fields.Nested(IrisImapCredentialsSchema, load_default=None, allow_none=True)
+
+    @validates_schema
+    def validate_access(self, data, **kwargs):
+        """Exige la dirección con cuenta de servicio y las credenciales con IMAP."""
+        if data["provider"] == "imap" and not data.get("imap"):
+            raise ValidationError("Un buzón IMAP necesita servidor y credenciales.", field_name="imap")
+        if data["provider"] != "imap" and not data.get("address"):
+            raise ValidationError("Falta la dirección del buzón.", field_name="address")
+
+
+class IrisSharedMailboxItemSchema(Schema):
+    """Un buzón compartido, visto por una persona con acceso. Nunca credenciales."""
+    id = fields.Integer()
+    provider = fields.String()
+    accountEmail = fields.String()
+    authMode = fields.String()
+    status = fields.String()
+    folder = fields.String(allow_none=True)
+    folderDisplayName = fields.String(allow_none=True)
+    additionalFolders = fields.List(fields.Dict())
+    fullMessageMode = fields.Boolean()
+    lastSyncAt = fields.String(allow_none=True)
+    lastError = fields.String(allow_none=True)
+    createdAt = fields.String(allow_none=True)
+    myAccess = fields.String()
+
+
+class IrisSharedMailboxListResponseSchema(Schema):
+    """Buzones compartidos a los que tiene acceso la persona."""
+    mailboxes = fields.List(fields.Nested(IrisSharedMailboxItemSchema))
+
+
+class IrisSharedMailboxMemberRequestSchema(Schema):
+    """Cuerpo de ``PUT /iris/mailbox/shared/<id>/members/<userId>``."""
+    access = fields.String(required=True, validate=validate.OneOf(["viewer", "manager"]))
+
+
+class IrisSharedMailboxMemberSchema(Schema):
+    """Una persona con acceso a un buzón compartido."""
+    userId = fields.Integer()
+    username = fields.String(allow_none=True)
+    access = fields.String()
+    grantedAt = fields.String(allow_none=True)
+
+
+class IrisSharedMailboxMemberListResponseSchema(Schema):
+    """Personas con acceso a un buzón compartido."""
+    members = fields.List(fields.Nested(IrisSharedMailboxMemberSchema))
+
+
+class IrisSharedMailboxAnalysesQuerySchema(Schema):
+    """Paginación de ``GET /iris/mailbox/shared/<id>/analyses``."""
+    page = fields.Integer(load_default=1, validate=validate.Range(min=1))
+    perPage = fields.Integer(load_default=20, validate=validate.Range(min=1, max=100))
+
+
+class IrisSharedMailboxAnalysisItemSchema(Schema):
+    """Resumen de un análisis de un buzón compartido."""
+    analysisId = fields.Integer()
+    title = fields.String(allow_none=True)
+    status = fields.String()
+    verdict = fields.String(allow_none=True)
+    totalScore = fields.Float(allow_none=True)
+    startedAt = fields.String(allow_none=True)
+    finishedAt = fields.String(allow_none=True)
+
+
+class IrisSharedMailboxAnalysesResponseSchema(Schema):
+    """Página de análisis de un buzón compartido."""
+    analyses = fields.List(fields.Nested(IrisSharedMailboxAnalysisItemSchema))
     total = fields.Integer()
     page = fields.Integer()
     perPage = fields.Integer()

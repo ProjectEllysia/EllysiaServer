@@ -86,6 +86,12 @@
           </svg>
           {{ t('iris.organization.badge') }}
         </router-link>
+        <router-link to="/iris/buzones-compartidos" class="back-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <rect x="2" y="4" width="20" height="16" rx="2" /><path d="m2 7 10 6 10-6" /><circle cx="18" cy="17" r="3" />
+          </svg>
+          {{ t('iris.shared.badge') }}
+        </router-link>
         <router-link to="/iris/integraciones" class="back-link">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M10 13a5 5 0 007.07 0l3-3a5 5 0 00-7.07-7.07l-1.5 1.5M14 11a5 5 0 00-7.07 0l-3 3a5 5 0 007.07 7.07l1.5-1.5" />

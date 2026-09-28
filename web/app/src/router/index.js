@@ -106,6 +106,12 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/iris/buzones-compartidos',
+    name: 'IrisSharedMailboxes',
+    component: () => import('@/views/iris/IrisSharedMailboxesView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/iris/organizacion',
     name: 'IrisOrganization',
     component: () => import('@/views/iris/IrisOrganizationView.vue'),
