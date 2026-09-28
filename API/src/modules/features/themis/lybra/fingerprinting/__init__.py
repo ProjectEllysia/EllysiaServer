@@ -118,6 +118,10 @@ falta para reabrirla, está en ``tls.py``.
 El fingerprinting de sistema operativo sigue aplazado por su bajo valor
 frente al esfuerzo que exige, y VNC más allá de su banner de versión, junto
 con RPC, siguen siendo territorio del oráculo —Nmap.
+
+Fuera de este paquete, el análisis web activo (DAST-lite) sigue la misma
+suerte: archivado, no pendiente, con la decisión en el docstring de
+``crawler.py``.
 """
 
 from __future__ import annotations
