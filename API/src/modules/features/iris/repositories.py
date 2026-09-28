@@ -25,7 +25,7 @@ from .model import (
     IrisCampaign, IrisCampaignMember, IrisCommunicationEdge, IrisDomainCache, IrisUrlExpansion,
     IrisThreatIntelResult, IrisTenantProfile, IrisTenantConsent,
     IrisWebhookDelivery, IrisWebhookSubscription, WebhookDeliveryStatus, IrisIntegrationToken,
-    IrisActionAudit, MailboxActionStatus,
+    IrisActionAudit, MailboxActionStatus, IrisMailboxSubscription, MailboxSubscriptionStatus,
 )
 
 
@@ -547,6 +547,70 @@ class IrisMailboxConnectionRepository(BaseRepository[IrisMailboxConnection]):
                 (IrisMailboxConnection.last_sync_at.is_(None))
                 | (IrisMailboxConnection.last_sync_at < cutoff),
             )
+            .all()
+        )
+
+    def get_due_for_sync_with_events(self, poll_minutes: int, fallback_minutes: int) -> List[IrisMailboxConnection]:
+        """Conexiones activas que toca sondear cuando hay ingesta por eventos.
+
+        Una conexión con la suscripción a eventos sana (``active`` y sin
+        caducar) solo se sondea cada ``fallback_minutes``, como red de
+        seguridad por si un aviso se pierde; las demás, a su ritmo normal.
+
+        Args:
+            poll_minutes: Intervalo normal de sondeo.
+            fallback_minutes: Intervalo para las que reciben avisos.
+
+        Returns:
+            List[IrisMailboxConnection]: Las que toca sondear, incluidas las
+                que nunca se han sincronizado.
+        """
+        now = utcnow_naive()
+        poll_cutoff = now - timedelta(minutes=poll_minutes)
+        fallback_cutoff = now - timedelta(minutes=fallback_minutes)
+        healthy = (
+            select(IrisMailboxSubscription.connection_id)
+            .where(IrisMailboxSubscription.status == MailboxSubscriptionStatus.ACTIVE.value,
+                   IrisMailboxSubscription.expires_at > now)
+        )
+        stale_by_poll = (IrisMailboxConnection.last_sync_at.is_(None)) | (IrisMailboxConnection.last_sync_at < poll_cutoff)
+        stale_by_fallback = (IrisMailboxConnection.last_sync_at.is_(None)) | (IrisMailboxConnection.last_sync_at < fallback_cutoff)
+        return (
+            self._session.query(IrisMailboxConnection)
+            .filter(
+                IrisMailboxConnection.status == "active",
+                or_(
+                    and_(IrisMailboxConnection.id.notin_(healthy), stale_by_poll),
+                    and_(IrisMailboxConnection.id.in_(healthy), stale_by_fallback),
+                ),
+            )
+            .all()
+        )
+
+    def get_active_without_healthy_subscription(self, retry_failed_before: datetime,
+                                                limit: int) -> List[IrisMailboxConnection]:
+        """Conexiones activas a las que hay que crear (o reintentar) la suscripción a eventos.
+
+        Args:
+            retry_failed_before: Una suscripción ``failed`` o ``pending`` se
+                reintenta si su último cambio es anterior a esto.
+            limit: Cuántas como mucho.
+
+        Returns:
+            List[IrisMailboxConnection]: Sin suscripción, o con una fallida o
+                atascada desde hace rato.
+        """
+        attempted_recently = (
+            select(IrisMailboxSubscription.connection_id)
+            .where(or_(IrisMailboxSubscription.status == MailboxSubscriptionStatus.ACTIVE.value,
+                       IrisMailboxSubscription.updated_at >= retry_failed_before))
+        )
+        return (
+            self._session.query(IrisMailboxConnection)
+            .filter(IrisMailboxConnection.status == "active",
+                    IrisMailboxConnection.id.notin_(attempted_recently))
+            .order_by(IrisMailboxConnection.id.asc())
+            .limit(limit)
             .all()
         )
 
@@ -2201,6 +2265,126 @@ class IrisActionAuditRepository(BaseRepository[IrisActionAudit]):
             .values(status=MailboxActionStatus.FAILED.value, error=error, completed_at=completed_at)
         )
         return result.rowcount or 0
+
+
+class IrisMailboxSubscriptionRepository(BaseRepository[IrisMailboxSubscription]):
+    """Acceso a las suscripciones a eventos de buzón (``IrisMailboxSubscription``)."""
+
+    _MODEL = IrisMailboxSubscription
+
+    def get_by_connection(self, connection_id: int) -> Optional[IrisMailboxSubscription]:
+        """La suscripción de una conexión, si la tiene.
+
+        Args:
+            connection_id: Conexión.
+
+        Returns:
+            Optional[IrisMailboxSubscription]: La suscripción, o ``None``.
+        """
+        return (
+            self._session.query(IrisMailboxSubscription)
+            .filter(IrisMailboxSubscription.connection_id == connection_id)
+            .first()
+        )
+
+    def get_by_external_id(self, external_id: str) -> Optional[IrisMailboxSubscription]:
+        """La suscripción con un id de Graph.
+
+        Args:
+            external_id: Id de la suscripción en el proveedor.
+
+        Returns:
+            Optional[IrisMailboxSubscription]: La suscripción, o ``None``.
+        """
+        return (
+            self._session.query(IrisMailboxSubscription)
+            .filter(IrisMailboxSubscription.external_id == external_id)
+            .first()
+        )
+
+    def get_active_for_gmail_account(self, email_address: str) -> List[IrisMailboxSubscription]:
+        """Suscripciones activas de Gmail de las conexiones activas de una cuenta.
+
+        Varias conexiones pueden vigilar la misma cuenta (dos usuarios que la
+        comparten, dos carpetas): un aviso las despierta a todas.
+
+        Args:
+            email_address: Cuenta de Gmail, en minúsculas.
+
+        Returns:
+            List[IrisMailboxSubscription]: Sus suscripciones activas.
+        """
+        return (
+            self._session.query(IrisMailboxSubscription)
+            .join(IrisMailboxConnection, IrisMailboxConnection.id == IrisMailboxSubscription.connection_id)
+            .filter(IrisMailboxSubscription.provider == "gmail",
+                    IrisMailboxSubscription.status == MailboxSubscriptionStatus.ACTIVE.value,
+                    IrisMailboxConnection.status == "active",
+                    func.lower(IrisMailboxConnection.account_email) == email_address)
+            .all()
+        )
+
+    def get_due_for_renewal(self, expiring_before: datetime, limit: int) -> List[IrisMailboxSubscription]:
+        """Suscripciones activas de conexiones activas que caducan pronto.
+
+        Args:
+            expiring_before: Las que caducan antes de esto.
+            limit: Cuántas como mucho.
+
+        Returns:
+            List[IrisMailboxSubscription]: De la que caduca antes a la que después.
+        """
+        return (
+            self._session.query(IrisMailboxSubscription)
+            .join(IrisMailboxConnection, IrisMailboxConnection.id == IrisMailboxSubscription.connection_id)
+            .filter(IrisMailboxSubscription.status == MailboxSubscriptionStatus.ACTIVE.value,
+                    IrisMailboxConnection.status == "active",
+                    IrisMailboxSubscription.expires_at < expiring_before)
+            .order_by(IrisMailboxSubscription.expires_at.asc())
+            .limit(limit)
+            .all()
+        )
+
+    def claim_event(self, subscription_id: int, now: datetime, quiet_since: datetime,
+                    history_id: Optional[str] = None) -> bool:
+        """Acepta un aviso si no llega en plena ráfaga, dentro del propio ``UPDATE``.
+
+        Un aviso despierta un sync solo si el anterior que despertó uno fue antes
+        de ``quiet_since``: una ráfaga de avisos (diez correos seguidos) se
+        convierte en un único sync, que recoge todo lo nuevo de una vez. La
+        condición va en el ``UPDATE`` porque los avisos llegan en paralelo. Los
+        avisos de la ráfaga que no despiertan nada se cuentan igualmente en
+        ``events_received``.
+
+        Args:
+            subscription_id: Suscripción.
+            now: Hora actual.
+            quiet_since: Límite de la ventana de agrupación.
+            history_id: En Gmail, el ``historyId`` del aviso, que se guarda.
+                Por defecto ``None``.
+
+        Returns:
+            bool: ``True`` si este aviso despierta un sync.
+        """
+        values = {"last_event_at": now, "events_received": IrisMailboxSubscription.events_received + 1}
+        if history_id is not None:
+            values["last_history_id"] = history_id
+        result = self._session.execute(
+            update(IrisMailboxSubscription)
+            .where(and_(IrisMailboxSubscription.id == subscription_id,
+                        or_(IrisMailboxSubscription.last_event_at.is_(None),
+                            IrisMailboxSubscription.last_event_at < quiet_since)))
+            .values(**values)
+        )
+        if result.rowcount == 1:
+            return True
+        # En plena ráfaga no despierta nada, pero cuenta como aviso recibido.
+        self._session.execute(
+            update(IrisMailboxSubscription)
+            .where(IrisMailboxSubscription.id == subscription_id)
+            .values(events_received=IrisMailboxSubscription.events_received + 1)
+        )
+        return False
 
 
 class IrisReportRepository(DocumentRepository[IrisDocument]):

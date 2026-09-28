@@ -42,6 +42,8 @@ Managers del módulo Iris (análisis de correo).
   reportes de correo hechos desde un cliente de correo con ellos.
 - ``IrisRemediationManager`` (``remediation.py``): acciones sobre el correo
   del buzón conectado (cuarentena, spam, papelera), auditadas y reversibles.
+- ``IrisMailboxEventManager`` (``mailbox_events.py``): suscripciones a los
+  avisos de correo nuevo de Gmail y Graph, y recepción de esos avisos.
 
 Iris era el único módulo con
 **dos** ficheros de managers en la raíz — ``managers.py`` (64 KB, el
@@ -75,12 +77,14 @@ from .tenant import IrisTenantManager
 from .webhooks import IrisWebhookManager
 from .reporting import IrisReportingManager
 from .remediation import IrisRemediationManager
+from .mailbox_events import IrisMailboxEventManager
 
 __all__ = [
     "IrisManager",
     "IrisWebhookManager",
     "IrisReportingManager",
     "IrisRemediationManager",
+    "IrisMailboxEventManager",
     "IrisTrustPolicyManager",
     "IrisTriageManager",
     "IrisCaseManager",

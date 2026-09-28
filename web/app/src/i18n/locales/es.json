@@ -162,6 +162,7 @@
     "irisMailboxActionMissingScope": "Este buzón se conectó en solo lectura. Vuelve a conectarlo con las acciones activadas.",
     "irisMailboxActionNotFromMailbox": "Este correo no llegó por un buzón conectado, así que Iris no puede actuar sobre él.",
     "irisMailboxActionNotReversible": "Esta acción no se puede deshacer: no llegó a aplicarse o ya se deshizo.",
+    "irisMailboxEventRejected": "Aviso rechazado.",
     "irisMailboxInvalidFolder": "«{folder}» no es una carpeta válida para esta cuenta.",
     "irisMailboxReauthRequired": "Este buzón necesita que lo vuelvas a conectar antes de poder actuar sobre él.",
     "irisNotInOrganization": "No perteneces a ninguna organización.",

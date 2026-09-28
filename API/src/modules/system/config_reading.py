@@ -2926,6 +2926,67 @@ def iris_remediation_config() -> IrisRemediationConfig:
     return load_block(IrisRemediationConfig)
 
 
+@config_block("features.iris.events")
+@dataclass(frozen=True)
+class IrisMailboxEventsConfig:
+    """Ingesta por eventos: el proveedor avisa de correo nuevo y eso despierta el sync.
+
+    Viene apagada: hace falta que la instalación tenga una URL pública
+    alcanzable por Google y Microsoft y, para Gmail, un tema de Pub/Sub. Con
+    ella apagada, o con una suscripción rota, todo sigue por sondeo.
+    """
+
+    enabled: bool = False
+    """Si se crean suscripciones a eventos para las conexiones activas."""
+
+    fallback_poll_interval_minutes: int = 30
+    """Cada cuánto se sondea igualmente una conexión con la suscripción sana:
+    es la red de seguridad por si un aviso se pierde. Sin suscripción sana se
+    sondea a ``pollIntervalMinutes``."""
+
+    renew_before_hours: int = 12
+    """Horas antes de caducar a partir de las que se renueva una suscripción
+    (las de Gmail duran 7 días; las de Graph, unos 3)."""
+
+    renew_check_interval_minutes: int = 60
+    """Cada cuánto se revisan suscripciones por renovar, que faltan o que
+    fallaron."""
+
+    debounce_seconds: int = 30
+    """Una ráfaga de avisos de la misma conexión dentro de este margen
+    despierta un solo sync: el sync recoge todo lo nuevo de una vez."""
+
+    max_event_age_minutes: int = 60
+    """Un aviso de Gmail publicado hace más de esto se ignora (reenvío tardío
+    o repetido); el sondeo cubre lo que pudiera traer."""
+
+    graph_subscription_minutes: int = 4200
+    """Duración que se pide para una suscripción de Graph a mensajes (el
+    máximo que admite Microsoft ronda los 4230 minutos)."""
+
+
+def iris_mailbox_events_config() -> IrisMailboxEventsConfig:
+    return load_block(IrisMailboxEventsConfig)
+
+
+def get_gmail_events_environment() -> dict[str, str]:
+    """Lo que necesita la ingesta por eventos de Gmail, desde el entorno.
+
+    Gmail no llama a una URL directamente: publica en un tema de Google Cloud
+    Pub/Sub, y una suscripción de empuje de ese tema llama a
+    ``/iris/mailbox/events/gmail?token=<IRIS_GMAIL_PUSH_TOKEN>``.
+
+    Returns:
+        dict: ``topic`` (``GMAIL_PUBSUB_TOPIC``, ``projects/<p>/topics/<t>``) y
+            ``push_token`` (``IRIS_GMAIL_PUSH_TOKEN``); cadenas vacías si no
+            están definidas (entonces Gmail sigue solo por sondeo).
+    """
+    return {
+        "topic": os.getenv("GMAIL_PUBSUB_TOPIC", "").strip(),
+        "push_token": os.getenv("IRIS_GMAIL_PUSH_TOKEN", "").strip(),
+    }
+
+
 def get_iris_threat_intel_key(provider: str) -> str:
     """Clave de API de un proveedor de reputación de Iris, desde el entorno.
 

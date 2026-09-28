@@ -25,7 +25,7 @@ import requests
 
 import src.modules.system.config_reading as CR
 
-from .base import ActionResult, MailboxConnector, MailboxFolder, MessageRef, TokenSet
+from .base import ActionResult, MailboxConnector, MailboxFolder, MessageRef, SubscriptionInfo, TokenSet
 from .registry import register_connector
 
 logger = logging.getLogger(__name__)
@@ -200,6 +200,34 @@ class GmailConnector(MailboxConnector):
             )
             for label in response.json().get("labels", [])
         ]
+
+    def subscribe(self, access_token: str, notification_url: str, client_state: str) -> SubscriptionInfo:
+        # Gmail no llama a una URL: publica en un tema de Pub/Sub, y es la
+        # suscripción de empuje de ese tema (configurada en Google Cloud) la
+        # que llama a /iris/mailbox/events/gmail. Por eso aquí solo se pide el
+        # «watch» de la carpeta vigilada sobre ese tema.
+        topic = CR.get_gmail_events_environment()["topic"]
+        if not topic:
+            raise ValueError("Falta GMAIL_PUBSUB_TOPIC: sin tema de Pub/Sub, Gmail sigue solo por sondeo.")
+        response = requests.post(
+            f"{_API_BASE}/watch", headers={"Authorization": f"Bearer {access_token}"},
+            json={"topicName": topic, "labelIds": [self._label_id or _LABEL_INBOX], "labelFilterBehavior": "include"},
+            timeout=_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        expiration_ms = int(response.json()["expiration"])
+        return SubscriptionInfo(expires_at=datetime.fromtimestamp(expiration_ms / 1000, tz=timezone.utc).replace(tzinfo=None))
+
+    def renew(self, access_token: str, external_id: Optional[str], notification_url: str,
+              client_state: str) -> SubscriptionInfo:
+        # Renovar un «watch» de Gmail es volver a pedirlo: sustituye al anterior.
+        return self.subscribe(access_token, notification_url, client_state)
+
+    def unsubscribe(self, access_token: str, external_id: Optional[str]) -> None:
+        response = requests.post(f"{_API_BASE}/stop", headers={"Authorization": f"Bearer {access_token}"},
+                                 timeout=_TIMEOUT_SECONDS)
+        if response.status_code not in (200, 204, 404):
+            response.raise_for_status()
 
     @staticmethod
     def can_act(scopes: str) -> bool:

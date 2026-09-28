@@ -222,6 +222,7 @@ CONFIG_BLOCKS = [
     (CR.IrisWebhooksConfig, CR.iris_webhooks_config),
     (CR.IrisReportingConfig, CR.iris_reporting_config),
     (CR.IrisRemediationConfig, CR.iris_remediation_config),
+    (CR.IrisMailboxEventsConfig, CR.iris_mailbox_events_config),
     (CR.ScribeConfig, CR.scribe_config),
     (CR.ScribeResilienceConfig, CR.scribe_resilience_config),
     (CR.HeraldConfig, CR.herald_config),

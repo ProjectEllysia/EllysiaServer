@@ -761,6 +761,7 @@ class IrisMailboxHealthResponseSchema(Schema):
     messagesRetrying = fields.Integer()
     messagesDead = fields.Integer()
     oldestPendingMessageAgeSeconds = fields.Integer(allow_none=True)
+    eventSubscription = fields.Dict(allow_none=True)
 
 
 class IrisMailboxConnectionDeleteResponseSchema(Schema):
