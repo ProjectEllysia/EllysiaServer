@@ -2046,3 +2046,74 @@ class IrisActionAudit(Base):
         Index("ix_iris_action_audit_analysis_id", "analysis_id"),
         Index("ix_iris_action_audit_actor_id", "actor_id"),
     )
+
+
+class MailboxSubscriptionStatus(StrEnum):
+    """Estado de la suscripción a eventos de una conexión (``IrisMailboxSubscription.status``).
+
+    Attributes:
+        PENDING: Pedida; aún no se ha creado en el proveedor.
+        ACTIVE: El proveedor avisa de correo nuevo; el sondeo se espacia.
+        FAILED: No se pudo crear o renovar; la conexión sigue por sondeo normal
+            y se reintenta más tarde.
+    """
+    PENDING = "pending"
+    ACTIVE = "active"
+    FAILED = "failed"
+
+
+class IrisMailboxSubscription(Base):
+    """Suscripción de una conexión de buzón a los avisos de correo nuevo del proveedor.
+
+    El aviso **solo despierta** el sync de la conexión: lo que se analiza sale
+    siempre del sync, nunca del contenido del aviso, que viene de fuera. Si
+    la suscripción falla o caduca, el sondeo periódico sigue funcionando.
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        connection_id: FK a la ``IrisMailboxConnection``; ``ondelete="CASCADE"``.
+                 Única: una suscripción por conexión.
+        provider: ``gmail`` o ``microsoft``.
+        external_id: Id de la suscripción en el proveedor (Graph); NULL en
+                 Gmail, cuyo «watch» es uno por cuenta y no tiene id.
+        client_state_sha256: SHA-256 del secreto que Graph devuelve en cada
+                 aviso (``clientState``) para probar que es de esta
+                 suscripción. Se guarda su huella, no el secreto: solo hace
+                 falta compararlo. NULL en Gmail, que se autentica con el
+                 secreto de empuje de la instalación.
+        status: ``MailboxSubscriptionStatus``.
+        expires_at: Cuándo caduca en el proveedor; NULL mientras no existe.
+        last_history_id: En Gmail, el ``historyId`` del último aviso que
+                 despertó un sync. Crece siempre, así que un aviso con uno
+                 menor o igual es un reenvío y se descarta.
+        last_event_at: Último aviso que despertó un sync (para agrupar
+                 ráfagas de avisos en un solo sync).
+        events_received: Avisos aceptados desde que existe.
+        last_renewed_at: Última creación o renovación en el proveedor.
+        last_error: Motivo del último fallo al crearla o renovarla.
+        updated_at: Último cambio de estado (para espaciar los reintentos).
+        created_at: Cuándo se pidió.
+    """
+    __tablename__ = "IrisMailboxSubscription"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    connection_id = Column(Integer, ForeignKey("IrisMailboxConnection.id", ondelete="CASCADE"),
+                           nullable=False, unique=True)
+    provider = Column(String(20), nullable=False)
+    external_id = Column(String(255), nullable=True)
+    client_state_sha256 = Column(String(64), nullable=True)
+    status = Column(String(16), nullable=False, default=MailboxSubscriptionStatus.PENDING.value)
+    expires_at = Column(DateTime, nullable=True)
+    last_history_id = Column(String(40), nullable=True)
+    last_event_at = Column(DateTime, nullable=True)
+    events_received = Column(Integer, nullable=False, default=0)
+    last_renewed_at = Column(DateTime, nullable=True)
+    last_error = Column(Text, nullable=True)
+    updated_at = Column(DateTime, nullable=False, default=utcnow_naive)
+    created_at = Column(DateTime, nullable=False, default=utcnow_naive)
+
+    connection = relationship("IrisMailboxConnection")
+
+    __table_args__ = (
+        Index("ix_iris_mailbox_subscription_external_id", "external_id"),
+    )

@@ -402,6 +402,23 @@ class IrisMailboxActionNotReversibleError(IrisError):
         )
 
 
+class IrisMailboxEventRejectedError(IrisError):
+    """Un aviso de correo nuevo que no trae el secreto que prueba de dónde viene.
+
+    Lo ve el servicio del proveedor, no una persona; la respuesta no dice qué
+    falló para no ayudar a quien pruebe secretos.
+    """
+    default_code = ErrorCode.AUTHENTICATION_ERROR
+    default_status_code = 401
+
+    def __init__(self, reason: str = "") -> None:
+        super().__init__(
+            message=f"Aviso de buzon rechazado{f': {reason}' if reason else ''}",
+            user_message="Aviso rechazado.",
+            message_key="irisMailboxEventRejected",
+        )
+
+
 class IrisTenantOwnerRequiredError(IrisError):
     """Solo el dueño de la organización decide si se comparte inteligencia y qué se protege."""
     default_code = ErrorCode.AUTHORIZATION_ERROR

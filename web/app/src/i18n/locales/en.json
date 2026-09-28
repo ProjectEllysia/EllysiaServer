@@ -162,6 +162,7 @@
     "irisMailboxActionMissingScope": "This mailbox was connected read-only. Reconnect it with actions enabled.",
     "irisMailboxActionNotFromMailbox": "This email did not arrive through a connected mailbox, so Iris cannot act on it.",
     "irisMailboxActionNotReversible": "This action cannot be undone: it was never applied or it has already been undone.",
+    "irisMailboxEventRejected": "Notification rejected.",
     "irisMailboxInvalidFolder": "“{folder}” is not a valid folder for this account.",
     "irisMailboxReauthRequired": "This mailbox needs to be reconnected before Iris can act on it.",
     "irisNotInOrganization": "You don't belong to any organization.",

@@ -34,6 +34,7 @@ from src.modules.shared import SurfaceDisabledError
 
 from ...managers.mailbox import IrisMailboxManager
 from ...managers.webhooks import IrisWebhookManager
+from ...managers.mailbox_events import IrisMailboxEventManager
 from ...repositories import IrisMailboxConnectionRepository
 from ..notifications.scheduling import check_and_notify
 from ..retention import run_retention
@@ -53,6 +54,35 @@ def _run_webhook_deliveries() -> None:
     submitted = IrisWebhookManager().submit_due_deliveries()
     if submitted:
         logger.info("Barrido de webhooks de Iris: %d entrega(s) encolada(s)", submitted)
+
+
+@scheduler_job(logger, "Error manteniendo las suscripciones a eventos de buzón de Iris")
+def _run_event_subscriptions() -> None:
+    """Crea, reintenta y renueva las suscripciones a avisos de correo nuevo.
+
+    Solo encola: hablar con el proveedor lo hace el worker. Con
+    ``features.iris.events.enabled`` apagado no hace nada, así que se puede
+    encender en caliente sin reiniciar.
+    """
+    queued = IrisMailboxEventManager().run_maintenance()
+    if queued:
+        logger.info("Suscripciones a eventos de buzón: %d trabajo(s) encolado(s)", queued)
+
+
+def _get_due_connections(interval_minutes: int) -> list:
+    """Conexiones que toca sondear, con el sondeo espaciado para las que reciben avisos.
+
+    Args:
+        interval_minutes: Intervalo normal de sondeo.
+
+    Returns:
+        list: Las conexiones vencidas.
+    """
+    events_config = CR.iris_mailbox_events_config()
+    repo = build_repository(IrisMailboxConnectionRepository)
+    if not events_config.enabled:
+        return repo.get_due_for_sync(interval_minutes)
+    return repo.get_due_for_sync_with_events(interval_minutes, events_config.fallback_poll_interval_minutes)
 
 
 class IrisMailboxScheduler:
@@ -107,6 +137,15 @@ class IrisMailboxScheduler:
             max_instances=1,
             name="Iris webhook deliveries",
         )
+        cls._scheduler.add_job(
+            func=_run_event_subscriptions,
+            trigger="interval",
+            minutes=CR.iris_mailbox_events_config().renew_check_interval_minutes,
+            id="iris_mailbox_event_subscriptions",
+            replace_existing=True,
+            max_instances=1,
+            name="Iris mailbox event subscriptions",
+        )
         cls._scheduler.start()
         logger.info(
             "Scheduler de buzones de Iris iniciado (sondeo cada %d min, "
@@ -128,7 +167,7 @@ class IrisMailboxScheduler:
     def _poll_connections() -> None:
         """Entry point del job (aislamiento de errores y cierre de sesión vía ``scheduler_job``)."""
         interval = CR.iris_config().poll_interval_minutes
-        due = build_repository(IrisMailboxConnectionRepository).get_due_for_sync(interval)
+        due = _get_due_connections(interval)
         manager = IrisMailboxManager()
         queued = 0
         skipped_while_closed = 0

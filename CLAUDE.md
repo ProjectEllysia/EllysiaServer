@@ -241,7 +241,7 @@ con backend RQ+Redis), `worker.py` (entrada del worker), `tracking.py` (`TaskTra
 - **`external_id`**: el prefijo lo declara el manager en `EXTERNAL_ID_PREFIX` (`scan:`,
   `themis-doc:`, `themis-traceroute:`, `themis-kbsync:`, `aegis-doc:`, `aegis-campaign:`, `iris-analysis:`,
   `iris-doc:`, `iris-mailbox-sync:`, `iris-phishing-notify:`, `iris-url-expansion:`, `iris-webhook-delivery:`,
-  `iris-mailbox-action:`, `hygeia-doc:`) y `TaskTrackingMixin.external_id_for`
+  `iris-mailbox-action:`, `iris-mailbox-subscription:`, `hygeia-doc:`) y `TaskTrackingMixin.external_id_for`
   lo compone. No lo escribas a mano.
 - **Cancelación** cooperativa: pone la clave Redis `taskqueue:cancel:{job_id}`; los workers la
   sondean vía `_Task.wait(cancel_check=...)`. **Progreso** por `job.meta["progress"]`.
@@ -276,6 +276,11 @@ Los endpoints protegidos exigen `Authorization: Bearer <token>`; roles y atribut
 > ingesta de Hygeia (clave de agente) y el canal de reporte de Iris (`POST/GET /iris/reports`,
 > token de integración `irt_…`, ver `features/iris/REPORTING.md`). Ese token solo reporta y
 > consulta lo reportado; no le pongas `require_oauth_token` ni lo aceptes en otros endpoints.
+>
+> Los avisos de correo nuevo de Iris (`POST /iris/mailbox/events/gmail` y `/microsoft`) los llama
+> el proveedor, no una persona: se autentican con un secreto del proveedor (`IRIS_GMAIL_PUSH_TOKEN`
+> en la query para Gmail; el `clientState` de cada suscripción para Graph). Solo despiertan el sync
+> de la conexión; nunca se analiza lo que traen.
 
 ### Themis — escaneo
 

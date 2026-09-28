@@ -391,6 +391,15 @@
         "quarantineFolderName": "Iris Cuarentena",
         "suspiciousLabelName": "Iris: sospechoso"
       },
+      "events": {
+        "enabled": false,
+        "fallbackPollIntervalMinutes": 30,
+        "renewBeforeHours": 12,
+        "renewCheckIntervalMinutes": 60,
+        "debounceSeconds": 30,
+        "maxEventAgeMinutes": 60,
+        "graphSubscriptionMinutes": 4200
+      },
       "enrichment": {
         "enabled": true,
         "timeoutSeconds": 5.0,

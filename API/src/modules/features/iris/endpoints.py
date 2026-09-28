@@ -41,7 +41,7 @@ from .managers import (
     IrisNotificationPreferenceManager, IrisReplayManager, IrisTriageManager, IrisTrustPolicyManager,
     IrisCaseManager, IrisBatchManager, IrisCampaignManager, IrisContactGraphManager, IrisExportManager,
     IrisEnrichmentManager, IrisUrlExpansionManager, IrisTenantManager, IrisWebhookManager,
-    IrisReportingManager, IrisRemediationManager,
+    IrisReportingManager, IrisRemediationManager, IrisMailboxEventManager,
 )
 from .exceptions import (
     IrisAnalysisNotFoundError,
@@ -58,6 +58,7 @@ from .exceptions import (
     IrisIntegrationTokenNotFoundError,
     IrisInvalidIntegrationTokenError,
     IrisMailboxActionNotFoundError,
+    IrisMailboxEventRejectedError,
 )
 from .schemas import (
     AnalysisIdQuerySchema,
@@ -1412,7 +1413,7 @@ def mailbox_oauth_callback(args: dict):
         return redirect(f"{connections_url}?error=missing_code")
 
     try:
-        IrisMailboxManager().handle_callback(args["state"], args["code"])
+        connection_id = IrisMailboxManager().handle_callback(args["state"], args["code"])
     except IrisMailboxOAuthStateError:
         logger.warning("Mailbox OAuth callback: state inválido o caducado")
         return redirect(f"{connections_url}?error=invalid_state")
@@ -1420,6 +1421,9 @@ def mailbox_oauth_callback(args: dict):
         logger.error(f"Mailbox OAuth callback falló: {e}", exc_info=True)
         return redirect(f"{connections_url}?error=connection_failed")
 
+    # Con la ingesta por eventos encendida, se pide ya la suscripción a los
+    # avisos; si falla, el mantenimiento periódico la reintenta.
+    IrisMailboxEventManager().request_subscription(connection_id)
     return redirect(f"{connections_url}?connected=1")
 
 
@@ -1509,6 +1513,7 @@ def get_mailbox_connection_health(connection_id: int):
     user = get_current_user()
     health = IrisMailboxManager().get_connection_health(connection_id, user.id)
     return {
+        "eventSubscription": IrisMailboxEventManager.describe_subscription(connection_id),
         "status": health["status"],
         "lastSyncAt": health["last_sync_at"],
         "lastSuccessAt": health["last_success_at"],
@@ -2005,3 +2010,38 @@ def get_mailbox_action(action_id: int):
 def list_mailbox_actions(args: dict):
     """Registro de las acciones sobre buzones hechas por el usuario"""
     return IrisRemediationManager.list_actions(get_current_user().id, args["page"], args["perPage"])
+
+
+# =============================================================================
+# Avisos de correo nuevo (ingesta por eventos). Públicos: sin sesión de
+# usuario, autenticados por un secreto del proveedor.
+# =============================================================================
+
+@iris_blp.post("/mailbox/events/gmail")
+@iris_blp.response(204, description="Notification processed (or ignored as stale)")
+@iris_blp.alt_response(401, schema=ErrorSchema, description="Missing or wrong push secret")
+@limiter.limit("1200 per minute")
+@handle_exceptions(default_exception=IrisMailboxEventRejectedError, logger=logger)
+def receive_gmail_push():
+    """Aviso de correo nuevo de Gmail, por la suscripción de empuje de Pub/Sub (?token=secreto)"""
+    result = IrisMailboxEventManager().handle_gmail_push(request.args.get("token"), request.get_json(silent=True))
+    logger.info(f"Aviso de Gmail: aceptado={result['accepted']}, conexiones despertadas={result['woken']}")
+    return Response(status=204)
+
+
+@iris_blp.post("/mailbox/events/microsoft")
+@iris_blp.response(202, description="Notifications processed")
+@limiter.limit("1200 per minute")
+@handle_exceptions(logger=logger)
+def receive_graph_notifications():
+    """Avisos de correo nuevo de Microsoft Graph (y la validación del endpoint al suscribirse)"""
+    # Al crear una suscripción, Graph comprueba que la URL es nuestra pidiendo
+    # que se le devuelva el validationToken tal cual, en texto plano.
+    validation_token = request.args.get("validationToken")
+    if validation_token is not None:
+        return Response(IrisMailboxEventManager.build_validation_echo(validation_token), status=200,
+                        mimetype="text/plain",
+                        headers={"X-Content-Type-Options": "nosniff"})
+    result = IrisMailboxEventManager().handle_graph_notifications(request.get_json(silent=True))
+    logger.info(f"Avisos de Graph: aceptados={result['accepted']}, conexiones despertadas={result['woken']}")
+    return Response(status=202)

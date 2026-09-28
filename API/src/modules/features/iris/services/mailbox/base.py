@@ -78,10 +78,51 @@ class ActionResult:
     previous_state: dict = field(default_factory=dict)
 
 
+@dataclass
+class SubscriptionInfo:
+    """Una suscripción a avisos de correo nuevo, tal como la deja el proveedor.
+
+    Attributes:
+        expires_at: Cuándo caduca (UTC, naive).
+        external_id: Id de la suscripción en el proveedor; ``None`` en Gmail.
+    """
+    expires_at: datetime
+    external_id: Optional[str] = None
+
+
 class MailboxConnector(ABC):
     """Conector OAuth + API de correo para un proveedor concreto."""
 
     provider: str
+
+    @abstractmethod
+    def subscribe(self, access_token: str, notification_url: str, client_state: str) -> SubscriptionInfo:
+        """Pide al proveedor que avise de cada correo nuevo en la carpeta vigilada.
+
+        Args:
+            access_token: Token de acceso vigente.
+            notification_url: URL pública adonde avisa (Graph); Gmail avisa
+                por Pub/Sub y la ignora.
+            client_state: Secreto que el proveedor devolverá en cada aviso
+                (Graph); Gmail lo ignora.
+
+        Returns:
+            SubscriptionInfo: Caducidad e id de la suscripción.
+
+        Raises:
+            ValueError: Si falta la configuración del proveedor (en Gmail, el
+                tema de Pub/Sub).
+            requests.HTTPError: Si el proveedor la rechaza.
+        """
+
+    @abstractmethod
+    def renew(self, access_token: str, external_id: Optional[str], notification_url: str,
+              client_state: str) -> SubscriptionInfo:
+        """Alarga una suscripción antes de que caduque; devuelve la nueva caducidad."""
+
+    @abstractmethod
+    def unsubscribe(self, access_token: str, external_id: Optional[str]) -> None:
+        """Cancela la suscripción en el proveedor. Una que ya no existe no es un error."""
 
     @abstractmethod
     def authorize_url(self, state: str, full_message_mode: bool, remediation_enabled: bool = False) -> str:

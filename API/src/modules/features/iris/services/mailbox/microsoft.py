@@ -31,7 +31,7 @@ import requests
 
 import src.modules.system.config_reading as CR
 
-from .base import ActionResult, MailboxConnector, MailboxFolder, MessageRef, TokenSet
+from .base import ActionResult, MailboxConnector, MailboxFolder, MessageRef, SubscriptionInfo, TokenSet
 from .registry import register_connector
 
 logger = logging.getLogger(__name__)
@@ -195,6 +195,46 @@ class GraphConnector(MailboxConnector):
             url = data.get("@odata.nextLink")
         return folders
 
+    def subscribe(self, access_token: str, notification_url: str, client_state: str) -> SubscriptionInfo:
+        expires_at = _subscription_expiry()
+        response = requests.post(
+            f"{_GRAPH_API}/subscriptions", headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "changeType": "created",
+                "notificationUrl": notification_url,
+                "resource": f"me/mailFolders('{self._folder}')/messages",
+                "expirationDateTime": expires_at.strftime("%Y-%m-%dT%H:%M:%S.0000000Z"),
+                "clientState": client_state,
+            },
+            timeout=_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        return SubscriptionInfo(expires_at=expires_at, external_id=response.json()["id"])
+
+    def renew(self, access_token: str, external_id: Optional[str], notification_url: str,
+              client_state: str) -> SubscriptionInfo:
+        if not external_id:
+            return self.subscribe(access_token, notification_url, client_state)
+        expires_at = _subscription_expiry()
+        response = requests.patch(
+            f"{_GRAPH_API}/subscriptions/{external_id}", headers={"Authorization": f"Bearer {access_token}"},
+            json={"expirationDateTime": expires_at.strftime("%Y-%m-%dT%H:%M:%S.0000000Z")},
+            timeout=_TIMEOUT_SECONDS,
+        )
+        if response.status_code == 404:
+            # Graph ya la borró (caducó): se crea otra en su lugar.
+            return self.subscribe(access_token, notification_url, client_state)
+        response.raise_for_status()
+        return SubscriptionInfo(expires_at=expires_at, external_id=external_id)
+
+    def unsubscribe(self, access_token: str, external_id: Optional[str]) -> None:
+        if not external_id:
+            return
+        response = requests.delete(f"{_GRAPH_API}/subscriptions/{external_id}",
+                                   headers={"Authorization": f"Bearer {access_token}"}, timeout=_TIMEOUT_SECONDS)
+        if response.status_code not in (200, 204, 404):
+            response.raise_for_status()
+
     @staticmethod
     def can_act(scopes: str) -> bool:
         return _SCOPE_READ_WRITE.lower() in (scopes or "").lower().split()
@@ -349,3 +389,13 @@ def _ensure_folder(access_token: str, name: str) -> str:
                              json={"displayName": name}, timeout=_TIMEOUT_SECONDS)
     response.raise_for_status()
     return response.json()["id"]
+
+
+def _subscription_expiry() -> datetime:
+    """Caducidad que se pide para una suscripción de Graph: ahora más ``graphSubscriptionMinutes``.
+
+    Returns:
+        datetime: En UTC, naive.
+    """
+    minutes = CR.iris_mailbox_events_config().graph_subscription_minutes
+    return datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=minutes)
