@@ -15,20 +15,21 @@ name: API Tests (PostgreSQL + Redis)
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize, reopened, ready_for_review, closed]
     branches: [main, 'v[0-9]+.[0-9]+']
     paths:
       - 'API/**'
       - '.github/workflows/tests-postgres.yml'
 
-# Un push nuevo a un PR deja obsoleta la pasada anterior, y se cancela.
+# Un push nuevo a un PR deja obsoleta la pasada anterior, y se cancela. Cerrar
+# o mergear el PR lanza una pasada vacía que cancela la que siguiera en curso.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
   integration:
-    if: ${{ !github.event.pull_request.draft }}
+    if: ${{ github.event.action != 'closed' && !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -84,13 +85,18 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: pip
-          cache-dependency-path: |
+
+      # Las mismas dependencias que con pip, en una fracción del tiempo.
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
             API/requirements.txt
             API/requirements-dev.txt
 
       - name: Install dependencies
-        run: pip install -r requirements.txt -r requirements-dev.txt
+        run: uv pip install --system -r requirements.txt -r requirements-dev.txt
 
       - name: Run the real-engine matrix
         # Solo los tests marcados: el resto de la suite ya corrió en tests.yml
