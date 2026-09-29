@@ -288,3 +288,87 @@ def test_an_ftp_service_gets_its_tls_audited_through_auth_tls():
     CheckRuntime(tls_checks, lambda *a: None, tls_fetch=tls_fetch).run("h", [_FTP])
 
     assert calls == [(21, "ftp")]
+
+
+# ========================================================== IMAP y POP3
+
+_IMAP = Service(143, "tcp", "imap", "", "", None)
+_POP3 = Service(110, "tcp", "pop3", "", "", None)
+_IMAP_GREETING = b"* OK [CAPABILITY IMAP4rev1 LITERAL+] Dovecot ready.\r\n"
+_POP3_GREETING = b"+OK Dovecot ready.\r\n"
+
+
+def test_an_imap_without_starttls_is_flagged():
+    sock = _FakeNetSocket(
+        greeting=_IMAP_GREETING,
+        replies=[b"* CAPABILITY IMAP4rev1 LITERAL+ AUTH=PLAIN\r\na1 OK Capability completed.\r\n"],
+    )
+    assert _fired("lybra:imap-no-starttls@1", sock, _IMAP)
+    assert sock.sent == b"a1 CAPABILITY\r\n"
+
+
+def test_an_imap_that_announces_starttls_is_not_flagged():
+    sock = _FakeNetSocket(
+        greeting=_IMAP_GREETING,
+        replies=[b"* CAPABILITY IMAP4rev1 STARTTLS LOGINDISABLED\r\na1 OK Capability completed.\r\n"],
+    )
+    assert not _fired("lybra:imap-no-starttls@1", sock, _IMAP)
+
+
+def test_an_imap_that_rejects_capability_is_not_flagged():
+    """Sin la lista de capacidades no hay evidencia de que falte STARTTLS."""
+    sock = _FakeNetSocket(greeting=_IMAP_GREETING, replies=[b"a1 BAD Unknown command\r\n"])
+    assert not _fired("lybra:imap-no-starttls@1", sock, _IMAP)
+
+
+def test_a_pop3_without_stls_is_flagged():
+    sock = _FakeNetSocket(
+        greeting=_POP3_GREETING,
+        replies=[b"+OK Capability list follows\r\nTOP\r\nUSER\r\nUIDL\r\n.\r\n"],
+    )
+    assert _fired("lybra:pop3-no-starttls@1", sock, _POP3)
+    assert sock.sent == b"CAPA\r\n"
+
+
+def test_a_pop3_that_announces_stls_is_not_flagged():
+    """Señuelo: STLS está en la lista, pero no en la primera línea; sólo se ve
+    si se lee la respuesta entera hasta el punto."""
+    sock = _FakeNetSocket(
+        greeting=_POP3_GREETING,
+        replies=[b"+OK Capability list follows\r\nTOP\r\nUSER\r\nSTLS\r\n.\r\n"],
+    )
+    assert not _fired("lybra:pop3-no-starttls@1", sock, _POP3)
+
+
+def test_a_pop3_without_capa_is_not_flagged():
+    sock = _FakeNetSocket(greeting=_POP3_GREETING, replies=[b"-ERR Unknown command\r\n"])
+    assert not _fired("lybra:pop3-no-starttls@1", sock, _POP3)
+
+
+@pytest.mark.parametrize("service", [
+    Service(993, "tcp", "imaps", "", "", None),
+    Service(993, "tcp", "imap", "", "", None),
+    Service(995, "tcp", "pop3s", "", "", None),
+    Service(995, "tcp", "pop3", "", "", None),
+])
+def test_the_implicit_tls_mail_ports_are_not_asked_for_starttls(service):
+    """El 993 y el 995 cifran desde el primer byte: hablarles en claro sólo
+    esperaría hasta el plazo de lectura."""
+    sock = _FakeNetSocket(greeting=b"", replies=[])
+    checks = [c for c in _CHECKS if c.id in {"imap-no-starttls", "pop3-no-starttls"}]
+    runtime = CheckRuntime(
+        checks, lambda *a: None,
+        network_open=NetworkProbe(connect=lambda address, timeout: sock).open)
+    assert runtime.run("h", [service]) == []
+    assert sock.sent == b""
+
+
+def test_the_dot_terminated_read_stops_at_the_lone_dot_and_keeps_the_rest():
+    from src.modules.features.themis.lybra.checks import NetworkSession
+
+    sock = _FakeNetSocket(greeting=b"+OK list\r\nUSER\r\n.\r\n+OK next\r\n")
+    session = NetworkSession(sock)
+    first = session.exchange(None, read="dot-terminated")
+    assert first.body.endswith(".")
+    assert "next" not in first.body
+    assert session.exchange(None, read="line").body == "+OK next"
