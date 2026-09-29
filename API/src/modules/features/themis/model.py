@@ -810,16 +810,28 @@ class NucleiScan(Scan):
 
 
 class AuthorizedTarget(Base):
-    """A target (IP or CIDR) a user has declared authorized for Lybra's
-    network-touching operations: self-discovery, own fingerprinting and the
-    active check runtime. Analysing services already known from a prior
-    Nmap scan does not need an entry here, since it sends no new packets to
-    the target.
+    """A target a user has declared authorized for Lybra's network-touching
+    operations: self-discovery, own fingerprinting, the active check runtime
+    and the cloud-exposure probes. Analysing services already known from a
+    prior Nmap scan does not need an entry here, since it sends no new packets
+    to the target.
+
+    A target is one of three shapes, told apart by the canonical string itself
+    (see ``AuthorizedTargetManager``):
+
+    - an **IP or CIDR** (``"10.0.0.5/32"``, ``"10.0.0.0/24"``);
+    - a **domain** (``"example.com"``), which authorizes the domain itself and
+      every subdomain under it — the shape subdomain-takeover checks need;
+    - a **cloud resource** in ``provider:identifier`` form (``"s3:my-bucket"``,
+      ``"azure:account/container"``, ``"firebase:my-project"``).
 
     Attributes:
         id: Primary key.
         user_id: Owner of this register entry.
-        target: Canonical IP or CIDR string, e.g. "10.0.0.5/32" or "10.0.0.0/24".
+        target: Canonical target string. Holds an IP/CIDR network, a normalized
+            domain or a ``provider:identifier`` cloud resource. Widened to 255
+            characters because a domain reaches 253 and an Azure
+            ``account/container`` overruns the old 64.
         label: Optional free-text note (client name, authorization scope...).
         created_at: When the entry was added.
     """
@@ -827,7 +839,7 @@ class AuthorizedTarget(Base):
 
     id         = Column(Integer, primary_key=True, autoincrement=True)
     user_id    = Column(Integer, ForeignKey("User.id"), nullable=False, index=True)
-    target     = Column(String(64), nullable=False)
+    target     = Column(String(255), nullable=False)
     label      = Column(String(255), nullable=True)
     created_at = Column(DateTime, nullable=False, default=utcnow_naive)
 
