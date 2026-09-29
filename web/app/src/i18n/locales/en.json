@@ -1606,7 +1606,7 @@
     "lateral": {
       "subtitle": "How an attacker would move between the machines of this network",
       "loading": "Working out the risk…",
-      "tooFew": "At least two scanned machines in this network are needed to see how an attacker would move between them.",
+      "tooFew": "At least two scanned machines in this network are needed to see how an attacker would move between them. Scan a range that falls inside it from “Machines”.",
       "intro": "Lybra looks at the {count} scanned machines of this network together. This is not a new test: it reasons about what was already found, so each risk is a hypothesis worth reviewing.",
       "empty": "No weakness in one machine reaches the others.",
       "reach": "Involves {involved} of {total} machines",
@@ -1681,13 +1681,13 @@
     "network": {
       "title": "Network",
       "subtitle": "How an attacker would move between your machines",
-      "hint": "A group is a network defined by its range. Its machines are the ones you have already scanned whose address falls inside it, so there is nothing to add by hand: scanning them is enough.",
+      "hint": "A group is a network defined by its range. Its machines are the ones you have already scanned whose address falls inside it, so there is nothing to add by hand. It is useful when you scan several public addresses of the same organization, such as your own IP block or a provider's servers: internal networks (10.x, 192.168.x) cannot be reached from a cloud deployment.",
       "name": "Name",
       "namePlaceholder": "Office, DMZ, servers…",
       "range": "Range",
       "create": "Create group",
       "rangeInvalid": "Write a range, such as “10.0.0.0/24”.",
-      "empty": "You have no groups yet. Create one with the range of a network you have already scanned to see how an attacker would move between its machines.",
+      "empty": "You have no groups yet. Create one with the public address range of an organization you have already scanned to see how an attacker would move between its machines.",
       "riskCount": "{count} risk | {count} risks",
       "deleteGroup": "Delete the group {name}"
     }

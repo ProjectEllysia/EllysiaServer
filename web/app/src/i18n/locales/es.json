@@ -1606,7 +1606,7 @@
     "lateral": {
       "subtitle": "Cómo se movería un atacante entre los equipos de esta red",
       "loading": "Calculando el riesgo…",
-      "tooFew": "Hacen falta al menos dos equipos escaneados en esta red para ver cómo se movería un atacante entre ellos.",
+      "tooFew": "Hacen falta al menos dos equipos escaneados en esta red para ver cómo se movería un atacante entre ellos. Escanea desde «Equipos» un rango que caiga dentro de ella.",
       "intro": "Lybra mira a la vez los {count} equipos escaneados de esta red. No es una prueba nueva: es un razonamiento sobre lo que ya se encontró, así que cada riesgo es una hipótesis que conviene revisar.",
       "empty": "Ningún fallo de un equipo alcanza a los demás.",
       "reach": "Implica a {involved} de {total} equipos",
@@ -1681,13 +1681,13 @@
     "network": {
       "title": "Red",
       "subtitle": "Cómo se movería un atacante entre tus equipos",
-      "hint": "Un grupo es una red definida por su rango. Sus equipos son los que ya has escaneado y cuya dirección cae dentro, así que no hay que añadirlos a mano: basta con escanearlos.",
+      "hint": "Un grupo es una red definida por su rango. Sus equipos son los que ya has escaneado y cuya dirección cae dentro, así que no hay que añadirlos a mano. Es útil cuando escaneas varias direcciones públicas de una misma organización, como un bloque de IP propio o los servidores de un proveedor: las redes internas (10.x, 192.168.x) no son alcanzables desde un despliegue en la nube.",
       "name": "Nombre",
       "namePlaceholder": "Oficina, DMZ, servidores…",
       "range": "Rango",
       "create": "Crear grupo",
       "rangeInvalid": "Escribe un rango, como «10.0.0.0/24».",
-      "empty": "Aún no tienes grupos. Crea uno con el rango de una red que ya hayas escaneado para ver cómo se movería un atacante entre sus equipos.",
+      "empty": "Aún no tienes grupos. Crea uno con el rango de direcciones públicas de una organización que ya hayas escaneado para ver cómo se movería un atacante entre sus equipos.",
       "riskCount": "{count} riesgo | {count} riesgos",
       "deleteGroup": "Borrar el grupo {name}"
     }
