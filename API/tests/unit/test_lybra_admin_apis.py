@@ -12,6 +12,7 @@ import json
 import pytest
 
 from src.modules.features.themis.lybra.checks import (
+    CheckRuntime,
     Response,
     is_admin_api_service,
     is_docker_service,
@@ -168,6 +169,9 @@ def feed():
     ("docker-api-unauthenticated", "docker"),
     ("elasticsearch-unauthenticated", "elasticsearch"),
     ("kubernetes-anonymous-api", "kubernetes"),
+    ("etcd-unauthenticated-access", "etcd"),
+    ("consul-unauthenticated-access", "consul"),
+    ("kibana-unauthenticated-access", "kibana"),
 ])
 def test_the_exposure_checks_are_critical_safe_and_service_scoped(feed, check_id, service):
     check = feed[check_id]
@@ -181,6 +185,9 @@ def test_the_exposure_checks_are_critical_safe_and_service_scoped(feed, check_id
     "docker-api-unauthenticated",
     "elasticsearch-unauthenticated",
     "kubernetes-anonymous-api",
+    "etcd-unauthenticated-access",
+    "consul-unauthenticated-access",
+    "kibana-unauthenticated-access",
 ])
 def test_the_exposure_checks_require_a_200_so_a_401_never_fires(feed, check_id):
     """La mitad del check que evita el falso positivo: sin exigir 200, un 401
@@ -190,7 +197,8 @@ def test_the_exposure_checks_require_a_200_so_a_401_never_fires(feed, check_id):
     status_matchers = [m for m in request.matchers if m.type == "status"]
     assert status_matchers, f"{check_id} no exige código de estado"
     assert all(200 in m.values for m in status_matchers)
-    assert request.method == "GET"
+    # etcd v3 sólo acepta POST en su pasarela HTTP; su ``range`` es una lectura.
+    assert request.method == ("POST" if check_id == "etcd-unauthenticated-access" else "GET")
 
 
 def test_every_admin_api_has_a_service_predicate():
@@ -202,3 +210,71 @@ def test_every_admin_api_has_a_service_predicate():
     assert {"docker", "elasticsearch", "kibana",
             "kubernetes", "etcd", "consul"} <= set(_NETWORK_SERVICE_MATCHERS)
     assert is_docker_service(Service(2375, "tcp", ""))
+
+
+# ============================ etcd, Consul y Kibana: positivo y señuelo
+
+
+def _fired_check(feed, check_id, service, response):
+    """Ejecuta un único check del feed contra un servicio que contesta ``response``
+    a cualquier petición, y dice si disparó."""
+    def fetch(host, port, method, path, _body=None, _headers=None):
+        return response
+    findings = CheckRuntime([feed[check_id]], fetch).run("10.0.0.5", [service])
+    return bool(findings)
+
+
+_ETCD = Service(2379, "tcp", "etcd")
+_CONSUL = Service(8500, "tcp", "consul")
+_KIBANA = Service(5601, "tcp", "kibana")
+
+
+def test_an_etcd_that_serves_its_keys_without_credentials_fires(feed):
+    body = {"header": {"cluster_id": "14841639068965178418", "member_id": "10276657743932975437",
+                       "revision": "7", "raft_term": "2"},
+            "kvs": [{"key": "L3JlZ2lzdHJ5"}], "count": "42"}
+    assert _fired_check(feed, "etcd-unauthenticated-access", _ETCD, _json_response(body))
+
+
+def test_an_etcd_with_authentication_does_not_fire(feed):
+    """Señuelo: etcd con autenticación rechaza el ``range`` sin token."""
+    body = {"error": "etcdserver: user name is empty", "code": 3,
+            "message": "etcdserver: user name is empty"}
+    assert not _fired_check(feed, "etcd-unauthenticated-access", _ETCD,
+                            _json_response(body, status=400))
+    assert not _fired_check(feed, "etcd-unauthenticated-access", _ETCD,
+                            _json_response(body, status=401))
+
+
+def test_a_consul_agent_without_acl_fires(feed):
+    body = {"Config": {"Datacenter": "dc1", "NodeName": "consul-1", "Version": "1.16.2"},
+            "Member": {"Name": "consul-1", "Addr": "10.0.0.5"}}
+    assert _fired_check(feed, "consul-unauthenticated-access", _CONSUL, _json_response(body))
+
+
+def test_a_consul_agent_with_acl_deny_does_not_fire(feed):
+    """Señuelo: con ACL y política ``deny``, el agente contesta 403 sin token."""
+    assert not _fired_check(feed, "consul-unauthenticated-access", _CONSUL,
+                            Response(403, "Permission denied", {}))
+
+
+def test_a_kibana_without_security_fires(feed):
+    body = {"page": 1, "per_page": 1, "total": 3,
+            "saved_objects": [{"type": "dashboard", "id": "d1"}]}
+    assert _fired_check(feed, "kibana-unauthenticated-access", _KIBANA, _json_response(body))
+
+
+def test_a_kibana_with_security_does_not_fire(feed):
+    """Señuelo: con seguridad activa, los objetos guardados exigen sesión."""
+    body = {"statusCode": 401, "error": "Unauthorized",
+            "message": "[security_exception]: missing authentication credentials"}
+    assert not _fired_check(feed, "kibana-unauthenticated-access", _KIBANA,
+                            _json_response(body, status=401))
+
+
+def test_a_kibana_whose_status_page_is_public_does_not_fire(feed):
+    """Señuelo: un ``/api/status`` abierto (``status.allowAnonymous``) no es
+    acceso a los datos; el check no mira esa ruta y el JSON de estado no trae
+    objetos guardados."""
+    body = {"name": "kibana", "version": {"number": "8.11.0"}, "status": {"overall": {"level": "available"}}}
+    assert not _fired_check(feed, "kibana-unauthenticated-access", _KIBANA, _json_response(body))

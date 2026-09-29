@@ -897,6 +897,97 @@ checks:
       title: API de Kubernetes accesible de forma anonima (inventario y control del cluster)
       qod: 99
       confirmed: true
+  # etcd no sirve de prueba con su /version: esa ruta contesta sin
+  # credenciales aunque la autenticacion este activa. Lo que si la exige es
+  # leer claves, asi que se pide un rango de una sola clave, sin su valor
+  # (keys_only). La clave "\0" con range_end "\0" es "desde el principio del
+  # espacio de claves"; limit 1 lo deja en una. Es un POST porque la pasarela
+  # HTTP de etcd v3 solo acepta POST, pero es una lectura: range no escribe.
+  # Con autenticacion activa etcd contesta un error (sin cabecera de cluster)
+  # y el 200 no llega.
+  - id: etcd-unauthenticated-access
+    version: 1
+    type: http
+    category: exposed_service
+    severity: CRITICAL
+    service: etcd
+    mode: safe
+    requests:
+      - method: POST
+        path: /v3/kv/range
+        headers:
+          Content-Type: application/json
+        body: '{"key":"AA==","range_end":"AA==","limit":1,"keys_only":true}'
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: word
+            part: body
+            words:
+              - cluster_id
+              - raft_term
+    finding:
+      title: etcd accesible sin autenticacion (lectura de toda la configuracion del cluster, secretos incluidos)
+      qod: 99
+      confirmed: true
+  # Consul con ACL y politica por defecto "deny" contesta 403 a /v1/agent/self
+  # para una peticion sin token; sin ACL devuelve la configuracion entera del
+  # agente. No se usa el catalogo: sus rutas filtran en vez de rechazar, y con
+  # ACL devuelven un 200 vacio que pareceria una exposicion.
+  - id: consul-unauthenticated-access
+    version: 1
+    type: http
+    category: exposed_service
+    severity: CRITICAL
+    service: consul
+    mode: safe
+    requests:
+      - method: GET
+        path: /v1/agent/self
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: word
+            part: body
+            words:
+              - '"Config"'
+              - '"Member"'
+    finding:
+      title: Agente de Consul accesible sin autenticacion (catalogo de servicios y registro de servicios nuevos)
+      qod: 99
+      confirmed: true
+  # Kibana no sirve de prueba con /api/status: puede estar abierto a proposito
+  # (status.allowAnonymous) aunque el resto exija sesion. Lo que ensena si hay
+  # acceso a los datos es la API de objetos guardados, que con seguridad
+  # activa contesta 401.
+  - id: kibana-unauthenticated-access
+    version: 1
+    type: http
+    category: exposed_service
+    severity: CRITICAL
+    service: kibana
+    mode: safe
+    requests:
+      - method: GET
+        path: /api/saved_objects/_find?type=dashboard&per_page=1
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: word
+            part: body
+            words:
+              - '"saved_objects"'
+              - '"per_page"'
+    finding:
+      title: Kibana accesible sin autenticacion (acceso a los datos indexados del Elasticsearch al que apunta)
+      qod: 99
+      confirmed: true
   - id: postgres-trust-authentication
     version: 1
     type: script
