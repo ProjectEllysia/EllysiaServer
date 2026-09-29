@@ -257,7 +257,8 @@ def _mass_assignment_check(endpoint: ApiEndpoint) -> Check:
             ),
         ),
         finding={
-            "title": f"La API guarda propiedades que no declara: asignación masiva ({endpoint.method} {endpoint.path})",
+            "title": ("La API guarda propiedades que no declara: asignación masiva "
+                      f"({endpoint.method} {endpoint.path})"),
             "qod": 95, "confirmed": True,
         },
     )

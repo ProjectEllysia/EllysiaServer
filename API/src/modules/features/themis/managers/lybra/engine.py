@@ -1663,6 +1663,50 @@ class LybraEngineManager(ScanManager):
             "groups": [self._group_to_json(group, exposure) for group in groups],
         }
 
+    def api_surface(self, scan_id: int, user_id: int) -> dict:
+        """Lo que un escaneo encontró expuesto en las APIs de sus servicios web.
+
+        Reúne los hallazgos de categoría ``api_exposure`` —la especificación
+        publicada, la introspección de GraphQL, un endpoint protegido que
+        contesta sin credenciales, la asignación masiva— y los agrupa por
+        servicio, que es como se corrige: una API es un puerto. Un escaneo de
+        red (el padre de un lote) suma los de sus hosts.
+
+        Args:
+            scan_id: El escaneo.
+            user_id: Dueño; un escaneo ajeno se reporta como inexistente.
+
+        Returns:
+            dict: ``scanId``, ``totalFindings`` y ``services``: una entrada por
+                servicio con ``target``, ``port``, ``service`` y sus
+                ``findings`` (``id``, ``title``, ``severity``, ``checkId``,
+                ``state``, ``confirmed``, ``qod``), de más grave a menos. Sin
+                exposición, ``services`` va vacío.
+        """
+        with UnitOfWork() as uow:
+            assert_owned(ScanRepository, scan_id, user_id, ScanNotFoundError, uow=uow)
+            repo = ScanRepository(uow)
+            scans = [repo.get_by_id(scan_id)] + repo.get_child_scans(scan_id)
+            rows = [(scan.target, self._finding_view_dict(finding))
+                    for scan in scans for finding in repo.get_findings_by_scan(scan.id)
+                    if finding.category == "api_exposure"]
+
+        severity_rank = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
+        services: dict = {}
+        for target, finding in rows:
+            entry = services.setdefault((target, finding["port"]), {
+                "target": target, "port": finding["port"],
+                "service": finding["service"], "findings": []})
+            entry["findings"].append({
+                "id": finding["id"], "title": finding["title"],
+                "severity": finding["severity"], "checkId": finding["check_id"],
+                "state": finding["state"], "confirmed": finding["confirmed"],
+                "qod": finding["qod"],
+            })
+        for entry in services.values():
+            entry["findings"].sort(key=lambda item: severity_rank.get(item["severity"], 5))
+        return {"scanId": scan_id, "totalFindings": len(rows), "services": list(services.values())}
+
     @staticmethod
     def _group_to_json(group, exposure: str) -> dict:
         """Un :class:`ServiceGroup` en la forma de la API.
