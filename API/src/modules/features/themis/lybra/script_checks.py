@@ -30,9 +30,12 @@ que ``SmbDissector`` vive en ``smb.py``.
 from __future__ import annotations
 
 import logging
+import re
 from typing import Dict, List, Optional, Tuple
 
 from .checks import (
+    HttpProbe,
+    Response,
     is_ike_service,
     ScriptContext,
     ScriptPlugin,
@@ -50,6 +53,7 @@ from .checks import (
     is_tls_certificate_service,
     is_tls_service,
     is_vnc_service,
+    is_winrm_service,
     starttls_protocol_for,
 )
 from .engine import Service
@@ -496,6 +500,99 @@ class RdpLegacySecurityLayerPlugin(ScriptPlugin):
         if response is None:
             return False
         return fingerprint_rdp(response).uses_legacy_security_layer is True
+
+
+#: La petición mínima de WinRM: un POST vacío a su ruta SOAP. El servicio
+#: contesta 401 con los métodos de autenticación que acepta antes de mirar el
+#: cuerpo, así que no hace falta construir un mensaje WS-Management.
+_WINRM_PATH = "/wsman"
+_WINRM_HEADERS = {"Content-Type": "application/soap+xml;charset=UTF-8"}
+
+#: Un método Basic entre los que anuncia ``WWW-Authenticate``: al principio de
+#: un valor o tras una coma, y como palabra entera (no ``BasicAuth``).
+_BASIC_SCHEME_RE = re.compile(r"(?:^|,)\s*basic(?:\s|$|,)", re.IGNORECASE | re.MULTILINE)
+
+#: Lo que distingue a WinRM de cualquier otro servidor HTTP que pida Basic: la
+#: pila HTTP del núcleo de Windows que lo sirve, o el reino ``WSMAN`` (también
+#: el de OMI, la implementación para Linux).
+_WINRM_SERVER_MARKER = "microsoft-httpapi"
+_WINRM_REALM_RE = re.compile(r'realm\s*=\s*"?wsman', re.IGNORECASE)
+
+
+def is_winrm_offering_cleartext_basic(response: Response) -> bool:
+    """Si una respuesta de WinRM en claro anuncia autenticación Basic.
+
+    Args:
+        response: La respuesta al ``POST /wsman`` sin credenciales.
+
+    Returns:
+        bool: ``True`` si se habló HTTP sin TLS, el servidor pidió
+            credenciales (``401``), es WinRM y ofrece Basic; ``False`` en
+            cualquier otro caso.
+    """
+    if response.status != 401 or response.requested_scheme == "https":
+        return False
+    authenticate = response.headers.get("www-authenticate", "")
+    is_winrm = (_WINRM_SERVER_MARKER in response.headers.get("server", "").lower()
+                or bool(_WINRM_REALM_RE.search(authenticate)))
+    return is_winrm and bool(_BASIC_SCHEME_RE.search(authenticate))
+
+
+class WinrmBasicAuthCleartextPlugin(ScriptPlugin):
+    """Detecta un WinRM sin TLS que acepta autenticación Basic.
+
+    WinRM es la administración remota de Windows: ejecuta comandos y consultas
+    de gestión sobre el equipo. Con Basic, el cliente manda usuario y
+    contraseña en la cabecera ``Authorization`` codificados en Base64, que no
+    es cifrado; en el 5985, sin TLS, cualquiera en la red los lee. Da igual
+    que el servidor rechace después el mensaje por no ir cifrado: la
+    contraseña ya viajó.
+
+    La evidencia es la respuesta del propio servicio a una petición sin
+    credenciales: ``401`` con los métodos que acepta en ``WWW-Authenticate``.
+    Un WinRM con sólo Kerberos/Negotiate no dispara, ni un servidor HTTP
+    cualquiera que pida Basic en ese puerto.
+
+    Args:
+        probe: Sonda HTTP inyectable, para que un test no abra conexiones.
+            Por defecto, ``HttpProbe()``.
+    """
+
+    plugin_id = "winrm-basic-auth-cleartext"
+
+    def __init__(self, probe: Optional[HttpProbe] = None) -> None:
+        self._probe = probe or HttpProbe()
+
+    def applies(self, service: Service) -> bool:
+        """Si el servicio es WinRM sin TLS.
+
+        Args:
+            service: El servicio candidato.
+
+        Returns:
+            bool: ``True`` para los servicios que reclama ``is_winrm_service``.
+        """
+        return is_winrm_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        """Pide ``/wsman`` sin credenciales y mira qué autenticación se ofrece.
+
+        Args:
+            context: El contexto del check; su control de tasa se consulta
+                antes de la petición. Los métodos anunciados van a la
+                evidencia (``wwwAuthenticate``).
+
+        Returns:
+            bool: ``True`` si el servicio es WinRM en claro y ofrece Basic;
+                ``False`` si no, o si no contestó.
+        """
+        context.acquire()
+        response = self._probe.fetch(context.target, context.service.port or 5985, "POST",
+                                     _WINRM_PATH, "", dict(_WINRM_HEADERS))
+        if response is None or not is_winrm_offering_cleartext_basic(response):
+            return False
+        context.evidence.update({"wwwAuthenticate": response.headers.get("www-authenticate", "")})
+        return True
 
 
 class DnsOpenResolverPlugin(ScriptPlugin):
@@ -1075,6 +1172,7 @@ def default_script_plugins() -> Dict[str, ScriptPlugin]:
         LdapCleartextWithLdapsPlugin(),
         RdpNlaNotRequiredPlugin(),
         RdpLegacySecurityLayerPlugin(),
+        WinrmBasicAuthCleartextPlugin(),
         TelnetEnabledPlugin(),
         VncNoAuthenticationPlugin(),
         IkeWeakTransformPlugin(),
