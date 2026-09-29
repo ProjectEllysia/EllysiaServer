@@ -234,7 +234,19 @@ class FindingStateResponseSchema(Schema):
 
 
 class AddAuthorizedTargetSchema(Schema):
-    target = fields.String(required=True, validate=validate.Length(min=1, max=64))
+    """Cuerpo de ``POST /themis/authorized-targets``: lo que se autoriza y una nota.
+
+    Attributes:
+        target: El objetivo, de 1 a 255 caracteres, en cualquiera de las tres
+            formas del registro: una IP o un rango CIDR (``203.0.113.0/24``), un
+            dominio (``example.com``, que cubre también sus subdominios) o un
+            recurso cloud ``proveedor:identificador`` (``s3:mi-bucket``). El
+            tope es el de la columna: un dominio puede tener hasta 253
+            caracteres. La forma se valida en ``AuthorizedTargetManager.add``.
+        label: Nota libre opcional, hasta 255 caracteres. Por defecto ``None``.
+    """
+
+    target = fields.String(required=True, validate=validate.Length(min=1, max=255))
     label = fields.String(load_default=None, allow_none=True, validate=validate.Length(max=255))
 
 

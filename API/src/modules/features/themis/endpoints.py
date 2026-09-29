@@ -695,7 +695,7 @@ def update_organization_compliance_frameworks(data):
 @limiter.limit("60 per hour; 200 per day")
 @handle_exceptions(default_exception=DuplicateAuthorizedTargetError, logger=logger)
 def add_authorized_target(data):
-    """Añadir un objetivo (IP o CIDR) al registro de objetivos autorizados."""
+    """Añadir un objetivo (IP o CIDR, dominio o recurso cloud) al registro de objetivos autorizados."""
     user = get_current_user()
     entry = AuthorizedTargetManager().add(user.id, data["target"], data.get("label"))
     logger.info(f"Objetivo autorizado {entry.id} ('{entry.target}') añadido por {user.username}")

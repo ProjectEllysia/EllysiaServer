@@ -337,7 +337,7 @@ export const useThemisStore = defineStore('themis', () => {
     } catch { /* el aviso es informativo: si no se puede leer, no se muestra */ }
   }
 
-  /** Añade un objetivo (IP o CIDR) al registro de objetivos autorizados. */
+  /** Añade un objetivo (IP o CIDR, dominio o recurso cloud) al registro de objetivos autorizados. */
   async function addAuthorizedTarget(target, label = '') {
     try {
       const res = await apiFetch('/themis/authorized-targets', {

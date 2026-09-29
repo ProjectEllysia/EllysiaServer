@@ -93,6 +93,7 @@
     "documentNotReady": "The document is not ready yet.",
     "duplicateAuthorizedTarget": "“{target}” is already in your authorized targets registry.",
     "duplicateAssetGroup": "You already have an asset group named “{name}”.",
+    "invalidAuthorizedTarget": "“{target}” is not an IP address, a range, a domain or a cloud resource. Write it as “203.0.113.10”, “203.0.113.0/24”, “example.com” or “s3:bucket-name”.",
     "duplicatedUserCredentials": "There is already an account with this value: {value}.",
     "emailAlreadyVerified": "Your email is already confirmed.",
     "emailConfiguration": "The email service is not configured correctly.",
@@ -1559,9 +1560,9 @@
       "portsPlaceholder": "80,443 or 1-1000",
       "missingHint": "It is not in your register of authorized targets: auto-discovery will be rejected.",
       "register": "Authorized targets",
-      "registerHint": "Targets (IP or CIDR) you have declared authorized for Lybra's auto-discovery, its own fingerprinting and its active checks.",
+      "registerHint": "What you have declared as yours or have permission to analyse. An address or a range authorizes active analysis of those machines; a domain also authorizes its subdomains, and a cloud resource only itself.",
       "registerEmpty": "You have not authorized any target yet.",
-      "newTargetPlaceholder": "10.0.0.5 or 10.0.0.0/24",
+      "newTargetPlaceholder": "203.0.113.10, example.com or s3:my-bucket",
       "labelPlaceholder": "Label (optional)",
       "add": "Add",
       "timeout": "Timeout (s)",
@@ -1569,7 +1570,18 @@
       "launch": "Issue verdict",
       "minutes": "{minutes} min",
       "hours": "{hours} h",
-      "hoursMinutes": "{hours} h {minutes} min"
+      "hoursMinutes": "{hours} h {minutes} min",
+      "shape": {
+        "network": "Network",
+        "domain": "Domain",
+        "cloud": "Cloud"
+      },
+      "shapeHint": {
+        "network": "It will be registered as a network: it authorizes active analysis of those addresses.",
+        "domain": "It will be registered as a domain: it also covers all of its subdomains.",
+        "cloud": "It will be registered as a cloud resource: only that bucket, container or project.",
+        "unknown": "Write an address (203.0.113.10), a range (203.0.113.0/24), a domain (example.com) or a cloud resource (s3:name, gcs:name, azure:account/container or firebase:project)."
+      }
     },
     "agents": {
       "title": "Hygeia agents",

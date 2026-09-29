@@ -93,6 +93,7 @@
     "documentNotReady": "El documento aún no está listo.",
     "duplicateAuthorizedTarget": "«{target}» ya está en tu registro de objetivos autorizados.",
     "duplicateAssetGroup": "Ya tienes un grupo de activos llamado «{name}».",
+    "invalidAuthorizedTarget": "«{target}» no es una dirección IP, un rango, un dominio ni un recurso cloud. Escríbelo como «203.0.113.10», «203.0.113.0/24», «example.com» o «s3:nombre-del-bucket».",
     "duplicatedUserCredentials": "Ya hay una cuenta con este dato: {value}.",
     "emailAlreadyVerified": "Tu correo ya está confirmado.",
     "emailConfiguration": "El servicio de correo no está bien configurado.",
@@ -1559,9 +1560,9 @@
       "portsPlaceholder": "80,443 o 1-1000",
       "missingHint": "No está en tu registro de objetivos autorizados: el autodescubrimiento se rechazará.",
       "register": "Objetivos autorizados",
-      "registerHint": "Objetivos (IP o CIDR) que has declarado autorizados para el autodescubrimiento, el fingerprinting propio y las comprobaciones activas de Lybra.",
+      "registerHint": "Lo que has declarado tuyo o tienes permiso para analizar. Una dirección o un rango autoriza el análisis activo de esos equipos; un dominio autoriza también sus subdominios, y un recurso cloud solo a sí mismo.",
       "registerEmpty": "Aún no has autorizado ningún objetivo.",
-      "newTargetPlaceholder": "10.0.0.5 o 10.0.0.0/24",
+      "newTargetPlaceholder": "203.0.113.10, example.com o s3:mi-bucket",
       "labelPlaceholder": "Etiqueta (opcional)",
       "add": "Añadir",
       "timeout": "Timeout (s)",
@@ -1569,7 +1570,18 @@
       "launch": "Emitir veredicto",
       "minutes": "{minutes} min",
       "hours": "{hours} h",
-      "hoursMinutes": "{hours} h {minutes} min"
+      "hoursMinutes": "{hours} h {minutes} min",
+      "shape": {
+        "network": "Red",
+        "domain": "Dominio",
+        "cloud": "Nube"
+      },
+      "shapeHint": {
+        "network": "Se registrará como red: autoriza el análisis activo de esas direcciones.",
+        "domain": "Se registrará como dominio: cubre también todos sus subdominios.",
+        "cloud": "Se registrará como recurso cloud: solo ese bucket, contenedor o proyecto.",
+        "unknown": "Escribe una dirección (203.0.113.10), un rango (203.0.113.0/24), un dominio (example.com) o un recurso cloud (s3:nombre, gcs:nombre, azure:cuenta/contenedor o firebase:proyecto)."
+      }
     },
     "agents": {
       "title": "Agentes de Hygeia",
