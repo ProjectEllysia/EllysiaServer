@@ -39,7 +39,6 @@ from .checks import (
     LDAPS_PORTS,
     is_ldap_service,
     is_dns_service,
-    is_ftp_service,
     is_mongodb_service,
     is_ntp_service,
     is_rdp_service,
@@ -48,8 +47,10 @@ from .checks import (
     is_snmp_service,
     is_ssh_service,
     is_telnet_service,
+    is_tls_certificate_service,
     is_tls_service,
     is_vnc_service,
+    starttls_protocol_for,
 )
 from .engine import Service
 from .fingerprinting.smb import SIGNING_REQUIRED_BIT, SmbProbe, fingerprint_smb
@@ -1004,8 +1005,8 @@ class TlsDeprecatedProtocolPlugin(ScriptPlugin):
     (Debian bookworm) SSLv3 no existe, y un servidor que sólo hable SSLv3 no
     se detecta; TLS 1.0 y 1.1 sí.
 
-    Los servicios FTP que cifran a mitad de sesión se preguntan tras ``AUTH
-    TLS``; el 990 es FTPS implícito, TLS desde el primer byte.
+    Los servicios que cifran a mitad de sesión (FTP, SMTP, IMAP y POP3) se
+    preguntan tras su paso a TLS; los que cifran desde el primer byte, sin él.
 
     Args:
         probe: Sonda inyectable, para que un test use otra. Por defecto,
@@ -1018,7 +1019,7 @@ class TlsDeprecatedProtocolPlugin(ScriptPlugin):
         self._probe = probe or TlsProbe()
 
     def applies(self, service: Service) -> bool:
-        """Si el servicio habla TLS, desde el primer byte o tras ``AUTH TLS`` de FTP.
+        """Si el servicio habla TLS, desde el primer byte o tras su paso a TLS.
 
         Args:
             service: El servicio candidato.
@@ -1026,7 +1027,7 @@ class TlsDeprecatedProtocolPlugin(ScriptPlugin):
         Returns:
             bool: ``True`` si merece la pregunta.
         """
-        return is_tls_service(service) or is_ftp_service(service)
+        return is_tls_certificate_service(service)
 
     def run(self, context: ScriptContext) -> bool:
         """Pregunta por cada versión obsoleta y dispara si el servidor acepta alguna.
@@ -1041,9 +1042,7 @@ class TlsDeprecatedProtocolPlugin(ScriptPlugin):
                 ``False`` si no aceptó ninguna o no se pudo saber.
         """
         service = context.service
-        starttls = None
-        if is_ftp_service(service) and not is_tls_service(service) and service.port != 990:
-            starttls = "ftp"
+        starttls = starttls_protocol_for(service)
         accepted = []
         for protocol in LEGACY_TLS_PROTOCOLS:
             context.acquire()

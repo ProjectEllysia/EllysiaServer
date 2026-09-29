@@ -89,7 +89,9 @@ logger = logging.getLogger(__name__)
 # ofrecer TLS.
 # checks-31: más paneles y páginas de estado de terceros (Grafana, phpMyAdmin,
 # Adminer, Traefik, HAProxy, Prometheus, Netdata, nginx).
-CHECKS_FEED_VERSION = "lybra-checks-31"
+# checks-32: los checks de certificado y de versiones obsoletas de TLS llegan
+# también a SMTP, IMAP y POP3, en claro tras el paso a TLS y con TLS implícito.
+CHECKS_FEED_VERSION = "lybra-checks-32"
 # Quality of Detection for a finding a check actively confirmed, as opposed to
 # one merely inferred from a version.
 QOD_CONFIRMED = 99
@@ -169,7 +171,15 @@ _POP3_PORTS = {110, 995}
 # ofrece pasar a TLS: sólo alargaría el escaneo hasta el plazo de lectura.
 _IMAP_IMPLICIT_TLS_PORTS = {993}
 _POP3_IMPLICIT_TLS_PORTS = {995}
-_IMPLICIT_TLS_MAIL_SERVICE_NAMES = {"imaps", "pop3s"}
+_IMPLICIT_TLS_MAIL_SERVICE_NAMES = {"imaps", "pop3s", "smtps"}
+_SMTP_IMPLICIT_TLS_PORTS = {465}
+# Puertos que cifran desde el primer byte y no son web: FTPS implícito y el
+# correo con TLS implícito. No entran en _TLS_HYGIENE_PORTS porque esa lista
+# también decide qué se sondea por HTTP, y a un IMAP no se le habla HTTP; pero
+# su certificado se audita igual que el de un HTTPS.
+_IMPLICIT_TLS_NON_WEB_PORTS = {990} | _SMTP_IMPLICIT_TLS_PORTS | {993, 995}
+# Cómo llama cada protocolo al paso a TLS, para decirlo en el hallazgo.
+_STARTTLS_COMMANDS = {"ftp": "AUTH TLS", "smtp": "STARTTLS", "imap": "STARTTLS", "pop3": "STLS"}
 _SMB_SERVICE_NAMES = {"microsoft-ds", "netbios-ssn"}
 _SMB_PORTS = {139, 445}
 _MYSQL_SERVICE_NAMES = {"mysql"}
@@ -1018,6 +1028,69 @@ def is_imap_starttls_service(service: Service) -> bool:
             and (service.name or "").lower() not in _IMPLICIT_TLS_MAIL_SERVICE_NAMES)
 
 
+def is_smtp_starttls_service(service: Service) -> bool:
+    """Si el servicio es un SMTP que empieza en claro (y puede pasar a TLS con ``STARTTLS``).
+
+    Deja fuera el 465 y el nombre ``smtps``, que cifran desde el primer byte.
+
+    Args:
+        service: El servicio candidato.
+
+    Returns:
+        bool: ``True`` si es SMTP y no es SMTP con TLS implícito.
+    """
+    return (is_smtp_service(service)
+            and service.port not in _SMTP_IMPLICIT_TLS_PORTS
+            and (service.name or "").lower() not in _IMPLICIT_TLS_MAIL_SERVICE_NAMES)
+
+
+def starttls_protocol_for(service: Service) -> Optional[str]:
+    """El protocolo en claro que hay que hablar con un servicio antes de pasar a TLS.
+
+    Es la única respuesta a «¿cómo llego al certificado de este servicio?»
+    para todo lo que cifra a mitad de sesión: la usan los checks de
+    certificado y el de versiones obsoletas de TLS.
+
+    Args:
+        service: El servicio candidato.
+
+    Returns:
+        Optional[str]: ``"ftp"``, ``"smtp"``, ``"imap"`` o ``"pop3"`` (las
+            claves que entiende ``TlsProbe``) si el servicio empieza en claro
+            y ofrece pasar a TLS; ``None`` si cifra desde el primer byte o no
+            es ninguno de esos protocolos.
+    """
+    if is_tls_service(service) or service.port in _IMPLICIT_TLS_NON_WEB_PORTS:
+        return None
+    if is_ftp_service(service):
+        return "ftp"
+    if is_smtp_starttls_service(service):
+        return "smtp"
+    if is_imap_starttls_service(service):
+        return "imap"
+    if is_pop3_starttls_service(service):
+        return "pop3"
+    return None
+
+
+def is_tls_certificate_service(service: Service) -> bool:
+    """Si el servicio presenta un certificado que merece auditarse.
+
+    Los web con TLS (:func:`is_tls_service`), los que cifran desde el primer
+    byte sin ser web (FTPS en 990, SMTP en 465, IMAP en 993, POP3 en 995) y
+    los que pasan a TLS a mitad de sesión (:func:`starttls_protocol_for`).
+
+    Args:
+        service: El servicio candidato.
+
+    Returns:
+        bool: ``True`` si merece un saludo TLS.
+    """
+    return (is_tls_service(service)
+            or service.port in _IMPLICIT_TLS_NON_WEB_PORTS
+            or starttls_protocol_for(service) is not None)
+
+
 def is_pop3_starttls_service(service: Service) -> bool:
     """Si el servicio es un POP3 que empieza en claro (y puede pasar a TLS con ``STLS``).
 
@@ -1450,7 +1523,7 @@ class CheckRuntime:
             ),
             _CheckFamily(
                 applies_to_service=lambda service: self._tls_fetch is not None and (
-                    is_tls_service(service) or is_ftp_service(service)),
+                    is_tls_certificate_service(service)),
                 check_matches=lambda check, service: self._applies_tls(check),
                 run_check=self._run_tls_check,
             ),
@@ -1790,12 +1863,12 @@ class CheckRuntime:
             return self._handshakes[key]
         if self._rl is not None:
             self._rl.acquire(host)
-        # Un FTP en claro cifra a mitad de sesión (AUTH TLS): su certificado,
-        # su versión y su cifrado se auditan igual que los de un HTTPS, pero
-        # hay que pedirlo primero. El 990 es FTPS implícito, TLS desde el
-        # primer byte.
-        if is_ftp_service(service) and not is_tls_service(service) and service.port != 990:
-            info = self._tls_fetch(host, service.port, starttls="ftp")
+        # FTP, SMTP, IMAP y POP3 en claro cifran a mitad de sesión: su
+        # certificado, su versión y su cifrado se auditan igual que los de un
+        # HTTPS, pero hay que pedir el paso a TLS primero.
+        starttls = starttls_protocol_for(service)
+        if starttls is not None:
+            info = self._tls_fetch(host, service.port, starttls=starttls)
         else:
             info = self._tls_fetch(host, service.port)
         self._handshakes[key] = info
@@ -1810,7 +1883,14 @@ class CheckRuntime:
         info = self._probe_handshake(host, service)
         if info is None or not _TLS_RULES[check.tls_rule](info):
             return None
-        return self._finding(check, service)
+        finding = self._finding(check, service)
+        starttls = starttls_protocol_for(service)
+        if starttls is not None:
+            # Que no se confunda con un HTTPS en el informe: este certificado
+            # es el de una conexión que empezó en claro.
+            finding["title"] += (f" (conexión {starttls.upper()} que empezó en claro y pasó "
+                                 f"a TLS con {_STARTTLS_COMMANDS[starttls]})")
+        return finding
 
     def _run_network_check(self, check: Check, host: str, service: Service) -> Optional[dict]:
         """Run one network check against one service, returning a finding if it fired.
