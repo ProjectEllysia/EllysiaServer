@@ -969,7 +969,8 @@ llamar sin argumentos, § 5.6):
   `HygeiaAlertManager`, `HygeiaDocumentManager` y `HygeiaIngestManager` (este liga un `asset_id`).
 
 **Métodos que confían en la comprobación del endpoint** (§ 5.5): reciben el id de un recurso de
-usuario sin `user_id` y dan por hecho que el endpoint ya comprobó al dueño.
+usuario sin `user_id` y dan por hecho que el endpoint ya comprobó al dueño. Es la única regla de
+§ 5.5 que el test no comprueba (§ 11.2), así que esta lista se mantiene a mano.
 - Iris: `IrisManager.get_analysis_status`, `get_analysis_progress`, `get_analysis_results` y
   `delete_analysis`.
 - Themis: `ScanManager.get_scan_by_id`, `get_scan_status`, `delete_scan` y `format_scan`, y
@@ -979,11 +980,11 @@ usuario sin `user_id` y dan por hecho que el endpoint ya comprobó al dueño.
 (`user_id` + `actor_id`) e `IrisSharedMailboxManager` (`user_id` + `member_user_id`).
 
 **Tipo de método equivocado en managers** (§ 5.6):
-- `@staticmethod` que no es `execute_*`: unos 125 en 39 clases. Los más cargados son
-  `LybraEngineManager` (12), `IrisSharedMailboxManager` (7) e `IrisWebhookManager` (7); casi todo
-  Iris es estático.
-- `@classmethod` que no usa `cls`: 13 en 5 clases, casi todos en `ProgramedScanManager` (5) y
-  `ScanManager` (3).
+- `@staticmethod` públicos que no son `execute_*`: 75 en 30 clases. Los más cargados son
+  `IrisSharedMailboxManager` (7), `IrisWebhookManager` (7) e `IrisReportingManager` (6); casi todo
+  Iris es estático. Los estáticos privados no se cuentan aquí: ya salen como métodos privados.
+- `@classmethod` públicos que no usan `cls`: 8, en `ProgramedScanManager`, `ScanManager` e
+  `IrisManager`.
 - Instancias a nivel de módulo: `USER_MANAGER`, `OAUTH_MANAGER` y `MFA_MANAGER` en
   `users/endpoints.py`, y otro `USER_MANAGER` en `aegis/endpoints.py`.
 
@@ -1093,6 +1094,28 @@ Es violación importar un módulo de rango **mayor** que el propio. Los ficheros
 están en ningún módulo cuentan como rango 0. Las tres excepciones autorizadas de § 3.4 no son
 violación: `system/config_reading.py` → `ScanType` de Themis, cualquier fichero →
 `system/config_reading.py`, y un `endpoints.py` → la superficie pública de `users`.
+
+Las reglas 6 a 9 miran las clases **manager**, que son las que se llaman `*Manager`.
+
+**Regla 6 — constructor de manager** (§ 5.5, § 5.6). Es violación un `__init__` de un manager con
+un parámetro de identidad (llamado `user`, `user_id` o `active_user`, o con una anotación que
+menciona `User`), aunque tenga valor por defecto, y cualquier parámetro sin valor por defecto.
+`*args` y `**kwargs` no cuentan. El símbolo es `Clase.__init__`.
+
+**Regla 7 — varios usuarios, uno llamado `user_id`** (§ 5.5). Es violación un método de manager que
+recibe `user_id` y además otro parámetro acabado en `_user_id` o llamado `actor_id`.
+
+**Regla 8 — tipo de método** (§ 5.6). Es violación, en un manager, un `@staticmethod` cuyo nombre no
+empieza por `execute_` y un `@classmethod` cuyo cuerpo no nombra `cls` ni `super`, que lo usa por
+debajo. Los métodos privados no se evalúan, porque ya los señala la regla 2.
+
+**Regla 9 — instancia de manager a nivel de fichero** (§ 5.6). Es violación una asignación en el
+nivel superior de un fichero cuyo valor es una llamada a algo que se llama `*Manager`
+(`USER_MANAGER = UserManager()`). El símbolo es el nombre de la variable.
+
+**Lo que no se comprueba.** Que un manager verifique él mismo al dueño de un recurso (§ 5.5) no se
+puede deducir de la forma del código: un método que recibe un id sin `user_id` puede ser trabajo
+del sistema, que es la excepción legítima. Eso se revisa a mano, con la lista de § 11.1.
 
 #### La lista de excepciones que solo encoge
 
