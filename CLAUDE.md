@@ -234,12 +234,12 @@ con backend RQ+Redis), `worker.py` (entrada del worker), `tracking.py` (`TaskTra
   el cuerpo del job (patrón `execute_*` como costura → cuerpo en la función de módulo `_run_*`).
   Cuándo encolar por la outbox (`build_dispatch` + `OutboxDispatcher`) y cuándo con `submit()`
   directo, y la receta completa: [`CONVENCIONES.md`](CONVENCIONES.md) §7.
-- **Categorías**: `themis.scan`, `themis.report`, `themis.traceroute`, `themis.kbsync`, `aegis.generate`,
+- **Categorías**: `themis.scan`, `themis.report`, `themis.traceroute`, `themis.kbsync`, `themis.osint`, `aegis.generate`,
   `aegis.campaign`, `iris.analyze`, `iris.ai_summary`, `iris.report`, `iris.ingest`,
   `iris.notify`, `iris.enrichment`, `iris.webhook`, `iris.remediation`, `hygeia.notify`, `hygeia.report` (+ `default`). Cada módulo las da de alta en su `__init__.py` con `QueueRegistry.register(...)`;
   los workers escuchan en colas por categoría.
 - **`external_id`**: el prefijo lo declara el manager en `EXTERNAL_ID_PREFIX` (`scan:`,
-  `themis-doc:`, `themis-traceroute:`, `themis-kbsync:`, `aegis-doc:`, `aegis-campaign:`, `iris-analysis:`,
+  `themis-doc:`, `themis-traceroute:`, `themis-kbsync:`, `themis-osint:`, `aegis-doc:`, `aegis-campaign:`, `iris-analysis:`,
   `iris-doc:`, `iris-mailbox-sync:`, `iris-phishing-notify:`, `iris-url-expansion:`, `iris-webhook-delivery:`,
   `iris-mailbox-action:`, `iris-mailbox-subscription:`, `hygeia-doc:`) y `TaskTrackingMixin.external_id_for`
   lo compone. No lo escribas a mano.
@@ -537,6 +537,10 @@ reescribir en masa lo que ya existe y no se está editando.
   el llamante ya resolvió sin tocar la red, así que no hay objetivo que rechazar — los corroboradores
   profundos desde ese modo exigen en su lugar una entrada explícita de objetivo autorizado
   (`deep_requires_authorization = True`).
+  El escaneo pasivo de un dominio (`POST /themis/osint`, `managers/lybra/osint.py`) tampoco pasa
+  por el registro de objetivos autorizados ni por la validación anti-SSRF, por la misma razón: no
+  contacta con ningún equipo del dominio, solo con el DNS público y con las fuentes de terceros
+  activadas. Nunca envía a un tercero una dirección privada.
 - OpenVAS se retiró del producto. Si encuentras referencias en `plans/`, están caducadas.
 - Hay **un solo** `TaskStatus` en el repo (`system/taskqueue/task.py`). El enum duplicado que
   Themis tenía en `services/tasks.py` desapareció; ese fichero lo importa del canónico.
