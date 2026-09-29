@@ -43,6 +43,7 @@ from .checks import (
     is_ldap_service,
     is_dns_service,
     is_mongodb_service,
+    is_mssql_service,
     is_ntp_service,
     is_rdp_service,
     is_postgres_service,
@@ -60,6 +61,7 @@ from .engine import Service
 from .fingerprinting.smb import SIGNING_REQUIRED_BIT, SmbProbe, fingerprint_smb
 from .fingerprinting.ldap import LdapProbe, fingerprint_ldap, search_returned_entries
 from .fingerprinting.mongo import MongoProbe, fingerprint_mongo
+from .fingerprinting.mssql import MssqlProbe, fingerprint_mssql
 from .fingerprinting.postgres import PostgresProbe, fingerprint_postgres
 from .fingerprinting.rdp import RdpProbe, fingerprint_rdp
 from .fingerprinting.snmp import SnmpProbe
@@ -289,6 +291,69 @@ class PostgresPasswordWithoutTlsPlugin(ScriptPlugin):
         if not fingerprint.asks_for_password or fingerprint.accepts_tls is not False:
             return False
         context.evidence.update({"authMethod": fingerprint.auth_method})
+        return True
+
+
+#: Los dos avisos de cifrado de SQL Server, por la postura que los dispara.
+#: Son dos checks y no uno porque su gravedad es distinta: sin cifrado
+#: posible viajan en claro también las credenciales; con cifrado opcional,
+#: el login va cifrado y lo que viaja en claro son las consultas y los datos.
+_MSSQL_ENCRYPTION_POSTURES = {
+    "mssql-encryption-not-supported": "is_encryption_unsupported",
+    "mssql-encryption-not-required": "is_encryption_optional",
+}
+
+
+class MssqlEncryptionPlugin(ScriptPlugin):
+    """Detecta un SQL Server que no exige cifrar la conexión.
+
+    El primer intercambio del protocolo (``PRELOGIN``), sin autenticar, ya trae
+    la postura del servidor sobre el cifrado del canal; el dissector la lee
+    para identificar el producto y aquí se convierte en aviso. Una instancia
+    por postura, igual que las familias de algoritmos de SSH.
+
+    Args:
+        plugin_id: Una clave de :data:`_MSSQL_ENCRYPTION_POSTURES`.
+        probe: Sonda inyectable, para que un test use un socket falso. Por
+            defecto, ``MssqlProbe()``.
+    """
+
+    def __init__(self, plugin_id: str, probe: Optional[MssqlProbe] = None) -> None:
+        self.plugin_id = plugin_id
+        self._posture = _MSSQL_ENCRYPTION_POSTURES[plugin_id]
+        self._probe = probe or MssqlProbe()
+
+    def applies(self, service: Service) -> bool:
+        """Si el servicio es SQL Server.
+
+        Args:
+            service: El servicio candidato.
+
+        Returns:
+            bool: ``True`` para los servicios que reclama ``is_mssql_service``.
+        """
+        return is_mssql_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        """Hace el ``PRELOGIN`` y mira si la postura de cifrado es la de este check.
+
+        Args:
+            context: El contexto del check; su control de tasa se consulta
+                antes de conectar. El modo anunciado va a la evidencia
+                (``encryption``).
+
+        Returns:
+            bool: ``True`` si el servidor anunció la postura de este check;
+                ``False`` si anunció otra, no contestó o no era SQL Server.
+        """
+        context.acquire()
+        response = self._probe.fetch(context.target, context.service.port or 1433)
+        if response is None:
+            return False
+        fingerprint = fingerprint_mssql(response)
+        if not getattr(fingerprint, self._posture):
+            return False
+        context.evidence.update({"encryption": fingerprint.encryption})
         return True
 
 
@@ -1180,6 +1245,7 @@ def default_script_plugins() -> Dict[str, ScriptPlugin]:
         TlsDeprecatedProtocolPlugin(),
     )
     plugins += tuple(TlsWeakCipherFamilyPlugin(plugin_id) for plugin_id in _TLS12_WEAK_CIPHER_FAMILIES)
+    plugins += tuple(MssqlEncryptionPlugin(plugin_id) for plugin_id in _MSSQL_ENCRYPTION_POSTURES)
     ssh_cache = _KexinitCache()
     plugins += tuple(SshWeakAlgorithmsPlugin(family, ssh_cache)
                      for family in _WEAK_ALGORITHM_FAMILIES)
