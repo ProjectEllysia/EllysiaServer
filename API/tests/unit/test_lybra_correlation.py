@@ -397,3 +397,14 @@ def test_check_findings_carry_their_declared_severity():
     wp_config = next(f for f in findings if "wpconfig" in f["check_id"])
     assert wp_config["severity"] == "CRITICAL"
     assert score_finding(wp_config, "public") == "CRITICAL"
+
+
+def test_a_finding_without_host_or_port_is_told_apart_by_its_service_and_is_stable_across_scans():
+    risk = {"host_id": None, "port": None, "category": "lateral_risk",
+            "check_id": "lybra:lateral-exposed-service@1", "service": "group:1|exposed-service|7:SMB"}
+
+    # Estable: el mismo riesgo en dos escaneos (otra versión del check incluida) es la misma clave.
+    assert compute_dedup_key(risk) == compute_dedup_key(
+        {**risk, "check_id": "lybra:lateral-exposed-service@2"})
+    # Distinto: otro riesgo de la misma regla no se funde con él.
+    assert compute_dedup_key(risk) != compute_dedup_key({**risk, "service": "group:1|exposed-service|8:SMB"})

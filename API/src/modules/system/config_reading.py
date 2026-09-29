@@ -1101,6 +1101,14 @@ class LybraEngineConfig:  # pylint: disable=too-many-instance-attributes
     """Intervalo mínimo, en segundos, entre dos peticiones al mismo
     host. Es la cortesía con el objetivo, y manda por encima del pool."""
 
+    rate_limit_max_backoff_factor: float = 8.0
+    """Cuánto puede llegar a frenar el motor, en múltiplos de
+    ``rate_limit_interval``, contra un host que deja de contestar a los checks
+    activos. Tras varios plazos agotados seguidos el intervalo de ese host se
+    duplica en cada fallo hasta este tope, y vuelve poco a poco al base cuando
+    el host contesta de nuevo. Un objetivo que deja de responder suele ser uno
+    que no da abasto. A ``1``, el intervalo es fijo."""
+
     host_pool_size: int = 8
     """Cuántos servicios del **mismo host** se sondan a la vez. El
     fingerprinting y los checks activos son espera de red casi entera, y en fila
@@ -1495,6 +1503,129 @@ def lybra_crawler_config() -> LybraCrawlerConfig:
     return load_block(LybraCrawlerConfig)
 
 
+@config_block("features.themis.scanners.lybra.apiSurface")
+@dataclass(frozen=True)
+class LybraApiSurfaceConfig:
+    """El presupuesto del análisis de la superficie de una API.
+
+    Cuando un servicio web publica su especificación OpenAPI/Swagger, Lybra la
+    lee y prueba, con peticiones sin credenciales, los endpoints que la propia
+    especificación declara protegidos. No es un fuzzer: sólo se prueba lo que
+    el documento declara, y el número de pruebas va acotado.
+    """
+
+    max_endpoints: int = 25
+    """Endpoints derivados de la especificación que se prueban, como mucho, por
+    servicio web. Es el freno principal: una especificación con miles de rutas
+    cuesta lo mismo que una con veinticinco. A cero, no se lee ninguna
+    especificación."""
+
+    max_specification_bytes: int = 1048576
+    """Tamaño máximo de la especificación que se descarga (1 MiB). Una
+    especificación mayor se lee truncada, no se puede parsear y se ignora."""
+
+
+def lybra_api_surface_config() -> LybraApiSurfaceConfig:
+    return load_block(LybraApiSurfaceConfig)
+
+
+_LYBRA_OSINT_DEFAULT_SOURCES = {
+    "crtsh": {"enabled": True, "url": "https://crt.sh/"},
+    "shodan": {"enabled": False, "url": "https://api.shodan.io"},
+    "censys": {"enabled": False, "url": "https://search.censys.io/api/v2"},
+    "securitytrails": {"enabled": False, "url": "https://api.securitytrails.com/v1"},
+}
+
+
+@config_block("features.themis.scanners.lybra.osint")
+@dataclass(frozen=True)
+class LybraOsintConfig:
+    """La inteligencia pasiva de Lybra: fuentes de terceros, su caché y sus topes.
+
+    Certificate Transparency (crt.sh) es gratis y va encendida; Shodan, Censys
+    y SecurityTrails son de pago y con cuota, así que van apagadas y, además
+    de encenderse aquí, necesitan su clave en el entorno
+    (:func:`get_lybra_osint_key`). Una fuente encendida sin clave se omite sin
+    romper el resto.
+    """
+
+    ttl_hours: int = 24
+    """Horas que vale en caché la respuesta de una fuente. Los datos de terceros
+    cambian despacio y cada consulta a una fuente de pago gasta cuota."""
+
+    request_timeout_seconds: int = 30
+    """Tope de cada petición a una fuente y de cada consulta DNS, en segundos."""
+
+    recent_certificate_days: int = 30
+    """Cuántos días atrás cuenta un certificado como «emitido recientemente»."""
+
+    max_subdomains: int = 500
+    """Tope de hallazgos de subdominio por escaneo; la lista completa de
+    subdominios se guarda igualmente."""
+
+    max_host_lookups: int = 10
+    """Cuántos nombres del dominio, como mucho, se resuelven para preguntar a
+    Shodan y Censys por sus direcciones. Cada dirección gasta una consulta de
+    cada fuente."""
+
+    sources: dict = field(default_factory=lambda: {name: dict(settings) for name, settings
+                                                   in _LYBRA_OSINT_DEFAULT_SOURCES.items()})
+    """Interruptor (``enabled``) y URL base (``url``) de cada fuente, por nombre
+    (``crtsh``, ``shodan``, ``censys``, ``securitytrails``)."""
+
+    def is_source_enabled(self, source: str) -> bool:
+        """Si una fuente está encendida en la configuración.
+
+        Args:
+            source: Nombre de la fuente (``"crtsh"``, ``"shodan"``, ``"censys"``
+                o ``"securitytrails"``).
+
+        Returns:
+            bool: ``True`` si su ``enabled`` es verdadero; ``False`` si está
+                apagada o no está configurada.
+        """
+        return bool((self.sources or {}).get(source, {}).get("enabled", False))
+
+    def source_url(self, source: str) -> str:
+        """URL base de una fuente, sin barra final.
+
+        Args:
+            source: Nombre de la fuente.
+
+        Returns:
+            str: La ``url`` configurada o, si falta, la de fábrica; cadena vacía
+                para una fuente desconocida.
+        """
+        configured = (self.sources or {}).get(source, {}).get("url")
+        fallback = _LYBRA_OSINT_DEFAULT_SOURCES.get(source, {}).get("url", "")
+        return str(configured or fallback).rstrip("/")
+
+
+def lybra_osint_config() -> LybraOsintConfig:
+    """Bloque de configuración de la inteligencia pasiva de Lybra.
+
+    Returns:
+        LybraOsintConfig: El bloque ``features.themis.scanners.lybra.osint``.
+    """
+    return load_block(LybraOsintConfig)
+
+
+def get_lybra_osint_key(source: str) -> str:
+    """Clave de API de una fuente de inteligencia pasiva de Lybra, desde el entorno.
+
+    Solo variables de entorno: ``LYBRA_SHODAN_API_KEY``,
+    ``LYBRA_CENSYS_API_KEY`` (con la forma ``<API ID>:<secreto>`` que da
+    Censys) o ``LYBRA_SECURITYTRAILS_API_KEY``. crt.sh no necesita clave.
+
+    Args:
+        source: Nombre de la fuente.
+
+    Returns:
+        str: La clave, o cadena vacía si no está definida (la fuente se omite).
+    """
+    return os.getenv(f"LYBRA_{source.upper()}_API_KEY", "").strip()
+
+
 def nuclei_config() -> NucleiConfig:
     return load_block(NucleiConfig)
 
@@ -1778,6 +1909,10 @@ class LaunchSurface(StrEnum):
     - ``CAMPAIGNS``: envío de campañas de Aegis a destinatarios externos.
     - ``MAILBOX_CONNECTORS``: conexión y sincronización de buzones en Iris.
     - ``EXTERNAL_AI``: generación con proveedores de IA fuera del servidor.
+    - ``EXTERNAL_ENRICHMENT``: consultas de Iris a servicios de terceros sobre
+      los indicadores de un correo (RDAP, reputación, seguir enlaces).
+    - ``WEBHOOKS``: eventos de Iris enviados a un sistema externo que elige el
+      usuario (un SIEM, un SOAR, un canal de chat).
     """
 
     REGISTRATION = "registration"
@@ -1786,6 +1921,8 @@ class LaunchSurface(StrEnum):
     CAMPAIGNS = "campaigns"
     MAILBOX_CONNECTORS = "mailboxConnectors"
     EXTERNAL_AI = "externalAi"
+    EXTERNAL_ENRICHMENT = "externalEnrichment"
+    WEBHOOKS = "webhooks"
 
 
 @config_block("general.launch")
@@ -2609,6 +2746,456 @@ class IrisOcrConfig:
 
 def iris_ocr_config() -> IrisOcrConfig:
     return load_block(IrisOcrConfig)
+
+
+@config_block("features.iris.campaigns")
+@dataclass(frozen=True)
+class IrisCampaignsConfig:
+    """Agrupación de análisis parecidos en campañas (``iris/services/campaigns.py``).
+
+    El parecido se mide con señales deterministas y se compara con un umbral:
+    cuánto pesa cada señal es código (``services/campaigns.py``), porque es la
+    definición de qué cuenta como la misma campaña; aquí solo se ajusta hasta
+    dónde se mira.
+    """
+
+    window_days: int = 14
+    """Días hacia atrás en los que se busca con qué emparejar un análisis
+    nuevo. Una campaña que vuelve pasado ese plazo abre una campaña nueva."""
+
+    similarity_threshold: float = 5.0
+    """Puntuación mínima de parecido para meter dos análisis en la misma
+    campaña. Con los pesos actuales basta una URL o un adjunto compartidos, o
+    el asunto más un dominio, pero no el asunto solo."""
+
+    max_candidates: int = 200
+    """Análisis recientes que se comparan como mucho con uno nuevo; acota el
+    coste de terminar un análisis en una cuenta con mucho volumen."""
+
+
+def iris_campaigns_config() -> IrisCampaignsConfig:
+    return load_block(IrisCampaignsConfig)
+
+
+@config_block("features.iris.graph")
+@dataclass(frozen=True)
+class IrisGraphConfig:
+    """Grafo de comunicación de Iris: quién escribe a quién (``iris/services/graph.py``).
+
+    Son metadatos de correo de personas reales, así que se guardan poco tiempo
+    y solo por usuario.
+    """
+
+    enabled: bool = True
+    """Si se construye el grafo. Apagado, no se guarda ninguna arista nueva
+    ni se busca desviación de contacto; las que ya había caducan solas."""
+
+    habitual_min_messages: int = 3
+    """Mensajes legítimos de un remitente a partir de los cuales es un
+    contacto habitual."""
+
+    retention_days: int = 90
+    """Días sin ver una arista tras los que se borra."""
+
+
+def iris_graph_config() -> IrisGraphConfig:
+    return load_block(IrisGraphConfig)
+
+
+@config_block("features.iris.exports")
+@dataclass(frozen=True)
+class IrisExportsConfig:
+    """Exportación de indicadores de Iris a JSON, STIX 2.1 y MISP."""
+
+    indicator_validity_days: int = 30
+    """Días que un indicador exportado se da por vigente desde la última vez
+    que se vio (``valid_until`` en STIX, ``last_seen`` en MISP). Las
+    infraestructuras de phishing se abandonan en días o semanas; bloquear un
+    dominio para siempre acaba bloqueando al siguiente que lo compre."""
+
+
+def iris_exports_config() -> IrisExportsConfig:
+    return load_block(IrisExportsConfig)
+
+
+@config_block("features.iris.enrichment")
+@dataclass(frozen=True)
+class IrisEnrichmentConfig:
+    """Consultas de Iris a servicios externos sobre un indicador (``iris/services/enrichment/``).
+
+    Son siempre bajo demanda. Además de este interruptor, las cierra la
+    superficie ``externalEnrichment`` de ``general.launch`` mientras la
+    instalación está en vista previa.
+    """
+
+    enabled: bool = True
+    """Si se consulta fuera. Apagado, cada consulta responde ``disabled`` sin
+    hacer red."""
+
+    timeout_seconds: float = 5.0
+    """Tiempo máximo de cada operación de red (conectar, enviar, leer)."""
+
+    max_response_bytes: int = 1024 * 1024
+    """Bytes que se leen como mucho de cada respuesta."""
+
+
+def iris_enrichment_config() -> IrisEnrichmentConfig:
+    return load_block(IrisEnrichmentConfig)
+
+
+@config_block("features.iris.enrichment.rdap")
+@dataclass(frozen=True)
+class IrisRdapConfig:
+    """Contexto de infraestructura de un dominio por RDAP: edad, registrador, red y país."""
+
+    base_url: str = "https://rdap.org"
+    """Servicio RDAP de arranque: redirige a la base de datos del registro
+    que corresponde a cada dominio o IP."""
+
+    ttl_hours: int = 24
+    """Horas que vale una respuesta en caché."""
+
+    negative_ttl_minutes: int = 30
+    """Minutos que se recuerda que el registro no respondió, para no
+    insistir en cada petición."""
+
+    requests_per_minute: int = 30
+    """Consultas por minuto al servicio RDAP desde cada proceso."""
+
+    recent_domain_days: int = 30
+    """Un dominio registrado hace menos días se señala como reciente. Es
+    contexto: no cambia ningún veredicto."""
+
+
+def iris_rdap_config() -> IrisRdapConfig:
+    return load_block(IrisRdapConfig)
+
+
+@config_block("features.iris.enrichment.urlExpansion")
+@dataclass(frozen=True)
+class IrisUrlExpansionConfig:
+    """Seguir los redirects de una URL de un correo hasta su destino real."""
+
+    max_redirects: int = 10
+    """Redirects que se siguen como mucho; un acortador encadenado rara vez
+    pasa de cinco."""
+
+    max_body_bytes: int = 256 * 1024
+    """Bytes que se leen de cada salto: basta para el ``<title>``."""
+
+    ttl_hours: int = 24
+    """Horas que vale una expansión antes de volver a seguirla."""
+
+    requests_per_minute: int = 20
+    """Expansiones por minuto que se encolan desde cada proceso."""
+
+
+def iris_url_expansion_config() -> IrisUrlExpansionConfig:
+    return load_block(IrisUrlExpansionConfig)
+
+
+#: Proveedores de reputación de Iris y el cupo por minuto de cada uno. El de
+#: VirusTotal es el de su API gratuita.
+_THREAT_INTEL_DEFAULT_PROVIDERS = {
+    "virustotal": {"enabled": False, "requestsPerMinute": 4},
+    "urlscan": {"enabled": False, "requestsPerMinute": 30},
+    "phishtank": {"enabled": False, "requestsPerMinute": 30},
+    "urlhaus": {"enabled": False, "requestsPerMinute": 30},
+}
+
+
+@config_block("features.iris.enrichment.threatIntel")
+@dataclass(frozen=True)
+class IrisThreatIntelConfig:
+    """Reputación de un indicador en servicios de terceros (``iris/services/enrichment/threat_intel/``).
+
+    Cada proveedor necesita, además de estar encendido aquí, su clave en el
+    entorno (``get_iris_threat_intel_key``). Solo se les envía el indicador,
+    nunca el correo.
+    """
+
+    ttl_hours: int = 12
+    """Horas que vale en caché lo que dijo un proveedor."""
+
+    negative_ttl_minutes: int = 30
+    """Minutos que se recuerda que un proveedor no respondió."""
+
+    providers: dict = field(default_factory=lambda: dict(_THREAT_INTEL_DEFAULT_PROVIDERS))
+    """Interruptor (``enabled``) y cupo por minuto (``requestsPerMinute``) de
+    cada proveedor, por nombre."""
+
+    def is_provider_enabled(self, provider: str) -> bool:
+        """Si un proveedor está encendido en la configuración.
+
+        Args:
+            provider: Nombre del proveedor.
+
+        Returns:
+            bool: ``True`` si su ``enabled`` es verdadero.
+        """
+        return bool((self.providers or {}).get(provider, {}).get("enabled", False))
+
+    def requests_per_minute(self, provider: str) -> int:
+        """Cupo por minuto de un proveedor.
+
+        Args:
+            provider: Nombre del proveedor.
+
+        Returns:
+            int: Su ``requestsPerMinute``; ``0`` si no está configurado.
+        """
+        return int((self.providers or {}).get(provider, {}).get("requestsPerMinute", 0))
+
+
+def iris_threat_intel_config() -> IrisThreatIntelConfig:
+    return load_block(IrisThreatIntelConfig)
+
+
+@config_block("features.iris.tenant")
+@dataclass(frozen=True)
+class IrisTenantConfig:
+    """Inteligencia de Iris compartida dentro de una organización (``iris/services/tenant.py``)."""
+
+    min_members: int = 3
+    """Miembros distintos que tienen que haber visto un indicador o un
+    dominio para que aparezca en lo compartido. Con menos, un agregado
+    señalaría a una persona concreta («esto solo lo recibió Ana»)."""
+
+    window_days: int = 30
+    """Días hacia atrás que se miran para los indicadores observados."""
+
+    max_items: int = 100
+    """Indicadores y dominios que se enseñan como mucho en cada lista."""
+
+
+def iris_tenant_config() -> IrisTenantConfig:
+    return load_block(IrisTenantConfig)
+
+
+@config_block("features.iris.webhooks")
+@dataclass(frozen=True)
+class IrisWebhooksConfig:
+    """Eventos firmados de Iris hacia sistemas externos (``iris/managers/webhooks.py``).
+
+    Además de estos límites, la superficie ``webhooks`` de ``general.launch``
+    cierra la función mientras la instalación está en vista previa.
+    """
+
+    max_subscriptions_per_user: int = 10
+    """Suscripciones que puede tener un usuario a la vez."""
+
+    max_attempts: int = 8
+    """Intentos de entrega de un evento antes de darlo por fallido, contando
+    el primero."""
+
+    retry_base_seconds: int = 30
+    """Espera tras el primer intento fallido; cada intento siguiente la
+    duplica hasta ``retry_max_seconds``."""
+
+    retry_max_seconds: int = 3600
+    """Espera máxima entre dos intentos de una misma entrega."""
+
+    disable_after_consecutive_failures: int = 20
+    """Intentos fallidos seguidos, sumando todas sus entregas, tras los que una
+    suscripción se desactiva sola. Cualquier entrega que llega pone la cuenta
+    a cero."""
+
+    timeout_seconds: float = 10.0
+    """Tiempo máximo de cada operación de red al entregar."""
+
+    max_response_bytes: int = 4096
+    """Bytes de la respuesta del receptor que se leen (y se guardan para
+    diagnosticar); el cuerpo de la respuesta no se interpreta."""
+
+    retry_sweep_interval_seconds: int = 60
+    """Cada cuánto busca el scheduler entregas pendientes cuyo reintento ya
+    toca."""
+
+    delivery_retention_days: int = 30
+    """Días que se conserva el historial de entregas terminadas."""
+
+
+def iris_webhooks_config() -> IrisWebhooksConfig:
+    return load_block(IrisWebhooksConfig)
+
+
+@config_block("features.iris.reporting")
+@dataclass(frozen=True)
+class IrisReportingConfig:
+    """Canal de reporte de Iris: tokens con que un cliente de correo reporta mensajes."""
+
+    max_tokens_per_user: int = 10
+    """Tokens de integración vigentes que puede tener un usuario a la vez."""
+
+    default_token_lifetime_days: int = 180
+    """Días que vale un token si al crearlo no se dice otra cosa."""
+
+    max_token_lifetime_days: int = 365
+    """Días que puede valer un token como mucho. Un token que no caduca nunca
+    es el que se queda olvidado en un portátil viejo."""
+
+
+def iris_reporting_config() -> IrisReportingConfig:
+    return load_block(IrisReportingConfig)
+
+
+@config_block("features.iris.remediation")
+@dataclass(frozen=True)
+class IrisRemediationConfig:
+    """Acciones de Iris sobre el buzón conectado del usuario (``iris/managers/remediation.py``)."""
+
+    quarantine_folder_name: str = "Iris Cuarentena"
+    """Nombre de la etiqueta de Gmail o la carpeta de Outlook adonde va un
+    correo en cuarentena. Se crea la primera vez que hace falta."""
+
+    suspicious_label_name: str = "Iris: sospechoso"
+    """Etiqueta de Gmail o categoría de Outlook con que se marca un correo
+    sospechoso sin moverlo."""
+
+
+def iris_remediation_config() -> IrisRemediationConfig:
+    return load_block(IrisRemediationConfig)
+
+
+@config_block("features.iris.events")
+@dataclass(frozen=True)
+class IrisMailboxEventsConfig:
+    """Ingesta por eventos: el proveedor avisa de correo nuevo y eso despierta el sync.
+
+    Viene apagada: hace falta que la instalación tenga una URL pública
+    alcanzable por Google y Microsoft y, para Gmail, un tema de Pub/Sub. Con
+    ella apagada, o con una suscripción rota, todo sigue por sondeo.
+    """
+
+    enabled: bool = False
+    """Si se crean suscripciones a eventos para las conexiones activas."""
+
+    fallback_poll_interval_minutes: int = 30
+    """Cada cuánto se sondea igualmente una conexión con la suscripción sana:
+    es la red de seguridad por si un aviso se pierde. Sin suscripción sana se
+    sondea a ``pollIntervalMinutes``."""
+
+    renew_before_hours: int = 12
+    """Horas antes de caducar a partir de las que se renueva una suscripción
+    (las de Gmail duran 7 días; las de Graph, unos 3)."""
+
+    renew_check_interval_minutes: int = 60
+    """Cada cuánto se revisan suscripciones por renovar, que faltan o que
+    fallaron."""
+
+    debounce_seconds: int = 30
+    """Una ráfaga de avisos de la misma conexión dentro de este margen
+    despierta un solo sync: el sync recoge todo lo nuevo de una vez."""
+
+    max_event_age_minutes: int = 60
+    """Un aviso de Gmail publicado hace más de esto se ignora (reenvío tardío
+    o repetido); el sondeo cubre lo que pudiera traer."""
+
+    graph_subscription_minutes: int = 4200
+    """Duración que se pide para una suscripción de Graph a mensajes (el
+    máximo que admite Microsoft ronda los 4230 minutos)."""
+
+
+def iris_mailbox_events_config() -> IrisMailboxEventsConfig:
+    return load_block(IrisMailboxEventsConfig)
+
+
+@config_block("features.iris.sharedMailboxes")
+@dataclass(frozen=True)
+class IrisSharedMailboxesConfig:
+    """Límites de los buzones compartidos de una organización y de las carpetas por conexión."""
+
+    max_per_organization: int = 10
+    """Buzones compartidos que puede conectar una organización."""
+
+    max_members_per_mailbox: int = 50
+    """Personas con acceso a un mismo buzón compartido."""
+
+    max_folders_per_connection: int = 5
+    """Carpetas que vigila una conexión, contando la principal."""
+
+
+def iris_shared_mailboxes_config() -> IrisSharedMailboxesConfig:
+    return load_block(IrisSharedMailboxesConfig)
+
+
+@config_block("features.iris.imap")
+@dataclass(frozen=True)
+class IrisImapConfig:
+    """Conexiones IMAP: siempre con TLS, contra servidores de internet y con un tope por sync."""
+
+    allowed_ports: list = field(default_factory=lambda: [993])
+    """Puertos admitidos. Solo IMAP sobre TLS directo (993 por defecto): no
+    se admite IMAP en claro ni STARTTLS, que un intermediario puede degradar."""
+
+    timeout_seconds: int = 20
+    """Tiempo máximo de cada operación contra el servidor."""
+
+    max_messages_per_sync: int = 200
+    """Mensajes nuevos que se recogen como mucho en un sync; el resto, en el siguiente."""
+
+
+def iris_imap_config() -> IrisImapConfig:
+    return load_block(IrisImapConfig)
+
+
+def get_mailbox_service_account_environment() -> dict[str, str]:
+    """Credenciales de las cuentas de servicio de buzón, desde el entorno.
+
+    Con ellas la instalación lee un buzón (típicamente uno compartido) sin que
+    ninguna persona inicie sesión: en Google Workspace, una cuenta de servicio
+    con delegación de dominio limitada a ``gmail.readonly``; en Microsoft 365,
+    una aplicación de Entra ID con el permiso de aplicación ``Mail.Read``
+    (conviene restringirla a los buzones concretos con una *application
+    access policy* de Exchange).
+
+    Returns:
+        dict: ``gmail_service_account_file`` (ruta al JSON de la cuenta de
+            servicio de Google), ``graph_tenant_id``, ``graph_client_id`` y
+            ``graph_client_secret`` (la aplicación de Microsoft); cadenas
+            vacías si no están definidas.
+    """
+    return {
+        "gmail_service_account_file": os.getenv("GMAIL_SERVICE_ACCOUNT_FILE", "").strip(),
+        "graph_tenant_id": os.getenv("GRAPH_SERVICE_TENANT_ID", "").strip(),
+        "graph_client_id": os.getenv("GRAPH_SERVICE_CLIENT_ID", "").strip(),
+        "graph_client_secret": os.getenv("GRAPH_SERVICE_CLIENT_SECRET", "").strip(),
+    }
+
+
+def get_gmail_events_environment() -> dict[str, str]:
+    """Lo que necesita la ingesta por eventos de Gmail, desde el entorno.
+
+    Gmail no llama a una URL directamente: publica en un tema de Google Cloud
+    Pub/Sub, y una suscripción de empuje de ese tema llama a
+    ``/iris/mailbox/events/gmail?token=<IRIS_GMAIL_PUSH_TOKEN>``.
+
+    Returns:
+        dict: ``topic`` (``GMAIL_PUBSUB_TOPIC``, ``projects/<p>/topics/<t>``) y
+            ``push_token`` (``IRIS_GMAIL_PUSH_TOKEN``); cadenas vacías si no
+            están definidas (entonces Gmail sigue solo por sondeo).
+    """
+    return {
+        "topic": os.getenv("GMAIL_PUBSUB_TOPIC", "").strip(),
+        "push_token": os.getenv("IRIS_GMAIL_PUSH_TOKEN", "").strip(),
+    }
+
+
+def get_iris_threat_intel_key(provider: str) -> str:
+    """Clave de API de un proveedor de reputación de Iris, desde el entorno.
+
+    Solo variables de entorno: ``IRIS_VIRUSTOTAL_API_KEY``,
+    ``IRIS_URLSCAN_API_KEY``, ``IRIS_PHISHTANK_API_KEY`` o
+    ``IRIS_URLHAUS_API_KEY``.
+
+    Args:
+        provider: Nombre del proveedor.
+
+    Returns:
+        str: La clave, o cadena vacía si no está definida (el proveedor queda
+            fuera).
+    """
+    return os.getenv(f"IRIS_{provider.upper()}_API_KEY", "").strip()
 
 
 # --- Datasets y pesos: buscados por clave, no por campo ---------------------

@@ -81,7 +81,9 @@ logger = logging.getLogger(__name__)
 # checks-23: las familias de WordPress y Drupal.
 # checks-24: el hallazgo de criptografia debil en IKE.
 # checks-25: marcas de tiempo TCP.
-CHECKS_FEED_VERSION = "lybra-checks-25"
+# checks-26: la familia session-cookie-without-* ya ve todas las Set-Cookie de
+# la respuesta, no solo la primera.
+CHECKS_FEED_VERSION = "lybra-checks-27"
 # Quality of Detection for a finding a check actively confirmed, as opposed to
 # one merely inferred from a version.
 QOD_CONFIRMED = 99
@@ -221,7 +223,11 @@ class Response:
     Attributes:
         status: The HTTP status code.
         body: The response body, decoded to text.
-        headers: The response headers, with their keys lowercased.
+        headers: The response headers, with their keys lowercased. When a name
+            arrived repeated (several ``Set-Cookie``, most commonly), its
+            value is the join of every occurrence separated by ``"\n"`` — see
+            :func:`_merge_repeated_headers` — so no occurrence after the first
+            is silently dropped.
         url: La URL final, tras las redirecciones que se hayan seguido. Vacía
             si no se sabe (un doble de test que no la rellena).
         requested_scheme: El esquema con el que se pidió (``"http"`` o
@@ -294,9 +300,23 @@ def _part_text(response: Response, part: str) -> str:
     ``"http->https"`` para un puerto en claro que redirige a HTTPS. Es lo que
     deja a un check de cabeceras decir «sólo sobre HTTPS» o «no sobre una
     redirección», que la presencia de una cabecera no puede expresar.
+
+    Cuando una misma cabecera llegó repetida (varias ``Set-Cookie``, típicamente),
+    ``response.headers`` guarda sus valores unidos por ``"\\n"`` (ver
+    :func:`_merge_repeated_headers`); aquí se reparte esa unión en una línea
+    ``"nombre: valor"`` por cada aparición, en vez de imprimir el nombre una
+    sola vez seguido de un valor multilínea. Los matchers de tipo ``regex``
+    sobre ``part: header`` usan anclas ``^``/``$`` en modo multilínea (p. ej.
+    ``(?im)^set-cookie:\\s*...``) para aislar una cabecera de las demás; con el
+    nombre una sola vez, la segunda ``Set-Cookie`` aparecería en una línea sin
+    el prefijo ``set-cookie:`` y ningún matcher la reconocería.
     """
     if part == "header":
-        return "\n".join(f"{name}: {value}" for name, value in response.headers.items())
+        return "\n".join(
+            f"{name}: {single_value}"
+            for name, value in response.headers.items()
+            for single_value in value.split("\n")
+        )
     if part == "status":
         return str(response.status)
     if part == "url":
@@ -746,6 +766,15 @@ CHECK_CATEGORIES = (
     "tls",
     "vulnerability",
     "web_finding",
+    # Lo que una API deja a la vista —su especificación, el esquema GraphQL, un
+    # endpoint sin autenticación—: no es un fichero olvidado (`exposed_path`)
+    # sino el contrato de la API entero, y se agrupa aparte para poder listar
+    # la superficie de API de un escaneo.
+    "api_exposure",
+    # Un recurso en la nube (un bucket, una base, un subdominio reclamable) que
+    # no tiene host ni puerto: se declara o se descubre por OSINT, no se
+    # encuentra escaneando.
+    "cloud_exposure",
 )
 
 # Los tipos de matcher que ``Matcher._raw_match`` implementa. Cualquier otro
@@ -1175,15 +1204,10 @@ def _network_service_matchers() -> Dict[str, Callable[[Service], bool]]:
 _NETWORK_SERVICE_MATCHERS: Dict[str, Callable[[Service], bool]] = _network_service_matchers()
 
 
-# Protocol versions considered deprecated/weak for a service exposed today.
-_WEAK_TLS_PROTOCOLS = {"SSLv2", "SSLv3", "TLSv1", "TLSv1.1"}
-
-# Familias de cifrado que hoy se consideran débiles: sin autenticación (aNULL),
-# sin cifrado (eNULL), exportación, DES/3DES, RC4 y MD5. El nombre del suite
-# negociado los delata como subcadena — "ECDHE-RSA-DES-CBC3-SHA" trae "DES", y
-# "TLS_RSA_WITH_RC4_128_SHA" trae "RC4". Se compara en mayúsculas porque OpenSSL
-# y la RFC nombran los suites en formatos distintos.
-_WEAK_TLS_CIPHER_TOKENS = ("NULL", "EXPORT", "DES", "RC4", "MD5", "_CBC3_", "3DES")
+# La versión obsoleta y el cifrado débil no son reglas de aquí: la conexión
+# normal negocia lo mejor que el servidor acepta y nunca los enseña. Los dos se
+# preguntan ofreciendo sólo lo débil, con plugins ``script``
+# (``tls-deprecated-protocol`` y ``tls-weak-cipher`` en ``script_checks``).
 
 # TLS hygiene rules a ``type: "tls"`` check can reference via ``tlsRule`` in the
 # feed. Each takes the ``TlsInfo`` a probe returned (duck-typed — this module
@@ -1193,10 +1217,7 @@ _TLS_RULES: Dict[str, Callable] = {
     "self_signed": lambda info: info.self_signed,
     "expired": lambda info: info.expired,
     "expiring_soon": lambda info: not info.expired and info.days_until_expiry is not None and info.days_until_expiry <= 30,
-    "deprecated_protocol": lambda info: info.protocol in _WEAK_TLS_PROTOCOLS,
     "hostname_mismatch": lambda info: getattr(info, "is_name_mismatch", False),
-    "weak_cipher": lambda info: bool(info.cipher) and any(
-        token in info.cipher.upper() for token in _WEAK_TLS_CIPHER_TOKENS),
 }
 
 
@@ -1311,6 +1332,12 @@ class CheckRuntime:
             the check is abandoned rather than counted as a hit.
         mode: ``"safe"`` runs only checks marked safe; ``"aggressive"`` runs both.
         rate_limiter: An optional per-host limiter applied before each request.
+            El runtime le cuenta además si cada petición HTTP y cada apertura
+            de sesión ``network`` obtuvo respuesta, para que frene ante un
+            objetivo que deja de contestar (ver :class:`HostRateLimiter`).
+            Los handshakes TLS y los plugins ``script`` sólo piden turno: un
+            handshake fallido dice más del protocolo que de la carga del
+            objetivo.
         tls_fetch: An optional ``(host, port) -> TlsInfo | None`` callable for
             ``type: "tls"`` checks. When omitted, TLS checks are simply skipped
             — callers that never wire a TLS probe pay nothing for this family.
@@ -1674,6 +1701,24 @@ class CheckRuntime:
         A transport failure is remembered too. Not caching it would mean three
         attempts against a service that is down — the case where retrying costs
         the most and informs the least.
+
+        El resultado de cada petición que sí sale se le cuenta al limitador
+        (ver :meth:`HostRateLimiter.report_failure`): un ``None`` del
+        ``fetch`` es una petición sin respuesta, y cualquier respuesta, sea
+        del código que sea, es un objetivo que contesta. Una respuesta sacada
+        de la caché no se cuenta: no ha tocado la red.
+
+        Args:
+            host: El host destino.
+            service: El servicio al que va la petición.
+            method: El método HTTP.
+            path: La ruta ya sustituida.
+            body: El cuerpo de la petición, o ``None``. Por defecto ``None``.
+            headers: Cabeceras extra, o ``None``. Por defecto ``None``.
+
+        Returns:
+            Optional[Response]: La respuesta, o ``None`` si la petición no
+                obtuvo ninguna (ahora o en la llamada que la cacheó).
         """
         header_key = tuple(sorted(headers.items())) if headers else None
         key = (host, service.port, method, path, body, header_key)
@@ -1685,6 +1730,7 @@ class CheckRuntime:
             response = self._fetch(host, service.port, method, path)
         else:
             response = self._fetch(host, service.port, method, path, body, headers)
+        _report_outcome(self._rl, host, has_answered=response is not None)
         self._responses[key] = response
         return response
 
@@ -1735,10 +1781,25 @@ class CheckRuntime:
         already in the socket buffer at connect time, so leaving it there would
         put every later read one reply out of step — the check would evaluate
         ``USER``'s matchers against the greeting and never fire.
+
+        Que la conexión se abra o no es lo que se le cuenta al limitador: una
+        conexión que no llega a abrirse es un objetivo que no contesta. Lo que
+        pase después dentro de la sesión no se cuenta, porque un servicio que
+        cierra ante un comando que no entiende sí está contestando.
+
+        Args:
+            check: El check ``network`` a ejecutar.
+            host: El host destino.
+            service: El servicio contra el que corre.
+
+        Returns:
+            Optional[dict]: El hallazgo si todas las peticiones casaron, o
+                ``None`` si alguna no lo hizo o la conexión no se abrió.
         """
         if self._rl is not None:
             self._rl.acquire(host)
         session = self._network_open(host, service.port)
+        _report_outcome(self._rl, host, has_answered=session is not None)
         if session is None:
             return None
         try:
@@ -1812,7 +1873,17 @@ class CheckRuntime:
 # HTTP PROBE + RATE LIMITER (the network edge)
 # =========================================================================
 
-class HostRateLimiter:
+#: Fallos seguidos contra un host antes de empezar a frenar. Tres y no uno:
+#: un paquete perdido o un servicio lento de vez en cuando no es un objetivo
+#: saturado, y frenar por un fallo suelto alargaría escaneos sanos.
+_FAILURES_BEFORE_BACKOFF = 3
+
+#: Cuánto se multiplica el intervalo de un host en cada fallo por encima del
+#: umbral. Duplicar es la reducción multiplicativa clásica de un AIMD: basta
+#: con unos pocos fallos para llegar al tope.
+_BACKOFF_MULTIPLIER = 2.0
+
+class HostRateLimiter:  # pylint: disable=too-many-instance-attributes
     """Enforces a minimum interval between requests to the same host.
 
     Thread-safe, so it can be shared across concurrent probes without letting any
@@ -1831,34 +1902,83 @@ class HostRateLimiter:
     current one) is what makes concurrent callers for the same host stagger
     instead of all waking up at the same instant and firing together.
 
+    **El intervalo se adapta al objetivo** (un AIMD reducido: aumento aditivo
+    del ritmo, reducción multiplicativa). Quien usa el limitador y ve el
+    resultado de cada petición se lo cuenta con :meth:`report_failure` y
+    :meth:`report_success`. Tras ``failures_before_backoff`` fallos seguidos
+    contra un host —plazos agotados, conexiones que no llegan a abrirse—, el
+    intervalo de **ese** host se duplica en cada fallo nuevo, hasta
+    ``max_backoff_factor`` veces el intervalo base. Cada respuesta que llega
+    corta la racha de fallos y le quita al intervalo un intervalo base, hasta
+    volver al configurado. Un objetivo que deja de contestar suele ser un
+    objetivo que no da abasto, y seguir enviándole al mismo ritmo es la forma
+    de tumbar un appliance frágil; el propósito es la cortesía, no la
+    velocidad. Sin avisos, o con ``max_backoff_factor`` a ``1``, el limitador
+    se comporta como un intervalo fijo.
+
     Args:
         min_interval: The minimum time, in seconds, between two requests to the
-            same host.
+            same host. Es también el suelo del intervalo adaptado: nunca se
+            baja de él.
         clock: An injectable monotonic clock, so a test can assert the schedule
             instead of waiting for it.
         sleeper: An injectable sleep, same reason.
+        max_backoff_factor: Cuántas veces el intervalo base puede llegar a
+            valer el intervalo de un host que no contesta. Cualquier número
+            ``>= 1``; un valor menor se trata como ``1``. Por defecto ``1.0``:
+            sin adaptación, que es lo que espera quien no informa de
+            resultados.
+        failures_before_backoff: Fallos **seguidos** contra un host antes de
+            empezar a ampliar su intervalo. Un fallo suelto es ruido de red,
+            no un objetivo saturado. Entero ``>= 1``; un valor menor se trata
+            como ``1``. Por defecto ``3``.
     """
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         min_interval: float = 0.2,
         clock: Callable[[], float] = time.monotonic,
         sleeper: Callable[[float], None] = time.sleep,
+        max_backoff_factor: float = 1.0,
+        failures_before_backoff: int = _FAILURES_BEFORE_BACKOFF,
     ) -> None:
+        """Prepara un limitador sin ningún host visto todavía.
+
+        Args:
+            min_interval: Intervalo base entre dos peticiones al mismo host,
+                en segundos. Por defecto ``0.2``.
+            clock: Reloj monótono inyectable. Por defecto ``time.monotonic``.
+            sleeper: Espera inyectable. Por defecto ``time.sleep``.
+            max_backoff_factor: Tope del intervalo adaptado, en múltiplos del
+                base. Por defecto ``1.0`` (sin adaptación).
+            failures_before_backoff: Fallos seguidos antes de ampliar el
+                intervalo. Por defecto ``3``.
+        """
         self._min = min_interval
         self._last: Dict[str, float] = {}
         self._lock = threading.Lock()
         self._clock = clock
         self._sleeper = sleeper
+        self._max_interval = min_interval * max(1.0, float(max_backoff_factor))
+        self._failures_before_backoff = max(1, int(failures_before_backoff))
+        # Sólo los hosts que se han salido del ritmo base tienen entrada aquí;
+        # el resto usa ``self._min``. Así un limitador al que nadie informa
+        # nunca guarda estado de más ni cambia su comportamiento.
+        self._interval_by_host: Dict[str, float] = {}
+        self._failure_streak_by_host: Dict[str, int] = {}
 
     def acquire(self, host: str) -> None:
         """Block, if necessary, until it is safe to hit ``host`` again.
+
+        El intervalo que se respeta es el del host en este momento: el base,
+        o el ampliado si el host viene fallando (ver :meth:`report_failure`).
 
         Args:
             host: The host about to be requested.
         """
         with self._lock:
             now = self._clock()
+            interval = self._interval_by_host.get(host, self._min)
             # El turno se reserva escribiendo la marca *futura*, no la actual:
             # así dos hilos que piden el mismo host se escalonan en vez de
             # despertarse a la vez y disparar juntos.
@@ -1868,11 +1988,95 @@ class HostRateLimiter:
             # infinitamente atrás), pero contra uno inyectado que empiece en
             # cero, ese 0.0 haría esperar a la primera petición de cada host.
             last_turn = self._last.get(host)
-            earliest = now if last_turn is None else max(now, last_turn + self._min)
+            earliest = now if last_turn is None else max(now, last_turn + interval)
             self._last[host] = earliest
         wait = earliest - now
         if wait > 0:
             self._sleeper(wait)
+
+    def report_failure(self, host: str) -> None:
+        """Anota que una petición a ``host`` no obtuvo respuesta.
+
+        Cuenta como fallo lo que sugiere un objetivo que no da abasto o que
+        ha dejado de ser alcanzable: un plazo agotado o una conexión que no
+        llega a abrirse. Una respuesta de error del servicio (un 404, un
+        ``-ERR``) **no** es un fallo: el objetivo contestó.
+
+        A partir de ``failures_before_backoff`` fallos seguidos, cada fallo
+        nuevo duplica el intervalo de ese host, sin pasar del tope. Los demás
+        hosts no se ven afectados.
+
+        Args:
+            host: El host cuya petición falló.
+        """
+        with self._lock:
+            streak = self._failure_streak_by_host.get(host, 0) + 1
+            self._failure_streak_by_host[host] = streak
+            if streak < self._failures_before_backoff:
+                return
+            current = self._interval_by_host.get(host, self._min)
+            widened = min(current * _BACKOFF_MULTIPLIER, self._max_interval)
+            if widened <= current:
+                return
+            self._interval_by_host[host] = widened
+        logger.info(
+            "%s no responde (%s fallos seguidos): el intervalo entre peticiones pasa a %.2f s",
+            host, streak, widened,
+        )
+
+    def report_success(self, host: str) -> None:
+        """Anota que una petición a ``host`` obtuvo respuesta.
+
+        Corta la racha de fallos del host y, si su intervalo estaba ampliado,
+        le resta un intervalo base: la recuperación es gradual, para no volver
+        de golpe al ritmo que lo saturó. Nunca baja del intervalo base.
+
+        Args:
+            host: El host que contestó.
+        """
+        with self._lock:
+            self._failure_streak_by_host.pop(host, None)
+            current = self._interval_by_host.get(host)
+            if current is None:
+                return
+            restored = current - self._min
+            if restored <= self._min:
+                del self._interval_by_host[host]
+            else:
+                self._interval_by_host[host] = restored
+
+    def get_interval_seconds(self, host: str) -> float:
+        """Devuelve el intervalo que se aplica ahora mismo a ``host``.
+
+        Args:
+            host: El host a consultar.
+
+        Returns:
+            float: El intervalo en segundos: el base si el host no está
+                frenado (o nunca se ha visto), o el ampliado si lo está.
+        """
+        with self._lock:
+            return self._interval_by_host.get(host, self._min)
+
+
+def _report_outcome(rate_limiter: Optional[HostRateLimiter], host: str, has_answered: bool) -> None:
+    """Cuenta al limitador si una petición a ``host`` obtuvo respuesta.
+
+    Existe para que cada punto del runtime que ve el resultado de una
+    petición informe con una sola línea, haya limitador o no.
+
+    Args:
+        rate_limiter: El limitador de la ejecución, o ``None`` si no hay.
+        host: El host al que iba la petición.
+        has_answered: ``True`` si el objetivo contestó (con lo que sea);
+            ``False`` si la petición no llegó a obtener respuesta.
+    """
+    if rate_limiter is None:
+        return
+    if has_answered:
+        rate_limiter.report_success(host)
+    else:
+        rate_limiter.report_failure(host)
 
 
 def negotiates_tls(host: str, port: int, timeout: float = 5.0, connect: Optional[Callable] = None) -> bool:
@@ -1937,6 +2141,49 @@ def _format_netloc(host: str, port: Optional[int]) -> str:
         is_ipv6 = False
     netloc_host = f"[{host}]" if is_ipv6 else host
     return f"{netloc_host}:{port}" if port else netloc_host
+
+
+def _merge_repeated_headers(raw_headers) -> Dict[str, str]:
+    """Aplana las cabeceras HTTP de una respuesta a ``Dict[str, str]`` sin perder repetidas.
+
+    ``dict(response.headers)`` sobre un ``http.client.HTTPMessage`` (lo que
+    devuelve ``urllib``) se queda solo con la primera aparición de cada nombre:
+    con varias ``Set-Cookie`` en la misma respuesta —una de sesión y otra, por
+    ejemplo, de preferencias— la segunda desaparecía antes de llegar a los
+    matchers de ``part: header``, así que un check como
+    ``session-cookie-without-secure`` nunca veía la cookie de sesión si no era
+    la primera. Esta función recorre ``raw_headers.items()`` (que sí conserva
+    cada repetición) y une los valores de un mismo nombre con ``"\\n"``.
+
+    No se usa ``", "`` como separador porque no es seguro para ``Set-Cookie``:
+    el atributo ``Expires`` de una cookie puede contener una coma
+    (``Expires=Wed, 21 Oct 2026 07:28:00 GMT``), así que unir con coma
+    fusionaría dos cookies distintas en un valor ambiguo. El salto de línea no
+    tiene ese problema y además es el separador natural para
+    ``_part_text``, que ya imprime una línea por cabecera.
+
+    Args:
+        raw_headers: La colección de cabeceras tal como la entrega la
+            librería HTTP — un ``http.client.HTTPMessage`` (con ``.items()``
+            devolviendo todas las repeticiones) o, en el camino de error donde
+            puede no haber cabeceras, un ``dict`` vacío o ``None``-safe ya
+            resuelto por el llamante.
+
+    Returns:
+        Dict[str, str]: Un nombre de cabecera por clave; si apareció varias
+            veces, el valor es la unión de todas sus apariciones separadas por
+            ``"\\n"``, en el orden en que llegaron.
+    """
+    merged: Dict[str, str] = {}
+    seen_case: Dict[str, str] = {}  # nombre en minúsculas -> primera grafía vista
+    for name, value in raw_headers.items():
+        name, value = str(name), str(value)
+        canonical = seen_case.setdefault(name.lower(), name)
+        if canonical in merged:
+            merged[canonical] = f"{merged[canonical]}\n{value}"
+        else:
+            merged[canonical] = value
+    return merged
 
 
 class HttpProbe:
@@ -2064,11 +2311,12 @@ class HttpProbe:
         try:
             request = urllib.request.Request(url, method=method, headers=request_headers, data=data)
             with self._opener.open(request, timeout=self._timeout) as response:
-                return (response.status, response.read(self._max_bytes), dict(response.headers),
+                return (response.status, response.read(self._max_bytes), _merge_repeated_headers(response.headers),
                         response.geturl(), scheme)
         except urllib.error.HTTPError as err:
             body = err.read(self._max_bytes) if hasattr(err, "read") else b""
-            return err.code, body, dict(err.headers or {}), getattr(err, "url", url) or url, scheme
+            return (err.code, body, _merge_repeated_headers(err.headers or {}),
+                    getattr(err, "url", url) or url, scheme)
         except Exception as err:  # noqa: BLE001 - transport failure: abandon this check
             logger.debug("HTTP probe failed for %s: %s", url, err)
             return None

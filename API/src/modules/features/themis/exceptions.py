@@ -173,6 +173,31 @@ class DuplicateAuthorizedTargetError(ScanError):
         )
 
 
+class AssetGroupNotFoundError(EntityNotFoundError, ScanError):
+    """El grupo de activos no existe o no es del usuario."""
+
+    default_code = ErrorCode.ASSET_GROUP_NOT_FOUND
+    entity_label = "Grupo de activos"
+    id_field = "group_id"
+
+
+class DuplicateAssetGroupError(ScanError):
+    """El usuario ya tiene un grupo de activos con ese nombre."""
+
+    default_code = ErrorCode.ASSET_GROUP_ALREADY_EXISTS
+    default_status_code = 409
+    default_severity = ErrorSeverity.LOW
+
+    def __init__(self, name: str):
+        super().__init__(
+            message=f"Ya existe un grupo de activos llamado '{name}'",
+            details={"name": name},
+            user_message=f"Ya tienes un grupo de activos llamado «{name}».",
+            message_key="duplicateAssetGroup",
+            params={"name": name}
+        )
+
+
 class ComplianceOrganizationNotOwnedError(EllysiaException):
     """Quien intenta fijar los marcos de cumplimiento de una organización no es su dueño.
 

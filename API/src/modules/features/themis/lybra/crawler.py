@@ -17,6 +17,42 @@ Este módulo es la capa pura: recibe un ``fetch`` inyectado (la misma forma que
 de ORM — igual que el resto de ``lybra/``. **Sólo hace ``GET``** y **no sale
 del origen** que se le da. Todo el coste va acotado por tres topes: número de
 páginas, profundidad de enlaces y tiempo.
+
+**Análisis web activo (DAST-lite): archivado, no pendiente** (2026-09-28). El
+paso natural desde este rastreador sería dejar de limitarse a descubrir y
+pasar a probar: extender el descubrimiento a formularios y parámetros, y
+mandarles sondas acotadas con un marcador único —XSS reflejado que busca el
+marcador en la respuesta, inyección SQL por error o por tiempo, inyección de
+plantilla con un marcador aritmético, redirección abierta—.
+
+No se va a construir, y la razón de fondo tiene tres partes. La primera es que
+la condición que lo justificaría —que el uso real de Ellysia sea
+mayoritariamente web— nunca se ha medido; construirlo sin esa medida es una
+apuesta, no una respuesta a una necesidad confirmada. La segunda es que, de
+tener que recortar alcance en algún sitio, esto es lo primero que se sacrifica:
+no es el núcleo del motor. La tercera es la que más pesa: es el punto del
+motor donde más fácil es hacer daño de verdad. Una inyección SQL por tiempo
+mal acotada puede tumbar un servicio; un XSS almacenado que se dispara sin
+querer deja basura permanente en la base de datos de un cliente. El coste de
+un fallo aquí es de otra naturaleza que en cualquier otro rincón de Lybra, y
+este rastreador se queda deliberadamente en sólo ``GET`` por eso mismo.
+
+Lo que cubre la necesidad hoy: Themis ya integra Nuclei como escáner de pleno
+derecho y como corroborador. Para la parte de análisis web activo que un
+cliente pida, Nuclei con las plantillas adecuadas cubre buena parte sin
+escribir ni mantener un DAST propio, y encaja con la doctrina del proyecto de
+integrar un binario con un feed en vez de una plataforma.
+
+Qué haría falta para reabrirlo: una medición que muestre que el uso real son
+mayoritariamente objetivos web —por ejemplo, que la mayoría de los servicios
+escaneados en un periodo representativo sean HTTP/HTTPS— **y** una necesidad
+concreta que las plantillas de Nuclei no cubran. Y si se reabre, con guardas
+desde el primer día: rastreo del mismo origen con presupuesto duro (URLs,
+profundidad, tiempo), sondas de solo marcador que nunca modifican estado, modo
+``aggressive`` obligatorio y sólo contra objetivos del registro de
+autorización, y nunca automático —fuera del pipeline por defecto y del
+análisis profundo, sólo a petición explícita—. No es un "todavía no": es un
+"no, y por esto".
 """
 
 from __future__ import annotations

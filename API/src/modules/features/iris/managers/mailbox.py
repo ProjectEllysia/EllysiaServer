@@ -24,7 +24,7 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from sqlalchemy import update
 
 import src.modules.system.config_reading as CR
-from src.modules.accounts import LimitKey, QuotaManager
+from src.modules.accounts import LimitKey, OrganizationManager, QuotaManager
 from src.modules.infrastructure import UnitOfWork
 from src.modules.infrastructure.session import build_repository
 from src.modules.shared import assert_owned, utcnow_naive
@@ -35,23 +35,33 @@ from src.modules.system.taskqueue.dispatcher import OutboxDispatcher
 from src.modules.system.taskqueue.outbox_repository import TaskDispatchRepository
 
 from ..exceptions import (
+    IrisInvalidInputError,
     IrisMailboxConnectionNotFoundError,
     IrisMailboxInvalidFolderError,
     IrisMailboxInvalidProviderError,
     IrisMailboxOAuthStateError,
     IrisMailboxQuotaExceededError,
+    IrisMailboxReauthRequiredError,
+    IrisSharedMailboxConflictError,
 )
 from .analysis import IrisManager
 from .notifications import IrisReauthNotifyManager
-from ..model import IrisMailboxConnection, IrisMailboxInbox
+from .webhooks import IrisWebhookManager
+from ..model import (
+    IrisMailboxConnection, IrisMailboxInbox, MailboxAuthMode, MailboxKind, SharedMailboxAccess, WebhookEventType,
+)
 from ..repositories import (
     IrisAnalysisRepository, IrisMailboxConnectionRepository, IrisMailboxInboxRepository,
+    IrisMailboxMemberRepository,
 )
 from ..services.mailbox import (
-    MAILBOX_CONNECTORS, MailboxConnector, MailboxFolder, MessageRef, get_connector,
+    MAILBOX_CONNECTORS, ImapCredentials, MailboxAuthenticationError, MailboxConnector, MailboxFolder, MessageRef,
+    get_connector,
 )
+from ..services.mailbox.folders import build_watched_folders, list_new_in_folders
 from ..services.mailbox.locks import MailboxSyncLock
 from ..services.parsers import build_subject_title
+from ..services.webhook_events import build_mailbox_reauth_data, emit_event
 
 
 logger = logging.getLogger(__name__)
@@ -103,10 +113,24 @@ def _sign_state(
     user_id: int,
     provider: str,
     full_message_mode: bool,
-    folder: Optional[str]
+    folder: Optional[str],
+    remediation_enabled: bool = False,
 ) -> str:
-    """
-    Firma un state OAuth para el flujo de conexión de IrisMailboxManager.
+    """Firma un state OAuth para el flujo de conexión de IrisMailboxManager.
+
+    Todo lo que el usuario eligió al empezar viaja firmado en el state, para
+    que el callback no tenga que fiarse de nada que llegue en la redirección.
+
+    Args:
+        user_id: Usuario que conecta el buzón.
+        provider: ``gmail`` o ``microsoft``.
+        full_message_mode: Si se descarga el mensaje entero o solo cabeceras.
+        folder: Carpeta a vigilar, o ``None`` para la bandeja de entrada.
+        remediation_enabled: Si se pidió permiso de escritura para las
+            acciones sobre el buzón. Por defecto ``False``.
+
+    Returns:
+        str: El state firmado y con fecha.
     """
 
     return _STATE_SERIALIZER.dumps({
@@ -114,6 +138,7 @@ def _sign_state(
         "provider": provider,
         "full_message_mode": full_message_mode,
         "folder": folder,
+        "remediation_enabled": remediation_enabled,
     })
 
 def _verify_state(state: str) -> dict[str, Any]:
@@ -304,6 +329,82 @@ def _ingest_message(
             source_message_uid=ref.provider_message_id,
         )
 
+def build_connector(connection: IrisMailboxConnection, folder: Optional[str] = None,
+                    use_primary_folder: bool = True) -> MailboxConnector:
+    """El conector de una conexión, con lo que su modo de autenticación necesita.
+
+    Args:
+        connection: La conexión.
+        folder: Carpeta que vigila el conector, si ``use_primary_folder`` es
+            ``False``. Por defecto ``None`` (la bandeja).
+        use_primary_folder: Si se usa ``connection.folder``. Por defecto ``True``.
+
+    Returns:
+        MailboxConnector: Con ``mailbox_address`` para una cuenta de servicio y
+            con las credenciales para IMAP.
+    """
+    options: dict[str, Any] = {}
+    if connection.auth_mode == MailboxAuthMode.SERVICE_ACCOUNT.value:
+        options["mailbox_address"] = connection.account_email
+    elif connection.auth_mode == MailboxAuthMode.IMAP.value:
+        options["credentials"] = ImapCredentials(host=connection.imap_host, port=connection.imap_port,
+                                                 username=connection.imap_username, password=connection.imap_password)
+    return get_connector(connection.provider, _redirect_uri(),
+                         folder=connection.folder if use_primary_folder else folder, **options)
+
+
+def _renew_service_token(connection: IrisMailboxConnection, connector: MailboxConnector) -> str:
+    """Pide un token nuevo a la cuenta de servicio de la instalación y lo cachea en la conexión.
+
+    Args:
+        connection: Conexión con ``auth_mode="service_account"``.
+        connector: Su conector.
+
+    Returns:
+        str: El token de acceso.
+
+    Raises:
+        _ReauthRequiredError: Si el proveedor rechaza la cuenta de servicio
+            (delegación retirada, permiso de aplicación revocado, buzón fuera
+            de la política de acceso).
+    """
+    try:
+        token = connector.acquire_service_token(connection.account_email)
+    except requests.HTTPError as e:
+        status = e.response.status_code if e.response is not None else None
+        if status in (400, 401, 403):
+            raise _ReauthRequiredError(
+                "El proveedor rechazó la cuenta de servicio para este buzón; revisa la delegación o los permisos."
+            ) from e
+        raise
+    with UnitOfWork() as uow:
+        repo = IrisMailboxConnectionRepository(uow)
+        fresh = repo.get_by_id(connection.id)
+        if fresh is not None:
+            fresh.access_token = token.access_token
+            fresh.access_token_expires_at = token.expires_at
+            repo.update(fresh)
+    return token.access_token
+
+
+def is_shared_owner_still_member(connection: IrisMailboxConnection) -> bool:
+    """Si quien conectó un buzón compartido sigue perteneciendo a su organización.
+
+    Quien lo conectó responde de él y los análisis quedan a su nombre; si ya
+    no está en la organización, el buzón deja de sincronizarse.
+
+    Args:
+        connection: La conexión.
+
+    Returns:
+        bool: ``True`` en un buzón personal, o si sigue en la organización.
+    """
+    if connection.kind != MailboxKind.SHARED.value:
+        return True
+    organization = OrganizationManager().get_mine(connection.user_id)
+    return organization is not None and organization.get("id") == connection.organization_id
+
+
 def _ensure_access_token(connection: IrisMailboxConnection) -> tuple[str, MailboxConnector]:
     """Devuelve un access_token válido, refrescándolo si hace falta.
 
@@ -318,12 +419,18 @@ def _ensure_access_token(connection: IrisMailboxConnection) -> tuple[str, Mailbo
         _ReauthRequiredError: el proveedor rechazó el refresh (token
             revocado por el usuario, o expirado por inactividad).
     """
-    connector = get_connector(connection.provider, _redirect_uri(), folder=connection.folder)
+    connector = build_connector(connection)
+    if connection.auth_mode == MailboxAuthMode.IMAP.value:
+        # IMAP no tiene token: cada operación abre sesión con la contraseña.
+        return "", connector
 
     now = utcnow_naive()
     if (connection.access_token and connection.access_token_expires_at
             and connection.access_token_expires_at > now):
         return connection.access_token, connector
+
+    if connection.auth_mode == MailboxAuthMode.SERVICE_ACCOUNT.value:
+        return _renew_service_token(connection, connector), connector
 
     try:
         token_set = connector.refresh(connection.refresh_token)
@@ -394,7 +501,8 @@ def _mark_reauth_is_required(connection_id: int, error: str) -> None:
     reintentar en bucle contra su API (mismo patrón degradado que
     ``execute_ai_summary_generation``).
 
-    Avisa al dueño de la conexión, pero solo en la transición
+    Avisa al dueño de la conexión (por correo y con el evento
+    ``mailbox.reauth_required`` a sus webhooks), pero solo en la transición
     hacia este estado: los tres puntos que llaman a este método pueden
     volver a invocarlo mientras la conexión sigue sin reautorizar (un
     segundo intento de cambiar de carpeta, por ejemplo), y sin esta
@@ -426,25 +534,41 @@ def _mark_reauth_is_required(connection_id: int, error: str) -> None:
             return
         was_already_reauth_required = fresh.status == "reauth_required"
         fresh.status = "reauth_required"
-        fresh.last_sync_at = utcnow_naive()
+        now = utcnow_naive()
+        fresh.last_sync_at = now
         fresh.last_sync_duration_ms = _duration_ms(fresh.sync_started_at)
         fresh.last_error = error[:2000]
         repo.update(fresh)
+        delivery_ids = []
         if not was_already_reauth_required:
             dispatch_id = TaskDispatchRepository(uow).save(
                 IrisReauthNotifyManager.build_dispatch_for(connection_id),
             ).id
+            # La clave lleva el momento de la transición: una conexión que se
+            # reautoriza y vuelve a caer es otro hecho, y avisa otra vez.
+            delivery_ids = emit_event(
+                uow, fresh.user_id, WebhookEventType.MAILBOX_REAUTH_REQUIRED.value,
+                f"mailbox.reauth_required:{connection_id}:{now.isoformat()}",
+                build_mailbox_reauth_data(connection_id, fresh.provider, fresh.account_email),
+                occurred_at=now,
+            )
         uow.commit_for_handoff()
     if dispatch_id is not None:
         # Camino feliz: publicar ya. Si Redis falla, la fila queda
         # `pending` y la recogen el barrido periódico o la reconciliación
         # de arranque.
         OutboxDispatcher.dispatch(dispatch_id)
+    if delivery_ids:
+        IrisWebhookManager().dispatch_deliveries(delivery_ids)
 
 
 def _sync_connection(connection_id: int, job_id: Optional[str] = None) -> None:
     connection = build_repository(IrisMailboxConnectionRepository).get_by_id(connection_id)
     if connection is None or connection.status != "active":
+        return
+    if not is_shared_owner_still_member(connection):
+        _pause_connection(connection_id, "Quien conectó este buzón compartido ya no pertenece a la organización; "
+                                         "otro responsable debe volver a conectarlo.")
         return
 
     # Serializa los syncs de una misma conexión. El job_id
@@ -472,7 +596,14 @@ def _sync_connection(connection_id: int, job_id: Optional[str] = None) -> None:
             return
 
         try:
-            refs, new_cursor = connector.list_new(access_token, connection.sync_cursor)
+            refs, new_cursor = list_new_in_folders(
+                lambda folder: build_connector(connection, folder, use_primary_folder=False),
+                build_watched_folders(connection.folder, connection.additional_folders),
+                access_token, connection.sync_cursor,
+            )
+        except MailboxAuthenticationError as e:
+            _mark_reauth_is_required(connection_id, str(e))
+            return
         except Exception as e:
             logger.error(
                 f"Fallo listando mensajes nuevos de la conexión {connection_id}: {e}", exc_info=True,
@@ -500,6 +631,22 @@ def _sync_connection(connection_id: int, job_id: Optional[str] = None) -> None:
     finally:
         _clear_sync_started(connection_id)
         lock.release()
+
+
+def _pause_connection(connection_id: int, reason: str) -> None:
+    """Pone una conexión en pausa con el motivo, para que deje de sondearse.
+
+    Args:
+        connection_id: Conexión.
+        reason: Motivo, que se ve en ``last_error``.
+    """
+    with UnitOfWork() as uow:
+        repo = IrisMailboxConnectionRepository(uow)
+        fresh = repo.get_by_id(connection_id)
+        if fresh is not None:
+            fresh.status = "paused"
+            fresh.last_error = reason
+            repo.update(fresh)
 
 
 class _ReauthRequiredError(Exception):
@@ -542,14 +689,21 @@ class IrisMailboxManager(TaskTrackingMixin):
 
     @staticmethod
     def list_providers() -> list[str]:
-        ordered = [provider for provider in IrisMailboxManager._PROVIDER_DISPLAY_ORDER if provider in MAILBOX_CONNECTORS]
-        remaining = sorted(MAILBOX_CONNECTORS.keys() - set(ordered))
+        oauth_providers = {name for name, connector in MAILBOX_CONNECTORS.items() if connector.supports_oauth}
+        ordered = [provider for provider in IrisMailboxManager._PROVIDER_DISPLAY_ORDER if provider in oauth_providers]
+        remaining = sorted(oauth_providers - set(ordered))
         return ordered + remaining
 
     def start_connect(self, user_id: int, provider: str,
                        full_message_mode: bool = False,
-                       folder: Optional[str] = None) -> str:
+                       folder: Optional[str] = None,
+                       remediation_enabled: bool = False) -> str:
         """Devuelve la URL de autorización a la que redirigir al usuario.
+
+        Con ``remediation_enabled`` se pide al proveedor, además, permiso de
+        escritura (``gmail.modify`` o ``Mail.ReadWrite``) para que Iris pueda
+        poner en cuarentena o mandar a spam los correos de este buzón cuando el
+        usuario lo pida. Sin él la conexión solo lee.
 
         Conectar un buzón es la superficie ``mailboxConnectors`` de
         ``general.launch``; se comprueba antes de mandar al usuario al
@@ -563,7 +717,7 @@ class IrisMailboxManager(TaskTrackingMixin):
                 ``iris.maxConnectionsPerUser`` conexiones.
         """
         UserManager().assert_launch_surface_enabled(CR.LaunchSurface.MAILBOX_CONNECTORS, user_id)
-        if provider not in MAILBOX_CONNECTORS:
+        if provider not in MAILBOX_CONNECTORS or not MAILBOX_CONNECTORS[provider].supports_oauth:
             raise IrisMailboxInvalidProviderError(provider)
 
         # Se comprueba aquí y no en handle_callback, donde nace la fila: es
@@ -588,10 +742,11 @@ class IrisMailboxManager(TaskTrackingMixin):
             user_id=user_id,
             provider=provider,
             full_message_mode=full_message_mode,
-            folder=folder
+            folder=folder,
+            remediation_enabled=remediation_enabled,
         )
         connector = get_connector(provider, _redirect_uri(), folder=folder)
-        return connector.authorize_url(state, full_message_mode)
+        return connector.authorize_url(state, full_message_mode, remediation_enabled=remediation_enabled)
 
     def handle_callback(self, state: str, code: str) -> int:  # pylint: disable=too-many-locals
         """Canjea el code OAuth y crea (o reactiva) la conexión.
@@ -610,6 +765,7 @@ class IrisMailboxManager(TaskTrackingMixin):
         provider = claims["provider"]
         full_message_mode = claims["full_message_mode"]
         folder = claims.get("folder")
+        remediation_enabled = bool(claims.get("remediation_enabled", False))
 
         connector = get_connector(provider, _redirect_uri(), folder=folder)
         token_set = connector.exchange_code(code)
@@ -627,12 +783,17 @@ class IrisMailboxManager(TaskTrackingMixin):
         with UnitOfWork() as uow:
             repo = IrisMailboxConnectionRepository(uow)
             existing = repo.get_by_user_provider_email(user_id, provider, token_set.account_email)
+            if existing is not None and existing.kind != MailboxKind.PERSONAL.value:
+                # Esa dirección ya es un buzón compartido a su cargo: no se
+                # convierte en personal por iniciar sesión con ella.
+                raise IrisSharedMailboxConflictError("already_connected")
             if existing is not None:
                 existing.refresh_token = token_set.refresh_token
                 existing.access_token = token_set.access_token
                 existing.access_token_expires_at = expires_at
                 existing.scopes = token_set.scopes
                 existing.full_message_mode = full_message_mode
+                existing.remediation_enabled = remediation_enabled
                 existing.folder = folder
                 existing.folder_display_name = (
                     folder_metadata.display_name if folder_metadata else None
@@ -653,6 +814,7 @@ class IrisMailboxManager(TaskTrackingMixin):
                 access_token_expires_at=expires_at,
                 folder=folder,
                 full_message_mode=full_message_mode,
+                remediation_enabled=remediation_enabled,
                 folder_display_name=folder_metadata.display_name if folder_metadata else None,
                 folder_type=folder_metadata.folder_type if folder_metadata else None,
             )
@@ -671,13 +833,57 @@ class IrisMailboxManager(TaskTrackingMixin):
 
     @classmethod
     def assert_connection_ownership(cls, connection_id: int, user_id: int) -> IrisMailboxConnection:
-        """Same-error-for-both-cases pattern as IrisManager.assert_analysis_ownership."""
+        """La conexión, si el usuario puede administrarla; si no, como si no existiera.
+
+        Un buzón personal lo administra su dueño; uno compartido, quien tenga
+        acceso ``manager`` y siga en la organización dueña. Mismo error en
+        los dos casos de fallo, para no revelar qué ids existen.
+
+        Args:
+            connection_id: Conexión.
+            user_id: Usuario que la quiere administrar.
+
+        Returns:
+            IrisMailboxConnection: La conexión.
+
+        Raises:
+            IrisMailboxConnectionNotFoundError: Si no existe o no puede administrarla.
+        """
+        connection = build_repository(IrisMailboxConnectionRepository).get_by_id(connection_id)
+        if connection is not None and connection.kind == MailboxKind.SHARED.value:
+            if cls.has_shared_access(connection, user_id, require_manager=True):
+                return connection
+            raise IrisMailboxConnectionNotFoundError(connection_id)
         return assert_owned(
             IrisMailboxConnectionRepository,
             connection_id,
             user_id,
             IrisMailboxConnectionNotFoundError
         )
+
+    @staticmethod
+    def has_shared_access(connection: IrisMailboxConnection, user_id: int, require_manager: bool = False) -> bool:
+        """Si una persona puede ver (o administrar) un buzón compartido.
+
+        Es la política entera de quién ve qué: hace falta una fila en
+        ``IrisMailboxMember`` **y** pertenecer hoy a la organización dueña.
+        Salir de la organización quita el acceso en el acto.
+
+        Args:
+            connection: La conexión.
+            user_id: La persona.
+            require_manager: Si hace falta acceso ``manager``. Por defecto ``False``.
+
+        Returns:
+            bool: ``False`` también si la conexión no es compartida.
+        """
+        if connection.kind != MailboxKind.SHARED.value or connection.organization_id is None:
+            return False
+        member = build_repository(IrisMailboxMemberRepository).get_by_connection_and_user(connection.id, user_id)
+        if member is None or (require_manager and member.access != SharedMailboxAccess.MANAGER.value):
+            return False
+        organization = OrganizationManager().get_mine(user_id)
+        return organization is not None and organization.get("id") == connection.organization_id
 
     def update_connection(
         self,
@@ -719,16 +925,116 @@ class IrisMailboxManager(TaskTrackingMixin):
             repo.update(fresh)
             return fresh
 
+    @staticmethod
+    def can_act_on(connection: IrisMailboxConnection) -> bool:
+        """Si Iris puede actuar sobre este buzón (cuarentena, spam, papelera).
+
+        Hacen falta las dos cosas: que el usuario lo pidiera al conectar y que
+        el proveedor concediera de verdad el permiso de escritura (un usuario
+        puede desmarcarlo en la pantalla de consentimiento de Google).
+
+        Args:
+            connection: La conexión.
+
+        Returns:
+            bool: ``True`` si se pidió y se concedió; ``False`` si no, o si
+                el proveedor ya no está registrado.
+        """
+        # Solo buzones personales con sesión OAuth: actuar sobre un buzón
+        # compartido exigiría decidir antes quién responde de cada acción, y
+        # las cuentas de servicio e IMAP se conectan en solo lectura.
+        if (not connection.remediation_enabled or connection.provider not in MAILBOX_CONNECTORS
+                or connection.kind != MailboxKind.PERSONAL.value
+                or connection.auth_mode != MailboxAuthMode.OAUTH.value):
+            return False
+        return MAILBOX_CONNECTORS[connection.provider].can_act(connection.scopes)
+
+    def authorize_connection(self, connection_id: int) -> tuple[IrisMailboxConnection, str, MailboxConnector]:
+        """Un token de acceso vigente y el conector de una conexión, para actuar sobre el buzón.
+
+        Lo usan las acciones sobre el buzón, que corren en el worker. Si el
+        proveedor ya no acepta la autorización, la conexión pasa a
+        ``reauth_required`` (con su aviso) igual que en un sync.
+
+        Args:
+            connection_id: Conexión.
+
+        Returns:
+            tuple: ``(conexión, access_token, conector)``.
+
+        Raises:
+            IrisMailboxConnectionNotFoundError: Si la conexión ya no existe.
+            IrisMailboxReauthRequiredError: Si hay que volver a conectarla.
+        """
+        connection = build_repository(IrisMailboxConnectionRepository).get_by_id(connection_id)
+        if connection is None:
+            raise IrisMailboxConnectionNotFoundError(connection_id)
+        if connection.status == "reauth_required":
+            raise IrisMailboxReauthRequiredError()
+        try:
+            access_token, connector = _ensure_access_token(connection)
+        except _ReauthRequiredError as e:
+            _mark_reauth_is_required(connection_id, str(e))
+            raise IrisMailboxReauthRequiredError() from e
+        return connection, access_token, connector
+
     def list_folders(self, connection_id: int, user_id: int) -> list[MailboxFolder]:
         """Carpetas/etiquetas reales de la cuenta -- únicos valores válidos
         para ``folder`` en ``update_connection()``."""
         connection = self.assert_connection_ownership(connection_id, user_id)
         try:
             access_token, connector = _ensure_access_token(connection)
+            return connector.list_folders(access_token)
         except _ReauthRequiredError as e:
             _mark_reauth_is_required(connection_id, str(e))
             raise
-        return connector.list_folders(access_token)
+        except MailboxAuthenticationError as e:
+            _mark_reauth_is_required(connection_id, str(e))
+            raise IrisMailboxReauthRequiredError() from e
+
+    def set_additional_folders(self, connection_id: int, user_id: int, folder_ids: list[str]) -> IrisMailboxConnection:
+        """Cambia las carpetas que se vigilan además de la principal.
+
+        Cada carpeta se comprueba contra las reales de la cuenta, como la
+        principal. Una carpeta nueva empieza a leerse desde el correo que
+        llegue a partir de ahora (sin backfill); una que se quita deja de
+        leerse y su cursor se descarta en el siguiente sync.
+
+        Args:
+            connection_id: Conexión.
+            user_id: Quien la administra.
+            folder_ids: Ids de carpeta (``MailboxFolder.provider_id``), sin la
+                principal. Una lista vacía deja solo la principal.
+
+        Returns:
+            IrisMailboxConnection: La conexión actualizada.
+
+        Raises:
+            IrisMailboxConnectionNotFoundError: Si no existe o no puede administrarla.
+            IrisMailboxInvalidFolderError: Si alguna carpeta no existe en la cuenta.
+            IrisInvalidInputError: Si se pasa del máximo de carpetas por conexión.
+            IrisMailboxReauthRequiredError: Si hay que volver a conectarla.
+        """
+        maximum = CR.iris_shared_mailboxes_config().max_folders_per_connection
+        requested = [folder_id for folder_id in dict.fromkeys(folder_ids) if folder_id]
+        connection = self.assert_connection_ownership(connection_id, user_id)
+        requested = [folder_id for folder_id in requested if folder_id != connection.folder]
+        if len(requested) + 1 > maximum:
+            raise IrisInvalidInputError(f"Una conexión vigila como mucho {maximum} carpetas, contando la principal.")
+        available = {folder.provider_id: folder for folder in self.list_folders(connection_id, user_id)}
+        missing = [folder_id for folder_id in requested if folder_id not in available]
+        if missing:
+            raise IrisMailboxInvalidFolderError(missing[0])
+        with UnitOfWork() as uow:
+            repo = IrisMailboxConnectionRepository(uow)
+            fresh = repo.get_by_id(connection_id)
+            fresh.additional_folders = [
+                {"id": folder_id, "displayName": available[folder_id].display_name,
+                 "type": available[folder_id].folder_type}
+                for folder_id in requested
+            ]
+            repo.update(fresh)
+            return fresh
 
     def get_connection_health(self, connection_id: int, user_id: int) -> dict:
         """Estado observable de una conexión, sin tener que leer los logs
@@ -803,8 +1109,8 @@ class IrisMailboxManager(TaskTrackingMixin):
         connection = self.assert_connection_ownership(connection_id, user_id)
 
         try:
-            connector = get_connector(connection.provider, _redirect_uri(), folder=connection.folder)
-            connector.revoke(connection.refresh_token)
+            if connection.auth_mode == MailboxAuthMode.OAUTH.value and connection.refresh_token:
+                build_connector(connection).revoke(connection.refresh_token)
         except Exception as e:
             logger.warning(f"No se pudo revocar el token de la conexión {connection_id} en el proveedor: {e}")
 

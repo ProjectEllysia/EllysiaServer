@@ -36,10 +36,32 @@ them:
     Bridges Nikto and Nuclei results into the shared ``Finding`` model, so every
     scanner can be correlated together.
 
+``osint``
+    La inteligencia pasiva: lo que Certificate Transparency, Shodan, Censys o
+    SecurityTrails ya saben de un dominio, sin tocar el objetivo. Las fuentes
+    llegan por un fetcher inyectado.
+
+``api_surface``
+    La superficie de una API a partir de su especificación OpenAPI/Swagger:
+    parsea el documento y deriva los checks de sus endpoints, con un tope duro.
+
+``lateral``
+    El riesgo de movimiento lateral entre los hosts de un grupo: servicios de
+    administración remota vulnerables, la misma vulnerabilidad en varios hosts,
+    hosts que unen segmentos y credenciales por defecto compartidas.
+
+``dns_hygiene``
+    Lo que un dominio publica en su DNS sobre su correo y sus certificados
+    (SPF, DMARC, DKIM, MTA-STS, CAA, DNSSEC), con la búsqueda DNS inyectada.
+
 Everything here is deliberately free of the ORM and of network side effects
 where it can be: pure functions take plain values and return plain dicts, and the
 few pieces that must touch the network (the probes and fetchers) take injectable
 callables so they can be tested without it.
+
+El análisis web activo (DAST-lite) también está archivado, no pendiente: la
+decisión, con qué haría falta para reabrirla, está en el docstring de
+``crawler.py``.
 """
 
 from __future__ import annotations
@@ -88,7 +110,34 @@ from .kb import (
     fetch_oval,
     fetch_kev,
     fetch_epss,
+    fetch_document,
     iter_nvd_pages,
+)
+from .osint import (
+    CREDENTIALED_SOURCES,
+    PASSIVE_EXPOSURE_CATEGORY,
+    QOD_THIRD_PARTY,
+    FetchedDocument,
+    OsintSource,
+    PassiveReport,
+    ServiceObservation,
+    SourceOutcome,
+    SourceSetting,
+    SourceStatus,
+    SubdomainRecord,
+    collect_host_observations,
+    collect_passive_intelligence,
+    finding_to_osint_json,
+    normalize_domain,
+    suggest_cpe_findings,
+)
+from .dns_hygiene import (
+    DNS_HYGIENE_CATEGORY,
+    QOD_DNS_RECORD,
+    DnsCheckResult,
+    DnsCheckStatus,
+    assess_dns_hygiene,
+    is_valid_dkim_selector,
 )
 from .checks import (
     load_checks,
@@ -225,6 +274,27 @@ from .exporters import (
 )
 from .planner import IDENTIFICATION_REVISION, CheckPlanner, KnownService
 from .crawler import CrawlResult, crawl
+from .api_surface import (
+    ApiEndpoint,
+    ApiSpecification,
+    SPECIFICATION_PATHS,
+    derive_checks as derive_api_checks,
+    parse_specification,
+)
+from .lateral import (
+    GroupHost,
+    assess_lateral_risk,
+    propagation_score,
+    segment_of,
+)
+from .cloud import (
+    CLOUD_PROVIDERS,
+    CloudProbe,
+    CloudResource,
+    TakeoverSignature,
+    load_takeover_signatures,
+    parse_cloud_resource,
+)
 from .virtual_hosts import (
     DEFAULT_SITE_CATEGORIES,
     SiteView,
@@ -294,7 +364,30 @@ __all__ = [
     "fetch_oval",
     "fetch_kev",
     "fetch_epss",
+    "fetch_document",
     "iter_nvd_pages",
+    "CREDENTIALED_SOURCES",
+    "DNS_HYGIENE_CATEGORY",
+    "PASSIVE_EXPOSURE_CATEGORY",
+    "QOD_DNS_RECORD",
+    "QOD_THIRD_PARTY",
+    "DnsCheckResult",
+    "DnsCheckStatus",
+    "FetchedDocument",
+    "OsintSource",
+    "PassiveReport",
+    "ServiceObservation",
+    "SourceOutcome",
+    "SourceSetting",
+    "SourceStatus",
+    "SubdomainRecord",
+    "assess_dns_hygiene",
+    "collect_host_observations",
+    "collect_passive_intelligence",
+    "finding_to_osint_json",
+    "is_valid_dkim_selector",
+    "normalize_domain",
+    "suggest_cpe_findings",
     "load_checks",
     "validate_checks",
     "CheckRuntime",
@@ -439,6 +532,21 @@ __all__ = [
     "site_finding",
     "CrawlResult",
     "crawl",
+    "ApiEndpoint",
+    "ApiSpecification",
+    "SPECIFICATION_PATHS",
+    "derive_api_checks",
+    "parse_specification",
+    "CLOUD_PROVIDERS",
+    "GroupHost",
+    "assess_lateral_risk",
+    "propagation_score",
+    "segment_of",
+    "CloudProbe",
+    "CloudResource",
+    "TakeoverSignature",
+    "load_takeover_signatures",
+    "parse_cloud_resource",
     "DEFAULT_PORTS",
     "UDP_PROBES",
     "WELL_KNOWN_PORTS",

@@ -143,7 +143,7 @@ class _FakeConnector:
             MailboxFolder(provider_id="INBOX", display_name="Inbox", folder_type="system"),
         ]
 
-    def authorize_url(self, state, full_message_mode):
+    def authorize_url(self, state, full_message_mode, remediation_enabled=False):
         return f"https://provider.example/authorize?state={state}"
 
     def exchange_code(self, code):

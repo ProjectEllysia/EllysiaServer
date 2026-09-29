@@ -621,7 +621,7 @@ const kbFeeds = [
   { key: 'oval', label: 'OVAL' },
 ]
 
-// Los diales del motor de Lybra son quince campos numéricos con la misma
+// Los diales del motor de Lybra son campos numéricos con la misma
 // forma: se describen aquí y se pintan con v-for, como ya se hace con los
 // umbrales y los límites de Hygeia.
 const lybraEngineDials = [
@@ -631,6 +631,7 @@ const lybraEngineDials = [
   { key: 'udpRetries',           min: 0,   max: 10 },
   { key: 'udpBudgetSeconds',     min: 1,   max: 600, step: 0.5 },
   { key: 'rateLimitInterval',    min: 0,   max: 10, step: 0.05 },
+  { key: 'rateLimitMaxBackoffFactor', min: 1, max: 64, step: 0.5 },
   { key: 'hostPoolSize',         min: 1,   max: 64 },
   { key: 'httpTimeout',          min: 1,   max: 120 },
   { key: 'httpMaxBodyBytes',     min: 1024, max: 8388608, step: 1024 },
@@ -719,7 +720,7 @@ onUnmounted(() => { if (observer) observer.disconnect() })
  * una (lo detalla el proyecto «Legal» de la organización).
  */
 /** Funciones que se abren por separado; sus textos están en `configView.surfaces.<key>`. */
-const LAUNCH_SURFACES = ['registration', 'pricing', 'thirdPartyScanners', 'campaigns', 'mailboxConnectors', 'externalAi'].map((key) => ({ key }))
+const LAUNCH_SURFACES = ['registration', 'pricing', 'thirdPartyScanners', 'campaigns', 'mailboxConnectors', 'externalAi', 'externalEnrichment', 'webhooks'].map((key) => ({ key }))
 
 const isLaunchPreview = computed(() => store.configFlat['general.launch.mode'] !== 'public')
 
@@ -729,8 +730,11 @@ watch(() => store.loading, (isLoading) => {
   if (!isLoading) savedLaunchMode.value = store.configFlat['general.launch.mode']
 }, { immediate: true })
 
+/** Milisegundos entre un guardado correcto y la recarga de la pestaña. */
+const RELOAD_DELAY_MS = 800
+
 /**
- * Guarda la configuración. Pasar de vista previa a abierto al público pide
+ * Guarda la configuración y, si sale bien, recarga la pestaña. Pasar de vista previa a abierto al público pide
  * confirmación y enumera lo que se va a abrir: es el cambio de más alcance
  * del panel, y un clic distraído no debería bastar.
  */
@@ -745,7 +749,12 @@ async function handleSave() {
       : t('configView.confirmOpenNothing')
     if (!window.confirm(message)) return
   }
-  if (await store.saveConfig()) savedLaunchMode.value = selectedMode
+  if (!(await store.saveConfig())) return
+  savedLaunchMode.value = selectedMode
+  // La SPA lee algunos ajustes una sola vez al arrancar (p. ej. el estado de
+  // lanzamiento de useLaunch): se recarga para aplicarlos. La espera deja leer
+  // el aviso de «guardado», que la recarga destruiría.
+  setTimeout(() => window.location.reload(), RELOAD_DELAY_MS)
 }
 </script>
 

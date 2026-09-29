@@ -87,10 +87,12 @@
     "campaignAlreadyLaunched": "The campaign has already been launched.",
     "cannotRemoveOwner": "You own this organization. To leave it, you would have to dissolve it or transfer it first.",
     "circuitBreakerOpen": "The service is temporarily unavailable.",
+    "complianceOrganizationOwnerOnly": "Only the organization owner can set its compliance frameworks.",
     "databaseConnection": "Could not connect to the database.",
     "defaultPlanMissing": "The platform has no default plan configured. Contact an administrator.",
     "documentNotReady": "The document is not ready yet.",
     "duplicateAuthorizedTarget": "“{target}” is already in your authorized targets registry.",
+    "duplicateAssetGroup": "You already have an asset group named “{name}”.",
     "duplicatedUserCredentials": "There is already an account with this value: {value}.",
     "emailAlreadyVerified": "Your email is already confirmed.",
     "emailConfiguration": "The email service is not configured correctly.",
@@ -100,6 +102,7 @@
     "entityNotFound": {
       "anomaly": "Anomaly not found.",
       "asset": "Asset not found.",
+      "assetGroup": "Asset group not found.",
       "authorizedTarget": "Authorized target not found.",
       "campaign": "Campaign not found.",
       "distributionList": "Distribution list not found.",
@@ -107,11 +110,18 @@
       "finding": "Finding not found.",
       "folder": "Folder not found.",
       "irisAnalysis": "Analysis not found.",
+      "irisAnalysisUrl": "Link not found.",
       "irisBatch": "Batch not found.",
+      "irisCampaign": "Campaign not found.",
       "irisCase": "Case not found.",
+      "irisIndicator": "Indicator not found.",
+      "irisIntegrationToken": "Integration token not found.",
+      "irisMailboxAction": "Action not found.",
       "irisMailboxConnection": "Mailbox connection not found.",
       "irisSavedView": "Saved view not found.",
       "irisTrustedSender": "Trust exception not found.",
+      "irisWebhookDelivery": "Delivery not found.",
+      "irisWebhookSubscription": "Webhook not found.",
       "organization": "Organization not found.",
       "plan": "Plan not found.",
       "programedScan": "Scheduled scan not found.",
@@ -146,7 +156,31 @@
     "inventoryNotAvailable": "This asset has not sent its software inventory yet.",
     "invitationInvalid": "This invitation is not valid or has expired. Ask whoever invited you to send you another one.",
     "irisBatchBackpressure": "You have {active} analyses running and the batch would add {requested}; the maximum at once is {limit}. Wait for them to finish and send it again: nothing has been created.",
+    "irisIntegrationTokenLimitReached": "You already have {limit} valid integration tokens, the maximum. Revoke one to create another.",
+    "irisInvalidIntegrationToken": "The integration token is not valid, has been revoked or has expired.",
+    "irisMailboxActionConfirmationRequired": "This action takes the email out of your inbox: confirm it to do it.",
+    "irisMailboxActionConnectionGone": "The mailbox this email came from is no longer connected.",
+    "irisMailboxActionInProgress": "An action on this email is already in progress. Wait until it finishes.",
+    "irisMailboxActionMissingScope": "This mailbox was connected read-only. Reconnect it with actions enabled.",
+    "irisMailboxActionNotFromMailbox": "This email did not arrive through a connected mailbox, so Iris cannot act on it.",
+    "irisMailboxActionNotReversible": "This action cannot be undone: it was never applied or it has already been undone.",
+    "irisMailboxEventRejected": "Notification rejected.",
+    "irisSharedMailboxOwnerRequired": "Only the organization owner can connect shared mailboxes.",
+    "irisSharedMailboxMailboxLimit": "The organization already has the maximum of {limit} shared mailboxes.",
+    "irisSharedMailboxMemberLimit": "This mailbox already has the maximum of {limit} people with access.",
+    "irisSharedMailboxAlreadyConnected": "That mailbox is already connected as a shared mailbox of the organization.",
+    "irisSharedMailboxMemberNotInOrganization": "That person does not belong to the organization.",
+    "irisSharedMailboxLastManager": "The mailbox would be left with nobody to manage it.",
+    "irisMailboxCredentialsRejected": "The server rejected the username or password.",
+    "irisMailboxServerUnreachable": "Cannot connect to that server: it must be an internet IMAP server with TLS.",
+    "irisMailboxServiceAccountRejected": "The service account is not configured or has no access to that mailbox.",
     "irisMailboxInvalidFolder": "“{folder}” is not a valid folder for this account.",
+    "irisMailboxReauthRequired": "This mailbox needs to be reconnected before Iris can act on it.",
+    "irisNotInOrganization": "You don't belong to any organization.",
+    "irisTenantOwnerRequired": "Only the organization owner can change this.",
+    "irisWebhookDeliveryInProgress": "This delivery is still in progress; you can resend it once it finishes.",
+    "irisWebhookInactive": "This webhook is disabled. Enable it before sending events to it.",
+    "irisWebhookLimitReached": "You already have {limit} webhooks, the maximum. Delete one to add another.",
     "jsonParsing": "The JSON data could not be processed.",
     "logChanged": "The log changed during the query. Start a new read.",
     "logNotFound": "There is no log available right now.",
@@ -192,7 +226,6 @@
     "systemTagImmutable": "Tags from the shared catalog cannot be deleted.",
     "tagAlreadyExists": "A tag named “{name}” already exists.",
     "tagQuotaExceeded": "You have reached the maximum of {maxTags} personal tags.",
-    "complianceOrganizationOwnerOnly": "Only the organization owner can set its compliance frameworks.",
     "targetNotAuthorized": "“{target}” is not authorized for active Lybra operations. Add it to the authorized targets registry before launching this scan.",
     "taskNotCancellable": "The task does not exist or has already finished.",
     "tooManyRequests": "You have exceeded the request limit. Wait a moment and try again.",
@@ -1934,6 +1967,10 @@
       "inbox": "Inbox",
       "fullHint": "Iris reads the full email (body and attachments included)",
       "headersHint": "Iris only reads the headers",
+      "actions": "Actions enabled",
+      "actionsHint": "Iris can quarantine or send to spam the emails of this mailbox when you ask it to",
+      "readOnly": "Read-only",
+      "readOnlyHint": "Iris cannot move or delete anything in this mailbox",
       "full": "Full email",
       "lastSync": "Last poll: {when}",
       "resume": "Resume",
@@ -2050,7 +2087,18 @@
       "iocs": "Indicators of compromise (IOCs)",
       "iocsLoading": "Extracting IOCs…",
       "iocsFailed": "The IOCs could not be loaded.",
-      "rawHeaders": "Original headers"
+      "rawHeaders": "Original headers",
+      "campaignTitle": "Part of a campaign",
+      "campaignRelated": "There is {count} more message like this one. | There are {count} more messages like this one.",
+      "campaignOpen": "See the campaign",
+      "deviationTitle": "The sender imitates a usual contact",
+      "deviation": {
+        "display_name_reuse": "“{name}” writes from {sender}, but that name belongs to one of your usual contacts, {habitual} ({count} legitimate messages).",
+        "address_domain_change": "{sender} looks like {habitual}, one of your usual contacts ({count} legitimate messages), but on another domain.",
+        "other": "{sender} looks like {habitual}, one of your usual contacts."
+      },
+      "sightingsTitle": "Also seen in your organization",
+      "sightingsCount": "received by {count} members"
     },
     "cases": {
       "badge": "Cases",
@@ -2100,6 +2148,8 @@
       "history": "Analysis history",
       "connecting": "Connecting…",
       "connect": "Connect account",
+      "remediation": "Allow Iris to act on this mailbox",
+      "remediationHint": "Asks Google or Microsoft for permission to move emails. Iris never acts on its own: you decide every action, with a reason, and all of them can be undone. Without this, the connection only reads.",
       "deleteTitle": "Delete connection",
       "deleteMessage": "The connection with {email} will be deleted. Iris will stop analyzing this mailbox automatically.",
       "connected": "Mailbox connected.",
@@ -2131,7 +2181,334 @@
       "revokedOn": "revoked {date}",
       "expires": "expires {date}",
       "revokeTitle": "Revoke exception",
-      "revokeMessage": "The next emails from {value} will be analyzed without the exception. The exception stays in the audit log."
+      "revokeMessage": "The next emails from {value} will be analyzed without the exception. The exception stays in the audit log.",
+      "contactsTitle": "Usual contacts",
+      "contactsIntro": "Senders you have received at least {count} legitimate messages from. Iris warns you when another address uses their name. Only addresses and dates are kept, and they are forgotten after {days} days unseen.",
+      "contactsDisabled": "Usual contacts are turned off on this installation.",
+      "noContacts": "No usual contacts yet.",
+      "contactMessages": "{count} legitimate message | {count} legitimate messages",
+      "lastSeen": "last on {date}",
+      "forget": "Forget contacts",
+      "forgetTitle": "Forget your usual contacts",
+      "forgetMessage": "Everything Iris knows about who you talk to is deleted. Your analyses don't change, and the next ones will start learning it again."
+    },
+    "indicatorKind": {
+      "domain": "Domain",
+      "url": "URL",
+      "ip": "IP",
+      "email": "Address",
+      "hash": "Hash (SHA-256)"
+    },
+    "campaigns": {
+      "badge": "Campaigns",
+      "intro": "Messages that look alike —the same link, the same attachment, the same template or the same subject and sender— grouped so you investigate them once. Only messages that don't look legitimate are grouped.",
+      "empty": "No campaigns yet: they appear when two suspicious messages look alike.",
+      "pick": "Pick a campaign to see its messages and what they have in common.",
+      "unnamed": "Campaign #{id}",
+      "messageCount": "{count} message | {count} messages",
+      "seenBetween": "from {first} to {last}",
+      "brands": "Impersonating: {brands}",
+      "shared": "What they have in common",
+      "sharedHint": "Indicators that appear in several messages: look them up or block them once for the whole campaign.",
+      "noShared": "They share no indicators: they look alike by subject, template or brand.",
+      "inMessages": "in {count} message | in {count} messages",
+      "messages": "Messages ({count})",
+      "matchedBy": "Matched by:",
+      "signals": {
+        "url": "link",
+        "hash": "identical attachment",
+        "template": "template",
+        "subject": "subject",
+        "sender": "sender",
+        "domain": "domain",
+        "brand": "impersonated brand"
+      }
+    },
+    "intelExport": {
+      "label": "Export indicators",
+      "hint": "The indicators and the rules that fired, for a SIEM or a threat intelligence platform.",
+      "formats": {
+        "json": {
+          "name": "JSON",
+          "hint": "Iris's own format, with values defanged so nobody opens them by accident."
+        },
+        "stix": {
+          "name": "STIX 2.1",
+          "hint": "Threat intelligence exchange standard; most SIEMs and platforms import it."
+        },
+        "misp": {
+          "name": "MISP",
+          "hint": "Event to import into a MISP instance."
+        }
+      }
+    },
+    "enrichment": {
+      "domainContext": "Context",
+      "domainHint": "Looks up the domain's age, registrar and network in the public registry (RDAP). The lookup goes to an external service.",
+      "age": "Registered {days} days ago",
+      "ageRecent": "Registered {days} days ago (recent)",
+      "registrar": "Registrar: {name}",
+      "network": "Network {name} ({country})",
+      "noData": "The registry has no data for this domain.",
+      "unavailable": "The registry did not answer; nothing can be said about this domain.",
+      "rateLimited": "Too many lookups this minute; try again shortly.",
+      "disabled": "External lookups are turned off on this installation.",
+      "expand": "Follow link",
+      "expandHint": "Follows the link's redirects to the page it leads to, without opening it in your browser. The request is made by the server, never towards an internal network.",
+      "expanding": "Following the link…",
+      "stillExpanding": "Still running; check again shortly.",
+      "leadsTo": "Leads to {domain} with no redirects | Leads to {domain} after {count} redirect | Leads to {domain} after {count} redirects",
+      "domainChanged": "Changes domain",
+      "pageTitle": "Title: “{title}”",
+      "hopErrors": {
+        "private_address": "Stopped: the next hop pointed to an internal network.",
+        "scheme": "Stopped: the next hop was not a web page.",
+        "port": "Stopped: the next hop went to a non-web port.",
+        "unresolvable": "Stopped: the next domain does not exist.",
+        "timeout": "Stopped: the server took too long to answer.",
+        "tls": "Stopped: the server's certificate is not valid.",
+        "connection": "Stopped: could not connect to the server.",
+        "protocol": "Stopped: the server did not answer like a website.",
+        "too_many_redirects": "Stopped: too many redirects in a row.",
+        "other": "Stopped before reaching the end."
+      },
+      "reputation": "Reputation",
+      "reputationHint": "Asks the configured reputation services whether they know this indicator. Only the indicator is sent, never the email.",
+      "notConfigured": "No reputation service is configured on this installation.",
+      "reputationVerdicts": {
+        "known_malicious": "known malicious",
+        "suspicious": "suspicious",
+        "unknown": "not flagged",
+        "unavailable": "no answer",
+        "rate_limited": "too many lookups; try again shortly"
+      }
+    },
+    "organization": {
+      "badge": "Organization",
+      "eyebrow": "Shared intelligence",
+      "title": "Your organization",
+      "intro": "Members who agree pool what they see: domains, links and attachments from suspicious emails that reached several of them, and domains several of them get legitimate email from. Only counts are shown, and only for what at least {count} people have seen: nobody sees the others' emails, analyses or names.",
+      "noOrganization": "You don't belong to any organization. Once you are part of one, you can share intelligence with the rest here.",
+      "sharingOn": "Your organization shares intelligence",
+      "sharingOff": "Your organization does not share intelligence; its owner decides",
+      "contributing": "{count} member contributes | {count} members contribute",
+      "consent": "I agree to contribute my indicators to the organization's intelligence",
+      "consentHint": "Whoever doesn't agree neither contributes nor sees what is shared. You can withdraw at any time: yours is removed from everything at once.",
+      "policyTitle": "Organization policy",
+      "enableSharing": "Share intelligence among members who agree",
+      "protectedDomains": "Protected domains",
+      "protectedDomainsHint": "Yours and your suppliers', one per line: lookalikes are flagged.",
+      "protectedBrands": "Protected brands",
+      "protectedBrandsHint": "One per line.",
+      "sharedTitle": "What several members have seen",
+      "sharedHint": "Indicators from suspicious or phishing emails in the last {days} days.",
+      "noShared": "Nothing has been seen by enough members yet.",
+      "seenBy": "seen by {count} members",
+      "imitates": "imitates {domain}",
+      "frequentTitle": "Frequent domains",
+      "noFrequent": "No domains yet that enough members get email from."
+    },
+    "webhooks": {
+      "badge": "Integrations",
+      "eyebrow": "Webhooks",
+      "title": "Notify your other systems",
+      "intro": "A webhook is an address of another system of yours —a SIEM, a SOAR, a chat channel— that Iris notifies whenever something happens: an analysis finishes, a case changes, a campaign appears or a mailbox stops syncing. If the other system does not answer, Iris keeps retrying for a few hours.",
+      "signatureHint": "Every notification is signed with a secret that only Iris and your system know, so your system can check it comes from here. The signature travels in the X-Ellysia-Signature header.",
+      "name": "Name",
+      "namePlaceholder": "Office SIEM",
+      "url": "Address (https)",
+      "urlPlaceholder": "https://siem.company.com/alerts/iris",
+      "eventsLabel": "What to notify",
+      "create": "Create webhook",
+      "secretTitle": "Save this secret now",
+      "secretHint": "This is the only time it is shown. Your system needs it to check the signature of every notification; if you lose it, generate another one.",
+      "copy": "Copy",
+      "copied": "Secret copied.",
+      "copyFailed": "It could not be copied; select it and copy it by hand.",
+      "secretSaved": "I have saved it",
+      "listTitle": "Your webhooks",
+      "empty": "You do not have any webhook yet.",
+      "active": "Active",
+      "inactive": "Disabled",
+      "lastSuccess": "Last notification delivered: {date}",
+      "lastFailure": "last failure: {date}",
+      "neverSent": "Nothing has been sent to it yet.",
+      "test": "Send test",
+      "disable": "Disable",
+      "enable": "Enable",
+      "rotate": "Change secret",
+      "showHistory": "Show notifications",
+      "hideHistory": "Hide notifications",
+      "noDeliveries": "No notifications yet.",
+      "replay": "Resend",
+      "columns": {
+        "event": "Notification",
+        "status": "Status",
+        "attempts": "Attempts",
+        "date": "Date"
+      },
+      "events": {
+        "analysisFinished": "Analysis finished",
+        "caseUpdated": "Case opened or changed",
+        "campaignDetected": "Campaign detected",
+        "mailboxReauthRequired": "Mailbox that must be reconnected",
+        "ping": "Test"
+      },
+      "deliveryStatus": {
+        "pending": "Pending",
+        "delivering": "Sending",
+        "delivered": "Delivered",
+        "failed": "Not delivered"
+      },
+      "disabledReason": {
+        "manual": "You disabled it.",
+        "failures": "It disabled itself because your system failed too many times in a row. Check the address and enable it again.",
+        "gone": "It disabled itself because your system answered that the address no longer exists."
+      },
+      "confirmRotate": {
+        "title": "Change the secret of “{name}”?",
+        "message": "The current secret stops working at once: your system will reject notifications until you give it the new one."
+      },
+      "confirmDelete": {
+        "title": "Delete “{name}”?",
+        "message": "It will stop receiving notifications and its history will be deleted."
+      }
+    },
+    "reporting": {
+      "eyebrow": "Report from your email",
+      "title": "Report phishing button",
+      "intro": "An integration token lets a button in Outlook or Gmail, a browser extension or your own script send the suspicious email to Iris as it is, without copying headers. It is only good for that: it does not open your account, it expires and you can revoke it whenever you want.",
+      "name": "What it is for",
+      "namePlaceholder": "Laptop Outlook",
+      "lifetime": "Valid for",
+      "days": "{count} day | {count} days",
+      "create": "Create token",
+      "tokenTitle": "Copy this token now",
+      "tokenHint": "This is the only time it is shown. Paste it into the add-in or the script; if you lose it, revoke it and create another one.",
+      "empty": "You do not have any token yet.",
+      "neverUsed": "Never",
+      "revoke": "Revoke",
+      "howTo": "How to use it: the client sends the whole email to /iris/reports with the header Authorization: Bearer and the token. If you forward it as an attachment, Iris analyses the original and remembers who forwarded it.",
+      "columns": {
+        "name": "Token",
+        "status": "Status",
+        "expires": "Expires",
+        "lastUsed": "Last used"
+      },
+      "tokenStatus": {
+        "active": "Valid",
+        "expired": "Expired",
+        "revoked": "Revoked"
+      },
+      "channels": {
+        "outlook_addin": "Reported from Outlook",
+        "gmail_addon": "Reported from Gmail",
+        "browser_extension": "Reported from the browser extension",
+        "api": "Reported by an integration"
+      },
+      "confirmRevoke": {
+        "title": "Revoke “{name}”?",
+        "message": "The client using it will stop being able to report emails at once."
+      }
+    },
+    "remediation": {
+      "title": "Act on your mailbox",
+      "intro": "This email arrived through a connected mailbox. Iris recommends what to do, but does nothing until you ask. Everything is logged and can be undone.",
+      "recommended": "Iris recommends: {action}",
+      "noRecommendation": "Iris does not recommend doing anything with this email.",
+      "reason": "Why you are doing it",
+      "reasonPlaceholder": "E.g.: it impersonates our bank and asks for the password",
+      "confirmTitle": "{action}?",
+      "confirmMessage": "The email will leave your inbox. It will be logged with your reason and you will be able to undo it.",
+      "requested": "Action requested; you will see the result in a few seconds.",
+      "undo": "Undo",
+      "undoReason": "Undone from the report",
+      "history": "What has been done with this email",
+      "undoneBy": "undo",
+      "actions": {
+        "quarantine": "Quarantine",
+        "label": "Mark as suspicious",
+        "report_phishing": "Send to spam",
+        "delete": "Send to trash"
+      },
+      "statuses": {
+        "pending": "Pending",
+        "running": "In progress",
+        "succeeded": "Done",
+        "failed": "Failed",
+        "rolled_back": "Undone"
+      },
+      "unavailable": {
+        "not_from_mailbox": "This email did not arrive through a connected mailbox.",
+        "connection_gone": "The mailbox it came from is no longer connected.",
+        "reauth_required": "The mailbox needs to be reconnected.",
+        "missing_scope": "The mailbox is read-only. Reconnect it with actions enabled to be able to act."
+      }
+    },
+    "shared": {
+      "badge": "Shared mailboxes",
+      "eyebrow": "Organization",
+      "title": "Shared mailboxes",
+      "intro": "Organization mailboxes such as support{'@'} or invoices{'@'}. Each person only sees the mailboxes they have explicit access to, and whoever manages them decides who else sees them. Leaving the organization removes access immediately.",
+      "create": "Connect a shared mailbox",
+      "ownerOnly": "Only the organization owner can connect shared mailboxes. Here you will see the ones you have been given access to.",
+      "access": "How Iris accesses it",
+      "providers": {
+        "microsoft": "Microsoft 365 (service account)",
+        "gmail": "Google Workspace (service account)",
+        "imap": "IMAP"
+      },
+      "providerHints": {
+        "microsoft": "Uses the installation's service application with the Mail.Read application permission. Restrict it to the specific mailboxes with an Exchange application access policy.",
+        "gmail": "Uses the installation's service account with domain-wide delegation limited to gmail.readonly.",
+        "imap": "Any other provider, with an app password and IMAP over TLS only."
+      },
+      "address": "Mailbox address",
+      "fullMessage": "Read the full message (not only the headers)",
+      "connect": "Connect",
+      "created": "Shared mailbox connected.",
+      "requestFailed": "The shared mailbox operation could not be completed.",
+      "empty": "You do not have access to any shared mailbox.",
+      "accessLevels": {
+        "viewer": "Sees the analyses",
+        "manager": "Manages"
+      },
+      "statuses": {
+        "active": "Active",
+        "paused": "Paused",
+        "reauth_required": "Needs reconnecting",
+        "revoked": "Revoked"
+      },
+      "analyses": "Analyses",
+      "members": "People with access",
+      "noAnalyses": "There are no analyses of this mailbox yet.",
+      "untitled": "(no subject)",
+      "chooseMember": "Choose a person from the organization",
+      "addMember": "Give access",
+      "removeMember": "Remove {name}'s access",
+      "membersHint": "Viewers cannot change anything; managers decide who else has access, change folders and credentials and can disconnect the mailbox."
+    },
+    "imap": {
+      "title": "Another provider (IMAP)",
+      "intro": "For mailboxes that are not Google or Microsoft. Use an app password, not your account password. Iris only reads: it marks nothing as read and moves no email.",
+      "host": "IMAP server",
+      "hostPlaceholder": "imap.yourprovider.com",
+      "port": "Port",
+      "username": "Username",
+      "password": "App password",
+      "hint": "IMAP over TLS only (port 993) and internet servers. The password is stored encrypted and never shown again.",
+      "rotate": "Change password",
+      "rotateFor": "Change the password of {email}",
+      "rotateTitle": "Change the app password",
+      "rotateIntro": "New app password for {email}. It is tested against the server before being saved."
+    },
+    "folders": {
+      "title": "Folders",
+      "forAccount": "Watched folders of {email}",
+      "intro": "Folders of {email} that Iris watches in addition to the main one. A new folder is read from the email that arrives from now on.",
+      "primary": "main",
+      "save": "Save",
+      "more": "+{count} folders"
     }
   },
   "irisHub": {
@@ -2277,7 +2654,29 @@
     "reanalyzeStarted": "Reanalysis started (ID: {id})",
     "batchSummary": "Batch #{id}: {created} created, {duplicate} duplicates, {skipped} not analyzed.",
     "caseOpened": "Case #{id} opened.",
-    "caseLinked": "Analysis #{analysisId} added to case #{caseId}."
+    "caseLinked": "Analysis #{analysisId} added to case #{caseId}.",
+    "graphForgotten": "Contacts forgotten.",
+    "graphForgetFailed": "Contacts could not be forgotten.",
+    "exportFailed": "Could not export.",
+    "enrichmentFailed": "The indicator could not be looked up.",
+    "organizationPolicySaved": "Policy saved.",
+    "organizationPolicyFailed": "The policy could not be saved.",
+    "organizationConsentGiven": "You now contribute to your organization's intelligence.",
+    "organizationConsentWithdrawn": "You no longer contribute to your organization's intelligence.",
+    "organizationConsentFailed": "Your consent could not be changed.",
+    "webhookCreated": "Webhook created.",
+    "webhookCreateFailed": "The webhook could not be created.",
+    "webhookUpdateFailed": "The webhook could not be changed.",
+    "webhookDeleted": "Webhook deleted.",
+    "webhookDeleteFailed": "The webhook could not be deleted.",
+    "webhookTestQueued": "Test sent; its result appears in the notifications in a few seconds.",
+    "webhookTestFailed": "The test could not be sent.",
+    "webhookReplayFailed": "The notification could not be resent.",
+    "integrationTokenCreateFailed": "The token could not be created.",
+    "integrationTokenRevoked": "Token revoked.",
+    "integrationTokenRevokeFailed": "The token could not be revoked.",
+    "mailboxActionFailed": "The action could not be requested.",
+    "mailboxRollbackFailed": "The action could not be undone."
   },
   "aegis": {
     "campaignStatus": {
@@ -3701,6 +4100,7 @@
       "udpRetries": "UDP retries",
       "udpBudgetSeconds": "UDP budget (s)",
       "rateLimitInterval": "Interval between sends (s)",
+      "rateLimitMaxBackoffFactor": "Max slowdown for an unresponsive host (×)",
       "hostPoolSize": "Hosts in parallel",
       "httpTimeout": "HTTP timeout (s)",
       "httpMaxBodyBytes": "Max HTTP body (bytes)",
@@ -3814,6 +4214,16 @@
         "label": "External AI providers",
         "covers": "Generating with OpenAI or Google; Ollama does not depend on this.",
         "unlocks": "contracts with the providers and a page about AI use"
+      },
+      "externalEnrichment": {
+        "label": "Iris external lookups",
+        "covers": "Asking third-party services about an email's indicators: domain registry, reputation and following links.",
+        "unlocks": "public list of providers and an explanation of what data they receive"
+      },
+      "webhooks": {
+        "label": "Iris webhooks",
+        "covers": "Sending Iris notifications (analyses, cases, campaigns, mailboxes) to an external system each user chooses.",
+        "unlocks": "data processing agreement and an explanation of what data each notification carries"
       }
     },
     "confirmOpen": "You are about to open to the public:\n{surfaces}\n\nContinue?",

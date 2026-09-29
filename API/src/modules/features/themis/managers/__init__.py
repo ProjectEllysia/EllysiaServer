@@ -6,6 +6,7 @@ This package provides manager classes for coordinating security scans:
 - NiktoScanManager: Web server vulnerability scanning.
 - NucleiScanManager: Template-based vulnerability scanning.
 - LybraEngineManager: self-built detection engine (Lybra).
+- OsintManager: inteligencia pasiva de Lybra (fuentes de terceros y DNS).
 
 Each manager handles the complete lifecycle of a scan:
 - Creating scan records via ScanRepository.
@@ -41,7 +42,7 @@ from .nikto import NiktoScanManager
 from .nuclei import NucleiScanManager
 from .authorized_target import AuthorizedTargetManager
 from .compliance import ComplianceManager
-from .lybra import LybraEngineManager
+from .lybra import CloudScanManager, LybraEngineManager, NetworkRiskManager, OsintManager
 from .kb_sync import (
     KB_SYNC_TARGETS, CveAdvisory, KbProduct, KbQueryManager, KbSyncManager, KbSyncTaskManager,
 )
@@ -58,6 +59,9 @@ __all__ = [
     "NiktoScanManager",
     "NucleiScanManager",
     "LybraEngineManager",
+    "OsintManager",
+    "CloudScanManager",
+    "NetworkRiskManager",
     "KbSyncManager",
     "KbSyncTaskManager",
     "KB_SYNC_TARGETS",

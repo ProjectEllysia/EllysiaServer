@@ -3,7 +3,7 @@
 Recorren todos los ``.py`` de ``API/src/`` y los analizan con ``ast`` —nunca con
 expresiones regulares sobre el texto: una regex confunde ``item.findtext(...)``
 con el ``text(...)`` de SQLAlchemy y no distingue un import de un comentario que
-lo menciona—. Son cinco reglas:
+lo menciona—. Son nueve reglas:
 
 1. ``sql-outside-repository``: ningún SQL fuera de una clase ``*Repository`` (§ 4).
 2. ``private-method``: una clase solo tiene métodos ``_x`` si son ganchos (§ 5.1).
@@ -11,6 +11,14 @@ lo menciona—. Son cinco reglas:
    de otro módulo (§ 3.3).
 4. ``private-name-import``: un ``_nombre`` no sale de su fichero (§ 5.4, § 6.2).
 5. ``module-direction``: un módulo no importa a otro de rango mayor (§ 3.4).
+6. ``manager-constructor``: el constructor de un manager no recibe identidad y
+   se puede llamar sin argumentos (§ 5.5, § 5.6).
+7. ``ambiguous-user-id``: si una firma recibe varios usuarios, ninguno se llama
+   ``user_id`` a secas (§ 5.5).
+8. ``manager-method-kind``: ``@staticmethod`` solo para ``execute_*`` y
+   ``@classmethod`` solo si usa ``cls`` (§ 5.6).
+9. ``manager-module-instance``: ningún manager se guarda en una variable de
+   fichero (§ 5.6).
 
 El código de hoy no las cumple todas, así que las violaciones existentes viven
 en ``KNOWN_VIOLATIONS``, una lista que solo encoge: el test falla si aparece una
@@ -20,7 +28,8 @@ que un ``xfail(strict=True)`` que pasa a XPASS).
 Cada violación se identifica por ``(regla, ruta relativa a API/, símbolo)``. El
 símbolo es la función o ``Clase.método`` donde aparece (``<module>`` si está a
 nivel de fichero); en las reglas de imports (3, 4 y 5) es el nombre importado,
-para que dos imports distintos del mismo fichero no se confundan. Nunca es un
+para que dos imports distintos del mismo fichero no se confundan, y en la 9 el
+nombre de la variable. Nunca es un
 número de línea, así que la lista no se rompe al editar el fichero.
 """
 
@@ -43,8 +52,22 @@ RULE_PRIVATE_METHOD = "private-method"
 RULE_MODULE_INTERNALS = "module-internals-import"
 RULE_PRIVATE_IMPORT = "private-name-import"
 RULE_DIRECTION = "module-direction"
+RULE_MANAGER_CONSTRUCTOR = "manager-constructor"
+RULE_AMBIGUOUS_USER_ID = "ambiguous-user-id"
+RULE_MANAGER_METHOD_KIND = "manager-method-kind"
+RULE_MANAGER_MODULE_INSTANCE = "manager-module-instance"
 
-ALL_RULES = (RULE_SQL, RULE_PRIVATE_METHOD, RULE_MODULE_INTERNALS, RULE_PRIVATE_IMPORT, RULE_DIRECTION)
+ALL_RULES = (
+    RULE_SQL,
+    RULE_PRIVATE_METHOD,
+    RULE_MODULE_INTERNALS,
+    RULE_PRIVATE_IMPORT,
+    RULE_DIRECTION,
+    RULE_MANAGER_CONSTRUCTOR,
+    RULE_AMBIGUOUS_USER_ID,
+    RULE_MANAGER_METHOD_KIND,
+    RULE_MANAGER_MODULE_INSTANCE,
+)
 
 _RULE_SECTIONS = {
     RULE_SQL: "§ 4 (Repositorios)",
@@ -52,7 +75,14 @@ _RULE_SECTIONS = {
     RULE_MODULE_INTERNALS: "§ 3.3 (La frontera entre módulos)",
     RULE_PRIVATE_IMPORT: "§ 5.4 y § 6.2 (La escalera)",
     RULE_DIRECTION: "§ 3.4 (La dirección entre módulos)",
+    RULE_MANAGER_CONSTRUCTOR: "§ 5.5 y § 5.6 (Quién actúa; Para qué es una clase)",
+    RULE_AMBIGUOUS_USER_ID: "§ 5.5 (Quién actúa: el usuario llega por parámetro)",
+    RULE_MANAGER_METHOD_KIND: "§ 5.6 (Para qué es una clase: instancia, estático y de clase)",
+    RULE_MANAGER_MODULE_INSTANCE: "§ 5.6 (Para qué es una clase: instancia, estático y de clase)",
 }
+
+#: Nombres de parámetro que llevan la identidad de quien actúa; no van en un constructor (§ 5.5).
+_IDENTITY_PARAMETER_NAMES = frozenset({"user", "user_id", "active_user"})
 
 #: Métodos de una sesión de SQLAlchemy que ejecutan o preparan SQL.
 _SESSION_METHODS = frozenset({"query", "execute", "add", "add_all", "delete", "merge", "flush", "get"})
@@ -80,6 +110,7 @@ _AUTHORIZATION_MODULE = "users"
 EXTERNAL_HOOKS: dict[tuple[str, str], str] = {
     ("src/modules/shared/schemas.py", "UTCDateTime._serialize"): "marshmallow (fields.Field)",
     ("src/modules/system/taskqueue/worker.py", "_ThreadSafeWorker._install_signal_handlers"): "rq (SimpleWorker)",
+    ("src/modules/features/iris/services/mailbox/imap.py", "PinnedImapClient._create_socket"): "imaplib (IMAP4_SSL)",
 }
 
 _PLAN_SQL = "pendiente de mover la consulta a un repositorio del módulo (§ 4)"
@@ -87,6 +118,10 @@ _PLAN_PRIVATE_METHOD = "pendiente de sacar a función de módulo (§ 5.1)"
 _PLAN_MODULE_INTERNALS = "pendiente de exportarlo en el __init__.py del módulo dueño (§ 3.3)"
 _PLAN_PRIVATE_IMPORT = "pendiente de subir a un servicio o a shared/ (§ 6.2)"
 _PLAN_DIRECTION = "pendiente de invertir la dependencia con un registro (§ 3.4)"
+_PLAN_MANAGER_CONSTRUCTOR = "pendiente de pasar la identidad por parámetro y dar valor por defecto al resto (§ 5.5, § 5.6)"
+_PLAN_AMBIGUOUS_USER_ID = "pendiente de nombrar cada usuario por su papel (§ 5.5)"
+_PLAN_MANAGER_METHOD_KIND = "pendiente de convertir en método de instancia (§ 5.6)"
+_PLAN_MANAGER_MODULE_INSTANCE = "pendiente de crear el manager donde se usa (§ 5.6)"
 
 #: Violaciones existentes. Generada ejecutando el detector sobre el código; solo encoge.
 KNOWN_VIOLATIONS: dict[tuple[str, str, str], str] = {
@@ -184,13 +219,7 @@ KNOWN_VIOLATIONS: dict[tuple[str, str, str], str] = {
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/accounts/services/scheduling.py", "AccountsScheduler._run_notices"):
         _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/acheron/managers.py", "VaultManager._bump_revision"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/acheron/managers.py", "VaultManager._ensure_vault_ownership"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/acheron/managers.py", "VaultManager._parse_dt"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/acheron/managers.py", "VaultManager._require_revision"):
+    ("private-method", "src/modules/features/acheron/managers.py", "VaultManager._assert_vault_ownership"):
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/aegis/managers/campaigns.py", "CampaignManager._assert_campaign_ownership"):
         _PLAN_PRIVATE_METHOD,
@@ -755,6 +784,218 @@ KNOWN_VIOLATIONS: dict[tuple[str, str, str], str] = {
         _PLAN_DIRECTION,
     ("module-direction", "src/modules/users/services/account_deletion.py", "src.modules.features.themis.model.Traceroute"):
         _PLAN_DIRECTION,
+    # --- manager-constructor
+    ("manager-constructor", "src/modules/features/acheron/managers.py", "VaultManager.__init__"):
+        _PLAN_MANAGER_CONSTRUCTOR,
+    ("manager-constructor", "src/modules/features/aegis/managers/campaigns.py", "CampaignManager.__init__"):
+        _PLAN_MANAGER_CONSTRUCTOR,
+    ("manager-constructor", "src/modules/features/aegis/managers/org_profile.py", "AegisOrgProfileManager.__init__"):
+        _PLAN_MANAGER_CONSTRUCTOR,
+    ("manager-constructor", "src/modules/features/aegis/managers/pills.py", "AegisManager.__init__"):
+        _PLAN_MANAGER_CONSTRUCTOR,
+    ("manager-constructor", "src/modules/features/hygeia/managers.py", "HygeiaAlertManager.__init__"):
+        _PLAN_MANAGER_CONSTRUCTOR,
+    ("manager-constructor", "src/modules/features/hygeia/managers.py", "HygeiaAssetManager.__init__"):
+        _PLAN_MANAGER_CONSTRUCTOR,
+    ("manager-constructor", "src/modules/features/hygeia/managers.py", "HygeiaDocumentManager.__init__"):
+        _PLAN_MANAGER_CONSTRUCTOR,
+    ("manager-constructor", "src/modules/features/hygeia/managers.py", "HygeiaIngestManager.__init__"):
+        _PLAN_MANAGER_CONSTRUCTOR,
+    ("manager-constructor", "src/modules/features/hygeia/managers.py", "HygeiaReportManager.__init__"):
+        _PLAN_MANAGER_CONSTRUCTOR,
+    ("manager-constructor", "src/modules/features/hygeia/managers.py", "HygeiaStatsManager.__init__"):
+        _PLAN_MANAGER_CONSTRUCTOR,
+    ("manager-constructor", "src/modules/features/hygeia/managers.py", "HygeiaTagManager.__init__"):
+        _PLAN_MANAGER_CONSTRUCTOR,
+    # --- ambiguous-user-id
+    ("ambiguous-user-id", "src/modules/accounts/managers/subscriptions.py", "SubscriptionManager.activate"):
+        _PLAN_AMBIGUOUS_USER_ID,
+    ("ambiguous-user-id", "src/modules/accounts/managers/subscriptions.py", "SubscriptionManager.apply"):
+        _PLAN_AMBIGUOUS_USER_ID,
+    ("ambiguous-user-id", "src/modules/accounts/managers/subscriptions.py", "SubscriptionManager.cancel"):
+        _PLAN_AMBIGUOUS_USER_ID,
+    ("ambiguous-user-id", "src/modules/accounts/managers/subscriptions.py", "SubscriptionManager.start_trial"):
+        _PLAN_AMBIGUOUS_USER_ID,
+    ("ambiguous-user-id", "src/modules/features/iris/managers/shared_mailboxes.py", "IrisSharedMailboxManager.remove_member"):
+        _PLAN_AMBIGUOUS_USER_ID,
+    ("ambiguous-user-id", "src/modules/features/iris/managers/shared_mailboxes.py", "IrisSharedMailboxManager.set_member"):
+        _PLAN_AMBIGUOUS_USER_ID,
+    # --- manager-method-kind
+    ("manager-method-kind", "src/modules/features/aegis/managers/campaigns.py", "CampaignManager.get_public_quiz"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/aegis/managers/campaigns.py", "CampaignManager.submit_public_quiz"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/aegis/managers/org_profile.py", "AegisOrgProfileManager.max_white_label_level"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/aegis/managers/org_profile.py", "AegisOrgProfileManager.search_products"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/hygeia/managers.py", "HygeiaAssetManager.has_inventory"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/hygeia/managers.py", "HygeiaAssetManager.inventory_products"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/hygeia/managers.py", "HygeiaNotifyManager.build_dispatch_for"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/analysis.py", "IrisManager.assert_analysis_ownership"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/analysis.py", "IrisManager.evaluate_raw"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/analysis.py", "IrisManager.get_capabilities"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/analysis.py", "IrisManager.get_retention_report"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/campaigns.py", "IrisCampaignManager.get_campaign"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/campaigns.py", "IrisCampaignManager.get_campaign_of_analysis"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/campaigns.py", "IrisCampaignManager.list_campaigns"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/enrichment.py", "IrisEnrichmentManager.get_domain_context"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/enrichment.py", "IrisEnrichmentManager.get_reputation"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/exports.py", "IrisExportManager.export_analysis"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/exports.py", "IrisExportManager.export_campaign"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/feedback.py", "IrisFeedbackManager.latest_for_analysis"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/graph.py", "IrisContactGraphManager.forget_graph"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/graph.py", "IrisContactGraphManager.get_graph"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/mailbox.py", "IrisMailboxManager.can_act_on"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/mailbox.py", "IrisMailboxManager.has_shared_access"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/mailbox.py", "IrisMailboxManager.list_connections"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/mailbox.py", "IrisMailboxManager.list_providers"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/mailbox_accounts.py", "IrisMailboxAccountManager.probe_imap"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/mailbox_accounts.py", "IrisMailboxAccountManager.probe_service_account"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/mailbox_events.py", "IrisMailboxEventManager.build_validation_echo"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/mailbox_events.py", "IrisMailboxEventManager.describe_subscription"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/notifications.py", "IrisDigestNotifyManager.enqueue_for"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/notifications.py", "IrisNotificationPreferenceManager.get_or_default"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/notifications.py", "IrisNotificationPreferenceManager.update"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/notifications.py", "IrisPhishingNotifyManager.enqueue_for"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/notifications.py", "IrisReauthNotifyManager.build_dispatch_for"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/notifications.py", "IrisStuckSyncNotifyManager.build_dispatch_for"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/remediation.py", "IrisRemediationManager.get_action"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/remediation.py", "IrisRemediationManager.get_message_actions"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/remediation.py", "IrisRemediationManager.list_actions"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/remediation.py", "IrisRemediationManager.reconcile_orphaned_actions"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/reporting.py", "IrisReportingManager.authenticate"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/reporting.py", "IrisReportingManager.create_token"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/reporting.py", "IrisReportingManager.get_report_status"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/reporting.py", "IrisReportingManager.list_tokens"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/reporting.py", "IrisReportingManager.revoke_token"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/reporting.py", "IrisReportingManager.submit_report"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/shared_mailboxes.py", "IrisSharedMailboxManager.create"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/shared_mailboxes.py", "IrisSharedMailboxManager.get_analysis"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/shared_mailboxes.py", "IrisSharedMailboxManager.list_analyses"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/shared_mailboxes.py", "IrisSharedMailboxManager.list_for_user"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/shared_mailboxes.py", "IrisSharedMailboxManager.list_members"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/shared_mailboxes.py", "IrisSharedMailboxManager.remove_member"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/shared_mailboxes.py", "IrisSharedMailboxManager.set_member"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/tenant.py", "IrisTenantManager.get_intel"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/tenant.py", "IrisTenantManager.get_sightings"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/tenant.py", "IrisTenantManager.set_consent"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/tenant.py", "IrisTenantManager.update_policy"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/trust.py", "IrisTrustPolicyManager.get_active_entries"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/url_expansion.py", "IrisUrlExpansionManager.list_expansions"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/webhooks.py", "IrisWebhookManager.create_subscription"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/webhooks.py", "IrisWebhookManager.delete_subscription"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/webhooks.py", "IrisWebhookManager.list_deliveries"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/webhooks.py", "IrisWebhookManager.list_subscriptions"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/webhooks.py", "IrisWebhookManager.purge_expired_deliveries"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/webhooks.py", "IrisWebhookManager.rotate_secret"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/iris/managers/webhooks.py", "IrisWebhookManager.update_subscription"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/themis/managers/authorized_target.py", "AuthorizedTargetManager.is_authorized"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/themis/managers/authorized_target.py", "AuthorizedTargetManager.is_cloud_resource_authorized"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/themis/managers/authorized_target.py", "AuthorizedTargetManager.is_domain_authorized"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/themis/managers/lybra/engine.py", "LybraEngineManager.exposure_for"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/themis/managers/lybra/engine.py", "LybraEngineManager.unresolved_products"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/themis/managers/lybra/osint.py", "OsintManager.build_enrichment_findings"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/themis/managers/programed.py", "ProgramedScanManager.assert_ownership"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/themis/managers/programed.py", "ProgramedScanManager.delete"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/themis/managers/programed.py", "ProgramedScanManager.get_scans_for_user"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/themis/managers/programed.py", "ProgramedScanManager.revoke"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/themis/managers/scan.py", "ScanManager.assert_scan_ownership"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/themis/managers/scan.py", "ScanManager.assert_third_party_scanners_enabled"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/themis/managers/scan.py", "ScanManager.get_scan_type"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/themis/managers/scan.py", "ScanManager.is_host_reachable"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/themis/managers/scan.py", "ScanManager.reject_private_ip"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/themis/managers/scan.py", "ScanManager.validate_ip"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/features/themis/managers/scan.py", "ScanManager.validate_port"):
+        _PLAN_MANAGER_METHOD_KIND,
+    ("manager-method-kind", "src/modules/users/managers.py", "UserManager.get_all_available_attributes"):
+        _PLAN_MANAGER_METHOD_KIND,
+    # --- manager-module-instance
+    ("manager-module-instance", "src/modules/features/aegis/endpoints.py", "USER_MANAGER"):
+        _PLAN_MANAGER_MODULE_INSTANCE,
+    ("manager-module-instance", "src/modules/users/endpoints.py", "MFA_MANAGER"):
+        _PLAN_MANAGER_MODULE_INSTANCE,
+    ("manager-module-instance", "src/modules/users/endpoints.py", "OAUTH_MANAGER"):
+        _PLAN_MANAGER_MODULE_INSTANCE,
+    ("manager-module-instance", "src/modules/users/endpoints.py", "USER_MANAGER"):
+        _PLAN_MANAGER_MODULE_INSTANCE,
 }
 
 
@@ -1265,8 +1506,186 @@ def find_reverse_dependencies(source: SourceFile) -> set[tuple[str, str, str]]:
     return violations
 
 
+# ------------------------------------------------------------------ reglas 6 a 9
+
+
+def iter_manager_classes(source: SourceFile) -> Iterator[tuple[ast.ClassDef, str]]:
+    """Recorre las clases manager de un fichero: las que se llaman ``*Manager``.
+
+    Args:
+        source: Fichero a recorrer.
+
+    Yields:
+        tuple[ast.ClassDef, str]: El nodo de cada clase y su nombre cualificado
+            (``Externa.Interna`` si está anidada).
+    """
+    for node, scope in iter_scoped_nodes(source.tree):
+        if isinstance(node, ast.ClassDef) and node.name.endswith("Manager"):
+            yield node, render_symbol(scope + (node,))
+
+
+def iter_methods(class_node: ast.ClassDef) -> Iterator[ast.FunctionDef]:
+    """Recorre los métodos que declara directamente una clase (no los de clases anidadas)."""
+    for item in class_node.body:
+        if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            yield item
+
+
+def decorator_names(function: ast.FunctionDef) -> set[str]:
+    """Nombres de los decoradores de una función (``staticmethod``, ``setter``…)."""
+    return {
+        decorator.id if isinstance(decorator, ast.Name) else getattr(decorator, "attr", "")
+        for decorator in function.decorator_list
+    }
+
+
+def iter_parameters(function: ast.FunctionDef) -> Iterator[tuple[ast.arg, bool]]:
+    """Recorre los parámetros de una función, sin ``self``/``cls`` ni ``*args``/``**kwargs``.
+
+    Args:
+        function: La función.
+
+    Yields:
+        tuple[ast.arg, bool]: Cada parámetro y si tiene valor por defecto.
+    """
+    arguments = function.args
+    positional = arguments.posonlyargs + arguments.args
+    if positional and positional[0].arg in ("self", "cls"):
+        positional = positional[1:]
+    first_with_default = len(positional) - len(arguments.defaults)
+    for position, parameter in enumerate(positional):
+        yield parameter, position >= first_with_default
+    for parameter, default in zip(arguments.kwonlyargs, arguments.kw_defaults):
+        yield parameter, default is not None
+
+
+def is_identity_parameter(parameter: ast.arg) -> bool:
+    """Indica si un parámetro lleva la identidad de quien actúa (§ 5.5).
+
+    Lo es si se llama ``user``, ``user_id`` o ``active_user``, o si su anotación
+    menciona ``User`` (``User``, ``Optional[User]``, ``"User"``).
+    """
+    if parameter.arg in _IDENTITY_PARAMETER_NAMES:
+        return True
+    pending = [parameter.annotation] if parameter.annotation is not None else []
+    while pending:
+        node = pending.pop()
+        for child in ast.walk(node):
+            if isinstance(child, ast.Name) and child.id == "User" or isinstance(child, ast.Attribute) and child.attr == "User":
+                return True
+            if isinstance(child, ast.Constant) and isinstance(child.value, str):
+                pending.append(ast.parse(child.value, mode="eval"))
+    return False
+
+
+def find_manager_constructor_violations(source: SourceFile) -> set[tuple[str, str, str]]:
+    """Regla 6: constructores de manager con identidad o con argumentos obligatorios (§ 5.5, § 5.6).
+
+    Un ``__init__`` de un ``*Manager`` solo recibe dependencias técnicas, todas con
+    valor por defecto, para que ``Manager()`` sin argumentos funcione siempre. Es
+    violación un parámetro de identidad (ver ``is_identity_parameter``), tenga
+    valor por defecto o no, y cualquier parámetro sin valor por defecto.
+
+    Args:
+        source: Fichero a revisar.
+
+    Returns:
+        set[tuple[str, str, str]]: Las violaciones, con ``Clase.__init__`` como
+            símbolo; vacío si no hay ninguna.
+    """
+    violations = set()
+    for class_node, class_name in iter_manager_classes(source):
+        for method in iter_methods(class_node):
+            if method.name != "__init__":
+                continue
+            if any(is_identity_parameter(parameter) or not has_default for parameter, has_default in iter_parameters(method)):
+                violations.add((RULE_MANAGER_CONSTRUCTOR, source.path, f"{class_name}.__init__"))
+    return violations
+
+
+def find_ambiguous_user_ids(source: SourceFile) -> set[tuple[str, str, str]]:
+    """Regla 7: métodos de manager con ``user_id`` y otro usuario en la misma firma (§ 5.5).
+
+    Cuando una firma recibe más de un usuario, ninguno se llama ``user_id`` a secas.
+    Cuenta como otro usuario un parámetro acabado en ``_user_id`` o llamado ``actor_id``.
+
+    Args:
+        source: Fichero a revisar.
+
+    Returns:
+        set[tuple[str, str, str]]: Las violaciones, con ``Clase.método`` como
+            símbolo; vacío si no hay ninguna.
+    """
+    violations = set()
+    for class_node, class_name in iter_manager_classes(source):
+        for method in iter_methods(class_node):
+            names = {parameter.arg for parameter, _ in iter_parameters(method)}
+            has_other_user = any(name.endswith("_user_id") or name == "actor_id" for name in names)
+            if "user_id" in names and has_other_user:
+                violations.add((RULE_AMBIGUOUS_USER_ID, source.path, f"{class_name}.{method.name}"))
+    return violations
+
+
+def find_wrong_method_kinds(source: SourceFile) -> set[tuple[str, str, str]]:
+    """Regla 8: métodos estáticos o de clase de un manager que deberían ser de instancia (§ 5.6).
+
+    Es violación un ``@staticmethod`` que no se llama ``execute_*`` y un
+    ``@classmethod`` cuyo cuerpo no usa ``cls`` (ni ``super()``, que lo usa por
+    debajo). Los métodos privados no se evalúan: la regla 2 ya los señala.
+
+    Args:
+        source: Fichero a revisar.
+
+    Returns:
+        set[tuple[str, str, str]]: Las violaciones, con ``Clase.método`` como
+            símbolo; vacío si no hay ninguna.
+    """
+    violations = set()
+    for class_node, class_name in iter_manager_classes(source):
+        for method in iter_methods(class_node):
+            if is_private_name(method.name):
+                continue
+            decorators = decorator_names(method)
+            is_misplaced_static = "staticmethod" in decorators and not method.name.startswith("execute_")
+            is_classless_classmethod = "classmethod" in decorators and not any(
+                isinstance(node, ast.Name) and node.id in ("cls", "super")
+                for statement in method.body
+                for node in ast.walk(statement)
+            )
+            if is_misplaced_static or is_classless_classmethod:
+                violations.add((RULE_MANAGER_METHOD_KIND, source.path, f"{class_name}.{method.name}"))
+    return violations
+
+
+def find_module_level_manager_instances(source: SourceFile) -> set[tuple[str, str, str]]:
+    """Regla 9: instancias de manager guardadas a nivel de fichero (§ 5.6).
+
+    Un manager se crea donde se usa; ``USER_MANAGER = UserManager()`` se salta el
+    constructor y un test no puede sustituirlo.
+
+    Args:
+        source: Fichero a revisar.
+
+    Returns:
+        set[tuple[str, str, str]]: Las violaciones, con el nombre de la variable
+            como símbolo; vacío si no hay ninguna.
+    """
+    violations = set()
+    for node in source.tree.body:
+        value = node.value if isinstance(node, (ast.Assign, ast.AnnAssign)) else None
+        if not isinstance(value, ast.Call):
+            continue
+        called = value.func.id if isinstance(value.func, ast.Name) else getattr(value.func, "attr", "")
+        if not called.endswith("Manager"):
+            continue
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+        for target in targets:
+            violations.add((RULE_MANAGER_MODULE_INSTANCE, source.path, ast.unparse(target)))
+    return violations
+
+
 def find_violations(sources: tuple[SourceFile, ...], external_hooks: Optional[dict] = None) -> set[tuple[str, str, str]]:
-    """Aplica las cinco reglas a un conjunto de ficheros.
+    """Aplica las nueve reglas a un conjunto de ficheros.
 
     Args:
         sources: Ficheros a revisar.
@@ -1281,6 +1700,10 @@ def find_violations(sources: tuple[SourceFile, ...], external_hooks: Optional[di
         violations |= find_module_internals_imports(source)
         violations |= find_private_name_imports(source)
         violations |= find_reverse_dependencies(source)
+        violations |= find_manager_constructor_violations(source)
+        violations |= find_ambiguous_user_ids(source)
+        violations |= find_wrong_method_kinds(source)
+        violations |= find_module_level_manager_instances(source)
     return violations
 
 
@@ -1517,3 +1940,135 @@ class TestDirectionDetector:
         assert find_reverse_dependencies(config_reading) == set()
         assert find_reverse_dependencies(shared) == set()
         assert find_reverse_dependencies(system_endpoints) == set()
+
+
+class TestManagerConstructorDetector:
+    """La regla 6 detecta constructores de manager con identidad o argumentos obligatorios."""
+
+    def test_detects_identity_and_required_arguments(self):
+        """Un usuario (por nombre o por tipo, aunque tenga default) o un argumento obligatorio es violación."""
+        source = parse_source(_MANAGER_PATH, """
+            class VaultManager:
+                def __init__(self, user: User): ...
+
+            class DocumentManager:
+                def __init__(self, owner: Optional["User"] = None): ...
+
+            class IngestManager:
+                def __init__(self, asset_id: int): ...
+        """)
+        assert find_manager_constructor_violations(source) == {
+            (RULE_MANAGER_CONSTRUCTOR, _MANAGER_PATH, "VaultManager.__init__"),
+            (RULE_MANAGER_CONSTRUCTOR, _MANAGER_PATH, "DocumentManager.__init__"),
+            (RULE_MANAGER_CONSTRUCTOR, _MANAGER_PATH, "IngestManager.__init__"),
+        }
+
+    def test_ignores_defaulted_dependencies_and_other_classes(self):
+        """Dependencias técnicas con default, ``*args`` y clases que no son managers valen."""
+        source = parse_source(_MANAGER_PATH, """
+            class IrisManager:
+                def __init__(self, task_queue=None, *, ai_writer: Optional[Writer] = None, **options): ...
+
+            class UserSnapshot:
+                def __init__(self, user: User): ...
+        """)
+        assert find_manager_constructor_violations(source) == set()
+
+
+class TestAmbiguousUserIdDetector:
+    """La regla 7 detecta ``user_id`` junto a otro usuario en la misma firma."""
+
+    def test_detects_user_id_next_to_another_user(self):
+        """``user_id`` con ``member_user_id`` o con ``actor_id`` (también keyword-only) es violación."""
+        source = parse_source(_MANAGER_PATH, """
+            class FooManager:
+                def remove_member(self, connection_id, user_id, member_user_id): ...
+
+                def activate(self, user_id, plan_code, *, actor_id=None): ...
+        """)
+        assert find_ambiguous_user_ids(source) == {
+            (RULE_AMBIGUOUS_USER_ID, _MANAGER_PATH, "FooManager.remove_member"),
+            (RULE_AMBIGUOUS_USER_ID, _MANAGER_PATH, "FooManager.activate"),
+        }
+
+    def test_ignores_single_user_and_named_roles(self):
+        """Un solo ``user_id``, o varios usuarios nombrados por su papel, valen."""
+        source = parse_source(_MANAGER_PATH, """
+            class FooManager:
+                def create_case(self, user_id, title): ...
+
+                def remove_member(self, organization_id, owner_user_id, member_user_id): ...
+        """)
+        assert find_ambiguous_user_ids(source) == set()
+
+
+class TestManagerMethodKindDetector:
+    """La regla 8 detecta estáticos y métodos de clase que deberían ser de instancia."""
+
+    def test_detects_misplaced_static_and_classless_classmethod(self):
+        """Un estático que no es ``execute_*`` y un ``classmethod`` que no usa ``cls`` son violación."""
+        source = parse_source(_MANAGER_PATH, """
+            class FooManager:
+                @staticmethod
+                def get_report(report_id): ...
+
+                @classmethod
+                def assert_ownership(cls, item_id, user_id):
+                    return assert_owned(Repo, item_id, user_id, NotFound)
+        """)
+        assert find_wrong_method_kinds(source) == {
+            (RULE_MANAGER_METHOD_KIND, _MANAGER_PATH, "FooManager.get_report"),
+            (RULE_MANAGER_METHOD_KIND, _MANAGER_PATH, "FooManager.assert_ownership"),
+        }
+
+    def test_ignores_execute_cls_users_private_and_other_classes(self):
+        """``execute_*``, ``classmethod`` que usa ``cls`` o ``super()``, privados y no managers valen."""
+        source = parse_source(_MANAGER_PATH, """
+            class FooManager:
+                @staticmethod
+                def execute_scan(scan_id): ...
+
+                @classmethod
+                def resolve_manager(cls, scan_type):
+                    return cls._registry[scan_type]()
+
+                @classmethod
+                def build(cls):
+                    return super().build()
+
+                @staticmethod
+                def _parse(value): ...
+
+                def get_scan(self, scan_id, user_id): ...
+
+            class ScanParser:
+                @staticmethod
+                def parse(value): ...
+        """)
+        assert find_wrong_method_kinds(source) == set()
+
+
+class TestModuleInstanceDetector:
+    """La regla 9 detecta managers guardados en variables de fichero."""
+
+    def test_detects_module_level_instances(self):
+        """``X = FooManager()`` y ``X: T = modulo.FooManager()`` a nivel de fichero son violación."""
+        source = parse_source("src/modules/users/endpoints.py", """
+            USER_MANAGER = UserManager()
+            MFA_MANAGER: MFAManager = managers.MFAManager()
+        """)
+        assert find_module_level_manager_instances(source) == {
+            (RULE_MANAGER_MODULE_INSTANCE, source.path, "USER_MANAGER"),
+            (RULE_MANAGER_MODULE_INSTANCE, source.path, "MFA_MANAGER"),
+        }
+
+    def test_ignores_local_instances_and_other_calls(self):
+        """Un manager creado dentro de una función, o una variable de fichero que no es un manager, vale."""
+        source = parse_source("src/modules/users/endpoints.py", """
+            logger = logging.getLogger(__name__)
+
+            def get_user(user_id):
+                manager = UserManager()
+                return manager.get_user_by_id(user_id)
+        """)
+        assert find_module_level_manager_instances(source) == set()

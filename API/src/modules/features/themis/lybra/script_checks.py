@@ -39,6 +39,7 @@ from .checks import (
     LDAPS_PORTS,
     is_ldap_service,
     is_dns_service,
+    is_ftp_service,
     is_mongodb_service,
     is_ntp_service,
     is_rdp_service,
@@ -52,14 +53,14 @@ from .checks import (
 )
 from .engine import Service
 from .fingerprinting.smb import SIGNING_REQUIRED_BIT, SmbProbe, fingerprint_smb
-from .fingerprinting.ldap import LdapProbe, fingerprint_ldap
+from .fingerprinting.ldap import LdapProbe, fingerprint_ldap, search_returned_entries
 from .fingerprinting.mongo import MongoProbe, fingerprint_mongo
 from .fingerprinting.postgres import PostgresProbe, fingerprint_postgres
 from .fingerprinting.rdp import RdpProbe, fingerprint_rdp
 from .fingerprinting.snmp import SnmpProbe
 from .fingerprinting.ssh import SshProbe, parse_kexinit
 from .fingerprinting.telnet import TelnetProbe
-from .fingerprinting.tls import TlsProbe
+from .fingerprinting.tls import LEGACY_TLS_PROTOCOLS, TlsProbe
 from .fingerprinting.vnc import VncProbe
 from .transport import tcp_timestamps_enabled
 from .fingerprinting.udp_services import (
@@ -261,16 +262,22 @@ class MongoUnauthenticatedAccessPlugin(ScriptPlugin):
 
 
 class LdapAnonymousBindPlugin(ScriptPlugin):
-    """Detecta un servidor de directorio que acepta un bind **anónimo**.
+    """Detecta un servidor de directorio que expone contenido con un bind **anónimo**.
 
-    Si el rootDSE contesta sin credenciales, la información del directorio es
-    pública: quién sirve qué dominio, qué mecanismos de autenticación admite y,
-    en muchos despliegues, bastante más si la consulta se amplía.
+    Que el servidor acepte el bind anónimo no es, por sí solo, el hallazgo:
+    todo servidor LDAP conforme al estándar —y en particular cualquier
+    controlador de dominio de Active Directory— lo acepta para servir el
+    rootDSE público (RFC 4511 §4.2), y eso no expone nada. El hallazgo real es
+    que una búsqueda anónima bajo el dominio que el propio servidor publica
+    (``namingContexts``) devuelva entradas del directorio: ahí sí hay
+    información que debería requerir credenciales y no las pide.
 
-    Un bind anónimo no es un intento de adivinar credenciales: es la forma que
-    el propio protocolo define para preguntar sin identificarse (RFC 4511
-    §4.2), y lo que se observa es si el servidor **la acepta**. No se prueba
-    ninguna contraseña.
+    Por eso el check encadena dos sondas: primero el bind más el rootDSE
+    (:meth:`LdapProbe.fetch`, para leer el primer ``namingContexts``) y sólo
+    si hay un dominio publicado, una búsqueda de una sola entrada bajo ese
+    dominio (:meth:`LdapProbe.fetch_naming_context_entries`). Sin dominio
+    publicado no hay base sobre la que buscar, y sin entradas no hay nada que
+    el bind anónimo esté exponiendo.
 
     Args:
         probe: Sonda inyectable, para que un test use un socket falso.
@@ -286,10 +293,21 @@ class LdapAnonymousBindPlugin(ScriptPlugin):
 
     def run(self, context: ScriptContext) -> bool:
         context.acquire()
-        replies = self._probe.fetch(context.target, context.service.port or 389)
+        port = context.service.port or 389
+        replies = self._probe.fetch(context.target, port)
         if replies is None:
             return False
-        return fingerprint_ldap(*replies).allows_anonymous_bind
+        naming_contexts = fingerprint_ldap(*replies).naming_contexts
+        if not naming_contexts:
+            # Sin un dominio publicado no hay base sobre la que buscar, así
+            # que no hay forma de confirmar que el bind anónimo expone algo.
+            return False
+        context.acquire()
+        entries_reply = self._probe.fetch_naming_context_entries(
+            context.target, naming_contexts[0], port)
+        if entries_reply is None:
+            return False
+        return search_returned_entries(entries_reply)
 
 
 class LdapCleartextWithLdapsPlugin(ScriptPlugin):
@@ -806,6 +824,14 @@ _TLS12_WEAK_CIPHER_FAMILIES = {
                         "ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384:"
                         "ECDHE-ECDSA-AES128-SHA:ECDHE-ECDSA-AES256-SHA:"
                         "ECDHE-ECDSA-AES128-SHA256:ECDHE-ECDSA-AES256-SHA384"),
+    # Cifrados débiles de verdad: sin cifrado (NULL), 3DES, RC4, DES y
+    # exportación. ``@SECLEVEL=0`` hace falta para que OpenSSL 3 los ofrezca.
+    # Lo que se ofrece de verdad depende de la build local: OpenSSL ignora las
+    # familias que no tiene compiladas, y hoy ninguna build moderna trae RC4,
+    # DES ni EXPORT (la de Debian bookworm tampoco), así que en la práctica
+    # esta sonda ve NULL y, si la build lo conserva, 3DES. Que un servidor
+    # acepte RC4 sólo se vería leyendo su respuesta a un saludo escrito a mano.
+    "tls-weak-cipher": "eNULL:3DES:RC4:DES:EXPORT:!aNULL:@SECLEVEL=0",
 }
 
 
@@ -842,6 +868,73 @@ class TlsWeakCipherFamilyPlugin(ScriptPlugin):
         return True
 
 
+class TlsDeprecatedProtocolPlugin(ScriptPlugin):
+    """Detecta que un servicio TLS acepta una versión obsoleta del protocolo (SSLv3, TLS 1.0, TLS 1.1).
+
+    El saludo normal negocia la versión más alta que comparten cliente y
+    servidor, así que un servidor que acepta TLS 1.0 **y** 1.2 parece sano. Lo
+    que importa es lo más bajo que acepta, porque un atacante en medio puede
+    forzar la bajada: se pregunta por cada versión obsoleta por separado, con
+    un saludo que sólo ofrece esa versión (una conexión por versión).
+
+    Qué versiones se pueden preguntar depende de la build de OpenSSL local: la
+    que no se puede ofrecer cuenta como «no se sabe» y nunca como «no la
+    acepta», así que el check no dispara por ella. En la imagen Docker
+    (Debian bookworm) SSLv3 no existe, y un servidor que sólo hable SSLv3 no
+    se detecta; TLS 1.0 y 1.1 sí.
+
+    Los servicios FTP que cifran a mitad de sesión se preguntan tras ``AUTH
+    TLS``; el 990 es FTPS implícito, TLS desde el primer byte.
+
+    Args:
+        probe: Sonda inyectable, para que un test use otra. Por defecto,
+            ``TlsProbe()``.
+    """
+
+    plugin_id = "tls-deprecated-protocol"
+
+    def __init__(self, probe: Optional[TlsProbe] = None) -> None:
+        self._probe = probe or TlsProbe()
+
+    def applies(self, service: Service) -> bool:
+        """Si el servicio habla TLS, desde el primer byte o tras ``AUTH TLS`` de FTP.
+
+        Args:
+            service: El servicio candidato.
+
+        Returns:
+            bool: ``True`` si merece la pregunta.
+        """
+        return is_tls_service(service) or is_ftp_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        """Pregunta por cada versión obsoleta y dispara si el servidor acepta alguna.
+
+        Args:
+            context: El contexto del check; su control de tasa se consulta
+                antes de cada saludo.
+
+        Returns:
+            bool: ``True`` si el servidor aceptó al menos una versión
+                obsoleta (van en ``acceptedProtocols`` de la evidencia);
+                ``False`` si no aceptó ninguna o no se pudo saber.
+        """
+        service = context.service
+        starttls = None
+        if is_ftp_service(service) and not is_tls_service(service) and service.port != 990:
+            starttls = "ftp"
+        accepted = []
+        for protocol in LEGACY_TLS_PROTOCOLS:
+            context.acquire()
+            if self._probe.fetch_accepts_protocol(context.target, service.port or 443,
+                                                  protocol, starttls=starttls):
+                accepted.append(protocol)
+        if not accepted:
+            return False
+        context.evidence.update({"acceptedProtocols": accepted})
+        return True
+
+
 def default_script_plugins() -> Dict[str, ScriptPlugin]:
     """Construye el registro de plugins de primera parte, indexado por ``plugin_id``.
 
@@ -864,6 +957,7 @@ def default_script_plugins() -> Dict[str, ScriptPlugin]:
         VncNoAuthenticationPlugin(),
         IkeWeakTransformPlugin(),
         TcpTimestampsPlugin(),
+        TlsDeprecatedProtocolPlugin(),
     )
     plugins += tuple(TlsWeakCipherFamilyPlugin(plugin_id) for plugin_id in _TLS12_WEAK_CIPHER_FAMILIES)
     ssh_cache = _KexinitCache()

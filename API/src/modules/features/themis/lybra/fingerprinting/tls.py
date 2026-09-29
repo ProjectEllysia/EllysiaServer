@@ -1,7 +1,10 @@
 """The TLS dissector: a single-handshake hygiene check, not identification.
 
 Reads the negotiated protocol version and the self-signed/expiry status of the
-certificate.
+certificate. Aparte, :meth:`TlsProbe.fetch_accepts_protocol` y
+:meth:`TlsProbe.fetch_accepted_tls12_cipher` preguntan por lo que el servidor
+acepta sin elegirlo (versiones obsoletas, familias de cifrado débiles), con un
+saludo que sólo ofrece eso.
 
 **JARM: archivado, no pendiente** (2026-09-02). Este módulo hace **un**
 handshake, y de ahí salen la versión de protocolo, el autofirmado y la
@@ -142,6 +145,51 @@ def _upgrade_ftp(sock) -> bool:
 _STARTTLS_UPGRADES: Dict[str, Callable] = {"ftp": _upgrade_ftp}
 
 
+#: Las versiones de protocolo obsoletas por las que se pregunta una a una, con
+#: el nombre que da ``SSLSocket.version()``. SSLv2 no está: ningún OpenSSL de
+#: los últimos diez años sabe hablarlo.
+LEGACY_TLS_PROTOCOLS = ("SSLv3", "TLSv1", "TLSv1.1")
+
+_LEGACY_TLS_VERSIONS = {
+    "SSLv3": ("HAS_SSLv3", "SSLv3"),
+    "TLSv1": ("HAS_TLSv1", "TLSv1"),
+    "TLSv1.1": ("HAS_TLSv1_1", "TLSv1_1"),
+}
+
+#: Motivos de ``ssl.SSLError`` con los que OpenSSL se niega a saludar por una
+#: limitación propia, antes de que el servidor diga nada.
+_LOCAL_REFUSAL_REASONS = {"NO_PROTOCOLS_AVAILABLE", "NO_CIPHERS_AVAILABLE",
+                          "UNSUPPORTED_PROTOCOL"}
+
+
+def _legacy_protocol_context(protocol: str) -> Optional[ssl.SSLContext]:
+    """Construye un contexto cliente que sólo ofrece ``protocol``, si la build local lo permite.
+
+    Args:
+        protocol: Una clave de ``_LEGACY_TLS_VERSIONS`` (``"SSLv3"``,
+            ``"TLSv1"`` o ``"TLSv1.1"``).
+
+    Returns:
+        Optional[ssl.SSLContext]: El contexto, sin verificación de certificado
+            y con ``@SECLEVEL=0``; ``None`` si la versión es desconocida o el
+            OpenSSL local no la tiene compilada o no deja fijarla.
+    """
+    names = _LEGACY_TLS_VERSIONS.get(protocol)
+    if names is None or not getattr(ssl, names[0], False):
+        return None
+    try:
+        version = getattr(ssl.TLSVersion, names[1])
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+        context.minimum_version = version
+        context.maximum_version = version
+        context.set_ciphers("ALL:@SECLEVEL=0")
+    except (AttributeError, ValueError, ssl.SSLError):
+        return None
+    return context
+
+
 class TlsProbe:
     """Performs a single, unverified TLS handshake to read protocol and cert.
 
@@ -220,7 +268,7 @@ class TlsProbe:
             Optional[str]: El nombre del conjunto que el servidor eligió si
                 aceptó la familia; ``""`` si la rechazó; ``None`` si no se
                 pudo saber (la conexión falló o el OpenSSL local no tiene
-                ningún conjunto de la familia).
+                ningún conjunto de la familia, o no puede ofrecerlo).
         """
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         context.check_hostname = False
@@ -240,12 +288,74 @@ class TlsProbe:
         try:
             with context.wrap_socket(sock, server_hostname=server_hostname) as tls_sock:
                 cipher = tls_sock.cipher()
-        except ssl.SSLError:
+        except ssl.SSLError as err:
+            if err.reason in _LOCAL_REFUSAL_REASONS:
+                return None
             return ""
         except OSError as err:
             logger.debug("TLS handshake failed for %s:%s: %s", host, port, err)
             return None
         return cipher[0] if cipher else ""
+
+    def fetch_accepts_protocol(self, host: str, port: int, protocol: str,
+                               starttls: Optional[str] = None) -> Optional[bool]:
+        """Pregunta al servidor si acepta una versión concreta de TLS, aunque no sea la que elegiría.
+
+        Un cliente moderno ofrece TLS 1.2 y 1.3 y el servidor elige la más alta
+        que tengan en común, así que el saludo de :meth:`fetch` nunca enseña que
+        el servidor **también** acepta TLS 1.0. Aquí se ofrece sólo
+        ``protocol`` —mínimo y máximo fijados a esa versión— con el nivel de
+        seguridad de OpenSSL rebajado a 0 (``@SECLEVEL=0``), que es lo justo
+        para que OpenSSL 3 vuelva a permitir esas versiones y sus cifrados. Se
+        cierra la conexión tras el saludo, sin enviar datos de aplicación.
+
+        El resultado depende de la build de OpenSSL local: si no se compiló con
+        la versión pedida (el SSLv3 no existe en las de Debian, por ejemplo), no
+        se puede ofrecer, y eso se detecta aquí y se contesta «no se sabe»,
+        nunca «no la acepta».
+
+        Args:
+            host: El objetivo. Si es un nombre, viaja en el SNI.
+            port: El puerto TLS.
+            protocol: La versión a ofrecer, con el nombre que da
+                ``SSLSocket.version()``: ``"SSLv3"``, ``"TLSv1"`` o
+                ``"TLSv1.1"`` (ver :data:`LEGACY_TLS_PROTOCOLS`).
+            starttls: Igual que en :meth:`fetch`: el protocolo en claro que hay
+                que hablar antes de pasar a TLS (hoy sólo ``"ftp"``). Por
+                defecto ``None``, TLS desde el primer byte.
+
+        Returns:
+            Optional[bool]: ``True`` si el servidor completó el saludo en esa
+                versión; ``False`` si lo rechazó; ``None`` si no se pudo
+                saber: la build local no puede ofrecer la versión, la conexión
+                falló o el servidor rechazó el ``AUTH TLS``.
+        """
+        context = _legacy_protocol_context(protocol)
+        if context is None:
+            logger.debug("La build local de OpenSSL no puede ofrecer %s", protocol)
+            return None
+        try:
+            sock = self._connect((host, port), self._timeout)
+        except OSError as err:
+            logger.debug("TLS connect failed for %s:%s: %s", host, port, err)
+            return None
+        if starttls is not None and not _STARTTLS_UPGRADES[starttls](sock):
+            sock.close()
+            return None
+        server_hostname = None if _is_ip_literal(host) else host
+        try:
+            with context.wrap_socket(sock, server_hostname=server_hostname) as tls_sock:
+                return tls_sock.version() == protocol
+        except ssl.SSLError as err:
+            # OpenSSL se niega antes de escribir nada si, pese a todo, no le
+            # queda ninguna versión que ofrecer: eso es una limitación local,
+            # no una respuesta del servidor.
+            if err.reason in _LOCAL_REFUSAL_REASONS:
+                return None
+            return False
+        except OSError as err:
+            logger.debug("TLS handshake failed for %s:%s: %s", host, port, err)
+            return None
 
     @staticmethod
     def _parse_cert(der: bytes, protocol: Optional[str], cipher: Optional[str]) -> Optional[TlsInfo]:

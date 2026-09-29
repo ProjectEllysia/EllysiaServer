@@ -9,11 +9,15 @@ todo servidor publica para que un cliente sepa con qué está hablando antes de
 autenticarse. Devuelve ``vendorName``, ``vendorVersion``, los
 ``namingContexts`` (los dominios que sirve) y los ``supportedSASLMechanisms``.
 
-Dos hallazgos vienen de regalo con la misma sonda:
+Dos hallazgos vienen de la misma familia de sondas:
 
-- **Bind anónimo permitido.** Si el rootDSE contesta sin credenciales, la
-  información del directorio es pública. Es un hallazgo de configuración
-  clásico, de los que OpenVAS detectaba y este motor no.
+- **Búsqueda anónima expone el directorio.** El bind anónimo en sí no es el
+  hallazgo: todo servidor conforme al estándar —y en particular cualquier
+  controlador de dominio de Active Directory— lo acepta para servir el
+  rootDSE público. Lo que sí importa es que una búsqueda anónima bajo el
+  dominio servido (``namingContexts``) devuelva entradas reales del
+  directorio; eso es lo que comprueba
+  :meth:`LdapProbe.fetch_naming_context_entries`.
 - **LDAP en claro conviviendo con LDAPS.** Un 389 abierto en un host que
   también publica el 636 significa que hay credenciales de directorio
   viajando sin cifrar por decisión de cada cliente.
@@ -178,6 +182,44 @@ def build_anonymous_bind(message_id: int = 1) -> bytes:
     return ber(TAG_SEQUENCE, ber(TAG_INTEGER, bytes((message_id,))) + request)
 
 
+def build_naming_context_search(naming_context: str, message_id: int = 3) -> bytes:
+    """Construye el ``SearchRequest`` que decide si el bind anónimo expone algo.
+
+    Todo servidor LDAP conforme al estándar —y en particular cualquier
+    controlador de dominio de Active Directory— acepta el bind anónimo para
+    servir el rootDSE; eso no expone nada por sí solo. Lo que sí es un
+    hallazgo real es que una búsqueda anónima devuelva entradas del
+    directorio, así que esta petición apunta a ``naming_context`` (el primer
+    dominio que el propio servidor publicó en el rootDSE) con ámbito
+    ``singleLevel``: mira un nivel bajo esa base, no la base en sí, que es lo
+    mínimo que confirma que hay contenido navegable ahí debajo.
+
+    El límite de tamaño en 1 basta para decidir "¿hay algo?" sin traer un
+    listado, y el atributo especial ``1.1`` (RFC 4511 §4.5.1) le pide al
+    servidor que no devuelva ningún atributo: la sonda comprueba que la
+    entrada existe, no lee su contenido.
+
+    Args:
+        naming_context: El dominio bajo el que se busca, tal cual lo publicó
+            el rootDSE (p. ej. ``"DC=empresa,DC=local"``).
+        message_id: El identificador del mensaje.
+
+    Returns:
+        El mensaje LDAP completo.
+    """
+    request = ber(TAG_SEARCH_REQUEST, (
+        ber(TAG_OCTET_STRING, naming_context.encode("utf-8"))
+        + ber(TAG_ENUMERATED, bytes((1,)))       # scope: singleLevel
+        + ber(TAG_ENUMERATED, bytes((0,)))       # derefAliases: never
+        + ber(TAG_INTEGER, bytes((1,)))          # sizeLimit: 1 — sólo hace falta una
+        + ber(TAG_INTEGER, bytes((5,)))          # timeLimit: 5s, acotado
+        + ber(TAG_BOOLEAN, bytes((0,)))          # typesOnly: falso
+        + ber(TAG_FILTER_PRESENT, b"objectClass")
+        + ber(TAG_SEQUENCE, ber(TAG_OCTET_STRING, b"1.1"))  # sin atributos
+    ))
+    return ber(TAG_SEQUENCE, ber(TAG_INTEGER, bytes((message_id,))) + request)
+
+
 def build_rootdse_search(message_id: int = 2) -> bytes:
     """Construye el ``SearchRequest`` del rootDSE.
 
@@ -298,6 +340,24 @@ def parse_search_entry(data: bytes) -> Dict[str, List[str]]:  # pylint: disable=
     return attributes
 
 
+def search_returned_entries(data: bytes) -> bool:
+    """Dice si una respuesta a ``SearchRequest`` trajo al menos una entrada.
+
+    Es la comprobación que decide el check ``ldap-anonymous-bind``: no
+    importa qué atributos trae la entrada —se pidieron cero, con ``1.1``—,
+    sólo que exista un ``SearchResultEntry`` entre los mensajes de la
+    respuesta. Un ``SearchResultDone`` solo, con o sin error, significa que
+    la búsqueda no devolvió nada navegable.
+
+    Args:
+        data: Los bytes recibidos en respuesta al ``SearchRequest``.
+
+    Returns:
+        ``True`` si hay al menos un ``SearchResultEntry`` legible.
+    """
+    return any(tag == TAG_SEARCH_ENTRY for tag, _body in _protocol_ops(data))
+
+
 @dataclass(frozen=True)
 class LdapFingerprint:
     """Lo que el rootDSE cuenta de un servidor de directorio.
@@ -395,6 +455,54 @@ class LdapProbe:  # pylint: disable=too-few-public-methods
             except OSError:
                 search_reply = b""
             return bind_reply, search_reply
+        except OSError as err:
+            logger.debug("LDAP: intercambio fallido con %s:%s: %s", host, port, err)
+            return None
+        finally:
+            try:
+                sock.close()
+            except OSError:
+                pass
+
+    def fetch_naming_context_entries(
+        self, host: str, naming_context: str, port: int = 389,
+    ) -> Optional[bytes]:
+        """Hace el bind anónimo y busca una entrada bajo ``naming_context``.
+
+        Es la sonda del check ``ldap-anonymous-bind``: aceptar el bind no es
+        el hallazgo —lo hace todo servidor conforme al estándar—, así que
+        aquí se comprueba lo que sí importa, que una búsqueda anónima bajo el
+        dominio servido devuelva contenido del directorio. Va en conexión
+        propia, igual que :meth:`fetch`, y sólo llega a buscar si el bind se
+        acepta; si el servidor rechaza el bind anónimo, no hay nada que
+        preguntar.
+
+        Args:
+            host: El objetivo.
+            naming_context: El dominio bajo el que buscar, tal cual lo
+                publicó el rootDSE.
+            port: El puerto de LDAP.
+
+        Returns:
+            Los bytes de la respuesta a la búsqueda, o ``None`` si el bind no
+            se aceptó o la conexión falló.
+        """
+        try:
+            sock = self._connect((host, port), self._timeout)
+        except OSError as err:
+            logger.debug("LDAP: conexión fallida a %s:%s: %s", host, port, err)
+            return None
+        try:
+            sock.settimeout(self._timeout)
+            sock.sendall(build_anonymous_bind())
+            bind_reply = sock.recv(8192)
+            if not bind_reply or parse_bind_response(bind_reply) != RESULT_SUCCESS:
+                return None
+            sock.sendall(build_naming_context_search(naming_context))
+            try:
+                return sock.recv(16384)
+            except OSError:
+                return b""
         except OSError as err:
             logger.debug("LDAP: intercambio fallido con %s:%s: %s", host, port, err)
             return None

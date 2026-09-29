@@ -451,6 +451,15 @@ def _configure_scheduling() -> None:
     except Exception as e:
         _logger.warning("No se pudo reconciliar escaneos huérfanos: %s", e)
 
+    _logger.info("Reconciliando escaneos pasivos huérfanos...")
+    try:
+        from src.modules.features.themis.managers import OsintManager
+        fixed_osint = OsintManager.reconcile_orphaned_scans()
+        if fixed_osint:
+            _logger.info("Se marcaron %d escaneo(s) pasivo(s) huérfano(s) como FAILED", fixed_osint)
+    except Exception as e:
+        _logger.warning("No se pudo reconciliar escaneos pasivos huérfanos: %s", e)
+
     _logger.info("Reconciliando análisis Iris huérfanos...")
     try:
         from src.modules.features.iris.managers import IrisManager
@@ -459,6 +468,15 @@ def _configure_scheduling() -> None:
             _logger.info("Se marcaron %d análisis Iris huérfano(s) como failed", fixed_iris)
     except Exception as e:
         _logger.warning("No se pudo reconciliar análisis Iris huérfanos: %s", e)
+
+    _logger.info("Reconciliando acciones de Iris sobre buzones que quedaron a medias...")
+    try:
+        from src.modules.features.iris.managers import IrisRemediationManager
+        fixed_actions = IrisRemediationManager.reconcile_orphaned_actions()
+        if fixed_actions:
+            _logger.info("Se marcaron %d acción(es) sobre buzones interrumpida(s) como failed", fixed_actions)
+    except Exception as e:
+        _logger.warning("No se pudo reconciliar las acciones sobre buzones: %s", e)
 
     _logger.info("Reconciliando documentos Hygeia huérfanos...")
     try:

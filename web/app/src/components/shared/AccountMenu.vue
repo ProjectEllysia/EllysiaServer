@@ -33,6 +33,11 @@
           <span v-else class="drop-plan-hint">{{ t('accountMenu.planHint') }}</span>
         </router-link>
 
+        <div class="drop-language">
+          <span class="drop-language-label" aria-hidden="true">{{ t('language.label') }}</span>
+          <LanguageSelect />
+        </div>
+
         <nav class="drop-menu">
           <router-link to="/profile" class="drop-item" @click="open = false">{{ t('accountMenu.profile') }}</router-link>
           <router-link to="/mi-plan" class="drop-item" @click="open = false">{{ t('accountMenu.myPlan') }}</router-link>
@@ -80,6 +85,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useProfileStore } from '@/stores/profileStore'
 import { useAccountStore } from '@/stores/accountStore'
 import { useApi } from '@/composables/useApi'
+import LanguageSelect from '@/components/shared/LanguageSelect.vue'
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -198,7 +204,8 @@ onUnmounted(() => {
 
 .drop {
   position: absolute; top: calc(100% + 0.7rem); right: 0; z-index: 60;
-  width: 300px;
+  /* 320 px es lo que pide el rótulo más largo del selector de idioma. */
+  width: 320px;
   max-height: calc(100vh - 100px);
   overflow-y: auto;
   background: var(--surface);
@@ -270,6 +277,26 @@ onUnmounted(() => {
   font-size: var(--fs-body); color: var(--text-muted);
 }
 .drop-plan-notice { color: var(--warning, #d4a04a); }
+
+/* El selector ocupa todo el ancho del menú y usa la letra del texto corrido:
+   con la de la marca, solo mayúsculas y muy espaciada, su rótulo con sesión
+   («Idioma de mi organización (Español)») no cabe ni aquí. */
+.drop-language {
+  display: flex; flex-direction: column; gap: 0.35rem;
+  padding: 0.2rem 0 0.65rem;
+  margin-bottom: 0.45rem;
+  border-bottom: 1px solid var(--border);
+}
+.drop-language-label {
+  font-family: var(--font-mono); font-size-adjust: var(--fsa-mono); font-size: var(--fs-sm);
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted);
+  padding-left: 0.6rem;
+}
+.drop-language :deep(select) {
+  width: 100%;
+  font-family: var(--font-body); font-size-adjust: none;
+  font-size: var(--fs-body); letter-spacing: normal;
+}
 
 .drop-menu { display: flex; flex-direction: column; gap: 0.15rem; }
 .drop-item {

@@ -11,7 +11,7 @@ import src.modules.system.config_reading as CR
 from src.modules.shared import UTCDateTime
 
 from .services.feedback_metrics import FEEDBACK_LABELS
-from .model import CasePriority, CaseStatus, TrustKind
+from .model import SUBSCRIBABLE_WEBHOOK_EVENTS, CasePriority, CaseStatus, MailboxAction, TrustKind
 from .services.quality import AnalysisMode
 from .services.scoring import PROFILE_THRESHOLD_OFFSETS
 from .services.trust import MAX_TRUST_EXPIRY_DAYS, MAX_TRUST_REASON_LENGTH
@@ -397,6 +397,7 @@ class AnalysisDetailResponseSchema(Schema):
     unwrappedFromForward = fields.Boolean(load_default=False)
     wrapperFrom = fields.String(load_default=None, allow_none=True)
     wrapperSubject = fields.String(load_default=None, allow_none=True)
+    reportChannel = fields.String(load_default=None, allow_none=True)
     winningContext = fields.String(load_default=None, allow_none=True)
     winningReason = fields.String(load_default=None, allow_none=True)
     secondaryContext = fields.Nested(SecondaryContextSchema, load_default=None, allow_none=True)
@@ -411,6 +412,42 @@ class AnalysisDetailResponseSchema(Schema):
     latestFeedback = fields.Nested(IrisFeedbackItemSchema, load_default=None, allow_none=True)
     trustApplied = fields.Dict(load_default=None, allow_none=True)
     tags = fields.List(fields.String(), load_default=list)
+    campaign = fields.Nested("AnalysisCampaignSchema", load_default=None, allow_none=True)
+    contactDeviation = fields.Nested("ContactDeviationSchema", load_default=None, allow_none=True)
+    organizationSightings = fields.Nested("OrganizationSightingsSchema", load_default=None, allow_none=True)
+
+
+class AnalysisCampaignSchema(Schema):
+    """La campaña de un análisis, tal como acompaña a su informe."""
+    campaignId = fields.Integer()
+    label = fields.String(allow_none=True)
+    relatedCount = fields.Integer()
+
+
+class OrganizationSightingIndicatorSchema(Schema):
+    """Un indicador del análisis y cuántos miembros de la organización lo han visto."""
+    kind = fields.String()
+    value = fields.String()
+    memberCount = fields.Integer()
+
+
+class OrganizationSightingsSchema(Schema):
+    """Indicadores del análisis que también han visto otros miembros de la organización."""
+    minMembers = fields.Integer()
+    indicators = fields.List(fields.Nested(OrganizationSightingIndicatorSchema))
+
+
+class ContactDeviationSchema(Schema):
+    """El remitente imita a un contacto habitual del usuario.
+
+    ``kind`` es ``display_name_reuse`` (usa su nombre desde otra dirección) o
+    ``address_domain_change`` (su misma dirección con otro dominio).
+    """
+    kind = fields.String()
+    senderAddress = fields.String()
+    displayName = fields.String(allow_none=True)
+    habitualAddress = fields.String()
+    habitualMessages = fields.Integer()
 
 
 class AnalysisListItemSchema(Schema):
@@ -646,6 +683,9 @@ class IrisMailboxConnectRequestSchema(Schema):
     """Request body for ``POST /iris/mailbox/connect``."""
     provider = fields.String(required=True)
     fullMessageMode = fields.Boolean(load_default=False)
+    # Pide al proveedor permiso de escritura, necesario para la cuarentena y
+    # las demás acciones sobre el buzón. Por defecto, solo lectura.
+    remediationEnabled = fields.Boolean(load_default=False)
     # La validación real (existe, pertenece a esta cuenta/proveedor) es
     # de red y solo se puede hacer con un access_token en la mano -- ver
     # IrisMailboxManager._validate_folder(), llamada desde handle_callback().
@@ -668,11 +708,15 @@ class IrisMailboxConnectionItemSchema(Schema):
     folderDisplayName = fields.String(allow_none=True)
     folderType = fields.String(allow_none=True)
     fullMessageMode = fields.Boolean()
+    remediationEnabled = fields.Boolean()
+    canAct = fields.Boolean()
     status = fields.String()
     lastSyncAt = UTCDateTime(allow_none=True)
     lastError = fields.String(allow_none=True)
     syncStartedAt = UTCDateTime(allow_none=True)
     createdAt = UTCDateTime(allow_none=True)
+    authMode = fields.String()
+    additionalFolders = fields.List(fields.Dict())
 
 
 class IrisMailboxConnectionListResponseSchema(Schema):
@@ -719,6 +763,7 @@ class IrisMailboxHealthResponseSchema(Schema):
     messagesRetrying = fields.Integer()
     messagesDead = fields.Integer()
     oldestPendingMessageAgeSeconds = fields.Integer(allow_none=True)
+    eventSubscription = fields.Dict(allow_none=True)
 
 
 class IrisMailboxConnectionDeleteResponseSchema(Schema):
@@ -1078,3 +1123,582 @@ class IrisBatchSummarySchema(Schema):
 class IrisBatchListResponseSchema(Schema):
     """Lotes recientes del usuario, del más nuevo al más antiguo."""
     batches = fields.List(fields.Nested(IrisBatchSummarySchema))
+
+
+class IrisCampaignsQuerySchema(Schema):
+    """Paginación de ``GET /iris/campaigns``."""
+    page = fields.Integer(load_default=1, validate=validate.Range(min=1))
+    per_page = fields.Integer(load_default=20, validate=validate.Range(min=1, max=100))
+
+
+class IrisCampaignSummarySchema(Schema):
+    """Una campaña en el listado.
+
+    ``analysisCount`` cuenta análisis y ``messageCount`` correos distintos: un
+    mismo correo analizado otra vez suma un análisis pero no un mensaje.
+    ``verdicts`` es ``{veredicto: análisis}``.
+    """
+    campaignId = fields.Integer()
+    label = fields.String(allow_none=True)
+    analysisCount = fields.Integer()
+    messageCount = fields.Integer()
+    firstSeenAt = fields.String(allow_none=True)
+    lastSeenAt = fields.String(allow_none=True)
+    verdicts = fields.Dict(keys=fields.String(), values=fields.Integer())
+
+
+class IrisCampaignListResponseSchema(Schema):
+    """Campañas del usuario, de la de actividad más reciente a la que menos."""
+    campaigns = fields.List(fields.Nested(IrisCampaignSummarySchema))
+    total = fields.Integer()
+    page = fields.Integer()
+    perPage = fields.Integer()
+
+
+class IrisCampaignAnalysisSchema(Schema):
+    """Un mensaje de la campaña y por qué entró en ella."""
+    analysisId = fields.Integer()
+    title = fields.String(allow_none=True)
+    verdict = fields.String(allow_none=True)
+    totalScore = fields.Float(allow_none=True)
+    receivedAt = fields.String(allow_none=True)
+    similarity = fields.Float()
+    matchedSignals = fields.List(fields.String())
+
+
+class IrisCampaignIndicatorSchema(Schema):
+    """Un indicador que comparten varios mensajes de la campaña."""
+    kind = fields.String()
+    value = fields.String()
+    analysisCount = fields.Integer()
+
+
+class IrisCampaignDetailSchema(IrisCampaignSummarySchema):
+    """Una campaña con sus mensajes, los indicadores comunes y las marcas suplantadas."""
+    analyses = fields.List(fields.Nested(IrisCampaignAnalysisSchema))
+    sharedIndicators = fields.List(fields.Nested(IrisCampaignIndicatorSchema))
+    brands = fields.List(fields.String())
+
+
+class IrisGraphQuerySchema(Schema):
+    """Filtros de ``GET /iris/graph``."""
+    address = fields.String(load_default=None, validate=validate.Length(max=320))
+    limit = fields.Integer(load_default=200, validate=validate.Range(min=1, max=500))
+
+
+class IrisGraphSenderSchema(Schema):
+    """Un remitente del grafo con sus recuentos."""
+    address = fields.String()
+    displayName = fields.String(allow_none=True)
+    messageCount = fields.Integer()
+    legitimateCount = fields.Integer()
+    isHabitual = fields.Boolean()
+    firstSeenAt = fields.String(allow_none=True)
+    lastSeenAt = fields.String(allow_none=True)
+
+
+class IrisGraphEdgeSchema(Schema):
+    """Una arista: el remitente escribió a (o pidió respuesta en) otra dirección."""
+    sender = fields.String()
+    recipient = fields.String()
+    kind = fields.String()
+    messageCount = fields.Integer()
+    legitimateCount = fields.Integer()
+    firstSeenAt = fields.String(allow_none=True)
+    lastSeenAt = fields.String(allow_none=True)
+
+
+class IrisGraphResponseSchema(Schema):
+    """El grafo de comunicación del usuario y cómo se interpreta."""
+    senders = fields.List(fields.Nested(IrisGraphSenderSchema))
+    edges = fields.List(fields.Nested(IrisGraphEdgeSchema))
+    habitualMinMessages = fields.Integer()
+    retentionDays = fields.Integer()
+    enabled = fields.Boolean()
+
+
+class IrisGraphDeleteResponseSchema(Schema):
+    """Cuántas aristas se olvidaron."""
+    deletedEdges = fields.Integer()
+
+
+class IntelExportQuerySchema(Schema):
+    """Opciones de ``GET /iris/results/<id>/export/intel`` (JSON versionado)."""
+    defang = fields.Boolean(load_default=True)
+
+
+class IntelExportRequestSchema(Schema):
+    """Petición explícita de exportación de indicadores.
+
+    ``format`` es ``json`` (el esquema versionado de Iris), ``stix`` (STIX 2.1)
+    o ``misp`` (evento MISP). ``defang`` solo cuenta en ``json``: STIX y MISP
+    llevan siempre los valores reales, porque un patrón desactivado no casa
+    con nada.
+    """
+    format = fields.String(required=True, validate=validate.OneOf(["json", "stix", "misp"]))
+    defang = fields.Boolean(load_default=True)
+
+
+class IrisDomainContextSchema(Schema):
+    """Contexto de infraestructura de un dominio (RDAP).
+
+    ``status`` es ``ok``, ``unavailable`` (el registro no respondió: modo
+    neutro), ``rate_limited`` o ``disabled``. La edad es contexto: ninguna
+    decisión de Iris depende solo de ella.
+    """
+    domain = fields.String()
+    registrableDomain = fields.String()
+    status = fields.String()
+    cached = fields.Boolean()
+    registeredAt = fields.String(allow_none=True)
+    ageDays = fields.Integer(allow_none=True)
+    isRecentlyRegistered = fields.Boolean()
+    registryExpiresAt = fields.String(allow_none=True)
+    registrar = fields.String(allow_none=True)
+    registryStatus = fields.List(fields.String())
+    nameservers = fields.List(fields.String())
+    address = fields.String(allow_none=True)
+    networkName = fields.String(allow_none=True)
+    country = fields.String(allow_none=True)
+    asn = fields.String(allow_none=True)
+    error = fields.String(allow_none=True)
+    fetchedAt = fields.String(allow_none=True)
+
+
+class UrlExpansionRequestSchema(Schema):
+    """URL de un análisis que se quiere seguir hasta su destino."""
+    url = fields.String(required=True, validate=validate.Length(min=1, max=4096))
+
+
+class UrlExpansionHopSchema(Schema):
+    """Un salto de la cadena de redirects.
+
+    ``error`` dice por qué se cortó ahí: ``private_address`` (apuntaba a la
+    red interna), ``scheme``, ``port``, ``unresolvable``, ``timeout``,
+    ``tls``, ``connection``, ``protocol`` o ``too_many_redirects``.
+    """
+    url = fields.String()
+    status = fields.Integer(allow_none=True)
+    peerAddress = fields.String(allow_none=True)
+    certificate = fields.Dict(allow_none=True)
+    error = fields.String(allow_none=True)
+
+
+class UrlExpansionSchema(Schema):
+    """Expansión de una URL.
+
+    ``status`` es ``not_requested``, ``pending``, ``running``, ``done``,
+    ``unavailable``, ``rate_limited`` o ``disabled``.
+    """
+    url = fields.String()
+    status = fields.String()
+    hops = fields.List(fields.Nested(UrlExpansionHopSchema))
+    finalUrl = fields.String(allow_none=True)
+    finalDomain = fields.String(allow_none=True)
+    finalStatus = fields.Integer(allow_none=True)
+    pageTitle = fields.String(allow_none=True)
+    contentType = fields.String(allow_none=True)
+    isDomainChanged = fields.Boolean(allow_none=True)
+    requestedAt = fields.String(allow_none=True)
+    fetchedAt = fields.String(allow_none=True)
+
+
+class UrlExpansionListSchema(Schema):
+    """Las URLs de un análisis con su expansión."""
+    analysisId = fields.Integer()
+    expansions = fields.List(fields.Nested(UrlExpansionSchema))
+
+
+class ReputationRequestSchema(Schema):
+    """Indicador por el que se pregunta la reputación."""
+    kind = fields.String(required=True, validate=validate.OneOf(["domain", "url", "ip", "hash"]))
+    value = fields.String(required=True, validate=validate.Length(min=1, max=4096))
+
+
+class ReputationProviderSchema(Schema):
+    """Lo que dijo un proveedor.
+
+    ``verdict`` es ``known_malicious``, ``suspicious``, ``unknown``,
+    ``unavailable`` o ``rate_limited`` (no se preguntó por falta de cupo).
+    """
+    provider = fields.String()
+    verdict = fields.String()
+    detail = fields.Dict()
+    error = fields.String(allow_none=True)
+    checkedAt = fields.String(allow_none=True)
+    cached = fields.Boolean()
+
+
+class ReputationResponseSchema(Schema):
+    """Reputación de un indicador en los proveedores configurados.
+
+    ``status`` es ``ok``, ``disabled`` (consultas externas apagadas) o
+    ``not_configured`` (ningún proveedor con clave). ``verdict`` es el más
+    grave de los proveedores que respondieron.
+    """
+    kind = fields.String()
+    value = fields.String()
+    status = fields.String()
+    verdict = fields.String()
+    providers = fields.List(fields.Nested(ReputationProviderSchema))
+
+
+class TenantSharedIndicatorSchema(Schema):
+    """Un indicador que han visto varios miembros en correos sospechosos o de phishing.
+
+    ``imitatesProtected`` es el dominio protegido de la organización que imita,
+    o ``null``.
+    """
+    kind = fields.String()
+    value = fields.String()
+    memberCount = fields.Integer()
+    analysisCount = fields.Integer()
+    firstSeenAt = fields.String(allow_none=True)
+    lastSeenAt = fields.String(allow_none=True)
+    imitatesProtected = fields.String(allow_none=True)
+
+
+class TenantFrequentDomainSchema(Schema):
+    """Un dominio del que varios miembros reciben correo legítimo."""
+    domain = fields.String()
+    memberCount = fields.Integer()
+    legitimateMessages = fields.Integer()
+
+
+class TenantOrganizationSchema(Schema):
+    """La organización del usuario."""
+    id = fields.Integer()
+    name = fields.String()
+
+
+class TenantIntelResponseSchema(Schema):
+    """Inteligencia compartida de la organización del usuario.
+
+    Las listas van vacías si la organización no comparte o el usuario no ha
+    dado su consentimiento.
+    """
+    organization = fields.Nested(TenantOrganizationSchema)
+    isOwner = fields.Boolean()
+    hasConsented = fields.Boolean()
+    contributingMembers = fields.Integer()
+    minMembers = fields.Integer()
+    windowDays = fields.Integer()
+    sharingEnabled = fields.Boolean()
+    protectedDomains = fields.List(fields.String())
+    protectedBrands = fields.List(fields.String())
+    updatedAt = fields.String(allow_none=True)
+    sharedIndicators = fields.List(fields.Nested(TenantSharedIndicatorSchema))
+    frequentDomains = fields.List(fields.Nested(TenantFrequentDomainSchema))
+
+
+class TenantPolicyRequestSchema(Schema):
+    """Política de inteligencia que fija el dueño de la organización."""
+    sharingEnabled = fields.Boolean(required=True)
+    protectedDomains = fields.List(fields.String(validate=validate.Length(max=253)), load_default=list,
+                                   validate=validate.Length(max=100))
+    protectedBrands = fields.List(fields.String(validate=validate.Length(max=200)), load_default=list,
+                                  validate=validate.Length(max=100))
+
+
+class TenantConsentRequestSchema(Schema):
+    """Consentimiento de un miembro para aportar a lo compartido."""
+    consent = fields.Boolean(required=True)
+
+
+class IrisWebhookCreateRequestSchema(Schema):
+    """Cuerpo de ``POST /iris/webhooks``: nombre, destino ``https`` y eventos."""
+    name = fields.String(required=True, validate=validate.Length(min=1, max=80))
+    url = fields.String(required=True, validate=validate.Length(min=1, max=2048))
+    eventTypes = fields.List(fields.String(validate=validate.OneOf(SUBSCRIBABLE_WEBHOOK_EVENTS)),
+                             required=True, validate=validate.Length(min=1))
+
+
+class IrisWebhookUpdateRequestSchema(Schema):
+    """Cuerpo de ``PATCH /iris/webhooks/<id>``: solo cambia lo que viene."""
+    name = fields.String(validate=validate.Length(min=1, max=80))
+    url = fields.String(validate=validate.Length(min=1, max=2048))
+    eventTypes = fields.List(fields.String(validate=validate.OneOf(SUBSCRIBABLE_WEBHOOK_EVENTS)),
+                             validate=validate.Length(min=1))
+    isActive = fields.Boolean()
+
+
+class IrisWebhookSubscriptionSchema(Schema):
+    """Un webhook. ``secret`` solo aparece al crearlo o al rotar el secreto."""
+    subscriptionId = fields.Integer()
+    name = fields.String()
+    url = fields.String()
+    eventTypes = fields.List(fields.String())
+    isActive = fields.Boolean()
+    disabledReason = fields.String(allow_none=True)
+    disabledAt = fields.String(allow_none=True)
+    consecutiveFailures = fields.Integer()
+    lastSuccessAt = fields.String(allow_none=True)
+    lastFailureAt = fields.String(allow_none=True)
+    lastError = fields.String(allow_none=True)
+    createdAt = fields.String()
+    updatedAt = fields.String()
+    secret = fields.String()
+
+
+class IrisWebhookListResponseSchema(Schema):
+    """Webhooks del usuario y eventos a los que se puede suscribir."""
+    subscriptions = fields.List(fields.Nested(IrisWebhookSubscriptionSchema))
+    availableEventTypes = fields.List(fields.String())
+
+
+class IrisWebhookDeleteResponseSchema(Schema):
+    """Confirmación tras borrar un webhook."""
+    message = fields.String()
+    subscriptionId = fields.Integer()
+
+
+class IrisWebhookDeliveriesQuerySchema(Schema):
+    """Paginación de ``GET /iris/webhooks/<id>/deliveries``."""
+    page = fields.Integer(load_default=1, validate=validate.Range(min=1))
+    perPage = fields.Integer(load_default=20, validate=validate.Range(min=1, max=100))
+
+
+class IrisWebhookDeliverySchema(Schema):
+    """Una entrega de un evento: estado, intentos y lo que se envía."""
+    deliveryId = fields.Integer()
+    eventId = fields.String()
+    eventType = fields.String()
+    status = fields.String()
+    attempts = fields.Integer()
+    nextAttemptAt = fields.String(allow_none=True)
+    lastStatusCode = fields.Integer(allow_none=True)
+    lastError = fields.String(allow_none=True)
+    lastResponseExcerpt = fields.String(allow_none=True)
+    createdAt = fields.String()
+    deliveredAt = fields.String(allow_none=True)
+    payload = fields.Dict()
+
+
+class IrisIntegrationTokenCreateRequestSchema(Schema):
+    """Cuerpo de ``POST /iris/integration-tokens``; ``lifetimeDays`` por defecto lo fija la config."""
+    name = fields.String(required=True, validate=validate.Length(min=1, max=80))
+    lifetimeDays = fields.Integer(load_default=None, allow_none=True, validate=validate.Range(min=1))
+
+
+class IrisIntegrationTokenSchema(Schema):
+    """Un token de integración. ``token`` (completo, en claro) solo aparece al crearlo."""
+    tokenId = fields.Integer()
+    name = fields.String()
+    keyId = fields.String()
+    status = fields.String()
+    createdAt = fields.String()
+    expiresAt = fields.String(allow_none=True)
+    lastUsedAt = fields.String(allow_none=True)
+    revokedAt = fields.String(allow_none=True)
+    token = fields.String()
+
+
+class IrisIntegrationTokenListResponseSchema(Schema):
+    """Tokens de integración del usuario, del más nuevo al más antiguo."""
+    tokens = fields.List(fields.Nested(IrisIntegrationTokenSchema))
+
+
+class IrisReportResponseSchema(Schema):
+    """Resultado de reportar un correo: el análisis creado, o el que ya existía."""
+    analysisId = fields.Integer()
+    status = fields.String()
+    isDuplicate = fields.Boolean()
+    reportChannel = fields.String(allow_none=True)
+
+
+class IrisReportStatusSchema(Schema):
+    """Cómo va el análisis de un correo reportado (para un aviso breve en el cliente)."""
+    analysisId = fields.Integer()
+    status = fields.String()
+    verdict = fields.String(allow_none=True)
+    totalScore = fields.Float(allow_none=True)
+    finishedAt = fields.String(allow_none=True)
+
+
+class IrisWebhookDeliveryListResponseSchema(Schema):
+    """Historial de entregas de un webhook, de la más nueva a la más antigua."""
+    deliveries = fields.List(fields.Nested(IrisWebhookDeliverySchema))
+    total = fields.Integer()
+    page = fields.Integer()
+    perPage = fields.Integer()
+
+
+class IrisMailboxActionRequestSchema(Schema):
+    """Cuerpo de ``POST /iris/mailbox/messages/<id>/actions``.
+
+    ``confirm`` es obligatorio (``true``) en las acciones que sacan el correo de
+    la bandeja; ``idempotencyKey`` hace que repetir la petición no la repita.
+    """
+    action = fields.String(required=True, validate=validate.OneOf([action.value for action in MailboxAction]))
+    reason = fields.String(required=True, validate=validate.Length(min=1, max=1000))
+    confirm = fields.Boolean(load_default=False)
+    idempotencyKey = fields.String(load_default=None, allow_none=True, validate=validate.Length(min=8, max=80))
+
+
+class IrisMailboxRollbackRequestSchema(Schema):
+    """Cuerpo de ``POST /iris/mailbox/actions/<id>/rollback``."""
+    reason = fields.String(required=True, validate=validate.Length(min=1, max=1000))
+
+
+class IrisMailboxActionSchema(Schema):
+    """Una acción sobre el buzón tal como queda en la auditoría."""
+    actionId = fields.Integer()
+    analysisId = fields.Integer(allow_none=True)
+    connectionId = fields.Integer(allow_none=True)
+    provider = fields.String()
+    action = fields.String()
+    status = fields.String()
+    isDestructive = fields.Boolean()
+    isRollback = fields.Boolean()
+    rollbackOfId = fields.Integer(allow_none=True)
+    reason = fields.String()
+    actor = fields.String()
+    permission = fields.String()
+    wasRecommended = fields.Boolean()
+    error = fields.String(allow_none=True)
+    createdAt = fields.String()
+    startedAt = fields.String(allow_none=True)
+    completedAt = fields.String(allow_none=True)
+    isRepeat = fields.Boolean()
+
+
+class IrisMailboxActionOptionSchema(Schema):
+    """Una acción posible y si exige confirmación."""
+    action = fields.String()
+    isDestructive = fields.Boolean()
+
+
+class IrisMailboxMessageActionsSchema(Schema):
+    """Recomendación, acciones posibles e historial de un correo de un buzón conectado."""
+    analysisId = fields.Integer()
+    verdict = fields.String(allow_none=True)
+    recommendedAction = fields.String(allow_none=True)
+    canAct = fields.Boolean()
+    unavailableReason = fields.String(allow_none=True)
+    actions = fields.List(fields.Nested(IrisMailboxActionOptionSchema))
+    history = fields.List(fields.Nested(IrisMailboxActionSchema))
+
+
+class IrisMailboxActionsQuerySchema(Schema):
+    """Paginación de ``GET /iris/mailbox/actions``."""
+    page = fields.Integer(load_default=1, validate=validate.Range(min=1))
+    perPage = fields.Integer(load_default=50, validate=validate.Range(min=1, max=200))
+
+
+class IrisMailboxActionListSchema(Schema):
+    """Registro de acciones sobre buzones del usuario, de la más reciente a la más antigua."""
+    actions = fields.List(fields.Nested(IrisMailboxActionSchema))
+    total = fields.Integer()
+    page = fields.Integer()
+    perPage = fields.Integer()
+
+
+class IrisImapCredentialsSchema(Schema):
+    """Servidor y credenciales de un buzón IMAP (solo TLS directo)."""
+    host = fields.String(required=True, validate=validate.Length(min=3, max=255))
+    port = fields.Integer(load_default=993, validate=validate.Range(min=1, max=65535))
+    username = fields.String(required=True, validate=validate.Length(min=1, max=320))
+    password = fields.String(required=True, load_only=True, validate=validate.Length(min=1, max=512))
+
+
+class IrisImapConnectRequestSchema(IrisImapCredentialsSchema):
+    """Cuerpo de ``POST /iris/mailbox/imap``: conectar un buzón personal por IMAP."""
+    folder = fields.String(load_default=None, allow_none=True, validate=validate.Length(max=255))
+    fullMessageMode = fields.Boolean(load_default=False)
+
+
+class IrisMailboxCredentialsRequestSchema(Schema):
+    """Cuerpo de ``PUT /iris/mailbox/connections/<id>/credentials``: contraseña IMAP nueva."""
+    password = fields.String(required=True, load_only=True, validate=validate.Length(min=1, max=512))
+
+
+class IrisMailboxFoldersRequestSchema(Schema):
+    """Cuerpo de ``PUT /iris/mailbox/connections/<id>/folders``: carpetas que se vigilan además de la principal."""
+    folders = fields.List(fields.String(validate=validate.Length(min=1, max=255)), required=True,
+                          validate=validate.Length(max=20))
+
+
+class IrisSharedMailboxCreateRequestSchema(Schema):
+    """Cuerpo de ``POST /iris/mailbox/shared``: conectar un buzón compartido de la organización.
+
+    Con ``gmail`` o ``microsoft`` se usa la cuenta de servicio de la
+    instalación y ``address`` es obligatoria; con ``imap``, las credenciales.
+    """
+    provider = fields.String(required=True, validate=validate.OneOf(["gmail", "microsoft", "imap"]))
+    address = fields.Email(load_default=None, allow_none=True)
+    folder = fields.String(load_default=None, allow_none=True, validate=validate.Length(max=255))
+    fullMessageMode = fields.Boolean(load_default=False)
+    imap = fields.Nested(IrisImapCredentialsSchema, load_default=None, allow_none=True)
+
+    @validates_schema
+    def validate_access(self, data, **kwargs):
+        """Exige la dirección con cuenta de servicio y las credenciales con IMAP."""
+        if data["provider"] == "imap" and not data.get("imap"):
+            raise ValidationError("Un buzón IMAP necesita servidor y credenciales.", field_name="imap")
+        if data["provider"] != "imap" and not data.get("address"):
+            raise ValidationError("Falta la dirección del buzón.", field_name="address")
+
+
+class IrisSharedMailboxItemSchema(Schema):
+    """Un buzón compartido, visto por una persona con acceso. Nunca credenciales."""
+    id = fields.Integer()
+    provider = fields.String()
+    accountEmail = fields.String()
+    authMode = fields.String()
+    status = fields.String()
+    folder = fields.String(allow_none=True)
+    folderDisplayName = fields.String(allow_none=True)
+    additionalFolders = fields.List(fields.Dict())
+    fullMessageMode = fields.Boolean()
+    lastSyncAt = fields.String(allow_none=True)
+    lastError = fields.String(allow_none=True)
+    createdAt = fields.String(allow_none=True)
+    myAccess = fields.String()
+
+
+class IrisSharedMailboxListResponseSchema(Schema):
+    """Buzones compartidos a los que tiene acceso la persona."""
+    mailboxes = fields.List(fields.Nested(IrisSharedMailboxItemSchema))
+
+
+class IrisSharedMailboxMemberRequestSchema(Schema):
+    """Cuerpo de ``PUT /iris/mailbox/shared/<id>/members/<userId>``."""
+    access = fields.String(required=True, validate=validate.OneOf(["viewer", "manager"]))
+
+
+class IrisSharedMailboxMemberSchema(Schema):
+    """Una persona con acceso a un buzón compartido."""
+    userId = fields.Integer()
+    username = fields.String(allow_none=True)
+    access = fields.String()
+    grantedAt = fields.String(allow_none=True)
+
+
+class IrisSharedMailboxMemberListResponseSchema(Schema):
+    """Personas con acceso a un buzón compartido."""
+    members = fields.List(fields.Nested(IrisSharedMailboxMemberSchema))
+
+
+class IrisSharedMailboxAnalysesQuerySchema(Schema):
+    """Paginación de ``GET /iris/mailbox/shared/<id>/analyses``."""
+    page = fields.Integer(load_default=1, validate=validate.Range(min=1))
+    perPage = fields.Integer(load_default=20, validate=validate.Range(min=1, max=100))
+
+
+class IrisSharedMailboxAnalysisItemSchema(Schema):
+    """Resumen de un análisis de un buzón compartido."""
+    analysisId = fields.Integer()
+    title = fields.String(allow_none=True)
+    status = fields.String()
+    verdict = fields.String(allow_none=True)
+    totalScore = fields.Float(allow_none=True)
+    startedAt = fields.String(allow_none=True)
+    finishedAt = fields.String(allow_none=True)
+
+
+class IrisSharedMailboxAnalysesResponseSchema(Schema):
+    """Página de análisis de un buzón compartido."""
+    analyses = fields.List(fields.Nested(IrisSharedMailboxAnalysisItemSchema))
+    total = fields.Integer()
+    page = fields.Integer()
+    perPage = fields.Integer()

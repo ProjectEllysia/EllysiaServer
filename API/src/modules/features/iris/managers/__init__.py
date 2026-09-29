@@ -24,6 +24,30 @@ Managers del módulo Iris (análisis de correo).
   prioridad, asignación, notas y timeline sobre uno o varios análisis.
 - ``IrisBatchManager`` (``batch.py``): análisis por lotes de varios .eml o
   un ZIP, con límites, duplicados y back pressure.
+- ``IrisCampaignManager`` (``campaigns.py``): campañas que agrupan los
+  análisis parecidos de un usuario, con los indicadores que comparten.
+- ``IrisContactGraphManager`` (``graph.py``): consulta y olvido del grafo de
+  comunicación (quién escribe a quién) de un usuario.
+- ``IrisExportManager`` (``exports.py``): indicadores y hallazgos de un
+  análisis o una campaña en JSON versionado, STIX 2.1 o MISP.
+- ``IrisEnrichmentManager`` (``enrichment.py``): consultas bajo demanda a
+  servicios externos sobre un indicador del usuario (RDAP…).
+- ``IrisUrlExpansionManager`` (``url_expansion.py``): seguir en segundo plano
+  los redirects de una URL de un análisis hasta su destino real.
+- ``IrisTenantManager`` (``tenant.py``): inteligencia compartida en una
+  organización, con la política del dueño y el consentimiento de cada miembro.
+- ``IrisWebhookManager`` (``webhooks.py``): webhooks firmados hacia los
+  sistemas del usuario (SIEM, SOAR), con reintentos, historial y reenvío.
+- ``IrisReportingManager`` (``reporting.py``): tokens de integración y
+  reportes de correo hechos desde un cliente de correo con ellos.
+- ``IrisRemediationManager`` (``remediation.py``): acciones sobre el correo
+  del buzón conectado (cuarentena, spam, papelera), auditadas y reversibles.
+- ``IrisMailboxEventManager`` (``mailbox_events.py``): suscripciones a los
+  avisos de correo nuevo de Gmail y Graph, y recepción de esos avisos.
+- ``IrisMailboxAccountManager`` (``mailbox_accounts.py``): buzones por IMAP
+  y comprobación de cuentas de servicio y credenciales.
+- ``IrisSharedMailboxManager`` (``shared_mailboxes.py``): buzones compartidos
+  de la organización y quién ve sus análisis.
 
 Iris era el único módulo con
 **dos** ficheros de managers en la raíz — ``managers.py`` (64 KB, el
@@ -48,13 +72,37 @@ from .trust import IrisTrustPolicyManager
 from .triage import IrisTriageManager
 from .cases import IrisCaseManager
 from .batch import IrisBatchManager
+from .campaigns import IrisCampaignManager
+from .graph import IrisContactGraphManager
+from .exports import IrisExportManager
+from .enrichment import IrisEnrichmentManager
+from .url_expansion import IrisUrlExpansionManager
+from .tenant import IrisTenantManager
+from .webhooks import IrisWebhookManager
+from .reporting import IrisReportingManager
+from .remediation import IrisRemediationManager
+from .mailbox_events import IrisMailboxEventManager
+from .mailbox_accounts import IrisMailboxAccountManager
+from .shared_mailboxes import IrisSharedMailboxManager
 
 __all__ = [
     "IrisManager",
+    "IrisWebhookManager",
+    "IrisReportingManager",
+    "IrisRemediationManager",
+    "IrisMailboxEventManager",
+    "IrisMailboxAccountManager",
+    "IrisSharedMailboxManager",
     "IrisTrustPolicyManager",
     "IrisTriageManager",
     "IrisCaseManager",
     "IrisBatchManager",
+    "IrisCampaignManager",
+    "IrisContactGraphManager",
+    "IrisExportManager",
+    "IrisEnrichmentManager",
+    "IrisUrlExpansionManager",
+    "IrisTenantManager",
     "IrisFeedbackManager",
     "IrisReplayManager",
     "IrisReportManager",

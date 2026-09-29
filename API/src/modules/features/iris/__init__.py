@@ -12,6 +12,9 @@ QueueRegistry.register("iris.ai_summary")
 QueueRegistry.register("iris.report")
 QueueRegistry.register("iris.ingest")
 QueueRegistry.register("iris.notify")
+QueueRegistry.register("iris.enrichment")
+QueueRegistry.register("iris.webhook")
+QueueRegistry.register("iris.remediation")
 
 __all__ = [
     "IrisAnalysis",

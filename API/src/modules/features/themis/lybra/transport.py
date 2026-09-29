@@ -6,13 +6,38 @@ unprivileged TCP ``connect`` scan built on asyncio. It lets an Lybra scan find
 open ports for itself, so a scan no longer has to be handed the ports from a
 prior Nmap run.
 
-Several faster or lower-level techniques are deliberately *not* built here — a
-stateless SYN fast-path, and AIMD (loss-based) rate control. They would need
-raw-socket privileges (``CAP_NET_RAW``), cannot be exercised in this test
-environment, and are later optimizations to reach for only once measured
-throughput demands them. The connect scan below is the base that is always
-present; a raw path would only ever be a faster route to the same result,
-with Nmap still available as the oracle to check against.
+**El control de ritmo por pérdidas no vive aquí.** Frenar ante un objetivo que
+deja de contestar es un AIMD reducido que aplica :class:`~.checks.HostRateLimiter`
+a los checks activos, que es donde se envía tráfico sostenido contra un mismo
+host: tras varios plazos agotados seguidos amplía el intervalo de ese host, y
+lo devuelve poco a poco al base cuando vuelve a contestar. El barrido de
+puertos de este módulo ya tiene su propio freno —concurrencia acotada y un
+presupuesto de reloj— y no lo usa.
+
+**SYN sin estado: archivado, no pendiente** (2026-09-28). Un escáner SYN sin
+estado envía el primer paquete del saludo TCP sin abrir conexión y lee las
+respuestas por su cuenta; es lo que permite barrer millones de puertos por
+minuto. Este módulo abre una conexión completa por puerto, que es más lento y
+no necesita nada especial.
+
+No se va a construir, y la razón de fondo cabe en una frase: **el producto no
+tiene el problema que eso resuelve**. Lo que Lybra escanea de verdad es un host
+o, como mucho, una /24, y ahí el barrido por conexión ya da el mismo resultado
+que Nmap —concordancia de 1,00 en los puertos del catálogo del laboratorio—
+en un tiempo que no es el cuello de botella de ningún escaneo.
+
+A eso se suma lo que costaría: fabricar los paquetes a mano exige permisos de
+socket crudo (``CAP_NET_RAW``), que el worker no necesita hoy para nada más;
+no se puede ejercitar en el entorno de tests; y el barrido por conexión
+tendría que mantenerse de todas formas como respaldo para cuando falten esos
+permisos: dos implementaciones del mismo resultado, en vez de una.
+
+Qué haría falta para reabrirlo, en números: que barrer rangos de una /16 o
+mayores sea un caso de uso real del producto, o que se mida un techo de
+rendimiento del barrido por conexión por debajo de lo que un escáner sin
+estado justifica —del orden de 50.000 a 100.000 paquetes por segundo
+sostenidos—. No es un "todavía no": es un "no, y por esto". Nmap sigue
+disponible como oráculo contra el que comparar cualquier camino nuevo.
 
 **UDP is a separate, smaller story**: a
 "connect scan" is meaningless over a datagram socket, so the only signal
