@@ -87,7 +87,9 @@ logger = logging.getLogger(__name__)
 # checks-29: RDP con la seguridad antigua del protocolo, sin TLS.
 # checks-30: IMAP y POP3 sin STARTTLS, y PostgreSQL que pide contraseña sin
 # ofrecer TLS.
-CHECKS_FEED_VERSION = "lybra-checks-30"
+# checks-31: más paneles y páginas de estado de terceros (Grafana, phpMyAdmin,
+# Adminer, Traefik, HAProxy, Prometheus, Netdata, nginx).
+CHECKS_FEED_VERSION = "lybra-checks-31"
 # Quality of Detection for a finding a check actively confirmed, as opposed to
 # one merely inferred from a version.
 QOD_CONFIRMED = 99
