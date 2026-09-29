@@ -24,10 +24,14 @@ Decisiones de diseño (ver el plan de tests):
     sesión (``_redis_always_unavailable``); el ``ping`` de ``create_app`` se
     parchea; el scheduler se desactiva con ``start_scheduler=False``; el rate
     limiter se desactiva para no contaminar tests entre sí.
+
+5.  **Ninguna espera real.** Las pausas de cortesía del motor de escaneo no se
+    duermen (``_no_real_pacing_waits``).
 """
 
 from __future__ import annotations
 
+import inspect
 import ipaddress
 import os
 import socket
@@ -335,6 +339,42 @@ def _no_outbound_sockets():
         mock.patch.object(socket.socket, "connect_ex", guarded_connect_ex),
         mock.patch.object(socket, "gethostbyaddr", guarded_gethostbyaddr),
     ):
+        yield
+
+
+# ---------------------------------------------------------------------------
+# 3-quater. Las pausas de cortesía del motor no se duermen
+# ---------------------------------------------------------------------------
+
+@pytest.fixture(scope="session", autouse=True)
+def _no_real_pacing_waits():
+    """Hace que el limitador de ritmo de Lybra no duerma de verdad en la suite.
+
+    ``HostRateLimiter`` separa dos peticiones al mismo host (0,2 s en los
+    checks activos, 1 s en el fingerprinting) y, cuando el host deja de
+    contestar, alarga esa pausa hasta varias veces el intervalo base. En la
+    suite la red está sellada (``_no_outbound_sockets``): todas las peticiones
+    fallan al instante, así que el limitador ve un host que nunca contesta y
+    frena al máximo. Cada test que lanza un escaneo completo contra
+    ``10.0.0.5`` dormía entre 15 y 220 s sin probar nada, y la suite entera
+    pasaba de ~7 a ~33 minutos.
+
+    Se cambia sólo el **valor por defecto** de ``sleeper``, no el método: un
+    test que inyecta su propia espera —los del limitador, que comprueban el
+    calendario con un reloj falso— la conserva intacta. El limitador sigue
+    reservando turnos y calculando intervalos igual que en producción; lo
+    único que desaparece es la espera en sí.
+    """
+    from src.modules.features.themis.lybra.checks import HostRateLimiter
+
+    defaults = HostRateLimiter.__init__.__defaults__
+    # ``__defaults__`` cubre los últimos parámetros posicionales, en orden.
+    defaulted_names = list(inspect.signature(HostRateLimiter.__init__).parameters)[-len(defaults):]
+    sleeper_position = defaulted_names.index("sleeper")
+    patched_defaults = (
+        defaults[:sleeper_position] + (lambda _seconds: None,) + defaults[sleeper_position + 1:]
+    )
+    with mock.patch.object(HostRateLimiter.__init__, "__defaults__", patched_defaults):
         yield
 
 
