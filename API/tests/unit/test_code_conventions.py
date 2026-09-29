@@ -219,13 +219,7 @@ KNOWN_VIOLATIONS: dict[tuple[str, str, str], str] = {
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/accounts/services/scheduling.py", "AccountsScheduler._run_notices"):
         _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/acheron/managers.py", "VaultManager._bump_revision"):
-        _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/acheron/managers.py", "VaultManager._assert_vault_ownership"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/acheron/managers.py", "VaultManager._parse_dt"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/acheron/managers.py", "VaultManager._require_revision"):
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/aegis/managers/campaigns.py", "CampaignManager._assert_campaign_ownership"):
         _PLAN_PRIVATE_METHOD,
