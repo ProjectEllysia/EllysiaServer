@@ -93,7 +93,9 @@ logger = logging.getLogger(__name__)
 # también a SMTP, IMAP y POP3, en claro tras el paso a TLS y con TLS implícito.
 # checks-33: WinRM que acepta autenticación Basic sin TLS.
 # checks-34: SQL Server que no exige cifrar la conexión.
-CHECKS_FEED_VERSION = "lybra-checks-34"
+# checks-35: clave corta, firma con un resumen obsoleto y caducidad próxima
+# del certificado.
+CHECKS_FEED_VERSION = "lybra-checks-35"
 # Quality of Detection for a finding a check actively confirmed, as opposed to
 # one merely inferred from a version.
 QOD_CONFIRMED = 99
@@ -1349,11 +1351,45 @@ _NETWORK_SERVICE_MATCHERS: Dict[str, Callable[[Service], bool]] = _network_servi
 # feed. Each takes the ``TlsInfo`` a probe returned (duck-typed — this module
 # never imports the fingerprint module, to avoid a checks<->fingerprint
 # import cycle) and decides whether the check fires.
+#: Tamaño mínimo de clave por tipo, en bits. RSA y DSA por debajo de 2048 ya
+#: no se aceptan para certificados (NIST SP 800-131A, requisitos del CA/B
+#: Forum); en curva elíptica, 256 es la P-256, la más pequeña que se emite.
+_MINIMUM_KEY_BITS = {"rsa": 2048, "dsa": 2048, "ec": 256}
+
+#: Resúmenes que ya no valen para firmar un certificado: se conocen colisiones
+#: prácticas de MD5 y de SHA-1, y los navegadores dejaron de aceptarlos.
+_WEAK_SIGNATURE_HASHES = frozenset({"md2", "md4", "md5", "sha1"})
+
+#: Días antes de caducar a partir de los cuales se avisa. Treinta es el margen
+#: habitual para renovar sin prisas, y el de las alertas de Let's Encrypt.
+_EXPIRY_WARNING_DAYS = 30
+
+
+def _has_weak_key(info) -> bool:
+    """Si la clave pública del certificado es más corta que el mínimo de su tipo."""
+    minimum_bits = _MINIMUM_KEY_BITS.get(getattr(info, "public_key_type", None))
+    bits = getattr(info, "public_key_bits", None)
+    return minimum_bits is not None and bits is not None and bits < minimum_bits
+
+
+def _has_weak_signature(info) -> bool:
+    """Si el certificado está firmado con un resumen obsoleto (MD5, SHA-1...)."""
+    return getattr(info, "signature_hash", None) in _WEAK_SIGNATURE_HASHES
+
+
+def _is_expiring_soon(info) -> bool:
+    """Si al certificado le quedan como mucho ``_EXPIRY_WARNING_DAYS`` días, sin haber caducado."""
+    return (not info.expired and info.days_until_expiry is not None
+            and info.days_until_expiry <= _EXPIRY_WARNING_DAYS)
+
+
 _TLS_RULES: Dict[str, Callable] = {
     "self_signed": lambda info: info.self_signed,
     "expired": lambda info: info.expired,
-    "expiring_soon": lambda info: not info.expired and info.days_until_expiry is not None and info.days_until_expiry <= 30,
+    "expiring_soon": _is_expiring_soon,
     "hostname_mismatch": lambda info: getattr(info, "is_name_mismatch", False),
+    "weak_key": _has_weak_key,
+    "weak_signature": _has_weak_signature,
 }
 
 
