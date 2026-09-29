@@ -226,6 +226,67 @@ class PostgresTrustAuthenticationPlugin(ScriptPlugin):
         return fingerprint_postgres(*replies).is_unauthenticated
 
 
+class PostgresPasswordWithoutTlsPlugin(ScriptPlugin):
+    """Detecta un PostgreSQL que pide contraseña pero no ofrece cifrar la conexión.
+
+    El dissector ya hace las dos preguntas que lo deciden: si el servidor
+    acepta el ``SSLRequest`` (``accepts_tls``) y qué método de autenticación
+    anuncia (``auth_method``). Un servidor que contesta ``N`` al primero y pide
+    una contraseña en el segundo obliga a todo cliente a mandarla por un canal
+    en claro: en texto plano con ``password``, o como un resumen MD5 que se
+    puede atacar sin conexión con ``md5``. Con SCRAM la contraseña no viaja,
+    pero todo lo que venga después —consultas y datos— sí, sin cifrar.
+
+    Ningún dato nuevo: las mismas dos conexiones que el dissector, con un
+    usuario inexistente y sin mandar nunca una contraseña. El modo ``trust``
+    queda fuera: no pide contraseña, y ya lo avisa
+    :class:`PostgresTrustAuthenticationPlugin` con más severidad.
+
+    Args:
+        probe: Sonda inyectable, para que un test use un socket falso. Por
+            defecto, ``PostgresProbe()``.
+    """
+
+    plugin_id = "postgres-password-without-tls"
+
+    def __init__(self, probe: Optional[PostgresProbe] = None) -> None:
+        self._probe = probe or PostgresProbe()
+
+    def applies(self, service: Service) -> bool:
+        """Si el servicio es PostgreSQL.
+
+        Args:
+            service: El servicio candidato.
+
+        Returns:
+            bool: ``True`` para los servicios que reclama ``is_postgres_service``.
+        """
+        return is_postgres_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        """Hace los dos intercambios y cruza la respuesta al ``SSLRequest`` con el método anunciado.
+
+        Args:
+            context: El contexto del check; su control de tasa se consulta
+                antes de conectar. El método anunciado va a la evidencia
+                (``authMethod``).
+
+        Returns:
+            bool: ``True`` si el servidor rechazó TLS y pide una contraseña;
+                ``False`` si acepta TLS, si no pide contraseña, si no contestó
+                o si alguno de los dos datos no se pudo leer.
+        """
+        context.acquire()
+        replies = self._probe.fetch(context.target, context.service.port or 5432)
+        if replies is None:
+            return False
+        fingerprint = fingerprint_postgres(*replies)
+        if not fingerprint.asks_for_password or fingerprint.accepts_tls is not False:
+            return False
+        context.evidence.update({"authMethod": fingerprint.auth_method})
+        return True
+
+
 class MongoUnauthenticatedAccessPlugin(ScriptPlugin):
     """Detecta un MongoDB que sirve su catálogo **sin credenciales**.
 
@@ -1009,6 +1070,7 @@ def default_script_plugins() -> Dict[str, ScriptPlugin]:
         DnsOpenResolverPlugin(),
         NtpMonlistPlugin(),
         PostgresTrustAuthenticationPlugin(),
+        PostgresPasswordWithoutTlsPlugin(),
         MongoUnauthenticatedAccessPlugin(),
         LdapAnonymousBindPlugin(),
         LdapCleartextWithLdapsPlugin(),

@@ -85,7 +85,9 @@ logger = logging.getLogger(__name__)
 # la respuesta, no solo la primera.
 # checks-28: exposición sin credenciales de etcd, Consul y Kibana.
 # checks-29: RDP con la seguridad antigua del protocolo, sin TLS.
-CHECKS_FEED_VERSION = "lybra-checks-29"
+# checks-30: IMAP y POP3 sin STARTTLS, y PostgreSQL que pide contraseña sin
+# ofrecer TLS.
+CHECKS_FEED_VERSION = "lybra-checks-30"
 # Quality of Detection for a finding a check actively confirmed, as opposed to
 # one merely inferred from a version.
 QOD_CONFIRMED = 99
@@ -160,6 +162,12 @@ _IMAP_SERVICE_NAMES = {"imap", "imaps"}
 _IMAP_PORTS = {143, 993}
 _POP3_SERVICE_NAMES = {"pop3", "pop3s"}
 _POP3_PORTS = {110, 995}
+# Los puertos y nombres en los que IMAP y POP3 cifran desde el primer byte. Un
+# servicio así no empieza en claro, así que no tiene sentido preguntarle si
+# ofrece pasar a TLS: sólo alargaría el escaneo hasta el plazo de lectura.
+_IMAP_IMPLICIT_TLS_PORTS = {993}
+_POP3_IMPLICIT_TLS_PORTS = {995}
+_IMPLICIT_TLS_MAIL_SERVICE_NAMES = {"imaps", "pop3s"}
 _SMB_SERVICE_NAMES = {"microsoft-ds", "netbios-ssn"}
 _SMB_PORTS = {139, 445}
 _MYSQL_SERVICE_NAMES = {"mysql"}
@@ -990,6 +998,38 @@ def is_imap_service(service: Service) -> bool:
 def is_pop3_service(service: Service) -> bool:
     """Return whether a service should be probed by the POP3 dissector."""
     return (service.name or "").lower() in _POP3_SERVICE_NAMES or service.port in _POP3_PORTS
+
+
+def is_imap_starttls_service(service: Service) -> bool:
+    """Si el servicio es un IMAP que empieza en claro (y puede pasar a TLS con ``STARTTLS``).
+
+    Deja fuera el 993 y el nombre ``imaps``, que cifran desde el primer byte.
+
+    Args:
+        service: El servicio candidato.
+
+    Returns:
+        bool: ``True`` si es IMAP y no es IMAP con TLS implícito.
+    """
+    return (is_imap_service(service)
+            and service.port not in _IMAP_IMPLICIT_TLS_PORTS
+            and (service.name or "").lower() not in _IMPLICIT_TLS_MAIL_SERVICE_NAMES)
+
+
+def is_pop3_starttls_service(service: Service) -> bool:
+    """Si el servicio es un POP3 que empieza en claro (y puede pasar a TLS con ``STLS``).
+
+    Deja fuera el 995 y el nombre ``pop3s``, que cifran desde el primer byte.
+
+    Args:
+        service: El servicio candidato.
+
+    Returns:
+        bool: ``True`` si es POP3 y no es POP3 con TLS implícito.
+    """
+    return (is_pop3_service(service)
+            and service.port not in _POP3_IMPLICIT_TLS_PORTS
+            and (service.name or "").lower() not in _IMPLICIT_TLS_MAIL_SERVICE_NAMES)
 
 
 def is_smb_service(service: Service) -> bool:
@@ -2367,11 +2407,41 @@ class HttpProbe:
 #              exactly n bytes of payload. Any other first line (an error like
 #              "-NOAUTH ...", a simple "+OK") is returned as-is, because that
 #              *is* the whole reply.
-NETWORK_READ_MODES = ("line", "block", "resp-bulk")
+#   dot-terminated  La respuesta multilínea de POP3 (RFC 1939 §3): una línea
+#              "+OK" seguida de líneas de datos hasta una que es sólo ".". Si
+#              la primera línea no es "+OK" (un "-ERR"), la respuesta es esa
+#              línea sola, porque el servidor no manda nada más.
+NETWORK_READ_MODES = ("line", "block", "resp-bulk", "dot-terminated")
 
 # A status line whose code is followed by "-" instead of a space: the reply
 # continues on the next line (RFC 959 §4.2 for FTP, RFC 5321 §4.2 for SMTP).
 _STATUS_CONTINUATION_RE = re.compile(rb"^\d{3}-")
+
+
+def _read_dot_terminated(read_line: Callable[[], bytes], max_bytes: int) -> bytes:
+    """Lee una respuesta multilínea de POP3, hasta la línea que es sólo un punto.
+
+    Args:
+        read_line: Lee la siguiente línea de la sesión (LF incluido), o ``b""``
+            si el servidor cerró.
+        max_bytes: Tope de bytes a leer para la respuesta entera.
+
+    Returns:
+        bytes: La respuesta completa, línea final incluida; sólo la primera
+            línea si no empieza por ``+OK``, y lo que haya llegado si el
+            servidor cierra antes del punto o se alcanza ``max_bytes``.
+    """
+    reply = read_line()
+    if not reply.startswith(b"+OK"):
+        return reply
+    while len(reply) < max_bytes:
+        line = read_line()
+        if not line:
+            break
+        reply += line
+        if line.rstrip(b"\r\n") == b".":
+            break
+    return reply
 
 
 class NetworkSession:
@@ -2424,6 +2494,8 @@ class NetworkSession:
                 data = self._read_block()
             elif read == "resp-bulk":
                 data = self._read_resp_bulk()
+            elif read == "dot-terminated":
+                data = _read_dot_terminated(self._read_line, self._max_bytes)
             else:
                 data = self._read_line()
         except OSError as err:

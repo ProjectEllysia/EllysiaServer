@@ -1000,6 +1000,18 @@ checks:
       title: 'PostgreSQL: acepta conexiones de red sin contrasena (modo trust)'
       qod: 99
       confirmed: true
+  - id: postgres-password-without-tls
+    version: 1
+    type: script
+    script: postgres-password-without-tls
+    category: network_config
+    severity: MEDIUM
+    service: postgres
+    mode: safe
+    finding:
+      title: 'PostgreSQL: pide contrasena sin ofrecer cifrar la conexion (credenciales y datos en claro)'
+      qod: 99
+      confirmed: true
   - id: mongodb-unauthenticated-access
     version: 1
     type: script
@@ -2288,6 +2300,66 @@ checks:
             negative: true
     finding:
       title: 'SMTP: sin STARTTLS anunciado (autenticación en claro posible)'
+      qod: 99
+      confirmed: true
+  # IMAP y POP3 sin paso a TLS: lo mismo que smtp-no-starttls, con la forma
+  # de preguntar de cada protocolo. Sólo contra los puertos que empiezan en
+  # claro (143 y 110): el 993 y el 995 cifran desde el primer byte.
+  # IMAP: CAPABILITY contesta primero con una línea "* CAPABILITY ..." que
+  # trae la lista entera, así que basta con leer esa línea.
+  - id: imap-no-starttls
+    version: 1
+    type: network
+    category: network_config
+    severity: MEDIUM
+    service: imap_starttls
+    mode: safe
+    expectBanner: true
+    requests:
+      - send: "a1 CAPABILITY\r\n"
+        read: line
+        matchers-condition: and
+        matchers:
+          - type: word
+            part: body
+            words:
+              - '* CAPABILITY'
+          - type: word
+            part: body
+            words:
+              - STARTTLS
+            negative: true
+    finding:
+      title: 'IMAP: sin STARTTLS anunciado (contraseñas de correo en claro)'
+      qod: 99
+      confirmed: true
+  # POP3: CAPA (RFC 2449) contesta "+OK" y una capacidad por línea hasta un
+  # "." solo; el paso a TLS se llama STLS. Un servidor que no conoce CAPA
+  # contesta "-ERR" y el check no dispara: sin la lista no hay evidencia.
+  - id: pop3-no-starttls
+    version: 1
+    type: network
+    category: network_config
+    severity: MEDIUM
+    service: pop3_starttls
+    mode: safe
+    expectBanner: true
+    requests:
+      - send: "CAPA\r\n"
+        read: dot-terminated
+        matchers-condition: and
+        matchers:
+          - type: regex
+            part: body
+            regex:
+              - '^\+OK'
+          - type: regex
+            part: body
+            regex:
+              - '(?m)^STLS\s*$'
+            negative: true
+    finding:
+      title: 'POP3: sin STLS anunciado (contraseñas de correo en claro)'
       qod: 99
       confirmed: true
   # FTP sin cifrado: el servidor rechaza AUTH TLS, así que credenciales y datos
