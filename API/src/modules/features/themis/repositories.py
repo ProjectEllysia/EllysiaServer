@@ -1953,19 +1953,24 @@ class OsintScanRepository(BaseRepository[OsintScan]):
             .one_or_none()
         )
 
-    def get_recent_by_user(self, user_id: int, limit: int = 50) -> List[OsintScan]:
-        """Los escaneos pasivos más recientes de un usuario.
+    def get_recent_by_user(self, user_id: int, limit: int = 50,
+                           mode: Optional[str] = None) -> List[OsintScan]:
+        """Los escaneos de dominio más recientes de un usuario.
 
         Args:
             user_id: Usuario dueño.
             limit: Cuántos devolver como mucho. Por defecto ``50``.
+            mode: Solo los de este modo (``"passive"`` o ``"cloud"``). Por
+                defecto ``None``: todos.
 
         Returns:
             List[OsintScan]: Del más nuevo al más viejo; lista vacía si no tiene.
         """
+        query = self._session.query(OsintScan).filter(OsintScan.user_id == user_id)
+        if mode is not None:
+            query = query.filter(OsintScan.mode == mode)
         return (
-            self._session.query(OsintScan)
-            .filter(OsintScan.user_id == user_id)
+            query
             .order_by(OsintScan.started_at.desc(), OsintScan.id.desc())
             .limit(limit)
             .all()

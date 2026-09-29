@@ -631,9 +631,9 @@ def get_network_risk(args):
 @limiter.limit("300 per hour; 2000 per day")
 @handle_exceptions(default_exception=EllysiaException, logger=logger)
 def list_osint_scans(args):
-    """Los escaneos pasivos recientes del usuario, con sus recuentos."""
+    """Los escaneos de dominio recientes del usuario, con sus recuentos; ``mode`` filtra por modo."""
     user = get_current_user()
-    results = OsintManager().list_scans(user.id, args["limit"])
+    results = OsintManager().list_scans(user.id, args["limit"], args["mode"])
     return {
         "message": "Escaneos pasivos recuperados",
         "count": len(results),

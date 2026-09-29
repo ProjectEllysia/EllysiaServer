@@ -1756,7 +1756,27 @@
       "targetAuthorized": "Target '{target}' authorized.",
       "lybraStarted": "Lybra engine started (ID: {id})",
       "started": "{type} scan started (ID: {id})",
-      "downloadError": "Download error: {message}"
+      "downloadError": "Download error: {message}",
+      "apiSurfaceFailed": "The API surface could not be loaded."
+    },
+    "cloud": {
+      "loadFailed": "Cloud scans could not be loaded.",
+      "connectionError": "Connection error.",
+      "unreachable": "Could not reach the API.",
+      "launchFailed": "The cloud scan could not be launched.",
+      "started": "Checking the cloud exposure of {domain}.",
+      "detailFailed": "The scan could not be loaded.",
+      "reportFailed": "The report could not be requested."
+    },
+    "network": {
+      "loadFailed": "Asset groups could not be loaded.",
+      "connectionError": "Connection error.",
+      "unreachable": "Could not reach the API.",
+      "createFailed": "The group could not be created.",
+      "created": "Group “{name}” created.",
+      "deleteFailed": "The group could not be deleted.",
+      "deleted": "Group deleted.",
+      "riskFailed": "The lateral movement risk could not be calculated."
     }
   },
   "iris": {

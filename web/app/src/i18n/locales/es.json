@@ -1756,7 +1756,27 @@
       "targetAuthorized": "Objetivo '{target}' autorizado.",
       "lybraStarted": "Motor Lybra iniciado (ID: {id})",
       "started": "Escaneo {type} iniciado (ID: {id})",
-      "downloadError": "Error al descargar: {message}"
+      "downloadError": "Error al descargar: {message}",
+      "apiSurfaceFailed": "No se pudo cargar la superficie de API."
+    },
+    "cloud": {
+      "loadFailed": "No se pudieron cargar los escaneos de la nube.",
+      "connectionError": "Error de conexión.",
+      "unreachable": "No se pudo conectar con la API.",
+      "launchFailed": "No se pudo lanzar el escaneo de la nube.",
+      "started": "Comprobando la exposición en la nube de {domain}.",
+      "detailFailed": "No se pudo cargar el escaneo.",
+      "reportFailed": "No se pudo pedir el informe."
+    },
+    "network": {
+      "loadFailed": "No se pudieron cargar los grupos de equipos.",
+      "connectionError": "Error de conexión.",
+      "unreachable": "No se pudo conectar con la API.",
+      "createFailed": "No se pudo crear el grupo.",
+      "created": "Grupo «{name}» creado.",
+      "deleteFailed": "No se pudo borrar el grupo.",
+      "deleted": "Grupo borrado.",
+      "riskFailed": "No se pudo calcular el riesgo de movimiento lateral."
     }
   },
   "iris": {

@@ -137,9 +137,13 @@ class OsintScanListQuerySchema(Schema):
 
     Attributes:
         limit: Cuántos escaneos devolver, de 1 a 200. Por defecto 50.
+        mode: Solo los de este modo (``passive`` o ``cloud``). Por defecto
+            ninguno: todos.
     """
 
     limit = fields.Integer(load_default=50, validate=validate.Range(min=1, max=200))
+    mode = fields.String(load_default=None, allow_none=True,
+                         validate=validate.OneOf([mode.value for mode in OsintScanMode]))
 
 
 class OsintScanStartResponseSchema(Schema):
@@ -171,6 +175,8 @@ class OsintScanDetailResponseSchema(Schema):
     subdomainCount = fields.Integer()
     findingCount = fields.Integer()
     dkimSelectors = fields.List(fields.String())
+    cloudResources = fields.List(fields.String())
+    checkSubdomains = fields.Boolean()
     sources = fields.List(fields.Dict())
     dnsChecks = fields.List(fields.Dict())
     subdomains = fields.List(fields.Dict())

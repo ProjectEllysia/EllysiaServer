@@ -819,6 +819,34 @@ export const useThemisStore = defineStore('themis', () => {
     } finally { g.loading = false }
   }
 
+  /**
+   * Lo que un escaneo Lybra encontró expuesto en las APIs de sus servicios web,
+   * por id: especificaciones publicadas, GraphQL abierto, endpoints protegidos
+   * que contestan sin credenciales. Se pide al abrir su capítulo, como los
+   * hallazgos agrupados. Cada entrada: `{ loading, error, services, totalFindings }`.
+   */
+  const lybraApiSurface = reactive({})
+
+  /** Carga (o refresca) la superficie de API de un escaneo Lybra. */
+  async function loadApiSurface(scanId) {
+    if (!lybraApiSurface[scanId]) lybraApiSurface[scanId] = reactive({ loading: false, error: null, services: [], totalFindings: 0 })
+    const entry = lybraApiSurface[scanId]
+    entry.loading = true
+    try {
+      const res = await apiFetch(`/themis/scan/${scanId}/api-surface`)
+      if (!res?.ok) {
+        entry.error = await apiError(res, i18n.global.t('themisStore.scans.apiSurfaceFailed'))
+        return
+      }
+      const data = await res.json()
+      entry.services = data.services ?? []
+      entry.totalFindings = data.totalFindings ?? 0
+      entry.error = null
+    } catch {
+      entry.error = i18n.global.t('themisStore.scans.findingsConnection')
+    } finally { entry.loading = false }
+  }
+
   /** Carga (o refresca) los documentos de un escaneo Lybra concreto. */
   async function loadLybraDocs(scanId) {
     if (!lybraDocs[scanId]) lybraDocs[scanId] = reactive({ items: [], loading: false })
@@ -903,6 +931,7 @@ export const useThemisStore = defineStore('themis', () => {
 
     for (const key of Object.keys(lybraDocs)) delete lybraDocs[key]
     for (const key of Object.keys(lybraGroups)) delete lybraGroups[key]
+    for (const key of Object.keys(lybraApiSurface)) delete lybraApiSurface[key]
   }
 
   return {
@@ -918,6 +947,7 @@ export const useThemisStore = defineStore('themis', () => {
     selectedAssetId, selectAgentAsset, loadAgentScans,
     lybraDocs, loadLybraDocs, generateLybraPdf, deleteLybraDoc,
     lybraGroups, loadLybraGroups, setFindingState,
+    lybraApiSurface, loadApiSurface,
     deleteScan, cancelScan,
     openPreview, closePreview, refreshPreviewDocs, loadPreviewTraceroute,
     openDetails, closeDetails, refreshDetailsDocs,
