@@ -800,7 +800,9 @@ def test_each_distinct_path_is_still_requested():
     fetch = _fetcher({})
     CheckRuntime(load_checks(), fetch).run("10.0.0.5", [_HTTP])
 
-    rutas = [ruta for _h, _p, _m, ruta in fetch.calls]
+    # Sólo los GET: una ruta POST puede repetirse con cuerpos distintos (las
+    # consultas de GraphQL), que para la caché son sondas distintas.
+    rutas = [ruta for _h, _p, metodo, ruta in fetch.calls if metodo == "GET"]
     # "/" dos veces: una sin cabeceras extra y otra con Accept-Encoding (BREACH).
     assert len(rutas) == len(set(rutas)) + 1
     assert "/.git/config" in rutas and "/" in rutas
