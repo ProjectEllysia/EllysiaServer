@@ -95,7 +95,9 @@ logger = logging.getLogger(__name__)
 # checks-34: SQL Server que no exige cifrar la conexión.
 # checks-35: clave corta, firma con un resumen obsoleto y caducidad próxima
 # del certificado.
-CHECKS_FEED_VERSION = "lybra-checks-35"
+# checks-36: directorio sin ninguna vía cifrada y dominio de Active Directory
+# en un nivel funcional sin soporte.
+CHECKS_FEED_VERSION = "lybra-checks-36"
 # Quality of Detection for a finding a check actively confirmed, as opposed to
 # one merely inferred from a version.
 QOD_CONFIRMED = 99
