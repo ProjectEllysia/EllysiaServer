@@ -92,7 +92,8 @@ logger = logging.getLogger(__name__)
 # checks-32: los checks de certificado y de versiones obsoletas de TLS llegan
 # también a SMTP, IMAP y POP3, en claro tras el paso a TLS y con TLS implícito.
 # checks-33: WinRM que acepta autenticación Basic sin TLS.
-CHECKS_FEED_VERSION = "lybra-checks-33"
+# checks-34: SQL Server que no exige cifrar la conexión.
+CHECKS_FEED_VERSION = "lybra-checks-34"
 # Quality of Detection for a finding a check actively confirmed, as opposed to
 # one merely inferred from a version.
 QOD_CONFIRMED = 99

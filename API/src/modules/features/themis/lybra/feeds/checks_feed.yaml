@@ -1012,6 +1012,33 @@ checks:
       title: 'PostgreSQL: pide contrasena sin ofrecer cifrar la conexion (credenciales y datos en claro)'
       qod: 99
       confirmed: true
+  # SQL Server: la postura de cifrado que su PRELOGIN ya anuncia. Dos checks
+  # porque el propio intercambio distingue dos situaciones de gravedad
+  # distinta; un servidor recibe como mucho uno.
+  - id: mssql-encryption-not-supported
+    version: 1
+    type: script
+    script: mssql-encryption-not-supported
+    category: network_config
+    severity: HIGH
+    service: mssql
+    mode: safe
+    finding:
+      title: 'SQL Server: no admite cifrar la conexion (credenciales, consultas y datos en claro)'
+      qod: 99
+      confirmed: true
+  - id: mssql-encryption-not-required
+    version: 1
+    type: script
+    script: mssql-encryption-not-required
+    category: network_config
+    severity: MEDIUM
+    service: mssql
+    mode: safe
+    finding:
+      title: 'SQL Server: admite cifrar la conexion pero no lo exige (consultas y datos en claro)'
+      qod: 99
+      confirmed: true
   - id: mongodb-unauthenticated-access
     version: 1
     type: script
