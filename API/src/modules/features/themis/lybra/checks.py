@@ -83,7 +83,8 @@ logger = logging.getLogger(__name__)
 # checks-25: marcas de tiempo TCP.
 # checks-26: la familia session-cookie-without-* ya ve todas las Set-Cookie de
 # la respuesta, no solo la primera.
-CHECKS_FEED_VERSION = "lybra-checks-27"
+# checks-28: exposición sin credenciales de etcd, Consul y Kibana.
+CHECKS_FEED_VERSION = "lybra-checks-28"
 # Quality of Detection for a finding a check actively confirmed, as opposed to
 # one merely inferred from a version.
 QOD_CONFIRMED = 99
