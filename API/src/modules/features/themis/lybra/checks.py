@@ -771,6 +771,10 @@ CHECK_CATEGORIES = (
     # sino el contrato de la API entero, y se agrupa aparte para poder listar
     # la superficie de API de un escaneo.
     "api_exposure",
+    # Un recurso en la nube (un bucket, una base, un subdominio reclamable) que
+    # no tiene host ni puerto: se declara o se descubre por OSINT, no se
+    # encuentra escaneando.
+    "cloud_exposure",
 )
 
 # Los tipos de matcher que ``Matcher._raw_match`` implementa. Cualquier otro

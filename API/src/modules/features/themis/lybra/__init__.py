@@ -278,7 +278,10 @@ from .api_surface import (
 )
 from .cloud import (
     CLOUD_PROVIDERS,
+    CloudProbe,
     CloudResource,
+    TakeoverSignature,
+    load_takeover_signatures,
     parse_cloud_resource,
 )
 from .virtual_hosts import (
@@ -524,7 +527,10 @@ __all__ = [
     "derive_api_checks",
     "parse_specification",
     "CLOUD_PROVIDERS",
+    "CloudProbe",
     "CloudResource",
+    "TakeoverSignature",
+    "load_takeover_signatures",
     "parse_cloud_resource",
     "DEFAULT_PORTS",
     "UDP_PROBES",
