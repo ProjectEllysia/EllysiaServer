@@ -1,7 +1,7 @@
 from marshmallow import Schema, fields, validate, validates_schema, ValidationError
 
 from src.modules.shared import UTCDateTime
-from .model import ScanType
+from .model import OsintScanMode, ScanType
 from .lybra.compliance import list_compliance_frameworks
 
 
@@ -323,9 +323,10 @@ class DocumentStatusQuerySchema(Schema):
 
 
 class DocumentsQuerySchema(Schema):
-    # Derived from ScanType, not hand-listed: a new scan type is filterable
-    # here automatically, no schema edit needed.
-    scan_type = fields.String(load_default="all", validate=validate.OneOf([scan_type.value for scan_type in ScanType] + ["all"]))
+    # Derived from ScanType and OsintScanMode, not hand-listed: a new scan
+    # type or domain-scan mode is filterable here automatically.
+    scan_type = fields.String(load_default="all", validate=validate.OneOf(
+        [scan_type.value for scan_type in ScanType] + [mode.value for mode in OsintScanMode] + ["all"]))
 
 
 class ScheduledScanRequestSchema(Schema):
@@ -386,7 +387,8 @@ class ScanDetailResponseSchema(Schema):
 
 class DocumentStatusResponseSchema(Schema):
     documentId = fields.Integer()
-    scanId = fields.Integer()
+    scanId = fields.Integer(allow_none=True)
+    osintScanId = fields.Integer(allow_none=True)
     status = fields.String()
     aiReport = fields.Boolean()
     createdAt = UTCDateTime(allow_none=True)

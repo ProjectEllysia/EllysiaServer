@@ -980,6 +980,21 @@ class ThemisReportRepository(DocumentRepository[ThemisDocument]):
     _MODEL = ThemisDocument
     _PARENT_FK = "scan_id"
 
+    def get_documents_by_osint_scan(self, osint_scan_id: int) -> List[ThemisDocument]:
+        """Los informes de un escaneo de dominio, del más nuevo al más viejo.
+
+        Las consultas heredadas de ``DocumentRepository`` buscan por
+        ``scan_id``; un informe de escaneo de dominio cuelga de
+        ``osint_scan_id`` y necesita la suya.
+
+        Args:
+            osint_scan_id: Clave primaria del ``OsintScan``.
+
+        Returns:
+            List[ThemisDocument]: Sus informes, vacía si no tiene ninguno.
+        """
+        return self._ordered(ThemisDocument.osint_scan_id == osint_scan_id).all()
+
 
 class ScanFolderRepository(BaseRepository[ScanFolder]):
     """

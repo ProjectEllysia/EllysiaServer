@@ -147,6 +147,22 @@ def _download_url_for(document) -> str | None:
     return None
 
 
+def _download_name_for(document) -> str:
+    """El nombre con el que se descarga el PDF de un documento de Themis.
+
+    Args:
+        document: El ``ThemisDocument``, de un escaneo normal o de un escaneo de
+            dominio.
+
+    Returns:
+        str: ``<escáner>_scan_<id>.pdf`` para un escaneo normal y
+            ``<modo>_domain_<id>.pdf`` para uno de dominio (``cloud_domain_7.pdf``).
+    """
+    if document.osint_scan_id is not None:
+        return f"{document.scan_type}_domain_{document.osint_scan_id}.pdf"
+    return f"{document.scan_type}_scan_{document.scan_id}.pdf"
+
+
 def _serialize_document(document) -> dict:
     """Serializa un ThemisDocument al formato de los endpoints de listado.
 
@@ -156,6 +172,7 @@ def _serialize_document(document) -> dict:
     return {
         "documentId": document.id,
         "scanId": document.scan_id,
+        "osintScanId": document.osint_scan_id,
         "scanType": document.scan_type,
         "status": document.status,
         "isAiGenerated": document.is_ai_generated == 1 if document.is_ai_generated is not None else False,
@@ -1373,6 +1390,7 @@ def get_document_status(args):
     return {
         "documentId": document.id,
         "scanId": document.scan_id,
+        "osintScanId": document.osint_scan_id,
         "status": document.status,
         "aiReport": document.enrichment_json is not None,
         "createdAt": document.created_at if document.created_at else None,
@@ -1472,7 +1490,7 @@ def download_document(document_id: int):
         document.filename,
         mimetype="application/pdf",
         as_attachment=True,
-        download_name=f"{document.scan_type}_scan_{document.scan_id}.pdf",
+        download_name=_download_name_for(document),
     )
 
 
