@@ -10,7 +10,11 @@ import re
 
 import pytest
 
-from src.modules.features.themis.lybra.checks import CHECK_CATEGORIES, load_checks
+from src.modules.features.themis.lybra.checks import (
+    CHECK_CATEGORIES,
+    EVENT_CHECK_CATEGORIES,
+    load_checks,
+)
 from src.modules.features.themis.lybra.compliance import (
     load_compliance_catalog,
     map_finding_compliance,
@@ -25,7 +29,8 @@ _TECHNIQUE_RE = re.compile(r"^T\d{4}(\.\d{3})?$")
 _ENGINE_CATEGORIES = ("outdated_software", "open_port", "installed_package", "web_component")
 
 # Eventos puntuales, no riesgos: no afectan a ningún control.
-_EVENT_CATEGORIES = ("fingerprint", "surface_change", "scan_integrity", "virtual_host")
+_EVENT_CATEGORIES = ("fingerprint", "surface_change", "scan_integrity", "virtual_host",
+                     *EVENT_CHECK_CATEGORIES)
 
 
 @pytest.fixture(scope="module")
@@ -39,8 +44,9 @@ def _all_mappings(catalog):
 
 
 def test_every_risk_category_is_mapped(catalog):
-    missing = [category for category in (*CHECK_CATEGORIES, *_ENGINE_CATEGORIES)
-               if category not in catalog.categories]
+    risk_categories = [category for category in (*CHECK_CATEGORIES, *_ENGINE_CATEGORIES)
+                       if category not in EVENT_CHECK_CATEGORIES]
+    missing = [category for category in risk_categories if category not in catalog.categories]
     assert not missing, f"Categorías sin mapeo de cumplimiento: {missing}"
 
 
