@@ -33,5 +33,7 @@ class LybraPrintingStrategy(FindingsPrintingStrategy):
     _LOGO_FILENAME = "Themis-Turqoise-BgW.png"
     # Traducción a MITRE ATT&CK y a marcos de cumplimiento: exclusiva del motor propio.
     _SHOWS_COMPLIANCE = True
+    # Riesgo lateral entre los equipos de un escaneo de red: razonamiento del motor propio.
+    _SHOWS_LATERAL_RISK = True
     _DEFAULT_PALETTE = LYBRA_DEFAULT_PALETTE
 

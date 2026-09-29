@@ -79,6 +79,10 @@ class FindingsPrintingStrategy(PrintingStrategy):
                              MITRE ATT&CK y a los controles de los marcos de
                              cumplimiento del dueño del escaneo. Es exclusivo
                              del motor propio: sólo Lybra lo activa.
+        _SHOWS_LATERAL_RISK: Si el informe de un escaneo de red añade el riesgo
+                             de movimiento lateral entre sus equipos. Es un
+                             razonamiento del motor propio sobre lo ya
+                             escaneado: sólo Lybra lo activa.
 
     Attributes:
         writer: ``_WRITER_CLASS`` instance for AI analysis.
@@ -105,6 +109,7 @@ class FindingsPrintingStrategy(PrintingStrategy):
     _LOGO_FILENAME: str
     _DEFAULT_PALETTE: Dict[str, str]
     _SHOWS_COMPLIANCE: bool
+    _SHOWS_LATERAL_RISK: bool
 
     # Los marcos de cumplimiento del dueño del escaneo; los fija `append_body`.
     # Vacío por defecto para que una ficha pintada fuera de él no los necesite.
@@ -182,6 +187,9 @@ class FindingsPrintingStrategy(PrintingStrategy):
         if self._SHOWS_COMPLIANCE:
             _append_compliance_section(theme, elements, findings, self._frameworks,
                                        self.color_palette, self._outline_key("compliance"))
+        if self._SHOWS_LATERAL_RISK:
+            _append_lateral_risk_section(theme, elements, self.scan, self.color_palette,
+                                         self._outline_key("lateral"))
         _append_fixed_section(theme, elements, fixed_findings, self._outline_key("fixed"))
         _append_dropped_section(theme, elements, dropped_findings, self._outline_key("dropped"))
 
@@ -786,6 +794,127 @@ def _append_fixed_section(theme: "ReportTheme", elements: list, fixed_findings: 
         suffix = f" ({safe_markup(where)})" if where else ""
         elements.append(Paragraph(f"• {safe_markup(finding['title'])}{suffix}", theme.body))
     elements.append(Spacer(1, 0.3 * inch))
+
+
+#: Cómo se llama cada regla de riesgo lateral y qué hay que hacer con ella.
+#: Las reglas son las cuatro de ``lybra/lateral.py``; una regla nueva sin
+#: entrada aquí sale con su identificador y sin consejo, no rompe el informe.
+_LATERAL_RULES = {
+    "exposed-service": (
+        "Servicio de administración remota expuesto",
+        "Corrige el problema del servicio y limita quién puede conectarse a él con un cortafuegos o "
+        "separando la red: un servicio de administración no debería aceptar conexiones de todo el "
+        "segmento."),
+    "shared-vulnerability": (
+        "La misma vulnerabilidad en varios equipos",
+        "Corrige la vulnerabilidad en todos los equipos a la vez: mientras quede uno sin corregir, "
+        "sigue siendo la puerta de entrada a los demás."),
+    "multi-homed": (
+        "Equipo que hace de puente entre redes",
+        "Revisa si el equipo necesita estar en las dos redes. Si lo necesita, filtra lo que pasa de "
+        "una a otra y protégelo como el punto crítico que es."),
+    "shared-credentials": (
+        "Las mismas credenciales en varios equipos",
+        "Cambia las credenciales por defecto en todos los equipos, con una contraseña distinta en "
+        "cada uno."),
+}
+
+#: Rótulo de cada gravedad en la barra de un riesgo, igual que en las fichas.
+_LATERAL_SEVERITY_LABEL = {"CRITICAL": "CRÍTICO", "HIGH": "ALTO", "MEDIUM": "MEDIO", "LOW": "BAJO",
+                           "INFO": "INFO"}
+
+
+def _append_lateral_risk_section(theme: "ReportTheme", elements: list, scan, palette: dict,
+                                 outline_key: str) -> None:
+    """La sección «Riesgo de movimiento lateral» de un escaneo de red.
+
+    Un escaneo de red es el padre de un escaneo por equipo. El riesgo lateral no
+    se guarda: se calcula aquí, al generar el informe, con el último estado de
+    cada equipo, igual que ``GET /themis/network-risk``. Un escaneo de un solo
+    equipo no tiene por dónde moverse y no añade nada.
+
+    Args:
+        theme: El tema del informe.
+        elements: La lista de elementos del documento; se amplía en sitio.
+        scan: El escaneo del informe (el padre, si es de red).
+        palette: La paleta de colores del informe.
+        outline_key: La clave del marcador de la sección en el índice del PDF.
+    """
+    # Diferido: `managers` importa `services`, así que a nivel de módulo
+    # sería un ciclo.
+    from src.modules.features.themis.managers import NetworkRiskManager
+    assessment = NetworkRiskManager().assess_scan(scan.user_id, scan.id)
+    host_count = assessment.get("hostCount", 0)
+    if host_count < 2:
+        return
+    risks = assessment.get("risks") or []
+    title = "Riesgo de movimiento lateral"
+    elements.append(CondPageBreak(2 * inch))
+    elements.append(OutlineEntry(title, key=outline_key, level=0))
+    elements.extend(theme.section_header(title, "Red", pill_width=1.2 * inch))
+    elements.append(Spacer(1, 0.1 * inch))
+    elements.append(Paragraph(
+        f"Lybra ha mirado a la vez los {host_count} equipos de este escaneo para ver cómo se "
+        "movería un atacante entre ellos una vez dentro de uno. No es una prueba nueva contra la "
+        "red: es un razonamiento sobre lo que ya se encontró en cada equipo, así que cada riesgo "
+        "es una hipótesis que conviene revisar.", theme.body))
+    elements.append(Spacer(1, 0.1 * inch))
+    if not risks:
+        elements.append(Paragraph(
+            "No se ha encontrado ninguna forma de que un fallo en un equipo alcance a los demás.",
+            theme.info))
+        elements.append(Spacer(1, 0.2 * inch))
+        return
+    value_style = ParagraphStyle("LateralValue", parent=theme.body, fontSize=8.5, leading=10.5,
+                                 alignment=TA_LEFT)
+    for position, risk in enumerate(risks, start=1):
+        _append_lateral_risk_card(theme, elements, risk, position,
+                                  palette=palette, value_style=value_style)
+
+
+def _append_lateral_risk_card(theme: "ReportTheme", elements: list, risk: dict, position: int, *,
+                              palette: dict, value_style: ParagraphStyle) -> None:
+    """La ficha de un riesgo lateral: gravedad, alcance, la frase y qué hacer.
+
+    Args:
+        theme: El tema del informe.
+        elements: La lista de elementos del documento; se amplía en sitio.
+        risk: El riesgo, en la forma de ``GET /themis/network-risk``.
+        position: Su número dentro de la sección, desde 1.
+        palette: La paleta de colores del informe.
+        value_style: El estilo de la columna de valores.
+    """
+    severity = risk.get("severity") or "INFO"
+    rule = risk.get("rule") or ""
+    rule_label, remedy = _LATERAL_RULES.get(rule, (rule, ""))
+    reach = risk.get("reach") or 0
+    elements.append(CondPageBreak(2 * inch))
+    elements.append(theme.severity_header_table(
+        left_text=f"Riesgo #{position}: {_LATERAL_SEVERITY_LABEL.get(severity, severity)}",
+        right_text=f"Alcanza a {reach} equipo" + ("" if reach == 1 else "s"),
+        bg_color=SEVERITY_BACKGROUNDS.get(severity, SEVERITY_BACKGROUNDS["INFO"]),
+    ))
+    hosts = ", ".join(host.get("name") or "" for host in risk.get("hosts") or [])
+    rows = [
+        ["Qué pasa:", Paragraph(safe_markup(risk.get("title") or ""), value_style)],
+        ["Tipo de riesgo:", Paragraph(safe_markup(rule_label), value_style)],
+        ["Equipos implicados:", Paragraph(safe_markup(hosts), value_style)],
+    ]
+    if remedy:
+        rows.append(["Qué hacer:", Paragraph(safe_markup(remedy), value_style)])
+    table = Table(rows, colWidths=[1.7 * inch, 4.3 * inch])
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#f9f9f9")),
+        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 8.5),
+        ("TEXTCOLOR", (0, 0), (-1, -1), colors.HexColor(palette[ColorType.BLACK])),
+        ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8), ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#dddddd")),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+    ]))
+    elements.append(table)
+    elements.append(Spacer(1, 0.2 * inch))
 
 
 #: Cómo se llama cada fuente de la base de conocimiento en el informe.

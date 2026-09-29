@@ -30,6 +30,7 @@ class NucleiPrintingStrategy(FindingsPrintingStrategy):
     _LOGO_FILENAME = "Themis-Blue-BgLight.png"
     # Sin traducción a cumplimiento: es exclusiva de Lybra, no de las herramientas de terceros.
     _SHOWS_COMPLIANCE = False
+    _SHOWS_LATERAL_RISK = False
     _DEFAULT_PALETTE = {
         "black": "#0d1b2a", "dark": "#1b4965", "main": "#2b7fb8",
         "secondary": "#5fa8d3", "light": "#bee9e8", "white": "#f0f8ff",

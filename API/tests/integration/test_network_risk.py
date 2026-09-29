@@ -226,3 +226,25 @@ def test_a_foreign_group_or_scan_is_not_found(client, app, admin_user, regular_u
 
     assert client.get(f"/themis/network-risk?groupId={group_id}", headers=headers).status_code == 404
     assert client.get(f"/themis/network-risk?scanId={parent_id}", headers=headers).status_code == 404
+
+
+# ───────────────────────── el informe PDF de un escaneo de red
+
+def test_the_pdf_of_a_network_scan_explains_its_lateral_risk(app, admin_user, tmp_path, monkeypatch):
+    # El riesgo no se guarda: el informe lo calcula al generarse, con los mismos
+    # hosts y hallazgos que ve la pantalla.
+    pypdf = pytest.importorskip("pypdf")
+    import io
+    from src.modules.features.themis.services import PDFCreator
+
+    monkeypatch.setenv("OUTPUT_DIR", str(tmp_path))
+    with app.app_context():
+        parent_id = _add_parent(admin_user.id)
+        _add_host(admin_user.id, "fileserver", "10.0.0.5", [_SMB_UNSIGNED], parent_scan_id=parent_id)
+        _add_host(admin_user.id, "pc", "10.0.0.6", parent_scan_id=parent_id)
+        data = PDFCreator(parent_id).generate()
+
+    text = "\n".join(page.extract_text() or "" for page in pypdf.PdfReader(io.BytesIO(data)).pages)
+    assert "Riesgo de movimiento lateral" in text
+    assert "Servicio de administración remota expuesto" in text
+    assert "fileserver" in text and "pc" in text
