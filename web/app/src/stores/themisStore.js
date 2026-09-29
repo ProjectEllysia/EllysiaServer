@@ -34,6 +34,17 @@ export const useThemisStore = defineStore('themis', () => {
   const world = ref('lybra') // 'external' | 'lybra' | 'agents'
   function setWorld(w) { world.value = w }
 
+  // Dentro de Lybra, qué mira el motor: equipos (uno o un rango), la
+  // exposición en la nube de un dominio, o el riesgo de movimiento lateral de
+  // una red. Son formas de escanear del mismo motor, no mundos aparte.
+  const lybraScope = ref('hosts') // 'hosts' | 'cloud' | 'network'
+  function setLybraScope(scope) {
+    lybraScope.value = scope
+    // Volver a los equipos reanuda el sondeo de sus escaneos, que se para
+    // mientras no se ven.
+    if (scope === 'hosts' && world.value === 'lybra') loadScans('lybra')
+  }
+
   // Activo de Hygeia seleccionado en el mundo de agentes. Null = ninguna
   // tarjeta elegida todavía, así que no hay escaneos que pedir.
   const selectedAssetId = ref(null)
@@ -126,7 +137,7 @@ export const useThemisStore = defineStore('themis', () => {
   }
 
   function _isTypeVisible(type) {
-    if (type === 'lybra') return world.value === 'lybra' && viewMode.value !== 'history'
+    if (type === 'lybra') return world.value === 'lybra' && lybraScope.value === 'hosts' && viewMode.value !== 'history'
     if (type === 'agentLybra') return world.value === 'agents' && !!selectedAssetId.value
     return world.value === 'external' && activeTab.value === type && viewMode.value === 'full'
   }
@@ -337,7 +348,7 @@ export const useThemisStore = defineStore('themis', () => {
     } catch { /* el aviso es informativo: si no se puede leer, no se muestra */ }
   }
 
-  /** Añade un objetivo (IP o CIDR) al registro de objetivos autorizados. */
+  /** Añade un objetivo (IP o CIDR, dominio o recurso cloud) al registro de objetivos autorizados. */
   async function addAuthorizedTarget(target, label = '') {
     try {
       const res = await apiFetch('/themis/authorized-targets', {
@@ -819,6 +830,34 @@ export const useThemisStore = defineStore('themis', () => {
     } finally { g.loading = false }
   }
 
+  /**
+   * Lo que un escaneo Lybra encontró expuesto en las APIs de sus servicios web,
+   * por id: especificaciones publicadas, GraphQL abierto, endpoints protegidos
+   * que contestan sin credenciales. Se pide al abrir su capítulo, como los
+   * hallazgos agrupados. Cada entrada: `{ loading, error, services, totalFindings }`.
+   */
+  const lybraApiSurface = reactive({})
+
+  /** Carga (o refresca) la superficie de API de un escaneo Lybra. */
+  async function loadApiSurface(scanId) {
+    if (!lybraApiSurface[scanId]) lybraApiSurface[scanId] = reactive({ loading: false, error: null, services: [], totalFindings: 0 })
+    const entry = lybraApiSurface[scanId]
+    entry.loading = true
+    try {
+      const res = await apiFetch(`/themis/scan/${scanId}/api-surface`)
+      if (!res?.ok) {
+        entry.error = await apiError(res, i18n.global.t('themisStore.scans.apiSurfaceFailed'))
+        return
+      }
+      const data = await res.json()
+      entry.services = data.services ?? []
+      entry.totalFindings = data.totalFindings ?? 0
+      entry.error = null
+    } catch {
+      entry.error = i18n.global.t('themisStore.scans.findingsConnection')
+    } finally { entry.loading = false }
+  }
+
   /** Carga (o refresca) los documentos de un escaneo Lybra concreto. */
   async function loadLybraDocs(scanId) {
     if (!lybraDocs[scanId]) lybraDocs[scanId] = reactive({ items: [], loading: false })
@@ -883,6 +922,7 @@ export const useThemisStore = defineStore('themis', () => {
     stopTracePoll()
 
     world.value = 'lybra'
+    lybraScope.value = 'hosts'
     activeTab.value = 'nmap'
     viewMode.value = 'full'
     launching.value = false
@@ -903,10 +943,11 @@ export const useThemisStore = defineStore('themis', () => {
 
     for (const key of Object.keys(lybraDocs)) delete lybraDocs[key]
     for (const key of Object.keys(lybraGroups)) delete lybraGroups[key]
+    for (const key of Object.keys(lybraApiSurface)) delete lybraApiSurface[key]
   }
 
   return {
-    world, setWorld,
+    world, setWorld, lybraScope, setLybraScope,
     authorizedTargets, loadAuthorizedTargets, addAuthorizedTarget, removeAuthorizedTarget,
     kbStatus, loadKbStatus,
     activeTab, stats, loadingStats, statsError, scans, launching,
@@ -918,6 +959,7 @@ export const useThemisStore = defineStore('themis', () => {
     selectedAssetId, selectAgentAsset, loadAgentScans,
     lybraDocs, loadLybraDocs, generateLybraPdf, deleteLybraDoc,
     lybraGroups, loadLybraGroups, setFindingState,
+    lybraApiSurface, loadApiSurface,
     deleteScan, cancelScan,
     openPreview, closePreview, refreshPreviewDocs, loadPreviewTraceroute,
     openDetails, closeDetails, refreshDetailsDocs,

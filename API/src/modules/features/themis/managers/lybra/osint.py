@@ -395,8 +395,10 @@ def _format_scan(scan: OsintScan, include_details: bool = True) -> dict:
         dict: ``osintScanId``, ``domain``, ``mode``, ``status``,
             ``startedAt``, ``finishedAt``, ``failureReason``,
             ``subdomainCount`` y ``findingCount``; con detalle, además
-            ``dkimSelectors``, ``sources``, ``dnsChecks``, ``subdomains`` y
-            ``findings`` (cada uno con la forma común de un hallazgo más su
+            ``dkimSelectors``, ``cloudResources`` y ``checkSubdomains`` (lo
+            que pidió el usuario: los dos últimos solo tienen sentido en modo
+            cloud), ``sources``, ``dnsChecks``, ``subdomains`` y ``findings``
+            (cada uno con la forma común de un hallazgo más su
             ``provenance``).
     """
     findings = scan.findings or []
@@ -415,6 +417,8 @@ def _format_scan(scan: OsintScan, include_details: bool = True) -> dict:
     if include_details:
         formatted.update({
             "dkimSelectors": list((scan.parameters or {}).get("dkim_selectors") or []),
+            "cloudResources": list((scan.parameters or {}).get("cloud_resources") or []),
+            "checkSubdomains": bool((scan.parameters or {}).get("check_subdomains")),
             "sources": scan.sources or [],
             "dnsChecks": scan.dns_checks or [],
             "subdomains": subdomains,
@@ -564,17 +568,19 @@ class OsintManager(TaskTrackingMixin):
             raise ScanNotFoundError(osint_scan_id)
         return _format_scan(scan)
 
-    def list_scans(self, user_id: int, limit: int = 50) -> List[dict]:
-        """Los escaneos pasivos recientes del usuario, sin detalle.
+    def list_scans(self, user_id: int, limit: int = 50, mode: Optional[str] = None) -> List[dict]:
+        """Los escaneos de dominio recientes del usuario, sin detalle.
 
         Args:
             user_id: Usuario dueño.
             limit: Cuántos, como mucho. Por defecto ``50``.
+            mode: Solo los de este modo, un valor de ``OsintScanMode``. Por
+                defecto ``None``: todos.
 
         Returns:
             List[dict]: Del más nuevo al más viejo, cada uno con sus recuentos.
         """
-        scans = build_repository(OsintScanRepository).get_recent_by_user(user_id, limit)
+        scans = build_repository(OsintScanRepository).get_recent_by_user(user_id, limit, mode)
         return [_format_scan(scan, include_details=False) for scan in scans]
 
     @staticmethod

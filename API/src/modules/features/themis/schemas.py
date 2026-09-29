@@ -1,7 +1,7 @@
 from marshmallow import Schema, fields, validate, validates_schema, ValidationError
 
 from src.modules.shared import UTCDateTime
-from .model import ScanType
+from .model import OsintScanMode, ScanType
 from .lybra.compliance import list_compliance_frameworks
 
 
@@ -137,9 +137,13 @@ class OsintScanListQuerySchema(Schema):
 
     Attributes:
         limit: Cuántos escaneos devolver, de 1 a 200. Por defecto 50.
+        mode: Solo los de este modo (``passive`` o ``cloud``). Por defecto
+            ninguno: todos.
     """
 
     limit = fields.Integer(load_default=50, validate=validate.Range(min=1, max=200))
+    mode = fields.String(load_default=None, allow_none=True,
+                         validate=validate.OneOf([mode.value for mode in OsintScanMode]))
 
 
 class OsintScanStartResponseSchema(Schema):
@@ -171,6 +175,8 @@ class OsintScanDetailResponseSchema(Schema):
     subdomainCount = fields.Integer()
     findingCount = fields.Integer()
     dkimSelectors = fields.List(fields.String())
+    cloudResources = fields.List(fields.String())
+    checkSubdomains = fields.Boolean()
     sources = fields.List(fields.Dict())
     dnsChecks = fields.List(fields.Dict())
     subdomains = fields.List(fields.Dict())
@@ -234,7 +240,19 @@ class FindingStateResponseSchema(Schema):
 
 
 class AddAuthorizedTargetSchema(Schema):
-    target = fields.String(required=True, validate=validate.Length(min=1, max=64))
+    """Cuerpo de ``POST /themis/authorized-targets``: lo que se autoriza y una nota.
+
+    Attributes:
+        target: El objetivo, de 1 a 255 caracteres, en cualquiera de las tres
+            formas del registro: una IP o un rango CIDR (``203.0.113.0/24``), un
+            dominio (``example.com``, que cubre también sus subdominios) o un
+            recurso cloud ``proveedor:identificador`` (``s3:mi-bucket``). El
+            tope es el de la columna: un dominio puede tener hasta 253
+            caracteres. La forma se valida en ``AuthorizedTargetManager.add``.
+        label: Nota libre opcional, hasta 255 caracteres. Por defecto ``None``.
+    """
+
+    target = fields.String(required=True, validate=validate.Length(min=1, max=255))
     label = fields.String(load_default=None, allow_none=True, validate=validate.Length(max=255))
 
 
@@ -311,9 +329,10 @@ class DocumentStatusQuerySchema(Schema):
 
 
 class DocumentsQuerySchema(Schema):
-    # Derived from ScanType, not hand-listed: a new scan type is filterable
-    # here automatically, no schema edit needed.
-    scan_type = fields.String(load_default="all", validate=validate.OneOf([scan_type.value for scan_type in ScanType] + ["all"]))
+    # Derived from ScanType and OsintScanMode, not hand-listed: a new scan
+    # type or domain-scan mode is filterable here automatically.
+    scan_type = fields.String(load_default="all", validate=validate.OneOf(
+        [scan_type.value for scan_type in ScanType] + [mode.value for mode in OsintScanMode] + ["all"]))
 
 
 class ScheduledScanRequestSchema(Schema):
@@ -374,7 +393,8 @@ class ScanDetailResponseSchema(Schema):
 
 class DocumentStatusResponseSchema(Schema):
     documentId = fields.Integer()
-    scanId = fields.Integer()
+    scanId = fields.Integer(allow_none=True)
+    osintScanId = fields.Integer(allow_none=True)
     status = fields.String()
     aiReport = fields.Boolean()
     createdAt = UTCDateTime(allow_none=True)

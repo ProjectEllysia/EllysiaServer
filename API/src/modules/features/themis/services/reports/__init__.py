@@ -4,6 +4,8 @@ Generación de informes PDF de Themis.
     theme.py     ColorType + ReportTheme (paleta y estilos)
     base.py      PrintingStrategy: contrato + registro
     creator.py   PDFCreator: arma el documento
+    cloud.py     CloudExposurePDFCreator: el informe de un escaneo cloud,
+                 que no es un ``Scan`` y no pasa por el registro
     outline.py   OutlineEntry: marcadores del índice lateral del PDF
     nmap.py      NmapPrintingStrategy
     nikto.py     NiktoPrintingStrategy
@@ -30,6 +32,7 @@ importarse. Sin estos imports el registro quedaría vacío y
 from src.modules.tools.press import ColorType, ReportTheme
 from .base import PrintingStrategy
 from .creator import PDFCreator
+from .cloud import CloudExposurePDFCreator
 from .outline import OutlineEntry
 from .nmap import NmapPrintingStrategy
 from .nikto import NiktoPrintingStrategy
@@ -42,6 +45,7 @@ __all__ = [
     "ReportTheme",
     "PrintingStrategy",
     "PDFCreator",
+    "CloudExposurePDFCreator",
     "OutlineEntry",
     "NmapPrintingStrategy",
     "NiktoPrintingStrategy",

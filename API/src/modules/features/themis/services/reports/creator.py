@@ -29,10 +29,10 @@ logger = logging.getLogger(__name__)
 #: en la imagen de Docker y en cualquier despliegue, sin nada que crear a mano.
 LOGO_DIRECTORY = Path(__file__).resolve().parents[2] / "resources"
 
-#: Texto de la declaración que cierra todos los informes de Themis. Un escaneo
-#: se hace sobre sistemas ajenos, así que el informe tiene que dejar constancia
-#: de quién respondía de esa autorización.
-_CONSENT_TEXT = """
+#: Texto de la declaración que cierra todos los informes de Themis, también el
+#: de exposición cloud. Un escaneo se hace sobre sistemas ajenos, así que el
+#: informe tiene que dejar constancia de quién respondía de esa autorización.
+CONSENT_TEXT = """
 El usuario declara y confirma que ha otorgado su consentimiento expreso e
 inequívoco para la realización del escaneo de seguridad sobre el sitio web
 y/o sistema informático objeto del presente informe. El usuario acepta y
@@ -168,7 +168,7 @@ class PDFCreator(PdfGenerator):
         Returns:
             Tuple[str, str]: El título del recuadro y su texto.
         """
-        return ("DECLARACIÓN DE CONFORMIDAD Y CONSENTIMIENTO", _CONSENT_TEXT)
+        return ("DECLARACIÓN DE CONFORMIDAD Y CONSENTIMIENTO", CONSENT_TEXT)
 
     def append_body(self, elements: list, theme: ReportTheme) -> None:
         """Delega el cuerpo en la estrategia del tipo de escaneo.

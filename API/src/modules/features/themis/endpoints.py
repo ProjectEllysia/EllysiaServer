@@ -147,6 +147,22 @@ def _download_url_for(document) -> str | None:
     return None
 
 
+def _download_name_for(document) -> str:
+    """El nombre con el que se descarga el PDF de un documento de Themis.
+
+    Args:
+        document: El ``ThemisDocument``, de un escaneo normal o de un escaneo de
+            dominio.
+
+    Returns:
+        str: ``<escáner>_scan_<id>.pdf`` para un escaneo normal y
+            ``<modo>_domain_<id>.pdf`` para uno de dominio (``cloud_domain_7.pdf``).
+    """
+    if document.osint_scan_id is not None:
+        return f"{document.scan_type}_domain_{document.osint_scan_id}.pdf"
+    return f"{document.scan_type}_scan_{document.scan_id}.pdf"
+
+
 def _serialize_document(document) -> dict:
     """Serializa un ThemisDocument al formato de los endpoints de listado.
 
@@ -156,6 +172,7 @@ def _serialize_document(document) -> dict:
     return {
         "documentId": document.id,
         "scanId": document.scan_id,
+        "osintScanId": document.osint_scan_id,
         "scanType": document.scan_type,
         "status": document.status,
         "isAiGenerated": document.is_ai_generated == 1 if document.is_ai_generated is not None else False,
@@ -614,9 +631,9 @@ def get_network_risk(args):
 @limiter.limit("300 per hour; 2000 per day")
 @handle_exceptions(default_exception=EllysiaException, logger=logger)
 def list_osint_scans(args):
-    """Los escaneos pasivos recientes del usuario, con sus recuentos."""
+    """Los escaneos de dominio recientes del usuario, con sus recuentos; ``mode`` filtra por modo."""
     user = get_current_user()
-    results = OsintManager().list_scans(user.id, args["limit"])
+    results = OsintManager().list_scans(user.id, args["limit"], args["mode"])
     return {
         "message": "Escaneos pasivos recuperados",
         "count": len(results),
@@ -638,6 +655,53 @@ def get_osint_scan(osint_scan_id: int):
     """Un escaneo pasivo con sus fuentes, subdominios, comprobaciones DNS y hallazgos."""
     user = get_current_user()
     return OsintManager().get_scan(osint_scan_id, user.id)
+
+
+@themis_blp.post("/osint/<int:osint_scan_id>/report")
+@themis_blp.response(202, description="Domain scan report generation started")
+@themis_blp.alt_response(400, schema=ErrorSchema, description="Not a cloud scan, or not finished")
+@themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@themis_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@themis_blp.alt_response(404, schema=ErrorSchema, description="Scan not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.THEMIS_CREATE])
+@limiter.limit("30 per hour; 100 per day")
+@handle_exceptions(default_exception=ScanNotFoundError, logger=logger)
+def generate_domain_report(osint_scan_id: int):
+    """Pedir el informe PDF de un escaneo de exposición cloud.
+
+    Se genera en segundo plano, como el de un escaneo; su estado se sigue en
+    ``GET /themis/osint/<id>/documents`` y se descarga y borra con los
+    endpoints de siempre (``/themis/document/<id>``).
+    """
+    user = get_current_user()
+    document_id = ThemisReportManager().generate_domain_report(osint_scan_id, user.id)
+    logger.info(f"Informe del escaneo de dominio {osint_scan_id} solicitado (documento {document_id}) "
+                f"por usuario {user.username}")
+    return {
+        "message": "Generacion de PDF iniciada",
+        "documentId": document_id,
+        "osintScanId": osint_scan_id,
+        "status": "pending",
+        "downloadUrl": f"/themis/document/{document_id}/download",
+    }
+
+
+@themis_blp.get("/osint/<int:osint_scan_id>/documents")
+@themis_blp.response(200, description="Reports of a domain scan")
+@themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@themis_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@themis_blp.alt_response(404, schema=ErrorSchema, description="Scan not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.THEMIS_READ])
+@limiter.limit("300 per hour; 2000 per day")
+@handle_exceptions(default_exception=ScanNotFoundError, logger=logger)
+def get_domain_documents(osint_scan_id: int):
+    """Los informes PDF de un escaneo de dominio, del más nuevo al más viejo."""
+    user = get_current_user()
+    documents = ThemisReportManager().get_domain_documents(osint_scan_id, user.id)
+    docs_list = [_serialize_document(document) for document in documents]
+    return {"osintScanId": osint_scan_id, "documents": docs_list, "total": len(docs_list)}
 
 
 @themis_blp.get("/compliance")
@@ -695,7 +759,7 @@ def update_organization_compliance_frameworks(data):
 @limiter.limit("60 per hour; 200 per day")
 @handle_exceptions(default_exception=DuplicateAuthorizedTargetError, logger=logger)
 def add_authorized_target(data):
-    """Añadir un objetivo (IP o CIDR) al registro de objetivos autorizados."""
+    """Añadir un objetivo (IP o CIDR, dominio o recurso cloud) al registro de objetivos autorizados."""
     user = get_current_user()
     entry = AuthorizedTargetManager().add(user.id, data["target"], data.get("label"))
     logger.info(f"Objetivo autorizado {entry.id} ('{entry.target}') añadido por {user.username}")
@@ -1373,6 +1437,7 @@ def get_document_status(args):
     return {
         "documentId": document.id,
         "scanId": document.scan_id,
+        "osintScanId": document.osint_scan_id,
         "status": document.status,
         "aiReport": document.enrichment_json is not None,
         "createdAt": document.created_at if document.created_at else None,
@@ -1472,7 +1537,7 @@ def download_document(document_id: int):
         document.filename,
         mimetype="application/pdf",
         as_attachment=True,
-        download_name=f"{document.scan_type}_scan_{document.scan_id}.pdf",
+        download_name=_download_name_for(document),
     )
 
 
