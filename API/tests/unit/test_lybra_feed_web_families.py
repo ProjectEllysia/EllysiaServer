@@ -307,3 +307,49 @@ def test_a_site_that_answers_200_to_everything_fires_no_cms_check():
     catch_all = _CatchAll()
     fired = _fired(catch_all)
     assert not {name for name in fired if name.startswith(("wordpress-", "drupal-"))}
+
+
+# ========================================= más paneles de terceros
+
+# Señuelo común: una SPA que contesta 200 con su propio index.html a cualquier
+# ruta. Es el falso positivo típico de un check que sólo mira el estado.
+_SPA = Response(200, "<html><head><title>Mi aplicacion</title></head><body></body></html>", {})
+_UNAUTHORIZED = Response(401, '{"message":"Unauthorized"}', {})
+
+
+@pytest.mark.parametrize("check_id, path, hit", [
+    ("grafana-anonymous-access", "/api/org",
+     '{"id":1,"name":"Main Org.","address":{"address1":"","address2":"","city":"",'
+     '"zipCode":"","state":"","country":""}}'),
+    ("phpmyadmin-exposed", "/phpmyadmin/",
+     '<title>phpMyAdmin</title><input type="text" name="pma_username" id="input_username">'),
+    ("adminer-exposed", "/adminer.php",
+     '<title>Login - Adminer</title><input name="auth[server]" value="">'),
+    ("traefik-api-exposed", "/api/overview",
+     '{"http":{"routers":{"total":4},"services":{"total":3}},"features":{},"providers":["Docker"]}'),
+    ("haproxy-stats-exposed", "/haproxy?stats",
+     "<html><head><title>Statistics Report for HAProxy</title></head></html>"),
+    ("prometheus-config-exposed", "/api/v1/status/config",
+     '{"status":"success","data":{"yaml":"global:\\n  scrape_interval: 15s\\nscrape_configs:\\n"}}'),
+    ("netdata-exposed", "/api/v1/info",
+     '{"version":"v1.44.0","uid":"abc","mirrored_hosts":["web-1"],"os_name":"Debian"}'),
+    ("nginx-status-exposed", "/nginx_status",
+     "Active connections: 2\nserver accepts handled requests\n 10 10 20\nReading: 0 Writing: 1 Waiting: 1\n"),
+])
+def test_each_new_panel_fires_and_its_decoys_do_not(check_id, path, hit):
+    """Cada panel nuevo dispara con su respuesta real y no dispara ni con la
+    misma ruta protegida (401) ni con una SPA que contesta 200 a todo."""
+    assert check_id in _fired({path: Response(200, hit, {})})
+    assert check_id not in _fired({path: _UNAUTHORIZED})
+    assert check_id not in _fired({path: _SPA})
+
+
+def test_a_page_that_only_mentions_phpmyadmin_does_not_fire():
+    """Un blog que habla de phpMyAdmin no es un phpMyAdmin: falta su formulario."""
+    decoy = Response(200, "<html><h1>Cómo instalar phpMyAdmin</h1></html>", {})
+    assert "phpmyadmin-exposed" not in _fired({"/phpmyadmin/": decoy})
+
+
+def test_a_generic_org_json_is_not_grafana():
+    decoy = Response(200, '{"id":1,"name":"ACME"}', {})
+    assert "grafana-anonymous-access" not in _fired({"/api/org": decoy})
