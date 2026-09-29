@@ -26,7 +26,9 @@ Decisiones de diseño (ver el plan de tests):
     limiter se desactiva para no contaminar tests entre sí.
 
 5.  **Ninguna espera real.** Las pausas de cortesía del motor de escaneo no se
-    duermen (``_no_real_pacing_waits``).
+    duermen (``_no_real_pacing_waits``), y un test cuya ejecución pase del
+    presupuesto (``_time_budget.py``) falla en la CI —en local, avisa al
+    final— salvo que figure, con su motivo, en ``KNOWN_SLOW_TESTS``.
 """
 
 from __future__ import annotations
@@ -783,3 +785,105 @@ def _launch_mode_public(monkeypatch):
     ``test_the_launch_mode_ships_as_preview``.
     """
     monkeypatch.setenv("LAUNCH_MODE", "public")
+
+
+# ---------------------------------------------------------------------------
+# 9. Presupuesto de tiempo por test
+# ---------------------------------------------------------------------------
+
+# Se carga por ruta por la misma razón que ``_real_targets``: hay más de un
+# ``conftest`` en el árbol y un import por nombre sería ambiguo.
+_TIME_BUDGET_SPEC = spec_from_file_location(
+    "time_budget", Path(__file__).resolve().parent / "_time_budget.py"
+)
+_time_budget = module_from_spec(_TIME_BUDGET_SPEC)
+_TIME_BUDGET_SPEC.loader.exec_module(_time_budget)
+
+#: Lo más que puede tardar la ejecución de un test, en segundos (ver
+#: ``_time_budget.DEFAULT_BUDGET_SECONDS``). La variable
+#: ``ELLYSIA_TEST_TIME_BUDGET_SECONDS`` lo cambia; ``0`` lo desactiva.
+_TEST_TIME_BUDGET_SECONDS = float(
+    os.environ.get("ELLYSIA_TEST_TIME_BUDGET_SECONDS", _time_budget.DEFAULT_BUDGET_SECONDS)
+)
+
+#: Tests que pueden pasar del presupuesto, por su identificador de pytest
+#: (``tests/…/test_x.py::test_y``), cada uno con el motivo por el que su
+#: lentitud es inevitable. La lista sólo encoge: un test de la lista que
+#: termina en menos de la mitad del presupuesto se señala para que se le quite,
+#: y añadir uno exige escribir por qué no se puede abaratar.
+KNOWN_SLOW_TESTS: dict[str, str] = {}
+
+#: Si pasarse del presupuesto hace fallar el test (``True``) o sólo deja un
+#: aviso al final de la ejecución (``False``). Falla en la CI —GitHub Actions
+#: define ``CI``—, que es donde se decide si algo se mergea y donde las
+#: máquinas son estables. En local sólo avisa: con ocho procesos compitiendo
+#: por la CPU y el antivirus leyendo cada fichero, un test que tarda 6 s a
+#: solas puede tardar 30 s dentro de la suite sin esperar nada, y un fallo por
+#: carga de la máquina sólo enseñaría a ignorar el presupuesto.
+#: ``ELLYSIA_TEST_TIME_BUDGET_STRICT=1`` fuerza el modo estricto en local.
+_IS_TIME_BUDGET_STRICT = bool(
+    os.environ.get("CI") or os.environ.get("ELLYSIA_TEST_TIME_BUDGET_STRICT")
+)
+
+# Los avisos que llegan al proceso principal. Con pytest-xdist cada test corre
+# en otro proceso; su informe viaja de vuelta con ``user_properties``, y aquí
+# se juntan para el resumen final.
+_time_budget_warnings: list[str] = []
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    """Señala un test que ha pasado pero ha tardado más de lo permitido.
+
+    Sólo mira la fase de ejecución (``call``) de un test que haya pasado: la
+    preparación incluye arrancar la app, una vez por proceso de pytest-xdist,
+    y un test que ya falla no necesita otro motivo. No actúa con ``--pdb``,
+    donde el tiempo lo marca quien depura. La decisión la toma
+    ``_time_budget.build_budget_failure``; si hay que señalarlo, el test falla
+    en modo estricto y, si no, se anota para el resumen final.
+
+    Args:
+        item: El test que acaba de ejecutarse.
+        call: La fase ejecutada, con su duración en ``call.duration``.
+    """
+    outcome = yield
+    report = outcome.get_result()
+    if report.when != "call" or not report.passed or item.config.getoption("usepdb", False):
+        return
+    failure = _time_budget.build_budget_failure(
+        item.nodeid, call.duration, _TEST_TIME_BUDGET_SECONDS, KNOWN_SLOW_TESTS
+    )
+    if failure is None:
+        return
+    if _IS_TIME_BUDGET_STRICT:
+        report.outcome = "failed"
+        report.longrepr = failure
+    else:
+        report.user_properties.append(("time_budget", failure))
+
+
+def pytest_runtest_logreport(report):
+    """Recoge en el proceso principal los avisos de presupuesto de cada test.
+
+    Args:
+        report: El informe de una fase de un test, venga del proceso que sea.
+    """
+    for name, value in report.user_properties:
+        if name == "time_budget":
+            _time_budget_warnings.append(value)
+
+
+def pytest_terminal_summary(terminalreporter):
+    """Lista al final de la ejecución los tests que se pasaron del presupuesto.
+
+    Args:
+        terminalreporter: El escritor del resumen final de pytest.
+    """
+    if not _time_budget_warnings:
+        return
+    terminalreporter.section("presupuesto de tiempo por test")
+    for warning in _time_budget_warnings:
+        terminalreporter.write_line(warning)
+    terminalreporter.write_line(
+        "En la CI estos tests fallarían. ELLYSIA_TEST_TIME_BUDGET_STRICT=1 hace lo mismo en local."
+    )
