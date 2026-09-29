@@ -148,6 +148,10 @@
       "mitre": ["T1190"],
       "controls": ["iso27001:A.8.8", "ens:op.exp.4", "nis2:21.2.e"]
     },
+    "api_exposure": {
+      "mitre": ["T1190"],
+      "controls": ["iso27001:A.8.9", "iso27001:A.8.26", "ens:op.exp.2", "ens:mp.s.2", "nis2:21.2.e"]
+    },
     "web_finding": {
       "mitre": ["T1190"],
       "controls": ["iso27001:A.8.9", "iso27001:A.8.26", "ens:op.exp.2", "ens:mp.s.2", "nis2:21.2.e"]

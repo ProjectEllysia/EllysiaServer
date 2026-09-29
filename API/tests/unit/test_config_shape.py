@@ -206,6 +206,7 @@ CONFIG_BLOCKS = [
     (CR.LybraIngestConfig, CR.lybra_ingest_config),
     (CR.LybraCredentialsConfig, CR.lybra_credentials_config),
     (CR.LybraCrawlerConfig, CR.lybra_crawler_config),
+    (CR.LybraApiSurfaceConfig, CR.lybra_api_surface_config),
     (CR.LybraOsintConfig, CR.lybra_osint_config),
     (CR.NucleiConfig, CR.nuclei_config),
     (CR.AegisConfig, CR.aegis_config),

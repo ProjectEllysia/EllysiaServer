@@ -83,7 +83,7 @@ logger = logging.getLogger(__name__)
 # checks-25: marcas de tiempo TCP.
 # checks-26: la familia session-cookie-without-* ya ve todas las Set-Cookie de
 # la respuesta, no solo la primera.
-CHECKS_FEED_VERSION = "lybra-checks-26"
+CHECKS_FEED_VERSION = "lybra-checks-27"
 # Quality of Detection for a finding a check actively confirmed, as opposed to
 # one merely inferred from a version.
 QOD_CONFIRMED = 99
@@ -766,6 +766,11 @@ CHECK_CATEGORIES = (
     "tls",
     "vulnerability",
     "web_finding",
+    # Lo que una API deja a la vista —su especificación, el esquema GraphQL, un
+    # endpoint sin autenticación—: no es un fichero olvidado (`exposed_path`)
+    # sino el contrato de la API entero, y se agrupa aparte para poder listar
+    # la superficie de API de un escaneo.
+    "api_exposure",
 )
 
 # Los tipos de matcher que ``Matcher._raw_match`` implementa. Cualquier otro

@@ -794,6 +794,31 @@ def get_lybra_grouped_findings(scan_id: int):
     }
 
 
+@themis_blp.get("/scan/<int:scan_id>/api-surface")
+@themis_blp.response(200, description="What the scan found exposed in the APIs of its web services")
+@themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@themis_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@themis_blp.alt_response(404, schema=ErrorSchema, description="Scan not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.THEMIS_READ])
+@limiter.limit("300 per hour; 2000 per day")
+@handle_exceptions(default_exception=ScanNotFoundError, logger=logger)
+def get_scan_api_surface(scan_id: int):
+    """Lo que un escaneo Lybra encontró expuesto en las APIs de sus servicios web.
+
+    Especificaciones publicadas, introspección de GraphQL, endpoints que la
+    especificación declara protegidos y contestan sin credenciales, y
+    asignación masiva; agrupado por servicio.
+    """
+    user = get_current_user()
+    result = LybraEngineManager().api_surface(scan_id, user.id)
+    return {
+        "message": "Superficie de API obtenida correctamente",
+        **result,
+        "user": user.username,
+    }
+
+
 @themis_blp.get("/lybra/scans/<int:scan_id>/export")
 @themis_blp.arguments(LybraExportQuerySchema, location="query")
 @themis_blp.response(200, description="Scan findings in the requested standard format")
