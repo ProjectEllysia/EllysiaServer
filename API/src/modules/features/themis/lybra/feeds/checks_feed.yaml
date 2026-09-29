@@ -722,6 +722,45 @@ checks:
       title: Certificado TLS caducado
       qod: 99
       confirmed: true
+  # Propiedades del certificado que el saludo ya descarga. Los umbrales
+  # (2048 bits en RSA/DSA, 256 en curva eliptica; MD5/SHA-1 como firma
+  # obsoleta; 30 dias para caducar) viven junto a sus reglas en checks.py.
+  - id: tls-weak-key
+    version: 1
+    type: tls
+    category: tls
+    severity: MEDIUM
+    service: https
+    mode: safe
+    tlsRule: weak_key
+    finding:
+      title: 'Certificado TLS con una clave demasiado corta (RSA/DSA de menos de 2048 bits, o curva de menos de 256)'
+      qod: 99
+      confirmed: true
+  - id: tls-weak-signature
+    version: 1
+    type: tls
+    category: tls
+    severity: MEDIUM
+    service: https
+    mode: safe
+    tlsRule: weak_signature
+    finding:
+      title: 'Certificado TLS firmado con un resumen obsoleto (MD5 o SHA-1)'
+      qod: 99
+      confirmed: true
+  - id: tls-expiring-soon
+    version: 1
+    type: tls
+    category: tls
+    severity: LOW
+    service: https
+    mode: safe
+    tlsRule: expiring_soon
+    finding:
+      title: 'Certificado TLS a punto de caducar (30 dias o menos)'
+      qod: 99
+      confirmed: true
   # version 2: se pregunta por cada version obsoleta ofreciendo solo esa, en
   # vez de mirar la negociada (que es siempre la mas alta y no la ensena).
   - id: tls-deprecated-protocol

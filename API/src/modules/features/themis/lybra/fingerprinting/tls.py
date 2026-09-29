@@ -41,6 +41,8 @@ from datetime import datetime, timezone
 from typing import Callable, Dict, Optional
 
 from cryptography import x509
+from cryptography.exceptions import UnsupportedAlgorithm
+from cryptography.hazmat.primitives.asymmetric import dsa, ec, rsa
 from cryptography.x509.oid import NameOID
 
 logger = logging.getLogger(__name__)
@@ -63,6 +65,15 @@ class TlsInfo:
             DNS del SAN, en minúsculas. Por defecto vacío.
         requested_name: El nombre que se pidió en el SNI, o ``None`` si se
             conectó por IP (y entonces no hay nombre con el que comparar).
+        public_key_type: El tipo de la clave pública: ``"rsa"``, ``"dsa"``,
+            ``"ec"``, otro nombre en minúsculas para los demás (``"ed25519"``),
+            o ``None`` si no se pudo leer. Por defecto ``None``.
+        public_key_bits: El tamaño de la clave pública en bits, o ``None`` si
+            el tipo no lo tiene (Ed25519) o no se pudo leer. Por defecto ``None``.
+        signature_hash: El resumen con el que está firmado el certificado, en
+            minúsculas (``"sha256"``, ``"sha1"``, ``"md5"``), o ``None`` si la
+            firma no usa uno aparte (Ed25519) o no se pudo leer. Por defecto
+            ``None``.
     """
     protocol: Optional[str]
     cipher: Optional[str]
@@ -73,6 +84,9 @@ class TlsInfo:
     days_until_expiry: Optional[int]
     names: tuple = ()
     requested_name: Optional[str] = None
+    public_key_type: Optional[str] = None
+    public_key_bits: Optional[int] = None
+    signature_hash: Optional[str] = None
 
     @property
     def is_name_mismatch(self) -> bool:
@@ -93,6 +107,48 @@ def _common_name(name: "x509.Name") -> Optional[str]:
     """Extract the common name from an X.509 ``Name``, best-effort."""
     attrs = name.get_attributes_for_oid(NameOID.COMMON_NAME)
     return str(attrs[0].value) if attrs else None
+
+
+def _public_key_facts(cert) -> tuple:
+    """El tipo y el tamaño en bits de la clave pública de un certificado.
+
+    Args:
+        cert: El certificado ya cargado (``x509.Certificate``).
+
+    Returns:
+        tuple: ``(tipo, bits)``. El tipo es ``"rsa"``, ``"dsa"``, ``"ec"`` o
+            el nombre de la clase en minúsculas para los demás; los bits son
+            ``None`` si el tipo no tiene tamaño variable. ``(None, None)`` si
+            la clave no se pudo leer.
+    """
+    try:
+        key = cert.public_key()
+    except (ValueError, UnsupportedAlgorithm):
+        return None, None
+    if isinstance(key, rsa.RSAPublicKey):
+        return "rsa", key.key_size
+    if isinstance(key, dsa.DSAPublicKey):
+        return "dsa", key.key_size
+    if isinstance(key, ec.EllipticCurvePublicKey):
+        return "ec", key.curve.key_size
+    return type(key).__name__.lower().replace("publickey", "").lstrip("_"), None
+
+
+def _signature_hash(cert) -> Optional[str]:
+    """El resumen con el que está firmado un certificado, o ``None`` si no usa uno aparte.
+
+    Args:
+        cert: El certificado ya cargado (``x509.Certificate``).
+
+    Returns:
+        Optional[str]: El nombre del resumen en minúsculas (``"sha256"``),
+            o ``None`` para firmas sin resumen aparte (Ed25519) o ilegibles.
+    """
+    try:
+        algorithm = cert.signature_hash_algorithm
+    except UnsupportedAlgorithm:
+        return None
+    return algorithm.name.lower() if algorithm is not None else None
 
 
 def _is_ip_literal(host: str) -> bool:
@@ -482,6 +538,7 @@ class TlsProbe:
         # only pins >=41.0.4, so fall back to the naive attribute on older installs.
         not_after = getattr(cert, "not_valid_after_utc", None) or cert.not_valid_after.replace(tzinfo=timezone.utc)
         days_until_expiry = (not_after - datetime.now(timezone.utc)).days
+        public_key_type, public_key_bits = _public_key_facts(cert)
         return TlsInfo(
             protocol=protocol,
             cipher=cipher,
@@ -491,4 +548,7 @@ class TlsProbe:
             expired=days_until_expiry < 0,
             days_until_expiry=days_until_expiry,
             names=_certificate_names(cert),
+            public_key_type=public_key_type,
+            public_key_bits=public_key_bits,
+            signature_hash=_signature_hash(cert),
         )
