@@ -508,6 +508,53 @@ Las reglas:
 - **Tampoco otras identidades en el constructor.** Lo mismo vale para cualquier identidad que no
   sea un usuario, como el agente de Hygeia (un `asset_id`): va por parámetro.
 
+### 5.6 Para qué es una clase: instancia, estático y de clase
+
+Un manager es una clase aunque casi ninguno herede de nada, porque la clase es **el sitio donde
+se reciben las dependencias**: la cola, el mailer o el cliente de IA llegan por el constructor, y
+un test las sustituye pasando las suyas (`IrisManager(task_queue=cola_falsa)`) en vez de parchear
+variables del módulo. Además, un método puede empezar a usar una dependencia nueva sin que cambie
+quien lo llama, y las bases compartidas (`TaskTrackingMixin`, `DocumentManager`) funcionan por
+herencia. Todo lo que sigue sale de ahí:
+
+| Tipo de método | Primer parámetro | Cuándo |
+|---|---|---|
+| De instancia | `self` | **Por defecto.** Toda la superficie pública del manager |
+| `@staticmethod` | ninguno | Solo los `execute_*`: el worker los guarda en la cola por referencia, sin una instancia detrás ([§ 7](#7-trabajo-en-segundo-plano-taskqueue-outbox-y-dispatcher)) |
+| `@classmethod` | `cls` | Solo cuando hace falta la clase **sin tener una instancia**: consultar un registro de subclases (`ScanManager._registry`) o fabricar una instancia (`cls()`) |
+
+```python
+# Ilustrativo: IrisCaseManager existe, pero no tiene hoy un job de resumen.
+class IrisCaseManager:
+    """Casos de Iris: agrupan análisis relacionados."""
+
+    def __init__(self, task_queue: Optional[ITaskQueue] = None) -> None:
+        self._task_queue = task_queue or TaskQueue.get_instance()
+
+    def create_case(self, user_id: int, title: str) -> IrisCase:   # instancia: lo normal
+        ...
+
+    @staticmethod
+    def execute_case_digest(case_id: int) -> None:                  # estático: lo llama el worker
+        IrisCaseManager().send_digest(case_id)
+```
+
+- **El constructor solo recibe dependencias técnicas, todas con valor por defecto** (`None` → la
+  real). Así `Manager()` sin argumentos siempre funciona, y es como lo crean los endpoints, los
+  demás módulos y los `execute_*`. Ni identidad ([§ 5.5](#55-quién-actúa-el-usuario-llega-por-parámetro))
+  ni datos de negocio.
+- **Se crea donde se usa:** `IrisCaseManager().create_case(...)`. Crearlo no cuesta nada, así que
+  no se guardan instancias a nivel de módulo (`USER_MANAGER = UserManager()`): se saltan el
+  constructor y un test no puede cambiarlas.
+- **Un `@classmethod` que no usa `cls` es un método de instancia disfrazado**, y un `@staticmethod`
+  que no es `execute_*`, también. Leer una constante de la clase no justifica ninguno de los dos:
+  `self.EXTERNAL_ID_PREFIX` llega igual.
+- **Un `execute_*` crea el manager dentro** si necesita algo más que una función privada del
+  fichero: así usa las mismas dependencias por defecto que un endpoint.
+- **Herencia solo para ganchos reales** (`ScanManager` y sus escáneres, § 5.1) **o para bases
+  compartidas** (`DocumentManager`, `TaskTrackingMixin`). Si lo único que se quiere compartir son
+  helpers, van a `services/` ([§ 6](#6-servicios-y-funciones-compartidas)), no a una clase base.
+
 ---
 
 ## 6. Servicios y funciones compartidas
@@ -914,7 +961,8 @@ cálculo + otro servicio): ahí no hay un único modelo dueño de la conversión
 `LybraEngineManager` (22), `IrisMailboxManager` (19) y `AegisManager` (10). Parte de los de
 `ScanManager` y sus subclases son ganchos legítimos.
 
-**Identidad en el constructor del manager** (§ 5.5):
+**Identidad en el constructor del manager** (§ 5.5, y por tanto constructores que no se pueden
+llamar sin argumentos, § 5.6):
 - Acheron: `VaultManager`.
 - Aegis: `AegisManager`, `CampaignManager` y `AegisOrgProfileManager`.
 - Hygeia: `HygeiaAssetManager`, `HygeiaTagManager`, `HygeiaStatsManager`, `HygeiaReportManager`,
@@ -929,6 +977,15 @@ usuario sin `user_id` y dan por hecho que el endpoint ya comprobó al dueño.
 
 **Varios usuarios en una firma, uno llamado `user_id`** (§ 5.5): `SubscriptionManager`
 (`user_id` + `actor_id`) e `IrisSharedMailboxManager` (`user_id` + `member_user_id`).
+
+**Tipo de método equivocado en managers** (§ 5.6):
+- `@staticmethod` que no es `execute_*`: unos 125 en 39 clases. Los más cargados son
+  `LybraEngineManager` (12), `IrisSharedMailboxManager` (7) e `IrisWebhookManager` (7); casi todo
+  Iris es estático.
+- `@classmethod` que no usa `cls`: 13 en 5 clases, casi todos en `ProgramedScanManager` (5) y
+  `ScanManager` (3).
+- Instancias a nivel de módulo: `USER_MANAGER`, `OAUTH_MANAGER` y `MFA_MANAGER` en
+  `users/endpoints.py`, y otro `USER_MANAGER` en `aegis/endpoints.py`.
 
 **Imports que entran por dentro de otro módulo** (§ 3.3):
 - Hygeia importa `users.services.secrets`.
