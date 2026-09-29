@@ -37,6 +37,7 @@ from .lybra.evidence import prepare_evidence
 from .lybra.kb import split_distro_version
 
 from .model import (
+    AssetGroup,
     AuthorizedTarget,
     ComplianceFrameworkSelection,
     CpeMatch,
@@ -306,6 +307,55 @@ class ScanRepository(BaseRepository[Scan]):
             .filter(ranked.c._rn == 1)
             .all()
         )
+
+    def get_latest_finished_scans_by_host(self, user_id: int) -> List[LybraScan]:
+        """El último escaneo Lybra terminado de cada host del usuario, en una sola query.
+
+        Es lo que hace falta para mirar una red entera a la vez: el estado más
+        reciente de cada host, sea cual sea el escaneo de red que lo trajo. No
+        cuenta los escaneos de inventario de un agente (``asset_id``): esos
+        describen un equipo por sus paquetes, no un host de la red.
+
+        Args:
+            user_id: Dueño de los escaneos.
+
+        Returns:
+            List[LybraScan]: A lo sumo uno por host, el más reciente en estado
+                ``finished``.
+        """
+        row_number = func.row_number().over(
+            partition_by=LybraScan.host_id,
+            order_by=(LybraScan.started_at.desc(), LybraScan.id.desc()),
+        ).label("_rn")
+        ranked = (
+            self._session.query(LybraScan.id.label("id"), row_number)
+            .filter(
+                LybraScan.user_id == user_id,
+                LybraScan.host_id.isnot(None),
+                LybraScan.asset_id.is_(None),
+                LybraScan.status == ScanStatus.FINISHED.value,
+            )
+            .subquery()
+        )
+        return (
+            self._session.query(LybraScan)
+            .join(ranked, LybraScan.id == ranked.c.id)
+            .filter(ranked.c._rn == 1)
+            .all()
+        )
+
+    def get_hosts_by_ids(self, host_ids: List[int]) -> List[Host]:
+        """Los hosts con esos identificadores.
+
+        Args:
+            host_ids: Claves primarias; vacía devuelve lista vacía sin consultar.
+
+        Returns:
+            List[Host]: Los que existen.
+        """
+        if not host_ids:
+            return []
+        return self._session.query(Host).filter(Host.id.in_(host_ids)).all()
 
     def count_findings_by_scan(self, scan_ids: List[int]) -> Dict[int, int]:
         """Número de hallazgos por escaneo, en una sola query agrupada.
@@ -1805,6 +1855,62 @@ class AuthorizedTargetRepository(BaseRepository[AuthorizedTarget]):
         return (
             self._session.query(AuthorizedTarget)
             .filter(AuthorizedTarget.target == target, AuthorizedTarget.user_id == user_id)
+            .one_or_none()
+        )
+
+
+class AssetGroupRepository(BaseRepository[AssetGroup]):
+    """Acceso a datos de ``AssetGroup``, los grupos de hosts que se analizan juntos."""
+
+    _MODEL = AssetGroup
+
+    def get_by_user(self, user_id: int) -> List[AssetGroup]:
+        """Los grupos de un usuario, por nombre.
+
+        Args:
+            user_id: Dueño de los grupos.
+
+        Returns:
+            List[AssetGroup]: Ordenados alfabéticamente; vacía si no tiene.
+        """
+        return (
+            self._session.query(AssetGroup)
+            .filter(AssetGroup.user_id == user_id)
+            .order_by(AssetGroup.name.asc())
+            .all()
+        )
+
+    def get_by_id_and_user(self, group_id: int, user_id: int) -> Optional[AssetGroup]:
+        """Un grupo sólo si pertenece al usuario.
+
+        Args:
+            group_id: Clave primaria del grupo.
+            user_id: Usuario que lo pide.
+
+        Returns:
+            Optional[AssetGroup]: El grupo, o ``None`` si no existe o es de otro
+                usuario (las dos cosas se responden igual, para no delatar ids
+                ajenos).
+        """
+        return (
+            self._session.query(AssetGroup)
+            .filter(AssetGroup.id == group_id, AssetGroup.user_id == user_id)
+            .one_or_none()
+        )
+
+    def get_by_name_and_user(self, name: str, user_id: int) -> Optional[AssetGroup]:
+        """El grupo de un usuario con un nombre, si existe.
+
+        Args:
+            name: El nombre exacto.
+            user_id: Dueño.
+
+        Returns:
+            Optional[AssetGroup]: El grupo, o ``None``.
+        """
+        return (
+            self._session.query(AssetGroup)
+            .filter(AssetGroup.name == name, AssetGroup.user_id == user_id)
             .one_or_none()
         )
 
