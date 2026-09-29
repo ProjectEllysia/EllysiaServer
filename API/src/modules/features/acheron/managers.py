@@ -34,6 +34,58 @@ StorableKind = Literal[
 ]
 
 
+def _parse_dt(value: Optional[str]) -> datetime:
+    if not value:
+        return utcnow_naive()
+    try:
+        parsed_datetime = datetime.fromisoformat(value)
+        if parsed_datetime.tzinfo is not None:
+            parsed_datetime = parsed_datetime.astimezone(timezone.utc).replace(tzinfo=None)
+        return parsed_datetime
+    except Exception as e:
+        logger.warning("Failed to parse datetime value %r, defaulting to utcnow", value, exc_info=True)
+        return utcnow_naive()
+
+def _bump_revision(vault: Vault) -> int:
+    """
+    Único punto de incremento de ``Vault.revision``.
+
+    Toda mutación del contenido del vault —upsert completo, rotación de la
+    maestra y alta/edición/baja de storables— pasa por aquí. Tenerlo en un
+    solo sitio es lo que evita que un endpoint nuevo se olvide de marcar el
+    cambio y deje a los demás clientes con un snapshot que creen fresco.
+
+    No confundir con ``metadata_version``: esa solo señala el cambio de
+    contraseña maestra (y de ella depende la invalidación del secreto
+    biométrico del móvil), así que no se reutiliza como token de
+    concurrencia.
+    """
+    vault.revision = (vault.revision or 1) + 1
+    return vault.revision
+
+def _require_revision(vault: Vault, expected: Optional[int]) -> None:
+    """
+    Rechaza una escritura basada en una revisión obsoleta del vault.
+
+    La comprobación y la escritura viven en la misma transacción de
+    petición, pero sin bloqueo de fila: dos peticiones simultáneas con la
+    misma revisión base podrían pasar ambas. Cubre el caso real —un
+    snapshot obsoleto de minutos— no una carrera de milisegundos.
+
+    Args:
+        vault: el ``Vault`` que se está tratando
+        expected: ``expected is None`` significa que el cliente no mandó ``If-Match``: se
+            acepta por compatibilidad con las apps ya desplegadas. La única
+            excepción es el upsert completo (destructivo), donde la capa de
+            endpoints exige la cabecera antes de llegar aquí.
+    """
+    if expected is None:
+        return
+    current = vault.revision or 1
+    if current != expected:
+        raise VaultRevisionMismatchError(current=current, provided=expected)
+
+
 class VaultManager:
     """
     Gestor de almacenes (Vaults) y elementos almacenables (Storables).
@@ -45,57 +97,7 @@ class VaultManager:
     def __init__(self, user: User) -> None:
         self.active_user = user
 
-    @staticmethod
-    def _parse_dt(value: Optional[str]) -> datetime:
-        if not value:
-            return utcnow_naive()
-        try:
-            parsed_datetime = datetime.fromisoformat(value)
-            if parsed_datetime.tzinfo is not None:
-                parsed_datetime = parsed_datetime.astimezone(timezone.utc).replace(tzinfo=None)
-            return parsed_datetime
-        except Exception as e:
-            logger.warning("Failed to parse datetime value %r, defaulting to utcnow", value, exc_info=True)
-            return utcnow_naive()
-
-    @staticmethod
-    def _bump_revision(vault: Vault) -> int:
-        """Único punto de incremento de ``Vault.revision``.
-
-        Toda mutación del contenido del vault —upsert completo, rotación de la
-        maestra y alta/edición/baja de storables— pasa por aquí. Tenerlo en un
-        solo sitio es lo que evita que un endpoint nuevo se olvide de marcar el
-        cambio y deje a los demás clientes con un snapshot que creen fresco.
-
-        No confundir con ``metadata_version``: esa solo señala el cambio de
-        contraseña maestra (y de ella depende la invalidación del secreto
-        biométrico del móvil), así que no se reutiliza como token de
-        concurrencia.
-        """
-        vault.revision = (vault.revision or 1) + 1
-        return vault.revision
-
-    @staticmethod
-    def _require_revision(vault: Vault, expected: Optional[int]) -> None:
-        """Rechaza una escritura basada en una revisión obsoleta del vault.
-
-        ``expected is None`` significa que el cliente no mandó ``If-Match``: se
-        acepta por compatibilidad con las apps ya desplegadas. La única
-        excepción es el upsert completo (destructivo), donde la capa de
-        endpoints exige la cabecera antes de llegar aquí.
-
-        La comprobación y la escritura viven en la misma transacción de
-        petición, pero sin bloqueo de fila: dos peticiones simultáneas con la
-        misma revisión base podrían pasar ambas. Cubre el caso real —un
-        snapshot obsoleto de minutos— no una carrera de milisegundos.
-        """
-        if expected is None:
-            return
-        current = vault.revision or 1
-        if current != expected:
-            raise VaultRevisionMismatchError(current=current, provided=expected)
-
-    def _ensure_vault_ownership(self, vault: Vault) -> None:
+    def _assert_vault_ownership(self, vault: Vault) -> None:
         if vault.user_id != self.active_user.id:
             raise PermissionError(
                 f"El usuario {self.active_user.id} no es dueño del vault {vault.id}"
@@ -107,10 +109,10 @@ class VaultManager:
         if vault is None:
             logger.warning(f"Vault {vault_id} no encontrado")
             return None
-        self._ensure_vault_ownership(vault)
+        self._assert_vault_ownership(vault)
         return vault
 
-    def get_vault_for_user(self, is_recovery: bool = False) -> Optional[Vault]:
+    def get_vault_for_user(self) -> Optional[Vault]:
         repo = build_repository(VaultRepository)
         vault = repo.get_by_user(self.active_user.id)
         return vault
@@ -147,8 +149,6 @@ class VaultManager:
                     # promete la tabla de precios necesitan que la bóveda deje
                     # de ser única por usuario.
                     QuotaManager().consume(self.active_user.id, LimitKey.ACHERON_VAULTS)
-
-                if existing_vault is None:
                     vault = Vault(
                         user_id=self.active_user.id,
                         checker=data["checker"],
@@ -163,11 +163,11 @@ class VaultManager:
                     vault_repo.save(vault)
                     vault_id = vault.id
                 else:
-                    self._ensure_vault_ownership(existing_vault)
+                    self._assert_vault_ownership(existing_vault)
                     # Antes de cualquier mutación: si la revisión no cuadra, el
                     # 409 sale de aquí con la sesión todavía limpia.
-                    self._require_revision(existing_vault, expected_revision)
-                    self._bump_revision(existing_vault)
+                    _require_revision(existing_vault, expected_revision)
+                    _bump_revision(existing_vault)
 
                     existing_vault.checker = data["checker"]
                     existing_vault.vault_key = data["vaultKey"]
@@ -194,8 +194,8 @@ class VaultManager:
                             vault=vault,
                             internal_id=item.get("id"),
                             title=item.get("title"),
-                            created_at=self._parse_dt(item.get("createdAt")),
-                            updated_at=self._parse_dt(item.get("updatedAt")),
+                            created_at=_parse_dt(item.get("createdAt")),
+                            updated_at=_parse_dt(item.get("updatedAt")),
                             **{attr: item.get(json_key, "") for attr, json_key in spec.fields},
                         ))
 
@@ -247,8 +247,8 @@ class VaultManager:
             if vault is None:
                 return None
 
-            self._ensure_vault_ownership(vault)
-            self._require_revision(vault, expected_revision)
+            self._assert_vault_ownership(vault)
+            _require_revision(vault, expected_revision)
 
             vault.checker = data["checker"]
             vault.vault_key = data["vaultKey"]
@@ -260,7 +260,7 @@ class VaultManager:
             vault.salt = algorithm.get("salt", "")
             # Señal para que otros clientes detecten el cambio de contraseña maestra.
             vault.metadata_version = (vault.metadata_version or 1) + 1
-            self._bump_revision(vault)
+            _bump_revision(vault)
 
         logger.info(
             f"Metadatos del vault {vault.id} refrescados (cambio de contraseña, "
@@ -273,7 +273,7 @@ class VaultManager:
         vault = repo.get_by_id(vault_id)
         if vault is None:
             raise ValueError(f"Vault {vault_id} no encontrado")
-        self._ensure_vault_ownership(vault)
+        self._assert_vault_ownership(vault)
 
         algorithm = {
             "transformation": vault.transformation,
@@ -378,7 +378,7 @@ class VaultManager:
         # Antes de construir el storable: instanciarlo con vault=... ya lo mete
         # en la sesión por cascada, y el teardown de la petición lo commitearía
         # aunque después lanzáramos el 409.
-        self._require_revision(vault, expected_revision)
+        _require_revision(vault, expected_revision)
 
         spec = STORABLE_SPECS.get(kind)
         if spec is None:
@@ -400,7 +400,7 @@ class VaultManager:
             with UnitOfWork() as uow:
                 repo = StorableRepository(uow)
                 repo.save(storable)
-                self._bump_revision(vault)
+                _bump_revision(vault)
             logger.info(f"Storable {storable.id} creado en vault {vault_id}")
             return storable
         except IntegrityError as ie:
@@ -450,7 +450,7 @@ class VaultManager:
 
                 if changed:
                     storable.updated_at = utcnow_naive()
-                    self._bump_revision(storable.vault)
+                    _bump_revision(storable.vault)
                     repo.update(storable)
                     logger.info(f"Storable {storable.id} actualizado correctamente")
                 else:
@@ -482,7 +482,7 @@ class VaultManager:
         if expected_revision is not None:
             current_vault = self.get_vault_for_user()
             if current_vault is not None:
-                self._require_revision(current_vault, expected_revision)
+                _require_revision(current_vault, expected_revision)
 
         for operation in operations:
             internal_id = operation.get("internalId")
@@ -509,9 +509,7 @@ class VaultManager:
 
             try:
                 if is_recovery not in vault_cache:
-                    vault_cache[is_recovery] = self.get_vault_for_user(
-                        is_recovery=is_recovery
-                    )
+                    vault_cache[is_recovery] = self.get_vault_for_user()
 
                 vault = vault_cache[is_recovery]
                 if not vault:
@@ -581,13 +579,13 @@ class VaultManager:
             return False
 
         vault = storable.vault
-        self._require_revision(vault, expected_revision)
+        _require_revision(vault, expected_revision)
 
         try:
             with UnitOfWork() as uow:
                 repo = StorableRepository(uow)
                 repo.delete(storable)
-                self._bump_revision(vault)
+                _bump_revision(vault)
             logger.info(f"Storable {storable_id} eliminado")
             return True
         except Exception as e:

@@ -457,7 +457,8 @@ Formato (estilo Google, adaptado al castellano):
 
 ```python
 def calculate_critical_threshold(base_score: float, scan_type: ScanType, multiplier: float = 1.5) -> float:
-    """Calcula el umbral crítico de una vulnerabilidad a partir de su puntuación base.
+    """
+    Calcula el umbral crítico de una vulnerabilidad a partir de su puntuación base.
 
     El umbral resultante decide si un hallazgo dispara notificación inmediata
     (ver `NotificationManager.should_notify`).
@@ -631,6 +632,10 @@ Tres reglas concretas:
 Esto aplica a los cuerpos de PR, a los issues que se abran y a los comentarios de seguimiento. No
 aplica al **código**: ahí manda la concisión de siempre (nombres completos, comentarios que
 explican el *por qué*, no el *qué*).
+
+Nunca añadas la línea `Co-Authored-By` a los commits, ni una firma de autoría («Generated with…»)
+a los PR: la autoría es de quien firma el commit o abre el PR, y esas líneas solo añaden ruido al
+leer el historial.
 
 ## Deuda técnica
 

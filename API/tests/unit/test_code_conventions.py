@@ -221,7 +221,7 @@ KNOWN_VIOLATIONS: dict[tuple[str, str, str], str] = {
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/acheron/managers.py", "VaultManager._bump_revision"):
         _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/acheron/managers.py", "VaultManager._ensure_vault_ownership"):
+    ("private-method", "src/modules/features/acheron/managers.py", "VaultManager._assert_vault_ownership"):
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/acheron/managers.py", "VaultManager._parse_dt"):
         _PLAN_PRIVATE_METHOD,

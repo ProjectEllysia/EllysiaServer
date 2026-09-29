@@ -13,12 +13,12 @@ _SYMBOLS = "!@#$%^&*()-_=+[]{};:,.<>?"
 
 
 def generate_password(
-    length: int,
-    use_uppercase: bool,
-    use_lowercase: bool,
-    use_digits: bool,
-    use_symbols: bool,
-    exclude_ambiguous: bool,
+    length: int = 16,
+    use_uppercase: bool = True,
+    use_lowercase: bool = True,
+    use_digits: bool = True,
+    use_symbols: bool = True,
+    exclude_ambiguous: bool = True,
 ) -> str:
     pools = []
     if use_uppercase:
