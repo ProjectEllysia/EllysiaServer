@@ -375,6 +375,10 @@
       "mitre": ["T1021.001", "T1110"],
       "controls": ["iso27001:A.8.5", "iso27001:A.8.20", "ens:op.acc.6", "ens:mp.com.1", "nis2:21.2.i"]
     },
+    "rdp-legacy-security-layer": {
+      "mitre": ["T1021.001", "T1557", "T1040"],
+      "controls": ["iso27001:A.8.5", "iso27001:A.8.24", "ens:op.acc.6", "ens:mp.com.2", "nis2:21.2.h"]
+    },
     "dns-open-resolver": {
       "mitre": ["T1498.002"],
       "controls": ["iso27001:A.8.20", "iso27001:A.8.21", "ens:mp.com.1", "ens:mp.s.4", "nis2:21.2.c"]

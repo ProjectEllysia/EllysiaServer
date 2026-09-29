@@ -257,7 +257,8 @@ def _plugin(reply):
 
 @pytest.mark.parametrize("reply, fires", [
     (_selected(PROTOCOL_SSL), True),        # TLS pero sin NLA
-    (_selected(PROTOCOL_RDP), True),        # ni TLS
+    (_selected(PROTOCOL_RDP), False),       # ni TLS: lo avisa rdp-legacy-security-layer
+    (_failed(0x00000002), False),           # sólo seguridad antigua, dicho como rechazo
     (_selected(PROTOCOL_HYBRID), False),    # NLA exigido
     (_selected(PROTOCOL_HYBRID_EX), False),
     (_failed(0x00000005), False),           # NLA exigido, dicho como rechazo
@@ -292,3 +293,50 @@ def test_the_check_is_registered_and_wired_to_its_feed_entry():
     assert check.severity == "HIGH" and check.mode == "safe"
     assert check.service == "rdp"
     assert check.script in default_script_plugins()
+
+
+# ============================================ seguridad antigua, sin TLS
+
+
+def _legacy_plugin(reply):
+    from src.modules.features.themis.lybra.script_checks import RdpLegacySecurityLayerPlugin
+    probe, _sent = _probe_with(reply)
+    return RdpLegacySecurityLayerPlugin(probe=probe)
+
+
+@pytest.mark.parametrize("reply, fires", [
+    (_selected(PROTOCOL_RDP), True),        # eligió la seguridad antigua
+    (_failed(0x00000002), True),            # rechaza TLS: sólo tiene la antigua
+    (_confirm(), True),                     # servidor muy antiguo, sin negociación
+    (_selected(PROTOCOL_SSL), False),       # TLS sin NLA: el aviso es el otro
+    (_selected(PROTOCOL_HYBRID), False),    # señuelo: NLA exigido
+    (_selected(PROTOCOL_HYBRID_EX), False),
+    (_failed(0x00000005), False),           # NLA exigido, dicho como rechazo
+])
+def test_the_legacy_check_fires_only_without_tls(reply, fires):
+    assert _legacy_plugin(reply).run(_Context()) is fires
+
+
+def test_the_legacy_check_stays_quiet_when_the_mode_could_not_be_read():
+    assert _legacy_plugin(_failed(0x00000004)).run(_Context()) is False
+    assert _legacy_plugin(b"HTTP/1.1 400 Bad Request").run(_Context()) is False
+
+
+def test_the_two_rdp_checks_never_fire_together():
+    """Cada servidor recibe como mucho uno de los dos avisos: el de TLS sin NLA
+    o el de seguridad antigua, más grave."""
+    for reply in (_selected(PROTOCOL_RDP), _selected(PROTOCOL_SSL), _failed(0x00000002),
+                  _selected(PROTOCOL_HYBRID), _confirm()):
+        assert not (_plugin(reply).run(_Context()) and _legacy_plugin(reply).run(_Context()))
+
+
+def test_the_legacy_check_is_registered_and_more_severe_than_the_nla_one():
+    from src.modules.features.themis.lybra.checks import load_checks
+    from src.modules.features.themis.lybra.script_checks import default_script_plugins
+
+    checks = {c.id: c for c in load_checks()}
+    legacy = checks["rdp-legacy-security-layer"]
+    assert legacy.mode == "safe" and legacy.service == "rdp"
+    assert legacy.script in default_script_plugins()
+    order = ["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"]
+    assert order.index(legacy.severity) > order.index(checks["rdp-nla-not-required"].severity)

@@ -84,7 +84,8 @@ logger = logging.getLogger(__name__)
 # checks-26: la familia session-cookie-without-* ya ve todas las Set-Cookie de
 # la respuesta, no solo la primera.
 # checks-28: exposición sin credenciales de etcd, Consul y Kibana.
-CHECKS_FEED_VERSION = "lybra-checks-28"
+# checks-29: RDP con la seguridad antigua del protocolo, sin TLS.
+CHECKS_FEED_VERSION = "lybra-checks-29"
 # Quality of Detection for a finding a check actively confirmed, as opposed to
 # one merely inferred from a version.
 QOD_CONFIRMED = 99
