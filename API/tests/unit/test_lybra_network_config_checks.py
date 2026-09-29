@@ -509,3 +509,84 @@ def test_an_https_certificate_keeps_its_plain_title():
                             tls_fetch=lambda host, port, starttls=None: _certificate(True)).run(
         "h", [Service(443, "tcp", "https", "", "", None)])
     assert findings[0]["title"] == tls_checks[0].finding["title"]
+
+
+# ============================================ WinRM con Basic y sin TLS
+
+
+class _WinrmProbe:
+    """Sonda HTTP falsa: contesta siempre lo mismo y apunta lo que se le pidió."""
+
+    def __init__(self, response):
+        self.response = response
+        self.requests = []
+
+    def fetch(self, host, port, method, path, body=None, headers=None):
+        self.requests.append((port, method, path))
+        return self.response
+
+
+def _winrm_run(response):
+    from src.modules.features.themis.lybra.checks import ScriptContext
+    from src.modules.features.themis.lybra.script_checks import WinrmBasicAuthCleartextPlugin
+
+    probe = _WinrmProbe(response)
+    context = ScriptContext(target="10.0.0.5", service=Service(5985, "tcp", "wsman", "", "", None))
+    return WinrmBasicAuthCleartextPlugin(probe=probe).run(context), context, probe
+
+
+def _winrm_401(authenticate, server="Microsoft-HTTPAPI/2.0", scheme="http"):
+    from src.modules.features.themis.lybra.checks import Response
+    return Response(401, "", {"www-authenticate": authenticate, "server": server},
+                    requested_scheme=scheme)
+
+
+def test_a_winrm_offering_basic_without_tls_is_flagged():
+    fired, context, probe = _winrm_run(_winrm_401('Negotiate\nBasic realm="WSMAN"'))
+    assert fired is True
+    assert probe.requests == [(5985, "POST", "/wsman")]
+    assert "Basic" in context.evidence["wwwAuthenticate"]
+
+
+def test_a_winrm_with_only_kerberos_and_negotiate_is_not_flagged():
+    """Señuelo: el 5985 sigue abierto, pero Basic está deshabilitado."""
+    fired, _context, _probe = _winrm_run(_winrm_401("Negotiate\nKerberos"))
+    assert fired is False
+
+
+def test_another_http_server_asking_for_basic_is_not_winrm():
+    """Un servidor web cualquiera en el 5985 que pida Basic no es WinRM."""
+    fired, _context, _probe = _winrm_run(_winrm_401('Basic realm="intranet"', server="nginx"))
+    assert fired is False
+
+
+def test_the_linux_implementation_is_recognised_by_its_realm():
+    fired, _context, _probe = _winrm_run(_winrm_401('Basic realm="WSMAN"', server="OMI"))
+    assert fired is True
+
+
+def test_basic_over_tls_is_not_flagged():
+    fired, _context, _probe = _winrm_run(_winrm_401('Basic realm="WSMAN"', scheme="https"))
+    assert fired is False
+
+
+def test_a_winrm_that_does_not_answer_is_not_flagged():
+    fired, _context, _probe = _winrm_run(None)
+    assert fired is False
+
+
+def test_winrm_is_only_asked_on_its_cleartext_port():
+    from src.modules.features.themis.lybra.script_checks import WinrmBasicAuthCleartextPlugin
+
+    plugin = WinrmBasicAuthCleartextPlugin(probe=_WinrmProbe(None))
+    assert plugin.applies(Service(5985, "tcp", "", "", "", None))
+    assert plugin.applies(Service(15985, "tcp", "wsman", "", "", None))
+    assert not plugin.applies(Service(5986, "tcp", "", "", "", None))
+
+
+def test_the_winrm_check_is_registered_and_wired_to_its_feed_entry():
+    from src.modules.features.themis.lybra.script_checks import default_script_plugins
+
+    check = next(c for c in _CHECKS if c.id == "winrm-basic-auth-cleartext")
+    assert check.mode == "safe" and check.service == "winrm"
+    assert check.script in default_script_plugins()

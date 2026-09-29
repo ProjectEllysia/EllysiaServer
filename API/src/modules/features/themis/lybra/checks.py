@@ -91,7 +91,8 @@ logger = logging.getLogger(__name__)
 # Adminer, Traefik, HAProxy, Prometheus, Netdata, nginx).
 # checks-32: los checks de certificado y de versiones obsoletas de TLS llegan
 # también a SMTP, IMAP y POP3, en claro tras el paso a TLS y con TLS implícito.
-CHECKS_FEED_VERSION = "lybra-checks-32"
+# checks-33: WinRM que acepta autenticación Basic sin TLS.
+CHECKS_FEED_VERSION = "lybra-checks-33"
 # Quality of Detection for a finding a check actively confirmed, as opposed to
 # one merely inferred from a version.
 QOD_CONFIRMED = 99
@@ -172,6 +173,11 @@ _POP3_PORTS = {110, 995}
 _IMAP_IMPLICIT_TLS_PORTS = {993}
 _POP3_IMPLICIT_TLS_PORTS = {995}
 _IMPLICIT_TLS_MAIL_SERVICE_NAMES = {"imaps", "pop3s", "smtps"}
+# WinRM, la administración remota de Windows. "wsman" es la etiqueta estándar
+# del 5985; el 5986 es su variante con TLS y no se reclama aquí: lo que se
+# comprueba de WinRM es precisamente lo que pasa sin TLS.
+_WINRM_SERVICE_NAMES = {"wsman", "winrm"}
+_WINRM_PORTS = {5985}
 _SMTP_IMPLICIT_TLS_PORTS = {465}
 # Puertos que cifran desde el primer byte y no son web: FTPS implícito y el
 # correo con TLS implícito. No entran en _TLS_HYGIENE_PORTS porque esa lista
@@ -1042,6 +1048,18 @@ def is_smtp_starttls_service(service: Service) -> bool:
     return (is_smtp_service(service)
             and service.port not in _SMTP_IMPLICIT_TLS_PORTS
             and (service.name or "").lower() not in _IMPLICIT_TLS_MAIL_SERVICE_NAMES)
+
+
+def is_winrm_service(service: Service) -> bool:
+    """Si el servicio es WinRM sin TLS (el 5985, o un servicio etiquetado ``wsman``).
+
+    Args:
+        service: El servicio candidato.
+
+    Returns:
+        bool: ``True`` si el nombre o el puerto son los de WinRM en claro.
+    """
+    return (service.name or "").lower() in _WINRM_SERVICE_NAMES or service.port in _WINRM_PORTS
 
 
 def starttls_protocol_for(service: Service) -> Optional[str]:

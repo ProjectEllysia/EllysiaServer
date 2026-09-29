@@ -1074,6 +1074,18 @@ checks:
       title: 'RDP: usa la seguridad antigua del protocolo, sin TLS ni NLA (suplantacion del servidor posible)'
       qod: 99
       confirmed: true
+  - id: winrm-basic-auth-cleartext
+    version: 1
+    type: script
+    script: winrm-basic-auth-cleartext
+    category: network_config
+    severity: HIGH
+    service: winrm
+    mode: safe
+    finding:
+      title: 'WinRM: acepta autenticacion Basic sin TLS (credenciales de administracion de Windows en claro)'
+      qod: 99
+      confirmed: true
   - id: smbv1-enabled
     version: 1
     type: script
