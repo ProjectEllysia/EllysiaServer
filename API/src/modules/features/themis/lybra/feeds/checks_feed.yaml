@@ -1152,6 +1152,34 @@ checks:
       title: 'RDP: no exige autenticacion a nivel de red (NLA)'
       qod: 99
       confirmed: true
+  # Lo que un equipo cuenta de sí mismo sin credenciales. No son riesgos sino
+  # contexto: severidad INFO y categoría host_identity, que no entra en el
+  # ciclo de vida abierto/corregido. El marcador del título lo rellena la
+  # evidencia del plugin.
+  - id: smb-host-identity
+    version: 1
+    type: script
+    script: smb-host-identity
+    category: host_identity
+    severity: INFO
+    service: smb
+    mode: safe
+    finding:
+      title: 'SMB: el equipo se identifica como {identity}'
+      qod: 99
+      confirmed: true
+  - id: ldap-directory-domain
+    version: 1
+    type: script
+    script: ldap-directory-domain
+    category: host_identity
+    severity: INFO
+    service: ldap
+    mode: safe
+    finding:
+      title: 'LDAP: el directorio sirve el dominio {domain}'
+      qod: 99
+      confirmed: true
   - id: rdp-legacy-security-layer
     version: 1
     type: script

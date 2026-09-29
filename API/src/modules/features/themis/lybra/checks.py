@@ -97,7 +97,9 @@ logger = logging.getLogger(__name__)
 # del certificado.
 # checks-36: directorio sin ninguna vía cifrada y dominio de Active Directory
 # en un nivel funcional sin soporte.
-CHECKS_FEED_VERSION = "lybra-checks-36"
+# checks-37: lo que un equipo cuenta de sí mismo (nombre por SMB, dominio por
+# LDAP), como hallazgos informativos de la categoría host_identity.
+CHECKS_FEED_VERSION = "lybra-checks-37"
 # Quality of Detection for a finding a check actively confirmed, as opposed to
 # one merely inferred from a version.
 QOD_CONFIRMED = 99
@@ -808,7 +810,21 @@ CHECK_CATEGORIES = (
     # no tiene host ni puerto: se declara o se descubre por OSINT, no se
     # encuentra escaneando.
     "cloud_exposure",
+    # Lo que un equipo cuenta de sí mismo sin credenciales: su nombre, el
+    # dominio al que pertenece. No es un riesgo sino contexto para el informe,
+    # y por eso es la única categoría de check que es un evento (sin ciclo de
+    # vida abierto/cerrado, ver EVENT_CHECK_CATEGORIES).
+    "host_identity",
 )
+
+#: Las categorías de check que describen el objetivo en vez de un problema: no
+#: tienen mapeo de cumplimiento ni se siguen como abiertas o corregidas entre
+#: escaneos.
+EVENT_CHECK_CATEGORIES = ("host_identity",)
+
+#: Un marcador ``{nombre}`` en el título de un check ``script``; lo rellena la
+#: evidencia del plugin.
+_TITLE_PLACEHOLDER_RE = re.compile(r"\{(\w+)\}")
 
 # Los tipos de matcher que ``Matcher._raw_match`` implementa. Cualquier otro
 # devuelve ``False`` sin decir nada, que en un matcher negativo significa
@@ -2024,6 +2040,7 @@ class CheckRuntime:
         if not fired:
             return None
         finding = self._finding(check, service)
+        finding["title"] = render_title(finding["title"], context.evidence)
         if self._capture_evidence and finding.get("confirmed") and context.evidence:
             finding["_evidence"] = {"kind": "script", "payload": dict(context.evidence)}
         return finding
@@ -2322,6 +2339,25 @@ def _format_netloc(host: str, port: Optional[int]) -> str:
         is_ipv6 = False
     netloc_host = f"[{host}]" if is_ipv6 else host
     return f"{netloc_host}:{port}" if port else netloc_host
+
+
+def render_title(title: str, evidence: Dict[str, object]) -> str:
+    """Rellena los marcadores ``{nombre}`` del título de un check con la evidencia del plugin.
+
+    Así un check ``script`` puede nombrar en su título lo que observó (el
+    nombre de un equipo, el dominio de un directorio) sin dejar de declararse
+    en el feed. Un marcador sin valor en la evidencia se deja tal cual, para
+    que el hueco se vea en vez de esconderse.
+
+    Args:
+        title: El título del feed, con o sin marcadores.
+        evidence: Lo que el plugin guardó en ``ScriptContext.evidence``.
+
+    Returns:
+        str: El título con cada marcador sustituido por el valor de su clave.
+    """
+    return _TITLE_PLACEHOLDER_RE.sub(
+        lambda match: str(evidence.get(match.group(1), match.group(0))), title)
 
 
 def _merge_repeated_headers(raw_headers) -> Dict[str, str]:

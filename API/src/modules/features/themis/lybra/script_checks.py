@@ -578,6 +578,183 @@ class LdapNoEncryptedChannelPlugin(ScriptPlugin):
         return fingerprint_ldap(*replies).supports_starttls is False
 
 
+def _is_reporting_service(context: ScriptContext, is_same_kind, preferred_ports: Tuple[int, ...]) -> bool:
+    """Si este servicio es el que informa de un dato que varios servicios del host repiten.
+
+    El nombre de un equipo sale igual por el 139 que por el 445, y el dominio
+    de un directorio igual por el 389 que por el 3268: un aviso por servicio
+    repetiría el mismo dato. Informa uno solo: el del primer puerto de
+    ``preferred_ports`` que esté abierto o, si no hay ninguno, el más bajo.
+
+    Args:
+        context: El contexto del check; ``sibling_services`` trae los
+            servicios del host.
+        is_same_kind: Predicado que dice si un servicio es de la misma clase.
+        preferred_ports: Los puertos preferidos para informar, por orden.
+
+    Returns:
+        bool: ``True`` si este servicio es el elegido.
+    """
+    def rank(port):
+        return (preferred_ports.index(port) if port in preferred_ports else len(preferred_ports), port)
+
+    ports = {sibling.port for sibling in context.sibling_services if is_same_kind(sibling)}
+    ports.add(context.service.port)
+    return min(ports, key=rank) == context.service.port
+
+
+def _describe_smb_identity(fingerprint) -> Optional[str]:
+    """Compone el texto de identidad de un equipo a partir de lo que dijo por SMB.
+
+    Un equipo fuera de dominio (en un grupo de trabajo) contesta con su propio
+    nombre donde iría el dominio; en ese caso no se menciona dominio ninguno,
+    para no inventar uno.
+
+    Args:
+        fingerprint: El ``SmbFingerprint`` con ``hostname``, ``domain`` y
+            ``dns_name``.
+
+    Returns:
+        Optional[str]: ``"WIN-SRV01 (win-srv01.corp.local, dominio CORP)"`` o
+            una parte de eso; ``None`` si el equipo no dijo su nombre.
+    """
+    if not fingerprint.hostname:
+        return None
+    details = []
+    if fingerprint.dns_name and fingerprint.dns_name.lower() != fingerprint.hostname.lower():
+        details.append(fingerprint.dns_name)
+    if fingerprint.domain and fingerprint.domain.upper() != fingerprint.hostname.upper():
+        details.append(f"dominio {fingerprint.domain}")
+    return f"{fingerprint.hostname} ({', '.join(details)})" if details else fingerprint.hostname
+
+
+def _dns_domain_of(naming_contexts: Tuple[str, ...]) -> Optional[str]:
+    """El nombre DNS del primer contexto de nombres que sea sólo ``DC=``.
+
+    ``DC=empresa,DC=local`` es el dominio ``empresa.local``. Los contextos de
+    configuración y de esquema (``CN=Configuration,DC=...``) no son el dominio
+    y se saltan.
+
+    Args:
+        naming_contexts: Los ``namingContexts`` del rootDSE, en su orden.
+
+    Returns:
+        Optional[str]: El dominio en minúsculas, o ``None`` si no hay ninguno.
+    """
+    for context_name in naming_contexts:
+        parts = [part.strip() for part in context_name.split(",") if part.strip()]
+        if parts and all(part.lower().startswith("dc=") for part in parts):
+            return ".".join(part[3:] for part in parts).lower()
+    return None
+
+
+class SmbHostIdentityPlugin(ScriptPlugin):
+    """Recoge el nombre de equipo y el dominio que un Windows dice de sí mismo por SMB.
+
+    El dissector de SMB ya los lee, sin credenciales, de la respuesta al inicio
+    de sesión; aquí se convierten en un aviso informativo que nombra el activo
+    en el informe. No es un riesgo: es contexto (categoría ``host_identity``).
+
+    Args:
+        probe: Sonda inyectable, para que un test use un socket falso. Por
+            defecto, ``SmbProbe()``.
+    """
+
+    plugin_id = "smb-host-identity"
+
+    def __init__(self, probe: Optional[SmbProbe] = None) -> None:
+        self._probe = probe or SmbProbe()
+
+    def applies(self, service: Service) -> bool:
+        """Si el servicio es SMB.
+
+        Args:
+            service: El servicio candidato.
+
+        Returns:
+            bool: ``True`` para los servicios que reclama ``is_smb_service``.
+        """
+        return is_smb_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        """Negocia SMB, pide la identidad y la deja en la evidencia (``identity``).
+
+        Args:
+            context: El contexto del check; su control de tasa se consulta
+                antes de cada intercambio.
+
+        Returns:
+            bool: ``True`` si el equipo dijo su nombre y este servicio es el
+                que informa por el host; ``False`` si no.
+        """
+        if not _is_reporting_service(context, is_smb_service, (445, 139)):
+            return False
+        port = context.service.port or 445
+        context.acquire()
+        negotiation = self._probe.fetch(context.target, port)
+        if negotiation is None:
+            return False
+        context.acquire()
+        identity = self._probe.fetch_identity(context.target, port)
+        description = _describe_smb_identity(fingerprint_smb(*negotiation, identity))
+        if description is None:
+            return False
+        context.evidence.update({"identity": description})
+        return True
+
+
+class LdapDirectoryDomainPlugin(ScriptPlugin):
+    """Recoge el dominio que un directorio publica en su rootDSE.
+
+    El nombre de dominio de la organización (``DC=empresa,DC=local``) llega en
+    los ``namingContexts`` que el dissector ya lee sin credenciales; aquí se
+    convierte en un aviso informativo que nombra el directorio en el informe.
+
+    Args:
+        probe: Sonda inyectable, para que un test use un socket falso. Por
+            defecto, ``LdapProbe()``.
+    """
+
+    plugin_id = "ldap-directory-domain"
+
+    def __init__(self, probe: Optional[LdapProbe] = None) -> None:
+        self._probe = probe or LdapProbe()
+
+    def applies(self, service: Service) -> bool:
+        """Si el servicio es LDAP.
+
+        Args:
+            service: El servicio candidato.
+
+        Returns:
+            bool: ``True`` para los servicios que reclama ``is_ldap_service``.
+        """
+        return is_ldap_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        """Lee el rootDSE y deja el dominio en la evidencia (``domain``).
+
+        Args:
+            context: El contexto del check; su control de tasa se consulta
+                antes de conectar.
+
+        Returns:
+            bool: ``True`` si el directorio publica un dominio y este servicio
+                es el que informa por el host; ``False`` si no.
+        """
+        if not _is_reporting_service(context, is_ldap_service, (389, 636, 3268, 3269)):
+            return False
+        context.acquire()
+        replies = self._probe.fetch(context.target, context.service.port or 389)
+        if replies is None:
+            return False
+        domain = _dns_domain_of(fingerprint_ldap(*replies).naming_contexts)
+        if domain is None:
+            return False
+        context.evidence.update({"domain": domain})
+        return True
+
+
 class RdpNlaNotRequiredPlugin(ScriptPlugin):
     """Detecta un RDP que **no** exige autenticación a nivel de red.
 
@@ -1347,6 +1524,8 @@ def default_script_plugins() -> Dict[str, ScriptPlugin]:
         LdapCleartextWithLdapsPlugin(),
         LdapNoEncryptedChannelPlugin(),
         LdapDomainFunctionalLevelPlugin(),
+        LdapDirectoryDomainPlugin(),
+        SmbHostIdentityPlugin(),
         RdpNlaNotRequiredPlugin(),
         RdpLegacySecurityLayerPlugin(),
         WinrmBasicAuthCleartextPlugin(),
