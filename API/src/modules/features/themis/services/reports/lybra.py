@@ -5,6 +5,14 @@ from ..analyzers import LybraAIWriter
 from .base import PrintingStrategy
 from .findings import FindingsPrintingStrategy
 
+#: Paleta verde de Lybra cuando ``SecOpsConfig.json`` no trae la suya. La usan
+#: el informe de un escaneo Lybra y el de exposición cloud, que son del mismo
+#: motor y se tienen que leer como tal.
+LYBRA_DEFAULT_PALETTE = {
+    "black": "#1A2410", "dark": "#4A6132", "main": "#7CA163",
+    "secondary": "#A8C98F", "light": "#D4E8C4", "white": "#F3F8EE",
+}
+
 
 @PrintingStrategy.register(ScanType.LYBRA)
 class LybraPrintingStrategy(FindingsPrintingStrategy):
@@ -25,8 +33,5 @@ class LybraPrintingStrategy(FindingsPrintingStrategy):
     _LOGO_FILENAME = "Themis-Turqoise-BgW.png"
     # Traducción a MITRE ATT&CK y a marcos de cumplimiento: exclusiva del motor propio.
     _SHOWS_COMPLIANCE = True
-    _DEFAULT_PALETTE = {
-        "black": "#1A2410", "dark": "#4A6132", "main": "#7CA163",
-        "secondary": "#A8C98F", "light": "#D4E8C4", "white": "#F3F8EE",
-    }
+    _DEFAULT_PALETTE = LYBRA_DEFAULT_PALETTE
 

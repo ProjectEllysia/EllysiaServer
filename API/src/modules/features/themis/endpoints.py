@@ -657,6 +657,53 @@ def get_osint_scan(osint_scan_id: int):
     return OsintManager().get_scan(osint_scan_id, user.id)
 
 
+@themis_blp.post("/osint/<int:osint_scan_id>/report")
+@themis_blp.response(202, description="Domain scan report generation started")
+@themis_blp.alt_response(400, schema=ErrorSchema, description="Not a cloud scan, or not finished")
+@themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@themis_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@themis_blp.alt_response(404, schema=ErrorSchema, description="Scan not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.THEMIS_CREATE])
+@limiter.limit("30 per hour; 100 per day")
+@handle_exceptions(default_exception=ScanNotFoundError, logger=logger)
+def generate_domain_report(osint_scan_id: int):
+    """Pedir el informe PDF de un escaneo de exposición cloud.
+
+    Se genera en segundo plano, como el de un escaneo; su estado se sigue en
+    ``GET /themis/osint/<id>/documents`` y se descarga y borra con los
+    endpoints de siempre (``/themis/document/<id>``).
+    """
+    user = get_current_user()
+    document_id = ThemisReportManager().generate_domain_report(osint_scan_id, user.id)
+    logger.info(f"Informe del escaneo de dominio {osint_scan_id} solicitado (documento {document_id}) "
+                f"por usuario {user.username}")
+    return {
+        "message": "Generacion de PDF iniciada",
+        "documentId": document_id,
+        "osintScanId": osint_scan_id,
+        "status": "pending",
+        "downloadUrl": f"/themis/document/{document_id}/download",
+    }
+
+
+@themis_blp.get("/osint/<int:osint_scan_id>/documents")
+@themis_blp.response(200, description="Reports of a domain scan")
+@themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@themis_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@themis_blp.alt_response(404, schema=ErrorSchema, description="Scan not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.THEMIS_READ])
+@limiter.limit("300 per hour; 2000 per day")
+@handle_exceptions(default_exception=ScanNotFoundError, logger=logger)
+def get_domain_documents(osint_scan_id: int):
+    """Los informes PDF de un escaneo de dominio, del más nuevo al más viejo."""
+    user = get_current_user()
+    documents = ThemisReportManager().get_domain_documents(osint_scan_id, user.id)
+    docs_list = [_serialize_document(document) for document in documents]
+    return {"osintScanId": osint_scan_id, "documents": docs_list, "total": len(docs_list)}
+
+
 @themis_blp.get("/compliance")
 @themis_blp.response(200, CompliancePreferencesResponseSchema, description="Compliance framework preferences")
 @themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")

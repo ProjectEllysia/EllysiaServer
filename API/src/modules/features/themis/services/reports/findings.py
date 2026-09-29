@@ -24,6 +24,17 @@ from .outline import OutlineEntry
 
 logger = logging.getLogger(__name__)
 
+#: Fondo de la barra que encabeza la ficha de un hallazgo, por prioridad. Lo
+#: comparten todos los informes que pintan fichas de hallazgo, para que una
+#: prioridad se lea del mismo color en cualquiera de ellos.
+SEVERITY_BACKGROUNDS = {
+    "CRITICAL": colors.HexColor("#ffcccc"),
+    "HIGH": colors.HexColor("#ffe6cc"),
+    "MEDIUM": colors.HexColor("#fff4cc"),
+    "LOW": colors.HexColor("#e6f7ff"),
+    "INFO": colors.HexColor("#f0f0f0"),
+}
+
 
 class FindingsPrintingStrategy(PrintingStrategy):
     """Shared PDF renderer for scan types whose data lives entirely in the
@@ -155,7 +166,7 @@ class FindingsPrintingStrategy(PrintingStrategy):
             finding["is_unverified_distro_package"] = is_unverified_distro_package(finding)
         enrich_with_cve_context(findings)
         if self._SHOWS_COMPLIANCE:
-            self._frameworks = _effective_frameworks(self.scan.user_id)
+            self._frameworks = effective_frameworks(self.scan.user_id)
             keys = [framework.key for framework in self._frameworks]
             for finding in findings:
                 finding["compliance"] = map_finding_compliance(finding["category"], finding["check_id"], keys)
@@ -598,19 +609,12 @@ class FindingsPrintingStrategy(PrintingStrategy):
         """Tarjeta de un hallazgo: cabecera de prioridad, nombre, detalles,
         descripción y referencias (mismo lenguaje visual que Nmap/Nikto:
         cada bloque lleva su propio borde, no solo la cabecera)."""
-        severity_bg = {
-            "CRITICAL": colors.HexColor("#ffcccc"),
-            "HIGH": colors.HexColor("#ffe6cc"),
-            "MEDIUM": colors.HexColor("#fff4cc"),
-            "LOW": colors.HexColor("#e6f7ff"),
-            "INFO": colors.HexColor("#f0f0f0"),
-        }
         palette = self.color_palette
         main = colors.HexColor(palette[ColorType.MAIN])
         dark = colors.HexColor(palette[ColorType.DARK])
         border = colors.HexColor("#dddddd")
         prio = finding["priority"]
-        bgcolor = severity_bg.get(prio, severity_bg["INFO"])
+        bgcolor = SEVERITY_BACKGROUNDS.get(prio, SEVERITY_BACKGROUNDS["INFO"])
 
         elements.append(CondPageBreak(2.5 * inch))
 
@@ -670,7 +674,7 @@ class FindingsPrintingStrategy(PrintingStrategy):
             details.append(["Estado:", self._STATE_LABEL.get(finding["state"], finding["state"])])
         if finding.get("source") and finding["source"] != self._OWN_SOURCE:
             details.append(["Corroborado por:", finding["source"]])
-        details.extend(_compliance_rows(theme, finding.get("compliance"), self._frameworks))
+        details.extend(compliance_rows(theme, finding.get("compliance"), self._frameworks))
 
         if details:
             detail_table = Table(details, colWidths=[1.7 * inch, 4.3 * inch])
@@ -982,8 +986,11 @@ def _is_oval_stale() -> bool:
         return False
 
 
-def _effective_frameworks(user_id: int) -> tuple:
+def effective_frameworks(user_id: int) -> tuple:
     """Los marcos de cumplimiento que se aplican al dueño de un escaneo.
+
+    La usan el informe de hallazgos y el de exposición cloud: los dos traducen
+    cada hallazgo a los controles de los marcos que eligió el dueño.
 
     Args:
         user_id: Dueño del escaneo.
@@ -1000,7 +1007,7 @@ def _effective_frameworks(user_id: int) -> tuple:
                  if framework.key in keys)
 
 
-def _compliance_rows(theme: "ReportTheme", compliance, frameworks: tuple) -> list:
+def compliance_rows(theme: "ReportTheme", compliance, frameworks: tuple) -> list:
     """Las filas de la ficha de un hallazgo con sus técnicas y sus controles.
 
     El valor va como párrafo para que un título de control largo parta línea
