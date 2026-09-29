@@ -105,6 +105,33 @@ class CloudScanRequestSchema(Schema):
     checkSubdomains = fields.Boolean(load_default=True)
 
 
+class AssetGroupRequestSchema(Schema):
+    """Cuerpo de ``POST /themis/asset-groups``: el nombre y el rango de la red.
+
+    Attributes:
+        name: Nombre legible del grupo, de 1 a 100 caracteres, único por usuario.
+        cidr: El rango que define la red (``10.0.0.0/24``). Se valida en
+            ``NetworkRiskManager.create_group``.
+    """
+
+    name = fields.String(required=True, validate=validate.Length(min=1, max=100))
+    cidr = fields.String(required=True, validate=validate.Length(min=1, max=43))
+
+
+class NetworkRiskQuerySchema(Schema):
+    """Consulta de ``GET /themis/network-risk``: qué red se analiza.
+
+    Hay que dar **exactamente uno** de los dos; se comprueba en el endpoint.
+
+    Attributes:
+        groupId: Un grupo de activos: sus hosts son los escaneados dentro de su rango.
+        scanId: Un escaneo de red: sus hosts son los hijos del escaneo.
+    """
+
+    groupId = fields.Integer(load_default=None, validate=validate.Range(min=1))
+    scanId = fields.Integer(load_default=None, validate=validate.Range(min=1))
+
+
 class OsintScanListQuerySchema(Schema):
     """Consulta de ``GET /themis/osint``.
 

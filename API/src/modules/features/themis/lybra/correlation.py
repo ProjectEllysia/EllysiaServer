@@ -94,6 +94,10 @@ def compute_dedup_key(finding: dict) -> str:
     hallazgo de siempre se diera por «corregido» y reapareciera como nuevo en
     el siguiente escaneo, sin que nadie hubiera tocado el objetivo.
 
+    Un hallazgo **de red** (``host_id`` y ``port`` a ``None``, como los riesgos
+    de movimiento lateral) no pertenece a ningún host: lo que lo distingue de otro
+    hallazgo del mismo check es ``service``, que ahí lleva la identidad del riesgo.
+
     Args:
         finding: A finding dict, expected to carry ``host_id``, ``port`` and one
             of ``cve_ids`` / ``check_id`` / ``category``.

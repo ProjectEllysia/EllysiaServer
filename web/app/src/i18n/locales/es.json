@@ -92,6 +92,7 @@
     "defaultPlanMissing": "La plataforma no tiene configurado un plan por defecto. Avisa a un administrador.",
     "documentNotReady": "El documento aún no está listo.",
     "duplicateAuthorizedTarget": "«{target}» ya está en tu registro de objetivos autorizados.",
+    "duplicateAssetGroup": "Ya tienes un grupo de activos llamado «{name}».",
     "duplicatedUserCredentials": "Ya hay una cuenta con este dato: {value}.",
     "emailAlreadyVerified": "Tu correo ya está confirmado.",
     "emailConfiguration": "El servicio de correo no está bien configurado.",
@@ -101,6 +102,7 @@
     "entityNotFound": {
       "anomaly": "Anomalía no encontrada.",
       "asset": "Activo no encontrado.",
+      "assetGroup": "Grupo de activos no encontrado.",
       "authorizedTarget": "Objetivo autorizado no encontrado.",
       "campaign": "Campaña no encontrada.",
       "distributionList": "Lista de distribución no encontrada.",

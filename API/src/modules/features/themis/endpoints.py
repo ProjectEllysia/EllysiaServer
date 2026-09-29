@@ -33,6 +33,7 @@ from .managers import (
     LybraEngineManager,
     OsintManager,
     CloudScanManager,
+    NetworkRiskManager,
     ProgramedScanManager,
     ThemisReportManager,
     ScanFolderManager,
@@ -58,6 +59,7 @@ from .exceptions import (
     ProgramedScanNotFoundError,
     FolderNotFoundError,
     FolderNameInvalidError,
+    AssetGroupNotFoundError,
     AuthorizedTargetNotFoundError,
     DuplicateAuthorizedTargetError,
     TargetNotAuthorizedError,
@@ -71,6 +73,8 @@ from .schemas import (
     LybraScanRequestSchema,
     OsintScanRequestSchema,
     CloudScanRequestSchema,
+    AssetGroupRequestSchema,
+    NetworkRiskQuerySchema,
     OsintScanListQuerySchema,
     OsintScanStartResponseSchema,
     OsintScanDetailResponseSchema,
@@ -506,6 +510,98 @@ def start_cloud_scan(data):
         "status": scan.status,
         "user": user.username,
     }
+
+
+@themis_blp.post("/asset-groups")
+@themis_blp.arguments(AssetGroupRequestSchema)
+@themis_blp.response(201, description="Asset group created")
+@themis_blp.alt_response(400, schema=ErrorSchema, description="Invalid name or range")
+@themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@themis_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@themis_blp.alt_response(409, schema=ErrorSchema, description="A group with that name already exists")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.THEMIS_CREATE])
+@limiter.limit("60 per hour; 300 per day")
+@handle_exceptions(default_exception=ScanExecutionError, logger=logger)
+def create_asset_group(data):
+    """Crear un grupo de activos: una red definida por su rango CIDR.
+
+    Los hosts que el usuario ha escaneado y cuya dirección cae en el rango
+    forman el grupo, y se analizan juntos en ``GET /themis/network-risk``.
+    """
+    user = get_current_user()
+    group = NetworkRiskManager().create_group(user.id, data["name"], data["cidr"])
+    return {
+        "message": "Grupo de activos creado correctamente",
+        "groupId": group.id, "name": group.name, "cidr": group.cidr,
+        "user": user.username,
+    }
+
+
+@themis_blp.get("/asset-groups")
+@themis_blp.response(200, description="The user's asset groups")
+@themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@themis_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.THEMIS_READ])
+@limiter.limit("300 per hour; 2000 per day")
+@handle_exceptions(default_exception=EllysiaException, logger=logger)
+def list_asset_groups():
+    """Los grupos de activos del usuario."""
+    user = get_current_user()
+    groups = NetworkRiskManager().list_groups(user.id)
+    return {
+        "message": "Grupos de activos recuperados",
+        "count": len(groups), "results": groups, "user": user.username,
+    }
+
+
+@themis_blp.delete("/asset-groups/<int:group_id>")
+@themis_blp.response(200, description="Asset group deleted")
+@themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@themis_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@themis_blp.alt_response(404, schema=ErrorSchema, description="Group not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.THEMIS_CREATE])
+@limiter.limit("60 per hour; 300 per day")
+@handle_exceptions(default_exception=AssetGroupNotFoundError, logger=logger)
+def delete_asset_group(group_id: int):
+    """Borrar un grupo de activos. Los hosts y sus escaneos no se tocan."""
+    user = get_current_user()
+    name = NetworkRiskManager().delete_group(group_id, user.id)
+    return {"message": f"Grupo de activos '{name}' eliminado", "user": user.username}
+
+
+@themis_blp.get("/network-risk")
+@themis_blp.arguments(NetworkRiskQuerySchema, location="query")
+@themis_blp.response(200, description="Lateral movement risks across a network")
+@themis_blp.alt_response(400, schema=ErrorSchema, description="Give exactly one of groupId or scanId")
+@themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@themis_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@themis_blp.alt_response(404, schema=ErrorSchema, description="Group or scan not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.THEMIS_READ])
+@limiter.limit("60 per hour; 300 per day")
+@handle_exceptions(default_exception=ScanNotFoundError, logger=logger)
+def get_network_risk(args):
+    """El riesgo de movimiento lateral de una red: cómo se movería un atacante entre sus hosts.
+
+    Analiza a la vez el último estado de todos los hosts de un grupo de activos
+    (`groupId`) o de un escaneo de red (`scanId`), y devuelve los riesgos de
+    mayor a menor puntuación. Cada uno se explica en una frase que nombra a los
+    hosts implicados, y su puntuación refleja a cuántos hosts alcanza. No toca
+    la red: razona sobre lo ya escaneado.
+    """
+    user = get_current_user()
+    group_id, scan_id = args["groupId"], args["scanId"]
+    if (group_id is None) == (scan_id is None):
+        raise ValidationError(
+            "Falta el ámbito del análisis", field="groupId", value=group_id,
+            user_message="Indica exactamente uno de groupId o scanId.")
+    manager = NetworkRiskManager()
+    result = (manager.assess_group(user.id, group_id) if group_id is not None
+              else manager.assess_scan(user.id, scan_id))
+    return {"message": "Riesgo de red calculado correctamente", **result, "user": user.username}
 
 
 @themis_blp.get("/osint")

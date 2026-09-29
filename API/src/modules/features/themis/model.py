@@ -851,6 +851,44 @@ class AuthorizedTarget(Base):
         return f"<AuthorizedTarget(id={self.id}, target='{self.target}', user_id={self.user_id})>"
 
 
+class AssetGroup(Base):
+    """Un grupo de hosts que se analizan juntos para razonar sobre la red.
+
+    El motor razona host a host; para saber cómo se mueve un atacante entre
+    ellos hay que mirarlos a la vez. Un grupo dice **qué hosts forman una red**:
+    los que el usuario ha escaneado y cuya dirección cae dentro de su rango.
+    Es una pertenencia calculada, no una lista guardada: un host nuevo dentro
+    del rango entra en el grupo sin que nadie lo apunte, y uno que se retira
+    del rango sale.
+
+    Attributes:
+        id: Clave primaria.
+        user_id: Dueño del grupo. La clave foránea borra en cascada: al
+            borrarse la cuenta, sus grupos se van con ella.
+        name: Nombre legible (la etiqueta del grupo), único por usuario.
+        cidr: El rango que define el grupo, en forma canónica
+            (``"10.0.0.0/24"``). Hasta 43 caracteres: lo que ocupa un CIDR
+            IPv6 completo.
+        created_at: Cuándo se creó.
+    """
+    __tablename__ = "AssetGroup"
+
+    id         = Column(Integer, primary_key=True, autoincrement=True)
+    user_id    = Column(Integer, ForeignKey("User.id", ondelete="CASCADE"),
+                        nullable=False, index=True)
+    name       = Column(String(100), nullable=False)
+    cidr       = Column(String(43), nullable=False)
+    created_at = Column(DateTime, nullable=False, default=utcnow_naive)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "name", name="uq_assetgroup_user_name"),
+    )
+
+    def __repr__(self):
+        """Representación de depuración con id, nombre y rango."""
+        return f"<AssetGroup(id={self.id}, name='{self.name}', cidr='{self.cidr}')>"
+
+
 class OsintScanMode(str, Enum):
     """Qué mira un escaneo pasivo de un dominio.
 
