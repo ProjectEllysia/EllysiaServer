@@ -1503,6 +1503,32 @@ def lybra_crawler_config() -> LybraCrawlerConfig:
     return load_block(LybraCrawlerConfig)
 
 
+@config_block("features.themis.scanners.lybra.apiSurface")
+@dataclass(frozen=True)
+class LybraApiSurfaceConfig:
+    """El presupuesto del análisis de la superficie de una API.
+
+    Cuando un servicio web publica su especificación OpenAPI/Swagger, Lybra la
+    lee y prueba, con peticiones sin credenciales, los endpoints que la propia
+    especificación declara protegidos. No es un fuzzer: sólo se prueba lo que
+    el documento declara, y el número de pruebas va acotado.
+    """
+
+    max_endpoints: int = 25
+    """Endpoints derivados de la especificación que se prueban, como mucho, por
+    servicio web. Es el freno principal: una especificación con miles de rutas
+    cuesta lo mismo que una con veinticinco. A cero, no se lee ninguna
+    especificación."""
+
+    max_specification_bytes: int = 1048576
+    """Tamaño máximo de la especificación que se descarga (1 MiB). Una
+    especificación mayor se lee truncada, no se puede parsear y se ignora."""
+
+
+def lybra_api_surface_config() -> LybraApiSurfaceConfig:
+    return load_block(LybraApiSurfaceConfig)
+
+
 _LYBRA_OSINT_DEFAULT_SOURCES = {
     "crtsh": {"enabled": True, "url": "https://crt.sh/"},
     "shodan": {"enabled": False, "url": "https://api.shodan.io"},

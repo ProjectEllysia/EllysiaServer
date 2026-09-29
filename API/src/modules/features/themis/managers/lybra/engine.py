@@ -89,6 +89,7 @@ from ...exceptions import (
 from ..scan import ScanManager
 from ..authorized_target import AuthorizedTargetManager
 from .osint import OsintManager
+from .api_surface import run_api_surface
 from .sources import ServiceSource, DiscoveryProbes
 from .virtual_hosts import discover_sites
 
@@ -913,6 +914,12 @@ class LybraEngineManager(ScanManager):
                                             cancel_check=should_stop,
                                             proposed_cves=proposed_cves,
                                             mode=mode))
+                # Lo que la especificación de una API declara protegido y
+                # contesta sin credenciales. Sólo el sitio por defecto de la
+                # IP: los sitios con nombre no se analizan aparte.
+                if not should_stop():
+                    active_findings += run_api_surface(
+                        source_target, services, mode=mode, cancel_check=should_stop)
                 # Escanear una IP audita su sitio por defecto. Los sitios con
                 # nombre que la propia IP delata se auditan aparte, cada uno
                 # con su nombre. Si alguno sirve una web propia, lo que la IP

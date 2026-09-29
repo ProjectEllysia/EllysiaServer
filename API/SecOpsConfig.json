@@ -285,6 +285,10 @@
             "maxDepth": 3,
             "timeBudgetSeconds": 20.0
           },
+          "apiSurface": {
+            "maxEndpoints": 25,
+            "maxSpecificationBytes": 1048576
+          },
           "fingerprintingEnabled": true,
           "ingest": {
             "enabled": false,

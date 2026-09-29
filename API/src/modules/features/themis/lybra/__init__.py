@@ -41,6 +41,10 @@ them:
     SecurityTrails ya saben de un dominio, sin tocar el objetivo. Las fuentes
     llegan por un fetcher inyectado.
 
+``api_surface``
+    La superficie de una API a partir de su especificación OpenAPI/Swagger:
+    parsea el documento y deriva los checks de sus endpoints, con un tope duro.
+
 ``dns_hygiene``
     Lo que un dominio publica en su DNS sobre su correo y sus certificados
     (SPF, DMARC, DKIM, MTA-STS, CAA, DNSSEC), con la búsqueda DNS inyectada.
@@ -265,6 +269,13 @@ from .exporters import (
 )
 from .planner import IDENTIFICATION_REVISION, CheckPlanner, KnownService
 from .crawler import CrawlResult, crawl
+from .api_surface import (
+    ApiEndpoint,
+    ApiSpecification,
+    SPECIFICATION_PATHS,
+    derive_checks as derive_api_checks,
+    parse_specification,
+)
 from .virtual_hosts import (
     DEFAULT_SITE_CATEGORIES,
     SiteView,
@@ -502,6 +513,11 @@ __all__ = [
     "site_finding",
     "CrawlResult",
     "crawl",
+    "ApiEndpoint",
+    "ApiSpecification",
+    "SPECIFICATION_PATHS",
+    "derive_api_checks",
+    "parse_specification",
     "DEFAULT_PORTS",
     "UDP_PROBES",
     "WELL_KNOWN_PORTS",
