@@ -42,7 +42,7 @@ from .nikto import NiktoScanManager
 from .nuclei import NucleiScanManager
 from .authorized_target import AuthorizedTargetManager
 from .compliance import ComplianceManager
-from .lybra import CloudScanManager, LybraEngineManager, OsintManager
+from .lybra import CloudScanManager, LybraEngineManager, NetworkRiskManager, OsintManager
 from .kb_sync import (
     KB_SYNC_TARGETS, CveAdvisory, KbProduct, KbQueryManager, KbSyncManager, KbSyncTaskManager,
 )
@@ -61,6 +61,7 @@ __all__ = [
     "LybraEngineManager",
     "OsintManager",
     "CloudScanManager",
+    "NetworkRiskManager",
     "KbSyncManager",
     "KbSyncTaskManager",
     "KB_SYNC_TARGETS",
