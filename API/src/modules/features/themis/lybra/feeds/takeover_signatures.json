@@ -1,0 +1,78 @@
+{
+  "version": "lybra-takeover-1",
+  "comment": "Firmas de takeover de subdominio, por proveedor. Un CNAME que apunta a un servicio de terceros que ya no aloja el recurso deja el subdominio reclamable. Cada firma ata un sufijo de CNAME (el servicio al que apunta) a una o varias huellas en el cuerpo de la respuesta (lo que ese servicio contesta cuando el recurso no existe). Sólo se marcan huellas específicas del servicio: un '404 Not Found' genérico daría falsos positivos. Catálogo inspirado en el proyecto comunitario can-i-take-over-xyz.",
+  "signatures": [
+    {
+      "service": "aws-s3",
+      "provider": "AWS S3",
+      "cnames": ["s3.amazonaws.com", "s3-website", "amazonaws.com"],
+      "fingerprints": ["NoSuchBucket", "The specified bucket does not exist"]
+    },
+    {
+      "service": "google-cloud-storage",
+      "provider": "Google Cloud Storage",
+      "cnames": ["storage.googleapis.com", "c.storage.googleapis.com"],
+      "fingerprints": ["NoSuchBucket", "The specified bucket does not exist"]
+    },
+    {
+      "service": "azure",
+      "provider": "Microsoft Azure",
+      "cnames": ["azurewebsites.net", "cloudapp.net", "cloudapp.azure.com", "trafficmanager.net", "blob.core.windows.net", "azureedge.net", "azurefd.net", "azure-api.net", "azurehdinsight.net", "azurecontainer.io"],
+      "fingerprints": ["404 Web Site not found"]
+    },
+    {
+      "service": "github-pages",
+      "provider": "GitHub Pages",
+      "cnames": ["github.io"],
+      "fingerprints": ["There isn't a GitHub Pages site here", "For root URLs (like http://example.com/) you must provide an index.html file"]
+    },
+    {
+      "service": "heroku",
+      "provider": "Heroku",
+      "cnames": ["herokudns.com", "herokuapp.com", "herokussl.com"],
+      "fingerprints": ["No such app", "There's nothing here, yet."]
+    },
+    {
+      "service": "fastly",
+      "provider": "Fastly",
+      "cnames": ["fastly.net"],
+      "fingerprints": ["Fastly error: unknown domain"]
+    },
+    {
+      "service": "shopify",
+      "provider": "Shopify",
+      "cnames": ["myshopify.com"],
+      "fingerprints": ["Sorry, this shop is currently unavailable"]
+    },
+    {
+      "service": "bitbucket",
+      "provider": "Bitbucket",
+      "cnames": ["bitbucket.io"],
+      "fingerprints": ["Repository not found"]
+    },
+    {
+      "service": "surge",
+      "provider": "Surge.sh",
+      "cnames": ["surge.sh"],
+      "fingerprints": ["project not found"]
+    },
+    {
+      "service": "tumblr",
+      "provider": "Tumblr",
+      "cnames": ["domains.tumblr.com"],
+      "fingerprints": ["Whatever you were looking for doesn't currently exist at this address."]
+    },
+    {
+      "service": "wordpress",
+      "provider": "WordPress.com",
+      "cnames": ["wordpress.com"],
+      "fingerprints": ["Do you want to register"]
+    },
+    {
+      "service": "zendesk",
+      "provider": "Zendesk",
+      "cnames": ["zendesk.com"],
+      "fingerprints": ["Help Center Closed"]
+    }
+  ]
+}

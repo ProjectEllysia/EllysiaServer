@@ -32,6 +32,7 @@ from .managers import (
     NucleiScanManager,
     LybraEngineManager,
     OsintManager,
+    CloudScanManager,
     ProgramedScanManager,
     ThemisReportManager,
     ScanFolderManager,
@@ -69,6 +70,7 @@ from .schemas import (
     NucleiScanRequestSchema,
     LybraScanRequestSchema,
     OsintScanRequestSchema,
+    CloudScanRequestSchema,
     OsintScanListQuerySchema,
     OsintScanStartResponseSchema,
     OsintScanDetailResponseSchema,
@@ -461,6 +463,43 @@ def start_osint_scan(data):
     logger.info(f"Escaneo pasivo lanzado: ID={scan.id} dominio={scan.domain} user={user.username}")
     return {
         "message": "Escaneo pasivo iniciado correctamente",
+        "osintScanId": scan.id,
+        "domain": scan.domain,
+        "mode": scan.mode,
+        "status": scan.status,
+        "user": user.username,
+    }
+
+
+@themis_blp.post("/cloud")
+@themis_blp.arguments(CloudScanRequestSchema)
+@themis_blp.response(201, OsintScanStartResponseSchema, description="Cloud exposure scan queued")
+@themis_blp.alt_response(400, schema=ErrorSchema, description="Validation error")
+@themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@themis_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions or target not authorized")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.THEMIS_CREATE])
+@limiter.limit("10 per hour; 50 per day")
+@handle_exceptions(default_exception=ScanExecutionError, logger=logger)
+def start_cloud_scan(data):
+    """Lanzar un escaneo de exposición cloud de un dominio.
+
+    Comprueba, sin credenciales, si los recursos cloud declarados (buckets de
+    S3, GCS o Azure Blob, bases de Firebase) listan su contenido a cualquiera y
+    si el dominio y sus subdominios conocidos son susceptibles de takeover.
+    A diferencia del escaneo pasivo, este toca a terceros: el dominio y cada
+    recurso deben estar antes en el registro de objetivos autorizados. Los
+    recursos se declaran, nunca se enumeran. El resultado se consulta en
+    ``GET /themis/osint/<id>``.
+    """
+    user = get_current_user()
+    scan = CloudScanManager().create_cloud_scan(
+        user_id=user.id, domain=data["domain"], cloud_resources=data.get("cloudResources"),
+        check_subdomains=data.get("checkSubdomains", True),
+    )
+    logger.info(f"Escaneo cloud lanzado: ID={scan.id} dominio={scan.domain} user={user.username}")
+    return {
+        "message": "Escaneo cloud iniciado correctamente",
         "osintScanId": scan.id,
         "domain": scan.domain,
         "mode": scan.mode,

@@ -276,6 +276,14 @@ from .api_surface import (
     derive_checks as derive_api_checks,
     parse_specification,
 )
+from .cloud import (
+    CLOUD_PROVIDERS,
+    CloudProbe,
+    CloudResource,
+    TakeoverSignature,
+    load_takeover_signatures,
+    parse_cloud_resource,
+)
 from .virtual_hosts import (
     DEFAULT_SITE_CATEGORIES,
     SiteView,
@@ -518,6 +526,12 @@ __all__ = [
     "SPECIFICATION_PATHS",
     "derive_api_checks",
     "parse_specification",
+    "CLOUD_PROVIDERS",
+    "CloudProbe",
+    "CloudResource",
+    "TakeoverSignature",
+    "load_takeover_signatures",
+    "parse_cloud_resource",
     "DEFAULT_PORTS",
     "UDP_PROBES",
     "WELL_KNOWN_PORTS",
