@@ -45,6 +45,11 @@ them:
     La superficie de una API a partir de su especificación OpenAPI/Swagger:
     parsea el documento y deriva los checks de sus endpoints, con un tope duro.
 
+``lateral``
+    El riesgo de movimiento lateral entre los hosts de un grupo: servicios de
+    administración remota vulnerables, la misma vulnerabilidad en varios hosts,
+    hosts que unen segmentos y credenciales por defecto compartidas.
+
 ``dns_hygiene``
     Lo que un dominio publica en su DNS sobre su correo y sus certificados
     (SPF, DMARC, DKIM, MTA-STS, CAA, DNSSEC), con la búsqueda DNS inyectada.
@@ -275,6 +280,12 @@ from .api_surface import (
     SPECIFICATION_PATHS,
     derive_checks as derive_api_checks,
     parse_specification,
+)
+from .lateral import (
+    GroupHost,
+    assess_lateral_risk,
+    propagation_score,
+    segment_of,
 )
 from .cloud import (
     CLOUD_PROVIDERS,
@@ -527,6 +538,10 @@ __all__ = [
     "derive_api_checks",
     "parse_specification",
     "CLOUD_PROVIDERS",
+    "GroupHost",
+    "assess_lateral_risk",
+    "propagation_score",
+    "segment_of",
     "CloudProbe",
     "CloudResource",
     "TakeoverSignature",

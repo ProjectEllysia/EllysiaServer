@@ -149,6 +149,10 @@
       "mitre": ["T1190"],
       "controls": ["iso27001:A.8.8", "ens:op.exp.4", "nis2:21.2.e"]
     },
+    "lateral_risk": {
+      "mitre": ["T1210"],
+      "controls": ["iso27001:A.8.9", "iso27001:A.8.20", "ens:op.exp.2", "ens:mp.com.1", "nis2:21.2.e"]
+    },
     "cloud_exposure": {
       "mitre": ["T1530"],
       "controls": ["iso27001:A.8.9", "iso27001:A.8.26", "ens:op.exp.2", "nis2:21.2.e"]
