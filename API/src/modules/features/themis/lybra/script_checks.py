@@ -468,6 +468,116 @@ class LdapCleartextWithLdapsPlugin(ScriptPlugin):
         )
 
 
+class LdapDomainFunctionalLevelPlugin(ScriptPlugin):
+    """Detecta un dominio de Active Directory en un nivel funcional de un Windows Server sin soporte.
+
+    El nivel funcional del dominio fija qué versión de Windows Server es la
+    más antigua que puede hacer de controlador de dominio. Uno antiguo suele
+    significar que la organización mantiene, por compatibilidad,
+    controladores con versiones ya sin parches del fabricante, y deja fuera
+    protecciones que sólo existen desde niveles posteriores (como el grupo
+    Protected Users, desde 2012 R2).
+
+    Todo controlador de dominio lo publica en su rootDSE sin credenciales
+    (``domainFunctionality``). Un directorio que no es Active Directory no lo
+    publica y no dispara.
+
+    Args:
+        probe: Sonda inyectable, para que un test use un socket falso. Por
+            defecto, ``LdapProbe()``.
+    """
+
+    plugin_id = "ldap-domain-functional-level-unsupported"
+
+    def __init__(self, probe: Optional[LdapProbe] = None) -> None:
+        self._probe = probe or LdapProbe()
+
+    def applies(self, service: Service) -> bool:
+        """Si el servicio es LDAP.
+
+        Args:
+            service: El servicio candidato.
+
+        Returns:
+            bool: ``True`` para los servicios que reclama ``is_ldap_service``.
+        """
+        return is_ldap_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        """Lee el rootDSE y dispara si el nivel funcional es de un Windows sin soporte.
+
+        Args:
+            context: El contexto del check; su control de tasa se consulta
+                antes de conectar. El nivel y su versión van a la evidencia.
+
+        Returns:
+            bool: ``True`` si el nivel es de Windows Server 2012 R2 o anterior;
+                ``False`` si es más reciente, no se publica o no hubo respuesta.
+        """
+        context.acquire()
+        replies = self._probe.fetch(context.target, context.service.port or 389)
+        if replies is None:
+            return False
+        fingerprint = fingerprint_ldap(*replies)
+        if not fingerprint.is_domain_level_unsupported:
+            return False
+        context.evidence.update({
+            "domainFunctionality": fingerprint.domain_functional_level,
+            "windowsVersion": fingerprint.domain_windows_version,
+        })
+        return True
+
+
+class LdapNoEncryptedChannelPlugin(ScriptPlugin):
+    """Detecta un directorio que no ofrece ninguna vía cifrada: ni LDAPS ni StartTLS.
+
+    Sin ninguna de las dos, todo bind con contraseña —el de cualquier usuario
+    o aplicación que se autentique contra el directorio— viaja en claro, y no
+    hay configuración de cliente que lo evite.
+
+    Es el complemento de ``ldap-cleartext-with-ldaps``, no su duplicado: aquél
+    avisa de un 389 en claro **habiendo** LDAPS en el mismo host; éste sólo
+    dispara cuando el host no publica LDAPS **y** el servidor no anuncia
+    StartTLS en su rootDSE. Si el rootDSE no trae la lista de extensiones, no
+    se sabe si ofrece StartTLS y no dispara.
+    """
+
+    plugin_id = "ldap-no-encrypted-channel"
+
+    def __init__(self, probe: Optional[LdapProbe] = None) -> None:
+        self._probe = probe or LdapProbe()
+
+    def applies(self, service: Service) -> bool:
+        """Si el servicio es LDAP en claro (no un puerto LDAPS).
+
+        Args:
+            service: El servicio candidato.
+
+        Returns:
+            bool: ``True`` si es LDAP y su puerto no es de LDAPS.
+        """
+        return is_ldap_service(service) and service.port not in LDAPS_PORTS
+
+    def run(self, context: ScriptContext) -> bool:
+        """Mira si hay LDAPS en el host y, si no, si el servidor anuncia StartTLS.
+
+        Args:
+            context: El contexto del check; los servicios hermanos dicen si
+                hay LDAPS, y su control de tasa se consulta antes de conectar.
+
+        Returns:
+            bool: ``True`` si no hay LDAPS en el host y el servidor publica
+                sus extensiones sin StartTLS; ``False`` en cualquier otro caso.
+        """
+        if any(sibling.port in LDAPS_PORTS for sibling in context.sibling_services):
+            return False
+        context.acquire()
+        replies = self._probe.fetch(context.target, context.service.port or 389)
+        if replies is None:
+            return False
+        return fingerprint_ldap(*replies).supports_starttls is False
+
+
 class RdpNlaNotRequiredPlugin(ScriptPlugin):
     """Detecta un RDP que **no** exige autenticación a nivel de red.
 
@@ -1235,6 +1345,8 @@ def default_script_plugins() -> Dict[str, ScriptPlugin]:
         MongoUnauthenticatedAccessPlugin(),
         LdapAnonymousBindPlugin(),
         LdapCleartextWithLdapsPlugin(),
+        LdapNoEncryptedChannelPlugin(),
+        LdapDomainFunctionalLevelPlugin(),
         RdpNlaNotRequiredPlugin(),
         RdpLegacySecurityLayerPlugin(),
         WinrmBasicAuthCleartextPlugin(),

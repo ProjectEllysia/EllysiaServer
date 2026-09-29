@@ -1114,6 +1114,30 @@ checks:
       title: 'LDAP: puerto en claro abierto habiendo LDAPS en el mismo host'
       qod: 99
       confirmed: true
+  - id: ldap-no-encrypted-channel
+    version: 1
+    type: script
+    script: ldap-no-encrypted-channel
+    category: network_config
+    severity: MEDIUM
+    service: ldap
+    mode: safe
+    finding:
+      title: 'LDAP: el directorio no ofrece ninguna via cifrada (ni LDAPS ni StartTLS)'
+      qod: 99
+      confirmed: true
+  - id: ldap-domain-functional-level-unsupported
+    version: 1
+    type: script
+    script: ldap-domain-functional-level-unsupported
+    category: network_config
+    severity: MEDIUM
+    service: ldap
+    mode: safe
+    finding:
+      title: 'Active Directory: el dominio funciona en el nivel de un Windows Server sin soporte (2012 R2 o anterior)'
+      qod: 99
+      confirmed: true
   # version 2: ya no dispara cuando el servidor ni siquiera usa TLS; ese caso,
   # peor, es rdp-legacy-security-layer.
   - id: rdp-nla-not-required
