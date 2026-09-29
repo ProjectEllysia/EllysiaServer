@@ -1592,6 +1592,104 @@
       "assetFallback": "asset {id}",
       "note": "Installed software only — the network surface is analyzed from the engine",
       "pick": "Choose an agent to see its inventory analyses."
+    },
+    "categories": {
+      "api_exposure": "API exposure",
+      "cloud_exposure": "Cloud exposure",
+      "lateral_risk": "Lateral movement risk"
+    },
+    "apiSurface": {
+      "subtitle": "Published specifications, open GraphQL and endpoints that answer without credentials",
+      "empty": "Nothing exposed was found in the APIs of this scan.",
+      "unnamedService": "web service"
+    },
+    "lateral": {
+      "subtitle": "How an attacker would move between the machines of this network",
+      "loading": "Working out the risk…",
+      "tooFew": "At least two scanned machines in this network are needed to see how an attacker would move between them.",
+      "intro": "Lybra looks at the {count} scanned machines of this network together. This is not a new test: it reasons about what was already found, so each risk is a hypothesis worth reviewing.",
+      "empty": "No weakness in one machine reaches the others.",
+      "reach": "Involves {involved} of {total} machines",
+      "more": "+{count}",
+      "hosts": "Machines involved",
+      "rules": {
+        "exposedService": {
+          "label": "Exposed remote administration",
+          "hint": "Fix the problem in the service and limit who can connect to it: an administration service should not accept connections from the whole network."
+        },
+        "sharedVulnerability": {
+          "label": "The same vulnerability on several machines",
+          "hint": "Fix it on all of them at once: while one is left unfixed, it is still the way into the others."
+        },
+        "multiHomed": {
+          "label": "Machine bridging networks",
+          "hint": "Check whether the machine needs to be on both networks. If it does, filter what crosses from one to the other and protect it as the critical point it is."
+        },
+        "sharedCredentials": {
+          "label": "The same credentials on several machines",
+          "hint": "Change the default credentials on every machine, with a different password on each one."
+        },
+        "unknown": {
+          "label": "Network risk",
+          "hint": "Review the machines involved."
+        }
+      }
+    },
+    "cloud": {
+      "title": "Cloud exposure",
+      "subtitle": "What your cloud resources show to anyone",
+      "running": "Checking",
+      "hint": "Lybra asks, without credentials, whether the buckets and databases you declare let anyone see their content, and whether a subdomain points to a service that no longer exists and someone else could claim. It never looks for resources on its own: it only checks the ones you declare.",
+      "domain": "Domain",
+      "domainPlaceholder": "example.com",
+      "domainInvalid": "Write a domain, such as “example.com”.",
+      "checkSubdomains": "Also check the domain and its known subdomains",
+      "resources": "Cloud resources (optional)",
+      "resourcePlaceholder": "s3:my-bucket, gcs:name, azure:account/container or firebase:project",
+      "resourceInvalid": "Write it as “s3:name”, “gcs:name”, “azure:account/container” or “firebase:project”, with a name the provider accepts.",
+      "removeResource": "Remove {resource}",
+      "noResources": "With no declared resources, only the subdomains are checked.",
+      "missingHint": "Anything not authorized will make the scan be rejected: authorize it with its button before launching.",
+      "launch": "Check",
+      "launching": "Launching…",
+      "providers": {
+        "s3": "Amazon S3",
+        "gcs": "Google Cloud",
+        "azure": "Azure Blob",
+        "firebase": "Firebase",
+        "unknown": "Cloud"
+      },
+      "listTitle": "Checks",
+      "empty": "You have not checked any domain yet.",
+      "exposedCount": "{count} exposed | {count} exposed",
+      "nothingExposed": "Nothing exposed",
+      "pick": "Pick a check from the list to see its result.",
+      "checking": "Checking the resources and the subdomains…",
+      "failed": "The check could not finish. Launch it again; if it keeps failing, make sure the domain is spelled correctly.",
+      "declared": "Declared resources",
+      "noneDeclared": "No resource was declared.",
+      "open": "Open to anyone",
+      "closed": "Closed",
+      "subdomains": "Subdomains",
+      "knownSubdomains": "{count} known | {count} known",
+      "subdomainsSkipped": "Checking them was not requested.",
+      "noTakeover": "No subdomain can be taken over.",
+      "takeover": "Takeover",
+      "claimable": "Claimable",
+      "pdfName": "Cloud exposure report"
+    },
+    "network": {
+      "title": "Network",
+      "subtitle": "How an attacker would move between your machines",
+      "hint": "A group is a network defined by its range. Its machines are the ones you have already scanned whose address falls inside it, so there is nothing to add by hand: scanning them is enough.",
+      "name": "Name",
+      "namePlaceholder": "Office, DMZ, servers…",
+      "range": "Range",
+      "create": "Create group",
+      "rangeInvalid": "Write a range, such as “10.0.0.0/24”.",
+      "empty": "You have no groups yet. Create one with the range of a network you have already scanned to see how an attacker would move between its machines.",
+      "riskCount": "{count} risk | {count} risks",
+      "deleteGroup": "Delete the group {name}"
     }
   },
   "assetStatus": {
@@ -1685,7 +1783,14 @@
     "confirm": {
       "lybra": "Delete this Lybra scan and its findings?",
       "agentScan": "Delete this inventory analysis and its findings? The Hygeia asset is not deleted.",
-      "folder": "Delete this folder? The scans are not deleted; they are just left without a folder."
+      "folder": "Delete this folder? The scans are not deleted; they are just left without a folder.",
+      "group": "Delete this group? Its machines and their scans are not touched."
+    },
+    "scope": {
+      "label": "What Lybra scans",
+      "hosts": "Machines",
+      "cloud": "Cloud",
+      "network": "Network"
     }
   },
   "themisStore": {

@@ -1592,6 +1592,104 @@
       "assetFallback": "activo {id}",
       "note": "Solo software instalado — la superficie de red se analiza desde el motor",
       "pick": "Elige un agente para ver sus análisis de inventario."
+    },
+    "categories": {
+      "api_exposure": "Exposición de APIs",
+      "cloud_exposure": "Exposición en la nube",
+      "lateral_risk": "Riesgo de movimiento lateral"
+    },
+    "apiSurface": {
+      "subtitle": "Especificaciones publicadas, GraphQL abierto y endpoints que contestan sin credenciales",
+      "empty": "No se encontró nada expuesto en las APIs de este escaneo.",
+      "unnamedService": "servicio web"
+    },
+    "lateral": {
+      "subtitle": "Cómo se movería un atacante entre los equipos de esta red",
+      "loading": "Calculando el riesgo…",
+      "tooFew": "Hacen falta al menos dos equipos escaneados en esta red para ver cómo se movería un atacante entre ellos.",
+      "intro": "Lybra mira a la vez los {count} equipos escaneados de esta red. No es una prueba nueva: es un razonamiento sobre lo que ya se encontró, así que cada riesgo es una hipótesis que conviene revisar.",
+      "empty": "Ningún fallo de un equipo alcanza a los demás.",
+      "reach": "Implica a {involved} de {total} equipos",
+      "more": "+{count}",
+      "hosts": "Equipos implicados",
+      "rules": {
+        "exposedService": {
+          "label": "Administración remota expuesta",
+          "hint": "Corrige el problema del servicio y limita quién puede conectarse a él: un servicio de administración no debería aceptar conexiones de toda la red."
+        },
+        "sharedVulnerability": {
+          "label": "La misma vulnerabilidad en varios equipos",
+          "hint": "Corrígela en todos a la vez: mientras quede uno sin corregir, sigue siendo la puerta de entrada a los demás."
+        },
+        "multiHomed": {
+          "label": "Equipo puente entre redes",
+          "hint": "Revisa si el equipo necesita estar en las dos redes. Si lo necesita, filtra lo que pasa de una a otra y protégelo como el punto crítico que es."
+        },
+        "sharedCredentials": {
+          "label": "Las mismas credenciales en varios equipos",
+          "hint": "Cambia las credenciales por defecto en todos los equipos, con una contraseña distinta en cada uno."
+        },
+        "unknown": {
+          "label": "Riesgo de red",
+          "hint": "Revisa los equipos implicados."
+        }
+      }
+    },
+    "cloud": {
+      "title": "Exposición en la nube",
+      "subtitle": "Lo que tus recursos en la nube enseñan a cualquiera",
+      "running": "Comprobando",
+      "hint": "Lybra pregunta, sin credenciales, si los buckets y bases de datos que declares dejan ver su contenido a cualquiera, y si algún subdominio apunta a un servicio que ya no existe y otra persona podría reclamar. No busca recursos por su cuenta: solo comprueba los que declaras.",
+      "domain": "Dominio",
+      "domainPlaceholder": "example.com",
+      "domainInvalid": "Escribe un dominio, como «example.com».",
+      "checkSubdomains": "Comprobar también el dominio y sus subdominios conocidos",
+      "resources": "Recursos en la nube (opcional)",
+      "resourcePlaceholder": "s3:mi-bucket, gcs:nombre, azure:cuenta/contenedor o firebase:proyecto",
+      "resourceInvalid": "Escríbelo como «s3:nombre», «gcs:nombre», «azure:cuenta/contenedor» o «firebase:proyecto», con un nombre que el proveedor admita.",
+      "removeResource": "Quitar {resource}",
+      "noResources": "Sin recursos declarados, solo se comprueban los subdominios.",
+      "missingHint": "Lo que no esté autorizado hará que se rechace el escaneo: autorízalo con su botón antes de lanzarlo.",
+      "launch": "Comprobar",
+      "launching": "Lanzando…",
+      "providers": {
+        "s3": "Amazon S3",
+        "gcs": "Google Cloud",
+        "azure": "Azure Blob",
+        "firebase": "Firebase",
+        "unknown": "Nube"
+      },
+      "listTitle": "Comprobaciones",
+      "empty": "Aún no has comprobado ningún dominio.",
+      "exposedCount": "{count} expuesto | {count} expuestos",
+      "nothingExposed": "Nada expuesto",
+      "pick": "Elige una comprobación de la lista para ver su resultado.",
+      "checking": "Comprobando los recursos y los subdominios…",
+      "failed": "La comprobación no pudo terminar. Vuelve a lanzarla; si se repite, revisa que el dominio esté bien escrito.",
+      "declared": "Recursos declarados",
+      "noneDeclared": "No se declaró ningún recurso.",
+      "open": "Abierto a cualquiera",
+      "closed": "Cerrado",
+      "subdomains": "Subdominios",
+      "knownSubdomains": "{count} conocido | {count} conocidos",
+      "subdomainsSkipped": "No se pidió comprobarlos.",
+      "noTakeover": "Ningún subdominio se puede secuestrar.",
+      "takeover": "Secuestrable",
+      "claimable": "Reclamable",
+      "pdfName": "Informe de exposición en la nube"
+    },
+    "network": {
+      "title": "Red",
+      "subtitle": "Cómo se movería un atacante entre tus equipos",
+      "hint": "Un grupo es una red definida por su rango. Sus equipos son los que ya has escaneado y cuya dirección cae dentro, así que no hay que añadirlos a mano: basta con escanearlos.",
+      "name": "Nombre",
+      "namePlaceholder": "Oficina, DMZ, servidores…",
+      "range": "Rango",
+      "create": "Crear grupo",
+      "rangeInvalid": "Escribe un rango, como «10.0.0.0/24».",
+      "empty": "Aún no tienes grupos. Crea uno con el rango de una red que ya hayas escaneado para ver cómo se movería un atacante entre sus equipos.",
+      "riskCount": "{count} riesgo | {count} riesgos",
+      "deleteGroup": "Borrar el grupo {name}"
     }
   },
   "assetStatus": {
@@ -1685,7 +1783,14 @@
     "confirm": {
       "lybra": "¿Eliminar este escaneo Lybra y sus hallazgos?",
       "agentScan": "¿Eliminar este análisis de inventario y sus hallazgos? El activo de Hygeia no se borra.",
-      "folder": "¿Eliminar esta carpeta? Los escaneos no se borrarán, solo quedarán sin carpeta."
+      "folder": "¿Eliminar esta carpeta? Los escaneos no se borrarán, solo quedarán sin carpeta.",
+      "group": "¿Borrar este grupo? Los equipos y sus escaneos no se tocan."
+    },
+    "scope": {
+      "label": "Qué escanea Lybra",
+      "hosts": "Equipos",
+      "cloud": "Nube",
+      "network": "Red"
     }
   },
   "themisStore": {

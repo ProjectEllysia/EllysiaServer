@@ -196,6 +196,15 @@ export const useThemisCloudStore = defineStore('themisCloud', () => {
     } finally { generating.value = false }
   }
 
+  /**
+   * Detiene los sondeos: al salir de la vista no tiene sentido seguir pidiendo.
+   * Volver a entrar llama a `loadScans`, que los reanuda si aún hace falta.
+   */
+  function stopPolling() {
+    scanPoller?.stop()
+    docsPoller?.stop()
+  }
+
   /** Detiene los sondeos y limpia el estado (logout sin recarga). */
   function $reset() {
     scanPoller?.stop()
@@ -212,7 +221,7 @@ export const useThemisCloudStore = defineStore('themisCloud', () => {
 
   return {
     scans, selectedId, detail, docs, launching, generating,
-    loadScans, launchCloudScan, selectScan, loadDetail, loadDocs, generateReport,
+    loadScans, launchCloudScan, selectScan, loadDetail, loadDocs, generateReport, stopPolling,
     $reset,
   }
 })

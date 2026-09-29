@@ -34,6 +34,17 @@ export const useThemisStore = defineStore('themis', () => {
   const world = ref('lybra') // 'external' | 'lybra' | 'agents'
   function setWorld(w) { world.value = w }
 
+  // Dentro de Lybra, qué mira el motor: equipos (uno o un rango), la
+  // exposición en la nube de un dominio, o el riesgo de movimiento lateral de
+  // una red. Son formas de escanear del mismo motor, no mundos aparte.
+  const lybraScope = ref('hosts') // 'hosts' | 'cloud' | 'network'
+  function setLybraScope(scope) {
+    lybraScope.value = scope
+    // Volver a los equipos reanuda el sondeo de sus escaneos, que se para
+    // mientras no se ven.
+    if (scope === 'hosts' && world.value === 'lybra') loadScans('lybra')
+  }
+
   // Activo de Hygeia seleccionado en el mundo de agentes. Null = ninguna
   // tarjeta elegida todavía, así que no hay escaneos que pedir.
   const selectedAssetId = ref(null)
@@ -126,7 +137,7 @@ export const useThemisStore = defineStore('themis', () => {
   }
 
   function _isTypeVisible(type) {
-    if (type === 'lybra') return world.value === 'lybra' && viewMode.value !== 'history'
+    if (type === 'lybra') return world.value === 'lybra' && lybraScope.value === 'hosts' && viewMode.value !== 'history'
     if (type === 'agentLybra') return world.value === 'agents' && !!selectedAssetId.value
     return world.value === 'external' && activeTab.value === type && viewMode.value === 'full'
   }
@@ -911,6 +922,7 @@ export const useThemisStore = defineStore('themis', () => {
     stopTracePoll()
 
     world.value = 'lybra'
+    lybraScope.value = 'hosts'
     activeTab.value = 'nmap'
     viewMode.value = 'full'
     launching.value = false
@@ -935,7 +947,7 @@ export const useThemisStore = defineStore('themis', () => {
   }
 
   return {
-    world, setWorld,
+    world, setWorld, lybraScope, setLybraScope,
     authorizedTargets, loadAuthorizedTargets, addAuthorizedTarget, removeAuthorizedTarget,
     kbStatus, loadKbStatus,
     activeTab, stats, loadingStats, statsError, scans, launching,
