@@ -119,3 +119,49 @@ def test_a_nul_byte_in_the_body_is_stripped_so_postgres_can_store_it():
 
     assert "\x00" not in redacted["body"]
     json.dumps(redacted)   # serializable a JSONB, que es lo que fallaba
+
+
+@pytest.mark.parametrize("body", [
+    "A" * 200_000,
+    "pass" * 50_000,
+    "token_" * 30_000 + "=x",
+], ids=["one-huge-word", "keyword-repeated-without-separator", "huge-name-ending-in-assignment"])
+def test_redacting_a_hostile_body_takes_linear_time(body):
+    """El cuerpo lo decide el servidor analizado: tachar secretos no puede
+    costar el cuadrado de su longitud. Se prueba con el tope subido a propósito,
+    para que el tiempo lo mida la expresión y no el recorte previo."""
+    import time
+
+    started = time.perf_counter()
+    redact_evidence({"body": body}, max_body_bytes=len(body))
+    assert time.perf_counter() - started < 1.0
+
+
+def test_the_body_is_cut_before_redacting_but_stays_within_the_cap():
+    """Un valor tachado cerca del tope no puede empujar el cuerpo por encima:
+    el marcador ocupa más que un valor corto, y el tope es una garantía."""
+    body = "x" * 90 + " pass=a"
+    redacted = redact_evidence({"body": body}, max_body_bytes=96)
+
+    assert len(redacted["body"].encode("utf-8")) <= 96
+    assert "pass=a" not in redacted["body"]
+
+
+def test_a_private_key_cut_by_the_cap_is_still_redacted():
+    """Si el recorte deja un bloque de clave privada sin su línea END, lo que
+    queda del bloque sigue siendo parte de la clave y se tacha igual."""
+    body = "-----BEGIN RSA PRIVATE KEY-----\nMIIEsecretmaterial\n" + "Q" * 5000
+    body += "\n-----END RSA PRIVATE KEY-----"
+
+    redacted = redact_evidence({"body": body}, max_body_bytes=200)
+
+    assert "MIIEsecretmaterial" not in redacted["body"]
+    assert "QQQQ" not in redacted["body"]
+    assert redacted["body_truncated_bytes"] == len(body) - 200
+
+
+def test_a_realistic_secret_name_fits_within_the_affix_limit():
+    """Los trozos del nombre alrededor de la palabra clave están acotados para
+    que la búsqueda sea lineal; los nombres reales caben con holgura."""
+    realistic = redact_evidence({"body": "WORDPRESS_DB_PASSWORD=hunter2"})["body"]
+    assert "hunter2" not in realistic

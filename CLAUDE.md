@@ -35,7 +35,7 @@ python run.py --with-worker                      # + worker RQ como subproceso
 python -m src.modules.system.taskqueue.worker    # worker RQ suelto — OBLIGATORIO para tareas async
 
 pytest                                           # suite completa + cobertura (SQLite, servicios externos mockeados)
-pytest -n auto --no-cov                          # en paralelo (pytest-xdist) y sin cobertura, como la CI
+pytest -n auto --dist worksteal --no-cov         # en paralelo (pytest-xdist) y sin cobertura, como la CI
 pytest -m unit                                   # solo unitarios (sin app, sin BD)
 pytest -m integration                            # integración (arranca create_app + cliente HTTP de test)
 pytest tests/integration/test_oauth.py -q
@@ -43,9 +43,11 @@ pytest tests/integration/test_oauth.py::TestX::test_y
 
 pylint src                                        # config en API/.pylintrc
 ```
-CI: `.github/workflows/tests.yml` ejecuta `python -m pytest -q -m "not oracle" -n auto --no-cov`
-y las suites del SPA en los PR hacia `main`, las `vX.Y` y `proyecto/**`, y en el push a `main`
-(la puerta del despliegue). En un PR, cada job se salta si no cambia nada de lo que lee.
+CI: `.github/workflows/tests.yml` ejecuta `python -m pytest -q -m "not oracle" -n auto
+--dist worksteal --no-cov --durations=25` y las suites del SPA en los PR hacia `main`, las `vX.Y` y `proyecto/**`, y en el
+push a `main` (la puerta del despliegue). En un PR, cada job se salta si no cambia nada de lo que
+lee, y cerrar o mergear el PR cancela la pasada que siguiera en curso. Las dependencias de Python
+se instalan con `uv`, desde los mismos `requirements*.txt`.
 También hay `tests-postgres.yml` (solo en PR que tocan `API/`), `lybra-bench.yml` (de noche, solo
 si el motor cambió) y `deploy.yml`.
 
@@ -516,8 +518,17 @@ reescribir en masa lo que ya existe y no se está editando.
   de Redis (`_redis_always_unavailable`) y rechaza cualquier `socket.connect`/DNS inverso fuera de
   loopback (`_no_outbound_sockets`). Un test que intente alcanzar algo real recibe un
   `ConnectionRefusedError` inmediato, no un timeout — mockea la costura, o bindea a `127.0.0.1`
-  (loopback sí se permite, que es como funcionan los tests de aiosmtpd). Esto es lo que mantiene la
-  suite en ~1 min 50 s; antes, diez tests esperando timeouts eran el 75 % del tiempo.
+  (loopback sí se permite, que es como funcionan los tests de aiosmtpd).
+- **Ningún test espera tiempo real.** Las pausas de cortesía del motor de escaneo tampoco se duermen
+  (`_no_real_pacing_waits`: el limitador de ritmo de Lybra no espera salvo que el test le inyecte
+  su propio reloj falso). Con ellas la suite pasó de ~7 a ~33 minutos sin un solo test en rojo,
+  porque contra la red sellada todas las peticiones fallan y el limitador frenaba al máximo. Para
+  que no vuelva a pasar en silencio, cada test tiene un **presupuesto de 20 s** de ejecución
+  (`tests/_time_budget.py`): en la CI el que se pasa falla con su nombre y lo que tardó, y en local
+  se lista al final (`ELLYSIA_TEST_TIME_BUDGET_STRICT=1` lo hace fallar también en local). Un test
+  lento casi siempre espera algo que no necesita —una pausa, un reintento, un plazo—: abarátalo.
+  Si su lentitud es inevitable, va a `KNOWN_SLOW_TESTS` en `tests/conftest.py` con el motivo, y
+  esa lista solo encoge. La suite completa tarda ~6 minutos en local con 8 procesos.
 - La versión de la API sale de la config: `create_app()` la lee con `CR.get_app_version()` desde
   `appVersion` en `SecOpsConfig.json` (hoy `0.5.25`). **No está hardcodeada** — y ojo, la rama
   puede ir por delante del `appVersion` del fichero.
@@ -590,8 +601,9 @@ el papel que la `vX.Y` ya cumple. Si ves una referencia a ella en algún sitio, 
 
 El CI (`tests.yml`) corre en los PR hacia `main` y hacia las `vX.Y`, y en el push a `main`. Un
 push a una rama de versión no lo dispara: el PR ya probó el merge de su rama con la base, y
-repetirlo al mergear solo gastaba minutos de Actions. `deploy.yml` solo despliega tras el push
-a `main`.
+repetirlo al mergear solo gastaba minutos de Actions. Por la misma razón, cerrar o mergear un PR
+lanza una pasada vacía que cancela la que siguiera corriendo. `deploy.yml` solo despliega tras el
+push a `main`, y exige que la pasada de `tests.yml` venga de ese push.
 
 > Ojo al desfase: la `vX.Y` puede ir por delante de `main` con cosas sin publicar, y el
 > `appVersion` de `SecOpsConfig.json` puede ir por detrás del nombre de la rama. Ninguna de las
