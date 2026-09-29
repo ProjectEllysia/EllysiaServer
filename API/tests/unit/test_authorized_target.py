@@ -7,7 +7,7 @@ from src.modules.features.themis.managers.authorized_target import (
     _canonical_target,
     _domain_covers,
 )
-from src.modules.features.themis.exceptions import IPValidationError
+from src.modules.features.themis.exceptions import InvalidAuthorizedTargetError, IPValidationError
 
 pytestmark = pytest.mark.unit
 
@@ -46,7 +46,7 @@ def test_canonicalize_accepts_the_three_shapes(raw, expected):
 
 @pytest.mark.parametrize("raw", ["not-an-ip", "single-label", "s3:", "ftp:x"])
 def test_canonicalize_rejects_anything_that_is_none_of_the_three(raw):
-    with pytest.raises(IPValidationError):
+    with pytest.raises(InvalidAuthorizedTargetError):
         _canonical_target(raw)  # pylint: disable=protected-access
 
 

@@ -315,6 +315,12 @@
                 </Transition>
               </template>
 
+              <!-- Lo que el motor ve más allá de un equipo: la superficie de API
+                   de sus servicios web y, en un escaneo de red, cómo se movería
+                   un atacante entre sus equipos. Capítulos del mismo escaneo,
+                   con la misma placa que «Hallazgos». -->
+              <LybraBeyondChapters :scan="scan" />
+
               <!-- El descubrimiento no llegó a recorrer todo el objetivo. Va antes que
                    cualquier otra nota porque cambia cómo se leen todas las demás: la
                    ausencia de un hallazgo aquí no significa que no esté. -->
@@ -428,6 +434,7 @@ import StatusBadge from '@/components/themis/StatusBadge.vue'
 import AppPagination from '@/components/shared/AppPagination.vue'
 import LybraFindingsToolbar from './LybraFindingsToolbar.vue'
 import LybraFindingsSkeleton from './LybraFindingsSkeleton.vue'
+import LybraBeyondChapters from './LybraBeyondChapters.vue'
 import { hasSeveralSites, siteOf } from './findingSites'
 import { priorityLabel, findingStateLabel } from '../labels'
 import { LADDER, arrangeGroups, defaultCriteria } from './findingsArrangement'

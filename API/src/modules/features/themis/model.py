@@ -1583,12 +1583,23 @@ class ThemisDocument(Document):
         id, document_type, filename, format, status,
         created_at, generated_at, user_id, user
 
+    A report belongs to exactly one of two kinds of scan, and a check
+    constraint holds that: an ordinary ``Scan`` (``scan_id``) or a domain scan
+    (``osint_scan_id``), which is not a ``Scan`` because it has no host to
+    probe (see ``OsintScan``). Both foreign keys cascade on delete.
+
     Attributes:
         id: Primary key (foreign key to Document.id).
-        scan_id: Foreign key to Scan.id (cascade delete).
-        scan_type: Scan type ('nmap', 'nikto', 'lybra', 'nuclei') for filtering without join.
+        scan_id: Foreign key to Scan.id, or ``None`` when the report belongs
+            to a domain scan.
+        osint_scan_id: Foreign key to OsintScan.id, or ``None`` when the report
+            belongs to an ordinary scan.
+        scan_type: What the report covers, for filtering without a join: the
+            scanner of an ordinary scan ('nmap', 'nikto', 'lybra', 'nuclei') or
+            the mode of a domain scan (``OsintScanMode``, today only 'cloud').
         enrichment_json: Cached AI analysis result (JSONB, nullable).
-        scan: Relationship to the source Scan.
+        scan: Relationship to the source Scan, or ``None``.
+        osint_scan: Relationship to the source OsintScan, or ``None``.
 
     enrichment_json Structure by scan_type:
         nmap:
@@ -1614,13 +1625,23 @@ class ThemisDocument(Document):
 
     __tablename__ = "ThemisDocument"
 
-    id        = Column(Integer, ForeignKey("Document.id"), primary_key=True)
-    scan_id   = Column(Integer, ForeignKey("Scan.id", ondelete="CASCADE"), nullable=False)
-    scan_type = Column(String(20),  nullable=False)
+    id            = Column(Integer, ForeignKey("Document.id"), primary_key=True)
+    scan_id       = Column(Integer, ForeignKey("Scan.id", ondelete="CASCADE"), nullable=True)
+    osint_scan_id = Column(Integer, ForeignKey("OsintScan.id", ondelete="CASCADE"),
+                           nullable=True, index=True)
+    scan_type     = Column(String(20),  nullable=False)
 
     enrichment_json = Column(JSONB, nullable=True)
 
     scan = relationship("Scan", back_populates="themis_document")
+    osint_scan = relationship("OsintScan")
+
+    __table_args__ = (
+        # Un informe es de un escaneo o de un escaneo de dominio, nunca de los
+        # dos ni de ninguno: los listados y la descarga dependen de ello.
+        CheckConstraint("(scan_id IS NULL) <> (osint_scan_id IS NULL)",
+                        name="ck_themisdocument_one_parent"),
+    )
 
     __mapper_args__ = {
         "polymorphic_identity": "themis",

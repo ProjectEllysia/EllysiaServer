@@ -6,6 +6,7 @@ from .reports import (
     LybraPrintingStrategy,
     NucleiPrintingStrategy,
     PDFCreator,
+    CloudExposurePDFCreator,
 )
 
 from .processors import (
@@ -46,6 +47,7 @@ __all__ = [
     LybraPrintingStrategy,
     NucleiPrintingStrategy,
     PDFCreator,
+    CloudExposurePDFCreator,
     HistoryStatsService,
     NiktoResultProcessor,
     NmapResultProcessor,

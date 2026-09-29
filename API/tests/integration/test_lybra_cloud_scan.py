@@ -252,3 +252,35 @@ def test_another_user_cannot_read_a_cloud_scan(client, app, admin_user, regular_
     scan_id = _create(app, admin_user.id)
 
     assert client.get(f"/themis/osint/{scan_id}", headers=auth_headers(regular_user)).status_code == 404
+
+
+# ───────────────────────── lo que necesita la pantalla
+
+def test_the_detail_says_which_resources_were_declared(client, app, admin_user, auth_headers):
+    _authorize(app, admin_user.id, "example.com", "s3:my-bucket")
+    scan_id = _create(app, admin_user.id, resources=["s3:my-bucket"], check_subdomains=False)
+
+    body = client.get(f"/themis/osint/{scan_id}", headers=auth_headers(admin_user)).get_json()
+
+    assert body["cloudResources"] == ["s3:my-bucket"]
+    assert body["checkSubdomains"] is False
+
+
+def test_the_list_can_be_narrowed_to_cloud_scans(client, app, admin_user, auth_headers):
+    _authorize(app, admin_user.id, "example.com")
+    cloud_id = _create(app, admin_user.id)
+    with app.app_context():
+        with UnitOfWork() as uow:
+            from src.modules.features.themis.model import OsintScan
+            passive = OsintScan(user_id=admin_user.id, domain="example.com",
+                                mode=OsintScanMode.PASSIVE.value, status=ScanStatus.FINISHED.value)
+            OsintScanRepository(uow).save(passive)
+            passive_id = passive.id
+    headers = auth_headers(admin_user)
+
+    only_cloud = client.get("/themis/osint?mode=cloud", headers=headers).get_json()["results"]
+    everything = client.get("/themis/osint", headers=headers).get_json()["results"]
+
+    assert [scan["osintScanId"] for scan in only_cloud] == [cloud_id]
+    assert {scan["osintScanId"] for scan in everything} == {cloud_id, passive_id}
+    assert client.get("/themis/osint?mode=otro", headers=headers).status_code in (400, 422)

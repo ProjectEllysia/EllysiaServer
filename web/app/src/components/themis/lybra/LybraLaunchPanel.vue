@@ -65,6 +65,10 @@
           <div v-if="authTargetsLoading" class="auth-loading">{{ t('common.loading') }}</div>
           <TransitionGroup v-else-if="authorizedTargets.length" tag="ul" name="chip-item" class="auth-chip-list">
             <li v-for="entry in authorizedTargets" :key="entry.id" class="auth-chip">
+              <!-- La forma va delante porque cambia lo que autoriza la entrada:
+                   un dominio cubre sus subdominios y un rango, muchas máquinas. -->
+              <span v-if="shapeOf(entry.target)" class="auth-chip-shape" :data-shape="shapeOf(entry.target)"
+                :title="t(`lybra.launch.shapeHint.${shapeOf(entry.target)}`)">{{ t(`lybra.launch.shape.${shapeOf(entry.target)}`) }}</span>
               <span class="mono">{{ entry.target }}</span>
               <span v-if="entry.label" class="auth-chip-label">{{ entry.label }}</span>
               <button type="button" class="auth-chip-remove" :title="t('common.delete')" @click="$emit('remove-authorized-target', entry.id)">×</button>
@@ -75,8 +79,13 @@
           <div class="auth-add-row">
             <input v-model="newAuthTarget" :placeholder="t('lybra.launch.newTargetPlaceholder')" @keyup.enter="submitNewAuthTarget" />
             <input v-model="newAuthLabel" :placeholder="t('lybra.launch.labelPlaceholder')" @keyup.enter="submitNewAuthTarget" />
-            <button type="button" class="btn-add-target" :disabled="!newAuthTarget.trim()" @click="submitNewAuthTarget">{{ t('lybra.launch.add') }}</button>
+            <button type="button" class="btn-add-target" :disabled="!newAuthShape" @click="submitNewAuthTarget">{{ t('lybra.launch.add') }}</button>
           </div>
+          <!-- Qué se va a registrar, dicho antes de enviarlo: las tres formas
+               autorizan cosas distintas y el campo es el mismo para todas. -->
+          <p v-if="newAuthTarget.trim()" class="auth-shape-hint" :class="{ unknown: !newAuthShape }" aria-live="polite">
+            {{ newAuthShape ? t(`lybra.launch.shapeHint.${newAuthShape}`) : t('lybra.launch.shapeHint.unknown') }}
+          </p>
         </div>
         </Transition>
       </div>
@@ -99,6 +108,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { classifyTarget } from './targetShapes'
 
 const { t } = useI18n()
 
@@ -163,8 +173,21 @@ function isTargetAuthorized(ip) {
 const showAuthRegister = ref(false)
 const newAuthTarget = ref('')
 const newAuthLabel = ref('')
+
+/** Forma de lo que se está escribiendo en el registro, o `null` si no es ninguna. */
+const newAuthShape = computed(() => classifyTarget(newAuthTarget.value))
+
+/**
+ * Forma de una entrada ya registrada, para rotularla.
+ *
+ * @param {string} target - La entrada canónica que devolvió el servidor.
+ * @returns {'network'|'domain'|'cloud'|null} Su forma; `null` solo si el
+ *          servidor guardó algo que el navegador no reconoce.
+ */
+function shapeOf(target) { return classifyTarget(target) }
+
 function submitNewAuthTarget() {
-  if (!newAuthTarget.value.trim()) return
+  if (!newAuthShape.value) return
   emit('add-authorized-target', { target: newAuthTarget.value.trim(), label: newAuthLabel.value.trim() })
   newAuthTarget.value = ''
   newAuthLabel.value = ''
@@ -315,6 +338,16 @@ function handleLaunch() {
 .chip-item-leave-to { opacity: 0; }
 .chip-item-move { transition: transform 0.2s ease; }
 .auth-chip-label { color: var(--text-muted); font-style: italic; }
+/* La forma de la entrada, en versalitas: se lee como una clasificación del
+   registro, no como otra etiqueta que haya puesto el usuario. */
+.auth-chip-shape {
+  font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--accent-bright); padding: 0.05rem 0.4rem; border-radius: 999px; background: var(--accent-dim);
+}
+.auth-chip-shape[data-shape="domain"] { color: var(--info); background: transparent; box-shadow: inset 0 0 0 1px var(--info); }
+.auth-chip-shape[data-shape="cloud"] { color: var(--warn); background: var(--warn-dim); }
+.auth-shape-hint { margin: 0; font-size: var(--fs-sm); color: var(--accent-bright); line-height: 1.4; }
+.auth-shape-hint.unknown { color: var(--text-muted); }
 .auth-chip-remove {
   width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%;
   background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: var(--fs-xl); line-height: 1;

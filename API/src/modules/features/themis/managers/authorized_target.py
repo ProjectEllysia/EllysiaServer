@@ -30,6 +30,7 @@ from ..services.parsing import is_hostname
 from ..exceptions import (
     AuthorizedTargetNotFoundError,
     DuplicateAuthorizedTargetError,
+    InvalidAuthorizedTargetError,
     IPValidationError,
 )
 
@@ -86,7 +87,7 @@ def _canonical_target(target: str) -> str:
             recurso cloud (``"s3:mi-bucket"``) o el dominio (``"example.com"``).
 
     Raises:
-        IPValidationError: Si ``target`` no es ninguna de las tres formas.
+        InvalidAuthorizedTargetError: Si ``target`` no es ninguna de las tres formas.
     """
     network = _network_of(target)
     if network is not None:
@@ -97,11 +98,7 @@ def _canonical_target(target: str) -> str:
     domain = normalize_domain(target)
     if domain is not None:
         return domain
-    raise IPValidationError(
-        message=(f"'{target}' no es una IP, un CIDR, un dominio ni un recurso "
-                 "cloud (s3:nombre, gcs:nombre, azure:cuenta/contenedor, firebase:proyecto)"),
-        ip_spec=target,
-    )
+    raise InvalidAuthorizedTargetError(target)
 
 
 def _domain_covers(authorized_domain: str, candidate: str) -> bool:
@@ -167,7 +164,7 @@ class AuthorizedTargetManager:
             AuthorizedTarget: La entrada ya guardada.
 
         Raises:
-            IPValidationError: Si ``target`` no es una forma válida.
+            InvalidAuthorizedTargetError: Si ``target`` no es una forma válida.
             DuplicateAuthorizedTargetError: Si ya existe esa entrada canónica.
         """
         normalized = _canonical_target(target)
