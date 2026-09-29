@@ -96,7 +96,8 @@ jobs:
       # ejecuciones mientras no cambien los requirements.
       - name: Set up uv
         if: steps.changes.outputs.run == 'true'
-        uses: astral-sh/setup-uv@v10
+        # setup-uv no publica etiqueta de versión mayor (no hay `v10`): se fija la exacta.
+        uses: astral-sh/setup-uv@v10.2.0
         with:
           enable-cache: true
           cache-dependency-glob: |

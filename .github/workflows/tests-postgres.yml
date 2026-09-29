@@ -88,7 +88,8 @@ jobs:
 
       # Las mismas dependencias que con pip, en una fracción del tiempo.
       - name: Set up uv
-        uses: astral-sh/setup-uv@v10
+        # setup-uv no publica etiqueta de versión mayor (no hay `v10`): se fija la exacta.
+        uses: astral-sh/setup-uv@v10.2.0
         with:
           enable-cache: true
           cache-dependency-glob: |
