@@ -356,6 +356,11 @@ class RdpNlaNotRequiredPlugin(ScriptPlugin):
     (``None``), y sólo la primera es un hallazgo: afirmar una configuración
     insegura sin haberla observado sería inventarla.
 
+    Cubre sólo el caso intermedio —TLS sin NLA—. Un servidor que ni siquiera
+    usa TLS es el caso peor y lo avisa :class:`RdpLegacySecurityLayerPlugin`,
+    con más severidad; dispararlos juntos repetiría el mismo problema dos
+    veces y escondería cuál de los dos servidores urge más.
+
     Args:
         probe: Sonda inyectable, para que un test use un socket falso.
     """
@@ -373,7 +378,62 @@ class RdpNlaNotRequiredPlugin(ScriptPlugin):
         response = self._probe.fetch(context.target, context.service.port or 3389)
         if response is None:
             return False
-        return fingerprint_rdp(response).requires_network_level_authentication is False
+        fingerprint = fingerprint_rdp(response)
+        return (fingerprint.requires_network_level_authentication is False
+                and fingerprint.uses_legacy_security_layer is False)
+
+
+class RdpLegacySecurityLayerPlugin(ScriptPlugin):
+    """Detecta un RDP que usa la seguridad propia del protocolo, sin TLS ni NLA.
+
+    La seguridad estándar de RDP es anterior a TLS: cifra con RC4 y no
+    verifica la identidad del servidor, así que quien se interponga en la red
+    puede hacerse pasar por él y leer las credenciales que el usuario teclee.
+    Es peor que un RDP con TLS sin NLA, que al menos protege el canal.
+
+    La evidencia sale de la misma negociación de X.224 que usa el dissector:
+    el servidor elige esa seguridad, o rechaza con ``ssl-not-allowed-by-server``
+    una petición que sólo ofrecía TLS y NLA. Un modo que no se ha podido leer
+    no dispara.
+
+    Args:
+        probe: Sonda inyectable, para que un test use un socket falso. Por
+            defecto, ``RdpProbe()``.
+    """
+
+    plugin_id = "rdp-legacy-security-layer"
+
+    def __init__(self, probe: Optional[RdpProbe] = None) -> None:
+        self._probe = probe or RdpProbe()
+
+    def applies(self, service: Service) -> bool:
+        """Si el servicio es RDP.
+
+        Args:
+            service: El servicio candidato.
+
+        Returns:
+            bool: ``True`` para los servicios que reclama ``is_rdp_service``.
+        """
+        return is_rdp_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        """Negocia una vez y dispara si el servidor sólo tiene la seguridad antigua.
+
+        Args:
+            context: El contexto del check; su control de tasa se consulta
+                antes de conectar.
+
+        Returns:
+            bool: ``True`` si el servidor usa la seguridad estándar de RDP;
+                ``False`` si usa TLS o NLA, si no contestó o si su respuesta
+                no permite decidirlo.
+        """
+        context.acquire()
+        response = self._probe.fetch(context.target, context.service.port or 3389)
+        if response is None:
+            return False
+        return fingerprint_rdp(response).uses_legacy_security_layer is True
 
 
 class DnsOpenResolverPlugin(ScriptPlugin):
@@ -953,6 +1013,7 @@ def default_script_plugins() -> Dict[str, ScriptPlugin]:
         LdapAnonymousBindPlugin(),
         LdapCleartextWithLdapsPlugin(),
         RdpNlaNotRequiredPlugin(),
+        RdpLegacySecurityLayerPlugin(),
         TelnetEnabledPlugin(),
         VncNoAuthenticationPlugin(),
         IkeWeakTransformPlugin(),
