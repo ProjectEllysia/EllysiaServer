@@ -169,3 +169,14 @@ def test_the_real_probe_reports_a_rejection_on_a_modern_server(certificate_files
     port = _serve(ssl.TLSVersion.TLSv1_2, ssl.TLSVersion.TLSv1_3, certificate_files)
 
     assert TlsProbe(timeout=5).fetch_accepts_protocol("127.0.0.1", port, "TLSv1") is False
+
+
+
+def test_plain_smtp_is_asked_after_starttls():
+    """Igual que el FTP: un SMTP en el 25 se pregunta tras su ``STARTTLS``."""
+    probe = _FakeProbe({"TLSv1": True})
+    plugin = TlsDeprecatedProtocolPlugin(probe=probe)
+    service = Service(port=25, protocol="tcp", name="smtp")
+    assert plugin.applies(service) is True
+    assert plugin.run(ScriptContext(target="h", service=service)) is True
+    assert {starttls for _port, _protocol, starttls in probe.calls} == {"smtp"}

@@ -372,3 +372,140 @@ def test_the_dot_terminated_read_stops_at_the_lone_dot_and_keeps_the_rest():
     assert first.body.endswith(".")
     assert "next" not in first.body
     assert session.exchange(None, read="line").body == "+OK next"
+
+
+# ============================== el certificado del correo, tras su paso a TLS
+
+
+class _ScriptedSocket:
+    """Socket falso de un servidor que habla por turnos: el saludo está en el
+    buffer al conectar y cada escritura añade la siguiente respuesta, como un
+    servidor real que espera a cada comando."""
+
+    def __init__(self, greeting, *replies):
+        self._buffer = greeting
+        self._replies = list(replies)
+        self.sent = b""
+
+    def recv(self, size):
+        chunk, self._buffer = self._buffer[:size], self._buffer[size:]
+        return chunk
+
+    def sendall(self, data):
+        self.sent += data
+        if self._replies:
+            self._buffer += self._replies.pop(0)
+
+    def close(self):
+        pass
+
+
+def test_the_smtp_upgrade_says_ehlo_then_starttls_and_wants_a_220():
+    from src.modules.features.themis.lybra.fingerprinting.tls import _upgrade_smtp
+
+    accepted = _ScriptedSocket(b"220 mail.example.com ESMTP\r\n",
+                               b"250-mail.example.com\r\n250 STARTTLS\r\n",
+                               b"220 2.0.0 Ready to start TLS\r\n")
+    assert _upgrade_smtp(accepted) is True
+    assert accepted.sent == b"EHLO lybra.local\r\nSTARTTLS\r\n"
+    refused = _ScriptedSocket(b"220 mail.example.com ESMTP\r\n", b"250 mail.example.com\r\n",
+                              b"502 5.5.1 Unrecognized command\r\n")
+    assert _upgrade_smtp(refused) is False
+
+
+def test_the_imap_upgrade_skips_untagged_lines_and_wants_a_tagged_ok():
+    from src.modules.features.themis.lybra.fingerprinting.tls import _upgrade_imap
+
+    accepted = _ScriptedSocket(b"* OK Dovecot ready.\r\n",
+                               b"* NOTE ignored\r\na1 OK Begin TLS negotiation now.\r\n")
+    assert _upgrade_imap(accepted) is True
+    assert accepted.sent == b"a1 STARTTLS\r\n"
+    assert _upgrade_imap(_ScriptedSocket(b"* OK ready\r\n", b"a1 BAD Unknown command\r\n")) is False
+
+
+def test_the_pop3_upgrade_sends_stls_and_wants_ok():
+    from src.modules.features.themis.lybra.fingerprinting.tls import _upgrade_pop3
+
+    accepted = _ScriptedSocket(b"+OK Dovecot ready.\r\n", b"+OK Begin TLS negotiation\r\n")
+    assert _upgrade_pop3(accepted) is True
+    assert accepted.sent == b"STLS\r\n"
+    assert _upgrade_pop3(_ScriptedSocket(b"+OK ready\r\n", b"-ERR Unknown command\r\n")) is False
+
+
+def test_a_text_line_read_stops_before_the_tls_handshake_bytes():
+    """Lo que venga tras la respuesta al paso a TLS es del saludo TLS, y no se
+    puede consumir aquí."""
+    from src.modules.features.themis.lybra.fingerprinting.tls import _read_text_line
+
+    sock = _ScriptedSocket(b"+OK go ahead\r\n\x16\x03\x01")
+    assert _read_text_line(sock) == "+OK go ahead"
+    assert sock.recv(3) == b"\x16\x03\x01"
+
+
+@pytest.mark.parametrize("service, starttls", [
+    (Service(25, "tcp", "smtp", "", "", None), "smtp"),
+    (Service(587, "tcp", "submission", "", "", None), "smtp"),
+    (Service(143, "tcp", "imap", "", "", None), "imap"),
+    (Service(110, "tcp", "pop3", "", "", None), "pop3"),
+    (Service(21, "tcp", "ftp", "", "", None), "ftp"),
+    (Service(465, "tcp", "smtps", "", "", None), None),
+    (Service(993, "tcp", "imaps", "", "", None), None),
+    (Service(995, "tcp", "pop3s", "", "", None), None),
+    (Service(990, "tcp", "ftp", "", "", None), None),
+    (Service(443, "tcp", "https", "", "", None), None),
+])
+def test_each_service_gets_its_certificate_audited_the_right_way(service, starttls):
+    """Los que empiezan en claro, tras su paso a TLS; los que cifran desde el
+    primer byte, directamente."""
+    calls = []
+
+    def tls_fetch(host, port, starttls=None):
+        calls.append((port, starttls))
+        return None
+
+    tls_checks = [c for c in _CHECKS if c.type == "tls"]
+    CheckRuntime(tls_checks, lambda *a: None, tls_fetch=tls_fetch).run("h", [service])
+    assert calls == [(service.port, starttls)]
+
+
+def test_ssh_or_a_database_gets_no_certificate_audit():
+    calls = []
+    tls_checks = [c for c in _CHECKS if c.type == "tls"]
+    CheckRuntime(tls_checks, lambda *a: None,
+                 tls_fetch=lambda *a, **k: calls.append(a)).run(
+        "h", [Service(22, "tcp", "ssh", "", "", None), Service(5432, "tcp", "postgresql", "", "", None)])
+    assert calls == []
+
+
+def _certificate(self_signed):
+    from src.modules.features.themis.lybra.fingerprinting.tls import TlsInfo
+    return TlsInfo(protocol="TLSv1.3", cipher="TLS_AES_256_GCM_SHA384", subject_cn="mail.example.com",
+                   issuer_cn="mail.example.com" if self_signed else "R11", self_signed=self_signed,
+                   expired=False, days_until_expiry=200, names=("mail.example.com",))
+
+
+def test_a_self_signed_smtp_certificate_fires_the_same_check_as_https_and_says_so():
+    tls_checks = [c for c in _CHECKS if c.type == "tls"]
+    findings = CheckRuntime(tls_checks, lambda *a: None,
+                            tls_fetch=lambda host, port, starttls=None: _certificate(True)).run(
+        "h", [_SMTP])
+    self_signed = [f for f in findings if f["check_id"].startswith("lybra:tls-self-signed-cert@")]
+    assert len(self_signed) == 1
+    assert "SMTP" in self_signed[0]["title"] and "STARTTLS" in self_signed[0]["title"]
+
+
+def test_a_valid_smtp_certificate_fires_nothing():
+    """Señuelo: STARTTLS con un certificado válido no da ningún aviso de certificado."""
+    tls_checks = [c for c in _CHECKS if c.type == "tls"]
+    findings = CheckRuntime(tls_checks, lambda *a: None,
+                            tls_fetch=lambda host, port, starttls=None: _certificate(False)).run(
+        "h", [_SMTP])
+    assert findings == []
+
+
+def test_an_https_certificate_keeps_its_plain_title():
+    tls_checks = [c for c in _CHECKS if c.id == "tls-self-signed-cert"]
+    findings = CheckRuntime(tls_checks, lambda *a: None,
+                            tls_fetch=lambda host, port, starttls=None: _certificate(True)).run(
+        "h", [Service(443, "tcp", "https", "", "", None)])
+    assert findings[0]["title"] == tls_checks[0].finding["title"]
