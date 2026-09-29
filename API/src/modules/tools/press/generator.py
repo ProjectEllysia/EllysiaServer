@@ -268,7 +268,8 @@ class PdfGenerator(ABC):
         return buffer.read()
 
     def generate_to_file(self, path: str) -> str:
-        """Compone el documento y lo deja escrito en ``path``.
+        """
+        Compone el documento y lo deja escrito en ``path``.
 
         Escribe primero en un temporal del mismo directorio y lo mueve con
         ``os.replace()``, que es atómico dentro de un mismo sistema de

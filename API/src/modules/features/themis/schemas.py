@@ -58,6 +58,132 @@ class LybraScanRequestSchema(Schema):
     # comportamiento de siempre; explícito y no None para que el informe
     # siempre pueda decir con qué perfil se generó.
     profile = fields.String(load_default="standard", validate=validate.OneOf(["fast", "standard", "thorough"]))
+    # Enriquecimiento pasivo: preguntar a Shodan/Censys por el objetivo para
+    # sugerir un CPE donde el fingerprint propio no llegó. Apagado por
+    # defecto porque consultar a un tercero le revela que el objetivo nos
+    # interesa; se pide escaneo a escaneo.
+    osintEnrichment = fields.Boolean(load_default=False)
+
+
+class OsintScanRequestSchema(Schema):
+    """Cuerpo de ``POST /themis/osint``: el dominio y, opcionalmente, los selectores DKIM.
+
+    Attributes:
+        domain: El dominio que se consulta, de 1 a 253 caracteres.
+        dkimSelectors: Selectores DKIM que comprobar. Por defecto ninguno.
+    """
+
+    # El dominio se valida y normaliza en ``OsintManager.create_passive_scan``;
+    # aquí sólo se acota el tamaño.
+    domain = fields.String(required=True, validate=validate.Length(min=1, max=253))
+    # Los selectores DKIM que comprobar. Sin ellos DKIM no se comprueba:
+    # adivinar selectores sería fuerza bruta contra el DNS del cliente.
+    dkimSelectors = fields.List(fields.String(validate=validate.Length(min=1, max=63)),
+                                load_default=list)
+
+
+class CloudScanRequestSchema(Schema):
+    """Cuerpo de ``POST /themis/cloud``: el dominio y qué comprobar de él.
+
+    Attributes:
+        domain: El dominio al que pertenece lo que se comprueba, de 1 a 253
+            caracteres. Debe estar en el registro de objetivos autorizados si
+            se piden los subdominios.
+        cloudResources: Recursos cloud a comprobar, en forma
+            ``proveedor:identificador`` (``s3:nombre``, ``gcs:nombre``,
+            ``azure:cuenta/contenedor``, ``firebase:proyecto``). Cada uno debe
+            estar en el registro de objetivos autorizados. Por defecto ninguno.
+        checkSubdomains: Si se comprueba el takeover del dominio y de los
+            subdominios que un escaneo pasivo previo encontró. Por defecto sí.
+    """
+
+    # El dominio y los recursos se validan y autorizan en
+    # ``CloudScanManager.create_cloud_scan``; aquí sólo se acota el tamaño.
+    domain = fields.String(required=True, validate=validate.Length(min=1, max=253))
+    cloudResources = fields.List(fields.String(validate=validate.Length(min=1, max=300)),
+                                 load_default=list, validate=validate.Length(max=25))
+    checkSubdomains = fields.Boolean(load_default=True)
+
+
+class AssetGroupRequestSchema(Schema):
+    """Cuerpo de ``POST /themis/asset-groups``: el nombre y el rango de la red.
+
+    Attributes:
+        name: Nombre legible del grupo, de 1 a 100 caracteres, único por usuario.
+        cidr: El rango que define la red (``10.0.0.0/24``). Se valida en
+            ``NetworkRiskManager.create_group``.
+    """
+
+    name = fields.String(required=True, validate=validate.Length(min=1, max=100))
+    cidr = fields.String(required=True, validate=validate.Length(min=1, max=43))
+
+
+class NetworkRiskQuerySchema(Schema):
+    """Consulta de ``GET /themis/network-risk``: qué red se analiza.
+
+    Hay que dar **exactamente uno** de los dos; se comprueba en el endpoint.
+
+    Attributes:
+        groupId: Un grupo de activos: sus hosts son los escaneados dentro de su rango.
+        scanId: Un escaneo de red: sus hosts son los hijos del escaneo.
+    """
+
+    groupId = fields.Integer(load_default=None, validate=validate.Range(min=1))
+    scanId = fields.Integer(load_default=None, validate=validate.Range(min=1))
+
+
+class OsintScanListQuerySchema(Schema):
+    """Consulta de ``GET /themis/osint``.
+
+    Attributes:
+        limit: Cuántos escaneos devolver, de 1 a 200. Por defecto 50.
+    """
+
+    limit = fields.Integer(load_default=50, validate=validate.Range(min=1, max=200))
+
+
+class OsintScanStartResponseSchema(Schema):
+    """Respuesta de ``POST /themis/osint``: el escaneo pasivo recién encolado."""
+
+    message = fields.String()
+    osintScanId = fields.Integer()
+    domain = fields.String()
+    mode = fields.String()
+    status = fields.String()
+    user = fields.String()
+
+
+class OsintScanDetailResponseSchema(Schema):
+    """Respuesta de ``GET /themis/osint/<id>``: el escaneo pasivo con todo su detalle.
+
+    Cada hallazgo de ``findings`` tiene la forma común de un hallazgo de Lybra
+    más ``provenance`` (fuente, fecha de observación, fecha de descarga y
+    antigüedad en días).
+    """
+
+    osintScanId = fields.Integer()
+    domain = fields.String()
+    mode = fields.String()
+    status = fields.String()
+    startedAt = fields.String(allow_none=True)
+    finishedAt = fields.String(allow_none=True)
+    failureReason = fields.String(allow_none=True)
+    subdomainCount = fields.Integer()
+    findingCount = fields.Integer()
+    dkimSelectors = fields.List(fields.String())
+    sources = fields.List(fields.Dict())
+    dnsChecks = fields.List(fields.Dict())
+    subdomains = fields.List(fields.Dict())
+    findings = fields.List(fields.Dict())
+
+
+class OsintScanListResponseSchema(Schema):
+    """Respuesta de ``GET /themis/osint``: los escaneos pasivos recientes, sin detalle."""
+
+    message = fields.String()
+    count = fields.Integer()
+    results = fields.List(fields.Dict())
+    user = fields.String()
 
 
 class UnresolvedProductsQuerySchema(Schema):

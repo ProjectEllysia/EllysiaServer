@@ -31,6 +31,7 @@
       "T1133": {"name": "External Remote Services", "tactics": ["TA0001", "TA0003"]},
       "T1189": {"name": "Drive-by Compromise", "tactics": ["TA0001"]},
       "T1190": {"name": "Exploit Public-Facing Application", "tactics": ["TA0001"]},
+      "T1530": {"name": "Data from Cloud Storage", "tactics": ["TA0009"]},
       "T1210": {"name": "Exploitation of Remote Services", "tactics": ["TA0008"]},
       "T1213": {"name": "Data from Information Repositories", "tactics": ["TA0009"]},
       "T1498.002": {"name": "Network Denial of Service: Reflection Amplification", "tactics": ["TA0040"]},
@@ -147,6 +148,18 @@
     "vulnerability": {
       "mitre": ["T1190"],
       "controls": ["iso27001:A.8.8", "ens:op.exp.4", "nis2:21.2.e"]
+    },
+    "lateral_risk": {
+      "mitre": ["T1210"],
+      "controls": ["iso27001:A.8.9", "iso27001:A.8.20", "ens:op.exp.2", "ens:mp.com.1", "nis2:21.2.e"]
+    },
+    "cloud_exposure": {
+      "mitre": ["T1530"],
+      "controls": ["iso27001:A.8.9", "iso27001:A.8.26", "ens:op.exp.2", "nis2:21.2.e"]
+    },
+    "api_exposure": {
+      "mitre": ["T1190"],
+      "controls": ["iso27001:A.8.9", "iso27001:A.8.26", "ens:op.exp.2", "ens:mp.s.2", "nis2:21.2.e"]
     },
     "web_finding": {
       "mitre": ["T1190"],

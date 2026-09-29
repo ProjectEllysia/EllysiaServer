@@ -1101,6 +1101,14 @@ class LybraEngineConfig:  # pylint: disable=too-many-instance-attributes
     """Intervalo mínimo, en segundos, entre dos peticiones al mismo
     host. Es la cortesía con el objetivo, y manda por encima del pool."""
 
+    rate_limit_max_backoff_factor: float = 8.0
+    """Cuánto puede llegar a frenar el motor, en múltiplos de
+    ``rate_limit_interval``, contra un host que deja de contestar a los checks
+    activos. Tras varios plazos agotados seguidos el intervalo de ese host se
+    duplica en cada fallo hasta este tope, y vuelve poco a poco al base cuando
+    el host contesta de nuevo. Un objetivo que deja de responder suele ser uno
+    que no da abasto. A ``1``, el intervalo es fijo."""
+
     host_pool_size: int = 8
     """Cuántos servicios del **mismo host** se sondan a la vez. El
     fingerprinting y los checks activos son espera de red casi entera, y en fila
@@ -1493,6 +1501,129 @@ class LybraCrawlerConfig:
 
 def lybra_crawler_config() -> LybraCrawlerConfig:
     return load_block(LybraCrawlerConfig)
+
+
+@config_block("features.themis.scanners.lybra.apiSurface")
+@dataclass(frozen=True)
+class LybraApiSurfaceConfig:
+    """El presupuesto del análisis de la superficie de una API.
+
+    Cuando un servicio web publica su especificación OpenAPI/Swagger, Lybra la
+    lee y prueba, con peticiones sin credenciales, los endpoints que la propia
+    especificación declara protegidos. No es un fuzzer: sólo se prueba lo que
+    el documento declara, y el número de pruebas va acotado.
+    """
+
+    max_endpoints: int = 25
+    """Endpoints derivados de la especificación que se prueban, como mucho, por
+    servicio web. Es el freno principal: una especificación con miles de rutas
+    cuesta lo mismo que una con veinticinco. A cero, no se lee ninguna
+    especificación."""
+
+    max_specification_bytes: int = 1048576
+    """Tamaño máximo de la especificación que se descarga (1 MiB). Una
+    especificación mayor se lee truncada, no se puede parsear y se ignora."""
+
+
+def lybra_api_surface_config() -> LybraApiSurfaceConfig:
+    return load_block(LybraApiSurfaceConfig)
+
+
+_LYBRA_OSINT_DEFAULT_SOURCES = {
+    "crtsh": {"enabled": True, "url": "https://crt.sh/"},
+    "shodan": {"enabled": False, "url": "https://api.shodan.io"},
+    "censys": {"enabled": False, "url": "https://search.censys.io/api/v2"},
+    "securitytrails": {"enabled": False, "url": "https://api.securitytrails.com/v1"},
+}
+
+
+@config_block("features.themis.scanners.lybra.osint")
+@dataclass(frozen=True)
+class LybraOsintConfig:
+    """La inteligencia pasiva de Lybra: fuentes de terceros, su caché y sus topes.
+
+    Certificate Transparency (crt.sh) es gratis y va encendida; Shodan, Censys
+    y SecurityTrails son de pago y con cuota, así que van apagadas y, además
+    de encenderse aquí, necesitan su clave en el entorno
+    (:func:`get_lybra_osint_key`). Una fuente encendida sin clave se omite sin
+    romper el resto.
+    """
+
+    ttl_hours: int = 24
+    """Horas que vale en caché la respuesta de una fuente. Los datos de terceros
+    cambian despacio y cada consulta a una fuente de pago gasta cuota."""
+
+    request_timeout_seconds: int = 30
+    """Tope de cada petición a una fuente y de cada consulta DNS, en segundos."""
+
+    recent_certificate_days: int = 30
+    """Cuántos días atrás cuenta un certificado como «emitido recientemente»."""
+
+    max_subdomains: int = 500
+    """Tope de hallazgos de subdominio por escaneo; la lista completa de
+    subdominios se guarda igualmente."""
+
+    max_host_lookups: int = 10
+    """Cuántos nombres del dominio, como mucho, se resuelven para preguntar a
+    Shodan y Censys por sus direcciones. Cada dirección gasta una consulta de
+    cada fuente."""
+
+    sources: dict = field(default_factory=lambda: {name: dict(settings) for name, settings
+                                                   in _LYBRA_OSINT_DEFAULT_SOURCES.items()})
+    """Interruptor (``enabled``) y URL base (``url``) de cada fuente, por nombre
+    (``crtsh``, ``shodan``, ``censys``, ``securitytrails``)."""
+
+    def is_source_enabled(self, source: str) -> bool:
+        """Si una fuente está encendida en la configuración.
+
+        Args:
+            source: Nombre de la fuente (``"crtsh"``, ``"shodan"``, ``"censys"``
+                o ``"securitytrails"``).
+
+        Returns:
+            bool: ``True`` si su ``enabled`` es verdadero; ``False`` si está
+                apagada o no está configurada.
+        """
+        return bool((self.sources or {}).get(source, {}).get("enabled", False))
+
+    def source_url(self, source: str) -> str:
+        """URL base de una fuente, sin barra final.
+
+        Args:
+            source: Nombre de la fuente.
+
+        Returns:
+            str: La ``url`` configurada o, si falta, la de fábrica; cadena vacía
+                para una fuente desconocida.
+        """
+        configured = (self.sources or {}).get(source, {}).get("url")
+        fallback = _LYBRA_OSINT_DEFAULT_SOURCES.get(source, {}).get("url", "")
+        return str(configured or fallback).rstrip("/")
+
+
+def lybra_osint_config() -> LybraOsintConfig:
+    """Bloque de configuración de la inteligencia pasiva de Lybra.
+
+    Returns:
+        LybraOsintConfig: El bloque ``features.themis.scanners.lybra.osint``.
+    """
+    return load_block(LybraOsintConfig)
+
+
+def get_lybra_osint_key(source: str) -> str:
+    """Clave de API de una fuente de inteligencia pasiva de Lybra, desde el entorno.
+
+    Solo variables de entorno: ``LYBRA_SHODAN_API_KEY``,
+    ``LYBRA_CENSYS_API_KEY`` (con la forma ``<API ID>:<secreto>`` que da
+    Censys) o ``LYBRA_SECURITYTRAILS_API_KEY``. crt.sh no necesita clave.
+
+    Args:
+        source: Nombre de la fuente.
+
+    Returns:
+        str: La clave, o cadena vacía si no está definida (la fuente se omite).
+    """
+    return os.getenv(f"LYBRA_{source.upper()}_API_KEY", "").strip()
 
 
 def nuclei_config() -> NucleiConfig:

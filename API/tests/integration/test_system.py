@@ -537,6 +537,31 @@ def test_status_filter_by_concrete_state_still_works(client, admin_user, auth_he
 # =============================================================================
 
 
+@pytest.fixture(autouse=True)
+def _ai_providers_fail_at_once():
+    """Hace que preguntar el catálogo a cualquier proveedor de IA falle al instante.
+
+    El sello de red de la suite ya impide que la pregunta llegue a ningún
+    sitio, pero no la abarata: los SDK de OpenAI y de Google reintentan con
+    espera exponencial ante un fallo de conexión, y Ollama apunta a
+    ``localhost``, cuyo rechazo en Windows tarda unos 4 s. El catálogo trata
+    cualquier excepción igual (``tools/scribe/catalog.py``), así que un fallo
+    inmediato prueba el mismo camino sin esperas. Los tests que simulan un
+    proveedor que sí responde parchean su estrategia encima de éste.
+    """
+    from src.modules.tools.scribe.strategies import GoogleStrategy, OllamaStrategy, OpenAIStrategy
+
+    def _unreachable(cls):
+        raise ConnectionError(f"{cls.__name__}: proveedor inalcanzable en la suite de tests")
+
+    with (
+        mock.patch.object(OllamaStrategy, "available_models", classmethod(_unreachable)),
+        mock.patch.object(OpenAIStrategy, "available_models", classmethod(_unreachable)),
+        mock.patch.object(GoogleStrategy, "available_models", classmethod(_unreachable)),
+    ):
+        yield
+
+
 def test_ai_models_requires_root(client, admin_user, auth_headers):
     """Como el resto de /system: la respuesta describe el despliegue (qué
     proveedores hay y cuáles responden), no un recurso del usuario."""

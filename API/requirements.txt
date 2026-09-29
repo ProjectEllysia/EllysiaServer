@@ -62,3 +62,8 @@ rq>=1.16.0
 # Iris: lectura de .msg de Outlook (contenedor OLE/CFB), licencia BSD
 olefile>=0.46
 
+
+# Lybra: consultas DNS de la inteligencia pasiva (SPF, DMARC, DKIM, MTA-STS,
+# CAA, DNSSEC y resolución de los subdominios encontrados), con resolutor
+# inyectable para que los tests no salgan a la red.
+dnspython>=2.4

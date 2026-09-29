@@ -122,6 +122,7 @@ _SAMPLE_ARGUMENTS: dict[str, list[tuple]] = {
     "MaxHostsExceededError": [(256, 1024)],
     "TargetNotAuthorizedError": [("192.0.2.1",)],
     "DuplicateAuthorizedTargetError": [("192.0.2.1",)],
+    "DuplicateAssetGroupError": [("dmz",)],
     "ReportGenerationError": [(1, "sin datos")],
     "PrivateIPRequested": [(["10.0.0.1"],)],
     "HostUnreachableError": [("192.0.2.1", 443)],

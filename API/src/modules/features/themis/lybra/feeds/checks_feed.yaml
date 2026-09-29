@@ -1498,11 +1498,11 @@ checks:
       title: docker-compose.yml expuesto (topología y posibles secretos de despliegue)
       qod: 99
       confirmed: true
-  # ---- Documentación de API expuesta (puerta a la Fase A) -------------
+  # ---- Documentación de API expuesta (superficie de API) -------------
   - id: swagger-json-exposure
-    version: 1
+    version: 2
     type: http
-    category: web_finding
+    category: api_exposure
     severity: LOW
     service: http
     mode: safe
@@ -1524,9 +1524,9 @@ checks:
       qod: 99
       confirmed: true
   - id: openapi-json-exposure
-    version: 1
+    version: 2
     type: http
-    category: web_finding
+    category: api_exposure
     severity: LOW
     service: http
     mode: safe
@@ -1548,9 +1548,9 @@ checks:
       qod: 99
       confirmed: true
   - id: api-docs-exposure
-    version: 1
+    version: 2
     type: http
-    category: web_finding
+    category: api_exposure
     severity: LOW
     service: http
     mode: safe
@@ -1570,6 +1570,98 @@ checks:
     finding:
       title: Documentación de API interactiva expuesta (/api-docs)
       qod: 99
+      confirmed: true
+  - id: api-docs-versioned-exposure
+    version: 1
+    type: http
+    category: api_exposure
+    severity: LOW
+    service: http
+    mode: safe
+    payloads:
+      api_docs_path:
+        - /v2/api-docs
+        - /v3/api-docs
+    requests:
+      - method: GET
+        path: '{{api_docs_path}}'
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: word
+            part: body
+            words:
+              - '"swagger"'
+              - '"openapi"'
+    finding:
+      title: Especificación de API expuesta (/v2/api-docs o /v3/api-docs)
+      qod: 99
+      confirmed: true
+  # ---- GraphQL ---------------------------------------------------------
+  # La introspección es una consulta de sólo lectura que el propio servidor
+  # ofrece; devolver el esquema entero en producción regala a un atacante el
+  # mapa completo de la API. Se busca ``"__schema":{`` y no la palabra suelta
+  # porque un servidor con la introspección apagada la nombra en su error.
+  - id: graphql-introspection-enabled
+    version: 1
+    type: http
+    category: api_exposure
+    severity: MEDIUM
+    service: http
+    mode: safe
+    payloads:
+      graphql_path:
+        - /graphql
+        - /api/graphql
+        - /v1/graphql
+    requests:
+      - method: POST
+        path: '{{graphql_path}}'
+        headers:
+          Content-Type: application/json
+        body: '{"query":"{__schema{queryType{name} types{name}}}"}'
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: regex
+            part: body
+            regex:
+              - '"__schema"\s*:\s*\{'
+    finding:
+      title: Introspección de GraphQL habilitada (el esquema completo es consultable)
+      qod: 99
+      confirmed: true
+  - id: graphql-field-suggestion
+    version: 1
+    type: http
+    category: api_exposure
+    severity: LOW
+    service: http
+    mode: safe
+    payloads:
+      graphql_path:
+        - /graphql
+        - /api/graphql
+        - /v1/graphql
+    requests:
+      - method: POST
+        path: '{{graphql_path}}'
+        headers:
+          Content-Type: application/json
+        body: '{"query":"{__typenam}"}'
+        matchers-condition: and
+        matchers:
+          - type: regex
+            part: body
+            regex:
+              - '(?i)did you mean'
+    finding:
+      title: GraphQL sugiere nombres de campo (permite reconstruir el esquema aunque la introspección esté apagada)
+      qod: 95
       confirmed: true
   # ---- Listado de directorios activo ----------------------------------
   - id: directory-listing-enabled

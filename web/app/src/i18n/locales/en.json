@@ -92,6 +92,7 @@
     "defaultPlanMissing": "The platform has no default plan configured. Contact an administrator.",
     "documentNotReady": "The document is not ready yet.",
     "duplicateAuthorizedTarget": "“{target}” is already in your authorized targets registry.",
+    "duplicateAssetGroup": "You already have an asset group named “{name}”.",
     "duplicatedUserCredentials": "There is already an account with this value: {value}.",
     "emailAlreadyVerified": "Your email is already confirmed.",
     "emailConfiguration": "The email service is not configured correctly.",
@@ -101,6 +102,7 @@
     "entityNotFound": {
       "anomaly": "Anomaly not found.",
       "asset": "Asset not found.",
+      "assetGroup": "Asset group not found.",
       "authorizedTarget": "Authorized target not found.",
       "campaign": "Campaign not found.",
       "distributionList": "Distribution list not found.",
@@ -4098,6 +4100,7 @@
       "udpRetries": "UDP retries",
       "udpBudgetSeconds": "UDP budget (s)",
       "rateLimitInterval": "Interval between sends (s)",
+      "rateLimitMaxBackoffFactor": "Max slowdown for an unresponsive host (×)",
       "hostPoolSize": "Hosts in parallel",
       "httpTimeout": "HTTP timeout (s)",
       "httpMaxBodyBytes": "Max HTTP body (bytes)",

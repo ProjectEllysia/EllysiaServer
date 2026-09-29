@@ -65,8 +65,11 @@ jobs:
     # segunda red de seguridad y cubre también conclusiones distintas de
     # success (failure, cancelled, skipped...). La rama manual
     # (workflow_dispatch) se permite siempre: sirve para desplegar a mano
-    # sin esperar a un push a main (p. ej. un rollback).
-    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+    # sin esperar a un push a main (p. ej. un rollback). Se exige además que
+    # la pasada de Tests venga de un push: la de un PR abierto *desde* main
+    # también tiene head_branch main, y la que lanza el cierre de un PR se
+    # salta todos sus jobs y termina en success sin haber probado nada.
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.event == 'push')
     steps:
       - name: Check secrets
         env:
