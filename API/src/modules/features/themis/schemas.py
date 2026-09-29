@@ -82,6 +82,29 @@ class OsintScanRequestSchema(Schema):
                                 load_default=list)
 
 
+class CloudScanRequestSchema(Schema):
+    """Cuerpo de ``POST /themis/cloud``: el dominio y qué comprobar de él.
+
+    Attributes:
+        domain: El dominio al que pertenece lo que se comprueba, de 1 a 253
+            caracteres. Debe estar en el registro de objetivos autorizados si
+            se piden los subdominios.
+        cloudResources: Recursos cloud a comprobar, en forma
+            ``proveedor:identificador`` (``s3:nombre``, ``gcs:nombre``,
+            ``azure:cuenta/contenedor``, ``firebase:proyecto``). Cada uno debe
+            estar en el registro de objetivos autorizados. Por defecto ninguno.
+        checkSubdomains: Si se comprueba el takeover del dominio y de los
+            subdominios que un escaneo pasivo previo encontró. Por defecto sí.
+    """
+
+    # El dominio y los recursos se validan y autorizan en
+    # ``CloudScanManager.create_cloud_scan``; aquí sólo se acota el tamaño.
+    domain = fields.String(required=True, validate=validate.Length(min=1, max=253))
+    cloudResources = fields.List(fields.String(validate=validate.Length(min=1, max=300)),
+                                 load_default=list, validate=validate.Length(max=25))
+    checkSubdomains = fields.Boolean(load_default=True)
+
+
 class OsintScanListQuerySchema(Schema):
     """Consulta de ``GET /themis/osint``.
 

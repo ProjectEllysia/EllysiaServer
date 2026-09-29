@@ -442,6 +442,72 @@ from src.modules.features.iris.managers.analysis import IrisManager, _evaluate_g
 Nunca se reexporta un `_nombre` en un `__init__.py`, y nunca se hace pública una función solo para
 poder testearla.
 
+### 5.5 Quién actúa: el usuario llega por parámetro
+
+**Ningún manager recibe al usuario en el constructor.** Un manager no sabe por sí mismo en nombre
+de quién trabaja: cada método que actúa en nombre de alguien lo recibe como `user_id: int`. El
+constructor solo recibe dependencias técnicas —la cola, un cliente de IA, un mailer—, que son las
+que los tests sustituyen.
+
+```python
+# Bien
+class HygeiaAssetManager:
+    def delete_asset(self, asset_id: int, user_id: int) -> None:
+        assert_owned(MonitoredAssetRepository, asset_id, user_id, AssetNotFoundError)
+        ...
+
+# endpoints.py
+HygeiaAssetManager().delete_asset(asset_id, get_current_user().id)
+
+
+# Mal: el usuario viaja escondido en la instancia
+class HygeiaAssetManager:
+    def __init__(self, user: User) -> None:
+        self.user = user
+```
+
+Por qué así y no al revés:
+
+- **Los tres bordes quedan iguales.** Un endpoint tiene un usuario de sesión; el worker y los
+  schedulers no: solo tienen ids sacados de una fila. Con el usuario en el constructor, un job
+  tiene que reconstruir un `User` desde la base de datos solo para poder crear el manager (es lo
+  que hacen hoy `CampaignManager.execute_campaign_send` y `AegisManager.execute_aegis_generation`).
+  Con el id por parámetro, el `execute_*` pasa el id que ya trae, que además es lo único que la
+  cola puede serializar ([§ 7](#7-trabajo-en-segundo-plano-taskqueue-outbox-y-dispatcher)).
+- **Un manager se puede crear en cualquier sitio.** `ScanManager.resolve_manager`, o una feature
+  que usa a otra, instancian el manager sin saber quién pide. Con el usuario ligado, Hygeia tuvo
+  que añadir métodos estáticos (`HygeiaAssetManager.inventory_products(user_id)`) para que Aegis
+  pudiera llamarla.
+- **La firma dice lo que el método necesita.** Un método sin `user_id` no actúa en nombre de
+  nadie, y se ve sin leer el cuerpo. Con `self.user`, cualquier método puede depender del usuario
+  o no, y la firma no lo cuenta.
+- **Todo lo de debajo ya habla en ids.** `assert_owned`, `QuotaManager().consume` y los
+  repositorios reciben `user_id: int`; los managers que guardan un `User` usan casi solo
+  `self.user.id`.
+- **Un `User` es un objeto de la sesión de la request.** Guardarlo en una instancia que la
+  sobrevive, o pasarlo a otro hilo, acaba en errores de instancia desligada de la sesión. Un `int`
+  no tiene ese problema.
+
+Las reglas:
+
+- **Se pasa el id, no el `User`.** Si un método necesita algo más del usuario (el correo, el nivel
+  de marca blanca), se lo pide a `UserManager().get_user_by_id(user_id)` o al manager dueño del
+  dato. Los roles y atributos no se comprueban en el manager: son cosa de los decoradores del
+  endpoint (`require_role`, `require_attributes`).
+- **Quien actúa se llama `user_id`.** Si en la firma aparece más de un usuario, ninguno se llama
+  `user_id` a secas: cada uno lleva el nombre de su papel
+  (`OrganizationManager.remove_member(organization_id, owner_user_id, member_user_id)`).
+- **El manager comprueba la propiedad él mismo.** Todo método que lee o cambia un recurso de un
+  usuario recibe `user_id` y lo verifica con `assert_owned` (o con el `assert_*_ownership` de su
+  manager) antes de tocarlo. No se confía en que el endpoint lo haya comprobado: el endpoint puede
+  olvidarlo, y el mismo método lo acaban llamando otros módulos.
+- **Excepción: el trabajo del sistema.** Los `execute_*`, los jobs de los schedulers y el
+  mantenimiento (retención, sincronización de la base de conocimiento, avisos) no actúan en nombre
+  de nadie. Reciben el id del recurso y, si necesitan al dueño, lo leen de la fila
+  (`scan.user_id`). La propiedad ya se comprobó al encolar.
+- **Tampoco otras identidades en el constructor.** Lo mismo vale para cualquier identidad que no
+  sea un usuario, como el agente de Hygeia (un `asset_id`): va por parámetro.
+
 ---
 
 ## 6. Servicios y funciones compartidas
@@ -847,6 +913,22 @@ cálculo + otro servicio): ahí no hay un único modelo dueño de la conversión
 **Métodos privados en managers** (§ 5): 140 en 41 clases. Los más cargados son
 `LybraEngineManager` (22), `IrisMailboxManager` (19) y `AegisManager` (10). Parte de los de
 `ScanManager` y sus subclases son ganchos legítimos.
+
+**Identidad en el constructor del manager** (§ 5.5):
+- Acheron: `VaultManager`.
+- Aegis: `AegisManager`, `CampaignManager` y `AegisOrgProfileManager`.
+- Hygeia: `HygeiaAssetManager`, `HygeiaTagManager`, `HygeiaStatsManager`, `HygeiaReportManager`,
+  `HygeiaAlertManager`, `HygeiaDocumentManager` y `HygeiaIngestManager` (este liga un `asset_id`).
+
+**Métodos que confían en la comprobación del endpoint** (§ 5.5): reciben el id de un recurso de
+usuario sin `user_id` y dan por hecho que el endpoint ya comprobó al dueño.
+- Iris: `IrisManager.get_analysis_status`, `get_analysis_progress`, `get_analysis_results` y
+  `delete_analysis`.
+- Themis: `ScanManager.get_scan_by_id`, `get_scan_status`, `delete_scan` y `format_scan`, y
+  `ThemisReportManager.generate_report`.
+
+**Varios usuarios en una firma, uno llamado `user_id`** (§ 5.5): `SubscriptionManager`
+(`user_id` + `actor_id`) e `IrisSharedMailboxManager` (`user_id` + `member_user_id`).
 
 **Imports que entran por dentro de otro módulo** (§ 3.3):
 - Hygeia importa `users.services.secrets`.

@@ -862,8 +862,14 @@ class OsintScanMode(str, Enum):
             Encuentra los subdominios que otros modos pueden tomar como punto
             de partida (almacenamiento en la nube, subdominios secuestrables),
             leyéndolos de ``OsintScan.subdomains``.
+        CLOUD: Exposición en la nube: si los recursos cloud que el usuario
+            declaró (buckets, bases de Firebase) listan su contenido a
+            cualquiera, y si el dominio y sus subdominios conocidos apuntan a
+            un servicio de terceros que ya no aloja su recurso. A diferencia
+            del modo pasivo, este **sí toca a terceros** y exige autorización.
     """
     PASSIVE = "passive"
+    CLOUD = "cloud"
 
 
 class OsintScan(Base):
