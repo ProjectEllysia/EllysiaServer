@@ -99,7 +99,8 @@ logger = logging.getLogger(__name__)
 # en un nivel funcional sin soporte.
 # checks-37: lo que un equipo cuenta de sí mismo (nombre por SMB, dominio por
 # LDAP), como hallazgos informativos de la categoría host_identity.
-CHECKS_FEED_VERSION = "lybra-checks-37"
+# checks-38: páginas de error por defecto y trazas internas visibles.
+CHECKS_FEED_VERSION = "lybra-checks-38"
 # Quality of Detection for a finding a check actively confirmed, as opposed to
 # one merely inferred from a version.
 QOD_CONFIRMED = 99

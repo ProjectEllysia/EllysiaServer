@@ -1792,6 +1792,75 @@ checks:
       title: Depurador interactivo de Werkzeug/Flask expuesto (ejecución de código)
       qod: 99
       confirmed: true
+  # Paginas de error por defecto y trazas internas: el caso comun y menos
+  # grave de lo mismo que los dos checks de arriba. No hace falta provocar
+  # ningun error: se mira como contesta el servidor a la misma ruta inexistente
+  # que ellos, asi que la peticion se comparte. Cada patron es la forma
+  # caracteristica de una pagina por defecto (el pie con la version de
+  # Apache, el de nginx, la de Tomcat, la "Whitelabel" de Spring Boot, la de
+  # IIS, la de Express); una pagina de error personalizada no trae ninguna.
+  - id: default-error-page
+    version: 1
+    type: http
+    category: web_finding
+    severity: LOW
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /lybra-nonexistent-debug-probe
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 404
+          - type: regex
+            part: body
+            regex:
+              - '<address>Apache(?:/[\d.]+)?[^<]*Server at '
+              - '<hr><center>nginx(?:/[\d.]+)?</center>'
+              - 'HTTP Status 404 .{1,3} Not Found'
+              - 'Whitelabel Error Page'
+              - '404 - File or directory not found\.'
+              - 'HTTP Error 404\.\d+ - Not Found'
+              - '<pre>Cannot GET /lybra-nonexistent-debug-probe</pre>'
+    finding:
+      title: Página de error por defecto del servidor web (revela el software y a veces su versión)
+      qod: 99
+      confirmed: true
+  # Una traza interna en una respuesta de error normal, sin modo de
+  # depuracion: ASP.NET con customErrors desactivado, marcos de pila de Java,
+  # errores de PHP con la ruta del fichero, y marcos de pila de Node.js.
+  # Python queda fuera a proposito: sus trazas son las de Django y Flask, que
+  # ya tienen su check, mas grave.
+  - id: stack-trace-disclosure
+    version: 1
+    type: http
+    category: web_finding
+    severity: LOW
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /lybra-nonexistent-debug-probe
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 400
+              - 404
+              - 500
+          - type: regex
+            part: body
+            regex:
+              - "Server Error in '/[^']*' Application"
+              - '(?m)^\s*at [\w$.]+\([\w$]+\.java:\d+\)'
+              - '<b>(?:Fatal error|Warning|Parse error)</b>:.{1,300}? in <b>/'
+              - '\bat [\w.<>]+ \((?:/|[A-Za-z]:\\)[^)]+\.js:\d+:\d+\)'
+    finding:
+      title: Traza interna visible en una página de error (rutas y componentes internos)
+      qod: 99
+      confirmed: true
   - id: debug-token-header
     version: 1
     type: http

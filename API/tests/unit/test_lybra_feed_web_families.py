@@ -353,3 +353,60 @@ def test_a_page_that_only_mentions_phpmyadmin_does_not_fire():
 def test_a_generic_org_json_is_not_grafana():
     decoy = Response(200, '{"id":1,"name":"ACME"}', {})
     assert "grafana-anonymous-access" not in _fired({"/api/org": decoy})
+
+
+# ================================ páginas de error por defecto y trazas
+
+_PROBE_PATH = "/lybra-nonexistent-debug-probe"
+
+
+@pytest.mark.parametrize("body", [
+    "<html><head><title>404 Not Found</title></head><body><h1>Not Found</h1>"
+    "<hr><address>Apache/2.4.52 (Ubuntu) Server at 10.0.0.5 Port 80</address></body></html>",
+    "<html><head><title>404 Not Found</title></head><body><center><h1>404 Not Found</h1></center>"
+    "<hr><center>nginx/1.18.0</center></body></html>",
+    "<!doctype html><html><head><title>HTTP Status 404 \u2013 Not Found</title></head>"
+    "<body><h3>Apache Tomcat/9.0.54</h3></body></html>",
+    "<html><body><h1>Whitelabel Error Page</h1><p>This application has no explicit mapping for /error</p>",
+    "<html><body><h2>404 - File or directory not found.</h2></body></html>",
+    "<!DOCTYPE html><html><body><pre>Cannot GET /lybra-nonexistent-debug-probe</pre></body></html>",
+])
+def test_a_default_error_page_is_detected(body):
+    assert "default-error-page" in _fired({_PROBE_PATH: Response(404, body, {})})
+
+
+def test_a_custom_error_page_is_not_a_default_one():
+    """Señuelo: el mismo 404 con una página de error propia del sitio."""
+    body = "<html><head><title>Página no encontrada</title></head><body><h1>Vaya</h1></body></html>"
+    fired = _fired({_PROBE_PATH: Response(404, body, {})})
+    assert "default-error-page" not in fired
+    assert "stack-trace-disclosure" not in fired
+
+
+@pytest.mark.parametrize("status, body", [
+    (404, "<html><title>The resource cannot be found.</title><body>"
+          "<h1>Server Error in '/' Application.</h1><b>Version Information:</b></body></html>"),
+    (500, "java.lang.NullPointerException\n\tat com.acme.web.Controller.handle(Controller.java:42)\n"),
+    (500, "<br />\n<b>Fatal error</b>:  Uncaught Error: Call to undefined function x() in "
+          "<b>/var/www/html/index.php</b> on line <b>3</b>"),
+    (500, "TypeError: Cannot read properties of undefined\n"
+          "    at handler (/srv/app/routes/index.js:12:5)\n"),
+])
+def test_an_internal_stack_trace_is_detected(status, body):
+    assert "stack-trace-disclosure" in _fired({_PROBE_PATH: Response(status, body, {})})
+
+
+def test_a_django_debug_page_is_left_to_its_own_check():
+    """Las trazas de Python son las de Django y Flask, que ya tienen su check."""
+    body = ("<html><title>Page not found</title>Django Version: 4.2 Traceback (most recent call last):"
+            " You're seeing this error because you have DEBUG = True</html>")
+    fired = _fired({_PROBE_PATH: Response(404, body, {})})
+    assert "django-debug-enabled" in fired
+    assert "stack-trace-disclosure" not in fired
+
+
+def test_a_default_page_answered_with_200_is_not_an_error_page():
+    """Un 200 que menciona nginx (la página de bienvenida, por ejemplo) no es
+    una página de error."""
+    body = "<html><title>Welcome to nginx!</title><hr><center>nginx/1.18.0</center></html>"
+    assert "default-error-page" not in _fired({_PROBE_PATH: Response(200, body, {})})
