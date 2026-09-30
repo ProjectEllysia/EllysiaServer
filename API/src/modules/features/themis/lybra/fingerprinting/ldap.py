@@ -69,14 +69,43 @@ RESULT_STRONGER_AUTH_REQUIRED = 8
 
 # Los atributos del rootDSE que se piden. Ni uno más: cada uno tiene un
 # consumidor concreto abajo, y pedir el directorio entero sería una consulta
-# muy distinta en coste y en intención.
+# muy distinta en coste y en intención. ``supportedExtension`` dice si el
+# servidor ofrece StartTLS (ver ``STARTTLS_EXTENSION_OID``) y
+# ``domainFunctionality``, que sólo publica Active Directory, el nivel funcional
+# del dominio (ver ``DOMAIN_FUNCTIONAL_LEVELS``).
 ROOTDSE_ATTRIBUTES: Tuple[str, ...] = (
     "vendorName",
     "vendorVersion",
     "namingContexts",
     "supportedLDAPVersion",
     "supportedSASLMechanisms",
+    "supportedExtension",
+    "domainFunctionality",
 )
+
+# La operación extendida StartTLS (RFC 4511 §4.14.1): el servidor que la
+# anuncia en ``supportedExtension`` permite cifrar una conexión del 389.
+STARTTLS_EXTENSION_OID = "1.3.6.1.4.1.1466.20037"
+
+# Nivel funcional del dominio de Active Directory → la versión de Windows
+# Server a la que corresponde (MS-ADTS §6.1.4.4). El 7 lo comparten 2016, 2019
+# y 2022, que no añadieron nivel propio.
+DOMAIN_FUNCTIONAL_LEVELS: Dict[int, str] = {
+    0: "Windows 2000",
+    1: "Windows Server 2003 (provisional)",
+    2: "Windows Server 2003",
+    3: "Windows Server 2008",
+    4: "Windows Server 2008 R2",
+    5: "Windows Server 2012",
+    6: "Windows Server 2012 R2",
+    7: "Windows Server 2016",
+    10: "Windows Server 2025",
+}
+
+# El nivel más alto que corresponde a una versión ya sin soporte del
+# fabricante: Windows Server 2012 R2 dejó de tenerlo en octubre de 2023, y
+# todas las anteriores antes.
+LAST_UNSUPPORTED_DOMAIN_LEVEL = 6
 
 _PRODUCT_FALLBACK = "LDAP"
 
@@ -371,12 +400,40 @@ class LdapFingerprint:
             identificador de activo que puede aparecer en un informe.
         sasl_mechanisms: Los mecanismos SASL ofrecidos.
         allows_anonymous_bind: Si el servidor aceptó el bind anónimo.
+        supported_extensions: Los OID de ``supportedExtension``, o ``None`` si
+            el rootDSE no los trajo (y entonces no se sabe si ofrece StartTLS).
+            Por defecto ``None``.
+        domain_functional_level: El ``domainFunctionality`` de Active
+            Directory, o ``None`` si el servidor no lo publica (cualquier
+            directorio que no sea AD). Por defecto ``None``.
     """
     product: Optional[str]
     version: Optional[str]
     naming_contexts: Tuple[str, ...] = ()
     sasl_mechanisms: Tuple[str, ...] = ()
     allows_anonymous_bind: bool = False
+    supported_extensions: Optional[Tuple[str, ...]] = None
+    domain_functional_level: Optional[int] = None
+
+    @property
+    def supports_starttls(self) -> Optional[bool]:
+        """Si el servidor anuncia StartTLS; ``None`` si no publicó sus extensiones."""
+        if self.supported_extensions is None:
+            return None
+        return STARTTLS_EXTENSION_OID in self.supported_extensions
+
+    @property
+    def domain_windows_version(self) -> Optional[str]:
+        """La versión de Windows Server que corresponde al nivel funcional, si se conoce."""
+        if self.domain_functional_level is None:
+            return None
+        return DOMAIN_FUNCTIONAL_LEVELS.get(self.domain_functional_level)
+
+    @property
+    def is_domain_level_unsupported(self) -> bool:
+        """Si el nivel funcional del dominio corresponde a un Windows Server sin soporte."""
+        return (self.domain_functional_level is not None
+                and self.domain_functional_level <= LAST_UNSUPPORTED_DOMAIN_LEVEL)
 
 
 def fingerprint_ldap(bind_reply: bytes, search_reply: bytes) -> LdapFingerprint:
@@ -399,13 +456,33 @@ def fingerprint_ldap(bind_reply: bytes, search_reply: bytes) -> LdapFingerprint:
 
     vendor = attributes.get("vendorName") or []
     version = attributes.get("vendorVersion") or []
+    extensions = attributes.get("supportedExtension")
     return LdapFingerprint(
         product=vendor[0] if vendor else _PRODUCT_FALLBACK,
         version=version[0] if version else None,
         naming_contexts=tuple(attributes.get("namingContexts") or ()),
         sasl_mechanisms=tuple(attributes.get("supportedSASLMechanisms") or ()),
         allows_anonymous_bind=allows_anonymous,
+        supported_extensions=tuple(extensions) if extensions is not None else None,
+        domain_functional_level=_parse_level(attributes.get("domainFunctionality")),
     )
+
+
+def _parse_level(values: Optional[List[str]]) -> Optional[int]:
+    """Lee el nivel funcional publicado, que llega como texto (``"7"``).
+
+    Args:
+        values: Los valores del atributo, o ``None`` si no vino.
+
+    Returns:
+        Optional[int]: El nivel, o ``None`` si no vino o no es un número.
+    """
+    if not values:
+        return None
+    try:
+        return int(values[0].strip())
+    except ValueError:
+        return None
 
 
 # =========================================================================

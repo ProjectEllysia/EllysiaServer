@@ -83,7 +83,24 @@ logger = logging.getLogger(__name__)
 # checks-25: marcas de tiempo TCP.
 # checks-26: la familia session-cookie-without-* ya ve todas las Set-Cookie de
 # la respuesta, no solo la primera.
-CHECKS_FEED_VERSION = "lybra-checks-27"
+# checks-28: exposición sin credenciales de etcd, Consul y Kibana.
+# checks-29: RDP con la seguridad antigua del protocolo, sin TLS.
+# checks-30: IMAP y POP3 sin STARTTLS, y PostgreSQL que pide contraseña sin
+# ofrecer TLS.
+# checks-31: más paneles y páginas de estado de terceros (Grafana, phpMyAdmin,
+# Adminer, Traefik, HAProxy, Prometheus, Netdata, nginx).
+# checks-32: los checks de certificado y de versiones obsoletas de TLS llegan
+# también a SMTP, IMAP y POP3, en claro tras el paso a TLS y con TLS implícito.
+# checks-33: WinRM que acepta autenticación Basic sin TLS.
+# checks-34: SQL Server que no exige cifrar la conexión.
+# checks-35: clave corta, firma con un resumen obsoleto y caducidad próxima
+# del certificado.
+# checks-36: directorio sin ninguna vía cifrada y dominio de Active Directory
+# en un nivel funcional sin soporte.
+# checks-37: lo que un equipo cuenta de sí mismo (nombre por SMB, dominio por
+# LDAP), como hallazgos informativos de la categoría host_identity.
+# checks-38: páginas de error por defecto y trazas internas visibles.
+CHECKS_FEED_VERSION = "lybra-checks-38"
 # Quality of Detection for a finding a check actively confirmed, as opposed to
 # one merely inferred from a version.
 QOD_CONFIRMED = 99
@@ -158,6 +175,25 @@ _IMAP_SERVICE_NAMES = {"imap", "imaps"}
 _IMAP_PORTS = {143, 993}
 _POP3_SERVICE_NAMES = {"pop3", "pop3s"}
 _POP3_PORTS = {110, 995}
+# Los puertos y nombres en los que IMAP y POP3 cifran desde el primer byte. Un
+# servicio así no empieza en claro, así que no tiene sentido preguntarle si
+# ofrece pasar a TLS: sólo alargaría el escaneo hasta el plazo de lectura.
+_IMAP_IMPLICIT_TLS_PORTS = {993}
+_POP3_IMPLICIT_TLS_PORTS = {995}
+_IMPLICIT_TLS_MAIL_SERVICE_NAMES = {"imaps", "pop3s", "smtps"}
+# WinRM, la administración remota de Windows. "wsman" es la etiqueta estándar
+# del 5985; el 5986 es su variante con TLS y no se reclama aquí: lo que se
+# comprueba de WinRM es precisamente lo que pasa sin TLS.
+_WINRM_SERVICE_NAMES = {"wsman", "winrm"}
+_WINRM_PORTS = {5985}
+_SMTP_IMPLICIT_TLS_PORTS = {465}
+# Puertos que cifran desde el primer byte y no son web: FTPS implícito y el
+# correo con TLS implícito. No entran en _TLS_HYGIENE_PORTS porque esa lista
+# también decide qué se sondea por HTTP, y a un IMAP no se le habla HTTP; pero
+# su certificado se audita igual que el de un HTTPS.
+_IMPLICIT_TLS_NON_WEB_PORTS = {990} | _SMTP_IMPLICIT_TLS_PORTS | {993, 995}
+# Cómo llama cada protocolo al paso a TLS, para decirlo en el hallazgo.
+_STARTTLS_COMMANDS = {"ftp": "AUTH TLS", "smtp": "STARTTLS", "imap": "STARTTLS", "pop3": "STLS"}
 _SMB_SERVICE_NAMES = {"microsoft-ds", "netbios-ssn"}
 _SMB_PORTS = {139, 445}
 _MYSQL_SERVICE_NAMES = {"mysql"}
@@ -775,7 +811,21 @@ CHECK_CATEGORIES = (
     # no tiene host ni puerto: se declara o se descubre por OSINT, no se
     # encuentra escaneando.
     "cloud_exposure",
+    # Lo que un equipo cuenta de sí mismo sin credenciales: su nombre, el
+    # dominio al que pertenece. No es un riesgo sino contexto para el informe,
+    # y por eso es la única categoría de check que es un evento (sin ciclo de
+    # vida abierto/cerrado, ver EVENT_CHECK_CATEGORIES).
+    "host_identity",
 )
+
+#: Las categorías de check que describen el objetivo en vez de un problema: no
+#: tienen mapeo de cumplimiento ni se siguen como abiertas o corregidas entre
+#: escaneos.
+EVENT_CHECK_CATEGORIES = ("host_identity",)
+
+#: Un marcador ``{nombre}`` en el título de un check ``script``; lo rellena la
+#: evidencia del plugin.
+_TITLE_PLACEHOLDER_RE = re.compile(r"\{(\w+)\}")
 
 # Los tipos de matcher que ``Matcher._raw_match`` implementa. Cualquier otro
 # devuelve ``False`` sin decir nada, que en un matcher negativo significa
@@ -988,6 +1038,113 @@ def is_imap_service(service: Service) -> bool:
 def is_pop3_service(service: Service) -> bool:
     """Return whether a service should be probed by the POP3 dissector."""
     return (service.name or "").lower() in _POP3_SERVICE_NAMES or service.port in _POP3_PORTS
+
+
+def is_imap_starttls_service(service: Service) -> bool:
+    """Si el servicio es un IMAP que empieza en claro (y puede pasar a TLS con ``STARTTLS``).
+
+    Deja fuera el 993 y el nombre ``imaps``, que cifran desde el primer byte.
+
+    Args:
+        service: El servicio candidato.
+
+    Returns:
+        bool: ``True`` si es IMAP y no es IMAP con TLS implícito.
+    """
+    return (is_imap_service(service)
+            and service.port not in _IMAP_IMPLICIT_TLS_PORTS
+            and (service.name or "").lower() not in _IMPLICIT_TLS_MAIL_SERVICE_NAMES)
+
+
+def is_smtp_starttls_service(service: Service) -> bool:
+    """Si el servicio es un SMTP que empieza en claro (y puede pasar a TLS con ``STARTTLS``).
+
+    Deja fuera el 465 y el nombre ``smtps``, que cifran desde el primer byte.
+
+    Args:
+        service: El servicio candidato.
+
+    Returns:
+        bool: ``True`` si es SMTP y no es SMTP con TLS implícito.
+    """
+    return (is_smtp_service(service)
+            and service.port not in _SMTP_IMPLICIT_TLS_PORTS
+            and (service.name or "").lower() not in _IMPLICIT_TLS_MAIL_SERVICE_NAMES)
+
+
+def is_winrm_service(service: Service) -> bool:
+    """Si el servicio es WinRM sin TLS (el 5985, o un servicio etiquetado ``wsman``).
+
+    Args:
+        service: El servicio candidato.
+
+    Returns:
+        bool: ``True`` si el nombre o el puerto son los de WinRM en claro.
+    """
+    return (service.name or "").lower() in _WINRM_SERVICE_NAMES or service.port in _WINRM_PORTS
+
+
+def starttls_protocol_for(service: Service) -> Optional[str]:
+    """El protocolo en claro que hay que hablar con un servicio antes de pasar a TLS.
+
+    Es la única respuesta a «¿cómo llego al certificado de este servicio?»
+    para todo lo que cifra a mitad de sesión: la usan los checks de
+    certificado y el de versiones obsoletas de TLS.
+
+    Args:
+        service: El servicio candidato.
+
+    Returns:
+        Optional[str]: ``"ftp"``, ``"smtp"``, ``"imap"`` o ``"pop3"`` (las
+            claves que entiende ``TlsProbe``) si el servicio empieza en claro
+            y ofrece pasar a TLS; ``None`` si cifra desde el primer byte o no
+            es ninguno de esos protocolos.
+    """
+    if is_tls_service(service) or service.port in _IMPLICIT_TLS_NON_WEB_PORTS:
+        return None
+    if is_ftp_service(service):
+        return "ftp"
+    if is_smtp_starttls_service(service):
+        return "smtp"
+    if is_imap_starttls_service(service):
+        return "imap"
+    if is_pop3_starttls_service(service):
+        return "pop3"
+    return None
+
+
+def is_tls_certificate_service(service: Service) -> bool:
+    """Si el servicio presenta un certificado que merece auditarse.
+
+    Los web con TLS (:func:`is_tls_service`), los que cifran desde el primer
+    byte sin ser web (FTPS en 990, SMTP en 465, IMAP en 993, POP3 en 995) y
+    los que pasan a TLS a mitad de sesión (:func:`starttls_protocol_for`).
+
+    Args:
+        service: El servicio candidato.
+
+    Returns:
+        bool: ``True`` si merece un saludo TLS.
+    """
+    return (is_tls_service(service)
+            or service.port in _IMPLICIT_TLS_NON_WEB_PORTS
+            or starttls_protocol_for(service) is not None)
+
+
+def is_pop3_starttls_service(service: Service) -> bool:
+    """Si el servicio es un POP3 que empieza en claro (y puede pasar a TLS con ``STLS``).
+
+    Deja fuera el 995 y el nombre ``pop3s``, que cifran desde el primer byte.
+
+    Args:
+        service: El servicio candidato.
+
+    Returns:
+        bool: ``True`` si es POP3 y no es POP3 con TLS implícito.
+    """
+    return (is_pop3_service(service)
+            and service.port not in _POP3_IMPLICIT_TLS_PORTS
+            and (service.name or "").lower() not in _IMPLICIT_TLS_MAIL_SERVICE_NAMES)
 
 
 def is_smb_service(service: Service) -> bool:
@@ -1213,11 +1370,45 @@ _NETWORK_SERVICE_MATCHERS: Dict[str, Callable[[Service], bool]] = _network_servi
 # feed. Each takes the ``TlsInfo`` a probe returned (duck-typed — this module
 # never imports the fingerprint module, to avoid a checks<->fingerprint
 # import cycle) and decides whether the check fires.
+#: Tamaño mínimo de clave por tipo, en bits. RSA y DSA por debajo de 2048 ya
+#: no se aceptan para certificados (NIST SP 800-131A, requisitos del CA/B
+#: Forum); en curva elíptica, 256 es la P-256, la más pequeña que se emite.
+_MINIMUM_KEY_BITS = {"rsa": 2048, "dsa": 2048, "ec": 256}
+
+#: Resúmenes que ya no valen para firmar un certificado: se conocen colisiones
+#: prácticas de MD5 y de SHA-1, y los navegadores dejaron de aceptarlos.
+_WEAK_SIGNATURE_HASHES = frozenset({"md2", "md4", "md5", "sha1"})
+
+#: Días antes de caducar a partir de los cuales se avisa. Treinta es el margen
+#: habitual para renovar sin prisas, y el de las alertas de Let's Encrypt.
+_EXPIRY_WARNING_DAYS = 30
+
+
+def _has_weak_key(info) -> bool:
+    """Si la clave pública del certificado es más corta que el mínimo de su tipo."""
+    minimum_bits = _MINIMUM_KEY_BITS.get(getattr(info, "public_key_type", None))
+    bits = getattr(info, "public_key_bits", None)
+    return minimum_bits is not None and bits is not None and bits < minimum_bits
+
+
+def _has_weak_signature(info) -> bool:
+    """Si el certificado está firmado con un resumen obsoleto (MD5, SHA-1...)."""
+    return getattr(info, "signature_hash", None) in _WEAK_SIGNATURE_HASHES
+
+
+def _is_expiring_soon(info) -> bool:
+    """Si al certificado le quedan como mucho ``_EXPIRY_WARNING_DAYS`` días, sin haber caducado."""
+    return (not info.expired and info.days_until_expiry is not None
+            and info.days_until_expiry <= _EXPIRY_WARNING_DAYS)
+
+
 _TLS_RULES: Dict[str, Callable] = {
     "self_signed": lambda info: info.self_signed,
     "expired": lambda info: info.expired,
-    "expiring_soon": lambda info: not info.expired and info.days_until_expiry is not None and info.days_until_expiry <= 30,
+    "expiring_soon": _is_expiring_soon,
     "hostname_mismatch": lambda info: getattr(info, "is_name_mismatch", False),
+    "weak_key": _has_weak_key,
+    "weak_signature": _has_weak_signature,
 }
 
 
@@ -1406,7 +1597,7 @@ class CheckRuntime:
             ),
             _CheckFamily(
                 applies_to_service=lambda service: self._tls_fetch is not None and (
-                    is_tls_service(service) or is_ftp_service(service)),
+                    is_tls_certificate_service(service)),
                 check_matches=lambda check, service: self._applies_tls(check),
                 run_check=self._run_tls_check,
             ),
@@ -1746,12 +1937,12 @@ class CheckRuntime:
             return self._handshakes[key]
         if self._rl is not None:
             self._rl.acquire(host)
-        # Un FTP en claro cifra a mitad de sesión (AUTH TLS): su certificado,
-        # su versión y su cifrado se auditan igual que los de un HTTPS, pero
-        # hay que pedirlo primero. El 990 es FTPS implícito, TLS desde el
-        # primer byte.
-        if is_ftp_service(service) and not is_tls_service(service) and service.port != 990:
-            info = self._tls_fetch(host, service.port, starttls="ftp")
+        # FTP, SMTP, IMAP y POP3 en claro cifran a mitad de sesión: su
+        # certificado, su versión y su cifrado se auditan igual que los de un
+        # HTTPS, pero hay que pedir el paso a TLS primero.
+        starttls = starttls_protocol_for(service)
+        if starttls is not None:
+            info = self._tls_fetch(host, service.port, starttls=starttls)
         else:
             info = self._tls_fetch(host, service.port)
         self._handshakes[key] = info
@@ -1766,7 +1957,14 @@ class CheckRuntime:
         info = self._probe_handshake(host, service)
         if info is None or not _TLS_RULES[check.tls_rule](info):
             return None
-        return self._finding(check, service)
+        finding = self._finding(check, service)
+        starttls = starttls_protocol_for(service)
+        if starttls is not None:
+            # Que no se confunda con un HTTPS en el informe: este certificado
+            # es el de una conexión que empezó en claro.
+            finding["title"] += (f" (conexión {starttls.upper()} que empezó en claro y pasó "
+                                 f"a TLS con {_STARTTLS_COMMANDS[starttls]})")
+        return finding
 
     def _run_network_check(self, check: Check, host: str, service: Service) -> Optional[dict]:
         """Run one network check against one service, returning a finding if it fired.
@@ -1843,6 +2041,7 @@ class CheckRuntime:
         if not fired:
             return None
         finding = self._finding(check, service)
+        finding["title"] = render_title(finding["title"], context.evidence)
         if self._capture_evidence and finding.get("confirmed") and context.evidence:
             finding["_evidence"] = {"kind": "script", "payload": dict(context.evidence)}
         return finding
@@ -2143,6 +2342,25 @@ def _format_netloc(host: str, port: Optional[int]) -> str:
     return f"{netloc_host}:{port}" if port else netloc_host
 
 
+def render_title(title: str, evidence: Dict[str, object]) -> str:
+    """Rellena los marcadores ``{nombre}`` del título de un check con la evidencia del plugin.
+
+    Así un check ``script`` puede nombrar en su título lo que observó (el
+    nombre de un equipo, el dominio de un directorio) sin dejar de declararse
+    en el feed. Un marcador sin valor en la evidencia se deja tal cual, para
+    que el hueco se vea en vez de esconderse.
+
+    Args:
+        title: El título del feed, con o sin marcadores.
+        evidence: Lo que el plugin guardó en ``ScriptContext.evidence``.
+
+    Returns:
+        str: El título con cada marcador sustituido por el valor de su clave.
+    """
+    return _TITLE_PLACEHOLDER_RE.sub(
+        lambda match: str(evidence.get(match.group(1), match.group(0))), title)
+
+
 def _merge_repeated_headers(raw_headers) -> Dict[str, str]:
     """Aplana las cabeceras HTTP de una respuesta a ``Dict[str, str]`` sin perder repetidas.
 
@@ -2365,11 +2583,41 @@ class HttpProbe:
 #              exactly n bytes of payload. Any other first line (an error like
 #              "-NOAUTH ...", a simple "+OK") is returned as-is, because that
 #              *is* the whole reply.
-NETWORK_READ_MODES = ("line", "block", "resp-bulk")
+#   dot-terminated  La respuesta multilínea de POP3 (RFC 1939 §3): una línea
+#              "+OK" seguida de líneas de datos hasta una que es sólo ".". Si
+#              la primera línea no es "+OK" (un "-ERR"), la respuesta es esa
+#              línea sola, porque el servidor no manda nada más.
+NETWORK_READ_MODES = ("line", "block", "resp-bulk", "dot-terminated")
 
 # A status line whose code is followed by "-" instead of a space: the reply
 # continues on the next line (RFC 959 §4.2 for FTP, RFC 5321 §4.2 for SMTP).
 _STATUS_CONTINUATION_RE = re.compile(rb"^\d{3}-")
+
+
+def _read_dot_terminated(read_line: Callable[[], bytes], max_bytes: int) -> bytes:
+    """Lee una respuesta multilínea de POP3, hasta la línea que es sólo un punto.
+
+    Args:
+        read_line: Lee la siguiente línea de la sesión (LF incluido), o ``b""``
+            si el servidor cerró.
+        max_bytes: Tope de bytes a leer para la respuesta entera.
+
+    Returns:
+        bytes: La respuesta completa, línea final incluida; sólo la primera
+            línea si no empieza por ``+OK``, y lo que haya llegado si el
+            servidor cierra antes del punto o se alcanza ``max_bytes``.
+    """
+    reply = read_line()
+    if not reply.startswith(b"+OK"):
+        return reply
+    while len(reply) < max_bytes:
+        line = read_line()
+        if not line:
+            break
+        reply += line
+        if line.rstrip(b"\r\n") == b".":
+            break
+    return reply
 
 
 class NetworkSession:
@@ -2422,6 +2670,8 @@ class NetworkSession:
                 data = self._read_block()
             elif read == "resp-bulk":
                 data = self._read_resp_bulk()
+            elif read == "dot-terminated":
+                data = _read_dot_terminated(self._read_line, self._max_bytes)
             else:
                 data = self._read_line()
         except OSError as err:

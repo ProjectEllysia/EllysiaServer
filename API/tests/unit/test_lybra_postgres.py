@@ -307,3 +307,52 @@ def test_the_trust_check_is_registered_and_wired_to_its_feed_entry():
     assert check.severity == "CRITICAL" and check.mode == "safe"
     assert check.service == "postgres"
     assert check.script in default_script_plugins()
+
+
+# ========================= contraseña sin TLS (plugin de tipo script)
+
+
+class _EvidenceContext(_Context):
+    def __init__(self, port=5432):
+        super().__init__(port)
+        self.evidence = {}
+
+
+def _password_plugin(replies):
+    from src.modules.features.themis.lybra.script_checks import (
+        PostgresPasswordWithoutTlsPlugin,
+    )
+    probe, _sent = _probe_with(replies)
+    return PostgresPasswordWithoutTlsPlugin(probe=probe)
+
+
+@pytest.mark.parametrize("code, method", [(3, "password"), (5, "md5"), (10, "sasl")])
+def test_a_password_without_tls_is_flagged(code, method):
+    context = _EvidenceContext()
+    assert _password_plugin([b"N", _auth_response(code)]).run(context) is True
+    assert context.evidence == {"authMethod": method}
+
+
+@pytest.mark.parametrize("code", [3, 5, 10])
+def test_a_password_over_an_offered_tls_is_not_flagged(code):
+    """Señuelo: el mismo servidor, con TLS activo (contesta ``S``)."""
+    assert _password_plugin([b"S", _auth_response(code)]).run(_EvidenceContext()) is False
+
+
+def test_trust_is_left_to_its_own_check():
+    """Sin contraseña no hay contraseña en claro: ``trust`` lo avisa el otro check."""
+    assert _password_plugin([b"N", _auth_response(0)]).run(_EvidenceContext()) is False
+
+
+def test_an_unreadable_ssl_reply_is_not_flagged():
+    """``accepts_tls`` a ``None`` no es «rechaza TLS»: no se afirma lo que no se vio."""
+    assert _password_plugin([b"?", _auth_response(5)]).run(_EvidenceContext()) is False
+
+
+def test_the_password_check_is_registered_and_wired_to_its_feed_entry():
+    from src.modules.features.themis.lybra.checks import load_checks
+    from src.modules.features.themis.lybra.script_checks import default_script_plugins
+
+    check = next(c for c in load_checks() if c.id == "postgres-password-without-tls")
+    assert check.mode == "safe" and check.service == "postgres"
+    assert check.script in default_script_plugins()

@@ -28,6 +28,7 @@ from ...model import (
     ScanType,
 )
 from ...lybra import (
+    EVENT_CHECK_CATEGORIES,
     LybraEngine,
     Service,
     pinned_resolution,
@@ -347,7 +348,7 @@ class LybraEngineManager(ScanManager):
     # su momento y sólo aparece si el usuario pide el enriquecimiento en ese
     # escaneo, así que no pedirlo la vez siguiente no puede darlo por corregido.
     _EVENT_CATEGORIES = {"fingerprint", "surface_change", "scan_integrity", "virtual_host",
-                         "passive_exposure"}
+                         "passive_exposure", *EVENT_CHECK_CATEGORIES}
 
     def __init__(self, task_queue: ITaskQueue | None = None) -> None:
         super().__init__(task_queue)
