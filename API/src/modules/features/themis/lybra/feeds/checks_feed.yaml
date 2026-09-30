@@ -2965,3 +2965,91 @@ checks:
       title: Volcado de base de datos SQL expuesto bajo la raíz web
       qod: 99
       confirmed: true
+  # ---------------------------------------------------------------------------
+  # CORS (L106) — una web deja a cualquier otra web leer sus respuestas con la
+  # sesión del usuario. Sólo es grave cuando coinciden dos cosas a la vez:
+  # el origen se acepta sin restricción Y las credenciales (cookies de sesión)
+  # viajan con la petición. Aceptar cualquier origen sin credenciales es una
+  # configuración habitual —y no es, por sí sola, el hallazgo.
+  #
+  # El primer caso (comodín) es literal: ambas cabeceras en una sola
+  # respuesta. El segundo (reflejo) es el que motivó L103 — comparar dos
+  # respuestas en vez de un plugin script: se manda dos orígenes distintos y
+  # se comprueba que la cabecera de origen permitido refleja cada uno de los
+  # dos, con ``compare`` confirmando que de verdad cambió entre una petición y
+  # la otra.
+  - id: cors-wildcard-origin-with-credentials
+    version: 1
+    type: http
+    category: security_header
+    severity: HIGH
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /
+        headers:
+          Origin: 'https://lybra-cors-probe.invalid'
+        matchers-condition: and
+        matchers:
+          - type: word
+            part: header
+            words:
+              - 'access-control-allow-origin: *'
+          - type: word
+            part: header
+            words:
+              - 'access-control-allow-credentials: true'
+    finding:
+      title: 'CORS: comodín de origen (*) y credenciales permitidas a la vez'
+      qod: 99
+      confirmed: true
+  - id: cors-reflects-any-origin-with-credentials
+    version: 1
+    type: http
+    category: security_header
+    severity: HIGH
+    service: http
+    mode: safe
+    payloads:
+      originA:
+        - https://lybra-cors-probe-a.invalid
+      originB:
+        - https://lybra-cors-probe-b.invalid
+    requests:
+      - method: GET
+        path: /
+        headers:
+          Origin: '{{originA}}'
+        matchers-condition: and
+        matchers:
+          - type: word
+            part: header
+            words:
+              - 'access-control-allow-origin: {{originA}}'
+          - type: word
+            part: header
+            words:
+              - 'access-control-allow-credentials: true'
+      - method: GET
+        path: /
+        headers:
+          Origin: '{{originB}}'
+        matchers-condition: and
+        matchers:
+          - type: word
+            part: header
+            words:
+              - 'access-control-allow-origin: {{originB}}'
+          - type: word
+            part: header
+            words:
+              - 'access-control-allow-credentials: true'
+          - type: compare
+            part: header
+            against: 0
+            relation: differs
+    finding:
+      title: 'CORS: refleja cualquier origen con credenciales (Access-Control-Allow-Origin reflejado)'
+      qod: 99
+      confirmed: true
