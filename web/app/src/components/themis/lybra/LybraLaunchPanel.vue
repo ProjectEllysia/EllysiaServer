@@ -16,6 +16,8 @@
       <Transition name="pop"><span v-if="props.launched" class="engine-launched"><span class="pulse" aria-hidden="true"></span>{{ t('lybra.launch.running') }}</span></Transition>
     </div>
 
+    <p class="engine-hint">{{ t('lybra.launch.hint') }}</p>
+
     <!-- Campos según modo -->
     <div class="engine-fields">
       <div class="field-row">
@@ -216,7 +218,7 @@ function handleLaunch() {
 }
 
 /* ── Cabecera ── */
-.engine-head { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1rem; }
+.engine-head { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.7rem; }
 .engine-mark {
   width: 40px; height: 40px; border-radius: 50%;
   display: grid; place-items: center; flex-shrink: 0;
@@ -229,6 +231,7 @@ function handleLaunch() {
 .engine-eyebrow { font-family: var(--font-epic); font-size-adjust: var(--fsa-epic); font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.24em; text-transform: uppercase; color: var(--scope-tint); }
 .engine-title { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-weight: 600; font-size: var(--fs-xl); color: color-mix(in srgb, var(--text) 86%, var(--scope-tint)); }
 .engine-sub { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-style: italic; font-size: var(--fs-md); color: var(--text-muted); }
+.engine-hint { margin: 0 0 0.9rem; font-size: var(--fs-md); color: var(--text-dim); line-height: 1.45; max-width: 70ch; }
 .engine-launched { display: inline-flex; align-items: center; gap: 0.45rem; font-size: var(--fs-md); color: var(--success); background: var(--success-dim); padding: 0.2rem 0.6rem; border-radius: 6px; }
 .pulse { position: relative; width: 7px; height: 7px; border-radius: 50%; background: var(--success); }
 .pulse::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: var(--success); animation: pulse-ring 1.6s ease-out infinite; }

@@ -1559,6 +1559,7 @@
     "launch": {
       "title": "Motor Lybra",
       "subtitle": "Pesa cada amenaza antes de que golpee",
+      "hint": "Lybra mira un equipo por dentro de la red: descubre qué puertos tiene abiertos, qué servicio y qué versión hay detrás de cada uno, y los cruza con las vulnerabilidades conocidas y las malas configuraciones habituales. Solo analiza equipos que hayas autorizado antes en el registro.",
       "running": "Motor en marcha",
       "target": "Target (IP única)",
       "authorizedHint": "Está en tu registro de objetivos autorizados",

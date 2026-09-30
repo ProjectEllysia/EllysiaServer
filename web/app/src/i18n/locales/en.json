@@ -1559,6 +1559,7 @@
     "launch": {
       "title": "Lybra engine",
       "subtitle": "Weighs every threat before it strikes",
+      "hint": "Lybra looks at one machine on your network: it finds which ports are open, which service and version sit behind each one, and checks them against known vulnerabilities and common misconfigurations. It only analyses machines you have authorised first in the register.",
       "running": "Engine running",
       "target": "Target (single IP)",
       "authorizedHint": "It is in your register of authorized targets",
