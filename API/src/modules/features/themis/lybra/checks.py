@@ -26,6 +26,16 @@ expand a single check into several attempts, one per value substituted the
 same way, capped hard by ``lybra.engine.maxPayloadExpansions`` so a payload
 list never turns a check into a brute-force sweep.
 
+Para lo que consiste en **comparar dos respuestas** —repetir una petición
+cambiando un solo detalle y ver si el servicio contestó otra cosa, o si la
+respuesta repite lo que se mandó— no hace falta un plugin ``script`` por
+check: un matcher ``type: compare`` (``against`` = la petición anterior,
+``relation`` = ``same`` o ``differs``, ``part`` = lo que se compara) pone la
+respuesta actual frente a la de una petición anterior de la cadena, y los
+valores de cualquier matcher admiten ``{{nombre}}`` (un valor de ``payloads``
+de una sola opción hace de constante). El ``script`` queda para lo que ni el
+texto ni la comparación expresan: un protocolo binario, una negociación.
+
 The runtime is pure given an injected ``fetch`` callable, so it can be
 unit-tested with hand-crafted responses and never touches the network in tests.
 In production the manager wires the real :class:`HttpProbe`, and only when an
@@ -104,7 +114,9 @@ logger = logging.getLogger(__name__)
 # checks-38: páginas de error por defecto y trazas internas visibles.
 # checks-39: la respuesta de referencia del servicio («200 a todo»): un check de
 # ruta ya no dispara con una respuesta idéntica a la de una ruta inventada.
-CHECKS_FEED_VERSION = "lybra-checks-39"
+# checks-40: el matcher ``compare`` (una respuesta contra otra de la misma
+# cadena) y los marcadores ``{{nombre}}`` en los valores de un matcher.
+CHECKS_FEED_VERSION = "lybra-checks-40"
 # Quality of Detection for a finding a check actively confirmed, as opposed to
 # one merely inferred from a version.
 QOD_CONFIRMED = 99
@@ -289,40 +301,73 @@ class Matcher:
     ``negative`` is set, the sense is inverted — useful for asserting that
     something is *absent*, such as a missing security header.
 
+    Un matcher ``compare`` no busca nada fijo: pone la respuesta actual frente
+    a otra **anterior de la misma cadena** de peticiones, y dice si una
+    determinada parte de las dos es igual o distinta. Es lo que necesita un
+    check que repite una petición cambiando un solo detalle (una cabecera, un
+    parámetro) y quiere saber si el servicio contestó otra cosa.
+
+    Los valores de un matcher admiten marcadores ``{{nombre}}``, con las mismas
+    variables que la petición (las de un ``payloads`` o las que extrajo una
+    respuesta anterior). Es lo que deja preguntar «¿la respuesta repite lo que
+    yo mandé?» sin conocer de antemano lo que se mandó. En un ``regex`` el valor
+    sustituido se escapa: es un texto que se busca, no un patrón.
+
     Attributes:
-        type: The kind of test — ``"status"``, ``"word"`` or ``"regex"``.
-        part: Which part of the response to test — ``"body"``, ``"header"`` or
-            ``"status"``.
-        values: The status codes, words or patterns to test for.
+        type: The kind of test — ``"status"``, ``"word"``, ``"regex"`` or
+            ``"compare"``.
+        part: Which part of the response to test — ``"body"``, ``"header"``,
+            ``"status"``, ``"url"`` or ``"transport"``. En un ``compare``, la
+            parte que se compara en las dos respuestas.
+        values: The status codes, words or patterns to test for. Un
+            ``compare`` no los usa.
         negative: If ``True``, the match result is inverted.
+        against: Sólo para ``compare``: la posición (empezando en 0) de la
+            petición anterior de la misma cadena cuya respuesta se compara con
+            la actual. Ha de ser menor que la de la petición que lleva el
+            matcher.
+        relation: Sólo para ``compare``: ``"same"`` (la parte es idéntica en
+            las dos respuestas) o ``"differs"`` (no lo es). Por defecto
+            ``"differs"``.
     """
     type: str
     part: str = "body"
     values: tuple = ()
     negative: bool = False
+    against: Optional[int] = None
+    relation: str = "differs"
 
-    def matches(self, response: Response) -> bool:
+    def matches(self, response: Response, variables: Optional[Dict[str, str]] = None,
+                previous: Tuple[Response, ...] = ()) -> bool:
         """Return whether this matcher is satisfied by a response.
 
         Args:
-            resp: The response to test.
+            response: The response to test.
+            variables: Las variables ligadas en la cadena, para sustituir los
+                marcadores ``{{nombre}}`` de ``values``. Por defecto ninguna.
+            previous: Las respuestas anteriores de la cadena, por orden de
+                petición; sólo las lee un ``compare``. Por defecto ninguna.
 
         Returns:
             The test result, inverted if ``negative`` is set.
         """
-        result = self._raw_match(response)
+        result = self._raw_match(response, variables or {}, previous)
         return (not result) if self.negative else result
 
-    def _raw_match(self, response: Response) -> bool:
+    def _raw_match(self, response: Response, variables: Dict[str, str],
+                   previous: Tuple[Response, ...]) -> bool:
         """Run the matcher's test, before any ``negative`` inversion."""
+        if self.type == "compare":
+            return _compare_with_previous(self, response, previous)
         if self.type == "status":
             return response.status in {int(expected_status) for expected_status in self.values}
         text = self._part_text(response)
         if self.type == "word":
             low = text.lower()
-            return any(str(word).lower() in low for word in self.values)
+            return any(_substitute(str(word), variables).lower() in low for word in self.values)
         if self.type == "regex":
-            return any(re.search(str(pattern), text) for pattern in self.values)
+            return any(re.search(_substitute_escaped(str(pattern), variables), text)
+                       for pattern in self.values)
         return False
 
     def _part_text(self, response: Response) -> str:
@@ -367,6 +412,28 @@ def _part_text(response: Response, part: str) -> str:
     return response.body
 
 
+def _compare_with_previous(matcher: Matcher, response: Response,
+                           previous: Tuple[Response, ...]) -> bool:
+    """Compara la parte elegida de la respuesta actual con la de una anterior.
+
+    Args:
+        matcher: El matcher ``compare``; aporta ``part``, ``against`` y ``relation``.
+        response: La respuesta actual.
+        previous: Las respuestas anteriores de la cadena, por orden de petición.
+
+    Returns:
+        bool: Si ``relation`` es ``"same"``, si la parte es idéntica en las dos
+            respuestas; si es ``"differs"``, si no lo es. ``False`` cuando no hay
+            respuesta anterior en la posición ``against``: una comparación sin
+            con qué comparar no puede decir que algo sea igual ni distinto.
+    """
+    if matcher.against is None or not 0 <= matcher.against < len(previous):
+        return False
+    is_same = (_part_text(response, matcher.part)
+               == _part_text(previous[matcher.against], matcher.part))
+    return is_same if matcher.relation == "same" else not is_same
+
+
 # Un marcador de variable en el DSL: ``{{name}}``, la misma sintaxis que Nuclei,
 # con la que se aspira a mantener compatibilidad. El nombre admite letras,
 # dígitos, guion y guion bajo — lo justo para un identificador, sin abrir la
@@ -393,6 +460,23 @@ def _substitute(text: str, variables: Dict[str, str]) -> str:
     """
     return _VARIABLE_RE.sub(
         lambda match: variables.get(match.group(1), match.group(0)), text)
+
+
+def _substitute_escaped(pattern: str, variables: Dict[str, str]) -> str:
+    """Sustituye ``{{nombre}}`` en un patrón, escapando el valor como texto literal.
+
+    Args:
+        pattern: La expresión regular, con marcadores ``{{nombre}}``.
+        variables: Las variables ligadas.
+
+    Returns:
+        str: El patrón con cada marcador ligado reemplazado por su valor
+            escapado (``re.escape``); un marcador sin ligar se deja como está.
+    """
+    return _VARIABLE_RE.sub(
+        lambda match: re.escape(variables[match.group(1)])
+        if match.group(1) in variables else match.group(0),
+        pattern)
 
 
 @dataclass(frozen=True)
@@ -499,11 +583,16 @@ class Request:
     headers: tuple = ()
     extractors: tuple = ()
 
-    def evaluate(self, response: Response) -> bool:
+    def evaluate(self, response: Response, variables: Optional[Dict[str, str]] = None,
+                 previous: Tuple[Response, ...] = ()) -> bool:
         """Return whether this request's matchers are satisfied by a response.
 
         Args:
-            resp: The response to the request.
+            response: The response to the request.
+            variables: Las variables ligadas en la cadena (ver :class:`Matcher`).
+                Por defecto ninguna.
+            previous: Las respuestas de las peticiones anteriores de la cadena,
+                por orden. Por defecto ninguna.
 
         Returns:
             ``True`` if the matchers pass under the request's condition. A request
@@ -511,7 +600,7 @@ class Request:
         """
         if not self.matchers:
             return False
-        results = [matcher.matches(response) for matcher in self.matchers]
+        results = [matcher.matches(response, variables, previous) for matcher in self.matchers]
         return all(results) if self.condition == "and" else any(results)
 
 
@@ -693,6 +782,8 @@ def _parse_check(c: dict) -> Check:
                     part=matcher.get("part", "body"),
                     values=tuple(matcher.get("words") or matcher.get("regex") or matcher.get("value") or []),
                     negative=matcher.get("negative", False),
+                    against=matcher.get("against"),
+                    relation=matcher.get("relation", "differs"),
                 )
                 for matcher in request.get("matchers", [])
             ),
@@ -844,7 +935,10 @@ _TITLE_PLACEHOLDER_RE = re.compile(r"\{(\w+)\}")
 # Los tipos de matcher que ``Matcher._raw_match`` implementa. Cualquier otro
 # devuelve ``False`` sin decir nada, que en un matcher negativo significa
 # además lo contrario de lo que el autor quería.
-MATCHER_TYPES = ("status", "word", "regex")
+MATCHER_TYPES = ("status", "word", "regex", "compare")
+
+# Cómo compara un matcher ``compare`` las dos respuestas.
+COMPARE_RELATIONS = ("same", "differs")
 
 # Las partes de la respuesta que ``Matcher._part_text`` sabe leer. Una parte
 # desconocida cae en el defecto (``body``), así que un ``part: "headers"`` en
@@ -967,7 +1061,18 @@ def validate_checks(checks: Iterable[Check]) -> List[str]:  # pylint: disable=to
                     problems.append(f"{where}: matcher de tipo {matcher.type!r} desconocido")
                 if matcher.part not in MATCHER_PARTS:
                     problems.append(f"{where}: matcher sobre la parte {matcher.part!r}, que no existe")
-                if not matcher.values:
+                if matcher.type == "compare":
+                    if not isinstance(matcher.against, int) or isinstance(matcher.against, bool):
+                        problems.append(f"{where}: matcher 'compare' sin 'against' entero")
+                    elif not 0 <= matcher.against < position:
+                        problems.append(
+                            f"{where}: matcher 'compare' contra la petición {matcher.against}, "
+                            f"que no es anterior a ésta")
+                    if matcher.relation not in COMPARE_RELATIONS:
+                        problems.append(
+                            f"{where}: matcher 'compare' con relación {matcher.relation!r} desconocida "
+                            f"(disponibles: {', '.join(COMPARE_RELATIONS)})")
+                elif not matcher.values:
                     problems.append(f"{where}: matcher {matcher.type!r} sin valores que buscar")
             for extractor in request.extractors:
                 if not extractor.name:
@@ -1972,13 +2077,15 @@ class CheckRuntime:
         """
         variables = dict(variables)
         last: Optional[Tuple[Response, str]] = None
+        previous: List[Response] = []
         for request in check.requests:
             path = _substitute(request.path, variables)
             body = _substitute(request.body, variables) if request.body else None
             headers = {name: _substitute(value, variables) for name, value in request.headers} or None
             response = self._probe_response(host, service, request.method, path, body, headers)
-            if response is None or not request.evaluate(response):
+            if response is None or not request.evaluate(response, variables, tuple(previous)):
                 return None
+            previous.append(response)
             if check.guards_baseline and request.method == "GET" and path != "/":
                 # La referencia se pide sólo ahora, cuando una ruta ya iba a
                 # dar el check por disparado: los servicios que no coinciden
