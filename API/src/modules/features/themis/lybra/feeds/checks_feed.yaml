@@ -3147,3 +3147,15 @@ checks:
       title: Formulario de acceso servido por HTTP sin redirección a HTTPS
       qod: 99
       confirmed: true
+  - id: windows-shares-unauthenticated
+    version: 1
+    type: script
+    script: windows-shares-unauthenticated
+    category: exposed_service
+    severity: HIGH
+    service: smb
+    mode: safe
+    finding:
+      title: Carpetas compartidas de Windows visibles sin ninguna credencial
+      qod: 99
+      confirmed: true
