@@ -1,11 +1,13 @@
 <template>
   <div class="network">
-    <div class="engine-card">
+    <div class="engine-card" data-scope="network">
+      <ScopeMotif scope="network" :active="creating || isRiskLoading" />
       <div class="engine-head">
         <div class="engine-mark" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="5" cy="12" r="2.5"/><circle cx="19" cy="5" r="2.5"/><circle cx="19" cy="19" r="2.5"/><path d="M7.3 11 16.7 6M7.3 13l9.4 5"/></svg>
         </div>
         <div class="engine-title-wrap">
+          <span class="engine-eyebrow">{{ t('lybra.scopeEyebrow.network') }}</span>
           <span class="engine-title">{{ t('lybra.network.title') }}</span>
           <span class="engine-sub">{{ t('lybra.network.subtitle') }}</span>
         </div>
@@ -21,7 +23,10 @@
           <label for="group-cidr">{{ t('lybra.network.range') }}</label>
           <input id="group-cidr" v-model="cidr" class="mono" placeholder="10.0.0.0/24" autocomplete="off" spellcheck="false" />
         </div>
-        <button type="submit" class="btn-create" :disabled="creating || !canSubmit">{{ t('lybra.network.create') }}</button>
+        <button type="submit" class="btn-create" :class="{ loading: creating }" :disabled="creating || !canSubmit">
+          <span class="btn-nodes" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="5" cy="12" r="2.5"/><circle cx="19" cy="5" r="2.5"/><circle cx="19" cy="19" r="2.5"/><path d="M7.3 11 16.7 6M7.3 13l9.4 5"/></svg></span>
+          {{ t('lybra.network.create') }}
+        </button>
       </form>
       <p v-if="cidr.trim() && !isRangeValid" class="field-error">{{ t('lybra.network.rangeInvalid') }}</p>
     </div>
@@ -71,6 +76,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { classifyTarget } from '../lybra/targetShapes'
 import LateralRiskList from '../lybra/LateralRiskList.vue'
+import ScopeMotif from '../lybra/ScopeMotif.vue'
 
 const { t } = useI18n()
 
@@ -105,6 +111,9 @@ function submit() {
   })
 }
 
+/** Si algún grupo está calculando su riesgo lateral: el motor está trabajando. */
+const isRiskLoading = computed(() => Object.values(props.riskByScope).some(risk => risk?.loading))
+
 const openGroups = ref(new Set())
 
 /** Riesgo calculado de un grupo, o `null` si aún no se ha pedido. */
@@ -129,15 +138,17 @@ function toggle(groupId) {
   background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 220%);
   border: 1px solid var(--accent); border-radius: 12px; padding: 1.2rem 1.35rem;
   box-shadow: 0 0 0 1px var(--accent-dim), 0 12px 34px rgba(0,0,0,0.16);
+  position: relative; isolation: isolate; overflow: hidden;
 }
 .engine-head { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.7rem; }
 .engine-mark {
   width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0;
-  color: var(--accent-bright); background: var(--accent-dim); border: 1px solid var(--accent);
+  color: var(--scope-tint); background: var(--scope-tint-dim); border: 1px solid var(--scope-tint);
 }
 .engine-mark svg { width: 21px; height: 21px; }
 .engine-title-wrap { display: flex; flex-direction: column; min-width: 0; }
-.engine-title { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-size: var(--fs-xl); font-weight: 600; color: var(--text); }
+.engine-eyebrow { font-family: var(--font-epic); font-size-adjust: var(--fsa-epic); font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.24em; text-transform: uppercase; color: var(--scope-tint); }
+.engine-title { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-size: var(--fs-xl); font-weight: 600; color: color-mix(in srgb, var(--text) 86%, var(--scope-tint)); }
 .engine-sub { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-style: italic; font-size: var(--fs-md); color: var(--text-muted); }
 .engine-hint { margin: 0 0 0.9rem; font-size: var(--fs-md); color: var(--text-dim); line-height: 1.45; max-width: 70ch; }
 
@@ -154,7 +165,17 @@ function toggle(groupId) {
   padding: 0.55rem 1.1rem; background: var(--accent); border: 1px solid var(--accent); border-radius: 7px;
   color: var(--on-accent); font-size: var(--fs-btn); font-weight: 600; cursor: pointer; white-space: nowrap;
 }
+.btn-create { display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem; }
 .btn-create:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-create.loading:disabled { opacity: 0.85; cursor: progress; }
+.btn-nodes { display: grid; place-items: center; }
+.btn-nodes svg { width: 15px; height: 15px; }
+/* Los tres nodos del icono se encienden por turnos al pasar por encima y mientras se crea. */
+.btn-nodes circle { transform-box: fill-box; transform-origin: center; }
+.btn-create:hover:not(:disabled) .btn-nodes circle, .btn-create.loading .btn-nodes circle { animation: node-blink 1.2s ease-in-out infinite; }
+.btn-create:hover:not(:disabled) .btn-nodes circle:nth-child(2), .btn-create.loading .btn-nodes circle:nth-child(2) { animation-delay: 0.2s; }
+.btn-create:hover:not(:disabled) .btn-nodes circle:nth-child(3), .btn-create.loading .btn-nodes circle:nth-child(3) { animation-delay: 0.4s; }
+@keyframes node-blink { 0%, 60%, 100% { transform: scale(1); opacity: 1; } 30% { transform: scale(1.35); opacity: 0.55; } }
 .btn-create:focus-visible, .group-toggle:focus-visible, .icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .note { margin: 0; font-size: var(--fs-md); color: var(--text-muted); }
@@ -198,7 +219,7 @@ function toggle(groupId) {
   .group-tally { margin-left: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .spin { animation: none; }
+  .spin, .btn-nodes circle { animation: none !important; }
   .group, .chevron, .group-item-enter-active, .group-item-leave-active, .group-panel-enter-active, .group-panel-leave-active { transition: none; }
 }
 </style>

@@ -1,5 +1,6 @@
 <template>
-  <div class="engine-card">
+  <div class="engine-card" data-scope="hosts">
+    <ScopeMotif scope="hosts" :active="launched || launching" />
     <!-- Cabecera con identidad de motor -->
     <div class="engine-head">
       <div class="engine-mark" aria-hidden="true">
@@ -8,6 +9,7 @@
         </svg>
       </div>
       <div class="engine-title-wrap">
+        <span class="engine-eyebrow">{{ t('lybra.scopeEyebrow.hosts') }}</span>
         <span class="engine-title">{{ t('lybra.launch.title') }}</span>
         <span class="engine-sub">{{ t('lybra.launch.subtitle') }}</span>
       </div>
@@ -108,6 +110,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import ScopeMotif from './ScopeMotif.vue'
 import { classifyTarget } from './targetShapes'
 
 const { t } = useI18n()
@@ -209,6 +212,7 @@ function handleLaunch() {
   padding: 1.2rem 1.35rem;
   margin-bottom: 1.1rem;
   box-shadow: 0 0 0 1px var(--accent-dim), 0 12px 34px rgba(0,0,0,0.16);
+  position: relative; isolation: isolate; overflow: hidden;
 }
 
 /* ── Cabecera ── */
@@ -216,13 +220,14 @@ function handleLaunch() {
 .engine-mark {
   width: 40px; height: 40px; border-radius: 50%;
   display: grid; place-items: center; flex-shrink: 0;
-  color: var(--accent-bright);
-  background: var(--accent-dim);
-  border: 1px solid var(--accent);
+  color: var(--scope-tint);
+  background: var(--scope-tint-dim);
+  border: 1px solid var(--scope-tint);
 }
 .engine-mark svg { width: 21px; height: 21px; }
 .engine-title-wrap { display: flex; flex-direction: column; gap: 0.05rem; margin-right: auto; }
-.engine-title { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-weight: 600; font-size: var(--fs-xl); color: var(--text); }
+.engine-eyebrow { font-family: var(--font-epic); font-size-adjust: var(--fsa-epic); font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.24em; text-transform: uppercase; color: var(--scope-tint); }
+.engine-title { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-weight: 600; font-size: var(--fs-xl); color: color-mix(in srgb, var(--text) 86%, var(--scope-tint)); }
 .engine-sub { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-style: italic; font-size: var(--fs-md); color: var(--text-muted); }
 .engine-launched { display: inline-flex; align-items: center; gap: 0.45rem; font-size: var(--fs-md); color: var(--success); background: var(--success-dim); padding: 0.2rem 0.6rem; border-radius: 6px; }
 .pulse { position: relative; width: 7px; height: 7px; border-radius: 50%; background: var(--success); }

@@ -1277,6 +1277,30 @@ Tampoco decide el idioma de quien llega sin sesión: la interfaz arranca en el �
 en ese dispositivo, o en castellano, no en el del navegador. Eso afecta sobre todo al quiz público de
 Aegis, cuyo destinatario no tiene cuenta.
 
+### 12.6 Registro: pragmático dentro de la herramienta, prosa solo en la zona pública
+
+El estilo de un texto depende de dónde está. La **zona pública** (portada, hubs de módulo, páginas
+legales) sirve para llamar la atención, y ahí caben la prosa cuidada, los eslóganes y las frases con
+gancho («Pesa cada amenaza antes de que golpee»). Las **pestañas de trabajo** —donde el usuario ya
+está dentro y viene a hacer algo— no: ahí el texto informa y se aparta.
+
+- **Subtítulo, leyenda o texto de ayuda de una herramienta:** una frase que diga **qué hace**, con
+  verbo y sin metáfora. «Analiza los puertos y servicios de un equipo autorizado y señala lo que es
+  vulnerable», no «Pesa cada amenaza antes de que golpee». Quien llega a la pantalla por primera vez
+  tiene que entender qué va a pasar al pulsar el botón; el eslogan no se lo dice.
+- **Una línea.** Si hace falta más, es un párrafo de ayuda que estorba a quien ya conoce la
+  herramienta; se recorta, o baja a una segunda capa ([§ 12.3](#123-el-detalle-técnico-en-segunda-capa)).
+  Una herramienta cuyo concepto es nuevo para el usuario (declarar recursos, agrupar por rango) puede
+  llevar debajo un párrafo que lo explique; una cuyo formulario se explica solo, no.
+- **Nada de tono épico o literario** en botones, estados vacíos, avisos ni títulos de sección:
+  «Emitir veredicto» puede ser el nombre de una acción ya establecida, pero una frase nueva se
+  escribe como «Analizar». El nombre de la herramienta y sus rótulos de sección pueden conservar su
+  carácter; la prosa que los acompaña, no.
+- **Un texto no repite lo que la pantalla ya muestra** (un sello de «Autorizado» junto al campo, un
+  contador, un estado): sobra.
+
+Como el resto de la sección, la aplica la revisión y no un test ([§ 12.4](#124-qué-queda-fuera)).
+
 ---
 
 ## 13. Errores que llegan al cliente
