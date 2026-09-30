@@ -1834,6 +1834,66 @@ def _find_ldap_port(sibling_services) -> Optional[int]:
     return candidates[0] if candidates else None
 
 
+class WindowsSharesUnauthenticatedPlugin(ScriptPlugin):
+    """Detecta carpetas compartidas de Windows visibles sin ninguna credencial.
+
+    Lista las carpetas con el cliente mínimo de llamadas remotas de Windows
+    (:func:`~.fingerprinting.windows_rpc.fetch_shares`), con una sesión
+    anónima — nunca una credencial real. El hallazgo es que la **lista de
+    nombres** es visible sin autenticar, no lo que hay dentro de cada una:
+    este plugin nunca abre ni lee el contenido de ninguna carpeta.
+
+    **Las compartidas administrativas no cuentan.** ``ADMIN$``, ``C$``,
+    ``IPC$``… existen por defecto en cualquier Windows, se listen o no, así
+    que su sola presencia no dice nada sobre este equipo en particular —
+    dispararía en todos. La evidencia tiene que ser una carpeta real
+    (``ShareInfo.is_hidden`` es ``False``): la que alguien creó a propósito y
+    dejó visible sin restringir el acceso.
+
+    Args:
+        fetch_shares: La función que lista las carpetas, inyectable para que
+            un test no abra conexiones. Por defecto,
+            :func:`~.fingerprinting.windows_rpc.fetch_shares`.
+    """
+
+    plugin_id = "windows-shares-unauthenticated"
+
+    def __init__(self, fetch_shares: Optional[Callable] = None) -> None:
+        self._fetch_shares = fetch_shares or windows_rpc.fetch_shares
+
+    def applies(self, service: Service) -> bool:
+        """Si el servicio es SMB.
+
+        Args:
+            service: El servicio candidato.
+
+        Returns:
+            bool: ``True`` para los servicios que reclama ``is_smb_service``.
+        """
+        return is_smb_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        """Lista las carpetas compartidas y dispara si alguna no es administrativa.
+
+        Args:
+            context: El contexto del check; su control de tasa se consulta
+                antes de la llamada.
+
+        Returns:
+            bool: ``True`` si al menos una carpeta real (no administrativa)
+                es visible sin credenciales; ``False`` si la lista viene
+                vacía, si el equipo no permitió la sesión anónima, o si sólo
+                aparecen compartidas administrativas.
+        """
+        context.acquire()
+        shares = self._fetch_shares(context.target, context.service.port or 445)
+        visible = [share.name for share in shares if not share.is_hidden]
+        if not visible:
+            return False
+        context.evidence.update({"shares": visible})
+        return True
+
+
 class DomainControllerRpcSurfaceExposedPlugin(ScriptPlugin):
     """Detecta un controlador de dominio con el spooler o el localizador de RPC expuestos.
 
@@ -1936,7 +1996,6 @@ class DomainControllerRpcSurfaceExposedPlugin(ScriptPlugin):
         context.evidence.update({"exposedSurfaces": exposed})
         return True
 
-
 def default_script_plugins() -> Dict[str, ScriptPlugin]:
     """Construye el registro de plugins de primera parte, indexado por ``plugin_id``.
 
@@ -1966,6 +2025,7 @@ def default_script_plugins() -> Dict[str, ScriptPlugin]:
         TlsIncompleteCertificateChainPlugin(),
         TlsWeakKeyExchangeGroupPlugin(),
         SourceMapExposedPlugin(),
+        WindowsSharesUnauthenticatedPlugin(),
         DomainControllerRpcSurfaceExposedPlugin(),
         VncNoAuthenticationPlugin(),
         IkeWeakTransformPlugin(),

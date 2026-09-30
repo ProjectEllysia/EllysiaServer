@@ -114,8 +114,10 @@ logger = logging.getLogger(__name__)
 # checks-38: páginas de error por defecto y trazas internas visibles.
 # checks-39: la respuesta de referencia del servicio («200 a todo»): un check de
 # ruta ya no dispara con una respuesta idéntica a la de una ruta inventada.
-# checks-46: el spooler de impresión o el localizador de RPC accesibles desde
+# checks-47: el spooler de impresión o el localizador de RPC accesibles desde
 # la red en un controlador de dominio (L111, sobre L105).
+# checks-46: carpetas compartidas de Windows visibles sin credenciales
+# (L110, sobre el cliente mínimo de llamadas remotas de L105).
 # checks-45: mapas de código fuente publicados junto al JavaScript propio del
 # sitio, con su propia respuesta de referencia (un plugin script no tiene
 # acceso a la del runtime).
@@ -130,7 +132,7 @@ logger = logging.getLogger(__name__)
 # rastreo descubrió (``onDiscoveredDirectories``).
 # checks-40: el matcher ``compare`` (una respuesta contra otra de la misma
 # cadena) y los marcadores ``{{nombre}}`` en los valores de un matcher.
-CHECKS_FEED_VERSION = "lybra-checks-46"
+CHECKS_FEED_VERSION = "lybra-checks-47"
 # Quality of Detection for a finding a check actively confirmed, as opposed to
 # one merely inferred from a version.
 QOD_CONFIRMED = 99
