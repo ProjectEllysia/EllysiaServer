@@ -36,7 +36,7 @@
             </button>
           </Transition>
         </div>
-        <p v-if="domain.trim() && !isDomainValid" class="field-error">{{ t('lybra.cloud.domainInvalid') }}</p>
+        <Transition name="panel-slide"><p v-if="domain.trim() && !isDomainValid" class="field-error">{{ t('lybra.cloud.domainInvalid') }}</p></Transition>
       </div>
 
       <label class="check">
@@ -69,7 +69,7 @@
             autocomplete="off" spellcheck="false" @keyup.enter="addResource" />
           <button type="button" class="btn-add" :disabled="!isNewResourceValid" @click="addResource">{{ t('lybra.launch.add') }}</button>
         </div>
-        <p v-if="newResource.trim() && !isNewResourceValid" class="field-error">{{ t('lybra.cloud.resourceInvalid') }}</p>
+        <Transition name="panel-slide"><p v-if="newResource.trim() && !isNewResourceValid" class="field-error">{{ t('lybra.cloud.resourceInvalid') }}</p></Transition>
         <TransitionGroup v-if="resources.length" tag="ul" name="chip-item" class="resource-list">
           <li v-for="resource in resources" :key="resource" class="resource">
             <span class="resource-provider">{{ t(`lybra.cloud.providers.${cloudProviderKey(resource)}`) }}</span>
@@ -83,7 +83,7 @@
         <p v-else class="field-hint">{{ t('lybra.cloud.noResources') }}</p>
       </div>
 
-      <Transition name="fade-swap">
+      <Transition name="panel-slide">
         <p v-if="hasMissingAuthorization" class="auth-hint">{{ t('lybra.cloud.missingHint') }}</p>
       </Transition>
 
@@ -187,6 +187,7 @@ function handleLaunch() {
   border: 1px solid var(--accent); border-radius: 12px; padding: 1.2rem 1.35rem; margin-bottom: 1.1rem;
   box-shadow: 0 0 0 1px var(--accent-dim), 0 12px 34px rgba(0,0,0,0.16);
   position: relative; isolation: isolate; overflow: hidden;
+  animation: seq-fade-up 0.4s ease-out backwards;
 }
 .engine-head { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.7rem; }
 .engine-mark {
@@ -199,8 +200,10 @@ function handleLaunch() {
 .engine-title { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-size: var(--fs-xl); font-weight: 600; color: var(--text); }
 .engine-sub { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-style: italic; font-size: var(--fs-md); color: var(--text-muted); }
 .engine-launched { margin-left: auto; display: inline-flex; align-items: center; gap: 0.4rem; font-size: var(--fs-md); color: var(--accent-bright); }
-.pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-bright); animation: pulse 1.4s ease-in-out infinite; }
-@keyframes pulse { 50% { opacity: 0.3; } }
+/* Mismo anillo que el aviso de LybraLaunchPanel.vue: el motor está trabajando. */
+.pulse { position: relative; width: 8px; height: 8px; border-radius: 50%; background: var(--accent-bright); }
+.pulse::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: var(--accent-bright); animation: pulse-ring 1.6s ease-out infinite; }
+@keyframes pulse-ring { from { transform: scale(1); opacity: 0.6; } to { transform: scale(2.6); opacity: 0; } }
 .engine-hint { margin: 0 0 0.9rem; font-size: var(--fs-md); color: var(--text-dim); line-height: 1.45; max-width: 70ch; }
 
 .engine-fields { display: flex; flex-direction: column; gap: 0.8rem; }
@@ -210,7 +213,8 @@ function handleLaunch() {
   width: 100%; box-sizing: border-box; padding: 0.5rem 0.7rem; background: var(--surface-2);
   border: 1px solid var(--border-solid); border-radius: 7px; color: var(--text); font-size: var(--fs-input); outline: none;
 }
-.field input:focus { border-color: var(--accent); }
+.field input, .resource-add input { transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+.field input:focus, .resource-add input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
 .field-error { margin: 0; font-size: var(--fs-sm); color: var(--danger); }
 .field-hint { margin: 0; font-size: var(--fs-sm); color: var(--text-muted); }
 
@@ -222,6 +226,9 @@ function handleLaunch() {
 }
 .target-seal svg { width: 13px; height: 13px; }
 .target-seal.ok { color: var(--success); background: var(--success-dim); }
+/* El sello se estampa al pasar a «autorizado»: cae desde algo más grande y rebota. */
+.target-seal.ok, .resource-seal.ok { animation: seal-stamp 0.42s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes seal-stamp { from { transform: scale(1.5) rotate(-6deg); opacity: 0; } to { transform: scale(1) rotate(0); opacity: 1; } }
 .target-seal.missing { color: var(--warn); background: var(--warn-dim); border-color: var(--warn); cursor: pointer; }
 .target-seal.missing:hover { background: var(--warn); color: var(--on-accent); }
 
@@ -241,7 +248,9 @@ function handleLaunch() {
   padding: 0.4rem 0.9rem; background: var(--surface-2); border: 1px solid var(--accent); color: var(--accent-bright);
   font-size: var(--fs-md); font-weight: 600; border-radius: 7px; cursor: pointer; white-space: nowrap;
 }
+.btn-add { transition: background 0.2s ease, transform 0.12s ease; }
 .btn-add:hover:not(:disabled) { background: var(--accent-dim); }
+.btn-add:active:not(:disabled), .btn-launch:active:not(:disabled) { transform: scale(0.96); }
 .btn-add:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .resource-list { position: relative; list-style: none; margin: 0.2rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
@@ -290,10 +299,16 @@ function handleLaunch() {
 .pop-enter-from, .pop-leave-to { opacity: 0; transform: scale(0.9); }
 .fade-swap-enter-active, .fade-swap-leave-active { transition: opacity 0.15s ease; }
 .fade-swap-enter-from, .fade-swap-leave-to { opacity: 0; }
-.chip-item-enter-active { transition: opacity 0.25s ease, transform 0.25s ease; }
-.chip-item-enter-from { opacity: 0; transform: translateY(-3px); }
-.chip-item-leave-active { transition: opacity 0.15s ease; position: absolute; inset-inline: 0; }
-.chip-item-leave-to { opacity: 0; }
+.chip-item-enter-active { transition: opacity 0.25s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); animation: chip-flash 0.9s ease-out; }
+.chip-item-enter-from { opacity: 0; transform: translateY(-6px) scale(0.96); }
+.chip-item-leave-active { transition: opacity 0.15s ease, transform 0.15s ease; position: absolute; inset-inline: 0; }
+.chip-item-leave-to { opacity: 0; transform: translateX(12px); }
+.chip-item-move { transition: transform 0.25s ease; }
+@keyframes chip-flash { from { background: var(--accent-dim); border-color: var(--accent); } }
+/* Avisos y errores se despliegan con su altura, en vez de aparecer de golpe. */
+.panel-slide-enter-active, .panel-slide-leave-active { transition: max-height 0.25s ease, opacity 0.2s ease, margin 0.25s ease, padding 0.25s ease; overflow: hidden; }
+.panel-slide-enter-from, .panel-slide-leave-to { max-height: 0; opacity: 0; margin-top: -0.4rem; padding-top: 0; padding-bottom: 0; }
+.panel-slide-enter-to, .panel-slide-leave-from { max-height: 8rem; opacity: 1; }
 
 @media (max-width: 640px) {
   .engine-card { padding: 1rem; }
@@ -303,8 +318,10 @@ function handleLaunch() {
   .known { flex-direction: column; align-items: stretch; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .pulse, .btn-cloud svg { animation: none !important; }
+  .pulse::after, .btn-cloud svg { animation: none !important; }
   .pop-enter-active, .pop-leave-active, .fade-swap-enter-active, .fade-swap-leave-active,
-  .chip-item-enter-active, .chip-item-leave-active, .btn-launch { transition: none; }
+  .chip-item-enter-active, .chip-item-leave-active, .chip-item-move, .panel-slide-enter-active, .panel-slide-leave-active,
+  .btn-launch, .btn-add, .field input, .resource-add input { transition: none !important; }
+  .engine-card, .target-seal.ok, .resource-seal.ok, .chip-item-enter-active { animation: none !important; }
 }
 </style>
