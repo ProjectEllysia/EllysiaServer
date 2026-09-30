@@ -31,14 +31,18 @@ from __future__ import annotations
 
 import logging
 import re
+import urllib.parse
 from typing import Dict, List, Optional, Tuple
 
 from cryptography import x509
 from cryptography.exceptions import UnsupportedAlgorithm
 
 from .checks import (
+    Baseline,
     HttpProbe,
     Response,
+    baseline_path,
+    is_http_service,
     is_ike_service,
     ScriptContext,
     ScriptPlugin,
@@ -1654,6 +1658,164 @@ class TlsWeakKeyExchangeGroupPlugin(ScriptPlugin):
         return True
 
 
+# La cabecera de un ``<script src="...">``, para descubrir qué JavaScript sirve
+# la página sin ejecutar nada. Simple a propósito — es un descubridor de
+# rutas, no un navegador — igual que el ``_HREF_RE`` del rastreador.
+_SCRIPT_SRC_RE = re.compile(r"""<script\b[^>]*\bsrc\s*=\s*["\']([^"\'#\s]+)["\']""", re.IGNORECASE)
+
+# El comentario que enlaza un JavaScript minificado con su mapa de código
+# fuente (fuente: la especificación del propio formato, "Source Map Revision
+# 3"). ``//#`` es la forma moderna; ``//@`` es la que usaron las primeras
+# herramientas y algunas todavía emiten.
+_SOURCE_MAPPING_URL_RE = re.compile(r"//[#@]\s*sourceMappingURL=(\S+)")
+
+# Cuántos ficheros JavaScript de la portada se llegan a pedir, como mucho: un
+# tope barato para no convertir este check en un rastreo del sitio entero.
+_MAX_SCRIPTS_CHECKED = 8
+
+# Lo que distingue a un mapa de código fuente real de una página de error que
+# por casualidad contesta 200 (formato "Source Map Revision 3": ambas claves
+# son obligatorias en todo mapa válido).
+_SOURCE_MAP_MARKERS = ('"mappings"', '"sources"')
+
+
+def _reference_response(probe: HttpProbe, target: str, port: int) -> Optional[Baseline]:
+    """La respuesta de un servicio HTTP a una ruta que con toda seguridad no existe.
+
+    Función de módulo y no método: no toca más estado que la sonda que recibe
+    por parámetro (CONVENCIONES.md §5.1) — la usa
+    :class:`SourceMapExposedPlugin`, una sola vez por ejecución.
+
+    Args:
+        probe: La sonda HTTP con la que pedir la ruta.
+        target: El objetivo.
+        port: El puerto del servicio HTTP.
+
+    Returns:
+        Optional[Baseline]: La referencia, o ``None`` si el servicio no
+            contestó — sin referencia no se descarta nada.
+    """
+    path = baseline_path()
+    response = probe.fetch(target, port, "GET", path)
+    return None if response is None else Baseline.from_response(path, response)
+
+
+def _same_origin_script_urls(base_path: str, body: str) -> List[str]:
+    """Las rutas de los ``<script src="...">`` de una página, del mismo origen.
+
+    Un ``src`` absoluto a otro host (``https://cdn.terceros.test/x.js``) se
+    descarta: este check sólo audita el JavaScript propio del sitio, nunca el
+    de un tercero. Uno relativo se resuelve contra la ruta de la página.
+
+    Args:
+        base_path: La ruta de la página que se acaba de leer.
+        body: Su cuerpo HTML.
+
+    Returns:
+        List[str]: Las rutas, sin repetir, en el orden en que aparecen.
+    """
+    urls: List[str] = []
+    for raw in _SCRIPT_SRC_RE.findall(body):
+        split = urllib.parse.urlsplit(raw)
+        if split.netloc:
+            continue
+        resolved = urllib.parse.urljoin(base_path, split.path)
+        if resolved and resolved not in urls:
+            urls.append(resolved)
+    return urls
+
+
+class SourceMapExposedPlugin(ScriptPlugin):
+    """Detecta un mapa de código fuente publicado junto a un JavaScript minificado.
+
+    Una herramienta de empaquetado suele generar, junto al JavaScript que de
+    verdad sirve al navegador, un "mapa de código fuente": un fichero que
+    traduce ese código minificado de vuelta al original, con nombres de
+    variables y comentarios — pensado para depurar en desarrollo. Si se
+    publica por error en producción, regala el código fuente completo del
+    frontend: lógica de negocio, rutas internas de la API y, a veces, una
+    credencial que alguien dejó como constante pensando que sólo existiría
+    minificada.
+
+    El propio JavaScript delata el mapa: termina con un comentario
+    ``//# sourceMappingURL=archivo.js.map`` que el navegador usa para
+    encontrarlo al depurar. Este check lee esa referencia y comprueba si el
+    fichero al que apunta existe y de verdad tiene forma de mapa — no basta
+    con que conteste 200, porque un sitio que contesta 200 a cualquier ruta
+    "tendría" un mapa en todas partes (de ahí la referencia propia, igual que
+    L102: no se puede usar la de ``CheckRuntime`` porque un plugin ``script``
+    no tiene acceso al runtime que lo invoca).
+
+    Args:
+        probe: Sonda HTTP inyectable, para que un test no abra conexiones.
+            Por defecto, ``HttpProbe()``.
+    """
+
+    plugin_id = "source-map-exposed"
+
+    def __init__(self, probe: Optional[HttpProbe] = None) -> None:
+        self._probe = probe or HttpProbe()
+
+    def applies(self, service: Service) -> bool:
+        """Si el servicio habla HTTP.
+
+        Args:
+            service: El servicio candidato.
+
+        Returns:
+            bool: ``True`` para los servicios que reclama ``is_http_service``.
+        """
+        return is_http_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        """Lee la portada, sigue sus scripts propios y comprueba su mapa de código fuente.
+
+        Args:
+            context: El contexto del check; su control de tasa se consulta
+                antes de cada petición.
+
+        Returns:
+            bool: ``True`` en el primer mapa que se encuentra publicado y con
+                forma de mapa real; ``False`` si ninguno de los scripts
+                examinados referencia uno, si el que referencian no existe, o
+                si la respuesta es la genérica de un sitio que contesta 200 a
+                todo.
+        """
+        port = context.service.port or 80
+        context.acquire()
+        page = self._probe.fetch(context.target, port, "GET", "/")
+        if page is None:
+            return False
+        reference: Optional[Baseline] = None
+        for script_path in _same_origin_script_urls("/", page.body or "")[:_MAX_SCRIPTS_CHECKED]:
+            context.acquire()
+            script = self._probe.fetch(context.target, port, "GET", script_path)
+            if script is None or script.status != 200:
+                continue
+            match = _SOURCE_MAPPING_URL_RE.search(script.body or "")
+            if not match:
+                continue
+            map_path = urllib.parse.urljoin(script_path, match.group(1))
+            if urllib.parse.urlsplit(map_path).netloc:
+                continue                                  # el mapa apunta a otro origen
+            context.acquire()
+            map_response = self._probe.fetch(context.target, port, "GET", map_path)
+            if map_response is None or map_response.status != 200:
+                continue
+            if not all(marker in map_response.body for marker in _SOURCE_MAP_MARKERS):
+                continue
+            if reference is None:
+                # Una sola vez por ejecución del plugin (el primer mapa que
+                # parece real la dispara; los siguientes candidatos la
+                # reutilizan), no una vez por script examinado.
+                reference = _reference_response(self._probe, context.target, port)
+            if reference is not None and reference.resembles(map_response, map_path):
+                continue
+            context.evidence.update({"scriptPath": script_path, "sourceMapPath": map_path})
+            return True
+        return False
+
+
 def default_script_plugins() -> Dict[str, ScriptPlugin]:
     """Construye el registro de plugins de primera parte, indexado por ``plugin_id``.
 
@@ -1682,6 +1844,7 @@ def default_script_plugins() -> Dict[str, ScriptPlugin]:
         TelnetEnabledPlugin(),
         TlsIncompleteCertificateChainPlugin(),
         TlsWeakKeyExchangeGroupPlugin(),
+        SourceMapExposedPlugin(),
         VncNoAuthenticationPlugin(),
         IkeWeakTransformPlugin(),
         TcpTimestampsPlugin(),
