@@ -3159,3 +3159,15 @@ checks:
       title: Mapa de código fuente publicado junto a un JavaScript de producción
       qod: 99
       confirmed: true
+  - id: windows-shares-unauthenticated
+    version: 1
+    type: script
+    script: windows-shares-unauthenticated
+    category: exposed_service
+    severity: HIGH
+    service: smb
+    mode: safe
+    finding:
+      title: Carpetas compartidas de Windows visibles sin ninguna credencial
+      qod: 99
+      confirmed: true
