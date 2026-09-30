@@ -114,6 +114,9 @@ logger = logging.getLogger(__name__)
 # checks-38: páginas de error por defecto y trazas internas visibles.
 # checks-39: la respuesta de referencia del servicio («200 a todo»): un check de
 # ruta ya no dispara con una respuesta idéntica a la de una ruta inventada.
+# checks-45: mapas de código fuente publicados junto al JavaScript propio del
+# sitio, con su propia respuesta de referencia (un plugin script no tiene
+# acceso a la del runtime).
 # checks-44: lo que el rastreo descubre navegando (copias de backup junto a un
 # directorio real, listado de directorios, formularios de acceso por HTTP)
 # alimenta a checks concretos, con ``onDiscoveredPaths`` como mecanismo nuevo.
@@ -125,7 +128,7 @@ logger = logging.getLogger(__name__)
 # rastreo descubrió (``onDiscoveredDirectories``).
 # checks-40: el matcher ``compare`` (una respuesta contra otra de la misma
 # cadena) y los marcadores ``{{nombre}}`` en los valores de un matcher.
-CHECKS_FEED_VERSION = "lybra-checks-44"
+CHECKS_FEED_VERSION = "lybra-checks-45"
 # Quality of Detection for a finding a check actively confirmed, as opposed to
 # one merely inferred from a version.
 QOD_CONFIRMED = 99

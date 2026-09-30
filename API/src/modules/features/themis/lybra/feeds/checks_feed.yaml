@@ -3147,3 +3147,15 @@ checks:
       title: Formulario de acceso servido por HTTP sin redirección a HTTPS
       qod: 99
       confirmed: true
+  - id: source-map-exposed
+    version: 1
+    type: script
+    script: source-map-exposed
+    category: exposed_path
+    severity: MEDIUM
+    service: http
+    mode: safe
+    finding:
+      title: Mapa de código fuente publicado junto a un JavaScript de producción
+      qod: 99
+      confirmed: true
