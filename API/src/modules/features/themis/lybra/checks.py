@@ -116,6 +116,8 @@ logger = logging.getLogger(__name__)
 # ruta ya no dispara con una respuesta idéntica a la de una ruta inventada.
 # checks-47: el spooler de impresión o el localizador de RPC accesibles desde
 # la red en un controlador de dominio (L111, sobre L105).
+# checks-48: Nomad y Portainer en el mapa de APIs de administración sin
+# autenticar (L112), con su comprobación de exposición cada uno.
 # checks-46: carpetas compartidas de Windows visibles sin credenciales
 # (L110, sobre el cliente mínimo de llamadas remotas de L105).
 # checks-45: mapas de código fuente publicados junto al JavaScript propio del
@@ -132,7 +134,7 @@ logger = logging.getLogger(__name__)
 # rastreo descubrió (``onDiscoveredDirectories``).
 # checks-40: el matcher ``compare`` (una respuesta contra otra de la misma
 # cadena) y los marcadores ``{{nombre}}`` en los valores de un matcher.
-CHECKS_FEED_VERSION = "lybra-checks-47"
+CHECKS_FEED_VERSION = "lybra-checks-48"
 # Quality of Detection for a finding a check actively confirmed, as opposed to
 # one merely inferred from a version.
 QOD_CONFIRMED = 99
@@ -181,12 +183,25 @@ _ETCD_SERVICE_NAMES = {"etcd"}
 _ETCD_PORTS = {2379}
 _CONSUL_SERVICE_NAMES = {"consul"}
 _CONSUL_PORTS = {8500}
+# Nomad, el orquestador de cargas de trabajo de HashiCorp: sin ACL activada
+# (su postura por defecto), expone sin autenticar la configuración del
+# agente y el estado del clúster, el mismo perfil que Consul.
+_NOMAD_SERVICE_NAMES = {"nomad"}
+_NOMAD_PORTS = {4646}
+# Portainer, un gestor de contenedores: a diferencia de los anteriores, su
+# API de verdad exige sesión; sólo el banner de versión es público por
+# diseño (la propia interfaz lo pide antes de iniciar sesión). Se identifica
+# igual, pero su exposición vale como banner, no como acceso real — de ahí
+# que su check tenga menos severidad que el resto de esta familia.
+_PORTAINER_SERVICE_NAMES = {"portainer"}
+_PORTAINER_PORTS = {9000}
 
 # La unión, para lo que sí es común: decidir si un puerto pertenece a esta
 # familia y, con ello, que entre en el conjunto HTTP.
 _ADMIN_API_PORTS = (
     _DOCKER_PORTS | _ELASTICSEARCH_PORTS | _KIBANA_PORTS
     | _KUBERNETES_PORTS | _ETCD_PORTS | _CONSUL_PORTS
+    | _NOMAD_PORTS | _PORTAINER_PORTS
 )
 
 # Puertos que se consideran servicio HTTP. Incluye los de TLS: un HTTPS en 9443
@@ -1450,6 +1465,16 @@ def is_etcd_service(service: Service) -> bool:
 def is_consul_service(service: Service) -> bool:
     """Si el servicio es el agente de Consul."""
     return (service.name or "").lower() in _CONSUL_SERVICE_NAMES or service.port in _CONSUL_PORTS
+
+
+def is_nomad_service(service: Service) -> bool:
+    """Si el servicio es el agente de Nomad."""
+    return (service.name or "").lower() in _NOMAD_SERVICE_NAMES or service.port in _NOMAD_PORTS
+
+
+def is_portainer_service(service: Service) -> bool:
+    """Si el servicio es Portainer."""
+    return (service.name or "").lower() in _PORTAINER_SERVICE_NAMES or service.port in _PORTAINER_PORTS
 
 
 def _is_udp(service: Service) -> bool:
