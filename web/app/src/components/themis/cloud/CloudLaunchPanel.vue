@@ -197,7 +197,7 @@ function handleLaunch() {
 .engine-mark svg { width: 21px; height: 21px; }
 .engine-title-wrap { display: flex; flex-direction: column; min-width: 0; }
 .engine-eyebrow { font-family: var(--font-epic); font-size-adjust: var(--fsa-epic); font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.24em; text-transform: uppercase; color: var(--scope-tint); }
-.engine-title { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-size: var(--fs-xl); font-weight: 600; color: var(--text); }
+.engine-title { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-size: var(--fs-xl); font-weight: 600; color: color-mix(in srgb, var(--text) 86%, var(--scope-tint)); }
 .engine-sub { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-style: italic; font-size: var(--fs-md); color: var(--text-muted); }
 .engine-launched { margin-left: auto; display: inline-flex; align-items: center; gap: 0.4rem; font-size: var(--fs-md); color: var(--accent-bright); }
 /* Mismo anillo que el aviso de LybraLaunchPanel.vue: el motor está trabajando. */

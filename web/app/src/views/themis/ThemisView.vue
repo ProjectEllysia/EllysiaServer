@@ -58,7 +58,7 @@
         <Transition name="lybra-swap">
         <!-- Nube: lo que un dominio deja expuesto; los recursos que el usuario
              declara suyos y los subdominios que se pueden secuestrar. -->
-        <div v-if="store.lybraScope === 'cloud'" key="cloud">
+        <div v-if="store.lybraScope === 'cloud'" key="cloud" data-scope="cloud">
           <CloudLaunchPanel
             :launching="cloudStore.launching"
             :running="hasActiveCloudScan"
@@ -85,7 +85,7 @@
             @delete-doc="handleCloudDeleteDoc" />
         </div>
         <!-- Red: grupos de equipos y cómo se movería un atacante entre ellos. -->
-        <div v-else-if="store.lybraScope === 'network'" key="network">
+        <div v-else-if="store.lybraScope === 'network'" key="network" data-scope="network">
           <NetworkGroupsPanel
             :groups="networkStore.groups.items"
             :loading="networkStore.groups.loading"
@@ -97,7 +97,7 @@
             @load-risk="id => networkStore.loadRisk('group', id)" />
         </div>
         <HistoryPanel v-else-if="store.viewMode === 'history'" key="history" />
-        <div v-else key="engine">
+        <div v-else key="engine" data-scope="hosts">
           <!-- La detección por versión vale lo que valga la frescura del espejo
                local de NVD/KEV/EPSS/OVAL. Si deja de refrescarse, los escaneos
                siguen saliendo en verde contra un catálogo congelado: el aviso

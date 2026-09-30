@@ -227,7 +227,7 @@ function handleLaunch() {
 .engine-mark svg { width: 21px; height: 21px; }
 .engine-title-wrap { display: flex; flex-direction: column; gap: 0.05rem; margin-right: auto; }
 .engine-eyebrow { font-family: var(--font-epic); font-size-adjust: var(--fsa-epic); font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.24em; text-transform: uppercase; color: var(--scope-tint); }
-.engine-title { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-weight: 600; font-size: var(--fs-xl); color: var(--text); }
+.engine-title { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-weight: 600; font-size: var(--fs-xl); color: color-mix(in srgb, var(--text) 86%, var(--scope-tint)); }
 .engine-sub { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-style: italic; font-size: var(--fs-md); color: var(--text-muted); }
 .engine-launched { display: inline-flex; align-items: center; gap: 0.45rem; font-size: var(--fs-md); color: var(--success); background: var(--success-dim); padding: 0.2rem 0.6rem; border-radius: 6px; }
 .pulse { position: relative; width: 7px; height: 7px; border-radius: 50%; background: var(--success); }
