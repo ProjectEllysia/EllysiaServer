@@ -35,11 +35,13 @@ must wait on the authorized-targets register.
 
 from __future__ import annotations
 
+import hashlib
 import ipaddress
 import itertools
 import json
 import logging
 import re
+import secrets
 import socket
 import ssl
 import threading
@@ -100,7 +102,9 @@ logger = logging.getLogger(__name__)
 # checks-37: lo que un equipo cuenta de sí mismo (nombre por SMB, dominio por
 # LDAP), como hallazgos informativos de la categoría host_identity.
 # checks-38: páginas de error por defecto y trazas internas visibles.
-CHECKS_FEED_VERSION = "lybra-checks-38"
+# checks-39: la respuesta de referencia del servicio («200 a todo»): un check de
+# ruta ya no dispara con una respuesta idéntica a la de una ruta inventada.
+CHECKS_FEED_VERSION = "lybra-checks-39"
 # Quality of Detection for a finding a check actively confirmed, as opposed to
 # one merely inferred from a version.
 QOD_CONFIRMED = 99
@@ -583,6 +587,14 @@ class Check:  # pylint: disable=too-many-instance-attributes
             cartesian product is **hard-capped** by the runtime
             (``max_payload_expansions``) so a payload can never turn into an
             hours-long brute force. Empty for a check that does not fuzz.
+        guards_baseline: Si el runtime descarta una coincidencia cuya respuesta
+            es idéntica a la de una ruta inventada del mismo servicio (ver
+            :class:`Baseline`). Por defecto ``True``: un servicio que contesta
+            «200» a cualquier ruta no debe dar un hallazgo de exposición por
+            cada ruta que se le pida. Un check que **busca** la página de error
+            del servidor (pide él mismo una ruta inventada) lo declara
+            ``guardBaseline: false``, porque su coincidencia es justo esa
+            página. Sólo afecta a ``type: "http"``.
     """
     id: str
     version: int
@@ -602,6 +614,7 @@ class Check:  # pylint: disable=too-many-instance-attributes
     refutes: Optional[str] = None
     tags: tuple = ()
     payloads: tuple = ()
+    guards_baseline: bool = True
 
     @property
     def check_id(self) -> str:
@@ -705,6 +718,7 @@ def _parse_check(c: dict) -> Check:
             (str(name), tuple(str(value) for value in values))
             for name, values in (c.get("payloads") or {}).items()
         ),
+        guards_baseline=bool(c.get("guardBaseline", True)),
     )
     _assert_service_is_reachable(check)
     return check
@@ -1492,6 +1506,111 @@ class ScriptPlugin:
         raise NotImplementedError
 
 
+# Tramos largos de caracteres de "token" (nonces, ids de sesión, hashes de
+# assets): en una página que se sirve igual a cualquier ruta cambian entre dos
+# peticiones sin que la página sea otra, así que se borran antes de comparar.
+_BASELINE_TOKEN_RE = re.compile(r"[A-Za-z0-9+/_=-]{20,}")
+
+#: La ruta que se pide para saber cómo contesta un servicio a lo que no existe.
+#: Lleva un tramo aleatorio para que ninguna regla, caché ni enrutador la
+#: conozca de antemano; ver :func:`baseline_path`.
+_BASELINE_PATH_PREFIX = "/lybra-baseline-"
+
+
+def baseline_path() -> str:
+    """Devuelve una ruta que con toda seguridad no existe en el servicio.
+
+    Returns:
+        str: ``/lybra-baseline-<16 hexadecimales aleatorios>``. Distinta en
+            cada llamada, de modo que ninguna aplicación pueda tenerla
+            enrutada a propósito.
+    """
+    return f"{_BASELINE_PATH_PREFIX}{secrets.token_hex(8)}"
+
+
+def _normalize_for_baseline(body: str, path: str) -> str:
+    """Deja un cuerpo comparable con el de otra ruta del mismo servicio.
+
+    Args:
+        body: El cuerpo de la respuesta, ya decodificado.
+        path: La ruta que se pidió. Un «no encontrado» que la repite en el
+            texto (``Cannot GET /x``) no debe parecer distinto solo por eso.
+
+    Returns:
+        str: El cuerpo sin la ruta pedida ni los tramos que cambian de una
+            petición a otra (ver ``_BASELINE_TOKEN_RE``).
+    """
+    text = body.replace(path, "") if path else body
+    return _BASELINE_TOKEN_RE.sub("#", text)
+
+
+def _digest_for_baseline(body: str, path: str) -> str:
+    """Devuelve la huella de un cuerpo normalizado para compararlo con la referencia.
+
+    Args:
+        body: El cuerpo de la respuesta, ya decodificado.
+        path: La ruta que se pidió para obtenerlo.
+
+    Returns:
+        str: SHA-256 hexadecimal del cuerpo normalizado.
+    """
+    normalized = _normalize_for_baseline(body, path)
+    return hashlib.sha256(normalized.encode("utf-8", "replace")).hexdigest()
+
+
+@dataclass(frozen=True)
+class Baseline:
+    """Cómo contesta un servicio a una ruta que no existe: su respuesta de referencia.
+
+    Hay webs —las aplicaciones de una sola página, sobre todo— que contestan
+    «200» y la misma página a cualquier ruta, exista o no. Sin conocer esa
+    respuesta, «esta ruta responde 200» no prueba nada. La referencia se pide
+    una vez por servicio y cada comprobación de ruta la usa para descartar una
+    coincidencia que es, en realidad, la página de «no encontrado» disfrazada.
+
+    Attributes:
+        path: La ruta inventada que se pidió.
+        status: El código de estado que devolvió.
+        digest: Huella del cuerpo normalizado (ver ``_normalize_for_baseline``).
+    """
+    path: str
+    status: int
+    digest: str
+
+    @classmethod
+    def from_response(cls, path: str, response: Response) -> "Baseline":
+        """Construye la referencia a partir de la respuesta a la ruta inventada.
+
+        Args:
+            path: La ruta inventada que se pidió.
+            response: Lo que el servicio contestó.
+
+        Returns:
+            Baseline: La referencia del servicio.
+        """
+        return cls(path=path, status=response.status,
+                   digest=_digest_for_baseline(response.body, path))
+
+    def resembles(self, response: Response, path: str) -> bool:
+        """Dice si una respuesta es la de referencia con otra ruta puesta encima.
+
+        Args:
+            response: La respuesta de una ruta que un check quiere dar por
+                encontrada.
+            path: La ruta que se pidió para obtenerla.
+
+        Returns:
+            bool: ``True`` si el código de estado y el cuerpo normalizado
+                coinciden con los de la referencia, es decir, si el servicio
+                contesta lo mismo a esa ruta que a una inventada. ``False`` en
+                cualquier otro caso, y siempre ``False`` para la propia ruta
+                de referencia.
+        """
+        if path == self.path or response.status != self.status:
+            return False
+        return _digest_for_baseline(response.body, path) == self.digest
+
+
 @dataclass(frozen=True)
 class _CheckFamily:
     """One check ``type`` (http/tls/network) as the runtime's uniform loop sees it.
@@ -1589,6 +1708,7 @@ class CheckRuntime:
         # empezar. Aquí sólo para que el objeto esté completo desde que nace.
         self._responses: Dict[tuple, Optional[Response]] = {}
         self._handshakes: Dict[tuple, object] = {}
+        self._baselines: Dict[tuple, Optional[Baseline]] = {}
         self._families: Tuple[_CheckFamily, ...] = (
             _CheckFamily(
                 applies_to_service=is_http_service,
@@ -1645,6 +1765,7 @@ class CheckRuntime:
         # objetivo ha podido cambiar — que es justo lo que un escáner mide.
         self._responses: Dict[tuple, Optional[Response]] = {}
         self._handshakes: Dict[tuple, object] = {}
+        self._baselines: Dict[tuple, Optional[Baseline]] = {}
 
         services = tuple(services)
         # Los plugins de tipo ``script`` pueden necesitar ver los servicios
@@ -1858,6 +1979,13 @@ class CheckRuntime:
             response = self._probe_response(host, service, request.method, path, body, headers)
             if response is None or not request.evaluate(response):
                 return None
+            if check.guards_baseline and request.method == "GET" and path != "/":
+                # La referencia se pide sólo ahora, cuando una ruta ya iba a
+                # dar el check por disparado: los servicios que no coinciden
+                # con nada no reciben ninguna petición de más.
+                baseline = self.get_baseline(host, service)
+                if baseline is not None and baseline.resembles(response, path):
+                    return None
             for extractor in request.extractors:
                 value = extractor.extract(response)
                 if value is None:
@@ -1924,6 +2052,31 @@ class CheckRuntime:
         _report_outcome(self._rl, host, has_answered=response is not None)
         self._responses[key] = response
         return response
+
+    def get_baseline(self, host: str, service: Service) -> Optional[Baseline]:
+        """Devuelve la respuesta de referencia de un servicio, pidiéndola una sola vez.
+
+        Pide una ruta inventada (:func:`baseline_path`) y guarda cómo contestó.
+        Se comparte entre todos los checks del mismo servicio dentro de una
+        ejecución, igual que las respuestas de :meth:`_probe_response`; no se
+        conserva entre ejecuciones, porque el servicio ha podido cambiar.
+
+        Args:
+            host: El host destino.
+            service: El servicio HTTP del que se quiere la referencia.
+
+        Returns:
+            Optional[Baseline]: La referencia, o ``None`` si el servicio no
+                contestó a la ruta inventada; sin referencia no se descarta
+                nada.
+        """
+        key = (host, service.port)
+        if key not in self._baselines:
+            path = baseline_path()
+            response = self._probe_response(host, service, "GET", path)
+            self._baselines[key] = (
+                None if response is None else Baseline.from_response(path, response))
+        return self._baselines[key]
 
     def _probe_handshake(self, host: str, service: Service):
         """Return the TLS handshake facts for one service, negotiating once.
