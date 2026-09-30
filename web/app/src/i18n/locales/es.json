@@ -1558,8 +1558,7 @@
     },
     "launch": {
       "title": "Motor Lybra",
-      "subtitle": "Pesa cada amenaza antes de que golpee",
-      "hint": "Lybra mira un equipo por dentro de la red: descubre qué puertos tiene abiertos, qué servicio y qué versión hay detrás de cada uno, y los cruza con las vulnerabilidades conocidas y las malas configuraciones habituales. Solo analiza equipos que hayas autorizado antes en el registro.",
+      "subtitle": "Analiza los puertos y servicios de un equipo autorizado y señala lo que es vulnerable",
       "running": "Motor en marcha",
       "target": "Target (IP única)",
       "authorizedHint": "Está en tu registro de objetivos autorizados",
@@ -1647,7 +1646,7 @@
     },
     "cloud": {
       "title": "Exposición en la nube",
-      "subtitle": "Lo que tus recursos en la nube enseñan a cualquiera",
+      "subtitle": "Comprueba qué dejan a la vista tus recursos en la nube y si algún subdominio se puede reclamar",
       "running": "Comprobando",
       "hint": "Lybra pregunta, sin credenciales, si los buckets y bases de datos que declares dejan ver su contenido a cualquiera, y si algún subdominio apunta a un servicio que ya no existe y otra persona podría reclamar. No busca recursos por su cuenta: solo comprueba los que declaras.",
       "domain": "Dominio",
@@ -1697,7 +1696,7 @@
     },
     "network": {
       "title": "Red",
-      "subtitle": "Cómo se movería un atacante entre tus equipos",
+      "subtitle": "Calcula cómo se movería un atacante entre los equipos de un rango",
       "hint": "Un grupo es una red definida por su rango. Sus equipos son los que ya has escaneado y cuya dirección cae dentro, así que no hay que añadirlos a mano. Es útil cuando escaneas varias direcciones públicas de una misma organización, como un bloque de IP propio o los servidores de un proveedor: las redes internas (10.x, 192.168.x) no son alcanzables desde un despliegue en la nube.",
       "name": "Nombre",
       "namePlaceholder": "Oficina, DMZ, servidores…",

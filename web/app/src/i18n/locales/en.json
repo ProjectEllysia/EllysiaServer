@@ -1558,8 +1558,7 @@
     },
     "launch": {
       "title": "Lybra engine",
-      "subtitle": "Weighs every threat before it strikes",
-      "hint": "Lybra looks at one machine on your network: it finds which ports are open, which service and version sit behind each one, and checks them against known vulnerabilities and common misconfigurations. It only analyses machines you have authorised first in the register.",
+      "subtitle": "Analyses the ports and services of an authorised machine and flags what is vulnerable",
       "running": "Engine running",
       "target": "Target (single IP)",
       "authorizedHint": "It is in your register of authorized targets",
@@ -1647,7 +1646,7 @@
     },
     "cloud": {
       "title": "Cloud exposure",
-      "subtitle": "What your cloud resources show to anyone",
+      "subtitle": "Checks what your cloud resources leave exposed and whether any subdomain can be claimed",
       "running": "Checking",
       "hint": "Lybra asks, without credentials, whether the buckets and databases you declare let anyone see their content, and whether a subdomain points to a service that no longer exists and someone else could claim. It never looks for resources on its own: it only checks the ones you declare.",
       "domain": "Domain",
@@ -1697,7 +1696,7 @@
     },
     "network": {
       "title": "Network",
-      "subtitle": "How an attacker would move between your machines",
+      "subtitle": "Works out how an attacker would move between the machines of a range",
       "hint": "A group is a network defined by its range. Its machines are the ones you have already scanned whose address falls inside it, so there is nothing to add by hand. It is useful when you scan several public addresses of the same organization, such as your own IP block or a provider's servers: internal networks (10.x, 192.168.x) cannot be reached from a cloud deployment.",
       "name": "Name",
       "namePlaceholder": "Office, DMZ, servers…",
