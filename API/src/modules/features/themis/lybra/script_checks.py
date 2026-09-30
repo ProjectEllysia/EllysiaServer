@@ -32,7 +32,7 @@ from __future__ import annotations
 import logging
 import re
 import urllib.parse
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 from cryptography import x509
 from cryptography.exceptions import UnsupportedAlgorithm
@@ -74,6 +74,7 @@ from .fingerprinting.rdp import RdpProbe, fingerprint_rdp
 from .fingerprinting.snmp import SnmpProbe
 from .fingerprinting.ssh import SshProbe, parse_kexinit
 from .fingerprinting.telnet import TelnetProbe
+from .fingerprinting import windows_rpc
 from .fingerprinting.tls import LEGACY_TLS_PROTOCOLS, TlsProbe
 from .fingerprinting.tls_hello import (
     HANDSHAKE_CERTIFICATE,
@@ -1816,6 +1817,126 @@ class SourceMapExposedPlugin(ScriptPlugin):
         return False
 
 
+def _find_ldap_port(sibling_services) -> Optional[int]:
+    """El puerto LDAP de los servicios hermanos del host, con 389 preferido.
+
+    Args:
+        sibling_services: Los demás servicios del host (ver
+            ``ScriptContext.sibling_services``).
+
+    Returns:
+        Optional[int]: El puerto, o ``None`` si el host no tiene ningún
+            servicio LDAP entre sus servicios descubiertos.
+    """
+    candidates = sorted(
+        (sibling.port for sibling in sibling_services if is_ldap_service(sibling)),
+        key=lambda port: (port != 389, port))
+    return candidates[0] if candidates else None
+
+
+class DomainControllerRpcSurfaceExposedPlugin(ScriptPlugin):
+    """Detecta un controlador de dominio con el spooler o el localizador de RPC expuestos.
+
+    Un controlador de dominio es el activo de mayor valor de una red Windows:
+    comprometerlo suele significar comprometer el dominio entero. Su spooler
+    de impresión (MS-RPRN, el protocolo tras PrintNightmare) y su localizador
+    de puntos finales de RPC (puerto 135) han sido la base de varias familias
+    de vulnerabilidades graves de escalado de privilegios; que respondan
+    desde la red, más allá de lo estrictamente necesario, es una superficie
+    que vale la pena señalar por sí sola, sin apuntar a una vulnerabilidad
+    concreta — eso corresponde a la correlación de CVEs habitual una vez que
+    el fingerprint los identifica.
+
+    **El hallazgo es alcanzable desde la red, no "sin credenciales".** A
+    diferencia de :class:`WindowsSharesUnauthenticatedPlugin`, aquí lo que se
+    mide es si el extremo **contesta** — acepte el saludo o lo rechace, las
+    dos respuestas prueban que el cortafuegos no lo bloquea—; sólo la
+    ausencia de respuesta cuenta como "no expuesto".
+
+    **Sólo sobre un controlador de dominio.** Cualquier Windows con los mismos
+    servicios accesibles no dispara: la condición de controlador de dominio se
+    confirma con una lectura LDAP propia (``namingContexts`` del rootDSE, sin
+    credenciales) contra el servicio LDAP hermano del mismo host — un
+    directorio de Active Directory sólo lo sirve un controlador de dominio.
+
+    Args:
+        ldap_probe: Sonda LDAP inyectable, para confirmar el controlador de
+            dominio. Por defecto, ``LdapProbe()``.
+        probe_named_pipe_rpc: La función que comprueba el spooler de
+            impresión, inyectable. Por defecto,
+            :func:`~.fingerprinting.windows_rpc.probe_named_pipe_rpc`.
+        probe_endpoint_mapper: La función que comprueba el localizador de
+            puntos finales, inyectable. Por defecto,
+            :func:`~.fingerprinting.windows_rpc.probe_endpoint_mapper`.
+    """
+
+    plugin_id = "domain-controller-rpc-surface-exposed"
+
+    def __init__(
+        self,
+        ldap_probe: Optional[LdapProbe] = None,
+        probe_named_pipe_rpc: Optional[Callable] = None,
+        probe_endpoint_mapper: Optional[Callable] = None,
+    ) -> None:
+        self._ldap_probe = ldap_probe or LdapProbe()
+        self._probe_named_pipe_rpc = probe_named_pipe_rpc or windows_rpc.probe_named_pipe_rpc
+        self._probe_endpoint_mapper = probe_endpoint_mapper or windows_rpc.probe_endpoint_mapper
+
+    def applies(self, service: Service) -> bool:
+        """Si el servicio es SMB.
+
+        Uno de los servicios del host tiene que ser el punto de entrada; se
+        elige SMB porque el spooler se comprueba sobre su misma tubería con
+        nombre. El localizador de puntos finales se comprueba aparte, siempre
+        en el 135, sea cual sea el puerto de este servicio.
+
+        Args:
+            service: El servicio candidato.
+
+        Returns:
+            bool: ``True`` para los servicios que reclama ``is_smb_service``.
+        """
+        return is_smb_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        """Confirma el controlador de dominio y comprueba las dos superficies.
+
+        Args:
+            context: El contexto del check; su control de tasa se consulta
+                antes de cada intercambio de red.
+
+        Returns:
+            bool: ``True`` si el host es un controlador de dominio y al menos
+                una de las dos superficies contestó (``exposedSurfaces`` en la
+                evidencia, con ``"print-spooler"``, ``"rpc-endpoint-mapper"``
+                o las dos); ``False`` si no hay LDAP hermano, si el LDAP no
+                confirma un controlador de dominio, o si ninguna de las dos
+                superficies contestó.
+        """
+        ldap_port = _find_ldap_port(context.sibling_services)
+        if ldap_port is None:
+            return False
+        context.acquire()
+        replies = self._ldap_probe.fetch(context.target, ldap_port)
+        if replies is None or not fingerprint_ldap(*replies).naming_contexts:
+            return False
+
+        exposed: List[str] = []
+        context.acquire()
+        if self._probe_named_pipe_rpc(
+                context.target, windows_rpc.SPOOLSS_PIPE, windows_rpc.SPOOLSS_INTERFACE_UUID,
+                windows_rpc.SPOOLSS_INTERFACE_VERSION,
+                port=context.service.port or 445) is not None:
+            exposed.append("print-spooler")
+        context.acquire()
+        if self._probe_endpoint_mapper(context.target) is not None:
+            exposed.append("rpc-endpoint-mapper")
+        if not exposed:
+            return False
+        context.evidence.update({"exposedSurfaces": exposed})
+        return True
+
+
 def default_script_plugins() -> Dict[str, ScriptPlugin]:
     """Construye el registro de plugins de primera parte, indexado por ``plugin_id``.
 
@@ -1845,6 +1966,7 @@ def default_script_plugins() -> Dict[str, ScriptPlugin]:
         TlsIncompleteCertificateChainPlugin(),
         TlsWeakKeyExchangeGroupPlugin(),
         SourceMapExposedPlugin(),
+        DomainControllerRpcSurfaceExposedPlugin(),
         VncNoAuthenticationPlugin(),
         IkeWeakTransformPlugin(),
         TcpTimestampsPlugin(),
