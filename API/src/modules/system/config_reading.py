@@ -1498,6 +1498,12 @@ class LybraCrawlerConfig:
     """Tope de tiempo del rastreo entero, en segundos. Cuando se agota, se para
     con lo que se lleve, igual que al agotar ``max_pages``."""
 
+    max_scan_directories: int = 10
+    """Directorios descubiertos sobre los que, como mucho, se repiten los checks
+    de ruta que lo piden, por servicio web. Cada directorio multiplica las
+    peticiones de esos checks, así que este tope es lo que mantiene el coste
+    dentro del presupuesto del rastreo. A cero, los checks sólo miran la raíz."""
+
 
 def lybra_crawler_config() -> LybraCrawlerConfig:
     return load_block(LybraCrawlerConfig)

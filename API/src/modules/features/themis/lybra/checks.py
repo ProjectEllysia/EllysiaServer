@@ -114,9 +114,11 @@ logger = logging.getLogger(__name__)
 # checks-38: páginas de error por defecto y trazas internas visibles.
 # checks-39: la respuesta de referencia del servicio («200 a todo»): un check de
 # ruta ya no dispara con una respuesta idéntica a la de una ruta inventada.
+# checks-41: los checks de ruta que se repiten sobre los directorios que el
+# rastreo descubrió (``onDiscoveredDirectories``).
 # checks-40: el matcher ``compare`` (una respuesta contra otra de la misma
 # cadena) y los marcadores ``{{nombre}}`` en los valores de un matcher.
-CHECKS_FEED_VERSION = "lybra-checks-40"
+CHECKS_FEED_VERSION = "lybra-checks-41"
 # Quality of Detection for a finding a check actively confirmed, as opposed to
 # one merely inferred from a version.
 QOD_CONFIRMED = 99
@@ -684,6 +686,12 @@ class Check:  # pylint: disable=too-many-instance-attributes
             del servidor (pide él mismo una ruta inventada) lo declara
             ``guardBaseline: false``, porque su coincidencia es justo esa
             página. Sólo afecta a ``type: "http"``.
+        runs_on_discovered_directories: Si, además de sus rutas tal cual, el
+            runtime repite el check sobre los directorios que el rastreo
+            descubrió en el servicio (``/app/.env`` además de ``/.env``). Por
+            defecto ``False``. Sólo tiene sentido en un check de ruta cuyas
+            peticiones son ``GET`` a una ruta distinta de la raíz; ver
+            :func:`validate_checks`.
     """
     id: str
     version: int
@@ -704,6 +712,7 @@ class Check:  # pylint: disable=too-many-instance-attributes
     tags: tuple = ()
     payloads: tuple = ()
     guards_baseline: bool = True
+    runs_on_discovered_directories: bool = False
 
     @property
     def check_id(self) -> str:
@@ -810,6 +819,7 @@ def _parse_check(c: dict) -> Check:
             for name, values in (c.get("payloads") or {}).items()
         ),
         guards_baseline=bool(c.get("guardBaseline", True)),
+        runs_on_discovered_directories=bool(c.get("onDiscoveredDirectories", False)),
     )
     _assert_service_is_reachable(check)
     return check
@@ -1049,6 +1059,17 @@ def validate_checks(checks: Iterable[Check]) -> List[str]:  # pylint: disable=to
             if not values:
                 problems.append(
                     f"Check {name!r}: el payload {payload_name!r} no tiene ningún valor")
+
+        if check.runs_on_discovered_directories:
+            if check.type != "http":
+                problems.append(
+                    f"Check {name!r}: 'onDiscoveredDirectories' sólo vale en un check http")
+            for position, request in enumerate(check.requests):
+                if request.method != "GET" or not request.path.startswith("/") \
+                        or request.path == "/":
+                    problems.append(
+                        f"Check {name!r}, petición {position}: 'onDiscoveredDirectories' exige "
+                        f"un GET a una ruta que empiece por '/' y no sea la raíz")
 
         for position, request in enumerate(check.requests):
             where = f"Check {name!r}, petición {position}"
@@ -1814,6 +1835,7 @@ class CheckRuntime:
         self._responses: Dict[tuple, Optional[Response]] = {}
         self._handshakes: Dict[tuple, object] = {}
         self._baselines: Dict[tuple, Optional[Baseline]] = {}
+        self._discovered_directories: Dict[int, Tuple[str, ...]] = {}
         self._families: Tuple[_CheckFamily, ...] = (
             _CheckFamily(
                 applies_to_service=is_http_service,
@@ -1841,7 +1863,8 @@ class CheckRuntime:
     def run(  # pylint: disable=too-many-arguments,too-many-positional-arguments
             self, host: str, services: Iterable[Service],
             cancel_check: Optional[Callable[[], bool]] = None,
-            proposed_cves: Optional[frozenset] = None) -> List[dict]:
+            proposed_cves: Optional[frozenset] = None,
+            discovered_directories: Optional[Dict[int, Iterable[str]]] = None) -> List[dict]:
         """Run every applicable check against a host's HTTP, TLS and network services.
 
         Probes are shared within one call: several checks reading the same
@@ -1861,6 +1884,19 @@ class CheckRuntime:
             host: The target host.
             services: The host's discovered services (non-applicable ones are
                 skipped per check family).
+            cancel_check: Función sin argumentos que dice si el escaneo se
+                canceló. Por defecto ``None``.
+            proposed_cves: CVE que el matcher de versiones ya propuso; los
+                confirmadores y refutadores sólo corren para ellas. Por defecto
+                ninguna.
+            discovered_directories: Los directorios que el rastreo descubrió,
+                por puerto del servicio (``{80: ["/app/", "/admin/"]}``), cada
+                uno con ``/`` al inicio y al final. Los checks que declaran
+                ``onDiscoveredDirectories`` se repiten sobre los del puerto del
+                servicio que evalúan. **Quien llama decide cuántos**: el
+                runtime no recorta la lista (ver
+                :func:`~.crawler.select_scan_directories`). Por defecto
+                ninguno, y todo corre sólo sobre las rutas del feed.
 
         Returns:
             A finding dict for each check that fired.
@@ -1881,6 +1917,9 @@ class CheckRuntime:
         self._host = host
         self._cancel_check = cancel_check
         self._proposed_cves = proposed_cves or frozenset()
+        self._discovered_directories = {
+            port: tuple(directories)
+            for port, directories in (discovered_directories or {}).items()}
 
         per_service = self._mapper(self._run_for_service, services)
         return [finding for group in per_service for finding in group]
@@ -2003,14 +2042,28 @@ class CheckRuntime:
         carries a single ``check_id``, so twenty probes collapse to one finding.
         """
         fired = None
-        for variables in self._payload_combinations(check):
-            fired = self._run_request_sequence(check, host, service, variables)
+        fired_directory = ""
+        # Las rutas del feed primero, tal cual; sólo si no disparan se prueban
+        # los directorios descubiertos. Así un servicio sin directorios, o un
+        # check que no los pide, se comporta exactamente como antes, y un
+        # hallazgo en la raíz nunca se sustituye por otro más profundo.
+        directories = [""]
+        if check.runs_on_discovered_directories:
+            directories += list(self._discovered_directories.get(service.port, ()))
+        for directory in directories:
+            for variables in self._payload_combinations(check):
+                fired = self._run_request_sequence(check, host, service, variables, directory)
+                if fired is not None:
+                    break
             if fired is not None:
+                fired_directory = directory
                 break
         if fired is None:
             return None
         last_response, last_path = fired
         finding = self._finding(check, service)
+        if fired_directory:
+            finding["title"] = f"{finding['title']} (en {fired_directory})"
         # Evidencia: la respuesta que provocó el hallazgo. Sólo para
         # los confirmados —los que van a un informe— y sólo si la captura está
         # activada. El payload viaja en ``_evidence`` hasta la persistencia, que
@@ -2051,8 +2104,9 @@ class CheckRuntime:
                 break
         return combinations
 
-    def _run_request_sequence(
+    def _run_request_sequence(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self, check: Check, host: str, service: Service, variables: Dict[str, str],
+        directory: str = "",
     ) -> Optional[Tuple[Response, str]]:
         """Run a check's requests once, threading extracted variables through.
 
@@ -2069,6 +2123,9 @@ class CheckRuntime:
             service: The service being probed.
             variables: The initial variable bindings (a payload combination, or
                 empty).
+            directory: Un directorio descubierto (``"/app/"``) que se antepone
+                a la ruta de cada petición ``GET``, o ``""`` para pedirlas tal
+                cual. Por defecto ``""``.
 
         Returns:
             ``(last_response, last_path)`` if every request matched, else
@@ -2080,6 +2137,8 @@ class CheckRuntime:
         previous: List[Response] = []
         for request in check.requests:
             path = _substitute(request.path, variables)
+            if directory and request.method == "GET" and path.startswith("/"):
+                path = directory.rstrip("/") + path
             body = _substitute(request.body, variables) if request.body else None
             headers = {name: _substitute(value, variables) for name, value in request.headers} or None
             response = self._probe_response(host, service, request.method, path, body, headers)
@@ -2090,7 +2149,7 @@ class CheckRuntime:
                 # La referencia se pide sólo ahora, cuando una ruta ya iba a
                 # dar el check por disparado: los servicios que no coinciden
                 # con nada no reciben ninguna petición de más.
-                baseline = self.get_baseline(host, service)
+                baseline = self.get_baseline(host, service, directory)
                 if baseline is not None and baseline.resembles(response, path):
                     return None
             for extractor in request.extractors:
@@ -2160,7 +2219,8 @@ class CheckRuntime:
         self._responses[key] = response
         return response
 
-    def get_baseline(self, host: str, service: Service) -> Optional[Baseline]:
+    def get_baseline(self, host: str, service: Service,
+                     directory: str = "") -> Optional[Baseline]:
         """Devuelve la respuesta de referencia de un servicio, pidiéndola una sola vez.
 
         Pide una ruta inventada (:func:`baseline_path`) y guarda cómo contestó.
@@ -2171,15 +2231,20 @@ class CheckRuntime:
         Args:
             host: El host destino.
             service: El servicio HTTP del que se quiere la referencia.
+            directory: El directorio donde se pide la ruta inventada
+                (``"/app/"``), o ``""`` para la raíz. Un sitio puede contestar
+                distinto a lo que no existe según el directorio (una aplicación
+                de una sola página montada en ``/app/``), así que cada
+                directorio tiene su referencia. Por defecto ``""``.
 
         Returns:
             Optional[Baseline]: La referencia, o ``None`` si el servicio no
                 contestó a la ruta inventada; sin referencia no se descarta
                 nada.
         """
-        key = (host, service.port)
+        key = (host, service.port, directory)
         if key not in self._baselines:
-            path = baseline_path()
+            path = directory.rstrip("/") + baseline_path()
             response = self._probe_response(host, service, "GET", path)
             self._baselines[key] = (
                 None if response is None else Baseline.from_response(path, response))
