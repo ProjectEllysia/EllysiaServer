@@ -3171,3 +3171,15 @@ checks:
       title: Carpetas compartidas de Windows visibles sin ninguna credencial
       qod: 99
       confirmed: true
+  - id: domain-controller-rpc-surface-exposed
+    version: 1
+    type: script
+    script: domain-controller-rpc-surface-exposed
+    category: exposed_service
+    severity: HIGH
+    service: smb
+    mode: safe
+    finding:
+      title: Controlador de dominio con su spooler de impresión o su localizador de RPC accesibles desde la red
+      qod: 99
+      confirmed: true
