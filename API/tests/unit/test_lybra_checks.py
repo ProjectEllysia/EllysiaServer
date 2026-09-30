@@ -787,11 +787,14 @@ def test_the_three_header_checks_make_one_request_between_them():
     # Los seis checks de cabeceras faltantes disparan (el nginx de mentira no
     # manda ninguna: HSTS, X-Frame-Options, X-Content-Type-Options, CSP,
     # Referrer-Policy y Permissions-Policy) y aun así comparten la petición a
-    # "/". La única otra petición a "/" es la del check BREACH, que la hace con
-    # Accept-Encoding y por eso es otra sonda.
+    # "/". Las otras peticiones a "/" son la del check BREACH (con
+    # Accept-Encoding), la del comodín de CORS y la primera del reflejo de
+    # CORS (cada una con un Origin distinto, así que cada una es otra sonda;
+    # la segunda petición del reflejo no llega a mandarse porque la primera
+    # ya no casa contra un 200 sin cabeceras de CORS).
     missing = [f for f in findings if f["check_id"].startswith("lybra:missing-")]
     assert len(missing) == 6
-    assert [ruta for _h, _p, _m, ruta in fetch.calls].count("/") == 2
+    assert [ruta for _h, _p, _m, ruta in fetch.calls].count("/") == 4
 
 
 def test_each_distinct_path_is_still_requested():
@@ -803,8 +806,10 @@ def test_each_distinct_path_is_still_requested():
     # Sólo los GET: una ruta POST puede repetirse con cuerpos distintos (las
     # consultas de GraphQL), que para la caché son sondas distintas.
     rutas = [ruta for _h, _p, metodo, ruta in fetch.calls if metodo == "GET"]
-    # "/" dos veces: una sin cabeceras extra y otra con Accept-Encoding (BREACH).
-    assert len(rutas) == len(set(rutas)) + 1
+    # "/" se repite cuatro veces (ver el comentario de
+    # test_the_three_header_checks_make_one_request_between_them), tres
+    # peticiones de más sobre la única ruta que se repite.
+    assert len(rutas) == len(set(rutas)) + 3
     assert "/.git/config" in rutas and "/" in rutas
 
 

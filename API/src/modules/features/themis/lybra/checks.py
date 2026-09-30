@@ -114,13 +114,15 @@ logger = logging.getLogger(__name__)
 # checks-38: páginas de error por defecto y trazas internas visibles.
 # checks-39: la respuesta de referencia del servicio («200 a todo»): un check de
 # ruta ya no dispara con una respuesta idéntica a la de una ruta inventada.
-# checks-42: cadena de certificados TLS incompleta y grupo Diffie-Hellman
+# checks-43: cadena de certificados TLS incompleta y grupo Diffie-Hellman
 # débil, con el lector de saludo TLS en crudo.
+# checks-42: CORS con comodín de origen o con reflejo de cualquier origen,
+# ambos combinados con credenciales permitidas.
 # checks-41: los checks de ruta que se repiten sobre los directorios que el
 # rastreo descubrió (``onDiscoveredDirectories``).
 # checks-40: el matcher ``compare`` (una respuesta contra otra de la misma
 # cadena) y los marcadores ``{{nombre}}`` en los valores de un matcher.
-CHECKS_FEED_VERSION = "lybra-checks-42"
+CHECKS_FEED_VERSION = "lybra-checks-43"
 # Quality of Detection for a finding a check actively confirmed, as opposed to
 # one merely inferred from a version.
 QOD_CONFIRMED = 99
