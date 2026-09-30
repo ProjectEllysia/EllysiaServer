@@ -75,6 +75,11 @@ AUTH_METHODS: Dict[int, str] = {
 # El método que es, por sí solo, un hallazgo crítico.
 NO_AUTHENTICATION = "trust"
 
+# Los métodos con los que el servidor pide una contraseña: en claro, como
+# resumen MD5 o por SASL (SCRAM-SHA-256). Los de Kerberos y SSPI no piden una
+# contraseña que el cliente mande; se dejan fuera.
+PASSWORD_METHODS = frozenset({"password", "md5", "sasl"})
+
 # "PostgreSQL 16.1 on x86_64-pc-linux-gnu" — la forma en que el servidor se
 # nombra a sí mismo cuando aparece en un mensaje de error.
 _VERSION_RE = re.compile(r"PostgreSQL\s+(?P<version>\d+(?:\.\d+)*)", re.IGNORECASE)
@@ -107,6 +112,11 @@ class PostgresFingerprint:
     def is_unauthenticated(self) -> bool:
         """Si el servidor deja entrar sin credencial ninguna (modo ``trust``)."""
         return self.auth_method == NO_AUTHENTICATION
+
+    @property
+    def asks_for_password(self) -> bool:
+        """Si el servidor pide una contraseña (``password``, ``md5`` o SASL/SCRAM)."""
+        return self.auth_method in PASSWORD_METHODS
 
 
 def build_ssl_request() -> bytes:

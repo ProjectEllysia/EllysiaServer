@@ -722,6 +722,45 @@ checks:
       title: Certificado TLS caducado
       qod: 99
       confirmed: true
+  # Propiedades del certificado que el saludo ya descarga. Los umbrales
+  # (2048 bits en RSA/DSA, 256 en curva eliptica; MD5/SHA-1 como firma
+  # obsoleta; 30 dias para caducar) viven junto a sus reglas en checks.py.
+  - id: tls-weak-key
+    version: 1
+    type: tls
+    category: tls
+    severity: MEDIUM
+    service: https
+    mode: safe
+    tlsRule: weak_key
+    finding:
+      title: 'Certificado TLS con una clave demasiado corta (RSA/DSA de menos de 2048 bits, o curva de menos de 256)'
+      qod: 99
+      confirmed: true
+  - id: tls-weak-signature
+    version: 1
+    type: tls
+    category: tls
+    severity: MEDIUM
+    service: https
+    mode: safe
+    tlsRule: weak_signature
+    finding:
+      title: 'Certificado TLS firmado con un resumen obsoleto (MD5 o SHA-1)'
+      qod: 99
+      confirmed: true
+  - id: tls-expiring-soon
+    version: 1
+    type: tls
+    category: tls
+    severity: LOW
+    service: https
+    mode: safe
+    tlsRule: expiring_soon
+    finding:
+      title: 'Certificado TLS a punto de caducar (30 dias o menos)'
+      qod: 99
+      confirmed: true
   # version 2: se pregunta por cada version obsoleta ofreciendo solo esa, en
   # vez de mirar la negociada (que es siempre la mas alta y no la ensena).
   - id: tls-deprecated-protocol
@@ -897,6 +936,97 @@ checks:
       title: API de Kubernetes accesible de forma anonima (inventario y control del cluster)
       qod: 99
       confirmed: true
+  # etcd no sirve de prueba con su /version: esa ruta contesta sin
+  # credenciales aunque la autenticacion este activa. Lo que si la exige es
+  # leer claves, asi que se pide un rango de una sola clave, sin su valor
+  # (keys_only). La clave "\0" con range_end "\0" es "desde el principio del
+  # espacio de claves"; limit 1 lo deja en una. Es un POST porque la pasarela
+  # HTTP de etcd v3 solo acepta POST, pero es una lectura: range no escribe.
+  # Con autenticacion activa etcd contesta un error (sin cabecera de cluster)
+  # y el 200 no llega.
+  - id: etcd-unauthenticated-access
+    version: 1
+    type: http
+    category: exposed_service
+    severity: CRITICAL
+    service: etcd
+    mode: safe
+    requests:
+      - method: POST
+        path: /v3/kv/range
+        headers:
+          Content-Type: application/json
+        body: '{"key":"AA==","range_end":"AA==","limit":1,"keys_only":true}'
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: word
+            part: body
+            words:
+              - cluster_id
+              - raft_term
+    finding:
+      title: etcd accesible sin autenticacion (lectura de toda la configuracion del cluster, secretos incluidos)
+      qod: 99
+      confirmed: true
+  # Consul con ACL y politica por defecto "deny" contesta 403 a /v1/agent/self
+  # para una peticion sin token; sin ACL devuelve la configuracion entera del
+  # agente. No se usa el catalogo: sus rutas filtran en vez de rechazar, y con
+  # ACL devuelven un 200 vacio que pareceria una exposicion.
+  - id: consul-unauthenticated-access
+    version: 1
+    type: http
+    category: exposed_service
+    severity: CRITICAL
+    service: consul
+    mode: safe
+    requests:
+      - method: GET
+        path: /v1/agent/self
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: word
+            part: body
+            words:
+              - '"Config"'
+              - '"Member"'
+    finding:
+      title: Agente de Consul accesible sin autenticacion (catalogo de servicios y registro de servicios nuevos)
+      qod: 99
+      confirmed: true
+  # Kibana no sirve de prueba con /api/status: puede estar abierto a proposito
+  # (status.allowAnonymous) aunque el resto exija sesion. Lo que ensena si hay
+  # acceso a los datos es la API de objetos guardados, que con seguridad
+  # activa contesta 401.
+  - id: kibana-unauthenticated-access
+    version: 1
+    type: http
+    category: exposed_service
+    severity: CRITICAL
+    service: kibana
+    mode: safe
+    requests:
+      - method: GET
+        path: /api/saved_objects/_find?type=dashboard&per_page=1
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: word
+            part: body
+            words:
+              - '"saved_objects"'
+              - '"per_page"'
+    finding:
+      title: Kibana accesible sin autenticacion (acceso a los datos indexados del Elasticsearch al que apunta)
+      qod: 99
+      confirmed: true
   - id: postgres-trust-authentication
     version: 1
     type: script
@@ -907,6 +1037,45 @@ checks:
     mode: safe
     finding:
       title: 'PostgreSQL: acepta conexiones de red sin contrasena (modo trust)'
+      qod: 99
+      confirmed: true
+  - id: postgres-password-without-tls
+    version: 1
+    type: script
+    script: postgres-password-without-tls
+    category: network_config
+    severity: MEDIUM
+    service: postgres
+    mode: safe
+    finding:
+      title: 'PostgreSQL: pide contrasena sin ofrecer cifrar la conexion (credenciales y datos en claro)'
+      qod: 99
+      confirmed: true
+  # SQL Server: la postura de cifrado que su PRELOGIN ya anuncia. Dos checks
+  # porque el propio intercambio distingue dos situaciones de gravedad
+  # distinta; un servidor recibe como mucho uno.
+  - id: mssql-encryption-not-supported
+    version: 1
+    type: script
+    script: mssql-encryption-not-supported
+    category: network_config
+    severity: HIGH
+    service: mssql
+    mode: safe
+    finding:
+      title: 'SQL Server: no admite cifrar la conexion (credenciales, consultas y datos en claro)'
+      qod: 99
+      confirmed: true
+  - id: mssql-encryption-not-required
+    version: 1
+    type: script
+    script: mssql-encryption-not-required
+    category: network_config
+    severity: MEDIUM
+    service: mssql
+    mode: safe
+    finding:
+      title: 'SQL Server: admite cifrar la conexion pero no lo exige (consultas y datos en claro)'
       qod: 99
       confirmed: true
   - id: mongodb-unauthenticated-access
@@ -945,8 +1114,34 @@ checks:
       title: 'LDAP: puerto en claro abierto habiendo LDAPS en el mismo host'
       qod: 99
       confirmed: true
-  - id: rdp-nla-not-required
+  - id: ldap-no-encrypted-channel
     version: 1
+    type: script
+    script: ldap-no-encrypted-channel
+    category: network_config
+    severity: MEDIUM
+    service: ldap
+    mode: safe
+    finding:
+      title: 'LDAP: el directorio no ofrece ninguna via cifrada (ni LDAPS ni StartTLS)'
+      qod: 99
+      confirmed: true
+  - id: ldap-domain-functional-level-unsupported
+    version: 1
+    type: script
+    script: ldap-domain-functional-level-unsupported
+    category: network_config
+    severity: MEDIUM
+    service: ldap
+    mode: safe
+    finding:
+      title: 'Active Directory: el dominio funciona en el nivel de un Windows Server sin soporte (2012 R2 o anterior)'
+      qod: 99
+      confirmed: true
+  # version 2: ya no dispara cuando el servidor ni siquiera usa TLS; ese caso,
+  # peor, es rdp-legacy-security-layer.
+  - id: rdp-nla-not-required
+    version: 2
     type: script
     script: rdp-nla-not-required
     category: network_config
@@ -955,6 +1150,58 @@ checks:
     mode: safe
     finding:
       title: 'RDP: no exige autenticacion a nivel de red (NLA)'
+      qod: 99
+      confirmed: true
+  # Lo que un equipo cuenta de sí mismo sin credenciales. No son riesgos sino
+  # contexto: severidad INFO y categoría host_identity, que no entra en el
+  # ciclo de vida abierto/corregido. El marcador del título lo rellena la
+  # evidencia del plugin.
+  - id: smb-host-identity
+    version: 1
+    type: script
+    script: smb-host-identity
+    category: host_identity
+    severity: INFO
+    service: smb
+    mode: safe
+    finding:
+      title: 'SMB: el equipo se identifica como {identity}'
+      qod: 99
+      confirmed: true
+  - id: ldap-directory-domain
+    version: 1
+    type: script
+    script: ldap-directory-domain
+    category: host_identity
+    severity: INFO
+    service: ldap
+    mode: safe
+    finding:
+      title: 'LDAP: el directorio sirve el dominio {domain}'
+      qod: 99
+      confirmed: true
+  - id: rdp-legacy-security-layer
+    version: 1
+    type: script
+    script: rdp-legacy-security-layer
+    category: network_config
+    severity: CRITICAL
+    service: rdp
+    mode: safe
+    finding:
+      title: 'RDP: usa la seguridad antigua del protocolo, sin TLS ni NLA (suplantacion del servidor posible)'
+      qod: 99
+      confirmed: true
+  - id: winrm-basic-auth-cleartext
+    version: 1
+    type: script
+    script: winrm-basic-auth-cleartext
+    category: network_config
+    severity: HIGH
+    service: winrm
+    mode: safe
+    finding:
+      title: 'WinRM: acepta autenticacion Basic sin TLS (credenciales de administracion de Windows en claro)'
       qod: 99
       confirmed: true
   - id: smbv1-enabled
@@ -1257,6 +1504,245 @@ checks:
       qod: 99
       confirmed: true
   # ---- Depuración activa en producción --------------------------------
+  # -------------------------------------------------------------------
+  # Mas paneles y paginas de estado de terceros en su ruta por defecto.
+  # Misma regla que los de arriba: el codigo de estado nunca basta solo, y
+  # cada condicion va en su propio matcher (dentro de un matcher "word", las
+  # palabras se combinan con OR). Todo son GET de lectura.
+  # -------------------------------------------------------------------
+  # Grafana con acceso anonimo: /api/org solo contesta sin sesion si
+  # auth.anonymous esta activo; si no, 401. zipCode es un campo de la
+  # direccion de la organizacion que devuelve Grafana y no un JSON cualquiera.
+  - id: grafana-anonymous-access
+    version: 1
+    type: http
+    category: exposed_service
+    severity: MEDIUM
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /api/org
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: word
+            part: body
+            words:
+              - '"zipCode"'
+          - type: word
+            part: body
+            words:
+              - '"name"'
+    finding:
+      title: Grafana con acceso anónimo activo (paneles y fuentes de datos sin sesión)
+      qod: 99
+      confirmed: true
+  # phpMyAdmin: la pantalla de login ya es el hallazgo — un gestor web de la
+  # base de datos a la vista es un blanco de fuerza bruta. Las variables
+  # pma_username/pma_password son del formulario de phpMyAdmin y no de una
+  # pagina que solo lo mencione.
+  - id: phpmyadmin-exposed
+    version: 1
+    type: http
+    category: web_finding
+    severity: MEDIUM
+    service: http
+    mode: safe
+    payloads:
+      pma_path:
+        - /phpmyadmin/
+        - /phpMyAdmin/
+        - /pma/
+    requests:
+      - method: GET
+        path: '{{pma_path}}'
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: word
+            part: body
+            words:
+              - phpMyAdmin
+          - type: regex
+            part: body
+            regex:
+              - 'name="pma_(?:username|password)"'
+    finding:
+      title: phpMyAdmin accesible (gestor web de la base de datos)
+      qod: 99
+      confirmed: true
+  - id: adminer-exposed
+    version: 1
+    type: http
+    category: web_finding
+    severity: MEDIUM
+    service: http
+    mode: safe
+    payloads:
+      adminer_path:
+        - /adminer.php
+        - /adminer/
+    requests:
+      - method: GET
+        path: '{{adminer_path}}'
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: regex
+            part: body
+            regex:
+              - '<title>[^<]*Adminer'
+          - type: regex
+            part: body
+            regex:
+              - 'name="auth\[(?:server|username)\]"'
+    finding:
+      title: Adminer accesible (gestor web de bases de datos)
+      qod: 99
+      confirmed: true
+  # Traefik con api.insecure: la API de su panel publica rutas, servicios y
+  # proveedores de toda la infraestructura que enruta. Un 200 generico no
+  # trae a la vez "routers" y "providers".
+  - id: traefik-api-exposed
+    version: 1
+    type: http
+    category: exposed_service
+    severity: MEDIUM
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /api/overview
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: word
+            part: body
+            words:
+              - '"routers"'
+          - type: word
+            part: body
+            words:
+              - '"providers"'
+    finding:
+      title: API del panel de Traefik accesible sin autenticación (mapa de rutas y servicios internos)
+      qod: 99
+      confirmed: true
+  # /haproxy?stats es la ruta que HAProxy usa si "stats uri" no dice otra.
+  - id: haproxy-stats-exposed
+    version: 1
+    type: http
+    category: exposed_path
+    severity: MEDIUM
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /haproxy?stats
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: word
+            part: body
+            words:
+              - Statistics Report for HAProxy
+    finding:
+      title: Página de estadísticas de HAProxy accesible (servidores internos y su estado)
+      qod: 99
+      confirmed: true
+  # Prometheus devuelve su configuracion entera en /api/v1/status/config: los
+  # destinos que vigila y, a veces, credenciales de sus exportadores.
+  - id: prometheus-config-exposed
+    version: 1
+    type: http
+    category: exposed_service
+    severity: MEDIUM
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /api/v1/status/config
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: word
+            part: body
+            words:
+              - '"yaml"'
+          - type: word
+            part: body
+            words:
+              - scrape_configs
+    finding:
+      title: Configuración de Prometheus accesible sin autenticación (inventario de destinos vigilados)
+      qod: 99
+      confirmed: true
+  # Netdata sirve su panel sin autenticacion por defecto; /api/v1/info
+  # describe el equipo (sistema, nucleo, CPU) y los hosts que refleja.
+  - id: netdata-exposed
+    version: 1
+    type: http
+    category: exposed_service
+    severity: LOW
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /api/v1/info
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: word
+            part: body
+            words:
+              - '"mirrored_hosts"'
+    finding:
+      title: Panel de Netdata accesible sin autenticación (métricas y datos del sistema)
+      qod: 99
+      confirmed: true
+  # La pagina de stub_status de nginx, en la ruta que usan sus ejemplos.
+  - id: nginx-status-exposed
+    version: 1
+    type: http
+    category: exposed_path
+    severity: LOW
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /nginx_status
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: word
+            part: body
+            words:
+              - 'Active connections:'
+          - type: word
+            part: body
+            words:
+              - server accepts handled requests
+    finding:
+      title: Página de estado de nginx accesible (/nginx_status)
+      qod: 99
+      confirmed: true
   - id: django-debug-enabled
     version: 1
     type: http
@@ -1304,6 +1790,75 @@ checks:
               - 'Traceback (most recent call last)'
     finding:
       title: Depurador interactivo de Werkzeug/Flask expuesto (ejecución de código)
+      qod: 99
+      confirmed: true
+  # Paginas de error por defecto y trazas internas: el caso comun y menos
+  # grave de lo mismo que los dos checks de arriba. No hace falta provocar
+  # ningun error: se mira como contesta el servidor a la misma ruta inexistente
+  # que ellos, asi que la peticion se comparte. Cada patron es la forma
+  # caracteristica de una pagina por defecto (el pie con la version de
+  # Apache, el de nginx, la de Tomcat, la "Whitelabel" de Spring Boot, la de
+  # IIS, la de Express); una pagina de error personalizada no trae ninguna.
+  - id: default-error-page
+    version: 1
+    type: http
+    category: web_finding
+    severity: LOW
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /lybra-nonexistent-debug-probe
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 404
+          - type: regex
+            part: body
+            regex:
+              - '<address>Apache(?:/[\d.]+)?[^<]*Server at '
+              - '<hr><center>nginx(?:/[\d.]+)?</center>'
+              - 'HTTP Status 404 .{1,3} Not Found'
+              - 'Whitelabel Error Page'
+              - '404 - File or directory not found\.'
+              - 'HTTP Error 404\.\d+ - Not Found'
+              - '<pre>Cannot GET /lybra-nonexistent-debug-probe</pre>'
+    finding:
+      title: Página de error por defecto del servidor web (revela el software y a veces su versión)
+      qod: 99
+      confirmed: true
+  # Una traza interna en una respuesta de error normal, sin modo de
+  # depuracion: ASP.NET con customErrors desactivado, marcos de pila de Java,
+  # errores de PHP con la ruta del fichero, y marcos de pila de Node.js.
+  # Python queda fuera a proposito: sus trazas son las de Django y Flask, que
+  # ya tienen su check, mas grave.
+  - id: stack-trace-disclosure
+    version: 1
+    type: http
+    category: web_finding
+    severity: LOW
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /lybra-nonexistent-debug-probe
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 400
+              - 404
+              - 500
+          - type: regex
+            part: body
+            regex:
+              - "Server Error in '/[^']*' Application"
+              - '(?m)^\s*at [\w$.]+\([\w$]+\.java:\d+\)'
+              - '<b>(?:Fatal error|Warning|Parse error)</b>:.{1,300}? in <b>/'
+              - '\bat [\w.<>]+ \((?:/|[A-Za-z]:\\)[^)]+\.js:\d+:\d+\)'
+    finding:
+      title: Traza interna visible en una página de error (rutas y componentes internos)
       qod: 99
       confirmed: true
   - id: debug-token-header
@@ -2183,6 +2738,66 @@ checks:
             negative: true
     finding:
       title: 'SMTP: sin STARTTLS anunciado (autenticación en claro posible)'
+      qod: 99
+      confirmed: true
+  # IMAP y POP3 sin paso a TLS: lo mismo que smtp-no-starttls, con la forma
+  # de preguntar de cada protocolo. Sólo contra los puertos que empiezan en
+  # claro (143 y 110): el 993 y el 995 cifran desde el primer byte.
+  # IMAP: CAPABILITY contesta primero con una línea "* CAPABILITY ..." que
+  # trae la lista entera, así que basta con leer esa línea.
+  - id: imap-no-starttls
+    version: 1
+    type: network
+    category: network_config
+    severity: MEDIUM
+    service: imap_starttls
+    mode: safe
+    expectBanner: true
+    requests:
+      - send: "a1 CAPABILITY\r\n"
+        read: line
+        matchers-condition: and
+        matchers:
+          - type: word
+            part: body
+            words:
+              - '* CAPABILITY'
+          - type: word
+            part: body
+            words:
+              - STARTTLS
+            negative: true
+    finding:
+      title: 'IMAP: sin STARTTLS anunciado (contraseñas de correo en claro)'
+      qod: 99
+      confirmed: true
+  # POP3: CAPA (RFC 2449) contesta "+OK" y una capacidad por línea hasta un
+  # "." solo; el paso a TLS se llama STLS. Un servidor que no conoce CAPA
+  # contesta "-ERR" y el check no dispara: sin la lista no hay evidencia.
+  - id: pop3-no-starttls
+    version: 1
+    type: network
+    category: network_config
+    severity: MEDIUM
+    service: pop3_starttls
+    mode: safe
+    expectBanner: true
+    requests:
+      - send: "CAPA\r\n"
+        read: dot-terminated
+        matchers-condition: and
+        matchers:
+          - type: regex
+            part: body
+            regex:
+              - '^\+OK'
+          - type: regex
+            part: body
+            regex:
+              - '(?m)^STLS\s*$'
+            negative: true
+    finding:
+      title: 'POP3: sin STLS anunciado (contraseñas de correo en claro)'
       qod: 99
       confirmed: true
   # FTP sin cifrado: el servidor rechaza AUTH TLS, así que credenciales y datos

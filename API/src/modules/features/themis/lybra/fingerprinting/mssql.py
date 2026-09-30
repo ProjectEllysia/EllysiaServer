@@ -100,6 +100,17 @@ class MssqlFingerprint:
         """Si el servidor declara que no admite cifrar el canal."""
         return self.encryption == "not-supported"
 
+    @property
+    def is_encryption_optional(self) -> bool:
+        """Si el servidor admite cifrar el canal pero no lo exige.
+
+        La sonda anuncia ``ENCRYPTION = off``. Un servidor que contesta ``off``
+        a eso acepta no cifrar: sólo el paquete de login viaja cifrado, y las
+        consultas y sus resultados van en claro. ``on`` o ``required`` en la
+        respuesta significan que obliga a cifrar aunque el cliente no quiera.
+        """
+        return self.encryption == "off"
+
 
 def build_prelogin_request() -> bytes:
     """Construye un paquete ``PRELOGIN`` mínimo con las dos opciones que se leen.

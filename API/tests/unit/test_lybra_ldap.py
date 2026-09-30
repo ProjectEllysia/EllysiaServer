@@ -468,3 +468,105 @@ def test_both_ldap_checks_are_registered_and_wired_to_their_feed_entries():
         check = next(c for c in load_checks() if c.id == check_id)
         assert check.service == "ldap" and check.mode == "safe"
         assert check.script in plugins
+
+
+# ============================ nivel funcional del dominio y vía cifrada
+
+_STARTTLS_OID = "1.3.6.1.4.1.1466.20037"
+
+
+class _EvidenceContext(_Context):
+    def __init__(self, port=389, siblings=()):
+        super().__init__(port, siblings)
+        self.evidence = {}
+
+
+def _rootdse(**attributes):
+    return [_bind_reply(RESULT_SUCCESS), _search_reply(attributes)]
+
+
+def _level_plugin(replies):
+    from src.modules.features.themis.lybra.script_checks import LdapDomainFunctionalLevelPlugin
+    probe, _sent = _probe_with(replies)
+    return LdapDomainFunctionalLevelPlugin(probe=probe)
+
+
+def _channel_plugin(replies):
+    from src.modules.features.themis.lybra.script_checks import LdapNoEncryptedChannelPlugin
+    probe, _sent = _probe_with(replies)
+    return LdapNoEncryptedChannelPlugin(probe=probe)
+
+
+def test_the_rootdse_asks_for_the_extensions_and_the_domain_level():
+    assert {"supportedExtension", "domainFunctionality"} <= set(ROOTDSE_ATTRIBUTES)
+
+
+def test_the_extensions_and_the_domain_level_are_read_from_the_rootdse():
+    fingerprint = fingerprint_ldap(*_rootdse(
+        supportedExtension=[_STARTTLS_OID, "1.3.6.1.4.1.4203.1.11.3"], domainFunctionality=["7"]))
+    assert fingerprint.supports_starttls is True
+    assert fingerprint.domain_functional_level == 7
+    assert fingerprint.domain_windows_version == "Windows Server 2016"
+
+
+def test_a_rootdse_without_extensions_does_not_say_whether_starttls_exists():
+    assert fingerprint_ldap(*_rootdse(vendorName=["OpenLDAP"])).supports_starttls is None
+
+
+@pytest.mark.parametrize("level, version", [("3", "Windows Server 2008"), ("6", "Windows Server 2012 R2")])
+def test_a_domain_in_an_unsupported_level_is_flagged(level, version):
+    context = _EvidenceContext()
+    assert _level_plugin(_rootdse(domainFunctionality=[level])).run(context) is True
+    assert context.evidence == {"domainFunctionality": int(level), "windowsVersion": version}
+
+
+@pytest.mark.parametrize("level", ["7", "10"])
+def test_a_domain_in_a_supported_level_is_not_flagged(level):
+    """Señuelo: el mismo controlador en un nivel funcional reciente."""
+    assert _level_plugin(_rootdse(domainFunctionality=[level])).run(_EvidenceContext()) is False
+
+
+def test_a_directory_that_is_not_active_directory_has_no_domain_level():
+    assert _level_plugin(_rootdse(vendorName=["OpenLDAP"])).run(_EvidenceContext()) is False
+
+
+def test_a_directory_without_ldaps_nor_starttls_is_flagged():
+    plugin = _channel_plugin(_rootdse(supportedExtension=["1.3.6.1.4.1.4203.1.11.3"]))
+    assert plugin.run(_Context()) is True
+
+
+def test_a_directory_that_offers_starttls_is_not_flagged():
+    """Señuelo: sin 636 abierto, pero con StartTLS sobre el 389."""
+    plugin = _channel_plugin(_rootdse(supportedExtension=[_STARTTLS_OID]))
+    assert plugin.run(_Context()) is False
+
+
+def test_a_host_with_ldaps_is_left_to_the_cleartext_with_ldaps_check():
+    """Con LDAPS en el host el aviso es ``ldap-cleartext-with-ldaps``, y éste
+    ni siquiera conecta: los dos nunca disparan juntos."""
+    plugin = _channel_plugin([])
+    siblings = (Service(636, "tcp", "ldaps"),)
+    assert plugin.run(_Context(siblings=siblings)) is False
+
+
+def test_unknown_extensions_do_not_assert_a_missing_encrypted_channel():
+    plugin = _channel_plugin(_rootdse(vendorName=["OpenLDAP"]))
+    assert plugin.run(_Context()) is False
+
+
+def test_the_channel_check_ignores_the_ldaps_ports_themselves():
+    from src.modules.features.themis.lybra.script_checks import LdapNoEncryptedChannelPlugin
+
+    plugin = LdapNoEncryptedChannelPlugin(probe=_probe_with([])[0])
+    assert plugin.applies(Service(389, "tcp", "ldap"))
+    assert not plugin.applies(Service(636, "tcp", "ldaps"))
+
+
+def test_the_two_directory_checks_are_registered_and_wired():
+    from src.modules.features.themis.lybra.checks import load_checks
+    from src.modules.features.themis.lybra.script_checks import default_script_plugins
+
+    checks = {c.id: c for c in load_checks()}
+    for check_id in ("ldap-no-encrypted-channel", "ldap-domain-functional-level-unsupported"):
+        assert checks[check_id].service == "ldap" and checks[check_id].mode == "safe"
+        assert check_id in default_script_plugins()
