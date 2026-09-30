@@ -169,24 +169,29 @@ def test_the_directory_is_prefixed_only_to_get_paths_that_start_with_a_slash():
 # ============================================================ el feed
 
 
-def test_the_file_exposure_checks_that_opt_in_are_the_two_named_ones():
+def test_the_file_exposure_checks_that_opt_in_include_the_two_named_ones():
+    """El conjunto exacto lo amplía #1069 (listado de directorios y copias de
+    backup); esto sólo ata que los dos originales sigan dentro."""
     opted_in = {check.id for check in load_checks() if check.runs_on_discovered_directories}
 
-    assert opted_in == {"git-config-exposure", "dotenv-exposure"}
+    assert {"git-config-exposure", "dotenv-exposure"} <= opted_in
 
 
 def test_the_shipped_feed_is_still_well_formed():
     assert validate_checks(load_checks()) == []
 
 
-def test_asking_for_directories_on_a_root_path_is_reported():
+def test_a_root_path_is_a_valid_target_for_discovered_directories():
+    """Relajado en #1069: el listado de directorios necesita repetir su
+    propia ruta raíz sobre cada directorio descubierto (``/admin/`` en vez de
+    ``/``), así que la raíz ya no está prohibida."""
     check = Check(
         id="root", version=1, type="http", category="security_header", severity="LOW",
         service="http", mode="safe", finding={}, runs_on_discovered_directories=True,
         requests=(Request(path="/", matchers=(Matcher(type="status", values=(200,)),)),),
     )
 
-    assert any("onDiscoveredDirectories" in problem for problem in validate_checks([check]))
+    assert validate_checks([check]) == []
 
 
 def test_asking_for_directories_on_a_non_get_request_is_reported():
@@ -243,11 +248,12 @@ def test_the_manager_hands_the_selected_directories_to_the_check_runtime(monkeyp
     monkeypatch.setattr(engine_module.CR, "lybra_engine_config", lambda: type("_Cfg", (), {
         "http_timeout": 1.0, "http_max_body_bytes": 1000, "http_user_agent": "t"})())
 
-    findings, auth_paths, directories = engine_module.LybraEngineManager()._run_crawler(  # pylint: disable=protected-access
+    findings, auth_paths, directories, login_paths = engine_module.LybraEngineManager()._run_crawler(  # pylint: disable=protected-access
         "10.0.0.1", [_SERVICE])
 
     assert directories == {80: ["/a/", "/b/"]}
     assert auth_paths == [] and findings == []
+    assert login_paths == {80: []}
 
 
 def test_a_disabled_crawl_returns_no_directories(monkeypatch):
@@ -257,4 +263,4 @@ def test_a_disabled_crawl_returns_no_directories(monkeypatch):
         "max_pages": 0})())
 
     assert engine_module.LybraEngineManager()._run_crawler(  # pylint: disable=protected-access
-        "10.0.0.1", [_SERVICE]) == ([], [], {})
+        "10.0.0.1", [_SERVICE]) == ([], [], {}, {})

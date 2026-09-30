@@ -114,6 +114,9 @@ logger = logging.getLogger(__name__)
 # checks-38: páginas de error por defecto y trazas internas visibles.
 # checks-39: la respuesta de referencia del servicio («200 a todo»): un check de
 # ruta ya no dispara con una respuesta idéntica a la de una ruta inventada.
+# checks-44: lo que el rastreo descubre navegando (copias de backup junto a un
+# directorio real, listado de directorios, formularios de acceso por HTTP)
+# alimenta a checks concretos, con ``onDiscoveredPaths`` como mecanismo nuevo.
 # checks-43: cadena de certificados TLS incompleta y grupo Diffie-Hellman
 # débil, con el lector de saludo TLS en crudo.
 # checks-42: CORS con comodín de origen o con reflejo de cualquier origen,
@@ -122,7 +125,7 @@ logger = logging.getLogger(__name__)
 # rastreo descubrió (``onDiscoveredDirectories``).
 # checks-40: el matcher ``compare`` (una respuesta contra otra de la misma
 # cadena) y los marcadores ``{{nombre}}`` en los valores de un matcher.
-CHECKS_FEED_VERSION = "lybra-checks-43"
+CHECKS_FEED_VERSION = "lybra-checks-44"
 # Quality of Detection for a finding a check actively confirmed, as opposed to
 # one merely inferred from a version.
 QOD_CONFIRMED = 99
@@ -691,10 +694,17 @@ class Check:  # pylint: disable=too-many-instance-attributes
             ``guardBaseline: false``, porque su coincidencia es justo esa
             página. Sólo afecta a ``type: "http"``.
         runs_on_discovered_directories: Si, además de sus rutas tal cual, el
-            runtime repite el check sobre los directorios que el rastreo
-            descubrió en el servicio (``/app/.env`` además de ``/.env``). Por
-            defecto ``False``. Sólo tiene sentido en un check de ruta cuyas
-            peticiones son ``GET`` a una ruta distinta de la raíz; ver
+            runtime repite el check anteponiendo cada directorio que el
+            rastreo descubrió en el servicio a la ruta de cada petición
+            ``GET`` (``/app/.env`` además de ``/.env``; ``/app/`` además de
+            ``/`` para un check cuya ruta ya es la raíz, como el listado de
+            directorios). Por defecto ``False``; ver :func:`validate_checks`.
+        runs_on_discovered_paths: Si, en vez de (o además de) sus rutas tal
+            cual, el runtime **sustituye** la ruta de cada petición ``GET``
+            por cada ruta exacta que el rastreo descubrió con una superficie
+            propia — hoy, los formularios de acceso (``login_paths``): no hay
+            un sufijo fijo que anteponerles un directorio, la ruta entera es
+            lo que el rastreo encontró. Por defecto ``False``; ver
             :func:`validate_checks`.
     """
     id: str
@@ -717,6 +727,7 @@ class Check:  # pylint: disable=too-many-instance-attributes
     payloads: tuple = ()
     guards_baseline: bool = True
     runs_on_discovered_directories: bool = False
+    runs_on_discovered_paths: bool = False
 
     @property
     def check_id(self) -> str:
@@ -824,6 +835,7 @@ def _parse_check(c: dict) -> Check:
         ),
         guards_baseline=bool(c.get("guardBaseline", True)),
         runs_on_discovered_directories=bool(c.get("onDiscoveredDirectories", False)),
+        runs_on_discovered_paths=bool(c.get("onDiscoveredPaths", False)),
     )
     _assert_service_is_reachable(check)
     return check
@@ -1069,11 +1081,20 @@ def validate_checks(checks: Iterable[Check]) -> List[str]:  # pylint: disable=to
                 problems.append(
                     f"Check {name!r}: 'onDiscoveredDirectories' sólo vale en un check http")
             for position, request in enumerate(check.requests):
-                if request.method != "GET" or not request.path.startswith("/") \
-                        or request.path == "/":
+                if request.method != "GET":
                     problems.append(
                         f"Check {name!r}, petición {position}: 'onDiscoveredDirectories' exige "
-                        f"un GET a una ruta que empiece por '/' y no sea la raíz")
+                        f"un GET, que es lo único que el runtime le antepone un directorio")
+
+        if check.runs_on_discovered_paths:
+            if check.type != "http":
+                problems.append(
+                    f"Check {name!r}: 'onDiscoveredPaths' sólo vale en un check http")
+            for position, request in enumerate(check.requests):
+                if request.method != "GET":
+                    problems.append(
+                        f"Check {name!r}, petición {position}: 'onDiscoveredPaths' exige "
+                        f"un GET, que es lo único que el runtime le sustituye la ruta")
 
         for position, request in enumerate(check.requests):
             where = f"Check {name!r}, petición {position}"
@@ -1840,6 +1861,7 @@ class CheckRuntime:
         self._handshakes: Dict[tuple, object] = {}
         self._baselines: Dict[tuple, Optional[Baseline]] = {}
         self._discovered_directories: Dict[int, Tuple[str, ...]] = {}
+        self._discovered_paths: Dict[int, Tuple[str, ...]] = {}
         self._families: Tuple[_CheckFamily, ...] = (
             _CheckFamily(
                 applies_to_service=is_http_service,
@@ -1868,7 +1890,8 @@ class CheckRuntime:
             self, host: str, services: Iterable[Service],
             cancel_check: Optional[Callable[[], bool]] = None,
             proposed_cves: Optional[frozenset] = None,
-            discovered_directories: Optional[Dict[int, Iterable[str]]] = None) -> List[dict]:
+            discovered_directories: Optional[Dict[int, Iterable[str]]] = None,
+            discovered_paths: Optional[Dict[int, Iterable[str]]] = None) -> List[dict]:
         """Run every applicable check against a host's HTTP, TLS and network services.
 
         Probes are shared within one call: several checks reading the same
@@ -1901,6 +1924,11 @@ class CheckRuntime:
                 runtime no recorta la lista (ver
                 :func:`~.crawler.select_scan_directories`). Por defecto
                 ninguno, y todo corre sólo sobre las rutas del feed.
+            discovered_paths: Las rutas exactas que el rastreo descubrió con
+                una superficie propia, por puerto (``{80: ["/cuenta/acceso"]}``).
+                Los checks que declaran ``onDiscoveredPaths`` sustituyen la
+                ruta de cada petición ``GET`` por cada una de éstas, en vez de
+                anteponerles un directorio. Por defecto ninguna.
 
         Returns:
             A finding dict for each check that fired.
@@ -1924,6 +1952,9 @@ class CheckRuntime:
         self._discovered_directories = {
             port: tuple(directories)
             for port, directories in (discovered_directories or {}).items()}
+        self._discovered_paths = {
+            port: tuple(paths)
+            for port, paths in (discovered_paths or {}).items()}
 
         per_service = self._mapper(self._run_for_service, services)
         return [finding for group in per_service for finding in group]
@@ -2046,28 +2077,35 @@ class CheckRuntime:
         carries a single ``check_id``, so twenty probes collapse to one finding.
         """
         fired = None
-        fired_directory = ""
+        fired_marker = ""
         # Las rutas del feed primero, tal cual; sólo si no disparan se prueban
-        # los directorios descubiertos. Así un servicio sin directorios, o un
-        # check que no los pide, se comporta exactamente como antes, y un
-        # hallazgo en la raíz nunca se sustituye por otro más profundo.
-        directories = [""]
+        # los directorios y las rutas exactas descubiertas. Así un servicio
+        # sin nada descubierto, o un check que no los pide, se comporta
+        # exactamente como antes, y un hallazgo en la ruta del feed nunca se
+        # sustituye por otro más profundo.
+        candidates: List[Tuple[str, Optional[str]]] = [("", None)]
         if check.runs_on_discovered_directories:
-            directories += list(self._discovered_directories.get(service.port, ()))
-        for directory in directories:
+            candidates += [
+                (directory, None)
+                for directory in self._discovered_directories.get(service.port, ())]
+        if check.runs_on_discovered_paths:
+            candidates += [
+                ("", path) for path in self._discovered_paths.get(service.port, ())]
+        for directory, path_override in candidates:
             for variables in self._payload_combinations(check):
-                fired = self._run_request_sequence(check, host, service, variables, directory)
+                fired = self._run_request_sequence(
+                    check, host, service, variables, directory, path_override)
                 if fired is not None:
                     break
             if fired is not None:
-                fired_directory = directory
+                fired_marker = directory or path_override or ""
                 break
         if fired is None:
             return None
         last_response, last_path = fired
         finding = self._finding(check, service)
-        if fired_directory:
-            finding["title"] = f"{finding['title']} (en {fired_directory})"
+        if fired_marker:
+            finding["title"] = f"{finding['title']} (en {fired_marker})"
         # Evidencia: la respuesta que provocó el hallazgo. Sólo para
         # los confirmados —los que van a un informe— y sólo si la captura está
         # activada. El payload viaja en ``_evidence`` hasta la persistencia, que
@@ -2110,7 +2148,7 @@ class CheckRuntime:
 
     def _run_request_sequence(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self, check: Check, host: str, service: Service, variables: Dict[str, str],
-        directory: str = "",
+        directory: str = "", path_override: Optional[str] = None,
     ) -> Optional[Tuple[Response, str]]:
         """Run a check's requests once, threading extracted variables through.
 
@@ -2130,6 +2168,12 @@ class CheckRuntime:
             directory: Un directorio descubierto (``"/app/"``) que se antepone
                 a la ruta de cada petición ``GET``, o ``""`` para pedirlas tal
                 cual. Por defecto ``""``.
+            path_override: Una ruta exacta descubierta que **sustituye** la
+                ruta de cada petición ``GET``, en vez de anteponerle un
+                directorio; ``None`` para no sustituir nada. Nunca se dan los
+                dos a la vez en la práctica (un check declara uno de los dos
+                mecanismos), pero si lo estuvieran, ganaría éste. Por defecto
+                ``None``.
 
         Returns:
             ``(last_response, last_path)`` if every request matched, else
@@ -2141,7 +2185,9 @@ class CheckRuntime:
         previous: List[Response] = []
         for request in check.requests:
             path = _substitute(request.path, variables)
-            if directory and request.method == "GET" and path.startswith("/"):
+            if request.method == "GET" and path_override is not None:
+                path = path_override
+            elif directory and request.method == "GET" and path.startswith("/"):
                 path = directory.rstrip("/") + path
             body = _substitute(request.body, variables) if request.body else None
             headers = {name: _substitute(value, variables) for name, value in request.headers} or None

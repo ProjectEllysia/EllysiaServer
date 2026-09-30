@@ -2267,6 +2267,9 @@ checks:
     severity: LOW
     service: http
     mode: safe
+    # L108: se repite sobre cada directorio real que el rastreo descubrió
+    # navegando el sitio, no sólo la raíz.
+    onDiscoveredDirectories: true
     requests:
       - method: GET
         path: /
@@ -3075,5 +3078,72 @@ checks:
             relation: differs
     finding:
       title: 'CORS: refleja cualquier origen con credenciales (Access-Control-Allow-Origin reflejado)'
+      qod: 99
+      confirmed: true
+  # ---------------------------------------------------------------------------
+  # L108 — lo que el rastreo ya descubre navegando alimenta a dos checks más:
+  # copias de backup junto a un directorio real, y un formulario de acceso que
+  # el rastreo encontró servido por HTTP en vez de HTTPS. El listado de
+  # directorios sobre cada directorio descubierto es el mismo check de
+  # siempre (``directory-listing-enabled``, arriba), sólo con
+  # ``onDiscoveredDirectories`` añadido.
+  - id: backup-file-near-discovered-directory
+    version: 1
+    type: http
+    category: exposed_path
+    severity: MEDIUM
+    service: http
+    mode: safe
+    onDiscoveredDirectories: true
+    payloads:
+      name:
+        - index.php.bak
+        - index.php~
+        - index.php.old
+        - index.html.bak
+        - default.aspx.bak
+        - config.php.bak
+        - config.php~
+        - config.php.old
+        - .htaccess.bak
+        - web.config.bak
+    requests:
+      - method: GET
+        path: /{{name}}
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+    finding:
+      title: Copia de seguridad de un fichero olvidada junto a un directorio real
+      qod: 99
+      confirmed: true
+  - id: login-form-served-over-http
+    version: 1
+    type: http
+    category: security_header
+    severity: MEDIUM
+    service: http
+    mode: safe
+    # La ruta declarada aquí es un marcador: el runtime la sustituye entera
+    # por cada formulario de acceso que el rastreo encontró navegando el
+    # sitio (login_paths), porque no hay un sufijo fijo que anteponerle un
+    # directorio — la ruta entera es lo que el rastreo descubrió.
+    onDiscoveredPaths: true
+    requests:
+      - method: GET
+        path: /lybra-discovered-login-placeholder
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: regex
+            part: transport
+            regex:
+              - '^http->http$'
+    finding:
+      title: Formulario de acceso servido por HTTP sin redirección a HTTPS
       qod: 99
       confirmed: true

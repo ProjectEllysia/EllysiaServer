@@ -902,10 +902,11 @@ class LybraEngineManager(ScanManager):
             # activo.
             discovered_auth_paths: list = []
             discovered_directories: dict = {}
+            discovered_login_paths: dict = {}
             if (source.probes_target_network and source_target and is_target_authorized
                     and not should_stop()):
-                crawl_findings, discovered_auth_paths, discovered_directories = (
-                    self._run_crawler(source_target, services))
+                crawl_findings, discovered_auth_paths, discovered_directories, \
+                    discovered_login_paths = self._run_crawler(source_target, services)
                 findings_data.extend(crawl_findings)
 
             # Las marcas de los refutadores no son hallazgos: se apartan aquí
@@ -918,7 +919,8 @@ class LybraEngineManager(ScanManager):
                                             cancel_check=should_stop,
                                             proposed_cves=proposed_cves,
                                             mode=mode,
-                                            discovered_directories=discovered_directories))
+                                            discovered_directories=discovered_directories,
+                                            discovered_paths=discovered_login_paths))
                 # Lo que la especificación de una API declara protegido y
                 # contesta sin credenciales. Sólo el sitio por defecto de la
                 # IP: los sitios con nombre no se analizan aparte.
@@ -1124,7 +1126,8 @@ class LybraEngineManager(ScanManager):
 
     def _run_active_checks(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self, target: str, services, cancel_check=None,
-        proposed_cves=None, mode: str = "safe", discovered_directories=None) -> list:
+        proposed_cves=None, mode: str = "safe", discovered_directories=None,
+        discovered_paths=None) -> list:
         """Run the check runtime against the target's HTTP, TLS, network
         and script services.
 
@@ -1152,6 +1155,10 @@ class LybraEngineManager(ScanManager):
             discovered_directories: Los directorios que el rastreo descubrió,
                 por puerto (ver :meth:`_run_crawler`), sobre los que se repiten
                 los checks de ruta que lo piden. Por defecto ``None`` (ninguno).
+            discovered_paths: Las rutas exactas que el rastreo descubrió (los
+                formularios de login), por puerto, sobre las que los checks
+                que declaran ``onDiscoveredPaths`` sustituyen su propia ruta.
+                Por defecto ``None`` (ninguna).
 
         Returns:
             list: Los hallazgos de los checks que dispararon; vacía si el
@@ -1188,7 +1195,8 @@ class LybraEngineManager(ScanManager):
             )
             return runtime.run(target, services, cancel_check=cancel_check,
                                proposed_cves=proposed_cves,
-                               discovered_directories=discovered_directories)
+                               discovered_directories=discovered_directories,
+                               discovered_paths=discovered_paths)
         except Exception:
             logger.exception("Lybra active checks failed for %s", target)
             return []
@@ -1206,18 +1214,21 @@ class LybraEngineManager(ScanManager):
             services: Los servicios del escaneo.
 
         Returns:
-            tuple: ``(hallazgos, rutas_con_auth_basica, directorios)``. Los
-                hallazgos son los avisos de robots.txt, formularios de login y
-                rutas protegidas; la lista de rutas alimenta el motor de
-                credenciales en modo agresivo; los directorios son
-                ``{puerto: [directorio, ...]}`` con los que
+            tuple: ``(hallazgos, rutas_con_auth_basica, directorios,
+                rutas_de_login)``. Los hallazgos son los avisos de robots.txt,
+                formularios de login y rutas protegidas; la lista de rutas
+                alimenta el motor de credenciales en modo agresivo; los
+                directorios son ``{puerto: [directorio, ...]}`` con los que
                 :func:`select_scan_directories` eligió por servicio, sobre los
-                que los checks de ruta se repiten.
+                que los checks de ruta se repiten; las rutas de login son
+                ``{puerto: [ruta, ...]}`` con los formularios de acceso que el
+                rastreo encontró, sobre los que los checks que declaran
+                ``onDiscoveredPaths`` sustituyen su propia ruta.
         """
         try:
             config = CR.lybra_crawler_config()
             if config.max_pages <= 0:
-                return [], [], {}
+                return [], [], {}, {}
             engine = CR.lybra_engine_config()
             fetch = HttpProbe(
                 timeout=engine.http_timeout,
@@ -1227,6 +1238,7 @@ class LybraEngineManager(ScanManager):
             findings: list = []
             auth_paths: list = []
             directories_by_port: dict = {}
+            login_paths_by_port: dict = {}
             for service in services:
                 if not is_http_service(service):
                     continue
@@ -1240,10 +1252,11 @@ class LybraEngineManager(ScanManager):
                 auth_paths.extend(result.basic_auth_paths)
                 directories_by_port[service.port] = select_scan_directories(
                     result.directories, config.max_scan_directories)
-            return findings, auth_paths, directories_by_port
+                login_paths_by_port[service.port] = list(result.login_paths)
+            return findings, auth_paths, directories_by_port, login_paths_by_port
         except Exception:
             logger.exception("Lybra crawl failed for %s", target)
-            return [], [], {}
+            return [], [], {}, {}
 
     def _run_credential_checks(self, target: str, services, mode: str,
                                discovered_paths=None) -> list:
