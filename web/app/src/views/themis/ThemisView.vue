@@ -63,7 +63,10 @@
             :launching="cloudStore.launching"
             :running="hasActiveCloudScan"
             :authorized-targets="store.authorizedTargets.items"
+            :subdomain-searches="cloudStore.searches.items"
+            :discovering="cloudStore.discovering"
             @launch="cloudStore.launchCloudScan"
+            @discover="cloudStore.discoverSubdomains"
             @authorize="target => handleAddAuthorizedTarget({ target })" />
           <CloudScans
             :scans="cloudStore.scans.items"
@@ -433,7 +436,7 @@ watch(() => store.world, (w) => {
 // registro de objetivos autorizados al día para los sellos de cada recurso.
 watch(() => [store.world, store.lybraScope], ([w, scope]) => {
   const isCloud = w === 'lybra' && scope === 'cloud'
-  if (isCloud) { cloudStore.loadScans(); store.loadAuthorizedTargets() }
+  if (isCloud) { cloudStore.loadScans(); cloudStore.loadSearches(); store.loadAuthorizedTargets() }
   else cloudStore.stopPolling()
   if (w === 'lybra' && scope === 'network') networkStore.loadGroups()
 }, { immediate: true })
