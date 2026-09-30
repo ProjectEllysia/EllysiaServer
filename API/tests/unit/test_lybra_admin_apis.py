@@ -219,6 +219,8 @@ def _fired_check(feed, check_id, service, response):
     """Ejecuta un único check del feed contra un servicio que contesta ``response``
     a cualquier petición, y dice si disparó."""
     def fetch(host, port, method, path, _body=None, _headers=None):
+        if path.startswith("/lybra-baseline-"):
+            return Response(404, "", {})
         return response
     findings = CheckRuntime([feed[check_id]], fetch).run("10.0.0.5", [service])
     return bool(findings)

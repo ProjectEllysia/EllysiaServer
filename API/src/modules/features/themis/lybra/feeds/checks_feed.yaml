@@ -1750,6 +1750,9 @@ checks:
     severity: HIGH
     service: http
     mode: safe
+    # Este check pide él mismo una ruta inventada: lo que busca es justo la
+    # página de error del servidor, que la respuesta de referencia también es.
+    guardBaseline: false
     requests:
       - method: GET
         path: /lybra-nonexistent-debug-probe
@@ -1775,6 +1778,9 @@ checks:
     severity: CRITICAL
     service: http
     mode: safe
+    # Este check pide él mismo una ruta inventada: lo que busca es justo la
+    # página de error del servidor, que la respuesta de referencia también es.
+    guardBaseline: false
     requests:
       - method: GET
         path: /lybra-nonexistent-debug-probe
@@ -1806,6 +1812,9 @@ checks:
     severity: LOW
     service: http
     mode: safe
+    # Este check pide él mismo una ruta inventada: lo que busca es justo la
+    # página de error del servidor, que la respuesta de referencia también es.
+    guardBaseline: false
     requests:
       - method: GET
         path: /lybra-nonexistent-debug-probe
@@ -1840,6 +1849,9 @@ checks:
     severity: LOW
     service: http
     mode: safe
+    # Este check pide él mismo una ruta inventada: lo que busca es justo la
+    # página de error del servidor, que la respuesta de referencia también es.
+    guardBaseline: false
     requests:
       - method: GET
         path: /lybra-nonexistent-debug-probe
