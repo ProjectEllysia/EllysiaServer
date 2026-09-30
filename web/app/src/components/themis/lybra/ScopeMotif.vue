@@ -68,10 +68,10 @@ defineProps({
 
 <style scoped>
 .scope-motif {
-  position: absolute; top: 0; right: 0; z-index: -1; width: 15rem; height: 6.8rem; pointer-events: none;
-  color: var(--scope-tint); opacity: var(--scope-motif-opacity, 0.32);
-  -webkit-mask-image: linear-gradient(to left, #000 35%, transparent);
-  mask-image: linear-gradient(to left, #000 35%, transparent);
+  position: absolute; top: 0; right: 0; z-index: -1; width: 27rem; height: 12.3rem; pointer-events: none;
+  color: var(--scope-tint); opacity: var(--scope-motif-opacity, 0.34);
+  -webkit-mask-image: linear-gradient(to left, #000 30%, transparent);
+  mask-image: linear-gradient(to left, #000 30%, transparent);
   transition: opacity 0.4s ease;
 }
 .scope-motif.active { opacity: calc(var(--scope-motif-opacity, 0.32) + 0.2); }
@@ -97,7 +97,7 @@ defineProps({
 .active .l4, .active .l5 { animation-delay: 0.9s; }
 @keyframes motif-pulse { to { stroke-dashoffset: -62; } }
 
-@media (max-width: 640px) { .scope-motif { width: 11rem; height: 5rem; } }
+@media (max-width: 640px) { .scope-motif { width: 17rem; height: 7.7rem; } }
 @media (prefers-reduced-motion: reduce) {
   .scope-motif, .strata { transition: none; }
   .active .sweep, .active .s1, .active .s2, .active .s3, .active .link { animation: none; }
