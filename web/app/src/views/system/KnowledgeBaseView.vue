@@ -350,7 +350,7 @@ onMounted(() => {
 .page-title { position: relative; }
 /* Marca de agua: el nombre de las fuentes, muy tenue, detrás del título. */
 .page-title::before {
-  content: 'NVD · KEV · EPSS · OVAL'; position: absolute; left: 0; top: -1.1rem; white-space: nowrap;
+  content: 'NVD · KEV · EPSS · OVAL'; position: absolute; left: 9.5rem; top: 0.2rem; white-space: nowrap;
   font-family: var(--font-mono); font-size-adjust: var(--fsa-mono); font-size: var(--fs-xs); letter-spacing: 0.4em;
   color: var(--text-muted); opacity: 0.18; pointer-events: none;
 }
