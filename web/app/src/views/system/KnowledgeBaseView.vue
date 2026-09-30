@@ -15,7 +15,7 @@
         </button>
       </header>
 
-      <section class="card" style="--i: 1">
+      <section class="card" :class="{ 'card--syncing': isSyncRunning }" style="--i: 1">
         <div class="card-head">
           <h2>{{ t('kbAdmin.status.heading') }}</h2>
           <span v-if="feedVersion" class="mono muted">{{ feedVersion }}</span>
@@ -37,10 +37,10 @@
               </tr>
             </template>
             <template v-for="source in sources" :key="source.source">
-              <tr>
+              <tr :class="{ 'is-syncing': isSourceSyncing(source), 'is-updated': updatedSources.has(source.source) }">
                 <td class="mono">{{ source.source }}</td>
                 <td>
-                  <span class="badge" :class="`badge--${stateOf(source)}`">
+                  <span class="badge" :class="[`badge--${stateOf(source)}`, { 'badge--syncing': isSourceSyncing(source) }]">
                     <span class="lamp" aria-hidden="true"></span>{{ t(`kbAdmin.state.${stateOf(source)}`) }}
                   </span>
                 </td>
@@ -59,7 +59,7 @@
         </table>
       </section>
 
-      <section class="card" style="--i: 2">
+      <section class="card" :class="{ 'card--syncing': isSyncRunning }" style="--i: 2">
         <div class="card-head">
           <h2>{{ t('kbAdmin.sync.heading') }}</h2>
         </div>
@@ -155,7 +155,7 @@
  * sabe el espejo de una CVE o de un producto. Sólo administradores: la ruta
  * lo exige y la API también.
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Topbar from '@/components/shared/Topbar.vue'
 import StarBackground from '@/components/shared/StarBackground.vue'
@@ -181,6 +181,10 @@ const query = ref('')
 const searching = ref(false)
 const result = ref(null)
 
+/** Fuentes cuya fila se ilumina un momento porque su última sincronización acaba de cambiar. */
+const updatedSources = ref(new Set())
+let updatedTimer = null
+
 const isSyncRunning = computed(() => Object.values(tasks.value).some((task) => ACTIVE.includes(task?.status)))
 
 /**
@@ -197,6 +201,34 @@ function stateOf(source) {
   return 'ok'
 }
 
+/**
+ * Indica si hay una sincronización en marcha que afecta a una fuente.
+ * @param {object} source - Una entrada de `sources`.
+ * @returns {boolean} `true` si corre «todas las fuentes» o la de su propio nombre
+ *   (una fuente `oval_debian` cuenta como parte de `oval`).
+ */
+function isSourceSyncing(source) {
+  if (ACTIVE.includes(tasks.value.all?.status)) return true
+  const name = String(source.source).toLowerCase()
+  return SYNC_TARGETS.some((target) => target !== 'all' && name.startsWith(target) && ACTIVE.includes(tasks.value[target]?.status))
+}
+
+/**
+ * Marca durante unos segundos las fuentes cuya última sincronización correcta
+ * ha cambiado respecto a la lista anterior.
+ * @param {object[]} previous - Lista de `sources` antes de recargar.
+ * @param {object[]} next - Lista de `sources` recién cargada.
+ */
+function flashUpdated(previous, next) {
+  if (!previous.length) return
+  const before = new Map(previous.map((source) => [source.source, source.lastSuccessAt]))
+  const changed = next.filter((source) => before.has(source.source) && before.get(source.source) !== source.lastSuccessAt)
+  if (!changed.length) return
+  updatedSources.value = new Set(changed.map((source) => source.source))
+  clearTimeout(updatedTimer)
+  updatedTimer = setTimeout(() => { updatedSources.value = new Set() }, 2200)
+}
+
 /** Carga el estado de cada fuente. */
 async function loadStatus() {
   loading.value = true
@@ -204,7 +236,9 @@ async function loadStatus() {
     const res = await apiFetch('/themis/kb/status')
     if (!res?.ok) { toast.show(await apiError(res, t('kbAdmin.errors.status')), 'error'); return }
     const data = await res.json()
+    const previous = sources.value
     sources.value = data.sources ?? []
+    flashUpdated(previous, sources.value)
     feedVersion.value = data.feedVersion ?? null
   } finally { loading.value = false }
 }
@@ -250,6 +284,8 @@ async function search() {
     result.value = await res.json()
   } finally { searching.value = false }
 }
+
+onBeforeUnmount(() => clearTimeout(updatedTimer))
 
 onMounted(() => {
   loadStatus()
@@ -302,6 +338,16 @@ onMounted(() => {
 .lamp { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: currentColor; box-shadow: 0 0 0.5rem currentColor; flex-shrink: 0; }
 .badge--unverified .lamp { box-shadow: none; opacity: 0.5; }
 .empty { color: var(--text-muted); text-align: center; padding: 1.4rem 0.6rem; }
+.badge--syncing .lamp { animation: seq-pulse 1s ease-in-out infinite; }
+.kb-table tr { transition: background-color 0.4s ease; }
+.kb-table tr.is-updated { background: var(--accent-dim); animation: kb-updated 2.2s ease-out; }
+.card { position: relative; overflow: hidden; }
+/* Barrido de luz sobre la tarjeta mientras hay una sincronización en marcha. */
+.card--syncing::after {
+  content: ''; position: absolute; left: 0; top: 0; height: 2px; width: 35%;
+  background: linear-gradient(90deg, transparent, var(--accent-bright), transparent);
+  animation: kb-sweep 1.8s ease-in-out infinite;
+}
 .badge--ok { color: var(--success); }
 .badge--unverified { color: var(--text-dim); }
 .badge--stale { color: var(--warn); }
@@ -320,13 +366,17 @@ onMounted(() => {
 .facts dd { margin: 0; color: var(--text); }
 .products { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.4rem; }
 .products li { display: flex; gap: 0.6rem; align-items: baseline; color: var(--text); }
+@keyframes kb-sweep { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
+@keyframes kb-updated { from { box-shadow: inset 3px 0 0 var(--accent-bright); } to { box-shadow: inset 3px 0 0 transparent; } }
 @keyframes kb-rule { from { transform: scaleX(0); opacity: 0; } }
 .rise-enter-active { transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); }
 .rise-leave-active { transition: opacity 0.12s ease; }
 .rise-enter-from { opacity: 0; transform: translateY(8px); }
 .rise-leave-to { opacity: 0; }
 @media (prefers-reduced-motion: reduce) {
-  .card, .page-title::after { animation: none; }
+  .card, .page-title::after, .kb-table tr.is-updated { animation: none; }
+  .card--syncing::after { animation: none; width: 100%; opacity: 0.5; }
+  .badge--syncing .lamp { animation: none; }
   .rise-enter-active, .rise-leave-active { transition: none; }
 }
 @media (max-width: 640px) {
