@@ -1,11 +1,13 @@
 <template>
   <div class="network">
-    <div class="engine-card">
+    <div class="engine-card" data-scope="network">
+      <ScopeMotif scope="network" :active="creating || isRiskLoading" />
       <div class="engine-head">
         <div class="engine-mark" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="5" cy="12" r="2.5"/><circle cx="19" cy="5" r="2.5"/><circle cx="19" cy="19" r="2.5"/><path d="M7.3 11 16.7 6M7.3 13l9.4 5"/></svg>
         </div>
         <div class="engine-title-wrap">
+          <span class="engine-eyebrow">{{ t('lybra.scopeEyebrow.network') }}</span>
           <span class="engine-title">{{ t('lybra.network.title') }}</span>
           <span class="engine-sub">{{ t('lybra.network.subtitle') }}</span>
         </div>
@@ -71,6 +73,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { classifyTarget } from '../lybra/targetShapes'
 import LateralRiskList from '../lybra/LateralRiskList.vue'
+import ScopeMotif from '../lybra/ScopeMotif.vue'
 
 const { t } = useI18n()
 
@@ -105,6 +108,9 @@ function submit() {
   })
 }
 
+/** Si algún grupo está calculando su riesgo lateral: el motor está trabajando. */
+const isRiskLoading = computed(() => Object.values(props.riskByScope).some(risk => risk?.loading))
+
 const openGroups = ref(new Set())
 
 /** Riesgo calculado de un grupo, o `null` si aún no se ha pedido. */
@@ -129,14 +135,16 @@ function toggle(groupId) {
   background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 220%);
   border: 1px solid var(--accent); border-radius: 12px; padding: 1.2rem 1.35rem;
   box-shadow: 0 0 0 1px var(--accent-dim), 0 12px 34px rgba(0,0,0,0.16);
+  position: relative; isolation: isolate; overflow: hidden;
 }
 .engine-head { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.7rem; }
 .engine-mark {
   width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0;
-  color: var(--accent-bright); background: var(--accent-dim); border: 1px solid var(--accent);
+  color: var(--scope-tint); background: var(--scope-tint-dim); border: 1px solid var(--scope-tint);
 }
 .engine-mark svg { width: 21px; height: 21px; }
 .engine-title-wrap { display: flex; flex-direction: column; min-width: 0; }
+.engine-eyebrow { font-family: var(--font-epic); font-size-adjust: var(--fsa-epic); font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.24em; text-transform: uppercase; color: var(--scope-tint); }
 .engine-title { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-size: var(--fs-xl); font-weight: 600; color: var(--text); }
 .engine-sub { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-style: italic; font-size: var(--fs-md); color: var(--text-muted); }
 .engine-hint { margin: 0 0 0.9rem; font-size: var(--fs-md); color: var(--text-dim); line-height: 1.45; max-width: 70ch; }

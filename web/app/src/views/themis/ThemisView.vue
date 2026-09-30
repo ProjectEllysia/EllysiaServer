@@ -38,7 +38,7 @@
         <div class="lybra-bar">
           <div class="scope-toggle" role="tablist" :aria-label="t('themisView.scope.label')">
             <button v-for="scope in LYBRA_SCOPES" :key="scope" type="button" class="scope-opt" role="tab"
-              :class="{ active: store.lybraScope === scope }" :aria-selected="store.lybraScope === scope"
+                :data-scope="scope" :class="{ active: store.lybraScope === scope }" :aria-selected="store.lybraScope === scope"
               @click="store.setLybraScope(scope)">
               <svg v-if="scope === 'hosts'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
               <svg v-else-if="scope === 'cloud'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M17.5 19a4.5 4.5 0 1 0-1.4-8.78A6 6 0 0 0 4.5 12.5 3.5 3.5 0 0 0 6 19z"/></svg>
@@ -595,7 +595,7 @@ async function handleDeleteScheduled(id) { await scheduledStore.deleteScheduledS
 }
 .scope-opt svg { width: 14px; height: 14px; }
 .scope-opt:hover { color: var(--text-dim); }
-.scope-opt.active { background: var(--accent-dim); color: var(--accent-bright); font-weight: 600; box-shadow: inset 0 0 0 1px var(--accent); }
+.scope-opt.active { background: var(--scope-tint-dim); color: var(--scope-tint); font-weight: 600; box-shadow: inset 0 0 0 1px var(--scope-tint); }
 .scope-opt:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (max-width: 640px) {
   .scope-toggle { display: flex; width: 100%; }

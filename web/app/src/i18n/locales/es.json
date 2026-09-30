@@ -1411,6 +1411,11 @@
     }
   },
   "lybra": {
+    "scopeEyebrow": {
+      "hosts": "Un equipo",
+      "cloud": "Un dominio",
+      "network": "Un rango"
+    },
     "sections": {
       "prod": "Productos afectados",
       "conf": "Configuración y exposición"

@@ -1411,6 +1411,11 @@
     }
   },
   "lybra": {
+    "scopeEyebrow": {
+      "hosts": "One machine",
+      "cloud": "One domain",
+      "network": "One range"
+    },
     "sections": {
       "prod": "Affected products",
       "conf": "Configuration and exposure"

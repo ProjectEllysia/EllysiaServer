@@ -1,10 +1,12 @@
 <template>
-  <div class="engine-card">
+  <div class="engine-card" data-scope="cloud">
+    <ScopeMotif scope="cloud" :active="running || launching" />
     <div class="engine-head">
       <div class="engine-mark" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M17.5 19a4.5 4.5 0 1 0-1.4-8.78A6 6 0 0 0 4.5 12.5 3.5 3.5 0 0 0 6 19z"/></svg>
       </div>
       <div class="engine-title-wrap">
+        <span class="engine-eyebrow">{{ t('lybra.scopeEyebrow.cloud') }}</span>
         <span class="engine-title">{{ t('lybra.cloud.title') }}</span>
         <span class="engine-sub">{{ t('lybra.cloud.subtitle') }}</span>
       </div>
@@ -98,6 +100,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import ScopeMotif from '../lybra/ScopeMotif.vue'
 import { classifyTarget } from '../lybra/targetShapes'
 import { cloudProviderKey, isCoveredByRegister, subdomainKnowledge } from '../lybra/beyondHost'
 import { formatDate } from '@/i18n/format'
@@ -183,14 +186,16 @@ function handleLaunch() {
   background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 220%);
   border: 1px solid var(--accent); border-radius: 12px; padding: 1.2rem 1.35rem; margin-bottom: 1.1rem;
   box-shadow: 0 0 0 1px var(--accent-dim), 0 12px 34px rgba(0,0,0,0.16);
+  position: relative; isolation: isolate; overflow: hidden;
 }
 .engine-head { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.7rem; }
 .engine-mark {
   width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0;
-  color: var(--accent-bright); background: var(--accent-dim); border: 1px solid var(--accent);
+  color: var(--scope-tint); background: var(--scope-tint-dim); border: 1px solid var(--scope-tint);
 }
 .engine-mark svg { width: 21px; height: 21px; }
 .engine-title-wrap { display: flex; flex-direction: column; min-width: 0; }
+.engine-eyebrow { font-family: var(--font-epic); font-size-adjust: var(--fsa-epic); font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.24em; text-transform: uppercase; color: var(--scope-tint); }
 .engine-title { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-size: var(--fs-xl); font-weight: 600; color: var(--text); }
 .engine-sub { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-style: italic; font-size: var(--fs-md); color: var(--text-muted); }
 .engine-launched { margin-left: auto; display: inline-flex; align-items: center; gap: 0.4rem; font-size: var(--fs-md); color: var(--accent-bright); }

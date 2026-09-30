@@ -261,6 +261,16 @@
   --border: rgba(44,79,56,0.10); --border-med: rgba(44,79,56,0.20);
 }
 
+/* Tinte de cada lente de Lybra (equipos, nube, red). Solo lo usan el dibujo de
+   fondo, el anillo del icono y la pestaña activa: los bordes, botones y colores
+   con significado (peligro, aviso) siguen con el acento del módulo. */
+[data-scope="hosts"]   { --scope-tint: #97bd7e; --scope-tint-dim: rgba(151,189,126,0.14); }
+[data-scope="cloud"]   { --scope-tint: #5bb5ad; --scope-tint-dim: rgba(91,181,173,0.14); }
+[data-scope="network"] { --scope-tint: #c9ad78; --scope-tint-dim: rgba(201,173,120,0.14); }
+[data-theme="dawn"] [data-scope="hosts"]   { --scope-tint: #3d6132; --scope-tint-dim: rgba(61,97,50,0.12); --scope-motif-opacity: 0.22; }
+[data-theme="dawn"] [data-scope="cloud"]   { --scope-tint: #2b7772; --scope-tint-dim: rgba(43,119,114,0.12); --scope-motif-opacity: 0.22; }
+[data-theme="dawn"] [data-scope="network"] { --scope-tint: #8a6b2c; --scope-tint-dim: rgba(138,107,44,0.12); --scope-motif-opacity: 0.22; }
+
 /* El recorte horizontal vive SOLO aquí. Puesto también en `body`, el valor de
    `html` se propaga al viewport y el de `body` se queda en `body`; un
    `overflow-x` no-`visible` computa `overflow-y: auto`, así que `body` pasaba a
