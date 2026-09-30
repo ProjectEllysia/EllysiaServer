@@ -42,6 +42,22 @@
         <span>{{ t('lybra.cloud.checkSubdomains') }}</span>
       </label>
 
+      <!-- Qué subdominios se van a comprobar: solo los que una búsqueda
+           previa encontró. Sin ella se mira solo el dominio, y hay que decirlo
+           antes de lanzar, no dejar creer que se revisó todo. -->
+      <Transition name="fade-swap">
+        <div v-if="isDomainValid && checkSubdomains" class="known" :class="knowledge.state" role="status">
+          <p class="known-text">
+            <span v-if="knowledge.state === 'searching'" class="pulse" aria-hidden="true"></span>
+            {{ knowledgeText }}
+          </p>
+          <button type="button" class="btn-add" :disabled="discovering || knowledge.state === 'searching'"
+            :title="t('lybra.cloud.discoverHint')" @click="$emit('discover', domain.trim())">
+            {{ knowledge.state === 'known' ? t('lybra.cloud.discoverAgain') : t('lybra.cloud.discover') }}
+          </button>
+        </div>
+      </Transition>
+
       <!-- Los recursos no se buscan: se declaran. Cada uno lleva su propio
            sello, porque cada uno se autoriza por separado. -->
       <div class="field">
@@ -83,7 +99,8 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { classifyTarget } from '../lybra/targetShapes'
-import { cloudProviderKey, isCoveredByRegister } from '../lybra/beyondHost'
+import { cloudProviderKey, isCoveredByRegister, subdomainKnowledge } from '../lybra/beyondHost'
+import { formatDate } from '@/i18n/format'
 
 const { t } = useI18n()
 
@@ -93,8 +110,12 @@ const props = defineProps({
   running: { type: Boolean, default: false },
   /** El registro de objetivos autorizados del usuario. */
   authorizedTargets: { type: Array, default: () => [] },
+  /** Las búsquedas de subdominios del usuario, de la más nueva a la más vieja. */
+  subdomainSearches: { type: Array, default: () => [] },
+  /** Si se está pidiendo una búsqueda de subdominios ahora mismo. */
+  discovering: { type: Boolean, default: false },
 })
-const emit = defineEmits(['launch', 'authorize'])
+const emit = defineEmits(['launch', 'authorize', 'discover'])
 
 /** El servidor admite hasta 25 recursos por escaneo. */
 const MAX_RESOURCES = 25
@@ -117,6 +138,17 @@ function isAuthorized(target) { return isCoveredByRegister(target, props.authori
 const domainSeal = computed(() => {
   if (!isDomainValid.value || !checkSubdomains.value) return ''
   return isAuthorized(domain.value) ? 'ok' : 'missing'
+})
+
+/** Qué se sabe de los subdominios del dominio escrito. */
+const knowledge = computed(() => subdomainKnowledge(domain.value, props.subdomainSearches))
+
+const knowledgeText = computed(() => {
+  const { state, count, finishedAt } = knowledge.value
+  if (state === 'searching') return t('lybra.cloud.subdomainsSearching')
+  if (state === 'failed') return t('lybra.cloud.subdomainsSearchFailed')
+  if (state === 'none') return t('lybra.cloud.subdomainsUnknown')
+  return t('lybra.cloud.subdomainsFound', { count, date: formatDate(finishedAt) }, count)
 })
 
 const hasMissingAuthorization = computed(() =>
@@ -191,6 +223,14 @@ function handleLaunch() {
 .check { display: flex; align-items: center; gap: 0.5rem; font-size: var(--fs-md); color: var(--text-dim); cursor: pointer; }
 .check input { accent-color: var(--accent); width: 15px; height: 15px; }
 
+.known {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.7rem;
+  padding: 0.5rem 0.7rem; border-radius: 7px; background: var(--surface-2); border: 1px solid var(--border-solid);
+}
+.known.none, .known.failed { background: var(--warn-dim); border-color: var(--warn); }
+.known-text { margin: 0; display: flex; align-items: center; gap: 0.45rem; font-size: var(--fs-md); color: var(--text-dim); line-height: 1.4; }
+.known-text .pulse { flex: none; }
+
 .resource-add { display: flex; gap: 0.4rem; }
 .btn-add {
   padding: 0.4rem 0.9rem; background: var(--surface-2); border: 1px solid var(--accent); color: var(--accent-bright);
@@ -248,6 +288,7 @@ function handleLaunch() {
   .engine-launched { display: none; }
   .btn-launch { width: 100%; justify-content: center; }
   .resource { flex-wrap: wrap; }
+  .known { flex-direction: column; align-items: stretch; }
 }
 @media (prefers-reduced-motion: reduce) {
   .pulse { animation: none; }
