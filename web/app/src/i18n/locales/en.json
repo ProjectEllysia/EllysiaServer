@@ -241,7 +241,7 @@
   "kbAdmin": {
     "title": "Knowledge base",
     "eyebrow": "Lybra engine",
-    "subtitle": "How each source Lybra uses to decide what is vulnerable is doing, sync it without waiting for the night, and look up what it knows about a CVE or a product.",
+    "subtitle": "Check that the sources Lybra uses to decide what is vulnerable are up to date, sync them without waiting for the night, and look up what it knows about a CVE or a product.",
     "refresh": "Refresh",
     "refreshing": "Refreshing…",
     "status": {
@@ -250,7 +250,8 @@
       "state": "State",
       "lastSuccess": "Last successful sync",
       "lastAttempt": "Last attempt",
-      "rows": "Rows"
+      "rows": "Rows",
+      "empty": "No source is registered yet. Start a sync and they will appear."
     },
     "state": {
       "ok": "Up to date",
@@ -260,7 +261,9 @@
     },
     "sync": {
       "heading": "Sync now",
-      "hint": "The same as the nightly job, without waiting for it. NVD only downloads recent changes, never the whole catalogue. While a sync is running another one cannot be started.",
+      "hint": "Runs now the same thing the nightly job does.",
+      "hintNvd": "NVD only downloads recent changes, never the whole catalogue.",
+      "hintBusy": "While a sync is running, the other buttons stay locked.",
       "targets": {
         "all": "All sources",
         "nvd": "NVD",
@@ -282,8 +285,9 @@
     "search": {
       "heading": "Look up",
       "placeholder": "CVE-2024-6387 or openssh",
+      "hint": "Type a full CVE or part of a product name (at least 2 characters).",
       "submit": "Search",
-      "cveUnknown": "No knowledge base source knows that CVE.",
+      "cveUnknown": "No knowledge base source knows that CVE. Check the identifier, or sync NVD in case it is very recent.",
       "cvss": "CVSS",
       "kev": "Actively exploited (KEV)",
       "epss": "Exploitation probability (EPSS)",
@@ -299,7 +303,7 @@
         "unknown": "No statement"
       },
       "noDistroStatus": "No distribution has made a statement about this CVE.",
-      "noProducts": "No product in the index matches."
+      "noProducts": "No product in the index matches. Try another part of the name."
     },
     "errors": {
       "status": "The knowledge base status could not be loaded.",

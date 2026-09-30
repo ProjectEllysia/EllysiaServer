@@ -5,7 +5,7 @@
 
     <main class="main">
       <header class="page-header">
-        <div>
+        <div class="page-title">
           <span class="eyebrow">{{ t('kbAdmin.eyebrow') }}</span>
           <h1>{{ t('kbAdmin.title') }}</h1>
           <p class="subtitle">{{ t('kbAdmin.subtitle') }}</p>
@@ -15,7 +15,7 @@
         </button>
       </header>
 
-      <section class="card">
+      <section class="card" :class="{ 'card--syncing': isSyncRunning }" style="--i: 1">
         <div class="card-head">
           <h2>{{ t('kbAdmin.status.heading') }}</h2>
           <span v-if="feedVersion" class="mono muted">{{ feedVersion }}</span>
@@ -31,10 +31,19 @@
             </tr>
           </thead>
           <tbody>
+            <template v-if="loading && !sources.length">
+              <tr v-for="row in 4" :key="`skeleton-${row}`" aria-hidden="true">
+                <td v-for="column in 5" :key="column"><span class="skeleton skeleton--line" :class="column === 1 ? 'skeleton--w60' : 'skeleton--w80'"></span></td>
+              </tr>
+            </template>
             <template v-for="source in sources" :key="source.source">
-              <tr>
+              <tr :class="{ 'is-syncing': isSourceSyncing(source), 'is-updated': updatedSources.has(source.source) }">
                 <td class="mono">{{ source.source }}</td>
-                <td><span class="badge" :class="`badge--${stateOf(source)}`">{{ t(`kbAdmin.state.${stateOf(source)}`) }}</span></td>
+                <td>
+                  <span class="badge" :class="[`badge--${stateOf(source)}`, { 'badge--syncing': isSourceSyncing(source) }]">
+                    <span class="lamp" aria-hidden="true"></span>{{ t(`kbAdmin.state.${stateOf(source)}`) }}
+                  </span>
+                </td>
                 <td>{{ source.lastSuccessAt ? formatDateTime(source.lastSuccessAt) : '—' }}</td>
                 <td>{{ source.lastAttemptAt ? formatDateTime(source.lastAttemptAt) : '—' }}</td>
                 <td class="num">{{ source.rowsUpserted != null ? formatNumber(source.rowsUpserted) : '—' }}</td>
@@ -43,15 +52,21 @@
                 <td colspan="5"><span class="mono">{{ source.error }}</span></td>
               </tr>
             </template>
+            <tr v-if="!sources.length && !loading">
+              <td colspan="5" class="empty">{{ t('kbAdmin.status.empty') }}</td>
+            </tr>
           </tbody>
         </table>
       </section>
 
-      <section class="card">
+      <section class="card" :class="{ 'card--syncing': isSyncRunning }" style="--i: 2">
         <div class="card-head">
           <h2>{{ t('kbAdmin.sync.heading') }}</h2>
         </div>
-        <p class="hint">{{ t('kbAdmin.sync.hint') }}</p>
+        <p class="hint">
+          {{ t('kbAdmin.sync.hint') }} {{ t('kbAdmin.sync.hintNvd') }}
+          <span v-if="isSyncRunning">{{ t('kbAdmin.sync.hintBusy') }}</span>
+        </p>
         <div class="sync-grid">
           <div v-for="target in SYNC_TARGETS" :key="target" class="sync-item">
             <button class="btn" :class="target === 'all' ? 'btn--primary' : 'btn--secondary'" type="button"
@@ -65,7 +80,7 @@
         </div>
       </section>
 
-      <section class="card">
+      <section class="card" style="--i: 3">
         <div class="card-head">
           <h2>{{ t('kbAdmin.search.heading') }}</h2>
         </div>
@@ -75,19 +90,33 @@
             {{ t('kbAdmin.search.submit') }}
           </button>
         </form>
+        <p v-if="!result" class="hint">{{ t('kbAdmin.search.hint') }}</p>
 
-        <template v-if="result">
+        <Transition name="rise" mode="out-in">
+        <div v-if="result" :key="result.cve?.cveId ?? query">
           <p v-if="result.kind === 'cve' && !result.cve" class="hint">{{ t('kbAdmin.search.cveUnknown') }}</p>
           <div v-else-if="result.kind === 'cve'" class="cve">
             <h3 class="mono">{{ result.cve.cveId }}</h3>
             <p v-if="result.cve.description" class="description">{{ result.cve.description }}</p>
+            <div class="gauges">
+              <div class="gauge" :class="`gauge--${severityTone(result.cve.cvssScore)}`">
+                <span class="gauge-label">{{ t('kbAdmin.search.cvss') }}</span>
+                <span class="gauge-value">{{ result.cve.cvssScore ?? '—' }}</span>
+                <span v-if="result.cve.severity" class="gauge-note">{{ result.cve.severity }}</span>
+              </div>
+              <div class="gauge" :class="result.cve.inKev ? 'gauge--critical' : 'gauge--none'">
+                <span class="gauge-label">{{ t('kbAdmin.search.kev') }}</span>
+                <span class="gauge-value">{{ result.cve.inKev ? t('kbAdmin.search.yes') : t('kbAdmin.search.no') }}</span>
+              </div>
+              <div class="gauge" :class="`gauge--${epssTone(result.cve.epssScore)}`">
+                <span class="gauge-label">{{ t('kbAdmin.search.epss') }}</span>
+                <span class="gauge-value">{{ result.cve.epssScore != null ? formatNumber(result.cve.epssScore, { style: 'percent', maximumFractionDigits: 2 }) : '—' }}</span>
+                <span v-if="result.cve.epssScore != null" class="gauge-bar" aria-hidden="true">
+                  <span class="gauge-fill" :style="{ width: `${Math.max(2, Math.min(100, result.cve.epssScore * 100))}%` }"></span>
+                </span>
+              </div>
+            </div>
             <dl class="facts">
-              <dt>{{ t('kbAdmin.search.cvss') }}</dt>
-              <dd>{{ result.cve.cvssScore ?? '—' }} <span v-if="result.cve.severity" class="muted">{{ result.cve.severity }}</span></dd>
-              <dt>{{ t('kbAdmin.search.kev') }}</dt>
-              <dd>{{ result.cve.inKev ? t('kbAdmin.search.yes') : t('kbAdmin.search.no') }}</dd>
-              <dt>{{ t('kbAdmin.search.epss') }}</dt>
-              <dd>{{ result.cve.epssScore != null ? formatNumber(result.cve.epssScore, { style: 'percent', maximumFractionDigits: 2 }) : '—' }}</dd>
               <dt>{{ t('kbAdmin.search.products') }}</dt>
               <dd class="mono">{{ result.cve.products.map((p) => `${p.vendor}:${p.product}`).join(', ') || '—' }}</dd>
             </dl>
@@ -120,7 +149,8 @@
               </li>
             </ul>
           </template>
-        </template>
+        </div>
+        </Transition>
       </section>
     </main>
   </div>
@@ -137,7 +167,7 @@
  * sabe el espejo de una CVE o de un producto. Sólo administradores: la ruta
  * lo exige y la API también.
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Topbar from '@/components/shared/Topbar.vue'
 import StarBackground from '@/components/shared/StarBackground.vue'
@@ -163,6 +193,10 @@ const query = ref('')
 const searching = ref(false)
 const result = ref(null)
 
+/** Fuentes cuya fila se ilumina un momento porque su última sincronización acaba de cambiar. */
+const updatedSources = ref(new Set())
+let updatedTimer = null
+
 const isSyncRunning = computed(() => Object.values(tasks.value).some((task) => ACTIVE.includes(task?.status)))
 
 /**
@@ -179,6 +213,62 @@ function stateOf(source) {
   return 'ok'
 }
 
+/**
+ * Indica si hay una sincronización en marcha que afecta a una fuente.
+ * @param {object} source - Una entrada de `sources`.
+ * @returns {boolean} `true` si corre «todas las fuentes» o la de su propio nombre
+ *   (una fuente `oval_debian` cuenta como parte de `oval`).
+ */
+function isSourceSyncing(source) {
+  if (ACTIVE.includes(tasks.value.all?.status)) return true
+  const name = String(source.source).toLowerCase()
+  return SYNC_TARGETS.some((target) => target !== 'all' && name.startsWith(target) && ACTIVE.includes(tasks.value[target]?.status))
+}
+
+/**
+ * Marca durante unos segundos las fuentes cuya última sincronización correcta
+ * ha cambiado respecto a la lista anterior.
+ * @param {object[]} previous - Lista de `sources` antes de recargar.
+ * @param {object[]} next - Lista de `sources` recién cargada.
+ */
+function flashUpdated(previous, next) {
+  if (!previous.length) return
+  const before = new Map(previous.map((source) => [source.source, source.lastSuccessAt]))
+  const changed = next.filter((source) => before.has(source.source) && before.get(source.source) !== source.lastSuccessAt)
+  if (!changed.length) return
+  updatedSources.value = new Set(changed.map((source) => source.source))
+  clearTimeout(updatedTimer)
+  updatedTimer = setTimeout(() => { updatedSources.value = new Set() }, 2200)
+}
+
+/**
+ * Tono de un indicador según la puntuación CVSS.
+ * @param {number|null} score - Puntuación CVSS, de 0 a 10; `null` si no hay.
+ * @returns {'critical'|'high'|'medium'|'low'|'none'} `none` sin puntuación; el resto
+ *   sigue los tramos habituales de CVSS (9+, 7+, 4+, menos).
+ */
+function severityTone(score) {
+  if (score == null) return 'none'
+  if (score >= 9) return 'critical'
+  if (score >= 7) return 'high'
+  if (score >= 4) return 'medium'
+  return 'low'
+}
+
+/**
+ * Tono de un indicador según la probabilidad de explotación EPSS.
+ * @param {number|null} score - Probabilidad de 0 a 1; `null` si no hay.
+ * @returns {'critical'|'high'|'medium'|'low'|'none'} `none` sin dato; 0.5+ es
+ *   `critical`, 0.1+ `high`, 0.01+ `medium` y el resto `low`.
+ */
+function epssTone(score) {
+  if (score == null) return 'none'
+  if (score >= 0.5) return 'critical'
+  if (score >= 0.1) return 'high'
+  if (score >= 0.01) return 'medium'
+  return 'low'
+}
+
 /** Carga el estado de cada fuente. */
 async function loadStatus() {
   loading.value = true
@@ -186,7 +276,9 @@ async function loadStatus() {
     const res = await apiFetch('/themis/kb/status')
     if (!res?.ok) { toast.show(await apiError(res, t('kbAdmin.errors.status')), 'error'); return }
     const data = await res.json()
+    const previous = sources.value
     sources.value = data.sources ?? []
+    flashUpdated(previous, sources.value)
     feedVersion.value = data.feedVersion ?? null
   } finally { loading.value = false }
 }
@@ -233,6 +325,8 @@ async function search() {
   } finally { searching.value = false }
 }
 
+onBeforeUnmount(() => clearTimeout(updatedTimer))
+
 onMounted(() => {
   loadStatus()
   loadTasks()
@@ -253,9 +347,21 @@ onMounted(() => {
   font-family: var(--font-mono); font-size-adjust: var(--fsa-mono);
   font-size: var(--fs-sm); letter-spacing: 0.15em; text-transform: uppercase;
 }
+.page-title { position: relative; }
+/* Marca de agua: el nombre de las fuentes, muy tenue, detrás del título. */
+.page-title::before {
+  content: 'NVD · KEV · EPSS · OVAL'; position: absolute; left: 9.5rem; top: 0.2rem; white-space: nowrap;
+  font-family: var(--font-mono); font-size-adjust: var(--fsa-mono); font-size: var(--fs-xs); letter-spacing: 0.4em;
+  color: var(--text-muted); opacity: 0.18; pointer-events: none;
+}
+.page-title::after {
+  content: ''; display: block; height: 2px; width: 4.5rem; margin-top: 0.7rem; border-radius: 2px;
+  background: linear-gradient(90deg, var(--accent), transparent); transform-origin: left;
+  animation: kb-rule 0.8s 0.15s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
 .page-header h1 { margin: 0.35rem 0 0; color: var(--text); font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-size: var(--fs-3xl); font-weight: 800; }
 .subtitle { margin: 0.35rem 0 0; color: var(--text-dim); font-size: var(--fs-lg); }
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 18px 50px rgba(0,0,0,0.18); padding: 1.15rem; margin-bottom: 1.1rem; }
+.card { animation: seq-fade-up 0.5s calc(var(--i, 0) * 90ms) cubic-bezier(0.2, 0.8, 0.2, 1) both; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 18px 50px rgba(0,0,0,0.18); padding: 1.15rem; margin-bottom: 1.1rem; }
 .card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; padding-bottom: 0.8rem; border-bottom: 1px solid var(--border); margin-bottom: 0.9rem; }
 .card-head h2 { margin: 0; color: var(--text); font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-size: var(--fs-xl); }
 .mono { font-family: var(--font-mono); font-size-adjust: var(--fsa-mono); }
@@ -266,7 +372,22 @@ onMounted(() => {
 .kb-table td { padding: 0.45rem 0.6rem; color: var(--text); border-bottom: 1px solid var(--border); }
 .kb-table .num { text-align: right; }
 .error-row td { color: var(--danger); background: var(--surface-2); font-size: var(--fs-sm); word-break: break-word; }
-.badge { padding: 0.15rem 0.55rem; border-radius: 999px; font-size: var(--fs-sm); font-weight: 600; border: 1px solid currentColor; }
+.badge { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.15rem 0.6rem 0.15rem 0.5rem; border-radius: 999px; font-size: var(--fs-sm); font-weight: 600; border: 1px solid currentColor; }
+/* La luz repite el estado con un color y un brillo, para que un fallo se vea
+   antes de leer la etiqueta. */
+.lamp { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: currentColor; box-shadow: 0 0 0.5rem currentColor; flex-shrink: 0; }
+.badge--unverified .lamp { box-shadow: none; opacity: 0.5; }
+.empty { color: var(--text-muted); text-align: center; padding: 1.4rem 0.6rem; }
+.badge--syncing .lamp { animation: seq-pulse 1s ease-in-out infinite; }
+.kb-table tr { transition: background-color 0.4s ease; }
+.kb-table tr.is-updated { background: var(--accent-dim); animation: kb-updated 2.2s ease-out; }
+.card { position: relative; overflow: hidden; }
+/* Barrido de luz sobre la tarjeta mientras hay una sincronización en marcha. */
+.card--syncing::after {
+  content: ''; position: absolute; left: 0; top: 0; height: 2px; width: 35%;
+  background: linear-gradient(90deg, transparent, var(--accent-bright), transparent);
+  animation: kb-sweep 1.8s ease-in-out infinite;
+}
 .badge--ok { color: var(--success); }
 .badge--unverified { color: var(--text-dim); }
 .badge--stale { color: var(--warn); }
@@ -280,12 +401,42 @@ onMounted(() => {
 .search-row .inp { flex: 1; }
 .cve h3 { margin: 0 0 0.5rem; color: var(--text); }
 .description { color: var(--text-dim); margin: 0 0 0.8rem; }
+.gauges { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: 0.7rem; margin-bottom: 1.1rem; }
+.gauge {
+  --tone: var(--text-muted);
+  display: flex; flex-direction: column; gap: 0.15rem; padding: 0.7rem 0.85rem;
+  background: var(--surface-2); border: 1px solid var(--border); border-left: 3px solid var(--tone); border-radius: 10px;
+}
+.gauge--critical { --tone: var(--danger); }
+.gauge--high { --tone: var(--warn); }
+.gauge--medium { --tone: var(--accent-bright); }
+.gauge--low { --tone: var(--success); }
+.gauge-label { color: var(--text-muted); font-size: var(--fs-sm); }
+.gauge-value { color: var(--tone); font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-size: var(--fs-2xl); font-weight: 700; line-height: 1.1; }
+.gauge-note { color: var(--text-dim); font-size: var(--fs-sm); text-transform: capitalize; }
+.gauge-bar { display: block; height: 4px; margin-top: 0.3rem; border-radius: 2px; background: var(--surface-3); overflow: hidden; }
+.gauge-fill { display: block; height: 100%; background: var(--tone); transform-origin: left; animation: kb-fill 0.9s 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 .facts { display: grid; grid-template-columns: max-content 1fr; gap: 0.35rem 1rem; margin: 0 0 1rem; }
 .facts dt { color: var(--text-muted); font-weight: 600; }
 .facts dd { margin: 0; color: var(--text); }
 .products { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.4rem; }
 .products li { display: flex; gap: 0.6rem; align-items: baseline; color: var(--text); }
+@keyframes kb-sweep { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
+@keyframes kb-updated { from { box-shadow: inset 3px 0 0 var(--accent-bright); } to { box-shadow: inset 3px 0 0 transparent; } }
+@keyframes kb-fill { from { transform: scaleX(0); } }
+@keyframes kb-rule { from { transform: scaleX(0); opacity: 0; } }
+.rise-enter-active { transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.rise-leave-active { transition: opacity 0.12s ease; }
+.rise-enter-from { opacity: 0; transform: translateY(8px); }
+.rise-leave-to { opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .card, .page-title::after, .kb-table tr.is-updated { animation: none; }
+  .card--syncing::after { animation: none; width: 100%; opacity: 0.5; }
+  .badge--syncing .lamp, .gauge-fill { animation: none; }
+  .rise-enter-active, .rise-leave-active { transition: none; }
+}
 @media (max-width: 640px) {
+  .page-title::before { display: none; }
   .page-header { flex-direction: column; align-items: flex-start; }
   .kb-table { display: block; overflow-x: auto; }
 }
