@@ -4,7 +4,9 @@ Reads the negotiated protocol version and the self-signed/expiry status of the
 certificate. Aparte, :meth:`TlsProbe.fetch_accepts_protocol` y
 :meth:`TlsProbe.fetch_accepted_tls12_cipher` preguntan por lo que el servidor
 acepta sin elegirlo (versiones obsoletas, familias de cifrado débiles), con un
-saludo que sólo ofrece eso.
+saludo que sólo ofrece eso. Para preguntar por varias versiones y cifrados en una
+sola conexión, sin depender de lo que la librería instalada sepa hablar, está
+:mod:`tls_hello`, que construye el saludo a mano y lee la elección del servidor.
 
 **JARM: archivado, no pendiente** (2026-09-02). Este módulo hace **un**
 handshake, y de ahí salen la versión de protocolo, el autofirmado y la
