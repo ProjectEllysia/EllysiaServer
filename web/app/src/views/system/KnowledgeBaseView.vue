@@ -98,13 +98,25 @@
           <div v-else-if="result.kind === 'cve'" class="cve">
             <h3 class="mono">{{ result.cve.cveId }}</h3>
             <p v-if="result.cve.description" class="description">{{ result.cve.description }}</p>
+            <div class="gauges">
+              <div class="gauge" :class="`gauge--${severityTone(result.cve.cvssScore)}`">
+                <span class="gauge-label">{{ t('kbAdmin.search.cvss') }}</span>
+                <span class="gauge-value">{{ result.cve.cvssScore ?? '—' }}</span>
+                <span v-if="result.cve.severity" class="gauge-note">{{ result.cve.severity }}</span>
+              </div>
+              <div class="gauge" :class="result.cve.inKev ? 'gauge--critical' : 'gauge--none'">
+                <span class="gauge-label">{{ t('kbAdmin.search.kev') }}</span>
+                <span class="gauge-value">{{ result.cve.inKev ? t('kbAdmin.search.yes') : t('kbAdmin.search.no') }}</span>
+              </div>
+              <div class="gauge" :class="`gauge--${epssTone(result.cve.epssScore)}`">
+                <span class="gauge-label">{{ t('kbAdmin.search.epss') }}</span>
+                <span class="gauge-value">{{ result.cve.epssScore != null ? formatNumber(result.cve.epssScore, { style: 'percent', maximumFractionDigits: 2 }) : '—' }}</span>
+                <span v-if="result.cve.epssScore != null" class="gauge-bar" aria-hidden="true">
+                  <span class="gauge-fill" :style="{ width: `${Math.max(2, Math.min(100, result.cve.epssScore * 100))}%` }"></span>
+                </span>
+              </div>
+            </div>
             <dl class="facts">
-              <dt>{{ t('kbAdmin.search.cvss') }}</dt>
-              <dd>{{ result.cve.cvssScore ?? '—' }} <span v-if="result.cve.severity" class="muted">{{ result.cve.severity }}</span></dd>
-              <dt>{{ t('kbAdmin.search.kev') }}</dt>
-              <dd>{{ result.cve.inKev ? t('kbAdmin.search.yes') : t('kbAdmin.search.no') }}</dd>
-              <dt>{{ t('kbAdmin.search.epss') }}</dt>
-              <dd>{{ result.cve.epssScore != null ? formatNumber(result.cve.epssScore, { style: 'percent', maximumFractionDigits: 2 }) : '—' }}</dd>
               <dt>{{ t('kbAdmin.search.products') }}</dt>
               <dd class="mono">{{ result.cve.products.map((p) => `${p.vendor}:${p.product}`).join(', ') || '—' }}</dd>
             </dl>
@@ -227,6 +239,34 @@ function flashUpdated(previous, next) {
   updatedSources.value = new Set(changed.map((source) => source.source))
   clearTimeout(updatedTimer)
   updatedTimer = setTimeout(() => { updatedSources.value = new Set() }, 2200)
+}
+
+/**
+ * Tono de un indicador según la puntuación CVSS.
+ * @param {number|null} score - Puntuación CVSS, de 0 a 10; `null` si no hay.
+ * @returns {'critical'|'high'|'medium'|'low'|'none'} `none` sin puntuación; el resto
+ *   sigue los tramos habituales de CVSS (9+, 7+, 4+, menos).
+ */
+function severityTone(score) {
+  if (score == null) return 'none'
+  if (score >= 9) return 'critical'
+  if (score >= 7) return 'high'
+  if (score >= 4) return 'medium'
+  return 'low'
+}
+
+/**
+ * Tono de un indicador según la probabilidad de explotación EPSS.
+ * @param {number|null} score - Probabilidad de 0 a 1; `null` si no hay.
+ * @returns {'critical'|'high'|'medium'|'low'|'none'} `none` sin dato; 0.5+ es
+ *   `critical`, 0.1+ `high`, 0.01+ `medium` y el resto `low`.
+ */
+function epssTone(score) {
+  if (score == null) return 'none'
+  if (score >= 0.5) return 'critical'
+  if (score >= 0.1) return 'high'
+  if (score >= 0.01) return 'medium'
+  return 'low'
 }
 
 /** Carga el estado de cada fuente. */
@@ -361,6 +401,21 @@ onMounted(() => {
 .search-row .inp { flex: 1; }
 .cve h3 { margin: 0 0 0.5rem; color: var(--text); }
 .description { color: var(--text-dim); margin: 0 0 0.8rem; }
+.gauges { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: 0.7rem; margin-bottom: 1.1rem; }
+.gauge {
+  --tone: var(--text-muted);
+  display: flex; flex-direction: column; gap: 0.15rem; padding: 0.7rem 0.85rem;
+  background: var(--surface-2); border: 1px solid var(--border); border-left: 3px solid var(--tone); border-radius: 10px;
+}
+.gauge--critical { --tone: var(--danger); }
+.gauge--high { --tone: var(--warn); }
+.gauge--medium { --tone: var(--accent-bright); }
+.gauge--low { --tone: var(--success); }
+.gauge-label { color: var(--text-muted); font-size: var(--fs-sm); }
+.gauge-value { color: var(--tone); font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-size: var(--fs-2xl); font-weight: 700; line-height: 1.1; }
+.gauge-note { color: var(--text-dim); font-size: var(--fs-sm); text-transform: capitalize; }
+.gauge-bar { display: block; height: 4px; margin-top: 0.3rem; border-radius: 2px; background: var(--surface-3); overflow: hidden; }
+.gauge-fill { display: block; height: 100%; background: var(--tone); transform-origin: left; animation: kb-fill 0.9s 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 .facts { display: grid; grid-template-columns: max-content 1fr; gap: 0.35rem 1rem; margin: 0 0 1rem; }
 .facts dt { color: var(--text-muted); font-weight: 600; }
 .facts dd { margin: 0; color: var(--text); }
@@ -368,6 +423,7 @@ onMounted(() => {
 .products li { display: flex; gap: 0.6rem; align-items: baseline; color: var(--text); }
 @keyframes kb-sweep { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
 @keyframes kb-updated { from { box-shadow: inset 3px 0 0 var(--accent-bright); } to { box-shadow: inset 3px 0 0 transparent; } }
+@keyframes kb-fill { from { transform: scaleX(0); } }
 @keyframes kb-rule { from { transform: scaleX(0); opacity: 0; } }
 .rise-enter-active { transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); }
 .rise-leave-active { transition: opacity 0.12s ease; }
@@ -376,7 +432,7 @@ onMounted(() => {
 @media (prefers-reduced-motion: reduce) {
   .card, .page-title::after, .kb-table tr.is-updated { animation: none; }
   .card--syncing::after { animation: none; width: 100%; opacity: 0.5; }
-  .badge--syncing .lamp { animation: none; }
+  .badge--syncing .lamp, .gauge-fill { animation: none; }
   .rise-enter-active, .rise-leave-active { transition: none; }
 }
 @media (max-width: 640px) {
