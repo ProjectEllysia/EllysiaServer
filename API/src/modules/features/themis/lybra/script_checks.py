@@ -33,6 +33,9 @@ import logging
 import re
 from typing import Dict, List, Optional, Tuple
 
+from cryptography import x509
+from cryptography.exceptions import UnsupportedAlgorithm
+
 from .checks import (
     HttpProbe,
     Response,
@@ -68,6 +71,14 @@ from .fingerprinting.snmp import SnmpProbe
 from .fingerprinting.ssh import SshProbe, parse_kexinit
 from .fingerprinting.telnet import TelnetProbe
 from .fingerprinting.tls import LEGACY_TLS_PROTOCOLS, TlsProbe
+from .fingerprinting.tls_hello import (
+    HANDSHAKE_CERTIFICATE,
+    HANDSHAKE_SERVER_KEY_EXCHANGE,
+    VERSION_TLS_1_2,
+    TlsHelloProbe,
+    parse_certificate_message,
+    parse_dhe_server_key_exchange,
+)
 from .fingerprinting.vnc import VncProbe
 from .transport import tcp_timestamps_enabled
 from .fingerprinting.udp_services import (
@@ -1504,6 +1515,145 @@ class TlsDeprecatedProtocolPlugin(ScriptPlugin):
         return True
 
 
+def _load_certificate(der: bytes) -> Optional["x509.Certificate"]:
+    """Carga un certificado DER, o ``None`` si está corrupto o mal formado.
+
+    Args:
+        der: Los bytes del certificado, tal como llegaron en el saludo.
+
+    Returns:
+        Optional[x509.Certificate]: El certificado ya parseado, o ``None``
+            ante cualquier error de formato — un certificado que no se puede
+            leer no es evidencia de nada.
+    """
+    try:
+        return x509.load_der_x509_certificate(der)
+    except (ValueError, UnsupportedAlgorithm):
+        return None
+
+
+#: El mínimo de bits del módulo Diffie-Hellman que no se considera débil. 2048
+#: es el umbral tras Logjam (CVE-2015-4000): por debajo, romper una sesión con
+#: recursos de un atacante con medios es plausible.
+_MINIMUM_DH_GROUP_BITS = 2048
+
+#: Los cifrados DHE clásicos (sin curva elíptica) que este check ofrece, para
+#: forzar al servidor a elegir uno de ellos si sabe hacer Diffie-Hellman en
+#: absoluto — un ECDHE no dice nada del tamaño de un grupo DH que el servidor
+#: podría no usar nunca.
+_DHE_ONLY_CIPHER_SUITES: Tuple[int, ...] = (0x009E, 0x009F, 0x0033, 0x0039)
+
+
+def _speaks_immediate_tls(service: Service) -> bool:
+    """Si el servicio cifra desde el primer byte (nunca por ``STARTTLS``).
+
+    Los dos plugins de :mod:`tls_hello` de abajo se limitan a esto: el lector
+    en crudo no habla todavía el paso a TLS a mitad de sesión (FTP, SMTP,
+    IMAP, POP3) que sí sabe :class:`~.fingerprinting.tls.TlsProbe` —añadirlo
+    exigiría exponer las sondas de ``STARTTLS`` de ese módulo, que hoy son
+    privadas—, así que estos dos checks se quedan fuera de esos protocolos
+    hasta que esa pieza exista. Los checks de versión y cifrado ya existentes
+    (:class:`TlsDeprecatedProtocolPlugin`, :class:`TlsWeakCipherFamilyPlugin`)
+    sí los cubren, porque usan ``TlsProbe``.
+    """
+    return is_tls_certificate_service(service) and starttls_protocol_for(service) is None
+
+
+class TlsIncompleteCertificateChainPlugin(ScriptPlugin):
+    """Detecta un servidor TLS que no manda el certificado intermedio.
+
+    Un navegador valida el certificado de hoja subiendo la cadena de
+    emisores hasta una raíz de confianza ya instalada; si al servidor le
+    falta el intermedio, esa subida se corta y la conexión no valida, aunque
+    la hoja en sí sea perfectamente válida. Es un descuido de despliegue
+    distinto del autofirmado o el caducado —esos ya tienen su propio check—:
+    aquí la hoja está bien, lo que falta es lo que la conecta con una raíz.
+
+    **La evidencia es contar certificados, no construir la cadena.** Validar
+    de verdad hasta una raíz exigiría traer el almacén de confianza del
+    sistema y las reglas de verificación de rutas completas —fuera del
+    alcance de un cliente mínimo—. El indicio barato y fiable es que el
+    servidor mande **sólo la hoja**: un despliegue sano manda la hoja y al
+    menos un intermedio, y uno con la cadena rota manda uno solo. Un
+    certificado de hoja autofirmado (``subject == issuer``) se descarta aquí
+    a propósito: no le falta nada que completar, y ya lo cubre
+    ``tls-self-signed-cert``.
+
+    Args:
+        probe: Sonda inyectable, para que un test use un socket falso. Por
+            defecto, ``TlsHelloProbe()``.
+    """
+
+    plugin_id = "tls-incomplete-certificate-chain"
+
+    def __init__(self, probe: Optional[TlsHelloProbe] = None) -> None:
+        self._probe = probe or TlsHelloProbe()
+
+    def applies(self, service: Service) -> bool:
+        return _speaks_immediate_tls(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        context.acquire()
+        flight = self._probe.query(
+            context.target, context.service.port or 443,
+            versions=(VERSION_TLS_1_2,), server_name=context.target)
+        if flight is None:
+            return False
+        certificates = parse_certificate_message(flight.get_message(HANDSHAKE_CERTIFICATE))
+        if len(certificates) != 1:
+            # Ni el mensaje faltó/vino vacío, ni hay dos o más — sea lo que sea,
+            # no es el caso "sólo la hoja" que este check busca.
+            return False
+        leaf = _load_certificate(certificates[0])
+        if leaf is None or leaf.issuer == leaf.subject:
+            return False
+        context.evidence.update({"chainLength": 1})
+        return True
+
+
+class TlsWeakKeyExchangeGroupPlugin(ScriptPlugin):
+    """Detecta un servidor TLS que negocia un grupo Diffie-Hellman débil.
+
+    ``tls-weak-cipher`` ya cubre el cifrado simétrico; esto es otra cosa: el
+    tamaño del grupo con el que las dos partes acuerdan la clave de sesión,
+    independiente del cifrado que la use después. Un grupo corto (herencia de
+    cuando exportar criptografía fuerte estaba restringido) es rompible con
+    recursos de un atacante con medios — el ataque Logjam (CVE-2015-4000).
+
+    Se ofrecen sólo cifrados DHE clásicos (:data:`_DHE_ONLY_CIPHER_SUITES`,
+    sin curva elíptica) para forzar al servidor a elegir uno si sabe hacer
+    Diffie-Hellman en absoluto; un servidor que sólo ofrece ECDHE no tiene
+    nada que este check pueda medir, y no dispara.
+
+    Args:
+        probe: Sonda inyectable. Por defecto, ``TlsHelloProbe()``.
+    """
+
+    plugin_id = "tls-weak-key-exchange-group"
+
+    def __init__(self, probe: Optional[TlsHelloProbe] = None) -> None:
+        self._probe = probe or TlsHelloProbe()
+
+    def applies(self, service: Service) -> bool:
+        return _speaks_immediate_tls(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        context.acquire()
+        flight = self._probe.query(
+            context.target, context.service.port or 443,
+            versions=(VERSION_TLS_1_2,), cipher_suites=_DHE_ONLY_CIPHER_SUITES,
+            server_name=context.target)
+        if flight is None or flight.server_hello is None:
+            return False
+        if flight.server_hello.cipher_suite not in _DHE_ONLY_CIPHER_SUITES:
+            return False
+        bits = parse_dhe_server_key_exchange(flight.get_message(HANDSHAKE_SERVER_KEY_EXCHANGE))
+        if bits is None or bits >= _MINIMUM_DH_GROUP_BITS:
+            return False
+        context.evidence.update({"groupBits": bits})
+        return True
+
+
 def default_script_plugins() -> Dict[str, ScriptPlugin]:
     """Construye el registro de plugins de primera parte, indexado por ``plugin_id``.
 
@@ -1530,6 +1680,8 @@ def default_script_plugins() -> Dict[str, ScriptPlugin]:
         RdpLegacySecurityLayerPlugin(),
         WinrmBasicAuthCleartextPlugin(),
         TelnetEnabledPlugin(),
+        TlsIncompleteCertificateChainPlugin(),
+        TlsWeakKeyExchangeGroupPlugin(),
         VncNoAuthenticationPlugin(),
         IkeWeakTransformPlugin(),
         TcpTimestampsPlugin(),
