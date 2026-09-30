@@ -34,7 +34,11 @@
             <template v-for="source in sources" :key="source.source">
               <tr>
                 <td class="mono">{{ source.source }}</td>
-                <td><span class="badge" :class="`badge--${stateOf(source)}`">{{ t(`kbAdmin.state.${stateOf(source)}`) }}</span></td>
+                <td>
+                  <span class="badge" :class="`badge--${stateOf(source)}`">
+                    <span class="lamp" aria-hidden="true"></span>{{ t(`kbAdmin.state.${stateOf(source)}`) }}
+                  </span>
+                </td>
                 <td>{{ source.lastSuccessAt ? formatDateTime(source.lastSuccessAt) : '—' }}</td>
                 <td>{{ source.lastAttemptAt ? formatDateTime(source.lastAttemptAt) : '—' }}</td>
                 <td class="num">{{ source.rowsUpserted != null ? formatNumber(source.rowsUpserted) : '—' }}</td>
@@ -43,6 +47,9 @@
                 <td colspan="5"><span class="mono">{{ source.error }}</span></td>
               </tr>
             </template>
+            <tr v-if="!sources.length && !loading">
+              <td colspan="5" class="empty">{{ t('kbAdmin.status.empty') }}</td>
+            </tr>
           </tbody>
         </table>
       </section>
@@ -51,7 +58,10 @@
         <div class="card-head">
           <h2>{{ t('kbAdmin.sync.heading') }}</h2>
         </div>
-        <p class="hint">{{ t('kbAdmin.sync.hint') }}</p>
+        <p class="hint">
+          {{ t('kbAdmin.sync.hint') }} {{ t('kbAdmin.sync.hintNvd') }}
+          <span v-if="isSyncRunning">{{ t('kbAdmin.sync.hintBusy') }}</span>
+        </p>
         <div class="sync-grid">
           <div v-for="target in SYNC_TARGETS" :key="target" class="sync-item">
             <button class="btn" :class="target === 'all' ? 'btn--primary' : 'btn--secondary'" type="button"
@@ -75,6 +85,7 @@
             {{ t('kbAdmin.search.submit') }}
           </button>
         </form>
+        <p v-if="!result" class="hint">{{ t('kbAdmin.search.hint') }}</p>
 
         <template v-if="result">
           <p v-if="result.kind === 'cve' && !result.cve" class="hint">{{ t('kbAdmin.search.cveUnknown') }}</p>
@@ -266,7 +277,12 @@ onMounted(() => {
 .kb-table td { padding: 0.45rem 0.6rem; color: var(--text); border-bottom: 1px solid var(--border); }
 .kb-table .num { text-align: right; }
 .error-row td { color: var(--danger); background: var(--surface-2); font-size: var(--fs-sm); word-break: break-word; }
-.badge { padding: 0.15rem 0.55rem; border-radius: 999px; font-size: var(--fs-sm); font-weight: 600; border: 1px solid currentColor; }
+.badge { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.15rem 0.6rem 0.15rem 0.5rem; border-radius: 999px; font-size: var(--fs-sm); font-weight: 600; border: 1px solid currentColor; }
+/* La luz repite el estado con un color y un brillo, para que un fallo se vea
+   antes de leer la etiqueta. */
+.lamp { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: currentColor; box-shadow: 0 0 0.5rem currentColor; flex-shrink: 0; }
+.badge--unverified .lamp { box-shadow: none; opacity: 0.5; }
+.empty { color: var(--text-muted); text-align: center; padding: 1.4rem 0.6rem; }
 .badge--ok { color: var(--success); }
 .badge--unverified { color: var(--text-dim); }
 .badge--stale { color: var(--warn); }

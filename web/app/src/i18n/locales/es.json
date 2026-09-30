@@ -241,7 +241,7 @@
   "kbAdmin": {
     "title": "Base de conocimiento",
     "eyebrow": "Motor Lybra",
-    "subtitle": "Cómo está cada fuente con la que Lybra decide qué es vulnerable, sincronizarla sin esperar a la noche y consultar qué sabe de una CVE o de un producto.",
+    "subtitle": "Comprueba que las fuentes con las que Lybra decide qué es vulnerable están al día, sincronízalas sin esperar a la noche y consulta qué sabe de una CVE o de un producto.",
     "refresh": "Actualizar",
     "refreshing": "Actualizando…",
     "status": {
@@ -250,7 +250,8 @@
       "state": "Estado",
       "lastSuccess": "Última sincronización correcta",
       "lastAttempt": "Último intento",
-      "rows": "Filas"
+      "rows": "Filas",
+      "empty": "Todavía no hay ninguna fuente registrada. Lanza una sincronización para que aparezcan."
     },
     "state": {
       "ok": "Al día",
@@ -260,7 +261,9 @@
     },
     "sync": {
       "heading": "Sincronizar ahora",
-      "hint": "Lo mismo que hace el job nocturno, sin esperar a él. NVD descarga sólo los cambios recientes, nunca el catálogo entero. Mientras hay una sincronización en marcha no se puede lanzar otra.",
+      "hint": "Lanza ahora lo mismo que hace el job nocturno.",
+      "hintNvd": "NVD descarga sólo los cambios recientes, nunca el catálogo entero.",
+      "hintBusy": "Mientras hay una sincronización en marcha, el resto de botones queda bloqueado.",
       "targets": {
         "all": "Todas las fuentes",
         "nvd": "NVD",
@@ -282,8 +285,9 @@
     "search": {
       "heading": "Consultar",
       "placeholder": "CVE-2024-6387 u openssh",
+      "hint": "Escribe una CVE completa o parte del nombre de un producto (mínimo 2 caracteres).",
       "submit": "Buscar",
-      "cveUnknown": "Ninguna fuente de la base de conocimiento conoce esa CVE.",
+      "cveUnknown": "Ninguna fuente de la base de conocimiento conoce esa CVE. Comprueba el identificador o sincroniza NVD por si es muy reciente.",
       "cvss": "CVSS",
       "kev": "Explotada activamente (KEV)",
       "epss": "Probabilidad de explotación (EPSS)",
@@ -299,7 +303,7 @@
         "unknown": "Sin pronunciarse"
       },
       "noDistroStatus": "Ninguna distribución se ha pronunciado sobre esta CVE.",
-      "noProducts": "Ningún producto del índice coincide."
+      "noProducts": "Ningún producto del índice coincide. Prueba con otra parte del nombre."
     },
     "errors": {
       "status": "No se pudo cargar el estado de la base de conocimiento.",
