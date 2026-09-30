@@ -1004,6 +1004,58 @@ checks:
       title: Agente de Consul accesible sin autenticacion (catalogo de servicios y registro de servicios nuevos)
       qod: 99
       confirmed: true
+  - id: nomad-unauthenticated-access
+    version: 1
+    type: http
+    category: exposed_service
+    severity: CRITICAL
+    service: nomad
+    mode: safe
+    requests:
+      - method: GET
+        path: /v1/agent/self
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: word
+            part: body
+            words:
+              - '"stats"'
+              - '"nomad"'
+    finding:
+      title: Agente de Nomad accesible sin autenticacion (configuracion y estado del cluster)
+      qod: 99
+      confirmed: true
+  # A diferencia del resto de esta familia, Portainer exige sesion para casi
+  # toda su API real: sólo /api/system/status es publico por diseño (la
+  # propia interfaz lo pide antes de iniciar sesion). El hallazgo es que el
+  # banner de version es legible, no que haya acceso a los contenedores.
+  - id: portainer-version-exposed
+    version: 1
+    type: http
+    category: exposed_service
+    severity: MEDIUM
+    service: portainer
+    mode: safe
+    requests:
+      - method: GET
+        path: /api/system/status
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: word
+            part: body
+            words:
+              - '"Version"'
+              - '"InstanceID"'
+    finding:
+      title: Version de Portainer expuesta sin autenticacion (banner de administracion de contenedores)
+      qod: 99
+      confirmed: true
   # Kibana no sirve de prueba con /api/status: puede estar abierto a proposito
   # (status.allowAnonymous) aunque el resto exija sesion. Lo que ensena si hay
   # acceso a los datos es la API de objetos guardados, que con seguridad
