@@ -17,6 +17,9 @@ checks:
     severity: HIGH
     service: http
     mode: safe
+    # Un repositorio suele colgar de un subdirectorio del sitio, no de la raíz:
+    # se repite sobre los directorios que el rastreo descubrió.
+    onDiscoveredDirectories: true
     requests:
       - method: GET
         path: /.git/config
@@ -41,6 +44,8 @@ checks:
     severity: HIGH
     service: http
     mode: safe
+    # Cada aplicación del sitio puede traer su propio .env en su directorio.
+    onDiscoveredDirectories: true
     requests:
       - method: GET
         path: /.env

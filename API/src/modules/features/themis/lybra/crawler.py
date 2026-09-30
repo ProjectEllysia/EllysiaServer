@@ -10,7 +10,9 @@ cosas baratas y de sólo lectura que un escáner maduro sí ve:
   con ``WWW-Authenticate``): la entrada que el motor de credenciales por
   defecto necesita y que hoy no descubre por su cuenta.
 - Los directorios reales del sitio, sobre los que los checks de ruta tienen
-  más sentido que sobre la raíz.
+  más sentido que sobre la raíz: un check que lo declara
+  (``onDiscoveredDirectories``) se repite sobre los que :func:`select_scan_directories`
+  elige, dentro de un tope propio.
 
 Este módulo es la capa pura: recibe un ``fetch`` inyectado (la misma forma que
 :meth:`~.checks.HttpProbe.fetch`), no toca la red directamente y no sabe nada
@@ -186,6 +188,34 @@ def crawl(
 
     result.directories = sorted(directories)
     return result
+
+
+def select_scan_directories(directories: List[str], limit: int) -> List[str]:
+    """Elige los directorios descubiertos sobre los que repetir los checks de ruta.
+
+    Un rastreo ya va acotado por páginas, profundidad y tiempo, pero los
+    directorios que devuelve pueden ser muchos más de los que compensa
+    revisar: cada uno multiplica las peticiones de todos los checks que lo
+    piden. Este tope es el que mantiene esa multiplicación dentro de un
+    presupuesto.
+
+    Args:
+        directories: Los directorios que devolvió el rastreo
+            (:attr:`CrawlResult.directories`), cada uno con ``/`` al final.
+        limit: Cuántos se conservan como máximo. A cero o menos, ninguno.
+
+    Returns:
+        List[str]: Como mucho ``limit`` directorios, sin la raíz (que los checks
+            ya piden siempre) y de los más cercanos a la raíz a los más
+            profundos, porque es donde suele haber más contenido propio del
+            sitio y menos ruido; a igual profundidad, por orden alfabético.
+    """
+    if limit <= 0:
+        return []
+    candidates = sorted(
+        {directory for directory in directories if directory and directory != "/"},
+        key=lambda directory: (directory.count("/"), directory))
+    return candidates[:limit]
 
 
 def _read_robots(host, port, fetch) -> List[str]:
