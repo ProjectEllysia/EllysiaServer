@@ -89,7 +89,7 @@
 
       <div class="engine-row">
         <button class="btn-launch" :class="{ loading: launching }" :disabled="launching || !canLaunch" @click="handleLaunch">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span class="btn-cloud" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17.5 19a4.5 4.5 0 1 0-1.4-8.78A6 6 0 0 0 4.5 12.5 3.5 3.5 0 0 0 6 19z"/></svg></span>
           <span>{{ launching ? t('lybra.cloud.launching') : t('lybra.cloud.launch') }}</span>
         </button>
       </div>
@@ -272,8 +272,15 @@ function handleLaunch() {
   background: var(--accent); border: 1px solid var(--accent); border-radius: 8px; color: var(--on-accent);
   font-size: var(--fs-btn); font-weight: 600; cursor: pointer; transition: opacity 0.2s;
 }
-.btn-launch svg { width: 17px; height: 17px; }
+.btn-cloud { display: grid; place-items: center; }
+.btn-cloud svg { width: 17px; height: 17px; }
+/* La nube del botón flota al pasar por encima y mientras se lanza: el motor
+   está mirando lo que el dominio deja a la vista. */
+.btn-launch:hover:not(:disabled) .btn-cloud svg { animation: cloud-float 1.6s ease-in-out infinite; }
+.btn-launch.loading .btn-cloud svg { animation: cloud-float 1.1s ease-in-out infinite; }
+@keyframes cloud-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
 .btn-launch:hover:not(:disabled) { opacity: 0.9; }
+.btn-launch.loading:disabled { opacity: 0.85; cursor: progress; }
 .btn-launch:disabled { opacity: 0.45; cursor: not-allowed; }
 .btn-launch:focus-visible, .btn-add:focus-visible, .target-seal:focus-visible, .resource-seal:focus-visible, .resource-remove:focus-visible {
   outline: 2px solid var(--accent); outline-offset: 2px;
@@ -296,7 +303,7 @@ function handleLaunch() {
   .known { flex-direction: column; align-items: stretch; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .pulse { animation: none; }
+  .pulse, .btn-cloud svg { animation: none !important; }
   .pop-enter-active, .pop-leave-active, .fade-swap-enter-active, .fade-swap-leave-active,
   .chip-item-enter-active, .chip-item-leave-active, .btn-launch { transition: none; }
 }

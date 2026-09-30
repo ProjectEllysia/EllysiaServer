@@ -23,7 +23,10 @@
           <label for="group-cidr">{{ t('lybra.network.range') }}</label>
           <input id="group-cidr" v-model="cidr" class="mono" placeholder="10.0.0.0/24" autocomplete="off" spellcheck="false" />
         </div>
-        <button type="submit" class="btn-create" :disabled="creating || !canSubmit">{{ t('lybra.network.create') }}</button>
+        <button type="submit" class="btn-create" :class="{ loading: creating }" :disabled="creating || !canSubmit">
+          <span class="btn-nodes" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="5" cy="12" r="2.5"/><circle cx="19" cy="5" r="2.5"/><circle cx="19" cy="19" r="2.5"/><path d="M7.3 11 16.7 6M7.3 13l9.4 5"/></svg></span>
+          {{ t('lybra.network.create') }}
+        </button>
       </form>
       <p v-if="cidr.trim() && !isRangeValid" class="field-error">{{ t('lybra.network.rangeInvalid') }}</p>
     </div>
@@ -162,7 +165,17 @@ function toggle(groupId) {
   padding: 0.55rem 1.1rem; background: var(--accent); border: 1px solid var(--accent); border-radius: 7px;
   color: var(--on-accent); font-size: var(--fs-btn); font-weight: 600; cursor: pointer; white-space: nowrap;
 }
+.btn-create { display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem; }
 .btn-create:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-create.loading:disabled { opacity: 0.85; cursor: progress; }
+.btn-nodes { display: grid; place-items: center; }
+.btn-nodes svg { width: 15px; height: 15px; }
+/* Los tres nodos del icono se encienden por turnos al pasar por encima y mientras se crea. */
+.btn-nodes circle { transform-box: fill-box; transform-origin: center; }
+.btn-create:hover:not(:disabled) .btn-nodes circle, .btn-create.loading .btn-nodes circle { animation: node-blink 1.2s ease-in-out infinite; }
+.btn-create:hover:not(:disabled) .btn-nodes circle:nth-child(2), .btn-create.loading .btn-nodes circle:nth-child(2) { animation-delay: 0.2s; }
+.btn-create:hover:not(:disabled) .btn-nodes circle:nth-child(3), .btn-create.loading .btn-nodes circle:nth-child(3) { animation-delay: 0.4s; }
+@keyframes node-blink { 0%, 60%, 100% { transform: scale(1); opacity: 1; } 30% { transform: scale(1.35); opacity: 0.55; } }
 .btn-create:focus-visible, .group-toggle:focus-visible, .icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .note { margin: 0; font-size: var(--fs-md); color: var(--text-muted); }
@@ -206,7 +219,7 @@ function toggle(groupId) {
   .group-tally { margin-left: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .spin { animation: none; }
+  .spin, .btn-nodes circle { animation: none !important; }
   .group, .chevron, .group-item-enter-active, .group-item-leave-active, .group-panel-enter-active, .group-panel-leave-active { transition: none; }
 }
 </style>
