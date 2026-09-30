@@ -56,6 +56,9 @@ CONDITIONAL_HEADER_CHECKS: Dict[str, str] = {
     "lybra:cors-reflects-any-origin-with-credentials@1":
         "necesita que la respuesta refleje el Origin de la sonda con credenciales; "
         "un 200 sin CORS configurado no manda ninguna cabecera de CORS",
+    "lybra:login-form-served-over-http@1":
+        "necesita que el rastreo haya descubierto un formulario de acceso; sin uno, "
+        "sólo se prueba la ruta placeholder del feed, que ningún objetivo del catálogo sirve",
 }
 
 
