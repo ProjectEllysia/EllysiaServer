@@ -5,7 +5,7 @@
 
     <main class="main">
       <header class="page-header">
-        <div>
+        <div class="page-title">
           <span class="eyebrow">{{ t('kbAdmin.eyebrow') }}</span>
           <h1>{{ t('kbAdmin.title') }}</h1>
           <p class="subtitle">{{ t('kbAdmin.subtitle') }}</p>
@@ -15,7 +15,7 @@
         </button>
       </header>
 
-      <section class="card">
+      <section class="card" style="--i: 1">
         <div class="card-head">
           <h2>{{ t('kbAdmin.status.heading') }}</h2>
           <span v-if="feedVersion" class="mono muted">{{ feedVersion }}</span>
@@ -31,6 +31,11 @@
             </tr>
           </thead>
           <tbody>
+            <template v-if="loading && !sources.length">
+              <tr v-for="row in 4" :key="`skeleton-${row}`" aria-hidden="true">
+                <td v-for="column in 5" :key="column"><span class="skeleton skeleton--line" :class="column === 1 ? 'skeleton--w60' : 'skeleton--w80'"></span></td>
+              </tr>
+            </template>
             <template v-for="source in sources" :key="source.source">
               <tr>
                 <td class="mono">{{ source.source }}</td>
@@ -54,7 +59,7 @@
         </table>
       </section>
 
-      <section class="card">
+      <section class="card" style="--i: 2">
         <div class="card-head">
           <h2>{{ t('kbAdmin.sync.heading') }}</h2>
         </div>
@@ -75,7 +80,7 @@
         </div>
       </section>
 
-      <section class="card">
+      <section class="card" style="--i: 3">
         <div class="card-head">
           <h2>{{ t('kbAdmin.search.heading') }}</h2>
         </div>
@@ -87,7 +92,8 @@
         </form>
         <p v-if="!result" class="hint">{{ t('kbAdmin.search.hint') }}</p>
 
-        <template v-if="result">
+        <Transition name="rise" mode="out-in">
+        <div v-if="result" :key="result.cve?.cveId ?? query">
           <p v-if="result.kind === 'cve' && !result.cve" class="hint">{{ t('kbAdmin.search.cveUnknown') }}</p>
           <div v-else-if="result.kind === 'cve'" class="cve">
             <h3 class="mono">{{ result.cve.cveId }}</h3>
@@ -131,7 +137,8 @@
               </li>
             </ul>
           </template>
-        </template>
+        </div>
+        </Transition>
       </section>
     </main>
   </div>
@@ -264,9 +271,21 @@ onMounted(() => {
   font-family: var(--font-mono); font-size-adjust: var(--fsa-mono);
   font-size: var(--fs-sm); letter-spacing: 0.15em; text-transform: uppercase;
 }
+.page-title { position: relative; }
+/* Marca de agua: el nombre de las fuentes, muy tenue, detrás del título. */
+.page-title::before {
+  content: 'NVD · KEV · EPSS · OVAL'; position: absolute; left: 0; top: -1.1rem; white-space: nowrap;
+  font-family: var(--font-mono); font-size-adjust: var(--fsa-mono); font-size: var(--fs-xs); letter-spacing: 0.4em;
+  color: var(--text-muted); opacity: 0.18; pointer-events: none;
+}
+.page-title::after {
+  content: ''; display: block; height: 2px; width: 4.5rem; margin-top: 0.7rem; border-radius: 2px;
+  background: linear-gradient(90deg, var(--accent), transparent); transform-origin: left;
+  animation: kb-rule 0.8s 0.15s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
 .page-header h1 { margin: 0.35rem 0 0; color: var(--text); font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-size: var(--fs-3xl); font-weight: 800; }
 .subtitle { margin: 0.35rem 0 0; color: var(--text-dim); font-size: var(--fs-lg); }
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 18px 50px rgba(0,0,0,0.18); padding: 1.15rem; margin-bottom: 1.1rem; }
+.card { animation: seq-fade-up 0.5s calc(var(--i, 0) * 90ms) cubic-bezier(0.2, 0.8, 0.2, 1) both; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 18px 50px rgba(0,0,0,0.18); padding: 1.15rem; margin-bottom: 1.1rem; }
 .card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; padding-bottom: 0.8rem; border-bottom: 1px solid var(--border); margin-bottom: 0.9rem; }
 .card-head h2 { margin: 0; color: var(--text); font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-size: var(--fs-xl); }
 .mono { font-family: var(--font-mono); font-size-adjust: var(--fsa-mono); }
@@ -301,7 +320,17 @@ onMounted(() => {
 .facts dd { margin: 0; color: var(--text); }
 .products { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.4rem; }
 .products li { display: flex; gap: 0.6rem; align-items: baseline; color: var(--text); }
+@keyframes kb-rule { from { transform: scaleX(0); opacity: 0; } }
+.rise-enter-active { transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.rise-leave-active { transition: opacity 0.12s ease; }
+.rise-enter-from { opacity: 0; transform: translateY(8px); }
+.rise-leave-to { opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .card, .page-title::after { animation: none; }
+  .rise-enter-active, .rise-leave-active { transition: none; }
+}
 @media (max-width: 640px) {
+  .page-title::before { display: none; }
   .page-header { flex-direction: column; align-items: flex-start; }
   .kb-table { display: block; overflow-x: auto; }
 }
