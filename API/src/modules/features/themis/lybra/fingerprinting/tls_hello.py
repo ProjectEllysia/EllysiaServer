@@ -479,6 +479,67 @@ def parse_server_flight(data: bytes) -> ServerFlight:
     return ServerFlight(server_hello=server_hello, alert=alert, messages=tuple(others))
 
 
+def parse_certificate_message(body: Optional[bytes]) -> List[bytes]:
+    """Lee la lista de certificados DER de un mensaje ``Certificate`` (RFC 5246 §7.4.2).
+
+    Sólo entiende la forma de TLS 1.2 y anteriores (una lista plana de
+    certificados, cada uno con su longitud de tres bytes delante) — la de TLS
+    1.3 añade un contexto y extensiones por certificado, y este lector no se
+    usa nunca sobre un vuelo de esa versión (quien lo llama anuncia como mucho
+    TLS 1.2 en el ``ClientHello``, así que el servidor no puede contestar en
+    la forma de 1.3).
+
+    Args:
+        body: El cuerpo del mensaje ``Certificate`` (ver
+            :meth:`ServerFlight.get_message`), o ``None`` si el servidor no
+            mandó ninguno.
+
+    Returns:
+        List[bytes]: Los certificados, en el orden en que el servidor los
+            mandó (el de hoja primero). Vacía si ``body`` es ``None`` o no
+            tiene la forma esperada.
+    """
+    if not body or len(body) < 3:
+        return []
+    total_length = int.from_bytes(body[0:3], "big")
+    end = min(3 + total_length, len(body))
+    certificates: List[bytes] = []
+    offset = 3
+    while offset + 3 <= end:
+        certificate_length = int.from_bytes(body[offset:offset + 3], "big")
+        offset += 3
+        certificate = body[offset:offset + certificate_length]
+        if len(certificate) < certificate_length:
+            break
+        certificates.append(certificate)
+        offset += certificate_length
+    return certificates
+
+
+def parse_dhe_server_key_exchange(body: Optional[bytes]) -> Optional[int]:
+    """Lee el tamaño del módulo Diffie-Hellman de un ``ServerKeyExchange`` DHE (RFC 5246 §7.4.3).
+
+    Sólo lee ``dh_p`` —el primer campo de ``ServerDHParams``, que es lo que
+    decide la fuerza del grupo—; ``dh_g`` y la parte pública ``dh_Ys`` que le
+    siguen, y la firma que cierra el mensaje, no hacen falta para esto.
+
+    Args:
+        body: El cuerpo del mensaje ``ServerKeyExchange``, o ``None`` si el
+            servidor no mandó ninguno (no eligió un cifrado DHE).
+
+    Returns:
+        Optional[int]: El tamaño de ``dh_p`` en bits, redondeado al byte
+            (``len(dh_p) * 8``); ``None`` si ``body`` es ``None`` o viene
+            truncado.
+    """
+    if not body or len(body) < 2:
+        return None
+    length = struct.unpack_from("!H", body, 0)[0]
+    if length == 0 or 2 + length > len(body):
+        return None
+    return length * 8
+
+
 def _is_flight_finished(data: bytes) -> bool:
     """Dice si ya se ha leído lo bastante del servidor para dejar de esperar.
 

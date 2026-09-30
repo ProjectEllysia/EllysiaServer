@@ -1272,6 +1272,30 @@ checks:
       title: 'TLS: acepta cifrados en modo CBC'
       qod: 99
       confirmed: true
+  - id: tls-incomplete-certificate-chain
+    version: 1
+    type: script
+    script: tls-incomplete-certificate-chain
+    category: tls
+    severity: MEDIUM
+    service: tls
+    mode: safe
+    finding:
+      title: 'TLS: el servidor no manda el certificado intermedio (cadena incompleta)'
+      qod: 99
+      confirmed: true
+  - id: tls-weak-key-exchange-group
+    version: 1
+    type: script
+    script: tls-weak-key-exchange-group
+    category: tls
+    severity: MEDIUM
+    service: tls
+    mode: safe
+    finding:
+      title: 'TLS: negocia un grupo Diffie-Hellman débil (por debajo de 2048 bits)'
+      qod: 99
+      confirmed: true
   - id: ike-weak-transform
     version: 1
     type: script
