@@ -274,7 +274,7 @@ from .exporters import (
     to_ocsf,
 )
 from .planner import IDENTIFICATION_REVISION, CheckPlanner, KnownService
-from .crawler import CrawlResult, crawl
+from .crawler import CrawlResult, crawl, select_scan_directories
 from .api_surface import (
     ApiEndpoint,
     ApiSpecification,
@@ -534,6 +534,7 @@ __all__ = [
     "site_finding",
     "CrawlResult",
     "crawl",
+    "select_scan_directories",
     "ApiEndpoint",
     "ApiSpecification",
     "SPECIFICATION_PATHS",

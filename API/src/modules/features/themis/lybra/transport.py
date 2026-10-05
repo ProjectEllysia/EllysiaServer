@@ -118,11 +118,12 @@ WELL_KNOWN_PORTS = {
     500: "isakmp", 587: "submission", 631: "ipp", 993: "imaps", 995: "pop3s",
     1433: "ms-sql-s", 1434: "ms-sql-m",
     1521: "oracle", 2049: "nfs", 2375: "docker", 2376: "docker-tls",
-    2379: "etcd", 3306: "mysql", 3389: "ms-wbt-server",
+    2181: "zookeeper", 2379: "etcd", 3306: "mysql", 3389: "ms-wbt-server",
     3268: "globalcatldap", 3269: "globalcatldapssl",
     5353: "mdns", 5432: "postgresql", 5601: "kibana", 5900: "vnc", 5985: "wsman",
     6379: "redis", 6443: "kubernetes", 8080: "http-proxy", 8443: "https-alt",
-    8500: "consul", 8888: "http-alt", 9200: "elasticsearch", 27017: "mongodb",
+    8500: "consul", 8888: "http-alt", 9042: "cassandra", 9200: "elasticsearch",
+    11211: "memcached", 27017: "mongodb",
 }
 
 # The ports swept when the caller does not specify a list: the common,
@@ -130,9 +131,9 @@ WELL_KNOWN_PORTS = {
 # full 1-65535 range — sweeping everything belongs to the raw fast-path, which
 # this module does not implement.
 DEFAULT_PORTS: tuple = tuple(sorted(WELL_KNOWN_PORTS)) + (
-    20, 69, 138, 512, 513, 514, 873, 1080, 1723, 2181, 3000,
+    20, 69, 138, 512, 513, 514, 873, 1080, 1723, 3000,
     4444, 5000, 5060, 6667, 7001, 8000, 8008, 8081, 8088, 8181, 9000,
-    9090, 9300, 11211,
+    9090, 9300,
 )
 
 

@@ -31,17 +31,26 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Dict, List, Optional, Tuple
+import urllib.parse
+from typing import Callable, Dict, List, Optional, Tuple
+
+from cryptography import x509
+from cryptography.exceptions import UnsupportedAlgorithm
 
 from .checks import (
+    Baseline,
     HttpProbe,
     Response,
+    baseline_path,
+    is_http_service,
     is_ike_service,
     ScriptContext,
     ScriptPlugin,
     LDAPS_PORTS,
     is_ldap_service,
     is_dns_service,
+    is_cassandra_service,
+    is_memcached_service,
     is_mongodb_service,
     is_mssql_service,
     is_ntp_service,
@@ -55,20 +64,34 @@ from .checks import (
     is_tls_service,
     is_vnc_service,
     is_winrm_service,
+    is_zookeeper_service,
     starttls_protocol_for,
 )
 from .engine import Service
 from .fingerprinting.smb import SIGNING_REQUIRED_BIT, SmbProbe, fingerprint_smb
 from .fingerprinting.ldap import LdapProbe, fingerprint_ldap, search_returned_entries
+from .fingerprinting.cassandra import CassandraProbe
+from .fingerprinting.memcached import MemcachedProbe, fingerprint_memcached
 from .fingerprinting.mongo import MongoProbe, fingerprint_mongo
 from .fingerprinting.mssql import MssqlProbe, fingerprint_mssql
 from .fingerprinting.postgres import PostgresProbe, fingerprint_postgres
 from .fingerprinting.rdp import RdpProbe, fingerprint_rdp
 from .fingerprinting.snmp import SnmpProbe
 from .fingerprinting.ssh import SshProbe, parse_kexinit
+from .fingerprinting.ssh_auth import SshAuthMethods, SshAuthProbe
 from .fingerprinting.telnet import TelnetProbe
+from .fingerprinting import windows_rpc
 from .fingerprinting.tls import LEGACY_TLS_PROTOCOLS, TlsProbe
+from .fingerprinting.tls_hello import (
+    HANDSHAKE_CERTIFICATE,
+    HANDSHAKE_SERVER_KEY_EXCHANGE,
+    VERSION_TLS_1_2,
+    TlsHelloProbe,
+    parse_certificate_message,
+    parse_dhe_server_key_exchange,
+)
 from .fingerprinting.vnc import VncProbe
+from .fingerprinting.zookeeper import ZookeeperProbe, fingerprint_zookeeper
 from .transport import tcp_timestamps_enabled
 from .fingerprinting.udp_services import (
     DnsProbe,
@@ -390,6 +413,93 @@ class MongoUnauthenticatedAccessPlugin(ScriptPlugin):
         if replies is None:
             return False
         return fingerprint_mongo(*replies).allows_unauthenticated_access
+
+
+class MemcachedUnauthenticatedAccessPlugin(ScriptPlugin):
+    """Detecta un Memcached que entrega sus estadísticas sin ninguna credencial.
+
+    El protocolo de texto de Memcached no autentica: lo único que lo cierra es
+    arrancarlo con SASL (que deshabilita el texto) o no exponerlo. Un servidor
+    abierto deja leer y vaciar la caché, que suele guardar sesiones, tokens y
+    fragmentos de base de datos.
+
+    **La evidencia no es que conteste a ``version``.** Es el comando más
+    inocuo del protocolo; la evidencia es que ``stats`` devuelva los
+    contadores, que sí es una operación sobre el servicio.
+
+    Args:
+        probe: Sonda inyectable, para que un test use un socket falso.
+    """
+
+    plugin_id = "memcached-unauthenticated-access"
+
+    def __init__(self, probe: Optional[MemcachedProbe] = None) -> None:
+        self._probe = probe or MemcachedProbe()
+
+    def applies(self, service: Service) -> bool:
+        return is_memcached_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        context.acquire()
+        replies = self._probe.fetch(context.target, context.service.port or 11211)
+        if replies is None:
+            return False
+        return fingerprint_memcached(*replies).allows_unauthenticated_access
+
+
+class ZookeeperUnauthenticatedAccessPlugin(ScriptPlugin):
+    """Detecta un ZooKeeper cuyo árbol de nodos se lee sin ninguna credencial.
+
+    ZooKeeper no autentica por defecto, y en él viven la configuración y la
+    coordinación de lo que lo usa (Kafka, Hadoop, Solr...). La evidencia es una
+    sesión real: el servidor la abre sin credenciales y devuelve los hijos de
+    la raíz. Un servidor con ACL o SASL obligatorio contesta ``NoAuth`` o
+    cierra, y entonces no hay hallazgo.
+
+    Args:
+        probe: Sonda inyectable, para que un test use un socket falso.
+    """
+
+    plugin_id = "zookeeper-unauthenticated-access"
+
+    def __init__(self, probe: Optional[ZookeeperProbe] = None) -> None:
+        self._probe = probe or ZookeeperProbe()
+
+    def applies(self, service: Service) -> bool:
+        return is_zookeeper_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        context.acquire()
+        readings = self._probe.fetch(context.target, context.service.port or 2181)
+        if readings is None:
+            return False
+        return fingerprint_zookeeper(*readings).allows_unauthenticated_access
+
+
+class CassandraUnauthenticatedAccessPlugin(ScriptPlugin):
+    """Detecta un servidor CQL (Cassandra, ScyllaDB) que deja operar sin credenciales.
+
+    La evidencia es la respuesta a ``STARTUP``: ``READY`` significa que el
+    servidor no exige autenticarse, ``AUTHENTICATE`` que sí. A diferencia de
+    otros servicios, aquí la distinción la hace el propio protocolo en su
+    primer paso, sin probar ninguna credencial.
+
+    Args:
+        probe: Sonda inyectable, para que un test use un socket falso.
+    """
+
+    plugin_id = "cassandra-unauthenticated-access"
+
+    def __init__(self, probe: Optional[CassandraProbe] = None) -> None:
+        self._probe = probe or CassandraProbe()
+
+    def applies(self, service: Service) -> bool:
+        return is_cassandra_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        context.acquire()
+        fingerprint = self._probe.fetch(context.target, context.service.port or 9042)
+        return bool(fingerprint and fingerprint.allows_unauthenticated_access)
 
 
 class LdapAnonymousBindPlugin(ScriptPlugin):
@@ -1129,6 +1239,97 @@ class _KexinitCache:
         return self._kexinits[key]
 
 
+class _SshAuthCache:
+    """Una sola consulta de métodos de autenticación por servicio, compartida por los plugins SSH.
+
+    Los dos checks que preguntan ``auth_none`` miran la misma respuesta; sin
+    esto, cada uno abriría su propia conexión y repetiría el mismo intento de
+    autenticación contra el objetivo. Vive lo que vive el registro de plugins
+    (un escaneo) — el mismo patrón que :class:`_KexinitCache` ya usa para el
+    ``KEXINIT``.
+
+    Args:
+        probe: Sonda inyectable, para que un test use un socket falso o un
+            servidor SSH de prueba.
+    """
+
+    def __init__(self, probe: Optional[SshAuthProbe] = None) -> None:
+        self._probe = probe or SshAuthProbe()
+        self._results: Dict[Tuple[str, int], Optional[SshAuthMethods]] = {}
+
+    def auth_methods(self, context: ScriptContext) -> Optional[SshAuthMethods]:
+        """Devuelve los métodos de autenticación del servicio, preguntándolo la primera vez.
+
+        Args:
+            context: El contexto del check, del que salen objetivo, puerto y
+                limitador de ritmo.
+
+        Returns:
+            SshAuthMethods | None: El resultado, o ``None`` si la sonda no
+                llegó a una respuesta concluyente.
+        """
+        key = (context.target, context.service.port or 22)
+        if key not in self._results:
+            context.acquire()
+            self._results[key] = self._probe.fetch(*key)
+        return self._results[key]
+
+
+class SshNoneAuthenticationAcceptedPlugin(ScriptPlugin):
+    """Detecta un SSH que acepta el método de autenticación «ninguno»: acceso sin credencial alguna.
+
+    Es, para SSH, el mismo hallazgo que PostgreSQL en modo ``trust``. La
+    evidencia es la propia respuesta del servidor al método ``none`` —no una
+    credencial que se prueba, sino la ausencia de cualquier credencial—, así
+    que el hallazgo nace confirmado.
+
+    Args:
+        cache: La caché de métodos de autenticación compartida con el otro
+            plugin de esta familia.
+    """
+
+    plugin_id = "ssh-none-authentication-accepted"
+
+    def __init__(self, cache: _SshAuthCache) -> None:
+        self._cache = cache
+
+    def applies(self, service: Service) -> bool:
+        return is_ssh_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        result = self._cache.auth_methods(context)
+        return bool(result and result.is_none_accepted)
+
+
+class SshPasswordOnlyAuthenticationPlugin(ScriptPlugin):
+    """Detecta un SSH que sólo admite autenticación por contraseña, sin clave pública.
+
+    Un servidor así es una superficie de fuerza bruta: sin clave pública de por
+    medio, cualquier cuenta válida sólo está protegida por lo fuerte que sea su
+    contraseña. Si el servidor ya aceptó el método ``none`` el hallazgo es ese
+    —más grave—, no este.
+
+    Args:
+        cache: La caché de métodos de autenticación compartida con el otro
+            plugin de esta familia.
+    """
+
+    plugin_id = "ssh-password-only-authentication"
+
+    def __init__(self, cache: _SshAuthCache) -> None:
+        self._cache = cache
+
+    def applies(self, service: Service) -> bool:
+        return is_ssh_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        result = self._cache.auth_methods(context)
+        if result is None or result.is_none_accepted:
+            return False
+        offers_password = "password" in result.methods or "keyboard-interactive" in result.methods
+        return offers_password and "publickey" not in result.methods
+
+
 def _is_weak_mac(name: str) -> bool:
     """MAC basado en MD5, de 96 o de 64 bits, o ``none`` (el mismo criterio que OpenVAS)."""
     return name == "none" or "md5" in name or "-96" in name or name.startswith("umac-64")
@@ -1504,6 +1705,482 @@ class TlsDeprecatedProtocolPlugin(ScriptPlugin):
         return True
 
 
+def _load_certificate(der: bytes) -> Optional["x509.Certificate"]:
+    """Carga un certificado DER, o ``None`` si está corrupto o mal formado.
+
+    Args:
+        der: Los bytes del certificado, tal como llegaron en el saludo.
+
+    Returns:
+        Optional[x509.Certificate]: El certificado ya parseado, o ``None``
+            ante cualquier error de formato — un certificado que no se puede
+            leer no es evidencia de nada.
+    """
+    try:
+        return x509.load_der_x509_certificate(der)
+    except (ValueError, UnsupportedAlgorithm):
+        return None
+
+
+#: El mínimo de bits del módulo Diffie-Hellman que no se considera débil. 2048
+#: es el umbral tras Logjam (CVE-2015-4000): por debajo, romper una sesión con
+#: recursos de un atacante con medios es plausible.
+_MINIMUM_DH_GROUP_BITS = 2048
+
+#: Los cifrados DHE clásicos (sin curva elíptica) que este check ofrece, para
+#: forzar al servidor a elegir uno de ellos si sabe hacer Diffie-Hellman en
+#: absoluto — un ECDHE no dice nada del tamaño de un grupo DH que el servidor
+#: podría no usar nunca.
+_DHE_ONLY_CIPHER_SUITES: Tuple[int, ...] = (0x009E, 0x009F, 0x0033, 0x0039)
+
+
+def _speaks_immediate_tls(service: Service) -> bool:
+    """Si el servicio cifra desde el primer byte (nunca por ``STARTTLS``).
+
+    Los dos plugins de :mod:`tls_hello` de abajo se limitan a esto: el lector
+    en crudo no habla todavía el paso a TLS a mitad de sesión (FTP, SMTP,
+    IMAP, POP3) que sí sabe :class:`~.fingerprinting.tls.TlsProbe` —añadirlo
+    exigiría exponer las sondas de ``STARTTLS`` de ese módulo, que hoy son
+    privadas—, así que estos dos checks se quedan fuera de esos protocolos
+    hasta que esa pieza exista. Los checks de versión y cifrado ya existentes
+    (:class:`TlsDeprecatedProtocolPlugin`, :class:`TlsWeakCipherFamilyPlugin`)
+    sí los cubren, porque usan ``TlsProbe``.
+    """
+    return is_tls_certificate_service(service) and starttls_protocol_for(service) is None
+
+
+class TlsIncompleteCertificateChainPlugin(ScriptPlugin):
+    """Detecta un servidor TLS que no manda el certificado intermedio.
+
+    Un navegador valida el certificado de hoja subiendo la cadena de
+    emisores hasta una raíz de confianza ya instalada; si al servidor le
+    falta el intermedio, esa subida se corta y la conexión no valida, aunque
+    la hoja en sí sea perfectamente válida. Es un descuido de despliegue
+    distinto del autofirmado o el caducado —esos ya tienen su propio check—:
+    aquí la hoja está bien, lo que falta es lo que la conecta con una raíz.
+
+    **La evidencia es contar certificados, no construir la cadena.** Validar
+    de verdad hasta una raíz exigiría traer el almacén de confianza del
+    sistema y las reglas de verificación de rutas completas —fuera del
+    alcance de un cliente mínimo—. El indicio barato y fiable es que el
+    servidor mande **sólo la hoja**: un despliegue sano manda la hoja y al
+    menos un intermedio, y uno con la cadena rota manda uno solo. Un
+    certificado de hoja autofirmado (``subject == issuer``) se descarta aquí
+    a propósito: no le falta nada que completar, y ya lo cubre
+    ``tls-self-signed-cert``.
+
+    Args:
+        probe: Sonda inyectable, para que un test use un socket falso. Por
+            defecto, ``TlsHelloProbe()``.
+    """
+
+    plugin_id = "tls-incomplete-certificate-chain"
+
+    def __init__(self, probe: Optional[TlsHelloProbe] = None) -> None:
+        self._probe = probe or TlsHelloProbe()
+
+    def applies(self, service: Service) -> bool:
+        return _speaks_immediate_tls(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        context.acquire()
+        flight = self._probe.query(
+            context.target, context.service.port or 443,
+            versions=(VERSION_TLS_1_2,), server_name=context.target)
+        if flight is None:
+            return False
+        certificates = parse_certificate_message(flight.get_message(HANDSHAKE_CERTIFICATE))
+        if len(certificates) != 1:
+            # Ni el mensaje faltó/vino vacío, ni hay dos o más — sea lo que sea,
+            # no es el caso "sólo la hoja" que este check busca.
+            return False
+        leaf = _load_certificate(certificates[0])
+        if leaf is None or leaf.issuer == leaf.subject:
+            return False
+        context.evidence.update({"chainLength": 1})
+        return True
+
+
+class TlsWeakKeyExchangeGroupPlugin(ScriptPlugin):
+    """Detecta un servidor TLS que negocia un grupo Diffie-Hellman débil.
+
+    ``tls-weak-cipher`` ya cubre el cifrado simétrico; esto es otra cosa: el
+    tamaño del grupo con el que las dos partes acuerdan la clave de sesión,
+    independiente del cifrado que la use después. Un grupo corto (herencia de
+    cuando exportar criptografía fuerte estaba restringido) es rompible con
+    recursos de un atacante con medios — el ataque Logjam (CVE-2015-4000).
+
+    Se ofrecen sólo cifrados DHE clásicos (:data:`_DHE_ONLY_CIPHER_SUITES`,
+    sin curva elíptica) para forzar al servidor a elegir uno si sabe hacer
+    Diffie-Hellman en absoluto; un servidor que sólo ofrece ECDHE no tiene
+    nada que este check pueda medir, y no dispara.
+
+    Args:
+        probe: Sonda inyectable. Por defecto, ``TlsHelloProbe()``.
+    """
+
+    plugin_id = "tls-weak-key-exchange-group"
+
+    def __init__(self, probe: Optional[TlsHelloProbe] = None) -> None:
+        self._probe = probe or TlsHelloProbe()
+
+    def applies(self, service: Service) -> bool:
+        return _speaks_immediate_tls(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        context.acquire()
+        flight = self._probe.query(
+            context.target, context.service.port or 443,
+            versions=(VERSION_TLS_1_2,), cipher_suites=_DHE_ONLY_CIPHER_SUITES,
+            server_name=context.target)
+        if flight is None or flight.server_hello is None:
+            return False
+        if flight.server_hello.cipher_suite not in _DHE_ONLY_CIPHER_SUITES:
+            return False
+        bits = parse_dhe_server_key_exchange(flight.get_message(HANDSHAKE_SERVER_KEY_EXCHANGE))
+        if bits is None or bits >= _MINIMUM_DH_GROUP_BITS:
+            return False
+        context.evidence.update({"groupBits": bits})
+        return True
+
+
+# La cabecera de un ``<script src="...">``, para descubrir qué JavaScript sirve
+# la página sin ejecutar nada. Simple a propósito — es un descubridor de
+# rutas, no un navegador — igual que el ``_HREF_RE`` del rastreador.
+_SCRIPT_SRC_RE = re.compile(r"""<script\b[^>]*\bsrc\s*=\s*["\']([^"\'#\s]+)["\']""", re.IGNORECASE)
+
+# El comentario que enlaza un JavaScript minificado con su mapa de código
+# fuente (fuente: la especificación del propio formato, "Source Map Revision
+# 3"). ``//#`` es la forma moderna; ``//@`` es la que usaron las primeras
+# herramientas y algunas todavía emiten.
+_SOURCE_MAPPING_URL_RE = re.compile(r"//[#@]\s*sourceMappingURL=(\S+)")
+
+# Cuántos ficheros JavaScript de la portada se llegan a pedir, como mucho: un
+# tope barato para no convertir este check en un rastreo del sitio entero.
+_MAX_SCRIPTS_CHECKED = 8
+
+# Lo que distingue a un mapa de código fuente real de una página de error que
+# por casualidad contesta 200 (formato "Source Map Revision 3": ambas claves
+# son obligatorias en todo mapa válido).
+_SOURCE_MAP_MARKERS = ('"mappings"', '"sources"')
+
+
+def _reference_response(probe: HttpProbe, target: str, port: int) -> Optional[Baseline]:
+    """La respuesta de un servicio HTTP a una ruta que con toda seguridad no existe.
+
+    Función de módulo y no método: no toca más estado que la sonda que recibe
+    por parámetro (CONVENCIONES.md §5.1) — la usa
+    :class:`SourceMapExposedPlugin`, una sola vez por ejecución.
+
+    Args:
+        probe: La sonda HTTP con la que pedir la ruta.
+        target: El objetivo.
+        port: El puerto del servicio HTTP.
+
+    Returns:
+        Optional[Baseline]: La referencia, o ``None`` si el servicio no
+            contestó — sin referencia no se descarta nada.
+    """
+    path = baseline_path()
+    response = probe.fetch(target, port, "GET", path)
+    return None if response is None else Baseline.from_response(path, response)
+
+
+def _same_origin_script_urls(base_path: str, body: str) -> List[str]:
+    """Las rutas de los ``<script src="...">`` de una página, del mismo origen.
+
+    Un ``src`` absoluto a otro host (``https://cdn.terceros.test/x.js``) se
+    descarta: este check sólo audita el JavaScript propio del sitio, nunca el
+    de un tercero. Uno relativo se resuelve contra la ruta de la página.
+
+    Args:
+        base_path: La ruta de la página que se acaba de leer.
+        body: Su cuerpo HTML.
+
+    Returns:
+        List[str]: Las rutas, sin repetir, en el orden en que aparecen.
+    """
+    urls: List[str] = []
+    for raw in _SCRIPT_SRC_RE.findall(body):
+        split = urllib.parse.urlsplit(raw)
+        if split.netloc:
+            continue
+        resolved = urllib.parse.urljoin(base_path, split.path)
+        if resolved and resolved not in urls:
+            urls.append(resolved)
+    return urls
+
+
+class SourceMapExposedPlugin(ScriptPlugin):
+    """Detecta un mapa de código fuente publicado junto a un JavaScript minificado.
+
+    Una herramienta de empaquetado suele generar, junto al JavaScript que de
+    verdad sirve al navegador, un "mapa de código fuente": un fichero que
+    traduce ese código minificado de vuelta al original, con nombres de
+    variables y comentarios — pensado para depurar en desarrollo. Si se
+    publica por error en producción, regala el código fuente completo del
+    frontend: lógica de negocio, rutas internas de la API y, a veces, una
+    credencial que alguien dejó como constante pensando que sólo existiría
+    minificada.
+
+    El propio JavaScript delata el mapa: termina con un comentario
+    ``//# sourceMappingURL=archivo.js.map`` que el navegador usa para
+    encontrarlo al depurar. Este check lee esa referencia y comprueba si el
+    fichero al que apunta existe y de verdad tiene forma de mapa — no basta
+    con que conteste 200, porque un sitio que contesta 200 a cualquier ruta
+    "tendría" un mapa en todas partes (de ahí la referencia propia, igual que
+    L102: no se puede usar la de ``CheckRuntime`` porque un plugin ``script``
+    no tiene acceso al runtime que lo invoca).
+
+    Args:
+        probe: Sonda HTTP inyectable, para que un test no abra conexiones.
+            Por defecto, ``HttpProbe()``.
+    """
+
+    plugin_id = "source-map-exposed"
+
+    def __init__(self, probe: Optional[HttpProbe] = None) -> None:
+        self._probe = probe or HttpProbe()
+
+    def applies(self, service: Service) -> bool:
+        """Si el servicio habla HTTP.
+
+        Args:
+            service: El servicio candidato.
+
+        Returns:
+            bool: ``True`` para los servicios que reclama ``is_http_service``.
+        """
+        return is_http_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        """Lee la portada, sigue sus scripts propios y comprueba su mapa de código fuente.
+
+        Args:
+            context: El contexto del check; su control de tasa se consulta
+                antes de cada petición.
+
+        Returns:
+            bool: ``True`` en el primer mapa que se encuentra publicado y con
+                forma de mapa real; ``False`` si ninguno de los scripts
+                examinados referencia uno, si el que referencian no existe, o
+                si la respuesta es la genérica de un sitio que contesta 200 a
+                todo.
+        """
+        port = context.service.port or 80
+        context.acquire()
+        page = self._probe.fetch(context.target, port, "GET", "/")
+        if page is None:
+            return False
+        reference: Optional[Baseline] = None
+        for script_path in _same_origin_script_urls("/", page.body or "")[:_MAX_SCRIPTS_CHECKED]:
+            context.acquire()
+            script = self._probe.fetch(context.target, port, "GET", script_path)
+            if script is None or script.status != 200:
+                continue
+            match = _SOURCE_MAPPING_URL_RE.search(script.body or "")
+            if not match:
+                continue
+            map_path = urllib.parse.urljoin(script_path, match.group(1))
+            if urllib.parse.urlsplit(map_path).netloc:
+                continue                                  # el mapa apunta a otro origen
+            context.acquire()
+            map_response = self._probe.fetch(context.target, port, "GET", map_path)
+            if map_response is None or map_response.status != 200:
+                continue
+            if not all(marker in map_response.body for marker in _SOURCE_MAP_MARKERS):
+                continue
+            if reference is None:
+                # Una sola vez por ejecución del plugin (el primer mapa que
+                # parece real la dispara; los siguientes candidatos la
+                # reutilizan), no una vez por script examinado.
+                reference = _reference_response(self._probe, context.target, port)
+            if reference is not None and reference.resembles(map_response, map_path):
+                continue
+            context.evidence.update({"scriptPath": script_path, "sourceMapPath": map_path})
+            return True
+        return False
+
+
+def _find_ldap_port(sibling_services) -> Optional[int]:
+    """El puerto LDAP de los servicios hermanos del host, con 389 preferido.
+
+    Args:
+        sibling_services: Los demás servicios del host (ver
+            ``ScriptContext.sibling_services``).
+
+    Returns:
+        Optional[int]: El puerto, o ``None`` si el host no tiene ningún
+            servicio LDAP entre sus servicios descubiertos.
+    """
+    candidates = sorted(
+        (sibling.port for sibling in sibling_services if is_ldap_service(sibling)),
+        key=lambda port: (port != 389, port))
+    return candidates[0] if candidates else None
+
+
+class WindowsSharesUnauthenticatedPlugin(ScriptPlugin):
+    """Detecta carpetas compartidas de Windows visibles sin ninguna credencial.
+
+    Lista las carpetas con el cliente mínimo de llamadas remotas de Windows
+    (:func:`~.fingerprinting.windows_rpc.fetch_shares`), con una sesión
+    anónima — nunca una credencial real. El hallazgo es que la **lista de
+    nombres** es visible sin autenticar, no lo que hay dentro de cada una:
+    este plugin nunca abre ni lee el contenido de ninguna carpeta.
+
+    **Las compartidas administrativas no cuentan.** ``ADMIN$``, ``C$``,
+    ``IPC$``… existen por defecto en cualquier Windows, se listen o no, así
+    que su sola presencia no dice nada sobre este equipo en particular —
+    dispararía en todos. La evidencia tiene que ser una carpeta real
+    (``ShareInfo.is_hidden`` es ``False``): la que alguien creó a propósito y
+    dejó visible sin restringir el acceso.
+
+    Args:
+        fetch_shares: La función que lista las carpetas, inyectable para que
+            un test no abra conexiones. Por defecto,
+            :func:`~.fingerprinting.windows_rpc.fetch_shares`.
+    """
+
+    plugin_id = "windows-shares-unauthenticated"
+
+    def __init__(self, fetch_shares: Optional[Callable] = None) -> None:
+        self._fetch_shares = fetch_shares or windows_rpc.fetch_shares
+
+    def applies(self, service: Service) -> bool:
+        """Si el servicio es SMB.
+
+        Args:
+            service: El servicio candidato.
+
+        Returns:
+            bool: ``True`` para los servicios que reclama ``is_smb_service``.
+        """
+        return is_smb_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        """Lista las carpetas compartidas y dispara si alguna no es administrativa.
+
+        Args:
+            context: El contexto del check; su control de tasa se consulta
+                antes de la llamada.
+
+        Returns:
+            bool: ``True`` si al menos una carpeta real (no administrativa)
+                es visible sin credenciales; ``False`` si la lista viene
+                vacía, si el equipo no permitió la sesión anónima, o si sólo
+                aparecen compartidas administrativas.
+        """
+        context.acquire()
+        shares = self._fetch_shares(context.target, context.service.port or 445)
+        visible = [share.name for share in shares if not share.is_hidden]
+        if not visible:
+            return False
+        context.evidence.update({"shares": visible})
+        return True
+
+
+class DomainControllerRpcSurfaceExposedPlugin(ScriptPlugin):
+    """Detecta un controlador de dominio con el spooler o el localizador de RPC expuestos.
+
+    Un controlador de dominio es el activo de mayor valor de una red Windows:
+    comprometerlo suele significar comprometer el dominio entero. Su spooler
+    de impresión (MS-RPRN, el protocolo tras PrintNightmare) y su localizador
+    de puntos finales de RPC (puerto 135) han sido la base de varias familias
+    de vulnerabilidades graves de escalado de privilegios; que respondan
+    desde la red, más allá de lo estrictamente necesario, es una superficie
+    que vale la pena señalar por sí sola, sin apuntar a una vulnerabilidad
+    concreta — eso corresponde a la correlación de CVEs habitual una vez que
+    el fingerprint los identifica.
+
+    **El hallazgo es alcanzable desde la red, no "sin credenciales".** A
+    diferencia de :class:`WindowsSharesUnauthenticatedPlugin`, aquí lo que se
+    mide es si el extremo **contesta** — acepte el saludo o lo rechace, las
+    dos respuestas prueban que el cortafuegos no lo bloquea—; sólo la
+    ausencia de respuesta cuenta como "no expuesto".
+
+    **Sólo sobre un controlador de dominio.** Cualquier Windows con los mismos
+    servicios accesibles no dispara: la condición de controlador de dominio se
+    confirma con una lectura LDAP propia (``namingContexts`` del rootDSE, sin
+    credenciales) contra el servicio LDAP hermano del mismo host — un
+    directorio de Active Directory sólo lo sirve un controlador de dominio.
+
+    Args:
+        ldap_probe: Sonda LDAP inyectable, para confirmar el controlador de
+            dominio. Por defecto, ``LdapProbe()``.
+        probe_named_pipe_rpc: La función que comprueba el spooler de
+            impresión, inyectable. Por defecto,
+            :func:`~.fingerprinting.windows_rpc.probe_named_pipe_rpc`.
+        probe_endpoint_mapper: La función que comprueba el localizador de
+            puntos finales, inyectable. Por defecto,
+            :func:`~.fingerprinting.windows_rpc.probe_endpoint_mapper`.
+    """
+
+    plugin_id = "domain-controller-rpc-surface-exposed"
+
+    def __init__(
+        self,
+        ldap_probe: Optional[LdapProbe] = None,
+        probe_named_pipe_rpc: Optional[Callable] = None,
+        probe_endpoint_mapper: Optional[Callable] = None,
+    ) -> None:
+        self._ldap_probe = ldap_probe or LdapProbe()
+        self._probe_named_pipe_rpc = probe_named_pipe_rpc or windows_rpc.probe_named_pipe_rpc
+        self._probe_endpoint_mapper = probe_endpoint_mapper or windows_rpc.probe_endpoint_mapper
+
+    def applies(self, service: Service) -> bool:
+        """Si el servicio es SMB.
+
+        Uno de los servicios del host tiene que ser el punto de entrada; se
+        elige SMB porque el spooler se comprueba sobre su misma tubería con
+        nombre. El localizador de puntos finales se comprueba aparte, siempre
+        en el 135, sea cual sea el puerto de este servicio.
+
+        Args:
+            service: El servicio candidato.
+
+        Returns:
+            bool: ``True`` para los servicios que reclama ``is_smb_service``.
+        """
+        return is_smb_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        """Confirma el controlador de dominio y comprueba las dos superficies.
+
+        Args:
+            context: El contexto del check; su control de tasa se consulta
+                antes de cada intercambio de red.
+
+        Returns:
+            bool: ``True`` si el host es un controlador de dominio y al menos
+                una de las dos superficies contestó (``exposedSurfaces`` en la
+                evidencia, con ``"print-spooler"``, ``"rpc-endpoint-mapper"``
+                o las dos); ``False`` si no hay LDAP hermano, si el LDAP no
+                confirma un controlador de dominio, o si ninguna de las dos
+                superficies contestó.
+        """
+        ldap_port = _find_ldap_port(context.sibling_services)
+        if ldap_port is None:
+            return False
+        context.acquire()
+        replies = self._ldap_probe.fetch(context.target, ldap_port)
+        if replies is None or not fingerprint_ldap(*replies).naming_contexts:
+            return False
+
+        exposed: List[str] = []
+        context.acquire()
+        if self._probe_named_pipe_rpc(
+                context.target, windows_rpc.SPOOLSS_PIPE, windows_rpc.SPOOLSS_INTERFACE_UUID,
+                windows_rpc.SPOOLSS_INTERFACE_VERSION,
+                port=context.service.port or 445) is not None:
+            exposed.append("print-spooler")
+        context.acquire()
+        if self._probe_endpoint_mapper(context.target) is not None:
+            exposed.append("rpc-endpoint-mapper")
+        if not exposed:
+            return False
+        context.evidence.update({"exposedSurfaces": exposed})
+        return True
+
 def default_script_plugins() -> Dict[str, ScriptPlugin]:
     """Construye el registro de plugins de primera parte, indexado por ``plugin_id``.
 
@@ -1520,6 +2197,9 @@ def default_script_plugins() -> Dict[str, ScriptPlugin]:
         PostgresTrustAuthenticationPlugin(),
         PostgresPasswordWithoutTlsPlugin(),
         MongoUnauthenticatedAccessPlugin(),
+        MemcachedUnauthenticatedAccessPlugin(),
+        ZookeeperUnauthenticatedAccessPlugin(),
+        CassandraUnauthenticatedAccessPlugin(),
         LdapAnonymousBindPlugin(),
         LdapCleartextWithLdapsPlugin(),
         LdapNoEncryptedChannelPlugin(),
@@ -1530,6 +2210,11 @@ def default_script_plugins() -> Dict[str, ScriptPlugin]:
         RdpLegacySecurityLayerPlugin(),
         WinrmBasicAuthCleartextPlugin(),
         TelnetEnabledPlugin(),
+        TlsIncompleteCertificateChainPlugin(),
+        TlsWeakKeyExchangeGroupPlugin(),
+        SourceMapExposedPlugin(),
+        WindowsSharesUnauthenticatedPlugin(),
+        DomainControllerRpcSurfaceExposedPlugin(),
         VncNoAuthenticationPlugin(),
         IkeWeakTransformPlugin(),
         TcpTimestampsPlugin(),
@@ -1540,5 +2225,10 @@ def default_script_plugins() -> Dict[str, ScriptPlugin]:
     ssh_cache = _KexinitCache()
     plugins += tuple(SshWeakAlgorithmsPlugin(family, ssh_cache)
                      for family in _WEAK_ALGORITHM_FAMILIES)
+    ssh_auth_cache = _SshAuthCache()
+    plugins += (
+        SshNoneAuthenticationAcceptedPlugin(ssh_auth_cache),
+        SshPasswordOnlyAuthenticationPlugin(ssh_auth_cache),
+    )
     plugins += (SshTerrapinPlugin(True, ssh_cache), SshTerrapinPlugin(False, ssh_cache))
     return {plugin.plugin_id: plugin for plugin in plugins}

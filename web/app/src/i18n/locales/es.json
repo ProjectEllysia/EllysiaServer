@@ -241,7 +241,7 @@
   "kbAdmin": {
     "title": "Base de conocimiento",
     "eyebrow": "Motor Lybra",
-    "subtitle": "Cómo está cada fuente con la que Lybra decide qué es vulnerable, sincronizarla sin esperar a la noche y consultar qué sabe de una CVE o de un producto.",
+    "subtitle": "Comprueba que las fuentes con las que Lybra decide qué es vulnerable están al día, sincronízalas sin esperar a la noche y consulta qué sabe de una CVE o de un producto.",
     "refresh": "Actualizar",
     "refreshing": "Actualizando…",
     "status": {
@@ -250,7 +250,8 @@
       "state": "Estado",
       "lastSuccess": "Última sincronización correcta",
       "lastAttempt": "Último intento",
-      "rows": "Filas"
+      "rows": "Filas",
+      "empty": "Todavía no hay ninguna fuente registrada. Lanza una sincronización para que aparezcan."
     },
     "state": {
       "ok": "Al día",
@@ -260,7 +261,9 @@
     },
     "sync": {
       "heading": "Sincronizar ahora",
-      "hint": "Lo mismo que hace el job nocturno, sin esperar a él. NVD descarga sólo los cambios recientes, nunca el catálogo entero. Mientras hay una sincronización en marcha no se puede lanzar otra.",
+      "hint": "Lanza ahora lo mismo que hace el job nocturno.",
+      "hintNvd": "NVD descarga sólo los cambios recientes, nunca el catálogo entero.",
+      "hintBusy": "Mientras hay una sincronización en marcha, el resto de botones queda bloqueado.",
       "targets": {
         "all": "Todas las fuentes",
         "nvd": "NVD",
@@ -282,8 +285,9 @@
     "search": {
       "heading": "Consultar",
       "placeholder": "CVE-2024-6387 u openssh",
+      "hint": "Escribe una CVE completa o parte del nombre de un producto (mínimo 2 caracteres).",
       "submit": "Buscar",
-      "cveUnknown": "Ninguna fuente de la base de conocimiento conoce esa CVE.",
+      "cveUnknown": "Ninguna fuente de la base de conocimiento conoce esa CVE. Comprueba el identificador o sincroniza NVD por si es muy reciente.",
       "cvss": "CVSS",
       "kev": "Explotada activamente (KEV)",
       "epss": "Probabilidad de explotación (EPSS)",
@@ -299,7 +303,7 @@
         "unknown": "Sin pronunciarse"
       },
       "noDistroStatus": "Ninguna distribución se ha pronunciado sobre esta CVE.",
-      "noProducts": "Ningún producto del índice coincide."
+      "noProducts": "Ningún producto del índice coincide. Prueba con otra parte del nombre."
     },
     "errors": {
       "status": "No se pudo cargar el estado de la base de conocimiento.",
@@ -1407,6 +1411,11 @@
     }
   },
   "lybra": {
+    "scopeEyebrow": {
+      "hosts": "Un equipo",
+      "cloud": "Un dominio",
+      "network": "Un rango"
+    },
     "sections": {
       "prod": "Productos afectados",
       "conf": "Configuración y exposición"
@@ -1549,7 +1558,7 @@
     },
     "launch": {
       "title": "Motor Lybra",
-      "subtitle": "Pesa cada amenaza antes de que golpee",
+      "subtitle": "Analiza los puertos y servicios de un equipo autorizado y señala lo que es vulnerable",
       "running": "Motor en marcha",
       "target": "Target (IP única)",
       "authorizedHint": "Está en tu registro de objetivos autorizados",
@@ -1637,13 +1646,20 @@
     },
     "cloud": {
       "title": "Exposición en la nube",
-      "subtitle": "Lo que tus recursos en la nube enseñan a cualquiera",
+      "subtitle": "Comprueba qué dejan a la vista tus recursos en la nube y si algún subdominio se puede reclamar",
       "running": "Comprobando",
       "hint": "Lybra pregunta, sin credenciales, si los buckets y bases de datos que declares dejan ver su contenido a cualquiera, y si algún subdominio apunta a un servicio que ya no existe y otra persona podría reclamar. No busca recursos por su cuenta: solo comprueba los que declaras.",
       "domain": "Dominio",
       "domainPlaceholder": "example.com",
       "domainInvalid": "Escribe un dominio, como «example.com».",
       "checkSubdomains": "Comprobar también el dominio y sus subdominios conocidos",
+      "subdomainsUnknown": "Aún no se han buscado los subdominios de este dominio: solo se comprobará el propio dominio.",
+      "subdomainsSearching": "Buscando los subdominios de este dominio…",
+      "subdomainsSearchFailed": "La última búsqueda de subdominios no pudo terminar: solo se comprobará el propio dominio.",
+      "subdomainsFound": "Se conoce {count} subdominio, de la búsqueda del {date}. | Se conocen {count} subdominios, de la búsqueda del {date}.",
+      "discover": "Buscar subdominios",
+      "discoverAgain": "Volver a buscar",
+      "discoverHint": "Consulta los registros públicos de certificados y el DNS. No contacta con ningún equipo del dominio, así que no necesita autorización.",
       "resources": "Recursos en la nube (opcional)",
       "resourcePlaceholder": "s3:mi-bucket, gcs:nombre, azure:cuenta/contenedor o firebase:proyecto",
       "resourceInvalid": "Escríbelo como «s3:nombre», «gcs:nombre», «azure:cuenta/contenedor» o «firebase:proyecto», con un nombre que el proveedor admita.",
@@ -1680,7 +1696,7 @@
     },
     "network": {
       "title": "Red",
-      "subtitle": "Cómo se movería un atacante entre tus equipos",
+      "subtitle": "Calcula cómo se movería un atacante entre los equipos de un rango",
       "hint": "Un grupo es una red definida por su rango. Sus equipos son los que ya has escaneado y cuya dirección cae dentro, así que no hay que añadirlos a mano. Es útil cuando escaneas varias direcciones públicas de una misma organización, como un bloque de IP propio o los servidores de un proveedor: las redes internas (10.x, 192.168.x) no son alcanzables desde un despliegue en la nube.",
       "name": "Nombre",
       "namePlaceholder": "Oficina, DMZ, servidores…",
@@ -1869,6 +1885,8 @@
       "connectionError": "Error de conexión.",
       "unreachable": "No se pudo conectar con la API.",
       "launchFailed": "No se pudo lanzar el escaneo de la nube.",
+      "discoverFailed": "No se pudo lanzar la búsqueda de subdominios.",
+      "discoverStarted": "Buscando los subdominios de {domain}.",
       "started": "Comprobando la exposición en la nube de {domain}.",
       "detailFailed": "No se pudo cargar el escaneo.",
       "reportFailed": "No se pudo pedir el informe."

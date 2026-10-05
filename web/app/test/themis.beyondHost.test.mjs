@@ -11,7 +11,8 @@
 
 import assert from 'node:assert/strict'
 
-const { isNetworkScan, lateralRuleKey, reachMarks, cloudProviderKey, cloudVerdicts, isCoveredByRegister } =
+const { isNetworkScan, lateralRuleKey, reachMarks, cloudProviderKey, cloudVerdicts, isCoveredByRegister,
+  subdomainKnowledge } =
   await import('../src/components/themis/lybra/beyondHost.js')
 
 let failures = 0
@@ -87,6 +88,40 @@ test('un recurso cloud solo se cubre a sí mismo', () => {
   assert.equal(isCoveredByRegister('S3:Datos', entries), true)
   assert.equal(isCoveredByRegister('s3:otros', entries), false)
   assert.equal(isCoveredByRegister('10.0.0.5', [{ target: '10.0.0.0/24' }]), false)
+})
+
+test('sin búsqueda previa no se conoce ningún subdominio', () => {
+  assert.deepEqual(subdomainKnowledge('example.com', []), { state: 'none', count: 0, finishedAt: null })
+  const others = [{ domain: 'otro.com', status: 'finished', subdomainCount: 9, finishedAt: '2026-09-30T10:00:00Z' }]
+  assert.equal(subdomainKnowledge('example.com', others).state, 'none')
+  assert.equal(subdomainKnowledge('', others).state, 'none')
+})
+
+test('la última búsqueda terminada dice cuántos subdominios se conocen', () => {
+  const searches = [
+    { domain: 'example.com', status: 'finished', subdomainCount: 12, finishedAt: '2026-09-30T10:00:00Z' },
+    { domain: 'example.com', status: 'finished', subdomainCount: 3, finishedAt: '2026-09-01T10:00:00Z' },
+  ]
+  assert.deepEqual(subdomainKnowledge(' Example.COM. ', searches),
+    { state: 'known', count: 12, finishedAt: '2026-09-30T10:00:00Z' })
+})
+
+test('una búsqueda en marcha se dice, con lo que ya se sabía debajo', () => {
+  const searches = [
+    { domain: 'example.com', status: 'running' },
+    { domain: 'example.com', status: 'finished', subdomainCount: 3, finishedAt: '2026-09-01T10:00:00Z' },
+  ]
+  assert.deepEqual(subdomainKnowledge('example.com', searches),
+    { state: 'searching', count: 3, finishedAt: '2026-09-01T10:00:00Z' })
+  assert.equal(subdomainKnowledge('example.com', [{ domain: 'example.com', status: 'pending' }]).state, 'searching')
+})
+
+test('una búsqueda fallida no tapa una anterior que sí terminó', () => {
+  const failed = { domain: 'example.com', status: 'failed' }
+  assert.equal(subdomainKnowledge('example.com', [failed]).state, 'failed')
+  const earlier = { domain: 'example.com', status: 'finished', subdomainCount: 5, finishedAt: '2026-09-01T10:00:00Z' }
+  assert.deepEqual(subdomainKnowledge('example.com', [failed, earlier]),
+    { state: 'known', count: 5, finishedAt: '2026-09-01T10:00:00Z' })
 })
 
 if (failures) {

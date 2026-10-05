@@ -26,6 +26,16 @@ expand a single check into several attempts, one per value substituted the
 same way, capped hard by ``lybra.engine.maxPayloadExpansions`` so a payload
 list never turns a check into a brute-force sweep.
 
+Para lo que consiste en **comparar dos respuestas** —repetir una petición
+cambiando un solo detalle y ver si el servicio contestó otra cosa, o si la
+respuesta repite lo que se mandó— no hace falta un plugin ``script`` por
+check: un matcher ``type: compare`` (``against`` = la petición anterior,
+``relation`` = ``same`` o ``differs``, ``part`` = lo que se compara) pone la
+respuesta actual frente a la de una petición anterior de la cadena, y los
+valores de cualquier matcher admiten ``{{nombre}}`` (un valor de ``payloads``
+de una sola opción hace de constante). El ``script`` queda para lo que ni el
+texto ni la comparación expresan: un protocolo binario, una negociación.
+
 The runtime is pure given an injected ``fetch`` callable, so it can be
 unit-tested with hand-crafted responses and never touches the network in tests.
 In production the manager wires the real :class:`HttpProbe`, and only when an
@@ -35,11 +45,13 @@ must wait on the authorized-targets register.
 
 from __future__ import annotations
 
+import hashlib
 import ipaddress
 import itertools
 import json
 import logging
 import re
+import secrets
 import socket
 import ssl
 import threading
@@ -100,7 +112,36 @@ logger = logging.getLogger(__name__)
 # checks-37: lo que un equipo cuenta de sí mismo (nombre por SMB, dominio por
 # LDAP), como hallazgos informativos de la categoría host_identity.
 # checks-38: páginas de error por defecto y trazas internas visibles.
-CHECKS_FEED_VERSION = "lybra-checks-38"
+# checks-39: la respuesta de referencia del servicio («200 a todo»): un check de
+# ruta ya no dispara con una respuesta idéntica a la de una ruta inventada.
+# checks-50: Memcached, ZooKeeper y Cassandra accesibles sin autenticación, con
+# su dissector cada uno.
+# checks-51: qué métodos de autenticación ofrece un SSH más allá del KEXINIT
+# (L115), y los dos checks de sesión SMB anónima (L110, L111) pasan a modo
+# agresivo: abren una sesión real, aunque sin credencial (criterio de L117).
+# checks-49: higiene web de menor peso: aislamiento entre ventanas (COOP),
+# caché de las respuestas que fijan la sesión y prefijos de nombre de cookie.
+# checks-47: el spooler de impresión o el localizador de RPC accesibles desde
+# la red en un controlador de dominio (L111, sobre L105).
+# checks-48: Nomad y Portainer en el mapa de APIs de administración sin
+# autenticar (L112), con su comprobación de exposición cada uno.
+# checks-46: carpetas compartidas de Windows visibles sin credenciales
+# (L110, sobre el cliente mínimo de llamadas remotas de L105).
+# checks-45: mapas de código fuente publicados junto al JavaScript propio del
+# sitio, con su propia respuesta de referencia (un plugin script no tiene
+# acceso a la del runtime).
+# checks-44: lo que el rastreo descubre navegando (copias de backup junto a un
+# directorio real, listado de directorios, formularios de acceso por HTTP)
+# alimenta a checks concretos, con ``onDiscoveredPaths`` como mecanismo nuevo.
+# checks-43: cadena de certificados TLS incompleta y grupo Diffie-Hellman
+# débil, con el lector de saludo TLS en crudo.
+# checks-42: CORS con comodín de origen o con reflejo de cualquier origen,
+# ambos combinados con credenciales permitidas.
+# checks-41: los checks de ruta que se repiten sobre los directorios que el
+# rastreo descubrió (``onDiscoveredDirectories``).
+# checks-40: el matcher ``compare`` (una respuesta contra otra de la misma
+# cadena) y los marcadores ``{{nombre}}`` en los valores de un matcher.
+CHECKS_FEED_VERSION = "lybra-checks-51"
 # Quality of Detection for a finding a check actively confirmed, as opposed to
 # one merely inferred from a version.
 QOD_CONFIRMED = 99
@@ -149,12 +190,25 @@ _ETCD_SERVICE_NAMES = {"etcd"}
 _ETCD_PORTS = {2379}
 _CONSUL_SERVICE_NAMES = {"consul"}
 _CONSUL_PORTS = {8500}
+# Nomad, el orquestador de cargas de trabajo de HashiCorp: sin ACL activada
+# (su postura por defecto), expone sin autenticar la configuración del
+# agente y el estado del clúster, el mismo perfil que Consul.
+_NOMAD_SERVICE_NAMES = {"nomad"}
+_NOMAD_PORTS = {4646}
+# Portainer, un gestor de contenedores: a diferencia de los anteriores, su
+# API de verdad exige sesión; sólo el banner de versión es público por
+# diseño (la propia interfaz lo pide antes de iniciar sesión). Se identifica
+# igual, pero su exposición vale como banner, no como acceso real — de ahí
+# que su check tenga menos severidad que el resto de esta familia.
+_PORTAINER_SERVICE_NAMES = {"portainer"}
+_PORTAINER_PORTS = {9000}
 
 # La unión, para lo que sí es común: decidir si un puerto pertenece a esta
 # familia y, con ello, que entre en el conjunto HTTP.
 _ADMIN_API_PORTS = (
     _DOCKER_PORTS | _ELASTICSEARCH_PORTS | _KIBANA_PORTS
     | _KUBERNETES_PORTS | _ETCD_PORTS | _CONSUL_PORTS
+    | _NOMAD_PORTS | _PORTAINER_PORTS
 )
 
 # Puertos que se consideran servicio HTTP. Incluye los de TLS: un HTTPS en 9443
@@ -216,6 +270,14 @@ _LDAP_PORTS = {389, 636, 3268, 3269}
 LDAPS_PORTS = {636, 3269}
 _REDIS_SERVICE_NAMES = {"redis"}
 _REDIS_PORTS = {6379}
+_MEMCACHED_SERVICE_NAMES = {"memcached", "memcache"}
+_MEMCACHED_PORTS = {11211}
+_ZOOKEEPER_SERVICE_NAMES = {"zookeeper", "zookeeper-client"}
+_ZOOKEEPER_PORTS = {2181}
+# 9042 es el puerto del protocolo nativo (CQL); el 9160, el de Thrift, ya no se
+# usa desde Cassandra 4 y habla otro protocolo, así que no entra.
+_CASSANDRA_SERVICE_NAMES = {"cassandra", "cql", "cassandra-native"}
+_CASSANDRA_PORTS = {9042}
 _VNC_SERVICE_NAMES = {"vnc"}
 _VNC_PORTS = {5900}
 _TELNET_SERVICE_NAMES = {"telnet"}
@@ -285,40 +347,73 @@ class Matcher:
     ``negative`` is set, the sense is inverted — useful for asserting that
     something is *absent*, such as a missing security header.
 
+    Un matcher ``compare`` no busca nada fijo: pone la respuesta actual frente
+    a otra **anterior de la misma cadena** de peticiones, y dice si una
+    determinada parte de las dos es igual o distinta. Es lo que necesita un
+    check que repite una petición cambiando un solo detalle (una cabecera, un
+    parámetro) y quiere saber si el servicio contestó otra cosa.
+
+    Los valores de un matcher admiten marcadores ``{{nombre}}``, con las mismas
+    variables que la petición (las de un ``payloads`` o las que extrajo una
+    respuesta anterior). Es lo que deja preguntar «¿la respuesta repite lo que
+    yo mandé?» sin conocer de antemano lo que se mandó. En un ``regex`` el valor
+    sustituido se escapa: es un texto que se busca, no un patrón.
+
     Attributes:
-        type: The kind of test — ``"status"``, ``"word"`` or ``"regex"``.
-        part: Which part of the response to test — ``"body"``, ``"header"`` or
-            ``"status"``.
-        values: The status codes, words or patterns to test for.
+        type: The kind of test — ``"status"``, ``"word"``, ``"regex"`` or
+            ``"compare"``.
+        part: Which part of the response to test — ``"body"``, ``"header"``,
+            ``"status"``, ``"url"`` or ``"transport"``. En un ``compare``, la
+            parte que se compara en las dos respuestas.
+        values: The status codes, words or patterns to test for. Un
+            ``compare`` no los usa.
         negative: If ``True``, the match result is inverted.
+        against: Sólo para ``compare``: la posición (empezando en 0) de la
+            petición anterior de la misma cadena cuya respuesta se compara con
+            la actual. Ha de ser menor que la de la petición que lleva el
+            matcher.
+        relation: Sólo para ``compare``: ``"same"`` (la parte es idéntica en
+            las dos respuestas) o ``"differs"`` (no lo es). Por defecto
+            ``"differs"``.
     """
     type: str
     part: str = "body"
     values: tuple = ()
     negative: bool = False
+    against: Optional[int] = None
+    relation: str = "differs"
 
-    def matches(self, response: Response) -> bool:
+    def matches(self, response: Response, variables: Optional[Dict[str, str]] = None,
+                previous: Tuple[Response, ...] = ()) -> bool:
         """Return whether this matcher is satisfied by a response.
 
         Args:
-            resp: The response to test.
+            response: The response to test.
+            variables: Las variables ligadas en la cadena, para sustituir los
+                marcadores ``{{nombre}}`` de ``values``. Por defecto ninguna.
+            previous: Las respuestas anteriores de la cadena, por orden de
+                petición; sólo las lee un ``compare``. Por defecto ninguna.
 
         Returns:
             The test result, inverted if ``negative`` is set.
         """
-        result = self._raw_match(response)
+        result = self._raw_match(response, variables or {}, previous)
         return (not result) if self.negative else result
 
-    def _raw_match(self, response: Response) -> bool:
+    def _raw_match(self, response: Response, variables: Dict[str, str],
+                   previous: Tuple[Response, ...]) -> bool:
         """Run the matcher's test, before any ``negative`` inversion."""
+        if self.type == "compare":
+            return _compare_with_previous(self, response, previous)
         if self.type == "status":
             return response.status in {int(expected_status) for expected_status in self.values}
         text = self._part_text(response)
         if self.type == "word":
             low = text.lower()
-            return any(str(word).lower() in low for word in self.values)
+            return any(_substitute(str(word), variables).lower() in low for word in self.values)
         if self.type == "regex":
-            return any(re.search(str(pattern), text) for pattern in self.values)
+            return any(re.search(_substitute_escaped(str(pattern), variables), text)
+                       for pattern in self.values)
         return False
 
     def _part_text(self, response: Response) -> str:
@@ -363,6 +458,28 @@ def _part_text(response: Response, part: str) -> str:
     return response.body
 
 
+def _compare_with_previous(matcher: Matcher, response: Response,
+                           previous: Tuple[Response, ...]) -> bool:
+    """Compara la parte elegida de la respuesta actual con la de una anterior.
+
+    Args:
+        matcher: El matcher ``compare``; aporta ``part``, ``against`` y ``relation``.
+        response: La respuesta actual.
+        previous: Las respuestas anteriores de la cadena, por orden de petición.
+
+    Returns:
+        bool: Si ``relation`` es ``"same"``, si la parte es idéntica en las dos
+            respuestas; si es ``"differs"``, si no lo es. ``False`` cuando no hay
+            respuesta anterior en la posición ``against``: una comparación sin
+            con qué comparar no puede decir que algo sea igual ni distinto.
+    """
+    if matcher.against is None or not 0 <= matcher.against < len(previous):
+        return False
+    is_same = (_part_text(response, matcher.part)
+               == _part_text(previous[matcher.against], matcher.part))
+    return is_same if matcher.relation == "same" else not is_same
+
+
 # Un marcador de variable en el DSL: ``{{name}}``, la misma sintaxis que Nuclei,
 # con la que se aspira a mantener compatibilidad. El nombre admite letras,
 # dígitos, guion y guion bajo — lo justo para un identificador, sin abrir la
@@ -389,6 +506,23 @@ def _substitute(text: str, variables: Dict[str, str]) -> str:
     """
     return _VARIABLE_RE.sub(
         lambda match: variables.get(match.group(1), match.group(0)), text)
+
+
+def _substitute_escaped(pattern: str, variables: Dict[str, str]) -> str:
+    """Sustituye ``{{nombre}}`` en un patrón, escapando el valor como texto literal.
+
+    Args:
+        pattern: La expresión regular, con marcadores ``{{nombre}}``.
+        variables: Las variables ligadas.
+
+    Returns:
+        str: El patrón con cada marcador ligado reemplazado por su valor
+            escapado (``re.escape``); un marcador sin ligar se deja como está.
+    """
+    return _VARIABLE_RE.sub(
+        lambda match: re.escape(variables[match.group(1)])
+        if match.group(1) in variables else match.group(0),
+        pattern)
 
 
 @dataclass(frozen=True)
@@ -495,11 +629,16 @@ class Request:
     headers: tuple = ()
     extractors: tuple = ()
 
-    def evaluate(self, response: Response) -> bool:
+    def evaluate(self, response: Response, variables: Optional[Dict[str, str]] = None,
+                 previous: Tuple[Response, ...] = ()) -> bool:
         """Return whether this request's matchers are satisfied by a response.
 
         Args:
-            resp: The response to the request.
+            response: The response to the request.
+            variables: Las variables ligadas en la cadena (ver :class:`Matcher`).
+                Por defecto ninguna.
+            previous: Las respuestas de las peticiones anteriores de la cadena,
+                por orden. Por defecto ninguna.
 
         Returns:
             ``True`` if the matchers pass under the request's condition. A request
@@ -507,7 +646,7 @@ class Request:
         """
         if not self.matchers:
             return False
-        results = [matcher.matches(response) for matcher in self.matchers]
+        results = [matcher.matches(response, variables, previous) for matcher in self.matchers]
         return all(results) if self.condition == "and" else any(results)
 
 
@@ -583,6 +722,27 @@ class Check:  # pylint: disable=too-many-instance-attributes
             cartesian product is **hard-capped** by the runtime
             (``max_payload_expansions``) so a payload can never turn into an
             hours-long brute force. Empty for a check that does not fuzz.
+        guards_baseline: Si el runtime descarta una coincidencia cuya respuesta
+            es idéntica a la de una ruta inventada del mismo servicio (ver
+            :class:`Baseline`). Por defecto ``True``: un servicio que contesta
+            «200» a cualquier ruta no debe dar un hallazgo de exposición por
+            cada ruta que se le pida. Un check que **busca** la página de error
+            del servidor (pide él mismo una ruta inventada) lo declara
+            ``guardBaseline: false``, porque su coincidencia es justo esa
+            página. Sólo afecta a ``type: "http"``.
+        runs_on_discovered_directories: Si, además de sus rutas tal cual, el
+            runtime repite el check anteponiendo cada directorio que el
+            rastreo descubrió en el servicio a la ruta de cada petición
+            ``GET`` (``/app/.env`` además de ``/.env``; ``/app/`` además de
+            ``/`` para un check cuya ruta ya es la raíz, como el listado de
+            directorios). Por defecto ``False``; ver :func:`validate_checks`.
+        runs_on_discovered_paths: Si, en vez de (o además de) sus rutas tal
+            cual, el runtime **sustituye** la ruta de cada petición ``GET``
+            por cada ruta exacta que el rastreo descubrió con una superficie
+            propia — hoy, los formularios de acceso (``login_paths``): no hay
+            un sufijo fijo que anteponerles un directorio, la ruta entera es
+            lo que el rastreo encontró. Por defecto ``False``; ver
+            :func:`validate_checks`.
     """
     id: str
     version: int
@@ -602,6 +762,9 @@ class Check:  # pylint: disable=too-many-instance-attributes
     refutes: Optional[str] = None
     tags: tuple = ()
     payloads: tuple = ()
+    guards_baseline: bool = True
+    runs_on_discovered_directories: bool = False
+    runs_on_discovered_paths: bool = False
 
     @property
     def check_id(self) -> str:
@@ -680,6 +843,8 @@ def _parse_check(c: dict) -> Check:
                     part=matcher.get("part", "body"),
                     values=tuple(matcher.get("words") or matcher.get("regex") or matcher.get("value") or []),
                     negative=matcher.get("negative", False),
+                    against=matcher.get("against"),
+                    relation=matcher.get("relation", "differs"),
                 )
                 for matcher in request.get("matchers", [])
             ),
@@ -705,6 +870,9 @@ def _parse_check(c: dict) -> Check:
             (str(name), tuple(str(value) for value in values))
             for name, values in (c.get("payloads") or {}).items()
         ),
+        guards_baseline=bool(c.get("guardBaseline", True)),
+        runs_on_discovered_directories=bool(c.get("onDiscoveredDirectories", False)),
+        runs_on_discovered_paths=bool(c.get("onDiscoveredPaths", False)),
     )
     _assert_service_is_reachable(check)
     return check
@@ -779,6 +947,20 @@ CHECK_TYPES = ("http", "tls", "network", "script")
 # Los modos de ejecución. ``aggressive`` sólo corre cuando el runtime lo
 # autoriza explícitamente; cualquier otra palabra deja el check sin modo
 # reconocible.
+#
+# El criterio para marcar un check como ``aggressive`` (L117): es ``safe`` si
+# es una lectura equivalente a lo que haría un cliente normal sin
+# autenticarse y no deja rastro de un intento de acceso -un GET, una consulta
+# de catálogo que el propio protocolo ofrece sin pedir nada a cambio-. Es
+# ``aggressive`` si manda un intento de autenticación real aunque no lleve
+# ninguna credencial (una sesión SMB anónima, un ``auth_none`` de SSH -ambos
+# pueden quedar en el registro de eventos del objetivo-), si exige un
+# intercambio de varios pasos notablemente más caro que una sonda normal, o si
+# puede escribir o bloquear algo. Las comprobaciones de la Fase 9 que
+# entraron bajo este criterio: ``windows-shares-unauthenticated`` y
+# ``domain-controller-rpc-surface-exposed`` (sesión SMB anónima),
+# ``ssh-none-authentication-accepted`` y ``ssh-password-only-authentication``
+# (``auth_none`` de SSH, ver ``fingerprinting/ssh_auth.py``).
 CHECK_MODES = ("safe", "aggressive")
 
 # Las familias de hallazgo que un check puede declarar. No es el vocabulario
@@ -830,7 +1012,10 @@ _TITLE_PLACEHOLDER_RE = re.compile(r"\{(\w+)\}")
 # Los tipos de matcher que ``Matcher._raw_match`` implementa. Cualquier otro
 # devuelve ``False`` sin decir nada, que en un matcher negativo significa
 # además lo contrario de lo que el autor quería.
-MATCHER_TYPES = ("status", "word", "regex")
+MATCHER_TYPES = ("status", "word", "regex", "compare")
+
+# Cómo compara un matcher ``compare`` las dos respuestas.
+COMPARE_RELATIONS = ("same", "differs")
 
 # Las partes de la respuesta que ``Matcher._part_text`` sabe leer. Una parte
 # desconocida cae en el defecto (``body``), así que un ``part: "headers"`` en
@@ -942,6 +1127,26 @@ def validate_checks(checks: Iterable[Check]) -> List[str]:  # pylint: disable=to
                 problems.append(
                     f"Check {name!r}: el payload {payload_name!r} no tiene ningún valor")
 
+        if check.runs_on_discovered_directories:
+            if check.type != "http":
+                problems.append(
+                    f"Check {name!r}: 'onDiscoveredDirectories' sólo vale en un check http")
+            for position, request in enumerate(check.requests):
+                if request.method != "GET":
+                    problems.append(
+                        f"Check {name!r}, petición {position}: 'onDiscoveredDirectories' exige "
+                        f"un GET, que es lo único que el runtime le antepone un directorio")
+
+        if check.runs_on_discovered_paths:
+            if check.type != "http":
+                problems.append(
+                    f"Check {name!r}: 'onDiscoveredPaths' sólo vale en un check http")
+            for position, request in enumerate(check.requests):
+                if request.method != "GET":
+                    problems.append(
+                        f"Check {name!r}, petición {position}: 'onDiscoveredPaths' exige "
+                        f"un GET, que es lo único que el runtime le sustituye la ruta")
+
         for position, request in enumerate(check.requests):
             where = f"Check {name!r}, petición {position}"
             if request.read not in NETWORK_READ_MODES:
@@ -953,7 +1158,18 @@ def validate_checks(checks: Iterable[Check]) -> List[str]:  # pylint: disable=to
                     problems.append(f"{where}: matcher de tipo {matcher.type!r} desconocido")
                 if matcher.part not in MATCHER_PARTS:
                     problems.append(f"{where}: matcher sobre la parte {matcher.part!r}, que no existe")
-                if not matcher.values:
+                if matcher.type == "compare":
+                    if not isinstance(matcher.against, int) or isinstance(matcher.against, bool):
+                        problems.append(f"{where}: matcher 'compare' sin 'against' entero")
+                    elif not 0 <= matcher.against < position:
+                        problems.append(
+                            f"{where}: matcher 'compare' contra la petición {matcher.against}, "
+                            f"que no es anterior a ésta")
+                    if matcher.relation not in COMPARE_RELATIONS:
+                        problems.append(
+                            f"{where}: matcher 'compare' con relación {matcher.relation!r} desconocida "
+                            f"(disponibles: {', '.join(COMPARE_RELATIONS)})")
+                elif not matcher.values:
                     problems.append(f"{where}: matcher {matcher.type!r} sin valores que buscar")
             for extractor in request.extractors:
                 if not extractor.name:
@@ -1196,6 +1412,24 @@ def is_redis_service(service: Service) -> bool:
     return (service.name or "").lower() in _REDIS_SERVICE_NAMES or service.port in _REDIS_PORTS
 
 
+def is_memcached_service(service: Service) -> bool:
+    """Return whether a service should be probed by the Memcached dissector."""
+    return ((service.name or "").lower() in _MEMCACHED_SERVICE_NAMES
+            or service.port in _MEMCACHED_PORTS)
+
+
+def is_zookeeper_service(service: Service) -> bool:
+    """Return whether a service should be probed by the ZooKeeper dissector."""
+    return ((service.name or "").lower() in _ZOOKEEPER_SERVICE_NAMES
+            or service.port in _ZOOKEEPER_PORTS)
+
+
+def is_cassandra_service(service: Service) -> bool:
+    """Return whether a service should be probed by the Cassandra (CQL) dissector."""
+    return ((service.name or "").lower() in _CASSANDRA_SERVICE_NAMES
+            or service.port in _CASSANDRA_PORTS)
+
+
 def is_telnet_service(service: Service) -> bool:
     """Return whether a service is a Telnet endpoint.
 
@@ -1278,6 +1512,16 @@ def is_etcd_service(service: Service) -> bool:
 def is_consul_service(service: Service) -> bool:
     """Si el servicio es el agente de Consul."""
     return (service.name or "").lower() in _CONSUL_SERVICE_NAMES or service.port in _CONSUL_PORTS
+
+
+def is_nomad_service(service: Service) -> bool:
+    """Si el servicio es el agente de Nomad."""
+    return (service.name or "").lower() in _NOMAD_SERVICE_NAMES or service.port in _NOMAD_PORTS
+
+
+def is_portainer_service(service: Service) -> bool:
+    """Si el servicio es Portainer."""
+    return (service.name or "").lower() in _PORTAINER_SERVICE_NAMES or service.port in _PORTAINER_PORTS
 
 
 def _is_udp(service: Service) -> bool:
@@ -1492,6 +1736,111 @@ class ScriptPlugin:
         raise NotImplementedError
 
 
+# Tramos largos de caracteres de "token" (nonces, ids de sesión, hashes de
+# assets): en una página que se sirve igual a cualquier ruta cambian entre dos
+# peticiones sin que la página sea otra, así que se borran antes de comparar.
+_BASELINE_TOKEN_RE = re.compile(r"[A-Za-z0-9+/_=-]{20,}")
+
+#: La ruta que se pide para saber cómo contesta un servicio a lo que no existe.
+#: Lleva un tramo aleatorio para que ninguna regla, caché ni enrutador la
+#: conozca de antemano; ver :func:`baseline_path`.
+_BASELINE_PATH_PREFIX = "/lybra-baseline-"
+
+
+def baseline_path() -> str:
+    """Devuelve una ruta que con toda seguridad no existe en el servicio.
+
+    Returns:
+        str: ``/lybra-baseline-<16 hexadecimales aleatorios>``. Distinta en
+            cada llamada, de modo que ninguna aplicación pueda tenerla
+            enrutada a propósito.
+    """
+    return f"{_BASELINE_PATH_PREFIX}{secrets.token_hex(8)}"
+
+
+def _normalize_for_baseline(body: str, path: str) -> str:
+    """Deja un cuerpo comparable con el de otra ruta del mismo servicio.
+
+    Args:
+        body: El cuerpo de la respuesta, ya decodificado.
+        path: La ruta que se pidió. Un «no encontrado» que la repite en el
+            texto (``Cannot GET /x``) no debe parecer distinto solo por eso.
+
+    Returns:
+        str: El cuerpo sin la ruta pedida ni los tramos que cambian de una
+            petición a otra (ver ``_BASELINE_TOKEN_RE``).
+    """
+    text = body.replace(path, "") if path else body
+    return _BASELINE_TOKEN_RE.sub("#", text)
+
+
+def _digest_for_baseline(body: str, path: str) -> str:
+    """Devuelve la huella de un cuerpo normalizado para compararlo con la referencia.
+
+    Args:
+        body: El cuerpo de la respuesta, ya decodificado.
+        path: La ruta que se pidió para obtenerlo.
+
+    Returns:
+        str: SHA-256 hexadecimal del cuerpo normalizado.
+    """
+    normalized = _normalize_for_baseline(body, path)
+    return hashlib.sha256(normalized.encode("utf-8", "replace")).hexdigest()
+
+
+@dataclass(frozen=True)
+class Baseline:
+    """Cómo contesta un servicio a una ruta que no existe: su respuesta de referencia.
+
+    Hay webs —las aplicaciones de una sola página, sobre todo— que contestan
+    «200» y la misma página a cualquier ruta, exista o no. Sin conocer esa
+    respuesta, «esta ruta responde 200» no prueba nada. La referencia se pide
+    una vez por servicio y cada comprobación de ruta la usa para descartar una
+    coincidencia que es, en realidad, la página de «no encontrado» disfrazada.
+
+    Attributes:
+        path: La ruta inventada que se pidió.
+        status: El código de estado que devolvió.
+        digest: Huella del cuerpo normalizado (ver ``_normalize_for_baseline``).
+    """
+    path: str
+    status: int
+    digest: str
+
+    @classmethod
+    def from_response(cls, path: str, response: Response) -> "Baseline":
+        """Construye la referencia a partir de la respuesta a la ruta inventada.
+
+        Args:
+            path: La ruta inventada que se pidió.
+            response: Lo que el servicio contestó.
+
+        Returns:
+            Baseline: La referencia del servicio.
+        """
+        return cls(path=path, status=response.status,
+                   digest=_digest_for_baseline(response.body, path))
+
+    def resembles(self, response: Response, path: str) -> bool:
+        """Dice si una respuesta es la de referencia con otra ruta puesta encima.
+
+        Args:
+            response: La respuesta de una ruta que un check quiere dar por
+                encontrada.
+            path: La ruta que se pidió para obtenerla.
+
+        Returns:
+            bool: ``True`` si el código de estado y el cuerpo normalizado
+                coinciden con los de la referencia, es decir, si el servicio
+                contesta lo mismo a esa ruta que a una inventada. ``False`` en
+                cualquier otro caso, y siempre ``False`` para la propia ruta
+                de referencia.
+        """
+        if path == self.path or response.status != self.status:
+            return False
+        return _digest_for_baseline(response.body, path) == self.digest
+
+
 @dataclass(frozen=True)
 class _CheckFamily:
     """One check ``type`` (http/tls/network) as the runtime's uniform loop sees it.
@@ -1589,6 +1938,9 @@ class CheckRuntime:
         # empezar. Aquí sólo para que el objeto esté completo desde que nace.
         self._responses: Dict[tuple, Optional[Response]] = {}
         self._handshakes: Dict[tuple, object] = {}
+        self._baselines: Dict[tuple, Optional[Baseline]] = {}
+        self._discovered_directories: Dict[int, Tuple[str, ...]] = {}
+        self._discovered_paths: Dict[int, Tuple[str, ...]] = {}
         self._families: Tuple[_CheckFamily, ...] = (
             _CheckFamily(
                 applies_to_service=is_http_service,
@@ -1616,7 +1968,9 @@ class CheckRuntime:
     def run(  # pylint: disable=too-many-arguments,too-many-positional-arguments
             self, host: str, services: Iterable[Service],
             cancel_check: Optional[Callable[[], bool]] = None,
-            proposed_cves: Optional[frozenset] = None) -> List[dict]:
+            proposed_cves: Optional[frozenset] = None,
+            discovered_directories: Optional[Dict[int, Iterable[str]]] = None,
+            discovered_paths: Optional[Dict[int, Iterable[str]]] = None) -> List[dict]:
         """Run every applicable check against a host's HTTP, TLS and network services.
 
         Probes are shared within one call: several checks reading the same
@@ -1636,6 +1990,24 @@ class CheckRuntime:
             host: The target host.
             services: The host's discovered services (non-applicable ones are
                 skipped per check family).
+            cancel_check: Función sin argumentos que dice si el escaneo se
+                canceló. Por defecto ``None``.
+            proposed_cves: CVE que el matcher de versiones ya propuso; los
+                confirmadores y refutadores sólo corren para ellas. Por defecto
+                ninguna.
+            discovered_directories: Los directorios que el rastreo descubrió,
+                por puerto del servicio (``{80: ["/app/", "/admin/"]}``), cada
+                uno con ``/`` al inicio y al final. Los checks que declaran
+                ``onDiscoveredDirectories`` se repiten sobre los del puerto del
+                servicio que evalúan. **Quien llama decide cuántos**: el
+                runtime no recorta la lista (ver
+                :func:`~.crawler.select_scan_directories`). Por defecto
+                ninguno, y todo corre sólo sobre las rutas del feed.
+            discovered_paths: Las rutas exactas que el rastreo descubrió con
+                una superficie propia, por puerto (``{80: ["/cuenta/acceso"]}``).
+                Los checks que declaran ``onDiscoveredPaths`` sustituyen la
+                ruta de cada petición ``GET`` por cada una de éstas, en vez de
+                anteponerles un directorio. Por defecto ninguna.
 
         Returns:
             A finding dict for each check that fired.
@@ -1645,6 +2017,7 @@ class CheckRuntime:
         # objetivo ha podido cambiar — que es justo lo que un escáner mide.
         self._responses: Dict[tuple, Optional[Response]] = {}
         self._handshakes: Dict[tuple, object] = {}
+        self._baselines: Dict[tuple, Optional[Baseline]] = {}
 
         services = tuple(services)
         # Los plugins de tipo ``script`` pueden necesitar ver los servicios
@@ -1655,6 +2028,12 @@ class CheckRuntime:
         self._host = host
         self._cancel_check = cancel_check
         self._proposed_cves = proposed_cves or frozenset()
+        self._discovered_directories = {
+            port: tuple(directories)
+            for port, directories in (discovered_directories or {}).items()}
+        self._discovered_paths = {
+            port: tuple(paths)
+            for port, paths in (discovered_paths or {}).items()}
 
         per_service = self._mapper(self._run_for_service, services)
         return [finding for group in per_service for finding in group]
@@ -1777,14 +2156,35 @@ class CheckRuntime:
         carries a single ``check_id``, so twenty probes collapse to one finding.
         """
         fired = None
-        for variables in self._payload_combinations(check):
-            fired = self._run_request_sequence(check, host, service, variables)
+        fired_marker = ""
+        # Las rutas del feed primero, tal cual; sólo si no disparan se prueban
+        # los directorios y las rutas exactas descubiertas. Así un servicio
+        # sin nada descubierto, o un check que no los pide, se comporta
+        # exactamente como antes, y un hallazgo en la ruta del feed nunca se
+        # sustituye por otro más profundo.
+        candidates: List[Tuple[str, Optional[str]]] = [("", None)]
+        if check.runs_on_discovered_directories:
+            candidates += [
+                (directory, None)
+                for directory in self._discovered_directories.get(service.port, ())]
+        if check.runs_on_discovered_paths:
+            candidates += [
+                ("", path) for path in self._discovered_paths.get(service.port, ())]
+        for directory, path_override in candidates:
+            for variables in self._payload_combinations(check):
+                fired = self._run_request_sequence(
+                    check, host, service, variables, directory, path_override)
+                if fired is not None:
+                    break
             if fired is not None:
+                fired_marker = directory or path_override or ""
                 break
         if fired is None:
             return None
         last_response, last_path = fired
         finding = self._finding(check, service)
+        if fired_marker:
+            finding["title"] = f"{finding['title']} (en {fired_marker})"
         # Evidencia: la respuesta que provocó el hallazgo. Sólo para
         # los confirmados —los que van a un informe— y sólo si la captura está
         # activada. El payload viaja en ``_evidence`` hasta la persistencia, que
@@ -1825,8 +2225,9 @@ class CheckRuntime:
                 break
         return combinations
 
-    def _run_request_sequence(
+    def _run_request_sequence(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self, check: Check, host: str, service: Service, variables: Dict[str, str],
+        directory: str = "", path_override: Optional[str] = None,
     ) -> Optional[Tuple[Response, str]]:
         """Run a check's requests once, threading extracted variables through.
 
@@ -1843,6 +2244,15 @@ class CheckRuntime:
             service: The service being probed.
             variables: The initial variable bindings (a payload combination, or
                 empty).
+            directory: Un directorio descubierto (``"/app/"``) que se antepone
+                a la ruta de cada petición ``GET``, o ``""`` para pedirlas tal
+                cual. Por defecto ``""``.
+            path_override: Una ruta exacta descubierta que **sustituye** la
+                ruta de cada petición ``GET``, en vez de anteponerle un
+                directorio; ``None`` para no sustituir nada. Nunca se dan los
+                dos a la vez en la práctica (un check declara uno de los dos
+                mecanismos), pero si lo estuvieran, ganaría éste. Por defecto
+                ``None``.
 
         Returns:
             ``(last_response, last_path)`` if every request matched, else
@@ -1851,13 +2261,26 @@ class CheckRuntime:
         """
         variables = dict(variables)
         last: Optional[Tuple[Response, str]] = None
+        previous: List[Response] = []
         for request in check.requests:
             path = _substitute(request.path, variables)
+            if request.method == "GET" and path_override is not None:
+                path = path_override
+            elif directory and request.method == "GET" and path.startswith("/"):
+                path = directory.rstrip("/") + path
             body = _substitute(request.body, variables) if request.body else None
             headers = {name: _substitute(value, variables) for name, value in request.headers} or None
             response = self._probe_response(host, service, request.method, path, body, headers)
-            if response is None or not request.evaluate(response):
+            if response is None or not request.evaluate(response, variables, tuple(previous)):
                 return None
+            previous.append(response)
+            if check.guards_baseline and request.method == "GET" and path != "/":
+                # La referencia se pide sólo ahora, cuando una ruta ya iba a
+                # dar el check por disparado: los servicios que no coinciden
+                # con nada no reciben ninguna petición de más.
+                baseline = self.get_baseline(host, service, directory)
+                if baseline is not None and baseline.resembles(response, path):
+                    return None
             for extractor in request.extractors:
                 value = extractor.extract(response)
                 if value is None:
@@ -1924,6 +2347,37 @@ class CheckRuntime:
         _report_outcome(self._rl, host, has_answered=response is not None)
         self._responses[key] = response
         return response
+
+    def get_baseline(self, host: str, service: Service,
+                     directory: str = "") -> Optional[Baseline]:
+        """Devuelve la respuesta de referencia de un servicio, pidiéndola una sola vez.
+
+        Pide una ruta inventada (:func:`baseline_path`) y guarda cómo contestó.
+        Se comparte entre todos los checks del mismo servicio dentro de una
+        ejecución, igual que las respuestas de :meth:`_probe_response`; no se
+        conserva entre ejecuciones, porque el servicio ha podido cambiar.
+
+        Args:
+            host: El host destino.
+            service: El servicio HTTP del que se quiere la referencia.
+            directory: El directorio donde se pide la ruta inventada
+                (``"/app/"``), o ``""`` para la raíz. Un sitio puede contestar
+                distinto a lo que no existe según el directorio (una aplicación
+                de una sola página montada en ``/app/``), así que cada
+                directorio tiene su referencia. Por defecto ``""``.
+
+        Returns:
+            Optional[Baseline]: La referencia, o ``None`` si el servicio no
+                contestó a la ruta inventada; sin referencia no se descarta
+                nada.
+        """
+        key = (host, service.port, directory)
+        if key not in self._baselines:
+            path = directory.rstrip("/") + baseline_path()
+            response = self._probe_response(host, service, "GET", path)
+            self._baselines[key] = (
+                None if response is None else Baseline.from_response(path, response))
+        return self._baselines[key]
 
     def _probe_handshake(self, host: str, service: Service):
         """Return the TLS handshake facts for one service, negotiating once.

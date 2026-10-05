@@ -14,6 +14,11 @@ import { i18n } from '@/i18n'
  * las listas por tipo de `themisStore`: tiene su propia lista, su detalle y
  * sus informes.
  *
+ * También lleva las **búsquedas de subdominios** de un dominio (el escaneo
+ * pasivo de la API, `POST /themis/osint`): la comprobación de la nube solo
+ * revisa los subdominios que una búsqueda previa encontró, así que la pantalla
+ * tiene que poder lanzarla y decir qué se sabe.
+ *
  * Los escaneos en marcha y los informes que se están generando se sondean con
  * `usePolling`, con la misma espera creciente que la lista de Lybra: rápido
  * mientras algo cambia, cada vez más espaciado mientras no.
@@ -31,6 +36,9 @@ export const useThemisCloudStore = defineStore('themisCloud', () => {
   const docs = reactive({ items: [], loading: false })
   const launching = ref(false)
   const generating = ref(false)
+  /** Búsquedas de subdominios del usuario, de la más nueva a la más vieja. */
+  const searches = reactive({ items: [] })
+  const discovering = ref(false)
 
   /** Cuántos escaneos se piden: los que caben en la lista sin paginar. */
   const LIST_LIMIT = 50
@@ -42,6 +50,7 @@ export const useThemisCloudStore = defineStore('themisCloud', () => {
 
   let scanPoller = null
   let docsPoller = null
+  let searchPoller = null
 
   /** Carga la lista de escaneos cloud; si hay alguno en marcha, sigue sondeando. */
   async function loadScans() {
@@ -118,6 +127,55 @@ export const useThemisCloudStore = defineStore('themisCloud', () => {
       toast.show(i18n.global.t('themisStore.cloud.unreachable'), 'error')
       return false
     } finally { launching.value = false }
+  }
+
+  /**
+   * Carga las búsquedas de subdominios; si hay alguna en marcha, la sigue.
+   *
+   * Un fallo deja la lista como estaba: es contexto para el formulario, y no
+   * merece un aviso propio.
+   *
+   * @returns {Promise<boolean>} `true` si queda alguna búsqueda en marcha.
+   */
+  async function loadSearches() {
+    try {
+      const res = await apiFetch(`/themis/osint?mode=passive&limit=${LIST_LIMIT}`)
+      if (res?.ok) searches.items = (await res.json()).results ?? []
+    } catch { /* se queda la lista anterior */ }
+    const hasActive = searches.items.some(search => isActive(search.status))
+    if (hasActive && !searchPoller?.isRunning()) {
+      searchPoller = usePolling(loadSearches,
+        { intervalMs: POLL_INTERVAL_MS, backoffFactor: POLL_BACKOFF, maxIntervalMs: POLL_MAX_INTERVAL_MS, immediate: false })
+      searchPoller.start()
+    }
+    return hasActive
+  }
+
+  /**
+   * Lanza la búsqueda de los subdominios de un dominio.
+   *
+   * Solo consulta registros públicos y el DNS: no contacta con ningún equipo
+   * del dominio, así que no pasa por el registro de objetivos autorizados.
+   *
+   * @param {string} domain - El dominio.
+   * @returns {Promise<boolean>} `true` si la API la aceptó.
+   */
+  async function discoverSubdomains(domain) {
+    discovering.value = true
+    try {
+      const res = await apiFetch('/themis/osint', { method: 'POST', body: JSON.stringify({ domain }) })
+      if (!res?.ok) {
+        toast.show(await apiError(res, i18n.global.t('themisStore.cloud.discoverFailed')), 'error')
+        return false
+      }
+      const data = await res.json()
+      toast.show(i18n.global.t('themisStore.cloud.discoverStarted', { domain: data.domain }), 'success')
+      await loadSearches()
+      return true
+    } catch {
+      toast.show(i18n.global.t('themisStore.cloud.unreachable'), 'error')
+      return false
+    } finally { discovering.value = false }
   }
 
   /**
@@ -203,14 +261,19 @@ export const useThemisCloudStore = defineStore('themisCloud', () => {
   function stopPolling() {
     scanPoller?.stop()
     docsPoller?.stop()
+    searchPoller?.stop()
   }
 
   /** Detiene los sondeos y limpia el estado (logout sin recarga). */
   function $reset() {
     scanPoller?.stop()
     docsPoller?.stop()
+    searchPoller?.stop()
     scanPoller = null
     docsPoller = null
+    searchPoller = null
+    searches.items = []
+    discovering.value = false
     Object.assign(scans, { items: [], loading: false, error: null })
     selectedId.value = null
     Object.assign(detail, { scan: null, loading: false, error: null })
@@ -220,8 +283,9 @@ export const useThemisCloudStore = defineStore('themisCloud', () => {
   }
 
   return {
-    scans, selectedId, detail, docs, launching, generating,
+    scans, selectedId, detail, docs, launching, generating, searches, discovering,
     loadScans, launchCloudScan, selectScan, loadDetail, loadDocs, generateReport, stopPolling,
+    loadSearches, discoverSubdomains,
     $reset,
   }
 })

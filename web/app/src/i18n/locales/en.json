@@ -241,7 +241,7 @@
   "kbAdmin": {
     "title": "Knowledge base",
     "eyebrow": "Lybra engine",
-    "subtitle": "How each source Lybra uses to decide what is vulnerable is doing, sync it without waiting for the night, and look up what it knows about a CVE or a product.",
+    "subtitle": "Check that the sources Lybra uses to decide what is vulnerable are up to date, sync them without waiting for the night, and look up what it knows about a CVE or a product.",
     "refresh": "Refresh",
     "refreshing": "Refreshing…",
     "status": {
@@ -250,7 +250,8 @@
       "state": "State",
       "lastSuccess": "Last successful sync",
       "lastAttempt": "Last attempt",
-      "rows": "Rows"
+      "rows": "Rows",
+      "empty": "No source is registered yet. Start a sync and they will appear."
     },
     "state": {
       "ok": "Up to date",
@@ -260,7 +261,9 @@
     },
     "sync": {
       "heading": "Sync now",
-      "hint": "The same as the nightly job, without waiting for it. NVD only downloads recent changes, never the whole catalogue. While a sync is running another one cannot be started.",
+      "hint": "Runs now the same thing the nightly job does.",
+      "hintNvd": "NVD only downloads recent changes, never the whole catalogue.",
+      "hintBusy": "While a sync is running, the other buttons stay locked.",
       "targets": {
         "all": "All sources",
         "nvd": "NVD",
@@ -282,8 +285,9 @@
     "search": {
       "heading": "Look up",
       "placeholder": "CVE-2024-6387 or openssh",
+      "hint": "Type a full CVE or part of a product name (at least 2 characters).",
       "submit": "Search",
-      "cveUnknown": "No knowledge base source knows that CVE.",
+      "cveUnknown": "No knowledge base source knows that CVE. Check the identifier, or sync NVD in case it is very recent.",
       "cvss": "CVSS",
       "kev": "Actively exploited (KEV)",
       "epss": "Exploitation probability (EPSS)",
@@ -299,7 +303,7 @@
         "unknown": "No statement"
       },
       "noDistroStatus": "No distribution has made a statement about this CVE.",
-      "noProducts": "No product in the index matches."
+      "noProducts": "No product in the index matches. Try another part of the name."
     },
     "errors": {
       "status": "The knowledge base status could not be loaded.",
@@ -1407,6 +1411,11 @@
     }
   },
   "lybra": {
+    "scopeEyebrow": {
+      "hosts": "One machine",
+      "cloud": "One domain",
+      "network": "One range"
+    },
     "sections": {
       "prod": "Affected products",
       "conf": "Configuration and exposure"
@@ -1549,7 +1558,7 @@
     },
     "launch": {
       "title": "Lybra engine",
-      "subtitle": "Weighs every threat before it strikes",
+      "subtitle": "Analyses the ports and services of an authorised machine and flags what is vulnerable",
       "running": "Engine running",
       "target": "Target (single IP)",
       "authorizedHint": "It is in your register of authorized targets",
@@ -1637,13 +1646,20 @@
     },
     "cloud": {
       "title": "Cloud exposure",
-      "subtitle": "What your cloud resources show to anyone",
+      "subtitle": "Checks what your cloud resources leave exposed and whether any subdomain can be claimed",
       "running": "Checking",
       "hint": "Lybra asks, without credentials, whether the buckets and databases you declare let anyone see their content, and whether a subdomain points to a service that no longer exists and someone else could claim. It never looks for resources on its own: it only checks the ones you declare.",
       "domain": "Domain",
       "domainPlaceholder": "example.com",
       "domainInvalid": "Write a domain, such as “example.com”.",
       "checkSubdomains": "Also check the domain and its known subdomains",
+      "subdomainsUnknown": "The subdomains of this domain have not been looked up yet: only the domain itself will be checked.",
+      "subdomainsSearching": "Looking up the subdomains of this domain…",
+      "subdomainsSearchFailed": "The last subdomain lookup could not finish: only the domain itself will be checked.",
+      "subdomainsFound": "{count} subdomain is known, from the lookup of {date}. | {count} subdomains are known, from the lookup of {date}.",
+      "discover": "Look up subdomains",
+      "discoverAgain": "Look up again",
+      "discoverHint": "It reads public certificate records and DNS. It never contacts any machine of the domain, so it needs no authorization.",
       "resources": "Cloud resources (optional)",
       "resourcePlaceholder": "s3:my-bucket, gcs:name, azure:account/container or firebase:project",
       "resourceInvalid": "Write it as “s3:name”, “gcs:name”, “azure:account/container” or “firebase:project”, with a name the provider accepts.",
@@ -1680,7 +1696,7 @@
     },
     "network": {
       "title": "Network",
-      "subtitle": "How an attacker would move between your machines",
+      "subtitle": "Works out how an attacker would move between the machines of a range",
       "hint": "A group is a network defined by its range. Its machines are the ones you have already scanned whose address falls inside it, so there is nothing to add by hand. It is useful when you scan several public addresses of the same organization, such as your own IP block or a provider's servers: internal networks (10.x, 192.168.x) cannot be reached from a cloud deployment.",
       "name": "Name",
       "namePlaceholder": "Office, DMZ, servers…",
@@ -1869,6 +1885,8 @@
       "connectionError": "Connection error.",
       "unreachable": "Could not reach the API.",
       "launchFailed": "The cloud scan could not be launched.",
+      "discoverFailed": "The subdomain lookup could not be launched.",
+      "discoverStarted": "Looking up the subdomains of {domain}.",
       "started": "Checking the cloud exposure of {domain}.",
       "detailFailed": "The scan could not be loaded.",
       "reportFailed": "The report could not be requested."

@@ -14,6 +14,12 @@ puede dar**.
   los índices. Su ``GET /`` devuelve la versión exacta.
 - **Kubernetes en 6443**, **etcd en 2379**, **Consul en 8500** y **Kibana en
   5601** siguen el mismo patrón.
+- **Nomad en 4646** también: sin ACL activada, su postura por defecto, expone
+  sin autenticar la configuración del agente y el estado del clúster — el
+  mismo perfil que Consul, su hermano de HashiCorp.
+- **Portainer en 9000** identifica igual, pero su API de verdad exige sesión:
+  sólo el banner de versión es público por diseño. Se lista aquí para la
+  identificación, aunque su exposición vale como banner, no como acceso real.
 
 ``is_http_service`` acepta estos puertos precisamente para que ``2375/tcp
 abierto — docker`` no se quede en un informativo con ``qod=30`` cuando la
@@ -77,6 +83,8 @@ ADMIN_APIS: Dict[int, AdminApi] = {
     6443: AdminApi("Kubernetes", "/version", ("gitVersion",)),
     2379: AdminApi("etcd", "/version", ("etcdserver",)),
     8500: AdminApi("Consul", "/v1/agent/self", ("Config", "Version")),
+    4646: AdminApi("Nomad", "/v1/agent/self", ("stats", "nomad", "version")),
+    9000: AdminApi("Portainer", "/api/system/status", ("Version",)),
 }
 
 

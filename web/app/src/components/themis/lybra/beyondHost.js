@@ -124,6 +124,38 @@ export function cloudVerdicts(scan) {
  * @param {Array<{target: string}>} entries - El registro del usuario.
  * @returns {boolean} `true` si alguna entrada lo cubre.
  */
+/**
+ * Qué se sabe de los subdominios de un dominio, según sus búsquedas anteriores.
+ *
+ * La comprobación de la nube solo revisa los subdominios que una búsqueda
+ * previa encontró: sin ninguna, solo mira el propio dominio. La pantalla usa
+ * esto para decirlo antes de lanzar, en vez de dejar creer que se revisó todo.
+ *
+ * Se mira la búsqueda más reciente del dominio. Si está en marcha o falló,
+ * debajo puede haber una terminada, que es la que el servidor usará: su
+ * recuento y su fecha viajan igualmente.
+ *
+ * @param {string} domain - El dominio escrito por el usuario.
+ * @param {Array<{domain: string, status: string, subdomainCount?: number, finishedAt?: string}>} searches
+ *        Las búsquedas de subdominios del usuario, de la más nueva a la más vieja.
+ * @returns {{state: 'none'|'searching'|'failed'|'known', count: number, finishedAt: string|null}}
+ *          `none` si nunca se buscó; `searching` si hay una en marcha; `failed`
+ *          si la última falló y no hay ninguna terminada; `known` si hay una
+ *          terminada que usar. `count` y `finishedAt` son los de la última
+ *          terminada (`0` y `null` si no hay).
+ */
+export function subdomainKnowledge(domain, searches) {
+  const wanted = String(domain ?? '').trim().toLowerCase().replace(/\.$/, '')
+  const own = (searches ?? []).filter(search => String(search.domain ?? '').toLowerCase() === wanted)
+  const finished = own.find(search => search.status === 'finished')
+  const known = { count: finished?.subdomainCount ?? 0, finishedAt: finished?.finishedAt ?? null }
+  if (!wanted || !own.length) return { state: 'none', ...known }
+  const latest = own[0]
+  if (latest.status === 'pending' || latest.status === 'running') return { state: 'searching', ...known }
+  if (finished) return { state: 'known', ...known }
+  return { state: 'failed', ...known }
+}
+
 export function isCoveredByRegister(target, entries) {
   const needle = String(target || '').trim().toLowerCase().replace(/\.$/, '')
   const shape = classifyTarget(needle)
