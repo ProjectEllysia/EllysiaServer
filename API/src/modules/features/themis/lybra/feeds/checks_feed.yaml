@@ -2930,6 +2930,35 @@ checks:
       title: 'SSH: no vulnerable a Terrapin (strict kex anunciado o sin modos afectados)'
       qod: 99
       confirmed: false
+  # Qué métodos de autenticación ofrece el servidor, más allá del KEXINIT: hace
+  # falta completar el intercambio de claves y preguntar, sin aportar ninguna
+  # credencial real. Es un intento de autenticación de verdad -el servidor
+  # puede dejarlo en su registro-, así que los dos corren sólo en modo
+  # agresivo (ver el criterio de L117 en checks.py, junto a CHECK_MODES).
+  - id: ssh-none-authentication-accepted
+    version: 1
+    type: script
+    script: ssh-none-authentication-accepted
+    category: default_credentials
+    severity: CRITICAL
+    service: ssh
+    mode: aggressive
+    finding:
+      title: 'SSH: acepta el metodo de autenticacion "ninguno" (acceso sin ninguna credencial)'
+      qod: 99
+      confirmed: true
+  - id: ssh-password-only-authentication
+    version: 1
+    type: script
+    script: ssh-password-only-authentication
+    category: network_config
+    severity: MEDIUM
+    service: ssh
+    mode: aggressive
+    finding:
+      title: 'SSH: solo admite autenticacion por contrasena (sin clave publica)'
+      qod: 99
+      confirmed: true
   # SMTP relay abierto: el servidor acepta un RCPT a un dominio externo desde un
   # remitente externo. No se llega a DATA — no se envía correo, sólo se observa
   # que aceptaría enrutarlo. Un servidor bien configurado responde 550/554.
@@ -3370,26 +3399,31 @@ checks:
       title: Mapa de código fuente publicado junto a un JavaScript de producción
       qod: 99
       confirmed: true
+  # Los dos checks siguientes abren una sesión SMB anónima -un inicio de
+  # sesión real, sin credencial, pero que el equipo puede dejar en su
+  # registro de eventos- para listar o sondear algo más allá del saludo.
+  # Entran en modo agresivo por ese motivo (criterio de L117 en checks.py,
+  # junto a CHECK_MODES); antes corrían siempre.
   - id: windows-shares-unauthenticated
-    version: 1
+    version: 2
     type: script
     script: windows-shares-unauthenticated
     category: exposed_service
     severity: HIGH
     service: smb
-    mode: safe
+    mode: aggressive
     finding:
       title: Carpetas compartidas de Windows visibles sin ninguna credencial
       qod: 99
       confirmed: true
   - id: domain-controller-rpc-surface-exposed
-    version: 1
+    version: 2
     type: script
     script: domain-controller-rpc-surface-exposed
     category: exposed_service
     severity: HIGH
     service: smb
-    mode: safe
+    mode: aggressive
     finding:
       title: Controlador de dominio con su spooler de impresión o su localizador de RPC accesibles desde la red
       qod: 99
