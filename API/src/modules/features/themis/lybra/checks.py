@@ -114,6 +114,8 @@ logger = logging.getLogger(__name__)
 # checks-38: páginas de error por defecto y trazas internas visibles.
 # checks-39: la respuesta de referencia del servicio («200 a todo»): un check de
 # ruta ya no dispara con una respuesta idéntica a la de una ruta inventada.
+# checks-50: Memcached, ZooKeeper y Cassandra accesibles sin autenticación, con
+# su dissector cada uno.
 # checks-49: higiene web de menor peso: aislamiento entre ventanas (COOP),
 # caché de las respuestas que fijan la sesión y prefijos de nombre de cookie.
 # checks-47: el spooler de impresión o el localizador de RPC accesibles desde
@@ -136,7 +138,7 @@ logger = logging.getLogger(__name__)
 # rastreo descubrió (``onDiscoveredDirectories``).
 # checks-40: el matcher ``compare`` (una respuesta contra otra de la misma
 # cadena) y los marcadores ``{{nombre}}`` en los valores de un matcher.
-CHECKS_FEED_VERSION = "lybra-checks-49"
+CHECKS_FEED_VERSION = "lybra-checks-50"
 # Quality of Detection for a finding a check actively confirmed, as opposed to
 # one merely inferred from a version.
 QOD_CONFIRMED = 99
@@ -265,6 +267,14 @@ _LDAP_PORTS = {389, 636, 3268, 3269}
 LDAPS_PORTS = {636, 3269}
 _REDIS_SERVICE_NAMES = {"redis"}
 _REDIS_PORTS = {6379}
+_MEMCACHED_SERVICE_NAMES = {"memcached", "memcache"}
+_MEMCACHED_PORTS = {11211}
+_ZOOKEEPER_SERVICE_NAMES = {"zookeeper", "zookeeper-client"}
+_ZOOKEEPER_PORTS = {2181}
+# 9042 es el puerto del protocolo nativo (CQL); el 9160, el de Thrift, ya no se
+# usa desde Cassandra 4 y habla otro protocolo, así que no entra.
+_CASSANDRA_SERVICE_NAMES = {"cassandra", "cql", "cassandra-native"}
+_CASSANDRA_PORTS = {9042}
 _VNC_SERVICE_NAMES = {"vnc"}
 _VNC_PORTS = {5900}
 _TELNET_SERVICE_NAMES = {"telnet"}
@@ -1383,6 +1393,24 @@ def is_redis_service(service: Service) -> bool:
     """Return whether a service should be probed by the Redis dissector or
     ``type: "network"`` checks."""
     return (service.name or "").lower() in _REDIS_SERVICE_NAMES or service.port in _REDIS_PORTS
+
+
+def is_memcached_service(service: Service) -> bool:
+    """Return whether a service should be probed by the Memcached dissector."""
+    return ((service.name or "").lower() in _MEMCACHED_SERVICE_NAMES
+            or service.port in _MEMCACHED_PORTS)
+
+
+def is_zookeeper_service(service: Service) -> bool:
+    """Return whether a service should be probed by the ZooKeeper dissector."""
+    return ((service.name or "").lower() in _ZOOKEEPER_SERVICE_NAMES
+            or service.port in _ZOOKEEPER_PORTS)
+
+
+def is_cassandra_service(service: Service) -> bool:
+    """Return whether a service should be probed by the Cassandra (CQL) dissector."""
+    return ((service.name or "").lower() in _CASSANDRA_SERVICE_NAMES
+            or service.port in _CASSANDRA_PORTS)
 
 
 def is_telnet_service(service: Service) -> bool:

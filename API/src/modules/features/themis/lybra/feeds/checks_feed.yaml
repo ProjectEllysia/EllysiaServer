@@ -1147,6 +1147,46 @@ checks:
       title: 'MongoDB: catalogo accesible sin autenticacion'
       qod: 99
       confirmed: true
+  # Servicios de datos con protocolo propio que no autentican por defecto. Cada
+  # uno pide la prueba que su protocolo permite sin credenciales: las
+  # estadísticas de Memcached, la raíz del árbol de ZooKeeper y el READY de
+  # Cassandra frente a su AUTHENTICATE.
+  - id: memcached-unauthenticated-access
+    version: 1
+    type: script
+    script: memcached-unauthenticated-access
+    category: exposed_service
+    severity: HIGH
+    service: memcached
+    mode: safe
+    finding:
+      title: 'Memcached: estadisticas accesibles sin autenticacion (la cache se puede leer y vaciar)'
+      qod: 99
+      confirmed: true
+  - id: zookeeper-unauthenticated-access
+    version: 1
+    type: script
+    script: zookeeper-unauthenticated-access
+    category: exposed_service
+    severity: HIGH
+    service: zookeeper
+    mode: safe
+    finding:
+      title: 'ZooKeeper: arbol de nodos accesible sin autenticacion'
+      qod: 99
+      confirmed: true
+  - id: cassandra-unauthenticated-access
+    version: 1
+    type: script
+    script: cassandra-unauthenticated-access
+    category: exposed_service
+    severity: CRITICAL
+    service: cassandra
+    mode: safe
+    finding:
+      title: 'Cassandra: acepta conexiones CQL sin autenticacion'
+      qod: 99
+      confirmed: true
   - id: ldap-anonymous-bind
     version: 2
     type: script
