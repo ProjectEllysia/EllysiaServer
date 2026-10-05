@@ -27,6 +27,12 @@ from src.modules.features.themis.lybra.checks import (
 pytestmark = pytest.mark.unit
 
 _SVC = Service(80, "tcp", "http", None, None, None)
+_BASELINE_PREFIX = "/lybra-baseline-"
+
+
+def _without_baseline(paths):
+    """Las rutas pedidas, sin la de referencia que el runtime añade al vuelo."""
+    return [path for path in paths if not path.startswith(_BASELINE_PREFIX)]
 
 
 def _run(check, fetch, **kwargs):
@@ -84,7 +90,7 @@ def test_an_extractor_binds_a_value_for_the_next_request():
         return Response(404, "", {})
 
     assert [f["check_id"] for f in _run(check, fetch)] == ["lybra:chain@1"]
-    assert requested == ["/token", "/resource/ABC123"]
+    assert _without_baseline(requested) == ["/token", "/resource/ABC123"]
 
 
 def test_a_login_chain_uses_body_and_headers():
@@ -141,7 +147,7 @@ def test_an_extractor_that_does_not_match_aborts_the_check():
         return Response(200, "sin token aquí", {})
 
     assert _run(check, fetch) == []
-    assert requested == ["/token"]        # la segunda petición nunca se lanza
+    assert _without_baseline(requested) == ["/token"]   # la segunda petición nunca se lanza
 
 
 def test_a_backward_compatible_fetch_still_works_for_plain_checks():
@@ -156,7 +162,7 @@ def test_a_backward_compatible_fetch_still_works_for_plain_checks():
                   finding={"title": "x"})
 
     def four_arg_fetch(host, port, method, path):     # exactamente cuatro
-        return Response(200, "", {})
+        return Response(404 if path.startswith(_BASELINE_PREFIX) else 200, "", {})
 
     assert [f["check_id"] for f in _run(check, four_arg_fetch)] == ["lybra:plain@1"]
 
@@ -209,11 +215,13 @@ def test_the_first_matching_payload_wins_as_a_single_finding():
 
     def fetch(host, port, method, path, *args):
         tried.append(path)
+        if path.startswith(_BASELINE_PREFIX):
+            return Response(404, "", {})
         return Response(200, "CREATE TABLE x", {})       # todos "existen"
 
     findings = _run(check, fetch)
     assert len(findings) == 1
-    assert len(tried) == 1                                # paró en el primero
+    assert len(_without_baseline(tried)) == 1             # paró en el primero
 
 
 # ===================================================== validación de forma (CI)

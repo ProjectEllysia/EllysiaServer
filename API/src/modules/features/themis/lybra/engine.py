@@ -1,9 +1,11 @@
 """The detection core — turns discovered services into normalized findings.
 
 Given the services found on a host, the engine produces :class:`Finding`-shaped
-dicts: always an informational "this port is open" finding, and — when a CVE
-lookup is wired in — one finding per known vulnerability that affects the
-service's product and version.
+dicts: always an informational "this port is open" finding, one finding per
+known vulnerability that affects the service's product and version when a CVE
+lookup is wired in, and one more if that product's resolved branch is already
+past its vendor's end of support (``lybra/end_of_life.py`) — a risk no CVE
+feed records, since it is a date, not a vulnerability.
 
 Two design choices keep this module easy to reason about and to test:
 
@@ -22,10 +24,12 @@ findings.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 from typing import Callable, Iterable, List, Optional, Tuple
 
 from .applicability import classify_cve_applicability
 from .correlation import CONDITIONAL_VERSION_CHECK_ID, exploit_maturity
+from .end_of_life import check_end_of_life
 from .kb import (
     load_product_aliases,
     normalize_cpe_to_23,
@@ -120,7 +124,7 @@ class Service:
         return product_version or self.name or "servicio desconocido"
 
 
-class LybraEngine:
+class LybraEngine:  # pylint: disable=too-many-instance-attributes
     """Produces normalized findings from a host's discovered services.
 
     For every service the engine emits one informational "open port" finding.
@@ -157,11 +161,20 @@ class LybraEngine:
             contents of the database, and this package is deliberately free of
             the ORM. The manager knows the KB's state; the engine only stamps
             what it is told.
+        eol_as_of: El instante contra el que se juzga el fin de soporte de la
+            rama resuelta (ver :func:`~.end_of_life.check_end_of_life`).
+            Inyectable para que un test no dependa del reloj; por defecto,
+            ``None``, que resuelve a la fecha de hoy. A diferencia de
+            ``cve_lookup``/``kev_lookup``/``epss_lookup``, el catálogo de fin
+            de soporte **no** se inyecta: es un feed puro empaquetado con el
+            módulo (``feeds/eol_catalog.json``), igual que el de alias de
+            producto que ``CPE_PRODUCT_OVERRIDES`` ya carga a import-time —
+            no hay base de datos de la que mantener al motor libre.
     """
 
     FEED_VERSION = "lybra-0"
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         cve_lookup: Optional[Callable[[str, str, str], Iterable]] = None,
         kev_lookup: Optional[Callable[[str], bool]] = None,
@@ -170,6 +183,7 @@ class LybraEngine:
         feed_version: Optional[str] = None,
         record_resolution: Optional[Callable[[str, str, bool], None]] = None,
         exploit_evidence_lookup: Optional[Callable[[str], Optional[str]]] = None,
+        eol_as_of: Optional[date] = None,
     ) -> None:
         self._cve_lookup = cve_lookup
         self._kev_lookup = kev_lookup
@@ -178,6 +192,7 @@ class LybraEngine:
         self._feed_version = feed_version or self.FEED_VERSION
         self._record_resolution = record_resolution
         self._exploit_evidence_lookup = exploit_evidence_lookup
+        self._eol_as_of = eol_as_of
 
     def analyze(self, services: Iterable[Service]) -> List[dict]:
         """Produce the findings for a set of services.
@@ -201,6 +216,10 @@ class LybraEngine:
                 if self._cve_lookup is not None else ([], 0))
             findings.append(self._informational_finding(service, resolved, discarded))
             findings.extend(version_findings)
+            eol_finding = _end_of_life_finding(
+                service, resolved, self._feed_version, self._eol_as_of)
+            if eol_finding is not None:
+                findings.append(eol_finding)
         return findings
 
     def _version_findings(self, service: Service, resolved) -> Tuple[List[dict], int]:
@@ -536,3 +555,70 @@ def _resolve_cpe(
     # feed curado: qué producto concreto estamos fallando en identificar.
     _note(False)
     return None
+
+
+def _end_of_life_finding(service: Service, resolved, feed_version: str,
+                         as_of: Optional[date]) -> Optional[dict]:
+    """Emite un hallazgo si la rama resuelta del servicio quedó fuera de soporte.
+
+    A diferencia de la correlación de CVEs (:meth:`LybraEngine._version_findings`),
+    esto no depende de ningún lookup inyectado: el catálogo de fin de soporte
+    es un feed puro que vive dentro del propio paquete (ver
+    :func:`~.end_of_life.check_end_of_life`), así que corre siempre que la
+    resolución de CPE tuvo éxito, con o sin ``cve_lookup`` conectado — el fin
+    de soporte no es una vulnerabilidad que dependa de la KB.
+
+    Args:
+        service: El servicio ya evaluado.
+        resolved: El ``(vendor, product, version, cpe23)`` que
+            :meth:`LybraEngine.analyze` ya resolvió para este servicio, o
+            ``None``.
+        feed_version: La marca de reproducibilidad con la que se sella el
+            hallazgo, la misma que lleva cualquier otro que produzca el motor.
+        as_of: El instante contra el que se juzga el fin de soporte. Llega del
+            constructor del motor (``LybraEngine.__init__``'s ``eol_as_of``);
+            ``None`` resuelve a la fecha de hoy dentro de
+            :func:`~.end_of_life.check_end_of_life`.
+
+    Returns:
+        dict | None: El hallazgo, o ``None`` si el servicio no resolvió a un
+        CPE, el producto no está en el catálogo de fin de soporte, o su rama
+        sigue mantenida a la fecha consultada.
+    """
+    if resolved is None:
+        return None
+    vendor, product, version, cpe23 = resolved
+    status = check_end_of_life(vendor, product, version, as_of=as_of)
+    if status is None or not status.is_past:
+        return None
+    is_verified = service.origin == "inventory"
+    # pylint: disable=protected-access
+    return {
+        "title": (f"{LybraEngine._version_label(service)} — fuera de soporte del fabricante "
+                 f"desde {status.eol_date.isoformat()}"),
+        "category": "outdated_software",
+        "port": service.port,
+        "service": service.name or service.product or None,
+        "protocol": service.protocol,
+        "cpe": cpe23,
+        "cve_ids": [],
+        "cvss_score": None,
+        "cvss_vector": None,
+        "epss_score": None,
+        "in_kev": False,
+        "exploit_maturity": exploit_maturity(False),
+        "required_os": None,
+        "source": "lybra",
+        "check_id": "lybra:end-of-life@1",
+        "feed_version": feed_version,
+        # Sin CVSS no hay banda que derivar: la severidad declarada es lo
+        # único que decide la prioridad (ver `score_finding`). MEDIUM y no
+        # más, porque el fin de soporte en sí no es una vulnerabilidad
+        # concreta -es el riesgo de que aparezca una y no se corrija-, así
+        # que no se iguala a un hallazgo ya confirmado.
+        "severity": "MEDIUM",
+        "qod": QOD_INVENTORY_MATCH if is_verified else QOD_VERSION_MATCH,
+        "confirmed": is_verified,
+        "cpe_resolved": True,
+        "state": "open",
+    }

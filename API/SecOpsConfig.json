@@ -283,7 +283,8 @@
           "crawler": {
             "maxPages": 50,
             "maxDepth": 3,
-            "timeBudgetSeconds": 20.0
+            "timeBudgetSeconds": 20.0,
+            "maxScanDirectories": 10
           },
           "apiSurface": {
             "maxEndpoints": 25,

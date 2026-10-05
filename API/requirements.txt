@@ -67,3 +67,11 @@ olefile>=0.46
 # CAA, DNSSEC y resolución de los subdominios encontrados), con resolutor
 # inyectable para que los tests no salgan a la red.
 dnspython>=2.4
+
+# Lybra: sólo el transporte de paramiko (su Transport), para completar el
+# intercambio de claves SSH hasta la fase de autenticación y preguntar qué
+# métodos acepta el servidor (``ssh_auth.py``) sin aportar ninguna credencial
+# real. Se usa su implementación del protocolo en vez de una propia por la
+# misma razón que ``cryptography`` ya cubre TLS: el intercambio de claves no
+# es terreno para reinventar código criptográfico de primera parte.
+paramiko>=3.4

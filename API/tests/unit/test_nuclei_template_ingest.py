@@ -68,7 +68,8 @@ def test_the_feed_version_of_the_tree_reaches_the_finding():
     """Sin esto el hallazgo no sería reproducible: hace falta saber con qué
     versión del feed de plantillas se generó para poder repetirlo."""
     check = translate_template(_GIT_CONFIG_TEMPLATE, _FEED_VERSION)
-    fetch = lambda host, port, method, path: Response(200, "[core]", {})  # noqa: E731
+    fetch = lambda host, port, method, path: (  # noqa: E731
+        Response(404, "", {}) if path.startswith("/lybra-baseline-") else Response(200, "[core]", {}))
     findings = CheckRuntime([check], fetch).run("h", [Service(80, "tcp", "http", "", "", None)])
 
     assert len(findings) == 1
@@ -85,7 +86,9 @@ def test_first_party_checks_keep_their_own_namespace_and_feed_version():
     assert git.check_id == "lybra:git-config-exposure@1"
     assert git.feed_version is None
 
-    fetch = lambda host, port, method, path: Response(200, "[core] repositoryformatversion", {})  # noqa: E731
+    fetch = lambda host, port, method, path: (  # noqa: E731
+        Response(404, "", {}) if path.startswith("/lybra-baseline-")
+        else Response(200, "[core] repositoryformatversion", {}))
     findings = CheckRuntime([git], fetch).run("h", [Service(80, "tcp", "http", "", "", None)])
     assert findings[0]["feed_version"] == CHECKS_FEED_VERSION
 
