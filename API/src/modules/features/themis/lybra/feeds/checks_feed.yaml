@@ -2439,6 +2439,125 @@ checks:
       title: Falta la cabecera Permissions-Policy
       qod: 99
       confirmed: true
+  # Higiene de menor peso, la última de la lista de cabeceras. Ninguna
+  # compromete un sitio por sí sola; completan la familia con severidad baja.
+  - id: missing-coop-header
+    version: 1
+    type: http
+    category: security_header
+    severity: LOW
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /
+        matchers-condition: and
+        matchers:
+          # Igual que las demás cabeceras ausentes: un puerto en claro que
+          # redirige a HTTPS no sirve ninguna página que evaluar.
+          - type: word
+            part: transport
+            words:
+              - http->https
+            negative: true
+          - type: status
+            value:
+              - 200
+              - 301
+              - 302
+          - type: word
+            part: header
+            words:
+              - cross-origin-opener-policy
+            negative: true
+    finding:
+      title: Falta la cabecera Cross-Origin-Opener-Policy (la página comparte grupo de navegación con las ventanas que abre)
+      qod: 99
+      confirmed: true
+  # Una respuesta que fija la cookie de sesión y no prohíbe guardarla (no-store
+  # o private) puede acabar en una caché compartida —un proxy, una CDN mal
+  # configurada— y servirse a otra persona con la sesión de la primera. Sólo se
+  # mira un 200: una redirección con cookie no lleva contenido que cachear.
+  - id: session-response-cacheable
+    version: 1
+    type: http
+    category: security_header
+    severity: LOW
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /
+        matchers-condition: and
+        matchers:
+          - type: status
+            value:
+              - 200
+          - type: regex
+            part: header
+            regex:
+              - '(?im)^set-cookie:\s*(?:PHPSESSID|JSESSIONID|ASP\.NET_SessionId|laravel_session|session|sessionid|connect\.sid|[0-9a-f]{32})='
+          - type: regex
+            part: header
+            regex:
+              - '(?im)^cache-control:[^\n]*\b(?:no-store|private)\b'
+            negative: true
+    finding:
+      title: La respuesta que fija la cookie de sesión puede cachearse (falta Cache-Control con no-store o private)
+      qod: 99
+      confirmed: true
+  # Los prefijos __Host- y __Secure- hacen que el navegador exija atributos
+  # de seguridad a la cookie, así que una sesión que los lleve no puede
+  # fijarse desde HTTP ni desde un subdominio. Es una mejora de higiene, no un
+  # fallo: de ahí INFO. Las cookies de sesión de los frameworks (PHPSESSID...)
+  # no pueden llevarlo, y el aviso las recoge igual: son las que el prefijo
+  # protegería si la aplicación las nombrara.
+  - id: session-cookie-without-prefix
+    version: 1
+    type: http
+    category: security_header
+    severity: INFO
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /
+        matchers-condition: and
+        matchers:
+          - type: regex
+            part: header
+            regex:
+              - '(?im)^set-cookie:\s*(?:PHPSESSID|JSESSIONID|ASP\.NET_SessionId|laravel_session|session|sessionid|connect\.sid|[0-9a-f]{32})='
+    finding:
+      title: Cookie de sesion sin prefijo __Host- ni __Secure- en su nombre
+      qod: 99
+      confirmed: true
+  # El caso contrario: una cookie que sí lleva el prefijo pero incumple lo que
+  # el prefijo exige. El navegador la rechaza en silencio, así que la
+  # aplicación cree tener una protección que no tiene. __Secure- exige Secure;
+  # __Host- exige además Path=/ y ninguna directiva Domain.
+  - id: cookie-prefix-requirements-unmet
+    version: 1
+    type: http
+    category: security_header
+    severity: LOW
+    service: http
+    mode: safe
+    requests:
+      - method: GET
+        path: /
+        matchers-condition: and
+        matchers:
+          - type: regex
+            part: header
+            regex:
+              - '(?im)^set-cookie:\s*__(?:Host|Secure)-[^=;\s]*=(?:(?!;\s*secure\b).)*$'
+              - '(?im)^set-cookie:\s*__Host-[^=;\s]*=.*;\s*domain='
+              - '(?im)^set-cookie:\s*__Host-[^=;\s]*=(?:(?!;\s*path=/\s*(?:;|$)).)*$'
+    finding:
+      title: Cookie con prefijo __Host- o __Secure- que incumple sus requisitos (el navegador la rechaza)
+      qod: 99
+      confirmed: true
   # ---- Cookies de sesión sin atributos de seguridad -------------------
   # ---- Higiene TLS: cifrado débil negociado ---------------------------
   # version 2: se ofrecen solo cifrados debiles en vez de mirar el negociado.
