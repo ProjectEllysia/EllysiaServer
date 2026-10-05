@@ -213,7 +213,7 @@ def test_the_declared_exceptions_still_exist_in_the_feed():
 
 
 def test_the_header_family_covers_what_the_bench_measured():
-    """Los seis checks que un servidor sin endurecer debe disparar hoy.
+    """Los siete checks que un servidor sin endurecer debe disparar hoy.
 
     Enumerarlos aquí puede parecer contradictorio con derivarlos del feed, pero
     hace un trabajo distinto: el resto del fichero comprueba que la derivación
@@ -229,6 +229,7 @@ def test_the_header_family_covers_what_the_bench_measured():
         "lybra:missing-csp-header@2",
         "lybra:missing-referrer-policy-header@2",
         "lybra:missing-permissions-policy-header@2",
+        "lybra:missing-coop-header@1",
     }
 
 
