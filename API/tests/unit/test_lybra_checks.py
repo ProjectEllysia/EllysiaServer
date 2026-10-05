@@ -784,16 +784,16 @@ def test_the_three_header_checks_make_one_request_between_them():
 
     findings = CheckRuntime(load_checks(), fetch).run("10.0.0.5", [_HTTP])
 
-    # Los seis checks de cabeceras faltantes disparan (el nginx de mentira no
+    # Los siete checks de cabeceras faltantes disparan (el nginx de mentira no
     # manda ninguna: HSTS, X-Frame-Options, X-Content-Type-Options, CSP,
-    # Referrer-Policy y Permissions-Policy) y aun así comparten la petición a
+    # Referrer-Policy, Permissions-Policy y COOP) y aun así comparten la petición a
     # "/". Las otras peticiones a "/" son la del check BREACH (con
     # Accept-Encoding), la del comodín de CORS y la primera del reflejo de
     # CORS (cada una con un Origin distinto, así que cada una es otra sonda;
     # la segunda petición del reflejo no llega a mandarse porque la primera
     # ya no casa contra un 200 sin cabeceras de CORS).
     missing = [f for f in findings if f["check_id"].startswith("lybra:missing-")]
-    assert len(missing) == 6
+    assert len(missing) == 7
     assert [ruta for _h, _p, _m, ruta in fetch.calls].count("/") == 4
 
 
