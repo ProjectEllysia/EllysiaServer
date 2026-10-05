@@ -1,5 +1,5 @@
 {
-  "feedVersion": "lybra-aliases-6",
+  "feedVersion": "lybra-aliases-7",
   "aliases": [
     { "match": "apache httpd",        "vendor": "apache",             "product": "http_server" },
     { "match": "apache",              "vendor": "apache",             "product": "http_server" },
@@ -19,6 +19,8 @@
     { "match": "memcached",           "vendor": "memcached",          "product": "memcached" },
     { "match": "zookeeper",           "vendor": "apache",             "product": "zookeeper" },
     { "match": "cassandra",           "vendor": "apache",             "product": "cassandra" },
+    { "match": "redis",               "vendor": "redis",              "product": "redis" },
+    { "match": "mongodb",             "vendor": "mongodb",            "product": "mongodb" },
 
     { "match": "joomla",              "vendor": "joomla",             "product": "joomla\\!" },
     { "match": "wordpress",           "vendor": "wordpress",          "product": "wordpress" },

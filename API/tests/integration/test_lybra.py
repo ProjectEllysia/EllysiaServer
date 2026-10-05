@@ -1381,7 +1381,13 @@ def test_lybra_mysql_fingerprint_fills_cpe_gap_for_self_discovery(app, admin_use
         with UnitOfWork() as uow:
             findings = ScanRepository(uow).get_findings_by_scan(escan.id)
 
-    vulns = [f for f in findings if f.category == "outdated_software"]
+    # La rama 8.0 de MySQL ya está fuera de soporte, así que el mismo
+    # fingerprint dispara también `lybra:end-of-life@1` en esta categoría;
+    # aquí sólo interesa el cruce con la KB.
+    vulns = [
+        f for f in findings
+        if f.category == "outdated_software" and f.check_id != "lybra:end-of-life@1"
+    ]
     assert len(vulns) == 1
     assert vulns[0].cve_ids == ["CVE-2023-99999"]
     assert vulns[0].qod == 70
