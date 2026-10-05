@@ -116,6 +116,9 @@ logger = logging.getLogger(__name__)
 # ruta ya no dispara con una respuesta idéntica a la de una ruta inventada.
 # checks-50: Memcached, ZooKeeper y Cassandra accesibles sin autenticación, con
 # su dissector cada uno.
+# checks-51: qué métodos de autenticación ofrece un SSH más allá del KEXINIT
+# (L115), y los dos checks de sesión SMB anónima (L110, L111) pasan a modo
+# agresivo: abren una sesión real, aunque sin credencial (criterio de L117).
 # checks-49: higiene web de menor peso: aislamiento entre ventanas (COOP),
 # caché de las respuestas que fijan la sesión y prefijos de nombre de cookie.
 # checks-47: el spooler de impresión o el localizador de RPC accesibles desde
@@ -138,7 +141,7 @@ logger = logging.getLogger(__name__)
 # rastreo descubrió (``onDiscoveredDirectories``).
 # checks-40: el matcher ``compare`` (una respuesta contra otra de la misma
 # cadena) y los marcadores ``{{nombre}}`` en los valores de un matcher.
-CHECKS_FEED_VERSION = "lybra-checks-50"
+CHECKS_FEED_VERSION = "lybra-checks-51"
 # Quality of Detection for a finding a check actively confirmed, as opposed to
 # one merely inferred from a version.
 QOD_CONFIRMED = 99
@@ -944,6 +947,20 @@ CHECK_TYPES = ("http", "tls", "network", "script")
 # Los modos de ejecución. ``aggressive`` sólo corre cuando el runtime lo
 # autoriza explícitamente; cualquier otra palabra deja el check sin modo
 # reconocible.
+#
+# El criterio para marcar un check como ``aggressive`` (L117): es ``safe`` si
+# es una lectura equivalente a lo que haría un cliente normal sin
+# autenticarse y no deja rastro de un intento de acceso -un GET, una consulta
+# de catálogo que el propio protocolo ofrece sin pedir nada a cambio-. Es
+# ``aggressive`` si manda un intento de autenticación real aunque no lleve
+# ninguna credencial (una sesión SMB anónima, un ``auth_none`` de SSH -ambos
+# pueden quedar en el registro de eventos del objetivo-), si exige un
+# intercambio de varios pasos notablemente más caro que una sonda normal, o si
+# puede escribir o bloquear algo. Las comprobaciones de la Fase 9 que
+# entraron bajo este criterio: ``windows-shares-unauthenticated`` y
+# ``domain-controller-rpc-surface-exposed`` (sesión SMB anónima),
+# ``ssh-none-authentication-accepted`` y ``ssh-password-only-authentication``
+# (``auth_none`` de SSH, ver ``fingerprinting/ssh_auth.py``).
 CHECK_MODES = ("safe", "aggressive")
 
 # Las familias de hallazgo que un check puede declarar. No es el vocabulario

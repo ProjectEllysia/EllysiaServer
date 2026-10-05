@@ -49,6 +49,13 @@ best value for the effort it costs to support:
     ella— y ``listDatabases`` para saber si el servidor deja entrar sin
     credenciales. Parseo de BSON mínimo, sin ``pymongo``.
 
+``ssh_auth``
+    Qué métodos de autenticación ofrece un servidor SSH más allá de su primer
+    mensaje (``none``, ``password``, ``publickey``). A diferencia del resto de
+    este paquete usa el transporte de paramiko en vez de reimplementar el
+    intercambio de claves: lo único que se pregunta —``auth_none``— no exige
+    reconstruir el protocolo a mano para hacerlo con seguridad.
+
 ``memcached``, ``zookeeper``, ``cassandra``
     Servicios de datos con protocolo propio que no autentican por defecto.
     Memcached habla texto (``version`` y ``stats``), ZooKeeper tanto palabras
@@ -168,6 +175,10 @@ from .http import (
     validate_tech_signatures,
     fingerprint_http,
     HttpDissector,
+)
+from .ssh_auth import (
+    SshAuthMethods,
+    SshAuthProbe,
 )
 from .ssh import (
     SSH_MSG_KEXINIT,
@@ -500,6 +511,8 @@ __all__ = [
     "fingerprint_redis",
     "RedisProbe",
     "RedisDissector",
+    "SshAuthMethods",
+    "SshAuthProbe",
     "MemcachedDissector",
     "MemcachedFingerprint",
     "MemcachedProbe",

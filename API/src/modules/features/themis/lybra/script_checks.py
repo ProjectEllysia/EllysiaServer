@@ -78,6 +78,7 @@ from .fingerprinting.postgres import PostgresProbe, fingerprint_postgres
 from .fingerprinting.rdp import RdpProbe, fingerprint_rdp
 from .fingerprinting.snmp import SnmpProbe
 from .fingerprinting.ssh import SshProbe, parse_kexinit
+from .fingerprinting.ssh_auth import SshAuthMethods, SshAuthProbe
 from .fingerprinting.telnet import TelnetProbe
 from .fingerprinting import windows_rpc
 from .fingerprinting.tls import LEGACY_TLS_PROTOCOLS, TlsProbe
@@ -1238,6 +1239,97 @@ class _KexinitCache:
         return self._kexinits[key]
 
 
+class _SshAuthCache:
+    """Una sola consulta de métodos de autenticación por servicio, compartida por los plugins SSH.
+
+    Los dos checks que preguntan ``auth_none`` miran la misma respuesta; sin
+    esto, cada uno abriría su propia conexión y repetiría el mismo intento de
+    autenticación contra el objetivo. Vive lo que vive el registro de plugins
+    (un escaneo) — el mismo patrón que :class:`_KexinitCache` ya usa para el
+    ``KEXINIT``.
+
+    Args:
+        probe: Sonda inyectable, para que un test use un socket falso o un
+            servidor SSH de prueba.
+    """
+
+    def __init__(self, probe: Optional[SshAuthProbe] = None) -> None:
+        self._probe = probe or SshAuthProbe()
+        self._results: Dict[Tuple[str, int], Optional[SshAuthMethods]] = {}
+
+    def auth_methods(self, context: ScriptContext) -> Optional[SshAuthMethods]:
+        """Devuelve los métodos de autenticación del servicio, preguntándolo la primera vez.
+
+        Args:
+            context: El contexto del check, del que salen objetivo, puerto y
+                limitador de ritmo.
+
+        Returns:
+            SshAuthMethods | None: El resultado, o ``None`` si la sonda no
+                llegó a una respuesta concluyente.
+        """
+        key = (context.target, context.service.port or 22)
+        if key not in self._results:
+            context.acquire()
+            self._results[key] = self._probe.fetch(*key)
+        return self._results[key]
+
+
+class SshNoneAuthenticationAcceptedPlugin(ScriptPlugin):
+    """Detecta un SSH que acepta el método de autenticación «ninguno»: acceso sin credencial alguna.
+
+    Es, para SSH, el mismo hallazgo que PostgreSQL en modo ``trust``. La
+    evidencia es la propia respuesta del servidor al método ``none`` —no una
+    credencial que se prueba, sino la ausencia de cualquier credencial—, así
+    que el hallazgo nace confirmado.
+
+    Args:
+        cache: La caché de métodos de autenticación compartida con el otro
+            plugin de esta familia.
+    """
+
+    plugin_id = "ssh-none-authentication-accepted"
+
+    def __init__(self, cache: _SshAuthCache) -> None:
+        self._cache = cache
+
+    def applies(self, service: Service) -> bool:
+        return is_ssh_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        result = self._cache.auth_methods(context)
+        return bool(result and result.is_none_accepted)
+
+
+class SshPasswordOnlyAuthenticationPlugin(ScriptPlugin):
+    """Detecta un SSH que sólo admite autenticación por contraseña, sin clave pública.
+
+    Un servidor así es una superficie de fuerza bruta: sin clave pública de por
+    medio, cualquier cuenta válida sólo está protegida por lo fuerte que sea su
+    contraseña. Si el servidor ya aceptó el método ``none`` el hallazgo es ese
+    —más grave—, no este.
+
+    Args:
+        cache: La caché de métodos de autenticación compartida con el otro
+            plugin de esta familia.
+    """
+
+    plugin_id = "ssh-password-only-authentication"
+
+    def __init__(self, cache: _SshAuthCache) -> None:
+        self._cache = cache
+
+    def applies(self, service: Service) -> bool:
+        return is_ssh_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        result = self._cache.auth_methods(context)
+        if result is None or result.is_none_accepted:
+            return False
+        offers_password = "password" in result.methods or "keyboard-interactive" in result.methods
+        return offers_password and "publickey" not in result.methods
+
+
 def _is_weak_mac(name: str) -> bool:
     """MAC basado en MD5, de 96 o de 64 bits, o ``none`` (el mismo criterio que OpenVAS)."""
     return name == "none" or "md5" in name or "-96" in name or name.startswith("umac-64")
@@ -2133,5 +2225,10 @@ def default_script_plugins() -> Dict[str, ScriptPlugin]:
     ssh_cache = _KexinitCache()
     plugins += tuple(SshWeakAlgorithmsPlugin(family, ssh_cache)
                      for family in _WEAK_ALGORITHM_FAMILIES)
+    ssh_auth_cache = _SshAuthCache()
+    plugins += (
+        SshNoneAuthenticationAcceptedPlugin(ssh_auth_cache),
+        SshPasswordOnlyAuthenticationPlugin(ssh_auth_cache),
+    )
     plugins += (SshTerrapinPlugin(True, ssh_cache), SshTerrapinPlugin(False, ssh_cache))
     return {plugin.plugin_id: plugin for plugin in plugins}
