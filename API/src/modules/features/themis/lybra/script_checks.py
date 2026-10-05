@@ -49,6 +49,8 @@ from .checks import (
     LDAPS_PORTS,
     is_ldap_service,
     is_dns_service,
+    is_cassandra_service,
+    is_memcached_service,
     is_mongodb_service,
     is_mssql_service,
     is_ntp_service,
@@ -62,11 +64,14 @@ from .checks import (
     is_tls_service,
     is_vnc_service,
     is_winrm_service,
+    is_zookeeper_service,
     starttls_protocol_for,
 )
 from .engine import Service
 from .fingerprinting.smb import SIGNING_REQUIRED_BIT, SmbProbe, fingerprint_smb
 from .fingerprinting.ldap import LdapProbe, fingerprint_ldap, search_returned_entries
+from .fingerprinting.cassandra import CassandraProbe
+from .fingerprinting.memcached import MemcachedProbe, fingerprint_memcached
 from .fingerprinting.mongo import MongoProbe, fingerprint_mongo
 from .fingerprinting.mssql import MssqlProbe, fingerprint_mssql
 from .fingerprinting.postgres import PostgresProbe, fingerprint_postgres
@@ -85,6 +90,7 @@ from .fingerprinting.tls_hello import (
     parse_dhe_server_key_exchange,
 )
 from .fingerprinting.vnc import VncProbe
+from .fingerprinting.zookeeper import ZookeeperProbe, fingerprint_zookeeper
 from .transport import tcp_timestamps_enabled
 from .fingerprinting.udp_services import (
     DnsProbe,
@@ -406,6 +412,93 @@ class MongoUnauthenticatedAccessPlugin(ScriptPlugin):
         if replies is None:
             return False
         return fingerprint_mongo(*replies).allows_unauthenticated_access
+
+
+class MemcachedUnauthenticatedAccessPlugin(ScriptPlugin):
+    """Detecta un Memcached que entrega sus estadísticas sin ninguna credencial.
+
+    El protocolo de texto de Memcached no autentica: lo único que lo cierra es
+    arrancarlo con SASL (que deshabilita el texto) o no exponerlo. Un servidor
+    abierto deja leer y vaciar la caché, que suele guardar sesiones, tokens y
+    fragmentos de base de datos.
+
+    **La evidencia no es que conteste a ``version``.** Es el comando más
+    inocuo del protocolo; la evidencia es que ``stats`` devuelva los
+    contadores, que sí es una operación sobre el servicio.
+
+    Args:
+        probe: Sonda inyectable, para que un test use un socket falso.
+    """
+
+    plugin_id = "memcached-unauthenticated-access"
+
+    def __init__(self, probe: Optional[MemcachedProbe] = None) -> None:
+        self._probe = probe or MemcachedProbe()
+
+    def applies(self, service: Service) -> bool:
+        return is_memcached_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        context.acquire()
+        replies = self._probe.fetch(context.target, context.service.port or 11211)
+        if replies is None:
+            return False
+        return fingerprint_memcached(*replies).allows_unauthenticated_access
+
+
+class ZookeeperUnauthenticatedAccessPlugin(ScriptPlugin):
+    """Detecta un ZooKeeper cuyo árbol de nodos se lee sin ninguna credencial.
+
+    ZooKeeper no autentica por defecto, y en él viven la configuración y la
+    coordinación de lo que lo usa (Kafka, Hadoop, Solr...). La evidencia es una
+    sesión real: el servidor la abre sin credenciales y devuelve los hijos de
+    la raíz. Un servidor con ACL o SASL obligatorio contesta ``NoAuth`` o
+    cierra, y entonces no hay hallazgo.
+
+    Args:
+        probe: Sonda inyectable, para que un test use un socket falso.
+    """
+
+    plugin_id = "zookeeper-unauthenticated-access"
+
+    def __init__(self, probe: Optional[ZookeeperProbe] = None) -> None:
+        self._probe = probe or ZookeeperProbe()
+
+    def applies(self, service: Service) -> bool:
+        return is_zookeeper_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        context.acquire()
+        readings = self._probe.fetch(context.target, context.service.port or 2181)
+        if readings is None:
+            return False
+        return fingerprint_zookeeper(*readings).allows_unauthenticated_access
+
+
+class CassandraUnauthenticatedAccessPlugin(ScriptPlugin):
+    """Detecta un servidor CQL (Cassandra, ScyllaDB) que deja operar sin credenciales.
+
+    La evidencia es la respuesta a ``STARTUP``: ``READY`` significa que el
+    servidor no exige autenticarse, ``AUTHENTICATE`` que sí. A diferencia de
+    otros servicios, aquí la distinción la hace el propio protocolo en su
+    primer paso, sin probar ninguna credencial.
+
+    Args:
+        probe: Sonda inyectable, para que un test use un socket falso.
+    """
+
+    plugin_id = "cassandra-unauthenticated-access"
+
+    def __init__(self, probe: Optional[CassandraProbe] = None) -> None:
+        self._probe = probe or CassandraProbe()
+
+    def applies(self, service: Service) -> bool:
+        return is_cassandra_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        context.acquire()
+        fingerprint = self._probe.fetch(context.target, context.service.port or 9042)
+        return bool(fingerprint and fingerprint.allows_unauthenticated_access)
 
 
 class LdapAnonymousBindPlugin(ScriptPlugin):
@@ -2012,6 +2105,9 @@ def default_script_plugins() -> Dict[str, ScriptPlugin]:
         PostgresTrustAuthenticationPlugin(),
         PostgresPasswordWithoutTlsPlugin(),
         MongoUnauthenticatedAccessPlugin(),
+        MemcachedUnauthenticatedAccessPlugin(),
+        ZookeeperUnauthenticatedAccessPlugin(),
+        CassandraUnauthenticatedAccessPlugin(),
         LdapAnonymousBindPlugin(),
         LdapCleartextWithLdapsPlugin(),
         LdapNoEncryptedChannelPlugin(),

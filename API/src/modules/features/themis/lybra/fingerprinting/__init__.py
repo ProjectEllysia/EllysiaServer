@@ -49,6 +49,14 @@ best value for the effort it costs to support:
     ella— y ``listDatabases`` para saber si el servidor deja entrar sin
     credenciales. Parseo de BSON mínimo, sin ``pymongo``.
 
+``memcached``, ``zookeeper``, ``cassandra``
+    Servicios de datos con protocolo propio que no autentican por defecto.
+    Memcached habla texto (``version`` y ``stats``), ZooKeeper tanto palabras
+    de cuatro letras como una sesión binaria que lista ``/``, y Cassandra su
+    protocolo nativo por marcos (``OPTIONS`` y ``STARTUP``, que contesta
+    ``READY`` si deja entrar sin credenciales). Los tres a mano, sin librería
+    de cliente, con el mismo criterio que PostgreSQL, MongoDB y Redis.
+
 ``ldap``
     El rootDSE, la consulta anónima que la RFC 4512 define para que un cliente
     sepa con quién habla: vendor, versión y los dominios que el servidor sirve.
@@ -275,6 +283,30 @@ from .redis_probe import (
     RedisProbe,
     RedisDissector,
 )
+from .memcached import (
+    MemcachedDissector,
+    MemcachedFingerprint,
+    MemcachedProbe,
+    fingerprint_memcached,
+    parse_memcached_version,
+)
+from .zookeeper import (
+    ZookeeperDissector,
+    ZookeeperFingerprint,
+    ZookeeperProbe,
+    build_connect_request,
+    build_get_children_request,
+    fingerprint_zookeeper,
+    parse_get_children_response,
+    parse_srvr_version,
+)
+from .cassandra import (
+    CassandraDissector,
+    CassandraFingerprint,
+    CassandraProbe,
+    fingerprint_cassandra,
+    parse_release_version,
+)
 from .vnc import (
     VncFingerprint,
     parse_rfb_version,
@@ -468,6 +500,24 @@ __all__ = [
     "fingerprint_redis",
     "RedisProbe",
     "RedisDissector",
+    "MemcachedDissector",
+    "MemcachedFingerprint",
+    "MemcachedProbe",
+    "fingerprint_memcached",
+    "parse_memcached_version",
+    "ZookeeperDissector",
+    "ZookeeperFingerprint",
+    "ZookeeperProbe",
+    "build_connect_request",
+    "build_get_children_request",
+    "fingerprint_zookeeper",
+    "parse_get_children_response",
+    "parse_srvr_version",
+    "CassandraDissector",
+    "CassandraFingerprint",
+    "CassandraProbe",
+    "fingerprint_cassandra",
+    "parse_release_version",
     "VncFingerprint",
     "parse_rfb_version",
     "fingerprint_vnc",
