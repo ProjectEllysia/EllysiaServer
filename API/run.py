@@ -608,8 +608,9 @@ def _init_db() -> None:
         conn.execute(
             text(
                 'INSERT INTO "User" '
-                "(username, first_name, last_name, password_hash, password_salt, email, created_at, role) "
-                "VALUES ('root', 'Gabe', 'Joe', :pwdhash, '', 'gjoe@ellysia.com', CURRENT_DATE, 'role_root');"
+                "(username, first_name, last_name, password_hash, password_salt, email, created_at, role, "
+                "must_change_password) "
+                "VALUES ('root', 'Gabe', 'Joe', :pwdhash, '', 'gjoe@ellysia.com', CURRENT_DATE, 'role_root', FALSE);"
             ),
             {"pwdhash": root_password_hash},
         )
