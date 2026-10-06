@@ -27,7 +27,20 @@
 
       <article ref="articleRef" class="doc-article">
         <div class="doc-sheet">
-          <DocSection v-for="section in page.sections" :key="section.id" :section="section" />
+          <template v-for="(section, index) in page.sections" :key="section.id">
+            <!-- Entre sección y sección, el mismo sol de doble anillo que la
+                 franja de la portada: separa temas, no pasos, así que no
+                 lleva número. -->
+            <div v-if="index > 0" class="doc-divider" aria-hidden="true">
+              <span class="doc-divider-rule"></span>
+              <span class="doc-divider-emblem">
+                <span class="doc-divider-ring doc-divider-ring--inner"></span>
+                <span class="doc-divider-ring doc-divider-ring--outer"></span>
+              </span>
+              <span class="doc-divider-rule"></span>
+            </div>
+            <DocSection :section="section" />
+          </template>
         </div>
 
         <nav class="doc-pager" :aria-label="t('docs.technical.otherTools')">
@@ -192,6 +205,17 @@ onBeforeUnmount(() => sectionObserver?.disconnect())
   border-radius: var(--radius-sm);
   font-size: var(--fs-md); line-height: 1.75; color: var(--text-dim);
 }
+
+/* Separador entre secciones: dos trazos de 2px que se desvanecen hacia los
+   bordes y, en medio, el emblema de la portada a escala de texto. */
+.doc-divider { display: flex; align-items: center; gap: 0.9rem; margin: 3.2rem 0 2.8rem; }
+.doc-divider-rule { flex: 1; height: 2px; border-radius: 2px; }
+.doc-divider-rule:first-child { background: linear-gradient(to right, transparent, var(--accent)); }
+.doc-divider-rule:last-child { background: linear-gradient(to left, transparent, var(--accent)); }
+.doc-divider-emblem { position: relative; width: 26px; height: 26px; flex: none; display: grid; place-items: center; }
+.doc-divider-ring { position: absolute; border-radius: 50%; }
+.doc-divider-ring--inner { width: 9px; height: 9px; background: var(--accent); box-shadow: 0 0 10px var(--accent-dim); }
+.doc-divider-ring--outer { width: 24px; height: 24px; border: 1.5px dashed var(--accent); }
 
 .doc-pager { max-width: 76ch; margin-top: 2rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 .doc-pager-link {

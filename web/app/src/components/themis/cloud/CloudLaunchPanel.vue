@@ -13,8 +13,6 @@
       <Transition name="pop"><span v-if="running" class="engine-launched"><span class="pulse" aria-hidden="true"></span>{{ t('lybra.cloud.running') }}</span></Transition>
     </div>
 
-    <p class="engine-hint">{{ t('lybra.cloud.hint') }}</p>
-
     <div class="engine-fields">
       <!-- El dominio: su sello de autorización solo cuenta si se piden los
            subdominios, que es cuando el escaneo llama a sus nombres. -->
@@ -204,7 +202,6 @@ function handleLaunch() {
 .pulse { position: relative; width: 8px; height: 8px; border-radius: 50%; background: var(--accent-bright); }
 .pulse::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: var(--accent-bright); animation: pulse-ring 1.6s ease-out infinite; }
 @keyframes pulse-ring { from { transform: scale(1); opacity: 0.6; } to { transform: scale(2.6); opacity: 0; } }
-.engine-hint { margin: 0 0 0.9rem; font-size: var(--fs-md); color: var(--text-dim); line-height: 1.45; max-width: 70ch; }
 
 .engine-fields { display: flex; flex-direction: column; gap: 0.8rem; }
 .field { display: flex; flex-direction: column; gap: 0.35rem; }
@@ -232,7 +229,7 @@ function handleLaunch() {
 .target-seal.missing { color: var(--warn); background: var(--warn-dim); border-color: var(--warn); cursor: pointer; }
 .target-seal.missing:hover { background: var(--warn); color: var(--on-accent); }
 
-.check { display: flex; align-items: center; gap: 0.5rem; font-size: var(--fs-md); color: var(--text-dim); cursor: pointer; }
+.check { display: flex; align-items: center; gap: 0.5rem; font-size: var(--fs-body); color: var(--text-dim); cursor: pointer; }
 .check input { accent-color: var(--accent); width: 15px; height: 15px; }
 
 .known {
@@ -240,13 +237,13 @@ function handleLaunch() {
   padding: 0.5rem 0.7rem; border-radius: 7px; background: var(--surface-2); border: 1px solid var(--border-solid);
 }
 .known.none, .known.failed { background: var(--warn-dim); border-color: var(--warn); }
-.known-text { margin: 0; display: flex; align-items: center; gap: 0.45rem; font-size: var(--fs-md); color: var(--text-dim); line-height: 1.4; }
+.known-text { margin: 0; display: flex; align-items: center; gap: 0.45rem; font-size: var(--fs-body); color: var(--text-dim); line-height: 1.4; }
 .known-text .pulse { flex: none; }
 
 .resource-add { display: flex; gap: 0.4rem; }
 .btn-add {
   padding: 0.4rem 0.9rem; background: var(--surface-2); border: 1px solid var(--accent); color: var(--accent-bright);
-  font-size: var(--fs-md); font-weight: 600; border-radius: 7px; cursor: pointer; white-space: nowrap;
+  font-size: var(--fs-btn); font-weight: 600; border-radius: 7px; cursor: pointer; white-space: nowrap;
 }
 .btn-add { transition: background 0.2s ease, transform 0.12s ease; }
 .btn-add:hover:not(:disabled) { background: var(--accent-dim); }
@@ -262,7 +259,7 @@ function handleLaunch() {
   font-family: var(--font-epic); font-size-adjust: var(--fsa-epic); font-size: var(--fs-xs); font-weight: 600;
   letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); flex: none; min-width: 5.5em;
 }
-.resource-name { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: var(--fs-md); color: var(--text); }
+.resource-name { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: var(--fs-body); color: var(--text); }
 .resource-seal { flex: none; font-size: var(--fs-sm); font-weight: 600; padding: 0.12rem 0.5rem; border-radius: 999px; border: 1px solid transparent; }
 .resource-seal.ok { color: var(--success); background: var(--success-dim); }
 .resource-seal.missing { color: var(--warn); background: var(--warn-dim); border-color: var(--warn); cursor: pointer; }
@@ -273,7 +270,7 @@ function handleLaunch() {
 }
 .resource-remove:hover { background: var(--danger-dim); color: var(--danger); }
 
-.auth-hint { margin: 0; padding: 0.5rem 0.7rem; border-radius: 7px; font-size: var(--fs-md); color: var(--text-dim); background: var(--warn-dim); border: 1px solid var(--warn); }
+.auth-hint { margin: 0; padding: 0.5rem 0.7rem; border-radius: 7px; font-size: var(--fs-body); color: var(--text-dim); background: var(--warn-dim); border: 1px solid var(--warn); }
 
 .engine-row { display: flex; justify-content: flex-end; }
 .btn-launch {

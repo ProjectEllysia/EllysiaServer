@@ -1653,7 +1653,6 @@
       "title": "Exposición en la nube",
       "subtitle": "Comprueba qué dejan a la vista tus recursos en la nube y si algún subdominio se puede reclamar",
       "running": "Comprobando",
-      "hint": "Lybra pregunta, sin credenciales, si los buckets y bases de datos que declares dejan ver su contenido a cualquiera, y si algún subdominio apunta a un servicio que ya no existe y otra persona podría reclamar. No busca recursos por su cuenta: solo comprueba los que declaras.",
       "domain": "Dominio",
       "domainPlaceholder": "example.com",
       "domainInvalid": "Escribe un dominio, como «example.com».",
@@ -1702,7 +1701,6 @@
     "network": {
       "title": "Red",
       "subtitle": "Calcula cómo se movería un atacante entre los equipos de un rango",
-      "hint": "Un grupo es una red definida por su rango. Sus equipos son los que ya has escaneado y cuya dirección cae dentro, así que no hay que añadirlos a mano. Es útil cuando escaneas varias direcciones públicas de una misma organización, como un bloque de IP propio o los servidores de un proveedor: las redes internas (10.x, 192.168.x) no son alcanzables desde un despliegue en la nube.",
       "name": "Nombre",
       "namePlaceholder": "Oficina, DMZ, servidores…",
       "range": "Rango",

@@ -59,7 +59,6 @@ const visibleFigures = computed(() => (props.section.figures ?? [])
 
 <style scoped>
 .doc-section { scroll-margin-top: 5.5rem; }
-.doc-section + .doc-section { margin-top: 3.4rem; padding-top: 3rem; border-top: 1px solid var(--border-med); }
 
 .doc-heading {
   font-family: var(--font-display); font-size-adjust: var(--fsa-display);
