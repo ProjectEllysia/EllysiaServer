@@ -425,7 +425,7 @@ Aegis combines AI-generated awareness content with current alerts from the **INC
 | `POST` | `/acheron/vault` | Create the vault; on an existing one it is a **full replace** and requires `?mode=replace` + `If-Match` |
 | `PATCH` | `/acheron/vault` | Partial vault metadata update |
 | `GET` | `/acheron/generate-password` | Generate a random password server-side, tunable via query params |
-| `POST` | `/acheron/storables` | Add an `Account` or `CreditCard` |
+| `POST` | `/acheron/storables` | Add a storable: `Account`, `CreditCard`, `SecureNote`, `Identity`, `BankAccount`, `WifiNetwork` or `SoftwareLicense` |
 | `PATCH` | `/acheron/storables` | Bulk update only modified fields |
 | `DELETE` | `/acheron/storables` | Delete a Storable by `internalId` |
 
