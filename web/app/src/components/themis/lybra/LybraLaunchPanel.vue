@@ -239,14 +239,16 @@ function handleLaunch() {
 .pop-leave-to { opacity: 0; }
 
 /* ── Campos ── */
-/* Escala del panel: título en --fs-xl (el mismo que el lanzador de terceros),
-   y todo lo demás —subtítulo, etiquetas, encabezado del registro, avisos,
-   etiquetas de objetivo— en --fs-md. Todo lo que se escribe, en --fs-input, sea
-   el campo que sea: un mismo texto tecleado no cambia de tamaño según dónde. */
+/* Escala del panel, la misma en los tres de Lybra (Equipos, Nube y Red), por
+   papel y no por panel: título en --fs-xl, subtítulo en --fs-md, etiquetas de
+   campo en --fs-label, botones en --fs-btn, avisos y contenido de chips en
+   --fs-body, y el microtexto pegado a un campo (errores, pistas) en --fs-sm.
+   Todo lo que se escribe, en --fs-input, sea el campo que sea: un mismo texto
+   tecleado no cambia de tamaño según dónde. */
 .engine-fields { display: flex; flex-direction: column; gap: 0.8rem; }
 .field-row { display: flex; align-items: flex-end; gap: 0.6rem; flex-wrap: wrap; }
 .field { display: flex; flex-direction: column; gap: 0.25rem; flex: 1; min-width: 130px; }
-.field label { font-size: var(--fs-md); color: var(--text-muted); font-weight: 500; }
+.field label { font-size: var(--fs-label); color: var(--text-muted); font-weight: 500; }
 .field input, .field select { padding: 0.5rem 0.65rem; background: var(--surface-2); border: 1px solid var(--border-solid); border-radius: 6px; color: var(--text); font-size: var(--fs-input); outline: none; transition: border-color 0.2s; }
 .field input:focus, .field select:focus { border-color: var(--accent); }
 .field-lg { flex: 2; min-width: 200px; }
@@ -261,7 +263,7 @@ function handleLaunch() {
 .engine-row { display: flex; align-items: flex-end; gap: 0.9rem; flex-wrap: wrap; }
 .engine-row .field-sm { margin-right: auto; }
 
-.btn-launch { height: 36px; padding: 0 1.2rem 0 1rem; background: var(--accent); border: 1px solid var(--accent); color: var(--on-accent); font-weight: 600; font-size: var(--fs-lg); border-radius: 7px; cursor: pointer; display: flex; align-items: center; gap: 0.35rem; transition: all 0.2s; white-space: nowrap; position: relative; }
+.btn-launch { height: 36px; padding: 0 1.2rem 0 1rem; background: var(--accent); border: 1px solid var(--accent); color: var(--on-accent); font-weight: 600; font-size: var(--fs-btn); border-radius: 7px; cursor: pointer; display: flex; align-items: center; gap: 0.35rem; transition: all 0.2s; white-space: nowrap; position: relative; }
 .btn-launch:hover:not(:disabled) { background: var(--accent-bright); border-color: var(--accent-bright); }
 .btn-launch:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn-launch { gap: 0.5rem; }
@@ -297,7 +299,7 @@ function handleLaunch() {
 }
 .target-seal.missing:hover { background: var(--accent); color: var(--on-accent); border-style: solid; }
 .target-seal.missing:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.auth-hint { margin: -0.35rem 0 0; font-size: var(--fs-md); color: var(--warn); }
+.auth-hint { margin: -0.35rem 0 0; font-size: var(--fs-body); color: var(--warn); }
 .fade-swap-enter-active, .fade-swap-leave-active { transition: opacity 0.18s ease; }
 .fade-swap-enter-from, .fade-swap-leave-to { opacity: 0; }
 .panel-slide-enter-active, .panel-slide-leave-active { transition: all 0.25s ease; overflow: hidden; }
@@ -325,14 +327,14 @@ function handleLaunch() {
 .auth-register-toggle .chevron svg { width: 13px; height: 13px; }
 .auth-register-toggle .chevron.rot { transform: rotate(90deg); }
 .auth-register-body { padding-top: 0.6rem; display: flex; flex-direction: column; gap: 0.55rem; }
-.auth-register-hint { margin: 0; font-size: var(--fs-md); color: var(--text-muted); line-height: 1.4; }
-.auth-loading, .auth-empty { font-size: var(--fs-md); color: var(--text-muted); }
+.auth-register-hint { margin: 0; font-size: var(--fs-body); color: var(--text-muted); line-height: 1.4; }
+.auth-loading, .auth-empty { font-size: var(--fs-body); color: var(--text-muted); }
 
 .auth-chip-list { position: relative; list-style: none; display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0; padding: 0; }
 .auth-chip {
   display: flex; align-items: center; gap: 0.4rem;
   padding: 0.25rem 0.3rem 0.25rem 0.6rem; background: var(--surface-2); border: 1px solid var(--border-solid);
-  border-radius: 999px; font-size: var(--fs-md); color: var(--text);
+  border-radius: 999px; font-size: var(--fs-body); color: var(--text);
 }
 /* Misma familia que .doc-item/.finding-item de LybraResults.vue: la etiqueta
    nueva entra con un fundido y las demás se recolocan; al quitar una, sale
@@ -368,7 +370,7 @@ function handleLaunch() {
 .auth-add-row input:focus { border-color: var(--accent); }
 .btn-add-target {
   padding: 0.4rem 0.8rem; background: var(--surface-2); border: 1px solid var(--accent); color: var(--accent-bright);
-  font-size: var(--fs-md); font-weight: 600; border-radius: 6px; cursor: pointer; transition: all 0.2s; white-space: nowrap;
+  font-size: var(--fs-btn); font-weight: 600; border-radius: 6px; cursor: pointer; transition: all 0.2s; white-space: nowrap;
 }
 .btn-add-target:hover:not(:disabled) { background: var(--accent-dim); }
 .btn-add-target:disabled { opacity: 0.4; cursor: not-allowed; }
