@@ -1204,8 +1204,12 @@ def _nuclei_default_template_locations() -> tuple[Path, ...]:
     en una constante se congelaría al importar, y entonces ni un test podría
     simular otro ``HOME`` ni un worker heredaría un entorno distinto al del
     proceso que lo importó. En la imagen Docker esto resuelve a
-    ``/root/.local/nuclei-templates``, que es donde el ``nuclei -update-templates``
-    del Dockerfile las deja.
+    ``/root/nuclei-templates``, que es donde el ``nuclei -update-templates``
+    del Dockerfile las deja; ``~/.local/nuclei-templates`` cubre las
+    instalaciones que usan esa otra ubicación.
+
+    Returns:
+        tuple[Path, ...]: Las ubicaciones candidatas, en orden de preferencia.
     """
     home = Path.home()
     return (home / ".local" / "nuclei-templates", home / "nuclei-templates")
