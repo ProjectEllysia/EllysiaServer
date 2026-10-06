@@ -3818,5 +3818,58 @@
     },
     "confirmOpen": "Vas a abrir al público:\n{surfaces}\n\n¿Continuar?",
     "confirmOpenNothing": "Vas a pasar a «Abierto al público», pero todos los interruptores están apagados: no se abrirá nada. ¿Continuar?"
+  },
+  "seo": {
+    "siteName": "Ellysia",
+    "pages": {
+      "landing": {
+        "title": "Ellysia · Escáner de vulnerabilidades, phishing y bóveda cifrada",
+        "description": "Cinco herramientas de ciberseguridad: escaneo de vulnerabilidades, detección de phishing, concienciación, bóveda de contraseñas cifrada y monitorización de servidores."
+      },
+      "themis": {
+        "title": "Themis · Escáner de vulnerabilidades con Nmap, Nikto y Nuclei | Ellysia",
+        "description": "Themis escanea dominios e IP con su motor propio Lybra y con Nmap, Nikto y Nuclei, y entrega informes de vulnerabilidades redactados por IA."
+      },
+      "aegis": {
+        "title": "Aegis · Píldoras de concienciación en ciberseguridad | Ellysia",
+        "description": "Aegis genera boletines de concienciación en seguridad con IA, con un breve cuestionario, y los envía por correo a tu equipo para medir qué se ha entendido."
+      },
+      "iris": {
+        "title": "Iris · Detección de phishing en cabeceras de correo | Ellysia",
+        "description": "Iris analiza las cabeceras de un correo (SPF, DKIM, DMARC y rutas de entrega) para detectar suplantación y phishing con reglas de verificación explicables."
+      },
+      "acheron": {
+        "title": "Acheron · Bóveda de contraseñas con cifrado en el navegador | Ellysia",
+        "description": "Acheron guarda credenciales y tarjetas en una bóveda zero-knowledge: el cifrado ocurre en tu navegador y el servidor nunca ve tu contraseña maestra."
+      },
+      "hygeia": {
+        "title": "Hygeia · Monitorización de servidores con agentes ligeros | Ellysia",
+        "description": "Hygeia recoge la telemetría de hardware de tus servidores con un agente ligero, detecta anomalías con umbrales y avisa por correo de lo crítico."
+      },
+      "plans": {
+        "title": "Planes y precios | Ellysia",
+        "description": "Compara los planes de Ellysia: empieza gratis, sin tarjeta, y amplía el cupo de escaneos, activos y bóvedas cuando lo necesites."
+      },
+      "about": {
+        "title": "Sobre Ellysia | Proyecto personal de ciberseguridad",
+        "description": "Qué es Ellysia, quién está detrás y por qué existe: un proyecto personal para construir y probar herramientas de ciberseguridad."
+      },
+      "privacy": {
+        "title": "Privacidad | Ellysia",
+        "description": "Qué datos trata Ellysia de quien visita la web, con qué fin y cómo ejercer tus derechos."
+      },
+      "terms": {
+        "title": "Términos de uso | Ellysia",
+        "description": "Condiciones de uso de Ellysia y de sus herramientas de análisis de seguridad, incluido el uso responsable de los escáneres."
+      },
+      "docsUsage": {
+        "title": "Documentación de uso | Ellysia",
+        "description": "Guías paso a paso para usar las herramientas de Ellysia: lanzar un escaneo, analizar un correo o abrir una bóveda."
+      },
+      "docsTechnical": {
+        "title": "Documentación técnica | Ellysia",
+        "description": "Arquitectura, API e integración de Ellysia para quien quiera desplegarla o conectar sus herramientas."
+      }
+    }
   }
 }

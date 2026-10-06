@@ -5,6 +5,11 @@ import { ensureLaunchStateLoaded, useLaunch } from '@/composables/useLaunch'
 /**
  * Configuración de rutas de la SPA.
  *
+ * `meta.seo` marca las páginas públicas que deben indexarse y nombra sus
+ * textos en `seo.pages.<clave>` del diccionario (ver `useSeo`). Una ruta sin
+ * ella lleva `noindex`. Las que la tienen están también en
+ * `public/sitemap.xml`.
+ *
  * Cada ruta corresponde a una vista (página) que se carga bajo demanda
  * mediante lazy loading (`() => import(...)`). El guard de navegación
  * (`beforeEach`) protege las rutas que requieren autenticación y redirige
@@ -17,6 +22,7 @@ const routes = [
     path: '/',
     name: 'Landing',
     component: () => import('@/views/public/LandingView.vue'),
+    meta: { seo: 'landing' },
     // Pública: es la portada de ellysia.es. Si hay sesión, muestra los
     // accesos directos a las herramientas; si no, invita a entrar.
   },
@@ -33,6 +39,7 @@ const routes = [
     path: '/themis',
     name: 'ThemisHub',
     component: () => import('@/views/themis/ThemisHubView.vue'),
+    meta: { seo: 'themis' },
   },
   {
     path: '/themis/escaneos',
@@ -44,6 +51,7 @@ const routes = [
     path: '/aegis',
     name: 'AegisHub',
     component: () => import('@/views/aegis/AegisHubView.vue'),
+    meta: { seo: 'aegis' },
   },
   {
     path: '/aegis/generador',
@@ -74,6 +82,7 @@ const routes = [
     path: '/iris',
     name: 'IrisHub',
     component: () => import('@/views/iris/IrisHubView.vue'),
+    meta: { seo: 'iris' },
   },
   {
     path: '/iris/analisis',
@@ -103,6 +112,7 @@ const routes = [
     path: '/acheron',
     name: 'AcheronHub',
     component: () => import('@/views/acheron/AcheronHubView.vue'),
+    meta: { seo: 'acheron' },
   },
   {
     path: '/acheron/boveda',
@@ -114,6 +124,7 @@ const routes = [
     path: '/hygeia',
     name: 'HygeiaHub',
     component: () => import('@/views/hygeia/HygeiaHubView.vue'),
+    meta: { seo: 'hygeia' },
   },
   {
     path: '/hygeia/activos',
@@ -146,7 +157,7 @@ const routes = [
     path: '/planes',
     name: 'Plans',
     component: () => import('@/views/accounts/PlansView.vue'),
-    meta: { surface: 'pricing' },
+    meta: { surface: 'pricing', seo: 'plans' },
   },
   {
     path: '/mi-plan',
@@ -211,16 +222,19 @@ const routes = [
     path: '/sobre',
     name: 'Sobre',
     component: () => import('@/views/public/AboutView.vue'),
+    meta: { seo: 'about' },
   },
   {
     path: '/privacidad',
     name: 'Privacidad',
     component: () => import('@/views/public/PrivacyView.vue'),
+    meta: { seo: 'privacy' },
   },
   {
     path: '/terminos',
     name: 'Terminos',
     component: () => import('@/views/public/TermsView.vue'),
+    meta: { seo: 'terms' },
   },
   // Documentación (enlazada desde el desplegable "Documentación" del header
   // de la landing). Misma vista genérica para ambas — el contenido real se
@@ -230,13 +244,13 @@ const routes = [
     name: 'DocsUsage',
     component: () => import('@/views/public/DocsPlaceholderView.vue'),
     // Título y entradilla en `docs.usage` del diccionario.
-    meta: { docKey: 'usage' },
+    meta: { docKey: 'usage', seo: 'docsUsage' },
   },
   {
     path: '/docs/tecnica',
     name: 'DocsTechnical',
     component: () => import('@/views/public/DocsPlaceholderView.vue'),
-    meta: { docKey: 'technical' },
+    meta: { docKey: 'technical', seo: 'docsTechnical' },
   },
   {
     path: '/config',

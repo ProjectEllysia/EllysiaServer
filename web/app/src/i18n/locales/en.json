@@ -3818,5 +3818,58 @@
     },
     "confirmOpen": "You are about to open to the public:\n{surfaces}\n\nContinue?",
     "confirmOpenNothing": "You are switching to “Open to the public”, but every switch is off: nothing will open. Continue?"
+  },
+  "seo": {
+    "siteName": "Ellysia",
+    "pages": {
+      "landing": {
+        "title": "Ellysia · Vulnerability scanner, phishing checks and encrypted vault",
+        "description": "Five cybersecurity tools: vulnerability scanning, phishing detection, security awareness, an encrypted password vault and server monitoring."
+      },
+      "themis": {
+        "title": "Themis · Vulnerability scanner with Nmap, Nikto and Nuclei | Ellysia",
+        "description": "Themis scans domains and IPs with its own Lybra engine alongside Nmap, Nikto and Nuclei, and delivers AI-written vulnerability reports."
+      },
+      "aegis": {
+        "title": "Aegis · Cybersecurity awareness bulletins | Ellysia",
+        "description": "Aegis generates AI security awareness bulletins with a short quiz and emails them to your team to measure what was understood."
+      },
+      "iris": {
+        "title": "Iris · Phishing detection from email headers | Ellysia",
+        "description": "Iris analyses email headers (SPF, DKIM, DMARC and delivery path) to detect spoofing and phishing with explainable verification rules."
+      },
+      "acheron": {
+        "title": "Acheron · Password vault encrypted in your browser | Ellysia",
+        "description": "Acheron keeps credentials and cards in a zero-knowledge vault: encryption happens in your browser and the server never sees your master password."
+      },
+      "hygeia": {
+        "title": "Hygeia · Server monitoring with lightweight agents | Ellysia",
+        "description": "Hygeia collects hardware telemetry from your servers with a lightweight agent, detects anomalies with thresholds and emails you about critical ones."
+      },
+      "plans": {
+        "title": "Plans and pricing | Ellysia",
+        "description": "Compare Ellysia plans: start free with no card, and raise your quota of scans, assets and vaults when you need it."
+      },
+      "about": {
+        "title": "About Ellysia | A personal cybersecurity project",
+        "description": "What Ellysia is, who is behind it and why it exists: a personal project to build and test cybersecurity tools."
+      },
+      "privacy": {
+        "title": "Privacy | Ellysia",
+        "description": "What data Ellysia processes about website visitors, for what purpose and how to exercise your rights."
+      },
+      "terms": {
+        "title": "Terms of use | Ellysia",
+        "description": "Terms of use for Ellysia and its security analysis tools, including responsible use of the scanners."
+      },
+      "docsUsage": {
+        "title": "Usage documentation | Ellysia",
+        "description": "Step-by-step guides to Ellysia tools: launching a scan, analysing an email or opening a vault."
+      },
+      "docsTechnical": {
+        "title": "Technical documentation | Ellysia",
+        "description": "Ellysia architecture, API and integration for anyone who wants to deploy it or connect its tools."
+      }
+    }
   }
 }

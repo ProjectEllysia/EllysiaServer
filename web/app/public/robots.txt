@@ -1,0 +1,32 @@
+# Las páginas públicas de Ellysia son la portada, los hubs de cada herramienta,
+# los planes y las páginas informativas: todas están en el sitemap. El resto
+# son vistas con sesión o aterrizajes de enlaces con token, sin nada que indexar.
+User-agent: *
+Disallow: /login
+Disallow: /quiz
+Disallow: /verificar
+Disallow: /invitacion
+Disallow: /recuperar
+Disallow: /no-disponible
+Disallow: /error/
+Disallow: /mi-plan
+Disallow: /organizacion
+Disallow: /admin/
+Disallow: /config
+Disallow: /logs
+Disallow: /base-de-conocimiento
+Disallow: /profile
+Disallow: /usuarios
+Disallow: /queue
+Disallow: /themis/
+Disallow: /aegis/
+Disallow: /iris/
+Disallow: /acheron/
+Disallow: /hygeia/
+Disallow: /system
+Disallow: /oauth/
+Disallow: /users
+Disallow: /plans
+Disallow: /organizations
+
+Sitemap: https://www.ellysia.es/sitemap.xml
