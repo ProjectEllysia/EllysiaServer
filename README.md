@@ -690,8 +690,11 @@ cd <checkout> && \
 git fetch origin && \
 git reset --hard origin/main && \
 docker compose --profile container up -d --build && \
-docker image prune -f
+docker image prune -f && \
+docker builder prune -f --filter until=168h
 ```
+
+`image prune` removes the images left without a tag; the BuildKit build cache is separate and grows with every build, so the last command trims whatever has gone unused for a week. The API and the worker run the same image (`ellysia-api:latest`): compose builds it once, from the `ellysia` service, and the worker references it by name.
 
 Then it polls the public health endpoint `https://<host>/system/say-hello` as a smoke test and fails the run if the API does not answer within a few minutes.
 
@@ -962,7 +965,7 @@ Iris also needs `IRIS_RAW_MESSAGE_ENCRYPTION_KEY`, which is **not** listed above
 | Layer | Technology |
 |---|---|
 | Backend | Python 3.10+ (3.11 in the container), Flask 3.0, SQLAlchemy 2.0, Flask-Smorest |
-| WSGI | Gunicorn (container entrypoint, `run:create_app()`) |
+| WSGI | Gunicorn (container entrypoint, `run:create_api_app()`) |
 | Schema management | Alembic (versioned migrations) |
 | Database | PostgreSQL 16 (via psycopg2) |
 | Task queue | RQ + Redis 7 |

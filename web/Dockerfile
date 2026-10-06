@@ -17,11 +17,15 @@ COPY app/package.json app/pnpm-lock.yaml app/.npmrc app/pnpm-workspace.yaml ./
 # Se escribe con `pnpm config set` y no con ${NODE_AUTH_TOKEN} en el .npmrc
 # porque pnpm NO expande variables de entorno ahi; enviaria la cadena literal
 # y recibiria un 401. Se borra al terminar para no dejarlo en la capa.
+#
+# El store de pnpm vive en un montaje de caché de BuildKit: el siguiente build
+# reutiliza los paquetes ya descargados y el store no acaba en ninguna capa.
 RUN --mount=type=secret,id=node_auth_token \
+    --mount=type=cache,target=/pnpm/store \
     npm install -g pnpm@11.10.0 \
  && pnpm config set '//npm.pkg.github.com/:_authToken' \
       "$(cat /run/secrets/node_auth_token)" \
- && pnpm install --frozen-lockfile --trust-lockfile \
+ && pnpm install --frozen-lockfile --trust-lockfile --store-dir /pnpm/store \
  && pnpm config delete '//npm.pkg.github.com/:_authToken'
 
 COPY app/ .

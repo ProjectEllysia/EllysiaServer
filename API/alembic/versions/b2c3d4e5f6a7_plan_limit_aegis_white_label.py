@@ -16,6 +16,7 @@ Create Date: 2026-08-27
 """
 from typing import Sequence, Union
 
+import sqlalchemy as sa
 from alembic import op
 
 
@@ -31,7 +32,26 @@ _LIMIT_KEY = "aegis.white_label"
 _VALUES: dict[str, int] = {"freemium": 0, "bronze": 1, "silver": 2, "gold": 3}
 
 
+def _has_plan_limit_table() -> bool:
+    """
+    Indica si la tabla ``PlanLimit`` existe ya en la base de datos.
+
+    Esta revision cuelga de ``a1b2c3d4e5f6``, muy al principio de la cadena, y
+    se reune con el resto en ``baf6f0e7fd8c``. En una base vacia Alembic la
+    ejecuta antes que la migracion de siembra que crea ``PlanLimit``; en ese
+    caso no hay nada que completar, porque la siembra ya incluye la fila de
+    ``aegis.white_label``.
+
+    Returns:
+        bool: ``True`` si la tabla existe y hay que insertar las filas que
+            falten; ``False`` en una base que aun no la tiene.
+    """
+    return sa.inspect(op.get_bind()).has_table("PlanLimit")
+
+
 def upgrade() -> None:
+    if not _has_plan_limit_table():
+        return
     # Idempotente: en una base recien creada la siembra ya puso la fila, y esta
     # migracion corre despues sin duplicarla.
     for code, value in _VALUES.items():
@@ -52,4 +72,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    if not _has_plan_limit_table():
+        return
     op.execute(f"""DELETE FROM "PlanLimit" WHERE limit_key = '{_LIMIT_KEY}'""")

@@ -142,6 +142,9 @@ services:
     build:
       context: ./API
       dockerfile: Dockerfile
+    # El worker arranca esta misma imagen con otro comando: se construye una
+    # sola vez, aquí, y el worker la referencia por su nombre.
+    image: ellysia-api:latest
     container_name: Ellysia-API
     restart: unless-stopped
     env_file:
@@ -188,9 +191,8 @@ services:
         max-file: "3"
 
   ellysia-worker:
-    build:
-      context: ./API
-      dockerfile: Dockerfile
+    image: ellysia-api:latest
+    pull_policy: never
     container_name: Ellysia-Worker
     restart: unless-stopped
     env_file:
