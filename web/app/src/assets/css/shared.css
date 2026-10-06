@@ -103,13 +103,22 @@
      tamaños fijos anteriores, así que en escritorio nada se mueve.
 
      --fs-scale es el mando maestro: un solo número sube o baja TODA la
-     escala sin tocar los 91 componentes. 1.05 = todo un 5% más grande. */
+     escala sin tocar los 91 componentes. 1.05 = todo un 5% más grande.
+
+     Los tres escalones de abajo (xs, sm, body) son los que más se usan
+     para leer, y la letra del cuerpo (Alegreya Sans) tiene la x baja: por
+     eso ninguno baja de 12px, y entre ellos el salto es corto (~1,1-1,2)
+     para que entre una etiqueta y su texto no haya un abismo. El texto
+     corrido va en `body`; `md` es para lo que se enfatiza (botones,
+     entradas de formulario), no para párrafos.
+     test/typeScale.test.mjs fija las tres reglas: mínimo, saltos y que
+     ningún componente escriba un tamaño a mano en vez de usar un token. */
   --fs-scale:     1;
 
-  --fs-xs:        calc(var(--fs-scale) * clamp(0.68rem, 0.67rem + 0.04vw, 0.70rem));  /* badges, pie fino */
-  --fs-sm:        calc(var(--fs-scale) * clamp(0.79rem, 0.78rem + 0.05vw, 0.82rem));  /* captions, labels */
-  --fs-body:      calc(var(--fs-scale) * clamp(0.94rem, 0.92rem + 0.07vw, 0.98rem));  /* cuerpo base */
-  --fs-md:        calc(var(--fs-scale) * clamp(1.04rem, 1.00rem + 0.15vw, 1.125rem)); /* cuerpo enfatizado, botones */
+  --fs-xs:        calc(var(--fs-scale) * clamp(0.75rem, 0.74rem + 0.05vw, 0.78rem));  /* badges, pie fino */
+  --fs-sm:        calc(var(--fs-scale) * clamp(0.84rem, 0.83rem + 0.06vw, 0.875rem)); /* captions, labels */
+  --fs-body:      calc(var(--fs-scale) * clamp(0.97rem, 0.94rem + 0.11vw, 1.03rem));  /* párrafos, textos de ayuda, subtítulos */
+  --fs-md:        calc(var(--fs-scale) * clamp(1.04rem, 1.00rem + 0.15vw, 1.125rem)); /* énfasis: botones, entradas de formulario */
   --fs-lg:        calc(var(--fs-scale) * clamp(1.16rem, 1.10rem + 0.27vw, 1.31rem));  /* títulos de tarjeta */
   --fs-xl:        calc(var(--fs-scale) * clamp(1.32rem, 1.21rem + 0.48vw, 1.59rem));  /* h3 de modal, estadísticas */
   --fs-2xl:       calc(var(--fs-scale) * clamp(1.50rem, 1.34rem + 0.66vw, 1.875rem)); /* h1 de vista */

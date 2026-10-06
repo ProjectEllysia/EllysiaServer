@@ -90,7 +90,7 @@ const toast = useToastStore()
   display: grid; place-items: center;
   padding: 0; border: 0; border-radius: 50%;
   background: transparent; color: var(--text-muted);
-  font-size: 1.35rem; line-height: 1; cursor: pointer;
+  font-size: var(--fs-lg); line-height: 1; cursor: pointer;
   transition: color 0.2s, background-color 0.2s;
 }
 

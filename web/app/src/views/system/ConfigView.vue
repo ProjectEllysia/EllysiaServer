@@ -820,7 +820,7 @@ async function handleSave() {
 .color-inp { padding: 0.15rem; height: 2.1rem; cursor: pointer; }
 .toggle-row { display: flex; align-items: center; gap: 0.4rem; cursor: pointer; font-size: var(--fs-lg); font-weight: 500; color: var(--text); }
 .toggle { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
-.field-hint { font-size: var(--fs-md); color: var(--text-muted); line-height: 1.5; }
+.field-hint { font-size: var(--fs-body); color: var(--text-muted); line-height: 1.5; }
 .field-hint code { font-family: var(--font-mono); font-size-adjust: var(--fsa-mono); font-size: var(--fs-md); background: var(--surface-2); padding: 1px 4px; border-radius: 3px; color: var(--text-dim); }
 /* Barra flotante, no una tarjeta más: con `--surface` y `--border` era idéntica
    a los `.section-body` por encima de los que pasa, y al solaparse parecía una

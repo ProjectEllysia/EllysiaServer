@@ -652,6 +652,7 @@ npm run test:themis       # scan-window + Lybra finding-site labels + finding so
 npm run test:i18n         # languages: date/number formatting, API error translation, language-file checks and guards
 npm run test:seo          # sitemap, robots.txt, routes with meta.seo and their per-page titles and descriptions stay in step
 npm run test:docs         # technical documentation: inline formatting, same sections/blocks/figures in every language, one route per page
+npm run test:type-scale   # type scale: no text step below 12px, steps 1.05–1.25 apart, no hand-written font sizes in components
 ```
 
 The SPA is ready for more languages: each one is a file in `web/app/src/i18n/locales/` (`es.json` is the default; `en.json` covers the whole interface, and CI fails if a key is added to `es.json` without it). Adding a file makes the language appear in the selector; the rules and the recipe are in `CONVENCIONES.md` §12.5.

@@ -573,7 +573,7 @@ onMounted(async () => {
 .state {
   margin-top: 1.2rem; padding: 1rem 1.1rem; border-radius: 8px;
   background: var(--bg); border: 1px solid var(--border-med);
-  color: var(--text-muted); font-size: var(--fs-md); line-height: 1.6;
+  color: var(--text-muted); font-size: var(--fs-body); line-height: 1.6;
 }
 .state--error { border-color: var(--danger); color: var(--text); }
 .state code {
