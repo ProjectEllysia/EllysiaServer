@@ -398,7 +398,7 @@
     "modules": {
       "themis": "Weighs every threat before it strikes: its own engine, classic scanners, AI reports.",
       "aegis": "Awareness that arrives before the attack: AI pills and tracked campaigns.",
-      "iris": "Verifies who signs every email: 37 rules against phishing.",
+      "iris": "Verifies who signs every email: 47 rules against phishing.",
       "acheron": "Keeps what must not be lost: a vault encrypted in your browser.",
       "hygeia": "Watches the pulse of every asset: live telemetry and alerts before failure."
     }
@@ -2680,14 +2680,14 @@
     "empty": "You have not examined any email yet. Drop an .eml and start.",
     "highlight": {
       "label": "The verification",
-      "value": "37 rules",
+      "value": "47 rules",
       "sub": "against phishing in every email"
     },
     "features": {
       "rules": {
-        "kicker": "37 rules",
+        "kicker": "47 rules",
         "title": "The email's signature, under examination",
-        "desc": "SPF, DKIM, DMARC, sender spoofing and delivery route anomalies: every header testifies, and the 37 rules listen."
+        "desc": "SPF, DKIM, DMARC, sender spoofing and delivery route anomalies: every header testifies, and the 47 rules listen."
       },
       "quishing": {
         "kicker": "Quishing",

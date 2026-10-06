@@ -398,7 +398,7 @@
     "modules": {
       "themis": "Pesa cada amenaza antes de que golpee: motor propio, escáneres clásicos, informes IA.",
       "aegis": "Concienciación que llega antes que el ataque: píldoras IA y campañas con seguimiento.",
-      "iris": "Verifica quién firma cada correo: 37 reglas contra el phishing.",
+      "iris": "Verifica quién firma cada correo: 47 reglas contra el phishing.",
       "acheron": "Guarda lo que no debe perderse: bóveda cifrada en tu navegador.",
       "hygeia": "Vigila el pulso de cada activo: telemetría en vivo y alertas antes del fallo."
     }
@@ -2680,14 +2680,14 @@
     "empty": "Todavía no has examinado ningún correo. Arrastra un .eml y empieza.",
     "highlight": {
       "label": "La verificación",
-      "value": "37 reglas",
+      "value": "47 reglas",
       "sub": "contra el phishing en cada correo"
     },
     "features": {
       "rules": {
-        "kicker": "37 reglas",
+        "kicker": "47 reglas",
         "title": "La firma del correo, a examen",
-        "desc": "SPF, DKIM, DMARC, suplantación de remitente y anomalías en la ruta de entrega: cada cabecera declara, y las 37 reglas escuchan."
+        "desc": "SPF, DKIM, DMARC, suplantación de remitente y anomalías en la ruta de entrega: cada cabecera declara, y las 47 reglas escuchan."
       },
       "quishing": {
         "kicker": "Quishing",
