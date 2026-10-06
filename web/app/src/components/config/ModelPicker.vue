@@ -94,7 +94,7 @@ function pick(value) { emit('update:modelValue', value) }
 .sel { cursor: pointer; appearance: none; -webkit-appearance: none; padding-right: 1.8rem; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2382829a' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.55rem center; background-size: 0.85rem; }
 .sel option { background: var(--surface-2); color: var(--text); }
 .mono { font-family: var(--font-mono); font-size-adjust: var(--fsa-mono); }
-.field-hint { font-size: var(--fs-md); color: var(--text-muted); line-height: 1.5; }
+.field-hint { font-size: var(--fs-body); color: var(--text-muted); line-height: 1.5; }
 
 .mp-foot { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; }
 .field-hint--warn { color: var(--warning, #d0a215); }

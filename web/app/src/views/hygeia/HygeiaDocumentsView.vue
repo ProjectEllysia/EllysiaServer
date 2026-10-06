@@ -188,7 +188,7 @@ onUnmounted(() => clearInterval(ageTimer))
 
 .head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.2rem; }
 .head-title { margin: 0 0 0.3rem; font-size: var(--fs-2xl); font-weight: 600; color: var(--text); }
-.head-sub { margin: 0; max-width: 60ch; font-size: var(--fs-md); color: var(--text-muted); line-height: 1.5; }
+.head-sub { margin: 0; max-width: 60ch; font-size: var(--fs-body); color: var(--text-muted); line-height: 1.5; }
 
 .btn-secondary {
   padding: 0.4rem 0.85rem; border-radius: 6px; font-size: var(--fs-md); font-weight: 600; cursor: pointer;

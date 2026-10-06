@@ -180,7 +180,7 @@ function toggle(groupId) {
 
 .note { margin: 0; font-size: var(--fs-md); color: var(--text-muted); }
 .note.error { color: var(--danger); }
-.empty { padding: 1.6rem 1rem; text-align: center; font-size: var(--fs-md); color: var(--text-muted); background: var(--surface); border: 1px dashed var(--border-solid); border-radius: 12px; line-height: 1.5; }
+.empty { padding: 1.6rem 1rem; text-align: center; font-size: var(--fs-body); color: var(--text-muted); background: var(--surface); border: 1px dashed var(--border-solid); border-radius: 12px; line-height: 1.5; }
 
 .groups { position: relative; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
 .group { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; transition: border-color 0.2s ease; }

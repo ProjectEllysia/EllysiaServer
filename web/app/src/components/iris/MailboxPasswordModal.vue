@@ -59,7 +59,7 @@ async function save() {
 .modal-box { width: min(420px, 100%); background: var(--surface); border: 1px solid var(--border-med); border-radius: 12px; padding: 1.2rem 1.3rem; }
 .modal-header { display: flex; justify-content: space-between; align-items: center; }
 .modal-header h3 { margin: 0; color: var(--text); }
-.close-btn { background: none; border: none; color: var(--text-muted); font-size: 1.4rem; cursor: pointer; }
+.close-btn { background: none; border: none; color: var(--text-muted); font-size: var(--fs-lg); cursor: pointer; }
 .modal-sub { font-size: var(--fs-sm); color: var(--text-dim); line-height: 1.5; }
 .field { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 1rem; font-size: var(--fs-sm); color: var(--text-dim); }
 .field input { padding: 0.5rem 0.65rem; border: 1px solid var(--border-med); border-radius: 8px; background: var(--surface-2); color: var(--text); }

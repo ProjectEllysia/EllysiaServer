@@ -71,7 +71,7 @@ function dismiss() {
   flex-shrink: 0;
   width: 1.6rem; height: 1.6rem; border-radius: 50%;
   border: none; background: none; color: var(--text-muted);
-  font-size: 1.15rem; line-height: 1; cursor: pointer;
+  font-size: var(--fs-md); line-height: 1; cursor: pointer;
 }
 .preview-close:hover { background: var(--surface-2); color: var(--text); }
 .preview-banner-enter-active, .preview-banner-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
