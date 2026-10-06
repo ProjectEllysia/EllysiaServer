@@ -1,0 +1,189 @@
+{
+  "title": "Themis",
+  "lede": "El escáner de vulnerabilidades de Ellysia: cómo descubre lo que expone un equipo, cómo decide qué es un problema real y cómo sigue ese problema en el tiempo hasta que se corrige.",
+  "sections": [
+    {
+      "id": "vision-general",
+      "heading": "Qué es Themis",
+      "blocks": [
+        { "type": "p", "text": "Themis analiza equipos y dominios desde fuera, como lo haría un atacante, y devuelve una lista de **hallazgos**: cada cosa que encuentra mal, con su gravedad, su evidencia y cómo corregirla. No se queda en la foto de un día: guarda cada hallazgo y, en el escaneo siguiente del mismo objetivo, sabe si sigue ahí, si se ha corregido o si ha vuelto." },
+        { "type": "p", "text": "Para hacerlo combina cuatro escáneres. Tres son herramientas conocidas de código abierto que Themis ejecuta y lee; el cuarto, **Lybra**, es un motor propio escrito para Ellysia, y es el que hace la mayor parte del trabajo de fondo: identificar el software, cruzarlo con las vulnerabilidades publicadas y descartar las que no aplican." },
+        { "type": "terms", "items": [
+          { "term": "Nmap", "text": "Descubre qué puertos tiene abiertos un equipo y qué servicio responde en cada uno. Admite rangos de red completos." },
+          { "term": "Nikto", "text": "Revisa servidores web en busca de configuraciones peligrosas y ficheros que no deberían estar publicados." },
+          { "term": "Nuclei", "text": "Lanza plantillas de detección escritas por la comunidad contra un único equipo por escaneo." },
+          { "term": "Lybra", "text": "El motor propio: descubre puertos, identifica el software, confirma vulnerabilidades con pruebas activas y las prioriza según su contexto." }
+        ] },
+        { "type": "p", "text": "Los cuatro escriben sus resultados en el mismo modelo de hallazgo. Eso permite que un mismo problema detectado por dos escáneres se cuente una sola vez, y que el historial de un equipo no dependa de con qué herramienta se escaneó cada vez." }
+      ]
+    },
+    {
+      "id": "recorrido",
+      "heading": "El recorrido de un escaneo",
+      "blocks": [
+        { "type": "p", "text": "Un escaneo no se ejecuta dentro de la petición que lo pide. La API lo valida, lo deja en una cola y responde enseguida; el trabajo lo hace después un proceso aparte. Así un escaneo de varios minutos no bloquea la web, y sobrevive a un reinicio del servidor." },
+        { "type": "steps", "items": [
+          { "title": "Validación del objetivo", "text": "Se comprueba que el objetivo tiene una forma válida (una IP, un rango, un dominio) y que no es una dirección privada: un escáner que acepta cualquier dirección puede usarse para explorar la red interna del propio servidor." },
+          { "title": "Cupo del plan", "text": "Cada plan tiene un número de escaneos por periodo, contado aparte para Lybra y para las herramientas de terceros. Si se ha agotado, la petición se rechaza antes de crear nada." },
+          { "title": "Encolado", "text": "Se crea el registro del escaneo en estado `pending` y se envía un trabajo a la cola de tareas, guardada en Redis. La API devuelve el identificador del escaneo para poder seguirlo." },
+          { "title": "Ejecución en el worker", "text": "Un proceso worker, separado de la API, recoge el trabajo y lanza el escáner. Las herramientas externas se ejecutan como procesos del sistema; Lybra corre como código Python dentro del propio worker. El progreso se publica a medida que avanza." },
+          { "title": "Correlación y guardado", "text": "Los resultados se normalizan, se comparan con el escaneo anterior del mismo objetivo para decidir el estado de cada hallazgo, se priorizan y se guardan." },
+          { "title": "Informe", "text": "A partir de ahí se puede pedir un informe PDF, que también se genera en segundo plano." }
+        ] },
+        { "type": "p", "text": "Un escaneo se puede **cancelar** mientras corre. La cancelación es cooperativa: la API deja una marca que el worker consulta entre fase y fase, y si el escáner es un programa externo se termina su proceso junto con todos los que haya lanzado. Si un escaneo agota su tiempo máximo, no se pierde: cada fase de Lybra mira el reloj, se detiene a tiempo y el escaneo termina marcado como **parcial**, con lo que llegó a ver." },
+        { "type": "callout", "text": "Cuando un escaneo falla, guarda el motivo (`host_unreachable`, `port_discovery_failed`, `timeout`…) para distinguir un objetivo que nunca contestó de un error del propio motor." }
+      ]
+    },
+    {
+      "id": "capas-de-lybra",
+      "heading": "Lybra por capas",
+      "blocks": [
+        { "type": "p", "text": "Lybra está organizado en capas, y cada una resuelve una pregunta. Todas viven en un paquete que no toca la base de datos ni decide nada sobre la red por su cuenta: reciben datos y devuelven datos. La parte que guarda resultados y abre conexiones está fuera, en el gestor que las orquesta. Esa separación es lo que permite probar el motor entero sin red y sin base de datos." },
+        { "type": "terms", "items": [
+          { "term": "Transporte", "text": "¿Qué puertos están abiertos? Un barrido TCP propio, que abre una conexión por puerto con concurrencia y tiempo acotados, más sondas UDP para los servicios que solo hablan UDP (DNS, SNMP, NTP, IKE…)." },
+          { "term": "Identificación", "text": "¿Qué software responde en cada puerto, y en qué versión? Un analizador por protocolo (HTTP, SSH, TLS, SMB, bases de datos, paneles de administración…) que lee lo que el servicio ofrece." },
+          { "term": "Detección", "text": "¿Qué vulnerabilidades conocidas afectan a ese software en esa versión? Se cruza con la base de conocimiento local." },
+          { "term": "Pruebas activas", "text": "¿Se puede confirmar el problema, en vez de suponerlo por el número de versión? Peticiones concretas cuya respuesta demuestra el fallo." },
+          { "term": "Correlación", "text": "¿Es nuevo, sigue ahí o se ha corregido? ¿Cuánto importa en este contexto?" }
+        ] },
+        { "type": "p", "text": "El barrido de puertos abre conexiones completas en lugar de enviar paquetes sueltos como hacen los escáneres más rápidos. Es más lento a gran escala, pero Themis escanea equipos o redes pequeñas, donde da el mismo resultado que Nmap, y no necesita permisos especiales del sistema para funcionar." }
+      ]
+    },
+    {
+      "id": "identificacion",
+      "heading": "Identificar lo que responde",
+      "blocks": [
+        { "type": "p", "text": "Todo lo demás depende de este paso: sin saber qué producto y qué versión hay detrás de un puerto, no hay forma de saber qué vulnerabilidades le afectan. Por eso Lybra no se fía del número de puerto. Un MySQL en el 33060, un SSH en el 2222 o una base de datos movida a propósito «para no salir en los escaneos» son habituales en redes reales." },
+        { "type": "p", "text": "Cuando ningún analizador reconoce un servicio por su puerto, entra en juego una **cascada de identificación**:" },
+        { "type": "steps", "items": [
+          { "title": "Escuchar", "text": "Se abre una conexión y se lee lo que el servicio diga por su cuenta (muchos se presentan nada más conectar). Ese saludo se ofrece a cada analizador que sepa leerlo." },
+          { "title": "Preguntar", "text": "Si el servicio no dice nada, se le envían unas pocas sondas conocidas, en orden, hasta que alguna obtiene una respuesta reconocible." },
+          { "title": "Rendirse con honestidad", "text": "Si nada funciona, el puerto se reporta como abierto y sin identificar, con una confianza baja, en lugar de inventarle un producto." }
+        ] },
+        { "type": "p", "text": "En la web, la versión no suele estar a la vista. Lybra la busca donde el software la deja sin querer: en los ficheros de manifiesto de un CMS (WordPress, Joomla, Drupal), en los recursos que sirve una librería de JavaScript o un plugin, en las cabeceras de un panel de alojamiento o en el icono del sitio." }
+      ]
+    },
+    {
+      "id": "base-de-conocimiento",
+      "heading": "La base de conocimiento",
+      "blocks": [
+        { "type": "p", "text": "Para responder «qué vulnerabilidades afectan a este producto en esta versión», Lybra no consulta internet en cada escaneo. Mantiene una copia local de tres fuentes públicas:" },
+        { "type": "terms", "items": [
+          { "term": "NVD", "text": "El catálogo de vulnerabilidades publicadas (CVE) del NIST estadounidense, con los productos y rangos de versión afectados y su puntuación de gravedad (CVSS)." },
+          { "term": "CISA KEV", "text": "La lista de vulnerabilidades que se sabe que se están explotando en ataques reales." },
+          { "term": "FIRST EPSS", "text": "Una estimación diaria de la probabilidad de que cada vulnerabilidad se explote en los próximos 30 días." }
+        ] },
+        { "type": "p", "text": "La copia se actualiza cada noche con lo que ha cambiado desde la última vez, y Themis enseña cuándo se sincronizó cada fuente por última vez. A esas tres se suman los boletines de seguridad de Debian y Ubuntu, que dicen qué paquete de la distribución quedó corregido y en qué versión exacta." },
+        { "type": "p", "text": "El cruce es menos trivial de lo que parece. La NVD identifica los productos con un formato propio (CPE) que no coincide con lo que anuncia el software, y publica los rangos afectados con reglas de comparación de versiones que tienen sus propias trampas. Esta lógica es la parte más delicada del motor, porque un error aquí no se nota: produce vulnerabilidades que no existen, o calla las que sí." },
+        { "type": "p", "text": "Hay riesgos que ninguna base de vulnerabilidades recoge. El más importante es el **fin de soporte**: un producto cuyo fabricante ha dejado de publicar parches puede no tener ninguna CVE conocida hoy y aun así ser un problema, porque lo que se descubra a partir de ahora no se corregirá nunca. Lybra lo comprueba aparte, con un catálogo de fechas de fin de soporte por producto y rama de versión." }
+      ]
+    },
+    {
+      "id": "falsos-positivos",
+      "heading": "Cómo evita los falsos positivos",
+      "blocks": [
+        { "type": "p", "text": "Detectar por número de versión tiene un punto débil conocido: la versión anunciada no siempre cuenta toda la verdad. Un escáner que no lo tiene en cuenta llena los informes de alarmas que no lo son, y un informe con demasiado ruido deja de leerse. Lybra corrige las causas más comunes, y lo hace con una regla fija: **nunca se adivina**. Si no hay información suficiente para descartar un hallazgo, se deja como está y se rebaja su prioridad en vez de esconderlo." },
+        { "type": "terms", "items": [
+          { "term": "Parches de la distribución", "text": "Debian o Ubuntu corrigen a menudo un fallo sin cambiar el número de versión visible: el servidor sigue diciendo `2.4.49` y ya no es vulnerable. Es la causa principal de falsos positivos de toda la detección por versión. Cuando se sabe de qué distribución es el paquete, Lybra consulta sus boletines y marca el hallazgo como corregido si la distribución lo había parcheado." },
+          { "term": "Componente equivocado", "text": "Un mismo producto en la NVD puede cubrir varios programas: OpenSSH es a la vez el servidor y el cliente. Una vulnerabilidad del cliente no afecta a un servidor visto en la red. Lybra filtra estos casos con un catálogo revisado a mano y, si no lo hay, leyendo la descripción de la vulnerabilidad." },
+          { "term": "Condiciones que no se ven", "text": "Algunas vulnerabilidades solo existen con una opción de configuración concreta, o en un sistema operativo concreto. Lybra no puede verlas desde fuera, así que esos hallazgos se reportan con la prioridad rebajada y no encabezan el informe." },
+          { "term": "Confirmación activa", "text": "Cuando existe una prueba concreta para un fallo, Lybra la ejecuta. Un hallazgo confirmado así no depende de la versión anunciada." }
+        ] }
+      ]
+    },
+    {
+      "id": "pruebas-activas",
+      "heading": "Pruebas activas",
+      "blocks": [
+        { "type": "p", "text": "Una **prueba activa** describe una petición y las condiciones de la respuesta que demuestran el problema: pedir `/.git/config` y obtener el fichero de configuración de un repositorio, por ejemplo. Si la prueba se cumple, el hallazgo se marca como confirmado y con alta confianza." },
+        { "type": "p", "text": "Las pruebas se escriben de forma declarativa en un catálogo, con una estructura parecida a la de las plantillas de Nuclei, en lugar de como código. Cubren rutas que no deberían estar expuestas, cabeceras de seguridad que faltan, la higiene de los certificados y de TLS, y sondas de protocolos que no son HTTP. Una prueba puede encadenar peticiones (tomar una cookie o un token de una respuesta y usarlo en la siguiente) y probar varias variantes de un mismo valor, con un tope fijo para que nunca se convierta en un ataque de fuerza bruta. Lo que no cabe en ese formato, como un protocolo binario o una negociación de varios pasos, se escribe como un pequeño módulo de código." },
+        { "type": "p", "text": "Las pruebas se ejecutan con un ritmo controlado por equipo: si el objetivo deja de contestar a tiempo, Lybra espacia sus peticiones y vuelve al ritmo normal poco a poco cuando se recupera." },
+        { "type": "p", "text": "Cada hallazgo confirmado guarda su **evidencia**: la respuesta que lo demostró. Antes de guardarla se eliminan las cookies, las cabeceras de autenticación y los tokens, y se recorta el cuerpo de la respuesta. La evidencia se guarda con una huella (un hash SHA-256) que permite comprobar después que no se ha modificado." }
+      ]
+    },
+    {
+      "id": "autorizacion",
+      "heading": "Qué se escanea y con qué permiso",
+      "blocks": [
+        { "type": "p", "text": "Escanear un equipo ajeno sin permiso es, en muchos países, un delito. Themis separa lo que cualquiera puede comprobar de lo que exige que el dueño del objetivo lo haya autorizado expresamente." },
+        { "type": "list", "items": [
+          "**Direcciones privadas, nunca.** Cada escáner rechaza las direcciones de redes internas dentro de su propia ejecución, no solo al recibir la petición. Así también quedan cubiertos los escaneos programados, que no pasan por la web.",
+          "**Un registro de objetivos autorizados.** Cada usuario declara qué IP, rangos, dominios o recursos en la nube está autorizado a analizar en profundidad. Un dominio autoriza también sus subdominios, pero no dominios parecidos.",
+          "**Modo agresivo con doble llave.** Las pruebas que pueden molestar al objetivo solo se ejecutan si el usuario las pide explícitamente **y** el objetivo está en su registro. Ninguna de las dos condiciones basta por sí sola."
+        ] },
+        { "type": "p", "text": "La prueba más delicada es la de **credenciales por defecto**: intentar entrar en un panel con usuarios y contraseñas de fábrica. Es la única que de verdad inicia sesión en el objetivo, y por eso vive aparte, bajo el modo agresivo y con un presupuesto de intentos por cuenta, para no bloquear usuarios reales." },
+        { "type": "callout", "text": "Cuando el objetivo es un nombre de dominio, Lybra lo resuelve una vez, comprueba que la dirección es pública y la fija para todo el escaneo. Así un DNS que cambie de respuesta a mitad del análisis no puede desviarlo hacia otra máquina." }
+      ]
+    },
+    {
+      "id": "sitios-con-nombre",
+      "heading": "Varios sitios en una misma IP",
+      "blocks": [
+        { "type": "p", "text": "Un servidor compartido puede alojar decenas de webs detrás de una sola dirección, y decide cuál enseña por el nombre que pide el visitante. Escanear la IP a secas solo audita el sitio que sale por defecto, que a menudo no es el que importa." },
+        { "type": "p", "text": "El propio servidor delata los demás: los certificados que sirve llevan los nombres que cubren, y el DNS inverso suele nombrar la máquina. Lybra recoge esos nombres y audita cada sitio por separado, enviando su nombre igual que lo haría un navegador. Los problemas que son de la máquina, y no de un sitio, se reportan una sola vez." },
+        { "type": "p", "text": "Si un nombre devuelve exactamente la misma página y el mismo certificado que la IP sin nombre, se trata como un alias del sitio por defecto y no se audita dos veces. Y cuando la IP aloja sitios propios, los hallazgos de su sitio por defecto se rebajan: son ciertos para quien conecta sin nombre, pero ningún visitante real los ve." }
+      ]
+    },
+    {
+      "id": "prioridad",
+      "heading": "Cómo se decide la prioridad",
+      "blocks": [
+        { "type": "p", "text": "La gravedad que publica la NVD (CVSS) mide lo malo que es un fallo en abstracto. Themis parte de ella y la ajusta con lo que sabe del caso concreto, para que el orden del informe se parezca al orden en el que conviene actuar:" },
+        { "type": "list", "items": [
+          "Si la vulnerabilidad se está explotando en ataques reales (está en KEV) o tiene una probabilidad alta de explotarse (EPSS de 0,5 o más), sube un nivel.",
+          "Si no tiene puntuación CVSS pero la prueba que la detectó declara una gravedad, se parte de esa.",
+          "Un problema confirmado que no trae ni puntuación ni gravedad declarada se considera, como mínimo, MEDIA.",
+          "Si depende de una condición que Lybra no puede verificar (el sistema operativo, un paquete de distribución sin contrastar), no pasa de MEDIA; si depende de una opción de configuración, no pasa de BAJA.",
+          "Si el objetivo está en una red privada, no pasa de ALTA, porque no está expuesto a internet."
+        ] }
+      ]
+    },
+    {
+      "id": "ciclo-de-vida",
+      "heading": "El ciclo de vida de un hallazgo",
+      "blocks": [
+        { "type": "p", "text": "Cada escaneo se compara con el anterior del mismo objetivo. Un mismo problema se reconoce entre escaneos por una huella que no depende de qué versión de la prueba lo detectó, de modo que mejorar una prueba no hace que su hallazgo parezca nuevo ni corregido." },
+        { "type": "terms", "items": [
+          { "term": "`open`", "text": "Está presente, por primera vez o desde antes." },
+          { "term": "`fixed`", "text": "Estaba en el escaneo anterior y ya no aparece. Se registra una vez, para que el historial muestre la corrección." },
+          { "term": "`regressed`", "text": "Se había corregido y ha vuelto." },
+          { "term": "`accepted`", "text": "El usuario reconoce que es real y asume el riesgo. La aceptación caduca, y al caducar el hallazgo vuelve a `open` para revisarse." },
+          { "term": "`false_positive`", "text": "El usuario indica que el motor se equivocó. No caduca con el tiempo, pero se reabre si cambia la prueba que lo produjo o la versión de la base de conocimiento: lo que se desmintió ya no es lo mismo que se está mostrando." }
+        ] },
+        { "type": "p", "text": "Un hallazgo puede pasar a `fixed` sin que nadie lo haya corregido, porque Lybra ha descubierto que no aplicaba: la distribución ya lo había parcheado, o el sitio resultó ser un alias del sitio por defecto. En esos casos el hallazgo guarda el motivo, y no cuenta como una corrección real en las estadísticas." }
+      ]
+    },
+    {
+      "id": "mas-alla-del-equipo",
+      "heading": "Más allá de un equipo",
+      "blocks": [
+        { "type": "p", "text": "Además del escaneo de equipos, Themis ofrece cuatro análisis que miran el contexto en el que viven:" },
+        { "type": "terms", "items": [
+          { "term": "Inteligencia pasiva", "text": "Lo que se sabe de un dominio sin tocar ninguno de sus equipos: subdominios y certificados recientes publicados en los registros de transparencia de certificados, fuentes externas opcionales y la configuración del correo leída del DNS público (SPF, DMARC, DKIM, MTA-STS…). No necesita autorización porque no envía nada al objetivo, y cada dato indica de qué fuente viene y qué antigüedad tiene." },
+          { "term": "Exposición en la nube", "text": "Si un almacenamiento en la nube declarado (S3, Google Cloud Storage, Azure Blob, Firebase) enseña su contenido a cualquiera, y si algún subdominio apunta a un servicio externo que ya no existe y que otra persona podría reclamar. Los recursos se declaran, nunca se adivinan, y exigen autorización." },
+          { "term": "Superficie de una API", "text": "Si un servicio web publica la descripción de su API (OpenAPI o Swagger), Lybra comprueba si los puntos que la propia descripción declara protegidos responden sin credenciales. No es un fuzzer: solo prueba lo que el documento declara, y con un tope." },
+          { "term": "Movimiento lateral", "text": "En una red escaneada entera, Lybra busca lo que permitiría saltar de un equipo a otro: un servicio de administración remota vulnerable en un segmento compartido, el mismo fallo grave en varios equipos, un equipo que une dos redes, o las mismas credenciales por defecto funcionando en varios sitios. Son inferencias, no pruebas, y se presentan así." }
+        ] }
+      ]
+    },
+    {
+      "id": "informes",
+      "heading": "Informes",
+      "blocks": [
+        { "type": "p", "text": "Cualquier escaneo terminado puede convertirse en un informe PDF, que se genera en segundo plano. Si se pide, un modelo de lenguaje redacta el resumen y las recomendaciones a partir de los hallazgos. El proveedor del modelo (OpenAI, Google o uno local con Ollama) se elige en la configuración, y el informe sin IA sigue estando completo." },
+        { "type": "p", "text": "Los hallazgos no se listan uno detrás de otro. Se agrupan por **unidad de trabajo**: un bloque por producto afectado, con la única actualización que cierra todos sus problemas, y los problemas de configuración aparte. Un equipo con dos programas desactualizados puede producir 150 hallazgos, pero son dos tareas, y el informe lo presenta así." },
+        { "type": "p", "text": "Los informes de Lybra traducen además cada hallazgo a las técnicas de MITRE ATT&CK que facilita y a los controles que afecta de los marcos de cumplimiento que siga su dueño: ISO/IEC 27001, el Esquema Nacional de Seguridad o NIS2. Una organización puede imponer sus marcos a todos sus miembros." },
+        { "type": "p", "text": "Fuera del PDF, los hallazgos de un escaneo se pueden exportar en formatos estándar (SARIF, STIX y OCSF) para llevarlos a una integración continua, a una plataforma de inteligencia de amenazas o a un SIEM." }
+      ]
+    },
+    {
+      "id": "programados",
+      "heading": "Escaneos programados y re-escaneos",
+      "blocks": [
+        { "type": "p", "text": "Un escaneo se puede programar con una expresión cron o un intervalo fijo. Las expresiones se interpretan siempre en UTC, para que el horario no cambie con la zona horaria del servidor. Crear una programación consume su propio cupo del plan, y cada ejecución pasa por el mismo rechazo de direcciones privadas que un escaneo manual." },
+        { "type": "p", "text": "Repetir un escaneo no repite todo el trabajo. Si el escaneo anterior ya identificó el producto y la versión de un servicio en el mismo puerto, Lybra reutiliza esa identificación en lugar de volver a sondearlo por red, y la detección por versión, que es barata, se recalcula igualmente con la base de conocimiento actual." },
+        { "type": "p", "text": "Esa identificación guardada caduca a los siete días, o antes si mejora el propio identificador. Sin caducidad, un servidor actualizado seguiría cargando con las vulnerabilidades de su versión vieja. El perfil de escaneo más exhaustivo nunca reutiliza nada." }
+      ]
+    }
+  ]
+}

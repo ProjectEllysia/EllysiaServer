@@ -148,7 +148,7 @@ onMounted(async () => {
 }
 .card-tagline { font-size: var(--fs-body); color: var(--text-muted); margin-top: 0.3rem; min-height: 2.4em; }
 .card-price { margin-top: 1rem; }
-.card-amount { font-size: 2rem; font-weight: 700; color: var(--accent-bright); }
+.card-amount { font-size: var(--fs-2xl); font-weight: 700; color: var(--accent-bright); }
 .card-period { font-size: var(--fs-md); color: var(--text-muted); margin-left: 0.2rem; }
 .card-addon { font-size: var(--fs-body); color: var(--text-muted); margin-top: 0.3rem; }
 

@@ -371,7 +371,7 @@ function formatDetailValue(v) {
 .detail-key {
   color: var(--text-muted);
   font-family: var(--font-mono); font-size-adjust: var(--fsa-mono);
-  font-size: var(--fs-md);
+  font-size: var(--fs-body);
   line-height: 1.6;
 }
 

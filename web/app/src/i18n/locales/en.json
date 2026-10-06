@@ -398,7 +398,7 @@
     "modules": {
       "themis": "Weighs every threat before it strikes: its own engine, classic scanners, AI reports.",
       "aegis": "Awareness that arrives before the attack: AI pills and tracked campaigns.",
-      "iris": "Verifies who signs every email: 37 rules against phishing.",
+      "iris": "Verifies who signs every email: 47 rules against phishing.",
       "acheron": "Keeps what must not be lost: a vault encrypted in your browser.",
       "hygeia": "Watches the pulse of every asset: live telemetry and alerts before failure."
     }
@@ -509,7 +509,12 @@
     },
     "technical": {
       "title": "Technical documentation",
-      "intro": "Technical reference for Ellysia's API, internal architecture and data models, meant for anyone integrating or extending the platform."
+      "intro": "How Ellysia works inside, tool by tool: the path a request takes, what each piece decides and why it is built that way. For anyone who wants to understand the system, not just use it.",
+      "onThisPage": "On this page",
+      "previous": "Previous",
+      "next": "Next",
+      "otherTools": "Other tools",
+      "readPage": "Read the {name} documentation"
     }
   },
   "notAvailable": {
@@ -2675,14 +2680,14 @@
     "empty": "You have not examined any email yet. Drop an .eml and start.",
     "highlight": {
       "label": "The verification",
-      "value": "37 rules",
+      "value": "47 rules",
       "sub": "against phishing in every email"
     },
     "features": {
       "rules": {
-        "kicker": "37 rules",
+        "kicker": "47 rules",
         "title": "The email's signature, under examination",
-        "desc": "SPF, DKIM, DMARC, sender spoofing and delivery route anomalies: every header testifies, and the 37 rules listen."
+        "desc": "SPF, DKIM, DMARC, sender spoofing and delivery route anomalies: every header testifies, and the 47 rules listen."
       },
       "quishing": {
         "kicker": "Quishing",
@@ -4383,5 +4388,78 @@
     },
     "confirmOpen": "You are about to open to the public:\n{surfaces}\n\nContinue?",
     "confirmOpenNothing": "You are switching to “Open to the public”, but every switch is off: nothing will open. Continue?"
+  },
+  "seo": {
+    "siteName": "Ellysia",
+    "pages": {
+      "landing": {
+        "title": "Ellysia · Vulnerability scanner, phishing checks and encrypted vault",
+        "description": "Five cybersecurity tools: vulnerability scanning, phishing detection, security awareness, an encrypted password vault and server monitoring."
+      },
+      "themis": {
+        "title": "Themis · Vulnerability scanner with Nmap, Nikto and Nuclei | Ellysia",
+        "description": "Themis scans domains and IPs with its own Lybra engine alongside Nmap, Nikto and Nuclei, and delivers AI-written vulnerability reports."
+      },
+      "aegis": {
+        "title": "Aegis · Cybersecurity awareness bulletins | Ellysia",
+        "description": "Aegis generates AI security awareness bulletins with a short quiz and emails them to your team to measure what was understood."
+      },
+      "iris": {
+        "title": "Iris · Phishing detection from email headers | Ellysia",
+        "description": "Iris analyses email headers (SPF, DKIM, DMARC and delivery path) to detect spoofing and phishing with explainable verification rules."
+      },
+      "acheron": {
+        "title": "Acheron · Password vault encrypted in your browser | Ellysia",
+        "description": "Acheron keeps credentials and cards in a zero-knowledge vault: encryption happens in your browser and the server never sees your master password."
+      },
+      "hygeia": {
+        "title": "Hygeia · Server monitoring with lightweight agents | Ellysia",
+        "description": "Hygeia collects hardware telemetry from your servers with a lightweight agent, detects anomalies with thresholds and emails you about critical ones."
+      },
+      "plans": {
+        "title": "Plans and pricing | Ellysia",
+        "description": "Compare Ellysia plans: start free with no card, and raise your quota of scans, assets and vaults when you need it."
+      },
+      "about": {
+        "title": "About Ellysia | A personal cybersecurity project",
+        "description": "What Ellysia is, who is behind it and why it exists: a personal project to build and test cybersecurity tools."
+      },
+      "privacy": {
+        "title": "Privacy | Ellysia",
+        "description": "What data Ellysia processes about website visitors, for what purpose and how to exercise your rights."
+      },
+      "terms": {
+        "title": "Terms of use | Ellysia",
+        "description": "Terms of use for Ellysia and its security analysis tools, including responsible use of the scanners."
+      },
+      "docsUsage": {
+        "title": "Usage documentation | Ellysia",
+        "description": "Step-by-step guides to Ellysia tools: launching a scan, analysing an email or opening a vault."
+      },
+      "docsTechnical": {
+        "title": "Technical documentation | Ellysia",
+        "description": "How Ellysia works inside, tool by tool: the path of each request, what each piece decides and why."
+      },
+      "docsThemis": {
+        "title": "Themis inside: how the scanner works | Ellysia",
+        "description": "How Themis discovers what a machine exposes, matches software against published vulnerabilities, avoids false positives and follows each finding."
+      },
+      "docsAegis": {
+        "title": "Aegis inside: how the awareness tool works | Ellysia",
+        "description": "How Aegis writes awareness pills from the advisories that affect an organisation, sends campaigns and protects the public quiz."
+      },
+      "docsIris": {
+        "title": "Iris inside: how the phishing analyser works | Ellysia",
+        "description": "How Iris examines an email with 47 rules, why it distrusts its own headers, how it decides the verdict and what it does with watched mailboxes."
+      },
+      "docsAcheron": {
+        "title": "Acheron inside: how the encrypted vault works | Ellysia",
+        "description": "How Acheron encrypts your passwords in the browser with Argon2id and AES-GCM, why the server cannot read them and how it syncs across devices."
+      },
+      "docsHygeia": {
+        "title": "Hygeia inside: how server monitoring works | Ellysia",
+        "description": "How Hygeia receives each server's data, opens anomalies without over-alerting, and computes statistics, power use and software vulnerabilities."
+      }
+    }
   }
 }

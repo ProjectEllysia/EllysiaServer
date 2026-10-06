@@ -398,7 +398,7 @@
     "modules": {
       "themis": "Pesa cada amenaza antes de que golpee: motor propio, escáneres clásicos, informes IA.",
       "aegis": "Concienciación que llega antes que el ataque: píldoras IA y campañas con seguimiento.",
-      "iris": "Verifica quién firma cada correo: 37 reglas contra el phishing.",
+      "iris": "Verifica quién firma cada correo: 47 reglas contra el phishing.",
       "acheron": "Guarda lo que no debe perderse: bóveda cifrada en tu navegador.",
       "hygeia": "Vigila el pulso de cada activo: telemetría en vivo y alertas antes del fallo."
     }
@@ -509,7 +509,12 @@
     },
     "technical": {
       "title": "Documentación técnica",
-      "intro": "Referencia técnica de la API, la arquitectura interna y los modelos de datos de Ellysia, pensada para quien integra o extiende la plataforma."
+      "intro": "Cómo funciona Ellysia por dentro, herramienta a herramienta: qué recorrido hace una petición, qué decide cada pieza y por qué está hecha así. Para quien quiere entender el sistema, no solo usarlo.",
+      "onThisPage": "En esta página",
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "otherTools": "Otras herramientas",
+      "readPage": "Leer la documentación de {name}"
     }
   },
   "notAvailable": {
@@ -2675,14 +2680,14 @@
     "empty": "Todavía no has examinado ningún correo. Arrastra un .eml y empieza.",
     "highlight": {
       "label": "La verificación",
-      "value": "37 reglas",
+      "value": "47 reglas",
       "sub": "contra el phishing en cada correo"
     },
     "features": {
       "rules": {
-        "kicker": "37 reglas",
+        "kicker": "47 reglas",
         "title": "La firma del correo, a examen",
-        "desc": "SPF, DKIM, DMARC, suplantación de remitente y anomalías en la ruta de entrega: cada cabecera declara, y las 37 reglas escuchan."
+        "desc": "SPF, DKIM, DMARC, suplantación de remitente y anomalías en la ruta de entrega: cada cabecera declara, y las 47 reglas escuchan."
       },
       "quishing": {
         "kicker": "Quishing",
@@ -4383,5 +4388,78 @@
     },
     "confirmOpen": "Vas a abrir al público:\n{surfaces}\n\n¿Continuar?",
     "confirmOpenNothing": "Vas a pasar a «Abierto al público», pero todos los interruptores están apagados: no se abrirá nada. ¿Continuar?"
+  },
+  "seo": {
+    "siteName": "Ellysia",
+    "pages": {
+      "landing": {
+        "title": "Ellysia · Escáner de vulnerabilidades, phishing y bóveda cifrada",
+        "description": "Cinco herramientas de ciberseguridad: escaneo de vulnerabilidades, detección de phishing, concienciación, bóveda de contraseñas cifrada y monitorización de servidores."
+      },
+      "themis": {
+        "title": "Themis · Escáner de vulnerabilidades con Nmap, Nikto y Nuclei | Ellysia",
+        "description": "Themis escanea dominios e IP con su motor propio Lybra y con Nmap, Nikto y Nuclei, y entrega informes de vulnerabilidades redactados por IA."
+      },
+      "aegis": {
+        "title": "Aegis · Píldoras de concienciación en ciberseguridad | Ellysia",
+        "description": "Aegis genera boletines de concienciación en seguridad con IA, con un breve cuestionario, y los envía por correo a tu equipo para medir qué se ha entendido."
+      },
+      "iris": {
+        "title": "Iris · Detección de phishing en cabeceras de correo | Ellysia",
+        "description": "Iris analiza las cabeceras de un correo (SPF, DKIM, DMARC y rutas de entrega) para detectar suplantación y phishing con reglas de verificación explicables."
+      },
+      "acheron": {
+        "title": "Acheron · Bóveda de contraseñas con cifrado en el navegador | Ellysia",
+        "description": "Acheron guarda credenciales y tarjetas en una bóveda zero-knowledge: el cifrado ocurre en tu navegador y el servidor nunca ve tu contraseña maestra."
+      },
+      "hygeia": {
+        "title": "Hygeia · Monitorización de servidores con agentes ligeros | Ellysia",
+        "description": "Hygeia recoge la telemetría de hardware de tus servidores con un agente ligero, detecta anomalías con umbrales y avisa por correo de lo crítico."
+      },
+      "plans": {
+        "title": "Planes y precios | Ellysia",
+        "description": "Compara los planes de Ellysia: empieza gratis, sin tarjeta, y amplía el cupo de escaneos, activos y bóvedas cuando lo necesites."
+      },
+      "about": {
+        "title": "Sobre Ellysia | Proyecto personal de ciberseguridad",
+        "description": "Qué es Ellysia, quién está detrás y por qué existe: un proyecto personal para construir y probar herramientas de ciberseguridad."
+      },
+      "privacy": {
+        "title": "Privacidad | Ellysia",
+        "description": "Qué datos trata Ellysia de quien visita la web, con qué fin y cómo ejercer tus derechos."
+      },
+      "terms": {
+        "title": "Términos de uso | Ellysia",
+        "description": "Condiciones de uso de Ellysia y de sus herramientas de análisis de seguridad, incluido el uso responsable de los escáneres."
+      },
+      "docsUsage": {
+        "title": "Documentación de uso | Ellysia",
+        "description": "Guías paso a paso para usar las herramientas de Ellysia: lanzar un escaneo, analizar un correo o abrir una bóveda."
+      },
+      "docsTechnical": {
+        "title": "Documentación técnica | Ellysia",
+        "description": "Cómo funciona Ellysia por dentro, herramienta a herramienta: el recorrido de cada petición, qué decide cada pieza y por qué."
+      },
+      "docsThemis": {
+        "title": "Themis por dentro: cómo funciona el escáner | Ellysia",
+        "description": "Cómo descubre Themis lo que expone un equipo, cómo cruza el software con las vulnerabilidades publicadas, cómo evita falsos positivos y cómo sigue cada hallazgo."
+      },
+      "docsAegis": {
+        "title": "Aegis por dentro: cómo funciona la concienciación | Ellysia",
+        "description": "Cómo redacta Aegis píldoras de concienciación con los avisos que afectan a una organización, cómo envía campañas y cómo protege el cuestionario público."
+      },
+      "docsIris": {
+        "title": "Iris por dentro: cómo funciona el analizador de phishing | Ellysia",
+        "description": "Cómo examina Iris un correo con 47 reglas, por qué desconfía de sus propias cabeceras, cómo decide el veredicto y qué hace con los buzones vigilados."
+      },
+      "docsAcheron": {
+        "title": "Acheron por dentro: cómo funciona la bóveda cifrada | Ellysia",
+        "description": "Cómo cifra Acheron tus contraseñas en el navegador con Argon2id y AES-GCM, por qué el servidor no puede leerlas y cómo se sincroniza entre dispositivos."
+      },
+      "docsHygeia": {
+        "title": "Hygeia por dentro: cómo funciona la monitorización | Ellysia",
+        "description": "Cómo recibe Hygeia los datos de cada servidor, cómo abre anomalías sin avisar de más y cómo calcula estadísticas, consumo y vulnerabilidades del software."
+      }
+    }
   }
 }

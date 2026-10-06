@@ -1,0 +1,121 @@
+{
+  "title": "Aegis",
+  "lede": "La herramienta de concienciación de Ellysia: cómo redacta píldoras de formación a partir de los avisos de seguridad que afectan de verdad a una organización, y cómo las envía y mide qué se ha entendido.",
+  "sections": [
+    {
+      "id": "que-es",
+      "heading": "Qué es Aegis",
+      "blocks": [
+        { "type": "p", "text": "La mayoría de los incidentes empiezan por una persona: un correo que no debió abrirse, una contraseña reutilizada, un archivo descargado sin pensar. Aegis prepara material para formar a esas personas, que no son técnicas, sin que nadie tenga que escribirlo desde cero." },
+        { "type": "p", "text": "Su unidad es la **píldora**: un documento breve sobre un tema concreto de seguridad, con una introducción, una serie de consejos prácticos, los avisos de seguridad recientes que afectan a los productos que usa la organización, un cierre y un pequeño cuestionario. Una píldora se puede leer, editar y exportar, o enviar por correo a un grupo de personas en una **campaña** que mide cuántas la abrieron y cuánto acertaron." },
+        { "type": "terms", "items": [
+          { "term": "Píldora", "text": "El contenido formativo, redactado por un modelo de lenguaje a partir de un tema y del contexto de la organización." },
+          { "term": "Perfil de organización", "text": "Los datos que casi no cambian (nombre de la empresa, contacto, tono, tamaño, jurisdicción y productos que se usan), guardados una vez para no repetirlos en cada píldora." },
+          { "term": "Campaña", "text": "El envío de una píldora y su cuestionario a una lista de personas, con seguimiento individual." }
+        ] }
+      ]
+    },
+    {
+      "id": "recorrido",
+      "heading": "El recorrido de una píldora",
+      "blocks": [
+        { "type": "p", "text": "Como un escaneo de Themis, una píldora no se genera dentro de la petición que la pide: redactarla con un modelo de lenguaje tarda, así que la API deja el trabajo en la cola de tareas y responde enseguida. La web consulta el estado hasta que la píldora está lista." },
+        { "type": "steps", "items": [
+          { "title": "Petición", "text": "Se elige un tema del catálogo y, si se quiere, se afina: un enfoque concreto dentro del tema, un incidente reciente que conviene mencionar o el nivel técnico del público. El resto del contexto sale del perfil de organización." },
+          { "title": "Cupo del plan", "text": "Cada píldora consume una del cupo del plan y una petición a la IA. Si alguno se ha agotado, la petición se rechaza antes de crear nada." },
+          { "title": "Avisos vigentes", "text": "Se reúnen los avisos de seguridad recientes que afectan a los productos de la organización. Se explica en la sección siguiente." },
+          { "title": "Redacción", "text": "Un modelo de lenguaje redacta la píldora con todo ese contexto." },
+          { "title": "Validación", "text": "La respuesta del modelo se comprueba antes de aceptarla: que tenga todas las partes, que cada consejo tenga título y desarrollo, que cada pregunta tenga una respuesta correcta válida y que los enlaces no sean inventados." },
+          { "title": "Guardado", "text": "La píldora se guarda con sus consejos, sus avisos y su cuestionario como piezas separadas, para poder editarlas una a una." }
+        ] }
+      ]
+    },
+    {
+      "id": "avisos",
+      "heading": "Avisos que afectan de verdad",
+      "blocks": [
+        { "type": "p", "text": "Una píldora genérica sobre contraseñas sirve para cualquiera; una que menciona el fallo de seguridad que se ha publicado este mes en el programa que usa la organización se lee de otra manera. Por eso Aegis incluye los **avisos vigentes** de los productos que se usan." },
+        { "type": "p", "text": "Esos productos se pueden declarar a mano en el perfil, buscándolos en el catálogo de productos de la base de conocimiento, o tomarse del inventario de software que recogen los agentes de Hygeia, si la organización los tiene instalados." },
+        { "type": "terms", "items": [
+          { "term": "Base de conocimiento", "text": "La copia local de las vulnerabilidades publicadas (NVD), de las que se están explotando (KEV) y de su probabilidad de explotación (EPSS) que mantiene Themis. Aporta las vulnerabilidades concretas de cada producto, con su gravedad, sin salir a internet." },
+          { "term": "INCIBE-CERT", "text": "Los avisos del equipo de respuesta del Instituto Nacional de Ciberseguridad, escritos en castellano para personas. Es la única fuente que Aegis consulta en internet, y la respuesta se guarda quince minutos para no repetir la consulta en cada píldora." }
+        ] },
+        { "type": "p", "text": "Solo entran los avisos publicados dentro de una antigüedad máxima configurable (cinco años por defecto)." },
+        { "type": "callout", "text": "Las descripciones de la NVD están en inglés y las píldoras en castellano. En vez de traducirlas, Aegis compone el resumen de cada aviso con sus datos estructurados (producto, gravedad, si se está explotando), y la descripción original solo se usa como contexto para el modelo." }
+      ]
+    },
+    {
+      "id": "redaccion",
+      "heading": "Cómo se usa la IA",
+      "blocks": [
+        { "type": "p", "text": "Aegis no habla directamente con un proveedor de IA. Delega en **scribe**, la capa común de Ellysia para generar texto, que permite elegir en la configuración qué proveedor usa cada módulo (OpenAI, Google o un modelo local con Ollama) sin cambiar el código de Aegis." },
+        { "type": "list", "items": [
+          "**Instrucciones en la configuración.** El texto que se le da al modelo vive en la configuración, no en el código, y se puede ajustar sin desplegar. Un test comprueba que cada dato que Aegis ofrece tiene su hueco en esas instrucciones, para que ninguno se pierda por el camino.",
+          "**Ejemplos.** Las instrucciones incluyen ejemplos de píldoras bien hechas, que orientan al modelo mejor que una descripción del formato.",
+          "**Búsqueda web.** El modelo puede pedir una búsqueda en internet cuando necesita contrastar algo reciente.",
+          "**Resiliencia.** Si el proveedor falla, se reintenta con esperas crecientes; si falla repetidamente, se deja de insistir durante un tiempo en vez de saturarlo."
+        ] },
+        { "type": "p", "text": "El número de consejos por píldora, de preguntas del cuestionario y de opciones por pregunta se fija en la configuración." }
+      ]
+    },
+    {
+      "id": "edicion",
+      "heading": "Editar y exportar",
+      "blocks": [
+        { "type": "p", "text": "Lo que redacta un modelo hay que revisarlo. Quien genera una píldora puede corregir su contenido y sus preguntas antes de usarla, y lo que guarda es lo que se envía después." },
+        { "type": "p", "text": "Una píldora se puede exportar en Markdown, HTML o JSON, para publicarla en una intranet, pegarla en un boletín o procesarla con otra herramienta. Cada formato es una pieza independiente con la misma interfaz, de modo que añadir uno nuevo no toca a los demás." }
+      ]
+    },
+    {
+      "id": "campanas",
+      "heading": "Campañas",
+      "blocks": [
+        { "type": "p", "text": "Una campaña envía una píldora y su cuestionario a una **lista de distribución**: un grupo de personas con nombre, reutilizable en varias campañas. Cada destinatario recibe un correo con la píldora y un enlace personal a su cuestionario." },
+        { "type": "steps", "items": [
+          { "title": "Borrador", "text": "Se crea la campaña eligiendo la píldora y la lista. Todavía no se envía nada." },
+          { "title": "Lanzamiento", "text": "Se congela una copia del cuestionario dentro de la campaña y se genera un enlace único para cada destinatario." },
+          { "title": "Envío", "text": "Los correos salen en segundo plano, uno por destinatario. El envío se puede cancelar a mitad." },
+          { "title": "Seguimiento", "text": "Cada destinatario pasa de enviado a abierto cuando visita su enlace, y a completado cuando responde." }
+        ] },
+        { "type": "p", "text": "**Por qué se congela el cuestionario.** Si las preguntas se leyeran de la píldora en el momento de contestar, editar la píldora con una campaña en curso cambiaría el examen a mitad: unos destinatarios responderían unas preguntas y otros, otras, y los resultados no serían comparables. Con la copia, lo que se envió es lo que se corrige." },
+        { "type": "p", "text": "El correo no lo envía Aegis directamente: delega en **herald**, la capa común de Ellysia para enviar correo, que se encarga de la conexión con el servidor de correo configurado." }
+      ]
+    },
+    {
+      "id": "cuestionario-publico",
+      "heading": "El cuestionario público",
+      "blocks": [
+        { "type": "p", "text": "Quien recibe una campaña no tiene cuenta en Ellysia y no debería necesitarla. Por eso el cuestionario es la única página de toda la API que funciona sin iniciar sesión. Lo que identifica al destinatario es su enlace, y ese enlace se protege con cuidado:" },
+        { "type": "list", "items": [
+          "**Un token aleatorio por destinatario.** El enlace lleva una cadena aleatoria larga, generada al lanzar la campaña. Nunca se deriva del correo de la persona, así que conocer una dirección no permite adivinar su enlace.",
+          "**Solo lo suyo.** El enlace da acceso al cuestionario de esa persona y a nada más: ni a la campaña, ni a la lista, ni a las respuestas de otros.",
+          "**Sin respuestas correctas.** La página recibe las preguntas y sus opciones, pero nunca cuál es la correcta. La corrección se hace en el servidor.",
+          "**Un solo intento.** Una vez enviado, el cuestionario no admite más respuestas. Si llegan dos envíos a la vez del mismo enlace, la base de datos solo acepta uno."
+        ] },
+        { "type": "p", "text": "Las opciones de cada pregunta se presentan en un orden aleatorio distinto para cada persona. Los modelos de lenguaje tienden a colocar la respuesta correcta casi siempre en la misma posición, y quien hiciera dos campañas aprendería ese patrón antes que el contenido. Barajar en el navegador es seguro precisamente porque la página nunca sabe cuál es la correcta." }
+      ]
+    },
+    {
+      "id": "resultados",
+      "heading": "Resultados",
+      "blocks": [
+        { "type": "p", "text": "Una campaña muestra cuántas personas abrieron su cuestionario, cuántas lo completaron y la nota media. Por cada pregunta enseña cuántas personas eligieron cada opción: una pregunta que casi todo el mundo falla con la misma respuesta equivocada señala un malentendido concreto, que es más útil que una nota global." },
+        { "type": "p", "text": "Las campañas se agrupan por píldora, para comparar cómo funcionó el mismo contenido con públicos distintos." }
+      ]
+    },
+    {
+      "id": "marca-propia",
+      "heading": "Marca propia",
+      "blocks": [
+        { "type": "p", "text": "Un correo de formación se lee mejor si llega con la imagen de la propia empresa que con la de una herramienta desconocida. Aegis permite sustituir la marca de Ellysia por la de la organización, por escalones:" },
+        { "type": "terms", "items": [
+          { "term": "Ninguna", "text": "El destinatario ve la marca de Ellysia." },
+          { "term": "Color", "text": "El color de énfasis pasa a ser el de la organización." },
+          { "term": "Logo", "text": "Además, se añade el logo de la organización al contenido." },
+          { "term": "Completa", "text": "Además, la marca de Ellysia desaparece de la cabecera, el pie y la página del cuestionario." }
+        ] },
+        { "type": "p", "text": "El escalón máximo depende del plan. La marca se aplica igual en el correo y en la página del cuestionario, que es la segunda mitad de la misma campaña, y esa página solo enseña lo que el destinatario ya recibió en su correo: el nombre, el color y el logo de su propia organización." }
+      ]
+    }
+  ]
+}

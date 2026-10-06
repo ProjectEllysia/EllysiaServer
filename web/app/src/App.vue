@@ -11,7 +11,7 @@
 import { watch } from 'vue'
 import AppToast from '@/components/shared/AppToast.vue'
 import PreviewBanner from '@/components/shared/PreviewBanner.vue'
-import { useLaunch } from '@/composables/useLaunch'
+import { useSeo } from '@/composables/useSeo'
 import { useAuthStore } from '@/stores/authStore'
 import { useMfaStore } from '@/stores/mfaStore'
 import { useToastStore } from '@/stores/toastStore'
@@ -59,27 +59,8 @@ async function notifyIfMfaIsDisabled() {
   return mfaCheckPromise
 }
 
-/**
- * Pide a los buscadores que no indexen Ellysia mientras esté en vista previa:
- * sus textos legales todavía no son definitivos. Hasta tener la respuesta
- * del servidor cuenta como vista previa, así que la etiqueta está desde el
- * primer momento y solo se quita cuando el modo es «abierto al público».
- * Caddy no conoce el modo, por eso lo decide la aplicación.
- */
-const { isPreview } = useLaunch()
-watch(isPreview, (isInPreview) => {
-  let robotsTag = document.querySelector('meta[name="robots"]')
-  if (isInPreview) {
-    if (!robotsTag) {
-      robotsTag = document.createElement('meta')
-      robotsTag.setAttribute('name', 'robots')
-      document.head.appendChild(robotsTag)
-    }
-    robotsTag.setAttribute('content', 'noindex')
-  } else if (robotsTag) {
-    robotsTag.remove()
-  }
-}, { immediate: true })
+// Título, descripción, canonical y `robots` de cada página: ver `useSeo`.
+useSeo()
 
 watch(() => auth.isAuthenticated, (isAuthenticated) => {
   if (isAuthenticated) void notifyIfMfaIsDisabled()

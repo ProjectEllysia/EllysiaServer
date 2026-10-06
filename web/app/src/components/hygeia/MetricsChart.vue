@@ -529,10 +529,10 @@ function formatTooltipTime(ts) {
 }
 .metric-now { margin: 0; line-height: 1; }
 .now-value {
-  font-family: var(--font-mono); font-size-adjust: var(--fsa-mono); font-size: 1.6rem; font-weight: 500;
+  font-family: var(--font-mono); font-size-adjust: var(--fsa-mono); font-size: var(--fs-xl); font-weight: 500;
   color: var(--text); font-variant-numeric: tabular-nums;
 }
-.now-unit { margin-left: 0.1em; font-family: var(--font-mono); font-size-adjust: var(--fsa-mono); font-size: 0.95rem; color: var(--text-muted); }
+.now-unit { margin-left: 0.1em; font-family: var(--font-mono); font-size-adjust: var(--fsa-mono); font-size: var(--fs-body); color: var(--text-muted); }
 .now-unit--wide { margin-left: 0.3em; }
 
 /* ── Zona del gráfico ── */

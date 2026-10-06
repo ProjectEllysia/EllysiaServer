@@ -519,7 +519,7 @@ function originLabel(item) {
 .strip-origin {
   flex-shrink: 0;
   font-family: var(--font-mono); font-size-adjust: var(--fsa-mono);
-  font-size: 0.62rem;
+  font-size: var(--fs-xs);
   font-weight: 700;
   letter-spacing: 0.06em;
   padding: 0.1rem 0.32rem;

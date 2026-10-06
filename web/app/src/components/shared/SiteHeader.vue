@@ -6,7 +6,7 @@
     </router-link>
 
     <nav class="site-nav" :aria-label="t('shell.modulesNav')">
-      <router-link v-for="m in modules" :key="m.id" :to="m.route" class="nav-link">{{ m.name }}</router-link>
+      <router-link v-for="m in navLinks" :key="m.id" :to="m.route" class="nav-link">{{ m.name }}</router-link>
     </nav>
 
     <div class="header-actions">
@@ -35,15 +35,20 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/authStore'
 import { useThemeStore } from '@/stores/themeStore'
 import AccountMenu from '@/components/shared/AccountMenu.vue'
 import LanguageSelect from '@/components/shared/LanguageSelect.vue'
+import { availableDocTools } from '@/content/documentation'
+import { TOOL_NAMES } from '@/content/documentation/tools'
 
 const { t } = useI18n()
 const auth = useAuthStore()
 const theme = useThemeStore()
+const route = useRoute()
 
 const modules = [
   { id: 'themis', name: 'Themis', route: '/themis' },
@@ -52,6 +57,25 @@ const modules = [
   { id: 'acheron', name: 'Acheron', route: '/acheron' },
   { id: 'hygeia', name: 'Hygeia', route: '/hygeia' },
 ]
+
+/**
+ * Enlaces de la lista central, según la sección en la que se está.
+ *
+ * Dentro de la documentación (`meta.docSection` en la ruta) los nombres de las
+ * herramientas llevan a su página de documentación y no a su hub: quien está
+ * leyendo la documentación de Themis y pulsa «Aegis» quiere la de Aegis, no
+ * salir de la documentación. Solo aparecen las herramientas que ya tienen
+ * página. La documentación de uso todavía no tiene páginas por herramienta,
+ * así que en ella la lista queda vacía. Fuera de la documentación, cada
+ * nombre lleva al hub de su herramienta.
+ */
+const navLinks = computed(() => {
+  if (route.meta.docSection === 'technical') {
+    return availableDocTools().map((id) => ({ id, name: TOOL_NAMES[id], route: `/docs/tecnica/${id}` }))
+  }
+  if (route.meta.docSection === 'usage') return []
+  return modules
+})
 
 </script>
 

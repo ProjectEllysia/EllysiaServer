@@ -1,0 +1,189 @@
+{
+  "title": "Themis",
+  "lede": "Ellysia's vulnerability scanner: how it discovers what a machine exposes, how it decides what is a real problem, and how it follows that problem over time until it is fixed.",
+  "sections": [
+    {
+      "id": "vision-general",
+      "heading": "What Themis is",
+      "blocks": [
+        { "type": "p", "text": "Themis analyses machines and domains from the outside, the way an attacker would, and returns a list of **findings**: each thing it finds wrong, with its severity, its evidence and how to fix it. It does not stop at a snapshot: it keeps every finding and, on the next scan of the same target, knows whether it is still there, whether it has been fixed or whether it has come back." },
+        { "type": "p", "text": "To do that it combines four scanners. Three are well-known open-source tools that Themis runs and reads; the fourth, **Lybra**, is an engine written for Ellysia, and it does most of the heavy lifting: identifying the software, matching it against published vulnerabilities and ruling out the ones that do not apply." },
+        { "type": "terms", "items": [
+          { "term": "Nmap", "text": "Discovers which ports a machine has open and which service answers on each. Accepts whole network ranges." },
+          { "term": "Nikto", "text": "Reviews web servers for dangerous configurations and files that should not be published." },
+          { "term": "Nuclei", "text": "Runs community-written detection templates against a single machine per scan." },
+          { "term": "Lybra", "text": "The in-house engine: discovers ports, identifies software, confirms vulnerabilities with active tests and prioritises them by context." }
+        ] },
+        { "type": "p", "text": "All four write their results into the same finding model. That lets the same problem detected by two scanners count once, and keeps a machine's history independent of which tool scanned it each time." }
+      ]
+    },
+    {
+      "id": "recorrido",
+      "heading": "The path of a scan",
+      "blocks": [
+        { "type": "p", "text": "A scan does not run inside the request that asks for it. The API validates it, puts it in a queue and answers straight away; the work is done afterwards by a separate process. That way a scan lasting several minutes does not block the website, and it survives a server restart." },
+        { "type": "steps", "items": [
+          { "title": "Target validation", "text": "The target must have a valid shape (an IP, a range, a domain) and must not be a private address: a scanner that accepts any address can be used to explore the server's own internal network." },
+          { "title": "Plan quota", "text": "Each plan allows a number of scans per period, counted separately for Lybra and for the third-party tools. Once it is used up, the request is rejected before anything is created." },
+          { "title": "Queueing", "text": "The scan record is created in state `pending` and a job is sent to the task queue, which is stored in Redis. The API returns the scan's identifier so it can be followed." },
+          { "title": "Execution in the worker", "text": "A worker process, separate from the API, picks up the job and launches the scanner. External tools run as system processes; Lybra runs as Python code inside the worker itself. Progress is published as it goes." },
+          { "title": "Correlation and storage", "text": "Results are normalised, compared with the previous scan of the same target to decide each finding's state, prioritised and stored." },
+          { "title": "Report", "text": "From there a PDF report can be requested, which is also generated in the background." }
+        ] },
+        { "type": "p", "text": "A scan can be **cancelled** while it runs. Cancellation is cooperative: the API leaves a mark that the worker checks between phases, and if the scanner is an external program its process is terminated together with every process it started. If a scan runs out of time it is not lost: each Lybra phase watches the clock, stops in time and the scan ends marked as **partial**, with what it managed to see." },
+        { "type": "callout", "text": "When a scan fails it records the reason (`host_unreachable`, `port_discovery_failed`, `timeout`…) to tell a target that never answered apart from an error in the engine itself." }
+      ]
+    },
+    {
+      "id": "capas-de-lybra",
+      "heading": "Lybra, layer by layer",
+      "blocks": [
+        { "type": "p", "text": "Lybra is organised in layers, and each one answers one question. They all live in a package that never touches the database or decides anything about the network on its own: they take data and return data. The part that stores results and opens connections sits outside, in the manager that orchestrates them. That separation is what makes it possible to test the whole engine without a network or a database." },
+        { "type": "terms", "items": [
+          { "term": "Transport", "text": "Which ports are open? An in-house TCP sweep that opens one connection per port with bounded concurrency and time, plus UDP probes for services that only speak UDP (DNS, SNMP, NTP, IKE…)." },
+          { "term": "Identification", "text": "What software answers on each port, and which version? One analyser per protocol (HTTP, SSH, TLS, SMB, databases, admin panels…) that reads what the service offers." },
+          { "term": "Detection", "text": "Which known vulnerabilities affect that software at that version? It is matched against the local knowledge base." },
+          { "term": "Active tests", "text": "Can the problem be confirmed instead of assumed from the version number? Specific requests whose answer proves the flaw." },
+          { "term": "Correlation", "text": "Is it new, still there or fixed? How much does it matter in this context?" }
+        ] },
+        { "type": "p", "text": "The port sweep opens full connections instead of sending loose packets the way the fastest scanners do. It is slower at large scale, but Themis scans single machines or small networks, where it gives the same result as Nmap, and it needs no special system privileges to run." }
+      ]
+    },
+    {
+      "id": "identificacion",
+      "heading": "Identifying what answers",
+      "blocks": [
+        { "type": "p", "text": "Everything else depends on this step: without knowing which product and version sit behind a port, there is no way to know which vulnerabilities affect it. That is why Lybra does not trust the port number. A MySQL on 33060, an SSH on 2222 or a database moved on purpose \"so it does not show up in scans\" are common in real networks." },
+        { "type": "p", "text": "When no analyser recognises a service by its port, an **identification cascade** comes into play:" },
+        { "type": "steps", "items": [
+          { "title": "Listen", "text": "A connection is opened and whatever the service says on its own is read (many introduce themselves as soon as you connect). That greeting is offered to every analyser that knows how to read it." },
+          { "title": "Ask", "text": "If the service says nothing, a few known probes are sent, in order, until one gets a recognisable answer." },
+          { "title": "Give up honestly", "text": "If nothing works, the port is reported as open and unidentified, with low confidence, instead of inventing a product for it." }
+        ] },
+        { "type": "p", "text": "On the web, the version is rarely in plain sight. Lybra looks for it where software leaves it without meaning to: in a CMS's manifest files (WordPress, Joomla, Drupal), in the assets a JavaScript library or a plugin serves, in a hosting panel's headers or in the site's icon." }
+      ]
+    },
+    {
+      "id": "base-de-conocimiento",
+      "heading": "The knowledge base",
+      "blocks": [
+        { "type": "p", "text": "To answer \"which vulnerabilities affect this product at this version\", Lybra does not query the internet on every scan. It keeps a local copy of three public sources:" },
+        { "type": "terms", "items": [
+          { "term": "NVD", "text": "The US NIST catalogue of published vulnerabilities (CVEs), with the affected products and version ranges and their severity score (CVSS)." },
+          { "term": "CISA KEV", "text": "The list of vulnerabilities known to be exploited in real attacks." },
+          { "term": "FIRST EPSS", "text": "A daily estimate of the probability that each vulnerability will be exploited in the next 30 days." }
+        ] },
+        { "type": "p", "text": "The copy is updated every night with what changed since the last time, and Themis shows when each source was last synchronised. On top of those three come the Debian and Ubuntu security advisories, which state which distribution package was fixed and in which exact version." },
+        { "type": "p", "text": "The matching is less trivial than it looks. The NVD identifies products with its own format (CPE), which does not match what software announces, and publishes affected ranges with version-comparison rules that have their own pitfalls. This logic is the most delicate part of the engine, because a mistake here goes unnoticed: it produces vulnerabilities that do not exist, or hides the ones that do." },
+        { "type": "p", "text": "Some risks are not in any vulnerability database. The most important is **end of support**: a product whose vendor no longer ships patches may have no known CVE today and still be a problem, because whatever is discovered from now on will never be fixed. Lybra checks it separately, with a catalogue of end-of-support dates per product and version branch." }
+      ]
+    },
+    {
+      "id": "falsos-positivos",
+      "heading": "How it avoids false positives",
+      "blocks": [
+        { "type": "p", "text": "Detecting by version number has a known weak spot: the announced version does not always tell the whole truth. A scanner that ignores this fills reports with alarms that are not real, and a report with too much noise stops being read. Lybra corrects the most common causes, with one fixed rule: **it never guesses**. If there is not enough information to rule a finding out, it is left as it is and its priority is lowered instead of hiding it." },
+        { "type": "terms", "items": [
+          { "term": "Distribution patches", "text": "Debian or Ubuntu often fix a flaw without changing the visible version number: the server still says `2.4.49` and is no longer vulnerable. It is the main cause of false positives in all version-based detection. When the package's distribution is known, Lybra checks its advisories and marks the finding as fixed if the distribution had patched it." },
+          { "term": "Wrong component", "text": "A single product in the NVD can cover several programs: OpenSSH is both the server and the client. A client vulnerability does not affect a server seen on the network. Lybra filters these cases with a hand-reviewed catalogue and, where there is none, by reading the vulnerability's description." },
+          { "term": "Conditions it cannot see", "text": "Some vulnerabilities only exist with a specific configuration option, or on a specific operating system. Lybra cannot see those from outside, so such findings are reported with lowered priority and do not top the report." },
+          { "term": "Active confirmation", "text": "When a concrete test exists for a flaw, Lybra runs it. A finding confirmed that way does not depend on the announced version." }
+        ] }
+      ]
+    },
+    {
+      "id": "pruebas-activas",
+      "heading": "Active tests",
+      "blocks": [
+        { "type": "p", "text": "An **active test** describes a request and the response conditions that prove the problem: requesting `/.git/config` and getting a repository's configuration file, for example. If the test matches, the finding is marked as confirmed, with high confidence." },
+        { "type": "p", "text": "Tests are written declaratively in a catalogue, with a structure similar to Nuclei's templates, rather than as code. They cover paths that should not be exposed, missing security headers, certificate and TLS hygiene, and probes for protocols other than HTTP. A test can chain requests (take a cookie or a token from one response and use it in the next) and try several variants of the same value, with a fixed cap so it never turns into a brute-force attack. Whatever does not fit that format, such as a binary protocol or a multi-step negotiation, is written as a small code module." },
+        { "type": "p", "text": "Tests run at a controlled pace per machine: if the target stops answering in time, Lybra spaces out its requests and gradually returns to the normal pace once it recovers." },
+        { "type": "p", "text": "Every confirmed finding keeps its **evidence**: the response that proved it. Before it is stored, cookies, authentication headers and tokens are removed and the response body is trimmed. The evidence is stored with a fingerprint (a SHA-256 hash) that makes it possible to check later that it has not been altered." }
+      ]
+    },
+    {
+      "id": "autorizacion",
+      "heading": "What gets scanned, and with what permission",
+      "blocks": [
+        { "type": "p", "text": "Scanning someone else's machine without permission is a crime in many countries. Themis separates what anyone can check from what requires the target's owner to have authorised it explicitly." },
+        { "type": "list", "items": [
+          "**Private addresses, never.** Each scanner rejects internal network addresses inside its own execution, not only when the request arrives. That also covers scheduled scans, which do not go through the website.",
+          "**A registry of authorised targets.** Each user declares which IPs, ranges, domains or cloud resources they are authorised to analyse in depth. A domain also authorises its subdomains, but not look-alike domains.",
+          "**Aggressive mode with two keys.** Tests that may disturb the target only run if the user explicitly asks for them **and** the target is in their registry. Neither condition is enough on its own."
+        ] },
+        { "type": "p", "text": "The most delicate test is the **default credentials** one: trying to log into a panel with factory usernames and passwords. It is the only one that actually signs into the target, so it lives apart, under aggressive mode and with an attempt budget per account, so it never locks out real users." },
+        { "type": "callout", "text": "When the target is a domain name, Lybra resolves it once, checks that the address is public and pins it for the whole scan. That way a DNS server that changes its answer halfway through cannot divert the analysis to another machine." }
+      ]
+    },
+    {
+      "id": "sitios-con-nombre",
+      "heading": "Several sites on one IP",
+      "blocks": [
+        { "type": "p", "text": "A shared server can host dozens of websites behind a single address, and decides which one to show by the name the visitor asks for. Scanning the bare IP only audits the site that comes up by default, which is often not the one that matters." },
+        { "type": "p", "text": "The server itself gives the others away: the certificates it serves carry the names they cover, and reverse DNS usually names the machine. Lybra collects those names and audits each site separately, sending its name just as a browser would. Problems that belong to the machine, not to a site, are reported once." },
+        { "type": "p", "text": "If a name returns exactly the same page and certificate as the bare IP, it is treated as an alias of the default site and is not audited twice. And when the IP hosts sites of its own, the findings of its default site are lowered: they are true for anyone who connects without a name, but no real visitor sees them." }
+      ]
+    },
+    {
+      "id": "prioridad",
+      "heading": "How priority is decided",
+      "blocks": [
+        { "type": "p", "text": "The severity the NVD publishes (CVSS) measures how bad a flaw is in the abstract. Themis starts from it and adjusts it with what it knows about the specific case, so that the order of the report resembles the order in which it makes sense to act:" },
+        { "type": "list", "items": [
+          "If the vulnerability is being exploited in real attacks (it is in KEV) or has a high probability of being exploited (EPSS of 0.5 or more), it goes up one level.",
+          "If it has no CVSS score but the test that detected it declares a severity, that is the starting point.",
+          "A confirmed problem with neither a score nor a declared severity counts as MEDIUM at least.",
+          "If it depends on a condition Lybra cannot verify (the operating system, an unchecked distribution package), it stays at MEDIUM or below; if it depends on a configuration option, at LOW or below.",
+          "If the target is on a private network, it stays at HIGH or below, because it is not exposed to the internet."
+        ] }
+      ]
+    },
+    {
+      "id": "ciclo-de-vida",
+      "heading": "The life cycle of a finding",
+      "blocks": [
+        { "type": "p", "text": "Each scan is compared with the previous one of the same target. The same problem is recognised across scans by a fingerprint that does not depend on which version of the test detected it, so improving a test does not make its finding look new or fixed." },
+        { "type": "terms", "items": [
+          { "term": "`open`", "text": "It is present, for the first time or since before." },
+          { "term": "`fixed`", "text": "It was in the previous scan and no longer appears. It is recorded once, so the history shows the fix." },
+          { "term": "`regressed`", "text": "It had been fixed and has come back." },
+          { "term": "`accepted`", "text": "The user acknowledges it is real and accepts the risk. The acceptance expires, and when it does the finding goes back to `open` for review." },
+          { "term": "`false_positive`", "text": "The user says the engine got it wrong. It does not expire with time, but it reopens if the test that produced it or the knowledge base version changes: what was refuted is no longer the same as what is being shown." }
+        ] },
+        { "type": "p", "text": "A finding can become `fixed` without anyone fixing it, because Lybra has found out it did not apply: the distribution had already patched it, or the site turned out to be an alias of the default site. In those cases the finding records the reason, and it does not count as a real fix in the statistics." }
+      ]
+    },
+    {
+      "id": "mas-alla-del-equipo",
+      "heading": "Beyond a single machine",
+      "blocks": [
+        { "type": "p", "text": "Besides scanning machines, Themis offers four analyses that look at the context they live in:" },
+        { "type": "terms", "items": [
+          { "term": "Passive intelligence", "text": "What is known about a domain without touching any of its machines: subdomains and recent certificates published in the certificate transparency logs, optional external sources, and email configuration read from public DNS (SPF, DMARC, DKIM, MTA-STS…). It needs no authorisation because it sends nothing to the target, and every piece of data states which source it comes from and how old it is." },
+          { "term": "Cloud exposure", "text": "Whether a declared cloud storage (S3, Google Cloud Storage, Azure Blob, Firebase) shows its contents to anyone, and whether a subdomain points to an external service that no longer exists and that someone else could claim. Resources are declared, never guessed, and require authorisation." },
+          { "term": "API surface", "text": "If a web service publishes its API description (OpenAPI or Swagger), Lybra checks whether the endpoints the description itself declares protected answer without credentials. It is not a fuzzer: it only tests what the document declares, and with a cap." },
+          { "term": "Lateral movement", "text": "In a network scanned as a whole, Lybra looks for what would let an attacker jump from one machine to another: a vulnerable remote-administration service on a shared segment, the same serious flaw on several machines, a machine that bridges two networks, or the same default credentials working in several places. These are inferences, not proof, and they are presented as such." }
+        ] }
+      ]
+    },
+    {
+      "id": "informes",
+      "heading": "Reports",
+      "blocks": [
+        { "type": "p", "text": "Any finished scan can be turned into a PDF report, generated in the background. If requested, a language model writes the summary and recommendations from the findings. The model provider (OpenAI, Google or a local one with Ollama) is chosen in the configuration, and the report without AI is still complete." },
+        { "type": "p", "text": "Findings are not listed one after another. They are grouped by **unit of work**: one block per affected product, with the single upgrade that closes all its problems, and configuration problems kept apart. A machine with two outdated programs can produce 150 findings, but that is two tasks, and the report presents it that way." },
+        { "type": "p", "text": "Lybra reports also translate each finding into the MITRE ATT&CK techniques it enables and the controls it affects in the compliance frameworks its owner follows: ISO/IEC 27001, Spain's National Security Framework (ENS) or NIS2. An organisation can impose its frameworks on all its members." },
+        { "type": "p", "text": "Outside the PDF, a scan's findings can be exported in standard formats (SARIF, STIX and OCSF) to feed a continuous integration pipeline, a threat-intelligence platform or a SIEM." }
+      ]
+    },
+    {
+      "id": "programados",
+      "heading": "Scheduled scans and re-scans",
+      "blocks": [
+        { "type": "p", "text": "A scan can be scheduled with a cron expression or a fixed interval. Expressions are always interpreted in UTC, so the schedule does not shift with the server's time zone. Creating a schedule uses its own plan quota, and every run goes through the same rejection of private addresses as a manual scan." },
+        { "type": "p", "text": "Repeating a scan does not repeat all the work. If the previous scan already identified the product and version of a service on the same port, Lybra reuses that identification instead of probing it over the network again, and version-based detection, which is cheap, is recalculated anyway against the current knowledge base." },
+        { "type": "p", "text": "That stored identification expires after seven days, or sooner if the identifier itself improves. Without expiry, an upgraded server would keep carrying the vulnerabilities of its old version. The most thorough scan profile never reuses anything." }
+      ]
+    }
+  ]
+}

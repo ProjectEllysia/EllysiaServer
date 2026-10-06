@@ -178,11 +178,7 @@ def test_no_quedan_matchers_del_spa_para_rutas_que_ya_no_existen(spa_paths, spa_
     """El contrato también se rompe al revés: borrar una ruta del router y
     dejarse su entrada aquí. No da error, pero engaña al siguiente que lea el
     fichero creyendo que esa URL existe."""
-    # Los hubs se declaran con barra final a propósito (los usuarios la escriben
-    # a mano), pero en el router son `/themis`, `/aegis`... sin ella.
-    huerfanas = {
-        path for path in spa_paths if path not in spa_routes and path.rstrip("/") not in spa_routes
-    }
+    huerfanas = spa_paths - spa_routes
     assert not huerfanas, (
         f"Entradas de `@spa_bajo_prefijo_api` en web/Caddyfile sin ruta "
         f"correspondiente en web/app/src/router/index.js: {sorted(huerfanas)}"
@@ -204,4 +200,44 @@ def test_el_handle_del_spa_va_antes_que_el_de_la_api(caddyfile):
         "`handle @spa_bajo_prefijo_api`. Los `handle` se evalúan en orden y "
         "`@api` incluye `/themis/*`, `/hygeia/*`..., así que se lleva a Flask "
         "las rutas del SPA que el otro bloque debía rescatar."
+    )
+
+
+_HUB_REDIRECT_MATCHER = "hub_con_barra"
+
+
+def test_cada_hub_con_barra_final_se_redirige_a_su_forma_sin_barra(caddyfile, blueprint_prefixes, spa_routes):
+    """`/themis/` responde con un 301 a `/themis`, y así cada hub.
+
+    Un hub es una ruta del SPA que coincide con un prefijo de la API. Escrito
+    con barra final, `@api` (`/themis/*`) se lo llevaría a Flask; servir ahí
+    el SPA tampoco vale, porque daría a los buscadores dos URL con el mismo
+    contenido. Un hub nuevo que falte en la redirección vuelve a dar el 404 de
+    Flask al escribirlo con barra.
+    """
+    match = re.search(
+        rf"^\s*@{_HUB_REDIRECT_MATCHER}\s+path_regexp\s+\w+\s+\^/\(([^)]+)\)/\$$", caddyfile, re.MULTILINE
+    )
+    assert match, (
+        f"No se encuentra `@{_HUB_REDIRECT_MATCHER} path_regexp <nombre> ^/(a|b|...)/$` "
+        f"en web/Caddyfile. Si ha cambiado de forma, hay que actualizar este test."
+    )
+    redirigidos = {f"/{hub}" for hub in match.group(1).split("|")}
+    hubs = spa_routes & blueprint_prefixes
+    assert redirigidos == hubs, (
+        f"Los hubs del router ({sorted(hubs)}) y los que redirige "
+        f"`@{_HUB_REDIRECT_MATCHER}` en web/Caddyfile ({sorted(redirigidos)}) no coinciden."
+    )
+
+
+def test_la_redireccion_de_hubs_va_antes_que_el_handle_de_la_api(caddyfile):
+    """Mismo motivo que el orden de los otros dos `handle`: `@api` incluye
+    `/themis/*`, que casa con `/themis/`, así que escrito después la
+    redirección no llegaría a ejecutarse nunca."""
+    redireccion = caddyfile.index(f"handle @{_HUB_REDIRECT_MATCHER}")
+    api = caddyfile.index(f"handle @{_API_MATCHER}")
+    assert redireccion < api, (
+        f"En web/Caddyfile el `handle @{_API_MATCHER}` está escrito antes que "
+        f"`handle @{_HUB_REDIRECT_MATCHER}`: Flask se lleva `/themis/` y los "
+        f"demás hubs con barra final."
     )

@@ -1,0 +1,121 @@
+{
+  "title": "Aegis",
+  "lede": "Ellysia's awareness tool: how it writes training pills from the security advisories that actually affect an organisation, and how it sends them and measures what was understood.",
+  "sections": [
+    {
+      "id": "que-es",
+      "heading": "What Aegis is",
+      "blocks": [
+        { "type": "p", "text": "Most incidents start with a person: an email that should not have been opened, a reused password, a file downloaded without thinking. Aegis prepares material to train those people, who are not technical, without anyone having to write it from scratch." },
+        { "type": "p", "text": "Its unit is the **pill**: a short document on a specific security topic, with an introduction, a series of practical tips, the recent security advisories that affect the products the organisation uses, a closing and a short quiz. A pill can be read, edited and exported, or emailed to a group of people in a **campaign** that measures how many opened it and how well they scored." },
+        { "type": "terms", "items": [
+          { "term": "Pill", "text": "The training content, written by a language model from a topic and the organisation's context." },
+          { "term": "Organisation profile", "text": "The data that hardly ever changes (company name, contact, tone, size, jurisdiction and the products in use), saved once so it does not have to be repeated for every pill." },
+          { "term": "Campaign", "text": "Sending a pill and its quiz to a list of people, with individual tracking." }
+        ] }
+      ]
+    },
+    {
+      "id": "recorrido",
+      "heading": "The path of a pill",
+      "blocks": [
+        { "type": "p", "text": "Like a Themis scan, a pill is not generated inside the request that asks for it: writing it with a language model takes time, so the API puts the work in the task queue and answers straight away. The website checks the status until the pill is ready." },
+        { "type": "steps", "items": [
+          { "title": "Request", "text": "A topic is chosen from the catalogue and, optionally, refined: a specific focus within the topic, a recent incident worth mentioning or the audience's technical level. The rest of the context comes from the organisation profile." },
+          { "title": "Plan quota", "text": "Each pill uses one from the plan's pill quota and one AI request. If either is used up, the request is rejected before anything is created." },
+          { "title": "Current advisories", "text": "The recent security advisories affecting the organisation's products are gathered. The next section explains how." },
+          { "title": "Writing", "text": "A language model writes the pill with all that context." },
+          { "title": "Validation", "text": "The model's answer is checked before it is accepted: that it has every part, that each tip has a title and a body, that each question has a valid correct answer and that the links are not made up." },
+          { "title": "Storage", "text": "The pill is stored with its tips, advisories and quiz as separate pieces, so each can be edited on its own." }
+        ] }
+      ]
+    },
+    {
+      "id": "avisos",
+      "heading": "Advisories that actually apply",
+      "blocks": [
+        { "type": "p", "text": "A generic pill about passwords works for anyone; one that mentions the security flaw published this month in the software the organisation uses reads very differently. That is why Aegis includes the **current advisories** for the products in use." },
+        { "type": "p", "text": "Those products can be declared by hand in the profile, by searching the knowledge base's product catalogue, or taken from the software inventory collected by Hygeia's agents, if the organisation has them installed." },
+        { "type": "terms", "items": [
+          { "term": "Knowledge base", "text": "The local copy of published vulnerabilities (NVD), of the ones being exploited (KEV) and of their exploitation probability (EPSS), maintained by Themis. It provides each product's specific vulnerabilities, with their severity, without going to the internet." },
+          { "term": "INCIBE-CERT", "text": "The advisories of the response team of Spain's National Cybersecurity Institute, written in Spanish for people. It is the only source Aegis queries on the internet, and the answer is kept for fifteen minutes so the query is not repeated for every pill." }
+        ] },
+        { "type": "p", "text": "Only advisories published within a configurable maximum age (five years by default) are included." },
+        { "type": "callout", "text": "NVD descriptions are in English and the pills are in Spanish. Instead of translating them, Aegis composes each advisory's summary from its structured data (product, severity, whether it is being exploited), and the original description is only used as context for the model." }
+      ]
+    },
+    {
+      "id": "redaccion",
+      "heading": "How the AI is used",
+      "blocks": [
+        { "type": "p", "text": "Aegis does not talk to an AI provider directly. It delegates to **scribe**, Ellysia's shared text-generation layer, which lets the configuration choose which provider each module uses (OpenAI, Google or a local model with Ollama) without changing Aegis's code." },
+        { "type": "list", "items": [
+          "**Instructions in the configuration.** The text given to the model lives in the configuration, not in the code, and can be adjusted without a deployment. A test checks that every piece of data Aegis offers has its slot in those instructions, so none is lost along the way.",
+          "**Examples.** The instructions include examples of well-made pills, which guide the model better than a description of the format.",
+          "**Web search.** The model can ask for an internet search when it needs to check something recent.",
+          "**Resilience.** If the provider fails, the call is retried with increasing waits; if it keeps failing, Aegis stops insisting for a while instead of flooding it."
+        ] },
+        { "type": "p", "text": "The number of tips per pill, of quiz questions and of options per question is set in the configuration." }
+      ]
+    },
+    {
+      "id": "edicion",
+      "heading": "Editing and exporting",
+      "blocks": [
+        { "type": "p", "text": "What a model writes needs reviewing. Whoever generates a pill can correct its content and questions before using it, and what they save is what gets sent later." },
+        { "type": "p", "text": "A pill can be exported as Markdown, HTML or JSON, to publish it on an intranet, paste it into a newsletter or process it with another tool. Each format is an independent piece with the same interface, so adding a new one does not touch the others." }
+      ]
+    },
+    {
+      "id": "campanas",
+      "heading": "Campaigns",
+      "blocks": [
+        { "type": "p", "text": "A campaign sends a pill and its quiz to a **distribution list**: a named group of people, reusable across campaigns. Each recipient gets an email with the pill and a personal link to their quiz." },
+        { "type": "steps", "items": [
+          { "title": "Draft", "text": "The campaign is created by choosing the pill and the list. Nothing is sent yet." },
+          { "title": "Launch", "text": "A copy of the quiz is frozen inside the campaign and a unique link is generated for each recipient." },
+          { "title": "Sending", "text": "The emails go out in the background, one per recipient. Sending can be cancelled halfway." },
+          { "title": "Tracking", "text": "Each recipient moves from sent to opened when they visit their link, and to completed when they answer." }
+        ] },
+        { "type": "p", "text": "**Why the quiz is frozen.** If the questions were read from the pill at the moment of answering, editing the pill with a campaign under way would change the test halfway: some recipients would answer some questions and others different ones, and the results would not be comparable. With the copy, what was sent is what gets marked." },
+        { "type": "p", "text": "Aegis does not send the email itself: it delegates to **herald**, Ellysia's shared email layer, which handles the connection to the configured mail server." }
+      ]
+    },
+    {
+      "id": "cuestionario-publico",
+      "heading": "The public quiz",
+      "blocks": [
+        { "type": "p", "text": "Whoever receives a campaign has no Ellysia account and should not need one. That is why the quiz is the only page in the whole API that works without signing in. What identifies the recipient is their link, and that link is guarded carefully:" },
+        { "type": "list", "items": [
+          "**A random token per recipient.** The link carries a long random string, generated when the campaign is launched. It is never derived from the person's email, so knowing an address does not make it possible to guess their link.",
+          "**Only their own.** The link gives access to that person's quiz and nothing else: not the campaign, not the list, not anyone else's answers.",
+          "**No correct answers.** The page receives the questions and their options, but never which one is correct. Marking happens on the server.",
+          "**A single attempt.** Once submitted, the quiz accepts no more answers. If two submissions arrive at once from the same link, the database accepts only one."
+        ] },
+        { "type": "p", "text": "The options of each question are shown in a different random order for each person. Language models tend to put the correct answer in the same position almost every time, and anyone who took two campaigns would learn that pattern before the content. Shuffling in the browser is safe precisely because the page never knows which answer is correct." }
+      ]
+    },
+    {
+      "id": "resultados",
+      "heading": "Results",
+      "blocks": [
+        { "type": "p", "text": "A campaign shows how many people opened their quiz, how many completed it and the average score. For each question it shows how many people chose each option: a question almost everyone gets wrong with the same wrong answer points to a specific misunderstanding, which is more useful than an overall score." },
+        { "type": "p", "text": "Campaigns are grouped by pill, to compare how the same content worked with different audiences." }
+      ]
+    },
+    {
+      "id": "marca-propia",
+      "heading": "Own branding",
+      "blocks": [
+        { "type": "p", "text": "A training email reads better when it arrives with the company's own look than with an unknown tool's. Aegis can replace Ellysia's branding with the organisation's, in steps:" },
+        { "type": "terms", "items": [
+          { "term": "None", "text": "The recipient sees Ellysia's branding." },
+          { "term": "Colour", "text": "The accent colour becomes the organisation's." },
+          { "term": "Logo", "text": "Additionally, the organisation's logo is added to the content." },
+          { "term": "Full", "text": "Additionally, Ellysia's branding disappears from the header, the footer and the quiz page." }
+        ] },
+        { "type": "p", "text": "The highest step depends on the plan. Branding is applied the same way in the email and on the quiz page, which is the second half of the same campaign, and that page only shows what the recipient already received in their email: their own organisation's name, colour and logo." }
+      ]
+    }
+  ]
+}

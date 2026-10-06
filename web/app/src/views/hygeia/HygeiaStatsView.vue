@@ -913,7 +913,7 @@ onUnmounted(() => clearInterval(ageTimer))
 .btn-documents:hover { border-color: var(--accent); color: var(--text); }
 .btn-documents:focus-visible { outline: 2px solid var(--accent-bright); outline-offset: 2px; }
 .head-title { margin: 0 0 0.3rem; font-size: var(--fs-2xl); font-weight: 600; color: var(--text); }
-.head-sub { margin: 0; max-width: 64ch; font-size: var(--fs-md); color: var(--text-muted); line-height: 1.5; }
+.head-sub { margin: 0; max-width: 64ch; font-size: var(--fs-body); color: var(--text-muted); line-height: 1.5; }
 
 /* ── Panorama ── */
 .overview { margin: 1.4rem 0 0.4rem; }
@@ -1045,7 +1045,7 @@ onUnmounted(() => clearInterval(ageTimer))
 .ticks { position: absolute; left: 0; right: 0; bottom: 0; height: 20px; pointer-events: none; }
 .tick {
   position: absolute; top: 3px;
-  color: var(--text-muted); font-size: 11px; white-space: nowrap; font-variant-numeric: tabular-nums;
+  color: var(--text-muted); font-size: var(--fs-xs); white-space: nowrap; font-variant-numeric: tabular-nums;
 }
 .tick--middle { transform: translateX(-50%); }
 .tick--end { transform: translateX(-100%); }

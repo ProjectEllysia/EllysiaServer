@@ -1132,7 +1132,7 @@ watch(
 
 .degraded-text {
   margin: 0;
-  font-size: var(--fs-md);
+  font-size: var(--fs-body);
   line-height: 1.6;
 }
 
@@ -1161,7 +1161,7 @@ watch(
 .uncertainty-list {
   margin: 0;
   padding-left: 1.1rem;
-  font-size: var(--fs-md);
+  font-size: var(--fs-body);
   line-height: 1.6;
 }
 
@@ -1281,7 +1281,7 @@ watch(
 }
 .trust-detail {
   margin: 0.35rem 0 0;
-  font-size: var(--fs-md);
+  font-size: var(--fs-body);
   line-height: 1.5;
   color: var(--text-dim);
 }
@@ -1308,7 +1308,7 @@ watch(
   border-radius: 10px;
   background: color-mix(in srgb, var(--danger) 6%, var(--surface));
   border: 1px solid color-mix(in srgb, var(--danger) 30%, var(--border));
-  font-size: var(--fs-md);
+  font-size: var(--fs-body);
   line-height: 1.6;
   color: var(--text);
 }

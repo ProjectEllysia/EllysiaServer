@@ -149,7 +149,7 @@ onMounted(() => {
   font-size: var(--fs-xs); letter-spacing: 0.28em; text-transform: uppercase; color: var(--accent);
 }
 .panel-title { margin: 0 0 0.5rem; font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-size: var(--fs-2xl); font-weight: 700; color: var(--text); }
-.panel-sub { margin: 0 0 1.2rem; font-size: var(--fs-md); line-height: 1.55; color: var(--text-dim); max-width: 62ch; }
+.panel-sub { margin: 0 0 1.2rem; font-size: var(--fs-body); line-height: 1.55; color: var(--text-dim); max-width: 62ch; }
 
 .list-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 0.9rem; }
 .list-title { margin: 0; font-size: var(--fs-lg); color: var(--text); }

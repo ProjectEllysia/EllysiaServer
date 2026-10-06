@@ -74,7 +74,7 @@ const finishedCount = computed(() => tracked.value.filter(item => TERMINAL.inclu
 .batch-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
 .batch-eyebrow { margin: 0; font-size: var(--fs-xs); letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); }
 .batch-title { margin: 0.15rem 0 0; font-size: var(--fs-lg); color: var(--text); }
-.batch-close { border: none; background: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; }
+.batch-close { border: none; background: none; color: var(--text-muted); font-size: var(--fs-xl); cursor: pointer; }
 .batch-counts { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.6rem 0; }
 .count { padding: 0 0.5rem; font-size: var(--fs-xs); font-weight: 600; border-radius: 999px; background: var(--surface-2); color: var(--text-dim); }
 .count--created { background: var(--success-dim); color: var(--success); }

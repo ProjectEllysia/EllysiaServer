@@ -756,7 +756,7 @@ onBeforeUnmount(() => {
 }
 .unlock-icon svg { width: 26px; height: 26px; }
 .unlock-title { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-size: var(--fs-xl); color: var(--text); margin-bottom: 0.5rem; }
-.unlock-sub { font-size: var(--fs-md); color: var(--text-dim); line-height: 1.5; margin-bottom: 1.5rem; }
+.unlock-sub { font-size: var(--fs-body); color: var(--text-dim); line-height: 1.5; margin-bottom: 1.5rem; }
 .unlock-sub strong { color: #c4a0e0; font-weight: 600; }
 
 .field { display: block; text-align: left; margin-bottom: 1rem; }
