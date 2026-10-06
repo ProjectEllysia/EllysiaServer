@@ -4443,6 +4443,10 @@
       "docsThemis": {
         "title": "Themis por dentro: cómo funciona el escáner | Ellysia",
         "description": "Cómo descubre Themis lo que expone un equipo, cómo cruza el software con las vulnerabilidades publicadas, cómo evita falsos positivos y cómo sigue cada hallazgo."
+      },
+      "docsAegis": {
+        "title": "Aegis por dentro: cómo funciona la concienciación | Ellysia",
+        "description": "Cómo redacta Aegis píldoras de concienciación con los avisos que afectan a una organización, cómo envía campañas y cómo protege el cuestionario público."
       }
     }
   }

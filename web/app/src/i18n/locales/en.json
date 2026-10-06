@@ -4443,6 +4443,10 @@
       "docsThemis": {
         "title": "Themis inside: how the scanner works | Ellysia",
         "description": "How Themis discovers what a machine exposes, matches software against published vulnerabilities, avoids false positives and follows each finding."
+      },
+      "docsAegis": {
+        "title": "Aegis inside: how the awareness tool works | Ellysia",
+        "description": "How Aegis writes awareness pills from the advisories that affect an organisation, sends campaigns and protects the public quiz."
       }
     }
   }
