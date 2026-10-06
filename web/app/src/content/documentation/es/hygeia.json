@@ -1,0 +1,128 @@
+{
+  "title": "Hygeia",
+  "lede": "La monitorización de servidores de Ellysia: cómo llegan los datos de cada máquina, cómo decide que algo va mal sin avisar de más, y cómo convierte miles de lecturas en respuestas que se pueden defender.",
+  "sections": [
+    {
+      "id": "que-es",
+      "heading": "Qué es Hygeia",
+      "blocks": [
+        { "type": "p", "text": "Hygeia vigila el estado de los servidores y equipos de una organización. En cada máquina se instala un **agente**, un programa pequeño que cada pocos segundos envía a Ellysia una **lectura**: uso de procesador, memoria, discos, red, los procesos que más consumen, el software instalado y, si el hardware lo permite, el consumo eléctrico." },
+        { "type": "p", "text": "Con esas lecturas, Hygeia sabe qué máquinas están encendidas, abre **anomalías** cuando algo cruza un umbral y avisa por correo de lo crítico, calcula estadísticas sobre una máquina, un grupo o toda la flota, y puede pasar el inventario de software a Themis para buscar vulnerabilidades sin tocar la máquina." }
+      ]
+    },
+    {
+      "id": "agente",
+      "heading": "El agente y la entrada de datos",
+      "blocks": [
+        { "type": "p", "text": "El agente es el que envía los datos: Hygeia no se conecta nunca a la máquina. Eso evita abrir puertos de entrada en el servidor vigilado, y permite vigilar equipos detrás de un cortafuegos o sin dirección pública. Por defecto envía una lectura cada 15 segundos." },
+        { "type": "p", "text": "Cada máquina se identifica con su propia **clave de agente**, que se entrega una sola vez al darla de alta. Tiene dos partes: un prefijo público, que sirve para encontrar la máquina rápido, y un secreto del que Ellysia guarda solo una huella con Argon2id, nunca el valor. La clave se puede rotar, y la anterior deja de valer al instante." },
+        { "type": "p", "text": "La entrada de datos es la única parte de Hygeia que no usa la sesión de una persona, sino esa clave, y desconfía de lo que recibe. Antes incluso de leer el contenido comprueba:" },
+        { "type": "list", "items": [
+          "el tamaño, antes y después de descomprimir, para que un envío comprimido diseñado para multiplicarse no agote la memoria;",
+          "que el reloj de la lectura sea razonable: ni muy adelantado ni más antiguo de un día, para que un agente comprometido no pueda reescribir el pasado;",
+          "que no lleguen lecturas más deprisa que un mínimo, y que las listas (discos, interfaces, procesos, software) no pasen de un tope."
+        ] }
+      ]
+    },
+    {
+      "id": "presencia",
+      "heading": "Encendida, callada o caída",
+      "blocks": [
+        { "type": "p", "text": "Una vez por minuto, Hygeia revisa cuánto hace que cada máquina no envía nada y la clasifica en dos escalones:" },
+        { "type": "terms", "items": [
+          { "term": "`online`", "text": "Envía con normalidad." },
+          { "term": "`stale`", "text": "Se ha saltado una lectura. Es solo una señal visual en el listado, porque una lectura perdida suele ser un tropiezo de red." },
+          { "term": "`offline`", "text": "Lleva varias lecturas sin enviar. Solo este paso abre una anomalía de máquina caída." }
+        ] },
+        { "type": "p", "text": "Cada máquina se compara con su propio intervalo de envío, no con el general, para que una que envía más despacio no se dé por caída antes de tiempo. Y una máquina se puede marcar como **no persistente**, por ejemplo un equipo que se apaga cada noche a propósito: su estado se sigue mostrando, pero apagarse no abre ninguna anomalía ni manda ningún correo." }
+      ]
+    },
+    {
+      "id": "anomalias",
+      "heading": "Anomalías sin ruido",
+      "blocks": [
+        { "type": "p", "text": "Cada métrica vigilada (procesador, memoria, disco e intercambio) tiene dos umbrales, aviso y crítico. Un sistema de alertas que avisa en cada pico acaba ignorado, así que Hygeia aplica tres reglas:" },
+        { "type": "list", "items": [
+          "**Picos sostenidos.** El procesador y la memoria tienen que superar el umbral durante varias lecturas seguidas para abrir una anomalía; un pico de un instante no cuenta. El disco y el intercambio cambian despacio y no necesitan esa confirmación.",
+          "**Histéresis.** Una anomalía abierta solo se cierra cuando la métrica baja del umbral de aviso, no del crítico. Así, un valor que oscila justo alrededor del umbral no abre y cierra anomalías sin parar.",
+          "**Una anomalía, no una ráfaga.** Mientras está abierta no se reabre, ni se actualiza lectura a lectura, ni genera más avisos."
+        ] },
+        { "type": "p", "text": "Las anomalías críticas se avisan por correo en segundo plano. Una persona puede marcar una anomalía como vista o como resuelta." }
+      ]
+    },
+    {
+      "id": "datos",
+      "heading": "Qué se guarda y cuánto tiempo",
+      "blocks": [
+        { "type": "p", "text": "De cada lectura se guardan aparte, en columnas propias, las ocho cifras que tiene sentido seguir en el tiempo: procesador, memoria, intercambio, disco más lleno, carga, tráfico de entrada y de salida, y consumo eléctrico. Las gráficas y las estadísticas leen esas columnas y no necesitan saber cómo es el mensaje del agente." },
+        { "type": "p", "text": "El detalle por elemento (cada disco, cada interfaz de red, cada núcleo) se queda en la lectura original, y solo lo consultan las estadísticas que lo necesitan, con un periodo más corto porque leerlo es mucho más costoso." },
+        { "type": "p", "text": "Las lecturas se conservan 30 días y se podan cada noche. Un dato que no llegó se guarda como ausente, no como cero: una máquina sin sensor de consumo no consume «0 W», y un hueco en las lecturas nunca se promedia como si fuera un valor real." }
+      ]
+    },
+    {
+      "id": "estadisticas",
+      "heading": "Estadísticas",
+      "blocks": [
+        { "type": "p", "text": "Las estadísticas responden a preguntas concretas sobre un periodo de hasta 30 días:" },
+        { "type": "terms", "items": [
+          { "term": "Una máquina", "text": "Mínimo, máximo, media, percentil 95 y valor actual de cada métrica, con el momento exacto en que se alcanzó cada extremo." },
+          { "term": "Una etiqueta", "text": "Las máquinas de un grupo, como «producción», combinadas: la suma para el total, la media para la máquina típica o el máximo para la más cargada. Sumar solo se permite en lo que se puede sumar, el tráfico y el consumo: sumar porcentajes de procesador de varias máquinas no mide nada." },
+          { "term": "La flota", "text": "Las máquinas más extremas en una métrica, cuántas hay en cada franja, cuáles han abierto más anomalías y una foto del estado actual." },
+          { "term": "Series", "text": "La evolución de una métrica en varias máquinas a la vez, para gráficas apiladas o comparativas." }
+        ] },
+        { "type": "p", "text": "Todas las cuentas se hacen en el servidor; la web solo da formato a lo que recibe. Para comparar varias métricas en una misma gráfica, todas se piden con el mismo tamaño de intervalo, de modo que sus puntos caen exactamente en los mismos instantes. Si un periodo pidiera demasiados puntos, el intervalo se ensancha y la respuesta lo indica." },
+        { "type": "p", "text": "Un periodo más largo que lo que se conserva no se rechaza: se recorta, y la respuesta dice qué tramo se cubrió de verdad." }
+      ]
+    },
+    {
+      "id": "analisis",
+      "heading": "Análisis que prefieren callar a inventar",
+      "blocks": [
+        { "type": "p", "text": "Algunas preguntas no se responden con una métrica tal cual. Hygeia las calcula con una regla común: si el dato no sostiene la respuesta, no da cifra y explica por qué." },
+        { "type": "terms", "items": [
+          { "term": "¿Cuándo se llenará el disco?", "text": "Se ajusta una recta al uso del disco y se proyecta cuándo llegará al 100 %. Solo se da una fecha si el disco crece de verdad y si la recta describe bien los datos; un disco que oscila entre el 60 y el 62 % no se llena en ninguna fecha concreta. En la práctica lo habitual es no dar fecha, porque el uso real de un disco sube a saltos (una actualización, un registro que rota) y no en línea recta." },
+          { "term": "¿A qué hora se carga más?", "text": "Las lecturas se agrupan por hora del día según el reloj del servidor, no el de cada máquina, que puede estar mal o en otra zona horaria. Una hora sin lecturas aparece vacía, no a cero: una oficina que se apaga de noche no es una flota en reposo." },
+          { "term": "¿Coinciden los picos?", "text": "Si el pico de procesador y el de red de una máquina cayeron a pocos minutos uno de otro. No es una correlación estadística, solo la distancia entre dos máximos, y la respuesta da los dos instantes para que se pueda juzgar." },
+          { "term": "¿Hay un núcleo saturado?", "text": "Un núcleo al 100 % entre ocho apenas mueve la media del procesador (un 12,5 %), pero es un problema. Hygeia mide la diferencia entre el núcleo más ocupado y el más libre." }
+        ] }
+      ]
+    },
+    {
+      "id": "energia",
+      "heading": "Consumo eléctrico",
+      "blocks": [
+        { "type": "p", "text": "Si el hardware tiene un sensor compatible, el agente envía el consumo en vatios, y Hygeia lo convierte en energía y coste con el precio de la electricidad configurado. Cada cifra va etiquetada según cómo se obtuvo:" },
+        { "type": "terms", "items": [
+          { "term": "Observada", "text": "El periodo está dentro de lo que se conserva y hay lecturas suficientes." },
+          { "term": "Observada parcial", "text": "Está dentro de lo que se conserva, pero faltan muchas lecturas." },
+          { "term": "Proyectada", "text": "El periodo es más largo que lo que se conserva, así que se extrapola. El coste mensual o anual siempre lo es." }
+        ] },
+        { "type": "p", "text": "Una máquina virtual no tiene sensores de consumo propios, porque no se virtualizan. Cuando el agente indica que la máquina es virtual, Hygeia lo explica así en vez de decir que faltan sensores: quien mide el consumo es la máquina anfitriona." }
+      ]
+    },
+    {
+      "id": "inventario",
+      "heading": "Vulnerabilidades del software instalado",
+      "blocks": [
+        { "type": "p", "text": "El agente ya está dentro de la máquina y ya informa del software instalado, con sus versiones. Hygeia puede pasarle esa lista a **Lybra**, el motor de Themis, para cruzarla con las vulnerabilidades publicadas. Es como un escaneo con acceso desde dentro, pero sin escaneo: no se envía ni un paquete a la máquina." },
+        { "type": "p", "text": "Como gasta un escaneo de Themis, pide los permisos de las dos herramientas. Cada análisis se guarda como un escaneo nuevo, así que el ciclo de vida de los hallazgos funciona igual que en Themis: lo que deja de aparecer tras una actualización queda como corregido." },
+        { "type": "p", "text": "El mismo inventario puede servir a Aegis como lista de productos de la organización, para que sus píldoras de concienciación mencionen los avisos de seguridad del software que de verdad se usa." }
+      ]
+    },
+    {
+      "id": "documentos",
+      "heading": "Exportar y no repetir cálculos",
+      "blocks": [
+        { "type": "p", "text": "Una tabla de estadísticas se puede exportar en CSV o PDF, y el inventario de las máquinas en PDF. El fichero se genera en segundo plano: recorrer las lecturas de 30 días puede tardar, y una descarga atada a la petición se perdería al cambiar de página. El documento guarda la consulta exacta de la que salió, para poder describirlo aunque la máquina o la etiqueta ya no existan." },
+        { "type": "p", "text": "Las estadísticas que más se consultan se guardan un rato en una caché, más tiempo cuanto más largo es el periodo, porque las cifras de un día cambian con cada lectura y las de un mes casi no se mueven. La caché es de cada usuario y se invalida entera cuando cambian sus máquinas o sus etiquetas. La foto del estado actual de la flota nunca se guarda en caché: una máquina caída tiene que verse al momento." }
+      ]
+    },
+    {
+      "id": "privacidad",
+      "heading": "Lo de cada uno, de cada uno",
+      "blocks": [
+        { "type": "p", "text": "Las etiquetas pueden ser personales o del sistema, compartidas por todos. Una etiqueta del sistema la ve cualquiera, pero sus estadísticas, su número de máquinas y su última actividad cuentan solo las máquinas de quien pregunta: ninguna cifra puede revelar que otra persona tiene máquinas con esa etiqueta. Pedir la máquina o la etiqueta personal de otro da el mismo error que pedir una que no existe." }
+      ]
+    }
+  ]
+}

@@ -398,7 +398,7 @@
     "modules": {
       "themis": "Weighs every threat before it strikes: its own engine, classic scanners, AI reports.",
       "aegis": "Awareness that arrives before the attack: AI pills and tracked campaigns.",
-      "iris": "Verifies who signs every email: 37 rules against phishing.",
+      "iris": "Verifies who signs every email: 47 rules against phishing.",
       "acheron": "Keeps what must not be lost: a vault encrypted in your browser.",
       "hygeia": "Watches the pulse of every asset: live telemetry and alerts before failure."
     }
@@ -509,7 +509,12 @@
     },
     "technical": {
       "title": "Technical documentation",
-      "intro": "Technical reference for Ellysia's API, internal architecture and data models, meant for anyone integrating or extending the platform."
+      "intro": "How Ellysia works inside, tool by tool: the path a request takes, what each piece decides and why it is built that way. For anyone who wants to understand the system, not just use it.",
+      "onThisPage": "On this page",
+      "previous": "Previous",
+      "next": "Next",
+      "otherTools": "Other tools",
+      "readPage": "Read the {name} documentation"
     }
   },
   "notAvailable": {
@@ -2675,14 +2680,14 @@
     "empty": "You have not examined any email yet. Drop an .eml and start.",
     "highlight": {
       "label": "The verification",
-      "value": "37 rules",
+      "value": "47 rules",
       "sub": "against phishing in every email"
     },
     "features": {
       "rules": {
-        "kicker": "37 rules",
+        "kicker": "47 rules",
         "title": "The email's signature, under examination",
-        "desc": "SPF, DKIM, DMARC, sender spoofing and delivery route anomalies: every header testifies, and the 37 rules listen."
+        "desc": "SPF, DKIM, DMARC, sender spoofing and delivery route anomalies: every header testifies, and the 47 rules listen."
       },
       "quishing": {
         "kicker": "Quishing",
@@ -4433,7 +4438,27 @@
       },
       "docsTechnical": {
         "title": "Technical documentation | Ellysia",
-        "description": "Ellysia architecture, API and integration for anyone who wants to deploy it or connect its tools."
+        "description": "How Ellysia works inside, tool by tool: the path of each request, what each piece decides and why."
+      },
+      "docsThemis": {
+        "title": "Themis inside: how the scanner works | Ellysia",
+        "description": "How Themis discovers what a machine exposes, matches software against published vulnerabilities, avoids false positives and follows each finding."
+      },
+      "docsAegis": {
+        "title": "Aegis inside: how the awareness tool works | Ellysia",
+        "description": "How Aegis writes awareness pills from the advisories that affect an organisation, sends campaigns and protects the public quiz."
+      },
+      "docsIris": {
+        "title": "Iris inside: how the phishing analyser works | Ellysia",
+        "description": "How Iris examines an email with 47 rules, why it distrusts its own headers, how it decides the verdict and what it does with watched mailboxes."
+      },
+      "docsAcheron": {
+        "title": "Acheron inside: how the encrypted vault works | Ellysia",
+        "description": "How Acheron encrypts your passwords in the browser with Argon2id and AES-GCM, why the server cannot read them and how it syncs across devices."
+      },
+      "docsHygeia": {
+        "title": "Hygeia inside: how server monitoring works | Ellysia",
+        "description": "How Hygeia receives each server's data, opens anomalies without over-alerting, and computes statistics, power use and software vulnerabilities."
       }
     }
   }

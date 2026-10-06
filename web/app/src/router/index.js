@@ -261,20 +261,53 @@ const routes = [
     meta: { seo: 'terms' },
   },
   // Documentación (enlazada desde el desplegable "Documentación" del header
-  // de la landing). Misma vista genérica para ambas — el contenido real se
-  // irá rellenando; de momento son placeholders.
+  // de la landing). La de uso es todavía una vista provisional; la técnica
+  // tiene portada propia y una página por herramienta.
   {
     path: '/docs/uso',
     name: 'DocsUsage',
     component: () => import('@/views/public/DocsPlaceholderView.vue'),
     // Título y entradilla en `docs.usage` del diccionario.
-    meta: { docKey: 'usage', seo: 'docsUsage' },
+    meta: { docKey: 'usage', docSection: 'usage', seo: 'docsUsage' },
   },
   {
     path: '/docs/tecnica',
     name: 'DocsTechnical',
-    component: () => import('@/views/public/DocsPlaceholderView.vue'),
-    meta: { docKey: 'technical', seo: 'docsTechnical' },
+    component: () => import('@/views/public/DocsTechnicalView.vue'),
+    meta: { docSection: 'technical', seo: 'docsTechnical' },
+  },
+  // Una ruta por herramienta documentada, y solo cuando su página existe en
+  // `src/content/documentation/`: una ruta sin contenido sería una página vacía en el
+  // sitemap. `test/docs.content.test.mjs` lo comprueba.
+  {
+    path: '/docs/tecnica/themis',
+    name: 'DocsThemis',
+    component: () => import('@/views/public/DocsToolView.vue'),
+    meta: { docSection: 'technical', docTool: 'themis', seo: 'docsThemis' },
+  },
+  {
+    path: '/docs/tecnica/aegis',
+    name: 'DocsAegis',
+    component: () => import('@/views/public/DocsToolView.vue'),
+    meta: { docSection: 'technical', docTool: 'aegis', seo: 'docsAegis' },
+  },
+  {
+    path: '/docs/tecnica/iris',
+    name: 'DocsIris',
+    component: () => import('@/views/public/DocsToolView.vue'),
+    meta: { docSection: 'technical', docTool: 'iris', seo: 'docsIris' },
+  },
+  {
+    path: '/docs/tecnica/acheron',
+    name: 'DocsAcheron',
+    component: () => import('@/views/public/DocsToolView.vue'),
+    meta: { docSection: 'technical', docTool: 'acheron', seo: 'docsAcheron' },
+  },
+  {
+    path: '/docs/tecnica/hygeia',
+    name: 'DocsHygeia',
+    component: () => import('@/views/public/DocsToolView.vue'),
+    meta: { docSection: 'technical', docTool: 'hygeia', seo: 'docsHygeia' },
   },
   {
     path: '/config',
