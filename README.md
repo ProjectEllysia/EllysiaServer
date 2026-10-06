@@ -109,7 +109,7 @@ Ellysia/
 | **Accounts** | Commercial layer: plan catalog, per-key usage limits/metering, subscription lifecycle, and shared-billing organizations with invitations. | Operational |
 | **Scribe** | Abstraction layer for AI generation — pluggable strategies (Ollama, OpenAI, Google Gemini) per module. | Operational |
 | **Herald** | Abstraction layer for email sending — pluggable strategies (SMTP relay) per module, transversal like Scribe. | Operational |
-| **Ellysia Web** | Vue 3 SPA with module hubs (Themis, Iris, Aegis, Acheron, Hygeia), scan/analysis workspaces (the Lybra workspace switches between machines, cloud exposure and network groups with their lateral movement risks, and each scan card opens its API surface), vault client, asset dashboard with an aggregated-statistics view (scope/metric/period selector with a type-to-search asset picker, overlaid comparative charts and CSV export) and a documents page for background-generated CSV and PDF files, plans & organization management, public quiz, an admin area (config, logs, queue, plans, users), and a single catalog-driven error view for HTTP failures (404 / 403 / 409 / 500 + generic codes, wired into the router, the app error handlers and Caddy's `handle_errors`). | Operational |
+| **Ellysia Web** | Vue 3 SPA with module hubs (Themis, Iris, Aegis, Acheron, Hygeia), scan/analysis workspaces (the Lybra workspace switches between machines, cloud exposure and network groups with their lateral movement risks, and each scan card opens its API surface), vault client, asset dashboard with an aggregated-statistics view (scope/metric/period selector with a type-to-search asset picker, overlaid comparative charts and CSV export) and a documents page for background-generated CSV and PDF files, plans & organization management, public quiz, technical documentation (`/docs/tecnica`, one page per tool explaining how it works inside, each page and language downloaded only when opened), an admin area (config, logs, queue, plans, users), and a single catalog-driven error view for HTTP failures (404 / 403 / 409 / 500 + generic codes, wired into the router, the app error handlers and Caddy's `handle_errors`). | Operational |
 | **AcheronMobile** ↗ | Android app with Jetpack Compose UI, Material 3 design, and the [AcheronCore](https://github.com/ProjectEllysia/AcheronCore) Java engine for offline vault operations. Lives in [AcheronMobile](https://github.com/ProjectEllysia/AcheronMobile), not in this repository — it consumes `/acheron` over HTTP like any other client. | Operational |
 
 ## Quick start
@@ -650,6 +650,8 @@ npm run test:campaigns    # aegis campaign helpers
 npm run test:logs         # gzip log-payload decoding tests
 npm run test:themis       # scan-window + Lybra finding-site labels + finding sort/filter
 npm run test:i18n         # languages: date/number formatting, API error translation, language-file checks and guards
+npm run test:seo          # sitemap, robots.txt, routes with meta.seo and their per-page titles and descriptions stay in step
+npm run test:docs         # technical documentation: inline formatting, same sections/blocks/figures in every language, one route per page
 ```
 
 The SPA is ready for more languages: each one is a file in `web/app/src/i18n/locales/` (`es.json` is the default; `en.json` covers the whole interface, and CI fails if a key is added to `es.json` without it). Adding a file makes the language appear in the selector; the rules and the recipe are in `CONVENCIONES.md` §12.5.
