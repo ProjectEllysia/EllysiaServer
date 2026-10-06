@@ -135,9 +135,9 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=3 \
 # son en memoria por proceso; con >1 worker se duplicarían. Escalar a más
 # procesos exige antes un lock distribuido (Redis) para ambos.
 # La fábrica se declara con la sintaxis de llamada `módulo:invocable()`, no con
-# el flag --factory: requirements.txt pide `gunicorn>=21.2.0` y a partir de la
-# 26 ese flag ya no existe, así que cualquier build reciente moría al arrancar
-# con "unrecognized arguments: --factory". La sintaxis de llamada la entienden
-# todas las versiones desde la 20.1.
-CMD ["gunicorn", "run:create_app()", "--bind", "0.0.0.0:5000", \
+# el flag --factory: requirements.txt pide `gunicorn>=21.2.0`, la 26 ya no
+# tiene ese flag, y la sintaxis de llamada la entienden todas las versiones
+# desde la 20.1. Es `create_api_app()`, la misma fábrica que `python run.py`,
+# para que `CREATE_DATABASE` funcione también aquí.
+CMD ["gunicorn", "run:create_api_app()", "--bind", "0.0.0.0:5000", \
      "--workers", "1", "--threads", "8", "--timeout", "60"]

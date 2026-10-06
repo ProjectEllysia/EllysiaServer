@@ -734,6 +734,24 @@ def create_app(fresh_db_init: bool = False, start_scheduler: bool = True, run_mi
     return app
 
 
+def create_api_app() -> Flask:
+    """
+    Construye la aplicación del proceso de la API según el entorno.
+
+    Es el punto de entrada de los dos servidores de la API: ``python run.py`` y
+    gunicorn (``run:create_api_app()`` en el Dockerfile). Respeta
+    ``CREATE_DATABASE``, que gunicorn no puede pasar a ``create_app`` porque su
+    sintaxis de llamada solo admite literales. El worker RQ no pasa por aquí:
+    llama a ``create_app`` sin ``fresh_db_init``, de modo que el flag nunca
+    reinicializa la base desde un segundo proceso.
+
+    Returns:
+        Flask: La aplicación configurada. Si ``CREATE_DATABASE`` es verdadero, la
+            base de datos se ha borrado y recreado antes de devolverla.
+    """
+    return create_app(fresh_db_init=APP_CONTEXT.create_database)
+
+
 
 if __name__ == "__main__":
     import argparse
@@ -750,9 +768,7 @@ if __name__ == "__main__":
         handler     = _graceful_shutdown
     )
 
-    app = create_app(
-        fresh_db_init = APP_CONTEXT.create_database
-    )
+    app = create_api_app()
 
     if _args.with_worker:
         _run_workers()
