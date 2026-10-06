@@ -1,0 +1,170 @@
+{
+  "title": "Iris",
+  "lede": "El analizador de phishing de Ellysia: cómo examina un correo, por qué desconfía de una parte de sus propias cabeceras, cómo llega a un veredicto que se puede explicar y qué hace con él.",
+  "sections": [
+    {
+      "id": "que-es",
+      "heading": "Qué es Iris",
+      "blocks": [
+        { "type": "p", "text": "Iris recibe un correo y responde a una pregunta: ¿es quien dice ser? Para ello examina sus cabeceras (quién lo firma, por qué servidores pasó, a quién se responde) y, si se le da el mensaje completo, también su contenido, sus enlaces y sus adjuntos." },
+        { "type": "p", "text": "El resultado es un **veredicto** con tres valores posibles, `Legitimate`, `Suspicious` o `Phishing`, acompañado de una puntuación de 0 a 100 y de la explicación de cada comprobación que influyó. Iris no es una caja negra: el veredicto sale de reglas escritas a mano, y el informe dice cuáles fallaron y por qué." },
+        { "type": "p", "text": "Alrededor de ese núcleo hay todo lo que un equipo necesita para trabajar con el resultado: buzones vigilados automáticamente, agrupación de correos de una misma campaña, casos de investigación, exportación a otras herramientas y acciones sobre el correo original." }
+      ]
+    },
+    {
+      "id": "entrada",
+      "heading": "Cómo llega un correo",
+      "blocks": [
+        { "type": "list", "items": [
+          "**A mano**, pegando las cabeceras o subiendo el fichero del correo (`.eml`, o `.msg` de Outlook, que Iris convierte al formato estándar conservando las cabeceras originales). También por lotes, varios a la vez.",
+          "**Desde un buzón conectado** de Gmail, Microsoft 365 o cualquier proveedor con IMAP, que Iris lee y analiza solo.",
+          "**Desde el propio cliente de correo**, con un botón «reportar phishing» en Outlook o Gmail, una extensión o un script, mediante un token de integración que solo sirve para eso."
+        ] },
+        { "type": "p", "text": "Cuando alguien reenvía un correo sospechoso «como adjunto», llegan dos mensajes: el reenvío y el original dentro de él. Iris analiza los dos y se queda con el peor veredicto, porque analizar solo el interno abriría una trampa: un atacante podría envolver su correo en un reenvío aparentemente inocente. El informe indica siempre a cuál de los dos corresponde lo que se muestra." },
+        { "type": "p", "text": "El análisis se hace en segundo plano, en la cola de tareas, como los escaneos de Themis. Si falla, se distingue entre un correo que no se puede analizar (algo que el usuario puede corregir) y un fallo interno, y el motivo que se guarda nunca incluye contenido del mensaje." }
+      ]
+    },
+    {
+      "id": "reglas",
+      "heading": "Las reglas",
+      "blocks": [
+        { "type": "p", "text": "Iris aplica **47 reglas** a cada correo, agrupadas en 10 familias. Cada regla mira una cosa concreta y devuelve si pasa o falla, cuánto pesa y por qué:" },
+        { "type": "terms", "items": [
+          { "term": "Autenticación", "text": "SPF, DKIM y DMARC: si el servidor que envió el correo estaba autorizado por el dominio del remitente, y si la firma corresponde al dominio que se ve en el `From`." },
+          { "term": "Identidad del remitente", "text": "Dominios que imitan a otros (`paypa1.com`), marcas en el nombre visible que no corresponden a la dirección, marcas metidas como subdominio de un dominio ajeno, dominios de extensiones poco fiables." },
+          { "term": "Ruta de respuesta", "text": "Un `Reply-To` o una dirección de rebote distintos del remitente, sobre todo si apuntan a un correo gratuito." },
+          { "term": "Hilo", "text": "Respuestas falsas: un «RE:» que no responde a nada, o cabeceras de hilo que se citan a sí mismas." },
+          { "term": "Destinatarios", "text": "Correos enviados solo en copia oculta." },
+          { "term": "Ruta y tiempos", "text": "Anomalías en la cadena de servidores por los que pasó: saltos fuera de orden temporal, cadenas inusualmente largas, pérdida de cifrado en el camino." },
+          { "term": "Confianza del contenido", "text": "Cómo se declara el contenido y si ofrece una baja de lista legítima." },
+          { "term": "Contenido", "text": "Lenguaje de urgencia, peticiones de pago propias del fraude del CEO, saludos genéricos, texto oculto y trucos de codificación para esconder palabras." },
+          { "term": "Enlaces", "text": "Enlaces cuyo texto visible no coincide con su destino, dominios comprometidos conocidos, códigos QR que llevan a una dirección sospechosa." },
+          { "term": "Adjuntos e imágenes", "text": "Adjuntos peligrosos, correos que son solo una imagen e imágenes de seguimiento." }
+        ] }
+      ]
+    },
+    {
+      "id": "veredicto",
+      "heading": "Del resultado de las reglas al veredicto",
+      "blocks": [
+        { "type": "p", "text": "La puntuación sigue un modelo **sustractivo**: todo correo parte de 100 y cada regla que falla resta su peso. Una regla que pasa no suma nada, para que una lista de comprobaciones menores superadas no pueda «comprar» un correo sospechoso." },
+        { "type": "p", "text": "Cada familia tiene además un **suelo**, un máximo de puntos que puede restar en conjunto. SPF, DKIM, DMARC y la alineación suelen describir un mismo hecho (que el correo no está autenticado), y sin suelo ese hecho contaría cuatro veces." },
+        { "type": "p", "text": "La puntuación se traduce en veredicto con dos umbrales: con 80 o más es `Legitimate`, de 55 a 80 es `Suspicious` y por debajo de 55, `Phishing`. Un **perfil de sensibilidad** (estricto, equilibrado o permisivo) desplaza los dos umbrales cinco puntos en un sentido u otro." },
+        { "type": "p", "text": "Encima de la puntuación actúan las **puertas de alta confianza**: señales tan claras que, si aparecen, fijan un veredicto mínimo sin importar la suma. Un dominio que imita al del propio destinatario, un enlace que muestra un dominio y lleva a otro, o una petición de pago desde un correo gratuito son `Phishing` directamente. Las puertas solo pueden empeorar el veredicto, nunca mejorarlo, y el informe enumera las que se activaron." }
+      ]
+    },
+    {
+      "id": "cabeceras-falsas",
+      "heading": "Cabeceras que miente el remitente",
+      "blocks": [
+        { "type": "p", "text": "Un correo acumula una cabecera `Received` por cada servidor que lo transporta, y cada servidor añade la suya arriba. Las de abajo, las del principio del viaje, las escribió quien envió el correo, y puede inventárselas: nada le impide fabricar varias que describan un recorrido que nunca ocurrió." },
+        { "type": "p", "text": "Lo mismo pasa con `Authentication-Results`, la cabecera donde un servidor anota si SPF, DKIM y DMARC pasaron. Un atacante puede escribir una que diga que todo pasó." },
+        { "type": "p", "text": "Por eso Iris calcula una **frontera de confianza** en la cadena: el punto a partir del cual las cabeceras las escribieron servidores del destinatario y no el remitente. Un resultado de autenticación solo cuenta si lo firmó un servidor que está por encima de esa frontera. Si no, Iris no solo lo ignora: lo trata como una falsificación, que es una de las puertas que llevan directamente a `Phishing`." }
+      ]
+    },
+    {
+      "id": "contenido",
+      "heading": "Contenido, adjuntos e imágenes",
+      "blocks": [
+        { "type": "p", "text": "Cuando se analiza el mensaje completo, Iris abre lo que trae, siempre sin ejecutar ni mostrar nada:" },
+        { "type": "list", "items": [
+          "**Adjuntos.** Inspección estática de PDF, documentos de Office, HTML y ZIP en busca de lo que los hace peligrosos: JavaScript dentro de un PDF, macros o plantillas remotas en un documento, HTML que reconstruye un fichero dentro del navegador, archivos comprimidos diseñados para agotar la memoria. Todo tiene topes de tamaño, de descompresión y de anidamiento.",
+          "**Texto dentro de imágenes.** Un phishing puede poner todo su mensaje en una imagen para que ninguna regla de texto lo vea. Iris lo extrae con un motor de reconocimiento de texto que corre en la propia máquina: la imagen no sale nunca a un servicio externo. Antes se comprueba su tamaño real y se convierte a un formato limpio, para que el motor nunca procese el fichero original del atacante.",
+          "**Códigos QR.** Se leen y, si llevan a una dirección sospechosa, el correo es `Phishing`: es el llamado *quishing*, que esquiva los filtros que solo miran enlaces.",
+          "**Dominios con caracteres de otros alfabetos.** Un dominio con tildes o en otro alfabeto no es sospechoso por sí mismo. Lo es si mezcla alfabetos en una misma palabra (una «а» cirílica entre letras latinas) o si, visualmente, es idéntico al de una marca conocida."
+        ] }
+      ]
+    },
+    {
+      "id": "fiabilidad",
+      "heading": "Un veredicto que se puede auditar",
+      "blocks": [
+        { "type": "p", "text": "Si una regla falla al ejecutarse, el análisis no se aborta, pero tampoco lo oculta: queda marcado como **degradado**, con la lista de reglas que no se pudieron aplicar. Si la que falta es de una familia decisiva (la autenticación o los adjuntos), Iris no presenta el correo como limpio." },
+        { "type": "p", "text": "Cada análisis guarda además una copia de las **reglas del juego** con las que se decidió: umbrales, suelos, perfil, pesos modificados y versión del catálogo de reglas. Un análisis de hace tres meses sigue diciendo con qué criterio se juzgó, aunque la configuración haya cambiado desde entonces." },
+        { "type": "p", "text": "Antes de cambiar esos criterios, un administrador puede probarlos en un **simulador**: ejecuta un corpus de correos de referencia con la política actual y con la nueva, y enseña qué veredictos cambiarían y cómo varían los falsos positivos y negativos. Nada de lo que pasa por el simulador se guarda." }
+      ]
+    },
+    {
+      "id": "buzones",
+      "heading": "Buzones vigilados",
+      "blocks": [
+        { "type": "p", "text": "Un buzón de Gmail o Microsoft 365 se conecta con el inicio de sesión del propio proveedor; cualquier otro, por IMAP. Desde ese momento, Iris analiza cada correo nuevo sin que nadie tenga que hacer nada." },
+        { "type": "list", "items": [
+          "**Casi en tiempo real.** Gmail y Microsoft 365 pueden avisar a Iris cuando llega un correo. El aviso solo despierta la lectura: Iris nunca analiza lo que trae el aviso, sino que lee el buzón por su cuenta. Si no hay avisos, revisa el buzón cada pocos minutos.",
+          "**Solo cabeceras, salvo que se pida otra cosa.** Por defecto se leen únicamente las cabeceras. Leer el mensaje completo, con su texto y sus adjuntos, es una opción que hay que activar a propósito en cada conexión.",
+          "**Avisos por correo.** Un `Phishing` claro avisa al momento; el resto de lo detectado se agrupa en un resumen diario. También se avisa si una conexión necesita volver a autorizarse o lleva tiempo sin sincronizar.",
+          "**Buzones compartidos.** Un buzón de la organización (`soporte@`, `facturas@`) lo conecta el dueño de la organización, y sus análisis solo los ven las personas a las que se ha dado acceso explícito y que siguen en la organización."
+        ] },
+        { "type": "p", "text": "Las credenciales de cada conexión se guardan cifradas, y cada buzón tiene un límite diario de correos analizados para que uno muy activo no acapare el sistema." }
+      ]
+    },
+    {
+      "id": "contexto",
+      "heading": "Lo que Iris aprende de cada usuario",
+      "blocks": [
+        { "type": "p", "text": "El veredicto sale solo del mensaje, para que el mismo correo dé el mismo resultado hoy, en un reanálisis o en el simulador. Lo que depende de la historia de cada usuario se enseña aparte, sin cambiarlo, salvo las excepciones de confianza:" },
+        { "type": "terms", "items": [
+          { "term": "Excepciones de confianza", "text": "Un remitente que siempre dispara un falso positivo (el boletín que usa otro `Reply-To`, el banco que siempre escribe «urgente») se puede marcar como de confianza para un usuario, con motivo y caducidad. Solo se aplica si el correo demuestra venir de ese remitente: DMARC tiene que pasar, firmado por encima de la frontera de confianza. Coincidir con el `From` no basta, porque el `From` lo escribe cualquiera." },
+          { "term": "Contactos habituales", "text": "Iris recuerda quién escribe a quién, solo como metadatos. Así detecta el engaño típico del fraude del CEO: un remitente nuevo que usa el nombre de alguien con quien el usuario habla a menudo. Un contacto se vuelve habitual por sus correos legítimos, no por todos, para que un atacante insistente no se gane esa categoría." },
+          { "term": "Campañas", "text": "Los correos sospechosos que comparten señales fuertes (enlaces, adjuntos, dominios, la plantilla visual del cuerpo, el asunto) se agrupan solos en una campaña. El parecido es una suma de coincidencias, no un modelo, así que se puede explicar qué coincidió." },
+          { "term": "Inteligencia de la organización", "text": "Dentro de una organización se comparte solo lo agregado y anónimo: los indicadores que aparecieron en correos de phishing de varios miembros y los dominios de los que varios reciben correo legítimo. Un dato solo se comparte si lo han visto al menos tres miembros distintos, para que no señale a nadie, y solo cuentan quienes han dado su consentimiento." }
+        ] }
+      ]
+    },
+    {
+      "id": "enriquecimiento",
+      "heading": "Preguntar fuera",
+      "blocks": [
+        { "type": "p", "text": "A petición del usuario, Iris puede consultar fuera lo que se sabe de un indicador: los datos de registro de un dominio (RDAP), adónde lleva de verdad un enlace acortado siguiendo sus redirecciones, o su reputación en servicios como VirusTotal, urlscan, URLhaus o PhishTank." },
+        { "type": "p", "text": "Nada de eso cambia el veredicto, y nunca se hace solo dentro de un análisis. Seguir un enlace que viene de un correo de phishing es peligroso para el propio servidor, así que todas estas consultas pasan por una única **puerta de salida**:" },
+        { "type": "list", "items": [
+          "solo `http` y `https`, a los puertos web habituales;",
+          "nunca a una dirección privada o interna, ni aunque el nombre resuelva a una pública y a una privada a la vez;",
+          "la conexión va a la dirección ya comprobada, así que un DNS que cambie de respuesta no puede desviarla;",
+          "las redirecciones se siguen a mano, comprobando cada salto;",
+          "sin credenciales ni cookies, y con tiempo y tamaño acotados."
+        ] }
+      ]
+    },
+    {
+      "id": "equipo",
+      "heading": "Trabajo de un equipo de seguridad",
+      "blocks": [
+        { "type": "terms", "items": [
+          { "term": "Casos", "text": "Un análisis es lo que decidió Iris y no se modifica. Un caso agrupa uno o varios y registra lo que decidió una persona: estado, prioridad, asignación, etiquetas, notas y una línea de tiempo con cada cambio." },
+          { "term": "Triaje", "text": "Vistas guardadas («phishing sin revisar de esta semana») y etiquetas para organizar el historial." },
+          { "term": "Correcciones", "text": "El analista puede indicar si el veredicto era correcto. Esa opinión nunca sobrescribe el veredicto, pero alimenta las métricas del detector: precisión, exhaustividad y desacuerdo por familia de reglas." },
+          { "term": "Exportación", "text": "Los indicadores de un análisis o una campaña se exportan en JSON, STIX 2.1 o MISP, cada uno con su fuente, su confianza y desde cuándo y hasta cuándo es válido." },
+          { "term": "Webhooks", "text": "Iris avisa a otros sistemas (un SIEM, un SOAR, un canal de chat) cuando termina un análisis o cambia un caso. Cada aviso va firmado con un secreto compartido y con la hora, para que el receptor compruebe que viene de Iris y que nadie lo está reenviando más tarde. Los fallos se reintentan con esperas crecientes, y un mismo hecho nunca llega como dos eventos." },
+          { "term": "Resumen con IA", "text": "A petición, un modelo de lenguaje redacta un resumen ejecutivo del análisis. Se guarda con el análisis y no influye en el veredicto." }
+        ] }
+      ]
+    },
+    {
+      "id": "acciones",
+      "heading": "Actuar sobre el correo",
+      "blocks": [
+        { "type": "p", "text": "En un buzón conectado, Iris puede poner un correo en cuarentena, marcarlo, mandarlo a spam o a la papelera. Es la función con más capacidad de hacer daño, porque toca el correo de una persona, y por eso tiene estas garantías:" },
+        { "type": "list", "items": [
+          "**Nada automático.** Iris recomienda una acción según el veredicto, pero solo actúa cuando el usuario lo pide. Un falso positivo nunca mueve un correo por su cuenta.",
+          "**Permiso propio.** Hace falta un permiso específico para actuar sobre el correo, y que la conexión se hiciera con las acciones activadas.",
+          "**Motivo y confirmación.** Toda acción lleva un motivo; las que sacan el correo de la bandeja piden además confirmación.",
+          "**Auditoría y deshacer.** Cada acción queda registrada antes de ejecutarse, con quién, por qué y dónde estaba el correo. Ninguna borra para siempre, y todas se pueden deshacer."
+        ] }
+      ]
+    },
+    {
+      "id": "privacidad",
+      "heading": "Privacidad del correo analizado",
+      "blocks": [
+        { "type": "p", "text": "Un correo puede contener datos personales y hasta credenciales, así que Iris lo trata como material sensible:" },
+        { "type": "list", "items": [
+          "El mensaje original se guarda cifrado.",
+          "Se borra pasados 90 días; el veredicto, las reglas y los indicadores se conservan, que es lo que hace falta para responder meses después a «¿he visto antes este dominio?».",
+          "El informe en PDF oculta direcciones, teléfonos y números con forma de tarjeta que aparezcan en el mensaje, salvo los del remitente y el destinatario, que son la evidencia.",
+          "Los motivos de error que se guardan y se devuelven nunca incluyen contenido del correo."
+        ] }
+      ]
+    }
+  ]
+}

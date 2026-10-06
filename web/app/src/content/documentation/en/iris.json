@@ -1,0 +1,170 @@
+{
+  "title": "Iris",
+  "lede": "Ellysia's phishing analyser: how it examines an email, why it distrusts part of the email's own headers, how it reaches a verdict that can be explained, and what it does with it.",
+  "sections": [
+    {
+      "id": "que-es",
+      "heading": "What Iris is",
+      "blocks": [
+        { "type": "p", "text": "Iris takes an email and answers one question: is it who it claims to be? To do that it examines the headers (who signs it, which servers it went through, where replies go) and, if given the full message, its content, links and attachments too." },
+        { "type": "p", "text": "The result is a **verdict** with three possible values, `Legitimate`, `Suspicious` or `Phishing`, together with a score from 0 to 100 and the explanation of every check that influenced it. Iris is not a black box: the verdict comes from hand-written rules, and the report says which ones failed and why." },
+        { "type": "p", "text": "Around that core sits everything a team needs to work with the result: automatically watched mailboxes, grouping of emails from the same campaign, investigation cases, export to other tools and actions on the original email." }
+      ]
+    },
+    {
+      "id": "entrada",
+      "heading": "How an email arrives",
+      "blocks": [
+        { "type": "list", "items": [
+          "**By hand**, pasting the headers or uploading the email file (`.eml`, or Outlook's `.msg`, which Iris converts to the standard format keeping the original headers). Also in batches, several at once.",
+          "**From a connected mailbox** on Gmail, Microsoft 365 or any provider with IMAP, which Iris reads and analyses on its own.",
+          "**From the mail client itself**, with a \"report phishing\" button in Outlook or Gmail, a browser extension or a script, through an integration token that only works for that."
+        ] },
+        { "type": "p", "text": "When someone forwards a suspicious email \"as an attachment\", two messages arrive: the forward and the original inside it. Iris analyses both and keeps the worse verdict, because analysing only the inner one would open a trap: an attacker could wrap their email in an innocent-looking forward. The report always says which of the two the shown results belong to." },
+        { "type": "p", "text": "The analysis runs in the background, in the task queue, like Themis scans. If it fails, Iris distinguishes an email that cannot be analysed (something the user can fix) from an internal failure, and the stored reason never includes content from the message." }
+      ]
+    },
+    {
+      "id": "reglas",
+      "heading": "The rules",
+      "blocks": [
+        { "type": "p", "text": "Iris applies **47 rules** to each email, grouped into 10 families. Each rule looks at one specific thing and returns whether it passes or fails, how much it weighs and why:" },
+        { "type": "terms", "items": [
+          { "term": "Authentication", "text": "SPF, DKIM and DMARC: whether the server that sent the email was authorised by the sender's domain, and whether the signature matches the domain shown in the `From`." },
+          { "term": "Sender identity", "text": "Domains that imitate others (`paypa1.com`), brands in the display name that do not match the address, brands placed as a subdomain of someone else's domain, domains on unreliable extensions." },
+          { "term": "Reply path", "text": "A `Reply-To` or bounce address different from the sender, especially if it points to free webmail." },
+          { "term": "Thread", "text": "Fake replies: an \"RE:\" that replies to nothing, or thread headers that cite themselves." },
+          { "term": "Recipients", "text": "Emails sent only as blind copies." },
+          { "term": "Route and timing", "text": "Anomalies in the chain of servers it went through: hops out of time order, unusually long chains, encryption dropped along the way." },
+          { "term": "Content trust", "text": "How the content is declared and whether it offers a legitimate list unsubscribe." },
+          { "term": "Content", "text": "Urgent language, payment requests typical of CEO fraud, generic greetings, hidden text and encoding tricks to hide words." },
+          { "term": "Links", "text": "Links whose visible text does not match their destination, known compromised domains, QR codes leading to a suspicious address." },
+          { "term": "Attachments and images", "text": "Dangerous attachments, emails that are only an image, and tracking images." }
+        ] }
+      ]
+    },
+    {
+      "id": "veredicto",
+      "heading": "From rule results to a verdict",
+      "blocks": [
+        { "type": "p", "text": "Scoring follows a **subtractive** model: every email starts at 100 and each failing rule subtracts its weight. A passing rule adds nothing, so a list of minor checks passed cannot \"buy back\" a suspicious email." },
+        { "type": "p", "text": "Each family also has a **floor**, a maximum number of points it can subtract as a whole. SPF, DKIM, DMARC and alignment usually describe a single fact (the email is not authenticated), and without a floor that fact would count four times." },
+        { "type": "p", "text": "The score becomes a verdict through two thresholds: 80 or more is `Legitimate`, 55 to 80 is `Suspicious` and below 55, `Phishing`. A **sensitivity profile** (strict, balanced or lenient) shifts both thresholds five points one way or the other." },
+        { "type": "p", "text": "On top of the score sit the **high-confidence gates**: signals so clear that, when they appear, they set a minimum verdict regardless of the sum. A domain imitating the recipient's own, a link that shows one domain and leads to another, or a payment request from a free webmail account are `Phishing` outright. Gates can only make the verdict worse, never better, and the report lists the ones that fired." }
+      ]
+    },
+    {
+      "id": "cabeceras-falsas",
+      "heading": "Headers the sender lies in",
+      "blocks": [
+        { "type": "p", "text": "An email collects one `Received` header for every server that carries it, and each server adds its own on top. The ones at the bottom, from the start of the journey, were written by whoever sent the email, and they can be invented: nothing stops the sender from fabricating several that describe a route that never happened." },
+        { "type": "p", "text": "The same goes for `Authentication-Results`, the header where a server records whether SPF, DKIM and DMARC passed. An attacker can write one claiming everything passed." },
+        { "type": "p", "text": "That is why Iris computes a **trust boundary** in the chain: the point above which the headers were written by the recipient's servers and not by the sender. An authentication result only counts if it was signed by a server above that boundary. If not, Iris does not just ignore it: it treats it as a forgery, which is one of the gates that lead straight to `Phishing`." }
+      ]
+    },
+    {
+      "id": "contenido",
+      "heading": "Content, attachments and images",
+      "blocks": [
+        { "type": "p", "text": "When the full message is analysed, Iris opens what it carries, always without executing or rendering anything:" },
+        { "type": "list", "items": [
+          "**Attachments.** Static inspection of PDF, Office documents, HTML and ZIP for what makes them dangerous: JavaScript inside a PDF, macros or remote templates in a document, HTML that rebuilds a file inside the browser, archives designed to exhaust memory. Everything has caps on size, decompression and nesting.",
+          "**Text inside images.** A phishing email can put its whole message in an image so that no text rule sees it. Iris extracts it with a text-recognition engine that runs on the machine itself: the image never goes to an external service. Its real size is checked first and it is converted to a clean format, so the engine never processes the attacker's original file.",
+          "**QR codes.** They are read and, if they lead to a suspicious address, the email is `Phishing`: this is so-called *quishing*, which slips past filters that only look at links.",
+          "**Domains with characters from other scripts.** A domain with accents or in another script is not suspicious in itself. It is if it mixes scripts within one word (a Cyrillic \"а\" among Latin letters) or if it looks identical to a well-known brand's."
+        ] }
+      ]
+    },
+    {
+      "id": "fiabilidad",
+      "heading": "A verdict that can be audited",
+      "blocks": [
+        { "type": "p", "text": "If a rule fails to run, the analysis is not aborted, but it does not hide it either: it is marked as **degraded**, with the list of rules that could not be applied. If the missing one belongs to a decisive family (authentication or attachments), Iris does not present the email as clean." },
+        { "type": "p", "text": "Each analysis also keeps a copy of the **rules of the game** it was decided with: thresholds, floors, profile, overridden weights and rule catalogue version. An analysis from three months ago still says by which criteria it was judged, even if the configuration has changed since." },
+        { "type": "p", "text": "Before changing those criteria, an administrator can try them in a **simulator**: it runs a reference corpus of emails with the current policy and the new one, and shows which verdicts would change and how false positives and negatives move. Nothing that goes through the simulator is stored." }
+      ]
+    },
+    {
+      "id": "buzones",
+      "heading": "Watched mailboxes",
+      "blocks": [
+        { "type": "p", "text": "A Gmail or Microsoft 365 mailbox is connected with the provider's own sign-in; any other through IMAP. From then on, Iris analyses every new email without anyone having to do anything." },
+        { "type": "list", "items": [
+          "**Near real time.** Gmail and Microsoft 365 can notify Iris when an email arrives. The notification only wakes up the reading: Iris never analyses what the notification carries, but reads the mailbox on its own. Without notifications, it checks the mailbox every few minutes.",
+          "**Headers only, unless asked otherwise.** By default only the headers are read. Reading the full message, with its text and attachments, is an option that has to be turned on deliberately for each connection.",
+          "**Email alerts.** A clear `Phishing` triggers an alert straight away; everything else detected is grouped in a daily digest. There is also an alert if a connection needs re-authorising or has gone a long time without syncing.",
+          "**Shared mailboxes.** An organisation mailbox (`support@`, `invoices@`) is connected by the organisation's owner, and its analyses are only visible to people explicitly given access who are still in the organisation."
+        ] },
+        { "type": "p", "text": "Each connection's credentials are stored encrypted, and each mailbox has a daily cap on analysed emails so that a very busy one cannot hog the system." }
+      ]
+    },
+    {
+      "id": "contexto",
+      "heading": "What Iris learns about each user",
+      "blocks": [
+        { "type": "p", "text": "The verdict comes from the message alone, so that the same email gives the same result today, on a re-analysis or in the simulator. What depends on each user's history is shown separately without changing it, except for trust exceptions:" },
+        { "type": "terms", "items": [
+          { "term": "Trust exceptions", "text": "A sender that always triggers a false positive (the newsletter using another `Reply-To`, the bank that always writes \"urgent\") can be marked as trusted for one user, with a reason and an expiry. It only applies if the email proves it comes from that sender: DMARC has to pass, signed above the trust boundary. Matching the `From` is not enough, because anyone can write the `From`." },
+          { "term": "Usual contacts", "text": "Iris remembers who writes to whom, as metadata only. That lets it detect the typical CEO-fraud trick: a new sender using the name of someone the user often talks to. A contact becomes usual through their legitimate emails, not all of them, so a persistent attacker cannot earn that status." },
+          { "term": "Campaigns", "text": "Suspicious emails that share strong signals (links, attachments, domains, the body's visual template, the subject) are grouped into a campaign automatically. Similarity is a sum of matches, not a model, so it is possible to explain what matched." },
+          { "term": "Organisation intelligence", "text": "Within an organisation only aggregated, anonymous data is shared: indicators that appeared in phishing emails of several members, and domains several members receive legitimate email from. A piece of data is only shared if at least three different members have seen it, so it points at no one, and only members who have given consent count." }
+        ] }
+      ]
+    },
+    {
+      "id": "enriquecimiento",
+      "heading": "Asking outside",
+      "blocks": [
+        { "type": "p", "text": "At the user's request, Iris can look up outside what is known about an indicator: a domain's registration data (RDAP), where a shortened link really leads by following its redirects, or its reputation on services such as VirusTotal, urlscan, URLhaus or PhishTank." },
+        { "type": "p", "text": "None of this changes the verdict, and it never happens on its own during an analysis. Following a link from a phishing email is dangerous for the server itself, so all these lookups go through a single **egress gate**:" },
+        { "type": "list", "items": [
+          "only `http` and `https`, to the usual web ports;",
+          "never to a private or internal address, not even if the name resolves to a public and a private one at the same time;",
+          "the connection goes to the already-checked address, so a DNS server that changes its answer cannot divert it;",
+          "redirects are followed by hand, checking every hop;",
+          "no credentials or cookies, and bounded time and size."
+        ] }
+      ]
+    },
+    {
+      "id": "equipo",
+      "heading": "A security team's work",
+      "blocks": [
+        { "type": "terms", "items": [
+          { "term": "Cases", "text": "An analysis is what Iris decided and is never modified. A case groups one or more and records what a person decided: status, priority, assignee, tags, notes and a timeline with every change." },
+          { "term": "Triage", "text": "Saved views (\"unreviewed phishing this week\") and tags to organise the history." },
+          { "term": "Corrections", "text": "The analyst can say whether the verdict was right. That opinion never overwrites the verdict, but it feeds the detector's metrics: precision, recall and disagreement per rule family." },
+          { "term": "Export", "text": "The indicators of an analysis or a campaign can be exported as JSON, STIX 2.1 or MISP, each with its source, its confidence and from when until when it is valid." },
+          { "term": "Webhooks", "text": "Iris notifies other systems (a SIEM, a SOAR, a chat channel) when an analysis finishes or a case changes. Each notification is signed with a shared secret and the time, so the receiver can check it comes from Iris and that nobody is replaying it later. Failures are retried with increasing waits, and the same event never arrives twice." },
+          { "term": "AI summary", "text": "On request, a language model writes an executive summary of the analysis. It is stored with the analysis and has no influence on the verdict." }
+        ] }
+      ]
+    },
+    {
+      "id": "acciones",
+      "heading": "Acting on the email",
+      "blocks": [
+        { "type": "p", "text": "In a connected mailbox, Iris can quarantine an email, flag it, move it to spam or to the bin. It is the feature with the most capacity to do harm, because it touches a person's email, so it comes with these guarantees:" },
+        { "type": "list", "items": [
+          "**Nothing automatic.** Iris recommends an action based on the verdict, but it only acts when the user asks. A false positive never moves an email on its own.",
+          "**Its own permission.** A specific permission is needed to act on email, and the connection must have been made with actions enabled.",
+          "**Reason and confirmation.** Every action carries a reason; those that take the email out of the inbox also ask for confirmation.",
+          "**Audit and undo.** Each action is recorded before it runs, with who, why and where the email was. None deletes permanently, and all of them can be undone."
+        ] }
+      ]
+    },
+    {
+      "id": "privacidad",
+      "heading": "Privacy of the analysed email",
+      "blocks": [
+        { "type": "p", "text": "An email can contain personal data and even credentials, so Iris treats it as sensitive material:" },
+        { "type": "list", "items": [
+          "The original message is stored encrypted.",
+          "It is deleted after 90 days; the verdict, rules and indicators are kept, which is what is needed to answer \"have I seen this domain before?\" months later.",
+          "The PDF report hides addresses, phone numbers and card-like numbers that appear in the message, except the sender's and recipient's, which are the evidence.",
+          "Stored and returned error reasons never include content from the email."
+        ] }
+      ]
+    }
+  ]
+}

@@ -4447,6 +4447,10 @@
       "docsAegis": {
         "title": "Aegis por dentro: cómo funciona la concienciación | Ellysia",
         "description": "Cómo redacta Aegis píldoras de concienciación con los avisos que afectan a una organización, cómo envía campañas y cómo protege el cuestionario público."
+      },
+      "docsIris": {
+        "title": "Iris por dentro: cómo funciona el analizador de phishing | Ellysia",
+        "description": "Cómo examina Iris un correo con 47 reglas, por qué desconfía de sus propias cabeceras, cómo decide el veredicto y qué hace con los buzones vigilados."
       }
     }
   }

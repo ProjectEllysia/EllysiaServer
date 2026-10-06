@@ -292,6 +292,12 @@ const routes = [
     meta: { docSection: 'technical', docTool: 'aegis', seo: 'docsAegis' },
   },
   {
+    path: '/docs/tecnica/iris',
+    name: 'DocsIris',
+    component: () => import('@/views/public/DocsToolView.vue'),
+    meta: { docSection: 'technical', docTool: 'iris', seo: 'docsIris' },
+  },
+  {
     path: '/config',
     name: 'Config',
     component: () => import('@/views/system/ConfigView.vue'),

@@ -4447,6 +4447,10 @@
       "docsAegis": {
         "title": "Aegis inside: how the awareness tool works | Ellysia",
         "description": "How Aegis writes awareness pills from the advisories that affect an organisation, sends campaigns and protects the public quiz."
+      },
+      "docsIris": {
+        "title": "Iris inside: how the phishing analyser works | Ellysia",
+        "description": "How Iris examines an email with 47 rules, why it distrusts its own headers, how it decides the verdict and what it does with watched mailboxes."
       }
     }
   }
