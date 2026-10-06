@@ -117,9 +117,22 @@ www.ellysia.es, http://localhost, http://127.0.0.1 {
 		file_server
 	}
 
+	# El hub de cada módulo escrito con barra final (los usuarios la escriben
+	# o la pegan a mano) se redirige a su forma sin barra, la que declara el
+	# router y la que lleva public/sitemap.xml. Servir el SPA en las dos daría
+	# a los buscadores dos URL con el mismo contenido. Va antes que los otros
+	# dos `handle` por la misma razón que explica el siguiente bloque: `@api`
+	# incluye `/themis/*`, que casa con `/themis/`.
+	#
+	# La lista sigue a los hubs de web/app/src/router/index.js;
+	# API/tests/unit/test_caddy_api_routes.py falla si falta alguno.
+	@hub_con_barra path_regexp hub ^/(themis|aegis|iris|acheron|hygeia)/$
+	handle @hub_con_barra {
+		redir /{re.hub.1} 301
+	}
+
 	# Rutas del SPA (Vue Router) que cuelgan de los MISMOS prefijos que la
-	# API: el hub de cada módulo con barra final (los usuarios la escriben o
-	# la pegan a mano) y sus subrutas de trabajo. Sin esto, al recargar la
+	# API: las subrutas de trabajo de cada módulo. Sin esto, al recargar la
 	# página o escribir la URL a mano el matcher @api de abajo se la lleva
 	# entera a Flask, que no tiene esa ruta, y devuelve 404 en vez de servir
 	# el SPA. Solo se ve en producción y solo al recargar.
