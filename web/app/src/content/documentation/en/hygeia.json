@@ -1,0 +1,128 @@
+{
+  "title": "Hygeia",
+  "lede": "Ellysia's server monitoring: how each machine's data arrives, how it decides something is wrong without over-alerting, and how it turns thousands of readings into answers that can be defended.",
+  "sections": [
+    {
+      "id": "que-es",
+      "heading": "What Hygeia is",
+      "blocks": [
+        { "type": "p", "text": "Hygeia watches the health of an organisation's servers and machines. An **agent** is installed on each machine: a small program that every few seconds sends Ellysia a **reading** with CPU usage, memory, disks, network, the most demanding processes, installed software and, if the hardware allows it, power consumption." },
+        { "type": "p", "text": "With those readings, Hygeia knows which machines are up, opens **anomalies** when something crosses a threshold and emails about critical ones, computes statistics for a machine, a group or the whole fleet, and can hand the software inventory to Themis to look for vulnerabilities without touching the machine." }
+      ]
+    },
+    {
+      "id": "agente",
+      "heading": "The agent and data intake",
+      "blocks": [
+        { "type": "p", "text": "The agent is the one that sends the data: Hygeia never connects to the machine. That avoids opening inbound ports on the watched server, and makes it possible to watch machines behind a firewall or with no public address. By default it sends one reading every 15 seconds." },
+        { "type": "p", "text": "Each machine identifies itself with its own **agent key**, handed out only once when it is registered. It has two parts: a public prefix, used to find the machine quickly, and a secret of which Ellysia stores only an Argon2id fingerprint, never the value. The key can be rotated, and the old one stops working at once." },
+        { "type": "p", "text": "Data intake is the only part of Hygeia that uses that key instead of a person's session, and it distrusts what it receives. Before even reading the content it checks:" },
+        { "type": "list", "items": [
+          "the size, before and after decompression, so that a compressed payload designed to blow up cannot exhaust memory;",
+          "that the reading's clock is reasonable: neither far ahead nor more than a day old, so a compromised agent cannot rewrite the past;",
+          "that readings do not arrive faster than a minimum interval, and that lists (disks, interfaces, processes, software) stay under a cap."
+        ] }
+      ]
+    },
+    {
+      "id": "presencia",
+      "heading": "Up, quiet or down",
+      "blocks": [
+        { "type": "p", "text": "Once a minute, Hygeia checks how long each machine has gone without sending anything and classifies it in two steps:" },
+        { "type": "terms", "items": [
+          { "term": "`online`", "text": "It is sending normally." },
+          { "term": "`stale`", "text": "It has missed one reading. This is only a visual cue in the list, because a single missed reading is usually a network hiccup." },
+          { "term": "`offline`", "text": "It has missed several readings. Only this step opens a machine-down anomaly." }
+        ] },
+        { "type": "p", "text": "Each machine is compared against its own sending interval, not the global one, so one that reports more slowly is not declared down too early. And a machine can be marked as **non-persistent**, for example a computer that is switched off every night on purpose: its status is still shown, but switching off opens no anomaly and sends no email." }
+      ]
+    },
+    {
+      "id": "anomalias",
+      "heading": "Anomalies without noise",
+      "blocks": [
+        { "type": "p", "text": "Each watched metric (CPU, memory, disk and swap) has two thresholds, warning and critical. An alerting system that fires on every spike ends up ignored, so Hygeia applies three rules:" },
+        { "type": "list", "items": [
+          "**Sustained spikes.** CPU and memory have to stay above the threshold for several readings in a row to open an anomaly; a momentary spike does not count. Disk and swap change slowly and need no such confirmation.",
+          "**Hysteresis.** An open anomaly only closes when the metric drops below the warning threshold, not the critical one. That way, a value hovering right around the threshold does not keep opening and closing anomalies.",
+          "**One anomaly, not a flood.** While it is open it is not reopened, not updated reading by reading, and it triggers no further alerts."
+        ] },
+        { "type": "p", "text": "Critical anomalies are emailed in the background. A person can mark an anomaly as acknowledged or resolved." }
+      ]
+    },
+    {
+      "id": "datos",
+      "heading": "What is kept, and for how long",
+      "blocks": [
+        { "type": "p", "text": "From each reading, the eight figures worth tracking over time are stored separately, in their own columns: CPU, memory, swap, fullest disk, load, inbound and outbound traffic, and power draw. Charts and statistics read those columns and do not need to know what the agent's message looks like." },
+        { "type": "p", "text": "Per-item detail (each disk, each network interface, each core) stays in the original reading, and only the statistics that need it read it, over a shorter period because reading it is much more expensive." },
+        { "type": "p", "text": "Readings are kept for 30 days and pruned every night. A value that did not arrive is stored as missing, not as zero: a machine without a power sensor does not draw \"0 W\", and a gap in the readings is never averaged in as if it were a real value." }
+      ]
+    },
+    {
+      "id": "estadisticas",
+      "heading": "Statistics",
+      "blocks": [
+        { "type": "p", "text": "Statistics answer specific questions about a period of up to 30 days:" },
+        { "type": "terms", "items": [
+          { "term": "One machine", "text": "Minimum, maximum, mean, 95th percentile and current value of each metric, with the exact moment each extreme was reached." },
+          { "term": "One tag", "text": "The machines in a group, such as \"production\", combined: the sum for the total, the mean for the typical machine or the maximum for the busiest one. Summing is only allowed for what can be summed, traffic and power: adding up CPU percentages across machines measures nothing." },
+          { "term": "The fleet", "text": "The most extreme machines on a metric, how many fall into each band, which ones opened the most anomalies, and a snapshot of the current state." },
+          { "term": "Series", "text": "The evolution of one metric across several machines at once, for stacked or comparative charts." }
+        ] },
+        { "type": "p", "text": "All computations happen on the server; the website only formats what it receives. To compare several metrics on one chart, all of them are requested with the same interval size, so their points land on exactly the same instants. If a period would require too many points, the interval is widened and the response says so." },
+        { "type": "p", "text": "A period longer than what is kept is not rejected: it is clipped, and the response says which stretch was actually covered." }
+      ]
+    },
+    {
+      "id": "analisis",
+      "heading": "Analyses that would rather say nothing than make things up",
+      "blocks": [
+        { "type": "p", "text": "Some questions cannot be answered with a metric as it is. Hygeia computes them under a common rule: if the data does not support the answer, it gives no figure and explains why." },
+        { "type": "terms", "items": [
+          { "term": "When will the disk fill up?", "text": "A straight line is fitted to the disk's usage and projected to 100 %. A date is only given if the disk is really growing and the line describes the data well; a disk oscillating between 60 and 62 % fills up on no particular date. In practice the usual outcome is no date, because real disk usage climbs in steps (an update, a rotated log), not in a straight line." },
+          { "term": "At what time is load highest?", "text": "Readings are grouped by hour of the day using the server's clock, not each machine's, which may be wrong or in another time zone. An hour with no readings shows as empty, not zero: an office that powers down overnight is not an idle fleet." },
+          { "term": "Do the peaks coincide?", "text": "Whether a machine's CPU peak and its network peak happened within a few minutes of each other. It is not a statistical correlation, only the distance between two maxima, and the response gives both instants so the reader can judge." },
+          { "term": "Is a core saturated?", "text": "One core at 100 % out of eight barely moves the CPU average (12.5 %), but it is a problem. Hygeia measures the gap between the busiest and the idlest core." }
+        ] }
+      ]
+    },
+    {
+      "id": "energia",
+      "heading": "Power consumption",
+      "blocks": [
+        { "type": "p", "text": "If the hardware has a compatible sensor, the agent sends the power draw in watts, and Hygeia turns it into energy and cost using the configured electricity price. Each figure is labelled by how it was obtained:" },
+        { "type": "terms", "items": [
+          { "term": "Observed", "text": "The period is within what is kept and there are enough readings." },
+          { "term": "Partially observed", "text": "It is within what is kept, but many readings are missing." },
+          { "term": "Projected", "text": "The period is longer than what is kept, so it is extrapolated. Monthly or yearly cost always is." }
+        ] },
+        { "type": "p", "text": "A virtual machine has no power sensors of its own, because they are not virtualised. When the agent reports that the machine is virtual, Hygeia says so instead of saying sensors are missing: the host machine is the one that measures power." }
+      ]
+    },
+    {
+      "id": "inventario",
+      "heading": "Vulnerabilities in installed software",
+      "blocks": [
+        { "type": "p", "text": "The agent is already inside the machine and already reports the installed software, with versions. Hygeia can pass that list to **Lybra**, Themis's engine, to match it against published vulnerabilities. It is like a scan with inside access, but without scanning: not a single packet is sent to the machine." },
+        { "type": "p", "text": "Because it spends a Themis scan, it requires the permissions of both tools. Each analysis is stored as a new scan, so the findings' life cycle works just as in Themis: whatever stops appearing after an update is marked as fixed." },
+        { "type": "p", "text": "The same inventory can serve Aegis as the organisation's product list, so that its awareness pills mention the security advisories of the software actually in use." }
+      ]
+    },
+    {
+      "id": "documentos",
+      "heading": "Exporting, and not repeating work",
+      "blocks": [
+        { "type": "p", "text": "A statistics table can be exported as CSV or PDF, and the machines' inventory as PDF. The file is generated in the background: walking 30 days of readings can take a while, and a download tied to the request would be lost on changing page. The document stores the exact query it came from, so it can be described even if the machine or the tag no longer exists." },
+        { "type": "p", "text": "The most requested statistics are kept for a while in a cache, longer the longer the period, because a day's figures change with every reading while a month's barely move. The cache is per user and is invalidated entirely when their machines or tags change. The snapshot of the fleet's current state is never cached: a machine that goes down has to show up at once." }
+      ]
+    },
+    {
+      "id": "privacidad",
+      "heading": "Everyone's data stays their own",
+      "blocks": [
+        { "type": "p", "text": "Tags can be personal or system-wide, shared by everyone. Anyone can see a system tag, but its statistics, its machine count and its last activity only count the machines of whoever is asking: no figure can reveal that someone else has machines with that tag. Asking for someone else's machine or personal tag gives the same error as asking for one that does not exist." }
+      ]
+    }
+  ]
+}

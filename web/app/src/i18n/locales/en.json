@@ -4455,6 +4455,10 @@
       "docsAcheron": {
         "title": "Acheron inside: how the encrypted vault works | Ellysia",
         "description": "How Acheron encrypts your passwords in the browser with Argon2id and AES-GCM, why the server cannot read them and how it syncs across devices."
+      },
+      "docsHygeia": {
+        "title": "Hygeia inside: how server monitoring works | Ellysia",
+        "description": "How Hygeia receives each server's data, opens anomalies without over-alerting, and computes statistics, power use and software vulnerabilities."
       }
     }
   }

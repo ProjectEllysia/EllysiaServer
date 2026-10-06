@@ -304,6 +304,12 @@ const routes = [
     meta: { docSection: 'technical', docTool: 'acheron', seo: 'docsAcheron' },
   },
   {
+    path: '/docs/tecnica/hygeia',
+    name: 'DocsHygeia',
+    component: () => import('@/views/public/DocsToolView.vue'),
+    meta: { docSection: 'technical', docTool: 'hygeia', seo: 'docsHygeia' },
+  },
+  {
     path: '/config',
     name: 'Config',
     component: () => import('@/views/system/ConfigView.vue'),
