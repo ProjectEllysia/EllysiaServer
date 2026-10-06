@@ -24,6 +24,7 @@ import sys
 import threading
 import time
 import warnings
+import psutil
 
 from flask                  import Flask, jsonify, request
 from flask_cors             import CORS
@@ -87,7 +88,6 @@ def _kill_worker_tree() -> None:
     if proc is None:
         return
     try:
-        import psutil
         try:
             parent = psutil.Process(proc.pid)
         except psutil.NoSuchProcess:
@@ -115,7 +115,8 @@ def _kill_worker_tree() -> None:
 
 
 def _run_shutdown_cleanup() -> None:
-    """Limpieza de apagado. Se ejecuta en un hilo daemon con deadline.
+    """
+    Limpieza de apagado. Se ejecuta en un hilo daemon con deadline.
 
     Cada paso va aislado en su propio try/except: un fallo o bloqueo de uno no
     impide intentar los siguientes, y el hilo daemon garantiza que el proceso
