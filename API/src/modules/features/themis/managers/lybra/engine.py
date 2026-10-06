@@ -28,6 +28,7 @@ from ...model import (
     ScanType,
 )
 from ...lybra import (
+    EVENT_CHECK_CATEGORIES,
     LybraEngine,
     Service,
     pinned_resolution,
@@ -40,6 +41,7 @@ from ...lybra import (
     mark_alias_fixes,
     site_finding,
     crawl,
+    select_scan_directories,
     compute_dedup_key,
     merge_findings,
     apply_lifecycle,
@@ -88,6 +90,8 @@ from ...exceptions import (
 
 from ..scan import ScanManager
 from ..authorized_target import AuthorizedTargetManager
+from .osint import OsintManager
+from .api_surface import run_api_surface
 from .sources import ServiceSource, DiscoveryProbes
 from .virtual_hosts import discover_sites
 
@@ -341,8 +345,11 @@ class LybraEngineManager(ScanManager):
 
     # Categories that are point-in-time events, not persistent vulnerability
     # state - excluded from lifecycle tracking (see the lifecycle pass in
-    # _run_lybra).
-    _EVENT_CATEGORIES = {"fingerprint", "surface_change", "scan_integrity", "virtual_host"}
+    # _run_lybra). ``passive_exposure`` también: es lo que un tercero dijo en
+    # su momento y sólo aparece si el usuario pide el enriquecimiento en ese
+    # escaneo, así que no pedirlo la vez siguiente no puede darlo por corregido.
+    _EVENT_CATEGORIES = {"fingerprint", "surface_change", "scan_integrity", "virtual_host",
+                         "passive_exposure", *EVENT_CHECK_CATEGORIES}
 
     def __init__(self, task_queue: ITaskQueue | None = None) -> None:
         super().__init__(task_queue)
@@ -376,6 +383,7 @@ class LybraEngineManager(ScanManager):
         aggressive: bool = False,
         profile: str = "standard",
         parent_scan_id: Optional[int] = None,
+        osint_enrichment: bool = False,
     ) -> int:
         """
         Start an Lybra engine scan in one of two modes.
@@ -420,6 +428,13 @@ class LybraEngineManager(ScanManager):
                 lanza desde :meth:`run_network_scan`. ``None`` para un
                 escaneo de un único objetivo — el caso normal, y el único que
                 existía antes de que las listas de objetivos fueran posibles.
+            osint_enrichment: Si, además del análisis propio, se pregunta a
+                Shodan y Censys por la dirección del objetivo para sugerir un
+                CPE en los puertos que el fingerprint no identificó (ver
+                ``OsintManager.build_enrichment_findings``). Por defecto
+                ``False``: consultar a un tercero le revela que el objetivo nos
+                interesa, y eso lo decide el usuario escaneo a escaneo. Nunca
+                llega desde un escaneo programado.
 
         Returns:
             Primary key of the created LybraScan record.
@@ -468,7 +483,7 @@ class LybraEngineManager(ScanManager):
             job_name="LybraScan",
             trailing_args=(
                 discover_ports, services_payload, timeout, aggressive,
-                active_checks_override, planner_enabled,
+                active_checks_override, planner_enabled, osint_enrichment,
             ),
             timeout=timeout,
         )
@@ -487,6 +502,7 @@ class LybraEngineManager(ScanManager):
         asset_id: Optional[int] = None,
         aggressive: bool = False,
         profile: str = "standard",
+        osint_enrichment: bool = False,
     ) -> int:
         """Lanza un escaneo Lybra por cada host de ``targets``.
 
@@ -511,8 +527,8 @@ class LybraEngineManager(ScanManager):
                 ``"192.168.1.0/28"``), para que el escaneo padre lo muestre
                 en vez de reconstruir algo a partir de la lista ya expandida.
                 Por defecto, los objetivos unidos por coma.
-            asset_id / aggressive / profile: Se reenvían tal cual a cada
-                escaneo hijo — ver ``run_scan``.
+            asset_id / aggressive / profile / osint_enrichment: Se reenvían
+                tal cual a cada escaneo hijo — ver ``run_scan``.
 
         Returns:
             int: El id del escaneo padre (o, con un único host, el id de ese
@@ -522,6 +538,7 @@ class LybraEngineManager(ScanManager):
             return self.run_scan(
                 user_id=user_id, target=targets[0], discover_ports=discover_ports,
                 timeout=timeout, asset_id=asset_id, aggressive=aggressive, profile=profile,
+                osint_enrichment=osint_enrichment,
             )
 
         parent = self._create_scan_record(
@@ -533,7 +550,7 @@ class LybraEngineManager(ScanManager):
             self.run_scan(
                 user_id=user_id, target=host, discover_ports=discover_ports,
                 timeout=timeout, asset_id=asset_id, aggressive=aggressive, profile=profile,
-                parent_scan_id=parent.id,
+                parent_scan_id=parent.id, osint_enrichment=osint_enrichment,
             )
 
         logger.info(f"Escaneo de red Lybra {parent.id} iniciado ({len(targets)} hosts)")
@@ -548,6 +565,7 @@ class LybraEngineManager(ScanManager):
         aggressive: bool = False,
         active_checks_override: Optional[bool] = None,
         planner_enabled: bool = True,
+        osint_enrichment: bool = False,
     ) -> None:
         """Entry point submitted to the TaskQueue. Runs the engine in the worker.
 
@@ -562,6 +580,8 @@ class LybraEngineManager(ScanManager):
         ya tenía. ``planner_enabled`` por el mismo motivo, con el default que
         reproduce el comportamiento anterior al planificador: un job antiguo
         sondea todo, que es justo lo que hacía antes de que existiera.
+        ``osint_enrichment`` es opcional con el default que no consulta a
+        ningún tercero: un job que no lo trae no lo pidió.
 
         ``services`` acepta tanto ``Service`` como el dict equivalente, y por el
         mismo motivo de compatibilidad: desde que ``run_scan`` encola por la
@@ -581,6 +601,7 @@ class LybraEngineManager(ScanManager):
                 aggressive=aggressive,
                 active_checks_override=active_checks_override,
                 planner_enabled=planner_enabled,
+                osint_enrichment=osint_enrichment,
             )
 
     @staticmethod
@@ -633,6 +654,7 @@ class LybraEngineManager(ScanManager):
         aggressive: bool = False,
         active_checks_override: Optional[bool] = None,
         planner_enabled: bool = True,
+        osint_enrichment: bool = False,
     ) -> None:
         """Resolve services (own discovery or a payload), detect, persist.
 
@@ -673,6 +695,11 @@ class LybraEngineManager(ScanManager):
         planificador ahorra es la sonda de red, nunca el análisis. ``False``
         para el perfil "thorough", que es el escaneo completo sin atajos que
         debe seguir disponible siempre.
+
+        ``osint_enrichment`` (por defecto ``False``) añade los CPE que Shodan o
+        Censys sugieren para los puertos sin identificar. No toca el objetivo
+        —pregunta a terceros—, así que no depende del registro de objetivos
+        autorizados; pero con el valor por defecto no se consulta a nadie.
         """
         # pylint: disable=too-many-arguments,too-many-locals,too-many-statements
         # pylint: disable=too-many-positional-arguments,too-many-branches
@@ -855,6 +882,14 @@ class LybraEngineManager(ScanManager):
                 cve for finding in findings_data
                 for cve in (finding.get("cve_ids") or ()))
 
+            # Enriquecimiento pasivo, sólo si el usuario lo pidió para este
+            # escaneo: preguntar a Shodan o Censys por el objetivo les revela
+            # que nos interesa. Va fuera de la transacción de arriba porque
+            # hace peticiones de red y escribe su propia caché.
+            if osint_enrichment and source_target and not should_stop():
+                findings_data.extend(
+                    OsintManager.build_enrichment_findings(source_target, findings_data))
+
             active_checks_enabled = (
                 CR.lybra_config().active_checks
                 if active_checks_override is None else active_checks_override
@@ -866,9 +901,12 @@ class LybraEngineManager(ScanManager):
             # sólo sobre un objetivo autorizado, como el resto del análisis
             # activo.
             discovered_auth_paths: list = []
+            discovered_directories: dict = {}
+            discovered_login_paths: dict = {}
             if (source.probes_target_network and source_target and is_target_authorized
                     and not should_stop()):
-                crawl_findings, discovered_auth_paths = self._run_crawler(source_target, services)
+                crawl_findings, discovered_auth_paths, discovered_directories, \
+                    discovered_login_paths = self._run_crawler(source_target, services)
                 findings_data.extend(crawl_findings)
 
             # Las marcas de los refutadores no son hallazgos: se apartan aquí
@@ -880,7 +918,15 @@ class LybraEngineManager(ScanManager):
                     self._run_active_checks(source_target, services,
                                             cancel_check=should_stop,
                                             proposed_cves=proposed_cves,
-                                            mode=mode))
+                                            mode=mode,
+                                            discovered_directories=discovered_directories,
+                                            discovered_paths=discovered_login_paths))
+                # Lo que la especificación de una API declara protegido y
+                # contesta sin credenciales. Sólo el sitio por defecto de la
+                # IP: los sitios con nombre no se analizan aparte.
+                if not should_stop():
+                    active_findings += run_api_surface(
+                        source_target, services, mode=mode, cancel_check=should_stop)
                 # Escanear una IP audita su sitio por defecto. Los sitios con
                 # nombre que la propia IP delata se auditan aparte, cada uno
                 # con su nombre. Si alguno sirve una web propia, lo que la IP
@@ -1080,7 +1126,8 @@ class LybraEngineManager(ScanManager):
 
     def _run_active_checks(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self, target: str, services, cancel_check=None,
-        proposed_cves=None, mode: str = "safe") -> list:
+        proposed_cves=None, mode: str = "safe", discovered_directories=None,
+        discovered_paths=None) -> list:
         """Run the check runtime against the target's HTTP, TLS, network
         and script services.
 
@@ -1091,6 +1138,31 @@ class LybraEngineManager(ScanManager):
         si el agresivo procede, sólo lo aplica: un ``check`` marcado
         ``mode: aggressive`` en el feed sigue sin correr en modo ``safe``, y
         eso lo sigue decidiendo ``CheckRuntime._applies_mode`` como siempre.
+
+        El limitador de esta fase es adaptativo: frena contra un host que deja
+        de contestar, hasta ``rate_limit_max_backoff_factor`` veces el
+        intervalo base.
+
+        Args:
+            target: El objetivo (IP o nombre ya fijado a la IP validada).
+            services: Los servicios descubiertos del objetivo.
+            cancel_check: Función sin argumentos que dice si el escaneo se
+                canceló, o ``None``. Por defecto ``None``.
+            proposed_cves: CVE que el matcher de versiones ya propuso; los
+                checks confirmadores y refutadores sólo corren para ellas.
+                Por defecto ``None`` (ninguna).
+            mode: ``"safe"`` o ``"aggressive"``. Por defecto ``"safe"``.
+            discovered_directories: Los directorios que el rastreo descubrió,
+                por puerto (ver :meth:`_run_crawler`), sobre los que se repiten
+                los checks de ruta que lo piden. Por defecto ``None`` (ninguno).
+            discovered_paths: Las rutas exactas que el rastreo descubrió (los
+                formularios de login), por puerto, sobre las que los checks
+                que declaran ``onDiscoveredPaths`` sustituyen su propia ruta.
+                Por defecto ``None`` (ninguna).
+
+        Returns:
+            list: Los hallazgos de los checks que dispararon; vacía si el
+                runtime falló.
         """
         try:
             engine = CR.lybra_engine_config()
@@ -1102,7 +1174,14 @@ class LybraEngineManager(ScanManager):
                     user_agent=engine.http_user_agent,
                 ).fetch,
                 mode=mode,
-                rate_limiter=HostRateLimiter(min_interval=engine.rate_limit_interval),
+                # El runtime cuenta al limitador qué peticiones obtuvieron
+                # respuesta, así que aquí el ritmo se adapta: frena contra un
+                # host que deja de contestar. El resto de limitadores del
+                # motor no reciben esos avisos y mantienen el intervalo fijo.
+                rate_limiter=HostRateLimiter(
+                    min_interval=engine.rate_limit_interval,
+                    max_backoff_factor=engine.rate_limit_max_backoff_factor,
+                ),
                 tls_fetch=TlsProbe().fetch,
                 network_open=NetworkProbe(timeout=engine.network_timeout).open,
                 script_plugins=default_script_plugins(),
@@ -1115,7 +1194,9 @@ class LybraEngineManager(ScanManager):
                 mapper=self._in_host_pool,
             )
             return runtime.run(target, services, cancel_check=cancel_check,
-                               proposed_cves=proposed_cves)
+                               proposed_cves=proposed_cves,
+                               discovered_directories=discovered_directories,
+                               discovered_paths=discovered_paths)
         except Exception:
             logger.exception("Lybra active checks failed for %s", target)
             return []
@@ -1133,15 +1214,21 @@ class LybraEngineManager(ScanManager):
             services: Los servicios del escaneo.
 
         Returns:
-            tuple: ``(hallazgos, rutas_con_auth_basica)``. Los hallazgos son
-                los avisos de robots.txt, formularios de login y rutas
-                protegidas; la lista de rutas alimenta el motor de
-                credenciales en modo agresivo.
+            tuple: ``(hallazgos, rutas_con_auth_basica, directorios,
+                rutas_de_login)``. Los hallazgos son los avisos de robots.txt,
+                formularios de login y rutas protegidas; la lista de rutas
+                alimenta el motor de credenciales en modo agresivo; los
+                directorios son ``{puerto: [directorio, ...]}`` con los que
+                :func:`select_scan_directories` eligió por servicio, sobre los
+                que los checks de ruta se repiten; las rutas de login son
+                ``{puerto: [ruta, ...]}`` con los formularios de acceso que el
+                rastreo encontró, sobre los que los checks que declaran
+                ``onDiscoveredPaths`` sustituyen su propia ruta.
         """
         try:
             config = CR.lybra_crawler_config()
             if config.max_pages <= 0:
-                return [], []
+                return [], [], {}, {}
             engine = CR.lybra_engine_config()
             fetch = HttpProbe(
                 timeout=engine.http_timeout,
@@ -1150,6 +1237,8 @@ class LybraEngineManager(ScanManager):
             ).fetch
             findings: list = []
             auth_paths: list = []
+            directories_by_port: dict = {}
+            login_paths_by_port: dict = {}
             for service in services:
                 if not is_http_service(service):
                     continue
@@ -1161,10 +1250,13 @@ class LybraEngineManager(ScanManager):
                 )
                 findings.extend(_crawl_findings(service, result))
                 auth_paths.extend(result.basic_auth_paths)
-            return findings, auth_paths
+                directories_by_port[service.port] = select_scan_directories(
+                    result.directories, config.max_scan_directories)
+                login_paths_by_port[service.port] = list(result.login_paths)
+            return findings, auth_paths, directories_by_port, login_paths_by_port
         except Exception:
             logger.exception("Lybra crawl failed for %s", target)
-            return [], []
+            return [], [], {}, {}
 
     def _run_credential_checks(self, target: str, services, mode: str,
                                discovered_paths=None) -> list:
@@ -1598,6 +1690,50 @@ class LybraEngineManager(ScanManager):
             "totalFindings": len(findings),
             "groups": [self._group_to_json(group, exposure) for group in groups],
         }
+
+    def api_surface(self, scan_id: int, user_id: int) -> dict:
+        """Lo que un escaneo encontró expuesto en las APIs de sus servicios web.
+
+        Reúne los hallazgos de categoría ``api_exposure`` —la especificación
+        publicada, la introspección de GraphQL, un endpoint protegido que
+        contesta sin credenciales, la asignación masiva— y los agrupa por
+        servicio, que es como se corrige: una API es un puerto. Un escaneo de
+        red (el padre de un lote) suma los de sus hosts.
+
+        Args:
+            scan_id: El escaneo.
+            user_id: Dueño; un escaneo ajeno se reporta como inexistente.
+
+        Returns:
+            dict: ``scanId``, ``totalFindings`` y ``services``: una entrada por
+                servicio con ``target``, ``port``, ``service`` y sus
+                ``findings`` (``id``, ``title``, ``severity``, ``checkId``,
+                ``state``, ``confirmed``, ``qod``), de más grave a menos. Sin
+                exposición, ``services`` va vacío.
+        """
+        with UnitOfWork() as uow:
+            assert_owned(ScanRepository, scan_id, user_id, ScanNotFoundError, uow=uow)
+            repo = ScanRepository(uow)
+            scans = [repo.get_by_id(scan_id)] + repo.get_child_scans(scan_id)
+            rows = [(scan.target, self._finding_view_dict(finding))
+                    for scan in scans for finding in repo.get_findings_by_scan(scan.id)
+                    if finding.category == "api_exposure"]
+
+        severity_rank = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
+        services: dict = {}
+        for target, finding in rows:
+            entry = services.setdefault((target, finding["port"]), {
+                "target": target, "port": finding["port"],
+                "service": finding["service"], "findings": []})
+            entry["findings"].append({
+                "id": finding["id"], "title": finding["title"],
+                "severity": finding["severity"], "checkId": finding["check_id"],
+                "state": finding["state"], "confirmed": finding["confirmed"],
+                "qod": finding["qod"],
+            })
+        for entry in services.values():
+            entry["findings"].sort(key=lambda item: severity_rank.get(item["severity"], 5))
+        return {"scanId": scan_id, "totalFindings": len(rows), "services": list(services.values())}
 
     @staticmethod
     def _group_to_json(group, exposure: str) -> dict:

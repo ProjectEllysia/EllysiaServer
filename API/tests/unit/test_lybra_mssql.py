@@ -231,3 +231,60 @@ def test_the_product_name_has_an_alias_to_its_nvd_identity():
     aliases = json.loads(feed.read_text(encoding="utf-8"))["aliases"]
     entry = next(a for a in aliases if a["match"] == "microsoft sql server")
     assert (entry["vendor"], entry["product"]) == ("microsoft", "sql_server")
+
+
+# ============================================== los checks de cifrado
+
+
+def _encryption_findings(encryption):
+    """Qué checks de cifrado disparan contra un SQL Server que anuncia ``encryption``."""
+    from src.modules.features.themis.lybra.checks import ScriptContext
+    from src.modules.features.themis.lybra.script_checks import MssqlEncryptionPlugin
+
+    fired = {}
+    for plugin_id in ("mssql-encryption-not-supported", "mssql-encryption-not-required"):
+        probe, _sent = _probe_with(_prelogin_response(encryption=encryption))
+        context = ScriptContext(target="10.0.0.5", service=Service(1433, "tcp", "ms-sql-s"))
+        if MssqlEncryptionPlugin(plugin_id, probe=probe).run(context):
+            fired[plugin_id] = context.evidence
+    return fired
+
+
+def test_a_server_that_cannot_encrypt_fires_only_the_severe_check():
+    assert _encryption_findings(0x02) == {
+        "mssql-encryption-not-supported": {"encryption": "not-supported"}}
+
+
+def test_a_server_that_does_not_require_encryption_fires_only_the_milder_check():
+    """El estado por defecto de una instalación sin endurecer."""
+    assert _encryption_findings(0x00) == {
+        "mssql-encryption-not-required": {"encryption": "off"}}
+
+
+@pytest.mark.parametrize("encryption", [0x01, 0x03])
+def test_a_server_that_forces_encryption_fires_nothing(encryption):
+    """Señuelo: ``on`` o ``required`` en la respuesta obligan a cifrar."""
+    assert _encryption_findings(encryption) == {}
+
+
+def test_a_prelogin_without_the_encryption_option_fires_nothing():
+    from src.modules.features.themis.lybra.checks import ScriptContext
+    from src.modules.features.themis.lybra.script_checks import MssqlEncryptionPlugin
+
+    for plugin_id in ("mssql-encryption-not-supported", "mssql-encryption-not-required"):
+        probe, _sent = _probe_with(_prelogin_response(with_encryption=False))
+        context = ScriptContext(target="10.0.0.5", service=Service(1433, "tcp", "ms-sql-s"))
+        assert MssqlEncryptionPlugin(plugin_id, probe=probe).run(context) is False
+
+
+def test_the_encryption_checks_are_registered_and_ordered_by_severity():
+    from src.modules.features.themis.lybra.checks import load_checks
+    from src.modules.features.themis.lybra.script_checks import default_script_plugins
+
+    checks = {c.id: c for c in load_checks()}
+    plugins = default_script_plugins()
+    for check_id in ("mssql-encryption-not-supported", "mssql-encryption-not-required"):
+        assert checks[check_id].service == "mssql" and checks[check_id].mode == "safe"
+        assert check_id in plugins
+    assert checks["mssql-encryption-not-supported"].severity == "HIGH"
+    assert checks["mssql-encryption-not-required"].severity == "MEDIUM"

@@ -30,16 +30,29 @@ que ``SmbDissector`` vive en ``smb.py``.
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional, Tuple
+import re
+import urllib.parse
+from typing import Callable, Dict, List, Optional, Tuple
+
+from cryptography import x509
+from cryptography.exceptions import UnsupportedAlgorithm
 
 from .checks import (
+    Baseline,
+    HttpProbe,
+    Response,
+    baseline_path,
+    is_http_service,
     is_ike_service,
     ScriptContext,
     ScriptPlugin,
     LDAPS_PORTS,
     is_ldap_service,
     is_dns_service,
+    is_cassandra_service,
+    is_memcached_service,
     is_mongodb_service,
+    is_mssql_service,
     is_ntp_service,
     is_rdp_service,
     is_postgres_service,
@@ -47,20 +60,38 @@ from .checks import (
     is_snmp_service,
     is_ssh_service,
     is_telnet_service,
+    is_tls_certificate_service,
     is_tls_service,
     is_vnc_service,
+    is_winrm_service,
+    is_zookeeper_service,
+    starttls_protocol_for,
 )
 from .engine import Service
 from .fingerprinting.smb import SIGNING_REQUIRED_BIT, SmbProbe, fingerprint_smb
-from .fingerprinting.ldap import LdapProbe, fingerprint_ldap
+from .fingerprinting.ldap import LdapProbe, fingerprint_ldap, search_returned_entries
+from .fingerprinting.cassandra import CassandraProbe
+from .fingerprinting.memcached import MemcachedProbe, fingerprint_memcached
 from .fingerprinting.mongo import MongoProbe, fingerprint_mongo
+from .fingerprinting.mssql import MssqlProbe, fingerprint_mssql
 from .fingerprinting.postgres import PostgresProbe, fingerprint_postgres
 from .fingerprinting.rdp import RdpProbe, fingerprint_rdp
 from .fingerprinting.snmp import SnmpProbe
 from .fingerprinting.ssh import SshProbe, parse_kexinit
+from .fingerprinting.ssh_auth import SshAuthMethods, SshAuthProbe
 from .fingerprinting.telnet import TelnetProbe
-from .fingerprinting.tls import TlsProbe
+from .fingerprinting import windows_rpc
+from .fingerprinting.tls import LEGACY_TLS_PROTOCOLS, TlsProbe
+from .fingerprinting.tls_hello import (
+    HANDSHAKE_CERTIFICATE,
+    HANDSHAKE_SERVER_KEY_EXCHANGE,
+    VERSION_TLS_1_2,
+    TlsHelloProbe,
+    parse_certificate_message,
+    parse_dhe_server_key_exchange,
+)
 from .fingerprinting.vnc import VncProbe
+from .fingerprinting.zookeeper import ZookeeperProbe, fingerprint_zookeeper
 from .transport import tcp_timestamps_enabled
 from .fingerprinting.udp_services import (
     DnsProbe,
@@ -225,6 +256,130 @@ class PostgresTrustAuthenticationPlugin(ScriptPlugin):
         return fingerprint_postgres(*replies).is_unauthenticated
 
 
+class PostgresPasswordWithoutTlsPlugin(ScriptPlugin):
+    """Detecta un PostgreSQL que pide contraseña pero no ofrece cifrar la conexión.
+
+    El dissector ya hace las dos preguntas que lo deciden: si el servidor
+    acepta el ``SSLRequest`` (``accepts_tls``) y qué método de autenticación
+    anuncia (``auth_method``). Un servidor que contesta ``N`` al primero y pide
+    una contraseña en el segundo obliga a todo cliente a mandarla por un canal
+    en claro: en texto plano con ``password``, o como un resumen MD5 que se
+    puede atacar sin conexión con ``md5``. Con SCRAM la contraseña no viaja,
+    pero todo lo que venga después —consultas y datos— sí, sin cifrar.
+
+    Ningún dato nuevo: las mismas dos conexiones que el dissector, con un
+    usuario inexistente y sin mandar nunca una contraseña. El modo ``trust``
+    queda fuera: no pide contraseña, y ya lo avisa
+    :class:`PostgresTrustAuthenticationPlugin` con más severidad.
+
+    Args:
+        probe: Sonda inyectable, para que un test use un socket falso. Por
+            defecto, ``PostgresProbe()``.
+    """
+
+    plugin_id = "postgres-password-without-tls"
+
+    def __init__(self, probe: Optional[PostgresProbe] = None) -> None:
+        self._probe = probe or PostgresProbe()
+
+    def applies(self, service: Service) -> bool:
+        """Si el servicio es PostgreSQL.
+
+        Args:
+            service: El servicio candidato.
+
+        Returns:
+            bool: ``True`` para los servicios que reclama ``is_postgres_service``.
+        """
+        return is_postgres_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        """Hace los dos intercambios y cruza la respuesta al ``SSLRequest`` con el método anunciado.
+
+        Args:
+            context: El contexto del check; su control de tasa se consulta
+                antes de conectar. El método anunciado va a la evidencia
+                (``authMethod``).
+
+        Returns:
+            bool: ``True`` si el servidor rechazó TLS y pide una contraseña;
+                ``False`` si acepta TLS, si no pide contraseña, si no contestó
+                o si alguno de los dos datos no se pudo leer.
+        """
+        context.acquire()
+        replies = self._probe.fetch(context.target, context.service.port or 5432)
+        if replies is None:
+            return False
+        fingerprint = fingerprint_postgres(*replies)
+        if not fingerprint.asks_for_password or fingerprint.accepts_tls is not False:
+            return False
+        context.evidence.update({"authMethod": fingerprint.auth_method})
+        return True
+
+
+#: Los dos avisos de cifrado de SQL Server, por la postura que los dispara.
+#: Son dos checks y no uno porque su gravedad es distinta: sin cifrado
+#: posible viajan en claro también las credenciales; con cifrado opcional,
+#: el login va cifrado y lo que viaja en claro son las consultas y los datos.
+_MSSQL_ENCRYPTION_POSTURES = {
+    "mssql-encryption-not-supported": "is_encryption_unsupported",
+    "mssql-encryption-not-required": "is_encryption_optional",
+}
+
+
+class MssqlEncryptionPlugin(ScriptPlugin):
+    """Detecta un SQL Server que no exige cifrar la conexión.
+
+    El primer intercambio del protocolo (``PRELOGIN``), sin autenticar, ya trae
+    la postura del servidor sobre el cifrado del canal; el dissector la lee
+    para identificar el producto y aquí se convierte en aviso. Una instancia
+    por postura, igual que las familias de algoritmos de SSH.
+
+    Args:
+        plugin_id: Una clave de :data:`_MSSQL_ENCRYPTION_POSTURES`.
+        probe: Sonda inyectable, para que un test use un socket falso. Por
+            defecto, ``MssqlProbe()``.
+    """
+
+    def __init__(self, plugin_id: str, probe: Optional[MssqlProbe] = None) -> None:
+        self.plugin_id = plugin_id
+        self._posture = _MSSQL_ENCRYPTION_POSTURES[plugin_id]
+        self._probe = probe or MssqlProbe()
+
+    def applies(self, service: Service) -> bool:
+        """Si el servicio es SQL Server.
+
+        Args:
+            service: El servicio candidato.
+
+        Returns:
+            bool: ``True`` para los servicios que reclama ``is_mssql_service``.
+        """
+        return is_mssql_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        """Hace el ``PRELOGIN`` y mira si la postura de cifrado es la de este check.
+
+        Args:
+            context: El contexto del check; su control de tasa se consulta
+                antes de conectar. El modo anunciado va a la evidencia
+                (``encryption``).
+
+        Returns:
+            bool: ``True`` si el servidor anunció la postura de este check;
+                ``False`` si anunció otra, no contestó o no era SQL Server.
+        """
+        context.acquire()
+        response = self._probe.fetch(context.target, context.service.port or 1433)
+        if response is None:
+            return False
+        fingerprint = fingerprint_mssql(response)
+        if not getattr(fingerprint, self._posture):
+            return False
+        context.evidence.update({"encryption": fingerprint.encryption})
+        return True
+
+
 class MongoUnauthenticatedAccessPlugin(ScriptPlugin):
     """Detecta un MongoDB que sirve su catálogo **sin credenciales**.
 
@@ -260,17 +415,110 @@ class MongoUnauthenticatedAccessPlugin(ScriptPlugin):
         return fingerprint_mongo(*replies).allows_unauthenticated_access
 
 
+class MemcachedUnauthenticatedAccessPlugin(ScriptPlugin):
+    """Detecta un Memcached que entrega sus estadísticas sin ninguna credencial.
+
+    El protocolo de texto de Memcached no autentica: lo único que lo cierra es
+    arrancarlo con SASL (que deshabilita el texto) o no exponerlo. Un servidor
+    abierto deja leer y vaciar la caché, que suele guardar sesiones, tokens y
+    fragmentos de base de datos.
+
+    **La evidencia no es que conteste a ``version``.** Es el comando más
+    inocuo del protocolo; la evidencia es que ``stats`` devuelva los
+    contadores, que sí es una operación sobre el servicio.
+
+    Args:
+        probe: Sonda inyectable, para que un test use un socket falso.
+    """
+
+    plugin_id = "memcached-unauthenticated-access"
+
+    def __init__(self, probe: Optional[MemcachedProbe] = None) -> None:
+        self._probe = probe or MemcachedProbe()
+
+    def applies(self, service: Service) -> bool:
+        return is_memcached_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        context.acquire()
+        replies = self._probe.fetch(context.target, context.service.port or 11211)
+        if replies is None:
+            return False
+        return fingerprint_memcached(*replies).allows_unauthenticated_access
+
+
+class ZookeeperUnauthenticatedAccessPlugin(ScriptPlugin):
+    """Detecta un ZooKeeper cuyo árbol de nodos se lee sin ninguna credencial.
+
+    ZooKeeper no autentica por defecto, y en él viven la configuración y la
+    coordinación de lo que lo usa (Kafka, Hadoop, Solr...). La evidencia es una
+    sesión real: el servidor la abre sin credenciales y devuelve los hijos de
+    la raíz. Un servidor con ACL o SASL obligatorio contesta ``NoAuth`` o
+    cierra, y entonces no hay hallazgo.
+
+    Args:
+        probe: Sonda inyectable, para que un test use un socket falso.
+    """
+
+    plugin_id = "zookeeper-unauthenticated-access"
+
+    def __init__(self, probe: Optional[ZookeeperProbe] = None) -> None:
+        self._probe = probe or ZookeeperProbe()
+
+    def applies(self, service: Service) -> bool:
+        return is_zookeeper_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        context.acquire()
+        readings = self._probe.fetch(context.target, context.service.port or 2181)
+        if readings is None:
+            return False
+        return fingerprint_zookeeper(*readings).allows_unauthenticated_access
+
+
+class CassandraUnauthenticatedAccessPlugin(ScriptPlugin):
+    """Detecta un servidor CQL (Cassandra, ScyllaDB) que deja operar sin credenciales.
+
+    La evidencia es la respuesta a ``STARTUP``: ``READY`` significa que el
+    servidor no exige autenticarse, ``AUTHENTICATE`` que sí. A diferencia de
+    otros servicios, aquí la distinción la hace el propio protocolo en su
+    primer paso, sin probar ninguna credencial.
+
+    Args:
+        probe: Sonda inyectable, para que un test use un socket falso.
+    """
+
+    plugin_id = "cassandra-unauthenticated-access"
+
+    def __init__(self, probe: Optional[CassandraProbe] = None) -> None:
+        self._probe = probe or CassandraProbe()
+
+    def applies(self, service: Service) -> bool:
+        return is_cassandra_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        context.acquire()
+        fingerprint = self._probe.fetch(context.target, context.service.port or 9042)
+        return bool(fingerprint and fingerprint.allows_unauthenticated_access)
+
+
 class LdapAnonymousBindPlugin(ScriptPlugin):
-    """Detecta un servidor de directorio que acepta un bind **anónimo**.
+    """Detecta un servidor de directorio que expone contenido con un bind **anónimo**.
 
-    Si el rootDSE contesta sin credenciales, la información del directorio es
-    pública: quién sirve qué dominio, qué mecanismos de autenticación admite y,
-    en muchos despliegues, bastante más si la consulta se amplía.
+    Que el servidor acepte el bind anónimo no es, por sí solo, el hallazgo:
+    todo servidor LDAP conforme al estándar —y en particular cualquier
+    controlador de dominio de Active Directory— lo acepta para servir el
+    rootDSE público (RFC 4511 §4.2), y eso no expone nada. El hallazgo real es
+    que una búsqueda anónima bajo el dominio que el propio servidor publica
+    (``namingContexts``) devuelva entradas del directorio: ahí sí hay
+    información que debería requerir credenciales y no las pide.
 
-    Un bind anónimo no es un intento de adivinar credenciales: es la forma que
-    el propio protocolo define para preguntar sin identificarse (RFC 4511
-    §4.2), y lo que se observa es si el servidor **la acepta**. No se prueba
-    ninguna contraseña.
+    Por eso el check encadena dos sondas: primero el bind más el rootDSE
+    (:meth:`LdapProbe.fetch`, para leer el primer ``namingContexts``) y sólo
+    si hay un dominio publicado, una búsqueda de una sola entrada bajo ese
+    dominio (:meth:`LdapProbe.fetch_naming_context_entries`). Sin dominio
+    publicado no hay base sobre la que buscar, y sin entradas no hay nada que
+    el bind anónimo esté exponiendo.
 
     Args:
         probe: Sonda inyectable, para que un test use un socket falso.
@@ -286,10 +534,21 @@ class LdapAnonymousBindPlugin(ScriptPlugin):
 
     def run(self, context: ScriptContext) -> bool:
         context.acquire()
-        replies = self._probe.fetch(context.target, context.service.port or 389)
+        port = context.service.port or 389
+        replies = self._probe.fetch(context.target, port)
         if replies is None:
             return False
-        return fingerprint_ldap(*replies).allows_anonymous_bind
+        naming_contexts = fingerprint_ldap(*replies).naming_contexts
+        if not naming_contexts:
+            # Sin un dominio publicado no hay base sobre la que buscar, así
+            # que no hay forma de confirmar que el bind anónimo expone algo.
+            return False
+        context.acquire()
+        entries_reply = self._probe.fetch_naming_context_entries(
+            context.target, naming_contexts[0], port)
+        if entries_reply is None:
+            return False
+        return search_returned_entries(entries_reply)
 
 
 class LdapCleartextWithLdapsPlugin(ScriptPlugin):
@@ -319,6 +578,293 @@ class LdapCleartextWithLdapsPlugin(ScriptPlugin):
         )
 
 
+class LdapDomainFunctionalLevelPlugin(ScriptPlugin):
+    """Detecta un dominio de Active Directory en un nivel funcional de un Windows Server sin soporte.
+
+    El nivel funcional del dominio fija qué versión de Windows Server es la
+    más antigua que puede hacer de controlador de dominio. Uno antiguo suele
+    significar que la organización mantiene, por compatibilidad,
+    controladores con versiones ya sin parches del fabricante, y deja fuera
+    protecciones que sólo existen desde niveles posteriores (como el grupo
+    Protected Users, desde 2012 R2).
+
+    Todo controlador de dominio lo publica en su rootDSE sin credenciales
+    (``domainFunctionality``). Un directorio que no es Active Directory no lo
+    publica y no dispara.
+
+    Args:
+        probe: Sonda inyectable, para que un test use un socket falso. Por
+            defecto, ``LdapProbe()``.
+    """
+
+    plugin_id = "ldap-domain-functional-level-unsupported"
+
+    def __init__(self, probe: Optional[LdapProbe] = None) -> None:
+        self._probe = probe or LdapProbe()
+
+    def applies(self, service: Service) -> bool:
+        """Si el servicio es LDAP.
+
+        Args:
+            service: El servicio candidato.
+
+        Returns:
+            bool: ``True`` para los servicios que reclama ``is_ldap_service``.
+        """
+        return is_ldap_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        """Lee el rootDSE y dispara si el nivel funcional es de un Windows sin soporte.
+
+        Args:
+            context: El contexto del check; su control de tasa se consulta
+                antes de conectar. El nivel y su versión van a la evidencia.
+
+        Returns:
+            bool: ``True`` si el nivel es de Windows Server 2012 R2 o anterior;
+                ``False`` si es más reciente, no se publica o no hubo respuesta.
+        """
+        context.acquire()
+        replies = self._probe.fetch(context.target, context.service.port or 389)
+        if replies is None:
+            return False
+        fingerprint = fingerprint_ldap(*replies)
+        if not fingerprint.is_domain_level_unsupported:
+            return False
+        context.evidence.update({
+            "domainFunctionality": fingerprint.domain_functional_level,
+            "windowsVersion": fingerprint.domain_windows_version,
+        })
+        return True
+
+
+class LdapNoEncryptedChannelPlugin(ScriptPlugin):
+    """Detecta un directorio que no ofrece ninguna vía cifrada: ni LDAPS ni StartTLS.
+
+    Sin ninguna de las dos, todo bind con contraseña —el de cualquier usuario
+    o aplicación que se autentique contra el directorio— viaja en claro, y no
+    hay configuración de cliente que lo evite.
+
+    Es el complemento de ``ldap-cleartext-with-ldaps``, no su duplicado: aquél
+    avisa de un 389 en claro **habiendo** LDAPS en el mismo host; éste sólo
+    dispara cuando el host no publica LDAPS **y** el servidor no anuncia
+    StartTLS en su rootDSE. Si el rootDSE no trae la lista de extensiones, no
+    se sabe si ofrece StartTLS y no dispara.
+    """
+
+    plugin_id = "ldap-no-encrypted-channel"
+
+    def __init__(self, probe: Optional[LdapProbe] = None) -> None:
+        self._probe = probe or LdapProbe()
+
+    def applies(self, service: Service) -> bool:
+        """Si el servicio es LDAP en claro (no un puerto LDAPS).
+
+        Args:
+            service: El servicio candidato.
+
+        Returns:
+            bool: ``True`` si es LDAP y su puerto no es de LDAPS.
+        """
+        return is_ldap_service(service) and service.port not in LDAPS_PORTS
+
+    def run(self, context: ScriptContext) -> bool:
+        """Mira si hay LDAPS en el host y, si no, si el servidor anuncia StartTLS.
+
+        Args:
+            context: El contexto del check; los servicios hermanos dicen si
+                hay LDAPS, y su control de tasa se consulta antes de conectar.
+
+        Returns:
+            bool: ``True`` si no hay LDAPS en el host y el servidor publica
+                sus extensiones sin StartTLS; ``False`` en cualquier otro caso.
+        """
+        if any(sibling.port in LDAPS_PORTS for sibling in context.sibling_services):
+            return False
+        context.acquire()
+        replies = self._probe.fetch(context.target, context.service.port or 389)
+        if replies is None:
+            return False
+        return fingerprint_ldap(*replies).supports_starttls is False
+
+
+def _is_reporting_service(context: ScriptContext, is_same_kind, preferred_ports: Tuple[int, ...]) -> bool:
+    """Si este servicio es el que informa de un dato que varios servicios del host repiten.
+
+    El nombre de un equipo sale igual por el 139 que por el 445, y el dominio
+    de un directorio igual por el 389 que por el 3268: un aviso por servicio
+    repetiría el mismo dato. Informa uno solo: el del primer puerto de
+    ``preferred_ports`` que esté abierto o, si no hay ninguno, el más bajo.
+
+    Args:
+        context: El contexto del check; ``sibling_services`` trae los
+            servicios del host.
+        is_same_kind: Predicado que dice si un servicio es de la misma clase.
+        preferred_ports: Los puertos preferidos para informar, por orden.
+
+    Returns:
+        bool: ``True`` si este servicio es el elegido.
+    """
+    def rank(port):
+        return (preferred_ports.index(port) if port in preferred_ports else len(preferred_ports), port)
+
+    ports = {sibling.port for sibling in context.sibling_services if is_same_kind(sibling)}
+    ports.add(context.service.port)
+    return min(ports, key=rank) == context.service.port
+
+
+def _describe_smb_identity(fingerprint) -> Optional[str]:
+    """Compone el texto de identidad de un equipo a partir de lo que dijo por SMB.
+
+    Un equipo fuera de dominio (en un grupo de trabajo) contesta con su propio
+    nombre donde iría el dominio; en ese caso no se menciona dominio ninguno,
+    para no inventar uno.
+
+    Args:
+        fingerprint: El ``SmbFingerprint`` con ``hostname``, ``domain`` y
+            ``dns_name``.
+
+    Returns:
+        Optional[str]: ``"WIN-SRV01 (win-srv01.corp.local, dominio CORP)"`` o
+            una parte de eso; ``None`` si el equipo no dijo su nombre.
+    """
+    if not fingerprint.hostname:
+        return None
+    details = []
+    if fingerprint.dns_name and fingerprint.dns_name.lower() != fingerprint.hostname.lower():
+        details.append(fingerprint.dns_name)
+    if fingerprint.domain and fingerprint.domain.upper() != fingerprint.hostname.upper():
+        details.append(f"dominio {fingerprint.domain}")
+    return f"{fingerprint.hostname} ({', '.join(details)})" if details else fingerprint.hostname
+
+
+def _dns_domain_of(naming_contexts: Tuple[str, ...]) -> Optional[str]:
+    """El nombre DNS del primer contexto de nombres que sea sólo ``DC=``.
+
+    ``DC=empresa,DC=local`` es el dominio ``empresa.local``. Los contextos de
+    configuración y de esquema (``CN=Configuration,DC=...``) no son el dominio
+    y se saltan.
+
+    Args:
+        naming_contexts: Los ``namingContexts`` del rootDSE, en su orden.
+
+    Returns:
+        Optional[str]: El dominio en minúsculas, o ``None`` si no hay ninguno.
+    """
+    for context_name in naming_contexts:
+        parts = [part.strip() for part in context_name.split(",") if part.strip()]
+        if parts and all(part.lower().startswith("dc=") for part in parts):
+            return ".".join(part[3:] for part in parts).lower()
+    return None
+
+
+class SmbHostIdentityPlugin(ScriptPlugin):
+    """Recoge el nombre de equipo y el dominio que un Windows dice de sí mismo por SMB.
+
+    El dissector de SMB ya los lee, sin credenciales, de la respuesta al inicio
+    de sesión; aquí se convierten en un aviso informativo que nombra el activo
+    en el informe. No es un riesgo: es contexto (categoría ``host_identity``).
+
+    Args:
+        probe: Sonda inyectable, para que un test use un socket falso. Por
+            defecto, ``SmbProbe()``.
+    """
+
+    plugin_id = "smb-host-identity"
+
+    def __init__(self, probe: Optional[SmbProbe] = None) -> None:
+        self._probe = probe or SmbProbe()
+
+    def applies(self, service: Service) -> bool:
+        """Si el servicio es SMB.
+
+        Args:
+            service: El servicio candidato.
+
+        Returns:
+            bool: ``True`` para los servicios que reclama ``is_smb_service``.
+        """
+        return is_smb_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        """Negocia SMB, pide la identidad y la deja en la evidencia (``identity``).
+
+        Args:
+            context: El contexto del check; su control de tasa se consulta
+                antes de cada intercambio.
+
+        Returns:
+            bool: ``True`` si el equipo dijo su nombre y este servicio es el
+                que informa por el host; ``False`` si no.
+        """
+        if not _is_reporting_service(context, is_smb_service, (445, 139)):
+            return False
+        port = context.service.port or 445
+        context.acquire()
+        negotiation = self._probe.fetch(context.target, port)
+        if negotiation is None:
+            return False
+        context.acquire()
+        identity = self._probe.fetch_identity(context.target, port)
+        description = _describe_smb_identity(fingerprint_smb(*negotiation, identity))
+        if description is None:
+            return False
+        context.evidence.update({"identity": description})
+        return True
+
+
+class LdapDirectoryDomainPlugin(ScriptPlugin):
+    """Recoge el dominio que un directorio publica en su rootDSE.
+
+    El nombre de dominio de la organización (``DC=empresa,DC=local``) llega en
+    los ``namingContexts`` que el dissector ya lee sin credenciales; aquí se
+    convierte en un aviso informativo que nombra el directorio en el informe.
+
+    Args:
+        probe: Sonda inyectable, para que un test use un socket falso. Por
+            defecto, ``LdapProbe()``.
+    """
+
+    plugin_id = "ldap-directory-domain"
+
+    def __init__(self, probe: Optional[LdapProbe] = None) -> None:
+        self._probe = probe or LdapProbe()
+
+    def applies(self, service: Service) -> bool:
+        """Si el servicio es LDAP.
+
+        Args:
+            service: El servicio candidato.
+
+        Returns:
+            bool: ``True`` para los servicios que reclama ``is_ldap_service``.
+        """
+        return is_ldap_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        """Lee el rootDSE y deja el dominio en la evidencia (``domain``).
+
+        Args:
+            context: El contexto del check; su control de tasa se consulta
+                antes de conectar.
+
+        Returns:
+            bool: ``True`` si el directorio publica un dominio y este servicio
+                es el que informa por el host; ``False`` si no.
+        """
+        if not _is_reporting_service(context, is_ldap_service, (389, 636, 3268, 3269)):
+            return False
+        context.acquire()
+        replies = self._probe.fetch(context.target, context.service.port or 389)
+        if replies is None:
+            return False
+        domain = _dns_domain_of(fingerprint_ldap(*replies).naming_contexts)
+        if domain is None:
+            return False
+        context.evidence.update({"domain": domain})
+        return True
+
+
 class RdpNlaNotRequiredPlugin(ScriptPlugin):
     """Detecta un RDP que **no** exige autenticación a nivel de red.
 
@@ -338,6 +884,11 @@ class RdpNlaNotRequiredPlugin(ScriptPlugin):
     (``None``), y sólo la primera es un hallazgo: afirmar una configuración
     insegura sin haberla observado sería inventarla.
 
+    Cubre sólo el caso intermedio —TLS sin NLA—. Un servidor que ni siquiera
+    usa TLS es el caso peor y lo avisa :class:`RdpLegacySecurityLayerPlugin`,
+    con más severidad; dispararlos juntos repetiría el mismo problema dos
+    veces y escondería cuál de los dos servidores urge más.
+
     Args:
         probe: Sonda inyectable, para que un test use un socket falso.
     """
@@ -355,7 +906,155 @@ class RdpNlaNotRequiredPlugin(ScriptPlugin):
         response = self._probe.fetch(context.target, context.service.port or 3389)
         if response is None:
             return False
-        return fingerprint_rdp(response).requires_network_level_authentication is False
+        fingerprint = fingerprint_rdp(response)
+        return (fingerprint.requires_network_level_authentication is False
+                and fingerprint.uses_legacy_security_layer is False)
+
+
+class RdpLegacySecurityLayerPlugin(ScriptPlugin):
+    """Detecta un RDP que usa la seguridad propia del protocolo, sin TLS ni NLA.
+
+    La seguridad estándar de RDP es anterior a TLS: cifra con RC4 y no
+    verifica la identidad del servidor, así que quien se interponga en la red
+    puede hacerse pasar por él y leer las credenciales que el usuario teclee.
+    Es peor que un RDP con TLS sin NLA, que al menos protege el canal.
+
+    La evidencia sale de la misma negociación de X.224 que usa el dissector:
+    el servidor elige esa seguridad, o rechaza con ``ssl-not-allowed-by-server``
+    una petición que sólo ofrecía TLS y NLA. Un modo que no se ha podido leer
+    no dispara.
+
+    Args:
+        probe: Sonda inyectable, para que un test use un socket falso. Por
+            defecto, ``RdpProbe()``.
+    """
+
+    plugin_id = "rdp-legacy-security-layer"
+
+    def __init__(self, probe: Optional[RdpProbe] = None) -> None:
+        self._probe = probe or RdpProbe()
+
+    def applies(self, service: Service) -> bool:
+        """Si el servicio es RDP.
+
+        Args:
+            service: El servicio candidato.
+
+        Returns:
+            bool: ``True`` para los servicios que reclama ``is_rdp_service``.
+        """
+        return is_rdp_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        """Negocia una vez y dispara si el servidor sólo tiene la seguridad antigua.
+
+        Args:
+            context: El contexto del check; su control de tasa se consulta
+                antes de conectar.
+
+        Returns:
+            bool: ``True`` si el servidor usa la seguridad estándar de RDP;
+                ``False`` si usa TLS o NLA, si no contestó o si su respuesta
+                no permite decidirlo.
+        """
+        context.acquire()
+        response = self._probe.fetch(context.target, context.service.port or 3389)
+        if response is None:
+            return False
+        return fingerprint_rdp(response).uses_legacy_security_layer is True
+
+
+#: La petición mínima de WinRM: un POST vacío a su ruta SOAP. El servicio
+#: contesta 401 con los métodos de autenticación que acepta antes de mirar el
+#: cuerpo, así que no hace falta construir un mensaje WS-Management.
+_WINRM_PATH = "/wsman"
+_WINRM_HEADERS = {"Content-Type": "application/soap+xml;charset=UTF-8"}
+
+#: Un método Basic entre los que anuncia ``WWW-Authenticate``: al principio de
+#: un valor o tras una coma, y como palabra entera (no ``BasicAuth``).
+_BASIC_SCHEME_RE = re.compile(r"(?:^|,)\s*basic(?:\s|$|,)", re.IGNORECASE | re.MULTILINE)
+
+#: Lo que distingue a WinRM de cualquier otro servidor HTTP que pida Basic: la
+#: pila HTTP del núcleo de Windows que lo sirve, o el reino ``WSMAN`` (también
+#: el de OMI, la implementación para Linux).
+_WINRM_SERVER_MARKER = "microsoft-httpapi"
+_WINRM_REALM_RE = re.compile(r'realm\s*=\s*"?wsman', re.IGNORECASE)
+
+
+def is_winrm_offering_cleartext_basic(response: Response) -> bool:
+    """Si una respuesta de WinRM en claro anuncia autenticación Basic.
+
+    Args:
+        response: La respuesta al ``POST /wsman`` sin credenciales.
+
+    Returns:
+        bool: ``True`` si se habló HTTP sin TLS, el servidor pidió
+            credenciales (``401``), es WinRM y ofrece Basic; ``False`` en
+            cualquier otro caso.
+    """
+    if response.status != 401 or response.requested_scheme == "https":
+        return False
+    authenticate = response.headers.get("www-authenticate", "")
+    is_winrm = (_WINRM_SERVER_MARKER in response.headers.get("server", "").lower()
+                or bool(_WINRM_REALM_RE.search(authenticate)))
+    return is_winrm and bool(_BASIC_SCHEME_RE.search(authenticate))
+
+
+class WinrmBasicAuthCleartextPlugin(ScriptPlugin):
+    """Detecta un WinRM sin TLS que acepta autenticación Basic.
+
+    WinRM es la administración remota de Windows: ejecuta comandos y consultas
+    de gestión sobre el equipo. Con Basic, el cliente manda usuario y
+    contraseña en la cabecera ``Authorization`` codificados en Base64, que no
+    es cifrado; en el 5985, sin TLS, cualquiera en la red los lee. Da igual
+    que el servidor rechace después el mensaje por no ir cifrado: la
+    contraseña ya viajó.
+
+    La evidencia es la respuesta del propio servicio a una petición sin
+    credenciales: ``401`` con los métodos que acepta en ``WWW-Authenticate``.
+    Un WinRM con sólo Kerberos/Negotiate no dispara, ni un servidor HTTP
+    cualquiera que pida Basic en ese puerto.
+
+    Args:
+        probe: Sonda HTTP inyectable, para que un test no abra conexiones.
+            Por defecto, ``HttpProbe()``.
+    """
+
+    plugin_id = "winrm-basic-auth-cleartext"
+
+    def __init__(self, probe: Optional[HttpProbe] = None) -> None:
+        self._probe = probe or HttpProbe()
+
+    def applies(self, service: Service) -> bool:
+        """Si el servicio es WinRM sin TLS.
+
+        Args:
+            service: El servicio candidato.
+
+        Returns:
+            bool: ``True`` para los servicios que reclama ``is_winrm_service``.
+        """
+        return is_winrm_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        """Pide ``/wsman`` sin credenciales y mira qué autenticación se ofrece.
+
+        Args:
+            context: El contexto del check; su control de tasa se consulta
+                antes de la petición. Los métodos anunciados van a la
+                evidencia (``wwwAuthenticate``).
+
+        Returns:
+            bool: ``True`` si el servicio es WinRM en claro y ofrece Basic;
+                ``False`` si no, o si no contestó.
+        """
+        context.acquire()
+        response = self._probe.fetch(context.target, context.service.port or 5985, "POST",
+                                     _WINRM_PATH, "", dict(_WINRM_HEADERS))
+        if response is None or not is_winrm_offering_cleartext_basic(response):
+            return False
+        context.evidence.update({"wwwAuthenticate": response.headers.get("www-authenticate", "")})
+        return True
 
 
 class DnsOpenResolverPlugin(ScriptPlugin):
@@ -538,6 +1237,97 @@ class _KexinitCache:
                     parsed = None
             self._kexinits[key] = parsed
         return self._kexinits[key]
+
+
+class _SshAuthCache:
+    """Una sola consulta de métodos de autenticación por servicio, compartida por los plugins SSH.
+
+    Los dos checks que preguntan ``auth_none`` miran la misma respuesta; sin
+    esto, cada uno abriría su propia conexión y repetiría el mismo intento de
+    autenticación contra el objetivo. Vive lo que vive el registro de plugins
+    (un escaneo) — el mismo patrón que :class:`_KexinitCache` ya usa para el
+    ``KEXINIT``.
+
+    Args:
+        probe: Sonda inyectable, para que un test use un socket falso o un
+            servidor SSH de prueba.
+    """
+
+    def __init__(self, probe: Optional[SshAuthProbe] = None) -> None:
+        self._probe = probe or SshAuthProbe()
+        self._results: Dict[Tuple[str, int], Optional[SshAuthMethods]] = {}
+
+    def auth_methods(self, context: ScriptContext) -> Optional[SshAuthMethods]:
+        """Devuelve los métodos de autenticación del servicio, preguntándolo la primera vez.
+
+        Args:
+            context: El contexto del check, del que salen objetivo, puerto y
+                limitador de ritmo.
+
+        Returns:
+            SshAuthMethods | None: El resultado, o ``None`` si la sonda no
+                llegó a una respuesta concluyente.
+        """
+        key = (context.target, context.service.port or 22)
+        if key not in self._results:
+            context.acquire()
+            self._results[key] = self._probe.fetch(*key)
+        return self._results[key]
+
+
+class SshNoneAuthenticationAcceptedPlugin(ScriptPlugin):
+    """Detecta un SSH que acepta el método de autenticación «ninguno»: acceso sin credencial alguna.
+
+    Es, para SSH, el mismo hallazgo que PostgreSQL en modo ``trust``. La
+    evidencia es la propia respuesta del servidor al método ``none`` —no una
+    credencial que se prueba, sino la ausencia de cualquier credencial—, así
+    que el hallazgo nace confirmado.
+
+    Args:
+        cache: La caché de métodos de autenticación compartida con el otro
+            plugin de esta familia.
+    """
+
+    plugin_id = "ssh-none-authentication-accepted"
+
+    def __init__(self, cache: _SshAuthCache) -> None:
+        self._cache = cache
+
+    def applies(self, service: Service) -> bool:
+        return is_ssh_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        result = self._cache.auth_methods(context)
+        return bool(result and result.is_none_accepted)
+
+
+class SshPasswordOnlyAuthenticationPlugin(ScriptPlugin):
+    """Detecta un SSH que sólo admite autenticación por contraseña, sin clave pública.
+
+    Un servidor así es una superficie de fuerza bruta: sin clave pública de por
+    medio, cualquier cuenta válida sólo está protegida por lo fuerte que sea su
+    contraseña. Si el servidor ya aceptó el método ``none`` el hallazgo es ese
+    —más grave—, no este.
+
+    Args:
+        cache: La caché de métodos de autenticación compartida con el otro
+            plugin de esta familia.
+    """
+
+    plugin_id = "ssh-password-only-authentication"
+
+    def __init__(self, cache: _SshAuthCache) -> None:
+        self._cache = cache
+
+    def applies(self, service: Service) -> bool:
+        return is_ssh_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        result = self._cache.auth_methods(context)
+        if result is None or result.is_none_accepted:
+            return False
+        offers_password = "password" in result.methods or "keyboard-interactive" in result.methods
+        return offers_password and "publickey" not in result.methods
 
 
 def _is_weak_mac(name: str) -> bool:
@@ -806,6 +1596,14 @@ _TLS12_WEAK_CIPHER_FAMILIES = {
                         "ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384:"
                         "ECDHE-ECDSA-AES128-SHA:ECDHE-ECDSA-AES256-SHA:"
                         "ECDHE-ECDSA-AES128-SHA256:ECDHE-ECDSA-AES256-SHA384"),
+    # Cifrados débiles de verdad: sin cifrado (NULL), 3DES, RC4, DES y
+    # exportación. ``@SECLEVEL=0`` hace falta para que OpenSSL 3 los ofrezca.
+    # Lo que se ofrece de verdad depende de la build local: OpenSSL ignora las
+    # familias que no tiene compiladas, y hoy ninguna build moderna trae RC4,
+    # DES ni EXPORT (la de Debian bookworm tampoco), así que en la práctica
+    # esta sonda ve NULL y, si la build lo conserva, 3DES. Que un servidor
+    # acepte RC4 sólo se vería leyendo su respuesta a un saludo escrito a mano.
+    "tls-weak-cipher": "eNULL:3DES:RC4:DES:EXPORT:!aNULL:@SECLEVEL=0",
 }
 
 
@@ -842,6 +1640,547 @@ class TlsWeakCipherFamilyPlugin(ScriptPlugin):
         return True
 
 
+class TlsDeprecatedProtocolPlugin(ScriptPlugin):
+    """Detecta que un servicio TLS acepta una versión obsoleta del protocolo (SSLv3, TLS 1.0, TLS 1.1).
+
+    El saludo normal negocia la versión más alta que comparten cliente y
+    servidor, así que un servidor que acepta TLS 1.0 **y** 1.2 parece sano. Lo
+    que importa es lo más bajo que acepta, porque un atacante en medio puede
+    forzar la bajada: se pregunta por cada versión obsoleta por separado, con
+    un saludo que sólo ofrece esa versión (una conexión por versión).
+
+    Qué versiones se pueden preguntar depende de la build de OpenSSL local: la
+    que no se puede ofrecer cuenta como «no se sabe» y nunca como «no la
+    acepta», así que el check no dispara por ella. En la imagen Docker
+    (Debian bookworm) SSLv3 no existe, y un servidor que sólo hable SSLv3 no
+    se detecta; TLS 1.0 y 1.1 sí.
+
+    Los servicios que cifran a mitad de sesión (FTP, SMTP, IMAP y POP3) se
+    preguntan tras su paso a TLS; los que cifran desde el primer byte, sin él.
+
+    Args:
+        probe: Sonda inyectable, para que un test use otra. Por defecto,
+            ``TlsProbe()``.
+    """
+
+    plugin_id = "tls-deprecated-protocol"
+
+    def __init__(self, probe: Optional[TlsProbe] = None) -> None:
+        self._probe = probe or TlsProbe()
+
+    def applies(self, service: Service) -> bool:
+        """Si el servicio habla TLS, desde el primer byte o tras su paso a TLS.
+
+        Args:
+            service: El servicio candidato.
+
+        Returns:
+            bool: ``True`` si merece la pregunta.
+        """
+        return is_tls_certificate_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        """Pregunta por cada versión obsoleta y dispara si el servidor acepta alguna.
+
+        Args:
+            context: El contexto del check; su control de tasa se consulta
+                antes de cada saludo.
+
+        Returns:
+            bool: ``True`` si el servidor aceptó al menos una versión
+                obsoleta (van en ``acceptedProtocols`` de la evidencia);
+                ``False`` si no aceptó ninguna o no se pudo saber.
+        """
+        service = context.service
+        starttls = starttls_protocol_for(service)
+        accepted = []
+        for protocol in LEGACY_TLS_PROTOCOLS:
+            context.acquire()
+            if self._probe.fetch_accepts_protocol(context.target, service.port or 443,
+                                                  protocol, starttls=starttls):
+                accepted.append(protocol)
+        if not accepted:
+            return False
+        context.evidence.update({"acceptedProtocols": accepted})
+        return True
+
+
+def _load_certificate(der: bytes) -> Optional["x509.Certificate"]:
+    """Carga un certificado DER, o ``None`` si está corrupto o mal formado.
+
+    Args:
+        der: Los bytes del certificado, tal como llegaron en el saludo.
+
+    Returns:
+        Optional[x509.Certificate]: El certificado ya parseado, o ``None``
+            ante cualquier error de formato — un certificado que no se puede
+            leer no es evidencia de nada.
+    """
+    try:
+        return x509.load_der_x509_certificate(der)
+    except (ValueError, UnsupportedAlgorithm):
+        return None
+
+
+#: El mínimo de bits del módulo Diffie-Hellman que no se considera débil. 2048
+#: es el umbral tras Logjam (CVE-2015-4000): por debajo, romper una sesión con
+#: recursos de un atacante con medios es plausible.
+_MINIMUM_DH_GROUP_BITS = 2048
+
+#: Los cifrados DHE clásicos (sin curva elíptica) que este check ofrece, para
+#: forzar al servidor a elegir uno de ellos si sabe hacer Diffie-Hellman en
+#: absoluto — un ECDHE no dice nada del tamaño de un grupo DH que el servidor
+#: podría no usar nunca.
+_DHE_ONLY_CIPHER_SUITES: Tuple[int, ...] = (0x009E, 0x009F, 0x0033, 0x0039)
+
+
+def _speaks_immediate_tls(service: Service) -> bool:
+    """Si el servicio cifra desde el primer byte (nunca por ``STARTTLS``).
+
+    Los dos plugins de :mod:`tls_hello` de abajo se limitan a esto: el lector
+    en crudo no habla todavía el paso a TLS a mitad de sesión (FTP, SMTP,
+    IMAP, POP3) que sí sabe :class:`~.fingerprinting.tls.TlsProbe` —añadirlo
+    exigiría exponer las sondas de ``STARTTLS`` de ese módulo, que hoy son
+    privadas—, así que estos dos checks se quedan fuera de esos protocolos
+    hasta que esa pieza exista. Los checks de versión y cifrado ya existentes
+    (:class:`TlsDeprecatedProtocolPlugin`, :class:`TlsWeakCipherFamilyPlugin`)
+    sí los cubren, porque usan ``TlsProbe``.
+    """
+    return is_tls_certificate_service(service) and starttls_protocol_for(service) is None
+
+
+class TlsIncompleteCertificateChainPlugin(ScriptPlugin):
+    """Detecta un servidor TLS que no manda el certificado intermedio.
+
+    Un navegador valida el certificado de hoja subiendo la cadena de
+    emisores hasta una raíz de confianza ya instalada; si al servidor le
+    falta el intermedio, esa subida se corta y la conexión no valida, aunque
+    la hoja en sí sea perfectamente válida. Es un descuido de despliegue
+    distinto del autofirmado o el caducado —esos ya tienen su propio check—:
+    aquí la hoja está bien, lo que falta es lo que la conecta con una raíz.
+
+    **La evidencia es contar certificados, no construir la cadena.** Validar
+    de verdad hasta una raíz exigiría traer el almacén de confianza del
+    sistema y las reglas de verificación de rutas completas —fuera del
+    alcance de un cliente mínimo—. El indicio barato y fiable es que el
+    servidor mande **sólo la hoja**: un despliegue sano manda la hoja y al
+    menos un intermedio, y uno con la cadena rota manda uno solo. Un
+    certificado de hoja autofirmado (``subject == issuer``) se descarta aquí
+    a propósito: no le falta nada que completar, y ya lo cubre
+    ``tls-self-signed-cert``.
+
+    Args:
+        probe: Sonda inyectable, para que un test use un socket falso. Por
+            defecto, ``TlsHelloProbe()``.
+    """
+
+    plugin_id = "tls-incomplete-certificate-chain"
+
+    def __init__(self, probe: Optional[TlsHelloProbe] = None) -> None:
+        self._probe = probe or TlsHelloProbe()
+
+    def applies(self, service: Service) -> bool:
+        return _speaks_immediate_tls(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        context.acquire()
+        flight = self._probe.query(
+            context.target, context.service.port or 443,
+            versions=(VERSION_TLS_1_2,), server_name=context.target)
+        if flight is None:
+            return False
+        certificates = parse_certificate_message(flight.get_message(HANDSHAKE_CERTIFICATE))
+        if len(certificates) != 1:
+            # Ni el mensaje faltó/vino vacío, ni hay dos o más — sea lo que sea,
+            # no es el caso "sólo la hoja" que este check busca.
+            return False
+        leaf = _load_certificate(certificates[0])
+        if leaf is None or leaf.issuer == leaf.subject:
+            return False
+        context.evidence.update({"chainLength": 1})
+        return True
+
+
+class TlsWeakKeyExchangeGroupPlugin(ScriptPlugin):
+    """Detecta un servidor TLS que negocia un grupo Diffie-Hellman débil.
+
+    ``tls-weak-cipher`` ya cubre el cifrado simétrico; esto es otra cosa: el
+    tamaño del grupo con el que las dos partes acuerdan la clave de sesión,
+    independiente del cifrado que la use después. Un grupo corto (herencia de
+    cuando exportar criptografía fuerte estaba restringido) es rompible con
+    recursos de un atacante con medios — el ataque Logjam (CVE-2015-4000).
+
+    Se ofrecen sólo cifrados DHE clásicos (:data:`_DHE_ONLY_CIPHER_SUITES`,
+    sin curva elíptica) para forzar al servidor a elegir uno si sabe hacer
+    Diffie-Hellman en absoluto; un servidor que sólo ofrece ECDHE no tiene
+    nada que este check pueda medir, y no dispara.
+
+    Args:
+        probe: Sonda inyectable. Por defecto, ``TlsHelloProbe()``.
+    """
+
+    plugin_id = "tls-weak-key-exchange-group"
+
+    def __init__(self, probe: Optional[TlsHelloProbe] = None) -> None:
+        self._probe = probe or TlsHelloProbe()
+
+    def applies(self, service: Service) -> bool:
+        return _speaks_immediate_tls(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        context.acquire()
+        flight = self._probe.query(
+            context.target, context.service.port or 443,
+            versions=(VERSION_TLS_1_2,), cipher_suites=_DHE_ONLY_CIPHER_SUITES,
+            server_name=context.target)
+        if flight is None or flight.server_hello is None:
+            return False
+        if flight.server_hello.cipher_suite not in _DHE_ONLY_CIPHER_SUITES:
+            return False
+        bits = parse_dhe_server_key_exchange(flight.get_message(HANDSHAKE_SERVER_KEY_EXCHANGE))
+        if bits is None or bits >= _MINIMUM_DH_GROUP_BITS:
+            return False
+        context.evidence.update({"groupBits": bits})
+        return True
+
+
+# La cabecera de un ``<script src="...">``, para descubrir qué JavaScript sirve
+# la página sin ejecutar nada. Simple a propósito — es un descubridor de
+# rutas, no un navegador — igual que el ``_HREF_RE`` del rastreador.
+_SCRIPT_SRC_RE = re.compile(r"""<script\b[^>]*\bsrc\s*=\s*["\']([^"\'#\s]+)["\']""", re.IGNORECASE)
+
+# El comentario que enlaza un JavaScript minificado con su mapa de código
+# fuente (fuente: la especificación del propio formato, "Source Map Revision
+# 3"). ``//#`` es la forma moderna; ``//@`` es la que usaron las primeras
+# herramientas y algunas todavía emiten.
+_SOURCE_MAPPING_URL_RE = re.compile(r"//[#@]\s*sourceMappingURL=(\S+)")
+
+# Cuántos ficheros JavaScript de la portada se llegan a pedir, como mucho: un
+# tope barato para no convertir este check en un rastreo del sitio entero.
+_MAX_SCRIPTS_CHECKED = 8
+
+# Lo que distingue a un mapa de código fuente real de una página de error que
+# por casualidad contesta 200 (formato "Source Map Revision 3": ambas claves
+# son obligatorias en todo mapa válido).
+_SOURCE_MAP_MARKERS = ('"mappings"', '"sources"')
+
+
+def _reference_response(probe: HttpProbe, target: str, port: int) -> Optional[Baseline]:
+    """La respuesta de un servicio HTTP a una ruta que con toda seguridad no existe.
+
+    Función de módulo y no método: no toca más estado que la sonda que recibe
+    por parámetro (CONVENCIONES.md §5.1) — la usa
+    :class:`SourceMapExposedPlugin`, una sola vez por ejecución.
+
+    Args:
+        probe: La sonda HTTP con la que pedir la ruta.
+        target: El objetivo.
+        port: El puerto del servicio HTTP.
+
+    Returns:
+        Optional[Baseline]: La referencia, o ``None`` si el servicio no
+            contestó — sin referencia no se descarta nada.
+    """
+    path = baseline_path()
+    response = probe.fetch(target, port, "GET", path)
+    return None if response is None else Baseline.from_response(path, response)
+
+
+def _same_origin_script_urls(base_path: str, body: str) -> List[str]:
+    """Las rutas de los ``<script src="...">`` de una página, del mismo origen.
+
+    Un ``src`` absoluto a otro host (``https://cdn.terceros.test/x.js``) se
+    descarta: este check sólo audita el JavaScript propio del sitio, nunca el
+    de un tercero. Uno relativo se resuelve contra la ruta de la página.
+
+    Args:
+        base_path: La ruta de la página que se acaba de leer.
+        body: Su cuerpo HTML.
+
+    Returns:
+        List[str]: Las rutas, sin repetir, en el orden en que aparecen.
+    """
+    urls: List[str] = []
+    for raw in _SCRIPT_SRC_RE.findall(body):
+        split = urllib.parse.urlsplit(raw)
+        if split.netloc:
+            continue
+        resolved = urllib.parse.urljoin(base_path, split.path)
+        if resolved and resolved not in urls:
+            urls.append(resolved)
+    return urls
+
+
+class SourceMapExposedPlugin(ScriptPlugin):
+    """Detecta un mapa de código fuente publicado junto a un JavaScript minificado.
+
+    Una herramienta de empaquetado suele generar, junto al JavaScript que de
+    verdad sirve al navegador, un "mapa de código fuente": un fichero que
+    traduce ese código minificado de vuelta al original, con nombres de
+    variables y comentarios — pensado para depurar en desarrollo. Si se
+    publica por error en producción, regala el código fuente completo del
+    frontend: lógica de negocio, rutas internas de la API y, a veces, una
+    credencial que alguien dejó como constante pensando que sólo existiría
+    minificada.
+
+    El propio JavaScript delata el mapa: termina con un comentario
+    ``//# sourceMappingURL=archivo.js.map`` que el navegador usa para
+    encontrarlo al depurar. Este check lee esa referencia y comprueba si el
+    fichero al que apunta existe y de verdad tiene forma de mapa — no basta
+    con que conteste 200, porque un sitio que contesta 200 a cualquier ruta
+    "tendría" un mapa en todas partes (de ahí la referencia propia, igual que
+    L102: no se puede usar la de ``CheckRuntime`` porque un plugin ``script``
+    no tiene acceso al runtime que lo invoca).
+
+    Args:
+        probe: Sonda HTTP inyectable, para que un test no abra conexiones.
+            Por defecto, ``HttpProbe()``.
+    """
+
+    plugin_id = "source-map-exposed"
+
+    def __init__(self, probe: Optional[HttpProbe] = None) -> None:
+        self._probe = probe or HttpProbe()
+
+    def applies(self, service: Service) -> bool:
+        """Si el servicio habla HTTP.
+
+        Args:
+            service: El servicio candidato.
+
+        Returns:
+            bool: ``True`` para los servicios que reclama ``is_http_service``.
+        """
+        return is_http_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        """Lee la portada, sigue sus scripts propios y comprueba su mapa de código fuente.
+
+        Args:
+            context: El contexto del check; su control de tasa se consulta
+                antes de cada petición.
+
+        Returns:
+            bool: ``True`` en el primer mapa que se encuentra publicado y con
+                forma de mapa real; ``False`` si ninguno de los scripts
+                examinados referencia uno, si el que referencian no existe, o
+                si la respuesta es la genérica de un sitio que contesta 200 a
+                todo.
+        """
+        port = context.service.port or 80
+        context.acquire()
+        page = self._probe.fetch(context.target, port, "GET", "/")
+        if page is None:
+            return False
+        reference: Optional[Baseline] = None
+        for script_path in _same_origin_script_urls("/", page.body or "")[:_MAX_SCRIPTS_CHECKED]:
+            context.acquire()
+            script = self._probe.fetch(context.target, port, "GET", script_path)
+            if script is None or script.status != 200:
+                continue
+            match = _SOURCE_MAPPING_URL_RE.search(script.body or "")
+            if not match:
+                continue
+            map_path = urllib.parse.urljoin(script_path, match.group(1))
+            if urllib.parse.urlsplit(map_path).netloc:
+                continue                                  # el mapa apunta a otro origen
+            context.acquire()
+            map_response = self._probe.fetch(context.target, port, "GET", map_path)
+            if map_response is None or map_response.status != 200:
+                continue
+            if not all(marker in map_response.body for marker in _SOURCE_MAP_MARKERS):
+                continue
+            if reference is None:
+                # Una sola vez por ejecución del plugin (el primer mapa que
+                # parece real la dispara; los siguientes candidatos la
+                # reutilizan), no una vez por script examinado.
+                reference = _reference_response(self._probe, context.target, port)
+            if reference is not None and reference.resembles(map_response, map_path):
+                continue
+            context.evidence.update({"scriptPath": script_path, "sourceMapPath": map_path})
+            return True
+        return False
+
+
+def _find_ldap_port(sibling_services) -> Optional[int]:
+    """El puerto LDAP de los servicios hermanos del host, con 389 preferido.
+
+    Args:
+        sibling_services: Los demás servicios del host (ver
+            ``ScriptContext.sibling_services``).
+
+    Returns:
+        Optional[int]: El puerto, o ``None`` si el host no tiene ningún
+            servicio LDAP entre sus servicios descubiertos.
+    """
+    candidates = sorted(
+        (sibling.port for sibling in sibling_services if is_ldap_service(sibling)),
+        key=lambda port: (port != 389, port))
+    return candidates[0] if candidates else None
+
+
+class WindowsSharesUnauthenticatedPlugin(ScriptPlugin):
+    """Detecta carpetas compartidas de Windows visibles sin ninguna credencial.
+
+    Lista las carpetas con el cliente mínimo de llamadas remotas de Windows
+    (:func:`~.fingerprinting.windows_rpc.fetch_shares`), con una sesión
+    anónima — nunca una credencial real. El hallazgo es que la **lista de
+    nombres** es visible sin autenticar, no lo que hay dentro de cada una:
+    este plugin nunca abre ni lee el contenido de ninguna carpeta.
+
+    **Las compartidas administrativas no cuentan.** ``ADMIN$``, ``C$``,
+    ``IPC$``… existen por defecto en cualquier Windows, se listen o no, así
+    que su sola presencia no dice nada sobre este equipo en particular —
+    dispararía en todos. La evidencia tiene que ser una carpeta real
+    (``ShareInfo.is_hidden`` es ``False``): la que alguien creó a propósito y
+    dejó visible sin restringir el acceso.
+
+    Args:
+        fetch_shares: La función que lista las carpetas, inyectable para que
+            un test no abra conexiones. Por defecto,
+            :func:`~.fingerprinting.windows_rpc.fetch_shares`.
+    """
+
+    plugin_id = "windows-shares-unauthenticated"
+
+    def __init__(self, fetch_shares: Optional[Callable] = None) -> None:
+        self._fetch_shares = fetch_shares or windows_rpc.fetch_shares
+
+    def applies(self, service: Service) -> bool:
+        """Si el servicio es SMB.
+
+        Args:
+            service: El servicio candidato.
+
+        Returns:
+            bool: ``True`` para los servicios que reclama ``is_smb_service``.
+        """
+        return is_smb_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        """Lista las carpetas compartidas y dispara si alguna no es administrativa.
+
+        Args:
+            context: El contexto del check; su control de tasa se consulta
+                antes de la llamada.
+
+        Returns:
+            bool: ``True`` si al menos una carpeta real (no administrativa)
+                es visible sin credenciales; ``False`` si la lista viene
+                vacía, si el equipo no permitió la sesión anónima, o si sólo
+                aparecen compartidas administrativas.
+        """
+        context.acquire()
+        shares = self._fetch_shares(context.target, context.service.port or 445)
+        visible = [share.name for share in shares if not share.is_hidden]
+        if not visible:
+            return False
+        context.evidence.update({"shares": visible})
+        return True
+
+
+class DomainControllerRpcSurfaceExposedPlugin(ScriptPlugin):
+    """Detecta un controlador de dominio con el spooler o el localizador de RPC expuestos.
+
+    Un controlador de dominio es el activo de mayor valor de una red Windows:
+    comprometerlo suele significar comprometer el dominio entero. Su spooler
+    de impresión (MS-RPRN, el protocolo tras PrintNightmare) y su localizador
+    de puntos finales de RPC (puerto 135) han sido la base de varias familias
+    de vulnerabilidades graves de escalado de privilegios; que respondan
+    desde la red, más allá de lo estrictamente necesario, es una superficie
+    que vale la pena señalar por sí sola, sin apuntar a una vulnerabilidad
+    concreta — eso corresponde a la correlación de CVEs habitual una vez que
+    el fingerprint los identifica.
+
+    **El hallazgo es alcanzable desde la red, no "sin credenciales".** A
+    diferencia de :class:`WindowsSharesUnauthenticatedPlugin`, aquí lo que se
+    mide es si el extremo **contesta** — acepte el saludo o lo rechace, las
+    dos respuestas prueban que el cortafuegos no lo bloquea—; sólo la
+    ausencia de respuesta cuenta como "no expuesto".
+
+    **Sólo sobre un controlador de dominio.** Cualquier Windows con los mismos
+    servicios accesibles no dispara: la condición de controlador de dominio se
+    confirma con una lectura LDAP propia (``namingContexts`` del rootDSE, sin
+    credenciales) contra el servicio LDAP hermano del mismo host — un
+    directorio de Active Directory sólo lo sirve un controlador de dominio.
+
+    Args:
+        ldap_probe: Sonda LDAP inyectable, para confirmar el controlador de
+            dominio. Por defecto, ``LdapProbe()``.
+        probe_named_pipe_rpc: La función que comprueba el spooler de
+            impresión, inyectable. Por defecto,
+            :func:`~.fingerprinting.windows_rpc.probe_named_pipe_rpc`.
+        probe_endpoint_mapper: La función que comprueba el localizador de
+            puntos finales, inyectable. Por defecto,
+            :func:`~.fingerprinting.windows_rpc.probe_endpoint_mapper`.
+    """
+
+    plugin_id = "domain-controller-rpc-surface-exposed"
+
+    def __init__(
+        self,
+        ldap_probe: Optional[LdapProbe] = None,
+        probe_named_pipe_rpc: Optional[Callable] = None,
+        probe_endpoint_mapper: Optional[Callable] = None,
+    ) -> None:
+        self._ldap_probe = ldap_probe or LdapProbe()
+        self._probe_named_pipe_rpc = probe_named_pipe_rpc or windows_rpc.probe_named_pipe_rpc
+        self._probe_endpoint_mapper = probe_endpoint_mapper or windows_rpc.probe_endpoint_mapper
+
+    def applies(self, service: Service) -> bool:
+        """Si el servicio es SMB.
+
+        Uno de los servicios del host tiene que ser el punto de entrada; se
+        elige SMB porque el spooler se comprueba sobre su misma tubería con
+        nombre. El localizador de puntos finales se comprueba aparte, siempre
+        en el 135, sea cual sea el puerto de este servicio.
+
+        Args:
+            service: El servicio candidato.
+
+        Returns:
+            bool: ``True`` para los servicios que reclama ``is_smb_service``.
+        """
+        return is_smb_service(service)
+
+    def run(self, context: ScriptContext) -> bool:
+        """Confirma el controlador de dominio y comprueba las dos superficies.
+
+        Args:
+            context: El contexto del check; su control de tasa se consulta
+                antes de cada intercambio de red.
+
+        Returns:
+            bool: ``True`` si el host es un controlador de dominio y al menos
+                una de las dos superficies contestó (``exposedSurfaces`` en la
+                evidencia, con ``"print-spooler"``, ``"rpc-endpoint-mapper"``
+                o las dos); ``False`` si no hay LDAP hermano, si el LDAP no
+                confirma un controlador de dominio, o si ninguna de las dos
+                superficies contestó.
+        """
+        ldap_port = _find_ldap_port(context.sibling_services)
+        if ldap_port is None:
+            return False
+        context.acquire()
+        replies = self._ldap_probe.fetch(context.target, ldap_port)
+        if replies is None or not fingerprint_ldap(*replies).naming_contexts:
+            return False
+
+        exposed: List[str] = []
+        context.acquire()
+        if self._probe_named_pipe_rpc(
+                context.target, windows_rpc.SPOOLSS_PIPE, windows_rpc.SPOOLSS_INTERFACE_UUID,
+                windows_rpc.SPOOLSS_INTERFACE_VERSION,
+                port=context.service.port or 445) is not None:
+            exposed.append("print-spooler")
+        context.acquire()
+        if self._probe_endpoint_mapper(context.target) is not None:
+            exposed.append("rpc-endpoint-mapper")
+        if not exposed:
+            return False
+        context.evidence.update({"exposedSurfaces": exposed})
+        return True
+
 def default_script_plugins() -> Dict[str, ScriptPlugin]:
     """Construye el registro de plugins de primera parte, indexado por ``plugin_id``.
 
@@ -856,18 +2195,40 @@ def default_script_plugins() -> Dict[str, ScriptPlugin]:
         DnsOpenResolverPlugin(),
         NtpMonlistPlugin(),
         PostgresTrustAuthenticationPlugin(),
+        PostgresPasswordWithoutTlsPlugin(),
         MongoUnauthenticatedAccessPlugin(),
+        MemcachedUnauthenticatedAccessPlugin(),
+        ZookeeperUnauthenticatedAccessPlugin(),
+        CassandraUnauthenticatedAccessPlugin(),
         LdapAnonymousBindPlugin(),
         LdapCleartextWithLdapsPlugin(),
+        LdapNoEncryptedChannelPlugin(),
+        LdapDomainFunctionalLevelPlugin(),
+        LdapDirectoryDomainPlugin(),
+        SmbHostIdentityPlugin(),
         RdpNlaNotRequiredPlugin(),
+        RdpLegacySecurityLayerPlugin(),
+        WinrmBasicAuthCleartextPlugin(),
         TelnetEnabledPlugin(),
+        TlsIncompleteCertificateChainPlugin(),
+        TlsWeakKeyExchangeGroupPlugin(),
+        SourceMapExposedPlugin(),
+        WindowsSharesUnauthenticatedPlugin(),
+        DomainControllerRpcSurfaceExposedPlugin(),
         VncNoAuthenticationPlugin(),
         IkeWeakTransformPlugin(),
         TcpTimestampsPlugin(),
+        TlsDeprecatedProtocolPlugin(),
     )
     plugins += tuple(TlsWeakCipherFamilyPlugin(plugin_id) for plugin_id in _TLS12_WEAK_CIPHER_FAMILIES)
+    plugins += tuple(MssqlEncryptionPlugin(plugin_id) for plugin_id in _MSSQL_ENCRYPTION_POSTURES)
     ssh_cache = _KexinitCache()
     plugins += tuple(SshWeakAlgorithmsPlugin(family, ssh_cache)
                      for family in _WEAK_ALGORITHM_FAMILIES)
+    ssh_auth_cache = _SshAuthCache()
+    plugins += (
+        SshNoneAuthenticationAcceptedPlugin(ssh_auth_cache),
+        SshPasswordOnlyAuthenticationPlugin(ssh_auth_cache),
+    )
     plugins += (SshTerrapinPlugin(True, ssh_cache), SshTerrapinPlugin(False, ssh_cache))
     return {plugin.plugin_id: plugin for plugin in plugins}

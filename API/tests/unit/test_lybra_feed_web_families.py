@@ -139,6 +139,42 @@ def test_a_non_session_cookie_is_not_flagged():
     assert "session-cookie-without-secure" not in _fired({"/": other})
 
 
+# ------------------- varias Set-Cookie: la de sesión no siempre es la primera
+#
+# ``response.headers`` representa varias apariciones de la misma cabecera
+# uniendo sus valores con "\n" (lo que produce
+# ``HttpProbe._merge_repeated_headers`` a partir de las Set-Cookie reales de
+# la respuesta); estos tests construyen esa unión a mano para comprobar que el
+# check la recorre entera y no se queda solo con la primera línea.
+
+
+def test_a_session_cookie_arriving_after_another_set_cookie_is_still_detected():
+    # "lang" llega primero y "PHPSESSID" —la que importa— segunda: si el
+    # runtime sólo mirase la primera aparición de Set-Cookie, este hallazgo
+    # nunca dispararía aunque la cookie de sesión viaje en claro.
+    headers = {"set-cookie": "lang=es; Path=/\nPHPSESSID=abc123; Path=/"}
+    insecure = Response(200, "<html>", headers)
+    assert "session-cookie-without-secure" in _fired({"/": insecure})
+
+
+def test_a_session_cookie_arriving_after_another_set_cookie_and_hardened_is_not_flagged():
+    # Contraste del test anterior: la segunda Set-Cookie sí lleva Secure, así
+    # que no debe haber hallazgo aunque siga sin ser la primera aparición.
+    headers = {"set-cookie": "lang=es; Path=/\nPHPSESSID=abc123; Secure; Path=/"}
+    secure = Response(200, "<html>", headers)
+    assert "session-cookie-without-secure" not in _fired({"/": secure})
+
+
+def test_three_set_cookies_with_the_session_one_last_are_all_visible_to_the_checks():
+    # Refuerza el caso con más de dos apariciones y comprueba los tres checks
+    # de la familia (Secure, HttpOnly, SameSite) a la vez.
+    headers = {"set-cookie": "theme=dark; Path=/\nlang=es; Path=/\nPHPSESSID=abc123; Path=/"}
+    insecure = Response(200, "<html>", headers, url="https://h/", requested_scheme="https")
+    fired = _fired({"/": insecure})
+    assert {"session-cookie-without-secure", "session-cookie-without-httponly",
+            "session-cookie-without-samesite"} <= fired
+
+
 # ================================ criterio de las cabeceras (contraste de campo)
 
 
@@ -271,3 +307,106 @@ def test_a_site_that_answers_200_to_everything_fires_no_cms_check():
     catch_all = _CatchAll()
     fired = _fired(catch_all)
     assert not {name for name in fired if name.startswith(("wordpress-", "drupal-"))}
+
+
+# ========================================= más paneles de terceros
+
+# Señuelo común: una SPA que contesta 200 con su propio index.html a cualquier
+# ruta. Es el falso positivo típico de un check que sólo mira el estado.
+_SPA = Response(200, "<html><head><title>Mi aplicacion</title></head><body></body></html>", {})
+_UNAUTHORIZED = Response(401, '{"message":"Unauthorized"}', {})
+
+
+@pytest.mark.parametrize("check_id, path, hit", [
+    ("grafana-anonymous-access", "/api/org",
+     '{"id":1,"name":"Main Org.","address":{"address1":"","address2":"","city":"",'
+     '"zipCode":"","state":"","country":""}}'),
+    ("phpmyadmin-exposed", "/phpmyadmin/",
+     '<title>phpMyAdmin</title><input type="text" name="pma_username" id="input_username">'),
+    ("adminer-exposed", "/adminer.php",
+     '<title>Login - Adminer</title><input name="auth[server]" value="">'),
+    ("traefik-api-exposed", "/api/overview",
+     '{"http":{"routers":{"total":4},"services":{"total":3}},"features":{},"providers":["Docker"]}'),
+    ("haproxy-stats-exposed", "/haproxy?stats",
+     "<html><head><title>Statistics Report for HAProxy</title></head></html>"),
+    ("prometheus-config-exposed", "/api/v1/status/config",
+     '{"status":"success","data":{"yaml":"global:\\n  scrape_interval: 15s\\nscrape_configs:\\n"}}'),
+    ("netdata-exposed", "/api/v1/info",
+     '{"version":"v1.44.0","uid":"abc","mirrored_hosts":["web-1"],"os_name":"Debian"}'),
+    ("nginx-status-exposed", "/nginx_status",
+     "Active connections: 2\nserver accepts handled requests\n 10 10 20\nReading: 0 Writing: 1 Waiting: 1\n"),
+])
+def test_each_new_panel_fires_and_its_decoys_do_not(check_id, path, hit):
+    """Cada panel nuevo dispara con su respuesta real y no dispara ni con la
+    misma ruta protegida (401) ni con una SPA que contesta 200 a todo."""
+    assert check_id in _fired({path: Response(200, hit, {})})
+    assert check_id not in _fired({path: _UNAUTHORIZED})
+    assert check_id not in _fired({path: _SPA})
+
+
+def test_a_page_that_only_mentions_phpmyadmin_does_not_fire():
+    """Un blog que habla de phpMyAdmin no es un phpMyAdmin: falta su formulario."""
+    decoy = Response(200, "<html><h1>Cómo instalar phpMyAdmin</h1></html>", {})
+    assert "phpmyadmin-exposed" not in _fired({"/phpmyadmin/": decoy})
+
+
+def test_a_generic_org_json_is_not_grafana():
+    decoy = Response(200, '{"id":1,"name":"ACME"}', {})
+    assert "grafana-anonymous-access" not in _fired({"/api/org": decoy})
+
+
+# ================================ páginas de error por defecto y trazas
+
+_PROBE_PATH = "/lybra-nonexistent-debug-probe"
+
+
+@pytest.mark.parametrize("body", [
+    "<html><head><title>404 Not Found</title></head><body><h1>Not Found</h1>"
+    "<hr><address>Apache/2.4.52 (Ubuntu) Server at 10.0.0.5 Port 80</address></body></html>",
+    "<html><head><title>404 Not Found</title></head><body><center><h1>404 Not Found</h1></center>"
+    "<hr><center>nginx/1.18.0</center></body></html>",
+    "<!doctype html><html><head><title>HTTP Status 404 \u2013 Not Found</title></head>"
+    "<body><h3>Apache Tomcat/9.0.54</h3></body></html>",
+    "<html><body><h1>Whitelabel Error Page</h1><p>This application has no explicit mapping for /error</p>",
+    "<html><body><h2>404 - File or directory not found.</h2></body></html>",
+    "<!DOCTYPE html><html><body><pre>Cannot GET /lybra-nonexistent-debug-probe</pre></body></html>",
+])
+def test_a_default_error_page_is_detected(body):
+    assert "default-error-page" in _fired({_PROBE_PATH: Response(404, body, {})})
+
+
+def test_a_custom_error_page_is_not_a_default_one():
+    """Señuelo: el mismo 404 con una página de error propia del sitio."""
+    body = "<html><head><title>Página no encontrada</title></head><body><h1>Vaya</h1></body></html>"
+    fired = _fired({_PROBE_PATH: Response(404, body, {})})
+    assert "default-error-page" not in fired
+    assert "stack-trace-disclosure" not in fired
+
+
+@pytest.mark.parametrize("status, body", [
+    (404, "<html><title>The resource cannot be found.</title><body>"
+          "<h1>Server Error in '/' Application.</h1><b>Version Information:</b></body></html>"),
+    (500, "java.lang.NullPointerException\n\tat com.acme.web.Controller.handle(Controller.java:42)\n"),
+    (500, "<br />\n<b>Fatal error</b>:  Uncaught Error: Call to undefined function x() in "
+          "<b>/var/www/html/index.php</b> on line <b>3</b>"),
+    (500, "TypeError: Cannot read properties of undefined\n"
+          "    at handler (/srv/app/routes/index.js:12:5)\n"),
+])
+def test_an_internal_stack_trace_is_detected(status, body):
+    assert "stack-trace-disclosure" in _fired({_PROBE_PATH: Response(status, body, {})})
+
+
+def test_a_django_debug_page_is_left_to_its_own_check():
+    """Las trazas de Python son las de Django y Flask, que ya tienen su check."""
+    body = ("<html><title>Page not found</title>Django Version: 4.2 Traceback (most recent call last):"
+            " You're seeing this error because you have DEBUG = True</html>")
+    fired = _fired({_PROBE_PATH: Response(404, body, {})})
+    assert "django-debug-enabled" in fired
+    assert "stack-trace-disclosure" not in fired
+
+
+def test_a_default_page_answered_with_200_is_not_an_error_page():
+    """Un 200 que menciona nginx (la página de bienvenida, por ejemplo) no es
+    una página de error."""
+    body = "<html><title>Welcome to nginx!</title><hr><center>nginx/1.18.0</center></html>"
+    assert "default-error-page" not in _fired({_PROBE_PATH: Response(200, body, {})})

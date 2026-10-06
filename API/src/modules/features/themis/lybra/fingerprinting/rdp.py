@@ -102,6 +102,10 @@ FAILURE_CODES: Dict[int, str] = {
 # correcta expresada como rechazo.
 FAILURE_MEANING_NLA_REQUIRED = "hybrid-required-by-server"
 
+# El fallo con el que un servidor que sólo conoce la seguridad estándar de RDP
+# rechaza una petición que únicamente ofrece TLS y NLA.
+FAILURE_MEANING_LEGACY_ONLY = "ssl-not-allowed-by-server"
+
 _PRODUCT = "Microsoft Terminal Services"
 
 
@@ -138,6 +142,30 @@ class RdpFingerprint:
         if self.selected_protocol is None:
             return None
         return self.selected_protocol in {"hybrid", "hybrid-ex"}
+
+    @property
+    def uses_legacy_security_layer(self) -> Optional[bool]:
+        """Si el servidor sólo admite la seguridad propia de RDP, sin TLS ni NLA.
+
+        La sonda ofrece TLS y NLA, nunca la seguridad estándar de RDP. Un
+        servidor que sólo tiene esta última lo dice de dos maneras: eligiéndola
+        igualmente (o sin bloque de negociación, en los muy antiguos), o
+        rechazando la negociación con ``ssl-not-allowed-by-server``. Las dos
+        significan lo mismo: el canal usa el cifrado anterior a TLS, que no
+        verifica la identidad del servidor.
+
+        Returns:
+            Optional[bool]: ``True`` si el servidor usa esa seguridad antigua;
+                ``False`` si eligió TLS o NLA, o si su rechazo exige NLA;
+                ``None`` si la respuesta no permite decidirlo.
+        """
+        if self.failure == FAILURE_MEANING_LEGACY_ONLY or self.selected_protocol == "rdp":
+            return True
+        if self.failure == FAILURE_MEANING_NLA_REQUIRED:
+            return False
+        if self.selected_protocol is None:
+            return None
+        return False
 
 
 def build_connection_request(protocols: int = REQUESTED_PROTOCOLS) -> bytes:

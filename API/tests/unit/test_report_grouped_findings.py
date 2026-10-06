@@ -272,7 +272,9 @@ def test_the_report_body_keeps_fixed_findings_out_of_the_cards_and_the_counts(mo
     """Un «Corregido» no es un riesgo vivo: ni ficha, ni prioridad, ni total."""
     from types import SimpleNamespace
     from src.modules.infrastructure import session as session_module
-    from src.modules.features.themis.managers import ComplianceManager, LybraEngineManager
+    from src.modules.features.themis.managers import (
+        ComplianceManager, LybraEngineManager, NetworkRiskManager,
+    )
     from src.modules.features.themis.services.reports import findings as report_module
 
     def row(title, state, fixed_reason=None):
@@ -288,6 +290,9 @@ def test_the_report_body_keeps_fixed_findings_out_of_the_cards_and_the_counts(mo
                         lambda _cls: SimpleNamespace(get_findings_by_scan=lambda _scan_id: rows))
     monkeypatch.setattr(LybraEngineManager, "exposure_for", staticmethod(lambda _scan: "public"))
     monkeypatch.setattr(ComplianceManager, "resolve_effective_frameworks", lambda _self, _user_id: [])
+    # Un escaneo de un solo equipo: el informe no añade riesgo lateral.
+    monkeypatch.setattr(NetworkRiskManager, "assess_scan",
+                        lambda _self, _user_id, _scan_id: {"hostCount": 1, "risks": []})
     monkeypatch.setattr(report_module, "enrich_with_cve_context", lambda _findings: None)
     monkeypatch.setattr(report_module, "_knowledge_base_line", lambda _scan: "NVD 2026-09-24")
     monkeypatch.setattr(report_module, "_failing_sources_line", lambda: None)

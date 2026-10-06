@@ -61,12 +61,15 @@ def _is_message_file(filename: str) -> bool:
     """Si un nombre de fichero es un ``.eml`` o un ``.msg`` (sin distinguir mayúsculas)."""
     return filename.lower().endswith((_EML_SUFFIX, _MSG_SUFFIX))
 
-def _message_entry(name: str, data: bytes, max_message_bytes: int) -> BatchEntry:
+def build_message_entry(name: str, data: bytes, max_message_bytes: int) -> BatchEntry:
     """Entrada de un mensaje, suelto o sacado de un ZIP.
 
     Un ``.eml`` pasa tal cual; un ``.msg`` se convierte a ``.eml``. El tope se
     aplica al fichero recibido y, en un ``.msg``, también al resultado: la
     conversión pasa los adjuntos a base64, que ocupa un tercio más.
+
+    La usan el lote (para cada fichero) y el canal de reporte, que recibe un
+    solo mensaje: los dos aceptan exactamente lo mismo.
 
     Args:
         name: Nombre del fichero (dentro de un ZIP, ``zip/ruta``).
@@ -122,7 +125,7 @@ def _expand_zip(filename: str, data: bytes, max_message_bytes: int) -> List[Batc
                 entries.append(BatchEntry(name, rejection=f"Supera el tamaño máximo ({max_message_bytes} bytes)."))
             else:
                 with archive.open(info) as handle:
-                    entries.append(_message_entry(name, handle.read(max_message_bytes + 1), max_message_bytes))
+                    entries.append(build_message_entry(name, handle.read(max_message_bytes + 1), max_message_bytes))
     return entries
 
 def expand_uploads(uploads: Sequence[Tuple[str, bytes]], *, max_items: int,
@@ -155,7 +158,7 @@ def expand_uploads(uploads: Sequence[Tuple[str, bytes]], *, max_items: int,
         elif not _is_message_file(name):
             entries.append(BatchEntry(name, rejection=_NOT_A_MESSAGE))
         else:
-            entries.append(_message_entry(name, data, max_message_bytes))
+            entries.append(build_message_entry(name, data, max_message_bytes))
         if len(entries) > max_items:
             raise BatchLimitError(f"Un lote admite como mucho {max_items} mensajes.")
 

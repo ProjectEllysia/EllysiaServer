@@ -810,16 +810,28 @@ class NucleiScan(Scan):
 
 
 class AuthorizedTarget(Base):
-    """A target (IP or CIDR) a user has declared authorized for Lybra's
-    network-touching operations: self-discovery, own fingerprinting and the
-    active check runtime. Analysing services already known from a prior
-    Nmap scan does not need an entry here, since it sends no new packets to
-    the target.
+    """A target a user has declared authorized for Lybra's network-touching
+    operations: self-discovery, own fingerprinting, the active check runtime
+    and the cloud-exposure probes. Analysing services already known from a
+    prior Nmap scan does not need an entry here, since it sends no new packets
+    to the target.
+
+    A target is one of three shapes, told apart by the canonical string itself
+    (see ``AuthorizedTargetManager``):
+
+    - an **IP or CIDR** (``"10.0.0.5/32"``, ``"10.0.0.0/24"``);
+    - a **domain** (``"example.com"``), which authorizes the domain itself and
+      every subdomain under it — the shape subdomain-takeover checks need;
+    - a **cloud resource** in ``provider:identifier`` form (``"s3:my-bucket"``,
+      ``"azure:account/container"``, ``"firebase:my-project"``).
 
     Attributes:
         id: Primary key.
         user_id: Owner of this register entry.
-        target: Canonical IP or CIDR string, e.g. "10.0.0.5/32" or "10.0.0.0/24".
+        target: Canonical target string. Holds an IP/CIDR network, a normalized
+            domain or a ``provider:identifier`` cloud resource. Widened to 255
+            characters because a domain reaches 253 and an Azure
+            ``account/container`` overruns the old 64.
         label: Optional free-text note (client name, authorization scope...).
         created_at: When the entry was added.
     """
@@ -827,7 +839,7 @@ class AuthorizedTarget(Base):
 
     id         = Column(Integer, primary_key=True, autoincrement=True)
     user_id    = Column(Integer, ForeignKey("User.id"), nullable=False, index=True)
-    target     = Column(String(64), nullable=False)
+    target     = Column(String(255), nullable=False)
     label      = Column(String(255), nullable=True)
     created_at = Column(DateTime, nullable=False, default=utcnow_naive)
 
@@ -837,6 +849,164 @@ class AuthorizedTarget(Base):
 
     def __repr__(self):
         return f"<AuthorizedTarget(id={self.id}, target='{self.target}', user_id={self.user_id})>"
+
+
+class AssetGroup(Base):
+    """Un grupo de hosts que se analizan juntos para razonar sobre la red.
+
+    El motor razona host a host; para saber cómo se mueve un atacante entre
+    ellos hay que mirarlos a la vez. Un grupo dice **qué hosts forman una red**:
+    los que el usuario ha escaneado y cuya dirección cae dentro de su rango.
+    Es una pertenencia calculada, no una lista guardada: un host nuevo dentro
+    del rango entra en el grupo sin que nadie lo apunte, y uno que se retira
+    del rango sale.
+
+    Attributes:
+        id: Clave primaria.
+        user_id: Dueño del grupo. La clave foránea borra en cascada: al
+            borrarse la cuenta, sus grupos se van con ella.
+        name: Nombre legible (la etiqueta del grupo), único por usuario.
+        cidr: El rango que define el grupo, en forma canónica
+            (``"10.0.0.0/24"``). Hasta 43 caracteres: lo que ocupa un CIDR
+            IPv6 completo.
+        created_at: Cuándo se creó.
+    """
+    __tablename__ = "AssetGroup"
+
+    id         = Column(Integer, primary_key=True, autoincrement=True)
+    user_id    = Column(Integer, ForeignKey("User.id", ondelete="CASCADE"),
+                        nullable=False, index=True)
+    name       = Column(String(100), nullable=False)
+    cidr       = Column(String(43), nullable=False)
+    created_at = Column(DateTime, nullable=False, default=utcnow_naive)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "name", name="uq_assetgroup_user_name"),
+    )
+
+    def __repr__(self):
+        """Representación de depuración con id, nombre y rango."""
+        return f"<AssetGroup(id={self.id}, name='{self.name}', cidr='{self.cidr}')>"
+
+
+class OsintScanMode(str, Enum):
+    """Qué mira un escaneo pasivo de un dominio.
+
+    Hereda de ``str`` para compararse y guardarse como su valor.
+
+    Attributes:
+        PASSIVE: Inteligencia pasiva: lo que Certificate Transparency, Shodan,
+            Censys y SecurityTrails saben del dominio, y la higiene de su DNS.
+            Encuentra los subdominios que otros modos pueden tomar como punto
+            de partida (almacenamiento en la nube, subdominios secuestrables),
+            leyéndolos de ``OsintScan.subdomains``.
+        CLOUD: Exposición en la nube: si los recursos cloud que el usuario
+            declaró (buckets, bases de Firebase) listan su contenido a
+            cualquiera, y si el dominio y sus subdominios conocidos apuntan a
+            un servicio de terceros que ya no aloja su recurso. A diferencia
+            del modo pasivo, este **sí toca a terceros** y exige autorización.
+    """
+    PASSIVE = "passive"
+    CLOUD = "cloud"
+
+
+class OsintScan(Base):
+    """Un escaneo pasivo de un dominio: lo que se sabe de él sin tocarlo.
+
+    No es un ``Scan``. Un ``Scan`` tiene un objetivo que se sondea, un host y
+    un tipo de escáner del catálogo ``ScanType``, y todo lo que recorre los
+    escaneos (reconciliación, informes, programación, historial) cuenta con
+    ello; un escaneo pasivo no sondea nada ni tiene host. Por eso vive en su
+    propia tabla, y sus hallazgos viajan dentro de la fila en vez de en
+    ``Finding``, que exige un ``Scan``.
+
+    Attributes:
+        id: Clave primaria.
+        user_id: Dueño del escaneo. La clave foránea borra en cascada: al
+            borrarse la cuenta, sus escaneos pasivos se van con ella sin que el
+            borrado de cuentas tenga que conocer esta tabla.
+        domain: El dominio consultado, normalizado (minúsculas, ASCII, sin
+            punto final).
+        mode: Qué mira el escaneo, uno de :class:`OsintScanMode`.
+        status: Estado, con los valores de ``ScanStatus``.
+        started_at: Cuándo se pidió.
+        finished_at: Cuándo terminó, o ``None`` si no ha terminado.
+        failure_reason: Por qué falló, con los valores de
+            ``ScanFailureReason``; ``None`` si no falló.
+        parameters: Lo que pidió el usuario además del dominio
+            (``{"dkim_selectors": [...]}``).
+        sources: El resultado de cada fuente de terceros (``SourceStatus``
+            serializado): si respondió, si se omitió por falta de clave y de
+            cuándo es su dato.
+        dns_checks: El veredicto de cada comprobación de higiene DNS.
+        subdomains: Los subdominios conocidos, con sus fuentes y fechas.
+        findings: Los hallazgos, con las columnas de ``Finding`` en snake_case
+            y su procedencia en ``provenance``.
+    """
+    __tablename__ = "OsintScan"
+
+    id             = Column(Integer, primary_key=True, autoincrement=True)
+    user_id        = Column(Integer, ForeignKey("User.id", ondelete="CASCADE"),
+                            nullable=False, index=True)
+    domain         = Column(String(255), nullable=False, index=True)
+    mode           = Column(String(16), nullable=False, default=OsintScanMode.PASSIVE.value,
+                            server_default=OsintScanMode.PASSIVE.value)
+    status         = Column(String(20), nullable=False, default=ScanStatus.PENDING.value)
+    started_at     = Column(DateTime, nullable=False, default=utcnow_naive)
+    finished_at    = Column(DateTime, nullable=True)
+    failure_reason = Column(String(40), nullable=True)
+    parameters     = Column(JSONB, nullable=True)
+    sources        = Column(JSONB, nullable=True)
+    dns_checks     = Column(JSONB, nullable=True)
+    subdomains     = Column(JSONB, nullable=True)
+    findings       = Column(JSONB, nullable=True)
+
+    def __repr__(self):
+        """Representación de depuración con id, dominio, modo y estado."""
+        return (f"<OsintScan(id={self.id}, domain='{self.domain}', mode='{self.mode}', "
+                f"status='{self.status}')>")
+
+
+class OsintSourceCache(Base):
+    """La última respuesta de una fuente de inteligencia pasiva a una consulta.
+
+    Caché con caducidad de las respuestas de crt.sh, Shodan, Censys y
+    SecurityTrails. Vive en la base de datos y no en Redis por tres razones:
+    la escriben el worker y la leen la API y el worker, que son procesos
+    distintos; la respuesta de una fuente de pago cuesta cuota y tiene que
+    sobrevivir a un reinicio de Redis; y la fecha de descarga es parte del
+    dato —es la que dice cuán viejo es lo que se muestra—, así que no puede
+    perderse con él.
+
+    La caducidad no se guarda: se calcula al leer, con ``fetched_at`` y el
+    ``ttlHours`` vigente, para que cambiar la configuración valga también
+    para lo ya guardado. Sólo se guardan respuestas: un fallo de la fuente
+    nunca se cachea.
+
+    Attributes:
+        id: Clave primaria.
+        source: La fuente (``crtsh``, ``shodan``, ``censys``, ``securitytrails``).
+        query: Lo consultado: un dominio o una dirección IP.
+        payload: El JSON de la respuesta, o ``None`` si la fuente respondió que
+            no sabe nada de la consulta.
+        fetched_at: Cuándo se descargó.
+    """
+    __tablename__ = "OsintSourceCache"
+
+    id         = Column(Integer, primary_key=True, autoincrement=True)
+    source     = Column(String(32), nullable=False)
+    query      = Column(String(255), nullable=False)
+    payload    = Column(JSONB, nullable=True)
+    fetched_at = Column(DateTime, nullable=False, default=utcnow_naive)
+
+    __table_args__ = (
+        UniqueConstraint("source", "query", name="uq_osintsourcecache_source_query"),
+    )
+
+    def __repr__(self):
+        """Representación de depuración con fuente, consulta y fecha."""
+        return (f"<OsintSourceCache(source='{self.source}', query='{self.query}', "
+                f"fetched_at={self.fetched_at})>")
 
 
 class ComplianceFrameworkSelection(Base):
@@ -1413,12 +1583,23 @@ class ThemisDocument(Document):
         id, document_type, filename, format, status,
         created_at, generated_at, user_id, user
 
+    A report belongs to exactly one of two kinds of scan, and a check
+    constraint holds that: an ordinary ``Scan`` (``scan_id``) or a domain scan
+    (``osint_scan_id``), which is not a ``Scan`` because it has no host to
+    probe (see ``OsintScan``). Both foreign keys cascade on delete.
+
     Attributes:
         id: Primary key (foreign key to Document.id).
-        scan_id: Foreign key to Scan.id (cascade delete).
-        scan_type: Scan type ('nmap', 'nikto', 'lybra', 'nuclei') for filtering without join.
+        scan_id: Foreign key to Scan.id, or ``None`` when the report belongs
+            to a domain scan.
+        osint_scan_id: Foreign key to OsintScan.id, or ``None`` when the report
+            belongs to an ordinary scan.
+        scan_type: What the report covers, for filtering without a join: the
+            scanner of an ordinary scan ('nmap', 'nikto', 'lybra', 'nuclei') or
+            the mode of a domain scan (``OsintScanMode``, today only 'cloud').
         enrichment_json: Cached AI analysis result (JSONB, nullable).
-        scan: Relationship to the source Scan.
+        scan: Relationship to the source Scan, or ``None``.
+        osint_scan: Relationship to the source OsintScan, or ``None``.
 
     enrichment_json Structure by scan_type:
         nmap:
@@ -1444,13 +1625,23 @@ class ThemisDocument(Document):
 
     __tablename__ = "ThemisDocument"
 
-    id        = Column(Integer, ForeignKey("Document.id"), primary_key=True)
-    scan_id   = Column(Integer, ForeignKey("Scan.id", ondelete="CASCADE"), nullable=False)
-    scan_type = Column(String(20),  nullable=False)
+    id            = Column(Integer, ForeignKey("Document.id"), primary_key=True)
+    scan_id       = Column(Integer, ForeignKey("Scan.id", ondelete="CASCADE"), nullable=True)
+    osint_scan_id = Column(Integer, ForeignKey("OsintScan.id", ondelete="CASCADE"),
+                           nullable=True, index=True)
+    scan_type     = Column(String(20),  nullable=False)
 
     enrichment_json = Column(JSONB, nullable=True)
 
     scan = relationship("Scan", back_populates="themis_document")
+    osint_scan = relationship("OsintScan")
+
+    __table_args__ = (
+        # Un informe es de un escaneo o de un escaneo de dominio, nunca de los
+        # dos ni de ninguno: los listados y la descarga dependen de ello.
+        CheckConstraint("(scan_id IS NULL) <> (osint_scan_id IS NULL)",
+                        name="ck_themisdocument_one_parent"),
+    )
 
     __mapper_args__ = {
         "polymorphic_identity": "themis",

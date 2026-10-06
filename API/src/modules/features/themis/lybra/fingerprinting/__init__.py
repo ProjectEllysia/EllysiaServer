@@ -49,6 +49,21 @@ best value for the effort it costs to support:
     ella— y ``listDatabases`` para saber si el servidor deja entrar sin
     credenciales. Parseo de BSON mínimo, sin ``pymongo``.
 
+``ssh_auth``
+    Qué métodos de autenticación ofrece un servidor SSH más allá de su primer
+    mensaje (``none``, ``password``, ``publickey``). A diferencia del resto de
+    este paquete usa el transporte de paramiko en vez de reimplementar el
+    intercambio de claves: lo único que se pregunta —``auth_none``— no exige
+    reconstruir el protocolo a mano para hacerlo con seguridad.
+
+``memcached``, ``zookeeper``, ``cassandra``
+    Servicios de datos con protocolo propio que no autentican por defecto.
+    Memcached habla texto (``version`` y ``stats``), ZooKeeper tanto palabras
+    de cuatro letras como una sesión binaria que lista ``/``, y Cassandra su
+    protocolo nativo por marcos (``OPTIONS`` y ``STARTUP``, que contesta
+    ``READY`` si deja entrar sin credenciales). Los tres a mano, sin librería
+    de cliente, con el mismo criterio que PostgreSQL, MongoDB y Redis.
+
 ``ldap``
     El rootDSE, la consulta anónima que la RFC 4512 define para que un cliente
     sepa con quién habla: vendor, versión y los dominios que el servidor sirve.
@@ -118,6 +133,10 @@ falta para reabrirla, está en ``tls.py``.
 El fingerprinting de sistema operativo sigue aplazado por su bajo valor
 frente al esfuerzo que exige, y VNC más allá de su banner de versión, junto
 con RPC, siguen siendo territorio del oráculo —Nmap.
+
+Fuera de este paquete, el análisis web activo (DAST-lite) sigue la misma
+suerte: archivado, no pendiente, con la decisión en el docstring de
+``crawler.py``.
 """
 
 from __future__ import annotations
@@ -156,6 +175,10 @@ from .http import (
     validate_tech_signatures,
     fingerprint_http,
     HttpDissector,
+)
+from .ssh_auth import (
+    SshAuthMethods,
+    SshAuthProbe,
 )
 from .ssh import (
     SSH_MSG_KEXINIT,
@@ -270,6 +293,30 @@ from .redis_probe import (
     fingerprint_redis,
     RedisProbe,
     RedisDissector,
+)
+from .memcached import (
+    MemcachedDissector,
+    MemcachedFingerprint,
+    MemcachedProbe,
+    fingerprint_memcached,
+    parse_memcached_version,
+)
+from .zookeeper import (
+    ZookeeperDissector,
+    ZookeeperFingerprint,
+    ZookeeperProbe,
+    build_connect_request,
+    build_get_children_request,
+    fingerprint_zookeeper,
+    parse_get_children_response,
+    parse_srvr_version,
+)
+from .cassandra import (
+    CassandraDissector,
+    CassandraFingerprint,
+    CassandraProbe,
+    fingerprint_cassandra,
+    parse_release_version,
 )
 from .vnc import (
     VncFingerprint,
@@ -464,6 +511,26 @@ __all__ = [
     "fingerprint_redis",
     "RedisProbe",
     "RedisDissector",
+    "SshAuthMethods",
+    "SshAuthProbe",
+    "MemcachedDissector",
+    "MemcachedFingerprint",
+    "MemcachedProbe",
+    "fingerprint_memcached",
+    "parse_memcached_version",
+    "ZookeeperDissector",
+    "ZookeeperFingerprint",
+    "ZookeeperProbe",
+    "build_connect_request",
+    "build_get_children_request",
+    "fingerprint_zookeeper",
+    "parse_get_children_response",
+    "parse_srvr_version",
+    "CassandraDissector",
+    "CassandraFingerprint",
+    "CassandraProbe",
+    "fingerprint_cassandra",
+    "parse_release_version",
     "VncFingerprint",
     "parse_rfb_version",
     "fingerprint_vnc",

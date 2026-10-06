@@ -12,6 +12,7 @@ import json
 import pytest
 
 from src.modules.features.themis.lybra.checks import (
+    CheckRuntime,
     Response,
     is_admin_api_service,
     is_docker_service,
@@ -76,6 +77,19 @@ def test_consul_agent_endpoint():
     assert (result.product, result.version) == ("Consul", "1.17.1")
 
 
+def test_nomad_agent_endpoint():
+    body = {"config": {"Datacenter": "dc1"},
+            "stats": {"nomad": {"server": "true", "version": "1.7.2"}}}
+    result = fingerprint_admin_api(4646, _json_response(body))
+    assert (result.product, result.version) == ("Nomad", "1.7.2")
+
+
+def test_portainer_status_endpoint():
+    body = {"Version": "2.19.4", "InstanceID": "abc-123", "Edition": "CE"}
+    result = fingerprint_admin_api(9000, _json_response(body))
+    assert (result.product, result.version) == ("Portainer", "2.19.4")
+
+
 # ============================================ lo que NO debe identificar
 
 
@@ -126,6 +140,8 @@ def test_the_dissector_only_claims_the_ports_in_its_map():
     dissector = AdminApiDissector()
     assert dissector.applies(Service(2375, "tcp", ""))
     assert dissector.applies(Service(9200, "tcp", ""))
+    assert dissector.applies(Service(4646, "tcp", ""))
+    assert dissector.applies(Service(9000, "tcp", ""))
     assert not dissector.applies(Service(80, "tcp", "http"))
     assert not dissector.applies(Service(8080, "tcp", "http-proxy"))
 
@@ -168,6 +184,10 @@ def feed():
     ("docker-api-unauthenticated", "docker"),
     ("elasticsearch-unauthenticated", "elasticsearch"),
     ("kubernetes-anonymous-api", "kubernetes"),
+    ("etcd-unauthenticated-access", "etcd"),
+    ("consul-unauthenticated-access", "consul"),
+    ("kibana-unauthenticated-access", "kibana"),
+    ("nomad-unauthenticated-access", "nomad"),
 ])
 def test_the_exposure_checks_are_critical_safe_and_service_scoped(feed, check_id, service):
     check = feed[check_id]
@@ -177,10 +197,25 @@ def test_the_exposure_checks_are_critical_safe_and_service_scoped(feed, check_id
     assert check.category == "exposed_service"
 
 
+def test_the_portainer_check_is_only_medium_severity(feed):
+    """A diferencia del resto de la familia, Portainer sólo regala su banner
+    de versión, no acceso real a los contenedores — de ahí la severidad menor."""
+    check = feed["portainer-version-exposed"]
+    assert check.severity == "MEDIUM"
+    assert check.mode == "safe"
+    assert check.service == "portainer"
+    assert check.category == "exposed_service"
+
+
 @pytest.mark.parametrize("check_id", [
     "docker-api-unauthenticated",
     "elasticsearch-unauthenticated",
     "kubernetes-anonymous-api",
+    "etcd-unauthenticated-access",
+    "consul-unauthenticated-access",
+    "kibana-unauthenticated-access",
+    "nomad-unauthenticated-access",
+    "portainer-version-exposed",
 ])
 def test_the_exposure_checks_require_a_200_so_a_401_never_fires(feed, check_id):
     """La mitad del check que evita el falso positivo: sin exigir 200, un 401
@@ -190,7 +225,8 @@ def test_the_exposure_checks_require_a_200_so_a_401_never_fires(feed, check_id):
     status_matchers = [m for m in request.matchers if m.type == "status"]
     assert status_matchers, f"{check_id} no exige código de estado"
     assert all(200 in m.values for m in status_matchers)
-    assert request.method == "GET"
+    # etcd v3 sólo acepta POST en su pasarela HTTP; su ``range`` es una lectura.
+    assert request.method == ("POST" if check_id == "etcd-unauthenticated-access" else "GET")
 
 
 def test_every_admin_api_has_a_service_predicate():
@@ -202,3 +238,126 @@ def test_every_admin_api_has_a_service_predicate():
     assert {"docker", "elasticsearch", "kibana",
             "kubernetes", "etcd", "consul"} <= set(_NETWORK_SERVICE_MATCHERS)
     assert is_docker_service(Service(2375, "tcp", ""))
+
+
+# ============================ etcd, Consul y Kibana: positivo y señuelo
+
+
+def _fired_check(feed, check_id, service, response):
+    """Ejecuta un único check del feed contra un servicio que contesta ``response``
+    a cualquier petición, y dice si disparó."""
+    def fetch(host, port, method, path, _body=None, _headers=None):
+        if path.startswith("/lybra-baseline-"):
+            return Response(404, "", {})
+        return response
+    findings = CheckRuntime([feed[check_id]], fetch).run("10.0.0.5", [service])
+    return bool(findings)
+
+
+_ETCD = Service(2379, "tcp", "etcd")
+_CONSUL = Service(8500, "tcp", "consul")
+_KIBANA = Service(5601, "tcp", "kibana")
+
+
+def test_an_etcd_that_serves_its_keys_without_credentials_fires(feed):
+    body = {"header": {"cluster_id": "14841639068965178418", "member_id": "10276657743932975437",
+                       "revision": "7", "raft_term": "2"},
+            "kvs": [{"key": "L3JlZ2lzdHJ5"}], "count": "42"}
+    assert _fired_check(feed, "etcd-unauthenticated-access", _ETCD, _json_response(body))
+
+
+def test_an_etcd_with_authentication_does_not_fire(feed):
+    """Señuelo: etcd con autenticación rechaza el ``range`` sin token."""
+    body = {"error": "etcdserver: user name is empty", "code": 3,
+            "message": "etcdserver: user name is empty"}
+    assert not _fired_check(feed, "etcd-unauthenticated-access", _ETCD,
+                            _json_response(body, status=400))
+    assert not _fired_check(feed, "etcd-unauthenticated-access", _ETCD,
+                            _json_response(body, status=401))
+
+
+def test_a_consul_agent_without_acl_fires(feed):
+    body = {"Config": {"Datacenter": "dc1", "NodeName": "consul-1", "Version": "1.16.2"},
+            "Member": {"Name": "consul-1", "Addr": "10.0.0.5"}}
+    assert _fired_check(feed, "consul-unauthenticated-access", _CONSUL, _json_response(body))
+
+
+def test_a_consul_agent_with_acl_deny_does_not_fire(feed):
+    """Señuelo: con ACL y política ``deny``, el agente contesta 403 sin token."""
+    assert not _fired_check(feed, "consul-unauthenticated-access", _CONSUL,
+                            Response(403, "Permission denied", {}))
+
+
+def test_a_kibana_without_security_fires(feed):
+    body = {"page": 1, "per_page": 1, "total": 3,
+            "saved_objects": [{"type": "dashboard", "id": "d1"}]}
+    assert _fired_check(feed, "kibana-unauthenticated-access", _KIBANA, _json_response(body))
+
+
+def test_a_kibana_with_security_does_not_fire(feed):
+    """Señuelo: con seguridad activa, los objetos guardados exigen sesión."""
+    body = {"statusCode": 401, "error": "Unauthorized",
+            "message": "[security_exception]: missing authentication credentials"}
+    assert not _fired_check(feed, "kibana-unauthenticated-access", _KIBANA,
+                            _json_response(body, status=401))
+
+
+def test_a_kibana_whose_status_page_is_public_does_not_fire(feed):
+    """Señuelo: un ``/api/status`` abierto (``status.allowAnonymous``) no es
+    acceso a los datos; el check no mira esa ruta y el JSON de estado no trae
+    objetos guardados."""
+    body = {"name": "kibana", "version": {"number": "8.11.0"}, "status": {"overall": {"level": "available"}}}
+    assert not _fired_check(feed, "kibana-unauthenticated-access", _KIBANA, _json_response(body))
+
+
+# ============================ Nomad y Portainer: positivo y señuelo
+
+_NOMAD = Service(4646, "tcp", "nomad")
+_PORTAINER = Service(9000, "tcp", "portainer")
+
+
+def test_a_nomad_agent_without_acl_fires(feed):
+    body = {"config": {"Datacenter": "dc1"},
+            "stats": {"nomad": {"server": "true", "version": "1.7.2"}}}
+    assert _fired_check(feed, "nomad-unauthenticated-access", _NOMAD, _json_response(body))
+
+
+def test_a_nomad_agent_with_acl_enabled_does_not_fire(feed):
+    """Señuelo: con ACL activada, el agente exige un token y rechaza sin él."""
+    body = {"errors": ["Permission denied"]}
+    assert not _fired_check(feed, "nomad-unauthenticated-access", _NOMAD,
+                            Response(403, "Permission denied", {}))
+
+
+def test_a_public_portainer_banner_fires():
+    """El criterio de cierre para Portainer: el banner de versión, público por
+    diseño, sigue siendo el hallazgo (menor severidad, pero hallazgo)."""
+    feed_by_id = {check.id: check for check in load_checks()}
+    body = {"Version": "2.19.4", "InstanceID": "abc-123", "Edition": "CE"}
+    assert _fired_check(feed_by_id, "portainer-version-exposed", _PORTAINER, _json_response(body))
+
+
+def test_portainer_unreachable_does_not_fire():
+    """Señuelo: sin respuesta (cortafuegos, servicio caído), no hay banner que leer."""
+    feed_by_id = {check.id: check for check in load_checks()}
+
+    def fetch(host, port, method, path, _body=None, _headers=None):
+        return None
+    findings = CheckRuntime([feed_by_id["portainer-version-exposed"]], fetch).run(
+        "10.0.0.5", [_PORTAINER])
+    assert findings == []
+
+
+# ============================ predicados de servicio
+
+
+def test_nomad_and_portainer_have_their_own_predicates():
+    from src.modules.features.themis.lybra.checks import is_nomad_service, is_portainer_service
+
+    assert is_nomad_service(Service(4646, "tcp", ""))
+    assert is_nomad_service(Service(0, "tcp", "nomad"))
+    assert not is_nomad_service(Service(9000, "tcp", ""))
+
+    assert is_portainer_service(Service(9000, "tcp", ""))
+    assert is_portainer_service(Service(0, "tcp", "portainer"))
+    assert not is_portainer_service(Service(4646, "tcp", ""))

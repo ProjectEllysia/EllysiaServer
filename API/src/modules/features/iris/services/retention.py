@@ -16,9 +16,12 @@ notificaciones). Dos pasos independientes:
    ``IrisRuleResult`` y ``IrisDocument`` -- ver
    ``IrisAnalysisRepository.get_analyses_older_than`` sobre por qué esto va
    fila a fila por el ORM en vez de un ``DELETE`` masivo.
+3. **Olvidar el grafo de comunicación vencido**
+   (``iris.graph.retentionDays``, por defecto 90 días): borra las aristas
+   remitente→destinatario que no se han vuelto a ver en ese plazo.
 
 Volver a ejecutar ``run_retention()`` sin datos nuevos que purgar/borrar no
-hace nada -- ambos pasos son consultas "¿qué sigue vencido?" seguidas de la
+hace nada -- los tres pasos son consultas "¿qué sigue vencido?" seguidas de la
 acción, sin ningún contador que pudiera desincronizarse entre ejecuciones.
 """
 
@@ -32,22 +35,23 @@ import src.modules.system.config_reading as CR
 from src.modules.infrastructure import UnitOfWork
 from src.modules.shared import utcnow_naive
 
-from ..repositories import IrisAnalysisRepository
+from ..repositories import IrisAnalysisRepository, IrisCommunicationEdgeRepository
 
 logger = logging.getLogger(__name__)
 
 
 def run_retention() -> Dict[str, Any]:
     """
-    Ejecuta los dos pasos de retención y devuelve cuántas filas tocó cada uno:
+    Ejecuta los tres pasos de retención y devuelve cuántas filas tocó cada uno:
 
     1. Purga de raw vencido.
     2. Borrado de análisis enteros (si está activado).
+    3. Borrado de las aristas del grafo de comunicación vencidas.
 
     Returns:
-        dict: Diccionario con las claves ``purgedRawMessages`` y
-            ``deletedAnalyses`` indicando cuántas filas fueron afectadas por
-            cada paso.
+        dict: Diccionario con las claves ``purgedRawMessages``,
+            ``deletedAnalyses`` y ``deletedCommunicationEdges`` indicando
+            cuántas filas fueron afectadas por cada paso.
     """
     config = CR.iris_config()
     now = utcnow_naive()
@@ -67,8 +71,13 @@ def run_retention() -> Dict[str, Any]:
                 repo.delete(analysis)
                 deleted_analyses += 1
 
-        report = {"purgedRawMessages": purged_raw, "deletedAnalyses": deleted_analyses}
-        if purged_raw or deleted_analyses:
+        deleted_edges = IrisCommunicationEdgeRepository(uow).purge_older_than(
+            now - timedelta(days=CR.iris_graph_config().retention_days)
+        )
+
+        report = {"purgedRawMessages": purged_raw, "deletedAnalyses": deleted_analyses,
+                  "deletedCommunicationEdges": deleted_edges}
+        if purged_raw or deleted_analyses or deleted_edges:
             logger.info("Retención de Iris: %s", report)
     
     return report

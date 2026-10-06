@@ -47,13 +47,17 @@ export const useIrisMailboxStore = defineStore('irisMailbox', () => {
    * porque el backend ya cierra el flujo con un redirect de servidor tras
    * el callback (`GET /iris/mailbox/callback` -> vuelve aquí) -- no hace
    * falta postMessage ni gestión de ventanas.
+   *
+   * @param {string} provider - `gmail` o `microsoft`.
+   * @param {{remediationEnabled?: boolean}} [options] - `remediationEnabled` pide al
+   *   proveedor permiso de escritura para que Iris pueda actuar sobre el buzón.
    */
-  async function connect(provider) {
+  async function connect(provider, { remediationEnabled = false } = {}) {
     connecting.value = true
     try {
       const res = await apiFetch('/iris/mailbox/connect', {
         method: 'POST',
-        body: JSON.stringify({ provider }),
+        body: JSON.stringify({ provider, remediationEnabled }),
       })
       if (!res?.ok) {
         toast.show(await apiError(res, i18n.global.t('irisStore.mailbox.connectFailed')), 'error')
@@ -121,6 +125,85 @@ export const useIrisMailboxStore = defineStore('irisMailbox', () => {
     }
   }
 
+  /**
+   * Conecta un buzón personal por IMAP; el servidor prueba las credenciales antes de guardarlas.
+   *
+   * @param {{host: string, port: number, username: string, password: string, folder?: string|null,
+   *   fullMessageMode?: boolean}} data - Servidor IMAP con TLS y contraseña de aplicación.
+   * @returns {Promise<boolean>} `true` si quedó conectado.
+   */
+  async function connectImap(data) {
+    connecting.value = true
+    try {
+      const res = await apiFetch('/iris/mailbox/imap', { method: 'POST', body: JSON.stringify(data) })
+      if (!res?.ok) {
+        toast.show(await apiError(res, i18n.global.t('irisStore.mailbox.connectFailed')), 'error')
+        return false
+      }
+      toast.show(i18n.global.t('iris.connections.connected'), 'success')
+      await fetchConnections()
+      return true
+    } finally {
+      connecting.value = false
+    }
+  }
+
+  /**
+   * Cambia la contraseña de aplicación de una conexión IMAP (se prueba antes de guardarla).
+   *
+   * @param {number} id - Conexión.
+   * @param {string} password - Contraseña nueva.
+   * @returns {Promise<boolean>} `true` si se guardó.
+   */
+  async function rotateCredentials(id, password) {
+    const res = await apiFetch(`/iris/mailbox/connections/${id}/credentials`, {
+      method: 'PUT', body: JSON.stringify({ password }),
+    })
+    if (!res?.ok) {
+      toast.show(await apiError(res, i18n.global.t('irisStore.mailbox.updateFailed')), 'error')
+      return false
+    }
+    toast.show(i18n.global.t('irisStore.mailbox.updated'), 'success')
+    await fetchConnections()
+    return true
+  }
+
+  /**
+   * Carpetas reales de la cuenta de una conexión.
+   *
+   * @param {number} id - Conexión.
+   * @returns {Promise<Array<{providerId: string, displayName: string, folderType: string}>|null>}
+   *   Las carpetas, o `null` si no se pudieron leer.
+   */
+  async function fetchFolders(id) {
+    const res = await apiFetch(`/iris/mailbox/connections/${id}/folders`)
+    if (!res?.ok) {
+      toast.show(await apiError(res, i18n.global.t('irisStore.mailbox.loadFailed')), 'error')
+      return null
+    }
+    return (await res.json()).folders ?? []
+  }
+
+  /**
+   * Cambia las carpetas que se vigilan además de la principal.
+   *
+   * @param {number} id - Conexión.
+   * @param {string[]} folders - Ids de carpeta.
+   * @returns {Promise<boolean>} `true` si se guardó.
+   */
+  async function setFolders(id, folders) {
+    const res = await apiFetch(`/iris/mailbox/connections/${id}/folders`, {
+      method: 'PUT', body: JSON.stringify({ folders }),
+    })
+    if (!res?.ok) {
+      toast.show(await apiError(res, i18n.global.t('irisStore.mailbox.updateFailed')), 'error')
+      return false
+    }
+    toast.show(i18n.global.t('irisStore.mailbox.updated'), 'success')
+    await fetchConnections()
+    return true
+  }
+
   function $reset() {
     providers.value = []
     connections.value = []
@@ -133,6 +216,7 @@ export const useIrisMailboxStore = defineStore('irisMailbox', () => {
   return {
     providers, connections, loading, listError, connecting, syncingIds,
     fetchProviders, fetchConnections, connect, updateConnection, deleteConnection, syncConnection,
+    connectImap, rotateCredentials, fetchFolders, setFolders,
     $reset,
   }
 })

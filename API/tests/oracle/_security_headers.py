@@ -39,17 +39,31 @@ HEADER_CATEGORY = "security_header"
 # en todos los objetivos, no dispararía en ninguno, y saldría como falso
 # negativo ruidoso en vez de inflar la precisión en silencio.
 CONDITIONAL_HEADER_CHECKS: Dict[str, str] = {
-    "lybra:session-cookie-without-secure@2":
+    "lybra:session-cookie-without-secure@3":
         "necesita un Set-Cookie en la respuesta; los objetivos del catálogo "
         "sirven un 200 sin cookies, así que no hay cookie que juzgar",
-    "lybra:session-cookie-without-httponly@1": "necesita un Set-Cookie en la respuesta",
-    "lybra:session-cookie-without-samesite@1": "necesita un Set-Cookie en la respuesta",
+    "lybra:session-cookie-without-httponly@2": "necesita un Set-Cookie en la respuesta",
+    "lybra:session-cookie-without-samesite@2": "necesita un Set-Cookie en la respuesta",
     "lybra:http-no-https-redirect@1":
         "sólo en un puerto en claro que sirve la página sin redirigir a HTTPS",
     "lybra:hsts-weak-max-age@1": "necesita una HSTS presente y con max-age corto",
     "lybra:x-frame-options-deprecated@1": "necesita X-Frame-Options sin frame-ancestors",
     "lybra:http-version-disclosure@1": "necesita una cabecera con número de versión",
     "lybra:http-compression-breach@1": "necesita compresión y cookies sobre HTTPS",
+    "lybra:cors-wildcard-origin-with-credentials@1":
+        "necesita Access-Control-Allow-Origin: * y Access-Control-Allow-Credentials: "
+        "true a la vez; un 200 sin CORS configurado no manda ninguna de las dos",
+    "lybra:cors-reflects-any-origin-with-credentials@1":
+        "necesita que la respuesta refleje el Origin de la sonda con credenciales; "
+        "un 200 sin CORS configurado no manda ninguna cabecera de CORS",
+    "lybra:session-response-cacheable@1":
+        "necesita una cookie de sesión en la respuesta; un 200 sin cookies no tiene sesión que cachear",
+    "lybra:session-cookie-without-prefix@1": "necesita una cookie de sesión en la respuesta",
+    "lybra:cookie-prefix-requirements-unmet@1":
+        "necesita una cookie con prefijo __Host- o __Secure- que incumpla sus requisitos",
+    "lybra:login-form-served-over-http@1":
+        "necesita que el rastreo haya descubierto un formulario de acceso; sin uno, "
+        "sólo se prueba la ruta placeholder del feed, que ningún objetivo del catálogo sirve",
 }
 
 

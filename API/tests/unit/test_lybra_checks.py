@@ -610,6 +610,79 @@ def test_an_ipv6_target_is_bracketed_in_the_url(monkeypatch):
     assert opener.urls == ["http://[2001:db8::1]:8080/"]
 
 
+# -------------------------------------- cabeceras repetidas (varias Set-Cookie)
+#
+# ``dict(response.headers)`` sobre un ``http.client.HTTPMessage`` real se
+# queda solo con la primera aparición de un nombre repetido; estos tests usan
+# un doble que, como el objeto real, expone la lista completa de pares por
+# ``.items()`` para comprobar que `_merge_repeated_headers` (y por tanto
+# `HttpProbe._request`) no pierde ninguna.
+
+
+class _CabecerasConDuplicados:
+    """Doble de ``http.client.HTTPMessage``: ``.items()`` repite un nombre
+    tantas veces como apareció, igual que hace el objeto real."""
+
+    def __init__(self, pairs):
+        self._pairs = pairs
+
+    def items(self):
+        return list(self._pairs)
+
+
+class _RespuestaFalsaConCookiesRepetidas:
+    status = 200
+    headers = _CabecerasConDuplicados([
+        ("Set-Cookie", "lang=es; Path=/"),
+        ("Set-Cookie", "PHPSESSID=abc123; Path=/"),
+    ])
+
+    def read(self, _n=None):
+        return b"<html>"
+
+    def geturl(self):
+        return "http://10.0.0.5:80/"
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        return False
+
+
+def test_merge_repeated_headers_keeps_every_occurrence():
+    merged = checks_mod._merge_repeated_headers(  # pylint: disable=protected-access
+        _CabecerasConDuplicados([("Set-Cookie", "lang=es"), ("Set-Cookie", "PHPSESSID=abc")])
+    )
+    assert merged == {"Set-Cookie": "lang=es\nPHPSESSID=abc"}
+
+
+def test_merge_repeated_headers_is_case_insensitive_when_grouping():
+    # Dos apariciones con distinta grafía del mismo nombre son la misma
+    # cabecera a efectos HTTP; agruparlas por clave exacta las trataría como
+    # dos cabeceras distintas y una se perdería al bajar a minúsculas después.
+    merged = checks_mod._merge_repeated_headers(  # pylint: disable=protected-access
+        _CabecerasConDuplicados([("Set-Cookie", "lang=es"), ("set-cookie", "PHPSESSID=abc")])
+    )
+    assert merged == {"Set-Cookie": "lang=es\nPHPSESSID=abc"}
+
+
+def test_a_request_with_several_set_cookie_headers_keeps_them_all(monkeypatch):
+    from src.modules.features.themis.lybra import HttpProbe
+
+    probe = HttpProbe(detect_scheme=lambda host, port: False)
+    opener = type("_Opener", (), {"open": lambda self, request, timeout=None:
+                                   _RespuestaFalsaConCookiesRepetidas()})()
+    monkeypatch.setattr(probe, "_opener", opener)
+
+    status, _body, headers, _url, _scheme = probe._request(  # pylint: disable=protected-access
+        "10.0.0.5", 80, "GET", "/"
+    )
+
+    assert status == 200
+    assert headers == {"Set-Cookie": "lang=es; Path=/\nPHPSESSID=abc123; Path=/"}
+
+
 def test_the_scheme_is_observed_once_per_service(monkeypatch):
     # La pregunta es sobre el servicio, no sobre la petición: no cambia entre
     # una ruta y otra dentro del mismo escaneo.
@@ -711,14 +784,17 @@ def test_the_three_header_checks_make_one_request_between_them():
 
     findings = CheckRuntime(load_checks(), fetch).run("10.0.0.5", [_HTTP])
 
-    # Los seis checks de cabeceras faltantes disparan (el nginx de mentira no
+    # Los siete checks de cabeceras faltantes disparan (el nginx de mentira no
     # manda ninguna: HSTS, X-Frame-Options, X-Content-Type-Options, CSP,
-    # Referrer-Policy y Permissions-Policy) y aun así comparten la petición a
-    # "/". La única otra petición a "/" es la del check BREACH, que la hace con
-    # Accept-Encoding y por eso es otra sonda.
+    # Referrer-Policy, Permissions-Policy y COOP) y aun así comparten la petición a
+    # "/". Las otras peticiones a "/" son la del check BREACH (con
+    # Accept-Encoding), la del comodín de CORS y la primera del reflejo de
+    # CORS (cada una con un Origin distinto, así que cada una es otra sonda;
+    # la segunda petición del reflejo no llega a mandarse porque la primera
+    # ya no casa contra un 200 sin cabeceras de CORS).
     missing = [f for f in findings if f["check_id"].startswith("lybra:missing-")]
-    assert len(missing) == 6
-    assert [ruta for _h, _p, _m, ruta in fetch.calls].count("/") == 2
+    assert len(missing) == 7
+    assert [ruta for _h, _p, _m, ruta in fetch.calls].count("/") == 4
 
 
 def test_each_distinct_path_is_still_requested():
@@ -727,9 +803,13 @@ def test_each_distinct_path_is_still_requested():
     fetch = _fetcher({})
     CheckRuntime(load_checks(), fetch).run("10.0.0.5", [_HTTP])
 
-    rutas = [ruta for _h, _p, _m, ruta in fetch.calls]
-    # "/" dos veces: una sin cabeceras extra y otra con Accept-Encoding (BREACH).
-    assert len(rutas) == len(set(rutas)) + 1
+    # Sólo los GET: una ruta POST puede repetirse con cuerpos distintos (las
+    # consultas de GraphQL), que para la caché son sondas distintas.
+    rutas = [ruta for _h, _p, metodo, ruta in fetch.calls if metodo == "GET"]
+    # "/" se repite cuatro veces (ver el comentario de
+    # test_the_three_header_checks_make_one_request_between_them), tres
+    # peticiones de más sobre la única ruta que se repite.
+    assert len(rutas) == len(set(rutas)) + 3
     assert "/.git/config" in rutas and "/" in rutas
 
 
@@ -890,6 +970,181 @@ def test_concurrent_requests_to_one_host_get_distinct_increasing_turns():
     # el turno reservado al despertar, los cinco habrían esperado lo mismo.
     assert sorted(esperas) == [pytest.approx(0.2), pytest.approx(0.4),
                                pytest.approx(0.6), pytest.approx(0.8)]
+
+
+# ------------------------------------ limitador adaptativo (freno por fallos)
+#
+# Contra un objetivo que deja de contestar, seguir enviando al mismo ritmo es la
+# forma de tumbar un appliance frágil. El limitador frena ese host —y sólo ese—
+# tras varios fallos seguidos, y vuelve poco a poco al ritmo base cuando el host
+# contesta otra vez.
+
+def _adaptive_limiter(reloj, min_interval=0.2, max_backoff_factor=8.0, failures_before_backoff=3):
+    from src.modules.features.themis.lybra import HostRateLimiter
+    return HostRateLimiter(
+        min_interval=min_interval, clock=reloj, sleeper=reloj.sleep,
+        max_backoff_factor=max_backoff_factor, failures_before_backoff=failures_before_backoff,
+    )
+
+
+def test_the_interval_does_not_widen_before_the_failure_threshold():
+    limiter = _adaptive_limiter(_RelojFalso())
+
+    limiter.report_failure("10.0.0.5")
+    limiter.report_failure("10.0.0.5")
+
+    assert limiter.get_interval_seconds("10.0.0.5") == pytest.approx(0.2)
+
+
+def test_the_interval_doubles_with_each_failure_past_the_threshold():
+    limiter = _adaptive_limiter(_RelojFalso())
+
+    for _ in range(3):
+        limiter.report_failure("10.0.0.5")
+    assert limiter.get_interval_seconds("10.0.0.5") == pytest.approx(0.4)
+
+    limiter.report_failure("10.0.0.5")
+    assert limiter.get_interval_seconds("10.0.0.5") == pytest.approx(0.8)
+
+
+def test_a_widened_interval_is_what_acquire_waits():
+    reloj = _RelojFalso()
+    limiter = _adaptive_limiter(reloj)
+    for _ in range(3):
+        limiter.report_failure("10.0.0.5")
+
+    limiter.acquire("10.0.0.5")
+    limiter.acquire("10.0.0.5")
+
+    assert reloj.esperas == [pytest.approx(0.4)]
+
+
+def test_the_widened_interval_is_capped():
+    limiter = _adaptive_limiter(_RelojFalso(), max_backoff_factor=8.0)
+
+    for _ in range(50):
+        limiter.report_failure("10.0.0.5")
+
+    assert limiter.get_interval_seconds("10.0.0.5") == pytest.approx(1.6)
+
+
+def test_the_interval_is_restored_gradually_as_the_host_answers_again():
+    limiter = _adaptive_limiter(_RelojFalso(), max_backoff_factor=8.0)
+    for _ in range(50):
+        limiter.report_failure("10.0.0.5")
+
+    # De 1,6 s se baja un intervalo base (0,2 s) por respuesta: gradual, no de golpe.
+    limiter.report_success("10.0.0.5")
+    assert limiter.get_interval_seconds("10.0.0.5") == pytest.approx(1.4)
+
+    for _ in range(20):
+        limiter.report_success("10.0.0.5")
+    # Y nunca por debajo del base configurado.
+    assert limiter.get_interval_seconds("10.0.0.5") == pytest.approx(0.2)
+
+
+def test_a_success_resets_the_failure_streak():
+    limiter = _adaptive_limiter(_RelojFalso())
+
+    limiter.report_failure("10.0.0.5")
+    limiter.report_failure("10.0.0.5")
+    limiter.report_success("10.0.0.5")
+    limiter.report_failure("10.0.0.5")
+    limiter.report_failure("10.0.0.5")
+
+    # Cuatro fallos, pero nunca tres seguidos: el host no se frena.
+    assert limiter.get_interval_seconds("10.0.0.5") == pytest.approx(0.2)
+
+
+def test_slowing_down_one_host_does_not_slow_down_another():
+    reloj = _RelojFalso()
+    limiter = _adaptive_limiter(reloj)
+    for _ in range(10):
+        limiter.report_failure("10.0.0.5")
+
+    limiter.acquire("10.0.0.6")
+    limiter.acquire("10.0.0.6")
+
+    assert limiter.get_interval_seconds("10.0.0.6") == pytest.approx(0.2)
+    assert reloj.esperas == [pytest.approx(0.2)]
+
+
+def test_without_a_backoff_factor_the_interval_stays_fixed():
+    # El default de la clase: quien no pide adaptación no la tiene, informe o no.
+    from src.modules.features.themis.lybra import HostRateLimiter
+    limiter = HostRateLimiter(min_interval=0.2, clock=_RelojFalso(), sleeper=lambda _: None)
+
+    for _ in range(10):
+        limiter.report_failure("10.0.0.5")
+
+    assert limiter.get_interval_seconds("10.0.0.5") == pytest.approx(0.2)
+
+
+def test_without_feedback_the_adaptive_limiter_behaves_like_a_fixed_one():
+    reloj = _RelojFalso()
+    limiter = _adaptive_limiter(reloj)
+
+    limiter.acquire("10.0.0.5")
+    limiter.acquire("10.0.0.5")
+    limiter.acquire("10.0.0.5")
+
+    assert reloj.esperas == [pytest.approx(0.2), pytest.approx(0.2)]
+
+
+class _LimitadorQueAnota:
+    """Un limitador que no espera y anota qué resultados le cuentan."""
+
+    def __init__(self):
+        self.avisos: list = []
+
+    def acquire(self, host):
+        pass
+
+    def report_failure(self, host):
+        self.avisos.append(("fallo", host))
+
+    def report_success(self, host):
+        self.avisos.append(("respuesta", host))
+
+
+def test_the_runtime_reports_http_requests_without_answer_as_failures():
+    limiter = _LimitadorQueAnota()
+
+    CheckRuntime(load_checks(), lambda *a: None, rate_limiter=limiter).run("10.0.0.5", [_HTTP])
+
+    assert limiter.avisos
+    assert set(limiter.avisos) == {("fallo", "10.0.0.5")}
+
+
+def test_the_runtime_reports_any_http_response_as_an_answer():
+    # Un 404 es el objetivo contestando: no es motivo para frenar.
+    limiter = _LimitadorQueAnota()
+
+    CheckRuntime(load_checks(), _fetcher({}), rate_limiter=limiter).run("10.0.0.5", [_HTTP])
+
+    assert limiter.avisos
+    assert set(limiter.avisos) == {("respuesta", "10.0.0.5")}
+
+
+def test_the_runtime_reports_a_network_session_that_does_not_open_as_a_failure():
+    limiter = _LimitadorQueAnota()
+
+    CheckRuntime(
+        load_checks(), lambda *a: None, rate_limiter=limiter,
+        network_open=lambda host, port: None,
+    ).run("10.0.0.5", [_FTP])
+
+    assert ("fallo", "10.0.0.5") in limiter.avisos
+    assert ("respuesta", "10.0.0.5") not in limiter.avisos
+
+
+def test_a_target_that_stops_answering_slows_the_runtime_down():
+    reloj = _RelojFalso()
+    limiter = _adaptive_limiter(reloj)
+
+    CheckRuntime(load_checks(), lambda *a: None, rate_limiter=limiter).run("10.0.0.5", [_HTTP])
+
+    assert limiter.get_interval_seconds("10.0.0.5") > 0.2
 
 
 # --------------------------- a qué protocolo aplica un check ``network``

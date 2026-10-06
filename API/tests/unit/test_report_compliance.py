@@ -42,7 +42,9 @@ _ROWS = [
 def _render(monkeypatch, strategy_class, frameworks):
     """Ejecuta ``append_body`` sin base de datos y devuelve los elementos y su texto."""
     from src.modules.infrastructure import session as session_module
-    from src.modules.features.themis.managers import ComplianceManager, LybraEngineManager
+    from src.modules.features.themis.managers import (
+        ComplianceManager, LybraEngineManager, NetworkRiskManager,
+    )
     from src.modules.features.themis.services.reports import findings as report_module
 
     monkeypatch.setattr(session_module, "build_repository",
@@ -50,6 +52,9 @@ def _render(monkeypatch, strategy_class, frameworks):
     monkeypatch.setattr(LybraEngineManager, "exposure_for", staticmethod(lambda _scan: "public"))
     monkeypatch.setattr(ComplianceManager, "resolve_effective_frameworks",
                         lambda _self, _user_id: list(frameworks))
+    # Un escaneo de un solo equipo: el informe no añade riesgo lateral.
+    monkeypatch.setattr(NetworkRiskManager, "assess_scan",
+                        lambda _self, _user_id, _scan_id: {"hostCount": 1, "risks": []})
     monkeypatch.setattr(report_module, "enrich_with_cve_context", lambda _findings: None)
     monkeypatch.setattr(report_module, "_knowledge_base_line", lambda _scan: "NVD 2026-09-24")
     monkeypatch.setattr(report_module, "_failing_sources_line", lambda: None)

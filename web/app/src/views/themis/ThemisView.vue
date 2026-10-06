@@ -31,17 +31,73 @@
            dentro de un mismo mundo (view-block de abajo). -->
       <!-- ═══════════ MUNDO: MOTOR LYBRA ═══════════ -->
       <div v-if="store.world === 'lybra'" key="lybra" class="world-block">
-        <button class="lybra-history-toggle" @click="store.setViewMode(store.viewMode === 'history' ? 'full' : 'history')">
-          {{ store.viewMode === 'history' ? t('themisView.backToEngine') : t('themisView.seeHistory') }}
-        </button>
+        <!-- Qué mira el motor: un equipo (o un rango, que son varios), los
+             recursos en la nube de un dominio, o una red entera. Son tres
+             formas de escanear del mismo motor, así que viven bajo su pestaña
+             y no como mundos aparte. -->
+        <div class="lybra-bar">
+          <div class="scope-toggle" role="tablist" :aria-label="t('themisView.scope.label')">
+            <button v-for="scope in LYBRA_SCOPES" :key="scope" type="button" class="scope-opt" role="tab"
+                :data-scope="scope" :class="{ active: store.lybraScope === scope }" :aria-selected="store.lybraScope === scope"
+              @click="store.setLybraScope(scope)">
+              <svg v-if="scope === 'hosts'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              <svg v-else-if="scope === 'cloud'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M17.5 19a4.5 4.5 0 1 0-1.4-8.78A6 6 0 0 0 4.5 12.5 3.5 3.5 0 0 0 6 19z"/></svg>
+              <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="5" cy="12" r="2.5"/><circle cx="19" cy="5" r="2.5"/><circle cx="19" cy="19" r="2.5"/><path d="M7.3 11 16.7 6M7.3 13l9.4 5"/></svg>
+              <span>{{ t(`themisView.scope.${scope}`) }}</span>
+            </button>
+          </div>
+          <button v-if="store.lybraScope === 'hosts'" class="lybra-history-toggle" @click="store.setViewMode(store.viewMode === 'history' ? 'full' : 'history')">
+            {{ store.viewMode === 'history' ? t('themisView.backToEngine') : t('themisView.seeHistory') }}
+          </button>
+        </div>
         <!-- Fundido motor ↔ historial, igual que en escáneres externos. Sin
              mode="out-in" y con el saliente sacado del flujo (mismo motivo
              que ScanTable.vue): esperar a un transitionend de salida se
              cuelga en pestañas de fondo, y un escaneo largo es justo cuando
              el usuario se va a otra pestaña. -->
         <Transition name="lybra-swap">
-        <HistoryPanel v-if="store.viewMode === 'history'" key="history" />
-        <div v-else key="engine">
+        <!-- Nube: lo que un dominio deja expuesto; los recursos que el usuario
+             declara suyos y los subdominios que se pueden secuestrar. -->
+        <div v-if="store.lybraScope === 'cloud'" key="cloud" data-scope="cloud">
+          <CloudLaunchPanel
+            :launching="cloudStore.launching"
+            :running="hasActiveCloudScan"
+            :authorized-targets="store.authorizedTargets.items"
+            :subdomain-searches="cloudStore.searches.items"
+            :discovering="cloudStore.discovering"
+            @launch="cloudStore.launchCloudScan"
+            @discover="cloudStore.discoverSubdomains"
+            @authorize="target => handleAddAuthorizedTarget({ target })" />
+          <CloudScans
+            :scans="cloudStore.scans.items"
+            :loading="cloudStore.scans.loading"
+            :error="cloudStore.scans.error"
+            :selected-id="cloudStore.selectedId"
+            :detail="cloudStore.detail.scan"
+            :detail-error="cloudStore.detail.error"
+            :docs="cloudStore.docs.items"
+            :docs-loading="cloudStore.docs.loading"
+            :generating="cloudStore.generating"
+            @refresh="cloudStore.loadScans()"
+            @select="cloudStore.selectScan"
+            @generate-report="cloudStore.generateReport"
+            @download-doc="store.downloadDocument"
+            @delete-doc="handleCloudDeleteDoc" />
+        </div>
+        <!-- Red: grupos de equipos y cómo se movería un atacante entre ellos. -->
+        <div v-else-if="store.lybraScope === 'network'" key="network" data-scope="network">
+          <NetworkGroupsPanel
+            :groups="networkStore.groups.items"
+            :loading="networkStore.groups.loading"
+            :error="networkStore.groups.error"
+            :creating="networkStore.groups.creating"
+            :risk-by-scope="networkStore.riskByScope"
+            @create="handleCreateGroup"
+            @delete="id => { pendingConfirm = { type: 'delete-group', id } }"
+            @load-risk="id => networkStore.loadRisk('group', id)" />
+        </div>
+        <HistoryPanel v-else-if="store.viewMode === 'history'" key="history" />
+        <div v-else key="engine" data-scope="hosts">
           <!-- La detección por versión vale lo que valga la frescura del espejo
                local de NVD/KEV/EPSS/OVAL. Si deja de refrescarse, los escaneos
                siguen saliendo en verde contra un catálogo congelado: el aviso
@@ -229,7 +285,9 @@
         ? t('themisView.confirm.lybra')
         : pendingConfirm?.type === 'delete-agent-scan'
           ? t('themisView.confirm.agentScan')
-          : t('themisView.confirm.folder')"
+          : pendingConfirm?.type === 'delete-group'
+            ? t('themisView.confirm.group')
+            : t('themisView.confirm.folder')"
       :confirm-label="t('common.delete')"
       danger
       @confirm="runPendingConfirm"
@@ -259,10 +317,15 @@ import ScheduledScansPanel from '@/components/themis/ScheduledScansPanel.vue'
 import LybraLaunchPanel from '@/components/themis/lybra/LybraLaunchPanel.vue'
 import LybraResults from '@/components/themis/lybra/LybraResults.vue'
 import AgentScansPanel from '@/components/themis/lybra/AgentScansPanel.vue'
+import CloudLaunchPanel from '@/components/themis/cloud/CloudLaunchPanel.vue'
+import CloudScans from '@/components/themis/cloud/CloudScans.vue'
+import NetworkGroupsPanel from '@/components/themis/network/NetworkGroupsPanel.vue'
 import { useRoute } from 'vue-router'
 import { useThemisStore } from '@/stores/themisStore'
 import { useThemisScheduledStore } from '@/stores/themisScheduledStore'
 import { useThemisFoldersStore } from '@/stores/themisFoldersStore'
+import { useThemisCloudStore } from '@/stores/themisCloudStore'
+import { useThemisNetworkStore } from '@/stores/themisNetworkStore'
 // Las tarjetas del mundo de agentes son los activos de Hygeia. La vista
 // consume el store del otro módulo directamente: es una lectura que ya
 // existe, y así el backend de Themis sigue sin saber que Hygeia existe.
@@ -276,6 +339,17 @@ const route = useRoute()
 const store = useThemisStore()
 const scheduledStore = useThemisScheduledStore()
 const foldersStore = useThemisFoldersStore()
+const cloudStore = useThemisCloudStore()
+
+/** Las tres formas de escanear del motor, en el orden del selector. */
+const LYBRA_SCOPES = ['hosts', 'cloud', 'network']
+
+// ?scope=cloud|network abre Lybra directamente en la nube o en la red. Se fija
+// antes del primer pintado, y no en onMounted, para no montar los equipos y
+// desmontarlos al instante. Sin el parámetro se entra siempre por los equipos,
+// como con el mundo: el store sobrevive a la navegación.
+store.lybraScope = LYBRA_SCOPES.includes(route.query.scope) ? route.query.scope : 'hosts'
+const networkStore = useThemisNetworkStore()
 const hygeiaStore = useHygeiaStore()
 const { selectedIds: batchSelectedIds, selectedCount: batchSelectedCount, selectedArray: batchSelectedArray, toggle: batchToggle, selectAll: batchSelectAll, clear: batchClear } = useBatchSelection()
 const currentData = computed(() => store.scans[store.activeTab])
@@ -338,7 +412,7 @@ onMounted(() => {
   if (world === 'agents' && Number.isInteger(assetId) && assetId > 0) store.selectAgentAsset(assetId)
   store.loadStats(); store.loadScans(store.activeTab); scheduledStore.loadScheduledScans(); foldersStore.loadFolders()
 })
-onBeforeUnmount(() => store.stopScanPolling())
+onBeforeUnmount(() => { store.stopScanPolling(); cloudStore.stopPolling() })
 
 // Lybra (escaneos propios + objetivos autorizados) se carga la primera vez
 // que se entra a su mundo; los agentes, en cambio, se refrescan a cada
@@ -357,10 +431,20 @@ watch(() => store.world, (w) => {
   if (w === 'agents') hygeiaStore.fetchAssets()
 }, { immediate: true })
 
+// La nube y la red se cargan cada vez que se entra en ellas: sus escaneos y
+// grupos pueden haber cambiado desde la última vez, y la nube necesita el
+// registro de objetivos autorizados al día para los sellos de cada recurso.
+watch(() => [store.world, store.lybraScope], ([w, scope]) => {
+  const isCloud = w === 'lybra' && scope === 'cloud'
+  if (isCloud) { cloudStore.loadScans(); cloudStore.loadSearches(); store.loadAuthorizedTargets() }
+  else cloudStore.stopPolling()
+  if (w === 'lybra' && scope === 'network') networkStore.loadGroups()
+}, { immediate: true })
+
 // La selección es una sola para las tres listas (sólo se ve una a la vez), así
 // que se vacía al salir de la que se estaba viendo: si no, un borrado en bloque
 // desde Lybra se llevaría también lo que quedó marcado en terceros.
-watch(() => [store.world, store.viewMode], () => batchClear())
+watch(() => [store.world, store.viewMode, store.lybraScope], () => batchClear())
 
 /**
  * Cambia de página en una lista de Lybra y vacía la selección.
@@ -382,6 +466,27 @@ function handleDeleteAgentScan(id) { pendingConfirm.value = { type: 'delete-agen
 async function handleLybraGeneratePdf(scanId, useAi) { await store.generateLybraPdf(scanId, useAi) }
 async function handleLybraDeleteDoc(scanId, docId) { await store.deleteLybraDoc(scanId, docId) }
 async function handleAddAuthorizedTarget({ target, label }) { await store.addAuthorizedTarget(target, label) }
+
+const hasActiveCloudScan = computed(() =>
+  cloudStore.scans.items.some(scan => scan.status === 'pending' || scan.status === 'running')
+)
+
+/** Borra un informe de un escaneo cloud y refresca la lista de ese escaneo. */
+async function handleCloudDeleteDoc(docId) {
+  if (await store.deleteDocument(docId) && cloudStore.selectedId) await cloudStore.loadDocs(cloudStore.selectedId)
+}
+
+/**
+ * Crea un grupo de equipos y avisa al formulario de si se creó.
+ *
+ * @param {{name: string, cidr: string}} payload - Lo escrito en el formulario.
+ * @param {(isCreated: boolean) => void} done - Vacía el formulario si se creó.
+ */
+async function handleCreateGroup(payload, done) {
+  const group = await networkStore.createGroup(payload.name, payload.cidr)
+  done(!!group)
+  if (group) networkStore.loadRisk('group', group.groupId)
+}
 
 watch(activeBatchAction, (val) => {
   if (!val) { selectedFolderId.value = ''; batchSubmitting.value = false }
@@ -433,11 +538,12 @@ function handleRenameFolder(folder) { foldersStore.folderForms.rename = { show: 
 function handleDeleteFolder(folderId) { pendingConfirm.value = { type: 'delete-folder', id: folderId } }
 
 // Q7: modal propio en vez de confirm() nativo del navegador.
-const pendingConfirm = ref(null) // { type: 'delete-lybra'|'delete-agent-scan'|'delete-folder', id }
+const pendingConfirm = ref(null) // { type: 'delete-lybra'|'delete-agent-scan'|'delete-folder'|'delete-group', id }
 async function runPendingConfirm() {
   const action = pendingConfirm.value
   pendingConfirm.value = null
   if (!action) return
+  if (action.type === 'delete-group') { await networkStore.deleteGroup(action.id); return }
   // Un escaneo borrado desde su tarjeta no puede seguir contando en "Eliminar (N)".
   if (action.type !== 'delete-folder' && batchSelectedIds.value.has(action.id)) batchToggle(action.id)
   if (action.type === 'delete-lybra') await store.deleteLybraScan(action.id)
@@ -477,6 +583,24 @@ async function handleDeleteScheduled(id) { await scheduledStore.deleteScheduledS
 .world-opt:hover { color: var(--text-dim); }
 .world-opt.active { background: var(--accent-dim); color: var(--accent-bright); font-weight: 600; box-shadow: inset 0 0 0 1px var(--accent); }
 .world-block { display: block; position: relative; }
+/* Selector de alcance de Lybra: más discreto que el de mundos, porque vive
+   dentro de uno. El historial se queda a su derecha, y solo tiene sentido
+   para los equipos. */
+.lybra-bar { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.85rem; }
+.scope-toggle { display: inline-flex; gap: 0.2rem; padding: 0.2rem; background: var(--surface); border: 1px solid var(--border); border-radius: 9px; }
+.scope-opt {
+  display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.4rem 0.8rem;
+  background: none; border: none; border-radius: 6px; color: var(--text-muted);
+  font-size: var(--fs-md); font-weight: 500; cursor: pointer; transition: all 0.2s ease;
+}
+.scope-opt svg { width: 14px; height: 14px; }
+.scope-opt:hover { color: var(--text-dim); }
+.scope-opt.active { background: var(--scope-tint-dim); color: var(--scope-tint); font-weight: 600; box-shadow: inset 0 0 0 1px var(--scope-tint); }
+.scope-opt:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 640px) {
+  .scope-toggle { display: flex; width: 100%; }
+  .scope-opt { flex: 1; justify-content: center; padding: 0.45rem 0.4rem; }
+}
 
 .kb-stale {
   margin-bottom: 0.8rem; padding: 0.6rem 0.8rem; border-radius: 8px;
@@ -495,7 +619,7 @@ async function handleDeleteScheduled(id) { await scheduledStore.deleteScheduledS
 .lybra-swap-leave-active { position: absolute; inset-inline: 0; }
 
 .lybra-history-toggle {
-  display: block; margin: 0 0 0.85rem auto; padding: 0.45rem 0.8rem;
+  display: block; margin: 0 0 0 auto; padding: 0.45rem 0.8rem;
   background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
   color: var(--text-dim); font-size: var(--fs-lg); cursor: pointer; transition: all 0.2s;
 }

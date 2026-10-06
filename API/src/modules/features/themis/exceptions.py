@@ -173,6 +173,58 @@ class DuplicateAuthorizedTargetError(ScanError):
         )
 
 
+class InvalidAuthorizedTargetError(ValidationError):
+    """Lo que se quiere añadir al registro de objetivos autorizados no tiene ninguna forma válida.
+
+    El registro acepta tres formas —una IP o un rango CIDR, un dominio y un
+    recurso cloud ``proveedor:identificador``—, así que el texto para la persona
+    enumera las tres con un ejemplo de cada una en vez de hablar solo de IP.
+
+    Args:
+        target: El texto tal como lo escribió el usuario.
+    """
+
+    default_code = ErrorCode.INVALID_AUTHORIZED_TARGET
+
+    def __init__(self, target: str):
+        super().__init__(
+            message=(f"'{target}' no es una IP, un CIDR, un dominio ni un recurso cloud "
+                     "(s3:nombre, gcs:nombre, azure:cuenta/contenedor, firebase:proyecto)"),
+            field="target",
+            value=target,
+            user_message=(f"«{target}» no es una dirección IP, un rango, un dominio ni un recurso "
+                          "cloud. Escríbelo como «203.0.113.10», «203.0.113.0/24», «example.com» "
+                          "o «s3:nombre-del-bucket»."),
+            message_key="invalidAuthorizedTarget",
+            params={"target": target},
+        )
+
+
+class AssetGroupNotFoundError(EntityNotFoundError, ScanError):
+    """El grupo de activos no existe o no es del usuario."""
+
+    default_code = ErrorCode.ASSET_GROUP_NOT_FOUND
+    entity_label = "Grupo de activos"
+    id_field = "group_id"
+
+
+class DuplicateAssetGroupError(ScanError):
+    """El usuario ya tiene un grupo de activos con ese nombre."""
+
+    default_code = ErrorCode.ASSET_GROUP_ALREADY_EXISTS
+    default_status_code = 409
+    default_severity = ErrorSeverity.LOW
+
+    def __init__(self, name: str):
+        super().__init__(
+            message=f"Ya existe un grupo de activos llamado '{name}'",
+            details={"name": name},
+            user_message=f"Ya tienes un grupo de activos llamado «{name}».",
+            message_key="duplicateAssetGroup",
+            params={"name": name}
+        )
+
+
 class ComplianceOrganizationNotOwnedError(EllysiaException):
     """Quien intenta fijar los marcos de cumplimiento de una organización no es su dueño.
 

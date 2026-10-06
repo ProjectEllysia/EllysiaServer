@@ -7,7 +7,43 @@
       <span class="ioc-category-title">{{ t(`iris.iocs.categories.${cat.key}`) }} ({{ data[cat.key].length }})</span>
     </div>
     <ul v-if="data[cat.key].length" class="ioc-list">
-      <li v-for="(val, i) in data[cat.key]" :key="i" class="ioc-item">{{ defang(val) }}</li>
+      <li v-for="(val, i) in data[cat.key]" :key="i" class="ioc-item">
+        <span class="ioc-value">{{ defang(val) }}</span>
+        <!-- Consultas externas bajo demanda, solo si la instalación las permite. -->
+        <template v-if="cat.key === 'domains' && canEnrich">
+          <button
+            v-if="!store.domainContexts[val]"
+            type="button"
+            class="ioc-action"
+            :title="t('iris.enrichment.domainHint')"
+            @click="store.fetchDomainContext(val)"
+          >{{ t('iris.enrichment.domainContext') }}</button>
+          <span v-else-if="store.domainContexts[val].loading" class="ioc-context">{{ t('common.loading') }}</span>
+          <span v-else class="ioc-context">{{ describeDomain(store.domainContexts[val].data) }}</span>
+        </template>
+        <template v-if="cat.key === 'urls' && canEnrich && reportId">
+          <button
+            v-if="!store.urlExpansions[val]"
+            type="button"
+            class="ioc-action"
+            :title="t('iris.enrichment.expandHint')"
+            @click="store.expandUrl(reportId, val)"
+          >{{ t('iris.enrichment.expand') }}</button>
+          <span v-else-if="store.urlExpansions[val].loading" class="ioc-context">{{ t('iris.enrichment.expanding') }}</span>
+          <span v-else class="ioc-context">{{ describeExpansion(store.urlExpansions[val].data) }}</span>
+        </template>
+        <template v-if="REPUTATION_KIND_BY_CATEGORY[cat.key] && canEnrich">
+          <button
+            v-if="!store.reputations[`${REPUTATION_KIND_BY_CATEGORY[cat.key]}:${val}`]"
+            type="button"
+            class="ioc-action"
+            :title="t('iris.enrichment.reputationHint')"
+            @click="store.fetchReputation(REPUTATION_KIND_BY_CATEGORY[cat.key], val)"
+          >{{ t('iris.enrichment.reputation') }}</button>
+          <span v-else-if="store.reputations[`${REPUTATION_KIND_BY_CATEGORY[cat.key]}:${val}`].loading" class="ioc-context">{{ t('common.loading') }}</span>
+          <span v-else class="ioc-context">{{ describeReputationOf(store.reputations[`${REPUTATION_KIND_BY_CATEGORY[cat.key]}:${val}`].data) }}</span>
+        </template>
+      </li>
     </ul>
     <p v-else class="ioc-empty">{{ t('iris.iocs.none') }}</p>
   </div>
@@ -30,6 +66,10 @@
  */
 import { useUtils } from '@/composables/useUtils'
 import { useI18n } from 'vue-i18n'
+import { computed } from 'vue'
+import { defang, describeDomainContext, describeReputation, describeUrlExpansion } from './indicators'
+import { useIrisStore } from '@/stores/irisStore'
+import { useLaunch } from '@/composables/useLaunch'
 
 const { t } = useI18n()
 
@@ -39,6 +79,29 @@ const props = defineProps({
 })
 
 const { triggerDownload } = useUtils()
+const store = useIrisStore()
+const { isSurfaceEnabled } = useLaunch()
+
+/** Si se puede preguntar fuera por un indicador (superficie `externalEnrichment`). */
+const canEnrich = computed(() => isSurfaceEnabled('externalEnrichment'))
+
+/** Tipo de indicador de la API de reputación para cada categoría de IOCs; los emails no se consultan. */
+const REPUTATION_KIND_BY_CATEGORY = { domains: 'domain', urls: 'url', ips: 'ip', hashes: 'hash' }
+
+/** Frase con la reputación de un indicador (ver `describeReputation`). */
+function describeReputationOf(result) {
+  return describeReputation(result, t)
+}
+
+/** Frase con el destino real de una URL (ver `describeUrlExpansion`). */
+function describeExpansion(expansion) {
+  return describeUrlExpansion(expansion, t)
+}
+
+/** Frase con el contexto RDAP de un dominio (ver `describeDomainContext`). */
+function describeDomain(context) {
+  return describeDomainContext(context, t)
+}
 
 /** Categorías de IOC; su rótulo sale de `iris.iocs.categories.<key>`. */
 const iocCategories = [
@@ -48,15 +111,6 @@ const iocCategories = [
   { key: 'emails' },
   { key: 'hashes' },
 ]
-
-// Neutraliza dominios/URLs/IPs/emails para que no se conviertan en enlaces
-// clicables ni resuelvan accidentalmente al pegarlos en otra herramienta.
-function defang(value) {
-  return String(value)
-    .replace(/https?/gi, (m) => m.replace(/^http/i, 'hxxp'))
-    .replace(/\./g, '[.]')
-    .replace(/@/g, '[at]')
-}
 
 function exportCsv() {
   const rows = [['type', 'value']]
@@ -108,6 +162,21 @@ function exportCsv() {
   font-size: var(--fs-lg);
   color: var(--text-dim);
   word-break: break-all;
+}
+
+.ioc-value { margin-right: 0.5rem; }
+
+.ioc-action {
+  padding: 0.1rem 0.5rem; font-size: var(--fs-sm); font-weight: 600; border-radius: 6px; cursor: pointer;
+  border: 1px solid var(--border-med); background: transparent; color: var(--text-dim);
+  font-family: var(--font-body, inherit);
+}
+
+.ioc-action:hover { border-color: var(--accent); color: var(--accent-bright); }
+
+.ioc-context {
+  display: block; margin-top: 0.3rem; font-family: var(--font-body, inherit);
+  font-size: var(--fs-sm); color: var(--text-muted); word-break: normal;
 }
 
 .ioc-empty {

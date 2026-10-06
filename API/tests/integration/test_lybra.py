@@ -1381,7 +1381,13 @@ def test_lybra_mysql_fingerprint_fills_cpe_gap_for_self_discovery(app, admin_use
         with UnitOfWork() as uow:
             findings = ScanRepository(uow).get_findings_by_scan(escan.id)
 
-    vulns = [f for f in findings if f.category == "outdated_software"]
+    # La rama 8.0 de MySQL ya está fuera de soporte, así que el mismo
+    # fingerprint dispara también `lybra:end-of-life@1` en esta categoría;
+    # aquí sólo interesa el cruce con la KB.
+    vulns = [
+        f for f in findings
+        if f.category == "outdated_software" and f.check_id != "lybra:end-of-life@1"
+    ]
     assert len(vulns) == 1
     assert vulns[0].cve_ids == ["CVE-2023-99999"]
     assert vulns[0].qod == 70
@@ -1613,6 +1619,54 @@ def test_grouped_findings_of_another_users_scan_are_not_found(
     scan_id = _run_payload_scan(app, admin_user.id)
     resp = client.get(f"/themis/lybra/scans/{scan_id}/findings",
                       headers=auth_headers(regular_user))
+    assert resp.status_code == 404
+
+
+def _add_api_finding(app, scan_id: int, title: str, severity: str, port: int = 8080):
+    """Guarda un hallazgo de exposición de API en un escaneo, como lo haría el motor."""
+    with app.app_context():
+        with UnitOfWork() as uow:
+            repo = ScanRepository(uow)
+            repo.persist_findings(repo.get_by_id(scan_id), [{
+                "title": title, "category": "api_exposure", "severity": severity, "port": port,
+                "service": "http", "protocol": "tcp", "source": "lybra",
+                "check_id": f"lybra:{title}@1", "dedup_key": title, "qod": 99,
+                "confirmed": True, "state": "open",
+            }])
+
+
+def test_api_surface_lists_only_api_exposure_findings_grouped_by_service(
+        client, app, admin_user, auth_headers):
+    scan_id = _run_payload_scan(app, admin_user.id)
+    _add_api_finding(app, scan_id, "spec expuesta", "LOW")
+    _add_api_finding(app, scan_id, "introspeccion abierta", "MEDIUM")
+    _add_api_finding(app, scan_id, "otra api", "HIGH", port=9000)
+
+    resp = client.get(f"/themis/scan/{scan_id}/api-surface", headers=auth_headers(admin_user))
+
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["totalFindings"] == 3
+    by_port = {entry["port"]: entry for entry in body["services"]}
+    # De más grave a menos dentro de cada servicio, y sólo la categoría api_exposure.
+    assert [item["severity"] for item in by_port[8080]["findings"]] == ["MEDIUM", "LOW"]
+    assert [item["severity"] for item in by_port[9000]["findings"]] == ["HIGH"]
+
+
+def test_api_surface_is_empty_when_nothing_is_exposed(client, app, admin_user, auth_headers):
+    scan_id = _run_payload_scan(app, admin_user.id)
+    body = client.get(f"/themis/scan/{scan_id}/api-surface", headers=auth_headers(admin_user)).get_json()
+    assert body["totalFindings"] == 0 and body["services"] == []
+
+
+def test_api_surface_requires_authentication(client):
+    assert client.get("/themis/scan/1/api-surface").status_code == 401
+
+
+def test_api_surface_of_another_users_scan_is_not_found(
+        client, app, admin_user, regular_user, auth_headers):
+    scan_id = _run_payload_scan(app, admin_user.id)
+    resp = client.get(f"/themis/scan/{scan_id}/api-surface", headers=auth_headers(regular_user))
     assert resp.status_code == 404
 
 

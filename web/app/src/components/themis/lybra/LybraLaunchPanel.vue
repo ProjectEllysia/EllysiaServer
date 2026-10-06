@@ -1,5 +1,6 @@
 <template>
-  <div class="engine-card">
+  <div class="engine-card" data-scope="hosts">
+    <ScopeMotif scope="hosts" :active="launched || launching" />
     <!-- Cabecera con identidad de motor -->
     <div class="engine-head">
       <div class="engine-mark" aria-hidden="true">
@@ -8,6 +9,7 @@
         </svg>
       </div>
       <div class="engine-title-wrap">
+        <span class="engine-eyebrow">{{ t('lybra.scopeEyebrow.hosts') }}</span>
         <span class="engine-title">{{ t('lybra.launch.title') }}</span>
         <span class="engine-sub">{{ t('lybra.launch.subtitle') }}</span>
       </div>
@@ -65,6 +67,10 @@
           <div v-if="authTargetsLoading" class="auth-loading">{{ t('common.loading') }}</div>
           <TransitionGroup v-else-if="authorizedTargets.length" tag="ul" name="chip-item" class="auth-chip-list">
             <li v-for="entry in authorizedTargets" :key="entry.id" class="auth-chip">
+              <!-- La forma va delante porque cambia lo que autoriza la entrada:
+                   un dominio cubre sus subdominios y un rango, muchas máquinas. -->
+              <span v-if="shapeOf(entry.target)" class="auth-chip-shape" :data-shape="shapeOf(entry.target)"
+                :title="t(`lybra.launch.shapeHint.${shapeOf(entry.target)}`)">{{ t(`lybra.launch.shape.${shapeOf(entry.target)}`) }}</span>
               <span class="mono">{{ entry.target }}</span>
               <span v-if="entry.label" class="auth-chip-label">{{ entry.label }}</span>
               <button type="button" class="auth-chip-remove" :title="t('common.delete')" @click="$emit('remove-authorized-target', entry.id)">×</button>
@@ -75,8 +81,13 @@
           <div class="auth-add-row">
             <input v-model="newAuthTarget" :placeholder="t('lybra.launch.newTargetPlaceholder')" @keyup.enter="submitNewAuthTarget" />
             <input v-model="newAuthLabel" :placeholder="t('lybra.launch.labelPlaceholder')" @keyup.enter="submitNewAuthTarget" />
-            <button type="button" class="btn-add-target" :disabled="!newAuthTarget.trim()" @click="submitNewAuthTarget">{{ t('lybra.launch.add') }}</button>
+            <button type="button" class="btn-add-target" :disabled="!newAuthShape" @click="submitNewAuthTarget">{{ t('lybra.launch.add') }}</button>
           </div>
+          <!-- Qué se va a registrar, dicho antes de enviarlo: las tres formas
+               autorizan cosas distintas y el campo es el mismo para todas. -->
+          <p v-if="newAuthTarget.trim()" class="auth-shape-hint" :class="{ unknown: !newAuthShape }" aria-live="polite">
+            {{ newAuthShape ? t(`lybra.launch.shapeHint.${newAuthShape}`) : t('lybra.launch.shapeHint.unknown') }}
+          </p>
         </div>
         </Transition>
       </div>
@@ -99,6 +110,8 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import ScopeMotif from './ScopeMotif.vue'
+import { classifyTarget } from './targetShapes'
 
 const { t } = useI18n()
 
@@ -163,8 +176,21 @@ function isTargetAuthorized(ip) {
 const showAuthRegister = ref(false)
 const newAuthTarget = ref('')
 const newAuthLabel = ref('')
+
+/** Forma de lo que se está escribiendo en el registro, o `null` si no es ninguna. */
+const newAuthShape = computed(() => classifyTarget(newAuthTarget.value))
+
+/**
+ * Forma de una entrada ya registrada, para rotularla.
+ *
+ * @param {string} target - La entrada canónica que devolvió el servidor.
+ * @returns {'network'|'domain'|'cloud'|null} Su forma; `null` solo si el
+ *          servidor guardó algo que el navegador no reconoce.
+ */
+function shapeOf(target) { return classifyTarget(target) }
+
 function submitNewAuthTarget() {
-  if (!newAuthTarget.value.trim()) return
+  if (!newAuthShape.value) return
   emit('add-authorized-target', { target: newAuthTarget.value.trim(), label: newAuthLabel.value.trim() })
   newAuthTarget.value = ''
   newAuthLabel.value = ''
@@ -186,6 +212,7 @@ function handleLaunch() {
   padding: 1.2rem 1.35rem;
   margin-bottom: 1.1rem;
   box-shadow: 0 0 0 1px var(--accent-dim), 0 12px 34px rgba(0,0,0,0.16);
+  position: relative; isolation: isolate; overflow: hidden;
 }
 
 /* ── Cabecera ── */
@@ -193,13 +220,14 @@ function handleLaunch() {
 .engine-mark {
   width: 40px; height: 40px; border-radius: 50%;
   display: grid; place-items: center; flex-shrink: 0;
-  color: var(--accent-bright);
-  background: var(--accent-dim);
-  border: 1px solid var(--accent);
+  color: var(--scope-tint);
+  background: var(--scope-tint-dim);
+  border: 1px solid var(--scope-tint);
 }
 .engine-mark svg { width: 21px; height: 21px; }
 .engine-title-wrap { display: flex; flex-direction: column; gap: 0.05rem; margin-right: auto; }
-.engine-title { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-weight: 600; font-size: var(--fs-xl); color: var(--text); }
+.engine-eyebrow { font-family: var(--font-epic); font-size-adjust: var(--fsa-epic); font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.24em; text-transform: uppercase; color: var(--scope-tint); }
+.engine-title { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-weight: 600; font-size: var(--fs-xl); color: color-mix(in srgb, var(--text) 86%, var(--scope-tint)); }
 .engine-sub { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-style: italic; font-size: var(--fs-md); color: var(--text-muted); }
 .engine-launched { display: inline-flex; align-items: center; gap: 0.45rem; font-size: var(--fs-md); color: var(--success); background: var(--success-dim); padding: 0.2rem 0.6rem; border-radius: 6px; }
 .pulse { position: relative; width: 7px; height: 7px; border-radius: 50%; background: var(--success); }
@@ -315,6 +343,16 @@ function handleLaunch() {
 .chip-item-leave-to { opacity: 0; }
 .chip-item-move { transition: transform 0.2s ease; }
 .auth-chip-label { color: var(--text-muted); font-style: italic; }
+/* La forma de la entrada, en versalitas: se lee como una clasificación del
+   registro, no como otra etiqueta que haya puesto el usuario. */
+.auth-chip-shape {
+  font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--accent-bright); padding: 0.05rem 0.4rem; border-radius: 999px; background: var(--accent-dim);
+}
+.auth-chip-shape[data-shape="domain"] { color: var(--info); background: transparent; box-shadow: inset 0 0 0 1px var(--info); }
+.auth-chip-shape[data-shape="cloud"] { color: var(--warn); background: var(--warn-dim); }
+.auth-shape-hint { margin: 0; font-size: var(--fs-sm); color: var(--accent-bright); line-height: 1.4; }
+.auth-shape-hint.unknown { color: var(--text-muted); }
 .auth-chip-remove {
   width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%;
   background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: var(--fs-xl); line-height: 1;

@@ -133,7 +133,7 @@ def test_run_retention_purges_raw_but_keeps_the_analysis_by_default(app, regular
     with app.app_context():
         report = retention_mod.run_retention()
 
-    assert report == {"purgedRawMessages": 1, "deletedAnalyses": 0}
+    assert report == {"purgedRawMessages": 1, "deletedAnalyses": 0, "deletedCommunicationEdges": 0}
     assert not _has_raw(app, old_id)
     assert _analysis_exists(app, old_id)
 
@@ -165,7 +165,7 @@ def test_run_retention_is_idempotent(app, regular_user):
             second = retention_mod.run_retention()
 
     assert first["deletedAnalyses"] == 1
-    assert second == {"purgedRawMessages": 0, "deletedAnalyses": 0}
+    assert second == {"purgedRawMessages": 0, "deletedAnalyses": 0, "deletedCommunicationEdges": 0}
 
 
 def test_run_retention_does_not_touch_recent_analyses(app, regular_user):
@@ -174,6 +174,6 @@ def test_run_retention_does_not_touch_recent_analyses(app, regular_user):
     with app.app_context():
         report = retention_mod.run_retention()
 
-    assert report == {"purgedRawMessages": 0, "deletedAnalyses": 0}
+    assert report == {"purgedRawMessages": 0, "deletedAnalyses": 0, "deletedCommunicationEdges": 0}
     assert _has_raw(app, recent_id)
     assert _analysis_exists(app, recent_id)

@@ -261,6 +261,42 @@
   --border: rgba(44,79,56,0.10); --border-med: rgba(44,79,56,0.20);
 }
 
+/* Tinte de cada lente de Lybra (equipos, nube, red). Dentro de una lente el
+   acento del módulo se sustituye por el suyo, así que bordes, botones,
+   inscripciones, foco y selección se tiñen solos. Los colores con significado
+   (peligro, aviso, éxito) no se tocan. --scope-tint es la variante viva, para
+   texto y dibujos. */
+[data-scope="hosts"] {
+  --scope-tint: #97bd7e; --scope-tint-dim: rgba(151,189,126,0.14);
+  --accent: #7ca163; --accent-dim: rgba(124,161,99,0.10); --accent-bright: #97bd7e;
+  --border: rgba(124,161,99,0.06); --border-med: rgba(124,161,99,0.14);
+}
+[data-scope="cloud"] {
+  --scope-tint: #5bb5ad; --scope-tint-dim: rgba(91,181,173,0.14);
+  --accent: #4aa198; --accent-dim: rgba(91,181,173,0.11); --accent-bright: #7fd0c8;
+  --border: rgba(91,181,173,0.07); --border-med: rgba(91,181,173,0.16);
+}
+[data-scope="network"] {
+  --scope-tint: #c9ad78; --scope-tint-dim: rgba(201,173,120,0.14);
+  --accent: #b8985e; --accent-dim: rgba(201,173,120,0.11); --accent-bright: #e0c58f;
+  --border: rgba(201,173,120,0.07); --border-med: rgba(201,173,120,0.16);
+}
+[data-theme="dawn"] [data-scope="hosts"] {
+  --scope-tint: #3d6132; --scope-tint-dim: rgba(61,97,50,0.12); --scope-motif-opacity: 0.22;
+  --accent: #4f7a42; --accent-dim: rgba(79,122,66,0.12); --accent-bright: #3d6132;
+  --border: rgba(79,122,66,0.10); --border-med: rgba(79,122,66,0.20);
+}
+[data-theme="dawn"] [data-scope="cloud"] {
+  --scope-tint: #2b7772; --scope-tint-dim: rgba(43,119,114,0.12); --scope-motif-opacity: 0.22;
+  --accent: #2f8a84; --accent-dim: rgba(43,119,114,0.12); --accent-bright: #1f5a56;
+  --border: rgba(43,119,114,0.10); --border-med: rgba(43,119,114,0.20);
+}
+[data-theme="dawn"] [data-scope="network"] {
+  --scope-tint: #8a6b2c; --scope-tint-dim: rgba(138,107,44,0.12); --scope-motif-opacity: 0.22;
+  --accent: #9a7830; --accent-dim: rgba(138,107,44,0.12); --accent-bright: #6d5220;
+  --border: rgba(138,107,44,0.10); --border-med: rgba(138,107,44,0.20);
+}
+
 /* El recorte horizontal vive SOLO aquí. Puesto también en `body`, el valor de
    `html` se propaga al viewport y el de `body` se queda en `body`; un
    `overflow-x` no-`visible` computa `overflow-y: auto`, así que `body` pasaba a

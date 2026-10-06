@@ -32,8 +32,19 @@ def register_connector(name: str):
     return decorator
 
 
-def get_connector(provider: str, redirect_uri: str, folder: Optional[str] = None) -> MailboxConnector:
+def get_connector(provider: str, redirect_uri: str, folder: Optional[str] = None, **options) -> MailboxConnector:
     """Instancia el conector del ``provider`` dado.
+
+    Args:
+        provider: ``gmail``, ``microsoft`` o ``imap``.
+        redirect_uri: URL de vuelta del flujo OAuth.
+        folder: Carpeta que vigila; ``None`` para la bandeja de entrada.
+        **options: Lo que ese conector necesita además: ``mailbox_address``
+            (buzón que se lee con una cuenta de servicio) o ``credentials``
+            (``ImapCredentials``).
+
+    Returns:
+        MailboxConnector: El conector.
 
     Raises:
         ValueError: Si ``provider`` no es uno de los soportados.
@@ -44,4 +55,4 @@ def get_connector(provider: str, redirect_uri: str, folder: Optional[str] = None
             f"Proveedor de buzón desconocido: '{provider}'. "
             f"Soportados: {', '.join(sorted(MAILBOX_CONNECTORS))}."
         )
-    return connector_cls(redirect_uri, folder=folder)
+    return connector_cls(redirect_uri, folder=folder, **options)

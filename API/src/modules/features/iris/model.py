@@ -151,6 +151,26 @@ class IrisAnalysis(Base):
         indicators: Índice de IOCs del contexto ganador (``IrisIndicator``).
                  Se rellena al terminar el análisis y sobrevive a la purga
                  del raw por retención.
+        subject_fingerprint: Huella del asunto normalizado del contexto
+                 ganador (ver ``services/campaigns.fingerprint_subject``):
+                 dos mensajes con el mismo asunto salvo números, prefijos
+                 ``Re:``/``Fwd:`` y mayúsculas comparten huella. NULL sin
+                 asunto o en análisis anteriores a las campañas.
+        template_fingerprint: Huella del esqueleto del cuerpo (etiquetas
+                 HTML, o el texto sin números ni enlaces): la plantilla
+                 visual de una campaña. NULL en envíos de solo cabeceras o
+                 con un cuerpo demasiado corto para decir nada.
+        impersonated_brands: Marcas que las reglas vieron suplantadas en el
+                 contexto ganador, en minúsculas y sin duplicados. NULL si
+                 ninguna.
+        campaign_link: Pertenencia del análisis a una campaña
+                 (``IrisCampaignMember``); ``None`` si no está en ninguna.
+        contact_deviation: Desviación respecto a los contactos habituales del
+                 usuario que se vio al terminar el análisis (ver
+                 ``services/graph.detect_deviation``): ``kind``,
+                 ``senderAddress``, ``displayName``, ``habitualAddress`` y
+                 ``habitualMessages``. NULL si el remitente no imitaba a
+                 ningún contacto habitual.
         connection_id: FK to the IrisMailboxConnection that ingested this
                  message automatically; NULL for manual submissions (the
                  original, still-default flow).
@@ -161,6 +181,13 @@ class IrisAnalysis(Base):
                  the DB level rather than a duplicate analysis. Two manual
                  submissions (connection_id NULL) never collide: standard
                  SQL UNIQUE treats NULL as distinct from every other NULL.
+        report_channel: Desde dónde lo reportó el usuario con un token de
+                 integración (valor de ``ReportChannel``: el complemento de
+                 Outlook, el de Gmail, la extensión del navegador o un script
+                 propio); NULL si no llegó por el canal de reporte.
+        integration_token_id: Token de integración con que se reportó; NULL
+                 si no llegó por ahí o si el token ya se borró
+                 (``ondelete="SET NULL"``: el análisis sigue siendo del usuario).
     """
     __tablename__ = "IrisAnalysis"
 
@@ -190,6 +217,10 @@ class IrisAnalysis(Base):
     ai_summary_job_id = Column(String(64), nullable=True)
     ai_summary_model = Column(String(64), nullable=True)
     ai_summary_prompt_version = Column(String(32), nullable=True)
+    subject_fingerprint = Column(String(64), nullable=True)
+    template_fingerprint = Column(String(64), nullable=True)
+    impersonated_brands = Column(JSONB, nullable=True)
+    contact_deviation = Column(JSONB, nullable=True)
     started_at = Column(DateTime, nullable=False, default=utcnow_naive)
     finished_at = Column(DateTime, nullable=True)
     cancel_requested_at = Column(DateTime, nullable=True)
@@ -198,6 +229,9 @@ class IrisAnalysis(Base):
     user_id = Column(Integer, ForeignKey("User.id"), nullable=False)
     connection_id = Column(Integer, ForeignKey("IrisMailboxConnection.id", ondelete="SET NULL"), nullable=True)
     source_message_uid = Column(String(255), nullable=True)
+    report_channel = Column(String(32), nullable=True)
+    integration_token_id = Column(Integer, ForeignKey("IrisIntegrationToken.id", ondelete="SET NULL"),
+                                  nullable=True)
 
     user = relationship("User", back_populates="analyses")
     connection = relationship("IrisMailboxConnection", back_populates="analyses")
@@ -234,6 +268,11 @@ class IrisAnalysis(Base):
         "IrisCaseAnalysis", back_populates="analysis",
         cascade="all, delete",
     )
+    # Igual que ``case_links``: el vínculo cuelga también de la campaña.
+    campaign_link = relationship(
+        "IrisCampaignMember", back_populates="analysis", uselist=False,
+        cascade="all, delete",
+    )
 
     __table_args__ = (
         UniqueConstraint("connection_id", "source_message_uid",
@@ -244,6 +283,8 @@ class IrisAnalysis(Base):
         Index("ix_iris_analysis_verdict", "verdict"),
         Index("ix_iris_analysis_connection_id", "connection_id"),
         Index("ix_iris_analysis_user_fingerprint", "user_id", "content_sha256"),
+        Index("ix_iris_analysis_user_subject_fingerprint", "user_id", "subject_fingerprint"),
+        Index("ix_iris_analysis_user_template_fingerprint", "user_id", "template_fingerprint"),
     )
 
     @property
@@ -331,7 +372,8 @@ class IrisMailboxConnection(Base):
         account_email: The connected mailbox's address (plaintext — not a
                  secret, needed to show "which account is this").
         scopes: Space-separated OAuth scopes actually granted.
-        refresh_token: Refresh token de OAuth. La columna es
+        refresh_token: Refresh token de OAuth; NULL si ``auth_mode`` no es
+                 ``oauth``. La columna es
                  ``EncryptedText`` (``purpose="iris_mailbox"``), así que en
                  Python es siempre el token en claro y lo cifrado es la fila.
                  Nunca lo devuelve ningún endpoint.
@@ -415,6 +457,36 @@ class IrisMailboxConnection(Base):
                  ``last_success_at``), así que un problema que se resuelve y
                  vuelve a aparecer más tarde genera un aviso nuevo en vez de
                  quedar silenciado para siempre por el primero.
+        remediation_enabled: Si el usuario pidió, al conectar, que Iris pueda
+                 actuar sobre este buzón (cuarentena, spam, papelera). Solo
+                 entonces se piden al proveedor permisos de escritura
+                 (``gmail.modify``, ``Mail.ReadWrite``); sin ellos, la conexión
+                 se queda en solo lectura. Que el proveedor los concediera de
+                 verdad se comprueba en ``scopes``, no aquí.
+        kind: ``MailboxKind``: ``personal`` (el buzón de quien lo conecta) o
+                 ``shared`` (un buzón de la organización, como
+                 ``soporte@empresa.com``). En uno compartido ``user_id`` es
+                 quien lo conectó y responde de él, y quién más ve sus
+                 análisis lo decide ``IrisMailboxMember``.
+        organization_id: Organización dueña de un buzón compartido; NULL en
+                 uno personal. ``ondelete="CASCADE"``: sin organización no hay
+                 a quién pertenezca.
+        auth_mode: ``MailboxAuthMode``: ``oauth`` (el usuario inicia sesión
+                 en Google o Microsoft), ``service_account`` (la instalación
+                 accede con su propia cuenta de servicio, sin sesión de nadie:
+                 delegación de dominio en Google, permisos de aplicación en
+                 Microsoft) o ``imap`` (usuario y contraseña de aplicación).
+                 Con ``service_account`` e ``imap`` no hay ``refresh_token``.
+        imap_host / imap_port / imap_username: Servidor IMAP (siempre con
+                 TLS) y usuario; NULL si no es IMAP.
+        imap_password: Contraseña de aplicación IMAP, ``EncryptedText``
+                 (``purpose="iris_mailbox"``) y ``deferred``: solo la mira el
+                 sync. Nunca la devuelve ningún endpoint; se cambia con la
+                 rotación de credenciales.
+        additional_folders: Carpetas que se vigilan además de ``folder``,
+                 como lista de ``{"id", "displayName", "type"}`` ya validadas
+                 contra la cuenta. Cada carpeta lleva su propio cursor dentro
+                 de ``sync_cursor`` (ver ``services/mailbox/folders.py``).
         created_at: When the connection was established.
         user: SQLAlchemy relationship to User.
         analyses: Analyses ingested through this connection.
@@ -430,7 +502,7 @@ class IrisMailboxConnection(Base):
     scopes = Column(String(512), nullable=False)
 
     refresh_token = deferred(
-        Column(EncryptedText(purpose="iris_mailbox"), nullable=False), group="oauth_tokens")
+        Column(EncryptedText(purpose="iris_mailbox"), nullable=True), group="oauth_tokens")
     access_token = deferred(
         Column(EncryptedText(purpose="iris_mailbox"), nullable=True), group="oauth_tokens")
     access_token_expires_at = Column(DateTime, nullable=True)
@@ -452,9 +524,19 @@ class IrisMailboxConnection(Base):
     last_sync_duration_ms = Column(Integer, nullable=True)
     messages_discovered_total = Column(Integer, nullable=False, default=0)
     stuck_alert_sent_at = Column(DateTime, nullable=True)
+    remediation_enabled = Column(Boolean, nullable=False, default=False)
+    kind = Column(String(16), nullable=False, default="personal")
+    organization_id = Column(Integer, ForeignKey("Organization.id", ondelete="CASCADE"), nullable=True)
+    auth_mode = Column(String(20), nullable=False, default="oauth")
+    imap_host = Column(String(255), nullable=True)
+    imap_port = Column(Integer, nullable=True)
+    imap_username = Column(String(320), nullable=True)
+    imap_password = deferred(Column(EncryptedText(purpose="iris_mailbox"), nullable=True), group="imap_credentials")
+    additional_folders = Column(JSONB, nullable=False, default=list)
     created_at = Column(DateTime, nullable=False, default=utcnow_naive)
 
     user = relationship("User")
+    members = relationship("IrisMailboxMember", back_populates="connection", cascade="all, delete-orphan")
     analyses = relationship("IrisAnalysis", back_populates="connection")
     inbox_entries = relationship(
         "IrisMailboxInbox", back_populates="connection",
@@ -464,6 +546,77 @@ class IrisMailboxConnection(Base):
     __table_args__ = (
         UniqueConstraint("user_id", "provider", "account_email",
                           name="uq_iris_mailbox_connection_user_provider_email"),
+    )
+
+
+class MailboxKind(StrEnum):
+    """De quién es un buzón conectado (``IrisMailboxConnection.kind``).
+
+    Attributes:
+        PERSONAL: El de quien lo conecta; solo lo ve esa persona.
+        SHARED: De la organización; lo ven los miembros con acceso explícito.
+    """
+    PERSONAL = "personal"
+    SHARED = "shared"
+
+
+class MailboxAuthMode(StrEnum):
+    """Cómo accede Iris a un buzón (``IrisMailboxConnection.auth_mode``).
+
+    Attributes:
+        OAUTH: El usuario inicia sesión en el proveedor y autoriza a Iris.
+        SERVICE_ACCOUNT: La instalación usa su propia cuenta de servicio
+            (delegación de dominio en Google Workspace, permisos de
+            aplicación en Microsoft 365), sin sesión de ninguna persona.
+        IMAP: Usuario y contraseña de aplicación contra un servidor IMAP con TLS.
+    """
+    OAUTH = "oauth"
+    SERVICE_ACCOUNT = "service_account"
+    IMAP = "imap"
+
+
+class SharedMailboxAccess(StrEnum):
+    """Qué puede hacer un miembro con un buzón compartido (``IrisMailboxMember.access``).
+
+    Attributes:
+        VIEWER: Ver los análisis de los correos del buzón.
+        MANAGER: Además, decidir quién más tiene acceso, cambiar carpetas y
+            credenciales, y desconectarlo.
+    """
+    VIEWER = "viewer"
+    MANAGER = "manager"
+
+
+class IrisMailboxMember(Base):
+    """Acceso explícito de una persona a un buzón compartido.
+
+    Es la política de quién ve qué: los análisis de un buzón compartido solo
+    los ve quien tiene una fila aquí **y** sigue perteneciendo a la
+    organización dueña del buzón. Salir de la organización quita el acceso
+    en el acto, sin tocar esta tabla.
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        connection_id: FK al buzón compartido; ``ondelete="CASCADE"``.
+        user_id: FK a la persona; ``ondelete="CASCADE"``.
+        access: ``SharedMailboxAccess`` (``viewer`` o ``manager``).
+        granted_by_user_id: Quién le dio el acceso; ``ondelete="SET NULL"``.
+        granted_at: Cuándo.
+    """
+    __tablename__ = "IrisMailboxMember"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    connection_id = Column(Integer, ForeignKey("IrisMailboxConnection.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("User.id", ondelete="CASCADE"), nullable=False)
+    access = Column(String(16), nullable=False, default=SharedMailboxAccess.VIEWER.value)
+    granted_by_user_id = Column(Integer, ForeignKey("User.id", ondelete="SET NULL"), nullable=True)
+    granted_at = Column(DateTime, nullable=False, default=utcnow_naive)
+
+    connection = relationship("IrisMailboxConnection", back_populates="members")
+
+    __table_args__ = (
+        UniqueConstraint("connection_id", "user_id", name="uq_iris_mailbox_member_connection_user"),
+        Index("ix_iris_mailbox_member_user_id", "user_id"),
     )
 
 
@@ -1010,6 +1163,409 @@ class IrisIndicator(Base):
     )
 
 
+class CampaignSignal(StrEnum):
+    """Señal por la que dos análisis se parecen lo bastante para ser una campaña.
+
+    Es el valor que se guarda en ``IrisCampaignMember.matched_signals``.
+
+    - ``URL``: comparten una URL del cuerpo.
+    - ``HASH``: comparten un adjunto (mismo SHA-256).
+    - ``TEMPLATE``: el cuerpo tiene el mismo esqueleto.
+    - ``SUBJECT``: el asunto normalizado es el mismo.
+    - ``SENDER``: comparten una dirección de remitente, de respuesta o de
+      retorno.
+    - ``DOMAIN``: comparten un dominio que no es de correo gratuito.
+    - ``BRAND``: suplantan la misma marca.
+    """
+
+    URL = "url"
+    HASH = "hash"
+    TEMPLATE = "template"
+    SUBJECT = "subject"
+    SENDER = "sender"
+    DOMAIN = "domain"
+    BRAND = "brand"
+
+
+class IrisCampaign(Base):
+    """Campaña: mensajes de un mismo usuario que comparten origen.
+
+    Agrupa análisis que se parecen por señales deterministas —URL, hash de
+    adjunto, plantilla, asunto, remitente, dominios, marca suplantada— dentro
+    de una ventana de tiempo (ver ``services/campaigns.py``), para investigar
+    la campaña una vez en lugar de mensaje a mensaje. Los análisis no cambian:
+    la campaña es una capa encima, igual que un caso.
+
+    Es de un usuario, como sus análisis. Las cifras que se enseñan (mensajes,
+    primer y último avistamiento, veredictos) se calculan al leer a partir de
+    los miembros, así que borrar un análisis no deja ninguna desactualizada.
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        user_id: FK al ``User`` dueño; ``ondelete="CASCADE"``.
+        label: Asunto del mensaje cuya llegada la abrió (el primero que se
+                 pareció a otro), recortado a 120 caracteres;
+                 NULL si no tenía.
+        created_at: Cuándo se abrió.
+        updated_at: Cuándo entró su último miembro.
+        members: Análisis que la forman (``IrisCampaignMember``), en el orden
+                 en que entraron.
+    """
+    __tablename__ = "IrisCampaign"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("User.id", ondelete="CASCADE"), nullable=False)
+    label = Column(String(120), nullable=True)
+    created_at = Column(DateTime, nullable=False, default=utcnow_naive)
+    updated_at = Column(DateTime, nullable=False, default=utcnow_naive)
+
+    members = relationship(
+        "IrisCampaignMember", back_populates="campaign",
+        order_by="IrisCampaignMember.id",
+        cascade="all, delete-orphan",
+    )
+
+    __table_args__ = (
+        Index("ix_iris_campaign_user_id", "user_id"),
+    )
+
+
+class IrisCampaignMember(Base):
+    """Pertenencia de un análisis a una campaña, con el motivo.
+
+    Un análisis está como mucho en una campaña (``analysis_id`` es único).
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        campaign_id: FK al ``IrisCampaign``; ``ondelete="CASCADE"``.
+        analysis_id: FK al ``IrisAnalysis``; ``ondelete="CASCADE"``. Único.
+        similarity: Puntuación de parecido con el miembro con el que se
+                 emparejó (ver ``services/campaigns.score_similarity``).
+        matched_signals: Tipos de señal que coincidieron (``url``, ``hash``,
+                 ``template``, ``subject``, ``sender``, ``domain``,
+                 ``brand``), ordenados.
+        added_at: Cuándo entró.
+        campaign / analysis: Relaciones inversas.
+    """
+    __tablename__ = "IrisCampaignMember"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    campaign_id = Column(Integer, ForeignKey("IrisCampaign.id", ondelete="CASCADE"), nullable=False)
+    analysis_id = Column(Integer, ForeignKey("IrisAnalysis.id", ondelete="CASCADE"), nullable=False)
+    similarity = Column(Float, nullable=False, default=0.0)
+    matched_signals = Column(JSONB, nullable=False, default=list)
+    added_at = Column(DateTime, nullable=False, default=utcnow_naive)
+
+    campaign = relationship("IrisCampaign", back_populates="members")
+    analysis = relationship("IrisAnalysis", back_populates="campaign_link")
+
+    __table_args__ = (
+        UniqueConstraint("analysis_id", name="uq_iris_campaign_member_analysis"),
+        Index("ix_iris_campaign_member_campaign_id", "campaign_id"),
+    )
+
+
+class CommunicationKind(StrEnum):
+    """Relación que une a un remitente con una dirección en un mensaje.
+
+    - ``TO`` / ``CC``: la dirección era destinataria directa o en copia.
+    - ``REPLY_TO``: el remitente pedía las respuestas en esa dirección.
+    """
+
+    TO = "to"
+    CC = "cc"
+    REPLY_TO = "reply_to"
+
+
+class IrisCommunicationEdge(Base):
+    """Arista del grafo de comunicación de un usuario: quién escribe a quién.
+
+    Es metadato puro —direcciones, nombre visible, recuentos y fechas—, nunca
+    contenido. Sirve para saber si un remitente es alguien con quien se habla
+    habitualmente, y así detectar a quien imita su nombre desde otra
+    dirección. Tiene retención corta (``features.iris.graph.retentionDays``) y
+    es de un solo usuario.
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        user_id: FK al ``User`` dueño; ``ondelete="CASCADE"``.
+        sender_address: Dirección del ``From``, en minúsculas.
+        sender_domain: Su dominio.
+        sender_display_name: Último nombre visible con el que escribió; NULL
+                 si no traía.
+        recipient_address: Dirección del otro extremo, en minúsculas.
+        kind: ``CommunicationKind``.
+        message_count: Mensajes que la han usado.
+        legitimate_count: De ellos, los que Iris consideró legítimos. Solo
+                 estos hacen «habitual» a un contacto: si contaran todos, un
+                 atacante insistente se volvería contacto habitual.
+        first_seen_at / last_seen_at: Primer y último mensaje; la retención
+                 borra la arista cuando ``last_seen_at`` vence.
+    """
+    __tablename__ = "IrisCommunicationEdge"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("User.id", ondelete="CASCADE"), nullable=False)
+    sender_address = Column(String(320), nullable=False)
+    sender_domain = Column(String(253), nullable=False)
+    sender_display_name = Column(String(200), nullable=True)
+    recipient_address = Column(String(320), nullable=False)
+    kind = Column(String(16), nullable=False)
+    message_count = Column(Integer, nullable=False, default=0)
+    legitimate_count = Column(Integer, nullable=False, default=0)
+    first_seen_at = Column(DateTime, nullable=False, default=utcnow_naive)
+    last_seen_at = Column(DateTime, nullable=False, default=utcnow_naive)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "sender_address", "recipient_address", "kind",
+                         name="uq_iris_communication_edge"),
+        Index("ix_iris_communication_edge_user_sender", "user_id", "sender_address"),
+        Index("ix_iris_communication_edge_last_seen_at", "last_seen_at"),
+    )
+
+
+class EnrichmentStatus(StrEnum):
+    """Resultado de una consulta de enriquecimiento a un servicio externo.
+
+    - ``OK``: el servicio respondió y hay datos.
+    - ``UNAVAILABLE``: el servicio no respondió, respondió mal o no tenía el
+      dato. Es el modo neutro: no dice nada a favor ni en contra.
+    - ``RATE_LIMITED``: se agotó el cupo por minuto del proveedor; se puede
+      repetir en un rato. No se guarda en caché.
+    - ``DISABLED``: el enriquecimiento está apagado en la configuración. No se
+      guarda en caché.
+    """
+
+    OK = "ok"
+    UNAVAILABLE = "unavailable"
+    RATE_LIMITED = "rate_limited"
+    DISABLED = "disabled"
+
+
+class IrisDomainCache(Base):
+    """Contexto de infraestructura de un dominio, consultado por RDAP.
+
+    Es información pública de registro —fechas, registrador, servidores de
+    nombres— y de la red donde se aloja, así que se cachea para toda la
+    instalación y no por usuario: la fila no dice quién preguntó.
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        domain: Dominio registrable consultado, en minúsculas. Único.
+        status: ``EnrichmentStatus`` (``ok`` o ``unavailable``).
+        registered_at: Fecha de alta en el registro, o NULL.
+        registry_expires_at: Fecha de caducidad del registro, o NULL.
+        registrar: Nombre del registrador, o NULL.
+        registry_status: Estados EPP del dominio (``client transfer
+                 prohibited``…), o NULL.
+        nameservers: Servidores de nombres, o NULL.
+        address: Primera IP pública a la que resuelve, o NULL.
+        network_name: Nombre de la red que la contiene según RDAP, o NULL.
+        country: País de esa red (código de dos letras), o NULL.
+        asn: Sistema autónomo de origen, si el registro RDAP lo trae, o NULL.
+        error: Por qué no hubo datos cuando ``status`` es ``unavailable``.
+        fetched_at: Cuándo se consultó.
+        expires_at: Cuándo deja de valer la caché.
+    """
+    __tablename__ = "IrisDomainCache"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    domain = Column(String(253), nullable=False, unique=True)
+    status = Column(String(16), nullable=False)
+    registered_at = Column(DateTime, nullable=True)
+    registry_expires_at = Column(DateTime, nullable=True)
+    registrar = Column(String(255), nullable=True)
+    registry_status = Column(JSONB, nullable=True)
+    nameservers = Column(JSONB, nullable=True)
+    address = Column(String(45), nullable=True)
+    network_name = Column(String(255), nullable=True)
+    country = Column(String(8), nullable=True)
+    asn = Column(String(32), nullable=True)
+    error = Column(String(64), nullable=True)
+    fetched_at = Column(DateTime, nullable=False, default=utcnow_naive)
+    expires_at = Column(DateTime, nullable=False)
+
+
+class UrlExpansionStatus(StrEnum):
+    """Estado de la expansión de una URL.
+
+    - ``PENDING``: encolada, esperando a un worker.
+    - ``RUNNING``: un worker la está siguiendo.
+    - ``DONE``: terminada; los saltos dicen hasta dónde llegó (el último puede
+      traer un ``error`` si se cortó, por ejemplo al apuntar a la red interna).
+    - ``UNAVAILABLE``: no se pudo hacer nada (ni el primer salto respondió).
+    """
+
+    PENDING = "pending"
+    RUNNING = "running"
+    DONE = "done"
+    UNAVAILABLE = "unavailable"
+
+
+class IrisUrlExpansion(Base):
+    """A dónde lleva de verdad una URL de un correo: sus redirects, uno a uno.
+
+    Es por usuario, no compartida: una URL de phishing lleva a menudo un
+    identificador del destinatario (``?u=ana@empresa.com``), y su expansión no
+    debe verla nadie más.
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        user_id: FK al ``User`` que la pidió; ``ondelete="CASCADE"``.
+        url_sha256: SHA-256 de la URL; con ``user_id``, único.
+        url: La URL de partida, tal cual.
+        status: ``UrlExpansionStatus``.
+        hops: Cada salto: ``url``, ``status``, ``peerAddress``, ``certificate``
+                 y ``error``. NULL hasta que termina.
+        final_url: Última URL que respondió, o NULL.
+        final_domain: Su nombre de host, o NULL.
+        final_status: Código HTTP de esa última respuesta, o NULL.
+        page_title: ``<title>`` de la página final, si era HTML, o NULL.
+        content_type: Tipo de contenido de la página final, o NULL.
+        is_domain_changed: Si el dominio registrable final no es el de la URL
+                 de partida (un acortador, un *cloaking*). NULL hasta terminar.
+        requested_at: Cuándo se pidió por última vez.
+        fetched_at: Cuándo terminó, o NULL.
+        expires_at: Hasta cuándo vale el resultado, o NULL mientras no hay.
+    """
+    __tablename__ = "IrisUrlExpansion"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("User.id", ondelete="CASCADE"), nullable=False)
+    url_sha256 = Column(String(64), nullable=False)
+    url = Column(Text, nullable=False)
+    status = Column(String(16), nullable=False, default=UrlExpansionStatus.PENDING.value)
+    hops = Column(JSONB, nullable=True)
+    final_url = Column(Text, nullable=True)
+    final_domain = Column(String(253), nullable=True)
+    final_status = Column(Integer, nullable=True)
+    page_title = Column(String(300), nullable=True)
+    content_type = Column(String(120), nullable=True)
+    is_domain_changed = Column(Boolean, nullable=True)
+    requested_at = Column(DateTime, nullable=False, default=utcnow_naive)
+    fetched_at = Column(DateTime, nullable=True)
+    expires_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "url_sha256", name="uq_iris_url_expansion_user_url"),
+    )
+
+
+class ThreatIntelVerdict(StrEnum):
+    """Veredicto común al que cada proveedor de reputación traduce su respuesta.
+
+    - ``KNOWN_MALICIOUS``: el proveedor lo tiene como malicioso.
+    - ``SUSPICIOUS``: alguna señal, sin confirmar (un solo motor, una denuncia
+      sin verificar).
+    - ``UNKNOWN``: el proveedor respondió y no lo tiene marcado. No significa
+      que sea legítimo.
+    - ``UNAVAILABLE``: no respondió o respondió mal. Es el modo neutro.
+    """
+
+    KNOWN_MALICIOUS = "known_malicious"
+    SUSPICIOUS = "suspicious"
+    UNKNOWN = "unknown"
+    UNAVAILABLE = "unavailable"
+
+
+class IrisThreatIntelResult(Base):
+    """Lo que dijo un proveedor de reputación sobre un indicador, en caché.
+
+    Es reputación pública del indicador, no un dato del usuario, así que se
+    comparte en la instalación y la fila no guarda quién preguntó.
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        provider: Proveedor (``virustotal``, ``urlscan``, ``phishtank``,
+                 ``urlhaus``).
+        kind: Tipo de indicador (``domain``, ``url``, ``ip``, ``hash``).
+        value_sha256: SHA-256 del indicador en minúsculas; con ``provider`` y
+                 ``kind``, único.
+        value: El indicador.
+        verdict: ``ThreatIntelVerdict``.
+        detail: Datos del proveedor que justifican el veredicto.
+        error: Por qué no hubo veredicto cuando es ``unavailable``.
+        checked_at: Cuándo se consultó.
+        expires_at: Cuándo deja de valer la caché.
+    """
+    __tablename__ = "IrisThreatIntelResult"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    provider = Column(String(32), nullable=False)
+    kind = Column(String(16), nullable=False)
+    value_sha256 = Column(String(64), nullable=False)
+    value = Column(Text, nullable=False)
+    verdict = Column(String(20), nullable=False)
+    detail = Column(JSONB, nullable=True)
+    error = Column(String(64), nullable=True)
+    checked_at = Column(DateTime, nullable=False, default=utcnow_naive)
+    expires_at = Column(DateTime, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("provider", "kind", "value_sha256", name="uq_iris_threat_intel_result"),
+    )
+
+
+class IrisTenantProfile(Base):
+    """Política de inteligencia compartida de Iris en una organización.
+
+    La activa el dueño de la organización. Aunque esté activa, solo entra en
+    lo compartido lo de los miembros que han dado su consentimiento
+    (``IrisTenantConsent``), y lo compartido son **agregados anonimizados** de
+    indicadores y dominios, nunca un correo ni un análisis (ver
+    ``services/tenant.py``).
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        organization_id: FK a la ``Organization``; ``ondelete="CASCADE"``. Único.
+        is_sharing_enabled: Si la organización comparte inteligencia.
+        changed_by_user_id: Quién cambió la política por última vez; NULL si
+                 ese usuario ya no existe.
+        protected_domains: Dominios propios que la organización quiere vigilar
+                 (los suyos y los de sus proveedores), en minúsculas.
+        protected_brands: Marcas propias, en minúsculas.
+        updated_at: Último cambio.
+    """
+    __tablename__ = "IrisTenantProfile"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    organization_id = Column(Integer, ForeignKey("Organization.id", ondelete="CASCADE"), nullable=False, unique=True)
+    is_sharing_enabled = Column(Boolean, nullable=False, default=False)
+    changed_by_user_id = Column(Integer, ForeignKey("User.id", ondelete="SET NULL"), nullable=True)
+    protected_domains = Column(JSONB, nullable=False, default=list)
+    protected_brands = Column(JSONB, nullable=False, default=list)
+    updated_at = Column(DateTime, nullable=False, default=utcnow_naive)
+
+
+class IrisTenantConsent(Base):
+    """Consentimiento de un miembro para que sus indicadores entren en lo compartido.
+
+    Sin él, lo del miembro no se agrega ni él ve lo agregado: quien no aporta
+    no recibe. Revocarlo lo saca de todos los agregados al momento, porque se
+    calculan al leer.
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        user_id: FK al ``User``; ``ondelete="CASCADE"``. Único.
+        organization_id: Organización en la que lo dio; ``ondelete="CASCADE"``.
+                 Si el usuario cambia de organización, el consentimiento no le
+                 sigue: se comprueba contra su pertenencia actual.
+        consented_at: Cuándo lo dio por última vez.
+        revoked_at: Cuándo lo retiró; NULL si está vigente.
+    """
+    __tablename__ = "IrisTenantConsent"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("User.id", ondelete="CASCADE"), nullable=False, unique=True)
+    organization_id = Column(Integer, ForeignKey("Organization.id", ondelete="CASCADE"), nullable=False)
+    consented_at = Column(DateTime, nullable=False, default=utcnow_naive)
+    revoked_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        Index("ix_iris_tenant_consent_organization_id", "organization_id"),
+    )
+
+
 class CaseStatus(StrEnum):
     """Estado de un caso de analista (``IrisCase.status``).
 
@@ -1240,4 +1796,429 @@ class IrisBatchItem(Base):
 
     __table_args__ = (
         Index("ix_iris_batch_item_batch_id", "batch_id"),
+    )
+
+
+class WebhookEventType(StrEnum):
+    """Eventos de Iris que se pueden enviar a un sistema externo.
+
+    El valor es el nombre del evento tal como viaja en el campo ``type`` del
+    cuerpo y en la cabecera ``X-Ellysia-Event``: es un contrato con quien
+    recibe, así que un valor publicado no se renombra.
+
+    Attributes:
+        ANALYSIS_FINISHED: Un análisis ha terminado con veredicto.
+        CASE_UPDATED: Un caso se ha abierto o ha cambiado (estado, prioridad,
+            asignación, notas, análisis vinculados…).
+        CAMPAIGN_DETECTED: Dos o más análisis parecidos han abierto una campaña.
+        MAILBOX_REAUTH_REQUIRED: Un buzón conectado ha dejado de sincronizarse
+            porque el proveedor ya no acepta su autorización.
+        PING: Evento de prueba que el usuario lanza a mano para comprobar el
+            receptor; no se puede suscribir a él.
+    """
+    ANALYSIS_FINISHED = "analysis.finished"
+    CASE_UPDATED = "case.updated"
+    CAMPAIGN_DETECTED = "campaign.detected"
+    MAILBOX_REAUTH_REQUIRED = "mailbox.reauth_required"
+    PING = "ping"
+
+
+#: Eventos a los que se puede suscribir una suscripción (todos menos ``ping``).
+SUBSCRIBABLE_WEBHOOK_EVENTS = tuple(
+    event_type.value for event_type in WebhookEventType if event_type is not WebhookEventType.PING
+)
+
+
+class WebhookDeliveryStatus(StrEnum):
+    """En qué punto está la entrega de un evento (``IrisWebhookDelivery.status``).
+
+    Attributes:
+        PENDING: Espera su primer intento o su siguiente reintento
+            (``next_attempt_at``).
+        DELIVERING: Un worker la está enviando ahora mismo.
+        DELIVERED: El receptor respondió con un 2xx.
+        FAILED: Agotó los intentos, o su suscripción se desactivó o se borró
+            antes de entregarla. Se puede volver a enviar a mano.
+    """
+    PENDING = "pending"
+    DELIVERING = "delivering"
+    DELIVERED = "delivered"
+    FAILED = "failed"
+
+
+class IrisWebhookSubscription(Base):
+    """Un receptor externo al que un usuario manda eventos de Iris.
+
+    Cada entrega va firmada con ``secret`` (HMAC-SHA256), para que el receptor
+    compruebe que viene de este Ellysia y no de cualquiera que conozca su URL.
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        user_id: FK al ``User`` dueño; ``ondelete="CASCADE"``. Solo recibe
+                 eventos de lo que es suyo.
+        name: Nombre para reconocerla en la lista (hasta 80 caracteres).
+        url: Dirección ``https`` a la que se envía cada evento.
+        secret: Secreto de firma. ``EncryptedText`` (``purpose="iris_webhook"``)
+                 y no un hash, porque hace falta en claro para firmar cada
+                 entrega; se enseña una sola vez, al crearla o rotarlo.
+                 ``deferred``: los listados no lo cargan.
+        event_types: Eventos a los que está suscrita (valores de
+                 ``WebhookEventType`` salvo ``ping``).
+        is_active: Si se le envían eventos. La desactiva el usuario, o sola
+                 tras demasiados fallos seguidos.
+        consecutive_failures: Intentos fallidos seguidos, sumando todas sus
+                 entregas; vuelve a ``0`` con cualquier entrega que llega.
+        disabled_reason: Por qué se desactivó sola: ``failures`` (demasiados
+                 fallos seguidos) o ``gone`` (el receptor respondió 410, «ya no
+                 existo»). NULL si está activa o la desactivó el usuario.
+        disabled_at: Cuándo se desactivó sola; NULL en los demás casos.
+        last_success_at: Última entrega que llegó.
+        last_failure_at: Último intento fallido.
+        last_error: Motivo del último intento fallido (código HTTP o error de
+                 red), recortado.
+        created_at: Cuándo se dio de alta.
+        updated_at: Último cambio de su configuración.
+        deliveries: Historial de entregas.
+    """
+    __tablename__ = "IrisWebhookSubscription"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("User.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(80), nullable=False)
+    url = Column(Text, nullable=False)
+    secret = deferred(Column(EncryptedText(purpose="iris_webhook"), nullable=False))
+    event_types = Column(JSONB, nullable=False, default=list)
+    is_active = Column(Boolean, nullable=False, default=True)
+    consecutive_failures = Column(Integer, nullable=False, default=0)
+    disabled_reason = Column(String(20), nullable=True)
+    disabled_at = Column(DateTime, nullable=True)
+    last_success_at = Column(DateTime, nullable=True)
+    last_failure_at = Column(DateTime, nullable=True)
+    last_error = Column(Text, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=utcnow_naive)
+    updated_at = Column(DateTime, nullable=False, default=utcnow_naive)
+
+    deliveries = relationship(
+        "IrisWebhookDelivery", back_populates="subscription",
+        cascade="all, delete-orphan", passive_deletes=True,
+    )
+
+    __table_args__ = (
+        Index("ix_iris_webhook_subscription_user_id", "user_id"),
+    )
+
+
+class IrisWebhookDelivery(Base):
+    """La entrega de un evento a una suscripción, con sus intentos.
+
+    Un mismo evento llega a cada suscripción una sola vez: ``event_id`` se
+    deriva de lo que pasó (el análisis 42 terminó, la entrada 7 de la timeline
+    del caso 3…), así que volver a emitir el mismo hecho —la outbox entrega al
+    menos una vez, un job puede repetirse— choca con la restricción única y no
+    crea una segunda entrega. El receptor recibe ese mismo ``event_id`` en cada
+    reintento y en cada reenvío manual, para descartar lo que ya procesó.
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        subscription_id: FK a la ``IrisWebhookSubscription``; ``ondelete="CASCADE"``.
+        event_id: Identificador estable del evento (UUID en texto).
+        event_type: Valor de ``WebhookEventType``.
+        payload: Cuerpo que se envía, ya completo (``id``, ``type``,
+                 ``createdAt``, ``data``). Se congela al emitir: un reintento
+                 manda exactamente lo mismo aunque el análisis o el caso hayan
+                 cambiado después.
+        status: ``WebhookDeliveryStatus``.
+        attempts: Intentos hechos.
+        next_attempt_at: Cuándo toca el siguiente intento mientras está
+                 ``pending``.
+        claimed_at: Cuándo la reclamó el worker que la está enviando; sirve
+                 para rescatar una entrega cuyo worker murió a mitad.
+        last_status_code: Código HTTP de la última respuesta; NULL si no llegó
+                 a responder.
+        last_error: Motivo del último fallo (``http_500``, ``timeout``,
+                 ``private_address``…); NULL si no ha fallado.
+        last_response_excerpt: Primeros bytes de la última respuesta, para
+                 diagnosticar un receptor que rechaza los eventos.
+        created_at: Cuándo se emitió el evento.
+        delivered_at: Cuándo llegó; NULL si no ha llegado.
+        subscription: Relación inversa.
+    """
+    __tablename__ = "IrisWebhookDelivery"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    subscription_id = Column(Integer, ForeignKey("IrisWebhookSubscription.id", ondelete="CASCADE"),
+                             nullable=False)
+    event_id = Column(String(36), nullable=False)
+    event_type = Column(String(40), nullable=False)
+    payload = Column(JSONB, nullable=False)
+    status = Column(String(16), nullable=False, default=WebhookDeliveryStatus.PENDING.value)
+    attempts = Column(Integer, nullable=False, default=0)
+    next_attempt_at = Column(DateTime, nullable=False, default=utcnow_naive)
+    claimed_at = Column(DateTime, nullable=True)
+    last_status_code = Column(Integer, nullable=True)
+    last_error = Column(String(120), nullable=True)
+    last_response_excerpt = Column(Text, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=utcnow_naive)
+    delivered_at = Column(DateTime, nullable=True)
+
+    subscription = relationship("IrisWebhookSubscription", back_populates="deliveries")
+
+    __table_args__ = (
+        UniqueConstraint("subscription_id", "event_id", name="uq_iris_webhook_delivery_subscription_event"),
+        Index("ix_iris_webhook_delivery_status_next_attempt", "status", "next_attempt_at"),
+    )
+
+
+class ReportChannel(StrEnum):
+    """Desde dónde reporta un usuario un correo con un token de integración.
+
+    Lo declara el cliente en la cabecera ``X-Ellysia-Report-Channel``; un valor
+    que no se conoce cuenta como ``api``. Solo sirve para enseñar de dónde vino
+    el reporte y para medir qué canal se usa: no cambia cómo se analiza.
+
+    Attributes:
+        OUTLOOK_ADDIN: Complemento de Outlook (botón «Reportar phishing»).
+        GMAIL_ADDON: Complemento de Gmail.
+        BROWSER_EXTENSION: Extensión del navegador.
+        API: Cualquier otro cliente: un script, una regla de reenvío propia…
+    """
+    OUTLOOK_ADDIN = "outlook_addin"
+    GMAIL_ADDON = "gmail_addon"
+    BROWSER_EXTENSION = "browser_extension"
+    API = "api"
+
+
+class IrisIntegrationToken(Base):
+    """Credencial con la que un cliente de correo reporta mensajes en nombre de un usuario.
+
+    Es distinta de la sesión del usuario a propósito: un complemento de
+    Outlook o una extensión del navegador viven mucho tiempo instalados y no
+    deben guardar la contraseña ni un token de sesión, que abre toda la cuenta.
+    Este token solo sirve para **reportar** un correo y consultar cómo acabó el
+    análisis de lo que se reportó; se puede revocar sin tocar nada más.
+
+    Tiene dos partes, ``irt_<key_id>.<secreto>`` (como una clave de agente de
+    Hygeia): ``key_id`` es público y localiza la fila por índice; del secreto,
+    32 bytes aleatorios, solo se guarda su SHA-256. Un hash rápido basta
+    porque el secreto no es una contraseña elegida por una persona: con esa
+    entropía no hay diccionario que probar.
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        user_id: FK al ``User`` dueño; ``ondelete="CASCADE"``. Los análisis que
+                 crea son suyos.
+        name: Para qué es («Outlook del portátil»), hasta 80 caracteres.
+        key_id: Parte pública del token (16 caracteres hexadecimales), única.
+        secret_sha256: SHA-256 hexadecimal del secreto.
+        created_at: Cuándo se creó.
+        expires_at: Cuándo deja de valer; NULL si no caduca.
+        last_used_at: Último reporte hecho con él; NULL si nunca se usó.
+        revoked_at: Cuándo se revocó; NULL si sigue vigente.
+    """
+    __tablename__ = "IrisIntegrationToken"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("User.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(80), nullable=False)
+    key_id = Column(String(16), nullable=False, unique=True)
+    secret_sha256 = Column(String(64), nullable=False)
+    created_at = Column(DateTime, nullable=False, default=utcnow_naive)
+    expires_at = Column(DateTime, nullable=True)
+    last_used_at = Column(DateTime, nullable=True)
+    revoked_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        Index("ix_iris_integration_token_user_id", "user_id"),
+    )
+
+
+class MailboxAction(StrEnum):
+    """Acciones que Iris puede hacer sobre un correo en el buzón conectado del usuario.
+
+    Todas son **reversibles** en el proveedor, a propósito: ninguna borra un
+    correo para siempre. «Eliminar» lo manda a la papelera, de donde se
+    recupera con el deshacer (o a mano, durante el tiempo que la guarde el
+    proveedor).
+
+    Attributes:
+        QUARANTINE: Sacarlo de la bandeja a una carpeta o etiqueta de
+            cuarentena de Iris.
+        LABEL: Marcarlo como sospechoso (etiqueta en Gmail, categoría en
+            Outlook) sin moverlo.
+        REPORT_PHISHING: Mandarlo a correo no deseado (spam), que además
+            enseña al filtro del proveedor.
+        DELETE: Mandarlo a la papelera.
+    """
+    QUARANTINE = "quarantine"
+    LABEL = "label"
+    REPORT_PHISHING = "report_phishing"
+    DELETE = "delete"
+
+
+#: Acciones que sacan el correo de donde el usuario lo ve: exigen confirmación
+#: explícita. Etiquetar no, porque el correo sigue donde estaba.
+DESTRUCTIVE_MAILBOX_ACTIONS = frozenset({
+    MailboxAction.QUARANTINE.value, MailboxAction.REPORT_PHISHING.value, MailboxAction.DELETE.value,
+})
+
+
+class MailboxActionStatus(StrEnum):
+    """En qué punto está una acción sobre el buzón (``IrisActionAudit.status``).
+
+    Attributes:
+        PENDING: Pedida; espera a que un worker la haga.
+        RUNNING: Un worker está hablando con el proveedor.
+        SUCCEEDED: El proveedor la aplicó.
+        FAILED: No se aplicó (el proveedor la rechazó, faltaba permiso, o el
+            worker se cayó a mitad: ver ``error``).
+        ROLLED_BACK: Se aplicó y después se deshizo (la fila del deshacer
+            apunta a esta con ``rollback_of_id``).
+    """
+    PENDING = "pending"
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+    ROLLED_BACK = "rolled_back"
+
+
+class IrisActionAudit(Base):
+    """Registro de una acción sobre el buzón del usuario: quién, qué, por qué y con qué permiso.
+
+    Es la condición para que Iris pueda tocar el correo de nadie: **toda**
+    acción —y todo deshacer— deja una fila con actor, motivo, permiso usado y
+    hora, y las cuatro columnas son obligatorias en la base de datos. La fila
+    se crea antes de hablar con el proveedor (``pending``), así que una acción
+    que no llegó a hacerse también queda registrada.
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        actor_id: Usuario que la pidió; ``ondelete="SET NULL"`` para que la
+                 auditoría sobreviva a su baja (con ``actor_username``).
+        actor_username: Nombre del actor en el momento de actuar.
+        connection_id: Conexión de buzón; NULL si se borró después.
+        analysis_id: Análisis del correo sobre el que se actuó; NULL si se
+                 borró después.
+        provider: ``gmail`` o ``microsoft``.
+        provider_message_id: Id del mensaje en el proveedor antes de actuar.
+        provider_message_id_after: Id después de actuar. En Microsoft Graph
+                 mover un mensaje le cambia el id; en Gmail es el mismo.
+        action: Valor de ``MailboxAction``.
+        is_destructive: Si la acción saca el correo de la vista del usuario.
+        is_rollback: Si esta fila deshace otra (``rollback_of_id``).
+        rollback_of_id: Fila que deshace; NULL si no es un deshacer.
+        status: Valor de ``MailboxActionStatus``.
+        reason: Por qué se hizo, escrito por el actor (obligatorio).
+        permission: Atributo ABAC que la autorizó (``iris_mailbox_action``).
+        was_recommended: Si coincidía con lo que Iris recomendaba para el
+                 veredicto del análisis.
+        idempotency_key: Clave que manda el cliente para que un reintento de
+                 la misma petición no haga la acción dos veces; NULL si no la
+                 manda.
+        previous_state: Dónde estaba el correo antes (etiquetas de Gmail,
+                 carpeta de Graph), para poder deshacer.
+        error: Motivo del fallo; NULL si no falló.
+        created_at: Cuándo se pidió.
+        started_at: Cuándo empezó el worker.
+        completed_at: Cuándo terminó, bien o mal.
+    """
+    __tablename__ = "IrisActionAudit"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    actor_id = Column(Integer, ForeignKey("User.id", ondelete="SET NULL"), nullable=True)
+    actor_username = Column(String(150), nullable=False)
+    connection_id = Column(Integer, ForeignKey("IrisMailboxConnection.id", ondelete="SET NULL"), nullable=True)
+    analysis_id = Column(Integer, ForeignKey("IrisAnalysis.id", ondelete="SET NULL"), nullable=True)
+    provider = Column(String(20), nullable=False)
+    provider_message_id = Column(String(255), nullable=False)
+    provider_message_id_after = Column(String(255), nullable=True)
+    action = Column(String(24), nullable=False)
+    is_destructive = Column(Boolean, nullable=False, default=False)
+    is_rollback = Column(Boolean, nullable=False, default=False)
+    rollback_of_id = Column(Integer, ForeignKey("IrisActionAudit.id", ondelete="SET NULL"), nullable=True)
+    status = Column(String(16), nullable=False, default=MailboxActionStatus.PENDING.value)
+    reason = Column(Text, nullable=False)
+    permission = Column(String(40), nullable=False)
+    was_recommended = Column(Boolean, nullable=False, default=False)
+    idempotency_key = Column(String(80), nullable=True)
+    previous_state = Column(JSONB, nullable=True)
+    error = Column(Text, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=utcnow_naive)
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("actor_id", "idempotency_key", name="uq_iris_action_audit_actor_idempotency"),
+        Index("ix_iris_action_audit_analysis_id", "analysis_id"),
+        Index("ix_iris_action_audit_actor_id", "actor_id"),
+    )
+
+
+class MailboxSubscriptionStatus(StrEnum):
+    """Estado de la suscripción a eventos de una conexión (``IrisMailboxSubscription.status``).
+
+    Attributes:
+        PENDING: Pedida; aún no se ha creado en el proveedor.
+        ACTIVE: El proveedor avisa de correo nuevo; el sondeo se espacia.
+        FAILED: No se pudo crear o renovar; la conexión sigue por sondeo normal
+            y se reintenta más tarde.
+    """
+    PENDING = "pending"
+    ACTIVE = "active"
+    FAILED = "failed"
+
+
+class IrisMailboxSubscription(Base):
+    """Suscripción de una conexión de buzón a los avisos de correo nuevo del proveedor.
+
+    El aviso **solo despierta** el sync de la conexión: lo que se analiza sale
+    siempre del sync, nunca del contenido del aviso, que viene de fuera. Si
+    la suscripción falla o caduca, el sondeo periódico sigue funcionando.
+
+    Attributes:
+        id: Primary key, auto-incrementing integer.
+        connection_id: FK a la ``IrisMailboxConnection``; ``ondelete="CASCADE"``.
+                 Única: una suscripción por conexión.
+        provider: ``gmail`` o ``microsoft``.
+        external_id: Id de la suscripción en el proveedor (Graph); NULL en
+                 Gmail, cuyo «watch» es uno por cuenta y no tiene id.
+        client_state_sha256: SHA-256 del secreto que Graph devuelve en cada
+                 aviso (``clientState``) para probar que es de esta
+                 suscripción. Se guarda su huella, no el secreto: solo hace
+                 falta compararlo. NULL en Gmail, que se autentica con el
+                 secreto de empuje de la instalación.
+        status: ``MailboxSubscriptionStatus``.
+        expires_at: Cuándo caduca en el proveedor; NULL mientras no existe.
+        last_history_id: En Gmail, el ``historyId`` del último aviso que
+                 despertó un sync. Crece siempre, así que un aviso con uno
+                 menor o igual es un reenvío y se descarta.
+        last_event_at: Último aviso que despertó un sync (para agrupar
+                 ráfagas de avisos en un solo sync).
+        events_received: Avisos aceptados desde que existe.
+        last_renewed_at: Última creación o renovación en el proveedor.
+        last_error: Motivo del último fallo al crearla o renovarla.
+        updated_at: Último cambio de estado (para espaciar los reintentos).
+        created_at: Cuándo se pidió.
+    """
+    __tablename__ = "IrisMailboxSubscription"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    connection_id = Column(Integer, ForeignKey("IrisMailboxConnection.id", ondelete="CASCADE"),
+                           nullable=False, unique=True)
+    provider = Column(String(20), nullable=False)
+    external_id = Column(String(255), nullable=True)
+    client_state_sha256 = Column(String(64), nullable=True)
+    status = Column(String(16), nullable=False, default=MailboxSubscriptionStatus.PENDING.value)
+    expires_at = Column(DateTime, nullable=True)
+    last_history_id = Column(String(40), nullable=True)
+    last_event_at = Column(DateTime, nullable=True)
+    events_received = Column(Integer, nullable=False, default=0)
+    last_renewed_at = Column(DateTime, nullable=True)
+    last_error = Column(Text, nullable=True)
+    updated_at = Column(DateTime, nullable=False, default=utcnow_naive)
+    created_at = Column(DateTime, nullable=False, default=utcnow_naive)
+
+    connection = relationship("IrisMailboxConnection")
+
+    __table_args__ = (
+        Index("ix_iris_mailbox_subscription_external_id", "external_id"),
     )

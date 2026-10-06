@@ -37,6 +37,7 @@ from .lybra.evidence import prepare_evidence
 from .lybra.kb import split_distro_version
 
 from .model import (
+    AssetGroup,
     AuthorizedTarget,
     ComplianceFrameworkSelection,
     CpeMatch,
@@ -58,6 +59,8 @@ from .model import (
     NmapScan,
     NucleiScan,
     OpenPort,
+    OsintScan,
+    OsintSourceCache,
     Port,
     ProgramedScan,
     Scan,
@@ -304,6 +307,55 @@ class ScanRepository(BaseRepository[Scan]):
             .filter(ranked.c._rn == 1)
             .all()
         )
+
+    def get_latest_finished_scans_by_host(self, user_id: int) -> List[LybraScan]:
+        """El último escaneo Lybra terminado de cada host del usuario, en una sola query.
+
+        Es lo que hace falta para mirar una red entera a la vez: el estado más
+        reciente de cada host, sea cual sea el escaneo de red que lo trajo. No
+        cuenta los escaneos de inventario de un agente (``asset_id``): esos
+        describen un equipo por sus paquetes, no un host de la red.
+
+        Args:
+            user_id: Dueño de los escaneos.
+
+        Returns:
+            List[LybraScan]: A lo sumo uno por host, el más reciente en estado
+                ``finished``.
+        """
+        row_number = func.row_number().over(
+            partition_by=LybraScan.host_id,
+            order_by=(LybraScan.started_at.desc(), LybraScan.id.desc()),
+        ).label("_rn")
+        ranked = (
+            self._session.query(LybraScan.id.label("id"), row_number)
+            .filter(
+                LybraScan.user_id == user_id,
+                LybraScan.host_id.isnot(None),
+                LybraScan.asset_id.is_(None),
+                LybraScan.status == ScanStatus.FINISHED.value,
+            )
+            .subquery()
+        )
+        return (
+            self._session.query(LybraScan)
+            .join(ranked, LybraScan.id == ranked.c.id)
+            .filter(ranked.c._rn == 1)
+            .all()
+        )
+
+    def get_hosts_by_ids(self, host_ids: List[int]) -> List[Host]:
+        """Los hosts con esos identificadores.
+
+        Args:
+            host_ids: Claves primarias; vacía devuelve lista vacía sin consultar.
+
+        Returns:
+            List[Host]: Los que existen.
+        """
+        if not host_ids:
+            return []
+        return self._session.query(Host).filter(Host.id.in_(host_ids)).all()
 
     def count_findings_by_scan(self, scan_ids: List[int]) -> Dict[int, int]:
         """Número de hallazgos por escaneo, en una sola query agrupada.
@@ -927,6 +979,21 @@ class ThemisReportRepository(DocumentRepository[ThemisDocument]):
 
     _MODEL = ThemisDocument
     _PARENT_FK = "scan_id"
+
+    def get_documents_by_osint_scan(self, osint_scan_id: int) -> List[ThemisDocument]:
+        """Los informes de un escaneo de dominio, del más nuevo al más viejo.
+
+        Las consultas heredadas de ``DocumentRepository`` buscan por
+        ``scan_id``; un informe de escaneo de dominio cuelga de
+        ``osint_scan_id`` y necesita la suya.
+
+        Args:
+            osint_scan_id: Clave primaria del ``OsintScan``.
+
+        Returns:
+            List[ThemisDocument]: Sus informes, vacía si no tiene ninguno.
+        """
+        return self._ordered(ThemisDocument.osint_scan_id == osint_scan_id).all()
 
 
 class ScanFolderRepository(BaseRepository[ScanFolder]):
@@ -1805,6 +1872,211 @@ class AuthorizedTargetRepository(BaseRepository[AuthorizedTarget]):
             .filter(AuthorizedTarget.target == target, AuthorizedTarget.user_id == user_id)
             .one_or_none()
         )
+
+
+class AssetGroupRepository(BaseRepository[AssetGroup]):
+    """Acceso a datos de ``AssetGroup``, los grupos de hosts que se analizan juntos."""
+
+    _MODEL = AssetGroup
+
+    def get_by_user(self, user_id: int) -> List[AssetGroup]:
+        """Los grupos de un usuario, por nombre.
+
+        Args:
+            user_id: Dueño de los grupos.
+
+        Returns:
+            List[AssetGroup]: Ordenados alfabéticamente; vacía si no tiene.
+        """
+        return (
+            self._session.query(AssetGroup)
+            .filter(AssetGroup.user_id == user_id)
+            .order_by(AssetGroup.name.asc())
+            .all()
+        )
+
+    def get_by_id_and_user(self, group_id: int, user_id: int) -> Optional[AssetGroup]:
+        """Un grupo sólo si pertenece al usuario.
+
+        Args:
+            group_id: Clave primaria del grupo.
+            user_id: Usuario que lo pide.
+
+        Returns:
+            Optional[AssetGroup]: El grupo, o ``None`` si no existe o es de otro
+                usuario (las dos cosas se responden igual, para no delatar ids
+                ajenos).
+        """
+        return (
+            self._session.query(AssetGroup)
+            .filter(AssetGroup.id == group_id, AssetGroup.user_id == user_id)
+            .one_or_none()
+        )
+
+    def get_by_name_and_user(self, name: str, user_id: int) -> Optional[AssetGroup]:
+        """El grupo de un usuario con un nombre, si existe.
+
+        Args:
+            name: El nombre exacto.
+            user_id: Dueño.
+
+        Returns:
+            Optional[AssetGroup]: El grupo, o ``None``.
+        """
+        return (
+            self._session.query(AssetGroup)
+            .filter(AssetGroup.name == name, AssetGroup.user_id == user_id)
+            .one_or_none()
+        )
+
+
+class OsintScanRepository(BaseRepository[OsintScan]):
+    """Acceso a datos de ``OsintScan``, los escaneos pasivos de dominios."""
+
+    _MODEL = OsintScan
+
+    def get_by_id_and_user(self, osint_scan_id: int, user_id: int) -> Optional[OsintScan]:
+        """Devuelve un escaneo pasivo sólo si pertenece al usuario.
+
+        Args:
+            osint_scan_id: Clave primaria del escaneo.
+            user_id: Usuario que lo pide.
+
+        Returns:
+            Optional[OsintScan]: El escaneo, o ``None`` si no existe o es de otro
+                usuario (las dos cosas se responden igual, para no delatar ids
+                ajenos).
+        """
+        return (
+            self._session.query(OsintScan)
+            .filter(OsintScan.id == osint_scan_id, OsintScan.user_id == user_id)
+            .one_or_none()
+        )
+
+    def get_recent_by_user(self, user_id: int, limit: int = 50,
+                           mode: Optional[str] = None) -> List[OsintScan]:
+        """Los escaneos de dominio más recientes de un usuario.
+
+        Args:
+            user_id: Usuario dueño.
+            limit: Cuántos devolver como mucho. Por defecto ``50``.
+            mode: Solo los de este modo (``"passive"`` o ``"cloud"``). Por
+                defecto ``None``: todos.
+
+        Returns:
+            List[OsintScan]: Del más nuevo al más viejo; lista vacía si no tiene.
+        """
+        query = self._session.query(OsintScan).filter(OsintScan.user_id == user_id)
+        if mode is not None:
+            query = query.filter(OsintScan.mode == mode)
+        return (
+            query
+            .order_by(OsintScan.started_at.desc(), OsintScan.id.desc())
+            .limit(limit)
+            .all()
+        )
+
+    def get_latest_finished(self, user_id: int, domain: str, mode: str) -> Optional[OsintScan]:
+        """El último escaneo terminado de un dominio en un modo, para reutilizar sus datos.
+
+        Es la puerta por la que un modo posterior toma los subdominios que
+        encontró el modo pasivo.
+
+        Args:
+            user_id: Usuario dueño.
+            domain: Dominio normalizado.
+            mode: Modo del escaneo (valor de ``OsintScanMode``).
+
+        Returns:
+            Optional[OsintScan]: El más reciente en estado ``finished``, o
+                ``None`` si no hay ninguno.
+        """
+        return (
+            self._session.query(OsintScan)
+            .filter(OsintScan.user_id == user_id, OsintScan.domain == domain,
+                    OsintScan.mode == mode, OsintScan.status == ScanStatus.FINISHED.value)
+            .order_by(OsintScan.finished_at.desc(), OsintScan.id.desc())
+            .first()
+        )
+
+    def get_active(self) -> List[OsintScan]:
+        """Los escaneos pasivos que no han terminado (``pending`` o ``running``).
+
+        Returns:
+            List[OsintScan]: Los escaneos en curso de todos los usuarios.
+        """
+        return (
+            self._session.query(OsintScan)
+            .filter(OsintScan.status.in_([ScanStatus.PENDING.value, ScanStatus.RUNNING.value]))
+            .all()
+        )
+
+    def transition_if_state(self, osint_scan_id: int, from_states: List[str], **fields) -> bool:
+        """Cambia columnas de un escaneo sólo si está en uno de los estados dados.
+
+        La condición va dentro del propio ``UPDATE``: si el worker y una
+        reconciliación compiten por la misma fila, sólo uno gana.
+
+        Args:
+            osint_scan_id: Clave primaria del escaneo.
+            from_states: Estados (valores de ``ScanStatus``) desde los que se
+                permite el cambio.
+            **fields: Columnas y valores que se escriben.
+
+        Returns:
+            bool: ``True`` si la fila cambió; ``False`` si no estaba en ninguno
+                de esos estados o no existe.
+        """
+        result = self._session.execute(
+            sa_update(OsintScan)
+            .where(OsintScan.id == osint_scan_id, OsintScan.status.in_(from_states))
+            .values(**fields)
+        )
+        return result.rowcount == 1
+
+
+class OsintSourceCacheRepository(BaseRepository[OsintSourceCache]):
+    """Acceso a la caché de respuestas de las fuentes de inteligencia pasiva."""
+
+    _MODEL = OsintSourceCache
+
+    def get_entry(self, source: str, query: str) -> Optional[OsintSourceCache]:
+        """La respuesta guardada de una fuente a una consulta, esté o no caducada.
+
+        Args:
+            source: Nombre de la fuente.
+            query: Lo consultado (dominio o dirección IP).
+
+        Returns:
+            Optional[OsintSourceCache]: La entrada, o ``None`` si nunca se
+                guardó. Decidir si sigue vigente es cosa de quien llama.
+        """
+        return (
+            self._session.query(OsintSourceCache)
+            .filter(OsintSourceCache.source == source, OsintSourceCache.query == query)
+            .one_or_none()
+        )
+
+    def save_entry(self, source: str, query: str, payload,
+                   fetched_at: datetime) -> OsintSourceCache:
+        """Guarda la respuesta de una fuente, sustituyendo la anterior si la había.
+
+        Args:
+            source: Nombre de la fuente.
+            query: Lo consultado.
+            payload: El JSON de la respuesta, o ``None`` si la fuente no sabía
+                nada de la consulta.
+            fetched_at: Cuándo se descargó, naive en UTC.
+
+        Returns:
+            OsintSourceCache: La entrada ya guardada.
+        """
+        entry = self.get_entry(source, query)
+        if entry is None:
+            entry = OsintSourceCache(source=source, query=query)
+        entry.payload = payload
+        entry.fetched_at = fetched_at
+        return self.save(entry)
 
 
 class ComplianceFrameworkSelectionRepository(BaseRepository[ComplianceFrameworkSelection]):

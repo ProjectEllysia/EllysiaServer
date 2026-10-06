@@ -31,6 +31,9 @@ from .managers import (
     NiktoScanManager,
     NucleiScanManager,
     LybraEngineManager,
+    OsintManager,
+    CloudScanManager,
+    NetworkRiskManager,
     ProgramedScanManager,
     ThemisReportManager,
     ScanFolderManager,
@@ -56,6 +59,7 @@ from .exceptions import (
     ProgramedScanNotFoundError,
     FolderNotFoundError,
     FolderNameInvalidError,
+    AssetGroupNotFoundError,
     AuthorizedTargetNotFoundError,
     DuplicateAuthorizedTargetError,
     TargetNotAuthorizedError,
@@ -67,6 +71,14 @@ from .schemas import (
     NiktoScanRequestSchema,
     NucleiScanRequestSchema,
     LybraScanRequestSchema,
+    OsintScanRequestSchema,
+    CloudScanRequestSchema,
+    AssetGroupRequestSchema,
+    NetworkRiskQuerySchema,
+    OsintScanListQuerySchema,
+    OsintScanStartResponseSchema,
+    OsintScanDetailResponseSchema,
+    OsintScanListResponseSchema,
     FindingStateRequestSchema,
     FindingStateResponseSchema,
     AddAuthorizedTargetSchema,
@@ -135,6 +147,22 @@ def _download_url_for(document) -> str | None:
     return None
 
 
+def _download_name_for(document) -> str:
+    """El nombre con el que se descarga el PDF de un documento de Themis.
+
+    Args:
+        document: El ``ThemisDocument``, de un escaneo normal o de un escaneo de
+            dominio.
+
+    Returns:
+        str: ``<escáner>_scan_<id>.pdf`` para un escaneo normal y
+            ``<modo>_domain_<id>.pdf`` para uno de dominio (``cloud_domain_7.pdf``).
+    """
+    if document.osint_scan_id is not None:
+        return f"{document.scan_type}_domain_{document.osint_scan_id}.pdf"
+    return f"{document.scan_type}_scan_{document.scan_id}.pdf"
+
+
 def _serialize_document(document) -> dict:
     """Serializa un ThemisDocument al formato de los endpoints de listado.
 
@@ -144,6 +172,7 @@ def _serialize_document(document) -> dict:
     return {
         "documentId": document.id,
         "scanId": document.scan_id,
+        "osintScanId": document.osint_scan_id,
         "scanType": document.scan_type,
         "status": document.status,
         "isAiGenerated": document.is_ai_generated == 1 if document.is_ai_generated is not None else False,
@@ -417,6 +446,7 @@ def start_lybra_scan(data):
         timeout=timeout,
         aggressive=data.get("aggressive", False),
         profile=data.get("profile", "standard"),
+        osint_enrichment=data.get("osintEnrichment", False),
     )
     logger.info(f"Lybra lanzado: ID={scan_id} hosts={len(targets)} user={user.username}")
 
@@ -426,6 +456,252 @@ def start_lybra_scan(data):
         "scanType": "lybra",
         "user": user.username,
     }
+
+
+@themis_blp.post("/osint")
+@themis_blp.arguments(OsintScanRequestSchema)
+@themis_blp.response(201, OsintScanStartResponseSchema, description="Passive domain scan queued")
+@themis_blp.alt_response(400, schema=ErrorSchema, description="Validation error")
+@themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@themis_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.THEMIS_CREATE])
+@limiter.limit("10 per hour; 50 per day")
+@handle_exceptions(default_exception=ScanExecutionError, logger=logger)
+def start_osint_scan(data):
+    """Lanzar un escaneo pasivo de un dominio.
+
+    Consulta Certificate Transparency (y Shodan, Censys o SecurityTrails si
+    están configurados) y la higiene del DNS del dominio. No contacta con el
+    objetivo, así que no pasa por el registro de objetivos autorizados ni por
+    el rechazo de direcciones privadas; el límite de ritmo es más estricto que
+    el de los escáneres porque cada escaneo gasta cuota de fuentes externas.
+    """
+    user = get_current_user()
+    scan = OsintManager().create_passive_scan(
+        user_id=user.id, domain=data["domain"], dkim_selectors=data.get("dkimSelectors"),
+    )
+    logger.info(f"Escaneo pasivo lanzado: ID={scan.id} dominio={scan.domain} user={user.username}")
+    return {
+        "message": "Escaneo pasivo iniciado correctamente",
+        "osintScanId": scan.id,
+        "domain": scan.domain,
+        "mode": scan.mode,
+        "status": scan.status,
+        "user": user.username,
+    }
+
+
+@themis_blp.post("/cloud")
+@themis_blp.arguments(CloudScanRequestSchema)
+@themis_blp.response(201, OsintScanStartResponseSchema, description="Cloud exposure scan queued")
+@themis_blp.alt_response(400, schema=ErrorSchema, description="Validation error")
+@themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@themis_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions or target not authorized")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.THEMIS_CREATE])
+@limiter.limit("10 per hour; 50 per day")
+@handle_exceptions(default_exception=ScanExecutionError, logger=logger)
+def start_cloud_scan(data):
+    """Lanzar un escaneo de exposición cloud de un dominio.
+
+    Comprueba, sin credenciales, si los recursos cloud declarados (buckets de
+    S3, GCS o Azure Blob, bases de Firebase) listan su contenido a cualquiera y
+    si el dominio y sus subdominios conocidos son susceptibles de takeover.
+    A diferencia del escaneo pasivo, este toca a terceros: el dominio y cada
+    recurso deben estar antes en el registro de objetivos autorizados. Los
+    recursos se declaran, nunca se enumeran. El resultado se consulta en
+    ``GET /themis/osint/<id>``.
+    """
+    user = get_current_user()
+    scan = CloudScanManager().create_cloud_scan(
+        user_id=user.id, domain=data["domain"], cloud_resources=data.get("cloudResources"),
+        check_subdomains=data.get("checkSubdomains", True),
+    )
+    logger.info(f"Escaneo cloud lanzado: ID={scan.id} dominio={scan.domain} user={user.username}")
+    return {
+        "message": "Escaneo cloud iniciado correctamente",
+        "osintScanId": scan.id,
+        "domain": scan.domain,
+        "mode": scan.mode,
+        "status": scan.status,
+        "user": user.username,
+    }
+
+
+@themis_blp.post("/asset-groups")
+@themis_blp.arguments(AssetGroupRequestSchema)
+@themis_blp.response(201, description="Asset group created")
+@themis_blp.alt_response(400, schema=ErrorSchema, description="Invalid name or range")
+@themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@themis_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@themis_blp.alt_response(409, schema=ErrorSchema, description="A group with that name already exists")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.THEMIS_CREATE])
+@limiter.limit("60 per hour; 300 per day")
+@handle_exceptions(default_exception=ScanExecutionError, logger=logger)
+def create_asset_group(data):
+    """Crear un grupo de activos: una red definida por su rango CIDR.
+
+    Los hosts que el usuario ha escaneado y cuya dirección cae en el rango
+    forman el grupo, y se analizan juntos en ``GET /themis/network-risk``.
+    """
+    user = get_current_user()
+    group = NetworkRiskManager().create_group(user.id, data["name"], data["cidr"])
+    return {
+        "message": "Grupo de activos creado correctamente",
+        "groupId": group.id, "name": group.name, "cidr": group.cidr,
+        "user": user.username,
+    }
+
+
+@themis_blp.get("/asset-groups")
+@themis_blp.response(200, description="The user's asset groups")
+@themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@themis_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.THEMIS_READ])
+@limiter.limit("300 per hour; 2000 per day")
+@handle_exceptions(default_exception=EllysiaException, logger=logger)
+def list_asset_groups():
+    """Los grupos de activos del usuario."""
+    user = get_current_user()
+    groups = NetworkRiskManager().list_groups(user.id)
+    return {
+        "message": "Grupos de activos recuperados",
+        "count": len(groups), "results": groups, "user": user.username,
+    }
+
+
+@themis_blp.delete("/asset-groups/<int:group_id>")
+@themis_blp.response(200, description="Asset group deleted")
+@themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@themis_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@themis_blp.alt_response(404, schema=ErrorSchema, description="Group not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.THEMIS_CREATE])
+@limiter.limit("60 per hour; 300 per day")
+@handle_exceptions(default_exception=AssetGroupNotFoundError, logger=logger)
+def delete_asset_group(group_id: int):
+    """Borrar un grupo de activos. Los hosts y sus escaneos no se tocan."""
+    user = get_current_user()
+    name = NetworkRiskManager().delete_group(group_id, user.id)
+    return {"message": f"Grupo de activos '{name}' eliminado", "user": user.username}
+
+
+@themis_blp.get("/network-risk")
+@themis_blp.arguments(NetworkRiskQuerySchema, location="query")
+@themis_blp.response(200, description="Lateral movement risks across a network")
+@themis_blp.alt_response(400, schema=ErrorSchema, description="Give exactly one of groupId or scanId")
+@themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@themis_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@themis_blp.alt_response(404, schema=ErrorSchema, description="Group or scan not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.THEMIS_READ])
+@limiter.limit("60 per hour; 300 per day")
+@handle_exceptions(default_exception=ScanNotFoundError, logger=logger)
+def get_network_risk(args):
+    """El riesgo de movimiento lateral de una red: cómo se movería un atacante entre sus hosts.
+
+    Analiza a la vez el último estado de todos los hosts de un grupo de activos
+    (`groupId`) o de un escaneo de red (`scanId`), y devuelve los riesgos de
+    mayor a menor puntuación. Cada uno se explica en una frase que nombra a los
+    hosts implicados, y su puntuación refleja a cuántos hosts alcanza. No toca
+    la red: razona sobre lo ya escaneado.
+    """
+    user = get_current_user()
+    group_id, scan_id = args["groupId"], args["scanId"]
+    if (group_id is None) == (scan_id is None):
+        raise ValidationError(
+            "Falta el ámbito del análisis", field="groupId", value=group_id,
+            user_message="Indica exactamente uno de groupId o scanId.")
+    manager = NetworkRiskManager()
+    result = (manager.assess_group(user.id, group_id) if group_id is not None
+              else manager.assess_scan(user.id, scan_id))
+    return {"message": "Riesgo de red calculado correctamente", **result, "user": user.username}
+
+
+@themis_blp.get("/osint")
+@themis_blp.arguments(OsintScanListQuerySchema, location="query")
+@themis_blp.response(200, OsintScanListResponseSchema, description="Recent passive domain scans")
+@themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@themis_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.THEMIS_READ])
+@limiter.limit("300 per hour; 2000 per day")
+@handle_exceptions(default_exception=EllysiaException, logger=logger)
+def list_osint_scans(args):
+    """Los escaneos de dominio recientes del usuario, con sus recuentos; ``mode`` filtra por modo."""
+    user = get_current_user()
+    results = OsintManager().list_scans(user.id, args["limit"], args["mode"])
+    return {
+        "message": "Escaneos pasivos recuperados",
+        "count": len(results),
+        "results": results,
+        "user": user.username,
+    }
+
+
+@themis_blp.get("/osint/<int:osint_scan_id>")
+@themis_blp.response(200, OsintScanDetailResponseSchema, description="Passive domain scan detail")
+@themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@themis_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@themis_blp.alt_response(404, schema=ErrorSchema, description="Scan not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.THEMIS_READ])
+@limiter.limit("300 per hour; 2000 per day")
+@handle_exceptions(default_exception=ScanNotFoundError, logger=logger)
+def get_osint_scan(osint_scan_id: int):
+    """Un escaneo pasivo con sus fuentes, subdominios, comprobaciones DNS y hallazgos."""
+    user = get_current_user()
+    return OsintManager().get_scan(osint_scan_id, user.id)
+
+
+@themis_blp.post("/osint/<int:osint_scan_id>/report")
+@themis_blp.response(202, description="Domain scan report generation started")
+@themis_blp.alt_response(400, schema=ErrorSchema, description="Not a cloud scan, or not finished")
+@themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@themis_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@themis_blp.alt_response(404, schema=ErrorSchema, description="Scan not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.THEMIS_CREATE])
+@limiter.limit("30 per hour; 100 per day")
+@handle_exceptions(default_exception=ScanNotFoundError, logger=logger)
+def generate_domain_report(osint_scan_id: int):
+    """Pedir el informe PDF de un escaneo de exposición cloud.
+
+    Se genera en segundo plano, como el de un escaneo; su estado se sigue en
+    ``GET /themis/osint/<id>/documents`` y se descarga y borra con los
+    endpoints de siempre (``/themis/document/<id>``).
+    """
+    user = get_current_user()
+    document_id = ThemisReportManager().generate_domain_report(osint_scan_id, user.id)
+    logger.info(f"Informe del escaneo de dominio {osint_scan_id} solicitado (documento {document_id}) "
+                f"por usuario {user.username}")
+    return {
+        "message": "Generacion de PDF iniciada",
+        "documentId": document_id,
+        "osintScanId": osint_scan_id,
+        "status": "pending",
+        "downloadUrl": f"/themis/document/{document_id}/download",
+    }
+
+
+@themis_blp.get("/osint/<int:osint_scan_id>/documents")
+@themis_blp.response(200, description="Reports of a domain scan")
+@themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@themis_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@themis_blp.alt_response(404, schema=ErrorSchema, description="Scan not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.THEMIS_READ])
+@limiter.limit("300 per hour; 2000 per day")
+@handle_exceptions(default_exception=ScanNotFoundError, logger=logger)
+def get_domain_documents(osint_scan_id: int):
+    """Los informes PDF de un escaneo de dominio, del más nuevo al más viejo."""
+    user = get_current_user()
+    documents = ThemisReportManager().get_domain_documents(osint_scan_id, user.id)
+    docs_list = [_serialize_document(document) for document in documents]
+    return {"osintScanId": osint_scan_id, "documents": docs_list, "total": len(docs_list)}
 
 
 @themis_blp.get("/compliance")
@@ -483,7 +759,7 @@ def update_organization_compliance_frameworks(data):
 @limiter.limit("60 per hour; 200 per day")
 @handle_exceptions(default_exception=DuplicateAuthorizedTargetError, logger=logger)
 def add_authorized_target(data):
-    """Añadir un objetivo (IP o CIDR) al registro de objetivos autorizados."""
+    """Añadir un objetivo (IP o CIDR, dominio o recurso cloud) al registro de objetivos autorizados."""
     user = get_current_user()
     entry = AuthorizedTargetManager().add(user.id, data["target"], data.get("label"))
     logger.info(f"Objetivo autorizado {entry.id} ('{entry.target}') añadido por {user.username}")
@@ -712,6 +988,31 @@ def get_lybra_grouped_findings(scan_id: int):
     result = LybraEngineManager().grouped_findings(scan_id, user.id)
     return {
         "message": "Hallazgos agrupados obtenidos correctamente",
+        **result,
+        "user": user.username,
+    }
+
+
+@themis_blp.get("/scan/<int:scan_id>/api-surface")
+@themis_blp.response(200, description="What the scan found exposed in the APIs of its web services")
+@themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@themis_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@themis_blp.alt_response(404, schema=ErrorSchema, description="Scan not found")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.THEMIS_READ])
+@limiter.limit("300 per hour; 2000 per day")
+@handle_exceptions(default_exception=ScanNotFoundError, logger=logger)
+def get_scan_api_surface(scan_id: int):
+    """Lo que un escaneo Lybra encontró expuesto en las APIs de sus servicios web.
+
+    Especificaciones publicadas, introspección de GraphQL, endpoints que la
+    especificación declara protegidos y contestan sin credenciales, y
+    asignación masiva; agrupado por servicio.
+    """
+    user = get_current_user()
+    result = LybraEngineManager().api_surface(scan_id, user.id)
+    return {
+        "message": "Superficie de API obtenida correctamente",
         **result,
         "user": user.username,
     }
@@ -1136,6 +1437,7 @@ def get_document_status(args):
     return {
         "documentId": document.id,
         "scanId": document.scan_id,
+        "osintScanId": document.osint_scan_id,
         "status": document.status,
         "aiReport": document.enrichment_json is not None,
         "createdAt": document.created_at if document.created_at else None,
@@ -1235,7 +1537,7 @@ def download_document(document_id: int):
         document.filename,
         mimetype="application/pdf",
         as_attachment=True,
-        download_name=f"{document.scan_type}_scan_{document.scan_id}.pdf",
+        download_name=_download_name_for(document),
     )
 
 

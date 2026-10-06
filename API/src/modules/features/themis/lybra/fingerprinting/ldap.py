@@ -9,11 +9,15 @@ todo servidor publica para que un cliente sepa con qué está hablando antes de
 autenticarse. Devuelve ``vendorName``, ``vendorVersion``, los
 ``namingContexts`` (los dominios que sirve) y los ``supportedSASLMechanisms``.
 
-Dos hallazgos vienen de regalo con la misma sonda:
+Dos hallazgos vienen de la misma familia de sondas:
 
-- **Bind anónimo permitido.** Si el rootDSE contesta sin credenciales, la
-  información del directorio es pública. Es un hallazgo de configuración
-  clásico, de los que OpenVAS detectaba y este motor no.
+- **Búsqueda anónima expone el directorio.** El bind anónimo en sí no es el
+  hallazgo: todo servidor conforme al estándar —y en particular cualquier
+  controlador de dominio de Active Directory— lo acepta para servir el
+  rootDSE público. Lo que sí importa es que una búsqueda anónima bajo el
+  dominio servido (``namingContexts``) devuelva entradas reales del
+  directorio; eso es lo que comprueba
+  :meth:`LdapProbe.fetch_naming_context_entries`.
 - **LDAP en claro conviviendo con LDAPS.** Un 389 abierto en un host que
   también publica el 636 significa que hay credenciales de directorio
   viajando sin cifrar por decisión de cada cliente.
@@ -65,14 +69,43 @@ RESULT_STRONGER_AUTH_REQUIRED = 8
 
 # Los atributos del rootDSE que se piden. Ni uno más: cada uno tiene un
 # consumidor concreto abajo, y pedir el directorio entero sería una consulta
-# muy distinta en coste y en intención.
+# muy distinta en coste y en intención. ``supportedExtension`` dice si el
+# servidor ofrece StartTLS (ver ``STARTTLS_EXTENSION_OID``) y
+# ``domainFunctionality``, que sólo publica Active Directory, el nivel funcional
+# del dominio (ver ``DOMAIN_FUNCTIONAL_LEVELS``).
 ROOTDSE_ATTRIBUTES: Tuple[str, ...] = (
     "vendorName",
     "vendorVersion",
     "namingContexts",
     "supportedLDAPVersion",
     "supportedSASLMechanisms",
+    "supportedExtension",
+    "domainFunctionality",
 )
+
+# La operación extendida StartTLS (RFC 4511 §4.14.1): el servidor que la
+# anuncia en ``supportedExtension`` permite cifrar una conexión del 389.
+STARTTLS_EXTENSION_OID = "1.3.6.1.4.1.1466.20037"
+
+# Nivel funcional del dominio de Active Directory → la versión de Windows
+# Server a la que corresponde (MS-ADTS §6.1.4.4). El 7 lo comparten 2016, 2019
+# y 2022, que no añadieron nivel propio.
+DOMAIN_FUNCTIONAL_LEVELS: Dict[int, str] = {
+    0: "Windows 2000",
+    1: "Windows Server 2003 (provisional)",
+    2: "Windows Server 2003",
+    3: "Windows Server 2008",
+    4: "Windows Server 2008 R2",
+    5: "Windows Server 2012",
+    6: "Windows Server 2012 R2",
+    7: "Windows Server 2016",
+    10: "Windows Server 2025",
+}
+
+# El nivel más alto que corresponde a una versión ya sin soporte del
+# fabricante: Windows Server 2012 R2 dejó de tenerlo en octubre de 2023, y
+# todas las anteriores antes.
+LAST_UNSUPPORTED_DOMAIN_LEVEL = 6
 
 _PRODUCT_FALLBACK = "LDAP"
 
@@ -174,6 +207,44 @@ def build_anonymous_bind(message_id: int = 1) -> bytes:
         ber(TAG_INTEGER, bytes((3,)))       # versión 3
         + ber(TAG_OCTET_STRING, b"")        # nombre vacío
         + ber(TAG_SIMPLE_AUTH, b"")         # contraseña vacía
+    ))
+    return ber(TAG_SEQUENCE, ber(TAG_INTEGER, bytes((message_id,))) + request)
+
+
+def build_naming_context_search(naming_context: str, message_id: int = 3) -> bytes:
+    """Construye el ``SearchRequest`` que decide si el bind anónimo expone algo.
+
+    Todo servidor LDAP conforme al estándar —y en particular cualquier
+    controlador de dominio de Active Directory— acepta el bind anónimo para
+    servir el rootDSE; eso no expone nada por sí solo. Lo que sí es un
+    hallazgo real es que una búsqueda anónima devuelva entradas del
+    directorio, así que esta petición apunta a ``naming_context`` (el primer
+    dominio que el propio servidor publicó en el rootDSE) con ámbito
+    ``singleLevel``: mira un nivel bajo esa base, no la base en sí, que es lo
+    mínimo que confirma que hay contenido navegable ahí debajo.
+
+    El límite de tamaño en 1 basta para decidir "¿hay algo?" sin traer un
+    listado, y el atributo especial ``1.1`` (RFC 4511 §4.5.1) le pide al
+    servidor que no devuelva ningún atributo: la sonda comprueba que la
+    entrada existe, no lee su contenido.
+
+    Args:
+        naming_context: El dominio bajo el que se busca, tal cual lo publicó
+            el rootDSE (p. ej. ``"DC=empresa,DC=local"``).
+        message_id: El identificador del mensaje.
+
+    Returns:
+        El mensaje LDAP completo.
+    """
+    request = ber(TAG_SEARCH_REQUEST, (
+        ber(TAG_OCTET_STRING, naming_context.encode("utf-8"))
+        + ber(TAG_ENUMERATED, bytes((1,)))       # scope: singleLevel
+        + ber(TAG_ENUMERATED, bytes((0,)))       # derefAliases: never
+        + ber(TAG_INTEGER, bytes((1,)))          # sizeLimit: 1 — sólo hace falta una
+        + ber(TAG_INTEGER, bytes((5,)))          # timeLimit: 5s, acotado
+        + ber(TAG_BOOLEAN, bytes((0,)))          # typesOnly: falso
+        + ber(TAG_FILTER_PRESENT, b"objectClass")
+        + ber(TAG_SEQUENCE, ber(TAG_OCTET_STRING, b"1.1"))  # sin atributos
     ))
     return ber(TAG_SEQUENCE, ber(TAG_INTEGER, bytes((message_id,))) + request)
 
@@ -298,6 +369,24 @@ def parse_search_entry(data: bytes) -> Dict[str, List[str]]:  # pylint: disable=
     return attributes
 
 
+def search_returned_entries(data: bytes) -> bool:
+    """Dice si una respuesta a ``SearchRequest`` trajo al menos una entrada.
+
+    Es la comprobación que decide el check ``ldap-anonymous-bind``: no
+    importa qué atributos trae la entrada —se pidieron cero, con ``1.1``—,
+    sólo que exista un ``SearchResultEntry`` entre los mensajes de la
+    respuesta. Un ``SearchResultDone`` solo, con o sin error, significa que
+    la búsqueda no devolvió nada navegable.
+
+    Args:
+        data: Los bytes recibidos en respuesta al ``SearchRequest``.
+
+    Returns:
+        ``True`` si hay al menos un ``SearchResultEntry`` legible.
+    """
+    return any(tag == TAG_SEARCH_ENTRY for tag, _body in _protocol_ops(data))
+
+
 @dataclass(frozen=True)
 class LdapFingerprint:
     """Lo que el rootDSE cuenta de un servidor de directorio.
@@ -311,12 +400,40 @@ class LdapFingerprint:
             identificador de activo que puede aparecer en un informe.
         sasl_mechanisms: Los mecanismos SASL ofrecidos.
         allows_anonymous_bind: Si el servidor aceptó el bind anónimo.
+        supported_extensions: Los OID de ``supportedExtension``, o ``None`` si
+            el rootDSE no los trajo (y entonces no se sabe si ofrece StartTLS).
+            Por defecto ``None``.
+        domain_functional_level: El ``domainFunctionality`` de Active
+            Directory, o ``None`` si el servidor no lo publica (cualquier
+            directorio que no sea AD). Por defecto ``None``.
     """
     product: Optional[str]
     version: Optional[str]
     naming_contexts: Tuple[str, ...] = ()
     sasl_mechanisms: Tuple[str, ...] = ()
     allows_anonymous_bind: bool = False
+    supported_extensions: Optional[Tuple[str, ...]] = None
+    domain_functional_level: Optional[int] = None
+
+    @property
+    def supports_starttls(self) -> Optional[bool]:
+        """Si el servidor anuncia StartTLS; ``None`` si no publicó sus extensiones."""
+        if self.supported_extensions is None:
+            return None
+        return STARTTLS_EXTENSION_OID in self.supported_extensions
+
+    @property
+    def domain_windows_version(self) -> Optional[str]:
+        """La versión de Windows Server que corresponde al nivel funcional, si se conoce."""
+        if self.domain_functional_level is None:
+            return None
+        return DOMAIN_FUNCTIONAL_LEVELS.get(self.domain_functional_level)
+
+    @property
+    def is_domain_level_unsupported(self) -> bool:
+        """Si el nivel funcional del dominio corresponde a un Windows Server sin soporte."""
+        return (self.domain_functional_level is not None
+                and self.domain_functional_level <= LAST_UNSUPPORTED_DOMAIN_LEVEL)
 
 
 def fingerprint_ldap(bind_reply: bytes, search_reply: bytes) -> LdapFingerprint:
@@ -339,13 +456,33 @@ def fingerprint_ldap(bind_reply: bytes, search_reply: bytes) -> LdapFingerprint:
 
     vendor = attributes.get("vendorName") or []
     version = attributes.get("vendorVersion") or []
+    extensions = attributes.get("supportedExtension")
     return LdapFingerprint(
         product=vendor[0] if vendor else _PRODUCT_FALLBACK,
         version=version[0] if version else None,
         naming_contexts=tuple(attributes.get("namingContexts") or ()),
         sasl_mechanisms=tuple(attributes.get("supportedSASLMechanisms") or ()),
         allows_anonymous_bind=allows_anonymous,
+        supported_extensions=tuple(extensions) if extensions is not None else None,
+        domain_functional_level=_parse_level(attributes.get("domainFunctionality")),
     )
+
+
+def _parse_level(values: Optional[List[str]]) -> Optional[int]:
+    """Lee el nivel funcional publicado, que llega como texto (``"7"``).
+
+    Args:
+        values: Los valores del atributo, o ``None`` si no vino.
+
+    Returns:
+        Optional[int]: El nivel, o ``None`` si no vino o no es un número.
+    """
+    if not values:
+        return None
+    try:
+        return int(values[0].strip())
+    except ValueError:
+        return None
 
 
 # =========================================================================
@@ -395,6 +532,54 @@ class LdapProbe:  # pylint: disable=too-few-public-methods
             except OSError:
                 search_reply = b""
             return bind_reply, search_reply
+        except OSError as err:
+            logger.debug("LDAP: intercambio fallido con %s:%s: %s", host, port, err)
+            return None
+        finally:
+            try:
+                sock.close()
+            except OSError:
+                pass
+
+    def fetch_naming_context_entries(
+        self, host: str, naming_context: str, port: int = 389,
+    ) -> Optional[bytes]:
+        """Hace el bind anónimo y busca una entrada bajo ``naming_context``.
+
+        Es la sonda del check ``ldap-anonymous-bind``: aceptar el bind no es
+        el hallazgo —lo hace todo servidor conforme al estándar—, así que
+        aquí se comprueba lo que sí importa, que una búsqueda anónima bajo el
+        dominio servido devuelva contenido del directorio. Va en conexión
+        propia, igual que :meth:`fetch`, y sólo llega a buscar si el bind se
+        acepta; si el servidor rechaza el bind anónimo, no hay nada que
+        preguntar.
+
+        Args:
+            host: El objetivo.
+            naming_context: El dominio bajo el que buscar, tal cual lo
+                publicó el rootDSE.
+            port: El puerto de LDAP.
+
+        Returns:
+            Los bytes de la respuesta a la búsqueda, o ``None`` si el bind no
+            se aceptó o la conexión falló.
+        """
+        try:
+            sock = self._connect((host, port), self._timeout)
+        except OSError as err:
+            logger.debug("LDAP: conexión fallida a %s:%s: %s", host, port, err)
+            return None
+        try:
+            sock.settimeout(self._timeout)
+            sock.sendall(build_anonymous_bind())
+            bind_reply = sock.recv(8192)
+            if not bind_reply or parse_bind_response(bind_reply) != RESULT_SUCCESS:
+                return None
+            sock.sendall(build_naming_context_search(naming_context))
+            try:
+                return sock.recv(16384)
+            except OSError:
+                return b""
         except OSError as err:
             logger.debug("LDAP: intercambio fallido con %s:%s: %s", host, port, err)
             return None

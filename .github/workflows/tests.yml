@@ -11,11 +11,15 @@ name: Tests
 #   pasada: el push a una rama de versión ya no dispara nada.
 # - En el push a main, y solo ahí, porque es la puerta del despliegue.
 # - Nunca en un PR en borrador: corre cuando se marca como listo.
+# - Al cerrar o mergear un PR se lanza una pasada vacía (todos los jobs se
+#   saltan) cuyo único efecto es cancelar, por el grupo de concurrencia, la que
+#   siguiera en curso: mergear sin esperar a la CI no deja 12 minutos de tests
+#   corriendo para un PR que ya no existe.
 on:
   push:
     branches: [main]
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize, reopened, ready_for_review, closed]
     branches: [main, 'v[0-9]+.[0-9]+', 'proyecto/**']
 
 # Un push nuevo a un PR deja obsoleta la pasada anterior, y se cancela. En main
@@ -26,10 +30,12 @@ concurrency:
 
 jobs:
   tests:
-    if: github.event_name == 'push' || !github.event.pull_request.draft
+    if: github.event_name == 'push' || (github.event.action != 'closed' && !github.event.pull_request.draft)
     runs-on: ubuntu-latest
-    # Sin tope, un test colgado puede consumir hasta seis horas de minutos.
-    timeout-minutes: 20
+    # Sin tope, un test colgado puede consumir hasta seis horas de minutos. La
+    # suite tarda unos pocos minutos; el tope deja margen sin dejar que una
+    # regresión de tiempo se coma veinte minutos antes de avisar.
+    timeout-minutes: 12
     defaults:
       run:
         working-directory: API
@@ -84,14 +90,23 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: pip
-          cache-dependency-path: |
+
+      # uv instala las mismas dependencias que pip, de los mismos
+      # requirements, en una fracción del tiempo, y guarda su caché entre
+      # ejecuciones mientras no cambien los requirements.
+      - name: Set up uv
+        if: steps.changes.outputs.run == 'true'
+        # setup-uv no publica etiqueta de versión mayor (no hay `v10`): se fija la exacta.
+        uses: astral-sh/setup-uv@v10.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
             API/requirements.txt
             API/requirements-dev.txt
 
       - name: Install dependencies
         if: steps.changes.outputs.run == 'true'
-        run: pip install -r requirements.txt -r requirements-dev.txt
+        run: uv pip install --system -r requirements.txt -r requirements-dev.txt
 
       - name: Run test suite
         if: steps.changes.outputs.run == 'true'
@@ -99,11 +114,17 @@ jobs:
         # (conftest.py la crea con tmp_path_factory, que es distinto por
         # worker). Sin cobertura: no hay umbral que la exija y en CI no la lee
         # nadie; en local sigue saliendo con `pytest` a secas.
-        run: python -m pytest -q -m "not oracle" -n auto --no-cov
+        # --durations deja en cada ejecución la lista de los tests más lentos;
+        # el presupuesto por test (tests/_time_budget.py) hace fallar al que
+        # se pase, esto sirve para ver venir al siguiente. --dist worksteal deja
+        # que un proceso que termina antes se lleve tests pendientes de otro:
+        # unos pocos tests lentos ya no dejan a los demás procesos esperando al
+        # final (en local, 4 min 52 s frente a 5 min 47 s con el reparto fijo).
+        run: python -m pytest -q -m "not oracle" -n auto --dist worksteal --no-cov --durations=25
 
   spa:
     name: SPA suites
-    if: github.event_name == 'push' || !github.event.pull_request.draft
+    if: github.event_name == 'push' || (github.event.action != 'closed' && !github.event.pull_request.draft)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
