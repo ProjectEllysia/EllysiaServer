@@ -509,7 +509,12 @@
     },
     "technical": {
       "title": "Documentación técnica",
-      "intro": "Referencia técnica de la API, la arquitectura interna y los modelos de datos de Ellysia, pensada para quien integra o extiende la plataforma."
+      "intro": "Cómo funciona Ellysia por dentro, herramienta a herramienta: qué recorrido hace una petición, qué decide cada pieza y por qué está hecha así. Para quien quiere entender el sistema, no solo usarlo.",
+      "onThisPage": "En esta página",
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "otherTools": "Otras herramientas",
+      "readPage": "Leer la documentación de {name}"
     }
   },
   "notAvailable": {
@@ -4433,7 +4438,11 @@
       },
       "docsTechnical": {
         "title": "Documentación técnica | Ellysia",
-        "description": "Arquitectura, API e integración de Ellysia para quien quiera desplegarla o conectar sus herramientas."
+        "description": "Cómo funciona Ellysia por dentro, herramienta a herramienta: el recorrido de cada petición, qué decide cada pieza y por qué."
+      },
+      "docsThemis": {
+        "title": "Themis por dentro: cómo funciona el escáner | Ellysia",
+        "description": "Cómo descubre Themis lo que expone un equipo, cómo cruza el software con las vulnerabilidades publicadas, cómo evita falsos positivos y cómo sigue cada hallazgo."
       }
     }
   }

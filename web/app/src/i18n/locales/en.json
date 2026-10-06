@@ -509,7 +509,12 @@
     },
     "technical": {
       "title": "Technical documentation",
-      "intro": "Technical reference for Ellysia's API, internal architecture and data models, meant for anyone integrating or extending the platform."
+      "intro": "How Ellysia works inside, tool by tool: the path a request takes, what each piece decides and why it is built that way. For anyone who wants to understand the system, not just use it.",
+      "onThisPage": "On this page",
+      "previous": "Previous",
+      "next": "Next",
+      "otherTools": "Other tools",
+      "readPage": "Read the {name} documentation"
     }
   },
   "notAvailable": {
@@ -4433,7 +4438,11 @@
       },
       "docsTechnical": {
         "title": "Technical documentation | Ellysia",
-        "description": "Ellysia architecture, API and integration for anyone who wants to deploy it or connect its tools."
+        "description": "How Ellysia works inside, tool by tool: the path of each request, what each piece decides and why."
+      },
+      "docsThemis": {
+        "title": "Themis inside: how the scanner works | Ellysia",
+        "description": "How Themis discovers what a machine exposes, matches software against published vulnerabilities, avoids false positives and follows each finding."
       }
     }
   }
