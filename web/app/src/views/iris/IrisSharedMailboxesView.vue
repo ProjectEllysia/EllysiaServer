@@ -220,7 +220,7 @@ async function afterChange(which) {
 .panel { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); padding: 1.4rem 1.6rem; }
 .panel-eyebrow { margin: 0 0 0.3rem; font-family: var(--font-mono); font-size: var(--fs-xs); letter-spacing: 0.28em; text-transform: uppercase; color: var(--accent); }
 .panel-title { margin: 0 0 0.5rem; font-family: var(--font-display); font-size: var(--fs-2xl); font-weight: 700; color: var(--text); }
-.panel-sub, .panel-note { margin: 0 0 1rem; font-size: var(--fs-md); line-height: 1.55; color: var(--text-dim); max-width: 66ch; }
+.panel-sub, .panel-note { margin: 0 0 1rem; font-size: var(--fs-body); line-height: 1.55; color: var(--text-dim); max-width: 66ch; }
 .create-panel summary { cursor: pointer; font-weight: 700; color: var(--text); }
 .create-form { display: flex; flex-direction: column; gap: 0.7rem; margin-top: 0.8rem; }
 .field { display: flex; flex-direction: column; gap: 0.25rem; font-size: var(--fs-sm); color: var(--text-dim); }

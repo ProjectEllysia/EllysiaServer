@@ -126,7 +126,7 @@ onBeforeUnmount(() => {
 .pf-head { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; }
 .pf-head label { font-size: var(--fs-md); font-weight: 600; color: var(--text-dim); }
 .pf-head svg { width: 13px; height: 13px; }
-.pf-hint { font-size: var(--fs-md); color: var(--text-muted); line-height: 1.5; margin: 0; }
+.pf-hint { font-size: var(--fs-body); color: var(--text-muted); line-height: 1.5; margin: 0; }
 .pf-preview {
   background: var(--bg); border: 1px solid var(--border-solid); border-radius: 6px;
   padding: 0.45rem 0.6rem; color: var(--text-dim);
@@ -150,7 +150,7 @@ onBeforeUnmount(() => {
 .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.1rem; border-bottom: 1px solid var(--border); flex-shrink: 0; }
 .modal-header h3 { margin: 0; font-size: var(--fs-xl); color: var(--text); }
 .close-btn { background: none; border: none; color: var(--text-muted); font-size: var(--fs-xl); cursor: pointer; }
-.modal-hint { font-size: var(--fs-md); color: var(--text-muted); line-height: 1.5; margin: 0; padding: 0.7rem 1.1rem 0; flex-shrink: 0; }
+.modal-hint { font-size: var(--fs-body); color: var(--text-muted); line-height: 1.5; margin: 0; padding: 0.7rem 1.1rem 0; flex-shrink: 0; }
 .pf-editor {
   flex: 1; min-height: 0; margin: 0.7rem 1.1rem; box-sizing: border-box;
   background: var(--bg); border: 1px solid var(--border-solid); border-radius: 6px;

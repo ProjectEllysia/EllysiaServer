@@ -128,7 +128,7 @@ useModalA11y(() => props.show, { boxRef, onClose: () => emit('close') })
 }
 .compare-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.9rem; }
 .compare-title { margin: 0; font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-size: var(--fs-xl); color: var(--text); }
-.compare-close { border: none; background: none; color: var(--text-muted); font-size: 1.6rem; cursor: pointer; }
+.compare-close { border: none; background: none; color: var(--text-muted); font-size: var(--fs-xl); cursor: pointer; }
 .compare-state { color: var(--text-dim); }
 .compare-state--error { color: var(--danger); }
 .compare-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; }

@@ -316,7 +316,7 @@ function downloadRecoveryCodes() {
 .danger-warning {
   margin-top: 1rem; padding: 0.9rem 1.1rem; border-radius: 8px;
   background: var(--danger-dim); border: 1px solid var(--danger);
-  color: var(--text); font-size: var(--fs-md); line-height: 1.55;
+  color: var(--text); font-size: var(--fs-body); line-height: 1.55;
 }
 .danger-note { margin-top: 1rem; color: var(--text-muted); font-size: var(--fs-md); }
 

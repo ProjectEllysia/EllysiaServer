@@ -87,7 +87,7 @@ async function save() {
 .modal-box { width: min(460px, 100%); background: var(--surface); border: 1px solid var(--border-med); border-radius: 12px; padding: 1.2rem 1.3rem; }
 .modal-header { display: flex; justify-content: space-between; align-items: center; }
 .modal-header h3 { margin: 0; color: var(--text); }
-.close-btn { background: none; border: none; color: var(--text-muted); font-size: 1.4rem; cursor: pointer; }
+.close-btn { background: none; border: none; color: var(--text-muted); font-size: var(--fs-lg); cursor: pointer; }
 .modal-sub { font-size: var(--fs-sm); color: var(--text-dim); line-height: 1.5; }
 .folder-list { list-style: none; padding: 0; margin: 0.5rem 0 1rem; max-height: 320px; overflow: auto; }
 .folder-list label { display: flex; align-items: center; gap: 0.5rem; padding: 0.3rem 0; color: var(--text); }

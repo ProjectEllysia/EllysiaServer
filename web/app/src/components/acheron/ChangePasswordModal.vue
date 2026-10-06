@@ -167,7 +167,7 @@ function submit() {
 .modal-close svg { width: 20px; height: 20px; }
 
 .modal-form { padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
-.modal-intro { font-size: var(--fs-md); color: var(--text-dim); line-height: 1.5; margin: 0; }
+.modal-intro { font-size: var(--fs-body); color: var(--text-dim); line-height: 1.5; margin: 0; }
 .modal-intro strong { color: #c4a0e0; font-weight: 600; }
 
 .form-field { display: flex; flex-direction: column; gap: 0.35rem; }

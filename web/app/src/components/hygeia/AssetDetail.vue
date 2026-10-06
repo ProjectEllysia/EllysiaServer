@@ -761,7 +761,7 @@ function stateLabel(state) {
 .head-id { min-width: 0; }
 .detail-host {
   margin: 0;
-  font-family: var(--font-mono); font-size-adjust: var(--fsa-mono); font-size: 1.5rem; font-weight: 600;
+  font-family: var(--font-mono); font-size-adjust: var(--fsa-mono); font-size: var(--fs-xl); font-weight: 600;
   color: var(--text); word-break: break-all; line-height: 1.2;
 }
 .detail-seen { margin: 0.25rem 0 0; font-size: var(--fs-body); color: var(--text-muted); }

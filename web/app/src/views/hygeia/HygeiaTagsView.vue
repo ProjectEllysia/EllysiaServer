@@ -258,7 +258,7 @@ onMounted(() => {
 
 .head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
 .head-title { margin: 0 0 0.3rem; font-size: var(--fs-2xl); font-weight: 600; color: var(--text); }
-.head-sub { margin: 0; max-width: 56ch; font-size: var(--fs-md); color: var(--text-muted); line-height: 1.5; }
+.head-sub { margin: 0; max-width: 56ch; font-size: var(--fs-body); color: var(--text-muted); line-height: 1.5; }
 
 .btn-new {
   padding: 0.45rem 0.9rem; flex-shrink: 0;
