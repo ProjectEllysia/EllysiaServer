@@ -4451,6 +4451,10 @@
       "docsIris": {
         "title": "Iris por dentro: cómo funciona el analizador de phishing | Ellysia",
         "description": "Cómo examina Iris un correo con 47 reglas, por qué desconfía de sus propias cabeceras, cómo decide el veredicto y qué hace con los buzones vigilados."
+      },
+      "docsAcheron": {
+        "title": "Acheron por dentro: cómo funciona la bóveda cifrada | Ellysia",
+        "description": "Cómo cifra Acheron tus contraseñas en el navegador con Argon2id y AES-GCM, por qué el servidor no puede leerlas y cómo se sincroniza entre dispositivos."
       }
     }
   }

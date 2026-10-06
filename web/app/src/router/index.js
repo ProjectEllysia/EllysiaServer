@@ -298,6 +298,12 @@ const routes = [
     meta: { docSection: 'technical', docTool: 'iris', seo: 'docsIris' },
   },
   {
+    path: '/docs/tecnica/acheron',
+    name: 'DocsAcheron',
+    component: () => import('@/views/public/DocsToolView.vue'),
+    meta: { docSection: 'technical', docTool: 'acheron', seo: 'docsAcheron' },
+  },
+  {
     path: '/config',
     name: 'Config',
     component: () => import('@/views/system/ConfigView.vue'),

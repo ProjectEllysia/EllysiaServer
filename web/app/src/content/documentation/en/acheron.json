@@ -1,0 +1,102 @@
+{
+  "title": "Acheron",
+  "lede": "Ellysia's credential vault: why the server stores your secrets without being able to read them, how they are encrypted in your browser, and what happens when you edit the same vault from two devices.",
+  "sections": [
+    {
+      "id": "que-es",
+      "heading": "What Acheron is",
+      "blocks": [
+        { "type": "p", "text": "Acheron keeps passwords, cards and other data that must not fall into the wrong hands. Its principle is that **the server cannot read what it stores**: everything is encrypted on the person's device before it is sent, with a key that only someone who knows the master password can obtain, and that password never leaves the device. This is what is known as a zero-knowledge design." },
+        { "type": "p", "text": "The practical consequence is twofold. If someone got hold of Ellysia's database, they would only find encrypted data without the key to open it. And if the person forgets their master password, nobody can recover their vault, Ellysia included." },
+        { "type": "p", "text": "Acheron is used from the web and from an Android app. Both clients write to the same vault, and the API simply stores and returns what they send." }
+      ]
+    },
+    {
+      "id": "dos-llaves",
+      "heading": "Two keys, not one",
+      "blocks": [
+        { "type": "p", "text": "The intuitive approach would be to encrypt each item directly with something derived from the master password. Acheron uses two keys, and the reason is being able to change the password without re-encrypting the whole vault:" },
+        { "type": "terms", "items": [
+          { "term": "Vault key", "text": "A random 256-bit key generated when the vault is created. It is the one that encrypts every item, and it never changes." },
+          { "term": "Derived key", "text": "The one obtained from the master password. It encrypts no item: it only wraps, that is, encrypts, the vault key." }
+        ] },
+        { "type": "p", "text": "The derived key is computed with **Argon2id**, an algorithm designed to make guessing passwords deliberately expensive: each attempt takes time and 64 MiB of memory, which slows down anyone trying millions of candidate passwords. The parameters are stored in the vault itself along with a random salt, so they can be hardened in the future without breaking existing vaults. The vault can also declare PBKDF2, another standard key-derivation algorithm." },
+        { "type": "callout", "text": "If a stored parameter is present but cannot be read, opening the vault fails with an explicit error instead of using a default. Using the default would derive a different key, and the person would believe their password is wrong when the problem lies elsewhere." }
+      ]
+    },
+    {
+      "id": "abrir",
+      "heading": "Opening the vault",
+      "blocks": [
+        { "type": "steps", "items": [
+          { "title": "Fetch the content", "text": "The browser asks the API for the vault, which returns an encrypted bundle: the wrapped vault key, the derivation parameters and the items." },
+          { "title": "Derive the key", "text": "From the master password the person types, the browser computes the derived key. The password is not sent anywhere." },
+          { "title": "Check the password", "text": "The vault stores a **checker**: a known value (the fingerprint of the username) encrypted with the correct derived key. If the browser cannot decrypt it, the password is wrong and it stops there." },
+          { "title": "Unwrap the vault key", "text": "The derived key decrypts the vault key, which stays in the browser's memory." },
+          { "title": "Decrypt the items", "text": "Each item is decrypted with the vault key, field by field." }
+        ] },
+        { "type": "p", "text": "The vault locks again when you leave it: the key is discarded from memory and the password has to be typed again. Because the checker is the username's fingerprint, the vault is tied to that name: if it changed, the vault would no longer open." }
+      ]
+    },
+    {
+      "id": "que-se-cifra",
+      "heading": "What is encrypted and what is not",
+      "blocks": [
+        { "type": "p", "text": "Acheron stores seven kinds of item: accounts, cards, secure notes, identities, bank accounts, wifi networks and licences. For each item, the title and all of its content fields are encrypted (an account's username and password, a card's number and security code, a bank account's IBAN…)." },
+        { "type": "p", "text": "Each field is encrypted separately with **AES-GCM**, with a different random starting value every time. Besides hiding the content, AES-GCM detects any tampering: if someone changed a single byte of the encrypted data on the server, the browser would refuse to decrypt it instead of showing something altered." },
+        { "type": "p", "text": "What the server does see, because it needs it to organise the vault, is the **metadata**: what kind each item is, how many there are and when they were created or modified. Never their title or their content." },
+        { "type": "p", "text": "Each item's identifier is computed from the fingerprint of its encrypted content. Since encryption includes a random value, two additions never produce the same identifier, not even if two offline devices create an item at the same time." }
+      ]
+    },
+    {
+      "id": "cambiar-contrasena",
+      "heading": "Changing the master password",
+      "blocks": [
+        { "type": "p", "text": "Thanks to the two keys, changing the master password is a small operation: the browser derives the new key and re-wraps the vault key with it, and the vault key itself does not change. The items are untouched, because they are still encrypted with the same key." },
+        { "type": "p", "text": "When it is saved, the vault bumps its metadata version. Any other device that had it open notices on its next sync, locks and asks for the new password: the one it knew no longer opens the envelope." }
+      ]
+    },
+    {
+      "id": "varios-dispositivos",
+      "heading": "Several devices at once",
+      "blocks": [
+        { "type": "p", "text": "If the web and the phone edit the same vault, one must not unknowingly erase what the other wrote. Acheron solves this with **optimistic concurrency**: instead of locking the vault while someone uses it, it checks at write time that nobody changed it in the meantime." },
+        { "type": "steps", "items": [
+          { "title": "Revision", "text": "The vault has a revision counter that goes up with every change. Each client knows which revision it was at the last time it read it." },
+          { "title": "Conditional write", "text": "When writing, the client states that revision. If it no longer matches the server's, the write is rejected without touching anything and the server replies with the current revision." },
+          { "title": "Retry", "text": "The client reads the vault again and resends the same change on top of the new state. It does not need to re-encrypt or ask for the password, because the vault key has not changed." }
+        ] },
+        { "type": "p", "text": "Changes travel item by item: adding a password does not resend the whole vault, and editing one only sends the fields that changed. Replacing the whole vault is a separate operation that always requires the revision, so it can never accidentally erase what another device wrote." }
+      ]
+    },
+    {
+      "id": "dos-motores",
+      "heading": "Two engines, one format",
+      "blocks": [
+        { "type": "p", "text": "Encryption is implemented twice: in TypeScript for the web and in Java for Android. They live in their own repository, **AcheronCore**, and share not a single line of code. What they share is the **format**: how many passes Argon2id makes, in which order the bytes go, where the random value ends and the encrypted data begins." },
+        { "type": "p", "text": "Since Java code cannot be compared with JavaScript code, results are compared instead. A set of **test vectors** pins known inputs and what must come out of them, and they are checked in both directions: what the web encrypts, Java decrypts, and vice versa. They are the only guarantee that the two implementations have not drifted apart." },
+        { "type": "p", "text": "The catalogue of item kinds (which fields each one has) is also a shared contract, written in a neutral format. The API, the web, the Android app and the Java engine each check their own copy against it." }
+      ]
+    },
+    {
+      "id": "contrasenas",
+      "heading": "Generating and measuring passwords",
+      "blocks": [
+        { "type": "p", "text": "The web password generator runs entirely in the browser, with the same secure source of randomness as the encryption. It picks each character while discarding the values that would bias it towards some letters over others, a common mistake in simple generators." },
+        { "type": "p", "text": "The strength meter next to the form is also computed in the browser as you type: no password travels to the server to be assessed." }
+      ]
+    },
+    {
+      "id": "limites",
+      "heading": "What Acheron cannot do",
+      "blocks": [
+        { "type": "p", "text": "The zero-knowledge design has a price worth knowing before using it:" },
+        { "type": "list", "items": [
+          "**There is no recovery.** If the master password is lost, the vault's content is lost with it. If Ellysia could give it back, it could also read the secrets.",
+          "**The server cannot work with the content.** It cannot search or sort by title because it cannot read it: anything that depends on an item's text can only be done by the device, on what has already been decrypted.",
+          "**Security depends on the master password.** Argon2id makes each attempt expensive, but a short or reused master password is still the weak point."
+        ] }
+      ]
+    }
+  ]
+}

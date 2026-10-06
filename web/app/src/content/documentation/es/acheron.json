@@ -1,0 +1,102 @@
+{
+  "title": "Acheron",
+  "lede": "La bóveda de credenciales de Ellysia: por qué el servidor guarda tus secretos sin poder leerlos, cómo se cifran en tu navegador y qué pasa cuando editas la misma bóveda desde dos dispositivos.",
+  "sections": [
+    {
+      "id": "que-es",
+      "heading": "Qué es Acheron",
+      "blocks": [
+        { "type": "p", "text": "Acheron guarda contraseñas, tarjetas y otros datos que no deben caer en malas manos. Su principio es que **el servidor no sabe leer lo que guarda**: todo se cifra en el dispositivo de la persona antes de enviarse, con una clave que solo puede obtener quien conoce la contraseña maestra, y esa contraseña nunca sale del dispositivo. Es lo que se llama un diseño de conocimiento cero." },
+        { "type": "p", "text": "La consecuencia práctica es doble. Si alguien se hiciera con la base de datos de Ellysia, encontraría solo datos cifrados sin la llave para abrirlos. Y si la persona olvida su contraseña maestra, nadie puede recuperar su bóveda, tampoco Ellysia." },
+        { "type": "p", "text": "Acheron se usa desde la web y desde una aplicación Android. Los dos clientes escriben en la misma bóveda, y la API se limita a guardar y devolver lo que le envían." }
+      ]
+    },
+    {
+      "id": "dos-llaves",
+      "heading": "Dos llaves, no una",
+      "blocks": [
+        { "type": "p", "text": "Lo intuitivo sería cifrar cada dato directamente con algo derivado de la contraseña maestra. Acheron usa dos llaves, y la razón es poder cambiar la contraseña sin volver a cifrar toda la bóveda:" },
+        { "type": "terms", "items": [
+          { "term": "Llave de la bóveda", "text": "Una clave aleatoria de 256 bits que se genera al crear la bóveda. Es la que cifra cada dato, y no cambia nunca." },
+          { "term": "Llave derivada", "text": "La que se obtiene de la contraseña maestra. No cifra ningún dato: solo envuelve, es decir, cifra, la llave de la bóveda." }
+        ] },
+        { "type": "p", "text": "La llave derivada se calcula con **Argon2id**, un algoritmo diseñado para que probar contraseñas sea caro a propósito: cada intento exige tiempo y 64 MiB de memoria, lo que frena a quien intente adivinar la contraseña probando millones de candidatas. Los parámetros van guardados en la propia bóveda junto con una sal aleatoria, de modo que se pueden endurecer en el futuro sin romper las bóvedas existentes. La bóveda también puede declarar PBKDF2, otro algoritmo de derivación estándar." },
+        { "type": "callout", "text": "Si un parámetro guardado está presente pero no se puede interpretar, abrir la bóveda falla con un error explícito en vez de usar un valor por defecto. Usar el valor por defecto derivaría otra llave, y la persona creería que su contraseña es incorrecta cuando el problema está en otra parte." }
+      ]
+    },
+    {
+      "id": "abrir",
+      "heading": "Abrir la bóveda",
+      "blocks": [
+        { "type": "steps", "items": [
+          { "title": "Pedir el contenido", "text": "El navegador pide la bóveda a la API, que devuelve un bloque cifrado: la llave de la bóveda envuelta, los parámetros de derivación y los datos." },
+          { "title": "Derivar la llave", "text": "Con la contraseña maestra que escribe la persona, el navegador calcula la llave derivada. La contraseña no se envía a ningún sitio." },
+          { "title": "Comprobar la contraseña", "text": "La bóveda guarda un **testigo**: un valor conocido (la huella del nombre de usuario) cifrado con la llave derivada correcta. Si el navegador no consigue descifrarlo, la contraseña es incorrecta y no se sigue." },
+          { "title": "Desenvolver la llave de la bóveda", "text": "Con la llave derivada se descifra la llave de la bóveda, que queda en la memoria del navegador." },
+          { "title": "Descifrar los datos", "text": "Cada dato se descifra con la llave de la bóveda, campo a campo." }
+        ] },
+        { "type": "p", "text": "La bóveda vuelve a cerrarse al salir de ella: la llave se descarta de la memoria y hay que escribir de nuevo la contraseña. Como el testigo es la huella del nombre de usuario, la bóveda queda atada a ese nombre: si se cambiara, la bóveda dejaría de abrir." }
+      ]
+    },
+    {
+      "id": "que-se-cifra",
+      "heading": "Qué se cifra y qué no",
+      "blocks": [
+        { "type": "p", "text": "Acheron guarda siete tipos de elementos: cuentas, tarjetas, notas seguras, identidades, cuentas bancarias, redes wifi y licencias. De cada elemento se cifran el título y todos sus campos de contenido (el usuario y la contraseña de una cuenta, el número y el código de una tarjeta, el IBAN de una cuenta bancaria…)." },
+        { "type": "p", "text": "Cada campo se cifra por separado con **AES-GCM**, con un valor de inicio aleatorio distinto cada vez. Además de ocultar el contenido, AES-GCM detecta cualquier manipulación: si alguien modificara un solo byte del dato cifrado en el servidor, el navegador se negaría a descifrarlo en vez de mostrar algo alterado." },
+        { "type": "p", "text": "Lo que el servidor sí ve, porque lo necesita para organizar la bóveda, son los **metadatos**: de qué tipo es cada elemento, cuántos hay y cuándo se crearon o modificaron. Nunca su título ni su contenido." },
+        { "type": "p", "text": "El identificador de cada elemento se calcula a partir de la huella de su contenido cifrado. Como el cifrado lleva un valor aleatorio, dos altas nunca dan el mismo identificador, ni siquiera si dos dispositivos sin conexión crean un elemento a la vez." }
+      ]
+    },
+    {
+      "id": "cambiar-contrasena",
+      "heading": "Cambiar la contraseña maestra",
+      "blocks": [
+        { "type": "p", "text": "Gracias a las dos llaves, cambiar la contraseña maestra es una operación pequeña: el navegador deriva la llave nueva y vuelve a envolver con ella la llave de la bóveda, que no cambia. Los datos no se tocan, porque siguen cifrados con la misma llave." },
+        { "type": "p", "text": "Al guardarse, la bóveda sube su versión de metadatos. Cualquier otro dispositivo que la tuviera abierta lo detecta en su siguiente sincronización, se cierra y pide la contraseña nueva: la que conocía ya no abre el sobre." }
+      ]
+    },
+    {
+      "id": "varios-dispositivos",
+      "heading": "Varios dispositivos a la vez",
+      "blocks": [
+        { "type": "p", "text": "Si la web y el móvil editan la misma bóveda, hay que evitar que uno borre sin saberlo lo que escribió el otro. Acheron lo resuelve con **concurrencia optimista**: en lugar de bloquear la bóveda mientras alguien la usa, se comprueba en el momento de escribir que nadie la ha cambiado entretanto." },
+        { "type": "steps", "items": [
+          { "title": "Revisión", "text": "La bóveda tiene un contador de revisión que sube con cada cambio. Cada cliente sabe en qué revisión estaba la última vez que la leyó." },
+          { "title": "Escritura condicionada", "text": "Al escribir, el cliente indica esa revisión. Si ya no coincide con la del servidor, la escritura se rechaza sin tocar nada y el servidor responde cuál es la revisión actual." },
+          { "title": "Reintento", "text": "El cliente vuelve a leer la bóveda y reenvía el mismo cambio sobre el estado nuevo. No necesita volver a cifrar ni pedir la contraseña, porque la llave de la bóveda no ha cambiado." }
+        ] },
+        { "type": "p", "text": "Los cambios viajan elemento a elemento: añadir una contraseña no reenvía la bóveda entera, y editar una solo envía los campos que cambiaron. Sustituir la bóveda completa es una operación aparte, que exige siempre la revisión para no poder borrar por accidente lo que haya escrito otro dispositivo." }
+      ]
+    },
+    {
+      "id": "dos-motores",
+      "heading": "Dos motores, un mismo formato",
+      "blocks": [
+        { "type": "p", "text": "El cifrado está implementado dos veces: en TypeScript para la web y en Java para Android. Viven en un repositorio propio, **AcheronCore**, y no comparten ni una línea de código. Lo que comparten es el **formato**: cuántas pasadas hace Argon2id, en qué orden van los bytes, dónde acaba el valor aleatorio y empieza el dato cifrado." },
+        { "type": "p", "text": "Como no se puede comparar código Java con código JavaScript, se comparan resultados. Unos **vectores de prueba** fijan entradas conocidas y lo que debe salir de ellas, y se comprueban en los dos sentidos: lo que cifra la web lo descifra Java, y al revés. Son lo único que garantiza que las dos implementaciones no se han separado." },
+        { "type": "p", "text": "El catálogo de tipos de elementos (qué campos tiene cada uno) es también un contrato común, escrito en un formato neutro. La API, la web, la aplicación Android y el motor Java comprueban cada uno su propia copia contra él." }
+      ]
+    },
+    {
+      "id": "contrasenas",
+      "heading": "Generar y medir contraseñas",
+      "blocks": [
+        { "type": "p", "text": "El generador de contraseñas de la web funciona entero en el navegador, con la misma fuente de aleatoriedad segura que el cifrado. Elige cada carácter descartando los valores que lo sesgarían hacia unas letras más que otras, que es un error frecuente en generadores sencillos." },
+        { "type": "p", "text": "El medidor de robustez que acompaña al formulario también se calcula en el navegador mientras se escribe: ninguna contraseña viaja al servidor para evaluarla." }
+      ]
+    },
+    {
+      "id": "limites",
+      "heading": "Lo que Acheron no puede hacer",
+      "blocks": [
+        { "type": "p", "text": "El diseño de conocimiento cero tiene un precio que conviene conocer antes de usarlo:" },
+        { "type": "list", "items": [
+          "**No hay recuperación.** Si se pierde la contraseña maestra, el contenido de la bóveda se pierde con ella. Si Ellysia pudiera devolverla, también podría leer los secretos.",
+          "**El servidor no puede trabajar con el contenido.** No puede buscar ni ordenar por título porque no sabe leerlo: todo lo que dependa del texto de un elemento solo lo puede hacer el dispositivo, sobre lo ya descifrado.",
+          "**La seguridad depende de la contraseña maestra.** Argon2id encarece cada intento, pero una contraseña maestra corta o reutilizada sigue siendo el punto débil."
+        ] }
+      ]
+    }
+  ]
+}

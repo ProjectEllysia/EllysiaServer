@@ -4451,6 +4451,10 @@
       "docsIris": {
         "title": "Iris inside: how the phishing analyser works | Ellysia",
         "description": "How Iris examines an email with 47 rules, why it distrusts its own headers, how it decides the verdict and what it does with watched mailboxes."
+      },
+      "docsAcheron": {
+        "title": "Acheron inside: how the encrypted vault works | Ellysia",
+        "description": "How Acheron encrypts your passwords in the browser with Argon2id and AES-GCM, why the server cannot read them and how it syncs across devices."
       }
     }
   }
