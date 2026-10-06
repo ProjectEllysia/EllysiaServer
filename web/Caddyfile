@@ -127,8 +127,12 @@ www.ellysia.es, http://localhost, http://127.0.0.1 {
 	# La lista sigue a los hubs de web/app/src/router/index.js;
 	# API/tests/unit/test_caddy_api_routes.py falla si falta alguno.
 	@hub_con_barra path_regexp hub ^/(themis|aegis|iris|acheron|hygeia)/$
+	# El `*` no sobra: en `redir`, un primer argumento que empieza por `/` se
+	# lee como matcher de ruta y no como destino, y sin él la regla quedaba
+	# como «si la ruta es /{re.hub.1}, redirige a 301», que nunca casa: el
+	# bloque se quedaba sin respuesta y Caddy servía un 200 vacío.
 	handle @hub_con_barra {
-		redir /{re.hub.1} 301
+		redir * /{re.hub.1} 301
 	}
 
 	# Rutas del SPA (Vue Router) que cuelgan de los MISMOS prefijos que la

@@ -12,7 +12,6 @@
           <span class="engine-sub">{{ t('lybra.network.subtitle') }}</span>
         </div>
       </div>
-      <p class="engine-hint">{{ t('lybra.network.hint') }}</p>
 
       <form class="group-form" @submit.prevent="submit">
         <div class="field">
@@ -150,7 +149,6 @@ function toggle(groupId) {
 .engine-eyebrow { font-family: var(--font-epic); font-size-adjust: var(--fsa-epic); font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.24em; text-transform: uppercase; color: var(--scope-tint); }
 .engine-title { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-size: var(--fs-xl); font-weight: 600; color: color-mix(in srgb, var(--text) 86%, var(--scope-tint)); }
 .engine-sub { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-style: italic; font-size: var(--fs-md); color: var(--text-muted); }
-.engine-hint { margin: 0 0 0.9rem; font-size: var(--fs-md); color: var(--text-dim); line-height: 1.45; max-width: 70ch; }
 
 .group-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 12rem) auto; gap: 0.6rem; align-items: end; }
 .field { display: flex; flex-direction: column; gap: 0.35rem; }
@@ -178,7 +176,7 @@ function toggle(groupId) {
 @keyframes node-blink { 0%, 60%, 100% { transform: scale(1); opacity: 1; } 30% { transform: scale(1.35); opacity: 0.55; } }
 .btn-create:focus-visible, .group-toggle:focus-visible, .icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.note { margin: 0; font-size: var(--fs-md); color: var(--text-muted); }
+.note { margin: 0; font-size: var(--fs-body); color: var(--text-muted); }
 .note.error { color: var(--danger); }
 .empty { padding: 1.6rem 1rem; text-align: center; font-size: var(--fs-body); color: var(--text-muted); background: var(--surface); border: 1px dashed var(--border-solid); border-radius: 12px; line-height: 1.5; }
 
@@ -194,7 +192,7 @@ function toggle(groupId) {
 .chevron svg { width: 13px; height: 13px; }
 .chevron.rot { transform: rotate(90deg); }
 .group-name { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-size: var(--fs-lg); font-weight: 600; color: var(--text); }
-.group-cidr { font-size: var(--fs-md); color: var(--text-dim); }
+.group-cidr { font-size: var(--fs-body); color: var(--text-dim); }
 .group-tally { margin-left: auto; font-size: var(--fs-sm); color: var(--success); }
 .group-tally.risky { color: var(--warn); font-weight: 600; }
 .icon-btn { width: 30px; height: 30px; display: grid; place-items: center; flex: none; background: none; border: 1px solid transparent; border-radius: 7px; color: var(--text-muted); cursor: pointer; }

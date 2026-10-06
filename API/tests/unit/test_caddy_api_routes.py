@@ -241,3 +241,25 @@ def test_la_redireccion_de_hubs_va_antes_que_el_handle_de_la_api(caddyfile):
         f"`handle @{_HUB_REDIRECT_MATCHER}`: Flask se lleva `/themis/` y los "
         f"demás hubs con barra final."
     )
+
+
+def test_la_redireccion_de_hubs_declara_su_destino_y_no_un_matcher(caddyfile):
+    """`redir` dentro del bloque de hubs lleva `*` como matcher explícito.
+
+    En `redir`, un primer argumento que empieza por `/` se lee como matcher de
+    ruta, no como destino: `redir /{re.hub.1} 301` significa «si la ruta es
+    literalmente `/{re.hub.1}`, redirige a `301`», que nunca casa. El bloque
+    se queda entonces sin respuesta y Caddy sirve un 200 vacío: una página en
+    blanco para quien escribe `/themis/`. `caddy validate` no lo detecta,
+    porque la configuración es válida; solo hace otra cosa.
+    """
+    match = re.search(rf"handle @{_HUB_REDIRECT_MATCHER}\s*\{{(.*?)\}}", caddyfile, re.DOTALL)
+    assert match, f"No se encuentra el bloque `handle @{_HUB_REDIRECT_MATCHER} {{ ... }}` en web/Caddyfile."
+    redirs = [line.split() for line in match.group(1).splitlines() if line.strip().startswith("redir")]
+    assert redirs, f"El bloque `handle @{_HUB_REDIRECT_MATCHER}` no tiene ningún `redir`."
+    for redir in redirs:
+        assert len(redir) >= 3 and redir[1] == "*", (
+            f"`{' '.join(redir)}`: el `redir` de los hubs tiene que empezar por "
+            f"`redir * <destino> 301`. Sin el `*`, Caddy toma el destino por un "
+            f"matcher de ruta y la redirección no salta nunca."
+        )
