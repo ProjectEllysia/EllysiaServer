@@ -71,6 +71,8 @@
         </div>
 
         <div class="pill-body">
+          <!-- Mientras nadie haya editado el texto, es íntegramente de la IA. -->
+          <AiNotice v-if="!viewerDoc.data.isEdited" tool="aegis" />
           <h2 class="pill-title">{{ viewerDoc.data.title }}</h2>
           <p class="pill-subtitle" v-if="viewerDoc.data.subtitle">{{ viewerDoc.data.subtitle }}</p>
 
@@ -123,6 +125,7 @@ import { useUtils } from '@/composables/useUtils'
 import { useDismissable } from '@/composables/useDismissable'
 import { useLaunch } from '@/composables/useLaunch'
 import { useI18n } from 'vue-i18n'
+import AiNotice from '@/components/shared/AiNotice.vue'
 
 const { t } = useI18n()
 

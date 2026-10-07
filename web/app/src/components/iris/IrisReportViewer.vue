@@ -299,6 +299,7 @@
       <div v-if="reportData.status === 'finished'" class="rv-ai-summary">
         <h3 class="section-title">{{ t('iris.report.aiSummary') }}</h3>
         <div v-if="reportData.aiSummary" class="ai-summary-card">
+          <AiNotice tool="iris" />
           <p class="ai-summary-text">{{ reportData.aiSummary.executive_summary }}</p>
           <div class="ai-summary-row">
             <span class="ai-summary-label">{{ t('iris.report.attackerIntent') }}</span>
@@ -456,6 +457,7 @@ import { reportChannelKey } from '@/components/iris/integrations'
 import { contactDeviationKey as deviationKey, defang as defangIndicator } from '@/components/iris/indicators'
 import { useIrisStore } from '@/stores/irisStore'
 import IrisEmailPath from '@/components/iris/IrisEmailPath.vue'
+import AiNotice from '@/components/shared/AiNotice.vue'
 import IrisDocumentsModal from '@/components/iris/IrisDocumentsModal.vue'
 import IrisRuleCard from '@/components/iris/IrisRuleCard.vue'
 import IrisIocsPanel from '@/components/iris/IrisIocsPanel.vue'

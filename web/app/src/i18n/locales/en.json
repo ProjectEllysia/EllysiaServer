@@ -30,7 +30,8 @@
     "technicalDocs": "Technical documentation",
     "legal": "Legal",
     "privacy": "Privacy",
-    "terms": "Terms"
+    "terms": "Terms",
+    "aiGovernance": "AI governance"
   },
   "accountMenu": {
     "accountOf": "{name}'s account",
@@ -568,6 +569,49 @@
     "rights": "You can ask to access the data stored about you, to have it deleted or to stop it being processed. Since the log only stores IP addresses, say which address you visited the website from and on which dates. You can also file a complaint with the {authority}.",
     "rightsAuthority": "Spanish Data Protection Agency (AEPD)",
     "version": "Version of {date}. If Ellysia were ever offered to other people, this note would first be replaced by a complete privacy policy."
+  },
+  "aiNotice": {
+    "generated": "This content was generated with artificial intelligence.",
+    "reviewed": "This content was generated with artificial intelligence and you have reviewed it.",
+    "link": "How we use AI"
+  },
+  "aiGovernance": {
+    "title": "AI governance",
+    "intro": "Ellysia uses artificial intelligence to write texts in three of its tools. This page explains, tool by tool, what the AI does, what data the model receives and how what it writes is marked.",
+    "generalHeading": "What applies to every tool",
+    "noDecisions": "The AI only writes texts. It does not make decisions about people or score anyone: verdicts and scores are calculated by the program's own rules.",
+    "marked": "Texts written by the AI carry a notice where they are read: on screen, in Themis PDF reports and in Aegis training emails.",
+    "humanReview": "A person can review them. Aegis trainings can be edited before they are sent, and the email then says the company has reviewed them. No AI text replaces a professional's judgement.",
+    "providerHeading": "Which provider and which model",
+    "provider": "The default provider is {provider}, with the model {model}. The data sent to it leaves the Ellysia server. There is an alternative, Ollama, which runs inside the server itself and sends nothing out; only whoever configures it uses it. Whoever runs the installation can also switch external AI off entirely.",
+    "training": "What the provider does with the data it receives is set by its API terms of use. Ellysia does not use that data to train any model. This section will be completed once the agreement with the provider is formalised.",
+    "dataLabel": "What the model receives:",
+    "notReceivedLabel": "What it does not receive:",
+    "searchLabel": "Internet searches:",
+    "markingLabel": "How it is marked:",
+    "aegis": {
+      "heading": "Aegis",
+      "what": "It writes the awareness trainings, which we call pills, and the questions of their quiz.",
+      "data": "the chosen topic, the company's name and sector, its size and work model, the regulation that applies to it, the products it uses, the tone and language, the security contact that is mentioned, the reference text or recent incident you have written, and the current vulnerability notices for those products.",
+      "notReceived": "the names or email addresses of the people the training is sent to.",
+      "search": "it can search with DuckDuckGo to cite reliable resources. The searches the program prepares carry the topic, the language and the sector, and the model can run others on its own.",
+      "marking": "a notice on screen while the training has not been edited, and a line in every campaign email, which also says whether the company has reviewed it."
+    },
+    "themis": {
+      "heading": "Themis",
+      "what": "It writes the analysis in the PDF reports of a scan: a summary, the risk level and the recommendations.",
+      "data": "the scan findings: the IP addresses or domains analysed, host names, detected services and versions, and the associated vulnerabilities.",
+      "search": "the model can look up information on the internet with DuckDuckGo to complete the analysis.",
+      "marking": "the PDF report carries a note saying that section is written with AI and does not replace a security audit."
+    },
+    "iris": {
+      "heading": "Iris",
+      "what": "It writes an executive summary of an email analysis.",
+      "data": "the verdict, the score and the rules the email broke, with their details. Those details can include domains and email addresses.",
+      "notReceived": "the full email.",
+      "marking": "the summary is shown on screen with a notice next to the text."
+    },
+    "version": "Version of {date}. This text describes how the application works today and is pending legal review."
   },
   "errorPage": {
     "403": {
@@ -4447,6 +4491,10 @@
       "terms": {
         "title": "Terms of use | Ellysia",
         "description": "Terms of use for Ellysia and its security analysis tools, including responsible use of the scanners."
+      },
+      "aiGovernance": {
+        "title": "AI governance | Ellysia",
+        "description": "What artificial intelligence does in Ellysia, what data the model receives in each tool, which provider it comes from and how what it writes is marked."
       },
       "docsUsage": {
         "title": "Usage documentation | Ellysia",
