@@ -400,7 +400,7 @@ Iris applies rules across authentication (SPF, DKIM, DMARC, ARC), header anomali
 |---|---|---|
 | `POST` | `/aegis/generate` | Generate an awareness pill (`{ topicId, tweaks: {...} }`) |
 | `GET` | `/aegis/status?id=` | Generation status |
-| `GET/PUT` | `/aegis/document` | Read / edit a pill (content + quiz questions) |
+| `GET/PUT` | `/aegis/document` | Read / edit a pill (content + quiz questions). The document reports `isEdited`: `true` once the user has edited the AI text, which the campaign emails use to say the company reviewed it |
 | `GET` | `/aegis/documents` · `/aegis/download` | List pills / download the last generated one |
 | `DELETE` | `/aegis/document` | Delete a pill |
 | `GET/PUT` | `/aegis/org-profile` | Organization profile: manual tracked products and/or Hygeia inventory as the alert source |
@@ -862,6 +862,8 @@ AI generation uses an injectable strategy chosen in `API/SecOpsConfig.json` unde
 | `ollama` | JSON, else env `OLLAMA_MODEL` | Local, GPU-friendly, no API cost |
 | `openai` | `gpt-4.1-2025-04-14` (JSON), else env `OPENAI_MODEL` (default `gpt-4o-mini`) | Cloud, for VPS without GPU |
 | `google` | JSON, else env `GOOGLE_MODEL` (default `gemini-2.0-flash`) | Cloud alternative to OpenAI |
+
+**Where the AI is explained to users.** The public page `/gobierno-ia` ("AI governance") has one section per tool that uses the model (`aegis`, `themis`, `iris`): what the AI writes, what data the model receives, whether it can search the web and how its text is marked. The default provider and model it announces are read by `tests/unit/test_ai_governance_matches_config.py` against `tools.scribe`, so changing them here without changing the page fails the suite. AI-written text carries a notice linking to its section: an on-screen notice on the Iris summary and on an Aegis pill until it is edited, the Themis PDF note, and a line in every Aegis campaign email that also says the company reviewed the text when the pill was edited (`AegisDocument.is_edited`, set by `PUT /aegis/document`).
 
 **Changing the model does not need a redeploy.** `strategies.<provider>.model` wins over the
 environment variable, and the JSON is hot-reloadable: `PUT /system` (what the config panel does)
