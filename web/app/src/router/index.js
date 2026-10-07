@@ -273,8 +273,12 @@ const routes = [
     path: '/docs/uso',
     name: 'DocsUsage',
     component: () => import('@/views/public/DocsPlaceholderView.vue'),
-    // Título y entradilla en `docs.usage` del diccionario.
-    meta: { docKey: 'usage', docSection: 'usage', seo: 'docsUsage' },
+    // Título y entradilla en `docs.usage` del diccionario. Sin `seo` a
+    // propósito: mientras sea una vista provisional, sin contenido propio, ni
+    // se indexa ni está en el sitemap. Al escribirla, declarar su `meta.seo`
+    // con la clave `docsUsage` (sus textos ya están en `seo.pages`) y añadirla
+    // a `public/sitemap.xml`.
+    meta: { docKey: 'usage', docSection: 'usage' },
   },
   {
     path: '/docs/tecnica',
