@@ -201,6 +201,55 @@ class InvalidAuthorizedTargetError(ValidationError):
         )
 
 
+class AuthorizationDeclarationRequiredError(ValidationError):
+    """Se intentó autorizar un objetivo sin aceptar la declaración del titular.
+
+    Autorizar un objetivo es declarar que el sistema es del usuario o que su
+    titular le ha dado permiso para analizarlo; sin esa aceptación expresa el
+    objetivo no entra en el registro.
+    """
+
+    default_code = ErrorCode.AUTHORIZATION_DECLARATION_REQUIRED
+
+    def __init__(self):
+        super().__init__(
+            message="Falta aceptar la declaración de que el sistema es tuyo o de que tienes autorización de su titular",
+            field="declarationAccepted",
+            user_message=(
+                "Para autorizar un objetivo tienes que declarar que el sistema es tuyo o que "
+                "tienes autorización escrita de su titular para analizarlo."
+            ),
+            message_key="authorizationDeclarationRequired",
+        )
+
+
+class AuthorizationDeclarationOutdatedError(ScanError):
+    """La declaración aceptada no es la versión vigente del texto.
+
+    El usuario aceptó un texto que ya cambió (por ejemplo porque la política de
+    uso aceptable se actualizó mientras tenía la pantalla abierta). Se le pide
+    que recargue y lea la versión actual: guardar la aceptación de un texto que
+    ya no existe no probaría nada.
+
+    Args:
+        accepted_version: La versión que envió el cliente.
+        current_version: La versión vigente.
+    """
+
+    default_code = ErrorCode.AUTHORIZATION_DECLARATION_OUTDATED
+    default_status_code = 409
+    default_severity = ErrorSeverity.LOW
+
+    def __init__(self, accepted_version: str, current_version: str):
+        super().__init__(
+            message=(f"La declaración aceptada es la versión '{accepted_version}' y la vigente "
+                     f"es '{current_version}'"),
+            details={"acceptedVersion": accepted_version, "currentVersion": current_version},
+            user_message="El texto de la declaración ha cambiado. Recarga la página y vuelve a leerlo antes de aceptarlo.",
+            message_key="authorizationDeclarationOutdated",
+        )
+
+
 class AssetGroupNotFoundError(EntityNotFoundError, ScanError):
     """El grupo de activos no existe o no es del usuario."""
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 
-from flask import send_file
+from flask import request, send_file
 from flask_smorest import Blueprint as SmorestBlueprint
 
 from src.modules.users import (
@@ -769,7 +769,11 @@ def update_organization_compliance_frameworks(data):
 def add_authorized_target(data):
     """Añadir un objetivo (IP o CIDR, dominio o recurso cloud) al registro de objetivos autorizados."""
     user = get_current_user()
-    entry = AuthorizedTargetManager().add(user.id, data["target"], data.get("label"))
+    AuthorizedTargetManager.assert_declaration(data["declarationAccepted"], data["declarationVersion"])
+    entry = AuthorizedTargetManager().add(
+        user.id, data["target"], data.get("label"),
+        declaration_version=data["declarationVersion"], declaration_ip=request.remote_addr,
+    )
     logger.info(f"Objetivo autorizado {entry.id} ('{entry.target}') añadido por {user.username}")
     return {
         "message": "Objetivo autorizado añadido correctamente",
@@ -794,7 +798,8 @@ def list_authorized_targets():
     return {
         "message": "Objetivos autorizados obtenidos correctamente",
         "targets": [
-            {"id": entry.id, "target": entry.target, "label": entry.label, "createdAt": entry.created_at}
+            {"id": entry.id, "target": entry.target, "label": entry.label, "createdAt": entry.created_at,
+             "declarationVersion": entry.declaration_version}
             for entry in entries
         ],
         "user": user.username,

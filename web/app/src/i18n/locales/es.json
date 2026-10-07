@@ -228,6 +228,8 @@
     "systemTagImmutable": "Las etiquetas del catálogo común no se pueden borrar.",
     "tagAlreadyExists": "Ya existe una etiqueta «{name}».",
     "tagQuotaExceeded": "Has alcanzado el máximo de {maxTags} etiquetas personales.",
+    "authorizationDeclarationRequired": "Para autorizar un objetivo tienes que declarar que el sistema es tuyo o que tienes autorización escrita de su titular para analizarlo.",
+    "authorizationDeclarationOutdated": "El texto de la declaración ha cambiado. Recarga la página y vuelve a leerlo antes de aceptarlo.",
     "targetNotAuthorized": "«{target}» no está en tu registro de objetivos autorizados. Declara que el sistema es tuyo o que tienes autorización de su titular antes de lanzar este escaneo.",
     "taskNotCancellable": "La tarea no existe o ya ha terminado.",
     "tooManyRequests": "Has superado el límite de peticiones. Espera un momento e inténtalo de nuevo.",

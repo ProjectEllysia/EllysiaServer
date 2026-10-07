@@ -250,10 +250,17 @@ class AddAuthorizedTargetSchema(Schema):
             tope es el de la columna: un dominio puede tener hasta 253
             caracteres. La forma se valida en ``AuthorizedTargetManager.add``.
         label: Nota libre opcional, hasta 255 caracteres. Por defecto ``None``.
+        declarationAccepted: ``true`` si el usuario ha aceptado la declaración de
+            que el sistema es suyo o de que su titular le ha autorizado a
+            analizarlo. Sin ella el objetivo no se añade.
+        declarationVersion: Versión del texto de la declaración que se le
+            enseñó; tiene que ser la vigente (``AUTHORIZATION_DECLARATION_VERSION``).
     """
 
     target = fields.String(required=True, validate=validate.Length(min=1, max=255))
     label = fields.String(load_default=None, allow_none=True, validate=validate.Length(max=255))
+    declarationAccepted = fields.Boolean(required=True)
+    declarationVersion = fields.String(required=True, validate=validate.Length(min=1, max=32))
 
 
 class AuthorizedTargetSchema(Schema):
@@ -261,6 +268,7 @@ class AuthorizedTargetSchema(Schema):
     target = fields.String()
     label = fields.String(allow_none=True)
     createdAt = UTCDateTime()
+    declarationVersion = fields.String(allow_none=True)
 
 
 class AuthorizedTargetListResponseSchema(Schema):

@@ -28,6 +28,8 @@ from ..model import AuthorizedTarget
 from ..lybra import normalize_domain, parse_cloud_resource
 from ..services.parsing import is_hostname
 from ..exceptions import (
+    AuthorizationDeclarationOutdatedError,
+    AuthorizationDeclarationRequiredError,
     AuthorizedTargetNotFoundError,
     DuplicateAuthorizedTargetError,
     InvalidAuthorizedTargetError,
@@ -36,6 +38,13 @@ from ..exceptions import (
 )
 
 logger = logging.getLogger(__name__)
+
+#: Versión vigente del texto de la declaración que se enseña al autorizar un
+#: objetivo («declaro que soy titular de este sistema o que tengo autorización
+#: escrita de su titular para analizarlo»). Tiene que coincidir con la que
+#: declara ``AuthorizeTargetModal.vue`` y cambia a la vez que la política de uso
+#: aceptable; ``test_authorization_declaration_version_matches_the_spa`` lo comprueba.
+AUTHORIZATION_DECLARATION_VERSION = "2026-10-07"
 
 
 def _network_of(target: str):
@@ -152,7 +161,32 @@ class AuthorizedTargetManager:
             )
         return str(network)
 
-    def add(self, user_id: int, target: str, label: str | None = None) -> AuthorizedTarget:
+    @staticmethod
+    def assert_declaration(accepted: bool, version: str) -> None:
+        """Exige que el usuario haya aceptado la versión vigente de la declaración.
+
+        Args:
+            accepted: Si el usuario marcó la aceptación.
+            version: La versión del texto que se le enseñó.
+
+        Raises:
+            AuthorizationDeclarationRequiredError: Si no la aceptó.
+            AuthorizationDeclarationOutdatedError: Si aceptó una versión que
+                ya no es la vigente.
+        """
+        if not accepted:
+            raise AuthorizationDeclarationRequiredError()
+        if version != AUTHORIZATION_DECLARATION_VERSION:
+            raise AuthorizationDeclarationOutdatedError(version, AUTHORIZATION_DECLARATION_VERSION)
+
+    def add(
+        self,
+        user_id: int,
+        target: str,
+        label: str | None = None,
+        declaration_version: str | None = None,
+        declaration_ip: str | None = None,
+    ) -> AuthorizedTarget:
         """Añade un objetivo al registro del usuario. Rechaza duplicados.
 
         Args:
@@ -160,6 +194,11 @@ class AuthorizedTargetManager:
             target: El objetivo, en cualquiera de las tres formas admitidas
                 (IP/CIDR, dominio o recurso cloud).
             label: Nota libre opcional. Por defecto ``None``.
+            declaration_version: Versión de la declaración que el usuario
+                aceptó (``AUTHORIZATION_DECLARATION_VERSION``). La valida el
+                endpoint con ``assert_declaration``; aquí solo se guarda. Por
+                defecto ``None``: una entrada creada sin declaración.
+            declaration_ip: IP desde la que la aceptó. Por defecto ``None``.
 
         Returns:
             AuthorizedTarget: La entrada ya guardada.
@@ -173,7 +212,10 @@ class AuthorizedTargetManager:
             repo = AuthorizedTargetRepository(uow)
             if repo.get_by_target_and_user(normalized, user_id):
                 raise DuplicateAuthorizedTargetError(normalized)
-            entry = AuthorizedTarget(user_id=user_id, target=normalized, label=label or None)
+            entry = AuthorizedTarget(
+                user_id=user_id, target=normalized, label=label or None,
+                declaration_version=declaration_version, declaration_ip=declaration_ip,
+            )
             repo.save(entry)
         logger.info(f"Objetivo autorizado '{normalized}' añadido por usuario {user_id}")
         return entry

@@ -228,6 +228,8 @@
     "systemTagImmutable": "Tags from the shared catalog cannot be deleted.",
     "tagAlreadyExists": "A tag named “{name}” already exists.",
     "tagQuotaExceeded": "You have reached the maximum of {maxTags} personal tags.",
+    "authorizationDeclarationRequired": "To authorize a target you must state that the system is yours, or that its owner has given you written authorization to analyze it.",
+    "authorizationDeclarationOutdated": "The declaration text has changed. Reload the page and read it again before accepting it.",
     "targetNotAuthorized": "“{target}” is not in your authorized targets registry. State that the system is yours, or that its owner has authorized you, before launching this scan.",
     "taskNotCancellable": "The task does not exist or has already finished.",
     "tooManyRequests": "You have exceeded the request limit. Wait a moment and try again.",
