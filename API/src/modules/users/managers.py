@@ -800,7 +800,7 @@ class UserManager:
         Raises:
             InvalidCredentialsError: si la contraseña no es la suya.
         """
-        from .services.account_deletion import purge_user_data
+        from .services.account_deletion import purge_user_data, revoke_mailbox_grants
 
         user = self.get_user_by_id(user_id)
         if user is None:
@@ -811,6 +811,10 @@ class UserManager:
             raise InvalidCredentialsError()
 
         username = user.username
+        # Antes de la transacción: el token a revocar vive en una fila que el
+        # barrido va a borrar, y llamar a un tercero no debe mantener abierta
+        # una transacción.
+        revoke_mailbox_grants(user_id)
         with UnitOfWork() as uow:
             purged = purge_user_data(uow, user_id)
             repo = UserRepository(uow)
@@ -829,7 +833,11 @@ class UserManager:
         Raises:
             UserBindingError: If the user is not found.
         """
-        from .services.account_deletion import purge_user_data
+        from .services.account_deletion import purge_user_data, revoke_mailbox_grants
+
+        if self.get_user_by_id(user_id) is None:
+            raise UserBindingError(username=str(user_id))
+        revoke_mailbox_grants(user_id)
 
         with UnitOfWork() as uow:
             repo = UserRepository(uow)

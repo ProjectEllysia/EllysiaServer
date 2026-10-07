@@ -178,6 +178,32 @@ def _footprint_iris(uow: UnitOfWork, user_id: int, footprint: ExternalFootprint)
     footprint.task_external_ids.append(f"{IrisDigestNotifyManager.EXTERNAL_ID_PREFIX}{user_id}")
 
 
+def revoke_mailbox_grants(user_id: int) -> int:
+    """Retira ante Google y Microsoft el permiso de los buzones conectados del usuario.
+
+    Hay que hacerlo **antes** de borrar las conexiones, porque el token que se
+    revoca vive en esa fila. Si un proveedor falla el borrado de la cuenta sigue
+    adelante: se anota en el log y el permiso caducará solo o lo retirará el
+    usuario desde su cuenta de correo.
+
+    Args:
+        user_id: Usuario cuya cuenta se va a borrar.
+
+    Returns:
+        int: Cuántos permisos no se pudieron retirar (``0`` si todos fueron bien
+            o el usuario no tenía buzones).
+    """
+    from src.modules.features.iris.managers.mailbox import IrisMailboxManager
+
+    failures = IrisMailboxManager().revoke_all_for_user(user_id)
+    if failures:
+        logger.warning(
+            f"Al borrar la cuenta {user_id}, {failures} permiso(s) de buzón no se pudieron retirar "
+            f"ante el proveedor"
+        )
+    return failures
+
+
 #: Orden de recogida. Solo lee: no modifica nada de la base de datos.
 FOOTPRINTS: list[tuple[str, Callable[[UnitOfWork, int, ExternalFootprint], None]]] = [
     ("documents", _footprint_documents),

@@ -399,3 +399,95 @@ def test_the_external_footprint_of_an_empty_account_is_empty(app, regular_user):
     assert footprint.file_paths == []
     # Solo queda el aviso resumen, que se identifica por el usuario y no por una fila.
     assert footprint.task_external_ids == [f"iris-digest-notify:{regular_user.id}"]
+
+
+# ------------------------------------------- permiso del buzón ante el proveedor
+
+class _RecordingConnector:
+    """Conector falso que anota los tokens que se le piden revocar."""
+
+    def __init__(self, fails: bool = False):
+        self.revoked_tokens: list[str] = []
+        self._fails = fails
+
+    def revoke(self, refresh_token: str) -> None:
+        self.revoked_tokens.append(refresh_token)
+        if self._fails:
+            raise RuntimeError("el proveedor no responde")
+
+
+def _connect_mailbox(app, user_id: int, refresh_token: str, auth_mode: str = "oauth") -> None:
+    from src.modules.features.iris.model import IrisMailboxConnection
+
+    with app.app_context():
+        with unit_of_work.UnitOfWork() as uow:
+            uow.session.add(IrisMailboxConnection(
+                user_id=user_id, provider="gmail", account_email=f"{refresh_token}@b.test",
+                scopes="", refresh_token=refresh_token, auth_mode=auth_mode,
+            ))
+            uow.session.flush()
+
+
+def test_deleting_an_account_revokes_the_mailbox_permission_first(
+    client, app, regular_user, auth_headers
+):
+    """Las filas de conexión se borran en bloque; sin revocar antes, el buzón
+    seguiría autorizando a Ellysia tras la baja."""
+    from src.modules.features.iris.managers import mailbox as mailbox_module
+
+    _connect_mailbox(app, regular_user.id, "token-a")
+    _connect_mailbox(app, regular_user.id, "token-b")
+    connector = _RecordingConnector()
+
+    with mock.patch.object(mailbox_module, "build_connector", return_value=connector):
+        response = client.delete("/users/me", headers=auth_headers(regular_user),
+                                 json={"password": PASSWORD})
+
+    assert response.status_code == 200
+    assert sorted(connector.revoked_tokens) == ["token-a", "token-b"]
+    assert _rows_referencing_user(app, regular_user.id) == {}
+
+
+def test_a_provider_failure_does_not_stop_the_account_deletion(
+    client, app, regular_user, auth_headers, caplog
+):
+    from src.modules.features.iris.managers import mailbox as mailbox_module
+
+    _connect_mailbox(app, regular_user.id, "token-a")
+
+    with caplog.at_level("WARNING"):
+        with mock.patch.object(mailbox_module, "build_connector",
+                               return_value=_RecordingConnector(fails=True)):
+            response = client.delete("/users/me", headers=auth_headers(regular_user),
+                                     json={"password": PASSWORD})
+
+    assert response.status_code == 200
+    assert _rows_referencing_user(app, regular_user.id) == {}
+    assert "no se pudieron retirar" in caplog.text
+
+
+def test_only_oauth_mailboxes_have_a_permission_to_revoke(client, app, regular_user, auth_headers):
+    from src.modules.features.iris.managers import mailbox as mailbox_module
+
+    _connect_mailbox(app, regular_user.id, "imap-secret", auth_mode="imap")
+    connector = _RecordingConnector()
+
+    with mock.patch.object(mailbox_module, "build_connector", return_value=connector):
+        client.delete("/users/me", headers=auth_headers(regular_user), json={"password": PASSWORD})
+
+    assert connector.revoked_tokens == []
+
+
+def test_an_admin_deleting_a_user_also_revokes_the_mailbox_permission(
+    client, app, admin_user, regular_user, auth_headers
+):
+    from src.modules.features.iris.managers import mailbox as mailbox_module
+
+    _connect_mailbox(app, regular_user.id, "token-a")
+    connector = _RecordingConnector()
+
+    with mock.patch.object(mailbox_module, "build_connector", return_value=connector):
+        response = client.delete(f"/users/{regular_user.id}", headers=auth_headers(admin_user))
+
+    assert response.status_code == 200
+    assert connector.revoked_tokens == ["token-a"]
