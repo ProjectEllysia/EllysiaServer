@@ -654,7 +654,7 @@ npm run test:campaigns    # aegis campaign helpers
 npm run test:logs         # gzip log-payload decoding tests
 npm run test:themis       # scan-window + Lybra finding-site labels + finding sort/filter
 npm run test:i18n         # languages: date/number formatting, API error translation, language-file checks and guards
-npm run test:seo          # sitemap, robots.txt, routes with meta.seo and their per-page titles and descriptions stay in step
+npm run test:seo          # sitemap, robots.txt, routes with meta.seo and their per-page titles and descriptions, the share image, the per-page head prerendered by `npm run build` and the Caddy rules that serve it stay in step
 npm run test:docs         # technical documentation: inline formatting, same sections/blocks/figures in every language, one route per page
 npm run test:type-scale   # type scale: no text step below 12px, steps 1.05–1.25 apart, no hand-written font sizes in components
 ```
