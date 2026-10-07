@@ -228,7 +228,9 @@
     "systemTagImmutable": "Las etiquetas del catálogo común no se pueden borrar.",
     "tagAlreadyExists": "Ya existe una etiqueta «{name}».",
     "tagQuotaExceeded": "Has alcanzado el máximo de {maxTags} etiquetas personales.",
-    "targetNotAuthorized": "«{target}» no está autorizado para operaciones activas de Lybra. Añádelo al registro de objetivos autorizados antes de lanzar este escaneo.",
+    "authorizationDeclarationRequired": "Para autorizar un objetivo tienes que declarar que el sistema es tuyo o que tienes autorización escrita de su titular para analizarlo.",
+    "authorizationDeclarationOutdated": "El texto de la declaración ha cambiado. Recarga la página y vuelve a leerlo antes de aceptarlo.",
+    "targetNotAuthorized": "«{target}» no está en tu registro de objetivos autorizados. Declara que el sistema es tuyo o que tienes autorización de su titular antes de lanzar este escaneo.",
     "taskNotCancellable": "La tarea no existe o ya ha terminado.",
     "tooManyRequests": "Has superado el límite de peticiones. Espera un momento e inténtalo de nuevo.",
     "unexpectedServerError": "Ha ocurrido un error inesperado en el servidor.",
@@ -612,6 +614,14 @@
       "marking": "el resumen se muestra en pantalla con un aviso junto al texto."
     },
     "version": "Versión de {date}. Este texto describe cómo funciona la aplicación hoy y está pendiente de revisión jurídica."
+  },
+  "authorizeTarget": {
+    "title": "Autorizar «{target}»",
+    "intro": "Ellysia solo analiza sistemas que son tuyos o que su titular te ha autorizado a analizar. Analizar un sistema ajeno sin permiso puede ser delito.",
+    "declaration": "Declaro que soy titular de este sistema o que tengo autorización escrita de su titular para analizarlo.",
+    "evidence": "Se guardará esta declaración, su fecha y tu dirección IP.",
+    "policy": "Más sobre el uso responsable",
+    "confirm": "Declarar y autorizar"
   },
   "errorPage": {
     "403": {

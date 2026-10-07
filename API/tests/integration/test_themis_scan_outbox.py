@@ -83,6 +83,7 @@ class TestScanAndDispatchAreAtomic:
     def test_nmap_leaves_a_recoverable_dispatch(self, app, admin_user, set_plan_limits, monkeypatch):
         set_plan_limits({LimitKey.THEMIS_THIRDPARTY_SCANS: 5})
         with app.app_context():
+            AuthorizedTargetManager().add(admin_user.id, "8.8.8.8")
             manager = NmapScanManager()
             monkeypatch.setattr(manager, "_task_queue", _RejectingQueue())
             scan_id = manager.run_scan(
@@ -100,6 +101,7 @@ class TestScanAndDispatchAreAtomic:
     def test_nikto_leaves_a_recoverable_dispatch(self, app, admin_user, set_plan_limits, monkeypatch):
         set_plan_limits({LimitKey.THEMIS_THIRDPARTY_SCANS: 5})
         with app.app_context():
+            AuthorizedTargetManager().add(admin_user.id, "8.8.8.8")
             manager = NiktoScanManager()
             monkeypatch.setattr(manager, "_task_queue", _RejectingQueue())
             scan_id = manager.run_scan(target_domain="8.8.8.8", user_id=admin_user.id, timeout=600)
@@ -199,6 +201,7 @@ class TestHappyPathStillPublishesImmediately:
     def test_nmap_publishes_and_marks_the_dispatch_done(self, app, admin_user, set_plan_limits, monkeypatch):
         set_plan_limits({LimitKey.THEMIS_THIRDPARTY_SCANS: 5})
         with app.app_context():
+            AuthorizedTargetManager().add(admin_user.id, "8.8.8.8")
             queue = _RecordingQueue()
             manager = NmapScanManager()
             monkeypatch.setattr(manager, "_task_queue", queue)
@@ -220,6 +223,7 @@ def test_a_failed_publish_is_recovered_by_a_later_sweep(app, admin_user, set_pla
     set_plan_limits({LimitKey.THEMIS_THIRDPARTY_SCANS: 5})
 
     with app.app_context():
+        AuthorizedTargetManager().add(admin_user.id, "8.8.8.8")
         manager = NmapScanManager()
         monkeypatch.setattr(manager, "_task_queue", _RejectingQueue())
         scan_id = manager.run_scan(

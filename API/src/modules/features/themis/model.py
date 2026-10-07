@@ -833,7 +833,14 @@ class AuthorizedTarget(Base):
             characters because a domain reaches 253 and an Azure
             ``account/container`` overruns the old 64.
         label: Optional free-text note (client name, authorization scope...).
-        created_at: When the entry was added.
+        created_at: When the entry was added, which is also when the user made
+            the declaration.
+        declaration_version: Version of the declaration text the user accepted
+            when authorizing the target (``AUTHORIZATION_DECLARATION_VERSION``),
+            so what was accepted can be shown later. ``None`` for entries that
+            predate the declaration: they stay valid but carry no proof.
+        declaration_ip: IP address the declaration was accepted from, as
+            evidence of who accepted it. ``None`` for entries that predate it.
     """
     __tablename__ = "AuthorizedTarget"
 
@@ -842,6 +849,8 @@ class AuthorizedTarget(Base):
     target     = Column(String(255), nullable=False)
     label      = Column(String(255), nullable=True)
     created_at = Column(DateTime, nullable=False, default=utcnow_naive)
+    declaration_version = Column(String(32), nullable=True)
+    declaration_ip      = Column(String(45), nullable=True)
 
     __table_args__ = (
         UniqueConstraint("user_id", "target", name="uq_authorizedtarget_user_target"),
