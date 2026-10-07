@@ -101,6 +101,8 @@
           </Transition>
         </section>
 
+        <DataExportPanel />
+
         <!-- ───────── Baja de la cuenta ───────── -->
         <section class="profile-section profile-section--danger">
           <h2>{{ t('profilePage.delete.title') }}</h2>
@@ -179,6 +181,7 @@ import StarBackground from '@/components/shared/StarBackground.vue'
 import MfaSetupModal from '@/components/shared/MfaSetupModal.vue'
 import ConfirmModal from '@/components/shared/ConfirmModal.vue'
 import ComplianceFrameworksPicker from '@/components/themis/ComplianceFrameworksPicker.vue'
+import DataExportPanel from '@/components/users/DataExportPanel.vue'
 import { useApi } from '@/composables/useApi'
 import { useToastStore } from '@/stores/toastStore'
 import { useProfileStore } from '@/stores/profileStore'
