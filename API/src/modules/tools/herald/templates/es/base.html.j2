@@ -10,6 +10,10 @@
     preheader   texto de vista previa (lo que se ve junto al asunto)
     content     cuerpo del correo
     footer      pie, si hace falta cambiar el de por defecto
+
+  El motivo por el que el destinatario recibe el correo no es un bloque: lo
+  escribe cada correo en su propio ``<nombre>.reason.j2`` y entra en el pie
+  como ``footer_reason``.
 #}
 <!DOCTYPE html>
 <html lang="{{ language }}">
@@ -66,6 +70,9 @@
         <tr>
           <td style="background-color:#faf8f5; border-top:1px solid #e2ddd4; padding:20px 32px; font-family:Helvetica,Arial,sans-serif; font-size:12px; line-height:1.5; color:#8a857c;">
             {% block footer %}
+            {% if footer_reason %}
+            <p style="margin:0 0 6px;">{{ footer_reason }}</p>
+            {% endif %}
             <p style="margin:0 0 6px;">Este mensaje se ha enviado automáticamente desde {{ brand.productName }}. No respondas a esta dirección.</p>
             {% if brand.supportEmail %}
             <p style="margin:0 0 6px;">¿Dudas? Escribe a <a href="mailto:{{ brand.supportEmail }}" style="color:#8a857c;">{{ brand.supportEmail }}</a>.</p>
