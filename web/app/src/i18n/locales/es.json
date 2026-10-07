@@ -107,6 +107,7 @@
       "assetGroup": "Grupo de activos no encontrado.",
       "authorizedTarget": "Objetivo autorizado no encontrado.",
       "campaign": "Campaña no encontrada.",
+      "dataExport": "Exportación no encontrada.",
       "distributionList": "Lista de distribución no encontrada.",
       "document": "Documento no encontrado.",
       "finding": "Hallazgo no encontrado.",
@@ -229,6 +230,9 @@
     "tagAlreadyExists": "Ya existe una etiqueta «{name}».",
     "tagQuotaExceeded": "Has alcanzado el máximo de {maxTags} etiquetas personales.",
     "authorizationDeclarationRequired": "Para autorizar un objetivo tienes que declarar que el sistema es tuyo o que tienes autorización escrita de su titular para analizarlo.",
+    "dataExportInProgress": "Ya estamos preparando tu exportación. Espera a que termine antes de pedir otra.",
+    "dataExportNotReady": "Tu exportación todavía no está lista. Vuelve a intentarlo cuando termine.",
+    "dataExportGone": "Esta exportación ya se descargó o ha caducado. Por seguridad solo se puede descargar una vez: pide una nueva.",
     "authorizationDeclarationOutdated": "El texto de la declaración ha cambiado. Recarga la página y vuelve a leerlo antes de aceptarlo.",
     "targetNotAuthorized": "«{target}» no está en tu registro de objetivos autorizados. Declara que el sistema es tuyo o que tienes autorización de su titular antes de lanzar este escaneo.",
     "taskNotCancellable": "La tarea no existe o ya ha terminado.",
@@ -622,6 +626,30 @@
     "evidence": "Se guardará esta declaración, su fecha y tu dirección IP.",
     "policy": "Más sobre el uso responsable",
     "confirm": "Declarar y autorizar"
+  },
+  "dataExport": {
+    "title": "Descargar mis datos",
+    "description": "Una copia de todo lo que Ellysia guarda de ti, en un archivo ZIP con un fichero JSON por herramienta, que puedes leer o llevarte a otro servicio.",
+    "confirmPassword": "Confirma con tu contraseña",
+    "passwordWhy": "El archivo junta todos tus datos, así que pedimos tu contraseña aunque ya hayas iniciado sesión.",
+    "request": "Preparar mi archivo",
+    "requesting": "Pidiendo…",
+    "requested": "Estamos preparando tu archivo.",
+    "requestFailed": "No se pudo pedir la copia de tus datos.",
+    "preparing": "Preparando tu archivo. Puede tardar un poco; puedes salir de esta página y volver.",
+    "ready": "Tu archivo está listo ({size}). Puedes descargarlo hasta el {date}.",
+    "oneTime": "Solo se puede descargar una vez: en cuanto se descarga, se borra del servidor. Si lo pierdes, pide otro.",
+    "download": "Descargar",
+    "downloading": "Descargando…",
+    "downloadFailed": "No se pudo descargar el archivo.",
+    "status": {
+      "error": "La última vez no se pudo preparar el archivo. Puedes volver a pedirlo.",
+      "downloaded": "Tu último archivo ya se descargó y se borró del servidor. Puedes pedir otro.",
+      "expired": "Tu último archivo caducó sin descargarse y se borró. Puedes pedir otro."
+    },
+    "contentsTitle": "¿Qué incluye?",
+    "contents": "Tu perfil y permisos, tu plan y organización, y lo que has creado en Themis, Aegis, Iris, Hygeia y Acheron: escaneos y hallazgos, listas y campañas, análisis de correo, equipos vigilados y tu bóveda, que va cifrada tal cual está guardada y solo se abre con tu contraseña maestra.",
+    "notIncluded": "No incluye contraseñas, tokens de sesión ni de tu correo, ni el contenido completo de los correos analizados (una copia temporal que se borra sola), ni los informes en PDF; sí el resultado de cada análisis y los datos de cada informe."
   },
   "errorPage": {
     "403": {

@@ -107,6 +107,7 @@
       "assetGroup": "Asset group not found.",
       "authorizedTarget": "Authorized target not found.",
       "campaign": "Campaign not found.",
+      "dataExport": "Export not found.",
       "distributionList": "Distribution list not found.",
       "document": "Document not found.",
       "finding": "Finding not found.",
@@ -229,6 +230,9 @@
     "tagAlreadyExists": "A tag named “{name}” already exists.",
     "tagQuotaExceeded": "You have reached the maximum of {maxTags} personal tags.",
     "authorizationDeclarationRequired": "To authorize a target you must state that the system is yours, or that its owner has given you written authorization to analyze it.",
+    "dataExportInProgress": "We are already preparing your export. Wait for it to finish before requesting another.",
+    "dataExportNotReady": "Your export is not ready yet. Try again when it finishes.",
+    "dataExportGone": "This export has already been downloaded or has expired. For security it can only be downloaded once: request a new one.",
     "authorizationDeclarationOutdated": "The declaration text has changed. Reload the page and read it again before accepting it.",
     "targetNotAuthorized": "“{target}” is not in your authorized targets registry. State that the system is yours, or that its owner has authorized you, before launching this scan.",
     "taskNotCancellable": "The task does not exist or has already finished.",
@@ -622,6 +626,30 @@
     "evidence": "This declaration, its date and your IP address will be stored.",
     "policy": "More about responsible use",
     "confirm": "Declare and authorize"
+  },
+  "dataExport": {
+    "title": "Download my data",
+    "description": "A copy of everything Ellysia keeps about you, in a ZIP file with one JSON file per tool, which you can read or take to another service.",
+    "confirmPassword": "Confirm with your password",
+    "passwordWhy": "The file gathers all your data, so we ask for your password even though you are signed in.",
+    "request": "Prepare my file",
+    "requesting": "Requesting…",
+    "requested": "We are preparing your file.",
+    "requestFailed": "Could not request a copy of your data.",
+    "preparing": "Preparing your file. It may take a while; you can leave this page and come back.",
+    "ready": "Your file is ready ({size}). You can download it until {date}.",
+    "oneTime": "It can only be downloaded once: as soon as it is downloaded, it is deleted from the server. If you lose it, request another.",
+    "download": "Download",
+    "downloading": "Downloading…",
+    "downloadFailed": "Could not download the file.",
+    "status": {
+      "error": "The file could not be prepared last time. You can request it again.",
+      "downloaded": "Your last file was downloaded and deleted from the server. You can request another.",
+      "expired": "Your last file expired without being downloaded and was deleted. You can request another."
+    },
+    "contentsTitle": "What does it include?",
+    "contents": "Your profile and permissions, your plan and organization, and what you created in Themis, Aegis, Iris, Hygeia and Acheron: scans and findings, lists and campaigns, email analyses, monitored devices and your vault, which stays encrypted exactly as stored and only opens with your master password.",
+    "notIncluded": "It does not include passwords, session tokens or your mailbox tokens, the full content of analyzed emails (a temporary copy that deletes itself), or the PDF reports; it does include each analysis result and each report's data."
   },
   "errorPage": {
     "403": {

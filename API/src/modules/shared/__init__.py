@@ -22,6 +22,7 @@ from ._endpoints    import (
     render_error_response,
 )
 from ._ownership import assert_owned
+from ._data_export import ExportTable, owned_by, owned_through
 from ._time import utcnow_naive, isoformat_utc
 from ._exposure import (
     classify_exposure,
@@ -60,6 +61,9 @@ __all__ = [
     "limiter",
     "render_error_response",
     "assert_owned",
+    "ExportTable",
+    "owned_by",
+    "owned_through",
     "utcnow_naive",
     "isoformat_utc",
     "CANCELLABLE_STATES",

@@ -244,6 +244,33 @@ class DeleteAccountRequestSchema(Schema):
     password = fields.String(required=True)
 
 
+class DataExportRequestSchema(Schema):
+    """Cuerpo de ``POST /users/me/export``: la contraseña actual, que se vuelve a verificar."""
+
+    password = fields.String(required=True)
+
+
+class DataExportSchema(Schema):
+    """Estado de una exportación de datos.
+
+    ``status`` es ``pending`` (encolada), ``running`` (escribiéndose), ``done``
+    (lista para descargar una vez), ``error``, ``downloaded`` o ``expired``.
+    ``expiresAt`` y ``sizeBytes`` son ``null`` hasta que el archivo está listo.
+    """
+
+    id = fields.Integer()
+    status = fields.String()
+    createdAt = UTCDateTime()
+    expiresAt = UTCDateTime(allow_none=True)
+    sizeBytes = fields.Integer(allow_none=True)
+
+
+class LatestDataExportSchema(Schema):
+    """Respuesta de ``GET /users/me/export``: la última exportación, o ``null`` si nunca pidió ninguna."""
+
+    export = fields.Nested(DataExportSchema, allow_none=True)
+
+
 # =========================================================================
 # RECUPERACIÓN DE CONTRASEÑA
 # =========================================================================
