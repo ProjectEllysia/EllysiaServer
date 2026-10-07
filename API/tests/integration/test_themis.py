@@ -260,6 +260,85 @@ def test_nuclei_scheduled_flow_rejects_private_ip(app):
             NucleiScanManager().run_scan(target="http://10.0.0.5", user_id=1)
 
 
+# ------------------------------------------- declaración del titular del sistema
+# Un escaneo activo solo sale hacia un sistema que el usuario ha declarado suyo
+# o autorizado. Nmap y Nikto lo exigen igual que Nuclei y Lybra, y lo exigen
+# dentro de ``run_scan`` para que el escaneo programado no lo esquive.
+
+
+def test_nmap_rejects_unauthorized_target(app, regular_user):
+    from src.modules.features.themis.exceptions import TargetNotAuthorizedError
+    from src.modules.features.themis.managers import NmapScanManager
+
+    with app.app_context():
+        with pytest.raises(TargetNotAuthorizedError):
+            NmapScanManager().run_scan(target_host="8.8.8.8", target_ports="80", user_id=regular_user.id)
+
+
+def test_nikto_rejects_unauthorized_target(app, regular_user):
+    from src.modules.features.themis.exceptions import TargetNotAuthorizedError
+    from src.modules.features.themis.managers import NiktoScanManager
+
+    with app.app_context():
+        with pytest.raises(TargetNotAuthorizedError):
+            NiktoScanManager().run_scan(target_domain="http://8.8.8.8", user_id=regular_user.id)
+
+
+@pytest.mark.parametrize("scan_type, arguments", [
+    ("nmap", {"target_host": "8.8.8.8", "target_ports": "80"}),
+    ("nikto", {"target_domain": "http://8.8.8.8"}),
+])
+def test_scheduled_flow_rejects_unauthorized_target(app, regular_user, scan_type, arguments):
+    """El escaneo programado entra por ``run_scan``, no por el endpoint HTTP."""
+    from src.modules.features.themis.exceptions import TargetNotAuthorizedError
+    from src.modules.features.themis.model import ScanType
+    from src.modules.features.themis.services.scheduling import ThemisScheduler
+
+    with app.app_context():
+        with pytest.raises(TargetNotAuthorizedError):
+            ThemisScheduler._run_scheduled_scan(  # pylint: disable=protected-access
+                programed_scan_id=1, user_id=regular_user.id,
+                arguments=arguments, scan_type=ScanType(scan_type),
+            )
+
+
+def test_authorization_is_per_user(app, make_user):
+    """Que otro usuario haya declarado el sistema no autoriza a este."""
+    from src.modules.features.themis.exceptions import TargetNotAuthorizedError
+    from src.modules.features.themis.managers import AuthorizedTargetManager, NmapScanManager
+
+    declarant = make_user()
+    other = make_user()
+    with app.app_context():
+        AuthorizedTargetManager().add(declarant.id, "8.8.8.8")
+        with pytest.raises(TargetNotAuthorizedError):
+            NmapScanManager().run_scan(target_host="8.8.8.8", target_ports="80", user_id=other.id)
+
+
+def test_the_nmap_endpoint_rejects_a_range_when_any_host_is_not_authorized(
+    client, app, make_user, auth_headers, set_plan_limits
+):
+    """Un rango con un host sin declarar no lanza ni los que sí lo estaban."""
+    from src.modules.accounts import LimitKey
+    from src.modules.features.themis.managers import AuthorizedTargetManager
+
+    set_plan_limits({LimitKey.THEMIS_THIRDPARTY_SCANS: 5})
+    creator = make_user(role="role_user", attributes=["themis_create", "themis_read"])
+    with app.app_context():
+        AuthorizedTargetManager().add(creator.id, "8.8.8.8")
+
+    response = client.post(
+        "/themis/nmap", headers=auth_headers(creator),
+        json={"target": "8.8.8.8,8.8.4.4", "ports": "80"},
+    )
+
+    assert response.status_code == 403
+    assert response.get_json()["messageKey"] == "targetNotAuthorized"
+    with app.app_context():
+        with UnitOfWork() as uow:
+            assert ScanRepository(uow).get_by_user(creator.id) == []
+
+
 # --------------------------------------------------------------- N1 IDOR docs
 # get_documents_by_scan y document-status (por scan_id) no verificaban
 # ownership: cualquier usuario con THEMIS_READ podía enumerar los documentos

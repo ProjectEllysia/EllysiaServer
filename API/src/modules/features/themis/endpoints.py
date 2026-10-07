@@ -308,6 +308,14 @@ def start_nmap_scan(data: dict):
     except PortValidationError as exc:
         raise ValidationError(field="ports", message=str(exc), value=ports) from exc
 
+    # Todos los hosts del rango, antes de lanzar ninguno: si uno no está
+    # autorizado, no debe quedar medio rango ya escaneándose. La superficie
+    # cerrada se comprueba antes, igual que dentro de run_scan, para que ese
+    # rechazo siga siendo el primero.
+    ScanManager.assert_third_party_scanners_enabled(user.id)
+    for target_host in hosts:
+        AuthorizedTargetManager().assert_authorized(user.id, target_host)
+
     scan_ids = []
     for target_host in hosts:
         scan_id = nmap_manager.run_scan(

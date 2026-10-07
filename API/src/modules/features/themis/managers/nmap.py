@@ -17,6 +17,7 @@ from ..model import NmapScan, Scan, ScanType
 from ..services import NmapResultProcessor, _Task
 from ..exceptions import ScanNotFoundError
 
+from .authorized_target import AuthorizedTargetManager
 from .scan import ScanManager
 
 
@@ -71,6 +72,12 @@ class NmapScanManager(ScanManager):
             # directo, sin pasar por validate_targets() — mismo hueco que C3
             # (OpenVAS), mismo patrón de cierre.
             ScanManager.reject_private_ip(target_host)
+
+            # Declaración del titular: un escaneo activo solo sale hacia un
+            # sistema que el usuario ha declarado suyo o autorizado. Aquí y no
+            # solo en el endpoint, por la misma razón que el rechazo de IP
+            # privada: el escaneo programado entra por este método.
+            AuthorizedTargetManager().assert_authorized(user_id, target_host)
 
             # Después de validar y justo antes de crear el registro: un objetivo
             # rechazado no gasta cuota. Aquí y no en el endpoint, porque el flujo

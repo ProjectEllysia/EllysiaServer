@@ -126,9 +126,10 @@ class MaxHostsExceededError(ScanError):
 class TargetNotAuthorizedError(ScanError):
     """El objetivo no está en el registro de objetivos autorizados del usuario.
 
-    Bloquea las operaciones de Lybra que tocan la red del objetivo
-    (autodescubrimiento, fingerprinting propio, comprobaciones activas) hasta
-    que el usuario lo declare explícitamente.
+    Bloquea todo escaneo que toca la red del objetivo (Nmap, Nikto, Nuclei y el
+    autodescubrimiento, el fingerprinting y las comprobaciones activas de Lybra)
+    hasta que el usuario declare que el sistema es suyo o que tiene autorización
+    de su titular.
     """
 
     default_code = ErrorCode.TARGET_NOT_AUTHORIZED
@@ -140,8 +141,8 @@ class TargetNotAuthorizedError(ScanError):
             message=f"El objetivo '{target}' no está en el registro de objetivos autorizados",
             details={"target": target},
             user_message=(
-                f"«{target}» no está autorizado para operaciones activas de Lybra. Añádelo al "
-                "registro de objetivos autorizados antes de lanzar este escaneo."
+                f"«{target}» no está en tu registro de objetivos autorizados. Declara que el "
+                "sistema es tuyo o que tienes autorización de su titular antes de lanzar este escaneo."
             ),
             message_key="targetNotAuthorized",
             params={"target": target},

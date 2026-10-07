@@ -32,6 +32,7 @@ from ..exceptions import (
     DuplicateAuthorizedTargetError,
     InvalidAuthorizedTargetError,
     IPValidationError,
+    TargetNotAuthorizedError,
 )
 
 logger = logging.getLogger(__name__)
@@ -231,6 +232,25 @@ class AuthorizedTargetManager:
                     if network is not None]
         return bool(addresses) and all(
             any(address in network for network in networks) for address in addresses)
+
+    def assert_authorized(self, user_id: int, target: str) -> None:
+        """Exige que ``target`` esté en el registro de objetivos autorizados del usuario.
+
+        Es el cerrojo que comparten los cuatro escáneres: Nmap, Nikto, Nuclei y
+        el autodescubrimiento de Lybra. Se llama desde el ``run_scan`` de cada
+        uno, por donde entran tanto el endpoint HTTP como los escaneos
+        programados, así que un escaneo programado no esquiva la declaración del
+        usuario.
+
+        Args:
+            user_id: El usuario que lanza el escaneo.
+            target: Una IP o un nombre de host, ya resuelto si venía como URL.
+
+        Raises:
+            TargetNotAuthorizedError: Si no está autorizado (ver ``is_authorized``).
+        """
+        if not self.is_authorized(user_id, target):
+            raise TargetNotAuthorizedError(target)
 
     @staticmethod
     def is_domain_authorized(user_id: int, domain: str) -> bool:
