@@ -343,3 +343,59 @@ def test_an_invitation_the_deleted_user_sent_does_not_block_the_delete(
     assert client.delete("/users/me", headers=auth_headers(owner),
                          json={"password": PASSWORD}).status_code == 200
     assert _rows_referencing_user(app, owner.id) == {}
+
+
+# ------------------------------------------------- lo que vive fuera de la BD
+
+def test_the_external_footprint_lists_the_files_and_tasks_of_the_user(app, owner, regular_user):
+    """Antes de borrar las filas hay que anotar qué ficheros y tareas eran suyos:
+    después ya no queda forma de saberlo."""
+    from src.modules.features.aegis.model import AegisDocument, Campaign
+    from src.modules.features.iris.model import IrisMailboxConnection
+    from src.modules.features.themis.managers.traceroute import TracerouteManager
+    from src.modules.features.themis.model import Traceroute
+    from src.modules.users.services.account_deletion import collect_external_footprint
+
+    from src.modules.features.aegis.model import Topic
+
+    _seed_user_data(app, owner.id)
+    with app.app_context():
+        with unit_of_work.UnitOfWork() as uow:
+            session = uow.session
+            session.add(AegisDocument(
+                title="ajena", filename="ajena.json", status="done", format="json",
+                topic_id=session.query(Topic.id).scalar(), user_id=regular_user.id,
+            ))
+            session.add(Traceroute(user_id=owner.id, target="10.0.0.9", hops=[], hop_count=0))
+            session.flush()
+            document_id = session.query(AegisDocument.id).filter(AegisDocument.user_id == owner.id).scalar()
+            campaign_id = session.query(Campaign.id).filter(Campaign.user_id == owner.id).scalar()
+            connection_id = session.query(IrisMailboxConnection.id).filter(
+                IrisMailboxConnection.user_id == owner.id
+            ).scalar()
+            other_document_id = session.query(AegisDocument.id).filter(
+                AegisDocument.user_id == regular_user.id
+            ).scalar()
+
+            footprint = collect_external_footprint(uow, owner.id)
+
+    assert footprint.file_paths == ["p.json"]
+    assert f"aegis-doc:{document_id}" in footprint.task_external_ids
+    assert f"aegis-campaign:{campaign_id}" in footprint.task_external_ids
+    assert f"iris-mailbox-sync:{connection_id}" in footprint.task_external_ids
+    assert f"iris-digest-notify:{owner.id}" in footprint.task_external_ids
+    assert TracerouteManager.external_id_for_target(owner.id, "10.0.0.9") in footprint.task_external_ids
+    # Nada de otro usuario.
+    assert f"aegis-doc:{other_document_id}" not in footprint.task_external_ids
+
+
+def test_the_external_footprint_of_an_empty_account_is_empty(app, regular_user):
+    from src.modules.users.services.account_deletion import collect_external_footprint
+
+    with app.app_context():
+        with unit_of_work.UnitOfWork() as uow:
+            footprint = collect_external_footprint(uow, regular_user.id)
+
+    assert footprint.file_paths == []
+    # Solo queda el aviso resumen, que se identifica por el usuario y no por una fila.
+    assert footprint.task_external_ids == [f"iris-digest-notify:{regular_user.id}"]

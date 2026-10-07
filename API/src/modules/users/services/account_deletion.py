@@ -20,11 +20,193 @@ botón?" — que es justo la pregunta que hay que poder responder rápido.
 """
 
 import logging
+from dataclasses import dataclass, field
 from typing import Callable
 
 from src.modules.infrastructure import UnitOfWork
+from src.modules.shared import Document
 
 logger = logging.getLogger(__name__)
+
+
+# =========================================================================
+# LO QUE VIVE FUERA DE LA BASE DE DATOS
+# =========================================================================
+#
+# El barrido de más abajo solo toca filas. Un usuario deja además ficheros en
+# disco (los PDF y JSON de sus documentos) y tareas en la cola de Redis, que
+# guardan sus argumentos. Hay que anotar qué son **antes** de borrar las filas,
+# porque después ya no hay forma de saber a quién pertenecían, y actuar sobre
+# ellos solo **después** de que la transacción se confirme: si el borrado de la
+# cuenta falla, los ficheros y las tareas de una cuenta que sigue existiendo
+# no se pueden haber perdido.
+
+
+@dataclass
+class ExternalFootprint:
+    """Lo que un usuario tiene fuera de la base de datos.
+
+    Attributes:
+        file_paths: Rutas en disco de los documentos generados para el usuario
+            (``Document.filename``), sin duplicados y sin vacíos.
+        task_external_ids: ``external_id`` de las tareas de la cola que
+            podrían llevar datos del usuario, tanto si siguen pendientes como
+            si ya acabaron. Un id que no corresponda a ninguna tarea es
+            inofensivo: quien lo use simplemente no la encuentra.
+    """
+
+    file_paths: list[str] = field(default_factory=list)
+    task_external_ids: list[str] = field(default_factory=list)
+
+
+def _document_external_prefixes() -> dict[str, str]:
+    """Prefijo de ``external_id`` de las tareas de documento, por tipo de documento.
+
+    Returns:
+        dict[str, str]: ``Document.document_type`` → prefijo (``"themis"`` →
+        ``"themis-doc:"``). Los imports van diferidos por la misma razón que
+        en las purgas: users → features cerraría un ciclo al nivel de módulo.
+    """
+    from src.modules.features.aegis.managers.pills import AegisManager
+    from src.modules.features.hygeia.managers import HygeiaDocumentManager
+    from src.modules.features.iris.managers.reports import IrisReportManager
+    from src.modules.features.themis.managers.reports import ThemisReportManager
+
+    return {
+        "themis": ThemisReportManager.EXTERNAL_ID_PREFIX,
+        "aegis": AegisManager.EXTERNAL_ID_PREFIX,
+        "iris": IrisReportManager.EXTERNAL_ID_PREFIX,
+        "hygeia": HygeiaDocumentManager.EXTERNAL_ID_PREFIX,
+    }
+
+
+def _footprint_documents(uow: UnitOfWork, user_id: int, footprint: ExternalFootprint) -> None:
+    """Rutas y tareas de los documentos generados (todos los módulos).
+
+    Args:
+        uow: Unidad de trabajo con la sesión abierta.
+        user_id: Usuario cuya cuenta se va a borrar.
+        footprint: Acumulador al que se añaden las rutas y los ``external_id``.
+    """
+    prefixes = _document_external_prefixes()
+    rows = uow.session.query(Document.id, Document.document_type, Document.filename).filter(
+        Document.user_id == user_id
+    )
+    for document_id, document_type, filename in rows:
+        if filename:
+            footprint.file_paths.append(filename)
+        prefix = prefixes.get(document_type)
+        if prefix:
+            footprint.task_external_ids.append(f"{prefix}{document_id}")
+
+
+def _footprint_themis(uow: UnitOfWork, user_id: int, footprint: ExternalFootprint) -> None:
+    """Tareas de escaneos, escaneos pasivos y traceroutes.
+
+    Args:
+        uow: Unidad de trabajo con la sesión abierta.
+        user_id: Usuario cuya cuenta se va a borrar.
+        footprint: Acumulador al que se añaden los ``external_id``.
+    """
+    from src.modules.features.themis.managers.lybra.osint import OsintManager
+    from src.modules.features.themis.managers.scan import ScanManager
+    from src.modules.features.themis.managers.traceroute import TracerouteManager
+    from src.modules.features.themis.model import Scan, Traceroute
+
+    session = uow.session
+    for (scan_id,) in session.query(Scan.id).filter(Scan.user_id == user_id):
+        footprint.task_external_ids.append(f"{ScanManager.EXTERNAL_ID_PREFIX}{scan_id}")
+        footprint.task_external_ids.append(f"{OsintManager.EXTERNAL_ID_PREFIX}{scan_id}")
+    for (target,) in session.query(Traceroute.target).filter(Traceroute.user_id == user_id):
+        footprint.task_external_ids.append(TracerouteManager.external_id_for_target(user_id, target))
+
+
+def _footprint_aegis(uow: UnitOfWork, user_id: int, footprint: ExternalFootprint) -> None:
+    """Tareas de envío de campañas.
+
+    Args:
+        uow: Unidad de trabajo con la sesión abierta.
+        user_id: Usuario cuya cuenta se va a borrar.
+        footprint: Acumulador al que se añaden los ``external_id``.
+    """
+    from src.modules.features.aegis.managers.campaigns import CampaignManager
+    from src.modules.features.aegis.model import Campaign
+
+    for (campaign_id,) in uow.session.query(Campaign.id).filter(Campaign.user_id == user_id):
+        footprint.task_external_ids.append(f"{CampaignManager.EXTERNAL_ID_PREFIX}{campaign_id}")
+
+
+def _footprint_iris(uow: UnitOfWork, user_id: int, footprint: ExternalFootprint) -> None:
+    """Tareas de análisis, resúmenes, avisos y sincronización de buzones.
+
+    Args:
+        uow: Unidad de trabajo con la sesión abierta.
+        user_id: Usuario cuya cuenta se va a borrar.
+        footprint: Acumulador al que se añaden los ``external_id``.
+    """
+    from src.modules.features.iris.managers.analysis import IrisManager
+    from src.modules.features.iris.managers.mailbox import IrisMailboxManager
+    from src.modules.features.iris.managers.mailbox_events import IrisMailboxEventManager
+    from src.modules.features.iris.managers.notifications import (
+        IrisDigestNotifyManager,
+        IrisPhishingNotifyManager,
+        IrisReauthNotifyManager,
+        IrisStuckSyncNotifyManager,
+    )
+    from src.modules.features.iris.model import IrisAnalysis, IrisMailboxConnection
+
+    session = uow.session
+    for (analysis_id,) in session.query(IrisAnalysis.id).filter(IrisAnalysis.user_id == user_id):
+        for prefix in (
+            IrisManager.EXTERNAL_ID_PREFIX,
+            IrisManager.AI_SUMMARY_EXTERNAL_ID_PREFIX,
+            IrisPhishingNotifyManager.EXTERNAL_ID_PREFIX,
+        ):
+            footprint.task_external_ids.append(f"{prefix}{analysis_id}")
+
+    for (connection_id,) in session.query(IrisMailboxConnection.id).filter(
+        IrisMailboxConnection.user_id == user_id
+    ):
+        for prefix in (
+            IrisMailboxManager.EXTERNAL_ID_PREFIX,
+            IrisMailboxEventManager.EXTERNAL_ID_PREFIX,
+            IrisReauthNotifyManager.EXTERNAL_ID_PREFIX,
+            IrisStuckSyncNotifyManager.EXTERNAL_ID_PREFIX,
+        ):
+            footprint.task_external_ids.append(f"{prefix}{connection_id}")
+
+    footprint.task_external_ids.append(f"{IrisDigestNotifyManager.EXTERNAL_ID_PREFIX}{user_id}")
+
+
+#: Orden de recogida. Solo lee: no modifica nada de la base de datos.
+FOOTPRINTS: list[tuple[str, Callable[[UnitOfWork, int, ExternalFootprint], None]]] = [
+    ("documents", _footprint_documents),
+    ("themis",    _footprint_themis),
+    ("aegis",     _footprint_aegis),
+    ("iris",      _footprint_iris),
+]
+
+
+def collect_external_footprint(uow: UnitOfWork, user_id: int) -> ExternalFootprint:
+    """Anota los ficheros y las tareas que el usuario tiene fuera de la base de datos.
+
+    Solo lee. Hay que llamarla **antes** de ``purge_user_data``: una vez
+    borradas las filas ya no queda registro de qué ficheros y tareas eran suyos.
+
+    Args:
+        uow: Unidad de trabajo con la sesión abierta.
+        user_id: Usuario cuya cuenta se va a borrar.
+
+    Returns:
+        ExternalFootprint: Rutas y ``external_id`` recogidos, sin duplicados y
+        en orden estable.
+    """
+    footprint = ExternalFootprint()
+    for _module_name, collect in FOOTPRINTS:
+        collect(uow, user_id, footprint)
+    footprint.file_paths = list(dict.fromkeys(footprint.file_paths))
+    footprint.task_external_ids = list(dict.fromkeys(footprint.task_external_ids))
+    return footprint
 
 
 # =========================================================================

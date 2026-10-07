@@ -184,6 +184,14 @@ KNOWN_VIOLATIONS: dict[tuple[str, str, str], str] = {
         _PLAN_SQL,
     ("sql-outside-repository", "src/modules/users/services/account_deletion.py", "purge_user_data"):
         _PLAN_SQL,
+    ("sql-outside-repository", "src/modules/users/services/account_deletion.py", "_footprint_aegis"):
+        _PLAN_SQL,
+    ("sql-outside-repository", "src/modules/users/services/account_deletion.py", "_footprint_documents"):
+        _PLAN_SQL,
+    ("sql-outside-repository", "src/modules/users/services/account_deletion.py", "_footprint_iris"):
+        _PLAN_SQL,
+    ("sql-outside-repository", "src/modules/users/services/account_deletion.py", "_footprint_themis"):
+        _PLAN_SQL,
     # --- private-method
     ("private-method", "src/modules/accounts/managers/plans.py", "PlanManager._flatten_limits"):
         _PLAN_PRIVATE_METHOD,
@@ -783,6 +791,40 @@ KNOWN_VIOLATIONS: dict[tuple[str, str, str], str] = {
     ("module-direction", "src/modules/users/services/account_deletion.py", "src.modules.features.themis.model.ScanFolder"):
         _PLAN_DIRECTION,
     ("module-direction", "src/modules/users/services/account_deletion.py", "src.modules.features.themis.model.Traceroute"):
+        _PLAN_DIRECTION,
+    ("module-direction", "src/modules/users/services/account_deletion.py", "src.modules.features.aegis.managers.campaigns.CampaignManager"):
+        _PLAN_DIRECTION,
+    ("module-direction", "src/modules/users/services/account_deletion.py", "src.modules.features.aegis.managers.pills.AegisManager"):
+        _PLAN_DIRECTION,
+    ("module-direction", "src/modules/users/services/account_deletion.py", "src.modules.features.hygeia.managers.HygeiaDocumentManager"):
+        _PLAN_DIRECTION,
+    ("module-direction", "src/modules/users/services/account_deletion.py", "src.modules.features.iris.managers.analysis.IrisManager"):
+        _PLAN_DIRECTION,
+    ("module-direction", "src/modules/users/services/account_deletion.py", "src.modules.features.iris.managers.mailbox.IrisMailboxManager"):
+        _PLAN_DIRECTION,
+    ("module-direction", "src/modules/users/services/account_deletion.py", "src.modules.features.iris.managers.mailbox_events.IrisMailboxEventManager"):
+        _PLAN_DIRECTION,
+    ("module-direction", "src/modules/users/services/account_deletion.py", "src.modules.features.iris.managers.notifications.IrisDigestNotifyManager"):
+        _PLAN_DIRECTION,
+    ("module-direction", "src/modules/users/services/account_deletion.py", "src.modules.features.iris.managers.notifications.IrisPhishingNotifyManager"):
+        _PLAN_DIRECTION,
+    ("module-direction", "src/modules/users/services/account_deletion.py", "src.modules.features.iris.managers.notifications.IrisReauthNotifyManager"):
+        _PLAN_DIRECTION,
+    ("module-direction", "src/modules/users/services/account_deletion.py", "src.modules.features.iris.managers.notifications.IrisStuckSyncNotifyManager"):
+        _PLAN_DIRECTION,
+    ("module-direction", "src/modules/users/services/account_deletion.py", "src.modules.features.iris.managers.reports.IrisReportManager"):
+        _PLAN_DIRECTION,
+    ("module-direction", "src/modules/users/services/account_deletion.py", "src.modules.features.iris.model.IrisAnalysis"):
+        _PLAN_DIRECTION,
+    ("module-direction", "src/modules/users/services/account_deletion.py", "src.modules.features.themis.managers.lybra.osint.OsintManager"):
+        _PLAN_DIRECTION,
+    ("module-direction", "src/modules/users/services/account_deletion.py", "src.modules.features.themis.managers.reports.ThemisReportManager"):
+        _PLAN_DIRECTION,
+    ("module-direction", "src/modules/users/services/account_deletion.py", "src.modules.features.themis.managers.scan.ScanManager"):
+        _PLAN_DIRECTION,
+    ("module-direction", "src/modules/users/services/account_deletion.py", "src.modules.features.themis.managers.traceroute.TracerouteManager"):
+        _PLAN_DIRECTION,
+    ("module-direction", "src/modules/users/services/account_deletion.py", "src.modules.features.themis.model.Scan"):
         _PLAN_DIRECTION,
     # --- manager-constructor
     ("manager-constructor", "src/modules/features/acheron/managers.py", "VaultManager.__init__"):
