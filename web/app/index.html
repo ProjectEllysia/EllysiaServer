@@ -7,7 +7,9 @@
     <!-- Valores de la portada, que es lo que ve quien no ejecuta JavaScript
          (vistas previas de enlaces, buscadores sin renderizado). Cada ruta los
          reemplaza al navegar: ver src/composables/useSeo.js. La canónica la pone
-         solo ese composable, porque aquí valdría para cualquier URL. -->
+         solo ese composable, porque aquí valdría para cualquier URL. Al construir,
+         scripts/seoPrerender.mjs genera además una copia de este fichero por ruta
+         pública, con su título, su descripción y su canónica. -->
     <meta name="description" content="Cinco herramientas de ciberseguridad: escaneo de vulnerabilidades, detección de phishing, concienciación, bóveda de contraseñas cifrada y monitorización de servidores." />
     <title>Ellysia · Escáner de vulnerabilidades, phishing y bóveda cifrada</title>
     <meta property="og:type" content="website" />

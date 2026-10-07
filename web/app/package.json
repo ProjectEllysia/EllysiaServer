@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/prerender-seo.mjs",
     "preview": "vite preview",
     "test": "npm run test:acheron && npm run test:hygeia && npm run test:polling && npm run test:element-width && npm run test:toast && npm run test:quiz && npm run test:campaigns && npm run test:logs && npm run test:iris && npm run test:themis && npm run test:launch && npm run test:fonts && npm run test:config && npm run test:i18n && npm run test:seo && npm run test:type-scale && npm run test:docs",
     "test:acheron": "node test/acheron.schema.test.mjs",
