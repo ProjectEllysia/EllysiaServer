@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 #: Versión vigente del texto de la declaración que se enseña al autorizar un
 #: objetivo («declaro que soy titular de este sistema o que tengo autorización
 #: escrita de su titular para analizarlo»). Tiene que coincidir con la que
-#: declara ``AuthorizeTargetModal.vue`` y cambia a la vez que la política de uso
+#: declara ``authorizationDeclaration.js`` y cambia a la vez que la política de uso
 #: aceptable; ``test_authorization_declaration_version_matches_the_spa`` lo comprueba.
 AUTHORIZATION_DECLARATION_VERSION = "2026-10-07"
 

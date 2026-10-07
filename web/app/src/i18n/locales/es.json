@@ -615,6 +615,14 @@
     },
     "version": "Versión de {date}. Este texto describe cómo funciona la aplicación hoy y está pendiente de revisión jurídica."
   },
+  "authorizeTarget": {
+    "title": "Autorizar «{target}»",
+    "intro": "Ellysia solo analiza sistemas que son tuyos o que su titular te ha autorizado a analizar. Analizar un sistema ajeno sin permiso puede ser delito.",
+    "declaration": "Declaro que soy titular de este sistema o que tengo autorización escrita de su titular para analizarlo.",
+    "evidence": "Se guardará esta declaración, su fecha y tu dirección IP.",
+    "policy": "Más sobre el uso responsable",
+    "confirm": "Declarar y autorizar"
+  },
   "errorPage": {
     "403": {
       "title": "No tienes permiso para ver esto",

@@ -615,6 +615,14 @@
     },
     "version": "Version of {date}. This text describes how the application works today and is pending legal review."
   },
+  "authorizeTarget": {
+    "title": "Authorize “{target}”",
+    "intro": "Ellysia only analyzes systems that are yours or that their owner has authorized you to analyze. Analyzing a system that is not yours without permission may be a crime.",
+    "declaration": "I declare that I own this system or that I have written authorization from its owner to analyze it.",
+    "evidence": "This declaration, its date and your IP address will be stored.",
+    "policy": "More about responsible use",
+    "confirm": "Declare and authorize"
+  },
   "errorPage": {
     "403": {
       "title": "You do not have permission to see this",

@@ -9,6 +9,7 @@ import { useThemisFoldersStore } from '@/stores/themisFoldersStore'
 import { useThemisHistoryStore } from '@/stores/themisHistoryStore'
 import { scanWindow, pageAfterRemoval } from '@/stores/scanWindow'
 import { i18n } from '@/i18n'
+import { AUTHORIZATION_DECLARATION_VERSION } from '@/components/themis/authorizationDeclaration'
 
 /**
  * Store de Themis — gestiona escaneos, estadísticas, modales y documentos.
@@ -76,6 +77,8 @@ export const useThemisStore = defineStore('themis', () => {
   // desbloquea el autodescubrimiento, el fingerprinting propio y las
   // comprobaciones activas de Lybra sobre un objetivo concreto.
   const authorizedTargets = reactive({ items: [], loading: false, error: null })
+  /** Objetivo cuyo escaneo se rechazó por no estar autorizado; la vista abre la declaración para él. */
+  const unauthorizedTarget = ref(null)
 
   const launching = ref(false)
 
@@ -353,7 +356,11 @@ export const useThemisStore = defineStore('themis', () => {
     try {
       const res = await apiFetch('/themis/authorized-targets', {
         method: 'POST',
-        body: JSON.stringify({ target, label: label || undefined }),
+        // Solo se llega aquí tras aceptar la declaración en AuthorizeTargetModal.
+        body: JSON.stringify({
+          target, label: label || undefined,
+          declarationAccepted: true, declarationVersion: AUTHORIZATION_DECLARATION_VERSION,
+        }),
       })
       if (!res?.ok) {
         toast.show(await apiError(res, i18n.global.t('themisStore.scans.targetAddFailed')), 'error')
@@ -406,6 +413,10 @@ export const useThemisStore = defineStore('themis', () => {
     try {
       const res = await apiFetch(endpoint, { method: 'POST', body: JSON.stringify(payload) })
       if (!res?.ok) {
+        // Un objetivo sin declarar se resuelve declarándolo: se avisa a la vista para
+        // que abra la declaración en vez de dejar al usuario con solo el error.
+        const body = await res.clone().json().catch(() => null)
+        if (body?.messageKey === 'targetNotAuthorized') unauthorizedTarget.value = body.params?.target ?? null
         toast.show(await apiError(res, i18n.global.t('themisStore.scans.launchFailed')), 'error')
         return false
       }
@@ -937,6 +948,7 @@ export const useThemisStore = defineStore('themis', () => {
     }
 
     Object.assign(authorizedTargets, { items: [], loading: false, error: null })
+    unauthorizedTarget.value = null
 
     Object.assign(preview, { show: false, scanId: null, type: '', scan: null, docs: [], docsLoading: false, traceroute: null, tracerouteLoading: false })
     Object.assign(details, { show: false, scanId: null, type: '', scan: null, docs: [], docsLoading: false })
@@ -948,7 +960,7 @@ export const useThemisStore = defineStore('themis', () => {
 
   return {
     world, setWorld, lybraScope, setLybraScope,
-    authorizedTargets, loadAuthorizedTargets, addAuthorizedTarget, removeAuthorizedTarget,
+    authorizedTargets, unauthorizedTarget, loadAuthorizedTargets, addAuthorizedTarget, removeAuthorizedTarget,
     kbStatus, loadKbStatus,
     activeTab, stats, loadingStats, statsError, scans, launching,
     preview, details,
