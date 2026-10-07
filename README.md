@@ -538,13 +538,13 @@ A subscription with no explicit plan falls back to the default plan (seeded by m
 | `POST` | `/users/check-credentials` | Validate credentials without issuing tokens |
 | `GET/PUT` | `/users/me` | Read / update the authenticated user's own profile; it includes `language` (the user's choice, `null` if none) and `effectiveLanguage` |
 | `PUT` | `/users/me/language` | Choose a language, or `null` to follow the organization's (or the platform's) again |
-| `GET` | `/users/me/deletion-preview` | Preview what account self-deletion would remove |
-| `DELETE` | `/users/me` | Self-service account deletion |
+| `GET` | `/users/me/deletion-preview` | Preview what account self-deletion would remove: the owned organization, a per-category list with counts (`deletes`: scans, documents, mailboxes, vaults…) and what is kept (`retained.activityLogDays`) |
+| `DELETE` | `/users/me` | Self-service account deletion. Beyond the database rows it revokes each OAuth mailbox's permission at Google/Microsoft first (a provider failure is logged and does not stop the deletion), and only after the deletion is committed removes the user's generated files from disk and cancels their queued tasks. The response states that only the activity log is kept, for `general.logs.retentionDays` |
 | `PUT` | `/users/change-password` | Password change (invalidates all tokens) |
 | `GET/POST/DELETE` | `/users/mfa`, `/users/mfa/totp/setup`, `/users/mfa/totp/confirm`, `/users/mfa/totp` | Check status / enroll / confirm / disable TOTP MFA |
 | `GET` | `/users` · `GET/PUT/DELETE /users/<id>/attributes` | (admin/root) User list and ABAC attribute management |
 | `GET` | `/users/<id>/deletion-preview` | (admin/root) Preview what deleting that user destroys — notably the organization they own |
-| `DELETE` | `/users/<id>` | (admin/root) Delete another user's account; same purge as self-deletion, hierarchy enforced (an admin cannot delete an admin or the root), own account excluded |
+| `DELETE` | `/users/<id>` | (admin/root) Delete another user's account; same purge, mailbox revocation, file removal and task cancellation as self-deletion, hierarchy enforced (an admin cannot delete an admin or the root), own account excluded |
 | `GET` | `/system/say-hello` | **Public** health check, reports the API version |
 | `GET` | `/system/launch` | **Public** — launch mode and whether each launch surface is open right now (`Cache-Control: no-store`); the SPA uses it to hide what is closed |
 | `GET` | `/system/info` · `/system/status` | (admin) App metadata / CPU-mem-disk status |
