@@ -769,7 +769,7 @@ def update_organization_compliance_frameworks(data):
 def add_authorized_target(data):
     """Añadir un objetivo (IP o CIDR, dominio o recurso cloud) al registro de objetivos autorizados."""
     user = get_current_user()
-    AuthorizedTargetManager.assert_declaration(data["declarationAccepted"], data["declarationVersion"])
+    AuthorizedTargetManager().assert_declaration(data["declarationAccepted"], data["declarationVersion"])
     entry = AuthorizedTargetManager().add(
         user.id, data["target"], data.get("label"),
         declaration_version=data["declarationVersion"], declaration_ip=request.remote_addr,

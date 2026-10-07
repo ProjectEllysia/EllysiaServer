@@ -161,8 +161,7 @@ class AuthorizedTargetManager:
             )
         return str(network)
 
-    @staticmethod
-    def assert_declaration(accepted: bool, version: str) -> None:
+    def assert_declaration(self, accepted: bool, version: str) -> None:
         """Exige que el usuario haya aceptado la versión vigente de la declaración.
 
         Args:

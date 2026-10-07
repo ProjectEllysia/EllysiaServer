@@ -124,6 +124,7 @@ _SAMPLE_ARGUMENTS: dict[str, list[tuple]] = {
     "DuplicateAuthorizedTargetError": [("192.0.2.1",)],
     "DuplicateAssetGroupError": [("dmz",)],
     "InvalidAuthorizedTargetError": [("no vale",)],
+    "AuthorizationDeclarationOutdatedError": [("1999-01-01", "2026-10-07")],
     "ReportGenerationError": [(1, "sin datos")],
     "PrivateIPRequested": [(["10.0.0.1"],)],
     "HostUnreachableError": [("192.0.2.1", 443)],
