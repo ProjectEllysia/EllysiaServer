@@ -212,6 +212,19 @@ class OwnedOrganizationPreviewSchema(Schema):
     membersLosingAccess = fields.Integer()
 
 
+class DeletionItemSchema(Schema):
+    """Una categoría de lo que se borra: su clave (la interfaz la traduce) y cuántas filas."""
+
+    key = fields.String()
+    count = fields.Integer()
+
+
+class RetainedDataSchema(Schema):
+    """Lo que se conserva tras borrar la cuenta."""
+
+    activityLogDays = fields.Integer()
+
+
 class DeletionPreviewSchema(Schema):
     """Lo que se destruye al borrar la cuenta.
 
@@ -223,6 +236,8 @@ class DeletionPreviewSchema(Schema):
 
     ownedOrganization = fields.Nested(OwnedOrganizationPreviewSchema, allow_none=True)
     leavesOrganizationId = fields.Integer(allow_none=True)
+    deletes = fields.List(fields.Nested(DeletionItemSchema))
+    retained = fields.Nested(RetainedDataSchema)
 
 
 class DeleteAccountRequestSchema(Schema):

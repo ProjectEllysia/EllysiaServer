@@ -757,6 +757,14 @@ class UserManager:
         **desaparece con la cuenta** y toda tu gente se queda sin ella. Nadie
         pierde su cuenta ni sus datos, pero sí lo que su plan les daba por
         pertenecer, y eso conviene decirlo antes y no después.
+
+        Además lista, por categorías y con cantidades, lo que se borra, y lo que
+        se conserva (el registro de actividad y los días que se guarda).
+
+        Returns:
+            dict: ``ownedOrganization``, ``leavesOrganizationId``, ``deletes``
+                (lista de ``{"key", "count"}``) y ``retained``
+                (``{"activityLogDays"}``).
         """
         from src.modules.accounts.repositories import (
             OrganizationMemberRepository,
@@ -781,9 +789,16 @@ class UserManager:
             else None
         )
 
+        from .services.account_deletion import count_deletion_categories, describe_retained_data
+
+        with UnitOfWork() as uow:
+            deletes = count_deletion_categories(uow, user_id)
+
         return {
             "ownedOrganization": owned,
             "leavesOrganizationId": belongs_to,
+            "deletes": deletes,
+            "retained": describe_retained_data(),
         }
 
     def delete_own_account(self, user_id: int, password: str) -> dict:

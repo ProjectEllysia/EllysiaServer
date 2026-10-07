@@ -192,6 +192,8 @@ KNOWN_VIOLATIONS: dict[tuple[str, str, str], str] = {
         _PLAN_SQL,
     ("sql-outside-repository", "src/modules/users/services/account_deletion.py", "_footprint_themis"):
         _PLAN_SQL,
+    ("sql-outside-repository", "src/modules/users/services/account_deletion.py", "count_deletion_categories"):
+        _PLAN_SQL,
     # --- private-method
     ("private-method", "src/modules/accounts/managers/plans.py", "PlanManager._flatten_limits"):
         _PLAN_PRIVATE_METHOD,
@@ -825,6 +827,10 @@ KNOWN_VIOLATIONS: dict[tuple[str, str, str], str] = {
     ("module-direction", "src/modules/users/services/account_deletion.py", "src.modules.features.themis.managers.traceroute.TracerouteManager"):
         _PLAN_DIRECTION,
     ("module-direction", "src/modules/users/services/account_deletion.py", "src.modules.features.themis.model.Scan"):
+        _PLAN_DIRECTION,
+    ("module-direction", "src/modules/users/services/account_deletion.py", "src.modules.features.acheron.model.Vault"):
+        _PLAN_DIRECTION,
+    ("module-direction", "src/modules/users/services/account_deletion.py", "src.modules.features.themis.model.OsintScan"):
         _PLAN_DIRECTION,
     # --- manager-constructor
     ("manager-constructor", "src/modules/features/acheron/managers.py", "VaultManager.__init__"):

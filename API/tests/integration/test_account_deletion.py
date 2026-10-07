@@ -588,3 +588,62 @@ def test_an_unreachable_queue_or_a_missing_file_does_not_undo_the_deletion(
 
     assert response.status_code == 200
     assert _rows_referencing_user(app, regular_user.id) == {}
+
+
+# ------------------------------------------------ lo que se enseña antes de borrar
+
+def _tables_pointing_at_user() -> set[str]:
+    return {
+        table.name
+        for table in Base.metadata.tables.values()
+        if table.name != "User" and any(
+            fk.column.table.name == "User" for column in table.columns for fk in column.foreign_keys
+        )
+    }
+
+
+def test_every_table_pointing_at_user_is_in_the_deletion_notice_or_declared_unlisted(app):
+    """Recorre el grafo real de claves ajenas hacia ``User``: una tabla nueva que
+    no salga en el aviso ni se declare "no listada" rompe aqui, no en produccion."""
+    from src.modules.users.services.account_deletion import (
+        DELETION_CATEGORY_KEYS,
+        UNLISTED_TABLES,
+        _models_of_deletion_category,
+    )
+
+    listed = {model.__tablename__
+              for key in DELETION_CATEGORY_KEYS
+              for model in _models_of_deletion_category(key)}
+
+    assert not listed & set(UNLISTED_TABLES), "una tabla no puede estar listada y no listada a la vez"
+    assert _tables_pointing_at_user() - listed - set(UNLISTED_TABLES) == set()
+    assert set(UNLISTED_TABLES) <= _tables_pointing_at_user(), "hay una entrada de UNLISTED_TABLES que ya no existe"
+
+
+def test_preview_lists_what_would_be_deleted_with_counts(client, app, regular_user, auth_headers):
+    _seed_user_data(app, regular_user.id)
+
+    body = client.get("/users/me/deletion-preview", headers=auth_headers(regular_user)).get_json()
+
+    deletes = {item["key"]: item["count"] for item in body["deletes"]}
+    assert deletes["authorizedTargets"] == 1
+    assert deletes["scheduledScans"] == 1
+    assert deletes["mailboxes"] == 1
+    assert deletes["monitoredAssets"] == 1
+    assert deletes["documents"] == 1
+    assert deletes["campaigns"] == 1
+    assert deletes["distributionLists"] == 1
+
+
+def test_preview_leaves_out_what_the_user_does_not_have(client, regular_user, auth_headers):
+    body = client.get("/users/me/deletion-preview", headers=auth_headers(regular_user)).get_json()
+
+    assert "mailboxes" not in {item["key"] for item in body["deletes"]}
+
+
+def test_preview_says_what_is_kept_and_for_how_long(client, regular_user, auth_headers):
+    from src.modules.system import config_reading as CR
+
+    body = client.get("/users/me/deletion-preview", headers=auth_headers(regular_user)).get_json()
+
+    assert body["retained"] == {"activityLogDays": CR.logs_config().retention_days}

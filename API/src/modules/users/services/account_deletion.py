@@ -24,6 +24,9 @@ import os
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
+from sqlalchemy import func
+
+import src.modules.system.config_reading as CR
 from src.modules.infrastructure import UnitOfWork
 from src.modules.shared import Document
 from src.modules.system.taskqueue import ITaskQueue, TaskQueue
@@ -526,3 +529,122 @@ def delete_account(user_id: int) -> dict[str, int]:
     outcome = cleanup_external_footprint(footprint)
     logger.info(f"Limpieza externa de la cuenta {user_id}: {outcome}")
     return purged
+
+
+# =========================================================================
+# LO QUE SE LE ENSEÑA AL USUARIO ANTES DE BORRAR
+# =========================================================================
+#
+# El aviso de la interfaz lista, por categorías y con cantidades, lo que se va
+# a borrar. No es una lista aparte que mantener a mano: se cuenta sobre los
+# mismos modelos que barre ``PURGES``, y un test recorre el grafo real de claves
+# ajenas hacia ``User`` para que ninguna tabla nueva se quede sin salir en el
+# aviso (o sin declararse expresamente como "no se lista").
+
+
+def _models_of_deletion_category(key: str) -> list:
+    """Modelos cuyas filas cuentan para una categoría del aviso de borrado.
+
+    Args:
+        key: Clave de la categoría (``DELETION_CATEGORY_KEYS``).
+
+    Returns:
+        list: Modelos SQLAlchemy con columna ``user_id``; cada fila suya del
+            usuario suma una unidad a la categoría.
+    """
+    from src.modules.accounts.model import Subscription
+    from src.modules.features.acheron.model import Vault
+    from src.modules.features.aegis.model import Campaign, DistributionList
+    from src.modules.features.hygeia.model import MonitoredAsset
+    from src.modules.features.iris.model import IrisAnalysis, IrisMailboxConnection
+    from src.modules.features.themis.model import AuthorizedTarget, OsintScan, ProgramedScan, Scan
+
+    return {
+        "scans": [Scan, OsintScan],
+        "documents": [Document],
+        "scheduledScans": [ProgramedScan],
+        "authorizedTargets": [AuthorizedTarget],
+        "mailboxes": [IrisMailboxConnection],
+        "mailAnalyses": [IrisAnalysis],
+        "monitoredAssets": [MonitoredAsset],
+        "distributionLists": [DistributionList],
+        "campaigns": [Campaign],
+        "vaults": [Vault],
+        "subscription": [Subscription],
+    }[key]
+
+
+#: Categorías del aviso, en el orden en que se enseñan. La interfaz traduce cada
+#: clave en ``profilePage.delete.items.<clave>``.
+DELETION_CATEGORY_KEYS: tuple[str, ...] = (
+    "scans", "documents", "scheduledScans", "authorizedTargets", "mailboxes",
+    "mailAnalyses", "monitoredAssets", "distributionLists", "campaigns", "vaults",
+    "subscription",
+)
+
+#: Tablas con clave ajena hacia ``User`` que se borran pero **no** salen como
+#: categoría propia, con el motivo. El test del grafo de claves ajenas exige que
+#: toda tabla esté en una categoría o aquí: así nadie añade una y se olvida del aviso.
+UNLISTED_TABLES: dict[str, str] = {
+    **dict.fromkeys(
+        ["AccessToken", "RefreshToken", "MFAChallenge", "MFARecoveryCode", "MFATotpCredential",
+         "UserAttribute"],
+        "sesión, segundo factor y permisos de la propia cuenta",
+    ),
+    **dict.fromkeys(
+        ["Organization", "OrganizationMember", "OrganizationInvitation"],
+        "organización e invitaciones: su disolución se enseña aparte porque afecta a terceros",
+    ),
+    **dict.fromkeys(
+        ["ScanFolder", "Traceroute", "Finding", "ComplianceFrameworkSelection"],
+        "carpetas, cachés y marcas que cuelgan de los escaneos",
+    ),
+    **dict.fromkeys(
+        ["AegisOrgProfile", "AssetGroup", "HygeiaTag"],
+        "ajustes y etiquetas de Aegis e Hygeia",
+    ),
+    **dict.fromkeys(
+        ["IrisActionAudit", "IrisAnalystFeedback", "IrisBatch", "IrisCampaign", "IrisCase",
+         "IrisCaseEvent", "IrisCommunicationEdge", "IrisIntegrationToken", "IrisMailboxMember",
+         "IrisNotificationPreference", "IrisSavedView", "IrisTenantConsent", "IrisTenantProfile",
+         "IrisTrustedSender", "IrisUrlExpansion", "IrisWebhookSubscription"],
+        "ajustes, casos y resultados derivados de los análisis de Iris",
+    ),
+}
+
+
+def count_deletion_categories(uow: UnitOfWork, user_id: int) -> list[dict]:
+    """Cuenta cuánto de cada categoría se borraría con la cuenta.
+
+    Solo lee. Las categorías sin ninguna fila no se devuelven: un aviso que
+    enumera lo que el usuario no tiene solo añade ruido.
+
+    Args:
+        uow: Unidad de trabajo con la sesión abierta.
+        user_id: Usuario cuya cuenta se mostraría borrar.
+
+    Returns:
+        list[dict]: ``{"key": str, "count": int}`` por cada categoría con al
+            menos una fila, en el orden de ``DELETION_CATEGORY_KEYS``.
+    """
+    categories = []
+    for key in DELETION_CATEGORY_KEYS:
+        total = 0
+        for model in _models_of_deletion_category(key):
+            total += uow.session.query(func.count()).select_from(model).filter(
+                model.user_id == user_id
+            ).scalar() or 0
+        if total:
+            categories.append({"key": key, "count": total})
+    return categories
+
+
+def describe_retained_data() -> dict[str, int]:
+    """Lo que se conserva tras el borrado de una cuenta, para decírselo al usuario.
+
+    Returns:
+        dict[str, int]: ``activityLogDays``, los días que se conserva el
+            registro de actividad (con el usuario y la dirección IP de cada
+            petición) antes de que se borre solo.
+    """
+    return {"activityLogDays": CR.logs_config().retention_days}
