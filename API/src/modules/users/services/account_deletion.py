@@ -211,12 +211,32 @@ def revoke_mailbox_grants(user_id: int) -> int:
     return failures
 
 
+def _footprint_users(uow: UnitOfWork, user_id: int, footprint: ExternalFootprint) -> None:
+    """ZIP de exportaciones de datos todavía sin descargar y sus tareas.
+
+    Args:
+        uow: Unidad de trabajo con la sesión abierta.
+        user_id: Usuario cuya cuenta se va a borrar.
+        footprint: Acumulador al que se añaden las rutas y los ``external_id``.
+    """
+    from src.modules.users.managers import DataExportManager
+    from src.modules.users.model import DataExport
+
+    for export_id, filename in uow.session.query(DataExport.id, DataExport.filename).filter(
+        DataExport.user_id == user_id
+    ):
+        if filename:
+            footprint.file_paths.append(filename)
+        footprint.task_external_ids.append(f"{DataExportManager.EXTERNAL_ID_PREFIX}{export_id}")
+
+
 #: Orden de recogida. Solo lee: no modifica nada de la base de datos.
 FOOTPRINTS: list[tuple[str, Callable[[UnitOfWork, int, ExternalFootprint], None]]] = [
     ("documents", _footprint_documents),
     ("themis",    _footprint_themis),
     ("aegis",     _footprint_aegis),
     ("iris",      _footprint_iris),
+    ("users",     _footprint_users),
 ]
 
 
@@ -396,14 +416,14 @@ def _purge_accounts(uow: UnitOfWork, user_id: int) -> dict[str, int]:
 
 
 def _purge_users(uow: UnitOfWork, user_id: int) -> dict[str, int]:
-    """Desafíos MFA a medias.
+    """Desafíos MFA a medias y exportaciones de datos.
 
     El resto de lo que guarda ``users`` (tokens, atributos, credencial TOTP y
     códigos de recuperación) cuelga de una ``relationship`` con cascada.
     """
-    from src.modules.users.model import MFAChallenge
+    from src.modules.users.model import DataExport, MFAChallenge
 
-    return _delete_by_user(uow, user_id, [MFAChallenge])
+    return _delete_by_user(uow, user_id, [MFAChallenge, DataExport])
 
 
 #: Orden de barrido. Se ejecuta antes de borrar la fila de ``User``.
@@ -586,6 +606,7 @@ DELETION_CATEGORY_KEYS: tuple[str, ...] = (
 #: categoría propia, con el motivo. El test del grafo de claves ajenas exige que
 #: toda tabla esté en una categoría o aquí: así nadie añade una y se olvida del aviso.
 UNLISTED_TABLES: dict[str, str] = {
+    "DataExport": "exportaciones de tus datos, con su archivo si aún no lo has descargado",
     **dict.fromkeys(
         ["AccessToken", "RefreshToken", "MFAChallenge", "MFARecoveryCode", "MFATotpCredential",
          "UserAttribute"],

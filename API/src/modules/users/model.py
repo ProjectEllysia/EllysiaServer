@@ -16,7 +16,7 @@ Example:
 'User(id=None, username='admin', role='role_user')'
 """
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String
+from sqlalchemy import BigInteger, Boolean, Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import deferred, relationship
 
 from src.modules.shared import Base, EncryptedText, utcnow_naive
@@ -428,3 +428,39 @@ class MFAChallenge(Base):
             f"<MFAChallenge id={self.id} user_id={self.user_id} "
             f"purpose={self.purpose} attempts={self.attempts}>"
         )
+
+
+class DataExport(Base):
+    """
+    Una exportación de los datos de un usuario: su estado y el ZIP que genera.
+
+    El archivo se escribe en segundo plano (``users.export``) y se descarga una
+    sola vez; si nadie lo descarga, caduca y se borra (``expires_at``). Así una
+    copia de todos los datos de una persona no queda en el disco del servidor
+    más de lo necesario.
+
+    Attributes:
+        id: Primary key.
+        user_id: Foreign key to User.id; dueño de la exportación.
+        status: ``pending`` (encolada), ``running`` (escribiéndose), ``done``
+            (lista para descargar), ``error`` (falló), ``downloaded`` (ya se
+            descargó y el fichero se borró) o ``expired`` (caducó sin
+            descargarse y el fichero se borró).
+        filename: Ruta del ZIP en el servidor; ``None`` mientras no existe y
+            tras borrarse.
+        size_bytes: Tamaño del ZIP; ``None`` mientras no existe.
+        created_at: Cuándo se pidió.
+        expires_at: Hasta cuándo se puede descargar; ``None`` hasta que el ZIP
+            está listo.
+        downloaded_at: Cuándo se descargó; ``None`` si aún no.
+    """
+    __tablename__ = "DataExport"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("User.id"), nullable=False, index=True)
+    status = Column(String(16), nullable=False, default="pending")
+    filename = Column(String(512), nullable=True)
+    size_bytes = Column(BigInteger, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=utcnow_naive)
+    expires_at = Column(DateTime, nullable=True)
+    downloaded_at = Column(DateTime, nullable=True)

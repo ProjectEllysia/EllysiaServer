@@ -7,12 +7,23 @@ from typing import Optional
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
 from src.modules.infrastructure.scheduling import make_background_scheduler, scheduler_job
 
 from .mfa_notices import send_mfa_reminders
 
 logger = logging.getLogger(__name__)
+
+
+@scheduler_job(logger, "Fallo borrando las exportaciones de datos caducadas")
+def purge_expired_exports_job() -> None:
+    """Borra los ZIP de exportación caducados. Lo dispara el planificador cada hora."""
+    from ..managers import DataExportManager
+
+    removed = DataExportManager().purge_expired_exports()
+    if removed:
+        logger.info("Se borraron %d fichero(s) de exportación de datos caducados", removed)
 
 
 class UsersScheduler:
@@ -37,6 +48,16 @@ class UsersScheduler:
             max_instances=1,
             name="Recordatorios de MFA",
         )
+        cls._scheduler.add_job(
+            func=purge_expired_exports_job,
+            # El plazo de descarga es de horas: revisar cada hora borra el ZIP
+            # poco después de que caduque, sin mantener un job por exportación.
+            trigger=IntervalTrigger(hours=1),
+            id="users_purge_exports",
+            replace_existing=True,
+            max_instances=1,
+            name="Borrado de exportaciones de datos caducadas",
+        )
         cls._scheduler.start()
         logger.info("Scheduler de users iniciado")
 
@@ -50,3 +71,5 @@ class UsersScheduler:
     @scheduler_job(logger, "Fallo enviando los recordatorios MFA")
     def _run_mfa_reminders() -> None:
         send_mfa_reminders()
+
+

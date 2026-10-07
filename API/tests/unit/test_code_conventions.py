@@ -194,6 +194,12 @@ KNOWN_VIOLATIONS: dict[tuple[str, str, str], str] = {
         _PLAN_SQL,
     ("sql-outside-repository", "src/modules/users/services/account_deletion.py", "count_deletion_categories"):
         _PLAN_SQL,
+    ("sql-outside-repository", "src/modules/shared/_data_export.py", "owned_through"):
+        _PLAN_SQL,
+    ("sql-outside-repository", "src/modules/users/services/account_deletion.py", "_footprint_users"):
+        _PLAN_SQL,
+    ("sql-outside-repository", "src/modules/users/services/data_export.py", "iter_table_rows"):
+        _PLAN_SQL,
     # --- private-method
     ("private-method", "src/modules/accounts/managers/plans.py", "PlanManager._flatten_limits"):
         _PLAN_PRIVATE_METHOD,
@@ -831,6 +837,16 @@ KNOWN_VIOLATIONS: dict[tuple[str, str, str], str] = {
     ("module-direction", "src/modules/users/services/account_deletion.py", "src.modules.features.acheron.model.Vault"):
         _PLAN_DIRECTION,
     ("module-direction", "src/modules/users/services/account_deletion.py", "src.modules.features.themis.model.OsintScan"):
+        _PLAN_DIRECTION,
+    ("module-direction", "src/modules/users/services/data_export.py", "src.modules.features.acheron.data_export.EXPORT_TABLES"):
+        _PLAN_DIRECTION,
+    ("module-direction", "src/modules/users/services/data_export.py", "src.modules.features.aegis.data_export.EXPORT_TABLES"):
+        _PLAN_DIRECTION,
+    ("module-direction", "src/modules/users/services/data_export.py", "src.modules.features.hygeia.data_export.EXPORT_TABLES"):
+        _PLAN_DIRECTION,
+    ("module-direction", "src/modules/users/services/data_export.py", "src.modules.features.iris.data_export.EXPORT_TABLES"):
+        _PLAN_DIRECTION,
+    ("module-direction", "src/modules/users/services/data_export.py", "src.modules.features.themis.data_export.EXPORT_TABLES"):
         _PLAN_DIRECTION,
     # --- manager-constructor
     ("manager-constructor", "src/modules/features/acheron/managers.py", "VaultManager.__init__"):
