@@ -491,3 +491,100 @@ def test_an_admin_deleting_a_user_also_revokes_the_mailbox_permission(
 
     assert response.status_code == 200
     assert connector.revoked_tokens == ["token-a"]
+
+
+# --------------------------------------------- ficheros y tareas tras el borrado
+
+class _FakeQueue:
+    """Cola en memoria: ``pending`` mapea ``external_id`` → id del job."""
+
+    def __init__(self, pending: dict[str, str] | None = None, broken: bool = False):
+        self.pending = dict(pending or {})
+        self.cancelled: list[str] = []
+        self._broken = broken
+
+    def get_task_by_external_id(self, external_id, category=None):
+        if self._broken:
+            raise ConnectionError("Redis no responde")
+        job_id = self.pending.get(external_id)
+        return mock.Mock(id=job_id) if job_id else None
+
+    def cancel(self, task_id):
+        self.cancelled.append(task_id)
+        return True
+
+
+def _seed_document_with_file(app, user_id: int, path) -> int:
+    """Un documento de Aegis cuyo fichero existe de verdad en disco."""
+    from src.modules.features.aegis.model import AegisDocument, Topic
+
+    path.write_text("contenido personal")
+    with app.app_context():
+        with unit_of_work.UnitOfWork() as uow:
+            topic = Topic(title="Phishing")
+            uow.session.add(topic)
+            uow.session.flush()
+            document = AegisDocument(
+                title="pildora", filename=str(path), status="done", format="json",
+                topic_id=topic.id, user_id=user_id,
+            )
+            uow.session.add(document)
+            uow.session.flush()
+            return document.id
+
+
+def test_deleting_an_account_removes_its_files_and_cancels_its_queued_tasks(
+    client, app, regular_user, auth_headers, tmp_path
+):
+    """Después de la baja no queda fichero ni tarea suya: es lo que el mensaje
+    final afirma, y por eso hay que demostrarlo."""
+    report = tmp_path / "pildora.json"
+    document_id = _seed_document_with_file(app, regular_user.id, report)
+    queue = _FakeQueue({f"aegis-doc:{document_id}": "job-7"})
+
+    with mock.patch("src.modules.users.services.account_deletion.TaskQueue.get_instance",
+                    return_value=queue):
+        response = client.delete("/users/me", headers=auth_headers(regular_user),
+                                 json={"password": PASSWORD})
+
+    assert response.status_code == 200
+    assert not report.exists()
+    assert queue.cancelled == ["job-7"]
+    assert _rows_referencing_user(app, regular_user.id) == {}
+
+
+def test_a_failed_deletion_keeps_the_files_and_the_tasks(app, regular_user, tmp_path):
+    """Si el borrado falla la cuenta sigue existiendo, y sus ficheros y tareas
+    tienen que seguir ahí."""
+    from src.modules.users import UserManager
+
+    report = tmp_path / "pildora.json"
+    document_id = _seed_document_with_file(app, regular_user.id, report)
+    queue = _FakeQueue({f"aegis-doc:{document_id}": "job-7"})
+
+    with app.app_context():
+        with mock.patch("src.modules.users.services.account_deletion.TaskQueue.get_instance",
+                        return_value=queue), \
+             mock.patch.object(unit_of_work.UnitOfWork, "commit",
+                               side_effect=RuntimeError("commit fallido")):
+            with pytest.raises(RuntimeError):
+                UserManager().delete_own_account(regular_user.id, PASSWORD)
+
+    assert report.exists()
+    assert queue.cancelled == []
+
+
+def test_an_unreachable_queue_or_a_missing_file_does_not_undo_the_deletion(
+    client, app, regular_user, auth_headers, tmp_path
+):
+    document_id = _seed_document_with_file(app, regular_user.id, tmp_path / "ya-borrado.json")
+    (tmp_path / "ya-borrado.json").unlink()
+    assert document_id
+
+    with mock.patch("src.modules.users.services.account_deletion.TaskQueue.get_instance",
+                    return_value=_FakeQueue(broken=True)):
+        response = client.delete("/users/me", headers=auth_headers(regular_user),
+                                 json={"password": PASSWORD})
+
+    assert response.status_code == 200
+    assert _rows_referencing_user(app, regular_user.id) == {}

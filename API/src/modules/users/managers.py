@@ -794,13 +794,16 @@ class UserManager:
         criterio que el cambio de contraseña.
 
         El barrido por módulo va en ``services/account_deletion.py``, y con él
-        se disuelve la organización de la que el usuario sea dueño. Todo ocurre
-        en **una transacción**: o se va entero o no se va nada.
+        se disuelve la organización de la que el usuario sea dueño. Las filas se
+        borran en **una transacción**: o se van enteras o no se va nada. Los
+        ficheros, las tareas y los permisos de correo, que viven fuera de la
+        base de datos, se limpian a su alrededor y solo tras confirmar el borrado
+        (los ficheros y las tareas).
 
         Raises:
             InvalidCredentialsError: si la contraseña no es la suya.
         """
-        from .services.account_deletion import purge_user_data, revoke_mailbox_grants
+        from .services.account_deletion import delete_account
 
         user = self.get_user_by_id(user_id)
         if user is None:
@@ -811,14 +814,7 @@ class UserManager:
             raise InvalidCredentialsError()
 
         username = user.username
-        # Antes de la transacción: el token a revocar vive en una fila que el
-        # barrido va a borrar, y llamar a un tercero no debe mantener abierta
-        # una transacción.
-        revoke_mailbox_grants(user_id)
-        with UnitOfWork() as uow:
-            purged = purge_user_data(uow, user_id)
-            repo = UserRepository(uow)
-            repo.delete(repo.get_by_id(user_id))
+        purged = delete_account(user_id)
 
         logger.info(f"Cuenta '{username}' (ID: {user_id}) eliminada | purgado={purged}")
         return purged
@@ -833,22 +829,9 @@ class UserManager:
         Raises:
             UserBindingError: If the user is not found.
         """
-        from .services.account_deletion import purge_user_data, revoke_mailbox_grants
+        from .services.account_deletion import delete_account
 
-        if self.get_user_by_id(user_id) is None:
-            raise UserBindingError(username=str(user_id))
-        revoke_mailbox_grants(user_id)
-
-        with UnitOfWork() as uow:
-            repo = UserRepository(uow)
-            user = repo.get_by_id(user_id)
-            if user is None:
-                raise UserBindingError(username=str(user_id))
-            # El mismo barrido que la baja voluntaria: sin él, la mitad de las
-            # tablas quedarían con claves ajenas colgando y Postgres rechazaría
-            # el DELETE. SQLite (la suite) no lo detectaría.
-            purge_user_data(uow, user_id)
-            repo.delete(user)
+        delete_account(user_id)
 
         logger.info(f"Usuario {user_id} eliminado")
 

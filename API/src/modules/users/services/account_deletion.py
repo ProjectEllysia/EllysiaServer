@@ -20,11 +20,15 @@ botón?" — que es justo la pregunta que hay que poder responder rápido.
 """
 
 import logging
+import os
 from dataclasses import dataclass, field
-from typing import Callable
+from typing import Callable, Optional
 
 from src.modules.infrastructure import UnitOfWork
 from src.modules.shared import Document
+from src.modules.system.taskqueue import ITaskQueue, TaskQueue
+from src.modules.users.exceptions import UserBindingError
+from src.modules.users.repositories import UserRepository
 
 logger = logging.getLogger(__name__)
 
@@ -431,3 +435,94 @@ def purge_user_data(uow: UnitOfWork, user_id: int) -> dict[str, int]:
         logger.debug(f"Purga de {module_name} para el usuario {user_id}: {module_counts}")
     uow.session.flush()
     return counts
+
+
+def cleanup_external_footprint(
+    footprint: ExternalFootprint, task_queue: Optional[ITaskQueue] = None
+) -> dict[str, int]:
+    """Borra los ficheros del usuario y cancela sus tareas de la cola.
+
+    Solo se debe llamar **después** de que el borrado de la cuenta esté
+    confirmado en la base de datos: si se hiciera antes y el borrado fallase, la
+    cuenta seguiría existiendo sin sus ficheros. Nunca lanza: cada fichero o
+    tarea que falla se cuenta y se anota en el log, y el resto sigue.
+
+    Una tarea pendiente se cancela y se elimina de Redis con sus argumentos. Una
+    en ejecución recibe la señal de cancelación y sus datos desaparecen cuando
+    termina. Una ya terminada no se puede cancelar: su resultado caduca solo por
+    el TTL del historial de la cola.
+
+    Args:
+        footprint: Lo recogido por ``collect_external_footprint`` antes del borrado.
+        task_queue: Cola sobre la que cancelar. Por defecto la del proceso.
+
+    Returns:
+        dict[str, int]: ``filesRemoved``, ``tasksCancelled`` y ``failures``
+            (ficheros que no se pudieron borrar y consultas a la cola que fallaron).
+    """
+    result = {"filesRemoved": 0, "tasksCancelled": 0, "failures": 0}
+
+    for file_path in footprint.file_paths:
+        try:
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+                result["filesRemoved"] += 1
+        except OSError as error:
+            result["failures"] += 1
+            logger.warning(f"No se pudo borrar el fichero {file_path} de una cuenta eliminada: {error}")
+
+    try:
+        queue = task_queue or TaskQueue.get_instance()
+    except Exception as error:
+        queue = None
+        result["failures"] += len(footprint.task_external_ids)
+        logger.warning(f"No se pudo acceder a la cola para cancelar las tareas de una cuenta eliminada: {error}")
+
+    for external_id in footprint.task_external_ids if queue is not None else []:
+        try:
+            task = queue.get_task_by_external_id(external_id)
+            if task is not None and queue.cancel(task.id):
+                result["tasksCancelled"] += 1
+        except Exception as error:
+            result["failures"] += 1
+            logger.warning(f"No se pudo cancelar la tarea {external_id} de una cuenta eliminada: {error}")
+
+    return result
+
+
+def delete_account(user_id: int) -> dict[str, int]:
+    """Borra una cuenta entera: permisos de correo, filas, ficheros y tareas.
+
+    Es la única vía de borrado de una cuenta (baja voluntaria y baja por un
+    administrador), para que las dos hagan exactamente lo mismo. Orden:
+
+    1. Retira el permiso de cada buzón ante su proveedor.
+    2. En una transacción anota los ficheros y tareas, barre las filas y borra el
+       usuario, y **confirma** explícitamente: dentro de una petición el commit
+       normal ocurre al terminar, y los ficheros no pueden borrarse antes.
+    3. Con el borrado ya durable, borra los ficheros y cancela las tareas.
+
+    Args:
+        user_id: Usuario a borrar.
+
+    Returns:
+        dict[str, int]: Filas borradas por tabla, como ``purge_user_data``.
+
+    Raises:
+        UserBindingError: Si el usuario no existe.
+    """
+    revoke_mailbox_grants(user_id)
+
+    with UnitOfWork() as uow:
+        repo = UserRepository(uow)
+        user = repo.get_by_id(user_id)
+        if user is None:
+            raise UserBindingError(username=str(user_id))
+        footprint = collect_external_footprint(uow, user_id)
+        purged = purge_user_data(uow, user_id)
+        repo.delete(user)
+        uow.commit()
+
+    outcome = cleanup_external_footprint(footprint)
+    logger.info(f"Limpieza externa de la cuenta {user_id}: {outcome}")
+    return purged
