@@ -115,6 +115,22 @@
           </p>
           <p v-else-if="deletion?.leavesOrganizationId" class="danger-note">{{ t('profilePage.delete.leaves') }}</p>
 
+          <!-- Lo que se borra, por categorías y con cantidades, y lo que se
+               conserva: quien pulsa ve qué se lleva el botón antes de pulsarlo. -->
+          <div v-if="deletion?.deletes?.length" class="delete-summary">
+            <h3>{{ t('profilePage.delete.willBeDeleted') }}</h3>
+            <ul>
+              <li v-for="item in deletion.deletes" :key="item.key">
+                {{ t(`profilePage.delete.items.${item.key}`, { count: item.count }, item.count) }}
+              </li>
+            </ul>
+            <p class="danger-note">{{ t('profilePage.delete.alsoDeleted') }}</p>
+          </div>
+          <div v-if="deletion?.retained" class="delete-summary">
+            <h3>{{ t('profilePage.delete.kept') }}</h3>
+            <p class="danger-note">{{ t('profilePage.delete.keptActivityLog', { days: deletion.retained.activityLogDays }) }}</p>
+          </div>
+
           <form class="profile-form" @submit.prevent="askToDelete">
             <div class="form-row form-row--single">
               <div class="form-group">
@@ -237,7 +253,11 @@ async function handleDelete() {
       toast.show(await apiError(res, t('profilePage.delete.failed')), 'error')
       return
     }
-    toast.show(t('profilePage.delete.done'), 'success')
+    const days = deletion.value?.retained?.activityLogDays
+    toast.show(
+      days ? t('profilePage.delete.doneWithLog', { days }) : t('profilePage.delete.done'),
+      'success',
+    )
     auth.logout()
   } finally {
     deleting.value = false
@@ -319,6 +339,10 @@ function downloadRecoveryCodes() {
   color: var(--text); font-size: var(--fs-body); line-height: 1.55;
 }
 .danger-note { margin-top: 1rem; color: var(--text-muted); font-size: var(--fs-md); }
+.delete-summary { margin-top: 1.25rem; }
+.delete-summary h3 { margin: 0 0 0.4rem; font-size: var(--fs-md); color: var(--text); }
+.delete-summary ul { margin: 0; padding-left: 1.2rem; color: var(--text-muted); font-size: var(--fs-md); line-height: 1.6; }
+.delete-summary .danger-note { margin-top: 0.5rem; }
 
 .profile-page { min-height: 100vh; background: var(--bg); padding-top: var(--topbar-h); position: relative; }
 .main { max-width: 1020px; margin: 0 auto; padding: 1.75rem 1.1rem; position: relative; z-index: 1; }

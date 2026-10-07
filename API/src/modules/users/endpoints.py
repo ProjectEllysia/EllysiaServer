@@ -464,7 +464,13 @@ def delete_own_account(data: dict[str, Any]):
     username = user.username
     USER_MANAGER.delete_own_account(user.id, data["password"])
     logger.info(f"Cuenta eliminada a peticion del propio usuario: {username}")
-    return {"message": "Tu cuenta y todos tus datos se han eliminado."}
+    retention_days = CR.logs_config().retention_days
+    return {"message": (
+        "Tu cuenta se ha eliminado, con tus datos, tus ficheros y tus tareas pendientes, "
+        "y se ha retirado el permiso de tus buzones de correo. Lo único que se conserva "
+        f"es el registro de actividad de la web, {retention_days} días por seguridad, "
+        "y después se borra solo."
+    )}
 
 
 # =========================================================================

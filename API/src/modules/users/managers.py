@@ -757,6 +757,14 @@ class UserManager:
         **desaparece con la cuenta** y toda tu gente se queda sin ella. Nadie
         pierde su cuenta ni sus datos, pero sí lo que su plan les daba por
         pertenecer, y eso conviene decirlo antes y no después.
+
+        Además lista, por categorías y con cantidades, lo que se borra, y lo que
+        se conserva (el registro de actividad y los días que se guarda).
+
+        Returns:
+            dict: ``ownedOrganization``, ``leavesOrganizationId``, ``deletes``
+                (lista de ``{"key", "count"}``) y ``retained``
+                (``{"activityLogDays"}``).
         """
         from src.modules.accounts.repositories import (
             OrganizationMemberRepository,
@@ -781,9 +789,16 @@ class UserManager:
             else None
         )
 
+        from .services.account_deletion import count_deletion_categories, describe_retained_data
+
+        with UnitOfWork() as uow:
+            deletes = count_deletion_categories(uow, user_id)
+
         return {
             "ownedOrganization": owned,
             "leavesOrganizationId": belongs_to,
+            "deletes": deletes,
+            "retained": describe_retained_data(),
         }
 
     def delete_own_account(self, user_id: int, password: str) -> dict:
@@ -794,13 +809,16 @@ class UserManager:
         criterio que el cambio de contraseña.
 
         El barrido por módulo va en ``services/account_deletion.py``, y con él
-        se disuelve la organización de la que el usuario sea dueño. Todo ocurre
-        en **una transacción**: o se va entero o no se va nada.
+        se disuelve la organización de la que el usuario sea dueño. Las filas se
+        borran en **una transacción**: o se van enteras o no se va nada. Los
+        ficheros, las tareas y los permisos de correo, que viven fuera de la
+        base de datos, se limpian a su alrededor y solo tras confirmar el borrado
+        (los ficheros y las tareas).
 
         Raises:
             InvalidCredentialsError: si la contraseña no es la suya.
         """
-        from .services.account_deletion import purge_user_data
+        from .services.account_deletion import delete_account
 
         user = self.get_user_by_id(user_id)
         if user is None:
@@ -811,10 +829,7 @@ class UserManager:
             raise InvalidCredentialsError()
 
         username = user.username
-        with UnitOfWork() as uow:
-            purged = purge_user_data(uow, user_id)
-            repo = UserRepository(uow)
-            repo.delete(repo.get_by_id(user_id))
+        purged = delete_account(user_id)
 
         logger.info(f"Cuenta '{username}' (ID: {user_id}) eliminada | purgado={purged}")
         return purged
@@ -829,18 +844,9 @@ class UserManager:
         Raises:
             UserBindingError: If the user is not found.
         """
-        from .services.account_deletion import purge_user_data
+        from .services.account_deletion import delete_account
 
-        with UnitOfWork() as uow:
-            repo = UserRepository(uow)
-            user = repo.get_by_id(user_id)
-            if user is None:
-                raise UserBindingError(username=str(user_id))
-            # El mismo barrido que la baja voluntaria: sin él, la mitad de las
-            # tablas quedarían con claves ajenas colgando y Postgres rechazaría
-            # el DELETE. SQLite (la suite) no lo detectaría.
-            purge_user_data(uow, user_id)
-            repo.delete(user)
+        delete_account(user_id)
 
         logger.info(f"Usuario {user_id} eliminado")
 
