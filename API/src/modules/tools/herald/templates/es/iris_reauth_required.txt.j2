@@ -12,4 +12,7 @@ Mientras tanto, ningún correo nuevo de esta cuenta se está analizando. Puedes
 reconectarla desde tu panel de Iris.
 
 --
+{% if footer_reason %}
+{{ footer_reason }}
+{% endif %}
 Este mensaje se ha enviado automáticamente desde {{ brand.productName }}. No respondas a esta dirección.

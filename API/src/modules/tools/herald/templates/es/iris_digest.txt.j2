@@ -17,4 +17,7 @@ recibir estos avisos al momento en vez de en un resumen diario, puedes
 desactivar el digest desde tus preferencias de notificación.
 
 --
+{% if footer_reason %}
+{{ footer_reason }}
+{% endif %}
 Este mensaje se ha enviado automáticamente desde {{ brand.productName }}. No respondas a esta dirección.

@@ -13,4 +13,7 @@ Si no has sido tú quien ha creado esta cuenta, ignora este mensaje: sin confirm
 no llegará a usarse.
 
 --
+{% if footer_reason %}
+{{ footer_reason }}
+{% endif %}
 Este mensaje se ha enviado automáticamente desde {{ brand.productName }}. No respondas a esta dirección.

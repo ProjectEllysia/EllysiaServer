@@ -14,4 +14,7 @@ El enlace caduca en {{ ttl_hours }} horas. Si no reconoces esta organización,
 ignora este mensaje: sin aceptar, no pasa nada.
 
 --
+{% if footer_reason %}
+{{ footer_reason }}
+{% endif %}
 Este mensaje se ha enviado automáticamente desde {{ brand.productName }}. No respondas a esta dirección.

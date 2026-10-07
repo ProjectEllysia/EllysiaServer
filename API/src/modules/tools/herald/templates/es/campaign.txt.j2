@@ -75,5 +75,8 @@ Si tienes alguna duda sobre esta formación, puedes escribir a {{ contact_email 
 {% endif %}
 
 --
+{% if footer_reason %}
+{{ footer_reason }}
+{% endif %}
 Este mensaje se ha enviado automáticamente desde {{ brand.productName }}. No respondas a esta dirección.
 {% if brand.supportEmail %}¿Dudas? Escribe a {{ brand.supportEmail }}.{% endif %}

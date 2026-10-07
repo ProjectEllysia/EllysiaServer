@@ -14,4 +14,7 @@ Umbral:  {{ threshold }}
 {% if panel_url %}Ver en el panel: {{ panel_url }}{% else %}Puedes revisar el detalle desde tu panel de Hygeia.{% endif %}
 
 --
+{% if footer_reason %}
+{{ footer_reason }}
+{% endif %}
 Este mensaje se ha enviado automáticamente desde {{ brand.productName }}. No respondas a esta dirección.
