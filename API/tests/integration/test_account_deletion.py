@@ -647,3 +647,18 @@ def test_preview_says_what_is_kept_and_for_how_long(client, regular_user, auth_h
     body = client.get("/users/me/deletion-preview", headers=auth_headers(regular_user)).get_json()
 
     assert body["retained"] == {"activityLogDays": CR.logs_config().retention_days}
+
+
+def test_the_final_message_says_what_is_kept_instead_of_claiming_everything_is_gone(
+    client, regular_user, auth_headers
+):
+    """El mensaje antiguo afirmaba que se habian borrado "todos los datos", y el
+    registro de actividad sigue ahi: un texto legal no puede decir algo falso."""
+    from src.modules.system import config_reading as CR
+
+    message = client.delete("/users/me", headers=auth_headers(regular_user),
+                            json={"password": PASSWORD}).get_json()["message"]
+
+    assert "todos tus datos" not in message
+    assert "registro de actividad" in message
+    assert f"{CR.logs_config().retention_days} días" in message

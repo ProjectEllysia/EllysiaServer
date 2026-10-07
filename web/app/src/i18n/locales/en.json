@@ -1046,7 +1046,8 @@
       "confirmBase": "Everything of yours will be deleted and it cannot be undone.",
       "confirmWithOrg": "{base} Your organization “{name}” will also disappear: {members}",
       "failed": "The account could not be deleted.",
-      "done": "Your account has been deleted."
+      "done": "Your account, data, files and pending tasks have been deleted, and the permission of your mailboxes has been withdrawn.",
+      "doneWithLog": "Your account, data, files and pending tasks have been deleted, and the permission of your mailboxes has been withdrawn. Only the activity log is kept, for {days} days, and then deleted automatically."
     }
   },
   "organization": {

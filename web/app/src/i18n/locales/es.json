@@ -1046,7 +1046,8 @@
       "confirmBase": "Se borrará todo lo tuyo y no se puede deshacer.",
       "confirmWithOrg": "{base} Además, tu organización «{name}» desaparecerá: {members}",
       "failed": "No se pudo borrar la cuenta.",
-      "done": "Tu cuenta se ha eliminado."
+      "done": "Tu cuenta, tus datos, tus ficheros y tus tareas pendientes se han eliminado, y se ha retirado el permiso de tus buzones de correo.",
+      "doneWithLog": "Tu cuenta, tus datos, tus ficheros y tus tareas pendientes se han eliminado, y se ha retirado el permiso de tus buzones de correo. Solo se conserva el registro de actividad, {days} días, y después se borra solo."
     }
   },
   "organization": {

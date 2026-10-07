@@ -253,7 +253,11 @@ async function handleDelete() {
       toast.show(await apiError(res, t('profilePage.delete.failed')), 'error')
       return
     }
-    toast.show(t('profilePage.delete.done'), 'success')
+    const days = deletion.value?.retained?.activityLogDays
+    toast.show(
+      days ? t('profilePage.delete.doneWithLog', { days }) : t('profilePage.delete.done'),
+      'success',
+    )
     auth.logout()
   } finally {
     deleting.value = false
