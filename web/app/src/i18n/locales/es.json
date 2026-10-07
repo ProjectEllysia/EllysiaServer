@@ -30,7 +30,8 @@
     "technicalDocs": "Documentación técnica",
     "legal": "Legal",
     "privacy": "Privacidad",
-    "terms": "Términos"
+    "terms": "Términos",
+    "aiGovernance": "Gobierno de la IA"
   },
   "accountMenu": {
     "accountOf": "Cuenta de {name}",
@@ -568,6 +569,49 @@
     "rights": "Puedes pedir acceder a los datos que se guardan sobre ti, que se borren o que se dejen de tratar. Como el registro solo guarda direcciones IP, indica desde qué dirección y en qué fechas visitaste la web. También puedes reclamar ante la {authority}.",
     "rightsAuthority": "Agencia Española de Protección de Datos",
     "version": "Versión de {date}. Si Ellysia llegara a ofrecerse a otras personas, esta nota se sustituiría antes por una política de privacidad completa."
+  },
+  "aiNotice": {
+    "generated": "Este contenido se ha generado con inteligencia artificial.",
+    "reviewed": "Este contenido se generó con inteligencia artificial y lo has revisado tú.",
+    "link": "Cómo usamos la IA"
+  },
+  "aiGovernance": {
+    "title": "Gobierno de la IA",
+    "intro": "Ellysia usa inteligencia artificial para redactar textos en tres de sus herramientas. Esta página explica, herramienta por herramienta, qué hace la IA, qué datos recibe el modelo y cómo se marca lo que escribe.",
+    "generalHeading": "Lo que vale para todas las herramientas",
+    "noDecisions": "La IA solo redacta textos. No toma decisiones sobre personas ni puntúa a nadie: los veredictos y las puntuaciones los calculan las reglas del propio programa.",
+    "marked": "Los textos escritos por la IA llevan un aviso donde se leen: en pantalla, en los informes en PDF de Themis y en los correos de formación de Aegis.",
+    "humanReview": "Una persona puede revisarlos. Las formaciones de Aegis se pueden editar antes de enviarlas, y el correo dice entonces que las ha revisado la empresa. Ningún texto de la IA sustituye el criterio de un profesional.",
+    "providerHeading": "Qué proveedor y qué modelo",
+    "provider": "El proveedor por defecto es {provider}, con el modelo {model}. Los datos que se le envían salen del servidor de Ellysia. Existe una alternativa, Ollama, que funciona dentro del propio servidor y no envía nada fuera; solo la usa quien la configure. Quien administra la instalación puede además desactivar por completo el uso de IA externa.",
+    "training": "Lo que haga el proveedor con los datos que recibe lo fijan sus condiciones de uso de la API. Ellysia no usa esos datos para entrenar ningún modelo. Este apartado se completará cuando se formalice el acuerdo con el proveedor.",
+    "dataLabel": "Qué recibe el modelo:",
+    "notReceivedLabel": "Qué no recibe:",
+    "searchLabel": "Búsquedas en internet:",
+    "markingLabel": "Cómo se marca:",
+    "aegis": {
+      "heading": "Aegis",
+      "what": "Redacta las formaciones de concienciación, que llamamos píldoras, y las preguntas de su test.",
+      "data": "el tema elegido, el nombre y el sector de la empresa, su tamaño y su modelo de trabajo, la normativa que le aplica, los productos que usa, el tono y el idioma, el contacto de seguridad que se menciona, el texto de referencia o el incidente reciente que hayas escrito, y los avisos de vulnerabilidades vigentes para esos productos.",
+      "notReceived": "los nombres ni los correos de las personas a las que se envía la formación.",
+      "search": "puede buscar con DuckDuckGo para citar recursos fiables. Las búsquedas que prepara el programa llevan el tema, el idioma y el sector, y el modelo puede lanzar otras por su cuenta.",
+      "marking": "un aviso en pantalla mientras la formación no se haya editado, y una línea en cada correo de campaña, que además dice si la ha revisado la empresa."
+    },
+    "themis": {
+      "heading": "Themis",
+      "what": "Redacta el análisis de los informes en PDF de un escaneo: un resumen, el nivel de riesgo y las recomendaciones.",
+      "data": "los hallazgos del escaneo: las direcciones IP o los dominios analizados, los nombres de los equipos, los servicios y versiones detectados y las vulnerabilidades asociadas.",
+      "search": "el modelo puede buscar información en internet con DuckDuckGo para completar el análisis.",
+      "marking": "el informe en PDF lleva una nota que indica que esa sección está escrita con IA y que no sustituye a una auditoría de seguridad."
+    },
+    "iris": {
+      "heading": "Iris",
+      "what": "Redacta un resumen ejecutivo del análisis de un correo.",
+      "data": "el veredicto, la puntuación y las reglas que ha incumplido el correo, con sus detalles. Esos detalles pueden incluir dominios y direcciones de correo.",
+      "notReceived": "el correo completo.",
+      "marking": "el resumen se muestra en pantalla con un aviso junto al texto."
+    },
+    "version": "Versión de {date}. Este texto describe cómo funciona la aplicación hoy y está pendiente de revisión jurídica."
   },
   "errorPage": {
     "403": {
@@ -4447,6 +4491,10 @@
       "terms": {
         "title": "Términos de uso | Ellysia",
         "description": "Condiciones de uso de Ellysia y de sus herramientas de análisis de seguridad, incluido el uso responsable de los escáneres."
+      },
+      "aiGovernance": {
+        "title": "Gobierno de la IA | Ellysia",
+        "description": "Qué hace la inteligencia artificial en Ellysia, qué datos recibe el modelo en cada herramienta, de qué proveedor es y cómo se marca lo que escribe."
       },
       "docsUsage": {
         "title": "Documentación de uso | Ellysia",

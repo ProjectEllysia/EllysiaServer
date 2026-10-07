@@ -153,7 +153,7 @@ class AegisDocumentRepository(DocumentRepository[AegisDocument]):
         company: str | None,
     ) -> Optional[AegisDocument]:
         """
-        Update the content fields of a document.
+        Update the content fields of a document and mark it as edited.
 
         Args:
             doc_id: Primary key of the document.
@@ -170,6 +170,7 @@ class AegisDocumentRepository(DocumentRepository[AegisDocument]):
         if document is None:
             return None
 
+        document.is_edited = True
         document.subtitle = subtitle
         document.intro = intro
         document.closing = closing

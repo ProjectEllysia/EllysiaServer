@@ -260,6 +260,12 @@ const routes = [
     component: () => import('@/views/public/TermsView.vue'),
     meta: { seo: 'terms' },
   },
+  {
+    path: '/gobierno-ia',
+    name: 'GobiernoIA',
+    component: () => import('@/views/public/AiGovernanceView.vue'),
+    meta: { seo: 'aiGovernance' },
+  },
   // Documentación (enlazada desde el desplegable "Documentación" del header
   // de la landing). La de uso es todavía una vista provisional; la técnica
   // tiene portada propia y una página por herramienta.

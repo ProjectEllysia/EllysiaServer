@@ -119,6 +119,7 @@ class AegisManager(TaskTrackingMixin):
             "topicId": document.topic_id,
             "topicTitle": document.topic.title if document.topic else "Tema desconocido",
             "status": document.status,
+            "isEdited": bool(document.is_edited),
             "pill": {
                 "subtitle": document.subtitle,
                 "intro": document.intro,

@@ -39,6 +39,7 @@
           <ul>
             <li><router-link to="/privacidad">{{ t('footer.privacy') }}</router-link></li>
             <li><router-link to="/terminos">{{ t('footer.terms') }}</router-link></li>
+            <li><router-link to="/gobierno-ia">{{ t('footer.aiGovernance') }}</router-link></li>
           </ul>
         </div>
       </nav>

@@ -409,6 +409,10 @@ class CampaignManager(TaskTrackingMixin):
             pill_intro = document.intro if document else ""
             pill_closing = document.closing if document else ""
             pill_company = document.company if document else ""
+            # Si la empresa editó el texto que generó la IA, el correo lo dice:
+            # el destinatario sabe así si lo que lee lo ha revisado una persona.
+            pill_is_edited = bool(document.is_edited) if document else False
+            ai_governance_url = f"{base_url}/gobierno-ia#aegis"
             pill_contact_email = document.contact_email if document else ""
             # Mismo tratamiento que los exportadores (services/exporters.py):
             # "seguridad@empresa.com" es el placeholder por defecto de la IA
@@ -473,6 +477,8 @@ class CampaignManager(TaskTrackingMixin):
                     contact_email=pill_contact_email,
                     contact_is_placeholder=pill_contact_is_placeholder,
                     alerts=pill_alerts,
+                    ai_reviewed=pill_is_edited,
+                    ai_governance_url=ai_governance_url,
                 )
                 message = EmailMessage(
                     to=recipient.recipient_email,

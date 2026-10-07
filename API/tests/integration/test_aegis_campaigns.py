@@ -952,3 +952,81 @@ def test_campaign_email_of_a_pill_without_language_follows_the_aegis_profile(
     _run_campaign(client, app, admin_headers, admin_user.id, doc_id)
 
     assert "English pill:" in english_campaign_template.messages[0]["html"]
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Aviso de que el contenido lo generó una IA
+# ─────────────────────────────────────────────────────────────────────────
+
+def _edited_pill_payload(company="Acme Corp"):
+    return {
+        "subtitle": "Phishing revisado",
+        "intro": "Intro revisada",
+        "closing": "Cierre revisado",
+        "contactEmail": "ciso@empresa.com",
+        "company": company,
+        "tips": [],
+        "questions": [
+            {"prompt": "¿Qué haces?", "options": ["Nada", "Aviso a seguridad"], "correctIndex": 1},
+        ],
+    }
+
+
+def test_campaign_email_says_the_content_was_written_with_ai(
+    app, client, admin_user, admin_headers, make_aegis_doc_with_quiz, local_email_config,
+):
+    """Quien lo recibe no es usuario de Ellysia: el aviso va en el propio correo."""
+    doc_id = make_aegis_doc_with_quiz(admin_user.id)
+
+    _run_campaign(client, app, admin_headers, admin_user.id, doc_id)
+
+    sent = local_email_config.messages[0]
+    assert "elaborado con ayuda de inteligencia artificial" in sent["html"]
+    assert "revisado" not in sent["html"]
+
+
+def test_campaign_email_links_to_the_ai_governance_page(
+    app, client, admin_user, admin_headers, make_aegis_doc_with_quiz, local_email_config,
+):
+    doc_id = make_aegis_doc_with_quiz(admin_user.id)
+
+    _run_campaign(client, app, admin_headers, admin_user.id, doc_id)
+
+    assert "http://localhost:5173/gobierno-ia#aegis" in local_email_config.messages[0]["html"]
+
+
+def test_campaign_email_says_the_company_reviewed_an_edited_pill(
+    app, client, admin_user, admin_headers, make_aegis_doc_with_quiz, local_email_config,
+):
+    doc_id = make_aegis_doc_with_quiz(admin_user.id)
+    assert client.put(f"/aegis/document?id={doc_id}", headers=admin_headers,
+                      json=_edited_pill_payload()).status_code == 200
+
+    _run_campaign(client, app, admin_headers, admin_user.id, doc_id)
+
+    assert "y ha sido revisado por Acme Corp" in local_email_config.messages[0]["html"]
+
+
+def test_an_edited_pill_without_company_says_it_was_reviewed_before_sending(
+    app, client, admin_user, admin_headers, make_aegis_doc_with_quiz, local_email_config,
+):
+    doc_id = make_aegis_doc_with_quiz(admin_user.id)
+    client.put(f"/aegis/document?id={doc_id}", headers=admin_headers,
+               json=_edited_pill_payload(company=""))
+
+    _run_campaign(client, app, admin_headers, admin_user.id, doc_id)
+
+    assert "y ha sido revisado antes de enviarlo" in local_email_config.messages[0]["html"]
+
+
+def test_the_document_reports_whether_the_ai_text_was_edited(
+    client, admin_user, admin_headers, make_aegis_doc_with_quiz,
+):
+    doc_id = make_aegis_doc_with_quiz(admin_user.id)
+
+    before = client.get(f"/aegis/document?id={doc_id}", headers=admin_headers).get_json()
+    client.put(f"/aegis/document?id={doc_id}", headers=admin_headers, json=_edited_pill_payload())
+    after = client.get(f"/aegis/document?id={doc_id}", headers=admin_headers).get_json()
+
+    assert before["isEdited"] is False
+    assert after["isEdited"] is True
