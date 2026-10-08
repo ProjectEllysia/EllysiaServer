@@ -488,6 +488,15 @@ def _configure_scheduling() -> None:
     except Exception as e:
         _logger.warning("No se pudo reconciliar documentos Hygeia huérfanos: %s", e)
 
+    _logger.info("Reconciliando exportaciones de datos huérfanas...")
+    try:
+        from src.modules.users.managers import DataExportManager
+        fixed_exports = DataExportManager().reconcile_orphaned_exports()
+        if fixed_exports:
+            _logger.info("Se marcaron %d exportación(es) de datos huérfana(s) como error", fixed_exports)
+    except Exception as e:
+        _logger.warning("No se pudo reconciliar las exportaciones de datos huérfanas: %s", e)
+
     _logger.info("Publicando TaskDispatch pendientes de la outbox...")
     try:
         from src.modules.system.taskqueue.dispatcher import OutboxDispatcher

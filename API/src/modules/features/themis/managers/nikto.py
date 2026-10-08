@@ -13,6 +13,7 @@ from ..lybra import compute_dedup_key, nikto_incident_to_finding
 from ..services import NiktoResultProcessor, _Task
 from ..exceptions import ScanNotFoundError
 
+from .authorized_target import AuthorizedTargetManager
 from .scan import ScanManager
 
 
@@ -60,6 +61,10 @@ class NiktoScanManager(ScanManager):
             from src.modules.shared import normalize_target
             resolved_ip, _ = normalize_target(target_domain)
             ScanManager.reject_private_ip(resolved_ip)
+
+            # Declaración del titular, sobre la IP ya resuelta (el registro solo
+            # entiende IPs): ver NmapScanManager.run_scan.
+            AuthorizedTargetManager().assert_authorized(user_id, resolved_ip)
 
             # Después de validar y justo antes de crear el registro: un objetivo
             # rechazado no gasta cuota. Aquí y no en el endpoint, porque el flujo

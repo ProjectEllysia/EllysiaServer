@@ -21,7 +21,7 @@ from ..lybra import (
     classify_exposure,
 )
 from ..services import NucleiResultProcessor, _Task
-from ..exceptions import ScanNotFoundError, TargetNotAuthorizedError
+from ..exceptions import ScanNotFoundError
 
 from .scan import ScanManager
 
@@ -110,8 +110,7 @@ class NucleiScanManager(ScanManager):
             from .authorized_target import AuthorizedTargetManager
             resolved_ip, _ = normalize_target(target)
             ScanManager.reject_private_ip(resolved_ip)
-            if not AuthorizedTargetManager.is_authorized(user_id, resolved_ip):
-                raise TargetNotAuthorizedError(target)
+            AuthorizedTargetManager().assert_authorized(user_id, resolved_ip)
 
             resolved_timeout = int(timeout) if timeout is not None else int(CR.nuclei_config().timeout)
 

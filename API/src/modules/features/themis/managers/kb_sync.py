@@ -23,6 +23,10 @@ logger = logging.getLogger(__name__)
 
 _CVE_ID = re.compile(r"^CVE-\d{4}-\d{4,}$", re.IGNORECASE)
 
+# Cuántos productos y cuántos paquetes de distribución devuelve como mucho la
+# consulta pública de una CVE (ver ``KbQueryManager.public_cve_detail``).
+PUBLIC_CVE_LIST_LIMIT = 50
+
 
 def _source_names(sources: dict) -> List[str]:
     """Los nombres con los que se registra y se informa cada fuente configurada.
@@ -711,6 +715,31 @@ class KbQueryManager:
                 for row in statuses
             ],
         }
+
+    def public_cve_detail(self, cve_id: str) -> Optional[dict]:
+        """La ficha de una CVE acotada para la consulta pública.
+
+        Una CVE de un componente muy extendido puede casar con cientos de
+        productos y de paquetes de distribución; sin tope, una sola petición
+        anónima devolvería una respuesta enorme. Se recortan las dos listas y
+        se da el total, para que quien lee sepa que hay más.
+
+        Args:
+            cve_id: El identificador, ya en mayúsculas y con formato válido.
+
+        Returns:
+            Optional[dict]: Lo mismo que :meth:`cve_detail`, con ``products`` y
+                ``distroStatuses`` cortadas a ``PUBLIC_CVE_LIST_LIMIT`` elementos
+                y los totales en ``productsTotal`` y ``distroStatusesTotal``.
+                ``None`` si la base de conocimiento no sabe nada de la CVE.
+        """
+        detail = self.cve_detail(cve_id)
+        if detail is None:
+            return None
+        for key in ("products", "distroStatuses"):
+            detail[f"{key}Total"] = len(detail[key])
+            detail[key] = detail[key][:PUBLIC_CVE_LIST_LIMIT]
+        return detail
 
     def search_products(self, term: str, limit: int = 20) -> List[KbProduct]:
         """Productos del índice CPE que empiezan por ``term``."""

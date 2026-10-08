@@ -19,8 +19,10 @@ Classes:
 """
 
 import logging
+import os
 import secrets
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from uuid import uuid4
 from typing import List, Optional, Tuple
 
@@ -32,6 +34,10 @@ from src.modules.users.exceptions import (
     DatabaseError,
     EmailAlreadyVerifiedError,
     ExistingUserError,
+    DataExportGoneError,
+    DataExportInProgressError,
+    DataExportNotFoundError,
+    DataExportNotReadyError,
     InvalidCredentialsError,
     InvalidVerificationTokenError,
     PermissionsError,
@@ -48,6 +54,8 @@ from src.modules.infrastructure import UnitOfWork
 from src.modules.shared import assert_surface_enabled, utcnow_naive
 from src.modules.infrastructure.session import build_repository
 from src.modules.tools.herald import EmailMessage, build_mailer, render_email
+from src.modules.system.taskqueue import OutboxDispatcher, TaskTrackingMixin, build_dispatch, job_context
+from src.modules.system.taskqueue.outbox_repository import TaskDispatchRepository
 
 from .model import (
     AccessToken,
@@ -56,8 +64,15 @@ from .model import (
     MFATotpCredential,
     MFARecoveryCode,
     MFAChallenge,
+    DataExport,
 )
-from .repositories import TokenRepository, UserRepository, AttributeRepository, MFARepository
+from .repositories import (
+    AttributeRepository,
+    DataExportRepository,
+    MFARepository,
+    TokenRepository,
+    UserRepository,
+)
 from .services import (
     hash_password,
     verify_password,
@@ -757,6 +772,14 @@ class UserManager:
         **desaparece con la cuenta** y toda tu gente se queda sin ella. Nadie
         pierde su cuenta ni sus datos, pero sí lo que su plan les daba por
         pertenecer, y eso conviene decirlo antes y no después.
+
+        Además lista, por categorías y con cantidades, lo que se borra, y lo que
+        se conserva (el registro de actividad y los días que se guarda).
+
+        Returns:
+            dict: ``ownedOrganization``, ``leavesOrganizationId``, ``deletes``
+                (lista de ``{"key", "count"}``) y ``retained``
+                (``{"activityLogDays"}``).
         """
         from src.modules.accounts.repositories import (
             OrganizationMemberRepository,
@@ -781,9 +804,16 @@ class UserManager:
             else None
         )
 
+        from .services.account_deletion import count_deletion_categories, describe_retained_data
+
+        with UnitOfWork() as uow:
+            deletes = count_deletion_categories(uow, user_id)
+
         return {
             "ownedOrganization": owned,
             "leavesOrganizationId": belongs_to,
+            "deletes": deletes,
+            "retained": describe_retained_data(),
         }
 
     def delete_own_account(self, user_id: int, password: str) -> dict:
@@ -794,13 +824,16 @@ class UserManager:
         criterio que el cambio de contraseña.
 
         El barrido por módulo va en ``services/account_deletion.py``, y con él
-        se disuelve la organización de la que el usuario sea dueño. Todo ocurre
-        en **una transacción**: o se va entero o no se va nada.
+        se disuelve la organización de la que el usuario sea dueño. Las filas se
+        borran en **una transacción**: o se van enteras o no se va nada. Los
+        ficheros, las tareas y los permisos de correo, que viven fuera de la
+        base de datos, se limpian a su alrededor y solo tras confirmar el borrado
+        (los ficheros y las tareas).
 
         Raises:
             InvalidCredentialsError: si la contraseña no es la suya.
         """
-        from .services.account_deletion import purge_user_data
+        from .services.account_deletion import delete_account
 
         user = self.get_user_by_id(user_id)
         if user is None:
@@ -811,10 +844,7 @@ class UserManager:
             raise InvalidCredentialsError()
 
         username = user.username
-        with UnitOfWork() as uow:
-            purged = purge_user_data(uow, user_id)
-            repo = UserRepository(uow)
-            repo.delete(repo.get_by_id(user_id))
+        purged = delete_account(user_id)
 
         logger.info(f"Cuenta '{username}' (ID: {user_id}) eliminada | purgado={purged}")
         return purged
@@ -829,18 +859,9 @@ class UserManager:
         Raises:
             UserBindingError: If the user is not found.
         """
-        from .services.account_deletion import purge_user_data
+        from .services.account_deletion import delete_account
 
-        with UnitOfWork() as uow:
-            repo = UserRepository(uow)
-            user = repo.get_by_id(user_id)
-            if user is None:
-                raise UserBindingError(username=str(user_id))
-            # El mismo barrido que la baja voluntaria: sin él, la mitad de las
-            # tablas quedarían con claves ajenas colgando y Postgres rechazaría
-            # el DELETE. SQLite (la suite) no lo detectaría.
-            purge_user_data(uow, user_id)
-            repo.delete(user)
+        delete_account(user_id)
 
         logger.info(f"Usuario {user_id} eliminado")
 
@@ -1622,3 +1643,264 @@ class MFAManager:
                     return True
 
         return False
+
+
+# =========================================================================
+# EXPORTACIÓN DE LOS DATOS DEL USUARIO
+# =========================================================================
+
+#: Cuánto tiempo se puede descargar una exportación lista. Pasado el plazo se
+#: borra el fichero: una copia de todos los datos de una persona no debe quedarse
+#: en el disco del servidor más de lo necesario.
+DATA_EXPORT_VALIDITY = timedelta(hours=24)
+
+#: Tiempo máximo del trabajo de exportación, en segundos. Un usuario con muchos
+#: hallazgos tarda más que uno sin datos, pero nunca debería acercarse a esto.
+_DATA_EXPORT_TIMEOUT_SECONDS = 1800
+
+
+def _exports_directory() -> Path:
+    """La carpeta donde se escriben los ZIP de exportación, creada si no existe.
+
+    Returns:
+        Path: ``<tempdir>/data-exports``. Cuelga del directorio temporal de la
+            configuración, que no se sirve por HTTP: el ZIP solo sale por el
+            endpoint de descarga, autenticado.
+    """
+    directory = Path(CR.get_directory_of(CR.DirectoryType.TEMP)) / "data-exports"
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory
+
+
+def delete_export_file(path: Optional[str]) -> None:
+    """Borra el ZIP de una exportación sin lanzar si ya no está o no se puede borrar.
+
+    Lo usa también el cierre de la respuesta de descarga: una vez enviado el
+    fichero al usuario, ya no debe quedar en el servidor.
+
+    Args:
+        path: Ruta del fichero; ``None`` o vacía si la exportación no lo tiene.
+    """
+    if not path:
+        return
+    try:
+        Path(path).unlink(missing_ok=True)
+    except OSError as error:
+        logger.warning(f"No se pudo borrar el fichero de exportación {path}: {error}")
+
+
+def _run_export(export_id: int) -> None:
+    """Cuerpo del job: escribe el ZIP de una exportación y la marca como lista.
+
+    Es idempotente: si la exportación ya no está ``pending`` ni ``running`` (la
+    outbox puede publicar un job dos veces) no hace nada. Si falla, la marca
+    ``error``, borra el fichero a medias y vuelve a lanzar la excepción para que
+    la cola vea el job como fallido.
+
+    Args:
+        export_id: Primary key de la ``DataExport``.
+    """
+    from .services.data_export import write_export_archive
+
+    with job_context():
+        with UnitOfWork() as uow:
+            export = DataExportRepository(uow).get_by_id(export_id)
+            if export is None or export.status not in ("pending", "running"):
+                return
+            export.status = "running"
+            user_id = export.user_id
+
+        destination = _exports_directory() / f"export-{export_id}-{uuid4().hex}.zip"
+        try:
+            with UnitOfWork() as uow:
+                write_export_archive(uow.session, user_id, destination, utcnow_naive())
+            finished_at = utcnow_naive()
+            with UnitOfWork() as uow:
+                export = DataExportRepository(uow).get_by_id(export_id)
+                export.status = "done"
+                export.filename = str(destination)
+                export.size_bytes = destination.stat().st_size
+                export.expires_at = finished_at + DATA_EXPORT_VALIDITY
+            logger.info(f"Exportación {export_id} del usuario {user_id} lista ({destination.name})")
+        except Exception:
+            delete_export_file(str(destination))
+            with UnitOfWork() as uow:
+                export = DataExportRepository(uow).get_by_id(export_id)
+                if export is not None:
+                    export.status = "error"
+            logger.error(f"Falló la exportación {export_id} del usuario {user_id}", exc_info=True)
+            raise
+
+
+class DataExportManager(TaskTrackingMixin):
+    """Pedir, consultar y descargar la copia de todos los datos de un usuario.
+
+    La copia se genera en segundo plano (categoría ``users.export``) y se
+    descarga **una sola vez**: tras descargarla, o pasadas
+    ``DATA_EXPORT_VALIDITY`` horas sin hacerlo, el fichero se borra.
+    """
+
+    EXTERNAL_ID_PREFIX = "users-export:"
+    TASK_CATEGORY = "users.export"
+
+    def request_export(self, user_id: int, password: str) -> DataExport:
+        """Pide una exportación de los datos del usuario y la encola.
+
+        Se re-verifica la contraseña aunque haya sesión: la exportación junta
+        todos los datos de la cuenta en un solo fichero, y un token robado no
+        debería bastar para llevárselo. Mismo criterio que el borrado de cuenta.
+
+        La fila y la intención de encolar se guardan en la misma transacción
+        (outbox): si la API muere justo después, la exportación no se queda
+        pendiente sin que nadie la procese.
+
+        Args:
+            user_id: Quien pide la exportación.
+            password: Su contraseña actual.
+
+        Returns:
+            DataExport: La exportación recién creada, en ``pending``.
+
+        Raises:
+            InvalidCredentialsError: Si la contraseña no es la suya.
+            DataExportInProgressError: Si ya tiene una exportación en curso.
+        """
+        user_manager = UserManager()
+        user = user_manager.get_user_by_id(user_id)
+        if user is None:
+            raise UserBindingError(username=str(user_id))
+        is_valid, _ = user_manager.verify_credentials(user.username, password)
+        if not is_valid:
+            raise InvalidCredentialsError()
+
+        with UnitOfWork() as uow:
+            repository = DataExportRepository(uow)
+            if repository.get_unfinished_for_user(user_id) is not None:
+                raise DataExportInProgressError()
+            export = repository.save(DataExport(user_id=user_id, status="pending"))
+            dispatch = TaskDispatchRepository(uow).save(build_dispatch(
+                func=DataExportManager.execute_export,
+                name=f"DataExport-{export.id}",
+                category=self.TASK_CATEGORY,
+                args=(export.id,),
+                external_id=self.external_id_for(export.id),
+                timeout=_DATA_EXPORT_TIMEOUT_SECONDS,
+            ))
+            dispatch_id = dispatch.id
+            uow.commit_for_handoff()
+
+        OutboxDispatcher.dispatch(dispatch_id, task_queue=self._task_queue)
+        logger.info(f"Exportación de datos {export.id} pedida por el usuario {user_id}")
+        return export
+
+    def get_export(self, user_id: int, export_id: int) -> DataExport:
+        """La exportación ``export_id`` de ``user_id``.
+
+        Raises:
+            DataExportNotFoundError: Si no existe o es de otro usuario (misma
+                respuesta en los dos casos, para no revelar ids ajenos).
+        """
+        export = build_repository(DataExportRepository).get_by_id_and_user(export_id, user_id)
+        if export is None:
+            raise DataExportNotFoundError(export_id)
+        return export
+
+    def get_latest_export(self, user_id: int) -> Optional[DataExport]:
+        """La última exportación que pidió ``user_id``, o ``None`` si nunca pidió ninguna."""
+        return build_repository(DataExportRepository).get_latest_for_user(user_id)
+
+    def claim_download(self, user_id: int, export_id: int) -> str:
+        """Reserva la descarga de una exportación lista y devuelve la ruta de su ZIP.
+
+        Marca la exportación como descargada **antes** de devolver la ruta: así
+        una segunda petición no puede llevarse el mismo fichero, aunque la
+        primera siga enviándolo. Quien llama borra el fichero cuando termina de
+        enviarlo (``delete_export_file``).
+
+        Args:
+            user_id: Dueño de la exportación.
+            export_id: La exportación.
+
+        Returns:
+            str: Ruta del ZIP, que existe.
+
+        Raises:
+            DataExportNotFoundError: Si no existe o es de otro usuario.
+            DataExportNotReadyError: Si aún se está preparando, o falló.
+            DataExportGoneError: Si ya se descargó, o caducó y su fichero ya no está.
+        """
+        with UnitOfWork() as uow:
+            export = DataExportRepository(uow).get_by_id_and_user(export_id, user_id)
+            if export is None:
+                raise DataExportNotFoundError(export_id)
+            if export.status in ("pending", "running", "error"):
+                raise DataExportNotReadyError()
+            now = utcnow_naive()
+            is_available = (
+                export.status == "done"
+                and export.filename
+                and export.expires_at is not None
+                and export.expires_at >= now
+                and os.path.isfile(export.filename)
+            )
+            if not is_available:
+                raise DataExportGoneError()
+            path = export.filename
+            export.status = "downloaded"
+            export.downloaded_at = now
+            export.filename = None
+        return path
+
+    @staticmethod
+    def execute_export(export_id: int) -> None:
+        """Punto de entrada que ejecuta el worker de la TaskQueue."""
+        _run_export(export_id)
+
+    def reconcile_orphaned_exports(self) -> int:
+        """Marca como ``error`` las exportaciones que ya nadie va a terminar.
+
+        Si la API o el worker se paran con una exportación en ``pending`` o
+        ``running``, no queda trabajo vivo que la actualice y el perfil la
+        enseñaría «preparándose» para siempre, además de impedir pedir otra. Se
+        llama una vez al arrancar la API. Un trabajo que sigue en la cola o que
+        corre en un worker vivo se respeta (``TaskQueue.is_recoverable``).
+
+        Returns:
+            int: Exportaciones marcadas como ``error``.
+        """
+        fixed = 0
+        with UnitOfWork() as uow:
+            for export in DataExportRepository(uow).get_unfinished():
+                if self._task_queue.is_recoverable(self.external_id_for(export.id), self.TASK_CATEGORY):
+                    continue
+                export.status = "error"
+                fixed += 1
+        return fixed
+
+    def purge_expired_exports(self) -> int:
+        """Borra los ZIP que caducaron sin descargarse, y los ficheros sueltos viejos.
+
+        Lo ejecuta el planificador de usuarios cada hora. Además de las
+        exportaciones caducadas, borra de la carpeta cualquier fichero más viejo
+        que dos plazos de descarga que ninguna fila reclame (p. ej. el que
+        quedó si la API murió justo tras reservar una descarga).
+
+        Returns:
+            int: Ficheros borrados.
+        """
+        removed = 0
+        now = utcnow_naive()
+        with UnitOfWork() as uow:
+            for export in DataExportRepository(uow).get_expired(now):
+                delete_export_file(export.filename)
+                export.filename = None
+                export.status = "expired"
+                removed += 1
+
+        stale_before = (now - 2 * DATA_EXPORT_VALIDITY).replace(tzinfo=timezone.utc).timestamp()
+        referenced = build_repository(DataExportRepository).get_filenames_in_use()
+        for file in _exports_directory().glob("export-*"):
+            if str(file) not in referenced and file.stat().st_mtime < stale_before:
+                delete_export_file(str(file))
+                removed += 1
+        return removed

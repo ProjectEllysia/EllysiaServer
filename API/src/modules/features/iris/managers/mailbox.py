@@ -657,6 +657,31 @@ class _ReauthRequiredError(Exception):
     """
 
 
+def revoke_at_provider(connection: IrisMailboxConnection) -> bool:
+    """Retira ante Google o Microsoft el permiso que dio la conexión (best-effort).
+
+    Solo actúa sobre conexiones OAuth con token de refresco: una cuenta de
+    servicio o un buzón IMAP no tienen un permiso de usuario que retirar.
+    Nunca lanza: un proveedor caído no debe impedir que el usuario limpie
+    sus conexiones ni que borre su cuenta; el fallo queda en el log.
+
+    Args:
+        connection: Conexión cuyo token se retira. No se modifica ni se borra.
+
+    Returns:
+        bool: ``True`` si no había nada que retirar o el proveedor lo
+            aceptó; ``False`` si la retirada falló.
+    """
+    if connection.auth_mode != MailboxAuthMode.OAUTH.value or not connection.refresh_token:
+        return True
+    try:
+        build_connector(connection).revoke(connection.refresh_token)
+    except Exception as e:
+        logger.warning(f"No se pudo revocar el token de la conexión {connection.id} en el proveedor: {e}")
+        return False
+    return True
+
+
 class IrisMailboxManager(TaskTrackingMixin):
     """Orquesta el ciclo de vida de una conexión de buzón externo.
 
@@ -1108,17 +1133,34 @@ class IrisMailboxManager(TaskTrackingMixin):
         """
         connection = self.assert_connection_ownership(connection_id, user_id)
 
-        try:
-            if connection.auth_mode == MailboxAuthMode.OAUTH.value and connection.refresh_token:
-                build_connector(connection).revoke(connection.refresh_token)
-        except Exception as e:
-            logger.warning(f"No se pudo revocar el token de la conexión {connection_id} en el proveedor: {e}")
+        revoke_at_provider(connection)
 
         with UnitOfWork() as uow:
             repo = IrisMailboxConnectionRepository(uow)
             fresh = repo.get_by_id(connection_id)
             if fresh is not None:
                 repo.delete(fresh)
+
+    def revoke_all_for_user(self, user_id: int) -> int:
+        """Retira ante el proveedor el permiso de todos los buzones de un usuario.
+
+        Es el paso previo al borrado de una cuenta: las filas de conexión se
+        borran en bloque, así que sin esto el buzón seguiría autorizando a
+        Ellysia hasta que el token caducara o el usuario lo retirase a mano.
+        No borra ninguna conexión.
+
+        Args:
+            user_id: Dueño de las conexiones.
+
+        Returns:
+            int: Cuántas conexiones no se pudieron revocar (``0`` si todas
+                fueron bien o no había ninguna).
+        """
+        failures = 0
+        for connection in self.list_connections(user_id):
+            if not revoke_at_provider(connection):
+                failures += 1
+        return failures
 
     # =========================================================================
     # Sondeo / sync

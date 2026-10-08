@@ -421,3 +421,65 @@ class PasswordResetTokenInvalidError(AuthenticationError):
             ),
             message_key="passwordResetTokenInvalid",
         )
+
+
+# =========================================================================
+# EXPORTACIÓN DE LOS DATOS DEL USUARIO
+# =========================================================================
+
+
+class DataExportNotFoundError(EntityNotFoundError):
+    """La exportación no existe o no es del usuario que la pide."""
+
+    default_code = ErrorCode.DATA_EXPORT_NOT_FOUND
+    entity_label = "Exportación"
+    entity_is_feminine = True
+    id_field = "export_id"
+
+
+class DataExportInProgressError(EllysiaException):
+    """Ya hay una exportación pidiéndose o escribiéndose para este usuario."""
+
+    default_code = ErrorCode.DATA_EXPORT_IN_PROGRESS
+    default_status_code = 409
+    default_severity = ErrorSeverity.LOW
+
+    def __init__(self) -> None:
+        super().__init__(
+            message="Ya hay una exportación de datos en curso para este usuario",
+            user_message="Ya estamos preparando tu exportación. Espera a que termine antes de pedir otra.",
+            message_key="dataExportInProgress",
+        )
+
+
+class DataExportNotReadyError(EllysiaException):
+    """Se pidió descargar una exportación que todavía no ha terminado o ha fallado."""
+
+    default_code = ErrorCode.DATA_EXPORT_NOT_READY
+    default_status_code = 409
+    default_severity = ErrorSeverity.LOW
+
+    def __init__(self) -> None:
+        super().__init__(
+            message="La exportación todavía no está lista para descargar",
+            user_message="Tu exportación todavía no está lista. Vuelve a intentarlo cuando termine.",
+            message_key="dataExportNotReady",
+        )
+
+
+class DataExportGoneError(EllysiaException):
+    """La exportación ya se descargó o caducó, y su archivo ya no existe."""
+
+    default_code = ErrorCode.DATA_EXPORT_GONE
+    default_status_code = 410
+    default_severity = ErrorSeverity.LOW
+
+    def __init__(self) -> None:
+        super().__init__(
+            message="La exportación ya se descargó o caducó",
+            user_message=(
+                "Esta exportación ya se descargó o ha caducado. Por seguridad solo se puede "
+                "descargar una vez: pide una nueva."
+            ),
+            message_key="dataExportGone",
+        )

@@ -343,3 +343,322 @@ def test_an_invitation_the_deleted_user_sent_does_not_block_the_delete(
     assert client.delete("/users/me", headers=auth_headers(owner),
                          json={"password": PASSWORD}).status_code == 200
     assert _rows_referencing_user(app, owner.id) == {}
+
+
+# ------------------------------------------------- lo que vive fuera de la BD
+
+def test_the_external_footprint_lists_the_files_and_tasks_of_the_user(app, owner, regular_user):
+    """Antes de borrar las filas hay que anotar qué ficheros y tareas eran suyos:
+    después ya no queda forma de saberlo."""
+    from src.modules.features.aegis.model import AegisDocument, Campaign
+    from src.modules.features.iris.model import IrisMailboxConnection
+    from src.modules.features.themis.managers.traceroute import TracerouteManager
+    from src.modules.features.themis.model import Traceroute
+    from src.modules.users.services.account_deletion import collect_external_footprint
+
+    from src.modules.features.aegis.model import Topic
+
+    _seed_user_data(app, owner.id)
+    with app.app_context():
+        with unit_of_work.UnitOfWork() as uow:
+            session = uow.session
+            session.add(AegisDocument(
+                title="ajena", filename="ajena.json", status="done", format="json",
+                topic_id=session.query(Topic.id).scalar(), user_id=regular_user.id,
+            ))
+            session.add(Traceroute(user_id=owner.id, target="10.0.0.9", hops=[], hop_count=0))
+            session.flush()
+            document_id = session.query(AegisDocument.id).filter(AegisDocument.user_id == owner.id).scalar()
+            campaign_id = session.query(Campaign.id).filter(Campaign.user_id == owner.id).scalar()
+            connection_id = session.query(IrisMailboxConnection.id).filter(
+                IrisMailboxConnection.user_id == owner.id
+            ).scalar()
+            other_document_id = session.query(AegisDocument.id).filter(
+                AegisDocument.user_id == regular_user.id
+            ).scalar()
+
+            footprint = collect_external_footprint(uow, owner.id)
+
+    assert footprint.file_paths == ["p.json"]
+    assert f"aegis-doc:{document_id}" in footprint.task_external_ids
+    assert f"aegis-campaign:{campaign_id}" in footprint.task_external_ids
+    assert f"iris-mailbox-sync:{connection_id}" in footprint.task_external_ids
+    assert f"iris-digest-notify:{owner.id}" in footprint.task_external_ids
+    assert TracerouteManager.external_id_for_target(owner.id, "10.0.0.9") in footprint.task_external_ids
+    # Nada de otro usuario.
+    assert f"aegis-doc:{other_document_id}" not in footprint.task_external_ids
+
+
+def test_the_external_footprint_of_an_empty_account_is_empty(app, regular_user):
+    from src.modules.users.services.account_deletion import collect_external_footprint
+
+    with app.app_context():
+        with unit_of_work.UnitOfWork() as uow:
+            footprint = collect_external_footprint(uow, regular_user.id)
+
+    assert footprint.file_paths == []
+    # Solo queda el aviso resumen, que se identifica por el usuario y no por una fila.
+    assert footprint.task_external_ids == [f"iris-digest-notify:{regular_user.id}"]
+
+
+# ------------------------------------------- permiso del buzón ante el proveedor
+
+class _RecordingConnector:
+    """Conector falso que anota los tokens que se le piden revocar."""
+
+    def __init__(self, fails: bool = False):
+        self.revoked_tokens: list[str] = []
+        self._fails = fails
+
+    def revoke(self, refresh_token: str) -> None:
+        self.revoked_tokens.append(refresh_token)
+        if self._fails:
+            raise RuntimeError("el proveedor no responde")
+
+
+def _connect_mailbox(app, user_id: int, refresh_token: str, auth_mode: str = "oauth") -> None:
+    from src.modules.features.iris.model import IrisMailboxConnection
+
+    with app.app_context():
+        with unit_of_work.UnitOfWork() as uow:
+            uow.session.add(IrisMailboxConnection(
+                user_id=user_id, provider="gmail", account_email=f"{refresh_token}@b.test",
+                scopes="", refresh_token=refresh_token, auth_mode=auth_mode,
+            ))
+            uow.session.flush()
+
+
+def test_deleting_an_account_revokes_the_mailbox_permission_first(
+    client, app, regular_user, auth_headers
+):
+    """Las filas de conexión se borran en bloque; sin revocar antes, el buzón
+    seguiría autorizando a Ellysia tras la baja."""
+    from src.modules.features.iris.managers import mailbox as mailbox_module
+
+    _connect_mailbox(app, regular_user.id, "token-a")
+    _connect_mailbox(app, regular_user.id, "token-b")
+    connector = _RecordingConnector()
+
+    with mock.patch.object(mailbox_module, "build_connector", return_value=connector):
+        response = client.delete("/users/me", headers=auth_headers(regular_user),
+                                 json={"password": PASSWORD})
+
+    assert response.status_code == 200
+    assert sorted(connector.revoked_tokens) == ["token-a", "token-b"]
+    assert _rows_referencing_user(app, regular_user.id) == {}
+
+
+def test_a_provider_failure_does_not_stop_the_account_deletion(
+    client, app, regular_user, auth_headers, caplog
+):
+    from src.modules.features.iris.managers import mailbox as mailbox_module
+
+    _connect_mailbox(app, regular_user.id, "token-a")
+
+    with caplog.at_level("WARNING"):
+        with mock.patch.object(mailbox_module, "build_connector",
+                               return_value=_RecordingConnector(fails=True)):
+            response = client.delete("/users/me", headers=auth_headers(regular_user),
+                                     json={"password": PASSWORD})
+
+    assert response.status_code == 200
+    assert _rows_referencing_user(app, regular_user.id) == {}
+    assert "no se pudieron retirar" in caplog.text
+
+
+def test_only_oauth_mailboxes_have_a_permission_to_revoke(client, app, regular_user, auth_headers):
+    from src.modules.features.iris.managers import mailbox as mailbox_module
+
+    _connect_mailbox(app, regular_user.id, "imap-secret", auth_mode="imap")
+    connector = _RecordingConnector()
+
+    with mock.patch.object(mailbox_module, "build_connector", return_value=connector):
+        client.delete("/users/me", headers=auth_headers(regular_user), json={"password": PASSWORD})
+
+    assert connector.revoked_tokens == []
+
+
+def test_an_admin_deleting_a_user_also_revokes_the_mailbox_permission(
+    client, app, admin_user, regular_user, auth_headers
+):
+    from src.modules.features.iris.managers import mailbox as mailbox_module
+
+    _connect_mailbox(app, regular_user.id, "token-a")
+    connector = _RecordingConnector()
+
+    with mock.patch.object(mailbox_module, "build_connector", return_value=connector):
+        response = client.delete(f"/users/{regular_user.id}", headers=auth_headers(admin_user))
+
+    assert response.status_code == 200
+    assert connector.revoked_tokens == ["token-a"]
+
+
+# --------------------------------------------- ficheros y tareas tras el borrado
+
+class _FakeQueue:
+    """Cola en memoria: ``pending`` mapea ``external_id`` → id del job."""
+
+    def __init__(self, pending: dict[str, str] | None = None, broken: bool = False):
+        self.pending = dict(pending or {})
+        self.cancelled: list[str] = []
+        self._broken = broken
+
+    def get_task_by_external_id(self, external_id, category=None):
+        if self._broken:
+            raise ConnectionError("Redis no responde")
+        job_id = self.pending.get(external_id)
+        return mock.Mock(id=job_id) if job_id else None
+
+    def cancel(self, task_id):
+        self.cancelled.append(task_id)
+        return True
+
+
+def _seed_document_with_file(app, user_id: int, path) -> int:
+    """Un documento de Aegis cuyo fichero existe de verdad en disco."""
+    from src.modules.features.aegis.model import AegisDocument, Topic
+
+    path.write_text("contenido personal")
+    with app.app_context():
+        with unit_of_work.UnitOfWork() as uow:
+            topic = Topic(title="Phishing")
+            uow.session.add(topic)
+            uow.session.flush()
+            document = AegisDocument(
+                title="pildora", filename=str(path), status="done", format="json",
+                topic_id=topic.id, user_id=user_id,
+            )
+            uow.session.add(document)
+            uow.session.flush()
+            return document.id
+
+
+def test_deleting_an_account_removes_its_files_and_cancels_its_queued_tasks(
+    client, app, regular_user, auth_headers, tmp_path
+):
+    """Después de la baja no queda fichero ni tarea suya: es lo que el mensaje
+    final afirma, y por eso hay que demostrarlo."""
+    report = tmp_path / "pildora.json"
+    document_id = _seed_document_with_file(app, regular_user.id, report)
+    queue = _FakeQueue({f"aegis-doc:{document_id}": "job-7"})
+
+    with mock.patch("src.modules.users.services.account_deletion.TaskQueue.get_instance",
+                    return_value=queue):
+        response = client.delete("/users/me", headers=auth_headers(regular_user),
+                                 json={"password": PASSWORD})
+
+    assert response.status_code == 200
+    assert not report.exists()
+    assert queue.cancelled == ["job-7"]
+    assert _rows_referencing_user(app, regular_user.id) == {}
+
+
+def test_a_failed_deletion_keeps_the_files_and_the_tasks(app, regular_user, tmp_path):
+    """Si el borrado falla la cuenta sigue existiendo, y sus ficheros y tareas
+    tienen que seguir ahí."""
+    from src.modules.users import UserManager
+
+    report = tmp_path / "pildora.json"
+    document_id = _seed_document_with_file(app, regular_user.id, report)
+    queue = _FakeQueue({f"aegis-doc:{document_id}": "job-7"})
+
+    with app.app_context():
+        with mock.patch("src.modules.users.services.account_deletion.TaskQueue.get_instance",
+                        return_value=queue), \
+             mock.patch.object(unit_of_work.UnitOfWork, "commit",
+                               side_effect=RuntimeError("commit fallido")):
+            with pytest.raises(RuntimeError):
+                UserManager().delete_own_account(regular_user.id, PASSWORD)
+
+    assert report.exists()
+    assert queue.cancelled == []
+
+
+def test_an_unreachable_queue_or_a_missing_file_does_not_undo_the_deletion(
+    client, app, regular_user, auth_headers, tmp_path
+):
+    document_id = _seed_document_with_file(app, regular_user.id, tmp_path / "ya-borrado.json")
+    (tmp_path / "ya-borrado.json").unlink()
+    assert document_id
+
+    with mock.patch("src.modules.users.services.account_deletion.TaskQueue.get_instance",
+                    return_value=_FakeQueue(broken=True)):
+        response = client.delete("/users/me", headers=auth_headers(regular_user),
+                                 json={"password": PASSWORD})
+
+    assert response.status_code == 200
+    assert _rows_referencing_user(app, regular_user.id) == {}
+
+
+# ------------------------------------------------ lo que se enseña antes de borrar
+
+def _tables_pointing_at_user() -> set[str]:
+    return {
+        table.name
+        for table in Base.metadata.tables.values()
+        if table.name != "User" and any(
+            fk.column.table.name == "User" for column in table.columns for fk in column.foreign_keys
+        )
+    }
+
+
+def test_every_table_pointing_at_user_is_in_the_deletion_notice_or_declared_unlisted(app):
+    """Recorre el grafo real de claves ajenas hacia ``User``: una tabla nueva que
+    no salga en el aviso ni se declare "no listada" rompe aqui, no en produccion."""
+    from src.modules.users.services.account_deletion import (
+        DELETION_CATEGORY_KEYS,
+        UNLISTED_TABLES,
+        _models_of_deletion_category,
+    )
+
+    listed = {model.__tablename__
+              for key in DELETION_CATEGORY_KEYS
+              for model in _models_of_deletion_category(key)}
+
+    assert not listed & set(UNLISTED_TABLES), "una tabla no puede estar listada y no listada a la vez"
+    assert _tables_pointing_at_user() - listed - set(UNLISTED_TABLES) == set()
+    assert set(UNLISTED_TABLES) <= _tables_pointing_at_user(), "hay una entrada de UNLISTED_TABLES que ya no existe"
+
+
+def test_preview_lists_what_would_be_deleted_with_counts(client, app, regular_user, auth_headers):
+    _seed_user_data(app, regular_user.id)
+
+    body = client.get("/users/me/deletion-preview", headers=auth_headers(regular_user)).get_json()
+
+    deletes = {item["key"]: item["count"] for item in body["deletes"]}
+    assert deletes["authorizedTargets"] == 1
+    assert deletes["scheduledScans"] == 1
+    assert deletes["mailboxes"] == 1
+    assert deletes["monitoredAssets"] == 1
+    assert deletes["documents"] == 1
+    assert deletes["campaigns"] == 1
+    assert deletes["distributionLists"] == 1
+
+
+def test_preview_leaves_out_what_the_user_does_not_have(client, regular_user, auth_headers):
+    body = client.get("/users/me/deletion-preview", headers=auth_headers(regular_user)).get_json()
+
+    assert "mailboxes" not in {item["key"] for item in body["deletes"]}
+
+
+def test_preview_says_what_is_kept_and_for_how_long(client, regular_user, auth_headers):
+    from src.modules.system import config_reading as CR
+
+    body = client.get("/users/me/deletion-preview", headers=auth_headers(regular_user)).get_json()
+
+    assert body["retained"] == {"activityLogDays": CR.logs_config().retention_days}
+
+
+def test_the_final_message_says_what_is_kept_instead_of_claiming_everything_is_gone(
+    client, regular_user, auth_headers
+):
+    """El mensaje antiguo afirmaba que se habian borrado "todos los datos", y el
+    registro de actividad sigue ahi: un texto legal no puede decir algo falso."""
+    from src.modules.system import config_reading as CR
+
+    message = client.delete("/users/me", headers=auth_headers(regular_user),
+                            json={"password": PASSWORD}).get_json()["message"]
+
+    assert "todos tus datos" not in message
+    assert "registro de actividad" in message
+    assert f"{CR.logs_config().retention_days} días" in message

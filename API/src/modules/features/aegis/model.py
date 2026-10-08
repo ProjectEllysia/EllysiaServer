@@ -197,6 +197,10 @@ class AegisDocument(Document):
         language: Código del idioma en que se generó la píldora (``"es"``,
             ``"en"``…). Es el idioma de los correos de sus campañas. ``None``
             en las píldoras aún pendientes.
+        is_edited: ``True`` si el usuario ha editado el contenido que generó la
+            IA (``PUT /aegis/document``). Los correos de sus campañas lo usan
+            para decir que el texto, además de elaborarse con ayuda de IA, ha
+            sido revisado por la empresa. Por defecto ``False``.
         topic_id: Foreign key to Topic.id.
         topic: Topic relationship.
         tips: List of AegisTip objects (ordered by position).
@@ -225,6 +229,7 @@ class AegisDocument(Document):
     contact_email = Column(String(128), nullable=True)
     company       = Column(String(128), nullable=True)
     language      = Column(String(8),   nullable=True)
+    is_edited     = Column(Boolean,     nullable=False, default=False, server_default="false")
 
     # Relación con el tema
     topic_id      = Column(Integer, ForeignKey("Topic.id"), nullable=False)
@@ -259,7 +264,8 @@ class AegisDocument(Document):
 
         Returns:
             Dictionary with subtitle, intro, tips, closing, contactEmail,
-            company, and questions (including correct answers — owner-only
+            company, isEdited (whether the user edited the AI text), and
+            questions (including correct answers — owner-only
             view; the public quiz page uses AegisQuizQuestion.to_public_dict
             instead).
         """
@@ -270,6 +276,7 @@ class AegisDocument(Document):
             "closing":      self.closing or "",
             "contactEmail": self.contact_email or "",
             "company":      self.company or "",
+            "isEdited":     bool(self.is_edited),
             "questions":    [question.to_dict() for question in self.questions],
         }
 

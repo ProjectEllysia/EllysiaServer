@@ -278,6 +278,12 @@
         <p class="batch-warning-sub">{{ t('themisView.bulkDeleteRunning') }}</p>
       </template>
     </BatchActionModal>
+    <AuthorizeTargetModal
+      :show="!!pendingAuthorization"
+      :target="pendingAuthorization?.target ?? ''"
+      @confirm="confirmAuthorization"
+      @cancel="pendingAuthorization = null" />
+
     <ConfirmModal
       :show="!!pendingConfirm"
       :title="t('common.delete')"
@@ -313,6 +319,7 @@ import FolderFormModal from '@/components/themis/FolderFormModal.vue'
 import MoveScanModal from '@/components/themis/MoveScanModal.vue'
 import BatchActionModal from '@/components/themis/BatchActionModal.vue'
 import ConfirmModal from '@/components/shared/ConfirmModal.vue'
+import AuthorizeTargetModal from '@/components/themis/AuthorizeTargetModal.vue'
 import ScheduledScansPanel from '@/components/themis/ScheduledScansPanel.vue'
 import LybraLaunchPanel from '@/components/themis/lybra/LybraLaunchPanel.vue'
 import LybraResults from '@/components/themis/lybra/LybraResults.vue'
@@ -465,7 +472,23 @@ function handleDeleteLybra(id) { pendingConfirm.value = { type: 'delete-lybra', 
 function handleDeleteAgentScan(id) { pendingConfirm.value = { type: 'delete-agent-scan', id } }
 async function handleLybraGeneratePdf(scanId, useAi) { await store.generateLybraPdf(scanId, useAi) }
 async function handleLybraDeleteDoc(scanId, docId) { await store.deleteLybraDoc(scanId, docId) }
-async function handleAddAuthorizedTarget({ target, label }) { await store.addAuthorizedTarget(target, label) }
+/**
+ * Todo camino que autoriza un objetivo (el panel de Lybra, el de la nube y el aviso de un
+ * escaneo rechazado) pasa por aquí: antes de guardarlo se enseña la declaración del titular.
+ */
+const pendingAuthorization = ref(null) // { target, label }
+function handleAddAuthorizedTarget({ target, label }) { pendingAuthorization.value = { target, label } }
+async function confirmAuthorization() {
+  const { target, label } = pendingAuthorization.value
+  pendingAuthorization.value = null
+  await store.addAuthorizedTarget(target, label)
+}
+// Un escaneo rechazado por no estar autorizado abre la declaración de ese objetivo.
+watch(() => store.unauthorizedTarget, (target) => {
+  if (!target) return
+  store.unauthorizedTarget = null
+  handleAddAuthorizedTarget({ target })
+})
 
 const hasActiveCloudScan = computed(() =>
   cloudStore.scans.items.some(scan => scan.status === 'pending' || scan.status === 'running')

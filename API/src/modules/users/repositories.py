@@ -39,6 +39,7 @@ from .model import (
     MFATotpCredential,
     MFARecoveryCode,
     MFAChallenge,
+    DataExport,
 )
 
 from src.modules.infrastructure.base_repository import BaseRepository
@@ -720,3 +721,71 @@ class MFARepository(BaseRepository[MFATotpCredential]):
         )
         self._session.flush()
         return deleted
+
+
+class DataExportRepository(BaseRepository[DataExport]):
+    """
+    Persistencia de las exportaciones de datos de los usuarios.
+
+    Example:
+        >>> with UnitOfWork() as uow:
+        ...     repo = DataExportRepository(uow)
+        ...     export = repo.get_by_id_and_user(export_id=3, user_id=1)
+    """
+
+    _MODEL = DataExport
+
+    def get_by_id_and_user(self, export_id: int, user_id: int) -> Optional[DataExport]:
+        """La exportación ``export_id`` si es de ``user_id``; ``None`` si no existe o es de otro."""
+        return (
+            self._session.query(DataExport)
+            .filter(DataExport.id == export_id, DataExport.user_id == user_id)
+            .first()
+        )
+
+    def get_unfinished_for_user(self, user_id: int) -> Optional[DataExport]:
+        """La exportación de ``user_id`` que sigue en ``pending`` o ``running``, si la hay."""
+        return (
+            self._session.query(DataExport)
+            .filter(DataExport.user_id == user_id, DataExport.status.in_(("pending", "running")))
+            .first()
+        )
+
+    def get_latest_for_user(self, user_id: int) -> Optional[DataExport]:
+        """La última exportación que pidió ``user_id``; ``None`` si nunca pidió ninguna."""
+        return (
+            self._session.query(DataExport)
+            .filter(DataExport.user_id == user_id)
+            .order_by(DataExport.id.desc())
+            .first()
+        )
+
+    def get_unfinished(self) -> List[DataExport]:
+        """Las exportaciones de cualquier usuario que siguen en ``pending`` o ``running``."""
+        return (
+            self._session.query(DataExport)
+            .filter(DataExport.status.in_(("pending", "running")))
+            .all()
+        )
+
+    def get_expired(self, now: datetime) -> List[DataExport]:
+        """Las exportaciones listas cuyo plazo de descarga ya pasó y cuyo fichero sigue ahí.
+
+        Args:
+            now: El instante respecto al que se compara ``expires_at``, UTC sin zona.
+
+        Returns:
+            List[DataExport]: Las que están en ``done`` con ``expires_at`` anterior a ``now``.
+        """
+        return (
+            self._session.query(DataExport)
+            .filter(DataExport.status == "done", DataExport.expires_at < now)
+            .all()
+        )
+
+    def get_filenames_in_use(self) -> set[str]:
+        """Las rutas de los ZIP que alguna exportación sigue reclamando."""
+        return {
+            filename
+            for (filename,) in self._session.query(DataExport.filename).filter(DataExport.filename.isnot(None))
+        }

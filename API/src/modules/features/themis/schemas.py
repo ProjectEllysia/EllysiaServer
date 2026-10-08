@@ -1,3 +1,5 @@
+import re
+
 from marshmallow import Schema, fields, validate, validates_schema, ValidationError
 
 from src.modules.shared import UTCDateTime
@@ -208,6 +210,17 @@ class KbSearchQuerySchema(Schema):
     limit = fields.Integer(load_default=20, validate=validate.Range(min=1, max=100))
 
 
+class KbCveLookupQuerySchema(Schema):
+    # Consulta pública: solo un identificador de CVE completo, nunca un texto
+    # libre ni un producto. Así el coste de cada petición es el de una lectura
+    # por clave, y no una búsqueda por prefijo que cualquiera pueda encadenar.
+    id = fields.String(
+        required=True,
+        validate=validate.Regexp(r"^CVE-\d{4}-\d{4,7}\Z", flags=re.IGNORECASE,
+                                 error="Not a valid CVE identifier."),
+    )
+
+
 class KbSyncRequestSchema(Schema):
     # Nunca el histórico completo de NVD: el botón lanza el mismo delta que el
     # job nocturno. Ver ``KbSyncTaskManager.request_sync``.
@@ -250,10 +263,17 @@ class AddAuthorizedTargetSchema(Schema):
             tope es el de la columna: un dominio puede tener hasta 253
             caracteres. La forma se valida en ``AuthorizedTargetManager.add``.
         label: Nota libre opcional, hasta 255 caracteres. Por defecto ``None``.
+        declarationAccepted: ``true`` si el usuario ha aceptado la declaración de
+            que el sistema es suyo o de que su titular le ha autorizado a
+            analizarlo. Sin ella el objetivo no se añade.
+        declarationVersion: Versión del texto de la declaración que se le
+            enseñó; tiene que ser la vigente (``AUTHORIZATION_DECLARATION_VERSION``).
     """
 
     target = fields.String(required=True, validate=validate.Length(min=1, max=255))
     label = fields.String(load_default=None, allow_none=True, validate=validate.Length(max=255))
+    declarationAccepted = fields.Boolean(required=True)
+    declarationVersion = fields.String(required=True, validate=validate.Length(min=1, max=32))
 
 
 class AuthorizedTargetSchema(Schema):
@@ -261,6 +281,7 @@ class AuthorizedTargetSchema(Schema):
     target = fields.String()
     label = fields.String(allow_none=True)
     createdAt = UTCDateTime()
+    declarationVersion = fields.String(allow_none=True)
 
 
 class AuthorizedTargetListResponseSchema(Schema):

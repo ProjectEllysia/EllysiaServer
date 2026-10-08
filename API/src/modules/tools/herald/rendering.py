@@ -3,9 +3,11 @@ herald.rendering
 ────────────────
 Capa de plantillas de los correos.
 
-Un correo se compone de tres plantillas con el mismo nombre base:
-``<nombre>.subject.j2`` (el asunto), ``<nombre>.html.j2`` (el cuerpo) y, si
-existe, su gemelo ``<nombre>.txt.j2`` (la alternativa en texto plano).
+Un correo se compone de cuatro plantillas con el mismo nombre base:
+``<nombre>.subject.j2`` (el asunto), ``<nombre>.html.j2`` (el cuerpo),
+``<nombre>.reason.j2`` (el motivo por el que lo recibe su destinatario, que el
+pie del correo muestra) y, si existe, su gemelo ``<nombre>.txt.j2`` (la
+alternativa en texto plano).
 
 Las plantillas viven en una carpeta por idioma (``templates/es/``,
 ``templates/en/``…). Un correo sale entero en el idioma pedido si ese idioma
@@ -136,6 +138,31 @@ def _has_template(language: str, template: str) -> bool:
     return any((directory / f"{template}.html.j2").is_file() for directory in _language_directories(language))
 
 
+def _render_footer_reason(template: str, language: str, context: dict) -> str:
+    """Motivo por el que el destinatario recibe un correo, en una frase.
+
+    El pie de cada correo lo muestra para que nadie reciba uno sin saber por
+    qué: una razón común a todos sería falsa en casi todos. Se busca **solo**
+    en la carpeta del idioma del correo, sin caer al idioma de la plataforma: un
+    motivo en castellano dentro de un correo en inglés mezclaría idiomas, que es
+    justo lo que la elección por correo evita. Sin motivo en ese idioma, el pie
+    sale sin él.
+
+    Args:
+        template: Nombre base de la plantilla, sin extensión.
+        language: Idioma en que sale el correo.
+        context: Variables de la plantilla; el motivo puede usar ``brand``.
+
+    Returns:
+        str: La frase en una sola línea, o ``""`` si ese idioma no la tiene.
+    """
+    try:
+        reason = _environment(language, language).get_template(f"{template}.reason.j2")
+    except TemplateNotFound:
+        return ""
+    return " ".join(reason.render(**context).split())
+
+
 def render_email(template: str, language: str | None = None, **context) -> RenderedEmail:
     """Renderiza el asunto y el cuerpo de un correo en un idioma.
 
@@ -145,7 +172,8 @@ def render_email(template: str, language: str | None = None, **context) -> Rende
             ``None``, no es un código de letras o no tiene esta plantilla, se
             usa el de la plataforma. Por defecto ``None``.
         **context: Variables de la plantilla. Se inyectan solas ``language``
-            (el idioma en que sale el correo, para el ``lang`` del HTML) y
+            (el idioma en que sale el correo, para el ``lang`` del HTML),
+            ``footer_reason`` (el motivo de ``<template>.reason.j2``) y
             ``brand``, la marca del producto (``branding.default_brand``) si
             el llamante no la pasa; quien haga white-labeling pasa la suya ya
             resuelta con ``branding.apply_white_label``.
@@ -171,6 +199,7 @@ def render_email(template: str, language: str | None = None, **context) -> Rende
     env = _environment(language, platform_language)
     context.setdefault("brand", default_brand())
     context["language"] = language
+    context["footer_reason"] = _render_footer_reason(template, language, context)
 
     subject = " ".join(env.get_template(f"{template}.subject.j2").render(**context).split())
     html = env.get_template(f"{template}.html.j2").render(**context)

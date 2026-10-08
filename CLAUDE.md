@@ -238,12 +238,12 @@ con backend RQ+Redis), `worker.py` (entrada del worker), `tracking.py` (`TaskTra
   directo, y la receta completa: [`CONVENCIONES.md`](CONVENCIONES.md) §7.
 - **Categorías**: `themis.scan`, `themis.report`, `themis.traceroute`, `themis.kbsync`, `themis.osint`, `aegis.generate`,
   `aegis.campaign`, `iris.analyze`, `iris.ai_summary`, `iris.report`, `iris.ingest`,
-  `iris.notify`, `iris.enrichment`, `iris.webhook`, `iris.remediation`, `hygeia.notify`, `hygeia.report` (+ `default`). Cada módulo las da de alta en su `__init__.py` con `QueueRegistry.register(...)`;
+  `iris.notify`, `iris.enrichment`, `iris.webhook`, `iris.remediation`, `hygeia.notify`, `hygeia.report`, `users.export` (+ `default`). Cada módulo las da de alta en su `__init__.py` con `QueueRegistry.register(...)`;
   los workers escuchan en colas por categoría.
 - **`external_id`**: el prefijo lo declara el manager en `EXTERNAL_ID_PREFIX` (`scan:`,
   `themis-doc:`, `themis-traceroute:`, `themis-kbsync:`, `themis-osint:`, `aegis-doc:`, `aegis-campaign:`, `iris-analysis:`,
   `iris-doc:`, `iris-mailbox-sync:`, `iris-phishing-notify:`, `iris-url-expansion:`, `iris-webhook-delivery:`,
-  `iris-mailbox-action:`, `iris-mailbox-subscription:`, `hygeia-doc:`) y `TaskTrackingMixin.external_id_for`
+  `iris-mailbox-action:`, `iris-mailbox-subscription:`, `hygeia-doc:`, `users-export:`) y `TaskTrackingMixin.external_id_for`
   lo compone. No lo escribas a mano.
 - **Cancelación** cooperativa: pone la clave Redis `taskqueue:cancel:{job_id}`; los workers la
   sondean vía `_Task.wait(cancel_check=...)`. **Progreso** por `job.meta["progress"]`.
@@ -271,8 +271,12 @@ Los endpoints protegidos exigen `Authorization: Bearer <token>`; roles y atribut
 (`users/services/permissions.py`). **Las claves JSON son camelCase.** Contraseñas con Argon2id.
 
 > Los **únicos** endpoints sin autenticar de toda la API son `GET/POST /aegis/quiz?t=<token>`
-> (quiz público de concienciación). El token opaco es la identidad entera: no añadas auth ahí, y
-> no filtres nada más allá del único destinatario al que pertenece el token.
+> (quiz público de concienciación) y `GET /themis/kb/cve?id=` (consulta pública de una CVE, la
+> herramienta gratuita «Consulta de CVE»). El token del quiz es la identidad entera: no añadas auth
+> ahí, y no filtres nada más allá del único destinatario al que pertenece el token. La consulta de
+> CVE solo lee dato público de la base local —acepta únicamente un identificador completo, sin
+> búsqueda por texto— y se protege con límite por IP y con tope en el tamaño de la respuesta; no la
+> amplíes a nada que toque la red ni que lance trabajo: eso va con cuenta (ver `web/app/src/freeTools/`).
 >
 > Dos superficies se autentican con una credencial propia en vez de la sesión, a propósito: la
 > ingesta de Hygeia (clave de agente) y el canal de reporte de Iris (`POST/GET /iris/reports`,

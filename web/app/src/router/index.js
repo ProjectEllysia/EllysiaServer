@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { ensureLaunchStateLoaded, useLaunch } from '@/composables/useLaunch'
+import { freeToolRoutes } from '@/freeTools/routes'
 
 /**
  * Configuración de rutas de la SPA.
@@ -174,6 +175,9 @@ const routes = [
     component: () => import('@/views/hygeia/HygeiaDocumentsView.vue'),
     meta: { requiresAuth: true },
   },
+  // Herramientas gratuitas de cada módulo (/herramientas/<módulo>/<slug>). Las
+  // genera el catálogo (`src/freeTools/catalog.js`): no se declaran aquí a mano.
+  ...freeToolRoutes,
   // Capa comercial: planes, plan propio y organización.
   {
     // Pública: es la tabla de precios, la ve quien todavía no tiene cuenta.
@@ -260,6 +264,12 @@ const routes = [
     component: () => import('@/views/public/TermsView.vue'),
     meta: { seo: 'terms' },
   },
+  {
+    path: '/gobierno-ia',
+    name: 'GobiernoIA',
+    component: () => import('@/views/public/AiGovernanceView.vue'),
+    meta: { seo: 'aiGovernance' },
+  },
   // Documentación (enlazada desde el desplegable "Documentación" del header
   // de la landing). La de uso es todavía una vista provisional; la técnica
   // tiene portada propia y una página por herramienta.
@@ -267,8 +277,12 @@ const routes = [
     path: '/docs/uso',
     name: 'DocsUsage',
     component: () => import('@/views/public/DocsPlaceholderView.vue'),
-    // Título y entradilla en `docs.usage` del diccionario.
-    meta: { docKey: 'usage', docSection: 'usage', seo: 'docsUsage' },
+    // Título y entradilla en `docs.usage` del diccionario. Sin `seo` a
+    // propósito: mientras sea una vista provisional, sin contenido propio, ni
+    // se indexa ni está en el sitemap. Al escribirla, declarar su `meta.seo`
+    // con la clave `docsUsage` (sus textos ya están en `seo.pages`) y añadirla
+    // a `public/sitemap.xml`.
+    meta: { docKey: 'usage', docSection: 'usage' },
   },
   {
     path: '/docs/tecnica',

@@ -9,6 +9,11 @@ un breve test para comprobar qué has aprendido.
 {{ pill_title }}
 {{ '=' * pill_title|length }}
 
+Este contenido se ha elaborado con ayuda de inteligencia artificial{% if ai_reviewed %}{% if company %} y ha sido revisado por {{ company }}{% else %} y ha sido revisado antes de enviarlo{% endif %}{% endif %}.
+{% if ai_governance_url %}
+Cómo usamos la inteligencia artificial: {{ ai_governance_url }}
+{% endif %}
+
 {% if intro %}
 {% for paragraph in intro.split('\n\n') %}
 {% if paragraph.strip() %}
@@ -75,5 +80,8 @@ Si tienes alguna duda sobre esta formación, puedes escribir a {{ contact_email 
 {% endif %}
 
 --
+{% if footer_reason %}
+{{ footer_reason }}
+{% endif %}
 Este mensaje se ha enviado automáticamente desde {{ brand.productName }}. No respondas a esta dirección.
 {% if brand.supportEmail %}¿Dudas? Escribe a {{ brand.supportEmail }}.{% endif %}

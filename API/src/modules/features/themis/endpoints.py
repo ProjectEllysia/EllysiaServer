@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 
-from flask import send_file
+from flask import request, send_file
 from flask_smorest import Blueprint as SmorestBlueprint
 
 from src.modules.users import (
@@ -89,6 +89,7 @@ from .schemas import (
     ResultsQuerySchema,
     UnresolvedProductsQuerySchema,
     KbSearchQuerySchema,
+    KbCveLookupQuerySchema,
     KbSyncRequestSchema,
     GeneratePdfRequestSchema,
     DocumentStatusQuerySchema,
@@ -307,6 +308,14 @@ def start_nmap_scan(data: dict):
         ScanManager.validate_port(ports)
     except PortValidationError as exc:
         raise ValidationError(field="ports", message=str(exc), value=ports) from exc
+
+    # Todos los hosts del rango, antes de lanzar ninguno: si uno no está
+    # autorizado, no debe quedar medio rango ya escaneándose. La superficie
+    # cerrada se comprueba antes, igual que dentro de run_scan, para que ese
+    # rechazo siga siendo el primero.
+    ScanManager.assert_third_party_scanners_enabled(user.id)
+    for target_host in hosts:
+        AuthorizedTargetManager().assert_authorized(user.id, target_host)
 
     scan_ids = []
     for target_host in hosts:
@@ -761,7 +770,11 @@ def update_organization_compliance_frameworks(data):
 def add_authorized_target(data):
     """Añadir un objetivo (IP o CIDR, dominio o recurso cloud) al registro de objetivos autorizados."""
     user = get_current_user()
-    entry = AuthorizedTargetManager().add(user.id, data["target"], data.get("label"))
+    AuthorizedTargetManager().assert_declaration(data["declarationAccepted"], data["declarationVersion"])
+    entry = AuthorizedTargetManager().add(
+        user.id, data["target"], data.get("label"),
+        declaration_version=data["declarationVersion"], declaration_ip=request.remote_addr,
+    )
     logger.info(f"Objetivo autorizado {entry.id} ('{entry.target}') añadido por {user.username}")
     return {
         "message": "Objetivo autorizado añadido correctamente",
@@ -786,7 +799,8 @@ def list_authorized_targets():
     return {
         "message": "Objetivos autorizados obtenidos correctamente",
         "targets": [
-            {"id": entry.id, "target": entry.target, "label": entry.label, "createdAt": entry.created_at}
+            {"id": entry.id, "target": entry.target, "label": entry.label, "createdAt": entry.created_at,
+             "declarationVersion": entry.declaration_version}
             for entry in entries
         ],
         "user": user.username,
@@ -924,6 +938,27 @@ def search_kb(args):
         **KbQueryManager().search(args["query"], limit=args["limit"]),
         "user": user.username,
     }
+
+
+# ============================================================================
+# CONSULTA PÚBLICA DE CVE — SIN AUTENTICACIÓN
+# ============================================================================
+#
+# Deliberadamente sin @require_oauth_token: es la herramienta gratuita «Consulta
+# de CVE» y el dato (NVD, KEV, EPSS) es público. No toca la red ni lanza
+# ningún trabajo: es una lectura por clave sobre la base local, así que lo único
+# que se protege es el coste de la base de datos, con el límite por IP.
+
+
+@themis_blp.get("/kb/cve")
+@themis_blp.arguments(KbCveLookupQuerySchema, location="query")
+@themis_blp.response(200, description="What the knowledge base knows about one CVE (null if nothing)")
+@themis_blp.alt_response(422, schema=ErrorSchema, description="Not a valid CVE identifier")
+@limiter.limit("30 per minute; 300 per hour")
+@handle_exceptions(default_exception=ScanError, logger=logger)
+def lookup_public_cve(args):
+    """Consultar una CVE en la base de conocimiento, sin login."""
+    return {"cve": KbQueryManager().public_cve_detail(args["id"].upper())}
 
 
 @themis_blp.get("/kb/sync")

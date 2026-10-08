@@ -164,6 +164,22 @@ class TracerouteManager(TaskTrackingMixin):
     # HELPERS
     # =========================================================================
 
+    @classmethod
+    def external_id_for_target(cls, user_id: int, target: str) -> str:
+        """``external_id`` del traceroute de un usuario hacia un destino.
+
+        Lo necesita quien quiere localizar la tarea de un traceroute sin
+        conocer cómo se construye su clave (p. ej. el borrado de una cuenta).
+
+        Args:
+            user_id: Id del usuario que lanzó el traceroute.
+            target: Destino tal como se guardó en ``Traceroute.target``.
+
+        Returns:
+            str: El ``external_id`` con el que se encoló la tarea.
+        """
+        return f"{cls.EXTERNAL_ID_PREFIX}{cls._trace_key(user_id, target)}"
+
     @staticmethod
     def _trace_key(user_id: int, target: str) -> str:
         """Stable per (user, target) key for the job id / external id.

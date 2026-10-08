@@ -1,7 +1,8 @@
 import logging
+import os
 from typing import Any
 
-from flask import request
+from flask import Response, request
 from flask_smorest import Blueprint as SmorestBlueprint
 
 from src.modules.shared._endpoints import limiter
@@ -15,7 +16,7 @@ from src.modules.shared.schemas import ErrorSchema, SuccessMessageSchema
 from src.modules.shared import utcnow_naive
 
 from .services import Role, require_oauth_token, require_role, resolve_effective_language
-from .managers import UserManager, OAuthTokenManager, MFAManager
+from .managers import DataExportManager, UserManager, OAuthTokenManager, MFAManager, delete_export_file
 import src.modules.system.config_reading as CR
 from .exceptions import (
     InvalidCredentialsError,
@@ -59,6 +60,9 @@ from .schemas import (
     PasswordResetCompleteRequestSchema,
     DeletionPreviewSchema,
     DeleteAccountRequestSchema,
+    DataExportRequestSchema,
+    DataExportSchema,
+    LatestDataExportSchema,
 )
 
 
@@ -464,7 +468,115 @@ def delete_own_account(data: dict[str, Any]):
     username = user.username
     USER_MANAGER.delete_own_account(user.id, data["password"])
     logger.info(f"Cuenta eliminada a peticion del propio usuario: {username}")
-    return {"message": "Tu cuenta y todos tus datos se han eliminado."}
+    retention_days = CR.logs_config().retention_days
+    return {"message": (
+        "Tu cuenta se ha eliminado, con tus datos, tus ficheros y tus tareas pendientes, "
+        "y se ha retirado el permiso de tus buzones de correo. Lo único que se conserva "
+        f"es el registro de actividad de la web, {retention_days} días por seguridad, "
+        "y después se borra solo."
+    )}
+
+
+# =========================================================================
+# EXPORTACION DE LOS DATOS PROPIOS
+# =========================================================================
+
+
+def _stream_and_delete(path: str, chunk_size: int = 64 * 1024):
+    """Envía un fichero por tandas y lo borra al terminar, también si el cliente corta.
+
+    El borrado va en el ``finally`` del generador: se ejecuta cuando se agota (el
+    fichero se envió entero) y cuando el servidor lo cierra (el cliente abortó la
+    descarga). La descarga ya estaba reservada (``claim_download``), así que un
+    fichero que no se llegó a enviar no se puede reintentar: se pide otro.
+
+    Args:
+        path: Ruta del fichero a enviar.
+        chunk_size: Bytes por tanda. Por defecto 64 KiB.
+
+    Yields:
+        bytes: El contenido del fichero.
+    """
+    try:
+        with open(path, "rb") as handle:
+            while chunk := handle.read(chunk_size):
+                yield chunk
+    finally:
+        delete_export_file(path)
+
+
+def _export_to_dict(export) -> dict[str, Any]:
+    """Una ``DataExport`` en la forma que devuelven los endpoints de exportacion."""
+    return {
+        "id": export.id,
+        "status": export.status,
+        "createdAt": export.created_at,
+        "expiresAt": export.expires_at,
+        "sizeBytes": export.size_bytes,
+    }
+
+
+@users_blp.post("/me/export")
+@users_blp.arguments(DataExportRequestSchema)
+@users_blp.response(202, DataExportSchema, description="Export queued")
+@users_blp.alt_response(401, schema=ErrorSchema, description="Wrong password or not authenticated")
+@users_blp.alt_response(409, schema=ErrorSchema, description="An export is already in progress")
+@limiter.limit("5 per hour; 10 per day")
+@require_oauth_token
+@handle_exceptions(default_exception=DatabaseError, logger=logger)
+def request_data_export(data: dict[str, Any]):
+    """Pedir una copia de todos los datos propios.
+
+    Se prepara en segundo plano como un ZIP con un JSON por modulo (RGPD,
+    articulos 15 y 20). Se re-verifica la contrasenya porque el archivo junta
+    todos los datos de la cuenta y un token robado no debe bastar para
+    llevarselo. Consultalo con ``GET /users/me/export`` y descargalo, una sola
+    vez, cuando este en ``done``.
+    """
+    user = get_current_user()
+    export = DataExportManager().request_export(user.id, data["password"])
+    logger.info(f"Exportacion de datos {export.id} pedida por {user.username}")
+    return _export_to_dict(export)
+
+
+@users_blp.get("/me/export")
+@users_blp.response(200, LatestDataExportSchema, description="The latest export, if any")
+@users_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@limiter.limit("300 per hour")
+@require_oauth_token
+@handle_exceptions(default_exception=DatabaseError, logger=logger)
+def get_latest_data_export():
+    """Estado de la ultima exportacion propia, o ``export: null`` si nunca se pidio ninguna."""
+    export = DataExportManager().get_latest_export(get_current_user().id)
+    return {"export": _export_to_dict(export) if export is not None else None}
+
+
+@users_blp.get("/me/export/<int:export_id>/download")
+@users_blp.response(200, description="The export ZIP, downloadable once")
+@users_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@users_blp.alt_response(404, schema=ErrorSchema, description="Export not found")
+@users_blp.alt_response(409, schema=ErrorSchema, description="The export is not ready yet")
+@users_blp.alt_response(410, schema=ErrorSchema, description="Already downloaded or expired")
+@limiter.limit("30 per hour")
+@require_oauth_token
+@handle_exceptions(default_exception=DatabaseError, logger=logger)
+def download_data_export(export_id: int):
+    """Descargar el ZIP de una exportacion lista. Solo se puede una vez.
+
+    La descarga se reserva antes de enviar el fichero: una segunda peticion
+    recibe 410 aunque la primera siga en curso. El fichero se borra del
+    servidor en cuanto termina de enviarse.
+    """
+    user = get_current_user()
+    path = DataExportManager().claim_download(user.id, export_id)
+    response = Response(_stream_and_delete(path), mimetype="application/zip")
+    response.headers["Content-Length"] = str(os.path.getsize(path))
+    response.headers["Content-Disposition"] = (
+        f'attachment; filename="ellysia-datos-{utcnow_naive():%Y%m%d}.zip"'
+    )
+    response.headers["Cache-Control"] = "no-store"
+    logger.info(f"Exportacion de datos {export_id} descargada por {user.username}")
+    return response
 
 
 # =========================================================================

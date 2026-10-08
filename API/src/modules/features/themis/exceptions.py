@@ -126,9 +126,10 @@ class MaxHostsExceededError(ScanError):
 class TargetNotAuthorizedError(ScanError):
     """El objetivo no está en el registro de objetivos autorizados del usuario.
 
-    Bloquea las operaciones de Lybra que tocan la red del objetivo
-    (autodescubrimiento, fingerprinting propio, comprobaciones activas) hasta
-    que el usuario lo declare explícitamente.
+    Bloquea todo escaneo que toca la red del objetivo (Nmap, Nikto, Nuclei y el
+    autodescubrimiento, el fingerprinting y las comprobaciones activas de Lybra)
+    hasta que el usuario declare que el sistema es suyo o que tiene autorización
+    de su titular.
     """
 
     default_code = ErrorCode.TARGET_NOT_AUTHORIZED
@@ -140,8 +141,8 @@ class TargetNotAuthorizedError(ScanError):
             message=f"El objetivo '{target}' no está en el registro de objetivos autorizados",
             details={"target": target},
             user_message=(
-                f"«{target}» no está autorizado para operaciones activas de Lybra. Añádelo al "
-                "registro de objetivos autorizados antes de lanzar este escaneo."
+                f"«{target}» no está en tu registro de objetivos autorizados. Declara que el "
+                "sistema es tuyo o que tienes autorización de su titular antes de lanzar este escaneo."
             ),
             message_key="targetNotAuthorized",
             params={"target": target},
@@ -197,6 +198,55 @@ class InvalidAuthorizedTargetError(ValidationError):
                           "o «s3:nombre-del-bucket»."),
             message_key="invalidAuthorizedTarget",
             params={"target": target},
+        )
+
+
+class AuthorizationDeclarationRequiredError(ValidationError):
+    """Se intentó autorizar un objetivo sin aceptar la declaración del titular.
+
+    Autorizar un objetivo es declarar que el sistema es del usuario o que su
+    titular le ha dado permiso para analizarlo; sin esa aceptación expresa el
+    objetivo no entra en el registro.
+    """
+
+    default_code = ErrorCode.AUTHORIZATION_DECLARATION_REQUIRED
+
+    def __init__(self):
+        super().__init__(
+            message="Falta aceptar la declaración de que el sistema es tuyo o de que tienes autorización de su titular",
+            field="declarationAccepted",
+            user_message=(
+                "Para autorizar un objetivo tienes que declarar que el sistema es tuyo o que "
+                "tienes autorización escrita de su titular para analizarlo."
+            ),
+            message_key="authorizationDeclarationRequired",
+        )
+
+
+class AuthorizationDeclarationOutdatedError(ScanError):
+    """La declaración aceptada no es la versión vigente del texto.
+
+    El usuario aceptó un texto que ya cambió (por ejemplo porque la política de
+    uso aceptable se actualizó mientras tenía la pantalla abierta). Se le pide
+    que recargue y lea la versión actual: guardar la aceptación de un texto que
+    ya no existe no probaría nada.
+
+    Args:
+        accepted_version: La versión que envió el cliente.
+        current_version: La versión vigente.
+    """
+
+    default_code = ErrorCode.AUTHORIZATION_DECLARATION_OUTDATED
+    default_status_code = 409
+    default_severity = ErrorSeverity.LOW
+
+    def __init__(self, accepted_version: str, current_version: str):
+        super().__init__(
+            message=(f"La declaración aceptada es la versión '{accepted_version}' y la vigente "
+                     f"es '{current_version}'"),
+            details={"acceptedVersion": accepted_version, "currentVersion": current_version},
+            user_message="El texto de la declaración ha cambiado. Recarga la página y vuelve a leerlo antes de aceptarlo.",
+            message_key="authorizationDeclarationOutdated",
         )
 
 

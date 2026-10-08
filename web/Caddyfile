@@ -38,15 +38,26 @@
 #
 # `Ellysia-API` es el container_name del servicio `ellysia` en
 # docker-compose.yml, no el nombre del servicio. Renombrarlo rompe esto.
+#
+# Toda respuesta que sale por aquí es JSON de la API, nunca una página: se marca
+# como no indexable. En `api.ellysia.es` es lo único que lo dice (no tiene
+# robots.txt), y en `www` cubre lo que robots.txt solo pide no rastrear.
 (api_backend) {
+	header X-Robots-Tag "noindex, nofollow"
 	reverse_proxy Ellysia-API:5000 {
 		header_up X-Real-IP {remote_host}
 	}
 }
 
+# `{path}.html` sirve la copia prerenderizada de cada página pública
+# (`/themis` → themis.html, con su título y su canónica: web/app/scripts/
+# seoPrerender.mjs). Se pide después de `{path}` y antes del index.html, que es
+# lo que recibe cualquier ruta sin copia propia. Es `.html` y no una carpeta con
+# index.html a propósito: `file_server` redirige una carpeta a su forma con
+# barra final, y el router declara estas rutas sin ella.
 (spa) {
 	root * /srv
-	try_files {path} /index.html
+	try_files {path} {path}.html /index.html
 	file_server
 }
 

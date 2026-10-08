@@ -32,6 +32,13 @@
 
 <h1 style="margin:0 0 12px; font-family:Georgia,'Times New Roman',serif; font-size:24px; line-height:1.3; color:#16151a;">{{ pill_title }}</h1>
 
+{# Aviso de transparencia: el texto lo generó una IA. Lo lee una persona que no
+   es usuaria de Ellysia, así que va a la vista, no en el pie. #}
+<p style="margin:0 0 18px; font-size:13px; color:#6b665e;">
+  Este contenido se ha elaborado con ayuda de inteligencia artificial{% if ai_reviewed %}{% if company %} y ha sido revisado por {{ company }}{% else %} y ha sido revisado antes de enviarlo{% endif %}{% endif %}.
+  {% if ai_governance_url %}<a href="{{ ai_governance_url }}" style="color:#6b665e;">Cómo usamos la inteligencia artificial</a>.{% endif %}
+</p>
+
 {% if intro %}
 {% for paragraph in intro.split('\n\n') %}
 {% if paragraph.strip() %}

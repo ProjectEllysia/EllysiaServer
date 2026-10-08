@@ -272,7 +272,8 @@ class PrintingStrategy(ABC):
             elements.append(Spacer(1, 0.05 * inch))
             elements.append(Paragraph(safe_markup(conclusions), theme.body))
 
-        disclaimer_text = """
+        governance_url = f"{CR.general_config().public_url}/gobierno-ia#themis"
+        disclaimer_text = f"""
         <b>Nota:</b> El contenido de esta sección ha sido generado mediante
         inteligencia artificial y se basa en el análisis automático de los datos del escaneo.
         Si bien se ha diseñado para proporcionar una evaluación de seguridad objetiva, los
@@ -281,6 +282,7 @@ class PrintingStrategy(ABC):
         la exactitud, completitud o aplicabilidad de las recomendaciones generadas. Este análisis con
         inteligencia artificial no sustituye —sino complementa— una auditoría de seguridad manual o la evaluación
         detallada por parte de un experto en ciberseguridad.
+        Cómo usamos la inteligencia artificial: {governance_url}
         """
         disclaimer_style = ParagraphStyle(
             "Disclaimer",

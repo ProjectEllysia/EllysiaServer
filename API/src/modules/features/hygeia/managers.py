@@ -80,7 +80,7 @@ from .services import (
     combine_asset_averages, denormalize, detect_peak_coincidence, estimate_days_until_full,
     evaluate, extract_entity_series, fit_linear_trend, generate_agent_key,
     is_agent_outdated,
-    project_month, resolve_stats_window, services_from_inventory, summarize_power_period,
+    project_month, resolve_stats_window, samples_since, services_from_inventory, summarize_power_period,
     invalidate_user_stats, resolve_cached_stats, summarize_values,
     validate_metrics_are_additive,
 )
@@ -1194,10 +1194,21 @@ class HygeiaAssetManager:
         config = CR.hygeia_config()
         now = utcnow_naive()
 
-        week_since, week_samples = self._power_window_samples(snapshot_repo, asset_id, now, 7, config)
-        day_summary, _ = self._power_window(snapshot_repo, asset_id, now, 1, config)
+        # Las ventanas de 24 h y 7 d caen dentro de la de 30 d, así que se lee
+        # una sola vez la más ancha y se reparte en memoria: pedir cada una al
+        # repositorio releería las mismas filas (con el latido por defecto,
+        # ~173.000 las de 30 d y ~46.000 las otras dos).
+        month_since = now - timedelta(days=min(30, config.retention_days))
+        month_samples = snapshot_repo.get_power_samples(asset_id, month_since, now)
+
+        week_since = now - timedelta(days=min(7, config.retention_days))
+        week_samples = samples_since(month_samples, week_since)
+        day_since = now - timedelta(days=min(1, config.retention_days))
+        day_samples = samples_since(month_samples, day_since)
+
+        day_summary = self._summarize_window(day_since, now, day_samples, config)
         week_summary = self._summarize_window(week_since, now, week_samples, config)
-        month_summary, _ = self._power_window(snapshot_repo, asset_id, now, 30, config)
+        month_summary = self._summarize_window(month_since, now, month_samples, config)
 
         return {
             "current": self._current_power_reading(snapshot_repo.get_latest(asset_id)),
@@ -1220,28 +1231,12 @@ class HygeiaAssetManager:
         }
 
     @staticmethod
-    def _power_window_samples(
-        snapshot_repo: AssetSnapshotRepository, asset_id: int, now, days: int, config,
-    ) -> tuple:
-        """Ventana ``[now - min(days, retención), now]`` y sus muestras de potencia."""
-        since = now - timedelta(days=min(days, config.retention_days))
-        return since, snapshot_repo.get_power_samples(asset_id, since, now)
-
-    @staticmethod
     def _summarize_window(since, now, samples: list, config) -> dict:
         """Media ponderada, energía, coste y procedencia de una ventana ya resuelta."""
         summary = summarize_power_period(
             samples, since, now, config.energy_price_per_kwh, config.retention_days,
         )
         return {**summary, "currency": config.energy_price_currency}
-
-    @classmethod
-    def _power_window(
-        cls, snapshot_repo: AssetSnapshotRepository, asset_id: int, now, days: int, config,
-    ) -> tuple:
-        """Resume una ventana completa de ``days`` días: consulta y cálculo de consumo."""
-        since, samples = cls._power_window_samples(snapshot_repo, asset_id, now, days, config)
-        return cls._summarize_window(since, now, samples, config), samples
 
     def get_stats_summary(
         self, asset_id: int, metric_names: Sequence[str], requested_duration: timedelta,
