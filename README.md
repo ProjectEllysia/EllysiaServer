@@ -657,11 +657,13 @@ npm run test:themis       # scan-window + Lybra finding-site labels + finding so
 npm run test:i18n         # languages: date/number formatting, API error translation, language-file checks and guards
 npm run test:seo          # sitemap, robots.txt, routes with meta.seo and their per-page titles and descriptions, the share image, the per-page head prerendered by `npm run build` and the Caddy rules that serve it stay in step
 npm run test:docs         # technical documentation: inline formatting, same sections/blocks/figures in every language, one route per page
-npm run test:free-tools  # free-tools catalog: each tool has its view, its texts in every language and its sitemap entry; a module without tools shows no section; the rules of each tool (password generator and strength estimator, CIDR maths, SPF/DKIM/DMARC analysis, CVSS 3.1 against NVD's published scores, phishing quiz, power cost)
+npm run test:free-tools  # free-tools catalog: each tool has its view, its texts in every language and its sitemap entry; a module without tools shows no section; the rules of each tool (password generator and strength estimator, CIDR maths, SPF/DKIM/DMARC analysis, CVSS 3.1 against NVD's published scores, phishing quiz, power cost), the motion maths, the engravings' calculations (guilloché, star projection, rainbow angles and spectrum, chart geometry) and that the five modules share one identity registry
 npm run test:type-scale   # type scale: no text step below 12px, steps 1.05–1.25 apart, no hand-written font sizes in components
 ```
 
 Each module hub can list **free tools** — small utilities usable without a plan, served under `/herramientas/<module>/<slug>`. They are declared once in `web/app/src/freeTools/catalog.js`: the hub section, the route, the page title and the prerender all derive from that list, a hub of a module with no tools shows no section, and an optional launch surface lets the server hide a tool without a deploy. Today there are eight, none of which needs an account: Acheron's password generator and password strength checker (the latter can optionally check Have I Been Pwned by k-anonymity), Aegis's CVE lookup, CVSS 3.1 calculator and phishing quiz, Themis's network range calculator, Iris's SPF/DKIM/DMARC checker and Hygeia's power consumption calculator. All but the CVE lookup run in the visitor's browser: the SPF/DKIM/DMARC checker and the optional breach check query public services (DNS-over-HTTPS, Have I Been Pwned) straight from it, never through the Ellysia server. The CVE lookup reads the local knowledge base without a session.
+
+The public pages (each hub and each tool page) carry the module's own mythology as animated engraving, all in SVG and CSS with no image or animation library, computed from formulas and real data rather than drawn by hand: star-atlas plates with the real stars of Libra (Themis), Perseus holding Medusa's head with Algol's eclipse, facing the Andromeda he rescued (Aegis), and Ophiuchus holding the Serpent (Hygeia); the primary and secondary rainbows at the angles water really bends each colour to, with a magnifier showing Fraunhofer's lines of the solar spectrum (Iris); and an old engraved chart of the Acheron river and the Acherusian lake with Charon's crossing (Acheron). Each hub's emblem sits in a guilloché seal, the banknote engraving, with a pattern of its own; every tool has a medallion with its module's guilloché rim that draws itself on screen and moves on hover, a Greek-key frieze separates the header, and the tool pages end with the module's capabilities and its other free tools. Scenes pause when off-screen and everything stands still under `prefers-reduced-motion`.
 
 The SPA is ready for more languages: each one is a file in `web/app/src/i18n/locales/` (`es.json` is the default; `en.json` covers the whole interface, and CI fails if a key is added to `es.json` without it). Adding a file makes the language appear in the selector; the rules and the recipe are in `CONVENCIONES.md` §12.5.
 
@@ -1092,7 +1094,7 @@ python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().d
 - `API/src/data/` and `docs/` are gitignored (scan outputs, generated PDFs).
 - PostgreSQL uses port **15432** locally (not standard 5432).
 - There is a single `TaskStatus` enum, in `system/taskqueue/task.py`; `themis/services/tasks.py` imports it rather than defining its own.
-- The API version is declared as `appVersion` in `SecOpsConfig.json` (currently `0.5.36`, read by `CR.get_app_version()`).
+- The API version is declared as `appVersion` in `SecOpsConfig.json` (currently `0.5.37`, read by `CR.get_app_version()`).
 
 ## License
 
