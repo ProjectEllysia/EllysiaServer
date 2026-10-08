@@ -503,6 +503,65 @@
         "sources": "Datos de NVD, del catálogo KEV de CISA y de EPSS (FIRST).",
         "more": "¿Quieres explicar esta vulnerabilidad a tu equipo? Aegis crea píldoras de concienciación con IA.",
         "moreCta": "Abrir Aegis"
+      },
+      "passwordStrength": {
+        "title": "Medidor de contraseñas",
+        "desc": "Escribe una contraseña y mira cuánto tardaría en descubrirse y si ya ha aparecido en filtraciones.",
+        "subtitle": "Escribe una contraseña y mira cuánto aguantaría ante un ataque y qué la debilita.",
+        "inputLabel": "Contraseña",
+        "placeholder": "Escribe o pega una contraseña",
+        "show": "Mostrar",
+        "hide": "Ocultar",
+        "privacy": "Se analiza en tu navegador. La contraseña no se envía a ningún servidor.",
+        "empty": "Escribe una contraseña para ver cuánto aguanta.",
+        "levels": {
+          "0": "Muy débil",
+          "1": "Débil",
+          "2": "Regular",
+          "3": "Fuerte",
+          "4": "Muy fuerte"
+        },
+        "bits": "{count} bits",
+        "crackIntro": "Con la contraseña ya robada, un atacante tardaría de media",
+        "assumption": "Suponiendo 10.000 millones de intentos por segundo, el ritmo de un equipo con varias tarjetas gráficas contra un cifrado rápido.",
+        "ticks": {
+          "second": "1 s",
+          "minute": "1 min",
+          "hour": "1 h",
+          "day": "1 día",
+          "year": "1 año",
+          "century": "100 años"
+        },
+        "units": {
+          "instant": "menos de un segundo",
+          "seconds": "{count} segundo | {count} segundos",
+          "minutes": "{count} minuto | {count} minutos",
+          "hours": "{count} hora | {count} horas",
+          "days": "{count} día | {count} días",
+          "months": "{count} mes | {count} meses",
+          "years": "{count} año | {count} años",
+          "centuries": "más de cien años"
+        },
+        "weaknessesTitle": "Qué la debilita",
+        "weaknesses": {
+          "short": "Es corta: con menos de 12 caracteres cae antes.",
+          "commonWord": "Lleva una palabra o un nombre corriente, aunque cambies letras por cifras.",
+          "sequence": "Lleva una secuencia, como abc o 1234.",
+          "repeat": "Repite caracteres o bloques enteros.",
+          "keyboard": "Sigue una fila del teclado, como qwerty.",
+          "year": "Lleva un año, que se adivina enseguida.",
+          "oneKind": "Usa un solo tipo de carácter."
+        },
+        "breachTitle": "Filtraciones",
+        "breachNote": "Comprueba si esta contraseña aparece en filtraciones ya publicadas. Solo se envían los 5 primeros caracteres de su huella a Have I Been Pwned, nunca la contraseña.",
+        "breachCheck": "Comprobar en filtraciones",
+        "breachChecking": "Comprobando…",
+        "breachFound": "Aparece {count} vez en filtraciones. No la uses. | Aparece {count} veces en filtraciones. No la uses.",
+        "breachClean": "No aparece en las filtraciones conocidas. Eso no la hace segura por sí solo.",
+        "breachFailed": "No se pudo comprobar. Inténtalo de nuevo en unos minutos.",
+        "estimateNote": "Es una estimación. Una frase hecha de palabras corrientes aguanta menos de lo que marca.",
+        "more": "¿Quieres guardarla? La bóveda de Acheron cifra tus contraseñas en tu navegador.",
+        "moreCta": "Abrir la bóveda"
       }
     }
   },
@@ -4666,6 +4725,10 @@
       "toolCveLookup": {
         "title": "Consulta de CVE: gravedad, explotación y productos afectados | Ellysia",
         "description": "Busca cualquier CVE y consulta su puntuación CVSS, si se explota en ataques reales (KEV), su probabilidad EPSS y los productos afectados. Gratis y sin cuenta."
+      },
+      "toolPasswordStrength": {
+        "title": "Medidor de contraseñas: cuánto aguanta y si está filtrada | Ellysia",
+        "description": "Mide la fortaleza de una contraseña en tu navegador, sin enviarla: tiempo estimado de descifrado, qué la debilita y si aparece en filtraciones."
       }
     }
   }

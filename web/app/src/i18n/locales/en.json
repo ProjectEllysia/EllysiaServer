@@ -503,6 +503,65 @@
         "sources": "Data from NVD, the CISA KEV catalog and EPSS (FIRST).",
         "more": "Want to explain this vulnerability to your team? Aegis creates awareness pills with AI.",
         "moreCta": "Open Aegis"
+      },
+      "passwordStrength": {
+        "title": "Password strength checker",
+        "desc": "Type a password and see how long it would take to crack and whether it has appeared in data breaches.",
+        "subtitle": "Type a password and see how well it would hold up against an attack and what weakens it.",
+        "inputLabel": "Password",
+        "placeholder": "Type or paste a password",
+        "show": "Show",
+        "hide": "Hide",
+        "privacy": "It is analysed in your browser. The password is not sent to any server.",
+        "empty": "Type a password to see how well it holds up.",
+        "levels": {
+          "0": "Very weak",
+          "1": "Weak",
+          "2": "Fair",
+          "3": "Strong",
+          "4": "Very strong"
+        },
+        "bits": "{count} bits",
+        "crackIntro": "With the password already stolen, an attacker would need on average",
+        "assumption": "Assuming 10 billion guesses per second, the pace of a rig with several graphics cards against a fast hash.",
+        "ticks": {
+          "second": "1 s",
+          "minute": "1 min",
+          "hour": "1 h",
+          "day": "1 day",
+          "year": "1 yr",
+          "century": "100 yrs"
+        },
+        "units": {
+          "instant": "less than a second",
+          "seconds": "{count} second | {count} seconds",
+          "minutes": "{count} minute | {count} minutes",
+          "hours": "{count} hour | {count} hours",
+          "days": "{count} day | {count} days",
+          "months": "{count} month | {count} months",
+          "years": "{count} year | {count} years",
+          "centuries": "more than a hundred years"
+        },
+        "weaknessesTitle": "What weakens it",
+        "weaknesses": {
+          "short": "It is short: under 12 characters it falls sooner.",
+          "commonWord": "It contains a common word or name, even with letters swapped for digits.",
+          "sequence": "It contains a sequence, such as abc or 1234.",
+          "repeat": "It repeats characters or whole blocks.",
+          "keyboard": "It follows a keyboard row, such as qwerty.",
+          "year": "It contains a year, which is guessed at once.",
+          "oneKind": "It uses a single kind of character."
+        },
+        "breachTitle": "Data breaches",
+        "breachNote": "Checks whether this password appears in published breaches. Only the first 5 characters of its fingerprint are sent to Have I Been Pwned, never the password.",
+        "breachCheck": "Check data breaches",
+        "breachChecking": "Checking…",
+        "breachFound": "It appears {count} time in data breaches. Do not use it. | It appears {count} times in data breaches. Do not use it.",
+        "breachClean": "It does not appear in known data breaches. That alone does not make it safe.",
+        "breachFailed": "The check failed. Try again in a few minutes.",
+        "estimateNote": "This is an estimate. A phrase made of ordinary words holds up less than it shows.",
+        "more": "Want to keep it? The Acheron vault encrypts your passwords in your browser.",
+        "moreCta": "Open the vault"
       }
     }
   },
@@ -4666,6 +4725,10 @@
       "toolCveLookup": {
         "title": "CVE lookup: severity, exploitation and affected products | Ellysia",
         "description": "Look up any CVE and see its CVSS score, whether it is exploited in real attacks (KEV), its EPSS probability and the affected products. Free, no account."
+      },
+      "toolPasswordStrength": {
+        "title": "Password strength checker: how long it lasts and if it leaked | Ellysia",
+        "description": "Measure a password's strength in your browser without sending it: estimated cracking time, what weakens it and whether it appears in data breaches."
       }
     }
   }
