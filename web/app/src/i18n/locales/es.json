@@ -3537,6 +3537,7 @@
       "loadingMetrics": "Cargando métricas",
       "window": "Ventana",
       "windowLabel": "Ventana temporal del gráfico",
+      "loadingPower": "Cargando consumo eléctrico",
       "power": "Consumo eléctrico",
       "powerUnavailable": "Consumo no disponible — este equipo no expone sensores de potencia compatibles.",
       "powerVirtual": "Consumo no disponible — esta es una máquina virtual. El consumo eléctrico lo mide el equipo físico que la hospeda.",

@@ -3537,6 +3537,7 @@
       "loadingMetrics": "Loading metrics",
       "window": "Window",
       "windowLabel": "Chart time window",
+      "loadingPower": "Loading power consumption",
       "power": "Power consumption",
       "powerUnavailable": "Consumption unavailable — this machine does not expose compatible power sensors.",
       "powerVirtual": "Consumption unavailable — this is a virtual machine. Power is measured by the physical host.",

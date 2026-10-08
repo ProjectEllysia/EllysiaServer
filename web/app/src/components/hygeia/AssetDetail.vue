@@ -159,7 +159,20 @@
             </p>
           </template>
 
-          <ul v-if="powerPeriods.length" class="power-periods">
+          <!-- Silueta de la lista de periodos: mismas filas y mismo alto que
+               `.power-period`, para que al llegar los datos no se desplace lo
+               que hay debajo. Solo en la primera carga: con datos ya pintados,
+               un refresco manual no los sustituye por huecos. -->
+          <ul v-if="powerSummaryLoading && !powerSummary" class="power-periods" aria-busy="true"
+              :aria-label="t('hygeia.detail.loadingPower')">
+            <li v-for="n in POWER_PERIODS.length" :key="n" class="power-period power-period--ghost" aria-hidden="true">
+              <span class="power-period-label"><span class="skeleton skeleton--line power-ghost-label"></span></span>
+              <span class="power-period-value"><span class="skeleton skeleton--line power-ghost-value"></span></span>
+              <span class="power-period-tag"><span class="skeleton skeleton--line power-ghost-tag"></span></span>
+            </li>
+          </ul>
+          <p v-else-if="powerSummaryError && !powerSummary" class="state-msg state-msg--error">{{ powerSummaryError }}</p>
+          <ul v-else-if="powerPeriods.length" class="power-periods">
             <li v-for="period in powerPeriods" :key="period.key" class="power-period">
               <span class="power-period-label">{{ t(period.labelKey) }}</span>
               <span class="power-period-value">
@@ -466,6 +479,8 @@ const props = defineProps({
   // y coste de 24h/7d/30d y proyección mensual. `null` mientras no ha
   // llegado la primera respuesta.
   powerSummary: { type: Object, default: null },
+  powerSummaryLoading: { type: Boolean, default: false },
+  powerSummaryError: { type: String, default: null },
   anomalies: { type: Array, default: () => [] },
 })
 defineEmits(['ack', 'resolve', 'delete', 'analyze', 'reanalyze', 'view-analysis', 'window-change'])
@@ -998,6 +1013,13 @@ function stateLabel(state) {
 .power-period-tag { flex-shrink: 0; font-size: var(--fs-xs); color: var(--text-muted); }
 .power-period-tag--projected { color: var(--warn); }
 .power-period-tag--observed_partial { color: var(--warn); }
+
+/* La fila fantasma conserva el alto de la real: una línea de texto de
+   --fs-sm (mismo relleno), y los huecos se miden en em para seguirla. */
+.power-period--ghost .skeleton { display: inline-block; vertical-align: middle; }
+.power-ghost-label { width: 4.5rem; }
+.power-ghost-value { width: 9rem; max-width: 100%; }
+.power-ghost-tag { width: 3.5rem; }
 
 /* ── Lecturas puntuales (memoria) ── */
 .readout { display: flex; flex-wrap: wrap; gap: 0 1.8rem; margin: 0; }
