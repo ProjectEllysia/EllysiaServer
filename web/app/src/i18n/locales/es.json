@@ -425,6 +425,11 @@
       "body": "Es gratuita, pero pide una cuenta para evitar abusos.",
       "signIn": "Entrar"
     },
+    "teaser": {
+      "lead": "Lo que acabas de usar es una parte de {name}. Esto es lo que hace el módulo entero.",
+      "discover": "Conocer {name}",
+      "otherTools": "Más herramientas gratuitas de {name}"
+    },
     "items": {
       "passwordGenerator": {
         "title": "Generador de contraseñas",
