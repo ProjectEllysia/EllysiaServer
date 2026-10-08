@@ -68,6 +68,10 @@
       </div>
     </section>
 
+    <!-- ═══════════ HERRAMIENTAS GRATUITAS — se alimenta del catálogo y,
+         si el módulo no tiene ninguna, no aparece ═══════════ -->
+    <FreeTools :module-id="moduleId" />
+
     <!-- ═══════════ RECURSOS ═══════════ -->
     <section v-if="resources.length" class="scrolls">
       <h2 class="scrolls-title">{{ t('moduleHub.resources') }}</h2>
@@ -117,6 +121,7 @@ import { useAuthStore } from '@/stores/authStore'
 import SiteHeader from '@/components/shared/SiteHeader.vue'
 import SiteFooter from '@/components/shared/SiteFooter.vue'
 import StarBackground from '@/components/shared/StarBackground.vue'
+import FreeTools from '@/components/shared/FreeTools.vue'
 
 import themisIcon from '@/assets/images/themis/Themis-Turqoise-BgN.png'
 import aegisIcon from '@/assets/images/aegis/Ellysia-Aegis-Blue-BgN.png'
@@ -499,6 +504,11 @@ onUnmounted(() => observer?.disconnect())
   transition: all var(--transition);
 }
 .scroll-link:hover { color: var(--accent-bright); border-color: var(--accent); background: var(--accent-dim); }
+
+/* Las secciones que siguen no llevan margen superior (lo ponía el relleno de
+   las capacidades), así que detrás de la banda de herramientas lo recuperan. */
+.bench + .scrolls,
+.bench + .pantheon { padding-top: 3.5rem; }
 
 /* ═══════════ PANTEÓN ═══════════ */
 .pantheon {

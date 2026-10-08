@@ -18,6 +18,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { FREE_TOOLS, freeToolPath, freeToolSeoKey } from '../src/freeTools/catalog.js'
 
 const DEFAULT_APP_ROOT = fileURLToPath(new URL('../', import.meta.url))
 
@@ -56,10 +57,14 @@ export function readSiteOrigin(appRoot = DEFAULT_APP_ROOT) {
 }
 
 /**
- * Lee del router las rutas que declaran `meta.seo`.
+ * Lee del router las rutas que declaran `meta.seo`, y las de las herramientas
+ * gratuitas.
  *
  * El router no se puede importar desde Node (usa el alias `@` y vue-router), así
- * que se lee como texto: cada ruta es un bloque `{ ... }` de primer nivel.
+ * que se lee como texto: cada ruta es un bloque `{ ... }` de primer nivel. Las
+ * herramientas gratuitas no están escritas en él (las genera el catálogo,
+ * `src/freeTools/catalog.js`, que sí es JavaScript puro), así que se añaden
+ * desde el propio catálogo, detrás de las del router.
  *
  * @param {string} [appRoot] - Raíz de `web/app`. Por defecto, la de este repositorio.
  * @returns {Map<string, string>} Ruta (`/themis`) → clave de `seo.pages` (`themis`),
@@ -74,6 +79,7 @@ export function readSeoRoutes(appRoot = DEFAULT_APP_ROOT) {
     if (path && seoKey) routes.set(path, seoKey)
   }
   if (routes.size === 0) throw new Error('no se encuentra ninguna ruta con meta.seo: ¿ha cambiado el formato del router?')
+  for (const tool of FREE_TOOLS) routes.set(freeToolPath(tool), freeToolSeoKey(tool))
   return routes
 }
 

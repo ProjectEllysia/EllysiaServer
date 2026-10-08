@@ -410,6 +410,102 @@
       "hygeia": "Vigila el pulso de cada activo: telemetría en vivo y alertas antes del fallo."
     }
   },
+  "freeTools": {
+    "title": "Herramientas gratuitas",
+    "subtitle": "Úsalas ahora, sin instalar nada.",
+    "access": {
+      "public": "Sin cuenta",
+      "account": "Con cuenta gratuita"
+    },
+    "open": "Abrir",
+    "eyebrow": "Herramienta gratuita",
+    "backTo": "Volver a {name}",
+    "gate": {
+      "title": "Entra para usar esta herramienta",
+      "body": "Es gratuita, pero pide una cuenta para evitar abusos.",
+      "signIn": "Entrar"
+    },
+    "items": {
+      "passwordGenerator": {
+        "title": "Generador de contraseñas",
+        "desc": "Crea contraseñas aleatorias con la longitud y los caracteres que elijas.",
+        "subtitle": "Ajusta la longitud y los tipos de carácter; la contraseña se renueva sola.",
+        "generated": "Contraseña generada",
+        "copy": "Copiar",
+        "copied": "Copiada",
+        "regenerate": "Generar otra",
+        "copyFailed": "No se pudo copiar. Selecciona la contraseña y cópiala a mano.",
+        "strengthLabel": "Solidez",
+        "strength": {
+          "0": "Muy débil",
+          "1": "Débil",
+          "2": "Regular",
+          "3": "Fuerte",
+          "4": "Muy fuerte"
+        },
+        "length": "Longitud",
+        "include": "Incluir",
+        "classes": {
+          "uppercase": "Mayúsculas (A-Z)",
+          "lowercase": "Minúsculas (a-z)",
+          "digits": "Números (0-9)",
+          "symbols": "Símbolos (!{'@'}#…)"
+        },
+        "excludeAmbiguous": "Evitar caracteres que se confunden (0, O, 1, l, I)",
+        "privacy": "Se genera en tu navegador y no se envía a ningún servidor.",
+        "more": "¿Quieres guardarla? La bóveda de Acheron cifra tus contraseñas en tu navegador.",
+        "moreCta": "Abrir la bóveda"
+      },
+      "cveLookup": {
+        "title": "Consulta de CVE",
+        "desc": "Busca una vulnerabilidad por su identificador y mira su gravedad, si se explota y qué productos afecta.",
+        "subtitle": "Escribe un identificador CVE y consulta su gravedad, si se explota en ataques y qué productos afecta.",
+        "idLabel": "Identificador de CVE",
+        "search": "Consultar",
+        "searching": "Consultando…",
+        "hint": "Formato CVE-AAAA-NNNN, por ejemplo CVE-2024-6387.",
+        "invalidId": "Escribe un identificador completo, como CVE-2024-6387.",
+        "unknown": "No hay datos de {id}. Puede ser muy reciente o no existir.",
+        "failed": "No se pudo consultar. Inténtalo de nuevo en unos minutos.",
+        "severity": {
+          "critical": "Crítica",
+          "high": "Alta",
+          "medium": "Media",
+          "low": "Baja",
+          "none": "Ninguna",
+          "unrated": "Sin puntuar"
+        },
+        "facts": {
+          "cvss": "Puntuación CVSS",
+          "published": "Publicada",
+          "exploited": "Explotada en ataques",
+          "epss": "Probabilidad de explotación"
+        },
+        "notScored": "Sin dato",
+        "exploitedYes": "Sí, consta en el catálogo KEV de CISA",
+        "exploitedNo": "No consta en KEV",
+        "epssPercentile": "Más probable de explotarse que el {percentile} % de las CVE.",
+        "products": "Productos afectados",
+        "andMore": "y {count} más",
+        "distros": "Corrección por distribución",
+        "andMoreDistros": "y {count} entradas más",
+        "distroColumns": {
+          "distribution": "Distribución",
+          "package": "Paquete",
+          "status": "Estado",
+          "fixedIn": "Corregida en"
+        },
+        "distroStatus": {
+          "fixed": "Corregida",
+          "vulnerable": "Vulnerable",
+          "unknown": "Sin dato"
+        },
+        "sources": "Datos de NVD, del catálogo KEV de CISA y de EPSS (FIRST).",
+        "more": "¿Quieres explicar esta vulnerabilidad a tu equipo? Aegis crea píldoras de concienciación con IA.",
+        "moreCta": "Abrir Aegis"
+      }
+    }
+  },
   "api": {
     "forbidden": "No tienes permisos suficientes para realizar esta acción.",
     "rateLimited": {
@@ -4562,6 +4658,14 @@
       "docsHygeia": {
         "title": "Hygeia por dentro: cómo funciona la monitorización | Ellysia",
         "description": "Cómo recibe Hygeia los datos de cada servidor, cómo abre anomalías sin avisar de más y cómo calcula estadísticas, consumo y vulnerabilidades del software."
+      },
+      "toolPasswordGenerator": {
+        "title": "Generador de contraseñas seguras, gratis y en tu navegador | Ellysia",
+        "description": "Genera contraseñas aleatorias de hasta 64 caracteres con la Web Crypto API. Se crean en tu navegador, sin cuenta y sin enviarlas a ningún servidor."
+      },
+      "toolCveLookup": {
+        "title": "Consulta de CVE: gravedad, explotación y productos afectados | Ellysia",
+        "description": "Busca cualquier CVE y consulta su puntuación CVSS, si se explota en ataques reales (KEV), su probabilidad EPSS y los productos afectados. Gratis y sin cuenta."
       }
     }
   }

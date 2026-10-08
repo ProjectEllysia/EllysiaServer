@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { ensureLaunchStateLoaded, useLaunch } from '@/composables/useLaunch'
+import { freeToolRoutes } from '@/freeTools/routes'
 
 /**
  * Configuración de rutas de la SPA.
@@ -174,6 +175,9 @@ const routes = [
     component: () => import('@/views/hygeia/HygeiaDocumentsView.vue'),
     meta: { requiresAuth: true },
   },
+  // Herramientas gratuitas de cada módulo (/herramientas/<módulo>/<slug>). Las
+  // genera el catálogo (`src/freeTools/catalog.js`): no se declaran aquí a mano.
+  ...freeToolRoutes,
   // Capa comercial: planes, plan propio y organización.
   {
     // Pública: es la tabla de precios, la ve quien todavía no tiene cuenta.

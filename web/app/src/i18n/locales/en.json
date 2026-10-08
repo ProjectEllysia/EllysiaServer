@@ -410,6 +410,102 @@
       "hygeia": "Watches the pulse of every asset: live telemetry and alerts before failure."
     }
   },
+  "freeTools": {
+    "title": "Free tools",
+    "subtitle": "Use them right now, nothing to install.",
+    "access": {
+      "public": "No account",
+      "account": "Free account"
+    },
+    "open": "Open",
+    "eyebrow": "Free tool",
+    "backTo": "Back to {name}",
+    "gate": {
+      "title": "Sign in to use this tool",
+      "body": "It is free, but it needs an account to prevent abuse.",
+      "signIn": "Sign in"
+    },
+    "items": {
+      "passwordGenerator": {
+        "title": "Password generator",
+        "desc": "Create random passwords with the length and characters you choose.",
+        "subtitle": "Adjust the length and the character types; the password refreshes by itself.",
+        "generated": "Generated password",
+        "copy": "Copy",
+        "copied": "Copied",
+        "regenerate": "Generate another",
+        "copyFailed": "Could not copy. Select the password and copy it by hand.",
+        "strengthLabel": "Strength",
+        "strength": {
+          "0": "Very weak",
+          "1": "Weak",
+          "2": "Fair",
+          "3": "Strong",
+          "4": "Very strong"
+        },
+        "length": "Length",
+        "include": "Include",
+        "classes": {
+          "uppercase": "Uppercase (A-Z)",
+          "lowercase": "Lowercase (a-z)",
+          "digits": "Numbers (0-9)",
+          "symbols": "Symbols (!{'@'}#…)"
+        },
+        "excludeAmbiguous": "Avoid look-alike characters (0, O, 1, l, I)",
+        "privacy": "It is generated in your browser and never sent to a server.",
+        "more": "Want to keep it? The Acheron vault encrypts your passwords in your browser.",
+        "moreCta": "Open the vault"
+      },
+      "cveLookup": {
+        "title": "CVE lookup",
+        "desc": "Search a vulnerability by its identifier and see its severity, whether it is exploited and which products it affects.",
+        "subtitle": "Enter a CVE identifier and see its severity, whether it is exploited in attacks and which products it affects.",
+        "idLabel": "CVE identifier",
+        "search": "Look up",
+        "searching": "Looking up…",
+        "hint": "Format CVE-YYYY-NNNN, for example CVE-2024-6387.",
+        "invalidId": "Enter a complete identifier, such as CVE-2024-6387.",
+        "unknown": "There is no data for {id}. It may be very recent or not exist.",
+        "failed": "The lookup failed. Try again in a few minutes.",
+        "severity": {
+          "critical": "Critical",
+          "high": "High",
+          "medium": "Medium",
+          "low": "Low",
+          "none": "None",
+          "unrated": "Not scored"
+        },
+        "facts": {
+          "cvss": "CVSS score",
+          "published": "Published",
+          "exploited": "Exploited in attacks",
+          "epss": "Exploitation probability"
+        },
+        "notScored": "No data",
+        "exploitedYes": "Yes, listed in the CISA KEV catalog",
+        "exploitedNo": "Not listed in KEV",
+        "epssPercentile": "More likely to be exploited than {percentile} % of CVEs.",
+        "products": "Affected products",
+        "andMore": "and {count} more",
+        "distros": "Fix by distribution",
+        "andMoreDistros": "and {count} more entries",
+        "distroColumns": {
+          "distribution": "Distribution",
+          "package": "Package",
+          "status": "Status",
+          "fixedIn": "Fixed in"
+        },
+        "distroStatus": {
+          "fixed": "Fixed",
+          "vulnerable": "Vulnerable",
+          "unknown": "No data"
+        },
+        "sources": "Data from NVD, the CISA KEV catalog and EPSS (FIRST).",
+        "more": "Want to explain this vulnerability to your team? Aegis creates awareness pills with AI.",
+        "moreCta": "Open Aegis"
+      }
+    }
+  },
   "api": {
     "forbidden": "You do not have enough permissions to do this.",
     "rateLimited": {
@@ -4562,6 +4658,14 @@
       "docsHygeia": {
         "title": "Hygeia inside: how server monitoring works | Ellysia",
         "description": "How Hygeia receives each server's data, opens anomalies without over-alerting, and computes statistics, power use and software vulnerabilities."
+      },
+      "toolPasswordGenerator": {
+        "title": "Free secure password generator, in your browser | Ellysia",
+        "description": "Generate random passwords up to 64 characters with the Web Crypto API. Created in your browser, with no account and nothing sent to a server."
+      },
+      "toolCveLookup": {
+        "title": "CVE lookup: severity, exploitation and affected products | Ellysia",
+        "description": "Look up any CVE and see its CVSS score, whether it is exploited in real attacks (KEV), its EPSS probability and the affected products. Free, no account."
       }
     }
   }
