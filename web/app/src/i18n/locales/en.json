@@ -606,6 +606,66 @@
         "andMore": "and {count} more",
         "more": "Want to scan a range? Themis looks for ports, services and vulnerabilities.",
         "moreCta": "Open Themis"
+      },
+      "mailAuthChecker": {
+        "title": "SPF, DKIM and DMARC checker",
+        "desc": "Check whether a domain protects its email against spoofing and what it is missing.",
+        "subtitle": "Enter a domain and see whether its email is protected against spoofing and what is missing.",
+        "domainLabel": "Domain",
+        "placeholder": "example.com",
+        "hint": "A domain, an email address or a website all work.",
+        "invalidDomain": "Enter a valid domain, such as example.com.",
+        "check": "Check",
+        "checking": "Checking…",
+        "withDkim": "Also check DKIM",
+        "selectorLabel": "DKIM selector",
+        "selectorPlaceholder": "selector1",
+        "selectorHint": "It is in the DKIM-Signature header of an email from the domain, after s=.",
+        "invalidSelector": "Enter a valid selector: letters, digits, dots or hyphens.",
+        "privacy": "Your browser asks Cloudflare's public DNS for these names, or Google's if that fails. They do not go through Ellysia.",
+        "failed": "The DNS lookup failed. Try again in a few minutes.",
+        "sections": {
+          "spf": "Who may send email on behalf of the domain",
+          "dkim": "The signature each email carries",
+          "dmarc": "What to do with email that fails"
+        },
+        "levels": {
+          "ok": "Good",
+          "info": "Note",
+          "warn": "Could be better",
+          "bad": "Fails"
+        },
+        "findings": {
+          "domainNotFound": "The domain does not exist. Check that it is spelled correctly.",
+          "spfMissing": "There is no SPF record: nobody can check which servers send legitimate email for this domain.",
+          "spfMultiple": "There is more than one SPF record. The standard requires a single one and receivers may discard them all.",
+          "spfStrict": "It ends in -all: anything that does not come from an authorised server is rejected.",
+          "spfSoftfail": "It ends in ~all: anything that does not come from an authorised server is marked suspicious but not rejected. That is common and enough if DMARC is in place.",
+          "spfNeutral": "It ends in ?all: it says nothing about unauthorised senders. Change it to ~all or -all.",
+          "spfOpen": "It ends in +all, or plain all: it authorises any server in the world. It is the same as having no SPF.",
+          "spfNoAll": "It does not end in all: unauthorised senders have no rule. Add ~all or -all.",
+          "spfRedirect": "It hands over to another domain with redirect=: that domain's rules apply.",
+          "spfPtr": "It uses ptr, which the standard discourages: it is slow and unreliable.",
+          "spfTooManyLookups": "It counts {count} DNS lookups from this record's mechanisms alone, and the limit is 10. Beyond the limit, receivers treat SPF as broken. Includes are not followed here, so there may be more.",
+          "dmarcMissing": "There is no DMARC record: nobody tells receivers what to do with email that spoofs this domain.",
+          "dmarcInherited": "The domain has no DMARC record of its own and inherits the one from {domain}.",
+          "dmarcMultiple": "There is more than one DMARC record. The standard requires a single one.",
+          "dmarcInvalid": "The record has no valid policy (p=none, quarantine or reject).",
+          "dmarcReject": "The policy is reject: email that spoofs the domain is rejected.",
+          "dmarcQuarantine": "The policy is quarantine: email that spoofs the domain goes to spam.",
+          "dmarcNone": "The policy is none: it only monitors and blocks nothing. Use it only while you review the reports, then move to quarantine or reject.",
+          "dmarcSubdomainWeaker": "Subdomains have a looser policy ({policy}) than the main domain.",
+          "dmarcPartial": "The policy applies to only {percentage} % of emails (pct).",
+          "dmarcNoReports": "It does not ask for reports (rua): you will not know who sends email on behalf of the domain.",
+          "dkimMissing": "There is no DKIM key with that selector. Check the selector in the DKIM-Signature header of a real email.",
+          "dkimRevoked": "The key is empty: the selector has been retired and signatures made with it will fail.",
+          "dkimInvalid": "The public key is not valid.",
+          "dkimOk": "{bits}-bit key. Good.",
+          "dkimShortKey": "{bits}-bit key. 2048 or more is recommended.",
+          "dkimTestMode": "It is in test mode (t=y): receivers should not treat a signature failure as final."
+        },
+        "more": "Have a suspicious email? Iris analyses the sender, the links and the headers.",
+        "moreCta": "Open Iris"
       }
     }
   },
@@ -4777,6 +4837,10 @@
       "toolCidrCalculator": {
         "title": "CIDR network range calculator: mask, hosts and subnets | Ellysia",
         "description": "Calculate in your browser the mask, network address, broadcast and usable hosts of an IPv4 range, and split it into subnets. Free, no account."
+      },
+      "toolMailAuthChecker": {
+        "title": "SPF, DKIM and DMARC checker: is your email protected? | Ellysia",
+        "description": "Check a domain's SPF, DKIM and DMARC records in your browser and what it lacks to stop its email being spoofed. Free, no account."
       }
     }
   }

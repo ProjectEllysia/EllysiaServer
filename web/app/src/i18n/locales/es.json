@@ -606,6 +606,66 @@
         "andMore": "y {count} más",
         "more": "¿Quieres escanear un rango? Themis busca puertos, servicios y vulnerabilidades.",
         "moreCta": "Abrir Themis"
+      },
+      "mailAuthChecker": {
+        "title": "Comprobador de SPF, DKIM y DMARC",
+        "desc": "Comprueba si un dominio protege su correo contra la suplantación y qué le falta.",
+        "subtitle": "Escribe un dominio y mira si su correo está protegido contra la suplantación y qué le falta.",
+        "domainLabel": "Dominio",
+        "placeholder": "ejemplo.com",
+        "hint": "Vale un dominio, una dirección de correo o una web.",
+        "invalidDomain": "Escribe un dominio válido, como ejemplo.com.",
+        "check": "Comprobar",
+        "checking": "Comprobando…",
+        "withDkim": "Comprobar también DKIM",
+        "selectorLabel": "Selector de DKIM",
+        "selectorPlaceholder": "selector1",
+        "selectorHint": "Está en la cabecera DKIM-Signature de un correo del dominio, tras s=.",
+        "invalidSelector": "Escribe un selector válido: letras, cifras, puntos o guiones.",
+        "privacy": "Tu navegador pregunta por estos nombres al DNS público de Cloudflare, o al de Google si falla. No pasan por Ellysia.",
+        "failed": "No se pudo consultar el DNS. Inténtalo de nuevo en unos minutos.",
+        "sections": {
+          "spf": "Quién puede enviar correo en nombre del dominio",
+          "dkim": "La firma que lleva cada correo",
+          "dmarc": "Qué hacer con el correo que no pasa"
+        },
+        "levels": {
+          "ok": "Bien",
+          "info": "Nota",
+          "warn": "Mejorable",
+          "bad": "Falla"
+        },
+        "findings": {
+          "domainNotFound": "El dominio no existe. Revisa que esté bien escrito.",
+          "spfMissing": "No hay registro SPF: nadie puede comprobar qué servidores envían correo legítimo de este dominio.",
+          "spfMultiple": "Hay más de un registro SPF. El estándar exige uno solo y los receptores pueden descartarlos todos.",
+          "spfStrict": "Termina en -all: lo que no venga de un servidor autorizado se rechaza.",
+          "spfSoftfail": "Termina en ~all: lo que no venga de un servidor autorizado se marca como sospechoso, pero no se rechaza. Es habitual y basta si hay DMARC.",
+          "spfNeutral": "Termina en ?all: no dice nada sobre los envíos no autorizados. Cámbialo a ~all o a -all.",
+          "spfOpen": "Termina en +all, o en all a secas: autoriza a cualquier servidor del mundo. Equivale a no tener SPF.",
+          "spfNoAll": "No termina en all: los envíos no autorizados no tienen regla. Añade ~all o -all.",
+          "spfRedirect": "Delega en otro dominio con redirect=: se aplican las reglas de ese dominio.",
+          "spfPtr": "Usa ptr, que el estándar desaconseja: es lento y poco fiable.",
+          "spfTooManyLookups": "Cuenta {count} consultas de DNS solo con los mecanismos de este registro, y el límite es 10. Pasado el límite, los receptores dan el SPF por roto. Aquí no se siguen los include, así que puede haber más.",
+          "dmarcMissing": "No hay registro DMARC: nadie le dice a los receptores qué hacer con el correo que suplanta este dominio.",
+          "dmarcInherited": "El dominio no tiene registro DMARC propio y hereda el de {domain}.",
+          "dmarcMultiple": "Hay más de un registro DMARC. El estándar exige uno solo.",
+          "dmarcInvalid": "El registro no tiene una política válida (p=none, quarantine o reject).",
+          "dmarcReject": "La política es reject: el correo que suplanta el dominio se rechaza.",
+          "dmarcQuarantine": "La política es quarantine: el correo que suplanta el dominio va a spam.",
+          "dmarcNone": "La política es none: se vigila, pero no se bloquea nada. Úsala solo mientras revisas los informes y luego sube a quarantine o reject.",
+          "dmarcSubdomainWeaker": "Los subdominios tienen una política más laxa ({policy}) que el dominio principal.",
+          "dmarcPartial": "La política solo se aplica al {percentage} % de los correos (pct).",
+          "dmarcNoReports": "No pide informes (rua): no sabrás quién envía correo en nombre del dominio.",
+          "dkimMissing": "No hay clave DKIM con ese selector. Revisa el selector en la cabecera DKIM-Signature de un correo real.",
+          "dkimRevoked": "La clave está vacía: el selector se ha retirado y las firmas hechas con él fallarán.",
+          "dkimInvalid": "La clave pública no es válida.",
+          "dkimOk": "Clave de {bits} bits. Correcta.",
+          "dkimShortKey": "Clave de {bits} bits. Se recomienda 2048 o más.",
+          "dkimTestMode": "Está en modo de pruebas (t=y): los receptores no deberían tratar un fallo de firma como definitivo."
+        },
+        "more": "¿Tienes un correo sospechoso? Iris analiza el remitente, los enlaces y las cabeceras.",
+        "moreCta": "Abrir Iris"
       }
     }
   },
@@ -4777,6 +4837,10 @@
       "toolCidrCalculator": {
         "title": "Calculadora de rangos de red CIDR: máscara, equipos y subredes | Ellysia",
         "description": "Calcula en el navegador la máscara, la dirección de red, el broadcast y los equipos utilizables de un rango IPv4, y divídelo en subredes. Gratis y sin cuenta."
+      },
+      "toolMailAuthChecker": {
+        "title": "Comprobador de SPF, DKIM y DMARC: ¿está protegido tu correo? | Ellysia",
+        "description": "Comprueba en tu navegador los registros SPF, DKIM y DMARC de un dominio y qué le falta para frenar la suplantación de su correo. Gratis y sin cuenta."
       }
     }
   }
