@@ -1,0 +1,85 @@
+/* ═══════════════════════════════════════════════════════════════
+   Movimiento compartido de las páginas públicas (hubs y herramientas
+   gratuitas). Un solo vocabulario de entradas, para que todas se muevan
+   con el mismo pulso:
+
+     .mo-rise       sube y aparece al cargar         (--delay)
+     .mo-mask       la línea sube desde una máscara   (--delay)
+     .mo-track      el rótulo se cierra desde ancho   (--delay)
+     .reveal        aparece al entrar en pantalla     (v-reveal, --reveal-delay)
+
+   Las escenas y los dibujos de cada módulo llevan sus propios keyframes;
+   aquí solo está lo común y el apagado por movimiento reducido.
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Curva de las entradas: arranca rápido y se posa despacio. */
+  --ease-settle: cubic-bezier(0.2, 0.7, 0.1, 1);
+}
+
+/* ── Al cargar ── */
+.mo-rise { animation: mo-rise 0.8s var(--ease-settle) var(--delay, 0s) both; }
+@keyframes mo-rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Máscara de línea: el texto sube desde debajo de una línea invisible. El relleno
+   inferior evita que se recorten los rabillos de g, p, y. */
+.mo-mask { display: block; overflow: hidden; padding-bottom: 0.14em; margin-bottom: -0.14em; }
+.mo-mask-inner {
+  display: block;
+  transform: translateY(112%);
+  animation: mo-mask-up 1s var(--ease-settle) var(--delay, 0s) forwards;
+}
+@keyframes mo-mask-up { to { transform: none; } }
+
+.mo-track { animation: mo-track 1.3s var(--ease-settle) var(--delay, 0s) both; }
+@keyframes mo-track {
+  from { opacity: 0; letter-spacing: 0.75em; }
+}
+
+/* Una insignia o un sello que aparece con un pequeño rebote. */
+.mo-pop { animation: mo-pop 0.55s var(--ease-settle) var(--delay, 0s) both; }
+@keyframes mo-pop {
+  0%   { opacity: 0; transform: scale(0.6); }
+  60%  { opacity: 1; transform: scale(1.12); }
+  100% { opacity: 1; transform: none; }
+}
+
+/* Un trazo que se dibuja (el elemento lleva pathLength="1"). */
+.mo-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: mo-draw 1.2s var(--ease-settle) var(--delay, 0s) forwards;
+}
+@keyframes mo-draw { to { stroke-dashoffset: 0; } }
+
+/* ── Al entrar en pantalla (directiva v-reveal) ── */
+.reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition:
+    opacity 0.7s ease var(--reveal-delay, 0s),
+    transform 0.8s var(--ease-settle) var(--reveal-delay, 0s);
+}
+.reveal.is-in { opacity: 1; transform: none; }
+
+/* ── Grabados de las herramientas (ToolGlyph) ──
+   Sus trazos con clase `draw` llevan pathLength="1". En un hub, el grabado se traza
+   cuando su tarjeta entra en pantalla (.reveal.is-in); en la cabecera de una
+   herramienta, al cargar (.glyph-draw-on-load). */
+.tool-glyph .draw { stroke-dasharray: 1; stroke-dashoffset: 0; }
+.reveal.is-in .tool-glyph .draw { animation: mo-draw-in 1.4s var(--ease-settle) calc(var(--reveal-delay, 0s) + 0.25s) backwards; }
+.glyph-draw-on-load .tool-glyph .draw { animation: mo-draw-in 1.5s var(--ease-settle) var(--delay, 0.4s) backwards; }
+@keyframes mo-draw-in { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+
+/* ── Movimiento reducido: todo se ve ya colocado y nada se mueve ── */
+@media (prefers-reduced-motion: reduce) {
+  .mo-rise, .mo-track, .mo-draw, .mo-pop { animation: none; }
+  .mo-mask-inner { transform: none; animation: none; }
+  .mo-draw { stroke-dashoffset: 0; }
+  .tool-glyph .draw { animation: none !important; stroke-dashoffset: 0; }
+  .reveal { opacity: 1; transform: none; transition: none; }
+  .atmosphere, .atmosphere *, .tool-glyph, .tool-glyph * { animation: none !important; transition: none !important; }
+}
