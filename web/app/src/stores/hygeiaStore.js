@@ -32,7 +32,9 @@ export const useHygeiaStore = defineStore('hygeia', () => {
     // Resumen de consumo eléctrico: lectura actual más energía y
     // coste de 24h/7d/30d y proyección mensual. `null` mientras no ha
     // llegado la primera respuesta — la ficha lo trata igual que `latest`.
-    powerSummary: null, powerSummaryError: null,
+    // `powerSummaryLoading` distingue "aún no ha llegado" de "no hay": sin él
+    // la lista de periodos no existe en pantalla y aparece de golpe al llegar.
+    powerSummary: null, powerSummaryLoading: false, powerSummaryError: null,
     lastAgentKey: null,
   })
 
@@ -170,6 +172,7 @@ export const useHygeiaStore = defineStore('hygeia', () => {
     state.analysis = null
     state.analysisError = null
     state.powerSummary = null
+    state.powerSummaryLoading = false
     state.powerSummaryError = null
     if (id) {
       fetchMetrics(id, { windowMs })
@@ -308,14 +311,16 @@ export const useHygeiaStore = defineStore('hygeia', () => {
    * Carga el resumen de consumo eléctrico del activo: lectura
    * actual más energía y coste de 24h/7d/30d y proyección mensual.
    *
-   * Sin variante `silent` propia porque nunca lo pide el sondeo de 15 s
-   * (ver `POLL_MS`/`SLOW_EVERY` en `HygeiaView.vue`): energía y coste no
-   * cambian de un heartbeat a otro, así que re-pedirlos a ese ritmo sería
-   * gastar cupo de tasa por un número que no se ha movido.
+   * El sondeo de la vista lo pide cada 60 s con `silent`, igual que
+   * `fetchMetrics`: energía y coste no cambian de un heartbeat a otro, y
+   * levantar el flag de carga en cada vuelta haría parpadear la lista.
    *
    * @param {number} id - Id del activo.
+   * @param {object} [opts]
+   * @param {boolean} [opts.silent=false] - No levanta el flag de carga.
    */
-  async function fetchPowerSummary(id) {
+  async function fetchPowerSummary(id, { silent = false } = {}) {
+    if (!silent) state.powerSummaryLoading = true
     try {
       const res = await apiFetch(`/hygeia/assets/${id}/power-summary`)
       if (state.selectedId !== id) return
@@ -323,6 +328,7 @@ export const useHygeiaStore = defineStore('hygeia', () => {
       state.powerSummary = await res.json()
       state.powerSummaryError = null
     } catch { if (state.selectedId === id) state.powerSummaryError = i18n.global.t('hygeiaStore.offline') }
+    finally { if (!silent && state.selectedId === id) state.powerSummaryLoading = false }
   }
 
   /** Descarta la clave de agente mostrada — llamar al cerrar el modal de una sola vez. */
@@ -338,7 +344,7 @@ export const useHygeiaStore = defineStore('hygeia', () => {
       latest: null, latestError: null,
       inventory: [], inventoryCollectedAt: null, inventoryLoading: false, inventoryError: null,
       analysis: null, analysisLoading: false, analyzing: false, analysisError: null,
-      powerSummary: null, powerSummaryError: null,
+      powerSummary: null, powerSummaryLoading: false, powerSummaryError: null,
       lastAgentKey: null,
     })
   }

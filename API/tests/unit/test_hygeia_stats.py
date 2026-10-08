@@ -22,6 +22,7 @@ from src.modules.features.hygeia.services.stats import (
     combine_asset_averages,
     energy_and_cost,
     resolve_stats_window,
+    samples_since,
     summarize_series_by_asset,
     summarize_values,
     weighted_average_with_observed_time,
@@ -35,6 +36,50 @@ _T0 = datetime(2026, 1, 1, 0, 0, 0)
 def _series(hours: list[Optional[float]]) -> list[tuple[datetime, Optional[float]]]:
     """Construye ``(instante, valor)`` a razón de una muestra por hora; ``None`` es una muestra sin dato."""
     return [(_T0 + timedelta(hours=i), value) for i, value in enumerate(hours)]
+
+
+# =============================================================================
+# RECORTE DE UNA VENTANA DE MUESTRAS
+# =============================================================================
+
+def test_samples_since_keeps_the_sample_that_falls_exactly_on_the_boundary():
+    """La consulta del repositorio usa ``>=``: la muestra del límite no se pierde al recortar."""
+    samples = _series([10.0, 20.0, 30.0, 40.0])
+
+    kept = samples_since(samples, _T0 + timedelta(hours=2))
+
+    assert kept == samples[2:]
+
+
+def test_samples_since_before_the_first_sample_returns_everything():
+    samples = _series([10.0, 20.0])
+
+    assert samples_since(samples, _T0 - timedelta(days=1)) == samples
+
+
+def test_samples_since_after_the_last_sample_returns_nothing():
+    samples = _series([10.0, 20.0])
+
+    assert samples_since(samples, _T0 + timedelta(days=1)) == []
+
+
+def test_samples_since_of_an_empty_series_is_empty():
+    assert samples_since([], _T0) == []
+
+
+def test_the_summary_of_a_cut_window_equals_the_summary_of_reading_that_window_alone():
+    """
+    Recortar la ventana ancha da exactamente las muestras de pedir la corta:
+    la media ponderada, que depende de la mediana de los intervalos, no cambia.
+    """
+    wide = [(_T0 + timedelta(seconds=15 * i), 100.0 + (i % 7)) for i in range(2000)]
+    # Un hueco largo en mitad de la ventana corta, para que el umbral importe.
+    wide = wide[:1500] + wide[1600:]
+    since = _T0 + timedelta(seconds=15 * 1200)
+    read_alone = [sample for sample in wide if sample[0] >= since]
+
+    assert samples_since(wide, since) == read_alone
+    assert weighted_average_with_observed_time(samples_since(wide, since)) ==         weighted_average_with_observed_time(read_alone)
 
 
 # =============================================================================

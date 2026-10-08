@@ -42,6 +42,8 @@
           :analysis="store.state.analysis"
           :analyzing="store.state.analyzing"
           :power-summary="store.state.powerSummary"
+          :power-summary-loading="store.state.powerSummaryLoading"
+          :power-summary-error="store.state.powerSummaryError"
           :anomalies="assetAnomalies"
           @ack="handleAck"
           @resolve="handleResolve"
@@ -480,7 +482,7 @@ async function poll() {
     if (tick % SLOW_EVERY === 0) tasks.push(alerts.fetchAlerts({ assetId: id }))
     // Energía y coste no cambian entre heartbeats: la misma cadencia lenta
     // que la lista de activos basta de sobra.
-    if (tick % SLOW_EVERY === 0) tasks.push(store.fetchPowerSummary(id))
+    if (tick % SLOW_EVERY === 0) tasks.push(store.fetchPowerSummary(id, { silent: true }))
     // El análisis solo se re-pide mientras hay uno corriendo: es un escaneo
     // puntual lanzado a mano, no un dato vivo como las métricas, así que
     // sondearlo siempre sería una petición de más cada 15 s por nada.

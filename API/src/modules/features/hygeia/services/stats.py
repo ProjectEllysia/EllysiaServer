@@ -21,6 +21,7 @@ manager, así que se prueban con listas construidas a mano.
 from __future__ import annotations
 
 import math
+from bisect import bisect_left
 from collections.abc import Hashable
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -162,6 +163,33 @@ def _gap_threshold(times: Sequence[datetime]) -> timedelta:
     if delta is None:
         return _GAP_FLOOR
     return max(delta * _GAP_MULTIPLIER, _GAP_FLOOR)
+
+
+def samples_since(
+    samples: Sequence[Tuple[datetime, float]], since: datetime,
+) -> Sequence[Tuple[datetime, float]]:
+    """
+    Recorta una serie de ``(instante, vatios)`` a las muestras desde un instante.
+
+    Permite leer una sola vez la ventana más ancha de un activo y repartir de
+    ahí las más cortas (24 h y 7 d dentro de 30 d), en vez de pedir al
+    repositorio las mismas filas una vez por ventana. El resultado es el mismo
+    que daría pedir cada ventana con ``received_at >= since``: la muestra que
+    cae exactamente en ``since`` se conserva.
+
+    Args:
+        samples: Pares ``(instante, vatios)`` ordenados de más antiguo a más
+            reciente, tal como los devuelve el repositorio. No se reordenan:
+            con una serie desordenada el recorte no es fiable.
+        since: Instante a partir del cual se conservan las muestras
+            (inclusive).
+
+    Returns:
+        Las muestras con instante ``>= since``, en el mismo orden. Vacía si
+        ninguna llega a ``since``.
+    """
+    first = bisect_left(samples, since, key=lambda sample: sample[0])
+    return samples[first:]
 
 
 def weighted_average_with_observed_time(
