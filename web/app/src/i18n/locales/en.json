@@ -410,6 +410,530 @@
       "hygeia": "Watches the pulse of every asset: live telemetry and alerts before failure."
     }
   },
+  "freeTools": {
+    "title": "Free tools",
+    "subtitle": "Use them right now, nothing to install.",
+    "access": {
+      "public": "No account",
+      "account": "Free account"
+    },
+    "open": "Open",
+    "eyebrow": "Free tool",
+    "backTo": "Back to {name}",
+    "gate": {
+      "title": "Sign in to use this tool",
+      "body": "It is free, but it needs an account to prevent abuse.",
+      "signIn": "Sign in"
+    },
+    "items": {
+      "passwordGenerator": {
+        "title": "Password generator",
+        "desc": "Create random passwords with the length and characters you choose.",
+        "subtitle": "Adjust the length and the character types; the password refreshes by itself.",
+        "generated": "Generated password",
+        "copy": "Copy",
+        "copied": "Copied",
+        "regenerate": "Generate another",
+        "copyFailed": "Could not copy. Select the password and copy it by hand.",
+        "strengthLabel": "Strength",
+        "strength": {
+          "0": "Very weak",
+          "1": "Weak",
+          "2": "Fair",
+          "3": "Strong",
+          "4": "Very strong"
+        },
+        "length": "Length",
+        "include": "Include",
+        "classes": {
+          "uppercase": "Uppercase (A-Z)",
+          "lowercase": "Lowercase (a-z)",
+          "digits": "Numbers (0-9)",
+          "symbols": "Symbols (!{'@'}#…)"
+        },
+        "excludeAmbiguous": "Avoid look-alike characters (0, O, 1, l, I)",
+        "privacy": "It is generated in your browser and never sent to a server.",
+        "more": "Want to keep it? The Acheron vault encrypts your passwords in your browser.",
+        "moreCta": "Open the vault"
+      },
+      "cveLookup": {
+        "title": "CVE lookup",
+        "desc": "Search a vulnerability by its identifier and see its severity, whether it is exploited and which products it affects.",
+        "subtitle": "Enter a CVE identifier and see its severity, whether it is exploited in attacks and which products it affects.",
+        "idLabel": "CVE identifier",
+        "search": "Look up",
+        "searching": "Looking up…",
+        "hint": "Format CVE-YYYY-NNNN, for example CVE-2024-6387.",
+        "invalidId": "Enter a complete identifier, such as CVE-2024-6387.",
+        "unknown": "There is no data for {id}. It may be very recent or not exist.",
+        "failed": "The lookup failed. Try again in a few minutes.",
+        "severity": {
+          "critical": "Critical",
+          "high": "High",
+          "medium": "Medium",
+          "low": "Low",
+          "none": "None",
+          "unrated": "Not scored"
+        },
+        "facts": {
+          "cvss": "CVSS score",
+          "published": "Published",
+          "exploited": "Exploited in attacks",
+          "epss": "Exploitation probability"
+        },
+        "notScored": "No data",
+        "exploitedYes": "Yes, listed in the CISA KEV catalog",
+        "exploitedNo": "Not listed in KEV",
+        "epssPercentile": "More likely to be exploited than {percentile} % of CVEs.",
+        "products": "Affected products",
+        "andMore": "and {count} more",
+        "distros": "Fix by distribution",
+        "andMoreDistros": "and {count} more entries",
+        "distroColumns": {
+          "distribution": "Distribution",
+          "package": "Package",
+          "status": "Status",
+          "fixedIn": "Fixed in"
+        },
+        "distroStatus": {
+          "fixed": "Fixed",
+          "vulnerable": "Vulnerable",
+          "unknown": "No data"
+        },
+        "sources": "Data from NVD, the CISA KEV catalog and EPSS (FIRST).",
+        "more": "Want to explain this vulnerability to your team? Aegis creates awareness pills with AI.",
+        "moreCta": "Open Aegis"
+      },
+      "passwordStrength": {
+        "title": "Password strength checker",
+        "desc": "Type a password and see how long it would take to crack and whether it has appeared in data breaches.",
+        "subtitle": "Type a password and see how well it would hold up against an attack and what weakens it.",
+        "inputLabel": "Password",
+        "placeholder": "Type or paste a password",
+        "show": "Show",
+        "hide": "Hide",
+        "privacy": "It is analysed in your browser. The password is not sent to any server.",
+        "empty": "Type a password to see how well it holds up.",
+        "levels": {
+          "0": "Very weak",
+          "1": "Weak",
+          "2": "Fair",
+          "3": "Strong",
+          "4": "Very strong"
+        },
+        "bits": "{count} bits",
+        "crackIntro": "With the password already stolen, an attacker would need on average",
+        "assumption": "Assuming 10 billion guesses per second, the pace of a rig with several graphics cards against a fast hash.",
+        "ticks": {
+          "second": "1 s",
+          "minute": "1 min",
+          "hour": "1 h",
+          "day": "1 day",
+          "year": "1 yr",
+          "century": "100 yrs"
+        },
+        "units": {
+          "instant": "less than a second",
+          "seconds": "{count} second | {count} seconds",
+          "minutes": "{count} minute | {count} minutes",
+          "hours": "{count} hour | {count} hours",
+          "days": "{count} day | {count} days",
+          "months": "{count} month | {count} months",
+          "years": "{count} year | {count} years",
+          "centuries": "more than a hundred years"
+        },
+        "weaknessesTitle": "What weakens it",
+        "weaknesses": {
+          "short": "It is short: under 12 characters it falls sooner.",
+          "commonWord": "It contains a common word or name, even with letters swapped for digits.",
+          "sequence": "It contains a sequence, such as abc or 1234.",
+          "repeat": "It repeats characters or whole blocks.",
+          "keyboard": "It follows a keyboard row, such as qwerty.",
+          "year": "It contains a year, which is guessed at once.",
+          "oneKind": "It uses a single kind of character."
+        },
+        "breachTitle": "Data breaches",
+        "breachNote": "Checks whether this password appears in published breaches. Only the first 5 characters of its fingerprint are sent to Have I Been Pwned, never the password.",
+        "breachCheck": "Check data breaches",
+        "breachChecking": "Checking…",
+        "breachFound": "It appears {count} time in data breaches. Do not use it. | It appears {count} times in data breaches. Do not use it.",
+        "breachClean": "It does not appear in known data breaches. That alone does not make it safe.",
+        "breachFailed": "The check failed. Try again in a few minutes.",
+        "estimateNote": "This is an estimate. A phrase made of ordinary words holds up less than it shows.",
+        "more": "Want to keep it? The Acheron vault encrypts your passwords in your browser.",
+        "moreCta": "Open the vault"
+      },
+      "cidrCalculator": {
+        "title": "Network range calculator",
+        "desc": "Enter a network in CIDR notation and get its mask, its addresses and how many hosts it holds.",
+        "subtitle": "Enter a network, such as 10.0.0.0/22, and see its mask, its first and last host and how many it holds.",
+        "inputLabel": "Network",
+        "hint": "CIDR notation (10.0.0.0/22), a single address or an address with its mask (10.0.0.0 255.255.252.0).",
+        "errors": {
+          "format": "Enter a network such as 10.0.0.0/22, or an address with its mask.",
+          "octet": "Each number in the address goes from 0 to 255.",
+          "prefix": "The prefix goes from 0 to 32.",
+          "mask": "The mask is not valid: it must be ones followed by zeros, such as 255.255.252.0."
+        },
+        "kinds": {
+          "public": "Public",
+          "private": "Private",
+          "loopback": "Loopback",
+          "linkLocal": "Link-local",
+          "cgnat": "Carrier-grade shared space",
+          "multicast": "Multicast",
+          "reserved": "Reserved",
+          "documentation": "Documentation",
+          "unspecified": "Unspecified",
+          "mixed": "Mixes several classes"
+        },
+        "ribbonLabel": "{network} network bits and {hosts} host bits",
+        "networkBits": "{count} network bits",
+        "hostBits": "{count} host bits",
+        "facts": {
+          "netmask": "Subnet mask",
+          "wildcard": "Wildcard mask",
+          "network": "Network address",
+          "broadcast": "Broadcast",
+          "firstHost": "First host",
+          "lastHost": "Last host",
+          "total": "Addresses",
+          "usable": "Usable hosts"
+        },
+        "splitLabel": "Split into subnets",
+        "splitNone": "Do not split",
+        "splitOption": "/{prefix} ({count} subnets)",
+        "andMore": "and {count} more",
+        "more": "Want to scan a range? Themis looks for ports, services and vulnerabilities.",
+        "moreCta": "Open Themis"
+      },
+      "mailAuthChecker": {
+        "title": "SPF, DKIM and DMARC checker",
+        "desc": "Check whether a domain protects its email against spoofing and what it is missing.",
+        "subtitle": "Enter a domain and see whether its email is protected against spoofing and what is missing.",
+        "domainLabel": "Domain",
+        "placeholder": "example.com",
+        "hint": "A domain, an email address or a website all work.",
+        "invalidDomain": "Enter a valid domain, such as example.com.",
+        "check": "Check",
+        "checking": "Checking…",
+        "withDkim": "Also check DKIM",
+        "selectorLabel": "DKIM selector",
+        "selectorPlaceholder": "selector1",
+        "selectorHint": "It is in the DKIM-Signature header of an email from the domain, after s=.",
+        "invalidSelector": "Enter a valid selector: letters, digits, dots or hyphens.",
+        "privacy": "Your browser asks Cloudflare's public DNS for these names, or Google's if that fails. They do not go through Ellysia.",
+        "failed": "The DNS lookup failed. Try again in a few minutes.",
+        "sections": {
+          "spf": "Who may send email on behalf of the domain",
+          "dkim": "The signature each email carries",
+          "dmarc": "What to do with email that fails"
+        },
+        "levels": {
+          "ok": "Good",
+          "info": "Note",
+          "warn": "Could be better",
+          "bad": "Fails"
+        },
+        "findings": {
+          "domainNotFound": "The domain does not exist. Check that it is spelled correctly.",
+          "spfMissing": "There is no SPF record: nobody can check which servers send legitimate email for this domain.",
+          "spfMultiple": "There is more than one SPF record. The standard requires a single one and receivers may discard them all.",
+          "spfStrict": "It ends in -all: anything that does not come from an authorised server is rejected.",
+          "spfSoftfail": "It ends in ~all: anything that does not come from an authorised server is marked suspicious but not rejected. That is common and enough if DMARC is in place.",
+          "spfNeutral": "It ends in ?all: it says nothing about unauthorised senders. Change it to ~all or -all.",
+          "spfOpen": "It ends in +all, or plain all: it authorises any server in the world. It is the same as having no SPF.",
+          "spfNoAll": "It does not end in all: unauthorised senders have no rule. Add ~all or -all.",
+          "spfRedirect": "It hands over to another domain with redirect=: that domain's rules apply.",
+          "spfPtr": "It uses ptr, which the standard discourages: it is slow and unreliable.",
+          "spfTooManyLookups": "It counts {count} DNS lookups from this record's mechanisms alone, and the limit is 10. Beyond the limit, receivers treat SPF as broken. Includes are not followed here, so there may be more.",
+          "dmarcMissing": "There is no DMARC record: nobody tells receivers what to do with email that spoofs this domain.",
+          "dmarcInherited": "The domain has no DMARC record of its own and inherits the one from {domain}.",
+          "dmarcMultiple": "There is more than one DMARC record. The standard requires a single one.",
+          "dmarcInvalid": "The record has no valid policy (p=none, quarantine or reject).",
+          "dmarcReject": "The policy is reject: email that spoofs the domain is rejected.",
+          "dmarcQuarantine": "The policy is quarantine: email that spoofs the domain goes to spam.",
+          "dmarcNone": "The policy is none: it only monitors and blocks nothing. Use it only while you review the reports, then move to quarantine or reject.",
+          "dmarcSubdomainWeaker": "Subdomains have a looser policy ({policy}) than the main domain.",
+          "dmarcPartial": "The policy applies to only {percentage} % of emails (pct).",
+          "dmarcNoReports": "It does not ask for reports (rua): you will not know who sends email on behalf of the domain.",
+          "dkimMissing": "There is no DKIM key with that selector. Check the selector in the DKIM-Signature header of a real email.",
+          "dkimRevoked": "The key is empty: the selector has been retired and signatures made with it will fail.",
+          "dkimInvalid": "The public key is not valid.",
+          "dkimOk": "{bits}-bit key. Good.",
+          "dkimShortKey": "{bits}-bit key. 2048 or more is recommended.",
+          "dkimTestMode": "It is in test mode (t=y): receivers should not treat a signature failure as final."
+        },
+        "more": "Have a suspicious email? Iris analyses the sender, the links and the headers.",
+        "moreCta": "Open Iris"
+      },
+      "cvssCalculator": {
+        "title": "CVSS calculator",
+        "desc": "Mark what a vulnerability is like and get its CVSS 3.1 score, its severity and the vector.",
+        "subtitle": "Mark what the vulnerability is like and get its CVSS 3.1 score, its severity and the vector.",
+        "scoreLabel": "Base score",
+        "exploitability": "Exploitability",
+        "impact": "Impact",
+        "scaleLabel": "{score} out of 10",
+        "copy": "Copy vector",
+        "copied": "Copied",
+        "copyFailed": "Could not copy. Select the vector and copy it by hand.",
+        "severity": {
+          "none": "None",
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High",
+          "critical": "Critical"
+        },
+        "metrics": {
+          "AV": {
+            "name": "Attack vector",
+            "hint": "Where the attack can come from.",
+            "values": {
+              "N": "Network",
+              "A": "Adjacent network",
+              "L": "Local",
+              "P": "Physical"
+            }
+          },
+          "AC": {
+            "name": "Attack complexity",
+            "hint": "Whether the attack needs conditions the attacker does not control.",
+            "values": {
+              "L": "Low",
+              "H": "High"
+            }
+          },
+          "PR": {
+            "name": "Privileges required",
+            "hint": "What access the attacker needs before starting.",
+            "values": {
+              "N": "None",
+              "L": "Low",
+              "H": "High"
+            }
+          },
+          "UI": {
+            "name": "User interaction",
+            "hint": "Whether someone else has to do something, such as open a link.",
+            "values": {
+              "N": "None",
+              "R": "Required"
+            }
+          },
+          "S": {
+            "name": "Scope",
+            "hint": "Whether the flaw can affect components beyond the one that has it.",
+            "values": {
+              "U": "Unchanged",
+              "C": "Changed"
+            }
+          },
+          "C": {
+            "name": "Confidentiality",
+            "hint": "How much information can be read.",
+            "values": {
+              "N": "None",
+              "L": "Low",
+              "H": "High"
+            }
+          },
+          "I": {
+            "name": "Integrity",
+            "hint": "How much information can be modified.",
+            "values": {
+              "N": "None",
+              "L": "Low",
+              "H": "High"
+            }
+          },
+          "A": {
+            "name": "Availability",
+            "hint": "How much the service can be disrupted.",
+            "values": {
+              "N": "None",
+              "L": "Low",
+              "H": "High"
+            }
+          }
+        },
+        "loadLabel": "Load a vector",
+        "loadHint": "Paste a vector starting with CVSS:3.1/ to fill in the metrics.",
+        "errors": {
+          "format": "That does not look like a CVSS vector. It starts with CVSS:3.1/ and carries the eight base metrics.",
+          "version": "Only CVSS 3.1 is calculated. This vector is from another version.",
+          "metric": "The vector is missing a metric, has an extra one or carries a value that does not exist."
+        },
+        "baseOnly": "This is the base score: it does not include temporal or environmental metrics.",
+        "more": "Once scored, Aegis creates awareness pills with AI to explain the risk to your team.",
+        "moreCta": "Open Aegis"
+      },
+      "phishingQuiz": {
+        "title": "Phishing quiz",
+        "desc": "Six emails: can you tell which are phishing and which are legitimate?",
+        "subtitle": "Look at each email and decide whether it is phishing or legitimate. When you answer you will see what gave it away.",
+        "counter": "Email {current} of {total}",
+        "from": "From",
+        "subjectLabel": "Subject",
+        "link": "Link",
+        "prompt": "What is this email?",
+        "phishing": "It is phishing",
+        "legit": "It is legitimate",
+        "correct": "Correct",
+        "incorrect": "Not quite",
+        "wasPhishing": "It was phishing.",
+        "wasLegit": "It was a legitimate email.",
+        "cluesPhishing": "What gave it away",
+        "cluesLegit": "Why it can be trusted",
+        "realLink": "The link actually went to",
+        "next": "Next email",
+        "finish": "See result",
+        "result": "You got {correct} of {total}",
+        "bands": {
+          "perfect": "No mistakes. You know to check the sender, the link and the rush.",
+          "good": "Good eye. Go over the clues of the ones you missed: they are the ones real attackers use.",
+          "weak": "These tricks fool a lot of people. Go over the clues and try again."
+        },
+        "again": "Try again",
+        "cases": {
+          "parcel": {
+            "name": "Express Parcels",
+            "subject": "Your parcel could not be delivered: pay €1.99 to receive it",
+            "body": "Hello, customer:\n\nWe tried to deliver your parcel and nobody was home. To schedule a new delivery you must pay a €1.99 handling fee within the next 24 hours. After that, the parcel will be returned to the sender.\n\nThank you for trusting us.",
+            "linkText": "Reschedule my delivery",
+            "explanation": "It uses the fear of losing a parcel to make you pay and hand over your card details.",
+            "clues": {
+              "1": "The sender's address is not the company's: it is a .info domain with hyphens, bought for this.",
+              "2": "It rushes you for no reason: 24 hours or it goes back.",
+              "3": "It asks you to pay a small amount from a link. What they steal is the card, not the euro.",
+              "4": "The link goes to a different domain from the company's, ending in .top."
+            }
+          },
+          "bank": {
+            "name": "Example Bank · Security",
+            "subject": "We have blocked your account",
+            "body": "Dear customer:\n\nWe have detected suspicious access to your account. For your security, you must verify your details within the next 12 hours. If you do not, your account will be permanently suspended.",
+            "linkText": "Verify my account",
+            "explanation": "It scares you with blocking your account so you type your username and password into a fake site.",
+            "clues": {
+              "1": "The sender's domain only imitates the bank's: it adds «security» to the name.",
+              "2": "It does not address you by name: «Dear customer».",
+              "3": "It threatens to suspend the account if you do not act within 12 hours.",
+              "4": "It wants you to type your details on a site you reach from a link in the email, and the link goes to a different domain."
+            }
+          },
+          "invoice": {
+            "name": "Nubesur Billing",
+            "subject": "Invoice 2024-0318 for your Hosting Pro plan",
+            "body": "Hello, Marta:\n\nWe attach the September invoice for your Hosting Pro plan, for €29.00. It will be charged on the 5th to the card ending in 4821.\n\nYou can view it any time in your customer area.",
+            "linkText": "Go to my customer area",
+            "explanation": "Everything fits a service you have signed up for, and it asks for nothing urgent.",
+            "clues": {
+              "1": "The link goes to the same domain as the sender: nubesur.es.",
+              "2": "It addresses you by name and gives concrete details: the plan, the amount and the last digits of the card.",
+              "3": "There is no rush or threat: it announces a normal charge. Even so, if in doubt, type the address in yourself."
+            }
+          },
+          "director": {
+            "name": "Elena Martín (Management)",
+            "subject": "Urgent and confidential",
+            "body": "I need you to make a €4,800 transfer today to a new supplier. I am in a meeting and cannot talk on the phone.\n\nI will send you the IBAN as soon as you confirm. Do not tell anyone until I say so.",
+            "explanation": "It is the «CEO fraud»: someone poses as management so you pay an account that belongs to no supplier.",
+            "clues": {
+              "1": "The name is the director's, but the email comes from a free service and not from the company's.",
+              "2": "It asks for urgency and secrecy at once, so nobody can check it.",
+              "3": "It wants a transfer to a new supplier, with no invoice or order.",
+              "4": "It says it cannot talk, which is exactly what would expose it. Confirm by calling the usual number."
+            }
+          },
+          "password": {
+            "name": "IT Support",
+            "subject": "You have changed your password",
+            "body": "We confirm that your password was changed today at 09:14 from Madrid.\n\nIf it was you, you do not need to do anything. If it was not you, type the intranet address in your browser, go to your profile and change it, or call support.",
+            "explanation": "It reports something that happened and does not ask you to click or give any details.",
+            "clues": {
+              "1": "It has no link or attachment: there is nothing to click.",
+              "2": "If it was you, it asks for nothing. The alert exists for the opposite case.",
+              "3": "It tells you how to act on your own, typing the address yourself, and not with a link in the email."
+            }
+          },
+          "prize": {
+            "name": "Market Prizes",
+            "subject": "Congratulations! You have won a latest-generation phone",
+            "body": "You have been chosen among 10,000 users as the winner of our monthly draw.\n\nTo claim your prize, fill in the form with your details and your card details: that way we cover the shipping costs.",
+            "linkText": "Claim my prize",
+            "explanation": "A prize you did not enter for is bait to get your card details.",
+            "clues": {
+              "1": "You did not enter any draw.",
+              "2": "A free prize does not ask for your card to ship it.",
+              "3": "The sender ends in .xyz and the link goes to a different domain, also .xyz.",
+              "4": "It flatters you and picks you among thousands: that is the hook."
+            }
+          }
+        },
+        "more": "Want your team to practise with cases like these? Aegis runs awareness campaigns with tracking.",
+        "moreCta": "Open Aegis"
+      },
+      "powerCost": {
+        "title": "Power consumption calculator",
+        "desc": "Calculate how much electricity a device or a fleet of servers uses, what it costs and how much CO₂ it means.",
+        "subtitle": "Enter the power and the hours of use and calculate the consumption, cost and CO₂ of one or several devices.",
+        "presetsLabel": "Typical power",
+        "preset": "{name} · {watts} W",
+        "presets": {
+          "raspberryPi": "Raspberry Pi",
+          "miniPc": "Mini PC",
+          "laptop": "Laptop",
+          "server": "1U server",
+          "gpuServer": "GPU server"
+        },
+        "fields": {
+          "watts": {
+            "label": "Average power (W)",
+            "hint": "What it draws on average, not what its power supply says."
+          },
+          "hoursPerDay": {
+            "label": "Hours of use per day",
+            "hint": "24 if it is always on."
+          },
+          "devices": {
+            "label": "Number of devices",
+            "hint": "Identical devices with the same use."
+          },
+          "pricePerKwh": {
+            "label": "Electricity price (€/kWh)",
+            "hint": "Indicative: check your bill."
+          },
+          "emissionFactor": {
+            "label": "Emissions (kg of CO₂ per kWh)",
+            "hint": "Indicative. Change it to your supplier's or your country's."
+          },
+          "pue": {
+            "label": "Data centre PUE",
+            "hint": "1 if the device is not in a data centre. In one, 1.5 is a common value: it adds the cooling."
+          }
+        },
+        "moreSettings": "More settings",
+        "errors": {
+          "range": "Enter a value between {min} and {max}.",
+          "integer": "Enter a whole number between {min} and {max}."
+        },
+        "period": "Period",
+        "energy": "Consumption",
+        "cost": "Cost",
+        "periods": {
+          "day": "Per day",
+          "month": "Per month",
+          "year": "Per year"
+        },
+        "kwh": "{value} kWh",
+        "co2": "Emissions: {value} kg of CO₂ per year",
+        "note": "It assumes constant consumption equal to the average power. A device whose load goes up and down uses less than at its peak.",
+        "more": "Prefer to measure it rather than estimate it? Hygeia records each device's power and calculates its consumption.",
+        "moreCta": "Open Hygeia"
+      }
+    }
+  },
   "api": {
     "forbidden": "You do not have enough permissions to do this.",
     "rateLimited": {
@@ -4562,6 +5086,38 @@
       "docsHygeia": {
         "title": "Hygeia inside: how server monitoring works | Ellysia",
         "description": "How Hygeia receives each server's data, opens anomalies without over-alerting, and computes statistics, power use and software vulnerabilities."
+      },
+      "toolPasswordGenerator": {
+        "title": "Free secure password generator, in your browser | Ellysia",
+        "description": "Generate random passwords up to 64 characters with the Web Crypto API. Created in your browser, with no account and nothing sent to a server."
+      },
+      "toolCveLookup": {
+        "title": "CVE lookup: severity, exploitation and affected products | Ellysia",
+        "description": "Look up any CVE and see its CVSS score, whether it is exploited in real attacks (KEV), its EPSS probability and the affected products. Free, no account."
+      },
+      "toolPasswordStrength": {
+        "title": "Password strength checker: how long it lasts and if it leaked | Ellysia",
+        "description": "Measure a password's strength in your browser without sending it: estimated cracking time, what weakens it and whether it appears in data breaches."
+      },
+      "toolCidrCalculator": {
+        "title": "CIDR network range calculator: mask, hosts and subnets | Ellysia",
+        "description": "Calculate in your browser the mask, network address, broadcast and usable hosts of an IPv4 range, and split it into subnets. Free, no account."
+      },
+      "toolMailAuthChecker": {
+        "title": "SPF, DKIM and DMARC checker: is your email protected? | Ellysia",
+        "description": "Check a domain's SPF, DKIM and DMARC records in your browser and what it lacks to stop its email being spoofed. Free, no account."
+      },
+      "toolCvssCalculator": {
+        "title": "CVSS 3.1 calculator: score, severity and vector | Ellysia",
+        "description": "Calculate in your browser the CVSS 3.1 base score of a vulnerability, its severity and its vector, or load a vector to see its score. Free, no account."
+      },
+      "toolPhishingQuiz": {
+        "title": "Phishing quiz: can you spot a fake email? | Ellysia",
+        "description": "Six emails and one question: phishing or legitimate? Practise with examples of parcel, bank and CEO fraud scams and learn what gives them away. Free."
+      },
+      "toolPowerCost": {
+        "title": "Server power consumption calculator: kWh, cost and CO₂ | Ellysia",
+        "description": "Calculate in your browser how much electricity a server or a fleet of devices uses, what it costs per month and year and how much CO₂ it emits. Free, no account."
       }
     }
   }
