@@ -51,6 +51,7 @@ export const FREE_TOOLS = Object.freeze([
   Object.freeze({ id: 'passwordGenerator', module: 'acheron', slug: 'generador-de-contrasenas', access: 'public' }),
   Object.freeze({ id: 'cveLookup', module: 'aegis', slug: 'consulta-de-cve', access: 'public' }),
   Object.freeze({ id: 'passwordStrength', module: 'acheron', slug: 'medidor-de-contrasenas', access: 'public' }),
+  Object.freeze({ id: 'cidrCalculator', module: 'themis', slug: 'calculadora-cidr', access: 'public' }),
 ])
 
 /**

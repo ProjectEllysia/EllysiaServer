@@ -562,6 +562,50 @@
         "estimateNote": "Es una estimación. Una frase hecha de palabras corrientes aguanta menos de lo que marca.",
         "more": "¿Quieres guardarla? La bóveda de Acheron cifra tus contraseñas en tu navegador.",
         "moreCta": "Abrir la bóveda"
+      },
+      "cidrCalculator": {
+        "title": "Calculadora de rangos de red",
+        "desc": "Escribe una red en notación CIDR y obtén su máscara, sus direcciones y cuántos equipos admite.",
+        "subtitle": "Escribe una red, como 10.0.0.0/22, y mira su máscara, su primer y último equipo y cuántos admite.",
+        "inputLabel": "Red",
+        "hint": "Notación CIDR (10.0.0.0/22), una dirección suelta o una dirección con su máscara (10.0.0.0 255.255.252.0).",
+        "errors": {
+          "format": "Escribe una red como 10.0.0.0/22, o una dirección con su máscara.",
+          "octet": "Cada número de la dirección va de 0 a 255.",
+          "prefix": "El prefijo va de 0 a 32.",
+          "mask": "La máscara no es válida: tiene que ser unos seguidos de ceros, como 255.255.252.0."
+        },
+        "kinds": {
+          "public": "Pública",
+          "private": "Privada",
+          "loopback": "Loopback",
+          "linkLocal": "Enlace local",
+          "cgnat": "Espacio compartido de operador",
+          "multicast": "Multidifusión",
+          "reserved": "Reservada",
+          "documentation": "Documentación",
+          "unspecified": "Sin especificar",
+          "mixed": "Mezcla varias clases"
+        },
+        "ribbonLabel": "{network} bits de red y {hosts} bits de equipo",
+        "networkBits": "{count} bits de red",
+        "hostBits": "{count} bits de equipo",
+        "facts": {
+          "netmask": "Máscara de red",
+          "wildcard": "Máscara inversa",
+          "network": "Dirección de red",
+          "broadcast": "Difusión (broadcast)",
+          "firstHost": "Primer equipo",
+          "lastHost": "Último equipo",
+          "total": "Direcciones",
+          "usable": "Equipos utilizables"
+        },
+        "splitLabel": "Dividir en subredes",
+        "splitNone": "Sin dividir",
+        "splitOption": "/{prefix} ({count} subredes)",
+        "andMore": "y {count} más",
+        "more": "¿Quieres escanear un rango? Themis busca puertos, servicios y vulnerabilidades.",
+        "moreCta": "Abrir Themis"
       }
     }
   },
@@ -4729,6 +4773,10 @@
       "toolPasswordStrength": {
         "title": "Medidor de contraseñas: cuánto aguanta y si está filtrada | Ellysia",
         "description": "Mide la fortaleza de una contraseña en tu navegador, sin enviarla: tiempo estimado de descifrado, qué la debilita y si aparece en filtraciones."
+      },
+      "toolCidrCalculator": {
+        "title": "Calculadora de rangos de red CIDR: máscara, equipos y subredes | Ellysia",
+        "description": "Calcula en el navegador la máscara, la dirección de red, el broadcast y los equipos utilizables de un rango IPv4, y divídelo en subredes. Gratis y sin cuenta."
       }
     }
   }

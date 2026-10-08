@@ -562,6 +562,50 @@
         "estimateNote": "This is an estimate. A phrase made of ordinary words holds up less than it shows.",
         "more": "Want to keep it? The Acheron vault encrypts your passwords in your browser.",
         "moreCta": "Open the vault"
+      },
+      "cidrCalculator": {
+        "title": "Network range calculator",
+        "desc": "Enter a network in CIDR notation and get its mask, its addresses and how many hosts it holds.",
+        "subtitle": "Enter a network, such as 10.0.0.0/22, and see its mask, its first and last host and how many it holds.",
+        "inputLabel": "Network",
+        "hint": "CIDR notation (10.0.0.0/22), a single address or an address with its mask (10.0.0.0 255.255.252.0).",
+        "errors": {
+          "format": "Enter a network such as 10.0.0.0/22, or an address with its mask.",
+          "octet": "Each number in the address goes from 0 to 255.",
+          "prefix": "The prefix goes from 0 to 32.",
+          "mask": "The mask is not valid: it must be ones followed by zeros, such as 255.255.252.0."
+        },
+        "kinds": {
+          "public": "Public",
+          "private": "Private",
+          "loopback": "Loopback",
+          "linkLocal": "Link-local",
+          "cgnat": "Carrier-grade shared space",
+          "multicast": "Multicast",
+          "reserved": "Reserved",
+          "documentation": "Documentation",
+          "unspecified": "Unspecified",
+          "mixed": "Mixes several classes"
+        },
+        "ribbonLabel": "{network} network bits and {hosts} host bits",
+        "networkBits": "{count} network bits",
+        "hostBits": "{count} host bits",
+        "facts": {
+          "netmask": "Subnet mask",
+          "wildcard": "Wildcard mask",
+          "network": "Network address",
+          "broadcast": "Broadcast",
+          "firstHost": "First host",
+          "lastHost": "Last host",
+          "total": "Addresses",
+          "usable": "Usable hosts"
+        },
+        "splitLabel": "Split into subnets",
+        "splitNone": "Do not split",
+        "splitOption": "/{prefix} ({count} subnets)",
+        "andMore": "and {count} more",
+        "more": "Want to scan a range? Themis looks for ports, services and vulnerabilities.",
+        "moreCta": "Open Themis"
       }
     }
   },
@@ -4729,6 +4773,10 @@
       "toolPasswordStrength": {
         "title": "Password strength checker: how long it lasts and if it leaked | Ellysia",
         "description": "Measure a password's strength in your browser without sending it: estimated cracking time, what weakens it and whether it appears in data breaches."
+      },
+      "toolCidrCalculator": {
+        "title": "CIDR network range calculator: mask, hosts and subnets | Ellysia",
+        "description": "Calculate in your browser the mask, network address, broadcast and usable hosts of an IPv4 range, and split it into subnets. Free, no account."
       }
     }
   }
