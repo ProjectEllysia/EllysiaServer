@@ -30,28 +30,28 @@
       </p>
       <p v-else-if="status === 'error'" class="cve-message cve-message--error">{{ errorMessage }}</p>
 
-      <article v-else-if="status === 'found'" class="cve-card" :data-severity="level">
+      <article v-else-if="status === 'found'" :key="cve.cveId" class="cve-card mo-rise" :data-severity="level">
         <header class="cve-card-head">
           <h2 class="cve-id">{{ cve.cveId }}</h2>
           <span class="cve-badge">{{ t(severityLabelKey(cve.severity)) }}</span>
         </header>
 
         <dl class="cve-facts">
-          <div class="cve-fact">
+          <div class="cve-fact mo-rise" style="--delay: 0.25s">
             <dt>{{ t('freeTools.items.cveLookup.facts.cvss') }}</dt>
-            <dd>{{ typeof cve.cvssScore !== 'number' ? t('freeTools.items.cveLookup.notScored') : formatNumber(cve.cvssScore, { minimumFractionDigits: 1 }) }}</dd>
+            <dd><CountUp v-if="typeof cve.cvssScore === 'number'" :value="cve.cvssScore" :decimals="1" :duration="900" /><template v-else>{{ t('freeTools.items.cveLookup.notScored') }}</template></dd>
           </div>
-          <div class="cve-fact">
+          <div class="cve-fact mo-rise" style="--delay: 0.32s">
             <dt>{{ t('freeTools.items.cveLookup.facts.published') }}</dt>
             <dd>{{ cve.published ? formatDate(cve.published) : t('freeTools.items.cveLookup.notScored') }}</dd>
           </div>
-          <div class="cve-fact">
+          <div class="cve-fact mo-rise" style="--delay: 0.39s">
             <dt>{{ t('freeTools.items.cveLookup.facts.exploited') }}</dt>
             <dd :class="{ 'cve-yes': cve.inKev }">
               {{ cve.inKev ? t('freeTools.items.cveLookup.exploitedYes') : t('freeTools.items.cveLookup.exploitedNo') }}
             </dd>
           </div>
-          <div class="cve-fact">
+          <div class="cve-fact mo-rise" style="--delay: 0.46s">
             <dt>{{ t('freeTools.items.cveLookup.facts.epss') }}</dt>
             <dd :title="epssTitle">
               {{ epss === null ? t('freeTools.items.cveLookup.notScored') : `${formatNumber(epss)} %` }}
@@ -64,7 +64,7 @@
         <section v-if="cve.products.length" class="cve-section">
           <h3 class="cve-section-title">{{ t('freeTools.items.cveLookup.products') }}</h3>
           <ul class="cve-products">
-            <li v-for="product in visibleProducts" :key="`${product.vendor}/${product.product}`">
+            <li v-for="(product, index) in visibleProducts" :key="`${product.vendor}/${product.product}`" class="mo-rise" :style="{ '--delay': `${0.55 + index * 0.04}s` }">
               {{ product.vendor }} · {{ product.product }}
             </li>
           </ul>
@@ -105,6 +105,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import ToolShell from '@/components/shared/ToolShell.vue'
+import CountUp from '@/components/shared/CountUp.vue'
 import { apiError } from '@/composables/useApi'
 import { formatDate, formatNumber } from '@/i18n/format'
 import {

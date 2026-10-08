@@ -70,13 +70,13 @@
           <tbody>
             <tr v-for="period in PERIODS" :key="period" :class="{ 'pc-row--year': period === 'year' }">
               <th scope="row">{{ t(`freeTools.items.powerCost.periods.${period}`) }}</th>
-              <td>{{ t('freeTools.items.powerCost.kwh', { value: formatNumber(result.kwh[period], energyFormat(period)) }) }}</td>
-              <td>{{ formatNumber(result.cost[period], { style: 'currency', currency: 'EUR' }) }}</td>
+              <td><CountUp :value="result.kwh[period]" :format="(value) => t('freeTools.items.powerCost.kwh', { value: formatNumber(value, energyFormat(period)) })" /></td>
+              <td><CountUp :value="result.cost[period]" :format="(value) => formatNumber(value, { style: 'currency', currency: 'EUR' })" /></td>
             </tr>
           </tbody>
         </table>
         <p class="pc-co2">
-          {{ t('freeTools.items.powerCost.co2', { value: formatNumber(result.co2Year, { maximumFractionDigits: 0 }) }) }}
+          <CountUp :value="result.co2Year" :format="(value) => t('freeTools.items.powerCost.co2', { value: formatNumber(value, { maximumFractionDigits: 0 }) })" />
         </p>
         <p class="pc-note">{{ t('freeTools.items.powerCost.note') }}</p>
       </section>
@@ -89,6 +89,7 @@ import { computed, reactive, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import ToolShell from '@/components/shared/ToolShell.vue'
+import CountUp from '@/components/shared/CountUp.vue'
 import { formatNumber } from '@/i18n/format'
 import {
   FIELD_LIMITS,

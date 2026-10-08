@@ -33,6 +33,7 @@
               :key="bit"
               class="cd-bit"
               :class="{ 'cd-bit--network': bit <= network.prefix, 'cd-bit--gap': bit % 8 === 1 && bit > 1 }"
+              :style="{ '--bit': bit }"
             ></span>
           </div>
           <div class="cd-octets" aria-hidden="true">
@@ -45,7 +46,7 @@
         </figure>
 
         <dl class="cd-facts">
-          <div v-for="fact in facts" :key="fact.key" class="cd-fact">
+          <div v-for="(fact, index) in facts" :key="fact.key" class="cd-fact mo-rise" :style="{ '--delay': `${0.1 + index * 0.06}s` }">
             <dt>{{ t(`freeTools.items.cidrCalculator.facts.${fact.key}`) }}</dt>
             <dd>{{ fact.value }}</dd>
           </div>
@@ -192,6 +193,8 @@ onMounted(() => {
   height: 1.7rem;
   border: 1px solid var(--border-med);
   border-radius: 2px;
+  /* Al mover la frontera entre red y equipo, los bits cambian en cascada, de izquierda a derecha. */
+  transition: background-color 0.35s ease calc(var(--bit) * 16ms), border-color 0.35s ease calc(var(--bit) * 16ms), transform 0.35s var(--ease-settle) calc(var(--bit) * 16ms);
 }
 .cd-bit--network { background: var(--accent); border-color: var(--accent); }
 /* Cada octeto empieza con un hueco, para contar de ocho en ocho. */

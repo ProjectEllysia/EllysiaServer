@@ -58,17 +58,17 @@
 
       <template v-else-if="status === 'done'">
         <h2 class="ma-domain">{{ result.domain }}</h2>
-        <section v-for="section in sections" :key="section.key" class="ma-section" :data-level="section.chip">
+        <section v-for="(section, sectionIndex) in sections" :key="`${result.domain}-${section.key}`" class="ma-section mo-rise" :style="{ '--delay': `${sectionIndex * 0.16}s` }" :data-level="section.chip">
           <header class="ma-section-head">
             <div>
               <h3 class="ma-section-title">{{ section.key.toUpperCase() }}</h3>
               <p class="ma-section-sub">{{ t(`freeTools.items.mailAuthChecker.sections.${section.key}`) }}</p>
             </div>
-            <span class="ma-chip">{{ t(`freeTools.items.mailAuthChecker.levels.${section.chip}`) }}</span>
+            <span class="ma-chip mo-pop" :style="{ '--delay': `${sectionIndex * 0.16 + 0.35}s` }">{{ t(`freeTools.items.mailAuthChecker.levels.${section.chip}`) }}</span>
           </header>
           <code v-if="section.record" class="ma-record">{{ section.record }}</code>
           <ul class="ma-findings">
-            <li v-for="finding in section.findings" :key="finding.code" class="ma-finding" :data-level="finding.level">
+            <li v-for="(finding, findingIndex) in section.findings" :key="finding.code" class="ma-finding mo-rise" :style="{ '--delay': `${sectionIndex * 0.16 + 0.3 + findingIndex * 0.09}s` }" :data-level="finding.level">
               <span class="ma-finding-level">{{ t(`freeTools.items.mailAuthChecker.levels.${finding.level}`) }}</span>
               <span>{{ t(`freeTools.items.mailAuthChecker.findings.${finding.code}`, finding.params ?? {}) }}</span>
             </li>
