@@ -873,6 +873,64 @@
         },
         "more": "Want your team to practise with cases like these? Aegis runs awareness campaigns with tracking.",
         "moreCta": "Open Aegis"
+      },
+      "powerCost": {
+        "title": "Power consumption calculator",
+        "desc": "Calculate how much electricity a device or a fleet of servers uses, what it costs and how much CO₂ it means.",
+        "subtitle": "Enter the power and the hours of use and calculate the consumption, cost and CO₂ of one or several devices.",
+        "presetsLabel": "Typical power",
+        "preset": "{name} · {watts} W",
+        "presets": {
+          "raspberryPi": "Raspberry Pi",
+          "miniPc": "Mini PC",
+          "laptop": "Laptop",
+          "server": "1U server",
+          "gpuServer": "GPU server"
+        },
+        "fields": {
+          "watts": {
+            "label": "Average power (W)",
+            "hint": "What it draws on average, not what its power supply says."
+          },
+          "hoursPerDay": {
+            "label": "Hours of use per day",
+            "hint": "24 if it is always on."
+          },
+          "devices": {
+            "label": "Number of devices",
+            "hint": "Identical devices with the same use."
+          },
+          "pricePerKwh": {
+            "label": "Electricity price (€/kWh)",
+            "hint": "Indicative: check your bill."
+          },
+          "emissionFactor": {
+            "label": "Emissions (kg of CO₂ per kWh)",
+            "hint": "Indicative. Change it to your supplier's or your country's."
+          },
+          "pue": {
+            "label": "Data centre PUE",
+            "hint": "1 if the device is not in a data centre. In one, 1.5 is a common value: it adds the cooling."
+          }
+        },
+        "moreSettings": "More settings",
+        "errors": {
+          "range": "Enter a value between {min} and {max}.",
+          "integer": "Enter a whole number between {min} and {max}."
+        },
+        "period": "Period",
+        "energy": "Consumption",
+        "cost": "Cost",
+        "periods": {
+          "day": "Per day",
+          "month": "Per month",
+          "year": "Per year"
+        },
+        "kwh": "{value} kWh",
+        "co2": "Emissions: {value} kg of CO₂ per year",
+        "note": "It assumes constant consumption equal to the average power. A device whose load goes up and down uses less than at its peak.",
+        "more": "Prefer to measure it rather than estimate it? Hygeia records each device's power and calculates its consumption.",
+        "moreCta": "Open Hygeia"
       }
     }
   },
@@ -5056,6 +5114,10 @@
       "toolPhishingQuiz": {
         "title": "Phishing quiz: can you spot a fake email? | Ellysia",
         "description": "Six emails and one question: phishing or legitimate? Practise with examples of parcel, bank and CEO fraud scams and learn what gives them away. Free."
+      },
+      "toolPowerCost": {
+        "title": "Server power consumption calculator: kWh, cost and CO₂ | Ellysia",
+        "description": "Calculate in your browser how much electricity a server or a fleet of devices uses, what it costs per month and year and how much CO₂ it emits. Free, no account."
       }
     }
   }

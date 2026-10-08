@@ -873,6 +873,64 @@
         },
         "more": "¿Quieres que tu equipo practique con casos como estos? Aegis lanza campañas de concienciación con seguimiento.",
         "moreCta": "Abrir Aegis"
+      },
+      "powerCost": {
+        "title": "Calculadora de consumo eléctrico",
+        "desc": "Calcula cuánta electricidad gasta un equipo o un parque de servidores, cuánto cuesta y cuánto CO₂ supone.",
+        "subtitle": "Indica la potencia y las horas de uso y calcula el consumo, el coste y el CO₂ de uno o varios equipos.",
+        "presetsLabel": "Potencia típica",
+        "preset": "{name} · {watts} W",
+        "presets": {
+          "raspberryPi": "Raspberry Pi",
+          "miniPc": "Mini PC",
+          "laptop": "Portátil",
+          "server": "Servidor 1U",
+          "gpuServer": "Servidor con GPU"
+        },
+        "fields": {
+          "watts": {
+            "label": "Potencia media (W)",
+            "hint": "Lo que gasta de media, no lo que marca su fuente de alimentación."
+          },
+          "hoursPerDay": {
+            "label": "Horas de uso al día",
+            "hint": "24 si está siempre encendido."
+          },
+          "devices": {
+            "label": "Número de equipos",
+            "hint": "Equipos iguales con el mismo uso."
+          },
+          "pricePerKwh": {
+            "label": "Precio de la electricidad (€/kWh)",
+            "hint": "Orientativo: mira el de tu factura."
+          },
+          "emissionFactor": {
+            "label": "Emisiones (kg de CO₂ por kWh)",
+            "hint": "Orientativo. Cámbialo por el de tu comercializadora o tu país."
+          },
+          "pue": {
+            "label": "PUE del centro de datos",
+            "hint": "1 si el equipo no está en un centro de datos. En uno, 1,5 es un valor habitual: suma la refrigeración."
+          }
+        },
+        "moreSettings": "Más ajustes",
+        "errors": {
+          "range": "Escribe un valor entre {min} y {max}.",
+          "integer": "Escribe un número entero entre {min} y {max}."
+        },
+        "period": "Periodo",
+        "energy": "Consumo",
+        "cost": "Coste",
+        "periods": {
+          "day": "Al día",
+          "month": "Al mes",
+          "year": "Al año"
+        },
+        "kwh": "{value} kWh",
+        "co2": "Emisiones: {value} kg de CO₂ al año",
+        "note": "Supone un consumo constante igual a la potencia media. Un equipo que sube y baja de carga gasta menos que en su pico.",
+        "more": "¿Prefieres medirlo en vez de estimarlo? Hygeia registra la potencia de cada equipo y calcula su consumo.",
+        "moreCta": "Abrir Hygeia"
       }
     }
   },
@@ -5056,6 +5114,10 @@
       "toolPhishingQuiz": {
         "title": "Quiz de phishing: ¿sabes distinguir un correo falso? | Ellysia",
         "description": "Seis correos y una pregunta: ¿phishing o legítimo? Practica con ejemplos reales de paquetería, banco y fraude del CEO y aprende qué los delata. Gratis."
+      },
+      "toolPowerCost": {
+        "title": "Calculadora de consumo eléctrico de servidores: kWh, coste y CO₂ | Ellysia",
+        "description": "Calcula en tu navegador cuánta electricidad gasta un servidor o un parque de equipos, cuánto cuesta al mes y al año y cuánto CO₂ emite. Gratis y sin cuenta."
       }
     }
   }
