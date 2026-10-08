@@ -1,3 +1,5 @@
+import re
+
 from marshmallow import Schema, fields, validate, validates_schema, ValidationError
 
 from src.modules.shared import UTCDateTime
@@ -206,6 +208,17 @@ class KbSearchQuerySchema(Schema):
     # ``KbQueryManager.search``.
     query = fields.String(required=True, validate=validate.Length(min=2, max=128))
     limit = fields.Integer(load_default=20, validate=validate.Range(min=1, max=100))
+
+
+class KbCveLookupQuerySchema(Schema):
+    # Consulta pública: solo un identificador de CVE completo, nunca un texto
+    # libre ni un producto. Así el coste de cada petición es el de una lectura
+    # por clave, y no una búsqueda por prefijo que cualquiera pueda encadenar.
+    id = fields.String(
+        required=True,
+        validate=validate.Regexp(r"^CVE-\d{4}-\d{4,7}\Z", flags=re.IGNORECASE,
+                                 error="Not a valid CVE identifier."),
+    )
 
 
 class KbSyncRequestSchema(Schema):

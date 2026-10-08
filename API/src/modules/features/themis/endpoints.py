@@ -89,6 +89,7 @@ from .schemas import (
     ResultsQuerySchema,
     UnresolvedProductsQuerySchema,
     KbSearchQuerySchema,
+    KbCveLookupQuerySchema,
     KbSyncRequestSchema,
     GeneratePdfRequestSchema,
     DocumentStatusQuerySchema,
@@ -937,6 +938,27 @@ def search_kb(args):
         **KbQueryManager().search(args["query"], limit=args["limit"]),
         "user": user.username,
     }
+
+
+# ============================================================================
+# CONSULTA PÚBLICA DE CVE — SIN AUTENTICACIÓN
+# ============================================================================
+#
+# Deliberadamente sin @require_oauth_token: es la herramienta gratuita «Consulta
+# de CVE» y el dato (NVD, KEV, EPSS) es público. No toca la red ni lanza
+# ningún trabajo: es una lectura por clave sobre la base local, así que lo único
+# que se protege es el coste de la base de datos, con el límite por IP.
+
+
+@themis_blp.get("/kb/cve")
+@themis_blp.arguments(KbCveLookupQuerySchema, location="query")
+@themis_blp.response(200, description="What the knowledge base knows about one CVE (null if nothing)")
+@themis_blp.alt_response(422, schema=ErrorSchema, description="Not a valid CVE identifier")
+@limiter.limit("30 per minute; 300 per hour")
+@handle_exceptions(default_exception=ScanError, logger=logger)
+def lookup_public_cve(args):
+    """Consultar una CVE en la base de conocimiento, sin login."""
+    return {"cve": KbQueryManager().public_cve_detail(args["id"].upper())}
 
 
 @themis_blp.get("/kb/sync")
