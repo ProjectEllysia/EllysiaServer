@@ -767,6 +767,112 @@
         "baseOnly": "Es la puntuación base: no incluye las métricas temporales ni de entorno.",
         "more": "Después de puntuarla, Aegis crea píldoras de concienciación con IA para explicar el riesgo a tu equipo.",
         "moreCta": "Abrir Aegis"
+      },
+      "phishingQuiz": {
+        "title": "Quiz de phishing",
+        "desc": "Seis correos: ¿sabes decir cuáles son phishing y cuáles son legítimos?",
+        "subtitle": "Mira cada correo y decide si es phishing o legítimo. Al responder verás qué lo delataba.",
+        "counter": "Correo {current} de {total}",
+        "from": "De",
+        "subjectLabel": "Asunto",
+        "link": "Enlace",
+        "prompt": "¿Qué es este correo?",
+        "phishing": "Es phishing",
+        "legit": "Es legítimo",
+        "correct": "Correcto",
+        "incorrect": "No era así",
+        "wasPhishing": "Era phishing.",
+        "wasLegit": "Era un correo legítimo.",
+        "cluesPhishing": "Qué lo delata",
+        "cluesLegit": "Por qué es de fiar",
+        "realLink": "El enlace llevaba en realidad a",
+        "next": "Siguiente correo",
+        "finish": "Ver resultado",
+        "result": "Has acertado {correct} de {total}",
+        "bands": {
+          "perfect": "Sin fallos. Sabes mirar el remitente, el enlace y la prisa.",
+          "good": "Buen ojo. Repasa las pistas de los que has fallado: son las que usan los atacantes de verdad.",
+          "weak": "Estos trucos engañan a mucha gente. Repasa las pistas y vuelve a intentarlo."
+        },
+        "again": "Volver a intentarlo",
+        "cases": {
+          "parcel": {
+            "name": "Paquetería Exprés",
+            "subject": "Tu paquete no se pudo entregar: paga 1,99 € para recibirlo",
+            "body": "Hola, cliente:\n\nIntentamos entregar tu paquete y no había nadie en casa. Para programar una nueva entrega tienes que pagar una tasa de gestión de 1,99 € en las próximas 24 horas. Pasado ese plazo, el paquete será devuelto al remitente.\n\nGracias por confiar en nosotros.",
+            "linkText": "Reprogramar mi entrega",
+            "explanation": "Usa el miedo a perder un paquete para que pagues y entregues los datos de tu tarjeta.",
+            "clues": {
+              "1": "La dirección del remitente no es la de la empresa: es un dominio .info con guiones, comprado para esto.",
+              "2": "Mete prisa sin motivo: 24 horas o se devuelve.",
+              "3": "Pide pagar una cantidad pequeña desde un enlace. Lo que roban es la tarjeta, no el euro.",
+              "4": "El enlace va a otro dominio distinto del de la empresa, y acaba en .top."
+            }
+          },
+          "bank": {
+            "name": "Banco Ejemplo · Seguridad",
+            "subject": "Hemos bloqueado tu cuenta",
+            "body": "Estimado cliente:\n\nHemos detectado un acceso sospechoso a tu cuenta. Por tu seguridad, debes verificar tus datos en las próximas 12 horas. Si no lo haces, tu cuenta quedará suspendida de forma definitiva.",
+            "linkText": "Verificar mi cuenta",
+            "explanation": "Te asusta con bloquear la cuenta para que escribas tu usuario y tu clave en una web falsa.",
+            "clues": {
+              "1": "El dominio del remitente solo imita al del banco: le añade «seguridad» al nombre.",
+              "2": "No te llama por tu nombre: «Estimado cliente».",
+              "3": "Amenaza con suspender la cuenta si no actúas en 12 horas.",
+              "4": "Quiere que escribas tus datos en una web a la que llegas por un enlace del correo, y el enlace va a otro dominio."
+            }
+          },
+          "invoice": {
+            "name": "Nubesur Facturación",
+            "subject": "Factura 2024-0318 de tu plan Hosting Pro",
+            "body": "Hola, Marta:\n\nAdjuntamos la factura de septiembre de tu plan Hosting Pro, por 29,00 €. Se cargará el día 5 en la tarjeta terminada en 4821.\n\nPuedes consultarla cuando quieras en tu área de cliente.",
+            "linkText": "Ir a mi área de cliente",
+            "explanation": "Todo cuadra con un servicio que contratas y no te pide nada urgente.",
+            "clues": {
+              "1": "El enlace lleva al mismo dominio que el remitente: nubesur.es.",
+              "2": "Te llama por tu nombre y da datos concretos: el plan, el importe y las últimas cifras de la tarjeta.",
+              "3": "No hay prisa ni amenaza: avisa de un cargo normal. Aun así, si dudas, entra escribiendo tú la dirección."
+            }
+          },
+          "director": {
+            "name": "Elena Martín (Dirección)",
+            "subject": "Urgente y confidencial",
+            "body": "Necesito que hagas hoy una transferencia de 4.800 € a un proveedor nuevo. Estoy en una reunión y no puedo hablar por teléfono.\n\nTe paso el IBAN en cuanto confirmes. No se lo comentes a nadie hasta que yo te lo diga.",
+            "explanation": "Es el «fraude del CEO»: alguien se hace pasar por la dirección para que pagues a una cuenta que no es de ningún proveedor.",
+            "clues": {
+              "1": "El nombre es el de la directora, pero el correo sale de un servicio gratuito y no del de la empresa.",
+              "2": "Pide urgencia y secreto a la vez, para que nadie lo pueda comprobar.",
+              "3": "Quiere una transferencia a un proveedor nuevo, sin factura ni pedido.",
+              "4": "Dice que no puede hablar, que es justo lo que lo desmontaría. Confírmalo llamando a su número de siempre."
+            }
+          },
+          "password": {
+            "name": "Soporte TI",
+            "subject": "Has cambiado tu contraseña",
+            "body": "Te confirmamos que tu contraseña se cambió hoy a las 09:14 desde Madrid.\n\nSi has sido tú, no tienes que hacer nada. Si no has sido tú, escribe en el navegador la dirección de la intranet, entra en tu perfil y cámbiala, o llama a soporte.",
+            "explanation": "Informa de algo que ha pasado y no te pide que hagas clic ni que des datos.",
+            "clues": {
+              "1": "No lleva ningún enlace ni adjunto: no hay nada que pulsar.",
+              "2": "Si has sido tú, no pide nada. La alerta existe para el caso contrario.",
+              "3": "Te dice cómo actuar por tu cuenta, escribiendo tú la dirección, y no con un enlace del correo."
+            }
+          },
+          "prize": {
+            "name": "Premios Mercadillo",
+            "subject": "¡Enhorabuena! Has ganado un móvil de última generación",
+            "body": "Has sido elegido entre 10.000 usuarios como ganador de nuestro sorteo mensual.\n\nPara reclamar tu premio, rellena el formulario con tus datos y los de tu tarjeta: así cubrimos los gastos de envío.",
+            "linkText": "Reclamar mi premio",
+            "explanation": "Un premio al que no te apuntaste es un cebo para quedarse con los datos de tu tarjeta.",
+            "clues": {
+              "1": "No te has apuntado a ningún sorteo.",
+              "2": "Un premio gratis no pide tu tarjeta para el envío.",
+              "3": "El remitente acaba en .xyz y el enlace va a otro dominio distinto, también .xyz.",
+              "4": "Te halaga y te elige entre miles: es el gancho."
+            }
+          }
+        },
+        "more": "¿Quieres que tu equipo practique con casos como estos? Aegis lanza campañas de concienciación con seguimiento.",
+        "moreCta": "Abrir Aegis"
       }
     }
   },
@@ -4946,6 +5052,10 @@
       "toolCvssCalculator": {
         "title": "Calculadora CVSS 3.1: puntuación, gravedad y vector | Ellysia",
         "description": "Calcula en tu navegador la puntuación base CVSS 3.1 de una vulnerabilidad, su gravedad y su vector, o carga un vector para ver su puntuación. Gratis y sin cuenta."
+      },
+      "toolPhishingQuiz": {
+        "title": "Quiz de phishing: ¿sabes distinguir un correo falso? | Ellysia",
+        "description": "Seis correos y una pregunta: ¿phishing o legítimo? Practica con ejemplos reales de paquetería, banco y fraude del CEO y aprende qué los delata. Gratis."
       }
     }
   }

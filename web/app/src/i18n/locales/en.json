@@ -767,6 +767,112 @@
         "baseOnly": "This is the base score: it does not include temporal or environmental metrics.",
         "more": "Once scored, Aegis creates awareness pills with AI to explain the risk to your team.",
         "moreCta": "Open Aegis"
+      },
+      "phishingQuiz": {
+        "title": "Phishing quiz",
+        "desc": "Six emails: can you tell which are phishing and which are legitimate?",
+        "subtitle": "Look at each email and decide whether it is phishing or legitimate. When you answer you will see what gave it away.",
+        "counter": "Email {current} of {total}",
+        "from": "From",
+        "subjectLabel": "Subject",
+        "link": "Link",
+        "prompt": "What is this email?",
+        "phishing": "It is phishing",
+        "legit": "It is legitimate",
+        "correct": "Correct",
+        "incorrect": "Not quite",
+        "wasPhishing": "It was phishing.",
+        "wasLegit": "It was a legitimate email.",
+        "cluesPhishing": "What gave it away",
+        "cluesLegit": "Why it can be trusted",
+        "realLink": "The link actually went to",
+        "next": "Next email",
+        "finish": "See result",
+        "result": "You got {correct} of {total}",
+        "bands": {
+          "perfect": "No mistakes. You know to check the sender, the link and the rush.",
+          "good": "Good eye. Go over the clues of the ones you missed: they are the ones real attackers use.",
+          "weak": "These tricks fool a lot of people. Go over the clues and try again."
+        },
+        "again": "Try again",
+        "cases": {
+          "parcel": {
+            "name": "Express Parcels",
+            "subject": "Your parcel could not be delivered: pay €1.99 to receive it",
+            "body": "Hello, customer:\n\nWe tried to deliver your parcel and nobody was home. To schedule a new delivery you must pay a €1.99 handling fee within the next 24 hours. After that, the parcel will be returned to the sender.\n\nThank you for trusting us.",
+            "linkText": "Reschedule my delivery",
+            "explanation": "It uses the fear of losing a parcel to make you pay and hand over your card details.",
+            "clues": {
+              "1": "The sender's address is not the company's: it is a .info domain with hyphens, bought for this.",
+              "2": "It rushes you for no reason: 24 hours or it goes back.",
+              "3": "It asks you to pay a small amount from a link. What they steal is the card, not the euro.",
+              "4": "The link goes to a different domain from the company's, ending in .top."
+            }
+          },
+          "bank": {
+            "name": "Example Bank · Security",
+            "subject": "We have blocked your account",
+            "body": "Dear customer:\n\nWe have detected suspicious access to your account. For your security, you must verify your details within the next 12 hours. If you do not, your account will be permanently suspended.",
+            "linkText": "Verify my account",
+            "explanation": "It scares you with blocking your account so you type your username and password into a fake site.",
+            "clues": {
+              "1": "The sender's domain only imitates the bank's: it adds «security» to the name.",
+              "2": "It does not address you by name: «Dear customer».",
+              "3": "It threatens to suspend the account if you do not act within 12 hours.",
+              "4": "It wants you to type your details on a site you reach from a link in the email, and the link goes to a different domain."
+            }
+          },
+          "invoice": {
+            "name": "Nubesur Billing",
+            "subject": "Invoice 2024-0318 for your Hosting Pro plan",
+            "body": "Hello, Marta:\n\nWe attach the September invoice for your Hosting Pro plan, for €29.00. It will be charged on the 5th to the card ending in 4821.\n\nYou can view it any time in your customer area.",
+            "linkText": "Go to my customer area",
+            "explanation": "Everything fits a service you have signed up for, and it asks for nothing urgent.",
+            "clues": {
+              "1": "The link goes to the same domain as the sender: nubesur.es.",
+              "2": "It addresses you by name and gives concrete details: the plan, the amount and the last digits of the card.",
+              "3": "There is no rush or threat: it announces a normal charge. Even so, if in doubt, type the address in yourself."
+            }
+          },
+          "director": {
+            "name": "Elena Martín (Management)",
+            "subject": "Urgent and confidential",
+            "body": "I need you to make a €4,800 transfer today to a new supplier. I am in a meeting and cannot talk on the phone.\n\nI will send you the IBAN as soon as you confirm. Do not tell anyone until I say so.",
+            "explanation": "It is the «CEO fraud»: someone poses as management so you pay an account that belongs to no supplier.",
+            "clues": {
+              "1": "The name is the director's, but the email comes from a free service and not from the company's.",
+              "2": "It asks for urgency and secrecy at once, so nobody can check it.",
+              "3": "It wants a transfer to a new supplier, with no invoice or order.",
+              "4": "It says it cannot talk, which is exactly what would expose it. Confirm by calling the usual number."
+            }
+          },
+          "password": {
+            "name": "IT Support",
+            "subject": "You have changed your password",
+            "body": "We confirm that your password was changed today at 09:14 from Madrid.\n\nIf it was you, you do not need to do anything. If it was not you, type the intranet address in your browser, go to your profile and change it, or call support.",
+            "explanation": "It reports something that happened and does not ask you to click or give any details.",
+            "clues": {
+              "1": "It has no link or attachment: there is nothing to click.",
+              "2": "If it was you, it asks for nothing. The alert exists for the opposite case.",
+              "3": "It tells you how to act on your own, typing the address yourself, and not with a link in the email."
+            }
+          },
+          "prize": {
+            "name": "Market Prizes",
+            "subject": "Congratulations! You have won a latest-generation phone",
+            "body": "You have been chosen among 10,000 users as the winner of our monthly draw.\n\nTo claim your prize, fill in the form with your details and your card details: that way we cover the shipping costs.",
+            "linkText": "Claim my prize",
+            "explanation": "A prize you did not enter for is bait to get your card details.",
+            "clues": {
+              "1": "You did not enter any draw.",
+              "2": "A free prize does not ask for your card to ship it.",
+              "3": "The sender ends in .xyz and the link goes to a different domain, also .xyz.",
+              "4": "It flatters you and picks you among thousands: that is the hook."
+            }
+          }
+        },
+        "more": "Want your team to practise with cases like these? Aegis runs awareness campaigns with tracking.",
+        "moreCta": "Open Aegis"
       }
     }
   },
@@ -4946,6 +5052,10 @@
       "toolCvssCalculator": {
         "title": "CVSS 3.1 calculator: score, severity and vector | Ellysia",
         "description": "Calculate in your browser the CVSS 3.1 base score of a vulnerability, its severity and its vector, or load a vector to see its score. Free, no account."
+      },
+      "toolPhishingQuiz": {
+        "title": "Phishing quiz: can you spot a fake email? | Ellysia",
+        "description": "Six emails and one question: phishing or legitimate? Practise with examples of parcel, bank and CEO fraud scams and learn what gives them away. Free."
       }
     }
   }
