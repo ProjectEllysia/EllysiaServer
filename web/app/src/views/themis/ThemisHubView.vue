@@ -5,9 +5,9 @@
     name="Themis"
     numeral="I"
     epigraph="Iudicium"
-    :tagline="t('themisHub.tagline')"
-    :myth="t('landing.tools.themis.myth')"
-    :claim="t('landing.tools.themis.title')"
+    :tagline="t(HUB_COPY_KEYS.themis.tagline)"
+    :myth="t(HUB_COPY_KEYS.themis.myth)"
+    :claim="t(HUB_COPY_KEYS.themis.claim)"
     tool-route="/themis/escaneos"
     :tool-label="t('themisHub.toolLabel')"
     :highlight="highlight"
@@ -31,6 +31,7 @@
 import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ModuleHub from '@/components/shared/ModuleHub.vue'
+import { HUB_COPY_KEYS, HUB_FEATURE_IDS } from '@/components/shared/moduleIdentity'
 import { useThemisStore } from '@/stores/themisStore'
 import { useAuthStore } from '@/stores/authStore'
 import themisIcon from '@/assets/images/themis/Themis-Turqoise-BgN.png'
@@ -40,7 +41,7 @@ const store = useThemisStore()
 const auth = useAuthStore()
 
 /** Capacidades que se presentan, en orden; sus textos están en `themisHub.features.<id>`. */
-const FEATURE_IDS = ['engine', 'classics', 'reports', 'schedule']
+const FEATURE_IDS = HUB_FEATURE_IDS.themis
 
 // Dato de producto para la visita pública (sin sesión no hay actividad propia).
 const highlight = computed(() => ({ label: t('themisHub.highlight.label'), value: 'Lybra', sub: t('themisHub.highlight.sub') }))
