@@ -666,6 +666,107 @@
         },
         "more": "Have a suspicious email? Iris analyses the sender, the links and the headers.",
         "moreCta": "Open Iris"
+      },
+      "cvssCalculator": {
+        "title": "CVSS calculator",
+        "desc": "Mark what a vulnerability is like and get its CVSS 3.1 score, its severity and the vector.",
+        "subtitle": "Mark what the vulnerability is like and get its CVSS 3.1 score, its severity and the vector.",
+        "scoreLabel": "Base score",
+        "exploitability": "Exploitability",
+        "impact": "Impact",
+        "scaleLabel": "{score} out of 10",
+        "copy": "Copy vector",
+        "copied": "Copied",
+        "copyFailed": "Could not copy. Select the vector and copy it by hand.",
+        "severity": {
+          "none": "None",
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High",
+          "critical": "Critical"
+        },
+        "metrics": {
+          "AV": {
+            "name": "Attack vector",
+            "hint": "Where the attack can come from.",
+            "values": {
+              "N": "Network",
+              "A": "Adjacent network",
+              "L": "Local",
+              "P": "Physical"
+            }
+          },
+          "AC": {
+            "name": "Attack complexity",
+            "hint": "Whether the attack needs conditions the attacker does not control.",
+            "values": {
+              "L": "Low",
+              "H": "High"
+            }
+          },
+          "PR": {
+            "name": "Privileges required",
+            "hint": "What access the attacker needs before starting.",
+            "values": {
+              "N": "None",
+              "L": "Low",
+              "H": "High"
+            }
+          },
+          "UI": {
+            "name": "User interaction",
+            "hint": "Whether someone else has to do something, such as open a link.",
+            "values": {
+              "N": "None",
+              "R": "Required"
+            }
+          },
+          "S": {
+            "name": "Scope",
+            "hint": "Whether the flaw can affect components beyond the one that has it.",
+            "values": {
+              "U": "Unchanged",
+              "C": "Changed"
+            }
+          },
+          "C": {
+            "name": "Confidentiality",
+            "hint": "How much information can be read.",
+            "values": {
+              "N": "None",
+              "L": "Low",
+              "H": "High"
+            }
+          },
+          "I": {
+            "name": "Integrity",
+            "hint": "How much information can be modified.",
+            "values": {
+              "N": "None",
+              "L": "Low",
+              "H": "High"
+            }
+          },
+          "A": {
+            "name": "Availability",
+            "hint": "How much the service can be disrupted.",
+            "values": {
+              "N": "None",
+              "L": "Low",
+              "H": "High"
+            }
+          }
+        },
+        "loadLabel": "Load a vector",
+        "loadHint": "Paste a vector starting with CVSS:3.1/ to fill in the metrics.",
+        "errors": {
+          "format": "That does not look like a CVSS vector. It starts with CVSS:3.1/ and carries the eight base metrics.",
+          "version": "Only CVSS 3.1 is calculated. This vector is from another version.",
+          "metric": "The vector is missing a metric, has an extra one or carries a value that does not exist."
+        },
+        "baseOnly": "This is the base score: it does not include temporal or environmental metrics.",
+        "more": "Once scored, Aegis creates awareness pills with AI to explain the risk to your team.",
+        "moreCta": "Open Aegis"
       }
     }
   },
@@ -4841,6 +4942,10 @@
       "toolMailAuthChecker": {
         "title": "SPF, DKIM and DMARC checker: is your email protected? | Ellysia",
         "description": "Check a domain's SPF, DKIM and DMARC records in your browser and what it lacks to stop its email being spoofed. Free, no account."
+      },
+      "toolCvssCalculator": {
+        "title": "CVSS 3.1 calculator: score, severity and vector | Ellysia",
+        "description": "Calculate in your browser the CVSS 3.1 base score of a vulnerability, its severity and its vector, or load a vector to see its score. Free, no account."
       }
     }
   }

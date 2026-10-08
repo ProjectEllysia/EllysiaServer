@@ -24,7 +24,7 @@
     "test:seo": "node test/seo.test.mjs",
     "test:type-scale": "node test/typeScale.test.mjs",
     "test:docs": "node test/docs.content.test.mjs",
-    "test:free-tools": "node test/freeTools.test.mjs && node test/freeTools.mailAuth.test.mjs && node test/freeTools.cidr.test.mjs && node test/freeTools.passwordStrength.test.mjs",
+    "test:free-tools": "node test/freeTools.test.mjs && node test/freeTools.cvss.test.mjs && node test/freeTools.mailAuth.test.mjs && node test/freeTools.cidr.test.mjs && node test/freeTools.passwordStrength.test.mjs",
     "test:i18n": "node test/i18n.format.test.mjs && node test/i18n.apiErrors.test.mjs && node test/i18n.locales.test.mjs && node test/i18n.guard.test.mjs"
   },
   "dependencies": {

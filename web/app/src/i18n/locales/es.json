@@ -666,6 +666,107 @@
         },
         "more": "¿Tienes un correo sospechoso? Iris analiza el remitente, los enlaces y las cabeceras.",
         "moreCta": "Abrir Iris"
+      },
+      "cvssCalculator": {
+        "title": "Calculadora CVSS",
+        "desc": "Marca cómo es una vulnerabilidad y obtén su puntuación CVSS 3.1, su gravedad y el vector.",
+        "subtitle": "Marca cómo es la vulnerabilidad y obtén su puntuación CVSS 3.1, su gravedad y el vector.",
+        "scoreLabel": "Puntuación base",
+        "exploitability": "Explotabilidad",
+        "impact": "Impacto",
+        "scaleLabel": "{score} sobre 10",
+        "copy": "Copiar vector",
+        "copied": "Copiado",
+        "copyFailed": "No se pudo copiar. Selecciona el vector y cópialo a mano.",
+        "severity": {
+          "none": "Ninguna",
+          "low": "Baja",
+          "medium": "Media",
+          "high": "Alta",
+          "critical": "Crítica"
+        },
+        "metrics": {
+          "AV": {
+            "name": "Vector de ataque",
+            "hint": "Desde dónde se puede atacar.",
+            "values": {
+              "N": "Red",
+              "A": "Red adyacente",
+              "L": "Local",
+              "P": "Físico"
+            }
+          },
+          "AC": {
+            "name": "Complejidad del ataque",
+            "hint": "Si el ataque exige condiciones que el atacante no controla.",
+            "values": {
+              "L": "Baja",
+              "H": "Alta"
+            }
+          },
+          "PR": {
+            "name": "Privilegios necesarios",
+            "hint": "Qué acceso necesita el atacante antes de empezar.",
+            "values": {
+              "N": "Ninguno",
+              "L": "Bajos",
+              "H": "Altos"
+            }
+          },
+          "UI": {
+            "name": "Interacción del usuario",
+            "hint": "Si hace falta que otra persona haga algo, como abrir un enlace.",
+            "values": {
+              "N": "Ninguna",
+              "R": "Requerida"
+            }
+          },
+          "S": {
+            "name": "Alcance",
+            "hint": "Si el fallo permite afectar a componentes fuera del que lo tiene.",
+            "values": {
+              "U": "Sin cambio",
+              "C": "Cambia"
+            }
+          },
+          "C": {
+            "name": "Confidencialidad",
+            "hint": "Cuánta información se puede leer.",
+            "values": {
+              "N": "Ninguna",
+              "L": "Baja",
+              "H": "Alta"
+            }
+          },
+          "I": {
+            "name": "Integridad",
+            "hint": "Cuánta información se puede modificar.",
+            "values": {
+              "N": "Ninguna",
+              "L": "Baja",
+              "H": "Alta"
+            }
+          },
+          "A": {
+            "name": "Disponibilidad",
+            "hint": "Cuánto se puede interrumpir el servicio.",
+            "values": {
+              "N": "Ninguna",
+              "L": "Baja",
+              "H": "Alta"
+            }
+          }
+        },
+        "loadLabel": "Cargar un vector",
+        "loadHint": "Pega un vector que empiece por CVSS:3.1/ para rellenar las métricas.",
+        "errors": {
+          "format": "No parece un vector CVSS. Empieza por CVSS:3.1/ y lleva las ocho métricas base.",
+          "version": "Solo se calcula CVSS 3.1. Este vector es de otra versión.",
+          "metric": "Al vector le falta una métrica, le sobra alguna o trae un valor que no existe."
+        },
+        "baseOnly": "Es la puntuación base: no incluye las métricas temporales ni de entorno.",
+        "more": "Después de puntuarla, Aegis crea píldoras de concienciación con IA para explicar el riesgo a tu equipo.",
+        "moreCta": "Abrir Aegis"
       }
     }
   },
@@ -4841,6 +4942,10 @@
       "toolMailAuthChecker": {
         "title": "Comprobador de SPF, DKIM y DMARC: ¿está protegido tu correo? | Ellysia",
         "description": "Comprueba en tu navegador los registros SPF, DKIM y DMARC de un dominio y qué le falta para frenar la suplantación de su correo. Gratis y sin cuenta."
+      },
+      "toolCvssCalculator": {
+        "title": "Calculadora CVSS 3.1: puntuación, gravedad y vector | Ellysia",
+        "description": "Calcula en tu navegador la puntuación base CVSS 3.1 de una vulnerabilidad, su gravedad y su vector, o carga un vector para ver su puntuación. Gratis y sin cuenta."
       }
     }
   }
