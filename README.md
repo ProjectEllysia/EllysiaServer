@@ -227,6 +227,7 @@ Some endpoints add their own fields next to these: `path` on a 404, `allowedMeth
 | `PATCH` | `/themis/findings/<id>` | Set a finding's triage state with a reason: `accepted` (the risk is real and assumed — expires for review), `false_positive` (the engine was wrong — never counts as risk) or `open` |
 | `GET` | `/themis/findings/false-positives` | Findings the user refuted, with the check, CPE and feed version that produced each — labelled samples for calibrating the engine |
 | `GET` | `/themis/kb/status` | Per-source freshness of the NVD/KEV/EPSS/OVAL mirror: last attempt, last success, last error, staleness and the `feedVersion` findings are stamped with; OVAL is reported per distribution (`oval:debian:12`, `oval:ubuntu:24.04`…) |
+| `GET` | `/themis/kb/cve?id=` | **Public, no auth** (30/min, 300/h per IP) — one CVE from the local knowledge base for the free CVE lookup: NVD data, KEV membership, EPSS and per-distribution status. Only a complete `CVE-YYYY-NNNN` id is accepted (422 otherwise); an unknown CVE answers `{"cve": null}`, and the product and distribution lists are capped at 50 with their totals |
 | `GET` | `/themis/kb/search?query=` | What the knowledge base knows: for a CVE id, its NVD data (CVSS, affected products), KEV membership, EPSS and every distribution's per-package statement; for any other text, the matching products of the CPE index |
 | `POST` | `/themis/kb/sync` | (admin) Queue a manual sync of `all`, `nvd`, `kev`, `epss` or `oval` — the same delta the nightly job runs, never the full NVD history. Answers `202` at once; while one is running no other is queued (`queued: false`, `runningTarget`) |
 | `GET` | `/themis/kb/sync` | (admin) Status and progress of the latest manual sync of each target |
@@ -656,8 +657,11 @@ npm run test:themis       # scan-window + Lybra finding-site labels + finding so
 npm run test:i18n         # languages: date/number formatting, API error translation, language-file checks and guards
 npm run test:seo          # sitemap, robots.txt, routes with meta.seo and their per-page titles and descriptions, the share image, the per-page head prerendered by `npm run build` and the Caddy rules that serve it stay in step
 npm run test:docs         # technical documentation: inline formatting, same sections/blocks/figures in every language, one route per page
+npm run test:free-tools  # free-tools catalog: each tool has its view, its texts in every language and its sitemap entry; a module without tools shows no section; the rules of each tool (password generator and strength estimator, CIDR maths, SPF/DKIM/DMARC analysis, CVSS 3.1 against NVD's published scores, phishing quiz, power cost)
 npm run test:type-scale   # type scale: no text step below 12px, steps 1.05–1.25 apart, no hand-written font sizes in components
 ```
+
+Each module hub can list **free tools** — small utilities usable without a plan, served under `/herramientas/<module>/<slug>`. They are declared once in `web/app/src/freeTools/catalog.js`: the hub section, the route, the page title and the prerender all derive from that list, a hub of a module with no tools shows no section, and an optional launch surface lets the server hide a tool without a deploy. Today there are eight, none of which needs an account: Acheron's password generator and password strength checker (the latter can optionally check Have I Been Pwned by k-anonymity), Aegis's CVE lookup, CVSS 3.1 calculator and phishing quiz, Themis's network range calculator, Iris's SPF/DKIM/DMARC checker and Hygeia's power consumption calculator. All but the CVE lookup run in the visitor's browser: the SPF/DKIM/DMARC checker and the optional breach check query public services (DNS-over-HTTPS, Have I Been Pwned) straight from it, never through the Ellysia server. The CVE lookup reads the local knowledge base without a session.
 
 The SPA is ready for more languages: each one is a file in `web/app/src/i18n/locales/` (`es.json` is the default; `en.json` covers the whole interface, and CI fails if a key is added to `es.json` without it). Adding a file makes the language appear in the selector; the rules and the recipe are in `CONVENCIONES.md` §12.5.
 
@@ -1088,7 +1092,7 @@ python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().d
 - `API/src/data/` and `docs/` are gitignored (scan outputs, generated PDFs).
 - PostgreSQL uses port **15432** locally (not standard 5432).
 - There is a single `TaskStatus` enum, in `system/taskqueue/task.py`; `themis/services/tasks.py` imports it rather than defining its own.
-- The API version is declared as `appVersion` in `SecOpsConfig.json` (currently `0.5.35`, read by `CR.get_app_version()`).
+- The API version is declared as `appVersion` in `SecOpsConfig.json` (currently `0.5.36`, read by `CR.get_app_version()`).
 
 ## License
 
