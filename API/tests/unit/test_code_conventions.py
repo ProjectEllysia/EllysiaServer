@@ -329,10 +329,6 @@ KNOWN_VIOLATIONS: dict[tuple[str, str, str], str] = {
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/hygeia/managers.py", "HygeiaAssetManager._current_power_reading"):
         _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/hygeia/managers.py", "HygeiaAssetManager._power_window"):
-        _PLAN_PRIVATE_METHOD,
-    ("private-method", "src/modules/features/hygeia/managers.py", "HygeiaAssetManager._power_window_samples"):
-        _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/hygeia/managers.py", "HygeiaAssetManager._summarize_window"):
         _PLAN_PRIVATE_METHOD,
     ("private-method", "src/modules/features/hygeia/managers.py", "HygeiaIngestManager._enforce_min_interval"):
