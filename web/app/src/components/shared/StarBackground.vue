@@ -45,10 +45,12 @@ const particles = Array.from({ length: 18 }, (_, i) => ({
   background: var(--bg, #0b0c10);
 }
 
+/* Sin filtro de desenfoque: el degradado radial ya se funde con el fondo, y un desenfoque
+   de 150 px sobre una capa que se mueve se recalcula en cada fotograma, que en una
+   gráfica integrada es justo lo que hace ir a tirones una página tranquila. */
 .bg-orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(150px);
   animation: orb-drift 24s ease-in-out infinite;
 }
 .bg-orb--1 {

@@ -17,15 +17,25 @@
   z-index: 1;
   height: 16px;
   width: 100%;
+  overflow: hidden;
   opacity: 0.85;
-  /* El color corre por detrás y la greca lo deja pasar: el brillo recorre el dibujo. */
-  background: linear-gradient(90deg, var(--accent) 0%, var(--accent-bright) 25%, var(--accent) 50%, var(--accent-bright) 75%, var(--accent) 100%);
-  background-size: 300% 100%;
-  animation: gleam 18s linear infinite;
+  background: var(--accent);
   --meander: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='16' viewBox='0 0 24 16'%3E%3Cpath d='M0 15H24M3 15V3H21V11H9V7H15' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='square'/%3E%3C/svg%3E");
   -webkit-mask: var(--meander) repeat-x center / 24px 16px;
   mask: var(--meander) repeat-x center / 24px 16px;
 }
-@keyframes gleam { to { background-position: -300% 0; } }
-@media (prefers-reduced-motion: reduce) { .frieze { animation: none; } }
+/* El brillo es una capa que se desliza por detrás y la greca lo deja pasar. Se mueve
+   con un desplazamiento, que hace la tarjeta gráfica, en vez de animar la posición del
+   fondo, que obligaría a repintar la banda en cada fotograma. El degradado se repite
+   cada medio ancho de la capa, así que el bucle no tiene salto. */
+.frieze::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 300%;
+  background: linear-gradient(90deg, transparent 0%, var(--accent-bright) 25%, transparent 50%, var(--accent-bright) 75%, transparent 100%);
+  animation: gleam 18s linear infinite;
+}
+@keyframes gleam { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) { .frieze::before { animation: none; } }
 </style>

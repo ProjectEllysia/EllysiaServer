@@ -1,10 +1,27 @@
 <template>
-  <svg class="tool-glyph" :data-live="live" :style="{ width: `${size}px`, height: `${size}px` }" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
-    <!-- El medallón: una moneda antigua con su orla de perlas. -->
+  <svg
+    class="tool-glyph"
+    :data-live="live"
+    :style="{ width: `${size}px`, height: `${size}px`, '--hatch': `url(#${hatchId})`, '--device-pixel': devicePixel }"
+    viewBox="0 0 100 100"
+    aria-hidden="true"
+    focusable="false"
+  >
+    <defs>
+      <!-- Rayado de grabado para las superficies llenas, en vez de un color plano -->
+      <pattern :id="hatchId" :width="hatchSpacing" :height="hatchSpacing" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+        <line class="hatch-line" x1="0" y1="0" x2="0" :y2="hatchSpacing" />
+      </pattern>
+    </defs>
+
+    <!-- El medallón: una moneda con la orla de guilloché de su módulo (solo si hay sitio para que se lea). -->
     <circle class="coin-disc" cx="50" cy="50" r="47" />
     <circle class="coin-rim" cx="50" cy="50" r="47" />
-    <circle class="coin-beads" cx="50" cy="50" r="41.5" />
-    <circle class="coin-inner" cx="50" cy="50" r="35" />
+    <g class="coin-guilloche">
+      <path v-for="(curve, index) in ring" :key="index" :d="curve" />
+    </g>
+    <circle class="coin-rule" cx="50" cy="50" r="44.6" />
+    <circle class="coin-inner" cx="50" cy="50" r="36.4" />
 
     <g transform="translate(18 18)" class="engraving">
       <!-- Generador de contraseñas: una llave. -->
@@ -92,25 +109,62 @@
 </template>
 
 <script setup>
+import { computed, useId } from 'vue'
+import { devicePixelInUnits } from '@/composables/motionMath'
+import { FREE_TOOLS } from '@/freeTools/catalog'
+import { guillochePath } from './sceneGeometry'
+import { SEAL_PATTERNS } from './sealPatterns'
+
 /**
  * Grabado de una herramienta gratuita sobre un medallón, como una moneda antigua.
  *
- * Una pieza para todas las herramientas: el medallón es común y el grabado cambia
- * según `toolId`. Se usa en las tarjetas del hub y en la cabecera de cada página de
- * herramienta, así que quien ve la tarjeta reconoce la herramienta al abrirla.
+ * Una pieza para todas las herramientas: el medallón lleva la orla de guilloché del
+ * sello de su módulo (`sealPatterns.js`) y el grabado cambia según `toolId`; las
+ * superficies llenas van rayadas, como en un grabado, no en color plano. Se usa en las
+ * tarjetas del hub y en la cabecera de cada página de herramienta, así que quien ve la
+ * tarjeta reconoce la herramienta al abrirla.
+ *
+ * Se adapta a su tamaño para verse nítido: ningún trazo baja de un píxel real de la
+ * pantalla, el rayado se abre cuando el medallón es pequeño y, por debajo de 64 px, la
+ * orla de guilloché se quita, porque a ese tamaño sería una mancha.
  *
  * Se mueve de dos formas: al dibujarse (los trazos con clase `draw` se trazan al
  * aparecer, ver `motion.css`) y en vivo, cuando el medallón está dentro de algo con
  * la clase `glyph-host` que recibe el ratón o el foco, o cuando se le pasa `live`.
  * En reposo el grabado está quieto y completo.
  */
-defineProps({
+const props = defineProps({
   /** Herramienta cuyo grabado se pinta (`id` del catálogo en `freeTools/catalog.js`). */
   toolId: { type: String, required: true },
   /** Lado del medallón en píxeles. */
   size: { type: Number, default: 64 },
   /** Si el grabado se mueve siempre, sin esperar al ratón ni al foco. */
   live: { type: Boolean, default: false },
+})
+
+// Una página pinta varios medallones: cada uno lleva su propio rayado.
+const hatchId = `${useId()}-hatch`
+
+/** Lado mínimo, en píxeles, para que la orla de guilloché se lea como tal. */
+const MIN_RING_SIZE = 64
+
+/** Unidades del dibujo (100 × 100) que ocupa un píxel físico de la pantalla a este tamaño. */
+const devicePixel = computed(() => devicePixelInUnits(props.size / 100, typeof window === 'undefined' ? 1 : window.devicePixelRatio))
+
+/** Separación del rayado: al menos dos píxeles reales y medio entre línea y línea, para que no se cierre. */
+const hatchSpacing = computed(() => Math.max(2.4, Math.round(devicePixel.value * 2.6 * 10) / 10))
+
+/**
+ * Orla de guilloché con el patrón del sello del módulo de la herramienta, para que se
+ * reconozca su familia. Tres curvas: con más, a este tamaño, se funden.
+ */
+const ring = computed(() => {
+  if (props.size < MIN_RING_SIZE) return []
+  const module = FREE_TOOLS.find((tool) => tool.id === props.toolId)?.module
+  const lobes = SEAL_PATTERNS[module]?.outerLobes ?? 20
+  return Array.from({ length: 3 }, (_, index) => guillochePath({
+    centerX: 50, centerY: 50, radius: 40.5, amplitude: 3.4, lobes, phase: (index / 3) * Math.PI * 2, samplesPerLobe: 10,
+  }))
 })
 </script>
 
@@ -119,21 +173,23 @@ defineProps({
 
 /* ── Medallón ── */
 .coin-disc { fill: var(--surface); }
-.coin-rim { fill: none; stroke: var(--accent); stroke-width: 1.6; opacity: 0.9; }
-.coin-beads { fill: none; stroke: var(--accent); stroke-width: 2.2; stroke-linecap: round; stroke-dasharray: 0.1 5.1; opacity: 0.55; transform-box: fill-box; transform-origin: center; animation: coin-turn 40s linear infinite paused; }
-.coin-inner { fill: var(--accent-dim); stroke: var(--accent); stroke-width: 0.6; opacity: 0.8; }
+.coin-rim { fill: none; stroke: var(--accent); stroke-width: 1.2; opacity: 0.9; }
+.coin-rule { fill: none; stroke: var(--accent); stroke-width: max(0.5px, calc(var(--device-pixel, 0) * 1px)); opacity: 0.6; }
+.coin-guilloche { transform-box: fill-box; transform-origin: center; animation: coin-turn 50s linear infinite paused; }
+.coin-guilloche path { fill: none; stroke: var(--accent); stroke-width: max(0.45px, calc(var(--device-pixel, 0) * 1px)); opacity: 0.75; }
+.coin-inner { fill: var(--accent-dim); stroke: var(--accent); stroke-width: 0.8; opacity: 0.85; }
+.hatch-line { stroke: var(--accent-bright); stroke-width: max(0.7px, calc(var(--device-pixel, 0) * 1px)); opacity: 0.55; }
 @keyframes coin-turn { to { transform: rotate(360deg); } }
 
 /* ── Grabado ── */
-.engraving :is(path, circle, rect) { fill: none; stroke: var(--accent-bright); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-.engraving .fine { stroke-width: 1.3; opacity: 0.55; }
+.engraving :is(path, circle, rect) { fill: none; stroke: var(--accent-bright); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.engraving .fine { stroke-width: max(0.9px, calc(var(--device-pixel, 0) * 1px)); opacity: 0.6; }
 .engraving .dot { fill: var(--accent-bright); stroke: none; }
-.engraving .bar, .engraving .cell--net, .engraving .bolt, .engraving .shield { fill: var(--accent-dim); }
-.engraving .cell { stroke-width: 1.4; }
-.engraving .cell--net { fill: var(--accent); fill-opacity: 0.6; }
-.engraving .spark, .engraving .tooth { stroke-width: 1.8; }
-.engraving .needle { stroke-width: 2.4; }
-.engraving .check { stroke-width: 2.4; }
+.engraving .bar, .engraving .cell--net, .engraving .bolt, .engraving .shield { fill: var(--hatch); }
+.engraving .cell { stroke-width: 1.1; }
+.engraving .spark, .engraving .tooth { stroke-width: 1.4; }
+.engraving .needle { stroke-width: 1.9; }
+.engraving .check { stroke-width: 1.9; }
 
 /* ── Movimiento en vivo: las animaciones esperan en su primer fotograma, que es el reposo ── */
 /* El trazado inicial (.draw) no espera: solo lo hacen los movimientos en vivo. */
@@ -162,7 +218,7 @@ defineProps({
 @keyframes pendulum { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(9deg); } }
 
 .a-cell { animation: bit 1.8s ease-in-out calc(var(--i) * 0.12s) infinite; }
-@keyframes bit { 0%, 100% { fill-opacity: 0.6; } 40% { fill-opacity: 0.12; } }
+@keyframes bit { 0%, 100% { fill-opacity: 1; } 40% { fill-opacity: 0.15; } }
 
 .a-check { stroke-dasharray: 1; stroke-dashoffset: 0; animation: stamp 2.4s ease-in-out infinite; }
 @keyframes stamp { 0%, 100% { stroke-dashoffset: 0; } 30% { stroke-dashoffset: 1; } 55% { stroke-dashoffset: 0; } }

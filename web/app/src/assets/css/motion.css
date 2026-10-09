@@ -83,3 +83,8 @@
   .reveal { opacity: 1; transform: none; transition: none; }
   .atmosphere, .atmosphere *, .tool-glyph, .tool-glyph * { animation: none !important; transition: none !important; }
 }
+
+/* El verde de Hygeia es el más oscuro del panteón y los trazos finos de su escena y de
+   su sello apenas se leerían sobre el fondo: la decoración usa una variante más luminosa. */
+.atmosphere[data-module="hygeia"], .emblem-seal[data-module="hygeia"] { --accent-bright: #8fd0a4; --accent: #5fa478; --accent-dim: rgba(95, 164, 120, 0.14); }
+[data-theme="dawn"] .atmosphere[data-module="hygeia"], [data-theme="dawn"] .emblem-seal[data-module="hygeia"] { --accent-bright: #1f3a28; --accent: #2c4f38; --accent-dim: rgba(44, 79, 56, 0.16); }

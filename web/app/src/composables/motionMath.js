@@ -120,3 +120,18 @@ export function seededRandom(seed) {
     return ((mixed ^ (mixed >>> 14)) >>> 0) / 4294967296
   }
 }
+
+/**
+ * Cuánto mide un píxel físico de la pantalla en las unidades de un dibujo escalado.
+ *
+ * @param {number} scale - Píxeles CSS por unidad del dibujo (la escala a la que se pinta).
+ * @param {number} [pixelRatio=1] - Píxeles físicos por píxel CSS (`devicePixelRatio`):
+ *   `1` en una pantalla normal, `2` o `3` en una de alta densidad.
+ * @returns {number} Unidades del dibujo por píxel físico; `0` si la escala no es
+ *   positiva (el dibujo aún no tiene tamaño).
+ */
+export function devicePixelInUnits(scale, pixelRatio = 1) {
+  if (!(scale > 0)) return 0
+  return Math.round((1 / (scale * Math.max(pixelRatio, 1))) * 1000) / 1000
+}
+

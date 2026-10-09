@@ -1,146 +1,124 @@
 <template>
-  <svg class="scene" viewBox="0 0 1200 600" preserveAspectRatio="xMidYMax meet" focusable="false">
-    <defs>
-      <radialGradient id="aegis-gaze">
-        <stop offset="0" stop-color="var(--accent-bright)" stop-opacity="0.9" />
-        <stop offset="1" stop-color="var(--accent-bright)" stop-opacity="0" />
-      </radialGradient>
-    </defs>
-
-    <!-- La égida: el escudo de Atenea, con la cabeza de la Gorgona en el centro. -->
-    <g transform="translate(860 318) scale(1)">
-      <circle class="rim" r="244" />
-      <circle class="beads" r="198" />
-      <circle class="rim rim--inner" r="168" />
-
-      <!-- Las tachuelas del borde se encienden una tras otra, como una guardia que vela. -->
-      <circle
-        v-for="stud in STUDS"
-        :key="`stud-${stud.index}`"
-        class="stud"
-        :cx="stud.x"
-        :cy="stud.y"
-        r="3.2"
-        :style="{ '--delay': `${stud.index * 0.22}s` }"
-      />
-
-      <!-- Las serpientes que la Gorgona lleva por cabellera. -->
-      <g v-for="snake in SNAKES" :key="`snake-${snake.index}`" :transform="`rotate(${snake.angle})`">
-        <g class="snake" :style="{ '--delay': `${snake.delay}s`, '--duration': `${snake.duration}s` }">
-          <g transform="translate(0 -52)">
-            <path class="body" :d="SNAKE_BODY" />
-            <circle class="head" cx="0" :cy="-SNAKE_LENGTH" r="4.2" />
-          </g>
-        </g>
-      </g>
-
-      <circle class="face" r="54" />
-      <circle class="gaze" r="46" cy="-6" fill="url(#aegis-gaze)" />
-      <!-- El gesto de la Gorgona: ceño fruncido, ojos desorbitados, boca abierta y la lengua fuera. -->
-      <path class="brow" d="M-40 -26 L-8 -14 M40 -26 L8 -14" />
-      <circle class="eye" cx="-21" cy="-6" r="9.5" />
-      <circle class="eye" cx="21" cy="-6" r="9.5" />
-      <circle class="pupil" cx="-21" cy="-6" r="3.4" />
-      <circle class="pupil" cx="21" cy="-6" r="3.4" />
-      <path class="brow" d="M0 4 L-4 16 H4 Z" />
-      <path class="mouth" d="M-26 22 H26 L22 36 H-22 Z" />
-      <path class="brow" d="M-13 22 V31 M0 22 V33 M13 22 V31" />
-      <path class="tongue" d="M-7 36 C-7 52 7 52 7 36" />
-    </g>
-
-    <!-- Atenea también es la lechuza y el olivo: una rama con su lechuza, vigilando. -->
-    <g transform="translate(150 548)">
-      <path class="branch" d="M0 0 C70 -34 150 -52 250 -44" />
-      <g v-for="(leaf, index) in LEAVES" :key="`leaf-${index}`" :transform="`translate(${leaf.x} ${leaf.y}) rotate(${leaf.rotation})`">
-        <ellipse class="leaf" rx="15" ry="5" :style="{ '--delay': `${-index * 0.7}s` }" />
-      </g>
-      <g transform="translate(236 -46)">
-        <g class="owl">
-          <path class="owl-body" d="M-24 0 C-30 -30 -26 -56 -18 -64 L-24 -82 L-8 -70 Q0 -74 8 -70 L24 -82 L18 -64 C26 -56 30 -30 24 0 Z" />
-          <path class="owl-feather" d="M-12 -22 q6 6 12 0 q6 6 12 0 M-10 -10 q5 5 10 0 q5 5 10 0" />
-          <circle class="owl-eye" cx="-10" cy="-52" r="9" />
-          <circle class="owl-eye" cx="10" cy="-52" r="9" />
-          <circle class="owl-pupil" cx="-10" cy="-52" r="3.4" />
-          <circle class="owl-pupil" cx="10" cy="-52" r="3.4" />
-          <path class="owl-body" d="M-3 -44 L0 -37 L3 -44 Z" />
-        </g>
-      </g>
-    </g>
-  </svg>
+  <StarChart :chart="CHART" />
 </template>
 
 <script setup>
-import { polarPoint, snakePath } from '../sceneGeometry'
+import StarChart from '../StarChart.vue'
 
 /**
- * Escena de Aegis: la égida, el escudo de Atenea con la cabeza de la Gorgona, cuyas
- * serpientes se retuercen sin parar y cuya mirada late; junto a ella, la rama de
- * olivo y la lechuza de la diosa. Es la protección de Aegis: una guardia que no
- * duerme y que avisa antes de que el golpe llegue.
+ * Escena de Aegis: el mito de Perseo entero en una lámina de atlas. A la izquierda,
+ * Perseo con la cabeza de Medusa, la que Atenea llevó después en su égida; en ella
+ * está Algol, «la cabeza del demonio», una estrella que se eclipsa de verdad cada casi
+ * tres días y aquí se apaga un momento cada ciclo. A la derecha, Andrómeda, a la que
+ * Perseo salvó del monstruo con esa cabeza, con su galaxia; arriba, su madre Casiopea,
+ * y abajo, Pegaso, con quien comparte estrella.
+ *
+ * En el cielo real las tres figuras forman una diagonal, así que la lámina abarca lo
+ * bastante para que Perseo quede a un lado y Andrómeda al otro sin forzar nada.
+ * Posiciones J2000 en grados y magnitud visual de catálogo.
  */
-
-const SNAKE_LENGTH = 92
-const SNAKE_BODY = snakePath(SNAKE_LENGTH, 11, 3)
-
-const SNAKES = Array.from({ length: 16 }, (_, index) => ({
-  index,
-  angle: index * (360 / 16),
-  delay: -((index * 0.83) % 5),
-  duration: 4.2 + (index % 4) * 0.6,
-}))
-
-const STUDS = Array.from({ length: 28 }, (_, index) => ({ index, ...polarPoint(0, 0, 226, index * (360 / 28)) }))
-
-// Hojas del olivo: una rama que se curva y lleva hojas alternas a los dos lados.
-const LEAVES = Array.from({ length: 9 }, (_, index) => {
-  const t = (index + 0.6) / 9.6
-  return {
-    x: Math.round(t * 236),
-    y: Math.round(-t * 36 - Math.sin(t * Math.PI) * 10),
-    rotation: -18 + (index % 2 === 0 ? -48 : 48),
-  }
-})
+const CHART = {
+  projection: { ra: 22, dec: 43, scale: 900, x: 600, y: 320 },
+  // La lámina cruza las 0h: la ascensión recta va de −45° (21h) a 95°.
+  grid: { raRange: [-45, 95], decRange: [8, 78], raLabels: [-15, 0, 15, 30, 45, 60], raLabelDec: 62, decLabels: [20, 30, 40, 50], decLabelRa: -21 },
+  ecliptic: null,
+  fieldSeed: 4021,
+  constellations: [
+    {
+      name: 'CASSIOPEIA',
+      isNeighbour: true,
+      label: { ra: -4, dec: 56.2 },
+      stars: [
+        { letter: 'β', ra: 2.29, dec: 59.15, magnitude: 2.28 },
+        { letter: 'α', ra: 10.13, dec: 56.54, magnitude: 2.24 },
+        { letter: 'γ', ra: 14.18, dec: 60.72, magnitude: 2.15 },
+        { letter: 'δ', ra: 21.45, dec: 60.24, magnitude: 2.68 },
+        { letter: 'ε', ra: 28.6, dec: 63.67, magnitude: 3.37 },
+      ],
+      pairs: [['β', 'α'], ['α', 'γ'], ['γ', 'δ'], ['δ', 'ε']],
+    },
+    {
+      name: 'PEGASUS',
+      isNeighbour: true,
+      label: { ra: 350, dec: 21.5 },
+      stars: [
+        { letter: 'αAnd', ra: 2.1, dec: 29.09, magnitude: 2.06 },
+        { letter: 'β', ra: 345.94, dec: 28.08, magnitude: 2.42, name: 'Scheat' },
+        { letter: 'α', ra: 346.19, dec: 15.21, magnitude: 2.49 },
+        { letter: 'γ', ra: 3.31, dec: 15.18, magnitude: 2.83 },
+        { letter: 'η', ra: 340.75, dec: 30.22, magnitude: 2.94 },
+        { letter: 'μ', ra: 342.5, dec: 24.6, magnitude: 3.48 },
+      ],
+      pairs: [['αAnd', 'β'], ['β', 'α'], ['α', 'γ'], ['γ', 'αAnd'], ['β', 'η'], ['β', 'μ']],
+    },
+    {
+      name: 'TRIANGULUM',
+      isNeighbour: true,
+      label: null,
+      stars: [
+        { letter: 'α', ra: 28.27, dec: 29.58, magnitude: 3.42 },
+        { letter: 'β', ra: 32.39, dec: 34.99, magnitude: 3 },
+        { letter: 'γ', ra: 34.33, dec: 33.85, magnitude: 4.01 },
+      ],
+      pairs: [['α', 'β'], ['β', 'γ'], ['γ', 'α']],
+    },
+    {
+      name: 'PERSEUS',
+      label: { ra: 66, dec: 43 },
+      labelLimit: 4.2,
+      stars: [
+        { letter: 'α', ra: 51.08, dec: 49.86, magnitude: 1.79, name: 'Mirfak' },
+        { letter: 'β', ra: 47.04, dec: 40.96, magnitude: 2.12, name: 'Algol', nameSide: 'left', isEclipsing: true },
+        { letter: 'γ', ra: 46.2, dec: 53.51, magnitude: 2.91 },
+        { letter: 'δ', ra: 55.73, dec: 47.79, magnitude: 3.01 },
+        { letter: 'ε', ra: 59.46, dec: 40.01, magnitude: 2.89 },
+        { letter: 'ζ', ra: 58.53, dec: 31.88, magnitude: 2.85 },
+        { letter: 'η', ra: 42.67, dec: 55.9, magnitude: 3.76 },
+        { letter: 'ξ', ra: 59.74, dec: 35.79, magnitude: 4.04 },
+        { letter: 'ο', ra: 56.08, dec: 32.29, magnitude: 3.83 },
+        { letter: 'ρ', ra: 46.29, dec: 38.84, magnitude: 3.39 },
+        { letter: 'ω', ra: 48.11, dec: 39.61, magnitude: 4.63 },
+        { letter: 'π', ra: 44.69, dec: 39.66, magnitude: 4.7 },
+        { letter: 'ν', ra: 56.3, dec: 42.58, magnitude: 3.77 },
+        { letter: 'κ', ra: 47.37, dec: 44.86, magnitude: 3.8 },
+        { letter: 'τ', ra: 43.56, dec: 52.76, magnitude: 3.95 },
+        { letter: 'ι', ra: 47.27, dec: 49.61, magnitude: 4.05 },
+        { letter: 'θ', ra: 41.05, dec: 49.23, magnitude: 4.12 },
+        { letter: 'μ', ra: 63.72, dec: 48.41, magnitude: 4.14 },
+      ],
+      pairs: [
+        ['η', 'τ'], ['τ', 'γ'], ['γ', 'α'], ['α', 'δ'], ['δ', 'ν'], ['ν', 'ε'], ['ε', 'ξ'], ['ξ', 'ζ'], ['ζ', 'ο'],
+        ['δ', 'μ'], ['α', 'ι'], ['ι', 'θ'], ['ι', 'κ'], ['κ', 'β'], ['β', 'ρ'], ['β', 'ω'], ['β', 'π'],
+      ],
+    },
+    {
+      name: 'ANDROMEDA',
+      label: { ra: 2, dec: 37.2 },
+      labelLimit: 3.9,
+      stars: [
+        { letter: 'α', ra: 2.1, dec: 29.09, magnitude: 2.06, name: 'Alpheratz' },
+        { letter: 'β', ra: 17.43, dec: 35.62, magnitude: 2.05, name: 'Mirach' },
+        { letter: 'γ', ra: 30.97, dec: 42.33, magnitude: 2.1, name: 'Almach' },
+        { letter: 'δ', ra: 9.83, dec: 30.86, magnitude: 3.27 },
+        { letter: 'μ', ra: 14.19, dec: 38.5, magnitude: 3.86 },
+        { letter: 'ν', ra: 12.45, dec: 41.08, magnitude: 4.53 },
+        { letter: 'π', ra: 9.22, dec: 33.72, magnitude: 4.34 },
+        { letter: 'ε', ra: 9.64, dec: 29.31, magnitude: 4.37 },
+        { letter: 'ζ', ra: 11.83, dec: 24.27, magnitude: 4.06 },
+        { letter: 'η', ra: 14.3, dec: 23.42, magnitude: 4.4 },
+        { letter: 'ο', ra: 345.48, dec: 42.33, magnitude: 3.62 },
+        { letter: 'λ', ra: 354.39, dec: 46.46, magnitude: 3.82 },
+        { letter: 'κ', ra: 355.1, dec: 44.33, magnitude: 4.14 },
+        { letter: 'ι', ra: 354.53, dec: 43.27, magnitude: 4.29 },
+        { letter: 'θ', ra: 4.27, dec: 38.68, magnitude: 4.61 },
+      ],
+      pairs: [
+        ['α', 'δ'], ['δ', 'β'], ['β', 'γ'], ['β', 'μ'], ['μ', 'ν'], ['δ', 'π'], ['π', 'θ'], ['θ', 'ι'],
+        ['ι', 'κ'], ['κ', 'λ'], ['ι', 'ο'], ['δ', 'ε'], ['ε', 'ζ'], ['ζ', 'η'],
+      ],
+    },
+  ],
+  annotations: [{ text: 'Caput Medusae', ra: 45.2, dec: 36.4 }],
+  nebulae: [{ label: 'M31', ra: 10.68, dec: 41.27, length: 3.2, width: 1, positionAngle: 35 }],
+}
 </script>
-
-<style scoped>
-.scene { width: 100%; height: 100%; display: block; }
-
-.rim, .brow, .branch, .body, .owl-feather { fill: none; stroke: var(--accent-bright); stroke-linecap: round; stroke-linejoin: round; }
-.rim { stroke-width: 2.2; opacity: 0.5; }
-.rim--inner { stroke-width: 1.2; opacity: 0.35; }
-.beads { fill: none; stroke: var(--accent-bright); stroke-width: 18; stroke-dasharray: 5 9; opacity: 0.16; transform-box: fill-box; transform-origin: center; animation: turn 140s linear infinite; }
-@keyframes turn { to { transform: rotate(360deg); } }
-
-.stud { fill: var(--accent-bright); opacity: 0.2; animation: guard 6.2s ease-in-out var(--delay) infinite; }
-@keyframes guard { 0%, 100% { opacity: 0.18; } 6% { opacity: 1; } 16% { opacity: 0.18; } }
-
-/* Serpientes: cada una se retuerce en torno al centro con su propio compás */
-.snake { animation: writhe var(--duration) ease-in-out var(--delay) infinite alternate; }
-@keyframes writhe { from { transform: rotate(-7deg); } to { transform: rotate(7deg); } }
-.body { stroke-width: 3; opacity: 0.55; }
-.head { fill: var(--accent-bright); opacity: 0.8; }
-
-/* Rostro y mirada */
-.face { fill: var(--bg); stroke: var(--accent-bright); stroke-width: 2.2; opacity: 0.92; }
-.brow { stroke-width: 2.2; opacity: 0.7; }
-.mouth { fill: var(--bg); stroke: var(--accent-bright); stroke-width: 2; stroke-linejoin: round; opacity: 0.8; }
-.tongue { fill: var(--accent-dim); stroke: var(--accent-bright); stroke-width: 2; stroke-linecap: round; opacity: 0.8; transform-box: fill-box; transform-origin: 50% 0%; animation: loll 3.6s ease-in-out infinite alternate; }
-@keyframes loll { from { transform: scaleY(0.8); } to { transform: scaleY(1.12); } }
-.eye { fill: var(--accent-dim); stroke: var(--accent-bright); stroke-width: 1.6; }
-.pupil { fill: var(--accent-bright); animation: stare 5s ease-in-out infinite; }
-.gaze { opacity: 0.4; animation: gaze 5s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
-@keyframes stare { 0%, 100% { transform: translateX(0); } 40% { transform: translateX(1.6px); } 70% { transform: translateX(-1.6px); } }
-@keyframes gaze { 0%, 100% { opacity: 0.2; transform: scale(0.9); } 50% { opacity: 0.55; transform: scale(1.1); } }
-
-/* Olivo y lechuza */
-.branch { stroke-width: 2.4; opacity: 0.5; }
-.leaf { fill: var(--accent-dim); stroke: var(--accent-bright); stroke-width: 1.2; opacity: 0.7; transform-box: fill-box; transform-origin: 0% 50%; animation: leaf 5.5s ease-in-out var(--delay) infinite alternate; }
-@keyframes leaf { from { transform: rotate(-5deg); } to { transform: rotate(6deg); } }
-.owl { transform-box: fill-box; transform-origin: 50% 100%; animation: owl-turn 9s ease-in-out infinite; }
-@keyframes owl-turn { 0%, 70%, 100% { transform: rotate(0); } 78%, 90% { transform: rotate(-6deg); } }
-.owl-body { fill: var(--accent-dim); stroke: var(--accent-bright); stroke-width: 1.8; stroke-linejoin: round; opacity: 0.8; }
-.owl-feather { stroke-width: 1.2; opacity: 0.5; }
-.owl-eye { fill: var(--bg); stroke: var(--accent-bright); stroke-width: 1.6; }
-.owl-pupil { fill: var(--accent-bright); transform-box: fill-box; transform-origin: center; animation: blink 7s ease-in-out infinite; }
-@keyframes blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.08); } }
-</style>

@@ -1,170 +1,297 @@
 <template>
   <svg class="scene" viewBox="0 0 1200 600" preserveAspectRatio="xMidYMax meet" focusable="false">
     <defs>
-      <radialGradient id="acheron-lantern">
-        <stop offset="0" stop-color="var(--accent-bright)" stop-opacity="0.7" />
-        <stop offset="1" stop-color="var(--accent-bright)" stop-opacity="0" />
-      </radialGradient>
-      <linearGradient id="acheron-water" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="var(--accent)" stop-opacity="0.16" />
-        <stop offset="1" stop-color="var(--accent)" stop-opacity="0.02" />
-      </linearGradient>
+      <path v-for="river in RIVERS" :id="`${uid}-${river.id}`" :key="river.id" :d="river.labelPath" />
     </defs>
 
-    <!-- La orilla lejana: cipreses, el árbol de los muertos. -->
-    <g class="shore">
-      <path d="M0 468 C120 456 260 462 400 468" class="line" opacity="0.35" fill="none" />
-      <g v-for="(tree, index) in TREES" :key="`tree-${index}`" :transform="`translate(${tree.x} 464) scale(${tree.scale})`">
-        <path class="tree" d="M0 0 C-11 -34 -9 -86 0 -128 C9 -86 11 -34 0 0 Z" :style="{ '--delay': `${tree.delay}s` }" />
+    <!-- Retícula de grados y minutos, como en una carta impresa -->
+    <g class="graticule">
+      <line v-for="meridian in GRATICULE.meridians" :key="meridian.label" :x1="meridian.x" :x2="meridian.x" y1="0" y2="600" />
+      <line v-for="parallel in GRATICULE.parallels" :key="parallel.label" x1="0" x2="1200" :y1="parallel.y" :y2="parallel.y" />
+      <text v-for="meridian in GRATICULE.meridians" :key="`m-${meridian.label}`" class="degree" :x="meridian.x + 5" y="16">{{ meridian.label }}</text>
+      <text v-for="parallel in GRATICULE.parallels" :key="`p-${parallel.label}`" class="degree" x="1192" :y="parallel.y - 5" text-anchor="end">{{ parallel.label }}</text>
+    </g>
+
+    <!-- El mar: líneas de agua paralelas a la costa, cada vez más separadas y más tenues -->
+    <path
+      v-for="(line, index) in COAST.waterLines"
+      :key="`water-${index}`"
+      class="water-line"
+      :d="line"
+      :style="{ '--delay': `${1.1 + index * 0.16}s`, '--weight': 0.5 - index * 0.055, '--swell': `${index * 0.55}s` }"
+    />
+    <path class="coast" :d="COAST.path" pathLength="1" />
+
+    <!-- Relieve: sierras sombreadas con trazos -->
+    <g class="relief">
+      <path v-for="(ridge, index) in RELIEF" :key="`relief-${index}`" :d="ridge" />
+    </g>
+
+    <!-- La laguna Aquerusia, con sus líneas de agua hacia dentro -->
+    <path v-for="(line, index) in LAKE.waterLines" :key="`lake-${index}`" class="lake-line" :d="line" :style="{ '--delay': `${1.8 + index * 0.18}s`, '--weight': 0.42 - index * 0.08 }" />
+    <path class="lake" :d="LAKE.shore" pathLength="1" />
+
+    <!-- Los ríos se dibujan desde su nacimiento hasta el agua; los afluentes, más finos -->
+    <path v-for="river in [...RIVERS, ...TRIBUTARIES]" :key="`draw-${river.id}`" class="river" :d="river.path" pathLength="1" :style="{ '--delay': `${river.delay}s`, '--river-width': river.width }" />
+
+    <!-- La travesía de Caronte, marcada como una derrota en una carta náutica -->
+    <path class="route" :d="ROUTE" />
+    <circle class="lantern lantern--halo" r="8" :style="{ offsetPath: `path('${ROUTE}')` }" />
+    <circle class="lantern" r="2.6" :style="{ offsetPath: `path('${ROUTE}')` }" />
+
+    <!-- El oráculo de los muertos y las dos ciudades del valle -->
+    <g v-for="site in SITES" :key="site.name" class="site">
+      <circle :cx="site.x" :cy="site.y" :r="site.isMajor ? 6 : 4.5" class="site-ring" />
+      <circle :cx="site.x" :cy="site.y" :r="site.isMajor ? 2.4 : 1.8" class="site-dot" />
+    </g>
+
+    <!-- Rosa de los vientos -->
+    <g :transform="`translate(${ROSE.x} ${ROSE.y})`">
+      <g class="rose">
+        <circle r="62" class="rose-ring" />
+        <circle r="56" class="rose-ring" />
+        <path v-for="(tick, index) in ROSE.ticks" :key="`tick-${index}`" class="rose-tick" :d="tick" />
+        <path v-for="(spoke, index) in ROSE.spokes" :key="`spoke-${index}`" class="rose-spoke" :d="spoke" />
+        <path v-for="(half, index) in ROSE.minorHalves" :key="`minor-${index}`" :class="half.isShaded ? 'rose-fill' : 'rose-line'" :d="half.path" />
+        <path v-for="(half, index) in ROSE.majorHalves" :key="`major-${index}`" :class="half.isShaded ? 'rose-fill' : 'rose-line'" :d="half.path" />
+        <circle r="3" class="rose-fill" />
       </g>
+      <text class="rose-north" x="0" y="-70" text-anchor="middle">{{ ROSE.north }}</text>
     </g>
 
-    <!-- El río: corrientes que avanzan a distinta velocidad y en sentidos opuestos. -->
-    <g v-for="(layer, index) in STREAMS" :key="`stream-${index}`" class="stream" :class="{ 'stream--right': layer.direction > 0 }" :style="{ '--duration': `${layer.duration}s` }">
-      <path :d="`${layer.line} L2400 600 L0 600 Z`" fill="url(#acheron-water)" />
-      <path :d="layer.line" class="line" fill="none" :opacity="layer.opacity" :stroke-width="layer.width" />
+    <!-- Escala en estadios -->
+    <g class="scale-bar">
+      <rect v-for="segment in SCALE.segments" :key="segment.x" :x="segment.x" :y="SCALE.y" :width="SCALE.step" height="4" :class="segment.isFilled ? 'scale-fill' : 'scale-empty'" />
+      <text v-for="label in SCALE.labels" :key="label.value" class="degree" :x="label.x" :y="SCALE.y - 6" text-anchor="middle">{{ label.value }}</text>
+      <text class="degree" :x="SCALE.labels.at(-1).x + 14" :y="SCALE.y + 4">{{ SCALE.unit }}</text>
     </g>
 
-    <!-- Las almas: luces que suben despacio de las aguas. -->
-    <g v-for="(soul, index) in SOULS" :key="`soul-${index}`" :transform="`translate(${soul.x} ${soul.y})`">
-      <path
-        class="soul"
-        d="M0 0 C7 -9 7 -21 0 -34 C-7 -21 -7 -9 0 0 Z"
-        :style="{ '--rise': `${soul.rise}px`, '--duration': `${soul.duration}s`, '--delay': `${soul.delay}s` }"
-      />
-    </g>
-
-    <!-- Los óbolos: la moneda con que se paga el paso. Caen al río y dejan un círculo en el agua. -->
-    <g v-for="(coin, index) in COINS" :key="`coin-${index}`" :transform="`translate(${coin.x} ${coin.top})`" :style="{ '--duration': `${coin.duration}s`, '--delay': `${coin.delay}s`, '--fall': `${coin.fall}px` }">
-      <g class="coin-lane">
-        <g class="coin">
-          <circle r="9" class="coin-face" />
-          <circle r="5.2" class="line" fill="none" stroke-width="1" />
-          <path d="M-2.6 0 H2.6 M0 -2.6 V2.6" class="line" stroke-width="1" />
-        </g>
-      </g>
-      <ellipse class="splash" cx="0" :cy="coin.fall" rx="26" ry="5" />
-    </g>
-
-    <!-- Caronte y su barca. -->
-    <g transform="translate(900 470)">
-      <g class="drift">
-        <g class="bob">
-          <ellipse class="glow" cx="118" cy="-68" rx="70" ry="70" fill="url(#acheron-lantern)" />
-          <path class="pole" d="M-72 -152 L96 38" />
-          <path class="hull" d="M-120 -4 C-100 24 -50 38 10 38 C70 38 124 20 152 -40 C122 -12 70 6 10 6 C-44 6 -86 0 -120 -4 Z" />
-          <path class="line" d="M152 -40 C162 -54 150 -66 140 -60" fill="none" />
-          <path class="cloak" d="M-46 6 C-44 -30 -38 -70 -30 -90 C-24 -104 -4 -104 2 -90 C10 -70 16 -30 20 6 Z" />
-          <circle class="eye" cx="-17" cy="-86" r="1.6" />
-          <circle class="eye" cx="-7" cy="-86" r="1.6" />
-          <path class="line" d="M128 -38 L128 -92 L110 -92" fill="none" />
-          <rect class="lantern" x="102" y="-84" width="14" height="20" rx="3" />
-        </g>
-        <path class="reflection" d="M96 52 h44 M104 62 h28 M110 72 h16" />
-      </g>
+    <!-- Rótulos -->
+    <g class="labels">
+      <text class="sea-name" :transform="`translate(${SEA_LABEL.x} ${SEA_LABEL.y}) rotate(-90)`" text-anchor="middle">{{ SEA_LABEL.text }}</text>
+      <text class="lake-name" :x="LAKE.label.x" :y="LAKE.label.y" text-anchor="middle">{{ LAKE.label.text }}</text>
+      <text v-for="site in SITES" :key="`name-${site.name}`" class="site-name" :x="site.x + site.labelDx" :y="site.y + site.labelDy" :text-anchor="site.labelDx < 0 ? 'end' : 'start'">{{ site.name }}</text>
+      <text v-for="river in RIVERS" :key="`name-${river.id}`" class="river-name">
+        <textPath :href="`#${uid}-${river.id}`" :startOffset="river.labelAt">{{ river.name }}</textPath>
+      </text>
     </g>
   </svg>
 </template>
 
 <script setup>
+import { useId } from 'vue'
+import { hachures, lakePoints, meanderPoints, offsetPoints, smoothPath } from '../cartography'
+import { polarPoint } from '../sceneGeometry'
 import { seededRandom } from '@/composables/motionMath'
-import { wavePath } from '../sceneGeometry'
 
 /**
- * Escena de Acheron: Caronte cruza el río del inframundo en su barca, con un farol
- * por único guía. Las almas suben de las aguas, los cipreses marcan la orilla de
- * los muertos y las monedas que caen son el óbolo con que se paga el paso: lo que
- * se entrega a la custodia de Acheron no se pierde, cambia de orilla.
+ * Escena de Acheron: una carta grabada a la antigua del bajo Aqueronte, en el Epiro,
+ * donde los griegos situaban la entrada al Hades. El río baja de la sierra, cruza la
+ * laguna Aquerusia —junto a la que estaba el oráculo de los muertos— y sale al mar
+ * Jónico; el Cocito llega a la laguna por el sur. Junto al río, Éfira y Pandosia, dos
+ * ciudades antiguas del valle. La travesía de Caronte se marca como la derrota de un
+ * barco, con un farol que la recorre.
+ *
+ * La geometría es la de una carta, no la del terreno exacto: la costa, los ríos y la
+ * laguna salen de funciones con semilla (`cartography.js`), así que son siempre iguales.
+ * Al aparecer, la costa y la laguna se trazan, el agua se llena de líneas, los ríos
+ * corren hacia el mar y la rosa de los vientos se asienta.
  */
 
-const STREAM_WIDTH = 2400
-const STREAMS = [
-  { y: 478, amplitude: 9, wavelength: 600, duration: 70, direction: -1, opacity: 0.32, width: 1.3 },
-  { y: 508, amplitude: 14, wavelength: 400, duration: 48, direction: 1, opacity: 0.26, width: 1.5 },
-  { y: 544, amplitude: 19, wavelength: 600, duration: 34, direction: -1, opacity: 0.22, width: 1.7 },
-  { y: 584, amplitude: 22, wavelength: 400, duration: 26, direction: 1, opacity: 0.18, width: 1.9 },
-].map((stream) => ({ ...stream, line: wavePath(stream.y, stream.amplitude, stream.wavelength, STREAM_WIDTH) }))
+const uid = useId()
+const random = seededRandom(1957)
+const round = (value) => Math.round(value * 10) / 10
 
-const TREES = [
-  { x: 30, scale: 0.8, delay: 0 }, { x: 78, scale: 1.1, delay: -1.4 }, { x: 128, scale: 0.9, delay: -2.6 },
-  { x: 188, scale: 1.25, delay: -0.8 }, { x: 252, scale: 0.85, delay: -3.2 }, { x: 318, scale: 1, delay: -2 },
-]
+/** Costa de norte a sur: suave, con la bahía donde desemboca el río. */
+const coastX = (y) => 286 + 30 * Math.sin(y / 92 + 0.6) + 12 * Math.sin(y / 37 + 2) + 6 * Math.sin(y / 17) + 46 * Math.exp(-(((y - 398) / 64) ** 2))
+const COAST = (() => {
+  const points = Array.from({ length: 34 }, (_, index) => {
+    const y = -30 + index * 20
+    return { x: coastX(y), y }
+  })
+  // Hacia el mar, que queda a la derecha de una costa recorrida de norte a sur.
+  const distances = [6, 12, 19, 27, 36, 46, 57, 69]
+  return { path: smoothPath(points), waterLines: distances.map((distance) => smoothPath(offsetPoints(points, -distance))) }
+})()
 
-const random = seededRandom(404)
-const rounded = (value, decimals = 1) => Math.round(value * 10 ** decimals) / 10 ** decimals
-const SOULS = Array.from({ length: 9 }, () => ({
-  x: Math.round(420 + random() * 700),
-  y: Math.round(500 + random() * 80),
-  rise: -Math.round(150 + random() * 170),
-  duration: rounded(11 + random() * 9),
-  delay: -rounded(random() * 18),
-}))
-const COINS = [
-  { x: 210, top: 60, fall: 410, duration: 15, delay: -3 },
-  { x: 470, top: 20, fall: 450, duration: 19, delay: -11 },
-  { x: 1010, top: 90, fall: 380, duration: 17, delay: -7 },
-]
+const LAKE = (() => {
+  const shape = { centerX: 846, centerY: 300, radius: 66, stretch: 1.7, harmonics: [[2, 8, 0.7], [3, 6, 2.1], [5, 3, 0.4]] }
+  return {
+    shape,
+    points: lakePoints(shape),
+    shore: smoothPath(lakePoints(shape), true),
+    waterLines: [6, 12, 19].map((inset) => smoothPath(lakePoints({ ...shape, inset }), true)),
+    label: { text: 'ACHERUSIA PALUS', x: 846, y: 304 },
+  }
+})()
+
+/** Punto de la orilla de la laguna en una dirección (en grados, 0 al este y en sentido horario). */
+function shorePoint(angle) {
+  return LAKE.points[Math.round(((angle % 360) + 360) % 360 / 10) % LAKE.points.length]
+}
+
+const mouth = { x: coastX(398), y: 398 }
+
+/**
+ * Traza un cauce y la guía de su rótulo. La guía sigue el curso general del río sin
+ * sus curvas cerradas (un punto de cada ocho) y queda un poco por encima del agua, y
+ * va siempre de izquierda a derecha aunque el río corra al revés: si no, el nombre se
+ * retorcería en los meandros o se leería boca abajo.
+ */
+function course({ start, end, amplitude, bends, samples = 40 }) {
+  const points = meanderPoints(start, end, { amplitude, bends, random, samples })
+  const guide = points.filter((_, index) => index % 8 === 0 || index === points.length - 1)
+  const rightward = start.x > end.x ? [...guide].reverse() : guide
+  return { points, path: smoothPath(points), labelPath: smoothPath(offsetPoints(rightward, 9)) }
+}
+
+const RIVERS = [
+  { id: 'acheron-upper', name: 'Acheron fl.', start: { x: 1210, y: 186 }, end: shorePoint(320), amplitude: 22, bends: 6, width: 1.3, delay: 1.4, labelAt: '30%' },
+  { id: 'cocytus', name: 'Cocytus fl.', start: { x: 1150, y: 612 }, end: shorePoint(60), amplitude: 20, bends: 5, width: 1.1, delay: 1.7, labelAt: '14%' },
+  { id: 'acheron-lower', name: 'Acheron fl.', start: shorePoint(180), end: mouth, amplitude: 30, bends: 7, width: 2, delay: 2.6, labelAt: '44%' },
+].map((river) => ({ ...river, ...course(river) }))
+
+/** Afluentes: arroyos que bajan de las sierras a los ríos principales. */
+const TRIBUTARIES = [
+  { id: 'brook-north', start: { x: 1010, y: -10 }, end: RIVERS[0].points[22], amplitude: 12, bends: 4, width: 0.7, delay: 2.2 },
+  { id: 'brook-souli', start: { x: 920, y: 612 }, end: RIVERS[1].points[26], amplitude: 12, bends: 3, width: 0.7, delay: 2.4 },
+  { id: 'brook-west', start: { x: 590, y: 612 }, end: RIVERS[2].points[18], amplitude: 14, bends: 4, width: 0.7, delay: 3 },
+].map((brook) => ({ ...brook, ...course({ ...brook, samples: 22 }) }))
+
+/** El oráculo de los muertos, junto a la laguna, y dos ciudades antiguas del valle. */
+const SITES = [
+  { name: 'Necyomanteion', ...shorePoint(200), isMajor: true, offsetY: -22, labelDx: -10, labelDy: -10 },
+  { name: 'Ephyra', ...RIVERS[2].points[12], isMajor: false, offsetY: -20, labelDx: 9, labelDy: -6 },
+  { name: 'Pandosia', ...RIVERS[0].points[14], isMajor: false, offsetY: 18, labelDx: 9, labelDy: 14 },
+].map((site) => ({ ...site, x: round(site.x), y: round(site.y + site.offsetY) }))
+
+/** Derrota de Caronte por la laguna, de la orilla de los vivos (este) a la del oráculo (oeste). */
+const ROUTE = smoothPath([
+  { x: shorePoint(10).x - 10, y: shorePoint(10).y },
+  { x: 846, y: 326 },
+  { x: shorePoint(195).x + 12, y: shorePoint(195).y },
+])
+
+/**
+ * Sierras sombreadas. Cada una es un solo trazo con todos sus rayados: cientos de
+ * elementos sueltos costarían memoria y tiempo de pintado sin verse distintos.
+ */
+const RELIEF = [
+  [{ x: 930, y: 112 }, { x: 990, y: 86 }, { x: 1052, y: 104 }, { x: 1110, y: 92 }],
+  [{ x: 1128, y: 100 }, { x: 1168, y: 74 }, { x: 1214, y: 90 }],
+  [{ x: 1020, y: 548 }, { x: 1076, y: 528 }, { x: 1134, y: 546 }],
+  [{ x: 560, y: 120 }, { x: 612, y: 100 }, { x: 668, y: 116 }],
+  [{ x: 640, y: 520 }, { x: 700, y: 496 }, { x: 772, y: 512 }, { x: 840, y: 500 }],
+  [{ x: 420, y: 70 }, { x: 470, y: 52 }, { x: 520, y: 66 }],
+].map((ridge) => hachures(ridge, { spacing: 3.2, length: 22, random }).join(' '))
+
+/** Rosa de los vientos de ocho puntas, con las cuatro mayores sombreadas a medias, como se grababan. */
+const ROSE = (() => {
+  const point = (radius, angle) => polarPoint(0, 0, radius, angle)
+  const half = (tipRadius, sideRadius, angle, side) => {
+    const tip = point(tipRadius, angle)
+    const flank = point(sideRadius, angle + side * 45)
+    return `M0 0 L${tip.x} ${tip.y} L${flank.x} ${flank.y} Z`
+  }
+  const halves = (angles, tipRadius, sideRadius) => angles.flatMap((angle) => [
+    { path: half(tipRadius, sideRadius, angle, -1), isShaded: true },
+    { path: half(tipRadius, sideRadius, angle, 1), isShaded: false },
+  ])
+  return {
+    x: 150,
+    y: 476,
+    north: 'N',
+    majorHalves: halves([0, 90, 180, 270], 54, 9),
+    minorHalves: halves([45, 135, 225, 315], 36, 7),
+    spokes: Array.from({ length: 16 }, (_, index) => {
+      const tip = point(index % 2 ? 46 : 0, index * 22.5)
+      return index % 2 ? `M0 0 L${tip.x} ${tip.y}` : ''
+    }).filter(Boolean),
+    ticks: Array.from({ length: 64 }, (_, index) => {
+      const angle = index * 5.625
+      const from = point(index % 8 === 0 ? 52 : 56, angle)
+      const to = point(62, angle)
+      return `M${from.x} ${from.y} L${to.x} ${to.y}`
+    }),
+  }
+})()
+
+const SCALE = (() => {
+  const x = 62
+  const step = 44
+  return {
+    y: 575,
+    step,
+    unit: 'STADIA',
+    segments: [0, 1, 2, 3].map((index) => ({ x: x + index * step, isFilled: index % 2 === 0 })),
+    labels: [0, 10, 20, 30, 40].map((value, index) => ({ value, x: x + index * step })),
+  }
+})()
+
+const SEA_LABEL = { text: 'MARE IONIUM', x: 96, y: 210 }
+
+/** Meridianos y paralelos cada diez minutos de arco, con sus valores del Epiro. */
+const GRATICULE = {
+  meridians: [150, 450, 750, 1050].map((x, index) => ({ x, label: `20°${20 + index * 10}′` })),
+  parallels: [150, 450].map((y, index) => ({ y, label: `39°${20 - index * 10}′` })),
+}
 </script>
 
 <style scoped>
 .scene { width: 100%; height: 100%; display: block; }
 
-.line, .hull, .cloak, .lantern, .tree, .coin-face, .pole { stroke: var(--accent-bright); fill: none; stroke-linecap: round; stroke-linejoin: round; }
+/* Los trazos finos nunca bajan de un píxel real de la pantalla (`--device-pixel`, ver
+   `ModuleAtmosphere`): por debajo se ven grises y borrosos en una pantalla normal. */
+.graticule line { stroke: var(--accent); stroke-width: max(0.5px, calc(var(--device-pixel, 0) * 1px)); opacity: 0.12; }
+.degree { font-family: var(--font-mono); font-size: 0.66em; letter-spacing: 0.06em; fill: var(--accent); opacity: 0.5; }
+.graticule { animation: fade 1.6s ease 0.2s backwards; }
 
-/* Cipreses */
-.tree { fill: var(--accent-dim); stroke-width: 1.2; opacity: 0.55; transform-box: fill-box; transform-origin: 50% 100%; animation: sway 7s ease-in-out var(--delay) infinite alternate; }
-@keyframes sway { from { transform: rotate(-1.2deg); } to { transform: rotate(1.2deg); } }
+/* ── Agua ── */
+.coast, .lake, .river, .route { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.coast { stroke: var(--accent-bright); stroke-width: 1.3; opacity: 0.75; stroke-dasharray: 1; animation: draw 2.4s cubic-bezier(0.3, 0.1, 0.2, 1) 0.3s backwards; }
+.water-line, .lake-line { fill: none; stroke: var(--accent); stroke-width: max(0.7px, calc(var(--device-pixel, 0) * 1px)); opacity: var(--weight); }
+/* El oleaje cambia a saltos, un par de veces por segundo: para un cambio tan lento
+   basta, y cada salto repinta solo esa línea en vez de hacerlo en cada fotograma. */
+.water-line { animation: fade 1.2s ease var(--delay) backwards, swell 7s steps(7) calc(var(--delay) + var(--swell)) infinite; }
+.lake-line { animation: fade 1.2s ease var(--delay) backwards; }
+.lake { stroke: var(--accent-bright); stroke-width: 1.2; opacity: 0.8; stroke-dasharray: 1; animation: draw 2s cubic-bezier(0.3, 0.1, 0.2, 1) 0.9s backwards; }
+.river { stroke: var(--accent-bright); stroke-width: var(--river-width); opacity: 0.75; stroke-dasharray: 1; animation: draw 1.8s cubic-bezier(0.4, 0.1, 0.3, 1) var(--delay) backwards; }
 
-/* Corrientes */
-.stream { animation: stream-left var(--duration) linear infinite; }
-.stream--right { animation-name: stream-right; }
-@keyframes stream-left  { from { transform: translateX(0); }       to { transform: translateX(-1200px); } }
-@keyframes stream-right { from { transform: translateX(-1200px); } to { transform: translateX(0); } }
+/* ── Tierra ── */
+.relief path { stroke: var(--accent); stroke-width: max(0.6px, calc(var(--device-pixel, 0) * 1px)); opacity: 0.38; }
+.relief { animation: fade 2s ease 1.2s backwards; }
+.site-ring { fill: none; stroke: var(--accent-bright); stroke-width: max(0.9px, calc(var(--device-pixel, 0) * 1px)); opacity: 0.8; }
+.site-dot { fill: var(--accent-bright); }
+.site { animation: fade 1s ease 3s backwards; }
 
-/* Almas */
-.soul { fill: var(--accent-bright); opacity: 0; transform-box: fill-box; animation: soul-rise var(--duration) ease-out var(--delay) infinite; }
-@keyframes soul-rise {
-  0%   { transform: translate(0, 0) scaleY(0.6); opacity: 0; }
-  14%  { opacity: 0.6; transform: translate(0, calc(var(--rise) * 0.1)) scaleY(1); }
-  60%  { opacity: 0.35; transform: translate(10px, calc(var(--rise) * 0.6)) scaleY(1.1); }
-  100% { transform: translate(-6px, var(--rise)) scaleY(1.2); opacity: 0; }
-}
+/* ── Travesía ── */
+.route { stroke: var(--accent-bright); stroke-width: max(0.9px, calc(var(--device-pixel, 0) * 1px)); opacity: 0.55; stroke-dasharray: 3 5; animation: fade 1.2s ease 3.6s backwards; }
+/* El resplandor del farol es un círculo tenue que viaja con él, no un filtro: un filtro
+   en movimiento se recalcula en cada fotograma. */
+.lantern { fill: var(--accent-bright); offset-rotate: 0deg; animation: cross 16s ease-in-out 4.2s infinite backwards; }
+.lantern--halo { fill-opacity: 0.22; }
 
-/* Óbolos: caen, giran sobre su canto y se hunden dejando un círculo en el agua */
-.coin-lane { animation: coin-fade var(--duration) linear var(--delay) infinite; }
-@keyframes coin-fade {
-  0%        { opacity: 0; }
-  6%, 88%   { opacity: 1; }
-  92%, 100% { opacity: 0; }
-}
-.coin { animation: coin-drop var(--duration) cubic-bezier(0.45, 0, 0.9, 0.6) var(--delay) infinite; }
-@keyframes coin-drop {
-  0%   { transform: translateY(0) scaleX(1); }
-  88%  { transform: translateY(var(--fall)) scaleX(-1); }
-  100% { transform: translateY(var(--fall)) scaleX(-1); }
-}
-.coin-face { fill: var(--mote); stroke-width: 1.4; }
-.splash { fill: none; stroke: var(--accent-bright); stroke-width: 1.2; opacity: 0; transform-box: fill-box; transform-origin: center; animation: splash var(--duration) ease-out var(--delay) infinite; }
-@keyframes splash {
-  0%, 86% { opacity: 0; transform: scale(0.1); }
-  88%     { opacity: 0.7; transform: scale(0.2); }
-  100%    { opacity: 0; transform: scale(1); }
-}
+/* ── Rosa de los vientos: entra girada y se asienta, como una aguja ── */
+.rose { transform-box: fill-box; transform-origin: center; animation: settle 2.6s cubic-bezier(0.25, 1.35, 0.4, 1) 0.8s backwards; }
+.rose-ring { fill: none; stroke: var(--accent); stroke-width: max(0.8px, calc(var(--device-pixel, 0) * 1px)); opacity: 0.6; }
+.rose-tick, .rose-spoke { stroke: var(--accent); stroke-width: max(0.6px, calc(var(--device-pixel, 0) * 1px)); opacity: 0.55; }
+.rose-fill { fill: var(--accent-bright); opacity: 0.75; }
+.rose-line { fill: var(--bg); stroke: var(--accent-bright); stroke-width: max(0.8px, calc(var(--device-pixel, 0) * 1px)); opacity: 0.85; }
+.rose-north { font-family: var(--font-epic); font-size: 0.95em; font-weight: 600; fill: var(--accent-bright); animation: fade 1s ease 2.4s backwards; }
 
-/* Barca */
-.drift { animation: drift 42s ease-in-out infinite alternate; }
-@keyframes drift { from { transform: translateX(-70px); } to { transform: translateX(40px); } }
-.bob { transform-origin: 0 20px; animation: bob 5.2s ease-in-out infinite alternate; }
-@keyframes bob { from { transform: translateY(0) rotate(-1deg); } to { transform: translateY(5px) rotate(1.2deg); } }
-.hull { fill: var(--accent-dim); stroke-width: 1.7; }
-.cloak { fill: var(--bg); stroke-width: 1.5; }
-.lantern { fill: var(--accent-dim); stroke-width: 1.4; }
-.eye { fill: var(--accent-bright); animation: gaze 6s ease-in-out infinite; }
-@keyframes gaze { 0%, 90%, 100% { opacity: 0.9; } 94% { opacity: 0.1; } }
-.glow { animation: flicker 3.4s ease-in-out infinite; }
-@keyframes flicker { 0%, 100% { opacity: 0.55; } 30% { opacity: 0.9; } 55% { opacity: 0.65; } 80% { opacity: 0.95; } }
-.pole { stroke-width: 2.4; transform-origin: 4px -66px; animation: punt 7s ease-in-out infinite alternate; }
-@keyframes punt { from { transform: rotate(-4deg); } to { transform: rotate(5deg); } }
-.reflection { fill: none; stroke: var(--accent-bright); stroke-width: 1.4; stroke-linecap: round; animation: shimmer 3.2s ease-in-out infinite; }
-@keyframes shimmer { 0%, 100% { opacity: 0.15; } 50% { opacity: 0.6; } }
+.scale-fill { fill: var(--accent); opacity: 0.7; }
+.scale-empty { fill: none; stroke: var(--accent); stroke-width: max(0.7px, calc(var(--device-pixel, 0) * 1px)); opacity: 0.7; }
+.scale-bar { animation: fade 1.2s ease 2.6s backwards; }
+
+/* ── Rótulos: versalitas espaciadas para el agua, cursiva para ríos y lugares ── */
+.labels { animation: fade 1.8s ease 3.2s backwards; }
+.sea-name { font-family: var(--font-display); font-style: italic; font-size: 1.15em; letter-spacing: 0.7em; fill: var(--accent); opacity: 0.55; }
+.lake-name { font-family: var(--font-epic); font-size: 0.72em; letter-spacing: 0.4em; fill: var(--accent-bright); opacity: 0.6; }
+.site-name, .river-name { font-family: var(--font-display); font-style: italic; font-size: 0.85em; letter-spacing: 0.05em; fill: var(--accent-bright); opacity: 0.65; }
+
+@keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes fade { from { opacity: 0; } }
+@keyframes swell { 0%, 100% { opacity: var(--weight); } 50% { opacity: calc(var(--weight) * 1.9); } }
+@keyframes settle { from { transform: rotate(-50deg); opacity: 0; } 30% { opacity: 1; } }
+@keyframes cross { 0% { offset-distance: 0%; opacity: 0; } 8% { opacity: 1; } 60% { offset-distance: 100%; opacity: 1; } 66%, 100% { offset-distance: 100%; opacity: 0; } }
 </style>
