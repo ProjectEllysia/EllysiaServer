@@ -23,6 +23,7 @@ import {
   roundTo,
   scrambleFrame,
   devicePixelInUnits,
+  revealScrollDelta,
   seededRandom,
   staggerDelay,
 } from '../src/composables/motionMath.js'
@@ -135,6 +136,25 @@ test('un píxel físico se mide en unidades del dibujo según su escala y la den
   assert.equal(devicePixelInUnits(1, 2), 0.5, 'una pantalla retina: medio punto por píxel físico')
   assert.equal(devicePixelInUnits(0.5, 0.5), 2, 'una densidad por debajo de 1 cuenta como 1')
   assert.equal(devicePixelInUnits(0), 0, 'sin tamaño todavía, no hay medida')
+})
+
+test('lo que ya se ve en una zona cómoda no mueve la página', () => {
+  assert.equal(revealScrollDelta({ targetTop: 300, viewportHeight: 800, headerHeight: 72 }), 0)
+  assert.equal(revealScrollDelta({ targetTop: 560, viewportHeight: 800, headerHeight: 72 }), 0)
+})
+
+test('un resultado que queda abajo sube hasta el 30 % de la ventana', () => {
+  assert.equal(revealScrollDelta({ targetTop: 1000, viewportHeight: 800, headerHeight: 72 }), 760)
+  assert.equal(revealScrollDelta({ targetTop: 700, viewportHeight: 800, headerHeight: 72 }), 460)
+})
+
+test('lo que queda tapado por arriba baja hasta quedar justo bajo la cabecera', () => {
+  assert.equal(revealScrollDelta({ targetTop: -400, viewportHeight: 800, headerHeight: 72 }), -488)
+  assert.equal(revealScrollDelta({ targetTop: 50, viewportHeight: 800, headerHeight: 72 }), -38)
+})
+
+test('en una ventana muy baja, nunca deja el resultado bajo la cabecera', () => {
+  assert.equal(revealScrollDelta({ targetTop: 400, viewportHeight: 200, headerHeight: 72 }), 312)
 })
 
 console.log('geometría de las escenas')

@@ -135,3 +135,31 @@ export function devicePixelInUnits(scale, pixelRatio = 1) {
   return Math.round((1 / (scale * Math.max(pixelRatio, 1))) * 1000) / 1000
 }
 
+/**
+ * Cuánto hay que desplazar la página para que se vea el principio de algo que acaba de
+ * aparecer o de cambiar (un resultado, el correo siguiente), sin moverla si ya se ve.
+ *
+ * - Si su principio queda tapado por arriba (bajo la cabecera fija o fuera de la
+ *   pantalla), se sube justo hasta dejarlo bajo la cabecera.
+ * - Si queda demasiado abajo (por debajo de `lowestComfortable` de la pantalla), se
+ *   baja hasta dejarlo a `landing` de la altura, para que se vea también un poco de lo
+ *   que había encima y no se pierda el contexto.
+ * - Si ya se ve en una zona cómoda, no se mueve nada.
+ *
+ * @param {object} options - Medidas, en píxeles CSS relativos a la ventana.
+ * @param {number} options.targetTop - Borde superior de lo que hay que enseñar.
+ * @param {number} options.viewportHeight - Alto de la ventana.
+ * @param {number} [options.headerHeight=0] - Alto de la cabecera fija, que tapa la parte de arriba.
+ * @param {number} [options.landing=0.3] - Fracción de la ventana a la que se deja al bajar.
+ * @param {number} [options.lowestComfortable=0.7] - Fracción de la ventana por debajo de la cual hay que bajar.
+ * @returns {number} Píxeles que desplazar: positivo hacia abajo, negativo hacia arriba y
+ *   `0` si no hace falta moverse.
+ */
+export function revealScrollDelta({ targetTop, viewportHeight, headerHeight = 0, landing = 0.3, lowestComfortable = 0.7 }) {
+  const margin = 16
+  if (targetTop < headerHeight + margin) return Math.round(targetTop - headerHeight - margin)
+  if (targetTop > viewportHeight * lowestComfortable) {
+    return Math.round(targetTop - Math.max(viewportHeight * landing, headerHeight + margin))
+  }
+  return 0
+}

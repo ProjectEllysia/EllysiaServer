@@ -11,7 +11,7 @@
             class="pc-chip"
             :class="{ 'pc-chip--on': inputs.watts === String(preset.watts) }"
             :aria-pressed="inputs.watts === String(preset.watts)"
-            @click="inputs.watts = String(preset.watts)"
+            @click="choosePreset(preset.watts)"
           >
             {{ t('freeTools.items.powerCost.preset', { name: t(`freeTools.items.powerCost.presets.${preset.id}`), watts: preset.watts }) }}
           </button>
@@ -58,7 +58,7 @@
       </details>
 
       <!-- El resultado se pinta como el recibo: una fila por periodo, con su energía y su coste. -->
-      <section v-if="result" class="pc-bill" aria-live="polite">
+      <section v-if="result" ref="bill" class="pc-bill" aria-live="polite">
         <table class="pc-table">
           <thead>
             <tr>
@@ -85,11 +85,12 @@
 </template>
 
 <script setup>
-import { computed, reactive, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import ToolShell from '@/components/shared/ToolShell.vue'
 import CountUp from '@/components/shared/CountUp.vue'
+import { revealResult } from '@/composables/revealResult'
 import { formatNumber } from '@/i18n/format'
 import {
   FIELD_LIMITS,
@@ -115,6 +116,7 @@ const MAIN_FIELDS = ['watts', 'hoursPerDay', 'devices', 'pricePerKwh', 'emission
 const PERIODS = ['day', 'month', 'year']
 
 const inputs = reactive(queryToInputs(route.query))
+const bill = ref(null)
 
 const parsed = computed(() => parseInputs(inputs))
 const result = computed(() => (parsed.value.values ? calculatePowerCost(parsed.value.values) : null))
@@ -143,6 +145,18 @@ function errorText(field) {
  */
 function energyFormat(period) {
   return { maximumFractionDigits: period === 'day' ? 2 : 1 }
+}
+
+/**
+ * Aplica una potencia típica y lleva la vista al recibo: quien pulsa un perfil quiere
+ * ver lo que cuesta, no los campos que acaba de rellenar.
+ *
+ * @param {number} watts - Potencia media del perfil, en vatios.
+ */
+async function choosePreset(watts) {
+  inputs.watts = String(watts)
+  await nextTick()
+  revealResult(bill.value)
 }
 
 watch(inputs, () => {

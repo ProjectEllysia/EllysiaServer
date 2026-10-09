@@ -1,6 +1,6 @@
 <template>
   <ToolShell tool-id="mailAuthChecker" more-to="/iris/analisis">
-    <form class="ma-form" novalidate @submit.prevent="check">
+    <form class="ma-form" novalidate @submit.prevent="check()">
       <div class="ma-field">
         <label class="ma-label" for="ma-domain">{{ t('freeTools.items.mailAuthChecker.domainLabel') }}</label>
         <div class="ma-row">
@@ -50,7 +50,7 @@
       <p class="ma-privacy">{{ t('freeTools.items.mailAuthChecker.privacy') }}</p>
     </form>
 
-    <div class="ma-outcome" aria-live="polite">
+    <div ref="outcome" class="ma-outcome" aria-live="polite">
       <p v-if="status === 'error'" class="ma-message ma-message--error">{{ t('freeTools.items.mailAuthChecker.failed') }}</p>
       <p v-else-if="status === 'done' && !result.exists" class="ma-message ma-message--error">
         {{ t('freeTools.items.mailAuthChecker.findings.domainNotFound') }}
@@ -80,10 +80,11 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import ToolShell from '@/components/shared/ToolShell.vue'
+import { revealResult } from '@/composables/revealResult'
 import { checkMailAuthentication, normalizeDomain, normalizeSelector, worstLevel } from '@/components/freeTools/mailAuth'
 
 /**
@@ -103,6 +104,7 @@ const withDkim = ref(false)
 const hasAttempted = ref(false)
 const status = ref('idle') // idle | loading | done | error
 const result = ref(null)
+const outcome = ref(null)
 
 const isLoading = computed(() => status.value === 'loading')
 const hasInvalidDomain = computed(() => hasAttempted.value && normalizeDomain(rawDomain.value) === null)
@@ -121,8 +123,14 @@ const sections = computed(() => {
     .map(([key, analysis]) => ({ key, record: analysis.record, findings: analysis.findings, chip: chipOf(analysis.findings) }))
 })
 
-/** Comprueba el dominio escrito y enseña el resultado. */
-async function check() {
+/**
+ * Comprueba el dominio escrito y enseña el resultado, llevándolo a la vista si quedó
+ * por debajo.
+ *
+ * @param {boolean} [isFromLink=false] - Si la comprobación la lanza un enlace compartido
+ *   al abrir la página; entonces no se desplaza nada.
+ */
+async function check(isFromLink = false) {
   hasAttempted.value = true
   const domain = normalizeDomain(rawDomain.value)
   const selector = withDkim.value ? normalizeSelector(rawSelector.value) : null
@@ -137,6 +145,9 @@ async function check() {
   } catch {
     status.value = 'error'
   }
+  if (isFromLink) return
+  await nextTick()
+  revealResult(outcome.value)
 }
 
 // Un enlace compartido abre la página ya con el resultado.
@@ -147,7 +158,7 @@ onMounted(() => {
     rawSelector.value = route.query.s
     withDkim.value = true
   }
-  check()
+  check(true)
 })
 </script>
 

@@ -20,7 +20,7 @@
       </div>
 
       <template v-if="network">
-        <header class="cd-head">
+        <header ref="resultHead" class="cd-head">
           <p class="cd-cidr">{{ network.cidr }}</p>
           <span class="cd-kind">{{ t(`freeTools.items.cidrCalculator.kinds.${network.kind}`) }}</span>
         </header>
@@ -73,10 +73,11 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import ToolShell from '@/components/shared/ToolShell.vue'
+import { revealResult } from '@/composables/revealResult'
 import { formatNumber } from '@/i18n/format'
 import { describeNetwork, parseNetwork, splitNetwork } from '@/components/freeTools/cidr'
 
@@ -99,6 +100,9 @@ const SPLIT_DEPTH = 8
 
 const rawNetwork = ref('')
 const splitPrefix = ref(0)
+const resultHead = ref(null)
+/** Mientras se rellena el campo desde un enlace compartido, el resultado no se lleva a la vista. */
+let isRestoring = false
 
 const parsed = computed(() => parseNetwork(rawNetwork.value))
 // Un campo vacío no es un error: todavía no se ha escrito nada.
@@ -130,13 +134,21 @@ const subnets = computed(() => {
 // Otra red, otra división: la elegida puede no existir ya.
 watch(() => network.value?.prefix, () => { splitPrefix.value = 0 })
 
-// La red válida va a la URL, para compartirla.
-watch(network, (current) => {
+// La red válida va a la URL, para compartirla. Cuando el resultado aparece (la red
+// escrita pasa a ser válida), se lleva a la vista si quedó por debajo.
+watch(network, async (current, previous) => {
   router.replace({ query: current ? { q: current.cidr } : {} })
+  if (!current || previous || isRestoring) return
+  await nextTick()
+  revealResult(resultHead.value)
 })
 
-onMounted(() => {
-  if (typeof route.query.q === 'string') rawNetwork.value = route.query.q
+onMounted(async () => {
+  if (typeof route.query.q !== 'string') return
+  isRestoring = true
+  rawNetwork.value = route.query.q
+  await nextTick()
+  isRestoring = false
 })
 </script>
 

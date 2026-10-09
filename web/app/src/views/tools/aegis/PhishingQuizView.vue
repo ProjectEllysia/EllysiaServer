@@ -1,6 +1,6 @@
 <template>
   <ToolShell tool-id="phishingQuiz" more-to="/aegis/generador">
-    <div class="pq">
+    <div ref="quiz" class="pq">
       <template v-if="!isFinished">
         <header class="pq-top">
           <p class="pq-counter">{{ t('freeTools.items.phishingQuiz.counter', { current: index + 1, total }) }}</p>
@@ -10,7 +10,7 @@
         </header>
 
         <!-- El correo se pinta como en un buzón: remitente, asunto, cuerpo y un enlace que no se puede pulsar. -->
-        <article :key="current.id" class="pq-mail mo-rise" :class="{ 'pq-mail--wrong': answer && !wasCorrect, 'pq-mail--right': answer && wasCorrect }">
+        <article :key="current.id" ref="mail" tabindex="-1" class="pq-mail mo-rise" :class="{ 'pq-mail--wrong': answer && !wasCorrect, 'pq-mail--right': answer && wasCorrect }">
           <dl class="pq-head">
             <div class="pq-head-row">
               <dt>{{ t('freeTools.items.phishingQuiz.from') }}</dt>
@@ -36,7 +36,7 @@
           </div>
         </div>
 
-        <section v-else class="pq-feedback mo-rise" :data-correct="wasCorrect" aria-live="polite">
+        <section v-else ref="feedback" class="pq-feedback mo-rise" :data-correct="wasCorrect" aria-live="polite">
           <p class="pq-verdict">
             {{ wasCorrect ? t('freeTools.items.phishingQuiz.correct') : t('freeTools.items.phishingQuiz.incorrect') }}
             <span class="pq-truth">{{ current.isPhishing ? t('freeTools.items.phishingQuiz.wasPhishing') : t('freeTools.items.phishingQuiz.wasLegit') }}</span>
@@ -56,7 +56,7 @@
         </section>
       </template>
 
-      <section v-else class="pq-result" aria-live="polite">
+      <section v-else ref="resultSection" tabindex="-1" class="pq-result" aria-live="polite">
         <!-- Un anillo que se llena hasta la fracción de aciertos. -->
         <div class="pq-ring" aria-hidden="true">
           <svg viewBox="0 0 120 120">
@@ -82,6 +82,7 @@ import { useI18n } from 'vue-i18n'
 import ToolShell from '@/components/shared/ToolShell.vue'
 import CountUp from '@/components/shared/CountUp.vue'
 import { QUIZ_CASES, isCorrect, resultBand, shuffled } from '@/components/freeTools/phishingQuiz'
+import { revealResult } from '@/composables/revealResult'
 
 /**
  * Mini quiz de phishing gratuito de Aegis.
@@ -98,6 +99,10 @@ const index = ref(0)
 const answer = ref(null) // null hasta que se responde: 'phishing' | 'legit'
 const results = ref([]) // un booleano por correo ya respondido
 const nextButton = ref(null)
+const quiz = ref(null)
+const mail = ref(null)
+const feedback = ref(null)
+const resultSection = ref(null)
 
 const isFinished = computed(() => index.value >= total)
 const current = computed(() => order.value[Math.min(index.value, total - 1)])
@@ -128,7 +133,12 @@ function dotClass(position) {
 }
 
 /**
- * Registra la respuesta al correo actual y lleva el foco al botón de seguir.
+ * Registra la respuesta al correo actual, enseña el veredicto y lleva el foco al botón
+ * de seguir.
+ *
+ * El foco no desplaza la página (`preventScroll`): el botón está al final de la
+ * explicación y saltar hasta él dejaría el veredicto fuera de la vista. Se enseña el
+ * principio de la explicación, que es lo que hay que leer.
  *
  * @param {'phishing'|'legit'} choice - Lo que contesta el usuario.
  */
@@ -136,13 +146,27 @@ async function reply(choice) {
   answer.value = choice
   results.value.push(isCorrect(current.value, choice))
   await nextTick()
-  nextButton.value?.focus()
+  nextButton.value?.focus({ preventScroll: true })
+  revealResult(feedback.value)
+}
+
+/**
+ * Lleva la vista y el foco a lo nuevo: el siguiente correo o, tras el último, el
+ * resultado. La vista sube al principio del quiz, con el contador; el foco va al
+ * correo (o al resultado) para que un lector de pantalla lo lea entero.
+ */
+async function showCurrent() {
+  await nextTick()
+  const target = isFinished.value ? resultSection.value : mail.value
+  target?.focus({ preventScroll: true })
+  revealResult(quiz.value)
 }
 
 /** Pasa al siguiente correo, o al resultado tras el último. */
 function next() {
   index.value += 1
   answer.value = null
+  showCurrent()
 }
 
 /** Empieza otra partida con los correos en otro orden. */
@@ -151,6 +175,7 @@ function restart() {
   index.value = 0
   answer.value = null
   results.value = []
+  showCurrent()
 }
 </script>
 
@@ -179,6 +204,9 @@ function restart() {
 .pq-mail--wrong { animation: mo-rise 0.8s var(--ease-settle) both, mail-shake 0.5s ease-in-out 0.1s; border-color: var(--danger); }
 .pq-mail--right { border-color: var(--success); box-shadow: 0 0 0 3px var(--success-dim), 0 0 30px var(--success-dim); }
 .pq-mail { transition: border-color 0.3s ease, box-shadow 0.4s ease; }
+/* El correo y el resultado reciben el foco al pasar de uno a otro; solo se marca si se llega con el teclado. */
+.pq-mail:focus, .pq-result:focus { outline: none; }
+.pq-mail:focus-visible, .pq-result:focus-visible { outline: 2px solid var(--accent-bright); outline-offset: 3px; }
 @keyframes mail-shake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-8px); } 40% { transform: translateX(7px); } 60% { transform: translateX(-5px); } 80% { transform: translateX(3px); } }
 
 /* Anillo del resultado */

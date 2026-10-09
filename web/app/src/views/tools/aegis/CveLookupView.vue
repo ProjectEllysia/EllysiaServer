@@ -1,6 +1,6 @@
 <template>
   <ToolShell tool-id="cveLookup" more-to="/aegis/generador">
-    <form class="cve-form" novalidate @submit.prevent="lookup">
+    <form class="cve-form" novalidate @submit.prevent="lookup()">
       <label class="cve-label" for="cve-input">{{ t('freeTools.items.cveLookup.idLabel') }}</label>
       <div class="cve-row">
         <input
@@ -24,7 +24,7 @@
       </p>
     </form>
 
-    <div class="cve-outcome" aria-live="polite">
+    <div ref="outcome" class="cve-outcome" aria-live="polite">
       <p v-if="status === 'unknown'" class="cve-message">
         {{ t('freeTools.items.cveLookup.unknown', { id: searchedId }) }}
       </p>
@@ -101,11 +101,12 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import ToolShell from '@/components/shared/ToolShell.vue'
 import CountUp from '@/components/shared/CountUp.vue'
+import { revealResult } from '@/composables/revealResult'
 import { apiError } from '@/composables/useApi'
 import { formatDate, formatNumber } from '@/i18n/format'
 import {
@@ -141,6 +142,7 @@ const cve = ref(null)
 const searchedId = ref('')
 const errorMessage = ref('')
 const hasAttempted = ref(false)
+const outcome = ref(null)
 
 const isLoading = computed(() => status.value === 'loading')
 // El aviso de formato solo aparece tras un intento, no mientras se escribe.
@@ -156,8 +158,14 @@ const visibleProducts = computed(() => (cve.value?.products ?? []).slice(0, PROD
 const hiddenProducts = computed(() => hiddenCount(visibleProducts.value, cve.value?.productsTotal))
 const hiddenDistros = computed(() => hiddenCount(cve.value?.distroStatuses, cve.value?.distroStatusesTotal))
 
-/** Consulta la CVE escrita y enseña el resultado. */
-async function lookup() {
+/**
+ * Consulta la CVE escrita y enseña el resultado, llevándolo a la vista si quedó por
+ * debajo.
+ *
+ * @param {boolean} [isFromLink=false] - Si la consulta la lanza un enlace compartido al
+ *   abrir la página; entonces no se desplaza nada.
+ */
+async function lookup(isFromLink = false) {
   hasAttempted.value = true
   const id = normalizeCveId(rawId.value)
   if (!isCveId(id)) return
@@ -180,6 +188,9 @@ async function lookup() {
     errorMessage.value = t('freeTools.items.cveLookup.failed')
     status.value = 'error'
   }
+  if (isFromLink) return
+  await nextTick()
+  revealResult(outcome.value)
 }
 
 // Un enlace compartido (`?id=CVE-…`) abre la página ya con el resultado.
@@ -187,7 +198,7 @@ onMounted(() => {
   const fromLink = route.query.id
   if (typeof fromLink === 'string' && isCveId(fromLink)) {
     rawId.value = fromLink
-    lookup()
+    lookup(true)
   }
 })
 </script>
