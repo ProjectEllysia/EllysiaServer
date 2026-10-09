@@ -5,14 +5,14 @@
 
     <!-- ═══════════ HERO — el santuario ═══════════ -->
     <header class="sanctum-hero">
+      <!-- La escena mitológica del módulo, tras el contenido -->
+      <ModuleAtmosphere :module-id="moduleId" />
+
       <!-- Epígrafe latino gigante, grabado tras el contenido -->
       <span class="hero-watermark" aria-hidden="true">{{ epigraph }}</span>
 
       <div class="hero-inner">
-        <div class="hero-emblem" aria-hidden="true">
-          <span class="emblem-halo"></span>
-          <img :src="icon" alt="" />
-        </div>
+        <EmblemSeal class="hero-seal" :module-id="moduleId" :icon="icon" />
 
         <span class="hero-kicker">{{ numeral }} · {{ name }} · {{ epigraph }}</span>
 
@@ -49,8 +49,8 @@
       </button>
     </header>
 
-    <!-- ═══════════ Banda — friso del módulo ═══════════ -->
-    <div class="sanctum-band" aria-hidden="true"></div>
+    <!-- ═══════════ Friso del módulo: una greca con su brillo ═══════════ -->
+    <Frieze />
 
     <!-- ═══════════ CAPACIDADES ═══════════ -->
     <section id="features" class="rites">
@@ -122,12 +122,11 @@ import SiteHeader from '@/components/shared/SiteHeader.vue'
 import SiteFooter from '@/components/shared/SiteFooter.vue'
 import StarBackground from '@/components/shared/StarBackground.vue'
 import FreeTools from '@/components/shared/FreeTools.vue'
-
-import themisIcon from '@/assets/images/themis/Themis-Turqoise-BgN.png'
-import aegisIcon from '@/assets/images/aegis/Ellysia-Aegis-Blue-BgN.png'
-import irisIcon from '@/assets/images/iris/Iris-Red-BgN.png'
-import acheronIcon from '@/assets/images/acheron/Acheron-Purple-BgN.png'
-import hygeiaIcon from '@/assets/images/hygeia/Hygeia-DarkGreen-BgN.png'
+import ModuleAtmosphere from '@/components/decor/ModuleAtmosphere.vue'
+import Frieze from '@/components/decor/Frieze.vue'
+import EmblemSeal from '@/components/decor/EmblemSeal.vue'
+import { MODULE_IDENTITY, MODULE_IDS } from '@/components/shared/moduleIdentity'
+import { MODULE_ICONS } from '@/components/shared/moduleIcons'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -155,13 +154,7 @@ const auth = useAuthStore()
 
 /** El panteón completo, para las tarjetas de los otros módulos. La
  *  descripción de cada uno sale de `moduleHub.modules.<id>`. */
-const ALL_MODULES = [
-  { id: 'themis', numeral: 'I', name: 'Themis', icon: themisIcon, route: '/themis' },
-  { id: 'aegis', numeral: 'II', name: 'Aegis', icon: aegisIcon, route: '/aegis' },
-  { id: 'iris', numeral: 'III', name: 'Iris', icon: irisIcon, route: '/iris' },
-  { id: 'acheron', numeral: 'IV', name: 'Acheron', icon: acheronIcon, route: '/acheron' },
-  { id: 'hygeia', numeral: 'V', name: 'Hygeia', icon: hygeiaIcon, route: '/hygeia' },
-]
+const ALL_MODULES = MODULE_IDS.map((id) => ({ id, ...MODULE_IDENTITY[id], icon: MODULE_ICONS[id] }))
 
 const otherModules = computed(() => ALL_MODULES.filter((m) => m.id !== props.moduleId))
 
@@ -251,28 +244,8 @@ onUnmounted(() => observer?.disconnect())
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ── Emblema ── */
-.hero-emblem {
-  position: relative;
-  width: 180px; height: 180px;
-  margin: 0 auto 1.6rem;
-  border-radius: 50%;
-  display: grid; place-items: center;
-  background: var(--surface);
-  border: 1px solid var(--accent);
-  box-shadow: 0 0 0 6px var(--bg), 0 0 0 7px var(--border-med), 0 0 34px var(--accent-dim);
-}
-.hero-emblem img { width: 56%; height: 56%; object-fit: contain; }
-.emblem-halo {
-  position: absolute;
-  inset: -10px;
-  border: 1px dashed var(--accent);
-  border-radius: 50%;
-  opacity: 0.35;
-  animation: halo-turn 240s linear infinite;
-  pointer-events: none;
-}
-@keyframes halo-turn { to { transform: rotate(360deg); } }
+/* ── Emblema, dentro de su sello de grabado; se come parte del aire de arriba ── */
+.hero-seal { margin: -1.5rem auto 0.8rem; }
 
 /* ── Kicker: numeral · nombre · epígrafe ── */
 .hero-kicker {
@@ -409,13 +382,6 @@ onUnmounted(() => observer?.disconnect())
   55%  { transform: scaleY(1); transform-origin: top; }
   56%  { transform-origin: bottom; }
   100% { transform: scaleY(0); transform-origin: bottom; }
-}
-
-/* ═══════════ Banda — friso del módulo ═══════════ */
-.sanctum-band {
-  height: 8px;
-  background: var(--accent);
-  opacity: 0.85;
 }
 
 /* ═══════════ CAPACIDADES ═══════════ */
@@ -611,7 +577,6 @@ onUnmounted(() => observer?.disconnect())
 /* ═══════════ Movimiento reducido ═══════════ */
 @media (prefers-reduced-motion: reduce) {
   .hero-inner, .scroll-cue span { animation: none !important; }
-  .emblem-halo { animation: none !important; }
   .rite { opacity: 1; transform: none; transition: none; }
   .pantheon-card:hover, .call-cta:hover { transform: none !important; }
 }

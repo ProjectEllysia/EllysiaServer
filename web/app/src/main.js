@@ -20,6 +20,7 @@ import { applyStoredTheme } from '@/stores/themeStore'
 import { resolveError } from '@/views/public/errorCatalog'
 
 import './assets/css/shared.css'
+import './assets/css/motion.css'
 
 // Aplica la iluminación (dusk/dawn) antes de montar para evitar destellos.
 applyStoredTheme()

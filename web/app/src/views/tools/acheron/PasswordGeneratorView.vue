@@ -2,8 +2,8 @@
   <ToolShell tool-id="passwordGenerator" more-to="/acheron/boveda">
     <div class="pw">
       <div class="pw-result">
-        <p class="pw-output" :aria-label="t('freeTools.items.passwordGenerator.generated')" data-testid="password-output">
-          <span v-for="(character, index) in characters" :key="index" :class="`pw-char pw-char--${kindOf(character)}`">{{ character }}</span>
+        <p class="pw-output" :class="{ 'pw-output--copied': isCopied }" :aria-label="t('freeTools.items.passwordGenerator.generated')" data-testid="password-output">
+          <span v-for="(character, index) in characters" :key="index" :class="[`pw-char pw-char--${kindOf(character.value)}`, { 'pw-char--rolling': character.isRolling }]">{{ character.value }}</span>
         </p>
         <div class="pw-actions">
           <button type="button" class="pw-btn pw-btn--solid" @click="copy">
@@ -73,6 +73,8 @@ import { useI18n } from 'vue-i18n'
 import { generatePassword, scorePassword } from '@projectellysia/acheron-core-js'
 import ToolShell from '@/components/shared/ToolShell.vue'
 import { useToastStore } from '@/stores/toastStore'
+import { scrambleFrame } from '@/composables/motionMath'
+import { prefersReducedMotion } from '@/composables/useMotion'
 import {
   CHARACTER_CLASSES,
   PASSWORD_LENGTH,
@@ -104,18 +106,45 @@ const settings = reactive({
   excludeAmbiguous: true,
 })
 
+/** Cuánto tarda el texto en «descifrarse» al sortear una contraseña nueva. */
+const SCRAMBLE_MS = 560
+
 const password = ref('')
+/** Lo que se enseña: mientras se descifra, caracteres al azar que se van fijando de izquierda a derecha. */
+const displayed = ref('')
 const isCopied = ref(false)
 let copiedTimer = null
+let scrambleFrameId = null
 
-const characters = computed(() => [...password.value])
+const characters = computed(() => [...displayed.value].map((value, index) => ({ value, isRolling: value !== [...password.value][index] })))
 const strength = computed(() => scorePassword(password.value))
 const kindOf = characterKind
+
+/**
+ * Enseña la contraseña con el efecto de descifrado.
+ *
+ * @param {string} target - La contraseña ya sorteada.
+ */
+function revealPassword(target) {
+  cancelAnimationFrame(scrambleFrameId)
+  if (prefersReducedMotion()) {
+    displayed.value = target
+    return
+  }
+  const startedAt = performance.now()
+  const step = (now) => {
+    const progress = Math.min(1, (now - startedAt) / SCRAMBLE_MS)
+    displayed.value = scrambleFrame(target, progress)
+    if (progress < 1) scrambleFrameId = requestAnimationFrame(step)
+  }
+  scrambleFrameId = requestAnimationFrame(step)
+}
 
 /** Sortea una contraseña nueva con los ajustes de ahora. */
 function regenerate() {
   password.value = generatePassword(toGeneratorOptions(settings))
   isCopied.value = false
+  revealPassword(password.value)
 }
 
 /** Copia la contraseña al portapapeles y lo avisa un instante en el botón. */
@@ -134,7 +163,10 @@ async function copy() {
 // Cualquier ajuste (longitud, tipos de carácter) sortea de nuevo: lo que se ve
 // siempre corresponde a lo que está marcado.
 watch(settings, regenerate, { deep: true, immediate: true })
-onBeforeUnmount(() => clearTimeout(copiedTimer))
+onBeforeUnmount(() => {
+  clearTimeout(copiedTimer)
+  cancelAnimationFrame(scrambleFrameId)
+})
 </script>
 
 <style scoped>
@@ -164,6 +196,11 @@ onBeforeUnmount(() => clearTimeout(copiedTimer))
 }
 /* Cifras y símbolos con color propio: la contraseña se lee de un vistazo. */
 .pw-char--letter { color: var(--text); }
+/* Mientras se descifra, los caracteres que aún no están fijados se ven apagados. */
+.pw-char { transition: color 0.2s ease, opacity 0.2s ease; }
+.pw-char--rolling { opacity: 0.45; }
+.pw-output { transition: border-color 0.3s ease, box-shadow 0.4s ease; }
+.pw-output--copied { border-color: var(--accent-bright); box-shadow: 0 0 0 3px var(--accent-dim), 0 0 28px var(--accent-dim); }
 .pw-char--digit { color: var(--accent-bright); }
 .pw-char--symbol { color: var(--warn); }
 

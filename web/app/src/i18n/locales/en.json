@@ -425,6 +425,11 @@
       "body": "It is free, but it needs an account to prevent abuse.",
       "signIn": "Sign in"
     },
+    "teaser": {
+      "lead": "What you just used is one part of {name}. This is what the whole module does.",
+      "discover": "Discover {name}",
+      "otherTools": "More free tools from {name}"
+    },
     "items": {
       "passwordGenerator": {
         "title": "Password generator",

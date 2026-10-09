@@ -5,9 +5,9 @@
     name="Hygeia"
     numeral="V"
     epigraph="Salus"
-    :tagline="t('hygeiaHub.tagline')"
-    :myth="t('hygeiaHub.myth')"
-    :claim="t('landing.tools.hygeia.title')"
+    :tagline="t(HUB_COPY_KEYS.hygeia.tagline)"
+    :myth="t(HUB_COPY_KEYS.hygeia.myth)"
+    :claim="t(HUB_COPY_KEYS.hygeia.claim)"
     tool-route="/hygeia/activos"
     :tool-label="t('hygeiaHub.toolLabel')"
     :shortcuts="shortcuts"
@@ -30,6 +30,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import ModuleHub from '@/components/shared/ModuleHub.vue'
+import { HUB_COPY_KEYS, HUB_FEATURE_IDS } from '@/components/shared/moduleIdentity'
 import { useApi } from '@/composables/useApi'
 import { useAuthStore } from '@/stores/authStore'
 import hygeiaIcon from '@/assets/images/hygeia/Hygeia-DarkGreen-BgN.png'
@@ -54,7 +55,7 @@ const total = ref(0)
 const online = ref(0)
 
 /** Capacidades que se presentan; sus textos están en `hygeiaHub.features.<id>`. */
-const features = computed(() => ['push', 'alerts', 'down', 'email'].map((id) => ({
+const features = computed(() => HUB_FEATURE_IDS.hygeia.map((id) => ({
   kicker: t(`hygeiaHub.features.${id}.kicker`),
   title: t(`hygeiaHub.features.${id}.title`),
   desc: t(`hygeiaHub.features.${id}.desc`),

@@ -5,9 +5,9 @@
     name="Aegis"
     numeral="II"
     epigraph="Praesidio"
-    :tagline="t('aegisHub.tagline')"
-    :myth="t('landing.tools.aegis.myth')"
-    :claim="t('landing.tools.aegis.title')"
+    :tagline="t(HUB_COPY_KEYS.aegis.tagline)"
+    :myth="t(HUB_COPY_KEYS.aegis.myth)"
+    :claim="t(HUB_COPY_KEYS.aegis.claim)"
     tool-route="/aegis/generador"
     :tool-label="t('aegisHub.toolLabel')"
     :highlight="highlight"
@@ -29,6 +29,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import ModuleHub from '@/components/shared/ModuleHub.vue'
+import { HUB_COPY_KEYS, HUB_FEATURE_IDS } from '@/components/shared/moduleIdentity'
 import { useApi } from '@/composables/useApi'
 import { useAuthStore } from '@/stores/authStore'
 import aegisIcon from '@/assets/images/aegis/Ellysia-Aegis-Blue-BgN.png'
@@ -52,7 +53,7 @@ const completionRate = computed(() =>
 )
 
 /** Capacidades que se presentan; sus textos están en `aegisHub.features.<id>`. */
-const features = computed(() => ['pills', 'quiz', 'campaigns', 'evidence'].map((id) => ({
+const features = computed(() => HUB_FEATURE_IDS.aegis.map((id) => ({
   kicker: t(`aegisHub.features.${id}.kicker`),
   title: t(`aegisHub.features.${id}.title`),
   desc: t(`aegisHub.features.${id}.desc`),

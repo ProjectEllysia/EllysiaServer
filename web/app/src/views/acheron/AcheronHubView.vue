@@ -5,9 +5,9 @@
     name="Acheron"
     numeral="IV"
     epigraph="Custodia"
-    :tagline="t('acheronHub.tagline')"
-    :myth="t('acheronHub.myth')"
-    :claim="t('acheronHub.claim')"
+    :tagline="t(HUB_COPY_KEYS.acheron.tagline)"
+    :myth="t(HUB_COPY_KEYS.acheron.myth)"
+    :claim="t(HUB_COPY_KEYS.acheron.claim)"
     tool-route="/acheron/boveda"
     :tool-label="t('acheronHub.toolLabel')"
     :highlight="highlight"
@@ -29,6 +29,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import ModuleHub from '@/components/shared/ModuleHub.vue'
+import { HUB_COPY_KEYS, HUB_FEATURE_IDS } from '@/components/shared/moduleIdentity'
 import { useApi } from '@/composables/useApi'
 import { useAuthStore } from '@/stores/authStore'
 import acheronIcon from '@/assets/images/acheron/Acheron-Purple-BgN.png'
@@ -52,7 +53,7 @@ const lastUpdatedLabel = computed(() =>
 )
 
 /** Capacidades que se presentan; sus textos están en `acheronHub.features.<id>`. */
-const features = computed(() => ['local', 'types', 'generator', 'lybra'].map((id) => ({
+const features = computed(() => HUB_FEATURE_IDS.acheron.map((id) => ({
   kicker: t(`acheronHub.features.${id}.kicker`),
   title: t(`acheronHub.features.${id}.title`),
   desc: t(`acheronHub.features.${id}.desc`),

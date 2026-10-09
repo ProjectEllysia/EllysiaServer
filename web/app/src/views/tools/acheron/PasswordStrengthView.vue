@@ -27,11 +27,11 @@
       <template v-else>
         <div class="ps-verdict" :data-level="estimate.level" aria-live="polite">
           <div class="ps-segments" aria-hidden="true">
-            <span v-for="step in 5" :key="step" class="ps-segment" :class="{ 'ps-segment--on': step <= estimate.level + 1 }"></span>
+            <span v-for="step in 5" :key="step" class="ps-segment" :class="{ 'ps-segment--on': step <= estimate.level + 1 }" :style="{ '--i': step }"></span>
           </div>
           <p class="ps-level">
             {{ t(`freeTools.items.passwordStrength.levels.${estimate.level}`) }}
-            <span class="ps-bits">{{ t('freeTools.items.passwordStrength.bits', { count: estimate.bits }) }}</span>
+            <span class="ps-bits"><CountUp :value="estimate.bits" :duration="450" :format="(value) => t('freeTools.items.passwordStrength.bits', { count: value })" /></span>
           </p>
         </div>
 
@@ -59,7 +59,7 @@
         <section v-if="estimate.weaknesses.length" class="ps-section">
           <h3 class="ps-section-title">{{ t('freeTools.items.passwordStrength.weaknessesTitle') }}</h3>
           <ul class="ps-weaknesses">
-            <li v-for="code in estimate.weaknesses" :key="code">{{ t(`freeTools.items.passwordStrength.weaknesses.${code}`) }}</li>
+            <li v-for="(code, index) in estimate.weaknesses" :key="code" class="mo-rise" :style="{ '--delay': `${index * 80}ms` }">{{ t(`freeTools.items.passwordStrength.weaknesses.${code}`) }}</li>
           </ul>
         </section>
 
@@ -90,6 +90,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ToolShell from '@/components/shared/ToolShell.vue'
+import CountUp from '@/components/shared/CountUp.vue'
 import { formatNumber } from '@/i18n/format'
 import {
   countInBreaches,
@@ -195,7 +196,7 @@ async function checkBreaches() {
 .ps-verdict[data-level="2"] { --tone: var(--warn); }
 .ps-verdict[data-level="3"], .ps-verdict[data-level="4"] { --tone: var(--success); }
 .ps-segments { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.35rem; }
-.ps-segment { height: 0.5rem; border-radius: 2px; background: var(--border-med); transition: background 0.2s ease; }
+.ps-segment { height: 0.5rem; border-radius: 2px; background: var(--border-med); transition: background 0.3s ease calc(var(--i) * 70ms); }
 .ps-segment--on { background: var(--tone); }
 .ps-level {
   display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
