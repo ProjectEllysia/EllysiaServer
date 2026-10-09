@@ -5,9 +5,9 @@
     name="Iris"
     numeral="III"
     epigraph="Veritas"
-    :tagline="t('irisHub.tagline')"
-    :myth="t('landing.tools.iris.myth')"
-    :claim="t('landing.tools.iris.title')"
+    :tagline="t(HUB_COPY_KEYS.iris.tagline)"
+    :myth="t(HUB_COPY_KEYS.iris.myth)"
+    :claim="t(HUB_COPY_KEYS.iris.claim)"
     tool-route="/iris/analisis"
     :tool-label="t('irisHub.toolLabel')"
     :highlight="highlight"
@@ -29,6 +29,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import ModuleHub from '@/components/shared/ModuleHub.vue'
+import { HUB_COPY_KEYS, HUB_FEATURE_IDS } from '@/components/shared/moduleIdentity'
 import { useApi } from '@/composables/useApi'
 import { useAuthStore } from '@/stores/authStore'
 import irisIcon from '@/assets/images/iris/Iris-Red-BgN.png'
@@ -51,7 +52,7 @@ const phishingRate = computed(() =>
 )
 
 /** Capacidades que se presentan; sus textos están en `irisHub.features.<id>`. */
-const features = computed(() => ['rules', 'quishing', 'iocs', 'verdict'].map((id) => ({
+const features = computed(() => HUB_FEATURE_IDS.iris.map((id) => ({
   kicker: t(`irisHub.features.${id}.kicker`),
   title: t(`irisHub.features.${id}.title`),
   desc: t(`irisHub.features.${id}.desc`),

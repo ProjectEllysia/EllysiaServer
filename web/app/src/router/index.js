@@ -418,10 +418,16 @@ const router = createRouter({
    * de un footer o de una estela al fondo de la landing, aterrizas a media
    * página nueva en vez de en su hero. Con atrás/adelante del navegador sí
    * queremos restaurar la posición donde estabas (savedPosition).
+   *
+   * Si solo cambia la query (misma ruta), no es una página nueva: es una vista que
+   * guarda su estado en la URL para poder compartirlo (las herramientas gratuitas,
+   * los filtros de una vista). Ahí el scroll no se toca; subir arriba del todo en
+   * cada cálculo saca al usuario de lo que estaba mirando.
    */
   scrollBehavior(to, from, savedPosition) {
     if (savedPosition) return savedPosition
     if (to.hash) return { el: to.hash, top: 16 }
+    if (to.path === from.path) return false
     return { top: 0 }
   },
 })
