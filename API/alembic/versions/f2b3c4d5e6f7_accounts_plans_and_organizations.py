@@ -129,7 +129,7 @@ def upgrade() -> None:
         sa.Column("plan_id", sa.Integer(), nullable=False),
         sa.Column("limit_key", sa.String(length=64), nullable=False),
         sa.Column("scope", sa.String(length=8), nullable=False),
-        sa.Column("value", sa.Integer(), nullable=True),
+        sa.Column("value", sa.BigInteger(), nullable=True),
         sa.Column("period", sa.String(length=8), nullable=False),
         sa.ForeignKeyConstraint(["plan_id"], ["Plan.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("plan_id", "limit_key", "scope"),
@@ -267,7 +267,7 @@ def _seed_catalog() -> None:
         sa.column("plan_id", sa.Integer),
         sa.column("limit_key", sa.String),
         sa.column("scope", sa.String),
-        sa.column("value", sa.Integer),
+        sa.column("value", sa.BigInteger),
         sa.column("period", sa.String),
     )
 

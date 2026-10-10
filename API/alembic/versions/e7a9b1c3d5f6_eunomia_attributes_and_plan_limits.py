@@ -39,7 +39,15 @@ _LIMITS: dict[str, tuple[str, dict[str, int | None]]] = {
 }
 
 
+def _widen_limit_value() -> None:
+    """Pasa ``PlanLimit.value`` a BIGINT: el tope de almacenamiento va en bytes y 5 GiB no cabe en 32 bits."""
+    with op.batch_alter_table("PlanLimit") as batch:
+        batch.alter_column("value", existing_type=sa.Integer(), type_=sa.BigInteger(), existing_nullable=True)
+
+
 def upgrade() -> None:
+    if sa.inspect(op.get_bind()).has_table("PlanLimit"):
+        _widen_limit_value()
     for attribute in _ATTRIBUTES:
         op.execute(
             f"""
