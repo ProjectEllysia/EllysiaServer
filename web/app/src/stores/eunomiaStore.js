@@ -69,6 +69,25 @@ export const useEunomiaStore = defineStore('eunomia', () => {
   }), i18n.global.t('eunomia.frameworks.restoreFailed'))
 
   /**
+   * Pide qué pasaría con la evaluación al pasar un marco a la versión vigente.
+   *
+   * @param {string} key - Clave del marco.
+   * @returns {Promise<object|null>} El plan, o `null` si la API lo rechazó (el error queda en
+   *   `state.error`).
+   */
+  async function previewUpgrade(key) {
+    try {
+      const res = await apiFetch(`/eunomia/adoptions/${encodeURIComponent(key)}/upgrade-preview`)
+      if (!res?.ok) { state.error = await apiError(res, i18n.global.t('eunomia.frameworks.previewFailed')); return null }
+      return await res.json()
+    } catch { state.error = i18n.global.t('eunomia.frameworks.offline'); return null }
+  }
+
+  const upgrade = (key) => run(key, () => apiFetch(`/eunomia/adoptions/${encodeURIComponent(key)}/upgrade`, {
+    method: 'POST',
+  }), i18n.global.t('eunomia.frameworks.upgradeFailed'))
+
+  /**
    * Pide qué se perdería al quitar un marco.
    *
    * @param {string} key - Clave del marco.
@@ -250,6 +269,6 @@ export const useEunomiaStore = defineStore('eunomia', () => {
     return splitFrameworks(state.catalog, state.adoptions)
   }
 
-  return { state, load, adopt, archive, restore, previewRemoval, loadTree, loadSummary, loadHistory, saveAssessment,
+  return { state, load, adopt, archive, restore, previewRemoval, previewUpgrade, upgrade, loadTree, loadSummary, loadHistory, saveAssessment,
     loadEvidence, uploadEvidence, setEvidenceLink, deleteEvidence, downloadEvidence, grouped }
 })

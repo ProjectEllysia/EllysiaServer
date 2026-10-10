@@ -27,12 +27,27 @@ from ..exceptions import (
     FrameworkNotArchivedError,
     FrameworkNotFoundError,
     FrameworkRestoreExpiredError,
+    FrameworkUpToDateError,
+    VersionMappingMissingError,
 )
-from ..model import ADOPTION_ACTIVE, ADOPTION_ARCHIVED, EunomiaFrameworkAdoption
-from ..repositories import EunomiaFrameworkAdoptionRepository
+from ..model import (
+    ADOPTION_ACTIVE,
+    ADOPTION_ARCHIVED,
+    STATUS_PENDING,
+    EunomiaControlAssessment,
+    EunomiaEvidenceLink,
+    EunomiaFrameworkAdoption,
+)
+from ..repositories import (
+    EunomiaControlAssessmentRepository,
+    EunomiaEvidenceLinkRepository,
+    EunomiaFrameworkAdoptionRepository,
+)
 from ..services.adoption_data import AdoptionDataRegistry
 from .assessments import adoption_progress
-from ..services.catalog import load_index
+from ..services.catalog import FrameworkVersion, load_index, load_version
+from ..services.upgrade_plan import UpgradePlan, plan_upgrade
+from ..services.version_mappings import load_mapping
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +79,61 @@ def _get_active(owner_user_id: int, framework_key: str) -> EunomiaFrameworkAdopt
     if adoption is None or adoption.status != ADOPTION_ACTIVE:
         raise AdoptionNotFoundError(framework_key)
     return adoption
+
+
+def _upgrade_context(owner_user_id: int, framework_key: str):
+    """Reúne lo necesario para planificar el cambio de versión de un marco adoptado.
+
+    Args:
+        owner_user_id: Dueño efectivo de los datos.
+        framework_key: Clave del marco.
+
+    Returns:
+        tuple: ``(adopción, versión adoptada, versión vigente, plan, evaluaciones, enlaces)``.
+
+    Raises:
+        AdoptionNotFoundError: Si el marco no está adoptado y activo (404).
+        FrameworkUpToDateError: Si la adopción ya está en la versión vigente (409).
+        VersionMappingMissingError: Si no hay correspondencias para ese par de versiones (409).
+    """
+    adoption = _get_active(owner_user_id, framework_key)
+    current = _framework_entry(framework_key)["current"]
+    if adoption.catalog_version == current:
+        raise FrameworkUpToDateError(framework_key)
+    mapping = load_mapping(framework_key, adoption.catalog_version, current)
+    if mapping is None:
+        raise VersionMappingMissingError(framework_key, adoption.catalog_version, current)
+    assessments = build_repository(EunomiaControlAssessmentRepository).list_for_framework(
+        owner_user_id, framework_key)
+    links = build_repository(EunomiaEvidenceLinkRepository).list_for_framework(owner_user_id, framework_key)
+    statuses = {row.control_identifier: row.status for row in assessments if row.status != STATUS_PENDING}
+    plan = plan_upgrade(mapping, statuses, {link.control_identifier for link in links})
+    return (adoption, load_version(framework_key, adoption.catalog_version),
+            load_version(framework_key, current), plan, assessments, links)
+
+
+def _title(version: FrameworkVersion, identifier: str) -> str:
+    """El título de un control de una versión, o su identificador si no se encuentra."""
+    node = version.node(f"{version.key}:{identifier}")
+    return node.title if node else identifier
+
+
+def _describe_plan(source: FrameworkVersion, target: FrameworkVersion, plan: UpgradePlan) -> dict:
+    """Da al plan la forma que ve el usuario: con títulos y cifras."""
+    return {
+        "fromVersion": source.version,
+        "toVersion": target.version,
+        "moves": [{
+            "identifier": move.target, "title": _title(target, move.target),
+            "sources": list(move.sources), "status": move.status,
+            "reason": move.reason, "needsReview": move.needs_review,
+        } for move in plan.moves],
+        "lost": [{"identifier": identifier, "title": _title(source, identifier), "status": status}
+                 for identifier, status in plan.lost],
+        "newControls": [{"identifier": identifier, "title": _title(target, identifier)}
+                        for identifier in plan.new_controls],
+        "linksMoved": len(plan.link_moves),
+    }
 
 
 def _listed(owner_user_id: int, framework_key: str) -> dict:
@@ -194,6 +264,93 @@ class EunomiaFrameworkManager:
             "retentionDays": retention_days,
             "purgeAt": utcnow_naive() + timedelta(days=retention_days),
         }
+
+    def upgrade_preview(self, user_id: int, framework_key: str) -> dict:
+        """Dice qué pasaría con la evaluación al pasar un marco a la versión vigente.
+
+        No cambia nada: lo que se traslada tal cual, lo que llega a revisión (controles que se
+        dividieron o fusionaron), lo que se pierde (controles retirados) y lo nuevo.
+
+        Args:
+            user_id: Usuario que consulta; tiene que ser el dueño efectivo.
+            framework_key: Clave del marco.
+
+        Returns:
+            dict: ``fromVersion``, ``toVersion``, ``moves``, ``lost``, ``newControls`` y
+                ``linksMoved``.
+
+        Raises:
+            DataOwnedByOrganizationError: Si es miembro de la organización de otro (403).
+            AdoptionNotFoundError: Si el marco no está adoptado y activo (404).
+            FrameworkUpToDateError: Si ya está en la versión vigente (409).
+            VersionMappingMissingError: Si no hay correspondencias entre las versiones (409).
+        """
+        owner_user_id = _assert_owner(user_id)
+        _, source, target, plan, _, _ = _upgrade_context(owner_user_id, framework_key)
+        return _describe_plan(source, target, plan)
+
+    def upgrade(self, user_id: int, framework_key: str) -> dict:
+        """Pasa un marco a la versión vigente trasladando evaluaciones y enlaces de evidencias.
+
+        Los controles que se dividieron o fusionaron llegan marcados en sus notas para que se
+        revisen; los retirados se pierden (su historial se conserva); los nuevos quedan
+        pendientes. Las evidencias no se tocan: solo cambia a qué controles apuntan.
+
+        Args:
+            user_id: Usuario que lo hace; tiene que ser el dueño efectivo.
+            framework_key: Clave del marco.
+
+        Returns:
+            dict: El mismo resumen que ``upgrade_preview``.
+
+        Raises:
+            DataOwnedByOrganizationError: Si es miembro de la organización de otro (403).
+            AdoptionNotFoundError: Si el marco no está adoptado y activo (404).
+            FrameworkUpToDateError: Si ya está en la versión vigente (409).
+            VersionMappingMissingError: Si no hay correspondencias entre las versiones (409).
+        """
+        owner_user_id = _assert_owner(user_id)
+        adoption, source, target, plan, assessments, links = _upgrade_context(owner_user_id, framework_key)
+        now = utcnow_naive()
+        by_source = {row.control_identifier: row for row in assessments}
+        with UnitOfWork() as uow:
+            assessment_repo = EunomiaControlAssessmentRepository(uow)
+            link_repo = EunomiaEvidenceLinkRepository(uow)
+            assessment_repo.delete_for_framework(owner_user_id, framework_key)
+            # El borrado masivo no avisa a la sesión: se sueltan los objetos ya cargados para que
+            # las filas nuevas, que pueden reutilizar clave, no choquen con ellos.
+            for stale in (*assessments, *links):
+                if stale in uow.session:
+                    uow.session.expunge(stale)
+            for move in plan.moves:
+                origin = by_source[move.sources[0]]
+                note = origin.notes or ""
+                if move.needs_review:
+                    origin_codes = ", ".join(move.sources)
+                    note = f"Revisar tras el cambio de versión (procede de {origin_codes}). {note}".strip()
+                assessment_repo.save(EunomiaControlAssessment(
+                    owner_user_id=owner_user_id, framework_key=framework_key,
+                    catalog_version=target.version, control_identifier=move.target,
+                    status=move.status, justification=origin.justification, notes=note or None,
+                    responsible_user_id=origin.responsible_user_id, due_date=origin.due_date,
+                    updated_at=now, updated_by_user_id=user_id,
+                ))
+            link_repo.delete_for_framework(owner_user_id, framework_key)
+            for evidence_id, destination in sorted({
+                (link.evidence_id, to) for link in links
+                for origin, to in plan.link_moves if origin == link.control_identifier
+            }):
+                link_repo.save(EunomiaEvidenceLink(
+                    evidence_id=evidence_id, framework_key=framework_key,
+                    control_identifier=destination, linked_at=now, linked_by_user_id=user_id,
+                ))
+            adoption_repo = EunomiaFrameworkAdoptionRepository(uow)
+            stored = adoption_repo.get_for_owner(owner_user_id, framework_key)
+            stored.catalog_version = target.version
+            adoption_repo.save(stored)
+        logger.info("Marco actualizado | owner=%s marco=%s %s -> %s", owner_user_id, framework_key,
+                    source.version, target.version)
+        return _describe_plan(source, target, plan)
 
     def archive(self, user_id: int, framework_key: str) -> dict:
         """Quita un marco: lo archiva, sin borrar nada, hasta que pase el plazo.
