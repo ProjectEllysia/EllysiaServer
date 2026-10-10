@@ -34,6 +34,10 @@
       <span class="id">{{ row.node.identifier }}</span>
       <span class="title">{{ row.node.title }}</span>
 
+      <span v-if="row.node.progress && !row.node.assessment && row.node.progress.countable" class="group-progress">
+        {{ percent(row.node.progress.percent) }}
+      </span>
+
       <span v-if="statusOf(row.node)" class="status" :class="`status--${statusOf(row.node)}`">
         <span class="dot" aria-hidden="true"></span>
         <span class="status-text">{{ t(`eunomia.status.${statusOf(row.node)}`) }}</span>
@@ -51,6 +55,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { keyAction, statusOf, visibleNodes } from '@/components/eunomia/tree'
+import { formatNumber } from '@/i18n/format'
 
 const props = defineProps({
   /** Raíces del árbol (ya filtrado). */
@@ -72,6 +77,11 @@ const rows = computed(() => visibleNodes(props.nodes, props.expanded))
 watch(rows, (list) => {
   if (!list.some((row) => row.node.code === focused.value)) focused.value = list[0]?.node.code ?? ''
 }, { immediate: true })
+
+/** Un porcentaje (0 a 100) con el formato del idioma activo. */
+function percent(value) {
+  return formatNumber(value / 100, { style: 'percent', maximumFractionDigits: 0 })
+}
 
 /** Abre o cierra un grupo. */
 function toggle(code) {
@@ -123,6 +133,7 @@ function onKeydown(event) {
 .caret--spacer { display: inline-block; }
 .id { font-family: var(--font-mono); font-size-adjust: var(--fsa-mono); font-size: var(--fs-body); color: var(--text-muted); flex: none; }
 .title { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.group-progress { flex: none; font-size: var(--fs-sm); color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .status { display: inline-flex; align-items: center; gap: 0.35rem; flex: none; font-size: var(--fs-sm); }
 .dot { width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--text-muted); }
 .status--implemented .dot { background: var(--success, #4caf7a); }

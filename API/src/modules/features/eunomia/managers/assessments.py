@@ -34,6 +34,7 @@ from ..repositories import (
     EunomiaControlAssessmentRepository,
     EunomiaFrameworkAdoptionRepository,
 )
+from ..services.assessments import ControlState, branch_progress, summarize
 from ..services.catalog import CatalogNode, FrameworkVersion, load_version
 
 logger = logging.getLogger(__name__)
@@ -131,7 +132,15 @@ def _people(user_id: int, owner_user_id: int) -> list[dict]:
     return people
 
 
-def _tree_node(version: FrameworkVersion, node: CatalogNode, rows: dict, names: dict) -> dict:
+def _states(records: list) -> dict[str, ControlState]:
+    """Pasa las filas de evaluación al estado que necesita el cálculo."""
+    return {
+        row.control_identifier: ControlState(row.status, row.due_date, row.responsible_user_id)
+        for row in records
+    }
+
+
+def _tree_node(version: FrameworkVersion, node: CatalogNode, rows: dict, names: dict, progress: dict) -> dict:
     """Serializa un nodo con sus hijos y, si es evaluable, su evaluación."""
     return {
         "code": node.code,
@@ -148,7 +157,8 @@ def _tree_node(version: FrameworkVersion, node: CatalogNode, rows: dict, names: 
             assessment_payload(rows.get(node.identifier), node.framework, node.identifier, names)
             if node.is_assessable else None
         ),
-        "children": [_tree_node(version, child, rows, names) for child in version.children(node.code)],
+        "progress": progress[node.code],
+        "children": [_tree_node(version, child, rows, names, progress) for child in version.children(node.code)],
     }
 
 
@@ -189,6 +199,25 @@ def _conflict_payload(row: Optional[EunomiaControlAssessment], framework_key: st
         if isinstance(payload[key], (date, datetime)):
             payload[key] = payload[key].isoformat()
     return payload
+
+
+def adoption_progress(owner_user_id: int, framework_key: str, catalog_version: str) -> Optional[dict]:
+    """El progreso global de un marco adoptado, para las tarjetas de la pantalla de marcos.
+
+    Args:
+        owner_user_id: Dueño efectivo de los datos.
+        framework_key: Clave del marco.
+        catalog_version: Versión que fijó la adopción.
+
+    Returns:
+        Optional[dict]: Lo que devuelve ``progress_of`` para el conjunto del marco, o ``None`` si
+            la versión ya no está en el catálogo.
+    """
+    version = load_version(framework_key, catalog_version)
+    if version is None:
+        return None
+    records = build_repository(EunomiaControlAssessmentRepository).list_for_framework(owner_user_id, framework_key)
+    return summarize(version, _states(records), date.today())["global"]
 
 
 class EunomiaAssessmentManager:
@@ -254,8 +283,37 @@ class EunomiaAssessmentManager:
                 {"name": s.name, "url": s.url, "license": s.license, "consultedAt": s.consulted_at}
                 for s in version.sources
             ],
-            "tree": [_tree_node(version, root, rows, names) for root in version.children(None)],
+            "tree": [_tree_node(version, root, rows, names, branch_progress(version, _states(records)))
+                     for root in version.children(None)],
         }
+
+    def get_summary(self, user_id: int, framework_key: str) -> dict:
+        """Resume cuánto falta de un marco: global, por rama, vencimientos y sin responsable.
+
+        Args:
+            user_id: Usuario que pregunta: el dueño efectivo o un miembro.
+            framework_key: Clave del marco adoptado.
+
+        Returns:
+            dict: Lo que devuelve ``summarize``, con el nombre del responsable en cada control
+                de ``upcoming`` y ``unassigned``.
+
+        Raises:
+            AdoptionNotFoundError: Si el marco no está adoptado y activo (404).
+        """
+        owner_user_id = OrganizationManager().resolve_data_owner(user_id)
+        version = _adopted_version(owner_user_id, framework_key)
+        records = build_repository(EunomiaControlAssessmentRepository).list_for_framework(
+            owner_user_id, framework_key)
+        summary = summarize(version, _states(records), date.today())
+        names = {
+            item["responsibleUserId"]: _display_name(item["responsibleUserId"])
+            for key in ("upcoming", "unassigned") for item in summary[key] if item["responsibleUserId"]
+        }
+        for key in ("upcoming", "unassigned"):
+            for item in summary[key]:
+                item["responsibleName"] = names.get(item["responsibleUserId"])
+        return summary
 
     def set_assessment(self, user_id: int, framework_key: str, identifier: str, data: dict) -> dict:
         """Guarda la evaluación de un control.

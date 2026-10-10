@@ -29,6 +29,10 @@
                   {{ t('eunomia.frameworks.version', { version: adoption.catalogVersion }) }}
                   · {{ t('eunomia.frameworks.adoptedOn', { date: formatDate(adoption.adoptedAt) }) }}
                 </p>
+                <div v-if="adoption.progress" class="card-progress">
+                  <ProgressBar :percent="adoption.progress.percent" :label="adoption.name" />
+                  <span class="pct">{{ adoption.progress.countable ? percent(adoption.progress.percent) : '—' }}</span>
+                </div>
                 <p v-if="adoption.hasNewerVersion" class="newer">
                   {{ t('eunomia.frameworks.newerVersion', { version: adoption.currentVersion }) }}
                 </p>
@@ -105,7 +109,8 @@ import StarBackground from '@/components/shared/StarBackground.vue'
 import ConfirmModal from '@/components/shared/ConfirmModal.vue'
 import OrganizationManagedNotice from '@/components/accounts/OrganizationManagedNotice.vue'
 import { hasLoss, removalFacts } from '@/components/eunomia/frameworks'
-import { formatDate } from '@/i18n/format'
+import ProgressBar from '@/components/eunomia/ProgressBar.vue'
+import { formatDate, formatNumber } from '@/i18n/format'
 import { useEunomiaStore } from '@/stores/eunomiaStore'
 import { useToastStore } from '@/stores/toastStore'
 
@@ -119,6 +124,11 @@ const canManage = computed(() => store.state.ownership.isOwnData === true)
 /** Un marco del catálogo cuya versión vigente sigue en borrador. */
 function isDraft(framework) {
   return framework.versions?.find((item) => item.version === framework.current)?.status === 'draft'
+}
+
+/** Un porcentaje (0 a 100) con el formato del idioma activo. */
+function percent(value) {
+  return formatNumber(value / 100, { style: 'percent', maximumFractionDigits: 0 })
 }
 
 const pending = ref(null)
@@ -201,6 +211,9 @@ onMounted(() => store.load())
 .card-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
 .card h3 { font-size: var(--fs-lg); font-weight: 600; color: var(--text); }
 .meta { color: var(--text-muted); font-size: var(--fs-body); margin-top: 0.2rem; }
+.card-progress { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.5rem; min-width: 12rem; }
+.card-progress .progress { flex: 1; }
+.pct { font-variant-numeric: tabular-nums; color: var(--text-muted); font-size: var(--fs-body); }
 .newer { color: var(--accent); font-size: var(--fs-body); margin-top: 0.3rem; }
 .empty, .state-msg { color: var(--text-muted); font-size: var(--fs-md); }
 .state-msg--error { color: var(--danger); }

@@ -1963,6 +1963,14 @@
       "in_progress": "In progress",
       "implemented": "Implemented",
       "not_applicable": "Not applicable"
+    },
+    "summary": {
+      "title": "Summary",
+      "global": "Framework compliance",
+      "counts": "{implemented} of {countable} controls implemented ({notApplicable} not applicable and not counted).",
+      "upcoming": "Due soon",
+      "overdue": "overdue",
+      "unassigned": "{count} control without a responsible | {count} controls without a responsible"
     }
   },
   "organizationManaged": {

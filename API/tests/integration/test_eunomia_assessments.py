@@ -289,3 +289,45 @@ def test_deleting_the_actor_keeps_the_event_without_the_account(client, app, ado
     event = client.get(_HISTORY, headers=auth_headers(adopted)).get_json()["events"][0]
     assert event["actorUserId"] is None
     assert event["actorName"] == name
+
+
+# ── resumen ────────────────────────────────────────────────────────────────
+
+def test_the_summary_reports_progress_by_branch_and_what_needs_attention(client, adopted, auth_headers):
+    headers = auth_headers(adopted)
+    _put(client, headers, status="implemented")
+    _put(client, headers, "/eunomia/adoptions/nis2/controls/RE.3.2", status="not_applicable",
+         justification="No aplica a nuestro servicio.")
+    _put(client, headers, "/eunomia/adoptions/nis2/controls/RE.3.3", status="in_progress",
+         dueDate=(utcnow_naive() - timedelta(days=2)).date().isoformat())
+
+    body = client.get("/eunomia/adoptions/nis2/summary", headers=headers).get_json()
+
+    assert body["global"]["counts"]["implemented"] == 1
+    assert body["global"]["counts"]["not_applicable"] == 1
+    assert body["global"]["countable"] == body["global"]["total"] - 1
+    assert any(branch["identifier"] == "20" for branch in body["branches"])
+    assert [item["identifier"] for item in body["upcoming"]] == ["RE.3.3"]
+    assert body["upcoming"][0]["isOverdue"] is True
+    assert body["unassignedCount"] > 0
+
+
+def test_the_adoption_list_carries_the_progress_of_each_active_framework(client, adopted, auth_headers):
+    headers = auth_headers(adopted)
+    _put(client, headers, status="implemented")
+
+    item = client.get("/eunomia/adoptions", headers=headers).get_json()["adoptions"][0]
+
+    assert item["progress"]["counts"]["implemented"] == 1
+    assert item["progress"]["percent"] > 0
+
+
+def test_groups_of_the_tree_carry_their_aggregate_progress(client, adopted, auth_headers):
+    headers = auth_headers(adopted)
+    _put(client, headers, status="implemented")
+
+    tree = client.get("/eunomia/adoptions/nis2/tree", headers=headers).get_json()["tree"]
+    nodes = {n["identifier"]: n for n in _flatten(tree)}
+
+    assert nodes["RE.3"]["progress"]["counts"]["implemented"] == 1
+    assert nodes["RE.3"]["progress"]["total"] == 6

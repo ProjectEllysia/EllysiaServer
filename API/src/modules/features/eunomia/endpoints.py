@@ -27,6 +27,7 @@ from .schemas import (
     AdoptionSchema,
     AssessmentHistorySchema,
     AssessmentSchema,
+    SummarySchema,
     AssessmentWriteSchema,
     RemovalPreviewSchema,
     CatalogFrameworkListSchema,
@@ -152,6 +153,20 @@ def restore_framework(key):
 def get_adopted_tree(key):
     """El árbol de la versión adoptada de un marco, con la evaluación de cada control"""
     return EunomiaAssessmentManager().get_tree(get_current_user().id, key)
+
+
+@eunomia_blp.get("/adoptions/<string:key>/summary")
+@eunomia_blp.response(200, SummarySchema, description="Resumen de cumplimiento del marco")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@eunomia_blp.alt_response(404, schema=ErrorSchema, description="Framework not adopted")
+@limiter.limit("240 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_READ])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def get_adopted_summary(key):
+    """Cuánto falta de un marco: global, por rama, vencimientos próximos y controles sin responsable"""
+    summary = EunomiaAssessmentManager().get_summary(get_current_user().id, key)
+    return {**summary, "overall": summary["global"]}
 
 
 @eunomia_blp.get("/adoptions/<string:key>/history/<path:identifier>")
