@@ -39,7 +39,6 @@ from .lybra.kb import split_distro_version
 from .model import (
     AssetGroup,
     AuthorizedTarget,
-    ComplianceFrameworkSelection,
     CpeMatch,
     CpeProductAlias,
     CveEntry,
@@ -2077,40 +2076,3 @@ class OsintSourceCacheRepository(BaseRepository[OsintSourceCache]):
         entry.payload = payload
         entry.fetched_at = fetched_at
         return self.save(entry)
-
-
-class ComplianceFrameworkSelectionRepository(BaseRepository[ComplianceFrameworkSelection]):
-    """Repositorio de los marcos de cumplimiento elegidos por usuario u organización."""
-
-    _MODEL = ComplianceFrameworkSelection
-
-    def get_by_user(self, user_id: int) -> Optional[ComplianceFrameworkSelection]:
-        """Devuelve la elección propia de un usuario.
-
-        Args:
-            user_id: Usuario.
-
-        Returns:
-            Optional[ComplianceFrameworkSelection]: Su fila, o ``None`` si no ha elegido.
-        """
-        return (
-            self._session.query(ComplianceFrameworkSelection)
-            .filter(ComplianceFrameworkSelection.user_id == user_id)
-            .one_or_none()
-        )
-
-    def get_by_organization(self, organization_id: int) -> Optional[ComplianceFrameworkSelection]:
-        """Devuelve la elección de una organización.
-
-        Args:
-            organization_id: Organización.
-
-        Returns:
-            Optional[ComplianceFrameworkSelection]: Su fila, o ``None`` si no ha
-                fijado marcos para sus miembros.
-        """
-        return (
-            self._session.query(ComplianceFrameworkSelection)
-            .filter(ComplianceFrameworkSelection.organization_id == organization_id)
-            .one_or_none()
-        )

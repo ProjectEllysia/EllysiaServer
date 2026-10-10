@@ -599,7 +599,7 @@ UNLISTED_TABLES: dict[str, str] = {
         "organización e invitaciones: su disolución se enseña aparte porque afecta a terceros",
     ),
     **dict.fromkeys(
-        ["ScanFolder", "Traceroute", "Finding", "ComplianceFrameworkSelection"],
+        ["ScanFolder", "Traceroute", "Finding"],
         "carpetas, cachés y marcas que cuelgan de los escaneos",
     ),
     **dict.fromkeys(

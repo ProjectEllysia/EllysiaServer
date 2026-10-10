@@ -111,6 +111,23 @@ class EunomiaFrameworkManager:
             })
         return {"adoptions": adoptions, "ownership": organizations.describe_data_ownership(user_id)}
 
+    def active_framework_keys(self, user_id: int) -> list[str]:
+        """Devuelve las claves de los marcos activos del dueño efectivo de los datos.
+
+        Es lo que usan los módulos que traducen su trabajo a los marcos que el usuario ha
+        elegido (los informes de Lybra): un miembro obtiene los del dueño de su organización.
+
+        Args:
+            user_id: Usuario que pregunta, sea dueño, miembro o sin organización.
+
+        Returns:
+            list[str]: Claves de marco (``"nis2"``) de las adopciones activas, en el orden en
+                que se adoptaron. Vacía si no ha adoptado ninguno.
+        """
+        owner_user_id = OrganizationManager().resolve_data_owner(user_id)
+        rows = build_repository(EunomiaFrameworkAdoptionRepository).list_for_owner(owner_user_id)
+        return [row.framework_key for row in rows if row.status == ADOPTION_ACTIVE]
+
     def adopt(self, user_id: int, framework_key: str) -> dict:
         """Adopta un marco fijando la versión vigente del catálogo.
 

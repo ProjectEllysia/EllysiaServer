@@ -63,7 +63,7 @@ def _render(monkeypatch, strategy_name: str, assessment: dict) -> str:
     """Dibuja el cuerpo del informe de un escaneo sin hallazgos propios y devuelve su texto."""
     from src.modules.infrastructure import session as session_module
     from src.modules.features.themis.managers import (
-        ComplianceManager, LybraEngineManager, NetworkRiskManager,
+        LybraEngineManager, NetworkRiskManager,
     )
     from src.modules.features.themis.services.reports import findings as report_module
     from src.modules.features.themis.services.reports.lybra import LybraPrintingStrategy
@@ -78,7 +78,7 @@ def _render(monkeypatch, strategy_name: str, assessment: dict) -> str:
     monkeypatch.setattr(session_module, "build_repository",
                         lambda _cls: SimpleNamespace(get_findings_by_scan=lambda _scan_id: []))
     monkeypatch.setattr(LybraEngineManager, "exposure_for", staticmethod(lambda _scan: "private"))
-    monkeypatch.setattr(ComplianceManager, "resolve_effective_frameworks", lambda _self, _user_id: [])
+    monkeypatch.setattr(report_module, "active_framework_keys", lambda _user_id: [])
     monkeypatch.setattr(NetworkRiskManager, "assess_scan", assess)
     monkeypatch.setattr(report_module, "enrich_with_cve_context", lambda _findings: None)
     monkeypatch.setattr(report_module, "_knowledge_base_line", lambda _scan: "NVD 2026-09-24")

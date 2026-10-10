@@ -39,10 +39,11 @@
 
         <CompanyProfilePanel class="profile-section" />
 
-        <ComplianceFrameworksPicker scope="user" class="profile-section">
+        <section class="profile-section">
           <h2>{{ t('profilePage.complianceTitle') }}</h2>
           <p class="section-desc">{{ t('profilePage.complianceDesc') }}</p>
-        </ComplianceFrameworksPicker>
+          <router-link to="/eunomia/marcos" class="compliance-link">{{ t('profilePage.complianceLink') }}</router-link>
+        </section>
 
         <section class="profile-section">
           <h2>{{ t('profilePage.security') }}</h2>
@@ -183,7 +184,6 @@ import StarBackground from '@/components/shared/StarBackground.vue'
 import MfaSetupModal from '@/components/shared/MfaSetupModal.vue'
 import ConfirmModal from '@/components/shared/ConfirmModal.vue'
 import CompanyProfilePanel from '@/components/accounts/CompanyProfilePanel.vue'
-import ComplianceFrameworksPicker from '@/components/themis/ComplianceFrameworksPicker.vue'
 import DataExportPanel from '@/components/users/DataExportPanel.vue'
 import { useApi } from '@/composables/useApi'
 import { useToastStore } from '@/stores/toastStore'
@@ -385,4 +385,5 @@ function downloadRecoveryCodes() {
 .skeleton { background: var(--surface); border-radius: 8px; animation: pulse 1.4s ease-in-out infinite; }
 .skeleton--lg { width: 100%; height: 240px; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+.compliance-link { display: inline-block; margin-top: 0.8rem; color: var(--accent); text-decoration: underline; }
 </style>
