@@ -11,6 +11,7 @@ Exponente:
     - Endpoints: hygeia_blp.
 """
 
+from src.modules.features.eunomia import EvidenceProviderRegistry
 from src.modules.system.taskqueue import QueueRegistry
 
 from .model import (
@@ -26,6 +27,7 @@ from .model import (
 )
 from .managers import HygeiaAssetManager, HygeiaDocumentManager, HygeiaReportManager, HygeiaTagManager
 from .endpoints import hygeia_blp
+from .services.compliance_evidence import CONTROLS as _INVENTORY_CONTROLS, summarize_inventory
 
 # Registro de las categorías de cola de este módulo (OCP). Los jobs de
 # presencia/retención corren directo en el hilo del scheduler
@@ -36,6 +38,13 @@ from .endpoints import hygeia_blp
 # muchas muestras y no deben bloquear la petición.
 QueueRegistry.register("hygeia.notify")
 QueueRegistry.register("hygeia.report")
+
+# Lo que Hygeia aporta a Eunomia como evidencia automática (la dependencia va de Hygeia a Eunomia).
+EvidenceProviderRegistry.register(
+    "hygeia.asset_inventory", name="Inventario de activos", controls=_INVENTORY_CONTROLS,
+    collect=lambda owner_user_id, framework_key, identifier: summarize_inventory(
+        HygeiaAssetManager(user=None).get_inventory_summary(owner_user_id)),
+)
 
 __all__ = [
     "MonitoredAsset",
