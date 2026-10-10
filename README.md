@@ -81,7 +81,7 @@ Ellysia/
 │   │   ├── system/              # Config, logging, TaskQueue admin, RQ worker
 │   │   ├── users/               # OAuth 2.0 + JWT, TOTP MFA, user CRUD, ABAC
 │   │   ├── accounts/            # Plans, usage limits, organizations (/plans, /organizations)
-│   │   ├── features/            # Feature modules (themis, iris, aegis, acheron, hygeia)
+│   │   ├── features/            # Feature modules (themis, iris, aegis, acheron, hygeia, eunomia)
 │   │   ├── tools/               # Cross-cutting strategy layers
 │   │   │   ├── scribe/          # AI generation abstraction (Ollama/OpenAI/Gemini)
 │   │   │   ├── press/           # PDF document composition (PdfGenerator)
@@ -106,7 +106,8 @@ Ellysia/
 | **Acheron** | Client-encrypted credential vault with granular sync, optimistic-concurrency updates and a password generator, consumed by the web client and [AcheronMobile](https://github.com/ProjectEllysia/AcheronMobile). The API only ever stores ciphertext. | Operational |
 | **Aegis** | AI-generated security awareness pills with current alerts from INCIBE-CERT and the Lybra knowledge base, quizzes, multi-format export (Markdown/HTML/JSON), and campaign delivery with per-recipient tracking. | Operational |
 | **Hygeia** | Lightweight agent-based monitoring: heartbeat ingestion, presence detection, software inventory with tags, Lybra-powered inventory analysis, and threshold anomaly alerting. | Operational |
-| **Accounts** | Commercial layer: plan catalog, per-key usage limits/metering, subscription lifecycle, and shared-billing organizations with invitations. | Operational |
+| **Eunomia** | Compliance frameworks (NIS2 first, then GDPR and others) as control trees to adopt, assess and evidence. The module is in development: today it ships its foundations only — the `/eunomia` route prefix, the `EUNOMIA_*` permissions, three plan limits (`eunomia.frameworks`, `eunomia.evidence_storage`, `eunomia.documents`), the `features.eunomia` config block, and the shared company profile it will read. | In development |
+| **Accounts** | Commercial layer: plan catalog, per-key usage limits/metering, subscription lifecycle, shared-billing organizations with invitations, and the company profile every module reads. | Operational |
 | **Scribe** | Abstraction layer for AI generation — pluggable strategies (Ollama, OpenAI, Google Gemini) per module. | Operational |
 | **Herald** | Abstraction layer for email sending — pluggable strategies (SMTP relay) per module, transversal like Scribe. | Operational |
 | **Ellysia Web** | Vue 3 SPA with module hubs (Themis, Iris, Aegis, Acheron, Hygeia), scan/analysis workspaces (the Lybra workspace switches between machines, cloud exposure and network groups with their lateral movement risks, and each scan card opens its API surface), vault client, asset dashboard with an aggregated-statistics view (scope/metric/period selector with a type-to-search asset picker, overlaid comparative charts and CSV export) and a documents page for background-generated CSV and PDF files, plans & organization management, public quiz, technical documentation (`/docs/tecnica`, one page per tool explaining how it works inside, each page and language downloaded only when opened), an admin area (config, logs, queue, plans, users), and a single catalog-driven error view for HTTP failures (404 / 403 / 409 / 500 + generic codes, wired into the router, the app error handlers and Caddy's `handle_errors`). | Operational |
@@ -407,7 +408,7 @@ Iris applies rules across authentication (SPF, DKIM, DMARC, ARC), header anomali
 | `GET/PUT` | `/aegis/document` | Read / edit a pill (content + quiz questions). The document reports `isEdited`: `true` once the user has edited the AI text, which the campaign emails use to say the company reviewed it |
 | `GET` | `/aegis/documents` · `/aegis/download` | List pills / download the last generated one |
 | `DELETE` | `/aegis/document` | Delete a pill |
-| `GET/PUT` | `/aegis/org-profile` | Organization profile: manual tracked products and/or Hygeia inventory as the alert source |
+| `GET/PUT` | `/aegis/org-profile` | Aegis settings (tone, language, tracked products and/or Hygeia inventory as the alert source, white-label level and colour) plus the company data it reads, read-only, from the company profile (`companyDataOwnership` says whose they are) |
 | `GET` | `/aegis/topics` · `/aegis/products` | List available topics / search CPE products from the local KB |
 | `GET` | `/aegis/export/formats` | Available export formats: Markdown, HTML, JSON |
 | `POST/GET` | `/aegis/export/<id>` · `/aegis/export/<id>/download` | Export a pill / download the artifact |
@@ -519,6 +520,8 @@ Hygeia has two separate auth surfaces: standard OAuth for the user-facing endpoi
 | `PUT` | `/organizations/<id>/language` | Set the language of members who have not chosen one (owner); `null` = the platform language |
 | `GET/DELETE` | `/organizations/<id>/members[/<userId>]` | List / remove members (owner) |
 | `DELETE` | `/organizations/mine` | Leave the organization (a non-owner member) |
+| `GET/PUT` | `/organizations/company-profile` | The company's identity and description (legal name, tax id with Spanish check digit, address, size, contact, logo). One row per effective data owner: a member reads the owner's profile and gets `403` (`dataOwnedByOrganization`) if they try to edit it; their own data are kept and apply again if they leave |
+| `GET` | `/organizations/data-ownership` | Whose corporate data the caller works on: their own, or the owner's (`isOwnData`, `organizationName`, `ownerDisplayName`) |
 | `POST/GET/DELETE` | `/organizations/<id>/invitations[/<id>]` | Send / list / revoke an invitation (owner) |
 | `POST` | `/organizations/invitations/accept` | **Public** — accept an invitation by opaque token |
 | `GET/PUT` | `/plans/subscriptions/<userId>` | (root) Read / move a user's subscription through its lifecycle |
@@ -1006,7 +1009,7 @@ Iris also needs `IRIS_RAW_MESSAGE_ENCRYPTION_KEY`, which is **not** listed above
 
 Ellysia uses a layered configuration system (`API/src/modules/system/config_reading.py`, imported as `CR`):
 
-1. **`API/SecOpsConfig.json`** — base configuration. Exactly five root entries: `appVersion`, `general` (directories, security, registration, launch, logs, localization), `infrastructure` (database, redis, taskqueue), `tools` (`scribe`, `herald` strategy selection), `features` (`themis`, `aegis`, `iris`, `hygeia` per-module settings). `general.security.mfa.notice_interval_days` controls the periodic email reminder cadence.
+1. **`API/SecOpsConfig.json`** — base configuration. Exactly five root entries: `appVersion`, `general` (directories, security, registration, launch, logs, localization), `infrastructure` (database, redis, taskqueue), `tools` (`scribe`, `herald` strategy selection), `features` (`themis`, `aegis`, `iris`, `hygeia`, `eunomia` per-module settings). `general.security.mfa.notice_interval_days` controls the periodic email reminder cadence.
 2. **`API/.env`** — environment variables that **override** JSON values (required for the JWT secret, DB/Redis/SMTP/AI credentials, `PUBLIC_WEB_URL`).
 3. **Root `.env`** — docker-compose only (Postgres, Redis credentials — not read by the API).
 
