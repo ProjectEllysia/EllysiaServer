@@ -12,7 +12,7 @@
             autocomplete="off"
             spellcheck="false"
             :maxlength="MAX_PRODUCT_LENGTH"
-            placeholder="nginx"
+            :placeholder="t('freeTools.items.versionCheck.productPlaceholder')"
           />
         </div>
         <div class="vc-field">

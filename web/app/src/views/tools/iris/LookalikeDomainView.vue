@@ -11,7 +11,7 @@
           autocomplete="off"
           autocapitalize="none"
           spellcheck="false"
-          placeholder="ejemplo.com"
+          :placeholder="t('freeTools.items.lookalikeDomain.placeholder')"
           :aria-invalid="status === 'invalid'"
           aria-describedby="ld-hint"
         />
