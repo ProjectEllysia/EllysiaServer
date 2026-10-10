@@ -95,6 +95,8 @@
     "documentNotReady": "El documento aún no está listo.",
     "duplicateAuthorizedTarget": "«{target}» ya está en tu registro de objetivos autorizados.",
     "duplicateAssetGroup": "Ya tienes un grupo de activos llamado «{name}».",
+    "frameworkAlreadyAdopted": "El marco «{framework}» ya está adoptado.",
+    "frameworkArchived": "El marco «{framework}» está archivado. Puedes restaurarlo y recuperar lo que habías evaluado.",
     "invalidAuthorizedTarget": "«{target}» no es una dirección IP, un rango, un dominio ni un recurso cloud. Escríbelo como «203.0.113.10», «203.0.113.0/24», «example.com» o «s3:nombre-del-bucket».",
     "duplicatedUserCredentials": "Ya hay una cuenta con este dato: {value}.",
     "emailAlreadyVerified": "Tu correo ya está confirmado.",
@@ -103,6 +105,7 @@
     "emailNotVerified": "Confirma tu correo electrónico para poder usar esta función. Puedes pedir un enlace nuevo desde tu perfil.",
     "emailSend": "No se pudo enviar el correo.",
     "entityNotFound": {
+      "adoption": "Adopción no encontrada.",
       "framework": "Marco de cumplimiento no encontrado.",
       "anomaly": "Anomalía no encontrada.",
       "asset": "Activo no encontrado.",
@@ -1820,7 +1823,8 @@
         "distributionLists": "{count} lista de distribución | {count} listas de distribución",
         "campaigns": "{count} campaña de concienciación | {count} campañas de concienciación",
         "vaults": "{count} bóveda | {count} bóvedas",
-        "subscription": "Tu suscripción | Tu suscripción"
+        "subscription": "Tu suscripción | Tu suscripción",
+        "complianceFrameworks": "{count} marco de cumplimiento con sus evaluaciones | {count} marcos de cumplimiento con sus evaluaciones"
       },
       "confirmPassword": "Confirma con tu contraseña",
       "deleting": "Borrando…",

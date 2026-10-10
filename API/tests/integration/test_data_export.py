@@ -47,6 +47,7 @@ REVIEWED_SENSITIVE_LOOKING = {
     # «password», «token» o «key» sin guardar ningún secreto.
     ("User", "password_changed_at"), ("User", "password_reset_expires_at"), ("User", "must_change_password"),
     ("Finding", "dedup_key"), ("IrisAnalysis", "integration_token_id"),
+    ("EunomiaFrameworkAdoption", "framework_key"),
     ("IrisActionAudit", "idempotency_key"), ("IrisMailboxConnection", "access_token_expires_at"),
 }
 
@@ -187,7 +188,7 @@ def test_the_archive_holds_one_json_per_module_and_a_manifest(app, regular_user,
 
     assert set(archive.namelist()) == {
         "manifest.json", "profile.json", "accounts.json", "themis.json",
-        "aegis.json", "iris.json", "hygeia.json", "acheron.json",
+        "aegis.json", "iris.json", "hygeia.json", "acheron.json", "eunomia.json",
     }
     manifest = json.loads(archive.read("manifest.json"))
     assert manifest["userId"] == regular_user.id

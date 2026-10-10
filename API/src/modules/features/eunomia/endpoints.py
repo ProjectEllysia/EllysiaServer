@@ -16,11 +16,17 @@ from flask_smorest import Blueprint as SmorestBlueprint
 
 from src.modules.shared import handle_exceptions, limiter
 from src.modules.shared.schemas import ErrorSchema
-from src.modules.users import AttributeType, require_attributes, require_oauth_token
+from src.modules.users import AttributeType, get_current_user, require_attributes, require_oauth_token
 
 from .exceptions import EunomiaError
-from .managers import CatalogManager
-from .schemas import CatalogFrameworkListSchema, CatalogVersionSchema
+from .managers import CatalogManager, EunomiaFrameworkManager
+from .schemas import (
+    AdoptionCreateSchema,
+    AdoptionListSchema,
+    AdoptionSchema,
+    CatalogFrameworkListSchema,
+    CatalogVersionSchema,
+)
 
 eunomia_blp = SmorestBlueprint(
     "eunomia", __name__,
@@ -54,3 +60,33 @@ def list_frameworks():
 def get_framework_version(key, version):
     """El árbol de controles de una versión de un marco"""
     return CatalogManager().get_version(key, version)
+
+
+@eunomia_blp.get("/adoptions")
+@eunomia_blp.response(200, AdoptionListSchema, description="Marcos adoptados del dueño efectivo")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@eunomia_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@limiter.limit("120 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_READ])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def list_adoptions():
+    """Los marcos que tiene adoptados el dueño efectivo de los datos, con su versión"""
+    return EunomiaFrameworkManager().list_adoptions(get_current_user().id)
+
+
+@eunomia_blp.post("/adoptions")
+@eunomia_blp.arguments(AdoptionCreateSchema)
+@eunomia_blp.response(201, AdoptionSchema, description="Marco adoptado")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@eunomia_blp.alt_response(402, schema=ErrorSchema, description="Plan limit reached")
+@eunomia_blp.alt_response(403, schema=ErrorSchema, description="Members cannot adopt frameworks")
+@eunomia_blp.alt_response(404, schema=ErrorSchema, description="Framework not found")
+@eunomia_blp.alt_response(409, schema=ErrorSchema, description="Already adopted, or archived")
+@limiter.limit("30 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_CREATE])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def adopt_framework(data):
+    """Adoptar un marco fijando la versión vigente del catálogo"""
+    return EunomiaFrameworkManager().adopt(get_current_user().id, data["frameworkKey"]), 201
