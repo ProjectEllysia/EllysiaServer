@@ -4870,6 +4870,15 @@
     }
   },
   "configView": {
+    "eunomia": {
+      "desc": "Compliance frameworks: evidence limits and retention.",
+      "maxEvidenceBytes": "Maximum evidence size (bytes)",
+      "maxEvidenceBytesHint": "It is read whole into memory to encrypt it, so it is also the memory ceiling of an upload.",
+      "archivedRetentionDays": "Recovery days for a removed framework",
+      "archivedRetentionDaysHint": "After this period the framework and its assessments are deleted for good.",
+      "expiryNoticeDays": "Expiry notice lead time (days)",
+      "expiryNoticeDaysHint": "How many days ahead you are warned that an evidence is about to expire."
+    },
     "enS1TodasLasFunciones": "In {s1} every feature below is closed to the public, whatever its switch says; your main administrator account can keep trying them, except sign-up, pricing and external AI. In {s2} each feature follows its switch, so Ellysia can be opened in parts as each one gets its legal coverage.",
     "vistaPrevia": "preview",
     "abiertoAlPublico": "open to the public",
@@ -5161,7 +5170,8 @@
       "iris": "Iris",
       "themis": "Themis",
       "aegis": "Aegis",
-      "hygeia": "Hygeia"
+      "hygeia": "Hygeia",
+      "eunomia": "Eunomia"
     },
     "mailModules": {
       "aegis": "Aegis (campaigns)",

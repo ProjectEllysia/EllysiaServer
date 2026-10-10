@@ -4870,6 +4870,15 @@
     }
   },
   "configView": {
+    "eunomia": {
+      "desc": "Marcos de cumplimiento normativo: límites de las evidencias y retención.",
+      "maxEvidenceBytes": "Tamaño máximo de una evidencia (bytes)",
+      "maxEvidenceBytesHint": "Se lee entero en memoria al cifrarlo; es también el techo de memoria de una subida.",
+      "archivedRetentionDays": "Días de recuperación de un marco quitado",
+      "archivedRetentionDaysHint": "Pasado este plazo, el marco y sus evaluaciones se borran definitivamente.",
+      "expiryNoticeDays": "Antelación del aviso de caducidad (días)",
+      "expiryNoticeDaysHint": "Con cuántos días de margen se avisa de que una evidencia va a caducar."
+    },
     "enS1TodasLasFunciones": "En {s1} todas las funciones de abajo están cerradas al público, digan lo que digan sus interruptores; tu cuenta de administrador principal puede seguir probándolas, salvo el alta, los precios y la IA externa. En {s2} cada función sigue su interruptor, para poder abrir Ellysia por partes a medida que cada una tenga su cobertura legal.",
     "vistaPrevia": "vista previa",
     "abiertoAlPublico": "abierto al público",
@@ -5161,7 +5170,8 @@
       "iris": "Iris",
       "themis": "Themis",
       "aegis": "Aegis",
-      "hygeia": "Hygeia"
+      "hygeia": "Hygeia",
+      "eunomia": "Eunomia"
     },
     "mailModules": {
       "aegis": "Aegis (campañas)",
