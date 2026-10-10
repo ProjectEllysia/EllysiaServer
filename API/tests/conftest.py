@@ -59,6 +59,7 @@ os.environ.setdefault("IRIS_MAILBOX_ENCRYPTION_KEY", "wMNiTz_4azXsQb3lJg8Fvv0hpR
 # Idem para el raw MIME/cabeceras de IrisAnalysis, separado en su propia
 # fila cifrada (IrisRawMessage) por M09/B19.
 os.environ.setdefault("IRIS_RAW_MESSAGE_ENCRYPTION_KEY", "PttUWa9N_8cdsC4t113HiqFmxjCYYTIoplsFkz5U71Y=")
+os.environ.setdefault("EUNOMIA_EVIDENCE_ENCRYPTION_KEY", "w3Qm3hq8l4wX2V1y8bZk0m4v7nT5r9sP2cLd6eFhJxA=")
 # Clave del secreto de firma de cada webhook de Iris; distinta de las demás.
 os.environ.setdefault("IRIS_WEBHOOK_ENCRYPTION_KEY", "q3Zr0l8mFJ2vYkq1s5wXo7tNcB4eHdUaGiPyRzLxKjM=")
 os.environ.setdefault("ACCESS_TOKEN_EXPIRY_MINUTES", "30")
@@ -660,6 +661,7 @@ def seeded_plans(app, _unlimited_default_plan):
             ("acheron.vaults",          "holder",    1, "stock"),
             ("themis.thirdparty.scans", "holder",    0, "month"),
             ("eunomia.frameworks",      "holder",    1, "stock"),
+            ("eunomia.evidence_storage", "holder", 104857600, "stock"),
         ],
         "bronze": [
             ("iris.analyses",           "holder",  100, "month"),
@@ -669,6 +671,7 @@ def seeded_plans(app, _unlimited_default_plan):
             ("acheron.vaults",          "member",    3, "stock"),
             ("iris.analyses",           "member",   50, "month"),
             ("eunomia.frameworks",      "holder",    3, "stock"),
+            ("eunomia.evidence_storage", "holder", 1073741824, "stock"),
         ],
         "gold": [
             ("iris.analyses",           "holder", None, "month"),
@@ -678,6 +681,7 @@ def seeded_plans(app, _unlimited_default_plan):
             ("acheron.vaults",          "member", None, "stock"),
             ("iris.analyses",           "member",  200, "month"),
             ("eunomia.frameworks",      "holder", None, "stock"),
+            ("eunomia.evidence_storage", "holder", None, "stock"),
         ],
         "custom": [
             ("iris.analyses",           "holder", None, "month"),

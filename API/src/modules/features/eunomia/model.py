@@ -9,7 +9,9 @@ ajena hacia el catálogo.
 
 from sqlalchemy import JSON, Column, Date, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 
-from src.modules.shared import Base, utcnow_naive
+from sqlalchemy.orm import deferred
+
+from src.modules.shared import Base, EncryptedBinary, utcnow_naive
 
 #: Estados de una adopción.
 ADOPTION_ACTIVE = "active"
@@ -134,3 +136,90 @@ class EunomiaAssessmentEvent(Base):
     actor_name         = Column(String(255), nullable=False, default="")
     occurred_at        = Column(DateTime,    nullable=False, default=utcnow_naive)
     changes            = Column(JSON,        nullable=False)
+
+
+class EunomiaEvidence(Base):
+    """Un fichero que demuestra el cumplimiento de uno o varios controles.
+
+    Existe por sí misma en el espacio del dueño efectivo y se enlaza con los controles que
+    demuestra, de cualquier marco adoptado (``EunomiaEvidenceLink``): una política de control
+    de acceso sirve a NIS2, al ENS y a ISO 27001 a la vez. El contenido va cifrado en reposo y
+    en su propia tabla (``EunomiaEvidenceContent``), para poder purgarlo sin perder la ficha.
+
+    Attributes:
+        id: Clave primaria.
+        owner_user_id: Dueño efectivo de los datos.
+        title: Título que le pone quien la sube.
+        description: Notas libres.
+        filename: Nombre del fichero, saneado.
+        content_type: Tipo detectado en el servidor, no el que declaró el navegador.
+        size_bytes: Tamaño original del fichero (no el cifrado).
+        sha256: Hash del contenido, para detectar si dos evidencias son el mismo fichero.
+        valid_until: Hasta cuándo vale la evidencia, o ``None`` si no caduca.
+        expiry_notified_for: El ``valid_until`` para el que ya se avisó de la caducidad, o
+            ``None``: así el aviso se envía una vez por evidencia y fecha.
+        uploaded_at: Cuándo se subió.
+        uploaded_by_user_id: Quién la subió; ``None`` si esa cuenta se ha borrado.
+    """
+
+    __tablename__ = "EunomiaEvidence"
+
+    id                  = Column(Integer,      primary_key=True, autoincrement=True)
+    owner_user_id       = Column(Integer,      ForeignKey("User.id"), nullable=False, index=True)
+    title               = Column(String(255),  nullable=False)
+    description         = Column(Text,         nullable=True)
+    filename            = Column(String(255),  nullable=False)
+    content_type        = Column(String(128),  nullable=False)
+    size_bytes          = Column(Integer,      nullable=False)
+    sha256              = Column(String(64),   nullable=False)
+    valid_until         = Column(Date,         nullable=True)
+    expiry_notified_for = Column(Date,         nullable=True)
+    uploaded_at         = Column(DateTime,     nullable=False, default=utcnow_naive)
+    uploaded_by_user_id = Column(Integer,      ForeignKey("User.id"), nullable=True)
+
+
+class EunomiaEvidenceContent(Base):
+    """El contenido de una evidencia, cifrado en reposo y en fila aparte (1:1).
+
+    Separarlo permite purgar los bytes sin perder la ficha y que ninguna consulta de la ficha
+    los cargue: la columna es ``deferred``.
+
+    Attributes:
+        id: Clave primaria.
+        evidence_id: La evidencia a la que pertenece; única.
+        content: Los bytes del fichero; se cifran al escribir y se descifran al leer.
+    """
+
+    __tablename__ = "EunomiaEvidenceContent"
+
+    id          = Column(Integer, primary_key=True, autoincrement=True)
+    evidence_id = Column(Integer, ForeignKey("EunomiaEvidence.id", ondelete="CASCADE"),
+                         nullable=False, unique=True)
+    content     = deferred(Column(EncryptedBinary(purpose="eunomia_evidence"), nullable=False))
+
+
+class EunomiaEvidenceLink(Base):
+    """Enlace entre una evidencia y un control que demuestra. Muchos a muchos.
+
+    Attributes:
+        id: Clave primaria.
+        evidence_id: La evidencia.
+        framework_key: Clave del marco del control.
+        control_identifier: Identificador del control en la versión adoptada.
+        linked_at: Cuándo se enlazó.
+        linked_by_user_id: Quién lo enlazó; ``None`` si esa cuenta se ha borrado.
+    """
+
+    __tablename__ = "EunomiaEvidenceLink"
+    __table_args__ = (
+        UniqueConstraint("evidence_id", "framework_key", "control_identifier",
+                         name="uq_eunomia_evidence_link"),
+        Index("ix_eunomia_evidence_link_control", "framework_key", "control_identifier"),
+    )
+
+    id                 = Column(Integer,     primary_key=True, autoincrement=True)
+    evidence_id        = Column(Integer,     ForeignKey("EunomiaEvidence.id", ondelete="CASCADE"), nullable=False)
+    framework_key      = Column(String(32),  nullable=False)
+    control_identifier = Column(String(128), nullable=False)
+    linked_at          = Column(DateTime,    nullable=False, default=utcnow_naive)
+    linked_by_user_id  = Column(Integer,     ForeignKey("User.id"), nullable=True)

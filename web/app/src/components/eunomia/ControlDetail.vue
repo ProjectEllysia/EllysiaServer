@@ -23,6 +23,9 @@
       <p>{{ node.officialText }}</p>
     </details>
 
+    <EvidencePanel v-if="node.assessment" :node="node" :framework="framework" :can-edit="canEdit"
+                   @changed="$emit('evidence-changed')" />
+
     <form v-if="node.assessment" class="assessment" @submit.prevent="save">
       <h3>{{ t('eunomia.tree.assessment') }}</h3>
 
@@ -100,11 +103,14 @@
  */
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import EvidencePanel from '@/components/eunomia/EvidencePanel.vue'
 import { STATUSES } from '@/components/eunomia/tree'
 import { formatDateTime } from '@/i18n/format'
 
 const props = defineProps({
   node: { type: Object, required: true },
+  /** Clave del marco al que pertenece el control. */
+  framework: { type: String, required: true },
   people: { type: Array, default: () => [] },
   canEdit: { type: Boolean, default: true },
   saving: { type: Boolean, default: false },
@@ -113,7 +119,7 @@ const props = defineProps({
   /** Cambios del control, del más reciente al más antiguo. */
   history: { type: Array, default: () => [] },
 })
-const emit = defineEmits(['save', 'take-current'])
+const emit = defineEmits(['save', 'take-current', 'evidence-changed'])
 const { t } = useI18n()
 
 const form = ref(fromAssessment(props.node.assessment))

@@ -580,7 +580,7 @@ def _models_of_deletion_category(key: str) -> list:
 DELETION_CATEGORY_KEYS: tuple[str, ...] = (
     "scans", "documents", "scheduledScans", "authorizedTargets", "mailboxes",
     "mailAnalyses", "monitoredAssets", "distributionLists", "campaigns", "vaults",
-    "subscription", "complianceFrameworks",
+    "subscription", "complianceFrameworks", "complianceEvidence",
 )
 
 #: Tablas con clave ajena hacia ``User`` que se borran pero **no** salen como
@@ -592,6 +592,10 @@ UNLISTED_TABLES: dict[str, str] = {
     **dict.fromkeys(
         ["EunomiaControlAssessment", "EunomiaAssessmentEvent"],
         "las evaluaciones de tus marcos de cumplimiento y su historial, que se cuentan con el marco",
+    ),
+    **dict.fromkeys(
+        ["EunomiaEvidenceLink"],
+        "los enlaces entre tus evidencias de cumplimiento y los controles, que caen con cada evidencia",
     ),
     **dict.fromkeys(
         ["AccessToken", "RefreshToken", "MFAChallenge", "MFARecoveryCode", "MFATotpCredential",

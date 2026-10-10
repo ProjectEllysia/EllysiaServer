@@ -39,7 +39,7 @@
                 :class="{ 'row--exceeded': entry.exceeded }">
               <div class="row-head">
                 <span class="row-label">{{ label(key) }}</span>
-                <span class="row-value">{{ describe(entry) }}</span>
+                <span class="row-value">{{ describe(entry, key) }}</span>
               </div>
               <div class="bar" :aria-hidden="entry.value === null || entry.value === 0">
                 <div class="bar-fill" :style="{ width: percent(entry) }"></div>
@@ -70,6 +70,7 @@ import { computed, onMounted } from 'vue'
 import Topbar from '@/components/shared/Topbar.vue'
 import StarBackground from '@/components/shared/StarBackground.vue'
 import { useAccountStore } from '@/stores/accountStore'
+import { formatNumber } from '@/i18n/format'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -120,11 +121,20 @@ function label(key) {
   return LABEL_IDS[key] ? t(`myPlan.limits.${LABEL_IDS[key]}`) : key
 }
 
-function describe(entry) {
+/** Claves cuyo valor son bytes: se enseñan en MB, no como un número de ocho cifras. */
+const BYTE_KEYS = new Set(['eunomia.evidence_storage'])
+
+/** Bytes a «12 MB» con el formato del idioma activo. */
+function megabytes(bytes) {
+  return `${formatNumber(Math.round(bytes / 1048576))} MB`
+}
+
+function describe(entry, key = '') {
+  const show = BYTE_KEYS.has(key) ? megabytes : (value) => value
   if (entry.value === 0) return t('planFormat.notIncluded')
-  if (entry.used === null) return entry.value === null ? t('planFormat.unlimited') : t('myPlan.upTo', { limit: entry.value })
-  if (entry.value === null) return t('myPlan.usedUnlimited', { used: entry.used })
-  return `${entry.used} / ${entry.value}`
+  if (entry.used === null) return entry.value === null ? t('planFormat.unlimited') : t('myPlan.upTo', { limit: show(entry.value) })
+  if (entry.value === null) return t('myPlan.usedUnlimited', { used: show(entry.used) })
+  return `${show(entry.used)} / ${show(entry.value)}`
 }
 
 function percent(entry) {

@@ -13,7 +13,14 @@ Hierarchy:
     ├── ControlNotAssessableError (400)
     ├── JustificationRequiredError (400)
     ├── ResponsibleNotInOrganizationError (400)
-    └── AssessmentConflictError   (409)
+    ├── AssessmentConflictError   (409)
+    ├── EvidenceNotFoundError     (404)
+    ├── EvidenceFileMissingError  (400)
+    ├── EvidenceTooLargeError     (413)
+    ├── EvidenceStorageFullError  (402)
+    ├── EvidenceTypeNotAllowedError (400)
+    ├── EvidenceTypeMismatchError (400)
+    └── EvidenceActiveContentError (400)
 """
 
 from __future__ import annotations
@@ -174,4 +181,114 @@ class AssessmentConflictError(EunomiaError):
             user_message="Otra persona ha cambiado este control mientras lo editabas. Revisa su valor actual.",
             message_key="assessmentConflict",
             details={"current": current},
+        )
+
+
+class EvidenceNotFoundError(EntityNotFoundError, EunomiaError):
+    """La evidencia no existe, o no es del dueño efectivo del usuario.
+
+    El mismo error en los dos casos: distinguirlos permitiría enumerar evidencias ajenas.
+    """
+
+    entity_label = "Evidencia"
+    entity_is_feminine = True
+    id_field = "evidence_id"
+
+
+class EvidenceFileMissingError(EunomiaError):
+    """La petición de subida no trae ningún fichero."""
+
+    default_code = ErrorCode.VALIDATION_ERROR
+    default_status_code = 400
+
+    def __init__(self) -> None:
+        super().__init__(
+            message="La subida no incluye ningun fichero",
+            user_message="Elige un fichero para subirlo como evidencia.",
+            message_key="evidenceFileMissing",
+        )
+
+
+class EvidenceTooLargeError(EunomiaError):
+    """El fichero supera el tamaño máximo de una evidencia."""
+
+    default_code = ErrorCode.VALIDATION_ERROR
+    default_status_code = 413
+
+    def __init__(self, max_megabytes: int) -> None:
+        super().__init__(
+            message=f"La evidencia supera el maximo de {max_megabytes} MB",
+            user_message=f"El fichero supera el máximo de {max_megabytes} MB por evidencia.",
+            message_key="evidenceTooLarge",
+            params={"maxMegabytes": max_megabytes},
+        )
+
+
+class EvidenceStorageFullError(EunomiaError):
+    """La subida superaría el almacenamiento de evidencias que da el plan del dueño.
+
+    402 y no 413: se arregla con espacio (borrando evidencias o subiendo de plan), no
+    achicando el fichero. Las cifras van en megabytes, que es lo que el usuario entiende.
+    """
+
+    default_code = ErrorCode.PLAN_LIMIT_REACHED
+    default_status_code = 402
+
+    def __init__(self, used_megabytes: int, limit_megabytes: int) -> None:
+        super().__init__(
+            message=f"Almacenamiento de evidencias agotado: {used_megabytes}/{limit_megabytes} MB",
+            user_message=(
+                f"Tu plan incluye {limit_megabytes} MB de evidencias y ya usas {used_megabytes} MB. "
+                f"Borra alguna o amplía tu plan para subir más."
+            ),
+            message_key="evidenceStorageFull",
+            params={"usedMegabytes": used_megabytes, "limitMegabytes": limit_megabytes},
+        )
+
+
+class EvidenceTypeNotAllowedError(EunomiaError):
+    """El tipo de fichero no está entre los admitidos como evidencia."""
+
+    default_code = ErrorCode.VALIDATION_ERROR
+    default_status_code = 400
+
+    def __init__(self, extension: str, allowed: str) -> None:
+        super().__init__(
+            message=f"Tipo de evidencia no admitido: '{extension}'",
+            user_message=f"El tipo de fichero «{extension}» no se admite como evidencia. Admitidos: {allowed}.",
+            message_key="evidenceTypeNotAllowed",
+            params={"extension": extension, "allowed": allowed},
+        )
+
+
+class EvidenceTypeMismatchError(EunomiaError):
+    """El contenido no es del tipo que dice su extensión (un ejecutable renombrado a ``.pdf``)."""
+
+    default_code = ErrorCode.VALIDATION_ERROR
+    default_status_code = 400
+
+    def __init__(self, extension: str) -> None:
+        super().__init__(
+            message=f"El contenido no corresponde a la extension '{extension}'",
+            user_message=f"El contenido del fichero no es un «{extension}» de verdad, aunque se llame así.",
+            message_key="evidenceTypeMismatch",
+            params={"extension": extension},
+        )
+
+
+class EvidenceActiveContentError(EunomiaError):
+    """El fichero lleva contenido activo que se ejecutaría al abrirlo (macros, JavaScript…)."""
+
+    default_code = ErrorCode.VALIDATION_ERROR
+    default_status_code = 400
+
+    def __init__(self, detail: str) -> None:
+        super().__init__(
+            message=f"Evidencia con contenido activo: {detail}",
+            user_message=(
+                f"El fichero lleva contenido que se ejecutaría al abrirlo y no se admite como "
+                f"evidencia: {detail}"
+            ),
+            message_key="evidenceActiveContent",
+            params={"detail": detail},
         )

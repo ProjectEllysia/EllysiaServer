@@ -519,6 +519,13 @@ Hygeia has two separate auth surfaces: standard OAuth for the user-facing endpoi
 | `PUT` | `/eunomia/adoptions/<key>/controls/<identifier>` | `EUNOMIA_UPDATE` | Assess a control: `status` (`pending`, `in_progress`, `implemented`, `not_applicable`), `justification` (required when not applicable), `notes`, `responsibleUserId` (the owner or a member) and `dueDate`. The body carries the `updatedAt` the client saw (or `null`); if the row changed meanwhile the answer is `409` with the current value in `details.current`. A group, an unknown control or a framework that is not adopted is rejected |
 | `GET` | `/eunomia/adoptions/<key>/history/<identifier>` | `EUNOMIA_READ` | Who changed what and when on a control, newest first: each event has the `from`/`to` of every field that changed. The actor's name survives the deletion of their account |
 | `GET` | `/eunomia/adoptions/<key>/summary` | `EUNOMIA_READ` | How much is left: global and per top-level branch, controls due soon (overdue first) and open controls without a responsible. Progress is `implemented / (assessable − not applicable)`: "not applicable" counts neither for nor against |
+| `GET` | `/eunomia/evidence` | `EUNOMIA_READ` | The effective owner's evidence (metadata, never the file), each with the controls it demonstrates, plus `usage` (`usedBytes`, `limitBytes`, `remainingBytes`) against the `eunomia.evidence_storage` plan limit |
+| `POST` | `/eunomia/evidence` | `EUNOMIA_CREATE` | Upload a file as evidence (`multipart/form-data`: `file`, `title`, `description`, `validUntil`). The size is checked before the body is read and again before it is stored (`402` when the plan's storage is full); the type is the extension **checked against the content** (`400` for an executable renamed to `.pdf`) and the content is inspected for macros, JavaScript and other active content (`400`). The file is stored encrypted at rest |
+| `GET` | `/eunomia/evidence/<id>/download` | `EUNOMIA_READ` | Download the file, always as an attachment and with `nosniff` |
+| `PATCH` | `/eunomia/evidence/<id>` | `EUNOMIA_UPDATE` | Change title, description or `validUntil` |
+| `DELETE` | `/eunomia/evidence/<id>` | `EUNOMIA_DELETE` | Delete the evidence with its content and links; every control it served records the change in its history |
+| `POST` | `/eunomia/evidence/<id>/links` | `EUNOMIA_UPDATE` | Link the evidence to an assessable control of an adopted framework (`{"frameworkKey", "controlIdentifier"}`). One piece of evidence can serve controls of several frameworks |
+| `DELETE` | `/eunomia/evidence/<id>/links/<framework>/<identifier>` | `EUNOMIA_UPDATE` | Unlink; the evidence is kept |
 
 The catalog is **not in the database**: it is one JSON file per framework version under `API/src/modules/features/eunomia/catalog/`, loaded and validated in memory. A *published* version is immutable — `catalog/LOCK.json` holds its SHA-256 and a test fails if it changes — because users' assessments will reference control codes (`nis2:21.2.e`) without a foreign key; a correction is published as a new version. Each version declares its `sources` and a `licenseMode` (`full_text`, `own_wording` or `codes_only`) saying what may be reproduced from them. Lybra maps findings to those control codes and keeps only MITRE ATT&CK and the finding-to-control mapping; reports resolve control titles through Eunomia, and the frameworks a report shows are the ones its effective data owner adopted (the former per-user choice, `/themis/compliance`, no longer exists — a migration moved every existing choice to adoptions). Today the catalog has NIS2 (draft: Directive 2022/2555 arts. 20, 21 and 23 and the 13 sections of Implementing Regulation 2024/2690) and minimal ENS and ISO/IEC 27001 versions (draft) so reports lose nothing.
 
@@ -1091,6 +1098,7 @@ There is no single encryption key. Each kind of secret has its own, so compromis
 | `IRIS_MAILBOX_ENCRYPTION_KEY` | OAuth refresh/access tokens and IMAP app passwords of each connected mailbox | Only if a mailbox is connected |
 | `IRIS_WEBHOOK_ENCRYPTION_KEY` | Signing secret of each Iris webhook | Only if webhooks are used |
 | `IRIS_RAW_MESSAGE_ENCRYPTION_KEY` | Raw content (headers or full `.eml`) of every analysed email | **Yes, for any use of Iris** — including an email pasted by hand |
+| `EUNOMIA_EVIDENCE_ENCRYPTION_KEY` | The files uploaded as compliance evidence | Only if evidence is uploaded |
 
 All of them are Fernet keys, generated the same way, and must be **different from each other**:
 
@@ -1115,7 +1123,7 @@ python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().d
 - `API/src/data/` and `docs/` are gitignored (scan outputs, generated PDFs).
 - PostgreSQL uses port **15432** locally (not standard 5432).
 - There is a single `TaskStatus` enum, in `system/taskqueue/task.py`; `themis/services/tasks.py` imports it rather than defining its own.
-- The API version is declared as `appVersion` in `SecOpsConfig.json` (currently `0.6.4`, read by `CR.get_app_version()`).
+- The API version is declared as `appVersion` in `SecOpsConfig.json` (currently `0.6.5`, read by `CR.get_app_version()`).
 
 ## License
 

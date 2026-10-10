@@ -157,10 +157,99 @@ export const useEunomiaStore = defineStore('eunomia', () => {
     }
   }
 
+  /**
+   * Carga las evidencias del dueño efectivo, con los controles que demuestran.
+   *
+   * @returns {Promise<{evidence: Array, usage: object|null}>} Las fichas y el uso de
+   *   almacenamiento (`usedBytes`, `limitBytes`); vacío y sin uso si falla.
+   */
+  async function loadEvidence() {
+    try {
+      const res = await apiFetch('/eunomia/evidence')
+      if (!res?.ok) return { evidence: [], usage: null }
+      const data = await res.json()
+      return { evidence: data.evidence ?? [], usage: data.usage ?? null }
+    } catch { return { evidence: [], usage: null } }
+  }
+
+  /**
+   * Sube un fichero como evidencia.
+   *
+   * @param {File} file - El fichero elegido.
+   * @param {{title?: string, description?: string, validUntil?: string}} [fields]
+   * @returns {Promise<{ok: boolean, evidence: object|null, message: string|null}>}
+   */
+  async function uploadEvidence(file, { title = '', description = '', validUntil = '' } = {}) {
+    const form = new FormData()
+    form.append('file', file)
+    form.append('title', title)
+    form.append('description', description)
+    if (validUntil) form.append('validUntil', validUntil)
+    try {
+      const res = await apiFetch('/eunomia/evidence', { method: 'POST', body: form })
+      if (!res?.ok) return { ok: false, evidence: null, message: await apiError(res, i18n.global.t('eunomia.evidence.uploadFailed')) }
+      return { ok: true, evidence: await res.json(), message: null }
+    } catch { return { ok: false, evidence: null, message: i18n.global.t('eunomia.frameworks.offline') } }
+  }
+
+  /**
+   * Enlaza o desenlaza una evidencia con un control.
+   *
+   * @param {number} evidenceId - Id de la evidencia.
+   * @param {string} framework - Clave del marco.
+   * @param {string} identifier - Identificador del control.
+   * @param {boolean} linked - `true` para enlazar, `false` para quitar el enlace.
+   * @returns {Promise<{ok: boolean, message: string|null}>}
+   */
+  async function setEvidenceLink(evidenceId, framework, identifier, linked) {
+    try {
+      const res = linked
+        ? await apiFetch(`/eunomia/evidence/${evidenceId}/links`, {
+          method: 'POST', body: JSON.stringify({ frameworkKey: framework, controlIdentifier: identifier }) })
+        : await apiFetch(`/eunomia/evidence/${evidenceId}/links/${encodeURIComponent(framework)}/${encodeURIComponent(identifier)}`,
+          { method: 'DELETE' })
+      if (!res?.ok) return { ok: false, message: await apiError(res, i18n.global.t('eunomia.evidence.linkFailed')) }
+      return { ok: true, message: null }
+    } catch { return { ok: false, message: i18n.global.t('eunomia.frameworks.offline') } }
+  }
+
+  /**
+   * Borra una evidencia.
+   *
+   * @param {number} evidenceId - Id de la evidencia.
+   * @returns {Promise<{ok: boolean, message: string|null}>}
+   */
+  async function deleteEvidence(evidenceId) {
+    try {
+      const res = await apiFetch(`/eunomia/evidence/${evidenceId}`, { method: 'DELETE' })
+      if (!res?.ok) return { ok: false, message: await apiError(res, i18n.global.t('eunomia.evidence.deleteFailed')) }
+      return { ok: true, message: null }
+    } catch { return { ok: false, message: i18n.global.t('eunomia.frameworks.offline') } }
+  }
+
+  /**
+   * Descarga una evidencia como fichero.
+   *
+   * @param {{id: number, filename: string}} evidence - La evidencia.
+   * @returns {Promise<boolean>} `true` si se descargó.
+   */
+  async function downloadEvidence(evidence) {
+    const res = await apiFetch(`/eunomia/evidence/${evidence.id}/download`)
+    if (!res?.ok) return false
+    const url = URL.createObjectURL(await res.blob())
+    const link = document.createElement('a')
+    link.href = url
+    link.download = evidence.filename
+    link.click()
+    URL.revokeObjectURL(url)
+    return true
+  }
+
   /** El catálogo repartido entre disponibles, adoptados y archivados. */
   function grouped() {
     return splitFrameworks(state.catalog, state.adoptions)
   }
 
-  return { state, load, adopt, archive, restore, previewRemoval, loadTree, loadSummary, loadHistory, saveAssessment, grouped }
+  return { state, load, adopt, archive, restore, previewRemoval, loadTree, loadSummary, loadHistory, saveAssessment,
+    loadEvidence, uploadEvidence, setEvidenceLink, deleteEvidence, downloadEvidence, grouped }
 })

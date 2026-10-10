@@ -96,6 +96,12 @@
     "documentNotReady": "El documento aún no está listo.",
     "duplicateAuthorizedTarget": "«{target}» ya está en tu registro de objetivos autorizados.",
     "duplicateAssetGroup": "Ya tienes un grupo de activos llamado «{name}».",
+    "evidenceActiveContent": "El fichero lleva contenido que se ejecutaría al abrirlo y no se admite como evidencia: {detail}",
+    "evidenceFileMissing": "Elige un fichero para subirlo como evidencia.",
+    "evidenceStorageFull": "Tu plan incluye {limitMegabytes} MB de evidencias y ya usas {usedMegabytes} MB. Borra alguna o amplía tu plan para subir más.",
+    "evidenceTooLarge": "El fichero supera el máximo de {maxMegabytes} MB por evidencia.",
+    "evidenceTypeMismatch": "El contenido del fichero no es un «{extension}» de verdad, aunque se llame así.",
+    "evidenceTypeNotAllowed": "El tipo de fichero «{extension}» no se admite como evidencia. Admitidos: {allowed}.",
     "frameworkAlreadyAdopted": "El marco «{framework}» ya está adoptado.",
     "frameworkArchived": "El marco «{framework}» está archivado. Puedes restaurarlo y recuperar lo que habías evaluado.",
     "frameworkNotArchived": "El marco «{framework}» no está archivado.",
@@ -108,6 +114,7 @@
     "emailNotVerified": "Confirma tu correo electrónico para poder usar esta función. Puedes pedir un enlace nuevo desde tu perfil.",
     "emailSend": "No se pudo enviar el correo.",
     "entityNotFound": {
+      "evidence": "Evidencia no encontrada.",
       "control": "Control no encontrado.",
       "adoption": "Adopción no encontrada.",
       "framework": "Marco de cumplimiento no encontrado.",
@@ -1830,7 +1837,8 @@
         "campaigns": "{count} campaña de concienciación | {count} campañas de concienciación",
         "vaults": "{count} bóveda | {count} bóvedas",
         "subscription": "Tu suscripción | Tu suscripción",
-        "complianceFrameworks": "{count} marco de cumplimiento con sus evaluaciones | {count} marcos de cumplimiento con sus evaluaciones"
+        "complianceFrameworks": "{count} marco de cumplimiento con sus evaluaciones | {count} marcos de cumplimiento con sus evaluaciones",
+        "complianceEvidence": "{count} evidencia de cumplimiento con su fichero | {count} evidencias de cumplimiento con sus ficheros"
       },
       "confirmPassword": "Confirma con tu contraseña",
       "deleting": "Borrando…",
@@ -1955,7 +1963,8 @@
         "justification": "Justificación",
         "notes": "Notas",
         "responsibleUserId": "Responsable",
-        "dueDate": "Fecha límite"
+        "dueDate": "Fecha límite",
+        "evidence": "Evidencia"
       }
     },
     "status": {
@@ -1971,6 +1980,28 @@
       "upcoming": "Vencen pronto",
       "overdue": "vencido",
       "unassigned": "{count} control sin responsable | {count} controles sin responsable"
+    },
+    "evidence": {
+      "title": "Evidencias",
+      "none": "Este control todavía no tiene evidencias enlazadas.",
+      "validUntil": "vale hasta el {date}",
+      "unlink": "Desenlazar",
+      "linkExisting": "Enlazar una existente",
+      "link": "Enlazar",
+      "uploadNew": "Subir una nueva",
+      "titlePlaceholder": "Título (opcional)",
+      "validUntilLabel": "Válida hasta",
+      "file": "Fichero",
+      "upload": "Subir y enlazar",
+      "pickFile": "Elige primero un fichero.",
+      "uploadFailed": "No se pudo subir la evidencia.",
+      "linkFailed": "No se pudo enlazar la evidencia.",
+      "deleteFailed": "No se pudo borrar la evidencia.",
+      "downloadFailed": "No se pudo descargar el fichero.",
+      "usage": "Evidencias: {used} de {limit} usados.",
+      "usageUnlimited": "Evidencias: {used} usados.",
+      "expired": "vencida",
+      "expiredFlag": "evidencia vencida"
     }
   },
   "organizationManaged": {
@@ -5291,7 +5322,8 @@
       "aegis": "Aegis (campañas)",
       "iris": "Iris (avisos)",
       "hygeia": "Hygeia (avisos)",
-      "accounts": "Cuentas (verificación, invitaciones)"
+      "accounts": "Cuentas (verificación, invitaciones)",
+      "eunomia": "Eunomia (avisos de caducidad)"
     },
     "ollamaLocal": "Ollama (local)",
     "reset": "Restablecer",
