@@ -82,24 +82,19 @@ class AegisOrgProfile(WhiteLabelColumns, Base):
     """
     Stable per-user defaults for Aegis pill generation.
 
-    Data like company name, contact email, tone, size, jurisdiction and
-    habitual brands rarely changes between generations — this is the
-    persisted default so the user doesn't retype it every time they generate
-    a pill. Per-generation fields (topic, topicFocus, recentIncident,
-    audienceLevel) stay in the generation request, not here.
+    Tone, language, tracked products and white-label settings rarely change
+    between generations — this is the persisted default so the user doesn't
+    retype them every time they generate a pill. The company's identity (legal
+    name, contact, size, jurisdiction, logo) is not stored here: it lives in
+    ``accounts.CompanyProfile`` and Aegis reads it from there. Per-generation
+    fields (topic, topicFocus, recentIncident, audienceLevel) stay in the
+    generation request, not here.
 
     Attributes:
         id: Primary key, auto-incrementing integer.
         user_id: Foreign key to User.id (one profile per user).
-        company: Company/organization name.
-        contact_email: Contact email shown in generated pills.
         tone: Writing tone ('profesional' | 'formal' | 'cercano' | 'tecnico').
-        company_size: Size bucket ('' | 'micro' | 'pequeña' | 'mediana').
-        jurisdiction: Regulatory jurisdiction (free text, e.g. 'España').
         language: Generation language code (e.g. 'es', 'en').
-        sector: Industry sector (free text).
-        work_model: Work model ('' | 'remoto' | 'híbrido' | 'presencial').
-        employee_count: Approximate headcount.
         tracked_products: JSONB list of ``{"vendor": ..., "product": ...}`` CPE
             coordinates whose advisories should feed this org's pills. Replaces
             the old ``associated_brands`` list of free-text labels, which could
@@ -114,8 +109,6 @@ class AegisOrgProfile(WhiteLabelColumns, Base):
         white_label_level: How much of the Ellysia brand the campaign
             recipients see ('none' | 'color' | 'logo' | 'full'). Each step adds
             to the previous one. From WhiteLabelColumns.
-        brand_logo: The organization's logo as a base64 data URI, shown in the
-            campaign email. From WhiteLabelColumns.
         brand_color: The organization's accent colour ('#1a73e8'), replacing
             the product's in the campaign email. From WhiteLabelColumns.
         created_at: Creation timestamp.
@@ -125,17 +118,13 @@ class AegisOrgProfile(WhiteLabelColumns, Base):
 
     id                = Column(Integer,     primary_key=True, autoincrement=True)
     user_id           = Column(Integer,     ForeignKey("User.id"), nullable=False, unique=True)
-    company           = Column(String(128), nullable=True)
-    contact_email     = Column(String(128), nullable=True)
     tone              = Column(String(32),  nullable=True)
-    company_size      = Column(String(16),  nullable=True)
-    jurisdiction      = Column(String(128), nullable=True)
     language          = Column(String(8),   nullable=True)
-    sector            = Column(String(128), nullable=True)
-    work_model        = Column(String(16),  nullable=True)
-    employee_count    = Column(Integer,     nullable=True)
     tracked_products  = Column(JSONB,       nullable=True)
     use_hygeia_inventory = Column(Boolean,  nullable=False, default=True, server_default="true")
+    # El logo es un dato de identidad de la empresa y vive en el perfil de
+    # empresa de ``accounts``; se excluye aquí la columna que trae el mixin.
+    brand_logo        = None
     created_at        = Column(DateTime,    nullable=False, default=utcnow_naive)
 
     user = relationship("User")
@@ -150,19 +139,11 @@ class AegisOrgProfile(WhiteLabelColumns, Base):
             without translating field names.
         """
         return {
-            "company":          self.company or "",
-            "mentionContact":   self.contact_email or "",
             "tone":             self.tone or "",
-            "companySize":      self.company_size or "",
-            "jurisdiction":     self.jurisdiction or "",
             "language":         self.language or "",
-            "sector":           self.sector or "",
-            "workModel":        self.work_model or "",
-            "employeeCount":    self.employee_count,
             "trackedProducts":  self.tracked_products or [],
             "useHygeiaInventory": bool(self.use_hygeia_inventory),
             "whiteLabelLevel":  self.white_label_level or WhiteLabelLevel.NONE.value,
-            "brandLogo":        self.brand_logo or "",
             "brandColor":       self.brand_color or "",
         }
 

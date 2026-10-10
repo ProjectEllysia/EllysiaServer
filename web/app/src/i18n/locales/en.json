@@ -393,7 +393,8 @@
         "title": "Remove everything related to Ellysia",
         "description": "The header, the footer and the quiz page switch to the organization's brand."
       }
-    }
+    },
+    "logoManagedElsewhere": "The logo is managed in the company details."
   },
   "moduleHub": {
     "signIn": "Sign in",
@@ -1847,7 +1848,8 @@
       "securityContact": "Security contact (email)",
       "companySize": "Size",
       "workModel": "Work model",
-      "employeeCount": "Number of employees"
+      "employeeCount": "Number of employees",
+      "brandLogo": "Logo"
     },
     "sizes": {
       "micro": "Micro",
@@ -1865,7 +1867,9 @@
     "saveFailed": "The company details could not be saved.",
     "loadFailed": "The company details could not be loaded."
   },
-  "organizationManaged": {"notice": "You belong to the organization {organization}. These details are managed by its owner, {owner}. Yours are kept and will apply again if you leave the organization."},
+  "organizationManaged": {
+    "notice": "You belong to the organization {organization}. These details are managed by its owner, {owner}. Yours are kept and will apply again if you leave the organization."
+  },
   "organization": {
     "topbar": "My organization",
     "none": "You do not have an organization yet",
@@ -3848,7 +3852,18 @@
       "save": "Save profile",
       "agentProducts": "products from my agents",
       "noProducts": "no products",
-      "productCount": "{count} product | {count} products"
+      "productCount": "{count} product | {count} products",
+      "companyDataTitle": "Company details",
+      "editCompanyData": "Edit in the company details",
+      "companyData": {
+        "company": "Legal name",
+        "mentionContact": "Contact",
+        "sector": "Sector",
+        "companySize": "Size",
+        "employeeCount": "Employees",
+        "jurisdiction": "Jurisdiction",
+        "workModel": "Work model"
+      }
     },
     "products": {
       "title": "Watched products",

@@ -37,6 +37,22 @@
           </select>
         </div>
 
+        <div class="cp-field cp-field--wide cp-logo">
+          <span class="cp-label">{{ t('companyProfile.fields.brandLogo') }}</span>
+          <img v-if="form.brandLogo" :src="form.brandLogo" :alt="t('whiteLabel.logoAlt')" class="cp-logo-preview" />
+          <div v-if="canEdit" class="cp-logo-actions">
+            <label class="cp-logo-file">
+              <input type="file" accept="image/png,image/jpeg,image/gif" @change="onLogoFile" />
+              <span>{{ form.brandLogo ? t('whiteLabel.changeImage') : t('whiteLabel.addImage') }}</span>
+            </label>
+            <button v-if="form.brandLogo" type="button" class="cp-logo-remove" @click="form.brandLogo = ''">
+              {{ t('whiteLabel.removeLogo') }}
+            </button>
+          </div>
+          <p v-if="logoError" class="cp-logo-error">{{ logoError }}</p>
+          <p v-else-if="canEdit" class="cp-desc">{{ t('whiteLabel.logoFormats', { maxKb: LOGO_MAX_KB }) }}</p>
+        </div>
+
         <div class="cp-field">
           <label for="cp-employeeCount">{{ t('companyProfile.fields.employeeCount') }}</label>
           <input
@@ -93,8 +109,13 @@ const WORK_MODELS = ['remoto', 'híbrido', 'presencial']
 
 const form = reactive({
   legalName: '', taxId: '', addressLine: '', postalCode: '', city: '', province: '', country: '',
-  sector: '', companySize: '', employeeCount: null, jurisdiction: '', workModel: '', securityContact: '',
+  sector: '', companySize: '', employeeCount: null, jurisdiction: '', workModel: '', securityContact: '', brandLogo: '',
 })
+// Mismos límites que valida el servidor; aquí solo evitan un viaje que iba a fallar.
+const LOGO_TYPES = ['image/png', 'image/jpeg', 'image/gif']
+const LOGO_MAX_KB = 200
+const logoError = ref('')
+
 const ownership = ref({ isOwnData: true })
 const loading = ref(true)
 const saving = ref(false)
@@ -110,6 +131,30 @@ const canEdit = computed(() => ownership.value.isOwnData === true)
 function apply(payload) {
   for (const key of Object.keys(form)) form[key] = payload[key] ?? form[key]
   ownership.value = payload.ownership ?? { isOwnData: true }
+}
+
+/**
+ * Lee el logo elegido como data URI, que es como lo guarda la API.
+ *
+ * @param {Event} event - `change` del `<input type="file">`.
+ */
+function onLogoFile(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+  logoError.value = ''
+  if (!LOGO_TYPES.includes(file.type)) {
+    logoError.value = t('whiteLabel.unsupportedFormat')
+    return
+  }
+  if (file.size > LOGO_MAX_KB * 1024) {
+    logoError.value = t('whiteLabel.tooLarge', { sizeKb: Math.round(file.size / 1024), maxKb: LOGO_MAX_KB })
+    return
+  }
+  const reader = new FileReader()
+  reader.onerror = () => { logoError.value = t('whiteLabel.unreadable') }
+  reader.onload = () => { form.brandLogo = String(reader.result || '') }
+  reader.readAsDataURL(file)
 }
 
 /** Carga el perfil que ve el usuario (el suyo o el del dueño de su organización). */
@@ -170,5 +215,13 @@ onMounted(load)
 }
 .cp-save:hover { background: var(--accent); color: var(--on-accent); }
 .cp-save:disabled { opacity: 0.6; cursor: not-allowed; }
+.cp-label { font-size: var(--fs-body); color: var(--text-dim); }
+.cp-logo-preview { max-height: 64px; max-width: 220px; object-fit: contain; align-self: flex-start; }
+.cp-logo-actions { display: flex; gap: 0.8rem; align-items: center; }
+.cp-logo-file { cursor: pointer; color: var(--accent); text-decoration: underline; font-size: var(--fs-body); }
+.cp-logo-file input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.cp-logo-remove { color: var(--text-muted); font-size: var(--fs-body); }
+.cp-logo-remove:hover { color: var(--danger); }
+.cp-logo-error { color: var(--danger); font-size: var(--fs-body); }
 @media (max-width: 640px) { .cp-grid { grid-template-columns: 1fr; } }
 </style>
