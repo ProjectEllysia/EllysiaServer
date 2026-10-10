@@ -279,3 +279,31 @@ def test_nothing_in_eunomia_imports_themis():
         if "features.themis" in path.read_text(encoding="utf-8")
     ]
     assert offenders == []
+
+
+# ── ENS e ISO 27001 completos ──────────────────────────────────────────────
+
+def test_the_complete_ens_has_every_measure_with_its_applicability_and_reinforcements():
+    ens = load_version("ens", "rd-311-2022")
+
+    measures = [n for n in ens.nodes if n.identifier.count(".") == 2 and not n.identifier.split(".")[-1].startswith("r")
+                or (n.identifier.startswith("org.") and n.identifier.count(".") == 1)]
+    assert len(measures) == 73
+    for node in measures:
+        assert set(node.metadata["categories"]) == {"basic", "medium", "high"}
+        assert node.description and node.actions and node.evidence
+    reinforcement = ens.node("ens:op.exp.4.r1")
+    assert reinforcement.parent == "ens:op.exp.4"
+    assert ens.node("ens:op.exp.4").is_assessable is True   # una medida con refuerzos sigue siendo evaluable
+
+
+def test_the_complete_iso_27001_has_93_controls_and_no_text_of_the_standard():
+    iso = load_version("iso27001", "2022")
+
+    controls = [n for n in iso.nodes if n.kind == "requirement"]
+    themes = {n.identifier: len([c for c in controls if c.parent == n.code]) for n in iso.children(None)}
+
+    assert len(controls) == 93
+    assert themes == {"A.5": 37, "A.6": 8, "A.7": 14, "A.8": 34}
+    assert iso.license_mode == "codes_only"
+    assert all(not n.official_text for n in iso.nodes)

@@ -51,6 +51,7 @@ class CatalogNodeSchema(Schema):
     evidence = fields.List(fields.String())
     source = fields.String()
     register = fields.String(allow_none=True)
+    metadata = fields.Dict()
     children = fields.List(fields.Nested(lambda: CatalogNodeSchema()))
 
 
@@ -174,6 +175,7 @@ class AdoptedNodeSchema(Schema):
     actions = fields.List(fields.String())
     evidence = fields.List(fields.String())
     source = fields.String()
+    metadata = fields.Dict()
     linkedEvidence = fields.List(fields.Dict())
     evidenceState = fields.String()
     assessment = fields.Nested(AssessmentSchema, allow_none=True)

@@ -167,6 +167,7 @@ def _tree_node(version: FrameworkVersion, node: CatalogNode, rows: dict, names: 
         "actions": list(node.actions),
         "evidence": list(node.evidence),
         "source": node.source,
+        "metadata": node.metadata,
         "assessment": (
             assessment_payload(rows.get(node.identifier), node.framework, node.identifier, names)
             if node.is_assessable else None
