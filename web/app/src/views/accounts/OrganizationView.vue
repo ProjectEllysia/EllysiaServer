@@ -40,6 +40,8 @@
 
         <p v-if="!account.isOwner" class="hint">{{ t('organization.memberHint') }}</p>
 
+        <CompanyProfilePanel class="section" />
+
         <template v-if="account.isOwner">
           <section class="section">
             <h2>{{ t('language.label') }}</h2>
@@ -142,6 +144,7 @@ import { ref, computed, onMounted } from 'vue'
 import Topbar from '@/components/shared/Topbar.vue'
 import StarBackground from '@/components/shared/StarBackground.vue'
 import ConfirmModal from '@/components/shared/ConfirmModal.vue'
+import CompanyProfilePanel from '@/components/accounts/CompanyProfilePanel.vue'
 import ComplianceFrameworksPicker from '@/components/themis/ComplianceFrameworksPicker.vue'
 import { useApi } from '@/composables/useApi'
 import { useAccountStore } from '@/stores/accountStore'

@@ -355,3 +355,41 @@ class DefaultPlanMissingError(AccountsError):
             ),
             message_key="defaultPlanMissing",
         )
+
+
+class DataOwnedByOrganizationError(AccountsError):
+    """Un miembro intenta cambiar datos que gestiona el dueño de su organización.
+
+    Los datos corporativos (el perfil de empresa, los marcos de cumplimiento)
+    son del dueño de la organización; los miembros trabajan sobre ellos pero no
+    los editan. No se borra nada del miembro: sus datos propios siguen
+    guardados y vuelven a aplicarse si deja la organización.
+    """
+
+    default_code = ErrorCode.AUTHORIZATION_ERROR
+    default_status_code = 403
+
+    def __init__(self, organization_name: str) -> None:
+        super().__init__(
+            message=f"Los datos los gestiona el dueño de la organizacion '{organization_name}'",
+            user_message=(
+                f"Estos datos los gestiona el dueño de la organización «{organization_name}». "
+                "Los tuyos siguen guardados y volverán a aplicarse si la dejas."
+            ),
+            message_key="dataOwnedByOrganization",
+            params={"organizationName": organization_name},
+        )
+
+
+class InvalidTaxIdError(AccountsError):
+    """El identificador fiscal no es un DNI, NIE o CIF español válido."""
+
+    default_code = ErrorCode.VALIDATION_ERROR
+    default_status_code = 400
+
+    def __init__(self) -> None:
+        super().__init__(
+            message="El identificador fiscal no supera la validacion espanola",
+            user_message="El NIF/CIF no es válido. Revisa que no falte ninguna cifra ni la letra final.",
+            message_key="invalidTaxId",
+        )

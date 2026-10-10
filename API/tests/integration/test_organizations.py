@@ -546,3 +546,68 @@ def test_the_ownership_description_names_the_owner_only_to_members(
     assert as_member["ownerDisplayName"]
     assert as_owner["isOwnData"] is True
     assert as_owner["ownerDisplayName"] is None
+
+
+# ------------------------------------------------------- el perfil de empresa
+
+_PROFILE = {"legalName": "Acme Seguridad S.L.", "taxId": "B12345674", "country": "es", "city": "Madrid"}
+
+
+def test_the_owner_saves_and_reads_the_company_profile(client, owner, auth_headers):
+    headers = auth_headers(owner)
+
+    saved = client.put("/organizations/company-profile", headers=headers, json=_PROFILE)
+    assert saved.status_code == 200, saved.get_json()
+
+    read = client.get("/organizations/company-profile", headers=headers).get_json()
+    assert read["legalName"] == "Acme Seguridad S.L."
+    assert read["country"] == "ES"
+    assert read["ownership"]["isOwnData"] is True
+
+
+def test_an_invalid_spanish_tax_id_is_rejected_with_a_message_key(client, owner, auth_headers):
+    response = client.put("/organizations/company-profile", headers=auth_headers(owner),
+                          json={**_PROFILE, "taxId": "B12345675"})
+
+    assert response.status_code == 400
+    assert response.get_json()["messageKey"] == "invalidTaxId"
+
+
+def test_a_foreign_tax_id_is_not_checked_against_the_spanish_algorithm(client, owner, auth_headers):
+    response = client.put("/organizations/company-profile", headers=auth_headers(owner),
+                          json={"legalName": "Acme GmbH", "taxId": "DE123456789", "country": "DE"})
+    assert response.status_code == 200
+
+
+def test_a_member_reads_the_owner_profile_and_cannot_edit_it(
+    client, app, owner, regular_user, auth_headers,
+):
+    client.put("/organizations/company-profile", headers=auth_headers(owner), json=_PROFILE)
+    organization = _create_org(client, auth_headers(owner), "Acme")
+    _join(app, organization["id"], regular_user.id)
+    headers = auth_headers(regular_user)
+
+    read = client.get("/organizations/company-profile", headers=headers).get_json()
+    assert read["legalName"] == "Acme Seguridad S.L."
+    assert read["ownership"]["isOwnData"] is False
+
+    denied = client.put("/organizations/company-profile", headers=headers, json={"legalName": "Otra"})
+    assert denied.status_code == 403
+    assert denied.get_json()["messageKey"] == "dataOwnedByOrganization"
+    assert denied.get_json()["params"] == {"organizationName": "Acme"}
+
+
+def test_the_profile_a_member_had_before_joining_comes_back_when_they_leave(
+    client, app, owner, regular_user, auth_headers,
+):
+    client.put("/organizations/company-profile", headers=auth_headers(regular_user),
+               json={"legalName": "Mi consultora"})
+    organization = _create_org(client, auth_headers(owner), "Acme")
+    _join(app, organization["id"], regular_user.id)
+
+    assert client.get("/organizations/company-profile",
+                      headers=auth_headers(regular_user)).get_json()["legalName"] == ""
+
+    client.delete("/organizations/mine", headers=auth_headers(regular_user))
+    assert client.get("/organizations/company-profile",
+                      headers=auth_headers(regular_user)).get_json()["legalName"] == "Mi consultora"

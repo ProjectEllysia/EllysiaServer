@@ -37,6 +37,8 @@
           <LanguageSelect />
         </section>
 
+        <CompanyProfilePanel class="profile-section" />
+
         <ComplianceFrameworksPicker scope="user" class="profile-section">
           <h2>{{ t('profilePage.complianceTitle') }}</h2>
           <p class="section-desc">{{ t('profilePage.complianceDesc') }}</p>
@@ -180,6 +182,7 @@ import LanguageSelect from '@/components/shared/LanguageSelect.vue'
 import StarBackground from '@/components/shared/StarBackground.vue'
 import MfaSetupModal from '@/components/shared/MfaSetupModal.vue'
 import ConfirmModal from '@/components/shared/ConfirmModal.vue'
+import CompanyProfilePanel from '@/components/accounts/CompanyProfilePanel.vue'
 import ComplianceFrameworksPicker from '@/components/themis/ComplianceFrameworksPicker.vue'
 import DataExportPanel from '@/components/users/DataExportPanel.vue'
 import { useApi } from '@/composables/useApi'
