@@ -325,3 +325,43 @@ class VersionMappingMissingError(EunomiaError):
             message_key="versionMappingMissing",
             params={"framework": framework_key, "fromVersion": from_version, "toVersion": to_version},
         )
+
+
+class TemplateNotFoundError(EntityNotFoundError, EunomiaError):
+    """El catálogo de plantillas no tiene ninguna con esa clave."""
+
+    entity_label = "Plantilla"
+    entity_is_feminine = True
+    id_field = "template"
+
+
+class TemplateValuesInvalidError(EunomiaError):
+    """Los valores de un borrador traen un campo que la plantilla no tiene o un valor mal formado."""
+
+    default_code = ErrorCode.VALIDATION_ERROR
+    default_status_code = 400
+
+    def __init__(self, field_key: str) -> None:
+        super().__init__(
+            message=f"Valor no válido para el campo '{field_key}'",
+            user_message=f"El valor del campo «{field_key}» no es válido para esta plantilla.",
+            message_key="templateValueInvalid",
+            params={"field": field_key},
+        )
+
+
+class TemplateIncompleteError(EunomiaError):
+    """Faltan campos obligatorios de la plantilla: no se genera un documento a medias."""
+
+    default_code = ErrorCode.VALIDATION_ERROR
+    default_status_code = 400
+
+    def __init__(self, labels: list[str]) -> None:
+        joined = ", ".join(labels)
+        super().__init__(
+            message=f"Faltan campos obligatorios de la plantilla: {joined}",
+            user_message=f"Para generar el documento falta completar: {joined}.",
+            message_key="templateIncomplete",
+            params={"fields": joined},
+            details={"fields": labels},
+        )

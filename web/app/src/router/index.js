@@ -191,6 +191,24 @@ const routes = [
     component: () => import('@/views/eunomia/EunomiaFrameworksView.vue'),
     meta: { requiresAuth: true },
   },
+  {
+    path: '/eunomia/documentos',
+    name: 'EunomiaDocuments',
+    component: () => import('@/views/eunomia/EunomiaDocumentsView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/eunomia/plantillas/:template',
+    name: 'EunomiaTemplateForm',
+    component: () => import('@/views/eunomia/EunomiaTemplateFormView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/eunomia/plantillas',
+    name: 'EunomiaTemplates',
+    component: () => import('@/views/eunomia/EunomiaTemplatesView.vue'),
+    meta: { requiresAuth: true },
+  },
   // Herramientas gratuitas de cada módulo (/herramientas/<módulo>/<slug>). Las
   // genera el catálogo (`src/freeTools/catalog.js`): no se declaran aquí a mano.
   ...freeToolRoutes,

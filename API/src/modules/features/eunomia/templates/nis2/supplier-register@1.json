@@ -1,0 +1,76 @@
+{
+  "key": "supplier-register",
+  "version": "1",
+  "frameworkVersion": "2022-2555",
+  "title": "Registro de proveedores y prestadores de servicios",
+  "summary": "El directorio actualizado de los proveedores directos, con sus contactos y los servicios que prestan.",
+  "controls": [
+    "RE.5.1",
+    "RE.5.2"
+  ],
+  "fields": [
+    {
+      "key": "company_name",
+      "label": "Razón social",
+      "type": "text",
+      "required": true,
+      "source": "company.legalName"
+    },
+    {
+      "key": "tax_id",
+      "label": "NIF",
+      "type": "text",
+      "required": true,
+      "source": "company.taxId"
+    },
+    {
+      "key": "supply_owner",
+      "label": "Responsable de la relación con proveedores",
+      "type": "person",
+      "required": true,
+      "source": "assessment.RE.5.2.responsible"
+    },
+    {
+      "key": "suppliers",
+      "label": "Proveedores",
+      "type": "list",
+      "required": true,
+      "help": "Uno por línea: nombre | servicio que presta | contacto | criticidad (alta, media, baja)."
+    },
+    {
+      "key": "selection_criteria",
+      "label": "Criterios para elegir y evaluar proveedores",
+      "type": "longtext",
+      "required": true
+    },
+    {
+      "key": "last_review",
+      "label": "Fecha de la última revisión",
+      "type": "date",
+      "required": true,
+      "source": "system.today"
+    }
+  ],
+  "sections": [
+    {
+      "heading": "1. Objeto",
+      "body": "Este registro recoge los proveedores y prestadores de servicios directos de {{company_name}} (NIF {{tax_id}}), con sus datos de contacto y los servicios que prestan, para gestionar los riesgos de la cadena de suministro."
+    },
+    {
+      "heading": "2. Responsable",
+      "body": "{{supply_owner}} mantiene este registro y lo revisa periódicamente."
+    },
+    {
+      "heading": "3. Criterios de selección y evaluación",
+      "body": "{{selection_criteria}}"
+    },
+    {
+      "heading": "4. Proveedores",
+      "body": "{{suppliers}}"
+    },
+    {
+      "heading": "5. Revisión",
+      "body": "Última revisión: {{last_review}}. Este documento es un borrador generado que la dirección debe revisar y adaptar."
+    }
+  ]
+}

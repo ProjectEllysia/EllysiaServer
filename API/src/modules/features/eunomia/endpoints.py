@@ -23,7 +23,14 @@ from src.modules.shared.schemas import ErrorSchema
 from src.modules.users import AttributeType, get_current_user, require_attributes, require_oauth_token
 
 from .exceptions import EunomiaError, EvidenceFileMissingError
-from .managers import CatalogManager, EunomiaAssessmentManager, EunomiaEvidenceManager, EunomiaFrameworkManager
+from .managers import (
+    CatalogManager,
+    EunomiaAssessmentManager,
+    EunomiaDocumentManager,
+    EunomiaEvidenceManager,
+    EunomiaFrameworkManager,
+    EunomiaTemplateManager,
+)
 from .schemas import (
     AdoptionCreateSchema,
     AdoptionListSchema,
@@ -35,6 +42,13 @@ from .schemas import (
     AssessmentWriteSchema,
     RemovalPreviewSchema,
     UpgradePlanSchema,
+    TemplateDraftSchema,
+    TemplateDraftWriteSchema,
+    TemplateListSchema,
+    DocumentListSchema,
+    DocumentRequestSchema,
+    DocumentSchema,
+    DocumentsQuerySchema,
     CatalogFrameworkListSchema,
     CatalogVersionSchema,
     EvidenceLinkSchema,
@@ -351,3 +365,115 @@ def link_evidence(data, evidence_id):
 def unlink_evidence(evidence_id, framework, identifier):
     """Quitar el enlace entre una evidencia y un control; la evidencia sigue existiendo"""
     return EunomiaEvidenceManager().unlink(get_current_user().id, evidence_id, framework, identifier)
+
+
+@eunomia_blp.get("/templates")
+@eunomia_blp.response(200, TemplateListSchema, description="Plantillas de documentos disponibles")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@limiter.limit("240 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_READ])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def list_templates():
+    """Las plantillas de documentos, con el marco al que sirven y si ya hay borrador"""
+    return {"templates": EunomiaTemplateManager().list_templates(get_current_user().id)}
+
+
+@eunomia_blp.get("/templates/<string:key>/draft")
+@eunomia_blp.response(200, TemplateDraftSchema, description="Formulario con valores guardados y precargados")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@eunomia_blp.alt_response(404, schema=ErrorSchema, description="Template not found")
+@limiter.limit("240 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_READ])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def get_template_draft(key):
+    """El formulario de una plantilla: lo guardado combinado con lo que Ellysia ya sabe"""
+    return EunomiaTemplateManager().get_draft(get_current_user().id, key)
+
+
+@eunomia_blp.put("/templates/<string:key>/draft")
+@eunomia_blp.arguments(TemplateDraftWriteSchema)
+@eunomia_blp.response(200, TemplateDraftSchema, description="Borrador guardado")
+@eunomia_blp.alt_response(400, schema=ErrorSchema, description="Invalid value")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@eunomia_blp.alt_response(404, schema=ErrorSchema, description="Template not found")
+@limiter.limit("240 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_UPDATE])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def save_template_draft(data, key):
+    """Guardar lo escrito en el formulario de una plantilla"""
+    return EunomiaTemplateManager().save_draft(get_current_user().id, key, data["values"])
+
+
+@eunomia_blp.post("/templates/<string:key>/documents")
+@eunomia_blp.arguments(DocumentRequestSchema)
+@eunomia_blp.response(202, DocumentSchema, description="Documento en cola")
+@eunomia_blp.alt_response(400, schema=ErrorSchema, description="Required fields missing")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@eunomia_blp.alt_response(402, schema=ErrorSchema, description="Document quota exhausted")
+@eunomia_blp.alt_response(404, schema=ErrorSchema, description="Template not found")
+@limiter.limit("60 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_CREATE])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def create_document(data, key):
+    """Pedir el documento de una plantilla, en PDF o en Word, en segundo plano"""
+    return EunomiaDocumentManager().create_document(get_current_user().id, key, data["format"])
+
+
+@eunomia_blp.get("/documents")
+@eunomia_blp.arguments(DocumentsQuerySchema, location="query")
+@eunomia_blp.response(200, DocumentListSchema, description="Documentos del dueño efectivo")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@limiter.limit("600 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_READ])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def list_documents(args):
+    """Los documentos generados, más recientes primero"""
+    documents, total = EunomiaDocumentManager().list_documents(get_current_user().id, args["page"], args["perPage"])
+    return {"documents": documents, "total": total, "page": args["page"], "perPage": args["perPage"]}
+
+
+@eunomia_blp.get("/documents/<int:document_id>")
+@eunomia_blp.response(200, DocumentSchema, description="Documento")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@eunomia_blp.alt_response(404, schema=ErrorSchema, description="Document not found")
+@limiter.limit("600 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_READ])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def get_document(document_id):
+    """Consultar un documento y su estado"""
+    return EunomiaDocumentManager().get_document(get_current_user().id, document_id)
+
+
+@eunomia_blp.get("/documents/<int:document_id>/download")
+@eunomia_blp.response(200, description="Fichero del documento")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@eunomia_blp.alt_response(404, schema=ErrorSchema, description="Document not found")
+@eunomia_blp.alt_response(409, schema=ErrorSchema, description="Document not ready")
+@limiter.limit("600 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_READ])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def download_document(document_id):
+    """Descargar el fichero de un documento ya generado"""
+    path, download_name, mimetype = EunomiaDocumentManager().get_document_file(get_current_user().id, document_id)
+    return send_file(path, mimetype=mimetype, as_attachment=True, download_name=download_name)
+
+
+@eunomia_blp.delete("/documents/<int:document_id>")
+@eunomia_blp.response(200, description="Documento eliminado")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@eunomia_blp.alt_response(404, schema=ErrorSchema, description="Document not found")
+@limiter.limit("120 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_DELETE])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def delete_document(document_id):
+    """Borrar un documento y su fichero"""
+    EunomiaDocumentManager().delete_user_document(get_current_user().id, document_id)
+    return {"message": "Documento eliminado correctamente", "documentId": document_id}

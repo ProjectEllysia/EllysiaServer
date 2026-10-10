@@ -1,0 +1,102 @@
+{
+  "key": "security-policy",
+  "version": "1",
+  "frameworkVersion": "2022-2555",
+  "title": "Política de seguridad de la información",
+  "summary": "La política de seguridad de las redes y sistemas de información, con sus objetivos, roles y revisión.",
+  "controls": [
+    "RE.1.1",
+    "RE.1.2",
+    "RE.2.2"
+  ],
+  "fields": [
+    {
+      "key": "company_name",
+      "label": "Razón social",
+      "type": "text",
+      "required": true,
+      "source": "company.legalName"
+    },
+    {
+      "key": "tax_id",
+      "label": "NIF",
+      "type": "text",
+      "required": true,
+      "source": "company.taxId"
+    },
+    {
+      "key": "sector",
+      "label": "Sector de actividad",
+      "type": "text",
+      "required": false,
+      "source": "company.sector"
+    },
+    {
+      "key": "security_officer",
+      "label": "Responsable de seguridad",
+      "type": "person",
+      "required": true,
+      "source": "assessment.RE.1.2.responsible"
+    },
+    {
+      "key": "scope",
+      "label": "Alcance de la política",
+      "type": "longtext",
+      "required": true,
+      "help": "Qué sistemas, servicios y sedes cubre."
+    },
+    {
+      "key": "objectives",
+      "label": "Objetivos de seguridad",
+      "type": "list",
+      "required": true,
+      "help": "Uno por línea."
+    },
+    {
+      "key": "review_period",
+      "label": "Cada cuánto se revisa",
+      "type": "text",
+      "required": true,
+      "default": "Una vez al año y ante cambios relevantes"
+    },
+    {
+      "key": "approver",
+      "label": "Quién lo aprueba (dirección)",
+      "type": "person",
+      "required": true
+    },
+    {
+      "key": "approval_date",
+      "label": "Fecha de aprobación",
+      "type": "date",
+      "required": true,
+      "source": "system.today"
+    }
+  ],
+  "sections": [
+    {
+      "heading": "1. Propósito",
+      "body": "{{company_name}} (NIF {{tax_id}}), dedicada a {{sector}}, establece esta política para proteger las redes y los sistemas de información que sostienen su actividad y para cumplir la Directiva (UE) 2022/2555 (NIS2)."
+    },
+    {
+      "heading": "2. Alcance",
+      "body": "{{scope}}"
+    },
+    {
+      "heading": "3. Objetivos",
+      "body": "La empresa se compromete a:\n\n{{objectives}}"
+    },
+    {
+      "heading": "4. Roles y responsabilidades",
+      "body": "La dirección aprueba esta política y dota de los medios necesarios. {{security_officer}} es el responsable de seguridad: coordina las medidas, informa a la dirección del estado de la seguridad y propone mejoras. Todo el personal debe cumplir las normas derivadas de esta política y comunicar los sucesos sospechosos."
+    },
+    {
+      "heading": "5. Cumplimiento y revisión",
+      "body": "Se comprueba periódicamente que se cumplen las políticas internas y se informa a la dirección. La política se revisa: {{review_period}}."
+    },
+    {
+      "heading": "6. Aprobación",
+      "body": "Aprobada por {{approver}} el {{approval_date}}. Este documento es un borrador generado que la dirección debe revisar y adaptar antes de aprobarlo."
+    }
+  ]
+}

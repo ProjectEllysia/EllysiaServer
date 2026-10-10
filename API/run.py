@@ -498,6 +498,15 @@ def _configure_scheduling() -> None:
     except Exception as e:
         _logger.warning("No se pudo reconciliar documentos Hygeia huérfanos: %s", e)
 
+    _logger.info("Reconciliando documentos Eunomia huérfanos...")
+    try:
+        from src.modules.features.eunomia.managers import EunomiaDocumentManager
+        fixed_eunomia = EunomiaDocumentManager.reconcile_orphaned_documents()
+        if fixed_eunomia:
+            _logger.info("Se marcaron %d documento(s) Eunomia huérfano(s) como error", fixed_eunomia)
+    except Exception as e:
+        _logger.warning("No se pudo reconciliar documentos Eunomia huérfanos: %s", e)
+
     _logger.info("Reconciliando exportaciones de datos huérfanas...")
     try:
         from src.modules.users.managers import DataExportManager

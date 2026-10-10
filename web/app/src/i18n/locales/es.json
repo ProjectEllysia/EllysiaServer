@@ -107,6 +107,8 @@
     "frameworkNotArchived": "El marco «{framework}» no está archivado.",
     "frameworkRestoreExpired": "El plazo para restaurar el marco «{framework}» ha vencido. Puedes adoptarlo de nuevo, pero empezarás de cero.",
     "frameworkUpToDate": "El marco «{framework}» ya está en la versión vigente del catálogo.",
+    "templateValueInvalid": "El valor del campo «{field}» no es válido para esta plantilla.",
+    "templateIncomplete": "Para generar el documento falta completar: {fields}.",
     "versionMappingMissing": "No hay correspondencias entre las versiones {fromVersion} y {toVersion} del marco «{framework}», así que no se puede trasladar tu evaluación automáticamente.",
     "invalidAuthorizedTarget": "«{target}» no es una dirección IP, un rango, un dominio ni un recurso cloud. Escríbelo como «203.0.113.10», «203.0.113.0/24», «example.com» o «s3:nombre-del-bucket».",
     "duplicatedUserCredentials": "Ya hay una cuenta con este dato: {value}.",
@@ -117,6 +119,7 @@
     "emailSend": "No se pudo enviar el correo.",
     "entityNotFound": {
       "evidence": "Evidencia no encontrada.",
+      "template": "Plantilla no encontrada.",
       "control": "Control no encontrado.",
       "adoption": "Adopción no encontrada.",
       "framework": "Marco de cumplimiento no encontrado.",
@@ -2026,6 +2029,46 @@
       },
       "linkHere": "Enlazar aquí",
       "summary": "{count} requisito tiene cobertura sugerida desde otro marco | {count} requisitos tienen cobertura sugerida desde otros marcos"
+    },
+    "templates": {
+      "title": "Documentos",
+      "intro": "Plantillas de los documentos que la normativa exige. Llegan rellenas con los datos de tu empresa y de tus evaluaciones; completa lo que falte.",
+      "loadFailed": "No se pudieron cargar las plantillas.",
+      "saveFailed": "No se pudo guardar el borrador.",
+      "fill": "Rellenar",
+      "hasDraft": "Tienes un borrador guardado.",
+      "frameworkNotAdopted": "El marco de esta plantilla aún no está adoptado.",
+      "save": "Guardar borrador",
+      "saved": "Borrador guardado.",
+      "savedAt": "Guardado el {date} por {name}.",
+      "editSource": "Corregir en su origen",
+      "origin": {
+        "company": "Viene del perfil de tu empresa.",
+        "assessment": "Viene de la evaluación del control."
+      },
+      "missing": "Falta {count} campo obligatorio. | Faltan {count} campos obligatorios."
+    },
+    "documents": {
+      "title": "Documentos generados",
+      "intro": "Los documentos se generan en segundo plano: aparecen aquí cuando están listos.",
+      "empty": "Todavía no has generado ningún documento.",
+      "status": {
+        "pending": "En cola",
+        "running": "Generándose",
+        "done": "Listo",
+        "error": "Ha fallado"
+      },
+      "download": "Descargar",
+      "delete": "Borrar",
+      "generate": {
+        "pdf": "Generar PDF",
+        "docx": "Generar Word"
+      },
+      "queued": "Documento en cola.",
+      "requestFailed": "No se pudo pedir el documento.",
+      "loadFailed": "No se pudieron cargar los documentos.",
+      "downloadFailed": "No se pudo descargar el documento.",
+      "deleteFailed": "No se pudo borrar el documento."
     }
   },
   "organizationManaged": {

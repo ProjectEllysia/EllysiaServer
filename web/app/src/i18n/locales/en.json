@@ -107,6 +107,8 @@
     "frameworkNotArchived": "The framework “{framework}” is not archived.",
     "frameworkRestoreExpired": "The period to restore the framework “{framework}” has expired. You can adopt it again, but you will start from scratch.",
     "frameworkUpToDate": "The framework “{framework}” is already on the current catalog version.",
+    "templateValueInvalid": "The value of the field “{field}” is not valid for this template.",
+    "templateIncomplete": "To generate the document you still need to fill in: {fields}.",
     "versionMappingMissing": "There are no correspondences between versions {fromVersion} and {toVersion} of the framework “{framework}”, so your assessment cannot be moved automatically.",
     "invalidAuthorizedTarget": "“{target}” is not an IP address, a range, a domain or a cloud resource. Write it as “203.0.113.10”, “203.0.113.0/24”, “example.com” or “s3:bucket-name”.",
     "duplicatedUserCredentials": "There is already an account with this value: {value}.",
@@ -117,6 +119,7 @@
     "emailSend": "The email could not be sent.",
     "entityNotFound": {
       "evidence": "Evidence not found.",
+      "template": "Template not found.",
       "control": "Control not found.",
       "adoption": "Adoption not found.",
       "framework": "Compliance framework not found.",
@@ -2026,6 +2029,46 @@
       },
       "linkHere": "Link here",
       "summary": "{count} requirement has suggested coverage from another framework | {count} requirements have suggested coverage from other frameworks"
+    },
+    "templates": {
+      "title": "Documents",
+      "intro": "Templates for the documents the regulation requires. They arrive filled in with your company and assessment data; complete what is missing.",
+      "loadFailed": "The templates could not be loaded.",
+      "saveFailed": "The draft could not be saved.",
+      "fill": "Fill in",
+      "hasDraft": "You have a saved draft.",
+      "frameworkNotAdopted": "The framework of this template is not adopted yet.",
+      "save": "Save draft",
+      "saved": "Draft saved.",
+      "savedAt": "Saved on {date} by {name}.",
+      "editSource": "Fix at its source",
+      "origin": {
+        "company": "Comes from your company profile.",
+        "assessment": "Comes from the control's assessment."
+      },
+      "missing": "{count} required field is missing. | {count} required fields are missing."
+    },
+    "documents": {
+      "title": "Generated documents",
+      "intro": "Documents are generated in the background: they show up here when they are ready.",
+      "empty": "You have not generated any document yet.",
+      "status": {
+        "pending": "Queued",
+        "running": "Generating",
+        "done": "Ready",
+        "error": "Failed"
+      },
+      "download": "Download",
+      "delete": "Delete",
+      "generate": {
+        "pdf": "Generate PDF",
+        "docx": "Generate Word"
+      },
+      "queued": "Document queued.",
+      "requestFailed": "The document could not be requested.",
+      "loadFailed": "The documents could not be loaded.",
+      "downloadFailed": "The document could not be downloaded.",
+      "deleteFailed": "The document could not be deleted."
     }
   },
   "organizationManaged": {

@@ -310,3 +310,76 @@ class UpgradePlanSchema(Schema):
     lost = fields.List(fields.Dict())
     newControls = fields.List(fields.Dict())
     linksMoved = fields.Integer()
+
+
+class TemplateSummarySchema(Schema):
+    """Una plantilla del catálogo de documentos."""
+
+    key = fields.String()
+    version = fields.String()
+    framework = fields.String()
+    title = fields.String()
+    summary = fields.String()
+    controls = fields.List(fields.String())
+    isFrameworkAdopted = fields.Boolean()
+    hasDraft = fields.Boolean()
+
+
+class TemplateListSchema(Schema):
+    """Respuesta de ``GET /eunomia/templates``."""
+
+    templates = fields.List(fields.Nested(TemplateSummarySchema))
+
+
+class TemplateDraftSchema(Schema):
+    """El formulario de una plantilla con sus valores resueltos."""
+
+    template = fields.Dict()
+    missingRequired = fields.List(fields.String())
+    updatedAt = UTCDateTime(allow_none=True)
+    updatedByName = fields.String(allow_none=True)
+    # Al final: el nombre ``fields`` oculta al módulo ``marshmallow.fields`` dentro de la clase.
+    fields = fields.List(fields.Dict())
+
+
+class TemplateDraftWriteSchema(Schema):
+    """Cuerpo de ``PUT /eunomia/templates/<key>/draft``."""
+
+    values = fields.Dict(keys=fields.String(), values=fields.String(), required=True)
+
+
+class DocumentSchema(Schema):
+    """Un documento de cumplimiento generado (o en generación)."""
+
+    id = fields.Integer()
+    templateKey = fields.String()
+    templateVersion = fields.String()
+    title = fields.String()
+    format = fields.String()
+    status = fields.String()
+    requestedByName = fields.String()
+    downloadName = fields.String(allow_none=True)
+    createdAt = UTCDateTime()
+    generatedAt = UTCDateTime(allow_none=True)
+
+
+class DocumentRequestSchema(Schema):
+    """Cuerpo de ``POST /eunomia/templates/<plantilla>/documents``."""
+
+    format = fields.String(required=True, validate=validate.OneOf(["pdf", "docx"]))
+
+
+class DocumentsQuerySchema(Schema):
+    """Paginación de ``GET /eunomia/documents``."""
+
+    page = fields.Integer(load_default=1, validate=validate.Range(min=1))
+    perPage = fields.Integer(load_default=20, validate=validate.Range(min=1, max=100))
+
+
+class DocumentListSchema(Schema):
+    """Una página de documentos y el total."""
+
+    documents = fields.List(fields.Nested(DocumentSchema))
+    total = fields.Integer()
+    page = fields.Integer()
+    perPage = fields.Integer()

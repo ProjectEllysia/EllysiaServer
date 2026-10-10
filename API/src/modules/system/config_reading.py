@@ -63,6 +63,8 @@ class DirectoryType(Enum):
 
     OUTPUT_HYGEIA      = "hygeia.output"
 
+    OUTPUT_EUNOMIA     = "eunomia.output"
+
 
 # =============================================================================
 # CLASES ÚTILES
@@ -603,6 +605,7 @@ _DIRECTORY_ENV_MAPPING = {
     "aegis.stack": "OUTPUT_DIR",
     "iris.output": "OUTPUT_DIR",
     "hygeia.output": "OUTPUT_DIR",
+    "eunomia.output": "OUTPUT_DIR",
 }
 
 
