@@ -53,7 +53,7 @@ AdoptionDataRegistry.register("assessments", count=count_assessments, purge=purg
 UserDataRegistry.register(
     "eunomia",
     purge=purge_eunomia_data,
-    deletion_models={"complianceFrameworks": (EunomiaFrameworkAdoption, EunomiaControlAssessment)},
+    deletion_models={"complianceFrameworks": (EunomiaFrameworkAdoption,)},
     export_tables=EXPORT_TABLES,
 )
 

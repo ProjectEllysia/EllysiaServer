@@ -48,6 +48,7 @@
               :people="data.people"
               :saving="saving"
               :conflict="conflict"
+              :history="history"
               @save="save"
               @take-current="takeCurrent"
             />
@@ -88,6 +89,7 @@ const expanded = ref(new Set())
 const selectedCode = ref('')
 const saving = ref(false)
 const conflict = ref(null)
+const history = ref([])
 
 const filtered = computed(() => filterTree(data.value?.tree ?? [], { query: query.value, status: statusFilter.value }))
 const selectedNode = computed(() => (selectedCode.value ? findNode(data.value?.tree ?? [], selectedCode.value) : null))
@@ -111,10 +113,17 @@ async function load() {
 function expandAll() { expanded.value = groupCodes(data.value?.tree ?? []) }
 function collapseAll() { expanded.value = new Set() }
 
+/** Carga el historial del control seleccionado, si es evaluable. */
+async function loadHistory() {
+  const node = selectedNode.value
+  history.value = node?.assessment ? await store.loadHistory(framework.value, node.identifier) : []
+}
+
 /** Selecciona un nodo y descarta cualquier conflicto del anterior. */
-function selectNode(node) {
+async function selectNode(node) {
   selectedCode.value = node.code
   conflict.value = null
+  await loadHistory()
 }
 
 /**
@@ -131,6 +140,7 @@ async function save(body) {
     conflict.value = null
     toast.show(t('eunomia.tree.saved'), 'success')
     await load()
+    await loadHistory()
   } else if (result.conflict) {
     conflict.value = result.conflict
   } else {

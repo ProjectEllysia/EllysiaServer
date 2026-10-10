@@ -7,7 +7,7 @@ evaluado y evidenciado. Las filas guardan ``(marco, versión, código de control
 ajena hacia el catálogo.
 """
 
-from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Column, Date, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 
 from src.modules.shared import Base, utcnow_naive
 
@@ -100,3 +100,37 @@ class EunomiaControlAssessment(Base):
     due_date            = Column(Date,        nullable=True)
     updated_at          = Column(DateTime,    nullable=False, default=utcnow_naive)
     updated_by_user_id  = Column(Integer,     ForeignKey("User.id"), nullable=True)
+
+
+class EunomiaAssessmentEvent(Base):
+    """Un cambio en la evaluación de un control. Solo se añade: nunca se edita.
+
+    Dentro de una organización varias personas escriben en el espacio del dueño; cuando un
+    control pasa de «implementado» a «pendiente» alguien preguntará quién y por qué. El
+    historial es además una evidencia en sí mismo: demuestra que el cumplimiento se revisa.
+
+    Attributes:
+        id: Clave primaria.
+        owner_user_id: Dueño efectivo de los datos.
+        framework_key: Clave del marco.
+        control_identifier: Identificador del control.
+        actor_user_id: Quién lo cambió; ``None`` si esa cuenta se ha borrado.
+        actor_name: Nombre visible de quien lo cambió, guardado al hacer el cambio para que
+            sobreviva a la baja de la cuenta.
+        occurred_at: Cuándo.
+        changes: ``{campo: {"from": anterior, "to": nuevo}}`` de cada campo que cambió.
+    """
+
+    __tablename__ = "EunomiaAssessmentEvent"
+    __table_args__ = (
+        Index("ix_eunomia_event_owner_framework_control", "owner_user_id", "framework_key", "control_identifier"),
+    )
+
+    id                 = Column(Integer,     primary_key=True, autoincrement=True)
+    owner_user_id      = Column(Integer,     ForeignKey("User.id"), nullable=False)
+    framework_key      = Column(String(32),  nullable=False)
+    control_identifier = Column(String(128), nullable=False)
+    actor_user_id      = Column(Integer,     ForeignKey("User.id"), nullable=True)
+    actor_name         = Column(String(255), nullable=False, default="")
+    occurred_at        = Column(DateTime,    nullable=False, default=utcnow_naive)
+    changes            = Column(JSON,        nullable=False)

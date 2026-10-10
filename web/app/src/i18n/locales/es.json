@@ -1946,7 +1946,17 @@
       "saveFailed": "No se pudo guardar la evaluación.",
       "conflict": "Otra persona ha cambiado este control mientras lo editabas.",
       "useCurrent": "Ver el valor actual",
-      "open": "Abrir el marco"
+      "open": "Abrir el marco",
+      "history": "Historial",
+      "noHistory": "Todavía no hay cambios.",
+      "formerMember": "Alguien que ya no está",
+      "fields": {
+        "status": "Estado",
+        "justification": "Justificación",
+        "notes": "Notas",
+        "responsibleUserId": "Responsable",
+        "dueDate": "Fecha límite"
+      }
     },
     "status": {
       "pending": "Pendiente",

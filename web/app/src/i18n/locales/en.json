@@ -1946,7 +1946,17 @@
       "saveFailed": "The assessment could not be saved.",
       "conflict": "Someone else changed this control while you were editing it.",
       "useCurrent": "See the current value",
-      "open": "Open framework"
+      "open": "Open framework",
+      "history": "History",
+      "noHistory": "There are no changes yet.",
+      "formerMember": "Someone who is no longer here",
+      "fields": {
+        "status": "Status",
+        "justification": "Justification",
+        "notes": "Notes",
+        "responsibleUserId": "Responsible",
+        "dueDate": "Due date"
+      }
     },
     "status": {
       "pending": "Pending",

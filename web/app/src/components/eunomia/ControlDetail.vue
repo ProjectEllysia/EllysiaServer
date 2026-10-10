@@ -70,6 +70,25 @@
         {{ saving ? t('common.saving') : t('eunomia.tree.save') }}
       </button>
     </form>
+
+    <section v-if="node.assessment" class="history" :aria-label="t('eunomia.tree.history')">
+      <h3>{{ t('eunomia.tree.history') }}</h3>
+      <p v-if="!history.length" class="updated">{{ t('eunomia.tree.noHistory') }}</p>
+      <ol v-else class="events">
+        <li v-for="(event, index) in history" :key="index">
+          <p class="event-head">
+            <strong>{{ event.actorName || t('eunomia.tree.formerMember') }}</strong>
+            · {{ formatDateTime(event.occurredAt) }}
+          </p>
+          <ul class="changes">
+            <li v-for="line in changeLines(event.changes)" :key="line.field">
+              <span class="field-name">{{ line.field }}:</span>
+              <span class="from">{{ line.from }}</span> → <span class="to">{{ line.to }}</span>
+            </li>
+          </ul>
+        </li>
+      </ol>
+    </section>
   </article>
 </template>
 
@@ -91,6 +110,8 @@ const props = defineProps({
   saving: { type: Boolean, default: false },
   /** La evaluación actual si el último guardado dio conflicto; si no, `null`. */
   conflict: { type: Object, default: null },
+  /** Cambios del control, del más reciente al más antiguo. */
+  history: { type: Array, default: () => [] },
 })
 const emit = defineEmits(['save', 'take-current'])
 const { t } = useI18n()
@@ -124,6 +145,33 @@ function save() {
   })
 }
 
+/**
+ * Un valor de un cambio, legible: el estado con su rótulo y lo vacío como un guion.
+ *
+ * @param {string} field - Campo que cambió.
+ * @param {*} value - Valor anterior o nuevo.
+ * @returns {string}
+ */
+function shown(field, value) {
+  if (value === null || value === undefined || value === '') return '—'
+  if (field === 'status') return t(`eunomia.status.${value}`)
+  return String(value)
+}
+
+/**
+ * Las líneas de un evento del historial.
+ *
+ * @param {object} changes - `{campo: {from, to}}`.
+ * @returns {Array<{field: string, from: string, to: string}>}
+ */
+function changeLines(changes) {
+  return Object.entries(changes || {}).map(([field, change]) => ({
+    field: t(`eunomia.tree.fields.${field}`),
+    from: shown(field, change.from),
+    to: shown(field, change.to),
+  }))
+}
+
 /** Descarta lo editado y toma el valor que dejó la otra persona. */
 function takeCurrent() {
   emit('take-current')
@@ -148,6 +196,12 @@ ul { padding-inline-start: 1.2rem; color: var(--text-dim); font-size: var(--fs-m
   border: 1px solid var(--border-med); font-family: inherit;
 }
 .row { display: flex; gap: 0.8rem; flex-wrap: wrap; }
+.history { padding-top: 1rem; border-top: 1px solid var(--border); }
+.events { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.7rem; }
+.event-head { font-size: var(--fs-body); color: var(--text-dim); }
+.changes { list-style: none; padding: 0; font-size: var(--fs-body); }
+.field-name { color: var(--text-muted); margin-right: 0.35rem; }
+.from { text-decoration: line-through; color: var(--text-muted); }
 .updated { font-size: var(--fs-sm); color: var(--text-muted); }
 .conflict { color: var(--danger); font-size: var(--fs-body); }
 .link-btn { color: var(--accent); text-decoration: underline; margin-left: 0.5rem; }

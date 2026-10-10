@@ -25,11 +25,15 @@ from ..exceptions import (
 )
 from ..model import (
     ADOPTION_ACTIVE,
-    ASSESSMENT_STATUSES,
     STATUS_NOT_APPLICABLE,
+    EunomiaAssessmentEvent,
     EunomiaControlAssessment,
 )
-from ..repositories import EunomiaControlAssessmentRepository, EunomiaFrameworkAdoptionRepository
+from ..repositories import (
+    EunomiaAssessmentEventRepository,
+    EunomiaControlAssessmentRepository,
+    EunomiaFrameworkAdoptionRepository,
+)
 from ..services.catalog import CatalogNode, FrameworkVersion, load_version
 
 logger = logging.getLogger(__name__)
@@ -148,6 +152,36 @@ def _tree_node(version: FrameworkVersion, node: CatalogNode, rows: dict, names: 
     }
 
 
+#: Campos de una evaluación que se registran en el historial, con su nombre en la API.
+_TRACKED_FIELDS = (
+    ("status", "status"), ("justification", "justification"), ("notes", "notes"),
+    ("responsible_user_id", "responsibleUserId"), ("due_date", "dueDate"),
+)
+
+
+def _diff(row: Optional[EunomiaControlAssessment], fields: dict) -> dict:
+    """Los campos que cambian entre la fila actual y los valores nuevos.
+
+    Args:
+        row: La fila actual, o ``None`` si el control estaba «pendiente» sin fila.
+        fields: Valores nuevos por nombre de columna.
+
+    Returns:
+        dict: ``{campo: {"from": anterior, "to": nuevo}}`` con las fechas en ISO; vacío si no
+            cambia nada.
+    """
+    def plain(value):
+        return value.isoformat() if isinstance(value, (date, datetime)) else value
+
+    changes = {}
+    for column, name in _TRACKED_FIELDS:
+        before = getattr(row, column) if row is not None else ("pending" if column == "status" else None)
+        after = fields[column]
+        if before != after:
+            changes[name] = {"from": plain(before), "to": plain(after)}
+    return changes
+
+
 def _conflict_payload(row: Optional[EunomiaControlAssessment], framework_key: str, identifier: str) -> dict:
     """Lo que hay ahora en la fila, con las fechas ya en texto, para devolverlo en un conflicto."""
     payload = assessment_payload(row, framework_key, identifier)
@@ -159,6 +193,34 @@ def _conflict_payload(row: Optional[EunomiaControlAssessment], framework_key: st
 
 class EunomiaAssessmentManager:
     """Evaluación de controles de los marcos adoptados."""
+
+    def get_history(self, user_id: int, framework_key: str, identifier: str) -> list[dict]:
+        """Devuelve el historial de cambios de un control, del más reciente al más antiguo.
+
+        Args:
+            user_id: Usuario que pregunta: el dueño efectivo o un miembro.
+            framework_key: Clave del marco adoptado.
+            identifier: Identificador del control.
+
+        Returns:
+            list[dict]: ``actorUserId`` (``None`` si la cuenta se borró), ``actorName``,
+                ``occurredAt`` y ``changes`` (``{campo: {"from", "to"}}``).
+
+        Raises:
+            AdoptionNotFoundError: Si el marco no está adoptado y activo (404).
+            ControlNotFoundError: Si el control no existe en la versión adoptada (404).
+        """
+        owner_user_id = OrganizationManager().resolve_data_owner(user_id)
+        version = _adopted_version(owner_user_id, framework_key)
+        if version.node(f"{framework_key}:{identifier}") is None:
+            raise ControlNotFoundError(identifier)
+        events = build_repository(EunomiaAssessmentEventRepository).list_for_control(
+            owner_user_id, framework_key, identifier)
+        return [
+            {"actorUserId": event.actor_user_id, "actorName": event.actor_name,
+             "occurredAt": event.occurred_at, "changes": event.changes}
+            for event in events
+        ]
 
     def get_tree(self, user_id: int, framework_key: str) -> dict:
         """Devuelve el árbol de la versión adoptada combinado con las evaluaciones del dueño.
@@ -248,6 +310,14 @@ class EunomiaAssessmentManager:
             row = repo.get_for_control(owner_user_id, framework_key, identifier)
             if (row.updated_at if row else None) != expected:
                 raise AssessmentConflictError(_conflict_payload(row, framework_key, identifier))
+            changes = _diff(row, fields)
+            if not changes:
+                return assessment_payload(row, framework_key, identifier)
+            EunomiaAssessmentEventRepository(uow).save(EunomiaAssessmentEvent(
+                owner_user_id=owner_user_id, framework_key=framework_key, control_identifier=identifier,
+                actor_user_id=user_id, actor_name=_display_name(user_id) or "", occurred_at=fields["updated_at"],
+                changes=changes,
+            ))
             if row is None:
                 row = EunomiaControlAssessment(
                     owner_user_id=owner_user_id, framework_key=framework_key,
