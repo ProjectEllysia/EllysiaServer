@@ -1,10 +1,12 @@
 """
 Gestión de organizaciones: un titular paga, sus miembros heredan derechos.
 
-Lo que una organización comparte es **plan y factura**, nunca datos. Aquí no
-hay ni una consulta a bóvedas, escaneos o análisis, y no debe haberla: Acheron
-es zero-knowledge (el servidor solo ve cifrado) e Iris analiza correo personal.
-El dueño ve la lista de miembros y el consumo agregado, y nada más.
+Lo que una organización comparte es **plan y factura**, y datos corporativos
+solo en las excepciones que describe el docstring de ``Organization`` (el
+cumplimiento y el perfil de empresa entre ellas). Aquí no hay ni una consulta a
+bóvedas, escaneos o análisis, y no debe haberla: Acheron es zero-knowledge (el
+servidor solo ve cifrado) e Iris analiza correo personal. El dueño ve la lista
+de miembros y el consumo agregado, y nada más.
 """
 
 import logging
