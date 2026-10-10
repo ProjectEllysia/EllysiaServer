@@ -1,0 +1,1839 @@
+{
+  "key": "iso27001",
+  "version": "2022",
+  "status": "published",
+  "name": "ISO/IEC 27001:2022",
+  "shortName": "ISO 27001",
+  "publishedAt": "2022-10-25",
+  "licenseMode": "codes_only",
+  "sources": [
+    {
+      "name": "ISO/IEC 27001:2022, Anexo A (códigos de control)",
+      "url": "https://www.iso.org/standard/27001",
+      "license": "Norma de pago con derechos de autor: solo se usan los códigos de los controles y títulos cortos propios, nunca el texto de la norma.",
+      "consultedAt": "2026-10-10"
+    }
+  ],
+  "notes": "Los 93 controles del anexo A. Solo códigos y títulos propios: no reproduce el texto de la norma (licenseMode codes_only). Los títulos y descripciones son redacción de Ellysia.",
+  "nodes": [
+    {
+      "identifier": "A.5",
+      "parent": null,
+      "order": 1,
+      "kind": "group",
+      "title": "Controles organizativos",
+      "officialText": "",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.6",
+      "parent": null,
+      "order": 2,
+      "kind": "group",
+      "title": "Controles de personas",
+      "officialText": "",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.7",
+      "parent": null,
+      "order": 3,
+      "kind": "group",
+      "title": "Controles físicos",
+      "officialText": "",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.8",
+      "parent": null,
+      "order": 4,
+      "kind": "group",
+      "title": "Controles tecnológicos",
+      "officialText": "",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.1",
+      "parent": "A.5",
+      "order": 1,
+      "kind": "requirement",
+      "title": "Políticas de seguridad",
+      "officialText": "",
+      "description": "Tener políticas de seguridad aprobadas por la dirección, comunicadas y revisadas.",
+      "actions": [
+        "Redactar y aprobar la política general y las específicas",
+        "Comunicarlas y revisarlas a intervalos planificados"
+      ],
+      "evidence": [
+        "Política aprobada con fecha y firma",
+        "Registro de revisión"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.2",
+      "parent": "A.5",
+      "order": 2,
+      "kind": "requirement",
+      "title": "Roles y responsabilidades",
+      "officialText": "",
+      "description": "Definir y asignar quién es responsable de qué en seguridad.",
+      "actions": [
+        "Documentar los roles de seguridad",
+        "Asignarlos a personas concretas"
+      ],
+      "evidence": [
+        "Organigrama o matriz de responsabilidades",
+        "Nombramientos"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.3",
+      "parent": "A.5",
+      "order": 3,
+      "kind": "requirement",
+      "title": "Separación de funciones",
+      "officialText": "",
+      "description": "Separar tareas incompatibles para reducir el riesgo de fraude o error.",
+      "actions": [
+        "Identificar funciones en conflicto",
+        "Repartirlas entre personas distintas"
+      ],
+      "evidence": [
+        "Matriz de separación de funciones",
+        "Excepciones justificadas"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.4",
+      "parent": "A.5",
+      "order": 4,
+      "kind": "requirement",
+      "title": "Responsabilidad de la dirección",
+      "officialText": "",
+      "description": "Exigir a toda la organización que aplique las políticas de seguridad.",
+      "actions": [
+        "Comunicar el compromiso de la dirección",
+        "Revisar su cumplimiento"
+      ],
+      "evidence": [
+        "Comunicaciones de la dirección",
+        "Informes de cumplimiento"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.5",
+      "parent": "A.5",
+      "order": 5,
+      "kind": "requirement",
+      "title": "Contacto con autoridades",
+      "officialText": "",
+      "description": "Saber con quién contactar en las autoridades y cuándo.",
+      "actions": [
+        "Mantener un directorio de autoridades",
+        "Definir cuándo se contacta"
+      ],
+      "evidence": [
+        "Directorio de contactos",
+        "Procedimiento de comunicación"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.6",
+      "parent": "A.5",
+      "order": 6,
+      "kind": "requirement",
+      "title": "Contacto con grupos especializados",
+      "officialText": "",
+      "description": "Mantener contacto con foros y grupos de seguridad para estar al día.",
+      "actions": [
+        "Elegir grupos o boletines relevantes",
+        "Designar quién los sigue"
+      ],
+      "evidence": [
+        "Lista de grupos y suscripciones",
+        "Registro de actualizaciones recibidas"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.7",
+      "parent": "A.5",
+      "order": 7,
+      "kind": "requirement",
+      "title": "Inteligencia de amenazas",
+      "officialText": "",
+      "description": "Recoger y analizar información sobre amenazas para tomar decisiones.",
+      "actions": [
+        "Definir fuentes de inteligencia",
+        "Analizarla y usarla en la gestión de riesgos"
+      ],
+      "evidence": [
+        "Informes de amenazas",
+        "Decisiones derivadas"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.8",
+      "parent": "A.5",
+      "order": 8,
+      "kind": "requirement",
+      "title": "Seguridad en proyectos",
+      "officialText": "",
+      "description": "Incluir la seguridad en la gestión de cualquier proyecto.",
+      "actions": [
+        "Evaluar riesgos al iniciar cada proyecto",
+        "Incluir requisitos de seguridad"
+      ],
+      "evidence": [
+        "Plantilla de proyecto con seguridad",
+        "Análisis de riesgos del proyecto"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.9",
+      "parent": "A.5",
+      "order": 9,
+      "kind": "requirement",
+      "title": "Inventario de activos",
+      "officialText": "",
+      "description": "Mantener un inventario de la información y de los activos que la tratan.",
+      "actions": [
+        "Inventariar activos con su responsable",
+        "Mantener el inventario actualizado"
+      ],
+      "evidence": [
+        "Inventario de activos",
+        "Registro de revisiones"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.10",
+      "parent": "A.5",
+      "order": 10,
+      "kind": "requirement",
+      "title": "Uso aceptable de los activos",
+      "officialText": "",
+      "description": "Fijar reglas de uso aceptable de la información y los activos.",
+      "actions": [
+        "Redactar las normas de uso",
+        "Comunicarlas y exigir su aceptación"
+      ],
+      "evidence": [
+        "Norma de uso aceptable",
+        "Aceptación firmada"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.11",
+      "parent": "A.5",
+      "order": 11,
+      "kind": "requirement",
+      "title": "Devolución de activos",
+      "officialText": "",
+      "description": "Recuperar los activos de quien se va o cambia de puesto.",
+      "actions": [
+        "Establecer el procedimiento de devolución",
+        "Verificar la entrega"
+      ],
+      "evidence": [
+        "Procedimiento de baja",
+        "Actas de devolución"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.12",
+      "parent": "A.5",
+      "order": 12,
+      "kind": "requirement",
+      "title": "Clasificación de la información",
+      "officialText": "",
+      "description": "Clasificar la información según su sensibilidad.",
+      "actions": [
+        "Definir los niveles de clasificación",
+        "Clasificar la información"
+      ],
+      "evidence": [
+        "Política de clasificación",
+        "Inventario clasificado"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.13",
+      "parent": "A.5",
+      "order": 13,
+      "kind": "requirement",
+      "title": "Etiquetado de la información",
+      "officialText": "",
+      "description": "Etiquetar la información de acuerdo con su clasificación.",
+      "actions": [
+        "Definir cómo se etiqueta",
+        "Aplicarlo en los soportes y documentos"
+      ],
+      "evidence": [
+        "Procedimiento de etiquetado",
+        "Ejemplos de documentos etiquetados"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.14",
+      "parent": "A.5",
+      "order": 14,
+      "kind": "requirement",
+      "title": "Transferencia de información",
+      "officialText": "",
+      "description": "Proteger la información cuando se envía dentro o fuera de la organización.",
+      "actions": [
+        "Fijar reglas para cada canal de envío",
+        "Proteger los envíos sensibles"
+      ],
+      "evidence": [
+        "Política de transferencia",
+        "Acuerdos de intercambio"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.15",
+      "parent": "A.5",
+      "order": 15,
+      "kind": "requirement",
+      "title": "Control de acceso",
+      "officialText": "",
+      "description": "Dar acceso solo a quien lo necesita, según reglas definidas.",
+      "actions": [
+        "Definir la política de control de acceso",
+        "Aplicarla en sistemas e instalaciones"
+      ],
+      "evidence": [
+        "Política de control de acceso",
+        "Reglas de acceso configuradas"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.16",
+      "parent": "A.5",
+      "order": 16,
+      "kind": "requirement",
+      "title": "Gestión de identidades",
+      "officialText": "",
+      "description": "Gestionar el ciclo de vida de las identidades.",
+      "actions": [
+        "Crear identidades únicas",
+        "Retirarlas cuando ya no hagan falta"
+      ],
+      "evidence": [
+        "Procedimiento de altas y bajas",
+        "Listado de identidades"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.17",
+      "parent": "A.5",
+      "order": 17,
+      "kind": "requirement",
+      "title": "Información de autenticación",
+      "officialText": "",
+      "description": "Gestionar de forma segura contraseñas y otros datos de autenticación.",
+      "actions": [
+        "Definir reglas de credenciales",
+        "Formar a los usuarios en su cuidado"
+      ],
+      "evidence": [
+        "Política de contraseñas",
+        "Registros de formación"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.18",
+      "parent": "A.5",
+      "order": 18,
+      "kind": "requirement",
+      "title": "Derechos de acceso",
+      "officialText": "",
+      "description": "Conceder, revisar y retirar los derechos de acceso.",
+      "actions": [
+        "Aprobar los accesos",
+        "Revisarlos periódicamente"
+      ],
+      "evidence": [
+        "Registro de derechos concedidos",
+        "Actas de revisión"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.19",
+      "parent": "A.5",
+      "order": 19,
+      "kind": "requirement",
+      "title": "Seguridad con proveedores",
+      "officialText": "",
+      "description": "Gestionar los riesgos de seguridad de la relación con proveedores.",
+      "actions": [
+        "Definir requisitos para proveedores",
+        "Evaluar a los críticos"
+      ],
+      "evidence": [
+        "Política de proveedores",
+        "Evaluaciones"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.20",
+      "parent": "A.5",
+      "order": 20,
+      "kind": "requirement",
+      "title": "Acuerdos con proveedores",
+      "officialText": "",
+      "description": "Incluir requisitos de seguridad en los acuerdos con cada proveedor.",
+      "actions": [
+        "Incluir cláusulas de seguridad",
+        "Acordar responsabilidades"
+      ],
+      "evidence": [
+        "Contratos con cláusulas",
+        "Anexos de seguridad"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.21",
+      "parent": "A.5",
+      "order": 21,
+      "kind": "requirement",
+      "title": "Cadena de suministro TIC",
+      "officialText": "",
+      "description": "Gestionar los riesgos de la cadena de suministro de productos y servicios TIC.",
+      "actions": [
+        "Exigir requisitos a lo largo de la cadena",
+        "Vigilar sus cambios"
+      ],
+      "evidence": [
+        "Requisitos de la cadena",
+        "Registro de seguimiento"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.22",
+      "parent": "A.5",
+      "order": 22,
+      "kind": "requirement",
+      "title": "Seguimiento de proveedores",
+      "officialText": "",
+      "description": "Vigilar y revisar los servicios de los proveedores.",
+      "actions": [
+        "Revisar su desempeño y sus incidentes",
+        "Gestionar los cambios"
+      ],
+      "evidence": [
+        "Informes de seguimiento",
+        "Actas de revisión"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.23",
+      "parent": "A.5",
+      "order": 23,
+      "kind": "requirement",
+      "title": "Servicios en la nube",
+      "officialText": "",
+      "description": "Gestionar la seguridad en la contratación y uso de servicios en la nube.",
+      "actions": [
+        "Definir criterios de selección y salida",
+        "Repartir responsabilidades"
+      ],
+      "evidence": [
+        "Política de nube",
+        "Evaluación de proveedores cloud"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.24",
+      "parent": "A.5",
+      "order": 24,
+      "kind": "requirement",
+      "title": "Planificación de incidentes",
+      "officialText": "",
+      "description": "Preparar la gestión de incidentes con roles y procedimientos.",
+      "actions": [
+        "Definir el proceso y los roles",
+        "Documentar los procedimientos"
+      ],
+      "evidence": [
+        "Procedimiento de incidentes",
+        "Lista de contactos"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.25",
+      "parent": "A.5",
+      "order": 25,
+      "kind": "requirement",
+      "title": "Evaluación de eventos",
+      "officialText": "",
+      "description": "Decidir si un evento de seguridad es un incidente.",
+      "actions": [
+        "Definir criterios de clasificación",
+        "Aplicarlos a cada evento"
+      ],
+      "evidence": [
+        "Criterios de clasificación",
+        "Registro de eventos evaluados"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.26",
+      "parent": "A.5",
+      "order": 26,
+      "kind": "requirement",
+      "title": "Respuesta a incidentes",
+      "officialText": "",
+      "description": "Responder a los incidentes según los procedimientos.",
+      "actions": [
+        "Contener, erradicar y recuperar",
+        "Documentar la respuesta"
+      ],
+      "evidence": [
+        "Registro de incidentes",
+        "Informes de respuesta"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.27",
+      "parent": "A.5",
+      "order": 27,
+      "kind": "requirement",
+      "title": "Aprender de los incidentes",
+      "officialText": "",
+      "description": "Usar lo aprendido de un incidente para mejorar los controles.",
+      "actions": [
+        "Hacer revisiones posteriores",
+        "Aplicar mejoras"
+      ],
+      "evidence": [
+        "Informes de lecciones aprendidas",
+        "Plan de mejoras"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.28",
+      "parent": "A.5",
+      "order": 28,
+      "kind": "requirement",
+      "title": "Recogida de pruebas",
+      "officialText": "",
+      "description": "Conservar las pruebas de un incidente de forma útil y fiable.",
+      "actions": [
+        "Definir cómo se recogen y custodian",
+        "Preservar su integridad"
+      ],
+      "evidence": [
+        "Procedimiento de custodia",
+        "Registro de pruebas"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.29",
+      "parent": "A.5",
+      "order": 29,
+      "kind": "requirement",
+      "title": "Seguridad en una interrupción",
+      "officialText": "",
+      "description": "Mantener la seguridad durante una interrupción del servicio.",
+      "actions": [
+        "Definir qué seguridad se mantiene",
+        "Probar los planes"
+      ],
+      "evidence": [
+        "Planes de continuidad",
+        "Informes de pruebas"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.30",
+      "parent": "A.5",
+      "order": 30,
+      "kind": "requirement",
+      "title": "Preparación TIC para la continuidad",
+      "officialText": "",
+      "description": "Preparar los sistemas para cumplir los objetivos de continuidad.",
+      "actions": [
+        "Fijar objetivos de recuperación",
+        "Probar la recuperación"
+      ],
+      "evidence": [
+        "Análisis de impacto",
+        "Pruebas de recuperación"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.31",
+      "parent": "A.5",
+      "order": 31,
+      "kind": "requirement",
+      "title": "Requisitos legales y contractuales",
+      "officialText": "",
+      "description": "Identificar y cumplir los requisitos legales, regulatorios y contractuales.",
+      "actions": [
+        "Mantener un registro de requisitos",
+        "Verificar su cumplimiento"
+      ],
+      "evidence": [
+        "Registro de requisitos legales",
+        "Evaluaciones de cumplimiento"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.32",
+      "parent": "A.5",
+      "order": 32,
+      "kind": "requirement",
+      "title": "Propiedad intelectual",
+      "officialText": "",
+      "description": "Proteger los derechos de propiedad intelectual.",
+      "actions": [
+        "Controlar licencias y software",
+        "Prohibir usos no autorizados"
+      ],
+      "evidence": [
+        "Inventario de licencias",
+        "Política de propiedad intelectual"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.33",
+      "parent": "A.5",
+      "order": 33,
+      "kind": "requirement",
+      "title": "Protección de registros",
+      "officialText": "",
+      "description": "Proteger los registros frente a pérdida, alteración y acceso indebido.",
+      "actions": [
+        "Definir plazos y protección",
+        "Controlar el acceso"
+      ],
+      "evidence": [
+        "Política de registros",
+        "Calendario de conservación"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.34",
+      "parent": "A.5",
+      "order": 34,
+      "kind": "requirement",
+      "title": "Privacidad y datos personales",
+      "officialText": "",
+      "description": "Proteger la privacidad y los datos personales según la ley.",
+      "actions": [
+        "Identificar los tratamientos",
+        "Aplicar las medidas exigidas"
+      ],
+      "evidence": [
+        "Registro de tratamientos",
+        "Políticas de privacidad"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.35",
+      "parent": "A.5",
+      "order": 35,
+      "kind": "requirement",
+      "title": "Revisión independiente",
+      "officialText": "",
+      "description": "Revisar de forma independiente el enfoque de seguridad.",
+      "actions": [
+        "Planificar auditorías independientes",
+        "Tratar sus conclusiones"
+      ],
+      "evidence": [
+        "Informes de auditoría",
+        "Plan de acciones"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.36",
+      "parent": "A.5",
+      "order": 36,
+      "kind": "requirement",
+      "title": "Cumplimiento de políticas",
+      "officialText": "",
+      "description": "Comprobar que las políticas y normas se cumplen.",
+      "actions": [
+        "Revisar el cumplimiento periódicamente",
+        "Corregir desviaciones"
+      ],
+      "evidence": [
+        "Informes de cumplimiento",
+        "Acciones correctoras"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.5.37",
+      "parent": "A.5",
+      "order": 37,
+      "kind": "requirement",
+      "title": "Procedimientos documentados",
+      "officialText": "",
+      "description": "Documentar los procedimientos operativos y ponerlos a disposición de quien los usa.",
+      "actions": [
+        "Documentar los procedimientos clave",
+        "Mantenerlos accesibles y actualizados"
+      ],
+      "evidence": [
+        "Manual de procedimientos",
+        "Registro de cambios"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.6.1",
+      "parent": "A.6",
+      "order": 1,
+      "kind": "requirement",
+      "title": "Selección de personal",
+      "officialText": "",
+      "description": "Verificar los antecedentes antes de contratar, según el puesto.",
+      "actions": [
+        "Definir qué se verifica",
+        "Hacerlo antes de la incorporación"
+      ],
+      "evidence": [
+        "Procedimiento de selección",
+        "Registro de verificaciones"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.6.2",
+      "parent": "A.6",
+      "order": 2,
+      "kind": "requirement",
+      "title": "Condiciones de empleo",
+      "officialText": "",
+      "description": "Fijar por contrato las responsabilidades de seguridad.",
+      "actions": [
+        "Incluir cláusulas de seguridad",
+        "Hacerlas aceptar"
+      ],
+      "evidence": [
+        "Contrato tipo",
+        "Aceptaciones"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.6.3",
+      "parent": "A.6",
+      "order": 3,
+      "kind": "requirement",
+      "title": "Concienciación y formación",
+      "officialText": "",
+      "description": "Formar al personal en seguridad según su puesto.",
+      "actions": [
+        "Planificar la formación",
+        "Evaluar su eficacia"
+      ],
+      "evidence": [
+        "Plan de formación",
+        "Registros de asistencia"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.6.4",
+      "parent": "A.6",
+      "order": 4,
+      "kind": "requirement",
+      "title": "Proceso disciplinario",
+      "officialText": "",
+      "description": "Tener un proceso para los incumplimientos de seguridad.",
+      "actions": [
+        "Formalizar el proceso",
+        "Comunicarlo"
+      ],
+      "evidence": [
+        "Procedimiento disciplinario",
+        "Comunicación al personal"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.6.5",
+      "parent": "A.6",
+      "order": 5,
+      "kind": "requirement",
+      "title": "Responsabilidades tras el cese",
+      "officialText": "",
+      "description": "Definir qué obligaciones siguen tras terminar o cambiar de puesto.",
+      "actions": [
+        "Recoger las obligaciones por contrato",
+        "Recordarlas en la baja"
+      ],
+      "evidence": [
+        "Cláusulas posteriores al cese",
+        "Registro de bajas"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.6.6",
+      "parent": "A.6",
+      "order": 6,
+      "kind": "requirement",
+      "title": "Acuerdos de confidencialidad",
+      "officialText": "",
+      "description": "Firmar acuerdos de confidencialidad adecuados.",
+      "actions": [
+        "Preparar los acuerdos",
+        "Revisarlos periódicamente"
+      ],
+      "evidence": [
+        "Acuerdos firmados",
+        "Registro de revisiones"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.6.7",
+      "parent": "A.6",
+      "order": 7,
+      "kind": "requirement",
+      "title": "Trabajo en remoto",
+      "officialText": "",
+      "description": "Proteger la información cuando se trabaja fuera de las instalaciones.",
+      "actions": [
+        "Definir medidas para el trabajo en remoto",
+        "Aplicarlas"
+      ],
+      "evidence": [
+        "Política de teletrabajo",
+        "Configuración de acceso remoto"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.6.8",
+      "parent": "A.6",
+      "order": 8,
+      "kind": "requirement",
+      "title": "Notificación de eventos",
+      "officialText": "",
+      "description": "Dar al personal un canal para comunicar eventos de seguridad.",
+      "actions": [
+        "Habilitar un canal sencillo",
+        "Dar a conocer el procedimiento"
+      ],
+      "evidence": [
+        "Descripción del canal",
+        "Registro de comunicaciones"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.7.1",
+      "parent": "A.7",
+      "order": 1,
+      "kind": "requirement",
+      "title": "Perímetros físicos",
+      "officialText": "",
+      "description": "Definir y proteger perímetros de seguridad física.",
+      "actions": [
+        "Delimitar las zonas seguras",
+        "Protegerlas"
+      ],
+      "evidence": [
+        "Plano de perímetros",
+        "Controles de acceso"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.7.2",
+      "parent": "A.7",
+      "order": 2,
+      "kind": "requirement",
+      "title": "Entrada física",
+      "officialText": "",
+      "description": "Controlar quién entra en las zonas seguras.",
+      "actions": [
+        "Controlar y registrar los accesos",
+        "Acompañar a las visitas"
+      ],
+      "evidence": [
+        "Registro de accesos",
+        "Procedimiento de visitas"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.7.3",
+      "parent": "A.7",
+      "order": 3,
+      "kind": "requirement",
+      "title": "Protección de oficinas y salas",
+      "officialText": "",
+      "description": "Diseñar la seguridad física de oficinas y salas.",
+      "actions": [
+        "Aplicar medidas a locales sensibles",
+        "Revisarlas"
+      ],
+      "evidence": [
+        "Descripción de medidas",
+        "Inspecciones"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.7.4",
+      "parent": "A.7",
+      "order": 4,
+      "kind": "requirement",
+      "title": "Vigilancia física",
+      "officialText": "",
+      "description": "Supervisar de forma continua el acceso físico no autorizado.",
+      "actions": [
+        "Instalar vigilancia o alarmas",
+        "Revisar los avisos"
+      ],
+      "evidence": [
+        "Sistemas de vigilancia",
+        "Registro de alarmas"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.7.5",
+      "parent": "A.7",
+      "order": 5,
+      "kind": "requirement",
+      "title": "Amenazas físicas y ambientales",
+      "officialText": "",
+      "description": "Protegerse de amenazas físicas y ambientales.",
+      "actions": [
+        "Evaluar las amenazas",
+        "Aplicar protecciones"
+      ],
+      "evidence": [
+        "Evaluación de amenazas",
+        "Medidas de protección"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.7.6",
+      "parent": "A.7",
+      "order": 6,
+      "kind": "requirement",
+      "title": "Trabajo en zonas seguras",
+      "officialText": "",
+      "description": "Fijar reglas para trabajar en zonas seguras.",
+      "actions": [
+        "Definir las reglas",
+        "Comunicarlas"
+      ],
+      "evidence": [
+        "Normas de zonas seguras",
+        "Constancia de comunicación"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.7.7",
+      "parent": "A.7",
+      "order": 7,
+      "kind": "requirement",
+      "title": "Escritorio y pantalla limpios",
+      "officialText": "",
+      "description": "Evitar dejar información visible o accesible sin custodia.",
+      "actions": [
+        "Definir la norma",
+        "Comprobarla"
+      ],
+      "evidence": [
+        "Norma de mesa limpia",
+        "Revisiones"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.7.8",
+      "parent": "A.7",
+      "order": 8,
+      "kind": "requirement",
+      "title": "Ubicación de equipos",
+      "officialText": "",
+      "description": "Colocar y proteger los equipos para reducir riesgos.",
+      "actions": [
+        "Elegir ubicaciones adecuadas",
+        "Protegerlos"
+      ],
+      "evidence": [
+        "Plano de ubicación",
+        "Medidas aplicadas"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.7.9",
+      "parent": "A.7",
+      "order": 9,
+      "kind": "requirement",
+      "title": "Activos fuera de las instalaciones",
+      "officialText": "",
+      "description": "Proteger los activos que salen de la organización.",
+      "actions": [
+        "Definir reglas de uso externo",
+        "Controlar la salida"
+      ],
+      "evidence": [
+        "Política de activos externos",
+        "Registro de salidas"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.7.10",
+      "parent": "A.7",
+      "order": 10,
+      "kind": "requirement",
+      "title": "Soportes de almacenamiento",
+      "officialText": "",
+      "description": "Gestionar los soportes durante todo su ciclo de vida.",
+      "actions": [
+        "Controlar su uso y transporte",
+        "Proteger su contenido"
+      ],
+      "evidence": [
+        "Procedimiento de soportes",
+        "Inventario de soportes"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.7.11",
+      "parent": "A.7",
+      "order": 11,
+      "kind": "requirement",
+      "title": "Servicios de apoyo",
+      "officialText": "",
+      "description": "Proteger los equipos frente a fallos de los suministros.",
+      "actions": [
+        "Proteger electricidad y comunicaciones",
+        "Probar los respaldos"
+      ],
+      "evidence": [
+        "Medidas de suministro",
+        "Pruebas"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.7.12",
+      "parent": "A.7",
+      "order": 12,
+      "kind": "requirement",
+      "title": "Seguridad del cableado",
+      "officialText": "",
+      "description": "Proteger el cableado de interceptación y daños.",
+      "actions": [
+        "Proteger los cables",
+        "Revisar su estado"
+      ],
+      "evidence": [
+        "Plano de cableado",
+        "Inspecciones"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.7.13",
+      "parent": "A.7",
+      "order": 13,
+      "kind": "requirement",
+      "title": "Mantenimiento de equipos",
+      "officialText": "",
+      "description": "Mantener los equipos para asegurar su disponibilidad e integridad.",
+      "actions": [
+        "Planificar el mantenimiento",
+        "Registrar las intervenciones"
+      ],
+      "evidence": [
+        "Plan de mantenimiento",
+        "Registro de intervenciones"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.7.14",
+      "parent": "A.7",
+      "order": 14,
+      "kind": "requirement",
+      "title": "Eliminación y reutilización segura",
+      "officialText": "",
+      "description": "Borrar la información antes de eliminar o reutilizar un equipo.",
+      "actions": [
+        "Definir el borrado seguro",
+        "Verificarlo"
+      ],
+      "evidence": [
+        "Procedimiento de borrado",
+        "Certificados de destrucción"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.8.1",
+      "parent": "A.8",
+      "order": 1,
+      "kind": "requirement",
+      "title": "Dispositivos de usuario",
+      "officialText": "",
+      "description": "Proteger la información en los dispositivos de los usuarios.",
+      "actions": [
+        "Definir la configuración segura",
+        "Gestionar los dispositivos"
+      ],
+      "evidence": [
+        "Política de dispositivos",
+        "Inventario gestionado"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.8.2",
+      "parent": "A.8",
+      "order": 2,
+      "kind": "requirement",
+      "title": "Acceso privilegiado",
+      "officialText": "",
+      "description": "Restringir y controlar los derechos de acceso privilegiado.",
+      "actions": [
+        "Limitar las cuentas privilegiadas",
+        "Registrar su uso"
+      ],
+      "evidence": [
+        "Listado de cuentas privilegiadas",
+        "Registros de uso"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.8.3",
+      "parent": "A.8",
+      "order": 3,
+      "kind": "requirement",
+      "title": "Restricción del acceso a la información",
+      "officialText": "",
+      "description": "Limitar el acceso a la información según la política.",
+      "actions": [
+        "Aplicar permisos mínimos",
+        "Revisarlos"
+      ],
+      "evidence": [
+        "Reglas de acceso",
+        "Revisiones"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.8.4",
+      "parent": "A.8",
+      "order": 4,
+      "kind": "requirement",
+      "title": "Acceso al código fuente",
+      "officialText": "",
+      "description": "Controlar el acceso al código y a las herramientas de desarrollo.",
+      "actions": [
+        "Restringir el acceso",
+        "Registrarlo"
+      ],
+      "evidence": [
+        "Permisos del repositorio",
+        "Registros de acceso"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.8.5",
+      "parent": "A.8",
+      "order": 5,
+      "kind": "requirement",
+      "title": "Autenticación segura",
+      "officialText": "",
+      "description": "Aplicar mecanismos de autenticación acordes al riesgo.",
+      "actions": [
+        "Elegir métodos fuertes",
+        "Aplicarlos en los accesos críticos"
+      ],
+      "evidence": [
+        "Política de autenticación",
+        "Configuración de MFA"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.8.6",
+      "parent": "A.8",
+      "order": 6,
+      "kind": "requirement",
+      "title": "Gestión de la capacidad",
+      "officialText": "",
+      "description": "Vigilar y ajustar los recursos a las necesidades.",
+      "actions": [
+        "Monitorizar el uso",
+        "Planificar ampliaciones"
+      ],
+      "evidence": [
+        "Informes de capacidad",
+        "Plan de capacidad"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.8.7",
+      "parent": "A.8",
+      "order": 7,
+      "kind": "requirement",
+      "title": "Protección contra malware",
+      "officialText": "",
+      "description": "Proteger los sistemas frente al software malicioso.",
+      "actions": [
+        "Desplegar protección",
+        "Concienciar a los usuarios"
+      ],
+      "evidence": [
+        "Inventario de protección",
+        "Registros de actualización"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.8.8",
+      "parent": "A.8",
+      "order": 8,
+      "kind": "requirement",
+      "title": "Vulnerabilidades técnicas",
+      "officialText": "",
+      "description": "Identificar y tratar las vulnerabilidades técnicas.",
+      "actions": [
+        "Analizar vulnerabilidades periódicamente",
+        "Corregirlas según su riesgo"
+      ],
+      "evidence": [
+        "Informes de vulnerabilidades",
+        "Registro de correcciones"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.8.9",
+      "parent": "A.8",
+      "order": 9,
+      "kind": "requirement",
+      "title": "Gestión de la configuración",
+      "officialText": "",
+      "description": "Definir y mantener configuraciones seguras.",
+      "actions": [
+        "Establecer líneas base",
+        "Controlar los cambios"
+      ],
+      "evidence": [
+        "Líneas base documentadas",
+        "Informes de configuración"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.8.10",
+      "parent": "A.8",
+      "order": 10,
+      "kind": "requirement",
+      "title": "Eliminación de información",
+      "officialText": "",
+      "description": "Borrar la información cuando ya no se necesita.",
+      "actions": [
+        "Definir plazos de eliminación",
+        "Ejecutarla de forma segura"
+      ],
+      "evidence": [
+        "Política de eliminación",
+        "Registros de borrado"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.8.11",
+      "parent": "A.8",
+      "order": 11,
+      "kind": "requirement",
+      "title": "Enmascaramiento de datos",
+      "officialText": "",
+      "description": "Ocultar datos sensibles cuando no se necesiten completos.",
+      "actions": [
+        "Definir cuándo se enmascara",
+        "Aplicar la técnica"
+      ],
+      "evidence": [
+        "Criterios de enmascaramiento",
+        "Ejemplos aplicados"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.8.12",
+      "parent": "A.8",
+      "order": 12,
+      "kind": "requirement",
+      "title": "Prevención de fuga de datos",
+      "officialText": "",
+      "description": "Evitar la salida no autorizada de información.",
+      "actions": [
+        "Identificar vías de fuga",
+        "Aplicar controles"
+      ],
+      "evidence": [
+        "Política de prevención",
+        "Configuración de controles"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.8.13",
+      "parent": "A.8",
+      "order": 13,
+      "kind": "requirement",
+      "title": "Copias de seguridad",
+      "officialText": "",
+      "description": "Hacer copias y comprobar que se pueden restaurar.",
+      "actions": [
+        "Definir y automatizar las copias",
+        "Probar la restauración"
+      ],
+      "evidence": [
+        "Plan de copias",
+        "Pruebas de restauración"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.8.14",
+      "parent": "A.8",
+      "order": 14,
+      "kind": "requirement",
+      "title": "Redundancia",
+      "officialText": "",
+      "description": "Dotar a los sistemas de la redundancia que exige la disponibilidad.",
+      "actions": [
+        "Identificar sistemas críticos",
+        "Implantar redundancia"
+      ],
+      "evidence": [
+        "Arquitectura redundante",
+        "Pruebas de conmutación"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.8.15",
+      "parent": "A.8",
+      "order": 15,
+      "kind": "requirement",
+      "title": "Registro de eventos",
+      "officialText": "",
+      "description": "Generar y proteger registros de la actividad.",
+      "actions": [
+        "Definir qué se registra",
+        "Proteger los registros"
+      ],
+      "evidence": [
+        "Política de registros",
+        "Configuración de logs"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.8.16",
+      "parent": "A.8",
+      "order": 16,
+      "kind": "requirement",
+      "title": "Actividades de monitorización",
+      "officialText": "",
+      "description": "Vigilar comportamientos anómalos en redes y sistemas.",
+      "actions": [
+        "Monitorizar y alertar",
+        "Responder a las alertas"
+      ],
+      "evidence": [
+        "Reglas de alerta",
+        "Informes de monitorización"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.8.17",
+      "parent": "A.8",
+      "order": 17,
+      "kind": "requirement",
+      "title": "Sincronización de relojes",
+      "officialText": "",
+      "description": "Sincronizar los relojes para poder correlacionar eventos.",
+      "actions": [
+        "Usar una fuente horaria común",
+        "Verificarla"
+      ],
+      "evidence": [
+        "Configuración de NTP",
+        "Verificaciones"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.8.18",
+      "parent": "A.8",
+      "order": 18,
+      "kind": "requirement",
+      "title": "Programas de utilidad privilegiados",
+      "officialText": "",
+      "description": "Restringir el uso de utilidades capaces de saltarse controles.",
+      "actions": [
+        "Limitar quién las usa",
+        "Registrar su uso"
+      ],
+      "evidence": [
+        "Listado de utilidades",
+        "Registros de uso"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.8.19",
+      "parent": "A.8",
+      "order": 19,
+      "kind": "requirement",
+      "title": "Instalación de software",
+      "officialText": "",
+      "description": "Controlar la instalación de software en sistemas de producción.",
+      "actions": [
+        "Definir qué se puede instalar",
+        "Aprobar las instalaciones"
+      ],
+      "evidence": [
+        "Política de software",
+        "Registros de instalación"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.8.20",
+      "parent": "A.8",
+      "order": 20,
+      "kind": "requirement",
+      "title": "Seguridad de las redes",
+      "officialText": "",
+      "description": "Gestionar y proteger las redes.",
+      "actions": [
+        "Proteger el perímetro y los dispositivos",
+        "Documentar la red"
+      ],
+      "evidence": [
+        "Diagramas de red",
+        "Configuración de cortafuegos"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.8.21",
+      "parent": "A.8",
+      "order": 21,
+      "kind": "requirement",
+      "title": "Seguridad de los servicios de red",
+      "officialText": "",
+      "description": "Definir los requisitos de seguridad de los servicios de red.",
+      "actions": [
+        "Exigir niveles de servicio y seguridad",
+        "Supervisarlos"
+      ],
+      "evidence": [
+        "Acuerdos de servicio",
+        "Informes"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.8.22",
+      "parent": "A.8",
+      "order": 22,
+      "kind": "requirement",
+      "title": "Segregación de redes",
+      "officialText": "",
+      "description": "Separar la red en zonas según el riesgo.",
+      "actions": [
+        "Definir zonas",
+        "Controlar el tráfico entre ellas"
+      ],
+      "evidence": [
+        "Diseño de segmentación",
+        "Reglas de filtrado"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.8.23",
+      "parent": "A.8",
+      "order": 23,
+      "kind": "requirement",
+      "title": "Filtrado web",
+      "officialText": "",
+      "description": "Controlar el acceso a sitios web externos.",
+      "actions": [
+        "Definir categorías permitidas",
+        "Aplicar el filtrado"
+      ],
+      "evidence": [
+        "Política de navegación",
+        "Configuración del filtro"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.8.24",
+      "parent": "A.8",
+      "order": 24,
+      "kind": "requirement",
+      "title": "Uso de la criptografía",
+      "officialText": "",
+      "description": "Definir y aplicar reglas de uso de criptografía y claves.",
+      "actions": [
+        "Definir la política criptográfica",
+        "Gestionar las claves"
+      ],
+      "evidence": [
+        "Política criptográfica",
+        "Procedimiento de claves"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.8.25",
+      "parent": "A.8",
+      "order": 25,
+      "kind": "requirement",
+      "title": "Ciclo de desarrollo seguro",
+      "officialText": "",
+      "description": "Aplicar reglas de seguridad al desarrollo de software.",
+      "actions": [
+        "Definir las reglas",
+        "Aplicarlas en cada fase"
+      ],
+      "evidence": [
+        "Política de desarrollo seguro",
+        "Evidencias de fase"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.8.26",
+      "parent": "A.8",
+      "order": 26,
+      "kind": "requirement",
+      "title": "Requisitos de seguridad de aplicaciones",
+      "officialText": "",
+      "description": "Identificar los requisitos de seguridad de cada aplicación.",
+      "actions": [
+        "Analizar los requisitos",
+        "Aprobarlos"
+      ],
+      "evidence": [
+        "Especificación de requisitos",
+        "Aprobaciones"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.8.27",
+      "parent": "A.8",
+      "order": 27,
+      "kind": "requirement",
+      "title": "Arquitectura segura",
+      "officialText": "",
+      "description": "Diseñar sistemas aplicando principios de seguridad.",
+      "actions": [
+        "Definir principios de diseño",
+        "Revisar las arquitecturas"
+      ],
+      "evidence": [
+        "Principios de arquitectura",
+        "Revisiones"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.8.28",
+      "parent": "A.8",
+      "order": 28,
+      "kind": "requirement",
+      "title": "Codificación segura",
+      "officialText": "",
+      "description": "Aplicar prácticas de codificación segura.",
+      "actions": [
+        "Establecer guías de código",
+        "Revisar el código"
+      ],
+      "evidence": [
+        "Guías de codificación",
+        "Resultados de revisión"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.8.29",
+      "parent": "A.8",
+      "order": 29,
+      "kind": "requirement",
+      "title": "Pruebas de seguridad",
+      "officialText": "",
+      "description": "Probar la seguridad en el desarrollo y la aceptación.",
+      "actions": [
+        "Definir las pruebas",
+        "Ejecutarlas antes de producción"
+      ],
+      "evidence": [
+        "Plan de pruebas",
+        "Informes de pruebas"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.8.30",
+      "parent": "A.8",
+      "order": 30,
+      "kind": "requirement",
+      "title": "Desarrollo externalizado",
+      "officialText": "",
+      "description": "Supervisar el desarrollo que hacen terceros.",
+      "actions": [
+        "Fijar requisitos al proveedor",
+        "Verificar lo entregado"
+      ],
+      "evidence": [
+        "Contrato de desarrollo",
+        "Informes de verificación"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.8.31",
+      "parent": "A.8",
+      "order": 31,
+      "kind": "requirement",
+      "title": "Separación de entornos",
+      "officialText": "",
+      "description": "Separar desarrollo, pruebas y producción.",
+      "actions": [
+        "Mantener entornos separados",
+        "Controlar el paso a producción"
+      ],
+      "evidence": [
+        "Descripción de entornos",
+        "Control de accesos"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.8.32",
+      "parent": "A.8",
+      "order": 32,
+      "kind": "requirement",
+      "title": "Gestión de cambios",
+      "officialText": "",
+      "description": "Controlar los cambios en sistemas y procesos.",
+      "actions": [
+        "Documentar y aprobar los cambios",
+        "Probarlos"
+      ],
+      "evidence": [
+        "Procedimiento de cambios",
+        "Registro de cambios"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.8.33",
+      "parent": "A.8",
+      "order": 33,
+      "kind": "requirement",
+      "title": "Información de prueba",
+      "officialText": "",
+      "description": "Proteger los datos usados en pruebas.",
+      "actions": [
+        "Evitar datos reales sin protección",
+        "Controlar su uso"
+      ],
+      "evidence": [
+        "Política de datos de prueba",
+        "Registros"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    },
+    {
+      "identifier": "A.8.34",
+      "parent": "A.8",
+      "order": 34,
+      "kind": "requirement",
+      "title": "Auditoría y sistemas operativos",
+      "officialText": "",
+      "description": "Proteger los sistemas durante las pruebas de auditoría.",
+      "actions": [
+        "Planificar las pruebas con la dirección",
+        "Limitar su alcance"
+      ],
+      "evidence": [
+        "Plan de auditoría",
+        "Aprobaciones"
+      ],
+      "source": "ISO/IEC 27001:2022, Anexo A",
+      "register": null
+    }
+  ]
+}

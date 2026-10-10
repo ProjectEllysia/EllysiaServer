@@ -144,14 +144,14 @@ idioma: [`CONVENCIONES.md`](CONVENCIONES.md) §12.5 y §13.
 ### Blueprints registrados (`run.py`)
 
 `/system` · `/oauth` · `/users` · `/plans` · `/organizations` · `/themis` · `/acheron` · `/aegis`
-· `/iris` · `/hygeia`
+· `/iris` · `/hygeia` · `/eunomia`
 
-Son **diez**. Añadir uno obliga a tocar también `web/Caddyfile` y `web/app/vite.config.js`
+Son **once**. Añadir uno obliga a tocar también `web/Caddyfile` y `web/app/vite.config.js`
 (el test de Caddy cubre el primero).
 
 ### Layout de un módulo (`API/src/modules/`)
 
-Módulos de feature: `themis`, `iris`, `aegis`, `acheron`, `hygeia` (bajo `features/`).
+Módulos de feature: `themis`, `iris`, `aegis`, `acheron`, `hygeia`, `eunomia` (bajo `features/`).
 Módulos transversales de dominio: `users`, `accounts` (planes, organizaciones, suscripciones,
 cuotas), `system`.
 
@@ -238,12 +238,12 @@ con backend RQ+Redis), `worker.py` (entrada del worker), `tracking.py` (`TaskTra
   directo, y la receta completa: [`CONVENCIONES.md`](CONVENCIONES.md) §7.
 - **Categorías**: `themis.scan`, `themis.report`, `themis.traceroute`, `themis.kbsync`, `themis.osint`, `aegis.generate`,
   `aegis.campaign`, `iris.analyze`, `iris.ai_summary`, `iris.report`, `iris.ingest`,
-  `iris.notify`, `iris.enrichment`, `iris.webhook`, `iris.remediation`, `hygeia.notify`, `hygeia.report`, `users.export` (+ `default`). Cada módulo las da de alta en su `__init__.py` con `QueueRegistry.register(...)`;
+  `iris.notify`, `iris.enrichment`, `iris.webhook`, `iris.remediation`, `hygeia.notify`, `hygeia.report`, `eunomia.report`, `users.export` (+ `default`). Cada módulo las da de alta en su `__init__.py` con `QueueRegistry.register(...)`;
   los workers escuchan en colas por categoría.
 - **`external_id`**: el prefijo lo declara el manager en `EXTERNAL_ID_PREFIX` (`scan:`,
   `themis-doc:`, `themis-traceroute:`, `themis-kbsync:`, `themis-osint:`, `aegis-doc:`, `aegis-campaign:`, `iris-analysis:`,
   `iris-doc:`, `iris-mailbox-sync:`, `iris-phishing-notify:`, `iris-url-expansion:`, `iris-webhook-delivery:`,
-  `iris-mailbox-action:`, `iris-mailbox-subscription:`, `hygeia-doc:`, `users-export:`) y `TaskTrackingMixin.external_id_for`
+  `iris-mailbox-action:`, `iris-mailbox-subscription:`, `hygeia-doc:`, `eunomia-doc:`, `users-export:`) y `TaskTrackingMixin.external_id_for`
   lo compone. No lo escribas a mano.
 - **Cancelación** cooperativa: pone la clave Redis `taskqueue:cancel:{job_id}`; los workers la
   sondean vía `_Task.wait(cancel_check=...)`. **Progreso** por `job.meta["progress"]`.
@@ -253,8 +253,9 @@ con backend RQ+Redis), `worker.py` (entrada del worker), `tracking.py` (`TaskTra
 
 ### Scheduling (APScheduler)
 
-Cinco schedulers, uno por dominio, arrancados desde `run.py::_configure_scheduling()`:
-`ThemisScheduler`, `HygeiaScheduler`, `IrisMailboxScheduler`, `AccountsScheduler`, `UsersScheduler`.
+Seis schedulers, uno por dominio, arrancados desde `run.py::_configure_scheduling()`:
+`ThemisScheduler`, `HygeiaScheduler`, `IrisMailboxScheduler`, `EunomiaScheduler` (purga diaria de los
+marcos archivados), `AccountsScheduler`, `UsersScheduler`.
 No comparten instancia a propósito (no acoplar módulos hermanos solo por compartir mecanismo),
 pero todos usan el helper común `@scheduler_job` de `infrastructure/scheduling.py`, que aísla
 excepciones y libera la sesión con `close_all()` en el `finally`.

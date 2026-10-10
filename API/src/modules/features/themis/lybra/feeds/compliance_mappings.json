@@ -1,5 +1,5 @@
 {
-  "_comment": "Qué controles de cumplimiento y qué técnicas de MITRE ATT&CK toca cada hallazgo de Lybra. 'categories' da el mapeo de cada Finding.category; 'checks' lo afina para un check_id concreto y sustituye sólo las claves que declara ('mitre' o 'controls'), heredando la otra de su categoría. Un control se cita por su código global '<marco>:<identificador>' (ens:op.exp.4), que es estable: lo guardan las preferencias de usuario y organización y será la clave natural del catálogo cuando pase a base de datos. 'parent' construye la jerarquía de cada marco (ens: op > op.exp > op.exp.4). Los nombres de MITRE van en inglés a propósito: son el nombre propio con el que se buscan en el catálogo público.",
+  "_comment": "Qué controles de cumplimiento y qué técnicas de MITRE ATT&CK toca cada hallazgo de Lybra. 'categories' da el mapeo de cada Finding.category; 'checks' lo afina para un check_id concreto y sustituye sólo las claves que declara ('mitre' o 'controls'), heredando la otra de su categoría. Un control se cita por su código global '<marco>:<identificador>' (ens:op.exp.4), que es estable. El catálogo de marcos (títulos, jerarquía) es de Eunomia; 'targets' dice a qué versión de cada marco apuntan estos códigos. Los nombres de MITRE van en inglés a propósito: son el nombre propio con el que se buscan en el catálogo público.",
   "feedVersion": "lybra-compliance-1",
   "mitre": {
     "tactics": {
@@ -49,76 +49,10 @@
       "T1613": {"name": "Container and Resource Discovery", "tactics": ["TA0007"]}
     }
   },
-  "frameworks": {
-    "iso27001": {
-      "name": "ISO/IEC 27001:2022",
-      "shortName": "ISO 27001",
-      "controls": {
-        "A.5": {"title": "Controles organizativos"},
-        "A.5.9": {"title": "Inventario de información y otros activos asociados", "parent": "A.5"},
-        "A.5.14": {"title": "Transferencia de información", "parent": "A.5"},
-        "A.5.15": {"title": "Control de acceso", "parent": "A.5"},
-        "A.5.17": {"title": "Información de autenticación", "parent": "A.5"},
-        "A.8": {"title": "Controles tecnológicos"},
-        "A.8.2": {"title": "Derechos de acceso privilegiados", "parent": "A.8"},
-        "A.8.3": {"title": "Restricción del acceso a la información", "parent": "A.8"},
-        "A.8.4": {"title": "Acceso al código fuente", "parent": "A.8"},
-        "A.8.5": {"title": "Autenticación segura", "parent": "A.8"},
-        "A.8.8": {"title": "Gestión de las vulnerabilidades técnicas", "parent": "A.8"},
-        "A.8.9": {"title": "Gestión de la configuración", "parent": "A.8"},
-        "A.8.12": {"title": "Prevención de la fuga de datos", "parent": "A.8"},
-        "A.8.13": {"title": "Copias de seguridad de la información", "parent": "A.8"},
-        "A.8.19": {"title": "Instalación de software en sistemas en producción", "parent": "A.8"},
-        "A.8.20": {"title": "Seguridad de las redes", "parent": "A.8"},
-        "A.8.21": {"title": "Seguridad de los servicios de red", "parent": "A.8"},
-        "A.8.24": {"title": "Uso de la criptografía", "parent": "A.8"},
-        "A.8.26": {"title": "Requisitos de seguridad de las aplicaciones", "parent": "A.8"},
-        "A.8.31": {"title": "Separación de los entornos de desarrollo, prueba y producción", "parent": "A.8"}
-      }
-    },
-    "ens": {
-      "name": "ENS (Real Decreto 311/2022)",
-      "shortName": "ENS",
-      "controls": {
-        "op": {"title": "Marco operacional"},
-        "op.acc": {"title": "Control de acceso", "parent": "op"},
-        "op.acc.2": {"title": "Requisitos de acceso", "parent": "op.acc"},
-        "op.acc.4": {"title": "Proceso de gestión de derechos de acceso", "parent": "op.acc"},
-        "op.acc.5": {"title": "Mecanismo de autenticación (usuarios externos)", "parent": "op.acc"},
-        "op.acc.6": {"title": "Mecanismo de autenticación (usuarios de la organización)", "parent": "op.acc"},
-        "op.exp": {"title": "Explotación", "parent": "op"},
-        "op.exp.1": {"title": "Inventario de activos", "parent": "op.exp"},
-        "op.exp.2": {"title": "Configuración de seguridad", "parent": "op.exp"},
-        "op.exp.3": {"title": "Gestión de la configuración de seguridad", "parent": "op.exp"},
-        "op.exp.4": {"title": "Mantenimiento y actualizaciones de seguridad", "parent": "op.exp"},
-        "op.exp.10": {"title": "Protección de claves criptográficas", "parent": "op.exp"},
-        "mp": {"title": "Medidas de protección"},
-        "mp.com": {"title": "Protección de las comunicaciones", "parent": "mp"},
-        "mp.com.1": {"title": "Perímetro seguro", "parent": "mp.com"},
-        "mp.com.2": {"title": "Protección de la confidencialidad", "parent": "mp.com"},
-        "mp.com.3": {"title": "Protección de la integridad y de la autenticidad", "parent": "mp.com"},
-        "mp.sw": {"title": "Protección de las aplicaciones informáticas", "parent": "mp"},
-        "mp.sw.2": {"title": "Aceptación y puesta en servicio", "parent": "mp.sw"},
-        "mp.info": {"title": "Protección de la información", "parent": "mp"},
-        "mp.info.6": {"title": "Copias de seguridad", "parent": "mp.info"},
-        "mp.s": {"title": "Protección de los servicios", "parent": "mp"},
-        "mp.s.1": {"title": "Protección del correo electrónico", "parent": "mp.s"},
-        "mp.s.2": {"title": "Protección de servicios y aplicaciones web", "parent": "mp.s"},
-        "mp.s.4": {"title": "Protección frente a la denegación de servicio", "parent": "mp.s"}
-      }
-    },
-    "nis2": {
-      "name": "NIS2 (Directiva (UE) 2022/2555)",
-      "shortName": "NIS2",
-      "controls": {
-        "21.2": {"title": "Medidas para la gestión de riesgos de ciberseguridad (art. 21.2)"},
-        "21.2.c": {"title": "Continuidad de las actividades y gestión de crisis", "parent": "21.2"},
-        "21.2.e": {"title": "Seguridad en la adquisición, el desarrollo y el mantenimiento de los sistemas, incluida la gestión de vulnerabilidades", "parent": "21.2"},
-        "21.2.h": {"title": "Uso de la criptografía y, en su caso, del cifrado", "parent": "21.2"},
-        "21.2.i": {"title": "Seguridad de los recursos humanos, control de acceso y gestión de activos", "parent": "21.2"},
-        "21.2.j": {"title": "Autenticación multifactor o continua y comunicaciones seguras", "parent": "21.2"}
-      }
-    }
+  "targets": {
+    "iso27001": "2022",
+    "ens": "rd-311-2022",
+    "nis2": "2022-2555"
   },
   "categories": {
     "exposed_path": {

@@ -1,0 +1,52 @@
+{
+  "frameworks": [
+    {
+      "key": "iso27001",
+      "name": "ISO/IEC 27001:2022",
+      "shortName": "ISO 27001",
+      "current": "2022",
+      "versions": [
+        {
+          "version": "2022",
+          "status": "published"
+        }
+      ]
+    },
+    {
+      "key": "ens",
+      "name": "ENS (Real Decreto 311/2022)",
+      "shortName": "ENS",
+      "current": "rd-311-2022",
+      "versions": [
+        {
+          "version": "rd-311-2022",
+          "status": "published"
+        }
+      ]
+    },
+    {
+      "key": "nis2",
+      "name": "NIS2 — Directiva (UE) 2022/2555 y Reglamento de Ejecución (UE) 2024/2690",
+      "shortName": "NIS2",
+      "current": "2022-2555",
+      "versions": [
+        {
+          "version": "2022-2555",
+          "status": "published"
+        }
+      ]
+    },
+    {
+      "key": "rgpd",
+      "name": "Reglamento General de Protección de Datos (Reglamento (UE) 2016/679)",
+      "shortName": "RGPD",
+      "current": "2016-679",
+      "versions": [
+        {
+          "version": "2016-679",
+          "status": "published"
+        }
+      ]
+    }
+  ]
+}

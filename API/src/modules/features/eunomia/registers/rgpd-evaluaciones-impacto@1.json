@@ -1,0 +1,37 @@
+{
+  "key": "rgpd-evaluaciones-impacto",
+  "version": "1",
+  "title": "Evaluaciones de impacto (EIPD)",
+  "summary": "Una evaluación de impacto por tratamiento de alto riesgo, enlazada a su ficha del registro de actividades. Sigue el contenido mínimo del artículo 35.7; la AEPD ofrece una herramienta gratuita (Gestiona EIPD) para el análisis detallado.",
+  "titleField": "name",
+  "controls": {
+    "rgpd": ["art.35"]
+  },
+  "fields": [
+    {"key": "name", "label": "Evaluación", "type": "text", "required": true},
+    {"key": "treatment", "label": "Tratamiento evaluado", "type": "record", "register": "rgpd-actividades-tratamiento", "required": true,
+     "help": "La ficha del registro de actividades de tratamiento a la que corresponde."},
+    {"key": "trigger", "label": "Por qué hace falta (art. 35.3)", "type": "select", "required": true, "options": [
+      {"value": "profiling", "label": "Evaluación sistemática y exhaustiva con efectos jurídicos (perfilado)"},
+      {"value": "special_categories", "label": "Categorías especiales o datos penales a gran escala"},
+      {"value": "public_monitoring", "label": "Observación sistemática a gran escala de una zona de acceso público"},
+      {"value": "authority_list", "label": "Figura en la lista de la autoridad de control"},
+      {"value": "other", "label": "Otro motivo: entraña un alto riesgo"}
+    ]},
+    {"key": "started_at", "label": "Iniciada el", "type": "date", "help": "Debe hacerse antes de empezar el tratamiento."},
+    {"key": "description", "label": "Descripción sistemática del tratamiento", "type": "longtext", "help": "Operaciones, fines e interés legítimo si lo hay (art. 35.7.a)."},
+    {"key": "necessity", "label": "Necesidad y proporcionalidad", "type": "longtext", "help": "Art. 35.7.b."},
+    {"key": "risks", "label": "Riesgos para los derechos y libertades", "type": "longtext", "help": "Art. 35.7.c."},
+    {"key": "measures", "label": "Medidas previstas", "type": "longtext", "help": "Garantías, medidas de seguridad y mecanismos para demostrar el cumplimiento (art. 35.7.d)."},
+    {"key": "residual_risk", "label": "Riesgo residual", "type": "select", "options": [
+      {"value": "low", "label": "Bajo"},
+      {"value": "medium", "label": "Medio"},
+      {"value": "high", "label": "Alto: hay que consultar a la autoridad (art. 36)"}
+    ]},
+    {"key": "dpo_opinion", "label": "Asesoramiento del delegado de protección de datos", "type": "longtext", "help": "Art. 35.2."},
+    {"key": "reviewed_at", "label": "Última revisión el", "type": "date"},
+    {"key": "responsible", "label": "Responsable", "type": "person"}
+  ],
+  "deadlines": [],
+  "examples": []
+}

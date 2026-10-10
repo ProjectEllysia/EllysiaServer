@@ -4,7 +4,7 @@ import logging
 from typing import List
 import src.modules.system.config_reading as CR
 from src.modules.infrastructure import UnitOfWork
-from ..repositories import ScanRepository
+from ..repositories import ProgramedScanRepository, ScanRepository
 from ..model import ScanType
 from ..services import HistoryStatsService
 
@@ -39,6 +39,24 @@ class ScanHistoryManager:
         """
         with UnitOfWork() as uow:
             return ScanRepository(uow).get_stats(user_id)
+
+    def get_vulnerability_management_summary(self, user_id: int) -> dict:
+        """El estado de la gestión de vulnerabilidades de un usuario, para quien lo necesite.
+
+        Lo consume Eunomia como evidencia automática: no expone repositorios ni hallazgos
+        individuales, solo cifras.
+
+        Args:
+            user_id: Usuario cuyos escaneos se resumen (solo los suyos).
+
+        Returns:
+            dict: ``lastFinishedAt`` (``None`` si ninguno terminó), ``activeScheduledScans``,
+                ``openFindings`` y ``openCritical``.
+        """
+        with UnitOfWork() as uow:
+            summary = ScanRepository(uow).get_vulnerability_summary(user_id)
+            summary["activeScheduledScans"] = ProgramedScanRepository(uow).count_active(user_id)
+        return summary
 
     def get_host_history(self, user_id: int, target: str, scan_type: ScanType) -> dict:
         """Build the historical statistics payload for a host + tool.

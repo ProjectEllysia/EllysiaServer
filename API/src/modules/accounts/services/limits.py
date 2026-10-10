@@ -64,6 +64,10 @@ class LimitKey(Enum):
 
     HYGEIA_ASSETS = "hygeia.assets"
 
+    EUNOMIA_FRAMEWORKS       = "eunomia.frameworks"
+    EUNOMIA_EVIDENCE_STORAGE = "eunomia.evidence_storage"
+    EUNOMIA_DOCUMENTS        = "eunomia.documents"
+
     AI_REQUESTS = "ai.requests"
 
     ORGANIZATION_MEMBERS = "organization.members"
@@ -98,6 +102,13 @@ PERIODS: dict[LimitKey, LimitPeriod] = {
     LimitKey.ACHERON_ITEMS:  LimitPeriod.STOCK,
 
     LimitKey.HYGEIA_ASSETS: LimitPeriod.STOCK,
+
+    # Marcos adoptados, bytes de evidencias guardadas y documentos generados
+    # por mes. Se cuentan sobre el dueño efectivo de los datos, no sobre quien
+    # hace la petición.
+    LimitKey.EUNOMIA_FRAMEWORKS:       LimitPeriod.STOCK,
+    LimitKey.EUNOMIA_EVIDENCE_STORAGE: LimitPeriod.STOCK,
+    LimitKey.EUNOMIA_DOCUMENTS:        LimitPeriod.MONTH,
 
     # Techo agregado que se consume A LA VEZ que la clave concreta: protege el
     # coste de la IA aunque un plan sea generoso módulo a módulo.
@@ -246,6 +257,20 @@ STOCK_COUNTERS: dict[LimitKey, Callable[..., int]] = {
     LimitKey.ACHERON_ITEMS:            _count_acheron_items,
     LimitKey.ORGANIZATION_MEMBERS:     _count_organization_members,
 }
+
+
+def register_stock_counter(key: LimitKey, counter: Callable[..., int]) -> None:
+    """Da de alta cómo se cuenta una clave de existencias que vive en una feature.
+
+    Las features importan el motor de cuotas, así que ``accounts`` no puede importar sus
+    tablas: la feature registra su contador al cargarse, como ``QueueRegistry.register``.
+
+    Args:
+        key: Clave de existencias (``LimitPeriod.STOCK``) que se cuenta.
+        counter: Función ``(session, user_ids) -> int`` que cuenta lo ya existente de la
+            bolsa de esos usuarios.
+    """
+    STOCK_COUNTERS[key] = counter
 
 
 def period_start_for(period: LimitPeriod, moment: Optional[datetime] = None) -> Optional[date]:

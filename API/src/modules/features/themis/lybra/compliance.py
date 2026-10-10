@@ -7,10 +7,12 @@ atacante con él (MITRE ATT&CK). La traducción sale de un feed curado
 la categoría se queda corta, uno por ``check_id`` que sustituye sólo las claves
 que declara.
 
-Cada control se identifica por un código global ``<marco>:<identificador>``
-(``ens:op.exp.4``). Es la clave estable que guardan las preferencias de usuario
-y organización, así que el día que el catálogo pase a base de datos el resto
-del código no cambia. Es puro: no toca base de datos ni red.
+Lybra es dueño de las técnicas de ATT&CK y de **qué control cubre cada
+hallazgo**; no lo es de los marcos: el título y la jerarquía de cada control son
+de Eunomia. Un control se cita por su código global ``<marco>:<identificador>``
+(``ens:op.exp.4``) y aquí nunca se resuelve a un título: quien lo necesita
+(los informes) lo pide a Eunomia con la versión que declara ``targets``. Es
+puro: no toca base de datos ni red, y no conoce el catálogo de marcos.
 """
 
 from __future__ import annotations
@@ -22,41 +24,6 @@ from pathlib import Path
 from typing import Iterable, Optional
 
 _BUNDLED_FEED = Path(__file__).parent / "feeds" / "compliance_mappings.json"
-
-
-@dataclass(frozen=True)
-class ComplianceFramework:
-    """Un marco de cumplimiento que el usuario puede elegir.
-
-    Attributes:
-        key: Clave estable del marco (``"iso27001"``, ``"ens"``, ``"nis2"``).
-        name: Nombre legible, con su versión (``"ISO/IEC 27001:2022"``).
-        short_name: Nombre corto para rótulos estrechos (``"ISO 27001"``).
-    """
-
-    key: str
-    name: str
-    short_name: str
-
-
-@dataclass(frozen=True)
-class ComplianceControl:
-    """Un control (o una agrupación de controles) de un marco.
-
-    Attributes:
-        code: Código global ``<marco>:<identificador>``, p. ej. ``"ens:op.exp.4"``.
-        framework: Clave del marco al que pertenece (``"ens"``).
-        identifier: Identificador dentro del marco (``"op.exp.4"``).
-        title: Título del control en castellano.
-        parent: Código global del control padre (``"ens:op.exp"``), o ``None``
-            si es una raíz del marco.
-    """
-
-    code: str
-    framework: str
-    identifier: str
-    title: str
-    parent: Optional[str]
 
 
 @dataclass(frozen=True)
@@ -81,12 +48,14 @@ class FindingCompliance:
 
     Attributes:
         techniques: Técnicas de MITRE ATT&CK; vacía si el hallazgo no tiene mapeo.
-        controls: Controles afectados de los marcos pedidos, en el orden del
-            feed; vacía si no se pidió ningún marco o el hallazgo no tiene mapeo.
+        controls: Códigos globales de los controles afectados de los marcos
+            pedidos (``"nis2:21.2.e"``), en el orden del feed; vacía si no se
+            pidió ningún marco o el hallazgo no tiene mapeo. Sin título: lo
+            resuelve Eunomia.
     """
 
     techniques: tuple[AttackTechnique, ...] = ()
-    controls: tuple[ComplianceControl, ...] = ()
+    controls: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -95,8 +64,8 @@ class ComplianceCatalog:
 
     Attributes:
         feed_version: Versión del feed (``"lybra-compliance-1"``).
-        frameworks: Marcos por clave, en el orden del feed.
-        controls: Todos los controles por código global.
+        targets: Versión de cada marco a la que apuntan los códigos del feed
+            (``{"nis2": "2022-2555"}``), en el orden del feed.
         techniques: Todas las técnicas por id.
         categories: Mapeo crudo por ``Finding.category``:
             ``{"mitre": [...], "controls": [...]}``.
@@ -105,8 +74,7 @@ class ComplianceCatalog:
     """
 
     feed_version: str
-    frameworks: dict[str, ComplianceFramework]
-    controls: dict[str, ComplianceControl]
+    targets: dict[str, str]
     techniques: dict[str, AttackTechnique]
     categories: dict[str, dict]
     checks: dict[str, dict]
@@ -115,9 +83,9 @@ class ComplianceCatalog:
 def parse_compliance_catalog(document: dict) -> ComplianceCatalog:
     """Interpreta el documento del feed.
 
-    No valida referencias cruzadas (un control o una técnica que no existen):
-    eso lo comprueba ``tests/unit/test_lybra_compliance.py`` sobre el feed que
-    se distribuye, y aquí una referencia rota simplemente no se resuelve.
+    No valida referencias cruzadas (una técnica que no existe, o un control que
+    el catálogo de Eunomia no tiene): eso lo comprueban los tests sobre el feed
+    que se distribuye, y aquí una técnica rota simplemente no se resuelve.
 
     Args:
         document: El JSON del feed ya cargado.
@@ -135,23 +103,9 @@ def parse_compliance_catalog(document: dict) -> ComplianceCatalog:
         )
         for identifier, entry in mitre.get("techniques", {}).items()
     }
-    frameworks: dict[str, ComplianceFramework] = {}
-    controls: dict[str, ComplianceControl] = {}
-    for key, entry in document.get("frameworks", {}).items():
-        frameworks[key] = ComplianceFramework(key=key, name=entry["name"], short_name=entry["shortName"])
-        for identifier, control in entry.get("controls", {}).items():
-            parent = control.get("parent")
-            controls[f"{key}:{identifier}"] = ComplianceControl(
-                code=f"{key}:{identifier}",
-                framework=key,
-                identifier=identifier,
-                title=control["title"],
-                parent=f"{key}:{parent}" if parent else None,
-            )
     return ComplianceCatalog(
         feed_version=document.get("feedVersion", ""),
-        frameworks=frameworks,
-        controls=controls,
+        targets=dict(document.get("targets", {})),
         techniques=techniques,
         categories=document.get("categories", {}),
         checks=document.get("checks", {}),
@@ -172,18 +126,9 @@ def load_compliance_catalog(path: Optional[str] = None) -> ComplianceCatalog:
     return parse_compliance_catalog(json.loads(feed_path.read_text(encoding="utf-8")))
 
 
-def list_compliance_frameworks() -> tuple[ComplianceFramework, ...]:
-    """Los marcos que se pueden elegir, en el orden del feed.
-
-    Returns:
-        tuple[ComplianceFramework, ...]: Uno por marco del catálogo.
-    """
-    return tuple(load_compliance_catalog().frameworks.values())
-
-
 def map_finding_compliance(category: Optional[str], check_id: Optional[str],
                            frameworks: Iterable[str] = ()) -> FindingCompliance:
-    """Traduce un hallazgo a técnicas de ATT&CK y a controles de los marcos pedidos.
+    """Traduce un hallazgo a técnicas de ATT&CK y a códigos de control de los marcos pedidos.
 
     Parte del mapeo de su categoría y, si el ``check_id`` tiene entrada propia,
     sustituye por la suya cada clave que esa entrada declara (``mitre``,
@@ -198,8 +143,8 @@ def map_finding_compliance(category: Optional[str], check_id: Optional[str],
             se devuelven las técnicas de ATT&CK, que salen siempre.
 
     Returns:
-        FindingCompliance: Técnicas y controles; los dos vacíos si el hallazgo
-            no tiene mapeo.
+        FindingCompliance: Técnicas y códigos de control; los dos vacíos si el
+            hallazgo no tiene mapeo.
     """
     catalog = load_compliance_catalog()
     mapping = dict(catalog.categories.get(category or "", {}))
@@ -208,6 +153,6 @@ def map_finding_compliance(category: Optional[str], check_id: Optional[str],
     return FindingCompliance(
         techniques=tuple(catalog.techniques[identifier] for identifier in mapping.get("mitre", ())
                          if identifier in catalog.techniques),
-        controls=tuple(catalog.controls[code] for code in mapping.get("controls", ())
-                       if code in catalog.controls and catalog.controls[code].framework in wanted),
+        controls=tuple(code for code in mapping.get("controls", ())
+                       if code.split(":", 1)[0] in wanted),
     )

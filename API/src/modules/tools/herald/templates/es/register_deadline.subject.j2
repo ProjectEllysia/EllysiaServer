@@ -1,0 +1,1 @@
+{% if deadlines|selectattr('is_overdue')|list %}Plazo vencido{% else %}Plazo próximo{% endif %}: {{ record_title or register_title }}

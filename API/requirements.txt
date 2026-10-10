@@ -10,6 +10,8 @@ alembic>=1.13
 
 # PDF Generation
 reportlab>=4.0.7
+# python-docx (MIT): escribe el documento de las plantillas de Eunomia en Word editable.
+python-docx>=1.2.0
 # Pillow: no se importa directamente, pero reportlab la requiere en tiempo de
 # ejecución para insertar imágenes en los PDFs (Image de platypus) — se
 # declara explícito para fijar versión mínima en vez de depender de la

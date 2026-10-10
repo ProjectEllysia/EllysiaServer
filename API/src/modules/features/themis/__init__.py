@@ -49,6 +49,26 @@ from .services import (
 )
 
 from .endpoints import themis_blp
+from src.modules.features.eunomia import EvidenceProviderRegistry
+
+# Lo que Themis aporta a Eunomia como evidencia automática (la dependencia va de Themis a Eunomia).
+def _vulnerability_evidence(owner_user_id: int, framework_key: str, identifier: str):
+    """Resume los escaneos del dueño efectivo para los controles de gestión de vulnerabilidades."""
+    from datetime import date
+
+    from .managers.scan_history import ScanHistoryManager
+    from .services.compliance_evidence import collect_vulnerability_evidence
+
+    summary = ScanHistoryManager().get_vulnerability_management_summary(owner_user_id)
+    return collect_vulnerability_evidence(owner_user_id, framework_key, identifier, summary, date.today())
+
+
+from .services.compliance_evidence import CONTROLS as _VULNERABILITY_CONTROLS  # noqa: E402
+
+EvidenceProviderRegistry.register(
+    "themis.vulnerability_management", name="Gestión de vulnerabilidades",
+    controls=_VULNERABILITY_CONTROLS, collect=_vulnerability_evidence,
+)
 
 # Registro de las categorías de cola de este módulo (OCP).
 QueueRegistry.register(

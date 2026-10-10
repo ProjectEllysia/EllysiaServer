@@ -1,0 +1,31 @@
+{# Aviso de plazos de una ficha de un registro (incidentes, brechas…). Lleva el nombre de la ficha y de
+   los plazos, nunca el resto de sus datos. Contexto: recipient_name (opcional), register_title,
+   record_title, deadlines (lista de {label, due, is_overdue}), eunomia_url. #}
+{% extends "base.html.j2" %}
+{% from "_macros.html.j2" import button %}
+
+{% block title %}Plazos de «{{ record_title or register_title }}»{% endblock %}
+
+{% block preheader %}{{ register_title }}: hay plazos que vencen pronto o ya vencieron.{% endblock %}
+
+{% block header_tagline %}
+<div style="margin-top:8px; font-family:Helvetica,Arial,sans-serif; font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:#8a857c;">
+  Cumplimiento normativo
+</div>
+{% endblock %}
+
+{% block content %}
+<p style="margin:0 0 16px;">{% if recipient_name %}Hola {{ recipient_name }},{% else %}Hola,{% endif %}</p>
+<p style="margin:0 0 20px;">
+  En el registro <strong>{{ register_title }}</strong>, la ficha <strong>«{{ record_title }}»</strong> tiene estos plazos:
+</p>
+<ul style="margin:0 0 20px; padding-left:20px;">
+  {% for deadline in deadlines %}
+  <li>{{ deadline.label }}: <strong>{{ deadline.due }}</strong>{% if deadline.is_overdue %} (vencido){% endif %}</li>
+  {% endfor %}
+</ul>
+<p style="margin:0 0 20px;">
+  Cuando lo envíes, anota la fecha en la ficha para que deje de avisar.
+</p>
+{{ button(eunomia_url, "Abrir el registro", brand.accentColor) }}
+{% endblock %}

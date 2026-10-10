@@ -26,6 +26,7 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    Text,
     text,
 )
 from sqlalchemy.orm import backref, relationship
@@ -246,7 +247,7 @@ class Organization(Base):
     hacia bóvedas, escaneos o análisis, y nunca debe haberla. Acheron es
     zero-knowledge (el servidor solo ve cifrado) e Iris analiza correo personal.
 
-    La regla tiene desde 2026-08 **una excepción, y solo una**: el informe de
+    La regla tiene excepciones, cada una con una razón concreta y delimitada. Una es el informe de
     inventario de Hygeia (``POST /hygeia/inventory/report`` con
     ``scope="organization"``) lista los activos de todos los miembros. Se
     abrió porque un parque de servidores es dato corporativo, no personal —
@@ -258,7 +259,7 @@ class Organization(Base):
     ids. Y solo lo puede pedir el **dueño**, porque hoy no hay rol intermedio
     entre ``owner`` y ``member``.
 
-    La **segunda excepción** es la inteligencia compartida de Iris
+    Otra es la inteligencia compartida de Iris
     (``GET /iris/organization/intel``). Tampoco comparte datos: comparte
     agregados anonimizados de indicadores (dominios, URLs, hashes) y de
     dominios con los que se habla, solo de los miembros que han dado su
@@ -268,8 +269,25 @@ class Organization(Base):
     miembro cruza de un miembro a otro. Tampoco hay relación en el modelo: la
     política vive en ``IrisTenantProfile`` e ``IrisTenantConsent``.
 
-    Antes de abrir una tercera excepción conviene tener una razón igual de
-    concreta: la frase de arriba sigue siendo la regla, no una recomendación.
+    La tercera es el **cumplimiento normativo y los datos de la empresa**. Los
+    marcos adoptados, las evaluaciones, las evidencias y los documentos que
+    Eunomia genera, y el perfil de empresa de ``accounts``, son datos
+    corporativos del **dueño** de la organización, y los miembros trabajan
+    sobre ellos. Se abrió por el mismo argumento que la del inventario: lo que
+    una auditoría pide es un cumplimiento de la empresa, no uno por empleado.
+
+    - **Qué puede hacer cada uno.** El dueño adopta y quita marcos y edita el
+      perfil de empresa. Los miembros lo ven todo, evalúan controles y suben
+      evidencias, pero no adoptan ni quitan marcos ni editan el perfil.
+    - **Qué no se comparte.** Nada de lo que el miembro tuviera antes de
+      entrar: sus datos propios se conservan ocultos y vuelven si sale, si el
+      dueño disuelve la organización o si borra su cuenta.
+    - **Cómo se resuelve.** Solo a través de
+      ``OrganizationManager.resolve_data_owner``; ningún módulo la repite a
+      mano. Tampoco hay relación en el modelo desde aquí hacia Eunomia.
+
+    Antes de abrir otra excepción conviene tener una razón igual de concreta:
+    la frase de arriba sigue siendo la regla, no una recomendación.
     """
 
     __tablename__ = "Organization"
@@ -429,3 +447,88 @@ class UsageCounter(Base):
             f"<UsageCounter {self.holder_kind}={self.holder_id} "
             f"key='{self.limit_key}' period={self.period_start} used={self.used}>"
         )
+
+
+# =========================================================================
+# PERFIL DE EMPRESA
+# =========================================================================
+
+class CompanyProfile(Base):
+    """
+    Los datos de identidad y de descripción de la empresa de un usuario.
+
+    Hay **una fila por dueño efectivo** (``OrganizationManager.resolve_data_owner``):
+    el propio usuario, o el dueño de su organización. Lo que cuelgue de este
+    perfil —el cumplimiento normativo, las píldoras de Aegis, las plantillas de
+    documentos— usa los mismos datos sin pedirlos de nuevo.
+
+    ``legal_name`` es la razón social y es **independiente** de
+    ``Organization.name``: una es el nombre legal de la empresa, la otra el
+    nombre con el que el grupo aparece dentro de Ellysia.
+
+    Attributes:
+        id: Clave primaria.
+        user_id: Dueño efectivo de estos datos; una fila por usuario.
+        legal_name: Razón social.
+        tax_id: NIF/CIF/NIE; si ``country`` es ``ES`` se valida con su control.
+        address_line: Calle y número.
+        postal_code: Código postal.
+        city: Localidad.
+        province: Provincia o región.
+        country: País, código ISO 3166-1 alfa-2 en mayúsculas (``"ES"``).
+        sector: Sector de actividad, texto libre.
+        company_size: ``''``, ``'micro'``, ``'pequeña'`` o ``'mediana'``.
+        employee_count: Plantilla aproximada.
+        jurisdiction: Jurisdicción regulatoria, texto libre (``"España"``).
+        work_model: ``''``, ``'remoto'``, ``'híbrido'`` o ``'presencial'``.
+        security_contact: Correo de la persona responsable de seguridad.
+        brand_logo: Logo como data URI en base64.
+        created_at: Alta del perfil.
+        updated_at: Última modificación.
+    """
+
+    __tablename__ = "CompanyProfile"
+
+    id               = Column(Integer,     primary_key=True, autoincrement=True)
+    user_id          = Column(Integer,     ForeignKey("User.id"), nullable=False, unique=True)
+    legal_name       = Column(String(255), nullable=True)
+    tax_id           = Column(String(32),  nullable=True)
+    address_line     = Column(String(255), nullable=True)
+    postal_code      = Column(String(16),  nullable=True)
+    city             = Column(String(128), nullable=True)
+    province         = Column(String(128), nullable=True)
+    country          = Column(String(2),   nullable=True)
+    sector           = Column(String(128), nullable=True)
+    company_size     = Column(String(16),  nullable=True)
+    employee_count   = Column(Integer,     nullable=True)
+    jurisdiction     = Column(String(128), nullable=True)
+    work_model       = Column(String(16),  nullable=True)
+    security_contact = Column(String(128), nullable=True)
+    brand_logo       = Column(Text,        nullable=True)
+    created_at       = Column(DateTime,    nullable=False, default=utcnow_naive)
+    updated_at       = Column(DateTime,    nullable=False, default=utcnow_naive, onupdate=utcnow_naive)
+
+    def to_dict(self) -> dict:
+        """El perfil con las claves camelCase de ``CompanyProfileSchema``.
+
+        Returns:
+            dict: Todos los campos de la empresa; los vacíos salen como cadena
+                vacía (``employeeCount`` como ``None``), igual que el perfil por
+                defecto de ``CompanyProfileManager``.
+        """
+        return {
+            "legalName":       self.legal_name or "",
+            "taxId":           self.tax_id or "",
+            "addressLine":     self.address_line or "",
+            "postalCode":      self.postal_code or "",
+            "city":            self.city or "",
+            "province":        self.province or "",
+            "country":         self.country or "",
+            "sector":          self.sector or "",
+            "companySize":     self.company_size or "",
+            "employeeCount":   self.employee_count,
+            "jurisdiction":    self.jurisdiction or "",
+            "workModel":       self.work_model or "",
+            "securityContact": self.security_contact or "",
+            "brandLogo":       self.brand_logo or "",
+        }

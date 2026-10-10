@@ -56,6 +56,7 @@ const modules = [
   { id: 'iris', name: 'Iris', route: '/iris' },
   { id: 'acheron', name: 'Acheron', route: '/acheron' },
   { id: 'hygeia', name: 'Hygeia', route: '/hygeia' },
+  { id: 'eunomia', name: 'Eunomia', route: '/eunomia' },
 ]
 
 /**

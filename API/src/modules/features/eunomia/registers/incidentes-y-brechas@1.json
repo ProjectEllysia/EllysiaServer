@@ -1,0 +1,193 @@
+{
+  "key": "incidentes-y-brechas",
+  "version": "1",
+  "title": "Registro de incidentes y brechas",
+  "summary": "Un incidente se registra una vez y calcula los plazos de todos los marcos a los que afecta: NIS2 (art. 23) y RGPD (arts. 33 y 34). Toda brecha de datos personales se documenta, se notifique o no.",
+  "titleField": "name",
+  "controls": {
+    "nis2": [
+      "RE.3.1",
+      "RE.3.5",
+      "23.1",
+      "23.3",
+      "23.4.a",
+      "23.4.b",
+      "23.4.d"
+    ],
+    "rgpd": [
+      "art.33",
+      "art.34"
+    ]
+  },
+  "fields": [
+    {
+      "key": "name",
+      "label": "Incidente",
+      "type": "text",
+      "required": true
+    },
+    {
+      "key": "detected_at",
+      "label": "Detectado el",
+      "type": "datetime"
+    },
+    {
+      "key": "aware_at",
+      "label": "La empresa tuvo constancia el",
+      "type": "datetime",
+      "required": true,
+      "help": "Los plazos de NIS2 y del RGPD corren desde este momento."
+    },
+    {
+      "key": "description",
+      "label": "Descripción",
+      "type": "longtext",
+      "required": true
+    },
+    {
+      "key": "systems",
+      "label": "Sistemas afectados",
+      "type": "list"
+    },
+    {
+      "key": "data_affected",
+      "label": "Datos afectados",
+      "type": "list"
+    },
+    {
+      "key": "nis2_significant",
+      "label": "¿Es significativo para NIS2?",
+      "type": "select",
+      "options": [
+        {
+          "value": "no",
+          "label": "No"
+        },
+        {
+          "value": "yes",
+          "label": "Sí"
+        }
+      ],
+      "help": "Lo es si ha causado o puede causar una perturbación operativa grave o pérdidas económicas, o si ha afectado o puede afectar a otras personas causándoles perjuicios considerables (art. 23.3)."
+    },
+    {
+      "key": "personal_data_risk",
+      "label": "Datos personales y riesgo para las personas",
+      "type": "select",
+      "options": [
+        {
+          "value": "no_personal_data",
+          "label": "No afecta a datos personales"
+        },
+        {
+          "value": "no_risk",
+          "label": "Afecta a datos personales, improbable que entrañe riesgo"
+        },
+        {
+          "value": "risk",
+          "label": "Entraña un riesgo para las personas"
+        },
+        {
+          "value": "high",
+          "label": "Entraña un alto riesgo para las personas"
+        }
+      ]
+    },
+    {
+      "key": "measures",
+      "label": "Medidas adoptadas",
+      "type": "longtext"
+    },
+    {
+      "key": "nis2_early_sent_at",
+      "label": "Alerta temprana enviada el",
+      "type": "datetime"
+    },
+    {
+      "key": "nis2_notification_sent_at",
+      "label": "Notificación del incidente enviada el",
+      "type": "datetime"
+    },
+    {
+      "key": "nis2_final_sent_at",
+      "label": "Informe final enviado el",
+      "type": "datetime"
+    },
+    {
+      "key": "gdpr_authority_sent_at",
+      "label": "Notificación a la autoridad de protección de datos enviada el",
+      "type": "datetime"
+    },
+    {
+      "key": "gdpr_subjects_sent_at",
+      "label": "Comunicación a los afectados enviada el",
+      "type": "datetime"
+    },
+    {
+      "key": "gdpr_reason",
+      "label": "Motivos de no notificar o de notificar con retraso",
+      "type": "longtext",
+      "help": "El artículo 33.5 exige documentar toda brecha y su decisión."
+    },
+    {
+      "key": "responsible",
+      "label": "Responsable de la gestión",
+      "type": "person"
+    }
+  ],
+  "deadlines": [
+    {
+      "key": "nis2_early",
+      "label": "Alerta temprana (NIS2, 24 horas)",
+      "framework": "nis2",
+      "from": "aware_at",
+      "hours": 24,
+      "whenField": "nis2_significant",
+      "whenEquals": "yes",
+      "doneField": "nis2_early_sent_at"
+    },
+    {
+      "key": "nis2_notification",
+      "label": "Notificación del incidente (NIS2, 72 horas)",
+      "framework": "nis2",
+      "from": "aware_at",
+      "hours": 72,
+      "whenField": "nis2_significant",
+      "whenEquals": "yes",
+      "doneField": "nis2_notification_sent_at"
+    },
+    {
+      "key": "nis2_final",
+      "label": "Informe final (NIS2, un mes tras la notificación)",
+      "framework": "nis2",
+      "from": "nis2_notification_sent_at",
+      "months": 1,
+      "whenField": "nis2_significant",
+      "whenEquals": "yes",
+      "doneField": "nis2_final_sent_at"
+    },
+    {
+      "key": "gdpr_authority",
+      "label": "Notificación a la autoridad de control (RGPD, 72 horas)",
+      "framework": "rgpd",
+      "from": "aware_at",
+      "hours": 72,
+      "whenField": "personal_data_risk",
+      "whenEquals": [
+        "risk",
+        "high"
+      ],
+      "doneField": "gdpr_authority_sent_at"
+    },
+    {
+      "key": "gdpr_subjects",
+      "label": "Comunicación a los afectados (RGPD, sin dilación indebida; objetivo: 72 horas)",
+      "framework": "rgpd",
+      "from": "aware_at",
+      "hours": 72,
+      "whenField": "personal_data_risk",
+      "whenEquals": "high",
+      "doneField": "gdpr_subjects_sent_at"
+    }
+  ]
+}

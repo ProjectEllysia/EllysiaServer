@@ -29,6 +29,7 @@ from src.modules.users import Role, require_oauth_token, require_role, get_curre
 
 from .exceptions import AccountsError
 from .managers import (
+    CompanyProfileManager,
     InvitationManager,
     OrganizationManager,
     PlanManager,
@@ -38,6 +39,9 @@ from .repositories import SubscriptionRepository
 from .services.limits import PERIODS, LimitKey
 from .services.ownership import require_organization_owner
 from .schemas import (
+    CompanyProfileOwnershipSchema,
+    CompanyProfileResponseSchema,
+    CompanyProfileSchema,
     LimitCatalogResponseSchema,
     PlanLimitsResponseSchema,
     PlanLimitsWriteSchema,
@@ -457,3 +461,43 @@ def delete_plan(plan_id: int):
     """Borrar un plan. Se niega si alguien lo tiene o si es el de por defecto."""
     PlanManager().delete_plan(plan_id)
     return {"message": "Plan eliminado"}
+
+
+# =========================================================================
+# PERFIL DE EMPRESA
+# =========================================================================
+
+@organizations_blp.get("/data-ownership")
+@organizations_blp.response(200, CompanyProfileOwnershipSchema, description="Whose data the user works on")
+@organizations_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@limiter.limit("120 per hour")
+@require_oauth_token
+@handle_exceptions(default_exception=AccountsError, logger=logger)
+def get_data_ownership():
+    """De quien son los datos corporativos que ve el usuario: los suyos, o los del dueño de su organizacion"""
+    return OrganizationManager().describe_data_ownership(get_current_user().id)
+
+
+@organizations_blp.get("/company-profile")
+@organizations_blp.response(200, CompanyProfileResponseSchema, description="Company profile")
+@organizations_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@limiter.limit("120 per hour")
+@require_oauth_token
+@handle_exceptions(default_exception=AccountsError, logger=logger)
+def get_company_profile():
+    """El perfil de empresa que ve el usuario: el suyo, o el del dueño de su organizacion"""
+    return CompanyProfileManager().get_for(get_current_user().id)
+
+
+@organizations_blp.put("/company-profile")
+@organizations_blp.arguments(CompanyProfileSchema)
+@organizations_blp.response(200, CompanyProfileResponseSchema, description="Company profile saved")
+@organizations_blp.alt_response(400, schema=ErrorSchema, description="Invalid tax id")
+@organizations_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@organizations_blp.alt_response(403, schema=ErrorSchema, description="The data belong to the owner of the organization")
+@limiter.limit("30 per hour")
+@require_oauth_token
+@handle_exceptions(default_exception=AccountsError, logger=logger)
+def update_company_profile(data):
+    """Guardar el perfil de empresa. Solo su dueño efectivo; un miembro recibe 403"""
+    return CompanyProfileManager().update(get_current_user().id, data)

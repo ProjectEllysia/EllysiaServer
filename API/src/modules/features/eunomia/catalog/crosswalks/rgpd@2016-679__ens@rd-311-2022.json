@@ -1,0 +1,98 @@
+{
+  "a": {
+    "framework": "rgpd",
+    "version": "2016-679"
+  },
+  "b": {
+    "framework": "ens",
+    "version": "rd-311-2022"
+  },
+  "note": "Correspondencias de criterio de Ellysia, no de un organismo: dos controles de marcos distintos rara vez son idénticos, solo se solapan. Todas son «partial»: el RGPD pide proteger los derechos de las personas y los otros marcos protegen los sistemas; cumplir uno ayuda al otro pero no lo agota. Se usan como sugerencia, nunca para trasladar una evaluación.",
+  "links": [
+    {
+      "from": "art.5",
+      "to": "mp.info.1",
+      "coverage": "partial"
+    },
+    {
+      "from": "art.24",
+      "to": "org.1",
+      "coverage": "partial"
+    },
+    {
+      "from": "art.25",
+      "to": "mp.sw.1",
+      "coverage": "partial"
+    },
+    {
+      "from": "art.28",
+      "to": "op.ext.1",
+      "coverage": "partial"
+    },
+    {
+      "from": "art.28",
+      "to": "op.ext.3",
+      "coverage": "partial"
+    },
+    {
+      "from": "art.30",
+      "to": "op.exp.1",
+      "coverage": "partial"
+    },
+    {
+      "from": "art.30",
+      "to": "mp.info.1",
+      "coverage": "partial"
+    },
+    {
+      "from": "art.32",
+      "to": "mp.info.6",
+      "coverage": "partial"
+    },
+    {
+      "from": "art.32",
+      "to": "mp.com.2",
+      "coverage": "partial"
+    },
+    {
+      "from": "art.32",
+      "to": "op.acc.2",
+      "coverage": "partial"
+    },
+    {
+      "from": "art.32",
+      "to": "op.exp.4",
+      "coverage": "partial"
+    },
+    {
+      "from": "art.32",
+      "to": "op.cont.2",
+      "coverage": "partial"
+    },
+    {
+      "from": "art.32",
+      "to": "mp.si.2",
+      "coverage": "partial"
+    },
+    {
+      "from": "art.33",
+      "to": "op.exp.7",
+      "coverage": "partial"
+    },
+    {
+      "from": "art.33",
+      "to": "op.exp.9",
+      "coverage": "partial"
+    },
+    {
+      "from": "art.35",
+      "to": "op.pl.1",
+      "coverage": "partial"
+    },
+    {
+      "from": "art.37",
+      "to": "org.1",
+      "coverage": "partial"
+    }
+  ]
+}

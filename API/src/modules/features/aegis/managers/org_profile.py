@@ -1,9 +1,13 @@
 """
 AegisOrgProfileManager — perfil de organización.
 
-Los valores estables de generación (empresa, contacto, tono, tamaño,
-jurisdicción, productos vigilados): devolverlos con defaults si el usuario
-aún no guardó ninguno, y crearlos/actualizarlos (upsert).
+Los valores estables de generación (tono, idioma, productos vigilados y
+white-labeling): devolverlos con defaults si el usuario aún no guardó ninguno,
+y crearlos/actualizarlos (upsert).
+
+Los datos de la empresa (razón social, contacto, tamaño, jurisdicción, logo) no
+son de Aegis: salen del perfil de empresa de ``accounts``, el del dueño efectivo
+de los datos, y aquí solo se componen en la respuesta.
 """
 
 from __future__ import annotations
@@ -12,7 +16,7 @@ import logging
 from typing import Any
 
 from src.modules.shared import WhiteLabelLevel
-from src.modules.accounts import LimitKey
+from src.modules.accounts import CompanyProfileManager, LimitKey
 from src.modules.accounts.exceptions import PlanFeatureDisabledError
 from src.modules.accounts.services.entitlements import resolve_entitlement
 from src.modules.users import User
@@ -30,20 +34,24 @@ logger = logging.getLogger(__name__)
 # ninguno — mismos valores por defecto que AegisTweaksSchema para que el
 # formulario de generación arranque igual con o sin perfil guardado.
 _ORG_PROFILE_DEFAULTS: dict[str, Any] = {
-    "company": "",
-    "mentionContact": "",
     "tone": "profesional",
-    "companySize": "",
-    "jurisdiction": "",
     "language": "es",
-    "sector": "",
-    "workModel": "",
-    "employeeCount": None,
     "trackedProducts": [],
     "useHygeiaInventory": True,
     "whiteLabelLevel": WhiteLabelLevel.NONE.value,
-    "brandLogo": "",
     "brandColor": "",
+}
+
+#: Campo del formulario de generación → campo del perfil de empresa del que sale.
+_COMPANY_FIELD_OF_KEY: dict[str, str] = {
+    "company": "legalName",
+    "mentionContact": "securityContact",
+    "companySize": "companySize",
+    "jurisdiction": "jurisdiction",
+    "sector": "sector",
+    "workModel": "workModel",
+    "employeeCount": "employeeCount",
+    "brandLogo": "brandLogo",
 }
 
 
@@ -99,6 +107,12 @@ class AegisOrgProfileManager:
         repo = build_repository(AegisOrgProfileRepository)
         profile = repo.get_by_user_id(self.user.id)
         result = dict(_ORG_PROFILE_DEFAULTS) if profile is None else profile.to_dict()
+        company = CompanyProfileManager().get_for(self.user.id)
+        for key, company_key in _COMPANY_FIELD_OF_KEY.items():
+            result[key] = company[company_key]
+        # Para que la interfaz sepa que estos campos son del dueño de la
+        # organización y los enseñe en solo lectura.
+        result["companyDataOwnership"] = company["ownership"]
         result["hygeiaInventoryAvailable"] = self._hygeia_inventory_available()
         # Igual que el anterior: no es un campo del perfil sino del entorno
         # comercial. El frontend lo usa para no ofrecer niveles que el plan no
@@ -116,7 +130,11 @@ class AegisOrgProfileManager:
             return False
 
     def upsert(self, data: dict) -> dict:
-        """Crea o actualiza el perfil de organización del usuario actual.
+        """Crea o actualiza los ajustes de Aegis del usuario actual.
+
+        Solo guarda lo que es de Aegis (tono, idioma, productos y
+        white-labeling); los campos de empresa que lleve ``data`` se ignoran,
+        porque se editan en el perfil de empresa.
 
         Raises:
             PlanFeatureDisabledError: si se pide un nivel de white-labeling por
@@ -130,23 +148,16 @@ class AegisOrgProfileManager:
             if profile is None:
                 profile = AegisOrgProfile(user_id=self.user.id)
 
-            profile.company = data["company"]
-            profile.contact_email = data["mentionContact"]
             profile.tone = data["tone"]
-            profile.company_size = data["companySize"]
-            profile.jurisdiction = data["jurisdiction"]
             profile.language = data["language"]
-            profile.sector = data["sector"]
-            profile.work_model = data["workModel"]
-            profile.employee_count = data["employeeCount"]
             profile.tracked_products = data["trackedProducts"]
             profile.use_hygeia_inventory = data["useHygeiaInventory"]
             profile.white_label_level = data["whiteLabelLevel"]
-            profile.brand_logo = data["brandLogo"] or None
             profile.brand_color = data["brandColor"] or None
 
-            saved = repo.save(profile)
-            return saved.to_dict()
+            repo.save(profile)
+
+        return self.get_or_default()
 
     def _assert_white_label_allowed(self, requested: str) -> None:
         """Corta si el plan no llega al nivel pedido.

@@ -137,7 +137,7 @@ www.ellysia.es, http://localhost, http://127.0.0.1 {
 	#
 	# La lista sigue a los hubs de web/app/src/router/index.js;
 	# API/tests/unit/test_caddy_api_routes.py falla si falta alguno.
-	@hub_con_barra path_regexp hub ^/(themis|aegis|iris|acheron|hygeia)/$
+	@hub_con_barra path_regexp hub ^/(themis|aegis|iris|acheron|hygeia|eunomia)/$
 	# El `*` no sobra: en `redir`, un primer argumento que empieza por `/` se
 	# lee como matcher de ruta y no como destino, y sin él la regla quedaba
 	# como «si la ruta es /{re.hub.1}, redirige a 301», que nunca casa: el
@@ -167,7 +167,7 @@ www.ellysia.es, http://localhost, http://127.0.0.1 {
 	# las continuaciones con `\` a un único espacio inicial, así que la
 	# alineación bonita no sobrevive al formateador. Una línea por matcher es
 	# lo que el formateador deja en paz.
-	@spa_bajo_prefijo_api path /themis/escaneos /aegis/generador /aegis/campanas /iris/analisis /iris/conexiones /iris/confianza /iris/casos /iris/campanas /iris/organizacion /iris/integraciones /iris/buzones-compartidos /acheron/boveda /hygeia/activos /hygeia/etiquetas /hygeia/estadisticas /hygeia/documentos
+	@spa_bajo_prefijo_api path /themis/escaneos /aegis/generador /aegis/campanas /iris/analisis /iris/conexiones /iris/confianza /iris/casos /iris/campanas /iris/organizacion /iris/integraciones /iris/buzones-compartidos /acheron/boveda /hygeia/activos /hygeia/etiquetas /hygeia/estadisticas /hygeia/documentos /eunomia/marcos /eunomia/marcos/* /eunomia/plantillas /eunomia/plantillas/* /eunomia/documentos /eunomia/registros /eunomia/registros/*
 	handle @spa_bajo_prefijo_api {
 		import spa
 	}
@@ -180,7 +180,7 @@ www.ellysia.es, http://localhost, http://127.0.0.1 {
 	# GET /users, GET/PUT /system, GET/POST /plans, POST /organizations.
 	# Los prefijos de módulo (/themis, /aegis...) no la llevan a propósito:
 	# a secas son rutas del SPA (el hub), y caen al `handle` final.
-	@api path /system /system/* /oauth/* /users /users/* /plans /plans/* /organizations /organizations/* /themis/* /aegis/* /iris/* /acheron/* /hygeia/*
+	@api path /system /system/* /oauth/* /users /users/* /plans /plans/* /organizations /organizations/* /themis/* /aegis/* /iris/* /acheron/* /hygeia/* /eunomia/*
 	handle @api {
 		import api_backend
 	}

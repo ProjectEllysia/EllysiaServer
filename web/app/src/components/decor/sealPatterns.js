@@ -14,4 +14,5 @@ export const SEAL_PATTERNS = Object.freeze({
   iris: Object.freeze({ outerLobes: 24, crossLobes: 29, innerLobes: 40 }),
   acheron: Object.freeze({ outerLobes: 15, crossLobes: 19, innerLobes: 28 }),
   hygeia: Object.freeze({ outerLobes: 27, crossLobes: 31, innerLobes: 44 }),
+  eunomia: Object.freeze({ outerLobes: 12, crossLobes: 17, innerLobes: 24 }),
 })

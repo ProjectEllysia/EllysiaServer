@@ -18,9 +18,9 @@ import zlib
 import pytest
 
 import src.modules.system.config_reading as CR
-from src.modules.features.iris.services import attachment_inspectors
-from src.modules.features.iris.services.attachment_inspectors import inspect_attachment
-from src.modules.features.iris.services.attachment_inspectors.common import InspectionBudget
+from src.modules.shared import attachment_inspectors
+from src.modules.shared.attachment_inspectors import inspect_attachment
+from src.modules.shared.attachment_inspectors.common import InspectionBudget
 from src.modules.features.iris.services.parsers import Attachment, MessageContext
 from src.modules.features.iris.services.rules.attachment_media_rules import (
     _reason_scores,

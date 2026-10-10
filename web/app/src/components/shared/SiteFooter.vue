@@ -15,6 +15,7 @@
             <li><router-link to="/iris">Iris</router-link></li>
             <li><router-link to="/acheron">Acheron</router-link></li>
             <li><router-link to="/hygeia">Hygeia</router-link></li>
+            <li><router-link to="/eunomia">Eunomia</router-link></li>
           </ul>
         </div>
         <div class="footer-col">

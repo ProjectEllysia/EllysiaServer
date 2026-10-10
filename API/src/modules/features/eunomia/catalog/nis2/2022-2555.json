@@ -1,0 +1,1688 @@
+{
+  "key": "nis2",
+  "version": "2022-2555",
+  "status": "published",
+  "name": "NIS2 — Directiva (UE) 2022/2555 y Reglamento de Ejecución (UE) 2024/2690",
+  "shortName": "NIS2",
+  "publishedAt": "2022-12-27",
+  "licenseMode": "full_text",
+  "sources": [
+    {
+      "name": "Directiva (UE) 2022/2555 (NIS2)",
+      "url": "https://eur-lex.europa.eu/legal-content/ES/TXT/?uri=CELEX:32022L2555",
+      "license": "Legislación de la UE: reutilización permitida citando la fuente (Decisión 2011/833/UE).",
+      "consultedAt": "2026-10-10"
+    },
+    {
+      "name": "Reglamento de Ejecución (UE) 2024/2690 de la Comisión, de 17 de octubre de 2024",
+      "url": "https://eur-lex.europa.eu/legal-content/ES/TXT/?uri=CELEX:32024R2690",
+      "license": "Legislación de la UE: reutilización permitida citando la fuente (Decisión 2011/833/UE).",
+      "consultedAt": "2026-10-10"
+    }
+  ],
+  "notes": "El Reglamento de Ejecución (UE) 2024/2690 es obligatorio solo para proveedores de DNS, registros de nombres de dominio de primer nivel, computación en nube, centros de datos, redes de distribución de contenidos, servicios gestionados y de seguridad gestionados, mercados en línea, motores de búsqueda, redes sociales y prestadores de servicios de confianza. Para el resto de entidades es la referencia detallada recomendada: la aplicabilidad de cada requisito a una entidad la decide el asistente de aplicabilidad.",
+  "nodes": [
+    {
+      "identifier": "20",
+      "parent": null,
+      "order": 1,
+      "kind": "group",
+      "title": "Gobernanza",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "officialText": "",
+      "source": "Directiva (UE) 2022/2555, art. 20",
+      "register": null
+    },
+    {
+      "identifier": "20.1",
+      "parent": "20",
+      "order": 1,
+      "kind": "requirement",
+      "title": "Aprobación y supervisión por los órganos de dirección",
+      "description": "La dirección debe aprobar las medidas de gestión de riesgos de ciberseguridad, supervisar que se aplican y responder si no se cumplen.",
+      "actions": [
+        "Presentar a la dirección las medidas de ciberseguridad para su aprobación formal.",
+        "Establecer un seguimiento periódico de su aplicación por parte de la dirección.",
+        "Dejar constancia de las decisiones y de quién responde de ellas."
+      ],
+      "evidence": [
+        "Acta o decisión de aprobación de las medidas por la dirección",
+        "Informes periódicos de seguimiento a la dirección"
+      ],
+      "officialText": "1. Los Estados miembros velarán por que los órganos de dirección de las entidades esenciales e importantes aprueben las medidas para la gestión de riesgos de ciberseguridad adoptadas por dichas entidades para dar cumplimiento al artículo 21, supervisen su puesta en práctica y respondan por el incumplimiento por parte de las entidades de dicho artículo.\nLa aplicación del presente apartado se entenderá sin perjuicio del Derecho nacional relativo a las normas sobre responsabilidad aplicables a las instituciones públicas, así como a la responsabilidad de los funcionarios públicos y los cargos electos o designados.",
+      "source": "Directiva (UE) 2022/2555, art. 20.1",
+      "register": null
+    },
+    {
+      "identifier": "20.2",
+      "parent": "20",
+      "order": 2,
+      "kind": "requirement",
+      "title": "Formación de los órganos de dirección y de los empleados",
+      "description": "Los miembros de la dirección deben recibir formación en ciberseguridad y se anima a ofrecer formación similar a los empleados con regularidad.",
+      "actions": [
+        "Planificar formación en ciberseguridad para la dirección.",
+        "Ofrecer formación equivalente periódica a los empleados.",
+        "Guardar constancia de quién ha asistido."
+      ],
+      "evidence": [
+        "Programa de formación para la dirección",
+        "Registro de asistencia de miembros de la dirección",
+        "Programa de formación para empleados"
+      ],
+      "officialText": "2. Los Estados miembros garantizarán que los miembros de los órganos de dirección de las entidades esenciales e importantes deban asistir a formaciones y alentarán a estas entidades para que ofrezcan formaciones similares a sus empleados periódicamente al objeto de adquirir conocimientos y destrezas suficientes que les permitan detectar riesgos y evaluar las prácticas de gestión de riesgos de ciberseguridad y su repercusión en los servicios proporcionados por la entidad.",
+      "source": "Directiva (UE) 2022/2555, art. 20.2",
+      "register": null
+    },
+    {
+      "identifier": "21",
+      "parent": null,
+      "order": 2,
+      "kind": "group",
+      "title": "Medidas para la gestión de riesgos de ciberseguridad (art. 21)",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "officialText": "",
+      "source": "Directiva (UE) 2022/2555, art. 21",
+      "register": null
+    },
+    {
+      "identifier": "21.1",
+      "parent": "21",
+      "order": 1,
+      "kind": "requirement",
+      "title": "Medidas técnicas, operativas y de organización adecuadas y proporcionadas",
+      "description": "Adoptar medidas técnicas, operativas y de organización adecuadas y proporcionadas al riesgo para proteger los sistemas y limitar el impacto de los incidentes.",
+      "actions": [
+        "Determinar las medidas según el riesgo, el tamaño de la entidad, el coste y la probabilidad y gravedad de incidentes.",
+        "Documentar por qué las medidas elegidas son proporcionadas.",
+        "Revisar las medidas cuando cambien los riesgos."
+      ],
+      "evidence": [
+        "Documento de medidas de seguridad adoptadas y su justificación",
+        "Evaluación de riesgos que respalda la proporcionalidad"
+      ],
+      "officialText": "1. Los Estados miembros velarán por que las entidades esenciales e importantes tomen las medidas técnicas, operativas y de organización adecuadas y proporcionadas para gestionar los riesgos que se planteen para la seguridad de los sistemas de redes y de información que utilizan dichas entidades en sus operaciones o en la prestación de sus servicios y prevenir o minimizar las repercusiones de los incidentes en los destinatarios de sus servicios y en otros servicios.\nTeniendo en cuenta la situación y, en su caso, las normas europeas e internacionales pertinentes, así como el coste de su aplicación, las medidas a que se refiere el párrafo primero garantizarán un nivel de seguridad de los sistemas de redes y de información adecuado en relación con los riesgos planteados. Al evaluar la proporcionalidad de dichas medidas, se tendrá debidamente en cuenta el grado de exposición de la entidad a los riesgos, el tamaño de la entidad y la probabilidad de que se produzcan incidentes y su gravedad, incluidas sus repercusiones sociales y económicas.",
+      "source": "Directiva (UE) 2022/2555, art. 21.1",
+      "register": null
+    },
+    {
+      "identifier": "21.2",
+      "parent": "21",
+      "order": 2,
+      "kind": "group",
+      "title": "Medidas para la gestión de riesgos de ciberseguridad (art. 21.2)",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "officialText": "2. Las medidas a que se hace referencia en el apartado 1 se fundamentarán en un enfoque basado en todos los peligros que tenga por objeto proteger los sistemas de redes y de información y el entorno físico de dichos sistemas frente a incidentes, e incluirán al menos los siguientes elementos:",
+      "source": "Directiva (UE) 2022/2555, art. 21.2",
+      "register": null
+    },
+    {
+      "identifier": "21.2.a",
+      "parent": "21.2",
+      "order": 1,
+      "kind": "group",
+      "title": "Políticas de seguridad de los sistemas de información y análisis de riesgos",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "officialText": "Las políticas de seguridad de los sistemas de información y análisis de riesgos.",
+      "source": "Directiva (UE) 2022/2555, art. 21.2, letra a)",
+      "register": null
+    },
+    {
+      "identifier": "21.2.b",
+      "parent": "21.2",
+      "order": 2,
+      "kind": "group",
+      "title": "Gestión de incidentes",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "officialText": "La gestión de incidentes.",
+      "source": "Directiva (UE) 2022/2555, art. 21.2, letra b)",
+      "register": null
+    },
+    {
+      "identifier": "21.2.c",
+      "parent": "21.2",
+      "order": 3,
+      "kind": "group",
+      "title": "Continuidad de las actividades y gestión de crisis",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "officialText": "La continuidad de las actividades, como la gestión de copias de seguridad y la recuperación en caso de catástrofe, y la gestión de crisis.",
+      "source": "Directiva (UE) 2022/2555, art. 21.2, letra c)",
+      "register": null
+    },
+    {
+      "identifier": "21.2.d",
+      "parent": "21.2",
+      "order": 4,
+      "kind": "group",
+      "title": "Seguridad de la cadena de suministro",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "officialText": "La seguridad de la cadena de suministro, incluidos los aspectos de seguridad relativos a las relaciones entre cada entidad y sus proveedores o prestadores de servicios directos.",
+      "source": "Directiva (UE) 2022/2555, art. 21.2, letra d)",
+      "register": null
+    },
+    {
+      "identifier": "21.2.e",
+      "parent": "21.2",
+      "order": 5,
+      "kind": "group",
+      "title": "Seguridad en la adquisición, el desarrollo y el mantenimiento de los sistemas, incluida la gestión de vulnerabilidades",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "officialText": "La seguridad en la adquisición, el desarrollo y el mantenimiento de sistemas de redes y de información, incluida la gestión y divulgación de las vulnerabilidades.",
+      "source": "Directiva (UE) 2022/2555, art. 21.2, letra e)",
+      "register": null
+    },
+    {
+      "identifier": "21.2.f",
+      "parent": "21.2",
+      "order": 6,
+      "kind": "group",
+      "title": "Evaluación de la eficacia de las medidas de gestión de riesgos",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "officialText": "Las políticas y los procedimientos para evaluar la eficacia de las medidas para la gestión de riesgos de ciberseguridad.",
+      "source": "Directiva (UE) 2022/2555, art. 21.2, letra f)",
+      "register": null
+    },
+    {
+      "identifier": "21.2.g",
+      "parent": "21.2",
+      "order": 7,
+      "kind": "group",
+      "title": "Ciberhigiene y formación en ciberseguridad",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "officialText": "Las prácticas básicas de ciberhigiene y formación en ciberseguridad.",
+      "source": "Directiva (UE) 2022/2555, art. 21.2, letra g)",
+      "register": null
+    },
+    {
+      "identifier": "21.2.h",
+      "parent": "21.2",
+      "order": 8,
+      "kind": "group",
+      "title": "Uso de la criptografía y, en su caso, del cifrado",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "officialText": "Las políticas y procedimientos relativos a la utilización de criptografía y, en su caso, de cifrado.",
+      "source": "Directiva (UE) 2022/2555, art. 21.2, letra h)",
+      "register": null
+    },
+    {
+      "identifier": "21.2.i",
+      "parent": "21.2",
+      "order": 9,
+      "kind": "group",
+      "title": "Seguridad de los recursos humanos, control de acceso y gestión de activos",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "officialText": "La seguridad de los recursos humanos, las políticas de control de acceso y la gestión de activos.",
+      "source": "Directiva (UE) 2022/2555, art. 21.2, letra i)",
+      "register": null
+    },
+    {
+      "identifier": "21.2.j",
+      "parent": "21.2",
+      "order": 10,
+      "kind": "group",
+      "title": "Autenticación multifactor o continua y comunicaciones seguras",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "officialText": "El uso de soluciones de autenticación multifactorial o de autenticación continua, comunicaciones de voz, vídeo y texto seguras y sistemas seguros de comunicaciones de emergencia en la entidad, cuando proceda.",
+      "source": "Directiva (UE) 2022/2555, art. 21.2, letra j)",
+      "register": null
+    },
+    {
+      "identifier": "RE.1",
+      "parent": "21.2.a",
+      "order": 1,
+      "kind": "group",
+      "title": "Política sobre la seguridad de los sistemas de redes y de información",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "officialText": "",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, sección 1",
+      "register": null
+    },
+    {
+      "identifier": "RE.1.1",
+      "parent": "RE.1",
+      "order": 1,
+      "kind": "requirement",
+      "title": "Política sobre la seguridad de las redes y sistemas de información",
+      "description": "Tener por escrito una política de seguridad de redes y sistemas de información que fije el enfoque y los objetivos, esté aprobada por la dirección y se revise al menos una vez al año.",
+      "actions": [
+        "Redactar la política con sus objetivos, compromisos de recursos, roles y documentación a conservar.",
+        "Definir indicadores para medir su aplicación y el nivel de madurez.",
+        "Hacer que la dirección la apruebe formalmente y dejar la fecha.",
+        "Comunicarla a empleados y terceros pertinentes.",
+        "Revisarla cada año y tras incidentes o cambios importantes, y registrar la revisión."
+      ],
+      "evidence": [
+        "Política de seguridad aprobada, con fecha y firma de la dirección",
+        "Acta o registro de la aprobación por el órgano de dirección",
+        "Registro de la última revisión anual",
+        "Constancia de la comunicación a empleados y terceros"
+      ],
+      "officialText": "1.1.1. A efectos del artículo 21, apartado 2, letra a), de la Directiva (UE) 2022/2555, la política de seguridad de los sistemas de redes y de información:\na) determinará el enfoque de las entidades pertinentes para gestionar la seguridad de sus sistemas de redes y de información;\nb) se adecuará a la estrategia y los objetivos operativos de las entidades pertinentes y los completará;\nc) establecerá los objetivos de seguridad de las redes y de la información;\nd) se comprometerá a mejorar constantemente la seguridad de los sistemas de redes y de información;\ne) se comprometerá a facilitar los recursos oportunos para su aplicación, incluidos el personal, los recursos financieros, los procedimientos, las herramientas y las tecnologías que se necesiten;\nf) será comunicada a los empleados y partes externas que proceda, que deberán aprobarla;\ng) presentará los roles y responsabilidades con arreglo al punto 1.2;\nh) detallará la documentación que debe conservarse y la duración del período de conservación;\ni) enumerará las políticas específicas;\nj) fijará indicadores y medidas para supervisar su aplicación y el estado actual del nivel de madurez de la seguridad de las redes y de la información de las entidades pertinentes;\nk) indicará la fecha de la aprobación formal por parte de los órganos de dirección de las entidades pertinentes [en adelante, «órgano(s) de dirección»].\n\n1.1.2. El órgano de dirección revisará y, cuando proceda, actualizará la política de seguridad de los sistemas de redes y de información al menos una vez al año, así como cuando se produzcan incidentes significativos o cambios significativos en las operaciones o los riesgos. Los resultados de las revisiones quedarán documentados.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 1.1",
+      "register": null
+    },
+    {
+      "identifier": "RE.1.2",
+      "parent": "RE.1",
+      "order": 2,
+      "kind": "requirement",
+      "title": "Roles, responsabilidades y autoridades",
+      "description": "Dejar claro quién es responsable de qué en seguridad, que alguien informe directamente a la dirección y que los roles se revisen cuando cambien las circunstancias.",
+      "actions": [
+        "Asignar responsabilidades y autoridad de seguridad a roles concretos y comunicarlas a la dirección.",
+        "Designar al menos una persona que informe directamente a la dirección sobre seguridad.",
+        "Separar las funciones que entren en conflicto.",
+        "Revisar los roles periódicamente y tras incidentes o cambios significativos."
+      ],
+      "evidence": [
+        "Matriz de roles y responsabilidades de seguridad",
+        "Nombramiento del responsable que informa a la dirección",
+        "Acta de revisión de roles"
+      ],
+      "officialText": "1.2.1. Como parte de la política de seguridad de los sistemas de redes y de información a que hace referencia el punto 1.1, las entidades pertinentes determinarán las responsabilidades y autoridades en materia de seguridad de los sistemas de redes y de información y las asignarán a distintos roles, las repartirán en función de las necesidades de la entidad y se las comunicarán a los órganos de dirección.\n\n1.2.2. Las entidades pertinentes exigirán a todo el personal y a terceros que apliquen la seguridad de los sistemas de redes y de información de conformidad con la política de seguridad de las redes y la información y las políticas específicas existentes, así como con los procedimientos de las entidades pertinentes.\n\n1.2.3. Al menos una persona informará directamente a los órganos de dirección sobre cuestiones de seguridad de los sistemas de redes y de información.\n\n1.2.4. En función del tamaño de las entidades pertinentes, la seguridad de las redes y los sistemas de información corresponderá a roles o funciones específicos que se desempeñarán además de los roles existentes.\n\n1.2.5. Aquellos cargos o áreas de responsabilidad que entren en conflicto se separarán, cuando proceda.\n\n1.2.6. Los órganos de dirección revisarán y, cuando proceda, actualizarán los roles, responsabilidades y autoridades a intervalos planificados, así como cuando se produzcan incidentes significativos o cambios significativos en las operaciones o los riesgos.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 1.2",
+      "register": null
+    },
+    {
+      "identifier": "RE.2",
+      "parent": "21.2.a",
+      "order": 2,
+      "kind": "group",
+      "title": "Política de gestión de riesgos",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "officialText": "",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, sección 2",
+      "register": null
+    },
+    {
+      "identifier": "RE.2.1",
+      "parent": "RE.2",
+      "order": 1,
+      "kind": "requirement",
+      "title": "Marco de la gestión de riesgos",
+      "description": "Contar con un proceso de gestión de riesgos que identifique, analice, evalúe y trate los riesgos de los sistemas, con un plan de tratamiento aprobado por la dirección y revisado al menos cada año.",
+      "actions": [
+        "Adoptar una metodología de riesgos con criterios y nivel de tolerancia definidos.",
+        "Identificar los riesgos, incluidos los de terceros y los puntos únicos de fallo.",
+        "Analizar probabilidad e impacto y priorizar el tratamiento.",
+        "Documentar un plan de tratamiento con responsables y plazos, y la aceptación del riesgo residual.",
+        "Hacer que la dirección apruebe resultados y riesgo residual, y revisarlos al menos anualmente."
+      ],
+      "evidence": [
+        "Metodología de gestión de riesgos documentada",
+        "Informe de evaluación de riesgos con fecha",
+        "Plan de tratamiento de riesgos con responsables y plazos",
+        "Aprobación de la dirección del riesgo residual",
+        "Registro de la revisión anual"
+      ],
+      "officialText": "2.1.1. A efectos del artículo 21, apartado 2, letra a), de la Directiva (UE) 2022/2555, las entidades pertinentes establecerán y mantendrán un marco de la gestión de riesgos adecuado para detectar y abordar los riesgos que se planteen para la seguridad de los sistemas de redes y de información. Las entidades pertinentes realizarán evaluaciones de riesgos cuyos resultados documentarán y, a partir de estos últimos, establecerán un plan de tratamiento de riesgos, que aplicarán y supervisarán. Siempre que las entidades pertinentes garanticen una información adecuada a los órganos de dirección, estos últimos o, cuando proceda, las personas que sean responsables y tengan autoridad para gestionar los riesgos, aprobarán los resultados de la evaluación de riesgos y los riesgos residuales.\n\n2.1.2. A los efectos del punto 2.1.1, las entidades pertinentes establecerán procedimientos para detectar, analizar, evaluar y tratar los riesgos («proceso de gestión de riesgos de ciberseguridad»). El proceso de gestión de riesgos de ciberseguridad formará parte del proceso de gestión de riesgos general de la entidad pertinente, según proceda. Como parte del proceso de gestión de riesgos de ciberseguridad, las entidades pertinentes:\na) seguirán una metodología de gestión de riesgos;\nb) establecerán un nivel de tolerancia al riesgo conforme con la propensión al riesgo de la entidad;\nc) establecerán y mantendrán criterios de riesgo pertinentes;\nd) de conformidad con un enfoque que abarque todos los riesgos, determinarán y registrarán todos los riesgos existentes para la seguridad de los sistemas de redes y de información, en especial con relación a terceros o a aquellos riesgos que puedan generar alteraciones en la disponibilidad, integridad, autenticidad y confidencialidad de los sistemas de redes y de información, incluida la detección de puntos únicos de fallo;\ne) analizarán los riesgos que se planteen para la seguridad de los sistemas de redes y de información, especialmente la amenaza, la probabilidad, el impacto y el nivel de riesgo, teniendo en cuenta la inteligencia sobre ciberamenazas y las vulnerabilidades;\nf) evaluarán los riesgos detectados a partir de los criterios de riesgo;\ng) determinarán y priorizarán las opciones y medidas adecuadas de tratamiento de riesgos;\nh) supervisarán constantemente la aplicación de las medidas de tratamiento de riesgos;\ni) determinarán quién es responsable de la aplicación de las medidas de tratamiento de riesgos y cuándo deben aplicarse estas;\nj) informarán de manera comprensible de las medidas de tratamiento de riesgos elegidas en un plan de tratamiento de riesgos y de las razones que justifiquen la aceptación de los riesgos residuales.\n\n2.1.3. Cuando detecten y prioricen las opciones y medidas adecuadas para el tratamiento de los riesgos, las entidades pertinentes tendrán en cuenta los resultados de la evaluación de riesgos, los resultados del procedimiento para evaluar la eficacia de las medidas para la gestión de riesgos de ciberseguridad, el coste de su aplicación en relación con los beneficios previstos, la clasificación de activos contemplada en el punto 12.1 y el análisis de impacto operativo a que se refiere el punto 4.1.3.\n\n2.1.4. Las entidades pertinentes revisarán y, cuando proceda, actualizarán los resultados de la evaluación de riesgos y el plan de tratamiento de riesgos a intervalos planificados y como mínimo anualmente, así como cuando se produzcan incidentes significativos o cambios significativos en las operaciones o los riegos.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 2.1",
+      "register": null
+    },
+    {
+      "identifier": "RE.2.2",
+      "parent": "RE.2",
+      "order": 2,
+      "kind": "requirement",
+      "title": "Control del cumplimiento",
+      "description": "Revisar de forma periódica si se cumplen las políticas internas y mantener informada a la dirección del estado real.",
+      "actions": [
+        "Planificar revisiones periódicas de cumplimiento de políticas y normas.",
+        "Establecer un sistema de informes de cumplimiento para la dirección.",
+        "Repetir el control tras incidentes o cambios significativos."
+      ],
+      "evidence": [
+        "Calendario de revisiones de cumplimiento",
+        "Informes de cumplimiento entregados a la dirección",
+        "Registro de acciones derivadas de las revisiones"
+      ],
+      "officialText": "2.2.1. Las entidades pertinentes revisarán periódicamente el cumplimiento de sus políticas en materia de seguridad de los sistemas de redes y de información, políticas específicas, reglas y normas. Los órganos de dirección serán informados, mediante informes periódicos, del estado de seguridad de las redes y la información a partir de las revisiones del cumplimiento.\n\n2.2.2. Las entidades pertinentes pondrán en marcha un sistema eficaz de notificación del cumplimiento que será adecuado a sus estructuras, sus entornos operativos y su panorama de amenazas. El sistema de notificación del cumplimiento podrá ofrecer a los órganos de dirección una visión informada del estado en que se encuentre la gestión de riesgos de las entidades pertinentes.\n\n2.2.3. Las entidades pertinentes realizarán el control del cumplimiento a intervalos planificados, así como cuando se produzcan incidentes significativos o cambios significativos en las operaciones o los riesgos.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 2.2",
+      "register": null
+    },
+    {
+      "identifier": "RE.2.3",
+      "parent": "RE.2",
+      "order": 3,
+      "kind": "requirement",
+      "title": "Revisión independiente de la seguridad de la información y las redes",
+      "description": "Someter la gestión de la seguridad a una revisión independiente, hecha por personas competentes y sin dependencia jerárquica de lo revisado, y actuar sobre sus conclusiones.",
+      "actions": [
+        "Definir un procedimiento de revisiones independientes con intervalos planificados.",
+        "Encargarlas a personas con competencia en auditoría y sin poder jerárquico sobre el área revisada.",
+        "Informar de los resultados a la dirección y decidir medidas correctoras o aceptación del riesgo."
+      ],
+      "evidence": [
+        "Procedimiento de revisión independiente",
+        "Informe de auditoría o revisión independiente",
+        "Registro de medidas correctoras o de aceptación del riesgo"
+      ],
+      "officialText": "2.3.1. Las entidades pertinentes revisarán de forma independiente su enfoque de gestión de la seguridad de los sistemas de redes y de información y su aplicación, incluidas las personas, los procesos y las tecnologías.\n\n2.3.2. Las entidades pertinentes desarrollarán y mantendrán procedimientos para llevar a cabo revisiones independientes que serán ejecutados por personas con las debidas competencias en materia de auditoría. Cuando miembros del personal de la entidad pertinente realicen una revisión independiente, las personas encargadas de la misma no podrán ejercer poder jerárquico sobre el personal de la zona objeto de la revisión. Si el tamaño de la entidad pertinente no permite esta separación del poder jerárquico, la entidad pondrá en marcha medidas alternativas para garantizar la imparcialidad de las revisiones.\n\n2.3.3. Los resultados de las revisiones independientes, especialmente los resultados del control del cumplimiento de conformidad con el punto 2.2 y del control y la medición con arreglo al punto 7, se notificarán a los órganos de control. De acuerdo con los criterios de aceptación del riesgo de las entidades pertinentes, se adoptarán medidas correctoras o se aceptará el riesgo residual.\n\n2.3.4. Las revisiones independientes tendrán lugar a intervalos planificados, así como cuando se produzcan incidentes significativos o cambios significativos en las operaciones o los riesgos.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 2.3",
+      "register": null
+    },
+    {
+      "identifier": "RE.3",
+      "parent": "21.2.b",
+      "order": 1,
+      "kind": "group",
+      "title": "Gestión de incidentes",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "officialText": "",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, sección 3",
+      "register": null
+    },
+    {
+      "identifier": "RE.3.1",
+      "parent": "RE.3",
+      "order": 1,
+      "kind": "requirement",
+      "title": "Política de gestión de incidentes",
+      "description": "Tener una política de gestión de incidentes que defina roles, clasificación, comunicación y documentos de apoyo, y probarla y revisarla periódicamente.",
+      "actions": [
+        "Redactar la política con detección, análisis, contención, recuperación, documentación y notificación.",
+        "Definir un sistema de clasificación de incidentes y los niveles de activación.",
+        "Asignar roles y preparar manuales, listas de contactos y plantillas.",
+        "Probar y revisar la política a intervalos planificados y tras incidentes significativos."
+      ],
+      "evidence": [
+        "Política de gestión de incidentes aprobada",
+        "Procedimiento de clasificación de incidentes",
+        "Manual de respuesta, lista de contactos y plantillas",
+        "Registro de las pruebas y revisiones de la política"
+      ],
+      "officialText": "3.1.1. A los efectos del artículo 21, apartado 2, letra b), de la Directiva (UE) 2022/2555, las entidades pertinentes elaborarán y pondrán en marcha una política de gestión de incidentes por la que se establezcan los roles, responsabilidades y procedimientos para la detección, el análisis, la contención y la gestión de los incidentes, así como la posterior recuperación, documentación y notificación de los mismos a su debido tiempo.\n\n3.1.2. La política prevista en el punto 3.1.1 será coherente con el plan de continuidad de las actividades y de recuperación en caso de catástrofe a que hace referencia el punto 4.1. La política incluirá:\na) un sistema de clasificación de incidentes que sea coherente con la evaluación y clasificación de sucesos realizada de conformidad con el punto 3.4.1;\nb) planes de comunicación eficaces, especialmente en lo relativo a la activación de los niveles sucesivos de intervención y la presentación de informes;\nc) la asignación, a los empleados competentes, de roles para detectar y gestionar adecuadamente los incidentes;\nd) los documentos que han de utilizarse durante el proceso para detectar y gestionar los incidentes, como, por ejemplo, manuales de respuesta a incidentes, cuadros de activación por niveles, listas de contactos y plantillas.\n\n3.1.3. Los roles, responsabilidades y procedimientos establecidos en la política se probarán, revisarán y, cuando proceda, se actualizarán a intervalos planificados, así como cuando se produzcan incidentes significativos o cambios significativos en las operaciones o los riesgos.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 3.1",
+      "register": null
+    },
+    {
+      "identifier": "RE.3.2",
+      "parent": "RE.3",
+      "order": 2,
+      "kind": "requirement",
+      "title": "Supervisión y registro",
+      "description": "Supervisar y registrar la actividad de los sistemas para detectar sucesos que puedan ser incidentes, con registros protegidos, sincronizados y revisados.",
+      "actions": [
+        "Establecer la lista de activos que se registran a partir de la evaluación de riesgos.",
+        "Automatizar la supervisión en lo posible y ajustar umbrales de alerta para limitar falsos positivos.",
+        "Registrar accesos, autenticación, cuentas privilegiadas, cambios de configuración y herramientas de seguridad.",
+        "Conservar los registros un tiempo definido, con copia y protegidos frente a cambios no autorizados.",
+        "Sincronizar los relojes y revisar periódicamente tendencias anómalas."
+      ],
+      "evidence": [
+        "Procedimiento de supervisión y registro",
+        "Lista de activos que se registran",
+        "Configuración de umbrales y alertas",
+        "Política de conservación y protección de registros",
+        "Evidencia de la sincronización horaria"
+      ],
+      "officialText": "3.2.1. Las entidades pertinentes establecerán procedimientos y utilizarán herramientas para supervisar y registrar las actividades en sus sistemas de redes y de información a fin de detectar sucesos que puedan considerarse incidentes y dar una respuesta consecuente para mitigar su impacto.\n\n3.2.2. En la medida de lo posible, la supervisión se automatizará y se llevará a cabo bien de forma continua bien a intervalos periódicos, en función de las capacidades operativas. Las entidades pertinentes pondrán en marcha sus actividades de seguimiento de manera que se minimicen los falsos positivos y falsos negativos.\n\n3.2.3. A partir de los procedimientos contemplados en el punto 3.2.1, las entidades pertinentes mantendrán, completarán y revisarán sus registros. Las entidades pertinentes establecerán una lista de los activos que deban registrarse teniendo en cuenta los resultados de la evaluación de riesgos efectuada conforme al punto 2.1. Cuando proceda, los registros incluirán información sobre:\na) el tráfico de entrada y salida de la red;\nb) la creación, modificación o supresión de usuarios de los sistemas de redes y de información de las entidades pertinentes y la ampliación de los permisos;\nc) el acceso a los sistemas y aplicaciones;\nd) los sucesos relacionados con la autenticación;\ne) todo acceso privilegiado a los sistemas y aplicaciones, así como las actividades realizadas por las cuentas de administración;\nf) el acceso a los archivos críticos de configuración y a las copias de seguridad y todo cambio en los mismos;\ng) los registros de sucesos y los registros de las herramientas de seguridad, como antivirus, sistemas de detección de intrusiones o cortafuegos;\nh) el uso de los recursos del sistema, así como su rendimiento;\ni) el acceso físico a las instalaciones;\nj) el acceso a los equipos y dispositivos de red y su utilización;\nk) la activación, detención e interrupción de los distintos registros;\nl) los sucesos medioambientales.\n\n3.2.4. Se revisará periódicamente la existencia de tendencias inusuales o indeseadas en los registros. Cuando proceda, las entidades pertinentes establecerán valores adecuados para los umbrales de alerta. Cuando se superen los valores establecidos para los umbrales de alerta, saltará una alarma que será, en su caso, automática. Las entidades pertinentes se asegurarán de que, en las situaciones de alerta, se adopte a su debido tiempo una respuesta cualificada y adecuada.\n\n3.2.5. Las entidades pertinentes mantendrán registros, de los que harán copias de seguridad, durante un período predefinido, y los protegerán contra el acceso o los cambios no autorizados.\n\n3.2.6. En la medida de lo posible, las entidades pertinentes velarán por que todos los sistemas dispongan de fuentes de información temporal sincronizadas para permitir la vinculación de registros entre sistemas de cara a la evaluación de sucesos. Las entidades pertinentes establecerán y mantendrán una lista de todos los activos que se registren y velarán por que los sistemas de seguimiento y registro sean redundantes. La disponibilidad de los sistemas de supervisión y registro se controlará con independencia de los sistemas que estén supervisando.\n\n3.2.7. Tanto los procedimientos como la lista de activos que se registren se revisarán y, cuando proceda, se actualizarán a intervalos regulares y después de incidentes significativos.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 3.2",
+      "register": null
+    },
+    {
+      "identifier": "RE.3.3",
+      "parent": "RE.3",
+      "order": 3,
+      "kind": "requirement",
+      "title": "Notificación de sucesos",
+      "description": "Dar a empleados, proveedores y clientes una forma sencilla de comunicar sucesos sospechosos.",
+      "actions": [
+        "Habilitar un canal simple (buzón, formulario o teléfono) para notificar sucesos sospechosos.",
+        "Dar a conocer el canal a proveedores y clientes y formar periódicamente a los empleados en su uso."
+      ],
+      "evidence": [
+        "Descripción del canal de notificación de sucesos",
+        "Comunicación del canal a empleados, proveedores y clientes",
+        "Registros de formación sobre el canal"
+      ],
+      "officialText": "3.3.1. Las entidades pertinentes pondrán en marcha un mecanismo sencillo que permita a sus empleados, proveedores y clientes notificar los sucesos sospechosos.\n\n3.3.2. Las entidades pertinentes informarán, cuando proceda, del mecanismo de notificación de sucesos a sus proveedores y clientes, y formarán periódicamente a sus empleados en el uso del mismo.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 3.3",
+      "register": null
+    },
+    {
+      "identifier": "RE.3.4",
+      "parent": "RE.3",
+      "order": 4,
+      "kind": "requirement",
+      "title": "Evaluación y clasificación de sucesos",
+      "description": "Evaluar cada suceso sospechoso con criterios predefinidos para decidir si es un incidente, con qué gravedad y con qué prioridad, y reevaluarlo cuando haya información nueva.",
+      "actions": [
+        "Definir criterios de clasificación y prioridades de contención y erradicación.",
+        "Revisar los registros relevantes y vincular la información disponible.",
+        "Evaluar cada trimestre si hay incidentes recurrentes.",
+        "Reevaluar y reclasificar sucesos cuando aparezca información nueva."
+      ],
+      "evidence": [
+        "Criterios de evaluación y clasificación de sucesos",
+        "Registro de sucesos evaluados y su clasificación",
+        "Informe trimestral de incidentes recurrentes"
+      ],
+      "officialText": "3.4.1. Las entidades pertinentes evaluarán los sucesos sospechosos para determinar si constituyen incidentes y, en su caso, esclarecer su naturaleza y gravedad.\n\n3.4.2. A los efectos del punto 3.4.1, las entidades pertinentes realizarán las acciones siguientes:\na) una evaluación basada en criterios predefinidos fijados de antemano y en una clasificación que establezca las prioridades de contención y erradicación de incidentes;\nb) la evaluación trimestral de la existencia de incidentes recurrentes tal como contempla el artículo 4 del presente Reglamento;\nc) la revisión de los registros adecuados a efectos de la evaluación y clasificación de los sucesos;\nd) la puesta en marcha de un procedimiento para vincular los registros y el análisis;\ne) y la reevaluación y reclasificación de los sucesos cuando se disponga de nueva información o tras analizar la información disponible previamente.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 3.4",
+      "register": null
+    },
+    {
+      "identifier": "RE.3.5",
+      "parent": "RE.3",
+      "order": 5,
+      "kind": "requirement",
+      "title": "Respuesta ante incidentes",
+      "description": "Responder a los incidentes a tiempo y según procedimientos documentados: contener, erradicar y recuperar, con comunicación definida y pruebas periódicas.",
+      "actions": [
+        "Documentar los procedimientos con sus fases de contención, erradicación y recuperación.",
+        "Definir planes de comunicación con los CSIRT o autoridades, internos y con terceros.",
+        "Registrar las actuaciones y las pruebas de cada incidente.",
+        "Probar los procedimientos a intervalos planificados."
+      ],
+      "evidence": [
+        "Procedimientos de respuesta ante incidentes",
+        "Plan de comunicación con CSIRT y autoridades",
+        "Registro de actuaciones de un incidente real o simulado",
+        "Informe de la última prueba de respuesta"
+      ],
+      "officialText": "3.5.1. Las entidades pertinentes responderán a los incidentes a su debido tiempo y de conformidad con procedimientos documentados.\n\n3.5.2. Los procedimientos de respuesta ante los incidentes incluirán las siguientes fases:\na) contención del incidente, para evitar las consecuencias de que se propague;\nb) erradicación, para evitar que el incidente continúe o reaparezca;\nc) recuperación tras el incidente, cuando se requiera.\n\n3.5.3. Las entidades pertinentes establecerán procedimientos y planes de comunicación:\na) con los equipos de respuesta ante incidentes de seguridad informática (CSIRT) o, cuando proceda, las autoridades competentes, en materia de notificación de incidentes;\nb) para la comunicación entre los miembros del personal de la entidad pertinente, y para la comunicación con las partes interesadas ajenas a la entidad.\n\n3.5.4. Las entidades pertinentes registrarán tanto las actividades de respuesta ante incidentes de conformidad con los procedimientos contemplados en el punto 3.2.1 como las pruebas correspondientes.\n\n3.5.5. Las entidades pertinentes probarán a intervalos planificados sus procedimientos de respuesta ante los incidentes.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 3.5",
+      "register": null
+    },
+    {
+      "identifier": "RE.3.6",
+      "parent": "RE.3",
+      "order": 6,
+      "kind": "requirement",
+      "title": "Revisiones posteriores al incidente",
+      "description": "Revisar cada incidente una vez resuelto para encontrar su causa y mejorar, y comprobar que se hacen esas revisiones.",
+      "actions": [
+        "Hacer una revisión posterior tras cada incidente relevante y documentar causa y conclusiones.",
+        "Incorporar las lecciones a las medidas de tratamiento de riesgos y a los procedimientos.",
+        "Comprobar periódicamente que los incidentes han dado lugar a revisión."
+      ],
+      "evidence": [
+        "Informes de revisión posterior al incidente",
+        "Lista de acciones de mejora derivadas",
+        "Control periódico de las revisiones realizadas"
+      ],
+      "officialText": "3.6.1. Cuando proceda, y una vez se hayan recuperado del incidente, las entidades pertinentes llevarán a cabo revisiones posteriores al mismo. Las revisiones posteriores al incidente identificarán, cuando se pueda, la causa subyacente y se traducirán en conclusiones documentadas para reducir la ocurrencia y las consecuencias de futuros incidentes.\n\n3.6.2. Las entidades pertinentes velarán por que las revisiones posteriores a los incidentes contribuyan a mejorar su enfoque en materia de seguridad de las redes y de la información, de medidas de tratamiento de riesgos y de procedimientos de gestión, detección y respuesta ante incidentes.\n\n3.6.3. Las entidades pertinentes comprobarán a intervalos planificados si los incidentes condujeron a revisiones posteriores al incidente.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 3.6",
+      "register": null
+    },
+    {
+      "identifier": "RE.4",
+      "parent": "21.2.c",
+      "order": 1,
+      "kind": "group",
+      "title": "Continuidad de las actividades y gestión de las crisis",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "officialText": "",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, sección 4",
+      "register": null
+    },
+    {
+      "identifier": "RE.4.1",
+      "parent": "RE.4",
+      "order": 1,
+      "kind": "requirement",
+      "title": "Plan de continuidad de las actividades y de recuperación en caso de catástrofe",
+      "description": "Tener un plan de continuidad y recuperación ante catástrofes basado en un análisis de impacto, probado y revisado de forma periódica.",
+      "actions": [
+        "Redactar el plan con objetivos, roles, contactos, orden de recuperación y condiciones de activación.",
+        "Hacer un análisis de impacto operativo y fijar requisitos de continuidad.",
+        "Probar el plan, revisarlo e incorporar lo aprendido."
+      ],
+      "evidence": [
+        "Plan de continuidad y recuperación ante catástrofes",
+        "Análisis de impacto operativo",
+        "Informe de la última prueba del plan",
+        "Registro de revisiones y actualizaciones"
+      ],
+      "officialText": "4.1.1. A efectos del artículo 21, apartado 2, letra c), de la Directiva (UE) 2022/2555, las entidades pertinentes establecerán y mantendrán un plan de continuidad de las actividades y de recuperación en caso de catástrofe que pondrán en marcha si se producen incidentes.\n\n4.1.2. Las operaciones de las entidades pertinentes se restablecerán de acuerdo con el plan de continuidad de las actividades y de recuperación en caso de catástrofe. El plan se basará en los resultados de la evaluación de riesgos realizada con arreglo al punto 2.1 e incluirá, según proceda, lo siguiente:\na) objetivos, ámbito de aplicación y público destinatario;\nb) roles y responsabilidades;\nc) contactos clave y canales de comunicación (internos y externos);\nd) condiciones de activación y desactivación del plan;\ne) orden de recuperación de las operaciones;\nf) planes de recuperación de operaciones específicas, incluidos los objetivos de recuperación;\ng) recursos necesarios, incluidas las copias de seguridad y las redundancias;\nh) restablecimiento y reanudación de las actividades a partir de medidas temporales.\n\n4.1.3. Las entidades pertinentes realizarán un análisis de impacto operativo para evaluar el posible impacto de las perturbaciones graves en sus operaciones y establecerán, a partir de los resultados de dicho análisis, requisitos de continuidad para los sistemas de redes y de información.\n\n4.1.4. El plan de continuidad de las actividades y el plan de recuperación en caso de catástrofe se probarán, revisarán y, cuando proceda, se actualizarán a intervalos planificados o tras incidentes significativos o cambios significativos en las operaciones o los riesgos. Las entidades pertinentes velarán por que dichos planes engloben las conclusiones extraídas en las pruebas.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 4.1",
+      "register": null
+    },
+    {
+      "identifier": "RE.4.2",
+      "parent": "RE.4",
+      "order": 2,
+      "kind": "requirement",
+      "title": "Gestión de las copias de seguridad y las redundancias",
+      "description": "Mantener copias de seguridad y redundancia suficientes, protegidas, verificadas y con pruebas de recuperación documentadas.",
+      "actions": [
+        "Definir planes de copia con plazos de recuperación, ubicación segura y conservación.",
+        "Guardar copias fuera de la red del sistema y a distancia suficiente del emplazamiento principal.",
+        "Proteger el acceso lógico y físico a las copias y verificar su integridad.",
+        "Asegurar redundancia parcial de sistemas, instalaciones, personal y comunicaciones.",
+        "Probar la recuperación periódicamente y corregir lo que falle."
+      ],
+      "evidence": [
+        "Plan de copias de seguridad",
+        "Registro de verificación de integridad de copias",
+        "Informe de pruebas de recuperación",
+        "Descripción de la redundancia de recursos críticos"
+      ],
+      "officialText": "4.2.1. Las entidades pertinentes mantendrán copias de seguridad de los datos y pondrán a disposición recursos suficientes, como instalaciones, sistemas de redes y de información y personal, para velar por un nivel de redundancia adecuado.\n\n4.2.2. A partir de los resultados de la evaluación de riesgos realizada según el punto 2.1 y el plan de continuidad de las actividades, las entidades pertinentes establecerán planes de copia de seguridad que incluirán lo siguiente:\na) plazos de recuperación;\nb) garantías de que las copias de seguridad sean completas y precisas, especialmente los datos de configuración y la información almacenada en el entorno de proveedores de servicios de computación en nube;\nc) almacenamiento de copias de seguridad (en línea o fuera de línea) en uno o varios lugares seguros, que no estén en la misma red que el sistema y que estén a una distancia suficiente para escapar de cualquier daño provocado por una catástrofe en el emplazamiento principal;\nd) controles adecuados de acceso lógico y físico a las copias de seguridad, de conformidad con el nivel de clasificación de activos;\ne) recuperación de datos de las copias de seguridad;\nf) plazos de conservación sustentados en los requisitos operativos y reglamentarios.\n\n4.2.3. Las entidades pertinentes verificarán regularmente la integridad de las copias de seguridad.\n\n4.2.4. A partir de los resultados de la evaluación de riesgos realizada con arreglo al punto 2.1 y el plan de continuidad de las actividades, las entidades pertinentes garantizarán una disponibilidad suficiente de los recursos mediante, como mínimo, la redundancia parcial de lo siguiente:\na) los sistemas de redes y de información;\nb) los activos, incluidos las instalaciones, los equipos y los suministros;\nc) el personal con la responsabilidad, la autoridad y las competencias necesarias;\nd) los canales de comunicación adecuados.\n\n4.2.5. Cuando proceda, las entidades pertinentes velarán por que la supervisión y el ajuste de los recursos, incluidas las instalaciones, los sistemas y el personal, estén debidamente fundados en los requisitos de copias de seguridad y redundancia.\n\n4.2.6. Las entidades pertinentes llevarán a cabo pruebas periódicas de la recuperación de copias de seguridad y las redundancias para asegurarse de que, en condiciones de recuperación, es posible depender de ellas y que engloban las copias, los procesos y los conocimientos necesarios para llevar a cabo una recuperación eficaz. Las entidades pertinentes documentarán los resultados de las pruebas y, cuando sea necesario, adoptarán medidas correctoras.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 4.2",
+      "register": null
+    },
+    {
+      "identifier": "RE.4.3",
+      "parent": "RE.4",
+      "order": 3,
+      "kind": "requirement",
+      "title": "Gestión de crisis",
+      "description": "Tener procesos de gestión de crisis con roles, comunicación con las autoridades y seguridad mantenida durante la crisis, revisados periódicamente.",
+      "actions": [
+        "Definir roles y pasos concretos en situaciones de crisis.",
+        "Establecer los medios de comunicación con las autoridades competentes, obligatorios y facultativos.",
+        "Definir cómo se usa la información recibida de CSIRT y autoridades.",
+        "Probar y actualizar los planes de crisis de forma periódica y tras incidentes significativos."
+      ],
+      "evidence": [
+        "Plan de gestión de crisis",
+        "Directorio de contactos con autoridades y CSIRT",
+        "Informe de ejercicio o simulacro de crisis",
+        "Registro de revisión del plan"
+      ],
+      "officialText": "4.3.1. Las entidades pertinentes pondrán en marcha procesos de gestión de crisis.\n\n4.3.2. Las entidades pertinentes velarán por que los procesos de gestión de crisis aborden al menos los siguientes elementos:\na) los roles y responsabilidades del personal y, cuando proceda, los proveedores y los prestadores de servicios, especificando la asignación de roles en situaciones de crisis y los pasos específicos que deben seguirse;\nb) los medios de comunicación adecuados entre las entidades pertinentes y las autoridades competentes;\nc) la aplicación de medidas adecuadas para garantizar el mantenimiento de la seguridad de los sistemas de redes y de información en situaciones de crisis.\nA efectos de la letra b), el flujo de información entre las entidades pertinentes y las autoridades competentes incluirá comunicaciones obligatorias, como informes de incidentes y los plazos correspondientes, así como comunicaciones facultativas.\n\n4.3.3. Las entidades pertinentes pondrán en marcha procesos para gestionar y usar la información recibida de los CSIRT o, cuando proceda, las autoridades competentes, en relación con incidentes, vulnerabilidades, amenazas o posibles medidas de mitigación.\n\n4.3.4. Las entidades pertinentes comprobarán, revisarán y, cuando proceda, actualizarán los planes de gestión de la crisis de forma periódica o después de incidentes significativos o cambios significativos en las operaciones o los riesgos.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 4.3",
+      "register": null
+    },
+    {
+      "identifier": "RE.13",
+      "parent": "21.2.c",
+      "order": 2,
+      "kind": "group",
+      "title": "Seguridad medioambiental y física",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "officialText": "",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, sección 13",
+      "register": null
+    },
+    {
+      "identifier": "RE.13.1",
+      "parent": "RE.13",
+      "order": 1,
+      "kind": "requirement",
+      "title": "Servicios públicos",
+      "description": "Evitar que fallos de servicios públicos (electricidad, telecomunicaciones, agua, climatización) dañen los sistemas o interrumpan las operaciones.",
+      "actions": [
+        "Proteger las instalaciones frente a fallos eléctricos y de otros servicios.",
+        "Considerar redundancia y contratos de suministro de emergencia.",
+        "Vigilar los servicios y avisar de sucesos fuera de umbrales.",
+        "Probar y mantener electricidad, temperatura, humedad y conectividad necesarias, y revisar las medidas."
+      ],
+      "evidence": [
+        "Descripción de protecciones de suministro y redundancias",
+        "Contratos de suministro de emergencia",
+        "Registros de mantenimiento y pruebas de suministros"
+      ],
+      "officialText": "13.1.1. A los efectos del artículo 21, apartado 2, letra c), de la Directiva (UE) 2022/2555, las entidades pertinentes evitarán las pérdidas, los daños o riesgos de los sistemas de redes y de información o la interrupción de sus operaciones debido al fallo y la interrupción de los servicios públicos.\n\n13.1.2. A tal efecto, cuando proceda, las entidades pertinentes:\na) protegerán las instalaciones de los fallos eléctricos y de otras alteraciones causadas por fallos en servicios públicos como la electricidad, las telecomunicaciones, el suministro de agua, el gas, las aguas residuales, la ventilación o el aire acondicionado;\nb) considerarán la utilización de redundancias en los servicios de utilidad pública;\nc) protegerán los servicios públicos de electricidad y telecomunicaciones, que transportan datos u ofrecen sistemas de redes y de información, frente a la interceptación y los daños;\nd) supervisarán los servicios públicos contemplados en la letra c) e informarán al personal interno o externo competente de los sucesos que tengan lugar más allá de los umbrales mínimo y máximo de control a que se refiere el punto 13.2.2, letra b), que afecten a los servicios de utilidad pública;\ne) concluirán contratos para el suministro de emergencia con los servicios correspondientes, tales como el combustible para el suministro eléctrico de emergencia;\nf) Garantizarán la eficacia continua, supervisarán, mantendrán y probarán el suministro de los sistemas de redes y de información necesarios para el funcionamiento del servicio ofrecido, especialmente la electricidad, el control de la temperatura y la humedad, las telecomunicaciones y la conexión a Internet.\n\n13.1.3. Las entidades pertinentes comprobarán, revisarán y, cuando proceda, actualizarán las medidas de protección de forma periódica o después de incidentes significativos o cambios significativos en las operaciones o los riesgos.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 13.1",
+      "register": null
+    },
+    {
+      "identifier": "RE.13.2",
+      "parent": "RE.13",
+      "order": 2,
+      "kind": "requirement",
+      "title": "Protección contra las amenazas físicas y medioambientales",
+      "description": "Reducir el efecto de amenazas físicas y medioambientales (catástrofes, incendios, inundaciones) con medidas, umbrales y vigilancia de parámetros ambientales.",
+      "actions": [
+        "Diseñar medidas de protección según la evaluación de riesgos.",
+        "Fijar umbrales mínimos y máximos de control y supervisar los parámetros ambientales.",
+        "Avisar a quien corresponda cuando se superen y revisar las medidas periódicamente."
+      ],
+      "evidence": [
+        "Medidas de protección físicas y medioambientales",
+        "Registros de supervisión de parámetros ambientales",
+        "Registro de revisión de las medidas"
+      ],
+      "officialText": "13.2.1. A los efectos del artículo 21, apartado 2, letra e), de la Directiva (UE) 2022/2555, las entidades pertinentes evitarán o reducirán las consecuencias de los sucesos que tengan lugar a causa de amenazas físicas y medioambientales, como las catástrofes naturales y otras amenazas intencionadas o inintencionadas, a partir de los resultados de la evaluación de riesgos realizada de conformidad con el punto 2.1.\n\n13.2.2. A tal efecto, cuando proceda, las entidades pertinentes:\na) diseñarán y pondrán en marcha medidas de protección contra las amenazas físicas y medioambientales;\nb) determinarán umbrales mínimos y máximos de control de las amenazas físicas y medioambientales;\nc) supervisarán los parámetros medioambientales e informarán al personal interno o externo competente de los sucesos que tengan lugar más allá de los umbrales mínimo y máximo de control a que se refiere la letra b).\n\n13.2.3. Las entidades pertinentes comprobarán, revisarán y, cuando proceda, actualizarán las medidas de protección de forma periódica o después de incidentes significativos o cambios significativos en las operaciones o los riesgos.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 13.2",
+      "register": null
+    },
+    {
+      "identifier": "RE.13.3",
+      "parent": "RE.13",
+      "order": 3,
+      "kind": "requirement",
+      "title": "Control de acceso perimetral y físico",
+      "description": "Evitar y controlar el acceso físico no autorizado a los sistemas mediante perímetros, controles de entrada y vigilancia continua.",
+      "actions": [
+        "Establecer perímetros de seguridad según el riesgo y proteger las zonas con controles de entrada.",
+        "Diseñar la seguridad física de oficinas, salas e instalaciones.",
+        "Vigilar de forma continuada el acceso no autorizado y revisar las medidas periódicamente."
+      ],
+      "evidence": [
+        "Descripción de perímetros y controles de acceso físico",
+        "Registros de acceso a zonas protegidas",
+        "Evidencia de vigilancia (cámaras, alarmas)"
+      ],
+      "officialText": "13.3.1. A los efectos del artículo 21, apartado 2, letra i), de la Directiva (UE) 2022/2555, las entidades pertinentes evitarán y controlarán el acceso físico no autorizado, los daños y las interferencias a sus sistemas de redes y de información.\n\n13.3.2. A tal efecto, las entidades pertinentes:\na) sobre la base de la evaluación de riesgos realizada con arreglo al punto 2.1, establecerán y utilizarán perímetros de seguridad para proteger las zonas en las que se ubican los sistemas de redes y de información;\nb) protegerán las zonas a que se refiere la letra a) mediante controles de entrada y puntos de acceso adecuados;\nc) diseñarán e implantarán la seguridad física de las oficinas, las salas y las instalaciones;\nd) supervisarán de manera continuada sus instalaciones en lo que se refiere al acceso físico no autorizado.\n\n13.3.3. Las entidades pertinentes comprobarán, revisarán y, cuando proceda, actualizarán las medidas de control del acceso físico de forma periódica o después de incidentes significativos o cambios significativos en las operaciones o los riesgos.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 13.3",
+      "register": null
+    },
+    {
+      "identifier": "RE.5",
+      "parent": "21.2.d",
+      "order": 1,
+      "kind": "group",
+      "title": "Seguridad de las cadenas de suministro",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "officialText": "",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, sección 5",
+      "register": null
+    },
+    {
+      "identifier": "RE.5.1",
+      "parent": "RE.5",
+      "order": 1,
+      "kind": "requirement",
+      "title": "Política de seguridad de las cadenas de suministros",
+      "description": "Tener una política de seguridad de la cadena de suministro con criterios para elegir proveedores, requisitos de ciberseguridad en los contratos y seguimiento periódico.",
+      "actions": [
+        "Redactar la política y comunicar a los proveedores el papel de la entidad en la cadena.",
+        "Fijar criterios de selección: prácticas de ciberseguridad, capacidad de cumplir y dependencia de un solo proveedor.",
+        "Incluir en los contratos requisitos de ciberseguridad, notificación de incidentes, auditoría, subcontratación y fin de contrato.",
+        "Supervisar acuerdos de nivel de servicio e incidentes de los proveedores y revisar la política periódicamente."
+      ],
+      "evidence": [
+        "Política de seguridad de la cadena de suministro",
+        "Criterios documentados de selección de proveedores",
+        "Cláusulas de ciberseguridad de los contratos",
+        "Informes de seguimiento de proveedores",
+        "Registro de revisión de la política"
+      ],
+      "officialText": "5.1.1. A efectos del artículo 21, apartado 2, letra d), de la Directiva (UE) 2022/2555, las entidades pertinentes establecerán, pondrán en marcha y aplicarán una política de seguridad de las cadenas de suministros que rija las relaciones con sus proveedores y prestadores de servicios directos con el fin de mitigar los riesgos detectados para la seguridad de los sistemas de redes y de información. En la política de seguridad de las cadenas de suministros, las entidades pertinentes determinarán su papel en la cadena de suministro y se lo comunicarán a sus proveedores y prestadores de servicios directos.\n\n5.1.2. Como parte de la política de la cadena de suministro contemplada en el punto 5.1.1, las entidades pertinentes establecerán criterios para seleccionar y contratar a los proveedores y prestadores de servicios. Dichos criterios incluirán lo siguiente:\na) las prácticas de ciberseguridad de sus proveedores y prestadores de servicios, incluidos sus procedimientos de desarrollo seguro;\nb) la capacidad de los proveedores y prestadores de servicios para cumplir las especificaciones de ciberseguridad establecidas por las entidades pertinentes;\nc) la calidad general y la resiliencia de los productos y servicios TIC y las medidas para la gestión de riesgos de ciberseguridad integradas en ellos, incluidos los riesgos y el nivel de clasificación de los productos y servicios TIC;\nd) la capacidad de las entidades pertinentes de diversificar las fuentes de suministro y limitar la dependencia de un proveedor, cuando proceda.\n\n5.1.3. Cuando establezcan su política de seguridad de la cadena de suministro, las entidades pertinentes tendrán en cuenta los resultados de las evaluaciones coordinadas de riesgos para la seguridad de las cadenas de suministro críticas realizadas de conformidad con el artículo 22, apartado 1, de la Directiva (UE) 2022/2555, según proceda.\n\n5.1.4. A partir de la política de seguridad de las cadenas de suministro y teniendo en cuenta los resultados de la evaluación de riesgos realizada de conformidad con el punto 2.1 del presente anexo, las entidades pertinentes se asegurarán de que sus contratos con los proveedores y prestadores de servicios especifiquen, cuando proceda mediante acuerdos de nivel de servicio, los siguientes elementos, según se requiera:\na) los requisitos de ciberseguridad correspondientes a los proveedores y prestadores de servicios, incluidos los requisitos relativos a la seguridad en la adquisición de productos y servicios TIC establecidos en el punto 6.1;\nb) los requisitos relativos a la sensibilización, las capacidades y la formación y, cuando proceda, los certificados requeridos de los empleados de los proveedores o prestadores de servicios;\nc) los requisitos relativos a los controles de los antecedentes personales de los empleados de los proveedores y prestadores de servicios;\nd) la obligación de los proveedores y prestadores de servicios de informar, sin demora indebida, a las entidades pertinentes de aquellos incidentes que presenten un riesgo para la seguridad de los sistemas de redes y de información de dichas entidades;\ne) el derecho de auditoría o el derecho a recibir informes de auditoría;\nf) la obligación de los proveedores y prestadores de servicios de hacerse cargo de las vulnerabilidades que presenten un riesgo para la seguridad de los sistemas de redes y de información de las entidades pertinentes;\ng) los requisitos relativos a la subcontratación y, cuando las entidades pertinentes permitan esta última, los requisitos de ciberseguridad de los subcontratistas de conformidad con los requisitos de seguridad contemplados en la letra a);\nh) las obligaciones de los proveedores y prestadores de servicios al finalizar el contrato, tales como la recuperación y eliminación de información que hayan obtenido en el ejercicio de sus funciones.\n\n5.1.5. Las entidades pertinentes tendrán en cuenta los elementos a que se refieren los puntos 5.1.2 y 5.1.3 como parte del proceso de selección de nuevos proveedores o prestadores de servicios, y como parte del proceso de contratación a que se refiere el punto 6.1.\n\n5.1.6. Las entidades pertinentes revisarán la política de seguridad de la cadena de suministro y supervisarán, evaluarán y, cuando proceda, tomarán medidas acordes con los cambios en las prácticas de ciberseguridad de los proveedores y prestadores de servicios, a intervalos planificados o cuando se produzcan cambios significativos en las operaciones o en los riesgos, o acontezcan incidentes significativos relativos a la prestación de servicios TIC o que tengan repercusiones en la seguridad del producto TIC de los proveedores y prestadores de servicios.\n\n5.1.7. A los efectos del punto 5.1.6, las entidades pertinentes:\na) supervisarán periódicamente los informes relativos a la aplicación de los acuerdos de nivel de servicio, cuando proceda;\nb) revisarán los incidentes relacionados con los productos y servicios TIC de los proveedores y prestadores de servicios;\nc) evaluarán la necesidad de revisiones no programadas y recopilarán las conclusiones de manera comprensible;\nd) analizarán los riesgos que planteen los cambios relativos a los productos y servicios TIC de los proveedores y prestadores de servicios y, cuando proceda, adoptarán medidas de mitigación a su debido tiempo.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 5.1",
+      "register": null
+    },
+    {
+      "identifier": "RE.5.2",
+      "parent": "RE.5",
+      "order": 2,
+      "kind": "requirement",
+      "title": "Directorio de proveedores y prestadores de servicios",
+      "description": "Mantener un registro actualizado de los proveedores y prestadores de servicios directos, con sus contactos y los productos y servicios TIC que prestan.",
+      "actions": [
+        "Crear y mantener un directorio de proveedores directos.",
+        "Anotar por proveedor los puntos de contacto y los productos, servicios y procesos TIC que presta.",
+        "Actualizarlo cuando cambie algún proveedor o servicio."
+      ],
+      "evidence": [
+        "Directorio de proveedores y prestadores de servicios",
+        "Lista de productos y servicios TIC por proveedor"
+      ],
+      "officialText": "5.2. Las entidades pertinentes mantendrán y actualizarán un registro de sus proveedores y prestadores de servicios directos, en el que incluirán:\na) los puntos de contacto correspondientes a cada proveedor o prestador de servicios directo;\nb) una lista de productos TIC, servicios TIC y procesos TIC proporcionados por el proveedor o prestador de servicios directo a las entidades pertinentes.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 5.2",
+      "register": null
+    },
+    {
+      "identifier": "RE.6",
+      "parent": "21.2.e",
+      "order": 1,
+      "kind": "group",
+      "title": "Seguridad en la adquisición, el desarrollo y el mantenimiento de sistemas de redes y de información",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "officialText": "",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, sección 6",
+      "register": null
+    },
+    {
+      "identifier": "RE.6.1",
+      "parent": "RE.6",
+      "order": 1,
+      "kind": "requirement",
+      "title": "Seguridad en la adquisición de servicios TIC o productos TIC",
+      "description": "Gestionar el riesgo de comprar servicios o productos TIC críticos: exigir requisitos de seguridad, soporte y actualizaciones al proveedor y comprobar que se cumplen.",
+      "actions": [
+        "Definir un procedimiento de adquisición de TIC con requisitos de seguridad, actualizaciones y fin de soporte.",
+        "Pedir al proveedor información de componentes y funciones de ciberseguridad del producto.",
+        "Validar y documentar que lo entregado cumple lo declarado.",
+        "Revisar el procedimiento periódicamente y tras incidentes significativos."
+      ],
+      "evidence": [
+        "Procedimiento de adquisición segura de TIC",
+        "Requisitos de seguridad en pliegos o contratos",
+        "Registro de validación de un producto o servicio adquirido"
+      ],
+      "officialText": "6.1.1. A los efectos del artículo 21, apartado 2, letra e), de la Directiva (UE) 2022/2555, las entidades pertinentes establecerán y pondrán en marcha procedimientos para gestionar los riesgos derivados de la adquisición de servicios o productos TIC para componentes que sean críticos para la seguridad de los sistemas de redes y de información de las entidades pertinentes, de acuerdo con la evaluación de riesgos realizada con arreglo al punto 2.1, de los proveedores o prestadores de servicios a lo largo de su vida útil.\n\n6.1.2. A los efectos del punto 6.1.1, los procedimientos contemplados en el mismo incluirán:\na) requisitos de seguridad aplicables a los servicios o productos TIC que vayan a adquirirse;\nb) requisitos relativos a las actualizaciones de seguridad a lo largo de toda la vida útil de los productos o servicios TIC o a su sustitución tras el final del período de soporte;\nc) información que describa los componentes de hardware y software utilizados en los servicios y productos TIC;\nd) información que describa las funciones de ciberseguridad de los servicios o productos TIC puestas en marcha o la configuración necesaria para su funcionamiento seguro;\ne) garantías de que los servicios o productos TIC cumplen los requisitos de seguridad con arreglo a la letra a);\nf) métodos para validar el cumplimiento de los requisitos de seguridad declarados por parte de los servicios o productos de TIC suministrados, y documentación de los resultados de la validación.\n\n6.1.3. Las entidades pertinentes revisarán y, cuando proceda, actualizarán los procedimientos a intervalos planificados, así como cuando se produzcan incidentes significativos.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 6.1",
+      "register": null
+    },
+    {
+      "identifier": "RE.6.2",
+      "parent": "RE.6",
+      "order": 2,
+      "kind": "requirement",
+      "title": "Ciclo de vida del desarrollo seguro",
+      "description": "Fijar normas de desarrollo seguro que cubran todo el ciclo (especificación, diseño, construcción y pruebas), también cuando el desarrollo se externaliza.",
+      "actions": [
+        "Redactar normas de desarrollo seguro y de codificación segura.",
+        "Analizar requisitos de seguridad en especificación y diseño de cada proyecto.",
+        "Proteger los entornos de desarrollo y pruebas, y anonimizar los datos de prueba.",
+        "Aplicar las mismas exigencias a los desarrollos externalizados y revisar las normas periódicamente."
+      ],
+      "evidence": [
+        "Normas de desarrollo seguro",
+        "Análisis de requisitos de seguridad de un proyecto",
+        "Procedimiento de gestión de datos de prueba",
+        "Cláusulas de desarrollo seguro en contratos de desarrollo externo"
+      ],
+      "officialText": "6.2.1. Antes de desarrollar un sistema de redes y de información, incluidos los programas informáticos, las entidades pertinentes establecerán normas para el desarrollo seguro del mismo, y las aplicarán al desarrollar estos sistemas de redes y de información internamente o cuando externalicen dicho desarrollo. Las normas englobarán todas las fases de desarrollo, como las especificaciones, el diseño, la creación, la implantación y las pruebas.\n\n6.2.2. A los efectos del punto 6.2.1, las entidades pertinentes:\na) llevarán a cabo análisis de los requisitos de seguridad en las fases de especificación y diseño de cualquier proyecto de desarrollo o adquisición emprendido por ellas mismas o en su nombre;\nb) aplicarán los principios para diseñar sistemas seguros y principios de codificación seguros a toda actividad de desarrollo de sistemas de información, tales como la promoción de la ciberseguridad desde el diseño o las arquitecturas de confianza cero;\nc) establecerán requisitos de seguridad en relación con los entornos de desarrollo;\nd) establecerán y aplicarán procesos de pruebas de seguridad en el ciclo de vida del desarrollo;\ne) seleccionarán, protegerán y gestionarán adecuadamente los datos de las pruebas de seguridad;\nf) sanearán y anonimizarán los datos de las pruebas con arreglo a la evaluación de riesgos realizada de conformidad con el punto 2.1.\n\n6.2.3. En cuanto a la externalización del desarrollo de sistemas de redes y de información, las entidades pertinentes también aplicarán las políticas y procedimientos a que se refieren los puntos 5 y 6.1.\n\n6.2.4. Las entidades pertinentes revisarán y, cuando proceda, actualizarán las normas de desarrollo seguro a intervalos planificados.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 6.2",
+      "register": null
+    },
+    {
+      "identifier": "RE.6.3",
+      "parent": "RE.6",
+      "order": 3,
+      "kind": "requirement",
+      "title": "Gestión de configuraciones",
+      "description": "Definir, documentar y vigilar configuraciones seguras de equipos, programas, servicios y redes durante toda su vida.",
+      "actions": [
+        "Documentar la configuración segura de referencia de cada tipo de sistema.",
+        "Aplicarla en sistemas nuevos y comprobar su cumplimiento en los que están en funcionamiento.",
+        "Revisar las configuraciones periódicamente y tras incidentes o cambios significativos."
+      ],
+      "evidence": [
+        "Guías o líneas base de configuración segura",
+        "Informe de comprobación de configuraciones",
+        "Registro de revisión de configuraciones"
+      ],
+      "officialText": "6.3.1. Las entidades pertinentes adoptarán las medidas adecuadas para establecer, documentar, poner en marcha y supervisar las configuraciones, incluidas las configuraciones de seguridad del hardware de los equipos y programas informáticos, los servicios y las redes.\n\n6.3.2. A los efectos del punto 6.3.1, las entidades pertinentes:\na) crearán un entorno seguro en las configuraciones de sus equipos y programas informáticos, servicios y redes y lo mantendrán;\nb) establecerán y pondrán en marcha procesos y herramientas para dar cumplimiento a las configuraciones seguras establecidas para los equipos y programas informáticos, servicios y redes, para los sistemas de nueva instalación y los sistemas en funcionamiento a lo largo de todo su ciclo de vida.\n\n6.3.3. Las entidades pertinentes revisarán y, cuando proceda, actualizarán las configuraciones a intervalos planificados, así como cuando se produzcan incidentes significativos o cambios significativos en las operaciones o los riesgos.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 6.3",
+      "register": null
+    },
+    {
+      "identifier": "RE.6.4",
+      "parent": "RE.6",
+      "order": 4,
+      "kind": "requirement",
+      "title": "Gestión de cambios, reparaciones y mantenimiento",
+      "description": "Controlar los cambios en los sistemas con un procedimiento que los documente, los pruebe y los evalúe antes de aplicarlos, también los de emergencia.",
+      "actions": [
+        "Establecer un procedimiento de gestión de cambios que cubra lanzamientos, modificaciones y cambios de emergencia.",
+        "Documentar, probar y evaluar el impacto de cada cambio antes de aplicarlo.",
+        "Justificar y documentar los cambios de emergencia que no siguieron el procedimiento.",
+        "Revisar el procedimiento periódicamente."
+      ],
+      "evidence": [
+        "Procedimiento de gestión de cambios",
+        "Registro de cambios con su evaluación y pruebas",
+        "Registro de cambios de emergencia y su justificación"
+      ],
+      "officialText": "6.4.1. Las entidades pertinentes aplicarán procedimientos de gestión de cambios para controlar aquellos que se produzcan en los sistemas de redes y de información. Los procedimientos serán, según proceda, coherentes con las políticas generales de las entidades pertinentes relativas a la gestión de cambios.\n\n6.4.2. Los procedimientos contemplados en el punto 6.4.1 se aplicarán en el caso de lanzamientos, modificaciones y cambios de emergencia de cualquier equipo o programa informático en funcionamiento o de cambios en la configuración. Los procedimientos garantizarán que dichos cambios se documenten y, a partir de la evaluación de riesgos realizada de acuerdo con el punto 2.1, se prueben y evalúen teniendo en cuenta el impacto potencial antes de su aplicación.\n\n6.4.3. En caso de que los procedimientos habituales de gestión de cambios no puedan seguirse debido a una emergencia, las entidades pertinentes documentarán el resultado del cambio y explicarán por qué no pudieron seguirse dichos procedimientos.\n\n6.4.4. Las entidades pertinentes revisarán y, cuando proceda, actualizarán los procedimientos a intervalos planificados, así como cuando se produzcan incidentes significativos o cambios significativos en las operaciones o los riesgos.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 6.4",
+      "register": null
+    },
+    {
+      "identifier": "RE.6.5",
+      "parent": "RE.6",
+      "order": 5,
+      "kind": "requirement",
+      "title": "Pruebas de seguridad",
+      "description": "Hacer pruebas de seguridad según un método documentado, decidir su alcance y frecuencia por riesgo y corregir los hallazgos críticos.",
+      "actions": [
+        "Definir necesidad, alcance, frecuencia y tipo de pruebas a partir de la evaluación de riesgos.",
+        "Ejecutarlas con una metodología documentada y registrar tipo, alcance, fecha y resultados.",
+        "Mitigar los hallazgos críticos y revisar la política de pruebas periódicamente."
+      ],
+      "evidence": [
+        "Política y metodología de pruebas de seguridad",
+        "Informes de pruebas (tipo, alcance, fecha y resultados)",
+        "Registro de mitigaciones de hallazgos críticos"
+      ],
+      "officialText": "6.5.1. Las entidades pertinentes establecerán, pondrán en marcha y aplicarán orientaciones y procedimientos para las pruebas de seguridad.\n\n6.5.2. Las entidades pertinentes:\na) establecerán, a partir de la evaluación de riesgos realizada de acuerdo con el punto 2.1, la necesidad, el alcance, la frecuencia y el tipo de pruebas de seguridad;\nb) realizarán pruebas de seguridad de acuerdo con una metodología de prueba documentada, que englobe los elementos señalados como relevantes para el funcionamiento seguro en un análisis de riesgos;\nc) documentarán el tipo, el alcance, la fecha y los resultados de las pruebas, incluidas la evaluación del carácter esencial y las medidas de mitigación correspondientes a cada hallazgo;\nd) aplicarán medidas de mitigación en caso de que se produzcan hallazgos críticos.\n\n6.5.3. Las entidades pertinentes revisarán y, cuando proceda, actualizarán las políticas de pruebas de seguridad a intervalos planificados.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 6.5",
+      "register": null
+    },
+    {
+      "identifier": "RE.6.6",
+      "parent": "RE.6",
+      "order": 6,
+      "kind": "requirement",
+      "title": "Gestión de parches de seguridad",
+      "description": "Aplicar los parches de seguridad en un plazo razonable, probados y de fuente fiable, y documentar las excepciones con sus riesgos residuales.",
+      "actions": [
+        "Definir plazos de aplicación de parches coherentes con la gestión de cambios y de vulnerabilidades.",
+        "Probar los parches antes de producción y verificar su procedencia e integridad.",
+        "Documentar y aceptar el riesgo cuando un parche no exista o no se aplique."
+      ],
+      "evidence": [
+        "Procedimiento de gestión de parches",
+        "Registro de parches aplicados y fechas",
+        "Registro de excepciones con su justificación y riesgo aceptado"
+      ],
+      "officialText": "6.6.1. Las entidades pertinentes detallarán y aplicarán procedimientos coherentes con los procedimientos de gestión de cambios a que se refiere el punto 6.4.1, de gestión de vulnerabilidades, de gestión del riesgo y otros procedimientos de gestión pertinentes para garantizar que:\na) los parches de seguridad se apliquen en un plazo razonable desde el momento en que estén disponibles;\nb) los parches de seguridad se sometan a ensayo antes de ponerlos en marcha en los sistemas de producción;\nc) los parches de seguridad procedan de fuentes de confianza y se compruebe su integridad;\nd) se adopten medidas adicionales y se acepten los riesgos residuales en aquellos casos en que no haya un parche disponible o no pueda aplicarse conforme al punto 6.6.2.\n\n6.6.2. Como excepción al punto 6.6.1, letra a), las entidades pertinentes podrán optar por no aplicar parches de seguridad cuando las desventajas de aplicarlos superen los beneficios de ciberseguridad. Las entidades pertinentes documentarán y justificarán debidamente los motivos de tal decisión.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 6.6",
+      "register": null
+    },
+    {
+      "identifier": "RE.6.7",
+      "parent": "RE.6",
+      "order": 7,
+      "kind": "requirement",
+      "title": "Seguridad de las redes",
+      "description": "Proteger las redes frente a ciberamenazas: arquitectura documentada, accesos limitados a lo necesario, acceso remoto controlado y buenas prácticas de correo, DNS y enrutamiento.",
+      "actions": [
+        "Mantener actualizada la documentación de la arquitectura de red.",
+        "Restringir accesos y comunicaciones a lo necesario y desactivar servicios y conexiones innecesarios.",
+        "Controlar el acceso remoto, incluido el de proveedores, solo bajo autorización y por tiempo limitado.",
+        "Planificar la transición a protocolos modernos y la protección del correo, DNS y enrutamiento.",
+        "Revisar las medidas periódicamente."
+      ],
+      "evidence": [
+        "Diagrama y documentación de la arquitectura de red",
+        "Reglas de cortafuegos y listas de acceso",
+        "Procedimiento de acceso remoto y de proveedores",
+        "Plan de adopción de protocolos y estándares de correo seguros"
+      ],
+      "officialText": "6.7.1. Las entidades pertinentes adoptarán medidas adecuadas para proteger sus sistemas de redes y de información de las ciberamenazas.\n\n6.7.2. A los efectos del punto 6.7.1, las entidades pertinentes:\na) documentarán la arquitectura de la red de manera comprensible y actualizada;\nb) establecerán y aplicarán controles para proteger los dominios de red internos de las entidades pertinentes frente al acceso no autorizado;\nc) configurarán los controles para impedir el acceso y las comunicaciones de la red que no sean necesarios para el funcionamiento de las entidades pertinentes;\nd) establecerán y aplicarán controles del acceso remoto a los sistemas de redes y de información, incluido el acceso por parte de los proveedores de servicios;\ne) no utilizarán los sistemas empleados para gestionar la aplicación de la política de seguridad para otros fines;\nf) prohibirán de manera explícita o desactivarán las conexiones y servicios que no sean necesarios;\ng) cuando proceda, únicamente permitirán el acceso a los sistemas de redes y de información de las entidades pertinentes a los dispositivos autorizados por estas últimas;\nh) permitirán la conexión de los proveedores de servicios previa solicitud de autorización únicamente y durante un período de tiempo limitado, como la duración de una operación de mantenimiento;\ni) establecerán la comunicación entre distintos sistemas únicamente a través de canales de confianza que estén aislados mediante separación lógica, criptográfica o física de otros canales de comunicación, y facilitarán la identificación segura de su punto final y la protección de sus datos frente a la modificación o la revelación;\nj) adoptarán un plan de ejecución para realizar la transición hacia protocolos de comunicación de la capa de red de última generación de manera segura, adecuada y gradual, y establecerán medidas para acelerar dicha transición;\nk) adoptarán un plan de ejecución relativo a la implantación de normas sobre las comunicaciones por correo electrónico modernas, interoperables y aprobadas a escala internacional para proteger las comunicaciones por correo electrónico y mitigar las vulnerabilidades vinculadas a las amenazas relativas a este último, y establecerán medidas para acelerar dicha implantación;\nl) aplicarán las mejores prácticas sobre seguridad del sistema de nombres de dominio, la seguridad del enrutamiento de internet y la higiene del enrutamiento del tráfico con origen en la red o destinado a ella.\n\n6.7.3. Las entidades pertinentes revisarán y, cuando proceda, actualizarán estas medidas a intervalos planificados o cuando se produzcan incidentes significativos o cambios significativos en las operaciones o los riesgos.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 6.7",
+      "register": null
+    },
+    {
+      "identifier": "RE.6.8",
+      "parent": "RE.6",
+      "order": 8,
+      "kind": "requirement",
+      "title": "Segmentación de la red",
+      "description": "Segmentar las redes en zonas según el riesgo, separándolas de las de terceros y separando administración, producción y desarrollo.",
+      "actions": [
+        "Diseñar zonas de red según la evaluación de riesgos y mantener los sistemas críticos en zonas seguras.",
+        "Restringir el tráfico entre zonas a lo necesario y usar una zona desmilitarizada.",
+        "Separar la red de administración de la operativa, y producción de desarrollo y pruebas.",
+        "Revisar la segmentación periódicamente."
+      ],
+      "evidence": [
+        "Diseño de segmentación de red",
+        "Reglas de filtrado entre zonas",
+        "Evidencia de la separación de administración y de entornos de desarrollo"
+      ],
+      "officialText": "6.8.1. Las entidades pertinentes segmentarán los sistemas en redes o zonas de acuerdo con los resultados de la evaluación de riesgos a que se refiere el punto 2.1. Segmentarán sus sistemas y redes de los sistemas y redes de terceros.\n\n6.8.2. A tal efecto, las entidades pertinentes:\na) considerarán la relación funcional, lógica y física, incluida la ubicación, entre sistemas y servicios fiables;\nb) concederán acceso a una red o zona sobre la base de una evaluación de sus requisitos de seguridad;\nc) mantendrán los sistemas que resulten críticos para el funcionamiento de la entidad pertinente o para la protección en zonas seguras;\nd) implantarán una zona desmilitarizada dentro de sus redes de comunicación para ofrecer una comunicación segura desde o hacia sus redes;\ne) restringirán el acceso y las comunicaciones entre zonas y dentro de ellas a lo necesario para el funcionamiento de las entidades pertinentes o la seguridad;\nf) separarán la red específica para la administración de los sistemas de redes y de información de la red operativa de las entidades pertinentes;\ng) segregarán los canales de administración de la red del resto de tráfico de la red;\nh) separarán los sistemas de producción de los servicios de las entidades pertinentes de los sistemas utilizados para el desarrollo y las pruebas, incluidas las copias de seguridad.\n\n6.8.3. Las entidades pertinentes revisarán y, cuando proceda, actualizarán la segmentación de la red a intervalos planificados, así como cuando se produzcan incidentes significativos o cambios significativos en las operaciones o los riesgos.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 6.8",
+      "register": null
+    },
+    {
+      "identifier": "RE.6.9",
+      "parent": "RE.6",
+      "order": 9,
+      "kind": "requirement",
+      "title": "Protección frente a los programas informáticos maliciosos y no autorizados",
+      "description": "Detectar o impedir el software malicioso y no autorizado, con herramientas de detección y respuesta actualizadas.",
+      "actions": [
+        "Desplegar protección contra malware y herramientas de detección y respuesta en los sistemas.",
+        "Mantenerlas actualizadas conforme a la evaluación de riesgos y a los contratos con proveedores.",
+        "Impedir la instalación de software no autorizado."
+      ],
+      "evidence": [
+        "Inventario de herramientas de protección y su cobertura",
+        "Evidencia de actualización de las herramientas",
+        "Política de software autorizado"
+      ],
+      "officialText": "6.9.1. Las entidades pertinentes protegerán sus sistemas de redes y de información frente a los programas informáticos maliciosos y no autorizados.\n\n6.9.2. Para ello, las entidades pertinentes aplicarán, en particular, medidas para detectar o impedir el uso de programas informáticos maliciosos o no autorizados. Las entidades pertinentes velarán, cuando proceda, por que sus sistemas de redes y de información estén equipados con programas informáticos de detección y respuesta, que se actualicen periódicamente de conformidad con la evaluación de riesgos realizada con arreglo al punto 2.1 y los acuerdos contractuales con los proveedores.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 6.9",
+      "register": null
+    },
+    {
+      "identifier": "RE.6.10",
+      "parent": "RE.6",
+      "order": 10,
+      "kind": "requirement",
+      "title": "Gestión y divulgación de las vulnerabilidades",
+      "description": "Recibir información de vulnerabilidades, evaluar la exposición y tratarlas sin demora, con un procedimiento de divulgación coordinada.",
+      "actions": [
+        "Seguir fuentes de vulnerabilidades (CSIRT, autoridades, proveedores).",
+        "Hacer exploraciones de vulnerabilidades periódicas y conservar sus resultados.",
+        "Corregir sin demora las críticas o documentar por qué no requieren reparación.",
+        "Establecer un procedimiento de divulgación coordinada de vulnerabilidades."
+      ],
+      "evidence": [
+        "Procedimiento de gestión de vulnerabilidades",
+        "Informes de exploraciones de vulnerabilidades",
+        "Plan de mitigación o justificación de cada vulnerabilidad",
+        "Procedimiento de divulgación de vulnerabilidades"
+      ],
+      "officialText": "6.10.1. Las entidades pertinentes recibirán información sobre las vulnerabilidades de sus sistemas de redes y de información, evaluarán su exposición a dichas vulnerabilidades y adoptarán las medidas necesarias para gestionarlas.\n\n6.10.2. A los efectos del punto 6.10.1, las entidades pertinentes:\na) supervisarán la información sobre vulnerabilidades a través de los canales adecuados, tales como los anuncios de los CSIRT, las autoridades competentes o la información facilitada por los proveedores o prestadores de servicios;\nb) realizarán, según proceda, exploraciones de vulnerabilidad y registrarán pruebas de los resultados de las mismas, a intervalos planificados;\nc) abordarán, sin demora indebida, las vulnerabilidades que las entidades pertinentes consideren críticas para sus operaciones;\nd) asegurarán que su gestión de vulnerabilidades sea compatible con sus procedimientos de gestión de cambios, gestión de parches de seguridad, gestión de riesgos y gestión de incidentes;\ne) establecerán un procedimiento de divulgación de las vulnerabilidades de conformidad con la política coordinada de divulgación de las vulnerabilidades nacional aplicable.\n\n6.10.3. Cuando esté justificado por el posible impacto de la vulnerabilidad, las entidades pertinentes crearán y llevarán a la práctica un plan para mitigarla. En otros casos, las entidades pertinentes documentarán y justificarán el motivo por el que la vulnerabilidad no requiere reparación.\n\n6.10.4. Las entidades pertinentes revisarán y, cuando proceda, actualizarán a intervalos planificados los canales que utilizan para supervisar la información relativa a las vulnerabilidades.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 6.10",
+      "register": null
+    },
+    {
+      "identifier": "RE.7",
+      "parent": "21.2.f",
+      "order": 1,
+      "kind": "requirement",
+      "title": "Orientaciones y procedimientos para evaluar la eficacia de las medidas de gestión de riesgos de ciberseguridad",
+      "description": "Tener un procedimiento para comprobar que las medidas de ciberseguridad funcionan: qué medir, cómo, cuándo, quién lo hace y quién analiza los resultados.",
+      "actions": [
+        "Decidir qué medidas se supervisan y con qué métodos e indicadores.",
+        "Fijar cuándo se mide, quién mide y quién analiza y evalúa los resultados.",
+        "Revisar el procedimiento periódicamente y tras incidentes o cambios significativos."
+      ],
+      "evidence": [
+        "Procedimiento de evaluación de la eficacia",
+        "Cuadro de indicadores de seguridad",
+        "Informe de resultados de la medición"
+      ],
+      "officialText": "7.1. A los efectos del artículo 21, apartado 2, letra f), de la Directiva (UE) 2022/2555, las entidades pertinentes establecerán, llevarán a la práctica y aplicarán orientaciones y procedimientos para evaluar si las medidas para la gestión de riesgos de ciberseguridad que hayan adoptado se ejecutan y mantienen de manera efectiva.\n\n7.2. Las orientaciones y procedimientos a que hace referencia el punto 7.1 tendrán en cuenta los resultados de la evaluación de riesgos conforme al punto 2.1 y los incidentes significativos ocurridos en el pasado. Las entidades pertinentes determinarán:\na) qué medidas para la gestión de riesgos de ciberseguridad deben supervisarse y medirse, incluidos los procedimientos y controles;\nb) los métodos de supervisión, medición, análisis y evaluación, según corresponda, para asegurar resultados válidos;\nc) cuándo deben realizarse la supervisión y la medición;\nd) quiénes son los responsables de supervisar y medir la eficacia de las medidas para la gestión de riesgos de ciberseguridad;\ne) cuándo se deben analizar y evaluar los resultados de la supervisión y la medición;\nf) quiénes deben analizar y evaluar estos resultados.\n\n7.3. Las entidades pertinentes revisarán y, cuando proceda, actualizarán las orientaciones y los procedimientos a intervalos planificados, así como cuando se produzcan incidentes significativos o cambios significativos en las operaciones o los riesgos.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 7",
+      "register": null
+    },
+    {
+      "identifier": "RE.8",
+      "parent": "21.2.g",
+      "order": 1,
+      "kind": "group",
+      "title": "Formación en seguridad y prácticas básicas de ciberhigiene",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "officialText": "",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, sección 8",
+      "register": null
+    },
+    {
+      "identifier": "RE.8.1",
+      "parent": "RE.8",
+      "order": 1,
+      "kind": "requirement",
+      "title": "Mejora de la sensibilización y prácticas básicas de ciberhigiene",
+      "description": "Mantener un programa de sensibilización en ciberseguridad para empleados (dirección incluida) y proveedores, repetido en el tiempo y comprobado en su eficacia.",
+      "actions": [
+        "Programar actividades de sensibilización recurrentes que incluyan a los nuevos empleados.",
+        "Cubrir amenazas relevantes, medidas vigentes, puntos de contacto y ciberhigiene básica.",
+        "Comprobar su eficacia y actualizarlo según el panorama de amenazas."
+      ],
+      "evidence": [
+        "Programa de sensibilización con calendario",
+        "Registros de asistencia o participación",
+        "Resultados de pruebas de eficacia (por ejemplo, simulacros de phishing)"
+      ],
+      "officialText": "8.1.1. A los efectos del artículo 21, apartado 2, letra g), de la Directiva (UE) 2022/2555, las entidades pertinentes se asegurarán de que sus empleados, incluidos los miembros de los órganos de dirección, así como sus proveedores y prestadores de servicios directos sean conscientes de los riesgos, estén informados de la importancia de la ciberseguridad y apliquen prácticas de ciberhigiene.\n\n8.1.2. A los efectos del punto 8.1.1, las entidades pertinentes ofrecerán a sus empleados, incluidos los miembros de los órganos de dirección, así como a sus proveedores y prestadores de servicios directos, según proceda de conformidad con el punto 5.1.4, un programa de mejora de la sensibilización que:\na) se programará a lo largo del tiempo, de forma que se repitan las actividades e incluya a los nuevos empleados;\nb) se establecerá en consonancia con la política de seguridad de las redes y la información, las políticas específicas y los procedimientos pertinentes en materia de seguridad de las redes y de la información;\nc) englobará las ciberamenazas relevantes, las medidas para la gestión de riesgos de ciberseguridad en vigor, los puntos de contacto y los recursos para obtener información adicional y asesoramiento sobre aspectos de ciberseguridad, así como las prácticas de ciberhigiene para los usuarios.\n\n8.1.3. El programa de mejora de la sensibilización se probará en términos de eficacia, según proceda. El programa de mejora de la sensibilización se actualizará y se ofrecerá a intervalos planificados teniendo en cuenta los cambios en las prácticas de ciberhigiene y el panorama actual de amenazas y de riesgos para las entidades pertinentes.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 8.1",
+      "register": null
+    },
+    {
+      "identifier": "RE.8.2",
+      "parent": "RE.8",
+      "order": 2,
+      "kind": "requirement",
+      "title": "Formación en seguridad",
+      "description": "Dar formación especializada y periódica en seguridad a quien la necesita por su puesto, adecuada a sus funciones y evaluada.",
+      "actions": [
+        "Identificar los roles que requieren conocimientos especializados de seguridad.",
+        "Establecer un programa de formación por rol, con configuración segura, amenazas y respuesta a sucesos.",
+        "Formar a quien cambie de puesto y evaluar la eficacia.",
+        "Actualizar el programa según normas, amenazas y tecnología."
+      ],
+      "evidence": [
+        "Plan de formación por roles",
+        "Registros de formación realizada",
+        "Evaluación de la eficacia de la formación"
+      ],
+      "officialText": "8.2.1. Las entidades pertinentes indicarán cuáles son los empleados cuyos roles exigen capacidades y conocimientos especializados de seguridad y velarán por que reciban formación periódica sobre la seguridad de los sistemas de redes y de información.\n\n8.2.2. Las entidades pertinentes establecerán, pondrán en marcha y ejecutarán un programa de formación en consonancia con la política de seguridad de las redes y de la información, las políticas específicas y otros procedimientos pertinentes en materia de seguridad de las redes y de la información que determine las necesidades de formación de ciertos roles y puestos de acuerdo con criterios concretos.\n\n8.2.3. La formación contemplada en el punto 8.2.1 se adecuará a las funciones laborales de los empleados y se evaluará su eficacia. La formación tendrá en cuenta las medidas de seguridad en vigor y englobará lo siguiente:\na) instrucciones relativas a la configuración y el funcionamiento seguros de los sistemas de redes y de información, incluidos los dispositivos móviles;\nb) información sobre ciberamenazas conocidas;\nc) formación relativa al comportamiento frente a sucesos relevantes para la seguridad.\n\n8.2.4. Las entidades pertinentes llevarán a cabo la formación para los miembros del personal que se trasladen a nuevos puestos o roles que requieran capacidades y conocimientos especializados en seguridad.\n\n8.2.5. El programa se actualizará y desarrollará de manera periódica teniendo en cuenta las normas y reglas aplicables, los roles asignados, las responsabilidades, así como las ciberamenazas conocidas y los avances tecnológicos.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 8.2",
+      "register": null
+    },
+    {
+      "identifier": "RE.9",
+      "parent": "21.2.h",
+      "order": 1,
+      "kind": "requirement",
+      "title": "Criptografía",
+      "description": "Tener una política de criptografía que fije qué se cifra, con qué algoritmos y cómo se gestionan las claves durante todo su ciclo de vida.",
+      "actions": [
+        "Definir qué datos (en reposo y en tránsito) se cifran según su clasificación y qué protocolos y algoritmos se admiten.",
+        "Documentar la gestión de claves: generación, distribución, almacenamiento, cambio, revocación, copia y destrucción.",
+        "Registrar y auditar las actividades de gestión de claves.",
+        "Revisar la política según los avances en criptografía."
+      ],
+      "evidence": [
+        "Política de criptografía y gestión de claves",
+        "Catálogo de algoritmos y protocolos aprobados",
+        "Registros de gestión y auditoría de claves"
+      ],
+      "officialText": "9.1. A los efectos del artículo 21, apartado 2, letra h), de la Directiva (UE) 2022/2555, las entidades pertinentes establecerán, llevarán a la práctica y aplicarán orientaciones y procedimientos relativos a la criptografía, con el objetivo de asegurar un uso adecuado y eficaz de la misma para proteger la confidencialidad, autenticidad e integridad de la información en consonancia con la clasificación de activos de las entidades pertinentes y los resultados de la evaluación de riesgos realizada de conformidad con el punto 2.1.\n\n9.2. Las orientaciones y procedimientos a que hace referencia el punto 9.1 establecerán:\na) de acuerdo con la clasificación de activos de las entidades pertinentes, el tipo, la firmeza y la calidad de las medidas criptográficas necesarias para proteger los activos de dichas entidades, incluidos los datos en reposo y los datos en tránsito;\nb) teniendo en cuenta la letra a), los protocolos o las familias de protocolos que deben adoptarse, así como los algoritmos criptográficos, la solidez del cifrado, las soluciones criptográficas y las prácticas de uso que deben aprobarse y exigirse para su uso en las entidades, siguiendo, cuando proceda, un enfoque de agilidad criptográfica;\nc) el enfoque de las entidades pertinentes sobre la gestión de claves, que incluya, cuando proceda, métodos para lo siguiente:\ni) generar distintas claves para sistemas y aplicaciones criptográficos;\nii) expedir y obtener certificados de clave pública;\niii) distribuir claves a las entidades en cuestión, incluida información sobre cómo activar las claves cuando se reciban;\niv) almacenar claves, incluida información sobre cómo acceden a ellas los usuarios autorizados;\nv) cambiar o actualizar las claves, incluida información sobre cuándo y cómo modificarlas;\nvi) gestionar las claves en riesgo;\nvii) anular claves, incluida información sobre cómo retirarlas o desactivarlas;\nviii) recuperar las claves perdidas o corrompidas;\nix) hacer copias de seguridad y crear archivos de las claves;\nx) destruir claves;\nxi) hacer un registro y auditar las actividades relativas a la gestión de claves.\nxii) fijar las fechas de activación y desactivación de las claves asegurándose de que estas solo pueden utilizarse durante el período de tiempo especificado de acuerdo con las normas de gestión de claves de la organización.\n\n9.3. Las entidades pertinentes revisarán y, cuando proceda, actualizarán las orientaciones y los procedimientos a intervalos planificados teniendo en cuenta los últimos avances en criptografía.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 9",
+      "register": null
+    },
+    {
+      "identifier": "RE.10",
+      "parent": "21.2.i",
+      "order": 1,
+      "kind": "group",
+      "title": "Seguridad de los recursos humanos",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "officialText": "",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, sección 10",
+      "register": null
+    },
+    {
+      "identifier": "RE.10.1",
+      "parent": "RE.10",
+      "order": 1,
+      "kind": "requirement",
+      "title": "Seguridad de los recursos humanos",
+      "description": "Asegurar que empleados y proveedores entienden y asumen sus responsabilidades de seguridad, que administradores y dirección conocen las suyas y que se contrata a personal cualificado.",
+      "actions": [
+        "Incluir las responsabilidades de seguridad en contratos y condiciones de empleo.",
+        "Informar a administradores, usuarios privilegiados y dirección de sus roles y responsabilidades.",
+        "Aplicar mecanismos de contratación de personal cualificado (referencias, evaluaciones, certificaciones).",
+        "Revisar al menos una vez al año la asignación de personal a roles de seguridad."
+      ],
+      "evidence": [
+        "Cláusulas de seguridad en contratos de empleo",
+        "Aceptación de políticas por empleados y terceros",
+        "Procedimiento de contratación con verificación de cualificación",
+        "Registro de la revisión anual de asignación de roles"
+      ],
+      "officialText": "10.1.1. A los efectos del artículo 21, apartado 2, letra i), de la Directiva (UE) 2022/2555, las entidades pertinentes se asegurarán de que sus empleados y sus proveedores y prestadores de servicios directos, cuando proceda, entiendan sus responsabilidades en materia de seguridad y se comprometan a ellas, según convenga con relación a los servicios ofrecidos y el puesto de trabajo y en consonancia con la política de seguridad de los sistemas de redes y de información de la entidad pertinente.\n\n10.1.2. El requisito contemplado en el punto 10.1.1 incluirá lo siguiente:\na) mecanismos para garantizar que todos los empleados, proveedores y prestadores de servicios directos, cuando proceda, entiendan y respeten las prácticas estándar de ciberhigiene aplicadas por las entidades pertinentes de acuerdo con el punto 8.1;\nb) mecanismos para garantizar que todos los usuarios que dispongan de acceso de administración o privilegiado conozcan sus roles, responsabilidades y autoridades y actúen de conformidad con ellos;\nc) mecanismos para garantizar que los miembros de los órganos de dirección conozcan sus roles, responsabilidades y autoridades y actúen de conformidad con ellos en lo que se refiere a la seguridad de los sistemas de redes y de información;\nd) mecanismos para contratar personal cualificado para los roles correspondientes, como por ejemplo, los controles de referencia, los procedimientos de evaluación, la validación de certificaciones o las pruebas escritas.\n\n10.1.3. Las entidades pertinentes revisarán la asignación de personal a roles específicos, tal como se recoge en el punto 1.2, así como su atribución de recursos humanos a este respecto, a intervalos planificados y al menos una vez al año. Las entidades actualizarán la asignación cuando sea necesario.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 10.1",
+      "register": null
+    },
+    {
+      "identifier": "RE.10.2",
+      "parent": "RE.10",
+      "order": 2,
+      "kind": "requirement",
+      "title": "Comprobación de antecedentes",
+      "description": "Comprobar los antecedentes de quien va a ocupar roles sensibles, antes de que los ejerza y dentro de lo que permita la ley.",
+      "actions": [
+        "Definir qué roles exigen comprobación de antecedentes.",
+        "Realizar la comprobación antes de que la persona empiece, respetando la normativa aplicable.",
+        "Revisar la política periódicamente."
+      ],
+      "evidence": [
+        "Política de comprobación de antecedentes",
+        "Lista de roles que la requieren",
+        "Registro de comprobaciones realizadas (sin datos innecesarios)"
+      ],
+      "officialText": "10.2.1. Las entidades pertinentes se asegurarán, en la medida posible, de comprobar los antecedentes personales de sus empleados y, cuando proceda, de sus proveedores y prestadores de servicios directos, de conformidad con el apartado 5.1.4, cuando resulte necesario para sus roles, responsabilidades y autoridades.\n\n10.2.2. A los efectos del punto 10.2.1, las entidades pertinentes:\na) aplicarán criterios que establezcan qué roles, responsabilidades y autoridades deben ejercer exclusivamente aquellas personas cuyos antecedentes hayan sido comprobados;\nb) se asegurarán de que estas comprobaciones contempladas en el punto 10.2.1 se lleven a cabo antes de que estas personas empiecen a ejercer dichos roles, responsabilidades y autoridades, que tendrán en cuenta las disposiciones legales, normativas y éticas aplicables en proporción a los requisitos operativos, la clasificación de activos contemplada en el apartado 12.1 y los sistemas de redes y de información a los que va a accederse, así como los riesgos percibidos.\n\n10.2.3. Las entidades pertinentes revisarán la política a intervalos planificados y la actualizarán según proceda.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 10.2",
+      "register": null
+    },
+    {
+      "identifier": "RE.10.3",
+      "parent": "RE.10",
+      "order": 3,
+      "kind": "requirement",
+      "title": "Terminación o cambio de los procedimientos de contratación",
+      "description": "Fijar por contrato qué obligaciones de seguridad siguen vigentes cuando alguien termina o cambia de puesto, como la confidencialidad.",
+      "actions": [
+        "Incluir en contratos y acuerdos las responsabilidades que continúan tras la baja o el cambio de puesto.",
+        "Aplicar el procedimiento de salida o cambio de puesto."
+      ],
+      "evidence": [
+        "Cláusulas de confidencialidad y obligaciones posteriores al contrato",
+        "Procedimiento de baja y de cambio de puesto"
+      ],
+      "officialText": "10.3.1. Las entidades pertinentes se asegurarán de que la seguridad de los sistemas de redes y de información y las tareas que sigan siendo válidas tras la terminación o el cambio de empleo de sus empleados se definan y ejecuten contractualmente.\n\n10.3.2. A los efectos del punto 10.3.1, las entidades pertinentes recogerán en las condiciones de empleo, contrato o acuerdo de cada persona, las responsabilidades y funciones que siguen teniendo validez una vez finalizado el empleo o contrato, como por ejemplo las cláusulas de confidencialidad.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 10.3",
+      "register": null
+    },
+    {
+      "identifier": "RE.10.4",
+      "parent": "RE.10",
+      "order": 4,
+      "kind": "requirement",
+      "title": "Procedimiento disciplinario",
+      "description": "Tener un procedimiento disciplinario comunicado para los incumplimientos de las políticas de seguridad, conforme a la normativa aplicable.",
+      "actions": [
+        "Establecer y comunicar el procedimiento disciplinario por incumplimientos de seguridad.",
+        "Revisarlo periódicamente y ante cambios legales o de operación."
+      ],
+      "evidence": [
+        "Procedimiento disciplinario de seguridad",
+        "Constancia de su comunicación al personal"
+      ],
+      "officialText": "10.4.1. Las entidades pertinentes establecerán, comunicarán y mantendrán un procedimiento disciplinario para gestionar los incumplimientos de las políticas de seguridad de los sistemas de redes y de información. El proceso tendrá en cuenta los requisitos legales, estatutarios, contractuales y empresariales pertinentes.\n\n10.4.2. Las entidades pertinentes revisarán y, cuando proceda, actualizarán los procedimientos disciplinarios a intervalos planificados o cuando resulte necesario debido a cambios jurídicos o cambios significativos en las operaciones o los riesgos.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 10.4",
+      "register": null
+    },
+    {
+      "identifier": "RE.11",
+      "parent": "21.2.i",
+      "order": 2,
+      "kind": "group",
+      "title": "Control de accesos",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "officialText": "",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, sección 11",
+      "register": null
+    },
+    {
+      "identifier": "RE.11.1",
+      "parent": "RE.11",
+      "order": 1,
+      "kind": "requirement",
+      "title": "Política de control de accesos",
+      "description": "Tener una política de control de acceso, lógico y físico, que cubra a las personas (personal, visitantes y terceros) y a los sistemas, y permita el acceso solo a usuarios autenticados.",
+      "actions": [
+        "Redactar la política según requisitos de negocio y de seguridad.",
+        "Cubrir el acceso de personas y de sistemas, y exigir autenticación.",
+        "Revisarla periódicamente y tras incidentes o cambios significativos."
+      ],
+      "evidence": [
+        "Política de control de acceso aprobada",
+        "Registro de su revisión"
+      ],
+      "officialText": "11.1.1. A los efectos del artículo 21, apartado 2, letra i), de la Directiva (UE) 2022/2555, las entidades pertinentes establecerán, documentarán y pondrán en marcha políticas de control de acceso lógico y físico relativas al acceso a sus sistemas de redes y de información; basándose en requisitos empresariales y en requisitos de seguridad de los sistemas de redes y de información.\n\n11.1.2. La política a que hace referencia el punto 11.1.1 se encargará de lo siguiente:\na) el acceso de personas, como el personal, los visitantes y las entidades externas, como los proveedores y prestadores de servicios;\nb) el acceso por parte de los sistemas de redes y de información;\nc) garantizar que solo se autorice el acceso a usuarios que hayan sido debidamente autenticados.\n\n11.1.3. Las entidades pertinentes revisarán y, cuando proceda, actualizarán las políticas a intervalos planificados o cuando se produzcan incidentes significativos o cambios significativos en las operaciones o los riesgos.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 11.1",
+      "register": null
+    },
+    {
+      "identifier": "RE.11.2",
+      "parent": "RE.11",
+      "order": 2,
+      "kind": "requirement",
+      "title": "Gestión de derechos de acceso",
+      "description": "Conceder, modificar y retirar los derechos de acceso con control: lo mínimo necesario, autorizado, registrado y revisado de forma periódica.",
+      "actions": [
+        "Aplicar necesidad de conocer, mínimo privilegio y separación de funciones.",
+        "Ajustar o retirar derechos al terminar o cambiar el empleo.",
+        "Exigir autorización de las personas pertinentes y limitar el acceso de terceros en alcance y duración.",
+        "Mantener un registro de derechos concedidos y revisarlos de forma periódica."
+      ],
+      "evidence": [
+        "Procedimiento de gestión de derechos de acceso",
+        "Registro de derechos de acceso concedidos",
+        "Acta de la última revisión de derechos de acceso"
+      ],
+      "officialText": "11.2.1. Las entidades pertinentes ofrecerán, modificarán, retirarán y documentarán los derechos de acceso a los sistemas de redes y de información de conformidad con la política de control de accesos prevista en el punto 11.1.\n\n11.2.2. Las entidades pertinentes:\na) concederán y retirarán los derechos de acceso sobre la base de los principios de necesidad de conocer, el mínimo privilegio y separación de competencias;\nb) velarán por que los derechos de acceso se modifiquen en consecuencia tras la terminación o el cambio de empleo;\nc) velarán por que las personas pertinentes autoricen el acceso a los sistemas de redes y de información;\nd) velarán por que los derechos de acceso se encarguen debidamente del acceso de terceros, como visitantes o proveedores y prestadores de servicios, especialmente limitando los derechos de acceso en su alcance y duración;\ne) mantendrán un registro de los derechos de acceso concedidos;\nf) realizarán un registro de la gestión de los derechos de acceso.\n\n11.2.3. Las entidades pertinentes revisarán los derechos de acceso a intervalos planificados y los modificarán según los cambios organizativos. Las entidades pertinentes documentarán los resultados de la revisión e incluirán los cambios necesarios de los derechos de acceso.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 11.2",
+      "register": null
+    },
+    {
+      "identifier": "RE.11.3",
+      "parent": "RE.11",
+      "order": 3,
+      "kind": "requirement",
+      "title": "Cuentas privilegiadas y cuentas de administración del sistema",
+      "description": "Gestionar con más rigor las cuentas privilegiadas y de administración: autenticación fuerte, cuentas específicas para administrar, privilegios mínimos y revisión periódica.",
+      "actions": [
+        "Usar cuentas separadas solo para administración y limitar sus privilegios al mínimo.",
+        "Exigir identificación y autenticación robusta, con múltiples factores, y autorización explícita.",
+        "Revisar los derechos de estas cuentas periódicamente y documentar el resultado."
+      ],
+      "evidence": [
+        "Directrices de gestión de cuentas privilegiadas",
+        "Listado de cuentas privilegiadas y de administración",
+        "Registro de la revisión de privilegios"
+      ],
+      "officialText": "11.3.1. Las entidades pertinentes dispondrán de orientaciones para la gestión de cuentas privilegiadas y cuentas de administración del sistema como parte de la política de control de acceso contemplada en el punto 11.1.\n\n11.3.2. La política a que hace referencia el punto 11.3.1 se encargará de lo siguiente:\na) establecer procedimientos sólidos de identificación y autenticación, como la autenticación de múltiples factores, y procedimientos de autorización para cuentas privilegiadas y cuentas de administración del sistema;\nb) crear cuentas específicas que vayan a utilizarse exclusivamente para operaciones de administración del sistema, tales como la instalación, la configuración, la gestión o el mantenimiento;\nc) personalizar y restringir en la mayor medida posible los privilegios de la administración del sistema;\nd) prever que las cuentas de administración del sistema solo se utilicen para conectarse a los sistemas de administración correspondientes.\n\n11.3.3. Las entidades pertinentes revisarán los derechos de acceso de las cuentas privilegiadas y las cuentas de administración del sistema a intervalos planificados, los modificarán teniendo en cuenta los cambios organizativos y documentarán los resultados de la revisión, incluidos los cambios necesarios en los derechos de acceso.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 11.3",
+      "register": null
+    },
+    {
+      "identifier": "RE.11.4",
+      "parent": "RE.11",
+      "order": 4,
+      "kind": "requirement",
+      "title": "Sistemas de administración",
+      "description": "Usar los sistemas de administración solo para administrar, separados lógicamente de las aplicaciones y con acceso protegido por autenticación y cifrado.",
+      "actions": [
+        "Reservar los sistemas de administración a esa función.",
+        "Separarlos lógicamente de las aplicaciones no administrativas.",
+        "Proteger su acceso con autenticación y cifrado."
+      ],
+      "evidence": [
+        "Descripción de los sistemas de administración y su separación",
+        "Configuración de autenticación y cifrado de acceso"
+      ],
+      "officialText": "11.4.1. Las entidades pertinentes restringirán el uso de los sistemas de administración del sistema de conformidad con la política de control de accesos prevista en el punto 11.1.\n\n11.4.2. A tal efecto, las entidades pertinentes:\na) utilizarán únicamente sistemas de administración del sistema a efectos de administración del mismo y no para otras operaciones;\nb) separar lógicamente estos sistemas de los programas de aplicación que no se utilicen con fines de administración del sistema;\nc) protegerán el acceso a los sistemas de administración del sistema mediante la autenticación y el cifrado.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 11.4",
+      "register": null
+    },
+    {
+      "identifier": "RE.11.5",
+      "parent": "RE.11",
+      "order": 5,
+      "kind": "requirement",
+      "title": "Identificación",
+      "description": "Gestionar el ciclo de vida de las identidades: identidades únicas asociadas a una persona, cuentas compartidas solo justificadas y desactivación inmediata de las que no hacen falta.",
+      "actions": [
+        "Crear identidades únicas para usuarios y sistemas y asociar cada una a una sola persona.",
+        "Aprobar y documentar las identidades compartidas y tenerlas en cuenta en el análisis de riesgos.",
+        "Revisar las identidades periódicamente y desactivar de inmediato las innecesarias."
+      ],
+      "evidence": [
+        "Procedimiento de gestión de identidades",
+        "Inventario de identidades y cuentas",
+        "Registro de revisión y baja de identidades"
+      ],
+      "officialText": "11.5.1. Las entidades pertinentes gestionarán todo el ciclo de vida de las identidades de los sistemas de redes y de información y sus usuarios.\n\n11.5.2. A tal efecto, las entidades pertinentes:\na) crearán identidades únicas para los sistemas de redes y de información y sus usuarios;\nb) asociarán la identidad de los usuarios a una sola persona;\nc) se encargarán de la supervisión de las identidades de los sistemas de redes y de información;\nd) realizarán un registro de la gestión de las identidades.\n\n11.5.3. las entidades pertinentes solo autorizarán las identidades asignadas a múltiples personas, como las identidades compartidas, cuando sean necesarias por razones empresariales u operativas y estén sujetas a un proceso de aprobación y documentación explícito. Las entidades pertinentes tendrán en cuenta las identidades asignadas a múltiples personas en el marco de gestión de riesgos de ciberseguridad contemplado en el punto 2.1.\n\n11.5.4. Las entidades pertinentes revisarán periódicamente las identidades correspondientes a los sistemas de redes y de información y sus usuarios y, cuando ya no sean necesarias, las desactivarán inmediatamente.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 11.5",
+      "register": null
+    },
+    {
+      "identifier": "RE.11.6",
+      "parent": "RE.11",
+      "order": 6,
+      "kind": "requirement",
+      "title": "Autenticación",
+      "description": "Autenticar con mecanismos acordes a la sensibilidad del activo, proteger las credenciales y aplicar bloqueos, cierre de sesión y credenciales separadas para lo privilegiado.",
+      "actions": [
+        "Adecuar la fortaleza de la autenticación a la clasificación del activo.",
+        "Controlar la asignación y confidencialidad de las credenciales y exigir cambio inicial y ante sospecha.",
+        "Bloquear tras intentos fallidos y cerrar sesiones inactivas.",
+        "Exigir credenciales distintas para accesos privilegiados y revisar los mecanismos periódicamente."
+      ],
+      "evidence": [
+        "Política de autenticación y contraseñas",
+        "Configuración de bloqueo y cierre de sesión",
+        "Registro de revisión de los mecanismos de autenticación"
+      ],
+      "officialText": "11.6.1. Las entidades pertinentes pondrán en marcha tecnologías y procedimientos de autenticación seguros basados en las restricciones de acceso y en la política de control de acceso.\n\n11.6.2. A tal efecto, las entidades pertinentes:\na) garantizarán que la solidez de la autenticación sea adecuada para a la clasificación del activo al que se va a acceder;\nb) controlar la asignación a los usuarios y la gestión de información de autenticación secreta mediante un proceso que garantice la confidencialidad de la información, incluido el asesoramiento al personal sobre el tratamiento adecuado de la información de autenticación;\nc) exigir el cambio de credenciales de autenticación al principio, a intervalos predefinidos y cuando se sospeche que las credenciales corren algún peligro;\nd) exigir el restablecimiento de las credenciales y el bloqueo de los usuarios tras un número predefinido de intentos de conexión infructuosos;\ne) cerrar las sesiones inactivas tras un período de inactividad predefinido; y\nf) exigir credenciales separadas para obtener un acceso privilegiado o acceder a cuentas de administración.\n\n11.6.3. En la medida de lo posible, las entidades pertinentes utilizarán los métodos de autenticación más avanzados, de conformidad con el riesgo evaluado asociado y la clasificación del activo al que se vaya a acceder, así como información de autenticación exclusiva.\n\n11.6.4. Las entidades pertinentes revisarán los procedimientos y las tecnologías de autenticación a intervalos planificados.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 11.6",
+      "register": null
+    },
+    {
+      "identifier": "RE.12",
+      "parent": "21.2.i",
+      "order": 3,
+      "kind": "group",
+      "title": "Gestión de activos",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "officialText": "",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, sección 12",
+      "register": null
+    },
+    {
+      "identifier": "RE.12.1",
+      "parent": "RE.12",
+      "order": 1,
+      "kind": "requirement",
+      "title": "Clasificación de activos",
+      "description": "Clasificar todos los activos, información incluida, por niveles de protección según confidencialidad, integridad, autenticidad y disponibilidad.",
+      "actions": [
+        "Definir un sistema de niveles de clasificación.",
+        "Asignar a cada activo su nivel según sensibilidad, criticidad y valor para el negocio.",
+        "Alinear los requisitos de disponibilidad con los planes de continuidad y revisar la clasificación periódicamente."
+      ],
+      "evidence": [
+        "Política de clasificación de activos",
+        "Inventario con el nivel de clasificación de cada activo",
+        "Registro de la revisión de la clasificación"
+      ],
+      "officialText": "12.1.1. A los efectos del artículo 21, apartado 2, letra i), de la Directiva (UE) 2022/2555, las entidades pertinentes establecerán los niveles de clasificación de todos los activos, incluida la información, que formen parte del ámbito de sus sistemas de redes y de información con relación al nivel de protección requerido.\n\n12.1.2. A los efectos del punto 12.1.1, las entidades pertinentes:\na) establecerán un sistema de niveles de clasificación de los activos;\nb) asociarán todos los activos con un nivel de clasificación, basado en los requisitos de confidencialidad, integridad, autenticidad y disponibilidad, para indicar la protección requerida en función de su sensibilidad, criticidad, riesgo y valor empresarial;\nc) amoldarán los requisitos de disponibilidad de los activos a los objetivos de entrega y recuperación establecidos en sus planes de continuidad de las actividades y de recuperación en caso de catástrofe.\n\n12.1.3. Las entidades pertinentes realizarán revisiones periódicas de los niveles de clasificación de los activos y los actualizarán, según proceda.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 12.1",
+      "register": null
+    },
+    {
+      "identifier": "RE.12.2",
+      "parent": "RE.12",
+      "order": 2,
+      "kind": "requirement",
+      "title": "Gestión de activos",
+      "description": "Tener una política de gestión de activos que cubra su vida útil completa: adquisición, uso, almacenamiento, transporte y eliminación segura.",
+      "actions": [
+        "Redactar la política y comunicarla a quien usa o gestiona los activos.",
+        "Fijar normas de uso, almacenamiento y transporte seguros y de supresión irreversible.",
+        "Revisarla periódicamente y tras incidentes o cambios significativos."
+      ],
+      "evidence": [
+        "Política de gestión de activos",
+        "Constancia de comunicación a los usuarios",
+        "Registro de revisión de la política"
+      ],
+      "officialText": "12.2.1. Las entidades pertinentes establecerán, pondrán en marcha y aplicarán una política para la correcta gestión de los activos, incluida la información, acorde con su política de seguridad de las redes y de la información y la pondrán en conocimiento de todo aquel que utilice o gestione los activos.\n\n12.2.2. Dicha política:\na) hará referencia a toda la vida útil de los activos, especialmente su adquisición, uso, almacenamiento, transporte y eliminación;\nb) establecerá normas para su uso seguro, su almacenamiento seguro, su transporte seguro y la supresión y destrucción irreversibles de los activos;\nc) preverá que la transferencia se lleve a cabo de manera segura, de conformidad con el tipo de activo que transfiera.\n\n12.2.3. Las entidades pertinentes revisarán y, cuando proceda, actualizarán la política a intervalos planificados o cuando se produzcan incidentes significativos o cambios significativos en las operaciones o los riesgos.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 12.2",
+      "register": null
+    },
+    {
+      "identifier": "RE.12.3",
+      "parent": "RE.12",
+      "order": 3,
+      "kind": "requirement",
+      "title": "Política de soportes extraíbles",
+      "description": "Controlar los soportes extraíbles: prohibir su conexión salvo motivo, desactivar la ejecución automática, analizarlos antes de usarlos y proteger los datos que contienen.",
+      "actions": [
+        "Bloquear técnicamente los soportes extraíbles salvo uso justificado.",
+        "Desactivar la reproducción automática y analizar el contenido antes de usarlo.",
+        "Proteger los soportes con datos en tránsito y almacenamiento, cifrándolos cuando proceda."
+      ],
+      "evidence": [
+        "Política de soportes extraíbles",
+        "Configuración técnica de bloqueo o control",
+        "Constancia de comunicación al personal"
+      ],
+      "officialText": "12.3.1. Las entidades pertinentes establecerán, pondrán en marcha y aplicarán una política relativa a la gestión de soportes de almacenamiento extraíbles y la pondrán en conocimiento de sus empleados y de terceros que manipulen soportes de almacenamiento extraíbles en las instalaciones de las entidades pertinentes o en otros lugares en los que los soportes extraíbles estén conectados a los sistemas de redes y de información de la entidad.\n\n12.3.2. Dicha política:\na) preverá una prohibición técnica para la conexión de soportes extraíbles salvo que existan razones internas para su uso;\nb) preverá la deshabilitación de la reproducción automática desde dichos soportes y la detección de códigos maliciosos en los mismos antes de que se utilicen en los sistemas de las entidades pertinentes;\nc) preverá medidas para controlar y proteger los soportes de almacenamiento extraíbles que contengan datos durante el tránsito y el almacenamiento;\nd) según proceda, preverá medidas para la utilización de técnicas criptográficas para proteger los datos contenidos en los soportes de almacenamiento extraíbles.\n\n12.3.3. Las entidades pertinentes revisarán y, cuando proceda, actualizarán la política a intervalos planificados o cuando se produzcan incidentes significativos o cambios significativos en las operaciones o los riesgos.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 12.3",
+      "register": null
+    },
+    {
+      "identifier": "RE.12.4",
+      "parent": "RE.12",
+      "order": 4,
+      "kind": "requirement",
+      "title": "Inventario de activos",
+      "description": "Mantener un inventario completo, preciso y actualizado de operaciones, servicios, sistemas y otros activos de apoyo, con historial de cambios.",
+      "actions": [
+        "Crear el inventario con el nivel de detalle que necesita la entidad.",
+        "Incluir operaciones y servicios, y los sistemas y activos que los sostienen.",
+        "Revisarlo periódicamente y registrar los cambios."
+      ],
+      "evidence": [
+        "Inventario de activos",
+        "Historial de cambios del inventario",
+        "Registro de revisión periódica"
+      ],
+      "officialText": "12.4.1. Las entidades pertinentes crearán y mantendrán un inventario completo, preciso, actualizado y coherente de sus activos. Registrarán los cambios en las entradas del inventario de manera que puedan rastrearse.\n\n12.4.2. La granularidad del inventario de los activos se situará en un nivel adecuado a las necesidades de las entidades pertinentes. El inventario incluirá lo siguiente:\na) la lista de operaciones y servicios y su descripción;\nb) la lista de sistemas de redes y de información y otros activos asociados que sirvan de apoyo a las operaciones y servicios de las entidades pertinentes.\n\n12.4.3. Las entidades pertinentes revisarán y actualizarán periódicamente el inventario y sus activos y registrarán el historial de cambios.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 12.4",
+      "register": null
+    },
+    {
+      "identifier": "RE.12.5",
+      "parent": "RE.12",
+      "order": 5,
+      "kind": "requirement",
+      "title": "Depósito, devolución o supresión de activos al término de la relación laboral",
+      "description": "Tener un procedimiento para que, al terminar la relación laboral, los activos del personal se depositen, devuelvan o supriman, y que quede constancia.",
+      "actions": [
+        "Establecer el procedimiento de entrega, devolución o supresión de activos al terminar la relación laboral.",
+        "Documentar cada entrega, devolución o supresión.",
+        "Si no es posible recuperar un activo, impedir que acceda a los sistemas."
+      ],
+      "evidence": [
+        "Procedimiento de devolución de activos",
+        "Registros de entrega, devolución o supresión",
+        "Registro de revocación de acceso de activos no recuperados"
+      ],
+      "officialText": "12.5. Las entidades pertinentes crearán, pondrán en marcha y aplicarán procedimientos para que los activos bajo custodia del personal sean depositados, devueltos o suprimidos al término de la relación laboral, y documentarán el depósito, la devolución y la supresión de dichos activos. Cuando no sea posible el depósito, la devolución o la supresión de activos, las entidades pertinentes se asegurarán de que dichos activos ya no puedan acceder a los sistemas de redes y de información de la entidad de conformidad con el punto 12.2.2.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 12.5",
+      "register": null
+    },
+    {
+      "identifier": "RE.11.7",
+      "parent": "21.2.j",
+      "order": 1,
+      "kind": "requirement",
+      "title": "Autenticación de múltiples factores",
+      "description": "Exigir varios factores de autenticación (o autenticación continua) para acceder a los sistemas, con una solidez acorde al activo.",
+      "actions": [
+        "Activar la autenticación multifactor en los accesos a los sistemas, empezando por los más críticos y los privilegiados.",
+        "Elegir factores acordes a la clasificación del activo.",
+        "Comprobar periódicamente que no quedan accesos sin multifactor."
+      ],
+      "evidence": [
+        "Política de autenticación multifactor",
+        "Informe de cobertura de MFA por sistema o usuario",
+        "Configuración de MFA de los sistemas críticos"
+      ],
+      "officialText": "11.7.1. Las entidades pertinentes velarán por que los usuarios sean autenticados mediante múltiples factores de autenticación o mecanismos de autenticación continua para acceder a los sistemas de redes y de información la entidad, cuando proceda, de conformidad con la clasificación del activo al que se va a acceder.\n\n11.7.2. Las entidades pertinentes se asegurarán de que la solidez de la autenticación sea adecuada a la clasificación del activo al que se va a acceder.",
+      "source": "Reglamento de Ejecución (UE) 2024/2690, anexo, punto 11.7",
+      "register": null
+    },
+    {
+      "identifier": "21.3",
+      "parent": "21",
+      "order": 3,
+      "kind": "requirement",
+      "title": "Vulnerabilidades específicas de cada proveedor",
+      "description": "Al decidir las medidas de seguridad de la cadena de suministro, tener en cuenta las vulnerabilidades de cada proveedor y la calidad de sus productos y prácticas.",
+      "actions": [
+        "Evaluar a cada proveedor directo: vulnerabilidades, calidad de productos y desarrollo seguro.",
+        "Tener en cuenta las evaluaciones coordinadas de riesgos de cadenas de suministro críticas cuando existan.",
+        "Reflejarlo en las medidas y contratos con el proveedor."
+      ],
+      "evidence": [
+        "Evaluaciones de seguridad de proveedores",
+        "Registro de cómo se han tenido en cuenta en las medidas"
+      ],
+      "officialText": "3. Los Estados miembros velarán por que, al estudiar la idoneidad de las medidas a que se refiere el apartado 2, letra d), del presente artículo, las entidades tengan en cuenta las vulnerabilidades específicas de cada proveedor y prestador de servicios directo y la calidad general de los productos y las prácticas en materia de ciberseguridad de sus proveedores y prestadores de servicios, incluidos sus procedimientos de desarrollo seguro. Los Estados miembros también velarán por que, al estudiar la idoneidad de las medidas a que se refiere el apartado 2, letra d), las entidades deban tener en cuenta los resultados de las evaluaciones coordinadas de los riesgos de seguridad de las cadenas de suministro críticas realizadas de conformidad con el artículo 22, apartado 1.",
+      "source": "Directiva (UE) 2022/2555, art. 21.3",
+      "register": null
+    },
+    {
+      "identifier": "21.4",
+      "parent": "21",
+      "order": 4,
+      "kind": "requirement",
+      "title": "Medidas correctoras ante un incumplimiento",
+      "description": "Si se detecta que no se cumple alguna medida, adoptar sin demora las medidas correctoras adecuadas y proporcionadas.",
+      "actions": [
+        "Registrar cada incumplimiento detectado.",
+        "Definir y ejecutar acciones correctoras con responsable y plazo.",
+        "Verificar que la acción corrigió el incumplimiento."
+      ],
+      "evidence": [
+        "Registro de incumplimientos y acciones correctoras",
+        "Evidencia del cierre de cada acción"
+      ],
+      "officialText": "4. Los Estados miembros se asegurarán de que cuando una entidad constate que no cumple las medidas previstas en el apartado 2, adopte, sin demora indebida, todas las medidas correctoras apropiadas y proporcionadas necesarias.",
+      "source": "Directiva (UE) 2022/2555, art. 21.4",
+      "register": null
+    },
+    {
+      "identifier": "23",
+      "parent": null,
+      "order": 3,
+      "kind": "group",
+      "title": "Obligaciones de notificación (art. 23)",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "officialText": "",
+      "source": "Directiva (UE) 2022/2555, art. 23",
+      "register": null
+    },
+    {
+      "identifier": "23.1",
+      "parent": "23",
+      "order": 1,
+      "kind": "requirement",
+      "title": "Notificar sin demora los incidentes significativos",
+      "description": "Notificar al CSIRT o a la autoridad competente, sin demora indebida, cualquier incidente significativo y, cuando proceda, avisar a los destinatarios de los servicios afectados.",
+      "actions": [
+        "Designar quién notifica y por qué canal al CSIRT o a la autoridad competente.",
+        "Preparar plantillas de notificación con la información exigida, incluidas las repercusiones transfronterizas.",
+        "Definir cuándo y cómo se avisa a los destinatarios de los servicios."
+      ],
+      "evidence": [
+        "Procedimiento de notificación de incidentes significativos",
+        "Datos de contacto del CSIRT y de la autoridad competente",
+        "Plantillas de notificación",
+        "Registro de las notificaciones realizadas"
+      ],
+      "officialText": "1. Cada Estado miembro velará por que las entidades esenciales e importantes notifiquen, sin demora indebida, a su CSIRT o, en su caso, a su autoridad competente de conformidad con el apartado 4 cualquier incidente que tenga un impacto significativo en la prestación de sus servicios según se contempla en el apartado 3 (incidente significativo). Cuando proceda, las entidades afectadas notificarán, sin demora indebida, a los destinatarios de sus servicios los incidentes significativos susceptibles de afectar negativamente a la prestación de dichos servicios. Cada Estado miembro garantizará que dichas entidades notifiquen, entre otros detalles, cualquier información que permita al CSIRT o, en su caso, a la autoridad competente determinar las repercusiones transfronterizas del incidente. El mero acto de notificar no elevará la responsabilidad de la entidad notificante.\nCuando las entidades afectadas notifiquen a la autoridad competente un incidente significativo con arreglo al párrafo primero, el Estado miembro velará por que dicha autoridad competente transmita la notificación al CSIRT en el momento de su recepción.\nEn caso de un incidente significativo transfronterizo o intersectorial, los Estados miembros velarán por que se facilite a sus puntos de contacto únicos, a su debido tiempo, la información pertinente notificada de conformidad con el apartado 4.",
+      "source": "Directiva (UE) 2022/2555, art. 23.1",
+      "register": null
+    },
+    {
+      "identifier": "23.2",
+      "parent": "23",
+      "order": 2,
+      "kind": "requirement",
+      "title": "Comunicar a los destinatarios las ciberamenazas significativas",
+      "description": "Cuando proceda, informar a los destinatarios de los servicios que puedan verse afectados por una ciberamenaza significativa de las medidas que pueden aplicar.",
+      "actions": [
+        "Definir cuándo una ciberamenaza se considera significativa para los destinatarios.",
+        "Preparar el canal y el mensaje para comunicar la amenaza y las medidas recomendadas."
+      ],
+      "evidence": [
+        "Procedimiento de comunicación a destinatarios",
+        "Plantilla de aviso de ciberamenaza",
+        "Registro de comunicaciones enviadas"
+      ],
+      "officialText": "2. Cuando proceda, los Estados miembros garantizarán que las entidades esenciales e importantes comuniquen, sin demora indebida, a los destinatarios de sus servicios que puedan verse afectados por una ciberamenaza significativa las medidas o soluciones que dichos destinatarios pueden aplicar en respuesta a la amenaza. Cuando proceda, las entidades notificarán asimismo la propia ciberamenaza significativa a esos destinatarios.",
+      "source": "Directiva (UE) 2022/2555, art. 23.2",
+      "register": null
+    },
+    {
+      "identifier": "23.3",
+      "parent": "23",
+      "order": 3,
+      "kind": "requirement",
+      "title": "Identificar qué incidentes son significativos",
+      "description": "Tener criterios para saber cuándo un incidente es significativo: perturbaciones operativas graves o pérdidas económicas, o perjuicios considerables a terceros.",
+      "actions": [
+        "Fijar criterios internos de significatividad alineados con los dos supuestos de la directiva.",
+        "Aplicarlos a cada incidente y registrar la decisión."
+      ],
+      "evidence": [
+        "Criterios de incidente significativo documentados",
+        "Registro de la clasificación de cada incidente"
+      ],
+      "officialText": "3. Un incidente se considerará significativo si:\na)\nha causado o puede causar graves perturbaciones operativas de los servicios o pérdidas económicas para la entidad afectada;\nb)\nha afectado o puede afectar a otras personas físicas o jurídicas al causar perjuicios materiales o inmateriales considerables.",
+      "source": "Directiva (UE) 2022/2555, art. 23.3",
+      "register": null
+    },
+    {
+      "identifier": "23.4",
+      "parent": "23",
+      "order": 4,
+      "kind": "group",
+      "title": "Plazos de notificación (art. 23.4)",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "officialText": "4. Los Estados miembros velarán por que, a los efectos de la notificación con arreglo al apartado 1, las entidades afectadas presenten al CSIRT o, en su caso, a la autoridad competente:",
+      "source": "Directiva (UE) 2022/2555, art. 23.4",
+      "register": null
+    },
+    {
+      "identifier": "23.4.a",
+      "parent": "23.4",
+      "order": 1,
+      "kind": "requirement",
+      "title": "Alerta temprana (24 horas)",
+      "description": "Enviar una alerta temprana en un máximo de 24 horas desde que se tiene constancia de un incidente significativo, indicando si se sospecha acción ilícita o efectos transfronterizos.",
+      "actions": [
+        "Tener un procedimiento y una plantilla de alerta temprana disponibles en cualquier momento.",
+        "Controlar la hora en que se tiene constancia del incidente y el plazo de 24 horas.",
+        "Indicar si se sospecha acción ilícita o malintencionada o repercusión transfronteriza."
+      ],
+      "evidence": [
+        "Alerta temprana enviada, con fecha y hora",
+        "Registro de la hora de constancia del incidente"
+      ],
+      "officialText": "Sin demora indebida y, en cualquier caso, en el plazo de veinticuatro horas desde que se haya tenido constancia del incidente significativo, una alerta temprana en la que se indicará, cuando proceda, si cabe sospechar que el incidente significativo responde a una acción ilícita o malintencionada o puede tener repercusiones transfronterizas.",
+      "source": "Directiva (UE) 2022/2555, art. 23.4, letra a)",
+      "register": null
+    },
+    {
+      "identifier": "23.4.b",
+      "parent": "23.4",
+      "order": 2,
+      "kind": "requirement",
+      "title": "Notificación del incidente (72 horas)",
+      "description": "Presentar la notificación del incidente en un máximo de 72 horas desde que se tiene constancia, con una evaluación inicial de gravedad, impacto e indicadores de compromiso.",
+      "actions": [
+        "Preparar la plantilla de notificación con evaluación inicial de gravedad e impacto.",
+        "Incluir indicadores de compromiso cuando estén disponibles.",
+        "Vigilar el plazo de 72 horas desde la constancia del incidente."
+      ],
+      "evidence": [
+        "Notificación del incidente enviada, con fecha y hora",
+        "Evaluación inicial de gravedad e impacto"
+      ],
+      "officialText": "Sin demora indebida y, en cualquier caso, en el plazo de setenta y dos horas desde que se haya tenido constancia del incidente significativo, una notificación del incidente en la que se actualizará, cuando proceda, la información contemplada en la letra a) y se expondrá una evaluación inicial del incidente significativo, incluyendo su gravedad e impacto, así como indicadores de compromiso, cuando estén disponibles.",
+      "source": "Directiva (UE) 2022/2555, art. 23.4, letra b)",
+      "register": null
+    },
+    {
+      "identifier": "23.4.c",
+      "parent": "23.4",
+      "order": 3,
+      "kind": "requirement",
+      "title": "Informe intermedio",
+      "description": "Enviar un informe intermedio con la situación actualizada cuando lo pida el CSIRT o la autoridad competente.",
+      "actions": [
+        "Definir quién prepara y envía los informes intermedios.",
+        "Mantener actualizada la información del incidente para poder responder a una solicitud."
+      ],
+      "evidence": [
+        "Informe intermedio enviado",
+        "Solicitud del CSIRT o de la autoridad que lo motivó"
+      ],
+      "officialText": "A instancias de un CSIRT o, en su caso, de la autoridad competente, un informe intermedio con las actualizaciones pertinentes sobre la situación.",
+      "source": "Directiva (UE) 2022/2555, art. 23.4, letra c)",
+      "register": null
+    },
+    {
+      "identifier": "23.4.d",
+      "parent": "23.4",
+      "order": 4,
+      "kind": "requirement",
+      "title": "Informe final (un mes)",
+      "description": "Presentar el informe final como máximo un mes después de la notificación, con descripción, causa, medidas aplicadas y repercusiones transfronterizas.",
+      "actions": [
+        "Preparar la plantilla del informe final con los cuatro elementos exigidos.",
+        "Vigilar el plazo de un mes desde la notificación del incidente.",
+        "Documentar causa raíz y medidas paliativas aplicadas y en curso."
+      ],
+      "evidence": [
+        "Informe final enviado, con fecha",
+        "Análisis de causa raíz del incidente"
+      ],
+      "officialText": "Un informe final, a más tardar un mes después de presentar la notificación del incidente contemplada en la letra b), en el que se recojan los siguientes elementos:\ni) una descripción detallada del incidente, incluyendo su gravedad e impacto;\nii) el tipo de amenaza o causa principal que probablemente haya desencadenado el incidente;\niii) las medidas paliativas aplicadas y en curso;\niv) cuando proceda, las repercusiones transfronterizas del incidente.",
+      "source": "Directiva (UE) 2022/2555, art. 23.4, letra d)",
+      "register": null
+    },
+    {
+      "identifier": "23.4.e",
+      "parent": "23.4",
+      "order": 5,
+      "kind": "requirement",
+      "title": "Informe de situación si el incidente sigue en curso",
+      "description": "Si el incidente sigue en curso al presentar el informe final, enviar un informe de situación y el informe final en el plazo de un mes desde que se gestione.",
+      "actions": [
+        "Enviar un informe de situación cuando se cumpla el plazo del informe final con el incidente abierto.",
+        "Programar el informe final para un mes después de gestionar el incidente."
+      ],
+      "evidence": [
+        "Informe de situación enviado",
+        "Fecha de gestión del incidente y fecha del informe final"
+      ],
+      "officialText": "En el caso de que el incidente siga en curso en el momento de la presentación del informe final contemplado en la letra d), los Estados miembros velarán por que las entidades afectadas presenten un informe de situación en ese momento y un informe final en el plazo de un mes a partir de que hayan gestionado el incidente.",
+      "source": "Directiva (UE) 2022/2555, art. 23.4, letra e)",
+      "register": null
+    }
+  ]
+}

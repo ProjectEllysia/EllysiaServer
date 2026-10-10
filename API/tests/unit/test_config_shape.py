@@ -65,7 +65,7 @@ def test_root_layout(raw_config):
     ("general.security", {"argon2", "jwt", "mfa"}),
     ("infrastructure", {"database", "redis", "taskqueue"}),
     ("tools",          {"scribe", "herald"}),
-    ("features",       {"themis", "aegis", "iris", "hygeia"}),
+    ("features",       {"themis", "aegis", "iris", "hygeia", "eunomia"}),
 ])
 def test_second_level_layout(raw_config, branch, expected_children):
     assert set(_value_at(raw_config, branch)) == expected_children
@@ -191,6 +191,7 @@ CONFIG_BLOCKS = [
     (CR.HygeiaLimits, CR.hygeia_limits),
     (CR.HygeiaAnalysis, CR.hygeia_analysis),
     (CR.HygeiaStatsCache, CR.hygeia_stats_cache),
+    (CR.EunomiaConfig, CR.eunomia_config),
     (CR.ThemisConfig, CR.themis_config),
     (CR.ThemisFolders, CR.themis_folders),
     (CR.ThemisHistory, CR.themis_history),

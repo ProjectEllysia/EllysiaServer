@@ -33,7 +33,7 @@ from src.modules.features.aegis.exceptions import (
     QuizTokenInvalidError,
 )
 import src.modules.system.config_reading as CR
-from src.modules.accounts import LimitKey, QuotaManager
+from src.modules.accounts import CompanyProfileManager, LimitKey, QuotaManager
 from src.modules.tools.herald import (
     EmailMessage,
     Mailer,
@@ -42,6 +42,8 @@ from src.modules.tools.herald import (
     default_brand,
     render_email,
 )
+from datetime import timedelta
+
 from src.modules.users import User, UserManager
 from src.modules.system.taskqueue import ITaskQueue, TaskTrackingMixin, job_context
 from src.modules.system.taskqueue.dispatcher import OutboxDispatcher
@@ -49,7 +51,7 @@ from src.modules.system.taskqueue.outbox import build_dispatch
 from src.modules.system.taskqueue.outbox_repository import TaskDispatchRepository
 from src.modules.infrastructure import UnitOfWork
 from src.modules.infrastructure.session import build_repository
-from src.modules.shared import WhiteLabel, WhiteLabelLevel, assert_owned
+from src.modules.shared import WhiteLabel, WhiteLabelLevel, assert_owned, utcnow_naive
 
 from .org_profile import AegisOrgProfileManager
 from ..model import Campaign, CampaignRecipient, DistributionList
@@ -123,6 +125,24 @@ class CampaignManager(TaskTrackingMixin):
         self.user = user
         super().__init__(task_queue)
         self.mailer = mailer
+
+    def get_awareness_summary(self, user_id: int, months: int = 12) -> dict:
+        """Resume la actividad de concienciación de un usuario, para quien la necesite.
+
+        Lo consume Eunomia como evidencia automática: solo cifras agregadas, ningún
+        destinatario ni respuesta individual. No usa ``self.user``: el dueño llega por parámetro,
+        así que sirve con ``CampaignManager(user=None)``.
+
+        Args:
+            user_id: Dueño de las campañas.
+            months: Ventana hacia atrás, en meses de 30 días. Por defecto ``12``.
+
+        Returns:
+            dict: ``campaigns``, ``recipients``, ``completed``, ``answers`` y ``correctAnswers``
+                de las campañas lanzadas en la ventana.
+        """
+        since = utcnow_naive() - timedelta(days=30 * months)
+        return build_repository(CampaignRepository).get_awareness_summary(user_id, since)
 
     # =========================================================================
     # DISTRIBUTION LISTS
@@ -432,11 +452,12 @@ class CampaignManager(TaskTrackingMixin):
             # es el que el destinatario ya lee en el cuerpo ("Desde X, te
             # hacemos llegar…"), para que cabecera y texto no se contradigan.
             profile = build_repository(AegisOrgProfileRepository).get_by_user_id(self.user.id)
+            company = CompanyProfileManager().get_for(self.user.id)
             white_label = WhiteLabel.from_stored(
                 profile.white_label_level if profile else None,
-                profile.brand_logo if profile else None,
+                company["brandLogo"],
                 profile.brand_color if profile else None,
-                pill_company or (profile.company if profile else ""),
+                pill_company or company["legalName"],
             )
             # El tope del plan se vuelve a aplicar aquí: entre que se guardó el
             # ajuste y se envía la campaña la suscripción puede haber bajado.
@@ -580,11 +601,12 @@ class CampaignManager(TaskTrackingMixin):
             }
 
         profile = build_repository(AegisOrgProfileRepository).get_by_user_id(document.user_id)
+        company = CompanyProfileManager().get_for(document.user_id)
         white_label = WhiteLabel.from_stored(
             profile.white_label_level if profile else None,
-            profile.brand_logo if profile else None,
+            company["brandLogo"],
             profile.brand_color if profile else None,
-            document.company or (profile.company if profile else ""),
+            document.company or company["legalName"],
         ).capped_to(AegisOrgProfileManager.max_white_label_level(document.user_id))
 
         level = white_label.effective_level

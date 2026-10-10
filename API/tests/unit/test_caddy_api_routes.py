@@ -105,6 +105,18 @@ def spa_paths(caddyfile) -> set[str]:
 
 
 @pytest.fixture(scope="module")
+def spa_param_patterns() -> set[str]:
+    """Las rutas con un segmento variable, como el comodín de Caddy que las cubre.
+
+    ``/eunomia/marcos/:framework`` se rescata con ``/eunomia/marcos/*``: no es una URL concreta,
+    pero sí un prefijo que el matcher del SPA tiene que declarar.
+    """
+    routes = set(_ROUTE_RE.findall(_ROUTER.read_text(encoding="utf-8")))
+    return {route.split(":", 1)[0] + "*" for route in routes if ":" in route and route.startswith("/")
+            and not route.startswith("/:") and route.split(":", 1)[0].endswith("/")}
+
+
+@pytest.fixture(scope="module")
 def spa_routes() -> set[str]:
     routes = set(_ROUTE_RE.findall(_ROUTER.read_text(encoding="utf-8")))
     # El comodín `/:pathMatch(.*)*` no es una URL, es la regla de captura final.
@@ -174,11 +186,27 @@ def test_las_rutas_del_spa_bajo_un_prefijo_de_api_no_se_las_traga_flask(api_path
     )
 
 
-def test_no_quedan_matchers_del_spa_para_rutas_que_ya_no_existen(spa_paths, spa_routes):
+def test_las_rutas_con_parametro_bajo_un_prefijo_de_api_tienen_su_comodin(api_paths, spa_paths, spa_param_patterns):
+    """``/eunomia/marcos/:framework`` necesita ``/eunomia/marcos/*`` en `@spa_bajo_prefijo_api`.
+
+    El router la acepta, pero Caddy la mandaría a Flask al recargar la página.
+    """
+    capturadas = {
+        pattern for pattern in spa_param_patterns
+        if any(_captura(patron, pattern.rstrip("*") + "x") for patron in api_paths)
+    }
+    sin_rescatar = capturadas - spa_paths
+    assert not sin_rescatar, (
+        f"Rutas con parámetro del router que Caddy manda a Flask: {sorted(sin_rescatar)}. "
+        f"Añade el comodín al matcher `@spa_bajo_prefijo_api` de web/Caddyfile."
+    )
+
+
+def test_no_quedan_matchers_del_spa_para_rutas_que_ya_no_existen(spa_paths, spa_routes, spa_param_patterns):
     """El contrato también se rompe al revés: borrar una ruta del router y
     dejarse su entrada aquí. No da error, pero engaña al siguiente que lea el
     fichero creyendo que esa URL existe."""
-    huerfanas = spa_paths - spa_routes
+    huerfanas = spa_paths - spa_routes - spa_param_patterns
     assert not huerfanas, (
         f"Entradas de `@spa_bajo_prefijo_api` en web/Caddyfile sin ruta "
         f"correspondiente en web/app/src/router/index.js: {sorted(huerfanas)}"

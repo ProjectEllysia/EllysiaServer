@@ -40,6 +40,8 @@
 
         <p v-if="!account.isOwner" class="hint">{{ t('organization.memberHint') }}</p>
 
+        <CompanyProfilePanel class="section" />
+
         <template v-if="account.isOwner">
           <section class="section">
             <h2>{{ t('language.label') }}</h2>
@@ -53,10 +55,11 @@
             </select>
           </section>
 
-          <ComplianceFrameworksPicker scope="organization" class="section">
+          <section class="section">
             <h2>{{ t('profilePage.complianceTitle') }}</h2>
             <p class="section-desc">{{ t('organization.complianceDesc') }}</p>
-          </ComplianceFrameworksPicker>
+            <router-link to="/eunomia/marcos" class="link">{{ t('profilePage.complianceLink') }}</router-link>
+          </section>
 
           <section class="section">
             <h2>{{ t('organization.inviteTitle') }}</h2>
@@ -142,7 +145,7 @@ import { ref, computed, onMounted } from 'vue'
 import Topbar from '@/components/shared/Topbar.vue'
 import StarBackground from '@/components/shared/StarBackground.vue'
 import ConfirmModal from '@/components/shared/ConfirmModal.vue'
-import ComplianceFrameworksPicker from '@/components/themis/ComplianceFrameworksPicker.vue'
+import CompanyProfilePanel from '@/components/accounts/CompanyProfilePanel.vue'
 import { useApi } from '@/composables/useApi'
 import { useAccountStore } from '@/stores/accountStore'
 import { useProfileStore } from '@/stores/profileStore'

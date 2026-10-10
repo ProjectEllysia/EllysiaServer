@@ -1,0 +1,192 @@
+{
+  "key": "rgpd-actividades-tratamiento",
+  "version": "1",
+  "title": "Registro de actividades de tratamiento",
+  "summary": "Una ficha por cada tratamiento de datos personales que hace la empresa, con el contenido que fija el artículo 30.1 del RGPD.",
+  "titleField": "name",
+  "controls": {
+    "rgpd": [
+      "art.30"
+    ]
+  },
+  "advice": [
+    {
+      "companyField": "employeeCount",
+      "lessThan": 250,
+      "message": "El artículo 30.5 exime del registro a las organizaciones de menos de 250 personas, salvo que el tratamiento pueda entrañar un riesgo para los derechos y libertades de las personas, no sea ocasional o incluya categorías especiales de datos o datos penales. En la práctica casi ninguna empresa queda exenta: las nóminas no son un tratamiento ocasional."
+    }
+  ],
+  "fields": [
+    {
+      "key": "name",
+      "label": "Actividad de tratamiento",
+      "type": "text",
+      "required": true,
+      "help": "Cómo la llamas internamente: «Nóminas y personal», «Clientes»…"
+    },
+    {
+      "key": "joint_controller",
+      "label": "Corresponsable del tratamiento",
+      "type": "text",
+      "help": "Solo si otra entidad decide contigo los fines y medios (art. 30.1.a)."
+    },
+    {
+      "key": "purposes",
+      "label": "Fines del tratamiento",
+      "type": "longtext",
+      "required": true
+    },
+    {
+      "key": "legal_basis",
+      "label": "Base jurídica",
+      "type": "select",
+      "required": true,
+      "options": [
+        {
+          "value": "consent",
+          "label": "Consentimiento"
+        },
+        {
+          "value": "contract",
+          "label": "Ejecución de un contrato"
+        },
+        {
+          "value": "legal_obligation",
+          "label": "Obligación legal"
+        },
+        {
+          "value": "vital_interests",
+          "label": "Intereses vitales"
+        },
+        {
+          "value": "public_interest",
+          "label": "Misión de interés público"
+        },
+        {
+          "value": "legitimate_interest",
+          "label": "Interés legítimo"
+        }
+      ]
+    },
+    {
+      "key": "data_subjects",
+      "label": "Categorías de interesados",
+      "type": "list",
+      "required": true,
+      "help": "Una por línea: clientes, empleados, candidatos…"
+    },
+    {
+      "key": "data_categories",
+      "label": "Categorías de datos personales",
+      "type": "list",
+      "required": true,
+      "help": "Una por línea: identificativos, económicos, de contacto…"
+    },
+    {
+      "key": "special_categories",
+      "label": "¿Incluye categorías especiales de datos (art. 9)?",
+      "type": "select",
+      "options": [
+        {
+          "value": "no",
+          "label": "No"
+        },
+        {
+          "value": "yes",
+          "label": "Sí"
+        }
+      ]
+    },
+    {
+      "key": "recipients",
+      "label": "Categorías de destinatarios",
+      "type": "list",
+      "help": "Incluidos los de terceros países u organizaciones internacionales."
+    },
+    {
+      "key": "transfers",
+      "label": "Transferencias internacionales",
+      "type": "longtext",
+      "help": "Tercer país u organización y garantías aplicadas; «Ninguna» si no hay."
+    },
+    {
+      "key": "retention",
+      "label": "Plazos de supresión",
+      "type": "longtext",
+      "help": "Cuánto se conservan las distintas categorías de datos, cuando sea posible."
+    },
+    {
+      "key": "security_measures",
+      "label": "Medidas técnicas y organizativas de seguridad",
+      "type": "longtext",
+      "help": "Descripción general de las medidas del artículo 32.1."
+    },
+    {
+      "key": "responsible",
+      "label": "Responsable interno",
+      "type": "person"
+    }
+  ],
+  "examples": [
+    {
+      "name": "Nóminas y personal",
+      "purposes": "Gestión de la relación laboral: nóminas, cotizaciones, vacaciones y prevención de riesgos laborales.",
+      "legal_basis": "contract",
+      "data_subjects": "Empleados",
+      "data_categories": "Identificativos\nContacto\nEconómicos y bancarios\nAcadémicos y profesionales",
+      "special_categories": "yes",
+      "recipients": "Seguridad Social\nAgencia Tributaria\nEntidades bancarias\nGestoría laboral",
+      "transfers": "Ninguna.",
+      "retention": "Durante la relación laboral y, después, los plazos de prescripción de las obligaciones legales (en general, entre 4 y 6 años).",
+      "security_measures": "Control de acceso por perfiles, copias de seguridad cifradas, archivo físico bajo llave."
+    },
+    {
+      "name": "Clientes",
+      "purposes": "Gestión de la relación comercial: presupuestos, contratos, facturación y atención al cliente.",
+      "legal_basis": "contract",
+      "data_subjects": "Clientes",
+      "data_categories": "Identificativos\nContacto\nEconómicos y de facturación",
+      "special_categories": "no",
+      "recipients": "Administraciones tributarias\nEntidades bancarias\nGestoría",
+      "transfers": "Ninguna.",
+      "retention": "Mientras dure la relación comercial y, después, los plazos legales de conservación de la facturación.",
+      "security_measures": "Control de acceso por perfiles, copias de seguridad, cifrado de los equipos portátiles."
+    },
+    {
+      "name": "Proveedores",
+      "purposes": "Gestión de la contratación, pedidos, pagos y facturas de proveedores.",
+      "legal_basis": "contract",
+      "data_subjects": "Proveedores y personas de contacto",
+      "data_categories": "Identificativos\nContacto\nEconómicos y bancarios",
+      "special_categories": "no",
+      "recipients": "Administraciones tributarias\nEntidades bancarias",
+      "transfers": "Ninguna.",
+      "retention": "Mientras dure la relación y los plazos legales de conservación contable y fiscal.",
+      "security_measures": "Control de acceso por perfiles, copias de seguridad."
+    },
+    {
+      "name": "Videovigilancia",
+      "purposes": "Seguridad de las personas, los bienes y las instalaciones.",
+      "legal_basis": "legitimate_interest",
+      "data_subjects": "Empleados\nVisitantes",
+      "data_categories": "Imagen",
+      "special_categories": "no",
+      "recipients": "Fuerzas y cuerpos de seguridad, cuando lo requieran",
+      "transfers": "Ninguna.",
+      "retention": "Un mes desde la grabación, salvo que deban conservarse para acreditar un delito o una infracción.",
+      "security_measures": "Acceso restringido a las grabaciones, cartel informativo y registro de accesos."
+    },
+    {
+      "name": "Candidatos y selección de personal",
+      "purposes": "Gestión de los procesos de selección y de las candidaturas recibidas.",
+      "legal_basis": "consent",
+      "data_subjects": "Candidatos",
+      "data_categories": "Identificativos\nContacto\nAcadémicos y profesionales",
+      "special_categories": "no",
+      "recipients": "Ninguno.",
+      "transfers": "Ninguna.",
+      "retention": "Hasta un año desde la recepción de la candidatura, salvo que la persona retire su consentimiento antes.",
+      "security_measures": "Acceso restringido al área de recursos humanos."
+    }
+  ]
+}

@@ -1,0 +1,87 @@
+{
+  "key": "breach-subject-communication",
+  "frameworkVersion": "2016-679",
+  "title": "Comunicación de una violación de seguridad a las personas afectadas (RGPD)",
+  "summary": "La comunicación a los interesados cuando la violación entraña un alto riesgo para ellos, en lenguaje claro y sencillo (art. 34).",
+  "controls": [
+    "art.34"
+  ],
+  "fields": [
+    {
+      "key": "company_name",
+      "label": "Razón social",
+      "type": "text",
+      "required": true,
+      "source": "company.legalName"
+    },
+    {
+      "key": "contact",
+      "label": "Persona de contacto para el incidente",
+      "type": "text",
+      "required": true,
+      "source": "company.securityContact",
+      "help": "Nombre y correo o teléfono."
+    },
+    {
+      "key": "incident",
+      "label": "Incidente",
+      "type": "text",
+      "required": true,
+      "source": "record.name"
+    },
+    {
+      "key": "description",
+      "label": "Qué ha ocurrido",
+      "type": "longtext",
+      "required": true,
+      "source": "record.description"
+    },
+    {
+      "key": "consequences",
+      "label": "Consecuencias probables para las personas",
+      "type": "longtext",
+      "required": true
+    },
+    {
+      "key": "measures",
+      "label": "Medidas adoptadas y recomendaciones para las personas",
+      "type": "longtext",
+      "required": true,
+      "source": "record.measures"
+    },
+    {
+      "key": "dpo",
+      "label": "Delegado de protección de datos o punto de contacto",
+      "type": "text",
+      "required": false
+    }
+  ],
+  "sections": [
+    {
+      "heading": "Aviso sobre sus datos personales",
+      "body": "{{company_name}} le comunica que ha sufrido una incidencia de seguridad que puede afectar a sus datos personales."
+    },
+    {
+      "heading": "Qué ha ocurrido",
+      "body": "{{incident}}\n\n{{description}}"
+    },
+    {
+      "heading": "Qué consecuencias puede tener para usted",
+      "body": "{{consequences}}"
+    },
+    {
+      "heading": "Qué hemos hecho y qué puede hacer usted",
+      "body": "{{measures}}"
+    },
+    {
+      "heading": "Contacto",
+      "body": "Puede dirigirse a {{contact}}.\n\nDelegado de protección de datos: {{dpo}}"
+    },
+    {
+      "heading": "Nota",
+      "body": "Este documento es un borrador generado a partir de la ficha del incidente. Revísalo y complétalo antes de enviarlo."
+    }
+  ],
+  "version": "1",
+  "register": "incidentes-y-brechas"
+}

@@ -24,7 +24,7 @@ const sourceRoot = fileURLToPath(new URL('../src/', import.meta.url))
  * plantilla migrada: nombres propios del producto y su dominio. Las siglas
  * tampoco cuentan (ver `findHandwrittenText`).
  */
-const LANGUAGE_NEUTRAL_WORDS = new Set(['Ellysia', 'Themis', 'Aegis', 'Iris', 'Acheron', 'Hygeia', 'Lybra', 'GitHub', 'ProjectEllysia', 'Nmap', 'Nikto', 'Nuclei', 'Cron', 'Linux', 'Windows', 'macOS', 'Markdown', 'ellysia', 'es', 'v', 'ms'])
+const LANGUAGE_NEUTRAL_WORDS = new Set(['Ellysia', 'Themis', 'Aegis', 'Iris', 'Acheron', 'Hygeia', 'Eunomia', 'Lybra', 'GitHub', 'ProjectEllysia', 'Nmap', 'Nikto', 'Nuclei', 'Cron', 'Linux', 'Windows', 'macOS', 'Markdown', 'ellysia', 'es', 'v', 'ms'])
 
 /** Una etiqueta HTML entera, aunque sus atributos lleven `>` entre comillas. */
 const TAG_RE = /<(?:[^>"']|"[^"]*"|'[^']*')*>/g

@@ -1,0 +1,129 @@
+{
+  "key": "privacy-policy",
+  "framework": "rgpd",
+  "title": "Política de privacidad",
+  "summary": "Qué datos personales trata la empresa, para qué, con qué base y qué derechos tienen las personas.",
+  "controls": [
+    "art.5",
+    "art.6",
+    "art.12",
+    "art.13"
+  ],
+  "fields": [
+    {
+      "key": "company_name",
+      "label": "Razón social del responsable",
+      "type": "text",
+      "required": true,
+      "source": "company.legalName"
+    },
+    {
+      "key": "tax_id",
+      "label": "NIF",
+      "type": "text",
+      "required": true,
+      "source": "company.taxId"
+    },
+    {
+      "key": "address",
+      "label": "Domicilio",
+      "type": "text",
+      "required": true,
+      "source": "company.addressLine"
+    },
+    {
+      "key": "privacy_contact",
+      "label": "Contacto para asuntos de protección de datos",
+      "type": "text",
+      "required": true,
+      "help": "Un correo o una dirección a la que las personas puedan escribir."
+    },
+    {
+      "key": "dpo",
+      "label": "Delegado de protección de datos",
+      "type": "text",
+      "required": false,
+      "help": "Su nombre y contacto, si la empresa lo ha designado."
+    },
+    {
+      "key": "purposes",
+      "label": "Finalidades y base jurídica de cada tratamiento",
+      "type": "list",
+      "required": true,
+      "help": "Uno por línea: finalidad | base jurídica (consentimiento, contrato, obligación legal, interés legítimo…)."
+    },
+    {
+      "key": "data_categories",
+      "label": "Categorías de datos tratados",
+      "type": "list",
+      "required": true,
+      "help": "Uno por línea."
+    },
+    {
+      "key": "recipients",
+      "label": "Destinatarios o categorías de destinatarios",
+      "type": "list",
+      "required": false,
+      "help": "Uno por línea: gestoría, proveedor de alojamiento, administraciones públicas…"
+    },
+    {
+      "key": "retention",
+      "label": "Plazo de conservación",
+      "type": "longtext",
+      "required": true,
+      "help": "Cuánto tiempo se conservan los datos o los criterios para decidirlo."
+    },
+    {
+      "key": "transfers",
+      "label": "Transferencias internacionales",
+      "type": "text",
+      "required": false,
+      "default": "No se realizan transferencias de datos fuera del Espacio Económico Europeo."
+    },
+    {
+      "key": "approver",
+      "label": "Quién lo aprueba (dirección)",
+      "type": "person",
+      "required": true
+    },
+    {
+      "key": "approval_date",
+      "label": "Fecha",
+      "type": "date",
+      "required": true,
+      "source": "system.today"
+    }
+  ],
+  "sections": [
+    {
+      "heading": "1. Responsable del tratamiento",
+      "body": "{{company_name}}, con NIF {{tax_id}} y domicilio en {{address}}. Contacto para asuntos de protección de datos: {{privacy_contact}}.\n\nDelegado de protección de datos: {{dpo}}"
+    },
+    {
+      "heading": "2. Para qué y con qué base tratamos tus datos",
+      "body": "Tratamos datos personales para las siguientes finalidades, cada una con su base jurídica:\n\n{{purposes}}"
+    },
+    {
+      "heading": "3. Qué datos tratamos",
+      "body": "{{data_categories}}"
+    },
+    {
+      "heading": "4. A quién se comunican",
+      "body": "Los datos pueden comunicarse a:\n\n{{recipients}}\n\nTransferencias internacionales: {{transfers}}"
+    },
+    {
+      "heading": "5. Cuánto tiempo los conservamos",
+      "body": "{{retention}}"
+    },
+    {
+      "heading": "6. Tus derechos",
+      "body": "Puedes ejercer tus derechos de acceso, rectificación, supresión, limitación del tratamiento, oposición y portabilidad escribiendo a {{privacy_contact}}. Responderemos en el plazo de un mes desde que recibamos tu solicitud, prorrogable otros dos meses si es necesario por la complejidad o el número de solicitudes.\n\nSi el tratamiento se basa en tu consentimiento, puedes retirarlo en cualquier momento sin que afecte a la licitud del tratamiento anterior. También tienes derecho a presentar una reclamación ante la autoridad de control, en España la Agencia Española de Protección de Datos."
+    },
+    {
+      "heading": "7. Aprobación",
+      "body": "Aprobada por {{approver}} el {{approval_date}}. Este documento es un borrador generado que la dirección debe revisar y adaptar, con asesoramiento jurídico si procede, antes de utilizarlo."
+    }
+  ],
+  "frameworkVersion": "2016-679",
+  "version": "1"
+}
