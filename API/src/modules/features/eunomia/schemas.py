@@ -176,6 +176,7 @@ class AdoptedNodeSchema(Schema):
     evidence = fields.List(fields.String())
     source = fields.String()
     metadata = fields.Dict()
+    suggestions = fields.List(fields.Dict())
     linkedEvidence = fields.List(fields.Dict())
     evidenceState = fields.String()
     assessment = fields.Nested(AssessmentSchema, allow_none=True)
@@ -249,6 +250,7 @@ class SummarySchema(Schema):
     upcoming = fields.List(fields.Nested(SummaryControlSchema))
     unassigned = fields.List(fields.Nested(SummaryControlSchema))
     unassignedCount = fields.Integer()
+    suggestedCoverage = fields.Integer()
 
 
 # ── Evidencias ────────────────────────────────────────────────────────────

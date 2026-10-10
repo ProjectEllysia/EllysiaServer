@@ -179,7 +179,7 @@ def test_no_version_file_is_missing_from_the_index():
     }
     on_disk = {
         (folder.name, path.name)
-        for folder in CATALOG_ROOT.iterdir() if folder.is_dir()
+        for folder in CATALOG_ROOT.iterdir() if folder.is_dir() and folder.name != "crosswalks"
         for path in folder.glob("*.json")
     }
     assert on_disk == declared

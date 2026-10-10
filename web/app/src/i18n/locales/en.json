@@ -2002,6 +2002,16 @@
       "usageUnlimited": "Evidence: {used} used.",
       "expired": "expired",
       "expiredFlag": "evidence expired"
+    },
+    "suggestions": {
+      "title": "Already done in another framework",
+      "intro": "These controls of the other frameworks you adopted cover this one. It is a suggestion: check that it really does.",
+      "coverage": {
+        "full": "Full coverage",
+        "partial": "Partial coverage"
+      },
+      "linkHere": "Link here",
+      "summary": "{count} requirement has suggested coverage from another framework | {count} requirements have suggested coverage from other frameworks"
     }
   },
   "organizationManaged": {
