@@ -1834,7 +1834,8 @@
         "campaigns": "{count} awareness campaign | {count} awareness campaigns",
         "vaults": "{count} vault | {count} vaults",
         "subscription": "Your subscription | Your subscription",
-        "complianceFrameworks": "{count} compliance framework with its assessments | {count} compliance frameworks with their assessments"
+        "complianceFrameworks": "{count} compliance framework with its assessments | {count} compliance frameworks with their assessments",
+        "complianceEvidence": "{count} compliance evidence file | {count} compliance evidence files"
       },
       "confirmPassword": "Confirm with your password",
       "deleting": "Deleting…",

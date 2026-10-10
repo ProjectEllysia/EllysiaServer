@@ -1834,7 +1834,8 @@
         "campaigns": "{count} campaña de concienciación | {count} campañas de concienciación",
         "vaults": "{count} bóveda | {count} bóvedas",
         "subscription": "Tu suscripción | Tu suscripción",
-        "complianceFrameworks": "{count} marco de cumplimiento con sus evaluaciones | {count} marcos de cumplimiento con sus evaluaciones"
+        "complianceFrameworks": "{count} marco de cumplimiento con sus evaluaciones | {count} marcos de cumplimiento con sus evaluaciones",
+        "complianceEvidence": "{count} evidencia de cumplimiento con su fichero | {count} evidencias de cumplimiento con sus ficheros"
       },
       "confirmPassword": "Confirma con tu contraseña",
       "deleting": "Borrando…",
