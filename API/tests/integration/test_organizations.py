@@ -611,3 +611,16 @@ def test_the_profile_a_member_had_before_joining_comes_back_when_they_leave(
     client.delete("/organizations/mine", headers=auth_headers(regular_user))
     assert client.get("/organizations/company-profile",
                       headers=auth_headers(regular_user)).get_json()["legalName"] == "Mi consultora"
+
+
+def test_a_member_is_told_whose_data_they_are_looking_at(client, app, owner, regular_user, auth_headers):
+    organization = _create_org(client, auth_headers(owner), "Acme")
+    _join(app, organization["id"], regular_user.id)
+
+    body = client.get("/organizations/data-ownership", headers=auth_headers(regular_user)).get_json()
+    assert body["isOwnData"] is False
+    assert body["organizationName"] == "Acme"
+    assert body["ownerUserId"] == owner.id
+
+    own = client.get("/organizations/data-ownership", headers=auth_headers(owner)).get_json()
+    assert own["isOwnData"] is True

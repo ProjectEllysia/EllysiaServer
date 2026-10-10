@@ -1865,6 +1865,7 @@
     "saveFailed": "The company details could not be saved.",
     "loadFailed": "The company details could not be loaded."
   },
+  "organizationManaged": {"notice": "You belong to the organization {organization}. These details are managed by its owner, {owner}. Yours are kept and will apply again if you leave the organization."},
   "organization": {
     "topbar": "My organization",
     "none": "You do not have an organization yet",

@@ -1865,6 +1865,7 @@
     "saveFailed": "No se pudieron guardar los datos de la empresa.",
     "loadFailed": "No se pudieron cargar los datos de la empresa."
   },
+  "organizationManaged": {"notice": "Perteneces a la organización {organization}. Estos datos los gestiona su dueño, {owner}. Los tuyos siguen guardados y volverán a aplicarse si dejas la organización."},
   "organization": {
     "topbar": "Mi organización",
     "none": "Aún no tienes organización",

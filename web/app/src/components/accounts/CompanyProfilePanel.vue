@@ -3,6 +3,8 @@
     <h2>{{ t('companyProfile.title') }}</h2>
     <p class="cp-desc">{{ t('companyProfile.desc') }}</p>
 
+    <OrganizationManagedNotice :ownership="ownership" />
+
     <p v-if="loading" class="cp-desc">{{ t('common.loading') }}</p>
 
     <form v-else class="cp-form" @submit.prevent="save">
@@ -65,6 +67,7 @@
  */
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import OrganizationManagedNotice from '@/components/accounts/OrganizationManagedNotice.vue'
 import { useApi } from '@/composables/useApi'
 import { useToastStore } from '@/stores/toastStore'
 

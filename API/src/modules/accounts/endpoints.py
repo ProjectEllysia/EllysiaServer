@@ -39,6 +39,7 @@ from .repositories import SubscriptionRepository
 from .services.limits import PERIODS, LimitKey
 from .services.ownership import require_organization_owner
 from .schemas import (
+    CompanyProfileOwnershipSchema,
     CompanyProfileResponseSchema,
     CompanyProfileSchema,
     LimitCatalogResponseSchema,
@@ -465,6 +466,17 @@ def delete_plan(plan_id: int):
 # =========================================================================
 # PERFIL DE EMPRESA
 # =========================================================================
+
+@organizations_blp.get("/data-ownership")
+@organizations_blp.response(200, CompanyProfileOwnershipSchema, description="Whose data the user works on")
+@organizations_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@limiter.limit("120 per hour")
+@require_oauth_token
+@handle_exceptions(default_exception=AccountsError, logger=logger)
+def get_data_ownership():
+    """De quien son los datos corporativos que ve el usuario: los suyos, o los del dueño de su organizacion"""
+    return OrganizationManager().describe_data_ownership(get_current_user().id)
+
 
 @organizations_blp.get("/company-profile")
 @organizations_blp.response(200, CompanyProfileResponseSchema, description="Company profile")
