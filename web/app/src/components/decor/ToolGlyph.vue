@@ -140,6 +140,15 @@
           <path class="fine" d="M25 36 H39 M25 43 H35 M25 50 H39" />
         </g>
       </template>
+
+      <!-- ¿Me aplica NIS2?: la hoja de una norma, con el sello de la que le alcanza. -->
+      <template v-else-if="toolId === 'nis2Applicability'">
+        <path class="draw" pathLength="1" d="M10 4 H34 L46 16 V58 H10 Z" />
+        <path class="fine" d="M34 4 V16 H46" />
+        <path class="fine" d="M18 26 H38 M18 33 H38 M18 40 H30" />
+        <circle class="draw" pathLength="1" cx="44" cy="46" r="11" />
+        <path class="check a-check" pathLength="1" d="M38.5 46 L42.5 50.5 L50 41" />
+      </template>
     </g>
   </svg>
 </template>

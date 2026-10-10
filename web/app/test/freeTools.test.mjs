@@ -59,9 +59,9 @@ function test(name, fn) {
   }
 }
 
-const MODULES = ['themis', 'aegis', 'iris', 'acheron', 'hygeia']
+const MODULES = ['themis', 'aegis', 'iris', 'acheron', 'hygeia', 'eunomia']
 /** Prefijos que `web/Caddyfile` y el proxy de Vite mandan a Flask. */
-const API_PREFIXES = ['themis', 'aegis', 'iris', 'acheron', 'hygeia', 'oauth', 'users', 'plans', 'organizations', 'system']
+const API_PREFIXES = ['themis', 'aegis', 'iris', 'acheron', 'hygeia', 'eunomia', 'oauth', 'users', 'plans', 'organizations', 'system']
 
 const locales = {
   es: JSON.parse(read('src/i18n/locales/es.json')),
