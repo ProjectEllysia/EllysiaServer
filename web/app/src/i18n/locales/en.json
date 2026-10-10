@@ -90,6 +90,7 @@
     "circuitBreakerOpen": "The service is temporarily unavailable.",
     "complianceOrganizationOwnerOnly": "Only the organization owner can set its compliance frameworks.",
     "databaseConnection": "Could not connect to the database.",
+    "dataOwnedByOrganization": "These details are managed by the owner of the organization “{organizationName}”. Yours are kept and will apply again if you leave it.",
     "defaultPlanMissing": "The platform has no default plan configured. Contact an administrator.",
     "documentNotReady": "The document is not ready yet.",
     "duplicateAuthorizedTarget": "“{target}” is already in your authorized targets registry.",
@@ -155,6 +156,7 @@
     "invalidDocumentRequest": "Choose what you want to export.",
     "invalidMfaCode": "The code you entered is not valid.",
     "invalidProgramedTaskArgument": "The “{field}” argument is missing for the “{scanType}” scan.",
+    "invalidTaxId": "The tax ID is not valid. Check that no digit or the final letter is missing.",
     "invalidVerificationToken": "This confirmation link is not valid or has expired. You can request a new one from your profile.",
     "inventoryNotAvailable": "This asset has not sent its software inventory yet.",
     "invitationInvalid": "This invitation is not valid or has expired. Ask whoever invited you to send you another one.",
@@ -1825,6 +1827,40 @@
       "done": "Your account, data, files and pending tasks have been deleted, and the permission of your mailboxes has been withdrawn.",
       "doneWithLog": "Your account, data, files and pending tasks have been deleted, and the permission of your mailboxes has been withdrawn. Only the activity log is kept, for {days} days, and then deleted automatically."
     }
+  },
+  "companyProfile": {
+    "title": "Company details",
+    "desc": "Legal name, tax ID, address and security contact. They are saved once and used by compliance, Aegis and documents.",
+    "fields": {
+      "legalName": "Legal name",
+      "taxId": "Tax ID",
+      "country": "Country (2-letter code)",
+      "addressLine": "Address",
+      "postalCode": "Postal code",
+      "city": "City",
+      "province": "Province",
+      "sector": "Sector",
+      "jurisdiction": "Jurisdiction",
+      "securityContact": "Security contact (email)",
+      "companySize": "Size",
+      "workModel": "Work model",
+      "employeeCount": "Number of employees"
+    },
+    "sizes": {
+      "micro": "Micro",
+      "pequeña": "Small",
+      "mediana": "Medium"
+    },
+    "workModels": {
+      "remoto": "Remote",
+      "híbrido": "Hybrid",
+      "presencial": "On site"
+    },
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Company details saved.",
+    "saveFailed": "The company details could not be saved.",
+    "loadFailed": "The company details could not be loaded."
   },
   "organization": {
     "topbar": "My organization",

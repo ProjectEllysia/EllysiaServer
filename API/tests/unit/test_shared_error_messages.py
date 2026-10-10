@@ -66,6 +66,7 @@ _SAMPLE_ARGUMENTS: dict[str, list[tuple]] = {
     "TaskNotCancellableError": [("job-1",)],
     "InvalidAgentKeyError": [("clave rechazada",)],
     "StorableDeleteError": [(7,)],
+    "DataOwnedByOrganizationError": [("Acme",)],
     "StorableConflictError": [("github",)],
     "VaultRevisionMismatchError": [(4,), (4, 3)],
     "PlanFeatureDisabledError": [("iris.analyses", "free")],

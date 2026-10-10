@@ -26,6 +26,7 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    Text,
     text,
 )
 from sqlalchemy.orm import backref, relationship
@@ -446,3 +447,88 @@ class UsageCounter(Base):
             f"<UsageCounter {self.holder_kind}={self.holder_id} "
             f"key='{self.limit_key}' period={self.period_start} used={self.used}>"
         )
+
+
+# =========================================================================
+# PERFIL DE EMPRESA
+# =========================================================================
+
+class CompanyProfile(Base):
+    """
+    Los datos de identidad y de descripción de la empresa de un usuario.
+
+    Hay **una fila por dueño efectivo** (``OrganizationManager.resolve_data_owner``):
+    el propio usuario, o el dueño de su organización. Lo que cuelgue de este
+    perfil —el cumplimiento normativo, las píldoras de Aegis, las plantillas de
+    documentos— usa los mismos datos sin pedirlos de nuevo.
+
+    ``legal_name`` es la razón social y es **independiente** de
+    ``Organization.name``: una es el nombre legal de la empresa, la otra el
+    nombre con el que el grupo aparece dentro de Ellysia.
+
+    Attributes:
+        id: Clave primaria.
+        user_id: Dueño efectivo de estos datos; una fila por usuario.
+        legal_name: Razón social.
+        tax_id: NIF/CIF/NIE; si ``country`` es ``ES`` se valida con su control.
+        address_line: Calle y número.
+        postal_code: Código postal.
+        city: Localidad.
+        province: Provincia o región.
+        country: País, código ISO 3166-1 alfa-2 en mayúsculas (``"ES"``).
+        sector: Sector de actividad, texto libre.
+        company_size: ``''``, ``'micro'``, ``'pequeña'`` o ``'mediana'``.
+        employee_count: Plantilla aproximada.
+        jurisdiction: Jurisdicción regulatoria, texto libre (``"España"``).
+        work_model: ``''``, ``'remoto'``, ``'híbrido'`` o ``'presencial'``.
+        security_contact: Correo de la persona responsable de seguridad.
+        brand_logo: Logo como data URI en base64.
+        created_at: Alta del perfil.
+        updated_at: Última modificación.
+    """
+
+    __tablename__ = "CompanyProfile"
+
+    id               = Column(Integer,     primary_key=True, autoincrement=True)
+    user_id          = Column(Integer,     ForeignKey("User.id"), nullable=False, unique=True)
+    legal_name       = Column(String(255), nullable=True)
+    tax_id           = Column(String(32),  nullable=True)
+    address_line     = Column(String(255), nullable=True)
+    postal_code      = Column(String(16),  nullable=True)
+    city             = Column(String(128), nullable=True)
+    province         = Column(String(128), nullable=True)
+    country          = Column(String(2),   nullable=True)
+    sector           = Column(String(128), nullable=True)
+    company_size     = Column(String(16),  nullable=True)
+    employee_count   = Column(Integer,     nullable=True)
+    jurisdiction     = Column(String(128), nullable=True)
+    work_model       = Column(String(16),  nullable=True)
+    security_contact = Column(String(128), nullable=True)
+    brand_logo       = Column(Text,        nullable=True)
+    created_at       = Column(DateTime,    nullable=False, default=utcnow_naive)
+    updated_at       = Column(DateTime,    nullable=False, default=utcnow_naive, onupdate=utcnow_naive)
+
+    def to_dict(self) -> dict:
+        """El perfil con las claves camelCase de ``CompanyProfileSchema``.
+
+        Returns:
+            dict: Todos los campos de la empresa; los vacíos salen como cadena
+                vacía (``employeeCount`` como ``None``), igual que el perfil por
+                defecto de ``CompanyProfileManager``.
+        """
+        return {
+            "legalName":       self.legal_name or "",
+            "taxId":           self.tax_id or "",
+            "addressLine":     self.address_line or "",
+            "postalCode":      self.postal_code or "",
+            "city":            self.city or "",
+            "province":        self.province or "",
+            "country":         self.country or "",
+            "sector":          self.sector or "",
+            "companySize":     self.company_size or "",
+            "employeeCount":   self.employee_count,
+            "jurisdiction":    self.jurisdiction or "",
+            "workModel":       self.work_model or "",
+            "securityContact": self.security_contact or "",
+            "brandLogo":       self.brand_logo or "",
+        }

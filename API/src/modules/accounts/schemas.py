@@ -5,10 +5,21 @@ Los nombres llevan prefijo ``Account``/``Plan`` para no chocar en el
 ``components/schemas`` del OpenAPI con los de otros módulos.
 """
 
-from marshmallow import Schema, fields, validate
+from marshmallow import Schema, ValidationError, fields, validate
 
+from src.modules.shared import validate_logo_data_uri
 from src.modules.shared.schemas import UTCDateTime
 from src.modules.users import SUPPORTED_LANGUAGES
+
+
+def _validate_company_logo(value: str | None) -> None:
+    """Adapta la validación compartida del logo al contrato de marshmallow."""
+    if not value:
+        return
+    try:
+        validate_logo_data_uri(value)
+    except ValueError as exc:
+        raise ValidationError(str(exc)) from exc
 
 
 class PlanLimitValueSchema(Schema):
@@ -297,3 +308,39 @@ class LimitCatalogResponseSchema(Schema):
     en vez de dejar escribirlas a mano."""
 
     keys = fields.List(fields.Nested(LimitCatalogEntrySchema))
+
+
+# ── Perfil de empresa ─────────────────────────────────────────────────────
+
+class CompanyProfileOwnershipSchema(Schema):
+    """De quién son los datos que se están viendo (ver ``describe_data_ownership``)."""
+
+    ownerUserId = fields.Integer()
+    isOwnData = fields.Boolean()
+    organizationName = fields.String(allow_none=True)
+    ownerDisplayName = fields.String(allow_none=True)
+
+
+class CompanyProfileSchema(Schema):
+    """El perfil de empresa. En la escritura todos los campos son opcionales."""
+
+    legalName = fields.String(validate=validate.Length(max=255))
+    taxId = fields.String(validate=validate.Length(max=32))
+    addressLine = fields.String(validate=validate.Length(max=255))
+    postalCode = fields.String(validate=validate.Length(max=16))
+    city = fields.String(validate=validate.Length(max=128))
+    province = fields.String(validate=validate.Length(max=128))
+    country = fields.String(validate=validate.Regexp(r"^([A-Za-z]{2})?$"))
+    sector = fields.String(validate=validate.Length(max=128))
+    companySize = fields.String(validate=validate.OneOf(["", "micro", "pequeña", "mediana"]))
+    employeeCount = fields.Integer(allow_none=True, validate=validate.Range(min=0, max=10_000_000))
+    jurisdiction = fields.String(validate=validate.Length(max=128))
+    workModel = fields.String(validate=validate.OneOf(["", "remoto", "híbrido", "presencial"]))
+    securityContact = fields.String(validate=validate.Length(max=128))
+    brandLogo = fields.String(allow_none=True, validate=_validate_company_logo)
+
+
+class CompanyProfileResponseSchema(CompanyProfileSchema):
+    """El perfil más quién lo gestiona."""
+
+    ownership = fields.Nested(CompanyProfileOwnershipSchema)

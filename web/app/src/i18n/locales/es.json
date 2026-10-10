@@ -90,6 +90,7 @@
     "circuitBreakerOpen": "El servicio no está disponible temporalmente.",
     "complianceOrganizationOwnerOnly": "Sólo el dueño de la organización puede fijar sus marcos de cumplimiento.",
     "databaseConnection": "No se pudo conectar a la base de datos.",
+    "dataOwnedByOrganization": "Estos datos los gestiona el dueño de la organización «{organizationName}». Los tuyos siguen guardados y volverán a aplicarse si la dejas.",
     "defaultPlanMissing": "La plataforma no tiene configurado un plan por defecto. Avisa a un administrador.",
     "documentNotReady": "El documento aún no está listo.",
     "duplicateAuthorizedTarget": "«{target}» ya está en tu registro de objetivos autorizados.",
@@ -155,6 +156,7 @@
     "invalidDocumentRequest": "Falta elegir qué quieres exportar.",
     "invalidMfaCode": "El código introducido no es válido.",
     "invalidProgramedTaskArgument": "Falta el argumento «{field}» para el escaneo de tipo «{scanType}».",
+    "invalidTaxId": "El NIF/CIF no es válido. Revisa que no falte ninguna cifra ni la letra final.",
     "invalidVerificationToken": "Este enlace de confirmación no es válido o ha caducado. Puedes pedir uno nuevo desde tu perfil.",
     "inventoryNotAvailable": "Este activo aún no ha enviado su inventario de software.",
     "invitationInvalid": "Esta invitación no es válida o ha caducado. Pide a quien te invitó que te mande otra.",
@@ -1825,6 +1827,40 @@
       "done": "Tu cuenta, tus datos, tus ficheros y tus tareas pendientes se han eliminado, y se ha retirado el permiso de tus buzones de correo.",
       "doneWithLog": "Tu cuenta, tus datos, tus ficheros y tus tareas pendientes se han eliminado, y se ha retirado el permiso de tus buzones de correo. Solo se conserva el registro de actividad, {days} días, y después se borra solo."
     }
+  },
+  "companyProfile": {
+    "title": "Datos de la empresa",
+    "desc": "Razón social, NIF, dirección y contacto de seguridad. Se guardan una vez y los usan el cumplimiento normativo, Aegis y los documentos.",
+    "fields": {
+      "legalName": "Razón social",
+      "taxId": "NIF/CIF",
+      "country": "País (código de 2 letras)",
+      "addressLine": "Dirección",
+      "postalCode": "Código postal",
+      "city": "Localidad",
+      "province": "Provincia",
+      "sector": "Sector",
+      "jurisdiction": "Jurisdicción",
+      "securityContact": "Responsable de seguridad (correo)",
+      "companySize": "Tamaño",
+      "workModel": "Modelo de trabajo",
+      "employeeCount": "Personas en plantilla"
+    },
+    "sizes": {
+      "micro": "Microempresa",
+      "pequeña": "Pequeña",
+      "mediana": "Mediana"
+    },
+    "workModels": {
+      "remoto": "Remoto",
+      "híbrido": "Híbrido",
+      "presencial": "Presencial"
+    },
+    "save": "Guardar",
+    "saving": "Guardando…",
+    "saved": "Datos de la empresa guardados.",
+    "saveFailed": "No se pudieron guardar los datos de la empresa.",
+    "loadFailed": "No se pudieron cargar los datos de la empresa."
   },
   "organization": {
     "topbar": "Mi organización",

@@ -11,6 +11,7 @@ from typing import List, Optional
 from src.modules.infrastructure import BaseRepository
 
 from .model import (
+    CompanyProfile,
     Organization,
     OrganizationInvitation,
     OrganizationMember,
@@ -426,4 +427,34 @@ class SubscriptionRepository(BaseRepository[Subscription]):
         """
         return self._session.query(Subscription).filter(
             Subscription.user_id == user_id
+        ).delete(synchronize_session=False)
+
+
+class CompanyProfileRepository(BaseRepository[CompanyProfile]):
+    """Acceso a datos del perfil de empresa: una fila por dueño efectivo."""
+
+    _MODEL = CompanyProfile
+
+    def get_by_user_id(self, user_id: int) -> Optional[CompanyProfile]:
+        """El perfil de empresa de un usuario, o ``None`` si aún no lo guardó.
+
+        Args:
+            user_id: Dueño efectivo de los datos (no necesariamente quien pregunta).
+
+        Returns:
+            Optional[CompanyProfile]: El perfil, o ``None``.
+        """
+        return self.get_by_field("user_id", user_id)
+
+    def delete_by_user(self, user_id: int) -> int:
+        """Borra el perfil de empresa de un usuario.
+
+        Args:
+            user_id: Usuario cuyo perfil se borra.
+
+        Returns:
+            int: Filas borradas (``0`` o ``1``).
+        """
+        return self._session.query(CompanyProfile).filter(
+            CompanyProfile.user_id == user_id
         ).delete(synchronize_session=False)

@@ -588,6 +588,7 @@ DELETION_CATEGORY_KEYS: tuple[str, ...] = (
 #: toda tabla esté en una categoría o aquí: así nadie añade una y se olvida del aviso.
 UNLISTED_TABLES: dict[str, str] = {
     "DataExport": "exportaciones de tus datos, con su archivo si aún no lo has descargado",
+    "CompanyProfile": "los datos de tu empresa: razón social, NIF, dirección y contacto de seguridad",
     **dict.fromkeys(
         ["AccessToken", "RefreshToken", "MFAChallenge", "MFARecoveryCode", "MFATotpCredential",
          "UserAttribute"],
