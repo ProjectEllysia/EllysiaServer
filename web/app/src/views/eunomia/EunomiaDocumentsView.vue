@@ -85,7 +85,14 @@ onBeforeUnmount(() => clearTimeout(timer))
 .head h1 { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-size: var(--fs-2xl); color: var(--text); }
 .sub { color: var(--text-muted); margin-top: 0.4rem; max-width: 62ch; font-size: var(--fs-md); }
 .rows { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.7rem; }
-.row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--border-solid); border-radius: 10px; padding: 1rem 1.2rem; }
+.row {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 220%);
+  border: 1px solid var(--border-solid); border-radius: 12px; padding: 1.1rem 1.3rem;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14);
+  transition: border-color 0.3s var(--ease-settle), box-shadow 0.3s var(--ease-settle), transform 0.3s var(--ease-settle);
+}
+.row:hover { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-dim), 0 14px 34px rgba(0, 0, 0, 0.2); transform: translateY(-1px); }
 .row h2 { font-size: var(--fs-lg); font-weight: 600; color: var(--text); }
 .meta { color: var(--text-muted); font-size: var(--fs-body); margin-top: 0.2rem; }
 .row-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
@@ -96,4 +103,8 @@ onBeforeUnmount(() => clearTimeout(timer))
 .btn--primary:hover { background: var(--accent); color: var(--on-accent); }
 .btn--danger { border-color: var(--danger); color: var(--danger); }
 .btn--danger:hover { background: var(--danger-dim); }
+@media (prefers-reduced-motion: reduce) {
+  .card, .row, .btn { transition: none !important; }
+  .card:hover, .row:hover { transform: none; }
+}
 </style>

@@ -1,6 +1,6 @@
 <template>
   <section v-if="node.suggestions && node.suggestions.length" class="suggestions" :aria-label="t('eunomia.suggestions.title')">
-    <h3>{{ t('eunomia.suggestions.title') }}</h3>
+    <SectionInscription tag="h3">{{ t('eunomia.suggestions.title') }}</SectionInscription>
     <p class="muted">{{ t('eunomia.suggestions.intro') }}</p>
     <ul>
       <li v-for="item in node.suggestions" :key="`${item.frameworkKey}:${item.identifier}`">
@@ -26,6 +26,7 @@
 </template>
 
 <script setup>
+import SectionInscription from '@/components/eunomia/SectionInscription.vue'
 /**
  * Lo que el usuario ya tiene hecho en los otros marcos adoptados y cubre, total o parcialmente,
  * este control. Son sugerencias: nada se traslada solo. Enlazar una evidencia sugerida crea un
@@ -59,7 +60,6 @@ async function link(evidence) {
 
 <style scoped>
 .suggestions { padding-top: 1rem; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 0.6rem; }
-h3 { font-size: var(--fs-md); font-weight: 600; color: var(--text); }
 .muted, .meta { color: var(--text-muted); font-size: var(--fs-body); }
 ul { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.7rem; }
 .line { color: var(--text-dim); font-size: var(--fs-md); }

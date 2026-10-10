@@ -1,6 +1,6 @@
 <template>
   <section class="evidence" :aria-label="t('eunomia.evidence.title')">
-    <h3>{{ t('eunomia.evidence.title') }}</h3>
+    <SectionInscription tag="h3">{{ t('eunomia.evidence.title') }}</SectionInscription>
 
     <p v-if="usage" class="muted usage">
       {{ usage.limitBytes === null
@@ -45,6 +45,7 @@
 </template>
 
 <script setup>
+import SectionInscription from '@/components/eunomia/SectionInscription.vue'
 /**
  * Las evidencias de un control: las enlazadas, enlazar una existente (una evidencia sirve a
  * varios controles de varios marcos) y subir una nueva. Avisa con `changed` para que la vista
@@ -135,7 +136,6 @@ onMounted(refresh)
 
 <style scoped>
 .evidence { padding-top: 1rem; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 0.8rem; }
-h3 { font-size: var(--fs-md); font-weight: 600; color: var(--text); }
 .expired { color: var(--danger); font-size: var(--fs-body); }
 .usage { font-variant-numeric: tabular-nums; }
 .muted { color: var(--text-muted); font-size: var(--fs-body); }
