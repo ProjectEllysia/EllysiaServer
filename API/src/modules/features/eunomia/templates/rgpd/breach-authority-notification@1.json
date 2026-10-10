@@ -1,0 +1,124 @@
+{
+  "key": "breach-authority-notification",
+  "frameworkVersion": "2016-679",
+  "title": "Notificación de una violación de seguridad a la autoridad de control (RGPD)",
+  "summary": "La notificación a la autoridad de protección de datos en un máximo de 72 horas, con el contenido del artículo 33.3.",
+  "controls": [
+    "art.33"
+  ],
+  "fields": [
+    {
+      "key": "company_name",
+      "label": "Razón social",
+      "type": "text",
+      "required": true,
+      "source": "company.legalName"
+    },
+    {
+      "key": "tax_id",
+      "label": "NIF",
+      "type": "text",
+      "required": true,
+      "source": "company.taxId"
+    },
+    {
+      "key": "contact",
+      "label": "Persona de contacto para el incidente",
+      "type": "text",
+      "required": true,
+      "source": "company.securityContact",
+      "help": "Nombre y correo o teléfono."
+    },
+    {
+      "key": "incident",
+      "label": "Incidente",
+      "type": "text",
+      "required": true,
+      "source": "record.name"
+    },
+    {
+      "key": "aware_at",
+      "label": "Momento en que se tuvo constancia",
+      "type": "text",
+      "required": true,
+      "source": "record.aware_at"
+    },
+    {
+      "key": "description",
+      "label": "Descripción del incidente",
+      "type": "longtext",
+      "required": true,
+      "source": "record.description"
+    },
+    {
+      "key": "systems",
+      "label": "Sistemas afectados",
+      "type": "list",
+      "required": false,
+      "source": "record.systems"
+    },
+    {
+      "key": "measures",
+      "label": "Medidas adoptadas",
+      "type": "longtext",
+      "required": false,
+      "source": "record.measures"
+    },
+    {
+      "key": "nature",
+      "label": "Naturaleza de la violación",
+      "type": "longtext",
+      "required": true,
+      "help": "Incluidas, si es posible, las categorías y el número aproximado de interesados y de registros afectados."
+    },
+    {
+      "key": "consequences",
+      "label": "Consecuencias probables",
+      "type": "longtext",
+      "required": true
+    },
+    {
+      "key": "dpo",
+      "label": "Delegado de protección de datos o punto de contacto",
+      "type": "text",
+      "required": false,
+      "help": "Nombre y datos de contacto, si hay delegado."
+    }
+  ],
+  "sections": [
+    {
+      "heading": "Notificación de violación de seguridad",
+      "body": "{{company_name}} (NIF {{tax_id}}) notifica a la autoridad de control una violación de la seguridad de los datos personales, conforme al artículo 33 del Reglamento (UE) 2016/679."
+    },
+    {
+      "heading": "Hechos",
+      "body": "{{incident}}\n\nMomento en que se tuvo constancia: {{aware_at}}.\n\n{{description}}"
+    },
+    {
+      "heading": "Sistemas afectados",
+      "body": "{{systems}}"
+    },
+    {
+      "heading": "Naturaleza de la violación",
+      "body": "{{nature}}"
+    },
+    {
+      "heading": "Consecuencias probables",
+      "body": "{{consequences}}"
+    },
+    {
+      "heading": "Medidas adoptadas o propuestas",
+      "body": "{{measures}}"
+    },
+    {
+      "heading": "Contacto",
+      "body": "{{contact}}\n\nDelegado de protección de datos: {{dpo}}"
+    },
+    {
+      "heading": "Nota",
+      "body": "Este documento es un borrador generado a partir de la ficha del incidente. Revísalo y complétalo antes de enviarlo."
+    }
+  ],
+  "version": "1",
+  "register": "incidentes-y-brechas"
+}

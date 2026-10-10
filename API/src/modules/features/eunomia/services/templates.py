@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Optional
 
 from .catalog import CATALOG_ROOT, CatalogFormatError, load_version
+from .registers import get_register
 
 #: Carpeta con las plantillas (una subcarpeta por marco).
 TEMPLATES_ROOT = Path(__file__).resolve().parents[1] / "templates"
@@ -41,6 +42,8 @@ COMPANY_SOURCES = (
 #: Datos de una evaluación que una plantilla puede usar (``assessment.<control>.<dato>``).
 ASSESSMENT_SOURCES = ("responsible", "dueDate")
 SOURCE_TODAY = "system.today"
+#: Prefijo del origen que toma un valor de la ficha de un registro (``record.aware_at``).
+SOURCE_RECORD = "record."
 
 _MARKER = re.compile(r"\{\{\s*([a-z][a-z0-9_]*)\s*\}\}")
 _KEY = re.compile(r"^[a-z][a-z0-9_]*$")
@@ -98,6 +101,8 @@ class DocumentTemplate:
         controls: Identificadores de los controles que ayuda a cumplir.
         fields: Huecos, en el orden del formulario.
         sections: Secciones, en el orden del documento.
+        register: Tipo de registro del que toma datos (``record.<campo>``); ``""`` si no usa
+            ninguno.
     """
 
     key: str
@@ -109,6 +114,7 @@ class DocumentTemplate:
     controls: tuple[str, ...]
     fields: tuple[TemplateField, ...]
     sections: tuple[TemplateSection, ...]
+    register: str = ""
 
     def field(self, key: str) -> Optional[TemplateField]:
         """El campo con esa clave, o ``None``."""
@@ -166,7 +172,7 @@ def parse_template(document: dict, framework: str, root: Path = CATALOG_ROOT) ->
             raise CatalogFormatError(f"{where}: el campo «{key}» tiene un tipo desconocido")
         source = raw.get("source")
         if source is not None:
-            _check_source(where, key, source, assessable)
+            _check_source(where, key, source, assessable, document.get("register", ""))
         fields.append(TemplateField(
             key=key, label=raw.get("label", key), type=raw["type"], is_required=bool(raw.get("required", False)),
             source=source, default=raw.get("default", ""), help=raw.get("help", ""),
@@ -184,12 +190,18 @@ def parse_template(document: dict, framework: str, root: Path = CATALOG_ROOT) ->
         key=document["key"], version=str(document["version"]), framework=framework,
         framework_version=document["frameworkVersion"], title=document["title"], summary=document["summary"],
         controls=tuple(document["controls"]), fields=tuple(fields), sections=sections,
+        register=document.get("register", ""),
     )
 
 
-def _check_source(where: str, key: str, source: str, assessable) -> None:
+def _check_source(where: str, key: str, source: str, assessable, register_key: str = "") -> None:
     """Comprueba que el origen de un campo apunta a un dato que existe."""
     if source == SOURCE_TODAY:
+        return
+    if source.startswith(SOURCE_RECORD):
+        register = get_register(register_key) if register_key else None
+        if register is None or register.field(source[len(SOURCE_RECORD):]) is None:
+            raise CatalogFormatError(f"{where}: el campo «{key}» toma un dato de la ficha que no existe: {source}")
         return
     if source.startswith("company."):
         if source[len("company."):] not in COMPANY_SOURCES:

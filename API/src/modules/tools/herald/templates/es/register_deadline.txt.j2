@@ -1,0 +1,17 @@
+Plazos de «{{ record_title or register_title }}»
+{% if recipient_name %}Hola {{ recipient_name }},{% else %}Hola,{% endif %}
+
+En el registro {{ register_title }}, la ficha «{{ record_title }}» tiene estos plazos:
+{% for deadline in deadlines %}
+- {{ deadline.label }}: {{ deadline.due }}{% if deadline.is_overdue %} (vencido){% endif %}
+{% endfor %}
+
+Cuando lo envíes, anota la fecha en la ficha para que deje de avisar.
+
+Abrir el registro: {{ eunomia_url }}
+
+--
+{% if footer_reason %}
+{{ footer_reason }}
+{% endif %}
+Este mensaje se ha enviado automáticamente desde {{ brand.productName }}. No respondas a esta dirección.

@@ -12,7 +12,7 @@ import logging
 import os
 import re
 from datetime import date
-from typing import Tuple
+from typing import Optional, Tuple
 
 import src.modules.system.config_reading as CR
 from src.modules.accounts import CompanyProfileManager, LimitKey, OrganizationManager, QuotaManager
@@ -136,26 +136,30 @@ class EunomiaDocumentManager(DocumentManager):
     _REPOSITORY = EunomiaDocumentRepository
     _NOT_FOUND_ERROR = DocumentNotFoundError
 
-    def create_document(self, user_id: int, template_key: str, file_format: str) -> dict:
+    def create_document(self, user_id: int, template_key: str, file_format: str,
+                        record_id: Optional[int] = None) -> dict:
         """Pide un documento: valida, consume cuota, registra y encola.
 
         Args:
             user_id: Usuario que lo pide; el documento es de su dueño efectivo.
             template_key: Identificador de la plantilla.
             file_format: ``"pdf"`` o ``"docx"``.
+            record_id: Ficha de un registro de la que se toman datos (``record.<campo>``). Por
+                defecto ``None``.
 
         Returns:
             dict: El documento recién creado en ``pending`` (``EunomiaDocument.to_dict``).
 
         Raises:
             TemplateNotFoundError: Si no hay plantilla con esa clave (404).
+            RecordNotFoundError: Si ``record_id`` no es una ficha del dueño efectivo (404).
             TemplateIncompleteError: Si falta algún campo obligatorio (400).
             QuotaExceededError: Si el dueño agotó ``eunomia.documents`` este periodo (402).
         """
         template = get_template(template_key)
         if template is None:
             raise TemplateNotFoundError(template_key)
-        draft = EunomiaTemplateManager().get_draft(user_id, template_key)
+        draft = EunomiaTemplateManager().get_draft(user_id, template_key, record_id)
         values = {item["key"]: item["value"] for item in draft["fields"]}
         missing = missing_required(template, values)
         if missing:

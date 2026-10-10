@@ -2048,7 +2048,8 @@
       "editSource": "Corregir en su origen",
       "origin": {
         "company": "Viene del perfil de tu empresa.",
-        "assessment": "Viene de la evaluación del control."
+        "assessment": "Viene de la evaluación del control.",
+        "record": "Viene de la ficha del registro."
       },
       "missing": "Falta {count} campo obligatorio. | Faltan {count} campos obligatorios."
     },

@@ -60,6 +60,10 @@
               </ul>
             </div>
             <div class="actions">
+              <router-link
+                v-for="template in data.templates" :key="template.key"
+                :to="`/eunomia/plantillas/${template.key}?recordId=${record.id}`" class="btn"
+              >{{ template.title }}</router-link>
               <button type="button" class="btn" @click="edit(record)">{{ t('eunomia.registers.edit') }}</button>
               <button type="button" class="btn btn--danger" @click="archive(record)">{{ t('eunomia.registers.archive') }}</button>
             </div>
@@ -172,6 +176,7 @@ onMounted(load)
 .state-msg { color: var(--text-muted); font-size: var(--fs-md); }
 .state-msg--error { color: var(--danger); }
 .btn { font-family: var(--font-epic); font-size-adjust: var(--fsa-epic); font-size: var(--fs-body); font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; padding: 0.6rem 1.2rem; border-radius: 3px; border: 1px solid var(--border-med); color: var(--text-dim); transition: all var(--transition); }
+a.btn { text-decoration: none; }
 .btn--primary { background: var(--accent-dim); border-color: var(--accent); color: var(--accent-bright); }
 .btn--primary:hover { background: var(--accent); color: var(--on-accent); }
 .btn--danger { border-color: var(--danger); color: var(--danger); }

@@ -45,6 +45,7 @@ export function missingRequired(fields, edited) {
 export function sourceRoute(field, framework) {
   if (field.origin === 'company') return '/profile'
   if (field.origin === 'assessment') return `/eunomia/marcos/${framework}`
+  if (field.origin === 'record') return null
   return null
 }
 

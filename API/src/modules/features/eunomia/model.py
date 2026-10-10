@@ -322,6 +322,8 @@ class EunomiaRecord(Base):
         created_by_user_id: Quién la creó; ``None`` si esa cuenta se borró.
         updated_at: Última escritura; es también el testigo de la concurrencia optimista.
         updated_by_user_id: Quién escribió por última vez; ``None`` si esa cuenta se borró.
+        notified_deadlines: Claves de los plazos de los que ya se avisó por correo, para no
+            repetir el aviso.
     """
 
     __tablename__ = "EunomiaRecord"
@@ -339,6 +341,7 @@ class EunomiaRecord(Base):
     created_by_user_id = Column(Integer,     ForeignKey("User.id"), nullable=True)
     updated_at         = Column(DateTime,    nullable=False, default=utcnow_naive)
     updated_by_user_id = Column(Integer,     ForeignKey("User.id"), nullable=True)
+    notified_deadlines = Column(JSON,        nullable=False, default=list)
 
 
 class EunomiaRecordEvent(Base):
