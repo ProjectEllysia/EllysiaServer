@@ -299,3 +299,14 @@ class EvidenceUpdateSchema(Schema):
     title = fields.String(validate=validate.Length(min=1, max=255))
     description = fields.String(validate=validate.Length(max=8000))
     validUntil = fields.Date(allow_none=True)
+
+
+class UpgradePlanSchema(Schema):
+    """Lo que pasa con la evaluación al cambiar un marco de versión."""
+
+    fromVersion = fields.String()
+    toVersion = fields.String()
+    moves = fields.List(fields.Dict())
+    lost = fields.List(fields.Dict())
+    newControls = fields.List(fields.Dict())
+    linksMoved = fields.Integer()

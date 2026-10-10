@@ -106,6 +106,8 @@
     "frameworkArchived": "El marco «{framework}» está archivado. Puedes restaurarlo y recuperar lo que habías evaluado.",
     "frameworkNotArchived": "El marco «{framework}» no está archivado.",
     "frameworkRestoreExpired": "El plazo para restaurar el marco «{framework}» ha vencido. Puedes adoptarlo de nuevo, pero empezarás de cero.",
+    "frameworkUpToDate": "El marco «{framework}» ya está en la versión vigente del catálogo.",
+    "versionMappingMissing": "No hay correspondencias entre las versiones {fromVersion} y {toVersion} del marco «{framework}», así que no se puede trasladar tu evaluación automáticamente.",
     "invalidAuthorizedTarget": "«{target}» no es una dirección IP, un rango, un dominio ni un recurso cloud. Escríbelo como «203.0.113.10», «203.0.113.0/24», «example.com» o «s3:nombre-del-bucket».",
     "duplicatedUserCredentials": "Ya hay una cuenta con este dato: {value}.",
     "emailAlreadyVerified": "Tu correo ya está confirmado.",
@@ -1924,7 +1926,19 @@
         "evidenceKept": "{count} evidencia se conserva porque también sirve a otro marco. | {count} evidencias se conservan porque también sirven a otro marco."
       },
       "lossNone": "No hay evaluaciones ni evidencias que perder.",
-      "removeWhen": "El marco se archiva y puedes restaurarlo durante {days} días; después, el {date}, se borra definitivamente."
+      "removeWhen": "El marco se archiva y puedes restaurarlo durante {days} días; después, el {date}, se borra definitivamente.",
+      "upgrade": "Actualizar",
+      "upgradeTitle": "Pasar «{name}» a la versión {version}",
+      "upgradeConfirm": "Actualizar marco",
+      "upgradeFact": {
+        "moved": "{count} control se traslada tal cual. | {count} controles se trasladan tal cual.",
+        "review": "{count} control llega marcado para revisar porque la norma lo dividió o lo fusionó. | {count} controles llegan marcados para revisar porque la norma los dividió o los fusionó.",
+        "lost": "{count} control evaluado desaparece de la nueva versión. | {count} controles evaluados desaparecen de la nueva versión.",
+        "added": "{count} control es nuevo y empieza pendiente. | {count} controles son nuevos y empiezan pendientes."
+      },
+      "upgradeNothing": "No hay evaluaciones que trasladar; el marco pasa a la versión nueva.",
+      "upgraded": "«{name}» está en la versión vigente.",
+      "upgradeFailed": "No se pudo actualizar el marco."
     },
     "tree": {
       "loadFailed": "No se pudo cargar el marco.",

@@ -292,3 +292,36 @@ class EvidenceActiveContentError(EunomiaError):
             message_key="evidenceActiveContent",
             params={"detail": detail},
         )
+
+
+class FrameworkUpToDateError(EunomiaError):
+    """El marco ya está en la versión vigente del catálogo."""
+
+    default_code = ErrorCode.CONSTRAINT_VIOLATION
+    default_status_code = 409
+
+    def __init__(self, framework_key: str) -> None:
+        super().__init__(
+            message=f"El marco '{framework_key}' ya está en la versión vigente",
+            user_message=f"El marco «{framework_key}» ya está en la versión vigente del catálogo.",
+            message_key="frameworkUpToDate",
+            params={"framework": framework_key},
+        )
+
+
+class VersionMappingMissingError(EunomiaError):
+    """No hay correspondencias publicadas entre la versión adoptada y la vigente."""
+
+    default_code = ErrorCode.CONSTRAINT_VIOLATION
+    default_status_code = 409
+
+    def __init__(self, framework_key: str, from_version: str, to_version: str) -> None:
+        super().__init__(
+            message=f"Sin correspondencias de '{framework_key}' entre {from_version} y {to_version}",
+            user_message=(
+                f"No hay correspondencias entre las versiones {from_version} y {to_version} del marco "
+                f"«{framework_key}», así que no se puede trasladar tu evaluación automáticamente."
+            ),
+            message_key="versionMappingMissing",
+            params={"framework": framework_key, "fromVersion": from_version, "toVersion": to_version},
+        )

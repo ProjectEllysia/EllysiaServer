@@ -78,6 +78,8 @@ _SAMPLE_ARGUMENTS: dict[str, list[tuple]] = {
     "EvidenceTypeNotAllowedError": [("exe", "pdf, png")],
     "AssessmentConflictError": [(None,)],
     "FrameworkRestoreExpiredError": [("nis2",)],
+    "FrameworkUpToDateError": [("nis2",)],
+    "VersionMappingMissingError": [("nis2", "a", "b")],
     "StorableConflictError": [("github",)],
     "VaultRevisionMismatchError": [(4,), (4, 3)],
     "PlanFeatureDisabledError": [("iris.analyses", "free")],

@@ -5,7 +5,7 @@
 
 import assert from 'node:assert/strict'
 
-const { splitFrameworks, removalFacts, hasLoss } = await import('../src/components/eunomia/frameworks.js')
+const { splitFrameworks, removalFacts, hasLoss, upgradeFacts } = await import('../src/components/eunomia/frameworks.js')
 
 let failures = 0
 async function test(name, fn) {
@@ -51,6 +51,18 @@ await test('conservar evidencias no cuenta como pérdida', () => {
   assert.equal(hasLoss({ assessments: 0, evidenceDeleted: 0, evidenceKept: 5 }), false)
   assert.equal(hasLoss({ assessments: 1, evidenceDeleted: 0 }), true)
   assert.equal(hasLoss({ assessments: 0, evidenceDeleted: 2 }), true)
+})
+
+await test('el aviso de cambio de versión separa lo trasladado de lo que hay que revisar', () => {
+  const facts = upgradeFacts({
+    moves: [{ needsReview: false }, { needsReview: false }, { needsReview: true }],
+    lost: [{ identifier: 'E' }], newControls: [],
+  })
+  assert.deepEqual(facts, [{ key: 'moved', count: 2 }, { key: 'review', count: 1 }, { key: 'lost', count: 1 }])
+})
+
+await test('sin nada que trasladar el aviso de cambio de versión no enumera ceros', () => {
+  assert.deepEqual(upgradeFacts({ moves: [], lost: [], newControls: [] }), [])
 })
 
 if (failures) { console.error(`\n${failures} test(s) fallaron`); process.exit(1) }
