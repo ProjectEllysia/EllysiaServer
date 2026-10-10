@@ -1091,6 +1091,7 @@ There is no single encryption key. Each kind of secret has its own, so compromis
 | `IRIS_MAILBOX_ENCRYPTION_KEY` | OAuth refresh/access tokens and IMAP app passwords of each connected mailbox | Only if a mailbox is connected |
 | `IRIS_WEBHOOK_ENCRYPTION_KEY` | Signing secret of each Iris webhook | Only if webhooks are used |
 | `IRIS_RAW_MESSAGE_ENCRYPTION_KEY` | Raw content (headers or full `.eml`) of every analysed email | **Yes, for any use of Iris** — including an email pasted by hand |
+| `EUNOMIA_EVIDENCE_ENCRYPTION_KEY` | The files uploaded as compliance evidence | Only if evidence is uploaded |
 
 All of them are Fernet keys, generated the same way, and must be **different from each other**:
 
