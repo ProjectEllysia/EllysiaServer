@@ -103,6 +103,7 @@
     "emailNotVerified": "Confirma tu correo electrónico para poder usar esta función. Puedes pedir un enlace nuevo desde tu perfil.",
     "emailSend": "No se pudo enviar el correo.",
     "entityNotFound": {
+      "framework": "Marco de cumplimiento no encontrado.",
       "anomaly": "Anomalía no encontrada.",
       "asset": "Activo no encontrado.",
       "assetGroup": "Grupo de activos no encontrado.",
