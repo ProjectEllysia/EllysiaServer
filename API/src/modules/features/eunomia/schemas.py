@@ -2,6 +2,8 @@
 
 from marshmallow import Schema, fields, validate
 
+from src.modules.shared.schemas import UTCDateTime
+
 
 class CatalogVersionSummarySchema(Schema):
     """Una versión publicada o en borrador de un marco."""
@@ -79,10 +81,10 @@ class AdoptionSchema(Schema):
     currentVersion = fields.String()
     hasNewerVersion = fields.Boolean()
     status = fields.String()
-    adoptedAt = fields.DateTime()
+    adoptedAt = UTCDateTime()
     adoptedByUserId = fields.Integer()
-    archivedAt = fields.DateTime(allow_none=True)
-    purgeAt = fields.DateTime(allow_none=True)
+    archivedAt = UTCDateTime(allow_none=True)
+    purgeAt = UTCDateTime(allow_none=True)
 
 
 class OwnershipSchema(Schema):
@@ -108,10 +110,42 @@ class RemovalPreviewSchema(Schema):
     evidenceDeleted = fields.Integer()
     evidenceKept = fields.Integer()
     retentionDays = fields.Integer()
-    purgeAt = fields.DateTime()
+    purgeAt = UTCDateTime()
 
 
 class AdoptionCreateSchema(Schema):
     """Cuerpo de ``POST /eunomia/adoptions``."""
 
     frameworkKey = fields.String(required=True, validate=validate.Length(min=1, max=32))
+
+
+# ── Evaluación de controles ───────────────────────────────────────────────
+
+class AssessmentSchema(Schema):
+    """La evaluación de un control; ``updatedAt`` es el testigo de la concurrencia."""
+
+    code = fields.String()
+    controlIdentifier = fields.String()
+    status = fields.String()
+    justification = fields.String()
+    notes = fields.String()
+    responsibleUserId = fields.Integer(allow_none=True)
+    responsibleName = fields.String(allow_none=True)
+    dueDate = fields.Date(allow_none=True)
+    updatedAt = UTCDateTime(allow_none=True)
+    updatedByUserId = fields.Integer(allow_none=True)
+    updatedByName = fields.String(allow_none=True)
+
+
+class AssessmentWriteSchema(Schema):
+    """Cuerpo de ``PUT /eunomia/adoptions/<marco>/controls/<identificador>``."""
+
+    status = fields.String(required=True, validate=validate.OneOf(
+        ["pending", "in_progress", "implemented", "not_applicable"]))
+    justification = fields.String(load_default="", validate=validate.Length(max=4000))
+    notes = fields.String(load_default="", validate=validate.Length(max=8000))
+    responsibleUserId = fields.Integer(load_default=None, allow_none=True)
+    dueDate = fields.Date(load_default=None, allow_none=True)
+    # El ``updatedAt`` que vio el cliente (o ``null`` si el control no tenía fila): obligatorio
+    # para que dos personas no se pisen sin saberlo.
+    updatedAt = fields.DateTime(required=True, allow_none=True)
