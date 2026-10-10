@@ -12,7 +12,7 @@ from datetime import date
 from typing import Optional
 
 import src.modules.system.config_reading as CR
-from src.modules.accounts import OrganizationManager
+from src.modules.accounts import LimitKey, OrganizationManager, QuotaExceededError, QuotaManager
 from src.modules.infrastructure import UnitOfWork
 from src.modules.infrastructure.session import build_repository
 from src.modules.shared import utcnow_naive
@@ -22,6 +22,7 @@ from ..exceptions import (
     ControlNotFoundError,
     EvidenceFileMissingError,
     EvidenceNotFoundError,
+    EvidenceStorageFullError,
 )
 from ..model import EunomiaAssessmentEvent, EunomiaEvidence, EunomiaEvidenceContent, EunomiaEvidenceLink
 from ..repositories import (
@@ -74,8 +75,43 @@ def _record_link_event(uow: UnitOfWork, owner_user_id: int, actor_user_id: int, 
     ))
 
 
+def _megabytes(size: int) -> int:
+    """Bytes a megabytes, redondeando hacia arriba para no decir 0 de algo que ocupa."""
+    return -(-size // (1024 * 1024))
+
+
 class EunomiaEvidenceManager:
     """Subida, consulta, enlace y borrado de evidencias."""
+
+    def usage(self, user_id: int) -> dict:
+        """Cuánto almacenamiento de evidencias lleva gastado el dueño efectivo.
+
+        Es lo que enseña la cabecera de la vista de evidencias, para que nadie se entere del
+        límite al fallar una subida.
+
+        Args:
+            user_id: Usuario que pregunta: el dueño efectivo o un miembro (consume del dueño).
+
+        Returns:
+            dict: ``usedBytes``, ``limitBytes`` (``None`` si es ilimitado) y ``remainingBytes``.
+        """
+        owner_user_id = OrganizationManager().resolve_data_owner(user_id)
+        state = QuotaManager().state(owner_user_id, LimitKey.EUNOMIA_EVIDENCE_STORAGE)
+        return {"usedBytes": state.used, "limitBytes": state.limit, "remainingBytes": state.remaining}
+
+    def assert_room_for(self, user_id: int, declared_bytes: int) -> None:
+        """Comprueba, antes de leer el fichero, que su tamaño declarado cabe en el plan.
+
+        Args:
+            user_id: Usuario que sube.
+            declared_bytes: Tamaño que anuncia la petición.
+
+        Raises:
+            EvidenceStorageFullError: Si no cabe (402).
+        """
+        usage = self.usage(user_id)
+        if usage["remainingBytes"] is not None and declared_bytes > usage["remainingBytes"]:
+            raise EvidenceStorageFullError(_megabytes(usage["usedBytes"]), _megabytes(usage["limitBytes"]))
 
     def upload(self, user_id: int, filename: str, content: Optional[bytes], title: str,
                description: str = "", valid_until: Optional[date] = None) -> dict:
@@ -104,6 +140,14 @@ class EunomiaEvidenceManager:
         safe_name = sanitize_filename(filename)
         content_type = check_upload(safe_name, content, config.max_evidence_bytes, config.allowed_evidence_types)
 
+        # Con el tamaño real, dentro de la operación: el declarado lo comprobó el endpoint antes
+        # de leer el fichero, y este es el que cuenta.
+        try:
+            QuotaManager().consume(owner_user_id, LimitKey.EUNOMIA_EVIDENCE_STORAGE, len(content))
+        except QuotaExceededError as exc:
+            used = int((exc.details or {}).get("used", 0))
+            limit = int((exc.details or {}).get("value", 0))
+            raise EvidenceStorageFullError(_megabytes(used), _megabytes(limit)) from exc
         with UnitOfWork() as uow:
             evidence = EunomiaEvidenceRepository(uow).save(EunomiaEvidence(
                 owner_user_id=owner_user_id, title=(title or "").strip() or safe_name,

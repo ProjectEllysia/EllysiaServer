@@ -221,3 +221,54 @@ def test_removing_a_framework_keeps_evidence_that_serves_another_one(app, client
     remaining = client.get("/eunomia/evidence", headers=headers).get_json()["evidence"]
     assert [item["id"] for item in remaining] == [shared]
     assert [(l["frameworkKey"]) for l in remaining[0]["links"]] == ["ens"]
+
+
+# ── cuota de almacenamiento ────────────────────────────────────────────────
+
+@pytest.fixture()
+def tight_storage(app, seeded_plans):
+    """Aprieta a 1 MB el almacenamiento de evidencias del plan Gold de la suite."""
+    from src.modules.accounts.model import PlanLimit
+    from src.modules.infrastructure import unit_of_work
+
+    with app.app_context():
+        with unit_of_work.UnitOfWork() as uow:
+            uow.session.query(PlanLimit).filter(
+                PlanLimit.plan_id == seeded_plans["gold"],
+                PlanLimit.limit_key == "eunomia.evidence_storage", PlanLimit.scope == "holder",
+            ).update({"value": 1024 * 1024})
+
+
+def test_an_upload_over_the_quota_is_rejected_and_stores_nothing(app, client, adopted, tight_storage, auth_headers):
+    from src.modules.features.eunomia.model import EunomiaEvidence
+    from src.modules.infrastructure import unit_of_work
+
+    response = _upload(client, auth_headers(adopted), content=b"%PDF-" + b"0" * (1024 * 1024 + 10))
+
+    assert response.status_code == 402
+    assert response.get_json()["messageKey"] == "evidenceStorageFull"
+    with app.app_context():
+        with unit_of_work.UnitOfWork() as uow:
+            assert uow.session.query(EunomiaEvidence).count() == 0
+
+
+def test_the_usage_is_reported_and_deleting_frees_the_space(client, adopted, tight_storage, auth_headers):
+    headers = auth_headers(adopted)
+    evidence_id = _upload(client, headers).get_json()["id"]
+
+    usage = client.get("/eunomia/evidence", headers=headers).get_json()["usage"]
+    assert usage["usedBytes"] == len(_PDF)
+    assert usage["limitBytes"] == 1024 * 1024
+
+    client.delete(f"/eunomia/evidence/{evidence_id}", headers=headers)
+    assert client.get("/eunomia/evidence", headers=headers).get_json()["usage"]["usedBytes"] == 0
+
+
+def test_a_member_spends_the_quota_of_the_owner(client, app, adopted, regular_user, tight_storage, auth_headers):
+    org = client.post("/organizations", headers=auth_headers(adopted), json={"name": "Acme"}).get_json()
+    _join(app, org["id"], regular_user.id)
+
+    assert _upload(client, auth_headers(regular_user)).status_code == 201
+
+    usage = client.get("/eunomia/evidence", headers=auth_headers(adopted)).get_json()["usage"]
+    assert usage["usedBytes"] == len(_PDF)
