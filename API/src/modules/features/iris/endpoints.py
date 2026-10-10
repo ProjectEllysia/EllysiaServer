@@ -42,7 +42,7 @@ from .managers import (
     IrisCaseManager, IrisBatchManager, IrisCampaignManager, IrisContactGraphManager, IrisExportManager,
     IrisEnrichmentManager, IrisUrlExpansionManager, IrisTenantManager, IrisWebhookManager,
     IrisReportingManager, IrisRemediationManager, IrisMailboxEventManager, IrisMailboxAccountManager,
-    IrisSharedMailboxManager,
+    IrisSharedMailboxManager, IrisFreeToolsManager,
 )
 from .exceptions import (
     IrisAnalysisNotFoundError,
@@ -62,6 +62,7 @@ from .exceptions import (
     IrisMailboxEventRejectedError,
 )
 from .schemas import (
+    IrisFreeDomainQuerySchema,
     IrisImapConnectRequestSchema,
     IrisMailboxCredentialsRequestSchema,
     IrisMailboxFoldersRequestSchema,
@@ -2232,3 +2233,25 @@ def list_shared_mailbox_analyses(args, connection_id: int):
 def get_shared_mailbox_analysis(connection_id: int, analysis_id: int):
     """Informe completo de un análisis de un buzón compartido (con acceso explícito)"""
     return IrisSharedMailboxManager.get_analysis(connection_id, analysis_id, get_current_user().id)
+
+
+# ============================================================================
+# HERRAMIENTAS GRATUITAS — SIN AUTENTICACIÓN
+# ============================================================================
+#
+# Deliberadamente sin @require_oauth_token: son las herramientas gratuitas de
+# Iris en la web pública. Corren reglas del análisis en memoria, sin tocar la
+# red, sin encolar trabajos y sin guardar nada de lo que reciben, así que lo
+# único que se protege es el coste de CPU, con el límite por IP.
+
+
+@iris_blp.get("/tools/domain")
+@iris_blp.arguments(IrisFreeDomainQuerySchema, location="query")
+@iris_blp.response(200, description="Whether the domain imitates a known brand, and how")
+@iris_blp.alt_response(400, schema=ErrorSchema, description="Not a domain name")
+@iris_blp.alt_response(422, schema=ErrorSchema, description="Missing or too long")
+@limiter.limit("30 per minute; 300 per hour")
+@handle_exceptions(default_exception=IrisExecutionError, logger=logger)
+def inspect_public_domain(args):
+    """Comprobar si un dominio imita a una marca conocida, sin login."""
+    return IrisFreeToolsManager().inspect_domain(args["domain"])

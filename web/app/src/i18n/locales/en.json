@@ -970,6 +970,44 @@
         "note": "A year is 365.25 days, so leap years count; a month is a twelfth of it.",
         "more": "Calculating it is fine; measuring it is better. Hygeia watches your devices and tells you when something drifts from normal.",
         "moreCta": "Open Hygeia"
+      },
+      "lookalikeDomain": {
+        "title": "Lookalike domain checker",
+        "desc": "Checks whether a domain imitates a brand: letters from another alphabet, typos or the brand hidden in a subdomain.",
+        "subtitle": "Paste a domain, an email address or a link, and Iris tells you whether it poses as a well-known brand.",
+        "inputLabel": "Domain, email or link",
+        "hint": "For example, the sender of an email that looks odd or a link someone sent you.",
+        "check": "Check",
+        "checking": "Checking…",
+        "examplesLabel": "Try",
+        "invalid": "That doesn't look like a domain name. Enter something like example.com.",
+        "failed": "The domain could not be checked. Try again in a moment.",
+        "verdict": {
+          "suspicious": "This domain imitates “{brand}”",
+          "ownBrand": "This is “{brand}”’s own domain",
+          "clean": "It doesn't imitate any brand Iris knows"
+        },
+        "reads": "Reads as",
+        "travels": "Travels as",
+        "registrable": "Domain actually registered",
+        "findings": {
+          "idn_homograph": "“{label}” looks like “{brand}”, but it uses letters from another alphabet ({scripts}) that look the same.",
+          "idn_mixed_script": "“{label}” mixes alphabets in a single word ({scripts}), which no language does.",
+          "cousin": "It carries the brand “{brand}” with extra words: a cousin domain, not the brand's.",
+          "homoglyph": "“{label}” swaps letters for similar ones, like a 1 for an l, to imitate “{brand}”.",
+          "typo": "“{label}” is a typo of “{brand}”: one character apart.",
+          "brand_in_subdomain": "“{brand}” sits on the left, as a subdomain, but the real domain belongs to someone else.",
+          "brand_action_combo": "It pairs “{brand}” with “{action}”, a word typical of fake notices.",
+          "other": "It imitates “{brand}”."
+        },
+        "scripts": {
+          "LATIN": "Latin",
+          "CYRILLIC": "Cyrillic",
+          "GREEK": "Greek"
+        },
+        "note": "Iris compares against its list of well-known brands. Finding nothing doesn't guarantee a domain is trustworthy.",
+        "more": "In an analysis, Iris does this for the sender, every link and every attachment of an email, and tells you whether it's phishing.",
+        "moreCta": "Open Iris"
       }
     }
   },
@@ -5161,6 +5199,10 @@
       "toolUptimeCalculator": {
         "title": "Uptime (SLA) calculator: allowed downtime per month and year | Ellysia",
         "description": "Calculate how long a service can be down at 99.9% or 99.99% availability, per day, month and year, and the other way round. Free, no account."
+      },
+      "toolLookalikeDomain": {
+        "title": "Lookalike domain checker: homographs, typosquatting and impersonation | Ellysia",
+        "description": "Check for free whether a domain or link imitates a brand using letters from another alphabet, typos or misleading subdomains. No account."
       }
     }
   }

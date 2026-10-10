@@ -1702,3 +1702,13 @@ class IrisSharedMailboxAnalysesResponseSchema(Schema):
     total = fields.Integer()
     page = fields.Integer()
     perPage = fields.Integer()
+
+
+class IrisFreeDomainQuerySchema(Schema):
+    """Consulta de la herramienta gratuita de dominios engañosos, sin sesión.
+
+    Un dominio, una dirección de correo o una URL. El tope de longitud acota el
+    coste de cada petición; lo que no sea un nombre de dominio lo rechaza el
+    manager con un 400.
+    """
+    domain = fields.String(required=True, validate=validate.Length(min=1, max=300))

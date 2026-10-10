@@ -970,6 +970,44 @@
         "note": "El año es de 365,25 días, para que cuenten los bisiestos; el mes es su doceava parte.",
         "more": "Calcularla está bien; medirla es mejor. Hygeia vigila tus equipos y te avisa cuando algo se sale de lo normal.",
         "moreCta": "Abrir Hygeia"
+      },
+      "lookalikeDomain": {
+        "title": "Detector de dominios engañosos",
+        "desc": "Comprueba si un dominio imita a una marca: letras de otro alfabeto, erratas o la marca escondida en un subdominio.",
+        "subtitle": "Pega un dominio, una dirección de correo o un enlace, y Iris te dice si se hace pasar por una marca conocida.",
+        "inputLabel": "Dominio, correo o enlace",
+        "hint": "Por ejemplo, el remitente de un correo que te parezca raro o un enlace que te hayan enviado.",
+        "check": "Comprobar",
+        "checking": "Comprobando…",
+        "examplesLabel": "Prueba con",
+        "invalid": "Eso no parece un nombre de dominio. Escribe algo como ejemplo.com.",
+        "failed": "No se ha podido comprobar el dominio. Vuelve a intentarlo en un momento.",
+        "verdict": {
+          "suspicious": "Este dominio imita a «{brand}»",
+          "ownBrand": "Es el dominio de «{brand}»",
+          "clean": "No imita a ninguna marca que conozca Iris"
+        },
+        "reads": "Se lee",
+        "travels": "Viaja como",
+        "registrable": "Dominio que se compra",
+        "findings": {
+          "idn_homograph": "«{label}» parece «{brand}», pero lleva letras de otro alfabeto ({scripts}) que se ven igual.",
+          "idn_mixed_script": "«{label}» mezcla alfabetos en una misma palabra ({scripts}), algo que ningún idioma hace.",
+          "cousin": "Lleva la marca «{brand}» con palabras añadidas: es un dominio primo, no el de la marca.",
+          "homoglyph": "«{label}» cambia letras por otras parecidas, como un 1 por una l, para imitar a «{brand}».",
+          "typo": "«{label}» es una errata de «{brand}»: un solo carácter de diferencia.",
+          "brand_in_subdomain": "«{brand}» va a la izquierda, como subdominio, pero el dominio real es de otro.",
+          "brand_action_combo": "Junta «{brand}» con «{action}», una palabra típica de los avisos falsos.",
+          "other": "Imita a «{brand}»."
+        },
+        "scripts": {
+          "LATIN": "latino",
+          "CYRILLIC": "cirílico",
+          "GREEK": "griego"
+        },
+        "note": "Iris compara con su lista de marcas conocidas. Que no salga nada no garantiza que un dominio sea de fiar.",
+        "more": "En un análisis, Iris hace esto con el remitente, cada enlace y cada adjunto de un correo, y te dice si es phishing.",
+        "moreCta": "Abrir Iris"
       }
     }
   },
@@ -5161,6 +5199,10 @@
       "toolUptimeCalculator": {
         "title": "Calculadora de disponibilidad (SLA): caída permitida al mes y al año | Ellysia",
         "description": "Calcula cuánto tiempo puede caer un servicio con un 99,9 % o un 99,99 % de disponibilidad, al día, al mes y al año, y al revés. Gratis y sin cuenta."
+      },
+      "toolLookalikeDomain": {
+        "title": "Detector de dominios falsos: homógrafos, typosquatting y suplantación | Ellysia",
+        "description": "Comprueba gratis si un dominio o un enlace imita a una marca con letras de otro alfabeto, erratas o subdominios engañosos. Sin cuenta."
       }
     }
   }

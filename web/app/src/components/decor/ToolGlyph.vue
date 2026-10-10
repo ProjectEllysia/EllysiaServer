@@ -112,6 +112,16 @@
         <path class="draw" pathLength="1" d="M8 34 H20 L25 22 L31 46 L37 16 L42 34 H56" />
         <circle class="dot a-dot" cx="56" cy="34" r="2.6" />
       </template>
+
+      <!-- Detector de dominios engañosos: la máscara de quien se hace pasar por otro. -->
+      <template v-else-if="toolId === 'lookalikeDomain'">
+        <path class="fine" d="M8 18 L2 12 M56 18 L62 12" />
+        <g class="a-sway">
+          <path class="mask draw" pathLength="1" d="M8 18 C8 11 56 11 56 18 C56 38 46 54 32 54 C18 54 8 38 8 18 Z" />
+          <path class="eye" d="M16 27 C19 22 25 22 28 27 C25 31 19 31 16 27 Z M36 27 C39 22 45 22 48 27 C45 31 39 31 36 27 Z" />
+          <path class="fine" d="M24 43 C28 46 36 46 40 43" />
+        </g>
+      </template>
     </g>
   </svg>
 </template>
@@ -193,7 +203,9 @@ const ring = computed(() => {
 .engraving :is(path, circle, rect) { fill: none; stroke: var(--accent-bright); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .engraving .fine { stroke-width: max(0.9px, calc(var(--device-pixel, 0) * 1px)); opacity: 0.6; }
 .engraving .dot { fill: var(--accent-bright); stroke: none; }
-.engraving .bar, .engraving .cell--net, .engraving .bolt, .engraving .shield { fill: var(--hatch); }
+.engraving .bar, .engraving .cell--net, .engraving .bolt, .engraving .shield, .engraving .mask { fill: var(--hatch); }
+/* Los ojos de la máscara son huecos: se ve el fondo de la moneda a través de ellos. */
+.engraving .eye { fill: var(--surface); stroke-width: 1.2; }
 .engraving .cell { stroke-width: 1.1; }
 .engraving .spark, .engraving .tooth { stroke-width: 1.4; }
 .engraving .needle { stroke-width: 1.9; }
@@ -223,6 +235,7 @@ const ring = computed(() => {
 @keyframes needle { 0%, 100% { transform: rotate(-52deg); } 45% { transform: rotate(58deg); } 70% { transform: rotate(22deg); } }
 
 .a-hook { transform-origin: 50px 4px; animation: pendulum 2.6s ease-in-out infinite; }
+.a-sway { transform-box: fill-box; transform-origin: 50% 0; animation: pendulum 2.6s ease-in-out infinite; }
 @keyframes pendulum { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(9deg); } }
 
 .a-cell { animation: bit 1.8s ease-in-out calc(var(--i) * 0.12s) infinite; }
