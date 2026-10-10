@@ -60,6 +60,7 @@ class CatalogVersionSchema(Schema):
     name = fields.String()
     shortName = fields.String()
     publishedAt = fields.String()
+    licenseMode = fields.String()
     notes = fields.String()
     sources = fields.List(fields.Nested(CatalogSourceSchema))
     tree = fields.List(fields.Nested(CatalogNodeSchema))

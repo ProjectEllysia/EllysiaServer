@@ -13,11 +13,32 @@ recalcula; un cambio en una versión publicada se hace publicando otra. Una vers
 
 Este módulo es **puro**: no toca base de datos, red ni Flask, y no importa nada de ``features``.
 
+Fuentes y licencias
+-------------------
+Reproducir el texto de una norma protegida dentro de un producto comercial es un riesgo legal, y
+es fácil hacerlo sin darse cuenta al rellenar un catálogo. Por eso cada versión declara de dónde
+sale (``sources``: nombre, dirección, base de reutilización y fecha de consulta) y qué se puede
+reproducir de ella (``licenseMode``):
+
+* ``full_text``: el texto de la fuente se puede reproducir citándola. Legislación publicada en
+  EUR-Lex o en el BOE (NIS2, el Reglamento 2024/2690, el RGPD, el ENS).
+* ``own_wording``: solo redacción propia, tomando la fuente como referencia. Guías con una
+  autorización de reproducción condicionada, como las de ENISA, que permite reproducir citando
+  la fuente «salvo que se indique otra cosa» y no fija una licencia concreta.
+* ``codes_only``: solo códigos y títulos cortos propios. Normas de pago con derechos de autor,
+  como ISO/IEC 27001: se usan los identificadores de los controles, nunca su texto.
+
+Un título de una versión ``codes_only`` no pasa de ``CODES_ONLY_MAX_TITLE`` caracteres y su
+descripción no pasa de ``CODES_ONLY_MAX_DESCRIPTION``: no impide copiar, pero un párrafo de la
+norma no cabe y salta en el test. Que lo escrito sea de verdad redacción propia lo comprueba la
+revisión del cambio.
+
 Formato de una versión (claves en camelCase)::
 
     {
       "key": "nis2", "version": "2022-2555", "status": "draft" | "published",
       "name": "...", "shortName": "...", "publishedAt": "2022-12-27",
+      "licenseMode": "full_text" | "own_wording" | "codes_only",
       "sources": [{"name": "...", "url": "...", "license": "...", "consultedAt": "2026-10-10"}],
       "notes": "...",                          # opcional
       "nodes": [{
@@ -36,6 +57,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
@@ -51,6 +73,15 @@ _STATUSES = (STATUS_DRAFT, STATUS_PUBLISHED)
 KIND_GROUP = "group"
 KIND_REQUIREMENT = "requirement"
 _KINDS = (KIND_GROUP, KIND_REQUIREMENT)
+
+LICENSE_FULL_TEXT = "full_text"
+LICENSE_OWN_WORDING = "own_wording"
+LICENSE_CODES_ONLY = "codes_only"
+_LICENSE_MODES = (LICENSE_FULL_TEXT, LICENSE_OWN_WORDING, LICENSE_CODES_ONLY)
+
+#: Longitud máxima de un título y de una descripción en una versión ``codes_only``.
+CODES_ONLY_MAX_TITLE = 100
+CODES_ONLY_MAX_DESCRIPTION = 300
 
 
 class CatalogFormatError(ValueError):
@@ -122,6 +153,8 @@ class FrameworkVersion:
         name: Nombre legible del marco.
         short_name: Nombre corto para rótulos estrechos.
         published_at: Fecha de publicación del texto de origen, ISO.
+        license_mode: Qué se puede reproducir de la fuente: ``"full_text"``,
+            ``"own_wording"`` o ``"codes_only"`` (ver «Fuentes y licencias»).
         sources: Fuentes de las que sale.
         notes: Notas de aplicabilidad o de uso; vacío si no hay.
         nodes: Todos los nodos, en el orden del fichero.
@@ -133,6 +166,7 @@ class FrameworkVersion:
     name: str
     short_name: str
     published_at: str
+    license_mode: str
     sources: tuple[CatalogSource, ...]
     notes: str
     nodes: tuple[CatalogNode, ...]
@@ -178,6 +212,9 @@ class FrameworkVersion:
             stack.extend(reversed(self.children(node.code)))
 
 
+_ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+
 def _require(condition: bool, message: str) -> None:
     if not condition:
         raise CatalogFormatError(message)
@@ -206,13 +243,17 @@ def parse_version(document: dict) -> FrameworkVersion:
     Raises:
         CatalogFormatError: Si algo no cumple el formato; el mensaje nombra el nodo.
     """
-    for required in ("key", "version", "status", "name", "shortName", "publishedAt", "sources", "nodes"):
+    for required in ("key", "version", "status", "name", "shortName", "publishedAt", "licenseMode",
+                     "sources", "nodes"):
         _require(required in document, f"falta la clave «{required}»")
     key, version = document["key"], document["version"]
     _require(isinstance(key, str) and key.strip() and ":" not in key, "«key» no es válida")
     _require(isinstance(version, str) and version.strip() and "/" not in version, "«version» no es válida")
     _require(document["status"] in _STATUSES, f"«status» debe ser uno de {_STATUSES}")
     where_version = f"{key}/{version}"
+    _require(document["licenseMode"] in _LICENSE_MODES,
+             f"{where_version}: «licenseMode» debe ser uno de {_LICENSE_MODES}")
+    is_codes_only = document["licenseMode"] == LICENSE_CODES_ONLY
 
     sources_raw = document["sources"]
     _require(isinstance(sources_raw, list) and sources_raw, f"{where_version}: «sources» no puede estar vacío")
@@ -221,6 +262,8 @@ def parse_version(document: dict) -> FrameworkVersion:
         for required in ("name", "url", "license", "consultedAt"):
             _require(isinstance(source.get(required), str) and source[required].strip(),
                      f"{where_version}: la fuente {index} no tiene «{required}»")
+        _require(_ISO_DATE.fullmatch(source["consultedAt"]) is not None,
+                 f"{where_version}: la fuente {index} tiene «consultedAt» que no es AAAA-MM-DD")
         sources.append(CatalogSource(source["name"], source["url"], source["license"], source["consultedAt"]))
 
     nodes_raw = document["nodes"]
@@ -246,6 +289,12 @@ def parse_version(document: dict) -> FrameworkVersion:
         _require(isinstance(raw.get("title"), str) and raw["title"].strip(), f"{where}: falta «title»")
         description = raw.get("description", "")
         _require(isinstance(description, str), f"{where}: «description» debe ser un texto")
+        if is_codes_only:
+            _require(len(raw["title"]) <= CODES_ONLY_MAX_TITLE,
+                     f"{where}: el título pasa de {CODES_ONLY_MAX_TITLE} caracteres en una versión codes_only")
+            _require(len(description) <= CODES_ONLY_MAX_DESCRIPTION,
+                     f"{where}: la descripción pasa de {CODES_ONLY_MAX_DESCRIPTION} caracteres "
+                     f"en una versión codes_only")
         actions = _text_list(raw.get("actions", []), f"{where}: «actions»")
         evidence = _text_list(raw.get("evidence", []), f"{where}: «evidence»")
         is_leaf = identifier not in has_children
@@ -284,7 +333,7 @@ def parse_version(document: dict) -> FrameworkVersion:
     return FrameworkVersion(
         key=key, version=version, status=document["status"], name=document["name"],
         short_name=document["shortName"], published_at=document["publishedAt"],
-        sources=tuple(sources), notes=document.get("notes", ""), nodes=tuple(nodes),
+        license_mode=document["licenseMode"], sources=tuple(sources), notes=document.get("notes", ""), nodes=tuple(nodes),
         _by_code=by_code, _children=children,
     )
 

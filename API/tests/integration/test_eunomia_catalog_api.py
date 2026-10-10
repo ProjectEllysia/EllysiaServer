@@ -11,7 +11,7 @@ pytestmark = pytest.mark.integration
 
 _DOCUMENT = {
     "key": "demo", "version": "1", "status": "draft", "name": "Marco de prueba",
-    "shortName": "Demo", "publishedAt": "2026-01-01",
+    "shortName": "Demo", "publishedAt": "2026-01-01", "licenseMode": "full_text",
     "sources": [{"name": "Norma", "url": "https://example.test", "license": "libre", "consultedAt": "2026-10-10"}],
     "nodes": [
         {"identifier": "1", "parent": None, "order": 1, "kind": "group", "title": "Uno"},
