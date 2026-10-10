@@ -348,3 +348,20 @@ class TemplateValuesInvalidError(EunomiaError):
             message_key="templateValueInvalid",
             params={"field": field_key},
         )
+
+
+class TemplateIncompleteError(EunomiaError):
+    """Faltan campos obligatorios de la plantilla: no se genera un documento a medias."""
+
+    default_code = ErrorCode.VALIDATION_ERROR
+    default_status_code = 400
+
+    def __init__(self, labels: list[str]) -> None:
+        joined = ", ".join(labels)
+        super().__init__(
+            message=f"Faltan campos obligatorios de la plantilla: {joined}",
+            user_message=f"Para generar el documento falta completar: {joined}.",
+            message_key="templateIncomplete",
+            params={"fields": joined},
+            details={"fields": labels},
+        )

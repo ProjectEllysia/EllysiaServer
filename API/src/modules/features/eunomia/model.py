@@ -11,7 +11,7 @@ from sqlalchemy import JSON, Column, Date, DateTime, ForeignKey, Index, Integer,
 
 from sqlalchemy.orm import deferred
 
-from src.modules.shared import Base, EncryptedBinary, utcnow_naive
+from src.modules.shared import Base, Document, EncryptedBinary, utcnow_naive
 
 #: Estados de una adopción.
 ADOPTION_ACTIVE = "active"
@@ -254,3 +254,50 @@ class EunomiaTemplateDraft(Base):
     values             = Column(JSON,        nullable=False, default=dict)
     updated_at         = Column(DateTime,    nullable=False, default=utcnow_naive)
     updated_by_user_id = Column(Integer,     ForeignKey("User.id"), nullable=True)
+
+
+class EunomiaDocument(Document):
+    """Un documento de cumplimiento generado en segundo plano, en PDF o en Word.
+
+    Hereda de ``Document`` (herencia *joined-table*, como los de Hygeia, Iris y Themis): la tabla
+    común guarda el dueño, el formato, el estado (``pending``/``running``/``done``/``error``),
+    las fechas y la ruta del fichero. ``Document.user_id`` es el **dueño efectivo** de los datos,
+    no quien lo pidió, de modo que los miembros de la organización ven y descargan los mismos
+    documentos que el dueño.
+
+    Attributes:
+        id: Clave primaria; clave ajena a ``Document.id``.
+        template_key: Identificador de la plantilla (``"incident-procedure"``).
+        template_version: Versión de la plantilla con la que se generó.
+        title: Título del documento en el momento de pedirlo.
+        values: ``{campo: texto}`` ya resueltos (guardados y precargados) en el momento de pedirlo:
+            el documento se genera con lo que el usuario vio, aunque el borrador cambie después.
+        requested_by_name: Nombre de quien lo pidió, tal como se leía entonces.
+        download_name: Nombre con el que se descarga; ``None`` mientras no está listo.
+    """
+
+    __tablename__ = "EunomiaDocument"
+
+    id                = Column(Integer, ForeignKey("Document.id"), primary_key=True)
+    template_key      = Column(String(64),  nullable=False)
+    template_version  = Column(String(16),  nullable=False)
+    title             = Column(String(255), nullable=False)
+    values            = Column(JSON,        nullable=False, default=dict)
+    requested_by_name = Column(String(255), nullable=False, default="")
+    download_name     = Column(String(200), nullable=True)
+
+    __mapper_args__ = {"polymorphic_identity": "eunomia"}
+
+    def to_dict(self) -> dict:
+        """El documento para la API, sin la ruta en disco ni los valores.
+
+        Returns:
+            dict: ``id``, ``templateKey``, ``templateVersion``, ``title``, ``format``, ``status``,
+                ``requestedByName``, ``downloadName``, ``createdAt`` y ``generatedAt``.
+        """
+        return {
+            "id": self.id, "templateKey": self.template_key, "templateVersion": self.template_version,
+            "title": self.title, "format": self.format, "status": self.status,
+            "requestedByName": self.requested_by_name, "downloadName": self.download_name,
+            "createdAt": self.created_at, "generatedAt": self.generated_at,
+        }

@@ -93,6 +93,7 @@ const FRONTEND_SUBROUTES = new Set([
   '/hygeia/documentos',
   '/eunomia/marcos',
   '/eunomia/plantillas',
+  '/eunomia/documentos',
 ])
 
 // Rutas del frontend con un segmento variable (`/eunomia/marcos/<marco>`): se reconocen por su

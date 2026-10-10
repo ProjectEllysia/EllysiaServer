@@ -108,6 +108,7 @@
     "frameworkRestoreExpired": "The period to restore the framework “{framework}” has expired. You can adopt it again, but you will start from scratch.",
     "frameworkUpToDate": "The framework “{framework}” is already on the current catalog version.",
     "templateValueInvalid": "The value of the field “{field}” is not valid for this template.",
+    "templateIncomplete": "To generate the document you still need to fill in: {fields}.",
     "versionMappingMissing": "There are no correspondences between versions {fromVersion} and {toVersion} of the framework “{framework}”, so your assessment cannot be moved automatically.",
     "invalidAuthorizedTarget": "“{target}” is not an IP address, a range, a domain or a cloud resource. Write it as “203.0.113.10”, “203.0.113.0/24”, “example.com” or “s3:bucket-name”.",
     "duplicatedUserCredentials": "There is already an account with this value: {value}.",
@@ -2046,6 +2047,28 @@
         "assessment": "Comes from the control's assessment."
       },
       "missing": "{count} required field is missing. | {count} required fields are missing."
+    },
+    "documents": {
+      "title": "Generated documents",
+      "intro": "Documents are generated in the background: they show up here when they are ready.",
+      "empty": "You have not generated any document yet.",
+      "status": {
+        "pending": "Queued",
+        "running": "Generating",
+        "done": "Ready",
+        "error": "Failed"
+      },
+      "download": "Download",
+      "delete": "Delete",
+      "generate": {
+        "pdf": "Generate PDF",
+        "docx": "Generate Word"
+      },
+      "queued": "Document queued.",
+      "requestFailed": "The document could not be requested.",
+      "loadFailed": "The documents could not be loaded.",
+      "downloadFailed": "The document could not be downloaded.",
+      "deleteFailed": "The document could not be deleted."
     }
   },
   "organizationManaged": {

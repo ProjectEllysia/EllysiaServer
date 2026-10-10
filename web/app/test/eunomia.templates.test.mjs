@@ -5,7 +5,7 @@
 
 import assert from 'node:assert/strict'
 
-const { valuesToSave, missingRequired, sourceRoute } = await import('../src/components/eunomia/templates.js')
+const { valuesToSave, missingRequired, sourceRoute, hasActiveDocuments } = await import('../src/components/eunomia/templates.js')
 
 let failures = 0
 async function test(name, fn) {
@@ -42,6 +42,11 @@ await test('el origen lleva al perfil o a la evaluación, y lo escrito no lleva 
   assert.equal(sourceRoute({ origin: 'company' }, 'nis2'), '/profile')
   assert.equal(sourceRoute({ origin: 'assessment' }, 'nis2'), '/eunomia/marcos/nis2')
   assert.equal(sourceRoute({ origin: 'saved' }, 'nis2'), null)
+})
+
+await test('el sondeo de documentos sigue mientras alguno esté en cola o generándose', () => {
+  assert.equal(hasActiveDocuments([{ status: 'done' }, { status: 'running' }]), true)
+  assert.equal(hasActiveDocuments([{ status: 'done' }, { status: 'error' }]), false)
 })
 
 if (failures) { console.error(`\n${failures} test(s) fallaron`); process.exit(1) }

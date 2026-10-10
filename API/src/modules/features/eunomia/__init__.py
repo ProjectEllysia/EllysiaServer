@@ -27,6 +27,7 @@ Exponente:
 """
 
 from src.modules.accounts import LimitKey, register_stock_counter
+from src.modules.system.taskqueue import QueueRegistry
 from src.modules.users import UserDataRegistry
 
 from .data_export import EXPORT_TABLES
@@ -46,6 +47,9 @@ register_stock_counter(
     LimitKey.EUNOMIA_FRAMEWORKS,
     lambda session, user_ids: EunomiaFrameworkAdoptionRepository(session=session).count_active_for_owners(user_ids),
 )
+
+# Los documentos de cumplimiento se generan en el worker, en su propia cola.
+QueueRegistry.register("eunomia.report")
 
 # Lo que cuelga de una adopción y hay que contar y purgar al quitar un marco.
 AdoptionDataRegistry.register("assessments", count=count_assessments, purge=purge_assessments)
