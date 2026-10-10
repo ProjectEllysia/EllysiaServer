@@ -63,6 +63,8 @@ from .exceptions import (
 )
 from .schemas import (
     IrisFreeDomainQuerySchema,
+    IrisFreeHeadersRequestSchema,
+    IrisFreeHeadersResponseSchema,
     IrisImapConnectRequestSchema,
     IrisMailboxCredentialsRequestSchema,
     IrisMailboxFoldersRequestSchema,
@@ -2255,3 +2257,15 @@ def get_shared_mailbox_analysis(connection_id: int, analysis_id: int):
 def inspect_public_domain(args):
     """Comprobar si un dominio imita a una marca conocida, sin login."""
     return IrisFreeToolsManager().inspect_domain(args["domain"])
+
+
+@iris_blp.post("/tools/headers")
+@iris_blp.arguments(IrisFreeHeadersRequestSchema)
+@iris_blp.response(200, IrisFreeHeadersResponseSchema, description="Route hop by hop and SPF, DKIM and DMARC results")
+@iris_blp.alt_response(400, schema=ErrorSchema, description="Not enough headers to read")
+@iris_blp.alt_response(422, schema=ErrorSchema, description="Missing or over 64 KB")
+@limiter.limit("20 per minute; 200 per hour")
+@handle_exceptions(default_exception=IrisExecutionError, logger=logger)
+def inspect_public_headers(data):
+    """Leer la ruta y la autenticación de unas cabeceras de correo, sin login."""
+    return IrisFreeToolsManager().inspect_headers(data["headers"])

@@ -122,6 +122,14 @@
           <path class="fine" d="M24 43 C28 46 36 46 40 43" />
         </g>
       </template>
+
+      <!-- Analizador de cabeceras: la carta y los saltos de su ruta. -->
+      <template v-else-if="toolId === 'headerAnalyzer'">
+        <path class="fine" d="M10 16 H54" />
+        <circle v-for="index in 3" :key="index" class="node a-cell" :style="{ '--i': index }" :cx="10 + (index - 1) * 22" cy="16" r="4.5" />
+        <rect class="draw" pathLength="1" x="10" y="30" width="44" height="28" rx="3" />
+        <path class="draw" pathLength="1" d="M10 30 L32 46 L54 30" />
+      </template>
     </g>
   </svg>
 </template>
@@ -203,7 +211,7 @@ const ring = computed(() => {
 .engraving :is(path, circle, rect) { fill: none; stroke: var(--accent-bright); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .engraving .fine { stroke-width: max(0.9px, calc(var(--device-pixel, 0) * 1px)); opacity: 0.6; }
 .engraving .dot { fill: var(--accent-bright); stroke: none; }
-.engraving .bar, .engraving .cell--net, .engraving .bolt, .engraving .shield, .engraving .mask { fill: var(--hatch); }
+.engraving .bar, .engraving .cell--net, .engraving .bolt, .engraving .shield, .engraving .mask, .engraving .node { fill: var(--hatch); }
 /* Los ojos de la máscara son huecos: se ve el fondo de la moneda a través de ellos. */
 .engraving .eye { fill: var(--surface); stroke-width: 1.2; }
 .engraving .cell { stroke-width: 1.1; }

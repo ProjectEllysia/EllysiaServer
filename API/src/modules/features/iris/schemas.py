@@ -1712,3 +1712,32 @@ class IrisFreeDomainQuerySchema(Schema):
     manager con un 400.
     """
     domain = fields.String(required=True, validate=validate.Length(min=1, max=300))
+
+
+class IrisFreeHeadersRequestSchema(Schema):
+    """Cuerpo de la herramienta gratuita que lee las cabeceras de un correo, sin sesión.
+
+    El tope de 64 KB sobra para cualquier bloque de cabeceras y acota el coste
+    de cada petición; un mensaje con adjuntos no cabe, y no hace falta.
+    """
+    headers = fields.String(required=True, validate=validate.Length(min=10, max=65536))
+
+
+class IrisFreeAuthCheckSchema(Schema):
+    """Resultado de una comprobación de autenticación en la herramienta gratuita."""
+    check = fields.String()
+    verdict = fields.String()
+    domains = fields.List(fields.String())
+
+
+class IrisFreeHeadersResponseSchema(Schema):
+    """Respuesta de la herramienta gratuita de cabeceras: remitente, autenticación y ruta.
+
+    La ruta usa el mismo schema que la de un análisis, así que la interfaz la
+    pinta con el mismo componente.
+    """
+    sender = fields.String()
+    subject = fields.String()
+    fromDomain = fields.String(allow_none=True)
+    auth = fields.List(fields.Nested(IrisFreeAuthCheckSchema))
+    path = fields.Nested(ReceivedPathResponseSchema)

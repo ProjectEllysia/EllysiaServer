@@ -1008,6 +1008,60 @@
         "note": "Iris compares against its list of well-known brands. Finding nothing doesn't guarantee a domain is trustworthy.",
         "more": "In an analysis, Iris does this for the sender, every link and every attachment of an email, and tells you whether it's phishing.",
         "moreCta": "Open Iris"
+      },
+      "headerAnalyzer": {
+        "title": "Email header analyzer",
+        "desc": "Paste the headers of an email and see which servers it went through and whether it passed SPF, DKIM and DMARC.",
+        "subtitle": "An email's headers tell where it came from. Paste them and Iris shows you the route hop by hop and its authentication.",
+        "inputLabel": "Email headers",
+        "useSample": "Use an example",
+        "hint": "In Gmail: ⋮ › Show original. In Outlook: File › Properties › Internet headers. The header block is enough.",
+        "read": "Read headers",
+        "reading": "Reading…",
+        "errors": {
+          "notHeaders": "That doesn't look like a header block. Copy the ones from the original email, with its “Received:” lines.",
+          "tooLong": "It's too long. Paste only the headers, without the body or the attachments.",
+          "failed": "The headers could not be read. Try again in a moment."
+        },
+        "sender": "Sender",
+        "subject": "Subject",
+        "authTitle": "Is it who it says it is?",
+        "checks": {
+          "spf": {
+            "name": "SPF",
+            "what": "Whether the server that sent it may send email on behalf of that domain."
+          },
+          "dkim": {
+            "name": "DKIM",
+            "what": "Whether the email carries the domain's signature and nobody changed it on the way."
+          },
+          "dmarc": {
+            "name": "DMARC",
+            "what": "Whether the sender domain you see passed SPF or DKIM, and what it asks to do if not."
+          },
+          "alignment": {
+            "name": "Alignment",
+            "what": "Whether the domain that was authenticated is the same as the sender's you see."
+          }
+        },
+        "verdicts": {
+          "pass": "Pass",
+          "fail": "Fail",
+          "softfail": "Soft fail",
+          "neutral": "Inconclusive",
+          "none": "No policy",
+          "bestguess": "Pass (estimated)",
+          "policy": "No result",
+          "error": "Error",
+          "missing": "Not present",
+          "other": "Unknown"
+        },
+        "authenticated": "{domains} was authenticated; the sender is {from}.",
+        "pathTitle": "The email's route",
+        "pathLead": "From the server that sent it to the one that delivered it. Click a hop to see its original line.",
+        "note": "The headers are read and discarded: nothing is stored. SPF, DKIM and DMARC results are written by the server that received the email.",
+        "more": "This is only half of it: an Iris analysis also reads the body, the links and the attachments, and gives you a verdict.",
+        "moreCta": "Open Iris"
       }
     }
   },
@@ -5203,6 +5257,10 @@
       "toolLookalikeDomain": {
         "title": "Lookalike domain checker: homographs, typosquatting and impersonation | Ellysia",
         "description": "Check for free whether a domain or link imitates a brand using letters from another alphabet, typos or misleading subdomains. No account."
+      },
+      "toolHeaderAnalyzer": {
+        "title": "Email header analyzer: route, SPF, DKIM and DMARC | Ellysia",
+        "description": "Paste an email's headers and see for free the route it took, hop by hop, and whether it passed SPF, DKIM and DMARC. Nothing is stored, no account needed."
       }
     }
   }

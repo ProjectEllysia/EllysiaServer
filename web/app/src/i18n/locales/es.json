@@ -1008,6 +1008,60 @@
         "note": "Iris compara con su lista de marcas conocidas. Que no salga nada no garantiza que un dominio sea de fiar.",
         "more": "En un análisis, Iris hace esto con el remitente, cada enlace y cada adjunto de un correo, y te dice si es phishing.",
         "moreCta": "Abrir Iris"
+      },
+      "headerAnalyzer": {
+        "title": "Analizador de cabeceras de correo",
+        "desc": "Pega las cabeceras de un correo y mira por qué servidores pasó y si superó SPF, DKIM y DMARC.",
+        "subtitle": "Las cabeceras de un correo cuentan de dónde viene. Pégalas y Iris te enseña la ruta salto a salto y su autenticación.",
+        "inputLabel": "Cabeceras del correo",
+        "useSample": "Usar un ejemplo",
+        "hint": "En Gmail: ⋮ › Mostrar original. En Outlook: Archivo › Propiedades › Encabezados de Internet. Basta con el bloque de cabeceras.",
+        "read": "Leer cabeceras",
+        "reading": "Leyendo…",
+        "errors": {
+          "notHeaders": "Eso no parece un bloque de cabeceras. Copia las del correo original, con sus líneas «Received:».",
+          "tooLong": "Es demasiado largo. Pega solo las cabeceras, sin el cuerpo ni los adjuntos.",
+          "failed": "No se han podido leer las cabeceras. Vuelve a intentarlo en un momento."
+        },
+        "sender": "Remitente",
+        "subject": "Asunto",
+        "authTitle": "¿Es quien dice ser?",
+        "checks": {
+          "spf": {
+            "name": "SPF",
+            "what": "Si el servidor que lo envió puede enviar correo en nombre de ese dominio."
+          },
+          "dkim": {
+            "name": "DKIM",
+            "what": "Si el correo lleva la firma del dominio y nadie lo tocó por el camino."
+          },
+          "dmarc": {
+            "name": "DMARC",
+            "what": "Si el dominio del remitente que ves superó SPF o DKIM, y qué pide hacer si no."
+          },
+          "alignment": {
+            "name": "Alineación",
+            "what": "Si el dominio que se autenticó es el mismo que el del remitente que ves."
+          }
+        },
+        "verdicts": {
+          "pass": "Pasa",
+          "fail": "Falla",
+          "softfail": "Falla a medias",
+          "neutral": "Sin conclusión",
+          "none": "Sin política",
+          "bestguess": "Pasa (estimado)",
+          "policy": "Sin resultado",
+          "error": "Error",
+          "missing": "No aparece",
+          "other": "Desconocido"
+        },
+        "authenticated": "Se autenticó {domains}; el remitente es {from}.",
+        "pathTitle": "La ruta del correo",
+        "pathLead": "Del servidor que lo envió al que lo entregó. Pulsa un salto para ver su línea original.",
+        "note": "Las cabeceras se leen y se descartan: no se guardan. Los resultados de SPF, DKIM y DMARC los escribe el servidor que recibió el correo.",
+        "more": "Esto es solo la mitad: un análisis de Iris también lee el cuerpo, los enlaces y los adjuntos, y te da un veredicto.",
+        "moreCta": "Abrir Iris"
       }
     }
   },
@@ -5203,6 +5257,10 @@
       "toolLookalikeDomain": {
         "title": "Detector de dominios falsos: homógrafos, typosquatting y suplantación | Ellysia",
         "description": "Comprueba gratis si un dominio o un enlace imita a una marca con letras de otro alfabeto, erratas o subdominios engañosos. Sin cuenta."
+      },
+      "toolHeaderAnalyzer": {
+        "title": "Analizador de cabeceras de correo: ruta, SPF, DKIM y DMARC | Ellysia",
+        "description": "Pega las cabeceras de un correo y mira gratis la ruta que siguió, salto a salto, y si pasó SPF, DKIM y DMARC. No se guarda nada y no hace falta cuenta."
       }
     }
   }

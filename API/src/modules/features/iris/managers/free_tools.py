@@ -1,6 +1,6 @@
 """
 Las herramientas gratuitas de Iris: trozos de un análisis que se pueden usar
-sin cuenta.
+sin cuenta (el detector de dominios engañosos y el analizador de cabeceras).
 
 Cada herramienta pasa lo que escribe el visitante por las mismas reglas que
 usa un análisis de Iris, en memoria: no se guarda nada (ni lo que se envía ni
@@ -16,6 +16,10 @@ from typing import Dict, List, Optional
 
 from ..exceptions import IrisInvalidInputError
 from ..services.idn import assess_domain
+from ..services.parsers import (
+    build_path, decode_mime_words, parse_raw_message, validate_headers_parsed, validate_headers_pre,
+)
+from ..services.rules.auth_rules import check_dkim, check_dmarc, check_domain_alignment, check_spf
 from ..services.rules.sender_identity_rules import check_lookalike_domain, check_subdomain_impersonation
 from ..services.text import registrable_domain, registrable_label, url_host
 from ..services.wordlists import canonical_brands
@@ -71,6 +75,53 @@ class IrisFreeToolsManager:
             "ownBrand": own_label if own_label in canonical_brands() else None,
             "isSuspicious": bool(findings),
             "findings": findings,
+        }
+
+    def inspect_headers(self, raw: str) -> Dict:
+        """
+        Lee las cabeceras de un correo como lo hace un análisis de Iris, sin
+        veredicto: la ruta que siguió y lo que dicen SPF, DKIM y DMARC.
+
+        Es la parte del análisis que solo mira las cabeceras de autenticación y
+        la cadena ``Received``. No corre el resto de reglas, no mira el cuerpo
+        ni los adjuntos y no puntúa.
+
+        Args:
+            raw: El bloque de cabeceras pegado por el visitante (o el mensaje
+                entero: del cuerpo no se usa nada).
+
+        Returns:
+            Dict: ``sender`` (la cabecera ``From``) y ``subject`` decodificados; ``fromDomain``, el
+                dominio registrable del remitente o ``None``; ``auth``, una
+                lista de ``{check, verdict, domains}`` para ``spf``, ``dkim``,
+                ``dmarc`` y ``alignment``, donde ``verdict`` es el de la regla
+                (``pass``, ``fail``, ``softfail``, ``neutral``, ``none``,
+                ``bestguess``, ``policy``, ``error`` o ``missing``) y
+                ``domains`` los dominios autenticados cuando la alineación los
+                compara; y ``path``, la ruta salto a salto de ``build_path``.
+
+        Raises:
+            IrisInvalidInputError: Si el texto no tiene cabeceras suficientes
+                para leer nada (el mínimo de ``features.iris.minHeaders``).
+        """
+        validate_headers_pre(raw)
+        context = parse_raw_message(raw)
+        validate_headers_parsed(context.headers)
+        headers = context.headers
+
+        alignment = check_domain_alignment(headers)
+        compared = alignment.details.get("aligned") or alignment.details.get("authenticated_domains") or {}
+        return {
+            "sender": decode_mime_words(headers.get("from", "")),
+            "subject": decode_mime_words(headers.get("subject", "")),
+            "fromDomain": alignment.details.get("from_domain"),
+            "auth": [
+                {"check": "spf", "verdict": check_spf(headers).verdict, "domains": []},
+                {"check": "dkim", "verdict": check_dkim(headers).verdict, "domains": []},
+                {"check": "dmarc", "verdict": check_dmarc(headers).verdict, "domains": []},
+                {"check": "alignment", "verdict": alignment.verdict, "domains": sorted(set(compared.values()))},
+            ],
+            "path": build_path(context.received_headers),
         }
 
 
