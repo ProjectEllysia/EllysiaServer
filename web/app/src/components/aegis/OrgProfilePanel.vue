@@ -18,30 +18,6 @@
     <div class="op-collapse" :class="{ expanded }">
       <div class="op-collapse-inner">
         <div class="op-body">
-          <div class="form-group">
-            <label for="op-company">{{ t('aegis.profile.company') }}</label>
-            <input
-              id="op-company"
-              v-model="store.tweaks.company"
-              type="text"
-              maxlength="60"
-              class="input"
-              :placeholder="t('aegis.profile.companyPlaceholder')"
-            />
-          </div>
-
-          <div class="form-group">
-            <label for="op-contact">{{ t('aegis.editor.contact') }}</label>
-            <input
-              id="op-contact"
-              v-model="store.tweaks.mentionContact"
-              type="email"
-              maxlength="100"
-              class="input"
-              :placeholder="t('aegis.profile.contactPlaceholder')"
-            />
-          </div>
-
           <div class="form-row">
             <div class="form-group">
               <label for="op-lang">{{ t('aegis.profile.language') }}</label>
@@ -65,70 +41,18 @@
             </div>
           </div>
 
-          <div class="form-group">
-            <label for="op-sector">{{ t('aegis.profile.sector') }}</label>
-            <input
-              id="op-sector"
-              v-model="store.tweaks.sector"
-              type="text"
-              maxlength="40"
-              class="input"
-              :placeholder="t('aegis.profile.sectorPlaceholder')"
-            />
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label for="op-size">{{ t('aegis.profile.size') }}</label>
-              <select
-                id="op-size"
-                v-model="store.tweaks.companySize"
-                class="input select"
-              >
-                <option value="">{{ t('aegis.profile.unspecified') }}</option>
-                <option value="micro">{{ t('aegis.profile.sizes.micro') }}</option>
-                <option value="pequeña">{{ t('aegis.profile.sizes.small') }}</option>
-                <option value="mediana">{{ t('aegis.profile.sizes.medium') }}</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="op-employees">{{ t('aegis.profile.employees') }}</label>
-              <input
-                id="op-employees"
-                v-model.number="store.tweaks.employeeCount"
-                type="number"
-                min="1"
-                class="input"
-                :placeholder="t('aegis.profile.optional')"
-              />
-            </div>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label for="op-jurisdiction">{{ t('aegis.profile.jurisdiction') }}</label>
-              <input
-                id="op-jurisdiction"
-                v-model="store.tweaks.jurisdiction"
-                type="text"
-                maxlength="256"
-                class="input"
-                :placeholder="t('aegis.profile.jurisdictionPlaceholder')"
-              />
-            </div>
-            <div class="form-group">
-              <label for="op-workmodel">{{ t('aegis.profile.workModel') }}</label>
-              <select
-                id="op-workmodel"
-                v-model="store.tweaks.workModel"
-                class="input select"
-              >
-                <option value="">{{ t('aegis.profile.unspecified') }}</option>
-                <option value="remoto">{{ t('aegis.profile.workModels.remote') }}</option>
-                <option value="híbrido">{{ t('aegis.profile.workModels.hybrid') }}</option>
-                <option value="presencial">{{ t('aegis.profile.workModels.onSite') }}</option>
-              </select>
-            </div>
+          <!-- Los datos de la empresa no son de Aegis: salen del perfil de
+               empresa del dueño efectivo y aquí solo se leen. -->
+          <div class="company-summary">
+            <h3>{{ t('aegis.profile.companyDataTitle') }}</h3>
+            <dl>
+              <template v-for="row in companyRows" :key="row.key">
+                <dt>{{ t(`aegis.profile.companyData.${row.key}`) }}</dt>
+                <dd>{{ row.value }}</dd>
+              </template>
+            </dl>
+            <OrganizationManagedNotice :ownership="store.companyDataOwnership" />
+            <router-link to="/profile" class="company-edit">{{ t('aegis.profile.editCompanyData') }}</router-link>
           </div>
 
           <!-- El buscador y el interruptor de inventario viven ahora en su
@@ -150,6 +74,7 @@
           <WhiteLabelFields
             v-model="store.whiteLabel"
             :max-level="store.maxWhiteLabelLevel"
+            logo-readonly
           />
 
           <button
@@ -182,6 +107,7 @@
 import { ref, computed, onMounted } from "vue";
 import { useAegisStore } from "@/stores/aegisStore";
 import WhiteLabelFields from "@/components/shared/WhiteLabelFields.vue";
+import OrganizationManagedNotice from "@/components/accounts/OrganizationManagedNotice.vue";
 import TrackedProductsModal from "./TrackedProductsModal.vue";
 import { useI18n } from "vue-i18n";
 
@@ -208,6 +134,13 @@ const TONES = ["profesional", "formal", "cercano", "tecnico"];
 const expanded = ref(true);
 
 const productsModalOpen = ref(false);
+
+/** Datos de la empresa que se enseñan en solo lectura; solo los que tienen valor. */
+const companyRows = computed(() =>
+  ["company", "mentionContact", "sector", "companySize", "employeeCount", "jurisdiction", "workModel"]
+    .map((key) => ({ key, value: store.tweaks[key] }))
+    .filter((row) => row.value !== "" && row.value !== null && row.value !== undefined),
+);
 
 /** Origen efectivo de los productos: los agentes mandan cuando están activos. */
 const usingInventory = computed(
@@ -407,4 +340,18 @@ onMounted(async () => {
     transition: none;
   }
 }
+.company-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--border-solid);
+  border-radius: 7px;
+  background: var(--bg);
+}
+.company-summary h3 { margin: 0; font-size: var(--fs-md); font-weight: 600; color: var(--text); }
+.company-summary dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 0.2rem 0.8rem; }
+.company-summary dt { font-size: var(--fs-sm); color: var(--text-muted); }
+.company-summary dd { margin: 0; font-size: var(--fs-md); color: var(--text); overflow-wrap: anywhere; }
+.company-edit { font-size: var(--fs-md); color: var(--accent); text-decoration: underline; }
 </style>

@@ -624,3 +624,16 @@ def test_a_member_is_told_whose_data_they_are_looking_at(client, app, owner, reg
 
     own = client.get("/organizations/data-ownership", headers=auth_headers(owner)).get_json()
     assert own["isOwnData"] is True
+
+
+def test_aegis_gives_a_member_the_company_data_of_the_owner(client, app, owner, regular_user, auth_headers):
+    client.put("/organizations/company-profile", headers=auth_headers(owner),
+               json={"legalName": "Acme Seguridad S.L.", "securityContact": "seguridad@acme.test"})
+    organization = _create_org(client, auth_headers(owner), "Acme")
+    _join(app, organization["id"], regular_user.id)
+
+    profile = client.get("/aegis/org-profile", headers=auth_headers(regular_user)).get_json()
+
+    assert profile["company"] == "Acme Seguridad S.L."
+    assert profile["mentionContact"] == "seguridad@acme.test"
+    assert profile["companyDataOwnership"]["isOwnData"] is False

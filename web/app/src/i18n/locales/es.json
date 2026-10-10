@@ -393,7 +393,8 @@
         "title": "Eliminar todo lo relacionado con Ellysia",
         "description": "La cabecera, el pie y la página del test pasan a la marca de la organización."
       }
-    }
+    },
+    "logoManagedElsewhere": "El logo se gestiona en los datos de la empresa."
   },
   "moduleHub": {
     "signIn": "Entrar",
@@ -1847,7 +1848,8 @@
       "securityContact": "Responsable de seguridad (correo)",
       "companySize": "Tamaño",
       "workModel": "Modelo de trabajo",
-      "employeeCount": "Personas en plantilla"
+      "employeeCount": "Personas en plantilla",
+      "brandLogo": "Logo"
     },
     "sizes": {
       "micro": "Microempresa",
@@ -1865,7 +1867,9 @@
     "saveFailed": "No se pudieron guardar los datos de la empresa.",
     "loadFailed": "No se pudieron cargar los datos de la empresa."
   },
-  "organizationManaged": {"notice": "Perteneces a la organización {organization}. Estos datos los gestiona su dueño, {owner}. Los tuyos siguen guardados y volverán a aplicarse si dejas la organización."},
+  "organizationManaged": {
+    "notice": "Perteneces a la organización {organization}. Estos datos los gestiona su dueño, {owner}. Los tuyos siguen guardados y volverán a aplicarse si dejas la organización."
+  },
   "organization": {
     "topbar": "Mi organización",
     "none": "Aún no tienes organización",
@@ -3848,7 +3852,18 @@
       "save": "Guardar perfil",
       "agentProducts": "productos de mis agentes",
       "noProducts": "sin productos",
-      "productCount": "{count} producto | {count} productos"
+      "productCount": "{count} producto | {count} productos",
+      "companyDataTitle": "Datos de la empresa",
+      "editCompanyData": "Editar en los datos de la empresa",
+      "companyData": {
+        "company": "Razón social",
+        "mentionContact": "Contacto",
+        "sector": "Sector",
+        "companySize": "Tamaño",
+        "employeeCount": "Plantilla",
+        "jurisdiction": "Jurisdicción",
+        "workModel": "Modelo de trabajo"
+      }
     },
     "products": {
       "title": "Productos vigilados",
