@@ -246,7 +246,7 @@ class Organization(Base):
     hacia bóvedas, escaneos o análisis, y nunca debe haberla. Acheron es
     zero-knowledge (el servidor solo ve cifrado) e Iris analiza correo personal.
 
-    La regla tiene desde 2026-08 **una excepción, y solo una**: el informe de
+    La regla tiene excepciones, cada una con una razón concreta y delimitada. Una es el informe de
     inventario de Hygeia (``POST /hygeia/inventory/report`` con
     ``scope="organization"``) lista los activos de todos los miembros. Se
     abrió porque un parque de servidores es dato corporativo, no personal —
@@ -258,7 +258,7 @@ class Organization(Base):
     ids. Y solo lo puede pedir el **dueño**, porque hoy no hay rol intermedio
     entre ``owner`` y ``member``.
 
-    La **segunda excepción** es la inteligencia compartida de Iris
+    Otra es la inteligencia compartida de Iris
     (``GET /iris/organization/intel``). Tampoco comparte datos: comparte
     agregados anonimizados de indicadores (dominios, URLs, hashes) y de
     dominios con los que se habla, solo de los miembros que han dado su
@@ -268,8 +268,25 @@ class Organization(Base):
     miembro cruza de un miembro a otro. Tampoco hay relación en el modelo: la
     política vive en ``IrisTenantProfile`` e ``IrisTenantConsent``.
 
-    Antes de abrir una tercera excepción conviene tener una razón igual de
-    concreta: la frase de arriba sigue siendo la regla, no una recomendación.
+    La tercera es el **cumplimiento normativo y los datos de la empresa**. Los
+    marcos adoptados, las evaluaciones, las evidencias y los documentos que
+    Eunomia genera, y el perfil de empresa de ``accounts``, son datos
+    corporativos del **dueño** de la organización, y los miembros trabajan
+    sobre ellos. Se abrió por el mismo argumento que la del inventario: lo que
+    una auditoría pide es un cumplimiento de la empresa, no uno por empleado.
+
+    - **Qué puede hacer cada uno.** El dueño adopta y quita marcos y edita el
+      perfil de empresa. Los miembros lo ven todo, evalúan controles y suben
+      evidencias, pero no adoptan ni quitan marcos ni editan el perfil.
+    - **Qué no se comparte.** Nada de lo que el miembro tuviera antes de
+      entrar: sus datos propios se conservan ocultos y vuelven si sale, si el
+      dueño disuelve la organización o si borra su cuenta.
+    - **Cómo se resuelve.** Solo a través de
+      ``OrganizationManager.resolve_data_owner``; ningún módulo la repite a
+      mano. Tampoco hay relación en el modelo desde aquí hacia Eunomia.
+
+    Antes de abrir otra excepción conviene tener una razón igual de concreta:
+    la frase de arriba sigue siendo la regla, no una recomendación.
     """
 
     __tablename__ = "Organization"
