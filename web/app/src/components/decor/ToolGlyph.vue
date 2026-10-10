@@ -104,6 +104,14 @@
         <circle class="fine a-ring" cx="32" cy="32" r="26" />
         <g class="a-bolt"><path class="bolt draw" pathLength="1" d="M37 5 L15 36 H30 L26 59 L50 25 H35 Z" /></g>
       </template>
+
+      <!-- Calculadora de disponibilidad: el pulso de un servicio sobre su esfera. -->
+      <template v-else-if="toolId === 'uptimeCalculator'">
+        <circle class="fine" cx="32" cy="32" r="26" />
+        <path class="fine" d="M32 6 V11 M58 32 H53 M32 58 V53 M6 32 H11" />
+        <path class="draw" pathLength="1" d="M8 34 H20 L25 22 L31 46 L37 16 L42 34 H56" />
+        <circle class="dot a-dot" cx="56" cy="34" r="2.6" />
+      </template>
     </g>
   </svg>
 </template>

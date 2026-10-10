@@ -56,6 +56,7 @@ export const FREE_TOOLS = Object.freeze([
   Object.freeze({ id: 'cvssCalculator', module: 'aegis', slug: 'calculadora-cvss', access: 'public' }),
   Object.freeze({ id: 'phishingQuiz', module: 'aegis', slug: 'quiz-de-phishing', access: 'public' }),
   Object.freeze({ id: 'powerCost', module: 'hygeia', slug: 'calculadora-de-consumo', access: 'public' }),
+  Object.freeze({ id: 'uptimeCalculator', module: 'hygeia', slug: 'calculadora-de-disponibilidad', access: 'public' }),
 ])
 
 /**

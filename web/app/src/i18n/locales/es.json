@@ -936,6 +936,40 @@
         "note": "Supone un consumo constante igual a la potencia media. Un equipo que sube y baja de carga gasta menos que en su pico.",
         "more": "¿Prefieres medirlo en vez de estimarlo? Hygeia registra la potencia de cada equipo y calcula su consumo.",
         "moreCta": "Abrir Hygeia"
+      },
+      "uptimeCalculator": {
+        "title": "Calculadora de disponibilidad",
+        "desc": "Traduce un porcentaje de disponibilidad a la caída que permite al día, al mes y al año, y al revés.",
+        "subtitle": "Elige una disponibilidad y mira cuánto tiempo puede estar caído un servicio sin incumplirla.",
+        "presetsLabel": "Disponibilidades habituales",
+        "slaLabel": "Disponibilidad (%)",
+        "slaHint": "La que promete el contrato o la que quieres garantizar.",
+        "invalidSla": "Escribe un porcentaje entre 0 y 100.",
+        "period": "Periodo",
+        "downtime": "Caída permitida",
+        "periods": {
+          "day": "Al día",
+          "week": "A la semana",
+          "month": "Al mes",
+          "quarter": "Al trimestre",
+          "year": "Al año"
+        },
+        "units": {
+          "day": "{value} d",
+          "hour": "{value} h",
+          "minute": "{value} min",
+          "second": "{value} s"
+        },
+        "reverse": {
+          "title": "¿Qué disponibilidad tuviste?",
+          "downtimeLabel": "Minutos caído",
+          "periodLabel": "En el periodo",
+          "invalid": "Escribe unos minutos que quepan en el periodo elegido.",
+          "result": "Disponibilidad:"
+        },
+        "note": "El año es de 365,25 días, para que cuenten los bisiestos; el mes es su doceava parte.",
+        "more": "Calcularla está bien; medirla es mejor. Hygeia vigila tus equipos y te avisa cuando algo se sale de lo normal.",
+        "moreCta": "Abrir Hygeia"
       }
     }
   },
@@ -5123,6 +5157,10 @@
       "toolPowerCost": {
         "title": "Calculadora de consumo eléctrico de servidores: kWh, coste y CO₂ | Ellysia",
         "description": "Calcula en tu navegador cuánta electricidad gasta un servidor o un parque de equipos, cuánto cuesta al mes y al año y cuánto CO₂ emite. Gratis y sin cuenta."
+      },
+      "toolUptimeCalculator": {
+        "title": "Calculadora de disponibilidad (SLA): caída permitida al mes y al año | Ellysia",
+        "description": "Calcula cuánto tiempo puede caer un servicio con un 99,9 % o un 99,99 % de disponibilidad, al día, al mes y al año, y al revés. Gratis y sin cuenta."
       }
     }
   }

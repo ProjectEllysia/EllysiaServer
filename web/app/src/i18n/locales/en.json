@@ -936,6 +936,40 @@
         "note": "It assumes constant consumption equal to the average power. A device whose load goes up and down uses less than at its peak.",
         "more": "Prefer to measure it rather than estimate it? Hygeia records each device's power and calculates its consumption.",
         "moreCta": "Open Hygeia"
+      },
+      "uptimeCalculator": {
+        "title": "Uptime calculator",
+        "desc": "Turns an availability percentage into the downtime it allows per day, month and year, and back.",
+        "subtitle": "Pick an availability and see how long a service can be down without breaking it.",
+        "presetsLabel": "Common availabilities",
+        "slaLabel": "Availability (%)",
+        "slaHint": "The one your contract promises or the one you want to guarantee.",
+        "invalidSla": "Enter a percentage between 0 and 100.",
+        "period": "Period",
+        "downtime": "Allowed downtime",
+        "periods": {
+          "day": "Per day",
+          "week": "Per week",
+          "month": "Per month",
+          "quarter": "Per quarter",
+          "year": "Per year"
+        },
+        "units": {
+          "day": "{value} d",
+          "hour": "{value} h",
+          "minute": "{value} min",
+          "second": "{value} s"
+        },
+        "reverse": {
+          "title": "What availability did you get?",
+          "downtimeLabel": "Minutes down",
+          "periodLabel": "Over the period",
+          "invalid": "Enter a number of minutes that fits in the chosen period.",
+          "result": "Availability:"
+        },
+        "note": "A year is 365.25 days, so leap years count; a month is a twelfth of it.",
+        "more": "Calculating it is fine; measuring it is better. Hygeia watches your devices and tells you when something drifts from normal.",
+        "moreCta": "Open Hygeia"
       }
     }
   },
@@ -5123,6 +5157,10 @@
       "toolPowerCost": {
         "title": "Server power consumption calculator: kWh, cost and CO₂ | Ellysia",
         "description": "Calculate in your browser how much electricity a server or a fleet of devices uses, what it costs per month and year and how much CO₂ it emits. Free, no account."
+      },
+      "toolUptimeCalculator": {
+        "title": "Uptime (SLA) calculator: allowed downtime per month and year | Ellysia",
+        "description": "Calculate how long a service can be down at 99.9% or 99.99% availability, per day, month and year, and the other way round. Free, no account."
       }
     }
   }
