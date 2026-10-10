@@ -19,6 +19,7 @@ def _node_payload(version: FrameworkVersion, node: CatalogNode) -> dict:
         "kind": node.kind,
         "isAssessable": node.is_assessable,
         "title": node.title,
+        "officialText": node.official_text,
         "description": node.description,
         "actions": list(node.actions),
         "evidence": list(node.evidence),

@@ -43,6 +43,7 @@ class CatalogNodeSchema(Schema):
     kind = fields.String()
     isAssessable = fields.Boolean()
     title = fields.String()
+    officialText = fields.String()
     description = fields.String()
     actions = fields.List(fields.String())
     evidence = fields.List(fields.String())
