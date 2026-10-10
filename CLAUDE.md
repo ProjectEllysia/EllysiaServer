@@ -253,8 +253,9 @@ con backend RQ+Redis), `worker.py` (entrada del worker), `tracking.py` (`TaskTra
 
 ### Scheduling (APScheduler)
 
-Cinco schedulers, uno por dominio, arrancados desde `run.py::_configure_scheduling()`:
-`ThemisScheduler`, `HygeiaScheduler`, `IrisMailboxScheduler`, `AccountsScheduler`, `UsersScheduler`.
+Seis schedulers, uno por dominio, arrancados desde `run.py::_configure_scheduling()`:
+`ThemisScheduler`, `HygeiaScheduler`, `IrisMailboxScheduler`, `EunomiaScheduler` (purga diaria de los
+marcos archivados), `AccountsScheduler`, `UsersScheduler`.
 No comparten instancia a propósito (no acoplar módulos hermanos solo por compartir mecanismo),
 pero todos usan el helper común `@scheduler_job` de `infrastructure/scheduling.py`, que aísla
 excepciones y libera la sesión con `close_all()` en el `finally`.
