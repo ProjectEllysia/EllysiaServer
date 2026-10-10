@@ -251,3 +251,31 @@ def test_the_digest_does_not_depend_on_line_endings(tmp_path):
 def test_an_unknown_framework_or_version_is_none_and_never_builds_a_path():
     assert load_version("nope", "1") is None
     assert load_version("../../etc", "passwd") is None
+
+
+# ── resolver controles para quien cita códigos ─────────────────────────────
+
+def test_resolving_controls_brings_their_ancestors_in_catalog_order():
+    from src.modules.features.eunomia.managers.catalog import CatalogManager
+
+    resolved = CatalogManager().resolve_controls(["nis2:RE.3.1"], {"nis2": "2022-2555"})
+
+    assert list(resolved) == ["nis2:21", "nis2:21.2", "nis2:21.2.b", "nis2:RE.3", "nis2:RE.3.1"]
+    assert resolved["nis2:RE.3.1"]["parent"] == "nis2:RE.3"
+    assert resolved["nis2:RE.3.1"]["title"] == "Política de gestión de incidentes"
+
+
+def test_resolving_controls_ignores_codes_the_catalog_does_not_have():
+    from src.modules.features.eunomia.managers.catalog import CatalogManager
+
+    assert CatalogManager().resolve_controls(["nis2:no-existe", "otro:1"]) == {}
+
+
+def test_nothing_in_eunomia_imports_themis():
+    """Themis usa a Eunomia, no al revés: un import inverso cerraría un ciclo."""
+    package = Path(__file__).resolve().parents[2] / "src" / "modules" / "features" / "eunomia"
+    offenders = [
+        str(path.relative_to(package)) for path in package.rglob("*.py")
+        if "features.themis" in path.read_text(encoding="utf-8")
+    ]
+    assert offenders == []

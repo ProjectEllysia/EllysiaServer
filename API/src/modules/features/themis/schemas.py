@@ -4,7 +4,7 @@ from marshmallow import Schema, fields, validate, validates_schema, ValidationEr
 
 from src.modules.shared import UTCDateTime
 from .model import OsintScanMode, ScanType
-from .lybra.compliance import list_compliance_frameworks
+from .services.compliance_catalog import list_compliance_frameworks
 
 
 class ScanIdQuerySchema(Schema):

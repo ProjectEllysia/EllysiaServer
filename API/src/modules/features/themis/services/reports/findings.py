@@ -14,7 +14,7 @@ from reportlab.platypus import CondPageBreak, Paragraph, Spacer, Table, TableSty
 import src.modules.system.config_reading as CR
 
 from src.modules.tools.press import ColorType, build_palette, safe_markup
-from ...lybra.compliance import load_compliance_catalog, map_finding_compliance
+from ..compliance_catalog import list_compliance_frameworks, map_report_compliance, resolve_report_controls
 from ...lybra.correlation import DEFAULT_SITE_VHOST
 from ...lybra.grouping import build_service_rollup
 from ...lybra.kb import KB_MARK_SOURCES, parse_kb_feed_version
@@ -174,7 +174,7 @@ class FindingsPrintingStrategy(PrintingStrategy):
             self._frameworks = effective_frameworks(self.scan.user_id)
             keys = [framework.key for framework in self._frameworks]
             for finding in findings:
-                finding["compliance"] = map_finding_compliance(finding["category"], finding["check_id"], keys)
+                finding["compliance"] = map_report_compliance(finding["category"], finding["check_id"], keys)
 
         self._append_finding_header(theme, elements, findings, exposure, len(fixed_findings))
         _append_sites_section(theme, elements, sites)
@@ -1132,8 +1132,7 @@ def effective_frameworks(user_id: int) -> tuple:
     # sería un ciclo.
     from src.modules.features.themis.managers import ComplianceManager
     keys = set(ComplianceManager().resolve_effective_frameworks(user_id))
-    return tuple(framework for framework in load_compliance_catalog().frameworks.values()
-                 if framework.key in keys)
+    return tuple(framework for framework in list_compliance_frameworks() if framework.key in keys)
 
 
 def compliance_rows(theme: "ReportTheme", compliance, frameworks: tuple) -> list:
@@ -1223,7 +1222,9 @@ def _append_compliance_section(theme: "ReportTheme", elements: list, findings: l
         elements.append(Spacer(1, 0.3 * inch))
         return
 
-    catalog = load_compliance_catalog()
+    controls_by_code = resolve_report_controls(
+        control.code for finding in live for control in finding["compliance"].controls
+    )
     for framework in frameworks:
         affected: Dict[str, list] = {}
         for finding in live:
@@ -1234,9 +1235,9 @@ def _append_compliance_section(theme: "ReportTheme", elements: list, findings: l
             continue
         rows, group_rows, current_parent = [], [], None
         # El orden del catálogo es el del propio marco: los hermanos salen juntos.
-        for code in (code for code in catalog.controls if code in affected):
-            control = catalog.controls[code]
-            parent = catalog.controls.get(control.parent) if control.parent else None
+        for code in (code for code in controls_by_code if code in affected):
+            control = controls_by_code[code]
+            parent = controls_by_code.get(control.parent) if control.parent else None
             if parent is not None and parent.code != current_parent:
                 current_parent = parent.code
                 group_rows.append(len(rows) + 1)
