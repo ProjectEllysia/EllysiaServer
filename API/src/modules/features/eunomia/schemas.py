@@ -383,3 +383,9 @@ class DocumentListSchema(Schema):
     total = fields.Integer()
     page = fields.Integer()
     perPage = fields.Integer()
+
+
+class AutomaticEvidenceListSchema(Schema):
+    """Evidencias que otros módulos aportan solas a un control."""
+
+    evidence = fields.List(fields.Dict())

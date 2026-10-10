@@ -39,6 +39,7 @@ from ..repositories import (
 from ..services.assessments import ControlState, branch_progress, summarize
 from ..services.catalog import CatalogNode, FrameworkVersion, load_version
 from ..services.crosswalks import suggestions as crosswalk_suggestions
+from ..services.providers import EvidenceProviderRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -331,6 +332,28 @@ class EunomiaAssessmentManager:
              "occurredAt": event.occurred_at, "changes": event.changes}
             for event in events
         ]
+
+    def get_automatic_evidence(self, user_id: int, framework_key: str, identifier: str) -> list[dict]:
+        """Las evidencias que otros módulos aportan solas a un control.
+
+        Se calculan al consultar y no se guardan. Las ve el dueño efectivo y sus miembros.
+
+        Args:
+            user_id: Usuario que pregunta.
+            framework_key: Clave del marco adoptado.
+            identifier: Identificador del control.
+
+        Returns:
+            list[dict]: Ver ``EvidenceProviderRegistry.collect``.
+
+        Raises:
+            AdoptionNotFoundError: Si el marco no está adoptado y activo (404).
+            ControlNotFoundError: Si el control no existe en la versión adoptada (404).
+            ControlNotAssessableError: Si el nodo es un grupo (400).
+        """
+        owner_user_id = OrganizationManager().resolve_data_owner(user_id)
+        assessable_node(adopted_version(owner_user_id, framework_key), framework_key, identifier)
+        return EvidenceProviderRegistry.collect(owner_user_id, framework_key, identifier)
 
     def get_tree(self, user_id: int, framework_key: str) -> dict:
         """Devuelve el árbol de la versión adoptada combinado con las evaluaciones del dueño.

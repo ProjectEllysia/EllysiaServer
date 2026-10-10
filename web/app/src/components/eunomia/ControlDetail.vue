@@ -23,6 +23,8 @@
       <p>{{ node.officialText }}</p>
     </details>
 
+    <AutomaticEvidencePanel v-if="node.assessment" :node="node" :framework="framework" />
+
     <SuggestionsPanel v-if="node.assessment" :node="node" :framework="framework" :can-edit="canEdit"
                       @changed="$emit('evidence-changed')" />
 
@@ -108,6 +110,7 @@ import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import EvidencePanel from '@/components/eunomia/EvidencePanel.vue'
 import SuggestionsPanel from '@/components/eunomia/SuggestionsPanel.vue'
+import AutomaticEvidencePanel from '@/components/eunomia/AutomaticEvidencePanel.vue'
 import { STATUSES } from '@/components/eunomia/tree'
 import { formatDateTime } from '@/i18n/format'
 

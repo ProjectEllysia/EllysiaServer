@@ -2069,6 +2069,19 @@
       "loadFailed": "No se pudieron cargar los documentos.",
       "downloadFailed": "No se pudo descargar el documento.",
       "deleteFailed": "No se pudo borrar el documento."
+    },
+    "automatic": {
+      "title": "Evidencias automáticas",
+      "intro": "Datos que otros módulos de Ellysia ya conocen y que demuestran este control; no hay que subir nada.",
+      "unavailable": "No disponible ahora mismo.",
+      "open": "Ver origen",
+      "dataDate": "datos del {date}",
+      "status": {
+        "ok": "Correcto",
+        "warning": "A revisar",
+        "missing": "Sin datos",
+        "unavailable": "No disponible"
+      }
     }
   },
   "organizationManaged": {
