@@ -40,7 +40,7 @@ export const FREE_TOOL_ACCESS = Object.freeze(['public', 'account'])
  * Cada entrada:
  *
  * - `id` — `camelCase`, único. Nombra la vista, los textos y la clave SEO.
- * - `module` — hub del que cuelga: `themis`, `aegis`, `iris`, `acheron` o `hygeia`.
+ * - `module` — hub del que cuelga: `themis`, `aegis`, `iris`, `acheron`, `hygeia` o `eunomia`.
  * - `slug` — último tramo de la URL, en castellano y con guiones.
  * - `access` — uno de `FREE_TOOL_ACCESS`.
  * - `surface` — opcional. Interruptor de `general.launch.surfaces` que, si el
@@ -60,6 +60,7 @@ export const FREE_TOOLS = Object.freeze([
   Object.freeze({ id: 'phishingQuiz', module: 'aegis', slug: 'quiz-de-phishing', access: 'public' }),
   Object.freeze({ id: 'powerCost', module: 'hygeia', slug: 'calculadora-de-consumo', access: 'public' }),
   Object.freeze({ id: 'uptimeCalculator', module: 'hygeia', slug: 'calculadora-de-disponibilidad', access: 'public' }),
+  Object.freeze({ id: 'nis2Applicability', module: 'eunomia', slug: 'me-aplica-nis2', access: 'public' }),
 ])
 
 /**

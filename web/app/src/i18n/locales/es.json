@@ -1126,6 +1126,79 @@
         "backportsNote": "Se compara la versión del fabricante. Una distribución Linux puede haber corregido un fallo sin cambiar el número: en un escaneo, Themis lo comprueba paquete a paquete.",
         "more": "Un escaneo de Themis hace esto con cada servicio que encuentra en tus equipos, y confirma los fallos en vez de suponerlos.",
         "moreCta": "Abrir Themis"
+      },
+      "nis2Applicability": {
+        "title": "¿Me aplica NIS2?",
+        "desc": "Responde unas preguntas sobre tu actividad y tu tamaño y sabrás si NIS2 te alcanza y como entidad esencial o importante.",
+        "subtitle": "Aplica los artículos 2 y 3 y los anexos I y II de la directiva a lo que contestes. No se envía ni se guarda nada.",
+        "euActivity": "Presto servicios o desarrollo mi actividad en la Unión Europea",
+        "activityLabel": "Actividad principal",
+        "activityHint": "Elige la que más se parezca a lo que hace tu entidad. Los sectores son los de los anexos I y II de la directiva.",
+        "activityNone": "Ninguna de estas",
+        "annex": {
+          "I": "Anexo I · Sectores de alta criticidad",
+          "II": "Anexo II · Otros sectores críticos"
+        },
+        "qualifiedTrust": "Estoy cualificado como prestador de servicios de confianza (eIDAS)",
+        "sizeTitle": "Tamaño de la entidad",
+        "sizeHint": "Suma las cifras de las empresas vinculadas y asociadas, como en la definición de pyme de la Unión.",
+        "employees": "Personas empleadas",
+        "turnover": "Facturación anual (millones de €)",
+        "balance": "Balance anual (millones de €)",
+        "invalidNumber": "Escribe un número positivo.",
+        "moreTitle": "Otras circunstancias",
+        "critical": "Un Estado me ha identificado como entidad crítica (Directiva (UE) 2022/2557)",
+        "identified": "Un Estado me ha identificado por ser proveedor único de un servicio esencial o por el impacto de una caída en la seguridad pública o en el riesgo sistémico",
+        "registrar": "Presto servicios de registro de nombres de dominio",
+        "resultTitle": "Resultado",
+        "missingSize": "Para saber si es mediana o grande hace falta la facturación o el balance anuales. Escríbelos y te lo decimos.",
+        "outcome": {
+          "essential": {
+            "title": "Entidad esencial",
+            "text": "NIS2 te aplica como entidad esencial. Tienes las obligaciones de gestión de riesgos (art. 21) y de notificación de incidentes (art. 23), y la supervisión es previa y posterior: pueden inspeccionarte sin que haya habido un incidente. Las multas llegan a 10 millones de euros o al 2 % de la facturación mundial (art. 34)."
+          },
+          "important": {
+            "title": "Entidad importante",
+            "text": "NIS2 te aplica como entidad importante. Tienes las mismas obligaciones de gestión de riesgos (art. 21) y de notificación (art. 23), pero la supervisión es solo posterior, tras un incidente o una sospecha. Las multas llegan a 7 millones de euros o al 1,4 % de la facturación mundial (art. 34)."
+          },
+          "unclassified": {
+            "title": "Te aplica, sin categoría fijada",
+            "text": "La directiva te alcanza, pero no te clasifica como esencial ni importante: lo decide el Estado miembro o una norma nacional. Pregunta a tu autoridad competente."
+          },
+          "notApplicable": {
+            "title": "NIS2 no te aplica directamente",
+            "text": "Con lo que has respondido, la directiva no te alcanza por sí misma."
+          }
+        },
+        "reasonsTitle": "Por qué",
+        "reasons": {
+          "noEuActivity": "La directiva se aplica a entidades que prestan servicios o ejercen su actividad en la Unión (art. 2.1).",
+          "criticalEntity": "Una entidad identificada como crítica según la Directiva (UE) 2022/2557 queda dentro de NIS2 sea cual sea su tamaño y es esencial (arts. 2.3 y 3.1.f).",
+          "dnsOrTld": "Los proveedores de servicios de DNS y los registros de nombres de dominio de primer nivel son entidades esenciales independientemente de su tamaño (art. 3.1.b).",
+          "trustQualified": "Los prestadores cualificados de servicios de confianza son entidades esenciales independientemente de su tamaño (art. 3.1.b).",
+          "trustNotQualified": "Los prestadores de servicios de confianza no cualificados quedan dentro de la directiva sea cual sea su tamaño (art. 2.2.a) y son entidades importantes (art. 3.2).",
+          "centralAdministration": "Las entidades de la Administración pública central son entidades esenciales (arts. 2.2.f y 3.1.d).",
+          "regionalAdministration": "Las entidades de la Administración pública a escala regional figuran en el anexo I; entran en la directiva si el Estado miembro así lo ha decidido tras una evaluación de riesgos (art. 2.2.f.ii) y, entonces, son importantes (art. 3.2).",
+          "publicCommsMediumOrLarge": "Los proveedores de redes o servicios de comunicaciones electrónicas públicos que son medianos o grandes son entidades esenciales (arts. 3.1.a y 3.1.c).",
+          "publicCommsSmall": "Los proveedores de comunicaciones electrónicas públicas quedan dentro de la directiva sea cual sea su tamaño (art. 2.2.a.i); si son pequeños, son entidades importantes (art. 3.2).",
+          "annexILarge": "Tu actividad figura en el anexo I y superas el tamaño de una mediana empresa: eres entidad esencial (arts. 2.1 y 3.1.a).",
+          "annexIMedium": "Tu actividad figura en el anexo I y eres una mediana empresa: eres entidad importante (arts. 2.1 y 3.2).",
+          "annexIILarge": "Tu actividad figura en el anexo II y eres una empresa grande: eres entidad importante (arts. 2.1 y 3.2).",
+          "annexIIMediumOrLarge": "Tu actividad figura en el anexo II y eres una empresa mediana o grande: eres entidad importante (arts. 2.1 y 3.2).",
+          "smallBelowThreshold": "Tu actividad figura en los anexos, pero la entidad es pequeña o micro: por debajo del tamaño de una mediana empresa la directiva no te alcanza por sí misma (art. 2.1).",
+          "noAnnexActivity": "Tu actividad no figura en los anexos I ni II de la directiva.",
+          "domainRegistrar": "Los servicios de registro de nombres de dominio quedan dentro de la directiva sea cual sea su tamaño (art. 2.4), pero la directiva no los clasifica como esenciales ni importantes.",
+          "identifiedByState": "Un Estado miembro puede incluir en la directiva, sea cual sea su tamaño, a un proveedor único, a una entidad cuya caída afectaría a la seguridad o a la salud públicas, o que sea crítica a nivel nacional (art. 2.2.b a e); la categoría la fija el Estado."
+        },
+        "caveatsTitle": "A tener en cuenta",
+        "caveats": {
+          "supplyChain": "Aunque NIS2 no te aplique, un cliente al que sí le aplique puede exigirte medidas de seguridad: la directiva le obliga a gestionar los riesgos de su cadena de suministro (art. 21.2.d).",
+          "spainTransposition": "Comprueba en el BOE si la transposición española de NIS2 ya está publicada: sus categorías, sus plazos y sus autoridades pueden diferir de los de la directiva.",
+          "regionalAdministration": "Pregunta a tu comunidad autónoma si tu entidad está incluida."
+        },
+        "note": "Es una orientación, no asesoramiento jurídico. Aplica la directiva tal y como está escrita y no tiene en cuenta la legislación nacional ni todos los casos de empresas vinculadas o asociadas.",
+        "more": "Si NIS2 te aplica, Eunomia te lleva por sus requisitos uno a uno: evalúa cada punto, guarda las evidencias y genera las políticas.",
+        "moreCta": "Abrir Eunomia"
       }
     }
   },
@@ -1427,7 +1500,7 @@
       "p3": "No prometemos invulnerabilidad; nadie honesto lo hace. Prometemos que {privilege}.",
       "p3Privilege": "defenderse deje de ser un privilegio"
     },
-    "toolsTitle": "Las cinco herramientas",
+    "toolsTitle": "Las seis herramientas",
     "toolsSubtitle": "Cada una guarda un aspecto de tu seguridad.",
     "explore": "Explorar {name}",
     "tools": {
@@ -1487,7 +1560,11 @@
       "push": "Push",
       "thresholds": "Umbrales",
       "hostDown": "Host caído",
-      "alerts": "Alertas"
+      "alerts": "Alertas",
+      "frameworks": "Marcos",
+      "nis2": "NIS2",
+      "gdpr": "RGPD",
+      "registers": "Registros"
     },
     "steps": {
       "eyebrow": "Cómo se empieza",
@@ -5536,7 +5613,7 @@
     "pages": {
       "landing": {
         "title": "Ellysia · Escáner de vulnerabilidades, phishing y bóveda cifrada",
-        "description": "Cinco herramientas de ciberseguridad: escaneo de vulnerabilidades, detección de phishing, concienciación, bóveda de contraseñas cifrada y monitorización de servidores."
+        "description": "Seis herramientas de ciberseguridad: escaneo de vulnerabilidades, phishing, concienciación, bóveda cifrada, monitorización de servidores y cumplimiento normativo."
       },
       "themis": {
         "title": "Themis · Escáner de vulnerabilidades con Nmap, Nikto y Nuclei | Ellysia",
@@ -5657,6 +5734,10 @@
       "eunomia": {
         "title": "Eunomia · Cumplimiento de NIS2, ENS, ISO 27001 y RGPD | Ellysia",
         "description": "Eunomia te guía por NIS2, ENS, ISO 27001 y el RGPD: evalúa cada requisito, guarda evidencias, genera políticas en PDF o Word y vigila los plazos de tus registros."
+      },
+      "toolNis2Applicability": {
+        "title": "¿Me aplica NIS2? Herramienta gratuita de aplicabilidad | Ellysia",
+        "description": "Comprueba si NIS2 te aplica y si serías entidad esencial o importante según tu sector y tu tamaño. Gratis, sin cuenta y sin guardar nada."
       }
     }
   }

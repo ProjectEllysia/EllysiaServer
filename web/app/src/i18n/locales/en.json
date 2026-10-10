@@ -1126,6 +1126,79 @@
         "backportsNote": "The vendor's version is compared. A Linux distribution may have fixed a flaw without changing the number: in a scan, Themis checks it package by package.",
         "more": "A Themis scan does this for every service it finds on your machines, and confirms the flaws instead of assuming them.",
         "moreCta": "Open Themis"
+      },
+      "nis2Applicability": {
+        "title": "Does NIS2 apply to me?",
+        "desc": "Answer a few questions about your activity and size and find out whether NIS2 reaches you and whether as an essential or an important entity.",
+        "subtitle": "It applies articles 2 and 3 and Annexes I and II of the directive to your answers. Nothing is sent or stored.",
+        "euActivity": "I provide services or carry out my activity in the European Union",
+        "activityLabel": "Main activity",
+        "activityHint": "Pick the one closest to what your entity does. The sectors are those of Annexes I and II of the directive.",
+        "activityNone": "None of these",
+        "annex": {
+          "I": "Annex I · Sectors of high criticality",
+          "II": "Annex II · Other critical sectors"
+        },
+        "qualifiedTrust": "I am qualified as a trust service provider (eIDAS)",
+        "sizeTitle": "Size of the entity",
+        "sizeHint": "Add up the figures of linked and partner enterprises, as in the Union's SME definition.",
+        "employees": "Staff headcount",
+        "turnover": "Annual turnover (million €)",
+        "balance": "Annual balance sheet (million €)",
+        "invalidNumber": "Enter a positive number.",
+        "moreTitle": "Other circumstances",
+        "critical": "A Member State has identified me as a critical entity (Directive (EU) 2022/2557)",
+        "identified": "A Member State has identified me as the sole provider of an essential service or because an outage would affect public safety or systemic risk",
+        "registrar": "I provide domain name registration services",
+        "resultTitle": "Result",
+        "missingSize": "To tell whether it is medium-sized or large we need the annual turnover or the balance sheet. Enter them and we will tell you.",
+        "outcome": {
+          "essential": {
+            "title": "Essential entity",
+            "text": "NIS2 applies to you as an essential entity. You have the risk-management (art. 21) and incident-notification (art. 23) obligations, and supervision is both before and after the fact: you can be inspected without any incident having happened. Fines reach 10 million euros or 2 % of worldwide turnover (art. 34)."
+          },
+          "important": {
+            "title": "Important entity",
+            "text": "NIS2 applies to you as an important entity. You have the same risk-management (art. 21) and notification (art. 23) obligations, but supervision only happens after the fact, following an incident or a suspicion. Fines reach 7 million euros or 1.4 % of worldwide turnover (art. 34)."
+          },
+          "unclassified": {
+            "title": "It applies, with no category set",
+            "text": "The directive reaches you but does not classify you as essential or important: the Member State or a national rule decides. Ask your competent authority."
+          },
+          "notApplicable": {
+            "title": "NIS2 does not apply to you directly",
+            "text": "Given your answers, the directive does not reach you by itself."
+          }
+        },
+        "reasonsTitle": "Why",
+        "reasons": {
+          "noEuActivity": "The directive applies to entities that provide services or carry out their activity in the Union (art. 2.1).",
+          "criticalEntity": "An entity identified as critical under Directive (EU) 2022/2557 is within NIS2 whatever its size and is essential (arts. 2.3 and 3.1.f).",
+          "dnsOrTld": "DNS service providers and top-level domain name registries are essential entities regardless of their size (art. 3.1.b).",
+          "trustQualified": "Qualified trust service providers are essential entities regardless of their size (art. 3.1.b).",
+          "trustNotQualified": "Non-qualified trust service providers are within the directive whatever their size (art. 2.2.a) and are important entities (art. 3.2).",
+          "centralAdministration": "Central government entities are essential entities (arts. 2.2.f and 3.1.d).",
+          "regionalAdministration": "Regional government entities are listed in Annex I; they come within the directive if the Member State has so decided after a risk assessment (art. 2.2.f.ii), and then they are important (art. 3.2).",
+          "publicCommsMediumOrLarge": "Providers of public electronic communications networks or services that are medium-sized or large are essential entities (arts. 3.1.a and 3.1.c).",
+          "publicCommsSmall": "Providers of public electronic communications are within the directive whatever their size (art. 2.2.a.i); if they are small, they are important entities (art. 3.2).",
+          "annexILarge": "Your activity is in Annex I and you exceed the size of a medium-sized enterprise: you are an essential entity (arts. 2.1 and 3.1.a).",
+          "annexIMedium": "Your activity is in Annex I and you are a medium-sized enterprise: you are an important entity (arts. 2.1 and 3.2).",
+          "annexIILarge": "Your activity is in Annex II and you are a large enterprise: you are an important entity (arts. 2.1 and 3.2).",
+          "annexIIMediumOrLarge": "Your activity is in Annex II and you are a medium-sized or large enterprise: you are an important entity (arts. 2.1 and 3.2).",
+          "smallBelowThreshold": "Your activity is in the annexes, but the entity is small or micro: below the size of a medium-sized enterprise the directive does not reach you by itself (art. 2.1).",
+          "noAnnexActivity": "Your activity is not in Annex I or II of the directive.",
+          "domainRegistrar": "Domain name registration services are within the directive whatever their size (art. 2.4), but the directive does not classify them as essential or important.",
+          "identifiedByState": "A Member State may bring into the directive, whatever their size, a sole provider, an entity whose outage would affect public safety or health, or one that is critical nationally (art. 2.2.b to e); the Member State sets the category."
+        },
+        "caveatsTitle": "Keep in mind",
+        "caveats": {
+          "supplyChain": "Even if NIS2 does not apply to you, a customer it does apply to may demand security measures from you: the directive makes them manage the risks of their supply chain (art. 21.2.d).",
+          "spainTransposition": "Check the BOE to see whether the Spanish transposition of NIS2 has been published: its categories, deadlines and authorities may differ from those of the directive.",
+          "regionalAdministration": "Ask your autonomous community whether your entity is included."
+        },
+        "note": "This is guidance, not legal advice. It applies the directive as written and does not take national law into account, nor every case of linked or partner enterprises.",
+        "more": "If NIS2 applies to you, Eunomia takes you through its requirements one by one: assess each point, keep the evidence and generate the policies.",
+        "moreCta": "Open Eunomia"
       }
     }
   },
@@ -1427,7 +1500,7 @@
       "p3": "We do not promise invulnerability; no honest person does. We promise that {privilege}.",
       "p3Privilege": "defending yourself stops being a privilege"
     },
-    "toolsTitle": "The five tools",
+    "toolsTitle": "The six tools",
     "toolsSubtitle": "Each one guards one side of your security.",
     "explore": "Explore {name}",
     "tools": {
@@ -1487,7 +1560,11 @@
       "push": "Push",
       "thresholds": "Thresholds",
       "hostDown": "Host down",
-      "alerts": "Alerts"
+      "alerts": "Alerts",
+      "frameworks": "Frameworks",
+      "nis2": "NIS2",
+      "gdpr": "GDPR",
+      "registers": "Registers"
     },
     "steps": {
       "eyebrow": "How to start",
@@ -5536,7 +5613,7 @@
     "pages": {
       "landing": {
         "title": "Ellysia · Vulnerability scanner, phishing checks and encrypted vault",
-        "description": "Five cybersecurity tools: vulnerability scanning, phishing detection, security awareness, an encrypted password vault and server monitoring."
+        "description": "Six cybersecurity tools: vulnerability scanning, phishing detection, security awareness, an encrypted vault, server monitoring and regulatory compliance."
       },
       "themis": {
         "title": "Themis · Vulnerability scanner with Nmap, Nikto and Nuclei | Ellysia",
@@ -5657,6 +5734,10 @@
       "eunomia": {
         "title": "Eunomia · NIS2, ENS, ISO 27001 and GDPR compliance | Ellysia",
         "description": "Eunomia walks you through NIS2, ENS, ISO 27001 and GDPR: assess each requirement, keep evidence, generate policies as PDF or Word and track your register deadlines."
+      },
+      "toolNis2Applicability": {
+        "title": "Does NIS2 apply to me? Free applicability tool | Ellysia",
+        "description": "Check whether NIS2 applies to you and whether you would be an essential or important entity, from your sector and size. Free, no account, nothing stored."
       }
     }
   }

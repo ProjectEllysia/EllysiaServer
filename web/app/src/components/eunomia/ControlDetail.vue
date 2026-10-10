@@ -9,12 +9,12 @@
     <p v-if="node.description" class="description">{{ node.description }}</p>
 
     <section v-if="node.actions.length">
-      <h3>{{ t('eunomia.tree.actions') }}</h3>
+      <SectionInscription tag="h3">{{ t('eunomia.tree.actions') }}</SectionInscription>
       <ul><li v-for="action in node.actions" :key="action">{{ action }}</li></ul>
     </section>
 
     <section v-if="node.evidence.length">
-      <h3>{{ t('eunomia.tree.evidence') }}</h3>
+      <SectionInscription tag="h3">{{ t('eunomia.tree.evidence') }}</SectionInscription>
       <ul class="checklist"><li v-for="item in node.evidence" :key="item">{{ item }}</li></ul>
     </section>
 
@@ -32,7 +32,7 @@
                    @changed="$emit('evidence-changed')" />
 
     <form v-if="node.assessment" class="assessment" @submit.prevent="save">
-      <h3>{{ t('eunomia.tree.assessment') }}</h3>
+      <SectionInscription tag="h3">{{ t('eunomia.tree.assessment') }}</SectionInscription>
 
       <div class="field">
         <label :for="`status-${node.code}`">{{ t('eunomia.tree.status') }}</label>
@@ -80,7 +80,7 @@
     </form>
 
     <section v-if="node.assessment" class="history" :aria-label="t('eunomia.tree.history')">
-      <h3>{{ t('eunomia.tree.history') }}</h3>
+      <SectionInscription tag="h3">{{ t('eunomia.tree.history') }}</SectionInscription>
       <p v-if="!history.length" class="updated">{{ t('eunomia.tree.noHistory') }}</p>
       <ol v-else class="events">
         <li v-for="(event, index) in history" :key="index">
@@ -101,6 +101,7 @@
 </template>
 
 <script setup>
+import SectionInscription from '@/components/eunomia/SectionInscription.vue'
 /**
  * Detalle de un control: qué pide, qué hay que hacer, qué hay que guardar como prueba y su
  * evaluación. Dueño y miembros editan lo mismo; si alguien cambia el control mientras se
@@ -195,7 +196,6 @@ function takeCurrent() {
 .detail { display: flex; flex-direction: column; gap: 1rem; }
 .code { font-family: var(--font-mono); font-size-adjust: var(--fsa-mono); font-size: var(--fs-body); color: var(--text-muted); }
 h2 { font-size: var(--fs-xl); font-weight: 600; color: var(--text); }
-h3 { font-size: var(--fs-md); font-weight: 600; color: var(--text); margin-bottom: 0.4rem; }
 .source { font-size: var(--fs-sm); color: var(--text-muted); }
 .description { color: var(--text-dim); font-size: var(--fs-md); }
 ul { padding-inline-start: 1.2rem; color: var(--text-dim); font-size: var(--fs-md); display: flex; flex-direction: column; gap: 0.3rem; }

@@ -172,7 +172,14 @@ onMounted(load)
 .req { color: var(--danger); }
 .field input, .field textarea, .field select { background: var(--bg); border: 1px solid var(--border-solid); border-radius: 6px; padding: 0.6rem 0.7rem; color: var(--text); font-size: var(--fs-md); font-family: inherit; }
 .rows { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.7rem; }
-.row { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--border-solid); border-radius: 10px; padding: 1rem 1.2rem; }
+.row {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 220%);
+  border: 1px solid var(--border-solid); border-radius: 12px; padding: 1.1rem 1.3rem;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14);
+  transition: border-color 0.3s var(--ease-settle), box-shadow 0.3s var(--ease-settle), transform 0.3s var(--ease-settle);
+}
+.row:hover { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-dim), 0 14px 34px rgba(0, 0, 0, 0.2); transform: translateY(-1px); }
 .deadlines { list-style: none; padding: 0; margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.2rem; font-size: var(--fs-body); color: var(--text-dim); }
 .advice { background: var(--surface); border-inline-start: 3px solid var(--accent); padding: 0.8rem 1rem; color: var(--text-dim); font-size: var(--fs-md); }
 .deadline--overdue { color: var(--danger); }
@@ -185,4 +192,8 @@ a.btn { text-decoration: none; }
 .btn--primary:hover { background: var(--accent); color: var(--on-accent); }
 .btn--danger { border-color: var(--danger); color: var(--danger); }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+@media (prefers-reduced-motion: reduce) {
+  .card, .row, .btn { transition: none !important; }
+  .card:hover, .row:hover { transform: none; }
+}
 </style>
