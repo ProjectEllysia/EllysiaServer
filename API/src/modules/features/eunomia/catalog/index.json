@@ -1,3 +1,13 @@
 {
-  "frameworks": []
+  "frameworks": [
+    {
+      "key": "nis2",
+      "name": "NIS2 — Directiva (UE) 2022/2555 y Reglamento de Ejecución (UE) 2024/2690",
+      "shortName": "NIS2",
+      "current": "2022-2555",
+      "versions": [
+        {"version": "2022-2555", "status": "draft"}
+      ]
+    }
+  ]
 }

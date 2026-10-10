@@ -45,7 +45,7 @@ Formato de una versión (claves en camelCase)::
         "identifier": "21.2.b", "parent": "21.2" | null, "order": 2,
         "kind": "group" | "requirement",
         "assessable": true,                    # opcional; hojas true, grupos false
-        "title": "...", "description": "...",
+        "title": "...", "officialText": "...", "description": "...",
         "actions": ["..."], "evidence": ["..."],
         "source": "Directiva (UE) 2022/2555, art. 21.2.b",
         "register": null                       # reservado: el requisito se evidencia con un registro
@@ -120,6 +120,9 @@ class CatalogNode:
         is_assessable: Si se puede evaluar y evidenciar. Por defecto, las hojas sí y los grupos
             no; el catálogo puede marcar evaluable un grupo.
         title: Título del nodo.
+        official_text: El texto oficial del que sale el nodo, tal como lo publica la fuente; vacío
+            si el nodo no tiene texto propio (un grupo que solo agrupa) o la fuente no se puede
+            reproducir.
         description: Qué pide, en lenguaje llano; vacío si no está redactado.
         actions: Qué hay que hacer para cumplirlo.
         evidence: Qué documentos o registros lo demuestran, como lista de elementos cortos.
@@ -135,6 +138,7 @@ class CatalogNode:
     kind: str
     is_assessable: bool
     title: str
+    official_text: str
     description: str
     actions: tuple[str, ...]
     evidence: tuple[str, ...]
@@ -289,6 +293,10 @@ def parse_version(document: dict) -> FrameworkVersion:
         _require(isinstance(raw.get("title"), str) and raw["title"].strip(), f"{where}: falta «title»")
         description = raw.get("description", "")
         _require(isinstance(description, str), f"{where}: «description» debe ser un texto")
+        official_text = raw.get("officialText", "")
+        _require(isinstance(official_text, str), f"{where}: «officialText» debe ser un texto")
+        _require(not (is_codes_only and official_text),
+                 f"{where}: una versión codes_only no puede llevar «officialText»")
         if is_codes_only:
             _require(len(raw["title"]) <= CODES_ONLY_MAX_TITLE,
                      f"{where}: el título pasa de {CODES_ONLY_MAX_TITLE} caracteres en una versión codes_only")
@@ -310,7 +318,7 @@ def parse_version(document: dict) -> FrameworkVersion:
             code=f"{key}:{identifier}", framework=key, identifier=identifier,
             parent=None if parent is None else f"{key}:{parent}",
             order=raw["order"], kind=raw["kind"], is_assessable=is_assessable,
-            title=raw["title"], description=description, actions=actions, evidence=evidence,
+            title=raw["title"], official_text=official_text, description=description, actions=actions, evidence=evidence,
             source=raw.get("source", ""), register=register,
         ))
 
