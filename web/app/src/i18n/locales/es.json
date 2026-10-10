@@ -97,6 +97,8 @@
     "duplicateAssetGroup": "Ya tienes un grupo de activos llamado «{name}».",
     "frameworkAlreadyAdopted": "El marco «{framework}» ya está adoptado.",
     "frameworkArchived": "El marco «{framework}» está archivado. Puedes restaurarlo y recuperar lo que habías evaluado.",
+    "frameworkNotArchived": "El marco «{framework}» no está archivado.",
+    "frameworkRestoreExpired": "El plazo para restaurar el marco «{framework}» ha vencido. Puedes adoptarlo de nuevo, pero empezarás de cero.",
     "invalidAuthorizedTarget": "«{target}» no es una dirección IP, un rango, un dominio ni un recurso cloud. Escríbelo como «203.0.113.10», «203.0.113.0/24», «example.com» o «s3:nombre-del-bucket».",
     "duplicatedUserCredentials": "Ya hay una cuenta con este dato: {value}.",
     "emailAlreadyVerified": "Tu correo ya está confirmado.",

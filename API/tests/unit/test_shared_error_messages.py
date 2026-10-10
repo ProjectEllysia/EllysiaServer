@@ -69,6 +69,8 @@ _SAMPLE_ARGUMENTS: dict[str, list[tuple]] = {
     "DataOwnedByOrganizationError": [("Acme",)],
     "FrameworkAlreadyAdoptedError": [("nis2",)],
     "FrameworkArchivedError": [("nis2",)],
+    "FrameworkNotArchivedError": [("nis2",)],
+    "FrameworkRestoreExpiredError": [("nis2",)],
     "StorableConflictError": [("github",)],
     "VaultRevisionMismatchError": [(4,), (4, 3)],
     "PlanFeatureDisabledError": [("iris.analyses", "free")],

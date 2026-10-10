@@ -24,6 +24,7 @@ from .schemas import (
     AdoptionCreateSchema,
     AdoptionListSchema,
     AdoptionSchema,
+    RemovalPreviewSchema,
     CatalogFrameworkListSchema,
     CatalogVersionSchema,
 )
@@ -90,3 +91,47 @@ def list_adoptions():
 def adopt_framework(data):
     """Adoptar un marco fijando la versión vigente del catálogo"""
     return EunomiaFrameworkManager().adopt(get_current_user().id, data["frameworkKey"]), 201
+
+
+@eunomia_blp.get("/adoptions/<string:key>/removal-preview")
+@eunomia_blp.response(200, RemovalPreviewSchema, description="Lo que se perdería al quitar el marco")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@eunomia_blp.alt_response(403, schema=ErrorSchema, description="Members cannot remove frameworks")
+@eunomia_blp.alt_response(404, schema=ErrorSchema, description="Framework not adopted")
+@limiter.limit("120 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_DELETE])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def preview_framework_removal(key):
+    """Qué evaluaciones y evidencias se perderían al quitar un marco, y cuáles se conservan"""
+    return EunomiaFrameworkManager().removal_preview(get_current_user().id, key)
+
+
+@eunomia_blp.delete("/adoptions/<string:key>")
+@eunomia_blp.response(200, AdoptionSchema, description="Marco archivado")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@eunomia_blp.alt_response(403, schema=ErrorSchema, description="Members cannot remove frameworks")
+@eunomia_blp.alt_response(404, schema=ErrorSchema, description="Framework not adopted")
+@limiter.limit("30 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_DELETE])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def archive_framework(key):
+    """Quitar un marco: se archiva y se puede restaurar hasta que pase el plazo"""
+    return EunomiaFrameworkManager().archive(get_current_user().id, key)
+
+
+@eunomia_blp.post("/adoptions/<string:key>/restore")
+@eunomia_blp.response(200, AdoptionSchema, description="Marco restaurado")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@eunomia_blp.alt_response(402, schema=ErrorSchema, description="Plan limit reached")
+@eunomia_blp.alt_response(403, schema=ErrorSchema, description="Members cannot restore frameworks")
+@eunomia_blp.alt_response(404, schema=ErrorSchema, description="Framework not adopted")
+@eunomia_blp.alt_response(409, schema=ErrorSchema, description="Not archived, or the period expired")
+@limiter.limit("30 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_UPDATE])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def restore_framework(key):
+    """Reactivar un marco archivado si sigue en plazo"""
+    return EunomiaFrameworkManager().restore(get_current_user().id, key)

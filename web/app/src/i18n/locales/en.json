@@ -97,6 +97,8 @@
     "duplicateAssetGroup": "You already have an asset group named “{name}”.",
     "frameworkAlreadyAdopted": "The framework “{framework}” is already adopted.",
     "frameworkArchived": "The framework “{framework}” is archived. You can restore it and recover what you had assessed.",
+    "frameworkNotArchived": "The framework “{framework}” is not archived.",
+    "frameworkRestoreExpired": "The period to restore the framework “{framework}” has expired. You can adopt it again, but you will start from scratch.",
     "invalidAuthorizedTarget": "“{target}” is not an IP address, a range, a domain or a cloud resource. Write it as “203.0.113.10”, “203.0.113.0/24”, “example.com” or “s3:bucket-name”.",
     "duplicatedUserCredentials": "There is already an account with this value: {value}.",
     "emailAlreadyVerified": "Your email is already confirmed.",

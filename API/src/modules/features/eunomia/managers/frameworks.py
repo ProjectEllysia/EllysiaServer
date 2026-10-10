@@ -21,12 +21,16 @@ from src.modules.infrastructure.session import build_repository
 from src.modules.shared import utcnow_naive
 
 from ..exceptions import (
+    AdoptionNotFoundError,
     FrameworkAlreadyAdoptedError,
     FrameworkArchivedError,
+    FrameworkNotArchivedError,
     FrameworkNotFoundError,
+    FrameworkRestoreExpiredError,
 )
 from ..model import ADOPTION_ACTIVE, ADOPTION_ARCHIVED, EunomiaFrameworkAdoption
 from ..repositories import EunomiaFrameworkAdoptionRepository
+from ..services.adoption_data import AdoptionDataRegistry
 from ..services.catalog import load_index
 
 logger = logging.getLogger(__name__)
@@ -51,6 +55,20 @@ def _assert_owner(user_id: int) -> int:
     if owner_user_id != user_id:
         raise DataOwnedByOrganizationError(organizations.describe_data_ownership(user_id)["organizationName"] or "")
     return owner_user_id
+
+
+def _get_active(owner_user_id: int, framework_key: str) -> EunomiaFrameworkAdoption:
+    """Devuelve la adopción activa de un marco o lanza ``AdoptionNotFoundError``."""
+    adoption = build_repository(EunomiaFrameworkAdoptionRepository).get_for_owner(owner_user_id, framework_key)
+    if adoption is None or adoption.status != ADOPTION_ACTIVE:
+        raise AdoptionNotFoundError(framework_key)
+    return adoption
+
+
+def _listed(owner_user_id: int, framework_key: str) -> dict:
+    """Devuelve una adopción con la forma de ``EunomiaFrameworkManager.list_adoptions``."""
+    adoptions = EunomiaFrameworkManager().list_adoptions(owner_user_id)["adoptions"]
+    return next(adoption for adoption in adoptions if adoption["frameworkKey"] == framework_key)
 
 
 class EunomiaFrameworkManager:
@@ -127,7 +145,122 @@ class EunomiaFrameworkManager:
                 adopted_at=utcnow_naive(), adopted_by_user_id=user_id,
             ))
         logger.info("Marco adoptado | owner=%s marco=%s version=%s", owner_user_id, framework_key, entry["current"])
-        return next(
-            adoption for adoption in self.list_adoptions(owner_user_id)["adoptions"]
-            if adoption["frameworkKey"] == framework_key
-        )
+        return _listed(owner_user_id, framework_key)
+
+    def removal_preview(self, user_id: int, framework_key: str) -> dict:
+        """Dice qué se perdería al quitar un marco, antes de quitarlo.
+
+        Args:
+            user_id: Usuario que va a quitarlo; tiene que ser el dueño efectivo.
+            framework_key: Clave del marco.
+
+        Returns:
+            dict: ``assessments`` (evaluaciones con estado distinto de «pendiente»),
+                ``evidenceDeleted`` (evidencias que se borrarían), ``evidenceKept`` (las que
+                se conservan porque también sirven a otro marco adoptado), ``purgeAt`` (cuándo
+                se purgaría) y ``retentionDays``.
+
+        Raises:
+            DataOwnedByOrganizationError: Si es miembro de la organización de otro (403).
+            AdoptionNotFoundError: Si no tiene adoptado ese marco (404).
+        """
+        owner_user_id = _assert_owner(user_id)
+        _get_active(owner_user_id, framework_key)
+        retention_days = CR.eunomia_config().archived_framework_retention_days
+        with UnitOfWork() as uow:
+            totals = AdoptionDataRegistry.count_all(uow, owner_user_id, framework_key)
+        return {
+            **totals,
+            "retentionDays": retention_days,
+            "purgeAt": utcnow_naive() + timedelta(days=retention_days),
+        }
+
+    def archive(self, user_id: int, framework_key: str) -> dict:
+        """Quita un marco: lo archiva, sin borrar nada, hasta que pase el plazo.
+
+        Un marco archivado no aparece en el árbol ni cuenta para la cuota.
+
+        Args:
+            user_id: Usuario que lo quita; tiene que ser el dueño efectivo.
+            framework_key: Clave del marco.
+
+        Returns:
+            dict: La adopción ya archivada, con ``purgeAt``.
+
+        Raises:
+            DataOwnedByOrganizationError: Si es miembro de la organización de otro (403).
+            AdoptionNotFoundError: Si no la tiene adoptada y activa (404).
+        """
+        owner_user_id = _assert_owner(user_id)
+        with UnitOfWork() as uow:
+            repo = EunomiaFrameworkAdoptionRepository(uow)
+            adoption = repo.get_for_owner(owner_user_id, framework_key)
+            if adoption is None or adoption.status != ADOPTION_ACTIVE:
+                raise AdoptionNotFoundError(framework_key)
+            adoption.status = ADOPTION_ARCHIVED
+            adoption.archived_at = utcnow_naive()
+            adoption.archived_by_user_id = user_id
+            repo.save(adoption)
+        logger.info("Marco archivado | owner=%s marco=%s", owner_user_id, framework_key)
+        return _listed(owner_user_id, framework_key)
+
+    def restore(self, user_id: int, framework_key: str) -> dict:
+        """Reactiva un marco archivado si sigue en plazo y hay cuota.
+
+        Args:
+            user_id: Usuario que lo restaura; tiene que ser el dueño efectivo.
+            framework_key: Clave del marco.
+
+        Returns:
+            dict: La adopción reactivada, con su evaluación intacta.
+
+        Raises:
+            DataOwnedByOrganizationError: Si es miembro de la organización de otro (403).
+            AdoptionNotFoundError: Si no tiene ese marco (404).
+            FrameworkNotArchivedError: Si no está archivado (409).
+            FrameworkRestoreExpiredError: Si ya pasó el plazo de recuperación (409).
+            QuotaExceededError: Si no hay cuota para otro marco activo (402).
+        """
+        owner_user_id = _assert_owner(user_id)
+        existing = build_repository(EunomiaFrameworkAdoptionRepository).get_for_owner(owner_user_id, framework_key)
+        if existing is None:
+            raise AdoptionNotFoundError(framework_key)
+        if existing.status != ADOPTION_ARCHIVED:
+            raise FrameworkNotArchivedError(framework_key)
+        retention = timedelta(days=CR.eunomia_config().archived_framework_retention_days)
+        if existing.archived_at is not None and existing.archived_at + retention < utcnow_naive():
+            raise FrameworkRestoreExpiredError(framework_key)
+
+        QuotaManager().consume(owner_user_id, LimitKey.EUNOMIA_FRAMEWORKS)
+        with UnitOfWork() as uow:
+            repo = EunomiaFrameworkAdoptionRepository(uow)
+            adoption = repo.get_for_owner(owner_user_id, framework_key)
+            adoption.status = ADOPTION_ACTIVE
+            adoption.archived_at = None
+            adoption.archived_by_user_id = None
+            repo.save(adoption)
+        logger.info("Marco restaurado | owner=%s marco=%s", owner_user_id, framework_key)
+        return _listed(owner_user_id, framework_key)
+
+    def purge_expired(self) -> int:
+        """Borra definitivamente los marcos archivados hace más de la retención.
+
+        Quita de cada uno sus evaluaciones, su historial y las evidencias que solo
+        enlazaban con ese marco (lo registran los proveedores de ``AdoptionDataRegistry``),
+        y la propia adopción. Lo llama el scheduler una vez al día.
+
+        Returns:
+            int: Cuántos marcos se purgaron.
+        """
+        retention = timedelta(days=CR.eunomia_config().archived_framework_retention_days)
+        cutoff = utcnow_naive() - retention
+        purged = 0
+        with UnitOfWork() as uow:
+            repo = EunomiaFrameworkAdoptionRepository(uow)
+            for adoption in repo.list_archived_before(cutoff):
+                deleted = AdoptionDataRegistry.purge_all(uow, adoption.owner_user_id, adoption.framework_key)
+                repo.delete(adoption)
+                purged += 1
+                logger.info("Marco purgado | owner=%s marco=%s borrado=%s",
+                            adoption.owner_user_id, adoption.framework_key, deleted)
+        return purged
