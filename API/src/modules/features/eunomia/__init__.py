@@ -18,14 +18,17 @@ Reglas que atraviesan todo el módulo:
       de las técnicas MITRE ATT&CK y de qué comprobación cubre qué control.
 
 Exponente:
+    - CatalogManager: el catálogo de marcos y el árbol de cada versión.
     - Endpoints: eunomia_blp.
     - Excepciones: EunomiaError.
 """
 
 from .endpoints import eunomia_blp
+from .managers import CatalogManager
 from .exceptions import EunomiaError
 
 __all__ = [
     "eunomia_blp",
+    "CatalogManager",
     "EunomiaError",
 ]
