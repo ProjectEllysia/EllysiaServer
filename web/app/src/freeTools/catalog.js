@@ -52,10 +52,14 @@ export const FREE_TOOLS = Object.freeze([
   Object.freeze({ id: 'cveLookup', module: 'aegis', slug: 'consulta-de-cve', access: 'public' }),
   Object.freeze({ id: 'passwordStrength', module: 'acheron', slug: 'medidor-de-contrasenas', access: 'public' }),
   Object.freeze({ id: 'cidrCalculator', module: 'themis', slug: 'calculadora-cidr', access: 'public' }),
+  Object.freeze({ id: 'versionCheck', module: 'themis', slug: 'es-vulnerable-mi-version', access: 'public' }),
   Object.freeze({ id: 'mailAuthChecker', module: 'iris', slug: 'comprobador-spf-dmarc', access: 'public' }),
+  Object.freeze({ id: 'lookalikeDomain', module: 'iris', slug: 'detector-de-dominios-enganosos', access: 'public' }),
+  Object.freeze({ id: 'headerAnalyzer', module: 'iris', slug: 'analizador-de-cabeceras', access: 'public' }),
   Object.freeze({ id: 'cvssCalculator', module: 'aegis', slug: 'calculadora-cvss', access: 'public' }),
   Object.freeze({ id: 'phishingQuiz', module: 'aegis', slug: 'quiz-de-phishing', access: 'public' }),
   Object.freeze({ id: 'powerCost', module: 'hygeia', slug: 'calculadora-de-consumo', access: 'public' }),
+  Object.freeze({ id: 'uptimeCalculator', module: 'hygeia', slug: 'calculadora-de-disponibilidad', access: 'public' }),
 ])
 
 /**

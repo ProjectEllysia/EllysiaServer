@@ -271,12 +271,16 @@ Los endpoints protegidos exigen `Authorization: Bearer <token>`; roles y atribut
 (`users/services/permissions.py`). **Las claves JSON son camelCase.** Contraseñas con Argon2id.
 
 > Los **únicos** endpoints sin autenticar de toda la API son `GET/POST /aegis/quiz?t=<token>`
-> (quiz público de concienciación) y `GET /themis/kb/cve?id=` (consulta pública de una CVE, la
-> herramienta gratuita «Consulta de CVE»). El token del quiz es la identidad entera: no añadas auth
-> ahí, y no filtres nada más allá del único destinatario al que pertenece el token. La consulta de
-> CVE solo lee dato público de la base local —acepta únicamente un identificador completo, sin
-> búsqueda por texto— y se protege con límite por IP y con tope en el tamaño de la respuesta; no la
-> amplíes a nada que toque la red ni que lance trabajo: eso va con cuenta (ver `web/app/src/freeTools/`).
+> (quiz público de concienciación) y las consultas de las herramientas gratuitas:
+> `GET /themis/kb/cve?id=` («Consulta de CVE»), `GET /themis/kb/version?product=&version=`
+> («¿Es vulnerable mi versión?»), `GET /iris/tools/domain?domain=` («Detector de dominios
+> engañosos») y `POST /iris/tools/headers` («Analizador de cabeceras»). El token del quiz es la
+> identidad entera: no añadas auth ahí, y no filtres nada más allá del único destinatario al que
+> pertenece el token. Las consultas de las herramientas corren código del análisis real en memoria
+> sobre dato público de la base local o sobre lo que manda el visitante, sin guardar nada; se
+> protegen con límite por IP y con tope en la entrada y en la respuesta, y ninguna busca por prefijo.
+> No las amplíes a nada que toque la red ni que lance trabajo: eso va con cuenta (ver
+> `web/app/src/freeTools/`).
 >
 > Dos superficies se autentican con una credencial propia en vez de la sesión, a propósito: la
 > ingesta de Hygeia (clave de agente) y el canal de reporte de Iris (`POST/GET /iris/reports`,

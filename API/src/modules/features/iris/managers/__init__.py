@@ -48,6 +48,8 @@ Managers del módulo Iris (análisis de correo).
   y comprobación de cuentas de servicio y credenciales.
 - ``IrisSharedMailboxManager`` (``shared_mailboxes.py``): buzones compartidos
   de la organización y quién ve sus análisis.
+- ``IrisFreeToolsManager`` (``free_tools.py``): las herramientas gratuitas,
+  trozos del análisis que se usan sin cuenta y no guardan nada.
 
 Iris era el único módulo con
 **dos** ficheros de managers en la raíz — ``managers.py`` (64 KB, el
@@ -84,6 +86,7 @@ from .remediation import IrisRemediationManager
 from .mailbox_events import IrisMailboxEventManager
 from .mailbox_accounts import IrisMailboxAccountManager
 from .shared_mailboxes import IrisSharedMailboxManager
+from .free_tools import IrisFreeToolsManager
 
 __all__ = [
     "IrisManager",
@@ -93,6 +96,7 @@ __all__ = [
     "IrisMailboxEventManager",
     "IrisMailboxAccountManager",
     "IrisSharedMailboxManager",
+    "IrisFreeToolsManager",
     "IrisTrustPolicyManager",
     "IrisTriageManager",
     "IrisCaseManager",
