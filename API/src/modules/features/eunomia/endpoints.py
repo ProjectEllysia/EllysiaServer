@@ -29,6 +29,7 @@ from .managers import (
     EunomiaDocumentManager,
     EunomiaEvidenceManager,
     EunomiaFrameworkManager,
+    EunomiaRegisterManager,
     EunomiaTemplateManager,
 )
 from .schemas import (
@@ -43,9 +44,18 @@ from .schemas import (
     AutomaticEvidenceListSchema,
     RemovalPreviewSchema,
     UpgradePlanSchema,
+    TemplateDraftQuerySchema,
     TemplateDraftSchema,
     TemplateDraftWriteSchema,
     TemplateListSchema,
+    RecordHistorySchema,
+    RecordListSchema,
+    RecordSchema,
+    RecordWriteSchema,
+    RegisterDetailSchema,
+    RegisterExportQuerySchema,
+    RegisterListSchema,
+    RegisterQuerySchema,
     DocumentListSchema,
     DocumentRequestSchema,
     DocumentSchema,
@@ -394,6 +404,7 @@ def list_templates():
 
 
 @eunomia_blp.get("/templates/<string:key>/draft")
+@eunomia_blp.arguments(TemplateDraftQuerySchema, location="query")
 @eunomia_blp.response(200, TemplateDraftSchema, description="Formulario con valores guardados y precargados")
 @eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
 @eunomia_blp.alt_response(404, schema=ErrorSchema, description="Template not found")
@@ -401,9 +412,9 @@ def list_templates():
 @require_oauth_token
 @require_attributes(at_least_one=[AttributeType.EUNOMIA_READ])
 @handle_exceptions(default_exception=EunomiaError, logger=logger)
-def get_template_draft(key):
+def get_template_draft(args, key):
     """El formulario de una plantilla: lo guardado combinado con lo que Ellysia ya sabe"""
-    return EunomiaTemplateManager().get_draft(get_current_user().id, key)
+    return EunomiaTemplateManager().get_draft(get_current_user().id, key, args["recordId"])
 
 
 @eunomia_blp.put("/templates/<string:key>/draft")
@@ -434,7 +445,8 @@ def save_template_draft(data, key):
 @handle_exceptions(default_exception=EunomiaError, logger=logger)
 def create_document(data, key):
     """Pedir el documento de una plantilla, en PDF o en Word, en segundo plano"""
-    return EunomiaDocumentManager().create_document(get_current_user().id, key, data["format"])
+    return EunomiaDocumentManager().create_document(
+        get_current_user().id, key, data["format"], data["recordId"])
 
 
 @eunomia_blp.get("/documents")
@@ -491,3 +503,128 @@ def delete_document(document_id):
     """Borrar un documento y su fichero"""
     EunomiaDocumentManager().delete_user_document(get_current_user().id, document_id)
     return {"message": "Documento eliminado correctamente", "documentId": document_id}
+
+
+@eunomia_blp.get("/registers")
+@eunomia_blp.response(200, RegisterListSchema, description="Tipos de registro")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@limiter.limit("240 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_READ])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def list_registers():
+    """Los registros disponibles con cuántas fichas tiene el dueño efectivo en cada uno"""
+    return {"registers": EunomiaRegisterManager().list_registers(get_current_user().id)}
+
+
+@eunomia_blp.get("/registers/<string:key>")
+@eunomia_blp.arguments(RegisterQuerySchema, location="query")
+@eunomia_blp.response(200, RegisterDetailSchema, description="Definición y fichas")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@eunomia_blp.alt_response(404, schema=ErrorSchema, description="Register not found")
+@limiter.limit("240 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_READ])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def get_register(args, key):
+    """La definición de un registro y sus fichas, con los plazos calculados al leer"""
+    return EunomiaRegisterManager().get_register(get_current_user().id, key, args["includeArchived"])
+
+
+@eunomia_blp.post("/registers/<string:key>/records")
+@eunomia_blp.arguments(RecordWriteSchema)
+@eunomia_blp.response(201, RecordSchema, description="Ficha creada")
+@eunomia_blp.alt_response(400, schema=ErrorSchema, description="Record does not meet the definition")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@eunomia_blp.alt_response(404, schema=ErrorSchema, description="Register not found")
+@limiter.limit("240 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_CREATE])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def create_record(data, key):
+    """Crear una ficha en un registro"""
+    return EunomiaRegisterManager().create_record(get_current_user().id, key, data["values"]), 201
+
+
+@eunomia_blp.post("/registers/<string:key>/examples")
+@eunomia_blp.response(201, RecordListSchema, description="Fichas de ejemplo creadas")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@eunomia_blp.alt_response(404, schema=ErrorSchema, description="Register not found")
+@limiter.limit("30 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_CREATE])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def create_examples(key):
+    """Crear las fichas de ejemplo del registro para editarlas después"""
+    return {"records": EunomiaRegisterManager().create_examples(get_current_user().id, key)}, 201
+
+
+@eunomia_blp.put("/registers/<string:key>/records/<int:record_id>")
+@eunomia_blp.arguments(RecordWriteSchema)
+@eunomia_blp.response(200, RecordSchema, description="Ficha guardada")
+@eunomia_blp.alt_response(400, schema=ErrorSchema, description="Record does not meet the definition")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@eunomia_blp.alt_response(404, schema=ErrorSchema, description="Register or record not found")
+@eunomia_blp.alt_response(409, schema=ErrorSchema, description="Record changed while editing")
+@limiter.limit("240 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_UPDATE])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def update_record(data, key, record_id):
+    """Editar una ficha; el cuerpo lleva el updatedAt que vio el cliente"""
+    return EunomiaRegisterManager().update_record(
+        get_current_user().id, key, record_id, data["values"], data.get("updatedAt"))
+
+
+@eunomia_blp.post("/registers/<string:key>/records/<int:record_id>/archive")
+@eunomia_blp.response(200, RecordSchema, description="Ficha archivada")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@eunomia_blp.alt_response(404, schema=ErrorSchema, description="Register or record not found")
+@limiter.limit("240 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_UPDATE])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def archive_record(key, record_id):
+    """Archivar una ficha: sale del registro pero conserva su historial"""
+    return EunomiaRegisterManager().set_archived(get_current_user().id, key, record_id, True)
+
+
+@eunomia_blp.post("/registers/<string:key>/records/<int:record_id>/restore")
+@eunomia_blp.response(200, RecordSchema, description="Ficha restaurada")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@eunomia_blp.alt_response(404, schema=ErrorSchema, description="Register or record not found")
+@limiter.limit("240 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_UPDATE])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def restore_record(key, record_id):
+    """Restaurar una ficha archivada"""
+    return EunomiaRegisterManager().set_archived(get_current_user().id, key, record_id, False)
+
+
+@eunomia_blp.get("/registers/<string:key>/records/<int:record_id>/history")
+@eunomia_blp.response(200, RecordHistorySchema, description="Historial de la ficha")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@eunomia_blp.alt_response(404, schema=ErrorSchema, description="Register or record not found")
+@limiter.limit("240 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_READ])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def get_record_history(key, record_id):
+    """Quién cambió qué y cuándo en una ficha"""
+    return {"events": EunomiaRegisterManager().get_history(get_current_user().id, key, record_id)}
+
+
+@eunomia_blp.get("/registers/<string:key>/export")
+@eunomia_blp.arguments(RegisterExportQuerySchema, location="query")
+@eunomia_blp.response(200, description="Registro exportado")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@eunomia_blp.alt_response(404, schema=ErrorSchema, description="Register not found")
+@limiter.limit("60 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_READ])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def export_register(args, key):
+    """Descargar el registro en CSV o en PDF"""
+    content, filename, mimetype = EunomiaRegisterManager().export(get_current_user().id, key, args["format"])
+    return send_file(io.BytesIO(content), mimetype=mimetype, as_attachment=True, download_name=filename)

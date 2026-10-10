@@ -1,0 +1,123 @@
+{
+  "key": "incident-final-report",
+  "frameworkVersion": "2022-2555",
+  "title": "Informe final de incidente significativo (NIS2)",
+  "summary": "El informe final que se presenta como máximo un mes después de la notificación del incidente (art. 23.4.d).",
+  "controls": [
+    "23.4.d",
+    "RE.3.6"
+  ],
+  "fields": [
+    {
+      "key": "company_name",
+      "label": "Razón social",
+      "type": "text",
+      "required": true,
+      "source": "company.legalName"
+    },
+    {
+      "key": "tax_id",
+      "label": "NIF",
+      "type": "text",
+      "required": true,
+      "source": "company.taxId"
+    },
+    {
+      "key": "contact",
+      "label": "Persona de contacto para el incidente",
+      "type": "text",
+      "required": true,
+      "source": "company.securityContact",
+      "help": "Nombre y correo o teléfono."
+    },
+    {
+      "key": "incident",
+      "label": "Incidente",
+      "type": "text",
+      "required": true,
+      "source": "record.name"
+    },
+    {
+      "key": "aware_at",
+      "label": "Momento en que se tuvo constancia",
+      "type": "text",
+      "required": true,
+      "source": "record.aware_at"
+    },
+    {
+      "key": "description",
+      "label": "Descripción del incidente",
+      "type": "longtext",
+      "required": true,
+      "source": "record.description"
+    },
+    {
+      "key": "systems",
+      "label": "Sistemas afectados",
+      "type": "list",
+      "required": false,
+      "source": "record.systems"
+    },
+    {
+      "key": "measures",
+      "label": "Medidas adoptadas",
+      "type": "longtext",
+      "required": false,
+      "source": "record.measures"
+    },
+    {
+      "key": "threat",
+      "label": "Tipo de amenaza o causa probable",
+      "type": "longtext",
+      "required": true
+    },
+    {
+      "key": "mitigation",
+      "label": "Medidas paliativas aplicadas y en curso",
+      "type": "longtext",
+      "required": true
+    },
+    {
+      "key": "cross_border",
+      "label": "Repercusión transfronteriza, si la hubo",
+      "type": "text",
+      "required": false
+    }
+  ],
+  "sections": [
+    {
+      "heading": "Informe final",
+      "body": "{{company_name}} (NIF {{tax_id}}) presenta el informe final del incidente, conforme al artículo 23.4.d de la Directiva (UE) 2022/2555."
+    },
+    {
+      "heading": "Descripción detallada",
+      "body": "{{incident}}\n\nMomento en que se tuvo constancia: {{aware_at}}.\n\n{{description}}"
+    },
+    {
+      "heading": "Sistemas afectados",
+      "body": "{{systems}}"
+    },
+    {
+      "heading": "Amenaza o causa",
+      "body": "{{threat}}"
+    },
+    {
+      "heading": "Medidas paliativas",
+      "body": "{{mitigation}}\n\nMedidas adoptadas durante el incidente: {{measures}}"
+    },
+    {
+      "heading": "Repercusión transfronteriza",
+      "body": "{{cross_border}}"
+    },
+    {
+      "heading": "Contacto",
+      "body": "{{contact}}"
+    },
+    {
+      "heading": "Nota",
+      "body": "Este documento es un borrador generado a partir de la ficha del incidente. Revísalo y complétalo antes de enviarlo."
+    }
+  ],
+  "version": "1",
+  "register": "incidentes-y-brechas"
+}

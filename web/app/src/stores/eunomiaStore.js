@@ -118,11 +118,13 @@ export const useEunomiaStore = defineStore('eunomia', () => {
    * Carga el formulario de una plantilla con lo guardado y lo precargado.
    *
    * @param {string} key - Clave de la plantilla.
+   * @param {number|string|null} [recordId] - Ficha de un registro de la que toma datos.
    * @returns {Promise<{ok: boolean, data: object|null, message: string|null}>}
    */
-  async function loadTemplateDraft(key) {
+  async function loadTemplateDraft(key, recordId = null) {
     try {
-      const res = await apiFetch(`/eunomia/templates/${encodeURIComponent(key)}/draft`)
+      const query = recordId ? `?recordId=${encodeURIComponent(recordId)}` : ''
+      const res = await apiFetch(`/eunomia/templates/${encodeURIComponent(key)}/draft${query}`)
       if (!res?.ok) return { ok: false, data: null, message: await apiError(res, i18n.global.t('eunomia.templates.loadFailed')) }
       return { ok: true, data: await res.json(), message: null }
     } catch { return { ok: false, data: null, message: i18n.global.t('eunomia.frameworks.offline') } }
@@ -150,12 +152,13 @@ export const useEunomiaStore = defineStore('eunomia', () => {
    *
    * @param {string} key - Clave de la plantilla.
    * @param {'pdf'|'docx'} format - Formato de salida.
+   * @param {number|string|null} [recordId] - Ficha de un registro de la que toma datos.
    * @returns {Promise<{ok: boolean, data: object|null, message: string|null}>}
    */
-  async function requestDocument(key, format) {
+  async function requestDocument(key, format, recordId = null) {
     try {
       const res = await apiFetch(`/eunomia/templates/${encodeURIComponent(key)}/documents`, {
-        method: 'POST', body: JSON.stringify({ format }),
+        method: 'POST', body: JSON.stringify({ format, recordId: recordId ? Number(recordId) : null }),
       })
       if (!res?.ok) return { ok: false, data: null, message: await apiError(res, i18n.global.t('eunomia.documents.requestFailed')) }
       return { ok: true, data: await res.json(), message: null }
@@ -207,6 +210,75 @@ export const useEunomiaStore = defineStore('eunomia', () => {
     try {
       const res = await apiFetch(`/eunomia/documents/${id}`, { method: 'DELETE' })
       return !!res?.ok
+    } catch { return false }
+  }
+
+  /**
+   * Carga los tipos de registro con su número de fichas.
+   *
+   * @returns {Promise<{ok: boolean, registers: Array, message: string|null}>}
+   */
+  async function loadRegisters() {
+    try {
+      const res = await apiFetch('/eunomia/registers')
+      if (!res?.ok) return { ok: false, registers: [], message: await apiError(res, i18n.global.t('eunomia.registers.loadFailed')) }
+      return { ok: true, registers: (await res.json()).registers ?? [], message: null }
+    } catch { return { ok: false, registers: [], message: i18n.global.t('eunomia.frameworks.offline') } }
+  }
+
+  /**
+   * Carga un registro: su definición y sus fichas.
+   *
+   * @param {string} key - Tipo de registro.
+   * @param {boolean} [includeArchived=false]
+   * @returns {Promise<{ok: boolean, data: object|null, message: string|null}>}
+   */
+  async function loadRegister(key, includeArchived = false) {
+    try {
+      const res = await apiFetch(`/eunomia/registers/${encodeURIComponent(key)}?includeArchived=${includeArchived}`)
+      if (!res?.ok) return { ok: false, data: null, message: await apiError(res, i18n.global.t('eunomia.registers.loadFailed')) }
+      return { ok: true, data: await res.json(), message: null }
+    } catch { return { ok: false, data: null, message: i18n.global.t('eunomia.frameworks.offline') } }
+  }
+
+  /**
+   * Hace una operación de escritura sobre un registro y devuelve su resultado.
+   *
+   * @param {string} path - Ruta bajo `/eunomia/registers/`.
+   * @param {string} method - Método HTTP.
+   * @param {object|null} body - Cuerpo JSON, o `null`.
+   * @returns {Promise<{ok: boolean, data: object|null, conflict: object|null, message: string|null}>}
+   */
+  async function writeRegister(path, method, body = null) {
+    try {
+      const res = await apiFetch(`/eunomia/registers/${path}`, { method, ...(body ? { body: JSON.stringify(body) } : {}) })
+      if (res?.status === 409) {
+        const error = await res.json().catch(() => ({}))
+        return { ok: false, data: null, conflict: error?.details?.current ?? {}, message: null }
+      }
+      if (!res?.ok) return { ok: false, data: null, conflict: null, message: await apiError(res, i18n.global.t('eunomia.registers.saveFailed')) }
+      return { ok: true, data: await res.json(), conflict: null, message: null }
+    } catch { return { ok: false, data: null, conflict: null, message: i18n.global.t('eunomia.frameworks.offline') } }
+  }
+
+  /**
+   * Descarga un registro en CSV o PDF.
+   *
+   * @param {string} key - Tipo de registro.
+   * @param {'csv'|'pdf'} format
+   * @returns {Promise<boolean>} Si se descargó.
+   */
+  async function exportRegister(key, format) {
+    try {
+      const res = await apiFetch(`/eunomia/registers/${encodeURIComponent(key)}/export?format=${format}`)
+      if (!res?.ok) return false
+      const url = URL.createObjectURL(await res.blob())
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${key}.${format}`
+      link.click()
+      URL.revokeObjectURL(url)
+      return true
     } catch { return false }
   }
 
@@ -393,6 +465,6 @@ export const useEunomiaStore = defineStore('eunomia', () => {
     return splitFrameworks(state.catalog, state.adoptions)
   }
 
-  return { state, load, adopt, archive, restore, previewRemoval, previewUpgrade, upgrade, loadTemplates, loadTemplateDraft, saveTemplateDraft, requestDocument, loadDocuments, downloadDocument, deleteDocument, loadTree, loadSummary, loadHistory, loadAutomaticEvidence, saveAssessment,
+  return { state, load, adopt, archive, restore, previewRemoval, previewUpgrade, upgrade, loadTemplates, loadTemplateDraft, saveTemplateDraft, loadRegisters, loadRegister, writeRegister, exportRegister, requestDocument, loadDocuments, downloadDocument, deleteDocument, loadTree, loadSummary, loadHistory, loadAutomaticEvidence, saveAssessment,
     loadEvidence, uploadEvidence, setEvidenceLink, deleteEvidence, downloadEvidence, grouped }
 })

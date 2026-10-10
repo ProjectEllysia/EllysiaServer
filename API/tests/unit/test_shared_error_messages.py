@@ -80,6 +80,8 @@ _SAMPLE_ARGUMENTS: dict[str, list[tuple]] = {
     "FrameworkRestoreExpiredError": [("nis2",)],
     "FrameworkUpToDateError": [("nis2",)],
     "TemplateValuesInvalidError": [("company_name",)],
+    "RecordInvalidError": [(["name"], ["Nombre"])],
+    "RecordConflictError": [(None,)],
     "TemplateIncompleteError": [(["Razón social", "NIF"],)],
     "VersionMappingMissingError": [("nis2", "a", "b")],
     "StorableConflictError": [("github",)],

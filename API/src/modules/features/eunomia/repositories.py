@@ -17,6 +17,8 @@ from .model import (
     EunomiaEvidenceContent,
     EunomiaEvidenceLink,
     EunomiaFrameworkAdoption,
+    EunomiaRecord,
+    EunomiaRecordEvent,
     EunomiaTemplateDraft,
 )
 
@@ -553,3 +555,151 @@ class EunomiaDocumentRepository(DocumentRepository[EunomiaDocument]):
             .filter(EunomiaDocument.status.in_(("pending", "running")))
             .all()
         )
+
+
+class EunomiaRecordRepository(BaseRepository[EunomiaRecord]):
+    """Acceso a datos de las fichas de los registros."""
+
+    _MODEL = EunomiaRecord
+
+    def get_for_owner(self, owner_user_id: int, register_key: str, record_id: int) -> Optional[EunomiaRecord]:
+        """Una ficha de un dueño y de un registro, o ``None`` si no existe o es de otro.
+
+        Args:
+            owner_user_id: Dueño efectivo de los datos.
+            register_key: Tipo de registro.
+            record_id: Clave primaria de la ficha.
+        """
+        return (
+            self._session.query(EunomiaRecord)
+            .filter(EunomiaRecord.id == record_id, EunomiaRecord.owner_user_id == owner_user_id,
+                    EunomiaRecord.register_key == register_key)
+            .one_or_none()
+        )
+
+    def list_for_register(self, owner_user_id: int, register_key: str,
+                          include_archived: bool = False) -> List[EunomiaRecord]:
+        """Las fichas de un registro, de la más reciente a la más antigua.
+
+        Args:
+            owner_user_id: Dueño efectivo de los datos.
+            register_key: Tipo de registro.
+            include_archived: Si salen también las archivadas. Por defecto ``False``.
+        """
+        query = self._session.query(EunomiaRecord).filter(
+            EunomiaRecord.owner_user_id == owner_user_id, EunomiaRecord.register_key == register_key)
+        if not include_archived:
+            query = query.filter(EunomiaRecord.is_archived.is_(False))
+        return query.order_by(EunomiaRecord.created_at.desc(), EunomiaRecord.id.desc()).all()
+
+    def list_open_for_registers(self, register_keys: list[str]) -> List[EunomiaRecord]:
+        """Las fichas no archivadas de unos tipos de registro, de cualquier dueño.
+
+        Lo usa el trabajo programado de avisos de plazos.
+
+        Args:
+            register_keys: Tipos de registro que interesan.
+        """
+        if not register_keys:
+            return []
+        return (
+            self._session.query(EunomiaRecord)
+            .filter(EunomiaRecord.register_key.in_(register_keys), EunomiaRecord.is_archived.is_(False))
+            .all()
+        )
+
+    def count_by_register(self, owner_user_id: int) -> dict[str, int]:
+        """Cuántas fichas no archivadas tiene un dueño en cada registro.
+
+        Args:
+            owner_user_id: Dueño efectivo de los datos.
+        """
+        rows = (
+            self._session.query(EunomiaRecord.register_key, func.count(EunomiaRecord.id))
+            .filter(EunomiaRecord.owner_user_id == owner_user_id, EunomiaRecord.is_archived.is_(False))
+            .group_by(EunomiaRecord.register_key)
+            .all()
+        )
+        return {key: count for key, count in rows}
+
+    def update_if_unchanged(self, record_id: int, expected_updated_at: datetime, **fields) -> bool:
+        """Actualiza una ficha solo si nadie la ha tocado desde ``expected_updated_at``.
+
+        La condición va dentro del ``UPDATE`` (CONVENCIONES § 4.4).
+
+        Args:
+            record_id: Clave primaria de la ficha.
+            expected_updated_at: El ``updated_at`` que vio quien escribe.
+            **fields: Columnas a cambiar.
+
+        Returns:
+            bool: ``True`` si ganó la escritura; ``False`` si la ficha había cambiado.
+        """
+        result = self._session.execute(
+            update(EunomiaRecord)
+            .where(and_(EunomiaRecord.id == record_id, EunomiaRecord.updated_at == expected_updated_at))
+            .values(**fields)
+        )
+        return result.rowcount == 1
+
+    def clear_user_references(self, user_id: int) -> None:
+        """Anula quién creó o editó fichas cuando esa cuenta se borra.
+
+        Args:
+            user_id: Usuario cuya cuenta se borra.
+        """
+        for column in (EunomiaRecord.created_by_user_id, EunomiaRecord.updated_by_user_id):
+            self._session.query(EunomiaRecord).filter(column == user_id).update(
+                {column: None}, synchronize_session=False)
+
+    def delete_for_owner(self, owner_user_id: int) -> int:
+        """Borra todas las fichas de un dueño (y, por cascada, su historial); devuelve cuántas.
+
+        Args:
+            owner_user_id: Dueño efectivo de los datos.
+        """
+        ids = [row[0] for row in self._session.query(EunomiaRecord.id).filter(
+            EunomiaRecord.owner_user_id == owner_user_id)]
+        if ids:
+            self._session.query(EunomiaRecordEvent).filter(EunomiaRecordEvent.record_id.in_(ids)).delete(
+                synchronize_session=False)
+        return self._session.query(EunomiaRecord).filter(
+            EunomiaRecord.owner_user_id == owner_user_id).delete(synchronize_session=False)
+
+
+class EunomiaRecordEventRepository(BaseRepository[EunomiaRecordEvent]):
+    """Acceso a datos del historial de las fichas: de solo añadir."""
+
+    _MODEL = EunomiaRecordEvent
+
+    def list_for_record(self, record_id: int) -> List[EunomiaRecordEvent]:
+        """El historial de una ficha, del cambio más reciente al más antiguo.
+
+        Args:
+            record_id: Clave primaria de la ficha.
+        """
+        return (
+            self._session.query(EunomiaRecordEvent)
+            .filter(EunomiaRecordEvent.record_id == record_id)
+            .order_by(EunomiaRecordEvent.occurred_at.desc(), EunomiaRecordEvent.id.desc())
+            .all()
+        )
+
+    def clear_actor(self, user_id: int) -> None:
+        """Deja a ``NULL`` el actor de los eventos de un usuario que se da de baja.
+
+        Args:
+            user_id: Usuario que se borra.
+        """
+        self._session.query(EunomiaRecordEvent).filter(
+            EunomiaRecordEvent.actor_user_id == user_id
+        ).update({"actor_user_id": None}, synchronize_session=False)
+
+    def delete_for_owner(self, owner_user_id: int) -> int:
+        """Borra los eventos de un dueño; devuelve cuántos.
+
+        Args:
+            owner_user_id: Dueño efectivo de los datos.
+        """
+        return self._session.query(EunomiaRecordEvent).filter(
+            EunomiaRecordEvent.owner_user_id == owner_user_id).delete(synchronize_session=False)

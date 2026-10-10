@@ -91,7 +91,7 @@ function adopt(payload) {
 
 /** El texto que dice de dónde viene un valor precargado; `''` si lo escribió el usuario. */
 function originLabel(field) {
-  return ['company', 'assessment'].includes(field.origin) ? t(`eunomia.templates.origin.${field.origin}`) : ''
+  return ['company', 'assessment', 'record'].includes(field.origin) ? t(`eunomia.templates.origin.${field.origin}`) : ''
 }
 
 function routeOf(field) {
@@ -113,7 +113,7 @@ async function generate(format) {
   saving.value = true
   const saved = await store.saveTemplateDraft(route.params.template, valuesToSave(data.value.fields, edited))
   if (!saved.ok) { saving.value = false; toast.show(saved.message, 'error'); return }
-  const requested = await store.requestDocument(route.params.template, format)
+  const requested = await store.requestDocument(route.params.template, format, route.query.recordId)
   saving.value = false
   if (!requested.ok) { toast.show(requested.message, 'error'); return }
   toast.show(t('eunomia.documents.queued'), 'success')
@@ -121,7 +121,7 @@ async function generate(format) {
 }
 
 onMounted(async () => {
-  const result = await store.loadTemplateDraft(route.params.template)
+  const result = await store.loadTemplateDraft(route.params.template, route.query.recordId)
   loading.value = false
   if (!result.ok) { error.value = result.message || ''; return }
   adopt(result.data)

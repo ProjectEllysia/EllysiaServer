@@ -7,7 +7,7 @@ evaluado y evidenciado. Las filas guardan ``(marco, versión, código de control
 ajena hacia el catálogo.
 """
 
-from sqlalchemy import JSON, Column, Date, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Boolean, Column, Date, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 
 from sqlalchemy.orm import deferred
 
@@ -301,3 +301,68 @@ class EunomiaDocument(Document):
             "requestedByName": self.requested_by_name, "downloadName": self.download_name,
             "createdAt": self.created_at, "generatedAt": self.generated_at,
         }
+
+
+class EunomiaRecord(Base):
+    """Una ficha de un registro (un tratamiento de datos, un incidente, una solicitud…).
+
+    Una fila por ficha, en el espacio del dueño efectivo: el dueño y los miembros de su
+    organización crean y editan las mismas fichas. La definición del tipo (``registers/``) dice
+    qué campos tiene; aquí solo viven los valores. Archivar una ficha no la borra: deja de
+    salir en el registro pero conserva su historial.
+
+    Attributes:
+        id: Clave primaria.
+        owner_user_id: Dueño efectivo de los datos.
+        register_key: Tipo de registro (``"rgpd-actividades-tratamiento"``).
+        register_version: Versión de la definición con la que se escribió.
+        values: ``{campo: texto}`` validado contra la definición.
+        is_archived: Si la ficha está archivada.
+        created_at: Alta.
+        created_by_user_id: Quién la creó; ``None`` si esa cuenta se borró.
+        updated_at: Última escritura; es también el testigo de la concurrencia optimista.
+        updated_by_user_id: Quién escribió por última vez; ``None`` si esa cuenta se borró.
+        notified_deadlines: Claves de los plazos de los que ya se avisó por correo, para no
+            repetir el aviso.
+    """
+
+    __tablename__ = "EunomiaRecord"
+    __table_args__ = (
+        Index("ix_eunomia_record_owner_register", "owner_user_id", "register_key"),
+    )
+
+    id                 = Column(Integer,     primary_key=True, autoincrement=True)
+    owner_user_id      = Column(Integer,     ForeignKey("User.id"), nullable=False)
+    register_key       = Column(String(64),  nullable=False)
+    register_version   = Column(String(16),  nullable=False)
+    values             = Column(JSON,        nullable=False, default=dict)
+    is_archived        = Column(Boolean,     nullable=False, default=False)
+    created_at         = Column(DateTime,    nullable=False, default=utcnow_naive)
+    created_by_user_id = Column(Integer,     ForeignKey("User.id"), nullable=True)
+    updated_at         = Column(DateTime,    nullable=False, default=utcnow_naive)
+    updated_by_user_id = Column(Integer,     ForeignKey("User.id"), nullable=True)
+    notified_deadlines = Column(JSON,        nullable=False, default=list)
+
+
+class EunomiaRecordEvent(Base):
+    """Un cambio en una ficha. Solo se añade: nunca se edita.
+
+    Attributes:
+        id: Clave primaria.
+        record_id: La ficha.
+        owner_user_id: Dueño efectivo de los datos.
+        actor_user_id: Quién lo cambió; ``None`` si esa cuenta se borró.
+        actor_name: Nombre visible de quien lo cambió, guardado al hacer el cambio.
+        occurred_at: Cuándo.
+        changes: ``{campo: {"from": anterior, "to": nuevo}}``; ``isArchived`` entra como un campo más.
+    """
+
+    __tablename__ = "EunomiaRecordEvent"
+
+    id            = Column(Integer,     primary_key=True, autoincrement=True)
+    record_id     = Column(Integer,     ForeignKey("EunomiaRecord.id", ondelete="CASCADE"), nullable=False, index=True)
+    owner_user_id = Column(Integer,     ForeignKey("User.id"), nullable=False)
+    actor_user_id = Column(Integer,     ForeignKey("User.id"), nullable=True)
+    actor_name    = Column(String(255), nullable=False, default="")
+    occurred_at   = Column(DateTime,    nullable=False, default=utcnow_naive)
+    changes       = Column(JSON,        nullable=False)

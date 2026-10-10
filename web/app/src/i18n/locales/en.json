@@ -108,6 +108,8 @@
     "frameworkRestoreExpired": "The period to restore the framework “{framework}” has expired. You can adopt it again, but you will start from scratch.",
     "frameworkUpToDate": "The framework “{framework}” is already on the current catalog version.",
     "templateValueInvalid": "The value of the field “{field}” is not valid for this template.",
+    "recordInvalid": "Check these fields: {fields}.",
+    "recordConflict": "Someone else changed this record while you were editing it. Check its current value.",
     "templateIncomplete": "To generate the document you still need to fill in: {fields}.",
     "versionMappingMissing": "There are no correspondences between versions {fromVersion} and {toVersion} of the framework “{framework}”, so your assessment cannot be moved automatically.",
     "invalidAuthorizedTarget": "“{target}” is not an IP address, a range, a domain or a cloud resource. Write it as “203.0.113.10”, “203.0.113.0/24”, “example.com” or “s3:bucket-name”.",
@@ -119,6 +121,8 @@
     "emailSend": "The email could not be sent.",
     "entityNotFound": {
       "evidence": "Evidence not found.",
+      "register": "Register not found.",
+      "record": "Record not found.",
       "template": "Template not found.",
       "control": "Control not found.",
       "adoption": "Adoption not found.",
@@ -2044,7 +2048,8 @@
       "editSource": "Fix at its source",
       "origin": {
         "company": "Comes from your company profile.",
-        "assessment": "Comes from the control's assessment."
+        "assessment": "Comes from the control's assessment.",
+        "record": "Comes from the register record."
       },
       "missing": "{count} required field is missing. | {count} required fields are missing."
     },
@@ -2081,6 +2086,31 @@
         "warning": "To review",
         "missing": "No data",
         "unavailable": "Not available"
+      }
+    },
+    "registers": {
+      "title": "Registers",
+      "intro": "Lists of records the regulation asks you to keep: data processing activities, incidents and breaches. Each record keeps its history.",
+      "loadFailed": "The registers could not be loaded.",
+      "saveFailed": "The record could not be saved.",
+      "exportFailed": "The register could not be exported.",
+      "open": "Open",
+      "recordCount": "{count} record | {count} records",
+      "newRecord": "New record",
+      "editRecord": "Edit record",
+      "addExamples": "Add example records",
+      "edit": "Edit",
+      "archive": "Archive",
+      "save": "Save",
+      "cancel": "Cancel",
+      "empty": "This register has no records yet.",
+      "updated": "Updated on {date} by {name}.",
+      "deadlineCounts": "{overdue} overdue and {upcoming} upcoming deadline(s).",
+      "deadline": {
+        "pending_input": "origin date missing",
+        "upcoming": "upcoming",
+        "overdue": "overdue",
+        "done": "done"
       }
     }
   },

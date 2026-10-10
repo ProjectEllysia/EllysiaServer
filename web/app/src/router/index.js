@@ -192,6 +192,18 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/eunomia/registros/:register',
+    name: 'EunomiaRegister',
+    component: () => import('@/views/eunomia/EunomiaRegisterView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/eunomia/registros',
+    name: 'EunomiaRegisters',
+    component: () => import('@/views/eunomia/EunomiaRegistersView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/eunomia/documentos',
     name: 'EunomiaDocuments',
     component: () => import('@/views/eunomia/EunomiaDocumentsView.vue'),

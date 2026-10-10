@@ -15,6 +15,7 @@ from apscheduler.triggers.cron import CronTrigger
 from src.modules.infrastructure.scheduling import make_background_scheduler, scheduler_job
 
 from ..managers import EunomiaFrameworkManager
+from .deadline_notices import send_deadline_notices
 from .expiry_notices import send_expiry_notices
 
 logger = logging.getLogger(__name__)
@@ -48,6 +49,15 @@ class EunomiaScheduler:
             max_instances=1,
             name="Avisos de caducidad de evidencias",
         )
+        cls._scheduler.add_job(
+            func=cls.run_deadline_notices,
+            # Cada hora: los plazos de un incidente se miden en horas.
+            trigger=CronTrigger(minute=5),
+            id="eunomia_register_deadline_notices",
+            replace_existing=True,
+            max_instances=1,
+            name="Avisos de plazos de los registros",
+        )
         cls._scheduler.start()
         logger.info("Scheduler de Eunomia iniciado")
 
@@ -62,6 +72,11 @@ class EunomiaScheduler:
     @scheduler_job(logger, "Fallo enviando los avisos de caducidad de evidencias")
     def run_expiry_notices() -> None:
         send_expiry_notices()
+
+    @staticmethod
+    @scheduler_job(logger, "Fallo enviando los avisos de plazos de los registros")
+    def run_deadline_notices() -> None:
+        send_deadline_notices()
 
     @staticmethod
     @scheduler_job(logger, "Fallo purgando los marcos de cumplimiento archivados")
