@@ -7,7 +7,6 @@ navegador (nombre, tipo declarado) se toma por bueno.
 """
 
 import hashlib
-import mimetypes
 import re
 import unicodedata
 
@@ -68,6 +67,22 @@ _ZIP_FAMILIES = {
     "ods": ("mimetype", b"application/vnd.oasis.opendocument.spreadsheet"),
 }
 _TEXT_EXTENSIONS = frozenset({"txt", "csv"})
+
+#: Tipo MIME de cada extensión admitida. Explícito y no ``mimetypes``: el resultado de esa
+#: biblioteca depende del sistema donde corre y un tipo guardado no puede cambiar de un
+#: despliegue a otro.
+_MIME_TYPES = {
+    "pdf": "application/pdf",
+    "png": "image/png",
+    "jpg": "image/jpeg",
+    "jpeg": "image/jpeg",
+    "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "odt": "application/vnd.oasis.opendocument.text",
+    "ods": "application/vnd.oasis.opendocument.spreadsheet",
+    "txt": "text/plain",
+    "csv": "text/csv",
+}
 
 
 def _matches_extension(extension: str, content: bytes) -> bool:
@@ -134,7 +149,7 @@ def check_upload(filename: str, content: bytes, max_bytes: int, allowed_extensio
     result = inspect_attachment(filename, "", content, limits, frozenset())
     if result.findings:
         raise EvidenceActiveContentError(result.findings[0]["detail"])
-    return mimetypes.types_map.get(f".{extension}", "application/octet-stream")
+    return _MIME_TYPES.get(extension, "application/octet-stream")
 
 
 def digest(content: bytes) -> str:
