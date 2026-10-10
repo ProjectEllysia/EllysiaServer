@@ -176,8 +176,6 @@ KNOWN_VIOLATIONS: dict[tuple[str, str, str], str] = {
         _PLAN_SQL,
     ("sql-outside-repository", "src/modules/users/services/account_deletion.py", "_delete_by_user"):
         _PLAN_SQL,
-    ("sql-outside-repository", "src/modules/users/services/account_deletion.py", "_purge_accounts"):
-        _PLAN_SQL,
     ("sql-outside-repository", "src/modules/users/services/account_deletion.py", "_purge_aegis"):
         _PLAN_SQL,
     ("sql-outside-repository", "src/modules/users/services/account_deletion.py", "_purge_hygeia"):
@@ -714,21 +712,11 @@ KNOWN_VIOLATIONS: dict[tuple[str, str, str], str] = {
     ("private-method", "src/modules/users/services/scheduling.py", "UsersScheduler._run_mfa_reminders"):
         _PLAN_PRIVATE_METHOD,
     # --- module-internals-import
-    ("module-internals-import", "src/modules/accounts/managers/invitations.py", "src.modules.users.repositories.UserRepository"):
-        _PLAN_MODULE_INTERNALS,
-    ("module-internals-import", "src/modules/accounts/managers/invitations.py", "src.modules.users.services.secrets.generate_opaque_token"):
-        _PLAN_MODULE_INTERNALS,
-    ("module-internals-import", "src/modules/accounts/managers/invitations.py", "src.modules.users.services.secrets.hash_opaque_token"):
-        _PLAN_MODULE_INTERNALS,
     ("module-internals-import", "src/modules/features/aegis/managers/org_profile.py", "src.modules.accounts.services.entitlements.resolve_entitlement"):
         _PLAN_MODULE_INTERNALS,
     ("module-internals-import", "src/modules/features/hygeia/services/enrollment.py", "src.modules.users.services.secrets.hash_password"):
         _PLAN_MODULE_INTERNALS,
     ("module-internals-import", "src/modules/features/hygeia/services/enrollment.py", "src.modules.users.services.secrets.verify_password"):
-        _PLAN_MODULE_INTERNALS,
-    ("module-internals-import", "src/modules/users/managers.py", "src.modules.accounts.repositories.OrganizationMemberRepository"):
-        _PLAN_MODULE_INTERNALS,
-    ("module-internals-import", "src/modules/users/managers.py", "src.modules.accounts.repositories.OrganizationRepository"):
         _PLAN_MODULE_INTERNALS,
     # --- private-name-import
     ("private-name-import", "src/modules/features/iris/services/rules/received_timing_rules.py", "src.modules.features.iris.services.parsers._hop_timestamp"):

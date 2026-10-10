@@ -90,6 +90,7 @@ from .schemas import (
     UnresolvedProductsQuerySchema,
     KbSearchQuerySchema,
     KbCveLookupQuerySchema,
+    KbVersionCheckQuerySchema,
     KbSyncRequestSchema,
     GeneratePdfRequestSchema,
     DocumentStatusQuerySchema,
@@ -941,13 +942,14 @@ def search_kb(args):
 
 
 # ============================================================================
-# CONSULTA PÚBLICA DE CVE — SIN AUTENTICACIÓN
+# CONSULTAS PÚBLICAS DE LA BASE DE CONOCIMIENTO — SIN AUTENTICACIÓN
 # ============================================================================
 #
-# Deliberadamente sin @require_oauth_token: es la herramienta gratuita «Consulta
-# de CVE» y el dato (NVD, KEV, EPSS) es público. No toca la red ni lanza
-# ningún trabajo: es una lectura por clave sobre la base local, así que lo único
-# que se protege es el coste de la base de datos, con el límite por IP.
+# Deliberadamente sin @require_oauth_token: son las herramientas gratuitas
+# «Consulta de CVE» y «¿Es vulnerable mi versión?», y el dato (NVD, KEV, EPSS,
+# fin de soporte) es público. No tocan la red ni lanzan ningún trabajo: leen la
+# base local por clave, así que lo único que se protege es el coste de la base
+# de datos, con el límite por IP.
 
 
 @themis_blp.get("/kb/cve")
@@ -959,6 +961,21 @@ def search_kb(args):
 def lookup_public_cve(args):
     """Consultar una CVE en la base de conocimiento, sin login."""
     return {"cve": KbQueryManager().public_cve_detail(args["id"].upper())}
+
+
+@themis_blp.get("/kb/version")
+@themis_blp.arguments(KbVersionCheckQuerySchema, location="query")
+@themis_blp.response(200, description="Known CVEs and end of support of a product at a version")
+@themis_blp.alt_response(422, schema=ErrorSchema, description="Missing product or not a valid version")
+@limiter.limit("10 per minute; 100 per hour")
+@handle_exceptions(default_exception=ScanError, logger=logger)
+def check_public_version(args):
+    """Comprobar si una versión de un producto tiene CVEs conocidas, sin login.
+
+    Más estricto que la consulta de una CVE: aquí la base de datos carga todas
+    las reglas de aplicabilidad del producto para compararlas con la versión.
+    """
+    return KbQueryManager().public_version_check(args["product"].strip(), args["version"])
 
 
 @themis_blp.get("/kb/sync")

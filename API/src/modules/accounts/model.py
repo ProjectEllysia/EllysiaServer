@@ -28,7 +28,7 @@ from sqlalchemy import (
     String,
     text,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import backref, relationship
 
 from src.modules.shared import Base, utcnow_naive
 
@@ -318,9 +318,10 @@ class OrganizationMember(Base):
     dueño de una organización concreta.
 
     Attributes:
-        user: El ``User`` de esta fila. Espejo de ``User.organization_membership``
-            — permite resolver pertenencia y propiedad a partir de un ``User``
-            ya cargado, sin pasar por ``OrganizationMemberRepository``.
+        user: El ``User`` de esta fila. Su ``backref`` crea
+            ``User.organization_membership`` — permite resolver pertenencia y
+            propiedad a partir de un ``User`` ya cargado, sin pasar por
+            ``OrganizationMemberRepository``.
     """
 
     __tablename__ = "OrganizationMember"
@@ -338,7 +339,15 @@ class OrganizationMember(Base):
     # foreign_keys explícito: la tabla tiene dos FK a User.id (user_id e
     # invited_by_user_id), y sin desambiguar SQLAlchemy no sabe con cuál
     # construir el join.
-    user = relationship("User", back_populates="organization_membership", foreign_keys=[user_id])
+    # Esta relación declara también ``User.organization_membership`` (backref,
+    # sin cascada): borrar la pertenencia de un usuario es una operación de
+    # negocio con sus propias reglas, no un efecto secundario de borrar el
+    # usuario, y la resuelve ``accounts.services.user_data`` al darse de baja.
+    user = relationship(
+        "User",
+        backref=backref("organization_membership", uselist=False),
+        foreign_keys=[user_id],
+    )
 
     def __repr__(self) -> str:
         return f"<OrganizationMember org={self.organization_id} user={self.user_id} role='{self.member_role}'>"

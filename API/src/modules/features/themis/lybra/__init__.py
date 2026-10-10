@@ -74,6 +74,7 @@ from .engine import (
     QOD_INVENTORY_MATCH,
     CPE_PRODUCT_OVERRIDES,
 )
+from .end_of_life import check_end_of_life
 from .grouping import (
     ServiceGroup,
     build_service_rollup,
@@ -325,6 +326,7 @@ from .transport import (
 )
 
 __all__ = [
+    "check_end_of_life",
     "LybraEngine",
     "Service",
     "services_from_payload",

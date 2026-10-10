@@ -51,7 +51,12 @@ from src.modules.users.exceptions import (
     PasswordResetTokenInvalidError,
 )
 from src.modules.infrastructure import UnitOfWork
-from src.modules.shared import assert_surface_enabled, utcnow_naive
+from src.modules.shared import (
+    assert_surface_enabled,
+    generate_opaque_token,
+    hash_opaque_token,
+    utcnow_naive,
+)
 from src.modules.infrastructure.session import build_repository
 from src.modules.tools.herald import EmailMessage, build_mailer, render_email
 from src.modules.system.taskqueue import OutboxDispatcher, TaskTrackingMixin, build_dispatch, job_context
@@ -80,8 +85,6 @@ from .services import (
     totp_provisioning_uri,
     verify_totp_code,
     generate_recovery_codes,
-    generate_opaque_token,
-    hash_opaque_token,
     resolve_effective_language,
 )
 
@@ -195,6 +198,7 @@ class UserManager:
         role:        Optional[str] = None,
         actor_id:   Optional[int] = None,
         email_verified: bool = True,
+        must_change_password: bool = False,
     ) -> User:
         """
         Register a new user.
@@ -215,6 +219,10 @@ class UserManager:
                         por defecto porque de un alta hecha por un administrador
                         responde quien la hace. El alta pública pasa False: ahí
                         nadie ha comprobado que el correo exista.
+            must_change_password: Si la cuenta nace con una contraseña temporal
+                        que su dueño debe cambiar en el primer acceso. False por
+                        defecto; la invitación a una organización pasa True
+                        porque la contraseña viaja por correo.
 
         Returns:
             The newly created User instance (credential fields excluded
@@ -271,6 +279,7 @@ class UserManager:
                     password_salt = "",
                     role          = assigned_role,
                     email_verified_at = utcnow_naive() if email_verified else None,
+                    must_change_password = must_change_password,
                 )
                 repo.save(new_user)
 
@@ -670,6 +679,17 @@ class UserManager:
         """
         return build_repository(UserRepository).get_by_email(email)
 
+    def is_username_available(self, username: str) -> bool:
+        """Indica si ningún usuario usa ya un nombre de usuario.
+
+        Args:
+            username: Nombre de usuario a comprobar, tal cual se guardaría.
+
+        Returns:
+            bool: ``True`` si está libre; ``False`` si alguna cuenta lo usa.
+        """
+        return not build_repository(UserRepository).username_exists(username)
+
     # =========================================================================
     # PROFILE & PASSWORD UPDATES
     # =========================================================================
@@ -781,28 +801,23 @@ class UserManager:
                 (lista de ``{"key", "count"}``) y ``retained``
                 (``{"activityLogDays"}``).
         """
-        from src.modules.accounts.repositories import (
-            OrganizationMemberRepository,
-            OrganizationRepository,
-        )
+        # Import diferido, por la superficie pública de accounts: la lista de
+        # llamadas de users hacia accounts está en CONVENCIONES.md § 3.4.
+        from src.modules.accounts import OrganizationManager  # pylint: disable=import-outside-toplevel
 
-        organization = build_repository(OrganizationRepository).get_by_owner(user_id)
+        organizations = OrganizationManager()
+        organization = organizations.get_owned_summary(user_id)
         owned = None
         if organization is not None:
-            members = build_repository(OrganizationMemberRepository).count_members(organization.id)
             owned = {
-                "id": organization.id,
-                "name": organization.name,
+                "id": organization["id"],
+                "name": organization["name"],
                 # Sin contar al propio dueño: son los que se quedan sin nada.
-                "membersLosingAccess": max(members - 1, 0),
+                "membersLosingAccess": max(organization["memberCount"] - 1, 0),
             }
 
-        membership = build_repository(OrganizationMemberRepository).get_by_user(user_id)
-        belongs_to = (
-            membership.organization_id
-            if membership is not None and organization is None
-            else None
-        )
+        membership_organization_id = organizations.get_organization_id_of(user_id)
+        belongs_to = membership_organization_id if organization is None else None
 
         from .services.account_deletion import count_deletion_categories, describe_retained_data
 
@@ -944,22 +959,12 @@ class UserManager:
         """¿Es ``actor_id`` el dueño de la organización a la que pertenece
         ``target_id``?
 
-        Import diferido: ``accounts`` importa ``users``, así que al nivel de
-        módulo esto cerraría el ciclo.
+        Import diferido y por la superficie pública de accounts: la lista de
+        llamadas de users hacia accounts está en CONVENCIONES.md § 3.4.
         """
-        from src.modules.accounts.repositories import (
-            OrganizationMemberRepository,
-            OrganizationRepository,
-        )
+        from src.modules.accounts import OrganizationManager  # pylint: disable=import-outside-toplevel
 
-        membership = build_repository(OrganizationMemberRepository).get_by_user(target_id)
-        if membership is None:
-            return False
-
-        organization = build_repository(OrganizationRepository).get_by_id(
-            membership.organization_id
-        )
-        return organization is not None and organization.owner_user_id == actor_id
+        return OrganizationManager().is_owner_of_member(actor_id, target_id)
 
     def can_create_admin(self, actor_id: int) -> bool:
         """

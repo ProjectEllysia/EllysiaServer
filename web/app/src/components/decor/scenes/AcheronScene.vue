@@ -1,81 +1,92 @@
 <template>
-  <svg class="scene" viewBox="0 0 1200 600" preserveAspectRatio="xMidYMax meet" focusable="false">
-    <defs>
-      <path v-for="river in RIVERS" :id="`${uid}-${river.id}`" :key="river.id" :d="river.labelPath" />
-    </defs>
+  <div class="scene">
+    <!-- Lo que se mueve sin parar va en su propia capa, para no repintar la carta entera en
+         cada cambio: el oleaje, debajo de la carta, y el farol, encima. -->
+    <svg class="layer layer--moving" viewBox="0 0 1200 600" preserveAspectRatio="xMidYMax meet" focusable="false">
+      <!-- El mar: líneas de agua paralelas a la costa, cada vez más separadas y más tenues -->
+      <path
+        v-for="(line, index) in COAST.waterLines"
+        :key="`water-${index}`"
+        class="water-line"
+        :d="line"
+        :style="{ '--delay': `${1.1 + index * 0.16}s`, '--weight': 0.5 - index * 0.055, '--swell': `${index * 0.55}s` }"
+      />
+    </svg>
 
-    <!-- Retícula de grados y minutos, como en una carta impresa -->
-    <g class="graticule">
-      <line v-for="meridian in GRATICULE.meridians" :key="meridian.label" :x1="meridian.x" :x2="meridian.x" y1="0" y2="600" />
-      <line v-for="parallel in GRATICULE.parallels" :key="parallel.label" x1="0" x2="1200" :y1="parallel.y" :y2="parallel.y" />
-      <text v-for="meridian in GRATICULE.meridians" :key="`m-${meridian.label}`" class="degree" :x="meridian.x + 5" y="16">{{ meridian.label }}</text>
-      <text v-for="parallel in GRATICULE.parallels" :key="`p-${parallel.label}`" class="degree" x="1192" :y="parallel.y - 5" text-anchor="end">{{ parallel.label }}</text>
-    </g>
+    <svg class="layer" viewBox="0 0 1200 600" preserveAspectRatio="xMidYMax meet" focusable="false">
+      <defs>
+        <path v-for="river in RIVERS" :id="`${uid}-${river.id}`" :key="river.id" :d="river.labelPath" />
+      </defs>
 
-    <!-- El mar: líneas de agua paralelas a la costa, cada vez más separadas y más tenues -->
-    <path
-      v-for="(line, index) in COAST.waterLines"
-      :key="`water-${index}`"
-      class="water-line"
-      :d="line"
-      :style="{ '--delay': `${1.1 + index * 0.16}s`, '--weight': 0.5 - index * 0.055, '--swell': `${index * 0.55}s` }"
-    />
-    <path class="coast" :d="COAST.path" pathLength="1" />
-
-    <!-- Relieve: sierras sombreadas con trazos -->
-    <g class="relief">
-      <path v-for="(ridge, index) in RELIEF" :key="`relief-${index}`" :d="ridge" />
-    </g>
-
-    <!-- La laguna Aquerusia, con sus líneas de agua hacia dentro -->
-    <path v-for="(line, index) in LAKE.waterLines" :key="`lake-${index}`" class="lake-line" :d="line" :style="{ '--delay': `${1.8 + index * 0.18}s`, '--weight': 0.42 - index * 0.08 }" />
-    <path class="lake" :d="LAKE.shore" pathLength="1" />
-
-    <!-- Los ríos se dibujan desde su nacimiento hasta el agua; los afluentes, más finos -->
-    <path v-for="river in [...RIVERS, ...TRIBUTARIES]" :key="`draw-${river.id}`" class="river" :d="river.path" pathLength="1" :style="{ '--delay': `${river.delay}s`, '--river-width': river.width }" />
-
-    <!-- La travesía de Caronte, marcada como una derrota en una carta náutica -->
-    <path class="route" :d="ROUTE" />
-    <circle class="lantern lantern--halo" r="8" :style="{ offsetPath: `path('${ROUTE}')` }" />
-    <circle class="lantern" r="2.6" :style="{ offsetPath: `path('${ROUTE}')` }" />
-
-    <!-- El oráculo de los muertos y las dos ciudades del valle -->
-    <g v-for="site in SITES" :key="site.name" class="site">
-      <circle :cx="site.x" :cy="site.y" :r="site.isMajor ? 6 : 4.5" class="site-ring" />
-      <circle :cx="site.x" :cy="site.y" :r="site.isMajor ? 2.4 : 1.8" class="site-dot" />
-    </g>
-
-    <!-- Rosa de los vientos -->
-    <g :transform="`translate(${ROSE.x} ${ROSE.y})`">
-      <g class="rose">
-        <circle r="62" class="rose-ring" />
-        <circle r="56" class="rose-ring" />
-        <path v-for="(tick, index) in ROSE.ticks" :key="`tick-${index}`" class="rose-tick" :d="tick" />
-        <path v-for="(spoke, index) in ROSE.spokes" :key="`spoke-${index}`" class="rose-spoke" :d="spoke" />
-        <path v-for="(half, index) in ROSE.minorHalves" :key="`minor-${index}`" :class="half.isShaded ? 'rose-fill' : 'rose-line'" :d="half.path" />
-        <path v-for="(half, index) in ROSE.majorHalves" :key="`major-${index}`" :class="half.isShaded ? 'rose-fill' : 'rose-line'" :d="half.path" />
-        <circle r="3" class="rose-fill" />
+      <!-- Retícula de grados y minutos, como en una carta impresa -->
+      <g class="graticule">
+        <line v-for="meridian in GRATICULE.meridians" :key="meridian.label" :x1="meridian.x" :x2="meridian.x" y1="0" y2="600" />
+        <line v-for="parallel in GRATICULE.parallels" :key="parallel.label" x1="0" x2="1200" :y1="parallel.y" :y2="parallel.y" />
+        <text v-for="meridian in GRATICULE.meridians" :key="`m-${meridian.label}`" class="degree" :x="meridian.x + 5" y="16">{{ meridian.label }}</text>
+        <text v-for="parallel in GRATICULE.parallels" :key="`p-${parallel.label}`" class="degree" x="1192" :y="parallel.y - 5" text-anchor="end">{{ parallel.label }}</text>
       </g>
-      <text class="rose-north" x="0" y="-70" text-anchor="middle">{{ ROSE.north }}</text>
-    </g>
 
-    <!-- Escala en estadios -->
-    <g class="scale-bar">
-      <rect v-for="segment in SCALE.segments" :key="segment.x" :x="segment.x" :y="SCALE.y" :width="SCALE.step" height="4" :class="segment.isFilled ? 'scale-fill' : 'scale-empty'" />
-      <text v-for="label in SCALE.labels" :key="label.value" class="degree" :x="label.x" :y="SCALE.y - 6" text-anchor="middle">{{ label.value }}</text>
-      <text class="degree" :x="SCALE.labels.at(-1).x + 14" :y="SCALE.y + 4">{{ SCALE.unit }}</text>
-    </g>
+      <path class="coast" :d="COAST.path" pathLength="1" />
 
-    <!-- Rótulos -->
-    <g class="labels">
-      <text class="sea-name" :transform="`translate(${SEA_LABEL.x} ${SEA_LABEL.y}) rotate(-90)`" text-anchor="middle">{{ SEA_LABEL.text }}</text>
-      <text class="lake-name" :x="LAKE.label.x" :y="LAKE.label.y" text-anchor="middle">{{ LAKE.label.text }}</text>
-      <text v-for="site in SITES" :key="`name-${site.name}`" class="site-name" :x="site.x + site.labelDx" :y="site.y + site.labelDy" :text-anchor="site.labelDx < 0 ? 'end' : 'start'">{{ site.name }}</text>
-      <text v-for="river in RIVERS" :key="`name-${river.id}`" class="river-name">
-        <textPath :href="`#${uid}-${river.id}`" :startOffset="river.labelAt">{{ river.name }}</textPath>
-      </text>
-    </g>
-  </svg>
+      <!-- Relieve: sierras sombreadas con trazos -->
+      <g class="relief">
+        <path v-for="(ridge, index) in RELIEF" :key="`relief-${index}`" :d="ridge" />
+      </g>
+
+      <!-- La laguna Aquerusia, con sus líneas de agua hacia dentro -->
+      <path v-for="(line, index) in LAKE.waterLines" :key="`lake-${index}`" class="lake-line" :d="line" :style="{ '--delay': `${1.8 + index * 0.18}s`, '--weight': 0.42 - index * 0.08 }" />
+      <path class="lake" :d="LAKE.shore" pathLength="1" />
+
+      <!-- Los ríos se dibujan desde su nacimiento hasta el agua; los afluentes, más finos -->
+      <path v-for="river in [...RIVERS, ...TRIBUTARIES]" :key="`draw-${river.id}`" class="river" :d="river.path" pathLength="1" :style="{ '--delay': `${river.delay}s`, '--river-width': river.width }" />
+
+      <!-- La travesía de Caronte, marcada como una derrota en una carta náutica -->
+      <path class="route" :d="ROUTE" />
+
+      <!-- El oráculo de los muertos y las dos ciudades del valle -->
+      <g v-for="site in SITES" :key="site.name" class="site">
+        <circle :cx="site.x" :cy="site.y" :r="site.isMajor ? 6 : 4.5" class="site-ring" />
+        <circle :cx="site.x" :cy="site.y" :r="site.isMajor ? 2.4 : 1.8" class="site-dot" />
+      </g>
+
+      <!-- Rosa de los vientos -->
+      <g :transform="`translate(${ROSE.x} ${ROSE.y})`">
+        <g class="rose">
+          <circle r="62" class="rose-ring" />
+          <circle r="56" class="rose-ring" />
+          <path v-for="(tick, index) in ROSE.ticks" :key="`tick-${index}`" class="rose-tick" :d="tick" />
+          <path v-for="(spoke, index) in ROSE.spokes" :key="`spoke-${index}`" class="rose-spoke" :d="spoke" />
+          <path v-for="(half, index) in ROSE.minorHalves" :key="`minor-${index}`" :class="half.isShaded ? 'rose-fill' : 'rose-line'" :d="half.path" />
+          <path v-for="(half, index) in ROSE.majorHalves" :key="`major-${index}`" :class="half.isShaded ? 'rose-fill' : 'rose-line'" :d="half.path" />
+          <circle r="3" class="rose-fill" />
+        </g>
+        <text class="rose-north" x="0" y="-70" text-anchor="middle">{{ ROSE.north }}</text>
+      </g>
+
+      <!-- Escala en estadios -->
+      <g class="scale-bar">
+        <rect v-for="segment in SCALE.segments" :key="segment.x" :x="segment.x" :y="SCALE.y" :width="SCALE.step" height="4" :class="segment.isFilled ? 'scale-fill' : 'scale-empty'" />
+        <text v-for="label in SCALE.labels" :key="label.value" class="degree" :x="label.x" :y="SCALE.y - 6" text-anchor="middle">{{ label.value }}</text>
+        <text class="degree" :x="SCALE.labels.at(-1).x + 14" :y="SCALE.y + 4">{{ SCALE.unit }}</text>
+      </g>
+
+      <!-- Rótulos -->
+      <g class="labels">
+        <text class="sea-name" :transform="`translate(${SEA_LABEL.x} ${SEA_LABEL.y}) rotate(-90)`" text-anchor="middle">{{ SEA_LABEL.text }}</text>
+        <text class="lake-name" :x="LAKE.label.x" :y="LAKE.label.y" text-anchor="middle">{{ LAKE.label.text }}</text>
+        <text v-for="site in SITES" :key="`name-${site.name}`" class="site-name" :x="site.x + site.labelDx" :y="site.y + site.labelDy" :text-anchor="site.labelDx < 0 ? 'end' : 'start'">{{ site.name }}</text>
+        <text v-for="river in RIVERS" :key="`name-${river.id}`" class="river-name">
+          <textPath :href="`#${uid}-${river.id}`" :startOffset="river.labelAt">{{ river.name }}</textPath>
+        </text>
+      </g>
+    </svg>
+
+    <svg class="layer layer--moving" viewBox="0 0 1200 600" preserveAspectRatio="xMidYMax meet" focusable="false">
+      <!-- El farol de Caronte recorre la derrota -->
+      <circle class="lantern lantern--halo" r="8" :style="{ offsetPath: `path('${ROUTE}')` }" />
+      <circle class="lantern" r="2.6" :style="{ offsetPath: `path('${ROUTE}')` }" />
+    </svg>
+  </div>
 </template>
 
 <script setup>
@@ -238,7 +249,10 @@ const GRATICULE = {
 </script>
 
 <style scoped>
-.scene { width: 100%; height: 100%; display: block; }
+.scene { position: relative; width: 100%; height: 100%; }
+/* Las capas se apilan con el mismo viewBox, así que coinciden punto a punto. */
+.layer { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.layer--moving { will-change: transform; }
 
 /* Los trazos finos nunca bajan de un píxel real de la pantalla (`--device-pixel`, ver
    `ModuleAtmosphere`): por debajo se ven grises y borrosos en una pantalla normal. */
@@ -248,14 +262,14 @@ const GRATICULE = {
 
 /* ── Agua ── */
 .coast, .lake, .river, .route { fill: none; stroke-linecap: round; stroke-linejoin: round; }
-.coast { stroke: var(--accent-bright); stroke-width: 1.3; opacity: 0.75; stroke-dasharray: 1; animation: draw 2.4s cubic-bezier(0.3, 0.1, 0.2, 1) 0.3s backwards; }
+.coast { stroke: var(--accent-bright); stroke-width: 1.3; opacity: 0.75; animation: draw 2.4s cubic-bezier(0.3, 0.1, 0.2, 1) 0.3s backwards; }
 .water-line, .lake-line { fill: none; stroke: var(--accent); stroke-width: max(0.7px, calc(var(--device-pixel, 0) * 1px)); opacity: var(--weight); }
 /* El oleaje cambia a saltos, un par de veces por segundo: para un cambio tan lento
    basta, y cada salto repinta solo esa línea en vez de hacerlo en cada fotograma. */
 .water-line { animation: fade 1.2s ease var(--delay) backwards, swell 7s steps(7) calc(var(--delay) + var(--swell)) infinite; }
 .lake-line { animation: fade 1.2s ease var(--delay) backwards; }
-.lake { stroke: var(--accent-bright); stroke-width: 1.2; opacity: 0.8; stroke-dasharray: 1; animation: draw 2s cubic-bezier(0.3, 0.1, 0.2, 1) 0.9s backwards; }
-.river { stroke: var(--accent-bright); stroke-width: var(--river-width); opacity: 0.75; stroke-dasharray: 1; animation: draw 1.8s cubic-bezier(0.4, 0.1, 0.3, 1) var(--delay) backwards; }
+.lake { stroke: var(--accent-bright); stroke-width: 1.2; opacity: 0.8; animation: draw 2s cubic-bezier(0.3, 0.1, 0.2, 1) 0.9s backwards; }
+.river { stroke: var(--accent-bright); stroke-width: var(--river-width); opacity: 0.75; animation: draw 1.8s cubic-bezier(0.4, 0.1, 0.3, 1) var(--delay) backwards; }
 
 /* ── Tierra ── */
 .relief path { stroke: var(--accent); stroke-width: max(0.6px, calc(var(--device-pixel, 0) * 1px)); opacity: 0.38; }
@@ -289,7 +303,8 @@ const GRATICULE = {
 .lake-name { font-family: var(--font-epic); font-size: 0.72em; letter-spacing: 0.4em; fill: var(--accent-bright); opacity: 0.6; }
 .site-name, .river-name { font-family: var(--font-display); font-style: italic; font-size: 0.85em; letter-spacing: 0.05em; fill: var(--accent-bright); opacity: 0.65; }
 
-@keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+/* El guion solo dura lo que dura el trazado: en reposo el trazo queda liso y no se recalcula en cada repintado. */
+@keyframes draw { from { stroke-dasharray: 1; stroke-dashoffset: 1; } to { stroke-dasharray: 1; stroke-dashoffset: 0; } }
 @keyframes fade { from { opacity: 0; } }
 @keyframes swell { 0%, 100% { opacity: var(--weight); } 50% { opacity: calc(var(--weight) * 1.9); } }
 @keyframes settle { from { transform: rotate(-50deg); opacity: 0; } 30% { opacity: 1; } }

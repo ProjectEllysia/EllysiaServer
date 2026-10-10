@@ -221,6 +221,17 @@ class KbCveLookupQuerySchema(Schema):
     )
 
 
+class KbVersionCheckQuerySchema(Schema):
+    # Consulta pública: un nombre de producto y una versión, nunca un prefijo.
+    # El nombre se resuelve por coincidencia exacta tras normalizarlo (como un
+    # servicio de un escaneo), así que no sirve para recorrer el índice.
+    product = fields.String(required=True, validate=validate.Length(min=1, max=80))
+    version = fields.String(
+        required=True,
+        validate=validate.Regexp(r"^[0-9A-Za-z][0-9A-Za-z.+~_:-]{0,39}\Z", error="Not a valid version."),
+    )
+
+
 class KbSyncRequestSchema(Schema):
     # Nunca el histórico completo de NVD: el botón lanza el mismo delta que el
     # job nocturno. Ver ``KbSyncTaskManager.request_sync``.

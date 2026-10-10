@@ -936,6 +936,166 @@
         "note": "Supone un consumo constante igual a la potencia media. Un equipo que sube y baja de carga gasta menos que en su pico.",
         "more": "¿Prefieres medirlo en vez de estimarlo? Hygeia registra la potencia de cada equipo y calcula su consumo.",
         "moreCta": "Abrir Hygeia"
+      },
+      "uptimeCalculator": {
+        "title": "Calculadora de disponibilidad",
+        "desc": "Traduce un porcentaje de disponibilidad a la caída que permite al día, al mes y al año, y al revés.",
+        "subtitle": "Elige una disponibilidad y mira cuánto tiempo puede estar caído un servicio sin incumplirla.",
+        "presetsLabel": "Disponibilidades habituales",
+        "slaLabel": "Disponibilidad (%)",
+        "slaHint": "La que promete el contrato o la que quieres garantizar.",
+        "invalidSla": "Escribe un porcentaje entre 0 y 100.",
+        "period": "Periodo",
+        "downtime": "Caída permitida",
+        "periods": {
+          "day": "Al día",
+          "week": "A la semana",
+          "month": "Al mes",
+          "quarter": "Al trimestre",
+          "year": "Al año"
+        },
+        "units": {
+          "day": "{value} d",
+          "hour": "{value} h",
+          "minute": "{value} min",
+          "second": "{value} s"
+        },
+        "reverse": {
+          "title": "¿Qué disponibilidad tuviste?",
+          "downtimeLabel": "Minutos caído",
+          "periodLabel": "En el periodo",
+          "invalid": "Escribe unos minutos que quepan en el periodo elegido.",
+          "result": "Disponibilidad:"
+        },
+        "note": "El año es de 365,25 días, para que cuenten los bisiestos; el mes es su doceava parte.",
+        "more": "Calcularla está bien; medirla es mejor. Hygeia vigila tus equipos y te avisa cuando algo se sale de lo normal.",
+        "moreCta": "Abrir Hygeia"
+      },
+      "lookalikeDomain": {
+        "title": "Detector de dominios engañosos",
+        "desc": "Comprueba si un dominio imita a una marca: letras de otro alfabeto, erratas o la marca escondida en un subdominio.",
+        "subtitle": "Pega un dominio, una dirección de correo o un enlace, y Iris te dice si se hace pasar por una marca conocida.",
+        "inputLabel": "Dominio, correo o enlace",
+        "placeholder": "ejemplo.com",
+        "hint": "Por ejemplo, el remitente de un correo que te parezca raro o un enlace que te hayan enviado.",
+        "check": "Comprobar",
+        "checking": "Comprobando…",
+        "examplesLabel": "Prueba con",
+        "invalid": "Eso no parece un nombre de dominio. Escribe algo como ejemplo.com.",
+        "failed": "No se ha podido comprobar el dominio. Vuelve a intentarlo en un momento.",
+        "verdict": {
+          "suspicious": "Este dominio imita a «{brand}»",
+          "ownBrand": "Es el dominio de «{brand}»",
+          "clean": "No imita a ninguna marca que conozca Iris"
+        },
+        "reads": "Se lee",
+        "travels": "Viaja como",
+        "registrable": "Dominio que se compra",
+        "findings": {
+          "idn_homograph": "«{label}» parece «{brand}», pero lleva letras de otro alfabeto ({scripts}) que se ven igual.",
+          "idn_mixed_script": "«{label}» mezcla alfabetos en una misma palabra ({scripts}), algo que ningún idioma hace.",
+          "cousin": "Lleva la marca «{brand}» con palabras añadidas: es un dominio primo, no el de la marca.",
+          "homoglyph": "«{label}» cambia letras por otras parecidas, como un 1 por una l, para imitar a «{brand}».",
+          "typo": "«{label}» es una errata de «{brand}»: un solo carácter de diferencia.",
+          "brand_in_subdomain": "«{brand}» va a la izquierda, como subdominio, pero el dominio real es de otro.",
+          "brand_action_combo": "Junta «{brand}» con «{action}», una palabra típica de los avisos falsos.",
+          "other": "Imita a «{brand}»."
+        },
+        "scripts": {
+          "LATIN": "latino",
+          "CYRILLIC": "cirílico",
+          "GREEK": "griego"
+        },
+        "note": "Iris compara con su lista de marcas conocidas. Que no salga nada no garantiza que un dominio sea de fiar.",
+        "more": "En un análisis, Iris hace esto con el remitente, cada enlace y cada adjunto de un correo, y te dice si es phishing.",
+        "moreCta": "Abrir Iris"
+      },
+      "headerAnalyzer": {
+        "title": "Analizador de cabeceras de correo",
+        "desc": "Pega las cabeceras de un correo y mira por qué servidores pasó y si superó SPF, DKIM y DMARC.",
+        "subtitle": "Las cabeceras de un correo cuentan de dónde viene. Pégalas y Iris te enseña la ruta salto a salto y su autenticación.",
+        "inputLabel": "Cabeceras del correo",
+        "useSample": "Usar un ejemplo",
+        "hint": "En Gmail: ⋮ › Mostrar original. En Outlook: Archivo › Propiedades › Encabezados de Internet. Basta con el bloque de cabeceras.",
+        "read": "Leer cabeceras",
+        "reading": "Leyendo…",
+        "errors": {
+          "notHeaders": "Eso no parece un bloque de cabeceras. Copia las del correo original, con sus líneas «Received:».",
+          "tooLong": "Es demasiado largo. Pega solo las cabeceras, sin el cuerpo ni los adjuntos.",
+          "failed": "No se han podido leer las cabeceras. Vuelve a intentarlo en un momento."
+        },
+        "sender": "Remitente",
+        "subject": "Asunto",
+        "authTitle": "¿Es quien dice ser?",
+        "checks": {
+          "spf": {
+            "name": "SPF",
+            "what": "Si el servidor que lo envió puede enviar correo en nombre de ese dominio."
+          },
+          "dkim": {
+            "name": "DKIM",
+            "what": "Si el correo lleva la firma del dominio y nadie lo tocó por el camino."
+          },
+          "dmarc": {
+            "name": "DMARC",
+            "what": "Si el dominio del remitente que ves superó SPF o DKIM, y qué pide hacer si no."
+          },
+          "alignment": {
+            "name": "Alineación",
+            "what": "Si el dominio que se autenticó es el mismo que el del remitente que ves."
+          }
+        },
+        "verdicts": {
+          "pass": "Pasa",
+          "fail": "Falla",
+          "softfail": "Falla a medias",
+          "neutral": "Sin conclusión",
+          "none": "Sin política",
+          "bestguess": "Pasa (estimado)",
+          "policy": "Sin resultado",
+          "error": "Error",
+          "missing": "No aparece",
+          "other": "Desconocido"
+        },
+        "authenticated": "Se autenticó {domains}; el remitente es {from}.",
+        "pathTitle": "La ruta del correo",
+        "pathLead": "Del servidor que lo envió al que lo entregó. Pulsa un salto para ver su línea original.",
+        "note": "Las cabeceras se leen y se descartan: no se guardan. Los resultados de SPF, DKIM y DMARC los escribe el servidor que recibió el correo.",
+        "more": "Esto es solo la mitad: un análisis de Iris también lee el cuerpo, los enlaces y los adjuntos, y te da un veredicto.",
+        "moreCta": "Abrir Iris"
+      },
+      "versionCheck": {
+        "title": "¿Es vulnerable mi versión?",
+        "desc": "Escribe un programa y su versión y mira qué vulnerabilidades conocidas tiene, cuáles se están explotando y si aún recibe parches.",
+        "subtitle": "Escribe el nombre de un programa y su versión. Themis busca en su base de vulnerabilidades las que la afectan, como haría en un escaneo.",
+        "productLabel": "Programa",
+        "productPlaceholder": "nginx",
+        "versionLabel": "Versión",
+        "hint": "La versión del fabricante, como la da el propio programa (nginx -v, ssh -V…).",
+        "invalidVersion": "Escribe una versión como 1.18.0 o 8.9p1, sin espacios.",
+        "check": "Comprobar",
+        "checking": "Buscando…",
+        "examplesLabel": "Prueba con",
+        "failed": "No se ha podido comprobar la versión. Vuelve a intentarlo en un momento.",
+        "unknown": "No reconocemos «{product}». Prueba con el nombre con que lo publica el fabricante, como «Apache httpd» u «OpenSSH».",
+        "identifiedAs": "Identificado como {cpe}",
+        "endOfLife": {
+          "past": "Sin soporte del fabricante desde el {date} (rama {cycle}): ya no recibe parches de seguridad.",
+          "supported": "Con soporte del fabricante hasta el {date} (rama {cycle})."
+        },
+        "found": "Vulnerabilidades conocidas: {count}",
+        "none": "No conocemos ninguna vulnerabilidad para esta versión.",
+        "columns": {
+          "cve": "CVE",
+          "severity": "Gravedad",
+          "exploited": "Explotada",
+          "epss": "EPSS"
+        },
+        "exploitedYes": "Sí",
+        "andMore": "Y {count} más, menos urgentes.",
+        "backportsNote": "Se compara la versión del fabricante. Una distribución Linux puede haber corregido un fallo sin cambiar el número: en un escaneo, Themis lo comprueba paquete a paquete.",
+        "more": "Un escaneo de Themis hace esto con cada servicio que encuentra en tus equipos, y confirma los fallos en vez de suponerlos.",
+        "moreCta": "Abrir Themis"
       }
     }
   },
@@ -5123,6 +5283,22 @@
       "toolPowerCost": {
         "title": "Calculadora de consumo eléctrico de servidores: kWh, coste y CO₂ | Ellysia",
         "description": "Calcula en tu navegador cuánta electricidad gasta un servidor o un parque de equipos, cuánto cuesta al mes y al año y cuánto CO₂ emite. Gratis y sin cuenta."
+      },
+      "toolUptimeCalculator": {
+        "title": "Calculadora de disponibilidad (SLA): caída permitida al mes y al año | Ellysia",
+        "description": "Calcula cuánto tiempo puede caer un servicio con un 99,9 % o un 99,99 % de disponibilidad, al día, al mes y al año, y al revés. Gratis y sin cuenta."
+      },
+      "toolLookalikeDomain": {
+        "title": "Detector de dominios falsos: homógrafos, typosquatting y suplantación | Ellysia",
+        "description": "Comprueba gratis si un dominio o un enlace imita a una marca con letras de otro alfabeto, erratas o subdominios engañosos. Sin cuenta."
+      },
+      "toolHeaderAnalyzer": {
+        "title": "Analizador de cabeceras de correo: ruta, SPF, DKIM y DMARC | Ellysia",
+        "description": "Pega las cabeceras de un correo y mira gratis la ruta que siguió, salto a salto, y si pasó SPF, DKIM y DMARC. No se guarda nada y no hace falta cuenta."
+      },
+      "toolVersionCheck": {
+        "title": "¿Es vulnerable mi versión? CVE, explotación activa y fin de soporte | Ellysia",
+        "description": "Escribe un programa y su versión y mira gratis sus vulnerabilidades conocidas (CVE), si se explotan (KEV), su EPSS y si aún tiene soporte. Sin cuenta."
       }
     }
   }

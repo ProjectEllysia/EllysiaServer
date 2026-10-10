@@ -27,6 +27,10 @@ _CVE_ID = re.compile(r"^CVE-\d{4}-\d{4,}$", re.IGNORECASE)
 # consulta pública de una CVE (ver ``KbQueryManager.public_cve_detail``).
 PUBLIC_CVE_LIST_LIMIT = 50
 
+# Cuántas CVEs devuelve como mucho la consulta pública de una versión (ver
+# ``KbQueryManager.public_version_check``): las más urgentes primero.
+PUBLIC_VERSION_CVE_LIMIT = 25
+
 
 def _source_names(sources: dict) -> List[str]:
     """Los nombres con los que se registra y se informa cada fuente configurada.
@@ -740,6 +744,72 @@ class KbQueryManager:
             detail[f"{key}Total"] = len(detail[key])
             detail[key] = detail[key][:PUBLIC_CVE_LIST_LIMIT]
         return detail
+
+    def public_version_check(self, product: str, version: str) -> dict:
+        """Las CVEs conocidas de un producto en una versión, y su fin de soporte.
+
+        Es el motor de Lybra con una sola entrada: el producto y la versión que
+        escribe el visitante pasan por la misma resolución de CPE y la misma
+        correlación con la base de conocimiento que un servicio de un escaneo,
+        en memoria y sin guardar nada. Entra como ``origin="inventory"`` porque
+        la versión la da quien pregunta, no se adivina de un banner. No se le
+        pasa ``record_resolution``: las consultas anónimas no cuentan en las
+        estadísticas de qué nombres de producto no se identifican.
+
+        Args:
+            product: Nombre del producto tal como lo escribe una persona
+                (``nginx``, ``Apache httpd``, ``OpenSSH``).
+            version: Versión del fabricante (``1.18.0``).
+
+        Returns:
+            dict: ``recognized`` (si el nombre resolvió a un CPE); ``vendor``,
+                ``product`` y ``version`` del CPE resuelto, o ``None`` si no
+                resolvió o no hay ningún hallazgo que lo diga; ``cves``, hasta
+                ``PUBLIC_VERSION_CVE_LIMIT`` entradas ``{cveId, cvssScore,
+                epssScore, inKev}`` ordenadas por KEV, EPSS y CVSS, de la más
+                urgente a la menos; ``cvesTotal``, cuántas hay en total; y
+                ``endOfLife``, ``{cycle, date, isPast}`` si el catálogo de fin
+                de soporte conoce la rama, o ``None``.
+        """
+        from src.modules.infrastructure.session import build_repository
+        from ..lybra import LybraEngine, Service, check_end_of_life, kb_feed_version, parse_cpe23
+
+        repo = build_repository(KbRepository)
+        engine = LybraEngine(
+            cve_lookup=repo.cves_for_cpe,
+            kev_lookup=lambda cve_id: repo.get_kev(cve_id) is not None,
+            epss_lookup=lambda cve_id: getattr(repo.get_epss(cve_id), "score", None),
+            product_alias_lookup=repo.resolve_product_alias,
+            feed_version=kb_feed_version(repo.knowledge_state()),
+            exploit_evidence_lookup=repo.exploit_evidence,
+        )
+        findings = engine.analyze([Service(port=None, protocol="", product=product, version=version,
+                                           origin="inventory")])
+
+        cves = [
+            {"cveId": finding["cve_ids"][0], "cvssScore": finding["cvss_score"],
+             "epssScore": finding["epss_score"], "inKev": finding["in_kev"]}
+            for finding in findings if finding.get("cve_ids")
+        ]
+        cves.sort(key=lambda cve: (cve["inKev"], cve["epssScore"] or 0, cve["cvssScore"] or 0), reverse=True)
+
+        # El CPE resuelto viaja en cada hallazgo de versión; sin ninguno (una
+        # versión sin CVEs ni fin de soporte vencido) el motor no lo dice.
+        cpe = next((parse_cpe23(finding["cpe"]) for finding in findings if finding.get("cpe")), None)
+        end_of_life = check_end_of_life(cpe["vendor"], cpe["product"], cpe["version"]) if cpe else None
+        return {
+            "recognized": bool(findings and findings[0].get("cpe_resolved")),
+            "vendor": cpe["vendor"] if cpe else None,
+            "product": cpe["product"] if cpe else None,
+            "version": cpe["version"] if cpe else None,
+            "cves": cves[:PUBLIC_VERSION_CVE_LIMIT],
+            "cvesTotal": len(cves),
+            "endOfLife": {
+                "cycle": end_of_life.cycle,
+                "date": end_of_life.eol_date.isoformat(),
+                "isPast": end_of_life.is_past,
+            } if end_of_life else None,
+        }
 
     def search_products(self, term: str, limit: int = 20) -> List[KbProduct]:
         """Productos del índice CPE que empiezan por ``term``."""

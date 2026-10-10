@@ -10,6 +10,7 @@ from .model import (
 )
 from .services import require_oauth_token, require_attributes, require_role, AttributeType, Role
 from .services import SUPPORTED_LANGUAGES, choose_language, is_supported_language, resolve_effective_language
+from .services import UserDataRegistry
 from .endpoints import oauth_blp, users_blp, get_current_user
 from .managers import UserManager, OAuthTokenManager, MFAManager
 from src.modules.system.taskqueue import QueueRegistry
@@ -72,4 +73,5 @@ __all__ = [
     "AttributeType",
     "Role",
     "get_current_user",
+    "UserDataRegistry",
 ]
