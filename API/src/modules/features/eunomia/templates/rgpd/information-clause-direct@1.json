@@ -1,0 +1,108 @@
+{
+  "key": "information-clause-direct",
+  "framework": "rgpd",
+  "title": "Cláusula informativa (datos obtenidos de la persona)",
+  "summary": "La información que hay que dar a la persona cuyos datos se tratan.",
+  "controls": [
+    "art.13",
+    "art.12"
+  ],
+  "fields": [
+    {
+      "key": "company_name",
+      "label": "Razón social del responsable",
+      "type": "text",
+      "required": true,
+      "source": "company.legalName"
+    },
+    {
+      "key": "tax_id",
+      "label": "NIF",
+      "type": "text",
+      "required": true,
+      "source": "company.taxId"
+    },
+    {
+      "key": "address",
+      "label": "Domicilio",
+      "type": "text",
+      "required": true,
+      "source": "company.addressLine"
+    },
+    {
+      "key": "privacy_contact",
+      "label": "Contacto para asuntos de protección de datos",
+      "type": "text",
+      "required": true,
+      "help": "Un correo o una dirección a la que las personas puedan escribir."
+    },
+    {
+      "key": "dpo",
+      "label": "Delegado de protección de datos",
+      "type": "text",
+      "required": false,
+      "help": "Su nombre y contacto, si la empresa lo ha designado."
+    },
+    {
+      "key": "purpose",
+      "label": "Finalidad del tratamiento",
+      "type": "longtext",
+      "required": true
+    },
+    {
+      "key": "legal_basis",
+      "label": "Base jurídica",
+      "type": "text",
+      "required": true,
+      "help": "Consentimiento, ejecución de un contrato, obligación legal, interés legítimo…"
+    },
+    {
+      "key": "recipients",
+      "label": "Destinatarios",
+      "type": "text",
+      "required": false,
+      "default": "No se comunicarán datos a terceros, salvo obligación legal."
+    },
+    {
+      "key": "retention",
+      "label": "Plazo de conservación",
+      "type": "text",
+      "required": true
+    },
+    {
+      "key": "mandatory",
+      "label": "¿Es obligatorio facilitar los datos y qué pasa si no se facilitan?",
+      "type": "text",
+      "required": true,
+      "default": "Los datos solicitados son necesarios para prestar el servicio; sin ellos no podremos atender tu solicitud."
+    }
+  ],
+  "sections": [
+    {
+      "heading": "Información sobre protección de datos",
+      "body": "Información que se facilita en el momento de recoger los datos, conforme al artículo 13 del Reglamento (UE) 2016/679."
+    },
+    {
+      "heading": "Responsable",
+      "body": "{{company_name}}, NIF {{tax_id}}, {{address}}. Contacto: {{privacy_contact}}.\n\nDelegado de protección de datos: {{dpo}}"
+    },
+    {
+      "heading": "Finalidad y base jurídica",
+      "body": "{{purpose}}\n\nBase jurídica: {{legal_basis}}."
+    },
+    {
+      "heading": "Obligatoriedad de los datos",
+      "body": "{{mandatory}}"
+    },
+    {
+      "heading": "Destinatarios y conservación",
+      "body": "Destinatarios: {{recipients}}\n\nPlazo de conservación: {{retention}}."
+    },
+    {
+      "heading": "Derechos",
+      "body": "Puedes solicitar el acceso a tus datos, su rectificación o supresión, la limitación de su tratamiento, oponerte a él y pedir su portabilidad escribiendo a {{privacy_contact}}. Si el tratamiento se basa en tu consentimiento, puedes retirarlo en cualquier momento. Tienes derecho a reclamar ante la Agencia Española de Protección de Datos. Esta información es un borrador que la dirección debe revisar antes de utilizarlo."
+    }
+  ],
+  "frameworkVersion": "2016-679",
+  "version": "1"
+}
