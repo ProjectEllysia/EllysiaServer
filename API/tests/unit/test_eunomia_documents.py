@@ -105,3 +105,55 @@ def test_a_corrupt_logo_does_not_prevent_the_document():
     corrupt = decode_logo("data:image/png;base64," + base64.b64encode(b"no soy un png").decode())
 
     assert _pdf(template, _values(template), logo=corrupt).startswith(b"%PDF")
+
+
+# ── Word ───────────────────────────────────────────────────────────────────
+
+def _docx(template, values, **options):
+    import io
+
+    from docx import Document
+
+    from src.modules.features.eunomia.services.documents.docx import build_docx
+
+    data = build_docx(document=render_document(template, values), company_name=values.get("company_name", ""),
+                      tax_id="B12345674", framework_label="NIS2", generated_at=datetime(2026, 10, 10), **options)
+    return Document(io.BytesIO(data))
+
+
+@pytest.mark.parametrize("template", load_templates(), ids=lambda t: t.key)
+def test_every_template_generates_a_docx_with_all_its_sections(template):
+    word = _docx(template, _values(template))
+
+    headings = [p.text for p in word.paragraphs if p.style.name == "Heading 1"]
+    assert headings == [section.heading for section in render_document(template, _values(template)).sections]
+
+
+def test_the_docx_uses_the_built_in_word_styles():
+    template = get_template("security-policy")
+
+    word = _docx(template, _values(template))
+
+    used = {p.style.name for p in word.paragraphs}
+    assert used <= {"Title", "Subtitle", "Heading 1", "Normal", "List Bullet"}
+    assert {"Title", "Heading 1", "List Bullet"} <= used
+
+
+def test_the_docx_carries_the_same_text_as_the_rendered_document():
+    template = get_template("incident-procedure")
+    values = _values(template, company_name="Acme & <Co>")
+
+    word = _docx(template, values)
+
+    text = "\n".join(p.text for p in word.paragraphs)
+    assert "Acme & <Co>" in text and "24 horas" in text
+    assert "**" not in text
+
+
+def test_the_docx_embeds_the_logo_and_survives_a_corrupt_one():
+    template = get_template("security-policy")
+    good = decode_logo(f"data:image/png;base64,{_png()}")
+    corrupt = decode_logo("data:image/png;base64," + base64.b64encode(b"no soy un png").decode())
+
+    assert len(_docx(template, _values(template), logo=good).inline_shapes) == 1
+    assert len(_docx(template, _values(template), logo=corrupt).inline_shapes) == 0
