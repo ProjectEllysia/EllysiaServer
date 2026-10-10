@@ -379,6 +379,7 @@ import aegisIcon from '@/assets/images/aegis/Ellysia-Aegis-Blue-BgN.png'
 import irisIcon from '@/assets/images/iris/Iris-Red-BgN.png'
 import acheronIcon from '@/assets/images/acheron/Acheron-Purple-BgN.png'
 import hygeiaIcon from '@/assets/images/hygeia/Hygeia-DarkGreen-BgN.png'
+import eunomiaIcon from '@/assets/images/eunomia/Eunomia-Blue-BgN.png'
 import socratesIcon from '@/assets/images/socrastes/Socrates-BgN.png'
 import { useI18n } from 'vue-i18n'
 
@@ -479,7 +480,7 @@ const reduceMotion =
   window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
 /**
- * Las cinco herramientas, con su epígrafe mitológico. Sus textos (reclamo,
+ * Las herramientas, con su epígrafe mitológico. Sus textos (reclamo,
  * mito, título y descripción) están en `landing.tools.<id>`, y los de sus
  * etiquetas en `landing.chips.<chip>`.
  */
@@ -528,6 +529,15 @@ const tools = [
     icon: hygeiaIcon,
     route: '/hygeia',
     chips: ['push', 'thresholds', 'hostDown', 'alerts'],
+  },
+  {
+    id: 'eunomia',
+    numeral: 'VI',
+    epigraph: 'ORDO',
+    name: 'Eunomia',
+    icon: eunomiaIcon,
+    route: '/eunomia',
+    chips: ['frameworks', 'nis2', 'gdpr', 'registers'],
   },
 ]
 
