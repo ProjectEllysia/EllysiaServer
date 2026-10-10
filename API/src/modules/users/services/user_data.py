@@ -16,7 +16,7 @@ nadie. Hoy lo usa ``accounts``; las features siguen declaradas a mano en
 
 import threading
 from dataclasses import dataclass, field
-from typing import Callable, Mapping, Optional
+from typing import Any, Callable, Iterator, Mapping, Optional
 
 from src.modules.infrastructure import UnitOfWork
 from src.modules.shared import ExportTable
@@ -24,6 +24,10 @@ from src.modules.shared import ExportTable
 #: Firma de una purga: recibe la unidad de trabajo de la baja y el usuario, y
 #: devuelve cuántas filas cayeron por tabla.
 PurgeHook = Callable[[UnitOfWork, int], dict[str, int]]
+
+#: Firma de un proveedor de ficheros para la exportación: recibe la sesión y el usuario y va
+#: dando ``(ruta dentro del ZIP, bytes)`` de uno en uno, para no tener todos en memoria.
+ExportFilesHook = Callable[[Any, int], Iterator[tuple[str, bytes]]]
 
 
 @dataclass(frozen=True)
@@ -38,10 +42,14 @@ class UserDataContribution:
             él que sean rastro histórico (quién invitó, quién asignó) se ponen a
             ``NULL`` en vez de borrar la fila.
         deletion_models: Categoría del aviso previo al borrado
-            (``DELETION_CATEGORY_KEYS``) → modelos con columna ``user_id`` cuyas
-            filas del usuario suman a esa categoría.
+            (``DELETION_CATEGORY_KEYS``) → modelos con columna ``user_id`` (o
+            ``owner_user_id``, la del dueño efectivo de los datos) cuyas filas del
+            usuario suman a esa categoría.
         export_tables: Tablas que entran en la exportación de datos, en el
             orden en que se escriben.
+        export_files: Ficheros que entran en la exportación además de las tablas (los
+            documentos que el usuario subió), como ``(ruta en el ZIP, bytes)``. Por
+            defecto, ninguno.
         priority: Orden de purga entre módulos registrados: de menor a mayor.
             Todos van después de las features y antes de las filas de ``users``.
     """
@@ -50,6 +58,7 @@ class UserDataContribution:
     purge: PurgeHook
     deletion_models: Mapping[str, tuple] = field(default_factory=dict)
     export_tables: tuple[ExportTable, ...] = ()
+    export_files: Optional[ExportFilesHook] = None
     priority: int = 100
 
 
@@ -72,6 +81,7 @@ class UserDataRegistry:
         purge: PurgeHook,
         deletion_models: Optional[Mapping[str, tuple]] = None,
         export_tables: tuple[ExportTable, ...] = (),
+        export_files: Optional[ExportFilesHook] = None,
         priority: int = 100,
     ) -> None:
         """Da de alta un módulo en el registro.
@@ -86,6 +96,8 @@ class UserDataRegistry:
                 defecto, ninguna categoría del aviso.
             export_tables: Ver ``UserDataContribution.export_tables``. Por
                 defecto, ninguna tabla.
+            export_files: Ver ``UserDataContribution.export_files``. Por defecto,
+                ninguno.
             priority: Ver ``UserDataContribution.priority``. Por defecto ``100``.
         """
         contribution = UserDataContribution(
@@ -93,6 +105,7 @@ class UserDataRegistry:
             purge=purge,
             deletion_models=dict(deletion_models or {}),
             export_tables=tuple(export_tables),
+            export_files=export_files,
             priority=priority,
         )
         with cls._lock:

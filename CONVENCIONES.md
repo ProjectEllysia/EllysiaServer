@@ -134,6 +134,7 @@ EllysiaServer/
                 ├── iris/         análisis de correo y phishing
                 ├── aegis/        concienciación: píldoras, quiz, campañas
                 ├── hygeia/       monitorización de activos
+                ├── eunomia/      marcos de cumplimiento normativo: controles, evaluación, evidencias
                 └── acheron/      bóveda de secretos
 ```
 
@@ -1460,11 +1461,14 @@ main
 |---|---|---|---|---|
 | Proyecto | `proyecto/<nombre>` | `vX.Y` | `vX.Y` | una |
 | Fase | `proyecto/<nombre>-fase-<N>` | la rama de proyecto | la rama de proyecto | una por fase |
-| Issue | `<tipo>/<módulo>/<descripción>` | la rama de su fase | la rama de su fase | **una por issue** |
+| Issue | `<tipo>/<módulo>/<descripción>` | la rama de su fase | la rama de su fase, con `git merge --no-ff` local (sin PR) | **una por issue** |
 
 - Las ramas de fase **no** llevan `/` tras el nombre del proyecto (`proyecto/eunomia-fase-0`, no
   `proyecto/eunomia/fase-0`): Git no admite a la vez una rama `proyecto/eunomia` y otra con ese
   prefijo como carpeta. Empiezan por `proyecto/` para que el CI las reconozca como destino de un PR.
+- Una rama de issue vuelve a su fase con un `git merge --no-ff` hecho en local, sin PR, y se borra
+  al mergear: el CI no corre en cada issue (corre en el PR de la fase), y el merge deja en el
+  historial qué commits eran de qué issue.
 - Una rama de issue contiene **un solo issue**. Si dos issues se tocan entre sí, uno espera al
   otro; no se mezclan en la rama.
 - El `Refs #N` / `Closes #N` va en el mensaje de commit y en el PR, nunca en el código
@@ -1475,6 +1479,7 @@ main
 | Nivel | Qué se ejecuta | Por qué |
 |---|---|---|
 | Rama de issue | Solo los tests del código tocado (más las guardas de convenciones que apliquen: `test_code_conventions`, invariantes de Lybra, `test_caddy_api_routes` si cambia un blueprint, la suite i18n del SPA si cambia un texto) | El bucle tiene que ser corto; un issue es pequeño |
+| Merge de un issue en su fase | Los tests de lo tocado, otra vez, si el merge tuvo que resolver conflictos | La rama de fase acumula varios issues; un conflicto mal resuelto se nota aquí y no al final |
 | Cierre de fase | **La suite entera** (`pytest -n auto --dist worksteal --no-cov`) y las del SPA | Una fase es la unidad que se integra: aquí se descubren los cruces entre issues |
 | PR de fase → proyecto | El CI (`tests.yml`) | Es la puerta del merge |
 

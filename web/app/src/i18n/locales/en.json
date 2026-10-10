@@ -84,16 +84,34 @@
     "aiStrategyConfiguration": "The AI service is not configured correctly.",
     "alreadyInOrganization": "This account already belongs to an organization. It has to leave it before joining another one.",
     "anomalyStillOpen": "Only acknowledged or resolved anomalies can be deleted.",
+    "assessmentConflict": "Someone else changed this control while you were editing it. Check its current value.",
     "assetQuotaExceeded": "You have reached the maximum of {maxAssets} monitored assets.",
     "campaignAlreadyLaunched": "The campaign has already been launched.",
     "cannotRemoveOwner": "You own this organization. To leave it, you would have to dissolve it or transfer it first.",
     "circuitBreakerOpen": "The service is temporarily unavailable.",
-    "complianceOrganizationOwnerOnly": "Only the organization owner can set its compliance frameworks.",
+    "controlNotAssessable": "“{control}” groups other controls and is not assessed directly.",
     "databaseConnection": "Could not connect to the database.",
+    "dataOwnedByOrganization": "These details are managed by the owner of the organization “{organizationName}”. Yours are kept and will apply again if you leave it.",
     "defaultPlanMissing": "The platform has no default plan configured. Contact an administrator.",
     "documentNotReady": "The document is not ready yet.",
     "duplicateAuthorizedTarget": "“{target}” is already in your authorized targets registry.",
     "duplicateAssetGroup": "You already have an asset group named “{name}”.",
+    "evidenceActiveContent": "The file carries content that would run when opened and is not accepted as evidence: {detail}",
+    "evidenceFileMissing": "Choose a file to upload as evidence.",
+    "evidenceStorageFull": "Your plan includes {limitMegabytes} MB of evidence and you already use {usedMegabytes} MB. Delete some or upgrade your plan to upload more.",
+    "evidenceTooLarge": "The file exceeds the maximum of {maxMegabytes} MB per piece of evidence.",
+    "evidenceTypeMismatch": "The content of the file is not really a “{extension}”, even if it is named like one.",
+    "evidenceTypeNotAllowed": "The file type “{extension}” is not accepted as evidence. Accepted: {allowed}.",
+    "frameworkAlreadyAdopted": "The framework “{framework}” is already adopted.",
+    "frameworkArchived": "The framework “{framework}” is archived. You can restore it and recover what you had assessed.",
+    "frameworkNotArchived": "The framework “{framework}” is not archived.",
+    "frameworkRestoreExpired": "The period to restore the framework “{framework}” has expired. You can adopt it again, but you will start from scratch.",
+    "frameworkUpToDate": "The framework “{framework}” is already on the current catalog version.",
+    "templateValueInvalid": "The value of the field “{field}” is not valid for this template.",
+    "recordInvalid": "Check these fields: {fields}.",
+    "recordConflict": "Someone else changed this record while you were editing it. Check its current value.",
+    "templateIncomplete": "To generate the document you still need to fill in: {fields}.",
+    "versionMappingMissing": "There are no correspondences between versions {fromVersion} and {toVersion} of the framework “{framework}”, so your assessment cannot be moved automatically.",
     "invalidAuthorizedTarget": "“{target}” is not an IP address, a range, a domain or a cloud resource. Write it as “203.0.113.10”, “203.0.113.0/24”, “example.com” or “s3:bucket-name”.",
     "duplicatedUserCredentials": "There is already an account with this value: {value}.",
     "emailAlreadyVerified": "Your email is already confirmed.",
@@ -102,6 +120,13 @@
     "emailNotVerified": "Confirm your email address to use this feature. You can request a new link from your profile.",
     "emailSend": "The email could not be sent.",
     "entityNotFound": {
+      "evidence": "Evidence not found.",
+      "register": "Register not found.",
+      "record": "Record not found.",
+      "template": "Template not found.",
+      "control": "Control not found.",
+      "adoption": "Adoption not found.",
+      "framework": "Compliance framework not found.",
       "anomaly": "Anomaly not found.",
       "asset": "Asset not found.",
       "assetGroup": "Asset group not found.",
@@ -155,6 +180,7 @@
     "invalidDocumentRequest": "Choose what you want to export.",
     "invalidMfaCode": "The code you entered is not valid.",
     "invalidProgramedTaskArgument": "The “{field}” argument is missing for the “{scanType}” scan.",
+    "invalidTaxId": "The tax ID is not valid. Check that no digit or the final letter is missing.",
     "invalidVerificationToken": "This confirmation link is not valid or has expired. You can request a new one from your profile.",
     "inventoryNotAvailable": "This asset has not sent its software inventory yet.",
     "invitationInvalid": "This invitation is not valid or has expired. Ask whoever invited you to send you another one.",
@@ -185,6 +211,7 @@
     "irisWebhookInactive": "This webhook is disabled. Enable it before sending events to it.",
     "irisWebhookLimitReached": "You already have {limit} webhooks, the maximum. Delete one to add another.",
     "jsonParsing": "The JSON data could not be processed.",
+    "justificationRequired": "To mark a control as “not applicable” you have to explain why.",
     "logChanged": "The log changed during the query. Start a new read.",
     "logNotFound": "There is no log available right now.",
     "maxConcurrentScans": "The limit of {maxScans} simultaneous scans has been reached.",
@@ -218,6 +245,7 @@
     "quotaExceededUntilNextPeriod": "You have reached your plan's limit. It renews at the start of the next period.",
     "registrationClosed": "This Ellysia installation does not accept sign-ups. Ask an administrator to create your account.",
     "reportGeneration": "The report could not be generated.",
+    "responsibleNotInOrganization": "The responsible person must be the owner of the organization or one of its members.",
     "routeNotFound": "The requested address does not exist.",
     "scanAlreadyInFolder": "The scan already belongs to this folder.",
     "scanAlreadyRunning": "A {scanType} is already running for this target.",
@@ -391,7 +419,8 @@
         "title": "Remove everything related to Ellysia",
         "description": "The header, the footer and the quiz page switch to the organization's brand."
       }
-    }
+    },
+    "logoManagedElsewhere": "The logo is managed in the company details."
   },
   "moduleHub": {
     "signIn": "Sign in",
@@ -1651,6 +1680,9 @@
       "vaults": "Vaults",
       "secrets": "Stored secrets",
       "assets": "Monitored assets",
+      "frameworks": "Compliance frameworks",
+      "evidenceStorage": "Evidence storage",
+      "complianceDocuments": "Compliance documents",
       "aiRequests": "AI requests",
       "members": "Organization members"
     }
@@ -1767,7 +1799,7 @@
     "saveChanges": "Save changes",
     "languageDesc": "If you do not choose one, you follow your organization's or, without one, the platform's.",
     "complianceTitle": "Compliance frameworks",
-    "complianceDesc": "Lybra reports will show which controls of these frameworks each finding affects, along with the MITRE ATT&CK attack technique, which is always shown.",
+    "complianceDesc": "Choose which regulatory frameworks you work with (NIS2, ENS, ISO 27001…). Lybra reports will say which of their controls each finding affects, next to the MITRE ATT&CK technique, which always appears.",
     "security": "Security",
     "currentPassword": "Current password",
     "newPassword": "New password",
@@ -1813,7 +1845,9 @@
         "distributionLists": "{count} distribution list | {count} distribution lists",
         "campaigns": "{count} awareness campaign | {count} awareness campaigns",
         "vaults": "{count} vault | {count} vaults",
-        "subscription": "Your subscription | Your subscription"
+        "subscription": "Your subscription | Your subscription",
+        "complianceFrameworks": "{count} compliance framework with its assessments | {count} compliance frameworks with their assessments",
+        "complianceEvidence": "{count} compliance evidence file | {count} compliance evidence files"
       },
       "confirmPassword": "Confirm with your password",
       "deleting": "Deleting…",
@@ -1824,7 +1858,264 @@
       "failed": "The account could not be deleted.",
       "done": "Your account, data, files and pending tasks have been deleted, and the permission of your mailboxes has been withdrawn.",
       "doneWithLog": "Your account, data, files and pending tasks have been deleted, and the permission of your mailboxes has been withdrawn. Only the activity log is kept, for {days} days, and then deleted automatically."
+    },
+    "complianceLink": "Set up compliance frameworks"
+  },
+  "companyProfile": {
+    "title": "Company details",
+    "desc": "Legal name, tax ID, address and security contact. They are saved once and used by compliance, Aegis and documents.",
+    "fields": {
+      "legalName": "Legal name",
+      "taxId": "Tax ID",
+      "country": "Country (2-letter code)",
+      "addressLine": "Address",
+      "postalCode": "Postal code",
+      "city": "City",
+      "province": "Province",
+      "sector": "Sector",
+      "jurisdiction": "Jurisdiction",
+      "securityContact": "Security contact (email)",
+      "companySize": "Size",
+      "workModel": "Work model",
+      "employeeCount": "Number of employees",
+      "brandLogo": "Logo"
+    },
+    "sizes": {
+      "micro": "Micro",
+      "pequeña": "Small",
+      "mediana": "Medium"
+    },
+    "workModels": {
+      "remoto": "Remote",
+      "híbrido": "Hybrid",
+      "presencial": "On site"
+    },
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Company details saved.",
+    "saveFailed": "The company details could not be saved.",
+    "loadFailed": "The company details could not be loaded."
+  },
+  "eunomia": {
+    "frameworks": {
+      "title": "Compliance frameworks",
+      "back": "Profile",
+      "intro": "Choose which regulatory frameworks to work with. Each framework is pinned to a catalog version: if another is published, you decide when to move to it.",
+      "loading": "Loading…",
+      "loadFailed": "The frameworks could not be loaded.",
+      "offline": "The server could not be reached.",
+      "adopted": "Your frameworks",
+      "noneAdopted": "You have not adopted any framework yet. Pick one of the available ones to start.",
+      "available": "Available frameworks",
+      "noneAvailable": "You have already adopted every available framework.",
+      "archived": "Removed frameworks",
+      "version": "Version {version}",
+      "draft": "draft",
+      "adoptedOn": "adopted on {date}",
+      "newerVersion": "A newer version is available: {version}",
+      "purgeAt": "It will be deleted for good on {date}",
+      "adopt": "Adopt",
+      "remove": "Remove",
+      "restore": "Restore",
+      "adoptFailed": "The framework could not be adopted.",
+      "removeFailed": "The framework could not be removed.",
+      "restoreFailed": "The framework could not be restored.",
+      "previewFailed": "What would be lost could not be worked out.",
+      "adoptedToast": "Framework adopted.",
+      "restoredToast": "Framework restored.",
+      "removed": "“{name}” was removed. You can restore it while it is still within the period.",
+      "removeTitle": "Remove “{name}”?",
+      "removeConfirm": "Remove framework",
+      "removeWarning": "You will stop seeing what you have assessed and evidenced in this framework.",
+      "loss": {
+        "assessments": "{count} assessment made. | {count} assessments made.",
+        "evidenceDeleted": "{count} piece of evidence will be deleted with the framework. | {count} pieces of evidence will be deleted with the framework.",
+        "evidenceKept": "{count} piece of evidence is kept because it also serves another framework. | {count} pieces of evidence are kept because they also serve another framework."
+      },
+      "lossNone": "There are no assessments or evidence to lose.",
+      "removeWhen": "The framework is archived and you can restore it for {days} days; after that, on {date}, it is deleted for good.",
+      "upgrade": "Upgrade",
+      "upgradeTitle": "Move “{name}” to version {version}",
+      "upgradeConfirm": "Upgrade framework",
+      "upgradeFact": {
+        "moved": "{count} control moves over as is. | {count} controls move over as is.",
+        "review": "{count} control arrives marked for review because the standard split or merged it. | {count} controls arrive marked for review because the standard split or merged them.",
+        "lost": "{count} assessed control disappears from the new version. | {count} assessed controls disappear from the new version.",
+        "added": "{count} control is new and starts pending. | {count} controls are new and start pending."
+      },
+      "upgradeNothing": "There are no assessments to move; the framework moves to the new version.",
+      "upgraded": "“{name}” is on the current version.",
+      "upgradeFailed": "The framework could not be upgraded."
+    },
+    "tree": {
+      "loadFailed": "The framework could not be loaded.",
+      "notAdopted": "This framework is not adopted.",
+      "search": "Search by code or text",
+      "filterStatus": "Filter by status",
+      "allStatuses": "All statuses",
+      "expandAll": "Expand all",
+      "collapseAll": "Collapse all",
+      "treeLabel": "Framework controls",
+      "expand": "Expand",
+      "collapse": "Collapse",
+      "noMatches": "No control matches.",
+      "pickOne": "Pick a control to see what is asked of you.",
+      "actions": "What to do",
+      "evidence": "What to keep as proof",
+      "officialText": "Official text",
+      "assessment": "Assessment",
+      "status": "Status",
+      "justification": "Justification (required if not applicable)",
+      "notes": "Notes",
+      "responsible": "Responsible",
+      "dueDate": "Due date",
+      "updatedBy": "Last changed: {name}, {date}",
+      "save": "Save assessment",
+      "saved": "Assessment saved.",
+      "saveFailed": "The assessment could not be saved.",
+      "conflict": "Someone else changed this control while you were editing it.",
+      "useCurrent": "See the current value",
+      "open": "Open framework",
+      "history": "History",
+      "noHistory": "There are no changes yet.",
+      "formerMember": "Someone who is no longer here",
+      "fields": {
+        "status": "Status",
+        "justification": "Justification",
+        "notes": "Notes",
+        "responsibleUserId": "Responsible",
+        "dueDate": "Due date",
+        "evidence": "Evidence"
+      }
+    },
+    "status": {
+      "pending": "Pending",
+      "in_progress": "In progress",
+      "implemented": "Implemented",
+      "not_applicable": "Not applicable"
+    },
+    "summary": {
+      "title": "Summary",
+      "global": "Framework compliance",
+      "counts": "{implemented} of {countable} controls implemented ({notApplicable} not applicable and not counted).",
+      "upcoming": "Due soon",
+      "overdue": "overdue",
+      "unassigned": "{count} control without a responsible | {count} controls without a responsible"
+    },
+    "evidence": {
+      "title": "Evidence",
+      "none": "No evidence linked to this control yet.",
+      "validUntil": "valid until {date}",
+      "unlink": "Unlink",
+      "linkExisting": "Link an existing one",
+      "link": "Link",
+      "uploadNew": "Upload a new one",
+      "titlePlaceholder": "Title (optional)",
+      "validUntilLabel": "Valid until",
+      "file": "File",
+      "upload": "Upload and link",
+      "pickFile": "Choose a file first.",
+      "uploadFailed": "The evidence could not be uploaded.",
+      "linkFailed": "The evidence could not be linked.",
+      "deleteFailed": "The evidence could not be deleted.",
+      "downloadFailed": "The file could not be downloaded.",
+      "usage": "Evidence: {used} of {limit} used.",
+      "usageUnlimited": "Evidence: {used} used.",
+      "expired": "expired",
+      "expiredFlag": "evidence expired"
+    },
+    "suggestions": {
+      "title": "Already done in another framework",
+      "intro": "These controls of the other frameworks you adopted cover this one. It is a suggestion: check that it really does.",
+      "coverage": {
+        "full": "Full coverage",
+        "partial": "Partial coverage"
+      },
+      "linkHere": "Link here",
+      "summary": "{count} requirement has suggested coverage from another framework | {count} requirements have suggested coverage from other frameworks"
+    },
+    "templates": {
+      "title": "Documents",
+      "intro": "Templates for the documents the regulation requires. They arrive filled in with your company and assessment data; complete what is missing.",
+      "loadFailed": "The templates could not be loaded.",
+      "saveFailed": "The draft could not be saved.",
+      "fill": "Fill in",
+      "hasDraft": "You have a saved draft.",
+      "frameworkNotAdopted": "The framework of this template is not adopted yet.",
+      "save": "Save draft",
+      "saved": "Draft saved.",
+      "savedAt": "Saved on {date} by {name}.",
+      "editSource": "Fix at its source",
+      "origin": {
+        "company": "Comes from your company profile.",
+        "assessment": "Comes from the control's assessment.",
+        "record": "Comes from the register record."
+      },
+      "missing": "{count} required field is missing. | {count} required fields are missing."
+    },
+    "documents": {
+      "title": "Generated documents",
+      "intro": "Documents are generated in the background: they show up here when they are ready.",
+      "empty": "You have not generated any document yet.",
+      "status": {
+        "pending": "Queued",
+        "running": "Generating",
+        "done": "Ready",
+        "error": "Failed"
+      },
+      "download": "Download",
+      "delete": "Delete",
+      "generate": {
+        "pdf": "Generate PDF",
+        "docx": "Generate Word"
+      },
+      "queued": "Document queued.",
+      "requestFailed": "The document could not be requested.",
+      "loadFailed": "The documents could not be loaded.",
+      "downloadFailed": "The document could not be downloaded.",
+      "deleteFailed": "The document could not be deleted."
+    },
+    "automatic": {
+      "title": "Automatic evidence",
+      "intro": "Data other Ellysia modules already hold that demonstrates this control; nothing to upload.",
+      "unavailable": "Not available right now.",
+      "open": "View source",
+      "dataDate": "data from {date}",
+      "status": {
+        "ok": "OK",
+        "warning": "To review",
+        "missing": "No data",
+        "unavailable": "Not available"
+      }
+    },
+    "registers": {
+      "title": "Registers",
+      "intro": "Lists of records the regulation asks you to keep: data processing activities, incidents and breaches, rights requests and impact assessments. Each record keeps its history.",
+      "loadFailed": "The registers could not be loaded.",
+      "saveFailed": "The record could not be saved.",
+      "exportFailed": "The register could not be exported.",
+      "open": "Open",
+      "recordCount": "{count} record | {count} records",
+      "newRecord": "New record",
+      "editRecord": "Edit record",
+      "addExamples": "Add example records",
+      "edit": "Edit",
+      "archive": "Archive",
+      "save": "Save",
+      "cancel": "Cancel",
+      "empty": "This register has no records yet.",
+      "updated": "Updated on {date} by {name}.",
+      "deadlineCounts": "{overdue} overdue and {upcoming} upcoming deadline(s).",
+      "deadline": {
+        "pending_input": "origin date missing",
+        "upcoming": "upcoming",
+        "overdue": "overdue",
+        "done": "done"
+      }
     }
+  },
+  "organizationManaged": {
+    "notice": "You belong to the organization {organization}. These details are managed by its owner, {owner}. Yours are kept and will apply again if you leave the organization."
   },
   "organization": {
     "topbar": "My organization",
@@ -1841,7 +2132,7 @@
     "memberHint": "Your personal plan is still yours: what the organization includes adds to what you already have, and if you leave you keep it intact.",
     "languageDesc": "The language for members who have not chosen one. Anyone who picks their own in the language selector keeps it.",
     "platformLanguage": "Platform language",
-    "complianceDesc": "The frameworks shown in every member's Lybra reports. If you set them, they replace the ones each member chose in their profile.",
+    "complianceDesc": "Frameworks are adopted by the owner of the organization and apply to all its members: their Lybra reports use the same ones.",
     "inviteTitle": "Invite",
     "inviteDesc": "If that address already has an account, it will receive a link and will not join until it accepts. If it does not, an account is created and the credentials are sent to it.",
     "invitePlaceholder": "person{'@'}company.com",
@@ -2119,13 +2410,6 @@
       "cancelScan": "Cancel scan",
       "confirmDelete": "Delete scan #{id}?",
       "confirmCancel": "Cancel scan #{id}?"
-    },
-    "compliance": {
-      "impose": "Apply these frameworks to every member",
-      "notImposing": "Until you turn this on, each member chooses their own in their profile.",
-      "locked": "Your organization has set the frameworks for all its members. Your choice is kept and applies again if the organization stops setting them.",
-      "saveFailed": "The compliance frameworks could not be saved.",
-      "saved": "Compliance frameworks saved."
     },
     "form": {
       "title": "New {type} scan",
@@ -3808,7 +4092,18 @@
       "save": "Save profile",
       "agentProducts": "products from my agents",
       "noProducts": "no products",
-      "productCount": "{count} product | {count} products"
+      "productCount": "{count} product | {count} products",
+      "companyDataTitle": "Company details",
+      "editCompanyData": "Edit in the company details",
+      "companyData": {
+        "company": "Legal name",
+        "mentionContact": "Contact",
+        "sector": "Sector",
+        "companySize": "Size",
+        "employeeCount": "Employees",
+        "jurisdiction": "Jurisdiction",
+        "workModel": "Work model"
+      }
     },
     "products": {
       "title": "Watched products",
@@ -4830,6 +5125,15 @@
     }
   },
   "configView": {
+    "eunomia": {
+      "desc": "Compliance frameworks: evidence limits and retention.",
+      "maxEvidenceBytes": "Maximum evidence size (bytes)",
+      "maxEvidenceBytesHint": "It is read whole into memory to encrypt it, so it is also the memory ceiling of an upload.",
+      "archivedRetentionDays": "Recovery days for a removed framework",
+      "archivedRetentionDaysHint": "After this period the framework and its assessments are deleted for good.",
+      "expiryNoticeDays": "Expiry notice lead time (days)",
+      "expiryNoticeDaysHint": "How many days ahead you are warned that an evidence is about to expire."
+    },
     "enS1TodasLasFunciones": "In {s1} every feature below is closed to the public, whatever its switch says; your main administrator account can keep trying them, except sign-up, pricing and external AI. In {s2} each feature follows its switch, so Ellysia can be opened in parts as each one gets its legal coverage.",
     "vistaPrevia": "preview",
     "abiertoAlPublico": "open to the public",
@@ -5121,13 +5425,15 @@
       "iris": "Iris",
       "themis": "Themis",
       "aegis": "Aegis",
-      "hygeia": "Hygeia"
+      "hygeia": "Hygeia",
+      "eunomia": "Eunomia"
     },
     "mailModules": {
       "aegis": "Aegis (campaigns)",
       "iris": "Iris (alerts)",
       "hygeia": "Hygeia (alerts)",
-      "accounts": "Accounts (verification, invitations)"
+      "accounts": "Accounts (verification, invitations)",
+      "eunomia": "Eunomia (expiry notices)"
     },
     "ollamaLocal": "Ollama (local)",
     "reset": "Reset",

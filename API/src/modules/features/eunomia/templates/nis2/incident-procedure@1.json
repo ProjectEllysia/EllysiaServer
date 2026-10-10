@@ -1,0 +1,119 @@
+{
+  "key": "incident-procedure",
+  "version": "1",
+  "frameworkVersion": "2022-2555",
+  "title": "Procedimiento de gestión y notificación de incidentes",
+  "summary": "Cómo se detectan, clasifican, responden y notifican los incidentes, con los plazos del artículo 23 de NIS2.",
+  "controls": [
+    "RE.3.1",
+    "RE.3.3",
+    "RE.3.4",
+    "RE.3.5",
+    "RE.3.6",
+    "23.1",
+    "23.3",
+    "23.4.a",
+    "23.4.b",
+    "23.4.c",
+    "23.4.d",
+    "23.4.e"
+  ],
+  "fields": [
+    {
+      "key": "company_name",
+      "label": "Razón social",
+      "type": "text",
+      "required": true,
+      "source": "company.legalName"
+    },
+    {
+      "key": "tax_id",
+      "label": "NIF",
+      "type": "text",
+      "required": true,
+      "source": "company.taxId"
+    },
+    {
+      "key": "security_officer",
+      "label": "Responsable de seguridad",
+      "type": "person",
+      "required": true,
+      "source": "assessment.RE.1.2.responsible"
+    },
+    {
+      "key": "incident_manager",
+      "label": "Responsable de la gestión de incidentes",
+      "type": "person",
+      "required": true,
+      "source": "assessment.RE.3.5.responsible"
+    },
+    {
+      "key": "reporting_channel",
+      "label": "Canal interno para comunicar sucesos sospechosos",
+      "type": "text",
+      "required": true,
+      "help": "Una dirección de correo, un teléfono o un formulario que todo el personal conozca."
+    },
+    {
+      "key": "csirt",
+      "label": "CSIRT o autoridad competente a la que se notifica",
+      "type": "text",
+      "required": true,
+      "help": "Su nombre y el canal por el que se le notifica."
+    },
+    {
+      "key": "own_criteria",
+      "label": "Criterios propios para considerar significativo un incidente",
+      "type": "longtext",
+      "required": false,
+      "help": "Complementan los de la norma; por ejemplo, el servicio que no puede estar parado más de una hora."
+    },
+    {
+      "key": "approver",
+      "label": "Quién lo aprueba (dirección)",
+      "type": "person",
+      "required": true
+    },
+    {
+      "key": "approval_date",
+      "label": "Fecha de aprobación",
+      "type": "date",
+      "required": true,
+      "source": "system.today"
+    }
+  ],
+  "sections": [
+    {
+      "heading": "1. Objeto y alcance",
+      "body": "Este procedimiento establece cómo {{company_name}} (NIF {{tax_id}}) detecta, clasifica, responde y notifica los incidentes de seguridad que afectan a sus redes y sistemas de información, y cómo cumple los plazos de notificación del artículo 23 de la Directiva (UE) 2022/2555 (NIS2).\n\nSe aplica a todo el personal y a los proveedores que operan sistemas de la empresa."
+    },
+    {
+      "heading": "2. Responsables",
+      "body": "El responsable de seguridad es {{security_officer}}. La gestión de los incidentes la dirige {{incident_manager}}, que convoca a quien haga falta y mantiene informada a la dirección."
+    },
+    {
+      "heading": "3. Cómo se comunica un suceso sospechoso",
+      "body": "Cualquier persona que observe algo sospechoso lo comunica sin demora por este canal: {{reporting_channel}}. No hace falta estar seguro de que sea un incidente: comunicar de más es mejor que callar."
+    },
+    {
+      "heading": "4. Evaluación y clasificación",
+      "body": "Cada suceso comunicado se evalúa con criterios predefinidos para decidir si es un incidente, su gravedad y su prioridad. Un incidente es **significativo** si ha causado o puede causar una perturbación operativa grave o pérdidas económicas para la empresa, o si ha afectado o puede afectar a otras personas físicas o jurídicas causándoles perjuicios considerables.\n\nCriterios propios de la empresa: {{own_criteria}}"
+    },
+    {
+      "heading": "5. Respuesta",
+      "body": "El responsable de la gestión de incidentes contiene el incidente, erradica su causa y recupera el servicio, dejando registro de cada decisión y de la hora a la que se tomó."
+    },
+    {
+      "heading": "6. Notificación y plazos",
+      "body": "Cuando el incidente es significativo, se notifica a {{csirt}} sin demora indebida y en estos plazos, contados desde que se tiene constancia del incidente:\n\n- Alerta temprana: como máximo en 24 horas.\n- Notificación del incidente, con una primera evaluación de su gravedad e impacto: como máximo en 72 horas.\n- Informe intermedio: cuando lo pida el CSIRT o la autoridad competente.\n- Informe final: como máximo un mes después de la notificación del incidente. Si el incidente sigue en curso, un informe de situación y el informe final cuando termine."
+    },
+    {
+      "heading": "7. Revisión posterior",
+      "body": "Resuelto el incidente, se revisa para encontrar su causa y proponer mejoras. Las conclusiones se registran y se hace seguimiento de las medidas acordadas."
+    },
+    {
+      "heading": "8. Aprobación",
+      "body": "Aprobado por {{approver}} el {{approval_date}}. Este documento es un borrador generado que la dirección debe revisar y adaptar antes de aprobarlo."
+    }
+  ]
+}

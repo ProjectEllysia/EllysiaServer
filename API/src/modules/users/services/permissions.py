@@ -90,6 +90,10 @@ _ATTRIBUTE_DESCRIPTIONS: dict[str, str] = {
     "hygeia_read":     "Read access for Hygeia monitored assets",
     "hygeia_update":   "Update access for Hygeia monitored assets",
     "hygeia_delete":   "Delete access for Hygeia monitored assets",
+    "eunomia_create":  "Create access for Eunomia compliance data",
+    "eunomia_read":    "Read access for Eunomia compliance data",
+    "eunomia_update":  "Update access for Eunomia compliance data",
+    "eunomia_delete":  "Delete access for Eunomia compliance data",
 }
 
 
@@ -147,6 +151,11 @@ class AttributeType(Enum):
     HYGEIA_READ   = "hygeia_read"
     HYGEIA_UPDATE = "hygeia_update"
     HYGEIA_DELETE = "hygeia_delete"
+
+    EUNOMIA_CREATE = "eunomia_create"
+    EUNOMIA_READ   = "eunomia_read"
+    EUNOMIA_UPDATE = "eunomia_update"
+    EUNOMIA_DELETE = "eunomia_delete"
 
     @property
     def db_name(self) -> str:
@@ -230,6 +239,10 @@ ROLE_PERMISSIONS: dict[Role, Set[AttributeType]] = {
         AttributeType.HYGEIA_READ,
         AttributeType.HYGEIA_UPDATE,
         AttributeType.HYGEIA_DELETE,
+        AttributeType.EUNOMIA_CREATE,
+        AttributeType.EUNOMIA_READ,
+        AttributeType.EUNOMIA_UPDATE,
+        AttributeType.EUNOMIA_DELETE,
     },
 }
 

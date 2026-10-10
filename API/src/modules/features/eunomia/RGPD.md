@@ -12,7 +12,7 @@ todavía el catálogo**: el formato lo fija EUN09.
 Se extrajo el **2026-10-10** de EUR-Lex (CELEX 32016R0679, DO L 119 de 4.5.2016). Es legislación
 de la UE, así que se puede reutilizar citando la fuente (Decisión 2011/833/UE).
 
-**Todavía no se ha descargado la LOPDGDD** (Ley Orgánica 3/2018), que completa al RGPD en España.
+**El catálogo del RGPD ya está en `catalog/rgpd/2016-679.json`** (borrador): los capítulos II, III y IV, con el texto oficial, y sus correspondencias con NIS2 y el ENS en `catalog/crosswalks/`. **Todavía no se ha descargado la LOPDGDD** (Ley Orgánica 3/2018), que completa al RGPD en España.
 Está en el BOE y también se puede reutilizar. **Tampoco se ha comprobado la licencia de las guías de
 la AEPD** (EUN13).
 

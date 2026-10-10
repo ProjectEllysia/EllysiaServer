@@ -53,15 +53,16 @@
     <div v-if="levelRank >= LEVELS.indexOf('logo')" class="wl-logo">
       <div v-if="modelValue.logo" class="wl-preview">
         <img :src="modelValue.logo" :alt="t('whiteLabel.logoAlt')" />
-        <button type="button" class="wl-remove" @click="clearLogo">{{ t('whiteLabel.removeLogo') }}</button>
+        <button v-if="!logoReadonly" type="button" class="wl-remove" @click="clearLogo">{{ t('whiteLabel.removeLogo') }}</button>
       </div>
 
-      <label class="wl-file">
+      <label v-if="!logoReadonly" class="wl-file">
         <input type="file" :accept="ACCEPTED_TYPES.join(',')" @change="onFile" />
         <span>{{ modelValue.logo ? t('whiteLabel.changeImage') : t('whiteLabel.addImage') }}</span>
       </label>
 
-      <p v-if="error" class="wl-error">{{ error }}</p>
+      <p v-if="logoReadonly" class="wl-hint">{{ t('whiteLabel.logoManagedElsewhere') }}</p>
+      <p v-else-if="error" class="wl-error">{{ error }}</p>
       <p v-else-if="!modelValue.logo" class="wl-warning">{{ t('whiteLabel.missingLogo') }}</p>
       <p v-else class="wl-hint">{{ t('whiteLabel.logoFormats', { maxKb: MAX_KB }) }}</p>
     </div>
@@ -92,6 +93,8 @@ const props = defineProps({
   modelValue: { type: Object, required: true },
   /** Nivel máximo que concede el plan ('none' | 'color' | 'logo' | 'full'). */
   maxLevel: { type: String, default: 'none' },
+  /** El logo se gestiona en otra parte (los datos de la empresa): se enseña pero no se edita. */
+  logoReadonly: { type: Boolean, default: false },
 })
 const emit = defineEmits(['update:modelValue'])
 

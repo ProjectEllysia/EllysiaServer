@@ -1,0 +1,373 @@
+{
+  "a": {
+    "framework": "nis2",
+    "version": "2022-2555"
+  },
+  "b": {
+    "framework": "ens",
+    "version": "rd-311-2022"
+  },
+  "note": "Correspondencias de criterio de Ellysia, no de un organismo: dos controles de marcos distintos rara vez son idénticos, solo se solapan. «full» quiere decir que cumplir uno cubre en lo esencial el otro; «partial», que lo cubre en parte y hay que completarlo. Se usan como sugerencia, nunca para trasladar una evaluación.",
+  "links": [
+    {
+      "from": "20.1",
+      "to": "org.1",
+      "coverage": "partial"
+    },
+    {
+      "from": "20.2",
+      "to": "mp.per.4",
+      "coverage": "partial"
+    },
+    {
+      "from": "21.1",
+      "to": "op.pl.1",
+      "coverage": "partial"
+    },
+    {
+      "from": "21.3",
+      "to": "op.ext.3",
+      "coverage": "partial"
+    },
+    {
+      "from": "23.1",
+      "to": "op.exp.7",
+      "coverage": "partial"
+    },
+    {
+      "from": "23.3",
+      "to": "op.exp.7",
+      "coverage": "partial"
+    },
+    {
+      "from": "23.4.a",
+      "to": "op.exp.7",
+      "coverage": "partial"
+    },
+    {
+      "from": "23.4.b",
+      "to": "op.exp.7",
+      "coverage": "partial"
+    },
+    {
+      "from": "23.4.d",
+      "to": "op.exp.9",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.1.1",
+      "to": "org.1",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.1.2",
+      "to": "org.1",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.2.1",
+      "to": "op.pl.1",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.2.2",
+      "to": "op.mon.2",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.3.1",
+      "to": "op.exp.7",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.3.2",
+      "to": "op.exp.8",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.3.2",
+      "to": "op.mon.1",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.3.3",
+      "to": "op.exp.7",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.3.4",
+      "to": "op.exp.7",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.3.5",
+      "to": "op.exp.7",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.3.6",
+      "to": "op.exp.9",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.4.1",
+      "to": "op.cont.2",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.4.1",
+      "to": "op.cont.1",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.4.2",
+      "to": "mp.info.6",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.4.2",
+      "to": "op.cont.4",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.4.3",
+      "to": "op.cont.2",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.5.1",
+      "to": "op.ext.3",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.5.1",
+      "to": "op.ext.1",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.5.2",
+      "to": "op.ext.3",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.6.1",
+      "to": "op.pl.3",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.6.2",
+      "to": "mp.sw.1",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.6.3",
+      "to": "op.exp.2",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.6.3",
+      "to": "op.exp.3",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.6.4",
+      "to": "op.exp.5",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.6.5",
+      "to": "mp.sw.2",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.6.6",
+      "to": "op.exp.4",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.6.7",
+      "to": "mp.com.1",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.6.7",
+      "to": "mp.com.4",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.6.8",
+      "to": "mp.com.4",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.6.9",
+      "to": "op.exp.6",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.6.10",
+      "to": "op.mon.3",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.6.10",
+      "to": "op.exp.4",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.7",
+      "to": "op.mon.2",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.8.1",
+      "to": "mp.per.3",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.8.2",
+      "to": "mp.per.4",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.9",
+      "to": "op.exp.10",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.9",
+      "to": "mp.com.2",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.9",
+      "to": "mp.si.2",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.10.1",
+      "to": "mp.per.2",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.10.1",
+      "to": "mp.per.1",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.10.2",
+      "to": "mp.per.1",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.10.3",
+      "to": "mp.per.2",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.10.4",
+      "to": "org.2",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.11.1",
+      "to": "op.acc.2",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.11.2",
+      "to": "op.acc.4",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.11.3",
+      "to": "op.acc.4",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.11.3",
+      "to": "op.acc.3",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.11.4",
+      "to": "op.acc.6",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.11.5",
+      "to": "op.acc.1",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.11.6",
+      "to": "op.acc.6",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.11.6",
+      "to": "op.acc.5",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.11.7",
+      "to": "op.acc.6",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.12.1",
+      "to": "mp.info.2",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.12.2",
+      "to": "op.exp.1",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.12.3",
+      "to": "mp.si.1",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.12.3",
+      "to": "mp.si.3",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.12.4",
+      "to": "op.exp.1",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.13.1",
+      "to": "mp.if.4",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.13.2",
+      "to": "mp.if.5",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.13.2",
+      "to": "mp.if.6",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.13.2",
+      "to": "mp.if.3",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.13.3",
+      "to": "mp.if.1",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.13.3",
+      "to": "mp.if.2",
+      "coverage": "partial"
+    }
+  ]
+}

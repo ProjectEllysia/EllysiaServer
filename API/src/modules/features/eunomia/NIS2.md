@@ -26,7 +26,7 @@ Todo se extrajo el **2026-10-10** del HTML de EUR-Lex en castellano.
 |---|---|---|
 | Directiva (UE) 2022/2555 (NIS2), DO L 333 de 27.12.2022 | CELEX 32022L2555 | Sí. Es legislación de la UE: su reutilización está permitida citando la fuente (Decisión 2011/833/UE). |
 | Reglamento de Ejecución (UE) 2024/2690 de la Comisión, de 17.10.2024 | CELEX 32024R2690 | Sí, en las mismas condiciones. |
-| ENISA, *NIS2 Technical Implementation Guidance*, 26 de junio de 2025 | [Página de ENISA](https://www.enisa.europa.eu/publications/NIS2-technical-implementation-guidance) | **Pendiente de confirmar la licencia.** Hasta entonces se usa como referencia y se escribe con redacción propia (EUN13). |
+| ENISA, *NIS2 Technical Implementation Guidance*, 26 de junio de 2025 | [Página de ENISA](https://www.enisa.europa.eu/publications/NIS2-technical-implementation-guidance) | **Sin licencia concreta (comprobado el 2026-10-10).** El aviso legal de ENISA autoriza reproducir «siempre que se cite la fuente, salvo que se indique otra cosa» y no nombra ninguna licencia abierta; cada publicación puede traer restricciones propias. Se usa como referencia y se escribe con redacción propia (`licenseMode: own_wording`). |
 
 Sobre la guía de ENISA:
 
@@ -163,14 +163,23 @@ de hallazgos de Lybra: `21.2`, `21.2.c`, `21.2.e`, `21.2.h`, `21.2.i` y `21.2.j`
 publicado debe **conservar esos identificadores** (EUN10, EUN12). El borrador los recoge en
 `lybraIdentifiers`.
 
-## Qué falta
+## Qué hay hecho y qué falta
 
-1. **EUN09.** Fijar el formato del catálogo y convertir este borrador en
-   `catalog/nis2/2022-2555.json`.
-2. **EUN10.** Decidir el identificador de cada nodo (por ejemplo, `21.2.b` → `21.2.b/3.5` →
-   `21.2.b/3.5.2`) y qué nodos son evaluables. Los 159 puntos del anexo son el nivel natural de
-   evaluación, aunque algunos puntos son meramente definitorios.
-3. **EUN11.** Redactar la descripción, las actuaciones y las evidencias de cada requisito, a partir
-   de la guía de ENISA.
-4. **EUN13.** Confirmar la licencia de la guía de ENISA.
-5. **EUN41.** Convertir los anexos I y II y el art. 3 en reglas de aplicabilidad.
+**Hecho.** El catálogo vive en `catalog/nis2/2022-2555.json` (versión `draft`): los artículos 20,
+21 y 23 y los 13 apartados del anexo, con el texto oficial (`officialText`), el artículo o punto
+de origen de cada nodo y, para cada requisito evaluable, descripción llana, actuaciones y
+evidencias con redacción propia. El anexo cuelga de la letra del art. 21.2 que desarrolla; el
+apartado 11.7 (autenticación multifactor) cuelga de la letra j) y el resto del 11 de la i). Las
+secciones 7 y 9 no tienen subapartados y son requisito por sí mismas. La licencia de la guía de
+ENISA está comprobada: ver la tabla de fuentes.
+
+**Falta.**
+
+1. **Revisión por auditoría.** La versión se publicó (`published`, con su línea en
+   `catalog/LOCK.json`) sin la revisión de alguien con experiencia en auditoría. Una versión
+   publicada no se modifica: cualquier corrección de las descripciones, actuaciones o evidencias
+   sale como una versión nueva con su correspondencia con esta.
+2. **Correspondencias** del anexo con ISO 27001, el ENS y NIST CSF (la guía de ENISA trae una
+   tabla; hay que leer su aviso antes de copiarla).
+3. **Aplicabilidad.** Convertir los anexos I y II y el art. 3 en reglas (qué entidades están
+   dentro y cuáles de ellas, en el ámbito obligatorio del reglamento de ejecución).

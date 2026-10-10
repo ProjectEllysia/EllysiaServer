@@ -11,6 +11,7 @@ ellas.
 from src.modules.infrastructure import UnitOfWork
 
 from ..repositories import (
+    CompanyProfileRepository,
     OrganizationInvitationRepository,
     OrganizationMemberRepository,
     OrganizationRepository,
@@ -19,7 +20,7 @@ from ..repositories import (
 
 
 def purge_accounts_data(uow: UnitOfWork, user_id: int) -> dict[str, int]:
-    """Borra la suscripción, la pertenencia y el rastro en invitaciones de un usuario.
+    """Borra la suscripción, la pertenencia, el perfil de empresa y el rastro en invitaciones de un usuario.
 
     La **organización de la que es dueño se disuelve entera**: sus miembros se
     quedan sin ella. Es lo que hay que avisarle antes de pulsar el botón, y por
@@ -37,7 +38,8 @@ def purge_accounts_data(uow: UnitOfWork, user_id: int) -> dict[str, int]:
 
     Returns:
         dict[str, int]: Filas borradas por tabla (``OrganizationInvitation``,
-            ``OrganizationMember``, ``Organization``, ``Subscription``). Puede
+            ``OrganizationMember``, ``Organization``, ``Subscription``,
+            ``CompanyProfile``). Puede
             incluir ceros; quien suma los descarta.
     """
     organizations = OrganizationRepository(uow)
@@ -53,4 +55,5 @@ def purge_accounts_data(uow: UnitOfWork, user_id: int) -> dict[str, int]:
 
     counts["OrganizationMember"] = members.delete_by_user(user_id)
     counts["Subscription"] = subscriptions.delete_by_user(user_id)
+    counts["CompanyProfile"] = CompanyProfileRepository(uow).delete_by_user(user_id)
     return counts

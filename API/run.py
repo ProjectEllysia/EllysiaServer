@@ -60,6 +60,7 @@ from src.modules.features.acheron    import acheron_blp
 from src.modules.features.aegis      import aegis_blp
 from src.modules.features.iris       import iris_blp
 from src.modules.features.hygeia     import hygeia_blp
+from src.modules.features.eunomia    import eunomia_blp
 
 import src.modules.system.config_reading as CR
 
@@ -149,6 +150,13 @@ def _run_shutdown_cleanup() -> None:
         HygeiaScheduler.stop()
     except Exception as e:
         _logger.error(f"Error deteniendo scheduler de Hygeia: {e}")
+
+    _logger.info("[Shutdown] Deteniendo scheduler de Eunomia...")
+    try:
+        from src.modules.features.eunomia.services.scheduling import EunomiaScheduler
+        EunomiaScheduler.stop()
+    except Exception as e:
+        _logger.error(f"Error deteniendo scheduler de Eunomia: {e}")
 
     _logger.info("[Shutdown] Deteniendo scheduler de accounts...")
     try:
@@ -251,6 +259,7 @@ def _register_blueprints(app: Flask) -> None:
     flask_smorest_api.register_blueprint(aegis_blp,     url_prefix="/aegis")
     flask_smorest_api.register_blueprint(iris_blp,      url_prefix="/iris")
     flask_smorest_api.register_blueprint(hygeia_blp,    url_prefix="/hygeia")
+    flask_smorest_api.register_blueprint(eunomia_blp,   url_prefix="/eunomia")
 
 
 def _register_error_handlers(app: Flask) -> None:
@@ -438,6 +447,7 @@ def _register_request_audit(app: Flask) -> None:
 def _configure_scheduling() -> None:
     from src.modules.features.themis.services.scheduling import ThemisScheduler
     from src.modules.features.hygeia.services.scheduling import HygeiaScheduler
+    from src.modules.features.eunomia.services.scheduling import EunomiaScheduler
     from src.modules.features.iris.services.mailbox.scheduling import IrisMailboxScheduler
     from src.modules.accounts.services.scheduling import AccountsScheduler
     from src.modules.users.services.scheduling import UsersScheduler
@@ -488,6 +498,15 @@ def _configure_scheduling() -> None:
     except Exception as e:
         _logger.warning("No se pudo reconciliar documentos Hygeia huérfanos: %s", e)
 
+    _logger.info("Reconciliando documentos Eunomia huérfanos...")
+    try:
+        from src.modules.features.eunomia.managers import EunomiaDocumentManager
+        fixed_eunomia = EunomiaDocumentManager.reconcile_orphaned_documents()
+        if fixed_eunomia:
+            _logger.info("Se marcaron %d documento(s) Eunomia huérfano(s) como error", fixed_eunomia)
+    except Exception as e:
+        _logger.warning("No se pudo reconciliar documentos Eunomia huérfanos: %s", e)
+
     _logger.info("Reconciliando exportaciones de datos huérfanas...")
     try:
         from src.modules.users.managers import DataExportManager
@@ -514,6 +533,9 @@ def _configure_scheduling() -> None:
 
     _logger.info("Arrancando scheduler de buzones de Iris...")
     IrisMailboxScheduler.start()
+
+    _logger.info("Arrancando scheduler de Eunomia...")
+    EunomiaScheduler.start()
 
     _logger.info("Arrancando scheduler de avisos de suscripcion...")
     AccountsScheduler.start()

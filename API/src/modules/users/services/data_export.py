@@ -256,11 +256,19 @@ def write_export_archive(
         with zipfile.ZipFile(temporary, "w", zipfile.ZIP_DEFLATED, allowZip64=True) as archive:
             for module_name, tables in export_modules().items():
                 counts[module_name] = _write_module(archive, session, module_name, tables, user_id)
+            files_written = 0
+            for contribution in UserDataRegistry.contributions():
+                if contribution.export_files is None:
+                    continue
+                for path, content in contribution.export_files(session, user_id):
+                    archive.writestr(f"files/{contribution.name}/{path}", content)
+                    files_written += 1
             archive.writestr("manifest.json", json.dumps({
                 "formatVersion": EXPORT_FORMAT_VERSION,
                 "generatedAt": isoformat_utc(generated_at),
                 "userId": user_id,
                 "modules": counts,
+                "files": files_written,
                 "notIncluded": NOT_EXPORTED_TABLES,
                 "notes": [
                     "Los secretos y las credenciales no se incluyen: contraseñas, tokens de sesión, "
@@ -270,6 +278,7 @@ def write_export_archive(
                     "El contenido completo de los correos analizados por Iris no se incluye: es una "
                     "copia temporal del buzón que se borra sola. Sí se incluye el resultado de cada análisis.",
                     "Los informes en PDF no se incluyen; sí sus metadatos.",
+                    "Los ficheros de evidencia de cumplimiento van descifrados en files/eunomia/.",
                 ],
             }, ensure_ascii=False, indent=2))
         os.replace(temporary, destination)

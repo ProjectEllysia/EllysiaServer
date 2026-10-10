@@ -23,9 +23,17 @@ from .model import (
 )
 from .managers import AegisManager, CampaignManager
 from .endpoints import aegis_blp
+from src.modules.features.eunomia import EvidenceProviderRegistry
+from .services.compliance_evidence import CONTROLS as _AWARENESS_CONTROLS, summarize_awareness
 
 # Registro de las categorías de cola de este módulo (OCP).
 QueueRegistry.register("aegis.generate", "aegis.campaign")
+
+EvidenceProviderRegistry.register(
+    "aegis.awareness", name="Formación y concienciación", controls=_AWARENESS_CONTROLS,
+    collect=lambda owner_user_id, framework_key, identifier: summarize_awareness(
+        CampaignManager(user=None).get_awareness_summary(owner_user_id)),
+)
 
 __all__ = [
     "AegisDocument",

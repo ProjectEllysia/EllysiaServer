@@ -54,9 +54,11 @@ class AegisTweaksSchema(Schema):
 class AegisOrgProfileSchema(WhiteLabelSchemaMixin, Schema):
     """
     Perfil de organización de Aegis: valores estables que casi nunca cambian
-    entre generaciones (empresa, contacto, tono, tamaño, jurisdicción, marcas
-    habituales). Comparte nombres de campo con AegisTweaksSchema para que el
+    entre generaciones (tono, idioma, productos vigilados, white-labeling) más,
+    de solo lectura, los datos de la empresa que salen del perfil de empresa de
+    ``accounts``. Comparte nombres de campo con AegisTweaksSchema para que el
     frontend pueda precargar el formulario de generación sin traducirlos.
+    Al guardar, los campos de empresa se aceptan pero no se guardan aquí.
 
     Los campos de white-labeling (``whiteLabelLevel``, ``brandLogo``) llegan
     del mixin compartido, que es también quien valida el logo.
@@ -81,6 +83,9 @@ class AegisOrgProfileSchema(WhiteLabelSchemaMixin, Schema):
     # lo usa para decidir si pinta el interruptor de arriba. Sin ``dump_only``
     # el mismo esquema, que también valida el PUT, lo descartaría al serializar.
     hygeiaInventoryAvailable = fields.Boolean(dump_only=True)
+    # Solo de salida: de quién son los datos de empresa que acompañan al perfil
+    # (``{isOwnData, organizationName, ownerDisplayName}``).
+    companyDataOwnership = fields.Raw(dump_only=True)
 
 
 class ProductSearchQuerySchema(Schema):

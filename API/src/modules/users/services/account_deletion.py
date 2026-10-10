@@ -580,7 +580,7 @@ def _models_of_deletion_category(key: str) -> list:
 DELETION_CATEGORY_KEYS: tuple[str, ...] = (
     "scans", "documents", "scheduledScans", "authorizedTargets", "mailboxes",
     "mailAnalyses", "monitoredAssets", "distributionLists", "campaigns", "vaults",
-    "subscription",
+    "subscription", "complianceFrameworks", "complianceEvidence",
 )
 
 #: Tablas con clave ajena hacia ``User`` que se borran pero **no** salen como
@@ -588,6 +588,20 @@ DELETION_CATEGORY_KEYS: tuple[str, ...] = (
 #: toda tabla esté en una categoría o aquí: así nadie añade una y se olvida del aviso.
 UNLISTED_TABLES: dict[str, str] = {
     "DataExport": "exportaciones de tus datos, con su archivo si aún no lo has descargado",
+    "CompanyProfile": "los datos de tu empresa: razón social, NIF, dirección y contacto de seguridad",
+    **dict.fromkeys(
+        ["EunomiaControlAssessment", "EunomiaAssessmentEvent"],
+        "las evaluaciones de tus marcos de cumplimiento y su historial, que se cuentan con el marco",
+    ),
+    **dict.fromkeys(
+        ["EunomiaRecord", "EunomiaRecordEvent"],
+        "las fichas de tus registros de cumplimiento (tratamientos, incidentes…) y su historial",
+    ),
+    "EunomiaTemplateDraft": "los borradores de los documentos de cumplimiento que has ido rellenando",
+    **dict.fromkeys(
+        ["EunomiaEvidenceLink"],
+        "los enlaces entre tus evidencias de cumplimiento y los controles, que caen con cada evidencia",
+    ),
     **dict.fromkeys(
         ["AccessToken", "RefreshToken", "MFAChallenge", "MFARecoveryCode", "MFATotpCredential",
          "UserAttribute"],
@@ -598,7 +612,7 @@ UNLISTED_TABLES: dict[str, str] = {
         "organización e invitaciones: su disolución se enseña aparte porque afecta a terceros",
     ),
     **dict.fromkeys(
-        ["ScanFolder", "Traceroute", "Finding", "ComplianceFrameworkSelection"],
+        ["ScanFolder", "Traceroute", "Finding"],
         "carpetas, cachés y marcas que cuelgan de los escaneos",
     ),
     **dict.fromkeys(
@@ -633,8 +647,9 @@ def count_deletion_categories(uow: UnitOfWork, user_id: int) -> list[dict]:
     for key in DELETION_CATEGORY_KEYS:
         total = 0
         for model in _models_of_deletion_category(key):
+            owner_column = model.user_id if hasattr(model, "user_id") else model.owner_user_id
             total += uow.session.query(func.count()).select_from(model).filter(
-                model.user_id == user_id
+                owner_column == user_id
             ).scalar() or 0
         if total:
             categories.append({"key": key, "count": total})

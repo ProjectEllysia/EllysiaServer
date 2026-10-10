@@ -50,7 +50,7 @@ def test_accounts_is_registered_with_everything_it_owns():
 def test_the_purge_order_is_the_one_the_foreign_keys_need():
     """Features, luego los módulos registrados y por último ``users``."""
     assert account_deletion.purge_order() == [
-        "themis", "aegis", "iris", "hygeia", "accounts", "users",
+        "themis", "aegis", "iris", "hygeia", "accounts", "eunomia", "users",
     ]
 
 
@@ -60,9 +60,9 @@ def test_the_subscription_category_is_served_by_the_registry():
 
 
 def test_the_export_keeps_accounts_between_the_profile_and_the_features():
-    """El orden de los ficheros del ZIP no cambia al servir ``accounts`` desde el registro."""
+    """Los módulos del registro (``accounts``, ``eunomia``) van entre el perfil y las features."""
     modules = list(data_export.export_modules())
-    assert modules == ["profile", "accounts", "themis", "aegis", "iris", "hygeia", "acheron"]
+    assert modules == ["profile", "accounts", "eunomia", "themis", "aegis", "iris", "hygeia", "acheron"]
 
 
 def test_registered_modules_are_ordered_by_priority_then_name(isolated_registry):

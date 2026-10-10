@@ -59,6 +59,7 @@ export default defineConfig(({ mode }) => {
         '/acheron':   { target: API_TARGET, changeOrigin: true, bypass: proxyBypass },
         '/iris':      { target: API_TARGET, changeOrigin: true, bypass: proxyBypass },
         '/hygeia':    { target: API_TARGET, changeOrigin: true, bypass: proxyBypass },
+        '/eunomia':   { target: API_TARGET, changeOrigin: true, bypass: proxyBypass },
         // Capa comercial. Van con bypass porque comparten prefijo con rutas del
         // SPA: /plans es la API pero /planes es la tabla de precios, y
         // /organizations es la API mientras que /organizacion es la vista. El
@@ -90,7 +91,15 @@ const FRONTEND_SUBROUTES = new Set([
   '/hygeia/etiquetas',
   '/hygeia/estadisticas',
   '/hygeia/documentos',
+  '/eunomia/marcos',
+  '/eunomia/plantillas',
+  '/eunomia/documentos',
+  '/eunomia/registros',
 ])
+
+// Rutas del frontend con un segmento variable (`/eunomia/marcos/<marco>`): se reconocen por su
+// prefijo.
+const FRONTEND_SUBROUTE_PREFIXES = ['/eunomia/marcos/', '/eunomia/plantillas/', '/eunomia/registros/']
 
 function proxyBypass(req) {
   const url = req.url.split('?')[0]
@@ -104,4 +113,5 @@ function proxyBypass(req) {
   if (/\.\w+$/.test(url)) return
   if (/^\/[^/]+\/?$/.test(url)) return '/'
   if (FRONTEND_SUBROUTES.has(url)) return '/'
+  if (FRONTEND_SUBROUTE_PREFIXES.some((prefix) => url.startsWith(prefix))) return '/'
 }

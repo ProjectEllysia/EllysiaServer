@@ -1,0 +1,106 @@
+{
+  "key": "rights-procedure",
+  "framework": "rgpd",
+  "title": "Procedimiento de atención de derechos",
+  "summary": "Cómo se recibe, se verifica y se responde a una solicitud de ejercicio de derechos, dentro del plazo de un mes del artículo 12.3.",
+  "controls": [
+    "art.12",
+    "art.15",
+    "art.16",
+    "art.17",
+    "art.18",
+    "art.19",
+    "art.20",
+    "art.21"
+  ],
+  "fields": [
+    {
+      "key": "company_name",
+      "label": "Razón social del responsable",
+      "type": "text",
+      "required": true,
+      "source": "company.legalName"
+    },
+    {
+      "key": "tax_id",
+      "label": "NIF",
+      "type": "text",
+      "required": true,
+      "source": "company.taxId"
+    },
+    {
+      "key": "rights_manager",
+      "label": "Responsable de atender las solicitudes",
+      "type": "person",
+      "required": true
+    },
+    {
+      "key": "channel",
+      "label": "Canal para recibir solicitudes",
+      "type": "text",
+      "required": true,
+      "help": "Un correo, un formulario o una dirección postal."
+    },
+    {
+      "key": "identity_check",
+      "label": "Cómo se verifica la identidad de quien solicita",
+      "type": "longtext",
+      "required": true
+    },
+    {
+      "key": "register_location",
+      "label": "Dónde se registran las solicitudes y las respuestas",
+      "type": "text",
+      "required": true
+    },
+    {
+      "key": "approver",
+      "label": "Quién lo aprueba (dirección)",
+      "type": "person",
+      "required": true
+    },
+    {
+      "key": "approval_date",
+      "label": "Fecha",
+      "type": "date",
+      "required": true,
+      "source": "system.today"
+    }
+  ],
+  "sections": [
+    {
+      "heading": "1. Objeto",
+      "body": "Este procedimiento establece cómo {{company_name}} (NIF {{tax_id}}) atiende las solicitudes de acceso, rectificación, supresión, limitación del tratamiento, portabilidad y oposición que presenten las personas cuyos datos trata."
+    },
+    {
+      "heading": "2. Responsable",
+      "body": "{{rights_manager}} es la persona responsable de atender las solicitudes y de que se respondan en plazo."
+    },
+    {
+      "heading": "3. Cómo se recibe una solicitud",
+      "body": "Las solicitudes se reciben por este canal: {{channel}}. Cualquier persona de la empresa que reciba una solicitud por otro medio la reenvía de inmediato a la persona responsable."
+    },
+    {
+      "heading": "4. Verificación de la identidad",
+      "body": "{{identity_check}}"
+    },
+    {
+      "heading": "5. Plazos",
+      "body": "Se responde sin dilación indebida y, en todo caso, en el plazo de **un mes** desde la recepción de la solicitud. Ese plazo puede prorrogarse otros **dos meses** si es necesario, teniendo en cuenta la complejidad y el número de solicitudes; en ese caso se informa a la persona de la prórroga y de sus motivos dentro del primer mes.\n\nSi no se atiende la solicitud, se informa a la persona, dentro del mismo plazo, de los motivos y de la posibilidad de reclamar ante la autoridad de control."
+    },
+    {
+      "heading": "6. Respuesta",
+      "body": "La información se facilita de forma concisa, transparente, inteligible y de fácil acceso, y por regla general sin coste. Cuando se rectifica, suprime o limita un dato, se comunica a los destinatarios a quienes se hubiera cedido, salvo que sea imposible o suponga un esfuerzo desproporcionado."
+    },
+    {
+      "heading": "7. Registro",
+      "body": "Cada solicitud y su respuesta se registran en: {{register_location}}."
+    },
+    {
+      "heading": "8. Aprobación",
+      "body": "Aprobado por {{approver}} el {{approval_date}}. Este documento es un borrador generado que la dirección debe revisar y adaptar, con asesoramiento jurídico si procede, antes de utilizarlo."
+    }
+  ],
+  "frameworkVersion": "2016-679",
+  "version": "1"
+}
