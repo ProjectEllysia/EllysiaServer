@@ -6,6 +6,8 @@ Hierarchy:
     ├── FrameworkNotFoundError    (404)
     ├── FrameworkAlreadyAdoptedError (409)
     ├── FrameworkArchivedError    (409)
+    ├── FrameworkNotArchivedError (409)
+    ├── FrameworkRestoreExpiredError (409)
     └── AdoptionNotFoundError     (404)
 """
 
@@ -56,6 +58,39 @@ class FrameworkArchivedError(EunomiaError):
                 f"lo que habías evaluado."
             ),
             message_key="frameworkArchived",
+            params={"framework": framework_key},
+        )
+
+
+class FrameworkNotArchivedError(EunomiaError):
+    """Se intenta restaurar o purgar un marco que no está archivado."""
+
+    default_code = ErrorCode.CONSTRAINT_VIOLATION
+    default_status_code = 409
+
+    def __init__(self, framework_key: str) -> None:
+        super().__init__(
+            message=f"El marco '{framework_key}' no esta archivado",
+            user_message=f"El marco «{framework_key}» no está archivado.",
+            message_key="frameworkNotArchived",
+            params={"framework": framework_key},
+        )
+
+
+class FrameworkRestoreExpiredError(EunomiaError):
+    """El marco archivado ya pasó el plazo de recuperación."""
+
+    default_code = ErrorCode.CONSTRAINT_VIOLATION
+    default_status_code = 409
+
+    def __init__(self, framework_key: str) -> None:
+        super().__init__(
+            message=f"El plazo para restaurar el marco '{framework_key}' ha vencido",
+            user_message=(
+                f"El plazo para restaurar el marco «{framework_key}» ha vencido. "
+                f"Puedes adoptarlo de nuevo, pero empezarás de cero."
+            ),
+            message_key="frameworkRestoreExpired",
             params={"framework": framework_key},
         )
 

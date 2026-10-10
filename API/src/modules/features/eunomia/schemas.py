@@ -101,6 +101,16 @@ class AdoptionListSchema(Schema):
     ownership = fields.Nested(OwnershipSchema)
 
 
+class RemovalPreviewSchema(Schema):
+    """Lo que se perdería al quitar un marco, antes de quitarlo."""
+
+    assessments = fields.Integer()
+    evidenceDeleted = fields.Integer()
+    evidenceKept = fields.Integer()
+    retentionDays = fields.Integer()
+    purgeAt = fields.DateTime()
+
+
 class AdoptionCreateSchema(Schema):
     """Cuerpo de ``POST /eunomia/adoptions``."""
 
