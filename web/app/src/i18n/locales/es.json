@@ -2002,6 +2002,16 @@
       "usageUnlimited": "Evidencias: {used} usados.",
       "expired": "vencida",
       "expiredFlag": "evidencia vencida"
+    },
+    "suggestions": {
+      "title": "Ya lo tienes hecho en otro marco",
+      "intro": "Estos controles de los otros marcos que has adoptado cubren este. Es una sugerencia: revisa que de verdad lo cumple.",
+      "coverage": {
+        "full": "Cobertura total",
+        "partial": "Cobertura parcial"
+      },
+      "linkHere": "Enlazar aquí",
+      "summary": "{count} requisito tiene cobertura sugerida desde otro marco | {count} requisitos tienen cobertura sugerida desde otros marcos"
     }
   },
   "organizationManaged": {

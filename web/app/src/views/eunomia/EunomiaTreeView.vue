@@ -25,6 +25,9 @@
             <p class="big">{{ percent(summary.global.percent) }}</p>
             <div class="summary-main">
               <ProgressBar :percent="summary.global.percent" :label="t('eunomia.summary.global')" />
+              <p v-if="summary.suggestedCoverage" class="counts suggested">
+                {{ t('eunomia.suggestions.summary', { count: summary.suggestedCoverage }, summary.suggestedCoverage) }}
+              </p>
               <p class="counts">
                 {{ t('eunomia.summary.counts', {
                   implemented: summary.global.counts.implemented, countable: summary.global.countable,
@@ -241,6 +244,7 @@ onMounted(load)
 .summary-global { display: flex; gap: 1rem; align-items: center; }
 .big { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-size: var(--fs-2xl); color: var(--text); min-width: 4.5rem; }
 .summary-main { flex: 1; display: flex; flex-direction: column; gap: 0.4rem; }
+.suggested { color: var(--accent); }
 .counts { color: var(--text-muted); font-size: var(--fs-body); }
 .branches { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr)); gap: 0.6rem 1.2rem; }
 .branches li { display: grid; grid-template-columns: 1fr auto; gap: 0.2rem 0.6rem; align-items: center; font-size: var(--fs-body); color: var(--text-dim); }
