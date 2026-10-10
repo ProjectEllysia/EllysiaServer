@@ -223,3 +223,34 @@ class EunomiaEvidenceLink(Base):
     control_identifier = Column(String(128), nullable=False)
     linked_at          = Column(DateTime,    nullable=False, default=utcnow_naive)
     linked_by_user_id  = Column(Integer,     ForeignKey("User.id"), nullable=True)
+
+
+class EunomiaTemplateDraft(Base):
+    """Los valores que el dueño efectivo tiene escritos para una plantilla de documento.
+
+    Una fila por ``(dueño, plantilla)``: el dueño y los miembros de su organización rellenan el
+    mismo borrador. Solo guarda lo que alguien escribió; lo que Ellysia ya sabe (el perfil de
+    empresa, las evaluaciones) se precarga al leer, así que un cambio allí llega solo.
+
+    Attributes:
+        id: Clave primaria.
+        owner_user_id: Dueño efectivo de los datos.
+        template_key: Identificador de la plantilla (``"incident-procedure"``).
+        template_version: Versión de la plantilla con la que se rellenó.
+        values: ``{campo: texto}`` de lo escrito por el usuario.
+        updated_at: Última escritura.
+        updated_by_user_id: Quién escribió por última vez; ``None`` si esa cuenta se borró.
+    """
+
+    __tablename__ = "EunomiaTemplateDraft"
+    __table_args__ = (
+        UniqueConstraint("owner_user_id", "template_key", name="uq_eunomia_template_draft_owner_template"),
+    )
+
+    id                 = Column(Integer,     primary_key=True, autoincrement=True)
+    owner_user_id      = Column(Integer,     ForeignKey("User.id"), nullable=False, index=True)
+    template_key       = Column(String(64),  nullable=False)
+    template_version   = Column(String(16),  nullable=False)
+    values             = Column(JSON,        nullable=False, default=dict)
+    updated_at         = Column(DateTime,    nullable=False, default=utcnow_naive)
+    updated_by_user_id = Column(Integer,     ForeignKey("User.id"), nullable=True)

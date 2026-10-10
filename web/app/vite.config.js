@@ -92,11 +92,12 @@ const FRONTEND_SUBROUTES = new Set([
   '/hygeia/estadisticas',
   '/hygeia/documentos',
   '/eunomia/marcos',
+  '/eunomia/plantillas',
 ])
 
 // Rutas del frontend con un segmento variable (`/eunomia/marcos/<marco>`): se reconocen por su
 // prefijo.
-const FRONTEND_SUBROUTE_PREFIXES = ['/eunomia/marcos/']
+const FRONTEND_SUBROUTE_PREFIXES = ['/eunomia/marcos/', '/eunomia/plantillas/']
 
 function proxyBypass(req) {
   const url = req.url.split('?')[0]

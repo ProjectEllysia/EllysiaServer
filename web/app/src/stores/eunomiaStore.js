@@ -102,6 +102,50 @@ export const useEunomiaStore = defineStore('eunomia', () => {
   }
 
   /**
+   * Carga las plantillas de documentos disponibles.
+   *
+   * @returns {Promise<{ok: boolean, templates: Array, message: string|null}>}
+   */
+  async function loadTemplates() {
+    try {
+      const res = await apiFetch('/eunomia/templates')
+      if (!res?.ok) return { ok: false, templates: [], message: await apiError(res, i18n.global.t('eunomia.templates.loadFailed')) }
+      return { ok: true, templates: (await res.json()).templates ?? [], message: null }
+    } catch { return { ok: false, templates: [], message: i18n.global.t('eunomia.frameworks.offline') } }
+  }
+
+  /**
+   * Carga el formulario de una plantilla con lo guardado y lo precargado.
+   *
+   * @param {string} key - Clave de la plantilla.
+   * @returns {Promise<{ok: boolean, data: object|null, message: string|null}>}
+   */
+  async function loadTemplateDraft(key) {
+    try {
+      const res = await apiFetch(`/eunomia/templates/${encodeURIComponent(key)}/draft`)
+      if (!res?.ok) return { ok: false, data: null, message: await apiError(res, i18n.global.t('eunomia.templates.loadFailed')) }
+      return { ok: true, data: await res.json(), message: null }
+    } catch { return { ok: false, data: null, message: i18n.global.t('eunomia.frameworks.offline') } }
+  }
+
+  /**
+   * Guarda lo escrito en el formulario de una plantilla.
+   *
+   * @param {string} key - Clave de la plantilla.
+   * @param {Record<string, string>} values - Valores a guardar (ver `valuesToSave`).
+   * @returns {Promise<{ok: boolean, data: object|null, message: string|null}>}
+   */
+  async function saveTemplateDraft(key, values) {
+    try {
+      const res = await apiFetch(`/eunomia/templates/${encodeURIComponent(key)}/draft`, {
+        method: 'PUT', body: JSON.stringify({ values }),
+      })
+      if (!res?.ok) return { ok: false, data: null, message: await apiError(res, i18n.global.t('eunomia.templates.saveFailed')) }
+      return { ok: true, data: await res.json(), message: null }
+    } catch { return { ok: false, data: null, message: i18n.global.t('eunomia.frameworks.offline') } }
+  }
+
+  /**
    * Carga el árbol personal de un marco adoptado: catálogo más las evaluaciones del dueño.
    *
    * @param {string} key - Clave del marco.
@@ -269,6 +313,6 @@ export const useEunomiaStore = defineStore('eunomia', () => {
     return splitFrameworks(state.catalog, state.adoptions)
   }
 
-  return { state, load, adopt, archive, restore, previewRemoval, previewUpgrade, upgrade, loadTree, loadSummary, loadHistory, saveAssessment,
+  return { state, load, adopt, archive, restore, previewRemoval, previewUpgrade, upgrade, loadTemplates, loadTemplateDraft, saveTemplateDraft, loadTree, loadSummary, loadHistory, saveAssessment,
     loadEvidence, uploadEvidence, setEvidenceLink, deleteEvidence, downloadEvidence, grouped }
 })

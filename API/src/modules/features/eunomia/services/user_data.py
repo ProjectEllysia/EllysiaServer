@@ -12,6 +12,7 @@ from ..repositories import (
     EunomiaEvidenceRepository,
     EunomiaControlAssessmentRepository,
     EunomiaFrameworkAdoptionRepository,
+    EunomiaTemplateDraftRepository,
 )
 
 
@@ -36,10 +37,13 @@ def purge_eunomia_data(uow: UnitOfWork, user_id: int) -> dict[str, int]:
     assessments = EunomiaControlAssessmentRepository(uow)
     # Responsable y último editor son rastro de otra persona: se anulan, no se borra la fila.
     assessments.clear_user_references(user_id)
+    drafts = EunomiaTemplateDraftRepository(uow)
+    drafts.clear_user_references(user_id)
     return {
         **purge_owner_evidence(uow, user_id),
         "EunomiaAssessmentEvent": events.delete_for_owner(user_id),
         "EunomiaControlAssessment": assessments.delete_for_owner(user_id),
+        "EunomiaTemplateDraft": drafts.delete_for_owner(user_id),
         "EunomiaFrameworkAdoption": EunomiaFrameworkAdoptionRepository(uow).delete_for_owner(user_id),
     }
 
