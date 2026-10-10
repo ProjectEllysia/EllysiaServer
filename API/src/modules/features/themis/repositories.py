@@ -407,6 +407,39 @@ class ScanRepository(BaseRepository[Scan]):
     def get_by_target(self, target: str) -> List[Scan]:
         return self.get_all_by_field("target", target)
 
+    def get_vulnerability_summary(self, user_id: int, critical_cvss: float = 9.0) -> dict:
+        """El estado de la gestión de vulnerabilidades de un usuario, sin detalle de hallazgos.
+
+        Un hallazgo cuenta como abierto si está en ``open`` o ``regressed``; ``fixed``,
+        ``accepted`` y ``false_positive`` no cuentan. Es crítico si su check lo declara
+        ``critical`` o su CVSS llega a ``critical_cvss``.
+
+        Args:
+            user_id: Usuario cuyos escaneos se miran (solo los suyos).
+            critical_cvss: CVSS a partir del cual un hallazgo sin severidad declarada es crítico.
+                Por defecto ``9.0``.
+
+        Returns:
+            dict: ``lastFinishedAt`` (``None`` si no ha terminado ningún escaneo),
+                ``openFindings`` y ``openCritical``.
+        """
+        from sqlalchemy import func, or_
+
+        last_finished_at = (
+            self._session.query(func.max(Scan.finished_at))
+            .filter(Scan.user_id == user_id, Scan.status == ScanStatus.FINISHED.value)
+            .scalar()
+        )
+        open_query = (
+            self._session.query(Finding)
+            .join(Scan, Finding.scan_id == Scan.id)
+            .filter(Scan.user_id == user_id, Finding.state.in_(("open", "regressed")))
+        )
+        critical = open_query.filter(
+            or_(Finding.severity == "critical", Finding.cvss_score >= critical_cvss)
+        ).count()
+        return {"lastFinishedAt": last_finished_at, "openFindings": open_query.count(), "openCritical": critical}
+
     def get_by_status(self, status: ScanStatus) -> List[Scan]:
         return (
             self._session.query(Scan)
@@ -1698,6 +1731,18 @@ class ProgramedScanRepository(BaseRepository[ProgramedScan]):
     """
 
     _MODEL = ProgramedScan
+
+    def count_active(self, user_id: int) -> int:
+        """Cuántos escaneos programados activos tiene un usuario.
+
+        Args:
+            user_id: Dueño de los escaneos programados.
+        """
+        return (
+            self._session.query(ProgramedScan)
+            .filter(ProgramedScan.user_id == user_id, ProgramedScan.is_active.is_(True))
+            .count()
+        )
 
     # =========================================================================
     # QUERY METHODS
