@@ -1,0 +1,47 @@
+{
+  "key": "rgpd-solicitudes-derechos",
+  "version": "1",
+  "title": "Registro de solicitudes de derechos",
+  "summary": "Cada solicitud de acceso, rectificación, supresión u otro derecho del RGPD, con su plazo de respuesta: un mes desde la recepción, o tres si se justifica y se avisa de la prórroga.",
+  "titleField": "name",
+  "controls": {
+    "rgpd": ["art.12", "art.15", "art.16", "art.17", "art.18", "art.19", "art.20", "art.21", "art.22"]
+  },
+  "fields": [
+    {"key": "name", "label": "Solicitud", "type": "text", "required": true, "help": "Un nombre que permita reconocerla, por ejemplo «Acceso — cliente 0412»."},
+    {"key": "right", "label": "Derecho ejercido", "type": "select", "required": true, "options": [
+      {"value": "access", "label": "Acceso (art. 15)"},
+      {"value": "rectification", "label": "Rectificación (art. 16)"},
+      {"value": "erasure", "label": "Supresión (art. 17)"},
+      {"value": "restriction", "label": "Limitación del tratamiento (art. 18)"},
+      {"value": "portability", "label": "Portabilidad (art. 20)"},
+      {"value": "objection", "label": "Oposición (art. 21)"},
+      {"value": "automated_decisions", "label": "No ser objeto de decisiones automatizadas (art. 22)"}
+    ]},
+    {"key": "received_at", "label": "Recibida el", "type": "date", "required": true, "help": "El plazo corre desde que la solicitud llega a la empresa."},
+    {"key": "identity_verified", "label": "Identidad verificada", "type": "select", "options": [
+      {"value": "no", "label": "No"},
+      {"value": "yes", "label": "Sí"}
+    ], "help": "Si hay dudas razonables sobre quién pide, se puede solicitar información adicional (art. 12.6)."},
+    {"key": "description", "label": "Qué pide", "type": "longtext"},
+    {"key": "extension", "label": "Prórroga", "type": "select", "options": [
+      {"value": "no", "label": "Sin prórroga"},
+      {"value": "yes", "label": "Prorrogada dos meses más"}
+    ], "help": "Cabe cuando la complejidad o el número de solicitudes lo justifican (art. 12.3), y hay que avisar a la persona dentro del primer mes."},
+    {"key": "extension_reason", "label": "Motivo de la prórroga", "type": "longtext"},
+    {"key": "extension_notified_at", "label": "Prórroga comunicada al interesado el", "type": "date"},
+    {"key": "response", "label": "Respuesta", "type": "longtext"},
+    {"key": "responded_at", "label": "Respondida el", "type": "date"},
+    {"key": "responsible", "label": "Responsable de la gestión", "type": "person"}
+  ],
+  "deadlines": [
+    {"key": "response", "label": "Respuesta (un mes)", "framework": "rgpd", "from": "received_at", "months": 1,
+     "whenField": "extension", "whenEquals": ["", "no"], "doneField": "responded_at"},
+    {"key": "response_extended", "label": "Respuesta con prórroga (tres meses)", "framework": "rgpd", "from": "received_at", "months": 3,
+     "whenField": "extension", "whenEquals": "yes", "doneField": "responded_at"}
+  ],
+  "examples": [
+    {"name": "Acceso — cliente de ejemplo", "right": "access", "received_at": "2026-01-15", "identity_verified": "yes",
+     "description": "Pide una copia de los datos que la empresa conserva sobre su cuenta."}
+  ]
+}
