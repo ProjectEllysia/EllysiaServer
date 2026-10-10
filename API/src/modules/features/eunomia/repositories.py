@@ -1,6 +1,6 @@
 """Acceso a datos del módulo Eunomia."""
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import List, Optional
 
 from sqlalchemy import and_, func, update
@@ -324,6 +324,26 @@ class EunomiaEvidenceRepository(BaseRepository[EunomiaEvidence]):
             EunomiaEvidenceContent.evidence_id == evidence_id).delete(synchronize_session=False)
         self._session.query(EunomiaEvidence).filter(
             EunomiaEvidence.id == evidence_id).delete(synchronize_session=False)
+
+    def list_expiring(self, on_or_before: date) -> List[EunomiaEvidence]:
+        """Las evidencias cuya validez vence en o antes de una fecha y de las que aún no se avisó.
+
+        Args:
+            on_or_before: Fecha límite (incluida): hoy más la antelación del aviso.
+
+        Returns:
+            List[EunomiaEvidence]: Las que tienen ``valid_until`` y no se han avisado para esa
+                misma fecha, de la que vence antes a la que vence después.
+        """
+        return (
+            self._session.query(EunomiaEvidence)
+            .filter(EunomiaEvidence.valid_until.isnot(None),
+                    EunomiaEvidence.valid_until <= on_or_before,
+                    (EunomiaEvidence.expiry_notified_for.is_(None))
+                    | (EunomiaEvidence.expiry_notified_for != EunomiaEvidence.valid_until))
+            .order_by(EunomiaEvidence.valid_until.asc(), EunomiaEvidence.id.asc())
+            .all()
+        )
 
     def iter_files_for_owner(self, owner_user_id: int):
         """Va dando cada evidencia de un dueño con sus bytes ya descifrados, de una en una.

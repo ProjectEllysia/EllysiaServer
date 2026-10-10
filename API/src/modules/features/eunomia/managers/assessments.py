@@ -134,6 +134,17 @@ def _people(user_id: int, owner_user_id: int) -> list[dict]:
     return people
 
 
+def _evidence_state(linked: list) -> str:
+    """El estado de las evidencias de un control: ninguna, vigentes o todas vencidas.
+
+    Un control cuya única evidencia (o todas) venció se marca aparte del que no tiene ninguna:
+    la diferencia entre «nunca la hubo» y «hubo y ya no vale».
+    """
+    if not linked:
+        return "none"
+    return "expired" if all(item["isExpired"] for item in linked) else "valid"
+
+
 def _states(records: list) -> dict[str, ControlState]:
     """Pasa las filas de evaluación al estado que necesita el cálculo."""
     return {
@@ -162,6 +173,7 @@ def _tree_node(version: FrameworkVersion, node: CatalogNode, rows: dict, names: 
         ),
         "progress": progress[node.code],
         "linkedEvidence": evidence.get(node.identifier, []),
+        "evidenceState": _evidence_state(evidence.get(node.identifier, [])),
         "children": [_tree_node(version, child, rows, names, progress, evidence)
                      for child in version.children(node.code)],
     }
@@ -285,12 +297,14 @@ class EunomiaAssessmentManager:
             row.id: row for row in build_repository(EunomiaEvidenceRepository).list_for_owner(owner_user_id)
         }
         evidence: dict[str, list] = {}
+        today = date.today()
         for link in links:
             row = evidence_rows.get(link.evidence_id)
             if row is not None:
                 evidence.setdefault(link.control_identifier, []).append({
                     "id": row.id, "title": row.title, "filename": row.filename,
                     "sizeBytes": row.size_bytes, "validUntil": row.valid_until,
+                    "isExpired": row.valid_until is not None and row.valid_until < today,
                 })
         progress = branch_progress(version, _states(records))
         return {

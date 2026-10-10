@@ -175,6 +175,7 @@ class AdoptedNodeSchema(Schema):
     evidence = fields.List(fields.String())
     source = fields.String()
     linkedEvidence = fields.List(fields.Dict())
+    evidenceState = fields.String()
     assessment = fields.Nested(AssessmentSchema, allow_none=True)
     progress = fields.Nested(ProgressSchema)
     children = fields.List(fields.Nested(lambda: AdoptedNodeSchema()))

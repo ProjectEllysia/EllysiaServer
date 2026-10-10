@@ -1997,7 +1997,11 @@
       "uploadFailed": "The evidence could not be uploaded.",
       "linkFailed": "The evidence could not be linked.",
       "deleteFailed": "The evidence could not be deleted.",
-      "downloadFailed": "The file could not be downloaded."
+      "downloadFailed": "The file could not be downloaded.",
+      "usage": "Evidence: {used} of {limit} used.",
+      "usageUnlimited": "Evidence: {used} used.",
+      "expired": "expired",
+      "expiredFlag": "evidence expired"
     }
   },
   "organizationManaged": {
@@ -5318,7 +5322,8 @@
       "aegis": "Aegis (campaigns)",
       "iris": "Iris (alerts)",
       "hygeia": "Hygeia (alerts)",
-      "accounts": "Accounts (verification, invitations)"
+      "accounts": "Accounts (verification, invitations)",
+      "eunomia": "Eunomia (expiry notices)"
     },
     "ollamaLocal": "Ollama (local)",
     "reset": "Reset",

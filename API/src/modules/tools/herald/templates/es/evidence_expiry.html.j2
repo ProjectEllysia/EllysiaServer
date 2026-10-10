@@ -1,0 +1,33 @@
+{# Aviso de que una evidencia de cumplimiento caduca o ha caducado. No lleva el contenido de la
+   evidencia, solo su título. Contexto: recipient_name (opcional), evidence_title, valid_until,
+   is_expired, controls (lista de textos), eunomia_url. #}
+{% extends "base.html.j2" %}
+{% from "_macros.html.j2" import button %}
+
+{% block title %}{% if is_expired %}Una evidencia ha caducado{% else %}Una evidencia caduca pronto{% endif %}{% endblock %}
+
+{% block preheader %}«{{ evidence_title }}» {% if is_expired %}caducó{% else %}caduca{% endif %} el {{ valid_until }}.{% endblock %}
+
+{% block header_tagline %}
+<div style="margin-top:8px; font-family:Helvetica,Arial,sans-serif; font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:#8a857c;">
+  Cumplimiento normativo
+</div>
+{% endblock %}
+
+{% block content %}
+<p style="margin:0 0 16px;">{% if recipient_name %}Hola {{ recipient_name }},{% else %}Hola,{% endif %}</p>
+<p style="margin:0 0 20px;">
+  La evidencia <strong>«{{ evidence_title }}»</strong>
+  {% if is_expired %}caducó el{% else %}caduca el{% endif %} <strong>{{ valid_until }}</strong>.
+</p>
+{% if controls %}
+<p style="margin:0 0 8px;">Demuestra estos controles:</p>
+<ul style="margin:0 0 20px; padding-left:20px;">
+  {% for control in controls %}<li>{{ control }}</li>{% endfor %}
+</ul>
+{% endif %}
+<p style="margin:0 0 20px;">
+  Revísala y, si sigue vigente, actualiza su fecha de validez; si no, sube la nueva.
+</p>
+{{ button(eunomia_url, "Abrir Eunomia", brand.accentColor) }}
+{% endblock %}

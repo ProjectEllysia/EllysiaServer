@@ -1997,7 +1997,11 @@
       "uploadFailed": "No se pudo subir la evidencia.",
       "linkFailed": "No se pudo enlazar la evidencia.",
       "deleteFailed": "No se pudo borrar la evidencia.",
-      "downloadFailed": "No se pudo descargar el fichero."
+      "downloadFailed": "No se pudo descargar el fichero.",
+      "usage": "Evidencias: {used} de {limit} usados.",
+      "usageUnlimited": "Evidencias: {used} usados.",
+      "expired": "vencida",
+      "expiredFlag": "evidencia vencida"
     }
   },
   "organizationManaged": {
@@ -5318,7 +5322,8 @@
       "aegis": "Aegis (campañas)",
       "iris": "Iris (avisos)",
       "hygeia": "Hygeia (avisos)",
-      "accounts": "Cuentas (verificación, invitaciones)"
+      "accounts": "Cuentas (verificación, invitaciones)",
+      "eunomia": "Eunomia (avisos de caducidad)"
     },
     "ollamaLocal": "Ollama (local)",
     "reset": "Restablecer",

@@ -38,6 +38,10 @@
         {{ percent(row.node.progress.percent) }}
       </span>
 
+      <span v-if="row.node.evidenceState === 'expired'" class="evidence-flag">
+        {{ t('eunomia.evidence.expiredFlag') }}
+      </span>
+
       <span v-if="statusOf(row.node)" class="status" :class="`status--${statusOf(row.node)}`">
         <span class="dot" aria-hidden="true"></span>
         <span class="status-text">{{ t(`eunomia.status.${statusOf(row.node)}`) }}</span>
@@ -133,6 +137,7 @@ function onKeydown(event) {
 .caret--spacer { display: inline-block; }
 .id { font-family: var(--font-mono); font-size-adjust: var(--fsa-mono); font-size: var(--fs-body); color: var(--text-muted); flex: none; }
 .title { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.evidence-flag { flex: none; font-size: var(--fs-sm); color: var(--danger); }
 .group-progress { flex: none; font-size: var(--fs-sm); color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .status { display: inline-flex; align-items: center; gap: 0.35rem; flex: none; font-size: var(--fs-sm); }
 .dot { width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--text-muted); }
