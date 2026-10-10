@@ -273,7 +273,7 @@ def test_the_report_body_keeps_fixed_findings_out_of_the_cards_and_the_counts(mo
     from types import SimpleNamespace
     from src.modules.infrastructure import session as session_module
     from src.modules.features.themis.managers import (
-        ComplianceManager, LybraEngineManager, NetworkRiskManager,
+        LybraEngineManager, NetworkRiskManager,
     )
     from src.modules.features.themis.services.reports import findings as report_module
 
@@ -289,7 +289,7 @@ def test_the_report_body_keeps_fixed_findings_out_of_the_cards_and_the_counts(mo
     monkeypatch.setattr(session_module, "build_repository",
                         lambda _cls: SimpleNamespace(get_findings_by_scan=lambda _scan_id: rows))
     monkeypatch.setattr(LybraEngineManager, "exposure_for", staticmethod(lambda _scan: "public"))
-    monkeypatch.setattr(ComplianceManager, "resolve_effective_frameworks", lambda _self, _user_id: [])
+    monkeypatch.setattr(report_module, "active_framework_keys", lambda _user_id: [])
     # Un escaneo de un solo equipo: el informe no añade riesgo lateral.
     monkeypatch.setattr(NetworkRiskManager, "assess_scan",
                         lambda _self, _user_id, _scan_id: {"hostCount": 1, "risks": []})

@@ -13,7 +13,6 @@ from src.modules.shared import ExportTable, owned_by, owned_through
 from .model import (
     AssetGroup,
     AuthorizedTarget,
-    ComplianceFrameworkSelection,
     Finding,
     OsintScan,
     ProgramedScan,
@@ -33,10 +32,6 @@ EXPORT_TABLES: tuple[ExportTable, ...] = (
     ExportTable("authorized_targets", AuthorizedTarget, owned_by(AuthorizedTarget.user_id)),
     ExportTable("traceroutes", Traceroute, owned_by(Traceroute.user_id)),
     ExportTable("asset_groups", AssetGroup, owned_by(AssetGroup.user_id)),
-    ExportTable(
-        "compliance_frameworks", ComplianceFrameworkSelection,
-        owned_by(ComplianceFrameworkSelection.user_id),
-    ),
     # Los informes: sus metadatos, no el PDF, y sin la ruta interna del fichero.
     ExportTable("documents", ThemisDocument, owned_by(ThemisDocument.user_id), frozenset({"filename"})),
 )
