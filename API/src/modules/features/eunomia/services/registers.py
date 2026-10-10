@@ -111,6 +111,8 @@ class RegisterType:
         fields: Campos, en el orden del formulario.
         deadlines: Plazos calculados; puede estar vacío.
         examples: Fichas de ejemplo que se ofrecen al empezar.
+        advice: Avisos que dependen del perfil de empresa: ``{"companyField", "lessThan",
+            "message"}``; el aviso sale si ese campo numérico del perfil es menor que el umbral.
     """
 
     key: str
@@ -122,6 +124,7 @@ class RegisterType:
     fields: tuple[RegisterField, ...]
     deadlines: tuple[RegisterDeadline, ...]
     examples: tuple[Mapping[str, str], ...]
+    advice: tuple[Mapping[str, object], ...] = ()
 
     def field(self, key: str) -> Optional[RegisterField]:
         """El campo con esa clave, o ``None``."""
@@ -192,7 +195,7 @@ def parse_register(document: dict, root: Path = CATALOG_ROOT) -> RegisterType:
     register = RegisterType(
         key=document["key"], version=str(document["version"]), title=document["title"], summary=document["summary"],
         title_field=document["titleField"], controls=controls, fields=tuple(fields), deadlines=tuple(deadlines),
-        examples=tuple(document.get("examples", [])),
+        examples=tuple(document.get("examples", [])), advice=tuple(document.get("advice", [])),
     )
     for position, example in enumerate(register.examples):
         problems = validate_values(register, example)

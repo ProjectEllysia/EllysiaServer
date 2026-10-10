@@ -51,6 +51,16 @@ def _names(rows: list[EunomiaRecord]) -> dict:
     return {user_id: display_name(user_id) for user_id in ids}
 
 
+def _advice(register: RegisterType, company: dict) -> list[str]:
+    """Los avisos de la definición que aplican al perfil de empresa."""
+    messages = []
+    for item in register.advice:
+        value = company.get(item["companyField"])
+        if isinstance(value, int) and value < item["lessThan"]:
+            messages.append(item["message"])
+    return messages
+
+
 def _checked(register: RegisterType, values: dict) -> dict[str, str]:
     """Los valores con texto de una ficha ya validada, o ``RecordInvalidError``."""
     problems = validate_values(register, values)
@@ -120,6 +130,7 @@ class EunomiaRegisterManager:
                 "hasExamples": bool(register.examples),
             },
             "records": [_payload(register, row, names, now) for row in rows],
+            "advice": _advice(register, CompanyProfileManager().get_for(user_id)),
         }
 
     def create_record(self, user_id: int, register_key: str, values: dict) -> dict:
@@ -290,7 +301,11 @@ class EunomiaRegisterManager:
         stamp = utcnow_naive().strftime("%Y%m%d")
         if file_format == "csv":
             return build_csv(register, data["records"]), f"{register_key}-{stamp}.csv", "text/csv"
-        company = CompanyProfileManager().get_for(user_id).get("legalName") or ""
-        pdf = RegisterPDF(register=register, records=data["records"], company_name=company,
+        profile = CompanyProfileManager().get_for(user_id)
+        address = ", ".join(part for part in (profile.get("addressLine"), profile.get("postalCode"),
+                                              profile.get("city")) if part)
+        pdf = RegisterPDF(register=register, records=data["records"], company_name=profile.get("legalName") or "",
+                          company_details=[("NIF:", profile.get("taxId") or ""), ("Domicilio:", address),
+                                           ("Contacto:", profile.get("securityContact") or "")],
                           author=display_name(user_id) or "Ellysia Security Team").generate()
         return pdf, f"{register_key}-{stamp}.pdf", "application/pdf"

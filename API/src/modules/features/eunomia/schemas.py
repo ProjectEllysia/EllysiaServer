@@ -419,6 +419,7 @@ class RegisterDetailSchema(Schema):
 
     register = fields.Dict()
     records = fields.List(fields.Dict())
+    advice = fields.List(fields.String())
 
 
 class RecordWriteSchema(Schema):
