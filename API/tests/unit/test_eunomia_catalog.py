@@ -98,7 +98,7 @@ def test_a_malformed_version_is_rejected_naming_the_problem(mutate, message):
 def test_a_published_version_needs_every_assessable_node_to_be_complete():
     document = _document(status="published")
 
-    with pytest.raises(CatalogFormatError, match="necesita descripción"):
+    with pytest.raises(CatalogFormatError, match="necesita su texto oficial"):
         parse_version(document)   # el nodo «2» no tiene descripción ni evidencias
 
 
