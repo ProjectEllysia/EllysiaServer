@@ -26,7 +26,7 @@ Todo se extrajo el **2026-10-10** del HTML de EUR-Lex en castellano.
 |---|---|---|
 | Directiva (UE) 2022/2555 (NIS2), DO L 333 de 27.12.2022 | CELEX 32022L2555 | Sí. Es legislación de la UE: su reutilización está permitida citando la fuente (Decisión 2011/833/UE). |
 | Reglamento de Ejecución (UE) 2024/2690 de la Comisión, de 17.10.2024 | CELEX 32024R2690 | Sí, en las mismas condiciones. |
-| ENISA, *NIS2 Technical Implementation Guidance*, 26 de junio de 2025 | [Página de ENISA](https://www.enisa.europa.eu/publications/NIS2-technical-implementation-guidance) | **Pendiente de confirmar la licencia.** Hasta entonces se usa como referencia y se escribe con redacción propia (EUN13). |
+| ENISA, *NIS2 Technical Implementation Guidance*, 26 de junio de 2025 | [Página de ENISA](https://www.enisa.europa.eu/publications/NIS2-technical-implementation-guidance) | **Sin licencia concreta (comprobado el 2026-10-10).** El aviso legal de ENISA autoriza reproducir «siempre que se cite la fuente, salvo que se indique otra cosa» y no nombra ninguna licencia abierta; cada publicación puede traer restricciones propias. Se usa como referencia y se escribe con redacción propia (`licenseMode: own_wording`). |
 
 Sobre la guía de ENISA:
 
@@ -172,5 +172,5 @@ publicado debe **conservar esos identificadores** (EUN10, EUN12). El borrador lo
    evaluación, aunque algunos puntos son meramente definitorios.
 3. **EUN11.** Redactar la descripción, las actuaciones y las evidencias de cada requisito, a partir
    de la guía de ENISA.
-4. **EUN13.** Confirmar la licencia de la guía de ENISA.
+4. **EUN13 (hecho).** Licencia de la guía de ENISA comprobada: ver la tabla de fuentes. Antes de copiar una frase literal hay que leer el aviso del propio documento.
 5. **EUN41.** Convertir los anexos I y II y el art. 3 en reglas de aplicabilidad.

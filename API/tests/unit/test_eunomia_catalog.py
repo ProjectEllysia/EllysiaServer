@@ -23,7 +23,7 @@ pytestmark = pytest.mark.unit
 def _document(**overrides) -> dict:
     document = {
         "key": "demo", "version": "1", "status": "draft", "name": "Marco de prueba",
-        "shortName": "Demo", "publishedAt": "2026-01-01",
+        "shortName": "Demo", "publishedAt": "2026-01-01", "licenseMode": "full_text",
         "sources": [{"name": "Norma", "url": "https://example.test", "license": "libre", "consultedAt": "2026-10-10"}],
         "nodes": [
             {"identifier": "1", "parent": None, "order": 1, "kind": "group", "title": "Uno"},
@@ -104,6 +104,52 @@ def test_a_published_version_needs_every_assessable_node_to_be_complete():
 
 def test_a_draft_may_leave_assessable_nodes_unfinished():
     assert parse_version(_document(status="draft")).node("demo:2").description == ""
+
+
+# ── fuentes y licencias ────────────────────────────────────────────────────
+
+def test_every_version_declares_a_known_license_mode():
+    document = _document()
+    del document["licenseMode"]
+    with pytest.raises(CatalogFormatError, match="licenseMode"):
+        parse_version(document)
+
+    with pytest.raises(CatalogFormatError, match="licenseMode"):
+        parse_version(_document(licenseMode="todo_vale"))
+
+
+def test_a_source_needs_an_iso_consultation_date():
+    document = _document()
+    document["sources"][0]["consultedAt"] = "ayer"
+
+    with pytest.raises(CatalogFormatError, match="consultedAt"):
+        parse_version(document)
+
+
+def test_a_codes_only_version_cannot_carry_the_text_of_the_standard():
+    document = _document(licenseMode="codes_only")
+    document["nodes"][1]["description"] = "Texto copiado de la norma. " * 30
+
+    with pytest.raises(CatalogFormatError, match="codes_only"):
+        parse_version(document)
+
+
+def test_a_codes_only_version_keeps_titles_short():
+    document = _document(licenseMode="codes_only")
+    document["nodes"][0]["title"] = "T" * 150
+
+    with pytest.raises(CatalogFormatError, match="título"):
+        parse_version(document)
+
+
+def test_a_codes_only_version_with_short_own_wording_is_accepted():
+    assert parse_version(_document(licenseMode="codes_only")).license_mode == "codes_only"
+
+
+def test_every_real_version_declares_sources_and_a_license_mode():
+    for framework, item in _real_versions():
+        version = load_version(framework["key"], item["version"])
+        assert version.sources and version.license_mode
 
 
 # ── el catálogo que viaja con el código ────────────────────────────────────

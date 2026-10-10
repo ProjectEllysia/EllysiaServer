@@ -58,7 +58,7 @@ class CatalogManager:
 
         Returns:
             dict: Metadatos de la versión (``key``, ``version``, ``status``, ``name``,
-                ``shortName``, ``publishedAt``, ``notes``, ``sources``) y ``tree``: las raíces
+                ``shortName``, ``publishedAt``, ``licenseMode``, ``notes``, ``sources``) y ``tree``: las raíces
                 con sus hijos anidados.
 
         Raises:
@@ -74,6 +74,7 @@ class CatalogManager:
             "name": loaded.name,
             "shortName": loaded.short_name,
             "publishedAt": loaded.published_at,
+            "licenseMode": loaded.license_mode,
             "notes": loaded.notes,
             "sources": [
                 {"name": source.name, "url": source.url, "license": source.license,
