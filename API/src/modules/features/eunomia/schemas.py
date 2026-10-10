@@ -389,3 +389,73 @@ class AutomaticEvidenceListSchema(Schema):
     """Evidencias que otros módulos aportan solas a un control."""
 
     evidence = fields.List(fields.Dict())
+
+
+class RegisterSummarySchema(Schema):
+    """Un tipo de registro con cuántas fichas hay."""
+
+    key = fields.String()
+    version = fields.String()
+    title = fields.String()
+    summary = fields.String()
+    controls = fields.Dict()
+    recordCount = fields.Integer()
+
+
+class RegisterListSchema(Schema):
+    """Respuesta de ``GET /eunomia/registers``."""
+
+    registers = fields.List(fields.Nested(RegisterSummarySchema))
+
+
+class RegisterQuerySchema(Schema):
+    """Filtros de ``GET /eunomia/registers/<tipo>``."""
+
+    includeArchived = fields.Boolean(load_default=False)
+
+
+class RegisterDetailSchema(Schema):
+    """La definición de un registro y sus fichas."""
+
+    register = fields.Dict()
+    records = fields.List(fields.Dict())
+
+
+class RecordWriteSchema(Schema):
+    """Cuerpo de crear o editar una ficha."""
+
+    values = fields.Dict(keys=fields.String(), values=fields.String(), required=True)
+    updatedAt = UTCDateTime(allow_none=True, load_default=None)
+
+
+class RecordSchema(Schema):
+    """Una ficha."""
+
+    id = fields.Integer()
+    registerKey = fields.String()
+    values = fields.Dict()
+    title = fields.String()
+    isArchived = fields.Boolean()
+    createdAt = UTCDateTime()
+    createdByName = fields.String(allow_none=True)
+    updatedAt = UTCDateTime()
+    updatedByName = fields.String(allow_none=True)
+    deadlines = fields.List(fields.Dict())
+
+
+class RecordListSchema(Schema):
+    """Varias fichas."""
+
+    records = fields.List(fields.Nested(RecordSchema))
+
+
+class RecordHistorySchema(Schema):
+    """Historial de una ficha."""
+
+    events = fields.List(fields.Dict())
+
+
+class RegisterExportQuerySchema(Schema):
+    """Formato de ``GET /eunomia/registers/<tipo>/export``."""
+
+    format = fields.String(load_default="csv", validate=validate.OneOf(["csv", "pdf"]))

@@ -593,6 +593,10 @@ UNLISTED_TABLES: dict[str, str] = {
         ["EunomiaControlAssessment", "EunomiaAssessmentEvent"],
         "las evaluaciones de tus marcos de cumplimiento y su historial, que se cuentan con el marco",
     ),
+    **dict.fromkeys(
+        ["EunomiaRecord", "EunomiaRecordEvent"],
+        "las fichas de tus registros de cumplimiento (tratamientos, incidentes…) y su historial",
+    ),
     "EunomiaTemplateDraft": "los borradores de los documentos de cumplimiento que has ido rellenando",
     **dict.fromkeys(
         ["EunomiaEvidenceLink"],

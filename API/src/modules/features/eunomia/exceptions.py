@@ -365,3 +365,51 @@ class TemplateIncompleteError(EunomiaError):
             params={"fields": joined},
             details={"fields": labels},
         )
+
+
+class RegisterNotFoundError(EntityNotFoundError, EunomiaError):
+    """No hay ningún tipo de registro con esa clave."""
+
+    entity_label = "Registro"
+    id_field = "register"
+
+
+class RecordNotFoundError(EntityNotFoundError, EunomiaError):
+    """La ficha no existe, o no es del dueño efectivo del usuario (el mismo error en los dos casos)."""
+
+    entity_label = "Ficha"
+    entity_is_feminine = True
+    id_field = "record"
+
+
+class RecordInvalidError(EunomiaError):
+    """La ficha no cumple la definición del registro."""
+
+    default_code = ErrorCode.VALIDATION_ERROR
+    default_status_code = 400
+
+    def __init__(self, fields: list[str], labels: list[str]) -> None:
+        joined = ", ".join(labels)
+        super().__init__(
+            message=f"La ficha no cumple la definición del registro: {', '.join(fields)}",
+            user_message=f"Revisa estos campos: {joined}.",
+            message_key="recordInvalid",
+            params={"fields": joined},
+            details={"fields": fields},
+        )
+
+
+class RecordConflictError(EunomiaError):
+    """Alguien cambió la ficha entre que se leyó y se guardó; lleva su valor actual."""
+
+    default_code = ErrorCode.CONSTRAINT_VIOLATION
+    default_status_code = 409
+    expose_details = True
+
+    def __init__(self, current: dict | None) -> None:
+        super().__init__(
+            message="La ficha cambio mientras se editaba",
+            user_message="Otra persona ha cambiado esta ficha mientras la editabas. Revisa su valor actual.",
+            message_key="recordConflict",
+            details={"current": current},
+        )
