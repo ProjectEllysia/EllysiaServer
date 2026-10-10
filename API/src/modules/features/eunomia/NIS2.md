@@ -175,9 +175,10 @@ ENISA está comprobada: ver la tabla de fuentes.
 
 **Falta.**
 
-1. **Revisión y publicación.** Una versión publicada no se puede modificar, así que antes de
-   pasarla a `published` y añadirla a `catalog/LOCK.json` la tiene que revisar alguien con
-   experiencia en auditoría. Hasta entonces se puede corregir.
+1. **Revisión por auditoría.** La versión se publicó (`published`, con su línea en
+   `catalog/LOCK.json`) sin la revisión de alguien con experiencia en auditoría. Una versión
+   publicada no se modifica: cualquier corrección de las descripciones, actuaciones o evidencias
+   sale como una versión nueva con su correspondencia con esta.
 2. **Correspondencias** del anexo con ISO 27001, el ENS y NIST CSF (la guía de ENISA trae una
    tabla; hay que leer su aviso antes de copiarla).
 3. **Aplicabilidad.** Convertir los anexos I y II y el art. 3 en reglas (qué entidades están
