@@ -100,6 +100,22 @@ export const useEunomiaStore = defineStore('eunomia', () => {
   }
 
   /**
+   * Carga el historial de cambios de un control.
+   *
+   * @param {string} key - Clave del marco.
+   * @param {string} identifier - Identificador del control.
+   * @returns {Promise<Array>} Los eventos, del más reciente al más antiguo; vacío si falla.
+   */
+  async function loadHistory(key, identifier) {
+    try {
+      const res = await apiFetch(
+        `/eunomia/adoptions/${encodeURIComponent(key)}/history/${encodeURIComponent(identifier)}`)
+      if (!res?.ok) return []
+      return (await res.json()).events ?? []
+    } catch { return [] }
+  }
+
+  /**
    * Guarda la evaluación de un control.
    *
    * @param {string} key - Clave del marco.
@@ -133,5 +149,5 @@ export const useEunomiaStore = defineStore('eunomia', () => {
     return splitFrameworks(state.catalog, state.adoptions)
   }
 
-  return { state, load, adopt, archive, restore, previewRemoval, loadTree, saveAssessment, grouped }
+  return { state, load, adopt, archive, restore, previewRemoval, loadTree, loadHistory, saveAssessment, grouped }
 })

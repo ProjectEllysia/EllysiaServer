@@ -7,7 +7,7 @@ marco cuente y borre sus evaluaciones sin que la adopción conozca la tabla.
 
 from src.modules.infrastructure import UnitOfWork
 
-from ..repositories import EunomiaControlAssessmentRepository
+from ..repositories import EunomiaAssessmentEventRepository, EunomiaControlAssessmentRepository
 
 
 def count_assessments(uow: UnitOfWork, owner_user_id: int, framework_key: str) -> dict[str, int]:
@@ -33,7 +33,10 @@ def purge_assessments(uow: UnitOfWork, owner_user_id: int, framework_key: str) -
         framework_key: Clave del marco.
 
     Returns:
-        dict[str, int]: ``{"EunomiaControlAssessment": filas borradas}``.
+        dict[str, int]: Filas borradas de las evaluaciones y de su historial.
     """
-    return {"EunomiaControlAssessment": EunomiaControlAssessmentRepository(uow).delete_for_framework(
-        owner_user_id, framework_key)}
+    return {
+        "EunomiaAssessmentEvent": EunomiaAssessmentEventRepository(uow).delete_for_framework(owner_user_id, framework_key),
+        "EunomiaControlAssessment": EunomiaControlAssessmentRepository(uow).delete_for_framework(
+            owner_user_id, framework_key),
+    }

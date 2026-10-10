@@ -226,3 +226,66 @@ def test_the_owner_sees_the_members_as_assignable_people_and_a_member_only_thems
 
     assert {person["userId"] for person in as_owner} == {adopted.id, regular_user.id}
     assert {person["userId"] for person in as_member} == {adopted.id, regular_user.id}
+
+
+# ── historial ──────────────────────────────────────────────────────────────
+
+_HISTORY = "/eunomia/adoptions/nis2/history/RE.3.1"
+
+
+def test_every_change_creates_an_event_with_its_differences(client, adopted, auth_headers):
+    headers = auth_headers(adopted)
+    first = _put(client, headers, status="in_progress").get_json()
+    _put(client, headers, status="implemented", notes="Ya está", updatedAt=first["updatedAt"])
+
+    events = client.get(_HISTORY, headers=headers).get_json()["events"]
+
+    assert len(events) == 2
+    latest = events[0]["changes"]
+    assert latest["status"] == {"from": "in_progress", "to": "implemented"}
+    assert latest["notes"] == {"from": None, "to": "Ya está"}
+    assert events[1]["changes"]["status"] == {"from": "pending", "to": "in_progress"}
+    assert events[0]["actorName"]
+
+
+def test_saving_without_changes_adds_no_event(client, adopted, auth_headers):
+    headers = auth_headers(adopted)
+    first = _put(client, headers, status="in_progress").get_json()
+    _put(client, headers, status="in_progress", updatedAt=first["updatedAt"])
+
+    assert len(client.get(_HISTORY, headers=headers).get_json()["events"]) == 1
+
+
+def test_a_rejected_change_leaves_no_event(client, adopted, auth_headers):
+    headers = auth_headers(adopted)
+    _put(client, headers, status="not_applicable")   # sin justificación: se rechaza
+
+    assert client.get(_HISTORY, headers=headers).get_json()["events"] == []
+
+
+def test_a_member_change_is_recorded_under_their_name(client, app, adopted, regular_user, auth_headers):
+    org = client.post("/organizations", headers=auth_headers(adopted), json={"name": "Acme"}).get_json()
+    _join(app, org["id"], regular_user.id)
+    _put(client, auth_headers(regular_user), status="implemented")
+
+    event = client.get(_HISTORY, headers=auth_headers(adopted)).get_json()["events"][0]
+
+    assert event["actorUserId"] == regular_user.id
+
+
+def test_deleting_the_actor_keeps_the_event_without_the_account(client, app, adopted, regular_user, auth_headers):
+    from src.modules.features.eunomia.services.user_data import purge_eunomia_data
+    from src.modules.infrastructure import unit_of_work
+
+    org = client.post("/organizations", headers=auth_headers(adopted), json={"name": "Acme"}).get_json()
+    _join(app, org["id"], regular_user.id)
+    _put(client, auth_headers(regular_user), status="implemented")
+    name = client.get(_HISTORY, headers=auth_headers(adopted)).get_json()["events"][0]["actorName"]
+
+    with app.app_context():
+        with unit_of_work.UnitOfWork() as uow:
+            purge_eunomia_data(uow, regular_user.id)
+
+    event = client.get(_HISTORY, headers=auth_headers(adopted)).get_json()["events"][0]
+    assert event["actorUserId"] is None
+    assert event["actorName"] == name

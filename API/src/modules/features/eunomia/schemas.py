@@ -187,3 +187,18 @@ class AdoptedTreeSchema(Schema):
     notes = fields.String()
     sources = fields.List(fields.Nested(CatalogSourceSchema))
     tree = fields.List(fields.Nested(AdoptedNodeSchema))
+
+
+class AssessmentEventSchema(Schema):
+    """Un cambio en la evaluación de un control."""
+
+    actorUserId = fields.Integer(allow_none=True)
+    actorName = fields.String()
+    occurredAt = UTCDateTime()
+    changes = fields.Dict()
+
+
+class AssessmentHistorySchema(Schema):
+    """Respuesta de ``GET /eunomia/adoptions/<marco>/controls/<identificador>/history``."""
+
+    events = fields.List(fields.Nested(AssessmentEventSchema))

@@ -7,7 +7,13 @@ from sqlalchemy import and_, update
 
 from src.modules.infrastructure import BaseRepository
 
-from .model import ADOPTION_ACTIVE, ADOPTION_ARCHIVED, EunomiaControlAssessment, EunomiaFrameworkAdoption
+from .model import (
+    ADOPTION_ACTIVE,
+    ADOPTION_ARCHIVED,
+    EunomiaAssessmentEvent,
+    EunomiaControlAssessment,
+    EunomiaFrameworkAdoption,
+)
 
 
 class EunomiaFrameworkAdoptionRepository(BaseRepository[EunomiaFrameworkAdoption]):
@@ -186,3 +192,61 @@ class EunomiaControlAssessmentRepository(BaseRepository[EunomiaControlAssessment
             EunomiaControlAssessment.framework_key == framework_key,
             EunomiaControlAssessment.status != "pending",
         ).count()
+
+
+class EunomiaAssessmentEventRepository(BaseRepository[EunomiaAssessmentEvent]):
+    """Acceso a datos del historial de evaluaciones: de solo añadir."""
+
+    _MODEL = EunomiaAssessmentEvent
+
+    def list_for_control(self, owner_user_id: int, framework_key: str,
+                         control_identifier: str) -> List[EunomiaAssessmentEvent]:
+        """El historial de un control, del cambio más reciente al más antiguo.
+
+        Args:
+            owner_user_id: Dueño efectivo de los datos.
+            framework_key: Clave del marco.
+            control_identifier: Identificador del control.
+        """
+        return (
+            self._session.query(EunomiaAssessmentEvent)
+            .filter(EunomiaAssessmentEvent.owner_user_id == owner_user_id,
+                    EunomiaAssessmentEvent.framework_key == framework_key,
+                    EunomiaAssessmentEvent.control_identifier == control_identifier)
+            .order_by(EunomiaAssessmentEvent.occurred_at.desc(), EunomiaAssessmentEvent.id.desc())
+            .all()
+        )
+
+    def clear_actor(self, user_id: int) -> None:
+        """Deja a ``NULL`` el actor de los eventos de un usuario que se da de baja.
+
+        El evento conserva ``actor_name``: pierde el vínculo a la cuenta, no el rastro.
+
+        Args:
+            user_id: Usuario que se borra.
+        """
+        self._session.query(EunomiaAssessmentEvent).filter(
+            EunomiaAssessmentEvent.actor_user_id == user_id
+        ).update({"actor_user_id": None}, synchronize_session=False)
+
+    def delete_for_owner(self, owner_user_id: int) -> int:
+        """Borra el historial de un dueño; devuelve cuántos eventos.
+
+        Args:
+            owner_user_id: Dueño cuyo historial se borra.
+        """
+        return self._session.query(EunomiaAssessmentEvent).filter(
+            EunomiaAssessmentEvent.owner_user_id == owner_user_id
+        ).delete(synchronize_session=False)
+
+    def delete_for_framework(self, owner_user_id: int, framework_key: str) -> int:
+        """Borra el historial de un marco de un dueño; devuelve cuántos eventos.
+
+        Args:
+            owner_user_id: Dueño efectivo.
+            framework_key: Clave del marco.
+        """
+        return self._session.query(EunomiaAssessmentEvent).filter(
+            EunomiaAssessmentEvent.owner_user_id == owner_user_id,
+            EunomiaAssessmentEvent.framework_key == framework_key,
+        ).delete(synchronize_session=False)
