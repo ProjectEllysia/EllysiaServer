@@ -1,6 +1,6 @@
 <template>
   <section v-if="items === null || items.length" class="automatic" :aria-label="t('eunomia.automatic.title')">
-    <h3>{{ t('eunomia.automatic.title') }}</h3>
+    <SectionInscription tag="h3">{{ t('eunomia.automatic.title') }}</SectionInscription>
     <p class="muted">{{ t('eunomia.automatic.intro') }}</p>
     <p v-if="items === null" class="muted">{{ t('eunomia.automatic.unavailable') }}</p>
     <ul v-else>
@@ -21,6 +21,7 @@
 </template>
 
 <script setup>
+import SectionInscription from '@/components/eunomia/SectionInscription.vue'
 /**
  * Lo que otros módulos (Themis, Aegis, Hygeia…) ya saben y demuestra este control. No se sube
  * nada: se calcula al abrir el control.
@@ -48,7 +49,6 @@ watch(() => props.node.identifier, async (identifier) => {
 
 <style scoped>
 .automatic { padding-top: 1rem; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 0.6rem; }
-h3 { font-size: var(--fs-md); font-weight: 600; color: var(--text); }
 .muted, .meta { color: var(--text-muted); font-size: var(--fs-body); }
 ul { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.7rem; }
 li { border-inline-start: 3px solid var(--border-med); padding-inline-start: 0.7rem; }
