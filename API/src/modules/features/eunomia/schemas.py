@@ -310,3 +310,39 @@ class UpgradePlanSchema(Schema):
     lost = fields.List(fields.Dict())
     newControls = fields.List(fields.Dict())
     linksMoved = fields.Integer()
+
+
+class TemplateSummarySchema(Schema):
+    """Una plantilla del catálogo de documentos."""
+
+    key = fields.String()
+    version = fields.String()
+    framework = fields.String()
+    title = fields.String()
+    summary = fields.String()
+    controls = fields.List(fields.String())
+    isFrameworkAdopted = fields.Boolean()
+    hasDraft = fields.Boolean()
+
+
+class TemplateListSchema(Schema):
+    """Respuesta de ``GET /eunomia/templates``."""
+
+    templates = fields.List(fields.Nested(TemplateSummarySchema))
+
+
+class TemplateDraftSchema(Schema):
+    """El formulario de una plantilla con sus valores resueltos."""
+
+    template = fields.Dict()
+    missingRequired = fields.List(fields.String())
+    updatedAt = UTCDateTime(allow_none=True)
+    updatedByName = fields.String(allow_none=True)
+    # Al final: el nombre ``fields`` oculta al módulo ``marshmallow.fields`` dentro de la clase.
+    fields = fields.List(fields.Dict())
+
+
+class TemplateDraftWriteSchema(Schema):
+    """Cuerpo de ``PUT /eunomia/templates/<key>/draft``."""
+
+    values = fields.Dict(keys=fields.String(), values=fields.String(), required=True)

@@ -8,6 +8,7 @@ from .model import (
     EunomiaEvidence,
     EunomiaEvidenceLink,
     EunomiaFrameworkAdoption,
+    EunomiaTemplateDraft,
 )
 
 #: Tablas de Eunomia que entran en la exportación. El orden es el del archivo.
@@ -16,6 +17,7 @@ EXPORT_TABLES: tuple[ExportTable, ...] = (
     ExportTable("control_assessments", EunomiaControlAssessment, owned_by(EunomiaControlAssessment.owner_user_id)),
     ExportTable("assessment_history", EunomiaAssessmentEvent, owned_by(EunomiaAssessmentEvent.owner_user_id)),
     ExportTable("evidence", EunomiaEvidence, owned_by(EunomiaEvidence.owner_user_id)),
+    ExportTable("template_drafts", EunomiaTemplateDraft, owned_by(EunomiaTemplateDraft.owner_user_id)),
     ExportTable(
         "evidence_links", EunomiaEvidenceLink,
         owned_through(EunomiaEvidenceLink.evidence_id, EunomiaEvidence.id, EunomiaEvidence.owner_user_id),

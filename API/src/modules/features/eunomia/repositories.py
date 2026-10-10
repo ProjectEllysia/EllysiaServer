@@ -16,6 +16,7 @@ from .model import (
     EunomiaEvidenceContent,
     EunomiaEvidenceLink,
     EunomiaFrameworkAdoption,
+    EunomiaTemplateDraft,
 )
 
 
@@ -481,3 +482,55 @@ class EunomiaEvidenceLinkRepository(BaseRepository[EunomiaEvidenceLink]):
             return 0
         return self._session.query(EunomiaEvidenceLink).filter(
             EunomiaEvidenceLink.id.in_(ids)).delete(synchronize_session=False)
+
+
+class EunomiaTemplateDraftRepository(BaseRepository[EunomiaTemplateDraft]):
+    """Acceso a datos de los borradores de plantillas."""
+
+    _MODEL = EunomiaTemplateDraft
+
+    def get_for_owner(self, owner_user_id: int, template_key: str) -> Optional[EunomiaTemplateDraft]:
+        """El borrador de una plantilla de un dueño, o ``None``.
+
+        Args:
+            owner_user_id: Dueño efectivo de los datos.
+            template_key: Identificador de la plantilla.
+        """
+        return (
+            self._session.query(EunomiaTemplateDraft)
+            .filter(EunomiaTemplateDraft.owner_user_id == owner_user_id,
+                    EunomiaTemplateDraft.template_key == template_key)
+            .one_or_none()
+        )
+
+    def list_for_owner(self, owner_user_id: int) -> List[EunomiaTemplateDraft]:
+        """Todos los borradores de un dueño.
+
+        Args:
+            owner_user_id: Dueño efectivo de los datos.
+        """
+        return (
+            self._session.query(EunomiaTemplateDraft)
+            .filter(EunomiaTemplateDraft.owner_user_id == owner_user_id)
+            .all()
+        )
+
+    def clear_user_references(self, user_id: int) -> None:
+        """Anula quién escribió por última vez cuando esa cuenta se borra.
+
+        Args:
+            user_id: Usuario cuya cuenta se borra.
+        """
+        self._session.query(EunomiaTemplateDraft).filter(
+            EunomiaTemplateDraft.updated_by_user_id == user_id
+        ).update({EunomiaTemplateDraft.updated_by_user_id: None}, synchronize_session=False)
+
+    def delete_for_owner(self, owner_user_id: int) -> int:
+        """Borra todos los borradores de un dueño; devuelve cuántos.
+
+        Args:
+            owner_user_id: Dueño efectivo de los datos.
+        """
+        return self._session.query(EunomiaTemplateDraft).filter(
+            EunomiaTemplateDraft.owner_user_id == owner_user_id
+        ).delete(synchronize_session=False)
