@@ -459,6 +459,25 @@
             </div>
           </section>
 
+          <section id="section-eunomia" class="section">
+            <div class="section-head"><h2>Eunomia</h2><p class="section-desc">{{ t('configView.eunomia.desc') }}</p></div>
+            <div class="section-body">
+              <div class="cfg-grid">
+                <div class="form-group"><label>{{ t('configView.eunomia.maxEvidenceBytes') }}</label><input v-model.number="store.configFlat['features.eunomia.maxEvidenceBytes']" type="number" min="1" class="inp" /><span class="field-hint">{{ t('configView.eunomia.maxEvidenceBytesHint') }}</span></div>
+                <div class="form-group"><label>{{ t('configView.eunomia.archivedRetentionDays') }}</label><input v-model.number="store.configFlat['features.eunomia.archivedFrameworkRetentionDays']" type="number" min="0" max="3650" class="inp" /><span class="field-hint">{{ t('configView.eunomia.archivedRetentionDaysHint') }}</span></div>
+                <div class="form-group"><label>{{ t('configView.eunomia.expiryNoticeDays') }}</label><input v-model.number="store.configFlat['features.eunomia.evidenceExpiryNoticeDays']" type="number" min="0" max="365" class="inp" /><span class="field-hint">{{ t('configView.eunomia.expiryNoticeDaysHint') }}</span></div>
+              </div>
+              <h3 class="subsection-title">{{ t('configView.coloresDelInforme') }}</h3>
+              <div class="color-grid">
+                <div v-for="color in reportColors" :key="color.key" class="color-pick">
+                  <input v-model="store.configFlat[`features.eunomia.colorPalette.${color.key}`]" type="color" class="color-input" />
+                  <span class="color-label">{{ t(`config.scanner.colors.${color.key}`) }}</span>
+                  <span class="color-hex">{{ store.configFlat[`features.eunomia.colorPalette.${color.key}`] }}</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
           <section id="section-hygeia" class="section">
             <div class="section-head"><h2>Hygeia</h2><p class="section-desc">{{ t('configView.monitorizacionDeActivosViaAgente') }}</p></div>
             <div class="section-body">
@@ -557,6 +576,7 @@ const ICON = {
   themis:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
   aegis:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>',
   hygeia:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>',
+  eunomia:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M5 7h14M5 7l-3 7a3 3 0 0 0 6 0L5 7zm14 0l-3 7a3 3 0 0 0 6 0l-3-7z"/></svg>',
 }
 
 /** Índice lateral; `labelKey` es la clave del rótulo de cada sección (el mismo título que su cabecera). */
@@ -576,6 +596,7 @@ const navGroups = [
     { id: 'themis',   labelKey: 'configView.modules.themis', icon: ICON.themis },
     { id: 'aegis',    labelKey: 'configView.modules.aegis',  icon: ICON.aegis },
     { id: 'hygeia',   labelKey: 'configView.modules.hygeia', icon: ICON.hygeia },
+    { id: 'eunomia',  labelKey: 'configView.modules.eunomia', icon: ICON.eunomia },
   ]},
 ]
 const navSections = navGroups.flatMap((g) => g.items)
