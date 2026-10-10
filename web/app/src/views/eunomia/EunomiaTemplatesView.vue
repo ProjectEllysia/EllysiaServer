@@ -7,6 +7,7 @@
       <header class="head">
         <h1>{{ t('eunomia.templates.title') }}</h1>
         <p class="sub">{{ t('eunomia.templates.intro') }}</p>
+        <router-link to="/eunomia/documentos" class="docs-link">{{ t('eunomia.documents.title') }}</router-link>
       </header>
 
       <p v-if="loading" class="state-msg">{{ t('eunomia.frameworks.loading') }}</p>
@@ -59,6 +60,7 @@ onMounted(async () => {
 .card h2 { font-size: var(--fs-lg); font-weight: 600; color: var(--text); }
 .meta { color: var(--text-muted); font-size: var(--fs-body); margin-top: 0.2rem; max-width: 60ch; }
 .draft { color: var(--accent); font-size: var(--fs-body); margin-top: 0.2rem; }
+.docs-link { display: inline-block; margin-top: 0.6rem; color: var(--accent); text-decoration: underline; font-size: var(--fs-md); }
 .state-msg { color: var(--text-muted); font-size: var(--fs-md); }
 .state-msg--error { color: var(--danger); }
 .btn { font-family: var(--font-epic); font-size-adjust: var(--fsa-epic); font-size: var(--fs-body); font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; padding: 0.6rem 1.2rem; border-radius: 3px; border: 1px solid var(--border-med); color: var(--text-dim); text-decoration: none; transition: all var(--transition); }

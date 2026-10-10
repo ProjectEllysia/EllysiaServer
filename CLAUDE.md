@@ -238,12 +238,12 @@ con backend RQ+Redis), `worker.py` (entrada del worker), `tracking.py` (`TaskTra
   directo, y la receta completa: [`CONVENCIONES.md`](CONVENCIONES.md) §7.
 - **Categorías**: `themis.scan`, `themis.report`, `themis.traceroute`, `themis.kbsync`, `themis.osint`, `aegis.generate`,
   `aegis.campaign`, `iris.analyze`, `iris.ai_summary`, `iris.report`, `iris.ingest`,
-  `iris.notify`, `iris.enrichment`, `iris.webhook`, `iris.remediation`, `hygeia.notify`, `hygeia.report`, `users.export` (+ `default`). Cada módulo las da de alta en su `__init__.py` con `QueueRegistry.register(...)`;
+  `iris.notify`, `iris.enrichment`, `iris.webhook`, `iris.remediation`, `hygeia.notify`, `hygeia.report`, `eunomia.report`, `users.export` (+ `default`). Cada módulo las da de alta en su `__init__.py` con `QueueRegistry.register(...)`;
   los workers escuchan en colas por categoría.
 - **`external_id`**: el prefijo lo declara el manager en `EXTERNAL_ID_PREFIX` (`scan:`,
   `themis-doc:`, `themis-traceroute:`, `themis-kbsync:`, `themis-osint:`, `aegis-doc:`, `aegis-campaign:`, `iris-analysis:`,
   `iris-doc:`, `iris-mailbox-sync:`, `iris-phishing-notify:`, `iris-url-expansion:`, `iris-webhook-delivery:`,
-  `iris-mailbox-action:`, `iris-mailbox-subscription:`, `hygeia-doc:`, `users-export:`) y `TaskTrackingMixin.external_id_for`
+  `iris-mailbox-action:`, `iris-mailbox-subscription:`, `hygeia-doc:`, `eunomia-doc:`, `users-export:`) y `TaskTrackingMixin.external_id_for`
   lo compone. No lo escribas a mano.
 - **Cancelación** cooperativa: pone la clave Redis `taskqueue:cancel:{job_id}`; los workers la
   sondean vía `_Task.wait(cancel_check=...)`. **Progreso** por `job.meta["progress"]`.

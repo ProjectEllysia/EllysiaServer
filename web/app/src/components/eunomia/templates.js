@@ -47,3 +47,13 @@ export function sourceRoute(field, framework) {
   if (field.origin === 'assessment') return `/eunomia/marcos/${framework}`
   return null
 }
+
+/**
+ * Indica si algún documento sigue generándose, para seguir preguntando por la lista.
+ *
+ * @param {Array<{status: string}>} documents
+ * @returns {boolean} `true` si alguno está en cola o generándose.
+ */
+export function hasActiveDocuments(documents) {
+  return documents.some((item) => item.status === 'pending' || item.status === 'running')
+}

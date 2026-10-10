@@ -1467,6 +1467,9 @@
       }
     },
     "eunomia": {
+      "directories": {
+        "output": "data/eunomia/output"
+      },
       "maxEvidenceBytes": 26214400,
       "allowedEvidenceTypes": ["pdf", "png", "jpg", "jpeg", "docx", "xlsx", "odt", "ods", "txt", "csv"],
       "archivedFrameworkRetentionDays": 30,

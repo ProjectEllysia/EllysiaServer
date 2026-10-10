@@ -5,13 +5,14 @@ from typing import List, Optional
 
 from sqlalchemy import and_, func, update
 
-from src.modules.infrastructure import BaseRepository
+from src.modules.infrastructure import BaseRepository, DocumentRepository
 
 from .model import (
     ADOPTION_ACTIVE,
     ADOPTION_ARCHIVED,
     EunomiaAssessmentEvent,
     EunomiaControlAssessment,
+    EunomiaDocument,
     EunomiaEvidence,
     EunomiaEvidenceContent,
     EunomiaEvidenceLink,
@@ -534,3 +535,21 @@ class EunomiaTemplateDraftRepository(BaseRepository[EunomiaTemplateDraft]):
         return self._session.query(EunomiaTemplateDraft).filter(
             EunomiaTemplateDraft.owner_user_id == owner_user_id
         ).delete(synchronize_session=False)
+
+
+class EunomiaDocumentRepository(DocumentRepository[EunomiaDocument]):
+    """Acceso a datos de ``EunomiaDocument``.
+
+    Las consultas por dueño y la paginación las hereda de ``DocumentRepository``. No define
+    ``_PARENT_FK``: un documento no cuelga de ninguna entidad padre.
+    """
+
+    _MODEL = EunomiaDocument
+
+    def get_unfinished_documents(self) -> List[EunomiaDocument]:
+        """Los documentos de cualquier dueño que siguen en ``pending`` o ``running``."""
+        return (
+            self._session.query(EunomiaDocument)
+            .filter(EunomiaDocument.status.in_(("pending", "running")))
+            .all()
+        )

@@ -192,6 +192,12 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/eunomia/documentos',
+    name: 'EunomiaDocuments',
+    component: () => import('@/views/eunomia/EunomiaDocumentsView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/eunomia/plantillas/:template',
     name: 'EunomiaTemplateForm',
     component: () => import('@/views/eunomia/EunomiaTemplateFormView.vue'),

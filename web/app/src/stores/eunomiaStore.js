@@ -146,6 +146,71 @@ export const useEunomiaStore = defineStore('eunomia', () => {
   }
 
   /**
+   * Pide el documento de una plantilla, que se genera en segundo plano.
+   *
+   * @param {string} key - Clave de la plantilla.
+   * @param {'pdf'|'docx'} format - Formato de salida.
+   * @returns {Promise<{ok: boolean, data: object|null, message: string|null}>}
+   */
+  async function requestDocument(key, format) {
+    try {
+      const res = await apiFetch(`/eunomia/templates/${encodeURIComponent(key)}/documents`, {
+        method: 'POST', body: JSON.stringify({ format }),
+      })
+      if (!res?.ok) return { ok: false, data: null, message: await apiError(res, i18n.global.t('eunomia.documents.requestFailed')) }
+      return { ok: true, data: await res.json(), message: null }
+    } catch { return { ok: false, data: null, message: i18n.global.t('eunomia.frameworks.offline') } }
+  }
+
+  /**
+   * Carga una página de los documentos generados.
+   *
+   * @param {number} [page=1]
+   * @returns {Promise<{ok: boolean, documents: Array, total: number, message: string|null}>}
+   */
+  async function loadDocuments(page = 1) {
+    try {
+      const res = await apiFetch(`/eunomia/documents?page=${page}&perPage=20`)
+      if (!res?.ok) return { ok: false, documents: [], total: 0, message: await apiError(res, i18n.global.t('eunomia.documents.loadFailed')) }
+      const body = await res.json()
+      return { ok: true, documents: body.documents ?? [], total: body.total ?? 0, message: null }
+    } catch { return { ok: false, documents: [], total: 0, message: i18n.global.t('eunomia.frameworks.offline') } }
+  }
+
+  /**
+   * Descarga el fichero de un documento listo; va por `apiFetch` porque la ruta exige el JWT.
+   *
+   * @param {{id: number, downloadName: string|null}} item
+   * @returns {Promise<boolean>} Si se descargó.
+   */
+  async function downloadDocument(item) {
+    try {
+      const res = await apiFetch(`/eunomia/documents/${item.id}/download`)
+      if (!res?.ok) return false
+      const url = URL.createObjectURL(await res.blob())
+      const link = document.createElement('a')
+      link.href = url
+      link.download = item.downloadName || 'documento'
+      link.click()
+      URL.revokeObjectURL(url)
+      return true
+    } catch { return false }
+  }
+
+  /**
+   * Borra un documento y su fichero.
+   *
+   * @param {number} id
+   * @returns {Promise<boolean>} Si se borró.
+   */
+  async function deleteDocument(id) {
+    try {
+      const res = await apiFetch(`/eunomia/documents/${id}`, { method: 'DELETE' })
+      return !!res?.ok
+    } catch { return false }
+  }
+
+  /**
    * Carga el árbol personal de un marco adoptado: catálogo más las evaluaciones del dueño.
    *
    * @param {string} key - Clave del marco.
@@ -313,6 +378,6 @@ export const useEunomiaStore = defineStore('eunomia', () => {
     return splitFrameworks(state.catalog, state.adoptions)
   }
 
-  return { state, load, adopt, archive, restore, previewRemoval, previewUpgrade, upgrade, loadTemplates, loadTemplateDraft, saveTemplateDraft, loadTree, loadSummary, loadHistory, saveAssessment,
+  return { state, load, adopt, archive, restore, previewRemoval, previewUpgrade, upgrade, loadTemplates, loadTemplateDraft, saveTemplateDraft, requestDocument, loadDocuments, downloadDocument, deleteDocument, loadTree, loadSummary, loadHistory, saveAssessment,
     loadEvidence, uploadEvidence, setEvidenceLink, deleteEvidence, downloadEvidence, grouped }
 })

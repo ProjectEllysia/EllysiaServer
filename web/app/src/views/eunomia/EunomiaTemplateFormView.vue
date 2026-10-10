@@ -44,9 +44,13 @@
             {{ t('eunomia.templates.missing', { count: missing.length }, missing.length) }}
           </p>
           <div class="actions">
-            <button v-if="canEdit" type="submit" class="btn btn--primary" :disabled="saving">
+            <button v-if="canEdit" type="submit" class="btn" :disabled="saving">
               {{ t('eunomia.templates.save') }}
             </button>
+            <button
+              v-for="format in ['pdf', 'docx']" :key="format" type="button" class="btn btn--primary"
+              :disabled="saving || missing.length > 0" @click="generate(format)"
+            >{{ t(`eunomia.documents.generate.${format}`) }}</button>
           </div>
         </form>
       </template>
@@ -57,7 +61,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import Topbar from '@/components/shared/Topbar.vue'
 import StarBackground from '@/components/shared/StarBackground.vue'
 import { missingRequired, sourceRoute, valuesToSave } from '@/components/eunomia/templates'
@@ -67,6 +71,7 @@ import { useToastStore } from '@/stores/toastStore'
 
 const { t } = useI18n()
 const route = useRoute()
+const router = useRouter()
 const store = useEunomiaStore()
 const toast = useToastStore()
 
@@ -101,6 +106,18 @@ async function save() {
   if (!result.ok) { toast.show(result.message, 'error'); return }
   adopt(result.data)
   toast.show(t('eunomia.templates.saved'), 'success')
+}
+
+/** Guarda el borrador y pide el documento en el formato elegido; lleva a la lista de documentos. */
+async function generate(format) {
+  saving.value = true
+  const saved = await store.saveTemplateDraft(route.params.template, valuesToSave(data.value.fields, edited))
+  if (!saved.ok) { saving.value = false; toast.show(saved.message, 'error'); return }
+  const requested = await store.requestDocument(route.params.template, format)
+  saving.value = false
+  if (!requested.ok) { toast.show(requested.message, 'error'); return }
+  toast.show(t('eunomia.documents.queued'), 'success')
+  router.push('/eunomia/documentos')
 }
 
 onMounted(async () => {
