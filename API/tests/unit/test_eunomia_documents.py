@@ -62,8 +62,14 @@ def test_the_company_logo_is_embedded_when_there_is_one():
     without = _pdf(template, values)
     with_logo = _pdf(template, values, logo=decode_logo(f"data:image/png;base64,{_png()}"))
 
-    assert len(with_logo) > len(without)
-    assert b"/Subtype /Image" in with_logo and b"/Subtype /Image" not in without
+    assert with_logo != without
+    assert b"/Subtype /Image" in with_logo
+
+
+def test_without_a_company_logo_the_cover_carries_the_eunomia_one():
+    template = get_template("security-policy")
+
+    assert b"/Subtype /Image" in _pdf(template, _values(template))
 
 
 @pytest.mark.parametrize("uri", [None, "", "data:text/html;base64,PGI+", "data:image/png;base64,@@@", "no-uri"])

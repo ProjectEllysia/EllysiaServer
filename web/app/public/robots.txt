@@ -23,6 +23,7 @@ Disallow: /aegis/
 Disallow: /iris/
 Disallow: /acheron/
 Disallow: /hygeia/
+Disallow: /eunomia/
 Disallow: /system
 Disallow: /oauth/
 Disallow: /users

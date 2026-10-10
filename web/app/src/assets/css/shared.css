@@ -249,6 +249,14 @@
   --border:       rgba(62,107,74,0.06);
   --border-med:   rgba(62,107,74,0.14);
 }
+/* Azul índigo, más cerrado y violáceo que el de Aegis (#6fa3c7): el tono de la túnica del emblema. */
+[data-module="eunomia"] {
+  --accent:       #6f8fd0;
+  --accent-dim:   rgba(111,143,208,0.10);
+  --accent-bright:#93acdf;
+  --border:       rgba(111,143,208,0.06);
+  --border-med:   rgba(111,143,208,0.14);
+}
 [data-theme="dawn"] [data-module="themis"] {
   --accent: #4f7a42; --accent-dim: rgba(79,122,66,0.12); --accent-bright: #3d6132;
   --border: rgba(79,122,66,0.10); --border-med: rgba(79,122,66,0.20);
@@ -268,6 +276,10 @@
 [data-theme="dawn"] [data-module="hygeia"] {
   --accent: #2c4f38; --accent-dim: rgba(44,79,56,0.12); --accent-bright: #1f3a28;
   --border: rgba(44,79,56,0.10); --border-med: rgba(44,79,56,0.20);
+}
+[data-theme="dawn"] [data-module="eunomia"] {
+  --accent: #3f5a8c; --accent-dim: rgba(63,90,140,0.12); --accent-bright: #2b3a55;
+  --border: rgba(63,90,140,0.10); --border-med: rgba(63,90,140,0.20);
 }
 
 /* Tinte de cada lente de Lybra (equipos, nube, red). Dentro de una lente el

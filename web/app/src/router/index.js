@@ -177,7 +177,9 @@ const routes = [
   },
   {
     path: '/eunomia',
-    redirect: '/eunomia/marcos',
+    name: 'EunomiaHub',
+    component: () => import('@/views/eunomia/EunomiaHubView.vue'),
+    meta: { seo: 'eunomia' },
   },
   {
     path: '/eunomia/marcos/:framework',
