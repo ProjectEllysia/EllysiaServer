@@ -316,10 +316,13 @@ def parse_version(document: dict) -> FrameworkVersion:
         _require(register is None or isinstance(register, str), f"{where}: «register» debe ser texto o nulo")
         metadata = raw.get("metadata", {})
         _require(isinstance(metadata, dict), f"{where}: «metadata» debe ser un objeto")
-        if document["status"] == STATUS_PUBLISHED and is_assessable:
+        # Un requisito sin texto oficial (o sin guía propia) no se puede evaluar con sentido; el que
+        # trae el texto oficial se publica aunque aún no tenga descripción, actuaciones ni evidencias
+        # (los refuerzos opcionales del ENS), y las incorpora una versión posterior.
+        if document["status"] == STATUS_PUBLISHED and is_assessable and not official_text.strip():
             _require(description.strip() and actions and evidence,
-                     f"{where}: un requisito evaluable de una versión publicada necesita descripción, "
-                     f"actuaciones y evidencias")
+                     f"{where}: un requisito evaluable de una versión publicada necesita su texto oficial "
+                     f"o, en su defecto, descripción, actuaciones y evidencias")
         nodes.append(CatalogNode(
             code=f"{key}:{identifier}", framework=key, identifier=identifier,
             parent=None if parent is None else f"{key}:{parent}",
