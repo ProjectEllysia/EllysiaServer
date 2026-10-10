@@ -1,0 +1,112 @@
+{
+  "key": "continuity-plan",
+  "version": "1",
+  "frameworkVersion": "2022-2555",
+  "title": "Plan de continuidad de las actividades y recuperación",
+  "summary": "Qué servicios son críticos, en cuánto tiempo hay que recuperarlos y cómo, con copias de seguridad y gestión de crisis.",
+  "controls": [
+    "RE.4.1",
+    "RE.4.2",
+    "RE.4.3"
+  ],
+  "fields": [
+    {
+      "key": "company_name",
+      "label": "Razón social",
+      "type": "text",
+      "required": true,
+      "source": "company.legalName"
+    },
+    {
+      "key": "tax_id",
+      "label": "NIF",
+      "type": "text",
+      "required": true,
+      "source": "company.taxId"
+    },
+    {
+      "key": "continuity_manager",
+      "label": "Responsable de la continuidad",
+      "type": "person",
+      "required": true,
+      "source": "assessment.RE.4.1.responsible"
+    },
+    {
+      "key": "critical_services",
+      "label": "Servicios críticos",
+      "type": "list",
+      "required": true,
+      "help": "Uno por línea."
+    },
+    {
+      "key": "recovery_objectives",
+      "label": "Objetivos de recuperación",
+      "type": "longtext",
+      "required": true,
+      "help": "Cuánto tiempo puede estar parado cada servicio (RTO) y cuántos datos se pueden perder (RPO)."
+    },
+    {
+      "key": "backup_policy",
+      "label": "Cómo se hacen y se prueban las copias de seguridad",
+      "type": "longtext",
+      "required": true
+    },
+    {
+      "key": "crisis_contacts",
+      "label": "Contactos en una crisis",
+      "type": "list",
+      "required": true,
+      "help": "Uno por línea: nombre | cargo | teléfono."
+    },
+    {
+      "key": "test_frequency",
+      "label": "Cada cuánto se prueba el plan",
+      "type": "text",
+      "required": true,
+      "default": "Una vez al año"
+    },
+    {
+      "key": "approver",
+      "label": "Quién lo aprueba (dirección)",
+      "type": "person",
+      "required": true
+    },
+    {
+      "key": "approval_date",
+      "label": "Fecha de aprobación",
+      "type": "date",
+      "required": true,
+      "source": "system.today"
+    }
+  ],
+  "sections": [
+    {
+      "heading": "1. Objeto",
+      "body": "Este plan define cómo {{company_name}} (NIF {{tax_id}}) mantiene su actividad y recupera sus servicios ante una interrupción grave."
+    },
+    {
+      "heading": "2. Responsable",
+      "body": "{{continuity_manager}} es el responsable de mantener y activar este plan."
+    },
+    {
+      "heading": "3. Servicios críticos y objetivos de recuperación",
+      "body": "Servicios críticos:\n\n{{critical_services}}\n\nObjetivos de recuperación:\n\n{{recovery_objectives}}"
+    },
+    {
+      "heading": "4. Copias de seguridad y redundancia",
+      "body": "{{backup_policy}}"
+    },
+    {
+      "heading": "5. Gestión de crisis",
+      "body": "En una crisis se activa el comité de crisis y se comunica con las autoridades competentes cuando proceda, manteniendo la seguridad durante la interrupción. Contactos:\n\n{{crisis_contacts}}"
+    },
+    {
+      "heading": "6. Pruebas y revisión",
+      "body": "El plan se prueba y se revisa: {{test_frequency}}."
+    },
+    {
+      "heading": "7. Aprobación",
+      "body": "Aprobado por {{approver}} el {{approval_date}}. Este documento es un borrador generado que la dirección debe revisar y adaptar antes de aprobarlo."
+    }
+  ]
+}
