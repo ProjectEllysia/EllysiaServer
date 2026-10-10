@@ -1,0 +1,403 @@
+Directiva (UE) 2022/2555 (NIS2), texto oficial en castellano, DO L 333 de 27.12.2022.
+Fuente: https://eur-lex.europa.eu/legal-content/ES/TXT/?uri=CELEX:32022L2555 · extraído el 2026-10-10.
+Extracto: artículos 1 a 3, 20 a 23 y anexos I y II. Reutilización de la legislación de la UE permitida citando la fuente.
+
+Artículo 1
+Objeto
+1. La presente Directiva establece medidas que tienen por objeto alcanzar un elevado nivel común de ciberseguridad en toda la Unión con el objetivo de mejorar el funcionamiento del mercado interior.
+2. A tal fin, la presente Directiva establece:
+a)
+obligaciones que requieren que los Estados miembros adopten estrategias nacionales de ciberseguridad y designen o establezcan autoridades competentes, autoridades de gestión de crisis de ciberseguridad, puntos de contacto únicos sobre ciberseguridad (en lo sucesivo, «puntos de contacto únicos») y equipos de respuesta a incidentes de seguridad informática (CSIRT, por sus siglas en inglés);
+b)
+medidas para la gestión de riesgos de ciberseguridad y obligaciones de notificación para las entidades cuyo tipo se enmarca en los anexos I o II; así como para las entidades identificadas como críticas con arreglo a la Directiva (UE) 2022/2557;
+c)
+normas y obligaciones relativas al intercambio de información sobre ciberseguridad;
+d)
+obligaciones de supervisión y ejecución para los Estados miembros.
+Artículo 2
+Ámbito de aplicación
+1. La presente Directiva se aplicará a las entidades públicas o privadas de alguno de los tipos mencionados en los anexos I o II que sean consideradas medianas empresas con arreglo al artículo 2 del anexo de la Recomendación 2003/361/CE, o que superen los límites máximos para las medianas empresas previstos en el apartado 1 de dicho artículo, y que presten sus servicios o lleven a cabo sus actividades en la Unión.
+El artículo 3, apartado 4, del anexo de dicha Recomendación no se aplicará a efectos de la presente Directiva.
+2. Independientemente de su tamaño, la presente Directiva también se aplicará a las entidades de alguno de los tipos mencionados en los anexos I o II cuando:
+a)
+los servicios son prestados por:
+i)
+proveedores de redes públicas de comunicaciones electrónicas o servicios de comunicaciones electrónicas disponibles para el público;
+ii)
+prestadores de servicios de confianza;
+iii)
+registros de nombres de dominio de primer nivel y proveedores de servicios de sistema de nombres de dominio;
+b)
+la entidad sea el único proveedor en un Estado miembro de un servicio esencial para el mantenimiento de actividades sociales o económicas críticas;
+c)
+una perturbación del servicio prestado por la entidad pudiera tener repercusiones significativas sobre la seguridad pública, el orden público o la salud pública;
+d)
+una perturbación del servicio prestado por la entidad pudiera inducir riesgos sistémicos significativos, en particular para los sectores en los que tal perturbación podría tener repercusiones de carácter transfronterizo;
+e)
+la entidad sea crítica a la luz de su importancia específica a nivel nacional o regional para el sector o tipo de servicio en concreto o para otros sectores interdependientes en el Estado miembro;
+f)
+la entidad sea una entidad de la Administración pública:
+i)
+central, definida por un Estado miembro de conformidad con el Derecho nacional, o
+ii)
+regional, definida por un Estado miembro de conformidad con el Derecho nacional, que, tras una evaluación basada en el riesgo, presta servicios cuya perturbación podría tener un impacto significativo en actividades sociales o económicas críticas.
+3. Independientemente de su tamaño, la presente Directiva se aplica a las entidades que se identifiquen como entidades críticas con arreglo a la Directiva (UE) 2022/2557
+4. Independientemente de su tamaño, la presente Directiva se aplica a las entidades que presten servicios de registro de nombres de dominio.
+5. Los Estados miembros podrán disponer que la presente Directiva se aplique a:
+a)
+entidades de la Administración pública a nivel local;
+b)
+centros de enseñanza, en particular cuando lleven a cabo actividades críticas de investigación.
+6. La presente Directiva se entenderá sin perjuicio de las responsabilidades de los Estados miembros de salvaguardar la seguridad nacional y de sus competencias de salvaguardar otras funciones esenciales del Estado, incluidos garantizar la integridad territorial del Estado o mantener el orden público.
+7. La presente Directiva no se aplicará a las entidades de la Administración pública que lleven a cabo sus actividades en los ámbitos de la seguridad nacional, la seguridad pública, la defensa o la garantía del cumplimiento de la ley, incluidas la prevención, la investigación, la detección y el enjuiciamiento de infracciones penales.
+8. Los Estados miembros podrán eximir a las entidades específicas que llevan a cabo actividades en los ámbitos de la defensa, la seguridad nacional, la seguridad pública o la garantía del cumplimiento de la ley, incluidas las actividades relativas a la prevención, la investigación, la detección y el enjuiciamiento de infracciones penales, o que prestan servicios exclusivamente a entidades de la Administración pública a que se refiere el apartado 7 del presente artículo, de las obligaciones establecidas en el artículo 21 o en el artículo 23 en relación con dichas actividades o servicios. En tales casos, las medidas de supervisión y garantía del cumplimiento a que se refiere el capítulo VII no se aplicarán en relación con esas actividades o servicios específicos. Cuando las entidades realicen actividades o presten servicios exclusivamente del tipo contemplado en el presente apartado, los Estados miembros podrán decidir eximir también a dichas entidades de las obligaciones establecidas en los artículos 3 y 27.
+9. Los apartados 7 y 8 no se aplicarán cuando una entidad actúe como prestador de servicios de confianza.
+10. La presente Directiva no se aplicará a las entidades que los Estados miembros hayan excluido del ámbito de aplicación del Reglamento (UE) 2022/2554 de conformidad con el artículo 2, apartado 4, de dicho Reglamento.
+11. Las obligaciones establecidas en la presente Directiva no implican el suministro de información cuya divulgación sea contraria a los intereses esenciales de los Estados miembros en materia de seguridad nacional, seguridad pública o defensa.
+12. La presente Directiva se entenderá sin perjuicio del Reglamento (UE) 2016/679, la Directiva 2002/58/CE, las Directivas 2011/93/UE (27) y 2013/40/UE (28) del Parlamento Europeo y del Consejo y la Directiva (UE) 2022/2557.
+13. Sin perjuicio de lo dispuesto en el artículo 346 del TFUE, la información que se considere confidencial de acuerdo con las normas de la Unión o nacionales, como las normas sobre confidencialidad empresarial, se intercambiará con la Comisión y otras autoridades competentes de conformidad con la presente Directiva únicamente cuando tal intercambio sea necesario a efectos de la aplicación de la presente Directiva. La información que se intercambie se limitará a aquella que resulte pertinente y proporcionada para la finalidad del intercambio. El intercambio de información preservará la confidencialidad de esta y protegerá la seguridad y los intereses comerciales de las entidades interesadas.
+14. Las entidades, las autoridades competentes, los puntos de contacto únicos y los CSIRT tratarán los datos personales en la medida necesaria para los fines de la presente Directiva y de conformidad con el Reglamento (UE) 2016/679; en particular, dicho tratamiento se basará en su artículo 6.
+El tratamiento de datos personales en virtud de la presente Directiva por parte de los proveedores de redes públicas de comunicaciones electrónicas o los proveedores de servicios de comunicaciones electrónicas disponibles para el público se llevará a cabo de conformidad con el Derecho de la Unión en materia de protección de datos y de la intimidad aplicables, en particular la Directiva 2002/58/CE.
+Artículo 3
+Entidades esenciales e importantes
+1. A efectos de la presente Directiva, las siguientes entidades se considerarán entidades esenciales:
+a)
+entidades de alguno de los tipos mencionados en el anexo I que superen los límites máximos previstos en el artículo 2, apartado 1, del anexo de la Recomendación 2003/361/CE para las medianas empresas;
+b)
+prestadores cualificados de servicios de confianza y registros de nombres de dominio de primer nivel, así como proveedores de servicios de DNS, independientemente de su tamaño;
+c)
+proveedores de redes públicas de comunicaciones electrónicas o de servicios de comunicaciones electrónicas disponibles para el público que sean consideradas medianas empresas con arreglo al artículo 2 del anexo de la Recomendación 2003/361/CE;
+d)
+entidades de la Administración pública a que se refiere el artículo 2, apartado 2, letra f) inciso i);
+e)
+cualquier otra entidad de uno de los tipos mencionados en los anexos I o II que un Estado miembro identifique como entidad esencial en virtud del artículo 2, apartado 2, letras b) a e);
+f)
+entidades identificadas como entidades críticas con arreglo a la Directiva (UE) 2022/2557 a que se refiere el artículo 2, apartado 3, letra f), de la presente Directiva;
+g)
+si así lo dispone el Estado miembro, las entidades identificadas por dicho Estado miembro antes del 16 de enero de 2023 como operadores de servicios esenciales de conformidad con la Directiva (UE) 2016/1148 o el Derecho nacional.
+2. A efectos de la presente Directiva, se considerarán entidades importantes todas las entidades de uno de los tipos mencionados en los anexos I o II que no puedan considerarse entidades esenciales con arreglo al apartado 1 del presente artículo. Ello incluye las entidades que un Estado miembro identifique como entidades importantes en virtud del artículo 2, apartado 2, letras b) a e).
+3. A más tardar el 17 de abril de 2025, los Estados miembros deben elaborar una lista de las entidades esenciales e importantes así como de las entidades que prestan servicios de registro de nombres de dominio. Posteriormente, los Estados miembros revisarán la lista con regularidad, al menos cada dos años, y si procede, la actualizarán.
+4. A efectos de la elaboración de la lista a que se refiere el apartado 3, los Estados miembros requerirán a las entidades a que se refiere dicho apartado que presenten al menos la siguiente información a las autoridades competentes:
+a)
+el nombre de la entidad;
+b)
+la dirección y los datos de contacto actualizados, incluidas las direcciones de correo electrónico, los rangos de IP y los números de teléfono;
+c)
+si procede, el sector y el subsector pertinentes a que se refieren los anexos I o II, y
+d)
+si procede, una lista de los Estados miembros en los que prestan servicios comprendidos en el ámbito de aplicación de la presente Directiva.
+Las entidades a que se refiere el apartado 3 notificarán sin demora cualquier cambio en la información presentada en virtud del párrafo primero del presente apartado y, en cualquier caso, en el plazo de dos semanas desde la fecha en que se produjo el cambio.
+La Comisión, asistida por la Agencia de la Unión Europea para la Ciberseguridad (ENISA), deberá proporcionar sin demora indebida directrices y plantillas relativas a las obligaciones establecidas en el presente apartado.
+Los Estados miembros podrán establecer mecanismos nacionales para que las entidades se registren ellas mismas.
+5. A más tardar el 17 de abril de 2025, y posteriormente cada dos años, las autoridades competentes notificarán:
+a)
+a la Comisión y al Grupo de Cooperación, el número de entidades esenciales e importantes enumeradas conforme al apartado 3 respecto de cada sector y subsector a que se refieren los anexos I o II, y
+b)
+a la Comisión la información pertinente sobre el número de entidades esenciales e importantes identificadas en virtud del artículo 2, apartado 2, letras b) a e), el sector y subsector a que se refieren los anexos I o II a los que pertenecen, el tipo de servicio que prestan y la disposición, de entre las establecidas en el artículo 2, apartado 2, letras b) a e), en virtud de la cual fueron identificados.
+6. Hasta el 17 de abril de 2025 y a petición de la Comisión, los Estados miembros podrán notificar a la Comisión los nombres de las entidades esenciales e importantes a que se refiere el apartado 5, letra b).
+
+Artículo 20
+Gobernanza
+1. Los Estados miembros velarán por que los órganos de dirección de las entidades esenciales e importantes aprueben las medidas para la gestión de riesgos de ciberseguridad adoptadas por dichas entidades para dar cumplimiento al artículo 21, supervisen su puesta en práctica y respondan por el incumplimiento por parte de las entidades de dicho artículo.
+La aplicación del presente apartado se entenderá sin perjuicio del Derecho nacional relativo a las normas sobre responsabilidad aplicables a las instituciones públicas, así como a la responsabilidad de los funcionarios públicos y los cargos electos o designados.
+2. Los Estados miembros garantizarán que los miembros de los órganos de dirección de las entidades esenciales e importantes deban asistir a formaciones y alentarán a estas entidades para que ofrezcan formaciones similares a sus empleados periódicamente al objeto de adquirir conocimientos y destrezas suficientes que les permitan detectar riesgos y evaluar las prácticas de gestión de riesgos de ciberseguridad y su repercusión en los servicios proporcionados por la entidad.
+Artículo 21
+Medidas para la gestión de riesgos de ciberseguridad
+1. Los Estados miembros velarán por que las entidades esenciales e importantes tomen las medidas técnicas, operativas y de organización adecuadas y proporcionadas para gestionar los riesgos que se planteen para la seguridad de los sistemas de redes y de información que utilizan dichas entidades en sus operaciones o en la prestación de sus servicios y prevenir o minimizar las repercusiones de los incidentes en los destinatarios de sus servicios y en otros servicios.
+Teniendo en cuenta la situación y, en su caso, las normas europeas e internacionales pertinentes, así como el coste de su aplicación, las medidas a que se refiere el párrafo primero garantizarán un nivel de seguridad de los sistemas de redes y de información adecuado en relación con los riesgos planteados. Al evaluar la proporcionalidad de dichas medidas, se tendrá debidamente en cuenta el grado de exposición de la entidad a los riesgos, el tamaño de la entidad y la probabilidad de que se produzcan incidentes y su gravedad, incluidas sus repercusiones sociales y económicas.
+2. Las medidas a que se hace referencia en el apartado 1 se fundamentarán en un enfoque basado en todos los peligros que tenga por objeto proteger los sistemas de redes y de información y el entorno físico de dichos sistemas frente a incidentes, e incluirán al menos los siguientes elementos:
+a)
+las políticas de seguridad de los sistemas de información y análisis de riesgos;
+b)
+la gestión de incidentes;
+c)
+la continuidad de las actividades, como la gestión de copias de seguridad y la recuperación en caso de catástrofe, y la gestión de crisis;
+d)
+la seguridad de la cadena de suministro, incluidos los aspectos de seguridad relativos a las relaciones entre cada entidad y sus proveedores o prestadores de servicios directos;
+e)
+la seguridad en la adquisición, el desarrollo y el mantenimiento de sistemas de redes y de información, incluida la gestión y divulgación de las vulnerabilidades;
+f)
+las políticas y los procedimientos para evaluar la eficacia de las medidas para la gestión de riesgos de ciberseguridad;
+g)
+las prácticas básicas de ciberhigiene y formación en ciberseguridad;
+h)
+las políticas y procedimientos relativos a la utilización de criptografía y, en su caso, de cifrado;
+i)
+la seguridad de los recursos humanos, las políticas de control de acceso y la gestión de activos;
+j)
+el uso de soluciones de autenticación multifactorial o de autenticación continua, comunicaciones de voz, vídeo y texto seguras y sistemas seguros de comunicaciones de emergencia en la entidad, cuando proceda.
+3. Los Estados miembros velarán por que, al estudiar la idoneidad de las medidas a que se refiere el apartado 2, letra d), del presente artículo, las entidades tengan en cuenta las vulnerabilidades específicas de cada proveedor y prestador de servicios directo y la calidad general de los productos y las prácticas en materia de ciberseguridad de sus proveedores y prestadores de servicios, incluidos sus procedimientos de desarrollo seguro. Los Estados miembros también velarán por que, al estudiar la idoneidad de las medidas a que se refiere el apartado 2, letra d), las entidades deban tener en cuenta los resultados de las evaluaciones coordinadas de los riesgos de seguridad de las cadenas de suministro críticas realizadas de conformidad con el artículo 22, apartado 1.
+4. Los Estados miembros se asegurarán de que cuando una entidad constate que no cumple las medidas previstas en el apartado 2, adopte, sin demora indebida, todas las medidas correctoras apropiadas y proporcionadas necesarias.
+5. A más tardar el 17 de octubre de 2024, la Comisión adoptará actos de ejecución por los que se establezcan los requisitos técnicos y metodológicos de las medidas a que se refiere el apartado 2 con respecto a los proveedores de servicios de DNS, los registros de nombres de dominio de primer nivel, los proveedores de servicios de computación en nube, los proveedores de servicios de centros de datos, los proveedores de redes de distribución de contenidos, los proveedores de servicios gestionados, los proveedores de servicios de seguridad gestionados, así como los proveedores de mercados en línea, de motores de búsqueda en línea y de plataformas de servicios de redes sociales, y los prestadores de servicios de confianza.
+La Comisión podrá adoptar actos de ejecución en los que se establezcan los requisitos técnicos y metodológicos, así como los requisitos sectoriales, según proceda, de las medidas a que se refiere el apartado 2 con respecto a las entidades esenciales e importantes distintas de las mencionadas en el párrafo primero del presente apartado.
+Al elaborar los actos de ejecución a que se refieren los párrafos primero y segundo del presente apartado, la Comisión seguirá, en la mayor medida de lo posible, las normas europeas e internacionales, así como las especificaciones técnicas pertinentes. La Comisión intercambiará asesoramiento y colaborará con el Grupo de Cooperación y la ENISA acerca de los proyectos de actos de ejecución de conformidad con el artículo 14, apartado 4, letra e).
+Dichos actos de ejecución se adoptarán de conformidad con el procedimiento de examen a que se refiere el artículo 39, apartado 2.
+Artículo 22
+Evaluaciones coordinadas de los riesgos de seguridad de las cadenas de suministro críticas a escala de la Unión
+1. El Grupo de Cooperación, en colaboración con la Comisión y la ENISA, podrá llevar a cabo evaluaciones coordinadas de los riesgos de seguridad de cadenas de suministro de servicios, sistemas o productos de TIC críticos específicos, teniendo en cuenta factores de riesgo técnicos y, cuando proceda, de otra índole.
+2. La Comisión, tras consultar al Grupo de Cooperación y a la ENISA y, en caso necesario, con las partes interesadas pertinentes, delimitará los servicios, sistemas o productos de TIC críticos específicos que podrán ser objeto de la evaluación coordinada de riesgos de seguridad a que se refiere el apartado 1.
+Artículo 23
+Obligaciones de notificación
+1. Cada Estado miembro velará por que las entidades esenciales e importantes notifiquen, sin demora indebida, a su CSIRT o, en su caso, a su autoridad competente de conformidad con el apartado 4 cualquier incidente que tenga un impacto significativo en la prestación de sus servicios según se contempla en el apartado 3 (incidente significativo). Cuando proceda, las entidades afectadas notificarán, sin demora indebida, a los destinatarios de sus servicios los incidentes significativos susceptibles de afectar negativamente a la prestación de dichos servicios. Cada Estado miembro garantizará que dichas entidades notifiquen, entre otros detalles, cualquier información que permita al CSIRT o, en su caso, a la autoridad competente determinar las repercusiones transfronterizas del incidente. El mero acto de notificar no elevará la responsabilidad de la entidad notificante.
+Cuando las entidades afectadas notifiquen a la autoridad competente un incidente significativo con arreglo al párrafo primero, el Estado miembro velará por que dicha autoridad competente transmita la notificación al CSIRT en el momento de su recepción.
+En caso de un incidente significativo transfronterizo o intersectorial, los Estados miembros velarán por que se facilite a sus puntos de contacto únicos, a su debido tiempo, la información pertinente notificada de conformidad con el apartado 4.
+2. Cuando proceda, los Estados miembros garantizarán que las entidades esenciales e importantes comuniquen, sin demora indebida, a los destinatarios de sus servicios que puedan verse afectados por una ciberamenaza significativa las medidas o soluciones que dichos destinatarios pueden aplicar en respuesta a la amenaza. Cuando proceda, las entidades notificarán asimismo la propia ciberamenaza significativa a esos destinatarios.
+3. Un incidente se considerará significativo si:
+a)
+ha causado o puede causar graves perturbaciones operativas de los servicios o pérdidas económicas para la entidad afectada;
+b)
+ha afectado o puede afectar a otras personas físicas o jurídicas al causar perjuicios materiales o inmateriales considerables.
+4. Los Estados miembros velarán por que, a los efectos de la notificación con arreglo al apartado 1, las entidades afectadas presenten al CSIRT o, en su caso, a la autoridad competente:
+a)
+sin demora indebida y, en cualquier caso, en el plazo de veinticuatro horas desde que se haya tenido constancia del incidente significativo, una alerta temprana en la que se indicará, cuando proceda, si cabe sospechar que el incidente significativo responde a una acción ilícita o malintencionada o puede tener repercusiones transfronterizas;
+b)
+sin demora indebida y, en cualquier caso, en el plazo de setenta y dos horas desde que se haya tenido constancia del incidente significativo, una notificación del incidente en la que se actualizará, cuando proceda, la información contemplada en la letra a) y se expondrá una evaluación inicial del incidente significativo, incluyendo su gravedad e impacto, así como indicadores de compromiso, cuando estén disponibles;
+c)
+a instancias de un CSIRT o, en su caso, de la autoridad competente, un informe intermedio con las actualizaciones pertinentes sobre la situación;
+d)
+un informe final, a más tardar un mes después de presentar la notificación del incidente contemplada en la letra b), en el que se recojan los siguientes elementos:
+i)
+una descripción detallada del incidente, incluyendo su gravedad e impacto;
+ii)
+el tipo de amenaza o causa principal que probablemente haya desencadenado el incidente;
+iii)
+las medidas paliativas aplicadas y en curso;
+iv)
+cuando proceda, las repercusiones transfronterizas del incidente;
+e)
+en el caso de que el incidente siga en curso en el momento de la presentación del informe final contemplado en la letra d), los Estados miembros velarán por que las entidades afectadas presenten un informe de situación en ese momento y un informe final en el plazo de un mes a partir de que hayan gestionado el incidente.
+Como excepción a lo dispuesto en la letra b) del párrafo primero, un prestador de servicios de confianza, con respecto a los incidentes significativos que afecten a la prestación de sus servicios de confianza, lo notificará al CSIRT o, en su caso, a la autoridad competente, sin demora indebida y, en cualquier caso, en un plazo de veinticuatro horas desde que haya tenido constancia del incidente significativo.
+5. El CSIRT o la autoridad competente ofrecerá, sin demora indebida y, cuando sea posible, en el plazo de veinticuatro horas tras la recepción de la alerta temprana a que se refiere el apartado 4, letra a), una respuesta a la entidad notificante, en particular sus comentarios iniciales sobre el incidente significativo y, a instancias de la entidad, una orientación o asesoramiento operativo sobre la aplicación de posibles medidas paliativas. Cuando el CSIRT no sea el destinatario inicial de la notificación a que se refiere el apartado 1, la orientación será proporcionada por la autoridad competente en colaboración con el CSIRT. El CSIRT prestará apoyo técnico adicional cuando así lo solicite la entidad afectada. Cuando se sospeche que el incidente es de naturaleza delictiva, el CSIRT o la autoridad competente también proporcionará orientación a efectos de denunciar el incidente significativo ante las autoridades encargadas de hacer cumplir la ley.
+6. Cuando proceda, y en particular si el incidente significativo afecta a dos o más Estados miembros, el CSIRT, la autoridad competente o el punto de contacto único al que se haya notificado el incidente significativo informará de este, sin demora indebida, a los demás Estados miembros afectados y a la ENISA. Dicha información incluirá el tipo de información recibida de conformidad con el apartado 4. Al hacerlo, los CSIRT, las autoridades competentes o los puntos de contacto únicos preservarán, de conformidad con el Derecho de la Unión o nacional, la seguridad y los intereses comerciales de la entidad, así como la confidencialidad de la información facilitada.
+7. Cuando el conocimiento del público sea necesario para evitar un incidente significativo o hacer frente a un incidente significativo en curso, o cuando la divulgación del incidente significativo redunde en el interés público, el CSIRT de un Estado miembro o, si procede, su autoridad competente y, en su caso, los CSIRT o las autoridades competentes de otros Estados miembros afectados, podrán informar al público, después de consultarlo con la entidad afectada, del incidente significativo o exigir a la entidad que lo haga.
+8. A instancias del CSIRT o de la autoridad competente, el punto de contacto único remitirá las notificaciones recibidas en virtud del apartado 1 a los puntos de contacto únicos de otros Estados miembros afectados.
+9. El punto de contacto único presentará cada tres meses a la ENISA un informe de síntesis que incluya datos anonimizados y agregados sobre los incidentes significativos, los incidentes, las ciberamenazas y los cuasiincidentes notificados de conformidad con el apartado 1 del presente artículo y con el artículo 30. A fin de facilitar el suministro de información comparable, la ENISA podrá adoptar orientaciones técnicas sobre los parámetros de la información que debe figurar en el informe de síntesis. La ENISA informará semestralmente al Grupo de Cooperación y a la red de CSIRT sobre las conclusiones que haya extraído a partir de las notificaciones recibidas.
+10. Los CSIRT o, en su caso, las autoridades competentes facilitarán a las autoridades competentes designadas con arreglo a la Directiva (UE) 2022/2557 información sobre los incidentes significativos, los incidentes, las ciberamenazas y los cuasiincidentes notificados de conformidad con el apartado 1 del presente artículo y con el artículo 30 por entidades equivalentes a entidades críticas conforme a lo dispuesto en la Directiva (UE) 2022/2557
+11. La Comisión podrá adoptar actos de ejecución para especificar en mayor detalle el tipo de información, el formato y el procedimiento de las notificaciones presentadas de conformidad con el apartado 1 del presente artículo y con el artículo 30, y de una comunicación remitida con arreglo al apartado 2 del presente artículo.
+A más tardar el 17 de octubre de 2024, la Comisión, con respecto a los proveedores de servicios de DNS, los registros de nombres de dominio de primer nivel, los proveedores de servicios de computación en nube, los proveedores de servicios de centros de datos, los proveedores de redes de distribución de contenidos, los proveedores de servicios gestionados, los proveedores de servicios de seguridad gestionados, así como los proveedores de mercados en línea, de motores de búsqueda en línea y de plataformas de servicios de redes sociales, adoptará actos de ejecución en los que se especifiquen en mayor medida los casos en los que un incidente se considerará significativo, tal como se contempla en el apartado 3. La Comisión podrá adoptar tales actos de ejecución con respecto a otras entidades esenciales e importantes.
+La Comisión intercambiará asesoramiento y colaborará con el Grupo de Cooperación acerca de los proyectos de actos de ejecución a que se refieren los párrafos primero y segundo del presente apartado, de conformidad con el artículo 14, apartado 4, letra e).
+Dichos actos de ejecución se adoptarán de conformidad con el procedimiento de examen a que se refiere el artículo 39, apartado 2.
+
+ANEXO I
+SECTORES DE ALTA CRITICIDAD
+Sector
+Subsector
+Tipo de entidad
+1.
+Energía
+a)
+Electricidad
+—
+Empresas eléctricas, tal como se definen en el artículo 2, punto 57, de la Directiva (UE) 2019/944 del Parlamento Europeo y del Consejo (1), que efectúan la función de «suministro», tal como se define en el artículo 2, punto 12, de dicha Directiva
+—
+Gestores de la red de distribución, tal como se definen en el artículo 2, punto 29, de la Directiva (UE) 2019/944
+—
+Gestores de la red de transporte, tal como se definen en el artículo 2, punto 35, de la Directiva (UE) 2019/944
+—
+Productores, tal como se definen en el artículo 2, punto 38, de la Directiva (UE) 2019/944
+—
+Operadores designados para el mercado eléctrico, tal como se definen en el artículo 2, punto 8, del Reglamento (UE) 2019/943 del Parlamento Europeo y del Consejo (2)
+—
+Participantes en el mercado de la electricidad, tal como se definen en el artículo 2, punto 25, del Reglamento (UE) 2019/943 que presten servicios de agregación, respuesta de demanda o almacenamiento de energía, tal como se define en el artículo 2, puntos 18, 20 y 59, de la Directiva (UE) 2019/944
+—
+Operadores de un punto de recarga que sean responsable de la gestión y explotación de un punto de recarga, que presta un servicio de recarga al usuario final también en nombre y por cuenta de un proveedor de servicios de movilidad
+b)
+Sistemas urbanos de calefacción y de refrigeración
+—
+Operadores de sistemas urbanos de calefacción o de refrigeración, tal como se definen en el artículo 2, punto 19, de la Directiva (UE) 2018/2001 del Parlamento Europeo y del Consejo (3)
+c)
+Crudo
+—
+Operadores de oleoductos de transporte de crudo
+—
+Operadores de producción de crudo, instalaciones de refinado y tratamiento, almacenamiento y transporte
+—
+Entidades centrales de almacenamiento, tal como se definen en el artículo 2, letra f), de la Directiva 2009/119/CE del Consejo (4)
+d)
+Gas
+—
+Empresas suministradoras de gas, tal como se definen en el artículo 2, punto 8, de la Directiva 2009/73/CE del Parlamento Europeo y del Consejo (5)
+—
+Gestores de la red de distribución, tal como se definen en el artículo 2, punto 6, de la Directiva 2009/73/CE
+—
+Gestores de la red de transporte, tal como se definen en el artículo 2, punto 4, de la Directiva (UE) 2009/73/CE
+—
+Gestores de almacenamientos, tal como se definen en el artículo 2, punto 10, de la Directiva 2009/73/CE
+—
+Gestores de la red de GNL, tal como se definen en el artículo 2, punto 12, de la Directiva 2009/73/CE
+—
+Compañías de gas natural, tal como se definen en el artículo 2, punto 1, de la Directiva 2009/73/CE
+—
+Operadores de instalaciones de refinado y tratamiento de gas natural
+e)
+Hidrógeno
+—
+Operadores de producción, almacenamiento y transporte de hidrógeno
+2.
+Transporte
+a)
+Transporte aéreo
+—
+Compañías aéreas, tal como se definen en el artículo 3, punto 4, del Reglamento (CE) n.o 300/2008 utilizadas con fines comerciales
+—
+Entidades gestoras de aeropuertos, tal como se definen en el artículo 2, punto 2, de la Directiva 2009/12/CE del Parlamento Europeo y del Consejo (6); aeropuertos, tal como se definen en el artículo 2, punto 1, de dicha Directiva, en particular los aeropuertos de la red básica enumerados en el anexo II, sección 2, del Reglamento (UE) n.o 1315/2013 del Parlamento Europeo y del Consejo (7); y entidades que explotan instalaciones anexas dentro de los recintos de los aeropuertos
+—
+Operadores de control de la gestión del tráfico que prestan servicios de control del tránsito aéreo, tal como se definen en el artículo 2, punto 1, del Reglamento (CE) n.o 549/2004 del Parlamento Europeo y del Consejo (8)
+b)
+Transporte por ferrocarril
+—
+Administradores de infraestructuras, tal como se definen en el artículo 3, punto 2, de la Directiva 2012/34/UE del Parlamento Europeo y del Consejo (9)
+—
+Empresas ferroviarias, tal como se definen en el artículo 3, punto 1, de la Directiva 2012/34/UE, incluidos los explotadores de instalaciones de servicio, tal como se definen en el artículo 3, punto 12 de dicha Directiva
+c)
+Transporte marítimo y fluvial
+—
+Empresas de transporte marítimo, fluvial y de cabotaje, tanto de pasajeros como de mercancías, tal como se definen para el transporte marítimo en el anexo I del Reglamento (CE) n.o 725/2004 del Parlamento Europeo y del Consejo (10), sin incluir los buques particulares explotados por esas empresas
+—
+Organismos gestores de los puertos, tal como se definen en el artículo 3, punto 1, de la Directiva 2005/65/CE del Parlamento Europeo y del Consejo (11), incluidas sus instalaciones portuarias, tal como se definen en el artículo 2, punto 11, del Reglamento (CE) n.o 725/2004, y entidades que operan obras y equipos que se encuentran en los puertos
+—
+Operadores de servicios de tráfico de buques (STB), tal como se definen en el artículo 3, letra o), de la Directiva 2002/59/CE del Parlamento Europeo y del Consejo (12)
+d)
+Transporte por carretera
+—
+Autoridades viarias, tal como se definen en el artículo 2, punto 12, del Reglamento Delegado (UE) 2015/962 de la Comisión (13) responsables del control de la gestión del tráfico, excluidas las entidades públicas para las cuales la gestión del tráfico o la explotación de sistemas de transporte inteligentes sea una parte no esencial de su actividad general
+—
+Operadores de sistemas de transporte inteligentes, tal como se definen en el artículo 4, punto 1, de la Directiva 2010/40/UE del Parlamento Europeo y del Consejo (14)
+3.
+Banca
+Entidades de crédito, tal como se definen en el artículo 4, punto 1, del Reglamento (UE) n.o 575/2013 del Parlamento Europeo y del Consejo (15)
+4.
+Infraestructuras de los mercados financieros
+—
+Gestores de centros de negociación, tal como se definen en el artículo 4, punto 24, de la Directiva 2014/65/UE del Parlamento Europeo y del Consejo (16)
+—
+Entidades de contrapartida central (ECC), tal como se definen en el artículo 2, punto 1, del Reglamento (UE) n.o 648/2012 del Parlamento Europeo y del Consejo (17)
+5.
+Sector sanitario
+—
+Prestadores de asistencia sanitaria, tal como se definen en el artículo 3, letra g), de la Directiva 2011/24/UE del Parlamento Europeo y del Consejo (18)
+—
+Laboratorios de referencia de la UE, tal como se definen en el artículo 15, del Reglamento (UE) .../...del Parlamento Europeo y del Consejo (19)
+—
+Entidades que realizan actividades de investigación y desarrollo de medicamentos, tal como se definen en el artículo 1, punto 2, de la Directiva 2001/83/CE del Parlamento Europeo y del Consejo (20)
+—
+Entidades que fabrican productos farmacéuticos de base y especialidades farmacéuticas a que se refiere la sección C, división 21, de la NACE Rev. 2
+—
+Entidades que fabrican productos sanitarios que se consideran esenciales en situaciones de emergencia de salud pública («lista de productos sanitarios esenciales durante la emergencia de salud pública») en el sentido del artículo 22 del Reglamento (UE) 2022/123 del Parlamento Europeo y del Consejo (21)
+6.
+Agua potable
+Suministradores y distribuidores de aguas destinadas al consumo humano, tal como se definen en el artículo 2, punto 1, letra a), de la Directiva (UE) 2020/2184 del Parlamento Europeo y del Consejo (22), excluidos los distribuidores para los que la distribución de aguas destinadas al consumo humano sea una parte no esencial de su actividad general de distribución de otros bienes y productos básicos
+7.
+Aguas residuales
+Empresas dedicadas a la recogida, la eliminación o el tratamiento de aguas residuales urbanas, domésticas o industriales, tal como se definen en el artículo 2, puntos 1 a 3, de la Directiva 91/271/CEE del Consejo (23), excluidas las empresas para las que la recogida, la eliminación o el tratamiento de aguas residuales urbanas, domésticas o industriales sea una parte no esencial de su actividad general
+8.
+Infraestructura digital
+—
+Proveedores de puntos de intercambio de internet
+—
+Proveedores de servicios de DNS, excluidos los operadores de servidores raíz
+—
+Registros de nombres de dominio de primer nivel
+—
+Proveedores de servicios de computación en nube
+—
+Proveedores de servicios de centro de datos
+—
+Proveedores de redes de distribución de contenidos
+—
+Prestadores de servicios de confianza
+—
+Proveedores de redes públicas de comunicaciones electrónicas
+—
+Proveedores de servicios de comunicaciones electrónicas disponibles para el público
+9.
+Gestión de servicios de TIC (de empresa a empresa)
+—
+Proveedores de servicios gestionados
+—
+Proveedores de servicios de seguridad gestionados
+10.
+Entidades de la Administración pública, con exclusión del poder judicial, los parlamentos y los bancos centrales
+—
+Entidades de la Administración pública central, tal como se definen en el Estado miembro con arreglo a las disposiciones del Derecho nacional
+—
+Entidades de la Administración pública a escala regional, según su definición en el Estado miembro con arreglo a las disposiciones del Derecho nacional
+11.
+Espacio
+Operadores de infraestructuras terrestres, cuya propiedad, gestión y explotación descansa en los Estados miembros o en entidades privadas, que apoyan la prestación de servicios espaciales, excepto los proveedores de redes públicas de comunicaciones electrónicas
+(1) Directiva (UE) 2019/944 del Parlamento Europeo y del Consejo, de 5 de junio de 2019, sobre normas comunes para el mercado interior de la electricidad y por la que se modifica la Directiva 2012/27/UE (DO L 158 de 14.6.2019, p. 125).
+(2) Reglamento (UE) 2019/943 del Parlamento Europeo y del Consejo, de 5 de junio de 2019, relativo al mercado interior de la electricidad (DO L 158 de 14.6.2019, p. 54).
+(3) Directiva (UE) 2018/2001 del Parlamento Europeo y del Consejo, de 11 de diciembre de 2018, relativa al fomento del uso de energía procedente de fuentes renovables (DO L 328 de 21.12.2018, p. 82).
+(4) Directiva 2009/119/CE del Consejo, de 14 de septiembre de 2009, por la que se obliga a los Estados miembros a mantener un nivel mínimo de reservas de petróleo crudo o productos petrolíferos (DO L 265 de 9.10.2009, p. 9).
+(5) Directiva 2009/73/CE del Parlamento Europeo y del Consejo, de 13 de julio de 2009, sobre normas comunes para el mercado interior del gas natural y por la que se deroga la Directiva 2003/55/CE (DO L 211 de 14.8.2009, p. 94).
+(6) Directiva 2009/12/CE del Parlamento Europeo y del Consejo, de 11 de marzo de 2009, relativa a las tasas aeroportuarias (DO L 70 de 14.3.2009, p. 11).
+(7) Reglamento (UE) n.o 1315/2013 del Parlamento Europeo y del Consejo, de 11 de diciembre de 2013, sobre las orientaciones de la Unión para el desarrollo de la Red Transeuropea de Transporte, y por el que se deroga la Decisión n.o 661/2010/UE (DO L 348 de 20.12.2013, p. 1).
+(8) Reglamento (CE) n.o 549/2004 del Parlamento Europeo y del Consejo, de 10 de marzo de 2004, por el que se fija el marco para la creación del cielo único europeo (Reglamento marco) (DO L 96 de 31.3.2004, p. 1).
+(9) Directiva 2012/34/UE del Parlamento Europeo y del Consejo, de 21 de noviembre de 2012, por la que se establece un espacio ferroviario europeo único (DO L 343 de 14.12.2012, p. 32).
+(10) Reglamento (CE) n.o 725/2004 del Parlamento Europeo y del Consejo, de 31 de marzo de 2004, relativo a la mejora de la protección de los buques y las instalaciones portuarias (DO L 129 de 29.4.2004, p. 6).
+(11) Directiva 2005/65/CE del Parlamento Europeo y del Consejo, de 26 de octubre de 2005, sobre mejora de la protección portuaria (DO L 310 de 25.11.2005, p. 28).
+(12) Directiva 2002/59/CE del Parlamento Europeo y del Consejo, de 27 de junio de 2002, relativa al establecimiento de un sistema comunitario de seguimiento y de información sobre el tráfico marítimo y por la que se deroga la Directiva 93/75/CEE del Consejo (DO L 208 de 5.8.2002, p. 10).
+(13) Reglamento Delegado (UE) 2015/962 de la Comisión, de 18 de diciembre de 2014, por el que se complementa la Directiva 2010/40/UE del Parlamento Europeo y del Consejo en lo que se refiere al suministro de servicios de información de tráfico en tiempo real en toda la Unión Europea (DO L 157 de 23.6.2015, p. 21).
+(14) Directiva 2010/40/UE del Parlamento Europeo y del Consejo, de 7 de julio de 2010, por la que se establece el marco para la implantación de los sistemas de transporte inteligentes en el sector del transporte por carretera y para las interfaces con otros modos de transporte (DO L 207 de 6.8.2010, p. 1).
+(15) Reglamento (UE) n.o 575/2013 del Parlamento Europeo y del Consejo, de 26 de junio de 2013, sobre los requisitos prudenciales de las entidades de crédito y por el que se modifica el Reglamento (UE) n.o 648/2012 (DO L 176 de 27.6.2013, p. 1).
+(16) Directiva 2014/65/UE del Parlamento Europeo y del Consejo, de 15 de mayo de 2014, relativa a los mercados de instrumentos financieros y por la que se modifican la Directiva 2002/92/CE y la Directiva 2011/61/UE (DO L 173 de 12.6.2014, p. 349).
+(17) Reglamento (UE) n.o 648/2012 del Parlamento Europeo y del Consejo, de 4 de julio de 2012, relativo a los derivados extrabursátiles, las entidades de contrapartida central y los registros de operaciones (DO L 201 de 27.7.2012, p. 1).
+(18) Directiva 2011/24/UE del Parlamento Europeo y del Consejo, de 9 de marzo de 2011, relativa a la aplicación de los derechos de los pacientes en la asistencia sanitaria transfronteriza (DO L 88 de 4.4.2011, p. 45).
+(19) Reglamento (UE) 2022/2371 del Parlamento Europeo y del Consejo, de 23 de noviembre de 2022, sobre las amenazas transfronterizas graves para la salud y por el que se deroga la Decisión n.o 1082/2013/UE (DO L 314 de 6.12.2022, p. 26).
+(20) Directiva 2001/83/CE del Parlamento Europeo y del Consejo, de 6 de noviembre de 2001, por la que se establece un código comunitario sobre medicamentos para uso humano (DO L 311 de 28.11.2001, p. 67).
+(21) Reglamento (UE) 2022/123 del Parlamento Europeo y del Consejo, de 25 de enero de 2022, relativo al papel reforzado de la Agencia Europea de Medicamentos en la preparación y gestión de crisis con respecto a los medicamentos y los productos sanitarios (DO L 20 de 31.1.2022, p. 1).
+(22) Directiva (UE) 2020/2184 del Parlamento Europeo y del Consejo, de 16 de diciembre de 2020, relativa a la calidad de las aguas destinadas al consumo humano (DO L 435 de 23.12.2020, p. 1).
+(23) Directiva del Consejo 91/271/CEE, de 21 de mayo de 1991, sobre el tratamiento de las aguas residuales urbanas (DO L 135 de 30.5.1991, p. 40).
+ANEXO II
+OTROS SECTORES CRÍTICOS
+Sector
+Subsector
+Tipo de entidad
+1.
+Servicios postales y de mensajería
+Proveedores de servicios postales, tal como se definen en el artículo 2, punto 1 bis, de la Directiva 97/67/CE, incluidos los proveedores de servicios de mensajería
+2.
+Gestión de residuos
+Empresas que realizan la gestión de residuos, tal como se definen en el artículo 3, punto 9, de la Directiva 2008/98/CE del Parlamento Europeo y del Consejo (1), excepto aquellas para las que la gestión de residuos no es su principal actividad económica
+3.
+Fabricación, producción y distribución de sustancias y mezclas químicas
+Empresas que realizan la fabricación de sustancias y la distribución de sustancias o mezclas, tal como se definen en el artículo 3, puntos 9 y 14, del Reglamento (CE) n.o 1907/2006 del Parlamento Europeo y del Consejo (2) y empresas que realizan la producción de artículos, tal como se definen en el artículo 3, punto 3, de dicho Reglamento, a partir de sustancias y mezclas
+4.
+Producción, transformación y distribución de alimentos
+Empresas alimentarias, tal como se definen en el artículo 3, punto 2, del Reglamento (CE) n.o 178/2002 del Parlamento Europeo y del Consejo (3), que se dediquen a la distribución al por mayor y a la producción y transformación industriales
+5.
+Fabricación
+a)
+Fabricación de productos sanitarios y productos sanitarios para diagnóstico in vitro
+Entidades que fabrican los productos sanitarios, tal como se definen en el artículo 2, punto 1, del Reglamento (UE) 2017/745 del Parlamento Europeo y del Consejo (4), y entidades que fabrican los productos sanitarios para diagnóstico in vitro, tal como se definen en el artículo 2, punto 2, del Reglamento (UE) 2017/746 del Parlamento Europeo y del Consejo (5), excepto las entidades que fabrican productos sanitarios a que se refiere el anexo I, punto 5, quinto guion, de la presente Directiva
+b)
+Fabricación de productos informáticos, electrónicos y ópticos
+Empresas que realizan cualquiera de las actividades económicas a que se refiere la sección C, división 26, de la NACE Rev. 2
+c)
+Fabricación de material eléctrico
+Empresas que realizan cualquiera de las actividades económicas a que se refiere la sección C, división 27, de la NACE Rev. 2
+d)
+Fabricación de maquinaria y equipo n.c.o.p.
+Empresas que realizan cualquiera de las actividades económicas a que se refiere la sección C, división 28, de la NACE Rev. 2
+e)
+Fabricación de vehículos de motor, remolques y semirremolques
+Empresas que realizan cualquiera de las actividades económicas a que se refiere la sección C, división 29, de la NACE Rev. 2
+f)
+Fabricación de otro material de transporte
+Empresas que realizan cualquiera de las actividades económicas a que se refiere la sección C, división 30, de la NACE Rev. 2
+6.
+Proveedores de servicios digitales
+—
+Proveedores de mercados en línea
+—
+Proveedores de motores de búsqueda en línea
+—
+Proveedores de plataformas de servicios de redes sociales
+7.
+Investigación
+Organismos de investigación
+(1) Directiva 2008/98/CE del Parlamento Europeo y del Consejo, de 19 de noviembre de 2008, sobre los residuos y por la que se derogan determinadas Directivas (DO L 312 de 22.11.2008, p. 3).
+(2) Reglamento (CE) n.o 1907/2006 del Parlamento Europeo y del Consejo, de 18 de diciembre de 2006, relativo al registro, la evaluación, la autorización y la restricción de las sustancias y mezclas químicas (REACH), por el que se crea la Agencia Europea de Sustancias y Mezclas Químicas, se modifica la Directiva 1999/45/CE y se derogan el Reglamento (CEE) n.o 793/93 del Consejo y el Reglamento (CE) n.o 1488/94 de la Comisión, así como la Directiva 76/769/CEE del Consejo y las Directivas 91/155/CEE, 93/67/CEE, 93/105/CE y 2000/21/CE de la Comisión (DO L 396 de 30.12.2006, p. 1).
+(3) Reglamento (CE) n.o 178/2002 del Parlamento Europeo y del Consejo, de 28 de enero de 2002, por el que se establecen los principios y los requisitos generales de la legislación alimentaria, se crea la Autoridad Europea de Seguridad Alimentaria y se fijan procedimientos relativos a la seguridad alimentaria (DO L 31 de 1.2.2002, p. 1).
+(4) Reglamento (UE) 2017/745 del Parlamento Europeo y del Consejo, de 5 de abril de 2017, sobre los productos sanitarios, por el que se modifican la Directiva 2001/83/CE, el Reglamento (CE) n.o 178/2002 y el Reglamento (CE) n.o 1223/2009 y por el que se derogan las Directivas 90/385/CEE y 93/42/CEE del Consejo (DO L 117 de 5.5.2017, p. 1).
+(5) Reglamento (UE) 2017/746 del Parlamento Europeo y del Consejo, de 5 de abril de 2017, sobre los productos sanitarios para diagnóstico in vitro y por el que se derogan la Directiva 98/79/CE y la Decisión 2010/227/UE de la Comisión (DO L 117 de 5.5.2017, p. 176).
