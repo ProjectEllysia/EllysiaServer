@@ -2090,7 +2090,7 @@
     },
     "registers": {
       "title": "Registers",
-      "intro": "Lists of records the regulation asks you to keep: data processing activities, incidents and breaches. Each record keeps its history.",
+      "intro": "Lists of records the regulation asks you to keep: data processing activities, incidents and breaches, rights requests and impact assessments. Each record keeps its history.",
       "loadFailed": "The registers could not be loaded.",
       "saveFailed": "The record could not be saved.",
       "exportFailed": "The register could not be exported.",

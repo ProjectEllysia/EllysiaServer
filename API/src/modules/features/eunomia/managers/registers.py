@@ -19,7 +19,7 @@ from ..exceptions import RecordConflictError, RecordInvalidError, RecordNotFound
 from ..model import EunomiaRecord, EunomiaRecordEvent
 from ..repositories import EunomiaRecordEventRepository, EunomiaRecordRepository
 from ..services.documents.register_export import RegisterPDF, build_csv
-from ..services.registers import RegisterType, compute_deadlines, get_register, load_registers, validate_values
+from ..services.registers import FIELD_RECORD, RegisterType, compute_deadlines, get_register, load_registers, validate_values
 from ..services.templates import load_templates
 from .assessments import display_name
 
@@ -64,9 +64,32 @@ def _advice(register: RegisterType, company: dict) -> list[str]:
     return messages
 
 
-def _checked(register: RegisterType, values: dict) -> dict[str, str]:
-    """Los valores con texto de una ficha ya validada, o ``RecordInvalidError``."""
+def _link_rows(register: RegisterType, owner_user_id: int) -> dict[str, list[tuple[EunomiaRecord, str]]]:
+    """Las fichas del dueño a las que puede apuntar cada campo ``record`` del tipo, por campo.
+
+    Cada ficha va con su título, que sale del campo de título del tipo al que apunta el campo.
+    """
+    repo = build_repository(EunomiaRecordRepository)
+    links = {}
+    for field in register.fields:
+        if field.type == FIELD_RECORD:
+            title_field = _register(field.register).title_field
+            links[field.key] = [(row, row.values.get(title_field, ""))
+                                for row in repo.list_for_register(owner_user_id, field.register, True)]
+    return links
+
+
+def _checked(register: RegisterType, values: dict, owner_user_id: int) -> dict[str, str]:
+    """Los valores con texto de una ficha ya validada, o ``RecordInvalidError``.
+
+    Un campo ``record`` solo vale si apunta a una ficha del mismo dueño y del tipo que declara.
+    """
     problems = validate_values(register, values)
+    links = _link_rows(register, owner_user_id) if any(f.type == FIELD_RECORD for f in register.fields) else {}
+    for key, rows in links.items():
+        value = values.get(key, "").strip()
+        if value and key not in problems and int(value) not in {row.id for row, _ in rows}:
+            problems.append(key)
     if problems:
         labels = [register.field(key).label if register.field(key) else key for key in problems]
         raise RecordInvalidError(problems, labels)
@@ -127,12 +150,16 @@ class EunomiaRegisterManager:
                 "summary": register.summary, "titleField": register.title_field,
                 "controls": {k: list(v) for k, v in register.controls.items()},
                 "fields": [{"key": f.key, "label": f.label, "type": f.type, "isRequired": f.is_required,
-                            "options": [{"value": v, "label": label} for v, label in f.options], "help": f.help}
+                            "options": [{"value": v, "label": label} for v, label in f.options], "help": f.help,
+                            "register": f.register}
                            for f in register.fields],
                 "deadlines": [{"key": d.key, "label": d.label, "framework": d.framework} for d in register.deadlines],
                 "hasExamples": bool(register.examples),
             },
             "records": [_payload(register, row, names, now) for row in rows],
+            # Las fichas a las que puede apuntar cada campo ``record`` (las archivadas no se ofrecen).
+            "links": {key: [{"id": row.id, "title": title} for row, title in linked if not row.is_archived]
+                      for key, linked in _link_rows(register, owner_user_id).items()},
             "advice": _advice(register, CompanyProfileManager().get_for(user_id)),
             "templates": [{"key": item.key, "title": item.title} for item in load_templates()
                           if item.register == register_key],
@@ -154,8 +181,8 @@ class EunomiaRegisterManager:
             RecordInvalidError: Si no cumple la definición (400).
         """
         register = _register(register_key)
-        clean = _checked(register, values)
         owner_user_id = OrganizationManager().resolve_data_owner(user_id)
+        clean = _checked(register, values, owner_user_id)
         now = utcnow_naive()
         with UnitOfWork() as uow:
             row = EunomiaRecord(
@@ -207,8 +234,8 @@ class EunomiaRegisterManager:
             RecordConflictError: Si alguien la cambió desde que el cliente la leyó (409).
         """
         register = _register(register_key)
-        clean = _checked(register, values)
         owner_user_id = OrganizationManager().resolve_data_owner(user_id)
+        clean = _checked(register, values, owner_user_id)
         expected = _naive_utc(expected_updated_at)
         now = utcnow_naive()
         with UnitOfWork() as uow:
@@ -303,6 +330,11 @@ class EunomiaRegisterManager:
         """
         register = _register(register_key)
         data = self.get_register(user_id, register_key)
+        owner_user_id = OrganizationManager().resolve_data_owner(user_id)
+        for key, linked in _link_rows(register, owner_user_id).items():
+            titles = {str(row.id): title for row, title in linked}
+            for record in data["records"]:
+                record["values"] = {**record["values"], key: titles.get(record["values"].get(key, ""), "")}
         stamp = utcnow_naive().strftime("%Y%m%d")
         if file_format == "csv":
             return build_csv(register, data["records"]), f"{register_key}-{stamp}.csv", "text/csv"
