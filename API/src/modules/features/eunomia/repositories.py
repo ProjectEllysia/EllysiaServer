@@ -592,6 +592,22 @@ class EunomiaRecordRepository(BaseRepository[EunomiaRecord]):
             query = query.filter(EunomiaRecord.is_archived.is_(False))
         return query.order_by(EunomiaRecord.created_at.desc(), EunomiaRecord.id.desc()).all()
 
+    def list_open_for_registers(self, register_keys: list[str]) -> List[EunomiaRecord]:
+        """Las fichas no archivadas de unos tipos de registro, de cualquier dueño.
+
+        Lo usa el trabajo programado de avisos de plazos.
+
+        Args:
+            register_keys: Tipos de registro que interesan.
+        """
+        if not register_keys:
+            return []
+        return (
+            self._session.query(EunomiaRecord)
+            .filter(EunomiaRecord.register_key.in_(register_keys), EunomiaRecord.is_archived.is_(False))
+            .all()
+        )
+
     def count_by_register(self, owner_user_id: int) -> dict[str, int]:
         """Cuántas fichas no archivadas tiene un dueño en cada registro.
 

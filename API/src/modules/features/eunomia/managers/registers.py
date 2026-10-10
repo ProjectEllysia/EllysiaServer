@@ -20,6 +20,7 @@ from ..model import EunomiaRecord, EunomiaRecordEvent
 from ..repositories import EunomiaRecordEventRepository, EunomiaRecordRepository
 from ..services.documents.register_export import RegisterPDF, build_csv
 from ..services.registers import RegisterType, compute_deadlines, get_register, load_registers, validate_values
+from ..services.templates import load_templates
 from .assessments import display_name
 
 logger = logging.getLogger(__name__)
@@ -41,7 +42,9 @@ def _payload(register: RegisterType, row: EunomiaRecord, names: dict, now: datet
         "title": values.get(register.title_field, ""), "isArchived": row.is_archived,
         "createdAt": row.created_at, "createdByName": names.get(row.created_by_user_id),
         "updatedAt": row.updated_at, "updatedByName": names.get(row.updated_by_user_id),
-        "deadlines": compute_deadlines(register, values, now),
+        # Las fechas de los plazos viajan en ISO con «Z»: dentro de un ``Dict`` ningún schema las formatea.
+        "deadlines": [{**item, "dueAt": item["dueAt"].isoformat() + "Z" if item["dueAt"] else None}
+                      for item in compute_deadlines(register, values, now)],
     }
 
 
@@ -131,6 +134,8 @@ class EunomiaRegisterManager:
             },
             "records": [_payload(register, row, names, now) for row in rows],
             "advice": _advice(register, CompanyProfileManager().get_for(user_id)),
+            "templates": [{"key": item.key, "title": item.title} for item in load_templates()
+                          if item.register == register_key],
         }
 
     def create_record(self, user_id: int, register_key: str, values: dict) -> dict:

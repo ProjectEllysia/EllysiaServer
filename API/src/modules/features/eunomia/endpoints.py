@@ -44,6 +44,7 @@ from .schemas import (
     AutomaticEvidenceListSchema,
     RemovalPreviewSchema,
     UpgradePlanSchema,
+    TemplateDraftQuerySchema,
     TemplateDraftSchema,
     TemplateDraftWriteSchema,
     TemplateListSchema,
@@ -403,6 +404,7 @@ def list_templates():
 
 
 @eunomia_blp.get("/templates/<string:key>/draft")
+@eunomia_blp.arguments(TemplateDraftQuerySchema, location="query")
 @eunomia_blp.response(200, TemplateDraftSchema, description="Formulario con valores guardados y precargados")
 @eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
 @eunomia_blp.alt_response(404, schema=ErrorSchema, description="Template not found")
@@ -410,9 +412,9 @@ def list_templates():
 @require_oauth_token
 @require_attributes(at_least_one=[AttributeType.EUNOMIA_READ])
 @handle_exceptions(default_exception=EunomiaError, logger=logger)
-def get_template_draft(key):
+def get_template_draft(args, key):
     """El formulario de una plantilla: lo guardado combinado con lo que Ellysia ya sabe"""
-    return EunomiaTemplateManager().get_draft(get_current_user().id, key)
+    return EunomiaTemplateManager().get_draft(get_current_user().id, key, args["recordId"])
 
 
 @eunomia_blp.put("/templates/<string:key>/draft")
@@ -443,7 +445,8 @@ def save_template_draft(data, key):
 @handle_exceptions(default_exception=EunomiaError, logger=logger)
 def create_document(data, key):
     """Pedir el documento de una plantilla, en PDF o en Word, en segundo plano"""
-    return EunomiaDocumentManager().create_document(get_current_user().id, key, data["format"])
+    return EunomiaDocumentManager().create_document(
+        get_current_user().id, key, data["format"], data["recordId"])
 
 
 @eunomia_blp.get("/documents")

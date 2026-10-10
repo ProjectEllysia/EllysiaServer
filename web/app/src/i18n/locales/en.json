@@ -2048,7 +2048,8 @@
       "editSource": "Fix at its source",
       "origin": {
         "company": "Comes from your company profile.",
-        "assessment": "Comes from the control's assessment."
+        "assessment": "Comes from the control's assessment.",
+        "record": "Comes from the register record."
       },
       "missing": "{count} required field is missing. | {count} required fields are missing."
     },

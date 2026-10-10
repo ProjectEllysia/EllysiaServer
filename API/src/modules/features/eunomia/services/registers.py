@@ -82,7 +82,7 @@ class RegisterDeadline:
         unit: ``hours``, ``days`` o ``months``.
         done_field: Campo que, relleno, da el plazo por cumplido; ``None`` si no hay.
         when_field: Campo que condiciona que el plazo aplique; ``None`` si aplica siempre.
-        when_equals: Valor que ``when_field`` debe tener para que aplique.
+        when_equals: Valores que ``when_field`` puede tener para que aplique (uno o varios).
         framework: Marco al que pertenece el plazo, para agrupar en pantalla; ``""`` si ninguno.
     """
 
@@ -93,7 +93,7 @@ class RegisterDeadline:
     unit: str
     done_field: Optional[str]
     when_field: Optional[str]
-    when_equals: Optional[str]
+    when_equals: tuple[str, ...]
     framework: str
 
 
@@ -179,8 +179,8 @@ def parse_register(document: dict, root: Path = CATALOG_ROOT) -> RegisterType:
             if reference in raw and raw[reference] not in by_key:
                 raise CatalogFormatError(f"{where}: el plazo «{raw.get('key')}» usa un campo que no existe: {raw[reference]}")
         deadlines.append(RegisterDeadline(raw["key"], raw["label"], raw["from"], int(raw[unit]), unit,
-                                          raw.get("doneField"), raw.get("whenField"), raw.get("whenEquals"),
-                                          raw.get("framework", "")))
+                                          raw.get("doneField"), raw.get("whenField"),
+                                          _as_tuple(raw.get("whenEquals")), raw.get("framework", "")))
 
     controls = {framework: tuple(identifiers) for framework, identifiers in document.get("controls", {}).items()}
     for framework, identifiers in controls.items():
@@ -202,6 +202,13 @@ def parse_register(document: dict, root: Path = CATALOG_ROOT) -> RegisterType:
         if problems:
             raise CatalogFormatError(f"{where}: el ejemplo {position} no cumple la definición: {problems[0]}")
     return register
+
+
+def _as_tuple(value) -> tuple[str, ...]:
+    """Un valor o una lista de valores de la definición, siempre como tupla."""
+    if value is None:
+        return ()
+    return (value,) if isinstance(value, str) else tuple(value)
 
 
 def validate_values(register: RegisterType, values: Mapping[str, str]) -> list[str]:
@@ -267,7 +274,7 @@ def compute_deadlines(register: RegisterType, values: Mapping[str, str], now: da
     """
     results = []
     for deadline in register.deadlines:
-        if deadline.when_field is not None and values.get(deadline.when_field, "") != deadline.when_equals:
+        if deadline.when_field is not None and values.get(deadline.when_field, "") not in deadline.when_equals:
             continue
         origin = values.get(deadline.from_field, "").strip()
         due: Optional[datetime] = None

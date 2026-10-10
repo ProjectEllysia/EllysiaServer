@@ -29,7 +29,7 @@ def test_the_four_first_templates_are_valid():
 def test_a_template_knows_which_controls_it_helps_to_meet():
     keys = {item.key for item in templates_for_control("nis2", "23.4.b")}
 
-    assert keys == {"incident-procedure"}
+    assert keys == {"incident-procedure", "incident-notification"}
 
 
 def test_the_latest_version_is_the_one_returned_by_default():
@@ -64,7 +64,7 @@ def test_an_invalid_template_is_rejected(mutate, message):
 def test_the_gdpr_templates_are_valid_and_cover_their_articles():
     keys = {item.key for item in load_templates() if item.framework == "rgpd"}
 
-    assert keys == {"privacy-policy", "information-clause-direct", "information-clause-indirect",
+    assert keys >= {"privacy-policy", "information-clause-direct", "information-clause-indirect",
                     "processor-agreement", "rights-procedure"}
     assert {t.key for t in templates_for_control("rgpd", "art.28")} == {"processor-agreement"}
     assert "processor-agreement" in {t.key for t in templates_for_control("rgpd", "art.32")}

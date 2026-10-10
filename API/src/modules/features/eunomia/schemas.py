@@ -342,6 +342,12 @@ class TemplateDraftSchema(Schema):
     fields = fields.List(fields.Dict())
 
 
+class TemplateDraftQuerySchema(Schema):
+    """Parámetros de ``GET /eunomia/templates/<key>/draft``."""
+
+    recordId = fields.Integer(load_default=None)
+
+
 class TemplateDraftWriteSchema(Schema):
     """Cuerpo de ``PUT /eunomia/templates/<key>/draft``."""
 
@@ -367,6 +373,7 @@ class DocumentRequestSchema(Schema):
     """Cuerpo de ``POST /eunomia/templates/<plantilla>/documents``."""
 
     format = fields.String(required=True, validate=validate.OneOf(["pdf", "docx"]))
+    recordId = fields.Integer(allow_none=True, load_default=None)
 
 
 class DocumentsQuerySchema(Schema):
@@ -420,6 +427,7 @@ class RegisterDetailSchema(Schema):
     register = fields.Dict()
     records = fields.List(fields.Dict())
     advice = fields.List(fields.String())
+    templates = fields.List(fields.Dict())
 
 
 class RecordWriteSchema(Schema):

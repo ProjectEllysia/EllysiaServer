@@ -30,6 +30,7 @@ def upgrade() -> None:
         sa.Column('created_by_user_id', sa.Integer(), sa.ForeignKey('User.id'), nullable=True),
         sa.Column('updated_at', sa.DateTime(), nullable=False),
         sa.Column('updated_by_user_id', sa.Integer(), sa.ForeignKey('User.id'), nullable=True),
+        sa.Column('notified_deadlines', sa.JSON(), nullable=False, server_default='[]'),
     )
     op.create_index('ix_eunomia_record_owner_register', 'EunomiaRecord', ['owner_user_id', 'register_key'])
     op.create_table(

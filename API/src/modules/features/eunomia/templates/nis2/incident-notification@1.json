@@ -1,0 +1,119 @@
+{
+  "key": "incident-notification",
+  "frameworkVersion": "2022-2555",
+  "title": "Notificación de incidente significativo (NIS2)",
+  "summary": "La notificación que se envía en un máximo de 72 horas, con la evaluación inicial de gravedad e impacto (art. 23.4.b).",
+  "controls": [
+    "23.4.b",
+    "23.1"
+  ],
+  "fields": [
+    {
+      "key": "company_name",
+      "label": "Razón social",
+      "type": "text",
+      "required": true,
+      "source": "company.legalName"
+    },
+    {
+      "key": "tax_id",
+      "label": "NIF",
+      "type": "text",
+      "required": true,
+      "source": "company.taxId"
+    },
+    {
+      "key": "contact",
+      "label": "Persona de contacto para el incidente",
+      "type": "text",
+      "required": true,
+      "source": "company.securityContact",
+      "help": "Nombre y correo o teléfono."
+    },
+    {
+      "key": "incident",
+      "label": "Incidente",
+      "type": "text",
+      "required": true,
+      "source": "record.name"
+    },
+    {
+      "key": "aware_at",
+      "label": "Momento en que se tuvo constancia",
+      "type": "text",
+      "required": true,
+      "source": "record.aware_at"
+    },
+    {
+      "key": "description",
+      "label": "Descripción del incidente",
+      "type": "longtext",
+      "required": true,
+      "source": "record.description"
+    },
+    {
+      "key": "systems",
+      "label": "Sistemas afectados",
+      "type": "list",
+      "required": false,
+      "source": "record.systems"
+    },
+    {
+      "key": "measures",
+      "label": "Medidas adoptadas",
+      "type": "longtext",
+      "required": false,
+      "source": "record.measures"
+    },
+    {
+      "key": "severity",
+      "label": "Evaluación inicial de la gravedad",
+      "type": "longtext",
+      "required": true
+    },
+    {
+      "key": "impact",
+      "label": "Evaluación inicial del impacto",
+      "type": "longtext",
+      "required": true
+    },
+    {
+      "key": "indicators",
+      "label": "Indicadores de compromiso, si se dispone de ellos",
+      "type": "longtext",
+      "required": false
+    }
+  ],
+  "sections": [
+    {
+      "heading": "Notificación del incidente",
+      "body": "{{company_name}} (NIF {{tax_id}}) notifica el siguiente incidente significativo, conforme al artículo 23.4.b de la Directiva (UE) 2022/2555, actualizando la alerta temprana."
+    },
+    {
+      "heading": "Incidente",
+      "body": "{{incident}}\n\nMomento en que se tuvo constancia: {{aware_at}}.\n\n{{description}}"
+    },
+    {
+      "heading": "Gravedad e impacto",
+      "body": "Gravedad: {{severity}}\n\nImpacto: {{impact}}"
+    },
+    {
+      "heading": "Sistemas afectados y medidas",
+      "body": "{{systems}}\n\nMedidas adoptadas: {{measures}}"
+    },
+    {
+      "heading": "Indicadores de compromiso",
+      "body": "{{indicators}}"
+    },
+    {
+      "heading": "Contacto",
+      "body": "{{contact}}"
+    },
+    {
+      "heading": "Nota",
+      "body": "Este documento es un borrador generado a partir de la ficha del incidente. Revísalo y complétalo antes de enviarlo."
+    }
+  ],
+  "version": "1",
+  "register": "incidentes-y-brechas"
+}
