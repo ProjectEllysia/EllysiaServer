@@ -33,11 +33,16 @@
                   {{ t('eunomia.frameworks.newerVersion', { version: adoption.currentVersion }) }}
                 </p>
               </div>
-              <button
-                v-if="canManage" type="button" class="btn btn--danger"
-                :disabled="store.state.busyKey === adoption.frameworkKey"
-                @click="askRemoval(adoption)"
-              >{{ t('eunomia.frameworks.remove') }}</button>
+              <div class="card-actions">
+                <router-link :to="`/eunomia/marcos/${adoption.frameworkKey}`" class="btn btn--primary">
+                  {{ t('eunomia.tree.open') }}
+                </router-link>
+                <button
+                  v-if="canManage" type="button" class="btn btn--danger"
+                  :disabled="store.state.busyKey === adoption.frameworkKey"
+                  @click="askRemoval(adoption)"
+                >{{ t('eunomia.frameworks.remove') }}</button>
+              </div>
             </li>
           </ul>
         </section>
@@ -193,6 +198,7 @@ onMounted(() => store.load())
   display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
   background: var(--surface); border: 1px solid var(--border-solid); border-radius: 10px; padding: 1rem 1.2rem;
 }
+.card-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
 .card h3 { font-size: var(--fs-lg); font-weight: 600; color: var(--text); }
 .meta { color: var(--text-muted); font-size: var(--fs-body); margin-top: 0.2rem; }
 .newer { color: var(--accent); font-size: var(--fs-body); margin-top: 0.3rem; }
@@ -204,6 +210,7 @@ onMounted(() => store.load())
   letter-spacing: 0.14em; text-transform: uppercase; padding: 0.6rem 1.2rem; border-radius: 3px;
   border: 1px solid var(--border-med); color: var(--text-dim); transition: all var(--transition);
 }
+a.btn { text-decoration: none; }
 .btn--primary { background: var(--accent-dim); border-color: var(--accent); color: var(--accent-bright); }
 .btn--primary:hover { background: var(--accent); color: var(--on-accent); }
 .btn--danger { border-color: var(--danger); color: var(--danger); }

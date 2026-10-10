@@ -180,6 +180,12 @@ const routes = [
     redirect: '/eunomia/marcos',
   },
   {
+    path: '/eunomia/marcos/:framework',
+    name: 'EunomiaTree',
+    component: () => import('@/views/eunomia/EunomiaTreeView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/eunomia/marcos',
     name: 'EunomiaFrameworks',
     component: () => import('@/views/eunomia/EunomiaFrameworksView.vue'),

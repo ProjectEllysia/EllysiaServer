@@ -1917,6 +1917,42 @@
       },
       "lossNone": "There are no assessments or evidence to lose.",
       "removeWhen": "The framework is archived and you can restore it for {days} days; after that, on {date}, it is deleted for good."
+    },
+    "tree": {
+      "loadFailed": "The framework could not be loaded.",
+      "notAdopted": "This framework is not adopted.",
+      "search": "Search by code or text",
+      "filterStatus": "Filter by status",
+      "allStatuses": "All statuses",
+      "expandAll": "Expand all",
+      "collapseAll": "Collapse all",
+      "treeLabel": "Framework controls",
+      "expand": "Expand",
+      "collapse": "Collapse",
+      "noMatches": "No control matches.",
+      "pickOne": "Pick a control to see what is asked of you.",
+      "actions": "What to do",
+      "evidence": "What to keep as proof",
+      "officialText": "Official text",
+      "assessment": "Assessment",
+      "status": "Status",
+      "justification": "Justification (required if not applicable)",
+      "notes": "Notes",
+      "responsible": "Responsible",
+      "dueDate": "Due date",
+      "updatedBy": "Last changed: {name}, {date}",
+      "save": "Save assessment",
+      "saved": "Assessment saved.",
+      "saveFailed": "The assessment could not be saved.",
+      "conflict": "Someone else changed this control while you were editing it.",
+      "useCurrent": "See the current value",
+      "open": "Open framework"
+    },
+    "status": {
+      "pending": "Pending",
+      "in_progress": "In progress",
+      "implemented": "Implemented",
+      "not_applicable": "Not applicable"
     }
   },
   "organizationManaged": {
