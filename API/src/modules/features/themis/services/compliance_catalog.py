@@ -12,7 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable, Optional
 
-from src.modules.features.eunomia import CatalogManager
+from src.modules.features.eunomia import CatalogManager, EunomiaFrameworkManager
 
 from ..lybra.compliance import (
     AttackTechnique,
@@ -78,6 +78,22 @@ def list_compliance_frameworks() -> tuple[ComplianceFramework, ...]:
         ComplianceFramework(key=item["key"], name=item["name"], short_name=item["shortName"])
         for item in CatalogManager().list_frameworks()
     )
+
+
+def active_framework_keys(user_id: int) -> list[str]:
+    """Las claves de los marcos que se aplican a los informes de un usuario.
+
+    Son los marcos activos del dueño efectivo de los datos en Eunomia: un miembro de una
+    organización obtiene los del dueño de esta.
+
+    Args:
+        user_id: Dueño del escaneo del que sale el informe.
+
+    Returns:
+        list[str]: Claves de marco; vacía si no se ha adoptado ninguno, y entonces el
+            informe solo enseña MITRE ATT&CK.
+    """
+    return EunomiaFrameworkManager().active_framework_keys(user_id)
 
 
 def resolve_report_controls(codes: Iterable[str]) -> dict[str, ComplianceControl]:

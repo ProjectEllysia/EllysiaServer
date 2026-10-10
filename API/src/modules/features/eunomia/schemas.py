@@ -1,6 +1,6 @@
 """Schemas Marshmallow del módulo Eunomia. Claves JSON en camelCase."""
 
-from marshmallow import Schema, fields
+from marshmallow import Schema, fields, validate
 
 
 class CatalogVersionSummarySchema(Schema):
@@ -65,3 +65,53 @@ class CatalogVersionSchema(Schema):
     notes = fields.String()
     sources = fields.List(fields.Nested(CatalogSourceSchema))
     tree = fields.List(fields.Nested(CatalogNodeSchema))
+
+
+# ── Adopción de marcos ────────────────────────────────────────────────────
+
+class AdoptionSchema(Schema):
+    """Un marco adoptado por el dueño efectivo, con su versión fijada."""
+
+    frameworkKey = fields.String()
+    name = fields.String()
+    shortName = fields.String()
+    catalogVersion = fields.String()
+    currentVersion = fields.String()
+    hasNewerVersion = fields.Boolean()
+    status = fields.String()
+    adoptedAt = fields.DateTime()
+    adoptedByUserId = fields.Integer()
+    archivedAt = fields.DateTime(allow_none=True)
+    purgeAt = fields.DateTime(allow_none=True)
+
+
+class OwnershipSchema(Schema):
+    """De quién son los datos que se están viendo."""
+
+    ownerUserId = fields.Integer()
+    isOwnData = fields.Boolean()
+    organizationName = fields.String(allow_none=True)
+    ownerDisplayName = fields.String(allow_none=True)
+
+
+class AdoptionListSchema(Schema):
+    """Respuesta de ``GET /eunomia/adoptions``."""
+
+    adoptions = fields.List(fields.Nested(AdoptionSchema))
+    ownership = fields.Nested(OwnershipSchema)
+
+
+class RemovalPreviewSchema(Schema):
+    """Lo que se perdería al quitar un marco, antes de quitarlo."""
+
+    assessments = fields.Integer()
+    evidenceDeleted = fields.Integer()
+    evidenceKept = fields.Integer()
+    retentionDays = fields.Integer()
+    purgeAt = fields.DateTime()
+
+
+class AdoptionCreateSchema(Schema):
+    """Cuerpo de ``POST /eunomia/adoptions``."""
+
+    frameworkKey = fields.String(required=True, validate=validate.Length(min=1, max=32))

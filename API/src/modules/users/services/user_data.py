@@ -38,8 +38,9 @@ class UserDataContribution:
             él que sean rastro histórico (quién invitó, quién asignó) se ponen a
             ``NULL`` en vez de borrar la fila.
         deletion_models: Categoría del aviso previo al borrado
-            (``DELETION_CATEGORY_KEYS``) → modelos con columna ``user_id`` cuyas
-            filas del usuario suman a esa categoría.
+            (``DELETION_CATEGORY_KEYS``) → modelos con columna ``user_id`` (o
+            ``owner_user_id``, la del dueño efectivo de los datos) cuyas filas del
+            usuario suman a esa categoría.
         export_tables: Tablas que entran en la exportación de datos, en el
             orden en que se escriben.
         priority: Orden de purga entre módulos registrados: de menor a mayor.

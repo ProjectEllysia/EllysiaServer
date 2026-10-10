@@ -88,13 +88,16 @@
     "campaignAlreadyLaunched": "The campaign has already been launched.",
     "cannotRemoveOwner": "You own this organization. To leave it, you would have to dissolve it or transfer it first.",
     "circuitBreakerOpen": "The service is temporarily unavailable.",
-    "complianceOrganizationOwnerOnly": "Only the organization owner can set its compliance frameworks.",
     "databaseConnection": "Could not connect to the database.",
     "dataOwnedByOrganization": "These details are managed by the owner of the organization “{organizationName}”. Yours are kept and will apply again if you leave it.",
     "defaultPlanMissing": "The platform has no default plan configured. Contact an administrator.",
     "documentNotReady": "The document is not ready yet.",
     "duplicateAuthorizedTarget": "“{target}” is already in your authorized targets registry.",
     "duplicateAssetGroup": "You already have an asset group named “{name}”.",
+    "frameworkAlreadyAdopted": "The framework “{framework}” is already adopted.",
+    "frameworkArchived": "The framework “{framework}” is archived. You can restore it and recover what you had assessed.",
+    "frameworkNotArchived": "The framework “{framework}” is not archived.",
+    "frameworkRestoreExpired": "The period to restore the framework “{framework}” has expired. You can adopt it again, but you will start from scratch.",
     "invalidAuthorizedTarget": "“{target}” is not an IP address, a range, a domain or a cloud resource. Write it as “203.0.113.10”, “203.0.113.0/24”, “example.com” or “s3:bucket-name”.",
     "duplicatedUserCredentials": "There is already an account with this value: {value}.",
     "emailAlreadyVerified": "Your email is already confirmed.",
@@ -103,6 +106,7 @@
     "emailNotVerified": "Confirm your email address to use this feature. You can request a new link from your profile.",
     "emailSend": "The email could not be sent.",
     "entityNotFound": {
+      "adoption": "Adoption not found.",
       "framework": "Compliance framework not found.",
       "anomaly": "Anomaly not found.",
       "asset": "Asset not found.",
@@ -1774,7 +1778,7 @@
     "saveChanges": "Save changes",
     "languageDesc": "If you do not choose one, you follow your organization's or, without one, the platform's.",
     "complianceTitle": "Compliance frameworks",
-    "complianceDesc": "Lybra reports will show which controls of these frameworks each finding affects, along with the MITRE ATT&CK attack technique, which is always shown.",
+    "complianceDesc": "Choose which regulatory frameworks you work with (NIS2, ENS, ISO 27001…). Lybra reports will say which of their controls each finding affects, next to the MITRE ATT&CK technique, which always appears.",
     "security": "Security",
     "currentPassword": "Current password",
     "newPassword": "New password",
@@ -1820,7 +1824,8 @@
         "distributionLists": "{count} distribution list | {count} distribution lists",
         "campaigns": "{count} awareness campaign | {count} awareness campaigns",
         "vaults": "{count} vault | {count} vaults",
-        "subscription": "Your subscription | Your subscription"
+        "subscription": "Your subscription | Your subscription",
+        "complianceFrameworks": "{count} compliance framework with its assessments | {count} compliance frameworks with their assessments"
       },
       "confirmPassword": "Confirm with your password",
       "deleting": "Deleting…",
@@ -1831,7 +1836,8 @@
       "failed": "The account could not be deleted.",
       "done": "Your account, data, files and pending tasks have been deleted, and the permission of your mailboxes has been withdrawn.",
       "doneWithLog": "Your account, data, files and pending tasks have been deleted, and the permission of your mailboxes has been withdrawn. Only the activity log is kept, for {days} days, and then deleted automatically."
-    }
+    },
+    "complianceLink": "Set up compliance frameworks"
   },
   "companyProfile": {
     "title": "Company details",
@@ -1868,6 +1874,46 @@
     "saveFailed": "The company details could not be saved.",
     "loadFailed": "The company details could not be loaded."
   },
+  "eunomia": {
+    "frameworks": {
+      "title": "Compliance frameworks",
+      "back": "Profile",
+      "intro": "Choose which regulatory frameworks to work with. Each framework is pinned to a catalog version: if another is published, you decide when to move to it.",
+      "loading": "Loading…",
+      "loadFailed": "The frameworks could not be loaded.",
+      "offline": "The server could not be reached.",
+      "adopted": "Your frameworks",
+      "noneAdopted": "You have not adopted any framework yet. Pick one of the available ones to start.",
+      "available": "Available frameworks",
+      "noneAvailable": "You have already adopted every available framework.",
+      "archived": "Removed frameworks",
+      "version": "Version {version}",
+      "draft": "draft",
+      "adoptedOn": "adopted on {date}",
+      "newerVersion": "A newer version is available: {version}",
+      "purgeAt": "It will be deleted for good on {date}",
+      "adopt": "Adopt",
+      "remove": "Remove",
+      "restore": "Restore",
+      "adoptFailed": "The framework could not be adopted.",
+      "removeFailed": "The framework could not be removed.",
+      "restoreFailed": "The framework could not be restored.",
+      "previewFailed": "What would be lost could not be worked out.",
+      "adoptedToast": "Framework adopted.",
+      "restoredToast": "Framework restored.",
+      "removed": "“{name}” was removed. You can restore it while it is still within the period.",
+      "removeTitle": "Remove “{name}”?",
+      "removeConfirm": "Remove framework",
+      "removeWarning": "You will stop seeing what you have assessed and evidenced in this framework.",
+      "loss": {
+        "assessments": "{count} assessment made. | {count} assessments made.",
+        "evidenceDeleted": "{count} piece of evidence will be deleted with the framework. | {count} pieces of evidence will be deleted with the framework.",
+        "evidenceKept": "{count} piece of evidence is kept because it also serves another framework. | {count} pieces of evidence are kept because they also serve another framework."
+      },
+      "lossNone": "There are no assessments or evidence to lose.",
+      "removeWhen": "The framework is archived and you can restore it for {days} days; after that, on {date}, it is deleted for good."
+    }
+  },
   "organizationManaged": {
     "notice": "You belong to the organization {organization}. These details are managed by its owner, {owner}. Yours are kept and will apply again if you leave the organization."
   },
@@ -1886,7 +1932,7 @@
     "memberHint": "Your personal plan is still yours: what the organization includes adds to what you already have, and if you leave you keep it intact.",
     "languageDesc": "The language for members who have not chosen one. Anyone who picks their own in the language selector keeps it.",
     "platformLanguage": "Platform language",
-    "complianceDesc": "The frameworks shown in every member's Lybra reports. If you set them, they replace the ones each member chose in their profile.",
+    "complianceDesc": "Frameworks are adopted by the owner of the organization and apply to all its members: their Lybra reports use the same ones.",
     "inviteTitle": "Invite",
     "inviteDesc": "If that address already has an account, it will receive a link and will not join until it accepts. If it does not, an account is created and the credentials are sent to it.",
     "invitePlaceholder": "person{'@'}company.com",
@@ -2164,13 +2210,6 @@
       "cancelScan": "Cancel scan",
       "confirmDelete": "Delete scan #{id}?",
       "confirmCancel": "Cancel scan #{id}?"
-    },
-    "compliance": {
-      "impose": "Apply these frameworks to every member",
-      "notImposing": "Until you turn this on, each member chooses their own in their profile.",
-      "locked": "Your organization has set the frameworks for all its members. Your choice is kept and applies again if the organization stops setting them.",
-      "saveFailed": "The compliance frameworks could not be saved.",
-      "saved": "Compliance frameworks saved."
     },
     "form": {
       "title": "New {type} scan",

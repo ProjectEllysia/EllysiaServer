@@ -40,7 +40,6 @@ from .managers import (
     ScanHistoryManager,
     TracerouteManager,
     AuthorizedTargetManager,
-    ComplianceManager,
     KbSyncManager,
     KbSyncTaskManager,
     KbQueryManager,
@@ -84,8 +83,6 @@ from .schemas import (
     AddAuthorizedTargetSchema,
     AuthorizedTargetListResponseSchema,
     AuthorizedTargetActionResponseSchema,
-    ComplianceFrameworksRequestSchema,
-    CompliancePreferencesResponseSchema,
     ResultsQuerySchema,
     UnresolvedProductsQuerySchema,
     KbSearchQuerySchema,
@@ -712,49 +709,6 @@ def get_domain_documents(osint_scan_id: int):
     documents = ThemisReportManager().get_domain_documents(osint_scan_id, user.id)
     docs_list = [_serialize_document(document) for document in documents]
     return {"osintScanId": osint_scan_id, "documents": docs_list, "total": len(docs_list)}
-
-
-@themis_blp.get("/compliance")
-@themis_blp.response(200, CompliancePreferencesResponseSchema, description="Compliance framework preferences")
-@themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
-@themis_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
-@require_oauth_token
-@require_attributes(at_least_one=[AttributeType.THEMIS_READ])
-@limiter.limit("300 per hour; 2000 per day")
-@handle_exceptions(default_exception=EllysiaException, logger=logger)
-def get_compliance_preferences():
-    """Catálogo de marcos de cumplimiento, los elegidos y los que se aplican en los informes de Lybra."""
-    return ComplianceManager().get_preferences(get_current_user().id)
-
-
-@themis_blp.put("/compliance/frameworks")
-@themis_blp.arguments(ComplianceFrameworksRequestSchema)
-@themis_blp.response(200, CompliancePreferencesResponseSchema, description="Updated preferences")
-@themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
-@themis_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
-@themis_blp.alt_response(422, schema=ErrorSchema, description="Unknown framework")
-@require_oauth_token
-@require_attributes(at_least_one=[AttributeType.THEMIS_READ])
-@limiter.limit("30 per hour; 100 per day")
-@handle_exceptions(default_exception=EllysiaException, logger=logger)
-def update_compliance_frameworks(data):
-    """Elegir los marcos de cumplimiento propios, o dejar de elegir con null."""
-    return ComplianceManager().set_user_frameworks(get_current_user().id, data["frameworks"])
-
-
-@themis_blp.put("/compliance/organization-frameworks")
-@themis_blp.arguments(ComplianceFrameworksRequestSchema)
-@themis_blp.response(200, CompliancePreferencesResponseSchema, description="Updated preferences")
-@themis_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
-@themis_blp.alt_response(403, schema=ErrorSchema, description="Not the organization owner")
-@themis_blp.alt_response(422, schema=ErrorSchema, description="Unknown framework")
-@require_oauth_token
-@require_attributes(at_least_one=[AttributeType.THEMIS_READ])
-@limiter.limit("30 per hour; 100 per day")
-@handle_exceptions(default_exception=EllysiaException, logger=logger)
-def update_organization_compliance_frameworks(data):
-    """Fijar los marcos que se imponen a los miembros de la organización propia, o liberarlos con null."""
-    return ComplianceManager().set_organization_frameworks(get_current_user().id, data["frameworks"])
 
 
 @themis_blp.post("/authorized-targets")

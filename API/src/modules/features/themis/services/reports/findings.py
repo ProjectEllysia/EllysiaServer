@@ -14,7 +14,12 @@ from reportlab.platypus import CondPageBreak, Paragraph, Spacer, Table, TableSty
 import src.modules.system.config_reading as CR
 
 from src.modules.tools.press import ColorType, build_palette, safe_markup
-from ..compliance_catalog import list_compliance_frameworks, map_report_compliance, resolve_report_controls
+from ..compliance_catalog import (
+    active_framework_keys,
+    list_compliance_frameworks,
+    map_report_compliance,
+    resolve_report_controls,
+)
 from ...lybra.correlation import DEFAULT_SITE_VHOST
 from ...lybra.grouping import build_service_rollup
 from ...lybra.kb import KB_MARK_SOURCES, parse_kb_feed_version
@@ -1125,13 +1130,10 @@ def effective_frameworks(user_id: int) -> tuple:
         user_id: Dueño del escaneo.
 
     Returns:
-        tuple[ComplianceFramework, ...]: En el orden del catálogo; vacía si ni
-            el dueño ni su organización han elegido ninguno.
+        tuple[ComplianceFramework, ...]: En el orden del catálogo; vacía si el dueño
+            efectivo de los datos no ha adoptado ninguno en Eunomia.
     """
-    # Diferido: `managers` importa `services`, así que a nivel de módulo
-    # sería un ciclo.
-    from src.modules.features.themis.managers import ComplianceManager
-    keys = set(ComplianceManager().resolve_effective_frameworks(user_id))
+    keys = set(active_framework_keys(user_id))
     return tuple(framework for framework in list_compliance_frameworks() if framework.key in keys)
 
 
@@ -1217,8 +1219,8 @@ def _append_compliance_section(theme: "ReportTheme", elements: list, findings: l
 
     if not frameworks:
         elements.append(Paragraph(
-            "No hay marcos de cumplimiento elegidos. Si eliges ISO 27001, ENS o NIS2 en tu "
-            "perfil, este informe dirá qué controles de cada uno afecta cada hallazgo.", theme.info))
+            "No hay marcos de cumplimiento elegidos. Si adoptas ISO 27001, ENS o NIS2 en la "
+            "configuración de Eunomia, este informe dirá qué controles de cada uno afecta cada hallazgo.", theme.info))
         elements.append(Spacer(1, 0.3 * inch))
         return
 

@@ -88,13 +88,16 @@
     "campaignAlreadyLaunched": "La campaña ya se ha lanzado.",
     "cannotRemoveOwner": "Eres el dueño de esta organización. Para dejarla, tendrías que disolverla o traspasarla antes.",
     "circuitBreakerOpen": "El servicio no está disponible temporalmente.",
-    "complianceOrganizationOwnerOnly": "Sólo el dueño de la organización puede fijar sus marcos de cumplimiento.",
     "databaseConnection": "No se pudo conectar a la base de datos.",
     "dataOwnedByOrganization": "Estos datos los gestiona el dueño de la organización «{organizationName}». Los tuyos siguen guardados y volverán a aplicarse si la dejas.",
     "defaultPlanMissing": "La plataforma no tiene configurado un plan por defecto. Avisa a un administrador.",
     "documentNotReady": "El documento aún no está listo.",
     "duplicateAuthorizedTarget": "«{target}» ya está en tu registro de objetivos autorizados.",
     "duplicateAssetGroup": "Ya tienes un grupo de activos llamado «{name}».",
+    "frameworkAlreadyAdopted": "El marco «{framework}» ya está adoptado.",
+    "frameworkArchived": "El marco «{framework}» está archivado. Puedes restaurarlo y recuperar lo que habías evaluado.",
+    "frameworkNotArchived": "El marco «{framework}» no está archivado.",
+    "frameworkRestoreExpired": "El plazo para restaurar el marco «{framework}» ha vencido. Puedes adoptarlo de nuevo, pero empezarás de cero.",
     "invalidAuthorizedTarget": "«{target}» no es una dirección IP, un rango, un dominio ni un recurso cloud. Escríbelo como «203.0.113.10», «203.0.113.0/24», «example.com» o «s3:nombre-del-bucket».",
     "duplicatedUserCredentials": "Ya hay una cuenta con este dato: {value}.",
     "emailAlreadyVerified": "Tu correo ya está confirmado.",
@@ -103,6 +106,7 @@
     "emailNotVerified": "Confirma tu correo electrónico para poder usar esta función. Puedes pedir un enlace nuevo desde tu perfil.",
     "emailSend": "No se pudo enviar el correo.",
     "entityNotFound": {
+      "adoption": "Adopción no encontrada.",
       "framework": "Marco de cumplimiento no encontrado.",
       "anomaly": "Anomalía no encontrada.",
       "asset": "Activo no encontrado.",
@@ -1774,7 +1778,7 @@
     "saveChanges": "Guardar Cambios",
     "languageDesc": "Si no eliges ninguno, sigues el de tu organización o, sin ella, el de la plataforma.",
     "complianceTitle": "Marcos de cumplimiento",
-    "complianceDesc": "Los informes de Lybra indicarán qué controles de estos marcos afecta cada hallazgo, junto a la técnica de ataque de MITRE ATT&CK, que sale siempre.",
+    "complianceDesc": "Elige con qué marcos normativos trabajas (NIS2, ENS, ISO 27001…). Los informes de Lybra indicarán qué controles de ellos afecta cada hallazgo, junto a la técnica de ataque de MITRE ATT&CK, que sale siempre.",
     "security": "Seguridad",
     "currentPassword": "Contraseña actual",
     "newPassword": "Nueva contraseña",
@@ -1820,7 +1824,8 @@
         "distributionLists": "{count} lista de distribución | {count} listas de distribución",
         "campaigns": "{count} campaña de concienciación | {count} campañas de concienciación",
         "vaults": "{count} bóveda | {count} bóvedas",
-        "subscription": "Tu suscripción | Tu suscripción"
+        "subscription": "Tu suscripción | Tu suscripción",
+        "complianceFrameworks": "{count} marco de cumplimiento con sus evaluaciones | {count} marcos de cumplimiento con sus evaluaciones"
       },
       "confirmPassword": "Confirma con tu contraseña",
       "deleting": "Borrando…",
@@ -1831,7 +1836,8 @@
       "failed": "No se pudo borrar la cuenta.",
       "done": "Tu cuenta, tus datos, tus ficheros y tus tareas pendientes se han eliminado, y se ha retirado el permiso de tus buzones de correo.",
       "doneWithLog": "Tu cuenta, tus datos, tus ficheros y tus tareas pendientes se han eliminado, y se ha retirado el permiso de tus buzones de correo. Solo se conserva el registro de actividad, {days} días, y después se borra solo."
-    }
+    },
+    "complianceLink": "Configurar marcos de cumplimiento"
   },
   "companyProfile": {
     "title": "Datos de la empresa",
@@ -1868,6 +1874,46 @@
     "saveFailed": "No se pudieron guardar los datos de la empresa.",
     "loadFailed": "No se pudieron cargar los datos de la empresa."
   },
+  "eunomia": {
+    "frameworks": {
+      "title": "Marcos de cumplimiento",
+      "back": "Perfil",
+      "intro": "Elige con qué marcos normativos quieres trabajar. Cada marco queda fijado a una versión del catálogo: si se publica otra, tú decides cuándo pasar a ella.",
+      "loading": "Cargando…",
+      "loadFailed": "No se pudieron cargar los marcos.",
+      "offline": "No se pudo contactar con el servidor.",
+      "adopted": "Tus marcos",
+      "noneAdopted": "Todavía no has adoptado ningún marco. Elige uno de los disponibles para empezar.",
+      "available": "Marcos disponibles",
+      "noneAvailable": "Ya has adoptado todos los marcos disponibles.",
+      "archived": "Marcos quitados",
+      "version": "Versión {version}",
+      "draft": "borrador",
+      "adoptedOn": "adoptado el {date}",
+      "newerVersion": "Hay una versión más nueva: {version}",
+      "purgeAt": "Se borrará definitivamente el {date}",
+      "adopt": "Adoptar",
+      "remove": "Quitar",
+      "restore": "Restaurar",
+      "adoptFailed": "No se pudo adoptar el marco.",
+      "removeFailed": "No se pudo quitar el marco.",
+      "restoreFailed": "No se pudo restaurar el marco.",
+      "previewFailed": "No se pudo calcular qué se perdería.",
+      "adoptedToast": "Marco adoptado.",
+      "restoredToast": "Marco restaurado.",
+      "removed": "«{name}» se ha quitado. Puedes restaurarlo mientras siga en plazo.",
+      "removeTitle": "¿Quitar «{name}»?",
+      "removeConfirm": "Quitar marco",
+      "removeWarning": "Vas a dejar de ver lo que has evaluado y evidenciado en este marco.",
+      "loss": {
+        "assessments": "{count} evaluación hecha. | {count} evaluaciones hechas.",
+        "evidenceDeleted": "{count} evidencia se borrará con el marco. | {count} evidencias se borrarán con el marco.",
+        "evidenceKept": "{count} evidencia se conserva porque también sirve a otro marco. | {count} evidencias se conservan porque también sirven a otro marco."
+      },
+      "lossNone": "No hay evaluaciones ni evidencias que perder.",
+      "removeWhen": "El marco se archiva y puedes restaurarlo durante {days} días; después, el {date}, se borra definitivamente."
+    }
+  },
   "organizationManaged": {
     "notice": "Perteneces a la organización {organization}. Estos datos los gestiona su dueño, {owner}. Los tuyos siguen guardados y volverán a aplicarse si dejas la organización."
   },
@@ -1886,7 +1932,7 @@
     "memberHint": "Tu plan personal sigue siendo tuyo: lo que la organización incluye se suma a lo que ya tienes, y si te vas te lo llevas intacto.",
     "languageDesc": "El idioma de los miembros que no han elegido uno. Quien elige el suyo desde el selector de idioma lo mantiene.",
     "platformLanguage": "Idioma de la plataforma",
-    "complianceDesc": "Los marcos que salen en los informes de Lybra de todos los miembros. Si los fijas, sustituyen a los que cada miembro haya elegido en su perfil.",
+    "complianceDesc": "Los marcos los adopta el dueño de la organización y valen para todos sus miembros: sus informes de Lybra usan los mismos.",
     "inviteTitle": "Invitar",
     "inviteDesc": "Si esa dirección ya tiene cuenta, recibirá un enlace y no entrará hasta que acepte. Si no la tiene, se le crea una y se le mandan las credenciales.",
     "invitePlaceholder": "persona{'@'}empresa.com",
@@ -2164,13 +2210,6 @@
       "cancelScan": "Cancelar escaneo",
       "confirmDelete": "¿Eliminar el escaneo #{id}?",
       "confirmCancel": "¿Cancelar el escaneo #{id}?"
-    },
-    "compliance": {
-      "impose": "Aplicar estos marcos a todos los miembros",
-      "notImposing": "Mientras no lo actives, cada miembro elige los suyos en su perfil.",
-      "locked": "Tu organización ha fijado los marcos para todos sus miembros. Tu elección se guarda y vuelve a aplicarse si la organización deja de fijarlos.",
-      "saveFailed": "No se pudieron guardar los marcos de cumplimiento.",
-      "saved": "Marcos de cumplimiento guardados."
     },
     "form": {
       "title": "Nuevo escaneo {type}",

@@ -19,16 +19,42 @@ Reglas que atraviesan todo el módulo:
 
 Exponente:
     - CatalogManager: el catálogo de marcos y el árbol de cada versión.
+    - EunomiaFrameworkManager: marcos adoptados por el dueño efectivo de los datos.
+    - Modelos: EunomiaFrameworkAdoption.
     - Endpoints: eunomia_blp.
     - Excepciones: EunomiaError.
 """
 
+from src.modules.accounts import LimitKey, register_stock_counter
+from src.modules.users import UserDataRegistry
+
+from .data_export import EXPORT_TABLES
 from .endpoints import eunomia_blp
-from .managers import CatalogManager
+from .managers import CatalogManager, EunomiaFrameworkManager
 from .exceptions import EunomiaError
+from .model import EunomiaFrameworkAdoption
+from .repositories import EunomiaFrameworkAdoptionRepository
+from .services.user_data import purge_eunomia_data
+
+# Cómo se cuentan los marcos adoptados para la cuota ``eunomia.frameworks``: solo los activos,
+# sobre la bolsa de dueños que pide el motor de cuotas.
+register_stock_counter(
+    LimitKey.EUNOMIA_FRAMEWORKS,
+    lambda session, user_ids: EunomiaFrameworkAdoptionRepository(session=session).count_active_for_owners(user_ids),
+)
+
+# Qué hace ``users`` con los datos de este módulo al borrar una cuenta o exportarlos.
+UserDataRegistry.register(
+    "eunomia",
+    purge=purge_eunomia_data,
+    deletion_models={"complianceFrameworks": (EunomiaFrameworkAdoption,)},
+    export_tables=EXPORT_TABLES,
+)
 
 __all__ = [
     "eunomia_blp",
     "CatalogManager",
+    "EunomiaFrameworkManager",
+    "EunomiaFrameworkAdoption",
     "EunomiaError",
 ]

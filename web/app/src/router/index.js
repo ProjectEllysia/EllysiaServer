@@ -175,6 +175,16 @@ const routes = [
     component: () => import('@/views/hygeia/HygeiaDocumentsView.vue'),
     meta: { requiresAuth: true },
   },
+  {
+    path: '/eunomia',
+    redirect: '/eunomia/marcos',
+  },
+  {
+    path: '/eunomia/marcos',
+    name: 'EunomiaFrameworks',
+    component: () => import('@/views/eunomia/EunomiaFrameworksView.vue'),
+    meta: { requiresAuth: true },
+  },
   // Herramientas gratuitas de cada módulo (/herramientas/<módulo>/<slug>). Las
   // genera el catálogo (`src/freeTools/catalog.js`): no se declaran aquí a mano.
   ...freeToolRoutes,
