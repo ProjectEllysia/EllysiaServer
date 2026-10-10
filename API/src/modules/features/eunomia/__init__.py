@@ -23,6 +23,7 @@ Exponente:
     - EunomiaAssessmentManager: evaluar los controles de un marco adoptado.
     - Modelos: EunomiaFrameworkAdoption, EunomiaControlAssessment.
     - Endpoints: eunomia_blp.
+    - EvidenceProviderRegistry / AutomaticEvidence: cómo otros módulos aportan evidencias solas.
     - Excepciones: EunomiaError.
 """
 
@@ -37,6 +38,7 @@ from .exceptions import EunomiaError
 from .model import EunomiaControlAssessment, EunomiaEvidence, EunomiaFrameworkAdoption
 from .repositories import EunomiaEvidenceRepository, EunomiaFrameworkAdoptionRepository
 from .services.adoption_data import AdoptionDataRegistry
+from .services.providers import AutomaticEvidence, EvidenceProviderRegistry
 from .services.assessment_data import count_assessments, purge_assessments
 from .services.evidence_data import count_evidence, purge_evidence
 from .services.user_data import export_evidence_files, purge_eunomia_data
@@ -79,4 +81,6 @@ __all__ = [
     "EunomiaControlAssessment",
     "EunomiaAssessmentManager",
     "EunomiaError",
+    "EvidenceProviderRegistry",
+    "AutomaticEvidence",
 ]

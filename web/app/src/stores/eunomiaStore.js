@@ -241,6 +241,21 @@ export const useEunomiaStore = defineStore('eunomia', () => {
   }
 
   /**
+   * Carga las evidencias que otros módulos aportan solas a un control.
+   *
+   * @param {string} key - Clave del marco.
+   * @param {string} identifier - Identificador del control.
+   * @returns {Promise<Array|null>} Las evidencias, o `null` si no se pudieron cargar.
+   */
+  async function loadAutomaticEvidence(key, identifier) {
+    try {
+      const res = await apiFetch(
+        `/eunomia/adoptions/${encodeURIComponent(key)}/automatic-evidence/${encodeURIComponent(identifier)}`)
+      return res?.ok ? ((await res.json()).evidence ?? []) : null
+    } catch { return null }
+  }
+
+  /**
    * Carga el historial de cambios de un control.
    *
    * @param {string} key - Clave del marco.
@@ -378,6 +393,6 @@ export const useEunomiaStore = defineStore('eunomia', () => {
     return splitFrameworks(state.catalog, state.adoptions)
   }
 
-  return { state, load, adopt, archive, restore, previewRemoval, previewUpgrade, upgrade, loadTemplates, loadTemplateDraft, saveTemplateDraft, requestDocument, loadDocuments, downloadDocument, deleteDocument, loadTree, loadSummary, loadHistory, saveAssessment,
+  return { state, load, adopt, archive, restore, previewRemoval, previewUpgrade, upgrade, loadTemplates, loadTemplateDraft, saveTemplateDraft, requestDocument, loadDocuments, downloadDocument, deleteDocument, loadTree, loadSummary, loadHistory, loadAutomaticEvidence, saveAssessment,
     loadEvidence, uploadEvidence, setEvidenceLink, deleteEvidence, downloadEvidence, grouped }
 })
