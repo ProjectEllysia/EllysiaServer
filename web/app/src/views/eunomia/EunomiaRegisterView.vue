@@ -34,6 +34,10 @@
               <option value="">—</option>
               <option v-for="option in field.options" :key="option.value" :value="option.value">{{ option.label }}</option>
             </select>
+            <select v-else-if="field.type === 'record'" :id="`f-${field.key}`" v-model="form[field.key]">
+              <option value="">—</option>
+              <option v-for="link in data.links?.[field.key] ?? []" :key="link.id" :value="String(link.id)">{{ link.title || `#${link.id}` }}</option>
+            </select>
             <textarea v-else-if="field.type === 'longtext' || field.type === 'list'" :id="`f-${field.key}`" v-model="form[field.key]" rows="4" maxlength="20000"></textarea>
             <input v-else :id="`f-${field.key}`" v-model="form[field.key]" maxlength="20000"
                    :type="field.type === 'date' ? 'date' : field.type === 'datetime' ? 'datetime-local' : 'text'" />

@@ -34,7 +34,9 @@ FIELD_DATETIME = "datetime"
 FIELD_LIST = "list"
 FIELD_PERSON = "person"
 FIELD_SELECT = "select"
-FIELD_TYPES = (FIELD_TEXT, FIELD_LONG_TEXT, FIELD_DATE, FIELD_DATETIME, FIELD_LIST, FIELD_PERSON, FIELD_SELECT)
+FIELD_RECORD = "record"
+FIELD_TYPES = (FIELD_TEXT, FIELD_LONG_TEXT, FIELD_DATE, FIELD_DATETIME, FIELD_LIST, FIELD_PERSON, FIELD_SELECT,
+               FIELD_RECORD)
 
 #: Longitud máxima del valor de un campo.
 MAX_VALUE_LENGTH = 20_000
@@ -60,6 +62,8 @@ class RegisterField:
         is_required: Si hay que rellenarlo para guardar la ficha.
         options: ``((valor, etiqueta), …)`` de un ``select``; vacío en los demás tipos.
         help: Ayuda breve; ``""`` si no tiene.
+        register: Clave del tipo de registro al que apunta un campo ``record`` (el valor es el id
+            de una ficha de ese tipo); ``""`` en los demás tipos.
     """
 
     key: str
@@ -68,6 +72,7 @@ class RegisterField:
     is_required: bool
     options: tuple[tuple[str, str], ...]
     help: str
+    register: str = ""
 
 
 @dataclass(frozen=True)
@@ -163,8 +168,11 @@ def parse_register(document: dict, root: Path = CATALOG_ROOT) -> RegisterType:
         options = tuple((option["value"], option["label"]) for option in raw.get("options", []))
         if (raw["type"] == FIELD_SELECT) != bool(options):
             raise CatalogFormatError(f"{where}: el campo «{key}» necesita opciones si y solo si es un select")
+        target = raw.get("register", "")
+        if (raw["type"] == FIELD_RECORD) != bool(target) or target == document.get("key"):
+            raise CatalogFormatError(f"{where}: el campo «{key}» necesita «register» (de otro tipo) si y solo si es record")
         fields.append(RegisterField(key, raw.get("label", key), raw["type"], bool(raw.get("required", False)),
-                                    options, raw.get("help", "")))
+                                    options, raw.get("help", ""), target))
     by_key = {item.key: item for item in fields}
     if document["titleField"] not in by_key:
         raise CatalogFormatError(f"{where}: «titleField» no es un campo")
@@ -236,6 +244,8 @@ def validate_values(register: RegisterType, values: Mapping[str, str]) -> list[s
         elif field.type == FIELD_DATETIME and not _is_iso(value, datetime.fromisoformat):
             problems.append(key)
         elif field.type == FIELD_SELECT and value not in {option for option, _ in field.options}:
+            problems.append(key)
+        elif field.type == FIELD_RECORD and not value.isdecimal():
             problems.append(key)
     for field in register.fields:
         if field.is_required and not str(values.get(field.key, "")).strip() and field.key not in problems:

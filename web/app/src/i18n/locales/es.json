@@ -2090,7 +2090,7 @@
     },
     "registers": {
       "title": "Registros",
-      "intro": "Listas de fichas que la normativa te pide mantener: tratamientos de datos, incidentes y brechas. Cada ficha guarda su historial.",
+      "intro": "Listas de fichas que la normativa te pide mantener: tratamientos de datos, incidentes y brechas, solicitudes de derechos y evaluaciones de impacto. Cada ficha guarda su historial.",
       "loadFailed": "No se pudieron cargar los registros.",
       "saveFailed": "No se pudo guardar la ficha.",
       "exportFailed": "No se pudo exportar el registro.",
