@@ -17,7 +17,7 @@ from src.modules.infrastructure import UnitOfWork
 from src.modules.infrastructure.session import build_repository
 
 from ..exceptions import ComplianceOrganizationNotOwnedError
-from ..lybra import list_compliance_frameworks
+from ..services.compliance_catalog import list_compliance_frameworks
 from ..model import ComplianceFrameworkSelection
 from ..repositories import ComplianceFrameworkSelectionRepository
 
