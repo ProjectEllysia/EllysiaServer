@@ -30,6 +30,7 @@ lista, se adapta en el mismo cambio.
 11. [Estado actual y cumplimiento](#11-estado-actual-y-cumplimiento)
 12. [Textos de la interfaz](#12-textos-de-la-interfaz)
 13. [Errores que llegan al cliente](#13-errores-que-llegan-al-cliente)
+14. [Proyectos: versiones, ramas y fases](#14-proyectos-versiones-ramas-y-fases)
 
 ---
 
@@ -1405,3 +1406,104 @@ revisión, no el test.
 `ValueError`, `KeyError` y compañía no son para el cliente: si una llega hasta Flask, sale como el
 500 genérico (`UnexpectedServerError`). Lo que el usuario deba leer se lanza como excepción de
 dominio.
+
+---
+
+## 14. Proyectos: versiones, ramas y fases
+
+Esta sección fija cómo se acomete un trabajo grande —varios issues agrupados en fases, con un
+proyecto de GitHub detrás— y cómo se relaciona con las versiones. Las ramas de un cambio pequeño
+(`<tipo>/<módulo>/<descripción>` desde la `vX.Y` y de vuelta por PR) siguen como en `CLAUDE.md`;
+esto es lo que se añade encima cuando hay un proyecto.
+
+### 14.1 Qué es un proyecto, y qué no
+
+Un **proyecto** es un trabajo con issues propios organizados en **fases**, que se entrega por
+partes y cuyo conjunto no cabe en una sola rama de trabajo. Lo que decide si cambia la versión
+de línea (`0.5` → `0.6`) **no es que haya un proyecto, sino que aparezca un módulo nuevo**: un
+proyecto que solo amplía módulos existentes se queda en su `vX.Y`; uno que añade un módulo de
+feature (un blueprint más, una raíz nueva en `features/`) abre la línea siguiente.
+
+El ejemplo vivo es Eunomia: añade un módulo, por eso se trabaja en `v0.6`.
+
+### 14.2 Antes de empezar: dejar el terreno limpio
+
+En este orden, y sin saltarse pasos:
+
+1. **Todo el desarrollo está en la `vX.Y` vigente.** Se compara cada rama local y remota
+   contra ella (`git log vX.Y..<rama>` y `git cherry -v vX.Y <rama>`; el segundo detecta los
+   commits cuyo parche ya entró con otro hash). Lo que no esté, se **integra por PR** (rebase
+   sobre la `vX.Y`, tests de lo tocado, CI) o se descarta **con confirmación expresa**: una rama
+   sin PR ni *upstream* es trabajo que solo existe en un disco.
+2. **Se limpian las ramas**: queda la `vX.Y` como única rama local, y en el remoto la `vX.Y` y
+   `main`. Se borran también los *worktrees* y las ramas locales cuyo remoto desapareció. No se
+   borra nada con commits sin integrar.
+3. **Se publica la versión que se cierra**: un *bump* del tercer dígito de `appVersion`
+   (`0.5.37` → `0.5.38`) en commit propio `chore(release): appVersion 0.5.38`, y un PR de la
+   `vX.Y` a `main` (`Versión 0.5.38: <resumen>`). Es el último cambio de esa línea.
+4. **Se abre la línea nueva**: `git checkout -b v0.6 v0.5` y, **solo en esa rama**,
+   `appVersion` pasa a `0.6.0` (`chore(release): appVersion 0.6.0`). La `v0.5` no se toca.
+
+### 14.3 Jerarquía de ramas
+
+```
+main
+ └─ v0.6                              línea de versión (appVersion 0.6.N)
+     └─ proyecto/eunomia              rama de proyecto: sale de v0.6 y vuelve a v0.6
+         ├─ proyecto/eunomia-fase-0   rama de fase: sale del proyecto y vuelve a él
+         │    ├─ feat/eunomia/company-profile      rama de issue: sale de la fase y vuelve a ella
+         │    └─ feat/eunomia/read-only-members
+         └─ proyecto/eunomia-fase-1
+```
+
+| Rama | Nombre | Sale de | Vuelve por PR a | Cuántas |
+|---|---|---|---|---|
+| Proyecto | `proyecto/<nombre>` | `vX.Y` | `vX.Y` | una |
+| Fase | `proyecto/<nombre>-fase-<N>` | la rama de proyecto | la rama de proyecto | una por fase |
+| Issue | `<tipo>/<módulo>/<descripción>` | la rama de su fase | la rama de su fase | **una por issue** |
+
+- Las ramas de fase **no** llevan `/` tras el nombre del proyecto (`proyecto/eunomia-fase-0`, no
+  `proyecto/eunomia/fase-0`): Git no admite a la vez una rama `proyecto/eunomia` y otra con ese
+  prefijo como carpeta. Empiezan por `proyecto/` para que el CI las reconozca como destino de un PR.
+- Una rama de issue contiene **un solo issue**. Si dos issues se tocan entre sí, uno espera al
+  otro; no se mezclan en la rama.
+- El `Refs #N` / `Closes #N` va en el mensaje de commit y en el PR, nunca en el código
+  (`CLAUDE.md`, § *Mantenimiento del README*).
+
+### 14.4 Qué pruebas corre cada nivel
+
+| Nivel | Qué se ejecuta | Por qué |
+|---|---|---|
+| Rama de issue | Solo los tests del código tocado (más las guardas de convenciones que apliquen: `test_code_conventions`, invariantes de Lybra, `test_caddy_api_routes` si cambia un blueprint, la suite i18n del SPA si cambia un texto) | El bucle tiene que ser corto; un issue es pequeño |
+| Cierre de fase | **La suite entera** (`pytest -n auto --dist worksteal --no-cov`) y las del SPA | Una fase es la unidad que se integra: aquí se descubren los cruces entre issues |
+| PR de fase → proyecto | El CI (`tests.yml`) | Es la puerta del merge |
+
+Una rama de issue que pasa sus tests **no** prueba que la fase esté sana, y por eso la suite
+completa se corre al cerrar la fase y no antes.
+
+### 14.5 Cerrar una fase
+
+Cuando todos los issues de la fase están mergeados en su rama de fase:
+
+1. Se corre la suite entera de la API y del SPA sobre la rama de fase.
+2. **Bump del tercer dígito** en un commit propio al final de la rama de fase:
+   `chore(release): appVersion 0.6.1`. Cada fase cerrada sube un dígito (`0.6.0` es el punto de
+   partida del proyecto; la fase 0 deja `0.6.1`, la 1 deja `0.6.2`…).
+3. El README se revisa y, si hay cambios visibles, va en **un único commit** de README
+   (`CLAUDE.md`, § *Mantenimiento del README*).
+4. PR de la rama de fase a la rama de proyecto. **Se mergea cuando el CI pasa**, no antes.
+5. La rama de fase y las de sus issues se borran al mergear.
+
+### 14.6 Cerrar el proyecto
+
+Cuando la última fase está en la rama de proyecto, esta vuelve a la `vX.Y` por PR y se borra. De
+ahí en adelante la `v0.6` sigue el flujo normal: ramas de trabajo, PR y, para publicar, *bump* y
+PR a `main`.
+
+### 14.7 Lo que no se hace
+
+- Mergear una fase sin la suite entera en verde.
+- Subir el dígito de versión en una rama de issue: el *bump* es de la fase.
+- Tocar el `appVersion` de la `vX.Y` anterior una vez abierta la línea nueva.
+- Reutilizar una rama de issue para otro issue, o trabajar sobre la rama de proyecto directamente.
+- Borrar una rama con commits que no estén en la `vX.Y` sin haberlo confirmado.
