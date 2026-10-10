@@ -90,6 +90,7 @@
     "circuitBreakerOpen": "El servicio no está disponible temporalmente.",
     "complianceOrganizationOwnerOnly": "Sólo el dueño de la organización puede fijar sus marcos de cumplimiento.",
     "databaseConnection": "No se pudo conectar a la base de datos.",
+    "dataOwnedByOrganization": "Estos datos los gestiona el dueño de la organización «{organizationName}». Los tuyos siguen guardados y volverán a aplicarse si la dejas.",
     "defaultPlanMissing": "La plataforma no tiene configurado un plan por defecto. Avisa a un administrador.",
     "documentNotReady": "El documento aún no está listo.",
     "duplicateAuthorizedTarget": "«{target}» ya está en tu registro de objetivos autorizados.",
@@ -155,6 +156,7 @@
     "invalidDocumentRequest": "Falta elegir qué quieres exportar.",
     "invalidMfaCode": "El código introducido no es válido.",
     "invalidProgramedTaskArgument": "Falta el argumento «{field}» para el escaneo de tipo «{scanType}».",
+    "invalidTaxId": "El NIF/CIF no es válido. Revisa que no falte ninguna cifra ni la letra final.",
     "invalidVerificationToken": "Este enlace de confirmación no es válido o ha caducado. Puedes pedir uno nuevo desde tu perfil.",
     "inventoryNotAvailable": "Este activo aún no ha enviado su inventario de software.",
     "invitationInvalid": "Esta invitación no es válida o ha caducado. Pide a quien te invitó que te mande otra.",
@@ -391,7 +393,8 @@
         "title": "Eliminar todo lo relacionado con Ellysia",
         "description": "La cabecera, el pie y la página del test pasan a la marca de la organización."
       }
-    }
+    },
+    "logoManagedElsewhere": "El logo se gestiona en los datos de la empresa."
   },
   "moduleHub": {
     "signIn": "Entrar",
@@ -1651,6 +1654,9 @@
       "vaults": "Bóvedas",
       "secrets": "Secretos guardados",
       "assets": "Activos monitorizados",
+      "frameworks": "Marcos de cumplimiento",
+      "evidenceStorage": "Almacenamiento de evidencias",
+      "complianceDocuments": "Documentos de cumplimiento",
       "aiRequests": "Peticiones a la IA",
       "members": "Miembros de la organización"
     }
@@ -1825,6 +1831,44 @@
       "done": "Tu cuenta, tus datos, tus ficheros y tus tareas pendientes se han eliminado, y se ha retirado el permiso de tus buzones de correo.",
       "doneWithLog": "Tu cuenta, tus datos, tus ficheros y tus tareas pendientes se han eliminado, y se ha retirado el permiso de tus buzones de correo. Solo se conserva el registro de actividad, {days} días, y después se borra solo."
     }
+  },
+  "companyProfile": {
+    "title": "Datos de la empresa",
+    "desc": "Razón social, NIF, dirección y contacto de seguridad. Se guardan una vez y los usan el cumplimiento normativo, Aegis y los documentos.",
+    "fields": {
+      "legalName": "Razón social",
+      "taxId": "NIF/CIF",
+      "country": "País (código de 2 letras)",
+      "addressLine": "Dirección",
+      "postalCode": "Código postal",
+      "city": "Localidad",
+      "province": "Provincia",
+      "sector": "Sector",
+      "jurisdiction": "Jurisdicción",
+      "securityContact": "Responsable de seguridad (correo)",
+      "companySize": "Tamaño",
+      "workModel": "Modelo de trabajo",
+      "employeeCount": "Personas en plantilla",
+      "brandLogo": "Logo"
+    },
+    "sizes": {
+      "micro": "Microempresa",
+      "pequeña": "Pequeña",
+      "mediana": "Mediana"
+    },
+    "workModels": {
+      "remoto": "Remoto",
+      "híbrido": "Híbrido",
+      "presencial": "Presencial"
+    },
+    "save": "Guardar",
+    "saving": "Guardando…",
+    "saved": "Datos de la empresa guardados.",
+    "saveFailed": "No se pudieron guardar los datos de la empresa.",
+    "loadFailed": "No se pudieron cargar los datos de la empresa."
+  },
+  "organizationManaged": {
+    "notice": "Perteneces a la organización {organization}. Estos datos los gestiona su dueño, {owner}. Los tuyos siguen guardados y volverán a aplicarse si dejas la organización."
   },
   "organization": {
     "topbar": "Mi organización",
@@ -3808,7 +3852,18 @@
       "save": "Guardar perfil",
       "agentProducts": "productos de mis agentes",
       "noProducts": "sin productos",
-      "productCount": "{count} producto | {count} productos"
+      "productCount": "{count} producto | {count} productos",
+      "companyDataTitle": "Datos de la empresa",
+      "editCompanyData": "Editar en los datos de la empresa",
+      "companyData": {
+        "company": "Razón social",
+        "mentionContact": "Contacto",
+        "sector": "Sector",
+        "companySize": "Tamaño",
+        "employeeCount": "Plantilla",
+        "jurisdiction": "Jurisdicción",
+        "workModel": "Modelo de trabajo"
+      }
     },
     "products": {
       "title": "Productos vigilados",
@@ -4830,6 +4885,15 @@
     }
   },
   "configView": {
+    "eunomia": {
+      "desc": "Marcos de cumplimiento normativo: límites de las evidencias y retención.",
+      "maxEvidenceBytes": "Tamaño máximo de una evidencia (bytes)",
+      "maxEvidenceBytesHint": "Se lee entero en memoria al cifrarlo; es también el techo de memoria de una subida.",
+      "archivedRetentionDays": "Días de recuperación de un marco quitado",
+      "archivedRetentionDaysHint": "Pasado este plazo, el marco y sus evaluaciones se borran definitivamente.",
+      "expiryNoticeDays": "Antelación del aviso de caducidad (días)",
+      "expiryNoticeDaysHint": "Con cuántos días de margen se avisa de que una evidencia va a caducar."
+    },
     "enS1TodasLasFunciones": "En {s1} todas las funciones de abajo están cerradas al público, digan lo que digan sus interruptores; tu cuenta de administrador principal puede seguir probándolas, salvo el alta, los precios y la IA externa. En {s2} cada función sigue su interruptor, para poder abrir Ellysia por partes a medida que cada una tenga su cobertura legal.",
     "vistaPrevia": "vista previa",
     "abiertoAlPublico": "abierto al público",
@@ -5121,7 +5185,8 @@
       "iris": "Iris",
       "themis": "Themis",
       "aegis": "Aegis",
-      "hygeia": "Hygeia"
+      "hygeia": "Hygeia",
+      "eunomia": "Eunomia"
     },
     "mailModules": {
       "aegis": "Aegis (campañas)",

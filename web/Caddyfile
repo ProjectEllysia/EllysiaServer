@@ -180,7 +180,7 @@ www.ellysia.es, http://localhost, http://127.0.0.1 {
 	# GET /users, GET/PUT /system, GET/POST /plans, POST /organizations.
 	# Los prefijos de módulo (/themis, /aegis...) no la llevan a propósito:
 	# a secas son rutas del SPA (el hub), y caen al `handle` final.
-	@api path /system /system/* /oauth/* /users /users/* /plans /plans/* /organizations /organizations/* /themis/* /aegis/* /iris/* /acheron/* /hygeia/*
+	@api path /system /system/* /oauth/* /users /users/* /plans /plans/* /organizations /organizations/* /themis/* /aegis/* /iris/* /acheron/* /hygeia/* /eunomia/*
 	handle @api {
 		import api_backend
 	}

@@ -1,10 +1,12 @@
 """
 Gestión de organizaciones: un titular paga, sus miembros heredan derechos.
 
-Lo que una organización comparte es **plan y factura**, nunca datos. Aquí no
-hay ni una consulta a bóvedas, escaneos o análisis, y no debe haberla: Acheron
-es zero-knowledge (el servidor solo ve cifrado) e Iris analiza correo personal.
-El dueño ve la lista de miembros y el consumo agregado, y nada más.
+Lo que una organización comparte es **plan y factura**, y datos corporativos
+solo en las excepciones que describe el docstring de ``Organization`` (el
+cumplimiento y el perfil de empresa entre ellas). Aquí no hay ni una consulta a
+bóvedas, escaneos o análisis, y no debe haberla: Acheron es zero-knowledge (el
+servidor solo ve cifrado) e Iris analiza correo personal. El dueño ve la lista
+de miembros y el consumo agregado, y nada más.
 """
 
 import logging
@@ -221,6 +223,77 @@ class OrganizationManager:
         """
         membership = build_repository(OrganizationMemberRepository).get_by_user(user_id)
         return membership.organization_id if membership is not None else None
+
+    def resolve_data_owner(self, user_id: int) -> int:
+        """Devuelve de quién son los datos corporativos que un usuario ve y edita.
+
+        Es la **única** implementación de la regla «los datos son del usuario;
+        si el usuario pertenece a una organización, son los del dueño de esa
+        organización». La consultan el cumplimiento normativo, el perfil de
+        empresa y todo lo que se comparta con la organización; ningún módulo la
+        resuelve por su cuenta.
+
+        Mientras un usuario pertenece a una organización, sus datos propios no
+        se ven ni se usan, pero **no se borran**: al salir, o si el dueño
+        disuelve la organización o borra su cuenta, vuelven a ser los suyos.
+
+        Args:
+            user_id: Usuario que pregunta, sea dueño, miembro o sin organización.
+
+        Returns:
+            int: ``owner_user_id`` de su organización si es miembro; ``user_id``
+                si es el propio dueño o no pertenece a ninguna.
+        """
+        membership = build_repository(OrganizationMemberRepository).get_by_user(user_id)
+        if membership is None:
+            return user_id
+        organization = build_repository(OrganizationRepository).get_by_id(membership.organization_id)
+        return organization.owner_user_id if organization is not None else user_id
+
+    def describe_data_ownership(self, user_id: int) -> dict:
+        """Cuenta a la interfaz de quién son los datos que un usuario está viendo.
+
+        Es lo que necesita el aviso que explica a un miembro que no puede
+        editar los datos de la organización. Del dueño solo expone su nombre
+        visible.
+
+        Args:
+            user_id: Usuario que pregunta.
+
+        Returns:
+            dict: ``{"ownerUserId", "isOwnData", "organizationName",
+                "ownerDisplayName"}``. ``isOwnData`` es ``False`` solo para un
+                miembro que no es el dueño; en ese caso ``ownerDisplayName`` es
+                el nombre completo del dueño (o su usuario si no tiene). Para
+                quien no pertenece a ninguna organización, ``organizationName``
+                y ``ownerDisplayName`` son ``None``; para el dueño,
+                ``organizationName`` es la suya y ``ownerDisplayName`` es
+                ``None``.
+        """
+        # Import diferido: users → acheron → accounts cerraría un ciclo si se
+        # importara al cargar el módulo.
+        from src.modules.users import UserManager
+
+        owner_user_id = self.resolve_data_owner(user_id)
+        organization_id = self.get_organization_id_of(user_id)
+        organization = (
+            build_repository(OrganizationRepository).get_by_id(organization_id)
+            if organization_id is not None else None
+        )
+        is_own_data = owner_user_id == user_id
+
+        owner_display_name = None
+        if not is_own_data:
+            owner = UserManager().get_user_by_id(owner_user_id)
+            if owner is not None:
+                owner_display_name = f"{owner.first_name} {owner.last_name}".strip() or owner.username
+
+        return {
+            "ownerUserId": owner_user_id,
+            "isOwnData": is_own_data,
+            "organizationName": organization.name if organization is not None else None,
+            "ownerDisplayName": owner_display_name,
+        }
 
     def is_owner_of_member(self, owner_user_id: int, member_user_id: int) -> bool:
         """Indica si un usuario es el dueño de la organización de otro.

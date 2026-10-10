@@ -1,5 +1,5 @@
 {
-  "appVersion": "0.6.0",
+  "appVersion": "0.6.1",
   "general": {
     "directories": {
       "logdir": "..",
@@ -1463,6 +1463,20 @@
         "maxBackfillSec": 86400,
         "maxAssetsPerUser": 500,
         "maxInventoryItems": 2000
+      }
+    },
+    "eunomia": {
+      "maxEvidenceBytes": 26214400,
+      "allowedEvidenceTypes": ["pdf", "png", "jpg", "jpeg", "docx", "xlsx", "odt", "ods", "txt", "csv"],
+      "archivedFrameworkRetentionDays": 30,
+      "evidenceExpiryNoticeDays": 30,
+      "colorPalette": {
+        "black": "#121212",
+        "dark": "#2b3a55",
+        "light": "#7088b8",
+        "main": "#3f5a8c",
+        "secondary": "#555b6e",
+        "white": "#f5f5f5"
       }
     }
   }

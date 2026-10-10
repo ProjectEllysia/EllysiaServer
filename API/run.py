@@ -60,6 +60,7 @@ from src.modules.features.acheron    import acheron_blp
 from src.modules.features.aegis      import aegis_blp
 from src.modules.features.iris       import iris_blp
 from src.modules.features.hygeia     import hygeia_blp
+from src.modules.features.eunomia    import eunomia_blp
 
 import src.modules.system.config_reading as CR
 
@@ -251,6 +252,7 @@ def _register_blueprints(app: Flask) -> None:
     flask_smorest_api.register_blueprint(aegis_blp,     url_prefix="/aegis")
     flask_smorest_api.register_blueprint(iris_blp,      url_prefix="/iris")
     flask_smorest_api.register_blueprint(hygeia_blp,    url_prefix="/hygeia")
+    flask_smorest_api.register_blueprint(eunomia_blp,   url_prefix="/eunomia")
 
 
 def _register_error_handlers(app: Flask) -> None:

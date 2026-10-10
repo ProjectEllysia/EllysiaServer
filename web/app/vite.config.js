@@ -59,6 +59,7 @@ export default defineConfig(({ mode }) => {
         '/acheron':   { target: API_TARGET, changeOrigin: true, bypass: proxyBypass },
         '/iris':      { target: API_TARGET, changeOrigin: true, bypass: proxyBypass },
         '/hygeia':    { target: API_TARGET, changeOrigin: true, bypass: proxyBypass },
+        '/eunomia':   { target: API_TARGET, changeOrigin: true, bypass: proxyBypass },
         // Capa comercial. Van con bypass porque comparten prefijo con rutas del
         // SPA: /plans es la API pero /planes es la tabla de precios, y
         // /organizations es la API mientras que /organizacion es la vista. El

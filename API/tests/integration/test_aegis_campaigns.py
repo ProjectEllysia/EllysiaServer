@@ -642,16 +642,21 @@ _COLOR = "#1a73e8"
 
 
 def _save_org_profile(client, headers, **overrides):
+    """Guarda el perfil de empresa (razón social y logo) y después los ajustes de Aegis.
+
+    El logo y el nombre de la empresa viven en el perfil de empresa de
+    ``accounts``; el perfil de Aegis solo guarda el nivel y el color.
+    """
+    client.put("/organizations/company-profile", headers=headers, json={
+        "legalName": overrides.get("company", "ACME S.L."),
+        "securityContact": "seguridad@acme.test",
+        "brandLogo": overrides.get("brandLogo", ""),
+    })
     payload = {
         "company": "ACME S.L.",
         "mentionContact": "seguridad@acme.test",
         "tone": "profesional",
-        "companySize": "",
-        "jurisdiction": "",
         "language": "es",
-        "sector": "",
-        "workModel": "",
-        "employeeCount": None,
         "trackedProducts": [],
         "useHygeiaInventory": False,
     }

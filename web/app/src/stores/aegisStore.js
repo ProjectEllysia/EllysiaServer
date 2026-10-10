@@ -38,6 +38,8 @@ export const useAegisStore = defineStore('aegis', () => {
   const useHygeiaInventory = ref(true)
   /** Si el usuario tiene algún agente con inventario (decide si se ofrece) */
   const hygeiaInventoryAvailable = ref(false)
+  /** De quién son los datos de empresa del perfil: `{ isOwnData, organizationName, ownerDisplayName }`. */
+  const companyDataOwnership = ref({ isOwnData: true })
   /** Ajustes de white-labeling del perfil (v-model de WhiteLabelFields).
       `ref` y no `reactive`: el componente emite un objeto nuevo en cada
       cambio, y a un `reactive` del store no se le puede reasignar. */
@@ -233,6 +235,7 @@ export const useAegisStore = defineStore('aegis', () => {
       trackedProducts.value = [...(data.trackedProducts ?? [])]
       useHygeiaInventory.value = data.useHygeiaInventory ?? true
       hygeiaInventoryAvailable.value = data.hygeiaInventoryAvailable ?? false
+      companyDataOwnership.value = data.companyDataOwnership ?? { isOwnData: true }
       whiteLabel.value = {
         level: data.whiteLabelLevel || 'none',
         logo:  data.brandLogo ?? '',
@@ -251,19 +254,11 @@ export const useAegisStore = defineStore('aegis', () => {
     savingOrgProfile.value = true
     try {
       const payload = {
-        company:          tweaks.company,
-        mentionContact:   tweaks.mentionContact,
         tone:             tweaks.tone,
-        companySize:      tweaks.companySize,
-        jurisdiction:     tweaks.jurisdiction,
         language:         tweaks.language,
-        sector:           tweaks.sector,
-        workModel:        tweaks.workModel,
-        employeeCount:    tweaks.employeeCount || null,
         trackedProducts:  [...trackedProducts.value],
         useHygeiaInventory: useHygeiaInventory.value,
         whiteLabelLevel:  whiteLabel.value.level,
-        brandLogo:        whiteLabel.value.logo,
         brandColor:       whiteLabel.value.color,
       }
       const res = await apiFetch('/aegis/org-profile', { method: 'PUT', body: JSON.stringify(payload) })
@@ -767,7 +762,7 @@ export const useAegisStore = defineStore('aegis', () => {
 
   return {
     topics, documents, listError, selectedTopicId, currentDocId, sortMode,
-    trackedProducts, useHygeiaInventory, hygeiaInventoryAvailable,
+    trackedProducts, useHygeiaInventory, hygeiaInventoryAvailable, companyDataOwnership,
     whiteLabel, maxWhiteLabelLevel,
     productResults, searchingProducts, productSearchError,
     generating, generateError, loading, editing, saving, tweaks, viewerDoc,

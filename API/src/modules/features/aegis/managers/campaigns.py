@@ -33,7 +33,7 @@ from src.modules.features.aegis.exceptions import (
     QuizTokenInvalidError,
 )
 import src.modules.system.config_reading as CR
-from src.modules.accounts import LimitKey, QuotaManager
+from src.modules.accounts import CompanyProfileManager, LimitKey, QuotaManager
 from src.modules.tools.herald import (
     EmailMessage,
     Mailer,
@@ -432,11 +432,12 @@ class CampaignManager(TaskTrackingMixin):
             # es el que el destinatario ya lee en el cuerpo ("Desde X, te
             # hacemos llegar…"), para que cabecera y texto no se contradigan.
             profile = build_repository(AegisOrgProfileRepository).get_by_user_id(self.user.id)
+            company = CompanyProfileManager().get_for(self.user.id)
             white_label = WhiteLabel.from_stored(
                 profile.white_label_level if profile else None,
-                profile.brand_logo if profile else None,
+                company["brandLogo"],
                 profile.brand_color if profile else None,
-                pill_company or (profile.company if profile else ""),
+                pill_company or company["legalName"],
             )
             # El tope del plan se vuelve a aplicar aquí: entre que se guardó el
             # ajuste y se envía la campaña la suscripción puede haber bajado.
@@ -580,11 +581,12 @@ class CampaignManager(TaskTrackingMixin):
             }
 
         profile = build_repository(AegisOrgProfileRepository).get_by_user_id(document.user_id)
+        company = CompanyProfileManager().get_for(document.user_id)
         white_label = WhiteLabel.from_stored(
             profile.white_label_level if profile else None,
-            profile.brand_logo if profile else None,
+            company["brandLogo"],
             profile.brand_color if profile else None,
-            document.company or (profile.company if profile else ""),
+            document.company or company["legalName"],
         ).capped_to(AegisOrgProfileManager.max_white_label_level(document.user_id))
 
         level = white_label.effective_level

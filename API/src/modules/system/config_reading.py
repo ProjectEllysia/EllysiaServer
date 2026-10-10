@@ -2532,6 +2532,42 @@ def hygeia_limits() -> HygeiaLimits:
 
 
 # =============================================================================
+# CONFIGURACIÓN DE EUNOMIA
+# =============================================================================
+
+@config_block("features.eunomia")
+@dataclass(frozen=True)
+class EunomiaConfig:
+    """Evidencias, retención y aspecto de los documentos de cumplimiento normativo."""
+
+    max_evidence_bytes: int = 26214400
+    """Tamaño máximo de un fichero de evidencia, en bytes (25 MB).
+
+    Se lee entero en memoria al cifrarlo, así que este tope es también el techo
+    de memoria de una subida.
+    """
+
+    allowed_evidence_types: list[str] = field(
+        default_factory=lambda: ["pdf", "png", "jpg", "jpeg", "docx", "xlsx", "odt", "ods", "txt", "csv"]
+    )
+    """Extensiones admitidas para una evidencia, en minúsculas y sin punto."""
+
+    archived_framework_retention_days: int = 30
+    """Días que un marco quitado sigue recuperable antes de borrarse definitivamente."""
+
+    evidence_expiry_notice_days: int = 30
+    """Antelación, en días, con la que se avisa de que una evidencia va a caducar."""
+
+    color_palette: dict[str, str] = field(default_factory=dict)
+    """Paleta de los PDF de cumplimiento (``black``, ``dark``, ``light``, ``main``,
+    ``secondary``, ``white``), como la del resto de features."""
+
+
+def eunomia_config() -> EunomiaConfig:
+    return load_block(EunomiaConfig)
+
+
+# =============================================================================
 # CONFIGURACIÓN DE IRIS
 # =============================================================================
 

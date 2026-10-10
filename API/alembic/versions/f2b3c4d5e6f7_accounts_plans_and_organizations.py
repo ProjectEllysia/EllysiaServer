@@ -66,6 +66,12 @@ _HOLDER_LIMITS: dict[str, tuple[str, dict[str, int | None]]] = {
     "acheron.vaults":           ("stock", {"freemium":  1, "bronze":   3, "silver":   10, "gold":  None}),
     "acheron.items":            ("stock", {"freemium": 25, "bronze": 250, "silver": 1000, "gold":  None}),
     "hygeia.assets":            ("stock", {"freemium":  1, "bronze":  10, "silver":   40, "gold":   150}),
+    # Eunomia. Los mismos valores que siembra la migracion e7a9b1c3d5f6 para
+    # las bases ya desplegadas; evidence_storage va en bytes.
+    "eunomia.frameworks":       ("stock", {"freemium": 1, "bronze": 3, "silver": 6, "gold": None}),
+    "eunomia.evidence_storage": ("stock", {"freemium": 104_857_600, "bronze": 1_073_741_824,
+                                           "silver": 5_368_709_120, "gold": 21_474_836_480}),
+    "eunomia.documents":        ("month", {"freemium": 2, "bronze": 10, "silver": 50, "gold": 200}),
     "ai.requests":              ("month", {"freemium":  5, "bronze":  60, "silver":  250, "gold":   900}),
     "organization.members":     ("stock", {"freemium":  0, "bronze":  20, "silver":   50, "gold":   100}),
 }
