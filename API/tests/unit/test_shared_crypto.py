@@ -7,7 +7,7 @@ import re
 
 import pytest
 
-from src.modules.shared._crypto import EncryptedText, decrypt_at_rest, encrypt_at_rest
+from src.modules.shared._crypto import EncryptedBinary, EncryptedText, decrypt_at_rest, encrypt_at_rest
 
 pytestmark = pytest.mark.unit
 
@@ -100,3 +100,47 @@ def test_no_column_is_encrypted_by_hand_any_more():
         "Cifrado manual en reposo fuera de _crypto.py; usa el tipo de columna "
         f"EncryptedText en su lugar: {offenders}"
     )
+
+
+# ---------------------------------------------------------------------------
+# EncryptedBinary: el hermano de EncryptedText para bytes
+# ---------------------------------------------------------------------------
+
+class TestEncryptedBinary:
+    """El tipo binario cifra en reposo con la misma regla que ``EncryptedText``."""
+
+    @staticmethod
+    def _type(purpose="eunomia_evidence"):
+        return EncryptedBinary(purpose=purpose)
+
+    def test_arbitrary_bytes_round_trip(self):
+        payload = bytes(range(256)) * 40
+        column = self._type()
+
+        stored = column.process_bind_param(payload, None)
+
+        assert column.process_result_value(stored, None) == payload
+
+    def test_the_stored_bytes_do_not_contain_the_plaintext(self):
+        pdf = b"%PDF-1.7\n" + b"contenido sensible " * 20
+        stored = self._type().process_bind_param(pdf, None)
+
+        assert b"%PDF-" not in stored
+        assert b"contenido sensible" not in stored
+
+    def test_another_purpose_cannot_decrypt(self):
+        from cryptography.fernet import InvalidToken
+
+        stored = self._type("eunomia_evidence").process_bind_param(b"secreto", None)
+
+        with pytest.raises(InvalidToken):
+            self._type("mfa").process_result_value(stored, None)
+
+    def test_none_stays_none(self):
+        column = self._type()
+        assert column.process_bind_param(None, None) is None
+        assert column.process_result_value(None, None) is None
+
+    def test_an_empty_file_round_trips(self):
+        column = self._type()
+        assert column.process_result_value(column.process_bind_param(b"", None), None) == b""

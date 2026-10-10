@@ -31,7 +31,7 @@ from ._exposure import (
     PRIVATE_HOST_SUFFIXES,
 )
 from ._task_states import CANCELLABLE_STATES
-from ._crypto import encrypt_at_rest, decrypt_at_rest, EncryptedText
+from ._crypto import encrypt_at_rest, decrypt_at_rest, EncryptedBinary, EncryptedText
 from ._white_label import (
     WhiteLabel,
     WhiteLabelColumns,
@@ -73,6 +73,7 @@ __all__ = [
     "CANCELLABLE_STATES",
     "encrypt_at_rest",
     "decrypt_at_rest",
+    "EncryptedBinary",
     "EncryptedText",
     "ErrorSchema",
     "SuccessMessageSchema",
