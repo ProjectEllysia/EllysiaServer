@@ -1427,7 +1427,7 @@
       "p3": "We do not promise invulnerability; no honest person does. We promise that {privilege}.",
       "p3Privilege": "defending yourself stops being a privilege"
     },
-    "toolsTitle": "The five tools",
+    "toolsTitle": "The six tools",
     "toolsSubtitle": "Each one guards one side of your security.",
     "explore": "Explore {name}",
     "tools": {
@@ -1487,7 +1487,11 @@
       "push": "Push",
       "thresholds": "Thresholds",
       "hostDown": "Host down",
-      "alerts": "Alerts"
+      "alerts": "Alerts",
+      "frameworks": "Frameworks",
+      "nis2": "NIS2",
+      "gdpr": "GDPR",
+      "registers": "Registers"
     },
     "steps": {
       "eyebrow": "How to start",
@@ -5536,7 +5540,7 @@
     "pages": {
       "landing": {
         "title": "Ellysia · Vulnerability scanner, phishing checks and encrypted vault",
-        "description": "Five cybersecurity tools: vulnerability scanning, phishing detection, security awareness, an encrypted password vault and server monitoring."
+        "description": "Six cybersecurity tools: vulnerability scanning, phishing detection, security awareness, an encrypted vault, server monitoring and regulatory compliance."
       },
       "themis": {
         "title": "Themis · Vulnerability scanner with Nmap, Nikto and Nuclei | Ellysia",

@@ -1427,7 +1427,7 @@
       "p3": "No prometemos invulnerabilidad; nadie honesto lo hace. Prometemos que {privilege}.",
       "p3Privilege": "defenderse deje de ser un privilegio"
     },
-    "toolsTitle": "Las cinco herramientas",
+    "toolsTitle": "Las seis herramientas",
     "toolsSubtitle": "Cada una guarda un aspecto de tu seguridad.",
     "explore": "Explorar {name}",
     "tools": {
@@ -1487,7 +1487,11 @@
       "push": "Push",
       "thresholds": "Umbrales",
       "hostDown": "Host caído",
-      "alerts": "Alertas"
+      "alerts": "Alertas",
+      "frameworks": "Marcos",
+      "nis2": "NIS2",
+      "gdpr": "RGPD",
+      "registers": "Registros"
     },
     "steps": {
       "eyebrow": "Cómo se empieza",
@@ -5536,7 +5540,7 @@
     "pages": {
       "landing": {
         "title": "Ellysia · Escáner de vulnerabilidades, phishing y bóveda cifrada",
-        "description": "Cinco herramientas de ciberseguridad: escaneo de vulnerabilidades, detección de phishing, concienciación, bóveda de contraseñas cifrada y monitorización de servidores."
+        "description": "Seis herramientas de ciberseguridad: escaneo de vulnerabilidades, phishing, concienciación, bóveda cifrada, monitorización de servidores y cumplimiento normativo."
       },
       "themis": {
         "title": "Themis · Escáner de vulnerabilidades con Nmap, Nikto y Nuclei | Ellysia",
