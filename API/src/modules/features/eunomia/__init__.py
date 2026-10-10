@@ -37,6 +37,7 @@ from .model import EunomiaControlAssessment, EunomiaFrameworkAdoption
 from .repositories import EunomiaFrameworkAdoptionRepository
 from .services.adoption_data import AdoptionDataRegistry
 from .services.assessment_data import count_assessments, purge_assessments
+from .services.evidence_data import count_evidence, purge_evidence
 from .services.user_data import purge_eunomia_data
 
 # Cómo se cuentan los marcos adoptados para la cuota ``eunomia.frameworks``: solo los activos,
@@ -48,6 +49,7 @@ register_stock_counter(
 
 # Lo que cuelga de una adopción y hay que contar y purgar al quitar un marco.
 AdoptionDataRegistry.register("assessments", count=count_assessments, purge=purge_assessments)
+AdoptionDataRegistry.register("evidence", count=count_evidence, purge=purge_evidence)
 
 # Qué hace ``users`` con los datos de este módulo al borrar una cuenta o exportarlos.
 UserDataRegistry.register(

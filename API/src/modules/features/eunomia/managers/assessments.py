@@ -32,6 +32,8 @@ from ..model import (
 from ..repositories import (
     EunomiaAssessmentEventRepository,
     EunomiaControlAssessmentRepository,
+    EunomiaEvidenceLinkRepository,
+    EunomiaEvidenceRepository,
     EunomiaFrameworkAdoptionRepository,
 )
 from ..services.assessments import ControlState, branch_progress, summarize
@@ -40,7 +42,7 @@ from ..services.catalog import CatalogNode, FrameworkVersion, load_version
 logger = logging.getLogger(__name__)
 
 
-def _display_name(user_id: Optional[int]) -> Optional[str]:
+def display_name(user_id: Optional[int]) -> Optional[str]:
     """Nombre visible de un usuario: nombre completo o, si no tiene, su usuario."""
     if user_id is None:
         return None
@@ -54,7 +56,7 @@ def _name(user_id: Optional[int], names: Optional[dict[int, Optional[str]]]) -> 
     """El nombre de un usuario, de la caché si la hay."""
     if names is not None and user_id in names:
         return names[user_id]
-    return _display_name(user_id)
+    return display_name(user_id)
 
 
 def assessment_payload(row: Optional[EunomiaControlAssessment], framework_key: str, identifier: str,
@@ -88,7 +90,7 @@ def assessment_payload(row: Optional[EunomiaControlAssessment], framework_key: s
     }
 
 
-def _adopted_version(owner_user_id: int, framework_key: str) -> FrameworkVersion:
+def adopted_version(owner_user_id: int, framework_key: str) -> FrameworkVersion:
     """La versión del catálogo que el dueño tiene adoptada y activa para un marco.
 
     Raises:
@@ -103,7 +105,7 @@ def _adopted_version(owner_user_id: int, framework_key: str) -> FrameworkVersion
     return version
 
 
-def _assessable_node(version: FrameworkVersion, framework_key: str, identifier: str) -> CatalogNode:
+def assessable_node(version: FrameworkVersion, framework_key: str, identifier: str) -> CatalogNode:
     """El nodo evaluable de una versión, o el error que corresponda."""
     node = version.node(f"{framework_key}:{identifier}")
     if node is None:
@@ -120,9 +122,9 @@ def _people(user_id: int, owner_user_id: int) -> list[dict]:
     de la plataforma, donde los miembros no se ven entre ellos.
     """
     organizations = OrganizationManager()
-    people = [{"userId": owner_user_id, "name": _display_name(owner_user_id) or ""}]
+    people = [{"userId": owner_user_id, "name": display_name(owner_user_id) or ""}]
     if user_id != owner_user_id:
-        people.append({"userId": user_id, "name": _display_name(user_id) or ""})
+        people.append({"userId": user_id, "name": display_name(user_id) or ""})
         return people
     summary = organizations.get_owned_summary(owner_user_id)
     if summary is not None:
@@ -140,7 +142,8 @@ def _states(records: list) -> dict[str, ControlState]:
     }
 
 
-def _tree_node(version: FrameworkVersion, node: CatalogNode, rows: dict, names: dict, progress: dict) -> dict:
+def _tree_node(version: FrameworkVersion, node: CatalogNode, rows: dict, names: dict, progress: dict,
+               evidence: dict) -> dict:
     """Serializa un nodo con sus hijos y, si es evaluable, su evaluación."""
     return {
         "code": node.code,
@@ -158,7 +161,9 @@ def _tree_node(version: FrameworkVersion, node: CatalogNode, rows: dict, names: 
             if node.is_assessable else None
         ),
         "progress": progress[node.code],
-        "children": [_tree_node(version, child, rows, names, progress) for child in version.children(node.code)],
+        "linkedEvidence": evidence.get(node.identifier, []),
+        "children": [_tree_node(version, child, rows, names, progress, evidence)
+                     for child in version.children(node.code)],
     }
 
 
@@ -240,7 +245,7 @@ class EunomiaAssessmentManager:
             ControlNotFoundError: Si el control no existe en la versión adoptada (404).
         """
         owner_user_id = OrganizationManager().resolve_data_owner(user_id)
-        version = _adopted_version(owner_user_id, framework_key)
+        version = adopted_version(owner_user_id, framework_key)
         if version.node(f"{framework_key}:{identifier}") is None:
             raise ControlNotFoundError(identifier)
         events = build_repository(EunomiaAssessmentEventRepository).list_for_control(
@@ -269,12 +274,25 @@ class EunomiaAssessmentManager:
             AdoptionNotFoundError: Si el marco no está adoptado y activo (404).
         """
         owner_user_id = OrganizationManager().resolve_data_owner(user_id)
-        version = _adopted_version(owner_user_id, framework_key)
+        version = adopted_version(owner_user_id, framework_key)
         records = build_repository(EunomiaControlAssessmentRepository).list_for_framework(
             owner_user_id, framework_key)
         rows = {row.control_identifier: row for row in records}
         ids = {value for row in records for value in (row.responsible_user_id, row.updated_by_user_id) if value}
-        names = {user: _display_name(user) for user in ids}
+        names = {user: display_name(user) for user in ids}
+        links = build_repository(EunomiaEvidenceLinkRepository).list_for_framework(owner_user_id, framework_key)
+        evidence_rows = {
+            row.id: row for row in build_repository(EunomiaEvidenceRepository).list_for_owner(owner_user_id)
+        }
+        evidence: dict[str, list] = {}
+        for link in links:
+            row = evidence_rows.get(link.evidence_id)
+            if row is not None:
+                evidence.setdefault(link.control_identifier, []).append({
+                    "id": row.id, "title": row.title, "filename": row.filename,
+                    "sizeBytes": row.size_bytes, "validUntil": row.valid_until,
+                })
+        progress = branch_progress(version, _states(records))
         return {
             "people": _people(user_id, owner_user_id),
             "key": version.key, "version": version.version, "status": version.status,
@@ -283,7 +301,7 @@ class EunomiaAssessmentManager:
                 {"name": s.name, "url": s.url, "license": s.license, "consultedAt": s.consulted_at}
                 for s in version.sources
             ],
-            "tree": [_tree_node(version, root, rows, names, branch_progress(version, _states(records)))
+            "tree": [_tree_node(version, root, rows, names, progress, evidence)
                      for root in version.children(None)],
         }
 
@@ -302,12 +320,12 @@ class EunomiaAssessmentManager:
             AdoptionNotFoundError: Si el marco no está adoptado y activo (404).
         """
         owner_user_id = OrganizationManager().resolve_data_owner(user_id)
-        version = _adopted_version(owner_user_id, framework_key)
+        version = adopted_version(owner_user_id, framework_key)
         records = build_repository(EunomiaControlAssessmentRepository).list_for_framework(
             owner_user_id, framework_key)
         summary = summarize(version, _states(records), date.today())
         names = {
-            item["responsibleUserId"]: _display_name(item["responsibleUserId"])
+            item["responsibleUserId"]: display_name(item["responsibleUserId"])
             for key in ("upcoming", "unassigned") for item in summary[key] if item["responsibleUserId"]
         }
         for key in ("upcoming", "unassigned"):
@@ -338,8 +356,8 @@ class EunomiaAssessmentManager:
         """
         organizations = OrganizationManager()
         owner_user_id = organizations.resolve_data_owner(user_id)
-        version = _adopted_version(owner_user_id, framework_key)
-        _assessable_node(version, framework_key, identifier)
+        version = adopted_version(owner_user_id, framework_key)
+        assessable_node(version, framework_key, identifier)
 
         status = data["status"]
         justification = (data.get("justification") or "").strip()
@@ -373,7 +391,7 @@ class EunomiaAssessmentManager:
                 return assessment_payload(row, framework_key, identifier)
             EunomiaAssessmentEventRepository(uow).save(EunomiaAssessmentEvent(
                 owner_user_id=owner_user_id, framework_key=framework_key, control_identifier=identifier,
-                actor_user_id=user_id, actor_name=_display_name(user_id) or "", occurred_at=fields["updated_at"],
+                actor_user_id=user_id, actor_name=display_name(user_id) or "", occurred_at=fields["updated_at"],
                 changes=changes,
             ))
             if row is None:

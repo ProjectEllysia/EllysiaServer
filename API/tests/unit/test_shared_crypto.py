@@ -57,6 +57,11 @@ _ENCRYPTED_COLUMNS = [
     ("src.modules.features.iris.model", "IrisWebhookSubscription", "secret", "iris_webhook"),
 ]
 
+# Ídem para las columnas binarias (``EncryptedBinary``).
+_ENCRYPTED_BINARY_COLUMNS = [
+    ("src.modules.features.eunomia.model", "EunomiaEvidenceContent", "content", "eunomia_evidence"),
+]
+
 
 @pytest.mark.parametrize("module_path,model_name,column_name,purpose", _ENCRYPTED_COLUMNS)
 def test_every_secret_column_is_an_encrypted_text(module_path, model_name, column_name, purpose):
@@ -144,3 +149,17 @@ class TestEncryptedBinary:
     def test_an_empty_file_round_trips(self):
         column = self._type()
         assert column.process_result_value(column.process_bind_param(b"", None), None) == b""
+
+
+@pytest.mark.parametrize("module_path,model_name,column_name,purpose", _ENCRYPTED_BINARY_COLUMNS)
+def test_every_binary_secret_column_is_an_encrypted_binary(module_path, model_name, column_name, purpose):
+    """Cada columna binaria sensible declara ``EncryptedBinary`` y su ``purpose``."""
+    import importlib
+
+    model = getattr(importlib.import_module(module_path), model_name)
+    column_type = model.__table__.c[column_name].type
+
+    assert isinstance(column_type, EncryptedBinary), (
+        f"{model_name}.{column_name} guarda contenido sensible y debe declararse EncryptedBinary"
+    )
+    assert column_type._purpose == purpose

@@ -10,16 +10,20 @@ del SPA que cuelgue de él tiene que declararse además en ``@spa_bajo_prefijo_a
 ``FRONTEND_SUBROUTES``, o al recargarla la recibiría Flask.
 """
 
+import io
 import logging
+from datetime import date
 
+from flask import request, send_file
 from flask_smorest import Blueprint as SmorestBlueprint
 
+import src.modules.system.config_reading as CR
 from src.modules.shared import handle_exceptions, limiter
 from src.modules.shared.schemas import ErrorSchema
 from src.modules.users import AttributeType, get_current_user, require_attributes, require_oauth_token
 
-from .exceptions import EunomiaError
-from .managers import CatalogManager, EunomiaAssessmentManager, EunomiaFrameworkManager
+from .exceptions import EunomiaError, EvidenceFileMissingError
+from .managers import CatalogManager, EunomiaAssessmentManager, EunomiaEvidenceManager, EunomiaFrameworkManager
 from .schemas import (
     AdoptionCreateSchema,
     AdoptionListSchema,
@@ -32,6 +36,10 @@ from .schemas import (
     RemovalPreviewSchema,
     CatalogFrameworkListSchema,
     CatalogVersionSchema,
+    EvidenceLinkSchema,
+    EvidenceListSchema,
+    EvidenceSchema,
+    EvidenceUpdateSchema,
 )
 
 eunomia_blp = SmorestBlueprint(
@@ -196,3 +204,115 @@ def get_assessment_history(key, identifier):
 def assess_control(data, key, identifier):
     """Evaluar un control de un marco adoptado; el dueño y los miembros escriben sobre lo mismo"""
     return EunomiaAssessmentManager().set_assessment(get_current_user().id, key, identifier, data)
+
+
+# ── Evidencias ────────────────────────────────────────────────────────────
+
+@eunomia_blp.get("/evidence")
+@eunomia_blp.response(200, EvidenceListSchema, description="Evidencias del dueño efectivo")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@limiter.limit("240 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_READ])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def list_evidence():
+    """Las evidencias del dueño efectivo de los datos, con los controles que demuestran"""
+    return {"evidence": EunomiaEvidenceManager().list_evidence(get_current_user().id)}
+
+
+@eunomia_blp.post("/evidence")
+@eunomia_blp.response(201, EvidenceSchema, description="Evidencia subida")
+@eunomia_blp.alt_response(400, schema=ErrorSchema, description="Missing file or type not allowed")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@eunomia_blp.alt_response(413, schema=ErrorSchema, description="File too large")
+@limiter.limit("60 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_CREATE])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def upload_evidence():
+    """Subir un fichero como evidencia (multipart: file, title, description, validUntil)"""
+    upload = request.files.get("file")
+    content = upload.stream.read(CR.eunomia_config().max_evidence_bytes + 1) if upload else None
+    valid_until = request.form.get("validUntil") or None
+    try:
+        parsed_valid_until = date.fromisoformat(valid_until) if valid_until else None
+    except ValueError as exc:
+        raise EvidenceFileMissingError() from exc
+    payload = EunomiaEvidenceManager().upload(
+        get_current_user().id, upload.filename if upload else "", content,
+        request.form.get("title", ""), request.form.get("description", ""), parsed_valid_until,
+    )
+    return payload, 201
+
+
+@eunomia_blp.get("/evidence/<int:evidence_id>/download")
+@eunomia_blp.response(200, description="El fichero de la evidencia")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@eunomia_blp.alt_response(404, schema=ErrorSchema, description="Evidence not found")
+@limiter.limit("120 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_READ])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def download_evidence(evidence_id):
+    """Descargar una evidencia; siempre como adjunto, nunca para abrirse en la propia página"""
+    filename, content_type, content = EunomiaEvidenceManager().get_content(get_current_user().id, evidence_id)
+    response = send_file(io.BytesIO(content), mimetype=content_type, as_attachment=True, download_name=filename)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+@eunomia_blp.patch("/evidence/<int:evidence_id>")
+@eunomia_blp.arguments(EvidenceUpdateSchema)
+@eunomia_blp.response(200, EvidenceSchema, description="Evidencia actualizada")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@eunomia_blp.alt_response(404, schema=ErrorSchema, description="Evidence not found")
+@limiter.limit("120 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_UPDATE])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def update_evidence(data, evidence_id):
+    """Cambiar el título, la descripción o la validez de una evidencia"""
+    return EunomiaEvidenceManager().update(get_current_user().id, evidence_id, data)
+
+
+@eunomia_blp.delete("/evidence/<int:evidence_id>")
+@eunomia_blp.response(204, description="Evidencia borrada")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@eunomia_blp.alt_response(404, schema=ErrorSchema, description="Evidence not found")
+@limiter.limit("60 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_DELETE])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def delete_evidence(evidence_id):
+    """Borrar una evidencia con su contenido y sus enlaces"""
+    EunomiaEvidenceManager().delete(get_current_user().id, evidence_id)
+    return "", 204
+
+
+@eunomia_blp.post("/evidence/<int:evidence_id>/links")
+@eunomia_blp.arguments(EvidenceLinkSchema)
+@eunomia_blp.response(200, EvidenceSchema, description="Evidencia enlazada")
+@eunomia_blp.alt_response(400, schema=ErrorSchema, description="The control is a group")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@eunomia_blp.alt_response(404, schema=ErrorSchema, description="Evidence, framework or control not found")
+@limiter.limit("240 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_UPDATE])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def link_evidence(data, evidence_id):
+    """Enlazar una evidencia con un control de un marco adoptado"""
+    return EunomiaEvidenceManager().link(
+        get_current_user().id, evidence_id, data["frameworkKey"], data["controlIdentifier"])
+
+
+@eunomia_blp.delete("/evidence/<int:evidence_id>/links/<string:framework>/<path:identifier>")
+@eunomia_blp.response(200, EvidenceSchema, description="Enlace quitado")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@eunomia_blp.alt_response(404, schema=ErrorSchema, description="Evidence not found")
+@limiter.limit("240 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_UPDATE])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def unlink_evidence(evidence_id, framework, identifier):
+    """Quitar el enlace entre una evidencia y un control; la evidencia sigue existiendo"""
+    return EunomiaEvidenceManager().unlink(get_current_user().id, evidence_id, framework, identifier)

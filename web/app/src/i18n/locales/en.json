@@ -96,6 +96,9 @@
     "documentNotReady": "The document is not ready yet.",
     "duplicateAuthorizedTarget": "“{target}” is already in your authorized targets registry.",
     "duplicateAssetGroup": "You already have an asset group named “{name}”.",
+    "evidenceFileMissing": "Choose a file to upload as evidence.",
+    "evidenceTooLarge": "The file exceeds the maximum of {maxMegabytes} MB per piece of evidence.",
+    "evidenceTypeNotAllowed": "The file type “{extension}” is not accepted as evidence. Accepted: {allowed}.",
     "frameworkAlreadyAdopted": "The framework “{framework}” is already adopted.",
     "frameworkArchived": "The framework “{framework}” is archived. You can restore it and recover what you had assessed.",
     "frameworkNotArchived": "The framework “{framework}” is not archived.",
@@ -108,6 +111,7 @@
     "emailNotVerified": "Confirm your email address to use this feature. You can request a new link from your profile.",
     "emailSend": "The email could not be sent.",
     "entityNotFound": {
+      "evidence": "Evidence not found.",
       "control": "Control not found.",
       "adoption": "Adoption not found.",
       "framework": "Compliance framework not found.",
@@ -1955,7 +1959,8 @@
         "justification": "Justification",
         "notes": "Notes",
         "responsibleUserId": "Responsible",
-        "dueDate": "Due date"
+        "dueDate": "Due date",
+        "evidence": "Evidence"
       }
     },
     "status": {
@@ -1971,6 +1976,24 @@
       "upcoming": "Due soon",
       "overdue": "overdue",
       "unassigned": "{count} control without a responsible | {count} controls without a responsible"
+    },
+    "evidence": {
+      "title": "Evidence",
+      "none": "No evidence linked to this control yet.",
+      "validUntil": "valid until {date}",
+      "unlink": "Unlink",
+      "linkExisting": "Link an existing one",
+      "link": "Link",
+      "uploadNew": "Upload a new one",
+      "titlePlaceholder": "Title (optional)",
+      "validUntilLabel": "Valid until",
+      "file": "File",
+      "upload": "Upload and link",
+      "pickFile": "Choose a file first.",
+      "uploadFailed": "The evidence could not be uploaded.",
+      "linkFailed": "The evidence could not be linked.",
+      "deleteFailed": "The evidence could not be deleted.",
+      "downloadFailed": "The file could not be downloaded."
     }
   },
   "organizationManaged": {

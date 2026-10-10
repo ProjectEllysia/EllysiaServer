@@ -96,6 +96,9 @@
     "documentNotReady": "El documento aún no está listo.",
     "duplicateAuthorizedTarget": "«{target}» ya está en tu registro de objetivos autorizados.",
     "duplicateAssetGroup": "Ya tienes un grupo de activos llamado «{name}».",
+    "evidenceFileMissing": "Elige un fichero para subirlo como evidencia.",
+    "evidenceTooLarge": "El fichero supera el máximo de {maxMegabytes} MB por evidencia.",
+    "evidenceTypeNotAllowed": "El tipo de fichero «{extension}» no se admite como evidencia. Admitidos: {allowed}.",
     "frameworkAlreadyAdopted": "El marco «{framework}» ya está adoptado.",
     "frameworkArchived": "El marco «{framework}» está archivado. Puedes restaurarlo y recuperar lo que habías evaluado.",
     "frameworkNotArchived": "El marco «{framework}» no está archivado.",
@@ -108,6 +111,7 @@
     "emailNotVerified": "Confirma tu correo electrónico para poder usar esta función. Puedes pedir un enlace nuevo desde tu perfil.",
     "emailSend": "No se pudo enviar el correo.",
     "entityNotFound": {
+      "evidence": "Evidencia no encontrada.",
       "control": "Control no encontrado.",
       "adoption": "Adopción no encontrada.",
       "framework": "Marco de cumplimiento no encontrado.",
@@ -1955,7 +1959,8 @@
         "justification": "Justificación",
         "notes": "Notas",
         "responsibleUserId": "Responsable",
-        "dueDate": "Fecha límite"
+        "dueDate": "Fecha límite",
+        "evidence": "Evidencia"
       }
     },
     "status": {
@@ -1971,6 +1976,24 @@
       "upcoming": "Vencen pronto",
       "overdue": "vencido",
       "unassigned": "{count} control sin responsable | {count} controles sin responsable"
+    },
+    "evidence": {
+      "title": "Evidencias",
+      "none": "Este control todavía no tiene evidencias enlazadas.",
+      "validUntil": "vale hasta el {date}",
+      "unlink": "Desenlazar",
+      "linkExisting": "Enlazar una existente",
+      "link": "Enlazar",
+      "uploadNew": "Subir una nueva",
+      "titlePlaceholder": "Título (opcional)",
+      "validUntilLabel": "Válida hasta",
+      "file": "Fichero",
+      "upload": "Subir y enlazar",
+      "pickFile": "Elige primero un fichero.",
+      "uploadFailed": "No se pudo subir la evidencia.",
+      "linkFailed": "No se pudo enlazar la evidencia.",
+      "deleteFailed": "No se pudo borrar la evidencia.",
+      "downloadFailed": "No se pudo descargar el fichero."
     }
   },
   "organizationManaged": {
