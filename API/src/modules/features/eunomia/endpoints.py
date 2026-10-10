@@ -19,11 +19,13 @@ from src.modules.shared.schemas import ErrorSchema
 from src.modules.users import AttributeType, get_current_user, require_attributes, require_oauth_token
 
 from .exceptions import EunomiaError
-from .managers import CatalogManager, EunomiaFrameworkManager
+from .managers import CatalogManager, EunomiaAssessmentManager, EunomiaFrameworkManager
 from .schemas import (
     AdoptionCreateSchema,
     AdoptionListSchema,
     AdoptionSchema,
+    AssessmentSchema,
+    AssessmentWriteSchema,
     RemovalPreviewSchema,
     CatalogFrameworkListSchema,
     CatalogVersionSchema,
@@ -135,3 +137,19 @@ def archive_framework(key):
 def restore_framework(key):
     """Reactivar un marco archivado si sigue en plazo"""
     return EunomiaFrameworkManager().restore(get_current_user().id, key)
+
+
+@eunomia_blp.put("/adoptions/<string:key>/controls/<path:identifier>")
+@eunomia_blp.arguments(AssessmentWriteSchema)
+@eunomia_blp.response(200, AssessmentSchema, description="Evaluación guardada")
+@eunomia_blp.alt_response(400, schema=ErrorSchema, description="Invalid assessment")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@eunomia_blp.alt_response(404, schema=ErrorSchema, description="Framework not adopted or control not found")
+@eunomia_blp.alt_response(409, schema=ErrorSchema, description="The control changed meanwhile")
+@limiter.limit("300 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_UPDATE])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def assess_control(data, key, identifier):
+    """Evaluar un control de un marco adoptado; el dueño y los miembros escriben sobre lo mismo"""
+    return EunomiaAssessmentManager().set_assessment(get_current_user().id, key, identifier, data)

@@ -6,7 +6,7 @@ Se da de alta en ``users.UserDataRegistry`` desde ``eunomia/__init__.py``.
 
 from src.modules.infrastructure import UnitOfWork
 
-from ..repositories import EunomiaFrameworkAdoptionRepository
+from ..repositories import EunomiaControlAssessmentRepository, EunomiaFrameworkAdoptionRepository
 
 
 def purge_eunomia_data(uow: UnitOfWork, user_id: int) -> dict[str, int]:
@@ -22,4 +22,10 @@ def purge_eunomia_data(uow: UnitOfWork, user_id: int) -> dict[str, int]:
     Returns:
         dict[str, int]: Filas borradas por tabla.
     """
-    return {"EunomiaFrameworkAdoption": EunomiaFrameworkAdoptionRepository(uow).delete_for_owner(user_id)}
+    assessments = EunomiaControlAssessmentRepository(uow)
+    # Responsable y último editor son rastro de otra persona: se anulan, no se borra la fila.
+    assessments.clear_user_references(user_id)
+    return {
+        "EunomiaControlAssessment": assessments.delete_for_owner(user_id),
+        "EunomiaFrameworkAdoption": EunomiaFrameworkAdoptionRepository(uow).delete_for_owner(user_id),
+    }

@@ -1,0 +1,162 @@
+"""Evaluar controles: cuatro estados, justificación, responsables y concurrencia."""
+
+from datetime import timedelta
+
+import pytest
+
+from src.modules.shared import utcnow_naive
+
+pytestmark = pytest.mark.integration
+
+_FUTURE = utcnow_naive() + timedelta(days=30)
+_CONTROL = "/eunomia/adoptions/nis2/controls/RE.3.1"
+
+
+@pytest.fixture()
+def owner(make_user, make_subscription):
+    user = make_user()
+    make_subscription(user, plan_code="gold", organization_enabled=True, current_period_end=_FUTURE)
+    return user
+
+
+@pytest.fixture()
+def adopted(client, owner, auth_headers):
+    client.post("/eunomia/adoptions", headers=auth_headers(owner), json={"frameworkKey": "nis2"})
+    return owner
+
+
+def _join(app, organization_id, user_id):
+    from src.modules.accounts.model import OrganizationMember
+    from src.modules.infrastructure import unit_of_work
+
+    with app.app_context():
+        with unit_of_work.UnitOfWork() as uow:
+            uow.session.add(OrganizationMember(organization_id=organization_id, user_id=user_id, member_role="member"))
+            uow.session.flush()
+
+
+def _put(client, headers, path=_CONTROL, **body):
+    payload = {"status": "in_progress", "updatedAt": None}
+    payload.update(body)
+    return client.put(path, headers=headers, json=payload)
+
+
+@pytest.mark.parametrize("status", ["pending", "in_progress", "implemented"])
+def test_a_control_takes_each_plain_state(client, adopted, auth_headers, status):
+    response = _put(client, auth_headers(adopted), status=status, notes="Revisado")
+
+    assert response.status_code == 200, response.get_json()
+    body = response.get_json()
+    assert body["status"] == status
+    assert body["code"] == "nis2:RE.3.1"
+    assert body["updatedAt"] is not None
+
+
+def test_not_applicable_needs_a_justification(client, adopted, auth_headers):
+    denied = _put(client, auth_headers(adopted), status="not_applicable")
+    assert denied.status_code == 400
+    assert denied.get_json()["messageKey"] == "justificationRequired"
+
+    allowed = _put(client, auth_headers(adopted), status="not_applicable", justification="No tenemos ese servicio.")
+    assert allowed.status_code == 200
+    assert allowed.get_json()["justification"] == "No tenemos ese servicio."
+
+
+def test_a_group_cannot_be_assessed(client, adopted, auth_headers):
+    response = _put(client, auth_headers(adopted), "/eunomia/adoptions/nis2/controls/RE.3")
+
+    assert response.status_code == 400
+    assert response.get_json()["messageKey"] == "controlNotAssessable"
+
+
+def test_a_control_that_does_not_exist_is_a_404(client, adopted, auth_headers):
+    assert _put(client, auth_headers(adopted), "/eunomia/adoptions/nis2/controls/9.9.9").status_code == 404
+
+
+def test_a_framework_that_is_not_adopted_is_a_404(client, owner, auth_headers):
+    assert _put(client, auth_headers(owner)).status_code == 404
+
+
+def test_a_stale_write_is_a_conflict_that_carries_the_current_value(client, adopted, auth_headers):
+    first = _put(client, auth_headers(adopted), status="in_progress").get_json()
+
+    stale = _put(client, auth_headers(adopted), status="implemented", updatedAt=None)
+    assert stale.status_code == 409
+    assert stale.get_json()["messageKey"] == "assessmentConflict"
+    assert stale.get_json()["details"]["current"]["status"] == "in_progress"
+
+    fresh = _put(client, auth_headers(adopted), status="implemented", updatedAt=first["updatedAt"])
+    assert fresh.status_code == 200
+    assert fresh.get_json()["status"] == "implemented"
+
+
+def test_two_writes_with_the_same_witness_only_one_wins(client, adopted, auth_headers):
+    seen = _put(client, auth_headers(adopted), status="in_progress").get_json()["updatedAt"]
+
+    one = _put(client, auth_headers(adopted), status="implemented", updatedAt=seen)
+    two = _put(client, auth_headers(adopted), status="pending", updatedAt=seen)
+
+    assert (one.status_code, two.status_code) == (200, 409)
+
+
+def test_a_member_assesses_on_the_rows_of_the_owner(client, app, adopted, regular_user, auth_headers):
+    org = client.post("/organizations", headers=auth_headers(adopted), json={"name": "Acme"}).get_json()
+    _join(app, org["id"], regular_user.id)
+
+    by_member = _put(client, auth_headers(regular_user), status="implemented")
+    assert by_member.status_code == 200
+    seen = by_member.get_json()["updatedAt"]
+
+    by_owner = _put(client, auth_headers(adopted), status="pending", updatedAt=seen)
+    assert by_owner.status_code == 200
+
+
+def test_the_responsible_has_to_be_the_owner_or_a_member(client, app, adopted, regular_user, make_user, auth_headers):
+    org = client.post("/organizations", headers=auth_headers(adopted), json={"name": "Acme"}).get_json()
+    _join(app, org["id"], regular_user.id)
+    stranger = make_user()
+
+    inside = _put(client, auth_headers(adopted), responsibleUserId=regular_user.id)
+    assert inside.status_code == 200
+    assert inside.get_json()["responsibleUserId"] == regular_user.id
+
+    outside = _put(client, auth_headers(adopted), responsibleUserId=stranger.id,
+                   updatedAt=inside.get_json()["updatedAt"])
+    assert outside.status_code == 400
+    assert outside.get_json()["messageKey"] == "responsibleNotInOrganization"
+
+
+def test_the_control_is_validated_against_the_adopted_version_not_the_current_one(
+    client, app, adopted, auth_headers,
+):
+    from src.modules.features.eunomia.model import EunomiaFrameworkAdoption
+    from src.modules.infrastructure import unit_of_work
+
+    with app.app_context():
+        with unit_of_work.UnitOfWork() as uow:
+            uow.session.query(EunomiaFrameworkAdoption).update({"catalog_version": "2020-viejo"})
+
+    assert _put(client, auth_headers(adopted)).status_code == 404
+
+
+def test_removing_a_framework_counts_its_assessments_and_the_purge_deletes_them(client, app, adopted, auth_headers):
+    from datetime import timedelta as _td
+
+    from src.modules.features.eunomia import EunomiaFrameworkManager
+    from src.modules.features.eunomia.model import EunomiaControlAssessment, EunomiaFrameworkAdoption
+    from src.modules.infrastructure import unit_of_work
+
+    headers = auth_headers(adopted)
+    _put(client, headers, status="implemented")
+    _put(client, headers, "/eunomia/adoptions/nis2/controls/RE.3.2", status="pending")   # pendiente: no cuenta
+
+    preview = client.get("/eunomia/adoptions/nis2/removal-preview", headers=headers).get_json()
+    assert preview["assessments"] == 1
+
+    client.delete("/eunomia/adoptions/nis2", headers=headers)
+    with app.app_context():
+        with unit_of_work.UnitOfWork() as uow:
+            uow.session.query(EunomiaFrameworkAdoption).update({"archived_at": utcnow_naive() - _td(days=40)})
+        EunomiaFrameworkManager().purge_expired()
+        with unit_of_work.UnitOfWork() as uow:
+            assert uow.session.query(EunomiaControlAssessment).count() == 0
