@@ -40,6 +40,7 @@ from .schemas import (
     AssessmentSchema,
     SummarySchema,
     AssessmentWriteSchema,
+    AutomaticEvidenceListSchema,
     RemovalPreviewSchema,
     UpgradePlanSchema,
     TemplateDraftSchema,
@@ -220,6 +221,19 @@ def get_adopted_summary(key):
     """Cuánto falta de un marco: global, por rama, vencimientos próximos y controles sin responsable"""
     summary = EunomiaAssessmentManager().get_summary(get_current_user().id, key)
     return {**summary, "overall": summary["global"]}
+
+
+@eunomia_blp.get("/adoptions/<string:key>/automatic-evidence/<path:identifier>")
+@eunomia_blp.response(200, AutomaticEvidenceListSchema, description="Evidencias automáticas de un control")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@eunomia_blp.alt_response(404, schema=ErrorSchema, description="Framework not adopted or control not found")
+@limiter.limit("600 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_READ])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def get_automatic_evidence(key, identifier):
+    """Lo que Themis, Aegis, Hygeia u otro módulo ya sabe y demuestra este control"""
+    return {"evidence": EunomiaAssessmentManager().get_automatic_evidence(get_current_user().id, key, identifier)}
 
 
 @eunomia_blp.get("/adoptions/<string:key>/history/<path:identifier>")

@@ -399,3 +399,30 @@ def test_linking_the_suggested_evidence_creates_a_link_and_copies_no_file(app, c
     with app.app_context():
         with unit_of_work.UnitOfWork() as uow:
             assert uow.session.query(EunomiaEvidenceContent).count() == 1
+
+
+# ── evidencias automáticas ─────────────────────────────────────────────────
+
+def test_the_automatic_evidence_of_a_control_comes_from_the_registered_providers(client, adopted, auth_headers,
+                                                                                monkeypatch):
+    from src.modules.features.eunomia.services.providers import AutomaticEvidence, EvidenceProviderRegistry
+
+    monkeypatch.setattr(EvidenceProviderRegistry, "_providers", {})
+    seen = []
+    EvidenceProviderRegistry.register(
+        "demo.scans", name="Escaneos", controls={"nis2": ("RE.3.1",)},
+        collect=lambda owner, framework, identifier: seen.append(owner) or [
+            AutomaticEvidence("Último escaneo", "Hace 2 días", status="warning")],
+    )
+
+    body = client.get("/eunomia/adoptions/nis2/automatic-evidence/RE.3.1", headers=auth_headers(adopted)).get_json()
+
+    assert [(item["providerKey"], item["status"]) for item in body["evidence"]] == [("demo.scans", "warning")]
+    assert seen == [adopted.id]
+
+
+def test_automatic_evidence_of_a_group_or_an_unknown_control_is_rejected(client, adopted, auth_headers):
+    headers = auth_headers(adopted)
+
+    assert client.get("/eunomia/adoptions/nis2/automatic-evidence/RE.3", headers=headers).status_code == 400
+    assert client.get("/eunomia/adoptions/nis2/automatic-evidence/no-existe", headers=headers).status_code == 404

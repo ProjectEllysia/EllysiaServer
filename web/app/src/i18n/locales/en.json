@@ -2069,6 +2069,19 @@
       "loadFailed": "The documents could not be loaded.",
       "downloadFailed": "The document could not be downloaded.",
       "deleteFailed": "The document could not be deleted."
+    },
+    "automatic": {
+      "title": "Automatic evidence",
+      "intro": "Data other Ellysia modules already hold that demonstrates this control; nothing to upload.",
+      "unavailable": "Not available right now.",
+      "open": "View source",
+      "dataDate": "data from {date}",
+      "status": {
+        "ok": "OK",
+        "warning": "To review",
+        "missing": "No data",
+        "unavailable": "Not available"
+      }
     }
   },
   "organizationManaged": {
