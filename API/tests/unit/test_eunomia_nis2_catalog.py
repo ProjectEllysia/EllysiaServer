@@ -79,3 +79,39 @@ def test_a_node_with_requirements_is_not_itself_assessable_by_accident(nis2):
     for node in nis2.nodes:
         if nis2.children(node.code):
             assert node.is_assessable is False, node.identifier
+
+
+# ── qué hay que hacer y qué hay que evidenciar ─────────────────────────────
+
+#: Lo que la SPA puede pintar sin desbordar una tarjeta o una fila de lista de comprobación.
+MAX_DESCRIPTION = 500
+MAX_LIST_ITEM = 240
+
+
+def test_every_assessable_requirement_says_what_to_do_and_what_to_keep(nis2):
+    incomplete = [
+        node.identifier for node in nis2.assessable_nodes()
+        if not (node.description.strip() and node.actions and node.evidence)
+    ]
+    assert incomplete == []
+
+
+def test_no_field_is_too_long_to_be_shown(nis2):
+    too_long = [
+        node.identifier for node in nis2.nodes
+        if len(node.description) > MAX_DESCRIPTION
+        or any(len(item) > MAX_LIST_ITEM for item in (*node.actions, *node.evidence))
+    ]
+    assert too_long == []
+
+
+def test_evidence_is_a_list_of_short_items_not_a_paragraph(nis2):
+    assert all(len(node.evidence) >= 2 for node in nis2.assessable_nodes() if node.identifier.startswith("RE."))
+
+
+def test_the_plain_wording_is_not_a_copy_of_the_official_text(nis2):
+    copied = [
+        node.identifier for node in nis2.assessable_nodes()
+        if node.description and node.description in node.official_text
+    ]
+    assert copied == []

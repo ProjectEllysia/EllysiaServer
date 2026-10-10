@@ -163,14 +163,22 @@ de hallazgos de Lybra: `21.2`, `21.2.c`, `21.2.e`, `21.2.h`, `21.2.i` y `21.2.j`
 publicado debe **conservar esos identificadores** (EUN10, EUN12). El borrador los recoge en
 `lybraIdentifiers`.
 
-## Qué falta
+## Qué hay hecho y qué falta
 
-1. **EUN09.** Fijar el formato del catálogo y convertir este borrador en
-   `catalog/nis2/2022-2555.json`.
-2. **EUN10.** Decidir el identificador de cada nodo (por ejemplo, `21.2.b` → `21.2.b/3.5` →
-   `21.2.b/3.5.2`) y qué nodos son evaluables. Los 159 puntos del anexo son el nivel natural de
-   evaluación, aunque algunos puntos son meramente definitorios.
-3. **EUN11.** Redactar la descripción, las actuaciones y las evidencias de cada requisito, a partir
-   de la guía de ENISA.
-4. **EUN13 (hecho).** Licencia de la guía de ENISA comprobada: ver la tabla de fuentes. Antes de copiar una frase literal hay que leer el aviso del propio documento.
-5. **EUN41.** Convertir los anexos I y II y el art. 3 en reglas de aplicabilidad.
+**Hecho.** El catálogo vive en `catalog/nis2/2022-2555.json` (versión `draft`): los artículos 20,
+21 y 23 y los 13 apartados del anexo, con el texto oficial (`officialText`), el artículo o punto
+de origen de cada nodo y, para cada requisito evaluable, descripción llana, actuaciones y
+evidencias con redacción propia. El anexo cuelga de la letra del art. 21.2 que desarrolla; el
+apartado 11.7 (autenticación multifactor) cuelga de la letra j) y el resto del 11 de la i). Las
+secciones 7 y 9 no tienen subapartados y son requisito por sí mismas. La licencia de la guía de
+ENISA está comprobada: ver la tabla de fuentes.
+
+**Falta.**
+
+1. **Revisión y publicación.** Una versión publicada no se puede modificar, así que antes de
+   pasarla a `published` y añadirla a `catalog/LOCK.json` la tiene que revisar alguien con
+   experiencia en auditoría. Hasta entonces se puede corregir.
+2. **Correspondencias** del anexo con ISO 27001, el ENS y NIST CSF (la guía de ENISA trae una
+   tabla; hay que leer su aviso antes de copiarla).
+3. **Aplicabilidad.** Convertir los anexos I y II y el art. 3 en reglas (qué entidades están
+   dentro y cuáles de ellas, en el ámbito obligatorio del reglamento de ejecución).

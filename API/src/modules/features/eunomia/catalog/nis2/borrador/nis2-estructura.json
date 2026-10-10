@@ -804,7 +804,12 @@
           {
             "id": "5.2",
             "title": "Directorio de proveedores y prestadores de servicios",
-            "points": []
+            "points": [
+              {
+                "id": "5.2",
+                "text": "Las entidades pertinentes mantendrán y actualizarán un registro de sus proveedores y prestadores de servicios directos, en el que incluirán:\na) los puntos de contacto correspondientes a cada proveedor o prestador de servicios directo;\nb) una lista de productos TIC, servicios TIC y procesos TIC proporcionados por el proveedor o prestador de servicios directo a las entidades pertinentes."
+              }
+            ]
           }
         ],
         "points": []
@@ -1394,7 +1399,12 @@
           {
             "id": "12.5",
             "title": "Depósito, devolución o supresión de activos al término de la relación laboral",
-            "points": []
+            "points": [
+              {
+                "id": "12.5",
+                "text": "Las entidades pertinentes crearán, pondrán en marcha y aplicarán procedimientos para que los activos bajo custodia del personal sean depositados, devueltos o suprimidos al término de la relación laboral, y documentarán el depósito, la devolución y la supresión de dichos activos. Cuando no sea posible el depósito, la devolución o la supresión de activos, las entidades pertinentes se asegurarán de que dichos activos ya no puedan acceder a los sistemas de redes y de información de la entidad de conformidad con el punto 12.2.2."
+              }
+            ]
           }
         ],
         "points": []
