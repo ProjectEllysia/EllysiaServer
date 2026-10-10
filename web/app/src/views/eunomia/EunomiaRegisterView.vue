@@ -24,6 +24,8 @@
           </div>
         </header>
 
+        <p v-for="message in data.advice" :key="message" class="advice">{{ message }}</p>
+
         <form v-if="editing" class="form" @submit.prevent="save">
           <h2>{{ editing.id ? t('eunomia.registers.editRecord') : t('eunomia.registers.newRecord') }}</h2>
           <div v-for="field in data.register.fields" :key="field.key" class="field">
@@ -164,6 +166,7 @@ onMounted(load)
 .rows { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.7rem; }
 .row { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--border-solid); border-radius: 10px; padding: 1rem 1.2rem; }
 .deadlines { list-style: none; padding: 0; margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.2rem; font-size: var(--fs-body); color: var(--text-dim); }
+.advice { background: var(--surface); border-inline-start: 3px solid var(--accent); padding: 0.8rem 1rem; color: var(--text-dim); font-size: var(--fs-md); }
 .deadline--overdue { color: var(--danger); }
 .deadline--done { color: var(--accent); }
 .state-msg { color: var(--text-muted); font-size: var(--fs-md); }

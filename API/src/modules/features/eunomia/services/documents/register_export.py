@@ -63,13 +63,15 @@ class RegisterPDF(PdfGenerator):
     """
 
     def __init__(self, *, register: RegisterType, records: Sequence[dict], company_name: str = "",
-                 author: str = "Ellysia Security Team", generated_at: Optional[datetime] = None) -> None:
+                 company_details: Sequence[tuple[str, str]] = (), author: str = "Ellysia Security Team", generated_at: Optional[datetime] = None) -> None:
         """Prepara el generador.
 
         Args:
             register: La definición.
             records: Fichas a imprimir, ya filtradas.
             company_name: Razón social de la empresa. Por defecto vacía.
+            company_details: ``(etiqueta, valor)`` de la ficha de la portada (NIF, domicilio,
+                contacto); los vacíos no salen. Por defecto, ninguno.
             author: Autor de los metadatos.
             generated_at: Instante de la portada. Por defecto ahora.
         """
@@ -81,6 +83,7 @@ class RegisterPDF(PdfGenerator):
         self.register = register
         self.records = records
         self.company_name = company_name
+        self.company_details = company_details
         self.moment = generated_at or datetime.now()
 
     def cover_title(self) -> str:
@@ -92,8 +95,9 @@ class RegisterPDF(PdfGenerator):
         return self.company_name or None
 
     def cover_fields(self) -> Sequence[Sequence[str]]:
-        """Fecha y número de fichas."""
-        return [["Fecha:", self.moment.strftime("%d/%m/%Y")], ["Fichas:", str(len(self.records))]]
+        """Los datos de la empresa que se conocen, la fecha y el número de fichas."""
+        company = [[label, value] for label, value in self.company_details if value]
+        return company + [["Fecha:", self.moment.strftime("%d/%m/%Y")], ["Fichas:", str(len(self.records))]]
 
     def generated_at(self) -> datetime:
         """La fecha de la portada."""

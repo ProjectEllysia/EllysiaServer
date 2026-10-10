@@ -173,3 +173,4 @@ def test_a_register_with_records_is_automatic_evidence_of_its_controls(client, o
 
     assert [e["status"] for e in empty if e["providerKey"] == "eunomia.register.demo"] == ["missing"]
     assert [e["status"] for e in filled if e["providerKey"] == "eunomia.register.demo"] == ["ok"]
+
