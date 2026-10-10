@@ -1874,6 +1874,46 @@
     "saveFailed": "The company details could not be saved.",
     "loadFailed": "The company details could not be loaded."
   },
+  "eunomia": {
+    "frameworks": {
+      "title": "Compliance frameworks",
+      "back": "Profile",
+      "intro": "Choose which regulatory frameworks to work with. Each framework is pinned to a catalog version: if another is published, you decide when to move to it.",
+      "loading": "Loading…",
+      "loadFailed": "The frameworks could not be loaded.",
+      "offline": "The server could not be reached.",
+      "adopted": "Your frameworks",
+      "noneAdopted": "You have not adopted any framework yet. Pick one of the available ones to start.",
+      "available": "Available frameworks",
+      "noneAvailable": "You have already adopted every available framework.",
+      "archived": "Removed frameworks",
+      "version": "Version {version}",
+      "draft": "draft",
+      "adoptedOn": "adopted on {date}",
+      "newerVersion": "A newer version is available: {version}",
+      "purgeAt": "It will be deleted for good on {date}",
+      "adopt": "Adopt",
+      "remove": "Remove",
+      "restore": "Restore",
+      "adoptFailed": "The framework could not be adopted.",
+      "removeFailed": "The framework could not be removed.",
+      "restoreFailed": "The framework could not be restored.",
+      "previewFailed": "What would be lost could not be worked out.",
+      "adoptedToast": "Framework adopted.",
+      "restoredToast": "Framework restored.",
+      "removed": "“{name}” was removed. You can restore it while it is still within the period.",
+      "removeTitle": "Remove “{name}”?",
+      "removeConfirm": "Remove framework",
+      "removeWarning": "You will stop seeing what you have assessed and evidenced in this framework.",
+      "loss": {
+        "assessments": "{count} assessment made. | {count} assessments made.",
+        "evidenceDeleted": "{count} piece of evidence will be deleted with the framework. | {count} pieces of evidence will be deleted with the framework.",
+        "evidenceKept": "{count} piece of evidence is kept because it also serves another framework. | {count} pieces of evidence are kept because they also serve another framework."
+      },
+      "lossNone": "There are no assessments or evidence to lose.",
+      "removeWhen": "The framework is archived and you can restore it for {days} days; after that, on {date}, it is deleted for good."
+    }
+  },
   "organizationManaged": {
     "notice": "You belong to the organization {organization}. These details are managed by its owner, {owner}. Yours are kept and will apply again if you leave the organization."
   },

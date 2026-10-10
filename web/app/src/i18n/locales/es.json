@@ -1874,6 +1874,46 @@
     "saveFailed": "No se pudieron guardar los datos de la empresa.",
     "loadFailed": "No se pudieron cargar los datos de la empresa."
   },
+  "eunomia": {
+    "frameworks": {
+      "title": "Marcos de cumplimiento",
+      "back": "Perfil",
+      "intro": "Elige con qué marcos normativos quieres trabajar. Cada marco queda fijado a una versión del catálogo: si se publica otra, tú decides cuándo pasar a ella.",
+      "loading": "Cargando…",
+      "loadFailed": "No se pudieron cargar los marcos.",
+      "offline": "No se pudo contactar con el servidor.",
+      "adopted": "Tus marcos",
+      "noneAdopted": "Todavía no has adoptado ningún marco. Elige uno de los disponibles para empezar.",
+      "available": "Marcos disponibles",
+      "noneAvailable": "Ya has adoptado todos los marcos disponibles.",
+      "archived": "Marcos quitados",
+      "version": "Versión {version}",
+      "draft": "borrador",
+      "adoptedOn": "adoptado el {date}",
+      "newerVersion": "Hay una versión más nueva: {version}",
+      "purgeAt": "Se borrará definitivamente el {date}",
+      "adopt": "Adoptar",
+      "remove": "Quitar",
+      "restore": "Restaurar",
+      "adoptFailed": "No se pudo adoptar el marco.",
+      "removeFailed": "No se pudo quitar el marco.",
+      "restoreFailed": "No se pudo restaurar el marco.",
+      "previewFailed": "No se pudo calcular qué se perdería.",
+      "adoptedToast": "Marco adoptado.",
+      "restoredToast": "Marco restaurado.",
+      "removed": "«{name}» se ha quitado. Puedes restaurarlo mientras siga en plazo.",
+      "removeTitle": "¿Quitar «{name}»?",
+      "removeConfirm": "Quitar marco",
+      "removeWarning": "Vas a dejar de ver lo que has evaluado y evidenciado en este marco.",
+      "loss": {
+        "assessments": "{count} evaluación hecha. | {count} evaluaciones hechas.",
+        "evidenceDeleted": "{count} evidencia se borrará con el marco. | {count} evidencias se borrarán con el marco.",
+        "evidenceKept": "{count} evidencia se conserva porque también sirve a otro marco. | {count} evidencias se conservan porque también sirven a otro marco."
+      },
+      "lossNone": "No hay evaluaciones ni evidencias que perder.",
+      "removeWhen": "El marco se archiva y puedes restaurarlo durante {days} días; después, el {date}, se borra definitivamente."
+    }
+  },
   "organizationManaged": {
     "notice": "Perteneces a la organización {organization}. Estos datos los gestiona su dueño, {owner}. Los tuyos siguen guardados y volverán a aplicarse si dejas la organización."
   },
