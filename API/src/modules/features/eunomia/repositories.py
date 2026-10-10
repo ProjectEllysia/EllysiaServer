@@ -325,6 +325,25 @@ class EunomiaEvidenceRepository(BaseRepository[EunomiaEvidence]):
         self._session.query(EunomiaEvidence).filter(
             EunomiaEvidence.id == evidence_id).delete(synchronize_session=False)
 
+    def iter_files_for_owner(self, owner_user_id: int):
+        """Va dando cada evidencia de un dueño con sus bytes ya descifrados, de una en una.
+
+        Args:
+            owner_user_id: Dueño efectivo de los datos.
+
+        Yields:
+            tuple[EunomiaEvidence, bytes]: La ficha y su contenido.
+        """
+        rows = (
+            self._session.query(EunomiaEvidence, EunomiaEvidenceContent)
+            .join(EunomiaEvidenceContent, EunomiaEvidenceContent.evidence_id == EunomiaEvidence.id)
+            .filter(EunomiaEvidence.owner_user_id == owner_user_id)
+            .order_by(EunomiaEvidence.id)
+            .yield_per(20)
+        )
+        for evidence, content in rows:
+            yield evidence, content.content
+
     def ids_for_owner(self, owner_user_id: int) -> list[int]:
         """Las claves de todas las evidencias de un dueño.
 

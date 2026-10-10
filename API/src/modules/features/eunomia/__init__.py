@@ -33,12 +33,12 @@ from .data_export import EXPORT_TABLES
 from .endpoints import eunomia_blp
 from .managers import CatalogManager, EunomiaFrameworkManager
 from .exceptions import EunomiaError
-from .model import EunomiaControlAssessment, EunomiaFrameworkAdoption
+from .model import EunomiaControlAssessment, EunomiaEvidence, EunomiaFrameworkAdoption
 from .repositories import EunomiaFrameworkAdoptionRepository
 from .services.adoption_data import AdoptionDataRegistry
 from .services.assessment_data import count_assessments, purge_assessments
 from .services.evidence_data import count_evidence, purge_evidence
-from .services.user_data import purge_eunomia_data
+from .services.user_data import export_evidence_files, purge_eunomia_data
 
 # Cómo se cuentan los marcos adoptados para la cuota ``eunomia.frameworks``: solo los activos,
 # sobre la bolsa de dueños que pide el motor de cuotas.
@@ -55,8 +55,9 @@ AdoptionDataRegistry.register("evidence", count=count_evidence, purge=purge_evid
 UserDataRegistry.register(
     "eunomia",
     purge=purge_eunomia_data,
-    deletion_models={"complianceFrameworks": (EunomiaFrameworkAdoption,)},
+    deletion_models={"complianceFrameworks": (EunomiaFrameworkAdoption,), "complianceEvidence": (EunomiaEvidence,)},
     export_tables=EXPORT_TABLES,
+    export_files=export_evidence_files,
 )
 
 __all__ = [

@@ -42,3 +42,20 @@ def purge_eunomia_data(uow: UnitOfWork, user_id: int) -> dict[str, int]:
         "EunomiaControlAssessment": assessments.delete_for_owner(user_id),
         "EunomiaFrameworkAdoption": EunomiaFrameworkAdoptionRepository(uow).delete_for_owner(user_id),
     }
+
+
+def export_evidence_files(session, user_id: int):
+    """Va dando los ficheros de evidencia del usuario, descifrados, para la exportación.
+
+    Solo las evidencias de las que es dueño efectivo: las de la organización a la que
+    pertenece son de su dueño y las exporta él.
+
+    Args:
+        session: Sesión abierta con la que leer.
+        user_id: El usuario que exporta sus datos.
+
+    Yields:
+        tuple[str, bytes]: ``(ruta dentro de files/eunomia/, contenido)``.
+    """
+    for evidence, content in EunomiaEvidenceRepository(session=session).iter_files_for_owner(user_id):
+        yield f"evidence/{evidence.id}-{evidence.filename}", content
