@@ -272,3 +272,25 @@ def test_a_member_spends_the_quota_of_the_owner(client, app, adopted, regular_us
 
     usage = client.get("/eunomia/evidence", headers=auth_headers(adopted)).get_json()["usage"]
     assert usage["usedBytes"] == len(_PDF)
+
+
+def test_an_executable_renamed_to_pdf_is_rejected_by_the_endpoint(app, client, adopted, auth_headers):
+    from src.modules.features.eunomia.model import EunomiaEvidence
+    from src.modules.infrastructure import unit_of_work
+
+    response = _upload(client, auth_headers(adopted), content=b"MZ\x90\x00" + b"\x00" * 64, filename="politica.pdf")
+
+    assert response.status_code == 400
+    assert response.get_json()["messageKey"] == "evidenceTypeMismatch"
+    with app.app_context():
+        with unit_of_work.UnitOfWork() as uow:
+            assert uow.session.query(EunomiaEvidence).count() == 0
+
+
+def test_a_pdf_with_javascript_is_rejected_by_the_endpoint(client, adopted, auth_headers):
+    pdf = b"%PDF-1.4\n1 0 obj\n<< /OpenAction << /S /JavaScript /JS (x) >> >>\nendobj\n%%EOF\n"
+
+    response = _upload(client, auth_headers(adopted), content=pdf)
+
+    assert response.status_code == 400
+    assert response.get_json()["messageKey"] == "evidenceActiveContent"

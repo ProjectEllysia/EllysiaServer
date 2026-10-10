@@ -25,7 +25,7 @@ import hashlib
 import re
 
 import src.modules.system.config_reading as CR
-from ..attachment_inspectors import inspect_attachment
+from src.modules.shared import inspect_attachment
 from ..registry import iris_rules, RuleResult
 from ..evidence import attachment_evidence, header_evidence
 from ..wordlists import (
