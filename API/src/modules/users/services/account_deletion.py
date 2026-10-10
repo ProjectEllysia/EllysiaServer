@@ -594,6 +594,10 @@ UNLISTED_TABLES: dict[str, str] = {
         "las evaluaciones de tus marcos de cumplimiento y su historial, que se cuentan con el marco",
     ),
     **dict.fromkeys(
+        ["EunomiaEvidence", "EunomiaEvidenceLink"],
+        "las evidencias de cumplimiento con su contenido, que se cuentan aparte",
+    ),
+    **dict.fromkeys(
         ["AccessToken", "RefreshToken", "MFAChallenge", "MFARecoveryCode", "MFATotpCredential",
          "UserAttribute"],
         "sesión, segundo factor y permisos de la propia cuenta",

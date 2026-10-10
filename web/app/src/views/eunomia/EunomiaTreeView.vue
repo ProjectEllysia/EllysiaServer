@@ -87,12 +87,14 @@
             <ControlDetail
               v-if="selectedNode"
               :node="selectedNode"
+              :framework="framework"
               :people="data.people"
               :saving="saving"
               :conflict="conflict"
               :history="history"
               @save="save"
               @take-current="takeCurrent"
+              @evidence-changed="onEvidenceChanged"
             />
             <p v-else class="state-msg">{{ t('eunomia.tree.pickOne') }}</p>
           </section>
@@ -213,6 +215,12 @@ async function save(body) {
   } else {
     toast.show(result.message, 'error')
   }
+}
+
+/** Recarga árbol e historial tras enlazar, desenlazar o subir una evidencia. */
+async function onEvidenceChanged() {
+  await load()
+  await loadHistory()
 }
 
 /** Toma el valor que dejó otra persona y vuelve a pintar el control con él. */

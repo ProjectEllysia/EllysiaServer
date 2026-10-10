@@ -174,6 +174,7 @@ class AdoptedNodeSchema(Schema):
     actions = fields.List(fields.String())
     evidence = fields.List(fields.String())
     source = fields.String()
+    linkedEvidence = fields.List(fields.Dict())
     assessment = fields.Nested(AssessmentSchema, allow_none=True)
     progress = fields.Nested(ProgressSchema)
     children = fields.List(fields.Nested(lambda: AdoptedNodeSchema()))
@@ -245,3 +246,42 @@ class SummarySchema(Schema):
     upcoming = fields.List(fields.Nested(SummaryControlSchema))
     unassigned = fields.List(fields.Nested(SummaryControlSchema))
     unassignedCount = fields.Integer()
+
+
+# ── Evidencias ────────────────────────────────────────────────────────────
+
+class EvidenceLinkSchema(Schema):
+    """Un control al que está enlazada una evidencia."""
+
+    frameworkKey = fields.String(required=True)
+    controlIdentifier = fields.String(required=True)
+
+
+class EvidenceSchema(Schema):
+    """La ficha de una evidencia, sin su contenido."""
+
+    id = fields.Integer()
+    title = fields.String()
+    description = fields.String()
+    filename = fields.String()
+    contentType = fields.String()
+    sizeBytes = fields.Integer()
+    sha256 = fields.String()
+    validUntil = fields.Date(allow_none=True)
+    uploadedAt = UTCDateTime()
+    uploadedByName = fields.String(allow_none=True)
+    links = fields.List(fields.Nested(EvidenceLinkSchema))
+
+
+class EvidenceListSchema(Schema):
+    """Respuesta de ``GET /eunomia/evidence``."""
+
+    evidence = fields.List(fields.Nested(EvidenceSchema))
+
+
+class EvidenceUpdateSchema(Schema):
+    """Cuerpo de ``PATCH /eunomia/evidence/<id>``: todos los campos son opcionales."""
+
+    title = fields.String(validate=validate.Length(min=1, max=255))
+    description = fields.String(validate=validate.Length(max=8000))
+    validUntil = fields.Date(allow_none=True)
