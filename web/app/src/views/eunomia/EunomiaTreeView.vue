@@ -21,6 +21,7 @@
         </header>
 
         <section v-if="summary" class="summary" :aria-label="t('eunomia.summary.title')">
+          <SectionInscription tag="h2">{{ t('eunomia.summary.title') }}</SectionInscription>
           <div class="summary-global">
             <p class="big">{{ percent(summary.global.percent) }}</p>
             <div class="summary-main">
@@ -77,6 +78,7 @@
 
         <div class="panes">
           <section class="pane pane--tree" :aria-label="t('eunomia.tree.treeLabel')">
+            <SectionInscription class="pane-title" tag="h2" :tally="data.tree.length">{{ t('eunomia.tree.treeLabel') }}</SectionInscription>
             <ControlTree
               :nodes="filtered"
               :selected="selectedCode"
@@ -114,6 +116,7 @@ import { useI18n } from 'vue-i18n'
 import Topbar from '@/components/shared/Topbar.vue'
 import StarBackground from '@/components/shared/StarBackground.vue'
 import ControlTree from '@/components/eunomia/ControlTree.vue'
+import SectionInscription from '@/components/eunomia/SectionInscription.vue'
 import ProgressBar from '@/components/eunomia/ProgressBar.vue'
 import ControlDetail from '@/components/eunomia/ControlDetail.vue'
 import { STATUSES, filterTree, findNode, groupCodes } from '@/components/eunomia/tree'
@@ -240,7 +243,7 @@ onMounted(load)
 .layout { max-width: 1200px; margin: 0 auto; padding: 1.5rem 1.5rem 3rem; display: flex; flex-direction: column; gap: 1rem; position: relative; z-index: 1; }
 .head h1 { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-size: var(--fs-2xl); color: var(--text); }
 .meta { color: var(--text-muted); font-size: var(--fs-body); }
-.summary { background: var(--surface); border: 1px solid var(--border-solid); border-radius: 10px; padding: 1rem 1.2rem; display: flex; flex-direction: column; gap: 1rem; }
+.summary { background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 220%); border: 1px solid var(--accent); box-shadow: 0 0 0 1px var(--accent-dim), 0 12px 34px rgba(0, 0, 0, 0.16); border-radius: 12px; padding: 1rem 1.2rem; display: flex; flex-direction: column; gap: 1rem; }
 .summary-global { display: flex; gap: 1rem; align-items: center; }
 .big { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-size: var(--fs-2xl); color: var(--text); min-width: 4.5rem; }
 .summary-main { flex: 1; display: flex; flex-direction: column; gap: 0.4rem; }
@@ -259,8 +262,9 @@ onMounted(load)
 .search { flex: 1; min-width: 14rem; }
 .link-btn { color: var(--accent); text-decoration: underline; font-size: var(--fs-body); }
 .panes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 1.2rem; align-items: start; }
-.pane { background: var(--surface); border: 1px solid var(--border-solid); border-radius: 10px; padding: 1rem; }
-.pane--tree { max-height: 75vh; overflow: auto; }
+.pane { background: var(--surface); border: 1px solid var(--border-solid); border-radius: 12px; padding: 1rem; }
+.pane--tree { max-height: 75vh; overflow: auto; scroll-behavior: smooth; }
+.pane-title { margin-bottom: 0.8rem; }
 .state-msg { color: var(--text-muted); font-size: var(--fs-md); }
 .state-msg--error { color: var(--danger); }
 .link { color: var(--accent); text-decoration: underline; margin-left: 0.4rem; }

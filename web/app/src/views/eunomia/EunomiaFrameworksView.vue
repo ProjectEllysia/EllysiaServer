@@ -21,16 +21,21 @@
 
       <template v-else>
         <section class="block" aria-labelledby="adopted-title">
-          <h2 id="adopted-title">{{ t('eunomia.frameworks.adopted') }}</h2>
+          <SectionInscription id="adopted-title" :tally="groups.active.length">{{ t('eunomia.frameworks.adopted') }}</SectionInscription>
           <p v-if="!groups.active.length" class="empty">{{ t('eunomia.frameworks.noneAdopted') }}</p>
-          <ul v-else class="cards">
+          <TransitionGroup v-else tag="ul" name="card" class="cards">
             <li v-for="adoption in groups.active" :key="adoption.frameworkKey" class="card">
               <div class="card-main">
+                <span class="card-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v18M7 21h10M5 7h14M5 7l-2.5 5a3 3 0 0 0 5 0L5 7zM19 7l-2.5 5a3 3 0 0 0 5 0L19 7z"/></svg>
+              </span>
+              <div class="card-text">
                 <h3>{{ adoption.name }}</h3>
                 <p class="meta">
                   {{ t('eunomia.frameworks.version', { version: adoption.catalogVersion }) }}
                   · {{ t('eunomia.frameworks.adoptedOn', { date: formatDate(adoption.adoptedAt) }) }}
                 </p>
+                </div>
                 <div v-if="adoption.progress" class="card-progress">
                   <ProgressBar :percent="adoption.progress.percent" :label="adoption.name" />
                   <span class="pct">{{ adoption.progress.countable ? percent(adoption.progress.percent) : '—' }}</span>
@@ -55,42 +60,56 @@
                 >{{ t('eunomia.frameworks.remove') }}</button>
               </div>
             </li>
-          </ul>
+          </TransitionGroup>
         </section>
 
         <section class="block" aria-labelledby="available-title">
-          <h2 id="available-title">{{ t('eunomia.frameworks.available') }}</h2>
+          <SectionInscription id="available-title" :tally="groups.available.length">{{ t('eunomia.frameworks.available') }}</SectionInscription>
           <p v-if="!groups.available.length" class="empty">{{ t('eunomia.frameworks.noneAvailable') }}</p>
-          <ul v-else class="cards">
+          <TransitionGroup v-else tag="ul" name="card" class="cards">
             <li v-for="framework in groups.available" :key="framework.key" class="card">
               <div class="card-main">
+                <span class="card-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v18M7 21h10M5 7h14M5 7l-2.5 5a3 3 0 0 0 5 0L5 7zM19 7l-2.5 5a3 3 0 0 0 5 0L19 7z"/></svg>
+              </span>
+              <div class="card-text">
                 <h3>{{ framework.name }}</h3>
                 <p class="meta">{{ t('eunomia.frameworks.version', { version: framework.current }) }}{{ isDraft(framework) ? ` · ${t('eunomia.frameworks.draft')}` : '' }}</p>
+                </div>
               </div>
+              <div class="card-actions">
               <button
                 v-if="canManage" type="button" class="btn btn--primary"
                 :disabled="store.state.busyKey === framework.key"
                 @click="adopt(framework.key)"
               >{{ t('eunomia.frameworks.adopt') }}</button>
+              </div>
             </li>
-          </ul>
+          </TransitionGroup>
         </section>
 
         <section v-if="groups.archived.length" class="block" aria-labelledby="archived-title">
-          <h2 id="archived-title">{{ t('eunomia.frameworks.archived') }}</h2>
-          <ul class="cards">
+          <SectionInscription id="archived-title" :tally="groups.archived.length">{{ t('eunomia.frameworks.archived') }}</SectionInscription>
+          <TransitionGroup tag="ul" name="card" class="cards">
             <li v-for="adoption in groups.archived" :key="adoption.frameworkKey" class="card">
               <div class="card-main">
+                <span class="card-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v18M7 21h10M5 7h14M5 7l-2.5 5a3 3 0 0 0 5 0L5 7zM19 7l-2.5 5a3 3 0 0 0 5 0L19 7z"/></svg>
+              </span>
+              <div class="card-text">
                 <h3>{{ adoption.name }}</h3>
                 <p class="meta">{{ t('eunomia.frameworks.purgeAt', { date: formatDate(adoption.purgeAt) }) }}</p>
+                </div>
               </div>
+              <div class="card-actions">
               <button
                 v-if="canManage" type="button" class="btn btn--primary"
                 :disabled="store.state.busyKey === adoption.frameworkKey"
                 @click="restore(adoption.frameworkKey)"
               >{{ t('eunomia.frameworks.restore') }}</button>
+              </div>
             </li>
-          </ul>
+          </TransitionGroup>
         </section>
       </template>
     </main>
@@ -125,6 +144,7 @@ import StarBackground from '@/components/shared/StarBackground.vue'
 import ConfirmModal from '@/components/shared/ConfirmModal.vue'
 import OrganizationManagedNotice from '@/components/accounts/OrganizationManagedNotice.vue'
 import { hasLoss, removalFacts, upgradeFacts } from '@/components/eunomia/frameworks'
+import SectionInscription from '@/components/eunomia/SectionInscription.vue'
 import ProgressBar from '@/components/eunomia/ProgressBar.vue'
 import { formatDate, formatNumber } from '@/i18n/format'
 import { useEunomiaStore } from '@/stores/eunomiaStore'
@@ -251,16 +271,34 @@ onMounted(() => store.load())
 .head-title { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-size: var(--fs-2xl); color: var(--text); }
 .head-sub { color: var(--text-muted); margin-top: 0.4rem; max-width: 62ch; font-size: var(--fs-md); }
 .templates-link { display: inline-block; margin-top: 0.6rem; margin-right: 1rem; color: var(--accent); text-decoration: underline; font-size: var(--fs-md); }
-.block h2 { font-size: var(--fs-xl); font-weight: 600; color: var(--text); margin-bottom: 0.8rem; }
-.cards { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.7rem; }
+.block > :first-child { margin-bottom: 0.9rem; }
+.cards { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.7rem; position: relative; }
+/* Tarjeta con el tono de los paneles de Lybra: filete de acento, resplandor interior y
+   las acciones siempre al pie, alineadas a la derecha. */
 .card {
-  display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
-  background: var(--surface); border: 1px solid var(--border-solid); border-radius: 10px; padding: 1rem 1.2rem;
+  display: flex; flex-direction: column; gap: 0.9rem;
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 220%);
+  border: 1px solid var(--border-solid); border-radius: 12px; padding: 1.1rem 1.3rem;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14);
+  transition: border-color 0.3s var(--ease-settle), box-shadow 0.3s var(--ease-settle), transform 0.3s var(--ease-settle);
 }
-.card-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+.card:hover { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-dim), 0 14px 34px rgba(0, 0, 0, 0.2); transform: translateY(-1px); }
+.card-main { display: flex; gap: 0.9rem; align-items: flex-start; flex: 1; }
+.card-text { flex: 1; min-width: 0; }
+.card-mark {
+  width: 40px; height: 40px; border-radius: 50%; flex: none; display: grid; place-items: center;
+  color: var(--accent); background: var(--accent-dim); border: 1px solid var(--accent);
+}
+.card-mark svg { width: 21px; height: 21px; }
+.card-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; justify-content: flex-end; margin-top: auto; }
 .card h3 { font-size: var(--fs-lg); font-weight: 600; color: var(--text); }
 .meta { color: var(--text-muted); font-size: var(--fs-body); margin-top: 0.2rem; }
-.card-progress { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.5rem; min-width: 12rem; }
+.card-enter-active { transition: opacity 0.4s ease, transform 0.45s var(--ease-settle); }
+.card-leave-active { transition: opacity 0.25s ease; position: absolute; width: 100%; }
+.card-move { transition: transform 0.4s var(--ease-settle); }
+.card-enter-from { opacity: 0; transform: translateY(12px) scale(0.98); }
+.card-leave-to { opacity: 0; }
+.card-progress { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.6rem; }
 .card-progress .progress { flex: 1; }
 .pct { font-variant-numeric: tabular-nums; color: var(--text-muted); font-size: var(--fs-body); }
 .newer { color: var(--accent); font-size: var(--fs-body); margin-top: 0.3rem; }
@@ -270,12 +308,17 @@ onMounted(() => store.load())
 .btn {
   font-family: var(--font-epic); font-size-adjust: var(--fsa-epic); font-size: var(--fs-body); font-weight: 600;
   letter-spacing: 0.14em; text-transform: uppercase; padding: 0.6rem 1.2rem; border-radius: 3px;
-  border: 1px solid var(--border-med); color: var(--text-dim); transition: all var(--transition);
+  border: 1px solid var(--border-med); color: var(--text-dim); transition: background-color 0.28s var(--ease-settle), color 0.28s ease, border-color 0.28s ease, transform 0.28s var(--ease-settle);
 }
+.btn:hover:not(:disabled) { transform: translateY(-1px); }
 a.btn { text-decoration: none; }
 .btn--primary { background: var(--accent-dim); border-color: var(--accent); color: var(--accent-bright); }
 .btn--primary:hover { background: var(--accent); color: var(--on-accent); }
 .btn--danger { border-color: var(--danger); color: var(--danger); }
 .btn--danger:hover { background: var(--danger-dim); }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+@media (prefers-reduced-motion: reduce) {
+  .card, .btn, .card-enter-active, .card-leave-active, .card-move { transition: none !important; }
+  .card:hover, .btn:hover:not(:disabled) { transform: none; }
+}
 </style>
