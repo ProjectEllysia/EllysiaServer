@@ -969,6 +969,38 @@ class HygeiaAssetManager:
         repo = build_repository(MonitoredAssetRepository)
         return any(asset.inventory for asset in repo.get_by_user(user_id))
 
+    def get_inventory_summary(self, user_id: int, silent_after_days: int = 7) -> dict:
+        """Resume el parque de activos de un dueño, para quien lo necesite.
+
+        Lo consume Eunomia como evidencia automática: solo cifras. Si el usuario es el dueño
+        de una organización cuentan los activos de todos sus miembros, como en el informe de
+        inventario de la organización; si no, solo los suyos. No usa ``self.user``: el dueño
+        llega por parámetro.
+
+        Args:
+            user_id: Dueño efectivo de los datos.
+            silent_after_days: Días sin reportar a partir de los cuales un activo se considera
+                silencioso. Por defecto ``7``.
+
+        Returns:
+            dict: ``assets``, ``reportingRecently`` (los que reportaron en la ventana),
+                ``silent``, ``withInventory`` y ``lastInventoryAt`` (``None`` si ninguno
+                reportó software).
+        """
+        organizations = OrganizationManager()
+        owned = organizations.get_owned_summary(user_id)
+        user_ids = [user_id]
+        if owned is not None:
+            user_ids = [member["userId"] for member in organizations.list_members(owned["id"], user_id)] or [user_id]
+        assets = build_repository(MonitoredAssetRepository).get_by_users(user_ids)
+        limit = utcnow_naive() - timedelta(days=silent_after_days)
+        reporting = sum(1 for asset in assets if asset.last_seen_at and asset.last_seen_at >= limit)
+        collected = [asset.inventory_collected_at for asset in assets if asset.inventory_collected_at]
+        return {
+            "assets": len(assets), "reportingRecently": reporting, "silent": len(assets) - reporting,
+            "withInventory": len(collected), "lastInventoryAt": max(collected) if collected else None,
+        }
+
     def create_asset(
         self, hostname: str, os_name: Optional[str], labels: dict, is_persistent: bool = True,
     ) -> dict:
