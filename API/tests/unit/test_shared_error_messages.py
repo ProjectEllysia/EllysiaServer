@@ -70,6 +70,8 @@ _SAMPLE_ARGUMENTS: dict[str, list[tuple]] = {
     "FrameworkAlreadyAdoptedError": [("nis2",)],
     "FrameworkArchivedError": [("nis2",)],
     "FrameworkNotArchivedError": [("nis2",)],
+    "ControlNotAssessableError": [("RE.3",)],
+    "AssessmentConflictError": [(None,)],
     "FrameworkRestoreExpiredError": [("nis2",)],
     "StorableConflictError": [("github",)],
     "VaultRevisionMismatchError": [(4,), (4, 3)],

@@ -47,7 +47,7 @@ REVIEWED_SENSITIVE_LOOKING = {
     # «password», «token» o «key» sin guardar ningún secreto.
     ("User", "password_changed_at"), ("User", "password_reset_expires_at"), ("User", "must_change_password"),
     ("Finding", "dedup_key"), ("IrisAnalysis", "integration_token_id"),
-    ("EunomiaFrameworkAdoption", "framework_key"),
+    ("EunomiaFrameworkAdoption", "framework_key"), ("EunomiaControlAssessment", "framework_key"), ("EunomiaAssessmentEvent", "framework_key"),
     ("IrisActionAudit", "idempotency_key"), ("IrisMailboxConnection", "access_token_expires_at"),
 }
 

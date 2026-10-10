@@ -31,6 +31,7 @@ from ..exceptions import (
 from ..model import ADOPTION_ACTIVE, ADOPTION_ARCHIVED, EunomiaFrameworkAdoption
 from ..repositories import EunomiaFrameworkAdoptionRepository
 from ..services.adoption_data import AdoptionDataRegistry
+from .assessments import adoption_progress
 from ..services.catalog import load_index
 
 logger = logging.getLogger(__name__)
@@ -108,6 +109,8 @@ class EunomiaFrameworkManager:
                 "adoptedByUserId": row.adopted_by_user_id,
                 "archivedAt": row.archived_at,
                 "purgeAt": row.archived_at + retention if row.archived_at else None,
+                "progress": (adoption_progress(owner_user_id, row.framework_key, row.catalog_version)
+                             if row.status == ADOPTION_ACTIVE else None),
             })
         return {"adoptions": adoptions, "ownership": organizations.describe_data_ownership(user_id)}
 

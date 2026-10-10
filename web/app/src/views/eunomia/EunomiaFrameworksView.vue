@@ -29,15 +29,24 @@
                   {{ t('eunomia.frameworks.version', { version: adoption.catalogVersion }) }}
                   · {{ t('eunomia.frameworks.adoptedOn', { date: formatDate(adoption.adoptedAt) }) }}
                 </p>
+                <div v-if="adoption.progress" class="card-progress">
+                  <ProgressBar :percent="adoption.progress.percent" :label="adoption.name" />
+                  <span class="pct">{{ adoption.progress.countable ? percent(adoption.progress.percent) : '—' }}</span>
+                </div>
                 <p v-if="adoption.hasNewerVersion" class="newer">
                   {{ t('eunomia.frameworks.newerVersion', { version: adoption.currentVersion }) }}
                 </p>
               </div>
-              <button
-                v-if="canManage" type="button" class="btn btn--danger"
-                :disabled="store.state.busyKey === adoption.frameworkKey"
-                @click="askRemoval(adoption)"
-              >{{ t('eunomia.frameworks.remove') }}</button>
+              <div class="card-actions">
+                <router-link :to="`/eunomia/marcos/${adoption.frameworkKey}`" class="btn btn--primary">
+                  {{ t('eunomia.tree.open') }}
+                </router-link>
+                <button
+                  v-if="canManage" type="button" class="btn btn--danger"
+                  :disabled="store.state.busyKey === adoption.frameworkKey"
+                  @click="askRemoval(adoption)"
+                >{{ t('eunomia.frameworks.remove') }}</button>
+              </div>
             </li>
           </ul>
         </section>
@@ -100,7 +109,8 @@ import StarBackground from '@/components/shared/StarBackground.vue'
 import ConfirmModal from '@/components/shared/ConfirmModal.vue'
 import OrganizationManagedNotice from '@/components/accounts/OrganizationManagedNotice.vue'
 import { hasLoss, removalFacts } from '@/components/eunomia/frameworks'
-import { formatDate } from '@/i18n/format'
+import ProgressBar from '@/components/eunomia/ProgressBar.vue'
+import { formatDate, formatNumber } from '@/i18n/format'
 import { useEunomiaStore } from '@/stores/eunomiaStore'
 import { useToastStore } from '@/stores/toastStore'
 
@@ -114,6 +124,11 @@ const canManage = computed(() => store.state.ownership.isOwnData === true)
 /** Un marco del catálogo cuya versión vigente sigue en borrador. */
 function isDraft(framework) {
   return framework.versions?.find((item) => item.version === framework.current)?.status === 'draft'
+}
+
+/** Un porcentaje (0 a 100) con el formato del idioma activo. */
+function percent(value) {
+  return formatNumber(value / 100, { style: 'percent', maximumFractionDigits: 0 })
 }
 
 const pending = ref(null)
@@ -193,8 +208,12 @@ onMounted(() => store.load())
   display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
   background: var(--surface); border: 1px solid var(--border-solid); border-radius: 10px; padding: 1rem 1.2rem;
 }
+.card-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
 .card h3 { font-size: var(--fs-lg); font-weight: 600; color: var(--text); }
 .meta { color: var(--text-muted); font-size: var(--fs-body); margin-top: 0.2rem; }
+.card-progress { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.5rem; min-width: 12rem; }
+.card-progress .progress { flex: 1; }
+.pct { font-variant-numeric: tabular-nums; color: var(--text-muted); font-size: var(--fs-body); }
 .newer { color: var(--accent); font-size: var(--fs-body); margin-top: 0.3rem; }
 .empty, .state-msg { color: var(--text-muted); font-size: var(--fs-md); }
 .state-msg--error { color: var(--danger); }
@@ -204,6 +223,7 @@ onMounted(() => store.load())
   letter-spacing: 0.14em; text-transform: uppercase; padding: 0.6rem 1.2rem; border-radius: 3px;
   border: 1px solid var(--border-med); color: var(--text-dim); transition: all var(--transition);
 }
+a.btn { text-decoration: none; }
 .btn--primary { background: var(--accent-dim); border-color: var(--accent); color: var(--accent-bright); }
 .btn--primary:hover { background: var(--accent); color: var(--on-accent); }
 .btn--danger { border-color: var(--danger); color: var(--danger); }

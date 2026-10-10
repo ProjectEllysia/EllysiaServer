@@ -20,7 +20,8 @@ Reglas que atraviesan todo el módulo:
 Exponente:
     - CatalogManager: el catálogo de marcos y el árbol de cada versión.
     - EunomiaFrameworkManager: marcos adoptados por el dueño efectivo de los datos.
-    - Modelos: EunomiaFrameworkAdoption.
+    - EunomiaAssessmentManager: evaluar los controles de un marco adoptado.
+    - Modelos: EunomiaFrameworkAdoption, EunomiaControlAssessment.
     - Endpoints: eunomia_blp.
     - Excepciones: EunomiaError.
 """
@@ -32,8 +33,10 @@ from .data_export import EXPORT_TABLES
 from .endpoints import eunomia_blp
 from .managers import CatalogManager, EunomiaFrameworkManager
 from .exceptions import EunomiaError
-from .model import EunomiaFrameworkAdoption
+from .model import EunomiaControlAssessment, EunomiaFrameworkAdoption
 from .repositories import EunomiaFrameworkAdoptionRepository
+from .services.adoption_data import AdoptionDataRegistry
+from .services.assessment_data import count_assessments, purge_assessments
 from .services.user_data import purge_eunomia_data
 
 # Cómo se cuentan los marcos adoptados para la cuota ``eunomia.frameworks``: solo los activos,
@@ -42,6 +45,9 @@ register_stock_counter(
     LimitKey.EUNOMIA_FRAMEWORKS,
     lambda session, user_ids: EunomiaFrameworkAdoptionRepository(session=session).count_active_for_owners(user_ids),
 )
+
+# Lo que cuelga de una adopción y hay que contar y purgar al quitar un marco.
+AdoptionDataRegistry.register("assessments", count=count_assessments, purge=purge_assessments)
 
 # Qué hace ``users`` con los datos de este módulo al borrar una cuenta o exportarlos.
 UserDataRegistry.register(
@@ -56,5 +62,7 @@ __all__ = [
     "CatalogManager",
     "EunomiaFrameworkManager",
     "EunomiaFrameworkAdoption",
+    "EunomiaControlAssessment",
+    "EunomiaAssessmentManager",
     "EunomiaError",
 ]
