@@ -1653,6 +1653,9 @@
       "vaults": "Bóvedas",
       "secrets": "Secretos guardados",
       "assets": "Activos monitorizados",
+      "frameworks": "Marcos de cumplimiento",
+      "evidenceStorage": "Almacenamiento de evidencias",
+      "complianceDocuments": "Documentos de cumplimiento",
       "aiRequests": "Peticiones a la IA",
       "members": "Miembros de la organización"
     }
