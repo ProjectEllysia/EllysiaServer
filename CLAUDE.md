@@ -144,14 +144,14 @@ idioma: [`CONVENCIONES.md`](CONVENCIONES.md) §12.5 y §13.
 ### Blueprints registrados (`run.py`)
 
 `/system` · `/oauth` · `/users` · `/plans` · `/organizations` · `/themis` · `/acheron` · `/aegis`
-· `/iris` · `/hygeia`
+· `/iris` · `/hygeia` · `/eunomia`
 
-Son **diez**. Añadir uno obliga a tocar también `web/Caddyfile` y `web/app/vite.config.js`
+Son **once**. Añadir uno obliga a tocar también `web/Caddyfile` y `web/app/vite.config.js`
 (el test de Caddy cubre el primero).
 
 ### Layout de un módulo (`API/src/modules/`)
 
-Módulos de feature: `themis`, `iris`, `aegis`, `acheron`, `hygeia` (bajo `features/`).
+Módulos de feature: `themis`, `iris`, `aegis`, `acheron`, `hygeia`, `eunomia` (bajo `features/`).
 Módulos transversales de dominio: `users`, `accounts` (planes, organizaciones, suscripciones,
 cuotas), `system`.
 

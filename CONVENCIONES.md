@@ -134,6 +134,7 @@ EllysiaServer/
                 ├── iris/         análisis de correo y phishing
                 ├── aegis/        concienciación: píldoras, quiz, campañas
                 ├── hygeia/       monitorización de activos
+                ├── eunomia/      marcos de cumplimiento normativo: controles, evaluación, evidencias
                 └── acheron/      bóveda de secretos
 ```
 
