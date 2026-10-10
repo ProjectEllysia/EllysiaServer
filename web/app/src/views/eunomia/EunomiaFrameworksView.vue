@@ -8,6 +8,7 @@
         <h1 class="head-title">{{ t('eunomia.frameworks.title') }}</h1>
         <p class="head-sub">{{ t('eunomia.frameworks.intro') }}</p>
         <router-link to="/eunomia/plantillas" class="templates-link">{{ t('eunomia.templates.title') }}</router-link>
+        <router-link to="/eunomia/registros" class="templates-link">{{ t('eunomia.registers.title') }}</router-link>
       </header>
 
       <OrganizationManagedNotice :ownership="store.state.ownership" />
@@ -249,7 +250,7 @@ onMounted(() => store.load())
 .layout { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem 4rem; display: flex; flex-direction: column; gap: 1.5rem; position: relative; z-index: 1; }
 .head-title { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-size: var(--fs-2xl); color: var(--text); }
 .head-sub { color: var(--text-muted); margin-top: 0.4rem; max-width: 62ch; font-size: var(--fs-md); }
-.templates-link { display: inline-block; margin-top: 0.6rem; color: var(--accent); text-decoration: underline; font-size: var(--fs-md); }
+.templates-link { display: inline-block; margin-top: 0.6rem; margin-right: 1rem; color: var(--accent); text-decoration: underline; font-size: var(--fs-md); }
 .block h2 { font-size: var(--fs-xl); font-weight: 600; color: var(--text); margin-bottom: 0.8rem; }
 .cards { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.7rem; }
 .card {

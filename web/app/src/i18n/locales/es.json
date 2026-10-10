@@ -108,6 +108,8 @@
     "frameworkRestoreExpired": "El plazo para restaurar el marco «{framework}» ha vencido. Puedes adoptarlo de nuevo, pero empezarás de cero.",
     "frameworkUpToDate": "El marco «{framework}» ya está en la versión vigente del catálogo.",
     "templateValueInvalid": "El valor del campo «{field}» no es válido para esta plantilla.",
+    "recordInvalid": "Revisa estos campos: {fields}.",
+    "recordConflict": "Otra persona ha cambiado esta ficha mientras la editabas. Revisa su valor actual.",
     "templateIncomplete": "Para generar el documento falta completar: {fields}.",
     "versionMappingMissing": "No hay correspondencias entre las versiones {fromVersion} y {toVersion} del marco «{framework}», así que no se puede trasladar tu evaluación automáticamente.",
     "invalidAuthorizedTarget": "«{target}» no es una dirección IP, un rango, un dominio ni un recurso cloud. Escríbelo como «203.0.113.10», «203.0.113.0/24», «example.com» o «s3:nombre-del-bucket».",
@@ -119,6 +121,8 @@
     "emailSend": "No se pudo enviar el correo.",
     "entityNotFound": {
       "evidence": "Evidencia no encontrada.",
+      "register": "Registro no encontrado.",
+      "record": "Ficha no encontrada.",
       "template": "Plantilla no encontrada.",
       "control": "Control no encontrado.",
       "adoption": "Adopción no encontrada.",
@@ -2081,6 +2085,31 @@
         "warning": "A revisar",
         "missing": "Sin datos",
         "unavailable": "No disponible"
+      }
+    },
+    "registers": {
+      "title": "Registros",
+      "intro": "Listas de fichas que la normativa te pide mantener: tratamientos de datos, incidentes y brechas. Cada ficha guarda su historial.",
+      "loadFailed": "No se pudieron cargar los registros.",
+      "saveFailed": "No se pudo guardar la ficha.",
+      "exportFailed": "No se pudo exportar el registro.",
+      "open": "Abrir",
+      "recordCount": "{count} ficha | {count} fichas",
+      "newRecord": "Nueva ficha",
+      "editRecord": "Editar ficha",
+      "addExamples": "Añadir fichas de ejemplo",
+      "edit": "Editar",
+      "archive": "Archivar",
+      "save": "Guardar",
+      "cancel": "Cancelar",
+      "empty": "Este registro todavía no tiene fichas.",
+      "updated": "Actualizada el {date} por {name}.",
+      "deadlineCounts": "{overdue} plazo(s) vencido(s) y {upcoming} por vencer.",
+      "deadline": {
+        "pending_input": "falta la fecha de origen",
+        "upcoming": "por vencer",
+        "overdue": "vencido",
+        "done": "cumplido"
       }
     }
   },

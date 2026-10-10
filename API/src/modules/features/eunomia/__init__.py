@@ -39,6 +39,7 @@ from .model import EunomiaControlAssessment, EunomiaEvidence, EunomiaFrameworkAd
 from .repositories import EunomiaEvidenceRepository, EunomiaFrameworkAdoptionRepository
 from .services.adoption_data import AdoptionDataRegistry
 from .services.providers import AutomaticEvidence, EvidenceProviderRegistry
+from .services.register_evidence import register_providers
 from .services.assessment_data import count_assessments, purge_assessments
 from .services.evidence_data import count_evidence, purge_evidence
 from .services.user_data import export_evidence_files, purge_eunomia_data
@@ -49,6 +50,9 @@ register_stock_counter(
     LimitKey.EUNOMIA_FRAMEWORKS,
     lambda session, user_ids: EunomiaFrameworkAdoptionRepository(session=session).count_active_for_owners(user_ids),
 )
+
+# Un registro con fichas demuestra los requisitos que lo exigen: un proveedor por tipo de registro.
+register_providers()
 
 # Los documentos de cumplimiento se generan en el worker, en su propia cola.
 QueueRegistry.register("eunomia.report")

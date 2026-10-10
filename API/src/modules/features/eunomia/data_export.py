@@ -9,6 +9,8 @@ from .model import (
     EunomiaEvidence,
     EunomiaEvidenceLink,
     EunomiaFrameworkAdoption,
+    EunomiaRecord,
+    EunomiaRecordEvent,
     EunomiaTemplateDraft,
 )
 
@@ -19,6 +21,8 @@ EXPORT_TABLES: tuple[ExportTable, ...] = (
     ExportTable("assessment_history", EunomiaAssessmentEvent, owned_by(EunomiaAssessmentEvent.owner_user_id)),
     ExportTable("documents", EunomiaDocument, owned_by(EunomiaDocument.user_id), frozenset({"filename"})),
     ExportTable("evidence", EunomiaEvidence, owned_by(EunomiaEvidence.owner_user_id)),
+    ExportTable("records", EunomiaRecord, owned_by(EunomiaRecord.owner_user_id)),
+    ExportTable("record_history", EunomiaRecordEvent, owned_by(EunomiaRecordEvent.owner_user_id)),
     ExportTable("template_drafts", EunomiaTemplateDraft, owned_by(EunomiaTemplateDraft.owner_user_id)),
     ExportTable(
         "evidence_links", EunomiaEvidenceLink,
