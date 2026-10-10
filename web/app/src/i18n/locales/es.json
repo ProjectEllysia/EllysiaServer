@@ -436,7 +436,8 @@
       "aegis": "Concienciación que llega antes que el ataque: píldoras IA y campañas con seguimiento.",
       "iris": "Verifica quién firma cada correo: 47 reglas contra el phishing.",
       "acheron": "Guarda lo que no debe perderse: bóveda cifrada en tu navegador.",
-      "hygeia": "Vigila el pulso de cada activo: telemetría en vivo y alertas antes del fallo."
+      "hygeia": "Vigila el pulso de cada activo: telemetría en vivo y alertas antes del fallo.",
+      "eunomia": "Pon en orden tu cumplimiento: marcos, evidencias, documentos y plazos."
     }
   },
   "freeTools": {
@@ -1213,7 +1214,8 @@
       "aegis": "formaciones de concienciación en seguridad generadas con inteligencia artificial.",
       "iris": "análisis de correos electrónicos para detectar fraudes (phishing), con el veredicto explicado.",
       "acheron": "caja fuerte de contraseñas cifrada en el navegador: la llave nunca viaja al servidor.",
-      "hygeia": "vigilancia del estado de servidores y equipos."
+      "hygeia": "vigilancia del estado de servidores y equipos.",
+      "eunomia": "cumplimiento normativo (NIS2, ENS, ISO 27001 y RGPD): evaluación, evidencias, documentos y registros con plazos."
     },
     "ideaHeading": "La idea de fondo",
     "idea": "La motivación es aprender y explorar qué haría falta para que protegerse no fuera un privilegio de quien puede pagar un equipo de seguridad. Si Ellysia llegara a ofrecerse algún día a otras personas, esta página y las condiciones legales cambiarían antes.",
@@ -1458,6 +1460,12 @@
         "myth": "La diosa de la salud; vigila los signos vitales de cada activo.",
         "title": "Vigila el pulso de cada activo",
         "desc": "Agentes ligeros empujan telemetría de hardware; los umbrales con histéresis abren y resuelven anomalías solos, con aviso por correo en lo crítico."
+      },
+      "eunomia": {
+        "blurb": "Cumplimiento normativo",
+        "myth": "La diosa del buen orden y de las leyes justas.",
+        "title": "Pon en orden tu cumplimiento",
+        "desc": "Marcos como NIS2, ENS, ISO 27001 y RGPD con su evaluación, sus evidencias, sus documentos y sus plazos."
       }
     },
     "chips": {
@@ -4651,6 +4659,46 @@
       }
     }
   },
+  "eunomiaHub": {
+    "tagline": "Elige un marco, evalúa cada requisito, guarda sus evidencias y genera los documentos que te piden.",
+    "myth": "La diosa del buen orden y de las leyes justas; pone cada obligación en su sitio para que puedas demostrarla.",
+    "toolLabel": "Ver mis marcos",
+    "loading": "Cargando tu cumplimiento…",
+    "adopted": "Marcos adoptados",
+    "records": "{count} fichas en tus registros",
+    "empty": "Todavía no has adoptado ningún marco. Elige el primero.",
+    "highlight": {
+      "label": "Marcos en el catálogo",
+      "sub": "NIS2, ENS, ISO 27001 y RGPD"
+    },
+    "shortcuts": {
+      "registers": "Registros",
+      "templates": "Plantillas",
+      "documents": "Documentos"
+    },
+    "features": {
+      "frameworks": {
+        "kicker": "Un árbol por marco",
+        "title": "Cada requisito, con su estado",
+        "desc": "Recorre el marco como un árbol, marca qué está implantado y quién responde de cada punto, con el historial de cada cambio."
+      },
+      "evidence": {
+        "kicker": "Evidencias",
+        "title": "Una prueba, varios requisitos",
+        "desc": "Sube ficheros cifrados o enlaces y vincúlalos a requisitos de distintos marcos; lo que Themis, Aegis e Hygeia ya saben se suma solo."
+      },
+      "documents": {
+        "kicker": "Documentos",
+        "title": "Políticas listas para revisar",
+        "desc": "Las plantillas se rellenan con el perfil de tu empresa y tus evaluaciones, y se descargan en PDF o en Word para que las adaptes."
+      },
+      "registers": {
+        "kicker": "Registros y plazos",
+        "title": "Los plazos corren desde un solo dato",
+        "desc": "Actividades de tratamiento, incidentes y brechas, solicitudes de derechos y evaluaciones de impacto, con sus plazos de NIS2 y del RGPD calculados."
+      }
+    }
+  },
   "hygeiaView": {
     "badge": "Monitorización de Activos",
     "allAssets": "Todos los activos",
@@ -5605,6 +5653,10 @@
       "toolVersionCheck": {
         "title": "¿Es vulnerable mi versión? CVE, explotación activa y fin de soporte | Ellysia",
         "description": "Escribe un programa y su versión y mira gratis sus vulnerabilidades conocidas (CVE), si se explotan (KEV), su EPSS y si aún tiene soporte. Sin cuenta."
+      },
+      "eunomia": {
+        "title": "Eunomia · Cumplimiento de NIS2, ENS, ISO 27001 y RGPD | Ellysia",
+        "description": "Eunomia te guía por NIS2, ENS, ISO 27001 y el RGPD: evalúa cada requisito, guarda evidencias, genera políticas en PDF o Word y vigila los plazos de tus registros."
       }
     }
   }

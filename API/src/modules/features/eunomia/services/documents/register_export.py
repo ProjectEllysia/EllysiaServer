@@ -18,6 +18,7 @@ import src.modules.system.config_reading as CR
 from src.modules.tools.press import ColorType, DocumentStyle, PdfGenerator, ReportTheme, build_palette, safe_markup
 
 from ..registers import FIELD_SELECT, RegisterType
+from .pdf import EUNOMIA_LOGO_PATH
 
 _FALLBACK_PALETTE = {
     "black": "#121212", "dark": "#2b3a55", "light": "#7088b8",
@@ -77,7 +78,7 @@ class RegisterPDF(PdfGenerator):
         """
         super().__init__(DocumentStyle(
             palette=build_palette(CR.eunomia_config().color_palette, _FALLBACK_PALETTE),
-            header_title=f"Ellysia · {register.title}", author=author,
+            header_title=f"Ellysia · {register.title}", author=author, logo_path=str(EUNOMIA_LOGO_PATH),
             left_margin=0.7 * inch, right_margin=0.7 * inch, top_margin=0.8 * inch, bottom_margin=0.7 * inch,
         ))
         self.register = register

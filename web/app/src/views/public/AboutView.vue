@@ -41,8 +41,8 @@ import InfoPage from '@/components/shared/InfoPage.vue'
 const { t } = useI18n()
 
 /** Módulos que se presentan, en el orden del panteón. */
-const MODULES = ['themis', 'aegis', 'iris', 'acheron', 'hygeia']
+const MODULES = ['themis', 'aegis', 'iris', 'acheron', 'hygeia', 'eunomia']
 
 /** Los nombres de los módulos son propios y no se traducen. */
-const MODULE_NAMES = { themis: 'Themis', aegis: 'Aegis', iris: 'Iris', acheron: 'Acheron', hygeia: 'Hygeia' }
+const MODULE_NAMES = { themis: 'Themis', aegis: 'Aegis', iris: 'Iris', acheron: 'Acheron', hygeia: 'Hygeia', eunomia: 'Eunomia' }
 </script>

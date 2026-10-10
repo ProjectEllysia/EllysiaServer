@@ -11,6 +11,7 @@ import binascii
 import logging
 import os
 import tempfile
+from pathlib import Path
 from dataclasses import replace
 from datetime import datetime
 from typing import Optional, Sequence, Tuple
@@ -41,6 +42,11 @@ _LEGAL_TEXT = (
     "La dirección debe revisarlo, adaptarlo a la realidad de la organización y aprobarlo antes de "
     "darlo por vigente. No constituye asesoramiento jurídico."
 )
+
+#: Logotipo de Eunomia, que viaja con el código. Es una copia reducida y de 16 colores del original
+#: de la SPA (``assets/images/eunomia/Eunomia-Blue-BgW.png``). Es el de la portada cuando la empresa
+#: no ha subido el suyo, y el de los registros.
+EUNOMIA_LOGO_PATH = Path(__file__).resolve().parents[2] / "resources" / "eunomia-logo.png"
 
 _LOGO_TYPES = {"image/png": ".png", "image/jpeg": ".jpg", "image/jpg": ".jpg"}
 
@@ -106,6 +112,7 @@ class EunomiaTemplatePDF(PdfGenerator):
             palette=build_palette(CR.eunomia_config().color_palette, _FALLBACK_PALETTE),
             header_title=f"Ellysia · {company_name}" if company_name else "Ellysia · Eunomia",
             author=author,
+            logo_path=str(EUNOMIA_LOGO_PATH),
             left_margin=0.8 * inch,
             right_margin=0.8 * inch,
             top_margin=0.8 * inch,
@@ -171,7 +178,7 @@ class EunomiaTemplatePDF(PdfGenerator):
             elements.extend(block_elements[2:])
 
     def generate(self) -> bytes:
-        """Compone el PDF, con el logotipo de la empresa si lo hay.
+        """Compone el PDF, con el logotipo de la empresa si lo hay y, si no, con el de Eunomia.
 
         ``PdfGenerator`` lee el logotipo de un fichero, así que el de la empresa se vuelca a un
         temporal que se borra al terminar.
@@ -191,10 +198,10 @@ class EunomiaTemplatePDF(PdfGenerator):
                 return super().generate()
             except Exception:  # noqa: BLE001 — un logotipo corrupto no debe impedir el documento
                 logger.warning("El logotipo de la empresa no se pudo dibujar; se genera sin él", exc_info=True)
-                self.style = replace(self.style, logo_path=None)
+                self.style = replace(self.style, logo_path=str(EUNOMIA_LOGO_PATH))
                 return super().generate()
         finally:
-            self.style = replace(self.style, logo_path=None)
+            self.style = replace(self.style, logo_path=str(EUNOMIA_LOGO_PATH))
             try:
                 os.remove(handle.name)
             except OSError:

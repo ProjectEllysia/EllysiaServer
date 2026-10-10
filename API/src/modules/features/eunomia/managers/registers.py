@@ -113,8 +113,8 @@ class EunomiaRegisterManager:
             user_id: Usuario que pregunta; ve lo del dueño efectivo.
 
         Returns:
-            list[dict]: ``key``, ``version``, ``title``, ``summary``, ``controls``,
-                ``recordCount`` y ``openDeadlines`` (plazos vencidos o por vencer sin cumplir).
+            list[dict]: ``key``, ``version``, ``title``, ``summary``, ``controls``
+                y ``recordCount`` (fichas no archivadas del dueño efectivo).
         """
         owner_user_id = OrganizationManager().resolve_data_owner(user_id)
         counts = build_repository(EunomiaRecordRepository).count_by_register(owner_user_id)

@@ -436,7 +436,8 @@
       "aegis": "Awareness that arrives before the attack: AI pills and tracked campaigns.",
       "iris": "Verifies who signs every email: 47 rules against phishing.",
       "acheron": "Keeps what must not be lost: a vault encrypted in your browser.",
-      "hygeia": "Watches the pulse of every asset: live telemetry and alerts before failure."
+      "hygeia": "Watches the pulse of every asset: live telemetry and alerts before failure.",
+      "eunomia": "Put your compliance in order: frameworks, evidence, documents and deadlines."
     }
   },
   "freeTools": {
@@ -1213,7 +1214,8 @@
       "aegis": "security awareness training generated with artificial intelligence.",
       "iris": "email analysis to detect fraud (phishing), with the verdict explained.",
       "acheron": "a password vault encrypted in the browser: the key never travels to the server.",
-      "hygeia": "monitoring of the health of servers and devices."
+      "hygeia": "monitoring of the health of servers and devices.",
+      "eunomia": "regulatory compliance (NIS2, ENS, ISO 27001 and GDPR): assessment, evidence, documents and registers with deadlines."
     },
     "ideaHeading": "The idea behind it",
     "idea": "The motivation is to learn and explore what it would take for protection not to be a privilege of those who can afford a security team. If Ellysia were ever offered to other people, this page and the legal terms would change first.",
@@ -1458,6 +1460,12 @@
         "myth": "The goddess of health; she watches the vital signs of every asset.",
         "title": "Watches the pulse of every asset",
         "desc": "Lightweight agents push hardware telemetry; thresholds with hysteresis open and resolve anomalies on their own, with an email alert for critical ones."
+      },
+      "eunomia": {
+        "blurb": "Regulatory compliance",
+        "myth": "The goddess of good order and just laws.",
+        "title": "Put your compliance in order",
+        "desc": "Frameworks such as NIS2, ENS, ISO 27001 and GDPR with their assessment, evidence, documents and deadlines."
       }
     },
     "chips": {
@@ -4651,6 +4659,46 @@
       }
     }
   },
+  "eunomiaHub": {
+    "tagline": "Pick a framework, assess each requirement, keep its evidence and generate the documents you are asked for.",
+    "myth": "The goddess of good order and just laws; she puts every obligation in its place so you can prove it.",
+    "toolLabel": "See my frameworks",
+    "loading": "Loading your compliance…",
+    "adopted": "Adopted frameworks",
+    "records": "{count} records in your registers",
+    "empty": "You have not adopted any framework yet. Pick the first one.",
+    "highlight": {
+      "label": "Frameworks in the catalog",
+      "sub": "NIS2, ENS, ISO 27001 and GDPR"
+    },
+    "shortcuts": {
+      "registers": "Registers",
+      "templates": "Templates",
+      "documents": "Documents"
+    },
+    "features": {
+      "frameworks": {
+        "kicker": "One tree per framework",
+        "title": "Every requirement, with its status",
+        "desc": "Walk the framework as a tree, mark what is in place and who answers for each point, with the history of every change."
+      },
+      "evidence": {
+        "kicker": "Evidence",
+        "title": "One proof, several requirements",
+        "desc": "Upload encrypted files or links and tie them to requirements of different frameworks; what Themis, Aegis and Hygeia already know adds up by itself."
+      },
+      "documents": {
+        "kicker": "Documents",
+        "title": "Policies ready for review",
+        "desc": "Templates are filled in from your company profile and your assessments, and download as PDF or Word for you to adapt."
+      },
+      "registers": {
+        "kicker": "Registers and deadlines",
+        "title": "Deadlines run from a single date",
+        "desc": "Processing activities, incidents and breaches, rights requests and impact assessments, with their NIS2 and GDPR deadlines worked out."
+      }
+    }
+  },
   "hygeiaView": {
     "badge": "Asset Monitoring",
     "allAssets": "All assets",
@@ -5605,6 +5653,10 @@
       "toolVersionCheck": {
         "title": "Is my version vulnerable? CVEs, active exploitation and end of life | Ellysia",
         "description": "Enter a program and its version and see for free its known vulnerabilities (CVE), whether they're exploited (KEV), their EPSS and if it's still supported."
+      },
+      "eunomia": {
+        "title": "Eunomia · NIS2, ENS, ISO 27001 and GDPR compliance | Ellysia",
+        "description": "Eunomia walks you through NIS2, ENS, ISO 27001 and GDPR: assess each requirement, keep evidence, generate policies as PDF or Word and track your register deadlines."
       }
     }
   }
