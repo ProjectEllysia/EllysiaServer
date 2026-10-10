@@ -23,6 +23,7 @@ from .managers import CatalogManager, EunomiaAssessmentManager, EunomiaFramework
 from .schemas import (
     AdoptionCreateSchema,
     AdoptionListSchema,
+    AdoptedTreeSchema,
     AdoptionSchema,
     AssessmentSchema,
     AssessmentWriteSchema,
@@ -137,6 +138,19 @@ def archive_framework(key):
 def restore_framework(key):
     """Reactivar un marco archivado si sigue en plazo"""
     return EunomiaFrameworkManager().restore(get_current_user().id, key)
+
+
+@eunomia_blp.get("/adoptions/<string:key>/tree")
+@eunomia_blp.response(200, AdoptedTreeSchema, description="Árbol del marco adoptado con sus evaluaciones")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@eunomia_blp.alt_response(404, schema=ErrorSchema, description="Framework not adopted")
+@limiter.limit("240 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_READ])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def get_adopted_tree(key):
+    """El árbol de la versión adoptada de un marco, con la evaluación de cada control"""
+    return EunomiaAssessmentManager().get_tree(get_current_user().id, key)
 
 
 @eunomia_blp.put("/adoptions/<string:key>/controls/<path:identifier>")

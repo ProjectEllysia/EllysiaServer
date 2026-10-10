@@ -45,13 +45,23 @@ def _display_name(user_id: Optional[int]) -> Optional[str]:
     return f"{user.first_name} {user.last_name}".strip() or user.username
 
 
-def assessment_payload(row: Optional[EunomiaControlAssessment], framework_key: str, identifier: str) -> dict:
+def _name(user_id: Optional[int], names: Optional[dict[int, Optional[str]]]) -> Optional[str]:
+    """El nombre de un usuario, de la caché si la hay."""
+    if names is not None and user_id in names:
+        return names[user_id]
+    return _display_name(user_id)
+
+
+def assessment_payload(row: Optional[EunomiaControlAssessment], framework_key: str, identifier: str,
+                       names: Optional[dict[int, Optional[str]]] = None) -> dict:
     """Serializa una evaluación; sin fila, la de un control «pendiente».
 
     Args:
         row: La fila, o ``None`` si el control no se ha evaluado nunca.
         framework_key: Clave del marco.
         identifier: Identificador del control.
+        names: Nombres ya resueltos por id de usuario, para no consultarlos de uno en uno al
+            serializar muchas evaluaciones. Por defecto se consultan.
 
     Returns:
         dict: ``code``, ``controlIdentifier``, ``status``, ``justification``, ``notes``,
@@ -65,11 +75,11 @@ def assessment_payload(row: Optional[EunomiaControlAssessment], framework_key: s
         "justification": (row.justification or "") if row else "",
         "notes": (row.notes or "") if row else "",
         "responsibleUserId": row.responsible_user_id if row else None,
-        "responsibleName": _display_name(row.responsible_user_id) if row else None,
+        "responsibleName": _name(row.responsible_user_id, names) if row else None,
         "dueDate": row.due_date if row else None,
         "updatedAt": row.updated_at if row else None,
         "updatedByUserId": row.updated_by_user_id if row else None,
-        "updatedByName": _display_name(row.updated_by_user_id) if row else None,
+        "updatedByName": _name(row.updated_by_user_id, names) if row else None,
     }
 
 
@@ -98,6 +108,46 @@ def _assessable_node(version: FrameworkVersion, framework_key: str, identifier: 
     return node
 
 
+def _people(user_id: int, owner_user_id: int) -> list[dict]:
+    """Las personas a las que se puede asignar un control, tal como las ve quien pregunta.
+
+    El dueño ve a su gente; un miembro solo se ve a sí mismo y al dueño, igual que en el resto
+    de la plataforma, donde los miembros no se ven entre ellos.
+    """
+    organizations = OrganizationManager()
+    people = [{"userId": owner_user_id, "name": _display_name(owner_user_id) or ""}]
+    if user_id != owner_user_id:
+        people.append({"userId": user_id, "name": _display_name(user_id) or ""})
+        return people
+    summary = organizations.get_owned_summary(owner_user_id)
+    if summary is not None:
+        for member in organizations.list_members(summary["id"], owner_user_id):
+            if member["userId"] != owner_user_id:
+                people.append({"userId": member["userId"], "name": member["fullName"] or member["username"]})
+    return people
+
+
+def _tree_node(version: FrameworkVersion, node: CatalogNode, rows: dict, names: dict) -> dict:
+    """Serializa un nodo con sus hijos y, si es evaluable, su evaluación."""
+    return {
+        "code": node.code,
+        "identifier": node.identifier,
+        "kind": node.kind,
+        "isAssessable": node.is_assessable,
+        "title": node.title,
+        "officialText": node.official_text,
+        "description": node.description,
+        "actions": list(node.actions),
+        "evidence": list(node.evidence),
+        "source": node.source,
+        "assessment": (
+            assessment_payload(rows.get(node.identifier), node.framework, node.identifier, names)
+            if node.is_assessable else None
+        ),
+        "children": [_tree_node(version, child, rows, names) for child in version.children(node.code)],
+    }
+
+
 def _conflict_payload(row: Optional[EunomiaControlAssessment], framework_key: str, identifier: str) -> dict:
     """Lo que hay ahora en la fila, con las fechas ya en texto, para devolverlo en un conflicto."""
     payload = assessment_payload(row, framework_key, identifier)
@@ -109,6 +159,41 @@ def _conflict_payload(row: Optional[EunomiaControlAssessment], framework_key: st
 
 class EunomiaAssessmentManager:
     """Evaluación de controles de los marcos adoptados."""
+
+    def get_tree(self, user_id: int, framework_key: str) -> dict:
+        """Devuelve el árbol de la versión adoptada combinado con las evaluaciones del dueño.
+
+        Lo ve el dueño efectivo y los miembros de su organización.
+
+        Args:
+            user_id: Usuario que pregunta.
+            framework_key: Clave del marco adoptado.
+
+        Returns:
+            dict: Metadatos de la versión (``key``, ``version``, ``name``, ``shortName``,
+                ``status``, ``notes``, ``sources``) y ``tree``: las raíces con sus hijos
+                anidados; cada nodo evaluable lleva ``assessment`` (``pending`` si no tiene fila).
+
+        Raises:
+            AdoptionNotFoundError: Si el marco no está adoptado y activo (404).
+        """
+        owner_user_id = OrganizationManager().resolve_data_owner(user_id)
+        version = _adopted_version(owner_user_id, framework_key)
+        records = build_repository(EunomiaControlAssessmentRepository).list_for_framework(
+            owner_user_id, framework_key)
+        rows = {row.control_identifier: row for row in records}
+        ids = {value for row in records for value in (row.responsible_user_id, row.updated_by_user_id) if value}
+        names = {user: _display_name(user) for user in ids}
+        return {
+            "people": _people(user_id, owner_user_id),
+            "key": version.key, "version": version.version, "status": version.status,
+            "name": version.name, "shortName": version.short_name, "notes": version.notes,
+            "sources": [
+                {"name": s.name, "url": s.url, "license": s.license, "consultedAt": s.consulted_at}
+                for s in version.sources
+            ],
+            "tree": [_tree_node(version, root, rows, names) for root in version.children(None)],
+        }
 
     def set_assessment(self, user_id: int, framework_key: str, identifier: str, data: dict) -> dict:
         """Guarda la evaluación de un control.

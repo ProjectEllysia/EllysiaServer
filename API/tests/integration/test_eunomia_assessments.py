@@ -160,3 +160,69 @@ def test_removing_a_framework_counts_its_assessments_and_the_purge_deletes_them(
         EunomiaFrameworkManager().purge_expired()
         with unit_of_work.UnitOfWork() as uow:
             assert uow.session.query(EunomiaControlAssessment).count() == 0
+
+
+# ── el árbol personal ──────────────────────────────────────────────────────
+
+def _flatten(nodes):
+    for node in nodes:
+        yield node
+        yield from _flatten(node["children"])
+
+
+def test_the_personal_tree_merges_the_catalog_with_the_assessments(client, adopted, auth_headers):
+    headers = auth_headers(adopted)
+    _put(client, headers, status="implemented", notes="Hecho")
+
+    body = client.get("/eunomia/adoptions/nis2/tree", headers=headers).get_json()
+    nodes = {node["identifier"]: node for node in _flatten(body["tree"])}
+
+    assert body["version"] == "2022-2555"
+    assert nodes["RE.3.1"]["assessment"]["status"] == "implemented"
+    assert nodes["RE.3.2"]["assessment"]["status"] == "pending"      # sin fila = pendiente
+    assert nodes["RE.3"]["assessment"] is None                         # un grupo no se evalúa
+    assert nodes["RE.3.1"]["actions"] and nodes["RE.3.1"]["evidence"]  # lo que se le pide
+
+
+def test_the_tree_of_a_framework_that_is_not_adopted_is_a_404(client, owner, auth_headers):
+    assert client.get("/eunomia/adoptions/nis2/tree", headers=auth_headers(owner)).status_code == 404
+
+
+def test_a_member_sees_the_assessments_of_the_owner(client, app, adopted, regular_user, auth_headers):
+    org = client.post("/organizations", headers=auth_headers(adopted), json={"name": "Acme"}).get_json()
+    _join(app, org["id"], regular_user.id)
+    _put(client, auth_headers(adopted), status="in_progress")
+
+    body = client.get("/eunomia/adoptions/nis2/tree", headers=auth_headers(regular_user)).get_json()
+    node = next(n for n in _flatten(body["tree"]) if n["identifier"] == "RE.3.1")
+
+    assert node["assessment"]["status"] == "in_progress"
+
+
+def test_the_tree_works_for_frameworks_of_different_depth(client, owner, auth_headers):
+    headers = auth_headers(owner)
+    for key in ("iso27001", "ens"):
+        client.post("/eunomia/adoptions", headers=headers, json={"frameworkKey": key})
+
+    def depth(node):
+        return 1 + max((depth(child) for child in node["children"]), default=0)
+
+    def tree_depth(key):
+        tree = client.get(f"/eunomia/adoptions/{key}/tree", headers=headers).get_json()["tree"]
+        return max(depth(root) for root in tree)
+
+    assert tree_depth("iso27001") == 2
+    assert tree_depth("ens") == 3
+
+
+def test_the_owner_sees_the_members_as_assignable_people_and_a_member_only_themselves(
+    client, app, adopted, regular_user, auth_headers,
+):
+    org = client.post("/organizations", headers=auth_headers(adopted), json={"name": "Acme"}).get_json()
+    _join(app, org["id"], regular_user.id)
+
+    as_owner = client.get("/eunomia/adoptions/nis2/tree", headers=auth_headers(adopted)).get_json()["people"]
+    as_member = client.get("/eunomia/adoptions/nis2/tree", headers=auth_headers(regular_user)).get_json()["people"]
+
+    assert {person["userId"] for person in as_owner} == {adopted.id, regular_user.id}
+    assert {person["userId"] for person in as_member} == {adopted.id, regular_user.id}

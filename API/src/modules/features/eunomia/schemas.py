@@ -149,3 +149,41 @@ class AssessmentWriteSchema(Schema):
     # El ``updatedAt`` que vio el cliente (o ``null`` si el control no tenía fila): obligatorio
     # para que dos personas no se pisen sin saberlo.
     updatedAt = fields.DateTime(required=True, allow_none=True)
+
+
+class AdoptedNodeSchema(Schema):
+    """Un nodo del árbol personal: catálogo más la evaluación del dueño efectivo."""
+
+    code = fields.String()
+    identifier = fields.String()
+    kind = fields.String()
+    isAssessable = fields.Boolean()
+    title = fields.String()
+    officialText = fields.String()
+    description = fields.String()
+    actions = fields.List(fields.String())
+    evidence = fields.List(fields.String())
+    source = fields.String()
+    assessment = fields.Nested(AssessmentSchema, allow_none=True)
+    children = fields.List(fields.Nested(lambda: AdoptedNodeSchema()))
+
+
+class PersonSchema(Schema):
+    """Una persona a la que se puede asignar un control."""
+
+    userId = fields.Integer()
+    name = fields.String()
+
+
+class AdoptedTreeSchema(Schema):
+    """Respuesta de ``GET /eunomia/adoptions/<marco>/tree``."""
+
+    people = fields.List(fields.Nested(PersonSchema))
+    key = fields.String()
+    version = fields.String()
+    status = fields.String()
+    name = fields.String()
+    shortName = fields.String()
+    notes = fields.String()
+    sources = fields.List(fields.Nested(CatalogSourceSchema))
+    tree = fields.List(fields.Nested(AdoptedNodeSchema))

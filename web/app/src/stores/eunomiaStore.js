@@ -82,10 +82,56 @@ export const useEunomiaStore = defineStore('eunomia', () => {
     } catch { state.error = i18n.global.t('eunomia.frameworks.offline'); return null }
   }
 
+  /**
+   * Carga el árbol personal de un marco adoptado: catálogo más las evaluaciones del dueño.
+   *
+   * @param {string} key - Clave del marco.
+   * @returns {Promise<{ok: boolean, data: object|null, notAdopted: boolean, message: string|null}>}
+   */
+  async function loadTree(key) {
+    try {
+      const res = await apiFetch(`/eunomia/adoptions/${encodeURIComponent(key)}/tree`)
+      if (res?.status === 404) return { ok: false, data: null, notAdopted: true, message: null }
+      if (!res?.ok) return { ok: false, data: null, notAdopted: false, message: await apiError(res, i18n.global.t('eunomia.tree.loadFailed')) }
+      return { ok: true, data: await res.json(), notAdopted: false, message: null }
+    } catch {
+      return { ok: false, data: null, notAdopted: false, message: i18n.global.t('eunomia.frameworks.offline') }
+    }
+  }
+
+  /**
+   * Guarda la evaluación de un control.
+   *
+   * @param {string} key - Clave del marco.
+   * @param {string} identifier - Identificador del control.
+   * @param {object} body - `status`, `justification`, `notes`, `responsibleUserId`, `dueDate` y
+   *   `updatedAt` (el testigo que vio el cliente).
+   * @returns {Promise<{ok: boolean, assessment: object|null, conflict: object|null, message: string|null}>}
+   *   `conflict` es la evaluación actual cuando alguien la cambió mientras se editaba (409).
+   */
+  async function saveAssessment(key, identifier, body) {
+    try {
+      const res = await apiFetch(
+        `/eunomia/adoptions/${encodeURIComponent(key)}/controls/${encodeURIComponent(identifier)}`,
+        { method: 'PUT', body: JSON.stringify(body) },
+      )
+      if (res?.ok) return { ok: true, assessment: await res.json(), conflict: null, message: null }
+      if (res?.status === 409) {
+        const error = await res.json().catch(() => ({}))
+        return { ok: false, assessment: null, conflict: error?.details?.current ?? null,
+          message: i18n.global.t('eunomia.tree.conflict') }
+      }
+      return { ok: false, assessment: null, conflict: null,
+        message: await apiError(res, i18n.global.t('eunomia.tree.saveFailed')) }
+    } catch {
+      return { ok: false, assessment: null, conflict: null, message: i18n.global.t('eunomia.frameworks.offline') }
+    }
+  }
+
   /** El catálogo repartido entre disponibles, adoptados y archivados. */
   function grouped() {
     return splitFrameworks(state.catalog, state.adoptions)
   }
 
-  return { state, load, adopt, archive, restore, previewRemoval, grouped }
+  return { state, load, adopt, archive, restore, previewRemoval, loadTree, saveAssessment, grouped }
 })
