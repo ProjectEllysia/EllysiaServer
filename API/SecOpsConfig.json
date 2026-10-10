@@ -1,5 +1,5 @@
 {
-  "appVersion": "0.6.8",
+  "appVersion": "0.6.9",
   "general": {
     "directories": {
       "logdir": "..",
