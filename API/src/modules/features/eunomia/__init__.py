@@ -34,7 +34,7 @@ from .endpoints import eunomia_blp
 from .managers import CatalogManager, EunomiaFrameworkManager
 from .exceptions import EunomiaError
 from .model import EunomiaControlAssessment, EunomiaEvidence, EunomiaFrameworkAdoption
-from .repositories import EunomiaFrameworkAdoptionRepository
+from .repositories import EunomiaEvidenceRepository, EunomiaFrameworkAdoptionRepository
 from .services.adoption_data import AdoptionDataRegistry
 from .services.assessment_data import count_assessments, purge_assessments
 from .services.evidence_data import count_evidence, purge_evidence
@@ -50,6 +50,13 @@ register_stock_counter(
 # Lo que cuelga de una adopción y hay que contar y purgar al quitar un marco.
 AdoptionDataRegistry.register("assessments", count=count_assessments, purge=purge_assessments)
 AdoptionDataRegistry.register("evidence", count=count_evidence, purge=purge_evidence)
+
+# Cómo se cuenta el almacenamiento de evidencias para la cuota ``eunomia.evidence_storage``: suma
+# del tamaño original (no del cifrado, para que la cifra sea la que el usuario entiende).
+register_stock_counter(
+    LimitKey.EUNOMIA_EVIDENCE_STORAGE,
+    lambda session, user_ids: EunomiaEvidenceRepository(session=session).sum_size_for_owners(user_ids),
+)
 
 # Qué hace ``users`` con los datos de este módulo al borrar una cuenta o exportarlos.
 UserDataRegistry.register(

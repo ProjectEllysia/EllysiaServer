@@ -217,7 +217,9 @@ def assess_control(data, key, identifier):
 @handle_exceptions(default_exception=EunomiaError, logger=logger)
 def list_evidence():
     """Las evidencias del dueño efectivo de los datos, con los controles que demuestran"""
-    return {"evidence": EunomiaEvidenceManager().list_evidence(get_current_user().id)}
+    manager = EunomiaEvidenceManager()
+    user_id = get_current_user().id
+    return {"evidence": manager.list_evidence(user_id), "usage": manager.usage(user_id)}
 
 
 @eunomia_blp.post("/evidence")
@@ -231,6 +233,8 @@ def list_evidence():
 @handle_exceptions(default_exception=EunomiaError, logger=logger)
 def upload_evidence():
     """Subir un fichero como evidencia (multipart: file, title, description, validUntil)"""
+    manager = EunomiaEvidenceManager()
+    manager.assert_room_for(get_current_user().id, request.content_length or 0)
     upload = request.files.get("file")
     content = upload.stream.read(CR.eunomia_config().max_evidence_bytes + 1) if upload else None
     valid_until = request.form.get("validUntil") or None
@@ -238,7 +242,7 @@ def upload_evidence():
         parsed_valid_until = date.fromisoformat(valid_until) if valid_until else None
     except ValueError as exc:
         raise EvidenceFileMissingError() from exc
-    payload = EunomiaEvidenceManager().upload(
+    payload = manager.upload(
         get_current_user().id, upload.filename if upload else "", content,
         request.form.get("title", ""), request.form.get("description", ""), parsed_valid_until,
     )

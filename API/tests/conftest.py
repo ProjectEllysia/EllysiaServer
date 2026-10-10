@@ -661,6 +661,7 @@ def seeded_plans(app, _unlimited_default_plan):
             ("acheron.vaults",          "holder",    1, "stock"),
             ("themis.thirdparty.scans", "holder",    0, "month"),
             ("eunomia.frameworks",      "holder",    1, "stock"),
+            ("eunomia.evidence_storage", "holder", 104857600, "stock"),
         ],
         "bronze": [
             ("iris.analyses",           "holder",  100, "month"),
@@ -670,6 +671,7 @@ def seeded_plans(app, _unlimited_default_plan):
             ("acheron.vaults",          "member",    3, "stock"),
             ("iris.analyses",           "member",   50, "month"),
             ("eunomia.frameworks",      "holder",    3, "stock"),
+            ("eunomia.evidence_storage", "holder", 1073741824, "stock"),
         ],
         "gold": [
             ("iris.analyses",           "holder", None, "month"),
@@ -679,6 +681,7 @@ def seeded_plans(app, _unlimited_default_plan):
             ("acheron.vaults",          "member", None, "stock"),
             ("iris.analyses",           "member",  200, "month"),
             ("eunomia.frameworks",      "holder", None, "stock"),
+            ("eunomia.evidence_storage", "holder", None, "stock"),
         ],
         "custom": [
             ("iris.analyses",           "holder", None, "month"),

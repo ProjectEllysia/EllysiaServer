@@ -97,6 +97,7 @@
     "duplicateAuthorizedTarget": "«{target}» ya está en tu registro de objetivos autorizados.",
     "duplicateAssetGroup": "Ya tienes un grupo de activos llamado «{name}».",
     "evidenceFileMissing": "Elige un fichero para subirlo como evidencia.",
+    "evidenceStorageFull": "Tu plan incluye {limitMegabytes} MB de evidencias y ya usas {usedMegabytes} MB. Borra alguna o amplía tu plan para subir más.",
     "evidenceTooLarge": "El fichero supera el máximo de {maxMegabytes} MB por evidencia.",
     "evidenceTypeNotAllowed": "El tipo de fichero «{extension}» no se admite como evidencia. Admitidos: {allowed}.",
     "frameworkAlreadyAdopted": "El marco «{framework}» ya está adoptado.",

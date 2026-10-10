@@ -273,10 +273,19 @@ class EvidenceSchema(Schema):
     links = fields.List(fields.Nested(EvidenceLinkSchema))
 
 
+class EvidenceUsageSchema(Schema):
+    """Cuánto almacenamiento de evidencias lleva gastado el dueño efectivo."""
+
+    usedBytes = fields.Integer()
+    limitBytes = fields.Integer(allow_none=True)
+    remainingBytes = fields.Integer(allow_none=True)
+
+
 class EvidenceListSchema(Schema):
     """Respuesta de ``GET /eunomia/evidence``."""
 
     evidence = fields.List(fields.Nested(EvidenceSchema))
+    usage = fields.Nested(EvidenceUsageSchema)
 
 
 class EvidenceUpdateSchema(Schema):

@@ -17,6 +17,7 @@ Hierarchy:
     ├── EvidenceNotFoundError     (404)
     ├── EvidenceFileMissingError  (400)
     ├── EvidenceTooLargeError     (413)
+    ├── EvidenceStorageFullError  (402)
     └── EvidenceTypeNotAllowedError (400)
 """
 
@@ -218,6 +219,28 @@ class EvidenceTooLargeError(EunomiaError):
             user_message=f"El fichero supera el máximo de {max_megabytes} MB por evidencia.",
             message_key="evidenceTooLarge",
             params={"maxMegabytes": max_megabytes},
+        )
+
+
+class EvidenceStorageFullError(EunomiaError):
+    """La subida superaría el almacenamiento de evidencias que da el plan del dueño.
+
+    402 y no 413: se arregla con espacio (borrando evidencias o subiendo de plan), no
+    achicando el fichero. Las cifras van en megabytes, que es lo que el usuario entiende.
+    """
+
+    default_code = ErrorCode.PLAN_LIMIT_REACHED
+    default_status_code = 402
+
+    def __init__(self, used_megabytes: int, limit_megabytes: int) -> None:
+        super().__init__(
+            message=f"Almacenamiento de evidencias agotado: {used_megabytes}/{limit_megabytes} MB",
+            user_message=(
+                f"Tu plan incluye {limit_megabytes} MB de evidencias y ya usas {used_megabytes} MB. "
+                f"Borra alguna o amplía tu plan para subir más."
+            ),
+            message_key="evidenceStorageFull",
+            params={"usedMegabytes": used_megabytes, "limitMegabytes": limit_megabytes},
         )
 
 

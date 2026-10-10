@@ -28,7 +28,6 @@ pytestmark = pytest.mark.unit
 #: Claves que todavía no se exigen, y por qué. Solo las de Eunomia, hasta que
 #: existan las tablas que cuentan; cada una sale de aquí al cablearla.
 DEFERRED: dict[LimitKey, str] = {
-    LimitKey.EUNOMIA_EVIDENCE_STORAGE: "se exige al subir una evidencia, que llega con su almacén",
     LimitKey.EUNOMIA_DOCUMENTS: "se exige al generar un documento con plantilla",
 }
 
