@@ -20,6 +20,48 @@
           </p>
         </header>
 
+        <section v-if="summary" class="summary" :aria-label="t('eunomia.summary.title')">
+          <div class="summary-global">
+            <p class="big">{{ percent(summary.global.percent) }}</p>
+            <div class="summary-main">
+              <ProgressBar :percent="summary.global.percent" :label="t('eunomia.summary.global')" />
+              <p class="counts">
+                {{ t('eunomia.summary.counts', {
+                  implemented: summary.global.counts.implemented, countable: summary.global.countable,
+                  notApplicable: summary.global.counts.not_applicable }) }}
+              </p>
+            </div>
+          </div>
+          <ul class="branches">
+            <li v-for="branch in summary.branches" :key="branch.code">
+              <span class="branch-title">{{ branch.identifier }} · {{ branch.title }}</span>
+              <ProgressBar :percent="branch.percent" :label="branch.title" />
+              <span class="branch-pct">{{ branch.countable ? percent(branch.percent) : '—' }}</span>
+            </li>
+          </ul>
+          <div class="attention">
+            <div v-if="summary.upcoming.length">
+              <h2>{{ t('eunomia.summary.upcoming') }}</h2>
+              <ul>
+                <li v-for="item in summary.upcoming" :key="item.code">
+                  <button type="button" class="link-btn" @click="goTo(item.code)">{{ item.identifier }}</button>
+                  {{ item.title }} · {{ formatDate(item.dueDate) }}
+                  <strong v-if="item.isOverdue" class="overdue">{{ t('eunomia.summary.overdue') }}</strong>
+                </li>
+              </ul>
+            </div>
+            <div v-if="summary.unassignedCount">
+              <h2>{{ t('eunomia.summary.unassigned', { count: summary.unassignedCount }, summary.unassignedCount) }}</h2>
+              <ul>
+                <li v-for="item in summary.unassigned" :key="item.code">
+                  <button type="button" class="link-btn" @click="goTo(item.code)">{{ item.identifier }}</button>
+                  {{ item.title }}
+                </li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
         <div class="filters">
           <input v-model.trim="query" type="search" class="search" :placeholder="t('eunomia.tree.search')" :aria-label="t('eunomia.tree.search')" />
           <select v-model="statusFilter" class="status-filter" :aria-label="t('eunomia.tree.filterStatus')">
@@ -67,8 +109,10 @@ import { useI18n } from 'vue-i18n'
 import Topbar from '@/components/shared/Topbar.vue'
 import StarBackground from '@/components/shared/StarBackground.vue'
 import ControlTree from '@/components/eunomia/ControlTree.vue'
+import ProgressBar from '@/components/eunomia/ProgressBar.vue'
 import ControlDetail from '@/components/eunomia/ControlDetail.vue'
 import { STATUSES, filterTree, findNode, groupCodes } from '@/components/eunomia/tree'
+import { formatDate, formatNumber } from '@/i18n/format'
 import { useEunomiaStore } from '@/stores/eunomiaStore'
 import { useToastStore } from '@/stores/toastStore'
 
@@ -90,6 +134,7 @@ const selectedCode = ref('')
 const saving = ref(false)
 const conflict = ref(null)
 const history = ref([])
+const summary = ref(null)
 
 const filtered = computed(() => filterTree(data.value?.tree ?? [], { query: query.value, status: statusFilter.value }))
 const selectedNode = computed(() => (selectedCode.value ? findNode(data.value?.tree ?? [], selectedCode.value) : null))
@@ -107,7 +152,29 @@ async function load() {
   if (!result.ok) return
   const first = !data.value
   data.value = result.data
+  summary.value = await store.loadSummary(framework.value)
   if (first) expanded.value = new Set(data.value.tree.slice(0, 1).map((node) => node.code))
+}
+
+/** Un porcentaje (0 a 100) con el formato del idioma activo. */
+function percent(value) {
+  return formatNumber(value / 100, { style: 'percent', maximumFractionDigits: 0 })
+}
+
+/** Despliega hasta un control y lo selecciona (desde las listas del resumen). */
+async function goTo(code) {
+  const node = findNode(data.value.tree, code)
+  if (!node) return
+  const next = new Set(expanded.value)
+  const open = (list, trail) => list.some((item) => {
+    if (item.code === code) { trail.forEach((c) => next.add(c)); return true }
+    return open(item.children, [...trail, item.code])
+  })
+  open(data.value.tree, [])
+  expanded.value = next
+  query.value = ''
+  statusFilter.value = ''
+  await selectNode(node)
 }
 
 function expandAll() { expanded.value = groupCodes(data.value?.tree ?? []) }
@@ -162,6 +229,19 @@ onMounted(load)
 .layout { max-width: 1200px; margin: 0 auto; padding: 1.5rem 1.5rem 3rem; display: flex; flex-direction: column; gap: 1rem; position: relative; z-index: 1; }
 .head h1 { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-size: var(--fs-2xl); color: var(--text); }
 .meta { color: var(--text-muted); font-size: var(--fs-body); }
+.summary { background: var(--surface); border: 1px solid var(--border-solid); border-radius: 10px; padding: 1rem 1.2rem; display: flex; flex-direction: column; gap: 1rem; }
+.summary-global { display: flex; gap: 1rem; align-items: center; }
+.big { font-family: var(--font-display); font-size-adjust: var(--fsa-display); font-size: var(--fs-2xl); color: var(--text); min-width: 4.5rem; }
+.summary-main { flex: 1; display: flex; flex-direction: column; gap: 0.4rem; }
+.counts { color: var(--text-muted); font-size: var(--fs-body); }
+.branches { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr)); gap: 0.6rem 1.2rem; }
+.branches li { display: grid; grid-template-columns: 1fr auto; gap: 0.2rem 0.6rem; align-items: center; font-size: var(--fs-body); color: var(--text-dim); }
+.branches li .progress { grid-column: 1 / -1; }
+.branch-pct { font-variant-numeric: tabular-nums; color: var(--text-muted); }
+.attention { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1rem; }
+.attention h2 { font-size: var(--fs-md); font-weight: 600; color: var(--text); margin-bottom: 0.3rem; }
+.attention ul { list-style: none; padding: 0; font-size: var(--fs-body); color: var(--text-dim); display: flex; flex-direction: column; gap: 0.25rem; }
+.overdue { color: var(--danger); margin-left: 0.3rem; }
 .filters { display: flex; gap: 0.7rem; flex-wrap: wrap; align-items: center; }
 .search, .status-filter { padding: 0.5rem 0.7rem; border-radius: 6px; background: var(--bg); color: var(--text); border: 1px solid var(--border-med); }
 .search { flex: 1; min-width: 14rem; }

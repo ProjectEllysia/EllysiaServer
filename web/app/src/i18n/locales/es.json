@@ -1963,6 +1963,14 @@
       "in_progress": "En curso",
       "implemented": "Implementado",
       "not_applicable": "No aplica"
+    },
+    "summary": {
+      "title": "Resumen",
+      "global": "Cumplimiento del marco",
+      "counts": "{implemented} de {countable} controles implementados ({notApplicable} no aplican y no cuentan).",
+      "upcoming": "Vencen pronto",
+      "overdue": "vencido",
+      "unassigned": "{count} control sin responsable | {count} controles sin responsable"
     }
   },
   "organizationManaged": {

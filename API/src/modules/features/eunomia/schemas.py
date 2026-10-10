@@ -71,6 +71,15 @@ class CatalogVersionSchema(Schema):
 
 # ── Adopción de marcos ────────────────────────────────────────────────────
 
+class ProgressSchema(Schema):
+    """Cuánto está cumplido un conjunto de controles."""
+
+    counts = fields.Dict(keys=fields.String(), values=fields.Integer())
+    total = fields.Integer()
+    countable = fields.Integer()
+    percent = fields.Float()
+
+
 class AdoptionSchema(Schema):
     """Un marco adoptado por el dueño efectivo, con su versión fijada."""
 
@@ -85,6 +94,7 @@ class AdoptionSchema(Schema):
     adoptedByUserId = fields.Integer()
     archivedAt = UTCDateTime(allow_none=True)
     purgeAt = UTCDateTime(allow_none=True)
+    progress = fields.Nested(ProgressSchema, allow_none=True)
 
 
 class OwnershipSchema(Schema):
@@ -165,6 +175,7 @@ class AdoptedNodeSchema(Schema):
     evidence = fields.List(fields.String())
     source = fields.String()
     assessment = fields.Nested(AssessmentSchema, allow_none=True)
+    progress = fields.Nested(ProgressSchema)
     children = fields.List(fields.Nested(lambda: AdoptedNodeSchema()))
 
 
@@ -202,3 +213,35 @@ class AssessmentHistorySchema(Schema):
     """Respuesta de ``GET /eunomia/adoptions/<marco>/controls/<identificador>/history``."""
 
     events = fields.List(fields.Nested(AssessmentEventSchema))
+
+
+class SummaryBranchSchema(ProgressSchema):
+    """El progreso de una rama de primer nivel."""
+
+    code = fields.String()
+    identifier = fields.String()
+    title = fields.String()
+
+
+class SummaryControlSchema(Schema):
+    """Un control que pide atención: vence pronto o no tiene responsable."""
+
+    code = fields.String()
+    identifier = fields.String()
+    title = fields.String()
+    status = fields.String()
+    dueDate = fields.Date(allow_none=True)
+    isOverdue = fields.Boolean(load_default=False)
+    responsibleUserId = fields.Integer(allow_none=True)
+    responsibleName = fields.String(allow_none=True)
+
+
+class SummarySchema(Schema):
+    """Respuesta de ``GET /eunomia/adoptions/<marco>/summary``."""
+
+    # ``global`` es palabra reservada de Python: el campo se declara con ``data_key``.
+    overall = fields.Nested(ProgressSchema, data_key="global")
+    branches = fields.List(fields.Nested(SummaryBranchSchema))
+    upcoming = fields.List(fields.Nested(SummaryControlSchema))
+    unassigned = fields.List(fields.Nested(SummaryControlSchema))
+    unassignedCount = fields.Integer()

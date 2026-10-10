@@ -100,6 +100,19 @@ export const useEunomiaStore = defineStore('eunomia', () => {
   }
 
   /**
+   * Carga el resumen de cumplimiento de un marco adoptado.
+   *
+   * @param {string} key - Clave del marco.
+   * @returns {Promise<object|null>} El resumen, o `null` si no se pudo cargar.
+   */
+  async function loadSummary(key) {
+    try {
+      const res = await apiFetch(`/eunomia/adoptions/${encodeURIComponent(key)}/summary`)
+      return res?.ok ? await res.json() : null
+    } catch { return null }
+  }
+
+  /**
    * Carga el historial de cambios de un control.
    *
    * @param {string} key - Clave del marco.
@@ -149,5 +162,5 @@ export const useEunomiaStore = defineStore('eunomia', () => {
     return splitFrameworks(state.catalog, state.adoptions)
   }
 
-  return { state, load, adopt, archive, restore, previewRemoval, loadTree, loadHistory, saveAssessment, grouped }
+  return { state, load, adopt, archive, restore, previewRemoval, loadTree, loadSummary, loadHistory, saveAssessment, grouped }
 })
