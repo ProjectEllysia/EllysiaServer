@@ -1,0 +1,140 @@
+{
+  "key": "processor-agreement",
+  "framework": "rgpd",
+  "title": "Contrato de encargado del tratamiento",
+  "summary": "El contrato que el responsable firma con cada proveedor que trata datos personales por su cuenta, con el contenido que exige el artículo 28.3.",
+  "controls": [
+    "art.28",
+    "art.29",
+    "art.32"
+  ],
+  "fields": [
+    {
+      "key": "company_name",
+      "label": "Razón social del responsable",
+      "type": "text",
+      "required": true,
+      "source": "company.legalName"
+    },
+    {
+      "key": "tax_id",
+      "label": "NIF",
+      "type": "text",
+      "required": true,
+      "source": "company.taxId"
+    },
+    {
+      "key": "address",
+      "label": "Domicilio",
+      "type": "text",
+      "required": true,
+      "source": "company.addressLine"
+    },
+    {
+      "key": "processor_name",
+      "label": "Razón social del encargado",
+      "type": "text",
+      "required": true
+    },
+    {
+      "key": "processor_tax_id",
+      "label": "NIF del encargado",
+      "type": "text",
+      "required": true
+    },
+    {
+      "key": "processor_address",
+      "label": "Domicilio del encargado",
+      "type": "text",
+      "required": true
+    },
+    {
+      "key": "service",
+      "label": "Servicio que presta el encargado",
+      "type": "longtext",
+      "required": true,
+      "help": "El objeto del tratamiento."
+    },
+    {
+      "key": "duration",
+      "label": "Duración del tratamiento",
+      "type": "text",
+      "required": true,
+      "default": "La del contrato de prestación de servicios."
+    },
+    {
+      "key": "data_types",
+      "label": "Tipos de datos personales",
+      "type": "list",
+      "required": true,
+      "help": "Uno por línea."
+    },
+    {
+      "key": "data_subjects",
+      "label": "Categorías de interesados",
+      "type": "list",
+      "required": true,
+      "help": "Clientes, empleados, proveedores…"
+    },
+    {
+      "key": "subprocessors",
+      "label": "Subencargados autorizados",
+      "type": "text",
+      "required": false,
+      "default": "Ninguno. Cualquier incorporación requiere autorización previa por escrito del responsable."
+    },
+    {
+      "key": "end_of_service",
+      "label": "Al terminar el servicio, el encargado",
+      "type": "text",
+      "required": true,
+      "default": "devolverá los datos al responsable y suprimirá las copias existentes",
+      "help": "Devolverá o suprimirá, a elección del responsable."
+    },
+    {
+      "key": "approver",
+      "label": "Quién lo aprueba (dirección)",
+      "type": "person",
+      "required": true
+    },
+    {
+      "key": "approval_date",
+      "label": "Fecha",
+      "type": "date",
+      "required": true,
+      "source": "system.today"
+    }
+  ],
+  "sections": [
+    {
+      "heading": "1. Partes",
+      "body": "De una parte, {{company_name}}, NIF {{tax_id}}, con domicilio en {{address}} (el «responsable»). De otra, {{processor_name}}, NIF {{processor_tax_id}}, con domicilio en {{processor_address}} (el «encargado»)."
+    },
+    {
+      "heading": "2. Objeto, duración y naturaleza del tratamiento",
+      "body": "El encargado tratará datos personales por cuenta del responsable para prestar el siguiente servicio:\n\n{{service}}\n\nDuración: {{duration}}"
+    },
+    {
+      "heading": "3. Tipo de datos y categorías de interesados",
+      "body": "Tipos de datos personales:\n\n{{data_types}}\n\nCategorías de interesados:\n\n{{data_subjects}}"
+    },
+    {
+      "heading": "4. Obligaciones del encargado",
+      "body": "El encargado se obliga a:\n\n- Tratar los datos personales únicamente siguiendo las instrucciones documentadas del responsable, también respecto de las transferencias a un tercer país, salvo que esté obligado por el Derecho de la Unión o de un Estado miembro, en cuyo caso informará al responsable antes del tratamiento.\n- Garantizar que las personas autorizadas para tratar los datos se han comprometido a respetar la confidencialidad o están sujetas a una obligación de confidencialidad de naturaleza estatutaria.\n- Tomar todas las medidas de seguridad exigidas por el artículo 32 del Reglamento (UE) 2016/679.\n- Respetar las condiciones para recurrir a otro encargado.\n- Asistir al responsable, con medidas técnicas y organizativas apropiadas, para que pueda responder a las solicitudes de ejercicio de derechos de los interesados.\n- Ayudar al responsable a cumplir las obligaciones de los artículos 32 a 36 del Reglamento.\n- Poner a disposición del responsable toda la información necesaria para demostrar el cumplimiento y permitir y contribuir a la realización de auditorías, incluidas inspecciones.\n- Informar inmediatamente al responsable si considera que una instrucción infringe el Reglamento u otra norma de protección de datos."
+    },
+    {
+      "heading": "5. Subencargados",
+      "body": "{{subprocessors}}\n\nSi el encargado recurre a otro encargado, le impondrá, mediante contrato, las mismas obligaciones de protección de datos que este contrato establece, y responderá ante el responsable del cumplimiento de ese otro encargado."
+    },
+    {
+      "heading": "6. Fin de la prestación",
+      "body": "Una vez finalice la prestación del servicio, el encargado, a elección del responsable, {{end_of_service}}, salvo que el Derecho de la Unión o de un Estado miembro exija conservarlos."
+    },
+    {
+      "heading": "7. Firma",
+      "body": "Firmado por las partes. Aprobado por {{approver}} en nombre del responsable el {{approval_date}}. Este documento es un borrador generado que la dirección debe revisar y adaptar, con asesoramiento jurídico si procede, antes de utilizarlo."
+    }
+  ],
+  "frameworkVersion": "2016-679",
+  "version": "1"
+}

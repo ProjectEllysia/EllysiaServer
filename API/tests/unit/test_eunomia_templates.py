@@ -59,3 +59,21 @@ def test_an_invalid_template_is_rejected(mutate, message):
 
     with pytest.raises(CatalogFormatError, match=message):
         parse_template(document, "nis2")
+
+
+def test_the_gdpr_templates_are_valid_and_cover_their_articles():
+    keys = {item.key for item in load_templates() if item.framework == "rgpd"}
+
+    assert keys == {"privacy-policy", "information-clause-direct", "information-clause-indirect",
+                    "processor-agreement", "rights-procedure"}
+    assert {t.key for t in templates_for_control("rgpd", "art.28")} == {"processor-agreement"}
+    assert "processor-agreement" in {t.key for t in templates_for_control("rgpd", "art.32")}
+
+
+def test_the_processor_agreement_states_every_minimum_content_of_article_28_3():
+    template = get_template("processor-agreement")
+    text = " ".join(section.body for section in template.sections)
+
+    for expected in ("instrucciones documentadas", "confidencialidad", "artículo 32", "otro encargado",
+                     "derechos de los interesados", "artículos 32 a 36", "auditorías", "infringe"):
+        assert expected in text
