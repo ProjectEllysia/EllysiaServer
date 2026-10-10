@@ -94,6 +94,9 @@ const LABEL_IDS = {
   'acheron.vaults': 'vaults',
   'acheron.items': 'secrets',
   'hygeia.assets': 'assets',
+  'eunomia.frameworks': 'frameworks',
+  'eunomia.evidence_storage': 'evidenceStorage',
+  'eunomia.documents': 'complianceDocuments',
   'ai.requests': 'aiRequests',
   'organization.members': 'members',
 }
