@@ -35,6 +35,18 @@
           "status": "draft"
         }
       ]
+    },
+    {
+      "key": "rgpd",
+      "name": "Reglamento General de Protección de Datos (Reglamento (UE) 2016/679)",
+      "shortName": "RGPD",
+      "current": "2016-679",
+      "versions": [
+        {
+          "version": "2016-679",
+          "status": "draft"
+        }
+      ]
     }
   ]
 }
