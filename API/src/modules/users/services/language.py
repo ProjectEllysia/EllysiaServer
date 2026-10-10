@@ -72,8 +72,9 @@ def resolve_effective_language(user: "User") -> str:
     """
     if is_supported_language(user.language):
         return user.language
-    # Import diferido: accounts importa users al cargarse, y el ciclo se cierra
-    # si este módulo lo importa arriba.
+    # Import diferido, por la superficie pública de accounts: accounts importa
+    # users al cargarse y el ciclo se cierra si este módulo lo importa arriba.
+    # Es una de las llamadas de users hacia accounts de CONVENCIONES.md § 3.4.
     from src.modules.accounts import OrganizationManager  # pylint: disable=import-outside-toplevel
     organization_language = OrganizationManager().get_default_language(user.id)
     return choose_language(user.language, organization_language)

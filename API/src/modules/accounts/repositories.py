@@ -178,6 +178,38 @@ class OrganizationRepository(BaseRepository[Organization]):
             is not None
         )
 
+    def dissolve_owned_by(self, user_id: int) -> dict[str, int]:
+        """Disuelve la organización de la que ``user_id`` es dueño, con sus miembros e invitaciones.
+
+        Se borran primero las invitaciones y las filas de pertenencia, y al final
+        la organización: las dos primeras tienen clave ajena hacia ella. Los
+        usuarios que eran miembros conservan su cuenta y sus datos; solo pierden
+        la pertenencia.
+
+        Args:
+            user_id: Usuario dueño de la organización que se disuelve.
+
+        Returns:
+            dict[str, int]: Filas borradas, con las claves ``OrganizationInvitation``,
+                ``OrganizationMember`` y ``Organization``. Vacío si no es dueño de
+                ninguna.
+        """
+        organization = self.get_by_owner(user_id)
+        if organization is None:
+            return {}
+
+        counts = {
+            "OrganizationInvitation": self._session.query(OrganizationInvitation).filter(
+                OrganizationInvitation.organization_id == organization.id
+            ).delete(synchronize_session=False),
+            "OrganizationMember": self._session.query(OrganizationMember).filter(
+                OrganizationMember.organization_id == organization.id
+            ).delete(synchronize_session=False),
+        }
+        self._session.delete(organization)
+        counts["Organization"] = 1
+        return counts
+
 
 class OrganizationMemberRepository(BaseRepository[OrganizationMember]):
     """Acceso a datos de la pertenencia a una organización."""
@@ -248,6 +280,32 @@ class OrganizationMemberRepository(BaseRepository[OrganizationMember]):
             is not None
         )
 
+    def clear_inviter(self, user_id: int) -> None:
+        """Quita a ``user_id`` como invitador de las filas de pertenencia que lo citan.
+
+        Es rastro histórico de otra persona, no un dato de quien se va: la fila
+        se conserva con ``invited_by_user_id`` a ``NULL``.
+
+        Args:
+            user_id: Usuario que dejó de existir como invitador.
+        """
+        self._session.query(OrganizationMember).filter(
+            OrganizationMember.invited_by_user_id == user_id
+        ).update({"invited_by_user_id": None}, synchronize_session=False)
+
+    def delete_by_user(self, user_id: int) -> int:
+        """Borra la pertenencia del usuario a una organización.
+
+        Args:
+            user_id: Usuario cuya fila de pertenencia se borra.
+
+        Returns:
+            int: Filas borradas (``0`` o ``1``: un usuario pertenece a lo sumo a una).
+        """
+        return self._session.query(OrganizationMember).filter(
+            OrganizationMember.user_id == user_id
+        ).delete(synchronize_session=False)
+
 
 class OrganizationInvitationRepository(BaseRepository[OrganizationInvitation]):
     """Acceso a datos de las invitaciones."""
@@ -313,6 +371,23 @@ class OrganizationInvitationRepository(BaseRepository[OrganizationInvitation]):
             .count()
         )
 
+    def release_user(self, user_id: int) -> None:
+        """Quita a un usuario de las invitaciones que lo citan, al borrar su cuenta.
+
+        Las invitaciones que emitió se borran con él; en las que crearon su
+        cuenta (``created_user_id``) la referencia pasa a ``NULL`` y la fila se
+        conserva, porque es rastro de quien invitó.
+
+        Args:
+            user_id: Usuario que se da de baja.
+        """
+        self._session.query(OrganizationInvitation).filter(
+            OrganizationInvitation.created_user_id == user_id
+        ).update({"created_user_id": None}, synchronize_session=False)
+        self._session.query(OrganizationInvitation).filter(
+            OrganizationInvitation.invited_by_user_id == user_id
+        ).delete(synchronize_session=False)
+
 
 class SubscriptionRepository(BaseRepository[Subscription]):
     """Acceso a datos de las suscripciones."""
@@ -326,3 +401,29 @@ class SubscriptionRepository(BaseRepository[Subscription]):
         tiene fila está en el plan por defecto.
         """
         return self.get_by_field("user_id", user_id)
+
+    def clear_assigner(self, user_id: int) -> None:
+        """Quita a ``user_id`` como quien asignó el plan de otras suscripciones.
+
+        Es rastro histórico de otra persona: la suscripción se conserva con
+        ``assigned_by_user_id`` a ``NULL``.
+
+        Args:
+            user_id: Usuario (un administrador) que dejó de existir.
+        """
+        self._session.query(Subscription).filter(
+            Subscription.assigned_by_user_id == user_id
+        ).update({"assigned_by_user_id": None}, synchronize_session=False)
+
+    def delete_by_user(self, user_id: int) -> int:
+        """Borra la suscripción de un usuario.
+
+        Args:
+            user_id: Usuario cuya suscripción se borra.
+
+        Returns:
+            int: Filas borradas (``0`` o ``1``).
+        """
+        return self._session.query(Subscription).filter(
+            Subscription.user_id == user_id
+        ).delete(synchronize_session=False)

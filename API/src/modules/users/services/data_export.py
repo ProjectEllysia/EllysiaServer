@@ -39,6 +39,7 @@ from sqlalchemy.orm import Session
 
 from src.modules.shared import ExportTable, isoformat_utc, owned_by
 from src.modules.users.model import MFATotpCredential, User, UserAttribute
+from src.modules.users.services.user_data import UserDataRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -73,23 +74,30 @@ def _profile_tables() -> tuple[ExportTable, ...]:
 def export_modules() -> dict[str, tuple[ExportTable, ...]]:
     """Las tablas que entran en la exportación, agrupadas por módulo y en orden.
 
-    Los imports van diferidos: estas dependencias apuntan «hacia abajo»
-    (users → features) y al nivel de módulo cerrarían un ciclo.
+    Las de los módulos registrados en ``UserDataRegistry`` (``accounts``) las
+    aportan ellos. Las de las features siguen importadas aquí, con los imports
+    diferidos: apuntan «hacia abajo» (users → features) y al nivel de módulo
+    cerrarían un ciclo.
 
     Returns:
         dict[str, tuple[ExportTable, ...]]: Nombre del módulo (el del fichero
-            JSON que se escribe) → sus tablas.
+            JSON que se escribe) → sus tablas. Primero ``profile``, luego los
+            módulos registrados por prioridad y después las features.
     """
-    from src.modules.accounts.data_export import EXPORT_TABLES as accounts_tables
     from src.modules.features.acheron.data_export import EXPORT_TABLES as acheron_tables
     from src.modules.features.aegis.data_export import EXPORT_TABLES as aegis_tables
     from src.modules.features.hygeia.data_export import EXPORT_TABLES as hygeia_tables
     from src.modules.features.iris.data_export import EXPORT_TABLES as iris_tables
     from src.modules.features.themis.data_export import EXPORT_TABLES as themis_tables
 
+    registered = {
+        item.name: item.export_tables
+        for item in UserDataRegistry.contributions()
+        if item.export_tables
+    }
     return {
         "profile": _profile_tables(),
-        "accounts": accounts_tables,
+        **registered,
         "themis": themis_tables,
         "aegis": aegis_tables,
         "iris": iris_tables,

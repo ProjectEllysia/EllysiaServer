@@ -186,6 +186,64 @@ class OrganizationManager:
         organization = build_repository(OrganizationRepository).get_by_id(membership.organization_id)
         return organization.default_language if organization is not None else None
 
+    def get_owned_summary(self, user_id: int) -> Optional[dict]:
+        """Resume la organización de la que un usuario es dueño.
+
+        Lo usa ``users`` para avisar, antes de borrar una cuenta, de que su
+        organización desaparece con ella y de cuánta gente se queda sin ella.
+
+        Args:
+            user_id: Usuario del que se pregunta si es dueño de una organización.
+
+        Returns:
+            Optional[dict]: ``{"id", "name", "memberCount"}`` de la organización
+                que posee, con ``memberCount`` contando también al dueño; o
+                ``None`` si no es dueño de ninguna.
+        """
+        organization = build_repository(OrganizationRepository).get_by_owner(user_id)
+        if organization is None:
+            return None
+        return {
+            "id": organization.id,
+            "name": organization.name,
+            "memberCount": build_repository(OrganizationMemberRepository).count_members(organization.id),
+        }
+
+    def get_organization_id_of(self, user_id: int) -> Optional[int]:
+        """Devuelve la organización a la que pertenece un usuario.
+
+        Args:
+            user_id: Usuario, sea dueño o miembro.
+
+        Returns:
+            Optional[int]: Id de su organización (el dueño también es miembro de
+                la suya), o ``None`` si no pertenece a ninguna.
+        """
+        membership = build_repository(OrganizationMemberRepository).get_by_user(user_id)
+        return membership.organization_id if membership is not None else None
+
+    def is_owner_of_member(self, owner_user_id: int, member_user_id: int) -> bool:
+        """Indica si un usuario es el dueño de la organización de otro.
+
+        Es la pregunta que decide si el dueño de una organización puede
+        gestionar a uno de los suyos. Su alcance es exactamente esa
+        organización: nunca alguien de fuera.
+
+        Args:
+            owner_user_id: Usuario del que se pregunta si es el dueño.
+            member_user_id: Usuario que se quiere gestionar.
+
+        Returns:
+            bool: ``True`` si ``member_user_id`` pertenece a una organización
+                cuyo dueño es ``owner_user_id``; ``False`` si no pertenece a
+                ninguna o su organización es de otro.
+        """
+        organization_id = self.get_organization_id_of(member_user_id)
+        if organization_id is None:
+            return False
+        organization = build_repository(OrganizationRepository).get_by_id(organization_id)
+        return organization is not None and organization.owner_user_id == owner_user_id
+
     def list_members(self, organization_id: int, user_id: int) -> list[dict]:
         """Miembros de la organización, con lo justo para identificarlos.
 

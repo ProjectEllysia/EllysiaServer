@@ -23,7 +23,7 @@ from typing import Optional
 import src.modules.system.config_reading as CR
 from src.modules.infrastructure import UnitOfWork
 from src.modules.infrastructure.session import build_repository
-from src.modules.shared import utcnow_naive
+from src.modules.shared import generate_opaque_token, hash_opaque_token, utcnow_naive
 from src.modules.tools.herald import EmailMessage, build_mailer, render_email
 
 from ..exceptions import (
@@ -192,14 +192,15 @@ def _build_available_username(email: str) -> str:
             ``"usuario<n>"``) si la parte local no tiene ningún carácter
             alfanumérico.
     """
-    from src.modules.users.repositories import UserRepository
+    # Import diferido: users → acheron → accounts cerraría un ciclo.
+    from src.modules.users import UserManager  # pylint: disable=import-outside-toplevel
 
     base = "".join(char for char in email.split("@")[0].lower() if char.isalnum()) or "usuario"
-    repo = build_repository(UserRepository)
-    if not repo.username_exists(base):
+    users = UserManager()
+    if users.is_username_available(base):
         return base
     suffix = 2
-    while repo.username_exists(f"{base}{suffix}"):
+    while not users.is_username_available(f"{base}{suffix}"):
         suffix += 1
     return f"{base}{suffix}"
 
@@ -225,8 +226,6 @@ def _invite_existing_account(
     Returns:
         dict: La invitación serializada con ``OrganizationInvitation.to_dict``.
     """
-    from src.modules.users.services.secrets import generate_opaque_token, hash_opaque_token
-
     token = generate_opaque_token()
     ttl_hours = CR.registration_config().invitation_ttl_hours
 
@@ -268,9 +267,8 @@ def _invite_new_account(
     Returns:
         dict: La invitación serializada con ``OrganizationInvitation.to_dict``.
     """
-    from src.modules.users.managers import UserManager
-    from src.modules.users.repositories import UserRepository
-    from src.modules.users.services.secrets import hash_opaque_token
+    # Import diferido: users → acheron → accounts cerraría un ciclo.
+    from src.modules.users import UserManager  # pylint: disable=import-outside-toplevel
 
     password = secrets.token_urlsafe(12)
     username = _build_available_username(email)
@@ -282,14 +280,10 @@ def _invite_new_account(
         last_name="",
         password=password,
         email_verified=True,
+        must_change_password=True,
     )
 
     with UnitOfWork() as uow:
-        user_repo = UserRepository(uow)
-        created_user = user_repo.get_by_id(user.id)
-        created_user.must_change_password = True
-        user_repo.update(created_user)
-
         OrganizationMemberRepository(uow).save(OrganizationMember(
             organization_id=organization.id,
             user_id=user.id,
@@ -335,7 +329,7 @@ class InvitationManager:
         """
         # Import diferido: users → acheron → accounts cerraría un ciclo si se
         # importara al cargar el módulo.
-        from src.modules.users.managers import UserManager
+        from src.modules.users import UserManager
 
         organization = get_owned_organization(owner_user_id, organization_id)
         _assert_owner_can_grow(organization.owner_user_id)
@@ -387,8 +381,7 @@ class InvitationManager:
         Lo que **no** hace: tocar el plan personal de quien acepta. Los derechos
         de la organización se resuelven al leer, sumándose por ``max()``.
         """
-        from src.modules.users.managers import UserManager
-        from src.modules.users.services.secrets import hash_opaque_token
+        from src.modules.users import UserManager
 
         with UnitOfWork() as uow:
             repo = OrganizationInvitationRepository(uow)
