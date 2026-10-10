@@ -106,6 +106,8 @@
     "frameworkArchived": "The framework “{framework}” is archived. You can restore it and recover what you had assessed.",
     "frameworkNotArchived": "The framework “{framework}” is not archived.",
     "frameworkRestoreExpired": "The period to restore the framework “{framework}” has expired. You can adopt it again, but you will start from scratch.",
+    "frameworkUpToDate": "The framework “{framework}” is already on the current catalog version.",
+    "versionMappingMissing": "There are no correspondences between versions {fromVersion} and {toVersion} of the framework “{framework}”, so your assessment cannot be moved automatically.",
     "invalidAuthorizedTarget": "“{target}” is not an IP address, a range, a domain or a cloud resource. Write it as “203.0.113.10”, “203.0.113.0/24”, “example.com” or “s3:bucket-name”.",
     "duplicatedUserCredentials": "There is already an account with this value: {value}.",
     "emailAlreadyVerified": "Your email is already confirmed.",
@@ -1924,7 +1926,19 @@
         "evidenceKept": "{count} piece of evidence is kept because it also serves another framework. | {count} pieces of evidence are kept because they also serve another framework."
       },
       "lossNone": "There are no assessments or evidence to lose.",
-      "removeWhen": "The framework is archived and you can restore it for {days} days; after that, on {date}, it is deleted for good."
+      "removeWhen": "The framework is archived and you can restore it for {days} days; after that, on {date}, it is deleted for good.",
+      "upgrade": "Upgrade",
+      "upgradeTitle": "Move “{name}” to version {version}",
+      "upgradeConfirm": "Upgrade framework",
+      "upgradeFact": {
+        "moved": "{count} control moves over as is. | {count} controls move over as is.",
+        "review": "{count} control arrives marked for review because the standard split or merged it. | {count} controls arrive marked for review because the standard split or merged them.",
+        "lost": "{count} assessed control disappears from the new version. | {count} assessed controls disappear from the new version.",
+        "added": "{count} control is new and starts pending. | {count} controls are new and start pending."
+      },
+      "upgradeNothing": "There are no assessments to move; the framework moves to the new version.",
+      "upgraded": "“{name}” is on the current version.",
+      "upgradeFailed": "The framework could not be upgraded."
     },
     "tree": {
       "loadFailed": "The framework could not be loaded.",
@@ -2002,6 +2016,16 @@
       "usageUnlimited": "Evidence: {used} used.",
       "expired": "expired",
       "expiredFlag": "evidence expired"
+    },
+    "suggestions": {
+      "title": "Already done in another framework",
+      "intro": "These controls of the other frameworks you adopted cover this one. It is a suggestion: check that it really does.",
+      "coverage": {
+        "full": "Full coverage",
+        "partial": "Partial coverage"
+      },
+      "linkHere": "Link here",
+      "summary": "{count} requirement has suggested coverage from another framework | {count} requirements have suggested coverage from other frameworks"
     }
   },
   "organizationManaged": {

@@ -38,6 +38,7 @@ from ..repositories import (
 )
 from ..services.assessments import ControlState, branch_progress, summarize
 from ..services.catalog import CatalogNode, FrameworkVersion, load_version
+from ..services.crosswalks import suggestions as crosswalk_suggestions
 
 logger = logging.getLogger(__name__)
 
@@ -153,8 +154,69 @@ def _states(records: list) -> dict[str, ControlState]:
     }
 
 
+def _adopted_versions(owner_user_id: int) -> dict[str, str]:
+    """Los marcos activos del dueño efectivo, con la versión que fijó cada adopción."""
+    rows = build_repository(EunomiaFrameworkAdoptionRepository).list_for_owner(owner_user_id)
+    return {row.framework_key: row.catalog_version for row in rows if row.status == ADOPTION_ACTIVE}
+
+
+def _suggestions_by_control(owner_user_id: int, framework_key: str, version: FrameworkVersion,
+                            adopted: dict[str, str]) -> dict[str, list[dict]]:
+    """Qué tienen hecho, en los otros marcos adoptados, los controles de este.
+
+    Para cada control evaluable, los controles de los otros marcos adoptados con los que se
+    solapa, con su título, su estado de evaluación y las evidencias que ya los demuestran: lo que
+    hace falta para decir «esto ya lo tienes cubierto por ENS» y ofrecer enlazar sus evidencias.
+
+    Args:
+        owner_user_id: Dueño efectivo de los datos.
+        framework_key: Marco al que pertenece ``version``.
+        version: La versión adoptada de ese marco.
+        adopted: ``{marco: versión}`` de los marcos activos.
+
+    Returns:
+        dict[str, list[dict]]: Por identificador de control, las sugerencias con ``frameworkKey``,
+            ``identifier``, ``title``, ``coverage``, ``status`` y ``evidence``.
+    """
+    others = {key: other_version for key, other_version in adopted.items() if key != framework_key}
+    if not others:
+        return {}
+    assessments = build_repository(EunomiaControlAssessmentRepository)
+    link_repo = build_repository(EunomiaEvidenceLinkRepository)
+    titles = {r.id: r.title for r in build_repository(EunomiaEvidenceRepository).list_for_owner(owner_user_id)}
+    status: dict[tuple[str, str], str] = {}
+    evidence: dict[tuple[str, str], list[dict]] = {}
+    versions: dict[str, FrameworkVersion] = {}
+    for key, other_version in others.items():
+        loaded = load_version(key, other_version)
+        if loaded is None:
+            continue
+        versions[key] = loaded
+        for row in assessments.list_for_framework(owner_user_id, key):
+            status[(key, row.control_identifier)] = row.status
+        for link in link_repo.list_for_framework(owner_user_id, key):
+            if link.evidence_id in titles:
+                evidence.setdefault((key, link.control_identifier), []).append(
+                    {"id": link.evidence_id, "title": titles[link.evidence_id]})
+    result: dict[str, list[dict]] = {}
+    for node in version.assessable_nodes():
+        found = []
+        for item in crosswalk_suggestions(framework_key, version.version, node.identifier, adopted):
+            other = versions.get(item.framework)
+            other_node = other.node(f"{item.framework}:{item.identifier}") if other else None
+            found.append({
+                "frameworkKey": item.framework, "identifier": item.identifier,
+                "title": other_node.title if other_node else item.identifier, "coverage": item.coverage,
+                "status": status.get((item.framework, item.identifier), "pending"),
+                "evidence": evidence.get((item.framework, item.identifier), []),
+            })
+        if found:
+            result[node.identifier] = found
+    return result
+
+
 def _tree_node(version: FrameworkVersion, node: CatalogNode, rows: dict, names: dict, progress: dict,
-               evidence: dict) -> dict:
+               evidence: dict, suggestions: dict) -> dict:
     """Serializa un nodo con sus hijos y, si es evaluable, su evaluación."""
     return {
         "code": node.code,
@@ -167,6 +229,7 @@ def _tree_node(version: FrameworkVersion, node: CatalogNode, rows: dict, names: 
         "actions": list(node.actions),
         "evidence": list(node.evidence),
         "source": node.source,
+        "metadata": node.metadata,
         "assessment": (
             assessment_payload(rows.get(node.identifier), node.framework, node.identifier, names)
             if node.is_assessable else None
@@ -174,7 +237,8 @@ def _tree_node(version: FrameworkVersion, node: CatalogNode, rows: dict, names: 
         "progress": progress[node.code],
         "linkedEvidence": evidence.get(node.identifier, []),
         "evidenceState": _evidence_state(evidence.get(node.identifier, [])),
-        "children": [_tree_node(version, child, rows, names, progress, evidence)
+        "suggestions": suggestions.get(node.identifier, []),
+        "children": [_tree_node(version, child, rows, names, progress, evidence, suggestions)
                      for child in version.children(node.code)],
     }
 
@@ -307,6 +371,8 @@ class EunomiaAssessmentManager:
                     "isExpired": row.valid_until is not None and row.valid_until < today,
                 })
         progress = branch_progress(version, _states(records))
+        suggestions = _suggestions_by_control(owner_user_id, framework_key, version,
+                                              _adopted_versions(owner_user_id))
         return {
             "people": _people(user_id, owner_user_id),
             "key": version.key, "version": version.version, "status": version.status,
@@ -315,7 +381,7 @@ class EunomiaAssessmentManager:
                 {"name": s.name, "url": s.url, "license": s.license, "consultedAt": s.consulted_at}
                 for s in version.sources
             ],
-            "tree": [_tree_node(version, root, rows, names, progress, evidence)
+            "tree": [_tree_node(version, root, rows, names, progress, evidence, suggestions)
                      for root in version.children(None)],
         }
 
@@ -338,6 +404,15 @@ class EunomiaAssessmentManager:
         records = build_repository(EunomiaControlAssessmentRepository).list_for_framework(
             owner_user_id, framework_key)
         summary = summarize(version, _states(records), date.today())
+        # Controles aún abiertos que otro marco adoptado ya cubre: lo que el usuario se ahorra.
+        suggestions = _suggestions_by_control(owner_user_id, framework_key, version,
+                                              _adopted_versions(owner_user_id))
+        states = _states(records)
+        summary["suggestedCoverage"] = sum(
+            1 for identifier, items in suggestions.items()
+            if states.get(identifier, ControlState()).status in ("pending", "in_progress")
+            and any(item["status"] == "implemented" for item in items)
+        )
         names = {
             item["responsibleUserId"]: display_name(item["responsibleUserId"])
             for key in ("upcoming", "unassigned") for item in summary[key] if item["responsibleUserId"]

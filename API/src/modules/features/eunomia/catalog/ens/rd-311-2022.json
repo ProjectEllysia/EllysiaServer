@@ -14,12 +14,25 @@
       "consultedAt": "2026-10-10"
     }
   ],
-  "notes": "Primera versión mínima: solo las medidas que Lybra ya mapea a sus hallazgos. El catálogo completo llega con el marco ENS.",
+  "notes": "Texto del Real Decreto 311/2022 (anexo II). Cada medida lleva, como metadato, cómo se aplica según la categoría del sistema (básica, media, alta): «aplica», «n.a.» o los refuerzos que se añaden. Los refuerzos son controles evaluables propios, hijos de su medida.",
   "nodes": [
+    {
+      "identifier": "org",
+      "parent": null,
+      "order": 1,
+      "kind": "group",
+      "title": "Marco organizativo",
+      "officialText": "",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
     {
       "identifier": "op",
       "parent": null,
-      "order": 1,
+      "order": 2,
       "kind": "group",
       "title": "Marco operacional",
       "officialText": "",
@@ -30,9 +43,22 @@
       "register": null
     },
     {
-      "identifier": "op.acc",
+      "identifier": "op.pl",
       "parent": "op",
       "order": 1,
+      "kind": "group",
+      "title": "Planificación",
+      "officialText": "",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.acc",
+      "parent": "op",
+      "order": 2,
       "kind": "group",
       "title": "Control de acceso",
       "officialText": "",
@@ -43,12 +69,722 @@
       "register": null
     },
     {
-      "identifier": "op.acc.2",
+      "identifier": "op.exp",
+      "parent": "op",
+      "order": 3,
+      "kind": "group",
+      "title": "Explotación",
+      "officialText": "",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.ext",
+      "parent": "op",
+      "order": 4,
+      "kind": "group",
+      "title": "Recursos externos",
+      "officialText": "",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.nub",
+      "parent": "op",
+      "order": 5,
+      "kind": "group",
+      "title": "Servicios en la nube",
+      "officialText": "",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.cont",
+      "parent": "op",
+      "order": 6,
+      "kind": "group",
+      "title": "Continuidad del servicio",
+      "officialText": "",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.mon",
+      "parent": "op",
+      "order": 7,
+      "kind": "group",
+      "title": "Monitorización del sistema",
+      "officialText": "",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp",
+      "parent": null,
+      "order": 3,
+      "kind": "group",
+      "title": "Medidas de protección",
+      "officialText": "",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.if",
+      "parent": "mp",
+      "order": 1,
+      "kind": "group",
+      "title": "Protección de las instalaciones e infraestructuras",
+      "officialText": "",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.per",
+      "parent": "mp",
+      "order": 2,
+      "kind": "group",
+      "title": "Gestión del personal",
+      "officialText": "",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.eq",
+      "parent": "mp",
+      "order": 3,
+      "kind": "group",
+      "title": "Protección de los equipos",
+      "officialText": "",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.com",
+      "parent": "mp",
+      "order": 4,
+      "kind": "group",
+      "title": "Protección de las comunicaciones",
+      "officialText": "",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.si",
+      "parent": "mp",
+      "order": 5,
+      "kind": "group",
+      "title": "Protección de los soportes de información",
+      "officialText": "",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.sw",
+      "parent": "mp",
+      "order": 6,
+      "kind": "group",
+      "title": "Protección de las aplicaciones informáticas",
+      "officialText": "",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.info",
+      "parent": "mp",
+      "order": 7,
+      "kind": "group",
+      "title": "Protección de la información",
+      "officialText": "",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.s",
+      "parent": "mp",
+      "order": 8,
+      "kind": "group",
+      "title": "Protección de los servicios",
+      "officialText": "",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "org.1",
+      "parent": "org",
+      "order": 1,
+      "kind": "requirement",
+      "title": "Política de seguridad",
+      "officialText": "La política de seguridad, que se aprobará de conformidad con lo dispuesto en el artículo 12 de este real decreto, se plasmará en un documento en el que, de forma clara, se precise, al menos, lo siguiente:\n– [org.1.1] Los objetivos o misión de la organización.\n– [org.1.2] El marco legal y regulatorio en el que se desarrollarán las actividades.\n– [org.1.3] Los roles o funciones de seguridad, definiendo para cada uno los deberes y responsabilidades del cargo, así como el procedimiento para su designación y renovación.\n– [org.1.4] La estructura del comité o los comités para la gestión y coordinación de la seguridad, detallando su ámbito de responsabilidad, las personas integrantes y la relación con otros elementos de la organización.\n– [org.1.5] Las directrices para la estructuración de la documentación de seguridad del sistema, su gestión y acceso.",
+      "description": "Tener una política de seguridad aprobada que fije misión, marco legal, roles, comités y cómo se documenta la seguridad.",
+      "actions": [
+        "Redactar la política con sus contenidos mínimos",
+        "Aprobarla formalmente y comunicarla"
+      ],
+      "evidence": [
+        "Política de seguridad aprobada",
+        "Acta de aprobación"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "aplica",
+          "high": "aplica"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "org.2",
+      "parent": "org",
+      "order": 2,
+      "kind": "requirement",
+      "title": "Normativa de seguridad",
+      "officialText": "Se dispondrá de una serie de documentos que describan:\n– [org.2.1] El uso correcto de equipos, servicios e instalaciones, así como lo que se considerará uso indebido.\n– [org.2.2] La responsabilidad del personal con respecto al cumplimiento o violación de la normativa: derechos, deberes y medidas disciplinarias de acuerdo con la legislación vigente.",
+      "description": "Disponer de normas que describan el uso correcto y el indebido de equipos, servicios e instalaciones y las consecuencias.",
+      "actions": [
+        "Redactar la normativa de uso",
+        "Comunicarla al personal"
+      ],
+      "evidence": [
+        "Normativa de seguridad",
+        "Constancia de comunicación"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "aplica",
+          "high": "aplica"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "org.2.r1",
+      "parent": "org.2",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Documentos específicos",
+      "officialText": "[org.2.r1.1] Se dispondrá de una documentación de seguridad, desarrollada según lo reflejado en las guías CCN-STIC que resulten de aplicación.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "org.3",
+      "parent": "org",
+      "order": 3,
+      "kind": "requirement",
+      "title": "Procedimientos de seguridad",
+      "officialText": "Se dispondrá de una serie de documentos que detallen de forma clara y precisa cómo operar los elementos del sistema de información:\n– [org.3.1] Cómo llevar a cabo las tareas habituales.\n– [org.3.2] Quién debe hacer cada tarea.\n– [org.3.3] Cómo identificar y reportar comportamientos anómalos.\n– [org.3.4.] La forma en que se ha de tratar la información en consideración al nivel de seguridad que requiere, precisando cómo efectuar:\na) Su control de acceso.\nb) Su almacenamiento.\nc) La realización de copias.\nd) El etiquetado de soportes.\ne) Su transmisión telemática.\nf) Cualquier otra actividad relacionada con dicha información.",
+      "description": "Documentar los procedimientos de seguridad: cómo se hace cada tarea y quién la hace.",
+      "actions": [
+        "Documentar los procedimientos operativos",
+        "Mantenerlos accesibles y actualizados"
+      ],
+      "evidence": [
+        "Procedimientos documentados",
+        "Registro de revisión"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "aplica",
+          "high": "aplica"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "org.3.r1",
+      "parent": "org.3",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Validación de procedimientos",
+      "officialText": "[org.3.r1.1] Se requerirá la validación de los procedimientos de seguridad por la autoridad correspondiente.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "org.4",
+      "parent": "org",
+      "order": 4,
+      "kind": "requirement",
+      "title": "Proceso de autorización",
+      "officialText": "Se establecerá un proceso formal de autorizaciones que cubra todos los elementos del sistema de información concernidos:\n– [org.4.1] Utilización de instalaciones, habituales y alternativas.\n– [org.4.2] Entrada de equipos en producción, en particular, equipos que involucren criptografía.\n– [org.4.3] Entrada de aplicaciones en producción.\n– [org.4.4] Establecimiento de enlaces de comunicaciones con otros sistemas.\n– [org.4.5] Utilización de medios de comunicación, habituales y alternativos.\n– [org.4.6] Utilización de soportes de información.\n– [org.4.7] Utilización de equipos móviles. Se entenderá por equipos móviles ordenadores portátiles, tabletas, teléfonos móviles u otros de naturaleza análoga.\n– [org.4.8] Utilización de servicios de terceros, bajo contrato o convenio, concesión, encargo, etc.",
+      "description": "Tener un proceso formal que autorice sistemas, componentes, instalaciones y servicios antes de usarlos.",
+      "actions": [
+        "Definir qué requiere autorización y quién la da",
+        "Registrar cada autorización"
+      ],
+      "evidence": [
+        "Procedimiento de autorización",
+        "Registro de autorizaciones"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "aplica",
+          "high": "aplica"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "op.pl.1",
+      "parent": "op.pl",
+      "order": 1,
+      "kind": "requirement",
+      "title": "Análisis de riesgos",
+      "officialText": "Se realizará un análisis de riesgos informal, realizado en lenguaje natural. Es decir, una exposición textual que:\n– [op.pl.1.1] Identifique los activos más valiosos del sistema. (Ver op.exp.1).\n– [op.pl.1.2] Identifique las amenazas más probables.\n– [op.pl.1.3] Identifique las salvaguardas que protegen de dichas amenazas.\n– [op.pl.1.4] Identifique los principales riesgos residuales.",
+      "description": "Analizar los riesgos del sistema, tratarlos y mantener el análisis actualizado.",
+      "actions": [
+        "Realizar el análisis con una metodología",
+        "Revisarlo ante cambios relevantes"
+      ],
+      "evidence": [
+        "Informe de análisis de riesgos",
+        "Plan de tratamiento"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "+ R1",
+          "high": "+ R2"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "op.pl.1.r1",
+      "parent": "op.pl.1",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Análisis de riesgos semiformal",
+      "officialText": "Se deberá realizar un análisis de riesgos semiformal, usando un lenguaje específico, con un catálogo básico de amenazas y una semántica definida. Es decir, una presentación con tablas que:\n– [op.pl.1.r1.1] Valore cualitativamente los activos más valiosos del sistema.\n– [op.pl.1.r1.2] Cuantifique las amenazas más probables.\n– [op.pl.1.r1.3] Valore las salvaguardas que protegen de dichas amenazas.\n– [op.pl.1.r1.4] Valore el riesgo residual.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.pl.1.r2",
+      "parent": "op.pl.1",
+      "order": 2,
+      "kind": "requirement",
+      "title": "R2 · Análisis de riesgos formal",
+      "officialText": "Se deberá realizar un análisis formal, usando un lenguaje específico, con un fundamento matemático reconocido internacionalmente, que:\n– [op.pl.1.r2.1] Valore cualitativamente los activos más valiosos del sistema.\n– [op.pl.1.r2.2] Cuantifique las amenazas posibles.\n– [op.pl.1.r2.3] Valore y priorice las salvaguardas adecuadas.\n– [op.pl.1.r2.4] Valore y asuma formalmente el riesgo residual.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.pl.2",
+      "parent": "op.pl",
+      "order": 2,
+      "kind": "requirement",
+      "title": "Arquitectura de seguridad",
+      "officialText": "La seguridad del sistema será objeto de un planteamiento integral detallando, al menos, los siguientes aspectos:\n– [op.pl.2.1] Documentación de las instalaciones, incluyendo áreas y puntos de acceso.\n– [op.pl.2.2] Documentación del sistema, incluyendo equipos, redes internas y conexiones al exterior, y puntos de acceso al sistema (puestos de trabajo y consolas de administración).\n– [op.pl.2.3] Esquema de líneas de defensa, incluyendo puntos de interconexión a otros sistemas o a otras redes (en especial, si se trata de internet o redes públicas en general); cortafuegos, DMZ, etc.; y la utilización de tecnologías diferentes para prevenir vulnerabilidades que pudieran perforar simultáneamente varias líneas de defensa.\n– [op.pl.2.4] Sistema de identificación y autenticación de usuarios, incluyendo el uso de claves concertadas, contraseñas, tarjetas de identificación, biometría, u otras de naturaleza análoga, y el uso de ficheros o directorios para autenticar al usuario y determinar sus derechos de acceso.",
+      "description": "Definir una arquitectura de seguridad documentada: capas, zonas, controles y criterios de diseño.",
+      "actions": [
+        "Documentar la arquitectura y sus controles",
+        "Aprobarla y mantenerla"
+      ],
+      "evidence": [
+        "Documento de arquitectura",
+        "Diagramas del sistema"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "+ R1",
+          "high": "+ R1 + R2 + R3"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "op.pl.2.r1",
+      "parent": "op.pl.2",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Sistema de gestión",
+      "officialText": "[op.pl.2.r1.1] Sistema de gestión, relativo a la planificación, organización y control de los recursos relativos a la seguridad de la información.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.pl.2.r2",
+      "parent": "op.pl.2",
+      "order": 2,
+      "kind": "requirement",
+      "title": "R2 · Sistema de gestión de la seguridad con mejora continua",
+      "officialText": "[op.pl.2.r2.1] Sistema de gestión de la seguridad de la información, con actualización y aprobación periódica.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.pl.2.r3",
+      "parent": "op.pl.2",
+      "order": 3,
+      "kind": "requirement",
+      "title": "R3 · Validación de datos",
+      "officialText": "[op.pl.2.r3.1] Controles técnicos internos, incluyendo la validación de datos de entrada, salida y datos intermedios.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.pl.3",
+      "parent": "op.pl",
+      "order": 3,
+      "kind": "requirement",
+      "title": "Adquisición de nuevos componentes",
+      "officialText": "Se establecerá un proceso formal para planificar la adquisición de nuevos componentes del sistema, proceso que:\n– [op.pl.3.1] Atenderá a las conclusiones del análisis de riesgos ([op.pl.1]).\n– [op.pl.3.2] Será acorde a la arquitectura de seguridad escogida ([op.pl.2]).\n– [op.pl.3.3] Contemplará las necesidades técnicas, de formación y de financiación, de forma conjunta.",
+      "description": "Valorar la seguridad de cualquier componente nuevo antes de incorporarlo.",
+      "actions": [
+        "Fijar criterios de adquisición",
+        "Evaluar los componentes"
+      ],
+      "evidence": [
+        "Criterios de adquisición",
+        "Informes de evaluación"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "aplica",
+          "high": "aplica"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "op.pl.4",
+      "parent": "op.pl",
+      "order": 4,
+      "kind": "requirement",
+      "title": "Dimensionamiento / gestión de la capacidad",
+      "officialText": "Con carácter previo a la puesta en explotación, se realizará un estudio que cubrirá los siguientes aspectos:\n– [op.pl.4.1] Necesidades de procesamiento.\n– [op.pl.4.2] Necesidades de almacenamiento de información: durante su procesamiento y durante el periodo que deba retenerse.\n– [op.pl.4.3] Necesidades de comunicación.\n– [op.pl.4.4] Necesidades de personal: cantidad y cualificación profesional.\n– [op.pl.4.5] Necesidades de instalaciones y medios auxiliares.",
+      "description": "Dimensionar y gestionar la capacidad para que el sistema responda a la demanda prevista.",
+      "actions": [
+        "Estimar las necesidades",
+        "Vigilar el uso y planificar crecimiento"
+      ],
+      "evidence": [
+        "Estudio de capacidad",
+        "Informes de uso"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "+ R1",
+          "high": "+ R1"
+        },
+        "dimensions": "D"
+      }
+    },
+    {
+      "identifier": "op.pl.4.r1",
+      "parent": "op.pl.4",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Mejora continua de la gestión de la capacidad",
+      "officialText": "– [op.pl.4.r1.1] Se realizará una previsión de la capacidad y se mantendrá actualizada durante todo el ciclo de vida del sistema.\n– [op.pl.4.r1.2] Se emplearán herramientas y recursos para la monitorización de la capacidad.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.pl.5",
+      "parent": "op.pl",
+      "order": 5,
+      "kind": "requirement",
+      "title": "Componentes certificados",
+      "officialText": "– [op.pl.5.1]. Se utilizará el Catálogo de Productos y Servicios de Seguridad de las Tecnologías de la Información y Comunicación (CPSTIC) del CCN, para seleccionar los productos o servicios suministrados por un tercero que formen parte de la arquitectura de seguridad del sistema y aquellos que se referencien expresamente en las medidas de este real decreto.\nEn caso de que no existan productos o servicios en el CPSTIC que implementen las funcionalidades requeridas, se utilizarán productos certificados de acuerdo a lo descrito en el artículo 19.\nUna Instrucción Técnica de Seguridad detallará los criterios relativos a la adquisición de productos de seguridad.\n– [op.pl.5.2] Si el sistema suministra un servicio de seguridad a un tercero bajo el alcance del ENS, el producto o productos que en los que se sustente dicho servicio debe superar un proceso de cualificación y ser incluido en el CPSTIC, o aportar una certificación que cumpla con los requisitos funcionales de seguridad y de aseguramiento de acuerdo a lo establecido en el artículo 19.",
+      "description": "Usar productos y servicios certificados cuando las exigencias del sistema lo requieran.",
+      "actions": [
+        "Identificar dónde se exige certificación",
+        "Adquirir componentes certificados"
+      ],
+      "evidence": [
+        "Lista de componentes certificados",
+        "Certificados"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "n.a.",
+          "medium": "aplica",
+          "high": "aplica"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "op.pl.5.r1",
+      "parent": "op.pl.5",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Protección de emisiones electromagnéticas",
+      "officialText": "[op.pl.5.r1.1] La información deberá ser protegida frente a las amenazas TEMPEST de acuerdo con la normativa en vigor.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.pl.5.r2",
+      "parent": "op.pl.5",
+      "order": 2,
+      "kind": "requirement",
+      "title": "R2 · Lista de componentes software",
+      "officialText": "[op.pl.5.r2.1] Cada producto y servicio incluirá en su descripción una lista de componentes software, acorde a lo especificado en [mp.sw.1.r5].",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.acc.1",
       "parent": "op.acc",
       "order": 1,
       "kind": "requirement",
+      "title": "Identificación",
+      "officialText": "La identificación de los usuarios del sistema se realizará de acuerdo con lo que se indica a continuación:\n– [op.acc.1.1] Se podrá utilizar como identificador único los sistemas de identificación previstos en la normativa de aplicación, entre ellos, los sistemas de clave concertada y cualquier otro sistema que las administraciones consideren válido en los términos y condiciones establecidos en la Ley 39/2015, de 1 de octubre, del Procedimiento Administrativo Común de las Administraciones Públicas.\n– [op.acc.1.2] Cuando el usuario tenga diferentes roles frente al sistema (como ciudadano o usuario final, como trabajador del organismo o como administrador de los sistemas, por ejemplo) recibirá identificadores singulares para cada perfil, de forma que se recaben siempre los correspondientes registros de actividad, delimitándose los privilegios correspondientes a cada perfil.\n– [op.acc.1.3] Cada entidad (entidad, usuario o proceso) que accede al sistema, contará con un identificador singular que permita conocer el destinatario de los mismos y los derechos de acceso que recibe, así como las acciones realizadas por cada entidad.\n– [op.acc.1.4] Las cuentas de usuario se gestionarán de la siguiente forma:\na) Cada cuenta (de entidad, usuario o proceso) estará asociada a un identificador único.\nb) Las cuentas deben ser inhabilitadas en los siguientes casos: cuando el usuario deja la organización; cuando el usuario cesa en la función para la cual se requería la cuenta de usuario; o, cuando la persona que la autorizó da orden en sentido contrario.\nc) Las cuentas se retendrán durante el periodo necesario para atender a las necesidades de trazabilidad de los registros de actividad asociados a las mismas. A este periodo se le denominará «periodo de retención».\n– [op.acc.1.5] En los supuestos de comunicaciones electrónicas, las partes intervinientes se identificarán atendiendo a los mecanismos previstos en la legislación europea y nacional en la materia, con la siguiente correspondencia entre los niveles de la dimensión de autenticidad de los sistemas de información a los que se tiene acceso y los niveles de seguridad (bajo, sustancial, alto) de los sistemas de identificación electrónica previstos en el Reglamento (UE) n.º 910/2014, del Parlamento Europeo y del Consejo, de 23 de julio de 2014, relativo a la identificación electrónica y los servicios de confianza para las transacciones electrónicas en el mercado interior y por el que se deroga la Directiva 1999/93/CE y sus normas de desarrollo o ejecución que resulten de aplicación:\na) Si se requiere un nivel BAJO en la dimensión de autenticidad (anexo I): Nivel de seguridad bajo, sustancial o alto (artículo 8 del Reglamento (UE) n.º 910/2014).\nb) Si se requiere un nivel MEDIO en la dimensión de autenticidad (anexo I): Nivel de seguridad sustancial o alto (artículo 8 del Reglamento (UE) n.º 910/2014).\nc) Si se requiere un nivel ALTO en la dimensión de autenticidad (anexo I): Nivel de seguridad alto (artículo 8 del Reglamento (UE) n.º 910/2014).",
+      "description": "Identificar de forma única a cada usuario y proceso que accede al sistema.",
+      "actions": [
+        "Asignar identificadores únicos",
+        "Retirar los que ya no se usan"
+      ],
+      "evidence": [
+        "Procedimiento de identificación",
+        "Listado de usuarios"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "+ R1",
+          "high": "+ R1"
+        },
+        "dimensions": "T A"
+      }
+    },
+    {
+      "identifier": "op.acc.1.r1",
+      "parent": "op.acc.1",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Identificación avanzada",
+      "officialText": "– [op.acc.1.r1.1] La identificación del usuario permitirá al Responsable del Sistema, al Responsable de la Seguridad o a sus respectivos administradores delegados, singularizar a la persona asociada al mismo, así como sus responsabilidades en el sistema.\n– [op.acc.1.r1.2] Los datos de identificación serán utilizados por el sistema para determinar los privilegios del usuario conforme a los requisitos de control de acceso establecidos en la documentación de seguridad.\n– [op.acc.1.r1.3] Se asegurará la existencia de una lista actualizada de usuarios autorizados y mantenida por el administrador del sistema/de la seguridad del sistema.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.acc.2",
+      "parent": "op.acc",
+      "order": 2,
+      "kind": "requirement",
       "title": "Requisitos de acceso",
-      "officialText": "",
+      "officialText": "– [op.acc.2.1] Los recursos del sistema se protegerán con algún mecanismo que impida su utilización, salvo a las entidades que disfruten de derechos de acceso suficientes.\n– [op.acc.2.2] Los derechos de acceso de cada recurso, se establecerán según las decisiones de la persona responsable del recurso, ateniéndose a la política y normativa de seguridad del sistema.\n– [op.acc.2.3] Particularmente, se controlará el acceso a los componentes del sistema operativo y a sus ficheros o registros de configuración.",
+      "description": "Permitir el acceso solo con derechos concedidos y para lo necesario.",
+      "actions": [
+        "Definir los requisitos de acceso",
+        "Aplicar el mínimo privilegio"
+      ],
+      "evidence": [
+        "Matriz de permisos",
+        "Configuración de accesos"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "aplica",
+          "high": "+ R1"
+        },
+        "dimensions": "C I T A"
+      }
+    },
+    {
+      "identifier": "op.acc.2.r1",
+      "parent": "op.acc.2",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Privilegios de acceso",
+      "officialText": "– [op.acc.2.r1.1] Todos los usuarios autorizados deben tener un conjunto de atributos de seguridad (privilegios) que puedan ser mantenidos individualmente.\n– [op.acc.2.r1.2] Los privilegios de acceso se implementarán para restringir el tipo de acceso que un usuario puede tener (lectura, escritura, modificación, borrado, etc.).",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.acc.2.r2",
+      "parent": "op.acc.2",
+      "order": 2,
+      "kind": "requirement",
+      "title": "R2 · Control de acceso a dispositivos",
+      "officialText": "– [op.acc.2.r2.1] Se dispondrá de soluciones que permitan establecer controles de acceso a los dispositivos en función de la política de seguridad de la organización.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.acc.3",
+      "parent": "op.acc",
+      "order": 3,
+      "kind": "requirement",
+      "title": "Segregación de funciones y tareas",
+      "officialText": "El sistema de control de acceso se organizará de forma que se exija la concurrencia de dos o más personas para realizar tareas críticas, anulando la posibilidad de que un solo individuo autorizado pueda abusar de sus derechos para cometer alguna acción ilícita o no autorizada.\n– [op.acc.3.1] Siempre que sea posible, las capacidades de desarrollo y operación no recaerán en la misma persona.\n– [op.acc.3.2] Siempre que sea posible, las personas que autorizan y controlan el uso serán distintas.",
+      "description": "Separar funciones y tareas incompatibles entre personas distintas.",
+      "actions": [
+        "Identificar funciones incompatibles",
+        "Repartirlas"
+      ],
+      "evidence": [
+        "Matriz de segregación",
+        "Excepciones justificadas"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "n.a.",
+          "medium": "aplica",
+          "high": "+ R1"
+        },
+        "dimensions": "C I T A"
+      }
+    },
+    {
+      "identifier": "op.acc.3.r1",
+      "parent": "op.acc.3",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Segregación rigurosa",
+      "officialText": "– [op.acc.3.r1.1] Siempre que sea posible, la misma persona no aunará funciones de configuración y mantenimiento del sistema.\n– [op.acc.3.r1.2] La misma persona no puede aunar funciones de auditoría o supervisión con cualquier otra función.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.acc.3.r2",
+      "parent": "op.acc.3",
+      "order": 2,
+      "kind": "requirement",
+      "title": "R2 · Privilegios de auditoría",
+      "officialText": "– [op.acc.3.r2.1] Existirán cuentas con privilegios de auditoría estrictamente controladas y personalizadas.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.acc.3.r3",
+      "parent": "op.acc.3",
+      "order": 3,
+      "kind": "requirement",
+      "title": "R3 · Acceso a la información de seguridad",
+      "officialText": "– [op.acc.3.r3.1] El acceso a la información de seguridad del sistema estará permitido únicamente a los administradores de seguridad/sistema autorizados, utilizando los mecanismos de acceso imprescindibles (consola, interfaz web, acceso remoto, etc.).",
       "description": "",
       "actions": [],
       "evidence": [],
@@ -58,10 +794,65 @@
     {
       "identifier": "op.acc.4",
       "parent": "op.acc",
-      "order": 2,
+      "order": 4,
       "kind": "requirement",
       "title": "Proceso de gestión de derechos de acceso",
-      "officialText": "",
+      "officialText": "Los derechos de acceso de cada entidad, usuario o proceso se limitarán atendiendo a los siguientes principios:\n– [op.acc.4.1] Todo acceso estará prohibido, salvo autorización expresa.\n– [op.acc.4.2] Mínimo privilegio: los privilegios de cada entidad, usuario o proceso se reducirán al mínimo imprescindible para cumplir sus obligaciones o funciones.\n– [op.acc.4.3] Necesidad de conocer y responsabilidad de compartir: los privilegios se asignarán de forma que las entidades, usuarios o procesos sólo accederán al conocimiento de aquella información requerida para cumplir sus obligaciones o funciones. La información es patrimonio del organismo y toda aquella que resulte necesaria para el usuario estará a su disposición.\n– [op.acc.4.4] Capacidad de autorizar: Exclusivamente el personal con competencia para ello podrá conceder, alterar o anular la autorización de acceso a los recursos, conforme a los criterios establecidos por su responsable. Los permisos de acceso se revisarán de forma periódica.\n– [op.acc.4.5] Se establecerá una política específica de acceso remoto, requiriéndose autorización expresa.",
+      "description": "Gestionar el ciclo de vida de los derechos de acceso: conceder, modificar, revocar y revisar.",
+      "actions": [
+        "Establecer el proceso de gestión de derechos",
+        "Revisarlos periódicamente"
+      ],
+      "evidence": [
+        "Procedimiento de derechos",
+        "Actas de revisión"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "aplica",
+          "high": "aplica"
+        },
+        "dimensions": "C I T A"
+      }
+    },
+    {
+      "identifier": "op.acc.5",
+      "parent": "op.acc",
+      "order": 5,
+      "kind": "requirement",
+      "title": "Mecanismo de autenticación (usuarios externos)",
+      "officialText": "Referente a usuarios que no son usuarios de la organización.\nLas guías CCN-STIC desarrollarán los mecanismos y calidades exigibles a cada tipo de factor de autenticación en función de los niveles de seguridad requeridos por el sistema de información el que se accede y los privilegios concedidos al usuario.\n+ [R1 o R2 o R3 o R4]\n+ [R2 o R3 o R4] + R5\n+ [R2 o R3 o R4] + R5\n– [op.acc.5.1] Antes de proporcionar las credenciales de autenticación a las entidades, usuarios o procesos, estos deberán haberse identificado y registrado de manera fidedigna ante el sistema o ante un Prestador Cualificado de Servicios de Confianza o un proveedor de identidad electrónica reconocido por las administraciones públicas, de conformidad con lo dispuesto en la Ley 39/2015, de 1 de octubre.\n– [op.acc.5.2] Antes de activar el mecanismo de autenticación, el usuario reconocerá que las ha recibido y que conoce y acepta las obligaciones que implica su tenencia, en particular, el deber de custodia diligente, la protección de su confidencialidad y el deber de notificación inmediata en caso de pérdida.\n– [op.acc.5.3] Las credenciales estarán bajo el control exclusivo del usuario y se activarán una vez estén bajo su control efectivo.\n– [op.acc.5.4] Las credenciales se cambiarán con una periodicidad marcada por la política de seguridad de la organización.\n– [op.acc.5.5] Las credenciales serán inhabilitadas -pudiendo ser regeneradas, en su caso-, cuando conste o se sospeche su pérdida, compromiso o revelación a entidades (personas, equipos o procesos) no autorizadas.\n– [op.acc.5.6] Las credenciales serán inhabilitadas cuando la entidad (persona, equipo o proceso) que autentican termina su relación con el sistema.\n– [op.acc.5.7] Antes de autorizar el acceso, la información presentada por el sistema será la mínima imprescindible para que el usuario se autentique, evitando todo aquello que pueda, directa o indirectamente, revelar información sobre el sistema o la cuenta, sus características, su operación o su estado. Las credenciales solamente se validarán cuando se tengan todos los datos necesarios y, si se rechaza, no se informará del motivo del rechazo.\n– [op.acc.5.8] El número de intentos permitidos será limitado, bloqueando la oportunidad de acceso una vez superado tal número, y requiriendo una intervención específica para reactivar la cuenta, que se describirá en la documentación.\n– [op.acc.5.9] El sistema informará al usuario de sus derechos u obligaciones inmediatamente después de obtener el acceso.",
+      "description": "Autenticar a los usuarios externos con un mecanismo acorde al riesgo.",
+      "actions": [
+        "Definir el mecanismo para usuarios externos",
+        "Proteger las credenciales"
+      ],
+      "evidence": [
+        "Descripción del mecanismo",
+        "Configuración"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "+ [R1 o R2 o R3 o R4]",
+          "medium": "+ [R2 o R3 o R4] + R5",
+          "high": "+ [R2 o R3 o R4] + R5"
+        },
+        "dimensions": "C I T A"
+      }
+    },
+    {
+      "identifier": "op.acc.5.r1",
+      "parent": "op.acc.5",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Contraseñas",
+      "officialText": "– [op.acc.5.r1.1] Se empleará una contraseña como mecanismo de autenticación.\n– [op.acc.5.r1.2] Se impondrán normas de complejidad mínima y robustez frente a ataques de adivinación (ver guías CCN-STIC).",
       "description": "",
       "actions": [],
       "evidence": [],
@@ -69,12 +860,77 @@
       "register": null
     },
     {
-      "identifier": "op.acc.5",
-      "parent": "op.acc",
+      "identifier": "op.acc.5.r2",
+      "parent": "op.acc.5",
+      "order": 2,
+      "kind": "requirement",
+      "title": "R2 · Contraseña + OTP",
+      "officialText": "– [op.acc.5.r2.1] Se requerirá una contraseña de un solo uso (OTP, en inglés) como complemento a la contraseña de usuario.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.acc.5.r3",
+      "parent": "op.acc.5",
       "order": 3,
       "kind": "requirement",
-      "title": "Mecanismo de autenticación (usuarios externos)",
-      "officialText": "",
+      "title": "R3 · Certificados",
+      "officialText": "– [op.acc.5.r3.1] Se emplearán certificados cualificados como mecanismo de autenticación.\n– [op.acc.5.r3.2] El uso del certificado estará protegido por un segundo factor, del tipo PIN o biométrico.\n– [op.acc.5.r3.3] Las credenciales utilizadas deberán haber sido obtenidas tras un registro previo presencial, o bien telemático, usando un certificado electrónico cualificado.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.acc.5.r4",
+      "parent": "op.acc.5",
+      "order": 4,
+      "kind": "requirement",
+      "title": "R4 · Certificados en dispositivo físico",
+      "officialText": "– [op.acc.5.r4.1] Se emplearán certificados cualificados como mecanismo de autenticación, en soporte físico (tarjeta o similar) usando algoritmos, parámetros y dispositivos autorizados por el CCN.\n– [op.acc.5.r4.2] El uso del certificado estará protegido por un segundo factor, del tipo PIN o biométrico.\n– [op.acc.5.r4.3] Las credenciales utilizadas deberán haber sido obtenidas tras un registro previo presencial, o bien telemático, usando certificado electrónico cualificado.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.acc.5.r5",
+      "parent": "op.acc.5",
+      "order": 5,
+      "kind": "requirement",
+      "title": "R5 · Registro",
+      "officialText": "– [op.acc.5.r5.1] Se registrarán los accesos con éxito y los fallidos.\n– [op.acc.5.r5.2] Se informará al usuario del último acceso efectuado con su identidad.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.acc.5.r6",
+      "parent": "op.acc.5",
+      "order": 6,
+      "kind": "requirement",
+      "title": "R6 · Limitación de la ventana de acceso",
+      "officialText": "– [op.acc.5.r6.1] Se definirán aquellos puntos en los que el sistema requerirá una renovación de la autenticación del usuario, mediante identificación singular, no bastando con la sesión establecida.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.acc.5.r7",
+      "parent": "op.acc.5",
+      "order": 7,
+      "kind": "requirement",
+      "title": "R7 · Suspensión por no utilización",
+      "officialText": "– [op.acc.5.r7.1] Las credenciales se suspenderán tras un periodo definido de no utilización.",
       "description": "",
       "actions": [],
       "evidence": [],
@@ -84,10 +940,38 @@
     {
       "identifier": "op.acc.6",
       "parent": "op.acc",
-      "order": 4,
+      "order": 6,
       "kind": "requirement",
       "title": "Mecanismo de autenticación (usuarios de la organización)",
-      "officialText": "",
+      "officialText": "Esta medida se refiere a personal del organismo, propio o contratado, estable o circunstancial, que pueda tener acceso a información contenida en el sistema.\nLas guías CCN-STIC desarrollarán los mecanismos y calidades exigibles a cada tipo de factor de autenticación, en función de los niveles de seguridad requeridos por el sistema de información el que se accede y los privilegios concedidos al usuario.\n– [op.acc.6.1] Antes de proporcionar las credenciales a los usuarios, estos deberán conocer y aceptar la política de seguridad del organismo en los aspectos que les afecten.\n– [op.acc.6.2] Antes de activar el mecanismo de autenticación, el usuario reconocerá que ha recibido las credenciales de acceso y que conoce y acepta las obligaciones que implica su tenencia, en particular, el deber de custodia diligente, la protección de su confidencialidad y el deber de notificación inmediata en caso de pérdida.\n– [op.acc.6.3] Las credenciales estarán bajo el control exclusivo del usuario y se activarán una vez estén bajo su control efectivo.\n– [op.acc.6.4] Las credenciales se cambiarán con una periodicidad marcada por la política de seguridad de la organización.\n– [op.acc.6.5] Las credenciales serán inhabilitadas -pudiendo ser regeneradas, en su caso-, cuando conste o se sospeche su pérdida, compromiso o revelación a entidades (personas, equipos o procesos) no autorizadas.\n– [op.acc.6.6] Las credenciales serán inhabilitadas cuando el usuario que autentican termina su relación con el sistema.\n– [op.acc.6.7] Antes de autorizar el acceso, la información presentada por el sistema será la mínima imprescindible para que el usuario se autentique, evitando todo aquello que pueda, directa o indirectamente, revelar información sobre el sistema o la cuenta, sus características, su operación o su estado. Las credenciales solamente se validarán cuando se tengan todos los datos necesarios y, si se rechaza, no se informará del motivo del rechazo.\n– [op.acc.6.8] El número de intentos permitidos será limitado, bloqueando la oportunidad de acceso una vez superado tal número, y requiriendo una intervención específica para reactivar la cuenta, que se describirá en la documentación.\n– [op.acc.6.9] El sistema informará al usuario de sus derechos u obligaciones inmediatamente después de obtener el acceso.",
+      "description": "Autenticar a los usuarios de la organización con credenciales fuertes y bien protegidas.",
+      "actions": [
+        "Definir el mecanismo de autenticación",
+        "Aplicar doble factor donde se exija"
+      ],
+      "evidence": [
+        "Política de autenticación",
+        "Configuración de factores"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "+ [R1 o R2 o R3 o R4] + R8 + R9",
+          "medium": "+ [R1 o R2 o R3 o R4] + R5 + R8 + R9",
+          "high": "+ [R1 o R2 o R3 o R4] + R5 + R6 + R7 + R8 + R9"
+        },
+        "dimensions": "C I T A"
+      }
+    },
+    {
+      "identifier": "op.acc.6.r1",
+      "parent": "op.acc.6",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Contraseñas",
+      "officialText": "– [op.acc.6.r1.1] Se empleará una contraseña como mecanismo de autenticación cuando el acceso se realiza desde zonas controladas y sin atravesar zonas no controladas (véase refuerzo R8).\n– [op.acc.6.r1.2] Se impondrán normas de complejidad mínima y robustez frente a ataques de adivinación (ver guías CCN-STIC).",
       "description": "",
       "actions": [],
       "evidence": [],
@@ -95,12 +979,103 @@
       "register": null
     },
     {
-      "identifier": "op.exp",
-      "parent": "op",
+      "identifier": "op.acc.6.r2",
+      "parent": "op.acc.6",
       "order": 2,
-      "kind": "group",
-      "title": "Explotación",
-      "officialText": "",
+      "kind": "requirement",
+      "title": "R2 · Contraseña + otro factor de autenticación",
+      "officialText": "– [op.acc.6.r2.1] Se requerirá un segundo factor tal como «algo que se tiene», es decir, un dispositivo, una contraseña de un solo uso (OTP, en inglés) como complemento a la contraseña de usuario, o «algo que se es».",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.acc.6.r3",
+      "parent": "op.acc.6",
+      "order": 3,
+      "kind": "requirement",
+      "title": "R3 · Certificados",
+      "officialText": "– [op.acc.6.r3.1] Se emplearán certificados cualificados como mecanismo de autenticación.\n– [op.acc.6.r3.2] El uso del certificado estará protegido por un segundo factor, del tipo PIN o biométrico.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.acc.6.r4",
+      "parent": "op.acc.6",
+      "order": 4,
+      "kind": "requirement",
+      "title": "R4 · Certificados en dispositivo físico",
+      "officialText": "– [op.acc.6.r4.1] Se emplearán certificados cualificados como mecanismo de autenticación, en soporte físico (tarjeta o similar) usando algoritmos, parámetros y dispositivos autorizados por el CCN.\n– [op.acc.6.r4.2] El uso del certificado estará protegido por un segundo factor, del tipo PIN o biométrico.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.acc.6.r5",
+      "parent": "op.acc.6",
+      "order": 5,
+      "kind": "requirement",
+      "title": "R5 · Registro",
+      "officialText": "– [op.acc.6.r5.1] Se registrarán los accesos con éxito y los fallidos.\n– [op.acc.6.r5.2] Se informará al usuario del último acceso efectuado con su identidad.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.acc.6.r6",
+      "parent": "op.acc.6",
+      "order": 6,
+      "kind": "requirement",
+      "title": "R6 · Limitación de la ventana de acceso",
+      "officialText": "– [op.acc.6.r6.1] Se definirán aquellos puntos en los que el sistema requerirá una renovación de la autenticación del usuario, mediante identificación singular, no bastando con la sesión establecida.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.acc.6.r7",
+      "parent": "op.acc.6",
+      "order": 7,
+      "kind": "requirement",
+      "title": "R7 · Suspensión por no utilización",
+      "officialText": "– [op.acc.6.r7.1] Las credenciales se suspenderán tras un periodo definido de no utilización.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.acc.6.r8",
+      "parent": "op.acc.6",
+      "order": 8,
+      "kind": "requirement",
+      "title": "R8 · Doble factor para acceso desde o a través de zonas no controladas",
+      "officialText": "Se denomina «zona controlada» aquella que no es de acceso público, requiriéndose que el usuario, antes de tener acceso al equipo, se haya autenticado previamente de alguna forma (control de acceso a las instalaciones), diferente del mecanismo de autenticación lógica frente al sistema. Un ejemplo de zona no controlada es Internet.\n– [op.acc.6.r8.1] Para el acceso desde o a través de zonas no controladas se requerirá un doble factor de autenticación: R2, R3 o R4.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.acc.6.r9",
+      "parent": "op.acc.6",
+      "order": 9,
+      "kind": "requirement",
+      "title": "R9 · Acceso remoto (todos los niveles)",
+      "officialText": "– [op.acc.6.r9.1] Será de aplicación la ITS de Interconexión de sistemas de información.\n– [op.acc.6.r9.2] El acceso remoto deberá considerar los siguientes aspectos:\na) Ser autorizado por la autoridad correspondiente.\nb) El tráfico deberá ser cifrado.\nc) Si la utilización no se produce de manera constante, el acceso remoto deberá encontrarse inhabilitado y habilitarse únicamente cuando sea necesario.\nd) Deberán recogerse registros de auditoría de este tipo de conexiones.",
       "description": "",
       "actions": [],
       "evidence": [],
@@ -113,7 +1088,74 @@
       "order": 1,
       "kind": "requirement",
       "title": "Inventario de activos",
-      "officialText": "",
+      "officialText": "[op.exp.1.1] Se mantendrá un inventario actualizado de todos los elementos del sistema, detallando su naturaleza e identificando a su responsable; es decir, la persona que toma las decisiones relativas al mismo.",
+      "description": "Mantener un inventario actualizado de los elementos del sistema.",
+      "actions": [
+        "Inventariar equipos, servicios y software",
+        "Actualizarlo ante cambios"
+      ],
+      "evidence": [
+        "Inventario de activos",
+        "Registro de actualizaciones"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "aplica",
+          "high": "aplica"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "op.exp.1.r1",
+      "parent": "op.exp.1",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Inventario de etiquetado",
+      "officialText": "– [op.exp.1.r1.1] El etiquetado del equipamiento y del cableado formará parte del inventario.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.exp.1.r2",
+      "parent": "op.exp.1",
+      "order": 2,
+      "kind": "requirement",
+      "title": "R2 · Identificación periódica de activos",
+      "officialText": "– [op.exp.1.r2.1] Se dispondrá de herramientas que permitan visualizar de forma continua el estado de todos los equipos en la red, en particular, los servidores y los dispositivos de red y de comunicaciones.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.exp.1.r3",
+      "parent": "op.exp.1",
+      "order": 3,
+      "kind": "requirement",
+      "title": "R3 · Identificación de activos críticos",
+      "officialText": "– [op.exp.1.r3.1] Se dispondrá de herramientas que permitan categorizar los activos críticos por contexto de la organización y riesgos de seguridad.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.exp.1.r4",
+      "parent": "op.exp.1",
+      "order": 4,
+      "kind": "requirement",
+      "title": "R4 · Lista de componentes software",
+      "officialText": "– [op.exp.1.r4.1] Se mantendrá actualizada una relación formal de los componentes software de terceros empleados en el despliegue del sistema. Esta lista incluirá librerías software y los servicios requeridos para su despliegue (plataforma o entorno operacional). El contenido de la lista de componentes será equivalente a lo requerido en [mp.sw.1.r5].",
       "description": "",
       "actions": [],
       "evidence": [],
@@ -126,12 +1168,26 @@
       "order": 2,
       "kind": "requirement",
       "title": "Configuración de seguridad",
-      "officialText": "",
-      "description": "",
-      "actions": [],
-      "evidence": [],
+      "officialText": "Se configurarán los equipos previamente a su entrada en operación, de forma que:\n– [op.exp.2.1] Se retiren cuentas y contraseñas estándar.\n– [op.exp.2.2] Se aplicará la regla de «mínima funcionalidad», es decir:\na) El sistema debe proporcionar la funcionalidad mínima imprescindible para que la organización alcance sus objetivos.\nb) No proporcionará funciones injustificadas (de operación, administración o auditoría) al objeto de reducir al mínimo su perímetro de exposición, eliminándose o desactivándose aquellas funciones que sean innecesarias o inadecuadas al fin que se persigue.\n– [op.exp.2.3] Se aplicará la regla de «seguridad por defecto», es decir:\na) Las medidas de seguridad serán respetuosas con el usuario y protegerán a éste, salvo que se exponga conscientemente a un riesgo.\nb) Para reducir la seguridad, el usuario tendrá que realizar acciones conscientes.\nc) El uso natural, en los casos que el usuario no ha consultado el manual, será un uso seguro.\n– [op.exp.2.4] Las máquinas virtuales estarán configuradas y gestionadas de un modo seguro. La gestión del parcheado, cuentas de usuarios, software antivirus, etc. se realizará como si se tratara de máquinas físicas, incluyendo la máquina anfitriona.",
+      "description": "Configurar los sistemas de forma segura, retirando lo que no se necesita.",
+      "actions": [
+        "Definir configuraciones base seguras",
+        "Aplicarlas"
+      ],
+      "evidence": [
+        "Guías de bastionado",
+        "Informes de configuración"
+      ],
       "source": "Real Decreto 311/2022, anexo II",
-      "register": null
+      "register": null,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "aplica",
+          "high": "aplica"
+        },
+        "dimensions": "Categoría"
+      }
     },
     {
       "identifier": "op.exp.3",
@@ -139,7 +1195,87 @@
       "order": 3,
       "kind": "requirement",
       "title": "Gestión de la configuración de seguridad",
-      "officialText": "",
+      "officialText": "Se gestionará de forma continua la configuración de los componentes del sistema, de forma que:\n– [op.exp.3.1] Se mantenga en todo momento la regla de \"funcionalidad mínima\" ([op.exp.2]).\n– [op.exp.3.2] Se mantenga en todo momento la regla de \"mínimo privilegio\" ([op.exp.2]).\n– [op.exp.3.3] El sistema se adapte a las nuevas necesidades, previamente autorizadas. (Ver [op.acc.4]).\n– [op.exp.3.4] El sistema reaccione a vulnerabilidades notificadas. (Ver [op.exp.4]).\n– [op.exp.3.5] El sistema reaccione a incidentes. (Ver [op.exp.7]).\n– [op.exp.3.6] La configuración de seguridad solamente podrá editarse por personal debidamente autorizado.",
+      "description": "Gestionar y controlar los cambios de configuración de seguridad.",
+      "actions": [
+        "Gestionar la configuración de forma centralizada",
+        "Registrar los cambios"
+      ],
+      "evidence": [
+        "Gestión de la configuración",
+        "Registro de cambios"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "+ R1",
+          "high": "+ R1 + R2 + R3"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "op.exp.3.r1",
+      "parent": "op.exp.3",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Mantenimiento regular de la configuración",
+      "officialText": "– [op.exp.3.r1.1] Existirán configuraciones hardware/software, autorizadas y mantenidas regularmente, para los servidores, elementos de red y estaciones de trabajo.\n– [op.exp.3.r1.2] Se verificará periódicamente la configuración hardware/software del sistema para asegurar que no se han introducido ni instalado elementos no autorizados.\n– [op.exp.3.r1.3] Se mantendrá una lista de servicios autorizados para servidores y estaciones de trabajo.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.exp.3.r2",
+      "parent": "op.exp.3",
+      "order": 2,
+      "kind": "requirement",
+      "title": "R2 · Responsabilidad de la configuración",
+      "officialText": "– [op.exp.3.r2.1] La configuración de seguridad del sistema operativo y aplicaciones, tanto de estaciones y servidores como de la electrónica de red del sistema, será responsabilidad de un número muy limitado de administradores del sistema.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.exp.3.r3",
+      "parent": "op.exp.3",
+      "order": 3,
+      "kind": "requirement",
+      "title": "R3 · Copias de seguridad",
+      "officialText": "– [op.exp.3.r3.1] Se realizarán copias de seguridad de la configuración del sistema de forma que sea posible reconstruirlo en parte o en su totalidad tras un incidente.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.exp.3.r4",
+      "parent": "op.exp.3",
+      "order": 4,
+      "kind": "requirement",
+      "title": "R4 · Aplicación de la configuración",
+      "officialText": "– [op.exp.3.r4.1] La configuración de seguridad del sistema operativo y de las aplicaciones se mantendrá actualizada a través de una aplicación o procedimiento manual que permita la instalación de las correspondientes modificaciones de versión y actualizaciones de seguridad oportunas.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.exp.3.r5",
+      "parent": "op.exp.3",
+      "order": 5,
+      "kind": "requirement",
+      "title": "R5 · Control del estado de seguridad de la Configuración",
+      "officialText": "– [op.exp.3.r5.1] Se dispondrá de herramientas que permitan conocer de forma periódica el estado de seguridad de la configuración de los dispositivos de red y, en el caso de que resulte deficiente, permitir su corrección.",
       "description": "",
       "actions": [],
       "evidence": [],
@@ -152,46 +1288,1596 @@
       "order": 4,
       "kind": "requirement",
       "title": "Mantenimiento y actualizaciones de seguridad",
-      "officialText": "",
+      "officialText": "Para mantener el equipamiento físico y lógico que constituye el sistema, se aplicará lo siguiente:\n– [op.exp.4.1] Se atenderá a las especificaciones de los fabricantes en lo relativo a instalación y mantenimiento de los sistemas, lo que incluirá un seguimiento continuo de los anuncios de defectos.\n– [op.exp.4.2] Se dispondrá de un procedimiento para analizar, priorizar y determinar cuándo aplicar las actualizaciones de seguridad, parches, mejoras y nuevas versiones. La priorización tendrá en cuenta la variación del riesgo en función de la implantación o no de la actualización.\n– [op.exp.4.3] El mantenimiento solo podrá realizarse por personal debidamente autorizado.",
+      "description": "Mantener el sistema actualizado: seguir los avisos de fabricantes y aplicar parches con criterio.",
+      "actions": [
+        "Seguir los anuncios de fabricantes",
+        "Priorizar y aplicar actualizaciones"
+      ],
+      "evidence": [
+        "Procedimiento de parcheo",
+        "Registro de parches"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "+ R1",
+          "high": "+ R1 + R2"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "op.exp.4.r1",
+      "parent": "op.exp.4",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Pruebas en preproducción",
+      "officialText": "[op.exp.4.r1.1] Antes de poner en producción una nueva versión o una versión parcheada, se comprobará en un entorno de prueba controlado y consistente en configuración al entorno de producción, que la nueva instalación funciona correctamente y no disminuye la eficacia de las funciones necesarias para el trabajo diario.",
       "description": "",
       "actions": [],
       "evidence": [],
       "source": "Real Decreto 311/2022, anexo II",
       "register": null
+    },
+    {
+      "identifier": "op.exp.4.r2",
+      "parent": "op.exp.4",
+      "order": 2,
+      "kind": "requirement",
+      "title": "R2 · Prevención de fallos",
+      "officialText": "[op.exp.4.r2.1] Antes de la aplicación de las configuraciones, parches y actualizaciones de seguridad se preverá un mecanismo para revertirlos en caso de aparición de efectos adversos.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.exp.4.r3",
+      "parent": "op.exp.4",
+      "order": 3,
+      "kind": "requirement",
+      "title": "R3 · Actualizaciones y pruebas periódicas",
+      "officialText": "[op.exp.4.r3.1] Se deberá comprobar de forma periódica la integridad del firmware utilizado en los dispositivos hardware del sistema (infraestructura de red, BIOS, etc.). La periodicidad de estas comprobaciones seguirá las recomendaciones de la Guía CCN-STIC que sea de aplicación.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.exp.4.r4",
+      "parent": "op.exp.4",
+      "order": 4,
+      "kind": "requirement",
+      "title": "R4 · Monitorización continua",
+      "officialText": "[op.exp.4.r4.1] Se desplegará a nivel de sistema una estrategia de monitorización continua de amenazas y vulnerabilidades. Esta estrategia detallará:\n1. Los indicadores críticos de seguridad a emplear.\n2. La política de aplicación de parches de seguridad de los componentes software relacionados en las listas de [op.exp.1.r4], [op.ext.3.r3] y [mp.sw.1.r5]).\n3. Los criterios de revisión regular y excepcional de las amenazas sobre el sistema.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.exp.5",
+      "parent": "op.exp",
+      "order": 5,
+      "kind": "requirement",
+      "title": "Gestión de cambios",
+      "officialText": "Se mantendrá un control continuo de los cambios realizados en el sistema, de forma que:\n– [op.exp.5.1] Los cambios se planificarán para reducir el impacto sobre la prestación de los servicios afectados. Para ello, todas las peticiones de cambio se registrarán asignando un número de referencia que permita su seguimiento, de forma equivalente al registro de los incidentes.\n– [op.exp.5.2] La información a registrar para cada petición de cambio será suficiente para que quien deba autorizarlos no tenga dudas al respecto y permita gestionarlo hasta su desestimación o implementación.\n– [op.exp.5.3] Las pruebas de preproducción, siempre que sea posible realizarlas, se efectuarán en equipos equivalentes a los de producción, al menos en los aspectos específicos del cambio.\n– [op.exp.5.4] Mediante un análisis de riesgos se determinará si los cambios son relevantes para la seguridad del sistema. Aquellos cambios que impliquen un riesgo de nivel ALTO deberán ser aprobados, explícitamente, de forma previa a su implantación, por el Responsable de la Seguridad.\n– [op.exp.5.5] Una vez implementado el cambio, se realizarán las pruebas de aceptación convenientes. Si son positivas, se actualizará la documentación de configuración (diagramas de red, manuales, el inventario, etc.), siempre que proceda.",
+      "description": "Controlar los cambios en el sistema, evaluando su efecto en la seguridad antes de aplicarlos.",
+      "actions": [
+        "Definir el proceso de cambios",
+        "Evaluar y aprobar cada cambio"
+      ],
+      "evidence": [
+        "Procedimiento de cambios",
+        "Registro de cambios"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "n.a.",
+          "medium": "aplica",
+          "high": "+ R1"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "op.exp.5.r1",
+      "parent": "op.exp.5",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Prevención de fallos",
+      "officialText": "– [op.exp.5.r1.1] Antes de la aplicación de los cambios, se deberá tener en cuenta la posibilidad de revertirlos en caso de la aparición de efectos adversos.\n– [op.exp.5.r1.2] Todos los fallos en el software y hardware deberán ser comunicados al responsable designado en la organización de la seguridad.\n– [op.exp.5.r1.3] Todos los cambios en el sistema deberán documentarse, incluyendo una valoración del impacto que dicho cambio supone en la seguridad del sistema.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.exp.6",
+      "parent": "op.exp",
+      "order": 6,
+      "kind": "requirement",
+      "title": "Protección frente a código dañino",
+      "officialText": "– [op.exp.6.1] Se dispondrá de mecanismos de prevención y reacción frente a código dañino, incluyendo el correspondiente mantenimiento de acuerdo a las recomendaciones del fabricante.\n– [op.exp.6.2] Se instalará software de protección frente a código dañino en todos los equipos: puestos de usuario, servidores y elementos perimetrales.\n– [op.exp.6.3] Todo fichero procedente de fuentes externas será analizado antes de trabajar con él.\n– [op.exp.6.4] Las bases de datos de detección de código dañino permanecerán permanentemente actualizadas.\n– [op.exp.6.5] El software de detección de código dañino instalado en los puestos de usuario deberá estar configurado de forma adecuada e implementará protección en tiempo real de acuerdo a las recomendaciones del fabricante.",
+      "description": "Proteger los equipos frente a código dañino y mantener la protección actualizada.",
+      "actions": [
+        "Desplegar protección en todos los equipos",
+        "Mantenerla al día"
+      ],
+      "evidence": [
+        "Inventario de protección",
+        "Informes de actualización"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "+ R1 + R2",
+          "high": "+ R1 + R2 + R3 + R4"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "op.exp.6.r1",
+      "parent": "op.exp.6",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Escaneo periódico",
+      "officialText": "– [op.exp.6.r1.1] Todo el sistema se escaneará regularmente para detectar código dañino.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.exp.6.r2",
+      "parent": "op.exp.6",
+      "order": 2,
+      "kind": "requirement",
+      "title": "R2 · Revisión preventiva del sistema",
+      "officialText": "– [op.exp.6.r2.1] Las funciones críticas se analizarán al arrancar el sistema en prevención de modificaciones no autorizadas.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.exp.6.r3",
+      "parent": "op.exp.6",
+      "order": 3,
+      "kind": "requirement",
+      "title": "R3 · Lista blanca",
+      "officialText": "– [op.exp.6.r3.1] Solamente se podrán ejecutar aquellas aplicaciones previamente autorizadas. Se implementará una lista blanca para impedir la ejecución de aplicaciones no autorizadas.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.exp.6.r4",
+      "parent": "op.exp.6",
+      "order": 4,
+      "kind": "requirement",
+      "title": "R4 · Capacidad de respuesta en caso de incidente",
+      "officialText": "– [op.exp.6.r4.1] Se emplearán herramientas de seguridad orientadas a detectar, investigar y resolver actividades sospechosas en puestos de usuario y servidores (EDR - Endpoint Detection and Response).",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.exp.6.r5",
+      "parent": "op.exp.6",
+      "order": 5,
+      "kind": "requirement",
+      "title": "R5 · Configuración de la herramienta de detección de código dañino",
+      "officialText": "– [op.exp.6.r5.1] El software de detección de código dañino permitirá realizar configuraciones avanzadas y revisar el sistema en el arranque y cada vez que se conecte un dispositivo extraíble.\n– [op.exp.6.r5.2] El software de detección de código dañino instalado en servidores y elementos perimetrales deberá estar configurado de forma adecuada e implementará protección en tiempo real de acuerdo a las recomendaciones del fabricante.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.exp.7",
+      "parent": "op.exp",
+      "order": 7,
+      "kind": "requirement",
+      "title": "Gestión de incidentes",
+      "officialText": "– [op.exp.7.1] Se dispondrá de un proceso integral para hacer frente a los incidentes que puedan tener un impacto en la seguridad del sistema, que incluya el informe de eventos de seguridad y debilidades, detallando los criterios de clasificación y el escalado de la notificación.\n– [op.exp.7.2] La gestión de incidentes que afecten a datos personales tendrá en cuenta lo dispuesto en el Reglamento General de Protección de Datos; la Ley Orgánica 3/2018, de 5 de diciembre, en especial su disposición adicional primera, así como el resto de normativa de aplicación, sin perjuicio de los requisitos establecidos en este real decreto.",
+      "description": "Tener un proceso de gestión de incidentes con detección, clasificación, respuesta y cierre.",
+      "actions": [
+        "Definir el proceso y los roles",
+        "Registrar y analizar los incidentes"
+      ],
+      "evidence": [
+        "Procedimiento de incidentes",
+        "Registro de incidentes"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "+ R1 + R2",
+          "high": "+ R1 + R2 + R3"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "op.exp.7.r1",
+      "parent": "op.exp.7",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Notificación",
+      "officialText": "– [op.exp.7.r1.1] Se dispondrá de soluciones de ventanilla única para la notificación de incidentes al CCN-CERT, que permita la distribución de notificaciones a las diferentes entidades de manera federada, utilizando para ello dependencias administrativas jerárquicas.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.exp.7.r2",
+      "parent": "op.exp.7",
+      "order": 2,
+      "kind": "requirement",
+      "title": "R2 · Detección y Respuesta",
+      "officialText": "El proceso integral para hacer frente a los incidentes que puedan tener un impacto en la seguridad del sistema ([op.exp.7.1]) deberá incluir:\n– [op.exp.7.r2.1] Implantación de medidas urgentes, incluyendo la detención de servicios, el aislamiento del sistema afectado, la recogida de evidencias y protección de los registros, según convenga al caso.\n– [op.exp.7.r2.2] Asignación de recursos para investigar las causas, analizar las consecuencias y resolver el incidente.\n– [op.exp.7.r2.3] Informar del incidente a los responsables de la información y servicios afectados y de las actuaciones llevadas a cabo para su resolución.\n– [op.exp.7.r2.4] Medidas para:\na) Prevenir que se repita el incidente.\nb) Incluir en los procedimientos de usuario la identificación y forma de tratar el incidente.\nc) Actualizar, extender, mejorar u optimizar los procedimientos de resolución de incidentes.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.exp.7.r3",
+      "parent": "op.exp.7",
+      "order": 3,
+      "kind": "requirement",
+      "title": "R3 · Reconfiguración dinámica",
+      "officialText": "La reconfiguración dinámica del sistema persigue detener, desviar o limitar ataques, acotando los daños.\n– [op.exp.7.r3.1] La reconfiguración dinámica incluye, por ejemplo, cambios en las reglas de los enrutadores (routers), listas de control de acceso, parámetros del sistema de detección / prevención de intrusiones y reglas en los cortafuegos y puertas de enlace, aislamiento de elementos críticos y aislamiento de las copias de seguridad.\n– [op.exp.7.r3.2] El organismo adaptará los procedimientos de reconfiguración dinámica reaccionando a los anuncios recibidos del CCN-CERT relativos a ciberamenazas sofisticadas y campañas de ataques.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.exp.7.r4",
+      "parent": "op.exp.7",
+      "order": 4,
+      "kind": "requirement",
+      "title": "R4 · Prevención y Respuesta Automática",
+      "officialText": "– [op.exp.7.r4.1] Se dispondrá de herramientas que automaticen el proceso de prevención y respuesta mediante la detección e identificación de anomalías, la segmentación dinámica de la red para reducir la superficie de ataque, el aislamiento de dispositivos críticos, etc.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.exp.8",
+      "parent": "op.exp",
+      "order": 8,
+      "kind": "requirement",
+      "title": "Registro de la actividad",
+      "officialText": "Se registrarán las actividades en el sistema, de forma que:\n– [op.exp.8.1] Se generará un registro de auditoría, que incluirá, al menos, el identificador del usuario o entidad asociado al evento, fecha y hora, sobre qué información se realiza el evento, tipo de evento y el resultado del evento (fallo o éxito), según la política de seguridad y los procedimientos asociados a la misma.\n– [op.exp.8.2] Se activarán los registros de actividad en los servidores.",
+      "description": "Registrar la actividad de los usuarios y del sistema para poder investigar.",
+      "actions": [
+        "Definir qué se registra",
+        "Proteger los registros"
+      ],
+      "evidence": [
+        "Política de registros",
+        "Configuración de logs"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "+ R1 + R2 + R3 + R4",
+          "high": "+ R1 + R2 + R3 + R4 + R5"
+        },
+        "dimensions": "T"
+      }
+    },
+    {
+      "identifier": "op.exp.8.r1",
+      "parent": "op.exp.8",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Revisión de los registros",
+      "officialText": "– [op.exp.8.r1.1] Se revisarán informalmente, de forma periódica, los registros de actividad, buscando patrones anormales.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.exp.8.r2",
+      "parent": "op.exp.8",
+      "order": 2,
+      "kind": "requirement",
+      "title": "R2 · Sincronización del reloj del sistema",
+      "officialText": "– [op.exp.8.r2.1] El sistema deberá disponer de una referencia de tiempo (timestamp) para facilitar las funciones de registro de eventos y auditoría. La modificación de la referencia de tiempo del sistema será una función de administración y, en caso de realizarse su sincronización con otros dispositivos, deberán utilizarse mecanismos de autenticación e integridad.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.exp.8.r3",
+      "parent": "op.exp.8",
+      "order": 3,
+      "kind": "requirement",
+      "title": "R3 · Retención de registros",
+      "officialText": "– [op.exp.8.r3.1] En la documentación de seguridad del sistema se deberán indicar los eventos de seguridad que serán auditados y el tiempo de retención de los registros antes de ser eliminados.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.exp.8.r4",
+      "parent": "op.exp.8",
+      "order": 4,
+      "kind": "requirement",
+      "title": "R4 · Control de acceso",
+      "officialText": "– [op.exp.8.r4.1] Los registros de actividad y, en su caso, las copias de seguridad de los mismos, solamente podrán ser accedidos o eliminarse por personal debidamente autorizado.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.exp.8.r5",
+      "parent": "op.exp.8",
+      "order": 5,
+      "kind": "requirement",
+      "title": "R5 · Revisión automática y correlación de eventos",
+      "officialText": "– [op.exp.8.r5.1] El sistema deberá implementar herramientas para analizar y revisar la actividad del sistema y la información de auditoría, en búsqueda de comprometimientos de la seguridad posibles o reales.\n– [op.exp.8.r5.2] Se dispondrá de un sistema automático de recolección de registros, correlación de eventos y respuesta automática ante los mismos.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.exp.9",
+      "parent": "op.exp",
+      "order": 9,
+      "kind": "requirement",
+      "title": "Registro de la gestión de incidentes",
+      "officialText": "Se registrarán todas las actuaciones relacionadas con la gestión de incidentes, de forma que:\n– [op.exp.9.1] Se registrarán los reportes iniciales, intermedios y finales de los incidentes, las actuaciones de emergencia y las modificaciones del sistema derivadas del incidente.\n– [op.exp.9.2] Se registrará aquella evidencia que pueda dirimirse en un ámbito jurisdiccional, especialmente cuando el incidente pueda comportar acciones disciplinarias sobre el personal interno, sobre proveedores externos o en la persecución de delitos. En la determinación de la composición y detalle de estas evidencias, se recurrirá a asesoramiento legal especializado.\n– [op.exp.9.3] Como consecuencia del análisis de los incidentes, se revisará la determinación de los eventos auditables.",
+      "description": "Registrar cómo se gestiona cada incidente: causas, acciones y resultado.",
+      "actions": [
+        "Documentar cada incidente",
+        "Analizar causas"
+      ],
+      "evidence": [
+        "Informes de incidentes",
+        "Lecciones aprendidas"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "aplica",
+          "high": "aplica"
+        },
+        "dimensions": "Categoría"
+      }
     },
     {
       "identifier": "op.exp.10",
       "parent": "op.exp",
-      "order": 5,
+      "order": 10,
       "kind": "requirement",
       "title": "Protección de claves criptográficas",
-      "officialText": "",
-      "description": "",
-      "actions": [],
-      "evidence": [],
+      "officialText": "– [op.exp.10.1] Las claves criptográficas se protegerán durante todo su ciclo de vida: (1) generación, (2) transporte al punto de explotación, (3) custodia durante la explotación, (4) archivo posterior a su retirada de explotación activa y (5) destrucción final.\n– [op.exp.10.2] Los medios de generación estarán aislados de los medios de explotación.\n– [op.exp.10.3] Las claves retiradas de operación que deban ser archivadas, lo serán en medios aislados de los de explotación.",
+      "description": "Proteger las claves criptográficas durante todo su ciclo de vida.",
+      "actions": [
+        "Gestionar generación, custodia y destrucción",
+        "Limitar el acceso"
+      ],
+      "evidence": [
+        "Procedimiento de claves",
+        "Registros de gestión"
+      ],
       "source": "Real Decreto 311/2022, anexo II",
-      "register": null
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "+ R1",
+          "high": "+ R1"
+        },
+        "dimensions": "Categoría"
+      }
     },
     {
-      "identifier": "mp",
-      "parent": null,
-      "order": 2,
-      "kind": "group",
-      "title": "Medidas de protección",
-      "officialText": "",
-      "description": "",
-      "actions": [],
-      "evidence": [],
-      "source": "Real Decreto 311/2022, anexo II",
-      "register": null
-    },
-    {
-      "identifier": "mp.com",
-      "parent": "mp",
+      "identifier": "op.exp.10.r1",
+      "parent": "op.exp.10",
       "order": 1,
-      "kind": "group",
-      "title": "Protección de las comunicaciones",
-      "officialText": "",
+      "kind": "requirement",
+      "title": "R1 · Algoritmos autorizados",
+      "officialText": "– [op.exp.10.r1.1] Se emplearán algoritmos y parámetros autorizados por el CCN.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.exp.10.r2",
+      "parent": "op.exp.10",
+      "order": 2,
+      "kind": "requirement",
+      "title": "R2 · Protección avanzada de claves criptográficas",
+      "officialText": "– [op.exp.10.r2.1] Se emplearán cifradores que cumplan con los requisitos establecidos en la guía CCN-STIC que sea de aplicación.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.ext.1",
+      "parent": "op.ext",
+      "order": 1,
+      "kind": "requirement",
+      "title": "Contratación y acuerdos de nivel de servicio",
+      "officialText": "– [op.ext.1.1] Con anterioridad a la efectiva utilización de los recursos externos se establecerá contractualmente un Acuerdo de Nivel de Servicio, que incluirá las características del servicio prestado, lo que debe entenderse como «servicio mínimo admisible», así como, la responsabilidad del prestador y las consecuencias de eventuales incumplimientos.",
+      "description": "Fijar por contrato los niveles de servicio y las responsabilidades de seguridad de los proveedores.",
+      "actions": [
+        "Incluir niveles de servicio y requisitos",
+        "Acordar responsabilidades"
+      ],
+      "evidence": [
+        "Contratos y SLA",
+        "Anexos de seguridad"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "metadata": {
+        "categories": {
+          "basic": "n.a.",
+          "medium": "aplica",
+          "high": "aplica"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "op.ext.2",
+      "parent": "op.ext",
+      "order": 2,
+      "kind": "requirement",
+      "title": "Gestión diaria",
+      "officialText": "Se establecerá lo siguiente:\n– [op.ext.2.1] Un sistema rutinario para medir el cumplimiento de las obligaciones de servicio, incluyendo el procedimiento para neutralizar cualquier desviación fuera del margen de tolerancia acordado ([op.ext.1]).\n– [op.ext.2.2] El mecanismo y los procedimientos de coordinación para llevar a cabo las tareas de mantenimiento de los sistemas comprendidos en el acuerdo, que contemplarán los supuestos de incidentes y desastres (ver [op.exp.7]).",
+      "description": "Gestionar a diario los servicios externos: supervisar su cumplimiento y sus incidentes.",
+      "actions": [
+        "Supervisar el servicio",
+        "Gestionar incidencias con el proveedor"
+      ],
+      "evidence": [
+        "Informes de seguimiento",
+        "Actas"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "metadata": {
+        "categories": {
+          "basic": "n.a.",
+          "medium": "aplica",
+          "high": "aplica"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "op.ext.3",
+      "parent": "op.ext",
+      "order": 3,
+      "kind": "requirement",
+      "title": "Protección de la cadena de suministro",
+      "officialText": "aplica\n– [op.ext.3.1] Se analizará el impacto que puede tener sobre el sistema un incidente accidental o deliberado que tenga su origen en la cadena de suministro.\n– [op.ext.3.2] Se estimará el riesgo sobre el sistema por causa del impacto estimado en el punto anterior.\n– [op.ext.3.3] Se tomarán medidas de contención de los impactos estimados en los puntos anteriores.",
+      "description": "Proteger la cadena de suministro: evaluar a los proveedores y los riesgos que introducen.",
+      "actions": [
+        "Evaluar a los proveedores críticos",
+        "Exigir requisitos a lo largo de la cadena"
+      ],
+      "evidence": [
+        "Evaluaciones de proveedores",
+        "Requisitos exigidos"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "n.a.",
+          "medium": "n.a.",
+          "high": "aplica"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "op.ext.3.r1",
+      "parent": "op.ext.3",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Plan de contingencia",
+      "officialText": "– [op.ext.3.r1.1] El plan de continuidad de la organización deberá tener en cuenta la dependencia de proveedores externos críticos.\n– [op.ext.3.r1.2] Se deberán realizar pruebas o ejercicios de continuidad, incluyendo escenarios en los que falla un proveedor.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.ext.3.r2",
+      "parent": "op.ext.3",
+      "order": 2,
+      "kind": "requirement",
+      "title": "R2 · Sistema de gestión de la seguridad",
+      "officialText": "– [op.ext.3.r2.1] Se implementará un sistema de protección de los procesos y flujos de información en las relaciones en línea (online) entre los distintos integrantes de la cadena de suministro.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.ext.3.r3",
+      "parent": "op.ext.3",
+      "order": 3,
+      "kind": "requirement",
+      "title": "R3 · Lista de componentes software",
+      "officialText": "– [op.ext.3.r3.1] Se mantendrá actualizado un registro formal que contenga los detalles y las relaciones de la cadena de suministro de los diversos componentes utilizados en la construcción de programas informáticos, acorde a lo especificado en [mp.sw.1.r5]. Esta lista será proporcionada por el proveedor de la aplicación, librería o producto suministrado.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.ext.4",
+      "parent": "op.ext",
+      "order": 4,
+      "kind": "requirement",
+      "title": "Interconexión de sistemas",
+      "officialText": "Se denomina interconexión al establecimiento de enlaces con otros sistemas de información para el intercambio de información y servicios.\n– [op.ext.4.1] Todos los intercambios de información y prestación de servicios con otros sistemas deberán ser objeto de una autorización previa. Todo flujo de información estará prohibido salvo autorización expresa.\n– [op.ext.4.2] Para cada interconexión se documentará explícitamente: las características de la interfaz, los requisitos de seguridad y protección de datos y la naturaleza de la información intercambiada.",
+      "description": "Controlar la interconexión con otros sistemas y proteger sus puntos de unión.",
+      "actions": [
+        "Autorizar cada interconexión",
+        "Controlar y registrar el tráfico"
+      ],
+      "evidence": [
+        "Registro de interconexiones",
+        "Reglas de filtrado"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "n.a.",
+          "medium": "aplica",
+          "high": "+ R1"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "op.ext.4.r1",
+      "parent": "op.ext.4",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Coordinación de actividades",
+      "officialText": "– [op.ext.4.r1.1] Cuando se interconecten sistemas en los que la identificación, autenticación y autorización tengan lugar en diferentes dominios de seguridad, bajo distintas responsabilidades, las medidas de seguridad locales se acompañarán de los correspondientes mecanismos y procedimientos de coordinación para la atribución y ejercicio efectivos de las responsabilidades de cada sistema.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.nub.1",
+      "parent": "op.nub",
+      "order": 1,
+      "kind": "requirement",
+      "title": "Protección de servicios en la nube",
+      "officialText": "– [op.nub.1.1] Los sistemas que suministran un servicio en la nube a organismos del sector público deberán cumplir con el conjunto de medidas de seguridad en función del modelo de servicio en la nube que presten: Software como Servicio (Software as a Service, SaaS), Plataforma como Servicio (Platform as a Service, PaaS) e Infraestructura como Servicio (Infrastructure as a Service, IaaS) definidas en las guías CCN-STIC que sean de aplicación.\n– [op.nub.1.2] Cuando se utilicen servicios en la nube suministrados por terceros, los sistemas de información que los soportan deberán ser conformes con el ENS o cumplir con las medidas desarrolladas en una guía CCN-STIC que incluirá, entre otros, requisitos relativos a:\na) Auditoría de pruebas de penetración (pentesting).\nb) Transparencia.\nc) Cifrado y gestión de claves.\nd) Jurisdicción de los datos.",
+      "description": "Proteger los servicios en la nube con los controles equivalentes a los internos.",
+      "actions": [
+        "Elegir proveedores con garantías",
+        "Repartir responsabilidades"
+      ],
+      "evidence": [
+        "Evaluación del proveedor cloud",
+        "Acuerdo de responsabilidades"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "+ R1",
+          "high": "+ R1 + R2"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "op.nub.1.r1",
+      "parent": "op.nub.1",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Servicios certificados",
+      "officialText": "– [op.nub.1.r1.1] Cuando se utilicen servicios en la nube suministrados por terceros, estos deberán estar certificados bajo una metodología de certificación reconocida por el Organismo de Certificación del Esquema Nacional de Evaluación y Certificación de Seguridad de las Tecnologías de la Información.\n– [op.nub.1.r1.2] Si el servicio en la nube es un servicio de seguridad deberá cumplir con los requisitos establecidos en [op.pl.5].",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.nub.1.r2",
+      "parent": "op.nub.1",
+      "order": 2,
+      "kind": "requirement",
+      "title": "R2 · Guías de Configuración de Seguridad Específicas",
+      "officialText": "– [op.nub.1.r2.1] La configuración de seguridad de los sistemas que proporcionan estos servicios deberá realizarse según la correspondiente guía CCN-STIC de Configuración de Seguridad Específica, orientadas tanto al usuario como al proveedor.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.cont.1",
+      "parent": "op.cont",
+      "order": 1,
+      "kind": "requirement",
+      "title": "Análisis de impacto",
+      "officialText": "– [op.cont.1.1] Se realizará un análisis de impacto que permita determinar los requisitos de disponibilidad de cada servicio (impacto de una interrupción durante un periodo de tiempo determinado), así como los elementos que son críticos para la prestación de cada servicio.",
+      "description": "Analizar el impacto de una interrupción para fijar qué hay que recuperar y en cuánto tiempo.",
+      "actions": [
+        "Identificar servicios críticos",
+        "Fijar tiempos de recuperación"
+      ],
+      "evidence": [
+        "Análisis de impacto",
+        "Objetivos de recuperación"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "metadata": {
+        "categories": {
+          "basic": "n.a.",
+          "medium": "aplica",
+          "high": "aplica"
+        },
+        "dimensions": "D"
+      }
+    },
+    {
+      "identifier": "op.cont.2",
+      "parent": "op.cont",
+      "order": 2,
+      "kind": "requirement",
+      "title": "Plan de continuidad",
+      "officialText": "Se desarrollará un plan de continuidad que establezca las acciones a ejecutar en caso de interrupción de los servicios prestados con los medios habituales. Dicho plan contemplará los siguientes aspectos:\n– [op.cont.2.1] Se identificarán funciones, responsabilidades y actividades a realizar.\n– [op.cont.2.2] Existirá una previsión para coordinar la entrada en servicio de los medios alternativos de forma que se garantice poder seguir prestando los servicios esenciales de la organización.\n– [op.cont.2.3] Todos los medios alternativos estarán planificados y materializados en acuerdos o contratos con los proveedores correspondientes.\n– [op.cont.2.4] Las personas afectadas por el plan recibirán formación específica relativa a su papel en dicho plan.\n– [op.cont.2.5] El plan de continuidad será parte integral y armónica de los planes de continuidad de la organización en otras materias ajenas a la seguridad.",
+      "description": "Tener un plan de continuidad que establezca cómo se recuperan los servicios.",
+      "actions": [
+        "Redactar el plan",
+        "Asignar responsables"
+      ],
+      "evidence": [
+        "Plan de continuidad",
+        "Roles asignados"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "n.a.",
+          "medium": "n.a.",
+          "high": "aplica"
+        },
+        "dimensions": "D"
+      }
+    },
+    {
+      "identifier": "op.cont.2.r1",
+      "parent": "op.cont.2",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Plan de emergencia y contingencia",
+      "officialText": "– [op.cont.2.r1.1] Cuando se determine la necesidad de continuidad de los sistemas, deberá existir un plan de emergencia y contingencia en consonancia. En función del análisis de Impacto, se determinarán los aspectos a cubrir.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.cont.2.r2",
+      "parent": "op.cont.2",
+      "order": 2,
+      "kind": "requirement",
+      "title": "R2 · Comprobación de integridad",
+      "officialText": "– [op.cont.2.r2.1] Ante una caída o discontinuidad del sistema, se deberá comprobar la integridad del sistema operativo, del firmware y de los ficheros de configuración.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.cont.3",
+      "parent": "op.cont",
+      "order": 3,
+      "kind": "requirement",
+      "title": "Pruebas periódicas",
+      "officialText": "– [op.cont.3.1] Se realizarán pruebas periódicas para localizar y, en su caso, corregir los errores o deficiencias que puedan existir en el plan de continuidad.",
+      "description": "Probar periódicamente el plan de continuidad.",
+      "actions": [
+        "Planificar las pruebas",
+        "Corregir lo que falle"
+      ],
+      "evidence": [
+        "Informes de pruebas",
+        "Acciones de mejora"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "metadata": {
+        "categories": {
+          "basic": "n.a.",
+          "medium": "n.a.",
+          "high": "aplica"
+        },
+        "dimensions": "D"
+      }
+    },
+    {
+      "identifier": "op.cont.4",
+      "parent": "op.cont",
+      "order": 4,
+      "kind": "requirement",
+      "title": "Medios alternativos",
+      "officialText": "– [op.cont.4.1] Estará prevista la disponibilidad de medios alternativos para poder seguir prestando servicio cuando los medios habituales no estén disponibles. En concreto, se cubrirán los siguientes elementos del sistema:\na) Servicios contratados a terceros.\nb) Instalaciones alternativas.\nc) Personal alternativo.\nd) Equipamiento informático alternativo.\ne) Medios de comunicación alternativos.\n– [op.cont.4.2] Se establecerá un tiempo máximo para que los medios alternativos entren en funcionamiento.\n– [op.cont.4.3] Los medios alternativos estarán sometidos a las mismas garantías de seguridad que los originales.",
+      "description": "Disponer de medios alternativos para mantener el servicio ante una interrupción.",
+      "actions": [
+        "Identificar medios alternativos",
+        "Mantenerlos disponibles"
+      ],
+      "evidence": [
+        "Descripción de medios alternativos",
+        "Contratos de respaldo"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "n.a.",
+          "medium": "n.a.",
+          "high": "aplica"
+        },
+        "dimensions": "D"
+      }
+    },
+    {
+      "identifier": "op.cont.4.r1",
+      "parent": "op.cont.4",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Automatización de la transición a medios alternativos",
+      "officialText": "– [op.cont.4.r1.1] El sistema dispondrá de elementos hardware o software que permitan la transferencia de los servicios automáticamente a los medios alternativos.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.mon.1",
+      "parent": "op.mon",
+      "order": 1,
+      "kind": "requirement",
+      "title": "Detección de intrusión",
+      "officialText": "– [op.mon.1.1] Se dispondrá de herramientas de detección o prevención de intrusiones.",
+      "description": "Detectar intrusiones y actividad anómala en el sistema.",
+      "actions": [
+        "Desplegar mecanismos de detección",
+        "Atender sus alertas"
+      ],
+      "evidence": [
+        "Descripción de la detección",
+        "Registro de alertas"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "+ R1",
+          "high": "+ R1 + R2"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "op.mon.1.r1",
+      "parent": "op.mon.1",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Detección basada en reglas",
+      "officialText": "– [op.mon.1.r1.1] El sistema dispondrá de herramientas de detección o prevención de intrusiones basadas en reglas.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.mon.1.r2",
+      "parent": "op.mon.1",
+      "order": 2,
+      "kind": "requirement",
+      "title": "R2 · Procedimientos de respuesta",
+      "officialText": "– [op.mon.1.r2.1] Existirán procedimientos de respuesta a las alertas generadas por el sistema de detección o prevención de intrusiones.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.mon.1.r3",
+      "parent": "op.mon.1",
+      "order": 3,
+      "kind": "requirement",
+      "title": "R3 · Acciones predeterminadas",
+      "officialText": "– [op.mon.1.r3.1] El sistema ejecutará automáticamente acciones predeterminadas de respuesta a las alertas generadas. Esto puede incluir la finalización del proceso que está ocasionando la alerta, la inhabilitación de determinados servicios, la desconexión de usuarios y el bloqueo de cuentas.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.mon.2",
+      "parent": "op.mon",
+      "order": 2,
+      "kind": "requirement",
+      "title": "Sistema de métricas",
+      "officialText": "– [op.mon.2.1] Atendiendo a la categoría de seguridad del sistema, se recopilarán los datos necesarios para conocer el grado de implantación de las medidas de seguridad que resulten aplicables y, en su caso, para proveer el informe anual requerido por el artículo 32.",
+      "description": "Medir el estado de la seguridad con métricas e indicadores.",
+      "actions": [
+        "Definir las métricas",
+        "Reportarlas a quien decide"
+      ],
+      "evidence": [
+        "Cuadro de indicadores",
+        "Informes periódicos"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "+ R1 + R2",
+          "high": "+ R1 + R2"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "op.mon.2.r1",
+      "parent": "op.mon.2",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Efectividad del sistema de gestión de incidentes",
+      "officialText": "– [op.mon.2.r1.1] Se recopilarán los datos precisos que posibiliten evaluar el comportamiento del sistema de gestión de incidentes, de acuerdo con la Instrucción Técnica de Seguridad de Notificación de Incidentes de Seguridad y con la correspondiente guía CCN-STIC.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.mon.2.r2",
+      "parent": "op.mon.2",
+      "order": 2,
+      "kind": "requirement",
+      "title": "R2 · Eficiencia del sistema de gestión de la seguridad",
+      "officialText": "– [op.mon.2.r2.1] Se recopilarán los datos precisos para conocer la eficiencia del sistema de seguridad, en relación con los recursos consumidos, en términos de horas y presupuesto.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.mon.3",
+      "parent": "op.mon",
+      "order": 3,
+      "kind": "requirement",
+      "title": "Vigilancia",
+      "officialText": "– [op.mon.3.1] Se dispondrá de un sistema automático de recolección de eventos de seguridad.",
+      "description": "Vigilar el entorno: amenazas nuevas, vulnerabilidades y avisos relevantes.",
+      "actions": [
+        "Seguir fuentes de vigilancia",
+        "Tomar medidas ante lo relevante"
+      ],
+      "evidence": [
+        "Fuentes de vigilancia",
+        "Registro de acciones"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "+ R1 + R2",
+          "high": "+ R1 + R2 + R3 + R4 + R5 + R6"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "op.mon.3.r1",
+      "parent": "op.mon.3",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Correlación de eventos",
+      "officialText": "– [op.mon.3.r1.1] Se dispondrá de un sistema automático de recolección de eventos de seguridad que permita la correlación de los mismos.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.mon.3.r2",
+      "parent": "op.mon.3",
+      "order": 2,
+      "kind": "requirement",
+      "title": "R2 · Análisis dinámico",
+      "officialText": "– [op.mon.3.r2.1] Se dispondrá de soluciones de vigilancia que permitan determinar la superficie de exposición con relación a vulnerabilidades y deficiencias de configuración.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.mon.3.r3",
+      "parent": "op.mon.3",
+      "order": 3,
+      "kind": "requirement",
+      "title": "R3 · Ciberamenazas avanzadas",
+      "officialText": "– [op.mon.3.r3.1] Se dispondrá de sistemas para detección de amenazas avanzadas y comportamientos anómalos.\n– [op.mon.3.r3.2] Se dispondrá de sistemas para la detección de amenazas persistentes avanzadas (Advanced Persistent Threat, APT) mediante la detección de anomalías significativas en el tráfico de la red.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.mon.3.r4",
+      "parent": "op.mon.3",
+      "order": 4,
+      "kind": "requirement",
+      "title": "R4 · Observatorios digitales",
+      "officialText": "– [op.mon.3.r4.1] Se dispondrá de observatorios digitales con fines de cibervigilancia dedicados a la detección y seguimiento de anomalías que pudieran representar indicadores de amenaza en contenidos digitales.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.mon.3.r5",
+      "parent": "op.mon.3",
+      "order": 5,
+      "kind": "requirement",
+      "title": "R5 · Minería de datos",
+      "officialText": "Se aplicarán medidas para prevenir, detectar y reaccionar frente a intentos de minería de datos:\n– [op.mon.3.r5.1] Limitación de las consultas, monitorizando volumen y frecuencia.\n– [op.mon.3.r5.2] Alerta a los administradores de seguridad de comportamientos sospechosos en tiempo real.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.mon.3.r6",
+      "parent": "op.mon.3",
+      "order": 6,
+      "kind": "requirement",
+      "title": "R6 · Inspecciones de seguridad",
+      "officialText": "Periódicamente, o tras incidentes que hayan desvelado vulnerabilidades del sistema nuevas o subestimadas, se realizarán las siguientes inspecciones:\n– [op.mon.3.r6.1] Verificación de configuración.\n– [op.mon.3.r6.2] Análisis de vulnerabilidades.\n– [op.mon.3.r6.3] Pruebas de penetración.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "op.mon.3.r7",
+      "parent": "op.mon.3",
+      "order": 7,
+      "kind": "requirement",
+      "title": "R7 · Interconexiones",
+      "officialText": "– [op.mon.3.r7.1] En las interconexiones que lo requieran se aplicarán controles en los flujos de intercambio de información a través del uso de metadatos.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.if.1",
+      "parent": "mp.if",
+      "order": 1,
+      "kind": "requirement",
+      "title": "Áreas separadas y con control de acceso",
+      "officialText": "– [mp.if.1.1] El equipamiento del Centro de Proceso de Datos (CPD) se instalará, en la medida de lo posible, en áreas separadas, específicas para su función.\n– [mp.if.1.2] Se controlarán los accesos a las áreas indicadas de forma que sólo se pueda acceder por las entradas previstas.",
+      "description": "Separar las áreas con información sensible y controlar quién accede a ellas.",
+      "actions": [
+        "Delimitar áreas seguras",
+        "Controlar los accesos"
+      ],
+      "evidence": [
+        "Plano de áreas",
+        "Control de acceso"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "aplica",
+          "high": "aplica"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "mp.if.2",
+      "parent": "mp.if",
+      "order": 2,
+      "kind": "requirement",
+      "title": "Identificación de las personas",
+      "officialText": "[mp.if.2.1] El procedimiento de control de acceso identificará a las personas que accedan a los locales donde hay equipamiento esencial que forme parte del sistema de información del CPD, registrando las correspondientes entradas y salidas.",
+      "description": "Identificar a quien accede a los locales y registrar sus entradas.",
+      "actions": [
+        "Identificar y registrar a las personas",
+        "Acompañar a las visitas"
+      ],
+      "evidence": [
+        "Registro de accesos",
+        "Procedimiento de visitas"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "aplica",
+          "high": "aplica"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "mp.if.3",
+      "parent": "mp.if",
+      "order": 3,
+      "kind": "requirement",
+      "title": "Acondicionamiento de los locales",
+      "officialText": "Los locales donde se ubiquen los sistemas de información y sus componentes esenciales dispondrán de elementos adecuados para el eficaz funcionamiento del equipamiento allí instalado, y, en especial, para asegurar:\n– [mp.if.3.1] Las condiciones de temperatura y humedad.\n– [mp.if.3.2] La protección frente a las amenazas identificadas en el análisis de riesgos.\n– [mp.if.3.3] La protección del cableado frente a incidentes fortuitos o deliberados.",
+      "description": "Acondicionar los locales con las condiciones ambientales que el equipamiento necesita.",
+      "actions": [
+        "Controlar temperatura y humedad",
+        "Revisar las instalaciones"
+      ],
+      "evidence": [
+        "Medidas ambientales",
+        "Revisiones"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "aplica",
+          "high": "aplica"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "mp.if.4",
+      "parent": "mp.if",
+      "order": 4,
+      "kind": "requirement",
+      "title": "Energía eléctrica",
+      "officialText": "– [mp.if.4.1] Los locales donde se ubiquen los sistemas de información y sus componentes esenciales dispondrán de tomas de energía eléctrica, de modo que se garantice el suministro y el correcto funcionamiento de las luces de emergencia.",
+      "description": "Garantizar el suministro eléctrico y su protección frente a fallos.",
+      "actions": [
+        "Instalar protección y respaldo",
+        "Probarlos"
+      ],
+      "evidence": [
+        "Descripción del respaldo eléctrico",
+        "Pruebas"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "+ R1",
+          "high": "+ R1"
+        },
+        "dimensions": "D"
+      }
+    },
+    {
+      "identifier": "mp.if.4.r1",
+      "parent": "mp.if.4",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Suministro eléctrico de emergencia",
+      "officialText": "– [mp.if.4.r1.1] En caso de fallo del suministro principal, el abastecimiento eléctrico deberá estar garantizado durante el tiempo suficiente para una terminación ordenada de los procesos y la salvaguarda de la información.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.if.5",
+      "parent": "mp.if",
+      "order": 5,
+      "kind": "requirement",
+      "title": "Protección frente a incendios",
+      "officialText": "– [mp.if.5.1] Los locales donde se ubiquen los sistemas de información y sus componentes esenciales se protegerán frente a incendios atendiendo, al menos, a la normativa industrial de aplicación.",
+      "description": "Proteger los locales frente a incendios.",
+      "actions": [
+        "Instalar detección y extinción",
+        "Mantenerlas"
+      ],
+      "evidence": [
+        "Sistemas contra incendios",
+        "Revisiones"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "aplica",
+          "high": "aplica"
+        },
+        "dimensions": "D"
+      }
+    },
+    {
+      "identifier": "mp.if.6",
+      "parent": "mp.if",
+      "order": 6,
+      "kind": "requirement",
+      "title": "Protección frente a inundaciones",
+      "officialText": "– [mp.if.6.1] Los locales donde se ubiquen los sistemas de información y sus componentes esenciales se protegerán frente a incidentes causados por el agua.",
+      "description": "Proteger los locales frente a inundaciones y fugas de agua.",
+      "actions": [
+        "Evaluar el riesgo",
+        "Aplicar protecciones"
+      ],
+      "evidence": [
+        "Evaluación de riesgo",
+        "Medidas aplicadas"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "metadata": {
+        "categories": {
+          "basic": "n.a.",
+          "medium": "aplica",
+          "high": "aplica"
+        },
+        "dimensions": "D"
+      }
+    },
+    {
+      "identifier": "mp.if.7",
+      "parent": "mp.if",
+      "order": 7,
+      "kind": "requirement",
+      "title": "Registro de entrada y salida de equipamiento",
+      "officialText": "– [mp.if.7.1] Se llevará un registro pormenorizado de cualquier entrada y salida de equipamiento esencial, incluyendo la identificación de la persona que autoriza el movimiento.",
+      "description": "Registrar la entrada y salida de equipamiento de las instalaciones.",
+      "actions": [
+        "Registrar cada movimiento",
+        "Autorizarlo"
+      ],
+      "evidence": [
+        "Registro de movimientos",
+        "Autorizaciones"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "aplica",
+          "high": "aplica"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "mp.per.1",
+      "parent": "mp.per",
+      "order": 1,
+      "kind": "requirement",
+      "title": "Caracterización del puesto de trabajo",
+      "officialText": "– [mp.per.1.1] Para cada puesto de trabajo, relacionado directamente con el manejo de información o servicios, se definirán las responsabilidades en materia de seguridad, que estarán basadas en el análisis de riesgos.\n– [mp.per.1.2] Se definirán los requisitos que deben satisfacer las personas que vayan a ocupar el puesto de trabajo, en particular, en términos de confidencialidad. Dichos requisitos se tendrán en cuenta en la selección de la persona que vaya a ocupar el puesto, incluyendo la verificación de sus antecedentes laborales, formación y otras referencias, de conformidad con el ordenamiento jurídico y el respeto a los derechos fundamentales.",
+      "description": "Definir lo que exige cada puesto de trabajo en materia de seguridad.",
+      "actions": [
+        "Caracterizar los puestos",
+        "Reflejarlo en la selección"
+      ],
+      "evidence": [
+        "Fichas de puesto",
+        "Requisitos de seguridad"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "n.a.",
+          "medium": "aplica",
+          "high": "aplica"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "mp.per.1.r1",
+      "parent": "mp.per.1",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Habilitación Personal de Seguridad",
+      "officialText": "– [mp.per.1.r1.1] Los administradores de seguridad/sistema tendrán una Habilitación Personal de Seguridad (HPS) otorgada por la autoridad competente, como consecuencia de los resultados del análisis de riesgos previo o como requisito de seguridad de un sistema específico.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.per.2",
+      "parent": "mp.per",
+      "order": 2,
+      "kind": "requirement",
+      "title": "Deberes y obligaciones",
+      "officialText": "Se informará a cada persona que trabaje en el sistema de los deberes y responsabilidades de su puesto de trabajo en materia de seguridad, contemplando:\n– [mp.per.2.1] Las medidas disciplinarias a que haya lugar.\n– [mp.per.2.2] Contemplando tanto el periodo durante el cual se desempeña el puesto, como las obligaciones en caso de término de la asignación, o traslado a otro puesto de trabajo.\n– [mp.per.2.3] El deber de confidencialidad respecto de los datos a los que tenga acceso, tanto durante el periodo que esté adscrito al puesto de trabajo, como posteriormente a su terminación.\n– [mp.per.2.4] En caso de personal contratado a través de un tercero:\n• [mp.per.2.4.1] Se establecerán los deberes y obligaciones de cada parte y del personal contratado.\n• [mp.per.2.4.2] Se establecerá el procedimiento de resolución de incidentes relacionados con el incumplimiento de las obligaciones.",
+      "description": "Informar al personal de sus deberes y obligaciones de seguridad.",
+      "actions": [
+        "Comunicar deberes y obligaciones",
+        "Recoger su aceptación"
+      ],
+      "evidence": [
+        "Documento de deberes",
+        "Aceptaciones"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "+ R1",
+          "high": "+ R1"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "mp.per.2.r1",
+      "parent": "mp.per.2",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Confirmación expresa",
+      "officialText": "– [mp.per.2.r1.1] Se ha de obtener la confirmación expresa de que los usuarios conocen las instrucciones de seguridad necesarias y obligatorias y su aceptación, así como los procedimientos necesarios para llevarlas a cabo de manera adecuada.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.per.3",
+      "parent": "mp.per",
+      "order": 3,
+      "kind": "requirement",
+      "title": "Concienciación",
+      "officialText": "Se realizarán las acciones necesarias para concienciar regularmente al personal acerca de su papel y responsabilidad para que la seguridad del sistema alcance los niveles exigidos. En particular, se recordará periódicamente:\n– [mp.per.3.1] La normativa de seguridad relativa al buen uso de los equipos o sistemas y las técnicas de ingeniería social más habituales.\n– [mp.per.3.2] La identificación de incidentes, actividades o comportamientos sospechosos que deban ser reportados para su tratamiento por personal especializado.\n– [mp.per.3.3] El procedimiento para informar sobre incidentes de seguridad, sean reales o falsas alarmas.",
+      "description": "Concienciar al personal sobre la seguridad y sus responsabilidades.",
+      "actions": [
+        "Planificar actividades de concienciación",
+        "Repetirlas"
+      ],
+      "evidence": [
+        "Plan de concienciación",
+        "Registros de participación"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "aplica",
+          "high": "aplica"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "mp.per.4",
+      "parent": "mp.per",
+      "order": 4,
+      "kind": "requirement",
+      "title": "Formación",
+      "officialText": "– [mp.per.4.1] Se formará regularmente al personal en aquellas materias relativas a seguridad de la información que requiera el desempeño de sus funciones, en particular en lo relativo a:\na) Configuración de sistemas.\nb) Detección y reacción ante incidentes.\nc) Gestión de la información en cualquier soporte en el que se encuentre. Se cubrirán al menos las siguientes actividades: almacenamiento, transferencia, copias, distribución y destrucción.\nAdemás, se evaluará la eficacia de las acciones formativas llevadas a cabo.",
+      "description": "Formar al personal en la operación segura de los sistemas que usa.",
+      "actions": [
+        "Planificar la formación",
+        "Verificar su eficacia"
+      ],
+      "evidence": [
+        "Plan de formación",
+        "Registros de asistencia"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "aplica",
+          "high": "aplica"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "mp.eq.1",
+      "parent": "mp.eq",
+      "order": 1,
+      "kind": "requirement",
+      "title": "Puesto de trabajo despejado",
+      "officialText": "– [mp.eq.1.1] Los puestos de trabajo permanecerán despejados, sin que exista material distinto del necesario en cada momento.",
+      "description": "Exigir un puesto de trabajo despejado de información sensible.",
+      "actions": [
+        "Definir la norma",
+        "Comprobarla"
+      ],
+      "evidence": [
+        "Norma de puesto despejado",
+        "Revisiones"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "+ R1",
+          "high": "+ R1"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "mp.eq.1.r1",
+      "parent": "mp.eq.1",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Almacenamiento del material",
+      "officialText": "– [mp.eq.1.r1.1] Una vez usado, y siempre que sea factible, el material se almacenará en lugar cerrado.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.eq.2",
+      "parent": "mp.eq",
+      "order": 2,
+      "kind": "requirement",
+      "title": "Bloqueo de puesto de trabajo",
+      "officialText": "– [mp.eq.2.1] El puesto de trabajo se bloqueará al cabo de un tiempo prudencial de inactividad, requiriendo una nueva autenticación del usuario para reanudar la actividad en curso.",
+      "description": "Bloquear el puesto de trabajo tras un periodo de inactividad.",
+      "actions": [
+        "Configurar el bloqueo automático",
+        "Exigir la contraseña para reanudar"
+      ],
+      "evidence": [
+        "Configuración de bloqueo",
+        "Política"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "n.a.",
+          "medium": "aplica",
+          "high": "+ R1"
+        },
+        "dimensions": "A"
+      }
+    },
+    {
+      "identifier": "mp.eq.2.r1",
+      "parent": "mp.eq.2",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Cierre de sesiones",
+      "officialText": "– [mp.eq.2.r1.1] Pasado un cierto tiempo, superior al anterior, se cancelarán las sesiones abiertas desde dicho puesto de trabajo.\nUna Guía CCN-STIC concretará la implementación de la configuración de seguridad adaptada a la categorización del sistema o perfil de cumplimiento asociado.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.eq.3",
+      "parent": "mp.eq",
+      "order": 3,
+      "kind": "requirement",
+      "title": "Protección de dispositivos portátiles",
+      "officialText": "Los equipos (ordenadores portátiles, tabletas, etc.) que sean susceptibles de salir de las instalaciones de la organización y no puedan beneficiarse de la protección física correspondiente, con un riesgo manifiesto de pérdida o robo, serán protegidos adecuadamente.\nSin perjuicio de las medidas generales que les afecten, se adoptarán las siguientes:\n– [mp.eq.3.1] Se llevará un inventario de dispositivos portátiles junto con una identificación de la persona responsable de cada uno de ellos y un control regular de que está positivamente bajo su control.\n– [mp.eq.3.2] Se establecerá un procedimiento operativo de seguridad para informar al servicio de gestión de incidentes de pérdidas o sustracciones.\n– [mp.eq.3.3] Cuando un dispositivo portátil se conecte remotamente a través de redes que no están bajo el estricto control de la organización, el ámbito de operación del servidor limitará la información y los servicios accesibles a los mínimos imprescindibles, requiriendo autorización previa de los responsables de la información y los servicios afectados. Este punto es de aplicación a conexiones a través de internet y otras redes que no sean de confianza.\n– [mp.eq.3.4] Se evitará, en la medida de lo posible, que el dispositivo portátil contenga claves de acceso remoto a la organización que no sean imprescindibles. Se considerarán claves de acceso remoto aquellas que sean capaces de habilitar un acceso a otros equipos de la organización u otras de naturaleza análoga.",
+      "description": "Proteger los dispositivos portátiles: inventario, cifrado y respuesta ante pérdida.",
+      "actions": [
+        "Inventariar los portátiles",
+        "Cifrarlos y poder borrarlos a distancia"
+      ],
+      "evidence": [
+        "Inventario de portátiles",
+        "Configuración de cifrado"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "aplica",
+          "high": "+ R1 + R2"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "mp.eq.3.r1",
+      "parent": "mp.eq.3",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Cifrado del disco",
+      "officialText": "– [mp.eq.3.r1.1] Se protegerá el dispositivo portátil mediante cifrado del disco duro cuando el nivel de confidencialidad de la información almacenada en el mismo sea de nivel MEDIO.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.eq.3.r2",
+      "parent": "mp.eq.3",
+      "order": 2,
+      "kind": "requirement",
+      "title": "R2 · Entornos protegidos",
+      "officialText": "– [mp.eq.3.r2.1] El uso de dispositivos portátiles fuera de las instalaciones de la organización se restringirá a entornos protegidos, donde el acceso sea controlado y a salvo de hurtos y miradas indiscretas.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.eq.4",
+      "parent": "mp.eq",
+      "order": 4,
+      "kind": "requirement",
+      "title": "Otros dispositivos conectados a la red",
+      "officialText": "Esta medida afecta a todo tipo de dispositivos conectados a la red y que puedan tener en algún momento acceso a la información, tales como:\na) Dispositivos multifunción: impresoras, escáneres, etc.\nb) Dispositivos multimedia: proyectores, altavoces inteligentes, etc.\nc) Dispositivos internet de las cosas, en inglés Internet of Things (IoT).\nd) Dispositivos de invitados y los personales de los propios empleados, en inglés Bring Your Own Device (BYOD).\ne) Otros.\n– [mp.eq.4.1] Los dispositivos presentes en el sistema deberán contar con una configuración de seguridad adecuada de manera que se garantice el control del flujo definido de entrada y salida de la información.\n– [mp.eq.4.2] Los dispositivos presentes en la red que dispongan de algún tipo de almacenamiento temporal o permanente de información proporcionarán la funcionalidad necesaria para eliminar información de soportes de información. (Ver [mp.si.5]).",
+      "description": "Controlar el resto de dispositivos conectados a la red (impresoras, IoT…).",
+      "actions": [
+        "Inventariar y bastionar los dispositivos",
+        "Aislarlos en la red"
+      ],
+      "evidence": [
+        "Inventario de dispositivos",
+        "Reglas de red"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "+ R1",
+          "high": "+ R1"
+        },
+        "dimensions": "C"
+      }
+    },
+    {
+      "identifier": "mp.eq.4.r1",
+      "parent": "mp.eq.4",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Productos certificados",
+      "officialText": "– [mp.eq.4.r1.1] Se usarán, cuando sea posible, productos o servicios que cumplan lo establecido en [op.pl.5].",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.eq.4.r2",
+      "parent": "mp.eq.4",
+      "order": 2,
+      "kind": "requirement",
+      "title": "R2 · Control de dispositivos conectados a la red",
+      "officialText": "– [mp.eq.4.r2.1] Se dispondrá de soluciones que permitan visualizar los dispositivos presentes en la red, controlar su conexión/desconexión a la misma y verificar su configuración de seguridad.",
       "description": "",
       "actions": [],
       "evidence": [],
@@ -204,12 +2890,26 @@
       "order": 1,
       "kind": "requirement",
       "title": "Perímetro seguro",
-      "officialText": "",
-      "description": "",
-      "actions": [],
-      "evidence": [],
+      "officialText": "– [mp.com.1.1] Se dispondrá de un sistema de protección perimetral que separe la red interna del exterior. Todo el tráfico deberá atravesar dicho sistema.\n– [mp.com.1.2] Todos los flujos de información a través del perímetro deben estar autorizados previamente.\nLa Instrucción Técnica de Seguridad de Interconexión de Sistemas de Información determinará los requisitos establecidos en el perímetro que han de cumplir todos los componentes del sistema en función de la categoría.",
+      "description": "Proteger el perímetro con cortafuegos y controlando los puntos de entrada y salida.",
+      "actions": [
+        "Definir y proteger el perímetro",
+        "Filtrar el tráfico"
+      ],
+      "evidence": [
+        "Diagrama del perímetro",
+        "Reglas de cortafuegos"
+      ],
       "source": "Real Decreto 311/2022, anexo II",
-      "register": null
+      "register": null,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "aplica",
+          "high": "aplica"
+        },
+        "dimensions": "Categoría"
+      }
     },
     {
       "identifier": "mp.com.2",
@@ -217,7 +2917,87 @@
       "order": 2,
       "kind": "requirement",
       "title": "Protección de la confidencialidad",
-      "officialText": "",
+      "officialText": "– [mp.com.2.1] Se emplearán redes privadas virtuales cifradas cuando la comunicación discurra por redes fuera del propio dominio de seguridad.",
+      "description": "Proteger la confidencialidad de las comunicaciones, cifrándolas cuando corresponda.",
+      "actions": [
+        "Cifrar los canales sensibles",
+        "Gestionar los certificados"
+      ],
+      "evidence": [
+        "Configuración de cifrado",
+        "Inventario de certificados"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "+ R1",
+          "high": "+ R1 + R2 + R3"
+        },
+        "dimensions": "C"
+      }
+    },
+    {
+      "identifier": "mp.com.2.r1",
+      "parent": "mp.com.2",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Algoritmos y parámetros autorizados",
+      "officialText": "– [mp.com.2.r1.1] Se emplearán algoritmos y parámetros autorizados por el CCN.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.com.2.r2",
+      "parent": "mp.com.2",
+      "order": 2,
+      "kind": "requirement",
+      "title": "R2 · Dispositivos hardware",
+      "officialText": "– [mp.com.2.r2.1] Se emplearán, dispositivos hardware en el establecimiento y utilización de la red privada virtual.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.com.2.r3",
+      "parent": "mp.com.2",
+      "order": 3,
+      "kind": "requirement",
+      "title": "R3 · Productos certificados",
+      "officialText": "– [mp.com.2.r3.1] Se usarán productos o servicios que cumplan lo establecido en [op.pl.5].",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.com.2.r4",
+      "parent": "mp.com.2",
+      "order": 4,
+      "kind": "requirement",
+      "title": "R4 · Cifradores",
+      "officialText": "– [mp.com.2.r4.1] Se emplearán cifradores que cumplan con los requisitos establecidos en la guía CCN-STIC que sea de aplicación.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.com.2.r5",
+      "parent": "mp.com.2",
+      "order": 5,
+      "kind": "requirement",
+      "title": "R5 · Cifrado de información especialmente sensible",
+      "officialText": "– [mp.com.2.r5.1] Se cifrará toda la información transmitida.",
       "description": "",
       "actions": [],
       "evidence": [],
@@ -230,7 +3010,35 @@
       "order": 3,
       "kind": "requirement",
       "title": "Protección de la integridad y de la autenticidad",
-      "officialText": "",
+      "officialText": "– [mp.com.3.1] En comunicaciones con puntos exteriores al dominio propio de seguridad, se asegurará la autenticidad del otro extremo del canal de comunicación antes de intercambiar información. (Ver [op.acc.5]).\n– [mp.com.3.2] Se prevendrán ataques activos garantizando que al ser detectados se activarán los procedimientos previstos de tratamiento del incidente. Se considerarán ataques activos:\na) La alteración de la información en tránsito.\nb) La inyección de información espuria.\nc) El secuestro de la sesión por una tercera parte.\n– [mp.com.3.3] Se aceptará cualquier mecanismo de identificación y autenticación de los previstos en el ordenamiento jurídico y en la normativa de aplicación.",
+      "description": "Proteger la integridad y autenticidad de las comunicaciones.",
+      "actions": [
+        "Autenticar los extremos",
+        "Detectar alteraciones"
+      ],
+      "evidence": [
+        "Mecanismos aplicados",
+        "Configuración"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "+ R1 + R2",
+          "high": "+ R1 + R2 + R3 + R4"
+        },
+        "dimensions": "I A"
+      }
+    },
+    {
+      "identifier": "mp.com.3.r1",
+      "parent": "mp.com.3",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Redes privadas virtuales",
+      "officialText": "– [mp.com.3.r1.1] Se emplearán redes privadas virtuales cifradas cuando la comunicación discurra por redes fuera del propio dominio de seguridad.",
       "description": "",
       "actions": [],
       "evidence": [],
@@ -238,12 +3046,427 @@
       "register": null
     },
     {
-      "identifier": "mp.sw",
-      "parent": "mp",
+      "identifier": "mp.com.3.r2",
+      "parent": "mp.com.3",
       "order": 2,
-      "kind": "group",
-      "title": "Protección de las aplicaciones informáticas",
-      "officialText": "",
+      "kind": "requirement",
+      "title": "R2 · Algoritmos y parámetros autorizados",
+      "officialText": "– [mp.com.3.r2.1] Se emplearán algoritmos y parámetros autorizados por el CCN.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.com.3.r3",
+      "parent": "mp.com.3",
+      "order": 3,
+      "kind": "requirement",
+      "title": "R3 · Dispositivos hardware",
+      "officialText": "– [mp.com.3.r3.1] Se recomienda emplear dispositivos hardware en el establecimiento y utilización de la red privada virtual.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.com.3.r4",
+      "parent": "mp.com.3",
+      "order": 4,
+      "kind": "requirement",
+      "title": "R4 · Productos certificados",
+      "officialText": "– [mp.com.3.r4.1] Se emplearán productos certificados conforme a lo establecido en [op.pl.5].",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.com.3.r5",
+      "parent": "mp.com.3",
+      "order": 5,
+      "kind": "requirement",
+      "title": "R5 · Cifradores",
+      "officialText": "– [mp.com.3.r5.1] Se emplearán cifradores que cumplan con los requisitos establecidos en la guía CCN-STIC que sea de aplicación.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.com.4",
+      "parent": "mp.com",
+      "order": 4,
+      "kind": "requirement",
+      "title": "Separación de flujos de información en la red",
+      "officialText": "La segmentación acota el acceso a la información y, consiguientemente, la propagación de los incidentes de seguridad, que quedan restringidos al entorno donde ocurren.\nCuando la transmisión de información por la red se restringe a ciertos segmentos, se acota el acceso a la información y los incidentes de seguridad quedan encapsulados en su segmento.\nLos flujos de información se separarán en segmentos de forma que:\n– [mp.com.4.1] El tráfico por la red se segregará para que cada equipo solamente tenga acceso a la información que necesita.\n– [mp.com.4.2] Si se emplean comunicaciones inalámbricas, será en un segmento separado.",
+      "description": "Separar los flujos de información en la red según su necesidad.",
+      "actions": [
+        "Segmentar la red",
+        "Controlar el tráfico entre segmentos"
+      ],
+      "evidence": [
+        "Diseño de segmentación",
+        "Reglas entre zonas"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "n.a.",
+          "medium": "+ [R1 o R2 o R3]",
+          "high": "+ [R2 o R3] + R4"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "mp.com.4.r1",
+      "parent": "mp.com.4",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Segmentación lógica básica",
+      "officialText": "– [mp.com.4.r1.1] Los segmentos de red se implementarán por medio de redes de área local virtuales (Virtual Local Area Network, VLAN).\n– [mp.com.4.r1.2] La red que conforma el sistema deberá segregarse en distintas subredes contemplando como mínimo:\n• Usuarios.\n• Servicios.\n• Administración.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.com.4.r2",
+      "parent": "mp.com.4",
+      "order": 2,
+      "kind": "requirement",
+      "title": "R2 · Segmentación lógica avanzada",
+      "officialText": "– [mp.com.4.r2.1] Los segmentos de red se implementarán por medio de redes privadas virtuales (Virtual Private Network, VPN).",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.com.4.r3",
+      "parent": "mp.com.4",
+      "order": 3,
+      "kind": "requirement",
+      "title": "R3 · Segmentación física",
+      "officialText": "– [mp.com.4.r3.1] Los segmentos de red se implementarán con medios físicos separados.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.com.4.r4",
+      "parent": "mp.com.4",
+      "order": 4,
+      "kind": "requirement",
+      "title": "R4 · Puntos de interconexión",
+      "officialText": "– [mp.com.4.r4.1] Control de entrada de los usuarios que llegan a cada segmento y control de entrada y salida de la información disponible en cada segmento.\n– [mp.com.4.r4.2] El punto de interconexión estará particularmente asegurado, mantenido y monitorizado, (como en [mp.com.1]).",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.si.1",
+      "parent": "mp.si",
+      "order": 1,
+      "kind": "requirement",
+      "title": "Marcado de soportes",
+      "officialText": "– [mp.si.1.1] Los soportes de información (papel impreso, documentos electrónicos, contenidos multimedia -vídeos, cursos, presentaciones- etc.) que contengan información que según [mp.info.2] deba protegerse con medidas de seguridad específicas, llevarán las marcas o metadatos correspondientes que indiquen el nivel de seguridad de la información contenida de mayor calificación.",
+      "description": "Marcar los soportes según el nivel de la información que contienen.",
+      "actions": [
+        "Definir el marcado",
+        "Aplicarlo"
+      ],
+      "evidence": [
+        "Procedimiento de marcado",
+        "Ejemplos"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "n.a.",
+          "medium": "aplica",
+          "high": "aplica"
+        },
+        "dimensions": "C"
+      }
+    },
+    {
+      "identifier": "mp.si.1.r1",
+      "parent": "mp.si.1",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Marca de agua digital",
+      "officialText": "– [mp.si.1.r1.1] La política de seguridad de la organización definirá marcas de agua para asegurar el uso adecuado de la información que se maneja.\n– [mp.si.1.r1.2] Los soportes de información digital (documentos electrónicos, material multimedia, etc.) podrán incluir una marca de agua según la política de seguridad.\n– [mp.si.1.r1.3] Los equipos o dispositivos a través de los que se accede a aplicaciones, escritorios remotos o virtuales, datos, etc., presentarán una marca de agua en pantalla según la política de seguridad.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.si.2",
+      "parent": "mp.si",
+      "order": 2,
+      "kind": "requirement",
+      "title": "Criptografía",
+      "officialText": "Esta medida se aplica, en particular, a todos los dispositivos removibles cuando salen de un área controlada. Se entenderán por dispositivos removibles, los CD, DVD, discos extraíbles, pendrives, memorias USB u otros de naturaleza análoga.\n– [mp.si.2.1] Se usarán mecanismos criptográficos que garanticen la confidencialidad y la integridad de la información contenida.\n– [mp.si.2.2] Se emplearán algoritmos y parámetros autorizados por el CCN.",
+      "description": "Proteger con criptografía el contenido de los soportes.",
+      "actions": [
+        "Cifrar los soportes",
+        "Gestionar las claves"
+      ],
+      "evidence": [
+        "Política de cifrado",
+        "Configuración"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "n.a.",
+          "medium": "aplica",
+          "high": "+ R1 + R2"
+        },
+        "dimensions": "C I"
+      }
+    },
+    {
+      "identifier": "mp.si.2.r1",
+      "parent": "mp.si.2",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Productos certificados",
+      "officialText": "– [mp.si.2.r1.1] Se emplearán productos certificados conforme a lo establecido en [op.pl.5].",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.si.2.r2",
+      "parent": "mp.si.2",
+      "order": 2,
+      "kind": "requirement",
+      "title": "R2 · Copias de seguridad",
+      "officialText": "– [mp.si.2.r2.1] Las copias se seguridad se cifrarán utilizando algoritmos y parámetros autorizados por el CCN.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.si.3",
+      "parent": "mp.si",
+      "order": 3,
+      "kind": "requirement",
+      "title": "Custodia",
+      "officialText": "– [mp.si.3.1] Se aplicará la debida diligencia y control a los soportes de información que permanecen bajo la responsabilidad de la organización, garantizando el control de acceso con medidas físicas ([mp.if.1] y [mp.if.7]) o lógicas ([mp.si.2]).\n– [mp.si.3.2] Se respetarán las exigencias de mantenimiento del fabricante, en especial, en lo referente a temperatura, humedad y otros agentes medioambientales.",
+      "description": "Custodiar los soportes durante su ciclo de vida.",
+      "actions": [
+        "Controlar acceso y ubicación",
+        "Mantener un inventario"
+      ],
+      "evidence": [
+        "Inventario de soportes",
+        "Registro de custodia"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "aplica",
+          "high": "aplica"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "mp.si.4",
+      "parent": "mp.si",
+      "order": 4,
+      "kind": "requirement",
+      "title": "Transporte",
+      "officialText": "El responsable del sistema garantizará que los dispositivos permanecen bajo control y que satisfacen sus requisitos de seguridad mientras están siendo desplazados de un lugar a otro, fuera de las zonas controladas por la organización.\n– [mp.si.4.1] Se dispondrá de un registro de entrada/salida que identifique al transportista que entrega/recibe el soporte.\n– [mp.si.4.2] Se dispondrá de un procedimiento rutinario que coteje las salidas con las llegadas y levante las alarmas pertinentes cuando se detecte algún incidente.\n– [mp.si.4.3] Se utilizarán los medios de protección criptográfica ([mp.si.2]) correspondientes al mayor nivel de seguridad de la información contenida.\n– [mp.si.4.4] Se gestionarán las claves según [op.exp.10].",
+      "description": "Proteger los soportes durante su transporte.",
+      "actions": [
+        "Definir las condiciones de transporte",
+        "Registrar los traslados"
+      ],
+      "evidence": [
+        "Procedimiento de transporte",
+        "Registro de traslados"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "aplica",
+          "high": "aplica"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "mp.si.5",
+      "parent": "mp.si",
+      "order": 5,
+      "kind": "requirement",
+      "title": "Borrado y destrucción",
+      "officialText": "La medida de borrado y destrucción de soportes de información se aplicará a todo tipo de equipos y soportes susceptibles de almacenar información, incluyendo medios electrónicos y no electrónicos.\n– [mp.si.5.1] Los soportes que vayan a ser reutilizados para otra información o liberados a otra organización serán objeto del borrado seguro de su contenido que no permita su recuperación. Cuando la naturaleza del soporte no permita un borrado seguro, el soporte no podrá ser reutilizado en ningún otro sistema.\nLas guías CCN-STIC del CCN precisarán los criterios para definir como seguro un mecanismo de borrado o de destrucción, en función de la sensibilidad de la información almacenada en el dispositivo.",
+      "description": "Borrar o destruir de forma segura los soportes que se retiran.",
+      "actions": [
+        "Definir el método",
+        "Dejar constancia"
+      ],
+      "evidence": [
+        "Procedimiento de borrado",
+        "Certificados de destrucción"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "+ R1",
+          "high": "+ R1"
+        },
+        "dimensions": "C"
+      }
+    },
+    {
+      "identifier": "mp.si.5.r1",
+      "parent": "mp.si.5",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Productos certificados",
+      "officialText": "– [mp.si.5.r1.1] Se usarán productos o servicios que cumplan lo establecido en [op.pl.5].",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.si.5.r2",
+      "parent": "mp.si.5",
+      "order": 2,
+      "kind": "requirement",
+      "title": "R2 · Destrucción de soportes",
+      "officialText": "– [mp.si.5.r2.1] Una vez finalizado el ciclo de vida del soporte de información, deberá ser destruido de forma segura conforme a los criterios establecidos por el CCN.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.sw.1",
+      "parent": "mp.sw",
+      "order": 1,
+      "kind": "requirement",
+      "title": "Desarrollo de aplicaciones",
+      "officialText": "– [mp.sw.1.1] El desarrollo de aplicaciones se realizará sobre un sistema diferente y separado del de producción, no debiendo existir herramientas o datos de desarrollo en el entorno de producción, ni datos de producción en el de desarrollo.",
+      "description": "Desarrollar las aplicaciones aplicando criterios de seguridad.",
+      "actions": [
+        "Separar entornos y datos reales de pruebas",
+        "Aplicar prácticas de desarrollo seguro"
+      ],
+      "evidence": [
+        "Metodología de desarrollo",
+        "Evidencias de revisión"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "n.a.",
+          "medium": "+ R1 + R2 + R3 + R4",
+          "high": "+ R1 + R2 + R3 + R4"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "mp.sw.1.r1",
+      "parent": "mp.sw.1",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Mínimo privilegio",
+      "officialText": "– [mp.sw.1.r1.1] Las aplicaciones se desarrollarán respetando el principio de mínimo privilegio, accediendo únicamente a los recursos imprescindibles para su función, y con los privilegios que sean indispensables.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.sw.1.r2",
+      "parent": "mp.sw.1",
+      "order": 2,
+      "kind": "requirement",
+      "title": "R2 · Metodología de desarrollo seguro",
+      "officialText": "– [mp.sw.1.r2.1] Se aplicará una metodología de desarrollo seguro reconocida que:\na) Tendrá en consideración los aspectos de seguridad a lo largo de todo el ciclo de vida.\nb) Incluirá normas de programación segura, especialmente: control de asignación y liberación de memoria, desbordamiento de memoria (overflow).\nc) Tratará específicamente los datos usados en pruebas.\nd) Permitirá la inspección del código fuente.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.sw.1.r3",
+      "parent": "mp.sw.1",
+      "order": 3,
+      "kind": "requirement",
+      "title": "R3 · Seguridad desde el diseño",
+      "officialText": "– [mp.sw.1.r3.1] Los siguientes elementos serán parte integral del diseño del sistema:\na) Los mecanismos de identificación y autenticación.\nb) Los mecanismos de protección de la información tratada.\nc) La generación y tratamiento de pistas de auditoría.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.sw.1.r4",
+      "parent": "mp.sw.1",
+      "order": 4,
+      "kind": "requirement",
+      "title": "R4 · Datos de pruebas",
+      "officialText": "– [mp.sw.1.r4.1] Preferiblemente, las pruebas previas a la implantación o modificación de los sistemas de información no se realizarán con datos reales. En caso de que fuese necesario recurrir a datos reales se garantizará el nivel de seguridad correspondiente.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.sw.1.r5",
+      "parent": "mp.sw.1",
+      "order": 5,
+      "kind": "requirement",
+      "title": "R5 · Lista de componentes software",
+      "officialText": "– [mp.sw.1.r5.1] El desarrollador elaborará y mantendrá actualizada una relación formal de los componentes software de terceros empleados en la aplicación o producto. Se mantendrá un histórico de los componentes utilizados en las diferentes versiones del software. El contenido mínimo de la lista de componentes, que contendrá, al menos, la identificación del componente, el fabricante y la versión empleada, se concretará en una guía CCN-STIC del CCN.",
       "description": "",
       "actions": [],
       "evidence": [],
@@ -253,10 +3476,38 @@
     {
       "identifier": "mp.sw.2",
       "parent": "mp.sw",
-      "order": 1,
+      "order": 2,
       "kind": "requirement",
       "title": "Aceptación y puesta en servicio",
-      "officialText": "",
+      "officialText": "Antes de pasar a producción se comprobará el correcto funcionamiento de la aplicación.\n– [mp.sw.2.1] Se comprobará que:\na) Se cumplen los criterios de aceptación en materia de seguridad.\nb) No se deteriora la seguridad de otros componentes del servicio.",
+      "description": "Aceptar y poner en servicio solo lo que se ha probado.",
+      "actions": [
+        "Probar funcionalidad y seguridad",
+        "Formalizar la aceptación"
+      ],
+      "evidence": [
+        "Plan de pruebas",
+        "Acta de aceptación"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "+ R1",
+          "high": "+ R1"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "mp.sw.2.r1",
+      "parent": "mp.sw.2",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Pruebas",
+      "officialText": "– [mp.sw.2.r1.1] Las pruebas se realizarán en un entorno aislado (pre-producción).",
       "description": "",
       "actions": [],
       "evidence": [],
@@ -264,25 +3515,268 @@
       "register": null
     },
     {
-      "identifier": "mp.info",
-      "parent": "mp",
-      "order": 3,
-      "kind": "group",
-      "title": "Protección de la información",
-      "officialText": "",
+      "identifier": "mp.sw.2.r2",
+      "parent": "mp.sw.2",
+      "order": 2,
+      "kind": "requirement",
+      "title": "R2 · Inspección de código fuente",
+      "officialText": "– [mp.sw.2.r2.1] Se realizará una auditoría de código fuente.",
       "description": "",
       "actions": [],
       "evidence": [],
       "source": "Real Decreto 311/2022, anexo II",
       "register": null
+    },
+    {
+      "identifier": "mp.info.1",
+      "parent": "mp.info",
+      "order": 1,
+      "kind": "requirement",
+      "title": "Datos personales",
+      "officialText": "– [mp.info.1.1] Cuando el sistema trate datos personales, el responsable de seguridad recogerá los requisitos de protección de datos que sean fijados por el responsable o por el encargado del tratamiento, contando con el asesoramiento del DPD, y que sean necesarios implementar en los sistemas de acuerdo a la naturaleza, alcance, contexto y fines del mismo, así como de los riesgos para los derechos y libertades de acuerdo a lo establecido en los artículos 24 y 32 del RGPD, y de acuerdo a la evaluación de impacto en la protección de datos, si se ha llevado a cabo.",
+      "description": "Proteger los datos personales conforme a la normativa que los regula.",
+      "actions": [
+        "Identificar los datos personales",
+        "Aplicar las medidas exigidas"
+      ],
+      "evidence": [
+        "Registro de tratamientos",
+        "Medidas aplicadas"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "aplica",
+          "high": "aplica"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "mp.info.2",
+      "parent": "mp.info",
+      "order": 2,
+      "kind": "requirement",
+      "title": "Calificación de la información",
+      "officialText": "– [mp.info.2.1] Para calificar la información se estará a lo establecido legalmente por las leyes y tratados internacionales de los que España es miembro y su normativa de aplicación cuando se trate de materias clasificadas. El valor a emplear en el caso de información de materias no clasificadas sería USO OFICIAL para información con algún tipo de restricción en su manejo por su sensibilidad y confidencialidad.\n– [mp.info.2.2] La política de seguridad establecerá quién es el responsable de cada información manejada por el sistema.\n– [mp.info.2.3] La política de seguridad recogerá, directa o indirectamente, los criterios que, en cada organización, determinarán el nivel de seguridad requerido, dentro del marco establecido en el artículo 40 y los criterios generales señalados en el anexo I.\n– [mp.info.2.4] El responsable de cada información seguirá los criterios determinados en el apartado anterior para asignar a cada información el nivel de seguridad requerido, y será responsable de su documentación y aprobación formal.\n– [mp.info.2.5] El responsable de cada información en cada momento tendrá en exclusiva la potestad de modificar el nivel de seguridad requerido, de acuerdo a los apartados anteriores.",
+      "description": "Clasificar la información y marcarla según su nivel.",
+      "actions": [
+        "Definir los niveles",
+        "Clasificar la información"
+      ],
+      "evidence": [
+        "Política de calificación",
+        "Inventario calificado"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "metadata": {
+        "categories": {
+          "basic": "n.a.",
+          "medium": "aplica",
+          "high": "aplica"
+        },
+        "dimensions": "C"
+      }
+    },
+    {
+      "identifier": "mp.info.3",
+      "parent": "mp.info",
+      "order": 3,
+      "kind": "requirement",
+      "title": "Firma electrónica",
+      "officialText": "– [mp.info.3.1] Se empleará cualquier tipo de firma electrónica de los previstos en el vigente ordenamiento jurídico, entre ellos, los sistemas de código seguro de verificación vinculados a la Administración Pública, órgano, organismo público o entidad de derecho público, en los términos y condiciones establecidos en la Ley 39/2015, de 1 de octubre, del Procedimiento Administrativo Común de las Administraciones Públicas, y en la Ley 40/2015, de 1 de octubre.",
+      "description": "Usar firma electrónica para garantizar autoría e integridad cuando proceda.",
+      "actions": [
+        "Identificar dónde se firma",
+        "Gestionar los certificados"
+      ],
+      "evidence": [
+        "Procedimiento de firma",
+        "Certificados"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "+ R1 + R2 + R3",
+          "high": "+ R1 + R2 + R3 + R4"
+        },
+        "dimensions": "I A"
+      }
+    },
+    {
+      "identifier": "mp.info.3.r1",
+      "parent": "mp.info.3",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Certificados cualificados",
+      "officialText": "– [mp.info.3.r1.1] Cuando se empleen sistemas de firma electrónica avanzada basados en certificados, estos serán cualificados.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.info.3.r2",
+      "parent": "mp.info.3",
+      "order": 2,
+      "kind": "requirement",
+      "title": "R2 · Algoritmos y parámetros autorizados",
+      "officialText": "– [mp.info.3.r2.1] Se emplearán algoritmos y parámetros autorizados por el CCN o por un esquema nacional o europeo que resulte de aplicación.\nEl CCN determinará los algoritmos criptográficos que hayan sido autorizados nominalmente para su uso en el Esquema Nacional de Seguridad conforme a la Instrucción Técnica de Seguridad Criptología de empleo en el ENS.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.info.3.r3",
+      "parent": "mp.info.3",
+      "order": 3,
+      "kind": "requirement",
+      "title": "R3 · Verificación y validación de firma",
+      "officialText": "– [mp.info.3.r3.1] Cuando proceda, se garantizará la verificación y validación de la firma electrónica durante el tiempo requerido por la actividad administrativa que aquélla soporte, sin perjuicio de que se pueda ampliar este período de acuerdo con lo que establezca la Política de Firma Electrónica y de Certificados que sea de aplicación. Para tal fin se adjuntará a la firma, o se referenciará, toda la información pertinente para su verificación y validación, incluyendo certificados o datos de verificación y validación.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.info.3.r4",
+      "parent": "mp.info.3",
+      "order": 4,
+      "kind": "requirement",
+      "title": "R4 · Firma electrónica avanzada basada en certificados cualificados",
+      "officialText": "– [mp.info.3.r4.1] Se usará firma electrónica avanzada basada en certificados cualificados complementada por un segundo factor del tipo «algo que se sabe» o «algo que se es».",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.info.3.r5",
+      "parent": "mp.info.3",
+      "order": 5,
+      "kind": "requirement",
+      "title": "R5 · Firma electrónica cualificada",
+      "officialText": "– [mp.info.3.r5.1] Se usará firma electrónica cualificada, empleando productos certificados conforme a lo establecido en [op.pl.5].",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.info.4",
+      "parent": "mp.info",
+      "order": 4,
+      "kind": "requirement",
+      "title": "Sellos de tiempo",
+      "officialText": "La utilización de sellos de tiempo exigirá adoptar las siguientes cautelas:\n– [mp.info.4.1] Los sellos de tiempo se aplicarán a aquella información que sea susceptible de ser utilizada como evidencia electrónica en el futuro.\n– [mp.info.4.2] Los datos pertinentes para la verificación posterior de la fecha serán tratados con la misma seguridad que la información fechada a efectos de disponibilidad, integridad y confidencialidad.\n– [mp.info.4.3] Se renovarán regularmente los sellos de tiempo hasta que la información protegida ya no sea requerida por el proceso administrativo al que da soporte, en su caso.\n– [mp.info.4.4] Se emplearán \"sellos cualificados de tiempo electrónicos\" atendiendo a lo dispuesto en el Reglamento (UE) n.º 910/2014 y normativa de desarrollo.",
+      "description": "Usar sellos de tiempo cuando la fecha deba poder demostrarse.",
+      "actions": [
+        "Identificar dónde hace falta",
+        "Aplicarlos"
+      ],
+      "evidence": [
+        "Procedimiento",
+        "Ejemplos de sellado"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "n.a.",
+          "medium": "n.a.",
+          "high": "aplica"
+        },
+        "dimensions": "T"
+      }
+    },
+    {
+      "identifier": "mp.info.4.r1",
+      "parent": "mp.info.4",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Productos certificados",
+      "officialText": "– [mp.info.4.r1.1.] Se utilizarán productos certificados según [op.pl.5].\n– [mp.info.4.r1.2] Se asignará una fecha y hora a un documento electrónico, conforme a lo establecido en la guía CCN-STIC Criptología de empleo en el ENS.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.info.5",
+      "parent": "mp.info",
+      "order": 5,
+      "kind": "requirement",
+      "title": "Limpieza de documentos",
+      "officialText": "– [mp.info.5.1] En el proceso de limpieza de documentos, se retirará de estos toda la información adicional contenida en campos ocultos, metadatos, comentarios o revisiones anteriores, salvo cuando dicha información sea pertinente para el receptor del documento.\nEsta medida es especialmente relevante cuando el documento se difunde ampliamente, como ocurre cuando se ofrece al público en un servidor web u otro tipo de repositorio de información.",
+      "description": "Limpiar los documentos de datos ocultos antes de difundirlos.",
+      "actions": [
+        "Definir el procedimiento",
+        "Aplicarlo antes de publicar"
+      ],
+      "evidence": [
+        "Procedimiento de limpieza",
+        "Ejemplos"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "aplica",
+          "high": "aplica"
+        },
+        "dimensions": "C"
+      }
     },
     {
       "identifier": "mp.info.6",
       "parent": "mp.info",
-      "order": 1,
+      "order": 6,
       "kind": "requirement",
       "title": "Copias de seguridad",
-      "officialText": "",
+      "officialText": "– [mp.info.6.1] Se realizarán copias de seguridad que permitan recuperar datos perdidos, accidental o intencionadamente. La periodicidad y los plazos de retención de estas copias de seguridad se determinarán en la normativa interna de la organización relativa a copias de seguridad.\n– [mp.info.6.2] Los procedimientos de respaldo establecidos indicarán:\na) Frecuencia de las copias.\nb) Requisitos de almacenamiento en el propio lugar.\nc) Requisitos de almacenamiento en otros lugares.\nd) Controles para el acceso autorizado a las copias de respaldo.",
+      "description": "Hacer copias de seguridad, protegerlas y comprobar que se pueden restaurar.",
+      "actions": [
+        "Planificar y automatizar las copias",
+        "Probar la restauración"
+      ],
+      "evidence": [
+        "Plan de copias",
+        "Pruebas de restauración"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "+ R1",
+          "high": "+ R1 + R2"
+        },
+        "dimensions": "D"
+      }
+    },
+    {
+      "identifier": "mp.info.6.r1",
+      "parent": "mp.info.6",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Pruebas de recuperación",
+      "officialText": "– [mp.info.6.r1.1] Los procedimientos de copia de seguridad y restauración deben probarse regularmente. Su frecuencia dependerá de la criticidad de los datos y del impacto que cause la falta de disponibilidad.",
       "description": "",
       "actions": [],
       "evidence": [],
@@ -290,12 +3784,12 @@
       "register": null
     },
     {
-      "identifier": "mp.s",
-      "parent": "mp",
-      "order": 4,
-      "kind": "group",
-      "title": "Protección de los servicios",
-      "officialText": "",
+      "identifier": "mp.info.6.r2",
+      "parent": "mp.info.6",
+      "order": 2,
+      "kind": "requirement",
+      "title": "R2 · Protección de las copias de seguridad",
+      "officialText": "– [mp.info.6.r2.1] Al menos, una de las copias de seguridad se almacenará de forma separada en lugar diferente, de tal manera que un incidente no pueda afectar tanto al repositorio original como a la copia simultáneamente.\n– Nivel BAJO: mp.info.6.\n– Nivel MEDIO: mp.info.6+ R1.\n– Nivel ALTO: mp.info.6+ R1 + R2.",
       "description": "",
       "actions": [],
       "evidence": [],
@@ -308,12 +3802,26 @@
       "order": 1,
       "kind": "requirement",
       "title": "Protección del correo electrónico",
-      "officialText": "",
-      "description": "",
-      "actions": [],
-      "evidence": [],
+      "officialText": "El correo electrónico se protegerá frente a las amenazas que le son propias, actuando del siguiente modo:\n– [mp.s.1.1] La información distribuida por medio de correo electrónico se protegerá, tanto en el cuerpo de los mensajes como en los anexos.\n– [mp.s.1.2] Se protegerá la información de encaminamiento de mensajes y establecimiento de conexiones.\nSe protegerá a la organización frente a problemas que se materializan por medio del correo electrónico, en concreto:\n– [mp.s.1.3] Correo no solicitado, en su expresión inglesa «spam».\n– [mp.s.1.4] Código dañino, constituidos por virus, gusanos, troyanos, espías, u otros de naturaleza análoga.\n– [mp.s.1.5] Código móvil de tipo micro-aplicación, en su expresión inglesa «applet».\nSe establecerán normas de uso del correo electrónico para el personal. (Ver [org.2]). Estas normas de uso contendrán:\n– [mp.s.1.6] Limitaciones al uso como soporte de comunicaciones privadas.\n– [mp.s.1.7] Actividades de concienciación y formación relativas al uso del correo electrónico.",
+      "description": "Proteger el correo electrónico frente a amenazas y fugas.",
+      "actions": [
+        "Aplicar filtrado y autenticación del correo",
+        "Formar a los usuarios"
+      ],
+      "evidence": [
+        "Configuración del correo",
+        "Políticas"
+      ],
       "source": "Real Decreto 311/2022, anexo II",
-      "register": null
+      "register": null,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "aplica",
+          "high": "aplica"
+        },
+        "dimensions": "Categoría"
+      }
     },
     {
       "identifier": "mp.s.2",
@@ -321,7 +3829,115 @@
       "order": 2,
       "kind": "requirement",
       "title": "Protección de servicios y aplicaciones web",
-      "officialText": "",
+      "officialText": "Los sistemas que prestan servicios web deberán ser protegidos frente a las siguientes amenazas:\n– [mp.s.2.1] Cuando la información requiera control de acceso se garantizará la imposibilidad de acceder a la información obviando la autenticación, en particular, tomando medidas en los siguientes aspectos:\na) Se evitará que el servidor ofrezca acceso a los documentos por vías alternativas al protocolo determinado.\nb) Se prevendrán ataques de manipulación del localizador uniforme de recursos (Uniform Resource Locator, URL).\nc) Se prevendrán ataques de manipulación de fragmentos de información que se almacena en el disco duro del visitante de una página web a través de su navegador, a petición del servidor de la página, conocido en terminología inglesa como cookies.\nd) Se prevendrán ataques de inyección de código.\n– [mp.s.2.2] Se prevendrán intentos de escalado de privilegios.\n– [mp.s.2.3] Se prevendrán ataques de cross site scripting.",
+      "description": "Proteger los servicios y aplicaciones web frente a ataques.",
+      "actions": [
+        "Aplicar medidas de protección web",
+        "Revisar su exposición"
+      ],
+      "evidence": [
+        "Configuración de protección",
+        "Informes de pruebas"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "+ [R1 o R2]",
+          "medium": "+ [R1 o R2]",
+          "high": "+ R2 + R3"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "mp.s.2.r1",
+      "parent": "mp.s.2",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Auditorías de seguridad",
+      "officialText": "– [mp.s.2.r1.1] Se realizarán auditorías continuas de seguridad de «caja negra» sobre las aplicaciones web durante la fase de desarrollo y antes de la fase de producción.\n– [mp.s.2.r1.2] La frecuencia de estas auditorías de seguridad quedará definida en el procedimiento de auditoría.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.s.2.r2",
+      "parent": "mp.s.2",
+      "order": 2,
+      "kind": "requirement",
+      "title": "R2 · Auditorías de seguridad avanzada",
+      "officialText": "– [mp.s.2.r2.1] Se realizarán auditorías de seguridad de «caja blanca» sobre las aplicaciones web durante la fase de desarrollo.\n– [mp.s.2.r2.2] Se emplearán metodologías definidas y herramientas automáticas de detección de vulnerabilidades en la realización de las auditorías de seguridad sobre las aplicaciones web.\n– [mp.s.2.r2.3] Una vez finalizada una auditoría de seguridad, se analizarán los resultados y se solventarán las vulnerabilidades encontradas mediante los procedimientos definidos [op.exp.5].",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.s.2.r3",
+      "parent": "mp.s.2",
+      "order": 3,
+      "kind": "requirement",
+      "title": "R3 · Protección de las cachés",
+      "officialText": "– [mp.s.2.r3.1] Se prevendrán ataques de manipulación de programas o dispositivos que realizan una acción en representación de otros, conocidos en terminología inglesa como \"proxies\" y, sistemas especiales de almacenamiento de alta velocidad, conocidos en terminología inglesa como \"cachés\".",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.s.3",
+      "parent": "mp.s",
+      "order": 3,
+      "kind": "requirement",
+      "title": "Protección de la navegación web",
+      "officialText": "El acceso de los usuarios internos a la navegación por internet se protegerá frente a las amenazas que le son propias, actuando del siguiente modo:\n– [mp.s.3.1] Se establecerá una normativa de utilización, definiendo el uso que se autoriza y las limitaciones de uso personal. En particular, se concretará el uso permitido de conexiones cifradas.\n– [mp.s.3.2] Se llevarán a cabo regularmente actividades de concienciación sobre higiene en la navegación web, fomentando el uso seguro y alertando de usos incorrectos.\n– [mp.s.3.3] Se formará al personal encargado de la administración del sistema en monitorización del servicio y respuesta a incidentes.\n– [mp.s.3.4] Se protegerá la información de resolución de direcciones web y de establecimiento de conexiones.\n– [mp.s.3.5] Se protegerá a la organización en general y al puesto de trabajo en particular frente a problemas que se materializan vía navegación web.\n– [mp.s.3.6] Se protegerá contra la actuación de programas dañinos tales como páginas activas, descargas de código ejecutable, etc., previniendo la exposición del sistema a vectores de ataque del tipo spyware, ransomware, etc.\n– [mp.s.3.7] Se establecerá una política ejecutiva de control de cookies, en particular, para evitar la contaminación entre uso personal y uso organizativo.",
+      "description": "Proteger la navegación web de los usuarios.",
+      "actions": [
+        "Filtrar contenido y descargas",
+        "Configurar los navegadores"
+      ],
+      "evidence": [
+        "Política de navegación",
+        "Configuración"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "aplica",
+          "medium": "aplica",
+          "high": "+ R1"
+        },
+        "dimensions": "Categoría"
+      }
+    },
+    {
+      "identifier": "mp.s.3.r1",
+      "parent": "mp.s.3",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Monitorización",
+      "officialText": "– [mp.s.3.r1.1] Se registrará el uso de la navegación web, estableciendo los elementos que se registran, el periodo de retención de estos registros y el uso que el organismo prevé hacer de ellos.\n– [mp.s.3.r1.2] Se establecerá una función para la ruptura de canales cifrados a fin de inspeccionar su contenido, indicando qué se analiza, qué se registra, durante cuánto tiempo se retienen los registros y qué uso prevé hacer el organismo de estas inspecciones. Todo ello sin perjuicio de que se puedan autorizar accesos cifrados singulares a destinos de confianza.\n– [mp.s.3.r1.3] Se establecerá una lista negra de destinos vetados.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.s.3.r2",
+      "parent": "mp.s.3",
+      "order": 2,
+      "kind": "requirement",
+      "title": "R2 · Destinos autorizados",
+      "officialText": "– [mp.s.3.r2.1] Se establecerá una lista blanca de destinos accesibles. Todo acceso fuera de los lugares señalados en la lista blanca estará vetado, salvo autorización singular expresa.",
       "description": "",
       "actions": [],
       "evidence": [],
@@ -331,10 +3947,51 @@
     {
       "identifier": "mp.s.4",
       "parent": "mp.s",
-      "order": 3,
+      "order": 4,
       "kind": "requirement",
       "title": "Protección frente a la denegación de servicio",
-      "officialText": "",
+      "officialText": "Se establecerán medidas preventivas frente a ataques de denegación de servicio y denegación de servicio distribuido (Denial of Service, DoS y Distributed Denial of Service, DDoS). Para ello:\n– [mp.s 4.1] Se planificará y dotará al sistema de capacidad suficiente para atender con holgura a la carga prevista.\n– [mp.s.4.2] Se desplegarán tecnologías para prevenir los ataques conocidos.",
+      "description": "Protegerse frente a ataques de denegación de servicio.",
+      "actions": [
+        "Dimensionar y proteger los servicios",
+        "Contar con mitigación"
+      ],
+      "evidence": [
+        "Descripción de la protección",
+        "Contratos de mitigación"
+      ],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null,
+      "assessable": true,
+      "metadata": {
+        "categories": {
+          "basic": "n.a.",
+          "medium": "aplica",
+          "high": "+ R1"
+        },
+        "dimensions": "D"
+      }
+    },
+    {
+      "identifier": "mp.s.4.r1",
+      "parent": "mp.s.4",
+      "order": 1,
+      "kind": "requirement",
+      "title": "R1 · Detección y reacción",
+      "officialText": "– [mp.s.4.r1.1] Se establecerá un sistema de detección y tratamiento de ataques de denegación de servicio (DoS y DDoS).\n– [mp.s. 4.r1.2] Se establecerán procedimientos de reacción a los ataques, incluyendo la comunicación con el proveedor de comunicaciones.",
+      "description": "",
+      "actions": [],
+      "evidence": [],
+      "source": "Real Decreto 311/2022, anexo II",
+      "register": null
+    },
+    {
+      "identifier": "mp.s.4.r2",
+      "parent": "mp.s.4",
+      "order": 2,
+      "kind": "requirement",
+      "title": "R2 · Ataques propios",
+      "officialText": "– [mp.s.4.r2.1] Se detectará y se evitará el lanzamiento de ataques desde las propias instalaciones perjudicando a terceros.",
       "description": "",
       "actions": [],
       "evidence": [],

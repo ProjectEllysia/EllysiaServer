@@ -48,7 +48,8 @@ Formato de una versión (claves en camelCase)::
         "title": "...", "officialText": "...", "description": "...",
         "actions": ["..."], "evidence": ["..."],
         "source": "Directiva (UE) 2022/2555, art. 21.2.b",
-        "register": null                       # reservado: el requisito se evidencia con un registro
+        "register": null,                      # reservado: el requisito se evidencia con un registro
+        "metadata": {}                         # opcional: datos propios del marco (categorías del ENS)
       }]
     }
 """
@@ -128,6 +129,8 @@ class CatalogNode:
         evidence: Qué documentos o registros lo demuestran, como lista de elementos cortos.
         source: Artículo o punto del que sale el nodo, para citarlo.
         register: Reservado: tipo de registro con el que se evidencia el requisito, o ``None``.
+        metadata: Datos propios del marco que no son del formato (cómo se aplica una medida del
+            ENS según la categoría del sistema); vacío si no hay.
     """
 
     code: str
@@ -144,6 +147,7 @@ class CatalogNode:
     evidence: tuple[str, ...]
     source: str
     register: Optional[str]
+    metadata: dict = field(default_factory=dict, compare=False)
 
 
 @dataclass(frozen=True)
@@ -310,6 +314,8 @@ def parse_version(document: dict) -> FrameworkVersion:
         _require(isinstance(is_assessable, bool), f"{where}: «assessable» debe ser verdadero o falso")
         register = raw.get("register")
         _require(register is None or isinstance(register, str), f"{where}: «register» debe ser texto o nulo")
+        metadata = raw.get("metadata", {})
+        _require(isinstance(metadata, dict), f"{where}: «metadata» debe ser un objeto")
         if document["status"] == STATUS_PUBLISHED and is_assessable:
             _require(description.strip() and actions and evidence,
                      f"{where}: un requisito evaluable de una versión publicada necesita descripción, "
@@ -319,7 +325,7 @@ def parse_version(document: dict) -> FrameworkVersion:
             parent=None if parent is None else f"{key}:{parent}",
             order=raw["order"], kind=raw["kind"], is_assessable=is_assessable,
             title=raw["title"], official_text=official_text, description=description, actions=actions, evidence=evidence,
-            source=raw.get("source", ""), register=register,
+            source=raw.get("source", ""), register=register, metadata=metadata,
         ))
 
     by_code = {node.code: node for node in nodes}

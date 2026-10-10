@@ -212,7 +212,7 @@ def test_the_tree_works_for_frameworks_of_different_depth(client, owner, auth_he
         return max(depth(root) for root in tree)
 
     assert tree_depth("iso27001") == 2
-    assert tree_depth("ens") == 3
+    assert tree_depth("ens") == 4   # marco, grupo, medida y refuerzo
 
 
 def test_the_owner_sees_the_members_as_assignable_people_and_a_member_only_themselves(
@@ -331,3 +331,71 @@ def test_groups_of_the_tree_carry_their_aggregate_progress(client, adopted, auth
 
     assert nodes["RE.3"]["progress"]["counts"]["implemented"] == 1
     assert nodes["RE.3"]["progress"]["total"] == 6
+
+
+# ── correspondencias entre marcos ──────────────────────────────────────────
+
+def _adopt_both(client, headers):
+    for key in ("nis2", "ens"):
+        client.post("/eunomia/adoptions", headers=headers, json={"frameworkKey": key})
+
+
+def _node(tree, identifier):
+    return next(n for n in _flatten(tree) if n["identifier"] == identifier)
+
+
+def test_a_control_shows_what_is_done_in_the_other_adopted_framework(client, adopted, auth_headers):
+    headers = auth_headers(adopted)
+    _adopt_both(client, headers)
+    client.put("/eunomia/adoptions/ens/controls/op.acc.2", headers=headers,
+               json={"status": "implemented", "updatedAt": None})
+
+    tree = client.get("/eunomia/adoptions/nis2/tree", headers=headers).get_json()["tree"]
+
+    suggestion = _node(tree, "RE.11.1")["suggestions"][0]
+    assert (suggestion["frameworkKey"], suggestion["identifier"], suggestion["coverage"]) == ("ens", "op.acc.2", "full")
+    assert suggestion["status"] == "implemented"
+
+
+def test_no_suggestions_without_the_other_framework_adopted(client, adopted, auth_headers):
+    tree = client.get("/eunomia/adoptions/nis2/tree", headers=auth_headers(adopted)).get_json()["tree"]
+
+    assert _node(tree, "RE.11.1")["suggestions"] == []
+
+
+def test_the_summary_counts_open_controls_already_covered_elsewhere(client, adopted, auth_headers):
+    headers = auth_headers(adopted)
+    _adopt_both(client, headers)
+    for control in ("op.acc.2", "op.acc.4"):
+        client.put(f"/eunomia/adoptions/ens/controls/{control}", headers=headers,
+                   json={"status": "implemented", "updatedAt": None})
+
+    summary = client.get("/eunomia/adoptions/nis2/summary", headers=headers).get_json()
+
+    assert summary["suggestedCoverage"] >= 2
+
+
+def test_linking_the_suggested_evidence_creates_a_link_and_copies_no_file(app, client, adopted, auth_headers):
+    import io
+
+    from src.modules.features.eunomia.model import EunomiaEvidenceContent
+    from src.modules.infrastructure import unit_of_work
+
+    headers = auth_headers(adopted)
+    _adopt_both(client, headers)
+    evidence_id = client.post(
+        "/eunomia/evidence", headers=headers, content_type="multipart/form-data",
+        data={"file": (io.BytesIO(b"%PDF-1.4\n%%EOF\n"), "politica.pdf"), "title": "Política"},
+    ).get_json()["id"]
+    client.post(f"/eunomia/evidence/{evidence_id}/links", headers=headers,
+                json={"frameworkKey": "ens", "controlIdentifier": "op.acc.2"})
+
+    tree = client.get("/eunomia/adoptions/nis2/tree", headers=headers).get_json()["tree"]
+    offered = _node(tree, "RE.11.1")["suggestions"][0]["evidence"]
+    assert [item["id"] for item in offered] == [evidence_id]
+
+    client.post(f"/eunomia/evidence/{offered[0]['id']}/links", headers=headers,
+                json={"frameworkKey": "nis2", "controlIdentifier": "RE.11.1"})
+    with app.app_context():
+        with unit_of_work.UnitOfWork() as uow:
+            assert uow.session.query(EunomiaEvidenceContent).count() == 1

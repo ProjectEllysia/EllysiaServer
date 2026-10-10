@@ -34,6 +34,7 @@ from .schemas import (
     SummarySchema,
     AssessmentWriteSchema,
     RemovalPreviewSchema,
+    UpgradePlanSchema,
     CatalogFrameworkListSchema,
     CatalogVersionSchema,
     EvidenceLinkSchema,
@@ -104,6 +105,36 @@ def list_adoptions():
 def adopt_framework(data):
     """Adoptar un marco fijando la versión vigente del catálogo"""
     return EunomiaFrameworkManager().adopt(get_current_user().id, data["frameworkKey"]), 201
+
+
+@eunomia_blp.get("/adoptions/<string:key>/upgrade-preview")
+@eunomia_blp.response(200, UpgradePlanSchema, description="Qué pasaría al pasar el marco a la versión vigente")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@eunomia_blp.alt_response(403, schema=ErrorSchema, description="Members cannot upgrade frameworks")
+@eunomia_blp.alt_response(404, schema=ErrorSchema, description="Framework not adopted")
+@eunomia_blp.alt_response(409, schema=ErrorSchema, description="Already current, or no version mapping")
+@limiter.limit("120 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_UPDATE])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def preview_framework_upgrade(key):
+    """Qué se traslada, qué se revisa y qué se pierde al pasar un marco a la versión vigente"""
+    return EunomiaFrameworkManager().upgrade_preview(get_current_user().id, key)
+
+
+@eunomia_blp.post("/adoptions/<string:key>/upgrade")
+@eunomia_blp.response(200, UpgradePlanSchema, description="Marco pasado a la versión vigente")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@eunomia_blp.alt_response(403, schema=ErrorSchema, description="Members cannot upgrade frameworks")
+@eunomia_blp.alt_response(404, schema=ErrorSchema, description="Framework not adopted")
+@eunomia_blp.alt_response(409, schema=ErrorSchema, description="Already current, or no version mapping")
+@limiter.limit("30 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_UPDATE])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def upgrade_framework(key):
+    """Pasar un marco a la versión vigente trasladando evaluaciones y enlaces"""
+    return EunomiaFrameworkManager().upgrade(get_current_user().id, key)
 
 
 @eunomia_blp.get("/adoptions/<string:key>/removal-preview")

@@ -51,6 +51,7 @@ class CatalogNodeSchema(Schema):
     evidence = fields.List(fields.String())
     source = fields.String()
     register = fields.String(allow_none=True)
+    metadata = fields.Dict()
     children = fields.List(fields.Nested(lambda: CatalogNodeSchema()))
 
 
@@ -174,6 +175,8 @@ class AdoptedNodeSchema(Schema):
     actions = fields.List(fields.String())
     evidence = fields.List(fields.String())
     source = fields.String()
+    metadata = fields.Dict()
+    suggestions = fields.List(fields.Dict())
     linkedEvidence = fields.List(fields.Dict())
     evidenceState = fields.String()
     assessment = fields.Nested(AssessmentSchema, allow_none=True)
@@ -247,6 +250,7 @@ class SummarySchema(Schema):
     upcoming = fields.List(fields.Nested(SummaryControlSchema))
     unassigned = fields.List(fields.Nested(SummaryControlSchema))
     unassignedCount = fields.Integer()
+    suggestedCoverage = fields.Integer()
 
 
 # ── Evidencias ────────────────────────────────────────────────────────────
@@ -295,3 +299,14 @@ class EvidenceUpdateSchema(Schema):
     title = fields.String(validate=validate.Length(min=1, max=255))
     description = fields.String(validate=validate.Length(max=8000))
     validUntil = fields.Date(allow_none=True)
+
+
+class UpgradePlanSchema(Schema):
+    """Lo que pasa con la evaluación al cambiar un marco de versión."""
+
+    fromVersion = fields.String()
+    toVersion = fields.String()
+    moves = fields.List(fields.Dict())
+    lost = fields.List(fields.Dict())
+    newControls = fields.List(fields.Dict())
+    linksMoved = fields.Integer()

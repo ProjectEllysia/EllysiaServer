@@ -42,6 +42,11 @@
                   {{ t('eunomia.tree.open') }}
                 </router-link>
                 <button
+                  v-if="canManage && adoption.hasNewerVersion" type="button" class="btn"
+                  :disabled="store.state.busyKey === adoption.frameworkKey"
+                  @click="askUpgrade(adoption)"
+                >{{ t('eunomia.frameworks.upgrade') }}</button>
+                <button
                   v-if="canManage" type="button" class="btn btn--danger"
                   :disabled="store.state.busyKey === adoption.frameworkKey"
                   @click="askRemoval(adoption)"
@@ -89,6 +94,15 @@
     </main>
 
     <ConfirmModal
+      :show="!!upgrading"
+      :title="t('eunomia.frameworks.upgradeTitle', { name: upgrading?.name ?? '', version: upgrading?.currentVersion ?? '' })"
+      :message="upgradeMessage"
+      :confirm-label="t('eunomia.frameworks.upgradeConfirm')"
+      @confirm="confirmUpgrade"
+      @cancel="upgrading = null"
+    />
+
+    <ConfirmModal
       :show="!!pending"
       :title="t('eunomia.frameworks.removeTitle', { name: pending?.name ?? '' })"
       :emphasis="removalEmphasis"
@@ -108,7 +122,7 @@ import Topbar from '@/components/shared/Topbar.vue'
 import StarBackground from '@/components/shared/StarBackground.vue'
 import ConfirmModal from '@/components/shared/ConfirmModal.vue'
 import OrganizationManagedNotice from '@/components/accounts/OrganizationManagedNotice.vue'
-import { hasLoss, removalFacts } from '@/components/eunomia/frameworks'
+import { hasLoss, removalFacts, upgradeFacts } from '@/components/eunomia/frameworks'
 import ProgressBar from '@/components/eunomia/ProgressBar.vue'
 import { formatDate, formatNumber } from '@/i18n/format'
 import { useEunomiaStore } from '@/stores/eunomiaStore'
@@ -161,6 +175,38 @@ const removalMessage = computed(() => {
   }))
   return lines.join(' ')
 })
+
+const upgrading = ref(null)
+const upgradePlan = ref(null)
+
+/**
+ * Pide qué pasaría al pasar el marco a la versión vigente y abre la confirmación.
+ *
+ * @param {object} adoption - Adopción que se quiere actualizar.
+ */
+async function askUpgrade(adoption) {
+  const plan = await store.previewUpgrade(adoption.frameworkKey)
+  if (!plan) return
+  upgradePlan.value = plan
+  upgrading.value = adoption
+}
+
+const upgradeMessage = computed(() => {
+  if (!upgradePlan.value) return ' '
+  const facts = upgradeFacts(upgradePlan.value)
+  return facts.length
+    ? facts.map((fact) => t(`eunomia.frameworks.upgradeFact.${fact.key}`, { count: fact.count }, fact.count)).join(' ')
+    : t('eunomia.frameworks.upgradeNothing')
+})
+
+/** Confirma: pasa el marco a la versión vigente y avisa. */
+async function confirmUpgrade() {
+  const target = upgrading.value
+  upgrading.value = null
+  const result = await store.upgrade(target.frameworkKey)
+  if (result.ok) toast.show(t('eunomia.frameworks.upgraded', { name: target.name }), 'success')
+  else toast.show(result.message, 'error')
+}
 
 /** Confirma: archiva el marco y avisa. */
 async function confirmRemoval() {

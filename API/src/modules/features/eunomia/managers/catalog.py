@@ -25,6 +25,7 @@ def _node_payload(version: FrameworkVersion, node: CatalogNode) -> dict:
         "evidence": list(node.evidence),
         "source": node.source,
         "register": node.register,
+        "metadata": node.metadata,
         "children": [_node_payload(version, child) for child in version.children(node.code)],
     }
 

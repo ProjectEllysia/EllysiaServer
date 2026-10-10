@@ -1,0 +1,363 @@
+{
+  "a": {
+    "framework": "nis2",
+    "version": "2022-2555"
+  },
+  "b": {
+    "framework": "iso27001",
+    "version": "2022"
+  },
+  "note": "Correspondencias de criterio de Ellysia, no de un organismo: dos controles de marcos distintos rara vez son idénticos, solo se solapan. «full» quiere decir que cumplir uno cubre en lo esencial el otro; «partial», que lo cubre en parte y hay que completarlo. Se usan como sugerencia, nunca para trasladar una evaluación.",
+  "links": [
+    {
+      "from": "20.1",
+      "to": "A.5.4",
+      "coverage": "partial"
+    },
+    {
+      "from": "20.2",
+      "to": "A.6.3",
+      "coverage": "partial"
+    },
+    {
+      "from": "21.1",
+      "to": "A.5.1",
+      "coverage": "partial"
+    },
+    {
+      "from": "21.3",
+      "to": "A.5.22",
+      "coverage": "partial"
+    },
+    {
+      "from": "23.1",
+      "to": "A.5.5",
+      "coverage": "partial"
+    },
+    {
+      "from": "23.1",
+      "to": "A.5.26",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.1.1",
+      "to": "A.5.1",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.1.2",
+      "to": "A.5.2",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.1.2",
+      "to": "A.5.3",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.2.2",
+      "to": "A.5.36",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.2.3",
+      "to": "A.5.35",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.3.1",
+      "to": "A.5.24",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.3.2",
+      "to": "A.8.15",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.3.2",
+      "to": "A.8.16",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.3.3",
+      "to": "A.6.8",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.3.4",
+      "to": "A.5.25",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.3.5",
+      "to": "A.5.26",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.3.5",
+      "to": "A.5.28",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.3.6",
+      "to": "A.5.27",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.4.1",
+      "to": "A.5.30",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.4.1",
+      "to": "A.5.29",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.4.2",
+      "to": "A.8.13",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.4.2",
+      "to": "A.8.14",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.4.3",
+      "to": "A.5.29",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.5.1",
+      "to": "A.5.19",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.5.1",
+      "to": "A.5.20",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.5.1",
+      "to": "A.5.21",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.5.2",
+      "to": "A.5.19",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.6.1",
+      "to": "A.5.21",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.6.1",
+      "to": "A.8.26",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.6.2",
+      "to": "A.8.25",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.6.2",
+      "to": "A.8.28",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.6.2",
+      "to": "A.8.30",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.6.3",
+      "to": "A.8.9",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.6.4",
+      "to": "A.8.32",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.6.5",
+      "to": "A.8.29",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.6.6",
+      "to": "A.8.8",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.6.7",
+      "to": "A.8.20",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.6.7",
+      "to": "A.8.21",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.6.7",
+      "to": "A.8.23",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.6.8",
+      "to": "A.8.22",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.6.9",
+      "to": "A.8.7",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.6.10",
+      "to": "A.8.8",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.7",
+      "to": "A.5.35",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.7",
+      "to": "A.5.36",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.8.1",
+      "to": "A.6.3",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.8.2",
+      "to": "A.6.3",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.9",
+      "to": "A.8.24",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.10.1",
+      "to": "A.6.2",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.10.2",
+      "to": "A.6.1",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.10.3",
+      "to": "A.6.5",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.10.4",
+      "to": "A.6.4",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.11.1",
+      "to": "A.5.15",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.11.2",
+      "to": "A.5.18",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.11.3",
+      "to": "A.8.2",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.11.4",
+      "to": "A.8.18",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.11.5",
+      "to": "A.5.16",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.11.6",
+      "to": "A.5.17",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.11.6",
+      "to": "A.8.5",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.11.7",
+      "to": "A.8.5",
+      "coverage": "partial"
+    },
+    {
+      "from": "RE.12.1",
+      "to": "A.5.12",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.12.2",
+      "to": "A.5.10",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.12.3",
+      "to": "A.7.10",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.12.4",
+      "to": "A.5.9",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.12.5",
+      "to": "A.5.11",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.13.1",
+      "to": "A.7.11",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.13.2",
+      "to": "A.7.5",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.13.3",
+      "to": "A.7.1",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.13.3",
+      "to": "A.7.2",
+      "coverage": "full"
+    },
+    {
+      "from": "RE.13.3",
+      "to": "A.7.4",
+      "coverage": "partial"
+    }
+  ]
+}

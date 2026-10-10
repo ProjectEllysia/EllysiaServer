@@ -46,3 +46,21 @@ export function removalFacts(preview) {
 export function hasLoss(preview) {
   return Number(preview?.assessments ?? 0) > 0 || Number(preview?.evidenceDeleted ?? 0) > 0
 }
+
+/**
+ * Las cantidades de la vista previa de pasar un marco a otra versión que valen la pena decir.
+ *
+ * @param {{moves: Array<{needsReview: boolean}>, lost: Array, newControls: Array}} plan
+ * @returns {Array<{key: string, count: number}>} En el orden: trasladadas tal cual, a revisar,
+ *   perdidas y nuevas. Solo las que tienen más de cero.
+ */
+export function upgradeFacts(plan) {
+  const moves = plan?.moves ?? []
+  const review = moves.filter((move) => move.needsReview).length
+  return [
+    { key: 'moved', count: moves.length - review },
+    { key: 'review', count: review },
+    { key: 'lost', count: (plan?.lost ?? []).length },
+    { key: 'added', count: (plan?.newControls ?? []).length },
+  ].filter((fact) => fact.count > 0)
+}
