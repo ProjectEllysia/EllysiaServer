@@ -18,6 +18,7 @@ hay ninguna relación de aquí hacia bóvedas, escaneos o análisis, y los filtr
 from typing import Any
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     Column,
     Date,
@@ -140,7 +141,8 @@ class PlanLimit(Base):
     plan_id   = Column(Integer,    ForeignKey("Plan.id", ondelete="CASCADE"), primary_key=True)
     limit_key = Column(String(64), primary_key=True)
     scope     = Column(String(8),  primary_key=True)
-    value     = Column(Integer,    nullable=True)
+    # BigInteger: los topes de almacenamiento van en bytes y 5 GiB no cabe en un INTEGER de 32 bits.
+    value     = Column(BigInteger, nullable=True)
     period    = Column(String(8),  nullable=False)
 
     plan = relationship("Plan", back_populates="limits")
