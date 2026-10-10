@@ -3,7 +3,8 @@
 El feed es un fichero curado a mano: un código de control mal escrito o un
 ``check_id`` que ya no existe no rompe nada visible, sólo hace que un hallazgo
 salga en el informe sin su control. Estos tests convierten esas erratas en un
-fallo de CI.
+fallo de CI. Los controles se comprueban contra el catálogo de Eunomia, que es
+quien los define: el feed solo guarda sus códigos.
 """
 
 import re
@@ -15,6 +16,7 @@ from src.modules.features.themis.lybra.checks import (
     EVENT_CHECK_CATEGORIES,
     load_checks,
 )
+from src.modules.features.eunomia.services.catalog import load_index, load_version
 from src.modules.features.themis.lybra.compliance import (
     load_compliance_catalog,
     map_finding_compliance,
@@ -66,10 +68,32 @@ def test_every_mapped_check_exists_in_the_checks_feed(catalog):
     assert not unknown, f"check_id del mapeo que no existen en el feed: {unknown}"
 
 
-def test_every_referenced_control_exists(catalog):
+def _eunomia_codes(catalog):
+    """Los códigos de cada marco, en la versión del catálogo de Eunomia a la que apunta el feed."""
+    codes = set()
+    for key, version in catalog.targets.items():
+        loaded = load_version(key, version)
+        assert loaded is not None, f"el feed apunta a {key}/{version}, que Eunomia no tiene"
+        codes.update(node.code for node in loaded.nodes)
+    return codes
+
+
+def test_every_framework_of_the_feed_targets_a_version_eunomia_has(catalog):
+    declared = {framework["key"] for framework in load_index()["frameworks"]}
+    assert set(catalog.targets) <= declared
+
+
+def test_every_referenced_control_exists_in_eunomia(catalog):
+    known = _eunomia_codes(catalog)
     broken = [(key, code) for key, mapping in _all_mappings(catalog)
-              for code in mapping.get("controls", ()) if code not in catalog.controls]
+              for code in mapping.get("controls", ()) if code not in known]
     assert not broken
+
+
+def test_every_referenced_control_belongs_to_a_targeted_framework(catalog):
+    stray = [(key, code) for key, mapping in _all_mappings(catalog)
+             for code in mapping.get("controls", ()) if code.split(":", 1)[0] not in catalog.targets]
+    assert not stray
 
 
 def test_every_referenced_technique_exists_and_is_well_formed(catalog):
@@ -86,19 +110,10 @@ def test_every_technique_names_known_tactics(catalog):
     )
 
 
-def test_every_parent_exists_in_the_same_framework(catalog):
-    for control in catalog.controls.values():
-        if control.parent is None:
-            continue
-        parent = catalog.controls.get(control.parent)
-        assert parent is not None, control.code
-        assert parent.framework == control.framework
-
-
 def test_mapping_only_returns_the_requested_frameworks():
     result = map_finding_compliance("tls", "tls-expired-cert", ["ens"])
     assert result.controls
-    assert {control.framework for control in result.controls} == {"ens"}
+    assert {code.split(":", 1)[0] for code in result.controls} == {"ens"}
     assert result.techniques
 
 
@@ -113,7 +128,7 @@ def test_a_check_override_only_replaces_the_keys_it_declares(catalog):
     # phpinfo-exposure sólo afina la técnica: los controles son los de su categoría.
     result = map_finding_compliance("exposed_path", "phpinfo-exposure", ["iso27001", "ens", "nis2"])
     assert [technique.identifier for technique in result.techniques] == ["T1592.002"]
-    assert [control.code for control in result.controls] == catalog.categories["exposed_path"]["controls"]
+    assert list(result.controls) == catalog.categories["exposed_path"]["controls"]
 
 
 def test_unmapped_findings_yield_nothing():

@@ -103,6 +103,7 @@
     "emailNotVerified": "Confirm your email address to use this feature. You can request a new link from your profile.",
     "emailSend": "The email could not be sent.",
     "entityNotFound": {
+      "framework": "Compliance framework not found.",
       "anomaly": "Anomaly not found.",
       "asset": "Asset not found.",
       "assetGroup": "Asset group not found.",

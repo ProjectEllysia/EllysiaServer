@@ -23,7 +23,7 @@ from reportlab.platypus import CondPageBreak, Paragraph, Spacer, Table, TableSty
 import src.modules.system.config_reading as CR
 
 from src.modules.tools.press import ColorType, DocumentStyle, PdfGenerator, ReportTheme, build_palette, safe_markup
-from ...lybra.compliance import map_finding_compliance
+from ..compliance_catalog import map_report_compliance
 from ...model import ScanType
 from .creator import CONSENT_TEXT, LOGO_DIRECTORY
 from .findings import SEVERITY_BACKGROUNDS, compliance_rows
@@ -221,7 +221,7 @@ def _append_finding_card(theme: ReportTheme, elements: list, finding: dict, posi
     ]))
     elements.append(title)
 
-    compliance = map_finding_compliance(finding.get("category"), finding.get("check_id"),
+    compliance = map_report_compliance(finding.get("category"), finding.get("check_id"),
                                         [framework.key for framework in frameworks])
     value_style = ParagraphStyle("CloudFindingValue", parent=theme.body, fontSize=8.5,
                                  leading=10.5, alignment=TA_LEFT)

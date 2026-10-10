@@ -13,7 +13,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.modules.features.themis.lybra.compliance import load_compliance_catalog
+from src.modules.features.themis.services.compliance_catalog import list_compliance_frameworks
 from src.modules.features.themis.services.reports.cloud import CloudExposurePDFCreator
 
 pytestmark = pytest.mark.unit
@@ -93,7 +93,7 @@ def test_the_gravest_finding_comes_first_with_its_meaning_and_remedy():
 
 
 def test_each_card_names_its_controls_for_the_chosen_frameworks():
-    frameworks = tuple(framework for framework in load_compliance_catalog().frameworks.values()
+    frameworks = tuple(framework for framework in list_compliance_frameworks()
                        if framework.key == "iso27001")
     text = _body_text(CloudExposurePDFCreator(_scan(_FINDINGS), frameworks=frameworks))
 
