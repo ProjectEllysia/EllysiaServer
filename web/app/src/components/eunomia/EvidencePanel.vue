@@ -2,11 +2,18 @@
   <section class="evidence" :aria-label="t('eunomia.evidence.title')">
     <h3>{{ t('eunomia.evidence.title') }}</h3>
 
+    <p v-if="usage" class="muted usage">
+      {{ usage.limitBytes === null
+        ? t('eunomia.evidence.usageUnlimited', { used: size(usage.usedBytes) })
+        : t('eunomia.evidence.usage', { used: size(usage.usedBytes), limit: size(usage.limitBytes) }) }}
+    </p>
+
     <p v-if="!node.linkedEvidence.length" class="muted">{{ t('eunomia.evidence.none') }}</p>
     <ul v-else class="list">
       <li v-for="item in node.linkedEvidence" :key="item.id">
         <button type="button" class="link-btn" @click="download(item)">{{ item.title }}</button>
         <span class="muted">{{ item.filename }} · {{ size(item.sizeBytes) }}</span>
+        <strong v-if="item.isExpired" class="expired">{{ t('eunomia.evidence.expired') }}</strong>
         <span v-if="item.validUntil" class="muted">· {{ t('eunomia.evidence.validUntil', { date: formatDate(item.validUntil) }) }}</span>
         <button v-if="canEdit" type="button" class="link-btn link-btn--quiet" @click="unlink(item)">
           {{ t('eunomia.evidence.unlink') }}
@@ -60,6 +67,7 @@ const store = useEunomiaStore()
 const toast = useToastStore()
 
 const all = ref([])
+const usage = ref(null)
 const chosen = ref(null)
 const title = ref('')
 const validUntil = ref('')
@@ -79,7 +87,11 @@ function size(bytes) {
     : `${formatNumber(Math.max(1, Math.round(bytes / 1024)))} KB`
 }
 
-async function refresh() { all.value = await store.loadEvidence() }
+async function refresh() {
+  const loaded = await store.loadEvidence()
+  all.value = loaded.evidence
+  usage.value = loaded.usage
+}
 
 async function download(item) {
   if (!(await store.downloadEvidence(item))) toast.show(t('eunomia.evidence.downloadFailed'), 'error')
@@ -124,6 +136,8 @@ onMounted(refresh)
 <style scoped>
 .evidence { padding-top: 1rem; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 0.8rem; }
 h3 { font-size: var(--fs-md); font-weight: 600; color: var(--text); }
+.expired { color: var(--danger); font-size: var(--fs-body); }
+.usage { font-variant-numeric: tabular-nums; }
 .muted { color: var(--text-muted); font-size: var(--fs-body); }
 .list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
 .list li { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: baseline; font-size: var(--fs-md); }

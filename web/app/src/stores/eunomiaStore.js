@@ -160,13 +160,16 @@ export const useEunomiaStore = defineStore('eunomia', () => {
   /**
    * Carga las evidencias del dueño efectivo, con los controles que demuestran.
    *
-   * @returns {Promise<Array>} Las fichas; vacío si falla.
+   * @returns {Promise<{evidence: Array, usage: object|null}>} Las fichas y el uso de
+   *   almacenamiento (`usedBytes`, `limitBytes`); vacío y sin uso si falla.
    */
   async function loadEvidence() {
     try {
       const res = await apiFetch('/eunomia/evidence')
-      return res?.ok ? ((await res.json()).evidence ?? []) : []
-    } catch { return [] }
+      if (!res?.ok) return { evidence: [], usage: null }
+      const data = await res.json()
+      return { evidence: data.evidence ?? [], usage: data.usage ?? null }
+    } catch { return { evidence: [], usage: null } }
   }
 
   /**

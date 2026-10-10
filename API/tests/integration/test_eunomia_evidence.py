@@ -294,3 +294,70 @@ def test_a_pdf_with_javascript_is_rejected_by_the_endpoint(client, adopted, auth
 
     assert response.status_code == 400
     assert response.get_json()["messageKey"] == "evidenceActiveContent"
+
+
+# ── caducidad ──────────────────────────────────────────────────────────────
+
+def _notices(app):
+    from src.modules.features.eunomia.services.expiry_notices import send_expiry_notices
+
+    with app.app_context():
+        return send_expiry_notices()
+
+
+@pytest.fixture()
+def sent_emails():
+    from unittest import mock
+
+    mailer = mock.Mock()
+    with mock.patch("src.modules.features.eunomia.services.expiry_notices.build_mailer", return_value=mailer):
+        yield mailer.send.call_args_list
+
+
+def test_an_evidence_entering_the_threshold_gets_one_notice_and_only_one(app, client, adopted, auth_headers, sent_emails):
+    soon = (utcnow_naive() + timedelta(days=10)).date().isoformat()
+    _upload(client, auth_headers(adopted), validUntil=soon)
+
+    assert _notices(app) == 1
+    assert _notices(app) == 0
+    assert len(sent_emails) == 1
+    message = sent_emails[0].args[0]
+    assert "caduca" in message.subject.lower()
+    assert "%PDF" not in message.html_body and "%PDF" not in (message.text_body or "")
+
+
+def test_a_far_away_validity_gets_no_notice(app, client, adopted, auth_headers, sent_emails):
+    far = (utcnow_naive() + timedelta(days=400)).date().isoformat()
+    _upload(client, auth_headers(adopted), validUntil=far)
+
+    assert _notices(app) == 0
+    assert sent_emails == []
+
+
+def test_renewing_the_date_allows_a_new_notice(app, client, adopted, auth_headers, sent_emails):
+    headers = auth_headers(adopted)
+    soon = (utcnow_naive() + timedelta(days=5)).date().isoformat()
+    evidence_id = _upload(client, headers, validUntil=soon).get_json()["id"]
+    _notices(app)
+    later = (utcnow_naive() + timedelta(days=10)).date().isoformat()
+    client.patch(f"/eunomia/evidence/{evidence_id}", headers=headers, json={"validUntil": later})
+
+    assert _notices(app) == 1
+
+
+def test_an_expired_only_evidence_marks_its_control_apart_from_one_without_evidence(client, adopted, auth_headers):
+    headers = auth_headers(adopted)
+    yesterday = (utcnow_naive() - timedelta(days=1)).date().isoformat()
+    evidence_id = _upload(client, headers, validUntil=yesterday).get_json()["id"]
+    _link(client, headers, evidence_id, "nis2", "RE.11.1")
+
+    tree = client.get("/eunomia/adoptions/nis2/tree", headers=headers).get_json()["tree"]
+
+    def walk(nodes):
+        for node in nodes:
+            yield node
+            yield from walk(node["children"])
+
+    states = {n["identifier"]: n["evidenceState"] for n in walk(tree) if n["isAssessable"]}
+    assert states["RE.11.1"] == "expired"
+    assert states["RE.11.2"] == "none"

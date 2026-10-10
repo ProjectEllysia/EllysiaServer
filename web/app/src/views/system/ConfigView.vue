@@ -629,7 +629,7 @@ const mailStrategies = computed(() => [
   { value: 'smtp', label: t('configView.relaySmtp') },
 ])
 /** Módulos que envían correo; su rótulo está en `configView.mailModules.<key>`. */
-const mailModules = [{ key: 'aegis' }, { key: 'iris' }, { key: 'hygeia' }, { key: 'accounts' }]
+const mailModules = [{ key: 'aegis' }, { key: 'iris' }, { key: 'hygeia' }, { key: 'accounts' }, { key: 'eunomia' }]
 const severities = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']
 // Nuclei etiqueta sus plantillas en minúsculas; el valor que se guarda tiene
 // que coincidir exactamente con lo que espera el binario.

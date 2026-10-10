@@ -1,0 +1,22 @@
+{% if recipient_name %}Hola {{ recipient_name }},{% else %}Hola,{% endif %}
+
+{% if is_expired %}
+La evidencia «{{ evidence_title }}» caducó el {{ valid_until }}.
+{% else %}
+La evidencia «{{ evidence_title }}» caduca el {{ valid_until }}.
+{% endif %}
+
+{% if controls %}
+Demuestra estos controles:
+{% for control in controls %}- {{ control }}
+{% endfor %}
+{% endif %}
+Revísala y, si sigue vigente, actualiza su fecha de validez; si no, sube la nueva.
+
+Abrir Eunomia: {{ eunomia_url }}
+
+--
+{% if footer_reason %}
+{{ footer_reason }}
+{% endif %}
+Este mensaje se ha enviado automáticamente desde {{ brand.productName }}. No respondas a esta dirección.

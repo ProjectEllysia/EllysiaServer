@@ -113,7 +113,8 @@
         "aegis": "smtp",
         "hygeia": "smtp",
         "accounts": "smtp",
-        "iris": "smtp"
+        "iris": "smtp",
+        "eunomia": "smtp"
       },
       "strategies": {
         "smtp": {
