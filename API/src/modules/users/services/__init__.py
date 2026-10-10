@@ -3,9 +3,6 @@ from .secrets import (
     hash_password,
     hash_password_with_salt,
     verify_password,
-    generate_opaque_token,
-    hash_opaque_token,
-    verify_opaque_token,
 )
 
 from .mfa import (
@@ -21,6 +18,8 @@ from .language import (
     is_supported_language,
     resolve_effective_language,
 )
+
+from .user_data import UserDataContribution, UserDataRegistry
 
 from .permissions import (
     require_oauth_token,
@@ -51,4 +50,7 @@ __all__ = [
     'choose_language',
     'is_supported_language',
     'resolve_effective_language',
+
+    'UserDataContribution',
+    'UserDataRegistry',
 ]

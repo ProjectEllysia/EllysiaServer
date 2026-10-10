@@ -13,10 +13,13 @@ barrido incompleto pasaría verde aquí y daría un 500 en producción. Por eso 
 barrido es explícito y hay un test que recorre el grafo real de claves ajenas
 en vez de fiarse del borrado.
 
-**Por qué una lista y no un registro.** Se puede leer de arriba abajo y saber
-exactamente qué se destruye. Un registro donde cada módulo se apunta solo queda
-más desacoplado y obliga a ir a cinco ficheros para responder "¿qué borra este
-botón?" — que es justo la pregunta que hay que poder responder rápido.
+**Una lista y un registro.** Las features siguen declaradas aquí, en una lista
+que se lee de arriba abajo. Los módulos transversales que conocen sus propias
+tablas (hoy ``accounts``) se dan de alta en ``UserDataRegistry`` desde su
+``__init__.py``: así ``users`` no escribe SQL sobre tablas ajenas y añadir una
+tabla con ``user_id`` a ese módulo no obliga a editar este fichero. El orden de
+barrido es el de ``purge_order()``: features, módulos registrados (por
+prioridad) y, al final, lo que guarda ``users``.
 """
 
 import logging
@@ -32,6 +35,7 @@ from src.modules.shared import Document
 from src.modules.system.taskqueue import ITaskQueue, TaskQueue
 from src.modules.users.exceptions import UserBindingError
 from src.modules.users.repositories import UserRepository
+from src.modules.users.services.user_data import UserDataRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -364,57 +368,6 @@ def _purge_hygeia(uow: UnitOfWork, user_id: int) -> dict[str, int]:
     return counts
 
 
-def _purge_accounts(uow: UnitOfWork, user_id: int) -> dict[str, int]:
-    """Suscripción, pertenencia y rastro en invitaciones.
-
-    La **organización de la que es dueño se disuelve entera**: sus miembros se
-    quedan sin ella. Es lo que hay que avisarle antes de pulsar el botón, y por
-    eso ``preview_deletion`` lo cuenta.
-
-    Las referencias de "quién invitó" o "quién asignó el plan" se ponen a NULL
-    en vez de borrar la fila: son rastro histórico de otra persona, no datos de
-    quien se va.
-    """
-    from src.modules.accounts.model import (
-        Organization,
-        OrganizationInvitation,
-        OrganizationMember,
-        Subscription,
-    )
-
-    session = uow.session
-    counts: dict[str, int] = {}
-
-    owned = session.query(Organization).filter(Organization.owner_user_id == user_id).one_or_none()
-    if owned is not None:
-        counts["OrganizationInvitation"] = session.query(OrganizationInvitation).filter(
-            OrganizationInvitation.organization_id == owned.id
-        ).delete(synchronize_session=False)
-        counts["OrganizationMember"] = session.query(OrganizationMember).filter(
-            OrganizationMember.organization_id == owned.id
-        ).delete(synchronize_session=False)
-        session.delete(owned)
-        counts["Organization"] = 1
-
-    # Invitaciones que emitió o que crearon su cuenta, en organizaciones ajenas.
-    session.query(OrganizationInvitation).filter(
-        OrganizationInvitation.created_user_id == user_id
-    ).update({"created_user_id": None}, synchronize_session=False)
-    session.query(OrganizationInvitation).filter(
-        OrganizationInvitation.invited_by_user_id == user_id
-    ).delete(synchronize_session=False)
-
-    session.query(OrganizationMember).filter(
-        OrganizationMember.invited_by_user_id == user_id
-    ).update({"invited_by_user_id": None}, synchronize_session=False)
-    session.query(Subscription).filter(
-        Subscription.assigned_by_user_id == user_id
-    ).update({"assigned_by_user_id": None}, synchronize_session=False)
-
-    counts.update(_delete_by_user(uow, user_id, [OrganizationMember, Subscription]))
-    return counts
-
-
 def _purge_users(uow: UnitOfWork, user_id: int) -> dict[str, int]:
     """Desafíos MFA a medias y exportaciones de datos.
 
@@ -426,15 +379,38 @@ def _purge_users(uow: UnitOfWork, user_id: int) -> dict[str, int]:
     return _delete_by_user(uow, user_id, [MFAChallenge, DataExport])
 
 
-#: Orden de barrido. Se ejecuta antes de borrar la fila de ``User``.
+#: Purgas de las features, en orden. Corren primero; después las de los módulos
+#: registrados en ``UserDataRegistry`` y, al final, ``_purge_users``.
 PURGES: list[tuple[str, Callable[[UnitOfWork, int], dict[str, int]]]] = [
     ("themis",   _purge_themis),
     ("aegis",    _purge_aegis),
     ("iris",     _purge_iris),
     ("hygeia",   _purge_hygeia),
-    ("accounts", _purge_accounts),
-    ("users",    _purge_users),
 ]
+
+
+def _ordered_purges() -> list[tuple[str, Callable[[UnitOfWork, int], dict[str, int]]]]:
+    """Todas las purgas en el orden en que se ejecutan.
+
+    Returns:
+        list[tuple[str, Callable]]: ``(nombre del módulo, purga)``: primero
+            ``PURGES``, después los módulos de ``UserDataRegistry`` por
+            prioridad y, al final, la de ``users``. La fila de ``User`` se
+            borra después de todas.
+    """
+    registered = [(item.name, item.purge) for item in UserDataRegistry.contributions()]
+    return [*PURGES, *registered, ("users", _purge_users)]
+
+
+def purge_order() -> list[str]:
+    """Nombres de los módulos en el orden en que se purgan.
+
+    Returns:
+        list[str]: Por ejemplo ``["themis", "aegis", "iris", "hygeia", "accounts",
+            "users"]``. Hay un test que lo fija: algunas tablas tienen claves
+            ajenas entre sí y cambiar el orden rompe el borrado en Postgres.
+    """
+    return [name for name, _purge in _ordered_purges()]
 
 
 def _delete_by_user(uow: UnitOfWork, user_id: int, models: list) -> dict[str, int]:
@@ -450,9 +426,9 @@ def _delete_by_user(uow: UnitOfWork, user_id: int, models: list) -> dict[str, in
 
 
 def purge_user_data(uow: UnitOfWork, user_id: int) -> dict[str, int]:
-    """Ejecuta todas las purgas y devuelve cuántas filas cayó cada tabla."""
+    """Ejecuta todas las purgas, en el orden de ``purge_order``, y devuelve cuántas filas cayó cada tabla."""
     counts: dict[str, int] = {}
-    for module_name, purge in PURGES:
+    for module_name, purge in _ordered_purges():
         module_counts = purge(uow, user_id)
         counts.update({key: value for key, value in module_counts.items() if value})
         logger.debug(f"Purga de {module_name} para el usuario {user_id}: {module_counts}")
@@ -565,21 +541,23 @@ def delete_account(user_id: int) -> dict[str, int]:
 def _models_of_deletion_category(key: str) -> list:
     """Modelos cuyas filas cuentan para una categoría del aviso de borrado.
 
+    Los de las features están aquí; los de los módulos registrados en
+    ``UserDataRegistry`` (``subscription``, de ``accounts``) los aportan ellos.
+
     Args:
         key: Clave de la categoría (``DELETION_CATEGORY_KEYS``).
 
     Returns:
         list: Modelos SQLAlchemy con columna ``user_id``; cada fila suya del
-            usuario suma una unidad a la categoría.
+            usuario suma una unidad a la categoría. Vacía si ninguno la declara.
     """
-    from src.modules.accounts.model import Subscription
     from src.modules.features.acheron.model import Vault
     from src.modules.features.aegis.model import Campaign, DistributionList
     from src.modules.features.hygeia.model import MonitoredAsset
     from src.modules.features.iris.model import IrisAnalysis, IrisMailboxConnection
     from src.modules.features.themis.model import AuthorizedTarget, OsintScan, ProgramedScan, Scan
 
-    return {
+    own_models = {
         "scans": [Scan, OsintScan],
         "documents": [Document],
         "scheduledScans": [ProgramedScan],
@@ -590,8 +568,11 @@ def _models_of_deletion_category(key: str) -> list:
         "distributionLists": [DistributionList],
         "campaigns": [Campaign],
         "vaults": [Vault],
-        "subscription": [Subscription],
-    }[key]
+    }
+    models = list(own_models.get(key, []))
+    for contribution in UserDataRegistry.contributions():
+        models.extend(contribution.deletion_models.get(key, ()))
+    return models
 
 
 #: Categorías del aviso, en el orden en que se enseñan. La interfaz traduce cada

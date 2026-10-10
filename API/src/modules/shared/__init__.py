@@ -24,6 +24,7 @@ from ._endpoints    import (
 from ._ownership import assert_owned
 from ._data_export import ExportTable, owned_by, owned_through
 from ._time import utcnow_naive, isoformat_utc
+from ._tokens import generate_opaque_token, hash_opaque_token, verify_opaque_token
 from ._exposure import (
     classify_exposure,
     is_private_target,
@@ -66,6 +67,9 @@ __all__ = [
     "owned_through",
     "utcnow_naive",
     "isoformat_utc",
+    "generate_opaque_token",
+    "hash_opaque_token",
+    "verify_opaque_token",
     "CANCELLABLE_STATES",
     "encrypt_at_rest",
     "decrypt_at_rest",

@@ -235,6 +235,26 @@ features/*  ──►  users, accounts  ──►  tools/*, system  ──►  s
   cuota de un plan, borrar los datos de un usuario—, la dependencia se invierte con un registro:
   cada feature se da de alta en el transversal desde su propio `__init__.py`, igual que hace hoy
   con `QueueRegistry.register(...)`. El transversal recorre el registro sin conocer a nadie.
+  - **Datos de un usuario (borrado, aviso previo y exportación):** `users` publica
+    `UserDataRegistry` (`users/services/user_data.py`, reexportado en `users/__init__.py`) y cada
+    módulo declara desde su `__init__.py` qué purga (`purge`), qué cuenta en el aviso previo
+    (`deletion_models`) y qué exporta (`export_tables`). `accounts` ya lo hace; las features siguen
+    declaradas a mano en `account_deletion.py` y `data_export.py`. El orden de purga lo fija
+    `account_deletion.purge_order()` — features, módulos registrados por `priority` y `users` al
+    final — y `tests/unit/test_user_data_registry.py` lo ata.
+- **`users` ↔ `accounts` van en una sola dirección en lo que importa: `accounts` → `users`.**
+  `accounts` solo usa la cara pública de `users` (`UserManager`, `Role`, los decoradores de
+  permisos, `choose_language`, `UserDataRegistry`). `users` no importa nada de los `repositories`
+  ni de los `services` de `accounts`. Lo único que `users` le pregunta a `accounts` son tres
+  lecturas, siempre por `OrganizationManager` y con import diferido (para no cerrar un ciclo):
+  - `get_default_language`, para el escalón de organización de `resolve_effective_language`.
+  - `get_owned_summary` y `get_organization_id_of`, para el aviso previo al borrado de una cuenta.
+  - `is_owner_of_member`, para decidir si el dueño de una organización puede gestionar a un miembro.
+
+  Es una dependencia real del dominio (un registro para tres preguntas sueltas costaría más de lo
+  que ahorra), pero tiene que seguir siendo esta lista corta: `tests/unit/test_user_data_registry.py`
+  falla si algún fichero de `users` importa de `src.modules.accounts.<algo>` en vez de
+  `src.modules.accounts`.
 
 ---
 

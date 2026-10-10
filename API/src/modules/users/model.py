@@ -156,7 +156,10 @@ class User(Base):
         attributes: List of UserAttribute objects (ABAC capability attributes).
         organization_membership: La fila de ``OrganizationMember`` de este
             usuario, si tiene (uno-a-uno: ``OrganizationMember.user_id`` es
-            único — un usuario pertenece a lo sumo a una organización). Su
+            único — un usuario pertenece a lo sumo a una organización). La
+            declara ``accounts`` desde ``OrganizationMember.user``, así que
+            existe en cuanto ``accounts`` está cargado (siempre, en la API y en
+            el worker). Su
             ``member_role`` es "owner" para quien la creó y "member" para el
             resto; ver ``is_organization_member`` / ``is_organization_owner``.
     """
@@ -244,16 +247,9 @@ class User(Base):
         cascade="all, delete-orphan",
     )
 
-    # accounts.OrganizationMember: sin cascade="all, delete-orphan" como las
-    # relaciones de arriba — borrar la pertenencia de un usuario es una
-    # operación de negocio con sus propias reglas (quién hereda la
-    # organización, el ajuste de cuota), no un efecto secundario de borrar el
-    # usuario. Se queda como relación FK simple, y la resuelve
-    # AccountDeletionService igual que el resto de limpiezas entre módulos.
-    organization_membership = relationship(
-        "OrganizationMember", back_populates="user", uselist=False,
-        foreign_keys="OrganizationMember.user_id",
-    )
+    # ``organization_membership`` no se declara aquí: la crea ``accounts`` como
+    # ``backref`` de ``OrganizationMember.user`` al cargarse su modelo, para que
+    # el modelo de identidad no nombre un concepto comercial.
 
     @property
     def is_organization_member(self) -> bool:
