@@ -18,7 +18,9 @@ Hierarchy:
     ├── EvidenceFileMissingError  (400)
     ├── EvidenceTooLargeError     (413)
     ├── EvidenceStorageFullError  (402)
-    └── EvidenceTypeNotAllowedError (400)
+    ├── EvidenceTypeNotAllowedError (400)
+    ├── EvidenceTypeMismatchError (400)
+    └── EvidenceActiveContentError (400)
 """
 
 from __future__ import annotations
@@ -256,4 +258,37 @@ class EvidenceTypeNotAllowedError(EunomiaError):
             user_message=f"El tipo de fichero «{extension}» no se admite como evidencia. Admitidos: {allowed}.",
             message_key="evidenceTypeNotAllowed",
             params={"extension": extension, "allowed": allowed},
+        )
+
+
+class EvidenceTypeMismatchError(EunomiaError):
+    """El contenido no es del tipo que dice su extensión (un ejecutable renombrado a ``.pdf``)."""
+
+    default_code = ErrorCode.VALIDATION_ERROR
+    default_status_code = 400
+
+    def __init__(self, extension: str) -> None:
+        super().__init__(
+            message=f"El contenido no corresponde a la extension '{extension}'",
+            user_message=f"El contenido del fichero no es un «{extension}» de verdad, aunque se llame así.",
+            message_key="evidenceTypeMismatch",
+            params={"extension": extension},
+        )
+
+
+class EvidenceActiveContentError(EunomiaError):
+    """El fichero lleva contenido activo que se ejecutaría al abrirlo (macros, JavaScript…)."""
+
+    default_code = ErrorCode.VALIDATION_ERROR
+    default_status_code = 400
+
+    def __init__(self, detail: str) -> None:
+        super().__init__(
+            message=f"Evidencia con contenido activo: {detail}",
+            user_message=(
+                f"El fichero lleva contenido que se ejecutaría al abrirlo y no se admite como "
+                f"evidencia: {detail}"
+            ),
+            message_key="evidenceActiveContent",
+            params={"detail": detail},
         )
