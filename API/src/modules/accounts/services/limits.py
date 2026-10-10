@@ -259,6 +259,20 @@ STOCK_COUNTERS: dict[LimitKey, Callable[..., int]] = {
 }
 
 
+def register_stock_counter(key: LimitKey, counter: Callable[..., int]) -> None:
+    """Da de alta cómo se cuenta una clave de existencias que vive en una feature.
+
+    Las features importan el motor de cuotas, así que ``accounts`` no puede importar sus
+    tablas: la feature registra su contador al cargarse, como ``QueueRegistry.register``.
+
+    Args:
+        key: Clave de existencias (``LimitPeriod.STOCK``) que se cuenta.
+        counter: Función ``(session, user_ids) -> int`` que cuenta lo ya existente de la
+            bolsa de esos usuarios.
+    """
+    STOCK_COUNTERS[key] = counter
+
+
 def period_start_for(period: LimitPeriod, moment: Optional[datetime] = None) -> Optional[date]:
     """Primer día del periodo en curso, en UTC.
 

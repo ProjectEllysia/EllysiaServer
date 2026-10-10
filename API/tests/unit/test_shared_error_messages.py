@@ -67,6 +67,8 @@ _SAMPLE_ARGUMENTS: dict[str, list[tuple]] = {
     "InvalidAgentKeyError": [("clave rechazada",)],
     "StorableDeleteError": [(7,)],
     "DataOwnedByOrganizationError": [("Acme",)],
+    "FrameworkAlreadyAdoptedError": [("nis2",)],
+    "FrameworkArchivedError": [("nis2",)],
     "StorableConflictError": [("github",)],
     "VaultRevisionMismatchError": [(4,), (4, 3)],
     "PlanFeatureDisabledError": [("iris.analyses", "free")],

@@ -16,8 +16,8 @@ from .model import (
     UsageCounter,
 )
 from .managers import CompanyProfileManager, OrganizationManager, PlanManager
-from .services import LimitKey, LimitPeriod, QuotaManager
-from .exceptions import PlanFeatureDisabledError, QuotaExceededError
+from .services import LimitKey, LimitPeriod, QuotaManager, register_stock_counter
+from .exceptions import DataOwnedByOrganizationError, PlanFeatureDisabledError, QuotaExceededError
 from .endpoints import organizations_blp, plans_blp
 from .data_export import EXPORT_TABLES
 from .services.user_data import purge_accounts_data
@@ -46,7 +46,9 @@ __all__ = [
     "CompanyProfileManager",
     "QuotaManager",
     "LimitKey",
+    "register_stock_counter",
     "LimitPeriod",
+    "DataOwnedByOrganizationError",
     "PlanFeatureDisabledError",
     "QuotaExceededError",
     "plans_blp",

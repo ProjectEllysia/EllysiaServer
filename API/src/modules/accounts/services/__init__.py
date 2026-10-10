@@ -14,10 +14,12 @@ from .limits import (
     LimitPeriod,
     next_period_start,
     period_start_for,
+    register_stock_counter,
 )
 from .quotas import QuotaManager, QuotaState
 
 __all__ = [
+    "register_stock_counter",
     "LimitKey",
     "LimitPeriod",
     "PERIODS",
