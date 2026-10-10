@@ -1062,6 +1062,38 @@
         "note": "The headers are read and discarded: nothing is stored. SPF, DKIM and DMARC results are written by the server that received the email.",
         "more": "This is only half of it: an Iris analysis also reads the body, the links and the attachments, and gives you a verdict.",
         "moreCta": "Open Iris"
+      },
+      "versionCheck": {
+        "title": "Is my version vulnerable?",
+        "desc": "Enter a program and its version and see its known vulnerabilities, which ones are being exploited and whether it still gets patches.",
+        "subtitle": "Enter a program's name and version. Themis looks up the vulnerabilities that affect it in its database, as it would in a scan.",
+        "productLabel": "Program",
+        "versionLabel": "Version",
+        "hint": "The vendor's version, as the program itself reports it (nginx -v, ssh -V…).",
+        "invalidVersion": "Enter a version like 1.18.0 or 8.9p1, without spaces.",
+        "check": "Check",
+        "checking": "Searching…",
+        "examplesLabel": "Try",
+        "failed": "The version could not be checked. Try again in a moment.",
+        "unknown": "We don't recognise “{product}”. Try the name the vendor publishes it under, like “Apache httpd” or “OpenSSH”.",
+        "identifiedAs": "Identified as {cpe}",
+        "endOfLife": {
+          "past": "Out of vendor support since {date} (branch {cycle}): it no longer gets security patches.",
+          "supported": "Supported by the vendor until {date} (branch {cycle})."
+        },
+        "found": "Known vulnerabilities: {count}",
+        "none": "We know of no vulnerability for this version.",
+        "columns": {
+          "cve": "CVE",
+          "severity": "Severity",
+          "exploited": "Exploited",
+          "epss": "EPSS"
+        },
+        "exploitedYes": "Yes",
+        "andMore": "And {count} more, less urgent.",
+        "backportsNote": "The vendor's version is compared. A Linux distribution may have fixed a flaw without changing the number: in a scan, Themis checks it package by package.",
+        "more": "A Themis scan does this for every service it finds on your machines, and confirms the flaws instead of assuming them.",
+        "moreCta": "Open Themis"
       }
     }
   },
@@ -5261,6 +5293,10 @@
       "toolHeaderAnalyzer": {
         "title": "Email header analyzer: route, SPF, DKIM and DMARC | Ellysia",
         "description": "Paste an email's headers and see for free the route it took, hop by hop, and whether it passed SPF, DKIM and DMARC. Nothing is stored, no account needed."
+      },
+      "toolVersionCheck": {
+        "title": "Is my version vulnerable? CVEs, active exploitation and end of life | Ellysia",
+        "description": "Enter a program and its version and see for free its known vulnerabilities (CVE), whether they're exploited (KEV), their EPSS and if it's still supported."
       }
     }
   }

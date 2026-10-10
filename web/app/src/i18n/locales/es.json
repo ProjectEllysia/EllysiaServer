@@ -1062,6 +1062,38 @@
         "note": "Las cabeceras se leen y se descartan: no se guardan. Los resultados de SPF, DKIM y DMARC los escribe el servidor que recibió el correo.",
         "more": "Esto es solo la mitad: un análisis de Iris también lee el cuerpo, los enlaces y los adjuntos, y te da un veredicto.",
         "moreCta": "Abrir Iris"
+      },
+      "versionCheck": {
+        "title": "¿Es vulnerable mi versión?",
+        "desc": "Escribe un programa y su versión y mira qué vulnerabilidades conocidas tiene, cuáles se están explotando y si aún recibe parches.",
+        "subtitle": "Escribe el nombre de un programa y su versión. Themis busca en su base de vulnerabilidades las que la afectan, como haría en un escaneo.",
+        "productLabel": "Programa",
+        "versionLabel": "Versión",
+        "hint": "La versión del fabricante, como la da el propio programa (nginx -v, ssh -V…).",
+        "invalidVersion": "Escribe una versión como 1.18.0 o 8.9p1, sin espacios.",
+        "check": "Comprobar",
+        "checking": "Buscando…",
+        "examplesLabel": "Prueba con",
+        "failed": "No se ha podido comprobar la versión. Vuelve a intentarlo en un momento.",
+        "unknown": "No reconocemos «{product}». Prueba con el nombre con que lo publica el fabricante, como «Apache httpd» u «OpenSSH».",
+        "identifiedAs": "Identificado como {cpe}",
+        "endOfLife": {
+          "past": "Sin soporte del fabricante desde el {date} (rama {cycle}): ya no recibe parches de seguridad.",
+          "supported": "Con soporte del fabricante hasta el {date} (rama {cycle})."
+        },
+        "found": "Vulnerabilidades conocidas: {count}",
+        "none": "No conocemos ninguna vulnerabilidad para esta versión.",
+        "columns": {
+          "cve": "CVE",
+          "severity": "Gravedad",
+          "exploited": "Explotada",
+          "epss": "EPSS"
+        },
+        "exploitedYes": "Sí",
+        "andMore": "Y {count} más, menos urgentes.",
+        "backportsNote": "Se compara la versión del fabricante. Una distribución Linux puede haber corregido un fallo sin cambiar el número: en un escaneo, Themis lo comprueba paquete a paquete.",
+        "more": "Un escaneo de Themis hace esto con cada servicio que encuentra en tus equipos, y confirma los fallos en vez de suponerlos.",
+        "moreCta": "Abrir Themis"
       }
     }
   },
@@ -5261,6 +5293,10 @@
       "toolHeaderAnalyzer": {
         "title": "Analizador de cabeceras de correo: ruta, SPF, DKIM y DMARC | Ellysia",
         "description": "Pega las cabeceras de un correo y mira gratis la ruta que siguió, salto a salto, y si pasó SPF, DKIM y DMARC. No se guarda nada y no hace falta cuenta."
+      },
+      "toolVersionCheck": {
+        "title": "¿Es vulnerable mi versión? CVE, explotación activa y fin de soporte | Ellysia",
+        "description": "Escribe un programa y su versión y mira gratis sus vulnerabilidades conocidas (CVE), si se explotan (KEV), su EPSS y si aún tiene soporte. Sin cuenta."
       }
     }
   }

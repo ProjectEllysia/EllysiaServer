@@ -10,6 +10,8 @@ from __future__ import annotations
 import pytest
 
 from src.modules.features.iris.model import IrisAnalysis
+from src.modules.features.themis.managers.kb_sync import PUBLIC_VERSION_CVE_LIMIT
+from src.modules.features.themis.repositories import KbRepository
 from src.modules.infrastructure import UnitOfWork
 
 pytestmark = pytest.mark.integration
@@ -152,3 +154,88 @@ def test_text_without_enough_headers_is_rejected(client):
 @pytest.mark.parametrize("payload", [{}, {"headers": "corto"}, {"headers": "X-Relleno: " + "a" * 65536}])
 def test_missing_short_or_oversized_headers_are_rejected_by_the_schema(client, payload):
     assert client.post("/iris/tools/headers", json=payload).status_code == 422
+
+
+# ── Themis: ¿es vulnerable mi versión? ──────────────────────────────────────
+
+
+def _seed_range_cve(app, cve_id: str, vendor: str, product: str, cvss: float, *,
+                    in_kev: bool = False, epss: float | None = None) -> None:
+    """Guarda una CVE que afecta a ``vendor:product`` desde la 1.0 hasta antes de la 2.0."""
+    with app.app_context():
+        with UnitOfWork() as uow:
+            repo = KbRepository(uow)
+            repo.upsert_cve(
+                {"cve_id": cve_id, "cvss_score": cvss, "severity": "HIGH",
+                 "description": "Una vulnerabilidad de prueba", "source": "nvd"},
+                [{"vendor": vendor, "product": product, "exact_version": None,
+                  "version_start_including": "1.0", "version_start_excluding": None,
+                  "version_end_including": None, "version_end_excluding": "2.0"}],
+            )
+            if in_kev:
+                repo.upsert_kev({"cve_id": cve_id})
+            if epss is not None:
+                repo.upsert_epss({"cve_id": cve_id, "score": epss, "percentile": 0.5})
+
+
+def test_anyone_can_check_a_version_and_the_exploited_cves_come_first(client, app):
+    _seed_range_cve(app, "CVE-2031-1001", "memcached", "memcached", 9.8, epss=0.02)
+    _seed_range_cve(app, "CVE-2031-1002", "memcached", "memcached", 5.3, in_kev=True, epss=0.4)
+
+    response = client.get("/themis/kb/version?product=Memcached&version=1.6.9")
+
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["recognized"] is True
+    assert (body["vendor"], body["product"], body["version"]) == ("memcached", "memcached", "1.6.9")
+    ids = [cve["cveId"] for cve in body["cves"]]
+    # La explotada (KEV) va antes que la de más CVSS: es la urgente.
+    assert ids.index("CVE-2031-1002") < ids.index("CVE-2031-1001")
+    exploited = body["cves"][ids.index("CVE-2031-1002")]
+    assert exploited == {"cveId": "CVE-2031-1002", "cvssScore": 5.3, "epssScore": 0.4, "inKev": True}
+
+
+def test_a_version_outside_every_range_has_no_cves(client, app):
+    _seed_range_cve(app, "CVE-2031-1003", "memcached", "memcached", 7.5)
+
+    body = client.get("/themis/kb/version?product=memcached&version=2.1.0").get_json()
+
+    assert body["recognized"] is True
+    assert "CVE-2031-1003" not in [cve["cveId"] for cve in body["cves"]]
+
+
+def test_a_branch_out_of_vendor_support_says_since_when(client):
+    body = client.get("/themis/kb/version?product=nginx&version=1.18.0").get_json()
+
+    assert body["endOfLife"] == {"cycle": "1.18", "date": "2021-04-20", "isPast": True}
+
+
+def test_a_product_nobody_knows_is_not_an_error(client):
+    body = client.get("/themis/kb/version?product=producto-inventado&version=1.0").get_json()
+
+    assert body == {"recognized": False, "vendor": None, "product": None, "version": None,
+                    "cves": [], "cvesTotal": 0, "endOfLife": None}
+
+
+def test_a_product_with_many_cves_comes_back_trimmed_with_its_total(client, app):
+    for index in range(PUBLIC_VERSION_CVE_LIMIT + 5):
+        _seed_range_cve(app, f"CVE-2032-{1000 + index}", "apache", "zookeeper", 5.0)
+
+    body = client.get("/themis/kb/version?product=zookeeper&version=1.5").get_json()
+
+    assert len(body["cves"]) == PUBLIC_VERSION_CVE_LIMIT
+    assert body["cvesTotal"] == PUBLIC_VERSION_CVE_LIMIT + 5
+
+
+@pytest.mark.parametrize("query", [
+    "",
+    "?product=nginx",
+    "?version=1.0",
+    "?product=&version=1.0",
+    "?product=nginx&version=",
+    "?product=nginx&version=1.0%20OR%201=1",
+    "?product=nginx&version=-1",
+    f"?product={'a' * 81}&version=1.0",
+])
+def test_a_missing_product_or_a_malformed_version_is_rejected(client, query):
+    assert client.get(f"/themis/kb/version{query}").status_code == 422

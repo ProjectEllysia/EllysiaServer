@@ -130,6 +130,16 @@
         <rect class="draw" pathLength="1" x="10" y="30" width="44" height="28" rx="3" />
         <path class="draw" pathLength="1" d="M10 30 L32 46 L54 30" />
       </template>
+
+      <!-- ¿Es vulnerable mi versión?: la etiqueta de versión de un paquete, colgada de su cordel. -->
+      <template v-else-if="toolId === 'versionCheck'">
+        <g class="a-sway">
+          <path class="fine" d="M32 2 V14" />
+          <path class="draw" pathLength="1" d="M20 24 L32 12 L44 24 V58 H20 Z" />
+          <circle class="eye" cx="32" cy="24" r="2.8" />
+          <path class="fine" d="M25 36 H39 M25 43 H35 M25 50 H39" />
+        </g>
+      </template>
     </g>
   </svg>
 </template>
