@@ -412,6 +412,44 @@ class CampaignRepository(BaseRepository[Campaign]):
             .all()
         )
 
+    def get_awareness_summary(self, user_id: int, since) -> dict:
+        """Las cifras agregadas de las campañas lanzadas por un usuario desde una fecha.
+
+        No devuelve destinatarios ni respuestas individuales: solo recuentos.
+
+        Args:
+            user_id: Dueño de las campañas.
+            since: Instante (UTC naive) a partir del cual cuenta el lanzamiento.
+
+        Returns:
+            dict: ``campaigns``, ``recipients``, ``completed`` (destinatarios que terminaron el
+                quiz), ``answers`` y ``correctAnswers``.
+        """
+        campaigns = (
+            self._session.query(Campaign.id)
+            .filter(Campaign.user_id == user_id, Campaign.launched_at.isnot(None), Campaign.launched_at >= since)
+            .subquery()
+        )
+        recipients, completed = (
+            self._session.query(
+                func.count(CampaignRecipient.id),
+                func.count(CampaignRecipient.completed_at),
+            )
+            .filter(CampaignRecipient.campaign_id.in_(self._session.query(campaigns.c.id)))
+            .one()
+        )
+        answers, correct = (
+            self._session.query(func.count(CampaignAnswer.id), func.sum(case((CampaignAnswer.is_correct.is_(True), 1), else_=0)))
+            .join(CampaignRecipient, CampaignAnswer.campaign_recipient_id == CampaignRecipient.id)
+            .filter(CampaignRecipient.campaign_id.in_(self._session.query(campaigns.c.id)))
+            .one()
+        )
+        return {
+            "campaigns": self._session.query(campaigns).count(),
+            "recipients": recipients, "completed": completed,
+            "answers": answers, "correctAnswers": int(correct or 0),
+        }
+
     def get_campaigns_by_document(self, document_id: int) -> List[Campaign]:
         """All campaigns built on a given document, regardless of owner.
 

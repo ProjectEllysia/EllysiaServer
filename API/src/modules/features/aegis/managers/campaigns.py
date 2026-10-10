@@ -42,6 +42,8 @@ from src.modules.tools.herald import (
     default_brand,
     render_email,
 )
+from datetime import timedelta
+
 from src.modules.users import User, UserManager
 from src.modules.system.taskqueue import ITaskQueue, TaskTrackingMixin, job_context
 from src.modules.system.taskqueue.dispatcher import OutboxDispatcher
@@ -49,7 +51,7 @@ from src.modules.system.taskqueue.outbox import build_dispatch
 from src.modules.system.taskqueue.outbox_repository import TaskDispatchRepository
 from src.modules.infrastructure import UnitOfWork
 from src.modules.infrastructure.session import build_repository
-from src.modules.shared import WhiteLabel, WhiteLabelLevel, assert_owned
+from src.modules.shared import WhiteLabel, WhiteLabelLevel, assert_owned, utcnow_naive
 
 from .org_profile import AegisOrgProfileManager
 from ..model import Campaign, CampaignRecipient, DistributionList
@@ -123,6 +125,24 @@ class CampaignManager(TaskTrackingMixin):
         self.user = user
         super().__init__(task_queue)
         self.mailer = mailer
+
+    def get_awareness_summary(self, user_id: int, months: int = 12) -> dict:
+        """Resume la actividad de concienciación de un usuario, para quien la necesite.
+
+        Lo consume Eunomia como evidencia automática: solo cifras agregadas, ningún
+        destinatario ni respuesta individual. No usa ``self.user``: el dueño llega por parámetro,
+        así que sirve con ``CampaignManager(user=None)``.
+
+        Args:
+            user_id: Dueño de las campañas.
+            months: Ventana hacia atrás, en meses de 30 días. Por defecto ``12``.
+
+        Returns:
+            dict: ``campaigns``, ``recipients``, ``completed``, ``answers`` y ``correctAnswers``
+                de las campañas lanzadas en la ventana.
+        """
+        since = utcnow_naive() - timedelta(days=30 * months)
+        return build_repository(CampaignRepository).get_awareness_summary(user_id, since)
 
     # =========================================================================
     # DISTRIBUTION LISTS
