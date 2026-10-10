@@ -170,7 +170,7 @@ const plate = computed(() => {
 .grid, .ecliptic, .figure { fill: none; stroke-linecap: round; }
 /* Los trazos finos nunca bajan de un píxel real de la pantalla (`--device-pixel`, ver
    `ModuleAtmosphere`): por debajo se ven grises y borrosos en una pantalla normal. */
-.grid { stroke: var(--accent); stroke-width: max(0.6px, calc(var(--device-pixel, 0) * 1px)); opacity: 0.14; stroke-dasharray: 1; animation: draw 2.8s cubic-bezier(0.3, 0.1, 0.2, 1) var(--delay) backwards; }
+.grid { stroke: var(--accent); stroke-width: max(0.6px, calc(var(--device-pixel, 0) * 1px)); opacity: 0.14; animation: draw 2.8s cubic-bezier(0.3, 0.1, 0.2, 1) var(--delay) backwards; }
 .grid--major { opacity: 0.26; stroke-width: max(0.8px, calc(var(--device-pixel, 0) * 1px)); }
 .ecliptic { stroke: var(--accent-bright); stroke-width: max(0.9px, calc(var(--device-pixel, 0) * 1px)); opacity: 0.35; stroke-dasharray: 0.006 0.006; animation: fade 2s ease 2.4s backwards; }
 
@@ -189,7 +189,7 @@ const plate = computed(() => {
 .star--eclipsing { animation: eclipse 12s steps(48) 4s infinite; }
 
 /* ── Figuras: se dibujan tramo a tramo, sin tocar las estrellas ── */
-.figure { stroke: var(--accent-bright); stroke-width: 1.1; opacity: 0.6; stroke-dasharray: 1; animation: draw 1.4s cubic-bezier(0.3, 0.1, 0.2, 1) var(--delay) backwards; }
+.figure { stroke: var(--accent-bright); stroke-width: 1.1; opacity: 0.6; animation: draw 1.4s cubic-bezier(0.3, 0.1, 0.2, 1) var(--delay) backwards; }
 .is-neighbour .figure { stroke-width: max(0.8px, calc(var(--device-pixel, 0) * 1px)); opacity: 0.28; }
 .is-neighbour .star { opacity: 0.55; }
 
@@ -208,7 +208,8 @@ const plate = computed(() => {
 .nebula-halo { fill: var(--accent-dim); stroke: var(--accent-bright); stroke-width: max(0.7px, calc(var(--device-pixel, 0) * 1px)); stroke-dasharray: 1.5 2.5; opacity: 0.6; }
 .nebula-core { fill: var(--accent-bright); opacity: 0.35; filter: blur(1.5px); }
 
-@keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+/* El guion solo dura lo que dura el trazado: en reposo el trazo queda liso y no se recalcula en cada repintado. */
+@keyframes draw { from { stroke-dasharray: 1; stroke-dashoffset: 1; } to { stroke-dasharray: 1; stroke-dashoffset: 0; } }
 @keyframes fade { from { opacity: 0; } }
 @keyframes kindle { from { opacity: 0; transform: scale(0.2); } }
 @keyframes twinkle { from { opacity: 0.55; } to { opacity: 1; } }

@@ -413,6 +413,17 @@ test('ninguna animación mueve la posición de un fondo: se mueve una capa con t
   }
 })
 
+test('lo que recorre un camino sin parar va en su propia capa: si no, repinta el grabado entero', () => {
+  for (const id of MODULE_IDS) {
+    const path = `src/components/decor/scenes/${id.charAt(0).toUpperCase()}${id.slice(1)}Scene.vue`
+    const [template, styles = ''] = read(path).split('<style')
+    const movingLayers = [...template.matchAll(/<svg[^>]*\blayer--moving\b[\s\S]*?<\/svg>/g)].map(([layer]) => layer)
+    const outside = movingLayers.reduce((rest, layer) => rest.replace(layer, ''), template)
+    assert.doesNotMatch(outside, /offsetPath|offset-path/, `${path}: un offsetPath fuera de una capa layer--moving`)
+    if (movingLayers.length) assert.match(styles, /\.layer--moving\s*\{[^}]*will-change:\s*transform/, path)
+  }
+})
+
 if (failures) {
   console.error(`\n${failures} test(s) fallidos`)
   process.exit(1)

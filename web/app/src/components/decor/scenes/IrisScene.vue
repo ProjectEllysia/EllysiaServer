@@ -1,54 +1,67 @@
 <template>
-  <svg class="scene" viewBox="0 0 1200 600" preserveAspectRatio="xMidYMax meet" focusable="false">
-    <defs>
-      <!-- Bajo el arco primario el cielo es más claro: ahí cae la luz que las gotas devuelven -->
-      <radialGradient :id="ids.glow" gradientUnits="userSpaceOnUse" :cx="CENTER.x" :cy="CENTER.y" :r="BOWS.primaryInner">
-        <stop offset="0.72" class="glow-stop" stop-opacity="0" />
-        <stop offset="1" class="glow-stop" stop-opacity="0.05" />
-      </radialGradient>
-      <radialGradient :id="ids.glint">
-        <stop offset="0" class="glow-stop" stop-opacity="0.6" />
-        <stop offset="1" class="glow-stop" stop-opacity="0" />
-      </radialGradient>
-      <clipPath :id="ids.lens"><circle :cx="LOUPE.x" :cy="LOUPE.y" :r="LOUPE.radius" /></clipPath>
-    </defs>
+  <div class="scene">
+    <svg class="layer" viewBox="0 0 1200 600" preserveAspectRatio="xMidYMax meet" focusable="false">
+      <defs>
+        <!-- Bajo el arco primario el cielo es más claro: ahí cae la luz que las gotas devuelven -->
+        <radialGradient :id="ids.glow" gradientUnits="userSpaceOnUse" :cx="CENTER.x" :cy="CENTER.y" :r="BOWS.primaryInner">
+          <stop offset="0.72" class="glow-stop" stop-opacity="0" />
+          <stop offset="1" class="glow-stop" stop-opacity="0.05" />
+        </radialGradient>
+      </defs>
 
-    <circle class="sky-glow" :cx="CENTER.x" :cy="CENTER.y" :r="BOWS.primaryInner" :fill="`url(#${ids.glow})`" />
+      <circle class="sky-glow" :cx="CENTER.x" :cy="CENTER.y" :r="BOWS.primaryInner" :fill="`url(#${ids.glow})`" />
 
-    <!-- ── El arcoíris: un trazo fino por color, a su radio real ── -->
-    <g class="bow bow--secondary">
-      <path v-for="(arc, index) in BOWS.secondary" :key="`secondary-${arc.nm}`" :d="arc.path" :stroke="arc.color" pathLength="1" :style="{ '--delay': `${1 + index * 0.025}s` }" />
-    </g>
-    <g class="bow bow--primary">
-      <path v-for="(arc, index) in BOWS.primary" :key="`primary-${arc.nm}`" :d="arc.path" :stroke="arc.color" pathLength="1" :style="{ '--delay': `${0.3 + index * 0.02}s` }" />
-    </g>
-    <!-- Un brillo recorre el arco despacio: un punto de luz pequeño, que solo obliga a repintar su sitio -->
-    <circle class="glint" r="16" :fill="`url(#${ids.glint})`" :style="{ offsetPath: `path('${BOWS.glint}')` }" />
-
-    <!-- ── La medida, a la izquierda: el ángulo de cada arco visto desde el punto opuesto al Sol ── -->
-    <g class="reading">
-      <path class="guide" :d="READING.guide" />
-      <path v-for="tick in READING.ticks" :key="tick.label" class="tick" :d="tick.path" />
-      <text v-for="tick in READING.ticks" :key="`label-${tick.label}`" class="angle-label" :x="tick.labelX" :y="tick.labelY">{{ tick.label }}</text>
-      <text class="band-name" :x="READING.band.x" :y="READING.band.y">{{ READING.band.text }}</text>
-    </g>
-
-    <!-- ── La lupa, a la derecha: el mismo arco visto de cerca, con las líneas de Fraunhofer ── -->
-    <g class="loupe">
-      <g :clip-path="`url(#${ids.lens})`" class="loupe-view">
-        <circle class="loupe-backdrop" :cx="LOUPE.x" :cy="LOUPE.y" :r="LOUPE.radius" />
-        <g :transform="LOUPE.magnify">
-          <path v-for="arc in LOUPE.arcs" :key="`near-${arc.nm}`" class="near-arc" :d="arc.path" :stroke="arc.color" />
-          <path v-for="(line, index) in LOUPE.lines" :key="`dark-${line.letter}`" class="dark-line" :d="line.path" :stroke-width="line.width" :style="{ '--delay': `${3.6 + index * 0.12}s` }" />
-        </g>
-        <text v-for="(line, index) in LOUPE.lines" :key="`letter-${line.letter}`" class="line-letter" :x="line.labelX" :y="line.labelY" text-anchor="middle" :style="{ '--delay': `${3.7 + index * 0.12}s` }">{{ line.letter }}</text>
+      <!-- ── El arcoíris: un trazo fino por color, a su radio real ── -->
+      <g class="bow bow--secondary">
+        <path v-for="(arc, index) in BOWS.secondary" :key="`secondary-${arc.nm}`" :d="arc.path" :stroke="arc.color" pathLength="1" :style="{ '--delay': `${1 + index * 0.025}s` }" />
       </g>
-      <circle class="loupe-rim" :cx="LOUPE.x" :cy="LOUPE.y" :r="LOUPE.radius" pathLength="1" />
-      <circle class="loupe-rim loupe-rim--outer" :cx="LOUPE.x" :cy="LOUPE.y" :r="LOUPE.radius + 6" />
-      <path v-for="(tick, index) in LOUPE.ticks" :key="`reticle-${index}`" class="reticle" :d="tick" />
-      <text class="loupe-power" :x="LOUPE.powerLabel.x" :y="LOUPE.powerLabel.y" text-anchor="middle">{{ LOUPE.powerLabel.text }}</text>
-    </g>
-  </svg>
+      <g class="bow bow--primary">
+        <path v-for="(arc, index) in BOWS.primary" :key="`primary-${arc.nm}`" :d="arc.path" :stroke="arc.color" pathLength="1" :style="{ '--delay': `${0.3 + index * 0.02}s` }" />
+      </g>
+    </svg>
+
+    <!-- Un brillo recorre el arco despacio. Va en su propia capa: al moverse repinta solo esa
+         capa, no los arcos ni la lupa. La medida y la lupa van en otra por encima: el brillo pasa por debajo. -->
+    <svg class="layer layer--moving" viewBox="0 0 1200 600" preserveAspectRatio="xMidYMax meet" focusable="false">
+      <defs>
+        <radialGradient :id="ids.glint">
+          <stop offset="0" class="glow-stop" stop-opacity="0.6" />
+          <stop offset="1" class="glow-stop" stop-opacity="0" />
+        </radialGradient>
+      </defs>
+      <circle class="glint" r="16" :fill="`url(#${ids.glint})`" :style="{ offsetPath: `path('${BOWS.glint}')` }" />
+    </svg>
+
+    <svg class="layer" viewBox="0 0 1200 600" preserveAspectRatio="xMidYMax meet" focusable="false">
+      <defs>
+        <clipPath :id="ids.lens"><circle :cx="LOUPE.x" :cy="LOUPE.y" :r="LOUPE.radius" /></clipPath>
+      </defs>
+
+      <!-- ── La medida, a la izquierda: el ángulo de cada arco visto desde el punto opuesto al Sol ── -->
+      <g class="reading">
+        <path class="guide" :d="READING.guide" />
+        <path v-for="tick in READING.ticks" :key="tick.label" class="tick" :d="tick.path" />
+        <text v-for="tick in READING.ticks" :key="`label-${tick.label}`" class="angle-label" :x="tick.labelX" :y="tick.labelY">{{ tick.label }}</text>
+        <text class="band-name" :x="READING.band.x" :y="READING.band.y">{{ READING.band.text }}</text>
+      </g>
+
+      <!-- ── La lupa, a la derecha: el mismo arco visto de cerca, con las líneas de Fraunhofer ── -->
+      <g class="loupe">
+        <g :clip-path="`url(#${ids.lens})`" class="loupe-view">
+          <circle class="loupe-backdrop" :cx="LOUPE.x" :cy="LOUPE.y" :r="LOUPE.radius" />
+          <g :transform="LOUPE.magnify">
+            <path v-for="arc in LOUPE.arcs" :key="`near-${arc.nm}`" class="near-arc" :d="arc.path" :stroke="arc.color" />
+            <path v-for="(line, index) in LOUPE.lines" :key="`dark-${line.letter}`" class="dark-line" :d="line.path" :stroke-width="line.width" :style="{ '--delay': `${3.6 + index * 0.12}s` }" />
+          </g>
+          <text v-for="(line, index) in LOUPE.lines" :key="`letter-${line.letter}`" class="line-letter" :x="line.labelX" :y="line.labelY" text-anchor="middle" :style="{ '--delay': `${3.7 + index * 0.12}s` }">{{ line.letter }}</text>
+        </g>
+        <circle class="loupe-rim" :cx="LOUPE.x" :cy="LOUPE.y" :r="LOUPE.radius" pathLength="1" />
+        <circle class="loupe-rim loupe-rim--outer" :cx="LOUPE.x" :cy="LOUPE.y" :r="LOUPE.radius + 6" />
+        <path v-for="(tick, index) in LOUPE.ticks" :key="`reticle-${index}`" class="reticle" :d="tick" />
+        <text class="loupe-power" :x="LOUPE.powerLabel.x" :y="LOUPE.powerLabel.y" text-anchor="middle">{{ LOUPE.powerLabel.text }}</text>
+      </g>
+    </svg>
+  </div>
 </template>
 
 <script setup>
@@ -69,7 +82,8 @@ import { polarPoint } from '../sceneGeometry'
  *
  * Al aparecer, el arco se pinta de un extremo a otro y después el secundario; la lupa
  * se traza y sus líneas aparecen con sus letras. Luego un punto de luz recorre el arco
- * de vez en cuando: es lo único que se mueve sin parar, y solo repinta su sitio.
+ * de vez en cuando: es lo único que se mueve sin parar, y va en su propia capa para no
+ * obligar a repintar el grabado en cada fotograma.
  */
 
 const uid = useId()
@@ -138,6 +152,9 @@ const LOUPE = (() => {
   const center = polarPoint(CENTER.x, CENTER.y, middle, angle)
   const outward = polarPoint(0, 0, 1, angle)
   const along = polarPoint(0, 0, 1, angle + 90)
+  // La lente solo enseña unos grados del arco: se trazan esos, con margen, y no el arco entero que el recorte esconde.
+  const span = ((1.5 * radius) / power / middle) * (180 / Math.PI)
+  const nearArc = (nm) => arcPath(radiusOf(nm), angle - span, angle + span)
 
   const column = -30
   const lines = FRAUNHOFER_LINES.reduce((placed, line) => {
@@ -149,7 +166,7 @@ const LOUPE = (() => {
       letter: line.letter,
       offset,
       isCrowded,
-      path: arcPath(radiusOf(line.nm)),
+      path: nearArc(line.nm),
       width: round(line.width * 0.4),
       labelX: round(center.x + outward.x * offset + along.x * lateral),
       labelY: round(center.y + outward.y * offset + along.y * lateral + 4),
@@ -168,7 +185,7 @@ const LOUPE = (() => {
     y: center.y,
     radius,
     magnify: `translate(${center.x} ${center.y}) scale(${power}) translate(${-center.x} ${-center.y})`,
-    arcs: wavelengths(nearFrom, nearTo, 5).map((nm) => ({ nm, color: rgb(nm), path: arcPath(radiusOf(nm)) })),
+    arcs: wavelengths(nearFrom, nearTo, 5).map((nm) => ({ nm, color: rgb(nm), path: nearArc(nm) })),
     lines,
     ticks,
     powerLabel: { text: `×${String(power).replace('.', ',')}`, x: powerAt.x, y: powerAt.y + 4 },
@@ -177,13 +194,16 @@ const LOUPE = (() => {
 </script>
 
 <style scoped>
-.scene { width: 100%; height: 100%; display: block; }
+.scene { position: relative; width: 100%; height: 100%; }
+/* Las capas se apilan con el mismo viewBox, así que coinciden punto a punto. */
+.layer { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.layer--moving { will-change: transform; }
 
 .glow-stop { stop-color: var(--text); }
 .sky-glow { animation: fade 3s ease 1.6s backwards; }
 
 /* ── Arcos: se pintan de izquierda a derecha, color a color ── */
-.bow path { fill: none; stroke-linecap: round; stroke-dasharray: 1; animation: draw 2.8s cubic-bezier(0.35, 0.1, 0.25, 1) var(--delay) backwards; }
+.bow path { fill: none; stroke-linecap: round; animation: draw 2.8s cubic-bezier(0.35, 0.1, 0.25, 1) var(--delay) backwards; }
 .bow--primary path { stroke-width: 1.25; opacity: 0.42; }
 .bow--secondary path { stroke-width: 1.3; opacity: 0.18; }
 
@@ -204,12 +224,13 @@ const LOUPE = (() => {
 .near-arc { fill: none; stroke-width: 0.6; opacity: 0.55; }
 .dark-line { fill: none; stroke: #07080c; opacity: 0.85; animation: fade 0.8s ease var(--delay) backwards; }
 .line-letter { font-family: var(--font-display); font-size: 0.78em; font-weight: 600; fill: var(--text); opacity: 0.9; paint-order: stroke; stroke: var(--bg); stroke-width: 3px; animation: fade 0.8s ease var(--delay) backwards; }
-.loupe-rim { fill: none; stroke: var(--accent-bright); stroke-width: 1.2; opacity: 0.85; stroke-dasharray: 1; animation: draw 1.4s cubic-bezier(0.3, 0.1, 0.2, 1) 2.9s backwards; }
-.loupe-rim--outer { stroke-width: max(0.6px, calc(var(--device-pixel, 0) * 1px)); opacity: 0.5; stroke-dasharray: none; animation: fade 1s ease 3.4s backwards; }
+.loupe-rim { fill: none; stroke: var(--accent-bright); stroke-width: 1.2; opacity: 0.85; animation: draw 1.4s cubic-bezier(0.3, 0.1, 0.2, 1) 2.9s backwards; }
+.loupe-rim--outer { stroke-width: max(0.6px, calc(var(--device-pixel, 0) * 1px)); opacity: 0.5; animation: fade 1s ease 3.4s backwards; }
 .reticle { stroke: var(--accent); stroke-width: max(0.7px, calc(var(--device-pixel, 0) * 1px)); opacity: 0.6; animation: fade 1s ease 3.4s backwards; }
 .loupe-power { font-family: var(--font-mono); font-size: 0.66em; letter-spacing: 0.06em; fill: var(--accent-bright); opacity: 0.7; animation: fade 1s ease 3.6s backwards; }
 
-@keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+/* El guion solo dura lo que dura el trazado: en reposo el trazo queda liso y no se recalcula en cada repintado. */
+@keyframes draw { from { stroke-dasharray: 1; stroke-dashoffset: 1; } to { stroke-dasharray: 1; stroke-dashoffset: 0; } }
 @keyframes fade { from { opacity: 0; } }
 @keyframes glide {
   0% { offset-distance: 0%; opacity: 0; }
