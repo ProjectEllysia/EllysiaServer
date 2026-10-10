@@ -328,8 +328,16 @@ test('cada módulo tiene su sello, con ondas enteras y un dibujo distinto al de 
 
 console.log('registro de módulos')
 
-test('hay cinco módulos y cada uno tiene identidad, textos y capacidades', () => {
-  assert.deepEqual([...MODULE_IDS].sort(), ['acheron', 'aegis', 'hygeia', 'iris', 'themis'])
+/**
+ * Módulos cuyo hub no pinta una escena propia (usa solo el sello y la greca). Eunomia es una herramienta de
+ * trabajo —marcos, fichas, plazos— y su presentación no lleva grabado.
+ */
+const WITHOUT_SCENE = ['eunomia']
+const sceneOf = (id) => `src/components/decor/scenes/${id.charAt(0).toUpperCase()}${id.slice(1)}Scene.vue`
+const WITH_SCENE = MODULE_IDS.filter((id) => !WITHOUT_SCENE.includes(id))
+
+test('hay seis módulos y cada uno tiene identidad, textos y capacidades', () => {
+  assert.deepEqual([...MODULE_IDS].sort(), ['acheron', 'aegis', 'eunomia', 'hygeia', 'iris', 'themis'])
   for (const id of MODULE_IDS) {
     assert.ok(MODULE_IDENTITY[id].name && MODULE_IDENTITY[id].numeral && MODULE_IDENTITY[id].epigraph, id)
     assert.equal(MODULE_IDENTITY[id].route, `/${id}`)
@@ -339,7 +347,7 @@ test('hay cinco módulos y cada uno tiene identidad, textos y capacidades', () =
 })
 
 test('el panteón sigue su orden y los números romanos no se repiten', () => {
-  assert.deepEqual(MODULE_IDS.map((id) => MODULE_IDENTITY[id].numeral), ['I', 'II', 'III', 'IV', 'V'])
+  assert.deepEqual(MODULE_IDS.map((id) => MODULE_IDENTITY[id].numeral), ['I', 'II', 'III', 'IV', 'V', 'VI'])
 })
 
 for (const [code, dictionary] of locales) {
@@ -355,11 +363,9 @@ for (const [code, dictionary] of locales) {
   })
 }
 
-test('cada módulo tiene su escena mitológica', () => {
-  for (const id of MODULE_IDS) {
-    const name = id.charAt(0).toUpperCase() + id.slice(1)
-    assert.ok(existsSync(`${appRoot}src/components/decor/scenes/${name}Scene.vue`), `falta la escena de ${id}`)
-  }
+test('cada módulo tiene su escena mitológica, salvo los que lo declaran', () => {
+  for (const id of WITH_SCENE) assert.ok(existsSync(`${appRoot}${sceneOf(id)}`), `falta la escena de ${id}`)
+  for (const id of WITHOUT_SCENE) assert.ok(!existsSync(`${appRoot}${sceneOf(id)}`), `${id} declara no tener escena pero la tiene`)
 })
 
 test('cada herramienta gratuita tiene su grabado en el medallón', () => {
@@ -367,7 +373,7 @@ test('cada herramienta gratuita tiene su grabado en el medallón', () => {
   for (const tool of FREE_TOOLS) assert.ok(glyph.includes(`toolId === '${tool.id}'`), `falta el grabado de ${tool.id}`)
 })
 
-test('los cinco hubs leen su lema y sus capacidades del registro, sin repetirlos', () => {
+test('los hubs leen su lema y sus capacidades del registro, sin repetirlos', () => {
   for (const id of MODULE_IDS) {
     const hub = read(`src/views/${id}/${id.charAt(0).toUpperCase()}${id.slice(1)}HubView.vue`)
     assert.ok(hub.includes(`HUB_COPY_KEYS.${id}.claim`), `${id}: lema`)
@@ -394,7 +400,7 @@ const DECOR_COMPONENTS = [
   'src/components/decor/ToolGlyph.vue',
   'src/components/decor/Frieze.vue',
   'src/components/decor/ModuleAtmosphere.vue',
-  ...MODULE_IDS.map((id) => `src/components/decor/scenes/${id.charAt(0).toUpperCase()}${id.slice(1)}Scene.vue`),
+  ...WITH_SCENE.map(sceneOf),
   'src/components/shared/StarBackground.vue',
 ]
 
@@ -414,8 +420,8 @@ test('ninguna animación mueve la posición de un fondo: se mueve una capa con t
 })
 
 test('lo que recorre un camino sin parar va en su propia capa: si no, repinta el grabado entero', () => {
-  for (const id of MODULE_IDS) {
-    const path = `src/components/decor/scenes/${id.charAt(0).toUpperCase()}${id.slice(1)}Scene.vue`
+  for (const id of WITH_SCENE) {
+    const path = sceneOf(id)
     const [template, styles = ''] = read(path).split('<style')
     const movingLayers = [...template.matchAll(/<svg[^>]*\blayer--moving\b[\s\S]*?<\/svg>/g)].map(([layer]) => layer)
     const outside = movingLayers.reduce((rest, layer) => rest.replace(layer, ''), template)
