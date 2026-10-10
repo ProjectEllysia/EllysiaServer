@@ -477,3 +477,72 @@ def _invitation_token(sent_emails) -> str:
         if fragment.startswith("http") and "token=" in fragment
     )
     return parse_qs(urlparse(url).query)["token"][0]
+
+
+# ------------------------------------------------- el dueño efectivo de los datos
+
+def _resolve(app, user_id):
+    from src.modules.accounts import OrganizationManager
+
+    with app.app_context():
+        return OrganizationManager().resolve_data_owner(user_id)
+
+
+def test_without_an_organization_the_data_are_your_own(app, regular_user):
+    assert _resolve(app, regular_user.id) == regular_user.id
+
+
+def test_the_owner_of_an_organization_works_on_their_own_data(client, app, owner, auth_headers):
+    _create_org(client, auth_headers(owner))
+    assert _resolve(app, owner.id) == owner.id
+
+
+def test_a_member_works_on_the_data_of_the_owner(client, app, owner, regular_user, auth_headers):
+    organization = _create_org(client, auth_headers(owner))
+    _join(app, organization["id"], regular_user.id)
+
+    assert _resolve(app, regular_user.id) == owner.id
+
+
+def test_a_member_who_leaves_gets_their_own_data_back(client, app, owner, regular_user, auth_headers):
+    organization = _create_org(client, auth_headers(owner))
+    _join(app, organization["id"], regular_user.id)
+
+    assert client.delete("/organizations/mine", headers=auth_headers(regular_user)).status_code == 200
+    assert _resolve(app, regular_user.id) == regular_user.id
+
+
+def test_when_the_organization_is_dissolved_every_member_gets_their_data_back(
+    client, app, owner, regular_user, auth_headers,
+):
+    from src.modules.accounts.repositories import OrganizationRepository
+    from src.modules.infrastructure import UnitOfWork
+
+    organization = _create_org(client, auth_headers(owner))
+    _join(app, organization["id"], regular_user.id)
+
+    with app.app_context():
+        with UnitOfWork() as uow:
+            OrganizationRepository(uow).dissolve_owned_by(owner.id)
+
+    assert _resolve(app, regular_user.id) == regular_user.id
+
+
+def test_the_ownership_description_names_the_owner_only_to_members(
+    client, app, owner, regular_user, auth_headers,
+):
+    from src.modules.accounts import OrganizationManager
+
+    organization = _create_org(client, auth_headers(owner), "Acme")
+    _join(app, organization["id"], regular_user.id)
+
+    with app.app_context():
+        as_member = OrganizationManager().describe_data_ownership(regular_user.id)
+        as_owner = OrganizationManager().describe_data_ownership(owner.id)
+
+    assert as_member["ownerUserId"] == owner.id
+    assert as_member["isOwnData"] is False
+    assert as_member["organizationName"] == "Acme"
+    assert as_member["ownerDisplayName"]
+    assert as_owner["isOwnData"] is True
+    assert as_owner["ownerDisplayName"] is None
