@@ -149,6 +149,16 @@
         <circle class="draw" pathLength="1" cx="44" cy="46" r="11" />
         <path class="check a-check" pathLength="1" d="M38.5 46 L42.5 50.5 L50 41" />
       </template>
+
+      <!-- Mapa de correspondencias: dos columnas de controles unidas por sus cruces. -->
+      <template v-else-if="toolId === 'crosswalkMap'">
+        <path class="draw" pathLength="1" d="M12 12 L52 32" />
+        <path class="draw" pathLength="1" d="M12 32 L52 12" />
+        <path class="draw" pathLength="1" d="M12 52 L52 52" />
+        <path class="fine" d="M12 32 L52 52" />
+        <circle v-for="index in 3" :key="`left-${index}`" class="node a-cell" :style="{ '--i': index }" cx="12" :cy="12 + (index - 1) * 20" r="4.5" />
+        <circle v-for="index in 3" :key="`right-${index}`" class="node a-cell" :style="{ '--i': index + 3 }" cx="52" :cy="12 + (index - 1) * 20" r="4.5" />
+      </template>
     </g>
   </svg>
 </template>
