@@ -2061,6 +2061,13 @@
       "conflict": "Otra persona ha cambiado este control mientras lo editabas.",
       "useCurrent": "Ver el valor actual",
       "open": "Abrir el marco",
+      "tabs": {
+        "label": "Secciones del control",
+        "requirements": "Requisitos",
+        "evidence": "Evidencias",
+        "assessment": "Evaluación",
+        "history": "Historial"
+      },
       "history": "Historial",
       "noHistory": "Todavía no hay cambios.",
       "formerMember": "Alguien que ya no está",
@@ -2088,7 +2095,7 @@
       "unassigned": "{count} control sin responsable | {count} controles sin responsable"
     },
     "evidence": {
-      "title": "Evidencias",
+      "title": "Evidencias aportadas",
       "none": "Este control todavía no tiene evidencias enlazadas.",
       "validUntil": "vale hasta el {date}",
       "unlink": "Desenlazar",
@@ -2110,7 +2117,7 @@
       "expiredFlag": "evidencia vencida"
     },
     "suggestions": {
-      "title": "Ya lo tienes hecho en otro marco",
+      "title": "Correspondencias",
       "intro": "Estos controles de los otros marcos que has adoptado cubren este. Es una sugerencia: revisa que de verdad lo cumple.",
       "coverage": {
         "full": "Cobertura total",

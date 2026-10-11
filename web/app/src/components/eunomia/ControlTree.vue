@@ -175,7 +175,7 @@ function onKeydown(event) {
 }
 .caret svg { width: 1.05rem; height: 1.05rem; transition: transform 0.32s var(--ease-settle); }
 .caret--open svg { transform: rotate(90deg); }
-.caret:hover { background: var(--accent-dim); color: var(--accent-bright); }
+button.caret:hover { background: var(--accent-dim); color: var(--accent-bright); }
 .caret--spacer { display: block; }
 .id { font-family: var(--font-mono); font-size-adjust: var(--fsa-mono); font-size: var(--fs-body); color: var(--text-muted); flex: none; }
 /* Dos líneas como máximo; el control seleccionado se enseña entero (y el título

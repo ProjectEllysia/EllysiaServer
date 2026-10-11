@@ -59,7 +59,7 @@ async function link(evidence) {
 </script>
 
 <style scoped>
-.suggestions { padding-top: 1rem; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 0.6rem; }
+.suggestions { display: flex; flex-direction: column; gap: 0.6rem; }
 .muted, .meta { color: var(--text-muted); font-size: var(--fs-body); }
 ul { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.7rem; }
 .line { color: var(--text-dim); font-size: var(--fs-md); }
