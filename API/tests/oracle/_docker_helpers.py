@@ -191,6 +191,72 @@ def wait_for_port(host: str, port: int, timeout: float = 30.0,
     raise TimeoutError(f"{host}:{port} no respondió en {timeout}s{diagnose_port(docker_path, port)}")
 
 
+def wait_until_serving(docker_path: Optional[str], port: int, tls: bool, label: str = "",
+                       timeout: float = 180.0) -> None:
+    """Esperar a que el servidor conteste **su protocolo**, no a que el puerto acepte.
+
+    El proxy de Docker acepta la conexión TCP en cuanto existe la red del
+    contenedor, mucho antes de que nginx haya terminado de arrancar — y los
+    objetivos que hacen ``apk add`` y generan un certificado antes de servir
+    nada tardan segundos. ``wait_for_port`` da por listo un contenedor que
+    todavía se está instalando.
+
+    Eso no produce un error sino una **medición de menos**, que es peor. El
+    motor recorre las familias en orden: la sonda HTTP sale primero, falla
+    contra un servidor que aún no existe y devuelve ``None`` —ningún check de
+    cabeceras puede dispararse—, y cuando un segundo después le toca a la
+    sonda TLS, nginx ya está en pie y el check de certificado sí funciona. O,
+    si el escaneo es tan corto que acaba antes, no sale ningún hallazgo. Se lee
+    como «el motor no detectó», nunca como lo que es.
+
+    La comprobación es deliberadamente **cruda** —un socket y una línea de
+    estado, o un handshake TLS— y no reutiliza ``HttpProbe``: el arnés no puede
+    decidir si un objetivo está listo usando la misma pieza que está midiendo,
+    ni confundir un fallo de la sonda con un servidor que aún no arrancó.
+
+    Args:
+        docker_path: Cliente Docker con el que comprobar que el contenedor
+            sigue vivo y diagnosticarlo si no llega a servir.
+        port: El puerto publicado en 127.0.0.1.
+        tls: ``True`` si el servicio habla TLS; ``False`` si habla HTTP en claro.
+        label: Nombre del objetivo, para el mensaje del fallo.
+        timeout: Cuánto esperar antes de rendirse.
+
+    Raises:
+        TimeoutError: Si el contenedor muere o no sirve su protocolo a tiempo.
+    """
+    # Import perezoso: este módulo se carga al recolectar y no debe arrastrar el motor.
+    from src.modules.features.themis.lybra.checks import negotiates_tls  # pylint: disable=import-outside-toplevel
+
+    deadline = time.monotonic() + timeout
+    last = "sin intentos"
+    while time.monotonic() < deadline:
+        try:
+            if tls:
+                if negotiates_tls("127.0.0.1", port, timeout=3.0):
+                    return
+                last = "el puerto acepta pero todavía no habla TLS"
+            else:
+                with socket.create_connection(("127.0.0.1", port), timeout=3.0) as sock:
+                    sock.sendall(b"GET / HTTP/1.0\r\nHost: 127.0.0.1\r\n\r\n")
+                    if sock.recv(16).startswith(b"HTTP/"):
+                        return
+                last = "responde algo que no es HTTP"
+        except OSError as exc:
+            last = str(exc)
+        if container_died(docker_path, port):
+            raise TimeoutError(
+                f"[{label}] 127.0.0.1:{port} no sirvió su protocolo: su "
+                f"contenedor no sigue en marcha ({last})."
+                f"{diagnose_port(docker_path, port)}"
+            )
+        time.sleep(1.0)
+    raise TimeoutError(
+        f"[{label}] 127.0.0.1:{port} aceptó pero no sirvió su protocolo en "
+        f"{timeout}s ({last}){diagnose_port(docker_path, port)}"
+    )
+
+
 def port_is_free(host: str, port: int) -> bool:
     """Return whether nothing is currently listening on ``host:port``.
 

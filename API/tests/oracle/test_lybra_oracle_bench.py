@@ -33,10 +33,10 @@ from src.modules.features.themis.managers import LybraEngineManager, AuthorizedT
 from src.modules.features.themis.repositories import ScanRepository, KbRepository
 
 from ._concordance import port_concordance
-from ._security_headers import always_missing_header_checks
+from ._security_headers import stock_server_header_findings
 from ._docker_helpers import (resolve_docker, docker_run, docker_rm, wait_for_port,
-                              port_is_free, container_died, diagnose_port,
-                              remember_container)
+                              wait_until_serving, port_is_free, container_died,
+                              diagnose_port, remember_container)
 
 pytestmark = [pytest.mark.oracle, pytest.mark.integration]
 
@@ -74,6 +74,16 @@ _claimed_ports: set = set()
 # so these fixtures are function-scoped and tear down their container before
 # the next one binds it — no persistent claim needed).
 _TLS_PORT = 8443
+
+# Lo que un nginx:alpine con TLS de serie dispara en la familia ``tls`` además
+# del certificado. Su ``ssl_ciphers`` por defecto (``HIGH:!aNULL:!MD5``) acepta
+# suites CBC y de intercambio RSA sin secreto perfecto, y el motor lo confirma
+# con handshakes reales: son hallazgos ciertos, no falsos positivos, y los
+# contenedores TLS del banco son justo ese nginx sin tocar.
+STOCK_NGINX_TLS_FINDINGS = frozenset({
+    "lybra:tls-cbc-ciphers@1",
+    "lybra:tls-no-forward-secrecy@1",
+})
 
 
 def _free_http_port() -> int:
@@ -270,6 +280,10 @@ def tls_healthy_port():
     remember_container(port, name)
     try:
         _wait_for_port("127.0.0.1", port)
+        # Instalar openssl y generar el certificado tarda: el puerto acepta
+        # antes de que nginx exista, y un escaneo lanzado en ese hueco termina
+        # sin ver ningún TLS.
+        wait_until_serving(_DOCKER, port, tls=True, label="tls-healthy")
         yield port
     finally:
         docker_rm(_DOCKER, name)
@@ -287,6 +301,7 @@ def tls_expired_port():
     remember_container(port, name)
     try:
         _wait_for_port("127.0.0.1", port)
+        wait_until_serving(_DOCKER, port, tls=True, label="tls-expired")
         yield port
     finally:
         docker_rm(_DOCKER, name)
@@ -422,8 +437,9 @@ def test_missing_security_headers_detected_against_real_container(app, admin_use
     headers = {f.check_id for f in findings if f.category == "security_header"}
     # La familia esperada sale del feed, no de una lista escrita aquí. La lista
     # estuvo escrita, con tres identificadores, y se quedó atrás en cuanto el
-    # feed creció.
-    assert headers == always_missing_header_checks()
+    # feed creció. Es la de un nginx de serie en un puerto en claro: sin HSTS
+    # (sólo se exige por HTTPS) y con la versión en ``Server`` y sin redirección.
+    assert headers == stock_server_header_findings(over_tls=False)
     assert all(f.confirmed and f.qod == 99 for f in findings if f.category == "security_header")
 
 
@@ -435,7 +451,7 @@ def test_tls_self_signed_cert_detected_against_real_container(app, admin_user, t
     findings = _run_self_discovery(app, admin_user, "127.0.0.1", tls_healthy_port, monkeypatch)
 
     tls_findings = {f.check_id for f in findings if f.category == "tls"}
-    assert tls_findings == {"lybra:tls-self-signed-cert@1"}
+    assert tls_findings == {"lybra:tls-self-signed-cert@1"} | STOCK_NGINX_TLS_FINDINGS
     assert all(f.confirmed and f.qod == 99 for f in findings if f.category == "tls")
 
 
@@ -446,7 +462,7 @@ def test_tls_expired_cert_detected_against_real_container(app, admin_user, tls_e
     findings = _run_self_discovery(app, admin_user, "127.0.0.1", tls_expired_port, monkeypatch)
 
     tls_findings = {f.check_id for f in findings if f.category == "tls"}
-    assert tls_findings == {"lybra:tls-self-signed-cert@1", "lybra:tls-expired-cert@1"}
+    assert tls_findings == {"lybra:tls-self-signed-cert@1", "lybra:tls-expired-cert@1"} | STOCK_NGINX_TLS_FINDINGS
     assert all(f.confirmed and f.qod == 99 for f in findings if f.category == "tls")
 
 

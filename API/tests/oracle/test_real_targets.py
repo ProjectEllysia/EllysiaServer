@@ -184,8 +184,10 @@ def _forget_container(port: int) -> None:
 # a las tres de la mañana. Esta comprobación es pura, corre en el CI por defecto,
 # y falla en el mismo PR que añade el check.
 
-from ._security_headers import (CONDITIONAL_HEADER_CHECKS, always_missing_header_checks,
-                                header_family_from_feed)
+from ._security_headers import (CLEAR_PORT_HEADER_CHECKS, CONDITIONAL_HEADER_CHECKS,
+                                HTTPS_ONLY_HEADER_CHECKS, STOCK_SERVER_HEADER_CHECKS,
+                                always_missing_header_checks, header_family_from_feed,
+                                stock_server_header_findings)
 
 
 def test_every_security_header_check_is_classified():
@@ -210,6 +212,31 @@ def test_the_declared_exceptions_still_exist_in_the_feed():
     check desaparece o se le sube la versión, esto lo dice."""
     missing = set(CONDITIONAL_HEADER_CHECKS) - header_family_from_feed()
     assert not missing, f"excepciones que ya no están en el feed: {sorted(missing)}"
+
+
+def test_the_scheme_adjustments_name_real_checks_of_the_family():
+    """Lo que un servidor de serie dispara por esquema son checks de la familia.
+
+    Es lo que decide qué espera cada objetivo del catálogo. Si un check se
+    renombra o sube de versión, el conjunto dejaría de esperarlo en silencio y
+    el banco nocturno lo contaría como falso positivo —o como falso negativo—
+    tres noches más tarde, que es lo que pasó con HSTS y la versión del
+    servidor. Esto lo dice en el mismo PR."""
+    family = header_family_from_feed()
+    for declared in (HTTPS_ONLY_HEADER_CHECKS, STOCK_SERVER_HEADER_CHECKS, CLEAR_PORT_HEADER_CHECKS):
+        assert set(declared) <= family, f"fuera del feed: {sorted(set(declared) - family)}"
+
+
+def test_a_stock_server_trips_hsts_only_over_tls_and_the_redirect_warning_only_in_the_clear():
+    over_tls = stock_server_header_findings(over_tls=True)
+    in_the_clear = stock_server_header_findings(over_tls=False)
+
+    assert set(HTTPS_ONLY_HEADER_CHECKS) <= over_tls
+    assert not set(HTTPS_ONLY_HEADER_CHECKS) & in_the_clear
+    assert set(CLEAR_PORT_HEADER_CHECKS) <= in_the_clear
+    assert not set(CLEAR_PORT_HEADER_CHECKS) & over_tls
+    # La versión en ``Server`` la manda el servidor, cualquiera que sea el esquema.
+    assert set(STOCK_SERVER_HEADER_CHECKS) <= over_tls & in_the_clear
 
 
 def test_the_header_family_covers_what_the_bench_measured():
