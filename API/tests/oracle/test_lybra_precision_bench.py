@@ -40,20 +40,18 @@ Requiere Docker, como el resto del paquete ``oracle``. Se salta entero si falta.
 from __future__ import annotations
 
 import contextlib
-import socket
-import time
 from dataclasses import dataclass, field
 from typing import Iterator, Optional, Set
 
 import pytest
 
-from src.modules.features.themis.lybra.checks import HttpProbe, negotiates_tls
+from src.modules.features.themis.lybra.checks import HttpProbe
 
-from ._security_headers import always_missing_header_checks
+from ._security_headers import CLEAR_PORT_HEADER_CHECKS, stock_server_header_findings
 from ._docker_helpers import (resolve_docker, docker_run, docker_rm, wait_for_port,
-                              port_is_free, container_died, diagnose_port,
-                              remember_container)
-from .test_lybra_oracle_bench import _run_self_discovery, _tls_container_cmd
+                              wait_until_serving, port_is_free, remember_container)
+from .test_lybra_oracle_bench import (STOCK_NGINX_TLS_FINDINGS, _run_self_discovery,
+                                      _tls_container_cmd)
 
 pytestmark = [pytest.mark.oracle, pytest.mark.integration]
 
@@ -78,8 +76,19 @@ _TLS_PORT = 8443
 # la actualizó: los tres checks nuevos —CSP, Referrer-Policy y
 # Permissions-Policy— pasaron a contarse como falsos positivos en los diecisiete
 # objetivos HTTP del catálogo y tumbaron la precisión del banco a 0,557.
-# Ver ``_security_headers.py`` para la derivación y su única excepción.
-_HEADERS = always_missing_header_checks()
+# Ver ``_security_headers.py`` para la derivación y sus excepciones.
+#
+# Y se deriva **por esquema**: todos los objetivos son un nginx o un Apache de
+# serie, y éstos disparan, además de las cabeceras que faltan, la versión en
+# ``Server`` y —en claro— que no redirigen a HTTPS; HSTS sólo se exige por TLS.
+# Sin eso, esos hallazgos ciertos se contaban como falsos positivos en todos los
+# objetivos y la precisión caía a 0,748.
+_HEADERS = stock_server_header_findings(over_tls=False)
+_HEADERS_TLS = stock_server_header_findings(over_tls=True)
+
+# Lo que un servidor con TLS sin tocar dispara en la familia ``tls`` además del
+# certificado: ver ``STOCK_NGINX_TLS_FINDINGS``.
+_TLS_STOCK = set(STOCK_NGINX_TLS_FINDINGS)
 
 
 def _serve(files: dict) -> str:
@@ -123,13 +132,20 @@ def _tls_serve(files: dict) -> str:
 
 
 # El control negativo del catálogo: un nginx que no debe producir ni un
-# hallazgo. Manda la familia **entera** de cabeceras, no sólo las tres con
-# las que se escribió: en cuanto el feed creció, un «endurecido» al que le
-# faltaban tres cabeceras dejó de ser un control negativo y pasó a aportar
-# tres falsos positivos él solo.
+# hallazgo de esas familias. Manda la familia **entera** de cabeceras, no sólo
+# las tres con las que se escribió: en cuanto el feed creció, un «endurecido» al
+# que le faltaban tres cabeceras dejó de ser un control negativo y pasó a aportar
+# tres falsos positivos él solo. Por eso también calla la versión
+# (``server_tokens off``) y declara ``frame-ancestors``, que es lo que sustituye
+# a X-Frame-Options y sin lo cual X-Frame-Options se señala como obsoleta.
+#
+# Lo único que le queda es no redirigir a HTTPS, porque habla en claro: ningún
+# servidor que sirva la raíz con un 200 por el puerto 80 se libra de ese aviso, y
+# redirigirlo dejaría sin nada que evaluar a la familia que este control mide.
 _HARDENED_CONF = (
-    "printf '%s' 'server { listen 80; "
+    "printf '%s' 'server { listen 80; server_tokens off; "
     'add_header Strict-Transport-Security "max-age=31536000" always; '
+    "add_header Cross-Origin-Opener-Policy same-origin always; "
     "add_header X-Frame-Options DENY always; "
     "add_header X-Content-Type-Options nosniff always; "
     # Los valores van sin comilla simple a propósito: toda la configuración
@@ -138,7 +154,7 @@ _HARDENED_CONF = (
     # tres cabeceras que faltan parecerían un fallo del motor. La misma cautela
     # que ya documenta _redirect_conf(). Qué valor lleve la cabecera da igual:
     # estos checks juzgan que esté, no lo que dice.
-    'add_header Content-Security-Policy "default-src https:" always; '
+    'add_header Content-Security-Policy "default-src https:; frame-ancestors https:" always; '
     "add_header Referrer-Policy no-referrer always; "
     'add_header Permissions-Policy "geolocation=(), camera=()" always; '
     'location / { return 200 "ok"; } }\' > /etc/nginx/conf.d/default.conf '
@@ -253,9 +269,17 @@ def _redirect_conf() -> str:
     no parseaba y el contenedor moría al arrancar. El síntoma era el peor
     posible — "conexión rechazada" en cada sonda, o sea tres falsos negativos
     que parecían un fallo del motor.
+
+    La redirección es **relativa** (``absolute_redirect off``) a propósito. Por
+    defecto nginx la emite absoluta con el puerto en que escucha *dentro* del
+    contenedor, que es el 80, no el 8080 en que Docker lo publica: la sonda
+    seguía ``Location: http://127.0.0.1/index.html``, no encontraba nada en el
+    puerto 80 del anfitrión y no devolvía respuesta. Parecía un punto ciego del
+    motor ante cualquier raíz que redirige, y era el arnés mandando la
+    redirección a un puerto que no existe.
     """
     return (
-        "printf '%s' 'server { listen 80; root /usr/share/nginx/html; "
+        "printf '%s' 'server { listen 80; absolute_redirect off; root /usr/share/nginx/html; "
         "location = / { return 301 /index.html; } }' > /etc/nginx/conf.d/default.conf "
         "&& nginx -g 'daemon off;'"
     )
@@ -321,7 +345,7 @@ _CATALOGUE = (
         name="nginx-endurecido",
         image="nginx:alpine",
         command=_HARDENED_CONF,
-        expected=set(),
+        expected=set(CLEAR_PORT_HEADER_CHECKS),
     ),
     Target(
         name="nginx-senuelos",
@@ -350,7 +374,8 @@ _CATALOGUE = (
         # detección de esquema por observación decide si la sonda habla
         # en claro o cifrado.
         command=_tls_serve(_REAL_EXPOSURES),
-        expected=_HEADERS | _ALL_EXPOSURE_CHECKS | {"lybra:tls-self-signed-cert@1"},
+        expected=(_HEADERS_TLS | _ALL_EXPOSURE_CHECKS | _TLS_STOCK
+                  | {"lybra:tls-self-signed-cert@1"}),
         tls=True,
     ),
     # --- señuelos duros: un 200 en todas las rutas que los checks piden ---
@@ -385,7 +410,9 @@ _CATALOGUE = (
         name="nginx-auth-basica",
         image="nginx:alpine",
         command=_BASIC_AUTH_CONF,
-        expected=set(),
+        # Un 401 no es una página que juzgar, pero lleva la cabecera ``Server``
+        # con la versión de nginx igual que un 200.
+        expected={"lybra:http-version-disclosure@1"},
     ),
     # --- variación de despliegue real ---
     Target(
@@ -400,8 +427,10 @@ _CATALOGUE = (
         command=_PARTIAL_HEADERS_CONF,
         # Manda X-Frame-Options y nada más, así que espera todo el resto de
         # la familia. Se calcula restando en vez de enumerarse, para que crezca
-        # sola con el feed.
-        expected=_HEADERS - {"lybra:missing-x-frame-options-header@2"},
+        # sola con el feed. Y como esa X-Frame-Options no va acompañada de una
+        # CSP con ``frame-ancestors``, se avisa además de que está obsoleta.
+        expected=(_HEADERS - {"lybra:missing-x-frame-options-header@2"}
+                  | {"lybra:x-frame-options-deprecated@1"}),
     ),
     Target(
         name="nginx-redirige",
@@ -417,70 +446,18 @@ _CATALOGUE = (
         name="tls-autofirmado",
         image="nginx:alpine",
         command=_tls_container_cmd(days=365, expired=False),
-        expected=_HEADERS | {"lybra:tls-self-signed-cert@1"},
+        expected=_HEADERS_TLS | _TLS_STOCK | {"lybra:tls-self-signed-cert@1"},
         tls=True,
     ),
     Target(
         name="tls-caducado",
         image="nginx:alpine",
         command=_tls_container_cmd(days=30, expired=True),
-        expected=_HEADERS | {"lybra:tls-self-signed-cert@1", "lybra:tls-expired-cert@1"},
+        expected=(_HEADERS_TLS | _TLS_STOCK
+                  | {"lybra:tls-self-signed-cert@1", "lybra:tls-expired-cert@1"}),
         tls=True,
     ),
 )
-
-
-def _wait_until_serving(port: int, tls: bool, label: str = "", timeout: float = 180.0) -> None:
-    """Esperar a que el servidor conteste **su protocolo**, no a que el puerto acepte.
-
-    El proxy de Docker acepta la conexión TCP en cuanto existe la red del
-    contenedor, mucho antes de que nginx haya terminado de arrancar — y estos
-    objetivos hacen ``apk add`` y generan un certificado antes de servir nada.
-    ``wait_for_port`` da por listo un contenedor que todavía se está instalando.
-
-    Eso no producía un error sino una **medición de menos**, que es peor. El
-    motor recorre las familias en orden: la sonda HTTP salía primero, fallaba
-    contra un servidor que aún no existía y devolvía ``None`` —ningún check de
-    cabeceras podía dispararse—, y cuando un segundo después le tocaba a la
-    sonda TLS, nginx ya estaba en pie y el check de certificado sí funcionaba.
-    El banco reportaba tres falsos negativos por objetivo TLS y ningún fallo.
-
-    Es la tercera vez que esta carrera muerde en este paquete, y
-    siempre con la misma cara: se lee como "el motor no detectó".
-
-    La comprobación es deliberadamente **cruda** —un socket y una línea de
-    estado, o un handshake TLS— y no reutiliza ``HttpProbe``: el arnés no puede
-    decidir si un objetivo está listo usando la misma pieza que está midiendo.
-    Un objetivo que redirige la raíz demostró justo eso, porque ``HttpProbe``
-    no le devuelve nada (ver ``test_a_redirecting_root_still_gets_judged``).
-    """
-    deadline = time.monotonic() + timeout
-    last = "sin intentos"
-    while time.monotonic() < deadline:
-        try:
-            if tls:
-                if negotiates_tls("127.0.0.1", port, timeout=3.0):
-                    return
-                last = "el puerto acepta pero todavía no habla TLS"
-            else:
-                with socket.create_connection(("127.0.0.1", port), timeout=3.0) as sock:
-                    sock.sendall(b"GET / HTTP/1.0\r\nHost: 127.0.0.1\r\n\r\n")
-                    if sock.recv(16).startswith(b"HTTP/"):
-                        return
-                last = "responde algo que no es HTTP"
-        except OSError as exc:
-            last = str(exc)
-        if container_died(_DOCKER, port):
-            raise TimeoutError(
-                f"[{label}] 127.0.0.1:{port} no sirvió su protocolo: su "
-                f"contenedor no sigue en marcha ({last})."
-                f"{diagnose_port(_DOCKER, port)}"
-            )
-        time.sleep(1.0)
-    raise TimeoutError(
-        f"[{label}] 127.0.0.1:{port} aceptó pero no sirvió su protocolo en "
-        f"{timeout}s ({last}){diagnose_port(_DOCKER, port)}"
-    )
 
 
 @contextlib.contextmanager
@@ -503,7 +480,7 @@ def _running(target: Target) -> Iterator[int]:
     remember_container(port, name)
     try:
         wait_for_port("127.0.0.1", port, docker_path=_DOCKER)
-        _wait_until_serving(port, tls=target.tls, label=target.name)
+        wait_until_serving(_DOCKER, port, tls=target.tls, label=target.name)
         yield port
     finally:
         docker_rm(_DOCKER, name)
@@ -582,21 +559,18 @@ def test_fase_r_precision_over_labelled_catalogue(app, admin_user, monkeypatch):
     assert false_positives == 0, report
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "HttpProbe.fetch devuelve None contra un servidor cuya raíz redirige, así "
-    "que ninguno de los tres checks de cabeceras llega a evaluarse. Que el feed "
-    "acepte 301 y 302 como estados válidos demuestra que la intención era "
-    "justamente juzgarlos. El efecto es un punto ciego grande y silencioso: un "
-    "sitio que redirige la raíz —HTTP a HTTPS, / a /login, apex a www— no "
-    "recibe ni un hallazgo de esta familia, y el escaneo termina en verde."
-))
 def test_a_redirecting_root_still_gets_judged(app, admin_user, monkeypatch):
-    """El caso de despliegue más común que el catálogo destapó.
+    """Un sitio que redirige la raíz recibe los hallazgos del destino.
 
-    Se prueba aparte y no dentro del agregado porque es un fallo de la **sonda**,
-    no de los checks: los tres se evalúan bien en cuanto reciben una respuesta.
-    Dentro del cómputo sería un falso negativo más entre otros; aquí es una
-    afirmación con nombre que se pondrá en verde el día que se arregle.
+    El caso de despliegue más común que el catálogo destapó. Se prueba aparte y
+    no sólo dentro del agregado porque lo que falla, si falla, es la **sonda** y
+    no los checks, y una afirmación con nombre lo dice en el titular del fallo
+    en vez de repartirlo entre los falsos negativos de la tabla.
+
+    Estuvo marcado como fallo esperado, con el diagnóstico de que la sonda
+    devolvía ``None`` ante cualquier redirección. No era eso: la sonda sigue
+    las redirecciones y juzga el destino; es el objetivo el que mandaba la
+    redirección a un puerto sin servicio (ver ``_redirect_conf``).
     """
     target = next(item for item in _CATALOGUE if item.name == "nginx-redirige")
     with _running(target) as port:

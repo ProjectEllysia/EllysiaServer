@@ -89,3 +89,50 @@ def always_missing_header_checks() -> Set[str]:
     test que parchee el feed vea lo que ha parcheado.
     """
     return header_family_from_feed() - set(CONDITIONAL_HEADER_CHECKS)
+
+
+# Lo que un nginx o un Apache **de serie** dispara además de la cabecera que
+# falta, y lo que cambia según hablen HTTP en claro o TLS. Estaban entre las
+# excepciones de arriba —«no lo dispara todo servidor sin endurecer»—, y es
+# verdad, pero todos los objetivos del catálogo son precisamente eso: un servidor
+# de serie respondiendo 200 en la raíz. Sin declararlo aparte, cada uno de esos
+# hallazgos ciertos contaba como falso positivo en todos los objetivos HTTP y
+# hundía la precisión del banco a 0,748.
+HTTPS_ONLY_HEADER_CHECKS: Dict[str, str] = {
+    "lybra:missing-hsts-header@2":
+        "HSTS sólo tiene efecto recibida por HTTPS (RFC 6797 §8.1): en un puerto "
+        "en claro no se exige, y no es un falso negativo que no salga",
+}
+
+STOCK_SERVER_HEADER_CHECKS: Dict[str, str] = {
+    "lybra:http-version-disclosure@1":
+        "nginx y Apache de serie mandan «Server: nginx/1.x.y» o «Apache/2.4.x», "
+        "con o sin TLS; hace falta ``server_tokens off`` o equivalente para callarlo",
+}
+
+CLEAR_PORT_HEADER_CHECKS: Dict[str, str] = {
+    "lybra:http-no-https-redirect@1":
+        "un puerto en claro que sirve la raíz con un 200 en vez de redirigir a "
+        "HTTPS; es lo que hacen todos los objetivos HTTP del catálogo",
+}
+
+
+def stock_server_header_findings(over_tls: bool) -> Set[str]:
+    """Los hallazgos de ``security_header`` de un servidor de serie que sirve un 200.
+
+    Es :func:`always_missing_header_checks` ajustada al esquema y con lo que un
+    nginx o un Apache sin tocar manda además: la versión en ``Server`` y, en
+    claro, que no redirige a HTTPS. No vale para un servidor endurecido, que es
+    justo el que no debe disparar nada de esto.
+
+    Args:
+        over_tls: ``True`` si el objetivo habla TLS; ``False`` si habla HTTP en claro.
+
+    Returns:
+        Set[str]: Los ``check_id`` esperados. Por TLS entra HSTS y no el aviso de
+            falta de redirección; en claro, al revés.
+    """
+    found = always_missing_header_checks() | set(STOCK_SERVER_HEADER_CHECKS)
+    if over_tls:
+        return found
+    return (found - set(HTTPS_ONLY_HEADER_CHECKS)) | set(CLEAR_PORT_HEADER_CHECKS)
