@@ -72,11 +72,12 @@ jobs:
           # porque ata contratos entre las dos mitades del repositorio:
           # test_caddy_api_routes lee el router, test_config_view_paths lee
           # views/system/ConfigView.vue, test_privacy_note_matches_config lee
-          # views/public/PrivacyView.vue y test_scan_failure_reason, los
-          # componentes de Themis. Un test nuevo que lea el SPA se añade aquí.
+          # views/public/PrivacyView.vue, test_scan_failure_reason, los
+          # componentes de Themis, y test_eunomia_scene_data, la instantánea
+          # components/decor/concordance.json. Un test nuevo que lea el SPA se añade aquí.
           relevant=$(
             printf '%s\n' "$changed" | grep -vE '\.md$|^web/app/' || true
-            printf '%s\n' "$changed" | grep -E '^web/app/src/(router/|views/system/ConfigView\.vue|views/public/PrivacyView\.vue|components/themis/)' || true
+            printf '%s\n' "$changed" | grep -E '^web/app/src/(router/|views/system/ConfigView\.vue|views/public/PrivacyView\.vue|components/themis/|components/decor/concordance\.json)' || true
           )
           if [ -n "$relevant" ]; then
             echo "run=true" >> "$GITHUB_OUTPUT"

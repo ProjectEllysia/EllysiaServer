@@ -2,8 +2,9 @@
  * Tests de lo que da vida a las páginas públicas: la matemática de las animaciones
  * (`composables/motionMath.js`); los cálculos de los grabados de cada módulo, que salen
  * de fórmulas y datos reales —el sello (`sceneGeometry.js`, `sealPatterns.js`), el
- * cielo de los atlas (`celestial.js`), la luz de Iris (`spectrum.js`) y la carta de
- * Acheron (`cartography.js`), todos en `components/decor/`—; y el registro de módulos
+ * cielo de los atlas (`celestial.js`), la luz de Iris (`spectrum.js`), la carta de
+ * Acheron (`cartography.js`) y la concordancia de Eunomia (`concordance.js`), todos en
+ * `components/decor/`—; y el registro de módulos
  * que comparten el hub y las herramientas gratuitas (`components/shared/moduleIdentity.js`).
  *
  * Node puro, sin framework. Lo importante del registro es que nada de lo que el pie de
@@ -31,6 +32,7 @@ import { guillochePath, polarPoint } from '../src/components/decor/sceneGeometry
 import { OBLIQUITY, constellationEdges, eclipticPoint, formatDeclination, gappedSegment, graticule, projectCatalog, starRadius, stereographic } from '../src/components/decor/celestial.js'
 import { FRAUNHOFER_LINES, rainbowAngle, waterIndex, wavelengthToRgb } from '../src/components/decor/spectrum.js'
 import { hachures, lakePoints, meanderPoints, offsetPoints, smoothPath } from '../src/components/decor/cartography.js'
+import { arcBetween, arcList, diamondPath, fanOf, fanSources, layoutRuler, rulerPaths, tickX } from '../src/components/decor/concordance.js'
 import { SEAL_PATTERNS } from '../src/components/decor/sealPatterns.js'
 import { HUB_COPY_KEYS, HUB_FEATURE_IDS, MODULE_IDENTITY, MODULE_IDS } from '../src/components/shared/moduleIdentity.js'
 import { FREE_TOOLS } from '../src/freeTools/catalog.js'
@@ -39,6 +41,7 @@ const appRoot = fileURLToPath(new URL('../', import.meta.url))
 const read = (path) => readFileSync(appRoot + path, 'utf-8').replace(/\r\n/g, '\n')
 const locales = ['es', 'en'].map((code) => [code, JSON.parse(read(`src/i18n/locales/${code}.json`))])
 const resolveKey = (dictionary, key) => key.split('.').reduce((node, part) => node?.[part], dictionary)
+const concordance = JSON.parse(read('src/components/decor/concordance.json'))
 
 let failures = 0
 function test(name, fn) {
@@ -326,15 +329,81 @@ test('cada módulo tiene su sello, con ondas enteras y un dibujo distinto al de 
   assert.equal(new Set(signatures).size, signatures.length)
 })
 
+console.log('concordancia')
+
+const ruler = layoutRuler(concordance)
+
+test('cada marco ocupa un tramo con el mismo ancho por requisito, sin pisar al anterior y con su hueco', () => {
+  const segments = concordance.order.map((key) => ruler.segments[key])
+  assert.equal(segments[0].x0, 60)
+  assert.ok(Math.abs(segments.at(-1).x1 - 1140) < 1e-9)
+  segments.forEach((segment, index) => {
+    assert.ok(Math.abs(segment.x1 - segment.x0 - segment.count * ruler.step) < 1e-9)
+    if (index) assert.ok(Math.abs(segment.x0 - segments[index - 1].x1 - 40) < 1e-9)
+  })
+})
+
+test('la marca de un requisito cae dentro del tramo de su marco, y en orden', () => {
+  for (const key of concordance.order) {
+    const { x0, x1, count } = ruler.segments[key]
+    assert.ok(tickX(ruler, key, 0) > x0 && tickX(ruler, key, count - 1) < x1, key)
+    assert.ok(tickX(ruler, key, 1) > tickX(ruler, key, 0), key)
+  }
+})
+
+test('todo enlace de los datos une requisitos que existen, de marcos distintos', () => {
+  for (const [fromKey, fromIndex, toKey, toIndex] of concordance.links) {
+    assert.notEqual(fromKey, toKey)
+    assert.ok(fromIndex >= 0 && fromIndex < concordance.frameworks[fromKey].count, `${fromKey}[${fromIndex}]`)
+    assert.ok(toIndex >= 0 && toIndex < concordance.frameworks[toKey].count, `${toKey}[${toIndex}]`)
+  }
+})
+
+test('un arco sube sobre la regla y se recorre del origen al destino, vaya a un lado o al otro', () => {
+  assert.equal(arcBetween(100, 300, 400, 0.5), 'M100 400 A100 50 0 0 1 300 400')
+  assert.equal(arcBetween(300, 100, 400, 0.5), 'M300 400 A100 50 0 0 0 100 400')
+})
+
+test('la regla da una marca por requisito y una mayor cada diez desde el primero de cada marco', () => {
+  const paths = rulerPaths(ruler, 430)
+  const count = (d) => (d.match(/M/g) ?? []).length
+  const counts = concordance.order.map((key) => concordance.frameworks[key].count)
+  assert.equal(count(paths.minor) + count(paths.major), counts.reduce((sum, value) => sum + value, 0))
+  assert.equal(count(paths.major), counts.reduce((sum, value) => sum + Math.ceil(value / 10), 0))
+  assert.equal(count(paths.rules), concordance.order.length)
+})
+
+test('cada correspondencia tiene su arco, con las parciales delante para que las totales se pinten encima', () => {
+  const arcs = arcList(concordance, ruler, 430)
+  assert.equal(arcs.length, concordance.links.length)
+  const firstFull = arcs.findIndex((arc) => arc.isFull)
+  assert.ok(firstFull > 0, 'hay parciales y totales')
+  assert.ok(arcs.slice(0, firstFull).every((arc) => !arc.isFull) && arcs.slice(firstFull).every((arc) => arc.isFull))
+})
+
+test('una evidencia llega a un requisito de cada otro marco, por un enlace que existe en un sentido o en el otro', () => {
+  const sources = fanSources(concordance, 'nis2', 2)
+  assert.equal(sources.length, 2)
+  assert.notEqual(sources[0].index, sources[1].index)
+  const isLinked = (a, b) => concordance.links.some(([fromKey, fromIndex, toKey, toIndex]) => (
+    (fromKey === a.framework && fromIndex === a.index && toKey === b.framework && toIndex === b.index)
+    || (toKey === a.framework && toIndex === a.index && fromKey === b.framework && fromIndex === b.index)
+  ))
+  for (const source of sources) {
+    const targets = fanOf(concordance, source)
+    assert.deepEqual(targets.map((target) => target.framework), concordance.order.filter((key) => key !== 'nis2'))
+    targets.forEach((target) => assert.ok(isLinked(source, target)))
+  }
+})
+
+test('un requisito sin correspondencias no tiene abanico, y un rombo se cierra sobre sus cuatro vértices', () => {
+  assert.deepEqual(fanOf({ order: ['a', 'b'], links: [] }, { framework: 'a', index: 0 }), [])
+  assert.equal(diamondPath(10, 20, 4), 'M10 16L14 20L10 24L6 20Z')
+})
+
 console.log('registro de módulos')
 
-/**
- * Módulos cuyo hub no pinta una escena propia (usa solo el sello y la greca). Eunomia es una herramienta de
- * trabajo —marcos, fichas, plazos— y su presentación no lleva grabado.
- */
-const WITHOUT_SCENE = ['eunomia']
 const sceneOf = (id) => `src/components/decor/scenes/${id.charAt(0).toUpperCase()}${id.slice(1)}Scene.vue`
-const WITH_SCENE = MODULE_IDS.filter((id) => !WITHOUT_SCENE.includes(id))
 
 test('hay seis módulos y cada uno tiene identidad, textos y capacidades', () => {
   assert.deepEqual([...MODULE_IDS].sort(), ['acheron', 'aegis', 'eunomia', 'hygeia', 'iris', 'themis'])
@@ -363,9 +432,8 @@ for (const [code, dictionary] of locales) {
   })
 }
 
-test('cada módulo tiene su escena mitológica, salvo los que lo declaran', () => {
-  for (const id of WITH_SCENE) assert.ok(existsSync(`${appRoot}${sceneOf(id)}`), `falta la escena de ${id}`)
-  for (const id of WITHOUT_SCENE) assert.ok(!existsSync(`${appRoot}${sceneOf(id)}`), `${id} declara no tener escena pero la tiene`)
+test('cada módulo tiene su escena mitológica', () => {
+  for (const id of MODULE_IDS) assert.ok(existsSync(`${appRoot}${sceneOf(id)}`), `falta la escena de ${id}`)
 })
 
 test('cada herramienta gratuita tiene su grabado en el medallón', () => {
@@ -400,7 +468,7 @@ const DECOR_COMPONENTS = [
   'src/components/decor/ToolGlyph.vue',
   'src/components/decor/Frieze.vue',
   'src/components/decor/ModuleAtmosphere.vue',
-  ...WITH_SCENE.map(sceneOf),
+  ...MODULE_IDS.map(sceneOf),
   'src/components/shared/StarBackground.vue',
 ]
 
@@ -420,7 +488,7 @@ test('ninguna animación mueve la posición de un fondo: se mueve una capa con t
 })
 
 test('lo que recorre un camino sin parar va en su propia capa: si no, repinta el grabado entero', () => {
-  for (const id of WITH_SCENE) {
+  for (const id of MODULE_IDS) {
     const path = sceneOf(id)
     const [template, styles = ''] = read(path).split('<style')
     const movingLayers = [...template.matchAll(/<svg[^>]*\blayer--moving\b[\s\S]*?<\/svg>/g)].map(([layer]) => layer)
