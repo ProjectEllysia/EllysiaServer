@@ -1199,6 +1199,24 @@
         "note": "This is guidance, not legal advice. It applies the directive as written and does not take national law into account, nor every case of linked or partner enterprises.",
         "more": "If NIS2 applies to you, Eunomia takes you through its requirements one by one: assess each point, keep the evidence and generate the policies.",
         "moreCta": "Open Eunomia"
+      },
+      "crosswalkMap": {
+        "title": "Framework crosswalk",
+        "desc": "Pick a framework as the reference and hover its controls to see which controls of the other frameworks in the catalog overlap with them.",
+        "subtitle": "It comes from the Eunomia catalog: each control shows the controls of other frameworks that cover the same ground, fully or in part. It assesses nothing and stores nothing.",
+        "referenceLabel": "Reference framework",
+        "linkedCount": "{linked} of {total} controls map to other frameworks.",
+        "loading": "Loading the catalog…",
+        "failed": "The map could not be loaded. Try again in a few minutes.",
+        "empty": "Hover a highlighted control to see what it maps to in the other frameworks. On a touch screen, tap it.",
+        "unlinked": "No published mappings with: {names}.",
+        "coverage": {
+          "full": "Covers the essentials",
+          "partial": "Partly covers"
+        },
+        "note": "Mappings are guidance, not equivalence: two overlapping controls are not identical, and meeting one does not replace assessing the other.",
+        "more": "If you already meet one of these frameworks, Eunomia shows you what you have done on each control of the other: adopt both and its suggestions save you work.",
+        "moreCta": "Open Eunomia"
       }
     }
   },
@@ -4758,7 +4776,8 @@
     "shortcuts": {
       "registers": "Registers",
       "templates": "Templates",
-      "documents": "Documents"
+      "documents": "Documents",
+      "crosswalks": "Crosswalks"
     },
     "features": {
       "frameworks": {
@@ -5745,6 +5764,10 @@
       "toolNis2Applicability": {
         "title": "Does NIS2 apply to me? Free applicability tool | Ellysia",
         "description": "Check whether NIS2 applies to you and whether you would be an essential or important entity, from your sector and size. Free, no account, nothing stored."
+      },
+      "toolCrosswalkMap": {
+        "title": "Framework crosswalk map | Ellysia",
+        "description": "Pick a framework and see which controls of the others each of its controls overlaps with. Free with a free Ellysia account."
       }
     }
   }
