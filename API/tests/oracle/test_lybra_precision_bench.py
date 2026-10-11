@@ -269,9 +269,17 @@ def _redirect_conf() -> str:
     no parseaba y el contenedor moría al arrancar. El síntoma era el peor
     posible — "conexión rechazada" en cada sonda, o sea tres falsos negativos
     que parecían un fallo del motor.
+
+    La redirección es **relativa** (``absolute_redirect off``) a propósito. Por
+    defecto nginx la emite absoluta con el puerto en que escucha *dentro* del
+    contenedor, que es el 80, no el 8080 en que Docker lo publica: la sonda
+    seguía ``Location: http://127.0.0.1/index.html``, no encontraba nada en el
+    puerto 80 del anfitrión y no devolvía respuesta. Parecía un punto ciego del
+    motor ante cualquier raíz que redirige, y era el arnés mandando la
+    redirección a un puerto que no existe.
     """
     return (
-        "printf '%s' 'server { listen 80; root /usr/share/nginx/html; "
+        "printf '%s' 'server { listen 80; absolute_redirect off; root /usr/share/nginx/html; "
         "location = / { return 301 /index.html; } }' > /etc/nginx/conf.d/default.conf "
         "&& nginx -g 'daemon off;'"
     )
@@ -551,21 +559,18 @@ def test_fase_r_precision_over_labelled_catalogue(app, admin_user, monkeypatch):
     assert false_positives == 0, report
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "HttpProbe.fetch devuelve None contra un servidor cuya raíz redirige, así "
-    "que ninguno de los tres checks de cabeceras llega a evaluarse. Que el feed "
-    "acepte 301 y 302 como estados válidos demuestra que la intención era "
-    "justamente juzgarlos. El efecto es un punto ciego grande y silencioso: un "
-    "sitio que redirige la raíz —HTTP a HTTPS, / a /login, apex a www— no "
-    "recibe ni un hallazgo de esta familia, y el escaneo termina en verde."
-))
 def test_a_redirecting_root_still_gets_judged(app, admin_user, monkeypatch):
-    """El caso de despliegue más común que el catálogo destapó.
+    """Un sitio que redirige la raíz recibe los hallazgos del destino.
 
-    Se prueba aparte y no dentro del agregado porque es un fallo de la **sonda**,
-    no de los checks: los tres se evalúan bien en cuanto reciben una respuesta.
-    Dentro del cómputo sería un falso negativo más entre otros; aquí es una
-    afirmación con nombre que se pondrá en verde el día que se arregle.
+    El caso de despliegue más común que el catálogo destapó. Se prueba aparte y
+    no sólo dentro del agregado porque lo que falla, si falla, es la **sonda** y
+    no los checks, y una afirmación con nombre lo dice en el titular del fallo
+    en vez de repartirlo entre los falsos negativos de la tabla.
+
+    Estuvo marcado como fallo esperado, con el diagnóstico de que la sonda
+    devolvía ``None`` ante cualquier redirección. No era eso: la sonda sigue
+    las redirecciones y juzga el destino; es el objetivo el que mandaba la
+    redirección a un puerto sin servicio (ver ``_redirect_conf``).
     """
     target = next(item for item in _CATALOGUE if item.name == "nginx-redirige")
     with _running(target) as port:

@@ -211,9 +211,8 @@ def wait_until_serving(docker_path: Optional[str], port: int, tls: bool, label: 
 
     La comprobación es deliberadamente **cruda** —un socket y una línea de
     estado, o un handshake TLS— y no reutiliza ``HttpProbe``: el arnés no puede
-    decidir si un objetivo está listo usando la misma pieza que está midiendo.
-    Un objetivo que redirige la raíz demostró justo eso, porque ``HttpProbe``
-    no le devuelve nada (ver ``test_a_redirecting_root_still_gets_judged``).
+    decidir si un objetivo está listo usando la misma pieza que está midiendo,
+    ni confundir un fallo de la sonda con un servidor que aún no arrancó.
 
     Args:
         docker_path: Cliente Docker con el que comprobar que el contenedor
