@@ -70,6 +70,43 @@ class CatalogVersionSchema(Schema):
     tree = fields.List(fields.Nested(CatalogNodeSchema))
 
 
+class CrosswalkControlSchema(Schema):
+    """Un control o un grupo de la lista plana de un marco, con su profundidad."""
+
+    identifier = fields.String()
+    title = fields.String()
+    kind = fields.String()
+    isAssessable = fields.Boolean()
+    depth = fields.Integer()
+
+
+class CrosswalkFrameworkSchema(Schema):
+    """Un marco en su versión vigente, con sus controles en el orden del catálogo."""
+
+    key = fields.String()
+    shortName = fields.String()
+    name = fields.String()
+    version = fields.String()
+    controls = fields.List(fields.Nested(CrosswalkControlSchema))
+
+
+class CrosswalkLinkSchema(Schema):
+    """Una correspondencia entre un control de un marco y uno de otro."""
+
+    fromFramework = fields.String()
+    fromIdentifier = fields.String()
+    toFramework = fields.String()
+    toIdentifier = fields.String()
+    coverage = fields.String()
+
+
+class CrosswalkMapSchema(Schema):
+    """Respuesta de ``GET /eunomia/crosswalks``."""
+
+    frameworks = fields.List(fields.Nested(CrosswalkFrameworkSchema))
+    links = fields.List(fields.Nested(CrosswalkLinkSchema))
+
+
 # ── Adopción de marcos ────────────────────────────────────────────────────
 
 class ProgressSchema(Schema):
