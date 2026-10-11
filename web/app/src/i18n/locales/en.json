@@ -2061,6 +2061,13 @@
       "conflict": "Someone else changed this control while you were editing it.",
       "useCurrent": "See the current value",
       "open": "Open framework",
+      "tabs": {
+        "label": "Control sections",
+        "requirements": "Requirements",
+        "evidence": "Evidence",
+        "assessment": "Assessment",
+        "history": "History"
+      },
       "history": "History",
       "noHistory": "There are no changes yet.",
       "formerMember": "Someone who is no longer here",
@@ -2088,7 +2095,7 @@
       "unassigned": "{count} control without a responsible | {count} controls without a responsible"
     },
     "evidence": {
-      "title": "Evidence",
+      "title": "Evidence provided",
       "none": "No evidence linked to this control yet.",
       "validUntil": "valid until {date}",
       "unlink": "Unlink",
@@ -2110,7 +2117,7 @@
       "expiredFlag": "evidence expired"
     },
     "suggestions": {
-      "title": "Already done in another framework",
+      "title": "Mappings",
       "intro": "These controls of the other frameworks you adopted cover this one. It is a suggestion: check that it really does.",
       "coverage": {
         "full": "Full coverage",

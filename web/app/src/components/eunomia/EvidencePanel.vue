@@ -135,7 +135,7 @@ onMounted(refresh)
 </script>
 
 <style scoped>
-.evidence { padding-top: 1rem; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 0.8rem; }
+.evidence { display: flex; flex-direction: column; gap: 0.8rem; }
 .expired { color: var(--danger); font-size: var(--fs-body); }
 .usage { font-variant-numeric: tabular-nums; }
 .muted { color: var(--text-muted); font-size: var(--fs-body); }
