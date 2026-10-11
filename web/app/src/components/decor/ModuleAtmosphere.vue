@@ -31,6 +31,8 @@ import { useDevicePixel } from '@/composables/useDevicePixel'
  * - Iris: el arcoíris a sus ángulos reales, con una lupa que enseña las líneas de Fraunhofer.
  * - Acheron: carta grabada del río y la laguna Aquerusia, con la travesía de Caronte.
  * - Hygeia: lámina de atlas con el Serpentario, Asclepio, y la Serpiente (`StarChart`).
+ * - Eunomia: lámina de concordancias, con los requisitos de cada marco sobre una regla y
+ *   las correspondencias entre marcos como arcos, por los que viaja una evidencia.
  *
  * Se carga bajo demanda, así que una página solo descarga la escena de su módulo.
  * Es decoración pura: no recibe el ratón y se esconde de los lectores de pantalla.
@@ -44,7 +46,7 @@ import { useDevicePixel } from '@/composables/useDevicePixel'
  * - Rendimiento: pausa sus animaciones cuando no se ve.
  */
 const props = defineProps({
-  /** Módulo cuya escena se pinta: `themis`, `aegis`, `iris`, `acheron` o `hygeia`. */
+  /** Módulo cuya escena se pinta: `themis`, `aegis`, `iris`, `acheron`, `hygeia` o `eunomia`. */
   moduleId: { type: String, required: true },
   /** `hero` para una cabecera, con la escena entera; `subtle` para una banda secundaria, más tenue. */
   strength: { type: String, default: 'hero', validator: (value) => ['hero', 'subtle'].includes(value) },
