@@ -1,0 +1,873 @@
+{
+  "a": {
+    "framework": "ens",
+    "version": "rd-311-2022"
+  },
+  "b": {
+    "framework": "iso27001",
+    "version": "2022"
+  },
+  "note": "Correspondencias de criterio de Ellysia, no de un organismo: dos controles de marcos distintos rara vez son idénticos, solo se solapan. «full» quiere decir que cumplir uno cubre en lo esencial el otro; «partial», que lo cubre en parte y hay que completarlo. Se mapean las medidas del ENS y solo los refuerzos que tienen un control propio en el Anexo A; lo que la norma ISO pide en sus cláusulas 4 a 10 (análisis de riesgos, sistema de gestión, métricas) no está en el catálogo y por eso no aparece. Se usan como sugerencia, nunca para trasladar una evaluación.",
+  "links": [
+    {
+      "from": "org.1",
+      "to": "A.5.1",
+      "coverage": "full"
+    },
+    {
+      "from": "org.1",
+      "to": "A.5.2",
+      "coverage": "partial"
+    },
+    {
+      "from": "org.1",
+      "to": "A.5.4",
+      "coverage": "partial"
+    },
+    {
+      "from": "org.2",
+      "to": "A.5.10",
+      "coverage": "partial"
+    },
+    {
+      "from": "org.2",
+      "to": "A.5.37",
+      "coverage": "partial"
+    },
+    {
+      "from": "org.2",
+      "to": "A.6.4",
+      "coverage": "partial"
+    },
+    {
+      "from": "org.2.r1",
+      "to": "A.5.1",
+      "coverage": "partial"
+    },
+    {
+      "from": "org.3",
+      "to": "A.5.37",
+      "coverage": "full"
+    },
+    {
+      "from": "org.3",
+      "to": "A.6.8",
+      "coverage": "partial"
+    },
+    {
+      "from": "org.3.r1",
+      "to": "A.5.37",
+      "coverage": "partial"
+    },
+    {
+      "from": "org.4",
+      "to": "A.7.10",
+      "coverage": "partial"
+    },
+    {
+      "from": "org.4",
+      "to": "A.8.1",
+      "coverage": "partial"
+    },
+    {
+      "from": "org.4",
+      "to": "A.8.19",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.pl.2",
+      "to": "A.8.27",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.pl.2.r3",
+      "to": "A.8.28",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.pl.3",
+      "to": "A.5.21",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.pl.3",
+      "to": "A.8.26",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.pl.4",
+      "to": "A.8.6",
+      "coverage": "full"
+    },
+    {
+      "from": "op.pl.4.r1",
+      "to": "A.8.6",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.pl.5.r1",
+      "to": "A.7.8",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.pl.5.r2",
+      "to": "A.5.9",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.acc.1",
+      "to": "A.5.16",
+      "coverage": "full"
+    },
+    {
+      "from": "op.acc.1.r1",
+      "to": "A.5.16",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.acc.2",
+      "to": "A.5.15",
+      "coverage": "full"
+    },
+    {
+      "from": "op.acc.2",
+      "to": "A.8.3",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.acc.2.r1",
+      "to": "A.8.2",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.acc.2.r2",
+      "to": "A.8.1",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.acc.3",
+      "to": "A.5.3",
+      "coverage": "full"
+    },
+    {
+      "from": "op.acc.3.r1",
+      "to": "A.5.3",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.acc.3.r2",
+      "to": "A.8.34",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.acc.4",
+      "to": "A.5.18",
+      "coverage": "full"
+    },
+    {
+      "from": "op.acc.4",
+      "to": "A.8.2",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.acc.5",
+      "to": "A.5.17",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.acc.5",
+      "to": "A.8.5",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.acc.5.r1",
+      "to": "A.5.17",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.acc.5.r2",
+      "to": "A.8.5",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.acc.5.r3",
+      "to": "A.8.5",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.acc.5.r5",
+      "to": "A.8.15",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.acc.6",
+      "to": "A.5.17",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.acc.6",
+      "to": "A.8.5",
+      "coverage": "full"
+    },
+    {
+      "from": "op.acc.6.r1",
+      "to": "A.5.17",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.acc.6.r2",
+      "to": "A.8.5",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.acc.6.r3",
+      "to": "A.8.5",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.acc.6.r5",
+      "to": "A.8.15",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.acc.6.r7",
+      "to": "A.5.18",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.acc.6.r8",
+      "to": "A.8.5",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.acc.6.r9",
+      "to": "A.6.7",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.exp.1",
+      "to": "A.5.9",
+      "coverage": "full"
+    },
+    {
+      "from": "op.exp.1.r4",
+      "to": "A.5.9",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.exp.2",
+      "to": "A.8.9",
+      "coverage": "full"
+    },
+    {
+      "from": "op.exp.3",
+      "to": "A.8.9",
+      "coverage": "full"
+    },
+    {
+      "from": "op.exp.3.r3",
+      "to": "A.8.13",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.exp.4",
+      "to": "A.7.13",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.exp.4",
+      "to": "A.8.8",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.exp.4.r1",
+      "to": "A.8.32",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.exp.4.r4",
+      "to": "A.8.8",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.exp.5",
+      "to": "A.8.32",
+      "coverage": "full"
+    },
+    {
+      "from": "op.exp.6",
+      "to": "A.8.7",
+      "coverage": "full"
+    },
+    {
+      "from": "op.exp.6.r3",
+      "to": "A.8.19",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.exp.7",
+      "to": "A.5.5",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.exp.7",
+      "to": "A.5.24",
+      "coverage": "full"
+    },
+    {
+      "from": "op.exp.7",
+      "to": "A.5.25",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.exp.7",
+      "to": "A.5.26",
+      "coverage": "full"
+    },
+    {
+      "from": "op.exp.7",
+      "to": "A.5.27",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.exp.7",
+      "to": "A.6.8",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.exp.7.r1",
+      "to": "A.6.8",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.exp.7.r2",
+      "to": "A.8.16",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.exp.8",
+      "to": "A.8.15",
+      "coverage": "full"
+    },
+    {
+      "from": "op.exp.8",
+      "to": "A.8.16",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.exp.8.r1",
+      "to": "A.8.16",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.exp.8.r2",
+      "to": "A.8.17",
+      "coverage": "full"
+    },
+    {
+      "from": "op.exp.8.r5",
+      "to": "A.8.16",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.exp.9",
+      "to": "A.5.26",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.exp.9",
+      "to": "A.5.27",
+      "coverage": "full"
+    },
+    {
+      "from": "op.exp.10",
+      "to": "A.8.24",
+      "coverage": "full"
+    },
+    {
+      "from": "op.ext.1",
+      "to": "A.5.19",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.ext.1",
+      "to": "A.5.20",
+      "coverage": "full"
+    },
+    {
+      "from": "op.ext.2",
+      "to": "A.5.22",
+      "coverage": "full"
+    },
+    {
+      "from": "op.ext.3",
+      "to": "A.5.19",
+      "coverage": "full"
+    },
+    {
+      "from": "op.ext.3",
+      "to": "A.5.20",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.ext.3",
+      "to": "A.5.21",
+      "coverage": "full"
+    },
+    {
+      "from": "op.ext.3",
+      "to": "A.5.22",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.ext.3.r3",
+      "to": "A.5.21",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.ext.4",
+      "to": "A.5.14",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.ext.4",
+      "to": "A.8.20",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.nub.1",
+      "to": "A.5.23",
+      "coverage": "full"
+    },
+    {
+      "from": "op.cont.1",
+      "to": "A.5.29",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.cont.1",
+      "to": "A.5.30",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.cont.2",
+      "to": "A.5.29",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.cont.2",
+      "to": "A.5.30",
+      "coverage": "full"
+    },
+    {
+      "from": "op.cont.3",
+      "to": "A.5.30",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.cont.4",
+      "to": "A.5.30",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.cont.4",
+      "to": "A.8.14",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.mon.1",
+      "to": "A.8.16",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.mon.3",
+      "to": "A.5.7",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.mon.3",
+      "to": "A.8.8",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.mon.3",
+      "to": "A.8.16",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.mon.3.r3",
+      "to": "A.5.7",
+      "coverage": "partial"
+    },
+    {
+      "from": "op.mon.3.r4",
+      "to": "A.5.7",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.if.1",
+      "to": "A.7.1",
+      "coverage": "full"
+    },
+    {
+      "from": "mp.if.1",
+      "to": "A.7.2",
+      "coverage": "full"
+    },
+    {
+      "from": "mp.if.1",
+      "to": "A.7.3",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.if.1",
+      "to": "A.7.4",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.if.1",
+      "to": "A.7.6",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.if.2",
+      "to": "A.7.2",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.if.3",
+      "to": "A.7.5",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.if.3",
+      "to": "A.7.8",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.if.4",
+      "to": "A.7.11",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.if.4.r1",
+      "to": "A.7.11",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.if.5",
+      "to": "A.7.5",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.if.6",
+      "to": "A.7.5",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.if.7",
+      "to": "A.7.9",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.per.1",
+      "to": "A.5.2",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.per.1",
+      "to": "A.6.1",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.per.1",
+      "to": "A.6.2",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.per.1.r1",
+      "to": "A.6.1",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.per.2",
+      "to": "A.6.2",
+      "coverage": "full"
+    },
+    {
+      "from": "mp.per.2",
+      "to": "A.6.5",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.per.2",
+      "to": "A.6.6",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.per.3",
+      "to": "A.6.3",
+      "coverage": "full"
+    },
+    {
+      "from": "mp.per.4",
+      "to": "A.6.3",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.eq.1",
+      "to": "A.7.7",
+      "coverage": "full"
+    },
+    {
+      "from": "mp.eq.2",
+      "to": "A.7.7",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.eq.2",
+      "to": "A.8.1",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.eq.3",
+      "to": "A.7.9",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.eq.3",
+      "to": "A.8.1",
+      "coverage": "full"
+    },
+    {
+      "from": "mp.eq.3.r1",
+      "to": "A.8.24",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.eq.4",
+      "to": "A.8.20",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.com.1",
+      "to": "A.8.20",
+      "coverage": "full"
+    },
+    {
+      "from": "mp.com.1",
+      "to": "A.8.21",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.com.2",
+      "to": "A.5.14",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.com.2",
+      "to": "A.8.24",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.com.3",
+      "to": "A.8.24",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.com.4",
+      "to": "A.8.20",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.com.4",
+      "to": "A.8.22",
+      "coverage": "full"
+    },
+    {
+      "from": "mp.si.1",
+      "to": "A.5.13",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.si.1",
+      "to": "A.7.10",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.si.2",
+      "to": "A.7.10",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.si.2",
+      "to": "A.8.24",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.si.3",
+      "to": "A.7.10",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.si.4",
+      "to": "A.5.14",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.si.4",
+      "to": "A.7.10",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.si.5",
+      "to": "A.7.10",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.si.5",
+      "to": "A.7.14",
+      "coverage": "full"
+    },
+    {
+      "from": "mp.si.5",
+      "to": "A.8.10",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.sw.1",
+      "to": "A.8.25",
+      "coverage": "full"
+    },
+    {
+      "from": "mp.sw.1",
+      "to": "A.8.26",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.sw.1",
+      "to": "A.8.27",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.sw.1",
+      "to": "A.8.28",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.sw.1",
+      "to": "A.8.31",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.sw.1.r3",
+      "to": "A.8.27",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.sw.1.r4",
+      "to": "A.8.33",
+      "coverage": "full"
+    },
+    {
+      "from": "mp.sw.2",
+      "to": "A.8.29",
+      "coverage": "full"
+    },
+    {
+      "from": "mp.sw.2.r2",
+      "to": "A.8.28",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.info.1",
+      "to": "A.5.34",
+      "coverage": "full"
+    },
+    {
+      "from": "mp.info.2",
+      "to": "A.5.12",
+      "coverage": "full"
+    },
+    {
+      "from": "mp.info.2",
+      "to": "A.5.13",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.info.3",
+      "to": "A.8.24",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.info.5",
+      "to": "A.8.12",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.info.6",
+      "to": "A.8.13",
+      "coverage": "full"
+    },
+    {
+      "from": "mp.s.1",
+      "to": "A.5.14",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.s.1",
+      "to": "A.8.7",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.s.2",
+      "to": "A.8.21",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.s.2",
+      "to": "A.8.26",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.s.2.r1",
+      "to": "A.8.8",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.s.2.r2",
+      "to": "A.8.8",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.s.3",
+      "to": "A.8.23",
+      "coverage": "full"
+    },
+    {
+      "from": "mp.s.3.r1",
+      "to": "A.8.16",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.s.3.r2",
+      "to": "A.8.23",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.s.4",
+      "to": "A.8.6",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.s.4",
+      "to": "A.8.20",
+      "coverage": "partial"
+    },
+    {
+      "from": "mp.s.4.r1",
+      "to": "A.8.16",
+      "coverage": "partial"
+    }
+  ]
+}

@@ -48,7 +48,7 @@ watch(() => props.node.identifier, async (identifier) => {
 </script>
 
 <style scoped>
-.automatic { padding-top: 1rem; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 0.6rem; }
+.automatic { display: flex; flex-direction: column; gap: 0.6rem; }
 .muted, .meta { color: var(--text-muted); font-size: var(--fs-body); }
 ul { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.7rem; }
 li { border-inline-start: 3px solid var(--border-med); padding-inline-start: 0.7rem; }

@@ -62,6 +62,7 @@ from .schemas import (
     DocumentsQuerySchema,
     CatalogFrameworkListSchema,
     CatalogVersionSchema,
+    CrosswalkMapSchema,
     EvidenceLinkSchema,
     EvidenceListSchema,
     EvidenceSchema,
@@ -100,6 +101,19 @@ def list_frameworks():
 def get_framework_version(key, version):
     """El árbol de controles de una versión de un marco"""
     return CatalogManager().get_version(key, version)
+
+
+@eunomia_blp.get("/crosswalks")
+@eunomia_blp.response(200, CrosswalkMapSchema, description="Marcos vigentes y correspondencias entre sus controles")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@eunomia_blp.alt_response(403, schema=ErrorSchema, description="Insufficient permissions")
+@limiter.limit("120 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_READ])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def get_crosswalk_map():
+    """Los marcos en su versión vigente y qué controles de uno corresponden con cuáles de otro"""
+    return CatalogManager().get_crosswalk_map()
 
 
 @eunomia_blp.get("/adoptions")

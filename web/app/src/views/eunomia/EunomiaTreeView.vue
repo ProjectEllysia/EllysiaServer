@@ -264,9 +264,14 @@ onMounted(load)
 .panes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 1.2rem; align-items: start; }
 .pane { background: var(--surface); border: 1px solid var(--border-solid); border-radius: 12px; padding: 1rem; }
 .pane--tree { max-height: 75vh; overflow: auto; scroll-behavior: smooth; }
+.pane--detail {
+  /* Como mucho la altura de la pantalla: cada zona del control hace scroll por dentro. */
+  display: flex; flex-direction: column; overflow: hidden;
+  position: sticky; top: calc(var(--topbar-h) + 1rem); max-height: calc(100dvh - var(--topbar-h) - 2rem);
+}
 .pane-title { margin-bottom: 0.8rem; }
 .state-msg { color: var(--text-muted); font-size: var(--fs-md); }
 .state-msg--error { color: var(--danger); }
 .link { color: var(--accent); text-decoration: underline; margin-left: 0.4rem; }
-@media (max-width: 860px) { .panes { grid-template-columns: 1fr; } .pane--tree { max-height: 50vh; } }
+@media (max-width: 860px) { .panes { grid-template-columns: 1fr; } .pane--tree { max-height: 50vh; } .pane--detail { position: static; } }
 </style>

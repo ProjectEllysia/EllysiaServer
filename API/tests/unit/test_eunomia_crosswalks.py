@@ -47,6 +47,16 @@ def test_a_partial_coverage_is_reported_as_partial():
     assert {s.identifier: s.coverage for s in found} == {"op.exp.8": "full", "op.mon.1": "partial"}
 
 
+def test_the_ens_and_iso_27001_are_related_directly_in_both_directions():
+    adopted = {"ens": "rd-311-2022", "iso27001": "2022"}
+
+    from_ens = suggestions("ens", "rd-311-2022", "op.acc.1", adopted)
+    from_iso = suggestions("iso27001", "2022", "A.5.16", adopted)
+
+    assert [(s.framework, s.identifier, s.coverage) for s in from_ens] == [("iso27001", "A.5.16", "full")]
+    assert ("ens", "op.acc.1", "full") in [(s.framework, s.identifier, s.coverage) for s in from_iso]
+
+
 def _document():
     path = next(CATALOG_ROOT.glob("crosswalks/nis2@*__ens@*.json"))
     return json.loads(path.read_text(encoding="utf-8"))

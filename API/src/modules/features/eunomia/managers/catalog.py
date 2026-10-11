@@ -9,6 +9,7 @@ from typing import Iterable, Mapping, Optional
 
 from ..exceptions import FrameworkNotFoundError
 from ..services.catalog import CatalogNode, FrameworkVersion, load_index, load_version
+from ..services.crosswalks import load_crosswalks
 
 
 def _node_payload(version: FrameworkVersion, node: CatalogNode) -> dict:
@@ -50,6 +51,49 @@ class CatalogManager:
             }
             for framework in load_index()["frameworks"]
         ]
+
+    def get_crosswalk_map(self) -> dict:
+        """Devuelve los marcos del catálogo con sus controles y las correspondencias entre ellos.
+
+        Es lo que necesita el mapa de correspondencias en una sola lectura: de cada marco, su
+        versión vigente con los controles en el orden del catálogo, y los enlaces entre
+        controles de marcos distintos. Un enlace entre versiones que no son las vigentes no
+        entra, porque su control no está en la lista que se enseña.
+
+        Returns:
+            dict: ``frameworks``, una entrada por marco con ``key``, ``shortName``, ``name``,
+                ``version`` y ``controls`` (``identifier``, ``title``, ``kind``, ``isAssessable``
+                y ``depth``, el número de ascendientes); y ``links``, con ``fromFramework``,
+                ``fromIdentifier``, ``toFramework``, ``toIdentifier`` y ``coverage``
+                (``"full"`` o ``"partial"``). Un marco sin correspondencias sale igualmente.
+        """
+        frameworks: list[dict] = []
+        current: dict[str, str] = {}
+        for entry in load_index()["frameworks"]:
+            loaded = load_version(entry["key"], entry["current"])
+            if loaded is None:
+                continue
+            current[loaded.key] = loaded.version
+            frameworks.append({
+                "key": loaded.key,
+                "shortName": loaded.short_name,
+                "name": loaded.name,
+                "version": loaded.version,
+                "controls": [
+                    {"identifier": node.identifier, "title": node.title, "kind": node.kind,
+                     "isAssessable": node.is_assessable, "depth": len(loaded.ancestors(node.code))}
+                    for node in loaded.walk()
+                ],
+            })
+        links = [
+            {"fromFramework": crosswalk.a_framework, "fromIdentifier": origin,
+             "toFramework": crosswalk.b_framework, "toIdentifier": to, "coverage": coverage}
+            for crosswalk in load_crosswalks()
+            if current.get(crosswalk.a_framework) == crosswalk.a_version
+            and current.get(crosswalk.b_framework) == crosswalk.b_version
+            for origin, to, coverage in crosswalk.links
+        ]
+        return {"frameworks": frameworks, "links": links}
 
     def resolve_controls(self, codes: Iterable[str], versions: Optional[Mapping[str, str]] = None) -> dict[str, dict]:
         """Resuelve códigos de control a sus nodos del catálogo, con sus ascendientes.

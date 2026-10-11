@@ -1199,6 +1199,24 @@
         "note": "Es una orientación, no asesoramiento jurídico. Aplica la directiva tal y como está escrita y no tiene en cuenta la legislación nacional ni todos los casos de empresas vinculadas o asociadas.",
         "more": "Si NIS2 te aplica, Eunomia te lleva por sus requisitos uno a uno: evalúa cada punto, guarda las evidencias y genera las políticas.",
         "moreCta": "Abrir Eunomia"
+      },
+      "crosswalkMap": {
+        "title": "Mapa de correspondencias",
+        "desc": "Elige un marco como referencia y pasa el ratón por sus controles para ver con cuáles de los demás marcos del catálogo se solapan.",
+        "subtitle": "Sale del catálogo de Eunomia: cada control enseña los de otros marcos que cubren lo mismo, del todo o en parte. No evalúa nada ni guarda nada.",
+        "referenceLabel": "Marco de referencia",
+        "linkedCount": "{linked} de {total} controles tienen correspondencia con otros marcos.",
+        "loading": "Cargando el catálogo…",
+        "failed": "No se ha podido cargar el mapa. Inténtalo de nuevo en unos minutos.",
+        "empty": "Pasa el ratón por un control marcado para ver con qué se corresponde en los demás marcos. En una pantalla táctil, tócalo.",
+        "unlinked": "Sin correspondencias publicadas con: {names}.",
+        "coverage": {
+          "full": "Cubre en lo esencial",
+          "partial": "Cubre en parte"
+        },
+        "note": "Las correspondencias orientan, no equivalen: dos controles que se solapan no son idénticos y cumplir uno no sustituye a evaluar el otro.",
+        "more": "Si ya cumples uno de estos marcos, Eunomia te enseña en cada control del otro qué tienes hecho: adopta los dos y sus sugerencias te ahorran trabajo.",
+        "moreCta": "Abrir Eunomia"
       }
     }
   },
@@ -2061,6 +2079,13 @@
       "conflict": "Otra persona ha cambiado este control mientras lo editabas.",
       "useCurrent": "Ver el valor actual",
       "open": "Abrir el marco",
+      "tabs": {
+        "label": "Secciones del control",
+        "requirements": "Requisitos",
+        "evidence": "Evidencias",
+        "assessment": "Evaluación",
+        "history": "Historial"
+      },
       "history": "Historial",
       "noHistory": "Todavía no hay cambios.",
       "formerMember": "Alguien que ya no está",
@@ -2088,7 +2113,7 @@
       "unassigned": "{count} control sin responsable | {count} controles sin responsable"
     },
     "evidence": {
-      "title": "Evidencias",
+      "title": "Evidencias aportadas",
       "none": "Este control todavía no tiene evidencias enlazadas.",
       "validUntil": "vale hasta el {date}",
       "unlink": "Desenlazar",
@@ -2110,7 +2135,7 @@
       "expiredFlag": "evidencia vencida"
     },
     "suggestions": {
-      "title": "Ya lo tienes hecho en otro marco",
+      "title": "Correspondencias",
       "intro": "Estos controles de los otros marcos que has adoptado cubren este. Es una sugerencia: revisa que de verdad lo cumple.",
       "coverage": {
         "full": "Cobertura total",
@@ -4751,7 +4776,8 @@
     "shortcuts": {
       "registers": "Registros",
       "templates": "Plantillas",
-      "documents": "Documentos"
+      "documents": "Documentos",
+      "crosswalks": "Correspondencias"
     },
     "features": {
       "frameworks": {
@@ -5738,6 +5764,10 @@
       "toolNis2Applicability": {
         "title": "¿Me aplica NIS2? Herramienta gratuita de aplicabilidad | Ellysia",
         "description": "Comprueba si NIS2 te aplica y si serías entidad esencial o importante según tu sector y tu tamaño. Gratis, sin cuenta y sin guardar nada."
+      },
+      "toolCrosswalkMap": {
+        "title": "Mapa de correspondencias entre marcos | Ellysia",
+        "description": "Elige un marco y mira con qué controles de los demás se solapa cada uno de los suyos. Gratis con una cuenta gratuita de Ellysia."
       }
     }
   }

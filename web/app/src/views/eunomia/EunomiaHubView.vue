@@ -49,6 +49,7 @@ const shortcuts = computed(() => [
   { label: t('eunomiaHub.shortcuts.registers'), to: '/eunomia/registros' },
   { label: t('eunomiaHub.shortcuts.templates'), to: '/eunomia/plantillas' },
   { label: t('eunomiaHub.shortcuts.documents'), to: '/eunomia/documentos' },
+  { label: t('eunomiaHub.shortcuts.crosswalks'), to: '/herramientas/eunomia/mapa-de-correspondencias' },
 ])
 
 /** Capacidades que se presentan; sus textos están en `eunomiaHub.features.<id>`. */
