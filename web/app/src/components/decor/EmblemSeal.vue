@@ -136,7 +136,9 @@ const pattern = computed(() => {
   position: relative;
   width: 62%; height: 62%;
   border-radius: 50%;
-  display: grid; place-items: center;
+  /* La celda es el disco entero. Con la fila implícita (`auto`), un emblema muy alto y estrecho
+     la estira por su altura natural, por encima del disco, y se centra en ella y no en él. */
+  display: grid; place-items: center; grid-template: 100% / 100%;
   background: radial-gradient(circle at 50% 38%, color-mix(in srgb, var(--surface) 80%, var(--accent-dim)), var(--surface) 72%);
   box-shadow: inset 0 0 0 1px var(--accent-dim), 0 0 40px var(--accent-dim);
   animation: seal-disc-in 1.1s var(--ease-settle, ease-out) 0.1s backwards;
