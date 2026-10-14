@@ -26,7 +26,7 @@ Todo se extrajo el **2026-10-10** del HTML de EUR-Lex en castellano.
 |---|---|---|
 | Directiva (UE) 2022/2555 (NIS2), DO L 333 de 27.12.2022 | CELEX 32022L2555 | Sí. Es legislación de la UE: su reutilización está permitida citando la fuente (Decisión 2011/833/UE). |
 | Reglamento de Ejecución (UE) 2024/2690 de la Comisión, de 17.10.2024 | CELEX 32024R2690 | Sí, en las mismas condiciones. |
-| ENISA, *NIS2 Technical Implementation Guidance*, 26 de junio de 2025 | [Página de ENISA](https://www.enisa.europa.eu/publications/NIS2-technical-implementation-guidance) | **Sin licencia concreta (comprobado el 2026-10-10).** El aviso legal de ENISA autoriza reproducir «siempre que se cite la fuente, salvo que se indique otra cosa» y no nombra ninguna licencia abierta; cada publicación puede traer restricciones propias. Se usa como referencia y se escribe con redacción propia (`licenseMode: own_wording`). |
+| ENISA, *NIS2 Technical Implementation Guidance*, versión 1.0, 26 de junio de 2025 | [Página de ENISA](https://www.enisa.europa.eu/publications/NIS2-technical-implementation-guidance) | **CC BY 4.0 (comprobado el 2026-10-14 en el aviso de copyright del PDF; la página web no la indica).** Permite reutilizar citando a ENISA e indicando los cambios; los elementos de terceros pueden requerir permiso de sus titulares. Aun así la guía del catálogo se escribe con redacción propia, tomándola como referencia. |
 
 Sobre la guía de ENISA:
 
@@ -38,7 +38,8 @@ Sobre la guía de ENISA:
   comprobado si la versión final mantiene esa lista. Es la base de las correspondencias entre
   marcos de EUN30.
 - **No es vinculante.** Va dirigida sobre todo a las autoridades nacionales.
-- **Todavía no se ha descargado ni procesado.** Es el siguiente paso para EUN11.
+- Es la referencia principal de la descripción, las actuaciones y las evidencias de los requisitos
+  del catálogo, y figura en sus `sources`.
 
 ---
 
