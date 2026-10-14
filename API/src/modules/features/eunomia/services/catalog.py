@@ -6,10 +6,14 @@ Un marco (``nis2``) tiene una o más **versiones** (``2022-2555``), cada una en 
 nodo es un **grupo** (agrupa a otros) o un **requisito** (algo que se evalúa y se evidencia).
 
 El catálogo no vive en base de datos: las evaluaciones y evidencias de los usuarios guardan
-``(marco, versión, código de nodo)`` sin clave ajena, y por eso una versión **publicada no se
-modifica nunca**. ``catalog/LOCK.json`` guarda el SHA-256 de cada versión publicada y un test lo
-recalcula; un cambio en una versión publicada se hace publicando otra. Una versión en estado
-``draft`` aún no se ha congelado: se puede completar y, al publicarla, su hash entra en el lock.
+``(marco, versión, código de nodo)`` sin clave ajena, y por eso la **estructura** de una versión
+publicada no se modifica nunca: sus nodos, el árbol, los títulos y el texto oficial.
+``catalog/LOCK.json`` guarda el SHA-256 de esa estructura y un test lo recalcula; un cambio en
+ella se hace publicando otra versión. La guía de cada requisito (``description``, ``actions`` y
+``evidence``) y las fuentes que la respaldan (``sources``) quedan fuera del hash: son texto que
+solo se muestra, nada guarda referencias a él, y se puede mejorar sin obligar a nadie a migrar
+de versión. Una versión en estado ``draft`` aún no se ha congelado: se puede completar y, al
+publicarla, su hash entra en el lock.
 
 Este módulo es **puro**: no toca base de datos, red ni Flask, y no importa nada de ``features``.
 
@@ -83,6 +87,11 @@ _LICENSE_MODES = (LICENSE_FULL_TEXT, LICENSE_OWN_WORDING, LICENSE_CODES_ONLY)
 #: Longitud máxima de un título y de una descripción en una versión ``codes_only``.
 CODES_ONLY_MAX_TITLE = 100
 CODES_ONLY_MAX_DESCRIPTION = 300
+
+#: Campos que el lock no congela: la guía de cada requisito y las fuentes que la respaldan. Solo
+#: se muestran; las evaluaciones guardan el código del nodo, nunca estos textos.
+_EDITORIAL_NODE_FIELDS = frozenset({"description", "actions", "evidence"})
+_EDITORIAL_VERSION_FIELDS = frozenset({"sources"})
 
 
 class CatalogFormatError(ValueError):
@@ -405,17 +414,28 @@ def load_version(key: str, version: str, root: Path = CATALOG_ROOT) -> Optional[
 
 
 def file_digest(path: Path) -> str:
-    """Devuelve el SHA-256 de un fichero de versión, con los saltos de línea normalizados.
+    """Devuelve el SHA-256 de la estructura de un fichero de versión.
+
+    Hashea el JSON en forma canónica (claves ordenadas) sin los campos editoriales
+    (``_EDITORIAL_VERSION_FIELDS`` y ``_EDITORIAL_NODE_FIELDS``), de modo que mejorar la guía de
+    un requisito no cambia el hash y renombrar, mover o reescribir el texto oficial de un nodo
+    sí. Como se parte del JSON ya leído, ni el sangrado ni los saltos de línea del fichero
+    influyen.
 
     Args:
         path: Fichero de la versión.
 
     Returns:
-        str: El hash en hexadecimal. Se normaliza ``\\r\\n`` a ``\\n`` para que el resultado no
-            dependa del sistema donde se hizo el checkout.
+        str: El hash en hexadecimal.
     """
-    content = path.read_bytes().replace(b"\r\n", b"\n")
-    return hashlib.sha256(content).hexdigest()
+    document = _read_json(path)
+    structure = {key: value for key, value in document.items() if key not in _EDITORIAL_VERSION_FIELDS}
+    structure["nodes"] = [
+        {key: value for key, value in node.items() if key not in _EDITORIAL_NODE_FIELDS}
+        for node in document.get("nodes", [])
+    ]
+    canonical = json.dumps(structure, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def lock_mismatches(root: Path = CATALOG_ROOT) -> list[str]:
