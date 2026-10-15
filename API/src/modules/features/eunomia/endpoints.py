@@ -34,6 +34,7 @@ from .managers import (
 )
 from .schemas import (
     AdoptionCreateSchema,
+    AdoptionUpdateSchema,
     AdoptionListSchema,
     AdoptedTreeSchema,
     AdoptionSchema,
@@ -136,6 +137,7 @@ def list_adoptions():
 @eunomia_blp.alt_response(402, schema=ErrorSchema, description="Plan limit reached")
 @eunomia_blp.alt_response(403, schema=ErrorSchema, description="Members cannot adopt frameworks")
 @eunomia_blp.alt_response(404, schema=ErrorSchema, description="Framework not found")
+@eunomia_blp.alt_response(400, schema=ErrorSchema, description="The framework has no such system category")
 @eunomia_blp.alt_response(409, schema=ErrorSchema, description="Already adopted, or archived")
 @limiter.limit("30 per hour")
 @require_oauth_token
@@ -143,7 +145,23 @@ def list_adoptions():
 @handle_exceptions(default_exception=EunomiaError, logger=logger)
 def adopt_framework(data):
     """Adoptar un marco fijando la versión vigente del catálogo"""
-    return EunomiaFrameworkManager().adopt(get_current_user().id, data["frameworkKey"]), 201
+    return EunomiaFrameworkManager().adopt(get_current_user().id, data["frameworkKey"], data["systemCategory"]), 201
+
+
+@eunomia_blp.patch("/adoptions/<string:key>")
+@eunomia_blp.arguments(AdoptionUpdateSchema)
+@eunomia_blp.response(200, AdoptionSchema, description="Categoría del sistema cambiada")
+@eunomia_blp.alt_response(400, schema=ErrorSchema, description="The framework has no such system category")
+@eunomia_blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+@eunomia_blp.alt_response(403, schema=ErrorSchema, description="Members cannot change it")
+@eunomia_blp.alt_response(404, schema=ErrorSchema, description="Framework not adopted")
+@limiter.limit("60 per hour")
+@require_oauth_token
+@require_attributes(at_least_one=[AttributeType.EUNOMIA_UPDATE])
+@handle_exceptions(default_exception=EunomiaError, logger=logger)
+def update_adoption(data, key):
+    """Cambiar la categoría del sistema de un marco adoptado (qué controles se exigen)"""
+    return EunomiaFrameworkManager().set_system_category(get_current_user().id, key, data["systemCategory"])
 
 
 @eunomia_blp.get("/adoptions/<string:key>/upgrade-preview")

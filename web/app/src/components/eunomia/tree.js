@@ -18,15 +18,30 @@ export function statusOf(node) {
 }
 
 /**
- * Indica si un nodo coincide con la búsqueda por texto y con el filtro por estado.
+ * Indica si un control se exige en la categoría del sistema. Un grupo, o un control de un marco
+ * que no distingue categorías (o sin categoría elegida), se exige: no hay nada que lo excluya.
+ *
+ * @param {object} node - Nodo del árbol personal.
+ * @returns {boolean}
+ */
+export function isRequired(node) {
+  return !node.applicability || node.applicability === 'required'
+}
+
+/**
+ * Indica si un nodo coincide con la búsqueda por texto, con el filtro por estado y, si se pide,
+ * con «solo lo exigido».
  *
  * @param {object} node - Nodo del árbol.
  * @param {string} query - Texto a buscar en el identificador, el título y la descripción.
  * @param {string} status - Estado a exigir, o '' para cualquiera. Un grupo no tiene estado y
  *   por sí mismo no cumple un filtro de estado: lo cumplen sus hijos.
+ * @param {boolean} onlyRequired - Si se descartan los controles que no se exigen. Un grupo por
+ *   sí mismo no lo cumple: lo cumplen sus hijos.
  * @returns {boolean}
  */
-function matches(node, query, status) {
+function matches(node, query, status, onlyRequired) {
+  if (onlyRequired && (!node.assessment || !isRequired(node))) return false
   if (status && statusOf(node) !== status) return false
   if (!query) return true
   const needle = query.trim().toLowerCase()
@@ -37,15 +52,16 @@ function matches(node, query, status) {
  * Poda el árbol a lo que coincide, conservando el camino hasta cada coincidencia.
  *
  * @param {Array} nodes - Raíces del árbol.
- * @param {{query?: string, status?: string}} [filters]
+ * @param {{query?: string, status?: string, onlyRequired?: boolean}} [filters] - `onlyRequired`
+ *   deja solo los controles que se exigen en la categoría del sistema. Por defecto, `false`.
  * @returns {Array} Un árbol nuevo; los nodos que se conservan solo por ser ascendientes de una
  *   coincidencia llevan `isPathOnly: true`. Sin filtros, devuelve el árbol tal cual.
  */
-export function filterTree(nodes, { query = '', status = '' } = {}) {
-  if (!query && !status) return nodes
+export function filterTree(nodes, { query = '', status = '', onlyRequired = false } = {}) {
+  if (!query && !status && !onlyRequired) return nodes
   const prune = (list) => list.flatMap((node) => {
     const children = prune(node.children)
-    const own = matches(node, query, status)
+    const own = matches(node, query, status, onlyRequired)
     if (!own && !children.length) return []
     return [{ ...node, children, isPathOnly: !own }]
   })

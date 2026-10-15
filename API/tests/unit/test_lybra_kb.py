@@ -548,6 +548,12 @@ def test_load_product_aliases_covers_known_entries():
     # Server-side entries migrated from the old hand-written CPE_PRODUCT_OVERRIDES.
     assert aliases["openssh"] == ("openbsd", "openssh")
     assert aliases["nginx"] == ("nginx", "nginx")
+    # NVD guarda los CVE de MySQL posteriores a 2010 bajo oracle:mysql; el
+    # vendor mysql sólo conserva los de la etapa anterior.
+    assert aliases["mysql"] == ("oracle", "mysql")
+    # El nombre «jenkins» es ambiguo en NVD (jenkins:jenkins y cloudbees:jenkins),
+    # así que el índice automático lo descarta y hace falta la entrada curada.
+    assert aliases["jenkins"] == ("jenkins", "jenkins")
     # A case NVD itself makes ambiguous (multiple vendors for "git") that the
     # automated index correctly refuses to guess — resolved here by hand.
     assert aliases["git"] == ("git-scm", "git")

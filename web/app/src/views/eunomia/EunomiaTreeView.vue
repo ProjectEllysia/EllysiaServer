@@ -66,12 +66,18 @@
           </div>
         </section>
 
+        <p v-if="data.categories?.length && !data.systemCategory" class="category-missing">{{ t('eunomia.category.missing') }}</p>
+
         <div class="filters">
           <input v-model.trim="query" type="search" class="search" :placeholder="t('eunomia.tree.search')" :aria-label="t('eunomia.tree.search')" />
           <select v-model="statusFilter" class="status-filter" :aria-label="t('eunomia.tree.filterStatus')">
             <option value="">{{ t('eunomia.tree.allStatuses') }}</option>
             <option v-for="status in STATUSES" :key="status" :value="status">{{ t(`eunomia.status.${status}`) }}</option>
           </select>
+          <label v-if="data.systemCategory" class="only-required">
+            <input v-model="onlyRequired" type="checkbox" />
+            {{ t('eunomia.category.onlyRequired') }}
+          </label>
           <button type="button" class="link-btn" @click="expandAll">{{ t('eunomia.tree.expandAll') }}</button>
           <button type="button" class="link-btn" @click="collapseAll">{{ t('eunomia.tree.collapseAll') }}</button>
         </div>
@@ -93,6 +99,7 @@
               v-if="selectedNode"
               :node="selectedNode"
               :framework="framework"
+              :system-category="data.systemCategory"
               :people="data.people"
               :saving="saving"
               :conflict="conflict"
@@ -137,6 +144,8 @@ const error = ref('')
 
 const query = ref('')
 const statusFilter = ref('')
+/** Oculta lo que no se exige en la categoría del sistema; solo actúa si hay categoría elegida. */
+const onlyRequired = ref(true)
 const expanded = ref(new Set())
 const selectedCode = ref('')
 const saving = ref(false)
@@ -144,7 +153,10 @@ const conflict = ref(null)
 const history = ref([])
 const summary = ref(null)
 
-const filtered = computed(() => filterTree(data.value?.tree ?? [], { query: query.value, status: statusFilter.value }))
+const filtered = computed(() => filterTree(data.value?.tree ?? [], {
+  query: query.value, status: statusFilter.value,
+  onlyRequired: Boolean(data.value?.systemCategory) && onlyRequired.value,
+}))
 const selectedNode = computed(() => (selectedCode.value ? findNode(data.value?.tree ?? [], selectedCode.value) : null))
 
 /** Con un filtro activo se despliega todo para que las coincidencias se vean. */
@@ -260,6 +272,11 @@ onMounted(load)
 .filters { display: flex; gap: 0.7rem; flex-wrap: wrap; align-items: center; }
 .search, .status-filter { padding: 0.5rem 0.7rem; border-radius: 6px; background: var(--bg); color: var(--text); border: 1px solid var(--border-med); }
 .search { flex: 1; min-width: 14rem; }
+.only-required { display: inline-flex; gap: 0.4rem; align-items: center; font-size: var(--fs-body); color: var(--text-dim); }
+.category-missing {
+  padding: 0.7rem 0.9rem; border-radius: 6px; border: 1px solid var(--border-med);
+  border-inline-start: 3px solid var(--accent); color: var(--text-dim); font-size: var(--fs-body);
+}
 .link-btn { color: var(--accent); text-decoration: underline; font-size: var(--fs-body); }
 .panes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 1.2rem; align-items: start; }
 .pane { background: var(--surface); border: 1px solid var(--border-solid); border-radius: 12px; padding: 1rem; }

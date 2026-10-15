@@ -5,7 +5,7 @@
 
 import assert from 'node:assert/strict'
 
-const { filterTree, visibleNodes, keyAction, groupCodes, findNode, statusOf } =
+const { filterTree, visibleNodes, keyAction, groupCodes, findNode, statusOf, isRequired } =
   await import('../src/components/eunomia/tree.js')
 
 let failures = 0
@@ -31,6 +31,29 @@ const fourLevels = [
 ]
 
 console.log('eunomia.tree')
+
+await test('«solo lo exigido» deja la medida exigida y quita sus refuerzos no exigidos', () => {
+  const measure = { ...leaf('ens:mp.info.3', 'Firma electrónica', 'pending'), applicability: 'required' }
+  measure.children = [
+    { ...leaf('ens:mp.info.3.r1', 'R1', 'implemented'), applicability: 'not_required' },
+    { ...leaf('ens:mp.info.3.r5', 'R5', 'pending'), applicability: 'optional' },
+  ]
+  const tree = [group('ens:mp', 'Medidas de protección', [measure])]
+
+  const pruned = filterTree(tree, { onlyRequired: true })
+
+  assert.equal(pruned[0].isPathOnly, true)
+  assert.deepEqual(pruned[0].children.map((node) => node.code), ['ens:mp.info.3'])
+  assert.deepEqual(pruned[0].children[0].children, [])
+})
+
+await test('sin categoría elegida todo se exige', () => {
+  assert.equal(isRequired({ applicability: null }), true)
+  assert.equal(isRequired({ applicability: 'required' }), true)
+  assert.equal(isRequired({ applicability: 'alternative' }), false)
+  assert.deepEqual(filterTree(twoLevels, { onlyRequired: true })[0].children.map((node) => node.code),
+    ['iso:A.5.9', 'iso:A.5.15'])
+})
 
 await test('el aplanado respeta lo contraído y numera los niveles', () => {
   const rows = visibleNodes(fourLevels, new Set(['ens:op', 'ens:op.acc']))

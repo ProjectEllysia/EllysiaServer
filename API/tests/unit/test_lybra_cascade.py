@@ -231,6 +231,29 @@ def test_a_blind_probe_that_raises_does_not_stop_the_next_one():
     assert _blind_cascade(probers, max_blind_probes=3) is found
 
 
+def test_a_protocol_without_a_product_is_still_an_identification():
+    """Un ``GET /`` que obtiene una respuesta HTTP válida pero sin cabecera
+    ``Server`` no nombra ningún producto, y aun así dice que el puerto habla
+    HTTP: eso decide qué checks merece."""
+    http_only = DissectorResult(None, None, "HTTP", protocol="http")
+    probers = [_CountingDissector("P0", http_only)]
+    assert _blind_cascade(probers, max_blind_probes=2) is http_only
+
+
+def test_a_named_product_beats_a_protocol_only_reading():
+    http_only = DissectorResult(None, None, "HTTP", protocol="http")
+    found = DissectorResult("Redis", "7.2.4", "Redis")
+    probers = [_CountingDissector("P0", http_only), _CountingDissector("P1", found)]
+    assert _blind_cascade(probers, max_blind_probes=3) is found
+
+
+def test_a_blind_probe_that_names_neither_product_nor_protocol_identifies_nothing():
+    """Redis contesta ``INFO`` a cualquier cosa con un resultado sin producto:
+    eso no puede contar como haber identificado el servicio."""
+    not_redis = DissectorResult(None, None, "Redis")
+    assert _blind_cascade([_CountingDissector("P0", not_redis)], max_blind_probes=2) is None
+
+
 # ================================= la cascada se deriva del registro
 
 

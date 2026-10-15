@@ -60,6 +60,17 @@ export const useEunomiaStore = defineStore('eunomia', () => {
     method: 'POST', body: JSON.stringify({ frameworkKey: key }),
   }), i18n.global.t('eunomia.frameworks.adoptFailed'))
 
+  /**
+   * Cambia la categoría del sistema de un marco adoptado: decide qué controles se exigen.
+   *
+   * @param {string} key - Clave del marco.
+   * @param {'basic'|'medium'|'high'} category - Categoría del sistema.
+   * @returns {Promise<{ok: boolean, message: string|null}>}
+   */
+  const setSystemCategory = (key, category) => run(key, () => apiFetch(`/eunomia/adoptions/${encodeURIComponent(key)}`, {
+    method: 'PATCH', body: JSON.stringify({ systemCategory: category }),
+  }), i18n.global.t('eunomia.category.changeFailed'))
+
   const archive = (key) => run(key, () => apiFetch(`/eunomia/adoptions/${encodeURIComponent(key)}`, {
     method: 'DELETE',
   }), i18n.global.t('eunomia.frameworks.removeFailed'))
@@ -465,6 +476,6 @@ export const useEunomiaStore = defineStore('eunomia', () => {
     return splitFrameworks(state.catalog, state.adoptions)
   }
 
-  return { state, load, adopt, archive, restore, previewRemoval, previewUpgrade, upgrade, loadTemplates, loadTemplateDraft, saveTemplateDraft, loadRegisters, loadRegister, writeRegister, exportRegister, requestDocument, loadDocuments, downloadDocument, deleteDocument, loadTree, loadSummary, loadHistory, loadAutomaticEvidence, saveAssessment,
+  return { state, load, adopt, setSystemCategory, archive, restore, previewRemoval, previewUpgrade, upgrade, loadTemplates, loadTemplateDraft, saveTemplateDraft, loadRegisters, loadRegister, writeRegister, exportRegister, requestDocument, loadDocuments, downloadDocument, deleteDocument, loadTree, loadSummary, loadHistory, loadAutomaticEvidence, saveAssessment,
     loadEvidence, uploadEvidence, setEvidenceLink, deleteEvidence, downloadEvidence, grouped }
 })

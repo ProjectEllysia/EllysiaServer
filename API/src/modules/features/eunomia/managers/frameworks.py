@@ -28,6 +28,7 @@ from ..exceptions import (
     FrameworkNotFoundError,
     FrameworkRestoreExpiredError,
     FrameworkUpToDateError,
+    SystemCategoryNotSupportedError,
     VersionMappingMissingError,
 )
 from ..model import (
@@ -44,6 +45,7 @@ from ..repositories import (
     EunomiaFrameworkAdoptionRepository,
 )
 from ..services.adoption_data import AdoptionDataRegistry
+from ..services.applicability import categories_of
 from .assessments import adoption_progress
 from ..services.catalog import FrameworkVersion, load_index, load_version
 from ..services.upgrade_plan import UpgradePlan, plan_upgrade
@@ -112,6 +114,24 @@ def _upgrade_context(owner_user_id: int, framework_key: str):
             load_version(framework_key, current), plan, assessments, links)
 
 
+def _assert_category(framework_key: str, catalog_version: str, category: Optional[str]) -> None:
+    """Comprueba que una versión del marco distingue categorías y que ``category`` es una de ellas.
+
+    Args:
+        framework_key: Clave del marco.
+        catalog_version: Versión adoptada o que se va a adoptar.
+        category: Categoría pedida; ``None`` no se comprueba (no fija nada).
+
+    Raises:
+        SystemCategoryNotSupportedError: Si el marco no distingue categorías o no es una suya (400).
+    """
+    if category is None:
+        return
+    version = load_version(framework_key, catalog_version)
+    if version is None or category not in categories_of(version):
+        raise SystemCategoryNotSupportedError(framework_key)
+
+
 def _title(version: FrameworkVersion, identifier: str) -> str:
     """El título de un control de una versión, o su identificador si no se encuentra."""
     node = version.node(f"{version.key}:{identifier}")
@@ -154,7 +174,9 @@ class EunomiaFrameworkManager:
         Returns:
             dict: ``{"adoptions": [...], "ownership": {...}}``. Cada adopción lleva
                 ``frameworkKey``, ``name``, ``shortName``, ``catalogVersion``,
-                ``currentVersion``, ``hasNewerVersion``, ``status``, ``adoptedAt``,
+                ``currentVersion``, ``hasNewerVersion``, ``systemCategory`` (``None`` si no se
+                eligió), ``categories`` (las que admite la versión adoptada; vacía si el marco no
+                distingue), ``status``, ``adoptedAt``,
                 ``adoptedByUserId``, ``archivedAt`` y ``purgeAt`` (cuándo se purgará un marco
                 archivado). ``ownership`` es ``describe_data_ownership`` y dice si el usuario
                 puede gestionarlos.
@@ -167,6 +189,7 @@ class EunomiaFrameworkManager:
         adoptions = []
         for row in rows:
             entry = index.get(row.framework_key)
+            version = load_version(row.framework_key, row.catalog_version)
             adoptions.append({
                 "frameworkKey": row.framework_key,
                 "name": entry["name"] if entry else row.framework_key,
@@ -174,12 +197,15 @@ class EunomiaFrameworkManager:
                 "catalogVersion": row.catalog_version,
                 "currentVersion": entry["current"] if entry else row.catalog_version,
                 "hasNewerVersion": bool(entry and entry["current"] != row.catalog_version),
+                "systemCategory": row.system_category,
+                "categories": list(categories_of(version)) if version else [],
                 "status": row.status,
                 "adoptedAt": row.adopted_at,
                 "adoptedByUserId": row.adopted_by_user_id,
                 "archivedAt": row.archived_at,
                 "purgeAt": row.archived_at + retention if row.archived_at else None,
-                "progress": (adoption_progress(owner_user_id, row.framework_key, row.catalog_version)
+                "progress": (adoption_progress(owner_user_id, row.framework_key, row.catalog_version,
+                                               row.system_category)
                              if row.status == ADOPTION_ACTIVE else None),
             })
         return {"adoptions": adoptions, "ownership": organizations.describe_data_ownership(user_id)}
@@ -201,12 +227,15 @@ class EunomiaFrameworkManager:
         rows = build_repository(EunomiaFrameworkAdoptionRepository).list_for_owner(owner_user_id)
         return [row.framework_key for row in rows if row.status == ADOPTION_ACTIVE]
 
-    def adopt(self, user_id: int, framework_key: str) -> dict:
+    def adopt(self, user_id: int, framework_key: str, system_category: Optional[str] = None) -> dict:
         """Adopta un marco fijando la versión vigente del catálogo.
 
         Args:
             user_id: Usuario que adopta; tiene que ser el dueño efectivo de los datos.
             framework_key: Clave del marco (``"nis2"``).
+            system_category: Categoría del sistema en los marcos que exigen según ella (el ENS):
+                ``"basic"``, ``"medium"`` o ``"high"``. Por defecto ``None``: se exige todo hasta
+                que se elija.
 
         Returns:
             dict: La adopción creada, con la forma de un elemento de ``list_adoptions``.
@@ -217,9 +246,12 @@ class EunomiaFrameworkManager:
             FrameworkAlreadyAdoptedError: Si ya lo tiene activo (409).
             FrameworkArchivedError: Si lo tiene archivado y puede restaurarlo (409).
             QuotaExceededError: Si supera ``eunomia.frameworks`` de su plan (402).
+            SystemCategoryNotSupportedError: Si el marco no distingue categorías o no es una
+                suya (400).
         """
         owner_user_id = _assert_owner(user_id)
         entry = _framework_entry(framework_key)
+        _assert_category(framework_key, entry["current"], system_category)
 
         existing = build_repository(EunomiaFrameworkAdoptionRepository).get_for_owner(owner_user_id, framework_key)
         if existing is not None:
@@ -231,10 +263,40 @@ class EunomiaFrameworkManager:
         with UnitOfWork() as uow:
             EunomiaFrameworkAdoptionRepository(uow).save(EunomiaFrameworkAdoption(
                 owner_user_id=owner_user_id, framework_key=framework_key,
-                catalog_version=entry["current"], status=ADOPTION_ACTIVE,
+                catalog_version=entry["current"], system_category=system_category, status=ADOPTION_ACTIVE,
                 adopted_at=utcnow_naive(), adopted_by_user_id=user_id,
             ))
         logger.info("Marco adoptado | owner=%s marco=%s version=%s", owner_user_id, framework_key, entry["current"])
+        return _listed(owner_user_id, framework_key)
+
+    def set_system_category(self, user_id: int, framework_key: str, system_category: str) -> dict:
+        """Cambia la categoría del sistema de un marco adoptado.
+
+        No borra nada: qué se exige se calcula al consultar, así que lo evaluado de un control que
+        deja de exigirse se conserva y vuelve a contar si se exige otra vez.
+
+        Args:
+            user_id: Usuario que la cambia; tiene que ser el dueño efectivo de los datos.
+            framework_key: Clave del marco adoptado.
+            system_category: ``"basic"``, ``"medium"`` o ``"high"``.
+
+        Returns:
+            dict: La adopción, con la forma de un elemento de ``list_adoptions``.
+
+        Raises:
+            DataOwnedByOrganizationError: Si es miembro de la organización de otro (403).
+            AdoptionNotFoundError: Si el marco no está adoptado y activo (404).
+            SystemCategoryNotSupportedError: Si el marco no distingue categorías o no es una
+                suya (400).
+        """
+        owner_user_id = _assert_owner(user_id)
+        adoption = _get_active(owner_user_id, framework_key)
+        _assert_category(framework_key, adoption.catalog_version, system_category)
+        with UnitOfWork() as uow:
+            stored = EunomiaFrameworkAdoptionRepository(uow).get_for_owner(owner_user_id, framework_key)
+            stored.system_category = system_category
+        logger.info("Categoría del sistema | owner=%s marco=%s categoria=%s",
+                    owner_user_id, framework_key, system_category)
         return _listed(owner_user_id, framework_key)
 
     def removal_preview(self, user_id: int, framework_key: str) -> dict:

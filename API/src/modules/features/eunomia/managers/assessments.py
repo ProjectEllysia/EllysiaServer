@@ -36,6 +36,7 @@ from ..repositories import (
     EunomiaEvidenceRepository,
     EunomiaFrameworkAdoptionRepository,
 )
+from ..services.applicability import REQUIRED, applicability, categories_of, is_required
 from ..services.assessments import ControlState, branch_progress, summarize
 from ..services.catalog import CatalogNode, FrameworkVersion, load_version
 from ..services.crosswalks import suggestions as crosswalk_suggestions
@@ -155,6 +156,22 @@ def _states(records: list) -> dict[str, ControlState]:
     }
 
 
+def adopted_scope(owner_user_id: int, version: FrameworkVersion) -> tuple[Optional[str], dict[str, str]]:
+    """La categoría del sistema que fijó la adopción y qué controles se exigen con ella.
+
+    Args:
+        owner_user_id: Dueño efectivo de los datos.
+        version: Versión adoptada del marco.
+
+    Returns:
+        tuple: ``(categoría, aplicabilidad)``. La categoría es ``None`` si no se ha elegido; la
+            aplicabilidad es lo que devuelve ``applicability`` (vacía: se exige todo).
+    """
+    adoption = build_repository(EunomiaFrameworkAdoptionRepository).get_for_owner(owner_user_id, version.key)
+    category = adoption.system_category if adoption is not None else None
+    return category, applicability(version, category)
+
+
 def _adopted_versions(owner_user_id: int) -> dict[str, str]:
     """Los marcos activos del dueño efectivo, con la versión que fijó cada adopción."""
     rows = build_repository(EunomiaFrameworkAdoptionRepository).list_for_owner(owner_user_id)
@@ -217,8 +234,8 @@ def _suggestions_by_control(owner_user_id: int, framework_key: str, version: Fra
 
 
 def _tree_node(version: FrameworkVersion, node: CatalogNode, rows: dict, names: dict, progress: dict,
-               evidence: dict, suggestions: dict) -> dict:
-    """Serializa un nodo con sus hijos y, si es evaluable, su evaluación."""
+               evidence: dict, suggestions: dict, scope: dict) -> dict:
+    """Serializa un nodo con sus hijos y, si es evaluable, su evaluación y si se exige."""
     return {
         "code": node.code,
         "identifier": node.identifier,
@@ -231,6 +248,7 @@ def _tree_node(version: FrameworkVersion, node: CatalogNode, rows: dict, names: 
         "evidence": list(node.evidence),
         "source": node.source,
         "metadata": node.metadata,
+        "applicability": scope.get(node.identifier, REQUIRED) if node.is_assessable else None,
         "assessment": (
             assessment_payload(rows.get(node.identifier), node.framework, node.identifier, names)
             if node.is_assessable else None
@@ -239,7 +257,7 @@ def _tree_node(version: FrameworkVersion, node: CatalogNode, rows: dict, names: 
         "linkedEvidence": evidence.get(node.identifier, []),
         "evidenceState": _evidence_state(evidence.get(node.identifier, [])),
         "suggestions": suggestions.get(node.identifier, []),
-        "children": [_tree_node(version, child, rows, names, progress, evidence, suggestions)
+        "children": [_tree_node(version, child, rows, names, progress, evidence, suggestions, scope)
                      for child in version.children(node.code)],
     }
 
@@ -283,13 +301,16 @@ def _conflict_payload(row: Optional[EunomiaControlAssessment], framework_key: st
     return payload
 
 
-def adoption_progress(owner_user_id: int, framework_key: str, catalog_version: str) -> Optional[dict]:
+def adoption_progress(owner_user_id: int, framework_key: str, catalog_version: str,
+                      system_category: Optional[str] = None) -> Optional[dict]:
     """El progreso global de un marco adoptado, para las tarjetas de la pantalla de marcos.
 
     Args:
         owner_user_id: Dueño efectivo de los datos.
         framework_key: Clave del marco.
         catalog_version: Versión que fijó la adopción.
+        system_category: Categoría del sistema que fijó la adopción; solo cuenta lo que se exige
+            en ella. Por defecto ``None``, que exige todo.
 
     Returns:
         Optional[dict]: Lo que devuelve ``progress_of`` para el conjunto del marco, o ``None`` si
@@ -299,7 +320,8 @@ def adoption_progress(owner_user_id: int, framework_key: str, catalog_version: s
     if version is None:
         return None
     records = build_repository(EunomiaControlAssessmentRepository).list_for_framework(owner_user_id, framework_key)
-    return summarize(version, _states(records), date.today())["global"]
+    return summarize(version, _states(records), date.today(),
+                     scope=applicability(version, system_category))["global"]
 
 
 class EunomiaAssessmentManager:
@@ -366,8 +388,12 @@ class EunomiaAssessmentManager:
 
         Returns:
             dict: Metadatos de la versión (``key``, ``version``, ``name``, ``shortName``,
-                ``status``, ``notes``, ``sources``) y ``tree``: las raíces con sus hijos
-                anidados; cada nodo evaluable lleva ``assessment`` (``pending`` si no tiene fila).
+                ``status``, ``notes``, ``sources``), la categoría del sistema de la adopción
+                (``systemCategory``, ``None`` si no se eligió) y las que admite el marco
+                (``categories``, vacía si no distingue), y ``tree``: las raíces con sus hijos
+                anidados; cada nodo evaluable lleva ``assessment`` (``pending`` si no tiene fila)
+                y ``applicability`` (``required``, ``alternative``, ``not_required`` u
+                ``optional``; ver ``services/applicability``).
 
         Raises:
             AdoptionNotFoundError: Si el marco no está adoptado y activo (404).
@@ -393,18 +419,20 @@ class EunomiaAssessmentManager:
                     "sizeBytes": row.size_bytes, "validUntil": row.valid_until,
                     "isExpired": row.valid_until is not None and row.valid_until < today,
                 })
-        progress = branch_progress(version, _states(records))
+        category, scope = adopted_scope(owner_user_id, version)
+        progress = branch_progress(version, _states(records), scope)
         suggestions = _suggestions_by_control(owner_user_id, framework_key, version,
                                               _adopted_versions(owner_user_id))
         return {
             "people": _people(user_id, owner_user_id),
             "key": version.key, "version": version.version, "status": version.status,
             "name": version.name, "shortName": version.short_name, "notes": version.notes,
+            "systemCategory": category, "categories": list(categories_of(version)),
             "sources": [
                 {"name": s.name, "url": s.url, "license": s.license, "consultedAt": s.consulted_at}
                 for s in version.sources
             ],
-            "tree": [_tree_node(version, root, rows, names, progress, evidence, suggestions)
+            "tree": [_tree_node(version, root, rows, names, progress, evidence, suggestions, scope)
                      for root in version.children(None)],
         }
 
@@ -426,14 +454,16 @@ class EunomiaAssessmentManager:
         version = adopted_version(owner_user_id, framework_key)
         records = build_repository(EunomiaControlAssessmentRepository).list_for_framework(
             owner_user_id, framework_key)
-        summary = summarize(version, _states(records), date.today())
+        _category, scope = adopted_scope(owner_user_id, version)
+        summary = summarize(version, _states(records), date.today(), scope=scope)
         # Controles aún abiertos que otro marco adoptado ya cubre: lo que el usuario se ahorra.
         suggestions = _suggestions_by_control(owner_user_id, framework_key, version,
                                               _adopted_versions(owner_user_id))
         states = _states(records)
         summary["suggestedCoverage"] = sum(
             1 for identifier, items in suggestions.items()
-            if states.get(identifier, ControlState()).status in ("pending", "in_progress")
+            if is_required(scope, identifier)
+            and states.get(identifier, ControlState()).status in ("pending", "in_progress")
             and any(item["status"] == "implemented" for item in items)
         )
         names = {

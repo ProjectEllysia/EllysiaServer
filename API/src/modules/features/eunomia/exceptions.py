@@ -137,6 +137,21 @@ class ControlNotAssessableError(EunomiaError):
         )
 
 
+class SystemCategoryNotSupportedError(EunomiaError):
+    """El marco no exige según la categoría del sistema, o la categoría no es una de las suyas."""
+
+    default_code = ErrorCode.VALIDATION_ERROR
+    default_status_code = 400
+
+    def __init__(self, framework_key: str) -> None:
+        super().__init__(
+            message=f"El marco '{framework_key}' no admite esa categoría de sistema",
+            user_message="Este marco no distingue categorías de sistema, o la categoría no es válida.",
+            message_key="systemCategoryNotSupported",
+            params={"framework": framework_key},
+        )
+
+
 class JustificationRequiredError(EunomiaError):
     """«No aplica» sin justificación: una exclusión sin motivo no se sostiene ante una auditoría."""
 

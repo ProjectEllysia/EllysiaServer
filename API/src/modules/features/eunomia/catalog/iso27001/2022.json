@@ -12,6 +12,24 @@
       "url": "https://www.iso.org/standard/27001",
       "license": "Norma de pago con derechos de autor: solo se usan los códigos de los controles y títulos cortos propios, nunca el texto de la norma.",
       "consultedAt": "2026-10-10"
+    },
+    {
+      "name": "NIST SP 800-53A Rev. 5, Assessing Security and Privacy Controls in Information Systems and Organizations",
+      "url": "https://csrc.nist.gov/pubs/sp/800/53/a/r5/final",
+      "license": "Obra del Gobierno de EE. UU., de dominio público en EE. UU.; usada como referencia, redacción propia",
+      "consultedAt": "2026-10-15"
+    },
+    {
+      "name": "NIST Cybersecurity Framework (CSF) 2.0 y sus referencias informativas",
+      "url": "https://www.nist.gov/cyberframework",
+      "license": "Obra del Gobierno de EE. UU., de dominio público en EE. UU.; usada como referencia, redacción propia",
+      "consultedAt": "2026-10-15"
+    },
+    {
+      "name": "ENISA, NIS2 Technical Implementation Guidance, versión 1.0 (junio de 2025), y su tabla de correspondencias",
+      "url": "https://www.enisa.europa.eu/publications/NIS2-technical-implementation-guidance",
+      "license": "CC BY 4.0 (aviso de copyright del documento); usada como referencia, redacción propia",
+      "consultedAt": "2026-10-15"
     }
   ],
   "notes": "Los 93 controles del anexo A. Solo códigos y títulos propios: no reproduce el texto de la norma (licenseMode codes_only). Los títulos y descripciones son redacción de Ellysia.",
@@ -75,14 +93,22 @@
       "kind": "requirement",
       "title": "Políticas de seguridad",
       "officialText": "",
-      "description": "Tener políticas de seguridad aprobadas por la dirección, comunicadas y revisadas.",
+      "description": "Fija por escrito qué espera la organización en materia de seguridad y deja claro que la dirección lo respalda. Sin políticas aprobadas y conocidas, cada área decide por su cuenta y los controles no tienen una referencia común frente a la que medirse.",
       "actions": [
-        "Redactar y aprobar la política general y las específicas",
-        "Comunicarlas y revisarlas a intervalos planificados"
+        "Redactar una política general de seguridad de la información que explique por qué la organización protege la información, a qué parte de la organización aplica, qué objetivos persigue y quién responde de cada cosa, y someterla a la aprobación formal de la dirección.",
+        "Identificar, a partir del análisis de riesgos, las políticas temáticas que necesita la organización (por ejemplo, control de acceso, uso aceptable, copias de seguridad, criptografía, proveedores, teletrabajo, gestión de incidentes) y asignar a cada una un propietario.",
+        "Hacer que cada política temática la apruebe el nivel de dirección con autoridad sobre su ámbito y que el propio documento indique versión, fecha de aprobación, propietario y fecha prevista de revisión.",
+        "Publicar las políticas en un lugar accesible (intranet o gestor documental) y comunicarlas a empleados y terceros afectados, recogiendo un acuse de lectura o de aceptación.",
+        "Definir un procedimiento de excepciones que indique quién puede solicitarlas, quién las aprueba, cuánto tiempo valen y qué riesgo residual se acepta.",
+        "Revisar las políticas al menos una vez al año, como práctica habitual, y además tras cambios relevantes en el negocio, la tecnología o la legislación o tras un incidente grave, dejando constancia del resultado aunque no haya cambios."
       ],
       "evidence": [
-        "Política aprobada con fecha y firma",
-        "Registro de revisión"
+        "Política general de seguridad aprobada por la dirección, con versión, fecha de aprobación, propietario y alcance.",
+        "Índice de políticas temáticas con su propietario, órgano aprobador, versión vigente y fecha de la próxima revisión.",
+        "Acta o acuerdo de dirección en el que conste la aprobación de la política general y de sus revisiones.",
+        "Registros de comunicación y aceptación de las políticas: listas de distribución, acuses de lectura o firmas, con fecha y destinatarios.",
+        "Registro de revisiones de cada política: fecha, revisor, motivo y cambios introducidos o decisión de mantenerla.",
+        "Registro de excepciones aprobadas con justificación, aprobador, fecha de caducidad y riesgo aceptado."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -94,14 +120,22 @@
       "kind": "requirement",
       "title": "Roles y responsabilidades",
       "officialText": "",
-      "description": "Definir y asignar quién es responsable de qué en seguridad.",
+      "description": "Evita que la seguridad quede en tierra de nadie: cada tarea relevante tiene un responsable con nombre y apellidos que sabe lo que se espera de él y tiene autoridad para hacerlo.",
       "actions": [
-        "Documentar los roles de seguridad",
-        "Asignarlos a personas concretas"
+        "Definir los roles de seguridad que necesita la organización (por ejemplo, responsable de seguridad, propietarios de activos y de riesgos, administradores de sistemas, responsable de protección de datos y coordinador de incidentes) y las funciones de cada uno.",
+        "Designar formalmente a la persona que ocupa cada rol, con un suplente para los roles críticos, mediante nombramiento de la dirección o anotación en la matriz de responsabilidades.",
+        "Elaborar una matriz de responsabilidades, por ejemplo de tipo RACI, que vincule cada proceso de seguridad con quién lo ejecuta, quién lo aprueba, a quién se consulta y a quién se informa.",
+        "Incluir las responsabilidades de seguridad en las descripciones de puesto y comunicar a cada persona las suyas al asignarle el rol.",
+        "Comprobar que quien ocupa cada rol tiene la formación y los medios necesarios, y planificar la formación específica que le falte.",
+        "Revisar la asignación de roles al menos una vez al año, como práctica habitual, y siempre que haya reorganizaciones, bajas o cambios de puesto, actualizando nombramientos y contactos."
       ],
       "evidence": [
-        "Organigrama o matriz de responsabilidades",
-        "Nombramientos"
+        "Documento o matriz de roles y responsabilidades de seguridad con la descripción de cada rol, su titular, su suplente y la fecha de asignación.",
+        "Nombramientos de los roles clave firmados por la dirección o recogidos en acta.",
+        "Descripciones de puesto que incluyan las responsabilidades de seguridad correspondientes.",
+        "Organigrama actualizado en el que se identifiquen las funciones de seguridad y sus líneas de reporte.",
+        "Registros de la formación específica recibida por los titulares de roles de seguridad.",
+        "Historial de cambios en la asignación de roles con fecha y motivo."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -113,14 +147,21 @@
       "kind": "requirement",
       "title": "Separación de funciones",
       "officialText": "",
-      "description": "Separar tareas incompatibles para reducir el riesgo de fraude o error.",
+      "description": "Impide que una sola persona pueda iniciar, aprobar y ejecutar una operación sensible sin que nadie más intervenga. Reduce el riesgo de fraude, de errores que nadie detecta y de abuso de privilegios.",
       "actions": [
-        "Identificar funciones en conflicto",
-        "Repartirlas entre personas distintas"
+        "Identificar los procesos en los que una misma persona podría causar o encubrir un daño, por ejemplo alta de proveedores y pago, solicitud y aprobación de accesos, desarrollo y paso a producción, o administración de sistemas y revisión de sus registros.",
+        "Documentar una matriz de funciones incompatibles que indique qué combinaciones de roles o permisos no puede reunir la misma persona.",
+        "Configurar los roles en las aplicaciones y sistemas para que impidan técnicamente las combinaciones incompatibles, en lugar de confiar solo en la norma escrita.",
+        "Cuando el tamaño de la organización no permita separar funciones, aplicar controles compensatorios como la doble aprobación, la revisión independiente de las operaciones o la supervisión de registros por un tercero, y documentarlos.",
+        "Comprobar al menos una vez al año, como práctica habitual y junto con la revisión de derechos de acceso, que ningún usuario acumula funciones incompatibles.",
+        "Aprobar y registrar cada excepción con su justificación, su plazo y el control compensatorio asociado."
       ],
       "evidence": [
-        "Matriz de separación de funciones",
-        "Excepciones justificadas"
+        "Matriz de segregación de funciones con los procesos analizados y las combinaciones de roles incompatibles.",
+        "Informe de la última revisión de conflictos de funciones: fecha, revisor, usuarios analizados, conflictos encontrados y medidas tomadas.",
+        "Configuración de roles y perfiles en los sistemas clave que muestre la separación aplicada.",
+        "Registro de excepciones con justificación, aprobador, vigencia y control compensatorio.",
+        "Muestras de operaciones sensibles en las que el solicitante y el aprobador sean personas distintas, o con su revisión independiente documentada."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -132,14 +173,21 @@
       "kind": "requirement",
       "title": "Responsabilidad de la dirección",
       "officialText": "",
-      "description": "Exigir a toda la organización que aplique las políticas de seguridad.",
+      "description": "Asegura que los mandos no se limitan a aprobar documentos, sino que exigen a sus equipos y contratistas que apliquen las normas de seguridad. Sin ese respaldo visible, las políticas se perciben como opcionales.",
       "actions": [
-        "Comunicar el compromiso de la dirección",
-        "Revisar su cumplimiento"
+        "Hacer que la dirección comunique de forma expresa a toda la plantilla que cumplir las políticas de seguridad es obligatorio, por ejemplo en la incorporación, en reuniones generales o mediante comunicados internos.",
+        "Incluir entre las funciones de cada responsable de área la obligación de que su equipo conozca y aplique las políticas que le afectan y reciba la formación necesaria.",
+        "Asegurar que cada responsable informa a las personas a su cargo de las responsabilidades de seguridad de su puesto antes de que obtengan acceso a información o sistemas.",
+        "Dotar de recursos (tiempo, presupuesto y herramientas) a las medidas de seguridad aprobadas y reflejarlo en la planificación anual.",
+        "Incluir el cumplimiento de la seguridad entre los asuntos que la dirección revisa periódicamente, con indicadores por área y seguimiento de los incumplimientos.",
+        "Ofrecer a los empleados un canal para comunicar incumplimientos o dudas sobre las políticas sin temor a represalias."
       ],
       "evidence": [
-        "Comunicaciones de la dirección",
-        "Informes de cumplimiento"
+        "Comunicaciones de la dirección a la plantilla sobre la obligatoriedad de las políticas de seguridad, con fecha y destinatarios.",
+        "Actas de revisión por la dirección u otras reuniones directivas en las que se analicen indicadores de cumplimiento y se acuerden acciones.",
+        "Presupuesto o plan anual con partidas asignadas a seguridad de la información.",
+        "Registros que demuestren que los nuevos empleados y contratistas recibieron las normas de seguridad antes de obtener acceso.",
+        "Indicadores de cumplimiento por área (formación completada, aceptación de políticas, incumplimientos detectados) con su evolución."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -151,14 +199,20 @@
       "kind": "requirement",
       "title": "Contacto con autoridades",
       "officialText": "",
-      "description": "Saber con quién contactar en las autoridades y cuándo.",
+      "description": "Garantiza que, ante un incidente, una brecha de datos o una inspección, la organización sabe a qué organismo acudir, cómo y en qué plazo, sin perder tiempo buscando contactos en plena crisis.",
       "actions": [
-        "Mantener un directorio de autoridades",
-        "Definir cuándo se contacta"
+        "Elaborar un directorio de autoridades con nombre, canal de contacto y motivo: la AEPD para brechas de datos personales, INCIBE-CERT (empresas) o CCN-CERT (sector público) para incidentes, Policía Nacional, Guardia Civil o policía autonómica para delitos, y los reguladores sectoriales que correspondan.",
+        "Definir en el procedimiento de incidentes qué situaciones obligan o aconsejan contactar con cada autoridad, quién está autorizado a hacerlo y en qué plazo; por ejemplo, notificar a la AEPD una brecha de datos personales en un máximo de 72 horas cuando el RGPD lo exija.",
+        "Si la organización está sujeta a NIS2 o al Esquema Nacional de Seguridad, incluir la autoridad competente y el CSIRT de referencia con los plazos y formatos de notificación que fije la normativa aplicable.",
+        "Designar un interlocutor principal y un suplente para las relaciones con autoridades y darlo a conocer al personal que interviene en la gestión de incidentes.",
+        "Verificar los datos del directorio al menos una vez al año, como práctica habitual, y tras cualquier cambio organizativo o normativo.",
+        "Registrar cada contacto mantenido con autoridades: fecha, motivo, interlocutor y resultado."
       ],
       "evidence": [
-        "Directorio de contactos",
-        "Procedimiento de comunicación"
+        "Directorio de contactos con autoridades, con la fecha de su última verificación y el responsable de mantenerlo.",
+        "Procedimiento de gestión de incidentes o de comunicación con autoridades que defina criterios, plazos, responsables y canales de notificación.",
+        "Registro de comunicaciones con autoridades, incluidas las notificaciones de brechas o incidentes y sus acuses de recibo.",
+        "Designación del interlocutor con autoridades y de su suplente."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -170,14 +224,19 @@
       "kind": "requirement",
       "title": "Contacto con grupos especializados",
       "officialText": "",
-      "description": "Mantener contacto con foros y grupos de seguridad para estar al día.",
+      "description": "Mantiene a la organización al día de amenazas, vulnerabilidades y buenas prácticas a través de comunidades y fuentes de confianza, y le da a quién consultar cuando surge un problema que no sabe resolver sola.",
       "actions": [
-        "Elegir grupos o boletines relevantes",
-        "Designar quién los sigue"
+        "Seleccionar las fuentes y comunidades útiles para el sector y la tecnología de la organización, por ejemplo los avisos de INCIBE-CERT o CCN-CERT, los boletines de los fabricantes de los productos en uso, asociaciones profesionales de seguridad y grupos sectoriales de intercambio de información.",
+        "Designar a las personas responsables de seguir cada fuente y de participar en cada grupo, con su suplente.",
+        "Fijar reglas sobre qué información puede compartirse en esos foros, para no revelar datos confidenciales propios ni de clientes, y respetar las marcas de difusión como el protocolo TLP.",
+        "Hacer llegar los avisos relevantes a quien debe actuar (gestión de vulnerabilidades, inteligencia de amenazas, formación) y registrar las acciones que se derivan.",
+        "Revisar al menos una vez al año, como práctica habitual, si las fuentes y grupos siguen aportando valor y actualizar la lista."
       ],
       "evidence": [
-        "Lista de grupos y suscripciones",
-        "Registro de actualizaciones recibidas"
+        "Lista de grupos, foros y suscripciones con su responsable, objetivo y fecha de alta.",
+        "Registro de avisos relevantes recibidos y de las acciones que motivaron, como parches aplicados o reglas de detección creadas.",
+        "Normas internas sobre qué información puede compartirse externamente y con qué nivel de difusión.",
+        "Evidencias de participación: inscripciones, membresías o asistencia a jornadas y reuniones."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -189,14 +248,21 @@
       "kind": "requirement",
       "title": "Inteligencia de amenazas",
       "officialText": "",
-      "description": "Recoger y analizar información sobre amenazas para tomar decisiones.",
+      "description": "Convierte la información sobre quién ataca, cómo y a qué tipo de organizaciones en decisiones concretas de protección y detección. Evita defenderse a ciegas o con un análisis de riesgos basado en amenazas desfasadas.",
       "actions": [
-        "Definir fuentes de inteligencia",
-        "Analizarla y usarla en la gestión de riesgos"
+        "Definir qué se necesita saber (amenazas contra el sector y las tecnologías en uso, campañas de fraude o phishing dirigidas a la organización, vulnerabilidades explotadas activamente) y las fuentes para obtenerlo: CERT nacionales, fabricantes, proveedores comerciales, fuentes abiertas y los registros propios.",
+        "Asignar a una persona o equipo la recogida, el filtrado y el análisis, distinguiendo la información estratégica (tendencias para la dirección), táctica (técnicas de ataque) y operativa (indicadores de compromiso).",
+        "Valorar la fiabilidad y la pertinencia de cada información antes de actuar y descartar lo que no aplica a la organización.",
+        "Trasladar los resultados a acciones concretas: cargar indicadores en las herramientas de detección, priorizar parches, ajustar reglas de filtrado y actualizar el análisis de riesgos.",
+        "Emitir un resumen periódico, por ejemplo trimestral como práctica habitual, con las amenazas relevantes y las medidas adoptadas, dirigido a los responsables de seguridad y a la dirección.",
+        "Revisar al menos una vez al año si las fuentes y el proceso aportan valor y ajustar su alcance."
       ],
       "evidence": [
-        "Informes de amenazas",
-        "Decisiones derivadas"
+        "Procedimiento de inteligencia de amenazas con objetivos, fuentes, responsables y flujo de difusión interna.",
+        "Informes o boletines de amenazas emitidos, con fecha y destinatarios.",
+        "Registro de acciones derivadas (indicadores incorporados, parches priorizados o cambios en controles) con referencia a la amenaza que las motivó.",
+        "Análisis de riesgos actualizado en el que se aprecie la incorporación de las amenazas identificadas.",
+        "Lista de fuentes de inteligencia con su valoración de fiabilidad y fecha de revisión."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -208,14 +274,21 @@
       "kind": "requirement",
       "title": "Seguridad en proyectos",
       "officialText": "",
-      "description": "Incluir la seguridad en la gestión de cualquier proyecto.",
+      "description": "Incorpora la seguridad desde el arranque de cualquier proyecto, sea técnico o no, para tratar los riesgos cuando todavía es barato hacerlo y no después de la puesta en marcha.",
       "actions": [
-        "Evaluar riesgos al iniciar cada proyecto",
-        "Incluir requisitos de seguridad"
+        "Incluir en la metodología o plantilla de gestión de proyectos un apartado obligatorio de seguridad de la información, aplicable a todo tipo de proyectos y no solo a los tecnológicos.",
+        "Valorar los riesgos de seguridad al inicio de cada proyecto y, si se tratan datos personales, decidir si hace falta una evaluación de impacto en protección de datos.",
+        "Definir los requisitos de seguridad del proyecto (acceso, cifrado, registros, continuidad, proveedores implicados) y asignar a cada uno un responsable dentro del equipo.",
+        "Establecer puntos de control en las fases del proyecto (inicio, diseño y antes de la puesta en marcha) en los que el responsable de seguridad compruebe el cumplimiento de los requisitos.",
+        "Impedir el cierre o la puesta en producción mientras haya riesgos altos sin tratar o sin la aceptación formal de su responsable.",
+        "Recoger al cierre las lecciones aprendidas en materia de seguridad y trasladarlas a la metodología."
       ],
       "evidence": [
-        "Plantilla de proyecto con seguridad",
-        "Análisis de riesgos del proyecto"
+        "Metodología o plantilla de proyectos con el apartado de seguridad y los puntos de control definidos.",
+        "Análisis de riesgos de seguridad de proyectos en curso o cerrados, con fecha y responsable.",
+        "Requisitos de seguridad documentados por proyecto y su estado de cumplimiento.",
+        "Actas de los puntos de control o aprobaciones de puesta en marcha firmadas por el responsable de seguridad.",
+        "Aceptaciones formales de riesgos residuales firmadas por el responsable correspondiente."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -227,14 +300,21 @@
       "kind": "requirement",
       "title": "Inventario de activos",
       "officialText": "",
-      "description": "Mantener un inventario de la información y de los activos que la tratan.",
+      "description": "Da una visión completa y actualizada de qué información y qué medios tiene la organización, dónde están y quién responde de cada uno. No se puede proteger lo que no se sabe que existe.",
       "actions": [
-        "Inventariar activos con su responsable",
-        "Mantener el inventario actualizado"
+        "Definir qué tipos de activos se inventarían (información, aplicaciones, servicios en la nube, equipos, dispositivos móviles, soportes, redes e instalaciones) y con qué datos: identificador, descripción, ubicación, propietario, clasificación y estado.",
+        "Asignar un propietario a cada activo o grupo de activos, responsable de su clasificación, de autorizar su acceso y de revisarlo.",
+        "Usar herramientas de descubrimiento automático de equipos, software y servicios en la nube y conciliar periódicamente sus resultados con el inventario.",
+        "Integrar el inventario en los procesos de compra, alta, cambio, préstamo y baja para que se actualice en el momento en que se producen.",
+        "Comprobar la exactitud del inventario al menos una vez al año, como práctica habitual, con una verificación física o técnica por muestreo, y corregir las discrepancias.",
+        "Usar el inventario como base del análisis de riesgos y de la clasificación de la información."
       ],
       "evidence": [
-        "Inventario de activos",
-        "Registro de revisiones"
+        "Inventario de activos vigente con identificador, tipo, ubicación, propietario, clasificación y fecha de última actualización de cada activo.",
+        "Procedimiento de gestión del inventario que defina responsables, momentos de actualización y periodicidad de revisión.",
+        "Registro de la última revisión o conciliación del inventario: fecha, alcance, discrepancias encontradas y correcciones.",
+        "Informes de las herramientas de descubrimiento automático y su conciliación con el inventario.",
+        "Asignaciones de propiedad aceptadas por los propietarios de los activos."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -246,14 +326,20 @@
       "kind": "requirement",
       "title": "Uso aceptable de los activos",
       "officialText": "",
-      "description": "Fijar reglas de uso aceptable de la información y los activos.",
+      "description": "Deja claro a cada usuario qué puede y qué no puede hacer con la información y los medios que la organización pone a su disposición, para evitar usos que expongan datos o introduzcan riesgos.",
       "actions": [
-        "Redactar las normas de uso",
-        "Comunicarlas y exigir su aceptación"
+        "Redactar una norma de uso aceptable que cubra, como mínimo, el correo y la mensajería, internet, los equipos y móviles corporativos, el almacenamiento en la nube, el uso personal permitido, los soportes extraíbles y las herramientas de inteligencia artificial.",
+        "Definir para cada nivel de clasificación las reglas de manejo de la información: dónde puede guardarse, cómo puede enviarse, si puede imprimirse o sacarse de las instalaciones y cómo se destruye.",
+        "Informar de forma transparente de los controles que la organización aplica sobre los medios corporativos y fijar los criterios de uso de los dispositivos digitales con participación de la representación de los trabajadores, cuando exista, como prevé la LOPDGDD.",
+        "Obtener la aceptación expresa de la norma por cada empleado y tercero antes de darle acceso, y renovarla cuando la norma cambie.",
+        "Incluir la norma en la formación de incorporación y en la concienciación periódica.",
+        "Revisar la norma al menos una vez al año, como práctica habitual, o cuando se generalice el uso de una nueva tecnología."
       ],
       "evidence": [
-        "Norma de uso aceptable",
-        "Aceptación firmada"
+        "Norma de uso aceptable aprobada y vigente, con versión y fecha.",
+        "Reglas de manejo de la información por nivel de clasificación.",
+        "Registro de aceptaciones de la norma por empleados y terceros, con nombre, fecha y versión aceptada.",
+        "Materiales de formación o concienciación que incluyan la norma, con los registros de asistencia."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -265,14 +351,21 @@
       "kind": "requirement",
       "title": "Devolución de activos",
       "officialText": "",
-      "description": "Recuperar los activos de quien se va o cambia de puesto.",
+      "description": "Evita que, al terminar una relación laboral o contractual, equipos, soportes, medios de acceso o información de la organización se queden en manos de quien ya no debería tenerlos.",
       "actions": [
-        "Establecer el procedimiento de devolución",
-        "Verificar la entrega"
+        "Establecer un procedimiento de salida coordinado entre RR. HH., TI y el responsable directo, que se active en cuanto se conozca la fecha de baja o de fin de contrato.",
+        "Obtener del inventario la lista de activos asignados a cada persona que sale (portátil, móvil, tarjetas de acceso, tokens, llaves, soportes y documentación) y comprobarla uno a uno en la devolución.",
+        "Exigir que la información de la organización guardada en dispositivos o cuentas personales se transfiera y se borre de forma verificable, conforme a la política de uso de dispositivos propios.",
+        "Asegurar antes de la salida el traspaso del conocimiento y de la información que la persona tenía en exclusiva.",
+        "Firmar un acta de devolución por la persona que sale y por quien recibe los activos, y actualizar el inventario.",
+        "Tratar como incidente cualquier activo no devuelto, con seguimiento hasta su recuperación, bloqueo o borrado remoto."
       ],
       "evidence": [
-        "Procedimiento de baja",
-        "Actas de devolución"
+        "Procedimiento de salida que incluya la devolución de activos, con responsables y plazos.",
+        "Actas o listas de comprobación de devolución firmadas, con los activos entregados y su estado.",
+        "Inventario actualizado que refleje la reasignación o baja de los activos devueltos.",
+        "Registros de borrado de información corporativa en dispositivos personales, cuando aplique.",
+        "Registro de activos no devueltos y de las acciones tomadas."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -284,14 +377,21 @@
       "kind": "requirement",
       "title": "Clasificación de la información",
       "officialText": "",
-      "description": "Clasificar la información según su sensibilidad.",
+      "description": "Agrupa la información según el daño que causaría su divulgación, alteración o pérdida, para dar a cada grupo una protección proporcionada sin sobreproteger lo trivial ni dejar desprotegido lo crítico.",
       "actions": [
-        "Definir los niveles de clasificación",
-        "Clasificar la información"
+        "Definir un esquema de clasificación sencillo, normalmente de tres a cinco niveles (por ejemplo, pública, uso interno, confidencial y restringida), con criterios claros y ejemplos para decidir el nivel.",
+        "Tener en cuenta en los criterios la confidencialidad, la integridad y la disponibilidad, así como las obligaciones legales y contractuales (datos personales, secretos comerciales, información de clientes).",
+        "Si la organización trabaja con información del sector público o de clientes con su propio esquema, documentar la equivalencia entre niveles.",
+        "Hacer que el propietario de cada activo de información le asigne un nivel y lo registre en el inventario.",
+        "Asociar a cada nivel las reglas de protección y manejo: acceso, cifrado, envío, almacenamiento y destrucción.",
+        "Revisar la clasificación cuando cambie el valor o la sensibilidad de la información y, como práctica habitual, al menos una vez al año sobre una muestra del inventario."
       ],
       "evidence": [
-        "Política de clasificación",
-        "Inventario clasificado"
+        "Política o procedimiento de clasificación con los niveles, criterios, ejemplos y responsables.",
+        "Inventario de activos de información con el nivel asignado y su propietario.",
+        "Tabla de reglas de manejo por nivel de clasificación.",
+        "Registros de revisión de la clasificación con fecha, revisor y cambios realizados.",
+        "Tabla de equivalencias con los esquemas de clasificación de clientes o terceros, cuando aplique."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -303,14 +403,21 @@
       "kind": "requirement",
       "title": "Etiquetado de la información",
       "officialText": "",
-      "description": "Etiquetar la información de acuerdo con su clasificación.",
+      "description": "Hace visible el nivel de clasificación en documentos, sistemas y soportes, para que quien maneja la información sepa en ese momento qué cuidado debe tener con ella.",
       "actions": [
-        "Definir cómo se etiqueta",
-        "Aplicarlo en los soportes y documentos"
+        "Definir cómo se marca cada nivel según el formato: encabezado o pie en documentos, aviso o asunto en correos, metadatos en ficheros, etiquetas físicas en soportes y avisos en las pantallas de las aplicaciones.",
+        "Establecer qué información queda exenta de etiquetado, por ejemplo la pública o la de uso interno por defecto, para que el sistema sea manejable.",
+        "Preparar plantillas de documentos y correo con la marca de clasificación y, si se dispone de ella, configurar una herramienta de etiquetado que la aplique o la sugiera automáticamente.",
+        "Configurar las herramientas de cifrado o de prevención de fugas para que actúen según la etiqueta cuando sea técnicamente posible.",
+        "Formar al personal para que etiquete la información al crearla y respete las etiquetas de la que recibe.",
+        "Comprobar periódicamente, como práctica habitual, una muestra de documentos y soportes para verificar que el etiquetado se aplica."
       ],
       "evidence": [
-        "Procedimiento de etiquetado",
-        "Ejemplos de documentos etiquetados"
+        "Procedimiento de etiquetado con la forma de marcar cada nivel en cada formato y las excepciones.",
+        "Plantillas de documentos y correos con las marcas de clasificación.",
+        "Configuración de la herramienta de etiquetado o de los metadatos, si se usa.",
+        "Muestras de documentos, correos y soportes correctamente etiquetados.",
+        "Resultados de las comprobaciones por muestreo con las desviaciones detectadas y su corrección."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -322,14 +429,21 @@
       "kind": "requirement",
       "title": "Transferencia de información",
       "officialText": "",
-      "description": "Proteger la información cuando se envía dentro o fuera de la organización.",
+      "description": "Protege la información cuando sale de la organización o circula entre personas y sistemas, por medios electrónicos, en soportes físicos o de palabra, frente a interceptación, envíos equivocados o alteración.",
       "actions": [
-        "Fijar reglas para cada canal de envío",
-        "Proteger los envíos sensibles"
+        "Identificar los canales por los que se transfiere información (correo, plataformas de intercambio, transferencia de ficheros, APIs, mensajería, envíos físicos, soportes y conversaciones) y fijar qué niveles de clasificación puede transportar cada uno.",
+        "Exigir cifrado en tránsito para la información confidencial: TLS en correo y servicios, ficheros cifrados o enlaces con caducidad y control de acceso en las plataformas de intercambio.",
+        "Formalizar acuerdos de intercambio, cláusulas contractuales o acuerdos de confidencialidad con los terceros con los que se intercambia información sensible de forma habitual, con responsabilidades, medidas y notificación de incidentes.",
+        "Controlar el transporte físico de soportes y documentos: mensajería de confianza, embalaje adecuado, registro del envío y acuse de recibo.",
+        "Dar pautas al personal sobre llamadas y conversaciones en lugares públicos, mensajes de voz y verificación del destinatario antes de enviar información sensible.",
+        "Supervisar los envíos salientes con las herramientas de correo o de prevención de fugas para detectar transferencias no permitidas."
       ],
       "evidence": [
-        "Política de transferencia",
-        "Acuerdos de intercambio"
+        "Política o norma de transferencia de información con los canales autorizados por nivel de clasificación.",
+        "Acuerdos de intercambio de información o cláusulas contractuales firmadas con terceros.",
+        "Configuración que demuestre el cifrado en tránsito del correo y de los servicios de intercambio, con las versiones de protocolo admitidas.",
+        "Registros de envíos de soportes físicos con remitente, destinatario, fecha y acuse de recibo.",
+        "Alertas o informes de supervisión de envíos salientes y las acciones tomadas."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -341,14 +455,21 @@
       "kind": "requirement",
       "title": "Control de acceso",
       "officialText": "",
-      "description": "Dar acceso solo a quien lo necesita, según reglas definidas.",
+      "description": "Establece las reglas que deciden quién puede acceder a qué información, sistemas e instalaciones y en qué condiciones, de modo que cada acceso responda a una necesidad de negocio y no a la costumbre.",
       "actions": [
-        "Definir la política de control de acceso",
-        "Aplicarla en sistemas e instalaciones"
+        "Redactar una política de control de acceso que fije los principios a aplicar (mínimo privilegio, necesidad de conocer, denegación por defecto y separación de funciones) y cubra tanto el acceso lógico como el físico.",
+        "Definir perfiles de acceso tipo por puesto o función, con los permisos que corresponden a cada uno, aprobados por los propietarios de la información.",
+        "Establecer el circuito de solicitud, aprobación, concesión, modificación y retirada de accesos, indicando quién aprueba en cada caso.",
+        "Fijar reglas específicas para los accesos de terceros, los accesos remotos, las cuentas privilegiadas y las cuentas de servicio.",
+        "Alinear las reglas con la clasificación de la información y con las obligaciones legales y contractuales.",
+        "Revisar la política al menos una vez al año, como práctica habitual, y comprobar que las reglas configuradas en los sistemas coinciden con ella."
       ],
       "evidence": [
-        "Política de control de acceso",
-        "Reglas de acceso configuradas"
+        "Política de control de acceso aprobada, con principios, responsabilidades y ámbito.",
+        "Matriz de perfiles y permisos por sistema o aplicación aprobada por los propietarios de la información.",
+        "Procedimiento de gestión de accesos con el circuito de solicitud y aprobación.",
+        "Evidencias de configuración en los sistemas clave (grupos, roles, políticas de acceso) que reflejen las reglas definidas.",
+        "Registro de revisiones de la política con fecha y cambios."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -360,14 +481,21 @@
       "kind": "requirement",
       "title": "Gestión de identidades",
       "officialText": "",
-      "description": "Gestionar el ciclo de vida de las identidades.",
+      "description": "Asegura que cada persona, servicio o dispositivo que accede a los sistemas tiene una identidad única, vinculada a un responsable y con un ciclo de vida controlado, para poder atribuir cada acción y retirar el acceso a tiempo.",
       "actions": [
-        "Crear identidades únicas",
-        "Retirarlas cuando ya no hagan falta"
+        "Asignar un identificador único a cada usuario y prohibir las cuentas compartidas; cuando una cuenta genérica sea inevitable, justificarla, asignarle un responsable y registrar quién la usa.",
+        "Centralizar las identidades en un directorio o proveedor de identidad y, cuando sea posible, conectar las aplicaciones mediante inicio de sesión único.",
+        "Vincular el alta, el cambio y la baja de identidades a los procesos de RR. HH. y de contratación de terceros, para que se creen y se retiren a partir de un hecho formal.",
+        "Registrar las cuentas no personales (de servicio, de sistema y de dispositivos) con su propietario, su finalidad y los sistemas donde se usan.",
+        "Desactivar las identidades en cuanto dejen de ser necesarias y bloquear las inactivas tras un plazo definido, por ejemplo 90 días como práctica habitual.",
+        "Conciliar periódicamente las identidades activas con la plantilla y con la lista de terceros autorizados."
       ],
       "evidence": [
-        "Procedimiento de altas y bajas",
-        "Listado de identidades"
+        "Procedimiento de gestión del ciclo de vida de las identidades: alta, modificación, baja y revisión.",
+        "Listado de identidades activas con titular, tipo de cuenta, fecha de alta y, en su caso, fecha de baja.",
+        "Inventario de cuentas genéricas y de servicio con responsable y justificación.",
+        "Registros de conciliación entre identidades activas y plantilla, con las discrepancias corregidas.",
+        "Muestras de bajas en las que la desactivación de la identidad coincida con la fecha de salida."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -379,14 +507,22 @@
       "kind": "requirement",
       "title": "Información de autenticación",
       "officialText": "",
-      "description": "Gestionar de forma segura contraseñas y otros datos de autenticación.",
+      "description": "Protege contraseñas, PIN, tokens, certificados y demás secretos que prueban la identidad, desde que se entregan hasta que se revocan, para que nadie pueda suplantar a un usuario legítimo.",
       "actions": [
-        "Definir reglas de credenciales",
-        "Formar a los usuarios en su cuidado"
+        "Definir los requisitos de las credenciales: longitud mínima de las contraseñas (por ejemplo, 12 caracteres o más como práctica habitual), rechazo de contraseñas comunes o filtradas y cambio obligatorio solo ante sospecha de compromiso.",
+        "Entregar las credenciales iniciales por un canal seguro, obligar a cambiarlas en el primer uso y verificar la identidad del usuario antes de cualquier restablecimiento.",
+        "Prohibir compartir credenciales y facilitar un gestor de contraseñas corporativo para guardarlas.",
+        "Almacenar las contraseñas en los sistemas solo mediante funciones de resumen robustas y con sal, nunca en claro, y guardar los secretos técnicos (claves de API, certificados) en un almacén de secretos.",
+        "Cambiar las contraseñas por defecto de fabricante antes de poner en servicio cualquier equipo o aplicación.",
+        "Formar a los usuarios en el cuidado de sus credenciales y en qué hacer si sospechan que se han comprometido.",
+        "Revocar o cambiar de inmediato las credenciales comprometidas y las de las personas que causan baja."
       ],
       "evidence": [
-        "Política de contraseñas",
-        "Registros de formación"
+        "Norma de gestión de credenciales con los requisitos de fortaleza, entrega, restablecimiento y revocación.",
+        "Configuración de los sistemas de autenticación que muestre la política de contraseñas y de bloqueo aplicada.",
+        "Procedimiento de restablecimiento con la verificación de identidad exigida y muestras de su registro.",
+        "Evidencia del despliegue del gestor de contraseñas y del almacén de secretos.",
+        "Registros de formación de los usuarios en el cuidado de sus credenciales."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -398,14 +534,21 @@
       "kind": "requirement",
       "title": "Derechos de acceso",
       "officialText": "",
-      "description": "Conceder, revisar y retirar los derechos de acceso.",
+      "description": "Controla la concesión, modificación y retirada de permisos para que cada persona tenga en todo momento solo los accesos que su función requiere, evitando la acumulación de privilegios y los accesos de quien ya no debería tenerlos.",
       "actions": [
-        "Aprobar los accesos",
-        "Revisarlos periódicamente"
+        "Exigir una solicitud formal para cada alta o cambio de acceso, aprobada por el responsable de la persona y, si afecta a información sensible, también por el propietario del activo.",
+        "Conceder los accesos solo después de la aprobación y registrar quién los concedió, cuándo y con qué permisos.",
+        "Ajustar los accesos cuando la persona cambia de puesto, retirando los que ya no necesita en lugar de limitarse a añadir los nuevos.",
+        "Retirar todos los accesos el último día de trabajo, o antes si la salida es conflictiva, incluidos los de aplicaciones en la nube y los accesos remotos.",
+        "Revisar los derechos de acceso con los propietarios de los activos, como práctica habitual al menos cada seis meses en sistemas críticos y cuentas privilegiadas y una vez al año en el resto.",
+        "Aplicar sin demora las bajas y cambios que resulten de cada revisión y documentarlos."
       ],
       "evidence": [
-        "Registro de derechos concedidos",
-        "Actas de revisión"
+        "Solicitudes de acceso aprobadas que respalden una muestra de los accesos vigentes.",
+        "Registro de concesiones, modificaciones y retiradas de accesos con usuario, sistema, permisos, fecha y responsable.",
+        "Registro de revisiones de derechos de acceso: fecha, revisor, cuentas revisadas y altas, bajas o cambios resultantes.",
+        "Muestras de bajas de personal con la fecha de retirada de accesos contrastada con la fecha de salida.",
+        "Listado de cuentas activas y de las desactivadas recientemente en los sistemas críticos."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -417,14 +560,22 @@
       "kind": "requirement",
       "title": "Seguridad con proveedores",
       "officialText": "",
-      "description": "Gestionar los riesgos de seguridad de la relación con proveedores.",
+      "description": "Gestiona el riesgo que introducen los proveedores que acceden a la información, la tratan o prestan servicios de los que depende la organización, para que un tercero no se convierta en la vía de entrada de un ataque o de una fuga.",
       "actions": [
-        "Definir requisitos para proveedores",
-        "Evaluar a los críticos"
+        "Aprobar una política de seguridad en la relación con proveedores que defina cómo se identifican, evalúan, contratan, supervisan y dan de baja.",
+        "Identificar a los proveedores con impacto en la seguridad y clasificarlos por criticidad según la información a la que acceden, el acceso que tienen a los sistemas y la dependencia del servicio que prestan.",
+        "Evaluar a los proveedores críticos antes de contratarlos, en proporción a su criticidad, mediante cuestionarios, certificaciones (por ejemplo, ISO/IEC 27001 o ENS), informes de auditoría o pruebas.",
+        "Definir los requisitos mínimos de seguridad exigibles a cada nivel de criticidad y trasladarlos a los contratos.",
+        "Limitar el acceso de los proveedores a la información y a los sistemas a lo necesario y durante el tiempo necesario.",
+        "Planificar la salida de cada proveedor crítico: devolución o borrado de la información, retirada de accesos y continuidad del servicio con otro proveedor.",
+        "Revisar la política y la clasificación de proveedores al menos una vez al año, como práctica habitual."
       ],
       "evidence": [
-        "Política de proveedores",
-        "Evaluaciones"
+        "Política de seguridad para proveedores aprobada y vigente.",
+        "Registro de proveedores con su criticidad, servicios prestados, información a la que acceden y responsable interno.",
+        "Evaluaciones de seguridad de los proveedores críticos previas a la contratación, con resultado y decisión.",
+        "Requisitos de seguridad documentados por nivel de criticidad.",
+        "Planes o cláusulas de salida de los proveedores críticos."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -436,14 +587,21 @@
       "kind": "requirement",
       "title": "Acuerdos con proveedores",
       "officialText": "",
-      "description": "Incluir requisitos de seguridad en los acuerdos con cada proveedor.",
+      "description": "Deja por escrito y con valor contractual las obligaciones de seguridad de cada proveedor, para poder exigirlas, comprobarlas y actuar si no se cumplen.",
       "actions": [
-        "Incluir cláusulas de seguridad",
-        "Acordar responsabilidades"
+        "Preparar un modelo de cláusulas o un anexo de seguridad, graduado según la criticidad del proveedor, que se incorpore a todos los contratos con impacto en la seguridad.",
+        "Incluir como mínimo confidencialidad, medidas de seguridad exigidas, control de acceso, notificación de incidentes con plazo, derecho de auditoría u obtención de evidencias, subcontratación permitida, devolución y borrado al terminar y responsabilidades por incumplimiento.",
+        "Cuando el proveedor trate datos personales por cuenta de la organización, firmar el contrato de encargo del tratamiento con el contenido que exige el artículo 28 del RGPD.",
+        "Pactar acuerdos de nivel de servicio con indicadores medibles de disponibilidad, tiempo de respuesta y tiempo de recuperación cuando el servicio sea crítico.",
+        "Revisar los contratos vigentes con proveedores críticos para localizar los que carecen de cláusulas de seguridad y renegociarlos en la siguiente renovación.",
+        "Mantener un registro de contratos con su fecha de vencimiento y las obligaciones de seguridad que incluyen."
       ],
       "evidence": [
-        "Contratos con cláusulas",
-        "Anexos de seguridad"
+        "Modelo de cláusulas o anexo de seguridad para contratos con proveedores.",
+        "Contratos firmados con proveedores críticos que incluyan las cláusulas de seguridad y, en su caso, los acuerdos de nivel de servicio.",
+        "Contratos de encargo del tratamiento firmados con los proveedores que tratan datos personales.",
+        "Registro de contratos con proveedores con fechas, criticidad y estado de las cláusulas de seguridad.",
+        "Acuses de recibo o aceptaciones de las políticas de seguridad que aplican a los proveedores."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -455,14 +613,21 @@
       "kind": "requirement",
       "title": "Cadena de suministro TIC",
       "officialText": "",
-      "description": "Gestionar los riesgos de la cadena de suministro de productos y servicios TIC.",
+      "description": "Extiende la gestión de riesgos a los productos y servicios tecnológicos y a los subproveedores que hay detrás, para evitar que una vulnerabilidad o un componente manipulado en origen acabe afectando a la organización.",
       "actions": [
-        "Exigir requisitos a lo largo de la cadena",
-        "Vigilar sus cambios"
+        "Exigir a los proveedores de productos y servicios TIC que trasladen los requisitos de seguridad a sus subcontratistas y que informen de los subproveedores que intervienen en los servicios críticos.",
+        "Pedir, para el software adquirido o encargado, información sobre sus componentes, por ejemplo una lista de componentes software (SBOM), y el compromiso de corregir las vulnerabilidades conocidas en un plazo pactado.",
+        "Comprobar la procedencia y la integridad de lo que se recibe: compras por canales autorizados, firmas digitales del software y verificación de las actualizaciones.",
+        "Exigir que los productos tengan un periodo conocido de soporte y de actualizaciones de seguridad, y planificar su sustitución antes del fin de soporte.",
+        "Valorar la concentración de riesgo cuando varios servicios críticos dependan del mismo proveedor o del mismo componente.",
+        "Seguir los avisos de seguridad de fabricantes y proveedores para actuar ante vulnerabilidades o incidentes en la cadena de suministro."
       ],
       "evidence": [
-        "Requisitos de la cadena",
-        "Registro de seguimiento"
+        "Requisitos de seguridad para la cadena de suministro TIC documentados e incorporados a contratos o pliegos.",
+        "Lista de subproveedores relevantes de los servicios críticos facilitada por los proveedores.",
+        "Listas de componentes software (SBOM) o información equivalente de los proveedores de software crítico.",
+        "Registro de fechas de fin de soporte de los productos en uso y planes de sustitución.",
+        "Registros de verificación de la integridad o la procedencia del software y los equipos adquiridos."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -474,14 +639,22 @@
       "kind": "requirement",
       "title": "Seguimiento de proveedores",
       "officialText": "",
-      "description": "Vigilar y revisar los servicios de los proveedores.",
+      "description": "Comprueba de forma continuada que los proveedores siguen cumpliendo lo pactado en seguridad y gestiona los cambios en sus servicios, porque una buena evaluación inicial no garantiza el comportamiento futuro.",
       "actions": [
-        "Revisar su desempeño y sus incidentes",
-        "Gestionar los cambios"
+        "Asignar a cada proveedor crítico un responsable interno que supervise el servicio y la relación.",
+        "Revisar el cumplimiento de los acuerdos de nivel de servicio y de las obligaciones de seguridad con una frecuencia proporcional a la criticidad, por ejemplo una vez al año para los críticos como práctica habitual.",
+        "Obtener evidencias periódicas: certificados vigentes, informes de auditoría independientes, resultados de pruebas o cuestionarios actualizados.",
+        "Registrar y analizar los incidentes de seguridad causados por cada proveedor y exigir acciones correctivas.",
+        "Valorar el impacto en la seguridad de los cambios que anuncie el proveedor (nuevas versiones, nueva ubicación de los datos, nuevos subcontratistas) antes de aceptarlos.",
+        "Reevaluar la criticidad del proveedor y la continuidad de la relación cuando el seguimiento lo aconseje."
       ],
       "evidence": [
-        "Informes de seguimiento",
-        "Actas de revisión"
+        "Plan o calendario de revisiones de proveedores con su frecuencia según la criticidad.",
+        "Informes o actas de revisión de proveedores con resultados, incumplimientos y acciones acordadas.",
+        "Informes de cumplimiento de los acuerdos de nivel de servicio.",
+        "Certificados e informes de auditoría vigentes de los proveedores críticos.",
+        "Registro de incidentes atribuibles a proveedores y de las acciones correctivas exigidas.",
+        "Evaluaciones del impacto de los cambios comunicados por los proveedores."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -493,14 +666,23 @@
       "kind": "requirement",
       "title": "Servicios en la nube",
       "officialText": "",
-      "description": "Gestionar la seguridad en la contratación y uso de servicios en la nube.",
+      "description": "Gobierna la contratación, el uso y la salida de los servicios en la nube teniendo presente que la seguridad se reparte con el proveedor, para que nada quede sin cubrir por suponer que lo hace la otra parte.",
       "actions": [
-        "Definir criterios de selección y salida",
-        "Repartir responsabilidades"
+        "Definir criterios para contratar servicios en la nube: requisitos de seguridad, ubicación de los datos y transferencias internacionales, certificaciones exigidas (por ejemplo, ISO/IEC 27001, ISO/IEC 27017, ENS o informes SOC 2) y posibilidad de auditoría.",
+        "Documentar para cada servicio el reparto de responsabilidades: qué controles aplica el proveedor y cuáles debe configurar y operar la organización.",
+        "Mantener un inventario de los servicios en la nube en uso, incluidos los contratados directamente por las áreas de negocio, y detectar el uso no autorizado.",
+        "Configurar de forma segura cada servicio contratado (autenticación multifactor, roles de mínimo privilegio, cifrado y registros activados) y revisar su configuración con herramientas de evaluación de postura.",
+        "Pactar en el contrato la notificación de incidentes, la disponibilidad, las copias de seguridad y la portabilidad de los datos.",
+        "Preparar una estrategia de salida para los servicios críticos: exportación de los datos en un formato utilizable, borrado verificable y plazo de transición.",
+        "Revisar al menos una vez al año, como práctica habitual, el cumplimiento del proveedor y la configuración del servicio."
       ],
       "evidence": [
-        "Política de nube",
-        "Evaluación de proveedores cloud"
+        "Política o procedimiento de uso de servicios en la nube con los criterios de selección, uso y salida.",
+        "Inventario de servicios en la nube con propietario, tipo de datos tratados, ubicación y criticidad.",
+        "Matriz de responsabilidad compartida de cada servicio crítico.",
+        "Contratos y certificaciones vigentes de los proveedores de nube.",
+        "Informes de revisión de la configuración o de la postura de seguridad en la nube, con las desviaciones corregidas.",
+        "Plan de salida documentado para los servicios críticos."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -512,14 +694,22 @@
       "kind": "requirement",
       "title": "Planificación de incidentes",
       "officialText": "",
-      "description": "Preparar la gestión de incidentes con roles y procedimientos.",
+      "description": "Prepara de antemano la organización, las personas y los medios para gestionar incidentes de seguridad, de modo que la respuesta sea rápida, coordinada y predecible en lugar de improvisada.",
       "actions": [
-        "Definir el proceso y los roles",
-        "Documentar los procedimientos"
+        "Redactar un procedimiento de gestión de incidentes que cubra detección y notificación, evaluación, respuesta, comunicación, recuperación y cierre con lecciones aprendidas.",
+        "Constituir el equipo de respuesta con roles definidos (coordinación, técnicos, comunicación, asesoría jurídica y protección de datos, dirección) y los datos de contacto de cada titular y su suplente.",
+        "Definir criterios de clasificación y escalado por gravedad, indicando a quién se informa y en qué plazo en cada nivel.",
+        "Preparar guías de actuación para los incidentes más probables, como ransomware, phishing con robo de credenciales, fuga de datos, caída de un servicio crítico o compromiso de un proveedor.",
+        "Identificar las obligaciones de notificación externa aplicables (autoridades, clientes, aseguradoras) e incorporarlas al procedimiento con sus plazos.",
+        "Asegurar los medios necesarios: un canal de comunicación alternativo, herramientas de análisis y, si se contrata, el contacto de un servicio externo de respuesta.",
+        "Probar el procedimiento con ejercicios o simulacros al menos una vez al año, como práctica habitual, y actualizarlo con sus resultados."
       ],
       "evidence": [
-        "Procedimiento de incidentes",
-        "Lista de contactos"
+        "Procedimiento de gestión de incidentes aprobado, con fases, roles, criterios de clasificación y escalado.",
+        "Composición del equipo de respuesta con roles, titulares, suplentes y contactos actualizados.",
+        "Guías de actuación por tipo de incidente.",
+        "Informes de ejercicios o simulacros: fecha, escenario, participantes, resultados y mejoras acordadas.",
+        "Relación de obligaciones de notificación externa con destinatario, plazo y responsable."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -531,14 +721,20 @@
       "kind": "requirement",
       "title": "Evaluación de eventos",
       "officialText": "",
-      "description": "Decidir si un evento de seguridad es un incidente.",
+      "description": "Decide con criterios comunes si cada evento de seguridad notificado o detectado es un incidente y con qué gravedad, para no pasar por alto señales importantes ni saturar al equipo con falsas alarmas.",
       "actions": [
-        "Definir criterios de clasificación",
-        "Aplicarlos a cada evento"
+        "Definir criterios objetivos para considerar un evento como incidente, por ejemplo el impacto en la confidencialidad, integridad o disponibilidad, la afectación a datos personales o el número de usuarios o servicios afectados.",
+        "Establecer una escala de gravedad con ejemplos y asociar a cada nivel un tiempo de respuesta y un nivel de escalado.",
+        "Designar quién hace la evaluación inicial (por ejemplo, el centro de soporte o el equipo de seguridad) y en qué plazo.",
+        "Registrar cada evento evaluado con la decisión tomada y su justificación, también cuando se descarte como incidente.",
+        "Valorar en cada caso si el incidente puede activar obligaciones de notificación externa, como en una brecha de datos personales.",
+        "Revisar periódicamente, como práctica habitual cada trimestre, los eventos evaluados para detectar repeticiones y ajustar criterios y umbrales."
       ],
       "evidence": [
-        "Criterios de clasificación",
-        "Registro de eventos evaluados"
+        "Criterios de clasificación y escala de gravedad documentados.",
+        "Registro de eventos e incidentes con fecha, descripción, evaluador, clasificación asignada y justificación.",
+        "Muestras de eventos descartados como incidente con el motivo del descarte.",
+        "Informes de revisión periódica de la clasificación con los ajustes de criterios realizados."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -550,14 +746,22 @@
       "kind": "requirement",
       "title": "Respuesta a incidentes",
       "officialText": "",
-      "description": "Responder a los incidentes según los procedimientos.",
+      "description": "Ejecuta la respuesta a los incidentes según lo planificado para contener el daño, eliminar la causa y recuperar la normalidad, dejando constancia de lo que se hizo y de quién lo decidió.",
       "actions": [
-        "Contener, erradicar y recuperar",
-        "Documentar la respuesta"
+        "Asignar a cada incidente un responsable que coordine la respuesta y mantenga actualizado su registro.",
+        "Contener el incidente con las medidas previstas en las guías de actuación (aislar equipos, bloquear cuentas, cortar conexiones), valorando antes la preservación de pruebas.",
+        "Erradicar la causa (eliminar el malware, cerrar la vulnerabilidad, revocar las credenciales comprometidas) y comprobar que el atacante no conserva acceso.",
+        "Recuperar los servicios desde fuentes fiables, verificar su integridad y reforzar la vigilancia durante un tiempo tras la recuperación.",
+        "Comunicar el incidente a las partes internas y externas según el plan, incluidas las notificaciones obligatorias a autoridades y afectados dentro de plazo.",
+        "Escalar a la dirección y activar el plan de continuidad o de crisis cuando la gravedad lo requiera.",
+        "Cerrar formalmente el incidente solo cuando se hayan completado las acciones y el responsable lo apruebe."
       ],
       "evidence": [
-        "Registro de incidentes",
-        "Informes de respuesta"
+        "Registro de incidentes con la cronología de acciones, decisiones, responsables y fechas de apertura y cierre.",
+        "Informes de respuesta de los incidentes relevantes con alcance, impacto y medidas de contención, erradicación y recuperación.",
+        "Copias de las notificaciones enviadas a autoridades, clientes o afectados, con fecha y hora.",
+        "Registros de escalado a la dirección y, en su caso, de activación de planes de continuidad.",
+        "Evidencias de la verificación de los sistemas recuperados antes de devolverlos a producción."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -569,14 +773,21 @@
       "kind": "requirement",
       "title": "Aprender de los incidentes",
       "officialText": "",
-      "description": "Usar lo aprendido de un incidente para mejorar los controles.",
+      "description": "Aprovecha cada incidente para entender por qué ocurrió y corregir sus causas, de modo que no se repita y que los siguientes sean menos probables o menos dañinos.",
       "actions": [
-        "Hacer revisiones posteriores",
-        "Aplicar mejoras"
+        "Hacer una revisión posterior de todos los incidentes graves y de una selección de los demás, con quienes intervinieron, en las semanas siguientes al cierre.",
+        "Analizar la causa raíz, y no solo el síntoma, y los factores que retrasaron la detección o la respuesta.",
+        "Definir acciones de mejora con responsable y plazo (controles nuevos, cambios de configuración, formación, ajustes del procedimiento) y seguirlas hasta su cierre.",
+        "Actualizar el análisis de riesgos, las guías de actuación y los materiales de concienciación con lo aprendido.",
+        "Analizar periódicamente las estadísticas de incidentes (tipos, frecuencia, tiempos de detección y resolución, costes) para identificar tendencias.",
+        "Presentar a la dirección, al menos una vez al año como práctica habitual, un resumen de los incidentes y de las mejoras derivadas."
       ],
       "evidence": [
-        "Informes de lecciones aprendidas",
-        "Plan de mejoras"
+        "Informes de revisión posterior de incidentes con causa raíz, factores contribuyentes y acciones de mejora.",
+        "Plan de acciones derivadas de incidentes con responsable, plazo y estado.",
+        "Estadísticas o indicadores de incidentes del periodo con su análisis de tendencias.",
+        "Versiones actualizadas de procedimientos, análisis de riesgos o formación en las que se aprecie lo aprendido.",
+        "Actas de revisión por la dirección en las que se haya tratado el resumen de incidentes."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -588,14 +799,21 @@
       "kind": "requirement",
       "title": "Recogida de pruebas",
       "officialText": "",
-      "description": "Conservar las pruebas de un incidente de forma útil y fiable.",
+      "description": "Recoge y conserva las pruebas de un incidente de forma que mantengan su valor en una investigación interna, un expediente disciplinario o un proceso judicial, evitando que se contaminen o se pierdan.",
       "actions": [
-        "Definir cómo se recogen y custodian",
-        "Preservar su integridad"
+        "Redactar un procedimiento de identificación, recogida, adquisición y conservación de pruebas digitales y físicas, alineado con buenas prácticas forenses reconocidas.",
+        "Definir quién puede recoger pruebas, con qué formación, y cuándo recurrir a peritos externos, especialmente si se prevé una denuncia o un litigio.",
+        "Priorizar la captura de los datos más volátiles (memoria, conexiones activas) antes de apagar o aislar los equipos, cuando sea viable.",
+        "Obtener copias forenses calculando su resumen criptográfico (hash) para poder demostrar que no se han alterado, y trabajar siempre sobre copias.",
+        "Mantener la cadena de custodia registrando quién recoge, guarda, entrega o analiza cada prueba, con fecha y hora.",
+        "Guardar las pruebas en un lugar protegido y de acceso restringido durante el tiempo necesario, y consultar con asesoría jurídica los requisitos de admisibilidad y de protección de datos."
       ],
       "evidence": [
-        "Procedimiento de custodia",
-        "Registro de pruebas"
+        "Procedimiento de recogida y conservación de pruebas aprobado.",
+        "Formularios de cadena de custodia cumplimentados en los incidentes que lo requirieron.",
+        "Registro de los resúmenes criptográficos de las copias obtenidas y de su verificación.",
+        "Lista de personas habilitadas para recoger pruebas con su formación, o contrato con un proveedor forense.",
+        "Inventario de pruebas custodiadas con ubicación, personas con acceso y plazo de conservación."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -607,14 +825,20 @@
       "kind": "requirement",
       "title": "Seguridad en una interrupción",
       "officialText": "",
-      "description": "Mantener la seguridad durante una interrupción del servicio.",
+      "description": "Asegura que, cuando la organización trabaja en modo de emergencia tras una catástrofe, un ciberataque o un fallo grave, la información sigue protegida y los controles no se relajan por las prisas.",
       "actions": [
-        "Definir qué seguridad se mantiene",
-        "Probar los planes"
+        "Identificar, a partir del análisis de impacto en el negocio, los procesos críticos y los controles de seguridad que deben mantenerse durante una interrupción.",
+        "Incluir en los planes de continuidad las medidas de seguridad del modo degradado: accesos de emergencia controlados, cifrado de los datos en ubicaciones alternativas y registro de las actuaciones excepcionales.",
+        "Definir controles compensatorios para cuando un control habitual no pueda funcionar, como la revisión posterior de los accesos concedidos por urgencia.",
+        "Asegurar que las ubicaciones, sistemas y proveedores alternativos ofrecen un nivel de seguridad equivalente al de los principales.",
+        "Probar los planes de continuidad al menos una vez al año, como práctica habitual, comprobando expresamente que los controles de seguridad funcionan durante el ejercicio.",
+        "Revisar y revertir, tras la vuelta a la normalidad, las excepciones aplicadas durante la interrupción."
       ],
       "evidence": [
-        "Planes de continuidad",
-        "Informes de pruebas"
+        "Análisis de impacto en el negocio con los procesos críticos y sus requisitos de seguridad.",
+        "Planes de continuidad que incluyan las medidas de seguridad durante la interrupción y los controles compensatorios.",
+        "Informes de pruebas de continuidad en los que se haya verificado el funcionamiento de los controles de seguridad.",
+        "Registro de los accesos y actuaciones de emergencia aplicados en interrupciones reales y de su revisión posterior."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -626,14 +850,21 @@
       "kind": "requirement",
       "title": "Preparación TIC para la continuidad",
       "officialText": "",
-      "description": "Preparar los sistemas para cumplir los objetivos de continuidad.",
+      "description": "Garantiza que los sistemas y servicios tecnológicos pueden recuperarse en los plazos que necesita el negocio, con objetivos medidos y probados en lugar de supuestos.",
       "actions": [
-        "Fijar objetivos de recuperación",
-        "Probar la recuperación"
+        "Hacer o actualizar un análisis de impacto en el negocio que fije, para cada proceso crítico, el tiempo máximo de interrupción tolerable y la pérdida de datos aceptable.",
+        "Traducir esos plazos en objetivos de tiempo de recuperación (RTO) y de punto de recuperación (RPO) para los sistemas y servicios TIC que soportan cada proceso, incluidas sus dependencias.",
+        "Diseñar y documentar las estrategias de recuperación TIC (copias, réplica, sitio alternativo, servicios en la nube, acuerdos con proveedores) que permitan cumplir esos objetivos.",
+        "Redactar planes de recuperación técnica con los pasos detallados, los responsables, el orden de recuperación y los contactos.",
+        "Probar la recuperación al menos una vez al año, como práctica habitual, midiendo el tiempo real frente al objetivo y corrigiendo las desviaciones.",
+        "Actualizar los planes tras cambios relevantes en la infraestructura, las aplicaciones o los proveedores."
       ],
       "evidence": [
-        "Análisis de impacto",
-        "Pruebas de recuperación"
+        "Análisis de impacto en el negocio aprobado, con tiempos máximos de interrupción y pérdida de datos aceptable por proceso.",
+        "Tabla de objetivos de recuperación (RTO y RPO) por sistema o servicio TIC y sus dependencias.",
+        "Planes de recuperación TIC documentados con responsables y procedimientos.",
+        "Informes de pruebas de recuperación con fecha, alcance, tiempos obtenidos frente a los objetivos y acciones de mejora.",
+        "Contratos o acuerdos de nivel de servicio con proveedores que respalden la estrategia de recuperación."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -645,14 +876,20 @@
       "kind": "requirement",
       "title": "Requisitos legales y contractuales",
       "officialText": "",
-      "description": "Identificar y cumplir los requisitos legales, regulatorios y contractuales.",
+      "description": "Identifica y mantiene al día las leyes, reglamentos y contratos que imponen obligaciones de seguridad a la organización, para cumplirlos y poder demostrar que se cumplen.",
       "actions": [
-        "Mantener un registro de requisitos",
-        "Verificar su cumplimiento"
+        "Elaborar un registro de requisitos legales, regulatorios y contractuales relacionados con la seguridad: por ejemplo RGPD y LOPDGDD, el ENS si se presta servicio al sector público, NIS2 si aplica, la normativa sectorial, las obligaciones mercantiles y laborales y las cláusulas de seguridad exigidas por clientes.",
+        "Asignar a cada requisito un responsable y los controles o procesos con los que se cumple.",
+        "Establecer un mecanismo de vigilancia normativa (asesoría jurídica, suscripción a boletines oficiales o sectoriales) para detectar requisitos nuevos o modificados.",
+        "Tener en cuenta las restricciones legales sobre productos de cifrado, como el control de exportaciones, cuando se usen o envíen a otros países.",
+        "Evaluar el cumplimiento de los requisitos al menos una vez al año, como práctica habitual, y documentar los incumplimientos y su tratamiento.",
+        "Informar a la dirección del estado de cumplimiento y de los cambios normativos relevantes."
       ],
       "evidence": [
-        "Registro de requisitos legales",
-        "Evaluaciones de cumplimiento"
+        "Registro de requisitos legales, regulatorios y contractuales con su fuente, aplicabilidad, responsable y controles asociados.",
+        "Evaluaciones periódicas de cumplimiento con fecha, alcance, resultado y acciones.",
+        "Evidencias de la vigilancia normativa: suscripciones, informes de asesoría o actas de revisión.",
+        "Informes a la dirección sobre el estado de cumplimiento legal."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -664,14 +901,21 @@
       "kind": "requirement",
       "title": "Propiedad intelectual",
       "officialText": "",
-      "description": "Proteger los derechos de propiedad intelectual.",
+      "description": "Evita usar software, contenidos o información de terceros sin licencia o fuera de lo que esta permite, y protege la propiedad intelectual propia, reduciendo el riesgo de sanciones, reclamaciones y daño reputacional.",
       "actions": [
-        "Controlar licencias y software",
-        "Prohibir usos no autorizados"
+        "Mantener un registro de licencias de software y contenidos (tipo, usuarios o instalaciones permitidos, fechas y prueba de compra) y conciliarlo con el software realmente instalado.",
+        "Adquirir software y contenidos solo por canales autorizados y con aprobación previa.",
+        "Revisar las licencias de los componentes de código abierto que se usan o se incorporan a productos propios para cumplir sus condiciones (atribución, publicación del código, incompatibilidades entre licencias).",
+        "Prohibir en la norma de uso aceptable la instalación de software sin licencia y la copia o distribución de material protegido sin autorización.",
+        "Proteger la propiedad intelectual propia con cláusulas sobre titularidad y confidencialidad en los contratos laborales y con proveedores.",
+        "Auditar las licencias al menos una vez al año, como práctica habitual, y regularizar las desviaciones."
       ],
       "evidence": [
-        "Inventario de licencias",
-        "Política de propiedad intelectual"
+        "Registro de licencias con pruebas de compra y condiciones de uso.",
+        "Informe de la última conciliación entre licencias y software instalado, con las desviaciones y su regularización.",
+        "Inventario de componentes de código abierto con su licencia y la valoración de sus obligaciones.",
+        "Norma de uso aceptable o política de propiedad intelectual con las prohibiciones correspondientes.",
+        "Cláusulas de titularidad y confidencialidad en contratos laborales y con proveedores."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -683,14 +927,20 @@
       "kind": "requirement",
       "title": "Protección de registros",
       "officialText": "",
-      "description": "Proteger los registros frente a pérdida, alteración y acceso indebido.",
+      "description": "Conserva los registros que la organización necesita por motivos legales, contractuales o de negocio (contabilidad, contratos, actas, expedientes) completos, legibles y a salvo de pérdida, falsificación o destrucción prematura durante todo su plazo.",
       "actions": [
-        "Definir plazos y protección",
-        "Controlar el acceso"
+        "Identificar los tipos de registros que deben conservarse y su motivo: obligación legal (por ejemplo, seis años para la documentación contable según el Código de Comercio), contractual o de negocio.",
+        "Elaborar un calendario de conservación que indique, para cada tipo de registro, el plazo, el soporte, la ubicación, el responsable y el destino final.",
+        "Proteger los registros frente a la alteración y la pérdida mediante control de acceso, copias de seguridad, firma o sellado de tiempo cuando haya que demostrar su integridad, y un archivo adecuado para los registros en papel.",
+        "Asegurar que los registros electrónicos siguen siendo legibles durante todo el plazo, previendo la obsolescencia de formatos y soportes.",
+        "Destruir de forma segura los registros cuyo plazo haya vencido, salvo que exista una obligación de conservarlos por litigio o investigación, y dejar constancia.",
+        "Conciliar los plazos de conservación con el principio de limitación del plazo del RGPD cuando los registros contengan datos personales."
       ],
       "evidence": [
-        "Política de registros",
-        "Calendario de conservación"
+        "Calendario de conservación de registros con tipo, motivo o base legal, plazo, soporte, responsable y destino final.",
+        "Configuración de los controles de acceso y de las copias de seguridad de los repositorios de registros.",
+        "Actas o registros de destrucción de registros vencidos con fecha, contenido y método.",
+        "Resultados de las comprobaciones periódicas de legibilidad y recuperación de los registros archivados."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -702,14 +952,23 @@
       "kind": "requirement",
       "title": "Privacidad y datos personales",
       "officialText": "",
-      "description": "Proteger la privacidad y los datos personales según la ley.",
+      "description": "Asegura que los datos personales que trata la organización se protegen y gestionan conforme a la normativa de protección de datos, evitando sanciones, reclamaciones y daños a las personas afectadas.",
       "actions": [
-        "Identificar los tratamientos",
-        "Aplicar las medidas exigidas"
+        "Mantener el registro de actividades de tratamiento con finalidades, categorías de datos y de interesados, destinatarios, transferencias internacionales, plazos de supresión y medidas de seguridad.",
+        "Designar un delegado de protección de datos cuando lo exija la normativa (supuestos del artículo 37 del RGPD y del artículo 34 de la LOPDGDD) o, si no es obligatorio, un responsable interno de privacidad.",
+        "Analizar los riesgos de los tratamientos y realizar evaluaciones de impacto cuando el tratamiento entrañe un alto riesgo, consultando las listas publicadas por la AEPD.",
+        "Aplicar la protección de datos desde el diseño y por defecto en los proyectos y sistemas nuevos que traten datos personales.",
+        "Formalizar contratos de encargo con los proveedores que traten datos por cuenta de la organización y verificar sus garantías.",
+        "Disponer de procedimientos para atender en plazo los derechos de los interesados y para gestionar y, en su caso, notificar las brechas de datos personales.",
+        "Integrar las medidas de protección de datos en el sistema de gestión para que se revisen junto con los demás controles."
       ],
       "evidence": [
-        "Registro de tratamientos",
-        "Políticas de privacidad"
+        "Registro de actividades de tratamiento actualizado.",
+        "Designación del delegado de protección de datos y su comunicación a la AEPD, o designación del responsable interno.",
+        "Análisis de riesgos y evaluaciones de impacto de los tratamientos de alto riesgo.",
+        "Contratos de encargo del tratamiento firmados.",
+        "Registro de solicitudes de ejercicio de derechos con fecha de entrada, fecha de respuesta y cumplimiento del plazo.",
+        "Registro de brechas de datos personales con su valoración y, en su caso, la notificación realizada."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -721,14 +980,21 @@
       "kind": "requirement",
       "title": "Revisión independiente",
       "officialText": "",
-      "description": "Revisar de forma independiente el enfoque de seguridad.",
+      "description": "Somete el sistema de seguridad y su aplicación a la mirada de alguien que no lo gestiona, para detectar debilidades y autocomplacencia que el propio equipo no ve.",
       "actions": [
-        "Planificar auditorías independientes",
-        "Tratar sus conclusiones"
+        "Planificar revisiones independientes del enfoque de seguridad a intervalos definidos, como práctica habitual al menos una vez al año, y cuando haya cambios significativos en la organización o en su exposición al riesgo.",
+        "Encargar las revisiones a personas sin responsabilidad sobre lo revisado: auditoría interna, otra área con la competencia necesaria o un auditor externo.",
+        "Definir para cada revisión su alcance, criterios, método y calendario, y comunicarlo a los responsables afectados.",
+        "Comprobar y documentar la competencia de los revisores (formación, experiencia y certificaciones).",
+        "Presentar los resultados a la dirección y a los responsables, y registrar las no conformidades y observaciones.",
+        "Tratar los hallazgos con un plan de acciones correctivas con responsable y plazo, y verificar su eficacia en la revisión siguiente."
       ],
       "evidence": [
-        "Informes de auditoría",
-        "Plan de acciones"
+        "Programa o calendario de revisiones independientes con alcance y frecuencia.",
+        "Informes de revisión o auditoría con fecha, alcance, revisores, hallazgos y conclusiones.",
+        "Evidencias de la competencia y la independencia de los revisores.",
+        "Plan de acciones correctivas derivado de los hallazgos, con su estado y la verificación de eficacia.",
+        "Actas en las que conste que la dirección conoció los resultados."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -740,14 +1006,21 @@
       "kind": "requirement",
       "title": "Cumplimiento de políticas",
       "officialText": "",
-      "description": "Comprobar que las políticas y normas se cumplen.",
+      "description": "Verifica que las políticas, normas y procedimientos de seguridad se aplican de verdad en el día a día y que los sistemas están configurados como se definió, corrigiendo las desviaciones.",
       "actions": [
-        "Revisar el cumplimiento periódicamente",
-        "Corregir desviaciones"
+        "Asignar a los responsables de cada área la revisión periódica del cumplimiento de las políticas y normas que les aplican.",
+        "Planificar revisiones de cumplimiento, como práctica habitual al menos una vez al año, que combinen revisión documental, entrevistas y comprobaciones técnicas.",
+        "Comprobar técnicamente la configuración de los sistemas frente a las líneas base y normas definidas, con herramientas automáticas cuando sea posible.",
+        "Ante cada incumplimiento, analizar su causa, decidir si requiere acción correctiva y registrar la acción, su responsable y su plazo.",
+        "Revisar las excepciones a las políticas vigentes y retirar las caducadas.",
+        "Informar a la dirección de los resultados con indicadores de cumplimiento, excepciones y riesgos."
       ],
       "evidence": [
-        "Informes de cumplimiento",
-        "Acciones correctoras"
+        "Plan de revisiones de cumplimiento con alcance, responsables y fechas.",
+        "Informes de revisión de cumplimiento con fecha, alcance, resultados e incumplimientos detectados.",
+        "Informes de cumplimiento técnico de las configuraciones frente a las líneas base.",
+        "Registro de acciones correctivas con causa, responsable, plazo y cierre.",
+        "Registro de excepciones a las políticas con su estado y fecha de caducidad."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -759,14 +1032,21 @@
       "kind": "requirement",
       "title": "Procedimientos documentados",
       "officialText": "",
-      "description": "Documentar los procedimientos operativos y ponerlos a disposición de quien los usa.",
+      "description": "Pone por escrito cómo se realizan las tareas operativas relacionadas con la seguridad, para que se hagan siempre igual, cualquiera pueda ejecutarlas o supervisarlas y el conocimiento no dependa de una sola persona.",
       "actions": [
-        "Documentar los procedimientos clave",
-        "Mantenerlos accesibles y actualizados"
+        "Identificar las actividades operativas que necesitan procedimiento escrito, por ejemplo altas y bajas de usuarios, copias y restauraciones, gestión de parches, arranque y parada de sistemas, gestión de incidentes y tratamiento de soportes.",
+        "Redactar cada procedimiento con su objetivo, responsables, pasos, frecuencia, registros que genera y actuación ante errores o situaciones anómalas.",
+        "Hacer que el responsable correspondiente apruebe cada procedimiento y controlarlo como documento, con versión, fecha e historial de cambios.",
+        "Poner los procedimientos a disposición de quienes los necesitan, incluido el personal de guardia y el que cubre ausencias.",
+        "Validar cada procedimiento comprobando que quien lo ejecuta lo sigue y que produce el resultado esperado.",
+        "Revisar los procedimientos al menos una vez al año, como práctica habitual, y tras cambios en los sistemas o incidentes que revelen carencias."
       ],
       "evidence": [
-        "Manual de procedimientos",
-        "Registro de cambios"
+        "Índice de procedimientos operativos con propietario, versión y fecha de la última revisión.",
+        "Procedimientos aprobados y controlados en el gestor documental.",
+        "Historial de cambios de los procedimientos.",
+        "Registros generados al ejecutar los procedimientos que demuestren que se aplican.",
+        "Registros de validación o revisión de los procedimientos con su resultado."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -778,14 +1058,20 @@
       "kind": "requirement",
       "title": "Selección de personal",
       "officialText": "",
-      "description": "Verificar los antecedentes antes de contratar, según el puesto.",
+      "description": "Comprueba, antes de incorporar a una persona, que es quien dice ser y que su trayectoria encaja con el puesto, con más rigor cuanto mayor sea su acceso a información sensible.",
       "actions": [
-        "Definir qué se verifica",
-        "Hacerlo antes de la incorporación"
+        "Definir qué comprobaciones se hacen a todos los candidatos (identidad, titulación, experiencia y referencias) y cuáles adicionales se exigen para los puestos con acceso a información crítica o con privilegios elevados.",
+        "Limitar las comprobaciones a lo que permite la normativa laboral y de protección de datos, pedir antecedentes penales solo cuando una ley lo autorice o lo exija para el puesto e informar al candidato del tratamiento.",
+        "Hacer las comprobaciones antes de la incorporación o, si no es posible, antes de conceder accesos sensibles.",
+        "Exigir comprobaciones equivalentes, mediante cláusula contractual, a las empresas que aportan personal o contratistas.",
+        "Repetir o completar las comprobaciones cuando una persona pase a un puesto de mayor sensibilidad.",
+        "Guardar los resultados de forma confidencial y solo durante el tiempo necesario."
       ],
       "evidence": [
-        "Procedimiento de selección",
-        "Registro de verificaciones"
+        "Procedimiento de selección con las comprobaciones exigidas por tipo de puesto y su base legal.",
+        "Registros de las comprobaciones de una muestra de incorporaciones, con fecha anterior a la concesión de accesos.",
+        "Cláusulas contractuales con empresas de trabajo temporal o proveedores que exijan comprobaciones equivalentes.",
+        "Información facilitada a los candidatos sobre el tratamiento de sus datos en el proceso de selección."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -797,14 +1083,19 @@
       "kind": "requirement",
       "title": "Condiciones de empleo",
       "officialText": "",
-      "description": "Fijar por contrato las responsabilidades de seguridad.",
+      "description": "Deja establecidas en el contrato, o en documentos vinculados a él, las obligaciones de seguridad que asume cada persona desde su incorporación, para que sean conocidas, aceptadas y exigibles.",
       "actions": [
-        "Incluir cláusulas de seguridad",
-        "Hacerlas aceptar"
+        "Incluir en los contratos laborales, o en un anexo firmado, la obligación de confidencialidad, el cumplimiento de las políticas de seguridad, el uso aceptable de los medios y la protección de datos personales.",
+        "Indicar en ese documento las consecuencias de los incumplimientos y la remisión al régimen disciplinario aplicable.",
+        "Asegurar que cada nuevo empleado recibe, lee y acepta las políticas de seguridad que le afectan antes de obtener acceso a la información y a los sistemas.",
+        "Trasladar obligaciones equivalentes al personal externo y a los contratistas mediante sus contratos o compromisos individuales.",
+        "Actualizar las condiciones y recabar una nueva aceptación cuando cambien de forma relevante las políticas o el puesto."
       ],
       "evidence": [
-        "Contrato tipo",
-        "Aceptaciones"
+        "Modelo de contrato o anexo de seguridad con las obligaciones de confidencialidad y de cumplimiento de políticas.",
+        "Contratos o anexos firmados de una muestra de empleados y externos.",
+        "Registros de aceptación de las políticas en la incorporación, con fecha anterior al primer acceso.",
+        "Lista de comprobación de incorporación que incluya la entrega y la aceptación de las normas de seguridad."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -816,14 +1107,21 @@
       "kind": "requirement",
       "title": "Concienciación y formación",
       "officialText": "",
-      "description": "Formar al personal en seguridad según su puesto.",
+      "description": "Consigue que cada persona entienda los riesgos de seguridad de su trabajo y sepa cómo actuar, porque la mayoría de los incidentes empiezan con un error humano o un engaño.",
       "actions": [
-        "Planificar la formación",
-        "Evaluar su eficacia"
+        "Elaborar un plan anual de concienciación y formación basado en los riesgos y en los incidentes reales, con objetivos, contenidos, destinatarios, formatos y calendario.",
+        "Impartir a todo el personal una formación inicial al incorporarse y una de refresco al menos una vez al año, como práctica habitual, sobre las políticas, el phishing y la ingeniería social, las contraseñas, la notificación de incidentes y la protección de datos.",
+        "Diseñar formación específica para los perfiles que la necesitan: administradores de sistemas, desarrolladores, atención al cliente, dirección y titulares de roles de seguridad.",
+        "Mantener la concienciación con acciones continuas, como comunicaciones breves, avisos sobre amenazas de actualidad y simulaciones de phishing.",
+        "Medir la eficacia con pruebas de conocimiento, las tasas de clic y de notificación en las simulaciones y la evolución de los incidentes por error humano.",
+        "Registrar la participación y hacer seguimiento de quienes no completan la formación obligatoria."
       ],
       "evidence": [
-        "Plan de formación",
-        "Registros de asistencia"
+        "Plan anual de concienciación y formación con objetivos, contenidos, destinatarios y calendario.",
+        "Registros de asistencia o finalización por persona, con fecha y curso.",
+        "Materiales de formación utilizados y su fecha de actualización.",
+        "Resultados de las simulaciones de phishing y de las pruebas de conocimiento, con su evolución.",
+        "Registros de la formación específica de los perfiles técnicos y de seguridad."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -835,14 +1133,20 @@
       "kind": "requirement",
       "title": "Proceso disciplinario",
       "officialText": "",
-      "description": "Tener un proceso para los incumplimientos de seguridad.",
+      "description": "Da una respuesta proporcionada y conocida de antemano a los incumplimientos de las normas de seguridad, para que tenga efecto disuasorio y se aplique con garantías y de forma coherente.",
       "actions": [
-        "Formalizar el proceso",
-        "Comunicarlo"
+        "Definir, junto con RR. HH. y asesoría jurídica, cómo se tratan los incumplimientos de seguridad dentro del régimen disciplinario del Estatuto de los Trabajadores y del convenio colectivo aplicable.",
+        "Fijar criterios de graduación que tengan en cuenta la intención, la reiteración, el impacto, la formación recibida y si se trató de un error o de una actuación deliberada.",
+        "Garantizar que antes de cualquier sanción se verifica el incumplimiento y se respetan los derechos de la persona afectada.",
+        "Comunicar a todo el personal que los incumplimientos de seguridad pueden tener consecuencias disciplinarias, por ejemplo en la norma de uso aceptable y en la formación de incorporación.",
+        "Prever medidas equivalentes para el personal externo a través de los contratos con sus empresas.",
+        "Registrar de forma confidencial los casos tramitados y analizarlos para detectar necesidades de formación o de mejora de los controles."
       ],
       "evidence": [
-        "Procedimiento disciplinario",
-        "Comunicación al personal"
+        "Procedimiento disciplinario o normativa interna que recoja los incumplimientos de seguridad y su graduación.",
+        "Evidencia de la comunicación del régimen disciplinario al personal mediante normas, formación o comunicados.",
+        "Registro confidencial de expedientes relacionados con la seguridad y su resolución.",
+        "Cláusulas contractuales con proveedores sobre las medidas ante incumplimientos de su personal."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -854,14 +1158,19 @@
       "kind": "requirement",
       "title": "Responsabilidades tras el cese",
       "officialText": "",
-      "description": "Definir qué obligaciones siguen tras terminar o cambiar de puesto.",
+      "description": "Asegura que las obligaciones de seguridad que deben sobrevivir a la relación laboral, como la confidencialidad, siguen vigentes y son conocidas cuando una persona se va o cambia de puesto.",
       "actions": [
-        "Recoger las obligaciones por contrato",
-        "Recordarlas en la baja"
+        "Definir en los contratos y acuerdos de confidencialidad qué obligaciones continúan tras el cese y durante cuánto tiempo.",
+        "Recordar por escrito esas obligaciones a la persona durante el proceso de salida, preferiblemente con su firma de recibí.",
+        "Aplicar el mismo proceso a los cambios internos de puesto: retirar los accesos y la información que ya no corresponden y recordar las obligaciones sobre la información del puesto anterior.",
+        "Coordinar entre RR. HH., TI y el responsable directo una lista de comprobación de salida que cubra devoluciones, retirada de accesos y recordatorio de obligaciones.",
+        "Trasladar las mismas exigencias a los proveedores respecto de su personal que deja de prestar servicio a la organización."
       ],
       "evidence": [
-        "Cláusulas posteriores al cese",
-        "Registro de bajas"
+        "Cláusulas de contratos o acuerdos de confidencialidad que establezcan las obligaciones posteriores al cese y su duración.",
+        "Comunicaciones o documentos de salida firmados en los que se recuerden las obligaciones vigentes.",
+        "Listas de comprobación de salida y de cambio de puesto cumplimentadas.",
+        "Registro de bajas y cambios de puesto con la fecha de retirada de los accesos."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -873,14 +1182,20 @@
       "kind": "requirement",
       "title": "Acuerdos de confidencialidad",
       "officialText": "",
-      "description": "Firmar acuerdos de confidencialidad adecuados.",
+      "description": "Formaliza el compromiso de no revelar información confidencial por parte de quienes acceden a ella, sean empleados o terceros, para poder exigirlo y dejar claro qué se espera de ellos.",
       "actions": [
-        "Preparar los acuerdos",
-        "Revisarlos periódicamente"
+        "Identificar quién debe firmar acuerdos de confidencialidad: empleados, becarios, contratistas, proveedores, consultores, socios y visitantes con acceso a información sensible.",
+        "Redactar modelos de acuerdo que definan la información protegida, los usos permitidos, la duración de la obligación, la devolución o destrucción al terminar, la comunicación de revelaciones no autorizadas y las consecuencias del incumplimiento.",
+        "Firmar el acuerdo antes de dar acceso a la información confidencial.",
+        "Adaptar el alcance de cada modelo al tipo de información y de relación, con revisión de asesoría jurídica.",
+        "Revisar los modelos al menos una vez al año, como práctica habitual, o cuando cambien los requisitos legales o del negocio.",
+        "Mantener localizables los acuerdos firmados en un registro con sus fechas de vigencia."
       ],
       "evidence": [
-        "Acuerdos firmados",
-        "Registro de revisiones"
+        "Modelos de acuerdo de confidencialidad aprobados, con la fecha de su última revisión.",
+        "Acuerdos firmados de una muestra de empleados y terceros, con fecha anterior al acceso a la información.",
+        "Registro de acuerdos de confidencialidad con firmante, fecha y vigencia.",
+        "Registro de revisiones de los modelos con los cambios realizados."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -892,14 +1207,21 @@
       "kind": "requirement",
       "title": "Trabajo en remoto",
       "officialText": "",
-      "description": "Proteger la información cuando se trabaja fuera de las instalaciones.",
+      "description": "Protege la información cuando se trabaja fuera de las instalaciones, en casa o de viaje, donde no se cuenta con los controles físicos y de red de la oficina.",
       "actions": [
-        "Definir medidas para el trabajo en remoto",
-        "Aplicarlas"
+        "Redactar una política de teletrabajo que defina quién puede teletrabajar, desde qué lugares, con qué equipos y qué información puede manejarse fuera de las instalaciones.",
+        "Reflejar las condiciones de seguridad en el acuerdo de trabajo a distancia que exige la Ley 10/2021, incluidos los medios que facilita la organización.",
+        "Proporcionar equipos corporativos gestionados, con cifrado de disco, protección antimalware y actualizaciones automáticas, o fijar requisitos mínimos si se admiten equipos personales.",
+        "Exigir que el acceso remoto se haga por canales cifrados (VPN o acceso de confianza cero) con autenticación multifactor.",
+        "Dar pautas sobre el entorno de trabajo: evitar redes wifi públicas sin protección, impedir que terceros vean la pantalla o escuchen conversaciones, guardar equipos y documentos y destruir el papel de forma segura.",
+        "Supervisar los accesos remotos y formar al personal en los riesgos propios del trabajo a distancia."
       ],
       "evidence": [
-        "Política de teletrabajo",
-        "Configuración de acceso remoto"
+        "Política de teletrabajo aprobada.",
+        "Acuerdos de trabajo a distancia firmados que incluyan las condiciones de seguridad.",
+        "Configuración de la solución de acceso remoto con cifrado y autenticación multifactor.",
+        "Informe de la herramienta de gestión de dispositivos que muestre el cifrado y la protección de los equipos de teletrabajo.",
+        "Registros de acceso remoto y de la formación sobre teletrabajo seguro."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -911,14 +1233,20 @@
       "kind": "requirement",
       "title": "Notificación de eventos",
       "officialText": "",
-      "description": "Dar al personal un canal para comunicar eventos de seguridad.",
+      "description": "Facilita que cualquier persona informe enseguida de algo sospechoso que observe, porque una detección temprana por parte de los usuarios reduce mucho el impacto de un incidente.",
       "actions": [
-        "Habilitar un canal sencillo",
-        "Dar a conocer el procedimiento"
+        "Habilitar canales de notificación sencillos y conocidos (buzón de correo específico, botón de notificación de phishing, teléfono o formulario del portal de soporte), con atención fuera del horario habitual para los casos graves.",
+        "Explicar al personal qué debe notificar, con ejemplos: correos sospechosos, pérdida o robo de equipos, accesos inusuales, comportamientos anómalos de un sistema, información enviada por error o vulnerabilidades observadas.",
+        "Indicar qué hacer y qué no hacer ante un evento: notificarlo sin demora, no investigarlo ni intentar comprobar la vulnerabilidad por su cuenta y conservar la evidencia.",
+        "Garantizar que notificar de buena fe no tiene consecuencias negativas para quien lo hace, para no desincentivarlo.",
+        "Responder a quien notifica con un acuse de recibo y, cuando proceda, con el resultado.",
+        "Recordar el procedimiento periódicamente en la concienciación y comprobar su funcionamiento con simulaciones."
       ],
       "evidence": [
-        "Descripción del canal",
-        "Registro de comunicaciones"
+        "Procedimiento de notificación de eventos con canales, ejemplos y pautas de actuación.",
+        "Materiales de comunicación o formación sobre cómo notificar eventos.",
+        "Registro de eventos notificados por el personal con fecha, canal, notificante y tratamiento dado.",
+        "Resultados de simulaciones que midan la tasa y el tiempo de notificación."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -930,14 +1258,20 @@
       "kind": "requirement",
       "title": "Perímetros físicos",
       "officialText": "",
-      "description": "Definir y proteger perímetros de seguridad física.",
+      "description": "Delimita las zonas que contienen información o equipos sensibles y las rodea de barreras proporcionadas al riesgo, para que nadie entre en ellas sin pasar por un punto controlado.",
       "actions": [
-        "Delimitar las zonas seguras",
-        "Protegerlas"
+        "Identificar, a partir del análisis de riesgos, las zonas que necesitan protección física (edificio, oficinas, sala de servidores, archivo, zona de carga) y señalar sus perímetros en un plano.",
+        "Asegurar perímetros sin huecos: paredes y techos sólidos, puertas exteriores resistentes con cierre, ventanas protegidas en plantas accesibles y puertas de emergencia con alarma y cierre automático.",
+        "Reducir los puntos de entrada a los imprescindibles y controlar cada uno con recepción, vigilantes o control de acceso electrónico.",
+        "Instalar sistemas de detección de intrusión en los perímetros y en las zonas desocupadas, conectados a una central de alarmas.",
+        "En instalaciones compartidas o de terceros (centros de datos, espacios de coworking), comprobar mediante contrato o certificaciones las medidas perimetrales del proveedor.",
+        "Inspeccionar el estado de los perímetros al menos una vez al año, como práctica habitual, y corregir las deficiencias."
       ],
       "evidence": [
-        "Plano de perímetros",
-        "Controles de acceso"
+        "Planos de las instalaciones con los perímetros de seguridad, las zonas y los puntos de acceso señalados.",
+        "Análisis de riesgos físicos que justifique las medidas de cada zona.",
+        "Informes de inspección del perímetro y de pruebas de los sistemas de alarma, con fecha y deficiencias corregidas.",
+        "Contratos o certificaciones de los proveedores de centros de datos con las medidas físicas que aplican."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -949,14 +1283,21 @@
       "kind": "requirement",
       "title": "Entrada física",
       "officialText": "",
-      "description": "Controlar quién entra en las zonas seguras.",
+      "description": "Controla quién entra en cada zona y cuándo, para que solo accedan personas autorizadas y quede constancia de las entradas con la que detectar e investigar accesos indebidos.",
       "actions": [
-        "Controlar y registrar los accesos",
-        "Acompañar a las visitas"
+        "Instalar mecanismos de control de acceso en las entradas a zonas protegidas (tarjeta, código, biometría o llave controlada), más estrictos cuanto más sensible sea la zona.",
+        "Autorizar el acceso a cada zona según la función, con aprobación de su responsable, y retirarlo en cuanto deje de ser necesario.",
+        "Registrar a los visitantes con su identificación, motivo, persona visitada y horas de entrada y salida, entregarles una acreditación visible y acompañarlos en las zonas no públicas.",
+        "Controlar las zonas de carga y entrega para que el personal de reparto no acceda a otras áreas, y revisar los envíos que entran.",
+        "Gestionar tarjetas y llaves con un inventario, entrega firmada, recuperación en las bajas y bloqueo inmediato de las perdidas.",
+        "Revisar periódicamente, como práctica habitual cada trimestre en las zonas críticas, la lista de personas autorizadas y los registros de acceso."
       ],
       "evidence": [
-        "Registro de accesos",
-        "Procedimiento de visitas"
+        "Procedimiento de control de acceso físico y de gestión de visitas.",
+        "Listas de personas autorizadas por zona con su aprobación y la fecha de la última revisión.",
+        "Registros de acceso electrónico y registros de visitas.",
+        "Inventario de tarjetas y llaves con entregas, devoluciones y bloqueos.",
+        "Informes de revisión de los registros de acceso con las anomalías detectadas y las acciones tomadas."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -968,14 +1309,20 @@
       "kind": "requirement",
       "title": "Protección de oficinas y salas",
       "officialText": "",
-      "description": "Diseñar la seguridad física de oficinas y salas.",
+      "description": "Protege los espacios concretos donde se trabaja con información o se alojan equipos para que no puedan ser vistos, escuchados o accedidos por personas no autorizadas, incluido el personal de otras empresas del edificio.",
       "actions": [
-        "Aplicar medidas a locales sensibles",
-        "Revisarlas"
+        "Situar las salas y despachos sensibles lejos del acceso del público y de las zonas de paso, y evitar señalizar su función cuando no sea necesario.",
+        "Mantener cerrados con llave o con control de acceso las salas de servidores, los archivos y los despachos con información sensible mientras no estén ocupados.",
+        "Evitar que la información confidencial sea visible desde fuera: ventanas, pantallas orientadas a pasillos o pizarras de salas de reuniones.",
+        "Proteger frente a escuchas las salas de reuniones donde se tratan asuntos confidenciales, por ejemplo con un aislamiento acústico adecuado.",
+        "No publicar en directorios ni guías accesibles al público la ubicación de las instalaciones críticas.",
+        "Revisar estas medidas en las inspecciones periódicas de seguridad física y tras cambios en la distribución de los espacios."
       ],
       "evidence": [
-        "Descripción de medidas",
-        "Inspecciones"
+        "Plano o relación de salas y despachos sensibles con las medidas aplicadas en cada uno.",
+        "Registros de control de acceso a las salas protegidas.",
+        "Informes de inspección de seguridad física con los hallazgos sobre oficinas y salas y su corrección.",
+        "Normas internas sobre el uso de salas de reuniones y espacios en los que se trata información sensible."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -987,14 +1334,21 @@
       "kind": "requirement",
       "title": "Vigilancia física",
       "officialText": "",
-      "description": "Supervisar de forma continua el acceso físico no autorizado.",
+      "description": "Detecta a tiempo las intrusiones y los accesos físicos no autorizados mediante vigilancia continua, para poder reaccionar y disponer de pruebas.",
       "actions": [
-        "Instalar vigilancia o alarmas",
-        "Revisar los avisos"
+        "Instalar, según el análisis de riesgos, sistemas de vigilancia en perímetros, entradas y zonas críticas: videovigilancia, detectores de intrusión, contactos en puertas y alarmas.",
+        "Conectar las alarmas a una central receptora o a un servicio de seguridad con instrucciones de respuesta, también fuera del horario laboral.",
+        "Cumplir la normativa de videovigilancia: informar con carteles visibles, no grabar espacios privados ni más vía pública de la imprescindible y suprimir las imágenes en el plazo máximo de un mes salvo que deban conservarse por un incidente.",
+        "Restringir a personas autorizadas el acceso a las grabaciones y a la configuración de los sistemas de vigilancia.",
+        "Revisar las alertas y los registros de acceso físico para detectar patrones anómalos, como entradas fuera de horario o intentos fallidos repetidos.",
+        "Probar cámaras, sensores y alarmas periódicamente, como práctica habitual al menos cada seis meses, y registrar su mantenimiento."
       ],
       "evidence": [
-        "Sistemas de vigilancia",
-        "Registro de alarmas"
+        "Plano o relación de los sistemas de vigilancia instalados y de las zonas que cubren.",
+        "Contrato con la central receptora de alarmas o con el servicio de seguridad, con el protocolo de respuesta.",
+        "Registros de alarmas y de su tratamiento.",
+        "Informes de pruebas y mantenimiento de los sistemas de vigilancia.",
+        "Carteles informativos de videovigilancia y la actividad de tratamiento correspondiente en el registro de tratamientos."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1006,14 +1360,20 @@
       "kind": "requirement",
       "title": "Amenazas físicas y ambientales",
       "officialText": "",
-      "description": "Protegerse de amenazas físicas y ambientales.",
+      "description": "Reduce el impacto de incendios, inundaciones, temperaturas extremas, fenómenos naturales o actos malintencionados sobre las instalaciones y los equipos que soportan la información.",
       "actions": [
-        "Evaluar las amenazas",
-        "Aplicar protecciones"
+        "Evaluar las amenazas físicas y ambientales de cada ubicación teniendo en cuenta su entorno (zona inundable, instalaciones peligrosas cercanas, historial de incidentes) y dónde están los activos críticos.",
+        "Instalar protección contra incendios adecuada a cada zona: detección automática, sistema de extinción apto para equipos electrónicos en las salas técnicas y extintores revisados.",
+        "Proteger frente al agua: no situar equipos críticos en sótanos ni bajo conducciones, elevarlos del suelo y colocar detectores de fugas en las salas técnicas.",
+        "Controlar la temperatura y la humedad de las salas técnicas con climatización y alarmas por valores fuera de rango.",
+        "Mantener los sistemas de protección según la normativa de protección contra incendios y las indicaciones del fabricante.",
+        "Incluir estos escenarios en los planes de emergencia y continuidad, y revisar la evaluación de amenazas cuando cambien las instalaciones."
       ],
       "evidence": [
-        "Evaluación de amenazas",
-        "Medidas de protección"
+        "Evaluación de amenazas físicas y ambientales por ubicación.",
+        "Certificados de instalación y actas de mantenimiento de los sistemas contra incendios.",
+        "Registros de temperatura, humedad y alarmas ambientales de las salas técnicas.",
+        "Planes de emergencia y de continuidad que contemplen las amenazas ambientales identificadas."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1025,14 +1385,19 @@
       "kind": "requirement",
       "title": "Trabajo en zonas seguras",
       "officialText": "",
-      "description": "Fijar reglas para trabajar en zonas seguras.",
+      "description": "Fija reglas de comportamiento dentro de las zonas protegidas, para que la seguridad no dependa solo de las puertas y no se pierda por descuidos o actuaciones indebidas de quien ya está dentro.",
       "actions": [
-        "Definir las reglas",
-        "Comunicarlas"
+        "Redactar normas para cada zona segura: quién puede trabajar en ella, si se permite trabajar en solitario, prohibición de comer y beber junto a los equipos y restricciones a los dispositivos de grabación y a los móviles.",
+        "Exigir supervisión o acompañamiento al personal externo y de mantenimiento que trabaje en zonas seguras.",
+        "Mantener las zonas seguras cerradas y comprobar periódicamente su estado cuando estén desocupadas.",
+        "Dar a conocer las normas a quienes necesitan trabajar en esas zonas y confirmar que las conocen antes de autorizar su acceso.",
+        "Comprobar el cumplimiento mediante inspecciones periódicas y la revisión de los registros de acceso."
       ],
       "evidence": [
-        "Normas de zonas seguras",
-        "Constancia de comunicación"
+        "Normas de trabajo en zonas seguras aprobadas y publicadas en las propias zonas o en el gestor documental.",
+        "Registros de comunicación o aceptación de las normas por el personal autorizado.",
+        "Registros de acceso y de acompañamiento del personal externo en zonas seguras.",
+        "Informes de inspección con las incidencias detectadas y su corrección."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1044,14 +1409,19 @@
       "kind": "requirement",
       "title": "Escritorio y pantalla limpios",
       "officialText": "",
-      "description": "Evitar dejar información visible o accesible sin custodia.",
+      "description": "Reduce el riesgo de que alguien lea, copie o se lleve información confidencial que se ha dejado a la vista en mesas, impresoras o pantallas desatendidas.",
       "actions": [
-        "Definir la norma",
-        "Comprobarla"
+        "Aprobar una norma de puesto despejado y pantalla bloqueada: guardar bajo llave los documentos y soportes sensibles al ausentarse y al terminar la jornada, y bloquear la sesión al levantarse.",
+        "Configurar el bloqueo automático de la sesión tras un periodo breve de inactividad en todos los equipos, por ejemplo entre 5 y 15 minutos como práctica habitual.",
+        "Proporcionar armarios o cajoneras con llave y contenedores para la destrucción segura del papel en las zonas de trabajo.",
+        "Configurar la impresión segura con liberación mediante código o tarjeta para evitar documentos olvidados en las impresoras.",
+        "Recordar la norma en la concienciación y comprobar su cumplimiento con revisiones periódicas por muestreo, por ejemplo fuera del horario laboral."
       ],
       "evidence": [
-        "Norma de mesa limpia",
-        "Revisiones"
+        "Norma de puesto despejado y pantalla bloqueada aprobada y comunicada.",
+        "Configuración del bloqueo automático de sesión aplicada por directiva o por la herramienta de gestión de equipos.",
+        "Informes de revisiones de puesto despejado con fecha, áreas revisadas, incumplimientos y acciones.",
+        "Configuración de la impresión segura, si se ha implantado."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1063,14 +1433,20 @@
       "kind": "requirement",
       "title": "Ubicación de equipos",
       "officialText": "",
-      "description": "Colocar y proteger los equipos para reducir riesgos.",
+      "description": "Sitúa y protege los equipos de modo que se reduzca su exposición a daños físicos y ambientales, a accesos indebidos y a miradas no autorizadas.",
       "actions": [
-        "Elegir ubicaciones adecuadas",
-        "Protegerlos"
+        "Ubicar los servidores y equipos de red en salas o armarios cerrados con acceso restringido, nunca en zonas de paso o de almacén.",
+        "Colocar los equipos que procesan información sensible de forma que sus pantallas no sean visibles desde zonas públicas o ventanas.",
+        "Proteger los equipos de los riesgos ambientales del entorno inmediato: agua, calor, polvo, vibraciones, interferencias electromagnéticas y sustancias corrosivas.",
+        "Usar racks y anclajes adecuados, con el cableado ordenado y la alimentación a través de sistemas protegidos.",
+        "Prohibir comer, beber y fumar junto a los equipos sensibles.",
+        "Revisar la ubicación de los equipos en las inspecciones de seguridad física y al hacer cambios en las instalaciones."
       ],
       "evidence": [
-        "Plano de ubicación",
-        "Medidas aplicadas"
+        "Plano o inventario con la ubicación física de los equipos críticos.",
+        "Fotografías o informes de inspección de las salas técnicas y los armarios.",
+        "Registros de control ambiental de las ubicaciones de los equipos críticos.",
+        "Normas de uso de las salas técnicas."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1082,14 +1458,20 @@
       "kind": "requirement",
       "title": "Activos fuera de las instalaciones",
       "officialText": "",
-      "description": "Proteger los activos que salen de la organización.",
+      "description": "Protege portátiles, móviles, soportes y documentos cuando están fuera de las instalaciones, donde es más fácil perderlos, que los roben o que los manipulen.",
       "actions": [
-        "Definir reglas de uso externo",
-        "Controlar la salida"
+        "Definir qué activos pueden sacarse de las instalaciones, con qué autorización y qué información pueden contener.",
+        "Registrar la salida y la devolución de los equipos que no tienen asignación permanente, con responsable y fechas.",
+        "Cifrar los discos de portátiles y móviles y habilitar el bloqueo y borrado remoto mediante una herramienta de gestión de dispositivos.",
+        "Dar pautas de custodia: no dejar los equipos desatendidos en vehículos o lugares públicos, llevarlos como equipaje de mano y usar filtros de privacidad en la pantalla.",
+        "Notificar de inmediato como incidente la pérdida o el robo y activar el bloqueo o borrado remoto.",
+        "Exigir garantías de seguridad a los terceros que custodien activos de la organización fuera de sus instalaciones, como servicios de reparación o de alojamiento."
       ],
       "evidence": [
-        "Política de activos externos",
-        "Registro de salidas"
+        "Norma de uso de activos fuera de las instalaciones.",
+        "Registro de salidas y entradas de equipos con responsable, fechas y autorización.",
+        "Informe de la herramienta de gestión de dispositivos con el estado de cifrado y la capacidad de borrado remoto.",
+        "Registro de pérdidas y robos de equipos y de las acciones tomadas."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1101,14 +1483,21 @@
       "kind": "requirement",
       "title": "Soportes de almacenamiento",
       "officialText": "",
-      "description": "Gestionar los soportes durante todo su ciclo de vida.",
+      "description": "Controla los soportes que contienen información (discos externos, memorias USB, cintas, papel) durante todo su ciclo de vida para evitar su pérdida, el acceso no autorizado y la recuperación de datos tras desecharlos.",
       "actions": [
-        "Controlar su uso y transporte",
-        "Proteger su contenido"
+        "Aprobar una política de soportes extraíbles que indique si se permiten, de qué tipo, para qué información y con qué protección.",
+        "Restringir técnicamente el uso de soportes extraíbles en los equipos a los usuarios y dispositivos autorizados.",
+        "Cifrar la información sensible guardada en soportes y etiquetarlos según su clasificación.",
+        "Mantener un inventario de los soportes con información sensible y guardarlos en lugares cerrados y con condiciones ambientales adecuadas.",
+        "Transportar los soportes en mano o con mensajería de confianza, registrando el envío y la recepción.",
+        "Borrar o destruir de forma segura los soportes antes de reutilizarlos o desecharlos, con un método acorde a la sensibilidad, y dejar constancia."
       ],
       "evidence": [
-        "Procedimiento de soportes",
-        "Inventario de soportes"
+        "Política de soportes extraíbles aprobada.",
+        "Configuración del control de dispositivos en los equipos que restringe el uso de soportes.",
+        "Inventario de soportes con información sensible y su ubicación.",
+        "Registros de transporte de soportes con envío y recepción.",
+        "Certificados o registros de borrado o destrucción de soportes."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1120,14 +1509,20 @@
       "kind": "requirement",
       "title": "Servicios de apoyo",
       "officialText": "",
-      "description": "Proteger los equipos frente a fallos de los suministros.",
+      "description": "Evita que los fallos del suministro eléctrico, la climatización, las telecomunicaciones u otros servicios básicos detengan o dañen los sistemas de información.",
       "actions": [
-        "Proteger electricidad y comunicaciones",
-        "Probar los respaldos"
+        "Identificar los servicios de apoyo de los que dependen los sistemas críticos (electricidad, climatización, agua, ventilación y comunicaciones) y valorar el riesgo de su fallo.",
+        "Instalar sistemas de alimentación ininterrumpida dimensionados para permitir un apagado ordenado o la entrada de un grupo electrógeno, cuando la criticidad lo justifique.",
+        "Contratar líneas de comunicaciones redundantes para los servicios críticos, preferiblemente con operadores y recorridos distintos.",
+        "Supervisar los servicios de apoyo con alarmas que avisen de fallos o de valores anómalos.",
+        "Mantener los equipos de apoyo según las indicaciones del fabricante y probar los sistemas de respaldo (SAI, grupo electrógeno, conmutación de líneas) al menos una vez al año, como práctica habitual."
       ],
       "evidence": [
-        "Medidas de suministro",
-        "Pruebas"
+        "Relación de servicios de apoyo críticos con su evaluación de riesgos.",
+        "Contratos y registros de mantenimiento de SAI, grupos electrógenos y climatización.",
+        "Informes de pruebas de los sistemas de respaldo con fecha y resultado.",
+        "Contratos de comunicaciones que acrediten la redundancia.",
+        "Registros de alarmas de los servicios de apoyo y de su tratamiento."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1139,14 +1534,20 @@
       "kind": "requirement",
       "title": "Seguridad del cableado",
       "officialText": "",
-      "description": "Proteger el cableado de interceptación y daños.",
+      "description": "Protege el cableado eléctrico y de datos frente a cortes, daños, interferencias y conexiones no autorizadas que puedan interrumpir servicios o permitir interceptar comunicaciones.",
       "actions": [
-        "Proteger los cables",
-        "Revisar su estado"
+        "Canalizar el cableado de datos y eléctrico por conductos, bandejas o falsos suelos protegidos, evitando su paso por zonas públicas o accesibles.",
+        "Separar físicamente los cables de energía de los de datos para evitar interferencias.",
+        "Mantener cerrados y con acceso restringido los armarios de comunicaciones y los paneles de parcheo.",
+        "Desactivar las tomas de red no utilizadas y, cuando el riesgo lo justifique, aplicar control de acceso a la red en los puertos.",
+        "Etiquetar los cables y mantener actualizado un plano de cableado.",
+        "Inspeccionar el cableado y los armarios al menos una vez al año, como práctica habitual, para detectar daños o dispositivos no autorizados."
       ],
       "evidence": [
-        "Plano de cableado",
-        "Inspecciones"
+        "Plano de cableado actualizado con recorridos, armarios y puntos de red.",
+        "Informes de inspección del cableado y los armarios con fecha y hallazgos.",
+        "Configuración que demuestre la desactivación de los puertos no usados o el control de acceso a la red.",
+        "Registro de accesos a los armarios de comunicaciones."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1158,14 +1559,21 @@
       "kind": "requirement",
       "title": "Mantenimiento de equipos",
       "officialText": "",
-      "description": "Mantener los equipos para asegurar su disponibilidad e integridad.",
+      "description": "Mantiene los equipos en buen estado para que funcionen de forma fiable y evita que las intervenciones de mantenimiento se conviertan en una vía de acceso o de fuga de información.",
       "actions": [
-        "Planificar el mantenimiento",
-        "Registrar las intervenciones"
+        "Elaborar un plan de mantenimiento preventivo de los equipos críticos con la frecuencia y las especificaciones del fabricante.",
+        "Permitir las intervenciones solo a técnicos autorizados, propios o de proveedores con contrato, identificándolos antes de darles acceso.",
+        "Supervisar el mantenimiento que hacen terceros en las instalaciones y, para el remoto, conceder accesos temporales, registrados y retirados al terminar.",
+        "Antes de enviar un equipo a reparar fuera, retirar o cifrar la información que contiene o exigir garantías de confidencialidad al proveedor.",
+        "Comprobar el funcionamiento del equipo y la ausencia de manipulación antes de devolverlo a producción.",
+        "Registrar cada intervención, preventiva o correctiva, con fecha, técnico, trabajos realizados y fallos encontrados."
       ],
       "evidence": [
-        "Plan de mantenimiento",
-        "Registro de intervenciones"
+        "Plan de mantenimiento de los equipos críticos con sus frecuencias.",
+        "Registro de intervenciones de mantenimiento con fecha, equipo, técnico, trabajos y resultado.",
+        "Contratos de mantenimiento con cláusulas de confidencialidad y seguridad.",
+        "Registros de los accesos remotos de los proveedores de mantenimiento.",
+        "Registros de borrado o retirada de información de los equipos enviados a reparar."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1177,14 +1585,20 @@
       "kind": "requirement",
       "title": "Eliminación y reutilización segura",
       "officialText": "",
-      "description": "Borrar la información antes de eliminar o reutilizar un equipo.",
+      "description": "Asegura que no queda información recuperable en los equipos y soportes que se dan de baja, se venden, se donan, se devuelven al proveedor o se reasignan a otra persona.",
       "actions": [
-        "Definir el borrado seguro",
-        "Verificarlo"
+        "Redactar un procedimiento de borrado seguro y destrucción que fije el método según el tipo de soporte y la sensibilidad: sobrescritura, borrado criptográfico, borrado seguro del fabricante en discos de estado sólido o destrucción física.",
+        "Comprobar, antes de desechar o reutilizar cualquier equipo con almacenamiento (incluidos impresoras, móviles y equipos de red), que se han eliminado la información y el software con licencia.",
+        "Verificar el resultado del borrado con el informe de la herramienta utilizada o con una comprobación por muestreo.",
+        "Si la destrucción la hace un gestor externo, contratar uno que emita certificado de destrucción con los números de serie y cumpla la normativa de residuos electrónicos.",
+        "Destruir físicamente los soportes averiados que no puedan borrarse, en lugar de repararlos o devolverlos.",
+        "Actualizar el inventario con la baja o la reasignación del equipo."
       ],
       "evidence": [
-        "Procedimiento de borrado",
-        "Certificados de destrucción"
+        "Procedimiento de borrado seguro y destrucción con los métodos por tipo de soporte.",
+        "Registros de borrado por equipo con número de serie, método, fecha, responsable y verificación.",
+        "Certificados de destrucción del gestor externo con los números de serie.",
+        "Inventario actualizado con las bajas y reasignaciones."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1196,14 +1610,20 @@
       "kind": "requirement",
       "title": "Dispositivos de usuario",
       "officialText": "",
-      "description": "Proteger la información en los dispositivos de los usuarios.",
+      "description": "Protege la información guardada en portátiles, ordenadores, teléfonos y tabletas, o accesible desde ellos, que son la puerta de entrada habitual de malware, robos y fugas.",
       "actions": [
-        "Definir la configuración segura",
-        "Gestionar los dispositivos"
+        "Aprobar una política de dispositivos de usuario que cubra su registro, la configuración mínima, el uso, las aplicaciones permitidas, las copias de seguridad y los requisitos si se admiten dispositivos personales.",
+        "Gestionar los dispositivos con una herramienta centralizada que aplique la configuración segura, el cifrado, el bloqueo de pantalla y las actualizaciones y que permita el borrado remoto.",
+        "Mantener un inventario de los dispositivos asignados con usuario, características y estado de cumplimiento.",
+        "Permitir el acceso a los sistemas corporativos solo desde dispositivos registrados y conformes, cuando sea técnicamente posible.",
+        "Si se admiten dispositivos personales, separar la información corporativa en un espacio gestionado e informar al usuario de qué puede ver y borrar la organización.",
+        "Revisar periódicamente los informes de cumplimiento de los dispositivos y corregir los que no cumplan."
       ],
       "evidence": [
-        "Política de dispositivos",
-        "Inventario gestionado"
+        "Política de dispositivos de usuario aprobada y, en su caso, aceptación de las condiciones de uso de dispositivos personales.",
+        "Inventario de dispositivos con usuario asignado y estado de cumplimiento.",
+        "Informes de la herramienta de gestión con el estado de cifrado, actualizaciones, bloqueo y protección antimalware.",
+        "Configuración de acceso condicional o equivalente que limite el acceso a dispositivos conformes."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1215,14 +1635,22 @@
       "kind": "requirement",
       "title": "Acceso privilegiado",
       "officialText": "",
-      "description": "Restringir y controlar los derechos de acceso privilegiado.",
+      "description": "Limita y vigila las cuentas capaces de cambiar configuraciones, acceder a todos los datos o desactivar controles, porque su abuso o su robo permite causar el máximo daño.",
       "actions": [
-        "Limitar las cuentas privilegiadas",
-        "Registrar su uso"
+        "Identificar todas las cuentas con privilegios elevados en sistemas, aplicaciones, bases de datos, red y servicios en la nube, incluidas las cuentas por defecto y las de servicio.",
+        "Conceder privilegios solo con aprobación expresa, a personas concretas y durante el tiempo necesario, preferiblemente mediante elevación temporal en el momento de la tarea.",
+        "Separar la cuenta privilegiada de la de uso diario, de modo que no se administre con la cuenta con la que se lee el correo o se navega.",
+        "Exigir autenticación multifactor en todo acceso privilegiado y, cuando sea posible, hacerlo desde equipos o plataformas de administración dedicados.",
+        "Registrar la actividad privilegiada en registros que los propios administradores no puedan modificar y revisarla periódicamente.",
+        "Revisar las cuentas y asignaciones de privilegios al menos cada seis meses, como práctica habitual, y retirarlas de inmediato cuando cambie la función.",
+        "Custodiar las credenciales de las cuentas de emergencia y genéricas en un gestor o caja fuerte de contraseñas que registre su uso."
       ],
       "evidence": [
-        "Listado de cuentas privilegiadas",
-        "Registros de uso"
+        "Inventario de cuentas privilegiadas con titular, sistemas, nivel de privilegio, justificación y fecha de aprobación.",
+        "Registros de aprobación de la concesión de privilegios.",
+        "Configuración de la autenticación multifactor en los accesos privilegiados.",
+        "Registros de actividad privilegiada y evidencia de su revisión periódica.",
+        "Registro de revisiones de cuentas privilegiadas con fecha, revisor y cambios resultantes."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1234,14 +1662,20 @@
       "kind": "requirement",
       "title": "Restricción del acceso a la información",
       "officialText": "",
-      "description": "Limitar el acceso a la información según la política.",
+      "description": "Aplica técnicamente, en cada sistema y aplicación, las reglas de acceso definidas para que cada usuario solo pueda ver o modificar la información que le corresponde.",
       "actions": [
-        "Aplicar permisos mínimos",
-        "Revisarlos"
+        "Configurar en cada aplicación y repositorio los permisos según los perfiles aprobados, denegando por defecto lo no autorizado.",
+        "Controlar no solo la entrada a la aplicación, sino también las funciones y los conjuntos de datos concretos (lectura, escritura, borrado y exportación).",
+        "Evitar el acceso anónimo y los permisos amplios del tipo «todos los usuarios» en carpetas compartidas, sitios de colaboración y almacenamiento en la nube.",
+        "Limitar la información que muestran las aplicaciones según el perfil y controlar los enlaces de compartición externa (caducidad, contraseña y destinatarios concretos).",
+        "Valorar el uso de gestión de derechos digitales o de cifrado con control de acceso para la información más sensible que se comparte.",
+        "Revisar periódicamente los permisos efectivos de los repositorios con información sensible y corregir los excesivos."
       ],
       "evidence": [
-        "Reglas de acceso",
-        "Revisiones"
+        "Matriz de permisos por aplicación o repositorio con perfiles y niveles de acceso.",
+        "Exportaciones o capturas de la configuración de permisos de los sistemas con información sensible.",
+        "Informes de revisión de permisos efectivos y de enlaces de compartición externa, con las correcciones realizadas.",
+        "Configuración de la compartición externa en las plataformas de colaboración."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1253,14 +1687,21 @@
       "kind": "requirement",
       "title": "Acceso al código fuente",
       "officialText": "",
-      "description": "Controlar el acceso al código y a las herramientas de desarrollo.",
+      "description": "Impide que el código fuente, las herramientas de desarrollo y las bibliotecas se lean, modifiquen o filtren sin autorización, porque contienen la lógica del negocio, posibles secretos y la vía para introducir cambios maliciosos.",
       "actions": [
-        "Restringir el acceso",
-        "Registrarlo"
+        "Alojar el código en un sistema de control de versiones con autenticación multifactor y permisos por repositorio según la necesidad de cada equipo.",
+        "Proteger las ramas principales para que los cambios solo entren mediante revisión aprobada por otra persona y con las comprobaciones automáticas superadas.",
+        "Conceder los permisos de escritura y de administración de repositorios solo a quien los necesita y revisarlos periódicamente, como práctica habitual cada seis meses.",
+        "Evitar secretos (contraseñas, claves) en el código y analizar los repositorios para detectarlos.",
+        "Registrar los accesos y cambios en los repositorios y conservar su historial completo.",
+        "Proteger con el mismo rigor los programas compilados, las bibliotecas internas y las cadenas de integración y despliegue."
       ],
       "evidence": [
-        "Permisos del repositorio",
-        "Registros de acceso"
+        "Relación de repositorios con sus permisos por usuario o grupo.",
+        "Configuración de la protección de ramas y de la revisión obligatoria.",
+        "Registros de auditoría del sistema de control de versiones.",
+        "Informe de la revisión periódica de accesos a repositorios con los cambios realizados.",
+        "Resultados de los análisis de secretos en repositorios y acciones tomadas."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1272,14 +1713,21 @@
       "kind": "requirement",
       "title": "Autenticación segura",
       "officialText": "",
-      "description": "Aplicar mecanismos de autenticación acordes al riesgo.",
+      "description": "Verifica de forma fiable la identidad de quien accede a sistemas y datos, con mecanismos más robustos cuanto más sensible sea lo protegido, para impedir accesos con credenciales robadas o adivinadas.",
       "actions": [
-        "Elegir métodos fuertes",
-        "Aplicarlos en los accesos críticos"
+        "Exigir autenticación multifactor en el acceso remoto, el correo, los servicios en la nube, las cuentas privilegiadas y las aplicaciones con información sensible, priorizando métodos resistentes al phishing como las llaves de seguridad o las passkeys.",
+        "Centralizar la autenticación en un proveedor de identidad con inicio de sesión único cuando sea posible, para aplicar las mismas reglas a todas las aplicaciones.",
+        "Limitar los intentos fallidos con bloqueos temporales o retardos y generar alertas ante patrones de ataque como el relleno de credenciales.",
+        "Transmitir siempre las credenciales cifradas y no indicar en los mensajes de error qué parte de ellas es incorrecta.",
+        "Avisar al usuario, cuando sea posible, de los inicios de sesión inusuales y mostrarle la fecha de su último acceso.",
+        "Cerrar las sesiones tras un periodo de inactividad y pedir de nuevo la autenticación antes de operaciones sensibles."
       ],
       "evidence": [
-        "Política de autenticación",
-        "Configuración de MFA"
+        "Política o norma de autenticación con los métodos exigidos según el tipo de acceso y la sensibilidad.",
+        "Configuración del proveedor de identidad y de la autenticación multifactor, con su cobertura de usuarios y aplicaciones.",
+        "Informes de uso de la autenticación multifactor y de las excepciones aprobadas.",
+        "Configuración del bloqueo por intentos fallidos y de la caducidad de sesión.",
+        "Registros de autenticación con intentos correctos y fallidos y alertas generadas."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1291,14 +1739,20 @@
       "kind": "requirement",
       "title": "Gestión de la capacidad",
       "officialText": "",
-      "description": "Vigilar y ajustar los recursos a las necesidades.",
+      "description": "Asegura que los sistemas disponen de los recursos de cómputo, almacenamiento, red y personal que necesitan ahora y en el futuro, evitando caídas o degradaciones por saturación.",
       "actions": [
-        "Monitorizar el uso",
-        "Planificar ampliaciones"
+        "Identificar los sistemas y recursos críticos y definir umbrales de uso (CPU, memoria, almacenamiento, ancho de banda, licencias) que avisen antes de la saturación.",
+        "Supervisar el uso de forma continua con herramientas de monitorización y atender las alertas.",
+        "Analizar las tendencias de uso y las previsiones del negocio (nuevos clientes, proyectos, campañas) para estimar las necesidades futuras.",
+        "Elaborar un plan de capacidad, al menos anual como práctica habitual, con las ampliaciones u optimizaciones necesarias y su plazo, teniendo en cuenta los tiempos de compra.",
+        "Optimizar los recursos existentes eliminando datos obsoletos, retirando servicios sin uso y ajustando la elasticidad en la nube.",
+        "Valorar la capacidad de los servicios expuestos a internet frente a ataques de denegación de servicio."
       ],
       "evidence": [
-        "Informes de capacidad",
-        "Plan de capacidad"
+        "Umbrales de capacidad definidos para los sistemas críticos y configuración de sus alertas.",
+        "Informes periódicos de uso y tendencias de los recursos.",
+        "Plan de capacidad aprobado con las acciones previstas y su seguimiento.",
+        "Registro de alertas de capacidad y de las acciones tomadas."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1310,14 +1764,22 @@
       "kind": "requirement",
       "title": "Protección contra malware",
       "officialText": "",
-      "description": "Proteger los sistemas frente al software malicioso.",
+      "description": "Previene, detecta y elimina software malicioso como ransomware, troyanos o programas espía, combinando herramientas técnicas, restricciones de software y usuarios que saben reconocer las amenazas.",
       "actions": [
-        "Desplegar protección",
-        "Concienciar a los usuarios"
+        "Desplegar protección contra malware, preferiblemente con capacidades de detección y respuesta (EDR), en todos los puestos, servidores y dispositivos móviles compatibles, con gestión centralizada.",
+        "Actualizar automáticamente los motores y firmas y vigilar los equipos que dejan de informar o tienen la protección desactivada.",
+        "Filtrar el malware en el correo, la navegación y las descargas, incluido el análisis de adjuntos y enlaces.",
+        "Impedir la ejecución de software no autorizado, desactivar las macros en documentos de origen externo y retirar los privilegios de administrador local.",
+        "Analizar los soportes extraíbles y los ficheros recibidos antes de abrirlos.",
+        "Definir en el procedimiento de incidentes la respuesta ante una detección: aislamiento del equipo, análisis y limpieza o reinstalación.",
+        "Concienciar a los usuarios sobre las vías de entrada del malware y sobre cómo notificar sospechas."
       ],
       "evidence": [
-        "Inventario de protección",
-        "Registros de actualización"
+        "Consola de la protección antimalware con el número de equipos protegidos frente al inventario y su estado de actualización.",
+        "Configuración del filtrado de correo y navegación contra malware.",
+        "Registros de detecciones y de las acciones de respuesta tomadas.",
+        "Configuración de las restricciones de ejecución y de macros.",
+        "Registros de formación de los usuarios sobre malware."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1329,14 +1791,22 @@
       "kind": "requirement",
       "title": "Vulnerabilidades técnicas",
       "officialText": "",
-      "description": "Identificar y tratar las vulnerabilidades técnicas.",
+      "description": "Detecta a tiempo las debilidades técnicas de sistemas y aplicaciones y las corrige según su riesgo, antes de que un atacante las aproveche.",
       "actions": [
-        "Analizar vulnerabilidades periódicamente",
-        "Corregirlas según su riesgo"
+        "Apoyar la gestión en un inventario completo de activos y software con su versión y su responsable.",
+        "Obtener información sobre vulnerabilidades de forma continua: avisos de fabricantes, CERT nacionales y catálogos de vulnerabilidades explotadas activamente.",
+        "Escanear las vulnerabilidades de los sistemas internos y de los expuestos a internet de forma periódica, por ejemplo mensual en los expuestos como práctica habitual, y tras cambios relevantes.",
+        "Priorizar la corrección por riesgo combinando la gravedad (por ejemplo, CVSS), la probabilidad de explotación (por ejemplo, EPSS o su presencia en catálogos de explotación activa) y la exposición del activo.",
+        "Fijar plazos máximos de corrección según la prioridad, por ejemplo días para las críticas expuestas y semanas para las altas, y aplicar medidas de mitigación cuando no haya parche.",
+        "Probar los parches antes de desplegarlos en sistemas críticos y comprobar después que la vulnerabilidad ha desaparecido.",
+        "Encargar pruebas de intrusión independientes de los sistemas más expuestos o críticos al menos una vez al año, como práctica habitual."
       ],
       "evidence": [
-        "Informes de vulnerabilidades",
-        "Registro de correcciones"
+        "Procedimiento de gestión de vulnerabilidades con fuentes, frecuencia de análisis, criterios de priorización y plazos de corrección.",
+        "Informes de los análisis de vulnerabilidades con fecha y alcance.",
+        "Registro de vulnerabilidades con prioridad, responsable, fecha de detección, fecha de corrección y cumplimiento del plazo.",
+        "Aceptaciones de riesgo de las vulnerabilidades no corregidas, con medidas de mitigación y aprobación.",
+        "Informes de pruebas de intrusión y seguimiento de sus hallazgos."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1348,14 +1818,20 @@
       "kind": "requirement",
       "title": "Gestión de la configuración",
       "officialText": "",
-      "description": "Definir y mantener configuraciones seguras.",
+      "description": "Define configuraciones seguras de referencia para equipos, software, servicios y redes y vigila que se mantengan, porque muchos incidentes aprovechan configuraciones por defecto o cambios no controlados.",
       "actions": [
-        "Establecer líneas base",
-        "Controlar los cambios"
+        "Definir líneas base de configuración segura por tipo de sistema a partir de guías reconocidas (por ejemplo, guías CCN-STIC, CIS Benchmarks o las del fabricante), adaptadas a la organización.",
+        "Eliminar o cambiar las cuentas y contraseñas por defecto, desactivar servicios y funciones innecesarios y dejar solo la funcionalidad imprescindible.",
+        "Aplicar las líneas base de forma automatizada (plantillas, directivas o infraestructura como código) al desplegar sistemas nuevos.",
+        "Documentar las configuraciones de los sistemas críticos y someter sus cambios a la gestión de cambios.",
+        "Detectar las desviaciones respecto de la línea base con herramientas de verificación de configuración y corregirlas.",
+        "Revisar las líneas base al menos una vez al año, como práctica habitual, y cuando aparezcan amenazas o versiones nuevas."
       ],
       "evidence": [
-        "Líneas base documentadas",
-        "Informes de configuración"
+        "Líneas base de configuración documentadas por tipo de sistema, con versión y fecha de revisión.",
+        "Plantillas, directivas o código de infraestructura que apliquen las líneas base.",
+        "Informes de cumplimiento de configuración con las desviaciones detectadas y corregidas.",
+        "Registros de cambios de configuración vinculados a la gestión de cambios."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1367,14 +1843,20 @@
       "kind": "requirement",
       "title": "Eliminación de información",
       "officialText": "",
-      "description": "Borrar la información cuando ya no se necesita.",
+      "description": "Borra la información cuando ya no se necesita, de forma segura y comprobable, para reducir la exposición en caso de incidente y no conservar datos más tiempo del que permite la ley.",
       "actions": [
-        "Definir plazos de eliminación",
-        "Ejecutarla de forma segura"
+        "Fijar plazos de conservación por tipo de información, coherentes con el calendario de conservación de registros y con los plazos de supresión del registro de tratamientos.",
+        "Programar el borrado automático de la información que haya cumplido su plazo en las aplicaciones y repositorios donde sea posible.",
+        "Elegir el método de eliminación según la sensibilidad y el soporte, incluyendo copias, versiones anteriores y datos replicados.",
+        "Exigir a los proveedores, incluidos los de nube, que eliminen la información al terminar el servicio o cuando se les pida, con certificado o evidencia.",
+        "Registrar las eliminaciones de información sensible indicando qué se eliminó, cuándo, con qué método y quién lo hizo.",
+        "Suspender la eliminación cuando exista obligación de conservar por un litigio, una investigación o un requerimiento."
       ],
       "evidence": [
-        "Política de eliminación",
-        "Registros de borrado"
+        "Política de conservación y eliminación con los plazos por tipo de información.",
+        "Configuración de las reglas de borrado automático en los sistemas.",
+        "Registros de eliminación de información sensible.",
+        "Certificados o confirmaciones de eliminación emitidos por los proveedores."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1386,14 +1868,20 @@
       "kind": "requirement",
       "title": "Enmascaramiento de datos",
       "officialText": "",
-      "description": "Ocultar datos sensibles cuando no se necesiten completos.",
+      "description": "Oculta total o parcialmente los datos sensibles a quien no necesita verlos completos, por ejemplo en pantallas, informes, entornos de prueba o análisis, para limitar su exposición sin impedir el trabajo.",
       "actions": [
-        "Definir cuándo se enmascara",
-        "Aplicar la técnica"
+        "Identificar los datos que deben enmascararse (datos personales, datos de pago, credenciales, información confidencial) y los contextos en que se hará: pantallas de atención al cliente, informes, exportaciones, pruebas y analítica.",
+        "Elegir la técnica adecuada a cada caso (enmascaramiento parcial, sustitución, seudonimización, tokenización, cifrado o anonimización), teniendo presente que los datos seudonimizados siguen siendo datos personales.",
+        "Aplicar el enmascaramiento en las aplicaciones o bases de datos según el perfil del usuario, de modo que solo los perfiles autorizados vean el dato completo.",
+        "Proteger con acceso restringido las claves o tablas que permiten revertir la seudonimización o la tokenización.",
+        "Comprobar que los datos anonimizados no permiten volver a identificar a las personas al combinarlos con otras fuentes.",
+        "Verificar que el enmascaramiento sigue funcionando tras los cambios en las aplicaciones."
       ],
       "evidence": [
-        "Criterios de enmascaramiento",
-        "Ejemplos aplicados"
+        "Criterios de enmascaramiento documentados con los datos afectados, los contextos y las técnicas.",
+        "Configuración de las reglas de enmascaramiento en aplicaciones o bases de datos.",
+        "Pruebas o capturas que muestren cómo ve los datos cada perfil.",
+        "Controles de acceso a las claves o tablas de correspondencia de la seudonimización."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1405,14 +1893,20 @@
       "kind": "requirement",
       "title": "Prevención de fuga de datos",
       "officialText": "",
-      "description": "Evitar la salida no autorizada de información.",
+      "description": "Detecta y frena la salida no autorizada de información sensible por correo, web, nube, soportes o impresión, tanto la que se produce por error como la intencionada.",
       "actions": [
-        "Identificar vías de fuga",
-        "Aplicar controles"
+        "Identificar la información que hay que proteger, a partir de la clasificación, y los canales por los que podría salir: correo, navegación y subida de ficheros, servicios en la nube, mensajería, soportes extraíbles, impresión y capturas de pantalla.",
+        "Implantar herramientas de prevención de fuga de datos en los canales más críticos, empezando en modo de supervisión y pasando a bloqueo cuando las reglas estén ajustadas.",
+        "Restringir los canales innecesarios, como el almacenamiento personal en la nube, los soportes extraíbles o la subida de información a herramientas de inteligencia artificial no autorizadas.",
+        "Definir quién revisa las alertas, en qué plazo y cómo se escalan los casos de posible fuga.",
+        "Informar a los empleados de la supervisión aplicada, conforme a la normativa laboral y de protección de datos.",
+        "Revisar periódicamente las reglas para reducir los falsos positivos y cubrir canales nuevos."
       ],
       "evidence": [
-        "Política de prevención",
-        "Configuración de controles"
+        "Política de prevención de fuga de datos con la información protegida, los canales cubiertos y la respuesta ante alertas.",
+        "Configuración de las reglas de la herramienta de prevención de fugas y de los bloqueos de canales.",
+        "Registros de alertas de fuga y de su revisión y tratamiento.",
+        "Información facilitada a los empleados sobre la supervisión aplicada."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1424,14 +1918,21 @@
       "kind": "requirement",
       "title": "Copias de seguridad",
       "officialText": "",
-      "description": "Hacer copias y comprobar que se pueden restaurar.",
+      "description": "Permite recuperar la información, el software y las configuraciones tras un borrado accidental, un fallo, un ransomware o un desastre, con copias que existen, funcionan y no pueden destruirse en el mismo incidente.",
       "actions": [
-        "Definir y automatizar las copias",
-        "Probar la restauración"
+        "Definir una política de copias de seguridad que fije, por sistema o tipo de dato, qué se copia, con qué frecuencia, durante cuánto tiempo y dónde, en coherencia con los objetivos de recuperación.",
+        "Mantener varias copias en soportes o ubicaciones distintos, con al menos una fuera de las instalaciones y otra desconectada o inmutable, siguiendo como práctica habitual la regla 3-2-1.",
+        "Cifrar las copias y proteger el acceso a la consola y a los repositorios de copias con cuentas separadas y autenticación multifactor.",
+        "Incluir en las copias los servicios en la nube y las aplicaciones SaaS, sin dar por hecho que el proveedor las realiza.",
+        "Supervisar a diario la ejecución de las copias y resolver los fallos.",
+        "Probar la restauración periódicamente, como práctica habitual al menos cada trimestre sobre una muestra y una vez al año con un sistema completo, comprobando la integridad de lo recuperado y el tiempo empleado."
       ],
       "evidence": [
-        "Plan de copias",
-        "Pruebas de restauración"
+        "Política o plan de copias de seguridad con alcance, frecuencia, retención, ubicaciones y responsables.",
+        "Informes de ejecución de las copias con los fallos detectados y su corrección.",
+        "Registros de pruebas de restauración: fecha, datos restaurados, resultado, integridad verificada y tiempo empleado.",
+        "Evidencia de copias fuera de las instalaciones y de copias desconectadas o inmutables.",
+        "Configuración del cifrado y del control de acceso al sistema de copias."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1443,14 +1944,20 @@
       "kind": "requirement",
       "title": "Redundancia",
       "officialText": "",
-      "description": "Dotar a los sistemas de la redundancia que exige la disponibilidad.",
+      "description": "Evita que el fallo de un único componente, sistema o proveedor detenga un servicio crítico, duplicando los elementos necesarios según la disponibilidad que exige el negocio.",
       "actions": [
-        "Identificar sistemas críticos",
-        "Implantar redundancia"
+        "Identificar los servicios con requisitos de alta disponibilidad a partir del análisis de impacto en el negocio y localizar sus puntos únicos de fallo.",
+        "Diseñar la redundancia adecuada: componentes duplicados (fuentes, discos, enlaces), clústeres, balanceo de carga o réplicas en otra ubicación o zona de disponibilidad en la nube.",
+        "Valorar la dependencia de un solo proveedor para los servicios críticos y diversificar cuando el riesgo lo justifique.",
+        "Asegurar que los elementos redundantes tienen el mismo nivel de seguridad que los principales y se mantienen actualizados.",
+        "Probar la conmutación entre elementos redundantes al menos una vez al año, como práctica habitual, y tras cambios relevantes.",
+        "Supervisar el estado de los componentes redundantes para detectar cuándo se ha perdido la redundancia."
       ],
       "evidence": [
-        "Arquitectura redundante",
-        "Pruebas de conmutación"
+        "Documentación de arquitectura que muestre la redundancia de los servicios críticos.",
+        "Análisis de puntos únicos de fallo con las medidas aplicadas o los riesgos aceptados.",
+        "Informes de pruebas de conmutación con fecha, resultado y tiempo de conmutación.",
+        "Acuerdos de nivel de servicio de los proveedores que aportan la redundancia."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1462,14 +1969,21 @@
       "kind": "requirement",
       "title": "Registro de eventos",
       "officialText": "",
-      "description": "Generar y proteger registros de la actividad.",
+      "description": "Genera y conserva registros de lo que ocurre en los sistemas (accesos, cambios, errores, alertas) para detectar incidentes, investigarlos y demostrar quién hizo qué y cuándo.",
       "actions": [
-        "Definir qué se registra",
-        "Proteger los registros"
+        "Definir qué eventos se registran en cada tipo de sistema: inicios de sesión correctos y fallidos, uso de privilegios, cambios de configuración y de permisos, accesos a información sensible, alertas de seguridad y errores relevantes.",
+        "Asegurar que cada registro incluye como mínimo el usuario o proceso, la fecha y hora sincronizadas, el origen, la acción y el resultado.",
+        "Centralizar los registros en un sistema separado de los que los generan, con transmisión protegida.",
+        "Proteger los registros frente a su modificación o borrado, también por parte de los administradores de los sistemas registrados, y controlar quién puede consultarlos.",
+        "Fijar plazos de conservación según las necesidades de investigación y las obligaciones legales, por ejemplo un año como mínimo como práctica habitual, y aplicar la normativa de protección de datos a los datos personales que contienen.",
+        "Vigilar que todas las fuentes siguen enviando registros y generar una alerta cuando alguna deje de hacerlo."
       ],
       "evidence": [
-        "Política de registros",
-        "Configuración de logs"
+        "Política de registro con los eventos por tipo de sistema, el contenido mínimo y los plazos de conservación.",
+        "Configuración del registro en los sistemas críticos y de su envío al sistema central.",
+        "Controles de protección de la integridad y del acceso a los registros.",
+        "Muestras de registros que demuestren el contenido exigido y su conservación durante el plazo.",
+        "Alertas de fuentes que han dejado de enviar registros y su tratamiento."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1481,14 +1995,21 @@
       "kind": "requirement",
       "title": "Actividades de monitorización",
       "officialText": "",
-      "description": "Vigilar comportamientos anómalos en redes y sistemas.",
+      "description": "Vigila de forma activa redes, sistemas y aplicaciones en busca de comportamientos anómalos que puedan indicar un ataque o un fallo, para reaccionar antes de que el daño crezca.",
       "actions": [
-        "Monitorizar y alertar",
-        "Responder a las alertas"
+        "Definir qué se monitoriza y qué se considera comportamiento normal: tráfico de red, accesos, actividad de cuentas privilegiadas, procesos en los equipos y uso de los servicios en la nube.",
+        "Usar herramientas de correlación y detección (SIEM, EDR, detección de intrusiones en red) con reglas de alerta ajustadas a los riesgos y a la inteligencia de amenazas.",
+        "Asignar la revisión de alertas a un equipo propio o a un servicio gestionado, con horario de cobertura y tiempos de respuesta acordes a la criticidad.",
+        "Clasificar cada alerta y derivar las que lo requieran al procedimiento de gestión de incidentes.",
+        "Ajustar periódicamente las reglas para reducir falsos positivos y cubrir nuevas técnicas de ataque.",
+        "Medir la eficacia con indicadores como el tiempo medio de detección y de respuesta."
       ],
       "evidence": [
-        "Reglas de alerta",
-        "Informes de monitorización"
+        "Documento de alcance de la monitorización con fuentes, casos de uso y reglas de detección.",
+        "Registro de alertas con fecha, clasificación, analista y tratamiento.",
+        "Contrato y acuerdos de nivel de servicio del servicio de monitorización, si está externalizado.",
+        "Informes periódicos de monitorización con indicadores de detección y respuesta.",
+        "Registro de cambios en las reglas de detección."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1500,14 +2021,19 @@
       "kind": "requirement",
       "title": "Sincronización de relojes",
       "officialText": "",
-      "description": "Sincronizar los relojes para poder correlacionar eventos.",
+      "description": "Hace que todos los sistemas marquen la misma hora fiable, para que los registros de distintas fuentes puedan correlacionarse y sirvan como prueba en una investigación.",
       "actions": [
-        "Usar una fuente horaria común",
-        "Verificarla"
+        "Definir una fuente de tiempo de referencia fiable, por ejemplo servidores internos sincronizados con el Real Instituto y Observatorio de la Armada u otra fuente oficial, con fuentes redundantes.",
+        "Configurar servidores, equipos de red, puestos y servicios para que se sincronicen con esa referencia mediante NTP, protegiendo la configuración frente a cambios.",
+        "Usar una zona horaria uniforme o registrar la zona horaria en cada evento, teniendo en cuenta los cambios de horario.",
+        "Comprobar que los servicios en la nube y de terceros usan una referencia de tiempo coherente con la interna.",
+        "Supervisar las desviaciones horarias y generar una alerta cuando superen el umbral definido."
       ],
       "evidence": [
-        "Configuración de NTP",
-        "Verificaciones"
+        "Documentación de la arquitectura de sincronización y de las fuentes de tiempo.",
+        "Configuración NTP de una muestra de servidores y equipos de red.",
+        "Informes o alertas de supervisión de desviaciones horarias y su corrección.",
+        "Muestras de registros de distintas fuentes con marcas de tiempo coherentes entre sí."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1519,14 +2045,20 @@
       "kind": "requirement",
       "title": "Programas de utilidad privilegiados",
       "officialText": "",
-      "description": "Restringir el uso de utilidades capaces de saltarse controles.",
+      "description": "Controla las herramientas capaces de saltarse los controles de seguridad de sistemas y aplicaciones, como utilidades de administración, edición directa de bases de datos o captura de tráfico, para que no se usen de forma indebida.",
       "actions": [
-        "Limitar quién las usa",
-        "Registrar su uso"
+        "Identificar las utilidades que permiten eludir controles en los sistemas: herramientas de administración, consolas de bases de datos, editores de disco o de registro y herramientas de captura de tráfico.",
+        "Desinstalar las que no sean necesarias y restringir la ejecución de las demás a los administradores autorizados.",
+        "Exigir autenticación reforzada para usarlas y, cuando sea posible, ejecutarlas solo desde equipos de administración dedicados.",
+        "Registrar el uso de estas utilidades y revisar periódicamente esos registros.",
+        "Autorizar de forma expresa y temporal su uso puntual por personal no habitual, como técnicos de soporte externos.",
+        "Mantener estas utilidades separadas del software de aplicación de uso general."
       ],
       "evidence": [
-        "Listado de utilidades",
-        "Registros de uso"
+        "Relación de utilidades privilegiadas con su ubicación, finalidad y usuarios autorizados.",
+        "Configuración de las restricciones de ejecución o de permisos sobre esas utilidades.",
+        "Registros de uso de las utilidades y evidencia de su revisión.",
+        "Autorizaciones de uso temporal concedidas."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1538,14 +2070,21 @@
       "kind": "requirement",
       "title": "Instalación de software",
       "officialText": "",
-      "description": "Controlar la instalación de software en sistemas de producción.",
+      "description": "Controla qué software se instala en los sistemas, especialmente en producción, para evitar programas maliciosos, sin licencia, vulnerables o que alteren el funcionamiento de los sistemas.",
       "actions": [
-        "Definir qué se puede instalar",
-        "Aprobar las instalaciones"
+        "Definir el software autorizado y el procedimiento para solicitar, evaluar y aprobar software nuevo, incluida la valoración de su seguridad y de su licencia.",
+        "Retirar a los usuarios los privilegios de administrador local para que no puedan instalar software por su cuenta.",
+        "Instalar el software con herramientas de distribución gestionadas o desde catálogos aprobados, a partir de fuentes oficiales y comprobando su integridad.",
+        "Aplicar listas de aplicaciones permitidas en los sistemas críticos cuando el riesgo lo justifique.",
+        "En producción, instalar software y actualizaciones solo a través de la gestión de cambios, por administradores autorizados y con plan de vuelta atrás.",
+        "Detectar periódicamente el software instalado sin autorización y desinstalarlo."
       ],
       "evidence": [
-        "Política de software",
-        "Registros de instalación"
+        "Política de instalación de software y lista de software autorizado.",
+        "Registros de solicitudes y aprobaciones de software nuevo.",
+        "Configuración que limita los privilegios de instalación y, en su caso, las listas de aplicaciones permitidas.",
+        "Informes de inventario de software con el software no autorizado detectado y su retirada.",
+        "Registros de cambios de las instalaciones en producción."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1557,14 +2096,22 @@
       "kind": "requirement",
       "title": "Seguridad de las redes",
       "officialText": "",
-      "description": "Gestionar y proteger las redes.",
+      "description": "Protege las redes y los equipos que las forman para que la información que circula por ellas no se intercepte, altere o interrumpa y para que nadie se conecte sin autorización.",
       "actions": [
-        "Proteger el perímetro y los dispositivos",
-        "Documentar la red"
+        "Mantener actualizado un diagrama de red con segmentos, interconexiones, conexiones externas, equipos de seguridad y flujos principales.",
+        "Asignar responsables de la gestión de la red, separados de la operación de los sistemas cuando sea posible.",
+        "Configurar de forma segura los equipos de red (cortafuegos, conmutadores, enrutadores y puntos de acceso), con acceso de administración restringido, autenticación multifactor y firmware actualizado.",
+        "Filtrar el tráfico en los límites de la red permitiendo solo lo necesario, y cifrar las comunicaciones que atraviesan redes no confiables.",
+        "Controlar qué dispositivos se conectan a la red cableada e inalámbrica, con autenticación robusta en la wifi y una red separada para invitados.",
+        "Registrar y supervisar el tráfico y los eventos de los equipos de red.",
+        "Revisar las reglas de los cortafuegos al menos cada seis meses, como práctica habitual, y eliminar las innecesarias."
       ],
       "evidence": [
-        "Diagramas de red",
-        "Configuración de cortafuegos"
+        "Diagrama de red actualizado con fecha de revisión.",
+        "Configuración de los cortafuegos y equipos de red con las reglas justificadas.",
+        "Informes de revisión de reglas de cortafuegos con las reglas eliminadas o modificadas.",
+        "Configuración de la autenticación de la red inalámbrica y de la red de invitados.",
+        "Registros de eventos de los equipos de red centralizados."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1576,14 +2123,20 @@
       "kind": "requirement",
       "title": "Seguridad de los servicios de red",
       "officialText": "",
-      "description": "Definir los requisitos de seguridad de los servicios de red.",
+      "description": "Asegura que los servicios de red que usa la organización, propios o contratados (conectividad, VPN, DNS, protección frente a denegación de servicio, redes gestionadas), ofrecen la seguridad y el nivel de servicio que se necesitan.",
       "actions": [
-        "Exigir niveles de servicio y seguridad",
-        "Supervisarlos"
+        "Identificar los servicios de red utilizados y sus proveedores, y definir para cada uno sus requisitos de seguridad, disponibilidad y soporte.",
+        "Incluir en los contratos con los proveedores de servicios de red los requisitos de seguridad, los acuerdos de nivel de servicio, la notificación de incidentes y el derecho a obtener evidencias o auditar.",
+        "Configurar las funciones de seguridad de cada servicio: cifrado, autenticación, filtrado, protección frente a denegación de servicio y registro.",
+        "Definir las reglas de uso de los servicios de red: quién puede usarlos, desde dónde y con qué autorización.",
+        "Supervisar el cumplimiento de los niveles de servicio y de seguridad pactados con los informes del proveedor y la monitorización propia.",
+        "Revisar los servicios contratados y sus condiciones al menos una vez al año, como práctica habitual."
       ],
       "evidence": [
-        "Acuerdos de servicio",
-        "Informes"
+        "Relación de servicios de red con su proveedor, requisitos de seguridad y niveles de servicio.",
+        "Contratos y acuerdos de nivel de servicio con los proveedores de red.",
+        "Informes de cumplimiento de niveles de servicio y de incidentes de los proveedores.",
+        "Configuración de las funciones de seguridad de los servicios de red."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1595,14 +2148,20 @@
       "kind": "requirement",
       "title": "Segregación de redes",
       "officialText": "",
-      "description": "Separar la red en zonas según el riesgo.",
+      "description": "Divide la red en zonas separadas según su función y nivel de confianza, para que quien comprometa un equipo no pueda moverse libremente hasta los sistemas más críticos.",
       "actions": [
-        "Definir zonas",
-        "Controlar el tráfico entre ellas"
+        "Definir las zonas de red según el riesgo y la función, por ejemplo usuarios, servidores, producción, desarrollo, administración, invitados, dispositivos IoT y zona expuesta a internet.",
+        "Implantar la separación con VLAN, cortafuegos internos, redes virtuales en la nube o microsegmentación, según la criticidad.",
+        "Permitir entre zonas solo los flujos necesarios, documentados y aprobados, y denegar todo lo demás.",
+        "Aislar de la red corporativa la wifi de invitados y los dispositivos no gestionados.",
+        "Probar la segmentación al menos una vez al año, como práctica habitual, y tras cambios relevantes, comprobando que no existen rutas no autorizadas.",
+        "Revisar las reglas de filtrado entre zonas y eliminar las que ya no sean necesarias."
       ],
       "evidence": [
-        "Diseño de segmentación",
-        "Reglas de filtrado"
+        "Diagrama de zonas de red con su nivel de confianza y los flujos permitidos.",
+        "Matriz de flujos permitidos entre zonas con su justificación y aprobación.",
+        "Configuración de VLAN, cortafuegos internos o grupos de seguridad en la nube.",
+        "Informes de pruebas de segmentación con fecha, alcance y resultados."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1614,14 +2173,20 @@
       "kind": "requirement",
       "title": "Filtrado web",
       "officialText": "",
-      "description": "Controlar el acceso a sitios web externos.",
+      "description": "Limita el acceso a sitios web peligrosos o inadecuados para reducir la exposición a malware, phishing y descargas no autorizadas durante la navegación.",
       "actions": [
-        "Definir categorías permitidas",
-        "Aplicar el filtrado"
+        "Definir una política de navegación con las categorías de sitios bloqueadas (malware, phishing, sitios de reputación maliciosa o desconocida, contenidos ilegales) y las restringidas por motivos de negocio.",
+        "Implantar el filtrado mediante proxy, filtrado DNS, pasarela web segura o servicio en la nube que proteja también a los equipos fuera de la oficina.",
+        "Mantener actualizadas las listas de reputación y categorías mediante el servicio del fabricante.",
+        "Establecer un procedimiento para solicitar y aprobar desbloqueos justificados.",
+        "Registrar los accesos bloqueados y revisar periódicamente las tendencias y las alertas.",
+        "Informar a los usuarios del filtrado y de la supervisión de la navegación conforme a la normativa laboral y de protección de datos."
       ],
       "evidence": [
-        "Política de navegación",
-        "Configuración del filtro"
+        "Política de navegación con las categorías bloqueadas y restringidas.",
+        "Configuración de la solución de filtrado web y su cobertura de equipos dentro y fuera de la oficina.",
+        "Registros de accesos bloqueados e informes de su revisión.",
+        "Registro de solicitudes de desbloqueo con su aprobación."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1633,14 +2198,21 @@
       "kind": "requirement",
       "title": "Uso de la criptografía",
       "officialText": "",
-      "description": "Definir y aplicar reglas de uso de criptografía y claves.",
+      "description": "Usa el cifrado y la firma de forma correcta y coherente para proteger la confidencialidad, la integridad y la autenticidad de la información, y gestiona las claves para que no se pierdan ni caigan en manos ajenas.",
       "actions": [
-        "Definir la política criptográfica",
-        "Gestionar las claves"
+        "Redactar una política de criptografía que indique qué información se cifra en reposo y en tránsito según su clasificación y qué algoritmos, longitudes de clave y protocolos se admiten, siguiendo recomendaciones públicas como las del CCN o de ENISA.",
+        "Cifrar los discos de los equipos portátiles, los soportes, las comunicaciones (con versiones actuales de TLS) y las bases de datos y copias con información sensible.",
+        "Gestionar el ciclo de vida de claves y certificados: generación, distribución, almacenamiento seguro (por ejemplo, en módulos de seguridad hardware o gestores de claves), rotación, revocación, copia y destrucción.",
+        "Mantener un inventario de claves y certificados con su caducidad, propietario y uso, y vigilar su renovación.",
+        "Tener en cuenta los requisitos legales aplicables al uso de la criptografía y de la firma electrónica.",
+        "Revisar la política al menos una vez al año, como práctica habitual, para retirar algoritmos debilitados y planificar la transición a criptografía resistente a la computación cuántica."
       ],
       "evidence": [
-        "Política criptográfica",
-        "Procedimiento de claves"
+        "Política de criptografía aprobada con los algoritmos, protocolos y longitudes de clave admitidos.",
+        "Procedimiento de gestión de claves y certificados.",
+        "Inventario de claves y certificados con propietario, uso y fecha de caducidad.",
+        "Evidencias del cifrado aplicado: informes de cifrado de discos, configuración TLS de los servicios y cifrado de bases de datos y copias.",
+        "Registro de revisiones de la política y de los cambios de algoritmos."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1652,14 +2224,20 @@
       "kind": "requirement",
       "title": "Ciclo de desarrollo seguro",
       "officialText": "",
-      "description": "Aplicar reglas de seguridad al desarrollo de software.",
+      "description": "Integra la seguridad en todas las fases del desarrollo de software y sistemas, desde los requisitos hasta el mantenimiento, para evitar las vulnerabilidades en origen en lugar de corregirlas después.",
       "actions": [
-        "Definir las reglas",
-        "Aplicarlas en cada fase"
+        "Definir y aprobar un ciclo de vida de desarrollo seguro que fije las actividades de seguridad de cada fase: requisitos, diseño, codificación, pruebas, despliegue y mantenimiento.",
+        "Basar ese ciclo en marcos públicos reconocidos, como el marco de desarrollo seguro de NIST (SSDF) u OWASP SAMM, adaptados al tamaño de la organización.",
+        "Establecer puntos de control en los que no se avanza sin superar las verificaciones de seguridad previstas, como la revisión de diseño o las pruebas previas a producción.",
+        "Proteger el entorno de desarrollo, los repositorios y la cadena de integración y despliegue frente a accesos y cambios no autorizados.",
+        "Formar a los desarrolladores en desarrollo seguro y actualizar la formación con los fallos detectados en las pruebas.",
+        "Revisar el ciclo de desarrollo seguro al menos cada dos años, como práctica habitual, o tras incidentes relevantes."
       ],
       "evidence": [
-        "Política de desarrollo seguro",
-        "Evidencias de fase"
+        "Procedimiento o metodología de desarrollo seguro aprobado, con las actividades de cada fase.",
+        "Evidencias de la aplicación de las actividades de seguridad en una muestra de proyectos o versiones.",
+        "Registros de los puntos de control de seguridad superados antes de cada paso a producción.",
+        "Registros de formación en desarrollo seguro de los desarrolladores."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1671,14 +2249,20 @@
       "kind": "requirement",
       "title": "Requisitos de seguridad de aplicaciones",
       "officialText": "",
-      "description": "Identificar los requisitos de seguridad de cada aplicación.",
+      "description": "Define qué debe cumplir en seguridad cada aplicación antes de desarrollarla o comprarla, según la información que trata y su exposición, para poder diseñarla, contratarla y probarla con criterios claros.",
       "actions": [
-        "Analizar los requisitos",
-        "Aprobarlos"
+        "Identificar los requisitos de seguridad de cada aplicación a partir de la clasificación de la información, el análisis de riesgos, las obligaciones legales y su exposición a internet.",
+        "Cubrir como mínimo la autenticación y la autorización, la validación de entradas, la protección de los datos en tránsito y en reposo, el registro de eventos, la gestión de sesiones y el tratamiento de errores.",
+        "Usar catálogos de requisitos reconocidos, como OWASP ASVS, para fijar el nivel de verificación según la criticidad.",
+        "Añadir requisitos específicos en las aplicaciones que procesan transacciones o pagos: integridad de las operaciones, no repudio y protección frente a su duplicación o alteración.",
+        "Incorporar los requisitos de seguridad a los pliegos o contratos cuando la aplicación se compre o se encargue a terceros.",
+        "Hacer que el propietario de la información y el responsable de seguridad aprueben los requisitos y usarlos como criterio de aceptación en las pruebas."
       ],
       "evidence": [
-        "Especificación de requisitos",
-        "Aprobaciones"
+        "Especificación de requisitos de seguridad de cada aplicación, vinculada a su análisis de riesgos.",
+        "Aprobaciones de los requisitos por el propietario de la información y el responsable de seguridad.",
+        "Pliegos o contratos de adquisición o desarrollo externo que incluyan los requisitos de seguridad.",
+        "Resultados de las pruebas de aceptación que verifiquen los requisitos."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1690,14 +2274,19 @@
       "kind": "requirement",
       "title": "Arquitectura segura",
       "officialText": "",
-      "description": "Diseñar sistemas aplicando principios de seguridad.",
+      "description": "Aplica principios de diseño seguro a la arquitectura de sistemas y aplicaciones, para que la seguridad forme parte de su estructura y no sea una capa añadida al final.",
       "actions": [
-        "Definir principios de diseño",
-        "Revisar las arquitecturas"
+        "Documentar los principios de arquitectura segura que deben seguir los sistemas: defensa en profundidad, mínimo privilegio, denegación por defecto, fallo seguro, separación de funciones, reducción de la superficie de ataque y confianza cero.",
+        "Hacer un modelado de amenazas al diseñar sistemas nuevos o cambios significativos para identificar los riesgos y las medidas.",
+        "Revisar la arquitectura de los sistemas críticos con participación del responsable de seguridad antes de construirlos.",
+        "Exigir los mismos principios en los sistemas subcontratados y en los servicios en la nube, incluyéndolos en los contratos.",
+        "Revisar los principios al menos cada dos años, como práctica habitual, para incorporar nuevas amenazas y tecnologías."
       ],
       "evidence": [
-        "Principios de arquitectura",
-        "Revisiones"
+        "Documento de principios de arquitectura segura aprobado.",
+        "Modelos de amenazas de los sistemas nuevos o modificados de forma significativa.",
+        "Actas o informes de revisión de arquitectura con los riesgos identificados y las decisiones tomadas.",
+        "Documentación de arquitectura de los sistemas críticos que refleje la aplicación de los principios."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1709,14 +2298,21 @@
       "kind": "requirement",
       "title": "Codificación segura",
       "officialText": "",
-      "description": "Aplicar prácticas de codificación segura.",
+      "description": "Hace que el código se escriba con prácticas que evitan los errores explotables más comunes, como inyecciones, fallos de autenticación o exposición de datos, y que se compruebe antes de llegar a producción.",
       "actions": [
-        "Establecer guías de código",
-        "Revisar el código"
+        "Adoptar guías de codificación segura por lenguaje y tecnología basadas en referencias públicas como OWASP, y comunicarlas a los desarrolladores propios y externos.",
+        "Validar todas las entradas, codificar las salidas, usar consultas parametrizadas, tratar los errores sin revelar información y no incluir secretos en el código.",
+        "Integrar análisis automáticos en la cadena de integración continua: análisis estático del código, de dependencias y de secretos.",
+        "Hacer revisar el código por una persona distinta del autor antes de integrarlo, con especial atención a los cambios en funciones de seguridad.",
+        "Controlar las bibliotecas y componentes de terceros: fuentes de confianza, versiones mantenidas y actualización ante vulnerabilidades.",
+        "Formar periódicamente a los desarrolladores en las vulnerabilidades más frecuentes y en las detectadas en los productos propios."
       ],
       "evidence": [
-        "Guías de codificación",
-        "Resultados de revisión"
+        "Guías de codificación segura aprobadas y comunicadas.",
+        "Configuración de la cadena de integración con los análisis automáticos y sus resultados.",
+        "Registros de revisión de código en una muestra de cambios.",
+        "Inventario de dependencias con su versión y el estado de sus vulnerabilidades conocidas.",
+        "Registros de formación en codificación segura."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1728,14 +2324,20 @@
       "kind": "requirement",
       "title": "Pruebas de seguridad",
       "officialText": "",
-      "description": "Probar la seguridad en el desarrollo y la aceptación.",
+      "description": "Comprueba que el software y los sistemas cumplen sus requisitos de seguridad antes de ponerlos en producción y tras cada cambio relevante, para no descubrir las vulnerabilidades cuando ya están expuestas.",
       "actions": [
-        "Definir las pruebas",
-        "Ejecutarlas antes de producción"
+        "Definir un plan de pruebas de seguridad proporcionado al riesgo de cada sistema, con las pruebas a realizar, el momento, los responsables y los criterios de aceptación.",
+        "Combinar distintos tipos de prueba: análisis estático y dinámico, análisis de dependencias, pruebas funcionales de los controles de seguridad, análisis de vulnerabilidades y pruebas de intrusión en los sistemas críticos o expuestos.",
+        "Probar en un entorno representativo de producción y sin datos reales desprotegidos.",
+        "Exigir que las vulnerabilidades graves se corrijan antes del paso a producción o que su riesgo lo acepte formalmente el responsable.",
+        "Aplicar pruebas equivalentes al software adquirido o desarrollado por terceros antes de aceptarlo.",
+        "Revisar el plan de pruebas al menos cada dos años, como práctica habitual, y tras incidentes que revelen carencias."
       ],
       "evidence": [
-        "Plan de pruebas",
-        "Informes de pruebas"
+        "Política o plan de pruebas de seguridad con los tipos de prueba y los criterios de aceptación.",
+        "Informes de pruebas de seguridad de los sistemas puestos en producción o modificados, con fecha y resultados.",
+        "Registros de corrección de las vulnerabilidades encontradas o aceptaciones formales del riesgo.",
+        "Actas de aceptación previas al paso a producción."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1747,14 +2349,21 @@
       "kind": "requirement",
       "title": "Desarrollo externalizado",
       "officialText": "",
-      "description": "Supervisar el desarrollo que hacen terceros.",
+      "description": "Mantiene el control sobre la seguridad del software que terceros desarrollan por encargo, porque la responsabilidad ante clientes y reguladores sigue siendo de la organización.",
       "actions": [
-        "Fijar requisitos al proveedor",
-        "Verificar lo entregado"
+        "Incluir en los contratos de desarrollo los requisitos de seguridad, las prácticas de desarrollo seguro exigidas, la titularidad del código, la confidencialidad y el derecho a auditar u obtener evidencias.",
+        "Exigir al proveedor evidencias de sus pruebas de seguridad y una lista de los componentes de terceros incluidos en lo entregado.",
+        "Realizar pruebas de aceptación propias o independientes, incluidas pruebas de seguridad, antes de poner en producción lo entregado.",
+        "Limitar el acceso del proveedor a los entornos y repositorios de la organización a lo necesario y retirarlo al terminar.",
+        "Prever el depósito o la entrega del código fuente para el caso de que el proveedor deje de prestar el servicio.",
+        "Supervisar el cumplimiento del contrato durante el desarrollo con revisiones periódicas."
       ],
       "evidence": [
-        "Contrato de desarrollo",
-        "Informes de verificación"
+        "Contratos de desarrollo con los requisitos de seguridad, la titularidad, la confidencialidad y el derecho de auditoría.",
+        "Evidencias de las pruebas de seguridad aportadas por el proveedor.",
+        "Informes de las pruebas de aceptación de lo entregado.",
+        "Registros de concesión y retirada de los accesos del proveedor.",
+        "Actas de seguimiento del desarrollo externalizado."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1766,14 +2375,20 @@
       "kind": "requirement",
       "title": "Separación de entornos",
       "officialText": "",
-      "description": "Separar desarrollo, pruebas y producción.",
+      "description": "Mantiene separados los entornos de desarrollo, pruebas y producción para que el trabajo de desarrollo y las pruebas no afecten a los servicios reales ni expongan sus datos.",
       "actions": [
-        "Mantener entornos separados",
-        "Controlar el paso a producción"
+        "Definir los entornos necesarios (desarrollo, pruebas, preproducción y producción) y separarlos física o lógicamente, con redes y cuentas distintas y, en la nube, suscripciones o proyectos diferentes.",
+        "Restringir el acceso a producción a quienes lo necesitan para operarla y no dar a los desarrolladores permisos de escritura habituales en producción.",
+        "Establecer reglas para el paso de software entre entornos mediante la gestión de cambios y, preferiblemente, con despliegues automatizados.",
+        "Evitar en los sistemas de producción compiladores, herramientas de desarrollo y utilidades innecesarias.",
+        "Identificar visualmente cada entorno (nombres, colores, avisos) para reducir los errores de operación.",
+        "Proteger los entornos de desarrollo y pruebas con controles acordes a la información y al código que contienen."
       ],
       "evidence": [
-        "Descripción de entornos",
-        "Control de accesos"
+        "Descripción y diagrama de los entornos con su separación técnica.",
+        "Listas de acceso a cada entorno, en especial a producción, con su justificación.",
+        "Registros de despliegues entre entornos vinculados a cambios aprobados.",
+        "Configuración que demuestre la separación de redes, cuentas o suscripciones entre entornos."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1785,14 +2400,20 @@
       "kind": "requirement",
       "title": "Gestión de cambios",
       "officialText": "",
-      "description": "Controlar los cambios en sistemas y procesos.",
+      "description": "Controla los cambios en sistemas, aplicaciones e infraestructura para que se evalúen, aprueben, prueben y documenten antes de aplicarlos, evitando caídas y brechas causadas por cambios improvisados.",
       "actions": [
-        "Documentar y aprobar los cambios",
-        "Probarlos"
+        "Aprobar un procedimiento de gestión de cambios que defina los tipos de cambio (estándar, normal y urgente), los responsables y el flujo de aprobación.",
+        "Registrar cada cambio con su descripción, motivo, sistemas afectados, evaluación del impacto en la seguridad y en la operación, plan de pruebas y plan de vuelta atrás.",
+        "Exigir la aprobación del responsable correspondiente antes de ejecutar el cambio y una revisión de seguridad cuando afecte a controles o a información sensible.",
+        "Probar los cambios en un entorno distinto de producción antes de aplicarlos; los urgentes se documentan y revisan después de su ejecución.",
+        "Comunicar los cambios a los afectados y actualizar la documentación, las configuraciones de referencia y los planes de continuidad.",
+        "Revisar periódicamente los cambios realizados frente al registro para detectar cambios no autorizados."
       ],
       "evidence": [
-        "Procedimiento de cambios",
-        "Registro de cambios"
+        "Procedimiento de gestión de cambios aprobado.",
+        "Registro de cambios con descripción, evaluación de impacto, aprobación, pruebas, fecha de ejecución y resultado.",
+        "Muestras de cambios urgentes con su revisión posterior.",
+        "Informes de detección de cambios no autorizados y su tratamiento."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1804,14 +2425,20 @@
       "kind": "requirement",
       "title": "Información de prueba",
       "officialText": "",
-      "description": "Proteger los datos usados en pruebas.",
+      "description": "Evita que los datos reales, en especial los personales o confidenciales, queden expuestos al usarlos en pruebas y desarrollo, donde los controles suelen ser más débiles.",
       "actions": [
-        "Evitar datos reales sin protección",
-        "Controlar su uso"
+        "Usar por defecto datos de prueba sintéticos o anonimizados en lugar de copias de producción.",
+        "Cuando sea imprescindible usar datos reales, exigir la autorización previa del propietario de la información y, si son datos personales, comprobar que existe base jurídica para ese uso.",
+        "Enmascarar o seudonimizar los datos sensibles antes de copiarlos a los entornos de prueba.",
+        "Aplicar a los entornos que contengan datos reales los mismos controles de acceso y protección que a producción.",
+        "Registrar cada copia de información de producción a entornos de prueba con su autorización, contenido y fecha.",
+        "Eliminar los datos de prueba procedentes de producción al terminar las pruebas y dejar constancia."
       ],
       "evidence": [
-        "Política de datos de prueba",
-        "Registros"
+        "Norma sobre datos de prueba con los criterios para usar datos reales y las técnicas de protección.",
+        "Autorizaciones de uso de datos de producción en pruebas.",
+        "Registro de copias de datos a entornos de prueba y de su eliminación posterior.",
+        "Evidencia de la aplicación del enmascaramiento o la anonimización a los datos de prueba."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null
@@ -1823,14 +2450,20 @@
       "kind": "requirement",
       "title": "Auditoría y sistemas operativos",
       "officialText": "",
-      "description": "Proteger los sistemas durante las pruebas de auditoría.",
+      "description": "Evita que las auditorías, revisiones técnicas y pruebas de seguridad sobre sistemas en producción provoquen interrupciones, alteren datos o den accesos más amplios de lo necesario.",
       "actions": [
-        "Planificar las pruebas con la dirección",
-        "Limitar su alcance"
+        "Acordar previamente con la dirección y con los responsables de los sistemas el alcance, los métodos y el calendario de las auditorías y pruebas técnicas sobre sistemas en producción.",
+        "Limitar el acceso de los auditores a solo lectura siempre que sea posible y, si se necesita más, concederlo de forma temporal, supervisada y registrada.",
+        "Programar fuera de las horas críticas las pruebas que puedan afectar a la disponibilidad y preparar un plan de vuelta atrás.",
+        "Realizar el análisis sobre copias de los datos o en entornos aislados cuando la prueba pueda alterar información.",
+        "Formalizar por escrito la autorización de las pruebas de intrusión, con alcance, fechas, interlocutores y condiciones de parada.",
+        "Retirar los accesos y eliminar las herramientas, cuentas y datos usados por los auditores al terminar."
       ],
       "evidence": [
-        "Plan de auditoría",
-        "Aprobaciones"
+        "Planes de auditoría o de pruebas técnicas aprobados con alcance, métodos y calendario.",
+        "Autorizaciones escritas de las pruebas de intrusión y demás pruebas intrusivas.",
+        "Registros de los accesos concedidos a los auditores y de su retirada.",
+        "Registros de la actividad de los auditores en los sistemas."
       ],
       "source": "ISO/IEC 27001:2022, Anexo A",
       "register": null

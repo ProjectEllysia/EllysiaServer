@@ -1944,7 +1944,7 @@ class CheckRuntime:
         self._families: Tuple[_CheckFamily, ...] = (
             _CheckFamily(
                 applies_to_service=is_http_service,
-                check_matches=lambda check, service: self._applies(check),
+                check_matches=self._applies,
                 run_check=self._run_check,
             ),
             _CheckFamily(
@@ -2080,10 +2080,34 @@ class CheckRuntime:
                     findings.append(finding)
         return findings
 
-    def _applies(self, check: Check) -> bool:
-        """Return whether an ``http`` check should run in the current mode."""
+    def _applies(self, check: Check, service: Service) -> bool:
+        """Return whether an ``http`` check should run against a service in the current mode.
+
+        Un check declarado para una familia concreta (``service: nomad``) sólo
+        corre contra un servicio de esa familia, o contra uno que se sabe que
+        habla HTTP pero cuyo producto no está identificado: ese puede ser
+        cualquiera, y es justo el caso de un panel movido a otro puerto. Lo que
+        queda fuera es un servicio ya identificado como **otra** cosa: sin
+        este filtro, el check de Nomad disparaba contra un Consul porque los
+        dos publican ``/v1/agent/self``.
+
+        Args:
+            check: El check a evaluar.
+            service: El servicio contra el que correría.
+
+        Returns:
+            ``True`` si el check es de tipo ``http``, aplica al servicio y su
+            modo está permitido.
+        """
         if check.type != "http":
             return False
+        if check.service != "http":
+            belongs_to_family = _NETWORK_SERVICE_MATCHERS.get(check.service)
+            name = (service.name or "").lower()
+            is_unidentified_http = not name or name in _HTTP_SERVICE_NAMES
+            if belongs_to_family is not None and not belongs_to_family(service) \
+                    and not is_unidentified_http:
+                return False
         return self._applies_mode(check)
 
     def _applies_tls(self, check: Check) -> bool:

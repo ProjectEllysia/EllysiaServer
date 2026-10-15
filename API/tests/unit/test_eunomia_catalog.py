@@ -240,6 +240,27 @@ def test_editing_a_locked_version_is_reported(tmp_path):
     assert lock_mismatches(root) == ["demo/1 está publicada y su contenido ya no coincide con LOCK.json"]
 
 
+def test_improving_the_guidance_of_a_locked_version_keeps_the_lock(tmp_path):
+    root = _catalog_on_disk(tmp_path, "draft")
+    document = _complete(_document(status="published"))
+    path = root / "demo" / "1.json"
+    path.write_text(json.dumps(document), encoding="utf-8")
+    (root / "index.json").write_text(json.dumps({"frameworks": [{
+        "key": "demo", "name": "Demo", "shortName": "Demo", "current": "1",
+        "versions": [{"version": "1", "status": "published"}],
+    }]}), encoding="utf-8")
+    (root / "LOCK.json").write_text(json.dumps({"demo/1": file_digest(path)}), encoding="utf-8")
+    catalog_service._load_index.cache_clear()
+
+    document["nodes"][3].update(description="Qué pide, con más detalle.",
+                                actions=["Hacer", "Revisar cada año"], evidence=["Doc con su contenido"])
+    document["sources"].append({"name": "Guía", "url": "https://example.org", "license": "Citando la fuente",
+                                "consultedAt": "2026-10-14"})
+    path.write_text(json.dumps(document, indent=2), encoding="utf-8")
+
+    assert lock_mismatches(root) == []
+
+
 def test_the_digest_does_not_depend_on_line_endings(tmp_path):
     unix, windows = tmp_path / "unix.json", tmp_path / "windows.json"
     unix.write_bytes(b'{\n  "a": 1\n}\n')

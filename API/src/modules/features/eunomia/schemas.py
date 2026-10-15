@@ -4,6 +4,8 @@ from marshmallow import Schema, fields, validate
 
 from src.modules.shared.schemas import UTCDateTime
 
+from .services.applicability import CATEGORIES
+
 
 class CatalogVersionSummarySchema(Schema):
     """Una versión publicada o en borrador de un marco."""
@@ -127,6 +129,8 @@ class AdoptionSchema(Schema):
     catalogVersion = fields.String()
     currentVersion = fields.String()
     hasNewerVersion = fields.Boolean()
+    systemCategory = fields.String(allow_none=True)
+    categories = fields.List(fields.String())
     status = fields.String()
     adoptedAt = UTCDateTime()
     adoptedByUserId = fields.Integer()
@@ -165,6 +169,13 @@ class AdoptionCreateSchema(Schema):
     """Cuerpo de ``POST /eunomia/adoptions``."""
 
     frameworkKey = fields.String(required=True, validate=validate.Length(min=1, max=32))
+    systemCategory = fields.String(load_default=None, allow_none=True, validate=validate.OneOf(CATEGORIES))
+
+
+class AdoptionUpdateSchema(Schema):
+    """Cuerpo de ``PATCH /eunomia/adoptions/<marco>``."""
+
+    systemCategory = fields.String(required=True, validate=validate.OneOf(CATEGORIES))
 
 
 # ── Evaluación de controles ───────────────────────────────────────────────
@@ -213,6 +224,7 @@ class AdoptedNodeSchema(Schema):
     evidence = fields.List(fields.String())
     source = fields.String()
     metadata = fields.Dict()
+    applicability = fields.String(allow_none=True)
     suggestions = fields.List(fields.Dict())
     linkedEvidence = fields.List(fields.Dict())
     evidenceState = fields.String()
@@ -234,6 +246,8 @@ class AdoptedTreeSchema(Schema):
     people = fields.List(fields.Nested(PersonSchema))
     key = fields.String()
     version = fields.String()
+    systemCategory = fields.String(allow_none=True)
+    categories = fields.List(fields.String())
     status = fields.String()
     name = fields.String()
     shortName = fields.String()

@@ -12,6 +12,114 @@
       "url": "https://eur-lex.europa.eu/legal-content/ES/TXT/?uri=CELEX:32016R0679",
       "license": "Legislación de la UE: reutilización permitida citando la fuente (Decisión 2011/833/UE).",
       "consultedAt": "2026-10-10"
+    },
+    {
+      "name": "Ley Orgánica 3/2018, de 5 de diciembre, de Protección de Datos Personales y garantía de los derechos digitales (LOPDGDD), texto consolidado",
+      "url": "https://www.boe.es/buscar/act.php?id=BOE-A-2018-16673",
+      "license": "Ley publicada en el BOE: reutilización permitida citando la fuente (condiciones de reutilización de la Agencia Estatal BOE)",
+      "consultedAt": "2026-10-14"
+    },
+    {
+      "name": "AEPD, Guía para la notificación de brechas de datos personales (2021)",
+      "url": "https://www.aepd.es/documento/guia-brechas-seguridad.pdf",
+      "license": "CC BY-NC-ND 4.0 según la propia guía; usada como referencia, redacción propia sin copia literal",
+      "consultedAt": "2026-10-14"
+    },
+    {
+      "name": "AEPD, Directrices para la elaboración de contratos entre responsables y encargados del tratamiento",
+      "url": "https://www.aepd.es/guias/guia-directrices-contratos.pdf",
+      "license": "Usada como referencia; redacción propia",
+      "consultedAt": "2026-10-14"
+    },
+    {
+      "name": "AEPD, Guía para el cumplimiento del deber de informar",
+      "url": "https://www.aepd.es/guias/guia-modelo-clausula-informativa.pdf",
+      "license": "Usada como referencia; redacción propia",
+      "consultedAt": "2026-10-14"
+    },
+    {
+      "name": "AEPD, Listas de tipos de tratamientos que requieren evaluación de impacto (art. 35.4 RGPD)",
+      "url": "https://www.aepd.es/documento/listas-dpia-es-35-4.pdf",
+      "license": "Usada como referencia; redacción propia",
+      "consultedAt": "2026-10-14"
+    },
+    {
+      "name": "AEPD, Registro de actividades de tratamiento",
+      "url": "https://www.aepd.es/es/derechos-y-deberes/cumple-tus-deberes/medidas-de-cumplimiento/actividades-tratamiento",
+      "license": "Usada como referencia; redacción propia",
+      "consultedAt": "2026-10-14"
+    },
+    {
+      "name": "CEPD (EDPB), Directrices 9/2022 sobre la notificación de violaciones de la seguridad de los datos personales, v2.0",
+      "url": "https://www.edpb.europa.eu/system/files/2023-04/edpb_guidelines_202209_personal_data_breach_notification_v2.0_en.pdf",
+      "license": "Reutilización autorizada con fines comerciales y no comerciales citando la fuente y sin alterar su sentido (aviso de copyright del CEPD)",
+      "consultedAt": "2026-10-14"
+    },
+    {
+      "name": "CEPD (EDPB), Directrices 01/2022 sobre los derechos del interesado: derecho de acceso, v2.1",
+      "url": "https://www.edpb.europa.eu/system/files/documents/2023-04/edpb_guidelines_202201_data_subject_rights_access_v2_en.pdf",
+      "license": "Reutilización autorizada con fines comerciales y no comerciales citando la fuente y sin alterar su sentido (aviso de copyright del CEPD)",
+      "consultedAt": "2026-10-14"
+    },
+    {
+      "name": "CEPD (EDPB), Directrices 05/2020 sobre el consentimiento en el sentido del Reglamento 2016/679",
+      "url": "https://www.edpb.europa.eu/system/files/documents/files/file1/edpb_guidelines_202005_consent_en.pdf",
+      "license": "Reutilización autorizada con fines comerciales y no comerciales citando la fuente y sin alterar su sentido (aviso de copyright del CEPD)",
+      "consultedAt": "2026-10-14"
+    },
+    {
+      "name": "CEPD (EDPB), Directrices 4/2019 relativas al artículo 25: protección de datos desde el diseño y por defecto, v2.0",
+      "url": "https://www.edpb.europa.eu/sites/default/files/files/file1/edpb_guidelines_201904_dataprotection_by_design_and_by_default_v2.0_en.pdf",
+      "license": "Reutilización autorizada con fines comerciales y no comerciales citando la fuente y sin alterar su sentido (aviso de copyright del CEPD)",
+      "consultedAt": "2026-10-14"
+    },
+    {
+      "name": "CEPD (EDPB), Directrices 07/2020 sobre los conceptos de responsable y encargado del tratamiento, v2.1",
+      "url": "https://www.edpb.europa.eu/system/files/2023-10/edpb_guidelines_202007_controllerprocessor_final_en.pdf",
+      "license": "Reutilización autorizada con fines comerciales y no comerciales citando la fuente y sin alterar su sentido (aviso de copyright del CEPD)",
+      "consultedAt": "2026-10-14"
+    },
+    {
+      "name": "CEPD (EDPB), Directrices 1/2024 sobre el tratamiento basado en el artículo 6.1.f (interés legítimo), v1.0",
+      "url": "https://www.edpb.europa.eu/system/files/2024-10/edpb_guidelines_202401_legitimateinterest_en.pdf",
+      "license": "Reutilización autorizada con fines comerciales y no comerciales citando la fuente y sin alterar su sentido (aviso de copyright del CEPD)",
+      "consultedAt": "2026-10-14"
+    },
+    {
+      "name": "CEPD (EDPB), Directrices 3/2018 relativas al ámbito territorial del RGPD (artículo 3), v2.1",
+      "url": "https://www.edpb.europa.eu/sites/default/files/files/file1/edpb_guidelines_3_2018_territorial_scope_after_public_consultation_en_1.pdf",
+      "license": "Reutilización autorizada con fines comerciales y no comerciales citando la fuente y sin alterar su sentido (aviso de copyright del CEPD)",
+      "consultedAt": "2026-10-14"
+    },
+    {
+      "name": "Grupo de Trabajo del Artículo 29, Directrices sobre la transparencia (WP260 rev.01), asumidas por el CEPD",
+      "url": "https://ec.europa.eu/newsroom/article29/redirection/document/51025",
+      "license": "Usada como referencia; redacción propia",
+      "consultedAt": "2026-10-14"
+    },
+    {
+      "name": "Grupo de Trabajo del Artículo 29, Directrices sobre la evaluación de impacto relativa a la protección de datos (WP248 rev.01), asumidas por el CEPD",
+      "url": "https://ec.europa.eu/newsroom/just/document.cfm?doc_id=47711",
+      "license": "Usada como referencia; redacción propia",
+      "consultedAt": "2026-10-14"
+    },
+    {
+      "name": "Grupo de Trabajo del Artículo 29, Directrices sobre los delegados de protección de datos (WP243 rev.01), asumidas por el CEPD",
+      "url": "https://ec.europa.eu/newsroom/just/document.cfm?doc_id=44100",
+      "license": "Usada como referencia; redacción propia",
+      "consultedAt": "2026-10-14"
+    },
+    {
+      "name": "Grupo de Trabajo del Artículo 29, Directrices sobre decisiones individuales automatizadas y elaboración de perfiles (WP251 rev.01), asumidas por el CEPD",
+      "url": "https://ec.europa.eu/newsroom/article29/redirection/document/49826",
+      "license": "Usada como referencia; redacción propia",
+      "consultedAt": "2026-10-14"
+    },
+    {
+      "name": "Grupo de Trabajo del Artículo 29, Directrices sobre el derecho a la portabilidad de los datos (WP242 rev.01), asumidas por el CEPD",
+      "url": "https://ec.europa.eu/newsroom/article29/redirection/document/44099",
+      "license": "Usada como referencia; redacción propia",
+      "consultedAt": "2026-10-14"
     }
   ],
   "notes": "Capítulos II (principios), III (derechos del interesado) y IV (responsable y encargado); las obligaciones del responsable. No incluye los artículos que no imponen una obligación a la empresa (limitaciones de los Estados, códigos de conducta). La LOPDGDD, que lo completa en España, no está todavía en el catálogo. Los requisitos marcados con un registro (art. 12 a 22, 30, 33 y 34) llevarán su registro como evidencia.",
@@ -62,16 +170,21 @@
       "kind": "requirement",
       "title": "Art. 5 · Principios relativos al tratamiento",
       "officialText": "1. Los datos personales serán:\na)\ntratados de manera lícita, leal y transparente en relación con el interesado («licitud, lealtad y transparencia»);\nb)\nrecogidos con fines determinados, explícitos y legítimos, y no serán tratados ulteriormente de manera incompatible con dichos fines; de acuerdo con el artículo 89, apartado 1, el tratamiento ulterior de los datos personales con fines de archivo en interés público, fines de investigación científica e histórica o fines estadísticos no se considerará incompatible con los fines iniciales («limitación de la finalidad»);\nc)\nadecuados, pertinentes y limitados a lo necesario en relación con los fines para los que son tratados («minimización de datos»);\nd)\nexactos y, si fuera necesario, actualizados; se adoptarán todas las medidas razonables para que se supriman o rectifiquen sin dilación los datos personales que sean inexactos con respecto a los fines para los que se tratan («exactitud»);\ne)\nmantenidos de forma que se permita la identificación de los interesados durante no más tiempo del necesario para los fines del tratamiento de los datos personales; los datos personales podrán conservarse durante períodos más largos siempre que se traten exclusivamente con fines de archivo en interés público, fines de investigación científica o histórica o fines estadísticos, de conformidad con el artículo 89, apartado 1, sin perjuicio de la aplicación de las medidas técnicas y organizativas apropiadas que impone el presente Reglamento a fin de proteger los derechos y libertades del interesado («limitación del plazo de conservación»);\nf)\ntratados de tal manera que se garantice una seguridad adecuada de los datos personales, incluida la protección contra el tratamiento no autorizado o ilícito y contra su pérdida, destrucción o daño accidental, mediante la aplicación de medidas técnicas u organizativas apropiadas («integridad y confidencialidad»).\n2. El responsable del tratamiento será responsable del cumplimiento de lo dispuesto en el apartado 1 y capaz de demostrarlo («responsabilidad proactiva»).",
-      "description": "Tratar los datos con licitud, finalidad concreta, minimización, exactitud, plazo limitado y seguridad, y poder demostrarlo.",
+      "description": "Fija los principios que rigen cualquier tratamiento de datos personales: licitud, lealtad y transparencia; limitación de la finalidad; minimización; exactitud; limitación del plazo de conservación; e integridad y confidencialidad. Se aplica a toda organización que trate datos de personas físicas, sea cual sea su tamaño, desde el primer dato que recoge. Su peso práctico está en el apartado 2, la responsabilidad proactiva: no basta con cumplir, hay que poder demostrarlo documentalmente ante la AEPD.",
       "actions": [
-        "Definir la finalidad y la base de cada tratamiento",
-        "Limitar los datos y el plazo de conservación a lo necesario",
-        "Poder demostrar el cumplimiento"
+        "Inventariar cada actividad de tratamiento y fijar por escrito su finalidad concreta, para comparar con ella cualquier uso posterior antes de iniciarlo.",
+        "Revisar formulario a formulario y sistema a sistema qué datos se piden y eliminar los campos que no sean necesarios para la finalidad declarada.",
+        "Definir un plazo de conservación por categoría de dato, apoyado en la norma o el criterio que lo justifique (por ejemplo, plazos de prescripción fiscales o laborales), y al vencer suprimir los datos aplicando el bloqueo del artículo 32 de la LOPDGDD: reservados solo para jueces, Ministerio Fiscal y autoridades durante el plazo de prescripción de responsabilidades, y destruidos después.",
+        "Habilitar canales para que los interesados comuniquen cambios en sus datos y corregir o suprimir sin demora los datos que se detecten inexactos.",
+        "Aplicar medidas de seguridad proporcionales al riesgo (control de accesos por perfil, cifrado, copias de seguridad) y extender a todo el personal el deber de confidencialidad, que se mantiene tras terminar su relación con la organización (artículo 5 de la LOPDGDD).",
+        "Asignar a una persona o función la coordinación de la protección de datos y, como buena práctica, revisar al menos una vez al año que la documentación de cumplimiento sigue reflejando los tratamientos reales."
       ],
       "evidence": [
-        "Registro de actividades de tratamiento",
-        "Política de conservación",
-        "Documentación de responsabilidad proactiva"
+        "Registro de actividades de tratamiento con la finalidad, las categorías de datos y el plazo de conservación de cada tratamiento, que demuestre la limitación de la finalidad y del plazo.",
+        "Política de conservación y supresión: plazos por categoría de dato, norma o criterio que los justifica, procedimiento de bloqueo y constancia de las supresiones realizadas.",
+        "Análisis de minimización de formularios y sistemas de recogida, con los campos eliminados o justificados y la fecha de la revisión.",
+        "Compromisos de confidencialidad firmados por el personal con acceso a datos personales.",
+        "Expediente de responsabilidad proactiva: políticas aprobadas, responsables asignados y actas o informes de las revisiones periódicas."
       ],
       "source": "Reglamento (UE) 2016/679, art. 5",
       "register": null
@@ -83,14 +196,21 @@
       "kind": "requirement",
       "title": "Art. 6 · Licitud del tratamiento",
       "officialText": "1. El tratamiento solo será lícito si se cumple al menos una de las siguientes condiciones:\na)\nel interesado dio su consentimiento para el tratamiento de sus datos personales para uno o varios fines específicos;\nb)\nel tratamiento es necesario para la ejecución de un contrato en el que el interesado es parte o para la aplicación a petición de este de medidas precontractuales;\nc)\nel tratamiento es necesario para el cumplimiento de una obligación legal aplicable al responsable del tratamiento;\nd)\nel tratamiento es necesario para proteger intereses vitales del interesado o de otra persona física;\ne)\nel tratamiento es necesario para el cumplimiento de una misión realizada en interés público o en el ejercicio de poderes públicos conferidos al responsable del tratamiento;\nf)\nel tratamiento es necesario para la satisfacción de intereses legítimos perseguidos por el responsable del tratamiento o por un tercero, siempre que sobre dichos intereses no prevalezcan los intereses o los derechos y libertades fundamentales del interesado que requieran la protección de datos personales, en particular cuando el interesado sea un niño.\nLo dispuesto en la letra f) del párrafo primero no será de aplicación al tratamiento realizado por las autoridades públicas en el ejercicio de sus funciones.\n2. Los Estados miembros podrán mantener o introducir disposiciones más específicas a fin de adaptar la aplicación de las normas del presente Reglamento con respecto al tratamiento en cumplimiento del apartado 1, letras c) y e), fijando de manera más precisa requisitos específicos de tratamiento y otras medidas que garanticen un tratamiento lícito y equitativo, con inclusión de otras situaciones específicas de tratamiento a tenor del capítulo IX.\n3. La base del tratamiento indicado en el apartado 1, letras c) y e), deberá ser establecida por:\na)\nel Derecho de la Unión, o\nb)\nel Derecho de los Estados miembros que se aplique al responsable del tratamiento.\nLa finalidad del tratamiento deberá quedar determinada en dicha base jurídica o, en lo relativo al tratamiento a que se refiere el apartado 1, letra e), será necesaria para el cumplimiento de una misión realizada en interés público o en el ejercicio de poderes públicos conferidos al responsable del tratamiento. Dicha base jurídica podrá contener disposiciones específicas para adaptar la aplicación de normas del presente Reglamento, entre otras: las condiciones generales que rigen la licitud del tratamiento por parte del responsable; los tipos de datos objeto de tratamiento; los interesados afectados; las entidades a las que se pueden comunicar datos personales y los fines de tal comunicación; la limitación de la finalidad; los plazos de conservación de los datos, así como las operaciones y los procedimientos del tratamiento, incluidas las medidas para garantizar un tratamiento lícito y equitativo, como las relativas a otras situaciones específicas de tratamiento a tenor del capítulo IX. El Derecho de la Unión o de los Estados miembros cumplirá un objetivo de interés público y será proporcional al fin legítimo perseguido.\n4. Cuando el tratamiento para otro fin distinto de aquel para el que se recogieron los datos personales no esté basado en el consentimiento del interesado o en el Derecho de la Unión o de los Estados miembros que constituya una medida necesaria y proporcional en una sociedad democrática para salvaguardar los objetivos indicados en el artículo 23, apartado 1, el responsable del tratamiento, con objeto de determinar si el tratamiento con otro fin es compatible con el fin para el cual se recogieron inicialmente los datos personales, tendrá en cuenta, entre otras cosas:\na)\ncualquier relación entre los fines para los cuales se hayan recogido los datos personales y los fines del tratamiento ulterior previsto;\nb)\nel contexto en que se hayan recogido los datos personales, en particular por lo que respecta a la relación entre los interesados y el responsable del tratamiento;\nc)\nla naturaleza de los datos personales, en concreto cuando se traten categorías especiales de datos personales, de conformidad con el artículo 9, o datos personales relativos a condenas e infracciones penales, de conformidad con el artículo 10;\nd)\nlas posibles consecuencias para los interesados del tratamiento ulterior previsto;\ne)\nla existencia de garantías adecuadas, que podrán incluir el cifrado o la seudonimización.",
-      "description": "Apoyar cada tratamiento en una base jurídica válida (consentimiento, contrato, obligación legal, interés legítimo…).",
+      "description": "Todo tratamiento necesita al menos una de las seis bases jurídicas del artículo 6.1: consentimiento, ejecución de un contrato o medidas precontractuales, obligación legal, intereses vitales, misión de interés público o ejercicio de poderes públicos, e interés legítimo. La base se elige antes de empezar a tratar y condiciona los derechos que podrá ejercer el interesado, por lo que no debe cambiarse después para salvar un tratamiento. En España, la obligación legal y la misión de interés público solo sirven si las prevé una norma de la Unión o una norma con rango de ley (artículo 8 de la LOPDGDD).",
       "actions": [
-        "Identificar la base de cada tratamiento",
-        "Documentarla"
+        "Asignar a cada actividad de tratamiento la base jurídica del artículo 6.1 que le corresponde antes de iniciarla y anotarla en el registro de actividades.",
+        "Cuando la base sea una obligación legal o una misión de interés público, identificar la norma concreta de la Unión o con rango de ley, y el artículo, que la establece.",
+        "Cuando la base sea la ejecución de un contrato, comprobar que cada dato es objetivamente necesario para prestar lo contratado; lo que no lo sea necesita otra base.",
+        "Cuando la base sea el interés legítimo, realizar y fechar una evaluación en tres pasos: identificar el interés y su legitimidad, comprobar que el tratamiento es necesario para lograrlo y ponderarlo frente a los derechos y las expectativas razonables de los interesados, con las medidas de mitigación adoptadas.",
+        "No usar el interés legítimo para los tratamientos que una autoridad pública realice en el ejercicio de sus funciones, que el propio artículo 6.1 excluye.",
+        "Antes de reutilizar datos para una finalidad distinta de la original sin consentimiento ni norma que lo ampare, evaluar su compatibilidad con los factores del artículo 6.4: relación entre los fines, contexto de la recogida, naturaleza de los datos, posibles consecuencias y garantías como el cifrado o la seudonimización.",
+        "Informar a los interesados de la base jurídica de cada finalidad en la cláusula informativa."
       ],
       "evidence": [
-        "Registro de tratamientos con su base jurídica",
-        "Análisis de interés legítimo si se usa"
+        "Registro de actividades de tratamiento con la base jurídica de cada tratamiento y, si es obligación legal o interés público, la referencia a la norma que la habilita.",
+        "Evaluación de interés legítimo de cada tratamiento que se apoye en esa base, con los tres pasos, la conclusión, la fecha y quién la aprobó.",
+        "Análisis de compatibilidad de cada tratamiento ulterior con los factores del artículo 6.4 y su conclusión.",
+        "Cláusulas informativas en las que figure la base jurídica de cada finalidad."
       ],
       "source": "Reglamento (UE) 2016/679, art. 6",
       "register": null
@@ -102,14 +222,21 @@
       "kind": "requirement",
       "title": "Art. 7 · Condiciones para el consentimiento",
       "officialText": "1. Cuando el tratamiento se base en el consentimiento del interesado, el responsable deberá ser capaz de demostrar que aquel consintió el tratamiento de sus datos personales.\n2. Si el consentimiento del interesado se da en el contexto de una declaración escrita que también se refiera a otros asuntos, la solicitud de consentimiento se presentará de tal forma que se distinga claramente de los demás asuntos, de forma inteligible y de fácil acceso y utilizando un lenguaje claro y sencillo. No será vinculante ninguna parte de la declaración que constituya infracción del presente Reglamento.\n3. El interesado tendrá derecho a retirar su consentimiento en cualquier momento. La retirada del consentimiento no afectará a la licitud del tratamiento basada en el consentimiento previo a su retirada. Antes de dar su consentimiento, el interesado será informado de ello. Será tan fácil retirar el consentimiento como darlo.\n4. Al evaluar si el consentimiento se ha dado libremente, se tendrá en cuenta en la mayor medida posible el hecho de si, entre otras cosas, la ejecución de un contrato, incluida la prestación de un servicio, se supedita al consentimiento al tratamiento de datos personales que no son necesarios para la ejecución de dicho contrato.",
-      "description": "Si la base es el consentimiento, obtenerlo de forma libre, informada, inequívoca y poder demostrarlo y retirarlo.",
+      "description": "Cuando un tratamiento se apoya en el consentimiento, este debe ser libre, específico, informado e inequívoco, y la organización debe poder probar que lo obtuvo. Además, la petición tiene que distinguirse claramente de otros asuntos, retirarlo debe ser tan fácil como darlo y no puede condicionarse un contrato a consentir tratamientos que no son necesarios para él. Un consentimiento mal recogido deja sin base jurídica todo el tratamiento que se apoya en él.",
       "actions": [
-        "Pedir el consentimiento de forma clara y separada",
-        "Guardar prueba y permitir retirarlo"
+        "Pedir el consentimiento mediante una acción afirmativa clara, como marcar una casilla vacía o pulsar un botón específico; no valen el silencio, las casillas premarcadas ni la inacción.",
+        "Separar la petición del resto de condiciones y pedir un consentimiento distinto por finalidad; si se pide para varias a la vez, que conste de forma específica e inequívoca que se otorga para todas ellas (artículo 6.2 de la LOPDGDD).",
+        "Informar antes de consentir, como mínimo, de la identidad del responsable, la finalidad de cada tratamiento, los datos que se usarán y el derecho a retirar el consentimiento.",
+        "No supeditar la ejecución de un contrato o la prestación de un servicio a que el interesado consienta tratamientos que no guarden relación con esa relación contractual (artículo 7.4 del RGPD y artículo 6.3 de la LOPDGDD).",
+        "Habilitar un medio de retirada tan sencillo como el de obtención, por ejemplo el mismo canal o un enlace en cada comunicación, y dejar de tratar los datos para esa finalidad en cuanto se retire.",
+        "Guardar prueba de cada consentimiento: quién lo dio, cuándo, por qué canal, para qué finalidad y con qué versión del texto informativo.",
+        "Como buena práctica, revisar periódicamente los consentimientos antiguos y renovarlos cuando cambien la finalidad o el contexto del tratamiento."
       ],
       "evidence": [
-        "Texto y formulario de consentimiento",
-        "Registro de consentimientos"
+        "Textos y formularios de consentimiento versionados y fechados, que muestren la petición separada por finalidades y sin casillas premarcadas.",
+        "Registro de consentimientos por interesado y finalidad con fecha y hora, canal, versión del texto mostrado y estado vigente o retirado.",
+        "Registro de retiradas con su fecha y la prueba de que el tratamiento cesó para esa finalidad.",
+        "Capturas o grabaciones del flujo de obtención y del mecanismo de retirada."
       ],
       "source": "Reglamento (UE) 2016/679, art. 7",
       "register": null
@@ -121,14 +248,20 @@
       "kind": "requirement",
       "title": "Art. 8 · Condiciones aplicables al consentimiento del niño en relación con los servicios de la sociedad de la información",
       "officialText": "1. Cuando se aplique el artículo 6, apartado 1, letra a), en relación con la oferta directa a niños de servicios de la sociedad de la información, el tratamiento de los datos personales de un niño se considerará lícito cuando tenga como mínimo 16 años. Si el niño es menor de 16 años, tal tratamiento únicamente se considerará lícito si el consentimiento lo dio o autorizó el titular de la patria potestad o tutela sobre el niño, y solo en la medida en que se dio o autorizó.\nLos Estados miembros podrán establecer por ley una edad inferior a tales fines, siempre que esta no sea inferior a 13 años.\n2. El responsable del tratamiento hará esfuerzos razonables para verificar en tales casos que el consentimiento fue dado o autorizado por el titular de la patria potestad o tutela sobre el niño, teniendo en cuenta la tecnología disponible.\n3. El apartado 1 no afectará a las disposiciones generales del Derecho contractual de los Estados miembros, como las normas relativas a la validez, formación o efectos de los contratos en relación con un niño.",
-      "description": "Obtener el consentimiento de quien ejerza la patria potestad cuando se traten datos de menores de la edad exigida.",
+      "description": "Cuando se ofrecen directamente a menores servicios de la sociedad de la información (aplicaciones, redes sociales, plataformas o tiendas en línea) y el tratamiento se basa en el consentimiento, el menor solo puede consentir por sí mismo a partir de cierta edad. En España esa edad es de 14 años (artículo 7 de la LOPDGDD); por debajo hace falta el consentimiento del titular de la patria potestad o tutela, y el responsable debe hacer esfuerzos razonables para verificarlo con la tecnología disponible. No altera las normas sobre validez de los contratos celebrados con menores.",
       "actions": [
-        "Verificar la edad",
-        "Pedir autorización a los tutores"
+        "Determinar si algún servicio en línea se dirige a menores o puede ser usado por ellos y si alguno de sus tratamientos se basa en el consentimiento.",
+        "Incorporar en el alta un control de edad proporcionado al riesgo del servicio que impida a los menores de 14 años consentir por sí mismos.",
+        "Para los menores de 14 años, recabar el consentimiento del titular de la patria potestad o tutela y verificarlo con medios razonables: una confirmación por correo electrónico del progenitor puede bastar en servicios de bajo riesgo, y se requieren medios más sólidos cuando el riesgo es mayor.",
+        "Respetar los casos en que la ley exige la asistencia de los padres o tutores para celebrar el acto o contrato aunque el menor tenga más de 14 años (artículo 7.1 de la LOPDGDD).",
+        "Redactar la información dirigida a menores en un lenguaje que puedan entender.",
+        "En aplicación del principio de minimización, no pedir al menor ni al progenitor más datos de los necesarios para verificar la autorización."
       ],
       "evidence": [
-        "Procedimiento de verificación de edad",
-        "Registro de autorizaciones"
+        "Análisis del público destinatario de cada servicio en línea, con la conclusión sobre si se dirige a menores o es usado por ellos.",
+        "Procedimiento de verificación de edad y de consentimiento parental, con el método elegido y la justificación de su proporcionalidad.",
+        "Registro de autorizaciones parentales: menor afectado, titular que autoriza, fecha, alcance autorizado y medio de verificación empleado.",
+        "Textos informativos adaptados a menores, versionados y fechados."
       ],
       "source": "Reglamento (UE) 2016/679, art. 8",
       "register": null
@@ -140,14 +273,21 @@
       "kind": "requirement",
       "title": "Art. 9 · Tratamiento de categorías especiales de datos personales",
       "officialText": "1. Quedan prohibidos el tratamiento de datos personales que revelen el origen étnico o racial, las opiniones políticas, las convicciones religiosas o filosóficas, o la afiliación sindical, y el tratamiento de datos genéticos, datos biométricos dirigidos a identificar de manera unívoca a una persona física, datos relativos a la salud o datos relativos a la vida sexual o las orientación sexuales de una persona física.\n2. El apartado 1 no será de aplicación cuando concurra una de las circunstancias siguientes:\na)\nel interesado dio su consentimiento explícito para el tratamiento de dichos datos personales con uno o más de los fines especificados, excepto cuando el Derecho de la Unión o de los Estados miembros establezca que la prohibición mencionada en el apartado 1 no puede ser levantada por el interesado;\nb)\nel tratamiento es necesario para el cumplimiento de obligaciones y el ejercicio de derechos específicos del responsable del tratamiento o del interesado en el ámbito del Derecho laboral y de la seguridad y protección social, en la medida en que así lo autorice el Derecho de la Unión de los Estados miembros o un convenio colectivo con arreglo al Derecho de los Estados miembros que establezca garantías adecuadas del respeto de los derechos fundamentales y de los intereses del interesado;\nc)\nel tratamiento es necesario para proteger intereses vitales del interesado o de otra persona física, en el supuesto de que el interesado no esté capacitado, física o jurídicamente, para dar su consentimiento;\nd)\nel tratamiento es efectuado, en el ámbito de sus actividades legítimas y con las debidas garantías, por una fundación, una asociación o cualquier otro organismo sin ánimo de lucro, cuya finalidad sea política, filosófica, religiosa o sindical, siempre que el tratamiento se refiera exclusivamente a los miembros actuales o antiguos de tales organismos o a personas que mantengan contactos regulares con ellos en relación con sus fines y siempre que los datos personales no se comuniquen fuera de ellos sin el consentimiento de los interesados;\ne)\nel tratamiento se refiere a datos personales que el interesado ha hecho manifiestamente públicos;\nf)\nel tratamiento es necesario para la formulación, el ejercicio o la defensa de reclamaciones o cuando los tribunales actúen en ejercicio de su función judicial;\ng)\nel tratamiento es necesario por razones de un interés público esencial, sobre la base del Derecho de la Unión o de los Estados miembros, que debe ser proporcional al objetivo perseguido, respetar en lo esencial el derecho a la protección de datos y establecer medidas adecuadas y específicas para proteger los intereses y derechos fundamentales del interesado;\nh)\nel tratamiento es necesario para fines de medicina preventiva o laboral, evaluación de la capacidad laboral del trabajador, diagnóstico médico, prestación de asistencia o tratamiento de tipo sanitario o social, o gestión de los sistemas y servicios de asistencia sanitaria y social, sobre la base del Derecho de la Unión o de los Estados miembros o en virtud de un contrato con un profesional sanitario y sin perjuicio de las condiciones y garantías contempladas en el apartado 3;\ni)\nel tratamiento es necesario por razones de interés público en el ámbito de la salud pública, como la protección frente a amenazas transfronterizas graves para la salud, o para garantizar elevados niveles de calidad y de seguridad de la asistencia sanitaria y de los medicamentos o productos sanitarios, sobre la base del Derecho de la Unión o de los Estados miembros que establezca medidas adecuadas y específicas para proteger los derechos y libertades del interesado, en particular el secreto profesional,\nj)\nel tratamiento es necesario con fines de archivo en interés público, fines de investigación científica o histórica o fines estadísticos, de conformidad con el artículo 89, apartado 1, sobre la base del Derecho de la Unión o de los Estados miembros, que debe ser proporcional al objetivo perseguido, respetar en lo esencial el derecho a la protección de datos y establecer medidas adecuadas y específicas para proteger los intereses y derechos fundamentales del interesado.\n3. Los datos personales a que se refiere el apartado 1 podrán tratarse a los fines citados en el apartado 2, letra h), cuando su tratamiento sea realizado por un profesional sujeto a la obligación de secreto profesional, o bajo su responsabilidad, de acuerdo con el Derecho de la Unión o de los Estados miembros o con las normas establecidas por los organismos nacionales competentes, o por cualquier otra persona sujeta también a la obligación de secreto de acuerdo con el Derecho de la Unión o de los Estados miembros o de las normas establecidas por los organismos nacionales competentes.\n4. Los Estados miembros podrán mantener o introducir condiciones adicionales, inclusive limitaciones, con respecto al tratamiento de datos genéticos, datos biométricos o datos relativos a la salud.",
-      "description": "No tratar categorías especiales de datos (salud, ideología, biométricos…) salvo que concurra una excepción y se refuercen las garantías.",
+      "description": "Tratar datos que revelen origen étnico o racial, opiniones políticas, convicciones religiosas o filosóficas o afiliación sindical, así como datos genéticos, biométricos para identificar a una persona, de salud o de vida u orientación sexual, está prohibido salvo que concurra una excepción del artículo 9.2, y además hace falta una base del artículo 6. Afecta a situaciones cotidianas, como las bajas médicas de la plantilla, el fichaje con huella o el descuento de la cuota sindical en nómina. La LOPDGDD endurece el régimen: el consentimiento por sí solo no basta cuando la finalidad principal es identificar ideología, afiliación sindical, religión, orientación sexual, creencias u origen racial o étnico.",
       "actions": [
-        "Identificar si se tratan datos especiales",
-        "Documentar la excepción y las garantías"
+        "Identificar en cada actividad de tratamiento si se tratan categorías especiales, incluidos los casos indirectos como justificantes médicos, adaptaciones de puesto o control biométrico de acceso o de jornada.",
+        "Documentar para cada caso la excepción concreta del artículo 9.2 que levanta la prohibición (por ejemplo, obligaciones en materia laboral y de seguridad social, consentimiento explícito o medicina del trabajo), además de la base del artículo 6.",
+        "Si la excepción es el consentimiento explícito, obtenerlo mediante una declaración expresa y específica, como una firma o un formulario electrónico con confirmación expresa, y no usarlo cuando la finalidad principal sea identificar ideología, afiliación sindical, religión, orientación sexual, creencias u origen racial o étnico (artículo 9.1 de la LOPDGDD).",
+        "Si el tratamiento se basa en las letras g), h) o i) del artículo 9.2 y en Derecho español, identificar la norma con rango de ley que lo ampara (artículo 9.2 de la LOPDGDD).",
+        "Aplicar medidas de seguridad acordes al mayor riesgo, como acceso restringido a quien lo necesite, cifrado, separación respecto de otros datos y registro de accesos.",
+        "Valorar si se necesita una evaluación de impacto, en especial si el tratamiento es a gran escala o concurre con otros criterios de la lista de la AEPD."
       ],
       "evidence": [
-        "Inventario de datos especiales",
-        "Análisis de la excepción aplicable"
+        "Inventario de tratamientos con categorías especiales, con el tipo de dato, la excepción del artículo 9.2 aplicada y la base del artículo 6.",
+        "Declaraciones de consentimiento explícito firmadas o registradas, cuando esa sea la excepción.",
+        "Referencia a la norma con rango de ley que ampara los tratamientos basados en las letras g), h) o i) del artículo 9.2.",
+        "Relación de medidas de seguridad específicas y de las personas autorizadas a acceder a estos datos.",
+        "Análisis de la necesidad de evaluación de impacto o la evaluación realizada."
       ],
       "source": "Reglamento (UE) 2016/679, art. 9",
       "register": null
@@ -159,13 +299,19 @@
       "kind": "requirement",
       "title": "Art. 10 · Tratamiento de datos personales relativos a condenas e infracciones penales",
       "officialText": "El tratamiento de datos personales relativos a condenas e infracciones penales o medidas de seguridad conexas sobre la base del artículo 6, apartado 1, sólo podrá llevarse a cabo bajo la supervisión de las autoridades públicas o cuando lo autorice el Derecho de la Unión o de los Estados miembros que establezca garantías adecuadas para los derechos y libertades de los interesados. Solo podrá llevarse un registro completo de condenas penales bajo el control de las autoridades públicas.",
-      "description": "Tratar datos de condenas e infracciones penales solo bajo el control de la autoridad o con autorización legal.",
+      "description": "Los datos sobre condenas e infracciones penales, y según la LOPDGDD también sobre procedimientos y medidas cautelares y de seguridad conexas, solo pueden tratarse bajo control de la autoridad pública o cuando lo autorice una norma de la Unión, la propia LOPDGDD u otra norma con rango de ley. Fuera de esos casos, la LOPDGDD solo lo permite a abogados y procuradores respecto de la información que les facilitan sus clientes. En una empresa suele aparecer al pedir certificados de antecedentes penales o de delitos sexuales en procesos de selección.",
       "actions": [
-        "Identificar tratamientos de este tipo",
-        "Documentar la habilitación legal"
+        "Identificar todos los tratamientos que incluyen datos penales, como certificados de antecedentes, certificados del Registro Central de Delincuentes Sexuales o información sobre procesos penales de empleados o clientes.",
+        "Para cada uno, identificar la norma de la Unión o con rango de ley que lo habilita (por ejemplo, la exigencia legal del certificado de delitos sexuales para puestos con contacto habitual con menores) y no tratar estos datos si no existe.",
+        "Limitar el tratamiento a lo que la norma permite y, en aplicación de la minimización, valorar si basta con anotar que se ha comprobado el certificado en lugar de conservar una copia.",
+        "No crear registros completos de condenas penales, que solo pueden llevarse bajo control de las autoridades públicas.",
+        "Restringir el acceso a estos datos a las personas que lo necesiten y fijarles un plazo de conservación corto y definido."
       ],
       "evidence": [
-        "Habilitación legal documentada"
+        "Inventario de tratamientos con datos penales y, para cada uno, la norma habilitante citada con su artículo.",
+        "Procedimiento de comprobación de certificados que indique quién los revisa, qué se anota y qué se conserva.",
+        "Política de conservación con el plazo aplicado a estos datos y constancia de su supresión.",
+        "Relación de personas autorizadas a acceder a estos datos."
       ],
       "source": "Reglamento (UE) 2016/679, art. 10",
       "register": null
@@ -177,13 +323,18 @@
       "kind": "requirement",
       "title": "Art. 11 · Tratamiento que no requiere identificación",
       "officialText": "1. Si los fines para los cuales un responsable trata datos personales no requieren o ya no requieren la identificación de un interesado por el responsable, este no estará obligado a mantener, obtener o tratar información adicional con vistas a identificar al interesado con la única finalidad de cumplir el presente Reglamento.\n2. Cuando, en los casos a que se refiere el apartado 1 del presente artículo, el responsable sea capaz de demostrar que no está en condiciones de identificar al interesado, le informará en consecuencia, de ser posible. En tales casos no se aplicarán los artículos 15 a 20, excepto cuando el interesado, a efectos del ejercicio de sus derechos en virtud de dichos artículos, facilite información adicional que permita su identificación.",
-      "description": "Cuando no se identifica al interesado, no estar obligado a conservar datos solo para poder atender sus derechos.",
+      "description": "Si los fines de un tratamiento no requieren identificar a las personas, o han dejado de requerirlo, el responsable no está obligado a obtener ni conservar información adicional solo para poder identificarlas y atender sus derechos. Si puede demostrar que no está en condiciones de identificar al interesado, debe informarle cuando sea posible, y no se aplican los derechos de los artículos 15 a 20 salvo que el interesado aporte información que permita identificarlo. Es relevante en tratamientos con datos seudonimizados o agregados.",
       "actions": [
-        "Valorar si se puede identificar al interesado",
-        "Documentar la decisión"
+        "Identificar los tratamientos cuyos fines no requieren identificar a las personas, como estadísticas, analítica agregada o datos seudonimizados sin acceso a la clave, y documentarlo.",
+        "No recoger ni conservar identificadores adicionales con el único fin de poder atender derechos en esos tratamientos.",
+        "Ante una solicitud de derechos sobre esos datos, comprobar si realmente no es posible identificar al solicitante y, si es así, comunicárselo de forma motivada cuando sea posible.",
+        "Si el interesado aporta información adicional que permite identificarlo en el conjunto de datos, atender su solicitud conforme a los artículos 15 a 20.",
+        "Como buena práctica, revisar periódicamente que los datos siguen sin permitir la identificación, en especial cuando se combinen con otras fuentes."
       ],
       "evidence": [
-        "Análisis de identificabilidad"
+        "Análisis de identificabilidad por tratamiento, con la conclusión y sus motivos, como las técnicas aplicadas o quién custodia las claves de seudonimización.",
+        "Respuestas a solicitudes de derechos en las que se comunica motivadamente la imposibilidad de identificar al solicitante.",
+        "Constancia de las solicitudes atendidas tras aportar el interesado información adicional."
       ],
       "source": "Reglamento (UE) 2016/679, art. 11",
       "register": null
@@ -195,14 +346,23 @@
       "kind": "requirement",
       "title": "Art. 12 · Transparencia de la información, comunicación y modalidades de ejercicio de los derechos del interesado",
       "officialText": "1. El responsable del tratamiento tomará las medidas oportunas para facilitar al interesado toda información indicada en los artículos 13 y 14, así como cualquier comunicación con arreglo a los artículos 15 a 22 y 34 relativa al tratamiento, en forma concisa, transparente, inteligible y de fácil acceso, con un lenguaje claro y sencillo, en particular cualquier información dirigida específicamente a un niño. La información será facilitada por escrito o por otros medios, inclusive, si procede, por medios electrónicos. Cuando lo solicite el interesado, la información podrá facilitarse verbalmente siempre que se demuestre la identidad del interesado por otros medios.\n2. El responsable del tratamiento facilitará al interesado el ejercicio de sus derechos en virtud de los artículos 15 a 22. En los casos a que se refiere el artículo 11, apartado 2, el responsable no se negará a actuar a petición del interesado con el fin de ejercer sus derechos en virtud de los artículos 15 a 22, salvo que pueda demostrar que no está en condiciones de identificar al interesado.\n3. El responsable del tratamiento facilitará al interesado información relativa a sus actuaciones sobre la base de una solicitud con arreglo a los artículos 15 a 22, y, en cualquier caso, en el plazo de un mes a partir de la recepción de la solicitud. Dicho plazo podrá prorrogarse otros dos meses en caso necesario, teniendo en cuenta la complejidad y el número de solicitudes. El responsable informará al interesado de cualquiera de dichas prórrogas en el plazo de un mes a partir de la recepción de la solicitud, indicando los motivos de la dilación. Cuando el interesado presente la solicitud por medios electrónicos, la información se facilitará por medios electrónicos cuando sea posible, a menos que el interesado solicite que se facilite de otro modo.\n4. Si el responsable del tratamiento no da curso a la solicitud del interesado, le informará sin dilación, y a más tardar transcurrido un mes de la recepción de la solicitud, de las razones de su no actuación y de la posibilidad de presentar una reclamación ante una autoridad de control y de ejercitar acciones judiciales.\n5. La información facilitada en virtud de los artículos 13 y 14 así como toda comunicación y cualquier actuación realizada en virtud de los artículos 15 a 22 y 34 serán a título gratuito. Cuando las solicitudes sean manifiestamente infundadas o excesivas, especialmente debido a su carácter repetitivo, el responsable del tratamiento podrá:\na)\ncobrar un canon razonable en función de los costes administrativos afrontados para facilitar la información o la comunicación o realizar la actuación solicitada, o\nb)\nnegarse a actuar respecto de la solicitud.\nEl responsable del tratamiento soportará la carga de demostrar el carácter manifiestamente infundado o excesivo de la solicitud.\n6. Sin perjuicio de lo dispuesto en el artículo 11, cuando el responsable del tratamiento tenga dudas razonables en relación con la identidad de la persona física que cursa la solicitud a que se refieren los artículos 15 a 21, podrá solicitar que se facilite la información adicional necesaria para confirmar la identidad del interesado.\n7. La información que deberá facilitarse a los interesados en virtud de los artículos 13 y 14 podrá transmitirse en combinación con iconos normalizados que permitan proporcionar de forma fácilmente visible, inteligible y claramente legible una adecuada visión de conjunto del tratamiento previsto. Los iconos que se presenten en formato electrónico serán legibles mecánicamente.\n8. La Comisión estará facultada para adoptar actos delegados de conformidad con el artículo 92 a fin de especificar la información que se ha de presentar a través de iconos y los procedimientos para proporcionar iconos normalizados.",
-      "description": "Informar y atender los derechos de las personas de forma transparente, en un mes (prorrogable dos más).",
+      "description": "Fija cómo debe informarse a las personas y cómo deben atenderse sus derechos: con información concisa, transparente, inteligible y de fácil acceso, en lenguaje claro, y respondiendo a las solicitudes sin dilación indebida y como máximo en un mes desde su recepción. Afecta a todo responsable y a cada solicitud de acceso, rectificación, supresión, limitación, portabilidad, oposición o relativa a decisiones automatizadas. La atención es gratuita salvo solicitudes manifiestamente infundadas o excesivas, y la prueba de haber respondido corresponde al responsable (artículo 12.4 de la LOPDGDD).",
       "actions": [
-        "Establecer un procedimiento de atención de derechos",
-        "Responder en plazo y sin coste"
+        "Publicar canales fácilmente accesibles para ejercer los derechos, como un correo específico y un formulario, e informar de ellos, sin denegar una solicitud porque el interesado use otro medio (artículo 12.2 de la LOPDGDD).",
+        "Registrar cada solicitud al recibirla y responderla sin dilación indebida y como máximo en un mes; si hace falta prorrogar hasta dos meses más por la complejidad o el número de solicitudes, comunicarlo al interesado dentro del primer mes indicando los motivos.",
+        "Verificar la identidad del solicitante solo cuando haya dudas razonables, pidiendo únicamente la información adicional necesaria para confirmarla.",
+        "Si se decide no atender la solicitud, comunicarlo en el plazo de un mes con los motivos y la indicación de que puede reclamar ante la AEPD y acudir a los tribunales.",
+        "Atender gratuitamente y, solo ante solicitudes manifiestamente infundadas o excesivas, en especial repetitivas, cobrar un canon razonable o negarse, documentando por qué lo son.",
+        "Admitir las solicitudes presentadas por representante legal o voluntario y, en el caso de menores de 14 años, por los titulares de la patria potestad (artículo 12 de la LOPDGDD).",
+        "Si un encargado tramita las solicitudes por cuenta del responsable, dejarlo previsto en el contrato de encargo con la forma y el plazo para hacerlo (artículo 12.3 de la LOPDGDD).",
+        "Responder por medios electrónicos cuando la solicitud llegue por esa vía, salvo que el interesado pida otro medio."
       ],
       "evidence": [
-        "Procedimiento de ejercicio de derechos",
-        "Registro de solicitudes y respuestas"
+        "Procedimiento de atención de derechos con los canales, los responsables internos, los criterios de verificación de identidad y los plazos.",
+        "Registro de solicitudes de derechos: fecha de entrada, derecho ejercido, identidad verificada, prórroga y su motivo, respuesta y fecha de respuesta, para demostrar el plazo de un mes.",
+        "Copias de las respuestas enviadas y prueba de su envío o entrega.",
+        "Expedientes de las solicitudes denegadas o cobradas, con la motivación de su carácter infundado o excesivo.",
+        "Capturas de la web o de los documentos en los que se informa de los canales para ejercer los derechos."
       ],
       "source": "Reglamento (UE) 2016/679, art. 12",
       "register": "rights_requests"
@@ -214,14 +374,22 @@
       "kind": "requirement",
       "title": "Art. 13 · Información que deberá facilitarse cuando los datos personales se obtengan del interesado",
       "officialText": "1. Cuando se obtengan de un interesado datos personales relativos a él, el responsable del tratamiento, en el momento en que estos se obtengan, le facilitará toda la información indicada a continuación:\na)\nla identidad y los datos de contacto del responsable y, en su caso, de su representante;\nb)\nlos datos de contacto del delegado de protección de datos, en su caso;\nc)\nlos fines del tratamiento a que se destinan los datos personales y la base jurídica del tratamiento;\nd)\ncuando el tratamiento se base en el artículo 6, apartado 1, letra f), los intereses legítimos del responsable o de un tercero;\ne)\nlos destinatarios o las categorías de destinatarios de los datos personales, en su caso;\nf)\nen su caso, la intención del responsable de transferir datos personales a un tercer país u organización internacional y la existencia o ausencia de una decisión de adecuación de la Comisión, o, en el caso de las transferencias indicadas en los artículos 46 o 47 o el artículo 49, apartado 1, párrafo segundo, referencia a las garantías adecuadas o apropiadas y a los medios para obtener una copia de estas o al hecho de que se hayan prestado.\n2. Además de la información mencionada en el apartado 1, el responsable del tratamiento facilitará al interesado, en el momento en que se obtengan los datos personales, la siguiente información necesaria para garantizar un tratamiento de datos leal y transparente:\na)\nel plazo durante el cual se conservarán los datos personales o, cuando no sea posible, los criterios utilizados para determinar este plazo;\nb)\nla existencia del derecho a solicitar al responsable del tratamiento el acceso a los datos personales relativos al interesado, y su rectificación o supresión, o la limitación de su tratamiento, o a oponerse al tratamiento, así como el derecho a la portabilidad de los datos;\nc)\ncuando el tratamiento esté basado en el artículo 6, apartado 1, letra a), o el artículo 9, apartado 2, letra a), la existencia del derecho a retirar el consentimiento en cualquier momento, sin que ello afecte a la licitud del tratamiento basado en el consentimiento previo a su retirada;\nd)\nel derecho a presentar una reclamación ante una autoridad de control;\ne)\nsi la comunicación de datos personales es un requisito legal o contractual, o un requisito necesario para suscribir un contrato, y si el interesado está obligado a facilitar los datos personales y está informado de las posibles consecuencias de que no facilitar tales datos;\nf)\nla existencia de decisiones automatizas, incluida la elaboración de perfiles, a que se refiere el artículo 22, apartados 1 y 4, y, al menos en tales casos, información significativa sobre la lógica aplicada, así como la importancia y las consecuencias previstas de dicho tratamiento para el interesado.\n3. Cuando el responsable del tratamiento proyecte el tratamiento ulterior de datos personales para un fin que no sea aquel para el que se recogieron, proporcionará al interesado, con anterioridad a dicho tratamiento ulterior, información sobre ese otro fin y cualquier información adicional pertinente a tenor del apartado 2.\n4. Las disposiciones de los apartados 1, 2 y 3 no serán aplicables cuando y en la medida en que el interesado ya disponga de la información.",
-      "description": "Informar a la persona, al recoger sus datos, de quién los trata, para qué, con qué base y qué derechos tiene.",
+      "description": "Cuando los datos se recogen del propio interesado (formularios, contratos, alta de clientes, selección de personal, videovigilancia), hay que informarle en ese mismo momento de quién trata sus datos, para qué, con qué base jurídica, a quién se comunican, cuánto tiempo se conservan y qué derechos tiene, entre otros extremos. La LOPDGDD (artículo 11) permite hacerlo por capas: una información básica en el punto de recogida y el resto accesible de forma sencilla e inmediata. Sin esta información el tratamiento no es transparente y, si se apoya en el consentimiento, este no es válido.",
       "actions": [
-        "Redactar la información por capas",
-        "Facilitarla en el momento de la recogida"
+        "Listar todos los puntos de recogida de datos (web, formularios en papel, teléfono, correo, cámaras, contratos, procesos de selección) y asignar a cada uno su cláusula informativa.",
+        "Incluir en la primera capa, como mínimo, la identidad del responsable y de su representante si lo hay, la finalidad y la posibilidad de ejercer los derechos de los artículos 15 a 22, junto con una dirección electrónica u otro medio para acceder al resto de la información (artículo 11 de la LOPDGDD).",
+        "Si los datos se van a usar para elaborar perfiles, indicarlo en la primera capa junto con el derecho a oponerse a decisiones automatizadas con efectos significativos, cuando proceda (artículo 11.2 de la LOPDGDD).",
+        "Como recomienda la AEPD, añadir también en la primera capa la base jurídica y los destinatarios.",
+        "Completar la segunda capa con todo lo exigido por el artículo 13: contacto del delegado de protección de datos, base jurídica e interés legítimo perseguido, destinatarios, transferencias internacionales y sus garantías, plazo de conservación o criterios, derechos (incluida la retirada del consentimiento y la reclamación ante la AEPD), obligatoriedad de facilitar los datos y sus consecuencias, y lógica de las decisiones automatizadas.",
+        "Facilitar la información en el mismo medio de recogida: texto junto al formulario, locución en las llamadas, cartel en las zonas videovigiladas.",
+        "Antes de usar los datos para una finalidad distinta, informar al interesado de esa nueva finalidad (artículo 13.3).",
+        "Versionar las cláusulas, revisarlas cada vez que cambie un tratamiento y comunicar a los interesados los cambios sustanciales."
       ],
       "evidence": [
-        "Cláusulas informativas",
-        "Capturas de los puntos de recogida"
+        "Inventario de puntos de recogida con la cláusula asignada a cada uno.",
+        "Cláusulas informativas de primera y segunda capa, versionadas y fechadas, que contengan todos los extremos del artículo 13.",
+        "Capturas de pantalla, fotografías de carteles o guiones de locución que prueben que la información se da en el momento de la recogida.",
+        "Historial de cambios de la política de privacidad y comunicaciones enviadas a los interesados cuando el cambio es sustancial."
       ],
       "source": "Reglamento (UE) 2016/679, art. 13",
       "register": null
@@ -233,14 +401,20 @@
       "kind": "requirement",
       "title": "Art. 14 · Información que deberá facilitarse cuando los datos personales no se hayan obtenido del interesado",
       "officialText": "1. Cuando los datos personales no se hayan obtenidos del interesado, el responsable del tratamiento le facilitará la siguiente información:\na)\nla identidad y los datos de contacto del responsable y, en su caso, de su representante;\nb)\nlos datos de contacto del delegado de protección de datos, en su caso;\nc)\nlos fines del tratamiento a que se destinan los datos personales, así como la base jurídica del tratamiento;\nd)\nlas categorías de datos personales de que se trate;\ne)\nlos destinatarios o las categorías de destinatarios de los datos personales, en su caso;\nf)\nen su caso, la intención del responsable de transferir datos personales a un destinatario en un tercer país u organización internacional y la existencia o ausencia de una decisión de adecuación de la Comisión, o, en el caso de las transferencias indicadas en los artículos 46 o 47 o el artículo 49, apartado 1, párrafo segundo, referencia a las garantías adecuadas o apropiadas y a los medios para obtener una copia de ellas o al hecho de que se hayan prestado.\n2. Además de la información mencionada en el apartado 1, el responsable del tratamiento facilitará al interesado la siguiente información necesaria para garantizar un tratamiento de datos leal y transparente respecto del interesado:\na)\nel plazo durante el cual se conservarán los datos personales o, cuando eso no sea posible, los criterios utilizados para determinar este plazo;\nb)\ncuando el tratamiento se base en el artículo 6, apartado 1, letra f), los intereses legítimos del responsable del tratamiento o de un tercero;\nc)\nla existencia del derecho a solicitar al responsable del tratamiento el acceso a los datos personales relativos al interesado, y su rectificación o supresión, o la limitación de su tratamiento, y a oponerse al tratamiento, así como el derecho a la portabilidad de los datos;\nd)\ncuando el tratamiento esté basado en el artículo 6, apartado 1, letra a), o el artículo 9, apartado 2, letra a), la existencia del derecho a retirar el consentimiento en cualquier momento, sin que ello afecte a la licitud del tratamiento basada en el consentimiento antes de su retirada;\ne)\nel derecho a presentar una reclamación ante una autoridad de control;\nf)\nla fuente de la que proceden los datos personales y, en su caso, si proceden de fuentes de acceso público;\ng)\nla existencia de decisiones automatizadas, incluida la elaboración de perfiles, a que se refiere el artículo 22, apartados 1 y 4, y, al menos en tales casos, información significativa sobre la lógica aplicada, así como la importancia y las consecuencias previstas de dicho tratamiento para el interesado.\n3. El responsable del tratamiento facilitará la información indicada en los apartados 1 y 2:\na)\ndentro de un plazo razonable, una vez obtenidos los datos personales, y a más tardar dentro de un mes, habida cuenta de las circunstancias específicas en las que se traten dichos datos;\nb)\nsi los datos personales han de utilizarse para comunicación con el interesado, a más tardar en el momento de la primera comunicación a dicho interesado, o\nc)\nsi está previsto comunicarlos a otro destinatario, a más tardar en el momento en que los datos personales sean comunicados por primera vez.\n4. Cuando el responsable del tratamiento proyecte el tratamiento ulterior de los datos personales para un fin que no sea aquel para el que se obtuvieron, proporcionará al interesado, antes de dicho tratamiento ulterior, información sobre ese otro fin y cualquier otra información pertinente indicada en el apartado 2.\n5. Las disposiciones de los apartados 1 a 4 no serán aplicables cuando y en la medida en que:\na)\nel interesado ya disponga de la información;\nb)\nla comunicación de dicha información resulte imposible o suponga un esfuerzo desproporcionado, en particular para el tratamiento con fines de archivo en interés público, fines de investigación científica o histórica o fines estadísticos, a reserva de las condiciones y garantías indicadas en el artículo 89, apartado 1, o en la medida en que la obligación mencionada en el apartado 1 del presente artículo pueda imposibilitar u obstaculizar gravemente el logro de los objetivos de tal tratamiento. En tales casos, el responsable adoptará medidas adecuadas para proteger los derechos, libertades e intereses legítimos del interesado, inclusive haciendo pública la información;\nc)\nla obtención o la comunicación esté expresamente establecida por el Derecho de la Unión o de los Estados miembros que se aplique al responsable del tratamiento y que establezca medidas adecuadas para proteger los intereses legítimos del interesado, o\nd)\ncuando los datos personales deban seguir teniendo carácter confidencial sobre la base de una obligación de secreto profesional regulada por el Derecho de la Unión o de los Estados miembros, incluida una obligación de secreto de naturaleza estatutaria.",
-      "description": "Informar a la persona cuando sus datos no vienen de ella, en el plazo que fija el Reglamento.",
+      "description": "Cuando los datos no proceden del propio interesado (bases de datos adquiridas o cedidas, fuentes públicas, datos que un cliente aporta sobre terceros, referencias de candidatos), también hay que informarle, añadiendo las categorías de datos tratadas y la fuente de la que proceden. El plazo es razonable y como máximo de un mes desde la obtención, o antes si los datos se usan para contactar con él o se comunican a otro destinatario. Solo hay excepciones tasadas, como que informar resulte imposible o exija un esfuerzo desproporcionado.",
       "actions": [
-        "Identificar los datos obtenidos de terceros",
-        "Informar en plazo"
+        "Identificar los tratamientos que se alimentan de datos no facilitados por el interesado y anotar la fuente de cada uno.",
+        "Informar en un plazo razonable y como máximo en un mes desde la obtención; si los datos se usan para comunicarse con el interesado, a más tardar en la primera comunicación; si se van a comunicar a otro destinatario, a más tardar en el momento de esa primera comunicación.",
+        "Incluir, además de la información del artículo 13, las categorías de datos tratados y su fuente, indicando si es de acceso público; la primera capa debe recoger ambas (artículo 11.3 de la LOPDGDD).",
+        "Si se invoca una excepción del artículo 14.5 (el interesado ya dispone de la información, informar es imposible o desproporcionado, una norma lo establece o existe secreto profesional), documentar por qué concurre.",
+        "Cuando se aplique la excepción de esfuerzo desproporcionado, adoptar medidas para proteger los derechos de los interesados, incluida la publicación de la información, por ejemplo en la web.",
+        "Como buena práctica, exigir por escrito a quien cede los datos garantías de que la comunicación es lícita."
       ],
       "evidence": [
-        "Procedimiento de información",
-        "Registro de comunicaciones"
+        "Relación de tratamientos con datos de terceros, con la fuente, la fecha de obtención y la fecha en que se informó, para demostrar el plazo.",
+        "Cláusulas informativas específicas que incluyan las categorías de datos y su fuente.",
+        "Justificación documentada de cada excepción del artículo 14.5 aplicada y de las medidas alternativas, como la información publicada.",
+        "Contratos o garantías de licitud firmados con los proveedores de los datos."
       ],
       "source": "Reglamento (UE) 2016/679, art. 14",
       "register": null
@@ -252,14 +426,22 @@
       "kind": "requirement",
       "title": "Art. 15 · Derecho de acceso del interesado",
       "officialText": "1. El interesado tendrá derecho a obtener del responsable del tratamiento confirmación de si se están tratando o no datos personales que le conciernen y, en tal caso, derecho de acceso a los datos personales y a la siguiente información:\na)\nlos fines del tratamiento;\nb)\nlas categorías de datos personales de que se trate;\nc)\nlos destinatarios o las categorías de destinatarios a los que se comunicaron o serán comunicados los datos personales, en particular destinatarios en terceros u organizaciones internacionales;\nd)\nde ser posible, el plazo previsto de conservación de los datos personales o, de no ser posible, los criterios utilizados para determinar este plazo;\ne)\nla existencia del derecho a solicitar del responsable la rectificación o supresión de datos personales o la limitación del tratamiento de datos personales relativos al interesado, o a oponerse a dicho tratamiento;\nf)\nel derecho a presentar una reclamación ante una autoridad de control;\ng)\ncuando los datos personales no se hayan obtenido del interesado, cualquier información disponible sobre su origen;\nh)\nla existencia de decisiones automatizadas, incluida la elaboración de perfiles, a que se refiere el artículo 22, apartados 1 y 4, y, al menos en tales casos, información significativa sobre la lógica aplicada, así como la importancia y las consecuencias previstas de dicho tratamiento para el interesado.\n2. Cuando se transfieran datos personales a un tercer país o a una organización internacional, el interesado tendrá derecho a ser informado de las garantías adecuadas en virtud del artículo 46 relativas a la transferencia.\n3. El responsable del tratamiento facilitará una copia de los datos personales objeto de tratamiento. El responsable podrá percibir por cualquier otra copia solicitada por el interesado un canon razonable basado en los costes administrativos. Cuando el interesado presente la solicitud por medios electrónicos, y a menos que este solicite que se facilite de otro modo, la información se facilitará en un formato electrónico de uso común.\n4. El derecho a obtener copia mencionado en el apartado 3 no afectará negativamente a los derechos y libertades de otros.",
-      "description": "Atender el derecho de acceso: confirmar si se tratan los datos y dar una copia.",
+      "description": "Toda persona puede preguntar si una organización trata sus datos y, en caso afirmativo, obtener una copia junto con la información del artículo 15: fines, categorías, destinatarios, plazo de conservación, derechos, origen, decisiones automatizadas y garantías de las transferencias internacionales. Es el derecho más ejercido y suele ser la puerta de entrada a los demás. Se responde en el plazo general de un mes, la primera copia es gratuita y debe ser completa, no un resumen.",
       "actions": [
-        "Verificar la identidad",
-        "Entregar la copia y la información exigida"
+        "Confirmar al solicitante si se tratan o no sus datos, también cuando la respuesta sea negativa.",
+        "Localizar los datos del solicitante en todos los sistemas (bases de clientes, correo, gestión comercial, archivos en papel y sistemas de los encargados) y entregar una copia completa en un formato comprensible.",
+        "Acompañar la copia de la información del artículo 15.1: fines, categorías de datos, destinatarios, plazo de conservación, derechos de rectificación, supresión, limitación y oposición, derecho a reclamar ante la AEPD, origen de los datos, existencia y lógica de decisiones automatizadas y garantías de las transferencias internacionales.",
+        "Si se trata una gran cantidad de datos del solicitante y no concreta su petición, pedirle antes de responder que especifique a qué datos o actividades se refiere (artículo 13.1 de la LOPDGDD).",
+        "Entregar la copia por un medio seguro y, si la solicitud llegó por vía electrónica, en un formato electrónico de uso común salvo que pida otro; también es válido ofrecer un acceso remoto, directo y seguro a la totalidad de sus datos (artículo 13.2 de la LOPDGDD).",
+        "Ocultar o separar los datos de terceros y la información cuya entrega afecte a derechos ajenos, sin negar por ello el resto de la información.",
+        "Considerar posiblemente repetitivo el ejercicio del derecho más de una vez en seis meses salvo causa legítima, y repercutir el exceso de coste solo si el interesado elige un medio desproporcionadamente caro (artículos 13.3 y 13.4 de la LOPDGDD).",
+        "Cobrar las copias adicionales solo con un canon razonable basado en los costes administrativos."
       ],
       "evidence": [
-        "Procedimiento de acceso",
-        "Registro de respuestas"
+        "Registro de solicitudes de derechos con cada acceso: fecha de entrada, identidad verificada, sistemas consultados, fecha de respuesta y medio de entrega.",
+        "Copia de cada respuesta enviada, con la información del artículo 15.1 y la relación de datos entregados.",
+        "Motivación documentada de las limitaciones aplicadas, como datos de terceros ocultos, solicitudes repetitivas o canon cobrado.",
+        "Mapa de los sistemas que contienen datos personales, usado para localizar los datos del solicitante."
       ],
       "source": "Reglamento (UE) 2016/679, art. 15",
       "register": "rights_requests"
@@ -271,14 +453,21 @@
       "kind": "requirement",
       "title": "Art. 16 · Derecho de rectificación",
       "officialText": "El interesado tendrá derecho a obtener sin dilación indebida del responsable del tratamiento la rectificación de los datos personales inexactos que le conciernan. Teniendo en cuenta los fines del tratamiento, el interesado tendrá derecho a que se completen los datos personales que sean incompletos, inclusive mediante una declaración adicional.",
-      "description": "Rectificar sin dilación los datos inexactos o incompletos.",
+      "description": "El interesado puede pedir que se corrijan sus datos inexactos y que se completen los incompletos, incluso mediante una declaración adicional. La organización debe hacerlo sin dilación indebida, dentro del plazo general de un mes, y trasladar la corrección a quienes recibieron los datos. Mantener datos erróneos puede causar perjuicios reales, como facturas mal emitidas o inclusiones indebidas en ficheros de morosos, y vulnera el principio de exactitud.",
       "actions": [
-        "Establecer el procedimiento",
-        "Comunicar la rectificación a los destinatarios"
+        "Pedir al solicitante que indique qué datos quiere corregir y cuál es la corrección, y que aporte documentación justificativa cuando sea necesaria (artículo 14 de la LOPDGDD).",
+        "Comprobar la inexactitud alegada y rectificar el dato en todos los sistemas donde figure, incluidos los de los encargados, dentro del plazo de un mes.",
+        "Completar los datos incompletos, incluso añadiendo una declaración del interesado cuando proceda según los fines del tratamiento.",
+        "Bloquear el dato anterior al rectificarlo, conservándolo reservado solo para jueces, Ministerio Fiscal y autoridades durante el plazo de prescripción de responsabilidades (artículo 32 de la LOPDGDD).",
+        "Comunicar la rectificación a cada destinatario al que se hayan comunicado los datos, salvo que sea imposible o exija un esfuerzo desproporcionado.",
+        "Mientras se verifica la exactitud, limitar el tratamiento si el interesado lo solicita.",
+        "Si se deniega por considerar que los datos son exactos, responder de forma motivada e informar del derecho a reclamar ante la AEPD."
       ],
       "evidence": [
-        "Procedimiento de rectificación",
-        "Registro de rectificaciones"
+        "Registro de solicitudes de derechos con las rectificaciones: fecha de entrada, dato corregido, documentación aportada, sistemas actualizados y fecha de respuesta.",
+        "Comunicaciones de la rectificación enviadas a los destinatarios, con su fecha.",
+        "Respuestas motivadas de denegación, cuando las haya.",
+        "Constancia del bloqueo del dato anterior cuando se haya aplicado."
       ],
       "source": "Reglamento (UE) 2016/679, art. 16",
       "register": "rights_requests"
@@ -290,14 +479,22 @@
       "kind": "requirement",
       "title": "Art. 17 · Derecho de supresión («el derecho al olvido»)",
       "officialText": "1. El interesado tendrá derecho a obtener sin dilación indebida del responsable del tratamiento la supresión de los datos personales que le conciernan, el cual estará obligado a suprimir sin dilación indebida los datos personales cuando concurra alguna de las circunstancias siguientes:\na)\nlos datos personales ya no sean necesarios en relación con los fines para los que fueron recogidos o tratados de otro modo;\nb)\nel interesado retire el consentimiento en que se basa el tratamiento de conformidad con el artículo 6, apartado 1, letra a), o el artículo 9, apartado 2, letra a), y este no se base en otro fundamento jurídico;\nc)\nel interesado se oponga al tratamiento con arreglo al artículo 21, apartado 1, y no prevalezcan otros motivos legítimos para el tratamiento, o el interesado se oponga al tratamiento con arreglo al artículo 21, apartado 2;\nd)\nlos datos personales hayan sido tratados ilícitamente;\ne)\nlos datos personales deban suprimirse para el cumplimiento de una obligación legal establecida en el Derecho de la Unión o de los Estados miembros que se aplique al responsable del tratamiento;\nf)\nlos datos personales se hayan obtenido en relación con la oferta de servicios de la sociedad de la información mencionados en el artículo 8, apartado 1.\n2. Cuando haya hecho públicos los datos personales y esté obligado, en virtud de lo dispuesto en el apartado 1, a suprimir dichos datos, el responsable del tratamiento, teniendo en cuenta la tecnología disponible y el coste de su aplicación, adoptará medidas razonables, incluidas medidas técnicas, con miras a informar a los responsables que estén tratando los datos personales de la solicitud del interesado de supresión de cualquier enlace a esos datos personales, o cualquier copia o réplica de los mismos.\n3. Los apartados 1 y 2 no se aplicarán cuando el tratamiento sea necesario:\na)\npara ejercer el derecho a la libertad de expresión e información;\nb)\npara el cumplimiento de una obligación legal que requiera el tratamiento de datos impuesta por el Derecho de la Unión o de los Estados miembros que se aplique al responsable del tratamiento, o para el cumplimiento de una misión realizada en interés público o en el ejercicio de poderes públicos conferidos al responsable;\nc)\npor razones de interés público en el ámbito de la salud pública de conformidad con el artículo 9, apartado 2, letras h) e i), y apartado 3;\nd)\ncon fines de archivo en interés público, fines de investigación científica o histórica o fines estadísticos, de conformidad con el artículo 89, apartado 1, en la medida en que el derecho indicado en el apartado 1 pudiera hacer imposible u obstaculizar gravemente el logro de los objetivos de dicho tratamiento, o\ne)\npara la formulación, el ejercicio o la defensa de reclamaciones.",
-      "description": "Suprimir los datos cuando proceda («derecho al olvido») y comunicarlo a quien se cedieron.",
+      "description": "El interesado puede pedir que se borren sus datos cuando ya no sean necesarios, retire el consentimiento, se oponga con éxito, el tratamiento sea ilícito, lo exija una obligación legal o se recogieran de un menor en un servicio en línea. No es un derecho absoluto: cede, entre otros casos, ante la necesidad de cumplir una obligación legal o de formular o defender reclamaciones (artículo 17.3). En España, suprimir conlleva bloquear previamente los datos durante el plazo de prescripción de las responsabilidades (artículo 32 de la LOPDGDD).",
       "actions": [
-        "Valorar cada solicitud",
-        "Suprimir y comunicar"
+        "Analizar cada solicitud frente a los supuestos del artículo 17.1 y, si se deniega total o parcialmente, identificar la excepción concreta del artículo 17.3 (obligación legal, reclamaciones, libertad de expresión, salud pública, archivo o investigación).",
+        "Suprimir los datos sin dilación indebida, y en todo caso dentro del plazo de un mes, en todos los sistemas, incluidos los de los encargados y las copias de trabajo.",
+        "Bloquear los datos suprimidos con medidas técnicas y organizativas que impidan su tratamiento y su visualización, dejándolos solo a disposición de jueces, Ministerio Fiscal y autoridades durante el plazo de prescripción de las responsabilidades, y destruirlos después (artículo 32 de la LOPDGDD).",
+        "Si la supresión deriva de una oposición a la mercadotecnia directa, conservar solo los datos identificativos imprescindibles para no volver a enviar comunicaciones (artículo 15.2 de la LOPDGDD).",
+        "Si los datos se hicieron públicos, adoptar medidas razonables, incluidas las técnicas, para informar a los responsables que los traten de que el interesado pide suprimir enlaces, copias o réplicas.",
+        "Comunicar la supresión a cada destinatario de los datos, salvo imposibilidad o esfuerzo desproporcionado.",
+        "Como buena práctica, definir el tratamiento de las copias de seguridad: si no admiten borrado selectivo, impedir que los datos se restauren o usen y eliminarlos al rotar las copias."
       ],
       "evidence": [
-        "Procedimiento de supresión",
-        "Registro de supresiones"
+        "Registro de solicitudes de derechos con las supresiones: fecha de entrada, supuesto del artículo 17.1 o excepción aplicada, sistemas afectados y fecha de ejecución.",
+        "Registro de bloqueos: datos bloqueados, fecha, plazo de prescripción aplicado y fecha prevista de destrucción.",
+        "Lista de exclusión de mercadotecnia con los datos mínimos conservados y su finalidad.",
+        "Comunicaciones de supresión enviadas a los destinatarios y, en su caso, a otros responsables que publicaron los datos.",
+        "Respuestas motivadas cuando se deniega la supresión."
       ],
       "source": "Reglamento (UE) 2016/679, art. 17",
       "register": "rights_requests"
@@ -309,14 +506,19 @@
       "kind": "requirement",
       "title": "Art. 18 · Derecho a la limitación del tratamiento",
       "officialText": "1. El interesado tendrá derecho a obtener del responsable del tratamiento la limitación del tratamiento de los datos cuando se cumpla alguna de las condiciones siguientes:\na)\nel interesado impugne la exactitud de los datos personales, durante un plazo que permita al responsable verificar la exactitud de los mismos;\nb)\nel tratamiento sea ilícito y el interesado se oponga a la supresión de los datos personales y solicite en su lugar la limitación de su uso;\nc)\nel responsable ya no necesite los datos personales para los fines del tratamiento, pero el interesado los necesite para la formulación, el ejercicio o la defensa de reclamaciones;\nd)\nel interesado se haya opuesto al tratamiento en virtud del artículo 21, apartado 1, mientras se verifica si los motivos legítimos del responsable prevalecen sobre los del interesado.\n2. Cuando el tratamiento de datos personales se haya limitado en virtud del apartado 1, dichos datos solo podrán ser objeto de tratamiento, con excepción de su conservación, con el consentimiento del interesado o para la formulación, el ejercicio o la defensa de reclamaciones, o con miras a la protección de los derechos de otra persona física o jurídica o por razones de interés público importante de la Unión o de un determinado Estado miembro.\n3. Todo interesado que haya obtenido la limitación del tratamiento con arreglo al apartado 1 será informado por el responsable antes del levantamiento de dicha limitación.",
-      "description": "Limitar el tratamiento cuando la persona lo pida en los supuestos previstos.",
+      "description": "Limitar el tratamiento significa marcar los datos para que, mientras dure la limitación, solo se conserven y no se usen salvo excepciones. Procede cuando el interesado impugna la exactitud, mientras se verifica; cuando el tratamiento es ilícito pero prefiere limitarlo antes que borrarlo; cuando el responsable ya no necesita los datos pero el interesado sí, para reclamaciones; y mientras se resuelve una oposición. La LOPDGDD exige que la limitación conste claramente en los sistemas de información del responsable.",
       "actions": [
-        "Marcar los datos como limitados",
-        "Controlar su uso"
+        "Comprobar que la solicitud encaja en uno de los cuatro supuestos del artículo 18.1 y responder dentro del plazo de un mes.",
+        "Marcar los datos limitados en los sistemas de forma visible para quien los consulte, mediante un indicador de estado, el traslado a un entorno separado o el bloqueo del acceso, de modo que la limitación conste claramente (artículo 16.2 de la LOPDGDD).",
+        "Mientras dure la limitación, no tratar los datos más que para conservarlos, salvo con consentimiento del interesado, para reclamaciones, para proteger los derechos de otra persona o por razones de interés público importante.",
+        "Comunicar la limitación a los destinatarios de los datos, salvo imposibilidad o esfuerzo desproporcionado.",
+        "Informar al interesado antes de levantar la limitación y anotar la fecha y el motivo del levantamiento."
       ],
       "evidence": [
-        "Procedimiento de limitación",
-        "Registro de limitaciones"
+        "Registro de solicitudes de derechos con las limitaciones: supuesto del artículo 18.1, datos y tratamientos afectados, fecha de inicio y de levantamiento.",
+        "Captura o informe técnico que muestre la marca de limitación en los sistemas.",
+        "Comunicaciones enviadas al interesado antes de levantar la limitación.",
+        "Comunicaciones de la limitación a los destinatarios."
       ],
       "source": "Reglamento (UE) 2016/679, art. 18",
       "register": "rights_requests"
@@ -328,13 +530,19 @@
       "kind": "requirement",
       "title": "Art. 19 · Obligación de notificación relativa a la rectificación o supresión de datos personales o la limitación del tratamiento",
       "officialText": "El responsable del tratamiento comunicará cualquier rectificación o supresión de datos personales o limitación del tratamiento efectuada con arreglo al artículo 16, al artículo 17, apartado 1, y al artículo 18 a cada uno de los destinatarios a los que se hayan comunicado los datos personales, salvo que sea imposible o exija un esfuerzo desproporcionado. El responsable informará al interesado acerca de dichos destinatarios, si este así lo solicita.",
-      "description": "Notificar a los destinatarios las rectificaciones, supresiones o limitaciones, salvo esfuerzo desproporcionado.",
+      "description": "Cuando se rectifican, suprimen o limitan datos a petición del interesado, el responsable debe comunicarlo a cada destinatario al que se los haya comunicado (encargados, empresas del grupo, gestorías, aseguradoras, administraciones), para que el cambio sea efectivo también fuera de la organización. Solo queda exento si la comunicación es imposible o exige un esfuerzo desproporcionado. Además, si el interesado lo pide, hay que informarle de quiénes son esos destinatarios.",
       "actions": [
-        "Identificar a los destinatarios",
-        "Notificar los cambios"
+        "Mantener actualizada, por actividad de tratamiento, la relación de destinatarios a los que se comunican los datos, para saber en cada caso a quién avisar.",
+        "Tras cada rectificación, supresión o limitación, identificar qué destinatarios recibieron los datos de esa persona y comunicarles el cambio por un canal que deje constancia.",
+        "Como buena práctica, incluir en los contratos de encargo y en los acuerdos de cesión la obligación del destinatario de aplicar los cambios comunicados y confirmarlo.",
+        "Si se considera que la comunicación es imposible o exige un esfuerzo desproporcionado, documentar el análisis concreto que lo justifica.",
+        "Informar al interesado de la identidad de los destinatarios cuando lo solicite."
       ],
       "evidence": [
-        "Registro de notificaciones a destinatarios"
+        "Relación actualizada de destinatarios por actividad de tratamiento.",
+        "Registro de notificaciones a destinatarios: solicitud de origen, destinatario, fecha de envío, contenido comunicado y, si se obtuvo, confirmación.",
+        "Justificación documentada de cada caso en que no se comunicó por imposibilidad o esfuerzo desproporcionado.",
+        "Respuestas enviadas al interesado con la relación de destinatarios cuando la pidió."
       ],
       "source": "Reglamento (UE) 2016/679, art. 19",
       "register": null
@@ -346,14 +554,21 @@
       "kind": "requirement",
       "title": "Art. 20 · Derecho a la portabilidad de los datos",
       "officialText": "1. El interesado tendrá derecho a recibir los datos personales que le incumban, que haya facilitado a un responsable del tratamiento, en un formato estructurado, de uso común y lectura mecánica, y a transmitirlos a otro responsable del tratamiento sin que lo impida el responsable al que se los hubiera facilitado, cuando:\na)\nel tratamiento esté basado en el consentimiento con arreglo al artículo 6, apartado 1, letra a), o el artículo 9, apartado 2, letra a), o en un contrato con arreglo al artículo 6, apartado 1, letra b), y\nb)\nel tratamiento se efectúe por medios automatizados.\n2. Al ejercer su derecho a la portabilidad de los datos de acuerdo con el apartado 1, el interesado tendrá derecho a que los datos personales se transmitan directamente de responsable a responsable cuando sea técnicamente posible.\n3. El ejercicio del derecho mencionado en el apartado 1 del presente artículo se entenderá sin perjuicio del artículo 17. Tal derecho no se aplicará al tratamiento que sea necesario para el cumplimiento de una misión realizada en interés público o en el ejercicio de poderes públicos conferidos al responsable del tratamiento.\n4. El derecho mencionado en el apartado 1 no afectará negativamente a los derechos y libertades de otros.",
-      "description": "Entregar los datos en un formato estructurado y de uso común cuando se ejerza la portabilidad.",
+      "description": "El interesado puede recibir los datos que él mismo facilitó en un formato estructurado, de uso común y de lectura mecánica, y transmitirlos a otro responsable, o pedir que se transmitan directamente cuando sea técnicamente posible. Solo se aplica a tratamientos automatizados basados en el consentimiento o en un contrato, no a los basados en obligación legal, interés legítimo o interés público. Según el criterio europeo, incluye los datos facilitados activamente y los observados por el uso del servicio, pero no los inferidos o derivados por el responsable.",
       "actions": [
-        "Definir el formato de exportación",
-        "Atender la solicitud"
+        "Identificar qué tratamientos están sujetos a portabilidad (automatizados y basados en consentimiento o contrato) y qué datos entran: los aportados por el interesado y los observados por su actividad, excluyendo los inferidos o derivados, como puntuaciones o perfiles.",
+        "Preparar una exportación en un formato estructurado, de uso común y legible por máquina, como CSV, JSON o XML, acompañada de metadatos que permitan interpretarla.",
+        "Responder dentro del plazo general de un mes, prorrogable dos más, y de forma gratuita.",
+        "Cuando el interesado lo pida y sea técnicamente posible, transmitir los datos directamente al nuevo responsable por un canal seguro.",
+        "Verificar la identidad del solicitante y entregar los datos por un medio seguro, como una descarga autenticada o un enlace cifrado.",
+        "Revisar si el conjunto exportado contiene datos de terceros y evitar que la entrega afecte negativamente a sus derechos.",
+        "Tener en cuenta que la portabilidad no implica suprimir los datos: si el interesado también quiere la supresión, tramitarla como solicitud del artículo 17."
       ],
       "evidence": [
-        "Procedimiento de portabilidad",
-        "Registro de entregas"
+        "Análisis de los tratamientos sujetos a portabilidad y de las categorías de datos incluidas y excluidas.",
+        "Especificación del formato de exportación (estructura, campos y codificación) y un ejemplo de fichero generado.",
+        "Registro de solicitudes de derechos con las portabilidades: fecha de entrada, verificación de identidad, datos entregados, medio o destinatario de la transmisión y fecha.",
+        "Prueba de la entrega o de la transmisión segura."
       ],
       "source": "Reglamento (UE) 2016/679, art. 20",
       "register": "rights_requests"
@@ -365,14 +580,22 @@
       "kind": "requirement",
       "title": "Art. 21 · Derecho de oposición",
       "officialText": "1. El interesado tendrá derecho a oponerse en cualquier momento, por motivos relacionados con su situación particular, a que datos personales que le conciernan sean objeto de un tratamiento basado en lo dispuesto en el artículo 6, apartado 1, letras e) o f), incluida la elaboración de perfiles sobre la base de dichas disposiciones. El responsable del tratamiento dejará de tratar los datos personales, salvo que acredite motivos legítimos imperiosos para el tratamiento que prevalezcan sobre los intereses, los derechos y las libertades del interesado, o para la formulación, el ejercicio o la defensa de reclamaciones.\n2. Cuando el tratamiento de datos personales tenga por objeto la mercadotecnia directa, el interesado tendrá derecho a oponerse en todo momento al tratamiento de los datos personales que le conciernan, incluida la elaboración de perfiles en la medida en que esté relacionada con la citada mercadotecnia.\n3. Cuando el interesado se oponga al tratamiento con fines de mercadotecnia directa, los datos personales dejarán de ser tratados para dichos fines.\n4. A más tardar en el momento de la primera comunicación con el interesado, el derecho indicado en los apartados 1 y 2 será mencionado explícitamente al interesado y será presentado claramente y al margen de cualquier otra información.\n5. En el contexto de la utilización de servicios de la sociedad de la información, y no obstante lo dispuesto en la Directiva 2002/58/CE, el interesado podrá ejercer su derecho a oponerse por medios automatizados que apliquen especificaciones técnicas.\n6. Cuando los datos personales se traten con fines de investigación científica o histórica o fines estadísticos de conformidad con el artículo 89, apartado 1, el interesado tendrá derecho, por motivos relacionados con su situación particular, a oponerse al tratamiento de datos personales que le conciernan, salvo que sea necesario para el cumplimiento de una misión realizada por razones de interés público.",
-      "description": "Atender la oposición al tratamiento y dejar de tratar salvo motivos legítimos imperiosos.",
+      "description": "El interesado puede oponerse en cualquier momento, por motivos relacionados con su situación particular, a los tratamientos basados en interés legítimo o en interés público, incluida la elaboración de perfiles; el responsable debe dejar de tratar salvo que acredite motivos legítimos imperiosos que prevalezcan o necesite los datos para reclamaciones. Frente a la mercadotecnia directa la oposición es absoluta y el cese, inmediato. El derecho debe mencionarse de forma explícita, clara y separada a más tardar en la primera comunicación con el interesado.",
       "actions": [
-        "Valorar cada oposición",
-        "Cesar el tratamiento o justificar la continuidad"
+        "Mencionar el derecho de oposición en la primera comunicación con el interesado, de forma explícita y separada de cualquier otra información.",
+        "Ante una oposición a un tratamiento basado en interés legítimo o interés público, dejar de tratar los datos y, si se pretende continuar, documentar los motivos legítimos imperiosos que prevalecen o la necesidad para reclamaciones, y comunicárselos al interesado.",
+        "Ante una oposición a la mercadotecnia directa, cesar ese tratamiento sin ponderación alguna e incluir al interesado en la lista interna de exclusión.",
+        "Antes de cada campaña de mercadotecnia directa, consultar los sistemas de exclusión publicitaria, como la Lista Robinson, y excluir a quienes figuren en ellos (artículo 23.4 de la LOPDGDD).",
+        "Cuando un interesado manifieste que no quiere recibir comunicaciones comerciales, informarle de los sistemas de exclusión publicitaria existentes (artículo 23.3 de la LOPDGDD).",
+        "En servicios en línea, permitir que la oposición se ejerza por medios automatizados que apliquen especificaciones técnicas.",
+        "Responder dentro del plazo general de un mes y, mientras se valora la oposición, limitar el tratamiento si el interesado lo pide."
       ],
       "evidence": [
-        "Procedimiento de oposición",
-        "Registro de decisiones"
+        "Registro de solicitudes de derechos con las oposiciones: tratamiento afectado, motivo alegado, decisión y fecha del cese o motivación de la continuidad.",
+        "Ponderaciones documentadas de los motivos legítimos imperiosos cuando se continúa tratando.",
+        "Lista interna de exclusión de mercadotecnia actualizada.",
+        "Constancia fechada de la consulta a los sistemas de exclusión publicitaria antes de cada campaña.",
+        "Cláusulas o primeras comunicaciones en las que figura el derecho de oposición de forma separada."
       ],
       "source": "Reglamento (UE) 2016/679, art. 21",
       "register": "rights_requests"
@@ -384,14 +607,22 @@
       "kind": "requirement",
       "title": "Art. 22 · Decisiones individuales automatizadas, incluida la elaboración de perfiles",
       "officialText": "1. Todo interesado tendrá derecho a no ser objeto de una decisión basada únicamente en el tratamiento automatizado, incluida la elaboración de perfiles, que produzca efectos jurídicos en él o le afecte significativamente de modo similar.\n2. El apartado 1 no se aplicará si la decisión:\na)\nes necesaria para la celebración o la ejecución de un contrato entre el interesado y un responsable del tratamiento;\nb)\nestá autorizada por el Derecho de la Unión o de los Estados miembros que se aplique al responsable del tratamiento y que establezca asimismo medidas adecuadas para salvaguardar los derechos y libertades y los intereses legítimos del interesado, o\nc)\nse basa en el consentimiento explícito del interesado.\n3. En los casos a que se refiere el apartado 2, letras a) y c), el responsable del tratamiento adoptará las medidas adecuadas para salvaguardar los derechos y libertades y los intereses legítimos del interesado, como mínimo el derecho a obtener intervención humana por parte del responsable, a expresar su punto de vista y a impugnar la decisión.\n4. Las decisiones a que se refiere el apartado 2 no se basarán en las categorías especiales de datos personales contempladas en el artículo 9, apartado 1, salvo que se aplique el artículo 9, apartado 2, letra a) o g), y se hayan tomado medidas adecuadas para salvaguardar los derechos y libertades y los intereses legítimos del interesado.",
-      "description": "No someter a decisiones basadas únicamente en tratamiento automatizado con efectos significativos, salvo excepciones y garantías.",
+      "description": "Las personas tienen derecho a no ser objeto de decisiones basadas únicamente en un tratamiento automatizado, incluida la elaboración de perfiles, que produzcan efectos jurídicos sobre ellas o les afecten significativamente de modo similar, como denegar un crédito o descartar a un candidato sin intervención humana. Solo se permiten si son necesarias para un contrato, las autoriza una norma con garantías o hay consentimiento explícito; en los casos de contrato y consentimiento, el responsable debe garantizar al menos intervención humana, que el interesado exprese su punto de vista y que pueda impugnar la decisión. Con el uso creciente de herramientas de puntuación e inteligencia artificial, conviene revisarlo aunque se crea que no aplica.",
       "actions": [
-        "Identificar decisiones automatizadas",
-        "Ofrecer intervención humana"
+        "Inventariar los procesos en los que un sistema (algoritmo, puntuación, regla automática o herramienta de inteligencia artificial) decide sin intervención humana significativa y valorar si producen efectos jurídicos o similarmente significativos.",
+        "Para cada decisión de ese tipo, identificar la excepción del artículo 22.2 que la permite (necesidad contractual, autorización legal o consentimiento explícito) y, si no hay ninguna, introducir revisión humana o dejar de aplicarla.",
+        "Garantizar que la intervención humana sea real: una persona con autoridad y competencia para cambiar la decisión, que revise todos los datos relevantes y no se limite a confirmar el resultado del sistema.",
+        "En las decisiones basadas en contrato o consentimiento, habilitar un canal para que el interesado obtenga intervención humana, exprese su punto de vista e impugne la decisión.",
+        "No basar estas decisiones en categorías especiales de datos salvo consentimiento explícito o interés público esencial, con medidas adecuadas de protección.",
+        "Informar de la existencia de la decisión automatizada, de la lógica aplicada y de su importancia y consecuencias previstas, tanto en la cláusula informativa como en las respuestas de acceso.",
+        "Valorar si procede una evaluación de impacto, ya que las decisiones automatizadas con efectos significativos figuran entre los criterios de la lista de la AEPD."
       ],
       "evidence": [
-        "Inventario de decisiones automatizadas",
-        "Garantías aplicadas"
+        "Inventario de decisiones automatizadas: qué decide el sistema, con qué datos, qué efectos tiene y qué excepción del artículo 22.2 la permite.",
+        "Procedimiento de revisión humana que indique quién revisa, con qué autoridad y con qué criterios, y registro de las revisiones solicitadas e impugnaciones resueltas.",
+        "Cláusulas informativas que expliquen la lógica y las consecuencias de la decisión automatizada.",
+        "Evaluación de impacto de estos tratamientos o análisis documentado de su necesidad.",
+        "Consentimientos explícitos, cuando sean la excepción aplicada."
       ],
       "source": "Reglamento (UE) 2016/679, art. 22",
       "register": null
@@ -403,14 +634,21 @@
       "kind": "requirement",
       "title": "Art. 24 · Responsabilidad del responsable del tratamiento",
       "officialText": "1. Teniendo en cuenta la naturaleza, el ámbito, el contexto y los fines del tratamiento así como los riesgos de diversa probabilidad y gravedad para los derechos y libertades de las personas físicas, el responsable del tratamiento aplicará medidas técnicas y organizativas apropiadas a fin de garantizar y poder demostrar que el tratamiento es conforme con el presente Reglamento. Dichas medidas se revisarán y actualizarán cuando sea necesario.\n2. Cuando sean proporcionadas en relación con las actividades de tratamiento, entre las medidas mencionadas en el apartado 1 se incluirá la aplicación, por parte del responsable del tratamiento, de las oportunas políticas de protección de datos.\n3. La adhesión a códigos de conducta aprobados a tenor del artículo 40 o a un mecanismo de certificación aprobado a tenor del artículo 42 podrán ser utilizados como elementos para demostrar el cumplimiento de las obligaciones por parte del responsable del tratamiento.",
-      "description": "Aplicar medidas técnicas y organizativas adecuadas y poder demostrar que el tratamiento cumple el Reglamento.",
+      "description": "El responsable debe aplicar medidas técnicas y organizativas apropiadas a la naturaleza, el ámbito, el contexto y los fines del tratamiento y a los riesgos para las personas, y debe poder demostrar que trata los datos conforme al RGPD. Las medidas se revisan y actualizan cuando cambian las circunstancias. La LOPDGDD (artículo 28) concreta los supuestos de mayor riesgo que deben considerarse, como el tratamiento de menores o de categorías especiales, la elaboración de perfiles o el tratamiento masivo de datos.",
       "actions": [
-        "Evaluar riesgos de los tratamientos",
-        "Adoptar y revisar las medidas"
+        "Realizar y documentar un análisis de riesgos para los derechos y libertades de las personas en cada actividad de tratamiento, considerando los supuestos de mayor riesgo del artículo 28.2 de la LOPDGDD: discriminación, fraude o suplantación, categorías especiales, perfiles, colectivos vulnerables, tratamientos masivos y transferencias habituales fuera del Espacio Económico Europeo, entre otros.",
+        "A partir del análisis, decidir las medidas técnicas y organizativas de cada tratamiento y valorar si procede una evaluación de impacto o una consulta previa (artículo 28.1 de la LOPDGDD).",
+        "Aprobar en la dirección una política de protección de datos proporcionada a la actividad que asigne funciones y responsabilidades internas.",
+        "Como medida organizativa, formar al personal que trata datos personales en sus obligaciones y en los procedimientos internos.",
+        "Revisar las medidas y el análisis de riesgos cuando cambie un tratamiento, se incorpore una tecnología o se produzca un incidente y, como buena práctica, al menos una vez al año.",
+        "Valorar la adhesión a un código de conducta aprobado o a un mecanismo de certificación como elemento para demostrar el cumplimiento."
       ],
       "evidence": [
-        "Documentación de medidas",
-        "Revisiones periódicas"
+        "Análisis de riesgos por actividad de tratamiento, fechado, con los riesgos identificados, su valoración y las medidas decididas.",
+        "Política de protección de datos aprobada por la dirección, con fecha y versión.",
+        "Registro de formación del personal: contenidos, asistentes y fechas.",
+        "Informes o actas de revisión periódica de las medidas, con las acciones derivadas.",
+        "Certificados o adhesiones a códigos de conducta, si existen."
       ],
       "source": "Reglamento (UE) 2016/679, art. 24",
       "register": null
@@ -422,14 +660,20 @@
       "kind": "requirement",
       "title": "Art. 25 · Protección de datos desde el diseño y por defecto",
       "officialText": "1. Teniendo en cuenta el estado de la técnica, el coste de la aplicación y la naturaleza, ámbito, contexto y fines del tratamiento, así como los riesgos de diversa probabilidad y gravedad que entraña el tratamiento para los derechos y libertades de las personas físicas, el responsable del tratamiento aplicará, tanto en el momento de determinar los medios de tratamiento como en el momento del propio tratamiento, medidas técnicas y organizativas apropiadas, como la seudonimización, concebidas para aplicar de forma efectiva los principios de protección de datos, como la minimización de datos, e integrar las garantías necesarias en el tratamiento, a fin de cumplir los requisitos del presente Reglamento y proteger los derechos de los interesados.\n2. El responsable del tratamiento aplicará las medidas técnicas y organizativas apropiadas con miras a garantizar que, por defecto, solo sean objeto de tratamiento los datos personales que sean necesarios para cada uno de los fines específicos del tratamiento. Esta obligación se aplicará a la cantidad de datos personales recogidos, a la extensión de su tratamiento, a su plazo de conservación y a su accesibilidad. Tales medidas garantizarán en particular que, por defecto, los datos personales no sean accesibles, sin la intervención de la persona, a un número indeterminado de personas físicas.\n3. Podrá utilizarse un mecanismo de certificación aprobado con arreglo al artículo 42 como elemento que acredite el cumplimiento de las obligaciones establecidas en los apartados 1 y 2 del presente artículo.",
-      "description": "Aplicar protección de datos desde el diseño y por defecto: recoger solo lo necesario y protegerlo desde el principio.",
+      "description": "Obliga a integrar la protección de datos al concebir un tratamiento, producto o servicio (desde el diseño) y a configurarlo para que, por defecto, solo se traten los datos necesarios para cada fin, en cantidad, extensión, plazo de conservación y accesibilidad. Afecta tanto a los sistemas que la organización desarrolla como a los que compra o contrata. Por defecto, los datos no deben quedar accesibles a un número indeterminado de personas sin intervención del interesado.",
       "actions": [
-        "Incluir la privacidad en el diseño de cada tratamiento o sistema",
-        "Configurar por defecto lo más protector"
+        "Incluir una revisión de protección de datos en el ciclo de vida de cada proyecto, sistema o compra que trate datos personales, desde la definición de requisitos hasta su retirada, con participación del delegado de protección de datos si existe.",
+        "Aplicar en el diseño medidas como la minimización de campos, la seudonimización temprana, el cifrado, el control de accesos por perfil y la supresión automática al vencer el plazo de conservación.",
+        "Configurar por defecto la opción más protectora: perfiles privados, campos opcionales sin rellenar, cookies no necesarias desactivadas y comunicaciones comerciales solo tras una acción del usuario.",
+        "Comprobar que, por defecto, los datos no son accesibles a un número indeterminado de personas sin intervención del interesado.",
+        "Exigir a los proveedores de software y servicios que sus productos permitan cumplir estos requisitos e incluirlo en los pliegos o contratos.",
+        "Evitar diseños de interfaz que empujen al usuario a compartir más datos de los necesarios, como opciones ocultas, confusas o preseleccionadas."
       ],
       "evidence": [
-        "Análisis de privacidad del diseño",
-        "Configuraciones por defecto"
+        "Análisis de privacidad desde el diseño de cada proyecto o sistema, fechado, con los riesgos detectados y las medidas incorporadas.",
+        "Documentación de las configuraciones por defecto de cada sistema y su justificación.",
+        "Requisitos de protección de datos incluidos en pliegos, contratos o especificaciones de compra.",
+        "Pruebas o revisiones previas a la puesta en producción que verifiquen las medidas."
       ],
       "source": "Reglamento (UE) 2016/679, art. 25",
       "register": null
@@ -441,13 +685,20 @@
       "kind": "requirement",
       "title": "Art. 26 · Corresponsables del tratamiento",
       "officialText": "1. Cuando dos o más responsables determinen conjuntamente los objetivos y los medios del tratamiento serán considerados corresponsables del tratamiento. Los corresponsables determinarán de modo transparente y de mutuo acuerdo sus responsabilidades respectivas en el cumplimiento de las obligaciones impuestas por el presente Reglamento, en particular en cuanto al ejercicio de los derechos del interesado y a sus respectivas obligaciones de suministro de información a que se refieren los artículos 13 y 14, salvo, y en la medida en que, sus responsabilidades respectivas se rijan por el Derecho de la Unión o de los Estados miembros que se les aplique a ellos. Dicho acuerdo podrá designar un punto de contacto para los interesados.\n2. El acuerdo indicado en el apartado 1 reflejará debidamente las funciones y relaciones respectivas de los corresponsables en relación con los interesados. Se pondrán a disposición del interesado los aspectos esenciales del acuerdo.\n3. Independientemente de los términos del acuerdo a que se refiere el apartado 1, los interesados podrán ejercer los derechos que les reconoce el presente Reglamento frente a, y en contra de, cada uno de los responsables.",
-      "description": "Si dos o más responsables deciden juntos fines y medios, repartir sus responsabilidades por acuerdo.",
+      "description": "Hay corresponsabilidad cuando dos o más organizaciones deciden conjuntamente los fines y los medios de un tratamiento, por ejemplo en una campaña conjunta, una plataforma compartida o un programa de fidelización entre empresas. Deben repartir mediante un acuerdo transparente sus obligaciones, en especial la atención de derechos y el deber de informar, y poner a disposición de los interesados sus aspectos esenciales. La LOPDGDD (artículo 29) precisa que el reparto debe responder a las actividades que efectivamente realiza cada uno.",
       "actions": [
-        "Identificar corresponsables",
-        "Formalizar el acuerdo"
+        "Revisar las colaboraciones con otras entidades y determinar en cada caso si se deciden conjuntamente fines y medios (corresponsabilidad), si una actúa por cuenta de otra (encargo) o si son responsables independientes.",
+        "Firmar con cada corresponsable un acuerdo que reparta las obligaciones: quién informa a los interesados, quién atiende los derechos, quién gestiona las brechas, quién aplica cada medida de seguridad y quién realiza la evaluación de impacto si procede.",
+        "Ajustar el reparto a las actividades que efectivamente desarrolla cada parte (artículo 29 de la LOPDGDD).",
+        "Designar, si se acuerda, un punto de contacto para los interesados.",
+        "Poner a disposición de los interesados los aspectos esenciales del acuerdo, por ejemplo en la política de privacidad.",
+        "Atender las solicitudes de derechos que lleguen aunque el acuerdo las asigne al otro corresponsable, porque el interesado puede dirigirse a cualquiera de ellos."
       ],
       "evidence": [
-        "Acuerdo de corresponsabilidad"
+        "Acuerdo de corresponsabilidad firmado y fechado, con el reparto de obligaciones.",
+        "Análisis de calificación de cada relación como corresponsabilidad, encargo o responsables independientes.",
+        "Texto con los aspectos esenciales del acuerdo puesto a disposición de los interesados.",
+        "Registro de actividades de tratamiento en el que conste el corresponsable."
       ],
       "source": "Reglamento (UE) 2016/679, art. 26",
       "register": null
@@ -459,13 +710,21 @@
       "kind": "requirement",
       "title": "Art. 27 · Representantes de responsables o encargados del tratamiento no establecidos en la Unión",
       "officialText": "1. Cuando sea de aplicación el artículo 3, apartado 2, el responsable o el encargado del tratamiento designará por escrito un representante en la Unión.\n2. La obligación establecida en el apartado 1 del presente artículo no será aplicable:\na)\nal tratamiento que sea ocasional, que no incluyan el manejo a gran escala de categorías especiales de datos indicadas en el artículo 9, apartado 1, o de datos personales relativos a condenas e infracciones penales a que se refiere el artículo 10, y que sea improbable que entrañe un riesgo para los derechos y libertades de las personas físicas, teniendo en cuenta la naturaleza, contexto, alcance y objetivos del tratamiento, o\nb)\na las autoridades u organismos públicos.\n3. El representante estará establecido en uno de los Estados miembros en que estén los interesados cuyos datos personales se traten en el contexto de una oferta de bienes o servicios, o cuyo comportamiento esté siendo controlado.\n4. El responsable o el encargado del tratamiento encomendará al representante que atienda, junto al responsable o al encargado, o en su lugar, a las consultas, en particular, de las autoridades de control y de los interesados, sobre todos los asuntos relativos al tratamiento, a fin de garantizar el cumplimiento de lo dispuesto en el presente Reglamento.\n5. La designación de un representante por el responsable o el encargado del tratamiento se entenderá sin perjuicio de las acciones que pudieran emprenderse contra el propio responsable o encargado.",
-      "description": "Designar un representante en la Unión cuando se aplique el Reglamento a quien no está establecido en ella.",
+      "description": "Las organizaciones no establecidas en la Unión a las que se aplica el RGPD porque ofrecen bienes o servicios a personas que están en la Unión o controlan su comportamiento deben designar por escrito un representante establecido en uno de los Estados miembros donde se encuentren esos interesados. Están exentas si el tratamiento es ocasional, no incluye a gran escala categorías especiales ni datos penales y es improbable que entrañe riesgo, o si son autoridades u organismos públicos. Una organización establecida en España no está obligada y basta con que deje constancia de ello.",
       "actions": [
-        "Valorar si procede",
-        "Designar y comunicar al representante"
+        "Determinar si la organización tiene algún establecimiento en la Unión y, si lo tiene, dejar constancia de que este requisito no le aplica.",
+        "Si no está establecida en la Unión, analizar si ofrece bienes o servicios a personas que se encuentran en la Unión o controla su comportamiento en ella (artículo 3.2) y, en ese caso, si concurre alguna exención del artículo 27.2.",
+        "Designar el representante mediante un mandato escrito, eligiendo una persona física o jurídica establecida en uno de los Estados miembros donde estén los interesados.",
+        "Encomendar al representante que atienda a las autoridades de control y a los interesados en todo lo relativo al tratamiento, y facilitarle el registro de actividades de tratamiento, que también debe mantener.",
+        "Incluir la identidad y los datos de contacto del representante en la información facilitada a los interesados y en la web.",
+        "No encomendar la función de representante a quien sea a la vez delegado de protección de datos externo, porque el CEPD considera que ambas funciones son incompatibles.",
+        "Regular en el mandato la relación con el representante teniendo en cuenta que, si los afectados están en España, la AEPD puede imponerle las medidas del RGPD solidariamente con el responsable o encargado, y que todos responden solidariamente de los daños (artículo 30 de la LOPDGDD)."
       ],
       "evidence": [
-        "Designación del representante"
+        "Análisis de aplicabilidad: establecimiento en la Unión, actividades del artículo 3.2 y exenciones del artículo 27.2, con su conclusión.",
+        "Mandato escrito de designación del representante, con su Estado miembro de establecimiento y sus funciones.",
+        "Cláusulas informativas y página web en las que figuran la identidad y el contacto del representante.",
+        "Constancia de que el representante dispone del registro de actividades de tratamiento actualizado."
       ],
       "source": "Reglamento (UE) 2016/679, art. 27",
       "register": null
@@ -477,14 +736,24 @@
       "kind": "requirement",
       "title": "Art. 28 · Encargado del tratamiento",
       "officialText": "1. Cuando se vaya a realizar un tratamiento por cuenta de un responsable del tratamiento, este elegirá únicamente un encargado que ofrezca garantías suficientes para aplicar medidas técnicas y organizativas apropiados, de manera que el tratamiento sea conforme con los requisitos del presente Reglamento y garantice la protección de los derechos del interesado.\n2. El encargado del tratamiento no recurrirá a otro encargado sin la autorización previa por escrito, específica o general, del responsable. En este último caso, el encargado informará al responsable de cualquier cambio previsto en la incorporación o sustitución de otros encargados, dando así al responsable la oportunidad de oponerse a dichos cambios.\n3. El tratamiento por el encargado se regirá por un contrato u otro acto jurídico con arreglo al Derecho de la Unión o de los Estados miembros, que vincule al encargado respecto del responsable y establezca el objeto, la duración, la naturaleza y la finalidad del tratamiento, el tipo de datos personales y categorías de interesados, y las obligaciones y derechos del responsable. Dicho contrato o acto jurídico estipulará, en particular, que el encargado:\na)\ntratará los datos personales únicamente siguiendo instrucciones documentadas del responsable, inclusive con respecto a las transferencias de datos personales a un tercer país o una organización internacional, salvo que esté obligado a ello en virtud del Derecho de la Unión o de los Estados miembros que se aplique al encargado; en tal caso, el encargado informará al responsable de esa exigencia legal previa al tratamiento, salvo que tal Derecho lo prohíba por razones importantes de interés público;\nb)\ngarantizará que las personas autorizadas para tratar datos personales se hayan comprometido a respetar la confidencialidad o estén sujetas a una obligación de confidencialidad de naturaleza estatutaria;\nc)\ntomará todas las medidas necesarias de conformidad con el artículo 32;\nd)\nrespetará las condiciones indicadas en los apartados 2 y 4 para recurrir a otro encargado del tratamiento;\ne)\nasistirá al responsable, teniendo cuenta la naturaleza del tratamiento, a través de medidas técnicas y organizativas apropiadas, siempre que sea posible, para que este pueda cumplir con su obligación de responder a las solicitudes que tengan por objeto el ejercicio de los derechos de los interesados establecidos en el capítulo III;\nf)\nayudará al responsable a garantizar el cumplimiento de las obligaciones establecidas en los artículos 32 a 36, teniendo en cuenta la naturaleza del tratamiento y la información a disposición del encargado;\ng)\na elección del responsable, suprimirá o devolverá todos los datos personales una vez finalice la prestación de los servicios de tratamiento, y suprimirá las copias existentes a menos que se requiera la conservación de los datos personales en virtud del Derecho de la Unión o de los Estados miembros;\nh)\npondrá a disposición del responsable toda la información necesaria para demostrar el cumplimiento de las obligaciones establecidas en el presente artículo, así como para permitir y contribuir a la realización de auditorías, incluidas inspecciones, por parte del responsable o de otro auditor autorizado por dicho responsable.\nEn relación con lo dispuesto en la letra h) del párrafo primero, el encargado informará inmediatamente al responsable si, en su opinión, una instrucción infringe el presente Reglamento u otras disposiciones en materia de protección de datos de la Unión o de los Estados miembros.\n4. Cuando un encargado del tratamiento recurra a otro encargado para llevar a cabo determinadas actividades de tratamiento por cuenta del responsable, se impondrán a este otro encargado, mediante contrato u otro acto jurídico establecido con arreglo al Derecho de la Unión o de los Estados miembros, las mismas obligaciones de protección de datos que las estipuladas en el contrato u otro acto jurídico entre el responsable y el encargado a que se refiere el apartado 3, en particular la prestación de garantías suficientes de aplicación de medidas técnicas y organizativas apropiadas de manera que el tratamiento sea conforme con las disposiciones del presente Reglamento. Si ese otro encargado incumple sus obligaciones de protección de datos, el encargado inicial seguirá siendo plenamente responsable ante el responsable del tratamiento por lo que respecta al cumplimiento de las obligaciones del otro encargado.\n5. La adhesión del encargado del tratamiento a un código de conducta aprobado a tenor del artículo 40 o a un mecanismo de certificación aprobado a tenor del artículo 42 podrá utilizarse como elemento para demostrar la existencia de las garantías suficientes a que se refieren los apartados 1 y 4 del presente artículo.\n6. Sin perjuicio de que el responsable y el encargado del tratamiento celebren un contrato individual, el contrato u otro acto jurídico a que se refieren los apartados 3 y 4 del presente artículo podrá basarse, total o parcialmente, en las cláusulas contractuales tipo a que se refieren los apartados 7 y 8 del presente artículo, inclusive cuando formen parte de una certificación concedida al responsable o encargado de conformidad con los artículos 42 y 43.\n7. La Comisión podrá fijar cláusulas contractuales tipo para los asuntos a que se refieren los apartados 3 y 4 del presente artículo, de acuerdo con el procedimiento de examen a que se refiere el artículo 93, apartado 2.\n8. Una autoridad de control podrá adoptar cláusulas contractuales tipo para los asuntos a que se refieren los apartados 3 y 4 del presente artículo, de acuerdo con el mecanismo de coherencia a que se refiere el artículo 63.\n9. El contrato u otro acto jurídico a que se refieren los apartados 3 y 4 constará por escrito, inclusive en formato electrónico.\n10. Sin perjuicio de lo dispuesto en los artículos 82, 83 y 84, si un encargado del tratamiento infringe el presente Reglamento al determinar los fines y medios del tratamiento, será considerado responsable del tratamiento con respecto a dicho tratamiento.",
-      "description": "Contratar solo encargados que ofrezcan garantías y formalizar con ellos un contrato con el contenido mínimo exigido.",
+      "description": "Cuando un proveedor trata datos personales por cuenta de la organización (gestoría, asesoría laboral, alojamiento en la nube, software de nóminas, mantenimiento informático, centro de llamadas), solo puede elegirse uno que ofrezca garantías suficientes y la relación debe regularse por un contrato u otro acto jurídico con el contenido mínimo del artículo 28.3. El encargado solo puede tratar los datos siguiendo instrucciones documentadas y no puede subcontratar sin autorización. Si se cumple este régimen, el acceso del encargado no se considera una comunicación de datos (artículo 33 de la LOPDGDD).",
       "actions": [
-        "Evaluar a los encargados",
-        "Firmar el contrato de encargo"
+        "Inventariar los proveedores que acceden a datos personales o los tratan por cuenta de la organización y calificar a cada uno como encargado o como responsable independiente.",
+        "Antes de contratar, evaluar las garantías del encargado (certificaciones, medidas de seguridad, ubicación de los datos, subencargados e historial de incidentes) y documentar la conclusión.",
+        "Firmar un contrato de encargo por escrito, en papel o electrónico, que fije objeto, duración, naturaleza y finalidad, tipo de datos y categorías de interesados y que incluya las obligaciones del artículo 28.3: tratar solo con instrucciones documentadas, confidencialidad del personal, medidas de seguridad, régimen de subencargados, ayuda con los derechos, las brechas y las evaluaciones de impacto, devolución o supresión al finalizar y auditorías.",
+        "Regular los subencargados: autorización previa por escrito, específica o general; si es general, aviso previo de cada cambio con un plazo para oponerse, y el subencargado debe asumir las mismas obligaciones.",
+        "Fijar en el contrato un plazo concreto para que el encargado avise de las brechas y, como recomienda la AEPD, que sea inferior a 72 horas para que el responsable pueda notificar a tiempo.",
+        "Fijar en el contrato si el encargado atiende las solicitudes de derechos o solo las traslada, y en qué forma y plazo.",
+        "Al terminar el servicio, exigir la devolución o la supresión de los datos según lo pactado y obtener un certificado de ello.",
+        "Como buena práctica, verificar periódicamente el cumplimiento del encargado mediante cuestionarios, informes de auditoría o certificaciones."
       ],
       "evidence": [
-        "Contratos de encargo",
-        "Evaluaciones de encargados"
+        "Inventario de encargados con el servicio prestado, los datos tratados, su ubicación y el contrato vigente.",
+        "Contratos de encargo firmados con el contenido del artículo 28.3 y anexo de medidas de seguridad.",
+        "Evaluaciones previas de las garantías de cada encargado, fechadas.",
+        "Lista de subencargados autorizados y registro de los avisos de cambio y de las oposiciones formuladas.",
+        "Certificados de devolución o destrucción de los datos al finalizar cada encargo.",
+        "Informes de auditoría o revisiones periódicas de los encargados."
       ],
       "source": "Reglamento (UE) 2016/679, art. 28",
       "register": null
@@ -496,14 +765,19 @@
       "kind": "requirement",
       "title": "Art. 29 · Tratamiento bajo la autoridad del responsable o del encargado del tratamiento",
       "officialText": "El encargado del tratamiento y cualquier persona que actúe bajo la autoridad del responsable o del encargado y tenga acceso a datos personales solo podrán tratar dichos datos siguiendo instrucciones del responsable, a no ser que estén obligados a ello en virtud del Derecho de la Unión o de los Estados miembros.",
-      "description": "Hacer que quien trate datos bajo autoridad del responsable solo lo haga siguiendo sus instrucciones.",
+      "description": "Nadie que trate datos bajo la autoridad del responsable o del encargado (empleados, becarios, personal temporal o colaboradores con acceso) puede hacerlo salvo siguiendo sus instrucciones, a menos que se lo exija el Derecho de la Unión o de un Estado miembro. Junto con el deber de confidencialidad del artículo 5 de la LOPDGDD, que perdura al terminar la relación, garantiza que el personal use los datos solo para lo que se le encomienda.",
       "actions": [
-        "Dar instrucciones por escrito",
-        "Exigir su cumplimiento"
+        "Redactar instrucciones escritas para el personal sobre el uso de datos personales: finalidades permitidas, accesos, uso de dispositivos y correo, prohibición de usos propios, destrucción de documentos y aviso de incidentes.",
+        "Entregar las instrucciones a cada persona al incorporarse, obtener su acuse de recibo y repetirlo cuando cambien.",
+        "Hacer firmar un compromiso de confidencialidad que se mantenga tras finalizar la relación (artículo 5 de la LOPDGDD).",
+        "Asignar los permisos de acceso según el puesto, de forma que cada persona solo acceda a los datos necesarios para sus funciones, y retirarlos al cambiar de puesto o salir de la organización.",
+        "Formar al personal en estas instrucciones al incorporarse y, como buena práctica, de forma periódica."
       ],
       "evidence": [
-        "Instrucciones al personal",
-        "Aceptaciones"
+        "Instrucciones o política de uso de datos personales para el personal, versionada y fechada.",
+        "Acuses de recibo de las instrucciones y compromisos de confidencialidad firmados por cada persona.",
+        "Matriz de permisos de acceso por puesto y registros de altas y bajas de accesos.",
+        "Registro de la formación impartida al personal."
       ],
       "source": "Reglamento (UE) 2016/679, art. 29",
       "register": null
@@ -515,14 +789,22 @@
       "kind": "requirement",
       "title": "Art. 30 · Registro de las actividades de tratamiento",
       "officialText": "1. Cada responsable y, en su caso, su representante llevarán un registro de las actividades de tratamiento efectuadas bajo su responsabilidad. Dicho registro deberá contener toda la información indicada a continuación:\na)\nel nombre y los datos de contacto del responsable y, en su caso, del corresponsable, del representante del responsable, y del delegado de protección de datos;\nb)\nlos fines del tratamiento;\nc)\nuna descripción de las categorías de interesados y de las categorías de datos personales;\nd)\nlas categorías de destinatarios a quienes se comunicaron o comunicarán los datos personales, incluidos los destinatarios en terceros países u organizaciones internacionales;\ne)\nen su caso, las transferencias de datos personales a un tercer país o una organización internacional, incluida la identificación de dicho tercer país u organización internacional y, en el caso de las transferencias indicadas en el artículo 49, apartado 1, párrafo segundo, la documentación de garantías adecuadas;\nf)\ncuando sea posible, los plazos previstos para la supresión de las diferentes categorías de datos;\ng)\ncuando sea posible, una descripción general de las medidas técnicas y organizativas de seguridad a que se refiere el artículo 32, apartado 1.\n2. Cada encargado y, en su caso, el representante del encargado, llevará un registro de todas las categorías de actividades de tratamiento efectuadas por cuenta de un responsable que contenga:\na)\nel nombre y los datos de contacto del encargado o encargados y de cada responsable por cuenta del cual actúe el encargado, y, en su caso, del representante del responsable o del encargado, y del delegado de protección de datos;\nb)\nlas categorías de tratamientos efectuados por cuenta de cada responsable;\nc)\nen su caso, las transferencias de datos personales a un tercer país u organización internacional, incluida la identificación de dicho tercer país u organización internacional y, en el caso de las transferencias indicadas en el artículo 49, apartado 1, párrafo segundo, la documentación de garantías adecuadas;\nd)\ncuando sea posible, una descripción general de las medidas técnicas y organizativas de seguridad a que se refiere el artículo 30, apartado 1.\n3. Los registros a que se refieren los apartados 1 y 2 constarán por escrito, inclusive en formato electrónico.\n4. El responsable o el encargado del tratamiento y, en su caso, el representante del responsable o del encargado pondrán el registro a disposición de la autoridad de control que lo solicite.\n5. Las obligaciones indicadas en los apartados 1 y 2 no se aplicarán a ninguna empresa ni organización que emplee a menos de 250 personas, a menos que el tratamiento que realice pueda entrañar un riesgo para los derechos y libertades de los interesados, no sea ocasional, o incluya categorías especiales de datos personales indicadas en el artículo 9, apartado 1, o datos personales relativos a condenas e infracciones penales a que se refiere el artículo 10.",
-      "description": "Llevar un registro de las actividades de tratamiento con el contenido mínimo, salvo las excepciones previstas.",
+      "description": "Responsables y encargados deben llevar por escrito, también en formato electrónico, un registro de sus actividades de tratamiento con el contenido mínimo del artículo 30, y ponerlo a disposición de la AEPD cuando lo pida. La exención para organizaciones de menos de 250 personas es muy limitada: no se aplica si el tratamiento puede entrañar riesgo, no es ocasional o incluye categorías especiales o datos penales, así que en la práctica casi todas las pymes lo necesitan (la gestión de nóminas, por ejemplo, no es ocasional). Es el documento central en el que se apoyan los demás.",
       "actions": [
-        "Elaborar y mantener el registro",
-        "Revisarlo ante cambios"
+        "Elaborar el registro como responsable con: nombre y contacto del responsable, del corresponsable, del representante y del delegado de protección de datos; fines; categorías de interesados y de datos; categorías de destinatarios; transferencias internacionales y sus garantías; y, cuando sea posible, plazos previstos de supresión y descripción general de las medidas de seguridad.",
+        "Si la organización presta servicios como encargado, llevar también el registro de encargado: datos de contacto propios y de cada responsable, categorías de tratamientos por cuenta de cada uno, transferencias y, cuando sea posible, medidas de seguridad.",
+        "Organizar el registro según las finalidades, especificando las actividades de tratamiento que se realizan (artículo 31.1 de la LOPDGDD).",
+        "Actualizarlo antes de iniciar un tratamiento nuevo o modificar uno existente y, si hay delegado de protección de datos, comunicarle toda adición, modificación o exclusión (artículo 31.1 de la LOPDGDD).",
+        "Si la organización es una de las entidades del artículo 77.1 de la LOPDGDD (administraciones públicas y entidades vinculadas), publicar por medios electrónicos un inventario de sus actividades con la información del artículo 30 y su base legal.",
+        "Si se considera exenta por tener menos de 250 personas, documentar por qué ningún tratamiento es habitual, de riesgo o incluye categorías especiales o datos penales.",
+        "Como buena práctica, revisar el registro completo al menos una vez al año aunque no haya cambios conocidos."
       ],
       "evidence": [
-        "Registro de actividades de tratamiento",
-        "Registro de revisiones"
+        "Registro de actividades de tratamiento como responsable con todos los campos del artículo 30.1, fechado y versionado.",
+        "Registro de actividades como encargado con los campos del artículo 30.2, si procede.",
+        "Historial de revisiones y cambios del registro, con fecha, autor y motivo.",
+        "Comunicaciones de los cambios del registro al delegado de protección de datos, si lo hay.",
+        "Inventario público de actividades, en el caso de las entidades del artículo 77.1 de la LOPDGDD."
       ],
       "source": "Reglamento (UE) 2016/679, art. 30",
       "register": "processing_activities"
@@ -534,13 +816,18 @@
       "kind": "requirement",
       "title": "Art. 31 · Cooperación con la autoridad de control",
       "officialText": "El responsable y el encargado del tratamiento y, en su caso, sus representantes cooperarán con la autoridad de control que lo solicite en el desempeño de sus funciones.",
-      "description": "Cooperar con la autoridad de control cuando lo solicite.",
+      "description": "Responsables, encargados y, en su caso, sus representantes deben cooperar con la AEPD, o con la autoridad autonómica competente, cuando esta lo solicite en el ejercicio de sus funciones: requerimientos de información, inspecciones o traslados de reclamaciones. Una respuesta tardía o incompleta empeora la posición de la organización en cualquier procedimiento, y la falta de cooperación es por sí misma una infracción sancionable.",
       "actions": [
-        "Designar quién atiende a la autoridad",
-        "Preparar la documentación"
+        "Designar a la persona o función que recibe y coordina los requerimientos de la autoridad de control; si hay delegado de protección de datos, este actúa como interlocutor (artículo 36.1 de la LOPDGDD).",
+        "Revisar con regularidad las notificaciones electrónicas de la Administración, por las que la AEPD remite sus requerimientos a las personas jurídicas, para no dejar vencer plazos.",
+        "Responder a cada requerimiento dentro del plazo que fije, con información completa y veraz, y pedir una ampliación motivada antes del vencimiento si no es posible cumplirlo.",
+        "Cuando la AEPD traslade una reclamación al delegado de protección de datos, responder en el plazo de un mes; y responder en un máximo de dos meses a las reclamaciones que el interesado dirija primero al delegado (artículo 37 de la LOPDGDD).",
+        "Mantener actualizada y localizable la documentación que la autoridad suele pedir: registro de actividades, análisis de riesgos, evaluaciones de impacto, contratos de encargo, registro de brechas y registro de solicitudes de derechos."
       ],
       "evidence": [
-        "Procedimiento de cooperación"
+        "Procedimiento de atención a requerimientos de la autoridad con el responsable interno, el circuito y los plazos.",
+        "Expediente de cada requerimiento o inspección: escrito recibido, respuesta enviada, fechas y justificante de presentación.",
+        "Registro de las reclamaciones recibidas a través del delegado de protección de datos y de las respuestas dadas en plazo."
       ],
       "source": "Reglamento (UE) 2016/679, art. 31",
       "register": null
@@ -552,14 +839,22 @@
       "kind": "requirement",
       "title": "Art. 32 · Seguridad del tratamiento",
       "officialText": "1. Teniendo en cuenta el estado de la técnica, los costes de aplicación, y la naturaleza, el alcance, el contexto y los fines del tratamiento, así como riesgos de probabilidad y gravedad variables para los derechos y libertades de las personas físicas, el responsable y el encargado del tratamiento aplicarán medidas técnicas y organizativas apropiadas para garantizar un nivel de seguridad adecuado al riesgo, que en su caso incluya, entre otros:\na)\nla seudonimización y el cifrado de datos personales;\nb)\nla capacidad de garantizar la confidencialidad, integridad, disponibilidad y resiliencia permanentes de los sistemas y servicios de tratamiento;\nc)\nla capacidad de restaurar la disponibilidad y el acceso a los datos personales de forma rápida en caso de incidente físico o técnico;\nd)\nun proceso de verificación, evaluación y valoración regulares de la eficacia de las medidas técnicas y organizativas para garantizar la seguridad del tratamiento.\n2. Al evaluar la adecuación del nivel de seguridad se tendrán particularmente en cuenta los riesgos que presente el tratamiento de datos, en particular como consecuencia de la destrucción, pérdida o alteración accidental o ilícita de datos personales transmitidos, conservados o tratados de otra forma, o la comunicación o acceso no autorizados a dichos datos.\n3. La adhesión a un código de conducta aprobado a tenor del artículo 40 o a un mecanismo de certificación aprobado a tenor del artículo 42 podrá servir de elemento para demostrar el cumplimiento de los requisitos establecidos en el apartado 1 del presente artículo.\n4. El responsable y el encargado del tratamiento tomarán medidas para garantizar que cualquier persona que actúe bajo la autoridad del responsable o del encargado y tenga acceso a datos personales solo pueda tratar dichos datos siguiendo instrucciones del responsable, salvo que esté obligada a ello en virtud del Derecho de la Unión o de los Estados miembros.",
-      "description": "Aplicar medidas de seguridad adecuadas al riesgo: seudonimización, cifrado, resiliencia, recuperación y pruebas periódicas.",
+      "description": "Responsable y encargado deben aplicar medidas técnicas y organizativas que garanticen un nivel de seguridad adecuado al riesgo, teniendo en cuenta el estado de la técnica, el coste y la probabilidad y gravedad de los daños para las personas. El artículo cita como medidas posibles la seudonimización y el cifrado, la confidencialidad, integridad, disponibilidad y resiliencia de los sistemas, la capacidad de restaurar rápidamente los datos tras un incidente y un proceso de verificación periódica de su eficacia. No hay una lista cerrada: la medida adecuada se deduce del análisis de riesgos.",
       "actions": [
-        "Evaluar el riesgo y fijar medidas",
-        "Verificar periódicamente su eficacia"
+        "Evaluar los riesgos de seguridad de cada tratamiento (destrucción, pérdida, alteración, comunicación o acceso no autorizados) y su impacto en las personas, y decidir medidas proporcionadas a ese riesgo.",
+        "Implantar controles de acceso con usuarios individuales, contraseñas robustas o doble factor y permisos por perfil, y revisarlos periódicamente.",
+        "Cifrar los datos en portátiles, dispositivos móviles, soportes extraíbles y comunicaciones, y seudonimizarlos cuando la finalidad lo permita.",
+        "Realizar copias de seguridad periódicas y probar su restauración para demostrar que los datos se pueden recuperar con rapidez; como buena práctica, mantener al menos una copia aislada del sistema principal.",
+        "Mantener los sistemas actualizados y protegidos frente a código malicioso, y gestionar las vulnerabilidades conocidas.",
+        "Establecer un proceso de verificación periódica de la eficacia de las medidas, mediante revisiones, auditorías internas o externas o pruebas de intrusión, con una periodicidad definida.",
+        "Asegurar que las personas con acceso a los datos solo los tratan siguiendo instrucciones y conocen las medidas de seguridad que les afectan."
       ],
       "evidence": [
-        "Documento de medidas de seguridad",
-        "Informes de pruebas y auditorías"
+        "Análisis de riesgos de seguridad por tratamiento y documento de medidas de seguridad que responde a él.",
+        "Configuraciones o informes técnicos que prueben el cifrado, los controles de acceso y el doble factor.",
+        "Registros de copias de seguridad y actas de las pruebas de restauración, con fecha y resultado.",
+        "Informes de auditoría, pruebas de intrusión o revisiones periódicas, con las deficiencias detectadas y su corrección.",
+        "Certificaciones o adhesiones a códigos de conducta, cuando se usen como elemento de prueba."
       ],
       "source": "Reglamento (UE) 2016/679, art. 32",
       "register": null
@@ -571,14 +866,23 @@
       "kind": "requirement",
       "title": "Art. 33 · Notificación de una violación de la seguridad de los datos personales a la autoridad de control",
       "officialText": "1. En caso de violación de la seguridad de los datos personales, el responsable del tratamiento la notificará a la autoridad de control competente de conformidad con el artículo 55 sin dilación indebida y, de ser posible, a más tardar 72 horas después de que haya tenido constancia de ella, a menos que sea improbable que dicha violación de la seguridad constituya un riesgo para los derechos y las libertades de las personas físicas. Si la notificación a la autoridad de control no tiene lugar en el plazo de 72 horas, deberá ir acompañada de indicación de los motivos de la dilación.\n2. El encargado del tratamiento notificará sin dilación indebida al responsable del tratamiento las violaciones de la seguridad de los datos personales de las que tenga conocimiento.\n3. La notificación contemplada en el apartado 1 deberá, como mínimo:\na)\ndescribir la naturaleza de la violación de la seguridad de los datos personales, inclusive, cuando sea posible, las categorías y el número aproximado de interesados afectados, y las categorías y el número aproximado de registros de datos personales afectados;\nb)\ncomunicar el nombre y los datos de contacto del delegado de protección de datos o de otro punto de contacto en el que pueda obtenerse más información;\nc)\ndescribir las posibles consecuencias de la violación de la seguridad de los datos personales;\nd)\ndescribir las medidas adoptadas o propuestas por el responsable del tratamiento para poner remedio a la violación de la seguridad de los datos personales, incluyendo, si procede, las medidas adoptadas para mitigar los posibles efectos negativos.\n4. Si no fuera posible facilitar la información simultáneamente, y en la medida en que no lo sea, la información se facilitará de manera gradual sin dilación indebida.\n5. El responsable del tratamiento documentará cualquier violación de la seguridad de los datos personales, incluidos los hechos relacionados con ella, sus efectos y las medidas correctivas adoptadas. Dicha documentación permitirá a la autoridad de control verificar el cumplimiento de lo dispuesto en el presente artículo.",
-      "description": "Notificar a la autoridad las violaciones de seguridad en 72 horas, salvo que sea improbable que haya riesgo, y documentar todas.",
+      "description": "Ante una violación de la seguridad de los datos personales, como la pérdida de un portátil sin cifrar, un correo enviado a destinatarios equivocados, un ataque de ransomware o un acceso indebido, el responsable debe notificarla a la AEPD sin dilación indebida y, si es posible, en 72 horas desde que tenga constancia de ella, salvo que sea improbable que entrañe un riesgo para las personas. Si la notificación llega más tarde, debe explicar el motivo del retraso. Todas las brechas, se notifiquen o no, deben documentarse.",
       "actions": [
-        "Tener un procedimiento de gestión de brechas",
-        "Notificar en plazo y documentar cada violación"
+        "Aprobar un procedimiento de gestión de brechas que defina cómo se detectan y comunican internamente, quién evalúa el riesgo, quién decide y quién notifica, y difundirlo entre el personal.",
+        "Obligar al personal a comunicar de inmediato cualquier incidente que afecte a datos personales y a los encargados a avisar sin dilación indebida, en el plazo fijado en su contrato.",
+        "Evaluar el riesgo para las personas en cuanto se tenga una certeza razonable de la brecha, considerando el tipo de brecha, los datos y personas afectadas, la facilidad de identificarlas y la gravedad y reversibilidad de las consecuencias, y documentar la decisión de notificar o no.",
+        "Si hay riesgo, notificar a la AEPD a través de su sede electrónica en un máximo de 72 horas, contando fines de semana y festivos, con la naturaleza de la brecha, las categorías y el número aproximado de interesados y de registros, el contacto del delegado de protección de datos u otro punto de contacto, las consecuencias probables y las medidas adoptadas o propuestas.",
+        "Si en ese plazo no se dispone de toda la información, presentar una notificación inicial y completarla después; la AEPD prevé completarla en un máximo de 30 días hábiles desde la inicial.",
+        "Si se notifica después de 72 horas, explicar en la notificación los motivos del retraso.",
+        "Documentar todas las brechas, incluidas las no notificadas, con los hechos, sus efectos y las medidas correctoras adoptadas.",
+        "Como apoyo, usar la herramienta Comunica-Brecha RGPD de la AEPD para orientar la decisión de notificar."
       ],
       "evidence": [
-        "Procedimiento de brechas",
-        "Registro de violaciones de seguridad"
+        "Procedimiento de gestión de brechas aprobado, con roles, circuito interno y plazos.",
+        "Registro de incidentes y brechas con todas las violaciones: fecha y hora de detección, hechos, datos y personas afectadas, valoración del riesgo, decisión de notificar y su motivación, y medidas correctoras.",
+        "Justificantes de presentación de las notificaciones a la AEPD, inicial y completa, que demuestren el plazo de 72 horas o los motivos del retraso.",
+        "Cláusulas de los contratos de encargo que fijan el plazo y la forma en que los encargados avisan de las brechas.",
+        "Constancia de la formación o difusión del procedimiento entre el personal."
       ],
       "source": "Reglamento (UE) 2016/679, art. 33",
       "register": "breaches"
@@ -590,14 +894,22 @@
       "kind": "requirement",
       "title": "Art. 34 · Comunicación de una violación de la seguridad de los datos personales al interesado",
       "officialText": "1. Cuando sea probable que la violación de la seguridad de los datos personales entrañe un alto riesgo para los derechos y libertades de las personas físicas, el responsable del tratamiento la comunicará al interesado sin dilación indebida.\n2. La comunicación al interesado contemplada en el apartado 1 del presente artículo describirá en un lenguaje claro y sencillo la naturaleza de la violación de la seguridad de los datos personales y contendrá como mínimo la información y las medidas a que se refiere el artículo 33, apartado 3, letras b), c) y d).\n3. La comunicación al interesado a que se refiere el apartado 1 no será necesaria si se cumple alguna de las condiciones siguientes:\na)\nel responsable del tratamiento ha adoptado medidas de protección técnicas y organizativas apropiadas y estas medidas se han aplicado a los datos personales afectados por la violación de la seguridad de los datos personales, en particular aquellas que hagan ininteligibles los datos personales para cualquier persona que no esté autorizada a acceder a ellos, como el cifrado;\nb)\nel responsable del tratamiento ha tomado medidas ulteriores que garanticen que ya no exista la probabilidad de que se concretice el alto riesgo para los derechos y libertades del interesado a que se refiere el apartado 1;\nc)\nsuponga un esfuerzo desproporcionado. En este caso, se optará en su lugar por una comunicación pública o una medida semejante por la que se informe de manera igualmente efectiva a los interesados.\n4. Cuando el responsable todavía no haya comunicado al interesado la violación de la seguridad de los datos personales, la autoridad de control, una vez considerada la probabilidad de que tal violación entrañe un alto riesgo, podrá exigirle que lo haga o podrá decidir que se cumple alguna de las condiciones mencionadas en el apartado 3.",
-      "description": "Comunicar a las personas afectadas las violaciones que supongan un alto riesgo para ellas.",
+      "description": "Cuando sea probable que una brecha entrañe un alto riesgo para los derechos y libertades de las personas, por ejemplo por exponer datos bancarios, de salud o credenciales, el responsable debe comunicárselo a los afectados sin dilación indebida para que puedan protegerse. No es necesario si los datos eran ininteligibles para terceros (por ejemplo, cifrados con una clave no comprometida), si medidas posteriores han eliminado el alto riesgo o si la comunicación individual exige un esfuerzo desproporcionado, en cuyo caso se sustituye por una comunicación pública. La AEPD puede ordenar la comunicación si considera que procede.",
       "actions": [
-        "Valorar el riesgo para los afectados",
-        "Comunicarles sin dilación"
+        "Valorar en cada brecha, junto con el análisis para la notificación, si el riesgo para las personas es alto, considerando el tipo y la sensibilidad de los datos, la facilidad para identificar a los afectados, la gravedad y reversibilidad de los daños (fraude, suplantación, daño reputacional o físico) y si hay personas vulnerables.",
+        "Si el riesgo es alto, comunicarlo a los afectados sin dilación indebida por un medio directo, como correo electrónico, carta o SMS, preferiblemente en un mensaje dedicado y no mezclado con otras comunicaciones.",
+        "Redactar la comunicación en lenguaje claro y sencillo con la naturaleza de la brecha, el contacto del delegado de protección de datos u otro punto de información, las consecuencias probables, las medidas adoptadas y recomendaciones concretas para que se protejan, como cambiar contraseñas o vigilar cargos.",
+        "Si se decide no comunicar por aplicar una excepción del artículo 34.3, documentar cuál y su fundamento.",
+        "Cuando la comunicación individual exija un esfuerzo desproporcionado, sustituirla por una comunicación pública o una medida igual de eficaz, como un aviso destacado en la web o un anuncio en prensa.",
+        "Si la AEPD ordena comunicar la brecha, hacerlo en el plazo que indique y confirmarle su ejecución por registro electrónico.",
+        "Como buena práctica, preparar plantillas de comunicación con antelación para poder actuar con rapidez."
       ],
       "evidence": [
-        "Plantilla de comunicación",
-        "Registro de comunicaciones"
+        "Registro de incidentes y brechas con la valoración del riesgo para los afectados y la decisión motivada de comunicar o no.",
+        "Copia de las comunicaciones enviadas, con fecha, canal y relación de destinatarios.",
+        "Justificación de cada excepción del artículo 34.3 aplicada y, en su caso, copia de la comunicación pública.",
+        "Plantillas de comunicación a los afectados aprobadas.",
+        "Confirmaciones enviadas a la AEPD cuando esta ordenó la comunicación."
       ],
       "source": "Reglamento (UE) 2016/679, art. 34",
       "register": "breaches"
@@ -609,14 +921,22 @@
       "kind": "requirement",
       "title": "Art. 35 · Evaluación de impacto relativa a la protección de datos",
       "officialText": "1. Cuando sea probable que un tipo de tratamiento, en particular si utiliza nuevas tecnologías, por su naturaleza, alcance, contexto o fines, entrañe un alto riesgo para los derechos y libertades de las personas físicas, el responsable del tratamiento realizará, antes del tratamiento, una evaluación del impacto de las operaciones de tratamiento en la protección de datos personales. Una única evaluación podrá abordar una serie de operaciones de tratamiento similares que entrañen altos riesgos similares.\n2. El responsable del tratamiento recabará el asesoramiento del delegado de protección de datos, si ha sido nombrado, al realizar la evaluación de impacto relativa a la protección de datos.\n3. La evaluación de impacto relativa a la protección de los datos a que se refiere el apartado 1 se requerirá en particular en caso de:\na)\nevaluación sistemática y exhaustiva de aspectos personales de personas físicas que se base en un tratamiento automatizado, como la elaboración de perfiles, y sobre cuya base se tomen decisiones que produzcan efectos jurídicos para las personas físicas o que les afecten significativamente de modo similar;\nb)\ntratamiento a gran escala de las categorías especiales de datos a que se refiere el artículo 9, apartado 1, o de los datos personales relativos a condenas e infracciones penales a que se refiere el artículo 10, o\nc)\nobservación sistemática a gran escala de una zona de acceso público.\n4. La autoridad de control establecerá y publicará una lista de los tipos de operaciones de tratamiento que requieran una evaluación de impacto relativa a la protección de datos de conformidad con el apartado 1. La autoridad de control comunicará esas listas al Comité a que se refiere el artículo 68.\n5. La autoridad de control podrá asimismo establecer y publicar la lista de los tipos de tratamiento que no requieren evaluaciones de impacto relativas a la protección de datos. La autoridad de control comunicará esas listas al Comité.\n6. Antes de adoptar las listas a que se refieren los apartados 4 y 5, la autoridad de control competente aplicará el mecanismo de coherencia contemplado en el artículo 63 si esas listas incluyen actividades de tratamiento que guarden relación con la oferta de bienes o servicios a interesados o con la observación del comportamiento de estos en varios Estados miembros, o actividades de tratamiento que puedan afectar sustancialmente a la libre circulación de datos personales en la Unión.\n7. La evaluación deberá incluir como mínimo:\na)\nuna descripción sistemática de las operaciones de tratamiento previstas y de los fines del tratamiento, inclusive, cuando proceda, el interés legítimo perseguido por el responsable del tratamiento;\nb)\nuna evaluación de la necesidad y la proporcionalidad de las operaciones de tratamiento con respecto a su finalidad;\nc)\nuna evaluación de los riesgos para los derechos y libertades de los interesados a que se refiere el apartado 1, y\nd)\nlas medidas previstas para afrontar los riesgos, incluidas garantías, medidas de seguridad y mecanismos que garanticen la protección de datos personales, y a demostrar la conformidad con el presente Reglamento, teniendo en cuenta los derechos e intereses legítimos de los interesados y de otras personas afectadas.\n8. El cumplimiento de los códigos de conducta aprobados a que se refiere el artículo 40 por los responsables o encargados correspondientes se tendrá debidamente en cuenta al evaluar las repercusiones de las operaciones de tratamiento realizadas por dichos responsables o encargados, en particular a efectos de la evaluación de impacto relativa a la protección de datos.\n9. Cuando proceda, el responsable recabará la opinión de los interesados o de sus representantes en relación con el tratamiento previsto, sin perjuicio de la protección de intereses públicos o comerciales o de la seguridad de las operaciones de tratamiento.\n10. Cuando el tratamiento de conformidad con el artículo 6, apartado 1, letras c) o e), tenga su base jurídica en el Derecho de la Unión o en el Derecho del Estado miembro que se aplique al responsable del tratamiento, tal Derecho regule la operación específica de tratamiento o conjunto de operaciones en cuestión, y ya se haya realizado una evaluación de impacto relativa a la protección de datos como parte de una evaluación de impacto general en el contexto de la adopción de dicha base jurídica, los apartados 1 a 7 no serán de aplicación excepto si los Estados miembros consideran necesario proceder a dicha evaluación previa a las actividades de tratamiento.\n11. En caso necesario, el responsable examinará si el tratamiento es conforme con la evaluación de impacto relativa a la protección de datos, al menos cuando exista un cambio del riesgo que representen las operaciones de tratamiento.",
-      "description": "Hacer una evaluación de impacto antes de tratamientos de alto riesgo para los derechos de las personas.",
+      "description": "Antes de iniciar un tratamiento que probablemente entrañe un alto riesgo para los derechos y libertades de las personas, el responsable debe realizar una evaluación de impacto (EIPD) que analice su necesidad y proporcionalidad, sus riesgos y las medidas para mitigarlos. El RGPD la exige en todo caso para perfiles con efectos significativos, para el tratamiento a gran escala de categorías especiales o datos penales y para la observación sistemática a gran escala de zonas de acceso público, y la AEPD publica la lista de tratamientos que la requieren. Debe hacerse antes de empezar a tratar, no después.",
       "actions": [
-        "Identificar tratamientos que la requieren",
-        "Realizarla y documentarla"
+        "Contrastar cada tratamiento nuevo o modificado con la lista de la AEPD; según su criterio orientativo, en la mayoría de los casos requiere EIPD si cumple dos o más de sus criterios: perfilado, decisiones automatizadas, observación sistemática, categorías especiales o penales, biometría, genética, gran escala, combinación de datos, interesados vulnerables, nuevas tecnologías o tratamientos que impiden ejercer derechos o acceder a un servicio.",
+        "Cuando se decida no hacer la EIPD, documentar los criterios analizados y por qué el riesgo no es alto.",
+        "Realizar la EIPD antes de iniciar el tratamiento con, como mínimo, una descripción sistemática del tratamiento y sus fines, una evaluación de su necesidad y proporcionalidad, una evaluación de los riesgos para las personas y las medidas previstas para afrontarlos.",
+        "Recabar el asesoramiento del delegado de protección de datos, si existe, y dejar constancia de su opinión y de lo decidido.",
+        "Recabar la opinión de los interesados o de sus representantes cuando proceda, o documentar por qué no se hace.",
+        "Revisar la EIPD cuando cambie el riesgo del tratamiento comprobando que el tratamiento se ajusta a ella y, como buena práctica, también de forma periódica.",
+        "Si el riesgo residual sigue siendo alto tras las medidas, no iniciar el tratamiento sin consulta previa a la AEPD."
       ],
       "evidence": [
-        "Evaluaciones de impacto",
-        "Criterios de selección"
+        "Registro de evaluaciones de impacto con el análisis de necesidad de cada tratamiento: criterios evaluados, conclusión y fecha.",
+        "Informe de cada EIPD con los cuatro contenidos del artículo 35.7, el riesgo inherente y residual, el plan de medidas y la aprobación de la dirección.",
+        "Opinión documentada del delegado de protección de datos y, en su caso, de los interesados.",
+        "Revisiones de la EIPD con su fecha y los cambios introducidos.",
+        "Constancia de la implantación de las medidas previstas en la EIPD."
       ],
       "source": "Reglamento (UE) 2016/679, art. 35",
       "register": null
@@ -628,13 +948,20 @@
       "kind": "requirement",
       "title": "Art. 36 · Consulta previa",
       "officialText": "1. El responsable consultará a la autoridad de control antes de proceder al tratamiento cuando una evaluación de impacto relativa a la protección de los datos en virtud del artículo 35 muestre que el tratamiento entrañaría un alto riesgo si el responsable no toma medidas para para mitigarlo.\n2. Cuando la autoridad de control considere que el tratamiento previsto a que se refiere el apartado 1 podría infringir el presente Reglamento, en particular cuando el responsable no haya identificado o mitigado suficientemente el riesgo, la autoridad de control deberá, en un plazo de ocho semanas desde la solicitud de la consulta, asesorar por escrito al responsable, y en su caso al encargado, y podrá utilizar cualquiera de sus poderes mencionados en el artículo 58. Dicho plazo podrá prorrogarse seis semanas, en función de la complejidad del tratamiento previsto. La autoridad de control informará al responsable y, en su caso, al encargado de tal prórroga en el plazo de un mes a partir de la recepción de la solicitud de consulta, indicando los motivos de la dilación. Estos plazos podrán suspenderse hasta que la autoridad de control haya obtenido la información solicitada a los fines de la consulta.\n3. Cuando consulte a la autoridad de control con arreglo al apartado 1, el responsable del tratamiento le facilitará la información siguiente:\na)\nen su caso, las responsabilidades respectivas del responsable, los corresponsables y los encargados implicados en el tratamiento, en particular en caso de tratamiento dentro de un grupo empresarial;\nb)\nlos fines y medios del tratamiento previsto;\nc)\nlas medidas y garantías establecidas para proteger los derechos y libertades de los interesados de conformidad con el presente Reglamento;\nd)\nen su caso, los datos de contacto del delegado de protección de datos;\ne)\nla evaluación de impacto relativa a la protección de datos establecida en el artículo 35, y\nf)\ncualquier otra información que solicite la autoridad de control.\n4. Los Estados miembros garantizarán que se consulte a la autoridad de control durante la elaboración de toda propuesta de medida legislativa que haya de adoptar un Parlamento nacional, o de una medida reglamentaria basada en dicha medida legislativa, que se refiera al tratamiento.\n5. No obstante lo dispuesto en el apartado 1, el Derecho de los Estados miembros podrá obligar a los responsables del tratamiento a consultar a la autoridad de control y a recabar su autorización previa en relación con el tratamiento por un responsable en el ejercicio de una misión realizada en interés público, en particular el tratamiento en relación con la protección social y la salud pública.",
-      "description": "Consultar a la autoridad antes de tratar cuando la evaluación de impacto muestre un alto riesgo sin mitigar.",
+      "description": "Si una evaluación de impacto concluye que el tratamiento entrañaría un alto riesgo que el responsable no puede mitigar con medidas razonables, debe consultar a la AEPD antes de iniciarlo. La autoridad responde por escrito en un plazo de hasta ocho semanas, prorrogable seis más si el tratamiento es complejo, y puede indicar medidas o prohibir el tratamiento. Es una situación excepcional, pero empezar a tratar en ese caso sin consultar es un incumplimiento directo.",
       "actions": [
-        "Valorar el riesgo residual",
-        "Consultar si procede"
+        "Revisar la conclusión de cada EIPD y determinar si el riesgo residual sigue siendo alto pese a las medidas adoptadas.",
+        "Si lo es, no iniciar el tratamiento y presentar la consulta previa ante la AEPD.",
+        "Acompañar la consulta del reparto de responsabilidades entre responsable, corresponsables y encargados, los fines y medios, las medidas y garantías previstas, los datos de contacto del delegado de protección de datos, la propia EIPD y cualquier otra información que pida la AEPD.",
+        "Atender con rapidez las peticiones de información adicional, teniendo en cuenta que suspenden el plazo de respuesta de la autoridad.",
+        "Aplicar las indicaciones de la AEPD antes de iniciar el tratamiento y no iniciarlo si lo prohíbe.",
+        "Si se concluye que el riesgo residual es aceptable y no se consulta, dejar esa conclusión documentada en la EIPD."
       ],
       "evidence": [
-        "Consulta previa documentada"
+        "Conclusión de cada EIPD sobre el riesgo residual y la decisión de consultar o no.",
+        "Escrito de consulta previa con la documentación adjunta y el justificante de presentación.",
+        "Respuesta escrita de la AEPD y plan de aplicación de sus indicaciones, con fechas.",
+        "Información adicional enviada a la AEPD durante la consulta."
       ],
       "source": "Reglamento (UE) 2016/679, art. 36",
       "register": null
@@ -646,14 +973,21 @@
       "kind": "requirement",
       "title": "Art. 37 · Designación del delegado de protección de datos",
       "officialText": "1. El responsable y el encargado del tratamiento designarán un delegado de protección de datos siempre que:\na)\nel tratamiento lo lleve a cabo una autoridad u organismo público, excepto los tribunales que actúen en ejercicio de su función judicial;\nb)\nlas actividades principales del responsable o del encargado consistan en operaciones de tratamiento que, en razón de su naturaleza, alcance y/o fines, requieran una observación habitual y sistemática de interesados a gran escala, o\nc)\nlas actividades principales del responsable o del encargado consistan en el tratamiento a gran escala de categorías especiales de datos personales con arreglo al artículo 9 y de datos relativos a condenas e infracciones penales a que se refiere el artículo 10.\n2. Un grupo empresarial podrá nombrar un único delegado de protección de datos siempre que sea fácilmente accesible desde cada establecimiento.\n3. Cuando el responsable o el encargado del tratamiento sea una autoridad u organismo público, se podrá designar un único delegado de protección de datos para varias de estas autoridades u organismos, teniendo en cuenta su estructura organizativa y tamaño.\n4. En casos distintos de los contemplados en el apartado 1, el responsable o el encargado del tratamiento o las asociaciones y otros organismos que representen a categorías de responsables o encargados podrán designar un delegado de protección de datos o deberán designarlo si así lo exige el Derecho de la Unión o de los Estados miembros. El delegado de protección de datos podrá actuar por cuenta de estas asociaciones y otros organismos que representen a responsables o encargados.\n5. El delegado de protección de datos será designado atendiendo a sus cualidades profesionales y, en particular, a sus conocimientos especializados del Derecho y la práctica en materia de protección de datos y a su capacidad para desempeñar las funciones indicadas en el artículo 39.\n6. El delegado de protección de datos podrá formar parte de la plantilla del responsable o del encargado del tratamiento o desempeñar sus funciones en el marco de un contrato de servicios.\n7. El responsable o el encargado del tratamiento publicarán los datos de contacto del delegado de protección de datos y los comunicarán a la autoridad de control.",
-      "description": "Designar un delegado de protección de datos cuando sea obligatorio y comunicarlo a la autoridad.",
+      "description": "Deben designar un delegado de protección de datos las autoridades y organismos públicos, quienes tengan como actividad principal la observación habitual y sistemática de personas a gran escala y quienes traten a gran escala categorías especiales o datos penales como actividad principal. En España, el artículo 34 de la LOPDGDD añade una lista de entidades que siempre deben tenerlo, como colegios profesionales, centros docentes, centros sanitarios obligados a llevar historias clínicas, aseguradoras o empresas de seguridad privada. El delegado puede ser interno o externo, debe tener conocimientos especializados y su designación se comunica a la AEPD.",
       "actions": [
-        "Valorar si procede",
-        "Designarlo y comunicarlo"
+        "Analizar si la organización está obligada revisando los supuestos del artículo 37.1 del RGPD y la lista del artículo 34.1 de la LOPDGDD: colegios profesionales, centros docentes y universidades, operadores de comunicaciones electrónicas a gran escala, prestadores que elaboren perfiles a gran escala, entidades de crédito y establecimientos financieros de crédito, aseguradoras, empresas de servicios de inversión, distribuidoras y comercializadoras de electricidad y gas, ficheros de solvencia o de prevención del fraude, publicidad basada en preferencias o perfiles, centros sanitarios, informes comerciales, juego en línea, seguridad privada y federaciones deportivas con datos de menores.",
+        "Documentar el análisis y su conclusión también cuando se decida que no es obligatorio, teniendo en cuenta que un delegado designado voluntariamente queda sujeto al mismo régimen.",
+        "Elegir un delegado, interno o externo mediante contrato de servicios, con conocimientos especializados en Derecho y práctica de protección de datos; la certificación prevista en el artículo 35 de la LOPDGDD es una forma de acreditarlo.",
+        "Formalizar la designación por escrito y fijar su dedicación, completa o parcial, según el volumen de tratamientos, la categoría de los datos y los riesgos (artículo 34.5 de la LOPDGDD).",
+        "Comunicar a la AEPD la designación, el nombramiento o el cese en el plazo de diez días (artículo 34.3 de la LOPDGDD).",
+        "Publicar los datos de contacto del delegado, por ejemplo en la web y en las cláusulas informativas."
       ],
       "evidence": [
-        "Designación del delegado",
-        "Comunicación a la autoridad"
+        "Análisis fechado de la obligatoriedad del delegado, con los supuestos revisados y la conclusión.",
+        "Acta de nombramiento o contrato de servicios del delegado, con su dedicación.",
+        "Acreditación de sus conocimientos mediante titulación, certificación o experiencia.",
+        "Justificante de la comunicación a la AEPD de la designación o el cese, que demuestre el plazo de diez días.",
+        "Publicación de los datos de contacto del delegado en la web y en las cláusulas informativas."
       ],
       "source": "Reglamento (UE) 2016/679, art. 37",
       "register": null
@@ -665,14 +999,22 @@
       "kind": "requirement",
       "title": "Art. 38 · Posición del delegado de protección de datos",
       "officialText": "1. El responsable y el encargado del tratamiento garantizarán que el delegado de protección de datos participe de forma adecuada y en tiempo oportuno en todas las cuestiones relativas a la protección de datos personales.\n2. El responsable y el encargado del tratamiento respaldarán al delegado de protección de datos en el desempeño de las funciones mencionadas en el artículo 39, facilitando los recursos necesarios para el desempeño de dichas funciones y el acceso a los datos personales y a las operaciones de tratamiento, y para el mantenimiento de sus conocimientos especializados.\n3. El responsable y el encargado del tratamiento garantizarán que el delegado de protección de datos no reciba ninguna instrucción en lo que respecta al desempeño de dichas funciones. No será destituido ni sancionado por el responsable o el encargado por desempeñar sus funciones. El delegado de protección de datos rendirá cuentas directamente al más alto nivel jerárquico del responsable o encargado.\n4. Los interesados podrán ponerse en contacto con el delegado de protección de datos por lo que respecta a todas las cuestiones relativas al tratamiento de sus datos personales y al ejercicio de sus derechos al amparo del presente Reglamento.\n5. El delegado de protección de datos estará obligado a mantener el secreto o la confidencialidad en lo que respecta al desempeño de sus funciones, de conformidad con el Derecho de la Unión o de los Estados miembros.\n6. El delegado de protección de datos podrá desempeñar otras funciones y cometidos. El responsable o encargado del tratamiento garantizará que dichas funciones y cometidos no den lugar a conflicto de intereses.",
-      "description": "Dar al delegado los recursos, la independencia y el acceso que necesita y asociarlo a las cuestiones de protección de datos.",
+      "description": "No basta con nombrar al delegado: la organización debe implicarlo de forma adecuada y a tiempo en todas las cuestiones de protección de datos, darle recursos y acceso a los datos y garantizar su independencia. No puede recibir instrucciones sobre cómo ejercer sus funciones ni ser destituido o sancionado por desempeñarlas (en España, si es interno, salvo dolo o negligencia grave), y rinde cuentas directamente al más alto nivel de dirección. Puede tener otras funciones siempre que no le generen conflicto de intereses.",
       "actions": [
-        "Dotarlo de medios",
-        "Garantizar su independencia"
+        "Implicar al delegado desde el inicio en los proyectos, compras, incidentes y decisiones que afecten a datos personales, y documentar su intervención.",
+        "Asignarle tiempo, presupuesto, formación continua y acceso a los datos y procesos de tratamiento, sin que se le pueda oponer un deber de confidencialidad o secreto (artículo 36.3 de la LOPDGDD).",
+        "Establecer una línea de reporte directo al más alto nivel de dirección.",
+        "Garantizar por escrito que no recibe instrucciones sobre el ejercicio de sus funciones y que no puede ser destituido ni sancionado por desempeñarlas.",
+        "Analizar si sus otras funciones le generan conflicto de intereses, como ocurre con la dirección de sistemas, de recursos humanos o la gerencia, que deciden fines y medios, y evitarlo.",
+        "Habilitar un canal para que los interesados contacten directamente con el delegado y garantizar la confidencialidad de sus funciones.",
+        "Prever que, cuando aprecie una vulneración relevante, la documente y la comunique de inmediato a los órganos de administración y dirección (artículo 36.4 de la LOPDGDD)."
       ],
       "evidence": [
-        "Descripción de su posición",
-        "Recursos asignados"
+        "Documento de designación o estatuto del delegado con su dependencia, recursos, garantías de independencia y canal de reporte.",
+        "Análisis del posible conflicto de intereses de las demás funciones del delegado.",
+        "Actas o comunicaciones que muestren su participación en proyectos, evaluaciones de impacto y gestión de brechas.",
+        "Presupuesto y plan de formación asignados al delegado.",
+        "Comunicaciones del delegado a la dirección sobre vulneraciones relevantes, cuando las haya."
       ],
       "source": "Reglamento (UE) 2016/679, art. 38",
       "register": null
@@ -684,14 +1026,21 @@
       "kind": "requirement",
       "title": "Art. 39 · Funciones del delegado de protección de datos",
       "officialText": "1. El delegado de protección de datos tendrá como mínimo las siguientes funciones:\na)\ninformar y asesorar al responsable o al encargado del tratamiento y a los empleados que se ocupen del tratamiento de las obligaciones que les incumben en virtud del presente Reglamento y de otras disposiciones de protección de datos de la Unión o de los Estados miembros;\nb)\nsupervisar el cumplimiento de lo dispuesto en el presente Reglamento, de otras disposiciones de protección de datos de la Unión o de los Estados miembros y de las políticas del responsable o del encargado del tratamiento en materia de protección de datos personales, incluida la asignación de responsabilidades, la concienciación y formación del personal que participa en las operaciones de tratamiento, y las auditorías correspondientes;\nc)\nofrecer el asesoramiento que se le solicite acerca de la evaluación de impacto relativa a la protección de datos y supervisar su aplicación de conformidad con el artículo 35;\nd)\ncooperar con la autoridad de control;\ne)\nactuar como punto de contacto de la autoridad de control para cuestiones relativas al tratamiento, incluida la consulta previa a que se refiere el artículo 36, y realizar consultas, en su caso, sobre cualquier otro asunto.\n2. El delegado de protección de datos desempeñará sus funciones prestando la debida atención a los riesgos asociados a las operaciones de tratamiento, teniendo en cuenta la naturaleza, el alcance, el contexto y fines del tratamiento.",
-      "description": "Asegurar que el delegado informa, asesora y supervisa el cumplimiento y coopera con la autoridad.",
+      "description": "El delegado tiene como mínimo cinco funciones: informar y asesorar a la organización y a su personal; supervisar el cumplimiento, incluida la asignación de responsabilidades, la concienciación, la formación y las auditorías; asesorar sobre las evaluaciones de impacto y supervisar su aplicación; cooperar con la autoridad de control; y actuar como su punto de contacto. Las desempeña con un enfoque basado en el riesgo, dando prioridad a los tratamientos más delicados. En España, además, puede resolver las reclamaciones de los interesados antes de que lleguen a la AEPD (artículo 37 de la LOPDGDD).",
       "actions": [
-        "Definir sus funciones",
-        "Documentar sus informes"
+        "Definir por escrito las funciones del delegado, como mínimo las del artículo 39.1, y cualquier otra que se le asigne siempre que no le genere conflicto de intereses.",
+        "Como buena práctica, aprobar un plan anual de supervisión del delegado basado en el riesgo, que priorice los tratamientos de mayor riesgo.",
+        "Pedir su asesoramiento en cada evaluación de impacto, documentar su opinión y la decisión adoptada y, cuando la organización se aparte de su criterio, dejar constancia de los motivos.",
+        "Encomendarle la supervisión de la formación y concienciación del personal y de las auditorías internas de protección de datos.",
+        "Encomendarle la interlocución con la AEPD y la atención de las reclamaciones que los interesados le dirijan, que debe responder en un máximo de dos meses, o de un mes cuando sea la AEPD quien le traslade la reclamación (artículo 37 de la LOPDGDD).",
+        "Como buena práctica, pedirle un informe anual de actividades dirigido al más alto nivel de dirección."
       ],
       "evidence": [
-        "Informes del delegado",
-        "Plan de trabajo"
+        "Documento de funciones del delegado aprobado por la dirección.",
+        "Plan de trabajo de supervisión y su grado de ejecución.",
+        "Informes del delegado, periódicos y anual, con hallazgos y recomendaciones.",
+        "Registro de consultas y asesoramientos del delegado, con la decisión tomada en cada caso.",
+        "Registro de las reclamaciones de interesados atendidas por el delegado, con fecha de entrada y de respuesta."
       ],
       "source": "Reglamento (UE) 2016/679, art. 39",
       "register": null

@@ -12,6 +12,14 @@
           "versionPattern": "content=\"WordPress\\s+(?P<version>\\d+(?:\\.\\d+)+)"
         },
         {
+          "part": "body",
+          "words": [
+            "wp-includes",
+            "wp-admin"
+          ],
+          "versionPattern": "/wp-(?:includes|admin)/(?:js/(?:wp-embed|wp-emoji-release|wp-util|wp-a11y|utils|heartbeat)|css/(?:dist/block-library/style|dashicons|admin-bar|buttons|forms|login|install))(?:\\.min)?\\.(?:js|css)\\?ver=(?P<version>\\d+(?:\\.\\d+)+)"
+        },
+        {
           "part": "header:x-generator",
           "words": [
             "wordpress"
@@ -49,11 +57,11 @@
       "versionProbes": [
         {
           "path": "/core/CHANGELOG.txt",
-          "pattern": "^Drupal (?P<version>\\d+(?:\\.\\d+)+)"
+          "pattern": "^\\s*Drupal (?P<version>\\d+(?:\\.\\d+)+)"
         },
         {
           "path": "/CHANGELOG.txt",
-          "pattern": "^Drupal (?P<version>\\d+(?:\\.\\d+)+)"
+          "pattern": "^\\s*Drupal (?P<version>\\d+(?:\\.\\d+)+)"
         }
       ]
     },
@@ -164,8 +172,7 @@
           "part": "header:server",
           "words": [
             "coyote"
-          ],
-          "versionPattern": "Coyote/(?P<version>\\d+(?:\\.\\d+)+)"
+          ]
         },
         {
           "part": "error_body",
@@ -415,9 +422,16 @@
         {
           "part": "body",
           "words": [
-            "confluence"
+            "atlassian confluence",
+            "com.atlassian.confluence"
           ],
           "versionPattern": "ajs-version-number\"\\s+content=\"(?P<version>\\d+(?:\\.\\d+)+)"
+        },
+        {
+          "part": "title",
+          "words": [
+            " - confluence"
+          ]
         }
       ]
     },
@@ -427,10 +441,16 @@
         {
           "part": "body",
           "words": [
-            "jira",
-            "atlassian jira"
+            "atlassian jira",
+            "jira.webresources"
           ],
           "versionPattern": "ajs-version-number\"\\s+content=\"(?P<version>\\d+(?:\\.\\d+)+)"
+        },
+        {
+          "part": "title",
+          "words": [
+            " - jira"
+          ]
         }
       ]
     },
