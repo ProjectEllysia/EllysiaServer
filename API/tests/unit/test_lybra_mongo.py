@@ -17,14 +17,21 @@ import pytest
 from src.modules.features.themis.lybra.checks import is_mongodb_service
 from src.modules.features.themis.lybra.engine import Service
 from src.modules.features.themis.lybra.fingerprinting.mongo import (
+    BUILD_INFO_COMMAND,
     HELLO_COMMAND,
+    LEGACY_BUILD_INFO_COMMAND,
+    LEGACY_HELLO_COMMAND,
+    LEGACY_LIST_DATABASES_COMMAND,
     LIST_DATABASES_COMMAND,
     MESSAGE_HEADER_SIZE,
     OP_MSG,
+    OP_QUERY,
+    OP_REPLY,
     MongoDissector,
     MongoProbe,
     build_bson_document,
     build_op_msg,
+    build_op_query,
     fingerprint_mongo,
     parse_bson_document,
     parse_op_msg,
@@ -44,6 +51,7 @@ HELLO_REPLY = _op_msg_reply([
     ("helloOk", True), ("maxWireVersion", 21), ("version", "7.0.5"), ("ok", 1),
 ])
 OPEN_LISTING = _op_msg_reply([("databases", "admin,config,local"), ("ok", 1)])
+BUILD_INFO_REPLY = _op_msg_reply([("version", "7.0.5"), ("ok", 1)])
 DENIED_LISTING = _op_msg_reply([
     ("ok", 0),
     ("errmsg", "command listDatabases requires authentication"),
@@ -174,12 +182,14 @@ def _probe_with(replies):
     return MongoProbe(connect=lambda _a, _t: _ScriptedSocket(replies, sent)), sent
 
 
-def test_the_probe_asks_both_commands_over_one_connection():
-    probe, sent = _probe_with([HELLO_REPLY, OPEN_LISTING])
-    hello_reply, list_reply = probe.fetch("10.0.0.5")
-    assert hello_reply == HELLO_REPLY and list_reply == OPEN_LISTING
+def test_the_probe_asks_its_commands_over_one_connection():
+    probe, sent = _probe_with([HELLO_REPLY, OPEN_LISTING, BUILD_INFO_REPLY])
+    hello_reply, list_reply, build_info_reply = probe.fetch("10.0.0.5")
+    assert (hello_reply, list_reply, build_info_reply) == (
+        HELLO_REPLY, OPEN_LISTING, BUILD_INFO_REPLY)
     assert sent == [build_op_msg(HELLO_COMMAND, request_id=1),
-                    build_op_msg(LIST_DATABASES_COMMAND, request_id=2)]
+                    build_op_msg(LIST_DATABASES_COMMAND, request_id=2),
+                    build_op_msg(BUILD_INFO_COMMAND, request_id=3)]
 
 
 def test_the_probe_never_writes_anything():
@@ -276,3 +286,64 @@ def test_the_check_is_registered_and_wired_to_its_feed_entry():
     assert check.service == "mongodb"
     assert check.category == "exposed_service"
     assert check.script in default_script_plugins()
+
+
+# ======================================== servidores anteriores a 3.6 (OP_QUERY)
+
+
+def _op_reply(fields):
+    """Una respuesta ``OP_REPLY`` —la de un servidor anterior a 3.6— con el documento dado."""
+    document = build_bson_document(fields)
+    prefix = struct.pack("<iqii", 8, 0, 0, 1)  # flags, cursorID, startingFrom, numberReturned
+    body = prefix + document
+    return struct.pack("<iiii", MESSAGE_HEADER_SIZE + len(body), 1, 1, OP_REPLY) + body
+
+
+LEGACY_HELLO_REPLY = _op_reply([("ismaster", True), ("maxWireVersion", 5), ("ok", 1)])
+LEGACY_OPEN_LISTING = _op_reply([("databases", "admin,local"), ("ok", 1)])
+LEGACY_BUILD_INFO_REPLY = _op_reply([("version", "3.4.24"), ("ok", 1)])
+
+
+def _two_connections(first_replies, second_replies):
+    """Un ``connect`` que entrega dos sockets guionizados, uno por conexión."""
+    sent = []
+    sockets = [_ScriptedSocket(first_replies, sent), _ScriptedSocket(second_replies, sent)]
+    return MongoProbe(connect=lambda _a, _t: sockets.pop(0)), sent
+
+
+def test_an_op_reply_is_read_like_an_op_msg():
+    assert parse_op_msg(LEGACY_HELLO_REPLY)["maxWireVersion"] == 5
+
+
+def test_an_op_query_names_the_admin_command_collection():
+    message = build_op_query(LEGACY_HELLO_COMMAND, request_id=7)
+    assert struct.unpack_from("<i", message, 12)[0] == OP_QUERY
+    assert message[MESSAGE_HEADER_SIZE + 4:MESSAGE_HEADER_SIZE + 4 + 11] == b"admin.$cmd\x00"
+
+
+def test_a_server_older_than_3_6_is_asked_again_with_op_query():
+    """MongoDB 3.4 contesta a un OP_MSG cerrando la conexión; el sondeo tiene
+    que volver a intentarlo en el único idioma que ese servidor habla."""
+    probe, sent = _two_connections(
+        [b""],
+        [LEGACY_HELLO_REPLY, LEGACY_OPEN_LISTING, LEGACY_BUILD_INFO_REPLY],
+    )
+    fingerprint = fingerprint_mongo(*probe.fetch("10.0.0.5"))
+    assert sent[1:] == [build_op_query(LEGACY_HELLO_COMMAND, request_id=1),
+                        build_op_query(LEGACY_LIST_DATABASES_COMMAND, request_id=2),
+                        build_op_query(LEGACY_BUILD_INFO_COMMAND, request_id=3)]
+    assert (fingerprint.product, fingerprint.version) == ("MongoDB", "3.4.24")
+    assert fingerprint.allows_unauthenticated_access
+
+
+def test_a_modern_server_is_not_asked_a_second_time():
+    probe, sent = _two_connections([HELLO_REPLY, DENIED_LISTING, BUILD_INFO_REPLY], [b""])
+    assert probe.fetch("10.0.0.5") is not None
+    assert len(sent) == 3
+
+
+def test_the_version_comes_from_build_info_when_hello_does_not_carry_it():
+    """``hello`` no publica la versión; ``buildInfo`` sí."""
+    hello_without_version = _op_msg_reply([("helloOk", True), ("maxWireVersion", 21), ("ok", 1)])
+    fingerprint = fingerprint_mongo(hello_without_version, DENIED_LISTING, BUILD_INFO_REPLY)
+    assert fingerprint.version == "7.0.5"
