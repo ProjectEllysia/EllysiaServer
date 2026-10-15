@@ -83,9 +83,11 @@ def test_a_node_with_requirements_is_not_itself_assessable_by_accident(nis2):
 
 # ── qué hay que hacer y qué hay que evidenciar ─────────────────────────────
 
-#: Lo que la SPA puede pintar sin desbordar una tarjeta o una fila de lista de comprobación.
-MAX_DESCRIPTION = 500
-MAX_LIST_ITEM = 240
+#: Topes de legibilidad: la guía es completa a propósito (un elemento puede enumerar las cláusulas
+#: que exige un contrato) y la vista de detalle la parte en líneas, pero un elemento que pasa de
+#: aquí ya es un párrafo y debería ser dos.
+MAX_DESCRIPTION = 750
+MAX_LIST_ITEM = 700
 
 
 def test_every_assessable_requirement_says_what_to_do_and_what_to_keep(nis2):
