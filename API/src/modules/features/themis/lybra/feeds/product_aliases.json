@@ -1,12 +1,13 @@
 {
-  "feedVersion": "lybra-aliases-7",
+  "feedVersion": "lybra-aliases-8",
   "aliases": [
     { "match": "apache httpd",        "vendor": "apache",             "product": "http_server" },
     { "match": "apache",              "vendor": "apache",             "product": "http_server" },
     { "match": "openssh",             "vendor": "openbsd",            "product": "openssh" },
     { "match": "nginx",               "vendor": "nginx",              "product": "nginx" },
     { "match": "microsoft iis httpd", "vendor": "microsoft",          "product": "internet_information_services" },
-    { "match": "mysql",               "vendor": "mysql",              "product": "mysql" },
+    { "match": "mysql",               "vendor": "oracle",             "product": "mysql" },
+    { "match": "jenkins",             "vendor": "jenkins",            "product": "jenkins" },
     { "match": "mariadb",             "vendor": "mariadb",            "product": "mariadb" },
     { "match": "vsftpd",              "vendor": "vsftpd_project",     "product": "vsftpd" },
     { "match": "proftpd",             "vendor": "proftpd",            "product": "proftpd" },

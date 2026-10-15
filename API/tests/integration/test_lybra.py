@@ -630,7 +630,7 @@ def _seed_kb_mysql_cve(app):
                 {"cve_id": "CVE-2023-99999", "cvss_score": 7.5,
                  "cvss_vector": "CVSS:3.1/AV:N", "severity": "HIGH",
                  "description": "MySQL test CVE", "cwe_ids": ["CWE-284"], "source": "nvd"},
-                [{"vendor": "mysql", "product": "mysql", "exact_version": "8.0.34",
+                [{"vendor": "oracle", "product": "mysql", "exact_version": "8.0.34",
                   "version_start_including": None, "version_start_excluding": None,
                   "version_end_including": None, "version_end_excluding": None}],
             )

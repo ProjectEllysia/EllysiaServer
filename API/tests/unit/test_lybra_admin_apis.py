@@ -337,6 +337,13 @@ def test_a_public_portainer_banner_fires():
     assert _fired_check(feed_by_id, "portainer-version-exposed", _PORTAINER, _json_response(body))
 
 
+def test_the_portainer_check_reads_the_status_path_every_version_serves():
+    """Portainer 2.16 contesta 404 en /api/system/status y 200 en /api/status;
+    las versiones recientes sirven las dos."""
+    feed_by_id = {check.id: check for check in load_checks()}
+    assert [request.path for request in feed_by_id["portainer-version-exposed"].requests] == ["/api/status"]
+
+
 def test_portainer_unreachable_does_not_fire():
     """Señuelo: sin respuesta (cortafuegos, servicio caído), no hay banner que leer."""
     feed_by_id = {check.id: check for check in load_checks()}
