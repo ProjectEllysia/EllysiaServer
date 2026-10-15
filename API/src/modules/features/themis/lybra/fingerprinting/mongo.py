@@ -305,6 +305,54 @@ def fingerprint_mongo(
     )
 
 
+def _dialogue(
+    connect: Callable, timeout: float, host: str, port: int, build: Callable,
+    commands: Tuple[List[Tuple[str, Any]], ...],
+) -> Optional[Tuple[bytes, bytes, bytes]]:
+    """Manda ``commands`` en orden por una conexión con un mismo protocolo.
+
+    Args:
+        connect: ``(address, timeout) -> socket`` inyectable.
+        timeout: El plazo de conexión y lectura, en segundos.
+        host: El objetivo.
+        port: El puerto de MongoDB.
+        build: ``build_op_msg`` o ``build_op_query``: cómo se empaqueta
+            cada comando.
+        commands: Los tres comandos, en este orden: el handshake, la
+            lista de bases de datos y la información de compilación.
+
+    Returns:
+        Las tres respuestas, o ``None`` si el handshake no contestó. Un
+        fallo en las dos últimas no invalida la primera: queda vacío.
+    """
+    try:
+        sock = connect((host, port), timeout)
+    except OSError as err:
+        logger.debug("MongoDB: conexión fallida a %s:%s: %s", host, port, err)
+        return None
+    try:
+        sock.settimeout(timeout)
+        replies = []
+        for request_id, command in enumerate(commands, start=1):
+            sock.sendall(build(command, request_id=request_id))
+            try:
+                reply = sock.recv(8192)
+            except OSError:
+                reply = b""
+            if not replies and not reply:
+                return None
+            replies.append(reply)
+        return replies[0], replies[1], replies[2]
+    except OSError as err:
+        logger.debug("MongoDB: intercambio fallido con %s:%s: %s", host, port, err)
+        return None
+    finally:
+        try:
+            sock.close()
+        except OSError:
+            pass
+
+
 # =========================================================================
 # SONDA (el borde de red: socket crudo, sin pymongo)
 # =========================================================================
@@ -346,61 +394,16 @@ class MongoProbe:  # pylint: disable=too-few-public-methods
             llegó a completarse con ninguno de los dos protocolos. Las dos
             últimas pueden venir vacías.
         """
-        modern = self._dialogue(
-            host, port, build_op_msg,
+        modern = _dialogue(
+            self._connect, self._timeout, host, port, build_op_msg,
             (HELLO_COMMAND, LIST_DATABASES_COMMAND, BUILD_INFO_COMMAND),
         )
         if modern is not None:
             return modern
-        return self._dialogue(
-            host, port, build_op_query,
+        return _dialogue(
+            self._connect, self._timeout, host, port, build_op_query,
             (LEGACY_HELLO_COMMAND, LEGACY_LIST_DATABASES_COMMAND, LEGACY_BUILD_INFO_COMMAND),
         )
-
-    def _dialogue(
-        self, host: str, port: int, build: Callable,
-        commands: Tuple[List[Tuple[str, Any]], ...],
-    ) -> Optional[Tuple[bytes, bytes, bytes]]:
-        """Manda ``commands`` en orden por una conexión con un mismo protocolo.
-
-        Args:
-            host: El objetivo.
-            port: El puerto de MongoDB.
-            build: ``build_op_msg`` o ``build_op_query``: cómo se empaqueta
-                cada comando.
-            commands: Los tres comandos, en este orden: el handshake, la
-                lista de bases de datos y la información de compilación.
-
-        Returns:
-            Las tres respuestas, o ``None`` si el handshake no contestó. Un
-            fallo en las dos últimas no invalida la primera: queda vacío.
-        """
-        try:
-            sock = self._connect((host, port), self._timeout)
-        except OSError as err:
-            logger.debug("MongoDB: conexión fallida a %s:%s: %s", host, port, err)
-            return None
-        try:
-            sock.settimeout(self._timeout)
-            replies = []
-            for request_id, command in enumerate(commands, start=1):
-                sock.sendall(build(command, request_id=request_id))
-                try:
-                    reply = sock.recv(8192)
-                except OSError:
-                    reply = b""
-                if not replies and not reply:
-                    return None
-                replies.append(reply)
-            return replies[0], replies[1], replies[2]
-        except OSError as err:
-            logger.debug("MongoDB: intercambio fallido con %s:%s: %s", host, port, err)
-            return None
-        finally:
-            try:
-                sock.close()
-            except OSError:
-                pass
 
 
 @register_dissector
