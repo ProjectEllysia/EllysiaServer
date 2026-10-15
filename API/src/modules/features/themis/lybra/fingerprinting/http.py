@@ -1155,4 +1155,6 @@ class HttpDissector(Dissector):
                 if not _same_product(layer.product, fingerprint.product)
             ),
             components=web_components(fingerprint, response.body, fetch_path),
+            # Una respuesta HTTP válida —incluso un 404— prueba el protocolo.
+            protocol="http",
         )

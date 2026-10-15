@@ -53,6 +53,12 @@ class DissectorResult:
         components: Lo que corre dentro del servicio y tiene sus propias CVEs
             —el CMS, las librerías JavaScript, el panel de hosting—, como
             tuplas ``(producto, versión)``. Vacía salvo en HTTP.
+        protocol: El protocolo que el servicio demostró hablar, aunque no se
+            haya podido nombrar su producto (``"http"``), o ``None`` cuando el
+            dissector no lo afirma. Es lo que permite tratar como HTTP un
+            servicio en un puerto no habitual: un ``GET /`` que obtuvo una
+            respuesta HTTP válida prueba el protocolo mejor que el número de
+            puerto.
     """
     product: Optional[str]
     version: Optional[str]
@@ -60,6 +66,7 @@ class DissectorResult:
     qod: int = QOD_FINGERPRINT
     extra_layers: tuple = ()
     components: tuple = ()
+    protocol: Optional[str] = None
 
     @property
     def is_generic(self) -> bool:
