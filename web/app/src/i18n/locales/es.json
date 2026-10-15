@@ -271,7 +271,8 @@
     "userBinding": "No se pudo crear el usuario porque faltan datos.",
     "vaultRevisionMissing": "Esta operación necesita la versión actual de la bóveda. Recarga y vuelve a intentarlo.",
     "vaultRevisionOutdated": "La bóveda cambió desde otro dispositivo. Recarga y vuelve a intentarlo.",
-    "xmlParsing": "No se pudieron procesar los resultados del escaneo."
+    "xmlParsing": "No se pudieron procesar los resultados del escaneo.",
+    "systemCategoryNotSupported": "Este marco no distingue categorías de sistema, o la categoría no es válida."
   },
   "kbAdmin": {
     "title": "Base de conocimiento",
@@ -2222,6 +2223,24 @@
         "overdue": "vencido",
         "done": "cumplido"
       }
+    },
+    "category": {
+      "label": "Categoría del sistema",
+      "none": "Sin elegir",
+      "basic": "Básica",
+      "medium": "Media",
+      "high": "Alta",
+      "changed": "Categoría del sistema actualizada.",
+      "changeFailed": "No se pudo cambiar la categoría del sistema.",
+      "missing": "Este marco exige unas medidas u otras según la categoría del sistema (básica, media o alta). Elígela en la pantalla de marcos para que el cumplimiento cuente solo lo que te exige; mientras, cuenta todo.",
+      "onlyRequired": "Solo lo exigido",
+      "applicability": {
+        "required": "Exigido en categoría {category}",
+        "alternative": "Alternativa: basta una de las que cita su medida",
+        "not_required": "No se exige en categoría {category}",
+        "optional": "Opcional: no se exige en ninguna categoría"
+      },
+      "annexTitle": "Qué exige el anexo II por categoría"
     }
   },
   "organizationManaged": {
