@@ -736,7 +736,7 @@
         "eol": "2010-08-31"
       }
     ],
-    "mysql:mysql": [
+    "oracle:mysql": [
       {
         "cycle": "9.7",
         "eol": "2034-04-30"

@@ -73,6 +73,13 @@ def test_a_jenkins_header_is_detected_and_its_absence_is_not():
     assert "jenkins-exposed" not in _fired({"/": Response(200, "<html></html>", {})})
 
 
+def test_a_locked_jenkins_is_not_an_exposed_panel():
+    """Señuelo: Jenkins manda X-Jenkins también en el 403 de una instancia
+    protegida; ahí el panel no es accesible."""
+    locked = Response(403, "<html>Authentication required</html>", {"x-jenkins": "2.138.3"})
+    assert "jenkins-exposed" not in _fired({"/": locked})
+
+
 # ================================================= depuración en producción
 
 

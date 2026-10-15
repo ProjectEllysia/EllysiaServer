@@ -1415,6 +1415,12 @@ class LybraEngineManager(ScanManager):
                 updated.append(service)
                 continue
 
+            # Lo que el servicio demostró hablar manda sobre la tabla de puertos:
+            # un panel web en el 3000 o en el 5984 ya no es «desconocido», y a
+            # partir de aquí recibe los mismos checks HTTP que uno en el 8080.
+            if result.protocol == "http" and not is_http_service(service):
+                service = replace(service, name="http")
+
             # Una huella que no nombra ningún producto («Server: Web») no dice
             # qué corre ni se puede cruzar con nada: no se reporta.
             if not result.is_generic:

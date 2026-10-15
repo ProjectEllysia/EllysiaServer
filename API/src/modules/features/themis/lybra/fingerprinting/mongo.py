@@ -43,10 +43,15 @@ from .registry import register_dissector
 
 logger = logging.getLogger(__name__)
 
-# El opcode del único mensaje que este módulo habla. OP_MSG sustituyó en
-# MongoDB 3.6 a la familia de opcodes antiguos, y es el que entiende cualquier
-# servidor que siga en soporte.
+# Los opcodes que este módulo habla. OP_MSG sustituyó en MongoDB 3.6 a la
+# familia de opcodes antiguos, y es el que entiende cualquier servidor
+# moderno. Las versiones anteriores —que siguen siendo las que más aparecen
+# expuestas— contestan a OP_MSG con «cannot translate opcode» y cierran la
+# conexión, así que para ellas se vuelve a OP_QUERY (que responde con
+# OP_REPLY), el único mensaje que hablaban.
 OP_MSG = 2013
+OP_QUERY = 2004
+OP_REPLY = 1
 MESSAGE_HEADER_SIZE = 16
 
 # El código de error que MongoDB devuelve cuando un comando exige credenciales
@@ -188,19 +193,46 @@ def build_op_msg(command: List[Tuple[str, Any]], request_id: int = 1) -> bytes:
     return header + body
 
 
+def build_op_query(command: List[Tuple[str, Any]], request_id: int = 1) -> bytes:
+    """Envuelve un comando en un ``OP_QUERY`` sobre ``admin.$cmd``.
+
+    Es la forma en que un cliente hablaba con cualquier MongoDB anterior a 3.6.
+
+    Args:
+        command: Los campos del comando, con su nombre el primero.
+        request_id: El identificador de la petición.
+
+    Returns:
+        El mensaje completo, con su cabecera de dieciséis bytes.
+    """
+    # flags = 0, colección, numberToSkip = 0, numberToReturn = -1 (un único
+    # documento y cierra el cursor), y el documento del comando.
+    body = (struct.pack("<i", 0) + b"admin.$cmd\x00" + struct.pack("<ii", 0, -1)
+            + build_bson_document(command))
+    header = struct.pack("<iiii", MESSAGE_HEADER_SIZE + len(body), request_id, 0, OP_QUERY)
+    return header + body
+
+
+# Tras la cabecera, un OP_REPLY lleva responseFlags (4), cursorID (8),
+# startingFrom (4) y numberReturned (4) antes del primer documento.
+_OP_REPLY_PREFIX = 20
+
+
 def parse_op_msg(data: bytes) -> Dict[str, Any]:
-    """Extrae el documento de respuesta de un ``OP_MSG``.
+    """Extrae el documento de respuesta de un ``OP_MSG`` o de un ``OP_REPLY``.
 
     Args:
         data: El mensaje recibido, con su cabecera.
 
     Returns:
-        El documento, o un diccionario vacío si la respuesta no es un
-        ``OP_MSG`` reconocible.
+        El documento, o un diccionario vacío si la respuesta no es ni un
+        ``OP_MSG`` ni un ``OP_REPLY`` reconocible.
     """
     if len(data) < MESSAGE_HEADER_SIZE + 5:
         return {}
     opcode = struct.unpack_from("<i", data, 12)[0]
+    if opcode == OP_REPLY:
+        return parse_bson_document(data[MESSAGE_HEADER_SIZE + _OP_REPLY_PREFIX:])
     if opcode != OP_MSG:
         return {}
     # flagBits (4) + tipo de sección (1) por delante del documento.
@@ -209,6 +241,13 @@ def parse_op_msg(data: bytes) -> Dict[str, Any]:
 
 HELLO_COMMAND: List[Tuple[str, Any]] = [("hello", 1), ("$db", "admin")]
 LIST_DATABASES_COMMAND: List[Tuple[str, Any]] = [("listDatabases", 1), ("$db", "admin")]
+BUILD_INFO_COMMAND: List[Tuple[str, Any]] = [("buildInfo", 1), ("$db", "admin")]
+
+# Los mismos comandos para OP_QUERY: el nombre de la base de datos ya va en la
+# colección del mensaje (``admin.$cmd``), y ``hello`` se llamaba ``isMaster``.
+LEGACY_HELLO_COMMAND: List[Tuple[str, Any]] = [("isMaster", 1)]
+LEGACY_LIST_DATABASES_COMMAND: List[Tuple[str, Any]] = [("listDatabases", 1)]
+LEGACY_BUILD_INFO_COMMAND: List[Tuple[str, Any]] = [("buildInfo", 1)]
 
 
 @dataclass(frozen=True)
@@ -230,13 +269,19 @@ class MongoFingerprint:
     allows_unauthenticated_access: bool = False
 
 
-def fingerprint_mongo(hello_reply: bytes, list_reply: bytes = b"") -> MongoFingerprint:
-    """Construye el fingerprint a partir de las dos respuestas.
+def fingerprint_mongo(
+    hello_reply: bytes, list_reply: bytes = b"", build_info_reply: bytes = b"",
+) -> MongoFingerprint:
+    """Construye el fingerprint a partir de las respuestas.
 
     Args:
-        hello_reply: La respuesta a ``hello``, que contesta siempre.
+        hello_reply: La respuesta a ``hello`` (o a ``isMaster``), que contesta
+            siempre.
         list_reply: La respuesta a ``listDatabases``, que sólo trae datos
             cuando el servidor no exige credenciales.
+        build_info_reply: La respuesta a ``buildInfo``, que no exige
+            credenciales y es donde MongoDB publica su versión: ``hello`` no la
+            trae. Por defecto vacía.
 
     Returns:
         El :class:`MongoFingerprint`.
@@ -250,7 +295,8 @@ def fingerprint_mongo(hello_reply: bytes, list_reply: bytes = b"") -> MongoFinge
     # con el código 13, y uno que no entiende el comando no trae `databases`.
     is_open = bool(listing.get("ok")) and "databases" in listing
 
-    version = hello.get("version")
+    build_info = parse_op_msg(build_info_reply) if build_info_reply else {}
+    version = build_info.get("version") or hello.get("version")
     return MongoFingerprint(
         product=_PRODUCT,
         version=str(version) if version else None,
@@ -259,20 +305,72 @@ def fingerprint_mongo(hello_reply: bytes, list_reply: bytes = b"") -> MongoFinge
     )
 
 
+def _dialogue(
+    connect: Callable, timeout: float, host: str, port: int, build: Callable,
+    commands: Tuple[List[Tuple[str, Any]], ...],
+) -> Optional[Tuple[bytes, bytes, bytes]]:
+    """Manda ``commands`` en orden por una conexión con un mismo protocolo.
+
+    Args:
+        connect: ``(address, timeout) -> socket`` inyectable.
+        timeout: El plazo de conexión y lectura, en segundos.
+        host: El objetivo.
+        port: El puerto de MongoDB.
+        build: ``build_op_msg`` o ``build_op_query``: cómo se empaqueta
+            cada comando.
+        commands: Los tres comandos, en este orden: el handshake, la
+            lista de bases de datos y la información de compilación.
+
+    Returns:
+        Las tres respuestas, o ``None`` si el handshake no contestó. Un
+        fallo en las dos últimas no invalida la primera: queda vacío.
+    """
+    try:
+        sock = connect((host, port), timeout)
+    except OSError as err:
+        logger.debug("MongoDB: conexión fallida a %s:%s: %s", host, port, err)
+        return None
+    try:
+        sock.settimeout(timeout)
+        replies = []
+        for request_id, command in enumerate(commands, start=1):
+            sock.sendall(build(command, request_id=request_id))
+            try:
+                reply = sock.recv(8192)
+            except OSError:
+                reply = b""
+            if not replies and not reply:
+                return None
+            replies.append(reply)
+        return replies[0], replies[1], replies[2]
+    except OSError as err:
+        logger.debug("MongoDB: intercambio fallido con %s:%s: %s", host, port, err)
+        return None
+    finally:
+        try:
+            sock.close()
+        except OSError:
+            pass
+
+
 # =========================================================================
 # SONDA (el borde de red: socket crudo, sin pymongo)
 # =========================================================================
 
 class MongoProbe:  # pylint: disable=too-few-public-methods
-    """Manda ``hello`` y ``listDatabases`` sobre la misma conexión.
+    """Manda ``hello``, ``listDatabases`` y ``buildInfo`` sobre la misma conexión.
 
-    Las dos preguntas van juntas porque son dos secciones del mismo diálogo y
-    el servidor no cierra entre una y otra: a diferencia de PostgreSQL, aquí no
-    hay ninguna negociación de transporte en medio que obligue a reconectar.
+    Las preguntas van juntas porque son partes del mismo diálogo y el servidor
+    no cierra entre una y otra: a diferencia de PostgreSQL, aquí no hay
+    ninguna negociación de transporte en medio que obligue a reconectar.
 
-    **Ninguno de los dos comandos escribe nada.** ``listDatabases`` es una
-    lectura de catálogo; se manda sin credenciales y su fracaso es tan
-    informativo como su éxito.
+    Se habla primero ``OP_MSG``. Un servidor anterior a 3.6 lo rechaza cerrando
+    la conexión; entonces se abre otra y se repite el diálogo con ``OP_QUERY``,
+    que es lo único que esas versiones entienden.
+
+    **Ninguno de los comandos escribe nada.** ``listDatabases`` es una lectura
+    de catálogo y ``buildInfo`` publica la versión; se mandan sin credenciales
+    y su fracaso es tan informativo como su éxito.
 
     Args:
         timeout: El plazo de conexión y lectura, en segundos.
@@ -283,47 +381,34 @@ class MongoProbe:  # pylint: disable=too-few-public-methods
         self._timeout = timeout
         self._connect = connect or socket.create_connection
 
-    def fetch(self, host: str, port: int = 27017) -> Optional[Tuple[bytes, bytes]]:
-        """Hace los dos intercambios contra ``host:port``.
+    def fetch(self, host: str, port: int = 27017) -> Optional[Tuple[bytes, bytes, bytes]]:
+        """Hace los intercambios contra ``host:port``.
 
         Args:
             host: El objetivo.
             port: El puerto de MongoDB.
 
         Returns:
-            Un par ``(respuesta a hello, respuesta a listDatabases)``, o
-            ``None`` si ni siquiera el primero llegó a completarse.
+            Una tupla ``(respuesta a hello, respuesta a listDatabases,
+            respuesta a buildInfo)``, o ``None`` si ni siquiera la primera
+            llegó a completarse con ninguno de los dos protocolos. Las dos
+            últimas pueden venir vacías.
         """
-        try:
-            sock = self._connect((host, port), self._timeout)
-        except OSError as err:
-            logger.debug("MongoDB: conexión fallida a %s:%s: %s", host, port, err)
-            return None
-        try:
-            sock.settimeout(self._timeout)
-            sock.sendall(build_op_msg(HELLO_COMMAND, request_id=1))
-            hello_reply = sock.recv(8192)
-            if not hello_reply:
-                return None
-            sock.sendall(build_op_msg(LIST_DATABASES_COMMAND, request_id=2))
-            try:
-                list_reply = sock.recv(8192)
-            except OSError:
-                list_reply = b""
-            return hello_reply, list_reply
-        except OSError as err:
-            logger.debug("MongoDB: intercambio fallido con %s:%s: %s", host, port, err)
-            return None
-        finally:
-            try:
-                sock.close()
-            except OSError:
-                pass
+        modern = _dialogue(
+            self._connect, self._timeout, host, port, build_op_msg,
+            (HELLO_COMMAND, LIST_DATABASES_COMMAND, BUILD_INFO_COMMAND),
+        )
+        if modern is not None:
+            return modern
+        return _dialogue(
+            self._connect, self._timeout, host, port, build_op_query,
+            (LEGACY_HELLO_COMMAND, LEGACY_LIST_DATABASES_COMMAND, LEGACY_BUILD_INFO_COMMAND),
+        )
 
 
 @register_dissector
 class MongoDissector(Dissector):
-    """``hello`` para la versión, ``listDatabases`` para saber si hay puerta."""
+    """``buildInfo`` para la versión, ``listDatabases`` para saber si hay puerta."""
 
     label = "MongoDB"
 

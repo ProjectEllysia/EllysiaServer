@@ -337,6 +337,13 @@ def test_a_public_portainer_banner_fires():
     assert _fired_check(feed_by_id, "portainer-version-exposed", _PORTAINER, _json_response(body))
 
 
+def test_the_portainer_check_reads_the_status_path_every_version_serves():
+    """Portainer 2.16 contesta 404 en /api/system/status y 200 en /api/status;
+    las versiones recientes sirven las dos."""
+    feed_by_id = {check.id: check for check in load_checks()}
+    assert [request.path for request in feed_by_id["portainer-version-exposed"].requests] == ["/api/status"]
+
+
 def test_portainer_unreachable_does_not_fire():
     """Señuelo: sin respuesta (cortafuegos, servicio caído), no hay banner que leer."""
     feed_by_id = {check.id: check for check in load_checks()}
@@ -346,6 +353,31 @@ def test_portainer_unreachable_does_not_fire():
     findings = CheckRuntime([feed_by_id["portainer-version-exposed"]], fetch).run(
         "10.0.0.5", [_PORTAINER])
     assert findings == []
+
+
+# ============================ un check de familia no corre contra otra familia
+
+# Consul y Nomad publican los dos /v1/agent/self; el cuerpo de un Consul puede
+# contener las dos palabras que busca el check de Nomad.
+_AMBIGUOUS_AGENT_BODY = {"Config": {"Datacenter": "dc1"},
+                         "stats": {"nomad": {"server": "true"}}}
+
+
+def test_the_nomad_check_does_not_run_against_a_consul():
+    consul = Service(8500, "tcp", "consul")
+    assert not _fired_check(load_checks_by_id(), "nomad-unauthenticated-access", consul,
+                            _json_response(_AMBIGUOUS_AGENT_BODY))
+
+
+def test_a_family_check_still_runs_against_an_unidentified_http_service():
+    """El panel movido a otro puerto: se sabe que habla HTTP pero no qué es."""
+    unknown = Service(14646, "tcp", "http")
+    assert _fired_check(load_checks_by_id(), "nomad-unauthenticated-access", unknown,
+                        _json_response(_AMBIGUOUS_AGENT_BODY))
+
+
+def load_checks_by_id():
+    return {check.id: check for check in load_checks()}
 
 
 # ============================ predicados de servicio

@@ -247,3 +247,32 @@ def test_a_generic_reading_produces_no_fingerprint_finding(monkeypatch):
     _updated, findings = _run_fingerprint(monkeypatch, _Dissector(), _services(2))
 
     assert [finding["title"] for finding in findings] == ["Fingerprint propio (FALSO): nginx"]
+
+
+# ============================================ el protocolo observado manda sobre el puerto
+
+
+class _ProtocolOnlyDissector(Dissector):
+    """Habla HTTP en cualquier puerto pero no nombra ningún producto."""
+
+    label = "HTTP"
+
+    def applies(self, _service):
+        return True
+
+    def probe(self, target, service, rate_limiter):
+        return DissectorResult(None, None, self.label, protocol="http")
+
+
+def test_a_service_that_proved_to_speak_http_is_named_http(monkeypatch):
+    """Un panel en el 3000 no está en la lista de puertos HTTP, pero respondió
+    HTTP: tiene que recibir los mismos checks que uno en el 8080."""
+    unknown = Service(3000, "tcp", "")
+    updated, _findings = _run_fingerprint(monkeypatch, _ProtocolOnlyDissector(), [unknown])
+    assert updated[0].name == "http"
+
+
+def test_a_service_already_known_as_http_keeps_its_name(monkeypatch):
+    proxy = Service(8080, "tcp", "http-proxy")
+    updated, _findings = _run_fingerprint(monkeypatch, _ProtocolOnlyDissector(), [proxy])
+    assert updated[0].name == "http-proxy"

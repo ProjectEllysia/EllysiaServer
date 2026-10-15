@@ -1029,7 +1029,7 @@ checks:
       qod: 99
       confirmed: true
   # A diferencia del resto de esta familia, Portainer exige sesion para casi
-  # toda su API real: sólo /api/system/status es publico por diseño (la
+  # toda su API real: sólo /api/status es publico por diseño (la
   # propia interfaz lo pide antes de iniciar sesion). El hallazgo es que el
   # banner de version es legible, no que haya acceso a los contenedores.
   - id: portainer-version-exposed
@@ -1041,7 +1041,7 @@ checks:
     mode: safe
     requests:
       - method: GET
-        path: /api/system/status
+        path: /api/status
         matchers-condition: and
         matchers:
           - type: status
@@ -1465,16 +1465,17 @@ checks:
     requests:
       - method: GET
         path: /
-        matchers-condition: or
+        # Jenkins pone X-Jenkins en cualquier respuesta, también en el 403 de
+        # una instancia con la seguridad activada: sin el 200 no hay panel.
+        matchers-condition: and
         matchers:
+          - type: status
+            value:
+              - 200
           - type: word
             part: header
             words:
               - x-jenkins
-          - type: word
-            part: body
-            words:
-              - 'Dashboard [Jenkins]'
     finding:
       title: Panel de Jenkins accesible
       qod: 99

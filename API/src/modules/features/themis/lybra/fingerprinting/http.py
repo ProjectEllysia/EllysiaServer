@@ -42,6 +42,7 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Pattern, Tuple
 
@@ -191,7 +192,13 @@ class TechMatcher:
             ``"error_body"`` (a deliberately nonexistent path's response, if
             fetched), ``"title"``, or ``"header:<name>"`` for a specific
             response header.
-        words: Case-insensitive substrings; any one present is a match.
+        words: Palabras que, si alguna aparece, dan el matcher por casado,
+            sin distinguir mayúsculas. En las partes de texto (``body``,
+            ``title``, ``error_body``) se buscan como palabra: no pueden ir
+            pegadas a una letra o cifra, así que ``unifi`` no casa dentro de
+            ``unifiedAlertingEnabled``. En las cabeceras se buscan como
+            subcadena, porque ahí se usa una palabra suelta como «la cabecera
+            existe» (``.``, ``a``, ``e``…).
         version_pattern: Expresión regular opcional con un grupo llamado
             ``version``, evaluada sobre **la misma parte** que ``words``. Vive
             en el matcher y no en la firma porque el sitio donde está la
@@ -436,6 +443,30 @@ def _tech_evidence(
     return evidence
 
 
+# Partes que son texto libre de la página, donde una subcadena corta coincide
+# con palabras que no tienen nada que ver (``unifi`` en ``unifiedAlerting``,
+# ``hass`` en ``chassis``). Las cabeceras quedan fuera a propósito.
+_TEXT_PARTS = frozenset({"body", "title", "error_body"})
+
+
+@lru_cache(maxsize=None)
+def _whole_word_pattern(word: str) -> Pattern:
+    """Patrón que busca ``word`` sin letras ni cifras pegadas por sus extremos.
+
+    El límite sólo se exige en un extremo que sea alfanumérico: una palabra
+    como ``sites/all/`` o ``wp-content`` ya se delimita sola con sus símbolos.
+
+    Args:
+        word: La palabra de la firma.
+
+    Returns:
+        El patrón compilado, insensible a mayúsculas.
+    """
+    left = r"(?<![a-z0-9])" if word[:1].isalnum() else ""
+    right = r"(?![a-z0-9])" if word[-1:].isalnum() else ""
+    return re.compile(left + re.escape(word) + right, re.IGNORECASE)
+
+
 def _signature_hit(signature: TechSignature, evidence: Dict[str, str]) -> Optional[SignatureHit]:
     """Evalúa una firma contra la evidencia y devuelve lo que aporta.
 
@@ -456,7 +487,11 @@ def _signature_hit(signature: TechSignature, evidence: Dict[str, str]) -> Option
     for matcher in signature.matchers:
         raw = evidence.get(matcher.part, "")
         text = raw.lower()
-        if not any(word.lower() in text for word in matcher.words):
+        if matcher.part in _TEXT_PARTS:
+            is_hit = any(_whole_word_pattern(word).search(text) for word in matcher.words)
+        else:
+            is_hit = any(word.lower() in text for word in matcher.words)
+        if not is_hit:
             continue
         did_match = True
         if matcher.version_pattern is None:
@@ -830,6 +865,41 @@ def _detect_layers(
     )
 
 
+def _platform_hit(
+    readings: List[VersionReading],
+    chosen_product: Optional[str],
+    hits: List[SignatureHit],
+) -> Optional[SignatureHit]:
+    """La plataforma que una cabecera anuncia detrás del servidor, como componente.
+
+    ``Server: Apache/2.4.25`` y ``X-Powered-By: PHP/5.6.40`` describen dos
+    programas distintos del mismo puerto, y los dos tienen CVE. La cascada de
+    identidad sólo reporta uno (``Server`` gana), así que la plataforma se
+    perdía; aquí se recupera para que entre al inventario de componentes.
+
+    Args:
+        readings: Las lecturas de la cascada.
+        chosen_product: El producto que ya se reporta como identidad del
+            servicio, si hay.
+        hits: Las firmas que casaron: una plataforma que ya consta ahí (una
+            firma de Drupal y un ``X-Generator: Drupal 7``) no se repite.
+
+    Returns:
+        La plataforma con su versión, o ``None`` si ninguna cabecera la
+        anuncia con versión o si ya está contada.
+    """
+    reading = next(
+        (candidate for candidate in readings
+         if candidate.source == "powered-by-header" and candidate.product and candidate.version),
+        None,
+    )
+    if reading is None or _same_product(reading.product, chosen_product):
+        return None
+    if any(_same_product(reading.product, hit.name) for hit in hits):
+        return None
+    return SignatureHit(name=reading.product, version=reading.version)
+
+
 def _resolve_identity(
     readings: List[VersionReading],
     body: str,
@@ -922,6 +992,10 @@ def fingerprint_http(  # pylint: disable=too-many-locals
             product = catalogued.product
             confidence = 0.5
 
+    platform = _platform_hit(readings, product, hits)
+    if platform is not None:
+        hits.append(platform)
+
     return HttpFingerprint(
         product=product, version=version, title=title,
         favicon_hash=favicon_digest, technologies=technologies,
@@ -964,7 +1038,11 @@ def web_components(
     components: List[Tuple[str, Optional[str]]] = []
     for hit in fingerprint.hits:
         version = hit.version
-        probes = signatures[hit.name].version_probes if hit.name in signatures and not version else ()
+        # Una versión de sólo la rama mayor («Drupal 7») no sirve para saber
+        # qué CVE aplican: se vuelve a preguntar a los ficheros de versión, y
+        # si alguno da una versión completa, ésa manda.
+        is_imprecise = not version or "." not in version
+        probes = signatures[hit.name].version_probes if hit.name in signatures and is_imprecise else ()
         for probe in probes:
             found = probe.pattern.search(fetch_path(probe.path) or "")
             if found:
@@ -1120,4 +1198,6 @@ class HttpDissector(Dissector):
                 if not _same_product(layer.product, fingerprint.product)
             ),
             components=web_components(fingerprint, response.body, fetch_path),
+            # Una respuesta HTTP válida —incluso un 404— prueba el protocolo.
+            protocol="http",
         )

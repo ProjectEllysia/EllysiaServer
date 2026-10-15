@@ -84,7 +84,7 @@ ADMIN_APIS: Dict[int, AdminApi] = {
     2379: AdminApi("etcd", "/version", ("etcdserver",)),
     8500: AdminApi("Consul", "/v1/agent/self", ("Config", "Version")),
     4646: AdminApi("Nomad", "/v1/agent/self", ("stats", "nomad", "version")),
-    9000: AdminApi("Portainer", "/api/system/status", ("Version",)),
+    9000: AdminApi("Portainer", "/api/status", ("Version",)),
 }
 
 

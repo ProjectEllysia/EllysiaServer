@@ -45,7 +45,7 @@ _CATALOG_PATH = (_API_DIR / "src" / "modules" / "features" / "themis" / "lybra"
 # feeds/cve_applicability.json y feeds/product_aliases.json ya usan).
 _PRODUCTS: Dict[str, str] = {
     "nginx": "nginx:nginx",
-    "mysql": "mysql:mysql",
+    "mysql": "oracle:mysql",
     "mariadb": "mariadb:mariadb",
     "postgresql": "postgresql:postgresql",
     "postfix": "postfix:postfix",

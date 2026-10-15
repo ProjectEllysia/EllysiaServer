@@ -30,6 +30,8 @@ que la ruta rápida de los servicios en su puerto de siempre no paga nada:
 2. Si el servicio no dice nada, se prueban en orden unas pocas sondas activas
    baratas — las de los dissectors que declaran :attr:`Dissector.tries_blind`,
    hoy Redis (``INFO``) y HTTP (``GET /``) — con un **presupuesto explícito**.
+   Si ninguna nombra un producto pero alguna demostró que el servicio habla su
+   protocolo (HTTP), se devuelve esa lectura sin producto.
 3. Si sigue mudo, no hay identificación. Un puerto que acepta la conexión y no
    contesta a nada sigue siendo un ``open_port`` informativo, como antes.
 
@@ -167,6 +169,11 @@ def identify_unknown_service(  # pylint: disable=too-many-arguments
     if max_blind_probes <= 0:
         return None
 
+    # Un servicio que habla un protocolo pero no deja ver su producto (un 404
+    # sin cabecera ``Server``) sigue estando identificado: se sabe qué
+    # protocolo habla, y eso decide qué comprobaciones merece. Se guarda como
+    # recurso y sólo gana si ninguna sonda nombró un producto.
+    protocol_only: Optional[DissectorResult] = None
     for dissector in blind_probers(dissectors)[:max_blind_probes]:
         try:
             probed = dissector.probe(target, service, rate_limiter)
@@ -178,5 +185,7 @@ def identify_unknown_service(  # pylint: disable=too-many-arguments
             logger.debug("Cascada: %s:%s identificado como %s por sonda a ciegas",
                          target, service.port, probed.label)
             return probed
+        if probed is not None and probed.protocol and protocol_only is None:
+            protocol_only = probed
 
-    return None
+    return protocol_only
