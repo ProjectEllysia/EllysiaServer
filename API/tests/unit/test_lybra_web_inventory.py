@@ -150,3 +150,45 @@ def test_wordpress_plugins_are_inventoried_with_their_version():
     assert components["elementor"] == "3.21.0"                # del readme.txt
     assert requested == ["/wp-content/plugins/elementor/readme.txt"]
 
+
+
+# ===================================== firmas: palabras sueltas y versión de conector
+
+
+def _hit_names(body, headers=None):
+    response = _response(body, headers)
+    fingerprint = fingerprint_http(response)
+    return {hit.name for hit in fingerprint.hits}
+
+
+def test_a_signature_word_does_not_match_inside_a_longer_word():
+    """Señuelo: Grafana publica ``unifiedAlertingEnabled`` en su configuración
+    de arranque; la firma de Ubiquiti UniFi busca ``unifi`` y la encontraba
+    dentro de esa palabra."""
+    body = '<html><title>Grafana</title><script>window.grafanaBootData = {"unifiedAlertingEnabled":true}</script></html>'
+    assert "Ubiquiti UniFi" not in _hit_names(body)
+    assert "Ubiquiti UniFi" in _hit_names("<html><title>UniFi Network</title></html>")
+
+
+def test_a_link_to_a_jira_tracker_is_not_a_jira_instance():
+    """Señuelo: la portada de Solr enlaza al seguimiento de incidencias de su
+    proyecto, que vive en un Jira ajeno."""
+    body = '<a href="http://issues.apache.org/jira/browse/SOLR">Issue Tracker</a>'
+    assert "Atlassian Jira" not in _hit_names(f"<html>{body}</html>")
+    assert "Atlassian Jira" in _hit_names("<html><title>Log in - Jira</title></html>")
+
+
+def test_a_link_to_a_confluence_wiki_is_not_a_confluence_instance():
+    body = '<a href="https://cwiki.apache.org/confluence/display/SOLR">Wiki</a>'
+    assert "Atlassian Confluence" not in _hit_names(f"<html>{body}</html>")
+    assert "Atlassian Confluence" in _hit_names("<html><title>Dashboard - Confluence</title></html>")
+
+
+def test_the_coyote_connector_version_is_not_the_tomcat_version():
+    """``Apache-Coyote/1.1`` es la versión del conector HTTP, la misma en Tomcat 7
+    y en Tomcat 10: tratarla como versión del producto emparejaba una versión
+    «1.1» con una veintena de CVE que no corresponden."""
+    response = _response("<html></html>", {"server": "Apache-Coyote/1.1"})
+    hits = {hit.name: hit.version for hit in fingerprint_http(response).hits}
+    assert "Apache Tomcat" in hits
+    assert hits["Apache Tomcat"] is None

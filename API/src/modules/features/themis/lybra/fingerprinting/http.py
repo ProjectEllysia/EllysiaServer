@@ -42,6 +42,7 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Pattern, Tuple
 
@@ -191,7 +192,13 @@ class TechMatcher:
             ``"error_body"`` (a deliberately nonexistent path's response, if
             fetched), ``"title"``, or ``"header:<name>"`` for a specific
             response header.
-        words: Case-insensitive substrings; any one present is a match.
+        words: Palabras que, si alguna aparece, dan el matcher por casado,
+            sin distinguir mayúsculas. En las partes de texto (``body``,
+            ``title``, ``error_body``) se buscan como palabra: no pueden ir
+            pegadas a una letra o cifra, así que ``unifi`` no casa dentro de
+            ``unifiedAlertingEnabled``. En las cabeceras se buscan como
+            subcadena, porque ahí se usa una palabra suelta como «la cabecera
+            existe» (``.``, ``a``, ``e``…).
         version_pattern: Expresión regular opcional con un grupo llamado
             ``version``, evaluada sobre **la misma parte** que ``words``. Vive
             en el matcher y no en la firma porque el sitio donde está la
@@ -436,6 +443,30 @@ def _tech_evidence(
     return evidence
 
 
+# Partes que son texto libre de la página, donde una subcadena corta coincide
+# con palabras que no tienen nada que ver (``unifi`` en ``unifiedAlerting``,
+# ``hass`` en ``chassis``). Las cabeceras quedan fuera a propósito.
+_TEXT_PARTS = frozenset({"body", "title", "error_body"})
+
+
+@lru_cache(maxsize=None)
+def _whole_word_pattern(word: str) -> Pattern:
+    """Patrón que busca ``word`` sin letras ni cifras pegadas por sus extremos.
+
+    El límite sólo se exige en un extremo que sea alfanumérico: una palabra
+    como ``sites/all/`` o ``wp-content`` ya se delimita sola con sus símbolos.
+
+    Args:
+        word: La palabra de la firma.
+
+    Returns:
+        El patrón compilado, insensible a mayúsculas.
+    """
+    left = r"(?<![a-z0-9])" if word[:1].isalnum() else ""
+    right = r"(?![a-z0-9])" if word[-1:].isalnum() else ""
+    return re.compile(left + re.escape(word) + right, re.IGNORECASE)
+
+
 def _signature_hit(signature: TechSignature, evidence: Dict[str, str]) -> Optional[SignatureHit]:
     """Evalúa una firma contra la evidencia y devuelve lo que aporta.
 
@@ -456,7 +487,11 @@ def _signature_hit(signature: TechSignature, evidence: Dict[str, str]) -> Option
     for matcher in signature.matchers:
         raw = evidence.get(matcher.part, "")
         text = raw.lower()
-        if not any(word.lower() in text for word in matcher.words):
+        if matcher.part in _TEXT_PARTS:
+            is_hit = any(_whole_word_pattern(word).search(text) for word in matcher.words)
+        else:
+            is_hit = any(word.lower() in text for word in matcher.words)
+        if not is_hit:
             continue
         did_match = True
         if matcher.version_pattern is None:

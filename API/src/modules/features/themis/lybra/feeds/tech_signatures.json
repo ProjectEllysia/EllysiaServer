@@ -164,8 +164,7 @@
           "part": "header:server",
           "words": [
             "coyote"
-          ],
-          "versionPattern": "Coyote/(?P<version>\\d+(?:\\.\\d+)+)"
+          ]
         },
         {
           "part": "error_body",
@@ -415,9 +414,16 @@
         {
           "part": "body",
           "words": [
-            "confluence"
+            "atlassian confluence",
+            "com.atlassian.confluence"
           ],
           "versionPattern": "ajs-version-number\"\\s+content=\"(?P<version>\\d+(?:\\.\\d+)+)"
+        },
+        {
+          "part": "title",
+          "words": [
+            " - confluence"
+          ]
         }
       ]
     },
@@ -427,10 +433,16 @@
         {
           "part": "body",
           "words": [
-            "jira",
-            "atlassian jira"
+            "atlassian jira",
+            "jira.webresources"
           ],
           "versionPattern": "ajs-version-number\"\\s+content=\"(?P<version>\\d+(?:\\.\\d+)+)"
+        },
+        {
+          "part": "title",
+          "words": [
+            " - jira"
+          ]
         }
       ]
     },
