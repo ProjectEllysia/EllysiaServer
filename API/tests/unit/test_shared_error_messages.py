@@ -71,6 +71,7 @@ _SAMPLE_ARGUMENTS: dict[str, list[tuple]] = {
     "FrameworkArchivedError": [("nis2",)],
     "FrameworkNotArchivedError": [("nis2",)],
     "ControlNotAssessableError": [("RE.3",)],
+    "SystemCategoryNotSupportedError": [("nis2",)],
     "EvidenceTooLargeError": [(25,)],
     "EvidenceTypeMismatchError": [("pdf",)],
     "EvidenceActiveContentError": [("macros",)],
