@@ -192,3 +192,77 @@ def test_the_coyote_connector_version_is_not_the_tomcat_version():
     hits = {hit.name: hit.version for hit in fingerprint_http(response).hits}
     assert "Apache Tomcat" in hits
     assert hits["Apache Tomcat"] is None
+
+
+# ======================== versión de la rama mayor, plataforma y núcleo de WordPress
+
+DRUPAL_7_HOME = """<html><head>
+<meta name="generator" content="Drupal 7 (http://drupal.org)">
+<script>jQuery.extend(Drupal.settings, {});</script></head><body></body></html>"""
+
+
+def _components(body, headers=None, files=None):
+    """Los componentes de una portada servida por un Apache identificable."""
+    fetch_path, _requested = _fetcher(files or {})
+    response = _response(body, {"server": "Apache/2.4.10 (Debian)", **(headers or {})})
+    return dict(web_components(fingerprint_http(response), response.body, fetch_path))
+
+
+def test_a_drupal_known_only_by_its_major_branch_asks_its_changelog():
+    """La etiqueta *generator* de Drupal 7 da «7», sin minor: con eso todas las
+    CVE de la rama «aplican», incluidas las corregidas en 7.12."""
+    components = _components(
+        DRUPAL_7_HOME, files={"/CHANGELOG.txt": "\nDrupal 7.57, 2018-02-21\n-----------------------\n"})
+    assert components["Drupal"] == "7.57"
+
+
+def test_a_drupal_without_a_readable_changelog_keeps_its_branch():
+    assert _components(DRUPAL_7_HOME)["Drupal"] == "7"
+
+
+def test_a_component_known_only_by_its_major_branch_gets_no_cve_correlation():
+    """Sin minor no se sabe si la CVE ya estaba corregida. El fin de soporte
+    de la rama sí se sigue comunicando."""
+    cve = SimpleNamespace(cve_id="CVE-2014-3704", cvss_score=7.5, cvss_vector=None,
+                          severity="HIGH", required_os=None)
+    engine = LybraEngine(cve_lookup=lambda vendor, product, version: [cve])
+    service = Service(80, "tcp", "http", "Apache httpd", "2.4.10",
+                      components=(("Drupal", "7"),))
+    findings = engine.analyze([service])
+    assert not [f for f in findings if f.get("cve_ids") and "Drupal" in f["title"]]
+    assert any("fuera de soporte" in f["title"] and "Drupal" in f["title"] for f in findings)
+
+
+def test_a_platform_announced_behind_the_server_becomes_a_component():
+    """``Server: Apache`` gana la identidad del puerto; ``X-Powered-By: PHP``
+    describe otro programa que también tiene CVE y no debe perderse."""
+    components = _components("<html></html>", {"x-powered-by": "PHP/5.6.40"})
+    assert components["PHP"] == "5.6.40"
+
+
+def test_the_platform_that_is_already_the_identity_is_not_repeated():
+    response = _response("<html></html>", {"x-powered-by": "PHP/8.1.2"})
+    fingerprint = fingerprint_http(response)
+    assert fingerprint.product == "PHP"
+    assert "PHP" not in dict(web_components(fingerprint, response.body, _fetcher({})[0]))
+
+
+def test_a_platform_without_version_is_not_a_component():
+    components = _components("<html></html>", {"x-powered-by": "Express"})
+    assert "Express" not in components
+
+
+def test_wordpress_takes_its_core_version_from_the_assets_it_stamps():
+    """Una instalación sin ``generator`` ni feed accesible estampa la versión
+    del núcleo en sus propios assets; la de jQuery, que lleva la suya, no vale."""
+    body = ('<html><head>'
+            '<script src="/wp-includes/js/jquery/jquery.js?ver=1.12.4"></script>'
+            '<script src="/wp-includes/js/wp-embed.min.js?ver=5.0.3"></script>'
+            '</head></html>')
+    assert _components(body)["WordPress"] == "5.0.3"
+
+
+def test_a_wordpress_without_core_assets_is_not_given_a_library_version():
+    body = '<html><script src="/wp-includes/js/jquery/jquery.js?ver=1.12.4"></script></html>'
+    components = _components(body)
+    assert components.get("WordPress") is None

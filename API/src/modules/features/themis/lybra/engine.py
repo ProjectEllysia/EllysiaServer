@@ -246,6 +246,13 @@ class LybraEngine:  # pylint: disable=too-many-instance-attributes
         if resolved is None:
             return [], 0
         vendor, product, version, cpe23 = resolved
+        # Una versión leída sólo hasta la rama mayor («Drupal 7») no dice a qué
+        # versión pertenece: cualquier CVE corregida en 7.12 o en 7.57
+        # «aplicaría» por igual. Sin minor no hay correlación; el inventario y
+        # el fin de soporte de la rama sí siguen valiendo. El inventario de
+        # Hygeia queda fuera: ahí la versión la dio el propio equipo.
+        if service.origin != "inventory" and "." not in version:
+            return [], 0
         is_network_service = service.origin != "inventory"
 
         findings: List[dict] = []
