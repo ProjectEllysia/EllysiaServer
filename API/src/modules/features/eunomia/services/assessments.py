@@ -7,6 +7,9 @@ control y devuelve cuánto falta, por rama y en global.
 La regla que más importa: los controles «no aplica» **no cuentan ni a favor ni en contra**.
 El porcentaje es ``implementados / (evaluables − no aplica)``; si contarlos como pendientes
 el porcentaje engañaría hacia abajo y si los contara como hechos, hacia arriba.
+
+Los controles que el marco no exige en la categoría del sistema (ver ``applicability``) ni
+siquiera entran en el recuento, estén evaluados o no: el porcentaje mide lo exigido.
 """
 
 from dataclasses import dataclass
@@ -20,6 +23,7 @@ from ..model import (
     STATUS_NOT_APPLICABLE,
     STATUS_PENDING,
 )
+from .applicability import is_required
 from .catalog import CatalogNode, FrameworkVersion
 
 
@@ -58,25 +62,28 @@ def progress_of(counts: Mapping[str, int]) -> dict:
 
 
 def _branch_counts(version: FrameworkVersion, node: CatalogNode, states: Mapping[str, ControlState],
-                   cache: dict[str, dict[str, int]]) -> dict[str, int]:
-    """Recuento por estado de los controles evaluables bajo un nodo (él incluido)."""
+                   scope: Mapping[str, str], cache: dict[str, dict[str, int]]) -> dict[str, int]:
+    """Recuento por estado de los controles evaluables y exigidos bajo un nodo (él incluido)."""
     counts = {status: 0 for status in ASSESSMENT_STATUSES}
-    if node.is_assessable:
+    if node.is_assessable and is_required(scope, node.identifier):
         counts[states.get(node.identifier, ControlState()).status] += 1
     for child in version.children(node.code):
-        for status, amount in _branch_counts(version, child, states, cache).items():
+        for status, amount in _branch_counts(version, child, states, scope, cache).items():
             counts[status] += amount
     cache[node.code] = counts
     return counts
 
 
-def branch_progress(version: FrameworkVersion, states: Mapping[str, ControlState]) -> dict[str, dict]:
+def branch_progress(version: FrameworkVersion, states: Mapping[str, ControlState],
+                    scope: Optional[Mapping[str, str]] = None) -> dict[str, dict]:
     """Calcula el progreso de **todos** los nodos de una versión en una sola pasada.
 
     Args:
         version: La versión del catálogo adoptada.
         states: Estado de cada control evaluado, por identificador. Un control que no aparece
             está «pendiente».
+        scope: Lo que devuelve ``applicability``: solo cuentan los controles exigidos. Por
+            defecto ``None``, que exige todos.
 
     Returns:
         dict[str, dict]: Por código de nodo, lo que devuelve ``progress_of``. Incluye a los
@@ -84,12 +91,12 @@ def branch_progress(version: FrameworkVersion, states: Mapping[str, ControlState
     """
     cache: dict[str, dict[str, int]] = {}
     for root in version.children(None):
-        _branch_counts(version, root, states, cache)
+        _branch_counts(version, root, states, scope or {}, cache)
     return {code: progress_of(counts) for code, counts in cache.items()}
 
 
 def summarize(version: FrameworkVersion, states: Mapping[str, ControlState], today: date,
-              horizon_days: int = 30, limit: int = 10) -> dict:
+              horizon_days: int = 30, limit: int = 10, scope: Optional[Mapping[str, str]] = None) -> dict:
     """Resume el cumplimiento de un marco: global, por rama, vencimientos y sin responsable.
 
     Args:
@@ -98,6 +105,8 @@ def summarize(version: FrameworkVersion, states: Mapping[str, ControlState], tod
         today: El día de referencia para los vencimientos.
         horizon_days: A cuántos días vista se considera «próximo» un vencimiento. Por defecto 30.
         limit: Máximo de controles en cada lista. Por defecto 10.
+        scope: Lo que devuelve ``applicability``: los controles que no se exigen no cuentan ni
+            salen en las listas. Por defecto ``None``, que exige todos.
 
     Returns:
         dict: ``global`` (``progress_of``), ``branches`` (una entrada por raíz con ``code``,
@@ -106,7 +115,7 @@ def summarize(version: FrameworkVersion, states: Mapping[str, ControlState], tod
             abiertos sin responsable) y ``unassignedCount``. Un control «abierto» es el que
             no está ni implementado ni «no aplica».
     """
-    progress = branch_progress(version, states)
+    progress = branch_progress(version, states, scope)
     roots = version.children(None)
 
     global_counts = {status: 0 for status in ASSESSMENT_STATUSES}
@@ -118,7 +127,7 @@ def summarize(version: FrameworkVersion, states: Mapping[str, ControlState], tod
     upcoming, unassigned = [], []
     for node in version.assessable_nodes():
         state = states.get(node.identifier, ControlState())
-        if state.status not in open_statuses:
+        if state.status not in open_statuses or not is_required(scope or {}, node.identifier):
             continue
         entry = {"code": node.code, "identifier": node.identifier, "title": node.title,
                  "status": state.status, "dueDate": state.due_date,
