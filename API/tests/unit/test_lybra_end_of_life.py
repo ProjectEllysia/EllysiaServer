@@ -122,3 +122,22 @@ def test_every_cycle_in_the_bundled_catalog_resolves_to_a_real_date_or_rolling()
     for key, branches in load_eol_catalog().items():
         for branch in branches:
             assert "cycle" in branch and "eol" in branch, key
+
+
+def test_every_catalog_product_is_the_target_of_a_curated_alias():
+    """El catálogo se consulta con el ``(vendor, producto)`` al que resuelve el
+    alias: una clave que ningún alias produce no cruza nunca. Es lo que pasó
+    cuando el alias de MySQL pasó de ``mysql:mysql`` a ``oracle:mysql`` y el
+    catálogo se quedó con la clave de antes — el fin de soporte de MySQL 5.6
+    dejó de salir sin que nada fallara."""
+    from src.modules.features.themis.lybra.kb import load_product_aliases
+
+    alias_targets = {f"{vendor}:{product}" for vendor, product in load_product_aliases().values()}
+    assert set(load_eol_catalog()) <= alias_targets
+
+
+def test_a_mysql_56_resolved_through_its_alias_is_past_end_of_life():
+    from src.modules.features.themis.lybra.kb import load_product_aliases
+
+    vendor, product = load_product_aliases()["mysql"]
+    assert check_end_of_life(vendor, product, "5.6.51").is_past
