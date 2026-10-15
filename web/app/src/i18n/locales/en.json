@@ -271,7 +271,8 @@
     "userBinding": "The user could not be created because some data is missing.",
     "vaultRevisionMissing": "This operation needs the current version of the vault. Reload and try again.",
     "vaultRevisionOutdated": "The vault changed from another device. Reload and try again.",
-    "xmlParsing": "The scan results could not be processed."
+    "xmlParsing": "The scan results could not be processed.",
+    "systemCategoryNotSupported": "This framework does not distinguish system categories, or the category is not valid."
   },
   "kbAdmin": {
     "title": "Knowledge base",
@@ -2222,6 +2223,24 @@
         "overdue": "overdue",
         "done": "done"
       }
+    },
+    "category": {
+      "label": "System category",
+      "none": "Not chosen",
+      "basic": "Basic",
+      "medium": "Medium",
+      "high": "High",
+      "changed": "System category updated.",
+      "changeFailed": "The system category could not be changed.",
+      "missing": "This framework requires different measures depending on the system category (basic, medium or high). Choose it on the frameworks screen so compliance only counts what applies to you; until then, everything counts.",
+      "onlyRequired": "Only what is required",
+      "applicability": {
+        "required": "Required in {category} category",
+        "alternative": "Alternative: one of those its measure lists is enough",
+        "not_required": "Not required in {category} category",
+        "optional": "Optional: not required in any category"
+      },
+      "annexTitle": "What annex II requires per category"
     }
   },
   "organizationManaged": {

@@ -35,6 +35,20 @@
                   {{ t('eunomia.frameworks.version', { version: adoption.catalogVersion }) }}
                   · {{ t('eunomia.frameworks.adoptedOn', { date: formatDate(adoption.adoptedAt) }) }}
                 </p>
+                <label v-if="adoption.categories?.length && canManage" class="category">
+                  <span>{{ t('eunomia.category.label') }}</span>
+                  <select
+                    :value="adoption.systemCategory ?? ''"
+                    :disabled="store.state.busyKey === adoption.frameworkKey"
+                    @change="changeCategory(adoption, $event.target.value)"
+                  >
+                    <option value="" disabled>{{ t('eunomia.category.none') }}</option>
+                    <option v-for="category in adoption.categories" :key="category" :value="category">{{ t(`eunomia.category.${category}`) }}</option>
+                  </select>
+                </label>
+                <p v-else-if="adoption.categories?.length" class="meta">
+                  {{ t('eunomia.category.label') }}: {{ t(`eunomia.category.${adoption.systemCategory ?? 'none'}`) }}
+                </p>
                 </div>
                 <div v-if="adoption.progress" class="card-progress">
                   <ProgressBar :percent="adoption.progress.percent" :label="adoption.name" />
@@ -227,6 +241,18 @@ async function confirmUpgrade() {
   upgrading.value = null
   const result = await store.upgrade(target.frameworkKey)
   if (result.ok) toast.show(t('eunomia.frameworks.upgraded', { name: target.name }), 'success')
+  else toast.show(result.message, 'error')
+}
+
+/**
+ * Cambia la categoría del sistema de un marco adoptado y avisa.
+ *
+ * @param {object} adoption - Adopción del marco.
+ * @param {string} category - Categoría elegida.
+ */
+async function changeCategory(adoption, category) {
+  const result = await store.setSystemCategory(adoption.frameworkKey, category)
+  if (result.ok) toast.show(t('eunomia.category.changed'), 'success')
   else toast.show(result.message, 'error')
 }
 

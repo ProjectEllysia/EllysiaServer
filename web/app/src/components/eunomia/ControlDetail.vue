@@ -9,6 +9,9 @@
       </div>
       <h2 :id="`detail-title-${node.code}`">{{ node.title }}</h2>
       <p v-if="node.source" class="source">{{ node.source }}</p>
+      <p v-if="systemCategory && node.applicability" class="scope" :class="`scope--${node.applicability}`">
+        {{ t(`eunomia.category.applicability.${node.applicability}`, { category: t(`eunomia.category.${systemCategory}`).toLowerCase() }) }}
+      </p>
       <span class="meander" aria-hidden="true"></span>
     </header>
 
@@ -30,6 +33,16 @@
     <div v-show="current === 'requirements'" class="panel" :role="node.assessment ? 'tabpanel' : undefined"
          :id="`panel-requirements-${node.code}`" :aria-labelledby="node.assessment ? `tab-requirements-${node.code}` : undefined">
       <p v-if="node.description" class="description">{{ node.description }}</p>
+
+      <section v-if="annexRow" class="zone zone--quiet">
+        <SectionInscription tag="h3">{{ t('eunomia.category.annexTitle') }}</SectionInscription>
+        <dl class="annex">
+          <template v-for="category in CATEGORIES" :key="category">
+            <dt :class="{ 'annex--mine': category === systemCategory }">{{ t(`eunomia.category.${category}`) }}</dt>
+            <dd :class="{ 'annex--mine': category === systemCategory }">{{ annexRow[category] }}</dd>
+          </template>
+        </dl>
+      </section>
 
       <section v-if="node.actions.length" class="zone zone--do">
         <SectionInscription tag="h3">{{ t('eunomia.tree.actions') }}</SectionInscription>
@@ -164,7 +177,15 @@ const props = defineProps({
   conflict: { type: Object, default: null },
   /** Cambios del control, del más reciente al más antiguo. */
   history: { type: Array, default: () => [] },
+  /** Categoría del sistema de la adopción (`basic`, `medium`, `high`), o `null` si no hay. */
+  systemCategory: { type: String, default: null },
 })
+
+/** Las categorías del anexo II del ENS, en su orden. */
+const CATEGORIES = ['basic', 'medium', 'high']
+
+/** La fila del anexo II de una medida del ENS (`{basic, medium, high}`), o `null` si no tiene. */
+const annexRow = computed(() => props.node.metadata?.categories ?? null)
 const emit = defineEmits(['save', 'take-current', 'evidence-changed'])
 const { t } = useI18n()
 
@@ -310,6 +331,13 @@ h2 { font-size: var(--fs-xl); font-weight: 600; color: var(--text); overflow-wra
   background: var(--surface-2); border: 1px solid var(--border-med); border-radius: 0 10px 10px 10px;
 }
 .detail--flat .panel { border-radius: 10px; }
+.scope { margin-top: 0.4rem; font-size: var(--fs-body); color: var(--text-dim); }
+.scope--required { color: var(--accent); }
+.annex { display: grid; grid-template-columns: max-content 1fr; gap: 0.3rem 1rem; margin: 0; font-size: var(--fs-body); }
+.annex dt { color: var(--text-muted); }
+.annex dd { margin: 0; color: var(--text-dim); }
+.annex .annex--mine { color: var(--text); font-weight: 600; }
+
 .description {
   margin: 0; padding-inline-start: 0.8rem; border-inline-start: 2px solid var(--border-med);
   color: var(--text-dim); font-size: var(--fs-md); line-height: 1.5;

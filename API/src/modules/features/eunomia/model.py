@@ -37,6 +37,9 @@ class EunomiaFrameworkAdoption(Base):
         owner_user_id: Dueño efectivo de los datos (``resolve_data_owner``). Único por marco.
         framework_key: Clave del marco en el catálogo (``"nis2"``).
         catalog_version: Versión del catálogo a la que está fijada la adopción.
+        system_category: Categoría del sistema (``"basic"``, ``"medium"`` o ``"high"``) en los
+            marcos que exigen según ella (el ENS); ``None`` si no se ha elegido o el marco no
+            distingue categorías, y entonces se exigen todos los controles.
         status: ``"active"`` o ``"archived"``.
         adopted_at: Cuándo se adoptó.
         adopted_by_user_id: Quién lo adoptó (siempre el dueño: los miembros no adoptan).
@@ -51,6 +54,7 @@ class EunomiaFrameworkAdoption(Base):
     owner_user_id       = Column(Integer,    ForeignKey("User.id"), nullable=False, index=True)
     framework_key       = Column(String(32), nullable=False)
     catalog_version     = Column(String(64), nullable=False)
+    system_category     = Column(String(16), nullable=True)
     status              = Column(String(16), nullable=False, default=ADOPTION_ACTIVE)
     adopted_at          = Column(DateTime,   nullable=False, default=utcnow_naive)
     adopted_by_user_id  = Column(Integer,    ForeignKey("User.id"), nullable=False)

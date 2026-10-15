@@ -18,7 +18,7 @@
       :tabindex="row.node.code === focused ? 0 : -1"
       :data-code="row.node.code"
       class="item"
-      :class="{ 'item--selected': row.node.code === selected, 'item--path': row.node.isPathOnly }"
+      :class="{ 'item--selected': row.node.code === selected, 'item--path': row.node.isPathOnly, 'item--out': !isRequired(row.node) }"
       :style="{ paddingInlineStart: `${(row.level - 1) * 1.1 + 0.4}rem` }"
       @click="select(row.node)"
       @focus="focused = row.node.code"
@@ -68,7 +68,7 @@
  */
 import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { keyAction, statusOf, visibleNodes } from '@/components/eunomia/tree'
+import { isRequired, keyAction, statusOf, visibleNodes } from '@/components/eunomia/tree'
 import { formatNumber } from '@/i18n/format'
 
 const props = defineProps({
@@ -154,6 +154,8 @@ function onKeydown(event) {
   box-shadow: inset 3px 0 0 var(--accent);
 }
 .item--path { opacity: 0.7; }
+/* No se exige en la categoría del sistema: se ve, pero en segundo plano. */
+.item--out { opacity: 0.5; }
 
 /* Despliegue: las filas que aparecen crecen desde cero y las que se van se pliegan, de
    modo que las de debajo se deslizan en vez de saltar. */
